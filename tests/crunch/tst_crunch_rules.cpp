@@ -169,6 +169,7 @@ private Q_SLOTS:
     {
         EditWindow e;
         QVERIFY(e.open(rulesBook()));
+        e.win.w.setAutoComplete(false);   // ("yes" typed under "Yes" would be finished as "Yes")
         e.select(QStringLiteral("C1"));
         e.enter(QStringLiteral("Yes"));
         QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("s:Yes"));

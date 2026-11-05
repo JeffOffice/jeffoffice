@@ -52,6 +52,10 @@ ChartPlan planChart(const ChartCells &cells, int sheet, const QString &sheetName
 // The same, from a block of cells given as the data (no headers are looked for: `headerRow` and `headerColumn` say whether the block's first row and column are the names and categories).
 ChartPlan planChartFrom(const QString &sheetName, const CellRange &block, bool headerRow, bool headerColumn, bool inRows, ChartKind kind);
 
+// The kinds of chart that suit the cells a plan reads, best first (at most six): a column chart always; a line or an area for dates or many points; a pie for one series of a few positive
+// values; bars for a few labels; points for two or more columns of numbers with no labels. The plan is the one for a column chart of the selection.
+QVector<ChartKind> recommendChartKinds(const ChartCells &cells, int sheet, const ChartPlan &plan);
+
 // A chart of the kind for the plan: the kind's plots and axes, the legend and title a new chart has, the series reading the plan's references, in the theme's colors. The pie's slices
 // are given a color each (`slices` of them, at most 256).
 jp::office::Chart makeChart(ChartKind kind, const ChartPlan &plan, const jp::office::Theme &theme, int slices = 0);

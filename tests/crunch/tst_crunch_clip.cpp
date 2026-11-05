@@ -1,6 +1,7 @@
 // Tests of Cut, Copy, and Paste: within a workbook (values, formulas with their references moved, formats, merged ranges), between workbooks, with Paste Special's options, from and to other
 // programs as text and as HTML, and a cut that moves the cells and what refers to them. Every workbook is built here, in a temporary folder.
 #include "app/crunchinfo.h"
+#include "app/anchordialogs.h"
 #include "app/crunchwindow.h"
 #include "savedok.h"
 #include "app/settings.h"
@@ -329,6 +330,64 @@ private Q_SLOTS:
         QVERIFY(QApplication::clipboard()->image().isNull());
     }
 
+    // The table other programs take from a copy carries the look of the cells they would otherwise lose: lines under or through the text, how it sits, and the borders; a plain cell is as before.
+    void theCopiedTableCarriesUnderlinesAlignmentAndBorders()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Hello", "B1=2", "C1=plain"})));
+        auto run = [&](const char *id) {
+            QAction *a = e.win.w.act(QString::fromLatin1(id));
+            QVERIFY2(a && a->isEnabled(), id);
+            a->trigger();
+        };
+        e.select(QStringLiteral("A1"));
+        run("fmt.underline");
+        run("fmt.strike");
+        run("fmt.alignCenter");
+        run("fmt.alignTop");
+        run("fmt.border.outside");
+        copyRange(e, QStringLiteral("A1:C1"));
+        const QString html = QApplication::clipboard()->mimeData()->html();
+        const int a = int(html.indexOf(QStringLiteral(">Hello</td>"))), cell = int(html.lastIndexOf(QStringLiteral("<td"), a));
+        QVERIFY(a > 0 && cell >= 0);
+        const QString first = html.mid(cell, a - cell);
+        QVERIFY2(first.contains(QStringLiteral("text-decoration:underline line-through;")), qPrintable(first));
+        QVERIFY2(first.contains(QStringLiteral("text-align:center;")), qPrintable(first));
+        QVERIFY2(first.contains(QStringLiteral("vertical-align:top;")), qPrintable(first));
+        QVERIFY2(first.contains(QStringLiteral("border-left:1px solid #000000;")) && first.contains(QStringLiteral("border-bottom:1px solid #000000;")), qPrintable(first));
+        // a cell with none of that is as it was
+        QVERIFY(html.contains(QStringLiteral("<td>plain</td>")));
+    }
+
+    // Copy as Printed Picture draws the cells as the paper would have them: the sheet's print setup decides the gridlines (none by default), not the window's.
+    void copyAsPrintedPictureLeavesOutTheScreensGridlines()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Hello"})));
+        e.view()->selectRange(0, 0, 3, 3);
+        auto lightPixels = [](const QImage &image) {
+            int n = 0;
+            for (int y = 0; y < image.height(); ++y)
+                for (int x = 0; x < image.width(); ++x) {
+                    const int g = qGray(image.pixel(x, y));
+                    if (g > 150 && g < 245) ++n;
+                }
+            return n;
+        };
+        QAction *screen = e.win.w.act(QStringLiteral("edit.copyPicture")), *printed = e.win.w.act(QStringLiteral("edit.copyPicturePrinted"));
+        QVERIFY(printed);
+        QVERIFY(printed->isEnabled());
+        QApplication::clipboard()->clear();
+        screen->trigger();
+        QTRY_VERIFY(!QApplication::clipboard()->image().isNull());
+        const int onScreen = lightPixels(QApplication::clipboard()->image());
+        QApplication::clipboard()->clear();
+        printed->trigger();
+        QTRY_VERIFY(!QApplication::clipboard()->image().isNull());
+        const int onPaper = lightPixels(QApplication::clipboard()->image());
+        QVERIFY2(onScreen > onPaper + 200, qPrintable(QStringLiteral("%1 vs %2").arg(onScreen).arg(onPaper)));
+    }
+
     // The Paste button's menu offers each of Paste Special's choices, and each does what the dialog's choice does.
     void thePasteGalleryOffersPasteSpecialsChoices()
     {
@@ -350,6 +409,68 @@ private Q_SLOTS:
         QCOMPARE(shown(e, QStringLiteral("D1")), QStringLiteral("50%"));
         paste(e, QStringLiteral("E1"), "paste.exceptBorders");
         QCOMPARE(shown(e, QStringLiteral("E1")), QStringLiteral("50%"));
+    }
+
+    // Paste Text Import: text from another program is split by the separators the person chooses (a text column keeps its zeros), in one step of Undo.
+    void pastedTextCanBeSplitByTheTextImportChoices()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1"})));
+        auto *md = new QMimeData;
+        md->setText(QStringLiteral("junk\nname|007|x y\n\"q|r\"|2|z\n"));
+        QApplication::clipboard()->setMimeData(md);
+        TextImportRequest seen;
+        e.win.w.anchorHooks().textImportAsker = [&seen](TextImportRequest *r) {
+            seen = *r;
+            r->choices.separators = QStringLiteral("|");
+            r->choices.firstRow = 1;
+            r->choices.columns = {jp::office::sheet::CsvColumn{}, jp::office::sheet::CsvColumn{jp::office::sheet::CsvColumn::Kind::Text, QString()}};
+            return true;
+        };
+        QVERIFY(e.win.w.act(QStringLiteral("paste.textImport")));
+        e.select(QStringLiteral("C3"));
+        e.win.w.act(QStringLiteral("paste.textImport"))->trigger();
+        QVERIFY(e.settle());
+        QVERIFY(seen.head.startsWith("junk"));
+        QCOMPARE(e.valueAt(QStringLiteral("C3")), QStringLiteral("s:name"));
+        QCOMPARE(e.valueAt(QStringLiteral("D3")), QStringLiteral("s:007"));
+        QCOMPARE(e.valueAt(QStringLiteral("E3")), QStringLiteral("s:x y"));
+        QCOMPARE(e.valueAt(QStringLiteral("C4")), QStringLiteral("s:q|r"));
+        QCOMPARE(e.valueAt(QStringLiteral("D4")), QStringLiteral("s:2"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        // declined: nothing changes
+        e.win.w.anchorHooks().textImportAsker = [](TextImportRequest *) { return false; };
+        e.select(QStringLiteral("A8"));
+        e.win.w.act(QStringLiteral("paste.textImport"))->trigger();
+        QCOMPARE(e.valueAt(QStringLiteral("A8")), QStringLiteral("-"));
+    }
+
+    // Paste Link makes each pasted cell a formula that points at the copied cell, so it follows it; Paste as Hyperlink makes each a link to the copied cell.
+    void pasteLinkAndPasteAsHyperlinkPointAtTheCopiedCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=5", "B1=text", "A2=7"})));
+        copyRange(e, QStringLiteral("A1:B2"));
+        paste(e, QStringLiteral("D4"), "paste.link");
+        const QString f = formulaOf(e, QStringLiteral("D4"));
+        QVERIFY2(f.startsWith(QLatin1Char('=')) && f.endsWith(QLatin1String("!$A$1")), qPrintable(f));
+        QVERIFY(formulaOf(e, QStringLiteral("E5")).endsWith(QLatin1String("!$B$2")));
+        QCOMPARE(e.valueAt(QStringLiteral("D4")), QStringLiteral("n:5"));
+        QCOMPARE(e.valueAt(QStringLiteral("E4")), QStringLiteral("s:text"));
+        QCOMPARE(e.valueAt(QStringLiteral("E5")), QStringLiteral("n:0"));   // (a blank cell's link shows 0)
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("9"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("D4")), QStringLiteral("n:9"));
+        // as a hyperlink
+        copyRange(e, QStringLiteral("A1:B1"));
+        paste(e, QStringLiteral("G1"), "paste.hyperlink");
+        QCOMPARE(shown(e, QStringLiteral("G1:H1")), QStringLiteral("9|text"));
+        const jp::office::sheet::LinkSpec *link = e.win.w.session()->anchors().linkAt(0, 0, 6);
+        QVERIFY(link);
+        QVERIFY(link->location.endsWith(QLatin1String("!A1")));
+        QVERIFY(e.win.w.session()->anchors().linkAt(0, 0, 7));
     }
 
     // Paste Special: values (a formula becomes its result), formulas, formats, the block turned over, the empty cells left, and an operation made with what is there.

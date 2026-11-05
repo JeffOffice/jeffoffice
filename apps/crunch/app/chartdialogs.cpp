@@ -71,9 +71,9 @@ const QVector<ChartKind> &comboKinds()
 
 // ---- New Chart
 
-InsertChartDialog::InsertChartDialog(const ChartPreviewFn &preview, ChartKind initial, QWidget *parent) : QDialog(parent), m_preview(preview)
+InsertChartDialog::InsertChartDialog(const ChartPreviewFn &preview, ChartKind initial, QWidget *parent, const QVector<ChartKind> &only, const QString &title) : QDialog(parent), m_preview(preview)
 {
-    setWindowTitle(tr("New Chart"));
+    setWindowTitle(title.isEmpty() ? tr("New Chart") : title);
     setObjectName(QStringLiteral("insertChartDialog"));
     auto *outer = new QVBoxLayout(this);
     auto *row = new QHBoxLayout;
@@ -82,7 +82,14 @@ InsertChartDialog::InsertChartDialog(const ChartPreviewFn &preview, ChartKind in
     m_list->setAccessibleName(tr("Kind of chart"));
     m_list->setIconSize(QSize(64, 44));
     m_list->setMinimumWidth(220);
-    for (const ChartKindEntry &e : chartKindEntries()) {
+    QVector<ChartKind> shown;
+    if (only.isEmpty()) {
+        for (const ChartKindEntry &e : chartKindEntries()) shown.append(e.kind);
+    } else {
+        shown = only;
+    }
+    for (const ChartKind kind : shown) {
+        const ChartKindEntry e{kind, nullptr};
         auto *item = new QListWidgetItem(chartKindName(e.kind), m_list);
         item->setData(Qt::UserRole, int(e.kind));
         // (drawn large and made small: the words of a chart drawn at 64 pixels would be bigger than the chart)

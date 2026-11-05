@@ -3,7 +3,7 @@
   "jeffcrunch": {
    "name": "JeffCrunch",
    "reviewed": {
-    "day": "4",
+    "day": "5",
     "month": "November",
     "year": "2026"
    },
@@ -110,7 +110,7 @@
         },
         {
          "status": "partly",
-         "text": "5a4312ac5ae088fa65f719388c6acf53b792986abc44f043da3966a7e8681fc2"
+         "text": "8122c7a8d52b53fe224551de94c042eab5975e21c4ed323b1d6d553e413cf662"
         },
         {
          "status": "partly",
@@ -118,7 +118,7 @@
         },
         {
          "status": "partly",
-         "text": "1b2da739205e5ef00a88142c55c1db447fa0d8e5c38905ed0886104520f01ceb"
+         "text": "2941ca9ba1e6012dec536a59840f174d30bb9a16ecd6fd0350a78d923d85f869"
         },
         {
          "hide_soon": true,
@@ -251,8 +251,9 @@
          "text": "aa5c7292c5bd3f9dcbc80d0b258c1d20a87608124c26551c6b94defa89c04320"
         },
         {
-         "status": "todo",
-         "text": "cff4dcdd7547f7c48e39cde6830583c0b2b0a324784b47d037e8d45093a13ded"
+         "hide_soon": true,
+         "status": "done",
+         "text": "a0a699829db6cc393e5aaa348b65607a22d89e6d0bb3e3ce296f2dd1d8b7db9d"
         }
        ]
       },
@@ -316,8 +317,8 @@
          "text": "328aec9659bc0dd2fceeed37ba78ff18cd620002b882f8f0efa22bbe45fff269"
         },
         {
-         "status": "todo",
-         "text": "03469a5caea158e3393c9abbe389367a0b0b0d3c051faa284f9dceccec3bdd54"
+         "status": "partly",
+         "text": "7cc66d54c5068da08a69bc513718f421d39bddcbcadb34994e2453a8595e4938"
         },
         {
          "status": "todo",
@@ -372,11 +373,11 @@
         },
         {
          "status": "partly",
-         "text": "cd45a26a655e01fd84ad19d636c42d3097e11c84e549de7419b58f06d8bf2756"
+         "text": "886781a9eaa9d8438a36af8adb5a94d9567b95efb8ed74cf0324a107dac5e371"
         },
         {
-         "status": "todo",
-         "text": "844266b62554ff590c5ec9d10885d1d0c95a448df70b03e170be15b22389da8c"
+         "status": "partly",
+         "text": "e17b77f96f0f424148ce4f73f008a5c7b7b2876b5661739060907aea8b99ccf6"
         },
         {
          "hide_soon": true,
@@ -385,11 +386,11 @@
         },
         {
          "status": "partly",
-         "text": "ffdb870b5021bbcf0d0e8816280658fab2f7b214aee4723ab9e1fb6ba5da588e"
+         "text": "14fb445ee7dcea0f54531e85271ac3f26c899958217e42647577c8d664e7a5f5"
         },
         {
-         "status": "todo",
-         "text": "f1977d949fb536f15b18a3837dbb0850f70db4fc561bf7b7706492f68b24af9f"
+         "status": "partly",
+         "text": "2d46adb0c966afca27c8d0785328b4e607d4b4ce19e3ccb2b066665d86873e06"
         }
        ]
       },
@@ -409,8 +410,9 @@
          "text": "038b0b921cc277642323ae1c85ff65abb88e3429727abfee64e528f9c782e2f7"
         },
         {
-         "status": "partly",
-         "text": "7c23c00bd261d7c605437d3a51810aaf575e2eed2e762867e3b1a5d2a4d7fa3c"
+         "hide_soon": true,
+         "status": "done",
+         "text": "cdbd400faf3de1eea9d63deeff17c7e7d7d9b4f819489eb568effcc531b38487"
         },
         {
          "status": "partly",
@@ -630,7 +632,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "700c37da80975608da7046fa1f3dc180513cb0cc7a8b67822aae9964747bfdb6"
+         "text": "9880077aa73baa76d3d8cfe81cd5a00a2092c517913e466b6dc667a37086a316"
         },
         {
          "status": "partly",
@@ -638,7 +640,7 @@
         },
         {
          "status": "partly",
-         "text": "d4769a597b36caf2f5e36507a46d8c3ec2d8b829b838ffbaa42bd13ae0ca30a4"
+         "text": "f9518d58e1b54257163d384e7c3ba2a14d66663b89d4ecbdd7563548eb526376"
         },
         {
          "status": "partly",
@@ -672,8 +674,9 @@
          "text": "26c597e7b6d8940b5c86f64fc05ae734154c19b924782d0f61b8290a7d85d6d7"
         },
         {
-         "status": "todo",
-         "text": "59c327fd54fbcfd11ffd18745c328782ed23dd9423473f74db4ca8014372f931"
+         "hide_soon": true,
+         "status": "done",
+         "text": "635280e7595b91215e2ce7aa1b21c1f23e8ad6d215086b20f70d7742dc24a569"
         },
         {
          "status": "partly",
@@ -685,8 +688,9 @@
        "heading": "d4c7bac5b475fee65512621f3327448cb4510158cc1cbc6a4ab3e8906c2713d7",
        "items": [
         {
-         "status": "partly",
-         "text": "bc0a968f1f7b7d1dcffd7df0ca1d6423b44b2fa17b02efa3ffd17947ba49b745"
+         "hide_soon": true,
+         "status": "done",
+         "text": "89c43343f263390fcdc7f750f6f1ed4254f365a1555965956f72325a5fab1923"
         }
        ]
       },
@@ -712,8 +716,8 @@
          "text": "e093a72f831d17f44e0b19e01a8108484f23b5a1e59deefaa416de294508337f"
         },
         {
-         "status": "todo",
-         "text": "5f44292400c633cf22c2311ed1ab766a6537322c1b79883ed4934ee1a0444a8b"
+         "status": "partly",
+         "text": "ac8c74a64b7e5263a8a9d25822133c8e143db9a239b18d11cbd3256390124356"
         }
        ]
       },
@@ -731,7 +735,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "d16f0831b241a56443030cd2e77c12c8545c0a03e5cb94bc0893f9f5c5b15826"
+         "text": "559c90b2c884e44bd0b485325d4e50ee3344aa7af2c41cb1bda07336ac9847cd"
         },
         {
          "hide_soon": true,
@@ -898,8 +902,9 @@
          "text": "41248743fd5073dbce5a8463ac14318d5d84e6aab0b9306efa95fd67e937a802"
         },
         {
-         "status": "partly",
-         "text": "0460d91ebac39bac1314c0e220d49dd69014d62ca852f55c3aa9b58652e4c593"
+         "hide_soon": true,
+         "status": "done",
+         "text": "0d74ed6a6360573b7af47582fa18bece9f985a448c528a28f7c291b77a210cf3"
         },
         {
          "status": "partly",
@@ -1109,8 +1114,9 @@
          "text": "69b666e8becbc4fed0c3450210a99626d4118c5ee049f1e7585a6fb6ec00eecb"
         },
         {
-         "status": "todo",
-         "text": "02506436007364d8af8dda128f6b07e232bd0c87ed0e9d1b2048b291eed9a32a"
+         "hide_soon": true,
+         "status": "partly",
+         "text": "935939a8980548987aac5850402875fc35b8b991186e7a9239b5afa0b345ecb2"
         }
        ]
       },
@@ -1294,8 +1300,8 @@
          "text": "694f2d850314aec7ecff9177dc38cff43c3192141d8852bd37c713791fcc2085"
         },
         {
-         "status": "todo",
-         "text": "d841a4f3a2f4257ae9730886ef93cc1fb32d2ac63ab2afa3363fc139d3619342"
+         "status": "partly",
+         "text": "2e0fa83fac514f91afac07714a92aa738f83a4ca07211d84a3cc0ed91bc91fce"
         },
         {
          "hide_soon": true,
@@ -1349,7 +1355,7 @@
         },
         {
          "status": "partly",
-         "text": "9b5351148cb0b808e967776f136b87e5a5fd309a0b43575a4ded97c5b1d632b5"
+         "text": "467b25f70c07944a760d79065468f2b95c30d1fb90b08b2d9ebea9eceb147580"
         },
         {
          "hide_soon": true,
@@ -1450,11 +1456,11 @@
         },
         {
          "status": "partly",
-         "text": "a9cd2f1b933436b6275f896b0e4556d64fe811c84b925337c51e65538a29fe17"
+         "text": "7a5170a518cedbfa510003597b3db868542406bcf3e443043ba7fa37538cf878"
         },
         {
          "status": "partly",
-         "text": "e4f04f445a4ca11c3ce1a2688b39d48b0afd539c7e3f00576b0a2bd96f9950fb"
+         "text": "ac69bfac923d9c93ec5119a731c0a8d4761e2550491fab0d75244bfb9cab8ef4"
         },
         {
          "status": "partly",
@@ -1467,15 +1473,15 @@
        "items": [
         {
          "status": "partly",
-         "text": "8c503eb66a380438c315ca8af2819fab34ad13a87976fb5088813392635ae415"
+         "text": "309296816c747e0ef378ee6435120336057fc8e3a74689c0ca98784f576e9e1f"
         },
         {
          "status": "partly",
-         "text": "0950922aeb7df0ccb9342162c60315a9a3ed0b2ce798ddec234d772ce3b73b5c"
+         "text": "c3596f2a7775ff0cc69205f0ed1a30823db2320f8db5de4cdc50336518ab8cca"
         },
         {
          "status": "partly",
-         "text": "8638e728a692ab20927c0939d85c097512ed02437696c9eabc2b9b8c95d32143"
+         "text": "f973e308360a112e61bebb001ba5338936e93f51a08d5c75e66537638da6767b"
         },
         {
          "status": "todo",
@@ -1585,8 +1591,9 @@
          "text": "f5db565cb2f968cc7e82188b07dfb112e0c4de1dbf5b318f84613b111dbba9bd"
         },
         {
-         "status": "todo",
-         "text": "2e2b7978a86933ebaec447bbe9a9cb181013f0af9f77f1f945ea4307bb791bad"
+         "hide_soon": true,
+         "status": "done",
+         "text": "3e2ea13d39d6bffa3267412de9daa6ab8071fe24ce083eab901f3de600e55112"
         },
         {
          "status": "partly",
@@ -1613,8 +1620,9 @@
          "text": "7af548a96b87ea065562937711e69b5c4415cf099fbcb1255af7b19b3c688df6"
         },
         {
-         "status": "todo",
-         "text": "b87ccc4acd0b7a3eedc5d7c755cf62911919b4252771b0a33ee58188d0c1d300"
+         "hide_soon": true,
+         "status": "done",
+         "text": "41f1adeb641eee0f913f6c8d822f2304729e280d7780da49dc25cbce24d057a0"
         }
        ]
       }
@@ -1651,8 +1659,9 @@
        "text": "2e0add71177aa3481e43701694a9eac6797c11eeb88a41b881ea61a86f7ee224"
       },
       {
-       "status": "partly",
-       "text": "a555cc3b23ff7b784fff2524acf2db07547f7350264e8e746f2004507582871e"
+       "hide_soon": true,
+       "status": "done",
+       "text": "d421b6c65828b3d9f8bcc52f4a412e1183cc18472ada7534595a63f8b623a20e"
       },
       {
        "hide_soon": true,
@@ -1694,8 +1703,9 @@
        "text": "91e7a57a97b8d086a98e5df3af551a99bdb53d3ba5e1a5ad1aff6fda1ba7d3b9"
       },
       {
-       "status": "partly",
-       "text": "ea8fb54a167e34f19f941c660774c93a5fb769e18446df0f461f209fc4e7b7e1"
+       "hide_soon": true,
+       "status": "done",
+       "text": "e2d2ccdf1ec434cc1feb6dc9a19d3bdb80d9ed2519542a40a057713531005388"
       },
       {
        "hide_soon": true,
@@ -1713,8 +1723,9 @@
        "text": "622d1c654c62cfa2bd758ce273d6af09c1aeedba57a816dea759fb74429bf5d2"
       },
       {
-       "status": "partly",
-       "text": "55da475027e88a2f1bded7b93edd3e9d699be2746c926ab36c19b2c8907b341e"
+       "hide_soon": true,
+       "status": "done",
+       "text": "5af4a6bfdf127372942ce92dceffdd694afe495e75029b368e423ec383561260"
       },
       {
        "status": "todo",
@@ -2127,8 +2138,9 @@
          "text": "2b1b1f8bb976d5f4393cc6d70ddec8406c022c10a1e153e6aaf72e8be5f1d71e"
         },
         {
-         "status": "todo",
-         "text": "2418710f36ab404d1c72397d7ae9752713c20fcd5906432a3333e4c651afbaf5"
+         "hide_soon": true,
+         "status": "done",
+         "text": "51e7e7bf8ecf235ea3c36337864ee8b9945f7fb11b6f23c65b1e77b5d94ecd4a"
         }
        ]
       },
@@ -2141,12 +2153,13 @@
          "text": "d1a5a5aa0c8cd0e917121bd5fdab8857ce827dd1e05dbe7c5bacf0ccaf79bc08"
         },
         {
-         "status": "todo",
-         "text": "2cde69ac2924cd9d4c976c38fd4483317d16b934267878c741c844fa731c40ca"
+         "status": "partly",
+         "text": "acb570f4de240d9fa5efa376f2aecb24bbbdff9d5084b1a1e07e658a6ee04eff"
         },
         {
-         "status": "todo",
-         "text": "a423b0f56b4814e3eb1181bdd35d9a43bb2571e7c8050762b80249bdf67fe811"
+         "hide_soon": true,
+         "status": "done",
+         "text": "1fe0c6e0626b9858ec2f0225bd17c782e9e8118cff058192d23ab0797c2dc71e"
         },
         {
          "hide_soon": true,
@@ -5161,7 +5174,7 @@
   "jeffwrite": {
    "name": "JeffWrite",
    "reviewed": {
-    "day": "4",
+    "day": "5",
     "month": "November",
     "year": "2026"
    },
@@ -5516,8 +5529,9 @@
          "text": "8e376ec2dcfae855851b7015b5324bfba865d8c25fe9d806fc50303d71c9d24a"
         },
         {
-         "status": "todo",
-         "text": "dc88855805f9b19ac15958bfa383ed46f9708bc6e72020b601e670e59789fb55"
+         "hide_soon": true,
+         "status": "done",
+         "text": "2da2eb67c09fefbeb5314717959c00c1da27cb0a505f700a8d8665aff360be81"
         }
        ]
       },
@@ -5525,8 +5539,9 @@
        "heading": "0544faac1bb25f2f7083b52fc24b4a88a31e9b28837bbed39f51c25dd8e0301c",
        "items": [
         {
-         "status": "partly",
-         "text": "bf1600bac1d9d9b62098828faaf7c1ca1028f955f1d332404bd6cea30f343bb6"
+         "hide_soon": true,
+         "status": "done",
+         "text": "b8687836b26ffb34388a2b607228a2e6ec57c64240650107acc9338e9a807f0a"
         },
         {
          "hide_soon": true,
@@ -5552,8 +5567,9 @@
          "text": "064118c41ca481c01bc6b6520cac3848533de7c016a5fa3a34160404bd194fda"
         },
         {
-         "status": "partly",
-         "text": "28b5340afefb18d342acc59fa5b8259caa7c93d080f0fd9a5b8ff6d2b12bdc47"
+         "hide_soon": true,
+         "status": "done",
+         "text": "097eae1da48d702cb92722c19f7dc78bef705985f46cfd4773195f8806ac3a9d"
         },
         {
          "hide_soon": true,
@@ -5625,8 +5641,9 @@
          "text": "968d6177a5075fe4c7133c8d5e015ed7d8f8ad561c77a755e458823ab9a7894b"
         },
         {
-         "status": "partly",
-         "text": "18e2afc293c317c2f2419c037a92cbebaa76ee3d286cf8e18a35b4e08a695943"
+         "hide_soon": true,
+         "status": "done",
+         "text": "606241081bc6274ea4763d758bdeba096cb38dcdd4c940ab6e67010d8d7bdb4b"
         },
         {
          "status": "partly",
@@ -5652,8 +5669,9 @@
          "text": "9f6cc5d35f270f1bf7f90a6e6edc9c5a8143edc2429e4411f8f180c65a02a002"
         },
         {
-         "status": "partly",
-         "text": "04e403e02bdd6629ef0a37065a7225aca00cf92f119f90f187aac6a080ecd5c0"
+         "hide_soon": true,
+         "status": "done",
+         "text": "5b213dd47f182160171102ad322b357b9c0ce1b6f266ffc3d0bc40ed1388040f"
         },
         {
          "status": "partly",
@@ -5685,8 +5703,9 @@
          "text": "f68ea5332237e774735640e7d90da9bf3a9f59e26f9b85fb0e3801d4b8ffd04b"
         },
         {
-         "status": "partly",
-         "text": "925b63e7b5cf79cb40a90126b6ea02aaacd58f6c2edb7ab952eb371e06ccae6a"
+         "hide_soon": true,
+         "status": "done",
+         "text": "efaee397d18336214761b7c9877f12c60adfef5347e7308feaaed469a1bfbf34"
         },
         {
          "status": "todo",
@@ -5755,7 +5774,7 @@
         },
         {
          "status": "partly",
-         "text": "e01c7fd05b3d656d9ef5fa22b7f06abbcd2948fda6e66b2831f07d3024b1d8f9"
+         "text": "82f109d32b197fc2ad6a2069093b73f25b90c9187696eca78baa83c8b42eb029"
         },
         {
          "status": "todo",
@@ -5766,8 +5785,8 @@
          "text": "f1de61295a21178da8354fd3941d24f4dcd9aa3023ac569e0569cdb6ab18d8f7"
         },
         {
-         "status": "todo",
-         "text": "edb2a21905c8412e78e8ddfc6a8963186c19c7190042e8c8353abcb2a9b2a9ee"
+         "status": "partly",
+         "text": "a94fe7d7c612d9d0d8415b17a13fdabced472dcce88f4f729092eb9966146671"
         }
        ]
       },
@@ -5790,11 +5809,11 @@
        "items": [
         {
          "status": "partly",
-         "text": "6a58f51eac09f2480561d538b52ad101723f3c35d2b75127fa19e6aadbbd42d4"
+         "text": "da98e867f784a53493a241dcf58902e9bb46436e247d393ec682c810d1b5a29c"
         },
         {
-         "status": "todo",
-         "text": "8851dadaa445207436d5c8757cc62d8d69a83b6437bcc209d7eb6c24a3edd598"
+         "status": "partly",
+         "text": "83c5ea97ca2c06ab309c5b727e157f864f42ec677e302746267c366078b1f866"
         },
         {
          "status": "todo",
@@ -5841,8 +5860,9 @@
      "heading": "f758d55747a6fb072e129bf3968c7fb46d2d94c499a6a8c8fb72eb4e517abe55",
      "items": [
       {
-       "status": "todo",
-       "text": "0a8225e215ff38ad717a135a3aac03414c9050abcc9e48e4f9e61600f9139be9"
+       "hide_soon": true,
+       "status": "done",
+       "text": "48dc9f929a6270a4c3f82f643e33273eea1bdc382d11643fcc739b424b33b110"
       }
      ]
     },
@@ -6387,23 +6407,23 @@
        "items": [
         {
          "status": "partly",
-         "text": "6b62216e93c5a4c1dab9d635bdeaf3ee3d0df5bca091731cac8affadee00a931"
+         "text": "64796207cb6c0ac00e648cb6a473640abafd809b59406d2b6be8705715c6279b"
         },
         {
          "status": "partly",
-         "text": "4c5fc01ab304968c1dce46c64451582b990d799aee3356a363e0fa2f02803e03"
+         "text": "92db3dc494ac7468a45cf2bfc89975b3bffec984544da3e76f656f2b3d614190"
         },
         {
-         "status": "todo",
-         "text": "af6e919d5fe817b3a7a21263d66bee07a251ba059a9c7f1de426926ebbf1926b"
+         "status": "partly",
+         "text": "2ca484e0b6477b48770eca7a8761d3fec59c54a5cfb0b52c7f528ec39c291581"
         },
         {
-         "status": "todo",
-         "text": "03fa0dd5f8887b2d615ce2dbb141b31101f692177a1904116a68fabfc936943d"
+         "status": "partly",
+         "text": "fb416e14dbdef7685cfafb35d8d2a3b26036ae88392c4b4179b5bd0c4e96c1f3"
         },
         {
-         "status": "todo",
-         "text": "e96478d4ced7d86403d483764a7724d989d44b65a71ba25d948a6b1bcd5be775"
+         "status": "partly",
+         "text": "bc3b3f4c947da059031460fc8f6cb3d229e878651c4fad18870f81cff878968a"
         }
        ]
       },
@@ -6412,15 +6432,15 @@
        "items": [
         {
          "status": "partly",
-         "text": "ca863245f9a5eedd1f5cc5bf123e056f7d3c36689aadcc52435381db607b08a8"
+         "text": "02025e4a98feb16d9cb386b4b89b1bd01f2cb023861610eb65db7a8664b4878d"
         },
         {
          "status": "partly",
-         "text": "e46d75f4af20743cbe91a92f1eac1a5a90cf89b671f1d16e6b6246b730632a2f"
+         "text": "673229a14a06cbb82d6b2b90d73a79c4d0aaae0b9831eb7214ac7ff62ad824d5"
         },
         {
-         "status": "todo",
-         "text": "5bf861f879a42ec4e73f9ec0e8e8f005343740e8725fefddbd661c7ba9b880b0"
+         "status": "partly",
+         "text": "61e6b7d089d3ec03c147229c732efa8049dc59c4ed2a128d75ac8b463a40ffbb"
         },
         {
          "status": "partly",
@@ -6462,12 +6482,12 @@
        "heading": "180ed1b3dfb533b06ceac167b49184c6bd8e657e5c58f1b57d04dac6063bf6d9",
        "items": [
         {
-         "status": "todo",
-         "text": "0ae0380812d15e0d2bc26baa5d6dab8d89ffa76de30e103c769eb5141065bcd5"
+         "status": "partly",
+         "text": "43c5fd7487fce0e880638f22a6c340a4820b0c1560b9d0bce0fbaca599799da9"
         },
         {
-         "status": "todo",
-         "text": "89a304498165914e259a4f86646be66e26568f13c113e3eccde88b26f9601659"
+         "status": "partly",
+         "text": "b9dd1606020a4f60c28bbd7fdd6e3f24cdcb6381d3b5753391639046e1083cb1"
         },
         {
          "status": "todo",
@@ -6475,7 +6495,7 @@
         },
         {
          "status": "partly",
-         "text": "b3c2bc5bc2adcf570f6a863930e3ba28dfb4b0d2b398b08f902c9532e2fc51d2"
+         "text": "bd829a1f8639c085d6dd01c6ef39f0973839c1109b69195cc3ee870f8628bb94"
         }
        ]
       },
@@ -6483,8 +6503,8 @@
        "heading": "fe3b8622fcd06b4406ea17bb9896d55c238fd697ff26ae4e84f0104a82233412",
        "items": [
         {
-         "status": "todo",
-         "text": "bec59dd81b51bb60c45ac167f14d9fe8ac8a6bbf53c9a2964f65952f18e730b7"
+         "status": "partly",
+         "text": "18a5e179384d140c489ba712da3a184eddf9d638d1239d5afed6c2d32a273f0d"
         },
         {
          "status": "todo",
@@ -7140,6 +7160,18 @@
     "fr": ""
    }
   },
+  "02025e4a98feb16d9cb386b4b89b1bd01f2cb023861610eb65db7a8664b4878d": {
+   "drop": false,
+   "en": "Shape Format has a gallery of 12 shape styles, Shape Fill (a color or none), Shape Outline (a color or none), Weight, and Dashes. Fills and outlines in a file are drawn.",
+   "es": "Formato de forma incluye una galería de 12 estilos de forma, Relleno de forma (un color o ninguno), Contorno de forma (un color o ninguno), Grosor y Guiones. Los rellenos y contornos de un documento se dibujan.",
+   "fr": "Format de forme propose une galerie de 12 styles de forme, Remplissage de forme (une couleur ou aucun), Contour de forme (une couleur ou aucun), Épaisseur et Tirets. Les remplissages et contours d’un fichier sont dessinés.",
+   "soon": {
+    "drop": false,
+    "en": "Gradient, picture, texture, and pattern fills, arrow ends, shape effects, and the Format Shape pane",
+    "es": "Rellenos de degradado, imagen, textura y patrón, extremos de flecha, efectos de forma y panel Formato de forma",
+    "fr": "Remplissages dégradé, image, texture et motif, extrémités de flèche, effets de forme et volet Format de forme"
+   }
+  },
   "0230f52409eee524a9af2526b43a7bd64813922aa19b31f5c74d0f7563a1f7d0": {
    "drop": true,
    "en": "",
@@ -7150,18 +7182,6 @@
     "en": "Edit Data and Select Data: a data grid for the chart’s numbers, opened in place, with Switch Row/Column",
     "es": "Editar datos y seleccionar datos: una cuadrícula de datos para los números del gráfico, abierta en el lugar, con cambio de fila/columna",
     "fr": "Modifier les données et sélectionner les données : une grille de données pour les chiffres du graphique, ouverte sur place, avec inversion lignes/colonnes"
-   }
-  },
-  "02506436007364d8af8dda128f6b07e232bd0c87ed0e9d1b2048b291eed9a32a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Check Accessibility: alt text, merged cells, layout blanks, sheet names, header row, color contrast, and reading order",
-    "es": "Comprobar accesibilidad: texto alternativo, celdas combinadas, celdas en blanco de diseño, nombres de hojas, fila de encabezado, contraste de color y orden de lectura",
-    "fr": "Vérification de l’accessibilité : texte de remplacement, cellules fusionnées, cellules vides de mise en page, noms de feuilles, ligne d’en-tête, contraste des couleurs et ordre de lecture"
    }
   },
   "025da5213017d5f3cdbb40b530a254abbd9a6887dc95c4c8191545066040a862": {
@@ -7224,18 +7244,6 @@
     "fr": ""
    }
   },
-  "03469a5caea158e3393c9abbe389367a0b0b0d3c051faa284f9dceccec3bdd54": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Advanced editing options: Enter key direction, in-cell editing, fill handle, drag and drop, and paste choices",
-    "es": "Opciones avanzadas de edición: dirección de la tecla `Enter`, edición en la celda, controlador de relleno, arrastrar y soltar, y opciones de pegado",
-    "fr": "Options avancées de modification : direction de la touche `Entrée`, modification dans la cellule, poignée de recopie, glisser-déposer et choix de collage"
-   }
-  },
   "038b0b921cc277642323ae1c85ff65abb88e3429727abfee64e528f9c782e2f7": {
    "drop": false,
    "en": "In JeffCrunch, you can set font color and cell fill color using theme colors with tints, standard colors, More Colors, and No Color. Each change is one Undo step.",
@@ -7296,18 +7304,6 @@
     "fr": ""
    }
   },
-  "03fa0dd5f8887b2d615ce2dbb141b31101f692177a1904116a68fabfc936943d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Picture styles, borders, and effects",
-    "es": "Estilos, bordes y efectos de imagen",
-    "fr": "Styles, bordures et effets d’image"
-   }
-  },
   "041ddf2e4b08901966fa1e8d37af6ef8446ee872582fb1af6ae3d65ec33a6e15": {
    "drop": false,
    "en": "Header & Footer tab (while editing a header or footer)",
@@ -7344,18 +7340,6 @@
     "fr": "Verrouillage de la structure d’un classeur"
    }
   },
-  "0460d91ebac39bac1314c0e220d49dd69014d62ca852f55c3aa9b58652e4c593": {
-   "drop": false,
-   "en": "The Names dialog (`Ctrl+F3`) lists each name with its value, what it refers to, its scope, and comment; filter, add, change, and delete names. Renaming a name updates every formula, validation, conditional format, and other name that uses it.",
-   "es": "El cuadro Nombres (`Ctrl+F3`) enumera cada nombre con su valor, a qué se refiere, su ámbito y comentario; filtre, agregue, cambie y elimine nombres. Al renombrar un nombre se actualizan todas las fórmulas, validaciones, formatos condicionales y otros nombres que lo usan.",
-   "fr": "La boîte Noms (`Ctrl+F3`) liste chaque nom avec sa valeur, ce qu’il désigne, sa portée et son commentaire ; filtrez, ajoutez, modifiez et supprimez des noms. Renommer un nom met à jour toutes les formules, validations, mises en forme conditionnelles et autres noms qui l’utilisent.",
-   "soon": {
-    "drop": false,
-    "en": "Names: sort by column and flag a name that points to an error",
-    "es": "Nombres: ordenar por columna y señalar un nombre que apunta a un error",
-    "fr": "Noms : tri par colonne et signalement d’un nom qui pointe vers une erreur"
-   }
-  },
   "0462f6269d11f2c5ae6b1ba91b1d3f04f7765090b7fa2ec0b3f9e98d606dcd8e": {
    "drop": false,
    "en": "Behind the scenes: the rendering engine",
@@ -7378,18 +7362,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "04e403e02bdd6629ef0a37065a7225aca00cf92f119f90f187aac6a080ecd5c0": {
-   "drop": false,
-   "en": "In JeffWrite, open the Styles pane with `Ctrl+Alt+Shift+S` or the Styles group’s corner. It lists each style in its own font, marks the style at the caret, offers In Use, All Styles, and Recommended, and applies a style to the selection on click.",
-   "es": "En JeffWrite, abra el panel Estilos con `Ctrl+Alt+Shift+S` o la esquina del grupo Estilos. Muestra cada estilo en su propia fuente, marca el estilo en la posición del cursor, ofrece En uso, Todos los estilos y Recomendados, y aplica un estilo a la selección con un clic.",
-   "fr": "Dans JeffWrite, ouvrez le volet Styles avec `Ctrl+Alt+Shift+S` ou le coin du groupe Styles. Il liste chaque style dans sa propre police, marque le style à la position du curseur, propose En cours d’utilisation, Tous les styles et Recommandés, et applique un style à la sélection d’un clic.",
-   "soon": {
-    "drop": false,
-    "en": "Styles pane: choice of sorting",
-    "es": "Panel Estilos: elección del orden",
-    "fr": "Volet Styles : choix du tri"
    }
   },
   "04fb1637f1ac8b5fa1f155db067a5e35cca24d919fad9faea2cb77d8a3b1636e": {
@@ -7764,23 +7736,23 @@
     "fr": ""
    }
   },
-  "0950922aeb7df0ccb9342162c60315a9a3ed0b2ce798ddec234d772ce3b73b5c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Text styles, text fill, text outline, and text effects for shapes, and align and group for objects",
-    "es": "Estilos de texto, relleno de texto, contorno de texto y efectos de texto para formas, y alinear y agrupar objetos",
-    "fr": "Styles de texte, remplissage, contour et effets de texte pour les formes, et alignement et groupement des objets"
-   }
-  },
   "096197924eca80bdb00cf2614bea0eff7a51c49c71b55ebcf8df56414af11f8d": {
    "drop": false,
    "en": "In JeffWrite, you can add custom document properties of type text, whole number, number, yes or no, and date. A `DOCPROPERTY` field shows a property by its name.",
    "es": "En JeffWrite, usted puede agregar propiedades personalizadas del documento de tipo texto, número entero, número, sí o no, y fecha. Un campo `DOCPROPERTY` muestra una propiedad por su nombre.",
    "fr": "Dans JeffWrite, vous pouvez ajouter des propriétés personnalisées au document de type texte, nombre entier, nombre, oui ou non, et date. Un champ `DOCPROPERTY` affiche une propriété par son nom.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "097eae1da48d702cb92722c19f7dc78bef705985f46cfd4773195f8806ac3a9d": {
+   "drop": false,
+   "en": "JeffWrite keeps hidden text in the file without printing it or finding it with Find. While Show/Hide ¶ is on, hidden text appears with a dotted underline, as a view only that does not change the file.",
+   "es": "JeffWrite conserva el texto oculto en el documento sin imprimirlo ni encontrarlo con Buscar. Mientras Mostrar/Ocultar ¶ está activado, el texto oculto aparece con un subrayado punteado, solo como vista, sin cambiar el documento.",
+   "fr": "JeffWrite conserve le texte masqué dans le document sans l’imprimer ni le trouver avec Rechercher. Lorsque Afficher/Masquer ¶ est activé, le texte masqué apparaît avec un soulignement pointillé, uniquement en affichage, sans modifier le document.",
    "soon": {
     "drop": true,
     "en": "",
@@ -7956,18 +7928,6 @@
     "fr": ""
    }
   },
-  "0a8225e215ff38ad717a135a3aac03414c9050abcc9e48e4f9e61600f9139be9": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Ink: keep ink drawn in a file and write it back as it was",
-    "es": "Tinta: conservar la tinta dibujada en un fichero y escribirla de nuevo tal como estaba",
-    "fr": "Encre : conservation de l’encre dessinée dans un fichier et réécriture à l’identique"
-   }
-  },
   "0a8bb087643cc2a2fe4be320b86f1db63c83c3b461c7c2060324d9e2cb742f0f": {
    "drop": false,
    "en": "Use a different first page, different odd and even pages, scale the header and footer with the document, and align them with the page margins.",
@@ -7978,18 +7938,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "0ae0380812d15e0d2bc26baa5d6dab8d89ffa76de30e103c769eb5141065bcd5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Insert Equation (`Alt+=`): built-in equations, writing by typing, and saving to the gallery",
-    "es": "Insertar ecuación (`Alt+=`): ecuaciones integradas, escritura mediante teclado y guardado en la galería",
-    "fr": "Insérer une équation (`Alt+=`) : équations intégrées, saisie au clavier et enregistrement dans la galerie"
    }
   },
   "0b34cd64f82fde71f3a8b0ba442f605358125c966553788d079f42478c3b6ea5": {
@@ -8129,6 +8077,18 @@
    "en": "JeffPub supports numbered footnotes and endnotes (Insert > References). Footnotes appear at the bottom of the column under a short rule, long notes continue in the next column or linked text box, and endnotes appear under \"Notes\" after the story. Note text is edited in a dialog.",
    "es": "JeffPub admite notas al pie y notas finales numeradas (Insertar > Referencias). Las notas al pie aparecen al final de la columna bajo una línea corta, las notas largas continúan en la columna siguiente o en el cuadro de texto vinculado, y las notas finales aparecen bajo «Notas» después del texto. El texto de la nota se edita en un cuadro de diálogo.",
    "fr": "JeffPub prend en charge les notes de bas de page et les notes de fin numérotées (Insérer > Références). Les notes de bas de page apparaissent en bas de la colonne sous un filet court, les notes longues continuent dans la colonne suivante ou la zone de texte liée, et les notes de fin apparaissent sous « Notes » après le texte. Le texte de la note se modifie dans une boîte de dialogue.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "0d74ed6a6360573b7af47582fa18bece9f985a448c528a28f7c291b77a210cf3": {
+   "drop": false,
+   "en": "The Names dialog (`Ctrl+F3`) lists each name with its value, what it stands for, where it works, and its comment. You can filter, add, change, and delete names, and sort by any column. Renaming a name updates every formula, validation, conditional format, and other name that uses it, and the file. A name that points to an error is flagged.",
+   "es": "El cuadro Nombres (`Ctrl+F3`) muestra cada nombre con su valor, a qué hace referencia, dónde se aplica y su comentario. Puede filtrar, agregar, cambiar y eliminar nombres, y ordenar por cualquier columna. Al cambiar un nombre se actualizan todas las fórmulas, validaciones, formatos condicionales y otros nombres que lo usan, así como el documento. Se señala un nombre que apunta a un error.",
+   "fr": "La boîte de dialogue Noms (`Ctrl+F3`) liste chaque nom avec sa valeur, ce qu’il représente, sa portée et son commentaire. Vous pouvez filtrer, ajouter, modifier et supprimer des noms, et trier selon n’importe quelle colonne. Renommer un nom met à jour toutes les formules, validations, mises en forme conditionnelles et autres noms qui l’utilisent, ainsi que le fichier. Un nom qui pointe vers une erreur est signalé.",
    "soon": {
     "drop": true,
     "en": "",
@@ -8616,6 +8576,18 @@
     "fr": ""
    }
   },
+  "14fb445ee7dcea0f54531e85271ac3f26c899958217e42647577c8d664e7a5f5": {
+   "drop": false,
+   "en": "Copy as Picture and Copy as Bitmap put an image of the selected cells on the clipboard, drawn as on screen with the gridlines and without the selection tint. Copy as Printed Picture draws the cells as the paper would, with the gridlines the page setup prints.",
+   "es": "Copiar como imagen y Copiar como mapa de bits colocan en el portapapeles una imagen de las celdas seleccionadas, dibujada como en pantalla, con las líneas de cuadrícula y sin el tinte de la selección. Copiar como imagen impresa dibuja las celdas como las mostraría el papel, con las líneas de cuadrícula que imprime la configuración de página.",
+   "fr": "Copier en tant qu’image et Copier en tant que bitmap placent dans le presse-papiers une image des cellules sélectionnées, dessinée comme à l’écran, avec le quadrillage et sans la teinte de sélection. Copier en tant qu’image imprimée dessine les cellules comme le papier, avec le quadrillage imprimé par la mise en page.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "14fd4c37940b9bae08d5888628fbd3382778863761a0fcb0727d512caf9fe21f": {
    "drop": false,
    "en": "In JeffDeck, presentations can hold pictures in PNG, JPEG, GIF, BMP, TIFF, WebP, SVG (with its PNG stand-in), WMF, EMF, ICO, and PDF formats, which are read and written. Icons are saved as a PNG and the SVG.",
@@ -8844,6 +8816,18 @@
     "fr": "Dossier de modèles de graphique dans la liste de la zone Chart Kind"
    }
   },
+  "18a5e179384d140c489ba712da3a184eddf9d638d1239d5afed6c2d32a273f0d": {
+   "drop": false,
+   "en": "The Chart Format tab has Edit Data, Change Chart Type, Chart Title (on or off, and its words), Legend (none, or at the right, top, left, or bottom), Data Labels, Wrap Text, Alt Text, and size.",
+   "es": "La pestaña Formato de gráfico incluye Editar datos, Cambiar tipo de gráfico, Título del gráfico (activado o desactivado, y su texto), Leyenda (ninguna, o a la derecha, arriba, a la izquierda o abajo), Etiquetas de datos, Ajuste del texto, Texto alternativo y tamaño.",
+   "fr": "L’onglet Format du graphique propose Modifier les données, Modifier le type de graphique, Titre du graphique (activé ou non, et son texte), Légende (aucune, ou à droite, en haut, à gauche ou en bas), Étiquettes de données, Habillage du texte, Texte de remplacement et taille.",
+   "soon": {
+    "drop": false,
+    "en": "Other chart elements, quick layouts, colors, styles, and formatting of each part",
+    "es": "Otros elementos del gráfico, diseños rápidos, colores, estilos y formato de cada parte",
+    "fr": "Autres éléments de graphique, dispositions rapides, couleurs, styles et mise en forme de chaque partie"
+   }
+  },
   "18d1d5b665ef44829cfec26184694d030700c0a7e9313bbbf7d811618a5108ab": {
    "drop": false,
    "en": "JeffPub can find and replace text across all stories.",
@@ -8854,18 +8838,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "18e2afc293c317c2f2419c037a92cbebaa76ee3d286cf8e18a35b4e08a695943": {
-   "drop": false,
-   "en": "The Paragraph dialog sets widow and orphan control, keep with next, keep lines together, page break before, don’t hyphenate, don’t add space between paragraphs of the same style, and outline level. Each is saved to the file and read back.",
-   "es": "El cuadro de diálogo Párrafo permite definir control de viudas y huérfanas, mantener con el siguiente, mantener líneas juntas, salto de página anterior, no dividir con guiones, no agregar espacio entre párrafos del mismo estilo y nivel de esquema. Cada opción se guarda en el archivo y se lee de nuevo.",
-   "fr": "La boîte de dialogue Paragraphe permet de régler le contrôle des veuves et orphelines, la conservation avec le suivant, la conservation des lignes ensemble, le saut de page avant, la non-césure, l’absence d’espace entre paragraphes du même style et le niveau hiérarchique. Chaque option est enregistrée dans le fichier et relue.",
-   "soon": {
-    "drop": false,
-    "en": "Suppress line numbers",
-    "es": "Suprimir números de línea",
-    "fr": "Suppression des numéros de ligne"
    }
   },
   "18e54f923d597bc0beb7b8f7f77125e7ad6971b605c3ddabe724c7d2893b5e13": {
@@ -8962,18 +8934,6 @@
     "en": "Slicer: draw over the cells, change which tables it filters, and show each style’s look",
     "es": "Segmentación de datos: dibujarla sobre las celdas, cambiar qué tablas filtra y mostrar el aspecto de cada estilo",
     "fr": "Segment : dessin sur les cellules, changement des tableaux filtrés et rendu de chaque style"
-   }
-  },
-  "1b2da739205e5ef00a88142c55c1db447fa0d8e5c38905ed0886104520f01ceb": {
-   "drop": false,
-   "en": "Review > Check Accessibility lists charts and pictures with no alt text, tables with no header row, merged cells, and sheets with default names, and goes to each.",
-   "es": "Revisar > Comprobar accesibilidad enumera los gráficos e imágenes sin texto alternativo, las tablas sin fila de encabezado, las celdas combinadas y las hojas con nombres predeterminados, y va a cada uno.",
-   "fr": "Révision > Vérifier l’accessibilité répertorie les graphiques et images sans texte de remplacement, les tableaux sans ligne d’en-tête, les cellules fusionnées et les feuilles aux noms par défaut, et accède à chacun.",
-   "soon": {
-    "drop": false,
-    "en": "Accessibility checks for blank cells used for layout, low color contrast, and reading order",
-    "es": "Comprobaciones de accesibilidad para celdas en blanco usadas para el diseño, bajo contraste de color y orden de lectura",
-    "fr": "Vérifications d’accessibilité des cellules vides utilisées pour la mise en page, du faible contraste des couleurs et de l’ordre de lecture"
    }
   },
   "1b390ec037e1d33847d0c6b521d480232d32fe623f7444d585a33f6dee7aa181": {
@@ -9281,6 +9241,18 @@
    "en": "In JeffDeck, New Comment (`Ctrl+Alt+M`) opens a pane beside the slide with a box for the text. A marker on the slide can be dragged to move the comment. It supports replies, Resolve and Reopen, and edit and delete buttons, and asks for your name and initials once.",
    "es": "En JeffDeck, Nuevo comentario (`Ctrl+Alt+M`) abre un panel junto a la diapositiva con un cuadro para el texto. Un marcador en la diapositiva se puede arrastrar para mover el comentario. Admite respuestas, Resolver y Reabrir, y botones de editar y eliminar, y le pide su nombre y sus iniciales una sola vez.",
    "fr": "Dans JeffDeck, Nouveau commentaire (`Ctrl+Alt+M`) ouvre un volet à côté de la diapositive avec une zone pour le texte. Un marqueur sur la diapositive peut être glissé pour déplacer le commentaire. Il prend en charge les réponses, Résoudre et Rouvrir, et les boutons de modification et de suppression, et vous demande une seule fois votre nom et vos initiales.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "1fe0c6e0626b9858ec2f0225bd17c782e9e8118cff058192d23ab0797c2dc71e": {
+   "drop": false,
+   "en": "A file with more than 1,048,576 rows loads the first 1,048,576 rows, and a message tells you that the rows after that were not loaded.",
+   "es": "Un archivo con más de 1.048.576 filas carga las primeras 1.048.576 filas, y un mensaje indica que las filas posteriores no se cargaron.",
+   "fr": "Un fichier de plus de 1 048 576 lignes charge les 1 048 576 premières lignes, et un message indique que les lignes suivantes n’ont pas été chargées.",
    "soon": {
     "drop": true,
     "en": "",
@@ -9634,18 +9606,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "2418710f36ab404d1c72397d7ae9752713c20fcd5906432a3333e4c651afbaf5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Save as `.ots` (OpenDocument template)",
-    "es": "Guardar como `.ots` (plantilla OpenDocument)",
-    "fr": "Enregistrement en `.ots` (modèle OpenDocument)"
    }
   },
   "2427e5232df6c29cac3a81c66b35805a952e43db46d5518853c17b84eae6784b": {
@@ -10008,18 +9968,6 @@
     "fr": ""
    }
   },
-  "28b5340afefb18d342acc59fa5b8259caa7c93d080f0fd9a5b8ff6d2b12bdc47": {
-   "drop": false,
-   "en": "In JeffWrite, mark text as hidden in the Font box. Hidden text is kept in `.docx` files and is not shown, printed, or found by Find.",
-   "es": "En JeffWrite, marque texto como oculto en el cuadro Fuente. El texto oculto se conserva en archivos `.docx` y no se muestra, no se imprime y `Buscar` no lo encuentra.",
-   "fr": "Dans JeffWrite, marquez du texte comme masqué dans la boîte Police. Le texte masqué est conservé dans les fichiers `.docx` et n’est ni affiché, ni imprimé, ni trouvé par `Rechercher`.",
-   "soon": {
-    "drop": false,
-    "en": "Hidden text shown along with the formatting marks",
-    "es": "Texto oculto visible junto con las marcas de formato",
-    "fr": "Texte masqué affiché avec les marques de mise en forme"
-   }
-  },
   "28b661d76089691a87ff1b5ba85648be428087dce02466ab4db73cedbb19205e": {
    "drop": false,
    "en": "JeffCrunch saves formulas as text in the file’s own syntax, with stored results of the right type and array formulas with their ranges. The file asks for a full calculation on load when a stored result cannot be trusted.",
@@ -10090,6 +10038,18 @@
     "en": "Charts, pictures, comments, pivot tables, macros, conditional formats, and data validation in `.ods`: read",
     "es": "Gráficos, imágenes, comentarios, tablas dinámicas, macros, formatos condicionales y validación de datos en `.ods`: lectura",
     "fr": "Graphiques, images, commentaires, tableaux croisés dynamiques, macros, mises en forme conditionnelles et validation des données dans `.ods` : lecture"
+   }
+  },
+  "2941ca9ba1e6012dec536a59840f174d30bb9a16ecd6fd0350a78d923d85f869": {
+   "drop": false,
+   "en": "Check Accessibility lists charts and pictures with no alt text, tables with no header row, merged cells, sheets with default names, and text that is hard to read against its fill. It goes to each item.",
+   "es": "Comprobar accesibilidad enumera los gráficos e imágenes sin texto alternativo, las tablas sin fila de encabezado, las celdas combinadas, las hojas con nombres predeterminados y el texto difícil de leer sobre su relleno. Permite ir a cada elemento.",
+   "fr": "Vérifier l’accessibilité répertorie les graphiques et images sans texte de remplacement, les tableaux sans ligne d’en-tête, les cellules fusionnées, les feuilles aux noms par défaut et le texte difficile à lire sur son remplissage. Elle permet d’accéder à chaque élément.",
+   "soon": {
+    "drop": false,
+    "en": "Accessibility checks: blank cells used for layout and reading order",
+    "es": "Comprobaciones de accesibilidad: celdas en blanco usadas para el diseño y orden de lectura",
+    "fr": "Contrôles d’accessibilité : cellules vides utilisées pour la mise en page et ordre de lecture"
    }
   },
   "29484d236f66a10a66c57203781d56b7ec5dbfa244876a3e26ec35856eb3acb1": {
@@ -10380,6 +10340,18 @@
     "fr": ""
    }
   },
+  "2ca484e0b6477b48770eca7a8761d3fec59c54a5cfb0b52c7f528ec39c291581": {
+   "drop": false,
+   "en": "Picture Format > Corrections sets brightness and contrast in steps of 20 percent up to 40 either way, and Color turns a picture gray, black and white, or washed out. Corrections and colors in a file are read and drawn.",
+   "es": "Formato de imagen > Correcciones establece el brillo y el contraste en pasos del 20 por ciento hasta 40 en cada sentido, y Color convierte la imagen en gris, blanco y negro o descolorida. Las correcciones y colores de un documento se leen y se dibujan.",
+   "fr": "Format de l’image > Corrections règle la luminosité et le contraste par pas de 20 pour cent jusqu’à 40 dans chaque sens, et Couleur rend l’image grise, en noir et blanc ou délavée. Les corrections et couleurs d’un fichier sont lues et dessinées.",
+   "soon": {
+    "drop": false,
+    "en": "Sharpen and soften, saturation and tone, transparent color, and artistic effects",
+    "es": "Nitidez y suavizado, saturación y tono, color transparente y efectos artísticos",
+    "fr": "Netteté et adoucissement, saturation et teinte, couleur transparente et effets artistiques"
+   }
+  },
   "2cdb4869c177437bb9ed20c3efe11d05e5ccb1efdc7dff228f76266b1bc377a8": {
    "drop": false,
    "en": "JeffWrite opens `.docm` and `.dotm` files and never runs their macros. Saving as `.docx` leaves them out and says so.",
@@ -10392,23 +10364,35 @@
     "fr": "Enregistrement en `.docm` et `.dotm` avec conservation des macros"
    }
   },
-  "2cde69ac2924cd9d4c976c38fd4483317d16b934267878c741c844fa731c40ca": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Text import: fixed-width columns, chosen decimal and thousands marks, and choice of current sheet or new workbook",
-    "es": "Importación de texto: columnas de ancho fijo, marcas decimales y de millares a elección, y opción de hoja actual o libro nuevo",
-    "fr": "Importation de texte : colonnes à largeur fixe, séparateurs décimal et des milliers au choix, et choix de la feuille actuelle ou d’un nouveau classeur"
-   }
-  },
   "2d28787f6a60cc5793e46475d1bf5f188c4313178f46d72794e6ea91dac77760": {
    "drop": false,
    "en": "JeffWrite saves `.docx` files that keep the document's content and look.",
    "es": "JeffWrite guarda archivos `.docx` que conservan el contenido y el aspecto del documento.",
    "fr": "JeffWrite enregistre des fichiers `.docx` qui gardent le contenu et l’apparence du document.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "2d46adb0c966afca27c8d0785328b4e607d4b4ce19e3ccb2b066665d86873e06": {
+   "drop": false,
+   "en": "Copied cells are put on the clipboard as a table that carries the font where it differs from the sheet’s usual one, underline and strikethrough, alignment, fills, text colors, and borders.",
+   "es": "Las celdas copiadas se colocan en el portapapeles como una tabla que conserva la fuente cuando difiere de la habitual de la hoja, el subrayado y el tachado, la alineación, los rellenos, los colores de texto y los bordes.",
+   "fr": "Les cellules copiées sont placées dans le presse-papiers sous forme de tableau qui conserve la police lorsqu’elle diffère de celle habituelle de la feuille, le soulignement et le barré, l’alignement, les remplissages, les couleurs de texte et les bordures.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "2da2eb67c09fefbeb5314717959c00c1da27cb0a505f700a8d8665aff360be81": {
+   "drop": false,
+   "en": "Smart cut and paste fixes the spaces and punctuation around moved words in JeffWrite, and can be turned off in Options. After a paste, the Paste Options button lets you keep source formatting, merge formatting, or keep text only.",
+   "es": "El corte y pegado inteligente de JeffWrite corrige los espacios y la puntuación alrededor de las palabras movidas, y puede desactivarse en Opciones. Después de pegar, el botón Opciones de pegado permite conservar el formato de origen, combinar el formato o conservar solo el texto.",
+   "fr": "Le couper-coller intelligent de JeffWrite corrige les espaces et la ponctuation autour des mots déplacés, et peut être désactivé dans les Options. Après un collage, le bouton Options de collage permet de conserver la mise en forme source, de fusionner la mise en forme ou de conserver uniquement le texte.",
    "soon": {
     "drop": true,
     "en": "",
@@ -10440,16 +10424,16 @@
     "fr": ""
    }
   },
-  "2e2b7978a86933ebaec447bbe9a9cb181013f0af9f77f1f945ea4307bb791bad": {
+  "2e0fa83fac514f91afac07714a92aa738f83a4ca07211d84a3cc0ed91bc91fce": {
    "drop": false,
-   "en": "`CELL` works.",
-   "es": "`CELL` funciona.",
-   "fr": "`CELL` fonctionne.",
+   "en": "In JeffCrunch, you can add, change, and delete a calculated field in a pivot table, defined by a formula over the other fields, and list all calculated field formulas on a new sheet.",
+   "es": "En JeffCrunch, usted puede agregar, cambiar y eliminar un campo calculado en una tabla dinámica, definido por una fórmula sobre los demás campos, y listar todas las fórmulas de campos calculados en una hoja nueva.",
+   "fr": "Dans JeffCrunch, vous pouvez ajouter, modifier et supprimer un champ calculé dans un tableau croisé dynamique, défini par une formule sur les autres champs, et lister toutes les formules des champs calculés dans une nouvelle feuille.",
    "soon": {
     "drop": false,
-    "en": "`INFO`",
-    "es": "`INFO`",
-    "fr": "`INFO`"
+    "en": "Calculated Item and Solve Order",
+    "es": "Elemento calculado y orden de resolución",
+    "fr": "Élément calculé et ordre de résolution"
    }
   },
   "2e4eb77ee5ce97eb5a9bb86aca03329ddd049016871aff2f8b889190d42f82a4": {
@@ -10546,6 +10530,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "309296816c747e0ef378ee6435120336057fc8e3a74689c0ca98784f576e9e1f": {
+   "drop": false,
+   "en": "The Shape Format tab has Shape Fill, Shape Outline (color, none, weight, dashes), and Rotate. Each is one step of Undo and keeps the shape’s name, alternative text, place, and order.",
+   "es": "La pestaña Formato de forma incluye Relleno de forma, Contorno de forma (color, ninguno, grosor, guiones) y Girar. Cada uno es un solo paso de Deshacer y conserva el nombre, el texto alternativo, la posición y el orden de la forma.",
+   "fr": "L’onglet Format de forme propose Remplissage de forme, Contour de forme (couleur, aucun, épaisseur, tirets) et Rotation. Chacun constitue une seule étape d’annulation et conserve le nom, le texte de remplacement, l’emplacement et l’ordre de la forme.",
+   "soon": {
+    "drop": false,
+    "en": "Change shape, edit points, shape styles, and shape effects",
+    "es": "Cambiar forma, editar puntos, estilos de forma y efectos de forma",
+    "fr": "Changement de forme, modification des points, styles de forme et effets de forme"
    }
   },
   "30ad4c796c981186c3d2fd25c56b16202dbd0d6baa22b4195571f50dec5cffa4": {
@@ -11412,6 +11408,18 @@
     "fr": ""
    }
   },
+  "3e2ea13d39d6bffa3267412de9daa6ab8071fe24ce083eab901f3de600e55112": {
+   "drop": false,
+   "en": "`CELL` works.",
+   "es": "`CELL` funciona.",
+   "fr": "`CELL` fonctionne.",
+   "soon": {
+    "drop": false,
+    "en": "`INFO`",
+    "es": "`INFO`",
+    "fr": "`INFO`"
+   }
+  },
   "3e46d4c1a6a657c1f7c119488535776dff81f6913a536bfa5570499616059119": {
    "drop": false,
    "en": "In JeffPub, set the page background with solid and gradient presets or with more options (gradient, texture, pattern, picture, and tint), and apply an image as the background.",
@@ -11700,6 +11708,18 @@
     "fr": "Graphiques, diagrammes, équations, sections et effets de texte et de formes dans les fichiers `.odp` : enregistrement en objets modifiables"
    }
   },
+  "41f1adeb641eee0f913f6c8d822f2304729e280d7780da49dc25cbce24d057a0": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "42318f81b77e13477f0efa6e4b80287f6b715af092b070064e7474a3b033dcd3": {
    "drop": false,
    "en": "JeffPub runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
@@ -11782,6 +11802,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "43c5fd7487fce0e880638f22a6c340a4820b0c1560b9d0bce0fbaca599799da9": {
+   "drop": false,
+   "en": "Insert > Equation (`Alt+=`) takes an equation typed in a line, shows how it reads, and inserts it as one step that can be undone. It is saved as the format’s own math markup. Typing `a:b` gives a fraction, `x^2` a power, `x_i` a subscript, `sqrt(x)` a square root, and `\\alpha` and about 70 other names turn into symbols.",
+   "es": "Insertar > Ecuación (`Alt+=`) acepta una ecuación escrita en una línea, muestra cómo se interpreta y la inserta en un solo paso que se puede deshacer. Se guarda con el formato matemático propio del formato. Al escribir `a:b` se obtiene una fracción, `x^2` una potencia, `x_i` un subíndice, `sqrt(x)` una raíz cuadrada, y `\\alpha` y unos 70 nombres más se convierten en símbolos.",
+   "fr": "Insertion > Équation (`Alt+=`) accepte une équation saisie sur une ligne, montre comment elle sera lue et l’insère en une seule étape annulable. Elle est enregistrée dans le balisage mathématique propre au format. Saisir `a:b` donne une fraction, `x^2` une puissance, `x_i` un indice, `sqrt(x)` une racine carrée, et `\\alpha` et environ 70 autres noms deviennent des symboles.",
+   "soon": {
+    "drop": false,
+    "en": "Built-in equations, equation gallery, and editing an inserted equation",
+    "es": "Ecuaciones integradas, galería de ecuaciones y edición de una ecuación ya insertada",
+    "fr": "Équations intégrées, galerie d’équations et modification d’une équation déjà insérée"
    }
   },
   "4443f17f2801038a9bcf022623f5daec7db283e9a35c54cf9901f3d30b3429e0": {
@@ -11974,6 +12006,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "467b25f70c07944a760d79065468f2b95c30d1fb90b08b2d9ebea9eceb147580": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Chart Filters button",
+    "es": "Botón de filtros de gráfico",
+    "fr": "Bouton de filtres du graphique"
    }
   },
   "4692718a9d35382a842890cd50dea9f35f63605487087d7a65b09fc44750275a": {
@@ -12216,6 +12260,18 @@
     "fr": ""
    }
   },
+  "48dc9f929a6270a4c3f82f643e33273eea1bdc382d11643fcc739b424b33b110": {
+   "drop": false,
+   "en": "Ink drawings in a file are kept through edits and saves and written back as they were.",
+   "es": "Los dibujos a tinta de un documento se conservan durante las ediciones y los guardados, y se escriben de nuevo tal como estaban.",
+   "fr": "Les dessins à l’encre d’un fichier sont conservés lors des modifications et des enregistrements, et réécrits tels quels.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "49270faac4650ed5ac3356c87bb119bb79657e909a0ac17bfebc120ddfd2ac94": {
    "drop": true,
    "en": "",
@@ -12370,18 +12426,6 @@
     "en": "Text already styled follows later changes to its base style",
     "es": "El texto ya con estilo sigue los cambios posteriores de su estilo base",
     "fr": "Le texte déjà stylé suit les modifications ultérieures de son style de base"
-   }
-  },
-  "4c5fc01ab304968c1dce46c64451582b990d799aee3356a363e0fa2f02803e03": {
-   "drop": false,
-   "en": "Add alt text to a picture from Picture Format > Alt Text or the right-click menu, and mark a picture as decorative. The setting is kept in the file.",
-   "es": "Agregue texto alternativo a una imagen desde Formato de imagen > Texto alternativo o el menú contextual, y marque una imagen como decorativa. El ajuste se conserva en el documento.",
-   "fr": "Ajoutez un texte de remplacement à une image depuis Format de l’image > Texte de remplacement ou le menu contextuel, et marquez une image comme décorative. Le réglage est conservé dans le fichier.",
-   "soon": {
-    "drop": false,
-    "en": "Alt text pane, and alt text and decorative marking for shapes, charts, and tables",
-    "es": "Panel de texto alternativo, y texto alternativo y marca decorativa para formas, gráficos y tablas",
-    "fr": "Volet du texte de remplacement, et texte de remplacement et marquage décoratif pour les formes, graphiques et tableaux"
    }
   },
   "4c6e9f147aeb3f3e7bb9d4f808256a73bfadfc817b1c03f7fb019019fa52b36e": {
@@ -12828,6 +12872,18 @@
     "fr": ""
    }
   },
+  "51e7e7bf8ecf235ea3c36337864ee8b9945f7fb11b6f23c65b1e77b5d94ecd4a": {
+   "drop": false,
+   "en": "Save a copy of a workbook as an `.ots` file, an OpenDocument template, using Save a Copy.",
+   "es": "Con Guardar una copia, puede guardar un libro como archivo `.ots`, una plantilla de OpenDocument.",
+   "fr": "Avec Enregistrer une copie, vous pouvez enregistrer un classeur au format `.ots`, un modèle OpenDocument.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "523bb5224c0cea88ca0bfaddaf2843576b0fa04fa0f1c482633982342976f67e": {
    "drop": false,
    "en": "Safety and limits",
@@ -13104,6 +13160,18 @@
     "fr": ""
    }
   },
+  "559c90b2c884e44bd0b485325d4e50ee3344aa7af2c41cb1bda07336ac9847cd": {
+   "drop": false,
+   "en": "Insert > Text Box puts an empty box on the sheet, and Edit Text sets its words, alignment, size, bold, and color.",
+   "es": "Insertar > Cuadro de texto coloca un cuadro vacío en la hoja, y Editar texto establece sus palabras, alineación, tamaño, negrita y color.",
+   "fr": "Insertion > Zone de texte place une zone vide sur la feuille, et Modifier le texte définit ses mots, son alignement, sa taille, le gras et la couleur.",
+   "soon": {
+    "drop": false,
+    "en": "Text styles",
+    "es": "Estilos de texto",
+    "fr": "Styles de texte"
+   }
+  },
   "55d9a3cec33ab867a4aa2d3671a86980bf199a8ae7e964f1480c773bb25333c2": {
    "drop": true,
    "en": "",
@@ -13114,18 +13182,6 @@
     "en": "Forecast Sheet: chart and table of future values with confidence band and seasonality",
     "es": "Hoja de previsión: gráfico y tabla de valores futuros con banda de confianza y estacionalidad",
     "fr": "Feuille de prévision : graphique et tableau de valeurs futures avec intervalle de confiance et saisonnalité"
-   }
-  },
-  "55da475027e88a2f1bded7b93edd3e9d699be2746c926ab36c19b2c8907b341e": {
-   "drop": false,
-   "en": "JeffCrunch includes the web function `ENCODEURL`.",
-   "es": "JeffCrunch incluye la función web `ENCODEURL`.",
-   "fr": "JeffCrunch inclut la fonction web `ENCODEURL`.",
-   "soon": {
-    "drop": false,
-    "en": "`FILTERXML` function: read a value from XML text with an XPath expression",
-    "es": "Función `FILTERXML`: leer un valor de texto XML con una expresión XPath",
-    "fr": "Fonction `FILTERXML` : lire une valeur dans du texte XML avec une expression XPath"
    }
   },
   "55ec9dea8a6cf8ffee77e01f22610b2327e4a4f1e4fc9571e46691fd7df3e78e": {
@@ -13356,18 +13412,6 @@
     "fr": ""
    }
   },
-  "59c327fd54fbcfd11ffd18745c328782ed23dd9423473f74db4ca8014372f931": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Recommended Charts: charts picked for the selected data",
-    "es": "Gráficos recomendados: gráficos elegidos para los datos seleccionados",
-    "fr": "Graphiques recommandés : graphiques choisis pour les données sélectionnées"
-   }
-  },
   "59cce1573c253632fe73154a1eb0dadbcb07f7a81121db56b84bff494c4d9692": {
    "drop": false,
    "en": "JeffPub uses standard desktop publishing keyboard shortcuts, such as `Ctrl+B`, `Ctrl+Shift+>`, `F9`, `Ctrl+Shift+L`, `Ctrl+M` for the master page, `Ctrl+Shift+C` and `Ctrl+Shift+V` to copy and paste formatting, and `Ctrl+Shift+N`. No two commands share keys.",
@@ -13404,18 +13448,6 @@
     "fr": ""
    }
   },
-  "5a4312ac5ae088fa65f719388c6acf53b792986abc44f043da3966a7e8681fc2": {
-   "drop": false,
-   "en": "Inspect Workbook counts notes, personal information, hidden sheets, external links, and custom XML. It removes notes and personal information, shows hidden sheets and hidden rows and columns (not those a filter hides), and removes headers and footers.",
-   "es": "Inspeccionar libro cuenta las notas, la información personal, las hojas ocultas, los vínculos externos y el XML personalizado. Elimina las notas y la información personal, muestra las hojas ocultas y las filas y columnas ocultas (no las que oculta un filtro) y elimina los encabezados y pies de página.",
-   "fr": "Inspecter le classeur compte les notes, les informations personnelles, les feuilles masquées, les liens externes et le XML personnalisé. Il supprime les notes et les informations personnelles, affiche les feuilles masquées ainsi que les lignes et colonnes masquées (pas celles qu’un filtre masque) et supprime les en-têtes et pieds de page.",
-   "soon": {
-    "drop": false,
-    "en": "Inspecting invisible objects and removing external links and custom XML",
-    "es": "Inspección de objetos invisibles y eliminación de vínculos externos y XML personalizado",
-    "fr": "Inspection des objets invisibles et suppression des liens externes et du XML personnalisé"
-   }
-  },
   "5ad0db0bbc8e59144334752f140c842f2781e8acfa717026c7a7b6aa5b1db5ad": {
    "drop": true,
    "en": "",
@@ -13440,6 +13472,18 @@
     "fr": ""
    }
   },
+  "5af4a6bfdf127372942ce92dceffdd694afe495e75029b368e423ec383561260": {
+   "drop": false,
+   "en": "Use `ENCODEURL` to encode text for a web address, and `FILTERXML` to read a value out of XML text with an XPath expression. `FILTERXML` supports paths, attributes, predicates, operators, and common functions, and returns many values as a column.",
+   "es": "Use `ENCODEURL` para codificar texto para una dirección web y `FILTERXML` para leer un valor de un texto XML con una expresión XPath. `FILTERXML` admite rutas, atributos, predicados, operadores y funciones comunes, y devuelve varios valores en una columna.",
+   "fr": "Utilisez `ENCODEURL` pour encoder du texte destiné à une adresse web et `FILTERXML` pour lire une valeur dans un texte XML avec une expression XPath. `FILTERXML` prend en charge les chemins, les attributs, les prédicats, les opérateurs et les fonctions courantes, et renvoie plusieurs valeurs sous forme de colonne.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "5b1e84d5aec8d533355752620ab4ff4d7fbf37b9b8ea6d13553312c5e91c5723": {
    "drop": true,
    "en": "",
@@ -13450,6 +13494,18 @@
     "en": "Fonts embedded in an old file",
     "es": "Fuentes incrustadas en un archivo antiguo",
     "fr": "Polices incorporées dans un ancien fichier"
+   }
+  },
+  "5b213dd47f182160171102ad322b357b9c0ce1b6f266ffc3d0bc40ed1388040f": {
+   "drop": false,
+   "en": "The Styles pane in JeffWrite lists styles with previews in their own fonts and marks the style at the caret. You can show In Use, All Styles, or Recommended styles, and sort by default order, name, recommended order, type, or based-on style.",
+   "es": "El panel de estilos de JeffWrite muestra los estilos con vistas previas en su propia fuente y marca el estilo en la posición del cursor. Puede mostrar los estilos en uso, todos los estilos o los recomendados, y ordenarlos por orden predeterminado, nombre, orden recomendado, tipo o estilo base.",
+   "fr": "Le volet Styles de JeffWrite liste les styles avec des aperçus dans leur propre police et marque le style à la position du curseur. Vous pouvez afficher les styles utilisés, tous les styles ou les styles recommandés, et les trier par ordre par défaut, nom, ordre recommandé, type ou style de base.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "5b4687aa720f811bed63a22a69b73bf8974ddd9f0d3a615e10d023dd9765872b": {
@@ -13522,18 +13578,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "5bf861f879a42ec4e73f9ec0e8e8f005343740e8725fefddbd661c7ba9b880b0": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Edit Shape: change the shape, Edit Points, Reroute Connectors, and Insert Shapes",
-    "es": "Editar forma: cambiar la forma, editar puntos, redirigir conectores e insertar formas",
-    "fr": "Modifier la forme : changer la forme, modifier les points, réacheminer les connecteurs et insérer des formes"
    }
   },
   "5c237df33390abaad70067f48bd95ebb34af64c9262c57fc39b56960144ab640": {
@@ -13752,18 +13796,6 @@
     "fr": ""
    }
   },
-  "5f44292400c633cf22c2311ed1ab766a6537322c1b79883ed4934ee1a0444a8b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Insert Link gallery: recent files, browsed pages, and bookmarks in the workbook",
-    "es": "Galería de Insertar vínculo: archivos recientes, páginas visitadas y marcadores del libro",
-    "fr": "Galerie Insérer un lien : fichiers récents, pages consultées et signets du classeur"
-   }
-  },
   "5fe4ece1736245f8188f6aa518d6e94a20482b6113fb8645325ef6eeb5bddfd3": {
    "drop": false,
    "en": "In JeffPub, the Master Page tab has Add Master Page, Duplicate, Rename, Delete, Two-Page Master, Apply To, and Close Master Page.",
@@ -13793,6 +13825,18 @@
    "en": "In JeffDeck, you can apply bold, italic, underline, strikethrough, and shadow to text. A second click on the shadow button removes the shadow.",
    "es": "En JeffDeck, usted puede aplicar negrita, cursiva, subrayado, tachado y sombra al texto. Un segundo clic en el botón de sombra quita la sombra.",
    "fr": "Dans JeffDeck, vous pouvez appliquer le gras, l’italique, le souligné, le barré et l’ombre au texte. Un second clic sur le bouton d’ombre retire l’ombre.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "606241081bc6274ea4763d758bdeba096cb38dcdd4c940ab6e67010d8d7bdb4b": {
+   "drop": false,
+   "en": "The Paragraph dialog in JeffWrite sets widow and orphan control, keep with next, keep lines together, page break before, suppress line numbers, and don’t hyphenate, plus the outline level (body text or 1 to 9). Each setting is saved to the file and read back.",
+   "es": "El cuadro Párrafo de JeffWrite permite establecer el control de viudas y huérfanas, mantener con el siguiente, mantener líneas juntas, salto de página anterior, suprimir números de línea y no dividir con guiones, además del nivel de esquema (texto independiente o del 1 al 9). Cada ajuste se guarda en el documento y se vuelve a leer.",
+   "fr": "La boîte de dialogue Paragraphe de JeffWrite permet de définir le contrôle des veuves et orphelines, l’habillage avec le suivant, le maintien des lignes ensemble, le saut de page avant, la suppression des numéros de ligne et l’absence de césure, ainsi que le niveau hiérarchique (corps de texte ou 1 à 9). Chaque réglage est enregistré dans le fichier et relu.",
    "soon": {
     "drop": true,
     "en": "",
@@ -13920,6 +13964,18 @@
     "fr": "Comparaison de documents qui détecte les déplacements et les différences de mise en forme"
    }
   },
+  "61e6b7d089d3ec03c147229c732efa8049dc59c4ed2a128d75ac8b463a40ffbb": {
+   "drop": false,
+   "en": "Shape Format has Insert Shapes and Change Shape, which keeps the size and the look.",
+   "es": "Formato de forma incluye Insertar formas y Cambiar forma, que conserva el tamaño y el aspecto.",
+   "fr": "Format de forme propose Insérer des formes et Modifier la forme, qui conserve la taille et l’apparence.",
+   "soon": {
+    "drop": false,
+    "en": "Edit Points and connectors",
+    "es": "Editar puntos y conectores",
+    "fr": "Modification des points et connecteurs"
+   }
+  },
   "622d1c654c62cfa2bd758ce273d6af09c1aeedba57a816dea759fb74429bf5d2": {
    "drop": false,
    "en": "JeffCrunch includes 54 engineering functions: base conversions such as `BIN2DEC`, bit functions, complex-number functions such as `IMSUM`, Bessel functions, `ERF`, `CONVERT`, `DELTA`, and `GESTEP`.",
@@ -14040,6 +14096,18 @@
     "fr": ""
    }
   },
+  "635280e7595b91215e2ce7aa1b21c1f23e8ad6d215086b20f70d7742dc24a569": {
+   "drop": false,
+   "en": "In JeffCrunch, Recommended Charts lists up to six chart types that suit the selected cells, such as a pie, line, points, or bars, each drawn from your data. Picking one inserts it.",
+   "es": "En JeffCrunch, Gráficos recomendados muestra hasta seis tipos de gráfico adecuados para las celdas seleccionadas, como circular, de líneas, de puntos o de barras, cada uno dibujado con sus datos. Al elegir uno, se inserta.",
+   "fr": "Dans JeffCrunch, Graphiques recommandés propose jusqu’à six types de graphiques adaptés aux cellules sélectionnées, comme un secteur, une courbe, des points ou des barres, chacun dessiné à partir de vos données. Le graphique choisi est inséré.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "63d66995d20a3634330ce10b22664af9425cd37f699fd60dd33188f3bc663e59": {
    "drop": false,
    "en": "When you edit, JeffDeck writes the timing tree again without an empty main sequence. It keeps the media and the numbers they name, keeps effects on charts, tables, and frames, drops effects of shapes that are gone, and keeps a deep or unknown effect as it was.",
@@ -14086,6 +14154,18 @@
     "en": "Chart and plot area fills, borders, shadow, glow, soft edges, 3-D format and rotation, and wall and floor choices",
     "es": "Rellenos del área del gráfico y de trazado, bordes, sombra, resplandor, bordes suaves, formato y rotación 3D, y opciones de paredes y suelo",
     "fr": "Remplissages de la zone du graphique et de traçage, bordures, ombre, lueur, bords adoucis, format et rotation 3D, et choix des parois et du sol"
+   }
+  },
+  "64796207cb6c0ac00e648cb6a473640abafd809b59406d2b6be8705715c6279b": {
+   "drop": false,
+   "en": "Picture Format > Crop cuts each edge by a percent of the whole picture, and Crop again starts from the whole picture. You can set the size with handles or Height and Width, with the aspect ratio locked or not. Reset Picture removes the crop, colors, and border.",
+   "es": "Formato de imagen > Recortar corta cada borde según un porcentaje de la imagen completa, y al recortar de nuevo se parte de la imagen completa. Puede establecer el tamaño con los controladores o con Alto y Ancho, con la relación de aspecto bloqueada o no. Restablecer imagen elimina el recorte, los colores y el borde.",
+   "fr": "Format de l’image > Rogner coupe chaque bord selon un pourcentage de l’image entière, et un nouveau rognage repart de l’image entière. Vous pouvez définir la taille avec les poignées ou la hauteur et la largeur, avec le rapport d’aspect verrouillé ou non. Réinitialiser l’image supprime le rognage, les couleurs et la bordure.",
+   "soon": {
+    "drop": false,
+    "en": "Crop to a shape or aspect ratio, fill and fit, rotate, and compress pictures",
+    "es": "Recorte a una forma o relación de aspecto, relleno y ajuste, giro y compresión de imágenes",
+    "fr": "Rognage selon une forme ou un rapport d’aspect, remplissage et ajustement, rotation et compression des images"
    }
   },
   "64acab44c1a97692fed5877a4eaf3da8b09c230f09d6a73a33b3042fb2a77a4a": {
@@ -14314,6 +14394,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "673229a14a06cbb82d6b2b90d73a79c4d0aaae0b9831eb7214ac7ff62ad824d5": {
+   "drop": false,
+   "en": "In JeffWrite, you can edit the words of a text box that holds only words, using Shape Format > Edit Text or the right-click menu. Text in shapes and text boxes from a file is laid out in the box, with its tables, and the file’s insets are used.",
+   "es": "En JeffWrite, usted puede editar las palabras de un cuadro de texto que contiene solo palabras, con Formato de forma > Editar texto o con el menú del botón derecho. El texto de las formas y los cuadros de texto de un archivo se distribuye dentro del cuadro, con sus tablas, y se usan los márgenes internos del archivo.",
+   "fr": "Dans JeffWrite, vous pouvez modifier les mots d’une zone de texte qui ne contient que des mots, avec Format de la forme > Modifier le texte ou avec le menu du clic droit. Le texte des formes et des zones de texte d’un fichier est mis en page dans la zone, avec ses tableaux, et les marges internes du fichier sont utilisées.",
+   "soon": {
+    "drop": false,
+    "en": "Text in shapes and text boxes: direction, alignment, margins, wrap, automatic fit, columns, and links between text boxes",
+    "es": "Texto en formas y cuadros de texto: dirección, alineación, márgenes, ajuste, ajuste automático, columnas y vínculos entre cuadros de texto",
+    "fr": "Texte dans les formes et les zones de texte : orientation, alignement, marges, habillage, ajustement automatique, colonnes et liens entre zones de texte"
    }
   },
   "67b39fc6d76ae5b17c55c9c95d3dbdd954d8f84bb2bde5f04bc77d005916b246": {
@@ -14556,18 +14648,6 @@
     "fr": "Styles liés, de tableau et de liste, et styles pour les nouveaux documents"
    }
   },
-  "6a58f51eac09f2480561d538b52ad101723f3c35d2b75127fa19e6aadbbd42d4": {
-   "drop": false,
-   "en": "JeffWrite draws and keeps the text boxes found in a file, with their text and tables.",
-   "es": "JeffWrite dibuja y conserva los cuadros de texto que contiene un fichero, con su texto y sus tablas.",
-   "fr": "JeffWrite affiche et conserve les zones de texte d’un fichier, avec leur texte et leurs tableaux.",
-   "soon": {
-    "drop": false,
-    "en": "Text Box: draw",
-    "es": "Cuadro de texto: dibujar",
-    "fr": "Zone de texte : dessin"
-   }
-  },
   "6aace3cbb991a11d468d3ec90185eb8db8b3b2923db11da09c320266b73004d7": {
    "drop": false,
    "en": "View tab",
@@ -14602,18 +14682,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "6b62216e93c5a4c1dab9d635bdeaf3ee3d0df5bca091731cac8affadee00a931": {
-   "drop": false,
-   "en": "JeffWrite draws a file's picture crops, transparent colors, and borders. You can size a picture by its handles or with Height and Width, with the aspect ratio locked or not.",
-   "es": "JeffWrite dibuja los recortes, colores transparentes y bordes de las imágenes de un documento. Usted puede cambiar el tamaño de una imagen con los controladores o con Alto y Ancho, con la proporción bloqueada o no.",
-   "fr": "JeffWrite affiche les rognages, les couleurs transparentes et les bordures des images d’un fichier. Vous pouvez redimensionner une image avec les poignées ou avec Hauteur et Largeur, avec ou sans proportions verrouillées.",
-   "soon": {
-    "drop": false,
-    "en": "Picture crop, rotate, Reset Picture, and Compress Pictures: set",
-    "es": "Recortar, girar, Restablecer imagen y Comprimir imágenes: aplicar",
-    "fr": "Rognage, rotation, Réinitialiser l’image et Compresser les images : appliquer"
    }
   },
   "6bacfbdcef6bbf2ff725f6da0028014f3e8416b6f477167582d5965fd234c28b": {
@@ -14938,18 +15006,6 @@
     "en": "Chart Format: Current Selection, Format Selection, Reset to Match Style, and the shape and text styles of the elements",
     "es": "Formato de gráfico: selección actual, dar formato a la selección, restablecer para hacer coincidir el estilo, y los estilos de forma y de texto de los elementos",
     "fr": "Format de graphique : sélection actuelle, mise en forme de la sélection, rétablir le style et styles de forme et de texte des éléments"
-   }
-  },
-  "700c37da80975608da7046fa1f3dc180513cb0cc7a8b67822aae9964747bfdb6": {
-   "drop": false,
-   "en": "In JeffCrunch, pictures from a file (PNG, JPEG, GIF, SVG, BMP, TIFF, WMF, and EMF) are shown, can move with the cell or stay fixed, and are kept, with alt text.",
-   "es": "En JeffCrunch, las imágenes de un archivo (PNG, JPEG, GIF, SVG, BMP, TIFF, WMF y EMF) se muestran, pueden moverse con la celda o quedar fijas, y se conservan, con texto alternativo.",
-   "fr": "Dans JeffCrunch, les images d’un fichier (PNG, JPEG, GIF, SVG, BMP, TIFF, WMF et EMF) sont affichées, peuvent se déplacer avec la cellule ou rester fixes, et sont conservées, avec un texte de remplacement.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "700e5144522e5c247cf389eae3b4ab120d1231052ff4b7afd82b37e8878193f2": {
@@ -15648,6 +15704,18 @@
     "fr": ""
    }
   },
+  "7a5170a518cedbfa510003597b3db868542406bcf3e443043ba7fa37538cf878": {
+   "drop": false,
+   "en": "The Picture Format tab has Picture Border (color, none, weight, dashes) and Rotate (turns and flips).",
+   "es": "La pestaña Formato de imagen incluye Borde de imagen (color, ninguno, grosor, guiones) y Girar (giros y volteos).",
+   "fr": "L’onglet Format de l’image propose Bordure de l’image (couleur, aucune, épaisseur, tirets) et Rotation (rotations et retournements).",
+   "soon": {
+    "drop": false,
+    "en": "Picture styles, picture effects, and picture layout",
+    "es": "Estilos de imagen, efectos de imagen y diseño de imagen",
+    "fr": "Styles d’image, effets d’image et disposition d’image"
+   }
+  },
   "7a6a7afaf31409535835ba389bc32f98e5728e5076c2fcd475466ad248843146": {
    "drop": false,
    "en": "JeffPub opens `.pub` files from 1998 on: pages, master pages, text and its formatting, tables, pictures, and objects in text.",
@@ -15768,18 +15836,6 @@
     "fr": ""
    }
   },
-  "7c23c00bd261d7c605437d3a51810aaf575e2eed2e762867e3b1a5d2a4d7fa3c": {
-   "drop": false,
-   "en": "In JeffCrunch, the Borders menu offers line color and style, and diagonal borders are set in Format Cells.",
-   "es": "En JeffCrunch, el menú Bordes ofrece color y estilo de línea, y los bordes diagonales se establecen en Formato de celdas.",
-   "fr": "Dans JeffCrunch, le menu Bordures propose la couleur et le style de ligne, et les bordures diagonales se définissent dans Format de cellule.",
-   "soon": {
-    "drop": false,
-    "en": "Draw Border, Draw Border Grid, and Erase Border",
-    "es": "Dibujar borde, Dibujar cuadrícula de bordes y Borrar borde",
-    "fr": "Dessiner une bordure, Dessiner une grille de bordures et Effacer une bordure"
-   }
-  },
   "7c292db3635f9aa77125b376d610f9d7f66e980bec23c0b1bc101f53e4083c37": {
    "drop": false,
    "en": "JeffCrunch exports the active sheet to `.csv` (comma or semicolon), `.tsv`, and `.txt` files, with a space, vertical bar, or custom separator. You choose the encoding (UTF-8 with or without a mark, UTF-16, several Windows code pages, ISO 8859-1, -2, and -15, and Mac Roman), the line endings, and whether cells are written as shown or as stored.",
@@ -15814,6 +15870,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "7cc66d54c5068da08a69bc513718f421d39bddcbcadb34994e2453a8595e4938": {
+   "drop": false,
+   "en": "In File > Options > Editing, choose where `Enter` moves the selection, turn AutoComplete for text typed in a column on or off, turn the fill handle and cell dragging on or off, and set automatic decimal places, positive or negative.",
+   "es": "En Archivo > Opciones > Edición, puede elegir hacia dónde mueve la selección la tecla `Enter`, activar o desactivar el autocompletado del texto escrito en una columna, activar o desactivar el controlador de relleno y el arrastre de celdas, y definir los decimales automáticos, positivos o negativos.",
+   "fr": "Dans Fichier > Options > Édition, vous pouvez choisir où `Entrée` déplace la sélection, activer ou désactiver la saisie semi-automatique du texte tapé dans une colonne, activer ou désactiver la poignée de recopie et le glissement des cellules, et définir les décimales automatiques, positives ou négatives.",
+   "soon": {
+    "drop": false,
+    "en": "Editing directly in the cell, extending data range formats and formulas, and cut, copy, and paste choices",
+    "es": "Edición directa en la celda, extensión de formatos y fórmulas de rangos de datos, y opciones de cortar, copiar y pegar",
+    "fr": "Modification directe dans la cellule, extension des formats et formules de plages de données, et options de couper, copier et coller"
    }
   },
   "7cd24f147c2a163a1eace73e96f61e7e02cbc1a1db39938df871ab6dabbeb156": {
@@ -16104,6 +16172,18 @@
     "fr": "Ouvrir et réparer pour un fichier `.doc` endommagé"
    }
   },
+  "8122c7a8d52b53fe224551de94c042eab5975e21c4ed323b1d6d553e413cf662": {
+   "drop": false,
+   "en": "Inspect Workbook counts notes, personal information, hidden sheets, external links, and custom XML. It removes notes, personal information, headers, and footers, and shows hidden sheets, rows, and columns. Remove All on external links turns linked cells into the values they show.",
+   "es": "Inspeccionar libro cuenta las notas, la información personal, las hojas ocultas, los vínculos externos y el XML personalizado. Elimina las notas, la información personal, los encabezados y los pies de página, y muestra las hojas, filas y columnas ocultas. Quitar todo en los vínculos externos convierte las celdas vinculadas en los valores que muestran.",
+   "fr": "Inspecter le classeur compte les notes, les informations personnelles, les feuilles masquées, les liens externes et le XML personnalisé. Il supprime les notes, les informations personnelles, les en-têtes et les pieds de page, et affiche les feuilles, lignes et colonnes masquées. Tout supprimer sur les liens externes transforme les cellules liées en les valeurs qu’elles affichent.",
+   "soon": {
+    "drop": false,
+    "en": "Inspect Workbook: find and remove invisible objects",
+    "es": "Inspeccionar libro: buscar y eliminar objetos invisibles",
+    "fr": "Inspecter le classeur : rechercher et supprimer les objets invisibles"
+   }
+  },
   "8142b6bd031d5a724f9f6a09673b144af547e5c4a509c21b702d9b4227fbe563": {
    "drop": true,
    "en": "",
@@ -16236,6 +16316,18 @@
     "fr": "Styles d’image (cadres, ombre, reflet et coins arrondis), bordure d’image et effets d’image"
    }
   },
+  "82f109d32b197fc2ad6a2069093b73f25b90c9187696eca78baa83c8b42eb029": {
+   "drop": false,
+   "en": "JeffWrite draws the shapes and text boxes in a file. Insert > Shapes places one of 75 shapes (lines, arrows, rectangles, basic shapes, block arrows, equation shapes, flowchart, stars and banners, and callouts) at the caret with text wrapping around it. The Shape Format tab sets fill, outline color, weight, dashes, shape styles, rotation, shape change, wrap, alt text, and size.",
+   "es": "JeffWrite dibuja las formas y los cuadros de texto de un documento. Insertar > Formas coloca una de 75 formas (líneas, flechas, rectángulos, formas básicas, flechas de bloque, formas de ecuación, diagramas de flujo, estrellas y cintas, y llamadas) en la posición del cursor, con el texto ajustado alrededor. La pestaña Formato de forma permite establecer relleno, color de contorno, grosor, guiones, estilos de forma, giro, cambio de forma, ajuste, texto alternativo y tamaño.",
+   "fr": "JeffWrite dessine les formes et les zones de texte d’un fichier. Insertion > Formes place l’une des 75 formes (lignes, flèches, rectangles, formes de base, flèches bloc, formes d’équation, organigrammes, étoiles et bannières, et bulles) à la position du curseur, avec le texte qui l’habille. L’onglet Format de forme permet de définir le remplissage, la couleur du contour, l’épaisseur, les tirets, les styles de forme, la rotation, le changement de forme, l’habillage, le texte de remplacement et la taille.",
+   "soon": {
+    "drop": false,
+    "en": "Text inside shapes, connectors, and edit points",
+    "es": "Texto dentro de formas, conectores y puntos de edición",
+    "fr": "Texte dans les formes, connecteurs et points de modification"
+   }
+  },
   "8333018118736a0e24cae207a795a6d0ce1acf67e1cdb2c91769d32c4c942072": {
    "drop": false,
    "en": "Open, Save, Save As, and Close",
@@ -16296,6 +16388,18 @@
     "fr": ""
    }
   },
+  "83c5ea97ca2c06ab309c5b727e157f864f42ec677e302746267c366078b1f866": {
+   "drop": false,
+   "en": "Insert > Text Box offers six designs: Simple, Plain, Sidebar, Pull Quote, Banner, and Note.",
+   "es": "Insertar > Cuadro de texto ofrece seis diseños: Simple, Sencillo, Barra lateral, Cita destacada, Banner y Nota.",
+   "fr": "Insertion > Zone de texte propose six styles : Simple, Plain, Sidebar, Pull Quote, Banner et Note.",
+   "soon": {
+    "drop": false,
+    "en": "Saving your own text box designs",
+    "es": "Guardar sus propios diseños de cuadro de texto",
+    "fr": "Enregistrement de vos propres styles de zone de texte"
+   }
+  },
   "83ed59b294cc9ccd184bc855ff3ea58b1f64190ead3a1a4e4787b56bebc6ae41": {
    "drop": false,
    "en": "In JeffWrite, you can drag the lines between columns and rows, and use a resize handle at the lower right corner of a table to set its width.",
@@ -16318,18 +16422,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "844266b62554ff590c5ec9d10885d1d0c95a448df70b03e170be15b22389da8c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Paste text through an import wizard that splits it into columns, and a default paste setting",
-    "es": "Pegado de texto mediante un asistente de importación que lo divide en columnas, y un ajuste de pegado predeterminado",
-    "fr": "Collage de texte via un assistant d’importation qui le répartit en colonnes, et un réglage de collage par défaut"
    }
   },
   "8477fb4be85d82df44dcddb8448bbb5583842addf7ccc57455a6ac39ae5a4e50": {
@@ -16390,18 +16482,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "8638e728a692ab20927c0939d85c097512ed02437696c9eabc2b9b8c95d32143": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Text in a shape or text box: margins, vertical alignment, automatic sizing and wrapping, columns, text direction, and alt text",
-    "es": "Texto en una forma o cuadro de texto: márgenes, alineación vertical, ajuste automático de tamaño y de texto, columnas, dirección del texto y texto alternativo",
-    "fr": "Texte dans une forme ou une zone de texte : marges, alignement vertical, dimensionnement et habillage automatiques, colonnes, orientation du texte et texte de remplacement"
    }
   },
   "863a2f70693e1488879abefa431d05914c7dae0063b9d7cff9cbf8f5c238516c": {
@@ -16524,16 +16604,16 @@
     "fr": "Règles de validation conservées dans la forme d’extension du fichier, y compris les listes lisant d’autres feuilles : modification"
    }
   },
-  "8851dadaa445207436d5c8757cc62d8d69a83b6437bcc209d7eb6c24a3edd598": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
+  "886781a9eaa9d8438a36af8adb5a94d9567b95efb8ed74cf0324a107dac5e371": {
+   "drop": false,
+   "en": "The arrow under Paste lists Paste Special choices as commands: No Borders, Formulas and Number Formatting, Values and Number Formatting, Keep Source Column Widths, and Comments and Notes. It also has Paste Link, which makes each cell a formula pointing at the copied cell, Paste as Hyperlink, and Paste Text Import for text from another program.",
+   "es": "La flecha situada bajo Pegar muestra las opciones de Pegado especial como comandos: Sin bordes, Fórmulas y formato de número, Valores y formato de número, Conservar el ancho de columnas de origen y Comentarios y notas. También incluye Pegar vínculo, que convierte cada celda en una fórmula que apunta a la celda copiada, Pegar como hipervínculo y Importar texto al pegar para texto de otro programa.",
+   "fr": "La flèche sous Coller liste les choix du collage spécial comme des commandes : Sans bordures, Formules et format de nombre, Valeurs et format de nombre, Conserver la largeur des colonnes source, et Commentaires et notes. Elle propose aussi Coller avec liaison, qui transforme chaque cellule en formule pointant vers la cellule copiée, Coller en tant que lien hypertexte, et Importer le texte collé pour du texte provenant d’un autre programme.",
    "soon": {
     "drop": false,
-    "en": "Text box gallery: built-in designs and saving your own",
-    "es": "Galería de cuadros de texto: diseños integrados y opción de guardar los suyos",
-    "fr": "Galerie de zones de texte : modèles intégrés et enregistrement des vôtres"
+    "en": "Paste live preview, and paste as a picture or linked picture",
+    "es": "Vista previa en vivo al pegar, y pegar como imagen o imagen vinculada",
+    "fr": "Aperçu en direct du collage, et collage en tant qu’image ou image liée"
    }
   },
   "88b7f0e25ecfb5563649e6d84e15b2a630e411540aadbe494f1a200fdb3fd4a0": {
@@ -16596,23 +16676,23 @@
     "fr": ""
    }
   },
-  "89a304498165914e259a4f86646be66e26568f13c113e3eccde88b26f9601659": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Equation structures and symbol galleries: fractions, scripts, radicals, integrals, brackets, matrices, and more",
-    "es": "Estructuras de ecuaciones y galerías de símbolos: fracciones, índices, radicales, integrales, corchetes, matrices y más",
-    "fr": "Structures d’équations et galeries de symboles : fractions, exposants, radicaux, intégrales, crochets, matrices et plus"
-   }
-  },
   "89b4ad4bc83ef8bf12adf13d95e11b9c9a304f5e4549d20760f76fbd3923ce3d": {
    "drop": false,
    "en": "A `.csv` file opened and saved without edits comes out as the same file, with the same separator, quotes, line ends, and encoding.",
    "es": "Un archivo `.csv` abierto y guardado sin cambios sale como el mismo archivo, con el mismo separador, comillas, finales de línea y codificación.",
    "fr": "Un fichier `.csv` ouvert puis enregistré sans modification ressort identique, avec le même séparateur, les mêmes guillemets, les mêmes fins de ligne et le même encodage.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "89c43343f263390fcdc7f750f6f1ed4254f365a1555965956f72325a5fab1923": {
+   "drop": false,
+   "en": "In JeffCrunch, you can make sparklines, tiny charts inside a cell, in Line, Column, and Win/Loss types from a row or column of values. They can go in one cell or a group of cells, and can color the high, low, first, last, and negative points.",
+   "es": "En JeffCrunch, usted puede crear minigráficos, pequeños gráficos dentro de una celda, de tipo Línea, Columna y Ganancia/pérdida a partir de una fila o columna de valores. Pueden ir en una celda o en un grupo de celdas, y pueden colorear los puntos más alto, más bajo, primero, último y negativos.",
+   "fr": "Dans JeffCrunch, vous pouvez créer des graphiques sparkline, de minuscules graphiques dans une cellule, de type Ligne, Colonne et Gain/perte à partir d’une ligne ou d’une colonne de valeurs. Ils peuvent se placer dans une cellule ou un groupe de cellules, et peuvent colorer les points le plus haut, le plus bas, le premier, le dernier et les points négatifs.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16798,18 +16878,6 @@
     "en": "Scenario Manager: named input sets, merge, and summary report",
     "es": "Administrador de escenarios: conjuntos de entradas con nombre, combinar e informe de resumen",
     "fr": "Gestionnaire de scénarios : jeux de valeurs nommés, fusion et rapport de synthèse"
-   }
-  },
-  "8c503eb66a380438c315ca8af2819fab34ad13a87976fb5088813392635ae415": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Shape insertion, editing, styles, fill, outline, and effects",
-    "es": "Inserción, edición, estilos, relleno, contorno y efectos de formas",
-    "fr": "Insertion, modification, styles, remplissage, contour et effets des formes"
    }
   },
   "8c64ef5b34bf9eb33805e5caa716f3a5485d72396cc5a24cfafa7802d478bfc1": {
@@ -17316,18 +17384,6 @@
     "fr": "Ombrage des champs et mise à jour avant l’impression"
    }
   },
-  "925b63e7b5cf79cb40a90126b6ea02aaacd58f6c2edb7ab952eb371e06ccae6a": {
-   "drop": false,
-   "en": "In JeffWrite, `Ctrl+G` goes to a page, section, line, bookmark, footnote, or heading by number or name, with `+` and `-` to move relative to the caret.",
-   "es": "En JeffWrite, `Ctrl+G` lleva a una página, sección, línea, marcador, nota al pie o título por número o nombre, con `+` y `-` para moverse en relación con el cursor.",
-   "fr": "Dans JeffWrite, `Ctrl+G` permet d’aller à une page, une section, une ligne, un signet, une note de bas de page ou un titre par numéro ou par nom, avec `+` et `-` pour se déplacer par rapport au curseur.",
-   "soon": {
-    "drop": false,
-    "en": "Go To: comment, endnote, field, table, graphic, and equation",
-    "es": "Ir a: comentario, nota final, campo, tabla, gráfico y ecuación",
-    "fr": "Atteindre : commentaire, note de fin, champ, tableau, graphique et équation"
-   }
-  },
   "9264ed38618098841a65f4c095d9f3000b39d030375b6aeddd604ccc6cec68db": {
    "drop": false,
    "en": "Direct formatting is kept as the file stores it, not folded into styles, so a file saved without edits changes nothing.",
@@ -17362,6 +17418,30 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "92db3dc494ac7468a45cf2bfc89975b3bffec984544da3e76f656f2b3d614190": {
+   "drop": false,
+   "en": "Alt Text and Mark as Decorative are available for pictures, shapes, text boxes, and charts, on the Picture Format, Shape Format, and Chart Format tabs and in the right-click menu, and are kept in the file.",
+   "es": "Texto alternativo y Marcar como decorativo están disponibles para imágenes, formas, cuadros de texto y gráficos, en las pestañas Formato de imagen, Formato de forma y Formato de gráfico y en el menú contextual, y se conservan en el documento.",
+   "fr": "Le texte de remplacement et Marquer comme décoratif sont disponibles pour les images, formes, zones de texte et graphiques, dans les onglets Format de l’image, Format de forme et Format du graphique et dans le menu contextuel, et sont conservés dans le fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Alt text pane and alt text for tables",
+    "es": "Panel de texto alternativo y texto alternativo para tablas",
+    "fr": "Volet de texte de remplacement et texte de remplacement pour les tableaux"
+   }
+  },
+  "935939a8980548987aac5850402875fc35b8b991186e7a9239b5afa0b345ecb2": {
+   "drop": false,
+   "en": "Check Accessibility finds missing alt text, merged cells, default sheet names, tables with no header row, and low color contrast.",
+   "es": "Comprobar accesibilidad detecta el texto alternativo que falta, las celdas combinadas, los nombres de hoja predeterminados, las tablas sin fila de encabezado y el bajo contraste de color.",
+   "fr": "Vérifier l’accessibilité détecte les textes de remplacement manquants, les cellules fusionnées, les noms de feuille par défaut, les tableaux sans ligne d’en-tête et le faible contraste des couleurs.",
+   "soon": {
+    "drop": false,
+    "en": "Accessibility checks: blank cells used for layout and reading order",
+    "es": "Comprobaciones de accesibilidad: celdas en blanco usadas para el diseño y orden de lectura",
+    "fr": "Contrôles d’accessibilité : cellules vides utilisées pour la mise en page et ordre de lecture"
    }
   },
   "935d9041c421786ecc251f9e96cffb6d6c0442f353ee740937acf47b2e7dbec3": {
@@ -17700,6 +17780,18 @@
     "fr": ""
    }
   },
+  "9880077aa73baa76d3d8cfe81cd5a00a2092c517913e466b6dc667a37086a316": {
+   "drop": false,
+   "en": "Insert > Picture puts a PNG, JPEG, GIF, BMP, or TIFF on the sheet as it is, and an SVG as a PNG, scaled to at most 480 wide, as one step of Undo. Pictures in a file, including WMF and EMF, are shown and kept, and alt text is supported.",
+   "es": "Insertar > Imagen coloca en la hoja un PNG, JPEG, GIF, BMP o TIFF tal cual, y un SVG como PNG, con un ancho máximo de 480, en un solo paso de Deshacer. Las imágenes de un archivo, incluidos WMF y EMF, se muestran y se conservan, y se admite texto alternativo.",
+   "fr": "Insertion > Image place sur la feuille un PNG, JPEG, GIF, BMP ou TIFF tel quel, et un SVG sous forme de PNG, redimensionné à 480 de large au plus, en une seule étape d’annulation. Les images d’un fichier, y compris WMF et EMF, sont affichées et conservées, et le texte de remplacement est pris en charge.",
+   "soon": {
+    "drop": false,
+    "en": "Inserting WMF and EMF pictures, online pictures, and icons",
+    "es": "Insertar imágenes WMF y EMF, imágenes en línea e iconos",
+    "fr": "Insertion d’images WMF et EMF, d’images en ligne et d’icônes"
+   }
+  },
   "9894e474ee4a6d5e1f8e4035ce525790331b830e087f88da88a2221fe1f31e9b": {
    "drop": true,
    "en": "",
@@ -17938,18 +18030,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "9b5351148cb0b808e967776f136b87e5a5fd309a0b43575a4ded97c5b1d632b5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Chart Filters button",
-    "es": "Botón de filtros de gráfico",
-    "fr": "Bouton de filtres de graphique"
    }
   },
   "9b6859161de8113f907684721c72da6c12ac9f2d38467316ed33f8169d1e152d": {
@@ -18336,6 +18416,18 @@
     "fr": "Récupération des classeurs non enregistrés"
    }
   },
+  "a0a699829db6cc393e5aaa348b65607a22d89e6d0bb3e3ce296f2dd1d8b7db9d": {
+   "drop": false,
+   "en": "Print all pages, only the odd pages, or only the even pages within the page range. After the odd pages are sent to a printer, a message says to turn the stack over and print the even pages.",
+   "es": "Puede imprimir todas las páginas, solo las impares o solo las pares dentro del intervalo de páginas. Después de enviar las páginas impares a la impresora, un mensaje le indica que dé la vuelta a la pila e imprima las pares.",
+   "fr": "Vous pouvez imprimer toutes les pages, uniquement les pages impaires ou uniquement les pages paires dans la plage de pages. Après l’envoi des pages impaires à une imprimante, un message vous invite à retourner la pile et à imprimer les pages paires.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "a0d6db6f6aadd796487186e169a6e6d8dea5cf43f5b8da88c9628a9767691bcc": {
    "drop": false,
    "en": "`Shift+F1` opens Reveal Formatting, which shows the styles, font, size, look, color, alignment, indents, spacing, and language at the caret.",
@@ -18492,18 +18584,6 @@
     "fr": ""
    }
   },
-  "a423b0f56b4814e3eb1181bdd35d9a43bb2571e7c8050762b80249bdf67fe811": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Files with more than 1,048,576 rows: load with a notice or continue into further sheets",
-    "es": "Archivos con más de 1.048.576 filas: carga con aviso o continuación en más hojas",
-    "fr": "Fichiers de plus de 1 048 576 lignes : chargement avec avertissement ou poursuite dans d’autres feuilles"
-   }
-  },
   "a4bf6e2bdcf37f71b6bdab8b5c093dc91b0b4abc185da91d7b5e1166d9299f72": {
    "drop": true,
    "en": "",
@@ -18526,18 +18606,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "a555cc3b23ff7b784fff2524acf2db07547f7350264e8e746f2004507582871e": {
-   "drop": false,
-   "en": "JeffCrunch includes the newer logical functions `IFNA`, `IFS`, `SWITCH`, and `XOR`.",
-   "es": "JeffCrunch incluye las funciones lógicas más recientes `IFNA`, `IFS`, `SWITCH` y `XOR`.",
-   "fr": "JeffCrunch inclut les fonctions logiques plus récentes `IFNA`, `IFS`, `SWITCH` et `XOR`.",
-   "soon": {
-    "drop": false,
-    "en": "`LET`: names for values inside one formula",
-    "es": "`LET`: nombres para valores dentro de una fórmula",
-    "fr": "`LET` : noms pour des valeurs à l’intérieur d’une formule"
    }
   },
   "a5da13cab92a9f3c7da3d5dda5a79da7077e3cf96e0d62535ce25c0790f444bf": {
@@ -18792,6 +18860,18 @@
     "fr": "Filigrane d’image"
    }
   },
+  "a94fe7d7c612d9d0d8415b17a13fdabced472dcce88f4f729092eb9966146671": {
+   "drop": false,
+   "en": "JeffWrite draws the charts in a file. Insert > Chart places one of 12 chart types (column, stacked and 100% stacked column, bar, stacked bar, line, line with markers, pie, doughnut, area, stacked area, and scatter) with sample numbers. Edit Data changes categories, series, and numbers in a grid, and the type, title, legend, and data labels can be changed.",
+   "es": "JeffWrite dibuja los gráficos de un documento. Insertar > Gráfico coloca uno de 12 tipos de gráfico (columnas, columnas apiladas y apiladas al 100 %, barras, barras apiladas, líneas, líneas con marcadores, circular, anillo, área, área apilada y dispersión) con números de ejemplo. Editar datos cambia las categorías, series y números en una cuadrícula, y se pueden cambiar el tipo, el título, la leyenda y las etiquetas de datos.",
+   "fr": "JeffWrite dessine les graphiques d’un fichier. Insertion > Graphique place l’un des 12 types de graphique (colonnes, colonnes empilées et empilées à 100 %, barres, barres empilées, courbes, courbes avec marqueurs, secteurs, anneau, aires, aires empilées et nuage de points) avec des nombres d’exemple. Modifier les données change les catégories, séries et nombres dans une grille, et le type, le titre, la légende et les étiquettes de données peuvent être modifiés.",
+   "soon": {
+    "drop": false,
+    "en": "Chart axes, gridlines, trendlines, error bars, quick layouts, colors, and styles",
+    "es": "Ejes, líneas de cuadrícula, líneas de tendencia, barras de error, diseños rápidos, colores y estilos de gráficos",
+    "fr": "Axes, quadrillage, courbes de tendance, barres d’erreur, dispositions rapides, couleurs et styles de graphiques"
+   }
+  },
   "a95efbe86afcf49dd7eced7df164d714beb46a36d04866f8eb369f142f889a9e": {
    "drop": true,
    "en": "",
@@ -18826,18 +18906,6 @@
     "en": "Save As for `.ppt`, `.pps`, and `.pot`, with a warning of what they can’t hold",
     "es": "Guardar como `.ppt`, `.pps` y `.pot`, con una advertencia de lo que no pueden contener",
     "fr": "Enregistrer sous `.ppt`, `.pps` et `.pot`, avec un avertissement sur ce qu’ils ne peuvent pas contenir"
-   }
-  },
-  "a9cd2f1b933436b6275f896b0e4556d64fe811c84b925337c51e65538a29fe17": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Picture styles, border, effects, and layout",
-    "es": "Estilos, borde, efectos y diseño de imágenes",
-    "fr": "Styles, bordure, effets et disposition des images"
    }
   },
   "a9d4f978bd79c30821e047d6e9f0576bf76767a6e0d88ed76a529c15e88f3b87": {
@@ -19044,6 +19112,42 @@
     "fr": "Code QR ou code-barres sur une diapositive en image vectorielle"
    }
   },
+  "ac69bfac923d9c93ec5119a731c0a8d4761e2550491fab0d75244bfb9cab8ef4": {
+   "drop": false,
+   "en": "The Picture Format tab has Crop to 1:1, 4:3, 3:4, 16:9, or 9:16, cut from the middle of what shows, and Show the Whole Picture. Name and Alt Text can be set for any chart, picture, or shape in Properties.",
+   "es": "La pestaña Formato de imagen incluye Recortar a 1:1, 4:3, 3:4, 16:9 o 9:16, desde el centro de lo que se ve, y Mostrar la imagen completa. El nombre y el texto alternativo se pueden establecer para cualquier gráfico, imagen o forma en Propiedades.",
+   "fr": "L’onglet Format de l’image propose Rogner à 1:1, 4:3, 3:4, 16:9 ou 9:16, à partir du milieu de ce qui est visible, et Afficher l’image entière. Le nom et le texte de remplacement peuvent être définis pour tout graphique, image ou forme dans Propriétés.",
+   "soon": {
+    "drop": false,
+    "en": "Crop to a shape, fill and fit, and crop by dragging a handle",
+    "es": "Recorte a una forma, relleno y ajuste, y recorte arrastrando un controlador",
+    "fr": "Rognage selon une forme, remplissage et ajustement, et rognage par glissement d’une poignée"
+   }
+  },
+  "ac8c74a64b7e5263a8a9d25822133c8e143db9a239b18d11cbd3256390124356": {
+   "drop": false,
+   "en": "The link dialog lists recently opened files, and a place in the workbook can be chosen by sheet, cells, or name.",
+   "es": "El cuadro de vínculo muestra los archivos abiertos recientemente, y se puede elegir un lugar del libro por hoja, celdas o nombre.",
+   "fr": "La boîte de dialogue de lien liste les fichiers récemment ouverts, et un emplacement du classeur peut être choisi par feuille, cellules ou nom.",
+   "soon": {
+    "drop": false,
+    "en": "Browsed pages in the Insert Link gallery",
+    "es": "Páginas visitadas en la galería Insertar vínculo",
+    "fr": "Pages consultées dans la galerie Insérer un lien"
+   }
+  },
+  "acb570f4de240d9fa5efa376f2aecb24bbbdff9d5084b1a1e07e658a6ee04eff": {
+   "drop": false,
+   "en": "Text import supports columns of fixed width, with break lines set on the preview or typed in as positions. You can choose the decimal mark and the thousands mark (point, comma, space, or apostrophe) for a file, and trailing minus signs are read as negative numbers.",
+   "es": "La importación de texto admite columnas de ancho fijo, con líneas de separación definidas en la vista previa o escritas como posiciones. Usted puede elegir la marca decimal y la marca de millares (punto, coma, espacio o apóstrofo) para un archivo, y los signos menos al final se leen como números negativos.",
+   "fr": "L’importation de texte prend en charge les colonnes de largeur fixe, avec des lignes de séparation placées sur l’aperçu ou saisies sous forme de positions. Vous pouvez choisir le séparateur décimal et le séparateur de milliers (point, virgule, espace ou apostrophe) pour un fichier, et les signes moins placés après le nombre sont lus comme des nombres négatifs.",
+   "soon": {
+    "drop": false,
+    "en": "Text import: open into the current sheet",
+    "es": "Importación de texto: abrir en la hoja actual",
+    "fr": "Importation de texte : ouverture dans la feuille actuelle"
+   }
+  },
   "ad0b951a96dc325309af41cfb88b1a88daa270ea5fd1144ef214924b418f24e7": {
    "drop": true,
    "en": "",
@@ -19186,18 +19290,6 @@
     "en": "Language options: editing languages, display language, list separator, and decimal mark",
     "es": "Opciones de idioma: idiomas de edición, idioma de la interfaz, separador de listas y marca decimal",
     "fr": "Options de langue : langues de modification, langue d’affichage, séparateur de liste et séparateur décimal"
-   }
-  },
-  "af6e919d5fe817b3a7a21263d66bee07a251ba059a9c7f1de426926ebbf1926b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Picture corrections, color adjustments, and artistic effects",
-    "es": "Correcciones de imagen, ajustes de color y efectos artísticos",
-    "fr": "Corrections d’image, réglages de couleur et effets artistiques"
    }
   },
   "afb50d7a41962649121d37a72684c97c22a972a87c092805bbeac6d6497df19b": {
@@ -19414,18 +19506,6 @@
     "en": "Match Fields choices: save in the file",
     "es": "Opciones de Coincidir campos: guardar en el archivo",
     "fr": "Choix de correspondance des champs : enregistrement dans le fichier"
-   }
-  },
-  "b3c2bc5bc2adcf570f6a863930e3ba28dfb4b0d2b398b08f902c9532e2fc51d2": {
-   "drop": false,
-   "en": "JeffWrite reads an equation from `.docx`, draws it as a line of text in its order, and writes it back as it was.",
-   "es": "JeffWrite lee una ecuación de un archivo `.docx`, la muestra como una línea de texto en su orden y la vuelve a guardar tal como estaba.",
-   "fr": "JeffWrite lit une équation d’un fichier `.docx`, l’affiche comme une ligne de texte dans son ordre et la réécrit telle qu’elle était.",
-   "soon": {
-    "drop": false,
-    "en": "Equations laid out as printed, on screen, in print, and in PDF",
-    "es": "Ecuaciones con su diseño de impresión, en pantalla, al imprimir y en PDF",
-    "fr": "Équations mises en page comme à l’impression, à l’écran, à l’impression et en PDF"
    }
   },
   "b42ba8a6efed652a9d71b46bc999da05ce6a44887a14f149869e0b0d8d3bbc67": {
@@ -19680,11 +19760,11 @@
     "fr": ""
    }
   },
-  "b87ccc4acd0b7a3eedc5d7c755cf62911919b4252771b0a33ee58188d0c1d300": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
+  "b8687836b26ffb34388a2b607228a2e6ec57c64240650107acc9338e9a807f0a": {
+   "drop": false,
+   "en": "In JeffWrite, you can choose a font from a list that shows theme fonts first, then recently used fonts, then all fonts, each name in its own face. You can set the size from a list or by typing it, grow or shrink it, and use `Ctrl+[` and `Ctrl+]`.",
+   "es": "En JeffWrite puede elegir una fuente de una lista que muestra primero las fuentes del tema, después las usadas recientemente y luego todas las demás, cada nombre en su propio tipo de letra. Puede fijar el tamaño desde una lista o escribiéndolo, aumentarlo o reducirlo, y usar `Ctrl+[` y `Ctrl+]`.",
+   "fr": "Dans JeffWrite, vous pouvez choisir une police dans une liste qui affiche d’abord les polices du thème, puis les polices récentes, puis toutes les polices, chaque nom dans sa propre police. Vous pouvez définir la taille depuis une liste ou en la saisissant, l’agrandir ou la réduire, et utiliser `Ctrl+[` et `Ctrl+]`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -19788,6 +19868,18 @@
     "fr": ""
    }
   },
+  "b9dd1606020a4f60c28bbd7fdd6e3f24cdcb6381d3b5753391639046e1083cb1": {
+   "drop": false,
+   "en": "Typed equations support fractions, superscripts and subscripts, roots with a degree, sums, integrals, and products with limits, and the names of common functions.",
+   "es": "Las ecuaciones escritas admiten fracciones, superíndices y subíndices, raíces con grado, sumas, integrales y productos con límites, y los nombres de funciones comunes.",
+   "fr": "Les équations saisies prennent en charge les fractions, les exposants et indices, les racines avec un degré, les sommes, intégrales et produits avec limites, et les noms de fonctions courantes.",
+   "soon": {
+    "drop": false,
+    "en": "Brackets that grow, accents, matrices, and the symbol galleries",
+    "es": "Paréntesis que se ajustan, acentos, matrices y galerías de símbolos",
+    "fr": "Parenthèses extensibles, accents, matrices et galeries de symboles"
+   }
+  },
   "ba1383384150b67b4377b0fe91a1cf0ecbf5c93ada5c2bd2354d5f6205d46880": {
    "drop": false,
    "en": "`.docx` and `.dotx` (Open XML)",
@@ -19872,18 +19964,6 @@
     "fr": ""
    }
   },
-  "bc0a968f1f7b7d1dcffd7df0ca1d6423b44b2fa17b02efa3ffd17947ba49b745": {
-   "drop": false,
-   "en": "In JeffCrunch, Insert > Sparklines makes line, column, and win/loss sparklines from a row or column of values, into one cell or a group of cells. They are drawn inside their cells, can color the high, low, first, last, and negative points, and are saved with the sheet.",
-   "es": "En JeffCrunch, Insertar > Minigráficos crea minigráficos de línea, de columna y de ganancia/pérdida a partir de una fila o columna de valores, en una celda o en un grupo de celdas. Se dibujan dentro de sus celdas, pueden colorear los puntos más alto, más bajo, primero, último y negativos, y se guardan con la hoja.",
-   "fr": "Dans JeffCrunch, Insertion > Graphiques sparkline crée des sparklines en courbe, en colonne et gain/perte à partir d’une ligne ou d’une colonne de valeurs, dans une cellule ou un groupe de cellules. Elles sont dessinées dans leurs cellules, peuvent colorer les points le plus haut, le plus bas, le premier, le dernier et les points négatifs, et sont enregistrées avec la feuille.",
-   "soon": {
-    "drop": false,
-    "en": "Sparklines: date axis with proportional spacing, and hidden rows and columns left out of the drawing",
-    "es": "Minigráficos: eje de fechas con espaciado proporcional y exclusión de filas y columnas ocultas en el dibujo",
-    "fr": "Sparklines : axe de dates avec espacement proportionnel et exclusion des lignes et colonnes masquées du dessin"
-   }
-  },
   "bc0b94d1aa27281b181db57d0ea0767d2855fd17ad5588a2cc50e0460c6e8108": {
    "drop": true,
    "en": "",
@@ -19906,6 +19986,18 @@
     "en": "Track Changes display options: colors by author and kind, change bars, moved text, and formatting changes",
     "es": "Opciones de visualización del control de cambios: colores por autor y tipo, barras de cambios, texto movido y cambios de formato",
     "fr": "Options d’affichage du suivi des modifications : couleurs par auteur et type, barres de modification, texte déplacé et modifications de mise en forme"
+   }
+  },
+  "bc3b3f4c947da059031460fc8f6cb3d229e878651c4fad18870f81cff878968a": {
+   "drop": false,
+   "en": "Picture Format > Change Picture replaces a picture with one from a file, keeping the same place, frame width, wrap, and alt text.",
+   "es": "Formato de imagen > Cambiar imagen reemplaza una imagen por otra de un archivo, conservando la misma posición, ancho de marco, ajuste y texto alternativo.",
+   "fr": "Format de l’image > Changer l’image remplace une image par une autre issue d’un fichier, en conservant le même emplacement, la même largeur de cadre, le même habillage et le même texte de remplacement.",
+   "soon": {
+    "drop": false,
+    "en": "Change Picture from the clipboard or online, and the Format Picture pane",
+    "es": "Cambiar imagen desde el portapapeles o en línea, y el panel Formato de imagen",
+    "fr": "Changement d’image depuis le presse-papiers ou en ligne, et volet Format de l’image"
    }
   },
   "bc799c05a9d36ac69d755343f5f76b646f8245a208ebc0b996df9103dd28ff3a": {
@@ -19966,6 +20058,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "bd829a1f8639c085d6dd01c6ef39f0973839c1109b69195cc3ee870f8628bb94": {
+   "drop": false,
+   "en": "An equation in a `.docx` file is read, drawn as a line of text in its order, and written back as it was. An equation inserted with Insert > Equation is saved the same way and reads back.",
+   "es": "Una ecuación de un archivo `.docx` se lee, se dibuja como una línea de texto en su orden y se escribe de nuevo tal como estaba. Una ecuación insertada con Insertar > Ecuación se guarda del mismo modo y se vuelve a leer.",
+   "fr": "Une équation d’un fichier `.docx` est lue, dessinée comme une ligne de texte dans son ordre et réécrite telle quelle. Une équation insérée avec Insertion > Équation est enregistrée de la même façon et relue.",
+   "soon": {
+    "drop": false,
+    "en": "Equations laid out as printed, in `.doc` and `.odt` files, on screen, in print, and in PDF",
+    "es": "Ecuaciones con el diseño impreso, en archivos `.doc` y `.odt`, en pantalla, en impresión y en PDF",
+    "fr": "Équations mises en page comme à l’impression, dans les fichiers `.doc` et `.odt`, à l’écran, à l’impression et en PDF"
    }
   },
   "bdb2848bf272dd1a2bd219d6305ee58a2b4a739eaeadd3f54b723734b5664e71": {
@@ -20052,35 +20156,11 @@
     "fr": "Aperçu d’importation : choix du nombre de lignes à vérifier pour deviner les types"
    }
   },
-  "bec59dd81b51bb60c45ac167f14d9fe8ac8a6bbf53c9a2964f65952f18e730b7": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Chart Design and Format: elements, layouts, colors, styles, data, chart type, and formatting of each part",
-    "es": "Diseño y formato de gráficos: elementos, diseños, colores, estilos, datos, tipo de gráfico y formato de cada parte",
-    "fr": "Création et format de graphiques : éléments, dispositions, couleurs, styles, données, type de graphique et mise en forme de chaque partie"
-   }
-  },
   "bec6b31b2841516c6bb00a8315da999645395b93471d02f528675243c7072d5f": {
    "drop": false,
    "en": "Table Design and Table Layout (tables)",
    "es": "Diseño de tabla y Disposición de tabla (tablas)",
    "fr": "Création de tableau et Disposition de tableau (tableaux)",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "bf1600bac1d9d9b62098828faaf7c1ca1028f955f1d332404bd6cea30f343bb6": {
-   "drop": false,
-   "en": "In JeffWrite, choose a font name and size from the ribbon, and use Grow and Shrink to change the size.",
-   "es": "En JeffWrite, elija el nombre y el tamaño de la fuente en la cinta de opciones, y use Aumentar y Reducir para cambiar el tamaño.",
-   "fr": "Dans JeffWrite, choisissez le nom et la taille de la police dans le ruban, et utilisez Agrandir et Réduire pour modifier la taille.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20374,6 +20454,18 @@
     "en": "`RATE` and `DB`",
     "es": "`RATE` y `DB`",
     "fr": "`RATE` et `DB`"
+   }
+  },
+  "c3596f2a7775ff0cc69205f0ed1a30823db2320f8db5de4cdc50336518ab8cca": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Text styles, text fill, text outline, and text effects for shapes, and align and group for objects",
+    "es": "Estilos de texto, relleno de texto, contorno de texto y efectos de texto para formas, y alinear y agrupar objetos",
+    "fr": "Styles de texte, remplissage de texte, contour de texte et effets de texte pour les formes, et alignement et groupement des objets"
    }
   },
   "c36593733c4bd0a82fb88fb1d8fd88c3f4c020508d53b28995252d7519fd76b6": {
@@ -20916,18 +21008,6 @@
     "fr": ""
    }
   },
-  "ca863245f9a5eedd1f5cc5bf123e056f7d3c36689aadcc52435381db607b08a8": {
-   "drop": false,
-   "en": "JeffWrite draws the fills and outlines in a file's shapes.",
-   "es": "JeffWrite dibuja los rellenos y contornos de las formas de un documento.",
-   "fr": "JeffWrite affiche les remplissages et les contours des formes d’un fichier.",
-   "soon": {
-    "drop": false,
-    "en": "Shape styles, fills, outlines, effects, and the Format Shape pane: set",
-    "es": "Estilos, rellenos, contornos y efectos de forma, y panel Formato de forma: aplicar",
-    "fr": "Styles, remplissages, contours et effets de forme, et volet Format de la forme : appliquer"
-   }
-  },
   "cab609f46d1c839c8594ef8c475069d1ab35cd626862bc9c9108bd4055c079c5": {
    "drop": false,
    "en": "Comments keep their ranges, replies, resolved state, authors, and initials, and are written back whole even when they are not shown.",
@@ -21120,18 +21200,6 @@
     "fr": "Vérification de compatibilité : indiquer avant l’enregistrement ce qu’un format ancien ou autre ne peut pas contenir"
    }
   },
-  "cd45a26a655e01fd84ad19d636c42d3097e11c84e549de7419b58f06d8bf2756": {
-   "drop": false,
-   "en": "The arrow under Paste lists Paste Special choices as commands: No Borders, Formulas and Number Formatting, Values and Number Formatting, Keep Source Column Widths, and Comments and Notes.",
-   "es": "La flecha situada bajo Pegar enumera las opciones de Pegado especial como comandos: Sin bordes, Fórmulas y formato de número, Valores y formato de número, Mantener anchos de columna de origen, y Comentarios y notas.",
-   "fr": "La flèche sous Coller répertorie les choix du Collage spécial sous forme de commandes : Sans bordures, Formules et format de nombre, Valeurs et format de nombre, Conserver la largeur des colonnes source, et Commentaires et notes.",
-   "soon": {
-    "drop": false,
-    "en": "Live paste preview, and paste as a picture, a link, and a hyperlink",
-    "es": "Vista previa del pegado en vivo, y pegado como imagen, como vínculo y como hipervínculo",
-    "fr": "Aperçu du collage en direct, et collage en tant qu’image, lien et lien hypertexte"
-   }
-  },
   "cd7bc1f968b84c9d8e4f326e1db02e9657ef7287da52cd3b571fd53b6956eab8": {
    "drop": false,
    "en": "Open `.xlsx` files: sheets, cell values, formulas with their stored results, styles, merged cells, hyperlinks, comments, defined names, data validation, conditional formatting, tables, charts, pictures, shapes, page setup, and document properties.",
@@ -21149,6 +21217,18 @@
    "en": "JeffCrunch converts values silently where a calculation needs it: text that looks like a number is read as a number (`\"3\"+\"4\"` is 7), true and false become 1 and 0, and an empty cell is 0 in arithmetic and empty text in joining. Typed text is read according to the language, such as `1,5` in German.",
    "es": "JeffCrunch convierte valores de forma automática cuando un cálculo lo necesita: el texto que parece un número se lee como número (`\"3\"+\"4\"` es 7), verdadero y falso pasan a ser 1 y 0, y una celda vacía es 0 en operaciones aritméticas y texto vacío al unir. El texto escrito se interpreta según el idioma, por ejemplo `1,5` en alemán.",
    "fr": "JeffCrunch convertit les valeurs silencieusement quand un calcul l’exige : un texte qui ressemble à un nombre est lu comme un nombre (`\"3\"+\"4\"` vaut 7), vrai et faux deviennent 1 et 0, et une cellule vide vaut 0 en arithmétique et un texte vide en concaténation. Le texte saisi est interprété selon la langue, par exemple `1,5` en allemand.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "cdbd400faf3de1eea9d63deeff17c7e7d7d9b4f819489eb568effcc531b38487": {
+   "drop": false,
+   "en": "The Borders menu in JeffCrunch offers line color and style, and diagonal borders are set in the Format Cells dialog. Draw Border, Draw Border Grid, and Erase Border let you drag over cells to draw the outside lines, draw all the lines, or erase them, one step per drag, until `Esc`.",
+   "es": "El menú Bordes de JeffCrunch ofrece color y estilo de línea, y los bordes diagonales se establecen en el cuadro Formato de celdas. Dibujar borde, Dibujar cuadrícula de bordes y Borrar borde permiten arrastrar sobre las celdas para dibujar las líneas exteriores, dibujar todas las líneas o borrarlas, un paso por arrastre, hasta pulsar `Esc`.",
+   "fr": "Le menu Bordures de JeffCrunch propose la couleur et le style de ligne, et les bordures diagonales se définissent dans la boîte de dialogue Format de cellule. Dessiner une bordure, Dessiner une grille de bordures et Effacer la bordure permettent de faire glisser sur les cellules pour tracer les lignes extérieures, tracer toutes les lignes ou les effacer, une étape par glissement, jusqu’à `Échap`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21372,18 +21452,6 @@
     "fr": ""
    }
   },
-  "cff4dcdd7547f7c48e39cde6830583c0b2b0a324784b47d037e8d45093a13ded": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Manual duplex printing: odd pages, then even pages, with a prompt to turn the stack over",
-    "es": "Impresión a doble cara manual: páginas impares y luego pares, con un aviso para dar la vuelta a la pila",
-    "fr": "Impression recto verso manuelle : pages impaires, puis paires, avec un message pour retourner la pile"
-   }
-  },
   "d04a57cde3a6fcb29f1c73ad14a2c52c49d060d6172d1a07351be59a916f1177": {
    "drop": false,
    "en": "Pivot chart tabs (while a pivot chart is selected)",
@@ -21466,18 +21534,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d16f0831b241a56443030cd2e77c12c8545c0a03e5cb94bc0893f9f5c5b15826": {
-   "drop": false,
-   "en": "In JeffCrunch, text boxes and Text Art on a sheet are shown and kept as saved.",
-   "es": "En JeffCrunch, los cuadros de texto y el Arte de texto de una hoja se muestran y se conservan tal como se guardaron.",
-   "fr": "Dans JeffCrunch, les zones de texte et le Texte artistique d’une feuille sont affichés et conservés tels qu’enregistrés.",
-   "soon": {
-    "drop": false,
-    "en": "Text Box and Text Art: edit on a sheet",
-    "es": "Cuadro de texto y Arte de texto: editar en una hoja",
-    "fr": "Zone de texte et Texte artistique : modifier dans une feuille"
    }
   },
   "d18a513608a155b3abe7f1d2ce4d598d7e68b93ceae8d7434b35571c5348a7de": {
@@ -21636,6 +21692,18 @@
     "fr": "Fractionner : quatre volets qui défilent séparément"
    }
   },
+  "d421b6c65828b3d9f8bcc52f4a412e1183cc18472ada7534595a63f8b623a20e": {
+   "drop": false,
+   "en": "JeffCrunch has the logical functions `IFNA`, `IFS`, `LET`, `SWITCH`, and `XOR`. `LET` gives names to values inside one formula, and a name may stand for a block of cells.",
+   "es": "JeffCrunch incluye las funciones lógicas `IFNA`, `IFS`, `LET`, `SWITCH` y `XOR`. `LET` asigna nombres a valores dentro de una misma fórmula, y un nombre puede representar un bloque de celdas.",
+   "fr": "JeffCrunch propose les fonctions logiques `IFNA`, `IFS`, `LET`, `SWITCH` et `XOR`. `LET` donne des noms à des valeurs dans une même formule, et un nom peut représenter un bloc de cellules.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "d42d1b46597c6fbb081682cd34b74df5a837f32c783588a14e92f5f9ecbfb9c4": {
    "drop": true,
    "en": "",
@@ -21670,18 +21738,6 @@
     "en": "Line numbers: suppress for a paragraph",
     "es": "Numeración de líneas: suprimir en un párrafo",
     "fr": "Numérotation des lignes : suppression pour un paragraphe"
-   }
-  },
-  "d4769a597b36caf2f5e36507a46d8c3ec2d8b829b838ffbaa42bd13ae0ca30a4": {
-   "drop": false,
-   "en": "Shapes and text boxes in a file are shown, kept, and written back.",
-   "es": "Las formas y los cuadros de texto de un archivo se muestran, se conservan y se vuelven a escribir.",
-   "fr": "Les formes et les zones de texte d’un fichier sont affichées, conservées et réécrites.",
-   "soon": {
-    "drop": false,
-    "en": "Insert and edit shapes",
-    "es": "Insertar y editar formas",
-    "fr": "Insertion et modification de formes"
    }
   },
   "d47c9d908f866d7e4015243b8828e6577f31aed757ce39f3ce0bfeaa5ead58b1": {
@@ -21936,18 +21992,6 @@
     "fr": ""
    }
   },
-  "d841a4f3a2f4257ae9730886ef93cc1fb32d2ac63ab2afa3363fc139d3619342": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Pivot table calculated fields, calculated items, solve order, and formula list",
-    "es": "Campos calculados, elementos calculados, orden de resolución y lista de fórmulas en tablas dinámicas",
-    "fr": "Champs calculés, éléments calculés, ordre de résolution et liste des formules dans les tableaux croisés dynamiques"
-   }
-  },
   "d85ddf06f44789f0e37021ae2e348139f130c5fd216d4ee5b7acdde9b32c54bb": {
    "drop": false,
    "en": "In JeffDeck you can delete a slide, duplicate a slide (with its notes, transition, and animations), and hide a slide. A hidden slide is skipped in the show, is not printed unless asked, and is struck through in the pane.",
@@ -22080,6 +22124,18 @@
     "fr": ""
    }
   },
+  "da98e867f784a53493a241dcf58902e9bb46436e247d393ec682c810d1b5a29c": {
+   "drop": false,
+   "en": "JeffWrite draws the text boxes in a file with their fill, outline, and insets. Insert > Text Box places a box at the caret, and Edit Text changes the words of a box that holds only words. The Shape Format tab sets fill, outline, wrap, and size.",
+   "es": "JeffWrite dibuja los cuadros de texto de un documento con su relleno, contorno y márgenes internos. Insertar > Cuadro de texto coloca un cuadro en la posición del cursor, y Editar texto cambia las palabras de un cuadro que solo contiene texto. La pestaña Formato de forma permite establecer relleno, contorno, ajuste y tamaño.",
+   "fr": "JeffWrite dessine les zones de texte d’un fichier avec leur remplissage, leur contour et leurs marges internes. Insertion > Zone de texte place une zone à la position du curseur, et Modifier le texte change les mots d’une zone qui ne contient que du texte. L’onglet Format de forme permet de définir le remplissage, le contour, l’habillage et la taille.",
+   "soon": {
+    "drop": false,
+    "en": "Drawing text boxes with the mouse, vertical text direction, and linked text boxes",
+    "es": "Dibujar cuadros de texto con el ratón, dirección vertical del texto y cuadros de texto vinculados",
+    "fr": "Dessin de zones de texte à la souris, orientation verticale du texte et zones de texte liées"
+   }
+  },
   "db4683de064e1ff34cb5fd3925259c131d1bb3ed9969ff37f71cf674453f419c": {
    "drop": false,
    "en": "Themes",
@@ -22126,18 +22182,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "dc88855805f9b19ac15958bfa383ed46f9708bc6e72020b601e670e59789fb55": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Smart cut and paste, and the Paste Options button after pasting",
-    "es": "Cortar y pegar inteligente, y el botón de opciones de pegado después de pegar",
-    "fr": "Couper-coller intelligent et bouton d’options de collage après le collage"
    }
   },
   "dc90f4fe881fe9b53566d23cdcab01934d9c482e39ef601be7f723844263a382": {
@@ -22368,18 +22412,6 @@
     "fr": ""
    }
   },
-  "e01c7fd05b3d656d9ef5fa22b7f06abbcd2948fda6e66b2831f07d3024b1d8f9": {
-   "drop": false,
-   "en": "JeffWrite draws and keeps the shapes and text boxes found in a file.",
-   "es": "JeffWrite dibuja y conserva las formas y los cuadros de texto que contiene un fichero.",
-   "fr": "JeffWrite affiche et conserve les formes et les zones de texte d’un fichier.",
-   "soon": {
-    "drop": false,
-    "en": "Shapes: insert and edit",
-    "es": "Formas: insertar y editar",
-    "fr": "Formes : insertion et modification"
-   }
-  },
   "e0581e39e2c34d383eeaba7e32dbbb9b5140528af6e75cc7f65847ff066f3be6": {
    "drop": false,
    "en": "Function names complete as you type, with argument names shown; arguments are separated by commas or semicolons as the language requires; references are colored in the formula and the sheet; drag a colored border to change a reference; `F4` cycles between relative and absolute (`A1`, `$A$1`, `A$1`, `$A1`).",
@@ -22462,6 +22494,18 @@
     "en": "AutoCorrect, exclusion dictionaries, custom dictionary editing, and the Spelling pane in tables, headers, footers, and notes",
     "es": "Autocorrección, diccionarios de exclusión, edición del diccionario personalizado y panel Ortografía en tablas, encabezados, pies de página y notas",
     "fr": "Correction automatique, dictionnaires d’exclusion, modification du dictionnaire personnel et volet Orthographe dans les tableaux, les en-têtes, les pieds de page et les notes"
+   }
+  },
+  "e17b77f96f0f424148ce4f73f008a5c7b7b2876b5661739060907aea8b99ccf6": {
+   "drop": false,
+   "en": "Paste Text Import opens the Text Import dialog on the clipboard text and splits it into columns by the separators, quote, first row, and column kinds chosen (text, date, or left out), in one step of Undo.",
+   "es": "Importar texto al pegar abre el cuadro de importación de texto con el texto del portapapeles y lo divide en columnas según los separadores, la comilla, la primera fila y los tipos de columna elegidos (texto, fecha u omitida), en un solo paso de Deshacer.",
+   "fr": "Importer le texte collé ouvre la boîte d’importation de texte sur le contenu du presse-papiers et le divise en colonnes selon les séparateurs, le guillemet, la première ligne et les types de colonne choisis (texte, date ou ignorée), en une seule étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Fixed-width columns in text import, and Set Default Paste",
+    "es": "Columnas de ancho fijo en la importación de texto, y Establecer pegado predeterminado",
+    "fr": "Colonnes de largeur fixe à l’importation du texte, et Définir le collage par défaut"
    }
   },
   "e1919a88302c01c899a1a731f71c1bf0f53806e9461d5692880f8d04d706e617": {
@@ -22553,6 +22597,18 @@
    "en": "JeffWrite asks for the password of a password-protected `.docx` file, asks again when it is wrong, and saves the file protected again. A file protected only against accidental changes opens without asking.",
    "es": "JeffWrite solicita la contraseña de un archivo `.docx` protegido con contraseña, la solicita de nuevo si es incorrecta y guarda el archivo otra vez protegido. Un archivo protegido solo contra cambios accidentales se abre sin preguntar.",
    "fr": "JeffWrite demande le mot de passe d’un fichier `.docx` protégé par mot de passe, le redemande s’il est incorrect et enregistre de nouveau le fichier protégé. Un fichier protégé seulement contre les modifications accidentelles s’ouvre sans rien demander.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e2d2ccdf1ec434cc1feb6dc9a19d3bdb80d9ed2519542a40a057713531005388": {
+   "drop": false,
+   "en": "JeffCrunch has the information functions `CELL`, `ISNUMBER`, `NA`, `ISERROR`, `ISNA`, `ISTEXT`, `ISBLANK`, `ISERR`, `N`, `ERROR.TYPE`, `INFO`, `ISEVEN`, `ISLOGICAL`, `ISNONTEXT`, `ISODD`, `ISREF`, and `TYPE`.",
+   "es": "JeffCrunch incluye las funciones de información `CELL`, `ISNUMBER`, `NA`, `ISERROR`, `ISNA`, `ISTEXT`, `ISBLANK`, `ISERR`, `N`, `ERROR.TYPE`, `INFO`, `ISEVEN`, `ISLOGICAL`, `ISNONTEXT`, `ISODD`, `ISREF` y `TYPE`.",
+   "fr": "JeffCrunch propose les fonctions d’information `CELL`, `ISNUMBER`, `NA`, `ISERROR`, `ISNA`, `ISTEXT`, `ISBLANK`, `ISERR`, `N`, `ERROR.TYPE`, `INFO`, `ISEVEN`, `ISLOGICAL`, `ISNONTEXT`, `ISODD`, `ISREF` et `TYPE`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -22728,18 +22784,6 @@
     "fr": "Modification des liens : mise à jour des références externes à la demande"
    }
   },
-  "e46d75f4af20743cbe91a92f1eac1a5a90cf89b671f1d16e6b6246b730632a2f": {
-   "drop": false,
-   "en": "JeffWrite lays out the text in shapes and text boxes from a file inside the box, with its tables.",
-   "es": "JeffWrite distribuye dentro del cuadro el texto de las formas y los cuadros de texto de un documento, con sus tablas.",
-   "fr": "JeffWrite met en page dans le cadre le texte des formes et des zones de texte d’un fichier, avec ses tableaux.",
-   "soon": {
-    "drop": false,
-    "en": "Text in shapes and text boxes: edit",
-    "es": "Texto en formas y cuadros de texto: edición",
-    "fr": "Texte dans les formes et les zones de texte : modification"
-   }
-  },
   "e4909f9574f475c64362dd26a897c973eba8a48408347852dfbb93f2e5ed2580": {
    "drop": false,
    "en": "JeffPub supports layering, grouping, and locking objects (lock position and size).",
@@ -22774,18 +22818,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "e4f04f445a4ca11c3ce1a2688b39d48b0afd539c7e3f00576b0a2bd96f9950fb": {
-   "drop": false,
-   "en": "Any chart, picture, or shape can be given a name and alt text in Properties. They are saved with the file and read back.",
-   "es": "A cualquier gráfico, imagen o forma se le puede dar un nombre y un texto alternativo en Properties. Se guardan con el fichero y se leen de nuevo.",
-   "fr": "Tout graphique, image ou forme peut recevoir un nom et un texte de remplacement dans Properties. Ils sont enregistrés avec le fichier et relus.",
-   "soon": {
-    "drop": false,
-    "en": "Picture crop, size, and arrange",
-    "es": "Recorte, tamaño y organización de imágenes",
-    "fr": "Rognage, taille et organisation des images"
    }
   },
   "e50d45c23cb6010c3ad2eb546a2468fd2096abd4455bfa6bc89522666a8f24bb": {
@@ -23136,18 +23168,6 @@
     "fr": ""
    }
   },
-  "e96478d4ced7d86403d483764a7724d989d44b65a71ba25d948a6b1bcd5be775": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Change Picture and the Format Picture pane",
-    "es": "Cambiar imagen y panel Formato de imagen",
-    "fr": "Changer d’image et volet Format de l’image"
-   }
-  },
   "e9ddc2103219380bf21287d39be060b9d17f585a55d54c6d4effdebb3d1df2b4": {
    "drop": false,
    "en": "JeffWrite reopens a document where you stopped editing. `Shift+F5` jumps among the last three places where text was edited.",
@@ -23230,18 +23250,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ea8fb54a167e34f19f941c660774c93a5fb769e18446df0f461f209fc4e7b7e1": {
-   "drop": false,
-   "en": "JeffCrunch includes 16 information functions, including `CELL`, `ISNUMBER`, `ISTEXT`, `ISBLANK`, `ISERROR`, `ISNA`, `NA`, `TYPE`, and `ERROR.TYPE`.",
-   "es": "JeffCrunch incluye 16 funciones de información, entre ellas `CELL`, `ISNUMBER`, `ISTEXT`, `ISBLANK`, `ISERROR`, `ISNA`, `NA`, `TYPE` y `ERROR.TYPE`.",
-   "fr": "JeffCrunch inclut 16 fonctions d’information, dont `CELL`, `ISNUMBER`, `ISTEXT`, `ISBLANK`, `ISERROR`, `ISNA`, `NA`, `TYPE` et `ERROR.TYPE`.",
-   "soon": {
-    "drop": false,
-    "en": "`INFO` function",
-    "es": "Función `INFO`",
-    "fr": "Fonction `INFO`"
    }
   },
   "ea99aaa8f107950b0036b9446aa8e64e5c66a266c7bfaaea21f47bd44c4c81eb": {
@@ -23424,18 +23432,6 @@
     "fr": ""
    }
   },
-  "edb2a21905c8412e78e8ddfc6a8963186c19c7190042e8c8353abcb2a9b2a9ee": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Chart: insert, edit data in a grid, and change type, elements, layout, style, and colors",
-    "es": "Gráfico: insertar, editar los datos en una cuadrícula y cambiar tipo, elementos, diseño, estilo y colores",
-    "fr": "Graphique : insertion, modification des données dans une grille, et changement du type, des éléments, de la disposition, du style et des couleurs"
-   }
-  },
   "ee422eeb40c0d66b0025dd8625c381c8c1c2ebf5c5facdca2b2c75fb39aab37c": {
    "drop": false,
    "en": "JeffPub supports undo and redo with full history.",
@@ -23513,6 +23509,18 @@
    "en": "In JeffDeck, set row height and column width by number or by dragging the borders, and distribute rows and columns evenly.",
    "es": "En JeffDeck, defina el alto de fila y el ancho de columna con un número o arrastrando los bordes, y distribuya filas y columnas de forma uniforme.",
    "fr": "Dans JeffDeck, réglez la hauteur des lignes et la largeur des colonnes par un nombre ou en faisant glisser les bordures, et répartissez uniformément les lignes et les colonnes.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "efaee397d18336214761b7c9877f12c60adfef5347e7308feaaed469a1bfbf34": {
+   "drop": false,
+   "en": "Go To in JeffWrite (`Ctrl+G`) jumps to a page, section, line, bookmark, comment, footnote, endnote, field, table, graphic, equation, or heading. You can enter a number or name, use + and - to move relative to the caret, or pick from a list.",
+   "es": "Ir a en JeffWrite (`Ctrl+G`) permite saltar a una página, sección, línea, marcador, comentario, nota al pie, nota al final, campo, tabla, gráfico, ecuación o título. Puede escribir un número o nombre, usar + y - respecto al cursor, o elegir de una lista.",
+   "fr": "Atteindre dans JeffWrite (`Ctrl+G`) permet d’aller à une page, une section, une ligne, un signet, un commentaire, une note de bas de page, une note de fin, un champ, un tableau, un graphique, une équation ou un titre. Vous pouvez saisir un numéro ou un nom, utiliser + et - par rapport au curseur, ou choisir dans une liste.",
    "soon": {
     "drop": true,
     "en": "",
@@ -23638,18 +23646,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "f1977d949fb536f15b18a3837dbb0850f70db4fc561bf7b7706492f68b24af9f": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Cells pasted into JeffWrite or JeffDeck as a table, keeping fonts, fills, borders, and number formats",
-    "es": "Celdas pegadas en JeffWrite o JeffDeck como tabla, con fuentes, rellenos, bordes y formatos de número conservados",
-    "fr": "Cellules collées dans JeffWrite ou JeffDeck sous forme de tableau, avec polices, remplissages, bordures et formats numériques conservés"
    }
   },
   "f1cc43b576d5b11a95c6f288a41e2b01b8e28a567d4fe7217ae1fe07a5d0cbe5": {
@@ -24108,6 +24104,30 @@
     "fr": ""
    }
   },
+  "f9518d58e1b54257163d384e7c3ba2a14d66663b89d4ecbdd7563548eb526376": {
+   "drop": false,
+   "en": "Shapes and text boxes in a file are shown, kept, and written back.",
+   "es": "Las formas y los cuadros de texto de un archivo se muestran, se conservan y se escriben de nuevo.",
+   "fr": "Les formes et les zones de texte d’un fichier sont affichées, conservées et réécrites.",
+   "soon": {
+    "drop": false,
+    "en": "Insert and edit shapes",
+    "es": "Insertar y editar formas",
+    "fr": "Insertion et modification de formes"
+   }
+  },
+  "f973e308360a112e61bebb001ba5338936e93f51a08d5c75e66537638da6767b": {
+   "drop": false,
+   "en": "Edit Text sets the words of a shape or text box, horizontal and vertical alignment, size, bold, color, and wrap or one line.",
+   "es": "Editar texto establece las palabras de una forma o cuadro de texto, la alineación horizontal y vertical, el tamaño, la negrita, el color y el ajuste o una sola línea.",
+   "fr": "Modifier le texte définit les mots d’une forme ou d’une zone de texte, l’alignement horizontal et vertical, la taille, le gras, la couleur, et l’habillage ou une seule ligne.",
+   "soon": {
+    "drop": false,
+    "en": "Margins, columns, and text direction in shapes and text boxes",
+    "es": "Márgenes, columnas y dirección del texto en formas y cuadros de texto",
+    "fr": "Marges, colonnes et orientation du texte dans les formes et zones de texte"
+   }
+  },
   "f974ff487bebead8cb39099fcad30769a9c4ffd326073b67573084f4a803ecbf": {
    "drop": false,
    "en": "Insert the text of another document, with its looks, pictures, and links, or a plain text file as paragraphs.",
@@ -24310,6 +24330,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "fb416e14dbdef7685cfafb35d8d2a3b26036ae88392c4b4179b5bd0c4e96c1f3": {
+   "drop": false,
+   "en": "Picture Format > Picture Border sets the color, weight, and dashes, and a gallery of eight frames sets them together, including No Border. Borders in a file are drawn.",
+   "es": "Formato de imagen > Borde de imagen establece el color, el grosor y los guiones, y una galería de ocho marcos los establece juntos, incluida la opción Sin borde. Los bordes de un documento se dibujan.",
+   "fr": "Format de l’image > Bordure de l’image définit la couleur, l’épaisseur et les tirets, et une galerie de huit cadres les définit ensemble, y compris Aucune bordure. Les bordures d’un fichier sont dessinées.",
+   "soon": {
+    "drop": false,
+    "en": "Picture effects: shadow, reflection, glow, soft edges, bevel, and 3-D rotation",
+    "es": "Efectos de imagen: sombra, reflejo, resplandor, bordes suaves, bisel y rotación 3D",
+    "fr": "Effets d’image : ombre, reflet, lueur, contours progressifs, biseau et rotation 3D"
    }
   },
   "fb48970b217a8a2d6e54fff009d229178284a3065cdf03e7309d01c1cbc9c2e7": {
@@ -24670,18 +24702,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ffdb870b5021bbcf0d0e8816280658fab2f7b214aee4723ab9e1fb6ba5da588e": {
-   "drop": false,
-   "en": "Copy as Picture and Copy as Bitmap put an image of the selected cells on the clipboard, drawn as on screen with the gridlines. Copy as Picture uses twice the screen’s resolution. A block too large for one picture is reported.",
-   "es": "Copiar como imagen y Copiar como mapa de bits colocan en el portapapeles una imagen de las celdas seleccionadas, dibujada como en pantalla con las líneas de cuadrícula. Copiar como imagen usa el doble de la resolución de la pantalla. Se avisa si un bloque es demasiado grande para una sola imagen.",
-   "fr": "Copier en tant qu’image et Copier en tant que bitmap placent dans le presse-papiers une image des cellules sélectionnées, dessinée comme à l’écran avec le quadrillage. Copier en tant qu’image utilise le double de la résolution de l’écran. Un bloc trop grand pour une seule image est signalé.",
-   "soon": {
-    "drop": false,
-    "en": "Copy as Picture as printed",
-    "es": "Copiar como imagen tal como se imprime",
-    "fr": "Copie en tant qu’image telle qu’imprimée"
    }
   },
   "ffdf10addc3860bc2ec9d658f9b8142f4f7d5a5601f0bc05c7c9b7702b9b1a4c": {

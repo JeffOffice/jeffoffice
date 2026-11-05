@@ -19,6 +19,7 @@
 
 #include <QAction>
 #include <QComboBox>
+#include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -391,6 +392,46 @@ private Q_SLOTS:
     }
 
     // ---- names
+    // The list of names sorts by a heading (a second click turns the order round; numbers sort as numbers), and a name that points to an error is marked.
+    void theListOfNamesSortsAndMarksANameThatPointsToAnError()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=5", "A2=60", "A3=7"}}, {}, {},
+                                    QStringLiteral("<definedName name=\"beta\" comment=\"z\">Sheet1!$A$2</definedName><definedName name=\"Alpha\" comment=\"y\">Sheet1!$A$1</definedName>"
+                                                   "<definedName name=\"Gone\" comment=\"x\">Sheet1!#REF!</definedName><definedName name=\"Cee\">Sheet1!$A$3</definedName>"))));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(kEnglish);
+        QVERIFY(e.settle());
+        NamesDialog d(w.session(), 0, QString());
+        d.show();
+        auto names = [&] {
+            QStringList out;
+            for (int r = 0; r < d.model()->rowCount(); ++r) out << d.model()->data(d.model()->index(r, NamesModel::NameColumn), Qt::DisplayRole).toString();
+            return out;
+        };
+        QCOMPARE(d.model()->rowCount(), 4);
+        d.model()->sortBy(NamesModel::NameColumn, Qt::AscendingOrder);
+        QCOMPARE(names(), (QStringList{QStringLiteral("Alpha"), QStringLiteral("beta"), QStringLiteral("Cee"), QStringLiteral("Gone")}));
+        d.model()->sortBy(NamesModel::NameColumn, Qt::DescendingOrder);
+        QCOMPARE(names(), (QStringList{QStringLiteral("Gone"), QStringLiteral("Cee"), QStringLiteral("beta"), QStringLiteral("Alpha")}));
+        // by value: 5, 7, 60 as numbers (not 5, 60, 7), and the error after them
+        d.model()->sortBy(NamesModel::ValueColumn, Qt::AscendingOrder);
+        QCOMPARE(names(), (QStringList{QStringLiteral("Alpha"), QStringLiteral("Cee"), QStringLiteral("beta"), QStringLiteral("Gone")}));
+        // a click on a heading sorts by it, and a second click turns the order round
+        QMetaObject::invokeMethod(d.table()->horizontalHeader(), "sectionClicked", Q_ARG(int, int(NamesModel::CommentColumn)));
+        QCOMPARE(d.model()->sortColumn(), int(NamesModel::CommentColumn));
+        QCOMPARE(d.model()->sortOrder(), Qt::AscendingOrder);
+        QMetaObject::invokeMethod(d.table()->horizontalHeader(), "sectionClicked", Q_ARG(int, int(NamesModel::CommentColumn)));
+        QCOMPARE(d.model()->sortOrder(), Qt::DescendingOrder);
+        saveShot(&d, QStringLiteral("names-sorted-flagged"));
+        // the name that points to an error is marked, the others are not
+        for (int r = 0; r < d.model()->rowCount(); ++r) {
+            const QModelIndex at = d.model()->index(r, NamesModel::NameColumn);
+            const bool marked = d.model()->data(at, Qt::DecorationRole).isValid();
+            QCOMPARE(marked, d.model()->data(at, Qt::DisplayRole).toString() == QStringLiteral("Gone"));
+        }
+    }
+
     void theListOfNamesFiltersAndMakesChangesAndTakesNamesAway()
     {
         EditWindow e;

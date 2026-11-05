@@ -713,6 +713,32 @@ private Q_SLOTS:
         QCOMPARE(e.selected(), QStringLiteral("D4"));
     }
 
+    // Check Accessibility finds text that is hard to read against its fill (pale gray on white), once for each look, and leaves readable text, an empty cell, and a patterned fill alone.
+    void checkAccessibilityFindsTextThatIsHardToRead()
+    {
+        const QByteArray styles = stylesXml(
+            QString(),
+            QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\"/>"
+                           "<xf numFmtId=\"0\" fontId=\"2\" fillId=\"2\" borderId=\"0\"/><xf numFmtId=\"0\" fontId=\"2\" fillId=\"3\" borderId=\"0\"/>"),
+            QStringLiteral("<fonts count=\"3\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font><font><sz val=\"11\"/><color rgb=\"FFD0D0D0\"/><name val=\"Calibri\"/></font>"
+                           "<font><sz val=\"11\"/><color rgb=\"FFFFFFFF\"/><name val=\"Calibri\"/></font></fonts>"
+                           "<fills count=\"4\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill>"
+                           "<fill><patternFill patternType=\"solid\"><fgColor rgb=\"FF13773A\"/></patternFill></fill>"
+                           "<fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFF0F0F0\"/></patternFill></fill></fills>"
+                           "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"));
+        // A1 pale on white, B1 white on dark green (readable), C1 empty with the pale look, A2 pale again (the same look: one finding), B2 white on pale gray (hard to read)
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" s=\"1\"><v>1</v></c><c r=\"B1\" s=\"2\"><v>2</v></c><c r=\"C1\" s=\"1\"/></row>"
+                                            "<row r=\"2\"><c r=\"A2\" s=\"1\"><v>3</v></c><c r=\"B2\" s=\"3\"><v>4</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), styles, {QStringLiteral("Budget")})));
+        QVERIFY(e.settle());
+        const auto issues = crunch::checkAccessibility(*e.win.w.session(), nullptr);
+        QStringList where;
+        for (const auto &i : issues)
+            if (i.kind == crunch::AccessIssue::LowContrast) where << QStringLiteral("%1,%2").arg(i.row).arg(i.col);
+        QCOMPARE(where, (QStringList{QStringLiteral("0,0"), QStringLiteral("1,1")}));
+    }
+
 private:
     QLocale m_localeBefore;
     std::unique_ptr<PinnedLocale> m_pin;

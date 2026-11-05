@@ -589,6 +589,39 @@ QString WriteDoc::addMedia(const QByteArray &bytes, const QString &extension, co
     return r.id;
 }
 
+QByteArray WriteDoc::relatedPartData(const QString &id) const
+{
+    for (const Relationship &r : m_wml.mainRelationships)
+        if (r.id == id && !r.external) return partData(r.target);
+    return {};
+}
+
+QString WriteDoc::addRelatedPart(const QString &folder, const QString &base, const QString &extension, const QByteArray &data, const QString &contentType, const QString &relationshipType, const QString &likePart)
+{
+    QSet<QString> taken;
+    for (const KeptPart &p : m_wml.parts) taken.insert(p.name.toLower());
+    taken.insert(m_wml.mainName.toLower());
+    QString name;
+    for (int n = 1;; ++n) {
+        name = QStringLiteral("%1/%2%3.%4").arg(folder, base).arg(n).arg(extension);
+        if (!taken.contains(name.toLower())) break;
+    }
+    KeptPart part;
+    part.name = name;
+    part.contentType = contentType;
+    part.data = data;
+    m_wml.parts.push_back(part);
+    Relationship r;
+    r.id = nextRelationshipId(m_wml.mainRelationships);
+    r.type = relationshipType;
+    r.target = name;
+    m_wml.mainRelationships.push_back(r);
+    m_madeMedia.insert(r.id, name);
+    // (A chart made from another has the same workbook and the same shapes over it.)
+    if (!likePart.isEmpty() && m_wml.partRelationships.contains(likePart)) m_wml.partRelationships.insert(name, m_wml.partRelationships.value(likePart));
+    return r.id;
+}
+
 qint64 WriteDoc::mediaBytes() const
 {
     qint64 total = 0;

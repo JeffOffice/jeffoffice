@@ -34,6 +34,36 @@ class SheetFnLogicTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    // LET gives names to values inside one formula: each name is known to the values after it and to the calculation, an inner LET may use a name again, and a name is not known after the
+    // call. A name may stand for a block of cells.
+    void letNamesValuesInsideOneFormula()
+    {
+        Grid g = sample();
+        const E cases[] = {
+            {"_xlfn.LET(x,5,x*2)", "n:10"},
+            {"_xlfn.LET(x,2,y,x+1,x*y)", "n:6"},
+            {"_xlfn.LET(X,1,x+1)", "n:2"},
+            {"_xlfn.LET(x,1,_xlfn.LET(x,2,x)+x)", "n:3"},
+            {"_xlfn.LET(x,1,x)+_xlfn.LET(x,10,x)", "n:11"},
+            {"IF(TRUE,_xlfn.LET(a,3,a*a),0)", "n:9"},
+            {"IF(FALSE,_xlfn.LET(a,3,a*a),_xlfn.LET(b,4,b+1))", "n:5"},
+            {"_xlfn.LET(r,B1:B3,SUM(r))", "n:3"},
+            {"_xlfn.LET(r,B1:B3,n,COUNT(r),SUM(r)/n)", "n:1"},
+            {"_xlfn.LET(a,{1,2,3},SUM(a))", "n:6"},
+            {"_xlfn.LET(x,1/0,IFERROR(x,7))", "n:7"},
+            {"_xlfn.LET(x,1,x)+x", "e:#NAME?"},
+            {"_xlfn.LET(t,\"a\",t&t)", "s:aa"},
+            {"_xlfn.LET(_xlpm.q,4,_xlpm.q+1)", "n:5"},
+        };
+        CHECK_EVALS(cases, g, Settings());
+        for (const char *bad : {"_xlfn.LET(x,1)", "_xlfn.LET(x)", "_xlfn.LET(x,,x)", "_xlfn.LET(1,2,3)", "_xlfn.LET(x,1,x"}) {
+            const QString got = ev(QString::fromUtf8(bad), g, Settings());
+            QVERIFY2(got.startsWith(QStringLiteral("!parse")) || got.startsWith(QStringLiteral("e:")), qPrintable(QString::fromUtf8(bad) + QStringLiteral(" gave ") + got));
+        }
+        QVERIFY(ev(QStringLiteral("_xlfn.LET(x,1)"), g, Settings()).startsWith(QStringLiteral("!parse")));
+        QVERIFY(ev(QStringLiteral("_xlfn.LET(x,1,x"), g, Settings()).startsWith(QStringLiteral("!parse")));
+    }
+
     void andOrNotXor()
     {
         const Grid g = sample();

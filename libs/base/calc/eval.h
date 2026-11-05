@@ -98,6 +98,19 @@ public:
     virtual bool isSubtotal(int sheet, quint32 row, quint32 col) const { Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); return false; }
     // The cell holds a formula; `*text` (if given) is its text without the "=", with A1 references and the English names of functions (without the prefixes a file gives the newer ones).
     virtual bool formulaInfo(int sheet, quint32 row, quint32 col, QString *text) const { Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); Q_UNUSED(text); return false; }
+    // What CELL tells that depends on the file or on how the cell is set: "filename", "format", "color", "parentheses", "prefix", "protect", and "width" (lower case) for the cell
+    // (sheet, row, col). False for a source that does not know (the evaluation then says it did not work the call out).
+    virtual bool cellInfo(int sheet, quint32 row, quint32 col, const QString &kind, Value *out) const
+    {
+        Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); Q_UNUSED(kind); Q_UNUSED(out);
+        return false;
+    }
+    // What INFO tells about the program and the workbook: "directory", "numfile", "origin", "osversion", "recalc", "release", and "system" (lower case). False for a source that does not know.
+    virtual bool environmentInfo(const QString &kind, Value *out) const
+    {
+        Q_UNUSED(kind); Q_UNUSED(out);
+        return false;
+    }
     // Changes when the sheets or their names do, so a program re-reads which sheet each name is (a source that is replaced by another at the same address must
     // change it too).
     virtual qint64 generation() const { return 0; }

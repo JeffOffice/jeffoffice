@@ -287,6 +287,7 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     options.workOutTables = true;              // and the columns of tables are worked out (a formula that names them is no longer kept as the file has it)
     options.workOutDataTables = true;          // and so are the cells of what-if tables (the yardstick of the tools leaves them as the file has them)
     auto calc = std::make_unique<Calculation>(*out->book, options);
+    calc->setFilePath(out->path);
     calc->setDataTablesAutomatic(out->book->info().calcMode == jp::office::sheet::CalcMode::Auto);   // (a workbook set to leave tables by hand has them as the file stored them until asked)
     calc->setCancel(cancelFlag);
     QElapsedTimer sinceTold;

@@ -145,6 +145,7 @@ void PageView::setDocument(WriteDoc *doc)
     m_rendered.clear();
     m_recent.clear();
     m_doc = doc;
+    if (m_doc) m_doc->setShowHiddenText(m_marks);
     m_rects.clear();
     m_rowTops.clear();
     m_knownPages = 0;
@@ -521,6 +522,7 @@ void PageView::setZoomMode(ZoomMode mode, int across, int down)
 void PageView::setShowMarks(bool on)
 {
     m_marks = on;
+    if (m_doc) m_doc->setShowHiddenText(on);
     viewport()->update();
 }
 
@@ -1201,6 +1203,7 @@ void PageView::caretMoved(bool keepWanted)
     m_caretOn = true;
     if (hasFocus()) m_blink.start();
     ensureCaretVisible();
+    updatePasteButton();
     viewport()->update();
     Q_EMIT caretChanged();
 }
@@ -1887,7 +1890,7 @@ bool PageView::floatingPictureRect(int position, QRectF *onPage, int *pageOut)
         if (!r || !r->page) continue;
         const QString prefix = QStringLiteral("flow-object-%1-%2-").arg(r->page->doc->pages[0]->id).arg(id);
         for (const auto &it : r->page->doc->pages[0]->items)
-            if (it->id.startsWith(prefix) && it->type() == ItemType::Picture) {
+            if (it->id.startsWith(prefix)) {
                 *onPage = it->rect;
                 *pageOut = candidate;
                 return true;
@@ -1901,13 +1904,17 @@ int PageView::floatingPictureAt(const Hit &hit)
     if (!m_doc || hit.page < 0 || m_hf.active || m_note.active) return -1;
     const auto r = rendered(hit.page);
     if (!r || !r->page) return -1;
-    QVector<int> ids;
+    // (The objects of any kind that can be selected: a picture, or a shape, text box, or line the program draws.)
+    QVector<int> ids, pictureIds;
     const auto &items = r->page->doc->pages[0]->items;
     for (auto it = items.crbegin(); it != items.crend(); ++it) {
         const auto &item = *it;
-        if (item->type() != ItemType::Picture || !item->id.startsWith(QLatin1String("flow-object-")) || !item->rect.contains(hit.point)) continue;
+        if (!item->id.startsWith(QLatin1String("flow-object-")) || !item->rect.contains(hit.point)) continue;
         const QStringList parts = item->id.split(QLatin1Char('-'));
-        if (parts.size() >= 3) ids << parts[parts.size() - 2].toInt();
+        if (parts.size() >= 3) {
+            ids << parts[parts.size() - 2].toInt();
+            if (item->type() == ItemType::Picture) pictureIds << ids.last();
+        }
     }
     if (ids.isEmpty()) return -1;
     // The anchor of the object: a character of the text of the page (or the pages round it) that names it.
@@ -1924,7 +1931,7 @@ int PageView::floatingPictureAt(const Hit &hit)
                     if (object == id) {
                         const QString text = fr.text();
                         for (int k = 0; k < text.size(); ++k)
-                            if (text[k] == QChar::ObjectReplacementCharacter) return fr.position() + k;
+                            if (text[k] == QChar::ObjectReplacementCharacter && (pictureIds.contains(id) || isDrawnObjectAt(story, fr.position() + k))) return fr.position() + k;
                     }
                     object = m_doc->flow().objects[object - 1].next;
                 }

@@ -20,8 +20,11 @@
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QClipboard>
+#include <QListWidget>
 #include <QGuiApplication>
 #include <QDoubleSpinBox>
+#include <QAbstractButton>
+#include <QListWidget>
 #include <QMenu>
 #include <QRadioButton>
 #include <QTemporaryDir>
@@ -353,6 +356,75 @@ private Q_SLOTS:
         e.win.w.insertChartDialog();
         QCOMPARE(e.win.w.objects()->layer()->count(), 1);
         QCOMPARE(int(kindOfChart(chartOf(e))), int(ChartKind::Pie));
+    }
+
+    // Recommended Charts offers the kinds the selected cells suit, best first, and makes the one picked; nothing selected says so; the dialog lists only those kinds.
+    void recommendedChartsAreOfferedForTheCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("H20:J22"));
+        e.win.w.recommendedChartsDialog();
+        QCOMPARE(e.win.w.objects()->layer()->count(), 0);
+        QVERIFY(e.win.told.last().contains(QLatin1String("Select the cells")));
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVector<ChartKind> offered;
+        e.win.w.setRecommendedChartsAsker([&](const QVector<ChartKind> &kinds, CrunchWindow::InsertChartChoice *c) {
+            offered = kinds;
+            c->kind = kinds.value(1);
+            return true;
+        });
+        e.win.w.recommendedChartsDialog();
+        QVERIFY(offered.size() >= 2 && offered.size() <= 6);
+        QCOMPARE(offered.first(), ChartKind::Column);
+        QCOMPARE(e.win.w.objects()->layer()->count(), 1);
+        QCOMPARE(int(kindOfChart(chartOf(e))), int(offered[1]));
+        // the dialog itself lists the kinds, and only those
+        InsertChartDialog dialog(nullptr, offered.first(), nullptr, offered, QStringLiteral("Recommended Charts"));
+        QCOMPARE(dialog.windowTitle(), QStringLiteral("Recommended Charts"));
+        QCOMPARE(dialog.findChild<QListWidget *>(QStringLiteral("chartKinds"))->count(), int(offered.size()));
+        QCOMPARE(int(dialog.kind()), int(offered.first()));
+        // it is a ribbon command, on the Insert tab
+        QVERIFY(e.win.w.act(QStringLiteral("insert.recommendedCharts")));
+    }
+
+    // Chart Filters: the button beside a picked chart lists its series; clearing one leaves it out of the chart (one step of Undo), checking it brings it back where it was; the last one stays.
+    void chartFiltersLeaveSeriesOutAndBringThemBack()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        e.win.w.objects()->layer()->prepareAll();
+        QTRY_VERIFY(e.win.w.chartFiltersButton() && e.win.w.chartFiltersButton()->isVisible());
+        QVector<CrunchWindow::ChartFilterEntry> entries = e.win.w.chartFilterEntries();
+        QCOMPARE(entries.size(), 2);
+        QVERIFY(entries[0].shown && entries[1].shown);
+        const QString first = entries[0].name;
+        const int steps = e.win.w.session()->undoStack()->count();
+        QVERIFY(e.win.w.setChartSeriesShown(0, false));
+        QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);
+        QCOMPARE(chartOf(e).plots.first().series.size(), 1);
+        entries = e.win.w.chartFilterEntries();
+        QCOMPARE(entries.size(), 2);
+        QVERIFY(!entries[1].shown);
+        QCOMPARE(entries[1].name, first);
+        // the one left stays
+        QVERIFY(!e.win.w.setChartSeriesShown(0, false));
+        QCOMPARE(chartOf(e).plots.first().series.size(), 1);
+        // back where it was
+        QVERIFY(e.win.w.setChartSeriesShown(1, true));
+        QCOMPARE(chartOf(e).plots.first().series.size(), 2);
+        QCOMPARE(chartOf(e).plots.first().series[0].name, first);
+        // the menu lists them with checks
+        QMenu *menu = e.win.w.chartFiltersButton()->menu();
+        QVERIFY(menu);
+        QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+        int checkable = 0;
+        for (QAction *a : menu->actions()) checkable += a->isCheckable() && a->isChecked();
+        QCOMPARE(checkable, 2);
     }
 
     // ---- moving and sizing
@@ -1788,6 +1860,258 @@ private Q_SLOTS:
         QVERIFY(save(e));
         QCOMPARE(savedCharts(e.path).size(), 1);
         QCOMPARE(int(kindOfChart(savedCharts(e.path)[0].chart)), int(ChartKind::Pie));
+    }
+
+    // Insert > Picture puts a picture from a file on the sheet (the file's own bytes for a PNG), as one step of Undo; it is saved with the drawing and read again. A file that is not a
+    // picture is told and puts nothing.
+    void aPictureFromAFileIsInsertedAndSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        const QByteArray png = pngBytes(40, 20, Qt::blue);
+        const QString file = e.folder.write(QStringLiteral("logo.png"), png);
+        const QString junk = e.folder.write(QStringLiteral("notes.png"), "this is not a picture");
+        e.win.w.setPicturePicker([&] { return file; });
+        QVERIFY(e.win.w.act(QStringLiteral("insert.picture")));
+        e.select(QStringLiteral("C3"));
+        const int steps = e.win.w.undoStack()->count();
+        e.win.w.act(QStringLiteral("insert.picture"))->trigger();
+        crunch::SheetObjects *o = e.win.w.objects();
+        QCOMPARE(o->layer()->count(), 1);
+        QCOMPARE(o->kindOf(0, o->layer()->selectedId()), jp::office::sheet::ObjectKind::Picture);
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        // Undo takes it off the sheet, and Redo puts it back
+        pressUndo(&e.win.w);
+        QCOMPARE(int(o->idsOf(0).size()), 0);
+        pressRedo(&e.win.w);
+        QCOMPARE(int(o->idsOf(0).size()), 1);
+        o->layer()->select(o->idsOf(0).front());
+        const grid::ObjectBox box = o->layer()->boxNow(o->layer()->selectedId());
+        QCOMPARE(box.w, 40.0);
+        QCOMPARE(box.h, 20.0);
+        QVERIFY(!e.win.w.insertPictureFile(junk));
+        QVERIFY(!e.win.told.isEmpty());
+        QCOMPARE(o->layer()->count(), 1);
+        QVERIFY(save(e));
+        const QMap<QString, QByteArray> parts = partsOf(e.path);
+        QCOMPARE(parts.value(QStringLiteral("xl/media/image1.png")), png);
+        QVERIFY(parts.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("<xdr:pic>") || parts.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("xdr:pic"));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 1);
+    }
+
+    // A picture too wide for the sheet comes in at 480 wide with its proportions, and a picture JeffCrunch does not keep as it is (a vector picture) is kept as a PNG.
+    void aLargePictureIsScaledAndAVectorPictureBecomesAPng()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        QVERIFY(e.win.w.insertPictureFile(e.folder.write(QStringLiteral("big.png"), pngBytes(960, 480, Qt::green))));
+        crunch::SheetObjects *o = e.win.w.objects();
+        const grid::ObjectBox big = o->layer()->boxNow(o->layer()->selectedId());
+        QCOMPARE(big.w, 480.0);
+        QCOMPARE(big.h, 240.0);
+        const QByteArray svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"30\" height=\"30\"><rect width=\"30\" height=\"30\" fill=\"red\"/></svg>";
+        QVERIFY(e.win.w.insertPictureFile(e.folder.write(QStringLiteral("shape.svg"), svg)));
+        QVERIFY(save(e));
+        int png = 0;
+        const QMap<QString, QByteArray> parts = partsOf(e.path);
+        for (auto it = parts.begin(); it != parts.end(); ++it)
+            if (it.key().startsWith(QLatin1String("xl/media/"))) {
+                ++png;
+                QVERIFY(it.value().startsWith("\x89PNG"));
+            }
+        QCOMPARE(png, 2);
+    }
+
+    // Insert > Shapes and Text Box: each shape of the gallery is a shape of the drawing with its preset geometry, a text box is marked as one, a line is a connector; they are saved and read again.
+    void shapesAndATextBoxAreInsertedAndSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        for (const char *id : {"insert.shape.rect", "insert.shape.rightArrow", "insert.shape.star", "insert.shape.line", "insert.textBox"}) {
+            QVERIFY2(e.win.w.act(QString::fromLatin1(id)), id);
+            e.win.w.act(QString::fromLatin1(id))->trigger();
+        }
+        QCOMPARE(o->layer()->count(), 5);
+        QVERIFY(e.win.told.isEmpty());
+        QVERIFY(save(e));
+        const QMap<QString, QByteArray> saved = partsOf(e.path);
+        const QByteArray drawing = saved.value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY(!saved.contains(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels")));   // (shapes relate to nothing: no empty file of relationships)
+        QVERIFY(drawing.contains("prst=\"rect\""));
+        QVERIFY(drawing.contains("prst=\"rightArrow\""));
+        QVERIFY(drawing.contains("prst=\"star5\""));
+        QVERIFY(drawing.contains("prst=\"line\""));
+        QVERIFY(drawing.contains("txBox=\"1\""));
+        QVERIFY(drawing.contains("cxnSp"));
+        QDomDocument doc;
+        QVERIFY(parseXml(drawing, &doc));
+        const QDomNodeList all = doc.elementsByTagName(QStringLiteral("cNvPr"));
+        QSet<QString> ids;
+        for (int i = 0; i < all.size(); ++i) ids.insert(all.at(i).toElement().attribute(QStringLiteral("id")));
+        QCOMPARE(int(ids.size()), 5);
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 5);
+    }
+
+    // Shape Format: fill, outline, rotation, flips, and the words in a shape each change the picked shape as one step of Undo, keep its name and its place among the objects, and are saved.
+    void aShapeIsFilledOutlinedTurnedAndGivenText()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(e.win.w.insertShape(QStringLiteral("rect")));
+        const int first = o->layer()->selectedId();
+        const QString name = o->nameOf(0, first);
+        QVERIFY(e.win.w.insertShape(QStringLiteral("ellipse")));
+        const QString second = o->nameOf(0, o->layer()->selectedId());
+        o->layer()->select(first);
+        const int steps = e.win.w.undoStack()->count();
+        QVERIFY(e.win.w.setObjectFill(QColor(0xFF, 0x00, 0x00), false));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(int(o->idsOf(0).size()), 2);
+        QCOMPARE(o->nameOf(0, o->layer()->selectedId()), name);
+        QCOMPARE(o->nameOf(0, o->idsOf(0).front()), name);   // (still behind the oval)
+        QCOMPARE(o->nameOf(0, o->idsOf(0).back()), second);
+        QVERIFY(e.win.w.setObjectOutline(QColor(0x00, 0xFF, 0x00), false));
+        QVERIFY(e.win.w.setObjectOutlineStyle(3.0, QStringLiteral("dash")));
+        QVERIFY(e.win.w.rotateObject(1, false, false));
+        QVERIFY(e.win.w.rotateObject(0, true, false));
+        crunch::SheetObjects *objects = e.win.w.objects();
+        QVERIFY(objects->kindOf(0, objects->layer()->selectedId()) == jp::office::sheet::ObjectKind::Shape);
+        CrunchWindow::ShapeTextChoices c;
+        c.text = QStringLiteral("Hello\nWorld");
+        c.horizontal = 1;
+        c.vertical = 1;
+        c.bold = true;
+        c.sizePoints = 14;
+        c.colorHex = QStringLiteral("0000FF");
+        // the person's dialog: it starts with the words the shape has, and giving it up changes nothing
+        const int before = e.win.w.undoStack()->count();
+        CrunchWindow::ShapeTextChoices seen;
+        e.win.w.setShapeTextAsker([&](CrunchWindow::ShapeTextChoices *x) {
+            seen = *x;
+            return false;
+        });
+        QVERIFY(e.win.w.act(QStringLiteral("object.editText"))->isEnabled());
+        e.win.w.act(QStringLiteral("object.editText"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), before);
+        e.win.w.setShapeTextAsker([&](CrunchWindow::ShapeTextChoices *x) {
+            *x = c;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("object.editText"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), before + 1);
+        e.win.w.setShapeTextAsker([&](CrunchWindow::ShapeTextChoices *x) {
+            seen = *x;
+            return false;
+        });
+        e.win.w.act(QStringLiteral("object.editText"))->trigger();
+        QCOMPARE(seen.text, QStringLiteral("Hello\nWorld"));
+        QCOMPARE(seen.horizontal, 1);
+        QCOMPARE(seen.sizePoints, 14);
+        QVERIFY(seen.bold);
+        QVERIFY(save(e));
+        const QByteArray drawing = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QDomDocument doc;
+        QVERIFY(parseXml(drawing, &doc));
+        QVERIFY(drawing.contains("val=\"FF0000\""));
+        QVERIFY(drawing.contains("val=\"00FF00\""));
+        QVERIFY(drawing.contains("prstDash"));
+        QVERIFY(drawing.contains("w=\"38100\""));
+        QVERIFY(drawing.contains("rot=\"5400000\""));
+        QVERIFY(drawing.contains("flipH=\"1\""));
+        QVERIFY(drawing.contains(">Hello<") && drawing.contains(">World<"));
+        QVERIFY(drawing.contains("sz=\"1400\""));
+        const QDomNodeList all = doc.elementsByTagName(QStringLiteral("cNvPr"));
+        QSet<QString> ids;
+        for (int i = 0; i < all.size(); ++i) ids.insert(all.at(i).toElement().attribute(QStringLiteral("id")));
+        QCOMPARE(int(ids.size()), 2);   // (the old shapes are gone, not left behind)
+        Window again;
+        QVERIFY(again.open(e.copyOfFile()));
+        QTRY_VERIFY(again.w.objects()->shownSheet() == 0 && again.w.objects()->layer()->count() == 2);
+    }
+
+    // A picture is cropped to a shape of window (the sides or the top and bottom cut from the middle, and the picture is as large as what is left), and shown whole again.
+    void aPictureIsCroppedAndRotated()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(e.win.w.insertPictureFile(e.folder.write(QStringLiteral("wide.png"), pngBytes(960, 480, Qt::green))));
+        QVERIFY(e.win.w.act(QStringLiteral("object.cropSquare"))->isEnabled());
+        e.win.w.act(QStringLiteral("object.cropSquare"))->trigger();
+        grid::ObjectBox box = o->layer()->boxNow(o->layer()->selectedId());
+        QCOMPARE(box.w, 240.0);
+        QCOMPARE(box.h, 240.0);
+        QVERIFY(e.win.w.cropObject(1, 2));   // (tall: the top and bottom are cut from what shows)
+        box = o->layer()->boxNow(o->layer()->selectedId());
+        QCOMPARE(box.w, 120.0);
+        QCOMPARE(box.h, 240.0);
+        QVERIFY(e.win.w.rotateObject(2, false, false));
+        QVERIFY(e.win.w.setObjectOutline(QColor(0, 0, 0), false));
+        QVERIFY(save(e));
+        QByteArray drawing = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY2(drawing.contains("srcRect"), drawing.constData());
+        QVERIFY(drawing.contains("l=\"37500\"") || drawing.contains("l=\"37500\""));
+        QVERIFY(drawing.contains("rot=\"10800000\""));
+        QVERIFY(e.win.w.cropObject(0, 0));
+        box = o->layer()->boxNow(o->layer()->selectedId());
+        QCOMPARE(box.w, 480.0);
+        QCOMPARE(box.h, 240.0);
+        QVERIFY(save(e));
+        drawing = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY(!drawing.contains("srcRect"));
+        // the picture's bytes are the one picture, not a copy for each change
+        int media = 0;
+        const QMap<QString, QByteArray> parts = partsOf(e.path);
+        for (auto it = parts.begin(); it != parts.end(); ++it)
+            if (it.key().startsWith(QLatin1String("xl/media/"))) ++media;
+        QCOMPARE(media, 1);
+    }
+
+    // The Selection Pane lists the sheet's objects, front first; choosing a row picks the object, and its buttons bring it forward or send it back.
+    void theSelectionPaneListsPicksAndReordersObjects()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(e.win.w.insertShape(QStringLiteral("rect")));
+        const int a = o->layer()->selectedId();
+        QVERIFY(e.win.w.insertShape(QStringLiteral("ellipse")));
+        const int b = o->layer()->selectedId();
+        QAction *open = e.win.w.act(QStringLiteral("object.selectionPane"));
+        QVERIFY(open);
+        QVERIFY(open->isEnabled());
+        open->trigger();
+        auto *list = e.win.w.findChild<QListWidget *>(QStringLiteral("selectionList"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 2);
+        QCOMPARE(list->item(0)->text(), o->nameOf(0, b));   // (the front one first)
+        QCOMPARE(list->item(1)->text(), o->nameOf(0, a));
+        list->setCurrentRow(1);
+        QCOMPARE(o->layer()->selectedId(), a);
+        auto *forward = e.win.w.findChild<QAbstractButton *>(QStringLiteral("selectionForward"));
+        QVERIFY(forward);
+        forward->click();
+        QCOMPARE(o->idsOf(0).back(), a);
+        QCOMPARE(list->item(0)->text(), o->nameOf(0, a));
+        QCOMPARE(list->currentRow(), 0);
     }
 
     // Pictures and shapes move and size too: the anchor of the file is kept in the form it keeps what the object does when cells change (a picture of a one-cell anchor moves with the cells and

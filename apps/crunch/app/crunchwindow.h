@@ -69,6 +69,8 @@ class QPlainTextEdit;
 class QSlider;
 class QVBoxLayout;
 class QToolButton;
+class QDomElement;
+
 namespace jp {
 
 class SlicerPane;
@@ -84,6 +86,7 @@ namespace office { struct Chart; }
 class CrunchFileScreen;
 struct PageSetupRequest;
 namespace grid {
+struct ObjectBox;
 struct SheetPrint;
 class PageLayoutView;
 class PageLayoutSource;
@@ -96,6 +99,7 @@ class PivotFieldsPane;
 struct ValueFieldSettings;
 struct FieldSettings;
 struct GroupChoice;
+struct CalculatedFieldChoice;
 struct PivotOptionsChoice;
 class HelpWindow;
 class Ribbon;
@@ -105,6 +109,7 @@ class PrintJob;
 struct PrintChoices;
 struct PrintJobOptions;
 class SheetObjects;
+struct ObjectClip;
 class SheetTabBar;
 }
 
@@ -307,6 +312,7 @@ public:
     void setPivotOptionsAsker(std::function<bool(bool *)> asker) { m_pivotOptionsAsker = std::move(asker); }   // test hook: whether a click writes GETPIVOTDATA
     void setPivotSourceAsker(std::function<bool(QString *)> asker) { m_pivotSourceAsker = std::move(asker); }
     void setValueFieldAsker(std::function<bool(QString *, QString *)> asker) { m_valueFieldAsker = std::move(asker); }
+    void setCalculatedFieldAsker(std::function<bool(jp::CalculatedFieldChoice *)> asker) { m_calculatedAsker = std::move(asker); }   // test hook: all of Calculated Field
     void setGroupAsker(std::function<bool(jp::GroupChoice *)> asker) { m_groupAsker = std::move(asker); }   // test hook: all of Group Field
     void setFieldSettingsAsker(std::function<bool(jp::FieldSettings *)> asker) { m_fieldSettingsAsker = std::move(asker); }   // test hook: all of Field Settings
     void setPivotOptionsChoiceAsker(std::function<bool(jp::PivotOptionsChoice *)> asker) { m_pivotOptionsChoiceAsker = std::move(asker); }   // test hook: all of Pivot Table Options
@@ -492,6 +498,14 @@ public:
     enum class EnterMove { Down, Right, Up, Left, Stay };
     EnterMove enterMove() const { return m_enterMove; }
     void setEnterMove(EnterMove move);
+    // AutoComplete (Options > Editing): the rest of an entry above or below in the column is offered, selected, while a text is typed; on by default, kept in the person's settings.
+    bool autoComplete() const { return m_autoComplete; }
+    void setAutoComplete(bool on);
+    // The fill handle and the drag of cells (Options > Editing); on by default, kept in the person's settings.
+    void setDragEditing(bool on);
+    // Automatic decimal places (Options > Editing): 0 is off; with 2, typing 1234 enters 12.34; kept in the person's settings.
+    int fixedDecimals() const { return m_fixedDecimals; }
+    void setFixedDecimals(int places);
     // The custom lists of Fill (Options > Custom Lists), one list to a line, its items between commas: kept in the settings and given to the edit session.
     // The menu that chooses which numbers of the selection the status bar shows; the caller owns it.
     QMenu *statsChoiceMenu();
@@ -873,6 +887,7 @@ private:
     bool showPivotDetailAtCursor(bool onlyForValues);
     bool insertPivotChart();
     void askGroupField(int field);
+    void askCalculatedField();
     void pivotProblem(const QString &title, const jp::crunch::EditSession::Outcome &o);
     PivotFieldsPane *m_pivotPane = nullptr;
     QDockWidget *m_pivotDock = nullptr;
@@ -888,6 +903,7 @@ private:
     std::function<bool(jp::ValueFieldSettings *)> m_valueSettingsAsker;
     std::function<bool(jp::FieldSettings *)> m_fieldSettingsAsker;
     std::function<bool(jp::GroupChoice *)> m_groupAsker;
+    std::function<bool(jp::CalculatedFieldChoice *)> m_calculatedAsker;
     std::function<bool(jp::PivotOptionsChoice *)> m_pivotOptionsChoiceAsker;
     // the data tools: Remove Duplicates and Text to Columns (crunchwindow_datatools.cpp)
     void createDataToolsActions();
@@ -1018,13 +1034,17 @@ private:
     // the clipboard (crunchwindow_clip.cpp)
     void createClipboardActions();
     void copySelection();
-    void copyAsPicture(bool bitmap);
+    void copyAsPicture(bool bitmap, bool printed = false);
     void cutSelection();
     void copyOrCut(bool cut);
     void copyStep();
     void publishClipboard(const QString &text);
     void pasteClipboard(const crunch::EditSession::PasteOptions &options);
     void pasteSpecial();
+    void pasteTextImport();
+    void pasteLink();
+    void pasteAsHyperlinks();
+    bool ownClipboardBlock(crunch::ClipData *clip, const QString &title);
     void onClipboardChanged();
     void forgetClip();
     void cancelCut();
@@ -1200,6 +1220,8 @@ public:
         int inRows = -1;
     };
     void setInsertChartAsker(const std::function<bool(InsertChartChoice *)> &asker) { m_insertChartAsker = asker; }
+    // Recommended Charts: given the kinds the cells suit (best first), gives the choice; false gives it up.
+    void setRecommendedChartsAsker(const std::function<bool(const QVector<jp::office::sheet::ChartKind> &, InsertChartChoice *)> &asker) { m_recommendedAsker = asker; }
     // Chart Data: given the chart and what a dialog needs, gives the chart as it should be; false gives it up.
     void setSelectDataAsker(const std::function<bool(const SelectDataRequest &, jp::office::Chart *)> &asker) { m_selectDataAsker = asker; }
     // Chart Kind: given each series' name and what it is drawn as, gives what each is to be drawn as.
@@ -1208,9 +1230,32 @@ public:
     void setPropertiesAsker(const std::function<bool(const ObjectProperties &, ObjectProperties *)> &asker) { m_propertiesAsker = asker; }
     // The commands of charts, for tests and the menus: a chart of the kind from the cells selected; the picked object moved to an anchor; the model of the picked chart changed.
     bool insertChart(jp::office::sheet::ChartKind kind, int inRows = -1);
+    // Insert > Picture, Shapes, and Text Box: a picture from a file (the picker stands in for the file dialog: tests), a shape by its preset's name, a text box; each is put on the sheet at the
+    // cell the cursor is in, picked, as one step.
+    void setPicturePicker(const std::function<QString()> &picker) { m_picturePicker = picker; }
+    bool insertPictureFile(const QString &path);
+    bool insertShape(const QString &preset);
+    bool insertTextBox();
+    // Format of the picked picture, shape, or text box (each is one step: the object is made again with the change). The words in a shape: the box that asks stands in for the dialog (tests).
+    struct ShapeTextChoices {
+        QString text;
+        int horizontal = 0, vertical = 0;   // 0 left, top; 1 center, middle; 2 right, bottom
+        bool bold = false, wrap = true;
+        int sizePoints = 11;
+        QString colorHex;   // 6 hex digits, empty for the shape's own
+    };
+    void setShapeTextAsker(const std::function<bool(ShapeTextChoices *)> &asker) { m_shapeTextAsker = asker; }
+    bool setObjectFill(const QColor &color, bool none);
+    bool setObjectOutline(const QColor &color, bool none);
+    bool setObjectOutlineStyle(double weightPoints, const QString &dash);
+    bool rotateObject(int quarterTurns, bool flipH, bool flipV);
+    bool cropObject(int width, int height);
+    bool setObjectText(const ShapeTextChoices &choices);
     void insertChartDialog();
+    void recommendedChartsDialog();
     // The dialogs, made but not shown, for whoever shows them (the window runs them; a tool takes pictures of them). Null if there is nothing for them to work on.
     QDialog *makeInsertChartDialog();
+    QDialog *makeRecommendedChartsDialog();   // null when the cells suit no chart
     QDialog *makeSelectDataDialog();
     QDialog *makeChangeTypeDialog();
     bool moveObject(int id, const jp::office::sheet::DrawingAnchor &anchor);
@@ -1225,9 +1270,19 @@ public:
     // The chart buttons beside the picked chart (the elements, the looks), and what the context menu of an object has; for tests.
     QToolButton *chartElementsButton() const { return m_chartPlus; }
     QToolButton *chartLooksButton() const { return m_chartBrush; }
+    QToolButton *chartFiltersButton() const { return m_chartFilter; }
+    // Chart Filters: the series of the picked chart (those drawn, then those filtered out), and whether each is drawn. A filtered series is left out of the chart (and of the saved file) until it is
+    // checked again in this session; the last one drawn can't be filtered out.
+    struct ChartFilterEntry {
+        QString name;
+        bool shown = true;
+    };
+    QVector<ChartFilterEntry> chartFilterEntries() const;
+    bool setChartSeriesShown(int entry, bool shown);
     QMenu *buildObjectMenu(int id, QWidget *owner);
     QMenu *buildChartElementsMenu(QWidget *owner);
     QMenu *buildChartLooksMenu(QWidget *owner);
+    QMenu *buildChartFiltersMenu(QWidget *owner);
     // Cut, Copy, and Paste of the picked object (a chart), within this workbook and between workbooks.
     bool copyObject(bool cut);
     bool pasteObject();
@@ -1236,6 +1291,24 @@ public:
 
 private:
     void createChartActions();
+    void createInsertObjectActions();
+    void createDrawBorderActions();
+    void startDrawBorder(int mode);
+    void endDrawBorder();
+    bool drawBorderEvent(QObject *o, QEvent *e);
+    int m_drawBorder = 0;   // the border being drawn: 1 the outside, 2 all the lines, 3 erasing; 0 none
+    qint64 m_drawFromRow = -1, m_drawFromCol = -1;
+    void insertPicture();
+    bool placeObjectClip(const crunch::ObjectClip &clip, const QString &stepText, const jp::office::sheet::DrawingAnchor *at = nullptr, int order = -1);
+    bool restyleObject(const QString &stepText, const std::function<bool(QDomElement &, jp::grid::ObjectBox *)> &edit, bool pictureOnly = false);
+    void editObjectText();
+    void showSelectionPane();
+    void refreshSelectionPane();
+    QPointer<QDialog> m_selectionPane;
+    bool m_selectionFilling = false;
+    void createObjectFormatActions();
+    void objectFormatRibbonParts(RibbonParts &parts);
+    std::function<bool(ShapeTextChoices *)> m_shapeTextAsker;
     void chartRibbonParts(RibbonParts &parts);
     void functionRibbonParts(RibbonParts &parts);
     void fillFunctionMenu(QMenu *menu, const QList<crunch::FunctionCategory> &kinds);
@@ -1247,12 +1320,19 @@ private:
     jp::office::sheet::DrawingAnchor newObjectAnchor(double width, double height);
     void objectContextMenu(int id, const QPoint &global);
     std::function<bool(InsertChartChoice *)> m_insertChartAsker;
+    std::function<bool(const QVector<jp::office::sheet::ChartKind> &, InsertChartChoice *)> m_recommendedAsker;
+    std::function<QString()> m_picturePicker;
     std::function<bool(const SelectDataRequest &, jp::office::Chart *)> m_selectDataAsker;
     std::function<bool(const QStringList &, const QVector<jp::office::sheet::SeriesKind> &, QVector<jp::office::sheet::SeriesKind> *)> m_changeTypeAsker;
     std::function<bool(const ObjectProperties &, ObjectProperties *)> m_propertiesAsker;
     QString m_workbookId;   // which workbook this is, among all that are open in any program: random for each one opened (what a copy says it came from)
     jp::office::sheet::CellRange m_previewBlock;   // the block of cells the pictures of the New Chart dialog are drawn from, found once for all of them
-    QToolButton *m_chartPlus = nullptr, *m_chartBrush = nullptr;
+    QToolButton *m_chartPlus = nullptr, *m_chartBrush = nullptr, *m_chartFilter = nullptr;
+    struct FilteredSeries {
+        int plot = 0, place = 0;
+        jp::office::ChartSeries series;
+    };
+    QMap<QPair<int, int>, QVector<FilteredSeries>> m_filteredSeries;   // by sheet and object: the series left out of a chart for now
     QTimer m_chartButtonsTimer;
     QStringList m_chartActions;
 
@@ -1314,6 +1394,12 @@ private:
     } m_edit;
     bool m_syncingEditors = false, m_undoing = false, m_finishing = false;
     EnterMove m_enterMove = EnterMove::Down;
+    bool m_autoComplete = true;
+    int m_fixedDecimals = 0;
+    QString m_autoTyped;           // what was typed in the entry so far, without the rest AutoComplete offered
+    QStringList m_autoColumn;      // the texts next to the cell in its column (made when the first is wanted)
+    bool m_autoColumnKnown = false;
+    void autoCompleteEntry(const QString &text);
     QPointer<QToolButton> m_fillOptions;
     qint64 m_tabOriginCol = -1, m_tabRow = -1;   // where a run of Tabs began (Enter then goes back to that column)
     // saving

@@ -12,6 +12,7 @@ class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
+class QPushButton;
 class QListWidget;
 class QListWidgetItem;
 class QToolButton;
@@ -100,6 +101,29 @@ private:
     GroupChoice m_choice;
     QLineEdit *m_start = nullptr, *m_end = nullptr, *m_step = nullptr;
     QListWidget *m_levels = nullptr;
+};
+
+// What Calculated Field asks: a name and a formula over the table's fields; the fields that can be named; and the calculated fields there are (name and formula), to pick one to change or delete.
+struct CalculatedFieldChoice {
+    enum Action : quint8 { Add, Delete } action = Add;
+    QString name, formula;
+    QStringList fieldNames;
+    QStringList existingNames, existingFormulas;
+};
+
+class CalculatedFieldDialog : public QDialog {
+    Q_OBJECT
+public:
+    explicit CalculatedFieldDialog(const CalculatedFieldChoice &choice, QWidget *parent = nullptr);
+    CalculatedFieldChoice choice() const;
+
+private:
+    void nameChanged();
+    CalculatedFieldChoice m_choice;
+    QComboBox *m_name = nullptr;
+    QLineEdit *m_formula = nullptr;
+    QListWidget *m_fields = nullptr;
+    QPushButton *m_add = nullptr, *m_delete = nullptr;
 };
 
 // What Pivot Table Options sets: the name, how labels, errors, and empty cells show, the grand totals, what a refresh keeps, and whether the data is read again when the file opens.

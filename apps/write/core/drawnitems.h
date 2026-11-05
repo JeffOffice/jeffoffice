@@ -3,6 +3,7 @@
 // border of a picture, lettering on a path, a horizontal rule, and a shape of the drawing format's own kinds.
 
 #include "core/items.h"
+#include "office/theme.h"
 #include "wml/wml.h"
 
 #include <QFont>
@@ -37,6 +38,10 @@ bool isUndrawnPictureTarget(const QString &target);
 // The PNG of the mark of a picture that cannot be shown (one small picture, made once), and the picture's look for it: a white frame with an outline, the mark at its corner.
 const QByteArray &missingPictureMarkPng();
 void showAsMissing(PictureItem &pic);
+// What a drawing format's own shape (wps:wsp, kept in Shape::wsp) is drawn as, read by the shared drawing reader: its geometry, fill, line, effects, and turn, with the theme's
+// colors and styles where the document has a theme. A shape that is a line is a LineItem (its ends from the frame's top left corner); any other is a ShapeItem or a TextItem
+// whose frame is Shape's size; a shape the reader gives as several faces is its first face. None when the shape can't be read.
+ItemPtr wspItem(const office::wml::Shape &s, const office::Theme *theme);
 // The preset a shape is drawn as: its own kind's (an arc, a bracket) where the drawing format numbers it, else a rectangle or an ellipse.
 QString presetOf(const office::wml::Shape &s);
 // Makes the item the shape of the shape's own kind (see presetOf). An arc of the drawing format is the quarter of an ellipse twice its frame's size, from the

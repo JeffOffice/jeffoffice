@@ -147,7 +147,8 @@ private Q_SLOTS:
         QCOMPARE(find("Document properties and personal information")->count(), 0);
         QCOMPARE(find("Hidden sheets")->remove(), 1);
         QCOMPARE(find("Hidden sheets")->count(), 0);
-        QVERIFY(!find("External links")->removable);
+        QVERIFY(find("External links")->removable);   // (taken out with Remove All; tried in tst_crunch_keep)
+        QVERIFY(find("Custom XML data")->removable);
     }
 
     void inspectFindsAndShowsHiddenRowsAndColumns()

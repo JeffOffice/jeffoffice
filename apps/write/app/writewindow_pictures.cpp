@@ -167,7 +167,7 @@ void WriteWindow::refreshPictureUi()
     act("insert.pictureClipboard")->setEnabled(body);
     const int at = m_doc ? m_view->selectedPicture() : -1;
     const write::PictureInfo info = at >= 0 ? write::pictureAt(*m_doc, m_doc->story(), at) : write::PictureInfo();
-    m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), info.valid, false);
+    m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), info.valid && info.kind == write::DrawnKind::Picture, false);
     const bool editable = info.valid && info.editable;
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("picture."))) a->setEnabled(editable);
@@ -183,6 +183,7 @@ void WriteWindow::refreshPictureUi()
         m_pictureFields[1]->setPoints(info.width);
     }
     m_updatingFields = false;
+    refreshShapeUi();
 }
 
 void WriteWindow::addPictureContextMenu(QMenu &menu)
@@ -192,6 +193,7 @@ void WriteWindow::addPictureContextMenu(QMenu &menu)
     for (const char *id : {"inline", "square", "tight", "topBottom", "behind", "front"}) wrap->addAction(act(QStringLiteral("picture.wrap.") + QLatin1String(id)));
     menu.addAction(act("picture.altText"));
     menu.addAction(act("picture.decorative"));
+    if (act("shape.editText")->isEnabled()) menu.addAction(act("shape.editText"));
 }
 
 } // namespace jp

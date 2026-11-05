@@ -1,5 +1,5 @@
 # Change case, sort, and paste in other ways
-<!-- keywords: horizontal line, rule, reveal formatting, style inspector, shift+f1, tabs, tab stops, leader, keep with next, keep lines together, page break before, widow, orphan, outline level, line and page breaks, change case, uppercase, lowercase, sentence case, capitalize, toggle case, shift+f3, sort, sort paragraphs, alphabetical, order, paste, paste special, keep text only, merge formatting, unformatted text, picture, clipboard -->
+<!-- keywords: paste options button, smart cut and paste, spaces when pasting, horizontal line, rule, reveal formatting, style inspector, shift+f1, tabs, tab stops, leader, keep with next, keep lines together, page break before, widow, orphan, outline level, line and page breaks, change case, uppercase, lowercase, sentence case, capitalize, toggle case, shift+f3, sort, sort paragraphs, alphabetical, order, paste, paste special, keep text only, merge formatting, unformatted text, picture, clipboard -->
 
 These tools are on the **Home** tab. They work on the text you select.
 
@@ -47,6 +47,10 @@ Click the small arrow under **Paste** for more choices:
 
 A choice is dimmed when the clipboard has nothing it can use.
 
+Right after you paste, a small **Paste Options** button shows up next to your cursor. Click it to pick **Keep Source Formatting**, **Merge Formatting**, or **Keep Text Only**. JeffWrite takes the paste back and does it again that way. The button goes away as soon as you type, or move the cursor.
+
+**Smart cut and paste** keeps the spaces right when you move words. If you cut whole words from between two spaces, JeffWrite takes one of the spaces too, so you are not left with a double space. If you paste a word right up against another word, it adds a space between them. It leaves the middle of a word alone. To turn it off, click **File > Options > Advanced** and clear **Smart cut and paste**.
+
 ## Line and page breaks, and tabs
 
 Click the small button in the corner of the **Paragraph** group to open the **Paragraph** box. Under the spacing choices are these:
@@ -54,6 +58,7 @@ Click the small button in the corner of the **Paragraph** group to open the **Pa
 - **Widow and orphan control** keeps one lone line of a paragraph from sitting by itself at the top or the bottom of a page.
 - **Keep with next** keeps the paragraph on the same page as the one after it. Use it for a heading.
 - **Keep lines together** keeps all the lines of the paragraph on one page.
+- **Suppress line numbers** leaves this paragraph out when the page numbers its lines (see Layout > Line Numbers).
 - **Page break before** starts the paragraph on a new page.
 - **Don't hyphenate** stops the paragraph's words from being split with a hyphen at the end of a line.
 - **Don't add space between paragraphs of the same style** removes the space between two paragraphs that have the same style.

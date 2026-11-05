@@ -899,13 +899,33 @@ FontCombo::FontCombo(QWidget *parent) : QComboBox(parent)
     auto choose = [this](int i) {
         if (m_updating || i < 0) return;
         const QString fam = itemData(i, Qt::UserRole).toString();
-        if (!fam.isEmpty()) Q_EMIT familyChosen(fam);
+        if (!fam.isEmpty()) {
+            rememberFamily(fam);
+            Q_EMIT familyChosen(fam);
+        }
     };
     connect(this, QOverload<int>::of(&QComboBox::activated), this, choose);
     connect(lineEdit(), &QLineEdit::returnPressed, this, [this] {
         const QString t = currentText().trimmed();
-        if (!t.isEmpty() && !m_updating) Q_EMIT familyChosen(t);
+        if (!t.isEmpty() && !m_updating) {
+            rememberFamily(t);
+            Q_EMIT familyChosen(t);
+        }
     });
+}
+
+// The fonts chosen last (the most recent first), kept between runs and listed above all the fonts; the scheme fonts are not among them.
+void FontCombo::rememberFamily(const QString &family)
+{
+    if (family.startsWith(QLatin1Char('+')) || !visibleFontFamilies().contains(family)) return;
+    QStringList recent = Settings::get().value(QStringLiteral("fonts/recent")).toStringList();
+    recent.removeAll(family);
+    recent.prepend(family);
+    while (recent.size() > 5) recent.removeLast();
+    Settings::get().setValue(QStringLiteral("fonts/recent"), recent);
+    const QString keep = currentText();
+    populate();
+    setEditText(keep);
 }
 
 void FontCombo::populate()
@@ -922,6 +942,11 @@ void FontCombo::populate()
     add(tr("Scheme Fonts"), QString(), QString(), true);
     add(m_heading.isEmpty() ? QStringLiteral("+Headings") : m_heading + QStringLiteral(" (Headings)"), QStringLiteral("+Heading"), m_heading);
     add(m_body.isEmpty() ? QStringLiteral("+Body") : m_body + QStringLiteral(" (Body)"), QStringLiteral("+Body"), m_body);
+    const QStringList recent = Settings::get().value(QStringLiteral("fonts/recent")).toStringList();
+    if (!recent.isEmpty()) {
+        add(tr("Recently Used"), QString(), QString(), true);
+        for (const QString &f : recent) add(f, f, f);
+    }
     add(tr("All Fonts"), QString(), QString(), true);
     QStringList fams = visibleFontFamilies();
     fams.removeDuplicates();

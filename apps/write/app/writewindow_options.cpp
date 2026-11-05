@@ -38,7 +38,6 @@ void WriteWindow::applyDisplayDefaults()
     m_view->setShowMarks(marks);
     act(QStringLiteral("table.gridlines"))->setChecked(grid);
     m_view->setShowGridlines(grid);
-    if (m_doc) m_doc->setShowHiddenText(Settings::get().value(QStringLiteral("view/hidden"), false).toBool());
 }
 
 void WriteWindow::applyEditingDefaults()
@@ -55,9 +54,9 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         QSpinBox *minutes = nullptr;
         QComboBox *format = nullptr;
         QLineEdit *folder = nullptr;
-        QCheckBox *marks = nullptr, *grid = nullptr, *hidden = nullptr;
+        QCheckBox *marks = nullptr, *grid = nullptr;
         QComboBox *units = nullptr;
-        QCheckBox *ctrlLinks = nullptr, *dragText = nullptr, *replaces = nullptr, *insertKey = nullptr, *privacy = nullptr;
+        QCheckBox *ctrlLinks = nullptr, *dragText = nullptr, *replaces = nullptr, *insertKey = nullptr, *privacy = nullptr, *smart = nullptr;
     };
     auto f = std::make_shared<Fields>();
     QVector<OptionsPage> pages;
@@ -116,15 +115,10 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         f->grid->setObjectName(QStringLiteral("startWithGridlines"));
         f->grid->setChecked(st.value(QStringLiteral("view/gridlines"), false).toBool());
         form->addRow(f->grid);
-        f->hidden = new QCheckBox(QCoreApplication::translate("Dialogs", "Show hidden text on the screen (it never prints)"), page);
-        f->hidden->setObjectName(QStringLiteral("showHiddenText"));
-        f->hidden->setChecked(st.value(QStringLiteral("view/hidden"), false).toBool());
-        form->addRow(f->hidden);
         return page;
     }, [this, f] {
         Settings::get().setValue(QStringLiteral("view/marks"), f->marks->isChecked());
         Settings::get().setValue(QStringLiteral("view/gridlines"), f->grid->isChecked());
-        Settings::get().setValue(QStringLiteral("view/hidden"), f->hidden->isChecked());
         applyDisplayDefaults();
     }};
     pages << OptionsPage{QCoreApplication::translate("Dialogs", "Advanced"), [f] {
@@ -155,9 +149,14 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         f->insertKey->setObjectName(QStringLiteral("insertKeyOvertype"));
         f->insertKey->setChecked(Settings::get().value(QStringLiteral("edit/insertKey"), false).toBool());
         form->addRow(f->insertKey);
+        f->smart = new QCheckBox(QCoreApplication::translate("Dialogs", "Smart cut and paste (fix the spaces round words that are moved)"), page);
+        f->smart->setObjectName(QStringLiteral("smartCutPaste"));
+        f->smart->setChecked(Settings::get().value(QStringLiteral("edit/smartCutPaste"), true).toBool());
+        form->addRow(f->smart);
         return page;
     }, [this, f] {
         Settings::get().setUnit(static_cast<Unit>(f->units->currentData().toInt()));
+        Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), f->smart->isChecked());
         m_ruler->update();   // (the ruler's marks are in the unit chosen)
         Settings::get().setValue(QStringLiteral("edit/ctrlClickLinks"), f->ctrlLinks->isChecked());
         Settings::get().setValue(QStringLiteral("edit/dragText"), f->dragText->isChecked());

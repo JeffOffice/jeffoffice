@@ -782,6 +782,15 @@ bool PrintJob::printTo(QPrinter *printer, const QVector<int> &pages, QString *er
 
 // ---- ranges
 
+QVector<int> pagesOfSide(const QVector<int> &pages, PrintSides sides)
+{
+    if (sides == PrintSides::All) return pages;
+    QVector<int> kept;
+    for (const int page : pages)
+        if ((page % 2 == 0) == (sides == PrintSides::Odd)) kept << page;
+    return kept;
+}
+
 QVector<int> parsePageRange(const QString &text, int pageCount)
 {
     QVector<int> out;

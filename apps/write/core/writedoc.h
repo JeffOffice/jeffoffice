@@ -9,6 +9,7 @@
 // which block). Styles are the file's: a paragraph or run's format is the whole of what it looks like (the style's with what it says
 // itself on top), and what the writer calls "direct formatting" is what differs from the style's.
 
+#include "text/textprops.h"
 #include "core/tablemodel.h"
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
@@ -418,9 +419,9 @@ public:
     bool mayHaveFields() const { return m_mayHaveFields; }
     void setMayHaveFields(bool yes) { m_mayHaveFields = yes; }
     void setRevisionView(int view);
-    // Display: text marked hidden is laid out with the rest (a view of the text: nothing in the document changes). Printing and export lay it out without.
+    // Shows the text that is hidden in the file, as the formatting marks do (a view of the text, not a change to it).
     void setShowHiddenText(bool on);
-    bool showsHiddenText() const { return m_hiddenView != 0; }
+    bool showsHiddenText() const { return m_showHidden; }
 
     // ---- tables
     // What the last table command that did nothing said of why (empty when it did what it was asked): a limit of the file, or a shape it can't take.
@@ -543,6 +544,13 @@ public:
     QString addMedia(const QByteArray &bytes, const QString &extension, const QString &contentType, bool *added = nullptr);
     // Takes back a relationship of the main part that addMedia made, and its part if no other relationship names it (for a picture that could not be put in the text).
     void removeMedia(const QString &id);
+
+    // The bytes of the part that a relationship of the main part names (a chart), or none for an Id that names no part. And a new part with a relationship to it of this kind, named
+    // folder/base1.ext and on (it has the relationships of `likePart`, a part it takes the place of); the Id of the relationship. Like a picture's, it is left out of the file when nothing names it (a chart taken back by Undo).
+    QByteArray relatedPartData(const QString &id) const;
+    QString addRelatedPart(const QString &folder, const QString &base, const QString &extension, const QByteArray &data, const QString &contentType, const QString &relationshipType, const QString &likePart = QString());
+    // The relationships of the main part (for the code that edits a part and puts the new one beside it).
+    const QVector<office::Relationship> &mainRelationshipsForTest() const { return m_wml.mainRelationships; }
 
     // The most the pictures of a document come to, together, and the limit this document is held to (a test sets a smaller one); how much they come to now.
     qint64 mediaLimit = kMostMediaBytes;
@@ -878,12 +886,13 @@ private:
     QHash<QString, int> m_reviewerPlaces;   // (the place of each, to find one without looking through the list)
     int m_nextRevisionId = 0;   // 0: not looked for yet
     int m_revisionView = 0;
-    int m_hiddenView = 0;
     bool m_fieldCodesAll = false;
     bool m_mayHaveFields = false;
     QSet<int> m_fieldCodeIds;
     int m_fieldCodesCount = 0;
     int m_fieldCodeView = 0;
+    bool m_showHidden = false;
+    int hiddenBit() const { return m_showHidden ? tp::kRevisionShowHidden : 0; }
     void writeReviewSettings(office::wml::Document *out);
     void writeSourcesPart(office::wml::Document *out);
     void writeNoteSettings(office::wml::Document *out);

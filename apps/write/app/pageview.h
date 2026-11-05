@@ -26,6 +26,8 @@ namespace jp {
 class LayoutCache;
 }
 
+class QToolButton;
+
 namespace jp::write {
 
 class SpellCheck;
@@ -118,6 +120,7 @@ public:
     // ---- editing (each is a step that undoes)
     void undo();
     void redo();
+    static bool smartCutPaste();
     void cut();
     void copy();
     void paste();
@@ -126,6 +129,10 @@ public:
     enum class PasteKind { Keep, Merge, TextOnly, Picture, Html };
     bool canPaste(PasteKind kind) const;
     void pasteAs(PasteKind kind);
+    // After a paste, the Paste Options button offers the other ways to paste the same clipboard. The offer holds until anything else changes the text or the caret moves.
+    bool pasteOptionsAvailable() const;
+    // Takes the last paste back (one step) and pastes the clipboard again the way `kind` says; false when the offer is over or the clipboard has nothing for `kind`.
+    bool changeLastPaste(PasteKind kind);
     void selectAll();
     void insertText(const QString &text);
     void typeKey(int key, Qt::KeyboardModifiers modifiers);   // the keys that edit and move, as the keyboard sends them
@@ -197,6 +204,10 @@ public:
     // A picture from the bytes of a file, or an image (the clipboard's), at the caret in place of a selection; the picture is then the selection. The reason is told (notice) when it fails.
     bool insertPictureBytes(const QByteArray &bytes, const QString &name, PictureWrap wrap = PictureWrap::Inline);
     bool insertPictureImage(const QImage &image, PictureWrap wrap = PictureWrap::Inline);
+    // A shape of the gallery, or a text box of a design, at the cursor; it is selected when it is in.
+    bool insertShapeObject(const QString &preset);
+    bool insertTextBoxObject(const TextBoxDesign &design);
+    bool insertChartObject(ChartForm form);
     // The picture's size, wrap, and alt text, with the notice told when the change cannot be made.
     bool changeSelectedPicture(const std::function<bool(WriteDoc &, int)> &change);
 
@@ -437,6 +448,14 @@ private:
     int m_across = 1, m_down = 1;
     bool m_sideToSide = false, m_draft = false;
     bool m_marks = false;
+    struct LastPaste {
+        int from = -1, selectionEnd = -1, to = -1;   // the place the paste began (and where the selection it replaced ended), and where it ended
+        int revision = -1;
+        QTextDocument *story = nullptr;
+    } m_lastPaste;
+    QToolButton *m_pasteButton = nullptr;
+    void notePaste(int from, int selectionEnd);
+    void updatePasteButton();
     bool m_gridlines = false;
     bool m_shadeFields = false;
     bool m_caretWithoutFocus = false;

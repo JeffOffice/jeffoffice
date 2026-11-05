@@ -6,11 +6,36 @@
 #include "sheet/tables.h"
 
 #include <QCoreApplication>
+#include <QSet>
+#include <cmath>
 #include <QRegularExpression>
 
 namespace jp::crunch {
 
 using namespace jp::office::sheet;
+
+namespace {
+
+// The most cells looked at for the colors of their text (a sheet of millions of cells is not walked to the end).
+constexpr qint64 kContrastWork = 3000000;
+
+double lightness(quint32 rgb)
+{
+    auto channel = [](quint32 v) {
+        const double c = double(v) / 255.0;
+        return c <= 0.03928 ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * channel((rgb >> 16) & 0xFF) + 0.7152 * channel((rgb >> 8) & 0xFF) + 0.0722 * channel(rgb & 0xFF);
+}
+
+// How much the text stands out from the fill, from 1 (not at all) to 21 (black on white).
+double contrastRatio(quint32 text, quint32 fill)
+{
+    const double a = lightness(text), b = lightness(fill);
+    return (std::max(a, b) + 0.05) / (std::min(a, b) + 0.05);
+}
+
+} // namespace
 
 std::vector<AccessIssue> checkAccessibility(const EditSession &session, SheetObjects *objects, int most)
 {
@@ -51,6 +76,31 @@ std::vector<AccessIssue> checkAccessibility(const EditSession &session, SheetObj
             for (const jp::office::sheet::CellRange &m : calc->mergesOf(s))
                 add(AccessIssue::MergedCells, AccessIssue::Warning, s, m.row1, m.col1,
                     QCoreApplication::translate(ctx, "The cells %1 on %2 are merged. Merged cells are hard to move through with the keyboard and a screen reader.").arg(rangeName(m), name));
+    }
+    // Text that is hard to read against its fill: once for each look (a font and a fill) the text of cells has, at the first cell that has it. A patterned fill is not judged.
+    if (calc) {
+        QSet<quint64> seen;
+        qint64 work = 0;
+        for (int s = 0; s < int(sheets.size()) && s < calc->sheetCount() && int(out.size()) < most && work < kContrastWork; ++s) {
+            if (sheets[size_t(s)].deleted) continue;
+            calc->sheet(s).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+                if (++work > kContrastWork || int(out.size()) >= most || (c.type == CellType::Empty && !c.hasFormula())) return;
+                const CellFormat &f = book->styles().format(c.style);
+                const quint64 key = (quint64(f.font) << 32) | f.fill;
+                if (seen.contains(key)) return;
+                seen.insert(key);
+                const FillSpec &fill = book->styles().fill(f.fill);
+                if (fill.pattern != PatternKind::None && fill.pattern != PatternKind::Solid) return;
+                const FontSpec &font = book->styles().font(f.font);
+                const quint32 text = book->styles().resolve(font.color, 0x000000);
+                const quint32 back = fill.pattern == PatternKind::Solid ? book->styles().resolve(fill.fg, 0xFFFFFF) : 0xFFFFFF;
+                const bool large = font.size >= 18 || (font.bold && font.size >= 14);
+                const double ratio = contrastRatio(text, back);
+                if (ratio >= (large ? 3.0 : 4.5)) return;
+                add(AccessIssue::LowContrast, AccessIssue::Warning, s, row, col,
+                    QCoreApplication::translate(ctx, "The text in %1 on %2 is hard to read against the color behind it. Use a darker text or a lighter fill, or the other way round.").arg(cellName(row, col), sheets[size_t(s)].name));
+            });
+        }
     }
     for (const Table &t : book->tables()) {
         if (t.headerRows != 0 || t.sheet < 0 || t.sheet >= int(sheets.size()) || sheets[size_t(t.sheet)].deleted) continue;

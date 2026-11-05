@@ -8,6 +8,7 @@
 #include "sheet/cellref.h"
 #include "sheet/pivot.h"
 #include "sheet/pivotbook.h"
+#include "sheet/pivotformula.h"
 
 #include <QDate>
 #include <QCoreApplication>
@@ -990,6 +991,63 @@ EditSession::Outcome EditSession::showPivotDetail(int sheet, quint32 row, quint3
     return out;
 }
 
+EditSession::Outcome EditSession::listPivotFormulas(int table, int *made)
+{
+    Outcome out;
+    QString why;
+    auto refuse = [&](const QString &m) {
+        out.ok = false;
+        out.problem = m;
+        return out;
+    };
+    if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) return refuse(why.isEmpty() ? tr("There is no pivot table here.") : why);
+    PivotBook &pb = m_book->book->pivots();
+    const int ci = pb.table(table).cache;
+    const PivotCache &cache = *pb.cache(ci).cache;
+    QVector<int> calc;
+    for (int f = 0; f < cache.fields.size(); ++f)
+        if (cache.fields[f].isCalculated()) calc.append(f);
+    if (calc.isEmpty()) return refuse(tr("This pivot table has no calculated fields."));
+    const auto &sheets = m_book->book->info().sheets;
+    QString name;
+    for (int n = 1;; ++n) {
+        name = tr("Formulas %1").arg(n);
+        bool taken = false;
+        for (const SheetEntry &se : sheets)
+            if (!se.deleted && se.name.compare(name, Qt::CaseInsensitive) == 0) taken = true;
+        if (!taken) break;
+    }
+    int target = -1;
+    const Outcome inserted = insertSheet(int(sheets.size()), name, &target);
+    if (!inserted.ok) return inserted;
+    Step step;
+    auto put = [&](quint32 r, quint32 c, const QString &text) {
+        CellChange cc;
+        cc.sheet = target;
+        cc.row = r;
+        cc.col = quint16(c);
+        cc.before = m_book->calc->content(target, r, c);
+        cc.after = cc.before;
+        cc.after.exists = true;
+        cc.after.isFormula = false;
+        cc.after.formula.clear();
+        cc.after.value = Value::text(text);
+        cc.after.sharedString = -1;
+        cc.after.hasStored = false;
+        cc.textToShare = !m_book->book->sharedStringsPart().isEmpty();
+        step.cells.push_back(std::move(cc));
+    };
+    put(0, 0, tr("Calculated Field"));
+    put(0, 1, tr("Formula"));
+    for (int k = 0; k < calc.size(); ++k) {
+        put(quint32(k) + 1, 0, cache.fields[calc[k]].name);
+        put(quint32(k) + 1, 1, QLatin1Char('=') + cache.fields[calc[k]].formula);
+    }
+    out = pushTableStep(std::move(step), tr("List Formulas"));
+    if (out.ok && made) *made = target;
+    return out;
+}
+
 // The words of an item of a cache field, as a sheet name or a comparison between two caches needs them.
 static QString pivotItemWords(const PivotCacheField &f, int x)
 {
@@ -1231,6 +1289,126 @@ EditSession::Outcome EditSession::ungroupPivotField(int table, int field)
     ch.sourceSheet = ce.sourceSheet;
     ch.sourceName = ce.sourceName;
     return pivotStep({ch}, tr("Ungroup Field"));
+}
+
+EditSession::Outcome EditSession::setPivotCalculatedField(int table, int field, const QString &name, const QString &formula)
+{
+    Outcome out;
+    QString why;
+    auto refuse = [&](const QString &m) {
+        out.ok = false;
+        out.problem = m;
+        return out;
+    };
+    if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) return refuse(why.isEmpty() ? tr("There is no pivot table here.") : why);
+    PivotBook &pb = m_book->book->pivots();
+    const int ci = pb.table(table).cache;
+    const PivotCacheEntry &ce = pb.cache(ci);
+    if (pb.tablesOfCache(ci).size() > 1) return refuse(tr("Another pivot table is made from the same data. A calculated field is a part of the data, so it can't be made while two tables share it."));
+    const PivotTable &old = *pb.table(table).table;
+    const QString use = name.trimmed();
+    if (use.isEmpty()) return refuse(tr("Give the field a name."));
+    if (field >= 0 && (field >= ce.cache->fields.size() || field >= old.fields.size() || !ce.cache->fields[field].isCalculated())) return refuse(tr("This is not a calculated field."));
+    for (int f = 0; f < ce.cache->fields.size(); ++f)
+        if (f != field && ce.cache->fields[f].name.compare(use, Qt::CaseInsensitive) == 0) return refuse(tr("A field is already called \"%1\". Choose another name.").arg(use));
+    for (int f = 0; f < old.fields.size(); ++f)
+        if (f != field && old.fields[f].name.compare(use, Qt::CaseInsensitive) == 0) return refuse(tr("A field is already called \"%1\". Choose another name.").arg(use));
+    QString problem;
+    const auto parsed = jp::office::sheet::PivotFormula::parse(formula, &problem);
+    if (!parsed) return refuse(tr("The formula can't be read: %1.").arg(problem));
+    for (const QString &n : parsed->names()) {
+        bool found = false;
+        for (int f = 0; f < ce.cache->fields.size() && !found; ++f)
+            found = f != field && ce.cache->fields[f].name.compare(n, Qt::CaseInsensitive) == 0;
+        if (!found) return refuse(tr("The formula names \"%1\", which is not a field of this table.").arg(n));
+    }
+    QString text = formula.trimmed();
+    if (text.startsWith(QLatin1Char('='))) text = text.mid(1).trimmed();
+    auto cache = std::make_shared<PivotCache>(*ce.cache);
+    PivotChange ch;
+    ch.table = table;
+    ch.now = std::make_shared<PivotTable>(old);
+    PivotTable &t = *ch.now;
+    if (field < 0) {
+        PivotCacheField cf;
+        cf.name = use;
+        cf.formula = text;
+        cf.group.databaseField = false;
+        cache->fields.append(cf);
+        PivotField pf;
+        pf.calculated = true;
+        pf.defaultSubtotal = false;
+        while (t.fields.size() < cache->fields.size() - 1) t.fields.append(PivotField());
+        t.fields.append(pf);
+        PivotDataField d;
+        d.fld = int(cache->fields.size()) - 1;
+        d.subtotal = QStringLiteral("sum");
+        d.name = pivotDataFieldName(t, *cache, d.fld, d.subtotal);
+        t.dataFields.append(d);
+    } else {
+        PivotCacheField &cf = cache->fields[field];
+        const QString was = cf.name;
+        cf.name = use;
+        cf.formula = text;
+        // a formula that names this field by its old name follows the new one
+        if (was.compare(use, Qt::CaseInsensitive) != 0)
+            for (PivotCacheField &o : cache->fields)
+                if (o.isCalculated() && &o != &cf) {
+                    const auto p = jp::office::sheet::PivotFormula::parse(o.formula, nullptr);
+                    if (p && p->names().contains(was, Qt::CaseInsensitive)) return refuse(tr("Another calculated field uses the name \"%1\". Change that formula first.").arg(was));
+                }
+    }
+    pivotSyncRoles(&t);
+    pivotNormalizeLayout(&t);
+    pivotPrepareFields(&t, cache.get());
+    pivotKeepNumericFlags(cache.get());
+    ch.structure = field < 0;
+    ch.cache = ci;
+    ch.cacheNow = cache;
+    ch.source = ce.source;
+    ch.sourceSheet = ce.sourceSheet;
+    ch.sourceName = ce.sourceName;
+    return pivotStep({ch}, field < 0 ? tr("Insert Calculated Field") : tr("Change Calculated Field"));
+}
+
+EditSession::Outcome EditSession::deletePivotCalculatedField(int table, int field)
+{
+    Outcome out;
+    QString why;
+    auto refuse = [&](const QString &m) {
+        out.ok = false;
+        out.problem = m;
+        return out;
+    };
+    if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) return refuse(why.isEmpty() ? tr("There is no pivot table here.") : why);
+    PivotBook &pb = m_book->book->pivots();
+    const int ci = pb.table(table).cache;
+    const PivotCacheEntry &ce = pb.cache(ci);
+    if (pb.tablesOfCache(ci).size() > 1) return refuse(tr("Another pivot table is made from the same data, so the field can't be taken away from this one alone."));
+    if (field < 0 || field >= ce.cache->fields.size() || !ce.cache->fields[field].isCalculated()) return refuse(tr("This is not a calculated field."));
+    const QString gone = ce.cache->fields[field].name;
+    for (int f = 0; f < ce.cache->fields.size(); ++f) {
+        if (f == field || !ce.cache->fields[f].isCalculated()) continue;
+        const auto p = jp::office::sheet::PivotFormula::parse(ce.cache->fields[f].formula, nullptr);
+        if (p && p->names().contains(gone, Qt::CaseInsensitive)) return refuse(tr("The calculated field \"%1\" uses this one. Delete or change it first.").arg(ce.cache->fields[f].name));
+    }
+    auto cache = std::make_shared<PivotCache>(*ce.cache);
+    cache->fields.removeAt(field);
+    PivotChange ch;
+    ch.table = table;
+    ch.now = std::make_shared<PivotTable>(*pb.table(table).table);
+    PivotTable &t = *ch.now;
+    pivotRemoveFields(&t, {field});
+    pivotSyncRoles(&t);
+    pivotNormalizeLayout(&t);
+    pivotPrepareFields(&t, cache.get());
+    ch.structure = true;
+    ch.cache = ci;
+    ch.cacheNow = cache;
+    ch.source = ce.source;
+    ch.sourceSheet = ce.sourceSheet;
+    ch.sourceName = ce.sourceName;
+    return pivotStep({ch}, tr("Delete Calculated Field"));
 }
 
 EditSession::Outcome EditSession::drillPivotItem(int sheet, quint32 row, quint32 col, bool open)

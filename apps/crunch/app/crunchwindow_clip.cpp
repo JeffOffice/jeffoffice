@@ -2,6 +2,7 @@
 // paste moves the cells; Paste Special asks what to paste and what to do with it.
 #include "app/crunchwindow.h"
 
+#include "app/textimportdialog.h"
 #include "core/printjob.h"
 #include "sheet/cellref.h"
 
@@ -70,7 +71,12 @@ void CrunchWindow::createClipboardActions()
     gallery("paste.notes", tr("Comments and Notes"), Options::What::Comments);
     mk("edit.copyPicture", tr("Copy as Picture"), "image", QKeySequence(), [this] { copyAsPicture(false); });
     mk("edit.copyBitmap", tr("Copy as Bitmap"), "image", QKeySequence(), [this] { copyAsPicture(true); });
-    m_opsActions << QStringLiteral("edit.copyPicture") << QStringLiteral("edit.copyBitmap");
+    mk("edit.copyPicturePrinted", tr("Copy as Printed Picture"), "image", QKeySequence(), [this] { copyAsPicture(false, true); });
+    m_opsActions << QStringLiteral("edit.copyPicture") << QStringLiteral("edit.copyBitmap") << QStringLiteral("edit.copyPicturePrinted");
+    mk("paste.textImport", tr("Paste Text Import…"), "", QKeySequence(), [this] { pasteTextImport(); });
+    mk("paste.link", tr("Paste Link"), "", QKeySequence(), [this] { pasteLink(); });
+    mk("paste.hyperlink", tr("Paste as Hyperlink"), "", QKeySequence(), [this] { pasteAsHyperlinks(); });
+    for (const char *id : {"paste.textImport", "paste.link", "paste.hyperlink"}) m_opsActions << QString::fromLatin1(id);
     mk("paste.special", tr("Paste Special…"), "", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V), [this] { pasteSpecial(); });
     for (const char *id : {"edit.cut", "edit.paste", "paste.values", "paste.formulas", "paste.formats", "paste.transpose", "paste.special"}) m_opsActions << QString::fromLatin1(id);
     connect(m_view, &grid::GridView::copyBorderCleared, this, [this] { forgetClip(); });
@@ -80,7 +86,7 @@ void CrunchWindow::createClipboardActions()
 
 // Copy as Picture and Copy as Bitmap: the selected cells as the grid draws them (the screen's gridlines, no selection tint), cut from the page the print job lays them on, as an image on the
 // clipboard (the picture at twice the screen's resolution, the bitmap at the screen's). A block that does not go on one page is told, and nothing is copied.
-void CrunchWindow::copyAsPicture(bool bitmap)
+void CrunchWindow::copyAsPicture(bool bitmap, bool printed)
 {
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !m_session || m_sheet < 0 || m_chartSheetShown) return;
@@ -104,7 +110,7 @@ void CrunchWindow::copyAsPicture(bool bitmap)
         notice(tr("Copy as Picture"), tr("These cells do not fit in one picture. Select fewer cells, and try again."));
         return;
     }
-    job->setScreenMarks(act(QStringLiteral("view.gridlines"))->isChecked(), false);
+    if (!printed) job->setScreenMarks(act(QStringLiteral("view.gridlines"))->isChecked(), false);
     const double scale = (bitmap ? 96.0 : 192.0) / 72.0;
     const QSizeF paper = job->pageSize(0);
     const QSize pixels(int(std::ceil(paper.width() * scale)), int(std::ceil(paper.height() * scale)));
@@ -196,6 +202,26 @@ QString CrunchWindow::htmlOfClip(const ClipData &clip) const
                 if (look.italic) style += QStringLiteral("font-style:italic;");
                 if (look.pattern == jp::office::sheet::PatternKind::Solid) style += QStringLiteral("background:%1;").arg(QColor::fromRgba(look.fg).name());
                 if (look.textColor != 0xFF000000) style += QStringLiteral("color:%1;").arg(QColor::fromRgba(look.textColor).name());
+                // (what the sheet's usual cell does not have: its font, the lines on the text, how the text sits, and the borders)
+                const grid::CellLook &usual = gs.looks().look(0);
+                if (look.family != usual.family && !look.family.isEmpty()) style += QStringLiteral("font-family:'%1';").arg(QString(look.family).remove(QLatin1Char('\'')).toHtmlEscaped());
+                if (look.pointSize != usual.pointSize) style += QStringLiteral("font-size:%1pt;").arg(look.pointSize);
+                const bool under = look.underline != jp::office::sheet::Underline::None;
+                if (under || look.strike) style += QStringLiteral("text-decoration:%1;").arg(under && look.strike ? QStringLiteral("underline line-through") : under ? QStringLiteral("underline") : QStringLiteral("line-through"));
+                using HA = jp::office::sheet::HAlign;
+                if (look.horizontal == HA::Left || look.horizontal == HA::Center || look.horizontal == HA::Right)
+                    style += QStringLiteral("text-align:%1;").arg(look.horizontal == HA::Left ? QStringLiteral("left") : look.horizontal == HA::Center ? QStringLiteral("center") : QStringLiteral("right"));
+                if (look.vertical == jp::office::sheet::VAlign::Top) style += QStringLiteral("vertical-align:top;");
+                else if (look.vertical == jp::office::sheet::VAlign::Center) style += QStringLiteral("vertical-align:middle;");
+                const std::pair<const char *, const grid::LineLook *> sides[] = {{"left", &look.left}, {"right", &look.right}, {"top", &look.top}, {"bottom", &look.bottom}};
+                for (const auto &side : sides) {
+                    using BS = jp::office::sheet::BorderStyle;
+                    const BS bs = side.second->style;
+                    if (bs == BS::None) continue;
+                    const int width = bs == BS::Thick ? 3 : (bs == BS::Medium || bs == BS::MediumDashed || bs == BS::MediumDashDot || bs == BS::MediumDashDotDot || bs == BS::Double) ? 2 : 1;
+                    const QString kind = bs == BS::Double ? QStringLiteral("double") : (bs == BS::Dashed || bs == BS::MediumDashed) ? QStringLiteral("dashed") : (bs == BS::Dotted || bs == BS::Hair) ? QStringLiteral("dotted") : QStringLiteral("solid");
+                    style += QStringLiteral("border-%1:%2px %3 %4;").arg(QLatin1String(side.first)).arg(bs == BS::Double ? 3 : width).arg(kind, QColor::fromRgba(side.second->color).name());
+                }
             }
             html += QStringLiteral("<td") + (style.isEmpty() ? QString() : QStringLiteral(" style=\"%1\"").arg(style)) + QLatin1Char('>') + text + QStringLiteral("</td>");
         }
@@ -335,6 +361,130 @@ void CrunchWindow::pasteSpecial()
         o.transpose = transpose->isChecked();
     }
     pasteClipboard(o);
+}
+
+// Paste Text Import: the text on the clipboard is split as the person chooses in the Text Import dialog (the separators, the quote, the first row, how each column is read), then entered as if typed.
+void CrunchWindow::pasteTextImport()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !m_session || !editingAllowed()) return;
+    const QMimeData *md = QApplication::clipboard()->mimeData();
+    if (!md || !md->hasText() || md->text().isEmpty()) {
+        notice(tr("Paste Text Import"), tr("The clipboard has no text to split. Copy some text, and try again."));
+        return;
+    }
+    const QString text = md->text();
+    TextImportRequest req;
+    req.locale = QLocale();
+    req.head = text.toUtf8().left(jp::office::sheet::kCsvPreviewBytes);
+    req.size = text.toUtf8().size();
+    req.choices.encodingSet = true;
+    req.choices.separators = text.contains(QLatin1Char('\t')) ? QStringLiteral("\t") : QStringLiteral(",");
+    if (m_anchorHooks.textImportAsker) {
+        if (!m_anchorHooks.textImportAsker(&req)) return;
+    } else {
+        TextImportDialog dialog(req, this);
+        if (dialog.exec() != QDialog::Accepted) return;
+        req.choices = dialog.choices();
+    }
+    const QVector<QStringList> table = crunch::splitDelimitedText(text, req.choices);
+    if (table.isEmpty()) return;
+    const crunch::EditSession::Outcome o = m_session->pasteText(m_sheet, selectedRange(), table, crunch::EditSession::PasteOptions());
+    if (!o.ok) {
+        if (!o.confirm) notice(tr("Paste Text Import"), o.problem);
+        return;
+    }
+    m_calculating = true;
+    if (o.range.valid) {
+        widenForCells(m_sheet, o.range);
+        m_view->selectRange(o.range.row1, o.range.col1, o.range.row2, o.range.col2);
+    }
+}
+
+// The block of cells this workbook has on the clipboard (a copy made here): false, with the person told, if it is not.
+bool CrunchWindow::ownClipboardBlock(ClipData *clip, const QString &title)
+{
+    const QMimeData *md = QApplication::clipboard()->mimeData();
+    if (md && md->hasFormat(QLatin1String(crunch::kClipMime)) && ClipData::fromBytes(md->data(QLatin1String(crunch::kClipMime)), clip) && clip->valid() && m_session && clip->token == m_session->token()
+        && clip->sheet >= 0 && clip->sheet < m_loaded->book->info().sheets.size())
+        return true;
+    notice(title, tr("Copy some cells of this workbook first, and try again."));
+    return false;
+}
+
+// Paste Link: each cell pasted is a formula that points at the cell it was copied from, so it follows it.
+void CrunchWindow::pasteLink()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !m_session || !editingAllowed()) return;
+    ClipData clip;
+    if (!ownClipboardBlock(&clip, tr("Paste Link"))) return;
+    const QString name = m_loaded->book->info().sheets[clip.sheet].name;
+    QVector<QStringList> table;
+    for (quint32 r = 0; r < clip.rows; ++r) {
+        QStringList row;
+        for (quint32 c = 0; c < clip.cols; ++c) row << QLatin1Char('=') + jp::office::sheet::chartRef(name, CellRange{clip.source.row1 + r, clip.source.col1 + c, clip.source.row1 + r, clip.source.col1 + c, true});
+        table << row;
+    }
+    const crunch::EditSession::Outcome o = m_session->pasteText(m_sheet, selectedRange(), table, crunch::EditSession::PasteOptions());
+    if (!o.ok) {
+        if (!o.confirm) notice(tr("Paste Link"), o.problem);
+        return;
+    }
+    m_calculating = true;
+    if (o.range.valid) m_view->selectRange(o.range.row1, o.range.col1, o.range.row2, o.range.col2);
+}
+
+// Paste as Hyperlink: each cell pasted shows what the copied cell showed and is a link to it.
+void CrunchWindow::pasteAsHyperlinks()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !m_session || !editingAllowed()) return;
+    ClipData clip;
+    if (!ownClipboardBlock(&clip, tr("Paste as Hyperlink"))) return;
+    if (qint64(clip.rows) * clip.cols > 2000) {
+        notice(tr("Paste as Hyperlink"), tr("That is more than 2,000 cells. Copy fewer cells, and try again."));
+        return;
+    }
+    QString why;
+    if (!m_session->canEditNotes(m_sheet, &why)) {
+        notice(tr("Paste as Hyperlink"), why);
+        return;
+    }
+    const QString name = m_loaded->book->info().sheets[clip.sheet].name;
+    QVector<QStringList> table;
+    for (quint32 r = 0; r < clip.rows; ++r) {
+        QStringList row;
+        for (quint32 c = 0; c < clip.cols; ++c) row << QLatin1Char('\'') + m_session->displayText(clip.sheet, clip.source.row1 + r, clip.source.col1 + c);
+        table << row;
+    }
+    for (QStringList &row : table)
+        for (QString &f : row)
+            if (f == QLatin1String("'")) f.clear();
+    QUndoStack *u = undoStack();
+    u->beginMacro(tr("Paste as Hyperlink"));
+    const CellRange target = selectedRange();
+    crunch::EditSession::Outcome o = m_session->pasteText(m_sheet, target, table, crunch::EditSession::PasteOptions());
+    const CellRange pasted = o.range;
+    if (o.ok && pasted.valid) {
+        for (quint32 r = 0; r < clip.rows && o.ok; ++r)
+            for (quint32 c = 0; c < clip.cols && o.ok; ++c) {
+                jp::office::sheet::LinkSpec link;
+                const quint32 row = pasted.row1 + r, col = pasted.col1 + c;
+                link.range = CellRange{row, col, row, col, true};
+                const QString at = jp::office::sheet::chartRef(name, CellRange{clip.source.row1 + r, clip.source.col1 + c, clip.source.row1 + r, clip.source.col1 + c, true});
+                link.location = QString(at).remove(QLatin1Char('$'));
+                o = m_session->setLink(m_sheet, link.range, link, tr("Paste as Hyperlink"));
+            }
+        if (o.ok) m_session->applyStyleNamed(m_sheet, pasted, QStringLiteral("Hyperlink"), tr("Paste as Hyperlink"));
+    }
+    u->endMacro();
+    if (!o.ok) {
+        if (!o.confirm) notice(tr("Paste as Hyperlink"), o.problem);
+        return;
+    }
+    m_calculating = true;
+    if (pasted.valid) m_view->selectRange(pasted.row1, pasted.col1, pasted.row2, pasted.col2);
 }
 
 // Paste: what the clipboard holds goes in at the selected cell. The cells this program copied or cut go in whole (a cut moves them), and text or an HTML table from another program is entered

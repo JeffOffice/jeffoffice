@@ -781,7 +781,7 @@ PaintOptions GridView::paintOptions() const
     o.gridlines = m_gridlines;
     o.headers = m_headings;
     o.selection = m_cellsEnabled ? &m_selection : nullptr;
-    o.fillHandle = m_cellsEnabled;
+    o.fillHandle = m_cellsEnabled && m_dragEditing;
     o.fillPreview = m_drag == Drag::Fill && !(m_fillExtent == m_fillSource) ? &m_fillExtent : nullptr;
     if (m_drag == Drag::MoveCells && !(m_moveTarget == m_moveSource)) o.fillPreview = &m_moveTarget;
     o.pointMarks = m_pointMarks.empty() ? nullptr : &m_pointMarks;
@@ -1248,7 +1248,7 @@ void GridView::mousePressEvent(QMouseEvent *e)
         m_lastMouse = lp;
         return;
     }
-    if (h.kind == Hit::Kind::Cell && m_cellsEnabled && !shift && !(e->modifiers() & Qt::AltModifier) && h.row >= m_selection.range.row1 && h.row <= m_selection.range.row2
+    if (h.kind == Hit::Kind::Cell && m_cellsEnabled && m_dragEditing && !shift && !(e->modifiers() & Qt::AltModifier) && h.row >= m_selection.range.row1 && h.row <= m_selection.range.row2
         && h.col >= m_selection.range.col1 && h.col <= m_selection.range.col2 && selectionBorderAtInLayout(lp)) {
         m_drag = Drag::MoveCells;
         m_moveSource = m_moveTarget = m_selection.range;
@@ -1427,7 +1427,7 @@ bool GridView::selectionBorderAtInLayout(const QPoint &lp) const
 
 QRect GridView::fillHandleRectInLayout() const
 {
-    if (m_selection.whole != Selection::Whole::None) return QRect();
+    if (!m_dragEditing || m_selection.whole != Selection::Whole::None) return QRect();
     const QRect corner = cellRectInLayout(m_selection.range.row2, m_selection.range.col2);
     if (corner.isEmpty()) return QRect();
     return QRect(corner.right() - 4, corner.bottom() - 4, 9, 9);

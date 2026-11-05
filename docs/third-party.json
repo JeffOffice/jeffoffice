@@ -1,0 +1,520 @@
+{
+ "about": "Third-party software in JeffOffice, from the apps' About pages (tools/check_third_party.py)",
+ "parts": [
+  {
+   "name": "Qt 6",
+   "url": "https://www.qt.io/",
+   "use": "Interface, text layout, PDF and printing",
+   "license": "LGPL-3.0",
+   "licenseUrl": "https://www.gnu.org/licenses/lgpl-3.0.html",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Hunspell",
+   "url": "https://hunspell.github.io/",
+   "use": "Spelling checker",
+   "license": "MPL-1.1, GPL-2.0+ or LGPL-2.1+",
+   "licenseUrl": "https://www.mozilla.org/MPL/1.1/",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "English dictionaries (SCOWL; UK)",
+   "url": "http://wordlist.aspell.net/",
+   "use": "Spelling",
+   "license": "SCOWL license; LGPL (UK)",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/en/README_en_US.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "English hyphenation patterns",
+   "url": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/en/README_hyph_en_US.txt",
+   "use": "Hyphenation",
+   "license": "BSD-style",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/en/README_hyph_en_US.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "WordNet",
+   "url": "https://wordnet.princeton.edu/",
+   "use": "Thesaurus",
+   "license": "WordNet license",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/en/WordNet_license.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Spanish dictionaries",
+   "url": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/es/README_hunspell_es.txt",
+   "use": "Spelling and hyphenation",
+   "license": "GPL-3.0+, LGPL-3.0+ or MPL-1.1+",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/es/LICENSE.md",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "French dictionary (Grammalecte)",
+   "url": "https://grammalecte.net/",
+   "use": "Spelling and hyphenation",
+   "license": "MPL-2.0; patterns LGPL",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/fr_FR/README_dict_fr.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "German dictionary (igerman98)",
+   "url": "https://www.j3e.de/ispell/igerman98/",
+   "use": "Spelling and hyphenation",
+   "license": "GPL-2.0 or GPL-3.0; patterns LGPL-2.0+",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/de/README_de_DE_frami.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Italian dictionary",
+   "url": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/it_IT/README_it_IT.txt",
+   "use": "Spelling and hyphenation",
+   "license": "GPL-3.0; patterns LGPL",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/it_IT/README_it_IT.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Dutch dictionary (OpenTaal)",
+   "url": "https://www.opentaal.org/",
+   "use": "Spelling and hyphenation",
+   "license": "BSD or CC BY 3.0",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/nl_NL/LICENSE.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Brazilian Portuguese dictionary (VERO)",
+   "url": "http://pt-br.libreoffice.org/projetos/projeto-vero-verificador-ortografico/",
+   "use": "Spelling and hyphenation",
+   "license": "LGPL-3.0 or MPL",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/pt_BR/README_en.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "European Portuguese dictionary",
+   "url": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/pt_PT/README_pt_PT.txt",
+   "use": "Spelling and hyphenation",
+   "license": "GPL-2.0+",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/pt_PT/LICENSES.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Lucide icons",
+   "url": "https://lucide.dev/",
+   "use": "Interface icons, Insert > Icons",
+   "license": "ISC",
+   "licenseUrl": "https://lucide.dev/license",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Open fonts",
+   "url": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/fonts/README.md",
+   "use": "Fonts and substitutes",
+   "license": "SIL OFL 1.1, Apache 2.0, GUST, Bitstream Vera, GPL v2 + font exceptions",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/fonts/README.md",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "zlib",
+   "url": "https://zlib.net/",
+   "use": "Compression (also in PDFium)",
+   "license": "zlib license",
+   "licenseUrl": "https://zlib.net/zlib_license.html",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "PDFium",
+   "url": "https://pdfium.googlesource.com/pdfium/",
+   "use": "Placing PDF pages",
+   "license": "BSD-3-Clause; parts Apache-2.0",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/pdfium.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "pdfium-binaries",
+   "url": "https://github.com/bblanchon/pdfium-binaries",
+   "use": "PDFium, built",
+   "license": "MIT",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/pdfium-binaries.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "FreeType (in PDFium)",
+   "url": "https://freetype.org/",
+   "use": "Fonts in PDF pages",
+   "license": "FreeType License",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/freetype.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "HarfBuzz (in PDFium)",
+   "url": "https://harfbuzz.github.io/",
+   "use": "Text in PDF pages",
+   "license": "Old MIT",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/harfbuzz.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Little CMS (in PDFium)",
+   "url": "https://www.littlecms.com/",
+   "use": "Color in PDF pages",
+   "license": "MIT",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/lcms.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "libjpeg-turbo (in PDFium)",
+   "url": "https://libjpeg-turbo.org/",
+   "use": "JPEG pictures in PDF pages",
+   "license": "IJG and BSD-3-Clause",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/libjpeg_turbo.md",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "OpenJPEG (in PDFium)",
+   "url": "https://www.openjpeg.org/",
+   "use": "JPEG 2000 in PDF pages",
+   "license": "BSD-2-Clause",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/libopenjpeg.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "libpng (in PDFium)",
+   "url": "http://www.libpng.org/pub/png/libpng.html",
+   "use": "PNG pictures in PDF pages",
+   "license": "libpng License v2",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/libpng.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Abseil (in PDFium)",
+   "url": "https://abseil.io/",
+   "use": "Support code",
+   "license": "Apache-2.0",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/abseil.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Anti-Grain Geometry 2.3 (in PDFium)",
+   "url": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/agg23.txt",
+   "use": "Drawing",
+   "license": "AGG 2.3 license",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/agg23.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "dragonbox (in PDFium)",
+   "url": "https://github.com/jk-jeon/dragonbox",
+   "use": "Numbers",
+   "license": "Apache-2.0 (LLVM) or BSL-1.0",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/dragonbox-Boost.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "fast_float (in PDFium)",
+   "url": "https://github.com/fastfloat/fast_float",
+   "use": "Numbers",
+   "license": "MIT",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/fast_float.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "simdutf (in PDFium)",
+   "url": "https://github.com/simdutf/simdutf",
+   "use": "Unicode text",
+   "license": "MIT",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/simdutf.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "LLVM libc (in PDFium)",
+   "url": "https://libc.llvm.org/",
+   "use": "Support code",
+   "license": "Apache-2.0 (LLVM)",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/llvm-libc.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "ICU",
+   "url": "https://icu.unicode.org/",
+   "use": "Unicode text (in PDFium; with Qt on Linux)",
+   "license": "Unicode License v3",
+   "licenseUrl": "https://www.unicode.org/license.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "MinGW-w64 runtime",
+   "url": "https://www.mingw-w64.org/",
+   "use": "C++ runtime",
+   "license": "GPL-3.0 with GCC Runtime Library Exception; MIT",
+   "licenseUrl": "https://www.gnu.org/licenses/gcc-exception-3.1.html",
+   "windowsOnly": true,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Inno Setup",
+   "url": "https://jrsoftware.org/isinfo.php",
+   "use": "Installer",
+   "license": "Inno Setup License",
+   "licenseUrl": "https://jrsoftware.org/files/is/license.txt",
+   "windowsOnly": true,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "libmspub (modified)",
+   "url": "https://git.libreoffice.org/libmspub",
+   "use": "Reading .pub files",
+   "license": "MPL-2.0",
+   "licenseUrl": "https://www.mozilla.org/MPL/2.0/",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub"
+   ]
+  },
+  {
+   "name": "librevenge (modified)",
+   "url": "https://sourceforge.net/p/libwpd/librevenge/",
+   "use": "Document interfaces",
+   "license": "MPL-2.0 or LGPL-2.1+",
+   "licenseUrl": "https://www.mozilla.org/MPL/2.0/",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub"
+   ]
+  },
+  {
+   "name": "LibreTranslate",
+   "url": "https://libretranslate.com/",
+   "use": "Translate (opens in your browser)",
+   "license": "AGPL-3.0",
+   "licenseUrl": "https://www.gnu.org/licenses/agpl-3.0.html",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffWrite"
+   ]
+  },
+  {
+   "name": "PSO Coated v3 color profile",
+   "url": "https://www.eci.org/",
+   "use": "PDF/X-4 (downloaded from the European Color Initiative)",
+   "license": "ECI's terms",
+   "licenseUrl": "https://www.eci.org/",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub"
+   ]
+  },
+  {
+   "name": "ISBN range table",
+   "url": "https://www.isbn-international.org/",
+   "use": "ISBN hyphens (downloaded from the International ISBN Agency)",
+   "license": "The agency's terms",
+   "licenseUrl": "https://www.isbn-international.org/range_file_generation",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub"
+   ]
+  },
+  {
+   "name": "FFmpeg",
+   "url": "https://ffmpeg.org/",
+   "use": "Playing movies and sounds",
+   "license": "LGPL-2.1+",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/ffmpeg/licenses/ffmpeg.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffDeck"
+   ]
+  }
+ ]
+}

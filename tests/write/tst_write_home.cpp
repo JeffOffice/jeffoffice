@@ -2,19 +2,26 @@
 // Each document is built here from a few lines of XML.
 
 #include "../isolatesettings.h"
+#include "app/widgets.h"
+#include "app/settings.h"
+#include "core/fontfiles.h"
 #include "app/writedialogs.h"
 #include "app/writewindow.h"
 #include "app/pageview.h"
 #include "core/appinfo.h"
 #include "core/accessops.h"
 #include "core/linkops.h"
+#include "core/commentops.h"
 #include "core/compareops.h"
+#include "core/gotoops.h"
 #include "core/editops.h"
 #include "core/pictureops.h"
 #include "core/reviewops.h"
 #include "core/tableops.h"
 #include "core/fonts.h"
 #include "core/homeops.h"
+#include "core/styleops.h"
+#include "flow/flowdocument.h"
 #include "core/proofops.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
@@ -33,6 +40,7 @@
 #include <QDialog>
 #include <QDoubleSpinBox>
 #include <QTimer>
+#include <QToolButton>
 #include <QListWidget>
 #include <QBuffer>
 #include <QImage>
@@ -49,6 +57,14 @@ using namespace jp;
 using namespace jp::write;
 
 namespace {
+
+QTextCharFormat charFormatAtEnd(WriteWindow &w)
+{
+    QTextCursor e(w.document()->story());
+    e.setPosition(w.document()->story()->characterCount() - 1);
+    e.movePosition(QTextCursor::PreviousCharacter, QTextCursor::KeepAnchor);
+    return e.charFormat();
+}
 
 const char kNs[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
 
@@ -104,6 +120,13 @@ QTextCursor selectBlocks(QTextDocument *d, int firstBlock, int lastBlock)
     QTextBlock last = d->findBlockByNumber(lastBlock);
     c.setPosition(last.position() + last.length() - 1, QTextCursor::KeepAnchor);
     return c;
+}
+
+// A picture of a widget for the person looking at the round's work: saved only when JP_SHOT_DIR names a folder.
+void shot(QWidget *w, const QString &name)
+{
+    const QString dir = qEnvironmentVariable("JP_SHOT_DIR");
+    if (!dir.isEmpty() && w) w->grab().save(dir + QLatin1Char('/') + name);
 }
 
 // Runs `open` (which opens a modal dialog named `objectName`), fills the dialog in, and accepts it (or rejects it).
@@ -988,6 +1011,245 @@ private Q_SLOTS:
         QVERIFY(back.contains("<w:keepLines/>"));
     }
 
+    void theParagraphBoxSuppressesLineNumbersAndKeepsItInTheFile()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a paragraph")))), QString());
+        w.view()->selectAll();
+        withDialog([&w] { w.act(QStringLiteral("para.dialog"))->trigger(); }, QStringLiteral("paragraphDialog"), [](QDialog *d) {
+            QVERIFY(!d->findChild<QCheckBox *>(QStringLiteral("suppressLineNumbers"))->isChecked());
+            d->findChild<QCheckBox *>(QStringLiteral("suppressLineNumbers"))->setChecked(true);
+        });
+        QVERIFY(w.document()->story()->begin().blockFormat().boolProperty(flow::fp::SuppressLineNumbers));
+        const QByteArray out = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY2(out.contains("<w:suppressLineNumbers/>"), out.constData());
+        auto again = open(w.document()->toDocx());
+        QVERIFY(again->story()->begin().blockFormat().boolProperty(flow::fp::SuppressLineNumbers));
+        // Back off: the paragraph says so itself (its style might say otherwise).
+        withDialog([&w] { w.act(QStringLiteral("para.dialog"))->trigger(); }, QStringLiteral("paragraphDialog"), [](QDialog *d) {
+            QVERIFY(d->findChild<QCheckBox *>(QStringLiteral("suppressLineNumbers"))->isChecked());
+            d->findChild<QCheckBox *>(QStringLiteral("suppressLineNumbers"))->setChecked(false);
+        });
+        QVERIFY(!w.document()->story()->begin().blockFormat().boolProperty(flow::fp::SuppressLineNumbers));
+        const QByteArray back = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY2(back.contains("<w:suppressLineNumbers w:val=\"0\"/>"), back.constData());
+        QVERIFY(!open(w.document()->toDocx())->story()->begin().blockFormat().boolProperty(flow::fp::SuppressLineNumbers));
+    }
+
+    void hiddenTextShowsWhileTheFormattingMarksAreOnAndSavesTheSame()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        const QByteArray secret = QByteArray("secret words ").repeated(60);
+        w.setDocument(open(makeDocx(para(run("shown ") + run(secret, "<w:vanish/>") + run("end")))), QString());
+        const QByteArray before = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        QCOMPARE(w.document()->pager().lines(0).size(), 1);
+        w.act(QStringLiteral("view.marks"))->trigger();
+        QVERIFY(w.view()->showMarks());
+        QVERIFY2(w.document()->pager().lines(0).size() > 3, "hidden text is not shown with the marks on");
+        QCOMPARE(part(w.document()->toDocx(), QStringLiteral("/word/document.xml")), before);
+        w.act(QStringLiteral("view.marks"))->trigger();
+        QVERIFY(!w.view()->showMarks());
+        QCOMPARE(w.document()->pager().lines(0).size(), 1);
+    }
+
+    void theStylesListCanBeSortedByNameTypeBaseOrRecommendation()
+    {
+        auto doc = open(makeDocx(para(run("text"))));
+        const auto names = [](const QVector<ListedStyle> &list) {
+            QStringList out;
+            for (const ListedStyle &e : list) out << e.name;
+            return out;
+        };
+        const QVector<ListedStyle> alpha = listStyles(*doc, StyleFilter::Recommended, QString(), StyleSort::Alphabetical);
+        QVERIFY(alpha.size() > 3);
+        for (int i = 1; i < alpha.size(); ++i) QVERIFY2(QString::compare(alpha[i - 1].name, alpha[i].name, Qt::CaseInsensitive) <= 0, qPrintable(alpha[i].name));
+        QVERIFY(names(alpha) != names(listStyles(*doc, StyleFilter::Recommended)));
+        const QVector<ListedStyle> byType = listStyles(*doc, StyleFilter::All, QString(), StyleSort::ByType);
+        bool sawCharacter = false;
+        for (const ListedStyle &e : byType) {
+            if (e.character) sawCharacter = true;
+            else QVERIFY2(!sawCharacter, qPrintable(e.name));
+        }
+        QVERIFY(sawCharacter);
+        const QVector<ListedStyle> byBase = listStyles(*doc, StyleFilter::All, QString(), StyleSort::BasedOn);
+        for (int i = 1; i < byBase.size(); ++i) QVERIFY2(QString::compare(byBase[i - 1].basedOn, byBase[i].basedOn, Qt::CaseInsensitive) <= 0, qPrintable(byBase[i].name));
+        QVERIFY(!byBase.last().basedOn.isEmpty());
+        const QVector<ListedStyle> rec = listStyles(*doc, StyleFilter::All, QString(), StyleSort::AsRecommended);
+        QCOMPARE(rec.first().id, doc->defaultParagraphStyle());
+        QCOMPARE(names(listStyles(*doc, StyleFilter::All, QString(), StyleSort::Default)), names(listStyles(*doc, StyleFilter::All)));
+    }
+
+    void theFontBoxListsTheFontsChosenLastAboveAllFonts()
+    {
+        jp::Settings::get().setValue(QStringLiteral("fonts/recent"), QStringList());
+        const QStringList families = jp::visibleFontFamilies();
+        QVERIFY(families.size() >= 2);
+        const QString first = families.at(0), second = families.at(1);
+        auto texts = [](const jp::FontCombo &c) {
+            QStringList out;
+            for (int i = 0; i < c.count(); ++i) out << c.itemText(i);
+            return out;
+        };
+        jp::FontCombo box;
+        QVERIFY(!texts(box).contains(QStringLiteral("Recently Used")));
+        box.lineEdit()->setText(first);
+        QTest::keyClick(box.lineEdit(), Qt::Key_Return);
+        box.lineEdit()->setText(second);
+        QTest::keyClick(box.lineEdit(), Qt::Key_Return);
+        box.lineEdit()->setText(QStringLiteral("+Heading"));
+        QTest::keyClick(box.lineEdit(), Qt::Key_Return);
+        jp::FontCombo later;
+        later.showPopup();
+        shot(later.view()->window(), QStringLiteral("font-list-recent.png"));
+        later.hidePopup();
+        for (const jp::FontCombo *c : {&box, &later}) {
+            const QStringList t = texts(*c);
+            const int at = int(t.indexOf(QStringLiteral("Recently Used")));
+            QVERIFY(at > 0);
+            QCOMPARE(t.at(at + 1), second);
+            QCOMPARE(t.at(at + 2), first);
+            QCOMPARE(t.at(at + 3), QStringLiteral("All Fonts"));
+        }
+        jp::Settings::get().setValue(QStringLiteral("fonts/recent"), QStringList());
+    }
+
+    void smartCutTakesOneSpaceWithTheWordsAndSmartPasteAddsOneWhereWordsWouldRunTogether()
+    {
+        auto doc = open(makeDocx(para(run("one two three, four"))));
+        auto text = [&] { return doc->story()->toPlainText(); };
+        auto select = [&](int from, int to) {
+            QTextCursor c(doc->story());
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            return c;
+        };
+        // Cut "two": the two spaces round it become one, and one Undo puts it all back.
+        const quint64 serial = doc->nextStepSerial();
+        QTextCursor c = select(4, 7);
+        smartRemoveSelection(*doc, c);
+        QCOMPARE(text(), QStringLiteral("one three, four"));
+        QCOMPARE(c.position(), 4);
+        QVERIFY(doc->undo());
+        QCOMPARE(text(), QStringLiteral("one two three, four"));
+        QVERIFY(doc->nextStepSerial() > serial);
+        // Cut "three": a space before the comma goes.
+        c = select(8, 13);
+        smartRemoveSelection(*doc, c);
+        QCOMPARE(text(), QStringLiteral("one two, four"));
+        QVERIFY(doc->undo());
+        // Part of a word is cut as it is.
+        c = select(5, 7);
+        smartRemoveSelection(*doc, c);
+        QCOMPARE(text(), QStringLiteral("one t three, four"));
+        QVERIFY(doc->undo());
+        // Paste between words that touch: spaces are added; in the middle of a word, none.
+        auto paste = [&](int at, const QString &words) {
+            QTextCursor p(doc->story());
+            p.setPosition(at);
+            smartPaste(*doc, p, [&] { insertText(*doc, p, words); });
+            return p.position();
+        };
+        auto bare = open(makeDocx(para(run("abcd"))));
+        doc = std::move(bare);
+        QCOMPARE(paste(2, QStringLiteral("xy")), 4);
+        QCOMPARE(text(), QStringLiteral("abxycd"));
+        QVERIFY(doc->undo());
+        doc = open(makeDocx(para(run("ab, cd"))));
+        QCOMPARE(paste(2, QStringLiteral("word")), 7);
+        QCOMPARE(text(), QStringLiteral("ab word, cd"));
+        QVERIFY(doc->undo());
+        doc = open(makeDocx(para(run("end"))));
+        QCOMPARE(paste(3, QStringLiteral("next")), 8);
+        QCOMPARE(text(), QStringLiteral("end next"));
+        QVERIFY(doc->undo());
+        QCOMPARE(text(), QStringLiteral("end"));
+        doc = open(makeDocx(para(run("go on"))));
+        QCOMPARE(paste(2, QStringLiteral("it")), 5);
+        QCOMPARE(text(), QStringLiteral("go it on"));
+        // Words between spaces are pasted as they are, and a paste that touches the word after it gets a space after.
+        doc = open(makeDocx(para(run("go  on"))));
+        QCOMPARE(paste(3, QStringLiteral("it")), 5);
+        QCOMPARE(text(), QStringLiteral("go it on"));
+    }
+
+    void cuttingAndPastingInTheWindowKeepsTheSpacesRightUnlessSmartCutAndPasteIsOff()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("one two three")))), QString());
+        auto select = [&](int from, int to) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            w.view()->setCursor(c);
+        };
+        jp::Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), true);
+        select(4, 7);
+        w.view()->cut();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("one three"));
+        QTextCursor end(w.document()->story());
+        end.setPosition(3);
+        w.view()->setCursor(end);
+        w.view()->paste();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("one two three"));
+        jp::Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), false);
+        select(4, 7);
+        w.view()->cut();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("one  three"));
+        jp::Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), true);
+    }
+
+    void aPasteOffersOptionsUntilTheNextEditAndTheChoiceRedoesThePaste()
+    {
+        jp::Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), true);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("plain ") + run("bold", "<w:b/>") + run(" end")))), QString());
+        QTextCursor c(w.document()->story());
+        c.setPosition(6);
+        c.setPosition(10, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        w.view()->copy();
+        QVERIFY(!w.view()->pasteOptionsAvailable());
+        c.movePosition(QTextCursor::End);
+        w.view()->setCursor(c);
+        w.view()->paste();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("plain bold end bold"));
+        QVERIFY(w.view()->pasteOptionsAvailable());
+        auto *button = w.view()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton"));
+        QVERIFY(button);
+        QTRY_VERIFY(button->isVisible());
+        shot(&w, QStringLiteral("paste-options.png"));
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            d->findChild<QListWidget *>(QStringLiteral("goToKinds"))->setCurrentRow(8);   // Table
+            shot(d, QStringLiteral("go-to.png"));
+        }, false);
+        auto lastIsBold = [&] { return charFormatAtEnd(w).fontWeight() >= QFont::DemiBold; };
+        QVERIFY(lastIsBold());
+        QVERIFY(w.view()->changeLastPaste(PageView::PasteKind::TextOnly));
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("plain bold end bold"));
+        QVERIFY(!lastIsBold());
+        QVERIFY(w.view()->pasteOptionsAvailable());
+        QVERIFY(w.view()->changeLastPaste(PageView::PasteKind::Keep));
+        QVERIFY(lastIsBold());
+        // One Undo takes the paste back whatever it was changed to.
+        QVERIFY(w.document()->undo());
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("plain bold end"));
+        // Typing, or moving the caret, ends the offer.
+        w.view()->paste();
+        QVERIFY(w.view()->pasteOptionsAvailable());
+        w.view()->insertText(QStringLiteral("x"));
+        QVERIFY(!w.view()->pasteOptionsAvailable());
+        QVERIFY(!w.view()->changeLastPaste(PageView::PasteKind::TextOnly));
+        QTRY_VERIFY(!button->isVisible());
+    }
+
     // ---- the review's fixes
     void saveAsOfAProtectedDocumentDoesNotLiftTheProtection()
     {
@@ -1302,6 +1564,47 @@ private Q_SLOTS:
         QCOMPARE(facts.value(QStringLiteral("Alignment")), QStringLiteral("Centered"));
         QVERIFY(facts.value(QStringLiteral("Indents (left, right, first line)")).startsWith(QLatin1String("36 pt")));
         QVERIFY(!facts.value(QStringLiteral("Paragraph style")).isEmpty());
+    }
+
+    void goToFindsEndnotesCommentsFieldsTablesGraphicsAndEquations()
+    {
+        const QByteArray cell = "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>c</w:t></w:r></w:p></w:tc>";
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"4000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr>" + cell + cell + "</w:tr><w:tr>" + cell + cell + "</w:tr></w:tbl>";
+        QByteArray body = "<w:p><w:r><w:t>first words here</w:t></w:r></w:p>";
+        body += table + "<w:p><w:r><w:t>between</w:t></w:r></w:p>" + table;
+        body += "<w:p><w:r><w:t>a field </w:t></w:r><w:fldSimple w:instr=\" DATE \"><w:r><w:t>today</w:t></w:r></w:fldSimple></w:p>";
+        body += "<w:p><m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:r><m:t>x+1</m:t></m:r></m:oMath><w:r><w:t> and last</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        // Made by the program's own commands, from the end back so that earlier places keep theirs.
+        const int lastWords = doc->story()->toPlainText().indexOf(QStringLiteral("last"));
+        QTextCursor at(doc->story());
+        at.setPosition(lastWords);
+        QVERIFY(insertPictureImage(*doc, at, QImage(8, 8, QImage::Format_RGB32)) == PictureResult::Ok);
+        at.setPosition(3);
+        at.setPosition(8, QTextCursor::KeepAnchor);
+        QVERIFY(addComment(*doc, at, QStringLiteral("look")) >= 0);
+        at = QTextCursor(doc->story());
+        at.setPosition(10);
+        QVERIFY(insertEndnote(*doc, at));
+        QString problem;
+        for (GoToKind kind : {GoToKind::Endnote, GoToKind::Comment, GoToKind::Graphic, GoToKind::Equation, GoToKind::Field}) {
+            QCOMPARE(goToItems(*doc, kind).size(), 1);
+            const int one = goToPosition(*doc, kind, QStringLiteral("1"), 0, &problem);
+            QVERIFY2(one >= 0, qPrintable(problem));
+            QCOMPARE(goToPosition(*doc, kind, QStringLiteral("2"), 0), -1);
+            QCOMPARE(goToPosition(*doc, kind, QStringLiteral("+1"), 0), one);
+            QCOMPARE(goToPosition(*doc, kind, QStringLiteral("0"), 0, &problem), -1);
+            QVERIFY(!problem.isEmpty());
+        }
+        const QVector<GoToItem> tables = goToItems(*doc, GoToKind::Table);
+        QCOMPARE(tables.size(), 2);
+        QVERIFY(tables[0].position < tables[1].position);
+        QCOMPARE(goToPosition(*doc, GoToKind::Table, QStringLiteral("2"), 0), tables[1].position);
+        QCOMPARE(goToPosition(*doc, GoToKind::Table, QStringLiteral("+1"), tables[0].position + 1), tables[1].position);
+        QCOMPARE(goToPosition(*doc, GoToKind::Table, QStringLiteral("3"), 0), -1);
+        QVERIFY(goToPosition(*doc, GoToKind::Graphic, QStringLiteral("1"), 0) > goToPosition(*doc, GoToKind::Equation, QStringLiteral("1"), 0));
+        QVERIFY(goToPosition(*doc, GoToKind::Comment, QStringLiteral("1"), 0) < goToPosition(*doc, GoToKind::Endnote, QStringLiteral("1"), 0));
     }
 };
 

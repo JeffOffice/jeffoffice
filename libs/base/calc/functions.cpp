@@ -21,6 +21,7 @@ void registerMoreStatFunctions(std::vector<FunctionInfo> &r);
 void registerMoreFinanceFunctions(std::vector<FunctionInfo> &r);
 void registerEngineeringFunctions(std::vector<FunctionInfo> &r);
 void registerArrayFunctions(std::vector<FunctionInfo> &r);
+void registerXmlFunctions(std::vector<FunctionInfo> &r);
 
 namespace {
 
@@ -42,6 +43,7 @@ struct Registry {
         registerMoreFinanceFunctions(functions);
         registerEngineeringFunctions(functions);
         registerArrayFunctions(functions);
+        registerXmlFunctions(functions);
         for (size_t i = 0; i < functions.size(); ++i) byName.insert(QString::fromLatin1(functions[i].name), int(i));
     }
 };

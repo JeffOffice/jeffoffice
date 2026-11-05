@@ -1,4 +1,6 @@
 #include "app/crunchwindow.h"
+
+#include "core/fixeddecimals.h"
 #include <QInputMethodEvent>
 #include "app/functionargumentsdialog.h"
 #include "app/pivotpane.h"
@@ -25,6 +27,7 @@
 #include "core/appinfo.h"
 #include "sheet/cellref.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFontComboBox>
@@ -178,6 +181,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
         m_syncingEditors = true;
         m_formulaBar->setText(text);
         m_syncingEditors = false;
+        autoCompleteEntry(text);
         placeEditor();
     });
     connect(m_formulaBar, &QLineEdit::textEdited, this, [this](const QString &text) {
@@ -327,6 +331,7 @@ void CrunchWindow::buildCentral()
     v->addWidget(m_formulaRow);
     m_view = new grid::GridView(central);
     m_view->setAccessibleName(tr("Sheet"));
+    m_view->setDragEditing(Settings::get().value(QStringLiteral("crunch/dragEditing"), true).toBool());
     m_view->setAccessibleDescription(tr("The cells of the sheet. The arrow keys move the selection; Ctrl and an arrow go to the edge of the data."));
     v->addWidget(buildOutlineGutters(central), 1);
     buildPageLayoutView(central, v);
@@ -485,9 +490,38 @@ void CrunchWindow::createActions()
             box->setCurrentIndex(box->findData(int(m_enterMove)));
             layout->addRow(tr("After pressing Enter, move the selection:"), box);
             *choice = box;
+            auto *complete = new QCheckBox(tr("Offer to finish a text from the cells above and below (AutoComplete)"), page);
+            complete->setObjectName(QStringLiteral("optionAutoComplete"));
+            complete->setChecked(m_autoComplete);
+            layout->addRow(complete);
+            auto *drag = new QCheckBox(tr("Use the fill handle, and drag cells to move or copy them"), page);
+            drag->setObjectName(QStringLiteral("optionDragEditing"));
+            drag->setChecked(m_view->dragEditing());
+            layout->addRow(drag);
+            auto *fixed = new QCheckBox(tr("Put a decimal point in whole numbers that are typed (automatic decimal places)"), page);
+            fixed->setObjectName(QStringLiteral("optionFixedDecimals"));
+            fixed->setChecked(m_fixedDecimals != 0);
+            layout->addRow(fixed);
+            auto *places = new QSpinBox(page);
+            places->setObjectName(QStringLiteral("optionFixedPlaces"));
+            places->setAccessibleName(tr("Places from the right for the decimal point"));
+            places->setRange(-crunch::kMaxFixedDecimals, crunch::kMaxFixedDecimals);
+            places->setValue(m_fixedDecimals != 0 ? m_fixedDecimals : 2);
+            places->setEnabled(m_fixedDecimals != 0);
+            connect(fixed, &QCheckBox::toggled, places, &QWidget::setEnabled);
+            layout->addRow(tr("Places:"), places);
             return static_cast<QWidget *>(page);
         }, [this, choice] {
-            if (*choice) setEnterMove(EnterMove((*choice)->currentData().toInt()));
+            if (*choice) {
+                setEnterMove(EnterMove((*choice)->currentData().toInt()));
+                if (auto *complete = (*choice)->parentWidget() ? (*choice)->parentWidget()->findChild<QCheckBox *>(QStringLiteral("optionAutoComplete")) : nullptr) setAutoComplete(complete->isChecked());
+                if (QWidget *page = (*choice)->parentWidget()) {
+                    auto *fixed = page->findChild<QCheckBox *>(QStringLiteral("optionFixedDecimals"));
+                    auto *places = page->findChild<QSpinBox *>(QStringLiteral("optionFixedPlaces"));
+                    if (fixed && places) setFixedDecimals(fixed->isChecked() ? places->value() : 0);
+                }
+                if (auto *drag = (*choice)->parentWidget() ? (*choice)->parentWidget()->findChild<QCheckBox *>(QStringLiteral("optionDragEditing")) : nullptr) setDragEditing(drag->isChecked());
+            }
         }};
         auto newBook = std::make_shared<std::array<QPointer<QWidget>, 3>>();
         pages << OptionsPage{tr("New Workbooks"), [newBook] {
@@ -546,6 +580,8 @@ void CrunchWindow::createActions()
     act("edit.insertTime")->setShortcuts({QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Semicolon), QKeySequence(Qt::CTRL | Qt::Key_Colon)});
     m_opsActions << QStringLiteral("edit.insertDate") << QStringLiteral("edit.insertTime");
     m_enterMove = EnterMove(std::clamp(Settings::get().value(QStringLiteral("crunch/enterMove"), 0).toInt(), 0, 4));
+    m_autoComplete = Settings::get().value(QStringLiteral("crunch/autoComplete"), true).toBool();
+    m_fixedDecimals = std::clamp(Settings::get().value(QStringLiteral("crunch/fixedDecimals"), 0).toInt(), -crunch::kMaxFixedDecimals, crunch::kMaxFixedDecimals);
     // ---- view
     mk("view.gridlines", tr("Gridlines"), "grid-3x3", QKeySequence(), [this] { m_view->setShowGridlines(act("view.gridlines")->isChecked()); }, true)->setChecked(true);
     mk("view.headings", tr("Headings"), "table-properties", QKeySequence(), [this] { m_view->setShowHeadings(act("view.headings")->isChecked()); }, true)->setChecked(true);
@@ -595,6 +631,9 @@ void CrunchWindow::createActions()
     createPageLayoutActions();
     createOutlineActions();
     createChartActions();
+    createInsertObjectActions();
+    createObjectFormatActions();
+    createDrawBorderActions();
     createTableActions();
     createSparklineActions();
     createPivotActions();
@@ -791,6 +830,7 @@ void CrunchWindow::resizeEvent(QResizeEvent *e)
 
 bool CrunchWindow::eventFilter(QObject *o, QEvent *e)
 {
+    if (m_drawBorder && m_view && drawBorderEvent(o, e)) return true;
     if ((o == m_cellEditor || o == m_formulaBar) && m_edit.active) {
         if (e->type() == QEvent::FocusIn) m_point.line = static_cast<QLineEdit *>(o);
         if (e->type() == QEvent::InputMethod && !m_coloring) {

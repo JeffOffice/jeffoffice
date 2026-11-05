@@ -14,6 +14,7 @@
 #include "sheet/sheetreader.h"
 
 #include <QMap>
+#include <QMutex>
 #include <QString>
 #include <QStringList>
 
@@ -50,6 +51,21 @@ public:
     QString definedName(int sheet, const QString &name) const override;
     QString heldName(int sheet, const QString &name, bool *inIds) const override;
     bool isSubtotal(int sheet, quint32 row, quint32 col) const override;
+    // CELL's "filename", "format", "color", "parentheses", "prefix", "protect", and "width", and INFO's answers (see CellSource).
+    bool cellInfo(int sheet, quint32 row, quint32 col, const QString &kind, jp::calc::Value *out) const override;
+    bool environmentInfo(const QString &kind, jp::calc::Value *out) const override;
+    // Where the workbook is saved (empty for one that is not): what CELL("filename") and INFO("directory") tell.
+    // (the window sets it when a file is saved under a name while the worker works formulas out)
+    void setFilePath(const QString &path)
+    {
+        const QMutexLocker lock(&m_pathLock);
+        m_filePath = path;
+    }
+    QString filePath() const
+    {
+        const QMutexLocker lock(&m_pathLock);
+        return m_filePath;
+    }
     // GETPIVOTDATA: the pivot tables of the workbook answer it (see PivotBook::viewAt).
     PivotAnswer pivotData(int sheet, quint32 row, quint32 col, const PivotRequest &request, jp::calc::Value *result, jp::calc::CellArea *table) const override;
     int rowHiddenKind(int sheet, quint32 row) const override;
@@ -87,6 +103,8 @@ protected:
     QHash<QString, QString> m_names;   // "<sheet>|<NAME>" -> what it stands for; the sheet counted from 0, or -1
     QSet<QString> m_idNames;           // the keys of the names whose text is held in ids (the id frame: Calculation::nameCanBeHeldInIds); the others are in places
     QStringList m_notWhole;
+    QString m_filePath;
+    mutable QMutex m_pathLock;
     qint64 m_maxBytes;
     std::function<bool(int, qint64)> m_progress;
 };

@@ -134,7 +134,7 @@ bool buildPivotCache(const PivotSource &src, const PivotCache &prev, PivotCache 
         taken.insert(use.toCaseFolded());
         out->fields[f].name = use;
         for (int p = 0; p < prev.fields.size(); ++p)
-            if (prev.fields[p].name.compare(use, Qt::CaseInsensitive) == 0) {
+            if (!prev.fields[p].isCalculated() && prev.fields[p].name.compare(use, Qt::CaseInsensitive) == 0) {
                 out->fromField[f] = p;
                 break;
             }
@@ -194,6 +194,18 @@ bool buildPivotCache(const PivotSource &src, const PivotCache &prev, PivotCache 
         pf.sharedCount = pf.hasShared ? int(pf.items.size()) : 0;
         pf.records.resize(temp.size());
         for (qsizetype i = 0; i < temp.size(); ++i) pf.records[i] = newId[temp[i]];
+    }
+    // the calculated fields go on after the others: a formula names its fields, so it is worked out from the new values
+    for (int p = 0; p < prev.fields.size(); ++p) {
+        if (!prev.fields[p].isCalculated()) continue;
+        if (out->fields.size() >= kPivotMaxFields) return fail(QStringLiteral("too many fields"));
+        PivotCacheField nf;
+        nf.name = prev.fields[p].name;
+        nf.numFmtId = prev.fields[p].numFmtId;
+        nf.formula = prev.fields[p].formula;
+        nf.group.databaseField = false;
+        out->fields.append(nf);
+        out->fromField.append(p);
     }
     // the groups the previous cache had are made again from the new values (a field added for a group goes after the others)
     bool anyGroup = false;
@@ -416,6 +428,7 @@ bool pivotFieldIsNumeric(const PivotCache &c, int f)
 {
     if (f < 0 || f >= c.fields.size()) return false;
     const PivotCacheField &cf = c.fields[f];
+    if (cf.isCalculated()) return true;
     if (cf.numericKnown >= 0) return cf.numericKnown != 0;
     bool any = false;
     for (const PivotValue &v : cf.storedItems()) {

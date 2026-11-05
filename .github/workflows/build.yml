@@ -130,6 +130,12 @@ jobs:
         if: runner.os == 'Linux' && matrix.part == 'checks'
         run: python3 tools/check_plain_text.py
 
+      # Every library, dictionary, font, and license file the program carries has its row in the About pages' Third-party
+      # software list, and docs/third-party.json (the website's copy) matches the list.
+      - name: Third-party list check
+        if: runner.os == 'Linux' && matrix.part == 'checks'
+        run: python3 tools/check_third_party.py
+
       - name: Configure
         shell: bash
         run: |

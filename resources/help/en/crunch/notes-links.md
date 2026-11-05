@@ -1,5 +1,5 @@
 # Notes and links
-<!-- keywords: note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells -->
+<!-- keywords: note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, recent files, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells -->
 
 ## Notes
 
@@ -22,7 +22,7 @@ Notes can be saved in an .xlsx workbook. A workbook opened from an older kind of
 
 A **link** sends you somewhere when you follow it: to a web page, to a file, to an e-mail address, or to a place in this workbook (a cell, cells, or a name).
 
-To put a link on a cell, select it and use **Insert > Link** (or press **Ctrl+K**). Choose where it goes, type the address or the place, and, if you like, the words the cell should show and a **screen tip**. On a cell that has a link the same command reads **Edit Link**. **Remove Link** takes the links off the selected cells.
+To put a link on a cell, select it and use **Insert > Link** (or press **Ctrl+K**). Choose where it goes, type the address or the place (or pick one of the files you opened lately from **Or a recent file**), and, if you like, the words the cell should show and a **screen tip**. On a cell that has a link the same command reads **Edit Link**. **Remove Link** takes the links off the selected cells.
 
 Rest the pointer on a cell with a link to see where it goes. To follow it, hold **Ctrl** and click the cell, or select the cell and use **Open Link** from the right-click menu. A plain click only selects the cell.
 
@@ -43,6 +43,7 @@ It looks for:
 - A chart or picture with no **alt text** (the words that say what it shows). This is an error.
 - A table with no header row, so its columns have no names. This is an error.
 - **Merged cells**, which are hard to move through with the keyboard. This is a warning.
+- Text that is hard to read against the color behind it, such as pale gray text on white. JeffCrunch measures how much the text stands out from the fill. Small text needs a ratio of at least 4.5 to 1, and large text (18 points, or bold 14 points) needs 3 to 1. It names the first cell with each combination of font and fill. This is a warning.
 - A sheet that still has the name it was given, such as Sheet1. This is a tip.
 
 Press **Check Again** after you make changes.

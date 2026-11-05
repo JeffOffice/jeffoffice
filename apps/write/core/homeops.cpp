@@ -4,6 +4,7 @@
 #include "core/wordformat.h"
 #include "core/styleops.h"
 #include "core/writeprops.h"
+#include "flow/flowdocument.h"
 #include "text/textprops.h"
 
 #include <QCoreApplication>
@@ -308,6 +309,89 @@ void pasteMerged(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fra
         }
     }
     edit.endEditBlock();
+}
+
+namespace {
+
+bool isWordCharacter(QChar ch) { return ch.isLetterOrNumber(); }
+
+QChar characterBefore(const QTextDocument *story, int position) { return position > 0 ? story->characterAt(position - 1) : QChar(); }
+
+}
+
+bool selectionIsWholeWords(const QTextCursor &c)
+{
+    if (!c.hasSelection()) return false;
+    const QTextDocument *story = c.document();
+    const int from = c.selectionStart(), to = c.selectionEnd();
+    return isWordCharacter(story->characterAt(from)) && isWordCharacter(story->characterAt(to - 1)) && !isWordCharacter(characterBefore(story, from)) && !isWordCharacter(story->characterAt(to));
+}
+
+void smartRemoveSelection(WriteDoc &doc, QTextCursor &c)
+{
+    if (!c.hasSelection()) {
+        removeSelection(doc, c);
+        return;
+    }
+    const QTextDocument *story = c.document();
+    const int from = c.selectionStart(), to = c.selectionEnd();
+    const bool whole = selectionIsWholeWords(c);
+    const QChar before = characterBefore(story, from), after = story->characterAt(to);
+    WriteDoc::StepGroup group(doc);
+    removeSelection(doc, c);
+    if (!whole) return;
+    const QString closing = QStringLiteral(".,;:!?)");
+    QTextCursor extra(c.document());
+    if (before == QLatin1Char(' ') && after == QLatin1Char(' ')) {
+        extra.setPosition(from);
+        extra.setPosition(from + 1, QTextCursor::KeepAnchor);
+    } else if (before == QLatin1Char(' ') && closing.contains(after)) {
+        extra.setPosition(from - 1);
+        extra.setPosition(from, QTextCursor::KeepAnchor);
+    } else {
+        return;
+    }
+    removeSelection(doc, extra);
+    c.setPosition(extra.position() < from ? from - 1 : from);
+}
+
+void smartPaste(WriteDoc &doc, QTextCursor &c, const std::function<void()> &paste)
+{
+    const QTextDocument *story = c.document();
+    const int from = c.selectionStart();
+    WriteDoc::StepGroup group(doc);
+    paste();
+    const int to = c.position();
+    if (to <= from) return;
+    const QChar before = characterBefore(story, from), after = story->characterAt(to);
+    if (isWordCharacter(before) && isWordCharacter(after)) return;   // (in the middle of a word)
+    const bool leading = isWordCharacter(before) && isWordCharacter(story->characterAt(from));
+    const bool trailing = isWordCharacter(after) && isWordCharacter(story->characterAt(to - 1));
+    QTextCursor at(c.document());
+    if (trailing) {
+        at.setPosition(to);
+        insertText(doc, at, QStringLiteral(" "));
+    }
+    if (leading) {
+        at.setPosition(from);
+        insertText(doc, at, QStringLiteral(" "));
+    }
+    c.setPosition(to + (leading ? 1 : 0));
+}
+
+void setSuppressLineNumbers(QTextBlockFormat &bf, bool on)
+{
+    QVector<office::wml::RawChild> extra = bf.hasProperty(prop::RawPPr) ? unpackRaw(storedBytes(bf, prop::RawPPr)) : QVector<office::wml::RawChild>();
+    extra.erase(std::remove_if(extra.begin(), extra.end(), [](const office::wml::RawChild &c) { return c.xml.startsWith("<w:suppressLineNumbers"); }), extra.end());
+    office::wml::RawChild child;
+    child.rank = office::wml::paraChildRank("suppressLineNumbers");
+    child.xml = on ? QByteArray("<w:suppressLineNumbers/>") : QByteArray("<w:suppressLineNumbers w:val=\"0\"/>");
+    int at = 0;
+    while (at < extra.size() && extra[at].rank <= child.rank) ++at;
+    extra.insert(at, child);
+    setStored(bf, prop::RawPPr, packRaw(extra));
+    if (on) bf.setProperty(flow::fp::SuppressLineNumbers, true);
+    else bf.clearProperty(flow::fp::SuppressLineNumbers);
 }
 
 bool insertHorizontalLine(WriteDoc &doc, QTextCursor &c)

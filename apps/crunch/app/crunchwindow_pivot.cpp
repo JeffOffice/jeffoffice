@@ -541,6 +541,24 @@ void CrunchWindow::createPivotActions()
         updateTableLooks();
     });
     m_opsActions << QStringLiteral("pivot.group") << QStringLiteral("pivot.ungroup");
+    mk("pivot.calculatedField", tr("Calculated Field…"), "calculator", QKeySequence(), [this] { askCalculatedField(); });
+    mk("pivot.listFormulas", tr("List Formulas"), "list", QKeySequence(), [this] {
+        const int t = selectedPivot();
+        if (t < 0 || !m_session) {
+            notice(tr("List Formulas"), tr("Click a cell in a pivot table first."), false);
+            return;
+        }
+        if (!editingAllowed()) return;
+        if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+        int made = -1;
+        const auto o = m_session->listPivotFormulas(t, &made);
+        if (!o.ok) {
+            notice(tr("List Formulas"), o.problem);
+            return;
+        }
+        if (made >= 0) goToFound(made, 0, 0);
+    });
+    m_opsActions << QStringLiteral("pivot.calculatedField") << QStringLiteral("pivot.listFormulas");
     mk("pivot.fieldSettings", tr("Field Settings…"), "settings", QKeySequence(), [this] {
         const int f = m_pivotPane ? m_pivotPane->selectedField() : -1;
         if (selectedPivot() < 0) {
@@ -977,6 +995,49 @@ void CrunchWindow::askGroupField(int field)
     updateTableLooks();
 }
 
+void CrunchWindow::askCalculatedField()
+{
+    const int t = selectedPivot();
+    const QString title = tr("Calculated Field");
+    if (t < 0 || !m_session) {
+        notice(title, tr("Click a cell in a pivot table first."), false);
+        return;
+    }
+    if (!editingAllowed()) return;
+    if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+    QString why;
+    if (!m_session->pivotUsable(t, &why)) {
+        notice(title, why);
+        return;
+    }
+    const PivotTableEntry &entry = m_session->workbook()->pivots().table(t);
+    const PivotCache *cache = entry.cache >= 0 ? m_session->workbook()->pivots().cache(entry.cache).cache.get() : nullptr;
+    if (!cache) return;
+    CalculatedFieldChoice choice;
+    for (const PivotCacheField &f : cache->fields) {
+        choice.fieldNames << f.name;
+        if (f.isCalculated()) {
+            choice.existingNames << f.name;
+            choice.existingFormulas << f.formula;
+        }
+    }
+    if (m_calculatedAsker) {
+        if (!m_calculatedAsker(&choice)) return;
+    } else {
+        CalculatedFieldDialog dialog(choice, this);
+        if (dialog.exec() != QDialog::Accepted) return;
+        choice = dialog.choice();
+    }
+    int field = -1;
+    for (int f = 0; f < cache->fields.size(); ++f)
+        if (cache->fields[f].isCalculated() && cache->fields[f].name.compare(choice.name, Qt::CaseInsensitive) == 0) field = f;
+    const auto done = choice.action == CalculatedFieldChoice::Delete ? m_session->deletePivotCalculatedField(t, field) : m_session->setPivotCalculatedField(t, field, choice.name, choice.formula);
+    pivotProblem(title, done);
+    m_pivotShown = nullptr;
+    updatePivotTab();
+    updateTableLooks();
+}
+
 void CrunchWindow::fillSlicers()
 {
     if (!m_slicerPane || !m_session || m_slicerFilling) return;
@@ -1104,7 +1165,7 @@ void CrunchWindow::updatePivotFieldActions()
     // (a command that works on a pivot table's cell is dimmed away from one, not left to say so when it is used)
     const bool open = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;
     const bool inTable = selectedPivot() >= 0;
-    for (const char *id : {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.showDetail", "pivot.selectAll", "pivot.selectValues", "pivot.selectLabels", "pivot.move", "pivot.drillDown", "pivot.drillUp"})
+    for (const char *id : {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.calculatedField", "pivot.listFormulas", "pivot.showDetail", "pivot.selectAll", "pivot.selectValues", "pivot.selectLabels", "pivot.move", "pivot.drillDown", "pivot.drillUp"})
         if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(open && inTable);
     {
         bool filtered = false;

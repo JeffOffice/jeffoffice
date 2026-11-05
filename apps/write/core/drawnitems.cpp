@@ -1,6 +1,8 @@
 #include "core/drawnitems.h"
 
 #include "core/shapetypes.h"
+#include "office/drawingml.h"
+#include "office/xml.h"
 
 #include <QBuffer>
 #include <QColor>
@@ -29,6 +31,29 @@ void dressPicture(PictureItem &pic, const Shape &s)
     if ((s.cropL != 0 || s.cropT != 0 || s.cropR != 0 || s.cropB != 0) && keepW >= 0.02 && keepH >= 0.02) {
         const double wholeW = w / keepW, wholeH = h / keepH;
         pic.imgRect = QRectF(-s.cropL * wholeW, -s.cropT * wholeH, wholeW, wholeH);
+    }
+    // The colors it is changed to: its brightness and contrast, then gray or black and white (the order the standard's own writers give them).
+    {
+        QVector<BlipEffect> listed;
+        if (s.bright != 0 || s.contrast != 0) {
+            BlipEffect e;
+            e.kind = BlipEffect::Luminance;
+            e.brightness = s.bright;
+            e.contrast = s.contrast;
+            listed << e;
+        }
+        if (s.gray) {
+            BlipEffect e;
+            e.kind = BlipEffect::Grayscale;
+            listed << e;
+        }
+        if (s.biLevel) {
+            BlipEffect e;
+            e.kind = BlipEffect::BiLevel;
+            e.threshold = s.biLevelThreshold;
+            listed << e;
+        }
+        if (!listed.isEmpty()) pic.takeEffects(listed);
     }
     if (!s.clearColor.isEmpty()) {
         pic.hasTransparentColor = true;
@@ -162,6 +187,35 @@ bool holdsOnlyObjects(const QVector<Inline> &content)
         }
     }
     return true;
+}
+
+ItemPtr wspItem(const Shape &s, const office::Theme *theme)
+{
+    if (s.wsp.isEmpty()) return nullptr;
+    QDomDocument doc;
+    if (!office::parseXml(s.wsp, &doc)) return nullptr;
+    const QDomElement shape = doc.documentElement().firstChildElement();
+    if (shape.isNull()) return nullptr;
+    office::DrawingContext ctx;
+    QDomDocument themeDoc;
+    if (theme) {
+        ctx.theme = *theme;
+        // (The theme's format scheme: what a style reference's index points into.)
+        if (!theme->xml.isEmpty() && office::parseXml(theme->xml, &themeDoc))
+            for (QDomElement e = themeDoc.documentElement().firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
+                if (e.localName() == QLatin1String("themeElements"))
+                    for (QDomElement f = e.firstChildElement(); !f.isNull(); f = f.nextSiblingElement())
+                        if (f.localName() == QLatin1String("fmtScheme")) ctx.formats = f;
+    }
+    ItemPtr item = office::readShape(shape, ctx);
+    if (!item) return nullptr;
+    if (item->type() == ItemType::Group) {
+        const auto *group = static_cast<const GroupItem *>(item.get());
+        if (group->children.empty()) return nullptr;
+        item = group->children.front();
+    }
+    if (item->type() != ItemType::Line) item->rect = QRectF(0, 0, s.width, s.height);
+    return item;
 }
 
 QString presetOf(const Shape &s)

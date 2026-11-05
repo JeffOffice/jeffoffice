@@ -361,6 +361,8 @@ QWidget *CrunchFileScreen::buildAbout()
     lt->setOpenExternalLinks(true);
     lv->addWidget(lt);
     lv->addWidget(legalLinks(legal));
+    // Every bundled component, linked to its project and its license (the same parts as the other apps).
+    addThirdPartyList(lv, legal, lf);
     v->addWidget(legal);
     v->addStretch(1);
     return w;

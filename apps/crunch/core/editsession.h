@@ -398,6 +398,12 @@ public:
     // has on an axis; a field is added for each coarser part of a date. Ungroup takes the grouping of the field away, and the fields that were added for it.
     Outcome groupPivotField(int table, int field, const QStringList &levels, double start, double end, double step, bool autoStart, bool autoEnd);
     Outcome ungroupPivotField(int table, int field);
+    // A calculated field: a field made from a formula over the other fields (their totals in each cell, as in "=Sales*0.1"). With `field` below zero a new one is made (and put in the values); otherwise the
+    // formula and name of that field are changed. Delete takes the field and the values made from it away. One step of Undo each; the pivot table must not share its data with another.
+    Outcome setPivotCalculatedField(int table, int field, const QString &name, const QString &formula);
+    Outcome deletePivotCalculatedField(int table, int field);
+    // List Formulas: a new sheet that names each calculated field of the table and its formula (`made` is given the sheet's place). One step of Undo for the cells, and one for the sheet.
+    Outcome listPivotFormulas(int table, int *made = nullptr);
     // The rows behind a value of a pivot table (the cell at `row`, `col` of `sheet`), put on a new sheet with the names of the fields above them: one step of Undo for the sheet, one for the rows.
     // `made` is the sheet's place. A cell that is no value, or a table that can't be read, is refused.
     Outcome showPivotDetail(int sheet, quint32 row, quint32 col, int *made = nullptr);
@@ -899,6 +905,14 @@ public:
     // The worker has told every result there is to tell (the calculation is finished, with no change after it unworked).
     void calculationFinished();
 
+    // ---- links to other workbooks (Inspect Workbook): every cell that reads one keeps the value it shows (each is a step of Undo, which is forgotten after, since the links are gone), a defined
+    // name that stands for one becomes #REF!, and the next save leaves the link parts out. `cells` and `names` count what was changed; not ok, with a sentence, when a cell can't be (locked, or in an array).
+    int externalLinkCells() const;
+    Outcome breakExternalLinks(int *cells = nullptr, int *names = nullptr);
+    bool externalLinksDropped() const { return m_dropExternalLinks; }
+    // The custom XML data (what other programs added to the file) is left out at the next save.
+    void dropCustomXml() { m_dropCustomXml = true; }
+    bool customXmlDropped() const { return m_dropCustomXml; }
     // ---- defined names (see core/nametable.h). Each of these is one step of Undo.
     struct NameDraft {
         QString name;
@@ -1234,6 +1248,8 @@ private:
     void compactLinesFor(const jp::office::sheet::StructEdit &edit);
     void forgetLineSteps(int sheet, bool rows);
     int m_saveGen = 0;                 // how many times the workbook has been saved
+    bool m_dropCustomXml = false;
+    bool m_dropExternalLinks = false;  // the links to other workbooks are taken out at the next save (see breakExternalLinks)
     int m_forgotBySave = 0;            // the steps the last save made Undo forget (see forgetDeletesInFile)
     ResultMap m_fileResults;  // what the file holds for formulas whose value there is not the one the workbook was read with (after a save)
 };

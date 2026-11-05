@@ -1,5 +1,5 @@
 #pragma once
-// The dialog that opens a text file of values: how its fields are separated and quoted, the code page, the row to begin at, and how each column is read (as it is typed, as text,
+// The dialog that opens a text file of values: how its fields are separated and quoted (or cut at places, for columns of fixed width), the code page, the marks numbers are written with, the row to begin at, and how each column is read (as it is typed, as text,
 // as a date in an order, or left out), with a preview of the first rows that follows every change. The preview reads at most the first megabyte of the file and shows 200 rows and 100
 // columns, each field cut to 120 characters, so a huge file or a very long line opens it at once.
 
@@ -16,6 +16,7 @@ class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
+class QPlainTextEdit;
 class QSpinBox;
 class QTableWidget;
 
@@ -42,11 +43,18 @@ public:
 private:
     void refresh();
     void fillKinds();
+    void fillRuler();
+    void toggleBreak(int column);
+    bool eventFilter(QObject *watched, QEvent *event) override;
     TextImportRequest m_request;
     QComboBox *m_encoding = nullptr, *m_quote = nullptr;
     QCheckBox *m_comma = nullptr, *m_semicolon = nullptr, *m_tab = nullptr, *m_space = nullptr, *m_pipe = nullptr, *m_merge = nullptr;
     QLineEdit *m_other = nullptr;
     QSpinBox *m_start = nullptr;
+    QComboBox *m_decimal = nullptr, *m_thousands = nullptr;
+    QCheckBox *m_minus = nullptr, *m_fixed = nullptr;
+    QLineEdit *m_breaks = nullptr;
+    QPlainTextEdit *m_ruler = nullptr;
     QTableWidget *m_table = nullptr;
     QLabel *m_note = nullptr;
     std::vector<QComboBox *> m_kinds;

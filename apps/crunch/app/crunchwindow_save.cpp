@@ -279,6 +279,7 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
         if (!crunch::sameFile(path, m_path)) {
             m_path = path;
             m_blank = false;
+            if (m_haveCalc && m_loaded && m_loaded->calc) m_loaded->calc->setFilePath(path);
             updateTitle();
         }
         if (isReadOnly()) setReadOnly(false);

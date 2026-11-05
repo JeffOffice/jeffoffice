@@ -774,6 +774,96 @@ private Q_SLOTS:
         QVERIFY2(pivotShown(e, QStringLiteral("E3:F7")).contains(QStringLiteral("1-10|29")), "undone");
     }
 
+    // Calculated Field: a field made from a formula over the other fields is added to the values, worked out in each cell from the totals; a bad name, formula, or duplicate is said and changes
+    // nothing; it is saved with its formula, read back, kept by a refresh, changed, deleted, and each is one step of Undo.
+    void aCalculatedFieldIsAddedChangedAndDeleted()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        const int steps = s->undoStack()->count();
+        QVERIFY(!s->setPivotCalculatedField(0, -1, QStringLiteral("Bonus"), QStringLiteral("=Amount*")).ok);
+        QVERIFY(!s->setPivotCalculatedField(0, -1, QStringLiteral("Bonus"), QStringLiteral("=Nothing*2")).ok);
+        QVERIFY(!s->setPivotCalculatedField(0, -1, QStringLiteral("Amount"), QStringLiteral("=Amount*2")).ok);
+        QVERIFY(!s->setPivotCalculatedField(0, -1, QString(), QStringLiteral("=Amount*2")).ok);
+        QCOMPARE(s->undoStack()->count(), steps);
+        const auto made = s->setPivotCalculatedField(0, -1, QStringLiteral("Square"), QStringLiteral("=Amount*Amount"));
+        QVERIFY2(made.ok, qPrintable(made.problem));
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(s->undoStack()->undoText(), QStringLiteral("Insert Calculated Field"));
+        const PivotTable *t = s->workbook()->pivots().table(0).table.get();
+        QCOMPARE(t->dataFields.size(), 2);
+        QCOMPARE(t->dataFields[1].name, QStringLiteral("Sum of Square"));
+        // (the total of Amount, squared: 49 * 49 -- the formula works on the totals of a cell, not on each record)
+        QVERIFY2(pivotShown(e, QStringLiteral("E3:K9")).contains(QStringLiteral("2401")), qPrintable(pivotShown(e, QStringLiteral("E3:K9"))));
+        QVERIFY(saveNow(e));
+        const Parts saved = readParts(e.path);
+        const QByteArray definition = saved.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml"));
+        QVERIFY2(definition.contains("name=\"Square\"") && definition.contains("formula=\"Amount*Amount\"") && definition.contains("databaseField=\"0\""), definition.constData());
+        const QByteArray table = saved.value(QStringLiteral("xl/pivotTables/pivotTable1.xml"));
+        QVERIFY2(table.contains("<pivotFields count=\"4\">") && table.contains("dragToRow=\"0\"") && table.contains("fld=\"3\""), table.constData());
+        QVERIFY(saved.value(QStringLiteral("xl/pivotCache/pivotCacheRecords1.xml")).contains("<r><x v=\"0\"/><x v=\"0\"/><n v=\"10\"/></r>"));
+        checkShapes(saved);
+        // read back, and read again from the data
+        EditWindow again;
+        QVERIFY(again.open([&] { QFile f(e.path); f.open(QIODevice::ReadOnly); return f.readAll(); }(), QStringLiteral("again.xlsx")));
+        QVERIFY(again.win.w.session()->pivotUsable(0));
+        QVERIFY(again.win.w.session()->refreshPivot(0).ok);
+        finish(again);
+        QVERIFY2(pivotShown(again, QStringLiteral("E3:K9")).contains(QStringLiteral("2401")), qPrintable(pivotShown(again, QStringLiteral("E3:K9"))));
+        // changed through the dialog's own hook, then deleted
+        e.win.w.setCalculatedFieldAsker([](jp::CalculatedFieldChoice *c) {
+            c->name = QStringLiteral("Square");
+            c->formula = QStringLiteral("=Amount*2");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("pivot.calculatedField"))->trigger();
+        finish(e);
+        QCOMPARE(s->undoStack()->undoText(), QStringLiteral("Change Calculated Field"));
+        QVERIFY2(pivotShown(e, QStringLiteral("E3:K9")).contains(QStringLiteral("98")), qPrintable(pivotShown(e, QStringLiteral("E3:K9"))));
+        e.win.w.setCalculatedFieldAsker([](jp::CalculatedFieldChoice *c) {
+            c->name = QStringLiteral("Square");
+            c->action = jp::CalculatedFieldChoice::Delete;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("pivot.calculatedField"))->trigger();
+        finish(e);
+        QCOMPARE(s->undoStack()->undoText(), QStringLiteral("Delete Calculated Field"));
+        QCOMPARE(s->workbook()->pivots().table(0).table->dataFields.size(), 1);
+        QVERIFY2(pivotShown(e, QStringLiteral("E3:H7")).contains(QStringLiteral("East|15|20|35")), qPrintable(pivotShown(e)));
+        s->undoStack()->undo();
+        finish(e);
+        QVERIFY2(pivotShown(e, QStringLiteral("E3:K9")).contains(QStringLiteral("98")), "undone");
+    }
+
+    // List Formulas puts the calculated fields and their formulas on a new sheet; a table with none says so and makes nothing.
+    void theFormulasOfCalculatedFieldsAreListedOnANewSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        const int sheets = int(s->workbook()->info().sheets.size());
+        e.win.w.act(QStringLiteral("pivot.listFormulas"))->trigger();
+        QCOMPARE(int(s->workbook()->info().sheets.size()), sheets);
+        QVERIFY(e.win.told.last().contains(QLatin1String("no calculated fields")));
+        QVERIFY(s->setPivotCalculatedField(0, -1, QStringLiteral("Bonus"), QStringLiteral("=Amount*0.1")).ok);
+        QVERIFY(s->setPivotCalculatedField(0, -1, QStringLiteral("Share"), QStringLiteral("=Bonus/Amount")).ok);
+        finish(e);
+        int made = -1;
+        const auto o = s->listPivotFormulas(0, &made);
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        finish(e);
+        QCOMPARE(int(s->workbook()->info().sheets.size()), sheets + 1);
+        QCOMPARE(s->workbook()->info().sheets[made].name, QStringLiteral("Formulas 1"));
+        QCOMPARE(s->valueAt(made, 0, 0).text(), QStringLiteral("Calculated Field"));
+        QCOMPARE(s->valueAt(made, 1, 0).text(), QStringLiteral("Bonus"));
+        QCOMPARE(s->valueAt(made, 1, 1).text(), QStringLiteral("=Amount*0.1"));
+        QCOMPARE(s->valueAt(made, 2, 1).text(), QStringLiteral("=Bonus/Amount"));
+    }
+
     // A double click on a value shows the rows behind it on a new sheet; a label is edited as always.
     void theRowsBehindAValueAreShownOnANewSheet()
     {

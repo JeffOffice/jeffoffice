@@ -839,7 +839,7 @@ private Q_SLOTS:
         QCOMPARE(w.ribbonErrors(), QString());
         QStringList tabs;
         for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
-        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Design", "Layout", "References", "Mailings", "Review", "View", "Help", "Header & Footer", "Outlining", "Table Design", "Table Layout", "Picture Format"}));   // (the last five are there while a header or footer is edited, Outline view is open, and the caret is in a table)
+        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Design", "Layout", "References", "Mailings", "Review", "View", "Help", "Header & Footer", "Outlining", "Table Design", "Table Layout", "Picture Format", "Shape Format", "Chart Format"}));   // (the last five are there while a header or footer is edited, Outline view is open, and the caret is in a table)
         QCOMPARE(w.ribbon()->fileKeytip(), QStringLiteral("F"));
         QVERIFY(w.windowTitle().contains(QLatin1String("JeffWrite")));
         QVERIFY(w.windowTitle().startsWith(QLatin1String("Document")));
@@ -5073,6 +5073,27 @@ private Q_SLOTS:
             QTest::qWait(250);
             w.grab().save(QDir(dir).filePath(QStringLiteral("file-%1.png").arg(QString::fromLatin1(page))));
         }
+    }
+
+    // About lists the third-party software in the app, with each project's license (the list all four apps share),
+    // and the translation service Translate opens.
+    void aboutListsTheThirdPartySoftware()
+    {
+        WriteWindow w;
+        w.resize(1200, 900);
+        w.show();
+        w.showFileScreen(QStringLiteral("about"));
+        auto *list = w.findChild<QLabel *>(QStringLiteral("thirdParty"));
+        QVERIFY(list && list->isVisibleTo(&w));
+        QVERIFY2(list->text().contains(QLatin1String("Qt 6")), "Qt 6");
+        QVERIFY2(list->text().contains(QLatin1String("Hunspell")), "Hunspell");
+        QVERIFY2(list->text().contains(QLatin1String("PDFium")), "PDFium");
+        QVERIFY2(list->text().contains(QLatin1String("zlib")), "zlib");
+        QVERIFY2(list->text().contains(QLatin1String("Lucide icons")), "Lucide icons");
+        QVERIFY2(list->text().contains(QLatin1String("Open fonts")), "Open fonts");
+        QVERIFY2(list->text().contains(QLatin1String("ICU")), "ICU");
+        QVERIFY2(list->text().contains(QLatin1String("LibreTranslate")), "LibreTranslate");
+        QVERIFY2(!list->text().contains(QLatin1String("libmspub")), "libmspub");
     }
 
     // ---------------------------------------------------------------- editing
@@ -25361,8 +25382,8 @@ private Q_SLOTS:
         const int second = w->document()->story()->findBlock(w->document()->story()->toPlainText().indexOf(QStringLiteral("Second heading"))).position();
         withDialog([&] { goTo->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
             auto *kinds = d->findChild<QListWidget *>(QStringLiteral("goToKinds"));
-            QCOMPARE(kinds->count(), 6);
-            kinds->setCurrentRow(5);   // Heading
+            QCOMPARE(kinds->count(), 12);
+            kinds->setCurrentRow(11);   // Heading
             auto *choices = d->findChild<QListWidget *>(QStringLiteral("goToChoices"));
             QCOMPARE(choices->count(), 2);
             choices->setCurrentRow(1);

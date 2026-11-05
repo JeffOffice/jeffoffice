@@ -83,6 +83,8 @@ BlockUse blockUseOf(const Program &p)
         case Op::PushMissing:
         case Op::PushArray: st.push_back(0); break;
         case Op::PushRef: st.push_back(in.operand >= 0 && size_t(in.operand) < p.refs.size() && isBlock(p.refs[size_t(in.operand)]) ? 1 : 0); break;
+        case Op::Bind:
+        case Op::PushLocal:
         case Op::PushName:
         case Op::PushTable:
         case Op::PushExternal:

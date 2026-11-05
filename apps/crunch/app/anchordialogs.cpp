@@ -3,6 +3,7 @@
 
 #include <QComboBox>
 #include <QDialogButtonBox>
+#include <QFileInfo>
 #include <QFormLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -87,6 +88,15 @@ LinkDialog::LinkDialog(const LinkRequest &request, QWidget *parent) : QDialog(pa
         m_address->setObjectName(QStringLiteral("linkAddress"));
         m_address->setAccessibleName(tr("Address"));
         f->addRow(tr("Address:"), m_address);
+        m_recent = new QComboBox(page);
+        m_recent->setObjectName(QStringLiteral("linkRecent"));
+        m_recent->setAccessibleName(tr("Recent files"));
+        m_recent->addItem(tr("(none)"));
+        for (const QString &path : request.recentFiles) m_recent->addItem(QFileInfo(path).fileName(), path);
+        connect(m_recent, &QComboBox::currentIndexChanged, this, [this](int i) {
+            if (i > 0) m_address->setText(m_recent->itemData(i).toString());
+        });
+        f->addRow(tr("Or a recent file:"), m_recent);
         m_pages->addWidget(page);
     }
     // a place in the workbook

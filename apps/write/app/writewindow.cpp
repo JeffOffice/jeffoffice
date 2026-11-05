@@ -219,7 +219,6 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
         resetEditPlaces();
         connect(m_doc->story(), &QTextDocument::contentsChange, this, [this](int position, int, int added) { recordPlace(position + added); });
     }
-    if (m_doc) m_doc->setShowHiddenText(Settings::get().value(QStringLiteral("view/hidden"), false).toBool());
     m_view->setDocument(m_doc.get());
     if (m_split->isVisible()) m_split->setDocument(m_doc.get());
     m_view->setZoomMode(write::PageView::ZoomMode::Percent);
@@ -266,6 +265,8 @@ void WriteWindow::createActions()
     createRefsActions();
     createTableActions();
     createPictureActions();
+    createShapeActions();
+    createPictureAdjustActions();
     createInsertActions();
     createLayoutExtraActions();
     createViewExtraActions();

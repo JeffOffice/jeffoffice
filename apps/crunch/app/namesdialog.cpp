@@ -3,6 +3,7 @@
 
 #include "core/formulaspot.h"
 
+#include <QApplication>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -11,8 +12,11 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QStyle>
 #include <QTableView>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 namespace jp {
 
@@ -136,7 +140,50 @@ void NamesModel::reload()
         ++m_total;
         m_ids.push_back(id);
     }
+    if (m_sortColumn >= 0) {
+        const int column = m_sortColumn;
+        const bool descending = m_sortOrder == Qt::DescendingOrder;
+        std::stable_sort(m_ids.begin(), m_ids.end(), [&](int a, int b) {
+            const QString x = textOf(a, column), y = textOf(b, column);
+            bool xn = false, yn = false;
+            const double dx = column == ValueColumn ? x.toDouble(&xn) : 0, dy = column == ValueColumn ? y.toDouble(&yn) : 0;
+            int cmp;
+            if (xn && yn) cmp = dx < dy ? -1 : dx > dy ? 1 : 0;
+            else if (xn != yn) cmp = xn ? -1 : 1;   // (numbers come before text)
+            else cmp = QString::compare(x, y, Qt::CaseInsensitive);
+            return descending ? cmp > 0 : cmp < 0;
+        });
+    }
     endResetModel();
+}
+
+void NamesModel::sortBy(int column, Qt::SortOrder order)
+{
+    m_sortColumn = column;
+    m_sortOrder = order;
+    reload();
+}
+
+QString NamesModel::textOf(int id, int column) const
+{
+    const crunch::NameEntry &e = m_session->names().at(id);
+    switch (column) {
+    case NameColumn: return e.name;
+    case ValueColumn: return m_session->nameValueOf(id);
+    case RefersColumn: return m_session->nameTextOf(id);
+    case ScopeColumn: return scopeText(e);
+    case CommentColumn: return e.comment;
+    default: return QString();
+    }
+}
+
+bool NamesModel::pointsToError(int id) const
+{
+    if (id < 0 || id >= m_session->names().slots()) return false;
+    if (m_session->nameTextOf(id).contains(QLatin1String("#REF!"))) return true;
+    const QString value = m_session->nameValueOf(id);
+    static const QStringList errors{QStringLiteral("#NULL!"), QStringLiteral("#DIV/0!"), QStringLiteral("#VALUE!"), QStringLiteral("#REF!"), QStringLiteral("#NAME?"), QStringLiteral("#NUM!"), QStringLiteral("#N/A")};
+    return errors.contains(value);
 }
 
 int NamesModel::rowOf(int id) const
@@ -152,6 +199,8 @@ QVariant NamesModel::data(const QModelIndex &index, int role) const
     const int id = m_ids[size_t(index.row())];
     const crunch::NameEntry &e = m_session->names().at(id);
     if (role == Qt::UserRole) return id;
+    if (role == Qt::DecorationRole && index.column() == NameColumn && pointsToError(id)) return QApplication::style()->standardIcon(QStyle::SP_MessageBoxWarning);
+    if (role == Qt::ToolTipRole && index.column() == NameColumn && pointsToError(id)) return tr("This name points to an error. Change what it stands for.");
     if (role != Qt::DisplayRole && role != Qt::ToolTipRole) return QVariant();
     QString text;
     switch (index.column()) {
@@ -200,6 +249,17 @@ NamesDialog::NamesDialog(EditSession *session, int sheet, const QString &selecti
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_table->verticalHeader()->hide();
     m_table->horizontalHeader()->setStretchLastSection(true);
+    m_table->horizontalHeader()->setSectionsClickable(true);   // (a click on a heading sorts by it, and a second click turns the order round)
+    connect(m_table->horizontalHeader(), &QHeaderView::sectionClicked, this, [this](int column) {
+        const Qt::SortOrder order = m_model->sortColumn() == column && m_model->sortOrder() == Qt::AscendingOrder ? Qt::DescendingOrder : Qt::AscendingOrder;
+        m_table->horizontalHeader()->setSortIndicatorShown(true);
+        m_table->horizontalHeader()->setSortIndicator(column, order);
+        const int keep = m_model->idAt(m_table->currentIndex().row());
+        m_model->sortBy(column, order);
+        const int row = m_model->rowOf(keep);
+        if (row >= 0) m_table->selectRow(row);
+        update();
+    });
     m_table->setColumnWidth(NamesModel::NameColumn, 140);
     m_table->setColumnWidth(NamesModel::ValueColumn, 110);
     m_table->setColumnWidth(NamesModel::RefersColumn, 220);

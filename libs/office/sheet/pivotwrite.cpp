@@ -217,9 +217,11 @@ QByteArray writePivotCacheDefinition(const QByteArray &original, const PivotCach
             }
         }
         e.setAttribute(QStringLiteral("numFmtId"), QString::number(f.numFmtId));
-        const bool derived = f.group.kind != PivotFieldGroup::None && !f.group.databaseField;
+        const bool derived = !f.group.databaseField && (f.group.kind != PivotFieldGroup::None || f.isCalculated());
         if (derived) e.setAttribute(QStringLiteral("databaseField"), QStringLiteral("0"));
         else e.removeAttribute(QStringLiteral("databaseField"));
+        if (f.isCalculated()) e.setAttribute(QStringLiteral("formula"), f.formula);
+        else e.removeAttribute(QStringLiteral("formula"));
         const QVector<PivotValue> &stored = f.storedItems();
         const bool storedShared = f.storedHasShared();
         const int storedCount = f.storedSharedCount();
@@ -393,6 +395,12 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool
             } else {
                 QDomElement e = doc.createElement(QStringLiteral("pivotField"));
                 e.setAttribute(QStringLiteral("showAll"), QStringLiteral("0"));
+                if (pf.calculated) {
+                    e.setAttribute(QStringLiteral("dragToRow"), QStringLiteral("0"));
+                    e.setAttribute(QStringLiteral("dragToCol"), QStringLiteral("0"));
+                    e.setAttribute(QStringLiteral("dragToPage"), QStringLiteral("0"));
+                    e.setAttribute(QStringLiteral("defaultSubtotal"), QStringLiteral("0"));
+                }
                 ordered.append(e);
             }
         }
