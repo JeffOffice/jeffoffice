@@ -1,4 +1,4 @@
-#include "core/emailops.h"
+#include "app/emailops.h"
 
 #include <QRandomGenerator>
 

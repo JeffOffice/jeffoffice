@@ -8,7 +8,7 @@
 #include "core/editops.h"
 #include "app/pageview.h"
 #include "core/appinfo.h"
-#include "core/emailops.h"
+#include "app/emailops.h"
 #include "core/pdfbookmarks.h"
 #include "core/printing.h"
 #include "office/officecrypt.h"
