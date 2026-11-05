@@ -1035,6 +1035,9 @@ private Q_SLOTS:
         QVERIFY(d.result().dispUnit.isEmpty());
         units->setCurrentIndex(units->findData(QStringLiteral("millions")));
         QCOMPARE(d.result().dispUnit, QStringLiteral("millions"));
+        QVERIFY(!d.result().dispUnitShowLabel);
+        d.findChild<QCheckBox *>(QStringLiteral("axisDisplayUnitsLabel"))->setChecked(true);
+        QVERIFY(d.result().dispUnitShowLabel);
         EditWindow e;
         QVERIFY(e.open(bookWithAChart()));
         QTRY_VERIFY(objectsShown(e, 1));

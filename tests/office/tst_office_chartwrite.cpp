@@ -384,6 +384,31 @@ private Q_SLOTS:
         QVERIFY(drawn.contains("#ff0000") || drawn.contains("#FF0000") || drawn.contains("rgb(255,0,0)"));
     }
 
+    // The display units' label (c:dispUnitsLbl): kept, and the unit's name drawn with the axis, as its title or added to the title.
+    void theDisplayUnitsLabelIsKeptAndDrawn()
+    {
+        Chart c = comboChart();
+        axisOf(c, 222)->dispUnit = QStringLiteral("thousands");
+        const QByteArray without = chartSvg(c, QSizeF(480, 288));
+        QVERIFY(!without.contains("Thousands"));
+        QCOMPARE(axisOf(c, 222)->dispUnitName(), QStringLiteral("Thousands"));
+        axisOf(c, 222)->dispUnitShowLabel = true;
+        const QByteArray xml = writeChartPart(c);
+        QVERIFY(xml.contains("dispUnitsLbl"));
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(xml, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        QVERIFY(axisOf(r, 222)->dispUnitShowLabel);
+        QCOMPARE(writeChartPart(r), xml);
+        QVERIFY(chartIsFullyModeled(xml, nullptr));
+        // with an axis title the name goes in brackets after it
+        QCOMPARE(axisOf(r, 222)->title.text, QStringLiteral("Units"));
+        QVERIFY(chartSvg(r, QSizeF(480, 288)).contains("Units (Thousands)"));
+        // none shown: the writer leaves the element out
+        axisOf(r, 222)->dispUnitShowLabel = false;
+        QVERIFY(!writeChartPart(r).contains("dispUnitsLbl"));
+    }
+
     void aLabelsLegendKeyIsKeptAndDrawn()
     {
         Chart c = comboChart();

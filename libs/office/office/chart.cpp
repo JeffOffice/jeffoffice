@@ -1044,7 +1044,10 @@ ChartAxis Reader::readAxis(const QDomElement &e) const
             }
         }
         if (a.dispUnitFactor() == 1) a.dispUnit.clear();
-        else a.dispUnitsLabel = fragment(cChild(units, "dispUnitsLbl"));
+        else if (const QDomElement label = cChild(units, "dispUnitsLbl"); !label.isNull()) {
+            a.dispUnitsLabel = fragment(label);
+            a.dispUnitShowLabel = true;
+        }
     }
     return a;
 }
@@ -1258,6 +1261,19 @@ void chartErrorBarAmounts(const ChartErrorBars &bars, const QVector<double> &val
         (*above)[i] = plusSide ? up : 0.0;
         (*below)[i] = minusSide ? down : 0.0;
     }
+}
+
+QString ChartAxis::dispUnitName() const
+{
+    if (dispUnitFactor() == 1) return QString();
+    if (dispUnit == QLatin1String("custom")) return QCoreApplication::translate("Chart", "Units of %1").arg(dispUnitCustom);
+    static const QMap<QString, QString> names = {
+        {QStringLiteral("hundreds"), QCoreApplication::translate("Chart", "Hundreds")}, {QStringLiteral("thousands"), QCoreApplication::translate("Chart", "Thousands")},
+        {QStringLiteral("tenThousands"), QCoreApplication::translate("Chart", "Ten Thousands")}, {QStringLiteral("hundredThousands"), QCoreApplication::translate("Chart", "Hundred Thousands")},
+        {QStringLiteral("millions"), QCoreApplication::translate("Chart", "Millions")}, {QStringLiteral("tenMillions"), QCoreApplication::translate("Chart", "Ten Millions")},
+        {QStringLiteral("hundredMillions"), QCoreApplication::translate("Chart", "Hundred Millions")}, {QStringLiteral("billions"), QCoreApplication::translate("Chart", "Billions")},
+        {QStringLiteral("trillions"), QCoreApplication::translate("Chart", "Trillions")}};
+    return names.value(dispUnit);
 }
 
 double ChartAxis::dispUnitFactor() const

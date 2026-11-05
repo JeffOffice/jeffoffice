@@ -236,8 +236,11 @@ struct ChartAxis {
     QString dispUnit;
     double dispUnitCustom = 0;
     QByteArray dispUnitsLabel;
+    bool dispUnitShowLabel = false;     // the unit's name is on the chart (the file has a c:dispUnitsLbl)
     // What the labels are divided by (1 for none).
     double dispUnitFactor() const;
+    // The unit's name as the label shows it ("Thousands"); empty for none.
+    QString dispUnitName() const;
 };
 
 struct ChartLegend {

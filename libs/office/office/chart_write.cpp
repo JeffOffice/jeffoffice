@@ -701,7 +701,10 @@ private:
                 w.writeStartElement(QStringLiteral("c:dispUnits"));
                 if (a.dispUnit == QLatin1String("custom")) val("c:custUnit", number(a.dispUnitCustom));
                 else val("c:builtInUnit", a.dispUnit);
-                raw(a.dispUnitsLabel);
+                if (a.dispUnitShowLabel) {
+                    if (a.dispUnitsLabel.isEmpty()) w.writeEmptyElement(QStringLiteral("c:dispUnitsLbl"));
+                    else raw(a.dispUnitsLabel);
+                }
                 w.writeEndElement();
             }
         } else {

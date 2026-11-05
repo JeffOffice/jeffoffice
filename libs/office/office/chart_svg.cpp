@@ -2031,8 +2031,20 @@ Chart unfiltered(const Chart &chart)
     bool any = false;
     for (const ChartPlot &plot : chart.plots)
         for (const ChartSeries &s : plot.series) any = any || s.filtered;
-    if (!any) return chart;
+    bool unitLabels = false;
+    for (const ChartAxis &a : chart.axes) unitLabels = unitLabels || (a.dispUnitShowLabel && a.dispUnitFactor() != 1);
+    if (!any && !unitLabels) return chart;
     Chart out = chart;
+    // the unit's name is the axis title, or goes after it in brackets
+    for (ChartAxis &a : out.axes) {
+        if (!a.dispUnitShowLabel || a.dispUnitFactor() == 1) continue;
+        const QString name = a.dispUnitName();
+        const bool titled = a.title.present && !(a.title.text.isEmpty() && a.title.ref.isEmpty());
+        a.title.present = true;
+        a.title.ref.clear();
+        a.title.text = titled ? a.title.text + QStringLiteral(" (") + name + QLatin1Char(')') : name;
+    }
+    if (!any) return out;
     for (ChartPlot &plot : out.plots)
         plot.series.erase(std::remove_if(plot.series.begin(), plot.series.end(), [](const ChartSeries &s) { return s.filtered; }), plot.series.end());
     return out;
