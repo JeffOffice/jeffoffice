@@ -413,6 +413,52 @@ private Q_SLOTS:
         QCOMPARE(e.win.told.size(), 0);
     }
 
+    // Draw Border, Draw Border Grid, and Erase Border: with the command on, dragging over cells puts the outside lines (or all the lines) on the cells dragged over, or takes the lines off them,
+    // one step each, until Esc ends it.
+    void bordersAreDrawnAndErasedByDragging()
+    {
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        QWidget *vp = e.view()->viewport();
+        auto drag = [&](const QString &from, const QString &to) {
+            quint32 r1 = 0, c1 = 0, r2 = 0, c2 = 0;
+            parseCellRef(from, &r1, &c1);
+            parseCellRef(to, &r2, &c2);
+            QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, e.view()->cellRect(r1, c1).center());
+            QTest::mouseMove(vp, e.view()->cellRect(r2, c2).center());
+            QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, e.view()->cellRect(r2, c2).center());
+        };
+        QVERIFY(e.win.w.act(QStringLiteral("fmt.border.draw")));
+        QVERIFY(e.win.w.act(QStringLiteral("fmt.border.drawGrid")));
+        QVERIFY(e.win.w.act(QStringLiteral("fmt.border.erase")));
+        run(e, "fmt.border.draw");
+        const int before = e.win.w.undoStack()->count();
+        drag(QStringLiteral("B2"), QStringLiteral("C3"));
+        QCOMPARE(e.win.w.undoStack()->count(), before + 1);
+        QVERIFY(lookAt(e, QStringLiteral("B2")).left.style == BorderStyle::Thin && lookAt(e, QStringLiteral("B2")).top.style == BorderStyle::Thin);
+        QVERIFY(lookAt(e, QStringLiteral("C3")).right.style == BorderStyle::Thin && lookAt(e, QStringLiteral("C3")).bottom.style == BorderStyle::Thin);
+        QVERIFY(lookAt(e, QStringLiteral("B2")).right.style == BorderStyle::None);   // (nothing inside)
+        // the command stays on: a second drag draws again
+        drag(QStringLiteral("E5"), QStringLiteral("E5"));
+        QVERIFY(lookAt(e, QStringLiteral("E5")).left.style == BorderStyle::Thin && lookAt(e, QStringLiteral("E5")).bottom.style == BorderStyle::Thin);
+        QTest::keyClick(e.view(), Qt::Key_Escape);
+        const int after = e.win.w.undoStack()->count();
+        drag(QStringLiteral("G7"), QStringLiteral("G8"));   // (a plain drag selects again, and draws nothing)
+        QCOMPARE(e.win.w.undoStack()->count(), after);
+        QVERIFY(lookAt(e, QStringLiteral("G7")).left.style == BorderStyle::None);
+        // the grid
+        run(e, "fmt.border.drawGrid");
+        drag(QStringLiteral("B10"), QStringLiteral("C11"));
+        QVERIFY(lookAt(e, QStringLiteral("B10")).right.style == BorderStyle::Thin && lookAt(e, QStringLiteral("B10")).bottom.style == BorderStyle::Thin);
+        QVERIFY(lookAt(e, QStringLiteral("C11")).right.style == BorderStyle::Thin);
+        // erase takes the lines off the cells dragged over
+        run(e, "fmt.border.erase");
+        drag(QStringLiteral("B10"), QStringLiteral("C11"));
+        QVERIFY(lookAt(e, QStringLiteral("B10")).right.style == BorderStyle::None && lookAt(e, QStringLiteral("C11")).bottom.style == BorderStyle::None);
+        QTest::keyClick(e.view(), Qt::Key_Escape);
+        QCOMPARE(e.win.told.size(), 0);
+    }
+
     void cellStylesAreGivenAndSaved()
     {
         EditWindow e;

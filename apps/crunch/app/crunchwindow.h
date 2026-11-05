@@ -1240,6 +1240,15 @@ public:
 
 private:
     void createChartActions();
+    void createInsertObjectActions();
+    void createDrawBorderActions();
+    void startDrawBorder(int mode);
+    void endDrawBorder();
+    bool drawBorderEvent(QObject *o, QEvent *e);
+    int m_drawBorder = 0;   // the border being drawn: 1 the outside, 2 all the lines, 3 erasing; 0 none
+    qint64 m_drawFromRow = -1, m_drawFromCol = -1;
+    void insertPicture();
+    bool placeObjectClip(const crunch::ObjectClip &clip, const QString &stepText);
     void chartRibbonParts(RibbonParts &parts);
     void functionRibbonParts(RibbonParts &parts);
     void fillFunctionMenu(QMenu *menu, const QList<crunch::FunctionCategory> &kinds);

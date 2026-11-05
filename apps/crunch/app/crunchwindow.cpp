@@ -595,6 +595,7 @@ void CrunchWindow::createActions()
     createPageLayoutActions();
     createOutlineActions();
     createChartActions();
+    createDrawBorderActions();
     createTableActions();
     createSparklineActions();
     createPivotActions();
@@ -791,6 +792,7 @@ void CrunchWindow::resizeEvent(QResizeEvent *e)
 
 bool CrunchWindow::eventFilter(QObject *o, QEvent *e)
 {
+    if (m_drawBorder && m_view && drawBorderEvent(o, e)) return true;
     if ((o == m_cellEditor || o == m_formulaBar) && m_edit.active) {
         if (e->type() == QEvent::FocusIn) m_point.line = static_cast<QLineEdit *>(o);
         if (e->type() == QEvent::InputMethod && !m_coloring) {
