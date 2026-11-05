@@ -810,6 +810,27 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
         line.label = fragment(cChild(t, "trendlineLbl"));
         s.trendlines.append(line);
     }
+    for (const QDomElement &eb : cChildren(ser, "errBars")) {
+        if (s.errorBars.size() >= 2) break;
+        ChartErrorBars b;
+        b.direction = valOf(cChild(eb, "errDir"));
+        const QString type = valOf(cChild(eb, "errBarType"), QStringLiteral("both"));
+        if (type == QLatin1String("plus") || type == QLatin1String("minus")) b.barType = type;
+        const QString kind = valOf(cChild(eb, "errValType"), QStringLiteral("fixedVal"));
+        if (kind == QLatin1String("percentage") || kind == QLatin1String("stdDev") || kind == QLatin1String("stdErr") || kind == QLatin1String("cust")) b.valueType = kind;
+        b.noEndCap = flagOf(cChild(eb, "noEndCap"), false);
+        if (const QDomElement v = cChild(eb, "val"); !v.isNull()) {
+            const double n = numberOf(v, 1);
+            b.value = std::isfinite(n) ? std::clamp(n, 0.0, 1e12) : 1;
+        }
+        const Data plus = readData(cChild(eb, "plus")), minus = readData(cChild(eb, "minus"));
+        b.plus = plus.numbers;
+        b.plusRef = plus.ref;
+        b.minus = minus.numbers;
+        b.minusRef = minus.ref;
+        b.line = readLine(cChild(eb, "spPr"));
+        s.errorBars << b;
+    }
     // Where "value from cells" reads the labels' words, and the words it had (the extension's c15:datalabelsRange).
     for (QDomElement x = cChild(ser, "extLst").firstChildElement(); !x.isNull(); x = x.nextSiblingElement()) {
         for (QDomElement r = x.firstChildElement(); !r.isNull(); r = r.nextSiblingElement()) {
@@ -1200,6 +1221,43 @@ QString chartFrameRelId(const QDomElement &graphicFrame)
     for (QDomElement c = aChild(aChild(graphicFrame, "graphic"), "graphicData").firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
         if (c.localName() == QLatin1String("chart") && isChartNs(c.namespaceURI())) return attrNs(c, ns::R, QStringLiteral("id"));
     return QString();
+}
+
+void chartErrorBarAmounts(const ChartErrorBars &bars, const QVector<double> &values, QVector<double> *above, QVector<double> *below)
+{
+    const int n = int(values.size());
+    *above = QVector<double>(n, 0.0);
+    *below = QVector<double>(n, 0.0);
+    // the standard deviation (of a sample) of the values that are numbers
+    double mean = 0, spread = 0;
+    int count = 0;
+    for (double v : values)
+        if (std::isfinite(v)) {
+            mean += v;
+            ++count;
+        }
+    if (count > 0) mean /= count;
+    if (count > 1) {
+        for (double v : values)
+            if (std::isfinite(v)) spread += (v - mean) * (v - mean);
+        spread = std::sqrt(spread / (count - 1));
+    }
+    const bool plusSide = bars.barType != QLatin1String("minus"), minusSide = bars.barType != QLatin1String("plus");
+    auto custom = [&](const QVector<double> &list, int i) {
+        const double v = list.size() == 1 ? list[0] : i < list.size() ? list[i] : 0.0;
+        return std::isfinite(v) ? std::fabs(v) : 0.0;
+    };
+    for (int i = 0; i < n; ++i) {
+        if (!std::isfinite(values[i])) continue;
+        double up = 0, down = 0;
+        if (bars.valueType == QLatin1String("percentage")) up = down = std::fabs(values[i]) * bars.value / 100.0;
+        else if (bars.valueType == QLatin1String("stdDev")) up = down = spread * bars.value;
+        else if (bars.valueType == QLatin1String("stdErr")) up = down = count > 0 ? spread / std::sqrt(double(count)) : 0.0;
+        else if (bars.valueType == QLatin1String("cust")) up = custom(bars.plus, i), down = custom(bars.minus, i);
+        else up = down = bars.value;
+        (*above)[i] = plusSide ? up : 0.0;
+        (*below)[i] = minusSide ? down : 0.0;
+    }
 }
 
 double ChartAxis::dispUnitFactor() const

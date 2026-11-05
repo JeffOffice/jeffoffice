@@ -945,6 +945,18 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
             legend->addSeparator();
             check(legend, tr("Over the Chart"), e.legendOverlay, [code = e.legendPosition, on = !e.legendOverlay](Chart *c) { setLegend(c, code, on); }, tr("Legend"));
         }
+        if (chart.type() == ChartType::Bar || chart.type() == ChartType::Line || chart.type() == ChartType::Scatter) {
+            QMenu *bars = menu->addMenu(tr("Error Bars"));
+            bars->setObjectName(QStringLiteral("errorBarsMenu"));
+            auto *barGroup = new QActionGroup(bars);
+            const QString kind = errorBarsKind(chart);
+            choice(bars, barGroup, tr("None"), kind.isEmpty(), [](Chart *c) { setErrorBars(c, QString()); }, tr("Error Bars"));
+            choice(bars, barGroup, tr("Standard Error"), kind == QLatin1String("stdErr"), [](Chart *c) { setErrorBars(c, QStringLiteral("stdErr")); }, tr("Error Bars"));
+            choice(bars, barGroup, tr("Percentage (5%)"), kind == QLatin1String("percentage"), [](Chart *c) { setErrorBars(c, QStringLiteral("percentage"), 5); }, tr("Error Bars"));
+            choice(bars, barGroup, tr("Standard Deviation"), kind == QLatin1String("stdDev"), [](Chart *c) { setErrorBars(c, QStringLiteral("stdDev"), 1); }, tr("Error Bars"));
+            choice(bars, barGroup, tr("Fixed Value (1)"), kind == QLatin1String("fixedVal"), [](Chart *c) { setErrorBars(c, QStringLiteral("fixedVal"), 1); }, tr("Error Bars"));
+            if (kind == QLatin1String("cust")) choice(bars, barGroup, tr("Custom"), true, [](Chart *) {}, tr("Error Bars"))->setEnabled(false);
+        }
         if (plotLinesApply(chart, PlotLines::Drop)) {
             QMenu *lines = menu->addMenu(tr("Lines"));
             lines->setObjectName(QStringLiteral("plotLinesMenu"));

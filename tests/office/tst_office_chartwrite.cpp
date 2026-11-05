@@ -297,6 +297,93 @@ private Q_SLOTS:
         QVERIFY(drawn.contains("#00ff00") || drawn.contains("#00FF00") || drawn.contains("rgb(0,255,0)"));
     }
 
+    // How far error bars run for each kind, and that custom amounts, a single custom amount for all, a missing side, and blanks come out right.
+    void errorBarAmountsFollowTheirKind()
+    {
+        const QVector<double> values{10, -20, 30, std::numeric_limits<double>::quiet_NaN()};
+        QVector<double> up, down;
+        ChartErrorBars b;
+        b.valueType = QStringLiteral("fixedVal");
+        b.value = 2.5;
+        chartErrorBarAmounts(b, values, &up, &down);
+        QCOMPARE(up, (QVector<double>{2.5, 2.5, 2.5, 0}));
+        QCOMPARE(down, up);
+        b.valueType = QStringLiteral("percentage");
+        b.value = 10;
+        chartErrorBarAmounts(b, values, &up, &down);
+        QCOMPARE(up, (QVector<double>{1, 2, 3, 0}));
+        b.valueType = QStringLiteral("stdDev");
+        b.value = 1;
+        chartErrorBarAmounts(b, values, &up, &down);
+        QVERIFY(qAbs(up[0] - std::sqrt(((10 - 20.0 / 3) * (10 - 20.0 / 3) + (-20 - 20.0 / 3) * (-20 - 20.0 / 3) + (30 - 20.0 / 3) * (30 - 20.0 / 3)) / 2)) < 1e-9);
+        b.valueType = QStringLiteral("stdErr");
+        QVector<double> sd;
+        chartErrorBarAmounts(b, values, &up, &down);
+        b.valueType = QStringLiteral("stdDev");
+        chartErrorBarAmounts(b, values, &sd, &down);
+        QVERIFY(qAbs(up[1] * std::sqrt(3.0) - sd[1]) < 1e-9);
+        b.valueType = QStringLiteral("cust");
+        b.plus = QVector<double>{1, 2};
+        b.minus = QVector<double>{5};
+        chartErrorBarAmounts(b, values, &up, &down);
+        QCOMPARE(up, (QVector<double>{1, 2, 0, 0}));
+        QCOMPARE(down, (QVector<double>{5, 5, 5, 0}));
+        b.barType = QStringLiteral("plus");
+        chartErrorBarAmounts(b, values, &up, &down);
+        QCOMPARE(down, (QVector<double>{0, 0, 0, 0}));
+    }
+
+    // Error bars of a series (c:errBars): written between the trendlines and the data in the schema's order, read back with their kind, ends, and look, and drawn.
+    void errorBarsAreKeptAndDrawn()
+    {
+        Chart c = comboChart();
+        const QByteArray plain = chartSvg(c, QSizeF(480, 288));
+        ChartErrorBars b;
+        b.valueType = QStringLiteral("percentage");
+        b.value = 20;
+        b.barType = QStringLiteral("plus");
+        b.noEndCap = true;
+        b.line.set = true;
+        b.line.color = QColor("#FF0000");
+        c.plots[0].series[0].errorBars << b;
+        ChartErrorBars custom;
+        custom.valueType = QStringLiteral("cust");
+        custom.plusRef = QStringLiteral("Sheet1!$F$2:$F$4");
+        custom.plus = QVector<double>{1, 2, 3};
+        custom.minus = QVector<double>{3, 2, 1};
+        c.plots[0].series[1].errorBars << custom;
+        const QByteArray xml = writeChartPart(c);
+        QDomDocument doc;
+        QVERIFY(doc.setContent(xml, true));
+        const QDomNodeList bars = doc.elementsByTagNameNS(QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/chart"), QStringLiteral("errBars"));
+        QCOMPARE(bars.size(), 2);
+        QStringList order;
+        for (QDomElement e = bars.at(0).toElement().firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) order << e.localName();
+        QCOMPARE(order, (QStringList{"errBarType", "errValType", "noEndCap", "val", "spPr"}));
+        QCOMPARE(bars.at(0).nextSiblingElement().localName(), QStringLiteral("cat"));
+        order.clear();
+        for (QDomElement e = bars.at(1).toElement().firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) order << e.localName();
+        QCOMPARE(order, (QStringList{"errBarType", "errValType", "noEndCap", "plus", "minus"}));
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(xml, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        const ChartErrorBars first = r.plots[0].series[0].errorBars.value(0), second = r.plots[0].series[1].errorBars.value(0);
+        QCOMPARE(first.valueType, QStringLiteral("percentage"));
+        QCOMPARE(first.value, 20.0);
+        QCOMPARE(first.barType, QStringLiteral("plus"));
+        QVERIFY(first.noEndCap);
+        QCOMPARE(first.line.color.name(), QStringLiteral("#ff0000"));
+        QCOMPARE(second.valueType, QStringLiteral("cust"));
+        QCOMPARE(second.plusRef, QStringLiteral("Sheet1!$F$2:$F$4"));
+        QCOMPARE(second.plus, (QVector<double>{1, 2, 3}));
+        QCOMPARE(second.minus, (QVector<double>{3, 2, 1}));
+        QCOMPARE(writeChartPart(r), xml);
+        QVERIFY(chartIsFullyModeled(xml, nullptr));
+        const QByteArray drawn = chartSvg(r, QSizeF(480, 288));
+        QVERIFY(drawn != plain);
+        QVERIFY(drawn.contains("#ff0000") || drawn.contains("#FF0000") || drawn.contains("rgb(255,0,0)"));
+    }
+
     void aLabelsLegendKeyIsKeptAndDrawn()
     {
         Chart c = comboChart();

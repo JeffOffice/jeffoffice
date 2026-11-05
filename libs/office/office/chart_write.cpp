@@ -479,6 +479,8 @@ private:
         labels(s.labels, plot.type == ChartType::Pie || plot.type == ChartType::Doughnut);
         if (plot.type != ChartType::Pie && plot.type != ChartType::Doughnut)
             for (const ChartTrendline &t : s.trendlines) trendline(t);
+        if (plot.type != ChartType::Pie && plot.type != ChartType::Doughnut)
+            for (const ChartErrorBars &b : s.errorBars) errorBars(b, scatter);
         if (scatter) {
             numberData("c:xVal", s.xRef, s.xValues, s.categoryFormat);
             numberData("c:yVal", s.valueRef, s.values, s.format);
@@ -508,6 +510,23 @@ private:
             w.writeEndElement();
             w.writeEndElement();
         }
+        w.writeEndElement();
+    }
+
+    void errorBars(const ChartErrorBars &b, bool scatter)
+    {
+        w.writeStartElement(QStringLiteral("c:errBars"));
+        if (scatter) val("c:errDir", b.direction == QLatin1String("x") ? QStringLiteral("x") : QStringLiteral("y"));
+        val("c:errBarType", b.barType);
+        val("c:errValType", b.valueType);
+        flag("c:noEndCap", b.noEndCap);
+        if (b.valueType == QLatin1String("cust")) {
+            if (b.barType != QLatin1String("minus")) numberData("c:plus", b.plusRef, b.plus, QStringLiteral("General"));
+            if (b.barType != QLatin1String("plus")) numberData("c:minus", b.minusRef, b.minus, QStringLiteral("General"));
+        } else if (b.valueType != QLatin1String("stdErr")) {
+            val("c:val", number(b.value));
+        }
+        shapeProps(QColor(), false, b.line);
         w.writeEndElement();
     }
 

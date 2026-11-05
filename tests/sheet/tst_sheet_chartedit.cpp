@@ -47,6 +47,29 @@ class SheetChartEditTests : public QObject {
 private Q_SLOTS:
     void initTestCase() { jp::initCore(); }
 
+    // Error bars go on every series of a bar, line, or scatter chart by kind, come off again, and are kept through writing.
+    void errorBarsGoOnAndOff()
+    {
+        Chart c = columns();
+        QVERIFY(errorBarsKind(c).isEmpty());
+        setErrorBars(&c, QStringLiteral("percentage"), 7);
+        QCOMPARE(errorBarsKind(c), QStringLiteral("percentage"));
+        for (const ChartSeries &s : seriesOf(c)) {
+            QCOMPARE(s.errorBars.size(), 1);
+            QCOMPARE(s.errorBars[0].value, 7.0);
+        }
+        const Chart back = roundTrip(c);
+        QCOMPARE(errorBarsKind(back), QStringLiteral("percentage"));
+        QCOMPARE(seriesOf(back)[1].errorBars[0].value, 7.0);
+        setErrorBars(&c, QStringLiteral("stdErr"));
+        QCOMPARE(errorBarsKind(c), QStringLiteral("stdErr"));
+        setErrorBars(&c, QString());
+        QVERIFY(errorBarsKind(c).isEmpty());
+        Chart pie = columns(ChartKind::Pie);
+        setErrorBars(&pie, QStringLiteral("fixedVal"));
+        QVERIFY(errorBarsKind(pie).isEmpty());
+    }
+
     // Drop lines, high-low lines, and up-down bars are offered for line plots (the last two with two series or more), set on every plot that takes them, and kept through writing.
     void linesBetweenSeriesGoOnAndOff()
     {

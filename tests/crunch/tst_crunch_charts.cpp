@@ -748,6 +748,44 @@ private Q_SLOTS:
         QVERIFY(!elementsOf(chartOf(e)).labels);
     }
 
+    // Error Bars, in the elements list: a kind for every series (one step of Undo), kept in the file; None takes them away.
+    void errorBarsAreChosenInTheElementsList()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        e.win.w.objects()->layer()->prepareAll();
+        QTRY_VERIFY(e.win.w.chartElementsButton() && e.win.w.chartElementsButton()->isVisible());
+        QMenu *menu = e.win.w.chartElementsButton()->menu();
+        auto fire = [&](const QStringList &path) {
+            QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+            QMenu *m = menu;
+            QAction *found = nullptr;
+            for (int i = 0; i < path.size(); ++i) {
+                found = nullptr;
+                for (QAction *a : m->actions())
+                    if (a->text() == path[i]) found = a;
+                if (!found) return false;
+                if (i + 1 < path.size()) m = found->menu();
+            }
+            found->trigger();
+            return true;
+        };
+        const int steps = e.win.w.session()->undoStack()->count();
+        QVERIFY(fire({"Error Bars", "Percentage (5%)"}));
+        QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);
+        QCOMPARE(errorBarsKind(chartOf(e)), QStringLiteral("percentage"));
+        QVERIFY(save(e));
+        QCOMPARE(errorBarsKind(savedCharts(e.path)[0].chart), QStringLiteral("percentage"));
+        pressUndo(&e.win.w);
+        QVERIFY(errorBarsKind(chartOf(e)).isEmpty());
+        QVERIFY(fire({"Error Bars", "Standard Error"}));
+        QVERIFY(fire({"Error Bars", "None"}));
+        QVERIFY(errorBarsKind(chartOf(e)).isEmpty());
+    }
+
     // Lines, in the elements list of a line chart: Drop Lines, High-Low Lines, and Up/Down Bars, each one step of Undo and kept in the file; a column chart has no such list.
     void linesBetweenSeriesAreChosenInTheElementsList()
     {

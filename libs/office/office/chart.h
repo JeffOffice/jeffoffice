@@ -119,6 +119,22 @@ struct ChartTrendline {
     QByteArray label;               // the file's c:trendlineLbl, as it wrote it
 };
 
+// Error bars of a series (c:errBars): how far above and below each value a bar runs.
+struct ChartErrorBars {
+    QString direction;              // "x" or "y" (a scatter has both); empty: the usual (y)
+    QString barType = QStringLiteral("both");        // "both", "plus", or "minus"
+    QString valueType = QStringLiteral("fixedVal");  // "fixedVal", "percentage", "stdDev", "stdErr", or "cust"
+    bool noEndCap = false;
+    double value = 1;               // the fixed value, the percentage, or the number of standard deviations
+    // A custom amount: the cells each reads (empty for a literal) and the numbers it had, one for each point (or a single one for all).
+    QString plusRef, minusRef;
+    QVector<double> plus, minus;
+    ChartLine line;
+};
+
+// The amounts (above, below) the bars run for each of a series' values (0 for a side the bars do not have, and for a blank).
+void chartErrorBarAmounts(const ChartErrorBars &bars, const QVector<double> &values, QVector<double> *above, QVector<double> *below);
+
 struct ChartSeries {
     QString name;
     // What the file stores for each point; a point it stores none for is a
@@ -152,6 +168,7 @@ struct ChartSeries {
     ChartDataLabels labels;
     double explosion = 0;           // a pie's slice pulled out, percent of the radius
     QVector<ChartTrendline> trendlines;
+    QVector<ChartErrorBars> errorBars;   // at most two (a scatter's x and y)
     QString labelCellsRef;          // where "value from cells" reads the labels' words (the extension's c15:datalabelsRange c15:f)
     QStringList labelCellsText;     // and the words it had (c15:dlblRangeCache), a blank for a cell with none
     bool filtered = false;          // left out of the drawing by a chart filter (not in the file: it is written like the other series, so a file keeps every series)

@@ -482,6 +482,33 @@ QString dataLabelsCellsRef(const Chart &chart)
     return QString();
 }
 
+void setErrorBars(Chart *chart, const QString &kind, double value)
+{
+    if (kind == QLatin1String("cust")) return;
+    for (ChartPlot &p : chart->plots) {
+        if (p.type != ChartType::Bar && p.type != ChartType::Line && p.type != ChartType::Scatter) continue;
+        for (ChartSeries &s : p.series) {
+            if (kind.isEmpty()) {
+                s.errorBars.clear();
+                continue;
+            }
+            ChartErrorBars b;
+            b.valueType = kind;
+            b.value = std::max(0.0, value);
+            if (p.type == ChartType::Scatter) b.direction = QStringLiteral("y");
+            s.errorBars = QVector<ChartErrorBars>{b};
+        }
+    }
+}
+
+QString errorBarsKind(const Chart &chart)
+{
+    for (const ChartPlot &p : chart.plots)
+        for (const ChartSeries &s : p.series)
+            if (!s.errorBars.isEmpty()) return s.errorBars.first().valueType;
+    return QString();
+}
+
 namespace {
 
 bool plotTakes(const ChartPlot &p, PlotLines kind)
