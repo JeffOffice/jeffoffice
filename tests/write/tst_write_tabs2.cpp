@@ -15,6 +15,7 @@
 #include "core/insertops.h"
 #include "core/linkops.h"
 #include "core/outlineops.h"
+#include "core/proofops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
 
@@ -720,6 +721,27 @@ private Q_SLOTS:
         w.setHyphenationAsker([](double &, int &) { return false; });
         w.act(QStringLiteral("layout.hyphenation.options"))->trigger();
         QCOMPARE(w.document()->hyphenLimit(), 2);
+    }
+
+    void wordCountHasTheLinesTheLayoutMade()
+    {
+        auto doc = outlineDoc({{"First line", kBodyLevel}, {"Second line", kBodyLevel}, {"Third line", kBodyLevel}});
+        QTextCursor none(doc->story());
+        QCOMPARE(countWords(*doc, none, false).lines, 3);
+        QTextCursor second(doc->story());
+        second.setPosition(outlineRows(*doc)[1].position);
+        second.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        QCOMPARE(countWords(*doc, second, false).lines, 1);
+        QTextCursor two(doc->story());
+        two.setPosition(outlineRows(*doc)[1].position + 3);
+        two.setPosition(outlineRows(*doc)[2].position + 3, QTextCursor::KeepAnchor);
+        QCOMPARE(countWords(*doc, two, false).lines, 2);
+        // A paragraph of many lines counts them all.
+        auto narrow = narrowDoc(QByteArray());
+        QVERIFY(narrow);
+        QTextCursor whole(narrow->story());
+        QVERIFY(countWords(*narrow, whole, false).lines >= hyphenRun(*narrow).second);   // (that is the first page's lines; the count goes on over the pages)
+        QVERIFY(countWords(*narrow, whole, false).lines > 10);
     }
 };
 
