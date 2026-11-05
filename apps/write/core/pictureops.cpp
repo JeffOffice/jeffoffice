@@ -2,6 +2,11 @@
 
 #include "core/drawnitems.h"
 #include "core/editops.h"
+#include "office/chart.h"
+#include "office/chart_write.h"
+#include "office/drawingml_color.h"
+#include "office/theme.h"
+#include "sheet/chartmake.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 #include "wml/wml.h"
@@ -17,6 +22,7 @@
 #include <QTextDocument>
 #include <QTextFragment>
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace jp::write {
@@ -297,9 +303,10 @@ bool parseDrawing(const QByteArray &raw, Model *m)
             out.between += t.raw(k);
         }
     }
+    const bool isChart = out.graphic.contains("drawingml/2006/chart") && out.graphic.contains("<c:chart");
     const bool isShape = out.graphic.contains("wsp") && !out.graphic.contains("blip");
     // (A line may have no height or no width, but not neither.)
-    if (out.graphic.isEmpty() || !(out.graphic.contains("blip") || isShape) || (isShape ? out.cx < 0 || out.cy < 0 || out.cx + out.cy <= 0 : out.cx <= 0 || out.cy <= 0)) return false;
+    if (out.graphic.isEmpty() || !(out.graphic.contains("blip") || isShape || isChart) || (isShape ? out.cx < 0 || out.cy < 0 || out.cx + out.cy <= 0 : out.cx <= 0 || out.cy <= 0)) return false;
     if (out.docPr.isEmpty()) out.docPr = {{"id", "\"1\""}, {"name", "\"Picture\""}};
     if (!out.floating) {
         out.wrap = PictureWrap::Inline;
@@ -351,11 +358,12 @@ QTextCharFormat formatAfter(const QTextDocument *story, int position)
     return QTextCharFormat();
 }
 
-bool isPictureShape(const QVector<Shape> &shapes) { return !shapes.isEmpty() && shapes.first().kind == Shape::Picture; }
+bool isPictureShape(const QVector<Shape> &shapes) { return !shapes.isEmpty() && shapes.first().kind == Shape::Picture && shapes.first().chartEmbed.isEmpty(); }
 
 // A drawn object's kind: a shape of the drawing format that is a line is a line, one with text is a text box.
 DrawnKind kindOfShape(const Shape &s)
 {
+    if (!s.chartEmbed.isEmpty()) return DrawnKind::Chart;
     if (s.kind == Shape::Picture) return DrawnKind::Picture;
     if (s.kind == Shape::TextBox) return DrawnKind::TextBox;
     if (s.kind == Shape::Line) return DrawnKind::Line;
@@ -644,6 +652,7 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
         info.lineColor = s.borderWeight > 0 ? s.borderColor : QString();
         info.lineWeight = s.borderWeight;
         info.grayscale = m.graphic.contains("<a:grayscl");
+        info.blackWhite = m.graphic.contains("<a:biLevel");
         static const QRegularExpression lum(QStringLiteral("<a:lum\\b([^>]*)/?>"));
         const QRegularExpressionMatch found = lum.match(QString::fromUtf8(m.graphic));
         if (found.hasMatch()) {
@@ -663,7 +672,7 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
         if (!look->stroke.isNone()) {
             info.lineColor = rgb(look->stroke.color);
             info.lineWeight = look->stroke.width;
-            static const char *names[] = {"solid", "sysDot", "sysDash", "dash", "dashDot", "lgDash", "lgDashDot", "lgDashDotDot"};
+            static const char *names[] = {"solid", "dot", "sysDot", "dash", "dashDot", "lgDash", "lgDashDot", "lgDashDotDot"};
             info.lineDash = QString::fromLatin1(names[std::clamp(int(look->stroke.dash), 0, 7)]);
         }
         info.rotation = look->rotation;
@@ -922,8 +931,8 @@ QByteArray solidFill(const QByteArray &rgb) { return "<a:solidFill><a:srgbClr va
 
 const QStringList &dashNames()
 {
-    static const QStringList names = {QStringLiteral("solid"), QStringLiteral("sysDot"), QStringLiteral("sysDash"), QStringLiteral("dash"), QStringLiteral("dashDot"), QStringLiteral("lgDash"),
-                                      QStringLiteral("lgDashDot"), QStringLiteral("lgDashDotDot"), QStringLiteral("dot")};
+    static const QStringList names = {QStringLiteral("solid"), QStringLiteral("dot"), QStringLiteral("sysDot"), QStringLiteral("dash"), QStringLiteral("dashDot"), QStringLiteral("lgDash"),
+                                      QStringLiteral("lgDashDot"), QStringLiteral("lgDashDotDot")};
     return names;
 }
 
@@ -1346,6 +1355,586 @@ bool setShapePreset(WriteDoc &doc, int position, const QString &preset)
     });
 }
 
+
+// ---- Picture adjustments
+
+namespace {
+
+// The start tag and the inside of the first a:blip of a graphic.
+struct BlipSpot {
+    qsizetype begin = -1, end = -1;   // the whole element, in the graphic
+    QByteArray startTag, inner;
+    bool selfClosing = false;
+};
+
+bool findBlip(const QByteArray &graphic, BlipSpot *out)
+{
+    for (qsizetype i = graphic.indexOf("<a:blip"); i >= 0; i = graphic.indexOf("<a:blip", i + 7)) {
+        const char next = i + 7 < graphic.size() ? graphic[i + 7] : 0;
+        if (next != ' ' && next != '>' && next != '/') continue;
+        const qsizetype gt = graphic.indexOf('>', i);
+        if (gt < 0) return false;
+        BlipSpot b;
+        b.begin = i;
+        b.startTag = graphic.mid(i, gt + 1 - i);
+        b.selfClosing = graphic[gt - 1] == '/';
+        if (b.selfClosing) {
+            b.end = gt + 1;
+        } else {
+            const qsizetype close = graphic.indexOf("</a:blip>", gt);
+            if (close < 0) return false;
+            b.inner = graphic.mid(gt + 1, close - gt - 1);
+            b.end = close + 9;
+        }
+        *out = b;
+        return true;
+    }
+    return false;
+}
+
+QByteArray withBlip(const QByteArray &graphic, const BlipSpot &b)
+{
+    const QByteArray start = b.selfClosing ? b.startTag.left(b.startTag.size() - 2) + ">" : b.startTag;
+    if (b.inner.isEmpty()) return graphic.left(b.begin) + (b.selfClosing ? b.startTag : start + "</a:blip>") + graphic.mid(b.end);
+    return graphic.left(b.begin) + start + b.inner + "</a:blip>" + graphic.mid(b.end);
+}
+
+const QRegularExpression &effectsPattern()
+{
+    static const QRegularExpression re(QStringLiteral("<a:(lum|grayscl|biLevel)\\b[^>]*/>|<a:(lum|grayscl|biLevel)\\b[^>]*></a:(lum|grayscl|biLevel)>"));
+    return re;
+}
+
+QByteArray shareText(double v) { return QByteArray::number(qint64(std::llround(v * 100000.0))); }
+
+// The cut a graphic has: its a:srcRect's shares (0 for an edge it leaves out).
+void cutOf(const QByteArray &graphic, double cut[4])
+{
+    cut[0] = cut[1] = cut[2] = cut[3] = 0;
+    static const QRegularExpression rect(QStringLiteral("<a:srcRect\\b([^>]*)/?>"));
+    const QRegularExpressionMatch found = rect.match(QString::fromUtf8(graphic));
+    if (!found.hasMatch()) return;
+    static const char *names[4] = {"l", "t", "r", "b"};
+    for (int i = 0; i < 4; ++i) {
+        const QRegularExpressionMatch v = QRegularExpression(QStringLiteral("\\b%1=\"(-?[0-9]+)\"").arg(QLatin1String(names[i]))).match(found.captured(1));
+        if (v.hasMatch()) cut[i] = std::clamp(v.captured(1).toDouble() / 100000.0, -1.0, 1.0);
+    }
+}
+
+// Writes the cut into the graphic and sets the frame so that the picture keeps its scale.
+bool applyCut(Model &m, const double now[4])
+{
+    double was[4];
+    cutOf(m.graphic, was);
+    const double keepWas[2] = {1 - was[0] - was[2], 1 - was[1] - was[3]}, keepNow[2] = {1 - now[0] - now[2], 1 - now[1] - now[3]};
+    if (keepWas[0] < 0.02 || keepWas[1] < 0.02 || keepNow[0] < 0.02 || keepNow[1] < 0.02) return false;
+    bool same = true;
+    for (int i = 0; i < 4; ++i) same = same && std::abs(now[i] - was[i]) < 0.000005;
+    if (same) return false;
+    QByteArray rect;
+    static const char *names[4] = {"l", "t", "r", "b"};
+    bool any = false;
+    for (int i = 0; i < 4; ++i)
+        if (std::abs(now[i]) >= 0.000005) {
+            rect += QByteArray(" ") + names[i] + "=\"" + shareText(now[i]) + "\"";
+            any = true;
+        }
+    const QByteArray element = any ? "<a:srcRect" + rect + "/>" : QByteArray();
+    static const QRegularExpression existing(QStringLiteral("<a:srcRect\\b[^>]*/>|<a:srcRect\\b[^>]*></a:srcRect>"));
+    QString text = QString::fromUtf8(m.graphic);
+    const QRegularExpressionMatch found = existing.match(text);
+    if (found.hasMatch()) {
+        text.replace(found.capturedStart(), found.capturedLength(), QString::fromUtf8(element));
+        m.graphic = text.toUtf8();
+    } else if (any) {
+        BlipSpot b;
+        if (!findBlip(m.graphic, &b)) return false;
+        m.graphic = m.graphic.left(b.end) + element + m.graphic.mid(b.end);
+    }
+    const double cx = double(m.cx) * keepNow[0] / keepWas[0], cy = double(m.cy) * keepNow[1] / keepWas[1];
+    const qint64 w = std::clamp<qint64>(qint64(std::llround(cx)), qint64(kLeastPictureSize * kEmuPerPoint), qint64(kMostPictureSize * kEmuPerPoint));
+    const qint64 h = std::clamp<qint64>(qint64(std::llround(cy)), qint64(kLeastPictureSize * kEmuPerPoint), qint64(kMostPictureSize * kEmuPerPoint));
+    m.graphic = graphicWithSize(m.graphic, w, h);
+    m.cx = w;
+    m.cy = h;
+    return true;
+}
+
+// The color changes of the blip: brightness and contrast (as a:lum, nothing when both are 0), then gray or black and white.
+bool applyColors(Model &m, double brightness, double contrast, PictureRecolor recolor)
+{
+    BlipSpot b;
+    if (!findBlip(m.graphic, &b)) return false;
+    QByteArray effects;
+    if (std::abs(brightness) >= 0.000005 || std::abs(contrast) >= 0.000005) {
+        effects += "<a:lum";
+        if (std::abs(brightness) >= 0.000005) effects += " bright=\"" + shareText(brightness) + "\"";
+        if (std::abs(contrast) >= 0.000005) effects += " contrast=\"" + shareText(contrast) + "\"";
+        effects += "/>";
+    }
+    if (recolor == PictureRecolor::Grayscale) effects += "<a:grayscl/>";
+    else if (recolor == PictureRecolor::BlackAndWhite) effects += "<a:biLevel thresh=\"50000\"/>";
+    QString inner = QString::fromUtf8(b.inner);
+    inner.remove(effectsPattern());
+    const QByteArray without = inner.toUtf8();
+    // (The effects come first: an extension list, if the blip has one, is last.)
+    const QByteArray made = effects + without;
+    if (made == b.inner) return false;
+    b.inner = made;
+    if (b.inner.isEmpty() && !b.selfClosing) b.selfClosing = true, b.startTag = b.startTag.left(b.startTag.size() - 1) + "/>";
+    else if (!b.inner.isEmpty() && b.selfClosing) b.selfClosing = false, b.startTag = b.startTag.left(b.startTag.size() - 2) + ">";
+    m.graphic = withBlip(m.graphic, b);
+    return true;
+}
+
+// What a picture's graphic says of its colors now.
+struct ColorsNow {
+    double brightness = 0, contrast = 0;
+    PictureRecolor recolor = PictureRecolor::None;
+};
+
+ColorsNow colorsOf(const QByteArray &graphic)
+{
+    ColorsNow now;
+    static const QRegularExpression lum(QStringLiteral("<a:lum\\b([^>]*)/?>"));
+    const QRegularExpressionMatch found = lum.match(QString::fromUtf8(graphic));
+    if (found.hasMatch()) {
+        for (const char *name : {"bright", "contrast"}) {
+            const QRegularExpressionMatch v = QRegularExpression(QStringLiteral("\\b%1=\"(-?[0-9]+)\"").arg(QLatin1String(name))).match(found.captured(1));
+            if (v.hasMatch()) (QLatin1String(name) == QLatin1String("bright") ? now.brightness : now.contrast) = std::clamp(v.captured(1).toDouble() / 100000.0, -1.0, 1.0);
+        }
+    }
+    if (graphic.contains("<a:grayscl")) now.recolor = PictureRecolor::Grayscale;
+    else if (graphic.contains("<a:biLevel")) now.recolor = PictureRecolor::BlackAndWhite;
+    return now;
+}
+
+} // namespace
+
+bool setPictureCrop(WriteDoc &doc, int position, double left, double top, double right, double bottom)
+{
+    const double now[4] = {left, top, right, bottom};
+    for (double v : now)
+        if (!std::isfinite(v) || v < -1 || v > 0.98) return false;
+    if (left + right > 0.98 || top + bottom > 0.98) return false;
+    return changePicture(doc, position, [&](Model &m) {
+        if (!m.graphic.contains("blip")) return false;
+        return applyCut(m, now);
+    });
+}
+
+bool setPictureCorrections(WriteDoc &doc, int position, double brightness, double contrast)
+{
+    if (!std::isfinite(brightness) || !std::isfinite(contrast)) return false;
+    brightness = std::clamp(brightness, -1.0, 1.0);
+    contrast = std::clamp(contrast, -1.0, 1.0);
+    return changePicture(doc, position, [&](Model &m) { return applyColors(m, brightness, contrast, colorsOf(m.graphic).recolor); });
+}
+
+bool setPictureRecolor(WriteDoc &doc, int position, PictureRecolor recolor)
+{
+    return changePicture(doc, position, [&](Model &m) {
+        const ColorsNow now = colorsOf(m.graphic);
+        return applyColors(m, now.brightness, now.contrast, recolor);
+    });
+}
+
+bool resetPicture(WriteDoc &doc, int position)
+{
+    return changePicture(doc, position, [&](Model &m) {
+        if (!m.graphic.contains("blip")) return false;
+        bool changed = applyCut(m, std::array<double, 4>{0, 0, 0, 0}.data());
+        changed = applyColors(m, 0, 0, PictureRecolor::None) || changed;
+        SpPr sp;
+        if (splitSpPr(m.graphic, &sp) && !childRaw(sp, SlotLine).isEmpty()) {
+            setSlot(&sp, SlotLine, "ln", QByteArray());
+            m.graphic = joinSpPr(m.graphic, sp);
+            changed = true;
+        }
+        return changed;
+    });
+}
+
+PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &bytes)
+{
+    Prepared p;
+    if (const PictureResult r = prepare(bytes, &p); r != PictureResult::Ok) return r;
+    QTextDocument *story = doc.story();
+    if (!isPictureAt(story, position) || position + 1 > story->characterCount() - 1) return PictureResult::Refused;
+    bool added = false;
+    const QString rid = doc.addMedia(p.bytes, p.extension, p.contentType, &added);
+    if (added && doc.mediaBytes() > doc.mediaLimit) {
+        doc.removeMedia(rid);
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.");
+        return PictureResult::TooLarge;
+    }
+    const bool changed = changePicture(doc, position, [&](Model &m) {
+        BlipSpot b;
+        if (!findBlip(m.graphic, &b)) return false;
+        double none[4] = {0, 0, 0, 0};
+        applyCut(m, none);
+        if (!findBlip(m.graphic, &b)) return false;
+        Attributes attrs = attributesOf(b.startTag);
+        setAttribute(&attrs, "r:embed", quote(rid.toUtf8()));
+        const qsizetype nameEnd = b.startTag.indexOf(' ') > 0 ? b.startTag.indexOf(' ') : b.startTag.size() - 1;
+        QByteArray start = b.startTag.left(nameEnd);
+        Attributes declared;
+        attributesOf(b.startTag, &declared);
+        for (const auto &d : declared) start += " " + d.first + "=" + d.second;
+        b.startTag = start + written(attrs) + (b.selfClosing ? "/>" : ">");
+        m.graphic = withBlip(m.graphic, b);
+        // The colors of the old picture are not the new one's. The frame keeps its width and takes the new picture's proportions.
+        applyColors(m, 0, 0, PictureRecolor::None);
+        const qint64 h = std::clamp<qint64>(qint64(std::llround(double(m.cx) * p.size.height() / std::max(1.0, p.size.width()))), qint64(kLeastPictureSize * kEmuPerPoint), qint64(kMostPictureSize * kEmuPerPoint));
+        m.graphic = graphicWithSize(m.graphic, m.cx, h);
+        m.cy = h;
+        return true;
+    });
+    if (!changed) {
+        if (added) doc.removeMedia(rid);
+        return PictureResult::Refused;
+    }
+    return PictureResult::Ok;
+}
+
+// ---- Charts
+
+namespace {
+
+using office::Chart;
+using office::ChartSeries;
+
+const char kChartContentType[] = "application/vnd.openxmlformats-officedocument.drawingml.chart+xml";
+const char kChartRelationship[] = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart";
+
+office::sheet::ChartKind kindOfForm(ChartForm form)
+{
+    using K = office::sheet::ChartKind;
+    switch (form) {
+    case ChartForm::Column: return K::Column;
+    case ChartForm::ColumnStacked: return K::ColumnStacked;
+    case ChartForm::ColumnPercent: return K::ColumnPercent;
+    case ChartForm::Bar: return K::Bar;
+    case ChartForm::BarStacked: return K::BarStacked;
+    case ChartForm::Line: return K::Line;
+    case ChartForm::LineMarkers: return K::LineMarkers;
+    case ChartForm::Pie: return K::Pie;
+    case ChartForm::Doughnut: return K::Doughnut;
+    case ChartForm::Area: return K::Area;
+    case ChartForm::AreaStacked: return K::AreaStacked;
+    case ChartForm::Scatter: return K::Scatter;
+    }
+    return K::Column;
+}
+
+ChartForm formOfKind(office::sheet::ChartKind kind)
+{
+    using K = office::sheet::ChartKind;
+    switch (kind) {
+    case K::ColumnStacked: return ChartForm::ColumnStacked;
+    case K::ColumnPercent: return ChartForm::ColumnPercent;
+    case K::Bar:
+    case K::BarPercent: return ChartForm::Bar;
+    case K::BarStacked: return ChartForm::BarStacked;
+    case K::Line:
+    case K::LineStacked: return ChartForm::Line;
+    case K::LineMarkers: return ChartForm::LineMarkers;
+    case K::Pie: return ChartForm::Pie;
+    case K::Doughnut: return ChartForm::Doughnut;
+    case K::Area: return ChartForm::Area;
+    case K::AreaStacked: return ChartForm::AreaStacked;
+    case K::Scatter:
+    case K::ScatterLines:
+    case K::ScatterSmooth: return ChartForm::Scatter;
+    default: return ChartForm::Column;
+    }
+}
+
+// The series of a chart from the data: each its name, the categories, and its numbers. A scatter's categories are its x numbers (or 1, 2, 3 for words).
+QVector<ChartSeries> seriesOfData(const ChartData &data, bool scatter)
+{
+    QVector<ChartSeries> out;
+    QVector<double> xs;
+    if (scatter) {
+        for (int i = 0; i < data.categories.size(); ++i) {
+            bool ok = false;
+            const double v = data.categories[i].toDouble(&ok);
+            xs << (ok && std::isfinite(v) ? v : double(i + 1));
+        }
+    }
+    for (int s = 0; s < data.values.size(); ++s) {
+        ChartSeries series;
+        series.name = data.seriesNames.value(s, QCoreApplication::translate("jp::write::Pictures", "Series %1").arg(s + 1));
+        series.categories = data.categories;
+        series.values = data.values[s];
+        series.xValues = xs;
+        out << series;
+    }
+    return out;
+}
+
+bool dataIsUsable(const ChartData &data)
+{
+    if (data.categories.isEmpty() || data.values.isEmpty() || data.categories.size() > kMostChartCategories || data.values.size() > kMostChartSeries) return false;
+    for (const QVector<double> &v : data.values) {
+        if (v.size() != data.categories.size()) return false;
+        for (double x : v)
+            if (!std::isfinite(x) || std::abs(x) > 1e15) return false;
+    }
+    return true;
+}
+
+const office::Theme &chartTheme(const WriteDoc &doc)
+{
+    static const office::Theme standard = office::defaultTheme();
+    return doc.theme() ? *doc.theme() : standard;
+}
+
+// Every series of the chart, plot by plot.
+QVector<ChartSeries> allSeries(const Chart &chart)
+{
+    QVector<ChartSeries> out;
+    for (const office::ChartPlot &p : chart.plots) out << p.series;
+    return out;
+}
+
+// The part a chart drawing names: the Id in its c:chart, and the bytes.
+bool chartPartOf(const WriteDoc &doc, const QByteArray &graphic, QString *id, QByteArray *bytes)
+{
+    const qsizetype at = graphic.indexOf("<c:chart");
+    if (at < 0) return false;
+    static const QRegularExpression rid(QStringLiteral("r:id=\"([^\"]+)\""));
+    const QRegularExpressionMatch m = rid.match(QString::fromUtf8(graphic.mid(at, 600)));
+    if (!m.hasMatch()) return false;
+    *id = m.captured(1);
+    *bytes = doc.relatedPartData(*id);
+    return !bytes->isEmpty();
+}
+
+// Changes the chart the drawing at `position` names: the part is read, `edit` changes the model, and the part is written again as a new one (so that Undo has the old one).
+bool editChart(WriteDoc &doc, int position, const std::function<bool(Chart &)> &edit)
+{
+    return changePicture(doc, position, [&](Model &m) {
+        QString id;
+        QByteArray old;
+        if (!chartPartOf(doc, m.graphic, &id, &old)) return false;
+        Chart chart;
+        if (!office::readChart(old, chartTheme(doc), office::ColorMap(), &chart)) return false;
+        if (!office::chartIsFullyModeled(old)) {
+            doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "This chart has parts that JeffWrite does not change, so it is kept as it is.");
+            return false;
+        }
+        if (!edit(chart)) return false;
+        const QByteArray now = office::writeChartPart(chart);
+        if (now.isEmpty() || now == old) return false;
+        QString oldTarget;
+        for (const office::Relationship &r : doc.mainRelationshipsForTest())
+            if (r.id == id) oldTarget = r.target;
+        const QString made = doc.addRelatedPart(QStringLiteral("/word/charts"), QStringLiteral("chart"), QStringLiteral("xml"), now, QString::fromLatin1(kChartContentType), QString::fromLatin1(kChartRelationship), oldTarget);
+        m.graphic.replace("r:id=\"" + id.toUtf8() + "\"", "r:id=\"" + made.toUtf8() + "\"");
+        return true;
+    });
+}
+
+} // namespace
+
+const QVector<ChartForm> &chartForms()
+{
+    static const QVector<ChartForm> forms = {ChartForm::Column, ChartForm::ColumnStacked, ChartForm::ColumnPercent, ChartForm::Bar, ChartForm::BarStacked, ChartForm::Line, ChartForm::LineMarkers,
+                                             ChartForm::Pie, ChartForm::Doughnut, ChartForm::Area, ChartForm::AreaStacked, ChartForm::Scatter};
+    return forms;
+}
+
+ChartData sampleChartData()
+{
+    ChartData d;
+    d.categories = {QCoreApplication::translate("jp::write::Pictures", "Category 1"), QCoreApplication::translate("jp::write::Pictures", "Category 2"),
+                    QCoreApplication::translate("jp::write::Pictures", "Category 3")};
+    d.seriesNames = {QCoreApplication::translate("jp::write::Pictures", "Series 1"), QCoreApplication::translate("jp::write::Pictures", "Series 2")};
+    d.values = {{4.3, 2.5, 3.5}, {2.4, 4.4, 1.8}};
+    return d;
+}
+
+ChartInfo chartAt(const WriteDoc &doc, int position)
+{
+    ChartInfo info;
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return info;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return info;
+    Model m;
+    if (!parseDrawing(atom.raw, &m)) return info;
+    QString id;
+    QByteArray bytes;
+    if (!chartPartOf(doc, m.graphic, &id, &bytes)) return info;
+    Chart chart;
+    if (!office::readChart(bytes, chartTheme(doc), office::ColorMap(), &chart)) return info;
+    info.valid = true;
+    info.form = formOfKind(office::sheet::kindOfChart(chart));
+    info.titleShown = chart.title.present;
+    info.title = chart.title.text;
+    info.legendShown = chart.legend.shown;
+    info.legendPosition = chart.legend.position;
+    const QVector<ChartSeries> series = allSeries(chart);
+    info.dataEditable = !series.isEmpty() && office::chartIsFullyModeled(bytes);
+    for (const ChartSeries &s : series) {
+        info.dataLabels = info.dataLabels || s.labels.shown();
+        if (!s.valueRef.isEmpty() || !s.categoryRef.isEmpty() || !s.nameRef.isEmpty()) info.dataEditable = false;
+    }
+    if (!series.isEmpty()) {
+        info.data.categories = series.first().categories;
+        // (A scatter's x numbers are its categories.)
+        if (info.data.categories.isEmpty())
+            for (double x : series.first().xValues) info.data.categories << QString::number(x, 'g', 15);
+    }
+    for (const ChartSeries &s : series) {
+        info.data.seriesNames << s.name;
+        info.data.values << s.values;
+    }
+    return info;
+}
+
+PictureResult insertChart(WriteDoc &doc, QTextCursor &c, ChartForm form, const ChartData &data, const QSizeF &size)
+{
+    if (c.document() != doc.story()) {
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put in a header, a footer, or a note yet.");
+        return PictureResult::Refused;
+    }
+    if (!dataIsUsable(data)) return PictureResult::Unreadable;
+    const office::sheet::ChartKind kind = kindOfForm(form);
+    const QVector<ChartSeries> series = seriesOfData(data, form == ChartForm::Scatter);
+    const QVector<office::sheet::SeriesKind> kinds(series.size(), office::sheet::SeriesKind{kind, false});
+    Chart chart = office::sheet::chartFromSeries(series, kinds, chartTheme(doc));
+    const QByteArray part = office::writeChartPart(chart);
+    if (part.isEmpty()) return PictureResult::Refused;
+    const QSizeF made = size.isEmpty() ? QSizeF(360, 216) : QSizeF(std::clamp(size.width(), kLeastPictureSize, kMostPictureSize), std::clamp(size.height(), kLeastPictureSize, kMostPictureSize));
+    const QString rid = doc.addRelatedPart(QStringLiteral("/word/charts"), QStringLiteral("chart"), QStringLiteral("xml"), part, QString::fromLatin1(kChartContentType), QString::fromLatin1(kChartRelationship));
+    Model m;
+    m.floating = false;
+    m.wrap = PictureWrap::Inline;
+    m.cx = emuOf(made.width());
+    m.cy = emuOf(made.height());
+    const int id = doc.nextDrawingId(doc.story());
+    m.docPr = {{"id", quote(QByteArray::number(id))}, {"name", quote(QByteArray("Chart ") + QByteArray::number(id))}};
+    m.frameProps = "<wp:cNvGraphicFramePr/>";
+    m.graphic = "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" r:id=\"" + rid.toUtf8() +
+                "\"/></a:graphicData></a:graphic>";
+    Inline atom;
+    atom.kind = Inline::RunAtom;
+    atom.tag = QStringLiteral("drawing");
+    atom.raw = drawingXml(m);
+    if (!insertDrawnAtom(doc, c, atom)) {
+        doc.removeMedia(rid);
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.");
+        return PictureResult::Refused;
+    }
+    return PictureResult::Ok;
+}
+
+bool setChartForm(WriteDoc &doc, int position, ChartForm form)
+{
+    return editChart(doc, position, [&](Chart &chart) {
+        if (formOfKind(office::sheet::kindOfChart(chart)) == form && chart.plots.size() == 1) return false;
+        QVector<ChartSeries> series = allSeries(chart);
+        if (series.isEmpty()) return false;
+        // (A scatter's x numbers are the categories of a chart of another kind.)
+        for (ChartSeries &s : series)
+            if (s.categories.isEmpty())
+                for (double x : s.xValues) s.categories << QString::number(x, 'g', 15);
+        // (A scatter's points are placed by x numbers: the categories, read as numbers, or 1, 2, 3.)
+        if (form == ChartForm::Scatter)
+            for (ChartSeries &s : series)
+                if (s.xValues.isEmpty())
+                    for (int i = 0; i < s.values.size(); ++i) {
+                        bool ok = false;
+                        const double v = s.categories.value(i).toDouble(&ok);
+                        s.xValues << (ok && std::isfinite(v) ? v : double(i + 1));
+                    }
+        const QVector<office::sheet::SeriesKind> kinds(series.size(), office::sheet::SeriesKind{kindOfForm(form), false});
+        const Chart like = chart;
+        chart = office::sheet::chartFromSeries(series, kinds, chartTheme(doc), &like);
+        return true;
+    });
+}
+
+bool setChartTitle(WriteDoc &doc, int position, bool shown, const QString &text)
+{
+    const QString clean = cleanText(text, 500);
+    return editChart(doc, position, [&](Chart &chart) {
+        const bool same = chart.title.present == shown && (!shown || (chart.title.text == clean && !chart.title.automatic));
+        if (same) return false;
+        chart.title.present = shown;
+        if (shown) {
+            chart.title.text = clean.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "Chart Title") : clean;
+            chart.title.automatic = false;
+            chart.title.ref.clear();
+        }
+        return true;
+    });
+}
+
+bool setChartLegend(WriteDoc &doc, int position, const QString &legendPosition)
+{
+    if (!legendPosition.isEmpty() && !QStringList{QStringLiteral("r"), QStringLiteral("l"), QStringLiteral("t"), QStringLiteral("b")}.contains(legendPosition)) return false;
+    return editChart(doc, position, [&](Chart &chart) {
+        const bool shown = !legendPosition.isEmpty();
+        if (chart.legend.shown == shown && (!shown || chart.legend.position == legendPosition)) return false;
+        chart.legend.shown = shown;
+        if (shown) {
+            chart.legend.position = legendPosition;
+            chart.legend.manual = false;
+        }
+        return true;
+    });
+}
+
+bool setChartDataLabels(WriteDoc &doc, int position, bool shown)
+{
+    return editChart(doc, position, [&](Chart &chart) {
+        bool now = false;
+        for (const office::ChartPlot &p : chart.plots)
+            for (const ChartSeries &s : p.series) now = now || s.labels.shown();
+        if (now == shown) return false;
+        for (office::ChartPlot &p : chart.plots)
+            for (ChartSeries &s : p.series) {
+                s.labels.value = shown;
+                if (!shown) s.labels.category = s.labels.series = s.labels.percent = s.labels.legendKey = false;
+            }
+        return true;
+    });
+}
+
+bool setChartData(WriteDoc &doc, int position, const ChartData &data)
+{
+    if (!dataIsUsable(data)) return false;
+    return editChart(doc, position, [&](Chart &chart) {
+        const QVector<ChartSeries> old = allSeries(chart);
+        if (old.isEmpty()) return false;
+        for (const ChartSeries &s : old)
+            if (!s.valueRef.isEmpty() || !s.categoryRef.isEmpty() || !s.nameRef.isEmpty()) return false;
+        const office::sheet::ChartKind kind = office::sheet::kindOfChart(chart);
+        QVector<ChartSeries> series = seriesOfData(data, kind == office::sheet::ChartKind::Scatter || kind == office::sheet::ChartKind::ScatterLines || kind == office::sheet::ChartKind::ScatterSmooth);
+        // The look of the series that were there stays with them (their colors, lines, and markers).
+        for (int i = 0; i < series.size() && i < old.size(); ++i) {
+            ChartSeries made = old[i];
+            made.name = series[i].name;
+            made.categories = series[i].categories;
+            made.values = series[i].values;
+            made.xValues = series[i].xValues;
+            made.categoryNumbers.clear();
+            made.categoryRefNumeric = false;
+            series[i] = made;
+        }
+        QVector<office::sheet::SeriesKind> kinds;
+        for (const office::ChartPlot &p : chart.plots)
+            for (int i = 0; i < p.series.size(); ++i) kinds << office::sheet::SeriesKind{office::sheet::kindOfPlot(p), false};
+        while (kinds.size() < series.size()) kinds << office::sheet::SeriesKind{kinds.isEmpty() ? office::sheet::ChartKind::Column : kinds.last().kind, false};
+        kinds.resize(series.size());
+        const Chart like = chart;
+        chart = office::sheet::chartFromSeries(series, kinds, chartTheme(doc), &like);
+        return true;
+    });
+}
 
 PictureResult readPictureFile(const QString &path, QByteArray *bytes)
 {

@@ -45,12 +45,12 @@ int PageView::selectedPicture() const
     if (!m_doc || m_cursor.isNull() || m_cursor.document() != m_doc->story() || !m_cursor.hasSelection()) return -1;
     const int from = m_cursor.selectionStart();
     if (m_cursor.selectionEnd() != from + 1) return -1;
-    return isPictureAt(m_doc->story(), from) ? from : -1;
+    return isDrawnObjectAt(m_doc->story(), from) ? from : -1;
 }
 
 void PageView::selectPicture(int position)
 {
-    if (!m_doc || m_hf.active || m_note.active || !isPictureAt(m_doc->story(), position)) return;
+    if (!m_doc || m_hf.active || m_note.active || !isDrawnObjectAt(m_doc->story(), position)) return;
     m_cursor.setPosition(position);
     m_cursor.setPosition(position + 1, QTextCursor::KeepAnchor);
     caretMoved();
@@ -146,7 +146,7 @@ int PageView::pictureAtPoint(const QPoint &pos)
     if (const int floating = floatingPictureAt(hit); floating >= 0) return floating;
     const int at = positionAt(hit);
     for (const int p : {at, at - 1}) {
-        if (p < 0 || !isPictureAt(m_doc->story(), p)) continue;
+        if (p < 0 || !isDrawnObjectAt(m_doc->story(), p)) continue;
         const PictureInfo info = pictureAt(*m_doc, m_doc->story(), p);
         QRectF r;
         if (info.valid && !info.floating && inlinePictureRect(p, info, &r) && r.contains(pos)) return p;
@@ -204,7 +204,7 @@ void PageView::updatePictureDrag(const QPoint &pos)
         const bool right = d.handle == PictureHandle::Right || d.handle == PictureHandle::TopRight || d.handle == PictureHandle::BottomRight;
         const bool top = d.handle == PictureHandle::Top || d.handle == PictureHandle::TopLeft || d.handle == PictureHandle::TopRight;
         const bool bottom = d.handle == PictureHandle::Bottom || d.handle == PictureHandle::BottomLeft || d.handle == PictureHandle::BottomRight;
-        if ((left || right) && (top || bottom)) {
+        if ((left || right) && (top || bottom) && d.info.kind == DrawnKind::Picture) {
             // A corner keeps the picture's proportions: the side that moved the farther, in proportion, sets the size.
             const double kx = (d.start.width() + (right ? delta.x() : -delta.x())) / d.start.width();
             const double ky = (d.start.height() + (bottom ? delta.y() : -delta.y())) / d.start.height();
@@ -215,6 +215,7 @@ void PageView::updatePictureDrag(const QPoint &pos)
             const QPointF fixed(left ? d.start.right() : d.start.left(), top ? d.start.bottom() : d.start.top());
             r = QRectF(QPointF(left ? fixed.x() - size.width() : fixed.x(), top ? fixed.y() - size.height() : fixed.y()), size);
         } else {
+            // (A shape or text box is free to take any proportions at a corner too.)
             if (left) r.setLeft(std::max(std::min(d.start.left() + delta.x(), d.start.right() - least), d.start.right() - kMostPictureSize * s));
             if (right) r.setRight(std::min(std::max(d.start.right() + delta.x(), d.start.left() + least), d.start.left() + kMostPictureSize * s));
             if (top) r.setTop(std::max(std::min(d.start.top() + delta.y(), d.start.bottom() - least), d.start.bottom() - kMostPictureSize * s));
@@ -332,6 +333,54 @@ bool PageView::insertPictureImage(const QImage &image, PictureWrap wrap)
     Q_EMIT notice(result == PictureResult::Unreadable ? QCoreApplication::translate("jp::write::Pictures", "There is no picture on the clipboard that JeffWrite can read.")
                   : result == PictureResult::TooLarge ? (m_doc->pictureNotice.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "That picture is too large to put in a document.") : m_doc->pictureNotice)
                                                       : m_doc->pictureNotice);
+    return false;
+}
+
+bool PageView::insertShapeObject(const QString &preset)
+{
+    if (!m_doc) return false;
+    m_doc->pictureNotice.clear();
+    QTextCursor c = m_cursor;
+    const PictureResult result = insertShape(*m_doc, c, preset);
+    if (result == PictureResult::Ok) {
+        m_cursor = c;
+        selectPicture(c.position() - 1);
+        Q_EMIT contentChanged();
+        return true;
+    }
+    Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "That shape can't be put here.") : m_doc->pictureNotice);
+    return false;
+}
+
+bool PageView::insertTextBoxObject(const TextBoxDesign &design)
+{
+    if (!m_doc) return false;
+    m_doc->pictureNotice.clear();
+    QTextCursor c = m_cursor;
+    const PictureResult result = insertTextBox(*m_doc, c, design);
+    if (result == PictureResult::Ok) {
+        m_cursor = c;
+        selectPicture(c.position() - 1);
+        Q_EMIT contentChanged();
+        return true;
+    }
+    Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "A text box can't be put here.") : m_doc->pictureNotice);
+    return false;
+}
+
+bool PageView::insertChartObject(ChartForm form)
+{
+    if (!m_doc) return false;
+    m_doc->pictureNotice.clear();
+    QTextCursor c = m_cursor;
+    const PictureResult result = insertChart(*m_doc, c, form);
+    if (result == PictureResult::Ok) {
+        m_cursor = c;
+        selectPicture(c.position() - 1);
+        Q_EMIT contentChanged();
+        return true;
+    }
+    Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "A chart can't be put here.") : m_doc->pictureNotice);
     return false;
 }
 

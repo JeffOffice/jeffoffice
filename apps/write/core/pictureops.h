@@ -20,8 +20,8 @@ namespace jp::write {
 
 enum class PictureWrap { Inline, Square, Tight, TopAndBottom, BehindText, InFrontOfText };
 
-// What a drawn object of the text is: a picture, a shape of the drawing format (a rectangle, an arrow, a star, and the rest), a text box, or a line.
-enum class DrawnKind { Picture, Shape, TextBox, Line };
+// What a drawn object of the text is: a picture, a shape of the drawing format (a rectangle, an arrow, a star, and the rest), a text box, a line, or a chart.
+enum class DrawnKind { Picture, Shape, TextBox, Line, Chart };
 
 // The most bytes of a picture's file that are taken, the most pixels it may hold, and the longest side; and the least and most a picture is made, in points, on a side.
 constexpr qint64 kMostPictureBytes = qint64(48) << 20;
@@ -73,7 +73,7 @@ struct PictureInfo {
     double lineWeight = 0, rotation = 0;
     // A picture's cut edges as shares of the whole picture, its border, and its brightness and contrast (each from -1 to 1), and whether it is shown in gray.
     double cropLeft = 0, cropTop = 0, cropRight = 0, cropBottom = 0;
-    bool grayscale = false;
+    bool grayscale = false, blackWhite = false;
     double brightness = 0, contrast = 0;
 };
 
@@ -106,6 +106,20 @@ bool setPictureDecorative(WriteDoc &doc, int position, bool decorative);
 bool setPicturePlace(WriteDoc &doc, int position, double pageX, double pageY);
 // Moves an inline picture to another place in the text (`to`, a position outside the picture): one step.
 bool movePictureInText(WriteDoc &doc, int position, int to);
+
+// ---- Picture adjustments
+
+enum class PictureRecolor { None, Grayscale, BlackAndWhite };
+// Cuts the picture's edges: each a share of the whole picture (0 up to just under 1; a negative one leaves room round the picture), the pair on a side kept under 0.98. The frame
+// changes with the cut so that the picture keeps its scale, as the other edits do. One step; false when it makes no difference or the shares are not usable.
+bool setPictureCrop(WriteDoc &doc, int position, double left, double top, double right, double bottom);
+// How bright and how contrasting the picture is drawn, each from -1 to 1 (0 is as it is).
+bool setPictureCorrections(WriteDoc &doc, int position, double brightness, double contrast);
+bool setPictureRecolor(WriteDoc &doc, int position, PictureRecolor recolor);
+// Takes off the cut, the corrections, the recolor, and the border: the picture as it came in, at the scale it has (so its frame grows by what the cut took off).
+bool resetPicture(WriteDoc &doc, int position);
+// Another picture in the place of this one, in the same frame width, with the same place, wrap, and alt text; its cuts and colors are not kept. The result is as insertPicture's.
+PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &bytes);
 
 // ---- Shapes and text boxes
 
@@ -163,5 +177,45 @@ bool setShapeLine(WriteDoc &doc, int position, const QString &rgb, double weight
 bool setShapeRotation(WriteDoc &doc, int position, double degrees);
 // Another shape of the gallery in its place, its size and look kept.
 bool setShapePreset(WriteDoc &doc, int position, const QString &preset);
+
+// ---- Charts
+
+// The kinds of chart Insert offers (and a chart's kind, as nearly as these say it).
+enum class ChartForm { Column, ColumnStacked, ColumnPercent, Bar, BarStacked, Line, LineMarkers, Pie, Doughnut, Area, AreaStacked, Scatter };
+const QVector<ChartForm> &chartForms();
+// What a chart plots: the words under the points (or a scatter's x numbers), the name of each series, and the numbers (a list for each series, a number for each category).
+struct ChartData {
+    QStringList categories, seriesNames;
+    QVector<QVector<double>> values;
+};
+// The most categories and series a chart made here has.
+constexpr int kMostChartCategories = 200, kMostChartSeries = 24;
+// Three categories and two series, to begin with.
+ChartData sampleChartData();
+// What a chart of the text is: its kind, its title (its words; shown or not), its legend (shown, and where: "r", "l", "t", "b"), whether its points are labeled, and its data when the
+// chart holds the numbers itself (a chart that reads cells of a workbook it is kept with can be changed in all but its data).
+struct ChartInfo {
+    bool valid = false;
+    ChartForm form = ChartForm::Column;
+    bool titleShown = false;
+    QString title;
+    bool legendShown = false;
+    QString legendPosition;
+    bool dataLabels = false;
+    bool dataEditable = false;
+    ChartData data;
+};
+ChartInfo chartAt(const WriteDoc &doc, int position);
+// A chart of the kind at the cursor (in line with the text), in place of a selection, one step that undoes; `size` (points; empty for the usual 360 by 216) is held to the least and most
+// a picture's is. Unreadable for data that is empty, or has more than the most categories or series, or numbers that are not numbers.
+PictureResult insertChart(WriteDoc &doc, QTextCursor &c, ChartForm form, const ChartData &data = sampleChartData(), const QSizeF &size = QSizeF());
+// Changes to the chart at `position`, one step each; false when it is no chart that can be changed (a chart the program does not write whole is refused, with a notice) or the change makes
+// no difference. Its look is kept: its title, legend, colors, and page.
+bool setChartForm(WriteDoc &doc, int position, ChartForm form);
+bool setChartTitle(WriteDoc &doc, int position, bool shown, const QString &text);
+// `legendPosition` is "r", "l", "t", or "b"; empty takes the legend off.
+bool setChartLegend(WriteDoc &doc, int position, const QString &legendPosition);
+bool setChartDataLabels(WriteDoc &doc, int position, bool shown);
+bool setChartData(WriteDoc &doc, int position, const ChartData &data);
 
 } // namespace jp::write

@@ -298,6 +298,19 @@
                 "insert.picture",
                 "insert.pictureClipboard"
               ]
+            },
+            {
+              "widget": "shapesButton",
+              "keytip": "SH"
+            },
+            {
+              "large": {
+                "id": "ribbon.chart",
+                "text": "Chart",
+                "icon": "chart-column"
+              },
+              "keytip": "CH",
+              "menu": "@insertChart"
             }
           ]
         },
@@ -375,6 +388,23 @@
           "keytip": "ZX",
           "items": [
             {
+              "large": {
+                "id": "ribbon.textBox",
+                "text": "Text Box",
+                "icon": "text-cursor-input"
+              },
+              "keytip": "TB",
+              "menu": [
+                "insert.textBox.simple",
+                "insert.textBox.plain",
+                "-",
+                "insert.textBox.sidebar",
+                "insert.textBox.quote",
+                "insert.textBox.band",
+                "insert.textBox.note"
+              ]
+            },
+            {
               "large": "insert.textFromFile",
               "keytip": "TF"
             },
@@ -402,6 +432,10 @@
           "name": "Symbols",
           "keytip": "ZS",
           "items": [
+            {
+              "large": "insert.equation",
+              "keytip": "EQ"
+            },
             {
               "large": {
                 "id": "ribbon.symbol",
@@ -1862,6 +1896,70 @@
       "color": "picture",
       "groups": [
         {
+          "name": "Adjust",
+          "keytip": "ZJ",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.corrections",
+                "text": "Corrections",
+                "icon": "sun"
+              },
+              "keytip": "CO",
+              "menu": "@pictureCorrections"
+            },
+            {
+              "large": {
+                "id": "ribbon.pictureColor",
+                "text": "Color",
+                "icon": "palette"
+              },
+              "keytip": "CL",
+              "menu": "@pictureColor"
+            },
+            {
+              "large": "picture.change",
+              "keytip": "CH"
+            },
+            {
+              "large": "picture.reset",
+              "keytip": "RP"
+            }
+          ]
+        },
+        {
+          "name": "Picture Styles",
+          "keytip": "ZY",
+          "items": [
+            {
+              "widget": "pictureStyles",
+              "keytip": "PS"
+            },
+            {
+              "widget": "pictureBorder",
+              "keytip": "PB"
+            },
+            {
+              "large": {
+                "id": "ribbon.pictureWeight",
+                "text": "Weight",
+                "icon": "minus"
+              },
+              "keytip": "PQ",
+              "menu": "@shapeWeight"
+            },
+            {
+              "large": {
+                "id": "ribbon.pictureDash",
+                "text": "Dashes",
+                "icon": "circle-dashed"
+              },
+              "keytip": "PD",
+              "menu": "@shapeDash"
+            }
+          ]
+        },
+        {
           "name": "Arrange",
           "keytip": "ZA",
           "items": [
@@ -1913,6 +2011,237 @@
             {
               "small": "picture.lockAspect",
               "keytip": "LA"
+            },
+            {
+              "large": "picture.crop",
+              "keytip": "CR"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Shape Format",
+      "keytip": "JS",
+      "context": "Shape Tools",
+      "color": "shape",
+      "groups": [
+        {
+          "name": "Insert Shapes",
+          "keytip": "SI",
+          "items": [
+            {
+              "widget": "shapesButton",
+              "keytip": "SH"
+            },
+            {
+              "widget": "changeShape",
+              "keytip": "CS"
+            },
+            {
+              "large": "shape.editText",
+              "keytip": "ET"
+            }
+          ]
+        },
+        {
+          "name": "Shape Styles",
+          "keytip": "SS",
+          "items": [
+            {
+              "widget": "shapeStyles",
+              "keytip": "SY"
+            },
+            {
+              "widget": "shapeFill",
+              "keytip": "SF"
+            },
+            {
+              "widget": "shapeOutline",
+              "keytip": "SO"
+            },
+            {
+              "large": {
+                "id": "ribbon.shapeWeight",
+                "text": "Weight",
+                "icon": "minus"
+              },
+              "keytip": "SW",
+              "menu": "@shapeWeight"
+            },
+            {
+              "large": {
+                "id": "ribbon.shapeDash",
+                "text": "Dashes",
+                "icon": "circle-dashed"
+              },
+              "keytip": "SD",
+              "menu": "@shapeDash"
+            }
+          ]
+        },
+        {
+          "name": "Arrange",
+          "keytip": "ZA",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.shapeWrapText",
+                "text": "Wrap Text",
+                "icon": "wrap-text"
+              },
+              "keytip": "WT",
+              "menu": "@pictureWrap"
+            },
+            {
+              "large": {
+                "id": "ribbon.shapeRotate",
+                "text": "Rotate",
+                "icon": "rotate-cw"
+              },
+              "keytip": "RO",
+              "menu": "@shapeRotate"
+            },
+            {
+              "large": "picture.altText",
+              "keytip": "AT"
+            },
+            {
+              "large": "picture.decorative",
+              "keytip": "MD"
+            }
+          ]
+        },
+        {
+          "name": "Size",
+          "keytip": "ZS",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Height:"
+                },
+                {
+                  "widget": "shapeHeight",
+                  "keytip": "PH"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Width:"
+                },
+                {
+                  "widget": "shapeWidth",
+                  "keytip": "PW"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chart Format",
+      "keytip": "JC",
+      "context": "Chart Tools",
+      "color": "chart",
+      "groups": [
+        {
+          "name": "Data",
+          "keytip": "CD",
+          "items": [
+            {
+              "large": "chart.editData",
+              "keytip": "ED"
+            },
+            {
+              "large": {
+                "id": "ribbon.chartType",
+                "text": "Change Chart Type",
+                "icon": "chart-column"
+              },
+              "keytip": "CT",
+              "menu": "@chartType"
+            }
+          ]
+        },
+        {
+          "name": "Chart Layouts",
+          "keytip": "CL",
+          "items": [
+            {
+              "large": "chart.title",
+              "keytip": "TT"
+            },
+            {
+              "large": "chart.editTitle",
+              "keytip": "ET"
+            },
+            {
+              "large": {
+                "id": "ribbon.chartLegend",
+                "text": "Legend",
+                "icon": "list-checks"
+              },
+              "keytip": "LG",
+              "menu": "@chartLegend"
+            },
+            {
+              "large": "chart.dataLabels",
+              "keytip": "DL"
+            }
+          ]
+        },
+        {
+          "name": "Arrange",
+          "keytip": "ZA",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.chartWrapText",
+                "text": "Wrap Text",
+                "icon": "wrap-text"
+              },
+              "keytip": "WT",
+              "menu": "@pictureWrap"
+            },
+            {
+              "large": "picture.altText",
+              "keytip": "AT"
+            },
+            {
+              "large": "picture.decorative",
+              "keytip": "MD"
+            }
+          ]
+        },
+        {
+          "name": "Size",
+          "keytip": "ZS",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Height:"
+                },
+                {
+                  "widget": "shapeHeight",
+                  "keytip": "PH"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Width:"
+                },
+                {
+                  "widget": "shapeWidth",
+                  "keytip": "PW"
+                }
+              ]
             }
           ]
         }

@@ -264,6 +264,8 @@ void WriteWindow::createActions()
     createRefsActions();
     createTableActions();
     createPictureActions();
+    createShapeActions();
+    createPictureAdjustActions();
     createInsertActions();
     createLayoutExtraActions();
     createViewExtraActions();

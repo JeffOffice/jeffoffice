@@ -316,6 +316,20 @@ private:
     void updateFieldsNow();
     void createTableActions();
     void createPictureActions();
+    void createShapeActions();
+    void createPictureAdjustActions();
+    void insertEquationDialog();
+    void createChartActions();
+    void chartRibbonParts(RibbonParts &parts);
+    void refreshChartUi();
+    void editChartData();
+    void editChartTitle();
+    void cropSelectedPicture();
+    void changeSelectedPicture();
+    void shapeRibbonParts(RibbonParts &parts);
+    void refreshShapeUi();
+    void editShapeText();
+    void turnSelectedShape(double degrees, bool relative);
     void createInsertActions();
     void createLayoutExtraActions();
     void createViewExtraActions();
@@ -440,6 +454,7 @@ private:
     qint64 m_painterPicked = 0;   // when the painter was picked up (milliseconds since the epoch)
     write::FormatBrush m_brush;
     QList<MeasureSpin *> m_pictureFields;   // the height and width of the Picture Format tab
+    QList<MeasureSpin *> m_shapeFields;     // the height and width of the Shape Format tab
     write::Ruler *m_ruler = nullptr;
     QList<MeasureSpin *> m_tableFields;     // the row height and column width of the Table Layout tab
     QWidget *m_tableStyleGallery = nullptr;
