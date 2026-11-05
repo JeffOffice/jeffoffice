@@ -95,8 +95,9 @@ bool EditSession::pivotUsable(int table, QString *why) const
     for (const PivotDataField &d : e.table->dataFields)
         if (d.showDataAs != QLatin1String("normal") && d.showDataAs != QLatin1String("difference") && d.showDataAs != QLatin1String("percent") && d.showDataAs != QLatin1String("percentDiff") &&
             d.showDataAs != QLatin1String("runTotal") && d.showDataAs != QLatin1String("percentOfRow") && d.showDataAs != QLatin1String("percentOfCol") && d.showDataAs != QLatin1String("percentOfTotal") &&
-            d.showDataAs != QLatin1String("index")) {
-            if (why) *why = tr("This pivot table shows a value as a rank or as a percent of a parent, which JeffCrunch doesn't work out yet. It stays as it is.");
+            d.showDataAs != QLatin1String("index") && d.showDataAs != QLatin1String("rankAscending") && d.showDataAs != QLatin1String("rankDescending") && d.showDataAs != QLatin1String("percentOfParentRow") &&
+            d.showDataAs != QLatin1String("percentOfParentCol")) {
+            if (why) *why = tr("This pivot table shows a value as something that JeffCrunch doesn't work out yet. It stays as it is.");
             return false;
         }
     return true;

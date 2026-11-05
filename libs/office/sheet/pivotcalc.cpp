@@ -353,9 +353,9 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
     const int D = int(t.dataFields.size());
     for (const PivotDataField &d : t.dataFields) {
         if (d.fld < 0 || d.fld >= nf) return fail(QStringLiteral("a value field is not in the cache"));
-        static const QSet<QString> kShown = {QStringLiteral("normal"), QStringLiteral("difference"), QStringLiteral("percent"), QStringLiteral("percentDiff"), QStringLiteral("runTotal"),
+        static const QSet<QString> kShown = {QStringLiteral("rankAscending"), QStringLiteral("rankDescending"), QStringLiteral("percentOfParentRow"), QStringLiteral("percentOfParentCol"), QStringLiteral("normal"), QStringLiteral("difference"), QStringLiteral("percent"), QStringLiteral("percentDiff"), QStringLiteral("runTotal"),
                                              QStringLiteral("percentOfRow"), QStringLiteral("percentOfCol"), QStringLiteral("percentOfTotal"), QStringLiteral("index")};
-        if (!kShown.contains(d.showDataAs)) return fail(QStringLiteral("a value shown as a rank or a percent of a parent"));
+        if (!kShown.contains(d.showDataAs)) return fail(QStringLiteral("a value shown as something this does not work out (") + d.showDataAs + QLatin1Char(')'));
         if (fnOf(d.subtotal) == Fn::None) return fail(QStringLiteral("a value function this does not work out"));
     }
     int dataSlotRow = -1, dataSlotCol = -1;
@@ -936,7 +936,9 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
         std::vector<char> baseOnRows(size_t(std::max(D, 1)), 1);
         for (int d = 0; d < D; ++d) {
             const PivotDataField &df = t.dataFields[d];
-            if (df.showDataAs != QLatin1String("difference") && df.showDataAs != QLatin1String("percent") && df.showDataAs != QLatin1String("percentDiff") && df.showDataAs != QLatin1String("runTotal")) continue;
+            if (df.showDataAs != QLatin1String("difference") && df.showDataAs != QLatin1String("percent") && df.showDataAs != QLatin1String("percentDiff") && df.showDataAs != QLatin1String("runTotal") &&
+                df.showDataAs != QLatin1String("rankAscending") && df.showDataAs != QLatin1String("rankDescending"))
+                continue;
             int l = levelOf(t.rowFields, df.baseField);
             if (l >= 0) {
                 rowSides[d].reset(new Side(sideOf(rowAx, rowPath, l)));
@@ -950,6 +952,28 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             baseLevel[d] = l;
         }
         const std::vector<PivotCell> raw = shown;
+        // (for a percent of a parent: the line of each line's parent on its axis, made when first wanted; -1 for none found, -2 for the grand total)
+        std::vector<int> parentOfRow, parentOfCol;
+        auto parentsOf = [&](const Axis &ax, const std::vector<Tuple> &paths, std::vector<int> *out) {
+            if (!out->empty()) return;
+            std::unordered_map<std::string, int> byPath;
+            for (size_t i = 0; i < ax.items.size(); ++i) {
+                const PivotAxisItem &it = ax.items[i];
+                if (it.t == QLatin1String("grand") || it.t == QLatin1String("blank") || it.labelOnly || paths[i].empty()) continue;
+                byPath.emplace(keyOf(paths[i]), int(i));
+            }
+            out->assign(ax.items.size(), -1);
+            for (size_t i = 0; i < ax.items.size(); ++i) {
+                const Tuple &p = paths[i];
+                if (p.empty()) continue;
+                if (p.size() == 1) {
+                    (*out)[i] = -2;
+                    continue;
+                }
+                const auto f = byPath.find(keyOf(Tuple(p.begin(), p.end() - 1)));
+                if (f != byPath.end()) (*out)[i] = f->second;
+            }
+        };
         std::vector<std::vector<double>> running(size_t(std::max(D, 1)));   // (for a running total: its sum at each cell, made when first wanted)
         auto number = [&](const PivotCell &c, double *v) {
             if (c.kind != PivotCell::Number) return false;
@@ -991,6 +1015,22 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
                     divide(&pc, v, totalOf(rowTot[size_t(ri) * D + d]));
                 } else if (df.showDataAs == QLatin1String("percentOfCol")) {
                     divide(&pc, v, totalOf(colTot[size_t(ci) * D + d]));
+                } else if (df.showDataAs == QLatin1String("percentOfParentRow") || df.showDataAs == QLatin1String("percentOfParentCol")) {
+                    const bool onRows = df.showDataAs == QLatin1String("percentOfParentRow");
+                    const PivotAxisItem &own = onRows ? rowAx.items[ri] : colAx.items[ci];
+                    if (own.t == QLatin1String("grand") || own.t == QLatin1String("blank")) {
+                        blankCell(at);
+                        continue;
+                    }
+                    parentsOf(onRows ? rowAx : colAx, onRows ? rowPath : colPath, onRows ? &parentOfRow : &parentOfCol);
+                    const int parent = (onRows ? parentOfRow : parentOfCol)[size_t(onRows ? ri : ci)];
+                    double den = 0;
+                    if (parent == -2) den = totalOf(onRows ? colTot[size_t(ci) * D + d] : rowTot[size_t(ri) * D + d]);
+                    else if (parent < 0 || !number(onRows ? raw[size_t(parent) * nCI + ci] : raw[size_t(ri) * nCI + parent], &den)) {
+                        blankCell(at);
+                        continue;
+                    }
+                    divide(&pc, v, den);
                 } else if (df.showDataAs == QLatin1String("index")) {
                     const double rt = totalOf(rowTot[size_t(ri) * D + d]), ct = totalOf(colTot[size_t(ci) * D + d]);
                     divide(&pc, v * totalOf(grandTot[size_t(d)]), rt * ct);
@@ -1013,7 +1053,16 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
                     const std::vector<int> &sibs = *side->sibsOf[size_t(ownLine)];
                     const int me = side->placeOf[size_t(ownLine)];
                     auto cellOf = [&](int line) -> const PivotCell & { return onRows ? raw[size_t(line) * nCI + ci] : raw[size_t(ri) * nCI + line]; };
-                    if (df.showDataAs == QLatin1String("runTotal")) {
+                    if (df.showDataAs == QLatin1String("rankAscending") || df.showDataAs == QLatin1String("rankDescending")) {
+                        // (the place of the value among those of the group's lines, 1 for the largest, or for the smallest when ascending)
+                        const bool up = df.showDataAs == QLatin1String("rankAscending");
+                        int place = 1;
+                        for (int line : sibs) {
+                            double x = 0;
+                            if (number(cellOf(line), &x) && (up ? x < v : x > v)) ++place;
+                        }
+                        pc.number = place;
+                    } else if (df.showDataAs == QLatin1String("runTotal")) {
                         // (the sums are worked out once for the value, line by line along each group, and kept)
                         std::vector<double> &run = running[size_t(d)];
                         if (run.empty()) {

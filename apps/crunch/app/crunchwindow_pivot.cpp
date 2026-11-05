@@ -626,7 +626,8 @@ void CrunchWindow::askValueField(int dataIndex)
                 notice(tr("Value Field Settings"), tr("A field of the data is called \"%1\". Pick another name.").arg(name));
                 return;
             }
-    const bool relative = settings.showAs == QLatin1String("difference") || settings.showAs == QLatin1String("percent") || settings.showAs == QLatin1String("percentDiff") || settings.showAs == QLatin1String("runTotal");
+    const bool ranked = settings.showAs == QLatin1String("rankAscending") || settings.showAs == QLatin1String("rankDescending");
+    const bool relative = settings.showAs == QLatin1String("difference") || settings.showAs == QLatin1String("percent") || settings.showAs == QLatin1String("percentDiff") || settings.showAs == QLatin1String("runTotal") || ranked;
     if (relative && settings.bases.isEmpty()) {
         notice(tr("Value Field Settings"), tr("Put a field in the rows or the columns first. A value is shown against the items of a field."));
         return;
@@ -641,11 +642,11 @@ void CrunchWindow::askValueField(int dataIndex)
         df.subtotal = settings.function;
         df.showDataAs = settings.showAs;
         df.baseField = relative ? settings.baseField : 0;
-        df.baseItem = relative && settings.showAs != QLatin1String("runTotal") ? settings.baseItem : 0;
+        df.baseItem = relative && !ranked && settings.showAs != QLatin1String("runTotal") ? settings.baseItem : 0;
         if (!canFormat) {
         } else if (!settings.numFmtCode.isEmpty()) {
             df.numFmtCode = settings.numFmtCode;
-        } else if (settings.showAs != d.showDataAs && settings.showAs != QLatin1String("normal") && settings.showAs != QLatin1String("difference") && settings.showAs != QLatin1String("runTotal") && settings.showAs != QLatin1String("index")) {
+        } else if (settings.showAs != d.showDataAs && settings.showAs != QLatin1String("normal") && settings.showAs != QLatin1String("difference") && settings.showAs != QLatin1String("runTotal") && settings.showAs != QLatin1String("index") && !ranked) {
             df.numFmtCode = QStringLiteral("0.00%");   // (a share shows as a percent unless a format is chosen)
         }
     }, tr("Value Field Settings"), false);

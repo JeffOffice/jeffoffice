@@ -604,10 +604,27 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool
             x.setAttribute(QStringLiteral("name"), pivotEncodeXString(d.name));
             x.setAttribute(QStringLiteral("fld"), QString::number(d.fld));
             if (d.subtotal != QLatin1String("sum")) x.setAttribute(QStringLiteral("subtotal"), d.subtotal);
-            if (d.showDataAs != QLatin1String("normal")) x.setAttribute(QStringLiteral("showDataAs"), d.showDataAs);
+            const bool extended = d.showDataAs == QLatin1String("rankAscending") || d.showDataAs == QLatin1String("rankDescending") || d.showDataAs == QLatin1String("percentOfParentRow") ||
+                                  d.showDataAs == QLatin1String("percentOfParentCol");
+            if (d.showDataAs != QLatin1String("normal") && !extended) x.setAttribute(QStringLiteral("showDataAs"), d.showDataAs);
             x.setAttribute(QStringLiteral("baseField"), QString::number(d.baseField));
             x.setAttribute(QStringLiteral("baseItem"), QString::number(d.baseItem));
             if (d.numFmtId > 0) x.setAttribute(QStringLiteral("numFmtId"), QString::number(d.numFmtId));
+            if (extended) {
+                // (the schema's showDataAs has no word for these: they are the extension of the value field, as the 2010 program writes them)
+                const QString x14 = QStringLiteral("http://schemas.microsoft.com/office/spreadsheetml/2009/9/main");
+                QDomElement list = doc.createElement(QStringLiteral("extLst"));
+                QDomElement ext = doc.createElement(QStringLiteral("ext"));
+                ext.setAttribute(QStringLiteral("uri"), QStringLiteral("{E15A36E0-9728-4e99-A89B-3F7291B0FE68}"));
+                ext.setAttribute(QStringLiteral("xmlns:x14"), x14);
+                QDomElement m = doc.createElementNS(x14, QStringLiteral("x14:dataField"));
+                m.setAttribute(QStringLiteral("pivotShowAs"), d.showDataAs);
+                m.setAttribute(QStringLiteral("sourceField"), QStringLiteral("0"));
+                m.setAttribute(QStringLiteral("uniqueName"), QStringLiteral("[Measures].[%1]").arg(pivotEncodeXString(d.name)));
+                ext.appendChild(m);
+                list.appendChild(ext);
+                x.appendChild(list);
+            }
             df.appendChild(x);
         }
     }

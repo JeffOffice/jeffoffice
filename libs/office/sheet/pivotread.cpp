@@ -596,6 +596,9 @@ bool readPivotTable(const QByteArray &xml, PivotTable *out, QString *why)
                 it.showDetails = flag(a.value(QLatin1String("sd")), true);
                 it.n = pivotDecodeXString(a.value(QLatin1String("n")).toString());
                 field->items.append(it);
+            } else if (depth >= 5 && section == QLatin1String("dataFields") && n == QLatin1String("dataField") && !out->dataFields.isEmpty() && a.hasAttribute(QLatin1String("pivotShowAs"))) {
+                // (the extension of the value field: a rank, or a percent of a parent, which the schema's own showDataAs has no word for)
+                out->dataFields.last().showDataAs = a.value(QLatin1String("pivotShowAs")).toString();
             } else if (field && section == QLatin1String("pivotFields") && a.hasAttribute(QLatin1String("fillDownLabels"))) {
                 field->fillDownLabels = flag(a.value(QLatin1String("fillDownLabels")), false);
             } else if (field && section == QLatin1String("pivotFields") && n == QLatin1String("reference") && a.value(QLatin1String("field")) == QLatin1String("4294967294")) {
