@@ -1891,6 +1891,32 @@ private Q_SLOTS:
         QTRY_COMPARE(count(QStringLiteral("^f")), 1);
     }
 
+    void webLayoutAfterAFitZoomKeepsTheZoomAndStaysStable()
+    {
+        QByteArray body;
+        for (int i = 0; i < 30; ++i) body += para(run("A paragraph of plain words."));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        QTRY_VERIFY(w.view()->pageCount() >= 1);
+        // A zoom that fits a page to the window, then Web Layout: the zoom is the one there was, and the width settles.
+        w.act(QStringLiteral("zoom.onePage"))->trigger();
+        const double zoom = w.view()->zoom();
+        w.act(QStringLiteral("view.webLayout"))->trigger();
+        QTest::qWait(100);
+        QCOMPARE(w.view()->zoom(), zoom);
+        const double width = w.document()->flow().section(0).paper.width();
+        QTest::qWait(100);
+        QCOMPARE(w.document()->flow().section(0).paper.width(), width);
+        QVERIFY(width > 120);
+        w.act(QStringLiteral("zoom.pageWidth"))->trigger();   // (asking for a fit while it is on changes nothing)
+        QTest::qWait(100);
+        QCOMPARE(w.view()->zoom(), zoom);
+        QCOMPARE(w.document()->flow().section(0).paper.width(), width);
+    }
+
     void theFindPaneCanSearchWithWildcardsAndReplaceWithGroups()
     {
         WriteWindow w;

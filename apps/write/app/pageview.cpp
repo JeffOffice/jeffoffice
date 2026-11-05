@@ -325,11 +325,13 @@ void PageView::setWebLayout(bool on)
         leaveNote();
     }
     m_web = on;
+    if (on) m_mode = ZoomMode::Percent;   // (the zoom stays as it is)
     if (m_doc) {
         if (on) fitWebWidth();
         else m_doc->setWebLayout(0);
         startPagination();
     }
+    if (!on && m_mode != ZoomMode::Percent) applyZoomMode();
     relayout();
     viewport()->update();
 }
@@ -499,7 +501,7 @@ void PageView::setScrollRanges()
 
 void PageView::applyZoomMode()
 {
-    if (!m_doc || m_mode == ZoomMode::Percent) return;
+    if (!m_doc || m_mode == ZoomMode::Percent || m_web) return;   // (Web Layout sets the page as wide as the window at the zoom it has: a zoom that fits the page to the window would chase it)
     const QSizeF ps = m_doc->pager().page(std::clamp(topPage(), 0, std::max(0, m_doc->pager().pagesKnown() - 1))).size;
     if (ps.isEmpty()) return;
     const double vw = viewport()->width(), vh = viewport()->height();
