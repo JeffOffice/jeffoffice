@@ -298,6 +298,18 @@ void PageView::goToPage(int index)
     if (m_sideToSide) horizontalScrollBar()->setValue(int(m_rects[index].left() - kMargin));
 }
 
+void PageView::setDraft(bool on)
+{
+    if (m_draft == on) return;
+    if (on) {
+        leaveHeaderFooter();
+        leaveNote();
+    }
+    m_draft = on;
+    relayout();
+    viewport()->update();
+}
+
 void PageView::setSideToSide(bool on)
 {
     if (m_sideToSide == on) return;
@@ -376,6 +388,7 @@ void PageView::relayout()
     const int known = pg.pagesKnown();
     m_complete = pg.complete();
     const double s = scale();
+    const double gap = m_draft ? 0.0 : kGap;
     const int cols = m_sideToSide ? std::max(1, known) : std::max(1, m_across);
     // The sizes of the pages: while edits wait to be laid out, those of pages not made yet are as they were.
     QVector<QSizeF> sizes(known);
@@ -390,7 +403,7 @@ void PageView::relayout()
     QVector<double> rowW(rows, 0.0), rowH(rows, 0.0);
     for (int i = 0; i < known; ++i) {
         const int r = i / cols;
-        rowW[r] += sizes[i].width() + (i % cols ? kGap : 0);
+        rowW[r] += sizes[i].width() + (i % cols ? gap : 0);
         rowH[r] = std::max(rowH[r], sizes[i].height());
     }
     double widest = 0;
@@ -406,11 +419,11 @@ void PageView::relayout()
             const int i = r * cols + c;
             if (i >= known) break;
             m_rects[i] = QRectF(QPointF(x, y), sizes[i]);
-            x += sizes[i].width() + kGap;
+            x += sizes[i].width() + gap;
         }
-        y += rowH[r] + kGap;
+        y += rowH[r] + gap;
     }
-    m_content = QSizeF(area + 2 * kMargin, rows ? y - kGap + kMargin : 2 * kMargin);
+    m_content = QSizeF(area + 2 * kMargin, rows ? y - gap + kMargin : 2 * kMargin);
     const bool changed = known != m_knownPages;
     // (A page that shows the number of pages was made with the number there was: with another, it is made again. So is one that shows the pages bookmarks are on, as far as the pages were
     // laid out when it was made.)
@@ -610,7 +623,8 @@ void PageView::paintEvent(QPaintEvent *e)
         if (!r.intersects(visible)) continue;
         const QRectF dev = r.translated(-sx, -sy);
         // The page's shadow and its paper.
-        for (int k = 4; k >= 1; --k) p.fillRect(dev.adjusted(k, k, k, k), QColor(0, 0, 0, dark ? 28 : 14));
+        if (!m_draft)
+            for (int k = 4; k >= 1; --k) p.fillRect(dev.adjusted(k, k, k, k), QColor(0, 0, 0, dark ? 28 : 14));
         p.fillRect(dev, Qt::white);
         const auto page = rendered(i);
         if (!page) {
@@ -626,6 +640,7 @@ void PageView::paintEvent(QPaintEvent *e)
             d.marks = m_marks;
             d.gridlines = m_gridlines;
             d.shadeFields = m_shadeFields;
+            d.draft = m_draft;
             d.pageCount = std::max(1, m_knownPages);
             if (m_hf.active) {
                 d.editedStory = m_hf.story;
@@ -658,6 +673,24 @@ void PageView::paintEvent(QPaintEvent *e)
             paintPage(&p, *page->page, &page->layouts, d);
             if (m_reviewMarks.changeBars || m_reviewMarks.formatBars || m_reviewMarks.comments || m_reviewMarks.deletions) paintReviewMarks(p, *page);
             p.restore();
+        }
+        if (m_draft) {
+            // The end of a page is a dotted line, named where the next page begins a section or the break was asked for.
+            if (i + 1 < m_knownPages) {
+                const auto &next = pg.page(i + 1).start;
+                const QString name = next.firstOfSection ? tr("Section Break") : next.hard ? tr("Page Break") : QString();
+                p.setPen(QPen(QColor(0x60, 0x60, 0x60, dark ? 200 : 160), 1, Qt::DotLine));
+                const double y = dev.bottom() - 0.5;
+                if (name.isEmpty()) {
+                    p.drawLine(QPointF(dev.left(), y), QPointF(dev.right(), y));
+                } else {
+                    const QFontMetricsF fm(font());
+                    const double w = fm.horizontalAdvance(name) + 16, mid = dev.center().x();
+                    p.drawLine(QPointF(dev.left(), y), QPointF(dev.right(), y));
+                    p.drawText(QRectF(mid - w / 2, y - fm.height() - 1, w, fm.height()), Qt::AlignCenter, name);
+                }
+            }
+            continue;
         }
         p.setPen(QPen(QColor(0, 0, 0, dark ? 90 : 50), 1));
         p.setBrush(Qt::NoBrush);

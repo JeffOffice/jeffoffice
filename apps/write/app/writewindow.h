@@ -190,6 +190,8 @@ public:
     // Outline view (View > Outline): the paragraphs as a tree to promote, demote, and move, in place of the pages; the Outlining tab is there while it is.
     bool outlineMode() const { return m_outlineOn; }
     void setOutlineMode(bool on);
+    // Draft (View > Draft): the pages run on without edges, headers, or footers; Print Layout and Outline each end it.
+    void setDraftView(bool on);
     WriteOutlineView *outlineView() const { return m_outline; }
 
     // The Styles pane on the right (made when first asked for, so null before).

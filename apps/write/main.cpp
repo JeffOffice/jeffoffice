@@ -151,6 +151,8 @@ int main(int argc, char **argv)
                 w->navigationPane()->tabs()->setCurrentIndex(qEnvironmentVariableIntValue("JW_SCREENSHOT_NAVIGATION"));
                 w->navigationPane()->refresh();
             }
+            // (And Draft view: JW_SCREENSHOT_DRAFT=1.)
+            if (qEnvironmentVariableIsSet("JW_SCREENSHOT_DRAFT")) w->act(QStringLiteral("view.draft"))->trigger();
             // (And pages side to side: JW_SCREENSHOT_SIDE=1.)
             if (qEnvironmentVariableIsSet("JW_SCREENSHOT_SIDE")) w->act(QStringLiteral("view.pageMovement.sideToSide"))->trigger();
             // (And Outline view: JW_SCREENSHOT_OUTLINE=1, with JW_SCREENSHOT_OUTLINE_LEVEL=n to show down to a level.)

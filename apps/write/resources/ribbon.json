@@ -1171,6 +1171,10 @@
               "keytip": "P"
             },
             {
+              "large": "view.draft",
+              "keytip": "D"
+            },
+            {
               "large": "view.outline",
               "keytip": "O"
             },

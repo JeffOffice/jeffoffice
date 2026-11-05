@@ -3,6 +3,7 @@
 #include "../isolatesettings.h"
 #include "app/help.h"
 #include "app/writeoutlineview.h"
+#include "app/pagepaint.h"
 #include "app/pageview.h"
 #include "app/ribbon.h"
 #include "app/writeinfo.h"
@@ -569,6 +570,38 @@ private Q_SLOTS:
         QCOMPARE(texts(*w.document()), (QStringList{"One", "Sub", "", "body"}));
         QCOMPARE(levels(*w.document()).at(2), 1);
         QCOMPARE(w.outlineView()->selectedRange().first, outlineRows(*w.document())[2].position);
+    }
+
+    void draftViewJoinsThePagesAndDrawsNoEdgesOrHeaders()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        QTextCursor c = w.view()->cursor();
+        insertBlankPage(*w.document(), c);
+        insertBlankPage(*w.document(), c);
+        w.view()->paginateAll();
+        w.view()->setZoom(0.5);
+        const int gap = w.view()->pageRect(1).top() - w.view()->pageRect(0).bottom();
+        QVERIFY(gap > 2);
+        QVERIFY(w.act("view.draft") && !w.act("view.draft")->isChecked() && w.act("view.printLayout")->isChecked());
+        bool drafted = false;
+        setPaintObserver([&](const flow::MaterializedPage &, const PageDrawing &d) { drafted = d.draft; });
+        w.act(QStringLiteral("view.draft"))->trigger();
+        QVERIFY(w.view()->draft());
+        QVERIFY(!w.act("view.printLayout")->isChecked() && w.act("view.draft")->isChecked());
+        QVERIFY(std::abs(w.view()->pageRect(1).top() - w.view()->pageRect(0).bottom()) <= 1);   // (rounded to whole pixels)
+        w.view()->grab();
+        setPaintObserver(nullptr);
+        QVERIFY(drafted);
+        // Print Layout, and Outline, take it away again.
+        w.act(QStringLiteral("view.printLayout"))->trigger();
+        QVERIFY(!w.view()->draft());
+        QVERIFY(std::abs(w.view()->pageRect(1).top() - w.view()->pageRect(0).bottom() - gap) <= 1);
+        w.act(QStringLiteral("view.draft"))->trigger();
+        w.act(QStringLiteral("view.outline"))->trigger();
+        QVERIFY(w.outlineMode() && !w.view()->draft() && !w.act("view.draft")->isChecked());
     }
 };
 

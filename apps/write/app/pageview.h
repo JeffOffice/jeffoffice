@@ -71,6 +71,9 @@ public:
     void setZoomMode(ZoomMode mode, int across = 2, int down = 1);
     int pagesAcross() const { return m_across; }
     // Page movement: the pages in a column (the usual), or all in one row that the window scrolls side to side.
+    // Draft: the pages run on without edges, shadows, headers, or footers, a dotted line (named for a page or section break) where each ends.
+    void setDraft(bool on);
+    bool draft() const { return m_draft; }
     void setSideToSide(bool on);
     bool sideToSide() const { return m_sideToSide; }
 
@@ -418,7 +421,7 @@ private:
     double m_zoom = 1.0;
     ZoomMode m_mode = ZoomMode::Percent;
     int m_across = 1, m_down = 1;
-    bool m_sideToSide = false;
+    bool m_sideToSide = false, m_draft = false;
     bool m_marks = false;
     bool m_gridlines = false;
     bool m_shadeFields = false;

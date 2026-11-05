@@ -21,7 +21,12 @@ void WriteWindow::createOutlineActions()
     mk("view.outline", tr("Outline"), "list-tree", QKeySequence(), [this] { setOutlineMode(act("view.outline")->isChecked()); }, true);
     // Print Layout is the other view: choosing it leaves the outline.
     disconnect(act("view.printLayout"), nullptr, nullptr, nullptr);
-    connect(act("view.printLayout"), &QAction::triggered, this, [this] { setOutlineMode(false); });
+    connect(act("view.printLayout"), &QAction::triggered, this, [this] {
+        setOutlineMode(false);
+        setDraftView(false);
+        act("view.printLayout")->setChecked(true);
+    });
+    mk("view.draft", tr("Draft"), "scroll-text", QKeySequence(), [this] { setDraftView(act("view.draft")->isChecked()); }, true);
     auto onRows = [this](const std::function<void(write::WriteDoc &, int, int)> &run) {
         return [this, run] {
             if (!m_doc || !m_outlineOn || isReadOnly()) return;
@@ -117,9 +122,19 @@ void WriteWindow::outlineEdited()
     refreshUi();
 }
 
+void WriteWindow::setDraftView(bool on)
+{
+    if (on && m_outlineOn) setOutlineMode(false);
+    m_view->setDraft(on && m_doc);
+    act("view.draft")->setChecked(m_view->draft());
+    act("view.printLayout")->setChecked(!m_view->draft() && !m_outlineOn);
+    refreshUi();
+}
+
 void WriteWindow::setOutlineMode(bool on)
 {
     if (on == m_outlineOn) return;
+    if (on) setDraftView(false);
     if (on && !m_doc) {
         act("view.outline")->setChecked(false);
         return;

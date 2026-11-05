@@ -355,7 +355,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 ## View tab
 
 ### Views
-- [~] **first release** Print Layout (pages as they print), Draft (one continuous column, with a style area), and Outline *(shared: JeffPub's page view)* *(beta: Print Layout only)* *(round 10: Outline is a view of its own, with the Outlining tab; Draft and Web Layout are not there)*
+- [~] **first release** Print Layout (pages as they print), Draft (one continuous column, with a style area), and Outline *(shared: JeffPub's page view)* *(beta: Print Layout only)* *(round 10: Outline is a view of its own, with the Outlining tab; Draft runs the pages on with no edges, shadows, headers, or footers and a dotted line, named for a page or section break, where each page ends, and the margins above and below the text stay as blank space; Web Layout is not there)*
 - [~] **1.0** Web Layout and Read Mode (the page fitted to the window, side to side, with column width, page color, and layout choices) *(round 10: View > Read Mode hides the ribbon, ruler, and panes as Focus does, puts the pages in a row each fitted to the window, and keeps the text from being changed; Esc, F11, or the command again ends it; missing: Web Layout, and a column width, page color, and layout choices)*
 - [x] **1.0** Focus mode: the ribbon and window parts out of the way *(round 9: View > Focus, F11, hides the ribbon, ruler, status bar, and panes and fills the screen; Esc or F11 brings them back)*
 - [ ] **later** Immersive Reader tools: column width, page color (none, sepia, inverse), text spacing, syllables, Read Aloud, and Line Focus (one, three, or five lines lit at a time)

@@ -583,7 +583,7 @@ void PageView::mouseDoubleClickEvent(QMouseEvent *e)
                 return;
             }
         }
-        if (!m_hf.active && area != Area::Body && (leaveNote(), enterHeaderFooter(hit.page, area == Area::Footer))) {
+        if (!m_hf.active && !m_draft && area != Area::Body && (leaveNote(), enterHeaderFooter(hit.page, area == Area::Footer))) {
             const int at = positionAt(hit);
             if (at >= 0) {
                 m_cursor.setPosition(at);
