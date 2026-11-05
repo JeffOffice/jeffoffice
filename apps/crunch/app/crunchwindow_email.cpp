@@ -45,7 +45,7 @@ bool CrunchWindow::exportEmail(EmailWhat what)
             if (m_objects) m_objects->addToSave(&snapshot.changes);
             office::sheet::SaveReport report;
             if (office::sheet::saveXlsx(*m_loaded->book, snapshot.changes, &bytes, &err, &report)) {
-                // (a workbook with a password is sent with it)
+                // (a workbook with a password stays locked with it; the password is never in the message)
                 if (m_fileProtected) bytes = office::encryptPackage(bytes, m_filePassword.isEmpty() ? office::defaultPassword() : m_filePassword);
             } else {
                 bytes.clear();
