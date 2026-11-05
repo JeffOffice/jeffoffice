@@ -382,6 +382,7 @@ void GridView::setShowGridlines(bool on)
 
 void GridView::setShowZeros(bool on)
 {
+    if (m_sheet.showZeros() == on) return;
     m_sheet.setShowZeros(on);
     viewport()->update();
 }
