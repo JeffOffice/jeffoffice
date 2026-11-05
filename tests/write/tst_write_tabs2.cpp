@@ -14,6 +14,7 @@
 #include "core/insertops.h"
 #include "core/linkops.h"
 #include "core/outlineops.h"
+#include "core/tableops.h"
 #include "core/writedoc.h"
 
 #include <QAction>
@@ -451,6 +452,50 @@ private Q_SLOTS:
         w.view()->setCursor(top);
         w.refreshNow();
         QCOMPARE(label->text(), QStringLiteral("Section 1"));
+    }
+
+    void movingASectionKeepsItsListAndItsTable()
+    {
+        auto doc = outlineDoc({{"A", 0}, {"x1", kBodyLevel}, {"x2", kBodyLevel}, {"after list", kBodyLevel}, {"B", 0}, {"b text", kBodyLevel}});
+        QVector<OutlineRow> rows = outlineRows(*doc);
+        QTextCursor c(doc->story());
+        c.setPosition(rows[1].position);
+        c.setPosition(rows[2].position, QTextCursor::KeepAnchor);
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        toggleList(*doc, c, false);
+        QTextCursor t(doc->story());
+        t.setPosition(rows[3].position);
+        QVERIFY(insertTable(*doc, t, NewTable()));
+        auto look = [&] {
+            QStringList out;
+            int cells = 0;
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) {
+                if (inTable(b)) ++cells;
+                out << QStringLiteral("%1:%2").arg(b.text().remove(QChar(0xFFFC))).arg(int(listKindOf(*doc, b)));
+            }
+            return QStringList{out.join('|'), QString::number(cells)};
+        };
+        const QStringList before = look();
+        const QByteArray bytes = doc->toDocx();
+        QVERIFY(before[1].toInt() >= 4);
+        rows = outlineRows(*doc);
+        QVERIFY(outlineMove(*doc, rows[0].position, false, true));   // A, with its list and table, below B
+        QStringList after = look();
+        QCOMPARE(after[1], before[1]);
+        QVERIFY(after[0].startsWith(QStringLiteral("B:0")));
+        QVERIFY(after[0].contains(QStringLiteral("x1:1|x2:1")));
+        QVERIFY(after[0].contains(QStringLiteral("A:0")));
+        QCOMPARE(outlineRows(*doc).first().text, QStringLiteral("B"));
+        doc->undo();
+        QCOMPARE(look(), before);
+        QCOMPARE(doc->toDocx(), bytes);
+        // Up as well: B above everything.
+        rows = outlineRows(*doc);
+        QVERIFY(outlineMove(*doc, rows.at(rows.size() - 2).position, true, true));
+        QCOMPARE(look()[1], before[1]);
+        QVERIFY(look()[0].contains(QStringLiteral("x1:1|x2:1")));
+        doc->undo();
+        QCOMPARE(doc->toDocx(), bytes);
     }
 };
 
