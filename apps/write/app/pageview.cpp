@@ -5,6 +5,7 @@
 #include "core/commentops.h"
 #include "core/editops.h"
 #include "core/linkops.h"
+#include "core/outlineops.h"
 #include "app/plaintext.h"
 #include "core/reviewops.h"
 #include "core/tableops.h"
@@ -19,6 +20,7 @@
 #include <QToolTip>
 #include <QPaintEvent>
 #include <QPainter>
+#include <QPolygonF>
 #include <QMap>
 #include <QScrollBar>
 #include <QSet>
@@ -223,6 +225,10 @@ void PageView::setCursor(const QTextCursor &c)
 
 bool PageView::viewportEvent(QEvent *e)
 {
+    if (e->type() == QEvent::Leave && m_collapseHover >= 0) {
+        m_collapseHover = -1;
+        viewport()->update();
+    }
     if (e->type() == QEvent::ToolTip && m_doc) {
         auto *help = static_cast<QHelpEvent *>(e);
         const Hit hit = hitAt(help->pos());
@@ -606,6 +612,7 @@ void PageView::documentChanged(int position, int, int added)
 {
     if (!m_doc) return;
     m_editEnd = position + added;
+    if (m_doc->collapseActive()) QTimer::singleShot(0, this, [this] { if (m_doc) refreshCollapsed(*m_doc); });   // (the paragraphs the collapsed headings hide follow the text)
     const int page = m_doc->pager().pageOfPosition(std::clamp(position, 0, std::max(0, m_doc->story()->characterCount() - 1)));
     dropRendered(std::max(0, page - 1));
     relayout();
@@ -753,6 +760,7 @@ void PageView::paintEvent(QPaintEvent *e)
             p.restore();
         }
     }
+    if (!m_hf.active && !m_note.active && !m_draft) paintCollapseMarks(p, e->rect());
     // The caret.
     if (m_caretOn && (hasFocus() || m_caretWithoutFocus) && !m_cursor.hasSelection()) {
         QRect r;
@@ -765,6 +773,83 @@ void PageView::paintEvent(QPaintEvent *e)
         relayout();
         viewport()->update();
     });
+}
+
+// ---- collapse and expand headings
+
+// The triangle by a heading sits in the margin, left of the paragraph's first line.
+QRect PageView::collapseMark(int headingPosition)
+{
+    QRect r;
+    if (!m_doc || !positionRect(headingPosition, &r)) return QRect();
+    const int side = std::clamp(r.height() * 3 / 4, 10, 16);
+    return QRect(r.left() - side - 8, r.top() + (r.height() - side) / 2, side, side);
+}
+
+int PageView::headingAt(const QPoint &viewportPos)
+{
+    if (!m_doc || m_hf.active || m_note.active || m_draft) return -1;
+    const Hit hit = hitAt(viewportPos);
+    if (hit.page < 0 || areaOf(hit) != Area::Body) return -1;
+    const int at = positionAt(hit);
+    if (at < 0 || m_cursor.document() != m_doc->story()) return -1;
+    const int start = m_doc->story()->findBlock(at).position();
+    if (headingLevelAt(*m_doc, start) < 0) return -1;
+    QRect line;
+    if (!positionRect(start, &line)) return -1;
+    return viewportPos.y() >= line.top() && viewportPos.y() <= line.bottom() ? start : -1;
+}
+
+bool PageView::toggleHeadingCollapsed(int position)
+{
+    if (!m_doc || m_hf.active || m_note.active) return false;
+    const int start = m_doc->story()->findBlock(position).position();
+    const bool collapse = !headingCollapsed(*m_doc, start);
+    if (!setHeadingCollapsed(*m_doc, start, collapse)) return false;
+    // (A caret in what is hidden now goes to the heading.)
+    if (collapse && hiddenByCollapse(*m_doc, m_cursor.position())) {
+        m_cursor.setPosition(start);
+        caretMoved();
+    }
+    viewport()->update();
+    return true;
+}
+
+// A triangle for the heading the pointer is on (pointing down), and one for each heading that is collapsed (pointing right), among those on the screen.
+void PageView::paintCollapseMarks(QPainter &p, const QRect &clip)
+{
+    if (!m_doc || (m_collapseHover < 0 && !m_doc->collapseActive())) return;
+    QVector<int> shown;
+    if (m_collapseHover >= 0) shown << m_collapseHover;
+    if (m_doc->collapseActive()) {
+        flow::Paginator &pg = m_doc->pager();
+        const int known = pg.pagesKnown();
+        if (known > 0) {
+            const int first = std::clamp(topPage(), 0, known - 1);
+            int stop = std::min(known - 1, first + 2);
+            const int from = pg.page(first).start.pos;
+            const int to = stop + 1 < known ? pg.page(stop + 1).start.pos : m_doc->story()->characterCount();
+            int looked = 0;
+            for (QTextBlock b = m_doc->story()->findBlock(from); b.isValid() && b.position() < to && looked < 20000; b = b.next(), ++looked)
+                if (headingCollapsed(*m_doc, b.position()) && b.position() != m_collapseHover) shown << b.position();
+        }
+    }
+    p.save();
+    p.setRenderHint(QPainter::Antialiasing, true);
+    for (const int at : std::as_const(shown)) {
+        const QRect box = collapseMark(at);
+        if (box.isEmpty() || !box.adjusted(-2, -2, 2, 2).intersects(clip)) continue;
+        const bool open = !headingCollapsed(*m_doc, at);
+        const QPointF c = box.center();
+        const double h = box.width() * 0.32;
+        QPolygonF tri;
+        if (open) tri << QPointF(c.x() - h, c.y() - h * 0.6) << QPointF(c.x() + h, c.y() - h * 0.6) << QPointF(c.x(), c.y() + h * 0.9);
+        else tri << QPointF(c.x() - h * 0.6, c.y() - h) << QPointF(c.x() + h * 0.9, c.y()) << QPointF(c.x() - h * 0.6, c.y() + h);
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor(0x60, 0x60, 0x60));
+        p.drawPolygon(tri);
+    }
+    p.restore();
 }
 
 // ---- marks for review
@@ -1218,6 +1303,7 @@ void PageView::caretMoved(bool keepWanted)
 {
     // (The endnotes the pages set are not the person's: no caret or selection reaches them. A caret that has gone on past those at the end of a section is at the start of the next
     // section's text, one that has gone back at the end of the last section's, and a click in them is at the nearer place.)
+    if (m_doc && m_doc->collapseActive() && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story()) expandAround(*m_doc, m_cursor.position());   // (a caret that goes into what a collapsed heading hides opens it)
     int direction = 0;
     const int movedFrom = m_movedFrom;
     if (m_movedFrom >= 0 && m_cursor.document()) direction = m_cursor.position() > m_movedFrom ? 1 : m_cursor.position() < m_movedFrom ? -1 : 0;

@@ -1,5 +1,5 @@
 # Find your way with the Navigation pane
-<!-- keywords: navigation pane, navigation, headings, outline, pages, thumbnails, results, results by heading, results by page, search, promote, demote, collapse, expand, outline view, outlining, page movement, side to side, read mode, draft view, split, move heading, show level, focus, focus mode, full screen, gridlines -->
+<!-- keywords: collapse heading, expand heading, fold, triangle, navigation pane, navigation, headings, outline, pages, thumbnails, results, results by heading, results by page, search, promote, demote, collapse, expand, outline view, outlining, page movement, side to side, read mode, draft view, split, move heading, show level, focus, focus mode, full screen, gridlines -->
 
 The **Navigation pane** is a panel on the left of the window. Open it with **View > Navigation Pane**. It has three tabs.
 
@@ -37,6 +37,12 @@ The box under the search box sets how the places are listed. **As text** lists t
 - Double-click a paragraph of text to open it on the pages. **Close Outline View**, or **View > Print Layout**, goes back to the pages.
 
 Each change is one step to undo. For more writing, such as new paragraphs, go to Print Layout.
+
+## Collapse a heading on the page
+
+You can fold away what is under a heading, right in the document. Point at a heading. A small triangle shows in the margin, just to the left of it. Click the triangle. The paragraphs under the heading, up to the next heading of the same size or bigger, are hidden. A triangle that points right stays beside a heading that is collapsed. Click it again to open the heading.
+
+This only changes what you see on the screen. Printing, saving to PDF, and saving the file all keep every paragraph. If you move the cursor into a hidden paragraph, such as when Find reaches it, the heading opens. Tables and text boxes under a collapsed heading stay in view.
 
 ## Focus
 

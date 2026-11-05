@@ -43,18 +43,20 @@
 namespace jp {
 
 namespace {
-// Hidden text shown on the screen is laid out without for the paper and the file, and shown again after.
+// Hidden text shown on the screen, and the paragraphs that collapsed headings hide, are laid out without for the paper and the file (every paragraph is there), and as they were after.
 struct HiddenTextOff {
-    explicit HiddenTextOff(write::WriteDoc *doc) : m_doc(doc), m_was(doc && doc->showsHiddenText())
+    explicit HiddenTextOff(write::WriteDoc *doc) : m_doc(doc), m_was(doc && doc->showsHiddenText()), m_collapsed(doc && doc->collapseActive() && !doc->collapseSuspended())
     {
         if (m_was) m_doc->setShowHiddenText(false);
+        if (m_collapsed) m_doc->suspendCollapse(true);
     }
     ~HiddenTextOff()
     {
         if (m_was) m_doc->setShowHiddenText(true);
+        if (m_collapsed) m_doc->suspendCollapse(false);
     }
     write::WriteDoc *m_doc;
-    bool m_was;
+    bool m_was, m_collapsed;
 };
 } // namespace
 

@@ -426,6 +426,12 @@ public:
     // Shows the text that is hidden in the file, as the formatting marks do (a view of the text, not a change to it).
     void setShowHiddenText(bool on);
     bool showsHiddenText() const { return m_showHidden; }
+    // Collapsed headings (core/outlineops.h): whether some heading is collapsed, and so its paragraphs are left out of the lines (a view of the text, not a change to it). The paper and the file are
+    // laid out with the collapse suspended, and it comes back after.
+    void setCollapseActive(bool any);
+    bool collapseActive() const { return m_collapseAny; }
+    void suspendCollapse(bool on);
+    bool collapseSuspended() const { return m_collapseSuspended; }
 
     // ---- tables
     // What the last table command that did nothing said of why (empty when it did what it was asked): a limit of the file, or a shape it can't take.
@@ -899,6 +905,8 @@ private:
     int m_fieldCodesCount = 0;
     int m_fieldCodeView = 0;
     bool m_showHidden = false;
+    bool m_collapseAny = false, m_collapseSuspended = false;
+    void renewCollapse();
     int hiddenBit() const { return m_showHidden ? tp::kRevisionShowHidden : 0; }
     void writeReviewSettings(office::wml::Document *out);
     void writeSourcesPart(office::wml::Document *out);

@@ -16,6 +16,7 @@
 #include "core/commentops.h"
 #include "core/compareops.h"
 #include "core/gotoops.h"
+#include "core/outlineops.h"
 #include "core/editops.h"
 #include "core/pictureops.h"
 #include "core/reviewops.h"
@@ -1681,6 +1682,98 @@ private Q_SLOTS:
         QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("body needle text")));
         QCOMPARE(w.document()->headerFooterStory(0, false, 0)->toPlainText(), QStringLiteral("needle in the header"));
         QCOMPARE(w.document()->headerFooterStory(0, true, 0)->toPlainText(), QStringLiteral("the footer needle"));
+    }
+
+    // Three headings of two levels, each with a paragraph or two under it.
+    static QByteArray headingsDoc()
+    {
+        auto heading = [](const char *text, int level) { return para(run(text), "<w:outlineLvl w:val=\"" + QByteArray::number(level) + "\"/>"); };
+        return makeDocx(heading("Alpha", 0) + para(run("under alpha one")) + para(run("under alpha two")) + heading("Alpha child", 1) + para(run("under the child")) + heading("Beta", 0) +
+                        para(run("under beta")));
+    }
+
+    void collapsingAHeadingHidesItsParagraphsOnTheScreenOnly()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(headingsDoc()), QString());
+        QTRY_VERIFY(w.view()->pageCount() >= 1);
+        const QString text = w.document()->story()->toPlainText();
+        const int beta = int(text.indexOf(QStringLiteral("Beta"))), child = int(text.indexOf(QStringLiteral("Alpha child")));
+        QRect before, after, line;
+        QVERIFY(w.view()->positionRect(beta, &before));
+        const QByteArray saved = w.document()->toDocx();
+        QVERIFY(w.view()->toggleHeadingCollapsed(0));
+        QVERIFY(headingCollapsed(*w.document(), 0));
+        QVERIFY(hiddenByCollapse(*w.document(), text.indexOf(QStringLiteral("under alpha two"))));
+        QVERIFY(hiddenByCollapse(*w.document(), child));   // (the lower heading goes with what is under the higher one)
+        QVERIFY(!hiddenByCollapse(*w.document(), beta));
+        QTRY_VERIFY(w.view()->positionRect(beta, &after) && after.top() < before.top() - 60);
+        QVERIFY(w.view()->positionRect(0, &line));
+        QCOMPARE(w.document()->story()->toPlainText(), text);   // (the text is as it was)
+        // The paper and the file are of every paragraph: the file is the same, and the pages are laid out as they were while one is made.
+        QCOMPARE(w.document()->toDocx(), saved);
+        w.document()->suspendCollapse(true);
+        QTRY_VERIFY(w.view()->positionRect(beta, &after) && after.top() == before.top());
+        w.document()->suspendCollapse(false);
+        QTRY_VERIFY(w.view()->positionRect(beta, &after) && after.top() < before.top() - 60);
+        shot(&w, QStringLiteral("collapse-heading.png"));
+        // Opening it brings them back; a paragraph that is no heading does not collapse.
+        QVERIFY(w.view()->toggleHeadingCollapsed(0));
+        QVERIFY(!headingCollapsed(*w.document(), 0));
+        QTRY_VERIFY(w.view()->positionRect(beta, &after) && after.top() == before.top());
+        QVERIFY(!setHeadingCollapsed(*w.document(), text.indexOf(QStringLiteral("under beta")), true));
+        // A lower heading collapses alone, up to the next of its level or above.
+        QVERIFY(w.view()->toggleHeadingCollapsed(child));
+        QVERIFY(hiddenByCollapse(*w.document(), text.indexOf(QStringLiteral("under the child"))));
+        QVERIFY(!hiddenByCollapse(*w.document(), text.indexOf(QStringLiteral("under alpha two"))));
+        QVERIFY(!hiddenByCollapse(*w.document(), beta));
+        // Moving the caret into what is hidden opens it.
+        QTextCursor in(w.document()->story());
+        in.setPosition(text.indexOf(QStringLiteral("under the child")) + 3);
+        w.view()->setCursor(in);
+        QVERIFY(!hiddenByCollapse(*w.document(), in.position()));
+        QVERIFY(!w.document()->collapseActive());
+    }
+
+    void theTriangleByAHeadingShowsOnHoverAndCollapsesOnAClick()
+    {
+        auto grey = [](QWidget *view) {
+            const QImage img = view->grab().toImage();
+            int n = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width() / 3; ++x) {
+                    const QColor c = img.pixelColor(x, y);
+                    if (c.red() == 0x60 && c.green() == 0x60 && c.blue() == 0x60) ++n;
+                }
+            return n;
+        };
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(headingsDoc()), QString());
+        QTRY_VERIFY(w.view()->pageCount() >= 1);
+        QWidget *vp = w.view()->viewport();
+        QRect line;
+        QVERIFY(w.view()->positionRect(0, &line));
+        QTest::qWait(30);
+        const int none = grey(vp);
+        const QPoint onHeading(line.left() + 10, line.center().y());
+        QTest::mouseMove(vp, onHeading);
+        QTRY_VERIFY(grey(vp) > none + 10);   // (a triangle by the heading the pointer is on)
+        shot(&w, QStringLiteral("collapse-triangle.png"));
+        const QPoint triangle(line.left() - 14, line.center().y());
+        QTest::mouseMove(vp, triangle);
+        QTest::mouseClick(vp, Qt::LeftButton, Qt::NoModifier, triangle);
+        QVERIFY(headingCollapsed(*w.document(), 0));
+        // (A collapsed heading keeps its triangle, pointing right, with the pointer elsewhere.)
+        QTest::mouseMove(vp, QPoint(vp->width() - 5, vp->height() - 5));
+        QTRY_VERIFY(grey(vp) > none + 10);
+        QTest::mouseClick(vp, Qt::LeftButton, Qt::NoModifier, triangle);
+        QVERIFY(!headingCollapsed(*w.document(), 0));
     }
 
     void theFindPaneCanSearchWithWildcardsAndReplaceWithGroups()

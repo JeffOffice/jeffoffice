@@ -6,6 +6,8 @@
 #include <QStringList>
 #include <QHash>
 #include <QSet>
+#include <QTextBlock>
+#include <QTextDocument>
 #include <QTextFormat>
 #include <QTextListFormat>
 
@@ -127,6 +129,11 @@ constexpr int kRevisionMark = 2;          // text a change inserted, deleted, or
 constexpr int kRevisionHideInserted = 4;  // text a change inserted or moved here is not shown (the document as it was)
 constexpr int kRevisionShowHidden = 16;   // text its author hid is shown (with the formatting marks), as it is in the file: not for text a change deleted
 inline constexpr char kRevisionViewProperty[] = "jp.revisionView";
+// Collapsed headings (a view of the text, never a change to it): a paragraph a heading's collapse hides has this user state, and is left out of the lines like hidden text while the story's
+// property kCollapseProperty is true (LayoutEnv::collapseEpoch is what tells a layout made before from one made after).
+constexpr int kCollapsedBlock = 0x4A43;
+inline constexpr char kCollapseProperty[] = "jp.collapse";
+inline bool collapsedBlock(const QTextBlock &b) { return b.userState() == kCollapsedBlock && b.document()->property(kCollapseProperty).toBool(); }
 // The color of the marks of a person's changes (a place in the document's list of people).
 inline QColor revisionColor(int author)
 {

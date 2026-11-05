@@ -115,6 +115,8 @@ public:
     // The header, footer, or note being edited (null while the text is), and how to go to one: edits the one that has the story on a page that shows it (`page`, from 0, says which);
     // false where no page shows it.
     const QTextDocument *editedSideStory() const { return sideStory(); }
+    // Collapses or opens the heading whose paragraph holds the position (what the little triangle by a heading does); false where there is no such heading.
+    bool toggleHeadingCollapsed(int position);
     bool enterSideStory(QTextDocument *story, int *page = nullptr);
     // The faint edges of the cells of tables that have no lines (View Gridlines).
     void setShowGridlines(bool on);
@@ -422,6 +424,11 @@ private:
     bool tableHandle(QRectF *box, int *page, int *cellPosition, QRectF *table);
     bool tableHandleAt(const QPoint &viewportPos, ColumnDrag *found);
     int m_hoverCursorShape = -1;
+    // The small triangle by a heading (Collapse and expand): the heading the pointer is on (its paragraph's place, -1 for none), the triangle's box on the viewport for a heading, and the heading under a point.
+    int m_collapseHover = -1;
+    QRect collapseMark(int headingPosition);
+    int headingAt(const QPoint &viewportPos);
+    void paintCollapseMarks(QPainter &p, const QRect &clip);
     bool pictureRectUncached(int position, QRectF *rect);
     struct RectKey {
         const void *doc = nullptr;   // the document (another one made as this one is is not it)
