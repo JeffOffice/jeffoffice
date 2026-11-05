@@ -1,5 +1,5 @@
 # Names for cells and values
-<!-- keywords: name, names, defined name, new name, named range, scope, comment, name from cells, insert name, Ctrl+F3, refers to, sort names, error name, warning-->
+<!-- keywords: name, names, defined name, new name, named range, scope, comment, name from cells, insert name, apply names, Ctrl+F3, refers to, sort names, error name, warning-->
 
 A **name** is a word that stands for a cell, a block of cells, a number, or a formula, so that =Price*Quantity can be written in place of =B2*C2. A name belongs to the whole workbook, or to one sheet. A name on a sheet hides a name of the workbook that is spelled the same, on that sheet.
 
@@ -30,3 +30,7 @@ Changing the name of a name changes it in every formula that uses it, on every s
 ## Put a name in a formula
 
 While you type a formula, the names that fit show in the list under the cell. **Insert Name** on the **Formulas** tab lists the names to choose from.
+
+## Put names in formulas that are already written
+
+Say you made the name Rate for $A$1 after many formulas already read $A$1. Click **Apply Names** on the **Formulas** tab to write Rate in their place. Select the cells to look at first, or select one cell to look at the whole sheet. Choose the names to put in. A reference is changed only when it is exactly the cells of the name, with or without the dollar signs: A1:B2 is not changed to a name for A1. Only names for one block of cells on a sheet are offered, and only names of the whole workbook. The change is one step, so **Undo** takes it back.

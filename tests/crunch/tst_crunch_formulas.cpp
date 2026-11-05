@@ -1088,6 +1088,70 @@ private Q_SLOTS:
         QCOMPARE(int(f.view()->checkArrows().size()), int(grid::GridView::kMaxCheckArrows));
         QVERIFY(f.win.w.statusText().contains(QStringLiteral("more are not drawn")));
     }
+
+    void traceErrorFollowsTheErrorBackToItsMaker()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=1", "B1==A1/0", "C1==B1+1", "D1==C1*2", "E1==A1+1"}})));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(kEnglish);
+        QVERIFY(e.settle());
+        // a cell that is not an error has nothing to trace
+        e.select(QStringLiteral("E1"));
+        QVERIFY(!w.traceError());
+        QVERIFY(w.statusText().contains(QStringLiteral("not an error")));
+        e.select(QStringLiteral("D1"));
+        QVERIFY(w.act(QStringLiteral("formulas.traceError"))->isEnabled());
+        QVERIFY(w.traceError());
+        QCOMPARE(int(e.view()->checkArrows().size()), 1);   // C1 -> D1
+        QCOMPARE(e.view()->checkArrows()[0].from.col1, qint64(2));
+        QVERIFY(w.traceError());
+        QCOMPARE(int(e.view()->checkArrows().size()), 2);   // B1 -> C1
+        QCOMPARE(e.view()->checkArrows()[1].from.col1, qint64(1));
+        // B1 reads only a number: it makes the error
+        QVERIFY(!w.traceError());
+        QVERIFY(w.statusText().contains(QStringLiteral("makes the error")));
+        QCOMPARE(int(e.view()->checkArrows().size()), 2);
+    }
+
+    void applyNamesPutsNamesInFormulasAsOneStep()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=5", "B1==A1*2", "C1==$A$1+Sheet2!A1", "D1==SUM(A1:B1)"}, {"A1=3", "B1==Sheet1!A1+1"}})));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(kEnglish);
+        QVERIFY(e.settle());
+        QVERIFY(w.act(QStringLiteral("formulas.applyNames"))->isEnabled());
+        // no name for cells yet
+        QVERIFY(!w.applyNamesCommand());
+        crunch::EditSession::NameDraft d;
+        d.name = QStringLiteral("Rate");
+        d.text = QStringLiteral("Sheet1!$A$1");
+        QVERIFY(w.session()->defineName(d).ok);
+        QStringList offered;
+        w.setApplyNamesAsker([&offered](const QStringList &all, QStringList *chosen) {
+            offered = all;
+            *chosen = all;
+            return true;
+        });
+        e.select(QStringLiteral("A1"));   // one cell: the whole sheet
+        QVERIFY(w.applyNamesCommand());
+        QCOMPARE(offered, QStringList({QStringLiteral("Rate")}));
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->editText(0, 0, 1), QStringLiteral("=Rate*2"));
+        QCOMPARE(w.session()->editText(0, 0, 2), QStringLiteral("=Rate+Sheet2!A1"));
+        QCOMPARE(w.session()->editText(0, 0, 3), QStringLiteral("=SUM(A1:B1)"));
+        QCOMPARE(w.session()->editText(1, 0, 1), QStringLiteral("=Sheet1!A1+1"));   // (only this sheet's formulas were looked at)
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:10"));
+        QCOMPARE(w.undoStack()->undoText(), QStringLiteral("Apply Names"));
+        w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->editText(0, 0, 1), QStringLiteral("=A1*2"));
+        // nothing to put in: said, nothing changes
+        w.undoStack()->redo();
+        QVERIFY(!w.applyNamesCommand());
+        QVERIFY(w.statusText().contains(QStringLiteral("No formula")));
+    }
 };
 
 JP_TEST_CLASS(CrunchFormulasTests)

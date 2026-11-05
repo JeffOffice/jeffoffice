@@ -1011,7 +1011,7 @@ bool patchDefinedNames(const QByteArray &xml, const std::vector<NameChange> &cha
     return true;
 }
 
-bool patchCalcPr(const QByteArray &xml, CalcMode mode, bool iterate, int iterateCount, double iterateDelta, QByteArray *out)
+bool patchCalcPr(const QByteArray &xml, CalcMode mode, bool iterate, int iterateCount, double iterateDelta, QByteArray *out, bool calcOnSave)
 {
     Tag calc;
     const bool has = findStart(xml, "calcPr", &calc);
@@ -1021,6 +1021,8 @@ bool patchCalcPr(const QByteArray &xml, CalcMode mode, bool iterate, int iterate
     if (mode == CalcMode::Manual) setAttribute(&tag, "calcMode", "manual");
     else if (mode == CalcMode::AutoNoTable) setAttribute(&tag, "calcMode", "autoNoTable");
     else dropAttribute(&tag, "calcMode");
+    if (calcOnSave) dropAttribute(&tag, "calcOnSave");
+    else setAttribute(&tag, "calcOnSave", "0");
     if (iterate) {
         setAttribute(&tag, "iterate", "1");
         setAttribute(&tag, "iterateCount", QByteArray::number(iterateCount));
@@ -2673,7 +2675,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 xml = patched;
             }
             if (changes.calcChanged) {
-                if (!patchCalcPr(xml, changes.calcMode, changes.iterate, changes.iterateCount, changes.iterateDelta, &patched)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook part is not in the form this program changes."));
+                if (!patchCalcPr(xml, changes.calcMode, changes.iterate, changes.iterateCount, changes.iterateDelta, &patched, changes.calcOnSave)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook part is not in the form this program changes."));
                 changed = changed || patched != xml;
                 xml = patched;
             }

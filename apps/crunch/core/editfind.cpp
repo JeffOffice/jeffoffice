@@ -4,6 +4,7 @@
 #include "calc/numfmt.h"
 #include "grid/text.h"
 #include "sheet/cellref.h"
+#include "sheet/namerefs.h"
 
 #include <set>
 
@@ -68,6 +69,8 @@ struct EditSession::ReplacePlan {
     TextPattern pattern;
     QString with;
     std::unique_ptr<TextMatcher> matcher;
+    QString stepText;                // what Undo calls the step (empty: Replacing)
+    std::vector<NameTarget> names;   // Apply Names: the names to put in (no pattern then)
     size_t next = 0;
     Step step;
     int occurrences = 0;
@@ -120,9 +123,16 @@ bool EditSession::prepareReplace(ReplacePlan &plan, qint64 budget)
         if (!cell) continue;
         // (the text a cell is typed as: a text constant is what it holds, anything else as the formula bar shows it)
         const bool plainText = !cell->hasFormula() && (cell->type == CellType::SharedString || cell->type == CellType::InlineString || cell->type == CellType::FormulaString);
+        if (plan.matcher == nullptr && !cell->hasFormula()) continue;
         const QString text = plainText ? searchText(spot.sheet, spot.row, spot.col) : editText(spot.sheet, spot.row, spot.col);
         int n = 0;
-        QString now = plan.matcher->replaced(text, plan.with, &n);
+        QString now;
+        if (plan.matcher) {
+            now = plan.matcher->replaced(text, plan.with, &n);
+        } else {
+            const QString sheetName = spot.sheet < m_book->book->info().sheets.size() ? m_book->book->info().sheets[spot.sheet].name : QString();
+            now = applyNamesInFormula(text, sheetName, plan.names, &n);
+        }
         if (n == 0) continue;
         // (a text constant stays a text where the new text begins with a mark that would make it a formula or an apostrophe-led text when typed)
         if (plainText && (now.startsWith(QLatin1Char('=')) || now.startsWith(QLatin1Char('\''))) ) now.prepend(QLatin1Char('\''));
@@ -179,11 +189,11 @@ EditSession::Outcome EditSession::applyReplace(ReplacePlan &plan, ReplaceResult 
         plan.changed = plan.step.cells.size();
         if (plan.step.cells.empty()) return out;
         if (budget <= 0) {
-            pushStep(std::move(plan.step), tr("Replacing"));
+            pushStep(std::move(plan.step), plan.stepText.isEmpty() ? tr("Replacing") : plan.stepText);
             plan.step = Step();
             return out;
         }
-        plan.push = beginSlicedPush(std::move(plan.step), tr("Replacing"));
+        plan.push = beginSlicedPush(std::move(plan.step), plan.stepText.isEmpty() ? tr("Replacing") : plan.stepText);
         plan.step = Step();
     }
     if (!continueSlicedPush(*plan.push, budget)) {
@@ -191,6 +201,52 @@ EditSession::Outcome EditSession::applyReplace(ReplacePlan &plan, ReplaceResult 
         return out;
     }
     return out;
+}
+
+std::vector<NameTarget> EditSession::nameTargets() const
+{
+    std::vector<NameTarget> out;
+    for (int id = 0; id < m_nameTable.slots(); ++id) {
+        if (!nameListed(id)) continue;
+        const NameEntry &e = m_nameTable.at(id);
+        if (e.scope >= 0) continue;   // (a name of one sheet is not read on the others)
+        QString text = nameTextOf(id).trimmed();
+        if (text.startsWith(QLatin1Char('='))) text.remove(0, 1);
+        const int bang = int(text.lastIndexOf(QLatin1Char('!')));
+        if (bang <= 0) continue;
+        QString sheet = text.left(bang);
+        if (sheet.startsWith(QLatin1Char('\'')) && sheet.endsWith(QLatin1Char('\'')) && sheet.size() > 1) sheet = sheet.mid(1, sheet.size() - 2).replace(QStringLiteral("''"), QStringLiteral("'"));
+        NameTarget t;
+        t.name = e.name;
+        t.sheet = sheet;
+        if (!parseRangeRef(text.mid(bang + 1), &t.cells)) continue;
+        out.push_back(t);
+        if (out.size() >= 5000) break;
+    }
+    return out;
+}
+
+EditSession::Outcome EditSession::applyNamesInCells(const std::vector<CellSpot> &cells, const std::vector<NameTarget> &names, ReplaceResult *result)
+{
+    Outcome out;
+    if (result) *result = ReplaceResult();
+    auto refuse = [&](const QString &problem) {
+        out.ok = false;
+        out.problem = problem;
+        return out;
+    };
+    QString why;
+    if (!canEdit(&why)) return refuse(why);
+    if (qint64(cells.size()) > kMaxCellsPerEdit)
+        return refuse(tr("That is more cells than JeffCrunch changes at once (%1). Select fewer cells, and try again.").arg(QLocale().toString(kMaxCellsPerEdit)));
+    auto plan = std::make_shared<ReplacePlan>();
+    plan->cells = cells;
+    plan->names = names;
+    plan->stepText = tr("Apply Names");
+    plan->changesAtPlan = m_loader->changesMade();
+    plan->undoIndexAtPlan = m_undo.index();
+    prepareReplace(*plan, 0);
+    return applyReplace(*plan, result);
 }
 
 EditSession::Outcome EditSession::replaceInCells(const std::vector<CellSpot> &cells, const TextPattern &pattern, const QString &with, ReplaceResult *result)

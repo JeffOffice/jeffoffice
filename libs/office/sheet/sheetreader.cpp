@@ -677,6 +677,7 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
             } else if (depth == 2 && isElement(r, "calcPr")) {
                 const QStringView mode = attribute(r, "calcMode");
                 out->calcMode = mode == QLatin1String("manual") ? CalcMode::Manual : mode == QLatin1String("autoNoTable") ? CalcMode::AutoNoTable : CalcMode::Auto;
+                out->calcOnSave = attribute(r, "calcOnSave").isEmpty() || parseBool(attribute(r, "calcOnSave").toString());
                 out->fullCalcOnLoad = parseBool(attribute(r, "fullCalcOnLoad").toString());
                 out->calcUnfinished = !attribute(r, "calcCompleted").isEmpty() && !parseBool(attribute(r, "calcCompleted").toString());
                 out->iterate = parseBool(attribute(r, "iterate").toString());

@@ -303,7 +303,8 @@
             {"large": "formulas.names", "keytip": "N"},
             {"small": "formulas.defineName", "keytip": "DF"},
             {"small": "formulas.nameFromCells", "keytip": "FC"},
-            {"small": "formulas.useName", "keytip": "IN"}
+            {"small": "formulas.useName", "keytip": "IN"},
+            {"small": "formulas.applyNames", "keytip": "AN"}
           ]
         },
         {
@@ -312,6 +313,7 @@
           "items": [
             {"large": "formulas.tracePrecedents", "keytip": "TP"},
             {"large": "formulas.traceDependents", "keytip": "TD"},
+            {"small": "formulas.traceError", "keytip": "TE"},
             {"small": "formulas.removeArrows", "keytip": "RA"},
             {"small": "view.formulas", "keytip": "H"},
             {"small": "formulas.errorChecking", "keytip": "EC"},
@@ -329,7 +331,7 @@
             {
               "large": "formulas.options",
               "keytip": "O",
-              "menu": ["formulas.calcAuto", "formulas.calcNoTables", "formulas.calcManual", "-", "formulas.iteration"]
+              "menu": ["formulas.calcAuto", "formulas.calcNoTables", "formulas.calcManual", "formulas.calcBeforeSave", "-", "formulas.iteration"]
             }
           ]
         }

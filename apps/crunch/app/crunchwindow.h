@@ -249,6 +249,8 @@ public:
     void showNames();
     bool defineNameCommand();
     bool nameFromCellsCommand();
+    bool applyNamesCommand();
+    void setApplyNamesAsker(const std::function<bool(const QStringList &, QStringList *)> &asker) { m_applyNamesAsker = asker; }
     bool insertName(const QString &name);
     QMenu *namesMenu();
     // For tests: how many times the sorted list the menu shows was made (it is made again only when a name or the sheet in view changes).
@@ -266,6 +268,7 @@ public:
     // on each time), and the arrows taken away. They are taken away by any change to the workbook. False, with the reason in the status line, when there is nothing to draw.
     bool tracePrecedents();
     bool traceDependents();
+    bool traceError();
     void removeArrows();
     int arrowCount() const { return int(m_trace.size()); }
     // The circular references named once in a message each time they begin (not again while they stay).
@@ -784,7 +787,7 @@ private:
         quint32 row = 0, col = 0;
     } m_traceRoot;
     std::vector<crunch::TraceCell> m_traceUp, m_traceDown;   // the formulas the next step back and the next step on begin from
-    bool m_tracedUp = false, m_tracedDown = false;
+    bool m_tracedUp = false, m_tracedDown = false, m_tracedError = false;   // (m_tracedError: the arrows are Trace Error's, which follow errors only)
     bool startTrace(bool up);
     QLabel *m_calcNote = nullptr;
     std::vector<int> m_menuNames;
@@ -799,6 +802,7 @@ private:
     int m_completionsSheet = -2;
     std::function<bool(crunch::EditSession::NameDraft *)> m_nameAsker;
     std::function<bool(int *)> m_edgesAsker;
+    std::function<bool(const QStringList &, QStringList *)> m_applyNamesAsker;   // the names to choose from, the names chosen
     std::function<bool(crunch::CalcSettings *)> m_iterationAsker;
     bool m_calcDue = false, m_manualNow = false;
     qint64 m_circular = 0;

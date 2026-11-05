@@ -4,7 +4,10 @@
 
 #include <QString>
 
+#include "sheet/cellref.h"
+
 #include <functional>
+#include <vector>
 
 namespace jp::office::sheet {
 
@@ -15,6 +18,17 @@ QString renameNameInFormula(const QString &formula, const QString &oldName, cons
 
 // Whether the formula uses the name at all (any case, with or without a sheet in front).
 bool formulaUsesName(const QString &formula, const QString &name);
+
+// A name that stands for a block of cells on a sheet, to be put in place of the references to those cells.
+struct NameTarget {
+    QString name;
+    QString sheet;   // the sheet the cells are on (any case)
+    CellRange cells;
+};
+// The formula with each reference that is exactly the cells of one of the names written as the name ("$A$1", "A1", "Data!A1:B2", and "'My Data'!$A$1:$B$2" alike; a reference with no sheet
+// in front is of `formulaSheet`). Text in quotes, table columns, parts of longer ranges ("A1:C3" when the name is A1), function names, and everything else are as they were; of two names
+// for the same cells the first in the list is used. `count`, if given, is how many references were replaced.
+QString applyNamesInFormula(const QString &formula, const QString &formulaSheet, const std::vector<NameTarget> &names, int *count = nullptr);
 
 // Why a name can't be used, in a sentence for the person; empty when it can. A name is made of letters, digits, underscores, and dots (and a backslash), begins with a letter, an
 // underscore, or a backslash, is no longer than 255 characters, and is not an address of a cell ("A1", "R2C3", "XFD1048576", "R", "C").

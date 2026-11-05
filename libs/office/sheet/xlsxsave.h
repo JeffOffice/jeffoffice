@@ -320,6 +320,7 @@ struct SaveChanges {
     // How the workbook calculates, when a person changed it (the workbook's calcPr is made to say so): the mode, whether circular references are worked out by going round them, and how.
     bool calcChanged = false;
     CalcMode calcMode = CalcMode::Auto;
+    bool calcOnSave = true;
     bool iterate = false;
     int iterateCount = 100;
     double iterateDelta = 0.001;
@@ -416,7 +417,7 @@ qint64 patchDefinedNamesWork();
 // The workbook part with its calcPr saying how the workbook calculates (made if there is none).
 // The workbook part with `pivotCache` elements added to its list of caches (the list made if there is none): the elements take the prefix of the list and the file's own prefix for relationships.
 bool addPivotCaches(const QByteArray &xml, const std::vector<std::pair<int, QString>> &caches, QByteArray *out);
-bool patchCalcPr(const QByteArray &xml, CalcMode mode, bool iterate, int iterateCount, double iterateDelta, QByteArray *out);
+bool patchCalcPr(const QByteArray &xml, CalcMode mode, bool iterate, int iterateCount, double iterateDelta, QByteArray *out, bool calcOnSave = true);
 // The hidden name that other programs keep for the range of a sheet's filter (`_xlnm._FilterDatabase`, of the sheet at `localSheetId` in the workbook's list of sheets) made, changed, or taken
 // away: `range` is the range as a name writes it ("'Sheet1'!$A$1:$D$9"), or empty to take the name away.
 struct FilterName {
