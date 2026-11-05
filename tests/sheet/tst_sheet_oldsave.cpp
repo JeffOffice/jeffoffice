@@ -9,6 +9,7 @@
 #include "sheet/oldsavecommon.h"
 #include "sheet/xlscompile.h"
 #include "sheet/xlsrecord.h"
+#include "sheet/xlsxbase.h"
 
 #include <QRegularExpression>
 #include <QSet>
@@ -433,6 +434,38 @@ private Q_SLOTS:
         QVERIFY2(old.contains(QStringLiteral("_xlnm.Print_Area")) && old.contains(QStringLiteral("_xlnm._FilterDatabase")), qPrintable(QStringList(old.values()).join(QLatin1Char(' '))));
         QVERIFY(c.xls.info().dateSystem == jp::calc::DateSystem::Date1904);
         QVERIFY(c.ods.info().dateSystem == jp::calc::DateSystem::Date1904);
+    }
+
+    // An old file can hold a name with a space and page breaks out of order or with their ends crossed (EUSES sapdiscfd.xls): an .xlsx with them is refused whole.
+    void anXlsxCopyHoldsOnlyNamesAndPageBreaksTheFormAllows()
+    {
+        const QByteArray x = simple(row(1, num(QStringLiteral("A1"), 1)),
+                                    QStringLiteral("<rowBreaks count=\"4\" manualBreakCount=\"4\"><brk id=\"30\" min=\"636\" max=\"138\" man=\"1\"/><brk id=\"7\" max=\"20000\" man=\"1\"/>"
+                                                   "<brk id=\"21\" min=\"5\" max=\"9\" man=\"1\"/><brk id=\"12\" max=\"16383\" man=\"1\"/></rowBreaks>"),
+                                    QString(), QByteArray(),
+                                    QStringLiteral("<definedName name=\"SMW 14\">#REF!</definedName><definedName name=\"SMW_14\">Sheet1!$A$1</definedName><definedName name=\"Good.one\">Sheet1!$A$1</definedName>"));
+        Copies c;
+        QVERIFY2(c.make(x, false), qPrintable(c.why));
+        QString why;
+        QByteArray xlsx;
+        QVERIFY2(writeBaseXlsx(c.xls, &xlsx, &why), qPrintable(why));
+        Package p;
+        QVERIFY2(p.readLazy(xlsx, &why), qPrintable(why));
+        const QByteArray book = p.part(QStringLiteral("xl/workbook.xml")), sheet = p.part(QStringLiteral("xl/worksheets/sheet1.xml"));
+        QVERIFY2(!book.contains("name=\"SMW 14\"") && book.contains("name=\"SMW_14\"") && book.contains("name=\"Good.one\""), book.constData());
+        QCOMPARE(book.count("<definedName "), qsizetype(3));
+        QVERIFY2(book.contains("name=\"SMW_14_2\""), book.constData());   // (the space's stand-in would repeat a name already there)
+        const QRegularExpression brk(QStringLiteral("<brk id=\"(\\d+)\"(?: min=\"(\\d+)\")? max=\"(\\d+)\""));
+        QList<int> ids;
+        for (auto m = brk.globalMatch(QString::fromUtf8(sheet)); m.hasNext();) {
+            const auto one = m.next();
+            ids << one.captured(1).toInt();
+            const int lo = one.captured(2).toInt(), hi = one.captured(3).toInt();
+            QVERIFY2(lo <= hi && hi <= 16383, sheet.constData());
+        }
+        QCOMPARE(ids, (QList<int>{7, 12, 21, 30}));
+        Workbook back;
+        QVERIFY2(openXlsx(xlsx, &back, &why), qPrintable(why));
     }
 
     void aLongTextIsWrittenWholeAcrossContinuedRecords()

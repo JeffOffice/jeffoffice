@@ -11,8 +11,12 @@
 #include "core/writedoc.h"
 #include "core/compareops.h"
 #include "core/homeops.h"
+#include "core/versionstore.h"
+#include "app/optionsdialog.h"
 
 #include <QHash>
+#include <QImage>
+#include <QSizeF>
 #include <QPointer>
 #include <QKeySequence>
 #include <QSet>
@@ -56,7 +60,7 @@ struct Recovered;
 
 // What Print and Export to PDF are asked to do: which pages and, for printing, where and how many copies.
 struct WriteOutputOptions {
-    enum class Range { All, Current, Pages };
+    enum class Range { All, Current, Pages, Selection };
     Range range = Range::All;
     QString pages;        // "1-3, 5": for Range::Pages
     QString printer;      // the name of the printer; empty is the default one
@@ -67,6 +71,7 @@ struct WriteOutputOptions {
     enum class Sides { All, Odd, Even };
     Sides sides = Sides::All;   // only the pages whose numbers are odd or even, of the pages the range covers
     bool reverse = false;       // last page first
+    bool byHand = false;        // both sides of the paper with a printer that has no duplex: the odd pages, a prompt to turn the stack over, then the even pages last first
 };
 
 class WriteWindow : public AppWindow {
@@ -130,6 +135,51 @@ public:
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
     // What asks how a plain text file is read (at Open) or written (at Save As), unless this stands in for it (tests): the form to start from and out, and the file's bytes when reading; true to go on.
     void setTextFormChooser(const std::function<bool(write::TextForm *, const QByteArray *)> &chooser) { m_textFormChooser = chooser; }
+    // What asks the person before a save to a format that holds less than the document (the parts it would lose, listed): Keep saves it there anyway, Docx
+    // saves a .docx beside it instead, Cancel saves nothing. A message box, unless this stands in for it (tests). Without it, and with a notifier standing in
+    // for the messages, the save goes ahead and says afterward what was left out.
+    enum class FormatChoice { Keep, Docx, Cancel };
+    void setFormatAsker(const std::function<FormatChoice(const QStringList &)> &asker) { m_formatAsker = asker; }
+    // The pages JeffWrite adds to Options after the shared ones (Save, Display); what they set applies to this window at once and to each new one.
+    QVector<OptionsPage> optionsPages();
+    // The folder the Open and Save As boxes start in when no file leads them: the one Options > Save names, else Documents.
+    static QString defaultFolder();
+    // Starts an untitled document from one of the templates JeffWrite comes with (by its id, see core/templates.h): in this window if it holds a new document nobody has touched,
+    // else in a window of its own. False for an id that names none.
+    bool newFromBuiltInTemplate(const QString &id);
+    // The two runs a print on both sides by hand is made of: the odd pages of the range, then the even ones, last first.
+    QVector<WriteOutputOptions> handDuplexRuns(const WriteOutputOptions &options) const;
+    // What asks the person to turn the stack over between the two runs: a message box, unless this stands in for it (tests); false to stop there.
+    void setStackTurner(const std::function<bool()> &turner) { m_stackTurner = turner; }
+    // Email: makes a message as a .eml file (asking where to put it) with the document, the document as a PDF, or its pages as pictures; the person opens it in an email program.
+    enum class EmailWhat { Document, Pdf, Pages };
+    bool exportEmail(EmailWhat what);
+    // The pages (by index) as a PDF, in memory; empty, with the reason, when they can't be made.
+    QByteArray pdfBytes(const QVector<int> &pages, QString *error);
+    // Version history: named copies of the document kept on this computer (see core/versionstore.h). Each needs a file the document has been saved as.
+    QVector<write::DocVersion> versions() const;
+    bool saveVersion(const QString &name);
+    // The document becomes the version (what it was is kept first, as a version, so that nothing is lost); it is then changed, to be saved.
+    bool restoreVersion(const QString &file);
+    // The version and the document compared, in a new window (as Review > Compare makes it); the changes found, -1 when it can't be done.
+    int compareWithVersion(const QString &file);
+    // Version History on the Info page: the list with its buttons.
+    void versionHistory();
+    // Export to PDF with the pages the options name (the range only: the printer choices are for Print); false, with nothing written, when no page is named.
+    bool exportPdfPages(const WriteOutputOptions &options);
+    // Asks which pages (all, the current page, or a range), then exports them.
+    bool exportPdfAsk();
+    // A copy of the document with only the selection left in it (its page setup, styles, headers, and footers stay), for printing the selection; null when nothing is selected.
+    std::unique_ptr<write::WriteDoc> selectionDocument();
+    // The page `index` of what `options` prints, as a picture `width` pixels wide (the selection's own pages for Range::Selection), and its size in points.
+    QImage outputPageImage(const WriteOutputOptions &options, int index, int width);
+    QSizeF outputPageSize(const WriteOutputOptions &options, int index);
+    // Where editing stopped: the place is kept with the file's name when the window closes and when the file is saved, and the file opens there again.
+    void rememberPlace();
+    // The last three places the text was edited, the latest first (Shift+F5 goes to each in turn).
+    QList<int> editPlaces() const { return m_editPlaces; }
+    void resetEditPlaces();
+    void goToLastPlace();
     // What a printer is made ready with after the window has set it up (tests: a printer that writes to a file stands in for a real one).
     void setPrinterPreparer(const std::function<void(QPrinter &)> &preparer) { m_printerPreparer = preparer; }
     // Automatic recovery: a copy of unsaved work (the timer writes it at the interval Options sets), and the copies a run that crashed left.
@@ -169,6 +219,8 @@ public:
     bool exportText(const QString &path, write::TextEncoding encoding, write::LineEnds ends, int codePage = 1252);
     // Asks how a text file is read or written (the encoding and line ends, with a preview of `sample`, the file's bytes, if given); false if cancelled. Tests stand in for the dialog.
     bool askTextForm(const QString &title, const QString &intro, write::TextForm *form, const QByteArray *sample = nullptr);
+    // Asks what the message holds (the document, a PDF, or the pages), then makes it as exportEmail does.
+    bool exportEmailAsk();
     // The pages that an output covers (from 0), for the options and the document.
     QVector<int> outputPages(const WriteOutputOptions &options);
 
@@ -372,6 +424,16 @@ private:
     std::function<bool(const QUrl &)> m_urlOpener;
     std::function<void(const QString &, const QString &)> m_notifier;
     std::function<void(QPrinter &)> m_printerPreparer;
+    std::function<FormatChoice(const QStringList &)> m_formatAsker;
+    std::function<bool()> m_stackTurner;
+    std::unique_ptr<write::WriteDoc> m_selectionDoc;   // the copy that the last count of the pages to print for the selection was made from
+    QList<int> m_editPlaces;
+    int m_placeStep = 0;
+    void recordPlace(int position);
+    void applyDisplayDefaults();
+    void returnToPlace(const QString &path);
+    static QString placeKey(const QString &path);
+    FormatChoice askFormatChoice(const QStringList &lost, const QString &kind = QStringLiteral(".odt"));
     QSet<QString> m_odtNoted;       // (what the person was told an .odt file can't hold: told again only of what is new)
     std::function<bool(write::TextForm *, const QByteArray *)> m_textFormChooser;
     write::TextForm m_textForm;     // how the plain text file this document came from (or was saved to) is written

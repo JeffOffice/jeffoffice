@@ -1,7 +1,28 @@
 # Change JeffWrite's settings
-<!-- keywords: options, settings, preferences, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about -->
+<!-- keywords: advanced, units, measurements, inches, centimeters, options, settings, preferences, save, default format, default folder, default file location, recovery, formatting marks, gridlines, display, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about -->
 
 Your settings are in the **JeffWrite Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
+
+## Save
+
+The **Save** page of the Options window has three choices.
+
+- **Save new documents as** picks the kind of file that **Save As** offers first for a document that has no file yet: a .docx file or an .odt file.
+- **Save automatic recovery information every** is how many minutes pass between the spare copies JeffWrite keeps of unsaved work. See [Open, save, print, and export](open-save).
+- **Default file location** is the folder the **Open** and **Save As** boxes start in. Click **Browse** to pick it. Leave it empty to start in your Documents folder.
+
+## Display
+
+The **Display** page chooses what a window shows when it opens.
+
+- **Show formatting marks** turns on the paragraph marks and other signs that do not print. Each window can still turn them on or off with the **¶** button.
+- **Show table gridlines** draws the faint edges of table cells that have no lines.
+
+A change on this page applies to the window you are in at once, and to each window you open after it.
+
+## Advanced
+
+**Show measurements in** picks the unit for the ruler and the dialogs: inches, centimeters, millimeters, points, or picas. A point is 1/72 of an inch. A pica is 12 points.
 
 ## Usage statistics
 

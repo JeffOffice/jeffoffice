@@ -2458,6 +2458,56 @@ void setHighlight(WriteDoc &doc, QTextCursor &c, const QString &name)
 
 namespace {
 
+// The run properties a format keeps as written, less the ones that begin with `tag` (w:shd, w:bdr): a person's choice takes the place of the file's.
+void dropKeptRunProperty(QTextCharFormat &f, const char *tag)
+{
+    if (!f.hasProperty(prop::RawRPr)) return;
+    QVector<office::wml::RawChild> kept = unpackRaw(storedBytes(f, prop::RawRPr));
+    for (int i = int(kept.size()) - 1; i >= 0; --i)
+        if (kept.at(i).xml.startsWith(tag)) kept.removeAt(i);
+    if (kept.isEmpty()) f.clearProperty(prop::RawRPr);
+    else setStored(f, prop::RawRPr, packRaw(kept));
+}
+
+} // namespace
+
+void setCharShading(WriteDoc &doc, QTextCursor &c, const QColor &color)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (!intoBody(c)) return;
+    changeCharFormat(doc, c, [color](QTextCharFormat &f) {
+        const QString shade = f.stringProperty(prop::CharShade);
+        dropKeptRunProperty(f, "<w:shd");
+        // (The color behind the letters is the shading's, unless a highlight has taken its place.)
+        if (!shade.isEmpty() && f.stringProperty(tp::HighlightRefP) == ColorRef::rgb(QColor(QLatin1Char('#') + shade)).toString()) f.clearProperty(tp::HighlightRefP);
+        if (!color.isValid()) {
+            f.clearProperty(prop::CharShade);
+            return;
+        }
+        f.setProperty(prop::CharShade, color.name(QColor::HexRgb).mid(1).toUpper());
+        if (!f.hasProperty(tp::HighlightRefP)) f.setProperty(tp::HighlightRefP, ColorRef::rgb(color).toString());
+    });
+}
+
+void setCharBorder(WriteDoc &doc, QTextCursor &c, bool on)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (!intoBody(c)) return;
+    changeCharFormat(doc, c, [on](QTextCharFormat &f) {
+        dropKeptRunProperty(f, "<w:bdr");
+        if (on) {
+            const QString border = QStringLiteral("single;4;0;");   // (a half-point line, automatic color, close to the letters)
+            f.setProperty(tp::RunBorder, border);
+            f.setProperty(prop::CharBorder, border);
+        } else {
+            f.clearProperty(tp::RunBorder);
+            f.clearProperty(prop::CharBorder);
+        }
+    });
+}
+
+namespace {
+
 // Properties of a character format that a character style or a paragraph style gives, and so are told apart from what the text says.
 const int kStyleDriven[] = {QTextFormat::FontFamilies,   QTextFormat::FontPointSize,    QTextFormat::FontWeight,   QTextFormat::FontItalic,   QTextFormat::TextUnderlineStyle,
                             QTextFormat::FontStrikeOut,  QTextFormat::ForegroundBrush,  QTextFormat::FontCapitalization, QTextFormat::TextVerticalAlignment,

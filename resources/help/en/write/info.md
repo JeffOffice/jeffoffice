@@ -1,5 +1,5 @@
 # Info: properties, passwords, and Inspect
-<!-- keywords: info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, docproperty, mark as final, final, read-only, password, encrypt, protect, open password, inspect document, personal information, hidden text, custom xml, check compatibility, show in folder, copy path, folder, path -->
+<!-- keywords: info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, docproperty, mark as final, final, read-only, password, encrypt, protect, open password, inspect document, personal information, hidden text, custom xml, check compatibility, version history, versions, keep a version, go back, restore, compare versions, show in folder, copy path, folder, path -->
 
 Click **File > Info** to see the facts about your document, and to protect it before you share it. Press **Esc** to go back to your document.
 
@@ -49,3 +49,17 @@ Click **Remove All** next to a kind to take it out. You can undo what changes th
 ## Check Compatibility
 
 Click **Check Compatibility** to see what an older kind of file can't hold. JeffWrite saves **.docx** and **.odt** files. A .docx file holds everything in your document. An .odt file can't hold a few things, and this list says which. If nothing is listed, nothing is lost.
+
+When you save as an .odt file, JeffWrite lists what the file can't hold **before** it writes anything. You can choose **Save as .odt Anyway**, **Save as .docx Instead** (the .docx file is put beside it, and nothing is lost), or **Cancel**.
+
+## Version History
+
+Click **Version History** to keep named copies of the document on your computer. Nothing is sent anywhere. A version is a whole copy of the document as it is at that moment. Keep one before a big change, so you can get back to it. The document must be saved first, because versions are kept under the file's name.
+
+- **Keep a Version** asks for a name, such as "Before the edit", and keeps a copy.
+- **Open a Copy** opens the chosen version in a new window. The version itself does not change.
+- **Compare** puts the document and the chosen version side by side as one document, with the differences shown as tracked changes. See [Track changes](track-changes).
+- **Go Back to It** makes the document the same as the chosen version. JeffWrite keeps the document as it was as a new version first, so nothing is lost. Save the document to keep the change.
+- **Delete** takes the chosen version away.
+
+JeffWrite keeps up to 50 versions of a file and drops the oldest when there are more.

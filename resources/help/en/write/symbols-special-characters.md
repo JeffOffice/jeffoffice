@@ -1,5 +1,5 @@
 # Put in symbols and special characters
-<!-- keywords: cover page, cover, title page, date, time, date and time, symbol, symbols, special characters, character map, omega, nonbreaking space, nonbreaking hyphen, optional hyphen, soft hyphen, en dash, em dash, en space, em space, quotation marks, curly quotes, line break, no-width, zero width, blank page, insert symbol, unicode -->
+<!-- keywords: cover page, cover, title page, date, time, date and time, symbol, symbols, special characters, character map, omega, nonbreaking space, nonbreaking hyphen, optional hyphen, soft hyphen, en dash, em dash, en space, em space, quotation marks, curly quotes, line break, no-width, zero width, blank page, insert symbol, unicode, drop cap, big first letter, initial, dropped capital -->
 
 A **symbol** is a character that is not on your keyboard, like the Greek letter omega or an arrow. A **special character** is one that the page treats in a certain way, like a space that never breaks across two lines.
 
@@ -38,3 +38,13 @@ Turn on **Home > Show/Hide** to see the marks for these in your text.
 ## The date and time
 
 **Insert > Date & Time** lists ways to write today's date and the time. Pick one. With **Update automatically** ticked, it goes in as a field, which shows the new date each time you press F9 or open the document. With it off, it goes in as plain words that stay as they are.
+
+## Drop cap
+
+A drop cap is a big first letter that drops down into the lines beside it, as in the start of a story.
+
+1. Click in the paragraph.
+2. Choose **Insert > Drop Cap > Dropped**. The first letter drops three lines.
+3. For other choices, choose **Drop Cap Options**. **Lines to drop** is how many lines tall the letter is. **Letters** is how many of the first letters are big. You can pick a **font** of its own for them.
+
+**None** takes the drop cap away. Undo does too. A paragraph in a list or a table, or one that starts with a space, can't have a drop cap. When you save, the big letters go in a small paragraph of their own, set as a drop cap, in front of the rest. That is how other programs keep them.

@@ -10,9 +10,11 @@
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/textdialogs.h"
+#include "core/dropcapops.h"
 #include "core/editops.h"
 #include "core/insertops.h"
 #include "core/linkops.h"
+#include "text/textprops.h"
 #include "app/writedialogs.h"
 
 #include <QAction>
@@ -101,6 +103,23 @@ void WriteWindow::createInsertActions()
     mk("insert.cover.remove", tr("Remove Current Cover Page"), "trash-2", QKeySequence(), [this] {
         if (!m_doc || refuseIfReadOnly()) return;
         write::removeCoverPage(*m_doc);
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("insert.dropCap.none", tr("None"), "circle-slash", QKeySequence(), [this] {
+        if (!m_doc || refuseIfReadOnly()) return;
+        write::setDropCap(*m_doc, m_view->cursor(), write::DropCapSetup());
+        m_view->setFocus(Qt::OtherFocusReason);
+    }, true);
+    mk("insert.dropCap.dropped", tr("Dropped"), "letter-text", QKeySequence(), [this] {
+        if (!m_doc || refuseIfReadOnly()) return;
+        write::DropCapSetup s = write::dropCapOf(m_view->cursor().block());
+        if (s.lines <= 0) s.lines = 3;
+        write::setDropCap(*m_doc, m_view->cursor(), s);
+        m_view->setFocus(Qt::OtherFocusReason);
+    }, true);
+    mk("insert.dropCap.options", tr("Drop Cap Options…"), "type", QKeySequence(), [this] {
+        if (!m_doc || refuseIfReadOnly()) return;
+        write::dropCapDialog(this, m_doc.get(), &m_view->cursor());
         m_view->setFocus(Qt::OtherFocusReason);
     });
     mk("insert.dateTime", tr("Date & Time…"), "calendar-clock", QKeySequence(), [this] {
@@ -213,6 +232,17 @@ void WriteWindow::refreshInsertUi()
     const bool pages = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
     for (const char *id : {"insert.cover.classic", "insert.cover.band", "insert.cover.plain"}) act(QString::fromLatin1(id))->setEnabled(m_doc != nullptr);
     act("insert.cover.remove")->setEnabled(m_doc && write::hasCoverPage(*m_doc));
+    {
+        const bool inText = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
+        const QTextBlock here = m_doc ? m_view->cursor().block() : QTextBlock();
+        const write::DropCapSetup now = write::dropCapOf(here);
+        const bool own = here.isValid() && here.blockFormat().intProperty(tp::DropCapLines) > 0;
+        act("insert.dropCap.none")->setEnabled(inText && own);
+        act("insert.dropCap.dropped")->setEnabled(inText && write::canHaveDropCap(here));
+        act("insert.dropCap.options")->setEnabled(inText && (own || write::canHaveDropCap(here)));
+        act("insert.dropCap.none")->setChecked(inText && now.lines <= 0);
+        act("insert.dropCap.dropped")->setChecked(inText && now.lines > 0);
+    }
     act("insert.dateTime")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
     act("insert.textFromFile")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
     act("insert.hyperlink")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());

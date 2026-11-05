@@ -26,6 +26,14 @@ QVector<GoToItem> goToItems(WriteDoc &doc, GoToKind kind);
 // `from` is in: +1 is the next); the name of a bookmark (without regard to case); or, for a heading, a part of its text. -1, with `problem` told as a sentence, when there is no such place.
 int goToPosition(WriteDoc &doc, GoToKind kind, const QString &what, int from, QString *problem = nullptr);
 
+// The headings in order, each with its outline level (0 is the top).
+struct OutlineHeading {
+    QString label;
+    int position = 0;
+    int level = 0;
+};
+QVector<OutlineHeading> outlineHeadings(WriteDoc &doc);
+
 // How many paragraphs the looks for sections have visited since the program began (a count for tests of what finding the sections costs).
 qint64 goToBlocksVisitedForTest();
 

@@ -198,6 +198,66 @@ private Q_SLOTS:
         QCOMPARE(texts(*doc).first(), QStringLiteral("hello wORLD"));
     }
 
+    void characterShadingAndBorderAreSetDrawnAndKept()
+    {
+        auto doc = open(makeDocx(para(run("one two three"))));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(4);
+        c.setPosition(7, QTextCursor::KeepAnchor);
+        setCharShading(*doc, c, QColor(0xFF, 0xD9, 0x66));
+        setCharBorder(*doc, c, true);
+        QTextCursor at(doc->story());
+        at.setPosition(6);
+        QCOMPARE(at.charFormat().stringProperty(prop::CharShade), QStringLiteral("FFD966"));
+        QVERIFY(at.charFormat().hasProperty(tp::HighlightRefP));   // (drawn as a color behind the letters)
+        QVERIFY(at.charFormat().hasProperty(tp::RunBorder));
+        at.setPosition(2);
+        QVERIFY(!at.charFormat().hasProperty(prop::CharShade));
+        QVERIFY(allSelected(c, [](const QTextCharFormat &f) { return f.hasProperty(tp::RunBorder); }));
+        // The file says them as a run's border and shading, in the schema's order, and not as a highlight.
+        const QByteArray body = part(doc->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY2(body.contains("<w:bdr w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"FFD966\"/>"), body.constData());
+        QVERIFY(!body.contains("w:highlight"));
+        // Opened again, both are there.
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QTextCursor r(again->story());
+        r.setPosition(6);
+        QCOMPARE(r.charFormat().stringProperty(prop::CharShade), QStringLiteral("FFD966"));
+        QVERIFY(r.charFormat().hasProperty(tp::RunBorder));
+        QVERIFY(r.charFormat().hasProperty(tp::HighlightRefP));
+        // Taking them away leaves the run as plain text, and one step of Undo brings one back.
+        c.setPosition(4);
+        c.setPosition(7, QTextCursor::KeepAnchor);
+        setCharShading(*doc, c, QColor());
+        setCharBorder(*doc, c, false);
+        const QByteArray gone = part(doc->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY(!gone.contains("w:shd"));
+        QVERIFY(!gone.contains("w:bdr"));
+        doc->story()->undo();
+        QVERIFY(part(doc->toDocx(), QStringLiteral("/word/document.xml")).contains("w:bdr"));
+    }
+
+    void aFilesCharacterShadingAndBorderCanBeReplaced()
+    {
+        auto doc = open(makeDocx(para(run("shaded", "<w:bdr w:val=\"double\" w:sz=\"8\" w:space=\"1\" w:color=\"FF0000\"/><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"00FF00\"/>"))));
+        QVERIFY(doc);
+        QTextCursor at(doc->story());
+        at.setPosition(2);
+        QCOMPARE(at.charFormat().stringProperty(prop::CharShade), QStringLiteral("00FF00"));
+        QVERIFY(at.charFormat().hasProperty(tp::RunBorder));
+        QVERIFY(part(doc->toDocx(), QStringLiteral("/word/document.xml")).contains("w:fill=\"00FF00\""));   // (kept as it was)
+        QTextCursor c(doc->story());
+        c.select(QTextCursor::Document);
+        setCharShading(*doc, c, QColor(0, 0, 255));
+        setCharBorder(*doc, c, false);
+        const QByteArray body = part(doc->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY(body.contains("w:fill=\"0000FF\""));
+        QVERIFY(!body.contains("00FF00"));
+        QVERIFY(!body.contains("w:bdr"));
+    }
+
     void changeCaseWithoutASelectionChangesTheWord()
     {
         auto doc = open(makeDocx(para(run("one two three"))));

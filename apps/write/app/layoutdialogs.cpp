@@ -5,8 +5,10 @@
 #include "app/widgets.h"
 #include "core/editops.h"
 #include "core/fieldops.h"
+#include "core/dropcapops.h"
 #include "core/layoutops.h"
 #include "core/pagenumbering.h"
+#include "core/watermarkops.h"
 #include "app/pageview.h"
 
 #include <QCheckBox>
@@ -17,6 +19,8 @@
 #include <QCoreApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QFontComboBox>
+#include <QLineEdit>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
@@ -401,6 +405,117 @@ bool pageNumberFormatDialog(QWidget *parent, WriteDoc *doc, int section)
     after.continueFromPrevious = carry->isChecked();
     after.startAt = start->value();
     return applyPageNumbering(*doc, section, scope->currentIndex() == 1, after) > 0;
+}
+
+bool dropCapDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
+{
+    if (!doc || !cursor) return false;
+    const DropCapSetup before = dropCapOf(cursor->block());
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("dropCapDialog"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::LayoutDialogs", "Drop Cap"));
+    auto *v = new QVBoxLayout(&dlg);
+    auto *form = new QFormLayout;
+    auto *position = new QComboBox(&dlg);
+    position->setObjectName(QStringLiteral("position"));
+    position->addItem(QCoreApplication::translate("jp::write::LayoutDialogs", "None"));
+    position->addItem(QCoreApplication::translate("jp::write::LayoutDialogs", "Dropped"));
+    position->setCurrentIndex(before.lines > 0 ? 1 : 0);
+    auto *font = new QFontComboBox(&dlg);
+    font->setObjectName(QStringLiteral("font"));
+    auto *useFont = new QCheckBox(QCoreApplication::translate("jp::write::LayoutDialogs", "Use a font of its own:"), &dlg);
+    useFont->setObjectName(QStringLiteral("useFont"));
+    useFont->setChecked(!before.font.isEmpty());
+    if (!before.font.isEmpty()) font->setCurrentFont(QFont(before.font));
+    font->setEnabled(useFont->isChecked());
+    QObject::connect(useFont, &QCheckBox::toggled, font, &QWidget::setEnabled);
+    auto *lines = new QSpinBox(&dlg);
+    lines->setObjectName(QStringLiteral("lines"));
+    lines->setRange(1, kMostDropCapLines);
+    lines->setValue(before.lines > 0 ? before.lines : 3);
+    auto *letters = new QSpinBox(&dlg);
+    letters->setObjectName(QStringLiteral("letters"));
+    letters->setRange(1, kMostDropCapChars);
+    letters->setValue(before.chars);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Position:"), position);
+    form->addRow(useFont, font);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Lines to drop:"), lines);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Letters:"), letters);
+    v->addLayout(form);
+    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    v->addWidget(bb);
+    QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    if (dlg.exec() != QDialog::Accepted) return false;
+    DropCapSetup after;
+    after.lines = position->currentIndex() == 1 ? lines->value() : 0;
+    after.chars = letters->value();
+    if (useFont->isChecked()) after.font = font->currentFont().family();
+    return setDropCap(*doc, *cursor, after);
+}
+
+bool watermarkDialog(QWidget *parent, WriteDoc *doc)
+{
+    if (!doc) return false;
+    const WatermarkSetup before = watermarkOf(*doc).value_or(WatermarkSetup{});
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("watermarkDialog"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::LayoutDialogs", "Custom Watermark"));
+    auto *v = new QVBoxLayout(&dlg);
+    auto *form = new QFormLayout;
+    auto *text = new QComboBox(&dlg);
+    text->setObjectName(QStringLiteral("text"));
+    text->setEditable(true);
+    text->addItems(builtInWatermarks());
+    text->setCurrentText(before.text);
+    text->lineEdit()->setMaxLength(kMostWatermarkText);
+    auto *font = new QFontComboBox(&dlg);
+    font->setObjectName(QStringLiteral("font"));
+    font->setCurrentFont(QFont(before.font));
+    auto *size = new QComboBox(&dlg);
+    size->setObjectName(QStringLiteral("size"));
+    size->addItem(QCoreApplication::translate("jp::write::LayoutDialogs", "Auto"), 0);
+    for (int pt : {36, 48, 54, 66, 72, 80, 96, 120}) size->addItem(QStringLiteral("%1 pt").arg(pt), pt);
+    size->setCurrentIndex(std::max(0, size->findData(int(before.size))));
+    auto picked = std::make_shared<QColor>(before.color);
+    auto *color = new QPushButton(&dlg);
+    color->setObjectName(QStringLiteral("color"));
+    auto paintColor = [=](const QColor &c) { color->setStyleSheet(QStringLiteral("background-color: %1; min-width: 48px;").arg(c.name())); };
+    paintColor(*picked);
+    QObject::connect(color, &QPushButton::clicked, &dlg, [=, &dlg] {
+        const QColor c = QColorDialog::getColor(*picked, &dlg);
+        if (!c.isValid()) return;
+        *picked = c;
+        paintColor(c);
+    });
+    auto *light = new QCheckBox(QCoreApplication::translate("jp::write::LayoutDialogs", "Semitransparent"), &dlg);
+    light->setObjectName(QStringLiteral("semitransparent"));
+    light->setChecked(before.semitransparent);
+    auto *layout = new QComboBox(&dlg);
+    layout->setObjectName(QStringLiteral("layout"));
+    layout->addItem(QCoreApplication::translate("jp::write::LayoutDialogs", "Diagonal"));
+    layout->addItem(QCoreApplication::translate("jp::write::LayoutDialogs", "Horizontal"));
+    layout->setCurrentIndex(before.diagonal ? 0 : 1);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Text:"), text);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Font:"), font);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Size:"), size);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Color:"), color);
+    form->addRow(QString(), light);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Layout:"), layout);
+    v->addLayout(form);
+    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    v->addWidget(bb);
+    QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    if (dlg.exec() != QDialog::Accepted) return false;
+    WatermarkSetup after;
+    after.text = text->currentText().trimmed();
+    after.font = font->currentFont().family();
+    after.size = size->currentData().toInt();
+    after.color = *picked;
+    after.semitransparent = light->isChecked();
+    after.diagonal = layout->currentIndex() == 0;
+    return insertWatermark(*doc, after) > 0;
 }
 
 bool dateTimeDialog(QWidget *parent, WriteDoc *doc, PageView *view)
