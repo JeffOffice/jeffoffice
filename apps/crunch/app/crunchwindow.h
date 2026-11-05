@@ -1234,8 +1234,8 @@ public:
     QToolButton *chartElementsButton() const { return m_chartPlus; }
     QToolButton *chartLooksButton() const { return m_chartBrush; }
     QToolButton *chartFiltersButton() const { return m_chartFilter; }
-    // Chart Filters: the series of the picked chart (those drawn, then those filtered out), and whether each is drawn. A filtered series is left out of the chart (and of the saved file) until it is
-    // checked again in this session; the last one drawn can't be filtered out.
+    // Chart Filters: the series of the picked chart (those drawn, then those filtered out), and whether each is drawn. A filtered series is left out of the drawing; the file keeps it as a series like the others (so it shows again
+    // when the file is opened); the last one drawn can't be filtered out.
     struct ChartFilterEntry {
         QString name;
         bool shown = true;
@@ -1272,11 +1272,6 @@ private:
     QString m_workbookId;   // which workbook this is, among all that are open in any program: random for each one opened (what a copy says it came from)
     jp::office::sheet::CellRange m_previewBlock;   // the block of cells the pictures of the New Chart dialog are drawn from, found once for all of them
     QToolButton *m_chartPlus = nullptr, *m_chartBrush = nullptr, *m_chartFilter = nullptr;
-    struct FilteredSeries {
-        int plot = 0, place = 0;
-        jp::office::ChartSeries series;
-    };
-    QMap<QPair<int, int>, QVector<FilteredSeries>> m_filteredSeries;   // by sheet and object: the series left out of a chart for now
     QTimer m_chartButtonsTimer;
     QStringList m_chartActions;
 

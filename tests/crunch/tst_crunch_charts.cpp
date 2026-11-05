@@ -10,6 +10,7 @@
 #include "core/objectclip.h"
 #include "grid/chartcells.h"
 #include "core/sheetobjects.h"
+#include "office/chart.h"
 #include "office/chart_write.h"
 #include "office/xml.h"
 #include "sheet/chartedit.h"
@@ -404,18 +405,18 @@ private Q_SLOTS:
         const int steps = e.win.w.session()->undoStack()->count();
         QVERIFY(e.win.w.setChartSeriesShown(0, false));
         QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);
-        QCOMPARE(chartOf(e).plots.first().series.size(), 1);
         entries = e.win.w.chartFilterEntries();
         QCOMPARE(entries.size(), 2);
-        QVERIFY(!entries[1].shown);
-        QCOMPARE(entries[1].name, first);
+        QVERIFY(!entries[0].shown && entries[1].shown);
+        QCOMPARE(entries[0].name, first);
+        // the drawing leaves it out
+        const QByteArray one = chartSvg(chartOf(e), QSizeF(480, 288));
         // the one left stays
-        QVERIFY(!e.win.w.setChartSeriesShown(0, false));
-        QCOMPARE(chartOf(e).plots.first().series.size(), 1);
+        QVERIFY(!e.win.w.setChartSeriesShown(1, false));
         // back where it was
-        QVERIFY(e.win.w.setChartSeriesShown(1, true));
-        QCOMPARE(chartOf(e).plots.first().series.size(), 2);
-        QCOMPARE(chartOf(e).plots.first().series[0].name, first);
+        QVERIFY(e.win.w.setChartSeriesShown(0, true));
+        QVERIFY(e.win.w.chartFilterEntries()[0].shown);
+        QVERIFY(chartSvg(chartOf(e), QSizeF(480, 288)) != one);
         // the menu lists them with checks
         QMenu *menu = e.win.w.chartFiltersButton()->menu();
         QVERIFY(menu);
@@ -423,6 +424,36 @@ private Q_SLOTS:
         int checkable = 0;
         for (QAction *a : menu->actions()) checkable += a->isCheckable() && a->isChecked();
         QCOMPARE(checkable, 2);
+    }
+
+    // A series left out by Chart Filters is not lost on save: the file keeps it, and after reopening it can be brought back. (It is written as a series like the others, so it shows again.)
+    void aFilteredSeriesSurvivesSaveAndReopen()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        e.win.w.objects()->layer()->prepareAll();
+        const QString first = e.win.w.chartFilterEntries().value(0).name;
+        QVERIFY(e.win.w.setChartSeriesShown(0, false));
+        QVERIFY(save(e));
+        const QVector<SavedChart> charts = savedCharts(e.path);
+        QCOMPARE(charts.size(), 1);
+        QCOMPARE(seriesOf(charts[0].chart).size(), 2);
+        EditWindow again;
+        QVERIFY(again.open([&] { QFile f(e.path); f.open(QIODevice::ReadOnly); return f.readAll(); }(), QStringLiteral("again.xlsx")));
+        QVERIFY(again.settle());
+        QTRY_VERIFY(objectsShown(again, 1));
+        again.win.w.objects()->layer()->select(0);
+        QVector<CrunchWindow::ChartFilterEntry> entries = again.win.w.chartFilterEntries();
+        QCOMPARE(entries.size(), 2);
+        QVERIFY(entries[0].shown && entries[1].shown);
+        QCOMPARE(entries[0].name, first);
+        // it can be filtered out and brought back again
+        QVERIFY(again.win.w.setChartSeriesShown(0, false));
+        QVERIFY(again.win.w.setChartSeriesShown(0, true));
+        QCOMPARE(chartOf(again).plots.first().series.size(), 2);
     }
 
     // ---- moving and sizing

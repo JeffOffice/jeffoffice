@@ -19,7 +19,7 @@ Example: you select A1:C4, where A2:A4 hold Q1, Q2, and Q3, B1 and C1 hold East 
 
 ## Hide a series for now
 
-Pick a chart. Three small buttons show beside it. The one with a funnel is **Chart Filters**. It lists the chart's series, each with a check. Clear a check to leave that series out of the chart. Check it again to bring it back in the same place. **Undo** works too. A chart always keeps at least one series. A series you left out is not kept when you save and close the file, so check it again first if you want it.
+Pick a chart. Three small buttons show beside it. The one with a funnel is **Chart Filters**. It lists the chart's series, each with a check. Clear a check to leave that series out of the chart. Check it again to bring it back in the same place. **Undo** works too. A chart always keeps at least one series. A series you left out is still in the file when you save it, and it shows again when you open the file, so nothing is lost. Filter it out again if you want it hidden.
 
 ## Move and size it
 
