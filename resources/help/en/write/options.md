@@ -1,5 +1,5 @@
 # Change JeffWrite's settings
-<!-- keywords: options, settings, preferences, save, default format, default folder, default file location, recovery, formatting marks, gridlines, display, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about -->
+<!-- keywords: advanced, units, measurements, inches, centimeters, options, settings, preferences, save, default format, default folder, default file location, recovery, formatting marks, gridlines, display, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about -->
 
 Your settings are in the **JeffWrite Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
@@ -19,6 +19,10 @@ The **Display** page chooses what a window shows when it opens.
 - **Show table gridlines** draws the faint edges of table cells that have no lines.
 
 A change on this page applies to the window you are in at once, and to each window you open after it.
+
+## Advanced
+
+**Show measurements in** picks the unit for the ruler and the dialogs: inches, centimeters, millimeters, points, or picas. A point is 1/72 of an inch. A pica is 12 points.
 
 ## Usage statistics
 

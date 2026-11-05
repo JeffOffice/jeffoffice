@@ -254,6 +254,7 @@ private Q_SLOTS:
         for (const OptionsPage &p : pages) titles << p.title;
         QVERIFY(titles.contains(QStringLiteral("Save")));
         QVERIFY(titles.contains(QStringLiteral("Display")));
+        QVERIFY(titles.contains(QStringLiteral("Advanced")));
         QList<QWidget *> built;
         for (const OptionsPage &p : pages) built << p.build();
         auto in = [&](const char *name) {
@@ -272,10 +273,16 @@ private Q_SLOTS:
         folder->setText(dir.path());
         marks->setChecked(true);
         grid->setChecked(true);
+        auto *units = qobject_cast<QComboBox *>(in("measurementUnits"));
+        QVERIFY(units);
+        const Unit oldUnit = Settings::get().unit();
+        units->setCurrentIndex(units->findData(int(oldUnit == Unit::Millimeter ? Unit::Point : Unit::Millimeter)));
         for (const OptionsPage &p : pages)
             if (p.apply) p.apply();
         qDeleteAll(built);
         QCOMPARE(Settings::get().autoRecoverMinutes(), 3);
+        QCOMPARE(Settings::get().unit(), oldUnit == Unit::Millimeter ? Unit::Point : Unit::Millimeter);
+        Settings::get().setUnit(oldUnit);
         // this window changes at once
         QVERIFY(w.view()->showMarks());
         QVERIFY(w.act(QStringLiteral("view.marks"))->isChecked());

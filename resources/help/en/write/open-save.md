@@ -75,7 +75,7 @@ An .odt file can't hold everything a .docx file can. When you save as .odt, Jeff
 
 ## Make a PDF
 
-Click **File > Export > Export to PDF**. Choose a name. The PDF looks the same on every computer, because the fonts go inside it. The document's title, author, subject, and keywords go into the PDF. Each heading becomes a **bookmark**, an entry in the list that a PDF reader shows beside the pages. Click a bookmark to jump to its page.
+Click **File > Export > Export to PDF**. Choose which pages to include: all, the current page, or a range such as 1-3, 5 (p2s3 and s3 work here too). Then choose a name. The PDF looks the same on every computer, because the fonts go inside it. The document's title, author, subject, and keywords go into the PDF. Each heading becomes a **bookmark**, an entry in the list that a PDF reader shows beside the pages. Click a bookmark to jump to its page.
 
 ## Make an email
 

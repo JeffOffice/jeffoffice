@@ -4,6 +4,7 @@
 #include "app/writewindow.h"
 
 #include "app/pageview.h"
+#include "app/ruler.h"
 #include "app/settings.h"
 
 #include <QAction>
@@ -46,6 +47,7 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         QComboBox *format = nullptr;
         QLineEdit *folder = nullptr;
         QCheckBox *marks = nullptr, *grid = nullptr;
+        QComboBox *units = nullptr;
     };
     auto f = std::make_shared<Fields>();
     QVector<OptionsPage> pages;
@@ -104,6 +106,23 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         Settings::get().setValue(QStringLiteral("view/marks"), f->marks->isChecked());
         Settings::get().setValue(QStringLiteral("view/gridlines"), f->grid->isChecked());
         applyDisplayDefaults();
+    }};
+    pages << OptionsPage{QCoreApplication::translate("Dialogs", "Advanced"), [f] {
+        auto *page = new QWidget();
+        auto *form = new QFormLayout(page);
+        f->units = new QComboBox(page);
+        f->units->setObjectName(QStringLiteral("measurementUnits"));
+        f->units->addItem(QCoreApplication::translate("Dialogs", "Inches"), int(Unit::Inch));
+        f->units->addItem(QCoreApplication::translate("Dialogs", "Centimeters"), int(Unit::Centimeter));
+        f->units->addItem(QCoreApplication::translate("Dialogs", "Millimeters"), int(Unit::Millimeter));
+        f->units->addItem(QCoreApplication::translate("Dialogs", "Points"), int(Unit::Point));
+        f->units->addItem(QCoreApplication::translate("Dialogs", "Picas"), int(Unit::Pica));
+        f->units->setCurrentIndex(std::max(0, f->units->findData(int(Settings::get().unit()))));
+        form->addRow(QCoreApplication::translate("Dialogs", "Show measurements in:"), f->units);
+        return page;
+    }, [this, f] {
+        Settings::get().setUnit(static_cast<Unit>(f->units->currentData().toInt()));
+        m_ruler->update();   // (the ruler's marks are in the unit chosen)
     }};
     return pages;
 }
