@@ -105,6 +105,7 @@ class PrintJob;
 struct PrintChoices;
 struct PrintJobOptions;
 class SheetObjects;
+struct ObjectClip;
 class SheetTabBar;
 }
 
@@ -1212,6 +1213,12 @@ public:
     void setPropertiesAsker(const std::function<bool(const ObjectProperties &, ObjectProperties *)> &asker) { m_propertiesAsker = asker; }
     // The commands of charts, for tests and the menus: a chart of the kind from the cells selected; the picked object moved to an anchor; the model of the picked chart changed.
     bool insertChart(jp::office::sheet::ChartKind kind, int inRows = -1);
+    // Insert > Picture, Shapes, and Text Box: a picture from a file (the picker stands in for the file dialog: tests), a shape by its preset's name, a text box; each is put on the sheet at the
+    // cell the cursor is in, picked, as one step.
+    void setPicturePicker(const std::function<QString()> &picker) { m_picturePicker = picker; }
+    bool insertPictureFile(const QString &path);
+    bool insertShape(const QString &preset);
+    bool insertTextBox();
     void insertChartDialog();
     // The dialogs, made but not shown, for whoever shows them (the window runs them; a tool takes pictures of them). Null if there is nothing for them to work on.
     QDialog *makeInsertChartDialog();
@@ -1260,6 +1267,7 @@ private:
     jp::office::sheet::DrawingAnchor newObjectAnchor(double width, double height);
     void objectContextMenu(int id, const QPoint &global);
     std::function<bool(InsertChartChoice *)> m_insertChartAsker;
+    std::function<QString()> m_picturePicker;
     std::function<bool(const SelectDataRequest &, jp::office::Chart *)> m_selectDataAsker;
     std::function<bool(const QStringList &, const QVector<jp::office::sheet::SeriesKind> &, QVector<jp::office::sheet::SeriesKind> *)> m_changeTypeAsker;
     std::function<bool(const ObjectProperties &, ObjectProperties *)> m_propertiesAsker;

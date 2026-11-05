@@ -1790,6 +1790,107 @@ private Q_SLOTS:
         QCOMPARE(int(kindOfChart(savedCharts(e.path)[0].chart)), int(ChartKind::Pie));
     }
 
+    // Insert > Picture puts a picture from a file on the sheet (the file's own bytes for a PNG), as one step of Undo; it is saved with the drawing and read again. A file that is not a
+    // picture is told and puts nothing.
+    void aPictureFromAFileIsInsertedAndSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        const QByteArray png = pngBytes(40, 20, Qt::blue);
+        const QString file = e.folder.write(QStringLiteral("logo.png"), png);
+        const QString junk = e.folder.write(QStringLiteral("notes.png"), "this is not a picture");
+        e.win.w.setPicturePicker([&] { return file; });
+        QVERIFY(e.win.w.act(QStringLiteral("insert.picture")));
+        e.select(QStringLiteral("C3"));
+        const int steps = e.win.w.undoStack()->count();
+        e.win.w.act(QStringLiteral("insert.picture"))->trigger();
+        crunch::SheetObjects *o = e.win.w.objects();
+        QCOMPARE(o->layer()->count(), 1);
+        QCOMPARE(o->kindOf(0, o->layer()->selectedId()), jp::office::sheet::ObjectKind::Picture);
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        // Undo takes it off the sheet, and Redo puts it back
+        pressUndo(&e.win.w);
+        QCOMPARE(int(o->idsOf(0).size()), 0);
+        pressRedo(&e.win.w);
+        QCOMPARE(int(o->idsOf(0).size()), 1);
+        o->layer()->select(o->idsOf(0).front());
+        const grid::ObjectBox box = o->layer()->boxNow(o->layer()->selectedId());
+        QCOMPARE(box.w, 40.0);
+        QCOMPARE(box.h, 20.0);
+        QVERIFY(!e.win.w.insertPictureFile(junk));
+        QVERIFY(!e.win.told.isEmpty());
+        QCOMPARE(o->layer()->count(), 1);
+        QVERIFY(save(e));
+        const QMap<QString, QByteArray> parts = partsOf(e.path);
+        QCOMPARE(parts.value(QStringLiteral("xl/media/image1.png")), png);
+        QVERIFY(parts.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("<xdr:pic>") || parts.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("xdr:pic"));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 1);
+    }
+
+    // A picture too wide for the sheet comes in at 480 wide with its proportions, and a picture JeffCrunch does not keep as it is (a vector picture) is kept as a PNG.
+    void aLargePictureIsScaledAndAVectorPictureBecomesAPng()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        QVERIFY(e.win.w.insertPictureFile(e.folder.write(QStringLiteral("big.png"), pngBytes(960, 480, Qt::green))));
+        crunch::SheetObjects *o = e.win.w.objects();
+        const grid::ObjectBox big = o->layer()->boxNow(o->layer()->selectedId());
+        QCOMPARE(big.w, 480.0);
+        QCOMPARE(big.h, 240.0);
+        const QByteArray svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"30\" height=\"30\"><rect width=\"30\" height=\"30\" fill=\"red\"/></svg>";
+        QVERIFY(e.win.w.insertPictureFile(e.folder.write(QStringLiteral("shape.svg"), svg)));
+        QVERIFY(save(e));
+        int png = 0;
+        const QMap<QString, QByteArray> parts = partsOf(e.path);
+        for (auto it = parts.begin(); it != parts.end(); ++it)
+            if (it.key().startsWith(QLatin1String("xl/media/"))) {
+                ++png;
+                QVERIFY(it.value().startsWith("\x89PNG"));
+            }
+        QCOMPARE(png, 2);
+    }
+
+    // Insert > Shapes and Text Box: each shape of the gallery is a shape of the drawing with its preset geometry, a text box is marked as one, a line is a connector; they are saved and read again.
+    void shapesAndATextBoxAreInsertedAndSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        for (const char *id : {"insert.shape.rect", "insert.shape.rightArrow", "insert.shape.star", "insert.shape.line", "insert.textBox"}) {
+            QVERIFY2(e.win.w.act(QString::fromLatin1(id)), id);
+            e.win.w.act(QString::fromLatin1(id))->trigger();
+        }
+        QCOMPARE(o->layer()->count(), 5);
+        QVERIFY(e.win.told.isEmpty());
+        QVERIFY(save(e));
+        const QMap<QString, QByteArray> saved = partsOf(e.path);
+        const QByteArray drawing = saved.value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY(!saved.contains(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels")));   // (shapes relate to nothing: no empty file of relationships)
+        QVERIFY(drawing.contains("prst=\"rect\""));
+        QVERIFY(drawing.contains("prst=\"rightArrow\""));
+        QVERIFY(drawing.contains("prst=\"star5\""));
+        QVERIFY(drawing.contains("prst=\"line\""));
+        QVERIFY(drawing.contains("txBox=\"1\""));
+        QVERIFY(drawing.contains("cxnSp"));
+        QDomDocument doc;
+        QVERIFY(parseXml(drawing, &doc));
+        const QDomNodeList all = doc.elementsByTagName(QStringLiteral("cNvPr"));
+        QSet<QString> ids;
+        for (int i = 0; i < all.size(); ++i) ids.insert(all.at(i).toElement().attribute(QStringLiteral("id")));
+        QCOMPARE(int(ids.size()), 5);
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 5);
+    }
+
     // Pictures and shapes move and size too: the anchor of the file is kept in the form it keeps what the object does when cells change (a picture of a one-cell anchor moves with the cells and
     // keeps its size; a shape set not to move or size stays where it is).
     void picturesAndShapesAreMovedAndSaved()

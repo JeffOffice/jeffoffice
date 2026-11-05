@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key -->
+<!-- keywords: insert picture, insert shape, text box, shapes, line, arrow, oval, rectangle, star, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -63,6 +63,14 @@ The sparklines you make in one step are a group, and they share one look. Click 
 - **Group** puts the selected sparklines in one group. **Ungroup** gives each its own look. **Clear** takes away the selected sparklines, or their whole groups.
 
 A sparkline follows its cells: insert a row above the data, and it still reads the same numbers. Every change is one step you can undo. Sparklines are saved in the file in the form other spreadsheet programs read.
+
+## Put in a picture, a shape, or a text box
+
+On the **Insert** tab, in **Illustrations**, **Picture** opens a file chooser. Pick a picture file (PNG, JPEG, GIF, BMP, TIFF, or SVG) and it lands on the sheet at the selected cell. A picture wider than 480 dots is made smaller to fit, and keeps its shape. The workbook keeps the picture itself. A picture of a kind the workbook can't hold as it is (an SVG, for example) is kept as a PNG, a plain picture made of dots. A file that is not a picture, or is larger than 16 MB, is turned down with a message.
+
+**Shapes** opens a list: rectangle, rounded rectangle, oval, triangle, diamond, arrows, a star, a heart, a cloud, a speech callout, and a line. Pick one and it lands on the sheet in light blue with a darker edge. **Text Box**, in the **Text** group, puts in an empty box with no fill and no edge.
+
+Each one is a single step you can undo. The new object is picked, so you can drag it, size it, move it forward or back, give it a name and alt text in **Properties**, or press **Delete**.
 
 ## Cut, copy, and paste an object
 

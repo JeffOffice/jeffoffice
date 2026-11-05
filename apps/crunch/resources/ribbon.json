@@ -169,6 +169,14 @@
           ]
         },
         {
+          "name": "Illustrations",
+          "keytip": "ZI",
+          "items": [
+            {"large": "insert.picture", "keytip": "P"},
+            {"large": {"id": "ribbon.shapes", "text": "Shapes", "icon": "shapes"}, "keytip": "SH", "menu": ["insert.shape.rect", "insert.shape.roundRect", "insert.shape.ellipse", "insert.shape.triangle", "insert.shape.diamond", "insert.shape.pentagon", "insert.shape.hexagon", "insert.shape.rightArrow", "insert.shape.leftArrow", "insert.shape.upArrow", "insert.shape.downArrow", "insert.shape.star", "insert.shape.heart", "insert.shape.cloud", "insert.shape.callout", "insert.shape.line"]}
+          ]
+        },
+        {
           "name": "Charts",
           "keytip": "ZH",
           "items": [
@@ -204,6 +212,7 @@
           "name": "Text",
           "keytip": "ZX",
           "items": [
+            {"large": "insert.textBox", "keytip": "X"},
             {"large": "insert.headerFooter", "keytip": "H"}
           ]
         }
