@@ -131,6 +131,27 @@ private Q_SLOTS:
         QCOMPARE(rows[0], (QStringList{QStringLiteral("ab"), QStringLiteral("cd")}));
     }
 
+    // The values of the import window's own example land as numbers, and its preview keeps the text of the file as it is (never half converted).
+    void theExampleOfTheImportWindowLandsAsNumbersAndThePreviewKeepsTheText()
+    {
+        LocaleScope locale(QLocale::c());
+        auto c = choices();
+        c->fixedWidth = true;
+        c->breaks = {6, 12};
+        c->decimalMark = QLatin1Char(',');
+        c->thousandsMark = QLatin1Char('.');
+        c->trailingMinus = true;
+        const QByteArray file = "Name  Qty   Price\nBob   12    1.234,50\nAl    7     9,5-\n";
+        Workbook wb;
+        QVERIFY(openWith(file, c, &wb));
+        const Sheet s = read(wb);
+        QCOMPARE(shown(wb, s, QLatin1String("C2")), QStringLiteral("n:1234.5"));
+        QCOMPARE(shown(wb, s, QLatin1String("C3")), QStringLiteral("n:-9.5"));
+        const QVector<QStringList> rows = csvPreview(file, QStringLiteral("data.txt"), *c, QLocale::c());
+        QCOMPARE(rows.value(1).value(2), QStringLiteral("1.234,50"));
+        QCOMPARE(rows.value(2).value(2), QStringLiteral("9,5-"));
+    }
+
     void separatorsInARowCountAsOneWhenAsked()
     {
         LocaleScope locale(QLocale::c());
