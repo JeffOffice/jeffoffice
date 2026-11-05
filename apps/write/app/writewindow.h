@@ -54,6 +54,7 @@ class ReviewPane;
 namespace write {
 class PageView;
 class Ruler;
+class VerticalRuler;
 class SpellPane;
 class AccessPane;
 }
@@ -141,6 +142,8 @@ public:
     void setLinkOpener(const std::function<void(const QString &)> &opener) { m_linkOpener = opener; }
     void setPictureChooser(const std::function<QString()> &chooser) { m_pictureChooser = chooser; }
     write::Ruler *ruler() const { return m_ruler; }
+    // Shows the vertical ruler when View > Vertical Ruler is on and the pages are on show (not in Outline view or Focus).
+    void syncVerticalRuler();
     // What Save As asks for a name with: the file dialog, unless this stands in for it (tests): the name to suggest and the filter to
     // start on in, the path chosen out (empty for none).
     void setSavePathChooser(const std::function<QString(const QString &suggested, const QString &filter)> &chooser) { m_pathChooser = chooser; }
@@ -477,6 +480,7 @@ private:
     QList<MeasureSpin *> m_pictureFields;   // the height and width of the Picture Format tab
     QList<MeasureSpin *> m_shapeFields;     // the height and width of the Shape Format tab
     write::Ruler *m_ruler = nullptr;
+    write::VerticalRuler *m_vruler = nullptr;
     QList<MeasureSpin *> m_hfFields;        // the header and footer distances of the Header & Footer tab
     QList<MeasureSpin *> m_tableFields;     // the row height and column width of the Table Layout tab
     QWidget *m_tableStyleGallery = nullptr;

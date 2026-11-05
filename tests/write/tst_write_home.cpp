@@ -8,6 +8,7 @@
 #include "app/writedialogs.h"
 #include "app/writewindow.h"
 #include "app/pageview.h"
+#include "app/ruler.h"
 #include "app/writefindpane.h"
 #include "core/appinfo.h"
 #include "core/accessops.h"
@@ -1809,6 +1810,45 @@ private Q_SLOTS:
         QVERIFY(doc->redo());
         QVERIFY(!doc->styleSheet().find(id));
     }
+
+
+    void theVerticalRulerShowsTheMarginsOfThePagesAndComesAndGoesWithTheCommand()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 900);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("one")) + para(run("two")))), QString());
+        QVERIFY(w.act(QStringLiteral("view.verticalRuler")));
+        auto *ruler = w.findChild<write::VerticalRuler *>(QStringLiteral("verticalRuler"));
+        QVERIFY(ruler);
+        QVERIFY(!w.act(QStringLiteral("view.verticalRuler"))->isChecked());
+        QVERIFY(!ruler->isVisible());
+        w.act(QStringLiteral("view.verticalRuler"))->trigger();
+        QTRY_VERIFY(ruler->isVisible());
+        QVERIFY(ruler->mapToGlobal(QPoint(ruler->width(), 0)).x() <= w.view()->mapToGlobal(QPoint(0, 0)).x() + 2);   // (left of the pages)
+        double top = 0, bottom = 0;
+        QTRY_VERIFY(ruler->textAreaOf(0, &top, &bottom));
+        const QRect page = w.view()->pageRect(0);
+        const double scale = w.view()->zoom() * 96.0 / 72.0;
+        const double pageTop = ruler->mapFromGlobal(w.view()->viewport()->mapToGlobal(QPoint(0, page.top()))).y();
+        QVERIFY2(std::abs((top - pageTop) - 72 * scale) < 2, qPrintable(QString::number(top - pageTop)));   // (the page's top margin: an inch)
+        QVERIFY(bottom > top + 100);
+        // The text area is white and the margins are gray, in the ruler's own picture.
+        const QImage img = ruler->grab().toImage();
+        const int mid = int((top + bottom) / 2), inMargin = int(pageTop + 20 * scale);
+        QVERIFY(mid < img.height() && inMargin >= 0 && inMargin < img.height());
+        QVERIFY(img.pixelColor(img.width() / 2, mid).lightness() > img.pixelColor(img.width() / 2, inMargin).lightness());
+        shot(&w, QStringLiteral("vertical-ruler.png"));
+        // The tree of the outline view has no pages: the ruler goes, and comes back with the pages.
+        w.act(QStringLiteral("view.outline"))->trigger();
+        QTRY_VERIFY(!ruler->isVisible());
+        w.act(QStringLiteral("view.printLayout"))->trigger();
+        QTRY_VERIFY(ruler->isVisible());
+        w.act(QStringLiteral("view.verticalRuler"))->trigger();
+        QTRY_VERIFY(!ruler->isVisible());
+    }
+
 
     // ---- the review's fixes
     void saveAsOfAProtectedDocumentDoesNotLiftTheProtection()

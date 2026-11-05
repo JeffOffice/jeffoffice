@@ -78,4 +78,22 @@ private:
     bool m_dragOut = false;
 };
 
+// The vertical ruler, left of the pages (View > Vertical Ruler): for each page on show, its top and bottom margins in gray and the text area in white, marked from the top of the text
+// area, up into the top margin and down to the bottom one, in the unit the options chose.
+class VerticalRuler : public QWidget {
+    Q_OBJECT
+public:
+    explicit VerticalRuler(PageView *view, QWidget *parent = nullptr);
+    QSize sizeHint() const override { return QSize(kWidth, 200); }
+    static constexpr int kWidth = 22;
+    // The rows of the ruler (in pixels, from the top) where the text area of a page begins and ends: false where the page is not on show or the ruler is not drawn.
+    bool textAreaOf(int page, double *top, double *bottom) const;
+
+protected:
+    void paintEvent(QPaintEvent *e) override;
+
+private:
+    PageView *m_view;
+};
+
 } // namespace jp::write

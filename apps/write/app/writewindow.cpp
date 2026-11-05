@@ -48,6 +48,7 @@
 #include <QLocale>
 #include <QStatusBar>
 #include <QToolButton>
+#include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QTextBlock>
 #include <QTextDocument>
@@ -100,7 +101,15 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     m_split->setReadOnly(true);
     m_split->hide();
     m_splitter->addWidget(m_split);
-    column->addWidget(m_splitter, 1);
+    // The vertical ruler is left of the pages (off until View > Vertical Ruler turns it on).
+    auto *body = new QHBoxLayout;
+    body->setContentsMargins(0, 0, 0, 0);
+    body->setSpacing(0);
+    m_vruler = new write::VerticalRuler(m_view, central);
+    m_vruler->hide();
+    body->addWidget(m_vruler);
+    body->addWidget(m_splitter, 1);
+    column->addLayout(body, 1);
     m_outline = new WriteOutlineView(central);
     m_outline->hide();
     column->addWidget(m_outline, 1);
@@ -414,6 +423,7 @@ void WriteWindow::createViewActions()
     mk("view.printLayout", tr("Print Layout"), "file-text", QKeySequence(), [] {}, true)->setChecked(true);
     mk("view.marks", tr("Show/Hide ¶"), "pilcrow", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_8), [this] { m_view->setShowMarks(act("view.marks")->isChecked()); }, true);
     mk("view.ruler", tr("Ruler"), "ruler", QKeySequence(), [this] { m_ruler->setVisible(act("view.ruler")->isChecked()); }, true)->setChecked(true);
+    mk("view.verticalRuler", tr("Vertical Ruler"), "ruler", QKeySequence(), [this] { syncVerticalRuler(); }, true);
     mk("zoom.in", tr("Zoom In"), "zoom-in", QKeySequence(), [v] { v->setZoom(std::round(v->zoom() * 10 + 1) / 10); });
     mk("zoom.out", tr("Zoom Out"), "zoom-out", QKeySequence(), [v] { v->setZoom(std::round(v->zoom() * 10 - 1) / 10); });
     for (int pct : {200, 150, 100, 75, 50, 25, 10}) {

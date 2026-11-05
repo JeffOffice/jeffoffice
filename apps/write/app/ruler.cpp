@@ -404,4 +404,86 @@ void Ruler::paintEvent(QPaintEvent *)
     drawTab(12, m_tabKind, 9);
 }
 
+VerticalRuler::VerticalRuler(PageView *view, QWidget *parent) : QWidget(parent), m_view(view)
+{
+    setObjectName(QStringLiteral("verticalRuler"));
+    setFixedWidth(kWidth);
+    setAccessibleName(QCoreApplication::translate("jp::write::Ruler", "Vertical ruler"));
+    setAccessibleDescription(QCoreApplication::translate("jp::write::Ruler", "The top and bottom margins of the pages on show."));
+    connect(view, &PageView::contentChanged, this, qOverload<>(&QWidget::update));
+    connect(view, &PageView::zoomChanged, this, qOverload<>(&QWidget::update));
+    connect(view, &PageView::pagesChanged, this, qOverload<>(&QWidget::update));
+    connect(view->verticalScrollBar(), &QScrollBar::valueChanged, this, qOverload<>(&QWidget::update));
+}
+
+bool VerticalRuler::textAreaOf(int page, double *top, double *bottom) const
+{
+    WriteDoc *doc = m_view->document();
+    if (!doc || page < 0 || page >= m_view->pageCount()) return false;
+    const QRect r = m_view->pageRect(page);
+    if (r.isNull()) return false;
+    const flow::Section &sec = doc->flow().section(m_view->cursorSection());
+    const double scale = m_view->zoom() * 96.0 / 72.0;
+    const double offset = mapFromGlobal(m_view->viewport()->mapToGlobal(QPoint(0, 0))).y();
+    if (top) *top = offset + r.top() + sec.margins.top() * scale;
+    if (bottom) *bottom = offset + r.bottom() - sec.margins.bottom() * scale;
+    return true;
+}
+
+void VerticalRuler::paintEvent(QPaintEvent *)
+{
+    QPainter p(this);
+    const bool dark = uiDark();
+    const QColor ground = dark ? QColor(0x30, 0x30, 0x30) : QColor(0xE4, 0xE6, 0xE9);
+    const QColor margin = dark ? QColor(0x45, 0x45, 0x45) : QColor(0xC4, 0xC8, 0xCE);
+    const QColor paper = dark ? QColor(0x1E, 0x1E, 0x1E) : QColor(Qt::white);
+    const QColor ink = uiText();
+    p.fillRect(rect(), ground);
+    WriteDoc *doc = m_view->document();
+    if (!doc) return;
+    p.setRenderHint(QPainter::Antialiasing, false);
+    const double scale = m_view->zoom() * 96.0 / 72.0;
+    const double offset = mapFromGlobal(m_view->viewport()->mapToGlobal(QPoint(0, 0))).y();
+    const Scale sc = scaleFor(Settings::get().unit());
+    const double step = sc.major / sc.minorsPerMajor;
+    QFont f = font();
+    f.setPixelSize(9);
+    p.setFont(f);
+    const int bandLeft = 4, bandRight = kWidth - 4;
+    const int pages = std::min(m_view->pageCount(), 100000);
+    for (int page = 0; page < pages; ++page) {
+        const QRect r = m_view->pageRect(page);
+        if (r.isNull()) continue;
+        const double pageTop = offset + r.top(), pageBottom = offset + r.bottom();
+        if (pageBottom < 0) continue;
+        if (pageTop > height()) break;
+        double textTop = 0, textBottom = 0;
+        if (!textAreaOf(page, &textTop, &textBottom)) continue;
+        p.fillRect(QRectF(bandLeft, pageTop, bandRight - bandLeft, pageBottom - pageTop), margin);
+        p.fillRect(QRectF(bandLeft, textTop, bandRight - bandLeft, textBottom - textTop), paper);
+        // The marks, from the top of the text area, both ways.
+        p.setPen(ink);
+        const int from = int(std::floor((pageTop - textTop) / scale / step)) - 1, to = int(std::ceil((pageBottom - textTop) / scale / step)) + 1;
+        const int count = std::min(to - from, 4000);
+        for (int i = from; i < from + count; ++i) {
+            const double y = std::round(textTop + i * step * scale) + 0.5;
+            if (y < pageTop - 1 || y > pageBottom + 1 || y < 0 || y > height()) continue;
+            const int k = ((i % int(sc.minorsPerMajor)) + int(sc.minorsPerMajor)) % int(sc.minorsPerMajor);
+            if (k == 0) {
+                if (i != 0 && step * scale > 3) {
+                    p.save();
+                    p.translate(kWidth / 2.0, y);
+                    p.rotate(-90);
+                    p.drawText(QRectF(-12, -kWidth / 2.0, 24, kWidth), Qt::AlignCenter, QString::number(std::abs(i) / int(sc.minorsPerMajor)));
+                    p.restore();
+                }
+            } else if (step * scale > 3.5) {
+                const bool mid = int(sc.minorsPerMajor) % 2 == 0 && k == int(sc.minorsPerMajor) / 2;
+                const double h = mid ? 4 : 2;
+                p.drawLine(QPointF(kWidth / 2.0 - h / 2, y), QPointF(kWidth / 2.0 + h / 2, y));
+            }
+        }
+    }
+}
+
 } // namespace jp::write
