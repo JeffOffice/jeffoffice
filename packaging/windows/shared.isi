@@ -75,14 +75,15 @@ end;
 
 { The files a program folder holds that the installer (any version) put there. With All, the apps and their
   extras go too and the folder is removed if that leaves it empty. Without Force, nothing is touched unless the
-  folder holds JeffPub, so a folder that merely has the same names in it is left alone. }
+  folder holds one of the apps, so a folder that merely has the same names in it is left alone. }
 procedure {#Pfx}CleanProgramFolder(const Dir: String; All, Force: Boolean);
 var
   Dirs: String;
   P: Integer;
   N: String;
 begin
-  if (Dir = '') or not (Force or FileExists(Dir + '\JeffPub.exe')) then
+  if (Dir = '') or not (Force or FileExists(Dir + '\JeffPub.exe') or FileExists(Dir + '\JeffDeck.exe')
+    or FileExists(Dir + '\JeffWrite.exe') or FileExists(Dir + '\JeffCrunch.exe')) then
     Exit;
   DelTree(Dir + '\*.dll', False, True, False);
   DeleteFile(Dir + '\Uninstall.exe');
