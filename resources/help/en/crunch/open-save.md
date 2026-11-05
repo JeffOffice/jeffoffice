@@ -20,7 +20,7 @@ When you open a text file, a window first shows its first rows and asks how it i
 To keep only the values of the sheet you are looking at, click **File**, then **Save As**, and choose the **.csv** kind of file (or **.tsv** and **.txt**, tab-separated). Before it writes the file, JeffCrunch says what your workbook has that the file will not hold (the other sheets, formulas, pictures, charts, notes, and macros, for example), and asks how to write it, and whether to **Save Values Only**, to **Save as .xlsx** instead and keep everything, or to **Cancel**:
 
 - **Separator.** A comma, semicolon, tab, space, vertical bar, or a character you type. A **.csv** begins with a semicolon where your language writes a comma in its numbers, and a comma elsewhere; a **.tsv** or **.txt** with a tab.
-- **Text encoding.** UTF-8 with a mark (so that other programs take accented letters right), UTF-8 without it, UTF-16, or a code page such as Western European (1252), the ISO 8859 pages, or Mac Roman. A letter the code page has no byte for is written as a question mark, and the status bar says how many.
+- **Text encoding.** UTF-8 with a mark (so that other programs take accented letters right), UTF-8 without it, UTF-16, or a code page such as Western European (1252), the ISO 8859 pages, Mac Roman, or the Japanese, Chinese, Korean, Hebrew, Arabic, Baltic, Vietnamese, and Thai pages. A letter the code page has no byte for is written as a question mark, and the status bar says how many.
 - **Line ends.** Windows (carriage return and line feed), Linux and Mac (line feed), or old Mac (carriage return).
 - **Cells.** **As shown in the cells** writes what you see. **As stored** writes every digit of a number (0.1 and not 10%), and a date as ISO text such as 2026-03-04.
 
