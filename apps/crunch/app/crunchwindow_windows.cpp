@@ -48,16 +48,8 @@ void CrunchWindow::createWindowActions()
     act("view.syncScroll")->setChecked(true);
     mk("view.resetWindowPosition", tr("Reset Window Position"), "layout-panel-left", QKeySequence(), [this] {
         if (m_sidePartner) AppWindow::placeSideBySide(this, m_sidePartner);
+        else setStatus(tr("Turn on View Side by Side first: this puts the two windows back on the halves of the screen."));
     });
-    // (both do something only while two windows are side by side: they are dimmed otherwise)
-    act("view.syncScroll")->setEnabled(false);
-    act("view.resetWindowPosition")->setEnabled(false);
-}
-
-// Synchronous Scrolling and Reset Window Position are on while this window has a partner.
-void CrunchWindow::updateWindowActions()
-{
-    for (const char *id : {"view.syncScroll", "view.resetWindowPosition"}) act(QString::fromLatin1(id))->setEnabled(m_sidePartner != nullptr);
 }
 
 void CrunchWindow::setSynchronousScrolling(bool on)
@@ -65,6 +57,7 @@ void CrunchWindow::setSynchronousScrolling(bool on)
     m_syncScroll = on;
     if (m_sidePartner) m_sidePartner->m_syncScroll = on;
     act(QStringLiteral("view.syncScroll"))->setChecked(on);
+    setStatus(on ? tr("Synchronous Scrolling is on: the two windows scroll together.") : tr("Synchronous Scrolling is off: each window scrolls on its own."));
     if (m_sidePartner) m_sidePartner->act(QStringLiteral("view.syncScroll"))->setChecked(on);
 }
 
@@ -76,7 +69,6 @@ void CrunchWindow::setSideBySide(bool on)
         for (QMetaObject::Connection &c : w->m_sideScroll) QObject::disconnect(c);
         w->m_sidePartner = nullptr;
         if (w->act(QStringLiteral("view.sideBySide"))->isChecked()) w->act(QStringLiteral("view.sideBySide"))->setChecked(false);
-        w->updateWindowActions();
     };
     if (!on) {
         CrunchWindow *other = m_sidePartner;
@@ -119,8 +111,6 @@ void CrunchWindow::setSideBySide(bool on)
     };
     follow(this, partner, 0);
     follow(partner, this, 1);
-    updateWindowActions();
-    partner->updateWindowActions();
     AppWindow::placeSideBySide(this, partner);
 }
 

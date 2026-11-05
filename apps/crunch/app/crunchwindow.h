@@ -1161,7 +1161,6 @@ private:
     void windowRibbonParts(RibbonParts &parts);
     void setSideBySide(bool on);
     void setSynchronousScrolling(bool on);
-    void updateWindowActions();
     // the views of a sheet: the cells, the page breaks, the pages (crunchwindow_views.cpp)
     void createViewActions();
     void addViewButtons(QStatusBar *bar);
