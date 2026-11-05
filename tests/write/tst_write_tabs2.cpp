@@ -943,6 +943,35 @@ private Q_SLOTS:
         QCOMPARE(story->toPlainText().count(QChar::ObjectReplacementCharacter), 1);
     }
 
+    // ---------------------------------------------------------------- Paper sizes
+    void envelopeSizesAreOnTheSizeMenuAndInPageSetup()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        const QList<std::pair<QString, QSizeF>> envelopes = {{QStringLiteral("envelope10"), QSizeF(297, 684)}, {QStringLiteral("envelopeMonarch"), QSizeF(279, 540)},
+                                                              {QStringLiteral("envelopeDL"), QSizeF(311.81, 623.62)}, {QStringLiteral("envelopeC5"), QSizeF(459.21, 649.13)}};
+        for (const auto &e : envelopes) {
+            QVERIFY2(w.act(QStringLiteral("layout.size.") + e.first), qPrintable(e.first));
+            w.act(QStringLiteral("layout.size.") + e.first)->trigger();
+            const QSizeF paper = w.document()->flow().section(0).paper;   // (kept to a twentieth of a point)
+            QVERIFY2(std::abs(paper.width() - e.second.width()) < 0.1 && std::abs(paper.height() - e.second.height()) < 0.1, qPrintable(e.first));
+            QTRY_VERIFY(w.act(QStringLiteral("layout.size.") + e.first)->isChecked());
+        }
+        // Page Setup names the paper the same way.
+        QString found;
+        QTimer::singleShot(0, [&found] {
+            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dlg) return;
+            auto *size = dlg->findChild<QComboBox *>(QStringLiteral("paperSize"));
+            if (size) found = size->currentText();
+            dlg->reject();
+        });
+        pageSetupDialog(nullptr, w.document(), 0);
+        QCOMPARE(found, QStringLiteral("Envelope C5"));
+    }
+
     // ---------------------------------------------------------------- Page Setup
     void pageSetupFromThisPointForwardMakesASectionAtTheCursor()
     {

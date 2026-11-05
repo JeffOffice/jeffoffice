@@ -1,5 +1,5 @@
 # Set up the page
-<!-- keywords: page setup, margins, margin, orientation, portrait, landscape, paper size, paper, letter, a4, legal, gutter, layout, section start, new page, continuous, odd page, even page, different first page, different odd and even pages, header distance, footer distance, whole document, this section, this point forward, from this point on, custom margins -->
+<!-- keywords: page setup, margins, margin, orientation, portrait, landscape, paper size, paper, envelope size, envelope, letter, a4, legal, gutter, layout, section start, new page, continuous, odd page, even page, different first page, different odd and even pages, header distance, footer distance, whole document, this section, this point forward, from this point on, custom margins -->
 
 **Page Setup** sets the paper, the margins, and how the pages of a **section** begin. A document has one section until you add a section break (**Layout > Breaks**); each section can have its own paper, margins, and layout.
 
@@ -11,7 +11,7 @@ Type the space between the paper's edge and the text for the **Top**, **Bottom**
 
 ## Paper
 
-Pick a **paper size** (Letter, Legal, Executive, A3, A4, A5, or B5), or type a **width** and **height** of your own. Paper can be from 0.5 inch to 22 inches on a side (36 to 1,584 points). If you type a width that is more than the height, the page is landscape.
+Pick a **paper size** (Letter, Legal, Executive, A3, A4, A5, B5, or an envelope: Envelope #10, Monarch, DL, or C5), or type a **width** and **height** of your own. Paper can be from 0.5 inch to 22 inches on a side (36 to 1,584 points). If you type a width that is more than the height, the page is landscape.
 
 ## Layout
 

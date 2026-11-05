@@ -41,6 +41,10 @@ const Paper kPapers[] = {
     {QT_TRANSLATE_NOOP("jp::write::Dialogs", "A4"), 595.3, 841.9},
     {QT_TRANSLATE_NOOP("jp::write::Dialogs", "A5"), 419.55, 595.3},
     {QT_TRANSLATE_NOOP("jp::write::Dialogs", "B5"), 498.95, 708.75},
+    {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Envelope #10"), 297, 684},
+    {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Envelope Monarch"), 279, 540},
+    {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Envelope DL"), 311.81, 623.62},
+    {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Envelope C5"), 459.21, 649.13},
 };
 
 } // namespace
