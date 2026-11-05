@@ -748,6 +748,70 @@ private Q_SLOTS:
         QVERIFY(!elementsOf(chartOf(e)).labels);
     }
 
+    // Value From Cells, in the Data Labels list: the labels show the words of a range of cells (one step of Undo), the words follow the cells, and the file holds the range and its words.
+    void dataLabelsTakeTheirWordsFromCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.chartElementsButton() && e.win.w.chartElementsButton()->isVisible());
+        QMenu *menu = e.win.w.chartElementsButton()->menu();
+        auto fire = [&](const QStringList &path) {
+            QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+            QMenu *m = menu;
+            QAction *found = nullptr;
+            for (int i = 0; i < path.size(); ++i) {
+                found = nullptr;
+                for (QAction *a : m->actions())
+                    if (a->text() == path[i]) found = a;
+                if (!found) return false;
+                if (i + 1 < path.size()) m = found->menu();
+            }
+            found->trigger();
+            return true;
+        };
+        QVERIFY(dataLabelsCellsRef(chartOf(e)).isEmpty());
+        e.win.w.setChartTextAsker([](const QString &, QString *text) {
+            *text = QStringLiteral("=A2:A4");
+            return true;
+        });
+        const int steps = e.win.w.session()->undoStack()->count();
+        QVERIFY(fire({"Data Labels", "Value From Cells…"}));
+        QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);
+        const QString ref = dataLabelsCellsRef(chartOf(e));
+        QVERIFY2(ref.endsWith(QStringLiteral("!$A$2:$A$4")), qPrintable(ref));
+        const ChartSeries first = seriesOf(chartOf(e)).value(0);
+        QVERIFY(first.labels.cells);
+        QCOMPARE(first.labelCellsText.size(), 3);
+        QVERIFY(!first.labelCellsText.join(QString()).isEmpty());
+        QVERIFY(save(e));
+        const ChartSeries saved = seriesOf(savedCharts(e.path)[0].chart).value(0);
+        QVERIFY(saved.labels.cells);
+        QCOMPARE(saved.labelCellsRef, ref);
+        QCOMPARE(saved.labelCellsText, first.labelCellsText);
+        // a range that is not there is refused, and nothing changes
+        e.win.w.setChartTextAsker([](const QString &, QString *text) {
+            *text = QStringLiteral("=Nowhere!A1:A3");
+            return true;
+        });
+        int told = 0;
+        e.win.w.setNotifier([&told](const QString &, const QString &) { ++told; });
+        QVERIFY(fire({"Data Labels", "Value From Cells…"}));
+        QCOMPARE(told, 1);
+        QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);
+        QCOMPARE(dataLabelsCellsRef(chartOf(e)), ref);
+        // empty takes it away
+        e.win.w.setChartTextAsker([](const QString &, QString *text) {
+            text->clear();
+            return true;
+        });
+        QVERIFY(fire({"Data Labels", "Value From Cells…"}));
+        QVERIFY(dataLabelsCellsRef(chartOf(e)).isEmpty());
+        pressUndo(&e.win.w);
+        QCOMPARE(dataLabelsCellsRef(chartOf(e)), ref);
+    }
+
     // Format Axis sets an axis from the Chart tab as one step of Undo, only for a chart that has the axis, and the saved file holds it.
     void anAxisIsFormattedFromTheChartTab()
     {

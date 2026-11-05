@@ -179,6 +179,37 @@ private Q_SLOTS:
         QVERIFY(chartIsFullyModeled(xml, nullptr));
     }
 
+    // "Value from cells": the labels' words are the cells' (c15:showDataLabelsRange in the labels and c15:datalabelsRange with its cache in the series), written, read back, and drawn.
+    void dataLabelsFromCellsAreKeptAndDrawn()
+    {
+        Chart c = comboChart();
+        ChartSeries &s = c.plots[0].series[0];
+        s.labels.cells = true;
+        s.labelCellsRef = QStringLiteral("Sheet1!$E$2:$E$4");
+        s.labelCellsText = QStringList{QStringLiteral("alpha"), QString(), QStringLiteral("gamma & co")};
+        const QByteArray xml = writeChartPart(c);
+        QDomDocument doc;
+        QVERIFY(doc.setContent(xml, true));
+        const QString c15 = QStringLiteral("http://schemas.microsoft.com/office/drawing/2012/chart");
+        QCOMPARE(doc.elementsByTagNameNS(c15, QStringLiteral("showDataLabelsRange")).size(), 1);
+        QCOMPARE(doc.elementsByTagNameNS(c15, QStringLiteral("datalabelsRange")).size(), 1);
+        QCOMPARE(doc.elementsByTagNameNS(c15, QStringLiteral("f")).at(0).toElement().text(), QStringLiteral("Sheet1!$E$2:$E$4"));
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(xml, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        const ChartSeries &back = r.plots[0].series[0];
+        QVERIFY(back.labels.cells);
+        QCOMPARE(back.labelCellsRef, QStringLiteral("Sheet1!$E$2:$E$4"));
+        QCOMPARE(back.labelCellsText, s.labelCellsText);
+        QVERIFY(!r.plots[0].series[1].labels.cells);
+        QCOMPARE(writeChartPart(r), xml);
+        QVERIFY(chartIsFullyModeled(xml, nullptr));
+        const QByteArray svg = chartSvg(r, QSizeF(480, 288));
+        QVERIFY(svg.contains("alpha") && svg.contains("gamma &amp; co"));
+        // the same chart without it draws neither
+        QVERIFY(!chartSvg(comboChart(), QSizeF(480, 288)).contains("alpha"));
+    }
+
     void aLabelsLegendKeyIsKeptAndDrawn()
     {
         Chart c = comboChart();

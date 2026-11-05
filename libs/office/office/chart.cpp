@@ -27,6 +27,7 @@ const QString kMarkupNs = QStringLiteral("http://schemas.openxmlformats.org/mark
 // series is a crowd, a few hundred points a big chart, and a long series of readings has a couple of thousand. These are many times the
 // series, plots, and axes that a real chart has, and five times its longest series; and the picture drawn from them is coarser still
 // (chart_svg.cpp).
+const char kC15Ns[] = "http://schemas.microsoft.com/office/drawing/2012/chart";
 constexpr int kMaxSeries = 256, kMaxPoints = 10000, kMaxPlots = 16, kMaxAxes = 16;
 // The points all of a chart's series may have between them.
 constexpr int kMaxChartPoints = 100000;
@@ -691,7 +692,24 @@ ChartDataLabels Reader::readLabels(const QDomElement &e) const
     l.series = flagOf(cChild(e, "showSerName"), false);
     l.percent = flagOf(cChild(e, "showPercent"), false);
     l.position = valOf(cChild(e, "dLblPos"));
-    l.ext = fragment(cChild(e, "extLst"));
+    // "Value from cells" is the extension's flag: taken out of the extension kept, which the writer puts it in again
+    if (QDomElement list = cChild(e, "extLst"); !list.isNull()) {
+        for (QDomElement x = list.firstChildElement(); !x.isNull();) {
+            const QDomElement next = x.nextSiblingElement();
+            for (QDomElement c = x.firstChildElement(); !c.isNull();) {
+                const QDomElement nextChild = c.nextSiblingElement();
+                if (c.localName() == QLatin1String("showDataLabelsRange") && c.namespaceURI() == QLatin1String(kC15Ns)) {
+                    l.cells = flagOf(c, false);
+                    x.removeChild(c);
+                }
+                c = nextChild;
+            }
+            if (x.localName() == QLatin1String("ext") && !x.hasChildNodes()) list.removeChild(x);
+            x = next;
+        }
+        if (list.firstChildElement().isNull()) QDomElement(e).removeChild(list);
+        else l.ext = fragment(list);
+    }
     for (const QDomElement &d : cChildren(e, "dLbl")) {
         const int at = int(parseInt(valOf(cChild(d, "idx")), -1));
         if (at >= 0 && at <= kMaxPoints && l.kept.size() < kMaxPoints) l.kept.insert(at, fragment(d));
@@ -791,6 +809,24 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
         line.line = readLine(cChild(t, "spPr"));
         line.label = fragment(cChild(t, "trendlineLbl"));
         s.trendlines.append(line);
+    }
+    // Where "value from cells" reads the labels' words, and the words it had (the extension's c15:datalabelsRange).
+    for (QDomElement x = cChild(ser, "extLst").firstChildElement(); !x.isNull(); x = x.nextSiblingElement()) {
+        for (QDomElement r = x.firstChildElement(); !r.isNull(); r = r.nextSiblingElement()) {
+            if (r.localName() != QLatin1String("datalabelsRange") || r.namespaceURI() != QLatin1String(kC15Ns)) continue;
+            for (QDomElement c = r.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+                if (c.localName() == QLatin1String("f")) s.labelCellsRef = c.text().trimmed().left(kMaxRefChars);
+                else if (c.localName() == QLatin1String("dlblRangeCache")) {
+                    const qint64 count = std::clamp<qint64>(parseInt(valOf(cChild(c, "ptCount")), 0), 0, kMaxPoints);
+                    s.labelCellsText = QStringList();
+                    for (qint64 i = 0; i < count; ++i) s.labelCellsText << QString();
+                    for (const QDomElement &pt : cChildren(c, "pt")) {
+                        const qint64 at = parseInt(pt.attribute(QStringLiteral("idx")), -1);
+                        if (at >= 0 && at < count) s.labelCellsText[int(at)] = cChild(pt, "v").text().left(kChartMaxLabel);
+                    }
+                }
+            }
+        }
     }
     // Its data.
     const bool scatter = plot.type == ChartType::Scatter;

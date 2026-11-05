@@ -83,6 +83,11 @@ struct ChartLabelParts {
     QString separator, format;
 };
 ChartLabelParts labelPartsOf(const Chart &chart);
+// "Value from cells": every series' labels show the words of the cells of `ref` ("Sheet1!$D$2:$D$4"), one cell for each point, along with what else the labels hold; a series that has no labels is
+// given these alone. An empty `ref` takes it away (the labels left are the other parts', or none). The words come from the cells when the chart next reads them (applyChartCells).
+void setDataLabelsFromCells(Chart *chart, const QString &ref);
+// The cells the first series' labels read the words of; empty for none.
+QString dataLabelsCellsRef(const Chart &chart);
 void setDataLabelParts(Chart *chart, const ChartLabelParts &parts);
 
 // ---- colors and looks of our own

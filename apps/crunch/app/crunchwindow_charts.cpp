@@ -875,6 +875,41 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
                     now.separator = code;
                     setDataLabelParts(c, now);
                 }, tr("Data Labels"));
+            // Value From Cells: the labels show the words of a range of cells, one for each point (empty: none).
+            QAction *fromCells = labels->addAction(tr("Value From Cells…"));
+            fromCells->setObjectName(QStringLiteral("labelsFromCellsAction"));
+            fromCells->setCheckable(true);
+            fromCells->setChecked(!dataLabelsCellsRef(chart).isEmpty());
+            connect(fromCells, &QAction::triggered, this, [this, now = dataLabelsCellsRef(chart)] {
+                QString text = now;
+                bool ok = false;
+                if (m_chartTextAsker) ok = m_chartTextAsker(tr("Value From Cells"), &text);
+                else text = QInputDialog::getText(this, tr("Value From Cells"), tr("The cells that hold the words for the labels, such as =Sheet1!$D$2:$D$4 (leave empty to take them away):"), QLineEdit::Normal, text, &ok);
+                if (!ok) return;
+                text = text.trimmed();
+                if (text.startsWith(QLatin1Char('='))) text = text.mid(1).trimmed();
+                if (!text.isEmpty()) {
+                    if (!m_objects || !m_objects->cells() || !m_loaded || !m_loaded->book) return;
+                    if (!text.contains(QLatin1Char('!'))) {
+                        const QString own = m_loaded->book->info().sheets[m_sheet].name;
+                        text = (own.contains(QRegularExpression(QStringLiteral("[^A-Za-z0-9_]"))) ? QStringLiteral("'") + QString(own).replace(QLatin1Char('\''), QStringLiteral("''")) + QStringLiteral("'") : own) + QLatin1Char('!') + text;
+                    }
+                    QVector<ChartBlock> blocks;
+                    if (!chartBlocks(text, m_sheet, *m_objects->cells(), &blocks) || blocks.size() != 1) {
+                        notice(tr("Value From Cells"), tr("\"%1\" isn't a range JeffCrunch can find. Write it like =Sheet1!$D$2:$D$4.").arg(text));
+                        return;
+                    }
+                    const auto r = blocks[0].range;
+                    const int bang = int(text.lastIndexOf(QLatin1Char('!')));
+                    text = text.left(bang + 1) + QStringLiteral("$") + columnName(r.col1) + QStringLiteral("$") + QString::number(qint64(r.row1) + 1);
+                    if (r.row1 != r.row2 || r.col1 != r.col2) text += QStringLiteral(":$") + columnName(r.col2) + QStringLiteral("$") + QString::number(qint64(r.row2) + 1);
+                }
+                const int sheet = m_sheet;
+                changePickedChart(tr("Data Labels"), [this, text, sheet](Chart *c) {
+                    setDataLabelsFromCells(c, text);
+                    if (!text.isEmpty() && m_objects->cells()) applyChartCells(c, sheet, *m_objects->cells());
+                });
+            });
             QAction *format = labels->addAction(tr("Number Format…"));
             connect(format, &QAction::triggered, this, [this, parts] {
                 QString code = parts.format;

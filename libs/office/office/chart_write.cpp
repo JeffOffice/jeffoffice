@@ -395,7 +395,15 @@ private:
         flag("c:showBubbleSize", false);
         if (!l.separator.isEmpty()) text("c:separator", l.separator);
         if (pie) flag("c:showLeaderLines", true);
-        raw(l.ext);
+        if (l.cells) {
+            // "value from cells" goes first in the extensions the labels have
+            static const QByteArray flagExt = QByteArray("<c:ext xmlns:c=\"") + kCNs + "\" uri=\"{CE6537A1-D6FC-4f65-9D91-7224C49458BB}\" xmlns:c15=\"" + kC15Ns + "\"><c15:showDataLabelsRange val=\"1\"/></c:ext>";
+            const int open = int(l.ext.indexOf('>'));
+            if (l.ext.isEmpty() || open < 0) raw(QByteArray("<c:extLst xmlns:c=\"") + kCNs + "\">" + flagExt + "</c:extLst>");
+            else raw(l.ext.left(open + 1) + flagExt + l.ext.mid(open + 1));
+        } else {
+            raw(l.ext);
+        }
         w.writeEndElement();
     }
 
@@ -479,6 +487,27 @@ private:
             numberData("c:val", s.valueRef, s.values, s.format);
         }
         if (stroked) flag("c:smooth", s.smooth);
+        if (s.labels.cells && !s.labelCellsRef.isEmpty()) {
+            w.writeStartElement(QStringLiteral("c:extLst"));
+            w.writeStartElement(QStringLiteral("c:ext"));
+            w.writeAttribute(QStringLiteral("uri"), QStringLiteral("{02D57815-91ED-43cb-92C2-25804820EDAC}"));
+            w.writeNamespace(QString::fromLatin1(kC15Ns), QStringLiteral("c15"));
+            w.writeStartElement(QStringLiteral("c15:datalabelsRange"));
+            text("c15:f", s.labelCellsRef);
+            w.writeStartElement(QStringLiteral("c15:dlblRangeCache"));
+            val("c:ptCount", QString::number(s.labelCellsText.size()));
+            for (int i = 0; i < s.labelCellsText.size(); ++i) {
+                if (s.labelCellsText[i].isEmpty()) continue;
+                w.writeStartElement(QStringLiteral("c:pt"));
+                w.writeAttribute(QStringLiteral("idx"), QString::number(i));
+                text("c:v", s.labelCellsText[i]);
+                w.writeEndElement();
+            }
+            w.writeEndElement();
+            w.writeEndElement();
+            w.writeEndElement();
+            w.writeEndElement();
+        }
         w.writeEndElement();
     }
 
@@ -769,6 +798,7 @@ void collect(const QDomElement &e, Shape *out, int depth, QStringList &path)
         // extensions: only those that hold nothing but an identifier of the chart or of a series, or the series a filter leaves out (which are looked through like the others)
         for (QDomElement ext = e.firstChildElement(); !ext.isNull(); ext = ext.nextSiblingElement())
             for (QDomElement c = ext.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+                if (c.namespaceURI() == QLatin1String(kC15Ns) && c.localName() == QLatin1String("datalabelsRange")) continue;   // (what "value from cells" reads: the model holds it)
                 if (c.namespaceURI() == QLatin1String(kC15Ns) && c.localName().startsWith(QLatin1String("filtered")) && c.localName().endsWith(QLatin1String("Series")) && depth < 60) {
                     path.append(QStringLiteral("extLst"));
                     for (QDomElement ser = c.firstChildElement(); !ser.isNull(); ser = ser.nextSiblingElement())
@@ -825,7 +855,7 @@ QStringList refsOf(const Chart &c)
     out << c.title.ref;
     for (const ChartAxis &a : c.axes) out << a.title.ref;
     for (const ChartPlot &p : c.plots)
-        for (const ChartSeries &s : p.series) out << s.nameRef << s.categoryRef << s.valueRef << s.xRef;
+        for (const ChartSeries &s : p.series) out << s.nameRef << s.categoryRef << s.valueRef << s.xRef << s.labelCellsRef;
     return out;
 }
 

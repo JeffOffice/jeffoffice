@@ -275,6 +275,7 @@ QVector<ChartBlock> chartReads(const Chart &chart, int ownSheet, const ChartCell
             add(s.categoryRef);
             add(s.valueRef);
             add(s.xRef);
+            add(s.labelCellsRef);
         }
     add(chart.title.ref);
     for (const ChartAxis &a : chart.axes) add(a.title.ref);
@@ -380,7 +381,7 @@ QStringList chartRefs(const Chart &chart)
 {
     QStringList out;
     for (const ChartPlot &plot : chart.plots)
-        for (const ChartSeries &s : plot.series) out << s.nameRef << s.categoryRef << s.valueRef << s.xRef;
+        for (const ChartSeries &s : plot.series) out << s.nameRef << s.categoryRef << s.valueRef << s.xRef << s.labelCellsRef;
     out << chart.title.ref;
     for (const ChartAxis &a : chart.axes) out << a.title.ref;
     return out;
@@ -396,6 +397,7 @@ void setChartRefs(Chart *chart, const QStringList &refs)
             s.categoryRef = next();
             s.valueRef = next();
             s.xRef = next();
+            s.labelCellsRef = next();
         }
     chart->title.ref = next();
     for (ChartAxis &a : chart->axes) a.title.ref = next();
@@ -408,7 +410,7 @@ void moveChartRefs(Chart *chart, const QStringList &sheetNames, const std::vecto
     if (edits.empty()) return;
     for (ChartPlot &plot : chart->plots)
         for (ChartSeries &s : plot.series)
-            for (QString *ref : {&s.nameRef, &s.categoryRef, &s.valueRef, &s.xRef})
+            for (QString *ref : {&s.nameRef, &s.categoryRef, &s.valueRef, &s.xRef, &s.labelCellsRef})
                 if (!ref->isEmpty()) *ref = movedRef(*ref, sheetNames, edits, ownSheet);
     if (!chart->title.ref.isEmpty()) chart->title.ref = movedRef(chart->title.ref, sheetNames, edits, ownSheet);
     for (ChartAxis &a : chart->axes)
@@ -442,6 +444,16 @@ int applyChartCells(Chart *chart, int ownSheet, const ChartCells &cells)
                 }
                 s.values = values;
                 ++read;
+            }
+            // the words "value from cells" shows
+            if (s.labels.cells && !s.labelCellsRef.isEmpty() && readChartRef(s.labelCellsRef, ownSheet, cells, std::max(0, std::min(kMaxChartSeriesCells, budget)), &d)) {
+                budget -= int(d.points.size());
+                QStringList words;
+                for (const ChartPoint &p : std::as_const(d.points)) {
+                    if (p.hidden && chart->plotVisibleOnly) continue;
+                    words << p.text.left(kChartMaxLabel);
+                }
+                s.labelCellsText = words;
             }
             // the categories, or the x values of a scatter
             const QString &catRef = scatter ? s.xRef : s.categoryRef;

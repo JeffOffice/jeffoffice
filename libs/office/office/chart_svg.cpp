@@ -706,6 +706,7 @@ QString ChartPainter::labelText(const ChartPlot &plot, const ChartSeries &s, int
         else if (i < s.categories.size() && !s.categories[i].isEmpty()) parts << writable(s.categories[i], kChartMaxLabel);
         else parts << QString::number(i + 1);
     }
+    if (l.cells && i < s.labelCellsText.size() && !s.labelCellsText[i].isEmpty()) parts << writable(s.labelCellsText[i], kChartMaxLabel);
     const double v = i < s.values.size() ? s.values[i] : kNaN;
     if (l.value && !std::isnan(v)) parts << formatChartNumber(v, l.format.isEmpty() ? s.format : l.format);
     if (l.percent && total > 0 && !std::isnan(v)) parts << formatChartNumber(std::fabs(v) / total, l.format.contains(QLatin1Char('%')) ? l.format : QStringLiteral("0%"));

@@ -98,7 +98,8 @@ struct ChartDataLabels {
     QString format;                 // a number format; empty: the values' own
     ChartFont font;
     QString separator;              // empty: ", "
-    bool shown() const { return value || category || series || percent || legendKey; }
+    bool cells = false;             // "value from cells": each label holds the text of a cell of the series' labelCellsRef (the extension's c15:showDataLabelsRange)
+    bool shown() const { return value || category || series || percent || legendKey || cells; }
 };
 
 // The most trendlines a chart is read with, and the points they are fitted to in all (a line of a series counts the series' values).
@@ -151,6 +152,8 @@ struct ChartSeries {
     ChartDataLabels labels;
     double explosion = 0;           // a pie's slice pulled out, percent of the radius
     QVector<ChartTrendline> trendlines;
+    QString labelCellsRef;          // where "value from cells" reads the labels' words (the extension's c15:datalabelsRange c15:f)
+    QStringList labelCellsText;     // and the words it had (c15:dlblRangeCache), a blank for a cell with none
     bool filtered = false;          // left out of the drawing by a chart filter (not in the file: it is written like the other series, so a file keeps every series)
 };
 

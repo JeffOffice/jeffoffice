@@ -47,6 +47,25 @@ class SheetChartEditTests : public QObject {
 private Q_SLOTS:
     void initTestCase() { jp::initCore(); }
 
+    // "Value from cells" is set for every series from a reference, taken away again, and kept through writing and reading.
+    void dataLabelsReadTheirWordsFromCells()
+    {
+        Chart c = columns();
+        QVERIFY(dataLabelsCellsRef(c).isEmpty());
+        setDataLabelsFromCells(&c, QStringLiteral("Sheet1!$D$2:$D$4"));
+        QCOMPARE(dataLabelsCellsRef(c), QStringLiteral("Sheet1!$D$2:$D$4"));
+        for (const ChartSeries &s : seriesOf(c)) {
+            QVERIFY(s.labels.cells);
+            QCOMPARE(s.labelCellsRef, QStringLiteral("Sheet1!$D$2:$D$4"));
+        }
+        const Chart back = roundTrip(c);
+        QCOMPARE(dataLabelsCellsRef(back), QStringLiteral("Sheet1!$D$2:$D$4"));
+        QVERIFY(seriesOf(back)[1].labels.cells);
+        setDataLabelsFromCells(&c, QString());
+        QVERIFY(dataLabelsCellsRef(c).isEmpty());
+        QVERIFY(!seriesOf(c)[0].labels.shown());
+    }
+
     // The elements of a chart on and off, and what the checks of a menu are told; each change is the same after the chart is written and read.
     void elementsGoOnAndOffAndStay()
     {

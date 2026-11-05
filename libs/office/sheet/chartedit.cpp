@@ -448,7 +448,7 @@ void setDataLabelParts(Chart *chart, const ChartLabelParts &parts)
     const bool any = parts.value || parts.category || parts.series || parts.percent || parts.legendKey;
     for (ChartPlot &p : chart->plots)
         for (ChartSeries &s : p.series) {
-            if (!any) {
+            if (!any && !s.labels.cells) {
                 s.labels = ChartDataLabels();
                 continue;
             }
@@ -460,6 +460,24 @@ void setDataLabelParts(Chart *chart, const ChartLabelParts &parts)
             s.labels.separator = parts.separator;
             s.labels.format = parts.format;
         }
+}
+
+void setDataLabelsFromCells(Chart *chart, const QString &ref)
+{
+    for (ChartPlot &p : chart->plots)
+        for (ChartSeries &s : p.series) {
+            s.labels.cells = !ref.isEmpty();
+            s.labelCellsRef = ref;
+            if (ref.isEmpty()) s.labelCellsText.clear();
+        }
+}
+
+QString dataLabelsCellsRef(const Chart &chart)
+{
+    for (const ChartPlot &p : chart.plots)
+        for (const ChartSeries &s : p.series)
+            if (s.labels.cells && !s.labelCellsRef.isEmpty()) return s.labelCellsRef;
+    return QString();
 }
 
 // ---- colors and looks
