@@ -2,7 +2,7 @@
 
 JeffWrite is the word processor of JeffOffice. JeffOffice is an independent project: JeffWrite aims to work with Word files and the people who use them (compatibility and interoperability), and then to do more, and do it better. It saves `.docx`, and opens the older `.doc` too; It also opens `.rtf` and `.odt`, and saves `.odt`. Its first public version, 0.9.0 (a Preview, released October 19, 2026), was a window with the ribbon, the page view, editing, `.docx` and `.doc` files, tables, headers and footers, notes, and pictures and text boxes as files have them, spelling, and printing; each box says what that version does of an item (`[x]` all of it, `[~]` part, with the note saying what is missing, and `[ ]` none). This list is the whole job, a checklist of features: everything people rely on so their documents open, look right, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
 
-Last reviewed November 4, 2026.
+Last reviewed November 5, 2026.
 
 Legend: `[x]` works in JeffWrite as of the date above · `[~]` partly works (the note says what is missing) · `[ ]` not there yet (a *(shared: ...)* note names the part of the suite it builds on) · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
