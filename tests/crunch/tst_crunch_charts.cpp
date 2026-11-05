@@ -387,6 +387,44 @@ private Q_SLOTS:
         QVERIFY(e.win.w.act(QStringLiteral("insert.recommendedCharts")));
     }
 
+    // Chart Filters: the button beside a picked chart lists its series; clearing one leaves it out of the chart (one step of Undo), checking it brings it back where it was; the last one stays.
+    void chartFiltersLeaveSeriesOutAndBringThemBack()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        e.win.w.objects()->layer()->prepareAll();
+        QTRY_VERIFY(e.win.w.chartFiltersButton() && e.win.w.chartFiltersButton()->isVisible());
+        QVector<CrunchWindow::ChartFilterEntry> entries = e.win.w.chartFilterEntries();
+        QCOMPARE(entries.size(), 2);
+        QVERIFY(entries[0].shown && entries[1].shown);
+        const QString first = entries[0].name;
+        const int steps = e.win.w.session()->undoStack()->count();
+        QVERIFY(e.win.w.setChartSeriesShown(0, false));
+        QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);
+        QCOMPARE(chartOf(e).plots.first().series.size(), 1);
+        entries = e.win.w.chartFilterEntries();
+        QCOMPARE(entries.size(), 2);
+        QVERIFY(!entries[1].shown);
+        QCOMPARE(entries[1].name, first);
+        // the one left stays
+        QVERIFY(!e.win.w.setChartSeriesShown(0, false));
+        QCOMPARE(chartOf(e).plots.first().series.size(), 1);
+        // back where it was
+        QVERIFY(e.win.w.setChartSeriesShown(1, true));
+        QCOMPARE(chartOf(e).plots.first().series.size(), 2);
+        QCOMPARE(chartOf(e).plots.first().series[0].name, first);
+        // the menu lists them with checks
+        QMenu *menu = e.win.w.chartFiltersButton()->menu();
+        QVERIFY(menu);
+        QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+        int checkable = 0;
+        for (QAction *a : menu->actions()) checkable += a->isCheckable() && a->isChecked();
+        QCOMPARE(checkable, 2);
+    }
+
     // ---- moving and sizing
 
     // A drag with the mouse moves the object: one step, undone and redone, saved as the anchor, with the part of the chart as it was.

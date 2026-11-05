@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key -->
+<!-- keywords: chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -16,6 +16,10 @@ If you select only one cell, JeffCrunch charts the block of cells around it that
 Series run down the columns when the selection has at least as many rows as columns, and along the rows when it has more columns than rows. A pie holds one series. A scatter chart takes its horizontal values from the first column.
 
 Example: you select A1:C4, where A2:A4 hold Q1, Q2, and Q3, B1 and C1 hold East and West, and the rest are numbers. The chart has two series, East and West, and three groups of columns, Q1 to Q3.
+
+## Hide a series for now
+
+Pick a chart. Three small buttons show beside it. The one with a funnel is **Chart Filters**. It lists the chart's series, each with a check. Clear a check to leave that series out of the chart. Check it again to bring it back in the same place. **Undo** works too. A chart always keeps at least one series. A series you left out is not kept when you save and close the file, so check it again first if you want it.
 
 ## Move and size it
 

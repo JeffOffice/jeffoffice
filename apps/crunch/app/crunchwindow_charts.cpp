@@ -948,6 +948,85 @@ QMenu *CrunchWindow::buildChartLooksMenu(QWidget *owner)
     return menu;
 }
 
+QVector<CrunchWindow::ChartFilterEntry> CrunchWindow::chartFilterEntries() const
+{
+    QVector<ChartFilterEntry> out;
+    const int id = pickedObject();
+    if (id < 0 || !m_objects || m_objects->kindOf(m_sheet, id) != ObjectKind::Chart) return out;
+    int n = 0;
+    for (const ChartPlot &plot : m_objects->chartNow(m_sheet, id).plots)
+        for (const ChartSeries &s : plot.series) {
+            ++n;
+            out.append({s.name.isEmpty() ? tr("Series %1").arg(n) : s.name, true});
+        }
+    for (const FilteredSeries &f : m_filteredSeries.value({m_sheet, id}))
+        out.append({f.series.name.isEmpty() ? tr("Series") : f.series.name, false});
+    return out;
+}
+
+bool CrunchWindow::setChartSeriesShown(int entry, bool shown)
+{
+    const int id = pickedObject();
+    if (id < 0 || !m_objects || m_objects->kindOf(m_sheet, id) != ObjectKind::Chart) return false;
+    const QPair<int, int> key{m_sheet, id};
+    QVector<FilteredSeries> hidden = m_filteredSeries.value(key);
+    const Chart now = m_objects->chartNow(m_sheet, id);
+    int drawn = 0;
+    for (const ChartPlot &plot : now.plots) drawn += int(plot.series.size());
+    if (entry < 0 || entry >= drawn + hidden.size() || (entry < drawn) == shown) return false;
+    if (!shown && drawn <= 1) {
+        notice(tr("Chart Filters"), tr("A chart needs at least one series. Check another series first."), false);
+        return false;
+    }
+    if (!shown) {
+        FilteredSeries f;
+        int n = 0;
+        bool found = false;
+        for (int p = 0; p < now.plots.size() && !found; ++p)
+            for (int k = 0; k < now.plots[p].series.size() && !found; ++k)
+                if (n++ == entry) {
+                    f.plot = p;
+                    f.place = k;
+                    f.series = now.plots[p].series[k];
+                    found = true;
+                }
+        if (!changePickedChart(tr("Chart Filters"), [&f](Chart *c) {
+                if (f.plot < c->plots.size() && f.place < c->plots[f.plot].series.size()) c->plots[f.plot].series.removeAt(f.place);
+            }))
+            return false;
+        hidden.append(f);
+    } else {
+        const FilteredSeries f = hidden[entry - drawn];
+        if (!changePickedChart(tr("Chart Filters"), [&f](Chart *c) {
+                if (f.plot >= c->plots.size()) return;
+                auto &list = c->plots[f.plot].series;
+                list.insert(std::min<qsizetype>(f.place, list.size()), f.series);
+            }))
+            return false;
+        hidden.removeAt(entry - drawn);
+    }
+    m_filteredSeries[key] = hidden;
+    return true;
+}
+
+QMenu *CrunchWindow::buildChartFiltersMenu(QWidget *owner)
+{
+    auto *menu = new QMenu(owner);
+    menu->setObjectName(QStringLiteral("chartFiltersMenu"));
+    connect(menu, &QMenu::aboutToShow, this, [this, menu] {
+        menu->clear();
+        menu->addSection(tr("Series"));
+        const QVector<ChartFilterEntry> entries = chartFilterEntries();
+        for (int i = 0; i < entries.size(); ++i) {
+            QAction *a = menu->addAction(entries[i].name);
+            a->setCheckable(true);
+            a->setChecked(entries[i].shown);
+            connect(a, &QAction::triggered, this, [this, i](bool on) { setChartSeriesShown(i, on); });
+        }
+    });
+    return menu;
+}
+
 // ---- the picked object: its commands, buttons, and menu
 
 void CrunchWindow::updateChartState()
@@ -1005,28 +1084,39 @@ void CrunchWindow::placeChartButtons()
                 m_chartBrush->setPopupMode(QToolButton::InstantPopup);
                 m_chartBrush->setFocusPolicy(Qt::NoFocus);
                 m_chartBrush->setMenu(buildChartLooksMenu(m_chartBrush));
+                m_chartFilter = new QToolButton(m_view->viewport());
+                m_chartFilter->setObjectName(QStringLiteral("chartFiltersButton"));
+                m_chartFilter->setIcon(icon(QStringLiteral("filter")));
+                m_chartFilter->setToolTip(tr("Chart Filters"));
+                m_chartFilter->setAccessibleName(tr("Chart Filters"));
+                m_chartFilter->setPopupMode(QToolButton::InstantPopup);
+                m_chartFilter->setFocusPolicy(Qt::NoFocus);
+                m_chartFilter->setMenu(buildChartFiltersMenu(m_chartFilter));
             }
             const int size = 26;
             const QRect vp = m_view->viewport()->rect();
             int x = r.right() + 6;
             if (x + size > vp.right()) x = r.right() - size - 4;   // (no room beside it: inside its corner)
             x = std::clamp(x, 0, std::max(0, vp.right() - size));
-            const int y = std::clamp(r.top(), 0, std::max(0, vp.bottom() - 2 * size - 4));
-            for (QToolButton *b : {m_chartPlus, m_chartBrush}) {
+            const int y = std::clamp(r.top(), 0, std::max(0, vp.bottom() - 3 * size - 8));
+            for (QToolButton *b : {m_chartPlus, m_chartBrush, m_chartFilter}) {
                 b->setFixedSize(size, size);
                 b->setIconSize(QSize(16, 16));
             }
             m_chartPlus->move(x, y);
             m_chartBrush->move(x, y + size + 4);
+            m_chartFilter->move(x, y + 2 * (size + 4));
             show = true;
         }
     }
     if (m_chartPlus) {
         m_chartPlus->setVisible(show);
         m_chartBrush->setVisible(show);
+        m_chartFilter->setVisible(show);
         if (show) {
             m_chartPlus->raise();
             m_chartBrush->raise();
+            m_chartFilter->raise();
         }
     }
 }

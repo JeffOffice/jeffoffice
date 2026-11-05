@@ -1233,9 +1233,19 @@ public:
     // The chart buttons beside the picked chart (the elements, the looks), and what the context menu of an object has; for tests.
     QToolButton *chartElementsButton() const { return m_chartPlus; }
     QToolButton *chartLooksButton() const { return m_chartBrush; }
+    QToolButton *chartFiltersButton() const { return m_chartFilter; }
+    // Chart Filters: the series of the picked chart (those drawn, then those filtered out), and whether each is drawn. A filtered series is left out of the chart (and of the saved file) until it is
+    // checked again in this session; the last one drawn can't be filtered out.
+    struct ChartFilterEntry {
+        QString name;
+        bool shown = true;
+    };
+    QVector<ChartFilterEntry> chartFilterEntries() const;
+    bool setChartSeriesShown(int entry, bool shown);
     QMenu *buildObjectMenu(int id, QWidget *owner);
     QMenu *buildChartElementsMenu(QWidget *owner);
     QMenu *buildChartLooksMenu(QWidget *owner);
+    QMenu *buildChartFiltersMenu(QWidget *owner);
     // Cut, Copy, and Paste of the picked object (a chart), within this workbook and between workbooks.
     bool copyObject(bool cut);
     bool pasteObject();
@@ -1261,7 +1271,12 @@ private:
     std::function<bool(const ObjectProperties &, ObjectProperties *)> m_propertiesAsker;
     QString m_workbookId;   // which workbook this is, among all that are open in any program: random for each one opened (what a copy says it came from)
     jp::office::sheet::CellRange m_previewBlock;   // the block of cells the pictures of the New Chart dialog are drawn from, found once for all of them
-    QToolButton *m_chartPlus = nullptr, *m_chartBrush = nullptr;
+    QToolButton *m_chartPlus = nullptr, *m_chartBrush = nullptr, *m_chartFilter = nullptr;
+    struct FilteredSeries {
+        int plot = 0, place = 0;
+        jp::office::ChartSeries series;
+    };
+    QMap<QPair<int, int>, QVector<FilteredSeries>> m_filteredSeries;   // by sheet and object: the series left out of a chart for now
     QTimer m_chartButtonsTimer;
     QStringList m_chartActions;
 
