@@ -1923,9 +1923,27 @@ QSizeF pictureSize(const QSizeF &size)
 static thread_local qint64 g_svgsMade = 0;
 qint64 chartSvgsMadeForTest() { return g_svgsMade; }
 
-QByteArray chartSvg(const Chart &chart, const QSizeF &size, bool *coarser)
+namespace {
+
+// The chart without the series a filter leaves out (the chart itself when there are none).
+Chart unfiltered(const Chart &chart)
+{
+    bool any = false;
+    for (const ChartPlot &plot : chart.plots)
+        for (const ChartSeries &s : plot.series) any = any || s.filtered;
+    if (!any) return chart;
+    Chart out = chart;
+    for (ChartPlot &plot : out.plots)
+        plot.series.erase(std::remove_if(plot.series.begin(), plot.series.end(), [](const ChartSeries &s) { return s.filtered; }), plot.series.end());
+    return out;
+}
+
+} // namespace
+
+QByteArray chartSvg(const Chart &chartWithFilters, const QSizeF &size, bool *coarser)
 {
     ++g_svgsMade;
+    const Chart chart = unfiltered(chartWithFilters);
     const QSizeF s = pictureSize(size);
     // A picture that still has more tags than its reader takes in is drawn again from fewer points and in fewer pieces.
     bool thinned = false, leftOut = false;
@@ -1940,8 +1958,9 @@ QByteArray chartSvg(const Chart &chart, const QSizeF &size, bool *coarser)
     }
 }
 
-QByteArray chartSvgTuned(const Chart &chart, const QSizeF &size, int separateLines, int segmentsPerPath, int separateMarkers)
+QByteArray chartSvgTuned(const Chart &chartWithFilters, const QSizeF &size, int separateLines, int segmentsPerPath, int separateMarkers)
 {
+    const Chart chart = unfiltered(chartWithFilters);
     Limits limits = limitsAt(0);
     if (separateLines >= 0) limits.separateLines = separateLines;
     if (separateMarkers >= 0) limits.separateMarkers = separateMarkers;

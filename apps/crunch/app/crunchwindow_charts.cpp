@@ -957,10 +957,8 @@ QVector<CrunchWindow::ChartFilterEntry> CrunchWindow::chartFilterEntries() const
     for (const ChartPlot &plot : m_objects->chartNow(m_sheet, id).plots)
         for (const ChartSeries &s : plot.series) {
             ++n;
-            out.append({s.name.isEmpty() ? tr("Series %1").arg(n) : s.name, true});
+            out.append({s.name.isEmpty() ? tr("Series %1").arg(n) : s.name, !s.filtered});
         }
-    for (const FilteredSeries &f : m_filteredSeries.value({m_sheet, id}))
-        out.append({f.series.name.isEmpty() ? tr("Series") : f.series.name, false});
     return out;
 }
 
@@ -968,45 +966,30 @@ bool CrunchWindow::setChartSeriesShown(int entry, bool shown)
 {
     const int id = pickedObject();
     if (id < 0 || !m_objects || m_objects->kindOf(m_sheet, id) != ObjectKind::Chart) return false;
-    const QPair<int, int> key{m_sheet, id};
-    QVector<FilteredSeries> hidden = m_filteredSeries.value(key);
     const Chart now = m_objects->chartNow(m_sheet, id);
-    int drawn = 0;
-    for (const ChartPlot &plot : now.plots) drawn += int(plot.series.size());
-    if (entry < 0 || entry >= drawn + hidden.size() || (entry < drawn) == shown) return false;
+    int drawn = 0, total = 0;
+    for (const ChartPlot &plot : now.plots)
+        for (const ChartSeries &s : plot.series) {
+            ++total;
+            drawn += !s.filtered;
+        }
+    if (entry < 0 || entry >= total) return false;
+    int at = 0;
+    bool already = false;
+    for (const ChartPlot &plot : now.plots)
+        for (const ChartSeries &s : plot.series)
+            if (at++ == entry) already = !s.filtered;
+    if (already == shown) return false;
     if (!shown && drawn <= 1) {
         notice(tr("Chart Filters"), tr("A chart needs at least one series. Check another series first."), false);
         return false;
     }
-    if (!shown) {
-        FilteredSeries f;
+    return changePickedChart(tr("Chart Filters"), [entry, shown](Chart *c) {
         int n = 0;
-        bool found = false;
-        for (int p = 0; p < now.plots.size() && !found; ++p)
-            for (int k = 0; k < now.plots[p].series.size() && !found; ++k)
-                if (n++ == entry) {
-                    f.plot = p;
-                    f.place = k;
-                    f.series = now.plots[p].series[k];
-                    found = true;
-                }
-        if (!changePickedChart(tr("Chart Filters"), [&f](Chart *c) {
-                if (f.plot < c->plots.size() && f.place < c->plots[f.plot].series.size()) c->plots[f.plot].series.removeAt(f.place);
-            }))
-            return false;
-        hidden.append(f);
-    } else {
-        const FilteredSeries f = hidden[entry - drawn];
-        if (!changePickedChart(tr("Chart Filters"), [&f](Chart *c) {
-                if (f.plot >= c->plots.size()) return;
-                auto &list = c->plots[f.plot].series;
-                list.insert(std::min<qsizetype>(f.place, list.size()), f.series);
-            }))
-            return false;
-        hidden.removeAt(entry - drawn);
-    }
-    m_filteredSeries[key] = hidden;
-    return true;
+        for (ChartPlot &plot : c->plots)
+            for (ChartSeries &s : plot.series)
+                if (n++ == entry) s.filtered = !shown;
+    });
 }
 
 QMenu *CrunchWindow::buildChartFiltersMenu(QWidget *owner)

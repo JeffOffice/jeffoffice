@@ -151,6 +151,7 @@ struct ChartSeries {
     ChartDataLabels labels;
     double explosion = 0;           // a pie's slice pulled out, percent of the radius
     QVector<ChartTrendline> trendlines;
+    bool filtered = false;          // left out of the drawing by a chart filter (not in the file: it is written like the other series, so a file keeps every series)
 };
 
 // A kind of drawing in the plot area (c:barChart, c:lineChart, ...); a chart
