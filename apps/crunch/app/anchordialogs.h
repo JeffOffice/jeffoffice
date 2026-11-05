@@ -35,6 +35,7 @@ struct LinkRequest {
     QStringList sheetNames;                      // the workbook's sheets, in order of the tabs
     QStringList names;                           // the defined names a link can go to
     int sheet = 0;                               // the position of the sheet the cell is on, among sheetNames
+    QStringList recentFiles;                     // the files used lately (a link to one is a choice in the dialog)
 };
 
 // The question put when a file that is protected with a password is opened: `wrong` is true when the password just given was not it (the question is put again).
@@ -87,7 +88,7 @@ public:
     bool result(LinkRequest *request, QString *problem) const;
 
 private:
-    QComboBox *m_kind = nullptr, *m_sheet = nullptr, *m_name = nullptr;
+    QComboBox *m_kind = nullptr, *m_sheet = nullptr, *m_name = nullptr, *m_recent = nullptr;
     QStackedWidget *m_pages = nullptr;
     QLineEdit *m_address = nullptr, *m_cell = nullptr, *m_mail = nullptr, *m_subject = nullptr, *m_shown = nullptr, *m_tip = nullptr;
     QLabel *m_note = nullptr;

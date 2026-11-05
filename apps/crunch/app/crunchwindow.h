@@ -69,6 +69,8 @@ class QPlainTextEdit;
 class QSlider;
 class QVBoxLayout;
 class QToolButton;
+class QDomElement;
+
 namespace jp {
 
 class SlicerPane;
@@ -84,6 +86,7 @@ namespace office { struct Chart; }
 class CrunchFileScreen;
 struct PageSetupRequest;
 namespace grid {
+struct ObjectBox;
 struct SheetPrint;
 class PageLayoutView;
 class PageLayoutSource;
@@ -106,6 +109,7 @@ class PrintJob;
 struct PrintChoices;
 struct PrintJobOptions;
 class SheetObjects;
+struct ObjectClip;
 class SheetTabBar;
 }
 
@@ -1030,13 +1034,17 @@ private:
     // the clipboard (crunchwindow_clip.cpp)
     void createClipboardActions();
     void copySelection();
-    void copyAsPicture(bool bitmap);
+    void copyAsPicture(bool bitmap, bool printed = false);
     void cutSelection();
     void copyOrCut(bool cut);
     void copyStep();
     void publishClipboard(const QString &text);
     void pasteClipboard(const crunch::EditSession::PasteOptions &options);
     void pasteSpecial();
+    void pasteTextImport();
+    void pasteLink();
+    void pasteAsHyperlinks();
+    bool ownClipboardBlock(crunch::ClipData *clip, const QString &title);
     void onClipboardChanged();
     void forgetClip();
     void cancelCut();
@@ -1222,6 +1230,27 @@ public:
     void setPropertiesAsker(const std::function<bool(const ObjectProperties &, ObjectProperties *)> &asker) { m_propertiesAsker = asker; }
     // The commands of charts, for tests and the menus: a chart of the kind from the cells selected; the picked object moved to an anchor; the model of the picked chart changed.
     bool insertChart(jp::office::sheet::ChartKind kind, int inRows = -1);
+    // Insert > Picture, Shapes, and Text Box: a picture from a file (the picker stands in for the file dialog: tests), a shape by its preset's name, a text box; each is put on the sheet at the
+    // cell the cursor is in, picked, as one step.
+    void setPicturePicker(const std::function<QString()> &picker) { m_picturePicker = picker; }
+    bool insertPictureFile(const QString &path);
+    bool insertShape(const QString &preset);
+    bool insertTextBox();
+    // Format of the picked picture, shape, or text box (each is one step: the object is made again with the change). The words in a shape: the box that asks stands in for the dialog (tests).
+    struct ShapeTextChoices {
+        QString text;
+        int horizontal = 0, vertical = 0;   // 0 left, top; 1 center, middle; 2 right, bottom
+        bool bold = false, wrap = true;
+        int sizePoints = 11;
+        QString colorHex;   // 6 hex digits, empty for the shape's own
+    };
+    void setShapeTextAsker(const std::function<bool(ShapeTextChoices *)> &asker) { m_shapeTextAsker = asker; }
+    bool setObjectFill(const QColor &color, bool none);
+    bool setObjectOutline(const QColor &color, bool none);
+    bool setObjectOutlineStyle(double weightPoints, const QString &dash);
+    bool rotateObject(int quarterTurns, bool flipH, bool flipV);
+    bool cropObject(int width, int height);
+    bool setObjectText(const ShapeTextChoices &choices);
     void insertChartDialog();
     void recommendedChartsDialog();
     // The dialogs, made but not shown, for whoever shows them (the window runs them; a tool takes pictures of them). Null if there is nothing for them to work on.
@@ -1262,6 +1291,24 @@ public:
 
 private:
     void createChartActions();
+    void createInsertObjectActions();
+    void createDrawBorderActions();
+    void startDrawBorder(int mode);
+    void endDrawBorder();
+    bool drawBorderEvent(QObject *o, QEvent *e);
+    int m_drawBorder = 0;   // the border being drawn: 1 the outside, 2 all the lines, 3 erasing; 0 none
+    qint64 m_drawFromRow = -1, m_drawFromCol = -1;
+    void insertPicture();
+    bool placeObjectClip(const crunch::ObjectClip &clip, const QString &stepText, const jp::office::sheet::DrawingAnchor *at = nullptr, int order = -1);
+    bool restyleObject(const QString &stepText, const std::function<bool(QDomElement &, jp::grid::ObjectBox *)> &edit, bool pictureOnly = false);
+    void editObjectText();
+    void showSelectionPane();
+    void refreshSelectionPane();
+    QPointer<QDialog> m_selectionPane;
+    bool m_selectionFilling = false;
+    void createObjectFormatActions();
+    void objectFormatRibbonParts(RibbonParts &parts);
+    std::function<bool(ShapeTextChoices *)> m_shapeTextAsker;
     void chartRibbonParts(RibbonParts &parts);
     void functionRibbonParts(RibbonParts &parts);
     void fillFunctionMenu(QMenu *menu, const QList<crunch::FunctionCategory> &kinds);
@@ -1274,6 +1321,7 @@ private:
     void objectContextMenu(int id, const QPoint &global);
     std::function<bool(InsertChartChoice *)> m_insertChartAsker;
     std::function<bool(const QVector<jp::office::sheet::ChartKind> &, InsertChartChoice *)> m_recommendedAsker;
+    std::function<QString()> m_picturePicker;
     std::function<bool(const SelectDataRequest &, jp::office::Chart *)> m_selectDataAsker;
     std::function<bool(const QStringList &, const QVector<jp::office::sheet::SeriesKind> &, QVector<jp::office::sheet::SeriesKind> *)> m_changeTypeAsker;
     std::function<bool(const ObjectProperties &, ObjectProperties *)> m_propertiesAsker;

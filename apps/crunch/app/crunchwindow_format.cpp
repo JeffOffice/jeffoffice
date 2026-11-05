@@ -648,6 +648,8 @@ QMenu *CrunchWindow::buildBordersMenu(QWidget *owner)
         connect(a, &QAction::triggered, this, [this, style] { m_lineStyle = style; });
     }
     menu->addSeparator();
+    for (const char *id : {"fmt.border.draw", "fmt.border.drawGrid", "fmt.border.erase"}) menu->addAction(act(QString::fromLatin1(id)));
+    menu->addSeparator();
     menu->addAction(tr("More Borders…"), this, [this] { formatCellsDialog(3); });
     return menu;
 }

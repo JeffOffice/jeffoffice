@@ -1898,8 +1898,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 QByteArray t2;
                 if (!addContentOverride(types, drawingPart, QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml"), &t2)) return bad();
                 types = t2;
-                QString relsName = relationshipsPartOf(drawingPart);
-                newEntries.emplace_back(relsName.startsWith(QLatin1Char('/')) ? relsName.mid(1) : relsName, drawingRels);
+                // (a drawing of shapes only has nothing to relate to: an empty file of relationships is a damaged one)
+                if (!drawingRels.isEmpty()) {
+                    QString relsName = relationshipsPartOf(drawingPart);
+                    newEntries.emplace_back(relsName.startsWith(QLatin1Char('/')) ? relsName.mid(1) : relsName, drawingRels);
+                }
                 // the sheet's link to it
                 const QString target = relativeTarget(se.part, drawingPart);
                 if (se.isNew) {

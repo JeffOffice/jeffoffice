@@ -1,5 +1,5 @@
 # Notes and links
-<!-- keywords: note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells -->
+<!-- keywords: note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, recent files, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells -->
 
 ## Notes
 
@@ -22,7 +22,7 @@ Notes can be saved in an .xlsx workbook. A workbook opened from an older kind of
 
 A **link** sends you somewhere when you follow it: to a web page, to a file, to an e-mail address, or to a place in this workbook (a cell, cells, or a name).
 
-To put a link on a cell, select it and use **Insert > Link** (or press **Ctrl+K**). Choose where it goes, type the address or the place, and, if you like, the words the cell should show and a **screen tip**. On a cell that has a link the same command reads **Edit Link**. **Remove Link** takes the links off the selected cells.
+To put a link on a cell, select it and use **Insert > Link** (or press **Ctrl+K**). Choose where it goes, type the address or the place (or pick one of the files you opened lately from **Or a recent file**), and, if you like, the words the cell should show and a **screen tip**. On a cell that has a link the same command reads **Edit Link**. **Remove Link** takes the links off the selected cells.
 
 Rest the pointer on a cell with a link to see where it goes. To follow it, hold **Ctrl** and click the cell, or select the cell and use **Open Link** from the right-click menu. A plain click only selects the cell.
 

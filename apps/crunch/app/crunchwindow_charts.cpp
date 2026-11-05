@@ -1055,6 +1055,17 @@ void CrunchWindow::updateChartState()
     act(QStringLiteral("chartdesign.applyTemplate"))->setEnabled(editable);
     for (const char *name : {"object.properties", "object.front", "object.forward", "object.backward", "object.back", "object.delete"}) act(QString::fromLatin1(name))->setEnabled(picked);
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Chart"), chart);
+    {
+        const ObjectKind kind = picked ? m_objects->kindOf(m_sheet, id) : ObjectKind::Other;
+        const bool picture = kind == ObjectKind::Picture, shape = kind == ObjectKind::Shape, line = kind == ObjectKind::Connector;
+        for (const char *name : {"object.rotateRight", "object.rotateLeft", "object.flipH", "object.flipV"}) act(QString::fromLatin1(name))->setEnabled(picture || shape || line);
+        for (const char *name : {"object.cropSquare", "object.crop43", "object.crop34", "object.crop169", "object.crop916", "object.cropReset"}) act(QString::fromLatin1(name))->setEnabled(picture);
+        act(QStringLiteral("object.editText"))->setEnabled(shape);
+        if (m_ribbon) {
+            m_ribbon->setContextVisible(QStringLiteral("Picture Format"), picture);
+            m_ribbon->setContextVisible(QStringLiteral("Shape Format"), shape || line);
+        }
+    }
     m_chartButtonsTimer.start();
     showNameInBox();
 }
