@@ -64,13 +64,17 @@ On the **Open** page, click **More Ways to Open**. You can also right-click a na
 - **Open Read-Only** opens the workbook for reading only. You can look, scroll, search, and copy, but you can't change a cell. The title bar says "Read-Only". If you press **Save**, JeffCrunch asks for a new name, so the file you opened is not changed.
 - **Open as Copy** opens the workbook with no file of its own. **Save** asks where to put it. The file you opened is never changed.
 - **Open in New Window** opens the workbook in a window of its own, even when the window you are in is empty.
-- **Open and Repair** is for an .xlsx file that is damaged. See below.
+- **Open and Repair** is for an .xlsx or .xls file that is damaged. See below.
 
 ## Open and Repair
 
 Sometimes an .xlsx file is damaged. A download stopped halfway, or a disk made mistakes. An .xlsx file is a bundle of smaller parts, such as the sheets, the styles, and the shared text. **Open and Repair** reads every part that it can. A part that stopped in the middle is kept up to the place where it stopped, so you may get the first rows of a sheet. A part that can't be read is left out. If the list of parts or the links between them are gone, JeffCrunch makes them again.
 
 The repaired workbook opens with no file of its own, and a name like "Repaired budget". A message tells you what was kept up to a break and what was left out. The damaged file is not changed. Save the repaired workbook under a new name, and check the numbers before you trust it.
+
+### An .xls file
+
+An .xls file can be damaged too. If its outer wrapper is cut short, **Open and Repair** looks through the file for the start of the workbook and reads from there. A sheet that was cut short keeps the cells before the cut. Whatever came after the cut is lost, and you are told so. The repaired workbook opens as a copy, so save it under a new name.
 
 ## Large workbooks
 

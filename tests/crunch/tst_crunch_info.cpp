@@ -222,6 +222,34 @@ private Q_SLOTS:
         QVERIFY(crunch::builtinTemplateBytes(QStringLiteral("none")).isEmpty());
     }
 
+    // Open and Repair of an .xls file whose container is cut short: the workbook is found by its records, the cells that can be read are kept, and the person is told.
+    void aDamagedXlsFileIsRepairedByItsRecords()
+    {
+        QByteArray rows;
+        for (int r = 1; r <= 700; ++r) rows += "<row r=\"" + QByteArray::number(r) + "\"><c r=\"A" + QByteArray::number(r) + "\"><v>" + QByteArray::number(r * 3) + "</v></c></row>";
+        QByteArray damaged;
+        {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(QString::fromLatin1(rows))})));
+            const QString target = e.folder.dir.filePath(QStringLiteral("whole.xls"));
+            QSignalSpy copied(&e.win.w, &CrunchWindow::copyExported);
+            QVERIFY(e.win.w.saveAs(target));
+            QVERIFY(copied.count() > 0 || copied.wait(20000));
+            QFile f(target);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray whole = f.readAll();
+            QVERIFY(whole.size() > 6000);
+            damaged = whole.left(whole.size() * 4 / 5);   // (the tables at the end that name the streams are gone)
+        }
+        EditWindow fixed;
+        const QString again = fixed.folder.write(QStringLiteral("cut.xls"), damaged);
+        QVERIFY2(fixed.win.open(again, OpenHow::Repair), qPrintable(fixed.win.told.join(QLatin1Char('|'))));
+        QVERIFY(fixed.settle());
+        QCOMPARE(fixed.shownAt(QStringLiteral("A1")), QStringLiteral("3"));
+        QCOMPARE(fixed.shownAt(QStringLiteral("A100")), QStringLiteral("300"));
+        QVERIFY2(fixed.win.told.join(QLatin1Char('|')).contains(QLatin1String("repaired")), qPrintable(fixed.win.told.join(QLatin1Char('|'))));
+    }
+
     void personalInformationStaysOutOfLaterEdits()
     {
         EditWindow e;

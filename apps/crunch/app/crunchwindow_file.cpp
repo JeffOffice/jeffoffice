@@ -12,6 +12,7 @@
 #include "app/otherformats.h"
 #include "office/package.h"
 #include "office/repair.h"
+#include "sheet/xls.h"
 #include "app/settings.h"
 #include "app/sheettabs.h"
 #include "app/telemetry.h"
@@ -182,9 +183,14 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         QString why;
         office::RepairReport report;
         QByteArray fixed;
-        if (office::readWholeFile(path, &bytes, &why)) fixed = office::repairPackage(bytes, &why, &report);
+        const bool binary = QFileInfo(path).suffix().compare(QLatin1String("xls"), Qt::CaseInsensitive) == 0;
+        QStringList notes;
+        if (office::readWholeFile(path, &bytes, &why)) {
+            if (binary) fixed = office::sheet::salvageXlsStream(bytes, office::sheet::Limits(), &notes, &why);
+            else fixed = office::repairPackage(bytes, &why, &report);
+        }
         // (the file is removed when this object goes, on every path)
-        auto temp = std::make_unique<QTemporaryFile>(QDir::temp().filePath(QStringLiteral("jeffcrunch-repair-XXXXXX.xlsx")));
+        auto temp = std::make_unique<QTemporaryFile>(QDir::temp().filePath(binary ? QStringLiteral("jeffcrunch-repair-XXXXXX.xls") : QStringLiteral("jeffcrunch-repair-XXXXXX.xlsx")));
         if (fixed.isEmpty() || !temp->open() || temp->write(fixed) != fixed.size()) {
             if (!fixed.isEmpty()) why = temp->errorString();
             notice(tr("Open and Repair"), tr("%1 can't repair \"%2\".\n%3").arg(appInfo().name, name, why));
@@ -196,7 +202,7 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         m_lastRepairFile = loadPath;
         m_repairFile = loadPath;
         m_repairName = name;
-        m_repairNote = office::repairSummary(report);
+        m_repairNote = binary ? notes.join(QLatin1Char('\n')) : office::repairSummary(report);
     }
     if (replacing) dropWorkbook();
     setReadOnly(how == OpenHow::ReadOnly);

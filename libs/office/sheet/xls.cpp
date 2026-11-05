@@ -4,6 +4,7 @@
 #include "sheet/xlsbytes.h"
 #include "sheet/xlscodepage.h"
 #include "sheet/xlsprint.h"
+#include "io/cfb.h"
 #include "sheet/xlsfunctions.h"
 
 #include <QCoreApplication>
@@ -1210,6 +1211,55 @@ std::shared_ptr<const XlsBook> XlsBook::open(const QByteArray &stream, bool hasM
 {
     XlsGlobals g(stream, limits);
     return g.run(hasMacros, info, shared, styles, error);
+}
+
+QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStringList *notes, QString *error)
+{
+    if (file.size() > limits.fileBytes) {
+        if (error) *error = QCoreApplication::translate("jp::office::sheet::Xls", "The file is too large to repair.");
+        return QByteArray();
+    }
+    auto reads = [&](const QByteArray &stream) {
+        WorkbookInfo info;
+        SharedStrings shared;
+        Styles styles;
+        QString ignored;
+        return stream.size() > 8 && XlsBook::open(stream, false, limits, &info, &shared, &styles, &ignored) != nullptr;
+    };
+    // the container, when it can be read
+    if (startsCompoundFile(file)) {
+        jp::cfb::File container;
+        QString why;
+        if (jp::cfb::read(file, &container, &why)) {
+            QByteArray stream = container.stream(QStringLiteral("Workbook"));
+            if (stream.isEmpty()) stream = container.stream(QStringLiteral("Book"));
+            if (reads(stream)) {
+                if (notes) *notes << QCoreApplication::translate("jp::office::sheet::Xls", "The container of the file was sound. A sheet that is damaged keeps the cells before the damage.");
+                return stream;
+            }
+        }
+    }
+    // the stream, found by the first record of a workbook (the start of a workbook's globals, in the form of 1997 or of 1993)
+    static const char kBiff8[] = {0x09, 0x08, 0x10, 0x00, 0x00, 0x06, 0x05, 0x00};
+    static const char kBiff5[] = {0x09, 0x08, 0x08, 0x00, 0x00, 0x05, 0x05, 0x00};
+    for (const QByteArray &mark : {QByteArray(kBiff8, 8), QByteArray(kBiff5, 8)}) {
+        qsizetype at = 0;
+        for (int tried = 0; tried < 64; ++tried) {
+            at = file.indexOf(mark, at);
+            if (at < 0) break;
+            const QByteArray stream = file.mid(at);
+            if (reads(stream)) {
+                if (notes) {
+                    *notes << QCoreApplication::translate("jp::office::sheet::Xls", "The container of the file was damaged, so the workbook was found by its own records.");
+                    *notes << QCoreApplication::translate("jp::office::sheet::Xls", "A sheet that was cut short keeps the cells before the cut; whatever came after it is lost.");
+                }
+                return stream;
+            }
+            ++at;
+        }
+    }
+    if (error) *error = QCoreApplication::translate("jp::office::sheet::Xls", "No workbook could be found in the file.");
+    return QByteArray();
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
