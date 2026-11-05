@@ -12,6 +12,7 @@
 #include "editwindow.h"
 #include "findbooks.h"
 #include "grid/gridview.h"
+#include "sheet/pivotbook.h"
 
 #include <QAction>
 #include <QApplication>
@@ -331,6 +332,54 @@ private Q_SLOTS:
         e.select(QStringLiteral("B2"));
         a->trigger();
         QTRY_COMPARE(shown(e, QStringLiteral("B1:B2")), QStringLiteral("Ann|Bob"));
+    }
+
+    // Recommended pivot tables: layouts picked from the shape of the data (a column that repeats its values is grouped by, numbers are totaled, the lines are counted), and the one chosen is made with
+    // its fields placed, on a sheet of its own, as one step of Undo.
+    void recommendedPivotTablesFollowTheShapeOfTheData()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Region", "B1=Month", "C1=Amount", "A2=East", "B2=Jan", "C2=10", "A3=East", "B3=Jan", "C3=5", "A4=East", "B4=Feb", "C4=20", "A5=West", "B5=Jan", "C5=7",
+                                "A6=West", "B6=Feb", "C6=3", "A7=West", "B7=Feb", "C7=4"})));
+        crunch::EditSession *s = e.win.w.session();
+        QString why;
+        const QVector<crunch::PivotAdvice> advice = s->recommendPivots(QStringLiteral("Sheet1!A1:C7"), &why);
+        QVERIFY2(advice.size() >= 3, qPrintable(why));
+        QCOMPARE(advice[0].title, QStringLiteral("Sum of Amount by Region"));
+        QCOMPARE(advice[0].rowField, 0);
+        QCOMPARE(advice[0].valueField, 2);
+        QVERIFY(!advice[0].count);
+        QCOMPARE(advice[1].title, QStringLiteral("Count of Region"));
+        QVERIFY(advice[1].count);
+        int made = -1;
+        QVERIFY(s->createRecommendedPivot(QStringLiteral("Sheet1!A1:C7"), advice[0], &made).ok);
+        QCOMPARE(s->workbook()->pivots().tableCount(), 1);
+        const jp::office::sheet::PivotTable &t = *s->workbook()->pivots().table(made).table;
+        QCOMPARE(t.rowFields, QVector<int>{0});
+        QCOMPARE(t.dataFields.size(), 1);
+        QCOMPARE(t.dataFields[0].fld, 2);
+        QCOMPARE(t.dataFields[0].subtotal, QStringLiteral("sum"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);   // (the sheet it is on is part of the step)
+        pressUndo(e.view());
+        QCOMPARE(s->workbook()->pivots().tableCount(), 0);
+        QCOMPARE(int(s->workbook()->info().order.size()), 1);
+        // from the window: the cursor in the data, and the second layout chosen
+        QVector<crunch::PivotAdvice> offered;
+        e.win.w.setPivotAdviceAsker([&](const QVector<crunch::PivotAdvice> &list, int *chosen) {
+            offered = list;
+            *chosen = 1;
+            return true;
+        });
+        e.select(QStringLiteral("A3"));
+        e.win.w.act(QStringLiteral("insert.pivotRecommended"))->trigger();
+        QCOMPARE(offered.size(), advice.size());
+        QCOMPARE(s->workbook()->pivots().tableCount(), 1);
+        QCOMPARE(s->workbook()->pivots().table(0).table->dataFields[0].subtotal, QStringLiteral("count"));
+        // data with nothing that repeats has nothing to suggest
+        EditWindow plain;
+        QVERIFY(plain.open(sheetOf({"A1=Id", "B1=Size", "A2=a", "B2=1", "A3=b", "B3=2"})));
+        QVERIFY(plain.win.w.session()->recommendPivots(QStringLiteral("Sheet1!A1:B3"), &why).isEmpty());
+        QVERIFY(!why.isEmpty());
     }
 
     // Ctrl+D and Ctrl+R copy the first row (column) of the selection over the rest, and a single cell takes what is above (left of) it; one step each; the keys are the platform's.

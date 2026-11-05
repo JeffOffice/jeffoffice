@@ -164,6 +164,7 @@
           "items": [
             {"large": "insert.table", "keytip": "T"},
             {"large": "insert.pivot", "keytip": "V"},
+            {"large": "insert.pivotRecommended", "keytip": "VR"},
             {"large": "insert.pivotChart", "keytip": "VC"}
           ]
         },

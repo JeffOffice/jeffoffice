@@ -23,6 +23,7 @@
 #include <QFormLayout>
 #include <QGuiApplication>
 #include <QLabel>
+#include <QListWidget>
 #include <QLineEdit>
 #include <QRadioButton>
 #include <QRegularExpression>
@@ -179,6 +180,83 @@ void CrunchWindow::insertPivotCommand()
     showPivotFields(true);
 }
 
+// Insert > Recommended Pivot Tables: layouts picked from the shape of the data (the table the cursor is in, the cells selected, or the block of data round the cursor), listed with what each
+// shows; the one chosen is made on a sheet of its own, with its fields placed.
+void CrunchWindow::insertRecommendedPivotCommand()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed() || !m_session || !m_loaded) return;
+    QString source;
+    if (const int table = m_session->tableAt(m_sheet, quint32(std::max<qint64>(0, m_view->selection().activeRow)), quint32(std::max<qint64>(0, m_view->selection().activeCol))); table >= 0) {
+        source = m_session->workbook()->tables()[table].name;
+    } else {
+        CellRange range = selectedRange();
+        const grid::Selection &sel = m_view->selection();
+        if (range.row1 == range.row2 && range.col1 == range.col2 && sel.whole == grid::Selection::Whole::None) {
+            bool truncated = false;
+            range = crunch::currentRegion(*m_session, m_sheet, range.row1, range.col1, &truncated);
+        }
+        if (range.valid && range.row2 > range.row1) source = sheetNamePrefix(m_loaded->book->info().sheets[m_sheet].name) + rangeName(range);
+    }
+    if (source.isEmpty()) {
+        notice(tr("Recommended Pivot Tables"), tr("Select the cells with your data, or put the cursor in them, and try again. The first row should hold the names of the columns."));
+        return;
+    }
+    QString why;
+    QGuiApplication::setOverrideCursor(Qt::WaitCursor);   // (the data is read on this thread: a big range takes a moment)
+    const QVector<crunch::PivotAdvice> advice = m_session->recommendPivots(source, &why);
+    QGuiApplication::restoreOverrideCursor();
+    if (advice.isEmpty()) {
+        notice(tr("Recommended Pivot Tables"), why);
+        return;
+    }
+    int chosen = 0;
+    if (m_pivotAdviceAsker) {
+        if (!m_pivotAdviceAsker(advice, &chosen)) return;
+    } else {
+        QDialog dialog(this);
+        dialog.setWindowTitle(tr("Recommended Pivot Tables"));
+        auto *layout = new QVBoxLayout(&dialog);
+        auto *intro = new QLabel(tr("Pick a layout. JeffCrunch makes it on a new sheet, and you can change it after."), &dialog);
+        intro->setWordWrap(true);
+        layout->addWidget(intro);
+        auto *list = new QListWidget(&dialog);
+        list->setObjectName(QStringLiteral("pivotAdviceList"));
+        for (const crunch::PivotAdvice &a : advice) list->addItem(a.title);
+        list->setCurrentRow(0);
+        layout->addWidget(list);
+        auto *about = new QLabel(&dialog);
+        about->setObjectName(QStringLiteral("pivotAdviceAbout"));
+        about->setWordWrap(true);
+        about->setTextFormat(Qt::PlainText);
+        about->setText(advice.first().description);
+        layout->addWidget(about);
+        connect(list, &QListWidget::currentRowChanged, about, [about, advice](int row) { about->setText(row >= 0 && row < advice.size() ? advice[row].description : QString()); });
+        connect(list, &QListWidget::itemDoubleClicked, &dialog, &QDialog::accept);
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        layout->addWidget(buttons);
+        connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        if (dialog.exec() != QDialog::Accepted) return;
+        chosen = std::max(0, list->currentRow());
+    }
+    if (chosen < 0 || chosen >= advice.size()) return;
+    int made = -1;
+    QGuiApplication::setOverrideCursor(Qt::WaitCursor);
+    const auto o = m_session->createRecommendedPivot(source, advice[chosen], &made);
+    QGuiApplication::restoreOverrideCursor();
+    if (!o.ok) {
+        notice(tr("Create Pivot Table"), o.problem);
+        return;
+    }
+    if (made >= 0) {
+        const PivotTableEntry &entry = m_session->workbook()->pivots().table(made);
+        const CellRange at = m_session->workbook()->pivots().locationOf(made);
+        if (at.valid) goToFound(entry.sheet, at.row1, at.col1);
+    }
+    showPivotFields(true);
+}
+
 // While a formula is typed, a click on a value of a pivot table is GETPIVOTDATA with the names of its lines, as the original program writes it (on unless the pivot table tab's option says not).
 bool CrunchWindow::pointAtPivotCell(qint64 row, qint64 col)
 {
@@ -200,6 +278,7 @@ bool CrunchWindow::pointAtPivotCell(qint64 row, qint64 col)
 void CrunchWindow::createPivotActions()
 {
     mk("insert.pivot", tr("Pivot Table"), "table-properties", QKeySequence(), [this] { insertPivotCommand(); });
+    mk("insert.pivotRecommended", tr("Recommended Pivot Tables"), "lightbulb", QKeySequence(), [this] { insertRecommendedPivotCommand(); });
     mk("pivot.options", tr("Pivot Table Options…"), "settings", QKeySequence(), [this] {
         bool generate = Settings::get().value(QStringLiteral("crunch/generateGetPivotData"), true).toBool();
         if (m_pivotOptionsAsker) {
@@ -264,7 +343,7 @@ void CrunchWindow::createPivotActions()
             }, tr("Pivot Table Options"), false);
         if (choice.refreshOnOpen != was.refreshOnOpen) pivotProblem(tr("Pivot Table Options"), m_session->setPivotRefreshOnOpen(t, choice.refreshOnOpen));
     });
-    m_opsActions << QStringLiteral("insert.pivot") << QStringLiteral("pivot.options");
+    m_opsActions << QStringLiteral("insert.pivot") << QStringLiteral("insert.pivotRecommended") << QStringLiteral("pivot.options");
     mk("pivot.refresh", tr("Refresh"), "refresh-cw", QKeySequence(), [this] {
         const int t = selectedPivot();
         if (t < 0) {

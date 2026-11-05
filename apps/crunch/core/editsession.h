@@ -7,6 +7,7 @@
 // of the formulas that depend (they are worked out again), so the memory it takes is what the edits changed. A cell typed into is one step. The session also keeps what saving needs: the
 // cells that changed, and the formulas whose result is not what the file has (known from the batches the worker sends).
 
+#include "core/pivotadvice.h"
 #include "core/resultmap.h"
 #include "core/anchors.h"
 #include "core/clipdata.h"
@@ -73,9 +74,9 @@ struct CellChange {
     bool wrapToSet = false;
     // Only the format of the cell changes (its value, formula, and the array it may be part of stay as they are).
     bool styleOnly = false;
-};
     // The format the change gives the cell keeps the borders the cell had (Paste Special > All Except Borders).
     bool keepBorders = false;
+};
 
 // A table's column renamed by a step (its header cell is one of the step's cells): the table by its place in the workbook's tables, the column by its place in the table.
 struct TableRename {
@@ -377,6 +378,10 @@ public:
     // Makes a pivot table from the cells or the table `source` names (as Change Data Source takes them), with an empty layout, at the cell (row, col) of the sheet `sheet`, or on a sheet of its own at A3
     // when `sheet` is -1 (the sheet is made first: a step of Undo of its own). The cells the empty table covers must be empty. `*made` is the new table's place.
     Outcome createPivot(const QString &source, int sheet, quint32 row, quint32 col, int *made = nullptr);
+    // Recommended pivot tables: the layouts that suit the data `source` names (core/pivotadvice.h), best first; none, and `why` says why, if the data can't be read. And one of them made as a table
+    // on a sheet of its own, with the fields placed: one step of Undo for the table (the sheet it is on is a step of its own, taken back with it).
+    QVector<PivotAdvice> recommendPivots(const QString &source, QString *why = nullptr);
+    Outcome createRecommendedPivot(const QString &source, const PivotAdvice &advice, int *made = nullptr);
     Outcome refreshAllPivots();
     // Drill Down and Drill Up: the item named by the label cell at (row, col) is opened (the lines of the next field under it are shown) or shut (only its total). Not ok if the cell is not the
     // name of an item of the rows that has another field under it.
@@ -462,15 +467,15 @@ public:
     // range left over emptied. A text that needs more cells than the range has is not put in (confirm, with a question in `problem`) unless `extend`; it then goes into the cells below.
     // Not ok, and nothing changed, if the range is of more than one column or a cell holds a number, a formula, or something that is not text.
     Outcome justify(int sheet, const jp::office::sheet::CellRange &range, double width, const std::function<double(const QString &)> &measure, bool extend = false);
+    // Flash Fill: the cells of column `col` that hold what was typed by hand are the examples; how they come from the cells beside them (core/flashfill.h) is found, and the empty cells of the
+    // column, in the rows round `row` that have something beside them, are filled with what the same steps make, as one step. Not ok, and nothing changed, if no pattern fits the examples,
+    // there is nothing to fill, or a cell cannot be changed; `filled` is how many cells were filled.
+    Outcome flashFill(int sheet, quint32 row, quint32 col, int *filled = nullptr);
     // Fill > Across Worksheets: the cells of `range` on `sheet` copied to the same cells of the sheets in `targets` (the places of the sheets), as one step: everything, just the formats, or
     // just the contents. Not ok, and nothing changed, if there is no sheet to copy to or one cannot be changed.
     Outcome fillAcrossSheets(int sheet, const jp::office::sheet::CellRange &range, const std::vector<int> &targets, FillWhat what);
 
 
-    // Flash Fill: the cells of column `col` that hold what was typed by hand are the examples; how they come from the cells beside them (core/flashfill.h) is found, and the empty cells of the
-    // column, in the rows round `row` that have something beside them, are filled with what the same steps make, as one step. Not ok, and nothing changed, if no pattern fits the examples,
-    // there is nothing to fill, or a cell cannot be changed; `filled` is how many cells were filled.
-    Outcome flashFill(int sheet, quint32 row, quint32 col, int *filled = nullptr);
 
     // ---- tables (edittables.cpp). A table is named by its place among the workbook's tables (Workbook::tables); each of these is one step of Undo, and nothing is changed when it is not ok.
     // The table whose cells include the cell, or -1; and the one whose header row, data, or totals row it is in is the same table.
