@@ -53,3 +53,4 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 
 - [Utiliser JeffWrite au clavier](keyboard)
 - [Modifier les paramètres de JeffWrite](options)
+- [Choisir une langue](language)

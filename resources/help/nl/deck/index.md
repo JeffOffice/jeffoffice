@@ -42,6 +42,7 @@ Typ in het zoekvak hierboven om een onderwerp te vinden of een opdracht uit te v
 
 - [JeffDeck met het toetsenbord gebruiken](keyboard)
 - [De instellingen van JeffDeck wijzigen](options)
+- [Een taal kiezen](language)
 - [Het scherm Bestand](file-screen)
 
 ## De tabbladen van het lint

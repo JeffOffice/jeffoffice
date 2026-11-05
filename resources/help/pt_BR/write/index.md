@@ -56,3 +56,4 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 - [Usar o JeffWrite com o teclado](keyboard)
 - [Alterar as configurações do JeffWrite](options)
+- [Escolher um idioma](language)

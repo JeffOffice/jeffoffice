@@ -56,3 +56,4 @@ Typ in het zoekvak hierboven om een onderwerp te vinden, of een opdracht die u w
 
 - [JeffWrite met het toetsenbord gebruiken](keyboard)
 - [De instellingen van JeffWrite wijzigen](options)
+- [Een taal kiezen](language)

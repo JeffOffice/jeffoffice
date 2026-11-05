@@ -51,3 +51,4 @@ Saisissez du texte dans la zone de recherche ci-dessus pour trouver une rubrique
 
 - [Utiliser JeffCrunch au clavier](keyboard)
 - [Modifier les options de JeffCrunch](options)
+- [Choisir une langue](language)

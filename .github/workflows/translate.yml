@@ -3,7 +3,8 @@ name: Translate
 # Each night, and on demand before a release: list the program's text again
 # (lupdate), translate what is new or changed into every language with
 # Claude (tools/translate/translate.py), and commit the result as
-# JeffOffice LLC. Without the ANTHROPIC_API_KEY secret it does nothing.
+# JeffOffice LLC. Without the ANTHROPIC_API_KEY secret it does nothing, except
+# the English variants job below, which needs no key.
 
 on:
   schedule:
@@ -89,4 +90,35 @@ jobs:
             sleep 20
           done
           echo "::error::Could not push the translations."
+          exit 1
+
+  # English (United Kingdom, Canada, Australia) is made from the American English
+  # text by a word list (tools/translate/english_variants.py): no API key, no
+  # network, so it runs whether or not the secret is set. It reads the committed
+  # translations/jeffoffice.ts and resources/help/en.
+  english-variants:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Make the English variants
+        run: python3 tools/translate/english_variants.py
+
+      - name: Commit
+        run: |
+          git add translations resources/help resources/resources.qrc
+          if git diff --cached --quiet; then echo "English variants are current."; exit 0; fi
+          git config user.name "JeffOffice LLC"
+          git config user.email "info@jeffoffice.com"
+          git commit -q -m "English variants of new and changed text"
+          for i in 1 2 3 4 5; do
+            git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null || true
+            sleep 20
+          done
+          echo "::error::Could not push the English variants."
           exit 1

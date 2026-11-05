@@ -42,6 +42,7 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 
 - [JeffDeck mit der Tastatur bedienen](keyboard)
 - [Einstellungen von JeffDeck ändern](options)
+- [Sprache wählen](language)
 - [Das Menü „Datei“](file-screen)
 
 ## Die Registerkarten des Menübands

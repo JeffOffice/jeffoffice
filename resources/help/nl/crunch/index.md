@@ -51,3 +51,4 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u w
 
 - [JeffCrunch met het toetsenbord gebruiken](keyboard)
 - [De instellingen van JeffCrunch wijzigen](options)
+- [Een taal kiezen](language)

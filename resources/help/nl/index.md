@@ -59,6 +59,7 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te v
 - [Schermlezers, hoog contrast en alternatieve tekst](accessibility)
 - [Uw ontwerp controleren](design-checker)
 - [De instellingen van JeffPub wijzigen](options)
+- [Een taal kiezen](language)
 - [Hulp krijgen en problemen melden](support)
 
 ## De tabbladen van het lint

@@ -51,3 +51,4 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Utilizar o JeffCrunch com o teclado](keyboard)
 - [Alterar as definições do JeffCrunch](options)
+- [Escolher um idioma](language)
