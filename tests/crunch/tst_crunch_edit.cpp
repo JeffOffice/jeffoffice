@@ -19,6 +19,7 @@
 #include <QStandardPaths>
 #include "core/appinfo.h"
 #include "core/fonts.h"
+#include "core/loader.h"
 #include "core/resultmap.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
@@ -2288,6 +2289,42 @@ private Q_SLOTS:
         QVERIFY(again.open(copy));
         QCOMPARE(again.w.view()->sheet().textOf(0, 0, *again.w.view()->sheet().cellAt(0, 0)), QStringLiteral("12"));
         QCOMPARE(again.w.view()->sheet().textOf(0, 1, *again.w.view()->sheet().cellAt(0, 1)), QStringLiteral("13"));
+    }
+
+    // The defaults of a new workbook: the font, its size, and how many sheets it starts with.
+    void aNewWorkbookStartsWithTheChosenFontSizeAndSheets()
+    {
+        crunch::BlankDefaults d;
+        d.font = QStringLiteral("Georgia");
+        d.size = 13;
+        d.sheets = 3;
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(crunch::blankWorkbookBytes(d), parts));
+        const QString book = QString::fromUtf8(parts.value(QStringLiteral("xl/workbook.xml")));
+        QVERIFY2(book.contains(QLatin1String("name=\"Sheet3\"")) && !book.contains(QLatin1String("Sheet4")), qPrintable(book));
+        const QString styles = QString::fromUtf8(parts.value(QStringLiteral("xl/styles.xml")));
+        QVERIFY(styles.contains(QLatin1String("<sz val=\"13\"/><name val=\"Georgia\"/>")));
+        QVERIFY(parts.contains(QStringLiteral("xl/worksheets/sheet3.xml")));
+        // (a name or a count that makes no sense is the usual one)
+        crunch::BlankDefaults bad;
+        bad.font = QStringLiteral("<x>");
+        bad.size = 0;
+        bad.sheets = 9000;
+        parts.clear();
+        QVERIFY(jp::readZip(crunch::blankWorkbookBytes(bad), parts));
+        QVERIFY(QString::fromUtf8(parts.value(QStringLiteral("xl/styles.xml"))).contains(QLatin1String("<sz val=\"11\"/><name val=\"Calibri\"/>")));
+        QVERIFY(!QString::fromUtf8(parts.value(QStringLiteral("xl/workbook.xml"))).contains(QLatin1String("Sheet256")));
+    }
+
+    void theWindowMakesNewWorkbooksFromTheSettings()
+    {
+        Settings::get().setValue(QStringLiteral("crunch/newSheets"), 2);
+        Settings::get().setValue(QStringLiteral("crunch/newFont"), QStringLiteral("Georgia"));
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        QCOMPARE(e.win.w.session()->sheetOrder().size(), 2);
+        Settings::get().setValue(QStringLiteral("crunch/newSheets"), 1);
+        Settings::get().setValue(QStringLiteral("crunch/newFont"), QStringLiteral("Calibri"));
     }
 
     // File > New makes a second window with a new workbook of its own, named after the first; closing a new workbook nobody changed asks nothing, and a changed one asks.

@@ -69,7 +69,7 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 - [~] **first release** Template gallery with live previews and categories, starting with a few built-in templates (budget, invoice, expense report, loan schedule, calendar, and timesheet) written by JeffOffice and open-licensed *(shared: JeffPub's New page)*
 - [ ] **1.0** More built-in templates: checkbook register, grade book, inventory list, mileage log, project plan, and sales report
 - [x] **1.0** Save as a template (`.xltx`, `.ots`) and reuse your own under My Templates; a template can hold formulas, styles, and sheets *(File > Save as Template puts an `.xltx` in My Templates, with a picture of the sheet, and the New page lists them; a workbook made from one has no file of its own; Save As writes `.xltx` and `.ots`)*
-- [ ] **1.0** The default workbook and sheet: set the font, size, number of sheets, and view of every new workbook or new sheet (`Book.xltx` and `Sheet.xltx` in the original)
+- [~] **1.0** The default workbook and sheet: set the font, size, number of sheets, and view of every new workbook or new sheet (`Book.xltx` and `Sheet.xltx` in the original) *(done: File > Options > New Workbooks sets the font, its size, and the number of sheets a new workbook starts with; not done: the view, and a default for sheets added later)*
 
 ### Open, Save, Save As, and Close
 - [~] **first release** Open `.xlsx`, `.xls`, `.ods`, `.csv`, and `.txt` (and the templates `.xltx`, `.xlt`, and `.ots`), from the Recent list with pinning, from Browse, by drag-and-drop, and from the command line *(shared: the recent list and file pages in libs/shell)*

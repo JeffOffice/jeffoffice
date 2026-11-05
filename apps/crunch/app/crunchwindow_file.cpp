@@ -100,7 +100,11 @@ bool CrunchWindow::newBlank()
     m_values.clear();
     m_longestBatchMicros = m_batches = m_longestBatchItems = 0;
     m_loadProblem.clear();
-    m_loader.startBlank();
+    crunch::BlankDefaults defaults;
+    defaults.font = Settings::get().value(QStringLiteral("crunch/newFont"), defaults.font).toString();
+    defaults.size = Settings::get().value(QStringLiteral("crunch/newFontSize"), defaults.size).toDouble();
+    defaults.sheets = Settings::get().value(QStringLiteral("crunch/newSheets"), defaults.sheets).toInt();
+    m_loader.startBlank(defaults);
     setStatus(tr("Ready"));
     updateTitle();
     return true;
