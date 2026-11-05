@@ -80,6 +80,7 @@ double Paginator::noteHeight(const QString &id, double width)
     fs.hyphenate = m_doc->hyphenate;
     fs.hyphenZone = m_doc->hyphenZone;
     fs.hyphenLimit = m_doc->hyphenLimit;
+    fs.hyphenateCaps = m_doc->hyphenateCaps;
     fs.ctx.doc = m_doc->fields;
     StoryLayout lay;
     lay.build(&d, {fs}, m_doc->env);
@@ -111,6 +112,7 @@ Paginator::NoteCut Paginator::cutNote(const QString &id, double width, double ro
     fs.hyphenate = m_doc->hyphenate;
     fs.hyphenZone = m_doc->hyphenZone;
     fs.hyphenLimit = m_doc->hyphenLimit;
+    fs.hyphenateCaps = m_doc->hyphenateCaps;
     fs.ctx.doc = m_doc->fields;
     double line = 0;
     {

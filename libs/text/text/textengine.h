@@ -126,6 +126,7 @@ struct FrameSpec {
     VAlign valign = VAlign::Top;
     bool hyphenate = true;          // insert soft hyphens at allowed break points
     bool tabsRunOff = false;        // a word processor's text after a tab whose stop is past the right edge stays on the line (a header's or footer's)
+    bool hyphenateCaps = false;     // words in capitals are hyphenated too
     int hyphenLimit = 0;            // the most lines in a row of a paragraph that may end in a hyphen (0: no limit)
     double hyphenZone = 18;         // points: hyphenate only if moving the word would leave more space
     double baselineGrid = 0;        // the page's baseline guides: spacing (0 = none)

@@ -171,6 +171,7 @@ struct SectionProps {
     bool oddEvenHeaders = false;
     // The same for the document's facing pages with mirrored margins (w:mirrorMargins) and its automatic hyphenation (w:autoHyphenation).
     bool mirrorMargins = false, autoHyphenation = false;
+    bool doNotHyphenateCaps = false;   // w:doNotHyphenateCaps: words in capitals are left whole
     int hyphenationZone = 360, consecutiveHyphenLimit = 0;   // w:hyphenationZone (twentieths of a point) and w:consecutiveHyphenLimit (0: none), the settings' own
     QString pageColor;                // and the page color (w:background): "RRGGBB", empty for none
     bool hasPgSz = false, hasPgMar = false, hasCols = false;   // stated in the file
@@ -497,6 +498,8 @@ QByteArray settingsWithAutoHyphenation(const QByteArray &settings, bool on);
 // The hyphenation zone (w:hyphenationZone, twentieths of a point; 360, the usual, takes the element away) and the limit of lines in a row that end in a hyphen (w:consecutiveHyphenLimit; 0 takes it away).
 QByteArray settingsWithHyphenationZone(const QByteArray &settings, int twips);
 QByteArray settingsWithConsecutiveHyphenLimit(const QByteArray &settings, int limit);
+// Words in capitals left whole (w:doNotHyphenateCaps).
+QByteArray settingsWithDoNotHyphenateCaps(const QByteArray &settings, bool on);
 // The settings with the page color shown (w:displayBackgroundShape), which a page color needs to be seen by the programs that read the file.
 QByteArray settingsWithDisplayBackgroundShape(const QByteArray &settings, bool on);
 // Whether the settings turn Track Changes on (w:trackRevisions, not turned off by a value), and the settings with it on or off, in the place the schema gives it. An empty part gives a minimal one.
@@ -687,6 +690,7 @@ struct CompatOptions {
     bool autoHyphenation = false;
     int hyphenationZone = 360;
     int consecutiveHyphenLimit = 0;   // w:consecutiveHyphenLimit: the most lines in a row that may end in a hyphen (0: no limit)
+    bool doNotHyphenateCaps = false;  // w:doNotHyphenateCaps: words in capitals are left whole
     // Facing pages (w:mirrorMargins, an element of the settings itself): the section's left and right margins are its inside and outside.
     bool mirrorMargins = false;
 };

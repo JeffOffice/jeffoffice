@@ -138,6 +138,16 @@ QPair<int, int> hyphenRun(WriteDoc &doc)
     const auto lines = doc.pager().lines(0);
     for (const auto &l : lines) {
         const QChar last = l.end > 0 ? doc.story()->characterAt(l.end - 1) : QChar(), next = doc.story()->characterAt(l.end);
+// A page wide enough for each word of a line, its words in capitals (so that a line ends inside a word only where the word is hyphenated).
+std::unique_ptr<WriteDoc> capsDoc(const QByteArray &settings)
+{
+    QByteArray text;
+    for (int i = 0; i < 30; ++i) text += i % 3 == 0 ? "EXTRAORDINARILY " : i % 3 == 1 ? "INDISTINGUISHABLE " : "UNQUESTIONABLY ";
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"720\" w:bottom=\"1440\" w:left=\"720\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    QString err;
+    return WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r></w:p>" + sect, settings), &err);
+}
+
         if (last.isLetter() && next.isLetter()) most = std::max(most, ++run);
         else run = 0;
     }
@@ -689,6 +699,50 @@ private Q_SLOTS:
         const QPair<int, int> free = hyphenRun(*none);
         QVERIFY2(free.first >= 3, qPrintable(QString::number(free.first)));   // (there are long runs without a limit)
         auto one = narrowDoc("<w:autoHyphenation/><w:consecutiveHyphenLimit w:val=\"1\"/>");
+    void wordsInCapitalsAreHyphenatedUnlessTheSettingsSayNot()
+    {
+        auto on = capsDoc("<w:autoHyphenation/>");
+        QVERIFY(on);
+        QVERIFY(on->hyphenateCaps());
+        QVERIFY2(hyphenRun(*on).first >= 1, qPrintable(QString::number(hyphenRun(*on).first)));
+        auto off = capsDoc("<w:autoHyphenation/><w:doNotHyphenateCaps/>");
+        QVERIFY(off);
+        QVERIFY(!off->hyphenateCaps());
+        QCOMPARE(hyphenRun(*off).first, 0);
+        // The choice is the document's: set, it lays the lines out again, undoes, and is saved in the schema's place (after the zone, before the compatibility part).
+        off->setHyphenateCaps(true);
+        QVERIFY(hyphenRun(*off).first >= 1);
+        const QByteArray plain = settingsXml(off->toDocx());
+        QVERIFY2(!plain.contains("doNotHyphenateCaps"), plain.constData());
+        on->setHyphenateCaps(false);
+        QCOMPARE(hyphenRun(*on).first, 0);
+        const QByteArray settings = settingsXml(on->toDocx());
+        QVERIFY2(settings.contains("<w:doNotHyphenateCaps/>"), settings.constData());
+        QVERIFY(settings.indexOf("autoHyphenation") < settings.indexOf("doNotHyphenateCaps"));
+        QString err;
+        auto again = WriteDoc::fromDocx(on->toDocx(), &err);
+        QVERIFY(again);
+        QVERIFY(!again->hyphenateCaps());
+        on->undo();
+        QVERIFY(on->hyphenateCaps());
+    }
+
+    void hyphenateCapsOnTheLayoutTabFollowsAutomaticHyphenation()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QVERIFY(w.act("layout.hyphenation.caps"));
+        QVERIFY(!w.act("layout.hyphenation.caps")->isEnabled());   // (nothing is hyphenated, so there is nothing to choose)
+        w.act(QStringLiteral("layout.hyphenation.auto"))->trigger();
+        QTRY_VERIFY(w.act("layout.hyphenation.caps")->isEnabled());
+        QVERIFY(w.act("layout.hyphenation.caps")->isChecked());
+        w.act(QStringLiteral("layout.hyphenation.caps"))->trigger();
+        QVERIFY(!w.document()->hyphenateCaps());
+        QVERIFY(!w.act("layout.hyphenation.caps")->isChecked());
+    }
+
         QVERIFY(one);
         const QPair<int, int> limited = hyphenRun(*one);
         QCOMPARE(limited.first, 1);

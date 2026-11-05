@@ -360,6 +360,11 @@ QByteArray settingsWithConsecutiveHyphenLimit(const QByteArray &settings, int li
     return settingsWithFlag(settings, "consecutiveHyphenLimit", limit > 0, afterAutoHyphenationFrom("consecutiveHyphenLimit"), QByteArray::number(limit));
 }
 
+QByteArray settingsWithDoNotHyphenateCaps(const QByteArray &settings, bool on)
+{
+    return settingsWithFlag(settings, "doNotHyphenateCaps", on, afterAutoHyphenationFrom("doNotHyphenateCaps"));
+}
+
 QByteArray settingsWithTrackRevisions(const QByteArray &settings, bool on)
 {
     // The elements the schema puts after it: the rest of the track settings, the protection, and everything from the default tab stop on.

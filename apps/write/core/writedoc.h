@@ -243,6 +243,9 @@ public:
     int hyphenLimit() const { return m_flow->hyphenLimit; }
     // Sets both (a setting of the document, written with it); the lines are set again.
     void setHyphenation(double zonePoints, int limit);
+    // Whether words in capitals are hyphenated too (the settings' w:doNotHyphenateCaps, turned round); one step that undoes.
+    bool hyphenateCaps() const { return m_flow->hyphenateCaps; }
+    void setHyphenateCaps(bool on);
     void setAutoHyphenation(bool on);
     void setDifferentOddEven(bool on);
     // The slot a page of a section uses.
@@ -797,6 +800,7 @@ private:
     bool m_wasModified = false;
     QString m_pageColorAtOpen;                                         // the file's page color ("RRGGBB") when it was read
     int m_hyphenZoneAtOpen = 360, m_hyphenLimitAtOpen = 0;
+    bool m_noHyphenCapsAtOpen = false;
     bool m_mirrorAtOpen = false, m_hyphenAtOpen = false;               // the file's facing pages with mirrored margins, and automatic hyphenation, when it was read
     bool m_oddEvenAtOpen = false;                                      // the file's use of different headers on odd and even pages when it was read
     QSet<QString> m_released;                                          // parts the sections let go of (a reference taken out): written no more if nothing names them

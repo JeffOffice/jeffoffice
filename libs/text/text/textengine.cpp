@@ -2979,6 +2979,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     const bool hyphenateStory = !frames.isEmpty() && frames.first().hyphenate;
     const double zone = (frames.isEmpty() ? 18.0 : frames.first().hyphenZone) * env.fontScale;
     const int hyphenLimit = frames.isEmpty() ? 0 : frames.first().hyphenLimit;
+    const bool hyphenateCaps = !frames.isEmpty() && frames.first().hyphenateCaps;
 
     // Notes. A note's own text is laid out without notes of its own.
     m_notes.clear();
@@ -3468,7 +3469,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         const auto m = it.next();
                         if (env.wordLines && m.capturedLength() > 64) continue;   // (a word processor's string of letters that long is no word to look up: a file can make one of any length)
                         const QString w = m.captured();
-                        if (w == w.toUpper()) continue;   // leave all-caps words whole
+                        if (!hyphenateCaps && w == w.toUpper()) continue;   // leave all-caps words whole (unless the story hyphenates them)
                         g_hyphenationLetters += int(w.size());
                         if (!hyphenationKnows(w, language)) continue;   // names and coined words stay whole
                         for (int pt : hyphenationPoints(w, language)) cuts.append({int(m.capturedStart()) + pt, QChar(0x00AD)});

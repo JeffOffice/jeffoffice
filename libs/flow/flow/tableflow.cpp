@@ -149,6 +149,7 @@ std::shared_ptr<StoryLayout> layoutText(FlowDocument *doc, int from, int to, dou
     fs.columns = 1;
     fs.hyphenate = doc->hyphenate;
     fs.hyphenZone = doc->hyphenZone;
+    fs.hyphenateCaps = doc->hyphenateCaps;
     fs.ctx.doc = doc->fields;
     fs.ctx.pageNumber = doc->fieldPageNumber;
     fs.ctx.pageCount = doc->fieldPageCount;

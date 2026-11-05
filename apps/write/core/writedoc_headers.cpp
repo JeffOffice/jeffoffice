@@ -407,6 +407,14 @@ void WriteDoc::setHyphenation(double zonePoints, int limit)
     setSectionProps(sectionCount() - 1, last);
 }
 
+void WriteDoc::setHyphenateCaps(bool on)
+{
+    if (m_flow->hyphenateCaps == on) return;
+    SectionProps last = m_last;
+    last.doNotHyphenateCaps = !on;
+    setSectionProps(sectionCount() - 1, last);
+}
+
 void WriteDoc::setDifferentOddEven(bool on)
 {
     if (m_wml.evenAndOddHeaders == on) return;
@@ -658,6 +666,7 @@ void WriteDoc::writeHeaderParts(office::wml::Document *out)
     if (m_flow->hyphenate != m_hyphenAtOpen) changeSetting(settingsWithAutoHyphenation, m_flow->hyphenate);
     if (const int zone = int(std::lround(m_flow->hyphenZone * 20)); zone != m_hyphenZoneAtOpen)
         changeSetting([zone](const QByteArray &settings, bool) { return settingsWithHyphenationZone(settings, zone); }, zone != 360);
+    if (!m_flow->hyphenateCaps != m_noHyphenCapsAtOpen) changeSetting(settingsWithDoNotHyphenateCaps, !m_flow->hyphenateCaps);
     if (m_flow->hyphenLimit != m_hyphenLimitAtOpen)
         changeSetting([limit = m_flow->hyphenLimit](const QByteArray &settings, bool) { return settingsWithConsecutiveHyphenLimit(settings, limit); }, m_flow->hyphenLimit > 0);
     // The page color is the document's w:background (the first thing in the file besides the body), shown by a setting of the document.

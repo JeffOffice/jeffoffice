@@ -627,6 +627,7 @@
                 "layout.hyphenation.none",
                 "layout.hyphenation.auto",
                 "-",
+                "layout.hyphenation.caps",
                 "layout.hyphenation.options"
               ]
             }

@@ -1470,6 +1470,7 @@ CompatOptions readCompatOptions(const QByteArray &settings)
         const int n = tree.val(limit).toInt(&ok);
         if (ok && n > 0) o.consecutiveHyphenLimit = std::min(n, 1000);
     }
+    o.doNotHyphenateCaps = isOn(tree.child(tree.root(), "doNotHyphenateCaps"));
     const int compat = tree.child(tree.root(), "compat");
     if (compat < 0) return o;
     auto on = [&](const char *name) { return isOn(tree.child(compat, name)); };

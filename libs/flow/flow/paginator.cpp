@@ -323,6 +323,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         fs.hyphenate = m_doc->hyphenate;
         fs.hyphenZone = m_doc->hyphenZone;
         fs.hyphenLimit = m_doc->hyphenLimit;
+        fs.hyphenateCaps = m_doc->hyphenateCaps;
         fs.noteRoomLimit = colH / 4;   // (the text area of this page: a note separator or a notice takes at most a quarter of it)
         fs.outdentLimit = sec.pageSize().width();
         fs.rightRoom = sec.columnCount() <= 1 ? sec.margins.right() : 0.0;
