@@ -57,6 +57,7 @@ struct PictureInfo {
     double left = 0, top = 0;       // a picture set at a place: from where it is measured (points)
     bool placeIsOffset = false;     // `left` and `top` are offsets (else the picture is aligned, and they are 0)
     QString alt;
+    bool decorative = false;   // marked as adding nothing a screen reader should read
 };
 
 // The picture at a place of the story (the character just after `position`); `valid` is false for any other character.
@@ -80,6 +81,8 @@ bool setPictureSize(WriteDoc &doc, int position, double width, double height);
 bool setPictureBox(WriteDoc &doc, int position, double width, double height, const std::optional<QPointF> &pageTopLeft);
 bool setPictureWrap(WriteDoc &doc, int position, PictureWrap wrap);
 bool setPictureAltText(WriteDoc &doc, int position, const QString &alt);
+// Mark as Decorative: the picture is marked as adding nothing to the page's meaning, and its description is taken off; off, the mark goes.
+bool setPictureDecorative(WriteDoc &doc, int position, bool decorative);
 // Sets a picture at a place on the page, measured from its top left corner (points): it becomes one that is set at a place (square, if it was in line).
 bool setPicturePlace(WriteDoc &doc, int position, double pageX, double pageY);
 // Moves an inline picture to another place in the text (`to`, a position outside the picture): one step.

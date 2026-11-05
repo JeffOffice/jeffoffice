@@ -594,6 +594,14 @@ bool isPictureAt(const QTextDocument *story, int position)
     return isPictureShape(readShapes(atom.raw));
 }
 
+namespace {
+
+const QByteArray kDecorativeUri = "{C183D7F6-B498-43B3-948B-1728B52AA6E4}";
+
+bool isDecorativeInner(const QByteArray &inner) { return inner.contains(kDecorativeUri) && inner.contains("decorative") && !inner.contains("val=\"0\"") && !inner.contains("val=\"false\""); }
+
+} // namespace
+
 PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int position)
 {
     Q_UNUSED(doc);
@@ -615,6 +623,7 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
     info.top = s.top;
     Model m;
     info.editable = parseDrawing(atom.raw, &m);
+    info.decorative = isDecorativeInner(m.docPrInner);
     return info;
 }
 
@@ -694,6 +703,33 @@ bool setPictureAltText(WriteDoc &doc, int position, const QString &alt)
         if (attributeValue(m.docPr, "descr") == text) return false;
         if (text.isEmpty()) removeAttribute(&m.docPr, "descr");
         else setAttribute(&m.docPr, "descr", quote(text));
+        return true;
+    });
+}
+
+bool setPictureDecorative(WriteDoc &doc, int position, bool decorative)
+{
+    return changePicture(doc, position, [&](Model &m) {
+        if (isDecorativeInner(m.docPrInner) == decorative) return false;
+        // The mark is an extension of the picture's properties (the newer format's), the last child of wp:docPr.
+        static const QByteArray open = "<a:ext uri=\"{C183D7F6-B498-43B3-948B-1728B52AA6E4}\">";
+        if (!decorative) {
+            const qsizetype from = m.docPrInner.indexOf(open);
+            if (from < 0) return false;
+            const qsizetype to = m.docPrInner.indexOf("</a:ext>", from);
+            if (to < 0) return false;
+            m.docPrInner.remove(from, to + 8 - from);
+            // (an extension list with nothing left in it goes)
+            static const QRegularExpression emptyList(QStringLiteral("<a:extLst(?: [^>]*)?>\\s*</a:extLst>"));
+            m.docPrInner = QString::fromUtf8(m.docPrInner).remove(emptyList).toUtf8();
+            return true;
+        }
+        const QByteArray ext = open + "<adec:decorative xmlns:adec=\"http://schemas.microsoft.com/office/drawing/2017/decorative\" val=\"1\"/></a:ext>";
+        const qsizetype list = m.docPrInner.lastIndexOf("</a:extLst>");
+        if (list >= 0) m.docPrInner.insert(list, ext);
+        else m.docPrInner += "<a:extLst xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" + ext + "</a:extLst>";
+        // A picture that adds nothing has no description (a screen reader skips it).
+        removeAttribute(&m.docPr, "descr");
         return true;
     });
 }

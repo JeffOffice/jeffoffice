@@ -10,6 +10,7 @@
 #include "core/editops.h"
 #include "core/fieldops.h"
 #include "core/fonts.h"
+#include "core/pictureops.h"
 #include "core/styleops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
@@ -19,6 +20,7 @@
 #include "office/package.h"
 #include "text/textengine.h"
 
+#include <QBuffer>
 #include <QFile>
 #include <QTemporaryDir>
 #include <QTest>
@@ -73,6 +75,12 @@ QString writeFile(const QString &path, const QByteArray &bytes)
     QFile f(path);
     if (!f.open(QIODevice::WriteOnly) || f.write(bytes) != bytes.size()) return QString();
     return path;
+}
+
+QByteArray readAll(const QString &path)
+{
+    QFile f(path);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
 }
 
 } // namespace
@@ -221,6 +229,200 @@ private Q_SLOTS:
         QVERIFY(win.saveTo(dir.filePath(QStringLiteral("plain.odt"))));
         QVERIFY(!said.isEmpty());
         QVERIFY2(said[0].contains(QLatin1String("macros")) && said[0].contains(QLatin1String(".odt")) && !said[0].contains(QLatin1String(".docx")), qPrintable(said[0]));
+    }
+
+    // ---- Rich Text Format
+    static QByteArray formattedDocx()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"),
+                  "<?xml version=\"1.0\"?><w:document " + ns + "><w:body>"
+                  "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Big Title</w:t></w:r></w:p>"
+                  "<w:p><w:pPr><w:jc w:val=\"center\"/><w:spacing w:before=\"120\" w:after=\"240\"/><w:ind w:left=\"720\"/></w:pPr>"
+                  "<w:r><w:rPr><w:b/><w:i/><w:u w:val=\"single\"/></w:rPr><w:t>Bold caf\xC3\xA9 \xE2\x82\xAC</w:t></w:r>"
+                  "<w:r><w:rPr><w:color w:val=\"FF0000\"/><w:sz w:val=\"28\"/><w:rFonts w:ascii=\"Courier New\" w:hAnsi=\"Courier New\"/><w:highlight w:val=\"yellow\"/></w:rPr><w:t xml:space=\"preserve\"> red {braces} \\ slash</w:t></w:r>"
+                  "<w:r><w:tab/><w:t>after tab</w:t></w:r>"
+                  "<w:hyperlink r:id=\"rIdLink\"><w:r><w:t>a link</w:t></w:r></w:hyperlink></w:p>"
+                  "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>first item</w:t></w:r></w:p>"
+                  "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>second item</w:t></w:r></w:p>"
+                  "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/><w:tblBorders><w:top w:val=\"single\" w:sz=\"8\" w:color=\"000000\"/><w:left w:val=\"single\" w:sz=\"8\" w:color=\"000000\"/>"
+                  "<w:bottom w:val=\"single\" w:sz=\"8\" w:color=\"000000\"/><w:right w:val=\"single\" w:sz=\"8\" w:color=\"000000\"/><w:insideH w:val=\"single\" w:sz=\"8\" w:color=\"000000\"/>"
+                  "<w:insideV w:val=\"single\" w:sz=\"8\" w:color=\"000000\"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/><w:gridCol w:w=\"3000\"/></w:tblGrid>"
+                  "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"6000\" w:type=\"dxa\"/><w:gridSpan w:val=\"2\"/><w:shd w:val=\"clear\" w:fill=\"DDEEFF\"/></w:tcPr><w:p><w:r><w:t>joined</w:t></w:r></w:p></w:tc></w:tr>"
+                  "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>left cell</w:t></w:r></w:p></w:tc>"
+                  "<w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>right cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>"
+                  "<w:p><w:pPr><w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdHead\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr></w:pPr>"
+                  "<w:r><w:t>end of one</w:t></w:r></w:p>"
+                  "<w:p><w:r><w:t>second section</w:t></w:r></w:p>"
+                  "<w:sectPr><w:pgSz w:w=\"15840\" w:h=\"12240\" w:orient=\"landscape\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/>"
+                  "<w:pgNumType w:fmt=\"lowerRoman\" w:start=\"3\"/></w:sectPr></w:body></w:document>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addPart(QStringLiteral("/word/styles.xml"),
+                  "<?xml version=\"1.0\"?><w:styles " + ns + "><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii=\"Georgia\" w:hAnsi=\"Georgia\"/><w:sz w:val=\"22\"/></w:rPr></w:rPrDefault></w:docDefaults>"
+                  "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                  "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/><w:qFormat/>"
+                  "<w:pPr><w:keepNext/><w:outlineLvl w:val=\"0\"/></w:pPr><w:rPr><w:b/><w:sz w:val=\"36\"/></w:rPr></w:style></w:styles>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"));
+        w.addPart(QStringLiteral("/word/numbering.xml"),
+                  "<?xml version=\"1.0\"?><w:numbering " + ns + "><w:abstractNum w:abstractNumId=\"0\"><w:multiLevelType w:val=\"hybridMultilevel\"/><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/>"
+                  "<w:numFmt w:val=\"upperRoman\"/><w:lvlText w:val=\"%1)\"/><w:lvlJc w:val=\"left\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl></w:abstractNum>"
+                  "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num></w:numbering>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"));
+        w.addPart(QStringLiteral("/word/header1.xml"), "<?xml version=\"1.0\"?><w:hdr " + ns + "><w:p><w:r><w:t>Running head</w:t></w:r></w:p></w:hdr>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdStyles"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdNum"), rel + QStringLiteral("numbering"), QStringLiteral("/word/numbering.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdHead"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdLink"), rel + QStringLiteral("hyperlink"), QStringLiteral("https://example.com/page"), true);
+        return w.finish();
+    }
+
+    void aDocumentIsSavedAsRichTextThatReadsBackWithItsLooks()
+    {
+        auto doc = write::WriteDoc::fromDocx(formattedDocx());
+        QVERIFY(doc);
+        QStringList notKept;
+        QString err;
+        const QByteArray rtf = doc->toRtf(&err, &notKept);
+        QVERIFY2(!rtf.isEmpty(), qPrintable(err));
+        QVERIFY(notKept.isEmpty());
+        // the file as the format has it: the header words and tables, in order, braces balanced, and every character outside ASCII a \u number
+        QVERIFY(rtf.startsWith("{\\rtf1\\ansi"));
+        for (const char *word : {"\\fonttbl", "\\colortbl", "\\stylesheet", "\\listtable", "\\listoverridetable", "\\trowd", "\\cellx", "\\row", "\\cell", "\\sectd", "\\sect", "\\headerr", "\\fldinst HYPERLINK", "\\lndscpsxn", "\\pgnlcrm"})
+            QVERIFY2(rtf.contains(word), word);
+        QVERIFY2(rtf.contains("caf\\u233?") && rtf.contains("\\u8364?") && rtf.contains("{braces}") == false && rtf.contains("\\{braces\\}") && rtf.contains("\\\\ slash"), rtf.constData());
+        int depth = 0;
+        bool escaped = false;
+        for (const char c : rtf) {
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (c == '\\') escaped = true;
+            else if (c == '{') ++depth;
+            else if (c == '}') QVERIFY(--depth >= 0);
+        }
+        QCOMPARE(depth, 0);
+        for (const char c : rtf) QVERIFY(uchar(c) < 0x80);
+        // read back: the words, the looks, the list, the table, the link, the sections
+        auto back = write::WriteDoc::fromRtf(rtf, &err);
+        QVERIFY2(back, qPrintable(err));
+        const QString plain = back->story()->toPlainText();
+        for (const QString &words : {QStringLiteral("Big Title"), QStringLiteral("café €"), QStringLiteral("red {braces} \\ slash"), QStringLiteral("after tab"), QStringLiteral("a link"),
+                                     QStringLiteral("first item"), QStringLiteral("joined"), QStringLiteral("right cell"), QStringLiteral("second section")})
+            QVERIFY2(plain.contains(words), qPrintable(words));
+        office::Package p;
+        QVERIFY(p.read(back->toDocx()));
+        const QString xml = QString::fromUtf8(p.part(QStringLiteral("/word/document.xml")));
+        if (qEnvironmentVariableIsSet("JW_DEBUG_RTF")) { QFile f(QStringLiteral("/tmp/w-ctx-home/out.rtf")); f.open(QIODevice::WriteOnly); f.write(rtf); QFile g(QStringLiteral("/tmp/w-ctx-home/out.xml")); g.open(QIODevice::WriteOnly); g.write(xml.toUtf8()); }
+        for (const QString &needle : {QStringLiteral("<w:b/>"), QStringLiteral("<w:i/>"), QStringLiteral("w:val=\"FF0000\""), QStringLiteral("w:val=\"center\""), QStringLiteral("w:val=\"yellow\""), QStringLiteral("w:sz w:val=\"28\""),
+                                      QStringLiteral("Courier New"), QStringLiteral("<w:tbl>"), QStringLiteral("w:gridSpan"), QStringLiteral("DDEEFF"), QStringLiteral("<w:numPr>"), QStringLiteral("w:orient=\"landscape\""),
+                                      QStringLiteral("lowerRoman"), QStringLiteral("w:left=\"720\""), QStringLiteral("w:before=\"120\""), QStringLiteral("w:after=\"240\"")})
+            QVERIFY2(xml.contains(needle), qPrintable(needle));
+        QCOMPARE(back->sectionCount(), 2);
+        QVERIFY(QString::fromUtf8(p.part(QStringLiteral("/word/numbering.xml"))).contains(QLatin1String("upperRoman")));
+        QVERIFY(p.part(QStringLiteral("/word/document.xml")).contains("w:hyperlink") || xml.contains(QLatin1String("HYPERLINK")));
+        // the heading style kept its name and look
+        const QString styles = QString::fromUtf8(p.part(QStringLiteral("/word/styles.xml")));
+        QVERIFY2(styles.contains(QLatin1String("heading 1"), Qt::CaseInsensitive), qPrintable(styles.left(400)));
+        // the header of the first section
+        bool header = false;
+        for (int i = 0; i < 6 && !header; ++i) header = p.part(QStringLiteral("/word/header%1.xml").arg(i)).contains("Running head");
+        QVERIFY(header);
+        // and what was read is written again as the same words
+        const QByteArray again = back->toRtf();
+        auto third = write::WriteDoc::fromRtf(again, &err);
+        QVERIFY(third);
+        QCOMPARE(third->story()->toPlainText(), plain);
+    }
+
+    void aPictureIsSavedInRichTextAsAnImageThatReadsBack()
+    {
+        auto doc = write::WriteDoc::blank();
+        QImage image(40, 20, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        QByteArray png;
+        QBuffer buffer(&png);
+        QVERIFY(buffer.open(QIODevice::WriteOnly) && image.save(&buffer, "PNG"));
+        QTextCursor c(doc->story());
+        QCOMPARE(write::insertPicture(*doc, c, png), write::PictureResult::Ok);
+        QStringList notKept;
+        const QByteArray rtf = doc->toRtf(nullptr, &notKept);
+        QVERIFY2(rtf.contains("\\pngblip") && rtf.contains(png.left(8).toHex()), rtf.left(600).constData());
+        QVERIFY(notKept.isEmpty());
+        auto back = write::WriteDoc::fromRtf(rtf);
+        QVERIFY(back);
+        office::Package p;
+        QVERIFY(p.read(back->toDocx()));
+        bool found = false;
+        for (const QString &name : p.partNames()) found = found || (name.contains(QLatin1String("media/")) && p.part(name) == png);
+        QVERIFY(found);
+    }
+
+    void richTextSaysWhatItCannotHold()
+    {
+        QStringList told;
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"),
+                  "<?xml version=\"1.0\"?><w:document " + ns + "><w:body><w:p><w:r><w:t>note here</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p></w:body></w:document>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        auto doc = write::WriteDoc::fromDocx(w.finish());
+        QVERIFY(doc);
+        QStringList notKept;
+        const QByteArray rtf = doc->toRtf(nullptr, &notKept);
+        QVERIFY(rtf.contains("note here"));
+        QVERIFY2(!notKept.isEmpty() && notKept.join(QLatin1Char(' ')).contains(QLatin1String("footnote")), qPrintable(notKept.join(QLatin1Char('|'))));
+    }
+
+    void aMacroFileSavedAsDocmKeepsItsProjectUntouched()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QString vbaRel = QStringLiteral("http://schemas.microsoft.com/office/2006/relationships/vbaProject");
+        const QByteArray project = QByteArray("VBA-project \x00\x01\x02\xFF bytes that must come back as they went", 56);
+        for (const bool tmpl : {false, true}) {
+            office::PackageWriter w;
+            w.addPart(QStringLiteral("/word/document.xml"),
+                      "<?xml version=\"1.0\"?><w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>with macros</w:t></w:r></w:p></w:body></w:document>",
+                      tmpl ? QStringLiteral("application/vnd.ms-word.template.macroEnabledTemplate.main+xml") : QStringLiteral("application/vnd.ms-word.document.macroEnabled.main+xml"));
+            w.addPart(QStringLiteral("/word/vbaProject.bin"), project, QStringLiteral("application/vnd.ms-office.vbaProject"));
+            w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdVba"), vbaRel, QStringLiteral("/word/vbaProject.bin"));
+            QTemporaryDir dir;
+            QVERIFY(dir.isValid());
+            const QString ext = tmpl ? QStringLiteral("dotm") : QStringLiteral("docm");
+            const QString path = writeFile(dir.filePath(QStringLiteral("macros.") + ext), w.finish());
+            WriteWindow win;
+            QStringList said;
+            win.setNotifier([&](const QString &, const QString &text) { said << text; });
+            QVERIFY(win.openFile(path, tmpl ? OpenHow::ReadOnly : OpenHow::Normal));
+            QVERIFY(win.document()->hadMacros());
+            const QString out = dir.filePath(QStringLiteral("saved.") + ext);
+            QVERIFY(win.saveTo(out));
+            QVERIFY2(said.isEmpty(), qPrintable(said.join(QLatin1Char('|'))));
+            office::Package p;
+            QVERIFY(p.read(readAll(out)));
+            QCOMPARE(p.part(QStringLiteral("/word/vbaProject.bin")), project);
+            QVERIFY(p.contentType(QStringLiteral("/word/document.xml")).contains(tmpl ? QLatin1String("macroEnabledTemplate.main+xml") : QLatin1String("macroEnabled.main+xml")));
+            QCOMPARE(p.contentType(QStringLiteral("/word/vbaProject.bin")), QStringLiteral("application/vnd.ms-office.vbaProject"));
+            QVERIFY(!p.relationshipsOfType(QStringLiteral("/word/document.xml"), QStringLiteral("/vbaProject")).isEmpty());
+            // Reopened, it still has them; and saved as a .docx they are left out, said so.
+            WriteWindow again;
+            QStringList told;
+            again.setNotifier([&](const QString &, const QString &text) { told << text; });
+            QVERIFY(again.openFile(out, OpenHow::ReadOnly));
+            QVERIFY(again.document()->hadMacros());
+            if (tmpl) continue;
+            QVERIFY(again.saveTo(dir.filePath(QStringLiteral("plain.docx")), true));
+            office::Package q;
+            QVERIFY(q.read(readAll(dir.filePath(QStringLiteral("plain.docx")))));
+            QVERIFY(q.part(QStringLiteral("/word/vbaProject.bin")).isEmpty());
+            QVERIFY(!told.isEmpty() && told[0].contains(QLatin1String(".docx")));
+        }
     }
 
     void saveOnAFlatOdtExplainsAndOffersAnOdt()

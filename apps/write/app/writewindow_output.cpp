@@ -305,11 +305,11 @@ bool WriteWindow::exportEmail(EmailWhat what)
     return true;
 }
 
-bool WriteWindow::exportText(const QString &path, write::TextEncoding encoding, write::LineEnds ends)
+bool WriteWindow::exportText(const QString &path, write::TextEncoding encoding, write::LineEnds ends, int codePage)
 {
     if (!m_doc || path.isEmpty()) return false;
     int lost = 0;
-    const QByteArray bytes = write::plainTextFile(*m_doc, encoding, ends, &lost);
+    const QByteArray bytes = write::plainTextFile(*m_doc, encoding, ends, &lost, codePage);
     QSaveFile file(path);
     QString err;
     bool ok = file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
@@ -349,49 +349,98 @@ bool WriteWindow::exportEmailAsk()
     return exportEmail(static_cast<EmailWhat>(what->currentData().toInt()));
 }
 
-bool WriteWindow::exportTextAsk()
+bool WriteWindow::askTextForm(const QString &title, const QString &intro, write::TextForm *form, const QByteArray *sample)
 {
-    if (!m_doc) return false;
+    if (m_textFormChooser) return m_textFormChooser(form, sample);
     QDialog dialog(this);
     dialog.setObjectName(QStringLiteral("textExportDialog"));
-    dialog.setWindowTitle(tr("Save as Plain Text"));
+    dialog.setWindowTitle(title);
     auto *layout = new QVBoxLayout(&dialog);
-    auto *intro = new QLabel(tr("The file will hold the words of the document and nothing else: no fonts, pictures, or tables' borders. Choose how the characters and line ends are written."), &dialog);
-    intro->setWordWrap(true);
-    layout->addWidget(intro);
-    auto *form = new QFormLayout;
+    auto *text = new QLabel(intro, &dialog);
+    text->setWordWrap(true);
+    text->setTextFormat(Qt::PlainText);
+    text->setMinimumWidth(420);
+    layout->addWidget(text);
+    auto *rows = new QFormLayout;
     auto *encoding = new QComboBox(&dialog);
     encoding->setObjectName(QStringLiteral("textEncoding"));
-    encoding->addItem(tr("Unicode (UTF-8)"), int(write::TextEncoding::Utf8));
-    encoding->addItem(tr("Unicode (UTF-8 with mark)"), int(write::TextEncoding::Utf8WithMark));
-    encoding->addItem(tr("Unicode (UTF-16)"), int(write::TextEncoding::Utf16));
-    encoding->addItem(tr("Western European (ISO 8859-1)"), int(write::TextEncoding::Latin1));
-    encoding->addItem(tr("US ASCII"), int(write::TextEncoding::Ascii));
-    form->addRow(tr("Encoding:"), encoding);
+    encoding->setAccessibleName(tr("Text encoding"));
+    // (the data: a code page's number, or the minus of the encoding's number plus one)
+    auto add = [&](const QString &label, write::TextEncoding e) { encoding->addItem(label, -(int(e) + 1)); };
+    add(tr("Unicode (UTF-8)"), write::TextEncoding::Utf8);
+    add(tr("Unicode (UTF-8 with mark)"), write::TextEncoding::Utf8WithMark);
+    add(tr("Unicode (UTF-16, little end first)"), write::TextEncoding::Utf16);
+    add(tr("Unicode (UTF-16, big end first)"), write::TextEncoding::Utf16Be);
+    add(tr("Western European (ISO 8859-1)"), write::TextEncoding::Latin1);
+    add(tr("US ASCII"), write::TextEncoding::Ascii);
+    for (const write::TextCodePage &page : write::textCodePages())
+        if (page.number != 28591 && (sample || write::canWriteCodePage(page.number))) encoding->addItem(QCoreApplication::translate("jp::write::TextFile", page.label), page.number);
+    encoding->setCurrentIndex(std::max(0, encoding->findData(form->encoding == write::TextEncoding::CodePage ? form->codePage : -(int(form->encoding) + 1))));
+    rows->addRow(tr("Encoding:"), encoding);
     auto *ends = new QComboBox(&dialog);
     ends->setObjectName(QStringLiteral("textLineEnds"));
+    ends->setAccessibleName(tr("Line ends"));
     ends->addItem(tr("Windows (CR LF)"), int(write::LineEnds::Windows));
     ends->addItem(tr("macOS and Linux (LF)"), int(write::LineEnds::Unix));
-#ifndef Q_OS_WIN
-    ends->setCurrentIndex(1);
-#endif
-    form->addRow(tr("Line ends:"), ends);
-    layout->addLayout(form);
-    auto *note = new QLabel(tr("A line break comes at the end of each paragraph. A character the encoding can't hold is saved as a question mark."), &dialog);
-    note->setWordWrap(true);
-    layout->addWidget(note);
+    ends->addItem(tr("Older Mac (CR)"), int(write::LineEnds::ClassicMac));
+    ends->setCurrentIndex(std::max(0, ends->findData(int(form->ends))));
+    rows->addRow(tr("Line ends:"), ends);
+    layout->addLayout(rows);
+    QLabel *preview = nullptr;
+    auto current = [&] {
+        write::TextForm f;
+        const int data = encoding->currentData().toInt();
+        f.encoding = data > 0 ? write::TextEncoding::CodePage : static_cast<write::TextEncoding>(-data - 1);
+        f.codePage = data > 0 ? data : form->codePage;
+        f.ends = static_cast<write::LineEnds>(ends->currentData().toInt());
+        return f;
+    };
+    if (sample) {
+        // What the first lines read as in the encoding chosen, so that the right one is seen before the file is opened.
+        preview = new QLabel(&dialog);
+        preview->setObjectName(QStringLiteral("textPreview"));
+        preview->setTextFormat(Qt::PlainText);
+        preview->setFrameShape(QFrame::StyledPanel);
+        preview->setMinimumHeight(80);
+        preview->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+        layout->addWidget(preview);
+        auto refresh = [&, sample] {
+            const QString all = write::decodeTextFile(sample->left(4000), current());
+            preview->setText(all.split(QLatin1Char('\n')).mid(0, 5).join(QLatin1Char('\n')));
+        };
+        connect(encoding, &QComboBox::currentIndexChanged, &dialog, refresh);
+        refresh();
+    }
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
     if (dialog.exec() != QDialog::Accepted) return false;
+    *form = current();
+    return true;
+}
+
+bool WriteWindow::exportTextAsk()
+{
+    if (!m_doc) return false;
+    write::TextForm form;
+    form.ends =
+#ifdef Q_OS_WIN
+        write::LineEnds::Windows;
+#else
+        write::LineEnds::Unix;
+#endif
+    if (!askTextForm(tr("Save as Plain Text"),
+                     tr("The file will hold the words of the document and nothing else: no fonts, pictures, or tables' borders. Choose how the characters and line ends are written. A line break comes at the end of each paragraph. A character the encoding can't hold is saved as a question mark."),
+                     &form))
+        return false;
     const QString dir = m_path.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(m_path).absolutePath();
     const QString filter = tr("Text (*.txt)");
     const QString suggested = dir + QLatin1Char('/') + displayName() + QStringLiteral(".txt");
     QString path = m_pathChooser ? m_pathChooser(suggested, filter) : askSavePath(this, tr("Save as Plain Text"), suggested, filter);
     if (path.isEmpty()) return false;
     if (QFileInfo(path).suffix().isEmpty()) path += QStringLiteral(".txt");
-    return exportText(path, static_cast<write::TextEncoding>(encoding->currentData().toInt()), static_cast<write::LineEnds>(ends->currentData().toInt()));
+    return exportText(path, form.encoding, form.ends, form.codePage);
 }
 
 QVector<WriteOutputOptions> WriteWindow::handDuplexRuns(const WriteOutputOptions &options) const

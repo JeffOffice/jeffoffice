@@ -153,12 +153,21 @@ public:
     static std::unique_ptr<WriteDoc> fromOdt(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr);
     // A document from a Rich Text Format file (.rtf); null, with the reason, if it can't be read. `notes` get what was left out.
     static std::unique_ptr<WriteDoc> fromRtf(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr);
+    // A document of plain text: a paragraph for each line, in the default style (the text of a .txt file once its characters are read).
+    static std::unique_ptr<WriteDoc> fromText(const QString &text);
     // A document from the bytes of a file of any kind: an OpenDocument text, a Rich Text Format file (it begins "{\\rtf"), and an old binary file (a compound file) are read as such, anything else as a .docx.
     static std::unique_ptr<WriteDoc> fromFile(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr);
     // The story written back into a package (empty, with the reason, if it can't be made). `template_` saves it as a template.
-    QByteArray toDocx(QString *error = nullptr, bool template_ = false);
+    // `macros`: the macro project, its signature, and its data are kept as they were (for a .docm or .dotm); otherwise they are left out.
+    QByteArray toDocx(QString *error = nullptr, bool template_ = false, bool macros = false);
+    // The story written as a Rich Text Format file (empty, with the reason, if it can't be made). `notes` get what the format has no place for here.
+    QByteArray toRtf(QString *error = nullptr, QStringList *notes = nullptr);
     // The story written back as an OpenDocument text (empty, with the reason, if it can't be made). `notes` get what the format has no place for.
     QByteArray toOdt(QString *error = nullptr, QStringList *notes = nullptr);
+private:
+    // The document as the file would hold it, before it is written as a package.
+    bool exportDocument(office::wml::Document *out, bool template_, bool macros);
+public:
 
     flow::FlowDocument &flow() { return *m_flow; }
     QTextDocument *story() const { return m_flow->story(); }
@@ -215,6 +224,9 @@ public:
     // Link to Previous: on, the section has the section before's (its own is let go); off, it has a copy of the one it had, of its own to edit. False where that cannot be done
     // (the first section, which has none before it; or a slot that has no header to copy). One step of the history.
     bool setLinkedToPrevious(int section, bool footer, int slot, bool linked);
+    // Remove Header (Remove Footer): the section's own headers (footers) of every kind are let go; a section after the first, which would then show the section before's, is given blank ones
+    // of its own where that has text. One step of the history. False where the section has none to remove, or one the program can't show.
+    bool removeHeaderFooter(int section, bool footer);
     // Different first page (a section's) and different odd and even pages (the document's), as one step of the history each.
     bool differentFirstPage(int section) const;
     void setDifferentFirstPage(int section, bool on);

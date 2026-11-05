@@ -57,6 +57,13 @@ void WriteWindow::createPictureActions()
         if (write::altTextDialog(this, &alt)) m_view->changeSelectedPicture([alt](write::WriteDoc &d, int position) { return write::setPictureAltText(d, position, alt); });
         m_view->setFocus(Qt::OtherFocusReason);
     });
+    mk("picture.decorative", tr("Mark as Decorative"), "eye-off", QKeySequence(), [this] {
+        const int at = m_view->selectedPicture();
+        if (!m_doc || at < 0) return;
+        const bool on = act("picture.decorative")->isChecked();
+        m_view->changeSelectedPicture([on](write::WriteDoc &d, int position) { return write::setPictureDecorative(d, position, on); });
+        m_view->setFocus(Qt::OtherFocusReason);
+    }, true);
     mk("picture.lockAspect", tr("Lock Aspect Ratio"), "link", QKeySequence(), [] {}, true)->setChecked(true);
     connect(m_view, &write::PageView::notice, this, [this](const QString &text) { statusBar()->showMessage(text, 8000); });
 }
@@ -168,6 +175,7 @@ void WriteWindow::refreshPictureUi()
     static const std::pair<const char *, write::PictureWrap> wraps[] = {{"inline", write::PictureWrap::Inline}, {"square", write::PictureWrap::Square}, {"tight", write::PictureWrap::Tight},
                                                                         {"topBottom", write::PictureWrap::TopAndBottom}, {"behind", write::PictureWrap::BehindText},
                                                                         {"front", write::PictureWrap::InFrontOfText}};
+    act("picture.decorative")->setChecked(editable && info.decorative);
     for (const auto &w : wraps) act(QStringLiteral("picture.wrap.") + QLatin1String(w.first))->setChecked(editable && info.wrap == w.second);
     m_updatingFields = true;
     if (m_pictureFields.size() >= 2 && info.valid) {
@@ -183,6 +191,7 @@ void WriteWindow::addPictureContextMenu(QMenu &menu)
     QMenu *wrap = menu.addMenu(tr("Wrap Text"));
     for (const char *id : {"inline", "square", "tight", "topBottom", "behind", "front"}) wrap->addAction(act(QStringLiteral("picture.wrap.") + QLatin1String(id)));
     menu.addAction(act("picture.altText"));
+    menu.addAction(act("picture.decorative"));
 }
 
 } // namespace jp

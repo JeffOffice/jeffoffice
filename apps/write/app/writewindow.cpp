@@ -528,7 +528,7 @@ void WriteWindow::refreshUi()
     {
         const bool editing = m_view->inHeaderFooter();
         const write::PageView::HeaderFooterEdit &e = m_view->headerFooterEdit();
-        for (const char *id : {"hf.close", "hf.pageNumber", "hf.differentFirst", "hf.differentOddEven"}) act(QString::fromLatin1(id))->setEnabled(editing);
+        for (const char *id : {"hf.close", "hf.pageNumber", "hf.pageNumberFormat", "hf.dateTime", "hf.removeHeader", "hf.removeFooter", "hf.differentFirst", "hf.differentOddEven"}) act(QString::fromLatin1(id))->setEnabled(editing);
         // (A header, a footer, or a note takes no break of a page or a section.)
         if (editing || m_view->inNote())
             for (const char *id : {"insert.pageBreak", "layout.sectionBreak"}) act(QString::fromLatin1(id))->setEnabled(false);
@@ -577,6 +577,10 @@ void WriteWindow::refreshUi()
         }
         act("hf.differentFirst")->setChecked(editing && m_doc->differentFirstPage(e.section));
         act("hf.differentOddEven")->setChecked(m_doc->differentOddEven());
+        act("hf.previousSection")->setEnabled(editing && e.section > 0);
+        act("hf.nextSection")->setEnabled(editing && e.section < m_doc->sectionCount() - 1);
+        act("hf.goToHeader")->setEnabled(editing && e.footer);
+        act("hf.goToFooter")->setEnabled(editing && !e.footer);
         act("hf.linkPrevious")->setEnabled(editing && e.section > 0);
         act("hf.linkPrevious")->setChecked(editing && m_doc->linkedToPrevious(e.section, e.footer, e.slot));
     }

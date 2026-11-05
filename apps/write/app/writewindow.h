@@ -133,6 +133,8 @@ public:
     // What a short message to the person (a sentence said at Save, or on a refusal to write over a file) is shown with: a message box, unless this stands in for it
     // (tests): the title and the sentence.
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
+    // What asks how a plain text file is read (at Open) or written (at Save As), unless this stands in for it (tests): the form to start from and out, and the file's bytes when reading; true to go on.
+    void setTextFormChooser(const std::function<bool(write::TextForm *, const QByteArray *)> &chooser) { m_textFormChooser = chooser; }
     // What asks the person before a save to a format that holds less than the document (the parts it would lose, listed): Keep saves it there anyway, Docx
     // saves a .docx beside it instead, Cancel saves nothing. A message box, unless this stands in for it (tests). Without it, and with a notifier standing in
     // for the messages, the save goes ahead and says afterward what was left out.
@@ -214,9 +216,11 @@ public:
     bool exportPdf();
     // Save as Plain Text: asks for the encoding, the line ends, and the file; and the writing itself (an empty path asks nothing and writes nothing).
     bool exportTextAsk();
+    bool exportText(const QString &path, write::TextEncoding encoding, write::LineEnds ends, int codePage = 1252);
+    // Asks how a text file is read or written (the encoding and line ends, with a preview of `sample`, the file's bytes, if given); false if cancelled. Tests stand in for the dialog.
+    bool askTextForm(const QString &title, const QString &intro, write::TextForm *form, const QByteArray *sample = nullptr);
     // Asks what the message holds (the document, a PDF, or the pages), then makes it as exportEmail does.
     bool exportEmailAsk();
-    bool exportText(const QString &path, write::TextEncoding encoding, write::LineEnds ends);
     // The pages that an output covers (from 0), for the options and the document.
     QVector<int> outputPages(const WriteOutputOptions &options);
 
@@ -314,6 +318,8 @@ private:
     MailUi *m_mail = nullptr;
     void showStyleDialog(bool create);
     void pictureRibbonParts(RibbonParts &parts);
+    void headerRibbonParts(RibbonParts &parts);
+    void removeEdited(bool footer);
     void insertPictureFromFile();
     void insertPictureFromClipboard();
     void showPageSetupDialog();
@@ -427,8 +433,12 @@ private:
     void applyDisplayDefaults();
     void returnToPlace(const QString &path);
     static QString placeKey(const QString &path);
-    FormatChoice askFormatChoice(const QStringList &lost);
+    FormatChoice askFormatChoice(const QStringList &lost, const QString &kind = QStringLiteral(".odt"));
     QSet<QString> m_odtNoted;       // (what the person was told an .odt file can't hold: told again only of what is new)
+    std::function<bool(write::TextForm *, const QByteArray *)> m_textFormChooser;
+    write::TextForm m_textForm;     // how the plain text file this document came from (or was saved to) is written
+    bool m_textFormKnown = false;   // (it was chosen: Save writes the same form without asking again)
+    bool m_textNoted = false;       // (the person was told that a text file holds only the words)
     bool m_macrosNoted = false;     // (the person was told that the macros are not saved)
     QString m_filePassword;         // the password the file opened with or was given: the file is written protected with it (never shown, wiped when the window goes)
     bool m_fileProtected = false;

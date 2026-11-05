@@ -1339,6 +1339,68 @@
             {
               "large": "hf.pageNumber",
               "keytip": "PN"
+            },
+            {
+              "small": "hf.pageNumberFormat",
+              "keytip": "PF"
+            },
+            {
+              "small": "hf.dateTime",
+              "keytip": "DT"
+            },
+            {
+              "small": {
+                "id": "ribbon.headerInfo",
+                "text": "Document Info",
+                "icon": "info"
+              },
+              "keytip": "DI",
+              "menu": "@headerInfo"
+            }
+          ]
+        },
+        {
+          "name": "Design",
+          "keytip": "ZD",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.headerDesigns",
+                "text": "Designs",
+                "icon": "layout-template"
+              },
+              "keytip": "DS",
+              "menu": "@headerDesigns"
+            },
+            {
+              "small": "hf.removeHeader",
+              "keytip": "RH"
+            },
+            {
+              "small": "hf.removeFooter",
+              "keytip": "RF"
+            }
+          ]
+        },
+        {
+          "name": "Navigation",
+          "keytip": "ZN",
+          "items": [
+            {
+              "small": "hf.goToHeader",
+              "keytip": "GH"
+            },
+            {
+              "small": "hf.goToFooter",
+              "keytip": "GF"
+            },
+            {
+              "small": "hf.previousSection",
+              "keytip": "PS"
+            },
+            {
+              "small": "hf.nextSection",
+              "keytip": "NS"
             }
           ]
         },
@@ -1652,6 +1714,10 @@
             {
               "large": "picture.altText",
               "keytip": "AT"
+            },
+            {
+              "large": "picture.decorative",
+              "keytip": "MD"
             }
           ]
         },
