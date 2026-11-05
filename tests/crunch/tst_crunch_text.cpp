@@ -9,6 +9,7 @@
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
+#include "findbooks.h"
 #include "../localepin.h"
 
 #include <QAction>
@@ -16,6 +17,9 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPlainTextEdit>
+#include <QTextBlock>
+#include <QTextCursor>
 #include <QSettings>
 #include <QSpinBox>
 #include <QTableWidget>
@@ -101,6 +105,61 @@ private Q_SLOTS:
         QVERIFY(!w.w.openFile(path));
         QVERIFY(!w.w.hasWorkbook());
         QVERIFY(!w.w.isLoading());
+    }
+
+    // Fixed columns are chosen on the first lines (a click between two characters starts or ends a column, and the places can be typed), and the marks of numbers are chosen too: the preview
+    // follows both.
+    void theDialogChoosesFixedColumnsAndTheMarksOfNumbers()
+    {
+        TextImportRequest req;
+        req.path = QStringLiteral("data.txt");
+        req.head = "Name  Qty   Price\nBob   12    1.234,50\nAl    7     9,5-\n";
+        req.size = req.head.size();
+        req.locale = QLocale::c();
+        TextImportDialog dialog(req);
+        auto *table = dialog.findChild<QTableWidget *>(QStringLiteral("textImportPreview"));
+        auto *ruler = dialog.findChild<QPlainTextEdit *>(QStringLiteral("textImportRuler"));
+        auto *breaks = dialog.findChild<QLineEdit *>(QStringLiteral("textImportBreaks"));
+        auto *fixed = dialog.findChild<QCheckBox *>(QStringLiteral("textImportFixed"));
+        QVERIFY(table && ruler && breaks && fixed);
+        QVERIFY(!ruler->isEnabled());
+        fixed->setChecked(true);
+        QVERIFY(ruler->isEnabled());
+        QVERIFY(dialog.choices().fixedWidth);
+        QVERIFY(dialog.choices().breaks.isEmpty());
+        QCOMPARE(dialog.previewColumns(), 1);
+        // the places typed (counted from 1: the column begins at the 7th character)
+        breaks->setText(QStringLiteral("7, 13"));
+        QCOMPARE(dialog.choices().breaks, (QVector<int>{6, 12}));
+        QTRY_COMPARE(dialog.previewColumns(), 3);
+        QCOMPARE(table->item(2, 0)->text(), QStringLiteral("Bob"));
+        QCOMPARE(table->item(2, 2)->text(), QStringLiteral("1.234,50"));
+        // the bars in the first lines mark where the columns begin
+        QVERIFY(ruler->toPlainText().startsWith(QStringLiteral("Name  \u2502Qty   \u2502Price")));
+        // a click between the "P" and the "r" of "Price" in the first line starts a column there (place 14), and a second click takes it away
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        QTextCursor at(ruler->document()->firstBlock());
+        at.setPosition(15);
+        const QRect caret = ruler->cursorRect(at);
+        QTest::mouseClick(ruler->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(caret.left(), caret.center().y()));
+        QCOMPARE(breaks->text(), QStringLiteral("7, 13, 14"));
+        QTRY_COMPARE(dialog.previewColumns(), 4);
+        QTest::mouseClick(ruler->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(caret.left(), caret.center().y()));
+        QCOMPARE(breaks->text(), QStringLiteral("7, 13"));
+        // the marks of numbers
+        auto *decimal = dialog.findChild<QComboBox *>(QStringLiteral("textImportDecimal"));
+        auto *thousands = dialog.findChild<QComboBox *>(QStringLiteral("textImportThousands"));
+        auto *minus = dialog.findChild<QCheckBox *>(QStringLiteral("textImportTrailingMinus"));
+        QVERIFY(decimal && thousands && minus);
+        decimal->setCurrentIndex(decimal->findText(QStringLiteral("Comma (,)")));
+        thousands->setCurrentIndex(thousands->findText(QStringLiteral("Point (.)")));
+        minus->setChecked(true);
+        const jp::office::sheet::CsvImport c = dialog.choices();
+        saveShot(&dialog, QStringLiteral("text-import-fixed"));
+        QCOMPARE(c.decimalMark, QChar(','));
+        QCOMPARE(c.thousandsMark, QChar('.'));
+        QVERIFY(c.trailingMinus);
     }
 
     void theDialogShowsAPreviewThatFollowsEveryChoice()

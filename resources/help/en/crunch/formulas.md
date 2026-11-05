@@ -1,5 +1,5 @@
 # How formulas are shown and calculated
-<!-- keywords: formula, formulas, calculate, calculation, recalculate, function, functions, value, result, stored, F9, circular, show formulas, formula bar, error, point, pointing, click a cell, reference, F4, error checking, ignore error, evaluate formula, step, watch window, watch -->
+<!-- keywords: formula, formulas, calculate, calculation, recalculate, function, functions, value, result, stored, F9, circular, show formulas, formula bar, error, point, pointing, click a cell, reference, F4, error checking, ignore error, evaluate formula, step, watch window, watch, let, name a value, cell function, info function, filterxml, xml, xpath-->
 
 A **formula** is a cell that works out its value from other cells, such as =SUM(B3:B8). The cell shows the value, and the **formula bar** shows the formula.
 
@@ -86,3 +86,15 @@ Use this to see how a formula comes to its value. Select a cell that holds a for
 ## Watch Window
 
 The **Watch Window** is a small window that stays in view while you work. It lists cells you want to keep an eye on, with their sheet, cell, value, and formula, even when they are on another sheet. Select cells and press **Add Watch**. Select rows in the list and press **Delete Watch**. Double-click a row to go to the cell. The values change when the sheet is worked out again. The list is kept while the workbook is open.
+
+## Give names to values inside a formula
+
+**LET** names a value in the middle of a formula, so you write it once and use it again. The pairs of a name and a value come first, and the calculation comes last. In =LET(price, B2, tax, price*0.08, price+tax) the name **price** stands for the value in B2, **tax** is worked out from it, and the last part adds them. A name can use the names before it. A name works only inside its own LET, and a LET inside another may use a name again. A name can stand for a block of cells too, as in =LET(rows, B2:B9, SUM(rows)/COUNT(rows)).
+
+## Ask about a cell or the workbook
+
+**CELL** tells something about a cell. Its first argument says what: "address", "row", "col", "contents", "type", "format" (how numbers show, such as "F2" for two decimals, "P0" for a percent, or "D1" for a date), "color" (1 when negative numbers show in color), "parentheses" (1 when positive numbers show in brackets), "prefix" (the mark of a text that is aligned left, right, or center), "protect" (1 when the cell is locked), "width" (the column's width in characters), and "filename" (the folder, the file, and the sheet, such as /home/me/[Budget.xlsx]Sheet1; empty until the workbook is saved). **INFO** tells about the program and the workbook: "directory", "numfile" (how many sheets show), "origin", "osversion", "recalc" (Automatic or Manual), "release", and "system".
+
+## Pick values out of XML
+
+**FILTERXML** takes text that holds XML and an XPath, which is a short way to say which parts you want, and gives the values it finds. =FILTERXML(A1, "//item/price") gives every price in the text in A1, one under another. Use "/shop/item[2]/name" for the second item, "//item[@id='b']/name" for the item whose id is b, or "count(//item)" for how many there are. If the text is not valid XML, or the path is not one, the answer is #VALUE!. If nothing matches, it is #N/A. XML that has a document type is refused.

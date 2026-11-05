@@ -623,6 +623,7 @@ private Q_SLOTS:
                     if (n == 1 || rng.bounded(12) != 0) text += QString::fromLatin1(args[rng.bounded(quint32(nargs))]);
                 }
                 text += QLatin1Char(')');
+                if (QLatin1String(f.name) == QLatin1String("LET")) continue;   // (LET is a form of its own: it takes names and values in pairs, and its calls are tried in the logic tests)
                 const Outcome o = evOutcome(text, g, trial % 2 ? array : plain);
                 QVERIFY2(!o.text.isEmpty() && !o.text.startsWith("!parse"), qPrintable(text + QStringLiteral(" -> ") + said(o)));
                 ++calls;
@@ -668,6 +669,7 @@ private Q_SLOTS:
                     if (n == 1 || rng.bounded(12) != 0) text += QString::fromLatin1(args[rng.bounded(quint32(nargs))]);
                 }
                 text += QLatin1Char(')');
+                if (QLatin1String(f.name) == QLatin1String("LET")) continue;   // (a form of its own: names and values in pairs; see the logic tests)
                 EvalStatus status = EvalStatus::Ok;
                 const QString a = evStatus(text, g, trial % 2 ? array : plain, &status, 200000);
                 QVERIFY2(!a.isEmpty() && !a.startsWith("!parse"), qPrintable(text + QStringLiteral(" -> ") + a));

@@ -332,9 +332,16 @@ public:
 class Scanner {
 public:
     Scanner(const QString &delimiters, QChar quote, bool merge, Sink *sink, int maxField) : m_delims(delimiters), m_quote(quote), m_hasQuote(!quote.isNull()), m_merge(merge), m_sink(sink), m_max(maxField) {}
+    // Reads columns of fixed width: each line is cut at the places given (counted in characters), each piece with its spaces taken off both ends.
+    void setFixed(const QVector<int> &breaks)
+    {
+        m_fixed = true;
+        m_breaks = breaks;
+    }
     // Takes the next piece of the text. False if the sink asked to stop.
     bool feed(QStringView s)
     {
+        if (m_fixed) return feedFixed(s);
         qsizetype i = 0;
         const qsizetype n = s.size();
         while (i < n) {
@@ -449,6 +456,7 @@ public:
     // The end of the text.
     bool finish()
     {
+        if (m_fixed) return m_line.isEmpty() ? true : endLine();
         switch (m_state) {
         case Plain:
             if (!emit(QStringView(m_buf), false)) return false;
@@ -477,6 +485,46 @@ public:
 
 private:
     enum State { FieldStart, Plain, Quoted, QuotePending, AfterQuote };
+
+    bool feedFixed(QStringView s)
+    {
+        for (const QChar c : s) {
+            if (m_crPending) {
+                m_crPending = false;
+                if (c == QLatin1Char('\n')) continue;
+            }
+            if (c == QLatin1Char('\r') || c == QLatin1Char('\n')) {
+                if (c == QLatin1Char('\r')) m_crPending = true;
+                if (!endLine()) return false;
+            } else if (m_line.size() < m_max * 4) {
+                m_line.append(c);
+            } else {
+                m_truncated = true;
+            }
+        }
+        return true;
+    }
+
+    bool endLine()
+    {
+        qsizetype from = 0;
+        for (qsizetype k = 0; k <= m_breaks.size(); ++k) {
+            const qsizetype to = k < m_breaks.size() ? qsizetype(m_breaks[k]) : m_line.size();
+            if (from < m_line.size()) {
+                QStringView part = QStringView(m_line).mid(from, std::max<qsizetype>(0, to - from)).trimmed();
+                if (part.size() > m_max) {
+                    part = part.left(m_max);
+                    m_truncated = true;
+                }
+                if (!m_sink->field(quint32(k), part, false)) return false;
+            }
+            from = std::max(from, to);
+        }
+        m_line.clear();
+        m_fields = 0;
+        ++m_row;
+        return m_sink->endRecord();
+    }
 
     void appendLimited(QStringView part)
     {
@@ -524,7 +572,9 @@ private:
 
     QString m_delims;
     QChar m_quote;
-    bool m_hasQuote = true, m_merge = false, m_afterDelim = false;
+    bool m_hasQuote = true, m_merge = false, m_afterDelim = false, m_fixed = false;
+    QVector<int> m_breaks;
+    QString m_line;
     Sink *m_sink;
     int m_max;
     State m_state = FieldStart;
@@ -730,6 +780,41 @@ private:
         return digit || m_words.contains(field.trimmed().toString().toLower());
     }
 
+    // A number written with the marks the person chose for the file: a sign (in front, or at the end when chosen), digits grouped by the thousands mark in threes, the decimal mark, and a
+    // percent sign. True when it was one (and the cell is made). `*numeric` says the text is made of digits and marks only, so that it is not read by the person's own marks as something else.
+    bool readMarked(const QString &typed, quint32 row, quint32 col, Cell *c, bool *numeric)
+    {
+        QString t = typed.trimmed();
+        const QChar decimal = m_choices.decimalMark.isNull() ? (m_options.locale.decimalPoint().isEmpty() ? QLatin1Char('.') : m_options.locale.decimalPoint()[0]) : m_choices.decimalMark;
+        const QChar group = m_choices.thousandsMark.isNull() ? (m_options.locale.groupSeparator().isEmpty() ? QLatin1Char(',') : m_options.locale.groupSeparator()[0]) : m_choices.thousandsMark;
+        bool negative = false;
+        if (m_choices.trailingMinus && t.size() > 1 && t.endsWith(QLatin1Char('-')) && !t.startsWith(QLatin1Char('-')) && !t.startsWith(QLatin1Char('+'))) {
+            t.chop(1);
+            t = t.trimmed();
+            negative = true;
+        }
+        const QRegularExpression looksNumeric(QStringLiteral("^[+\\-]?[0-9.,' \\x{A0}\\x{202F}]+%?$"));
+        *numeric = looksNumeric.match(t).hasMatch();
+        if (!*numeric) return false;
+        const bool spaced = group == QLatin1Char(' ') || group == QChar(0xA0) || group == QChar(0x202F);
+        const QString groups = spaced ? QStringLiteral(" \u00A0\u202F") : QString(group);
+        const QRegularExpression number(QStringLiteral("^([+\\-]?)(\\d{1,3}(?:[%1]\\d{3})+|\\d+)?(?:%2(\\d+))?(%?)$").arg(QRegularExpression::escape(groups), QRegularExpression::escape(QString(decimal))));
+        const QRegularExpressionMatch m = number.match(t);
+        if (!m.hasMatch() || (m.captured(2).isEmpty() && m.captured(3).isEmpty())) return false;
+        QString whole = m.captured(2);
+        for (const QChar ch : groups) whole.remove(ch);
+        if (whole.isEmpty()) whole = QStringLiteral("0");
+        const QString canon = whole + (m.captured(3).isEmpty() ? QString() : QString(QLatin1Char('.')) + m.captured(3));
+        double v = canon.toDouble();
+        if (m.captured(1) == QLatin1String("-")) negative = !negative;
+        const bool percent = !m.captured(4).isEmpty();
+        if (percent) v /= 100;
+        c->type = CellType::Number;
+        c->number = negative ? -v : v;
+        if (percent) c->style = m_formats.value(m.captured(3).isEmpty() ? QStringLiteral("0%") : QStringLiteral("0.00%"), 0);
+        return add(row, col, *c, 0);
+    }
+
     bool addField(quint32 row, quint32 col, QStringView field)
     {
         Cell c;
@@ -753,6 +838,11 @@ private:
             if (field.size() > 64 || !couldBeValue(field)) return addText(row, col, c, field.toString());
         }
         const QString typed = field.toString();
+        if (!formula && (!m_choices.decimalMark.isNull() || !m_choices.thousandsMark.isNull() || m_choices.trailingMinus)) {
+            bool numeric = false;
+            if (readMarked(typed, row, col, &c, &numeric)) return true;
+            if (numeric) return addText(row, col, c, typed);   // (digits with marks that are not these: no number to make of them)
+        }
         const EntryResult r = readEntry(typed, m_options);
         if (!r.ok) return addText(row, col, c, typed);
         switch (r.entry.kind) {
@@ -1011,6 +1101,7 @@ bool CsvBook::readSheet(int index, const Limits &limits, const std::function<boo
     SheetSink sink(m_formats, m_words, m_months, m_locale, limits, progress, stopAfter, out, m_import);
     const QString separators = m_import.separators.isEmpty() ? QString(m_form.delimiter) : m_import.separators;
     Scanner scanner(separators, m_import.quote, m_import.mergeSeparators, &sink, kMaxFieldChars);
+    if (m_import.fixedWidth) scanner.setFixed(m_import.breaks);
     bool whole = true;
     const qint64 total = m_data.size();
     qint64 pos = m_skip;
@@ -1143,6 +1234,7 @@ QVector<QStringList> csvPreview(const QByteArray &file, const QString &fileName,
     PreviewSink sink(c, &rows, &widest);
     const QString separators = c.separators.isEmpty() ? QString(form.delimiter) : c.separators;
     Scanner scanner(separators, c.quote, c.mergeSeparators, &sink, kCsvPreviewFieldChars * 4);
+    if (c.fixedWidth) scanner.setFixed(c.breaks);
     if (scanner.feed(text)) scanner.finish();   // (the last row of a file cut short is shown as far as it goes)
     if (columnsOut) *columnsOut = widest;
     return rows;

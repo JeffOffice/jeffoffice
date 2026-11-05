@@ -7,12 +7,18 @@
 #include <QCoreApplication>
 #include <QComboBox>
 #include <QDialogButtonBox>
+#include <QEvent>
+#include <QFontDatabase>
+#include <QMouseEvent>
+#include <QPlainTextEdit>
+#include <QTextBlock>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
+#include <QRegularExpression>
 #include <QSpinBox>
 #include <QTableWidget>
 #include <QVBoxLayout>
@@ -114,6 +120,53 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     m_quote->addItem(tr("None"), 0);
     m_quote->setCurrentIndex(std::max(0, m_quote->findData(request.choices.quote.unicode())));
     form->addRow(tr("Text is in:"), m_quote);
+    m_fixed = new QCheckBox(tr("The columns have a fixed width"), this);
+    m_fixed->setObjectName(QStringLiteral("textImportFixed"));
+    m_fixed->setChecked(request.choices.fixedWidth);
+    form->addRow(QString(), m_fixed);
+    m_breaks = new QLineEdit(this);
+    m_breaks->setObjectName(QStringLiteral("textImportBreaks"));
+    m_breaks->setAccessibleName(tr("Where the columns begin"));
+    m_breaks->setPlaceholderText(tr("Characters where a column begins, such as 10, 25, 40"));
+    QStringList places;
+    for (const int b : request.choices.breaks) places << QString::number(b + 1);
+    m_breaks->setText(places.join(QStringLiteral(", ")));
+    form->addRow(tr("Columns begin at:"), m_breaks);
+    m_ruler = new QPlainTextEdit(this);
+    m_ruler->setObjectName(QStringLiteral("textImportRuler"));
+    m_ruler->setAccessibleName(tr("The first lines of the file. Click between two characters to start or end a column."));
+    m_ruler->setReadOnly(true);
+    m_ruler->setLineWrapMode(QPlainTextEdit::NoWrap);
+    m_ruler->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+    m_ruler->setMaximumHeight(110);
+    m_ruler->viewport()->installEventFilter(this);
+    form->addRow(tr("Click to split:"), m_ruler);
+    m_decimal = new QComboBox(this);
+    m_decimal->setObjectName(QStringLiteral("textImportDecimal"));
+    m_decimal->setAccessibleName(tr("Decimal mark"));
+    m_decimal->addItem(tr("My language's"), 0);
+    m_decimal->addItem(tr("Point (.)"), int('.'));
+    m_decimal->addItem(tr("Comma (,)"), int(','));
+    m_decimal->setCurrentIndex(std::max(0, m_decimal->findData(request.choices.decimalMark.unicode())));
+    m_thousands = new QComboBox(this);
+    m_thousands->setObjectName(QStringLiteral("textImportThousands"));
+    m_thousands->setAccessibleName(tr("Thousands mark"));
+    m_thousands->addItem(tr("My language's"), 0);
+    m_thousands->addItem(tr("Comma (,)"), int(','));
+    m_thousands->addItem(tr("Point (.)"), int('.'));
+    m_thousands->addItem(tr("Space"), int(' '));
+    m_thousands->addItem(tr("Apostrophe (')"), int('\''));
+    m_thousands->setCurrentIndex(std::max(0, m_thousands->findData(request.choices.thousandsMark.unicode())));
+    auto *marks = new QHBoxLayout;
+    marks->addWidget(m_decimal);
+    marks->addWidget(new QLabel(tr("Thousands:"), this));
+    marks->addWidget(m_thousands);
+    m_minus = new QCheckBox(tr("A minus sign may come after the number"), this);
+    m_minus->setObjectName(QStringLiteral("textImportTrailingMinus"));
+    m_minus->setChecked(request.choices.trailingMinus);
+    marks->addWidget(m_minus);
+    marks->addStretch(1);
+    form->addRow(tr("Decimal mark:"), marks);
     m_start = new QSpinBox(this);
     m_start->setObjectName(QStringLiteral("textImportStart"));
     m_start->setAccessibleName(tr("First row to bring in"));
@@ -142,6 +195,11 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     connect(m_encoding, &QComboBox::currentIndexChanged, this, again);
     connect(m_quote, &QComboBox::currentIndexChanged, this, again);
     connect(m_start, &QSpinBox::valueChanged, this, again);
+    connect(m_decimal, &QComboBox::currentIndexChanged, this, again);
+    connect(m_thousands, &QComboBox::currentIndexChanged, this, again);
+    connect(m_minus, &QCheckBox::toggled, this, again);
+    connect(m_fixed, &QCheckBox::toggled, this, again);
+    connect(m_breaks, &QLineEdit::textChanged, this, again);
     refresh();
 }
 
@@ -169,7 +227,80 @@ CsvImport TextImportDialog::choices() const
             c.codePage = code.codePage;
         }
     c.columns = m_columns;
+    c.decimalMark = QChar(ushort(m_decimal->currentData().toInt()));
+    c.thousandsMark = QChar(ushort(m_thousands->currentData().toInt()));
+    c.trailingMinus = m_minus->isChecked();
+    c.fixedWidth = m_fixed->isChecked();
+    c.breaks.clear();
+    if (c.fixedWidth) {
+        for (const QString &part : m_breaks->text().split(QRegularExpression(QStringLiteral("[^0-9]+")), Qt::SkipEmptyParts)) {
+            bool ok = false;
+            const int place = part.toInt(&ok);
+            if (ok && place > 1 && place < 100000 && !c.breaks.contains(place - 1) && c.breaks.size() < kMaxCsvBreaks) c.breaks.append(place - 1);
+        }
+        std::sort(c.breaks.begin(), c.breaks.end());
+    }
     return c;
+}
+
+// The first lines of the file as they are (whole lines, with a bar where a column begins), for choosing where the columns begin.
+void TextImportDialog::fillRuler()
+{
+    const bool fixed = m_fixed->isChecked();
+    m_breaks->setEnabled(fixed);
+    m_ruler->setEnabled(fixed);
+    if (!fixed) {
+        m_ruler->clear();
+        return;
+    }
+    CsvImport raw = choices();
+    raw.fixedWidth = false;
+    raw.separators = QString(QChar(0x1F));
+    raw.quote = QChar();
+    raw.mergeSeparators = false;
+    raw.columns.clear();
+    raw.firstRow = m_start->value() - 1;
+    const QVector<QStringList> lines = csvPreview(m_request.head, m_request.path, raw, m_request.locale);
+    const QVector<int> breaks = choices().breaks;
+    QStringList shown;
+    for (int r = 0; r < lines.size() && r < 25; ++r) {
+        QString line = lines[r].isEmpty() ? QString() : lines[r].first();
+        line.replace(QLatin1Char('\t'), QLatin1Char(' '));
+        for (int i = int(breaks.size()) - 1; i >= 0; --i)
+            if (breaks[i] <= line.size()) line.insert(breaks[i], QChar(0x2502));
+        shown << line;
+    }
+    m_ruler->setPlainText(shown.join(QLatin1Char('\n')));
+}
+
+// A click between two characters of the first lines starts a column there, or takes the start away.
+void TextImportDialog::toggleBreak(int column)
+{
+    if (column < 1) return;
+    QVector<int> breaks = choices().breaks;
+    if (breaks.contains(column)) breaks.removeAll(column);
+    else if (breaks.size() < kMaxCsvBreaks) breaks.append(column);
+    std::sort(breaks.begin(), breaks.end());
+    QStringList places;
+    for (const int b : breaks) places << QString::number(b + 1);
+    m_breaks->setText(places.join(QStringLiteral(", ")));
+}
+
+bool TextImportDialog::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == m_ruler->viewport() && event->type() == QEvent::MouseButtonPress && m_fixed->isChecked()) {
+        const QPoint at = static_cast<QMouseEvent *>(event)->position().toPoint();
+        const QTextCursor cursor = m_ruler->cursorForPosition(at);
+        const QString line = cursor.block().text();
+        const int shownColumn = cursor.positionInBlock();
+        // (the bars are not characters of the file: the place in the file is what is left when they are not counted)
+        int bars = 0;
+        for (int i = 0; i < shownColumn && i < line.size(); ++i)
+            if (line[i] == QChar(0x2502)) ++bars;
+        toggleBreak(shownColumn - bars);
+        return true;
+    }
+    return QDialog::eventFilter(watched, event);
 }
 
 int TextImportDialog::previewRows() const { return std::max(0, m_table->rowCount() - 1); }
@@ -180,6 +311,8 @@ void TextImportDialog::refresh()
     if (m_filling) return;
     m_filling = true;
     const CsvImport c = choices();
+    for (QWidget *w : std::initializer_list<QWidget *>{m_comma, m_semicolon, m_tab, m_space, m_pipe, m_merge, m_other, m_quote}) w->setEnabled(!c.fixedWidth);
+    fillRuler();
     int columns = 0;
     const QVector<QStringList> rows = csvPreview(m_request.head, m_request.path, c, m_request.locale, nullptr, &columns);
     m_table->clear();

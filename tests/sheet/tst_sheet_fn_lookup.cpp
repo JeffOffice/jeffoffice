@@ -12,6 +12,27 @@ struct E {
     const char *value;
 };
 
+// A grid whose host answers what CELL and INFO ask of the file and the program.
+class HostGrid : public Grid {
+public:
+    bool cellInfo(int sheet, quint32 row, quint32 col, const QString &kind, Value *out) const override
+    {
+        Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col);
+        if (kind == QLatin1String("filename")) *out = Value::text(QStringLiteral("/home/x/[Book.xlsx]Sheet1"));
+        else if (kind == QLatin1String("width")) *out = Value::number(12);
+        else if (kind == QLatin1String("format")) *out = Value::text(QStringLiteral("F2"));
+        else return false;
+        return true;
+    }
+    bool environmentInfo(const QString &kind, Value *out) const override
+    {
+        if (kind == QLatin1String("recalc")) *out = Value::text(QStringLiteral("Automatic"));
+        else if (kind == QLatin1String("numfile")) *out = Value::number(3);
+        else return false;
+        return true;
+    }
+};
+
 #define CHECK_EVALS(cases, grid, settings)                                                                                                                  \
     for (const auto &c : cases) {                                                                                                                           \
         const QString got = ev(QString::fromUtf8(c.formula), grid, settings);                                                                               \
@@ -435,6 +456,30 @@ private Q_SLOTS:
         const ParseResult q = parseFormula(QStringLiteral("SUM(1,2)"));
         evaluator.evaluate(*q.program, ctx);
         QCOMPARE(evaluator.unsupportedKinds(), 0);
+    }
+
+    // CELL's file and format answers, and INFO, come from the host that knows the workbook; a host that does not know says so (the cell is then kept apart).
+    void cellAndInfoAskTheHost()
+    {
+        HostGrid g;
+        const E cases[] = {
+            {"CELL(\"filename\",A1)", "s:/home/x/[Book.xlsx]Sheet1"},
+            {"CELL(\"width\",A1)", "n:12"},
+            {"CELL(\"format\",A1)", "s:F2"},
+            {"INFO(\"recalc\")", "s:Automatic"},
+            {"INFO(\"NUMFILE\")", "n:3"},
+            {"INFO(\"memavail\")", "e:#N/A"},
+            {"INFO(\"nonsense\")", "e:#VALUE!"},
+        };
+        CHECK_EVALS(cases, g, Settings());
+        const Grid plain;
+        const ParseResult p = parseFormula(QStringLiteral("INFO(\"recalc\")"));
+        QVERIFY(p.ok());
+        Evaluator evaluator;
+        EvalContext ctx;
+        ctx.source = &plain;
+        evaluator.evaluate(*p.program, ctx);
+        QCOMPARE(evaluator.unsupportedKinds(), 4);
     }
 
     void hlookupAndLookup()

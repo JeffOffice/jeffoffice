@@ -1,5 +1,6 @@
 #include "sheet/recalc.h"
 
+#include "sheet/cellinfo.h"
 #include "sheet/formulaframe.h"
 #include "sheet/structref.h"
 
@@ -10,7 +11,10 @@
 #include "calc/formula.h"
 #include "calc/functions.h"
 
+#include <QDir>
 #include <QElapsedTimer>
+#include <QFileInfo>
+#include <QSysInfo>
 
 #include <algorithm>
 #include <cmath>
@@ -103,6 +107,103 @@ Value WorkbookSource::cell(int sheet, quint32 row, quint32 col) const
     const Sheet &s = m_sheets[size_t(sheet)];
     const Cell *c = s.cells.find(row, col);
     return c ? valueOf(s, *c) : Value();
+}
+
+bool WorkbookSource::cellInfo(int sheet, quint32 row, quint32 col, const QString &kind, Value *out) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
+    const Sheet &s = m_sheets[size_t(sheet)];
+    if (kind == QLatin1String("filename")) {
+        const QString path = filePath();
+        if (path.isEmpty()) {
+            *out = Value::text(QString());
+            return true;
+        }
+        const QFileInfo info(path);
+        QString dir = QDir::toNativeSeparators(info.absolutePath());
+        if (!dir.endsWith(QDir::separator())) dir += QDir::separator();
+        *out = Value::text(dir + QLatin1Char('[') + info.fileName() + QLatin1Char(']') + m_book.info().sheets.value(sheet).name);
+        return true;
+    }
+    const ColumnSpan *span = nullptr;
+    for (const ColumnSpan &c : s.columns)
+        if (col >= c.first && col <= c.last) {
+            span = &c;
+            break;
+        }
+    if (kind == QLatin1String("width")) {
+        double width = span && span->width >= 0 ? span->width : s.format.defaultColWidth > 0 ? s.format.defaultColWidth : double(s.format.baseColWidth);
+        if (span && span->hidden) width = 0;
+        *out = Value::number(std::floor(width));
+        return true;
+    }
+    const Cell *c = s.cells.find(row, col);
+    const quint32 style = c ? c->style : span ? span->style : 0;
+    const Styles &styles = m_book.styles();
+    if (kind == QLatin1String("protect")) {
+        *out = Value::number(styles.format(style).locked ? 1 : 0);
+        return true;
+    }
+    if (kind == QLatin1String("prefix")) {
+        QString prefix;
+        if (c && c->type != CellType::Empty && valueOf(s, *c).isText()) {
+            switch (styles.format(style).horizontal) {
+            case HAlign::Left: prefix = QStringLiteral("'"); break;
+            case HAlign::Right: prefix = QStringLiteral("\""); break;
+            case HAlign::Center: prefix = QStringLiteral("^"); break;
+            case HAlign::Fill: prefix = QStringLiteral("\\"); break;
+            default: break;
+            }
+        }
+        *out = Value::text(prefix);
+        return true;
+    }
+    const FormatSummary summary = summarizeFormat(styles.formatCode(style));
+    if (kind == QLatin1String("format")) {
+        *out = Value::text(summary.code);
+        return true;
+    }
+    if (kind == QLatin1String("color")) {
+        *out = Value::number(summary.negativeColor ? 1 : 0);
+        return true;
+    }
+    if (kind == QLatin1String("parentheses")) {
+        *out = Value::number(summary.parentheses ? 1 : 0);
+        return true;
+    }
+    return false;
+}
+
+bool WorkbookSource::environmentInfo(const QString &kind, Value *out) const
+{
+    if (kind == QLatin1String("directory")) {
+        const QString path = filePath();
+        QString dir = QDir::toNativeSeparators(path.isEmpty() ? QDir::currentPath() : QFileInfo(path).absolutePath());
+        if (!dir.endsWith(QDir::separator())) dir += QDir::separator();
+        *out = Value::text(dir);
+    } else if (kind == QLatin1String("numfile")) {
+        int n = 0;
+        for (const SheetEntry &e : m_book.info().sheets)
+            if (!e.deleted && e.state == SheetState::Visible) ++n;
+        *out = Value::number(n);
+    } else if (kind == QLatin1String("origin")) {
+        *out = Value::text(QStringLiteral("$A:$A$1"));
+    } else if (kind == QLatin1String("osversion")) {
+        *out = Value::text(QSysInfo::prettyProductName());
+    } else if (kind == QLatin1String("recalc")) {
+        *out = Value::text(m_book.info().calcMode == CalcMode::Manual ? QStringLiteral("Manual") : QStringLiteral("Automatic"));
+    } else if (kind == QLatin1String("release")) {
+        *out = Value::text(QStringLiteral("16.0"));   // (the version of the file format's family that formulas test against)
+    } else if (kind == QLatin1String("system")) {
+#ifdef Q_OS_MACOS
+        *out = Value::text(QStringLiteral("mac"));
+#else
+        *out = Value::text(QStringLiteral("pcdos"));
+#endif
+    } else {
+        return false;
+    }
+    return true;
 }
 
 void WorkbookSource::visit(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2, const std::function<bool(quint32, quint32, const Value &)> &f) const

@@ -60,6 +60,98 @@ private Q_SLOTS:
         QCOMPARE(shown(wb2, s2, QLatin1String("C1")), QStringLiteral("i:c"));
     }
 
+    // The marks a file writes numbers with are chosen for it: the decimal mark, the thousands mark, and a minus sign after the number. A text that is no number of those marks stays text.
+    void numbersAreReadWithTheMarksChosenForTheFile()
+    {
+        LocaleScope locale(QLocale::c());
+        auto c = choices();
+        c->separators = QStringLiteral(";");
+        c->decimalMark = QLatin1Char(',');
+        c->thousandsMark = QLatin1Char('.');
+        c->trailingMinus = true;
+        Workbook wb;
+        QVERIFY(openWith("1.234,5;12,5-;-3;7;1.5;50%;0,25%;abc\n", c, &wb));
+        const Sheet s = read(wb);
+        QCOMPARE(shown(wb, s, QLatin1String("A1")), QStringLiteral("n:1234.5"));
+        QCOMPARE(shown(wb, s, QLatin1String("B1")), QStringLiteral("n:-12.5"));
+        QCOMPARE(shown(wb, s, QLatin1String("C1")), QStringLiteral("n:-3"));
+        QCOMPARE(shown(wb, s, QLatin1String("D1")), QStringLiteral("n:7"));
+        QCOMPARE(shown(wb, s, QLatin1String("E1")), QStringLiteral("i:1.5"));   // (a point in a number with a comma for its decimal mark is not a mark of this file)
+        QCOMPARE(shown(wb, s, QLatin1String("F1")), QStringLiteral("n:0.5"));
+        QVERIFY(qAbs(shown(wb, s, QLatin1String("G1")).mid(2).toDouble() - 0.0025) < 1e-15);
+        QCOMPARE(shown(wb, s, QLatin1String("H1")), QStringLiteral("i:abc"));
+        // with a point for the decimal mark and a comma for thousands, the other way round
+        auto d = choices();
+        d->separators = QStringLiteral(";");
+        d->decimalMark = QLatin1Char('.');
+        d->thousandsMark = QLatin1Char(',');
+        Workbook wb2;
+        QVERIFY(openWith("1,234.5;1.5;1,5\n", d, &wb2));
+        const Sheet s2 = read(wb2);
+        QCOMPARE(shown(wb2, s2, QLatin1String("A1")), QStringLiteral("n:1234.5"));
+        QCOMPARE(shown(wb2, s2, QLatin1String("B1")), QStringLiteral("n:1.5"));
+        QCOMPARE(shown(wb2, s2, QLatin1String("C1")), QStringLiteral("i:1,5"));
+        // a trailing minus is only read when chosen
+        auto e = choices();
+        e->separators = QStringLiteral(";");
+        Workbook wb3;
+        QVERIFY(openWith("5-\n", e, &wb3));
+        const Sheet s3 = read(wb3);
+        QCOMPARE(shown(wb3, s3, QLatin1String("A1")), QStringLiteral("i:5-"));
+    }
+
+    // Columns of fixed width: each line is cut at the places chosen, with the spaces around each piece taken off; the last column takes what is left, and a short line has fewer fields.
+    void aFileOfFixedColumnsIsCutAtTheChosenPlaces()
+    {
+        LocaleScope locale(QLocale::c());
+        auto c = choices();
+        c->fixedWidth = true;
+        c->breaks = {6, 12};
+        Workbook wb;
+        QVERIFY(openWith("Name  Qty   Note here\nBob   12    ok\r\nAl    7\n\nCy    100   x y z\n", c, &wb));
+        const Sheet s = read(wb);
+        QCOMPARE(shown(wb, s, QLatin1String("A1")), QStringLiteral("i:Name"));
+        QCOMPARE(shown(wb, s, QLatin1String("B1")), QStringLiteral("i:Qty"));
+        QCOMPARE(shown(wb, s, QLatin1String("C1")), QStringLiteral("i:Note here"));
+        QCOMPARE(shown(wb, s, QLatin1String("A2")), QStringLiteral("i:Bob"));
+        QCOMPARE(shown(wb, s, QLatin1String("B2")), QStringLiteral("n:12"));
+        QCOMPARE(shown(wb, s, QLatin1String("C2")), QStringLiteral("i:ok"));
+        QCOMPARE(shown(wb, s, QLatin1String("B3")), QStringLiteral("n:7"));
+        QCOMPARE(shown(wb, s, QLatin1String("C3")), QStringLiteral("none"));
+        QCOMPARE(shown(wb, s, QLatin1String("A4")), QStringLiteral("none"));
+        QCOMPARE(shown(wb, s, QLatin1String("A5")), QStringLiteral("i:Cy"));
+        QCOMPARE(shown(wb, s, QLatin1String("B5")), QStringLiteral("n:100"));
+        QCOMPARE(shown(wb, s, QLatin1String("C5")), QStringLiteral("i:x y z"));
+        // the preview is cut the same way
+        auto narrow = choices();
+        narrow->fixedWidth = true;
+        narrow->breaks = {4};
+        const QVector<QStringList> rows = csvPreview(QByteArray("ab  cd\n"), QStringLiteral("x.txt"), *narrow, QLocale::c());
+        QCOMPARE(rows.size(), 1);
+        QCOMPARE(rows[0], (QStringList{QStringLiteral("ab"), QStringLiteral("cd")}));
+    }
+
+    // The values of the import window's own example land as numbers, and its preview keeps the text of the file as it is (never half converted).
+    void theExampleOfTheImportWindowLandsAsNumbersAndThePreviewKeepsTheText()
+    {
+        LocaleScope locale(QLocale::c());
+        auto c = choices();
+        c->fixedWidth = true;
+        c->breaks = {6, 12};
+        c->decimalMark = QLatin1Char(',');
+        c->thousandsMark = QLatin1Char('.');
+        c->trailingMinus = true;
+        const QByteArray file = "Name  Qty   Price\nBob   12    1.234,50\nAl    7     9,5-\n";
+        Workbook wb;
+        QVERIFY(openWith(file, c, &wb));
+        const Sheet s = read(wb);
+        QCOMPARE(shown(wb, s, QLatin1String("C2")), QStringLiteral("n:1234.5"));
+        QCOMPARE(shown(wb, s, QLatin1String("C3")), QStringLiteral("n:-9.5"));
+        const QVector<QStringList> rows = csvPreview(file, QStringLiteral("data.txt"), *c, QLocale::c());
+        QCOMPARE(rows.value(1).value(2), QStringLiteral("1.234,50"));
+        QCOMPARE(rows.value(2).value(2), QStringLiteral("9,5-"));
+    }
+
     void separatorsInARowCountAsOneWhenAsked()
     {
         LocaleScope locale(QLocale::c());
