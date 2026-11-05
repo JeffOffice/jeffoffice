@@ -629,6 +629,38 @@ private Q_SLOTS:
         QCOMPARE(w.outputPages(o), (QVector<int>{1, 2}));
     }
 
+    void aPdfCanHoldOnlyTheRangeChosen()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        w.show();
+        Quiet quiet(w);
+        for (int i = 0; i < 3; ++i) {
+            typeText(*w.document(), w.view()->cursor(), QStringLiteral("page text"));
+            insertPageBreak(*w.document(), w.view()->cursor());
+        }
+        const QString path = dir.filePath(QStringLiteral("r.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+        auto pagesIn = [&](const WriteOutputOptions &o) {
+            QFile::remove(path);
+            if (!w.exportPdfPages(o)) return -1;
+            QFile f(path);
+            if (!f.open(QIODevice::ReadOnly)) return -1;
+            return PdfDocument::shared(f.readAll())->pageCount();
+        };
+        WriteOutputOptions o;
+        const int all = pagesIn(o);
+        QVERIFY(all >= 4);
+        o.range = WriteOutputOptions::Range::Pages;
+        o.pages = QStringLiteral("2-3");
+        QCOMPARE(pagesIn(o), 2);
+        o.pages = QStringLiteral("99");
+        QCOMPARE(pagesIn(o), -1);   // (no page of the document: nothing is written)
+        QVERIFY(!QFileInfo::exists(path));
+        o.range = WriteOutputOptions::Range::Current;
+        QCOMPARE(pagesIn(o), 1);
+    }
+
     void aWindowStartsAnUntitledDocumentFromABuiltInTemplate()
     {
         WriteWindow w;

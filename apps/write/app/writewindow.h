@@ -161,6 +161,10 @@ public:
     int compareWithVersion(const QString &file);
     // Version History on the Info page: the list with its buttons.
     void versionHistory();
+    // Export to PDF with the pages the options name (the range only: the printer choices are for Print); false, with nothing written, when no page is named.
+    bool exportPdfPages(const WriteOutputOptions &options);
+    // Asks which pages (all, the current page, or a range), then exports them.
+    bool exportPdfAsk();
     // Where editing stopped: the place is kept with the file's name when the window closes and when the file is saved, and the file opens there again.
     void rememberPlace();
     // The last three places the text was edited, the latest first (Shift+F5 goes to each in turn).

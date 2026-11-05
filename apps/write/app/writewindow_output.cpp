@@ -26,6 +26,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QLineEdit>
 #include <QLabel>
 #include <QVBoxLayout>
 #include <QStandardPaths>
@@ -112,11 +113,56 @@ QByteArray WriteWindow::pdfBytes(const QVector<int> &pages, QString *error)
 
 bool WriteWindow::exportPdf()
 {
+    return exportPdfPages(WriteOutputOptions());
+}
+
+bool WriteWindow::exportPdfAsk()
+{
+    if (!m_doc) return false;
+    QDialog dialog(this);
+    dialog.setObjectName(QStringLiteral("pdfDialog"));
+    dialog.setWindowTitle(tr("Export to PDF"));
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *which = new QComboBox(&dialog);
+    which->setObjectName(QStringLiteral("pdfRange"));
+    which->addItem(tr("All pages"), int(WriteOutputOptions::Range::All));
+    which->addItem(tr("Current page"), int(WriteOutputOptions::Range::Current));
+    which->addItem(tr("Pages:"), int(WriteOutputOptions::Range::Pages));
+    auto *text = new QLineEdit(&dialog);
+    text->setObjectName(QStringLiteral("pdfPages"));
+    text->setPlaceholderText(tr("1-3, 5, p2s3"));
+    text->setEnabled(false);
+    connect(which, &QComboBox::currentIndexChanged, &dialog, [which, text] { text->setEnabled(which->currentData().toInt() == int(WriteOutputOptions::Range::Pages)); });
+    auto *form = new QFormLayout;
+    form->addRow(tr("Pages to include:"), which);
+    form->addRow(QString(), text);
+    layout->addLayout(form);
+    auto *note = new QLabel(tr("Type page numbers and ranges, separated by commas. p2s3 is the second page of section 3, and s3 is all of section 3."), &dialog);
+    note->setWordWrap(true);
+    layout->addWidget(note);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    if (dialog.exec() != QDialog::Accepted) return false;
+    WriteOutputOptions o;
+    o.range = static_cast<WriteOutputOptions::Range>(which->currentData().toInt());
+    o.pages = text->text();
+    if (o.range == WriteOutputOptions::Range::Pages && outputPages(o).isEmpty()) {
+        notice(tr("Export to PDF"), tr("None of those numbers is a page of the document. Type page numbers such as 1-3, 5."), true);
+        return false;
+    }
+    return exportPdfPages(o);
+}
+
+bool WriteWindow::exportPdfPages(const WriteOutputOptions &options)
+{
     if (!m_doc) return false;
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
+    const QVector<int> pages = outputPages(options);
+    if (pages.isEmpty()) return false;
     const QString path = pdfPathToWrite(tr("Export to PDF"));
     if (path.isEmpty()) return false;
-    const QVector<int> pages = outputPages(WriteOutputOptions());
     QString err;
     QApplication::setOverrideCursor(Qt::WaitCursor);
     const QByteArray bytes = pdfBytes(pages, &err);

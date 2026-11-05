@@ -537,9 +537,9 @@ QWidget *WriteFileScreen::buildExport()
     v->setContentsMargins(40, 30, 40, 30);
     v->addWidget(heading(tr("Export"), w));
     v->setSpacing(10);
-    auto *b = new ActionCard(QStringLiteral("file-output"), tr("Export to PDF"), tr("The pages as a PDF that looks the same everywhere."), w);
+    auto *b = new ActionCard(QStringLiteral("file-output"), tr("Export to PDF"), tr("The pages, or the ones you choose, as a PDF that looks the same everywhere."), w);
     connect(b, &QAbstractButton::clicked, this, [this] {
-        if (m_win->exportPdf()) Q_EMIT closeRequested();
+        if (m_win->exportPdfAsk()) Q_EMIT closeRequested();
     });
     v->addWidget(b);
     auto *t = new ActionCard(QStringLiteral("file-text"), tr("Save as Plain Text"), tr("Only the words, in a .txt file. You choose how the characters and line ends are written."), w);
