@@ -4,6 +4,7 @@
 #include "office/xml.h"
 #include "wml/wml.h"
 #include "wml/wmlhtml.h"
+#include "wml/wmlhtmlread.h"
 #include "wml/wmlmath.h"
 #include "wml/xmltree.h"
 
@@ -1853,6 +1854,64 @@ private Q_SLOTS:
         const QString deep = QString::fromUtf8(documentToHtml(e, HtmlOptions()));
         QVERIFY(deep.count(QLatin1String("<table")) <= kMostHtmlDepth);
         QVERIFY(!deep.contains(QLatin1String("deep")));
+    }
+
+    // A web page is read into the paragraphs of a document: headings, emphasis, list markers, tables with joined columns; a script, a style sheet, and a picture from an address are not
+    // read or fetched, and a page past the limit is refused.
+    void aWebPageIsReadIntoParagraphsAndNothingIsFetched()
+    {
+        const QByteArray page =
+            "<!DOCTYPE html><html><head><title>T</title><style>p{color:red}</style><script>alert(1)</script></head><body>"
+            "<h1>Big &amp; bold</h1><p>Some <b>strong</b> and <i>slanted</i> words<sup>2</sup><img src=\"http://example.invalid/x.png\"></p>"
+            "<ul><li>one</li><li>two</li></ul><ol><li>first</li></ol>"
+            "<table border=\"1\"><tr><td colspan=\"2\">joined</td></tr><tr><td>a</td><td>b</td></tr></table></body></html>";
+        QVERIFY(looksLikeHtml(page));
+        QVERIFY(!looksLikeHtml("{\\rtf1 hello"));
+        Document d;
+        QString err;
+        QVERIFY2(readHtml(page, &d, &err), qPrintable(err));
+        QStringList texts;
+        QStringList styles;
+        for (const Block &b : d.body)
+            if (!b.isRaw) {
+                QString t;
+                for (const Inline &in : b.para.content) t += in.text;
+                texts << t;
+                styles << b.para.props.style;
+            }
+        QVERIFY2(texts.contains(QStringLiteral("Big & bold")), qPrintable(texts.join('|')));
+        QCOMPARE(styles[texts.indexOf(QStringLiteral("Big & bold"))], QStringLiteral("Heading1"));
+        QVERIFY(texts.contains(QStringLiteral("Some strong and slanted words2")));
+        QVERIFY(texts.contains(QString(QChar(0x2022)) + QStringLiteral("\tone")));
+        QVERIFY(texts.contains(QStringLiteral("1.\tfirst")));
+        QVERIFY(!texts.join(QLatin1Char('|')).contains(QLatin1String("alert")));
+        QVERIFY(!texts.join(QLatin1Char('|')).contains(QLatin1String("color:red")));
+        bool bold = false, italic = false, sup = false;
+        for (const Block &b : d.body)
+            if (!b.isRaw)
+                for (const Inline &in : b.para.content) {
+                    bold |= in.text == QLatin1String("strong") && in.props.bold.value_or(false);
+                    italic |= in.text == QLatin1String("slanted") && in.props.italic.value_or(false);
+                    sup |= in.props.vertAlign == QLatin1String("superscript");
+                }
+        QVERIFY(bold && italic && sup);
+        int cells = 0, spans = 0;
+        for (const Block &b : d.body)
+            if (b.isRaw && b.tag == QLatin1String("tc") && b.role == Inline::Open) {
+                ++cells;
+                spans += b.table && b.table->span == 2;
+            }
+        QCOMPARE(cells, 3);
+        QCOMPARE(spans, 1);
+        // What was read saves as a .docx that reads back.
+        const QByteArray docx = writeDocx(d);
+        Document again;
+        QVERIFY(!docx.isEmpty() && readDocx(docx, &again, &err));
+        QCOMPARE(again.body.size(), d.body.size());
+        // Too large.
+        Document big;
+        QVERIFY(!readHtml(QByteArray(int(kMostHtmlBytes) + 1, 'a'), &big, &err));
+        QVERIFY(!err.isEmpty());
     }
 
     void roundTripKeepsPartsAndTheirRelationshipsAsTheyWere()

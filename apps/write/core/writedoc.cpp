@@ -1,4 +1,5 @@
 #include "core/writedoc.h"
+#include "wml/wmlhtmlread.h"
 
 #include "core/commentops.h"
 
@@ -380,6 +381,12 @@ std::unique_ptr<WriteDoc> WriteDoc::fromFile(const QByteArray &bytes, QString *e
     // By what is inside: an OpenDocument text (a ZIP whose mimetype says so), then Rich Text Format ("{\\rtf"), then an old binary file (a compound file), else a .docx.
     if (office::odt::looksLikeOdt(bytes)) return fromOdt(bytes, error, notes);
     if (office::rtf::looksLikeRtf(bytes)) return fromRtf(bytes, error, notes);
+    if (office::wml::looksLikeHtml(bytes)) {
+        office::wml::Document page;
+        if (!office::wml::readHtml(bytes, &page, error)) return nullptr;
+        const QByteArray docx = office::wml::writeDocx(page, error);
+        return docx.isEmpty() ? nullptr : fromDocx(docx, error, notes);
+    }
     return office::doc::looksLikeCompoundFile(bytes) ? fromDoc(bytes, error, notes) : fromDocx(bytes, error, notes);
 }
 void WriteDoc::build(office::wml::Document &&doc)

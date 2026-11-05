@@ -620,6 +620,25 @@ private Q_SLOTS:
         QVERIFY(!small.contains(QLatin1String("<style>")));
     }
 
+    // A web page opens as a document (what Save as Web Page wrote comes back with its words), and Save does not write over it.
+    void aWebPageOpensAsADocumentAndIsNotWrittenOver()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("caf\u00e9 & more\nsecond"));
+        const QString path = dir.filePath(QStringLiteral("page.html"));
+        QVERIFY(w.exportWeb(path, true));
+        WriteWindow b;
+        Quiet quietB(b);
+        QVERIFY(b.openFile(path));
+        QCOMPARE(b.document()->story()->toPlainText().trimmed(), QStringLiteral("caf\u00e9 & more\nsecond"));
+        const QByteArray before = fileBytes(path);
+        b.setSavePathChooser([](const QString &, const QString &) { return QString(); });
+        QVERIFY(!b.save());   // (it asks for a name, and none is given)
+        QCOMPARE(fileBytes(path), before);
+    }
+
     void textFilesAreReadAndWrittenInTheEncodingAndLineEndsChosen()
     {
         // UTF-16 either way round, the mark deciding; a code page; and the three line ends.
