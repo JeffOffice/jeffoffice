@@ -1,5 +1,5 @@
 # Cut, copy, and paste
-<!-- keywords: cut, copy, paste, clipboard, move, duplicate, special, values, formulas, formats, transpose, skip blanks, add, subtract, multiply, divide, operation, merged, text, tab, html, web page, other program, Escape, marching ants, border, column widths, notes, comments, number formats, all except borders, picture, bitmap, copy as picture, paste link, hyperlink, text import, split text, separator -->
+<!-- keywords: cut, copy, paste, clipboard, move, duplicate, special, values, formulas, formats, transpose, skip blanks, add, subtract, multiply, divide, operation, merged, text, tab, html, web page, other program, Escape, marching ants, border, column widths, notes, comments, number formats, all except borders, picture, bitmap, copy as picture, printed picture, as printed, paste link, hyperlink, text import, split text, separator -->
 
 **Copy** (**{key:Copy}**) puts a copy of the selected cells on the clipboard, a place the computer keeps for one thing at a time. **Paste** (**{key:Paste}**) puts what is on the clipboard into the cells starting at the selected cell. **Cut** (**{key:Cut}**) is like copy, but when you paste, the cells are moved and the old place is emptied.
 
@@ -40,7 +40,7 @@ Three more choices are in the arrow under **Paste**. They work on cells you copi
 
 The arrow under **Paste** lists the usual choices, and also **No Borders**, **Formulas and Number Formatting**, **Values and Number Formatting**, **Keep Source Column Widths**, and **Comments and Notes**. They are the same as the choices in Paste Special, one click each.
 
-The arrow next to **Copy** has **Copy as Picture** and **Copy as Bitmap**. Each puts a picture of the selected cells on the clipboard, drawn as you see them, with the gridlines. A bitmap is the size of the screen. A picture has twice as many dots, so it stays sharp when it is made larger. Paste it into JeffWrite or JeffDeck as an image. If the cells do not fit in one picture, select fewer.
+The arrow next to **Copy** has **Copy as Picture** and **Copy as Bitmap**. Each puts a picture of the selected cells on the clipboard, drawn as you see them, with the gridlines. A bitmap is the size of the screen. A picture has twice as many dots, so it stays sharp when it is made larger. **Copy as Printed Picture** draws the cells as the paper would show them: the gridlines are there only if the page setup prints them. Paste it into JeffWrite or JeffDeck as an image. If the cells do not fit in one picture, select fewer.
 
 ## Between programs
 

@@ -330,6 +330,64 @@ private Q_SLOTS:
         QVERIFY(QApplication::clipboard()->image().isNull());
     }
 
+    // The table other programs take from a copy carries the look of the cells they would otherwise lose: lines under or through the text, how it sits, and the borders; a plain cell is as before.
+    void theCopiedTableCarriesUnderlinesAlignmentAndBorders()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Hello", "B1=2", "C1=plain"})));
+        auto run = [&](const char *id) {
+            QAction *a = e.win.w.act(QString::fromLatin1(id));
+            QVERIFY2(a && a->isEnabled(), id);
+            a->trigger();
+        };
+        e.select(QStringLiteral("A1"));
+        run("fmt.underline");
+        run("fmt.strike");
+        run("fmt.alignCenter");
+        run("fmt.alignTop");
+        run("fmt.border.outside");
+        copyRange(e, QStringLiteral("A1:C1"));
+        const QString html = QApplication::clipboard()->mimeData()->html();
+        const int a = int(html.indexOf(QStringLiteral(">Hello</td>"))), cell = int(html.lastIndexOf(QStringLiteral("<td"), a));
+        QVERIFY(a > 0 && cell >= 0);
+        const QString first = html.mid(cell, a - cell);
+        QVERIFY2(first.contains(QStringLiteral("text-decoration:underline line-through;")), qPrintable(first));
+        QVERIFY2(first.contains(QStringLiteral("text-align:center;")), qPrintable(first));
+        QVERIFY2(first.contains(QStringLiteral("vertical-align:top;")), qPrintable(first));
+        QVERIFY2(first.contains(QStringLiteral("border-left:1px solid #000000;")) && first.contains(QStringLiteral("border-bottom:1px solid #000000;")), qPrintable(first));
+        // a cell with none of that is as it was
+        QVERIFY(html.contains(QStringLiteral("<td>plain</td>")));
+    }
+
+    // Copy as Printed Picture draws the cells as the paper would have them: the sheet's print setup decides the gridlines (none by default), not the window's.
+    void copyAsPrintedPictureLeavesOutTheScreensGridlines()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Hello"})));
+        e.view()->selectRange(0, 0, 3, 3);
+        auto lightPixels = [](const QImage &image) {
+            int n = 0;
+            for (int y = 0; y < image.height(); ++y)
+                for (int x = 0; x < image.width(); ++x) {
+                    const int g = qGray(image.pixel(x, y));
+                    if (g > 150 && g < 245) ++n;
+                }
+            return n;
+        };
+        QAction *screen = e.win.w.act(QStringLiteral("edit.copyPicture")), *printed = e.win.w.act(QStringLiteral("edit.copyPicturePrinted"));
+        QVERIFY(printed);
+        QVERIFY(printed->isEnabled());
+        QApplication::clipboard()->clear();
+        screen->trigger();
+        QTRY_VERIFY(!QApplication::clipboard()->image().isNull());
+        const int onScreen = lightPixels(QApplication::clipboard()->image());
+        QApplication::clipboard()->clear();
+        printed->trigger();
+        QTRY_VERIFY(!QApplication::clipboard()->image().isNull());
+        const int onPaper = lightPixels(QApplication::clipboard()->image());
+        QVERIFY2(onScreen > onPaper + 200, qPrintable(QStringLiteral("%1 vs %2").arg(onScreen).arg(onPaper)));
+    }
+
     // The Paste button's menu offers each of Paste Special's choices, and each does what the dialog's choice does.
     void thePasteGalleryOffersPasteSpecialsChoices()
     {

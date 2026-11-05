@@ -1019,7 +1019,7 @@ private:
     // the clipboard (crunchwindow_clip.cpp)
     void createClipboardActions();
     void copySelection();
-    void copyAsPicture(bool bitmap);
+    void copyAsPicture(bool bitmap, bool printed = false);
     void cutSelection();
     void copyOrCut(bool cut);
     void copyStep();

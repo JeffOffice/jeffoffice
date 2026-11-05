@@ -71,7 +71,8 @@ void CrunchWindow::createClipboardActions()
     gallery("paste.notes", tr("Comments and Notes"), Options::What::Comments);
     mk("edit.copyPicture", tr("Copy as Picture"), "image", QKeySequence(), [this] { copyAsPicture(false); });
     mk("edit.copyBitmap", tr("Copy as Bitmap"), "image", QKeySequence(), [this] { copyAsPicture(true); });
-    m_opsActions << QStringLiteral("edit.copyPicture") << QStringLiteral("edit.copyBitmap");
+    mk("edit.copyPicturePrinted", tr("Copy as Printed Picture"), "image", QKeySequence(), [this] { copyAsPicture(false, true); });
+    m_opsActions << QStringLiteral("edit.copyPicture") << QStringLiteral("edit.copyBitmap") << QStringLiteral("edit.copyPicturePrinted");
     mk("paste.textImport", tr("Paste Text Import…"), "", QKeySequence(), [this] { pasteTextImport(); });
     mk("paste.link", tr("Paste Link"), "", QKeySequence(), [this] { pasteLink(); });
     mk("paste.hyperlink", tr("Paste as Hyperlink"), "", QKeySequence(), [this] { pasteAsHyperlinks(); });
@@ -85,7 +86,7 @@ void CrunchWindow::createClipboardActions()
 
 // Copy as Picture and Copy as Bitmap: the selected cells as the grid draws them (the screen's gridlines, no selection tint), cut from the page the print job lays them on, as an image on the
 // clipboard (the picture at twice the screen's resolution, the bitmap at the screen's). A block that does not go on one page is told, and nothing is copied.
-void CrunchWindow::copyAsPicture(bool bitmap)
+void CrunchWindow::copyAsPicture(bool bitmap, bool printed)
 {
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !m_session || m_sheet < 0 || m_chartSheetShown) return;
@@ -109,7 +110,7 @@ void CrunchWindow::copyAsPicture(bool bitmap)
         notice(tr("Copy as Picture"), tr("These cells do not fit in one picture. Select fewer cells, and try again."));
         return;
     }
-    job->setScreenMarks(act(QStringLiteral("view.gridlines"))->isChecked(), false);
+    if (!printed) job->setScreenMarks(act(QStringLiteral("view.gridlines"))->isChecked(), false);
     const double scale = (bitmap ? 96.0 : 192.0) / 72.0;
     const QSizeF paper = job->pageSize(0);
     const QSize pixels(int(std::ceil(paper.width() * scale)), int(std::ceil(paper.height() * scale)));
@@ -201,6 +202,26 @@ QString CrunchWindow::htmlOfClip(const ClipData &clip) const
                 if (look.italic) style += QStringLiteral("font-style:italic;");
                 if (look.pattern == jp::office::sheet::PatternKind::Solid) style += QStringLiteral("background:%1;").arg(QColor::fromRgba(look.fg).name());
                 if (look.textColor != 0xFF000000) style += QStringLiteral("color:%1;").arg(QColor::fromRgba(look.textColor).name());
+                // (what the sheet's usual cell does not have: its font, the lines on the text, how the text sits, and the borders)
+                const grid::CellLook &usual = gs.looks().look(0);
+                if (look.family != usual.family && !look.family.isEmpty()) style += QStringLiteral("font-family:'%1';").arg(QString(look.family).remove(QLatin1Char('\'')).toHtmlEscaped());
+                if (look.pointSize != usual.pointSize) style += QStringLiteral("font-size:%1pt;").arg(look.pointSize);
+                const bool under = look.underline != jp::office::sheet::Underline::None;
+                if (under || look.strike) style += QStringLiteral("text-decoration:%1;").arg(under && look.strike ? QStringLiteral("underline line-through") : under ? QStringLiteral("underline") : QStringLiteral("line-through"));
+                using HA = jp::office::sheet::HAlign;
+                if (look.horizontal == HA::Left || look.horizontal == HA::Center || look.horizontal == HA::Right)
+                    style += QStringLiteral("text-align:%1;").arg(look.horizontal == HA::Left ? QStringLiteral("left") : look.horizontal == HA::Center ? QStringLiteral("center") : QStringLiteral("right"));
+                if (look.vertical == jp::office::sheet::VAlign::Top) style += QStringLiteral("vertical-align:top;");
+                else if (look.vertical == jp::office::sheet::VAlign::Center) style += QStringLiteral("vertical-align:middle;");
+                const std::pair<const char *, const grid::LineLook *> sides[] = {{"left", &look.left}, {"right", &look.right}, {"top", &look.top}, {"bottom", &look.bottom}};
+                for (const auto &side : sides) {
+                    using BS = jp::office::sheet::BorderStyle;
+                    const BS bs = side.second->style;
+                    if (bs == BS::None) continue;
+                    const int width = bs == BS::Thick ? 3 : (bs == BS::Medium || bs == BS::MediumDashed || bs == BS::MediumDashDot || bs == BS::MediumDashDotDot || bs == BS::Double) ? 2 : 1;
+                    const QString kind = bs == BS::Double ? QStringLiteral("double") : (bs == BS::Dashed || bs == BS::MediumDashed) ? QStringLiteral("dashed") : (bs == BS::Dotted || bs == BS::Hair) ? QStringLiteral("dotted") : QStringLiteral("solid");
+                    style += QStringLiteral("border-%1:%2px %3 %4;").arg(QLatin1String(side.first)).arg(bs == BS::Double ? 3 : width).arg(kind, QColor::fromRgba(side.second->color).name());
+                }
             }
             html += QStringLiteral("<td") + (style.isEmpty() ? QString() : QStringLiteral(" style=\"%1\"").arg(style)) + QLatin1Char('>') + text + QStringLiteral("</td>");
         }
