@@ -376,7 +376,9 @@ void CrunchWindow::saveChartAsPicture()
     const QString chosen = askForSavePath(tr("Save as Picture"), start, tr("PNG (*.png)") + QStringLiteral(";;") + tr("JPEG (*.jpg)"));
     if (chosen.isEmpty()) return;
     QString path = chosen;
-    if (QFileInfo(path).suffix().isEmpty()) path += QStringLiteral(".png");
+    // (a name that does not end as a picture does gets .png, so a picture never lands on a workbook's own name)
+    const QString ending = QFileInfo(path).suffix().toLower();
+    if (ending != QLatin1String("png") && ending != QLatin1String("jpg") && ending != QLatin1String("jpeg")) path += QStringLiteral(".png");
     if (!image.save(path)) notice(tr("Save as Picture"), tr("The picture could not be saved to \"%1\".").arg(QDir::toNativeSeparators(path)));
     else setStatus(tr("Saved the chart as a picture."));
 }

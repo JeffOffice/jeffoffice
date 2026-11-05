@@ -17,6 +17,7 @@
 #include "sheet/xlsxsave.h"
 
 #include <QCheckBox>
+#include <QDir>
 #include <QDoubleSpinBox>
 #include <QClipboard>
 #include <QGuiApplication>
@@ -911,6 +912,13 @@ private Q_SLOTS:
         e.win.w.act(QStringLiteral("chartdesign.saveAsPicture"))->trigger();
         QImage img(target);
         QVERIFY(!img.isNull());
+        // a name that is not a picture's gets .png: the workbook's own name is never written over
+        const QString workbook = dir.filePath(QStringLiteral("book.xlsx"));
+        QVERIFY(QFile::copy(target, dir.filePath(QStringLiteral("keep"))));
+        e.win.w.setSavePicker([&](const QString &, const QString &) { return workbook; });
+        e.win.w.act(QStringLiteral("chartdesign.saveAsPicture"))->trigger();
+        QVERIFY(QImage(workbook + QStringLiteral(".png")).width() > 100);
+        QVERIFY(!QFileInfo::exists(workbook));
         QVERIFY(img.width() > 100 && img.height() > 60);
         bool drawn = false;
         for (int y = 0; y < img.height() && !drawn; ++y)
@@ -972,6 +980,38 @@ private Q_SLOTS:
         QCOMPARE(primaryAxis(saved, true)->title.ref, QStringLiteral("Sheet1!$A$3"));
         pressUndo(&e.win.w);
         QVERIFY(!primaryAxis(chartOf(e), true)->title.present);
+    }
+
+    // A picture of the Chart tab and the title menu, for a person to look at (only when JC_SHOT_DIR names a folder).
+    void aPictureOfTheChartTab()
+    {
+        const QString dir = QString::fromLocal8Bit(qgetenv("JC_SHOT_DIR"));
+        if (dir.isEmpty()) QSKIP("set JC_SHOT_DIR to take the picture");
+        QDir().mkpath(dir);
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        e.win.w.resize(1440, 900);
+        e.win.w.show();
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QVERIFY(e.win.w.changePickedChart(QStringLiteral("Look"), [](Chart *c) {
+            setChartTitleText(c, QStringLiteral("Units by quarter, on a log scale"));
+            primaryAxis(c, false)->logBase = 10;
+            ChartLabelParts parts;
+            parts.value = true;
+            parts.legendKey = true;
+            setDataLabelParts(c, parts);
+        }));
+        if (Ribbon *r = e.win.w.ribbon()) r->showTab(r->tab(QStringLiteral("Chart")));
+        // (the chart is drawn when the event loop gets to it: the picture waits until its place has more than the sheet's white and lines)
+        QTRY_VERIFY([&] {
+            QSet<QRgb> colors;
+            const QImage shot = e.win.w.grab().toImage().copy(QRect(300, 230, 440, 230));
+            for (int y = 0; y < shot.height(); y += 3)
+                for (int x = 0; x < shot.width(); x += 3) colors.insert(shot.pixel(x, y));
+            return colors.size() > 8;
+        }());
+        QVERIFY(e.win.w.grab().save(dir + QStringLiteral("/chart-tab.png")));
     }
 
     void theChartDesignTabAppearsWithAChart()
