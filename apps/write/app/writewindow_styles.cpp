@@ -22,6 +22,14 @@ void WriteWindow::createStyleActions()
 {
     mk("style.pane", tr("Styles Pane"), "palette", QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_S), [this] { showStylesPane(); });
     mk("style.new", tr("Create a Style…"), "plus", QKeySequence(), [this] { showStyleDialog(true); });
+    mk("style.manage", tr("Manage Styles…"), "settings-2", QKeySequence(), [this] {
+        if (!m_doc) return;
+        m_view->leaveHeaderFooter();
+        m_view->leaveNote();
+        write::manageStylesDialog(this, m_doc.get());
+        m_view->setFocus(Qt::OtherFocusReason);
+        refreshUi();
+    });
     mk("style.modify", tr("Modify Style…"), "pen-line", QKeySequence(), [this] { showStyleDialog(false); });
     mk("style.update", tr("Update Style to Match Selection"), "refresh-ccw", QKeySequence(), [this] {
         if (!m_doc) return;

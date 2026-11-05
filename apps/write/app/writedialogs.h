@@ -48,6 +48,8 @@ bool linkDialog(QWidget *parent, WriteDoc *doc, PageView *view);
 // Create New Style from Formatting (`modifyId` empty: it begins with the look of the selection, and the style made is given to the selection) and Modify Style (the style `modifyId`):
 // name, kind, what it is based on, the style that follows it, font, paragraph look, whether it is in the gallery, and whether it updates itself. OK makes or changes the style as one
 // step that undoes; a name or a base that is refused keeps the dialog open and says why. Returns whether a style was made or changed.
+// Manage Styles: which styles are recommended (in the gallery), which are hidden, and their order in the lists, for every style the document has; applied as one step on OK.
+void manageStylesDialog(QWidget *parent, WriteDoc *doc);
 bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QString &modifyId = QString());
 // Go To: a page, section, line, bookmark, footnote, or heading by number or name; the caret is put there. Returns whether it went anywhere.
 bool goToDialog(QWidget *parent, WriteDoc *doc, PageView *view);

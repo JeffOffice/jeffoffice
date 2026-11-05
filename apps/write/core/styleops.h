@@ -34,6 +34,9 @@ struct ListedStyle {
 // person is meant to see (not hidden, and either in the gallery, with a low priority, or in use). In Use and All are sorted by name, Recommended by priority.
 // The styles the text uses and the style `caretStyle` (an id) are always among them, and the rest follow in the order of the file up to the most that are listed.
 QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString &caretStyle = QString(), StyleSort sort = StyleSort::Default);
+// Whether a style is listed for people and where: `inGallery` (recommended: it is in the gallery), `hidden` (left out of every list), and `priority` (0 to 99, lower comes first in the
+// recommended list; -1 leaves it as it is). One step of the history; nothing done when it is all as it was. False, with `problem` told, when it can't be done.
+bool setStyleListing(WriteDoc &doc, const QString &id, bool inGallery, bool hidden, int priority = -1, QString *problem = nullptr);
 // The style the document has under `id`, or else the built-in one it lacks (which is not added: it is added with the first change that is made to it, as part of that step).
 std::optional<office::wml::Style> styleOfDocument(const WriteDoc &doc, const QString &id);
 

@@ -40,6 +40,7 @@
 #include <QComboBox>
 #include <QDialog>
 #include <QDoubleSpinBox>
+#include <QSpinBox>
 #include <QTimer>
 #include <QToolButton>
 #include <QListWidget>
@@ -1384,6 +1385,65 @@ private Q_SLOTS:
         QTRY_VERIFY(mini->isVisible());
         w.view()->insertText(QStringLiteral("x"));
         QTRY_VERIFY(!mini->isVisible());
+    }
+
+    void manageStylesChangesWhichStylesAreRecommendedHiddenAndInWhatOrderInOneStep()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a paragraph")))), QString());
+        QVERIFY(w.act(QStringLiteral("style.manage")));
+        auto recommended = [&] {
+            QStringList ids;
+            for (const ListedStyle &e : listStyles(*w.document(), StyleFilter::Recommended)) ids << e.id;
+            return ids;
+        };
+        QVERIFY(recommended().contains(QStringLiteral("Heading1")));
+        QVERIFY(recommended().contains(QStringLiteral("Heading2")));
+        withDialog([&w] { w.act(QStringLiteral("style.manage"))->trigger(); }, QStringLiteral("manageStylesDialog"), [](QDialog *d) {
+            auto *list = d->findChild<QListWidget *>(QStringLiteral("manageStylesList"));
+            QVERIFY(list);
+            auto pick = [&](const QString &id) {
+                for (int i = 0; i < list->count(); ++i)
+                    if (list->item(i)->data(Qt::UserRole).toString() == id) {
+                        list->setCurrentRow(i);
+                        return true;
+                    }
+                return false;
+            };
+            auto *gallery = d->findChild<QCheckBox *>(QStringLiteral("manageInGallery"));
+            auto *hidden = d->findChild<QCheckBox *>(QStringLiteral("manageHidden"));
+            auto *priority = d->findChild<QSpinBox *>(QStringLiteral("managePriority"));
+            QVERIFY(gallery && hidden && priority);
+            QVERIFY(pick(QStringLiteral("Heading1")));
+            shot(d, QStringLiteral("manage-styles.png"));
+            QVERIFY(gallery->isChecked());
+            QVERIFY(!hidden->isChecked());
+            gallery->setChecked(false);
+            priority->setValue(99);
+            QVERIFY(pick(QStringLiteral("Heading2")));
+            hidden->setChecked(true);
+            priority->setValue(50);
+            QVERIFY(pick(QStringLiteral("Heading1")));   // (what was chosen for it is kept while the box is open)
+            QVERIFY(!gallery->isChecked());
+            QCOMPARE(priority->value(), 99);
+        });
+        QVERIFY(!recommended().contains(QStringLiteral("Heading1")));
+        QVERIFY(!recommended().contains(QStringLiteral("Heading2")));
+        const std::optional<office::wml::Style> h1 = styleOfDocument(*w.document(), QStringLiteral("Heading1"));
+        QVERIFY(h1 && !h1->qFormat && h1->uiPriority.value_or(0) == 99);
+        const QByteArray out = part(w.document()->toDocx(), QStringLiteral("/word/styles.xml"));
+        QVERIFY2(out.contains("<w:uiPriority w:val=\"50\"/>") && out.contains("<w:hidden/>"), out.constData());
+        QVERIFY(styleOfDocument(*w.document(), QStringLiteral("Heading2"))->hidden);
+        // One step takes both back.
+        QVERIFY(w.document()->undo());
+        QVERIFY(recommended().contains(QStringLiteral("Heading1")));
+        QVERIFY(recommended().contains(QStringLiteral("Heading2")));
+        // Nothing changed, nothing done.
+        const quint64 serial = w.document()->nextStepSerial();
+        withDialog([&w] { w.act(QStringLiteral("style.manage"))->trigger(); }, QStringLiteral("manageStylesDialog"), [](QDialog *) {});
+        QCOMPARE(w.document()->nextStepSerial(), serial);
     }
 
     // ---- the review's fixes
