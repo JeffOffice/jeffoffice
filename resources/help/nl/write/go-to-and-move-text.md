@@ -1,34 +1,35 @@
-# Naar een locatie gaan en tekst verplaatsen
-<!-- keywords: ga naar, gaan naar, ctrl+g, pagina, sectie, regel, bladwijzer, voetnoot, kop, springen, navigeren, tekst verplaatsen, slepen, neerzetten, tekst kopiëren, slepen en neerzetten -->
+# Naar een plaats gaan en tekst verplaatsen
+<!-- keywords: ga naar, gaan naar, ctrl+g, pagina, sectie, regel, bladwijzer, voetnoot, eindnoot, opmerking, veld, tabel, afbeelding, vorm, formule, kop, springen, tekst verplaatsen, slepen, neerzetten, tekst kopiëren, slepen en neerzetten, verplaatsen, naar plaats gaan -->
 
-## Naar een locatie gaan
+## Naar een plaats gaan
 
-Druk op **Ctrl+G** of klik op **Start > Bewerken > Ga naar**. Het dialoogvenster **Ga naar** wordt geopend.
+Druk op **Ctrl+G**, of klik op **Start > Bewerken > Ga naar**. Het vak **Ga naar** wordt geopend.
 
-1. Kies bij **Ga naar** de optie **Pagina**, **Sectie**, **Regel**, **Bladwijzer**, **Voetnoot** of **Kop**.
-2. Typ een nummer of een naam. Voor een bladwijzer, voetnoot of kop kunt u er ook een kiezen in de lijst onder het vak.
-3. Klik op **Ga naar**. De cursor gaat naar die locatie en de pagina's schuiven zo dat u de locatie ziet.
+1. Kies bij **Ga naar** een van de opties **Pagina**, **Sectie**, **Regel**, **Bladwijzer**, **Voetnoot**, **Eindnoot**, **Opmerking**, **Veld**, **Tabel**, **Afbeelding**, **Formule** of **Kop**.
+2. Typ een getal of een naam. Voor een bladwijzer, een voetnoot of een kop kunt u ook een item kiezen uit de lijst onder het vak.
+3. Klik op **Ga naar**. De invoegpositie verspringt naar die plaats en de pagina's scrollen mee zodat die plaats in beeld komt.
 
 Enkele opmerkingen per soort:
 
-- **Pagina**, **Sectie**, **Voetnoot** en **Kop** verwachten een nummer: 3 gaat naar de derde. Zet er een **+** of **-** voor om te tellen vanaf de plek van de cursor: **+1** gaat naar de volgende en **-1** naar de vorige.
-- **Regel** verwacht een nummer, geteld vanaf het begin van het document.
-- **Bladwijzer** verwacht de naam van een bladwijzer. Hoofdletters en kleine letters maken daarbij niet uit. Bladwijzers die een programma voor eigen gebruik heeft gemaakt, met een naam die met een onderstrepingsteken begint, worden niet weergegeven.
-- **Kop** verwacht een nummer of een deel van de tekst van de kop. Koppen zijn alinea's met een overzichtsniveau, zoals de alinea's met een van de kopstijlen.
+- **Pagina**, **Sectie**, **Voetnoot**, **Eindnoot**, **Opmerking**, **Veld**, **Tabel**, **Afbeelding**, **Formule** en **Kop** nemen een getal: 3 gaat naar de derde. Zet een **+** of een **-** ervoor om te tellen vanaf de plaats van uw invoegpositie: **+1** gaat naar de volgende, en **-1** naar de vorige.
+- **Regel** werkt met een getal dat vanaf het begin van het document wordt geteld.
+- **Bladwijzer** werkt met de naam van een bladwijzer. Het maakt niet uit of u hoofdletters gebruikt. Bladwijzers die een programma voor eigen gebruik heeft gemaakt, waarvan de naam begint met een onderstreping, worden niet getoond.
+- **Opmerking**, **Veld**, **Tabel**, **Afbeelding** en **Formule** worden geteld in de volgorde waarin ze in de tekst staan. Een afbeelding is een plaatje, een vorm of een tekstvak. Een veld is een stuk tekst dat het programma voor u berekent, zoals een datum of een paginanummer. Antwoorden op een opmerking worden niet afzonderlijk geteld.
+- **Kop** werkt met een getal, of met een deel van de tekst van de kop. De koppen zijn de alinea's die een overzichtsniveau hebben, zoals de alinea's met de stijl Kop 1, Kop 2 enzovoort.
 
-Als de locatie niet in het document voorkomt, wordt dat gemeld en blijft het dialoogvenster open, zodat u iets anders kunt typen.
+Als de plaats niet in het document staat, meldt het vak dat en blijft het open, zodat u een andere plaats kunt typen.
 
 ## Tekst verplaatsen of kopiëren door te slepen
 
 1. Selecteer de tekst die u wilt verplaatsen.
-2. Druk met de muis op de geselecteerde tekst en houd de knop ingedrukt terwijl u de aanwijzer een klein stukje beweegt. Sleep de tekst daarna naar de gewenste plek.
-3. Laat de muisknop los. De tekst wordt daarheen verplaatst en blijft geselecteerd.
+2. Druk met de muis op de geselecteerde tekst en houd de knop ingedrukt terwijl u de aanwijzer een klein stukje verplaatst. Sleep de tekst vervolgens naar de gewenste plaats.
+3. Laat de muisknop los. De tekst verplaatst zich naar die plaats en blijft geselecteerd.
 
-Als u de tekst wilt kopiëren in plaats van verplaatsen, houdt u **Ctrl** ingedrukt terwijl u loslaat. Het origineel blijft dan op zijn plaats.
+Om de tekst te kopiëren in plaats van te verplaatsen, houdt u **Ctrl** ingedrukt terwijl u de muisknop loslaat. Het origineel blijft dan staan waar het stond.
 
-Slepen gebeurt in één stap, dus met één keer **Ongedaan maken** (Ctrl+Z) zet u de tekst terug. Als u de tekst op de selectie zelf neerzet, gebeurt er niets. U kunt ook tekst uit een ander programma naar uw document slepen.
+Slepen van tekst gebeurt in één stap, dus met één **Ongedaan maken** (Ctrl+Z) zet u de tekst terug. Als u de tekst neerzet op de selectie zelf, gebeurt er niets. U kunt ook tekst uit een ander programma naar uw document slepen.
 
-## Verwante onderwerpen
+## Zie ook
 
 - [Woorden zoeken en vervangen](find-replace)
-- [JeffWrite gebruiken met het toetsenbord](keyboard)
+- [JeffWrite met het toetsenbord gebruiken](keyboard)

@@ -247,8 +247,8 @@
          "text": "7eabb049a70ab299df1afe20f7a5502ac8ed4ab1a3d28d0f1c307be01db1c800"
         },
         {
-         "status": "todo",
-         "text": "aa5c7292c5bd3f9dcbc80d0b258c1d20a87608124c26551c6b94defa89c04320"
+         "status": "partly",
+         "text": "0922916720ba7dd26562524993023c41e86a0dd3b9a37930aa9b81ff6e4920bb"
         },
         {
          "hide_soon": true,
@@ -321,8 +321,8 @@
          "text": "7cc66d54c5068da08a69bc513718f421d39bddcbcadb34994e2453a8595e4938"
         },
         {
-         "status": "todo",
-         "text": "f59f18148ea69606b254725cbe6e737d981c49b9f93acb4113b11fc25ba0709c"
+         "status": "partly",
+         "text": "9bc3016fdb3be5dc709a4383a65347dcd6e678cca268129752036f6c8a8a467a"
         },
         {
          "status": "todo",
@@ -1105,8 +1105,9 @@
          "text": "0cc8a5f182445c63a8ff58d9b35898b8ecec5d90e03d1185a481d792c8881772"
         },
         {
-         "status": "todo",
-         "text": "1133f39e7657d8a04749fdbd3f5e0b45b8385de07b3a635bab1df4094285a0e2"
+         "hide_soon": true,
+         "status": "done",
+         "text": "503fe987edbb4c85eaaadaeadeccee354b0f4436a3af467c5b00b334bbc9a5d8"
         },
         {
          "hide_soon": true,
@@ -1355,7 +1356,7 @@
         },
         {
          "status": "partly",
-         "text": "467b25f70c07944a760d79065468f2b95c30d1fb90b08b2d9ebea9eceb147580"
+         "text": "a028603afd877e0901bcda59fbe3bbe91cfd2bc24a36f849446bfca18d630835"
         },
         {
          "hide_soon": true,
@@ -5401,8 +5402,9 @@
          "text": "91a0520c7c373226ee22dedb10ac04ebb7a553b6196150c3b23408137c644fb3"
         },
         {
-         "status": "partly",
-         "text": "a18fedcbe8e39626ac0564b464053a4fbb5cd935433204611874aa6867af5da1"
+         "hide_soon": true,
+         "status": "done",
+         "text": "3df659f6c4db5c5e8bb9b35530d582a27992eb082c18d0f005eb5a1db2738ca3"
         },
         {
          "status": "todo",
@@ -5427,16 +5429,17 @@
          "text": "be561b79c2744603d43d58f7047534117056a88c8e32c3f537a5805f25f7153e"
         },
         {
-         "status": "todo",
-         "text": "910d37703421a6f4a98b6d6bc3ee6b674f559be260d7ecc3017abf7e4609c9ba"
+         "status": "partly",
+         "text": "b37f5fd68165c3c0d24ef0fd197772a68a6f2c9a8c682627b7e4698a2f8c094f"
         },
         {
          "status": "partly",
-         "text": "814ae926896e0abf05e93aca83ab74ff59c746dfc7181e4dbaa9fe49e9ee9935"
+         "text": "a41c89bcdb7c3412708f72de750b5363ea9fac186359da26e61b2e419e24eebc"
         },
         {
-         "status": "todo",
-         "text": "4106d965f9ed29a5adc076976535675f06cf9c346fe4357089c366f5f8a4b850"
+         "hide_soon": true,
+         "status": "done",
+         "text": "522ff1d68902f0a45e3d39002084501d430dbaff6ca22340872d1f66c94dd29a"
         },
         {
          "hide_soon": true,
@@ -5458,7 +5461,7 @@
         },
         {
          "status": "partly",
-         "text": "f0d230f3449e0c79789761c2782c509c1e82ca96707b286b0e92940f10f09ee6"
+         "text": "04815648b7420cbf91c3053decdb85c6aebc5a380e15bfdec5fbafa9801b444d"
         },
         {
          "status": "partly",
@@ -5477,8 +5480,8 @@
          "text": "819b7a42f84d10870048a82a7c06c2118ce84f9641bc90b7af451b61b36d9356"
         },
         {
-         "status": "todo",
-         "text": "0123843a24662b531b31d71e027acc4a22020109338f114fd96596dbcf3705b3"
+         "status": "partly",
+         "text": "547456a22dbe31bc34e42d7abf751684315e4d66479425fd766e1bc5f81f3ae8"
         },
         {
          "status": "todo",
@@ -5501,8 +5504,8 @@
          "text": "ae0206fe23b573c6d4e6b4b917850f4d3a433da1af85ac01b5a8d03c852e5031"
         },
         {
-         "status": "todo",
-         "text": "dfd14e131569c64f0d9f1228410097a2a2f783a73affd964c1086aca56790c5c"
+         "status": "partly",
+         "text": "b6939f71ad74a0966bcf5114caad7791149a2057d22c4c5c9a55c1c44f96ece7"
         }
        ]
       }
@@ -5903,11 +5906,12 @@
        "items": [
         {
          "status": "partly",
-         "text": "eb9dfef11c538760a0bb895ead71b4b561615c81048ca8d576d5eb7736db4744"
+         "text": "cb341234ab0740f9e6073cd0ef2d9b9d073b3e26dfa2bbca04318180110ff374"
         },
         {
-         "status": "partly",
-         "text": "ae40437d49f1f68d520851feb312a5ece41dd74b87baa1d8765095c666bba898"
+         "hide_soon": true,
+         "status": "done",
+         "text": "5c34b57399223a89106ff905ef936d779f707cab21ec22982aae3e0295eaa90d"
         },
         {
          "hide_soon": true,
@@ -5921,11 +5925,11 @@
         },
         {
          "status": "partly",
-         "text": "b7d5e0f8afb84782185641031bec951b12541fb8edec20c1aceb906ad1968bf2"
+         "text": "c7962d6340d42ecbbeae73bcf7e489a94b6b85a5e79d8ab7151f97a73d193066"
         },
         {
          "status": "partly",
-         "text": "407b2ba9042e5672e0de410b47f84898167794f1946e7793c5e8cedc48ce9783"
+         "text": "7c51ef92f411b9f7e50cd3168b36c429a15072662eb5a4c41849a07fcf2b73d6"
         },
         {
          "status": "partly",
@@ -5959,8 +5963,8 @@
          "text": "7bfc791bc79adeabbd52694ec08cec23c2123c03cdb322dc988cb2df373cc35d"
         },
         {
-         "status": "todo",
-         "text": "50d602df71aebedac6e4bdbc5f6fc3628c9b32a9342a6eb4aea838fdd83baf22"
+         "status": "partly",
+         "text": "a2b1ab10a9c0bc1bc8291361c1242815ce0aa696ed21397f97b0cfad28bf8a51"
         },
         {
          "status": "todo",
@@ -6038,8 +6042,9 @@
          "text": "53d87204e947885d252c7bdb40398690f69606cb4d09f7da1ba0a86809510ae7"
         },
         {
-         "status": "partly",
-         "text": "632245ed4825adec0a0f65f8921c77b004e02123517010425b8b133a2bcfda04"
+         "hide_soon": true,
+         "status": "done",
+         "text": "407387422f0b0617c250bf0a96ff8c8ac821ef87ba5d95b6d2015094f6c644e3"
         },
         {
          "hide_soon": true,
@@ -6099,8 +6104,9 @@
        "text": "ec60e3febf580f312cf977138016fd69b19186eee8d24e2b98281056928e9d88"
       },
       {
-       "status": "partly",
-       "text": "b3781803375c0f25c23038813a81a9e8b86f72cf5b8bae37df635d26c89a02a6"
+       "hide_soon": true,
+       "status": "done",
+       "text": "2362094d5e005d53f738f180839c18400e264f4823f42766bfa6cd95d10d1cb1"
       },
       {
        "hide_soon": true,
@@ -6155,8 +6161,9 @@
          "text": "26476acf275aadc1f9d30b2adc1626c3c1827265eff08d331842a391377786e2"
         },
         {
-         "status": "partly",
-         "text": "4569cf5b930cf3aa371f84fc42ce16d8f8ee11c50ca60d5e5ebd45f19963f845"
+         "hide_soon": true,
+         "status": "done",
+         "text": "170abbe3fda5186dc803a541603034e8e85e1daeff0c7ba0e064e9b210f263fb"
         }
        ]
       },
@@ -6279,7 +6286,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "f32c38c3bdbdb3284e5156f20f0801eb8ff66a0ebb785d441f960a60e825c112"
+         "text": "bb22e95f6ea899bd01f1af5e23d18f0ca5996e3aa6786508c52c271527022768"
         },
         {
          "hide_soon": true,
@@ -6359,7 +6366,7 @@
         },
         {
          "status": "partly",
-         "text": "099347e631dd6fabfd669edbb15c3f05f94c56bd8787c28940aba2326eeabdb9"
+         "text": "83637ae4e8d1ee446744a6cbcbb05e71f6cb0c0e94e0c52cc16778a2487189a3"
         },
         {
          "hide_soon": true,
@@ -6377,7 +6384,7 @@
         },
         {
          "status": "partly",
-         "text": "17be27329345cd23757c48498c2568f5b5cc7f0d039a7b1edfbf9545b8f9b70c"
+         "text": "46c40a94412c5b251c573c8ecfca55513cd1811dcd75a20b3768bfed478ebf1c"
         },
         {
          "status": "partly",
@@ -6473,8 +6480,9 @@
          "text": "997633006dbda95a6884a8caa920b9e3947d96398a78feb91196876d2256b27a"
         },
         {
-         "status": "partly",
-         "text": "588abc4b4d2bd8234b55894bec58d63852a46a728adc3a98add2b202695a23e3"
+         "hide_soon": true,
+         "status": "done",
+         "text": "d20fa339b4b1237ec5515822f6f77b051634115a12e637f702a2ef1a3923a893"
         }
        ]
       },
@@ -6937,8 +6945,8 @@
          "text": "50206111499dec7b5129148d1787eb30fbf9d757cf35a695cd993f931035e7de"
         },
         {
-         "status": "todo",
-         "text": "19dc3197a44089c6a0fcea5d7f187bb850c8b9f8df8d66f09bc873c407e58875"
+         "status": "partly",
+         "text": "df03e17891a9ecb316811825d810315da3b1c254f2af062ab21f48ac62378978"
         },
         {
          "status": "todo",
@@ -7110,18 +7118,6 @@
     "en": "Advanced Find and Replace: wildcards, sounds like, word forms, find by format, special characters, and replace with the clipboard or found text",
     "es": "Buscar y reemplazar avanzado: comodines, suena como, formas de una palabra, búsqueda por formato, caracteres especiales y reemplazo con el portapapeles o el texto encontrado",
     "fr": "Recherche et remplacement avancés : caractères génériques, sonorité, formes d’un mot, recherche par format, caractères spéciaux et remplacement par le presse-papiers ou le texte trouvé"
-   }
-  },
-  "0123843a24662b531b31d71e027acc4a22020109338f114fd96596dbcf3705b3": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Advanced editing options: typing replaces selection, drag-and-drop, `Ctrl`+click links, overtype mode, and smart cut and paste",
-    "es": "Opciones avanzadas de edición: escribir reemplaza la selección, arrastrar y soltar, vínculos con `Ctrl`+clic, modo sobrescribir y cortar y pegar inteligente",
-    "fr": "Options d’édition avancées : la saisie remplace la sélection, glisser-déposer, liens par `Ctrl`+clic, mode refrappe et couper-coller intelligent"
    }
   },
   "01624bc3196129fdce10e7de6d6b828ee076a9c2a5d41f605cebc250eeb5d3c7": {
@@ -7350,6 +7346,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "04815648b7420cbf91c3053decdb85c6aebc5a380e15bfdec5fbafa9801b444d": {
+   "drop": false,
+   "en": "Display options: show formatting marks and table gridlines when a window opens. Hidden text shows with the formatting marks and never in print or PDF.",
+   "es": "Opciones de visualización: mostrar marcas de formato y líneas de cuadrícula de tablas al abrir una ventana. El texto oculto se muestra con las marcas de formato y nunca en la impresión ni en el PDF.",
+   "fr": "Options d’affichage : afficher les marques de mise en forme et le quadrillage des tableaux à l’ouverture d’une fenêtre. Le texte masqué s’affiche avec les marques de mise en forme, jamais à l’impression ni en PDF.",
+   "soon": {
+    "drop": false,
+    "en": "White space between pages, object anchors, optional hyphens, and print options",
+    "es": "Espacio en blanco entre páginas, anclas de objetos, guiones opcionales y opciones de impresión",
+    "fr": "Espace blanc entre les pages, ancres d’objets, traits d’union conditionnels et options d’impression"
    }
   },
   "049cabeeb9669cb677fb7426eacc2d94e2fc50960f71af7bf67073fb0af0085e": {
@@ -7700,6 +7708,18 @@
     "fr": ""
    }
   },
+  "0922916720ba7dd26562524993023c41e86a0dd3b9a37930aa9b81ff6e4920bb": {
+   "drop": false,
+   "en": "Print several pages on one sheet (1, 2, 4, 6, 9, or 16), to a printer or a PDF, with copies and collating.",
+   "es": "Imprima varias páginas en una hoja (1, 2, 4, 6, 9 o 16), en una impresora o en un PDF, con copias e intercalación.",
+   "fr": "Imprimez plusieurs pages sur une feuille (1, 2, 4, 6, 9 ou 16), vers une imprimante ou un PDF, avec copies et assemblage.",
+   "soon": {
+    "drop": false,
+    "en": "Scaling to a paper size, printing a table or chart alone, and a sheet preview",
+    "es": "Ajuste a un tamaño de papel, impresión de una tabla o gráfico por separado y vista previa de la hoja",
+    "fr": "Mise à l’échelle sur un format de papier, impression d’un tableau ou d’un graphique seul et aperçu de la feuille"
+   }
+  },
   "093d2154f24db1116df3156ec36c9d2f5c5285cfa1e14963da1fd069aba57e13": {
    "drop": false,
    "en": "Formulas > Error Checking steps through formulas that give an error and numbers stored as text, goes to each cell, and says what is wrong. A green triangle marks each cell with a problem, and Ignore Error is saved in the file and is one step of Undo.",
@@ -7770,18 +7790,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "099347e631dd6fabfd669edbb15c3f05f94c56bd8787c28940aba2326eeabdb9": {
-   "drop": false,
-   "en": "In JeffWrite, the Table Layout tab and the right-click menu select a cell, row, column, or table, and insert and delete rows, columns, and the table. Each is one step to undo.",
-   "es": "En JeffWrite, la pestaña Disposición de tabla y el menú contextual permiten seleccionar una celda, fila, columna o tabla, e insertar y eliminar filas, columnas y la tabla. Cada acción se deshace en un solo paso.",
-   "fr": "Dans JeffWrite, l’onglet Disposition du tableau et le menu contextuel permettent de sélectionner une cellule, une ligne, une colonne ou le tableau, et d’insérer et de supprimer des lignes, des colonnes et le tableau. Chaque action s’annule en une seule étape.",
-   "soon": {
-    "drop": false,
-    "en": "Delete a single cell and shift the cells",
-    "es": "Eliminar una sola celda y desplazar las celdas",
-    "fr": "Supprimer une seule cellule et décaler les cellules"
    }
   },
   "09967c12564893bc7b18e195581e66c2b05e83240e88dcc9f7eda66a28df451f": {
@@ -8252,18 +8260,6 @@
     "fr": ""
    }
   },
-  "1133f39e7657d8a04749fdbd3f5e0b45b8385de07b3a635bab1df4094285a0e2": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Thesaurus from an open-licensed word list",
-    "es": "Diccionario de sinónimos a partir de una lista de palabras de licencia abierta",
-    "fr": "Dictionnaire des synonymes à partir d’une liste de mots sous licence ouverte"
-   }
-  },
   "1157e14c8043df7c2e47fc30a3345623dae25b7ff02a19f7334545c3ab046433": {
    "drop": false,
    "en": "The JeffDeck Animation Pane lists each effect with its click number or bracket, picture, shape name, start, and a timeline bar. You can pick one or several rows, drag to reorder, use Play All and Play From, and right-click for On Click, With Previous, After Previous, Effect Options, Timing, and Remove. Numbers show on the slide's shapes.",
@@ -8660,6 +8656,18 @@
     "fr": ""
    }
   },
+  "170abbe3fda5186dc803a541603034e8e85e1daeff0c7ba0e064e9b210f263fb": {
+   "drop": false,
+   "en": "Check Accessibility opens a pane in JeffWrite that lists pictures without alt text, tables without a header row, blank cells, merged cells, skipped heading levels, low-contrast text, floating pictures, and unhelpful link text, with a click to go to each. It is also available from File > Info.",
+   "es": "Comprobar accesibilidad abre en JeffWrite un panel que enumera imágenes sin texto alternativo, tablas sin fila de encabezado, celdas vacías, celdas combinadas, niveles de título omitidos, texto con poco contraste, imágenes flotantes y texto de vínculo poco útil, con un clic para ir a cada uno. También está disponible en Archivo > Información.",
+   "fr": "Vérifier l’accessibilité ouvre dans JeffWrite un volet qui répertorie les images sans texte de remplacement, les tableaux sans ligne d’en-tête, les cellules vides, les cellules fusionnées, les niveaux de titre sautés, le texte à faible contraste, les images flottantes et les textes de lien peu explicites, avec un clic pour accéder à chacun. Il est aussi disponible dans Fichier > Informations.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "171049ee7d65a1d2b759193035d060ab6d1c303b52c5f90a8903512d8ef5c873": {
    "drop": false,
    "en": "JeffDeck opens damaged files as far as it can.",
@@ -8718,18 +8726,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "17be27329345cd23757c48498c2568f5b5cc7f0d039a7b1edfbf9545b8f9b70c": {
-   "drop": false,
-   "en": "In JeffWrite, the Table Properties dialog sets alignment, indent, preferred width, default cell margins, space between cells, allowing a row to break across pages, repeating a header row on each page, vertical alignment, no wrap, and alt text.",
-   "es": "En JeffWrite, el cuadro Propiedades de tabla permite definir alineación, sangría, ancho preferido, márgenes predeterminados de celda, espacio entre celdas, permitir que una fila se divida entre páginas, repetir una fila de encabezado en cada página, alineación vertical, sin ajuste y texto alternativo.",
-   "fr": "Dans JeffWrite, la boîte Propriétés du tableau permet de définir l’alignement, le retrait, la largeur préférée, les marges de cellule par défaut, l’espacement entre cellules, l’autorisation de couper une ligne entre deux pages, la répétition d’une ligne d’en-tête sur chaque page, l’alignement vertical, l’absence de retour à la ligne et le texte de remplacement.",
-   "soon": {
-    "drop": false,
-    "en": "Table Properties: text wrapping around the table and fit text",
-    "es": "Propiedades de tabla: ajuste del texto alrededor de la tabla y ajustar texto",
-    "fr": "Propriétés du tableau : habillage du texte autour du tableau et ajustement du texte"
    }
   },
   "17df4a53ca067aa8b233343ad975db04823f8730d659b4209da55a7b70051353": {
@@ -8886,18 +8882,6 @@
     "en": "Paper sizes: the printer's own list",
     "es": "Tamaños de papel: la lista propia de la impresora",
     "fr": "Formats de papier : la liste propre à l’imprimante"
-   }
-  },
-  "19dc3197a44089c6a0fcea5d7f187bb850c8b9f8df8d66f09bc873c407e58875": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "HTML: open a page as a document and save a document as HTML",
-    "es": "HTML: abrir una página como documento y guardar un documento como HTML",
-    "fr": "HTML : ouverture d’une page comme document et enregistrement d’un document en HTML"
    }
   },
   "19ea276fadb54b98d078875fde497554afdff2c7c2482ee818c8d168e6ee3ff7": {
@@ -9553,6 +9537,18 @@
    "en": "JeffCrunch reads large `.xlsx` sheets in pieces, so sheets with millions of cells open within the memory limit in seconds.",
    "es": "JeffCrunch lee en fragmentos las hojas `.xlsx` grandes, de modo que las hojas con millones de celdas se abren en segundos dentro del límite de memoria.",
    "fr": "JeffCrunch lit les grandes feuilles `.xlsx` par morceaux, de sorte que les feuilles de plusieurs millions de cellules s’ouvrent en quelques secondes dans la limite de mémoire.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "2362094d5e005d53f738f180839c18400e264f4823f42766bfa6cd95d10d1cb1": {
+   "drop": false,
+   "en": "Insert an address block and a greeting line with a choice of formats and a preview, insert merge fields from the list's columns, match fields, highlight fields, and update labels. Address block formats in files are read.",
+   "es": "Inserte un bloque de direcciones y una línea de saludo con una selección de formatos y una vista previa, inserte campos de combinación de las columnas de la lista, haga coincidir campos, resalte campos y actualice etiquetas. Se leen los formatos de bloque de direcciones de los archivos.",
+   "fr": "Insérez un bloc d’adresse et une formule d’appel avec un choix de formats et un aperçu, insérez des champs de fusion à partir des colonnes de la liste, faites correspondre les champs, surlignez les champs et mettez à jour les étiquettes. Les formats de bloc d’adresse des fichiers sont lus.",
    "soon": {
     "drop": true,
     "en": "",
@@ -11408,6 +11404,18 @@
     "fr": ""
    }
   },
+  "3df659f6c4db5c5e8bb9b35530d582a27992eb082c18d0f005eb5a1db2738ca3": {
+   "drop": false,
+   "en": "In JeffWrite, you can print only the odd or even pages, print in reverse order, put 1, 2, 4, 6, 9, or 16 pages on a sheet, and scale pages to Letter, Legal, A4, A5, or A3, to a printer or a PDF file.",
+   "es": "En JeffWrite, usted puede imprimir solo las páginas impares o pares, imprimir en orden inverso, colocar 1, 2, 4, 6, 9 o 16 páginas en una hoja y ajustar las páginas a Letter, Legal, A4, A5 o A3, en una impresora o en un PDF.",
+   "fr": "Dans JeffWrite, vous pouvez imprimer uniquement les pages impaires ou paires, imprimer en ordre inverse, placer 1, 2, 4, 6, 9 ou 16 pages par feuille et adapter les pages à Letter, Legal, A4, A5 ou A3, vers une imprimante ou un fichier PDF.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "3e2ea13d39d6bffa3267412de9daa6ab8071fe24ce083eab901f3de600e55112": {
    "drop": false,
    "en": "`CELL` works.",
@@ -11588,16 +11596,16 @@
     "fr": ""
    }
   },
-  "407b2ba9042e5672e0de410b47f84898167794f1946e7793c5e8cedc48ce9783": {
+  "407387422f0b0617c250bf0a96ff8c8ac821ef87ba5d95b6d2015094f6c644e3": {
    "drop": false,
-   "en": "The Page Setup dialog sets margins, gutter on the left, orientation, paper size, section start, different first page, different odd and even pages, and header and footer distances, for a section or the whole document, in one step.",
-   "es": "El cuadro de diálogo Configurar página define márgenes, medianil a la izquierda, orientación, tamaño del papel, inicio de sección, primera página diferente, páginas pares e impares diferentes y distancias del encabezado y del pie de página, para una sección o todo el documento, en un solo paso.",
-   "fr": "La boîte de dialogue Mise en page définit les marges, la reliure à gauche, l’orientation, le format du papier, le début de section, la première page différente, les pages paires et impaires différentes et les distances de l’en-tête et du pied de page, pour une section ou tout le document, en une seule étape.",
+   "en": "Insert a table of figures from a caption label or from a paragraph style, with or without the label and number, and update it with `F9`.",
+   "es": "Inserte una tabla de ilustraciones a partir de una etiqueta de título o de un estilo de párrafo, con o sin la etiqueta y el número, y actualícela con `F9`.",
+   "fr": "Insérez une table des illustrations à partir d’une étiquette de légende ou d’un style de paragraphe, avec ou sans l’étiquette et le numéro, et mettez-la à jour avec `F9`.",
    "soon": {
-    "drop": false,
-    "en": "Paper source, vertical page alignment, top gutter, and applying settings from this point on",
-    "es": "Origen del papel, alineación vertical de la página, medianil superior y aplicación de la configuración desde este punto",
-    "fr": "Source du papier, alignement vertical de la page, reliure en haut et application des réglages à partir de ce point"
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "40a15f8709431a1713a0a7aeda094da7099b5183a09725289234fc54a0cba69b": {
@@ -11634,18 +11642,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "4106d965f9ed29a5adc076976535675f06cf9c346fe4357089c366f5f8a4b850": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Save as a single-file web page",
-    "es": "Guardar como página web de un solo archivo",
-    "fr": "Enregistrement en page web d’un seul fichier"
    }
   },
   "41248743fd5073dbce5a8463ac14318d5d84e6aab0b9306efa95fd67e937a802": {
@@ -11900,18 +11896,6 @@
     "fr": ""
    }
   },
-  "4569cf5b930cf3aa371f84fc42ce16d8f8ee11c50ca60d5e5ebd45f19963f845": {
-   "drop": false,
-   "en": "Check Accessibility opens a pane that lists pictures without alt text, tables without a header row, blank cells, skipped heading levels, text too close in color to the page or highlight, and floating pictures. Click an item to go to it.",
-   "es": "Comprobar accesibilidad abre un panel que enumera imágenes sin texto alternativo, tablas sin fila de encabezado, celdas vacías, niveles de título omitidos, texto con color demasiado parecido al de la página o al resaltado e imágenes flotantes. Haga clic en un elemento para ir a él.",
-   "fr": "Vérifier l’accessibilité ouvre un volet qui liste les images sans texte de remplacement, les tableaux sans ligne d’en-tête, les cellules vides, les niveaux de titre ignorés, le texte dont la couleur est trop proche de celle de la page ou du surlignage, et les images flottantes. Cliquez sur un élément pour y accéder.",
-   "soon": {
-    "drop": false,
-    "en": "Checks for merged cells and link text, and the check from File > Info",
-    "es": "Comprobaciones de celdas combinadas y texto de vínculos, y la comprobación desde Archivo > Información",
-    "fr": "Contrôles des cellules fusionnées et du texte des liens, et contrôle depuis Fichier > Informations"
-   }
-  },
   "458f082e295efc8a087a2421e05047389d5976a753188c74573ed8417cef71e0": {
    "drop": true,
    "en": "",
@@ -12008,18 +11992,6 @@
     "fr": ""
    }
   },
-  "467b25f70c07944a760d79065468f2b95c30d1fb90b08b2d9ebea9eceb147580": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Chart Filters button",
-    "es": "Botón de filtros de gráfico",
-    "fr": "Bouton de filtres du graphique"
-   }
-  },
   "4692718a9d35382a842890cd50dea9f35f63605487087d7a65b09fc44750275a": {
    "drop": false,
    "en": "Diagrams in a file are drawn from the drawing the file keeps and are written back as they were.",
@@ -12042,6 +12014,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "46c40a94412c5b251c573c8ecfca55513cd1811dcd75a20b3768bfed478ebf1c": {
+   "drop": false,
+   "en": "The Table Properties dialog sets alignment, indent, text wrapping around the table, preferred width, default cell margins, space between cells, row breaking across pages, repeating header rows, vertical alignment, no wrap, and alt text.",
+   "es": "El cuadro de diálogo Propiedades de tabla permite definir la alineación, la sangría, el ajuste del texto alrededor de la tabla, el ancho preferido, los márgenes predeterminados de las celdas, el espacio entre celdas, la división de filas entre páginas, las filas de encabezado repetidas, la alineación vertical, no ajustar texto y el texto alternativo.",
+   "fr": "La boîte de dialogue Propriétés du tableau permet de définir l’alignement, le retrait, l’habillage du texte autour du tableau, la largeur préférée, les marges par défaut des cellules, l’espacement entre les cellules, la coupure des lignes entre les pages, les lignes d’en-tête répétées, l’alignement vertical, l’absence de retour à la ligne et le texte de remplacement.",
+   "soon": {
+    "drop": false,
+    "en": "Fit text in table cells",
+    "es": "Ajustar texto en las celdas de la tabla",
+    "fr": "Ajustement du texte dans les cellules du tableau"
    }
   },
   "46cdcfff0c933ffa9021c597265f11c5c03b1bd87d8f044d0272535e3981999e": {
@@ -12680,6 +12664,18 @@
     "fr": "Dépôt sur l’onglet d’une autre feuille, insertion par glissement et insertion de cellules copiées"
    }
   },
+  "503fe987edbb4c85eaaadaeadeccee354b0f4436a3af467c5b00b334bbc9a5d8": {
+   "drop": false,
+   "en": "Look up synonyms for the first word of a cell's text in the English word list with `Shift+F7`, and replace the text in the cell with the choice.",
+   "es": "Busque sinónimos de la primera palabra del texto de una celda en la lista de palabras en inglés con `Shift+F7` y reemplace el texto de la celda con la opción elegida.",
+   "fr": "Recherchez des synonymes du premier mot du texte d’une cellule dans la liste de mots anglais avec `Shift+F7` et remplacez le texte de la cellule par le choix effectué.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "504272f5b7697fe6a457a2afdca08dbfcba262bdbf00ee987ddc7f502573c1cd": {
    "drop": false,
    "en": "Insert Footnote and Insert Endnote (`Ctrl+Alt+F` and `Ctrl+Alt+D`) add numbered notes. The References tab sets the number format (1, a, A, i, I, or symbols), the starting number, restarting each section or page, and where endnotes go (end of section or end of document).",
@@ -12750,18 +12746,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "50d602df71aebedac6e4bdbc5f6fc3628c9b32a9342a6eb4aea838fdd83baf22": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Bring Forward, Send Backward, Align, Group, Ungroup, Regroup, Rotate, and Flip",
-    "es": "Traer adelante, enviar atrás, alinear, agrupar, desagrupar, reagrupar, girar y voltear",
-    "fr": "Avancer, reculer, aligner, grouper, dissocier, regrouper, pivoter et retourner"
    }
   },
   "50d947115ceff42cada768368d3032b0ba6a93706089da4fc81f61ccda3104ea": {
@@ -12877,6 +12861,18 @@
    "en": "Save a copy of a workbook as an `.ots` file, an OpenDocument template, using Save a Copy.",
    "es": "Con Guardar una copia, puede guardar un libro como archivo `.ots`, una plantilla de OpenDocument.",
    "fr": "Avec Enregistrer une copie, vous pouvez enregistrer un classeur au format `.ots`, un modèle OpenDocument.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "522ff1d68902f0a45e3d39002084501d430dbaff6ca22340872d1f66c94dd29a": {
+   "drop": false,
+   "en": "Save a document as a single `.html` file that contains the text, its formatting (font, size, color, highlight, alignment, and spacing), and the pictures. Hidden text and tracked deletions are left out.",
+   "es": "Guarde un documento como un solo archivo `.html` que contiene el texto, su formato (fuente, tamaño, color, resaltado, alineación y espaciado) y las imágenes. El texto oculto y las eliminaciones con control de cambios se omiten.",
+   "fr": "Enregistrez un document en un seul fichier `.html` contenant le texte, sa mise en forme (police, taille, couleur, surlignage, alignement et espacement) et les images. Le texte masqué et les suppressions suivies sont exclus.",
    "soon": {
     "drop": true,
     "en": "",
@@ -13026,6 +13022,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "547456a22dbe31bc34e42d7abf751684315e4d66479425fd766e1bc5f81f3ae8": {
+   "drop": false,
+   "en": "Advanced editing options: Ctrl+click to follow a link, drag-and-drop text, typing that replaces the selection, and overtype mode with the `Insert` key.",
+   "es": "Opciones de edición avanzada: Ctrl+clic para seguir un vínculo, arrastrar y soltar texto, escritura que reemplaza la selección y modo de sobrescritura con la tecla `Insert`.",
+   "fr": "Options d’édition avancées : Ctrl+clic pour suivre un lien, glisser-déposer du texte, saisie qui remplace la sélection et mode refrappe avec la touche `Insert`.",
+   "soon": {
+    "drop": false,
+    "en": "Smart paragraph selection, select the whole word, and smart cut and paste",
+    "es": "Selección inteligente de párrafos, selección de la palabra completa y cortar y pegar inteligente",
+    "fr": "Sélection intelligente des paragraphes, sélection du mot entier et couper-coller intelligent"
    }
   },
   "54a001a714fbb43a59ce5048030dc84b9e4a6cb9cfd3fa9ffb1669e0952e96ff": {
@@ -13304,18 +13312,6 @@
     "fr": ""
    }
   },
-  "588abc4b4d2bd8234b55894bec58d63852a46a728adc3a98add2b202695a23e3": {
-   "drop": false,
-   "en": "The header and footer distances are set in Page Setup.",
-   "es": "Las distancias del encabezado y del pie de página se definen en Configurar página.",
-   "fr": "Les distances de l’en-tête et du pied de page se règlent dans Mise en page.",
-   "soon": {
-    "drop": false,
-    "en": "Insert Alignment Tab and Show Document Text",
-    "es": "Insertar tabulación de alineación y mostrar texto del documento",
-    "fr": "Insertion d’une tabulation d’alignement et affichage du texte du document"
-   }
-  },
   "58b99f1b368fe801709c1dcafc81dfe03e0b540e28945fb94b59da408c991126": {
    "drop": false,
    "en": "JeffCrunch shows pivot tables and pivot charts in a workbook as saved, with the numbers in the cells, the field list, and the filters. It keeps them whole, with the data behind them, and writes them back as they were.",
@@ -13585,6 +13581,18 @@
    "en": "Share and Export",
    "es": "Compartir y exportar",
    "fr": "Partager et exporter",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "5c34b57399223a89106ff905ef936d779f707cab21ec22982aae3e0295eaa90d": {
+   "drop": false,
+   "en": "Page size and orientation can be set for each section in Page Setup.",
+   "es": "El tamaño de página y la orientación se pueden definir para cada sección en Configurar página.",
+   "fr": "La taille de page et l’orientation peuvent être définies pour chaque section dans Mise en page.",
    "soon": {
     "drop": true,
     "en": "",
@@ -14070,18 +14078,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "632245ed4825adec0a0f65f8921c77b004e02123517010425b8b133a2bcfda04": {
-   "drop": false,
-   "en": "In JeffWrite, you can insert a table of figures from a caption label, with or without the label and number, in the table of figures style, and update it with `F9`. A table based on a style is read and updated from a file’s code.",
-   "es": "En JeffWrite, usted puede insertar una tabla de ilustraciones a partir de una etiqueta de título, con o sin la etiqueta y el número, en el estilo de tabla de ilustraciones, y actualizarla con `F9`. Una tabla basada en un estilo se lee y se actualiza a partir del código de un archivo.",
-   "fr": "Dans JeffWrite, vous pouvez insérer une table des illustrations à partir d’une étiquette de légende, avec ou sans l’étiquette et le numéro, dans le style de table des illustrations, et la mettre à jour avec `F9`. Une table basée sur un style est lue et mise à jour à partir du code d’un fichier.",
-   "soon": {
-    "drop": false,
-    "en": "Table of figures from a style: create from the dialog",
-    "es": "Tabla de ilustraciones a partir de un estilo: creación desde el cuadro de diálogo",
-    "fr": "Table des illustrations à partir d’un style : création depuis la boîte de dialogue"
    }
   },
   "6347f4cde2903f3dd77fc53214b8abd86d2296123e6054003870a8cfc75d9a9e": {
@@ -15848,6 +15844,18 @@
     "fr": ""
    }
   },
+  "7c51ef92f411b9f7e50cd3168b36c429a15072662eb5a4c41849a07fcf2b73d6": {
+   "drop": false,
+   "en": "The Page Setup dialog sets margins, a left gutter, orientation, paper size, section start, a different first page, different odd and even pages, and the header and footer distances, for a section or the whole document.",
+   "es": "El cuadro de diálogo Configurar página permite definir márgenes, un medianil a la izquierda, orientación, tamaño de papel, inicio de sección, primera página distinta, páginas pares e impares distintas y las distancias del encabezado y del pie de página, para una sección o todo el documento.",
+   "fr": "La boîte de dialogue Mise en page permet de définir les marges, une reliure à gauche, l’orientation, la taille du papier, le début de section, une première page différente, des pages paires et impaires différentes et les distances de l’en-tête et du pied de page, pour une section ou pour tout le document.",
+   "soon": {
+    "drop": false,
+    "en": "Paper source, vertical page alignment, and a top gutter in Page Setup",
+    "es": "Origen del papel, alineación vertical de la página y medianil superior en Configurar página",
+    "fr": "Source du papier, alignement vertical de la page et reliure en haut dans Mise en page"
+   }
+  },
   "7c611972899c7b5cf05def3eddfe9e2c32aed8881f6f50a985358c79a912efad": {
    "drop": false,
    "en": "Insert hyperlinks (web, email, place in this document, new document) and bookmarks.",
@@ -16196,18 +16204,6 @@
     "fr": "Options de vérification : correction automatique, orthographe, mots ignorés et dictionnaires personnalisés"
    }
   },
-  "814ae926896e0abf05e93aca83ab74ff59c746dfc7181e4dbaa9fe49e9ee9935": {
-   "drop": false,
-   "en": "In JeffWrite, Export > Save as Plain Text offers UTF-8, UTF-8 with mark, UTF-16, ISO 8859-1, and ASCII encodings and the line endings of either system. Hidden text is left out, and a line break falls at the end of each paragraph.",
-   "es": "En JeffWrite, Exportar > Guardar como texto sin formato ofrece las codificaciones UTF-8, UTF-8 con marca, UTF-16, ISO 8859-1 y ASCII, y los finales de línea de cualquiera de los dos sistemas. El texto oculto se omite y se inserta un salto de línea al final de cada párrafo.",
-   "fr": "Dans JeffWrite, Exporter > Enregistrer en texte brut propose les encodages UTF-8, UTF-8 avec marque, UTF-16, ISO 8859-1 et ASCII, et les fins de ligne de l’un ou l’autre système. Le texte masqué est omis, et un saut de ligne tombe à la fin de chaque paragraphe.",
-   "soon": {
-    "drop": false,
-    "en": "Line breaks at each laid-out line and filtered HTML export",
-    "es": "Saltos de línea en cada línea de la maquetación y exportación a HTML filtrado",
-    "fr": "Sauts de ligne à chaque ligne mise en page et export en HTML filtré"
-   }
-  },
   "819b7a42f84d10870048a82a7c06c2118ce84f9641bc90b7af451b61b36d9356": {
    "drop": true,
    "en": "",
@@ -16374,6 +16370,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "83637ae4e8d1ee446744a6cbcbb05e71f6cb0c0e94e0c52cc16778a2487189a3": {
+   "drop": false,
+   "en": "Select a cell, row, column, or table; insert and delete rows, columns, and the table; delete cells and shift the remaining cells left.",
+   "es": "Seleccione una celda, fila, columna o tabla; inserte y elimine filas, columnas y la tabla; elimine celdas y desplace a la izquierda las celdas restantes.",
+   "fr": "Sélectionnez une cellule, une ligne, une colonne ou un tableau ; insérez et supprimez des lignes, des colonnes et le tableau ; supprimez des cellules et décalez les cellules restantes vers la gauche.",
+   "soon": {
+    "drop": false,
+    "en": "Delete cells with shift up",
+    "es": "Eliminar celdas desplazando hacia arriba",
+    "fr": "Suppression de cellules avec décalage vers le haut"
    }
   },
   "839dcb2592ecc34c9aa5c9d67bbf3ac3d7dab632d5901335af1629b71dc62e80": {
@@ -17228,18 +17236,6 @@
     "fr": ""
    }
   },
-  "910d37703421a6f4a98b6d6bc3ee6b674f559be260d7ecc3017abf7e4609c9ba": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "PDF/A, tagged PDF, password-protected PDF, and PDF/X-1a and PDF/X-4",
-    "es": "PDF/A, PDF etiquetado, PDF con contraseña y PDF/X-1a y PDF/X-4",
-    "fr": "PDF/A, PDF balisé, PDF protégé par mot de passe et PDF/X-1a et PDF/X-4"
-   }
-  },
   "911cfa245408b97bac94cb87e157891170b36f82fb2483ac7f6238b4e9c73390": {
    "drop": false,
    "en": "JeffWrite includes open fonts, with stand-ins that keep the letter widths of common fonts, so a document lays out the same on a computer without those fonts.",
@@ -18080,6 +18076,18 @@
     "fr": ""
    }
   },
+  "9bc3016fdb3be5dc709a4383a65347dcd6e678cca268129752036f6c8a8a467a": {
+   "drop": false,
+   "en": "Show or hide zeros in cells for the sheet in view, kept with the sheet in `.xlsx`. Formulas, page breaks, outline symbols, objects, and right-to-left sheets can be set from ribbon commands.",
+   "es": "Muestre u oculte los ceros en las celdas de la hoja activa, y se conserva con la hoja en `.xlsx`. Las fórmulas, los saltos de página, los símbolos de esquema, los objetos y las hojas de derecha a izquierda se pueden ajustar desde los comandos de la cinta de opciones.",
+   "fr": "Affichez ou masquez les zéros dans les cellules de la feuille active, réglage conservé avec la feuille dans `.xlsx`. Les formules, les sauts de page, les symboles de plan, les objets et les feuilles de droite à gauche se règlent depuis les commandes du ruban.",
+   "soon": {
+    "drop": false,
+    "en": "Gridline color, default zoom, and standard width",
+    "es": "Color de las líneas de cuadrícula, zoom predeterminado y ancho estándar",
+    "fr": "Couleur du quadrillage, zoom par défaut et largeur standard"
+   }
+  },
   "9c10415e74925578c3ef08ab8a69282498a27c45d9ca138fd1de27ea46331724": {
    "drop": false,
    "en": "Compare checks the open document against a file you choose, word by word or letter by letter, optionally ignoring capitals or white space. The result opens in a new window as tracked changes signed with a name you give. Accepting all gives the revised text, and rejecting all gives the first version. It compares body text.",
@@ -18404,6 +18412,18 @@
     "fr": "Obtention de données depuis du texte, CSV, classeurs, JSON, XML, pages web, dossiers, SQLite, ODBC, PostgreSQL et MySQL sous forme d’étapes visibles, modifiables et actualisables"
    }
   },
+  "a028603afd877e0901bcda59fbe3bbe91cfd2bc24a36f849446bfca18d630835": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Chart Filters button",
+    "es": "Botón Filtros de gráfico",
+    "fr": "Bouton Filtres de graphique"
+   }
+  },
   "a066d857ed93ffc2963175f7e3e98e1b22a2c0ad667bdd1a9cd4b989a05e89d3": {
    "drop": true,
    "en": "",
@@ -18476,18 +18496,6 @@
     "fr": ""
    }
   },
-  "a18fedcbe8e39626ac0564b464053a4fbb5cd935433204611874aa6867af5da1": {
-   "drop": false,
-   "en": "In JeffWrite, the Print page can print only the odd or only the even pages of the range, and print the last page first.",
-   "es": "En JeffWrite, la página Imprimir puede imprimir solo las páginas impares o solo las pares del intervalo, e imprimir primero la última página.",
-   "fr": "Dans JeffWrite, la page Imprimer peut imprimer uniquement les pages impaires ou paires de la plage, et imprimer la dernière page en premier.",
-   "soon": {
-    "drop": false,
-    "en": "Several pages on a sheet and scaling to a paper size",
-    "es": "Varias páginas por hoja y ajuste a un tamaño de papel",
-    "fr": "Plusieurs pages par feuille et mise à l’échelle selon un format de papier"
-   }
-  },
   "a1bee98c903dcb49df49adb6de24442e6441dd77eef7e96c7a2da4d1afa1c6b9": {
    "drop": false,
    "en": "In JeffCrunch, Collapse the Ribbon (`Ctrl+F1`) and Full Screen (`Ctrl+Shift+F1`) are available. A right click on the status bar numbers chooses Average, Count, Numerical Count, Minimum, Maximum, or Sum.",
@@ -18510,6 +18518,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "a2b1ab10a9c0bc1bc8291361c1242815ce0aa696ed21397f97b0cfad28bf8a51": {
+   "drop": false,
+   "en": "Floating pictures can be moved forward or backward among other floating pictures, to the front or back, and in front of or behind text.",
+   "es": "Las imágenes flotantes se pueden mover hacia delante o hacia atrás entre otras imágenes flotantes, al frente o al fondo, y delante o detrás del texto.",
+   "fr": "Les images flottantes peuvent être avancées ou reculées parmi les autres images flottantes, placées au premier plan ou à l’arrière-plan, et devant ou derrière le texte.",
+   "soon": {
+    "drop": false,
+    "en": "Align, Group, and Rotate or Flip, and arranging shapes and text boxes",
+    "es": "Alinear, agrupar y girar o voltear, y ordenar formas y cuadros de texto",
+    "fr": "Aligner, grouper, pivoter ou retourner, et organiser les formes et les zones de texte"
    }
   },
   "a35277c3c54655d73a4d376e0324bb748ee090c6a7548059a6b288f6e2a806c6": {
@@ -18582,6 +18602,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "a41c89bcdb7c3412708f72de750b5363ea9fac186359da26e61b2e419e24eebc": {
+   "drop": false,
+   "en": "Save a document as plain text, with UTF-8, UTF-8 with mark, UTF-16, ISO 8859-1, or ASCII encoding and the line endings of either system, or as filtered HTML that keeps headings, bold, italic, underline, strike, superscript, subscript, lists, tables, links, and pictures. Hidden text is left out. A line break falls at each paragraph end.",
+   "es": "Guarde un documento como texto sin formato, con codificación UTF-8, UTF-8 con marca, UTF-16, ISO 8859-1 o ASCII y los finales de línea de cualquiera de los dos sistemas, o como HTML filtrado que conserva encabezados, negrita, cursiva, subrayado, tachado, superíndice, subíndice, listas, tablas, vínculos e imágenes. El texto oculto se omite. Se inserta un salto de línea al final de cada párrafo.",
+   "fr": "Enregistrez un document en texte brut, avec l’encodage UTF-8, UTF-8 avec marque, UTF-16, ISO 8859-1 ou ASCII et les fins de ligne de l’un ou l’autre système, ou en HTML filtré qui conserve titres, gras, italique, souligné, barré, exposant, indice, listes, tableaux, liens et images. Le texte masqué est exclu. Un saut de ligne est placé à la fin de chaque paragraphe.",
+   "soon": {
+    "drop": false,
+    "en": "Plain text: line breaks at each laid-out line",
+    "es": "Texto sin formato: saltos de línea en cada línea del diseño",
+    "fr": "Texte brut : sauts de ligne à chaque ligne mise en page"
    }
   },
   "a4bf6e2bdcf37f71b6bdab8b5c093dc91b0b4abc185da91d7b5e1166d9299f72": {
@@ -18956,18 +18988,6 @@
     "fr": ""
    }
   },
-  "aa5c7292c5bd3f9dcbc80d0b258c1d20a87608124c26551c6b94defa89c04320": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Print several pages per sheet, scaled to a paper size, collated or not, and a table or chart alone",
-    "es": "Impresión de varias páginas por hoja, ajustada a un tamaño de papel, intercalada o no, y de una tabla o un gráfico por separado",
-    "fr": "Impression de plusieurs pages par feuille, mises à l’échelle d’un format de papier, assemblées ou non, et d’un tableau ou d’un graphique seul"
-   }
-  },
   "aa6b7b652f7468c67f63bf027ae803464a45286d94a0e555dfe9ea221a99ca19": {
    "drop": false,
    "en": "JeffPub has built-in Help that works offline. The Help pane has topics in plain language, a contents page, links between topics, Back and Forward, and a search that finds topics and commands and runs the commands. `F1` opens the topic for what you are doing, such as the ribbon tab, task pane, File page, dialog, or selected object.",
@@ -19232,18 +19252,6 @@
     "fr": ""
    }
   },
-  "ae40437d49f1f68d520851feb312a5ece41dd74b87baa1d8765095c666bba898": {
-   "drop": false,
-   "en": "Page size and orientation can be set for each section in Page Setup.",
-   "es": "El tamaño y la orientación de la página se pueden establecer para cada sección en Configurar página.",
-   "fr": "La taille et l’orientation de la page peuvent être définies pour chaque section dans Mise en page.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "ae8afc8bc67a22e40dae8e62664e39c3d89a8f3550009d89ee26d940fcb10ee6": {
    "drop": false,
    "en": "Export > Make an Email creates a message file with the document, a PDF, or the first 30 pages as pictures inside the message. A password-protected document stays protected. Nothing is sent.",
@@ -19496,16 +19504,16 @@
     "fr": ""
    }
   },
-  "b3781803375c0f25c23038813a81a9e8b86f72cf5b8bae37df635d26c89a02a6": {
+  "b37f5fd68165c3c0d24ef0fd197772a68a6f2c9a8c682627b7e4698a2f8c094f": {
    "drop": false,
-   "en": "Insert an Address Block with a choice of formats or your own lines, a country to leave out, and a preview. Insert a Greeting Line with formats, a line for recipients with no name, and a preview. Insert merge fields from the list's columns, use Match Fields, Highlight Merge Fields on screen, and Update Labels.",
-   "es": "Inserte un bloque de direcciones con una selección de formatos o sus propias líneas, un país que omitir y una vista previa. Inserte una línea de saludo con formatos, una línea para destinatarios sin nombre y una vista previa. Inserte campos de combinación de las columnas de la lista, use Coincidir campos, resalte los campos de combinación en pantalla y actualice las etiquetas.",
-   "fr": "Insérez un bloc d’adresse avec un choix de formats ou vos propres lignes, un pays à omettre et un aperçu. Insérez une formule d’appel avec des formats, une ligne pour les destinataires sans nom et un aperçu. Insérez des champs de fusion à partir des colonnes de la liste, utilisez la correspondance des champs, surlignez les champs de fusion à l’écran et mettez à jour les étiquettes.",
+   "en": "Export to PDF/A: JeffWrite writes a PDF/A-1b file.",
+   "es": "Exportación a PDF/A: JeffWrite genera un archivo PDF/A-1b.",
+   "fr": "Exportation en PDF/A : JeffWrite crée un fichier PDF/A-1b.",
    "soon": {
     "drop": false,
-    "en": "Match Fields choices: save in the file",
-    "es": "Opciones de Coincidir campos: guardar en el archivo",
-    "fr": "Choix de correspondance des champs : enregistrement dans le fichier"
+    "en": "Tagged PDF, PDF with a password, and PDF/X for printers",
+    "es": "PDF etiquetado, PDF con contraseña y PDF/X para imprentas",
+    "fr": "PDF balisé, PDF avec mot de passe et PDF/X pour l’impression"
    }
   },
   "b42ba8a6efed652a9d71b46bc999da05ce6a44887a14f149869e0b0d8d3bbc67": {
@@ -19664,6 +19672,18 @@
     "fr": ""
    }
   },
+  "b6939f71ad74a0966bcf5114caad7791149a2057d22c4c5c9a55c1c44f96ece7": {
+   "drop": false,
+   "en": "Remove personal information from file properties when saving: the author, who saved last, the company, and the manager. The choice about statistics is on the General page.",
+   "es": "Quitar la información personal de las propiedades del archivo al guardar: el autor, quién guardó por última vez, la empresa y el responsable. La opción sobre estadísticas está en la página General.",
+   "fr": "Supprimer les informations personnelles des propriétés du fichier à l’enregistrement : l’auteur, la dernière personne ayant enregistré, la société et le responsable. Le choix concernant les statistiques se trouve dans la page Général.",
+   "soon": {
+    "drop": false,
+    "en": "Removing names from comments and tracked changes",
+    "es": "Eliminación de nombres en comentarios y cambios con control",
+    "fr": "Suppression des noms dans les commentaires et les modifications suivies"
+   }
+  },
   "b6a6bb433884dc129638aaedf7f32677d97bd8307f67071c6f7c74c869a45938": {
    "drop": false,
    "en": "Text",
@@ -19734,18 +19754,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b7d5e0f8afb84782185641031bec951b12541fb8edec20c1aceb906ad1968bf2": {
-   "drop": false,
-   "en": "Automatic hyphenation or none, set from the Layout tab, with a hyphenation zone and a limit on hyphens in a row. Hyphenation settings are kept in the `.docx` file, and a file's per-paragraph \"don't hyphenate\" is respected.",
-   "es": "Guionado automático o ninguno, desde la pestaña Diseño, con una zona de guionado y un límite de guiones consecutivos. La configuración se guarda en el archivo `.docx`, y se respeta la opción \"no dividir con guiones\" de cada párrafo.",
-   "fr": "Césure automatique ou aucune, depuis l’onglet Mise en page, avec une zone de césure et une limite de traits d’union consécutifs. Les réglages sont conservés dans le fichier `.docx`, et l’option « ne pas couper les mots » de chaque paragraphe est respectée.",
-   "soon": {
-    "drop": false,
-    "en": "Manual hyphenation and hyphenating words in capitals",
-    "es": "Guionado manual y guionado de palabras en mayúsculas",
-    "fr": "Césure manuelle et césure des mots en majuscules"
    }
   },
   "b83dfac65289657bc80e028c18136238e082dc8cf72f57381a9174c28b290ba7": {
@@ -19950,6 +19958,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "bb22e95f6ea899bd01f1af5e23d18f0ca5996e3aa6786508c52c271527022768": {
+   "drop": false,
+   "en": "New Window opens the same file in its own window. Arrange All sets open windows side by side, Switch Windows lists them, View Side by Side shows two windows with synchronized scrolling, and Reset Window Position restores the pair. Split shows a second pane of the same document with its own scrolling and zoom.",
+   "es": "Nueva ventana abre el mismo archivo en su propia ventana. Organizar todo coloca las ventanas abiertas una junto a otra, Cambiar ventanas las enumera, Ver en paralelo muestra dos ventanas con desplazamiento sincronizado y Restablecer posición de la ventana restaura la pareja. Dividir muestra un segundo panel del mismo documento con su propio desplazamiento y zoom.",
+   "fr": "Nouvelle fenêtre ouvre le même fichier dans sa propre fenêtre. Réorganiser tout place les fenêtres ouvertes côte à côte, Changer de fenêtre les répertorie, Affichage côte à côte montre deux fenêtres avec défilement synchronisé et Rétablir la position de la fenêtre remet la paire en place. Fractionner affiche un second volet du même document avec son propre défilement et son propre zoom.",
+   "soon": {
+    "drop": false,
+    "en": "Typing in the second pane and shared unsaved edits between windows",
+    "es": "Escritura en el segundo panel y ediciones sin guardar compartidas entre ventanas",
+    "fr": "Saisie dans le second volet et modifications non enregistrées partagées entre les fenêtres"
    }
   },
   "bb91ba069ba34f0ff7f8750446fd336cc62f521467215365e10cc42cf04ced54": {
@@ -20780,6 +20800,18 @@
     "fr": "Export PDF : signets pour chaque titre de diapositive, balises pour les lecteurs d’écran, PDF/A et protection par mot de passe"
    }
   },
+  "c7962d6340d42ecbbeae73bcf7e489a94b6b85a5e79d8ab7151f97a73d193066": {
+   "drop": false,
+   "en": "Hyphenation can be set to none or automatic for the document, with the hyphenation zone, a limit on hyphens in a row, and hyphenation of words in capitals. A file's automatic hyphenation and per-paragraph \"don't hyphenate\" settings are used, with the bundled dictionary of the text's language.",
+   "es": "La separación de palabras con guiones se puede establecer en ninguna o automática para el documento, con la zona de separación, un límite de guiones consecutivos y la separación de palabras en mayúsculas. Se respetan la separación automática de un archivo y el ajuste «no separar» por párrafo, con el diccionario incluido para el idioma del texto.",
+   "fr": "La césure peut être réglée sur aucune ou automatique pour le document, avec la zone de césure, une limite de traits d’union consécutifs et la césure des mots en majuscules. La césure automatique d’un fichier et le réglage « pas de césure » par paragraphe sont pris en compte, avec le dictionnaire inclus pour la langue du texte.",
+   "soon": {
+    "drop": false,
+    "en": "Manual hyphenation",
+    "es": "Separación manual de palabras con guiones",
+    "fr": "Césure manuelle"
+   }
+  },
   "c7ad6daea1a1b9e4eb982fe1c2b8e60d2825a160a8f3f5d867b9fe5880673a4d": {
    "drop": false,
    "en": "JeffPub keeps recovery copies of unsaved work, offers them again after a crash, and cleans them up once the work is saved.",
@@ -21054,6 +21086,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "cb341234ab0740f9e6073cd0ef2d9b9d073b3e26dfa2bbca04318180110ff374": {
+   "drop": false,
+   "en": "Margins can be set in the Page Setup dialog, including a left gutter.",
+   "es": "Los márgenes se pueden definir en el cuadro de diálogo Configurar página, incluido un medianil a la izquierda.",
+   "fr": "Les marges peuvent être définies dans la boîte de dialogue Mise en page, y compris une reliure à gauche.",
+   "soon": {
+    "drop": false,
+    "en": "Mirror margins and a top gutter",
+    "es": "Márgenes simétricos y un medianil superior",
+    "fr": "Marges en miroir et reliure en haut"
    }
   },
   "cb853a0d5adab0f0922757bab82aa5d49b4eb2f7d12bae03ef8b1885772e7fbb": {
@@ -21558,6 +21602,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "d20fa339b4b1237ec5515822f6f77b051634115a12e637f702a2ef1a3923a893": {
+   "drop": false,
+   "en": "The header and footer distances are set in Page Setup.",
+   "es": "Las distancias del encabezado y del pie de página se definen en Configurar página.",
+   "fr": "Les distances de l’en-tête et du pied de page se définissent dans Mise en page.",
+   "soon": {
+    "drop": false,
+    "en": "Insert Alignment Tab and Show Document Text",
+    "es": "Insertar tabulación de alineación y Mostrar texto del documento",
+    "fr": "Insérer une tabulation d’alignement et Afficher le texte du document"
    }
   },
   "d21d52c5f70101e783daca84dfeae95261bee34e28e5b126336287815152d410": {
@@ -22364,6 +22420,18 @@
     "fr": "Format de l’arrière-plan : remplissages dégradé, image, texture et motif, et réinitialisation de l’arrière-plan"
    }
   },
+  "df03e17891a9ecb316811825d810315da3b1c254f2af062ab21f48ac62378978": {
+   "drop": false,
+   "en": "Open an HTML page (`.html` or `.htm`) as a document with headings, bold, italic, underline, strike-through, superscript, subscript, color, alignment, list marks as typed text, and tables with joined columns. Save a document as HTML, as a single file or filtered. Scripts, style sheets, and addresses are never read or fetched, and a page over 32 MB is refused.",
+   "es": "Abra una página HTML (`.html` o `.htm`) como documento con encabezados, negrita, cursiva, subrayado, tachado, superíndice, subíndice, color, alineación, marcas de lista como texto escrito y tablas con columnas combinadas. Guarde un documento como HTML, en un solo archivo o filtrado. Los scripts, las hojas de estilo y las direcciones nunca se leen ni se descargan, y se rechaza una página de más de 32 MB.",
+   "fr": "Ouvrez une page HTML (`.html` ou `.htm`) comme document avec titres, gras, italique, souligné, barré, exposant, indice, couleur, alignement, puces de liste en texte saisi et tableaux à colonnes fusionnées. Enregistrez un document en HTML, en fichier unique ou filtré. Les scripts, les feuilles de style et les adresses ne sont jamais lus ni récupérés, et une page de plus de 32 Mo est refusée.",
+   "soon": {
+    "drop": false,
+    "en": "HTML open: pictures, links, real lists, and style-sheet looks",
+    "es": "Apertura de HTML: imágenes, vínculos, listas reales y aspecto de hojas de estilo",
+    "fr": "Ouverture HTML : images, liens, vraies listes et apparence des feuilles de style"
+   }
+  },
   "df0ef09e4a61b89e4793d5479f78b9e2e91a70da7152cd21cbdee88c65e35abe": {
    "drop": false,
    "en": "Older binary `.xls` files",
@@ -22386,18 +22454,6 @@
     "en": "`LET` and spilling a result into the cells beside the formula",
     "es": "`LET` y desbordar un resultado a las celdas contiguas a la fórmula",
     "fr": "`LET` et débordement d’un résultat dans les cellules voisines de la formule"
-   }
-  },
-  "dfd14e131569c64f0d9f1228410097a2a2f783a73affd964c1086aca56790c5c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Privacy options: remove personal information on save and choose what is sent (statistics, crash reports)",
-    "es": "Opciones de privacidad: eliminar información personal al guardar y elegir qué se envía (estadísticas, informes de fallos)",
-    "fr": "Options de confidentialité : supprimer les informations personnelles à l’enregistrement et choisir ce qui est envoyé (statistiques, rapports de plantage)"
    }
   },
   "dfd1f09d255d29171974f5271ab08c89a677c21bf1a490e734c9dba5888e8d1e": {
@@ -23312,18 +23368,6 @@
     "fr": ""
    }
   },
-  "eb9dfef11c538760a0bb895ead71b4b561615c81048ca8d576d5eb7736db4744": {
-   "drop": false,
-   "en": "Margins can be set in the Page Setup dialog, including a left gutter.",
-   "es": "Los márgenes se pueden establecer en el cuadro de diálogo Configurar página, incluido un medianil a la izquierda.",
-   "fr": "Les marges peuvent être définies dans la boîte de dialogue Mise en page, y compris une marge de reliure à gauche.",
-   "soon": {
-    "drop": false,
-    "en": "Mirror margins and a top gutter",
-    "es": "Márgenes simétricos y medianil superior",
-    "fr": "Marges en miroir et marge de reliure en haut"
-   }
-  },
   "ebe4f3edce8eb5ab501f0212342d58f019fce0e0a5db42a51fb18f2ba802b6ac": {
    "drop": false,
    "en": "Insert > Icons in JeffPub offers 1,539 vector icons from the open-source Lucide set, searched by name or keyword. Each becomes an editable shape that scales with its line weight, stays sharp in print and PDF, and is saved to `.pub` as a drawn shape.",
@@ -23576,18 +23620,6 @@
     "fr": ""
    }
   },
-  "f0d230f3449e0c79789761c2782c509c1e82ca96707b286b0e92940f10f09ee6": {
-   "drop": false,
-   "en": "Options > Display sets formatting marks and table gridlines when a window opens.",
-   "es": "Opciones > Mostrar define las marcas de formato y las líneas de cuadrícula de las tablas al abrir una ventana.",
-   "fr": "Options > Affichage définit les marques de mise en forme et les quadrillages de tableau à l’ouverture d’une fenêtre.",
-   "soon": {
-    "drop": false,
-    "en": "White space between pages, hidden text, object anchors, optional hyphens, and print options",
-    "es": "Espacio en blanco entre páginas, texto oculto, anclajes de objetos, guiones opcionales y opciones de impresión",
-    "fr": "Espace blanc entre les pages, texte masqué, ancres d’objets, traits d’union conditionnels et options d’impression"
-   }
-  },
   "f0eb433df69bcee01c25efb4de5e2cdaacdd116e9015e659b9902d3dc24b9cd3": {
    "drop": false,
    "en": "In JeffDeck you can change a slide’s layout. The text stays, and each placeholder moves to the place the new layout gives its kind.",
@@ -23732,18 +23764,6 @@
     "fr": ""
    }
   },
-  "f32c38c3bdbdb3284e5156f20f0801eb8ff66a0ebb785d441f960a60e825c112": {
-   "drop": false,
-   "en": "Split puts a second pane under the pages, showing the same document with its own scrolling and zoom. Text is typed in the first pane.",
-   "es": "Dividir coloca un segundo panel bajo las páginas, que muestra el mismo documento con su propio desplazamiento y zoom. El texto se escribe en el primer panel.",
-   "fr": "Fractionner place un second volet sous les pages, affichant le même document avec son propre défilement et son propre zoom. Le texte se saisit dans le premier volet.",
-   "soon": {
-    "drop": false,
-    "en": "New Window, Arrange All, Switch Windows, View Side by Side, Reset Window Position, and typing in the second pane",
-    "es": "Nueva ventana, organizar todo, cambiar ventanas, ver en paralelo, restablecer posición de la ventana y escritura en el segundo panel",
-    "fr": "Nouvelle fenêtre, réorganiser tout, changer de fenêtre, affichage côte à côte, réinitialisation de la position de la fenêtre et saisie dans le second volet"
-   }
-  },
   "f33f7f1238ea2a2fc12bc001ae13db61d847f25e6d381c3bba5f1fb179369ef3": {
    "drop": false,
    "en": "In JeffDeck, alt text and size for movies and sounds are on the Size & Properties page of the pane.",
@@ -23850,18 +23870,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "f59f18148ea69606b254725cbe6e737d981c49b9f93acb4113b11fc25ba0709c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Advanced display options for workbooks and sheets, including right-to-left sheets, default zoom, and standard width",
-    "es": "Opciones avanzadas de visualización de libros y hojas, incluidas hojas de derecha a izquierda, zoom predeterminado y ancho estándar",
-    "fr": "Options d’affichage avancées pour classeurs et feuilles, dont les feuilles de droite à gauche, le zoom par défaut et la largeur standard"
    }
   },
   "f5c1d40ddcc1c823b1e0c89b31c426be81eb2e1552a6e8fbaebbb7c5c5130157": {

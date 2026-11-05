@@ -1,5 +1,5 @@
 # Ajuda do JeffWrite
-<!-- keywords: conteúdo, ajuda, tópicos, início, índice -->
+<!-- keywords: índice, ajuda, tópicos, início, conteúdo -->
 
 Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que está ou a página do ecrã Ficheiro em que se encontra.
 
@@ -15,9 +15,9 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 ## Trabalhar no texto
 
 - [Verificar a ortografia](spelling)
-- [Contar palavras, definir o idioma, verificar a acessibilidade e consultar palavras](proofing-tools)
+- [Contar palavras, definir o idioma, verificar a acessibilidade e pesquisar palavras](proofing-tools)
 - [Controlar alterações, e aceitar ou rejeitar](track-changes)
-- [Adicionar e responder a comentários](comments)
+- [Adicionar comentários e responder a comentários](comments)
 - [Proteger um documento e bloquear o controlo de alterações](protect)
 
 ## Escrever e alterar texto
@@ -39,8 +39,11 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Marcar locais com marcadores](bookmarks)
 - [Impressão em série, envelopes e etiquetas](mail-merge)
 - [Adicionar e alterar imagens](pictures)
+- [Formas e caixas de texto](shapes-text-boxes)
+- [Gráficos](charts)
+- [Equações](equations)
 - [Configurar a página](page-setup)
-- [Quebras, colunas, hifenização e numeração de linhas](breaks-columns)
+- [Quebras, colunas, hifenização e números de linha](breaks-columns)
 - [Inserir símbolos e carateres especiais](symbols-special-characters)
 - [Adicionar ligações e texto de outros ficheiros](links)
 - [Alterar a cor e os limites das páginas](page-look)
