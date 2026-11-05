@@ -609,6 +609,27 @@ private Q_SLOTS:
         QVERIFY(license);
     }
 
+    // About lists the third-party software in the app, with each project's license (the list all four apps share).
+    void aboutListsTheThirdPartySoftware()
+    {
+        DeckWindow w;
+        w.resize(1200, 900);
+        w.show();
+        w.showFileScreen(QStringLiteral("about"));
+        auto *list = w.findChild<QLabel *>(QStringLiteral("thirdParty"));
+        QVERIFY(list && list->isVisibleTo(&w));
+        QVERIFY2(list->text().contains(QLatin1String("Qt 6")), "Qt 6");
+        QVERIFY2(list->text().contains(QLatin1String("Hunspell")), "Hunspell");
+        QVERIFY2(list->text().contains(QLatin1String("PDFium")), "PDFium");
+        QVERIFY2(list->text().contains(QLatin1String("zlib")), "zlib");
+        QVERIFY2(list->text().contains(QLatin1String("Lucide icons")), "Lucide icons");
+        QVERIFY2(list->text().contains(QLatin1String("Open fonts")), "Open fonts");
+        QVERIFY2(list->text().contains(QLatin1String("ICU")), "ICU");
+        QVERIFY2(list->text().contains(QLatin1String("FFmpeg")), "FFmpeg");
+        QVERIFY2(!list->text().contains(QLatin1String("libmspub")), "libmspub");
+        QVERIFY2(!list->text().contains(QLatin1String("LibreTranslate")), "LibreTranslate");
+    }
+
     // The Home tab's Font and Paragraph groups open the shared dialogs from
     // their launchers, and the Font dialog changes the text selected in a
     // placeholder.

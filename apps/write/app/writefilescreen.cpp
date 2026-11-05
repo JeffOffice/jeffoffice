@@ -11,6 +11,7 @@
 #include "core/printing.h"
 #include "core/templates.h"
 
+#include <QCoreApplication>
 #include <QAction>
 #include <QButtonGroup>
 #include <QCheckBox>
@@ -695,6 +696,11 @@ QWidget *WriteFileScreen::buildAbout()
     lt->setOpenExternalLinks(true);
     lv->addWidget(lt);
     lv->addWidget(legalLinks(legal));
+    // Every bundled component, linked to its project and its license: the parts all four apps have, then the
+    // translation service JeffWrite's Translate opens.
+    addThirdPartyList(lv, legal, lf, {{QStringLiteral("LibreTranslate"), QStringLiteral("https://libretranslate.com/"),
+                                       QCoreApplication::translate("jp::Backstage", "Translate (opens in your browser)"), QStringLiteral("AGPL-3.0"),
+                                       QStringLiteral("https://www.gnu.org/licenses/agpl-3.0.html")}});
     v->addWidget(legal);
     v->addStretch(1);
     return w;

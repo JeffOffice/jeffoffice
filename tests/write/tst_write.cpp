@@ -5013,6 +5013,27 @@ private Q_SLOTS:
         }
     }
 
+    // About lists the third-party software in the app, with each project's license (the list all four apps share),
+    // and the translation service Translate opens.
+    void aboutListsTheThirdPartySoftware()
+    {
+        WriteWindow w;
+        w.resize(1200, 900);
+        w.show();
+        w.showFileScreen(QStringLiteral("about"));
+        auto *list = w.findChild<QLabel *>(QStringLiteral("thirdParty"));
+        QVERIFY(list && list->isVisibleTo(&w));
+        QVERIFY2(list->text().contains(QLatin1String("Qt 6")), "Qt 6");
+        QVERIFY2(list->text().contains(QLatin1String("Hunspell")), "Hunspell");
+        QVERIFY2(list->text().contains(QLatin1String("PDFium")), "PDFium");
+        QVERIFY2(list->text().contains(QLatin1String("zlib")), "zlib");
+        QVERIFY2(list->text().contains(QLatin1String("Lucide icons")), "Lucide icons");
+        QVERIFY2(list->text().contains(QLatin1String("Open fonts")), "Open fonts");
+        QVERIFY2(list->text().contains(QLatin1String("ICU")), "ICU");
+        QVERIFY2(list->text().contains(QLatin1String("LibreTranslate")), "LibreTranslate");
+        QVERIFY2(!list->text().contains(QLatin1String("libmspub")), "libmspub");
+    }
+
     // ---------------------------------------------------------------- editing
     void typingIsOneStepThatUndoesAndRedoes()
     {

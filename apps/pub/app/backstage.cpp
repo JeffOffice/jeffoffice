@@ -1256,82 +1256,19 @@ QWidget *Backstage::buildAbout()
     lt->setOpenExternalLinks(true);
     lv->addWidget(lt);
     lv->addWidget(legalLinks(legal));
-    // Every bundled component, linked to its project and its license.
-    struct Part { const char *name, *url; QString use; const char *license, *licenseUrl; };
-    const Part parts[] = {
-        {"Qt 6", "https://www.qt.io/", tr("Interface, text layout, PDF and printing"), "LGPL-3.0", "https://www.gnu.org/licenses/lgpl-3.0.html"},
-        {"libmspub (modified)", "https://git.libreoffice.org/libmspub", tr("Reading .pub files"), "MPL-2.0", "https://www.mozilla.org/MPL/2.0/"},
-        {"librevenge (modified)", "https://sourceforge.net/p/libwpd/librevenge/", tr("Document interfaces"), "MPL-2.0 or LGPL-2.1+", "https://www.mozilla.org/MPL/2.0/"},
-        {"Hunspell", "https://hunspell.github.io/", tr("Spelling checker"), "MPL-1.1, GPL-2.0+ or LGPL-2.1+", "https://www.mozilla.org/MPL/1.1/"},
-        // The dictionaries, from LibreOffice's (resources/dict/README.md).
-        {"English dictionaries (SCOWL; UK)", "http://wordlist.aspell.net/", tr("Spelling"), "SCOWL license; LGPL (UK)",
-         "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/en/README_en_US.txt"},
-        {"English hyphenation patterns", "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/en/README_hyph_en_US.txt", tr("Hyphenation"), "BSD-style",
-         "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/en/README_hyph_en_US.txt"},
-        {"WordNet", "https://wordnet.princeton.edu/", tr("Thesaurus"), "WordNet license",
-         "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/en/WordNet_license.txt"},
-        {"Spanish dictionaries", "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/es/README_hunspell_es.txt", tr("Spelling and hyphenation"), "GPL-3.0+, LGPL-3.0+ or MPL-1.1+",
-         "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/es/LICENSE.md"},
-        {"French dictionary (Grammalecte)", "https://grammalecte.net/", tr("Spelling and hyphenation"), "MPL-2.0; patterns LGPL",
-         "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/fr_FR/README_dict_fr.txt"},
-        {"German dictionary (igerman98)", "https://www.j3e.de/ispell/igerman98/", tr("Spelling and hyphenation"), "GPL-2.0 or GPL-3.0; patterns LGPL-2.0+",
-         "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/de/README_de_DE_frami.txt"},
-        {"Italian dictionary", "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/it_IT/README_it_IT.txt", tr("Spelling and hyphenation"), "GPL-3.0; patterns LGPL",
-         "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/it_IT/README_it_IT.txt"},
-        {"Dutch dictionary (OpenTaal)", "https://www.opentaal.org/", tr("Spelling and hyphenation"), "BSD or CC BY 3.0",
-         "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/nl_NL/LICENSE.txt"},
-        {"Brazilian Portuguese dictionary (VERO)", "http://pt-br.libreoffice.org/projetos/projeto-vero-verificador-ortografico/", tr("Spelling and hyphenation"),
-         "LGPL-3.0 or MPL", "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/pt_BR/README_en.txt"},
-        {"European Portuguese dictionary", "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/pt_PT/README_pt_PT.txt", tr("Spelling and hyphenation"), "GPL-2.0+",
-         "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/pt_PT/LICENSES.txt"},
-        {"Lucide icons", "https://lucide.dev/", tr("Interface icons, Insert > Icons"), "ISC", "https://lucide.dev/license"},
-        {"Open fonts", "https://github.com/JeffOffice/jeffoffice/blob/main/resources/fonts/README.md", tr("Fonts and substitutes"),
-         "SIL OFL 1.1, Apache 2.0, GUST, Bitstream Vera, GPL v2 + font exceptions", "https://github.com/JeffOffice/jeffoffice/blob/main/resources/fonts/README.md"},
-        {"zlib", "https://zlib.net/", tr("Compression (also in PDFium)"), "zlib license", "https://zlib.net/zlib_license.html"},
-        // PDFium and what's built into it; the texts ship with the program
-        // (third_party/pdfium/licenses).
-        {"PDFium", "https://pdfium.googlesource.com/pdfium/", tr("Placing PDF pages"), "BSD-3-Clause; parts Apache-2.0", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/pdfium.txt"},
-        {"pdfium-binaries", "https://github.com/bblanchon/pdfium-binaries", tr("PDFium, built"), "MIT", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/pdfium-binaries.txt"},
-        {"FreeType (in PDFium)", "https://freetype.org/", tr("Fonts in PDF pages"), "FreeType License", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/freetype.txt"},
-        {"HarfBuzz (in PDFium)", "https://harfbuzz.github.io/", tr("Text in PDF pages"), "Old MIT", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/harfbuzz.txt"},
-        {"Little CMS (in PDFium)", "https://www.littlecms.com/", tr("Color in PDF pages"), "MIT", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/lcms.txt"},
-        {"libjpeg-turbo (in PDFium)", "https://libjpeg-turbo.org/", tr("JPEG pictures in PDF pages"), "IJG and BSD-3-Clause", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/libjpeg_turbo.md"},
-        {"OpenJPEG (in PDFium)", "https://www.openjpeg.org/", tr("JPEG 2000 in PDF pages"), "BSD-2-Clause", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/libopenjpeg.txt"},
-        {"libpng (in PDFium)", "http://www.libpng.org/pub/png/libpng.html", tr("PNG pictures in PDF pages"), "libpng License v2", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/libpng.txt"},
-        {"Abseil (in PDFium)", "https://abseil.io/", tr("Support code"), "Apache-2.0", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/abseil.txt"},
-        {"Anti-Grain Geometry 2.3 (in PDFium)", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/agg23.txt", tr("Drawing"), "AGG 2.3 license", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/agg23.txt"},
-        {"dragonbox (in PDFium)", "https://github.com/jk-jeon/dragonbox", tr("Numbers"), "Apache-2.0 (LLVM) or BSL-1.0", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/dragonbox-Boost.txt"},
-        {"fast_float (in PDFium)", "https://github.com/fastfloat/fast_float", tr("Numbers"), "MIT", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/fast_float.txt"},
-        {"simdutf (in PDFium)", "https://github.com/simdutf/simdutf", tr("Unicode text"), "MIT", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/simdutf.txt"},
-        {"LLVM libc (in PDFium)", "https://libc.llvm.org/", tr("Support code"), "Apache-2.0 (LLVM)", "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/llvm-libc.txt"},
-        {"ICU", "https://icu.unicode.org/", tr("Unicode text (in PDFium; with Qt on Linux)"), "Unicode License v3", "https://www.unicode.org/license.txt"},
-#ifdef Q_OS_WIN
-        {"MinGW-w64 runtime", "https://www.mingw-w64.org/", tr("C++ runtime"), "GPL-3.0 with GCC Runtime Library Exception; MIT",
-         "https://www.gnu.org/licenses/gcc-exception-3.1.html"},
-        {"Inno Setup", "https://jrsoftware.org/isinfo.php", tr("Installer"), "Inno Setup License", "https://jrsoftware.org/files/is/license.txt"},
-#endif
-        {"LibreTranslate", "https://libretranslate.com/", tr("Translate (opens in your browser)"), "AGPL-3.0", "https://www.gnu.org/licenses/agpl-3.0.html"},
-        {"PSO Coated v3 color profile", "https://www.eci.org/", tr("PDF/X-4 (downloaded from the European Color Initiative)"), "ECI's terms", "https://www.eci.org/"},
-        {"ISBN range table", "https://www.isbn-international.org/", tr("ISBN hyphens (downloaded from the International ISBN Agency)"), "The agency's terms",
-         "https://www.isbn-international.org/range_file_generation"},
-    };
-    QString rows;
-    for (const Part &pt : parts)
-        rows += QStringLiteral("<tr><td style=\"padding:3px 14px 3px 0\"><a href=\"%1\">%2</a></td><td style=\"padding:3px 14px 3px 0\">%3</td>"
-                               "<td style=\"padding:3px 0\"><a href=\"%4\">%5</a></td></tr>")
-                    .arg(QLatin1String(pt.url), QLatin1String(pt.name), pt.use, QLatin1String(pt.licenseUrl), QLatin1String(pt.license));
-    auto *th = new QLabel(tr("Third-party software"), legal);
-    th->setFont(yf);
-    lv->addSpacing(6);
-    lv->addWidget(th);
-    auto *table = mutedLabel(QStringLiteral("<table cellspacing=\"0\">%1</table>").arg(rows), legal, 0.75);
-    table->setTextFormat(Qt::RichText);
-    // Wrapped at the card's width: unwrapped, a narrow window cut off the
-    // long names and the last rows.
-    table->setWordWrap(true);
-    fitHeight(table);
-    table->setOpenExternalLinks(true);
-    lv->addWidget(table);
+    // Every bundled component, linked to its project and its license: the parts all four apps have, then JeffPub's own.
+    addThirdPartyList(lv, legal, yf, {
+        {QStringLiteral("libmspub (modified)"), QStringLiteral("https://git.libreoffice.org/libmspub"), tr("Reading .pub files"), QStringLiteral("MPL-2.0"),
+         QStringLiteral("https://www.mozilla.org/MPL/2.0/")},
+        {QStringLiteral("librevenge (modified)"), QStringLiteral("https://sourceforge.net/p/libwpd/librevenge/"), tr("Document interfaces"),
+         QStringLiteral("MPL-2.0 or LGPL-2.1+"), QStringLiteral("https://www.mozilla.org/MPL/2.0/")},
+        {QStringLiteral("LibreTranslate"), QStringLiteral("https://libretranslate.com/"), tr("Translate (opens in your browser)"), QStringLiteral("AGPL-3.0"),
+         QStringLiteral("https://www.gnu.org/licenses/agpl-3.0.html")},
+        {QStringLiteral("PSO Coated v3 color profile"), QStringLiteral("https://www.eci.org/"), tr("PDF/X-4 (downloaded from the European Color Initiative)"),
+         QStringLiteral("ECI's terms"), QStringLiteral("https://www.eci.org/")},
+        {QStringLiteral("ISBN range table"), QStringLiteral("https://www.isbn-international.org/"), tr("ISBN hyphens (downloaded from the International ISBN Agency)"),
+         QStringLiteral("The agency's terms"), QStringLiteral("https://www.isbn-international.org/range_file_generation")},
+    });
     v->addWidget(legal);
     v->addStretch(1);
     return w;
