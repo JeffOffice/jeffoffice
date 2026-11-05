@@ -1,56 +1,57 @@
-# JeffCrunch mit der Tastatur verwenden
-<!-- keywords: Tastatur, Tastenkombinationen, Tastenkürzel, Shortcuts, Tasten, Pfeiltasten, Strg, Umschalt, Pos1, Ende, Bild auf, Bild ab, Tab, Eingabetaste, Alles markieren, Kopieren, F9, F1, Zoom, Zugriffstasten, Zugriffstasteninfos -->
+# Verwenden von JeffCrunch mit der Tastatur
+<!-- keywords: Tastatur, Tastenkombinationen, Tasten, Tastaturkürzel, Pfeiltaste, Strg, Umschalt, Pos1, Ende, Bild auf, Bild ab, Tab, Eingabe, alles auswählen, kopieren, F9, F1, Zoom, Zugriffstasten, Tastenhinweise -->
 
-Auf einem Mac übernimmt die **Befehlstaste** (⌘) die Funktion der Taste **Strg** in den folgenden Tabellen, sofern in einer Tabelle nichts anderes angegeben ist.
+Auf einem Mac übernimmt die Taste **Befehl** (⌘) die Funktion von **Strg** in den folgenden Tabellen, sofern in einer Tabelle nichts anderes angegeben ist.
 
-## Bewegen und markieren
+## Bewegen und Auswählen
 
 | Tasten | Funktion |
 | --- | --- |
-| Pfeiltasten | Aktive Zelle um eine Zelle verschieben; ausgeblendete Zeilen und Spalten werden übersprungen |
-| Umschalt+Pfeiltaste | Markierung um eine Zelle erweitern |
-| Strg+Pfeiltaste | Zum Rand der Daten springen (Esc bricht eine lange Suche ab) |
-| Strg+Umschalt+Pfeiltaste | Markierung bis zum Rand der Daten erweitern |
-| Pos1 | Zur ersten Spalte der Zeile springen |
-| Strg+Pos1 | Zur ersten Zelle springen (A1 oder die erste Zelle, die mitscrollt, wenn Zeilen oder Spalten fixiert sind) |
-| Strg+Ende | Zur letzten Zelle springen, die Inhalt oder eine Formatierung hat |
-| Bild ab, Bild auf | Um eine Bildschirmseite nach unten oder oben blättern |
-| Tab, Umschalt+Tab | Nach rechts oder links wechseln (innerhalb der markierten Zellen, wenn mehrere markiert sind) |
-| Eingabetaste, Umschalt+Eingabetaste | Nach unten oder oben wechseln (innerhalb der markierten Zellen, wenn mehrere markiert sind) |
-| Strg+Leertaste | Ganze Spalte markieren |
-| Umschalt+Leertaste | Ganze Zeile markieren |
-| {key:SelectAll} | Alles markieren |
+| Pfeiltasten | Bewegt die aktive Zelle um eine Zelle; ausgeblendete Zeilen und Spalten werden übersprungen |
+| Umschalt+Pfeiltaste | Erweitert die Auswahl um eine Zelle |
+| Strg+Pfeiltaste | Springt zum Rand der Daten (Esc bricht eine lange Suche ab) |
+| Strg+Umschalt+Pfeiltaste | Erweitert die Auswahl bis zum Rand der Daten |
+| Pos1 | Springt zur ersten Spalte der Zeile |
+| Strg+Pos1 | Springt zur ersten Zelle (A1 oder zur ersten Zelle, die beim Scrollen sichtbar ist, wenn Zeilen oder Spalten fixiert sind) |
+| Strg+Ende | Springt zur letzten Zelle, die einen Inhalt oder eine Formatierung enthält |
+| Bild ab, Bild auf | Bewegt die aktive Zelle um einen Bildschirm nach unten bzw. nach oben |
+| Tab, Umschalt+Tab | Bewegt nach rechts bzw. links (innerhalb der markierten Zellen, falls mehrere markiert sind) |
+| Eingabe, Umschalt+Eingabe | Bewegt nach unten bzw. oben (innerhalb der markierten Zellen, falls mehrere markiert sind) |
+| Strg+Leertaste | Markiert die ganze Spalte |
+| Umschalt+Leertaste | Markiert die ganze Zeile |
+| {key:SelectAll} | Markiert alles |
 
 ## Zellen ändern
 
 | Tasten | Funktion |
 | --- | --- |
-| Beliebiges Zeichen | Eingabe in der aktiven Zelle beginnen und deren Inhalt ersetzen |
-| F2 | Inhalt der aktiven Zelle direkt in der Zelle bearbeiten; während der Eingabe einer Formel zwischen dem Zeigen auf Zellen und dem Bearbeiten des Textes wechseln |
-| F4 | Während der Eingabe einer Formel Teile des Bezugs an der Cursorposition mit $ fixieren (A1, $A$1, A$1, $A1) |
-| Eingabetaste, Umschalt+Eingabetaste | Eingabe übernehmen und nach unten oder oben wechseln |
-| Tab, Umschalt+Tab | Eingabe übernehmen und nach rechts oder links wechseln |
-| Esc | Eingabe verwerfen |
-| Alt+Eingabetaste | Neue Zeile in der Zelle beginnen |
-| Entf | Markierte Zellen leeren |
+| Beliebiges Zeichen | Beginnt eine Eingabe in der aktiven Zelle und ersetzt deren Inhalt |
+| F2 | Bearbeitet den Inhalt der aktiven Zelle direkt in der Zelle; beim Eingeben einer Formel wird zwischen dem Zeigen auf Zellen und dem Bearbeiten des Textes umgeschaltet |
+| F4 | Setzt beim Eingeben einer Formel an der Einfügemarke ein $ in die Adresse, um Teile davon zu fixieren (A1, $A$1, A$1, $A1) |
+| Eingabe, Umschalt+Eingabe | Übernimmt die Eingabe und bewegt nach unten bzw. oben |
+| Tab, Umschalt+Tab | Übernimmt die Eingabe und bewegt nach rechts bzw. links |
+| Esc | Verwirft die Eingabe |
+| Alt+Eingabe | Beginnt in der Zelle eine neue Zeile |
+| Entf | Löscht den Inhalt der markierten Zellen |
 | {key:Undo}, {key:Redo} | Rückgängig, Wiederholen |
 | {key:Save} | Speichern |
-| {key:Cut}, {key:Copy}, {key:Paste} | Ausschneiden, Kopieren, Einfügen (Esc entfernt den Rahmen um die kopierten Zellen) |
+| {key:Cut}, {key:Copy}, {key:Paste} | Ausschneiden, kopieren, einfügen (Esc entfernt den Rahmen um die kopierten Zellen) |
 | Strg+Alt+V | Inhalte einfügen |
-| Strg und Plustaste, Strg und Minustaste | Einfügen, Löschen (Zeilen oder Spalten, wenn ganze Zeilen oder Spalten markiert sind) |
-| Strg+D, Strg+R | Nach unten ausfüllen, nach rechts ausfüllen |
+| Strg und Plustaste, Strg und Minustaste | Fügt ein bzw. löscht (Zeilen oder Spalten, wenn ganze markiert sind) |
+| Strg+D, Strg+R | Nach unten bzw. nach rechts ausfüllen |
+| Strg+E | Blitzvorschau |
 | Alt und Gleichheitszeichen | Summe |
-| Strg+0, Strg+9 | Spalten ausblenden, Zeilen ausblenden |
-| Alt+Nach-unten | Liste einer Zelle öffnen, die eine Liste hat |
+| Strg+0, Strg+9 | Blendet die Spalten bzw. Zeilen aus |
+| Alt+Pfeil nach unten | Öffnet die Liste einer Zelle, die eine Liste hat |
 | {key:Find} | Suchen |
-| Strg+H (auf einem Mac Wahltaste+Befehlstaste+F) | Suchen und Ersetzen |
-| F5, Strg+G | Zu einer Zelle, einem Bereich oder einem Namen wechseln |
-| Strg+Umschalt+L | Filter ein- oder ausschalten |
-| Umschalt+F3 | Funktion auswählen |
-| Strg+F3 | Liste der Namen |
-| F9, Umschalt+F9 | Alles neu berechnen, Blatt neu berechnen |
-| Tab, Eingabetaste | Während der Eingabe einer Formel: die in der Liste markierte Funktion oder den markierten Namen übernehmen |
-| Esc | Laufende Suche, Sortierung oder Filterung abbrechen |
+| Strg+H (auf dem Mac Option+Befehl+F) | Suchen und Ersetzen |
+| F5, Strg+G | Springt zu einer Zelle, einem Bereich oder einem Namen |
+| Strg+Umschalt+L | Schaltet den Filter ein oder aus |
+| Umschalt+F3 | Wählt eine Funktion aus |
+| Strg+F3 | Zeigt die Liste der Namen an |
+| F9, Umschalt+F9 | Alles neu berechnen, dieses Blatt neu berechnen |
+| Tab, Eingabe | Während eine Formel eingegeben wird: übernimmt die in der Liste markierte Funktion oder den markierten Namen |
+| Esc | Bricht eine laufende Suche, Sortierung oder Filterung ab |
 
 ## Befehle
 
@@ -58,4 +59,4 @@ Auf einem Mac übernimmt die **Befehlstaste** (⌘) die Funktion der Taste **Str
 
 ## Zugriffstasten
 
-Drücken Sie **Alt**, um auf jeder Registerkarte des Menübands und bei jedem Befehl einen Buchstaben anzuzeigen, und drücken Sie dann die Buchstaben. Drücken Sie **Alt** und dann **F**, um das Menü **Datei** zu öffnen. Mit **Esc** gehen Sie wieder zurück.
+Drücken Sie **Alt**, um auf jeder Registerkarte des Menübands und bei jedem Befehl einen Buchstaben anzuzeigen, und drücken Sie dann die Buchstaben. Drücken Sie **Alt** und danach **F**, um den Bereich „Datei“ zu öffnen. Mit **Esc** gehen Sie einen Schritt zurück.

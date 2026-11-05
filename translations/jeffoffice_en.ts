@@ -299,7 +299,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../../apps/write/app/writewindow.cpp" line="+619"/>
+        <location filename="../../apps/write/app/writewindow.cpp" line="+672"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
@@ -342,7 +342,7 @@
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../../apps/crunch/core/editsession.cpp" line="+919"/>
+        <location filename="../../apps/crunch/core/editsession.cpp" line="+950"/>
         <source>Clearing %n cell(s)</source>
         <translation>
             <numerusform>Clearing %n cell</numerusform>
@@ -350,7 +350,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../apps/crunch/core/editpivot.cpp" line="+1021"/>
+        <location filename="../../apps/crunch/core/editpivot.cpp" line="+1138"/>
         <source>%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.</source>
         <translation>
             <numerusform>%n pivot table was not read again when the file opened: there is too much data. Use Refresh All.</numerusform>
@@ -361,7 +361,7 @@
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message numerus="yes">
-        <location filename="../../apps/crunch/core/sheetobjects.cpp" line="+658"/>
+        <location filename="../../apps/crunch/core/sheetobjects.cpp" line="+679"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation>
             <numerusform>The file stores this object together with %n other object, so they can&apos;t be deleted one at a time.</numerusform>
@@ -369,7 +369,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1237"/>
+        <location line="+1271"/>
         <source>The file stores this chart together with %n other(s), so it can&apos;t be changed here.</source>
         <translation>
             <numerusform>The file stores this chart together with %n other chart, so it can&apos;t be changed here.</numerusform>
@@ -450,7 +450,7 @@
 <context>
     <name>jp::office::wml</name>
     <message numerus="yes">
-        <location filename="../../libs/office/wml/wmlread.cpp" line="+1545"/>
+        <location filename="../../libs/office/wml/wmlread.cpp" line="+1550"/>
         <source>%n part or link of the file had a name that could not be used, and was left out.</source>
         <translation>
             <numerusform>%n part or link of the file had a name that could not be used, and was left out.</numerusform>
@@ -469,7 +469,7 @@
 <context>
     <name>jp::write::HomeDialogs</name>
     <message numerus="yes">
-        <location filename="../../apps/write/app/homedialogs.cpp" line="+494"/>
+        <location filename="../../apps/write/app/homedialogs.cpp" line="+495"/>
         <source>%n problem(s) found. Click one to go to it.</source>
         <translation>
             <numerusform>%n problem found. Click it to go to it.</numerusform>

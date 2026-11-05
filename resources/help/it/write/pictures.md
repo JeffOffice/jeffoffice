@@ -1,49 +1,51 @@
-# Aggiungere e modificare immagini
-<!-- keywords: immagine, immagini, figura, foto, fotografia, inserisci immagine, inserire immagine, Appunti, incollare un'immagine, screenshot, schermata, disposizione testo, testo a capo, in linea con il testo, quadrato, ravvicinato, sopra e sotto, dietro al testo, davanti al testo, testo alternativo, descrizione, ridimensionare, dimensioni, quadratini, maniglie, spostare un'immagine, trascinare un'immagine, rilasciare, formato immagine, blocca proporzioni -->
+# Aggiungere e modificare le immagini
+<!-- keywords: immagine, immagini, figura, inserisci immagine, foto, fotografia, appunti, incolla immagine, schermata, screenshot, disposizione testo, testo a capo, in linea con il testo, quadrato, ravvicinato, sopra e sotto, dietro al testo, davanti al testo, testo alternativo, descrizione, ridimensiona, dimensioni, maniglie, sposta immagine, trascina immagine, rilascia, formato immagine, blocca proporzioni -->
 
-Un'**immagine** può trovarsi all'interno di una riga di testo, come una lettera, oppure essere mobile sulla pagina con il testo disposto intorno. In questo argomento viene spiegato come inserire un'immagine in un documento, come modificarne le dimensioni, la posizione e la disposizione del testo intorno a essa, e come descriverla per chi non può vederla.
+Un'**immagine** può trovarsi in una riga di testo, come una lettera, oppure essere posizionata sulla pagina con le parole che le scorrono intorno. Questo argomento spiega come inserire un'immagine in un documento, come cambiarne le dimensioni e la posizione, come il testo le si dispone intorno e come descriverla per chi non può vederla.
 
 ## Inserire un'immagine
 
-- Fare clic su **Inserisci > Immagini**, quindi su **Immagine**, scegliere un file e fare clic su **Apri**. JeffWrite legge i file PNG, JPEG, GIF, BMP, TIFF, WebP e SVG. Un'immagine proveniente da un file viene conservata nel documento nel formato originale (un'immagine WebP o SVG viene conservata come PNG).
-- In alternativa, dopo aver copiato un'immagine (ad esempio uno screenshot), fare clic su **Inserisci > Immagini > Immagine dagli Appunti** oppure premere **CTRL+V**. L'immagine viene conservata nel documento, quindi è ancora presente quando si salva e si riapre il file.
-- Oppure trascinare un file di immagine dalla gestione file del computer su una pagina. L'immagine viene inserita nel punto in cui la si rilascia.
+- Fai clic su **Inserisci > Immagini**, poi su **Immagine**, scegli un file e fai clic su **Apri**. JeffWrite legge i file PNG, JPEG, GIF, BMP, TIFF, WebP e SVG. Un'immagine proveniente da un file viene conservata nel documento nel formato del file originale (un'immagine WebP o SVG viene conservata come PNG).
+- Oppure fai clic su **Inserisci > Immagini > Immagine dagli Appunti**, oppure premi **Ctrl+V**, dopo aver copiato un'immagine (ad esempio una schermata). L'immagine viene conservata nel documento, quindi resta disponibile quando salvi il file e lo riapri.
+- Oppure trascina un file immagine dal gestore file del computer su una pagina. L'immagine viene inserita dove la rilasci.
 
-L'immagine viene inserita nella posizione del cursore, al posto dell'eventuale selezione. Viene inserita alle dimensioni originali, ma non più larga della colonna né più alta dell'area di testo della pagina, mantenendo le proporzioni. Al termine l'immagine risulta selezionata e a destra sulla barra multifunzione viene visualizzata la scheda **Formato immagine**.
+L'immagine viene inserita dove si trova il punto di inserimento, al posto di quanto eventualmente selezionato. Viene creata con le dimensioni richieste, ma non più larga della colonna né più alta del testo della pagina, mantenendo le proporzioni. Dopo l'inserimento l'immagine risulta selezionata e a destra della barra multifunzione compare la scheda **Formato immagine**.
 
-Un'immagine troppo grande (oltre 40 milioni di pixel, un lato più lungo di 30.000 pixel o un file di oltre 48 MB) non viene inserita e la barra di stato lo segnala. Lo stesso avviene per un file che non è un'immagine.
+Un'immagine troppo grande (più di 40 milioni di pixel, un lato più lungo di 30.000 pixel, oppure un file di oltre 48 MB) non viene inserita, e la barra di stato lo segnala. Lo stesso vale per un file che non è un'immagine.
 
-## Modificare le dimensioni
+## Cambiare le dimensioni
 
-Fare clic sull'immagine per selezionarla. Sugli angoli e sui lati vengono visualizzati otto piccoli quadrati, i **quadratini di ridimensionamento**.
+Fai clic sull'immagine per selezionarla. Intorno agli angoli e ai lati compaiono otto piccoli quadratini, le **maniglie**.
 
-- Trascinare un quadratino **d'angolo** per ingrandire o ridurre l'immagine mantenendone le proporzioni.
-- Trascinare un quadratino **laterale** per modificare un solo lato.
-- In alternativa, digitare un valore in **Formato immagine > Altezza** o **Larghezza**. Con **Blocca proporzioni** attivato, l'altro valore si adegua automaticamente. Ogni lato di un'immagine può misurare da 2 a 2.000 punti.
+- Trascina una maniglia d'**angolo** per ingrandire o ridurre l'immagine mantenendo le proporzioni.
+- Trascina una maniglia **laterale** per modificare un solo lato.
+- Oppure digita un valore in **Formato immagine > Altezza** o **Larghezza**. Con **Blocca proporzioni** attivo, l'altro valore si adegua. Le immagini possono avere ciascun lato compreso tra 2 punti e 2.000 punti.
 
-Ogni modifica corrisponde a un singolo passaggio da annullare.
+Ogni modifica è un'azione che puoi annullare.
 
 ## Disporre il testo intorno a un'immagine
 
-**Formato immagine > Disposizione testo** indica come il testo si dispone intorno all'immagine. È anche possibile fare clic con il pulsante destro del mouse sull'immagine e scegliere **Disposizione testo**.
+**Formato immagine > Disposizione testo** indica come le parole si dispongono intorno all'immagine. Puoi anche fare clic con il pulsante destro sull'immagine e scegliere **Disposizione testo**.
 
-- **In linea con il testo**: l'immagine è un carattere della riga e si sposta insieme al testo circostante.
-- **Quadrato**: il testo si dispone intorno a un rettangolo che contiene l'immagine.
-- **Ravvicinato**: il testo si avvicina all'immagine quanto consentito da un rettangolo (JeffWrite lo tratta come Quadrato).
-- **Sopra e sotto**: il testo si interrompe sopra l'immagine e riprende sotto di essa.
-- **Dietro al testo**: l'immagine si trova sotto il testo, che vi passa sopra.
-- **Davanti al testo**: l'immagine si trova sopra il testo, che vi passa sotto.
+- **In linea con il testo**: l'immagine è un carattere della sua riga e si sposta insieme alle parole che la circondano.
+- **Quadrato**: le parole scorrono intorno a un rettangolo che contiene l'immagine.
+- **Ravvicinato**: il testo si avvicina all'immagine quanto consente un rettangolo (JeffWrite lo tratta come Quadrato).
+- **Sopra e sotto**: le parole si fermano sopra l'immagine e riprendono sotto di essa.
+- **Dietro al testo**: l'immagine si trova sotto le parole, che vi passano direttamente sopra.
+- **Davanti al testo**: l'immagine si trova sopra le parole, che vi passano direttamente sotto.
 
 ## Spostare un'immagine
 
-Trascinare l'immagine. Un'immagine **in linea con il testo** si sposta nel punto del testo in cui la si rilascia. Un'immagine con qualsiasi altra disposizione si sposta nel punto della pagina in cui la si rilascia e vi rimane anche se il testo circostante cambia (resta associata al paragrafo a cui appartiene, nella pagina di quel paragrafo).
+Trascina l'immagine. Un'immagine **in linea con il testo** si sposta nel punto del testo in cui rilasci il mouse. Un'immagine con un'altra disposizione si sposta nel punto della pagina in cui rilasci il mouse e vi resta anche quando cambia il testo intorno; resta legata al paragrafo a cui appartiene, nella pagina di quel paragrafo.
 
-Il trascinamento di un'immagine in linea con il testo non ne modifica la disposizione; per renderla mobile, scegliere una disposizione come **Quadrato**.
+Trascinare un'immagine in linea con il testo non ne modifica la disposizione: per renderla mobile, scegli una disposizione come **Quadrato**.
 
 ## Descrivere un'immagine
 
-Il **testo alternativo** è una breve descrizione che le utilità per la lettura dello schermo leggono ad alta voce e che viene visualizzata quando l'immagine non può essere mostrata. Selezionare l'immagine e fare clic su **Formato immagine > Testo alternativo** (oppure fare clic con il pulsante destro del mouse sull'immagine e scegliere **Testo alternativo**), digitare la descrizione e fare clic su **OK**.
+Un'immagine che serve solo a decorare la pagina, come una linea o un bordo, non ha bisogno di una descrizione. Selezionala e fai clic su **Formato immagine > Contrassegna come decorativo** (oppure fai clic con il pulsante destro). Gli screen reader la ignorano. Fai di nuovo clic per togliere il contrassegno.
+
+Il **testo alternativo** è una breve descrizione che gli screen reader leggono ad alta voce e che compare quando l'immagine non può essere visualizzata. Seleziona l'immagine e fai clic su **Formato immagine > Testo alternativo** (oppure fai clic con il pulsante destro sull'immagine e scegli **Testo alternativo**), digita la descrizione e fai clic su **OK**.
 
 ## Immagini di altri documenti
 
-JeffWrite visualizza e conserva le immagini dei documenti che apre. Può modificare dimensioni, disposizione, posizione e testo alternativo di un'immagine che il documento memorizza come immagine semplice. Un'immagine memorizzata in una forma che JeffWrite non modifica (ad esempio un gruppo di disegni) può essere selezionata e viene conservata così com'è, ma i relativi comandi non sono disponibili.
+JeffWrite mostra e conserva le immagini dei documenti che apre. Può modificare dimensioni, disposizione, posizione e testo alternativo di un'immagine memorizzata dal documento come immagine semplice. Un'immagine memorizzata in una forma che JeffWrite non modifica (ad esempio un gruppo di disegni) viene selezionata e conservata così com'è; i suoi comandi sono disattivati.

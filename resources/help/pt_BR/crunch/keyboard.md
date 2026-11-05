@@ -1,22 +1,23 @@
 # Usar o JeffCrunch com o teclado
-<!-- keywords: teclado, atalhos, atalhos de teclado, teclas, teclas de atalho, setas, teclas de direção, ctrl, shift, home, end, page up, page down, tab, enter, selecionar tudo, copiar, F9, F1, zoom, teclas de acesso, dicas de tecla -->
 
-No Mac, a tecla **Command** (⌘) faz o que a tecla **Ctrl** faz nas tabelas abaixo, exceto quando a tabela indica o contrário.
+<!-- keywords: teclado, atalhos, teclas, teclas de atalho, seta, ctrl, shift, home, end, page up, page down, tab, enter, selecionar tudo, copiar, F9, F1, zoom, teclas de acesso, dicas de tecla -->
 
-## Mover e selecionar
+No Mac, a tecla **Command** (⌘) faz o que o **Ctrl** faz nas tabelas abaixo, exceto quando uma tabela indicar o contrário.
+
+## Movimentar e selecionar
 
 | Teclas | O que fazem |
 | --- | --- |
-| Teclas de direção | Movem a célula ativa uma célula, ignorando linhas e colunas ocultas |
-| Shift+tecla de direção | Estende a seleção em uma célula |
-| Ctrl+tecla de direção | Vai até a borda dos dados (Esc interrompe uma pesquisa longa) |
-| Ctrl+Shift+tecla de direção | Estende a seleção até a borda dos dados |
+| Teclas de seta | Movem a célula ativa uma célula, pulando linhas e colunas ocultas |
+| Shift+seta | Estendem a seleção em uma célula |
+| Ctrl+seta | Vão até a borda dos dados (Esc interrompe uma busca longa) |
+| Ctrl+Shift+seta | Estendem a seleção até a borda dos dados |
 | Home | Vai para a primeira coluna da linha |
-| Ctrl+Home | Vai para a primeira célula (A1, ou a primeira célula que rola quando há linhas ou colunas congeladas) |
-| Ctrl+End | Vai para a última célula que tem conteúdo ou formatação |
-| Page Down, Page Up | Move uma tela para baixo ou para cima |
-| Tab, Shift+Tab | Move para a direita ou para a esquerda (pelas células selecionadas, se houver várias) |
-| Enter, Shift+Enter | Move para baixo ou para cima (pelas células selecionadas, se houver várias) |
+| Ctrl+Home | Vai para a primeira célula (A1, ou a primeira célula que rola quando linhas ou colunas estão congeladas) |
+| Ctrl+End | Vai para a última célula que contém algo ou tem formatação |
+| Page Down, Page Up | Descem ou sobem uma tela |
+| Tab, Shift+Tab | Vão para a direita ou para a esquerda (pelas células selecionadas, se houver várias) |
+| Enter, Shift+Enter | Descem ou sobem (pelas células selecionadas, se houver várias) |
 | Ctrl+Espaço | Seleciona a coluna inteira |
 | Shift+Espaço | Seleciona a linha inteira |
 | {key:SelectAll} | Seleciona tudo |
@@ -25,22 +26,23 @@ No Mac, a tecla **Command** (⌘) faz o que a tecla **Ctrl** faz nas tabelas aba
 
 | Teclas | O que fazem |
 | --- | --- |
-| Qualquer caractere | Inicia uma entrada na célula ativa, substituindo o conteúdo dela |
-| F2 | Edita o conteúdo da célula ativa na própria célula; ao digitar uma fórmula, alterna entre apontar para células e editar o texto |
+| Qualquer caractere | Inicia uma entrada na célula ativa, no lugar do que ela contém |
+| F2 | Edita o conteúdo da célula ativa, na própria célula; ao digitar uma fórmula, alterna entre apontar para células e editar o texto |
 | F4 | Ao digitar uma fórmula, fixa partes do endereço no cursor com $ (A1, $A$1, A$1, $A1) |
-| Enter, Shift+Enter | Confirma a entrada e move para baixo ou para cima |
-| Tab, Shift+Tab | Confirma a entrada e move para a direita ou para a esquerda |
+| Enter, Shift+Enter | Confirmam a entrada e descem ou sobem |
+| Tab, Shift+Tab | Confirmam a entrada e vão para a direita ou para a esquerda |
 | Esc | Cancela a entrada |
 | Alt+Enter | Inicia uma nova linha na célula |
 | Delete | Limpa as células selecionadas |
 | {key:Undo}, {key:Redo} | Desfazer, refazer |
 | {key:Save} | Salvar |
 | {key:Cut}, {key:Copy}, {key:Paste} | Recortar, copiar, colar (Esc remove a borda das células copiadas) |
-| Ctrl+Alt+V | Colar Especial |
-| Ctrl e a tecla de adição, Ctrl e a tecla de subtração | Inserir, excluir (linhas ou colunas, se estiverem selecionadas inteiras) |
+| Ctrl+Alt+V | Colar especial |
+| Ctrl e a tecla de mais, Ctrl e a tecla de menos | Inserem e excluem (linhas ou colunas, se forem selecionadas inteiras) |
 | Ctrl+D, Ctrl+R | Preencher para baixo, preencher para a direita |
-| Alt e o sinal de igual | Soma |
-| Ctrl+0, Ctrl+9 | Ocultar as colunas, ocultar as linhas |
+| Ctrl+E | Preenchimento relâmpago |
+| Alt e a tecla de igual | Soma |
+| Ctrl+0, Ctrl+9 | Ocultam as colunas, ocultam as linhas |
 | Alt+Seta para baixo | Abre a lista de uma célula que tenha uma |
 | {key:Find} | Localizar |
 | Ctrl+H (no Mac, Option+Command+F) | Localizar e alterar |
@@ -49,7 +51,7 @@ No Mac, a tecla **Command** (⌘) faz o que a tecla **Ctrl** faz nas tabelas aba
 | Shift+F3 | Escolher uma função |
 | Ctrl+F3 | A lista de nomes |
 | F9, Shift+F9 | Recalcular tudo, recalcular esta planilha |
-| Tab, Enter | Ao digitar uma fórmula: aceita a função ou o nome realçado na lista |
+| Tab, Enter | Ao digitar uma fórmula: escolhem a função ou o nome marcado na lista |
 | Esc | Interrompe uma pesquisa, uma classificação ou um filtro em andamento |
 
 ## Comandos
@@ -58,4 +60,4 @@ No Mac, a tecla **Command** (⌘) faz o que a tecla **Ctrl** faz nas tabelas aba
 
 ## Teclas de acesso
 
-Pressione **Alt** para ver uma letra em cada guia e comando da faixa de opções e, em seguida, pressione as letras. Pressione **Alt** e depois **F** para abrir a tela Arquivo. Pressione **Esc** para voltar.
+Pressione **Alt** para ver uma letra em cada guia da faixa de opções e em cada comando, depois pressione as letras. Pressione **Alt** e depois **F** para abrir a tela Arquivo. Pressione **Esc** para voltar.
