@@ -74,6 +74,8 @@ struct WriteOutputOptions {
     Sides sides = Sides::All;   // only the pages whose numbers are odd or even, of the pages the range covers
     bool reverse = false;       // last page first
     bool byHand = false;        // both sides of the paper with a printer that has no duplex: the odd pages, a prompt to turn the stack over, then the even pages last first
+    int perSheet = 1;           // pages on a sheet: 1, 2, 4, 6, 9, or 16 (each scaled to fit its place)
+    QSizeF scaleTo;             // points, upright: each page is scaled to fit this paper (empty: the page's own)
 };
 
 class WriteWindow : public AppWindow {

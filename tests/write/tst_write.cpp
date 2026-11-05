@@ -2915,6 +2915,68 @@ private Q_SLOTS:
         QVERIFY(!w.printOutput(o));
     }
 
+    // Pages on a sheet: four pages of the range share one sheet, two share one turned on its side, and a page scaled to a paper size makes a sheet of that size.
+    void severalPagesShareASheetAndAPageCanBeScaledToAPaperSize()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        w.setDocument(open(makeDocx(paragraphs(150), kStyles)), QString());
+        QString target;
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        auto boxes = [](const QString &path) {
+            QFile f(path);
+            f.open(QIODevice::ReadOnly);
+            const QByteArray pdf = f.readAll();
+            QList<QSizeF> sizes;
+            static const QRegularExpression box(QStringLiteral("/MediaBox\\s*\\[\\s*0\\s+0\\s+([0-9.]+)\\s+([0-9.]+)\\s*\\]"));
+            auto it = box.globalMatch(QString::fromLatin1(pdf));
+            while (it.hasNext()) {
+                const auto m = it.next();
+                sizes << QSizeF(m.captured(1).toDouble(), m.captured(2).toDouble());
+            }
+            return sizes;
+        };
+        WriteOutputOptions o;
+        o.toFile = true;
+        o.range = WriteOutputOptions::Range::Pages;
+        o.pages = QStringLiteral("1-3");
+        target = dir.filePath(QStringLiteral("one.pdf"));
+        QVERIFY(w.printOutput(o));
+        const QList<QSizeF> single = boxes(target);
+        QCOMPARE(single.size(), 3);
+        QVERIFY(single[0].height() > single[0].width());
+        o.perSheet = 4;
+        target = dir.filePath(QStringLiteral("four.pdf"));
+        QVERIFY(w.printOutput(o));
+        const QList<QSizeF> four = boxes(target);
+        QCOMPARE(four.size(), 1);
+        QVERIFY(qAbs(four[0].width() - single[0].width()) < 1 && qAbs(four[0].height() - single[0].height()) < 1);
+        o.perSheet = 2;
+        target = dir.filePath(QStringLiteral("two.pdf"));
+        QVERIFY(w.printOutput(o));
+        const QList<QSizeF> two = boxes(target);
+        QCOMPARE(two.size(), 2);
+        QVERIFY(two[0].width() > two[0].height());
+        // The four on a sheet are drawn: the observer sees the three pages of the range, once each.
+        QVector<int> numbers;
+        {
+            const ObserverGuard observer;
+            write::setPaintObserver([&](const flow::MaterializedPage &page, const write::PageDrawing &) { numbers << page.number; });
+            o.perSheet = 4;
+            target = dir.filePath(QStringLiteral("four2.pdf"));
+            QVERIFY(w.printOutput(o));
+            write::setPaintObserver(nullptr);
+        }
+        QCOMPARE(numbers, (QVector<int>{1, 2, 3}));
+        o.perSheet = 1;
+        o.scaleTo = QSizeF(419.528, 595.276);   // (A5)
+        target = dir.filePath(QStringLiteral("a5.pdf"));
+        QVERIFY(w.printOutput(o));
+        const QList<QSizeF> small = boxes(target);
+        QCOMPARE(small.size(), 3);
+        QVERIFY2(qAbs(small[0].width() - 419.5) < 1.5 && qAbs(small[0].height() - 595.3) < 1.5, qPrintable(QStringLiteral("%1x%2").arg(small[0].width()).arg(small[0].height())));
+    }
+
     void aPrinterNamedPdfIsAPrinterAndTheFileEntryIsFoundByItsRole()
     {
         QComboBox box;

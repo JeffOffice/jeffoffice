@@ -536,7 +536,10 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     const bool again = !options.toFile && !printer.supportsMultipleCopies();
     const QVector<int> sheets = again ? write::sheetOrder(pages, options.copies, options.collate) : pages;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    bool ok = write::paintSheets(*source, &printer, sheets, sourcePages, printer.colorMode() == QPrinter::GrayScale);
+    write::SheetLayout layout;
+    layout.perSheet = options.perSheet;
+    layout.paper = options.scaleTo;
+    bool ok = write::paintSheets(*source, &printer, sheets, sourcePages, printer.colorMode() == QPrinter::GrayScale, layout);
     QString err;
     if (ok && made) {
         QFile whole(made->fileName());

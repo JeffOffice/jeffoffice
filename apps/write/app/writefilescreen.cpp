@@ -406,6 +406,25 @@ QWidget *WriteFileScreen::buildPrint()
     byHand->setObjectName(QStringLiteral("printByHand"));
     byHand->setToolTip(tr("For a printer that can't print on both sides: the odd pages first, then a message to turn the stack over, then the even pages."));
     left->addWidget(byHand);
+    // Several pages on a sheet, and each page scaled to a paper size.
+    auto *perSheet = new QComboBox(w);
+    perSheet->setObjectName(QStringLiteral("printPerSheet"));
+    perSheet->setAccessibleName(tr("Pages per sheet"));
+    for (int n : {1, 2, 4, 6, 9, 16}) perSheet->addItem(n == 1 ? tr("1 page per sheet") : tr("%1 pages per sheet").arg(n), n);
+    perSheet->setToolTip(tr("Print several pages on one sheet, each made smaller to fit."));
+    left->addSpacing(6);
+    left->addWidget(perSheet);
+    auto *scaleTo = new QComboBox(w);
+    scaleTo->setObjectName(QStringLiteral("printScaleTo"));
+    scaleTo->setAccessibleName(tr("Scale to paper size"));
+    scaleTo->addItem(tr("No scaling"), QSizeF());
+    scaleTo->addItem(tr("Scale to Letter"), QSizeF(612, 792));
+    scaleTo->addItem(tr("Scale to Legal"), QSizeF(612, 1008));
+    scaleTo->addItem(tr("Scale to A4"), QSizeF(595.276, 841.89));
+    scaleTo->addItem(tr("Scale to A5"), QSizeF(419.528, 595.276));
+    scaleTo->addItem(tr("Scale to A3"), QSizeF(841.89, 1190.551));
+    scaleTo->setToolTip(tr("Make each page fit the paper in the printer, whatever size the page is."));
+    left->addWidget(scaleTo);
     left->addStretch(1);
     h->addLayout(left, 1);
 
@@ -480,6 +499,8 @@ QWidget *WriteFileScreen::buildPrint()
         o.sides = static_cast<WriteOutputOptions::Sides>(sides->currentData().toInt());
         o.reverse = reverse->isChecked();
         o.byHand = byHand->isChecked() && !choice.toFile;
+        o.perSheet = perSheet->currentData().toInt();
+        o.scaleTo = scaleTo->currentData().toSizeF();
         return o;
     };
     auto page = std::make_shared<int>(0);
