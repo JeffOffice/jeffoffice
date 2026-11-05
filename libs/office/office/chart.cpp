@@ -1267,13 +1267,16 @@ QString ChartAxis::dispUnitName() const
 {
     if (dispUnitFactor() == 1) return QString();
     if (dispUnit == QLatin1String("custom")) return QCoreApplication::translate("Chart", "Units of %1").arg(dispUnitCustom);
-    static const QMap<QString, QString> names = {
-        {QStringLiteral("hundreds"), QCoreApplication::translate("Chart", "Hundreds")}, {QStringLiteral("thousands"), QCoreApplication::translate("Chart", "Thousands")},
-        {QStringLiteral("tenThousands"), QCoreApplication::translate("Chart", "Ten Thousands")}, {QStringLiteral("hundredThousands"), QCoreApplication::translate("Chart", "Hundred Thousands")},
-        {QStringLiteral("millions"), QCoreApplication::translate("Chart", "Millions")}, {QStringLiteral("tenMillions"), QCoreApplication::translate("Chart", "Ten Millions")},
-        {QStringLiteral("hundredMillions"), QCoreApplication::translate("Chart", "Hundred Millions")}, {QStringLiteral("billions"), QCoreApplication::translate("Chart", "Billions")},
-        {QStringLiteral("trillions"), QCoreApplication::translate("Chart", "Trillions")}};
-    return names.value(dispUnit);
+    // Translated at each call, so a change of language shows at once.
+    static const struct { const char *key, *name; } names[] = {
+        {"hundreds", QT_TRANSLATE_NOOP("Chart", "Hundreds")}, {"thousands", QT_TRANSLATE_NOOP("Chart", "Thousands")},
+        {"tenThousands", QT_TRANSLATE_NOOP("Chart", "Ten Thousands")}, {"hundredThousands", QT_TRANSLATE_NOOP("Chart", "Hundred Thousands")},
+        {"millions", QT_TRANSLATE_NOOP("Chart", "Millions")}, {"tenMillions", QT_TRANSLATE_NOOP("Chart", "Ten Millions")},
+        {"hundredMillions", QT_TRANSLATE_NOOP("Chart", "Hundred Millions")}, {"billions", QT_TRANSLATE_NOOP("Chart", "Billions")},
+        {"trillions", QT_TRANSLATE_NOOP("Chart", "Trillions")}};
+    for (const auto &n : names)
+        if (dispUnit == QLatin1String(n.key)) return QCoreApplication::translate("Chart", n.name);
+    return QString();
 }
 
 double ChartAxis::dispUnitFactor() const
