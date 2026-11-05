@@ -1994,6 +1994,27 @@ private Q_SLOTS:
         }
     }
 
+    // About lists the parts all four apps share, then JeffPub's own: the .pub reader and the downloaded tables.
+    void aboutListsTheThirdPartySoftware()
+    {
+        jp::MainWindow w;
+        w.show();
+        w.showBackstage(QStringLiteral("about"));
+        auto *list = w.findChild<QLabel *>(QStringLiteral("thirdParty"));
+        QVERIFY(list && list->isVisibleTo(&w));
+        QVERIFY2(list->text().contains(QLatin1String("Qt 6")), "Qt 6");
+        QVERIFY2(list->text().contains(QLatin1String("Hunspell")), "Hunspell");
+        QVERIFY2(list->text().contains(QLatin1String("PDFium")), "PDFium");
+        QVERIFY2(list->text().contains(QLatin1String("zlib")), "zlib");
+        QVERIFY2(list->text().contains(QLatin1String("Lucide icons")), "Lucide icons");
+        QVERIFY2(list->text().contains(QLatin1String("Open fonts")), "Open fonts");
+        QVERIFY2(list->text().contains(QLatin1String("ICU")), "ICU");
+        QVERIFY2(list->text().contains(QLatin1String("libmspub")), "libmspub");
+        QVERIFY2(list->text().contains(QLatin1String("librevenge")), "librevenge");
+        QVERIFY2(list->text().contains(QLatin1String("LibreTranslate")), "LibreTranslate");
+        QVERIFY2(list->text().contains(QLatin1String("ISBN range table")), "ISBN range table");
+    }
+
     // JeffPub opens with the window size it had when it last closed.
     void windowSizeKept()
     {

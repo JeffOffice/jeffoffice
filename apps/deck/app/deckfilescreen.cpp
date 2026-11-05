@@ -584,6 +584,11 @@ QWidget *DeckFileScreen::buildAbout()
     lt->setOpenExternalLinks(true);
     lv->addWidget(lt);
     lv->addWidget(legalLinks(legal));
+    // Every bundled component, linked to its project and its license: the parts all four apps have, then FFmpeg,
+    // which plays the movies and sounds (third_party/ffmpeg).
+    addThirdPartyList(lv, legal, lf, {{QStringLiteral("FFmpeg"), QStringLiteral("https://ffmpeg.org/"), tr("Playing movies and sounds"),
+                                       QStringLiteral("LGPL-2.1+"),
+                                       QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/ffmpeg/licenses/ffmpeg.txt")}});
     v->addWidget(legal);
     v->addStretch(1);
     return w;

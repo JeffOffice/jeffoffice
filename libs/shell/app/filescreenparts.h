@@ -6,6 +6,7 @@
 #include "app/icons.h"
 
 #include <QAbstractButton>
+#include <QList>
 #include <QEvent>
 #include <QFontMetrics>
 #include <QImage>
@@ -16,6 +17,8 @@
 
 class QFrame;
 class QLabel;
+
+class QBoxLayout;
 
 namespace jp {
 
@@ -28,6 +31,14 @@ QLabel *mutedLabel(const QString &t, QWidget *parent, double alpha = 0.62);
 // Links to the additional license terms, the privacy notice, and the trademark policy, for the License and notices card.
 QLabel *legalLinks(QWidget *parent);
 QLabel *sectionLabel(const QString &t, QWidget *parent);
+// One part of the program made by others, for the Third-party software list on About: its project, what it does
+// here, and its license.
+struct ThirdParty {
+    QString name, url, use, license, licenseUrl;
+};
+// The "Third-party software" heading and table for the License and notices card (the table is named "thirdParty"):
+// the parts every app has, then the app's own parts (JeffPub's .pub reader, for example).
+void addThirdPartyList(QBoxLayout *card, QWidget *parent, const QFont &headingFont, const QList<ThirdParty> &extras = {});
 void fitHeight(QLabel *l);
 
 // One sidebar entry: icon and label, a rounded highlight when current, a

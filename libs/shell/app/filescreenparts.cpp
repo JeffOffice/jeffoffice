@@ -253,4 +253,79 @@ QWidget *suiteCard(QWidget *parent, const QWidget *screen)
     return suite;
 }
 
+void addThirdPartyList(QBoxLayout *card, QWidget *parent, const QFont &headingFont, const QList<ThirdParty> &extras)
+{
+    // (The descriptions keep JeffPub's translation context, where they were first written and translated: all four
+    // apps load the same translation files, so each language's wording carries over.)
+    QList<ThirdParty> parts = {
+        {QStringLiteral("Qt 6"), QStringLiteral("https://www.qt.io/"), QCoreApplication::translate("jp::Backstage", "Interface, text layout, PDF and printing"), QStringLiteral("LGPL-3.0"), QStringLiteral("https://www.gnu.org/licenses/lgpl-3.0.html")},
+        {QStringLiteral("Hunspell"), QStringLiteral("https://hunspell.github.io/"), QCoreApplication::translate("jp::Backstage", "Spelling checker"), QStringLiteral("MPL-1.1, GPL-2.0+ or LGPL-2.1+"), QStringLiteral("https://www.mozilla.org/MPL/1.1/")},
+        // The dictionaries, from LibreOffice's (resources/dict/README.md).
+        {QStringLiteral("English dictionaries (SCOWL; UK)"), QStringLiteral("http://wordlist.aspell.net/"), QCoreApplication::translate("jp::Backstage", "Spelling"), QStringLiteral("SCOWL license; LGPL (UK)"),
+         QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/en/README_en_US.txt")},
+        {QStringLiteral("English hyphenation patterns"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/en/README_hyph_en_US.txt"), QCoreApplication::translate("jp::Backstage", "Hyphenation"), QStringLiteral("BSD-style"),
+         QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/en/README_hyph_en_US.txt")},
+        {QStringLiteral("WordNet"), QStringLiteral("https://wordnet.princeton.edu/"), QCoreApplication::translate("jp::Backstage", "Thesaurus"), QStringLiteral("WordNet license"),
+         QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/en/WordNet_license.txt")},
+        {QStringLiteral("Spanish dictionaries"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/es/README_hunspell_es.txt"), QCoreApplication::translate("jp::Backstage", "Spelling and hyphenation"), QStringLiteral("GPL-3.0+, LGPL-3.0+ or MPL-1.1+"),
+         QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/es/LICENSE.md")},
+        {QStringLiteral("French dictionary (Grammalecte)"), QStringLiteral("https://grammalecte.net/"), QCoreApplication::translate("jp::Backstage", "Spelling and hyphenation"), QStringLiteral("MPL-2.0; patterns LGPL"),
+         QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/fr_FR/README_dict_fr.txt")},
+        {QStringLiteral("German dictionary (igerman98)"), QStringLiteral("https://www.j3e.de/ispell/igerman98/"), QCoreApplication::translate("jp::Backstage", "Spelling and hyphenation"), QStringLiteral("GPL-2.0 or GPL-3.0; patterns LGPL-2.0+"),
+         QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/de/README_de_DE_frami.txt")},
+        {QStringLiteral("Italian dictionary"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/it_IT/README_it_IT.txt"), QCoreApplication::translate("jp::Backstage", "Spelling and hyphenation"), QStringLiteral("GPL-3.0; patterns LGPL"),
+         QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/it_IT/README_it_IT.txt")},
+        {QStringLiteral("Dutch dictionary (OpenTaal)"), QStringLiteral("https://www.opentaal.org/"), QCoreApplication::translate("jp::Backstage", "Spelling and hyphenation"), QStringLiteral("BSD or CC BY 3.0"),
+         QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/nl_NL/LICENSE.txt")},
+        {QStringLiteral("Brazilian Portuguese dictionary (VERO)"), QStringLiteral("http://pt-br.libreoffice.org/projetos/projeto-vero-verificador-ortografico/"), QCoreApplication::translate("jp::Backstage", "Spelling and hyphenation"),
+         QStringLiteral("LGPL-3.0 or MPL"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/pt_BR/README_en.txt")},
+        {QStringLiteral("European Portuguese dictionary"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/pt_PT/README_pt_PT.txt"), QCoreApplication::translate("jp::Backstage", "Spelling and hyphenation"), QStringLiteral("GPL-2.0+"),
+         QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/pt_PT/LICENSES.txt")},
+        {QStringLiteral("Lucide icons"), QStringLiteral("https://lucide.dev/"), QCoreApplication::translate("jp::Backstage", "Interface icons, Insert > Icons"), QStringLiteral("ISC"), QStringLiteral("https://lucide.dev/license")},
+        {QStringLiteral("Open fonts"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/fonts/README.md"), QCoreApplication::translate("jp::Backstage", "Fonts and substitutes"),
+         QStringLiteral("SIL OFL 1.1, Apache 2.0, GUST, Bitstream Vera, GPL v2 + font exceptions"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/fonts/README.md")},
+        {QStringLiteral("zlib"), QStringLiteral("https://zlib.net/"), QCoreApplication::translate("jp::Backstage", "Compression (also in PDFium)"), QStringLiteral("zlib license"), QStringLiteral("https://zlib.net/zlib_license.html")},
+        // PDFium and what's built into it; the texts ship with the program
+        // (third_party/pdfium/licenses).
+        {QStringLiteral("PDFium"), QStringLiteral("https://pdfium.googlesource.com/pdfium/"), QCoreApplication::translate("jp::Backstage", "Placing PDF pages"), QStringLiteral("BSD-3-Clause; parts Apache-2.0"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/pdfium.txt")},
+        {QStringLiteral("pdfium-binaries"), QStringLiteral("https://github.com/bblanchon/pdfium-binaries"), QCoreApplication::translate("jp::Backstage", "PDFium, built"), QStringLiteral("MIT"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/pdfium-binaries.txt")},
+        {QStringLiteral("FreeType (in PDFium)"), QStringLiteral("https://freetype.org/"), QCoreApplication::translate("jp::Backstage", "Fonts in PDF pages"), QStringLiteral("FreeType License"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/freetype.txt")},
+        {QStringLiteral("HarfBuzz (in PDFium)"), QStringLiteral("https://harfbuzz.github.io/"), QCoreApplication::translate("jp::Backstage", "Text in PDF pages"), QStringLiteral("Old MIT"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/harfbuzz.txt")},
+        {QStringLiteral("Little CMS (in PDFium)"), QStringLiteral("https://www.littlecms.com/"), QCoreApplication::translate("jp::Backstage", "Color in PDF pages"), QStringLiteral("MIT"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/lcms.txt")},
+        {QStringLiteral("libjpeg-turbo (in PDFium)"), QStringLiteral("https://libjpeg-turbo.org/"), QCoreApplication::translate("jp::Backstage", "JPEG pictures in PDF pages"), QStringLiteral("IJG and BSD-3-Clause"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/libjpeg_turbo.md")},
+        {QStringLiteral("OpenJPEG (in PDFium)"), QStringLiteral("https://www.openjpeg.org/"), QCoreApplication::translate("jp::Backstage", "JPEG 2000 in PDF pages"), QStringLiteral("BSD-2-Clause"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/libopenjpeg.txt")},
+        {QStringLiteral("libpng (in PDFium)"), QStringLiteral("http://www.libpng.org/pub/png/libpng.html"), QCoreApplication::translate("jp::Backstage", "PNG pictures in PDF pages"), QStringLiteral("libpng License v2"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/libpng.txt")},
+        {QStringLiteral("Abseil (in PDFium)"), QStringLiteral("https://abseil.io/"), QCoreApplication::translate("jp::Backstage", "Support code"), QStringLiteral("Apache-2.0"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/abseil.txt")},
+        {QStringLiteral("Anti-Grain Geometry 2.3 (in PDFium)"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/agg23.txt"), QCoreApplication::translate("jp::Backstage", "Drawing"), QStringLiteral("AGG 2.3 license"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/agg23.txt")},
+        {QStringLiteral("dragonbox (in PDFium)"), QStringLiteral("https://github.com/jk-jeon/dragonbox"), QCoreApplication::translate("jp::Backstage", "Numbers"), QStringLiteral("Apache-2.0 (LLVM) or BSL-1.0"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/dragonbox-Boost.txt")},
+        {QStringLiteral("fast_float (in PDFium)"), QStringLiteral("https://github.com/fastfloat/fast_float"), QCoreApplication::translate("jp::Backstage", "Numbers"), QStringLiteral("MIT"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/fast_float.txt")},
+        {QStringLiteral("simdutf (in PDFium)"), QStringLiteral("https://github.com/simdutf/simdutf"), QCoreApplication::translate("jp::Backstage", "Unicode text"), QStringLiteral("MIT"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/simdutf.txt")},
+        {QStringLiteral("LLVM libc (in PDFium)"), QStringLiteral("https://libc.llvm.org/"), QCoreApplication::translate("jp::Backstage", "Support code"), QStringLiteral("Apache-2.0 (LLVM)"), QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/llvm-libc.txt")},
+        {QStringLiteral("ICU"), QStringLiteral("https://icu.unicode.org/"), QCoreApplication::translate("jp::Backstage", "Unicode text (in PDFium; with Qt on Linux)"), QStringLiteral("Unicode License v3"), QStringLiteral("https://www.unicode.org/license.txt")},
+#ifdef Q_OS_WIN
+        {QStringLiteral("MinGW-w64 runtime"), QStringLiteral("https://www.mingw-w64.org/"), QCoreApplication::translate("jp::Backstage", "C++ runtime"), QStringLiteral("GPL-3.0 with GCC Runtime Library Exception; MIT"),
+         QStringLiteral("https://www.gnu.org/licenses/gcc-exception-3.1.html")},
+        {QStringLiteral("Inno Setup"), QStringLiteral("https://jrsoftware.org/isinfo.php"), QCoreApplication::translate("jp::Backstage", "Installer"), QStringLiteral("Inno Setup License"), QStringLiteral("https://jrsoftware.org/files/is/license.txt")},
+#endif
+    };
+    parts += extras;
+    QString rows;
+    for (const ThirdParty &pt : parts)
+        rows += QStringLiteral("<tr><td style=\"padding:3px 14px 3px 0\"><a href=\"%1\">%2</a></td><td style=\"padding:3px 14px 3px 0\">%3</td>"
+                               "<td style=\"padding:3px 0\"><a href=\"%4\">%5</a></td></tr>")
+                    .arg(pt.url, pt.name.toHtmlEscaped(), pt.use.toHtmlEscaped(), pt.licenseUrl, pt.license.toHtmlEscaped());
+    auto *th = new QLabel(QCoreApplication::translate("jp::Backstage", "Third-party software"), parent);
+    th->setFont(headingFont);
+    card->addSpacing(6);
+    card->addWidget(th);
+    auto *table = mutedLabel(QStringLiteral("<table cellspacing=\"0\">%1</table>").arg(rows), parent, 0.75);
+    table->setObjectName(QStringLiteral("thirdParty"));
+    table->setTextFormat(Qt::RichText);
+    // Wrapped at the card's width: unwrapped, a narrow window cut off the long names and the last rows.
+    table->setWordWrap(true);
+    fitHeight(table);
+    table->setOpenExternalLinks(true);
+    card->addWidget(table);
+}
+
 } // namespace jp

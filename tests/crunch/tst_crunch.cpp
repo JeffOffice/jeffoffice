@@ -459,6 +459,26 @@ private Q_SLOTS:
         QVERIFY(win.w.helpView()->isVisible());
     }
 
+    // About lists the third-party software in the app, with each project's license (the list all four apps share).
+    void aboutListsTheThirdPartySoftware()
+    {
+        Window win;
+        auto &w = win.w;
+        w.show();
+        w.showFileScreen(QStringLiteral("about"));
+        auto *list = w.findChild<QLabel *>(QStringLiteral("thirdParty"));
+        QVERIFY(list && list->isVisibleTo(&w));
+        QVERIFY2(list->text().contains(QLatin1String("Qt 6")), "Qt 6");
+        QVERIFY2(list->text().contains(QLatin1String("Hunspell")), "Hunspell");
+        QVERIFY2(list->text().contains(QLatin1String("PDFium")), "PDFium");
+        QVERIFY2(list->text().contains(QLatin1String("zlib")), "zlib");
+        QVERIFY2(list->text().contains(QLatin1String("Lucide icons")), "Lucide icons");
+        QVERIFY2(list->text().contains(QLatin1String("Open fonts")), "Open fonts");
+        QVERIFY2(list->text().contains(QLatin1String("ICU")), "ICU");
+        QVERIFY2(!list->text().contains(QLatin1String("libmspub")), "libmspub");
+        QVERIFY2(!list->text().contains(QLatin1String("LibreTranslate")), "LibreTranslate");
+    }
+
     // Help's topics are complete: each has a title and keywords, links to topics that are there, a place in the contents, and enough text; each ribbon tab and File page has its topic.
     void helpTopicsAreComplete()
     {
