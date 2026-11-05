@@ -33,6 +33,12 @@ struct CsvImport {
     int codePage = 1252;
     // The row (from 0) the data begins at; the rows before it are left out.
     int firstRow = 0;
+    // The marks a number is written with in this file (null: the person's language's own), and whether a minus sign may come after the number ("1,234-").
+    QChar decimalMark, thousandsMark;
+    bool trailingMinus = false;
+    // A file of columns of fixed width: `breaks` are the places (counted in characters from 0, in order) where a column begins after the first. No separators or quotes then.
+    bool fixedWidth = false;
+    QVector<int> breaks;
     // How each column is read (the first is column 0), and the columns past the list.
     QVector<CsvColumn> columns;
     CsvColumn rest;
@@ -40,12 +46,14 @@ struct CsvImport {
     bool operator==(const CsvImport &o) const
     {
         return separators == o.separators && mergeSeparators == o.mergeSeparators && quote == o.quote && encodingSet == o.encodingSet && encoding == o.encoding && codePage == o.codePage
-               && firstRow == o.firstRow && columns == o.columns && rest == o.rest;
+               && firstRow == o.firstRow && columns == o.columns && rest == o.rest && decimalMark == o.decimalMark && thousandsMark == o.thousandsMark && trailingMinus == o.trailingMinus
+               && fixedWidth == o.fixedWidth && breaks == o.breaks;
     }
 };
 
 // The most columns and rows a person's choices are looked at for, and the most text of a field the preview shows.
 constexpr int kMaxCsvColumnChoices = 256;
+constexpr int kMaxCsvBreaks = 255;
 constexpr int kCsvPreviewRows = 200;
 constexpr int kCsvPreviewColumns = 100;
 constexpr int kCsvPreviewFieldChars = 120;
