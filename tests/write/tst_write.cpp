@@ -27,6 +27,8 @@
 #include "core/fieldops.h"
 #include "core/commentops.h"
 #include "core/editops.h"
+#include "core/headerops.h"
+#include "core/pagenumbering.h"
 #include "core/pagesetup.h"
 #include "core/pictureops.h"
 #include "core/printing.h"
@@ -193,6 +195,12 @@ QVector<ItemPtr> inlineObjectsOf(const WriteDoc &doc)
             if (!json.isEmpty()) out << Item::fromJsonAny(QJsonDocument::fromJson(json.toUtf8()).object());
         }
     return out;
+}
+
+QByteArray documentXmlOfPart(const QByteArray &zip, const QString &part)
+{
+    office::Package p;
+    return p.read(zip) ? p.part(part) : QByteArray();
 }
 
 QByteArray documentXml(const QByteArray &zip)
@@ -1606,7 +1614,7 @@ private Q_SLOTS:
         QVERIFY(WriteDoc::fromFile(rtf));
     }
 
-    void savingAnRtfFileAsksForADocxName()
+    void savingAnRtfFileWritesAnRtfFileThatReadsBackTheSame()
     {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
@@ -1614,23 +1622,18 @@ private Q_SLOTS:
         const QString path = writeFile(dir, QStringLiteral("old.rtf"), rtf);
         WriteWindow w;
         QStringList notices;
-        QString suggested;
         w.setNotifier([&](const QString &, const QString &text) { notices << text; });
-        w.setSavePathChooser([&](const QString &name, const QString &) {
-            suggested = name;
-            return dir.filePath(QStringLiteral("new.docx"));
-        });
         QVERIFY(w.openFile(path));
         typeText(*w.document(), w.view()->cursor(), QStringLiteral("!"));
         QVERIFY(w.save());
-        QCOMPARE(notices.size(), 1);
-        QVERIFY2(notices[0].contains(QLatin1String(".docx")) && notices[0].contains(QLatin1String(".rtf")), qPrintable(notices[0]));
-        QVERIFY2(suggested.endsWith(QLatin1String("old.docx")), qPrintable(suggested));
+        QVERIFY(notices.isEmpty());   // (nothing in it that the format can't hold)
+        QCOMPARE(w.filePath(), path);
         QFile again(path);
         QVERIFY(again.open(QIODevice::ReadOnly));
-        QCOMPARE(again.readAll(), rtf);
+        const QByteArray saved = again.readAll();
+        QVERIFY2(saved.startsWith("{\\rtf1\\ansi") && saved != rtf, saved.constData());
         WriteWindow b;
-        QVERIFY(b.openFile(w.filePath()));
+        QVERIFY(b.openFile(path));
         QCOMPARE(b.document()->story()->toPlainText().left(9), QStringLiteral("!Old text"));
     }
 
@@ -2368,7 +2371,7 @@ private Q_SLOTS:
         const QString start = jp::help::topic(QStringLiteral("start")).markdown;
         for (const char *stale : {"Tables are not shown", "Pictures, shapes, and text boxes are not shown", "show their numbers, but not their text", "open or save .doc", "start a new page instead", "**[picture]**", "You can't open .rtf or .odt files yet", "Only the page number field can be inserted", "are kept, but not shown", "can't save .doc, .rtf, or .odt"})
             QVERIFY2(!start.contains(QLatin1String(stale)), stale);
-        for (const char *now : {".dot, .rtf, .odt, .ott, and .fodt", "Saving .docx, .dotx, and .odt files", "tables, headers and footers, footnotes and endnotes, pictures", "continue on the same page", "Tab", "The ruler is across the top only"})
+        for (const char *now : {".dot, .rtf, .odt, .ott, and .fodt", "Saving .docx, .docm, .dotx, .dotm, .odt, .rtf, and .txt files", "tables, headers and footers, footnotes and endnotes, pictures", "continue on the same page", "Tab", "The ruler is across the top only"})
             QVERIFY2(start.contains(QLatin1String(now)), now);
         QVERIFY(jp::help::topic(QStringLiteral("open-save")).markdown.contains(QLatin1String("**.doc**")));
         const QString spelling = jp::help::topic(QStringLiteral("spelling")).markdown;
@@ -6339,6 +6342,140 @@ private Q_SLOTS:
         QVERIFY(!w.document()->hasOwnHeaderFooter(0, false, 0));
         QTRY_VERIFY(!w.view()->inHeaderFooter());
         QVERIFY(!w.document()->isModified());
+    }
+
+    // Previous Section, Next Section, Go to Header, Go to Footer, Date & Time, and Page Number Format are on the tab.
+    void theHeaderAndFooterTabNavigatesAndInsertsDatesAndSetsNumbering()
+    {
+        const QByteArray one = sectionNaming({{"default", "rIdheader1"}});
+        const QByteArray body = paragraphs(30, 50) + "<w:p><w:pPr>" + one + "</w:pPr><w:r><w:t>end of one</w:t></w:r></w:p>" + paragraphs(30, 50);
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocxWithParts(body, sectionNaming({}), {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>SHARED</w:t></w:r>"})}})), QString());
+        WriteDoc *doc = w.document();
+        w.view()->paginateAll();
+        QVERIFY(w.view()->enterHeaderFooter(0, false));
+        w.view()->setFocus();
+        QTRY_VERIFY(w.act("hf.nextSection")->isEnabled());
+        QVERIFY(!w.act("hf.previousSection")->isEnabled());
+        QVERIFY(!w.act("hf.goToHeader")->isEnabled() && w.act("hf.goToFooter")->isEnabled());
+        // Go to Footer: the footer of the same page
+        w.act("hf.goToFooter")->trigger();
+        QVERIFY(w.view()->headerFooterEdit().footer && w.view()->headerFooterEdit().section == 0);
+        QTRY_VERIFY(w.act("hf.goToHeader")->isEnabled() && !w.act("hf.goToFooter")->isEnabled());
+        w.act("hf.goToHeader")->trigger();
+        QVERIFY(!w.view()->headerFooterEdit().footer);
+        // Next Section: the same kind of one in the section after, on its first page
+        w.act("hf.nextSection")->trigger();
+        QCOMPARE(w.view()->headerFooterEdit().section, 1);
+        QVERIFY(!w.view()->headerFooterEdit().footer);
+        QCOMPARE(doc->pager().page(w.view()->headerFooterEdit().page).start.section, 1);
+        QTRY_VERIFY(!w.act("hf.nextSection")->isEnabled() && w.act("hf.previousSection")->isEnabled());
+        w.act("hf.previousSection")->trigger();
+        QCOMPARE(w.view()->headerFooterEdit().section, 0);
+        // Date & Time puts a field in the header being edited (the dialog stood in for by its first choice)
+        QTimer::singleShot(0, [] {
+            QWidget *d = QApplication::activeModalWidget();
+            if (d) static_cast<QDialog *>(d)->accept();
+        });
+        QTRY_VERIFY(w.act("hf.dateTime")->isEnabled());
+        w.act("hf.dateTime")->trigger();
+        QVERIFY2(doc->headerFooterStory(0, false, 0)->toPlainText().size() > 6, qPrintable(doc->headerFooterStory(0, false, 0)->toPlainText()));
+        QVERIFY(doc->headerFooterStory(0, false, 0)->toPlainText().startsWith(QLatin1String("SHARED")) || doc->headerFooterStory(0, false, 0)->toPlainText().contains(QLatin1String("SHARED")));
+        // Page Number Format is on the tab
+        QTRY_VERIFY(w.act("hf.pageNumberFormat")->isEnabled());
+        QTimer::singleShot(0, [] {
+            QWidget *d = QApplication::activeModalWidget();
+            if (!d) return;
+            auto *format = d->findChild<QComboBox *>(QStringLiteral("numberFormat"));
+            format->setCurrentIndex(format->findData(QStringLiteral("upperRoman")));
+            static_cast<QDialog *>(d)->accept();
+        });
+        w.act("hf.pageNumberFormat")->trigger();
+        QCOMPARE(pageNumberingOf(doc->sectionProps(0)).format, QStringLiteral("upperRoman"));
+        QCOMPARE(pageNumberingOf(doc->sectionProps(1)).format, QStringLiteral("decimal"));
+    }
+
+    void removeHeaderAndFooterLetGoOfTheSectionsOwnAndBlankWhatItWouldShare()
+    {
+        const QByteArray one = sectionNaming({{"default", "rIdheader1"}});
+        const QByteArray body = paragraphs(30, 50) + "<w:p><w:pPr>" + one + "</w:pPr><w:r><w:t>end of one</w:t></w:r></w:p>" + paragraphs(30, 50);
+        auto make = [&] { return open(makeDocxWithParts(body, sectionNaming({}), {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>SHARED</w:t></w:r>"})}})); };
+        auto doc = make();
+        QVERIFY(doc);
+        doc->pager().paginate(-1);
+        int second = -1;
+        for (int k = 0; k < doc->pager().pagesKnown() && second < 0; ++k)
+            if (doc->pager().page(k).start.section == 1) second = k;
+        QVERIFY(second > 0);
+        QCOMPARE(headerOfPage(*doc, second), QStringLiteral("SHARED"));
+        QVERIFY(!doc->removeHeaderFooter(0, true));   // (no footer to remove)
+        // Section 0's own header goes, and the second section, which took it, shows none.
+        QVERIFY(doc->removeHeaderFooter(0, false));
+        QVERIFY(!doc->hasOwnHeaderFooter(0, false, 0));
+        QCOMPARE(headerOfPage(*doc, 0), QString());
+        QCOMPARE(headerOfPage(*doc, second), QString());
+        QVERIFY(!doc->removeHeaderFooter(0, false));   // (nothing left)
+        QVERIFY(!documentXml(doc->toDocx()).contains("headerReference"));
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->canUndo() || headerOfPage(*doc, 0) == QStringLiteral("SHARED"));
+        QCOMPARE(headerOfPage(*doc, 0), QStringLiteral("SHARED"));
+        // The second section alone: it gets a blank header of its own and the first keeps its.
+        auto again = make();
+        again->pager().paginate(-1);
+        QVERIFY(again->removeHeaderFooter(1, false));
+        QVERIFY(again->hasOwnHeaderFooter(1, false, 0));
+        QCOMPARE(headerOfPage(*again, 0), QStringLiteral("SHARED"));
+        QCOMPARE(headerOfPage(*again, second), QString());
+    }
+
+    void headerDesignsFillAHeaderWithFieldsAndTabsInOneStep()
+    {
+        const QVector<HeaderDesign> designs = headerFooterDesigns();
+        QStringList ids;
+        for (const HeaderDesign &d : designs) ids << d.id;
+        QVERIFY2(designs.size() >= 6 && ids.contains(QStringLiteral("blank")) && ids.contains(QStringLiteral("threeColumns")) && ids.contains(QStringLiteral("pageRight")), qPrintable(ids.join(QLatin1Char(' '))));
+        auto doc = WriteDoc::blank();
+        QVERIFY(!applyHeaderFooterDesign(*doc, 0, false, 0, QStringLiteral("nonsense")));
+        QVERIFY(applyHeaderFooterDesign(*doc, 0, false, 0, QStringLiteral("pageRight")));
+        QTextDocument *header = doc->headerFooterStory(0, false, 0);
+        QVERIFY(header);
+        QCOMPARE(header->toPlainText().count(QChar::ObjectReplacementCharacter), 1);   // (the page number)
+        QCOMPARE(header->firstBlock().blockFormat().alignment() & Qt::AlignRight, Qt::AlignRight);
+        QVERIFY(documentXmlOfPart(doc->toDocx(), QStringLiteral("/word/header1.xml")).contains("PAGE"));
+        // Another design replaces it, in one step; three columns have two tab stops.
+        QVERIFY(applyHeaderFooterDesign(*doc, 0, false, 0, QStringLiteral("threeColumns")));
+        header = doc->headerFooterStory(0, false, 0);
+        QCOMPARE(header->toPlainText().count(QLatin1Char('\t')), 2);
+        QCOMPARE(int(header->firstBlock().blockFormat().tabPositions().size()), 2);
+        QCOMPARE(header->blockCount(), 1);
+        QVERIFY(doc->undo());
+        header = doc->headerFooterStory(0, false, 0);
+        QCOMPARE(header->toPlainText().count(QChar::ObjectReplacementCharacter), 1);
+        QCOMPARE(header->toPlainText().count(QLatin1Char('\t')), 0);
+        // Blank empties it.
+        QVERIFY(applyHeaderFooterDesign(*doc, 0, false, 0, QStringLiteral("blank")));
+        QCOMPARE(doc->headerFooterStory(0, false, 0)->toPlainText(), QString());
+        // A footer too.
+        QVERIFY(applyHeaderFooterDesign(*doc, 0, true, 0, QStringLiteral("pageCenter")));
+        QVERIFY(doc->headerFooterStory(0, true, 0)->toPlainText().count(QChar::ObjectReplacementCharacter) == 1);
+    }
+
+    void documentInformationIsPutInAsFields()
+    {
+        auto doc = WriteDoc::blank();
+        office::PackageProps props = doc->packageProps();
+        props.title = QStringLiteral("Annual Report");
+        props.creator = QStringLiteral("A. Writer");
+        doc->setPackageProps(props);
+        QVERIFY(doc->createHeaderFooter(0, false, 0));
+        QTextDocument *header = doc->editableHeaderFooter(0, false, 0);
+        QTextCursor c(header);
+        QVERIFY(!insertDocumentInfo(*doc, c, QStringLiteral("nonsense")));
+        for (const char *kind : {"title", "author", "fileName", "filePath"}) QVERIFY(insertDocumentInfo(*doc, c, QString::fromLatin1(kind)));
+        const QByteArray xml = documentXmlOfPart(doc->toDocx(), QStringLiteral("/word/header1.xml"));
+        for (const char *word : {"TITLE", "AUTHOR", "FILENAME", "\\p", "Annual Report", "A. Writer"}) QVERIFY2(xml.contains(word), word);
     }
 
     // The tab's options: Different First Page (a section's), Different Odd & Even Pages (the document's), Link to Previous (a section's, for what is being edited), and Insert Page Number.
@@ -22718,6 +22855,36 @@ private Q_SLOTS:
         }
     }
 
+    void aPictureMarkedAsDecorativeHasNoDescriptionAndKeepsTheMarkWhenSaved()
+    {
+        auto doc = textDoc({longText()});
+        QTextCursor c(doc->story());
+        QCOMPARE(insertPicture(*doc, c, pngOf(160, 160), QString(), PictureWrap::Inline, QStringLiteral("A square")), PictureResult::Ok);
+        QVERIFY(!pictureAt(*doc, doc->story(), 0).decorative);
+        QVERIFY(!setPictureDecorative(*doc, 0, false));   // (nothing to take off)
+        QVERIFY(setPictureDecorative(*doc, 0, true));
+        PictureInfo info = pictureAt(*doc, doc->story(), 0);
+        QVERIFY(info.decorative && info.alt.isEmpty() && info.editable);
+        QVERIFY(!setPictureDecorative(*doc, 0, true));
+        // in the file as the newer format has it, inside the picture's properties, and read back
+        const QByteArray saved = doc->toDocx();
+        const QByteArray xml = documentXml(saved);
+        QVERIFY2(xml.contains("{C183D7F6-B498-43B3-948B-1728B52AA6E4}") && xml.contains("<adec:decorative"), xml.constData());
+        wml::XmlTree tree;
+        QVERIFY(tree.parse(xml));
+        auto back = open(saved);
+        QVERIFY(back && pictureAt(*back, back->story(), 0).decorative);
+        // one step undoes it; off takes the mark away and leaves nothing behind
+        QVERIFY(doc->undo());
+        QVERIFY(!pictureAt(*doc, doc->story(), 0).decorative);
+        QCOMPARE(pictureAt(*doc, doc->story(), 0).alt, QStringLiteral("A square"));
+        QVERIFY(doc->redo());
+        QVERIFY(setPictureDecorative(*doc, 0, false));
+        QVERIFY(!pictureAt(*doc, doc->story(), 0).decorative);
+        QVERIFY(!documentXml(doc->toDocx()).contains("C183D7F6"));
+        QVERIFY(!documentXml(doc->toDocx()).contains("extLst"));
+    }
+
     void aPictureIsSizedPlacedAndDescribedInOneStepEach()
     {
         auto doc = textDoc({longText()});
@@ -22922,6 +23089,47 @@ private Q_SLOTS:
         QVector<SectionSetup> out;
         for (int i = 0; i < doc.sectionCount(); ++i) out << pageSetupOf(doc.sectionProps(i), doc.differentOddEven());
         return out;
+    }
+
+    void formatPageNumbersSetsASectionsNumberingInOneStepAndSavesIt()
+    {
+        auto doc = threeSections();
+        QVERIFY(doc);
+        QCOMPARE(pageNumberingOf(doc->sectionProps(1)), PageNumbering());
+        PageNumbering n;
+        n.format = QStringLiteral("lowerRoman");
+        n.continueFromPrevious = false;
+        n.startAt = 5;
+        n.chapterStyle = 1;
+        n.chapterSeparator = QStringLiteral("period");
+        QCOMPARE(applyPageNumbering(*doc, 1, false, n), 1);
+        QCOMPARE(pageNumberingOf(doc->sectionProps(1)), n);
+        QCOMPARE(pageNumberingOf(doc->sectionProps(0)), PageNumbering());
+        QCOMPARE(doc->flow().section(1).pageNumberFormat, QStringLiteral("roman"));
+        QCOMPARE(doc->flow().section(1).firstPageNumber, std::optional<int>(5));
+        QCOMPARE(doc->flow().section(1).chapterStyle, 1);
+        QCOMPARE(doc->flow().section(1).chapterSeparator, QStringLiteral("."));
+        QCOMPARE(applyPageNumbering(*doc, 1, false, n), 0);   // (nothing to change)
+        // saved as the file format has it, and read back the same
+        office::Package pack;
+        QVERIFY(pack.read(doc->toDocx()));
+        const QByteArray xml = pack.part(QStringLiteral("/word/document.xml"));
+        QVERIFY2(xml.contains("<w:pgNumType w:fmt=\"lowerRoman\" w:start=\"5\" w:chapStyle=\"1\" w:chapSep=\"period\"/>"), xml.constData());
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QCOMPARE(pageNumberingOf(back->sectionProps(1)), n);
+        // Continue clears the start and None clears the chapter; one step undoes it
+        n.continueFromPrevious = true;
+        n.chapterStyle = 0;
+        n.format = QStringLiteral("decimal");
+        QCOMPARE(applyPageNumbering(*doc, 1, false, n), 1);
+        QVERIFY(!doc->sectionProps(1).pageStart.has_value() && doc->sectionProps(1).pageFormat.isEmpty());
+        QVERIFY(!QString::fromUtf8(doc->sectionProps(1).pgNumAttrs).contains(QLatin1String("chap")));
+        QVERIFY(doc->undo());
+        QCOMPARE(pageNumberingOf(doc->sectionProps(1)).format, QStringLiteral("lowerRoman"));
+        // every section
+        QCOMPARE(applyPageNumbering(*doc, 0, true, n), 1);   // (the other two already number as asked)
+        QVERIFY(!pageNumberFormats().isEmpty());
     }
 
     void pageSetupChangesTheSectionOrTheWholeDocumentInOneStepAndSavesTheSame()

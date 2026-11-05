@@ -137,7 +137,11 @@ public:
     // `makeNow` it is made at once. A blank page, which an odd-page or even-page section break leaves, has none to edit.)
     bool enterHeaderFooter(int page, bool footer, bool makeNow = false);
     bool enterHeaderFooterFor(int section, bool footer, int slot, int page, bool makeNow = false);
-    bool enterHeaderFooterAtCaret(bool footer);   // for the page the caret is on (made at once: Insert > Header)
+    bool enterHeaderFooterAtCaret(bool footer);
+    // Previous and Next section (-1 and 1) while a header or footer is edited: the same kind of one (header or footer) on the first page of the section before or after. False where there is none.
+    bool enterNeighborSection(int step);
+    // Go to Header and Go to Footer: the other one on the page being edited.
+    bool enterOtherHeaderFooter(bool footer);   // for the page the caret is on (made at once: Insert > Header)
     void leaveHeaderFooter();
     // After a change to the sections or to their options: the header (footer) being edited is the one that its page uses now (else the one that is, made blank if `create`, else editing ends).
     void refreshHeaderFooter(bool create);

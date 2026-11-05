@@ -14,6 +14,8 @@
 #include "core/fonts.h"
 #include "core/pagesetup.h"
 #include "core/commentops.h"
+#include "core/dropcapops.h"
+#include "core/watermarkops.h"
 #include "core/editops.h"
 #include "core/fieldops.h"
 #include "core/indexops.h"
@@ -223,6 +225,25 @@ private Q_SLOTS:
                  typeInto(asWrite(w)->view(), QStringLiteral("In the second section"));
                  asWrite(w)->view()->paginateAll();
                  asWrite(w)->view()->goToPage(asWrite(w)->view()->pageCount() - 1);
+                 asWrite(w)->refreshNow();
+                 w->act(QStringLiteral("insert.header"))->trigger();
+             }, false},
+            {QStringLiteral("the footer of a second section"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 w->act(QStringLiteral("layout.sectionBreak"))->trigger();
+                 typeInto(asWrite(w)->view(), QStringLiteral("In the second section"));
+                 asWrite(w)->view()->paginateAll();
+                 asWrite(w)->view()->goToPage(asWrite(w)->view()->pageCount() - 1);
+                 asWrite(w)->refreshNow();
+                 w->act(QStringLiteral("insert.footer"))->trigger();
+             }, false},
+            {QStringLiteral("the header of a first section that another follows"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 w->act(QStringLiteral("layout.sectionBreak"))->trigger();
+                 typeInto(asWrite(w)->view(), QStringLiteral("In the second section"));
+                 asWrite(w)->view()->paginateAll();
+                 asWrite(w)->view()->cursor().setPosition(0);
+                 asWrite(w)->view()->goToPage(0);
                  asWrite(w)->refreshNow();
                  w->act(QStringLiteral("insert.header"))->trigger();
              }, false},
@@ -450,6 +471,22 @@ private Q_SLOTS:
             {QStringLiteral("a cover page"), [typed](AppWindow *w, bool f) {
                  typed(w, f);
                  write::insertCoverPage(*asWrite(w)->document(), write::CoverDesign::Classic);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a watermark"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WatermarkSetup mark;
+                 mark.text = QStringLiteral("DRAFT");
+                 write::insertWatermark(*asWrite(w)->document(), mark);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a drop cap"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::DropCapSetup cap;
+                 cap.lines = 3;
+                 QTextCursor c(asWrite(w)->document()->story());
+                 write::setDropCap(*asWrite(w)->document(), c, cap);
+                 asWrite(w)->view()->setCursor(c);
                  asWrite(w)->refreshNow();
              }, false},
             {QStringLiteral("a page color"), [typed](AppWindow *w, bool f) {

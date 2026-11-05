@@ -26,7 +26,7 @@ If part of the file can't be read, JeffWrite tells you what it left out. Some RT
 
 ## Save your changes
 
-JeffWrite does not write .rtf files. When you save a document that came from an .rtf file, JeffWrite asks for a new name and saves it as a .docx file. The .rtf file stays as it was.
+You can save a document as an .rtf file: choose **Rich Text Format (*.rtf)** in **Save As**, or press **Ctrl+S** on a document that came from an .rtf file. The file keeps the text and its looks, styles, lists, tables, page setup, headers and footers, links, and pictures (PNG, JPEG, and EMF). It does not keep footnotes, endnotes, comments, tracked changes, equations, shapes, or text boxes. JeffWrite tells you what it left out when you save.
 
 ## Related
 
