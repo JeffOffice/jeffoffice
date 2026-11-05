@@ -68,6 +68,7 @@ QWidget *CrunchWindow::buildInfoPage(QWidget *parent)
     h.protectSheet = [this] { protectSheet(); };
     h.protectStructure = [this] { protectWorkbook(); };
     h.checkCompatibility = [this] { checkCompatibility(); };
+    h.versionHistory = [this] { versionHistory(); };
     return jp::buildInfoPage(parent, h);
 }
 

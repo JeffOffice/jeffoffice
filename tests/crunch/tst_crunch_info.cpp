@@ -14,6 +14,7 @@
 #include "../localepin.h"
 
 #include <QAction>
+#include <QApplication>
 #include <QLabel>
 #include <QLineEdit>
 #include <QSettings>
@@ -248,6 +249,53 @@ private Q_SLOTS:
         QCOMPARE(fixed.shownAt(QStringLiteral("A1")), QStringLiteral("3"));
         QCOMPARE(fixed.shownAt(QStringLiteral("A100")), QStringLiteral("300"));
         QVERIFY2(fixed.win.told.join(QLatin1Char('|')).contains(QLatin1String("repaired")), qPrintable(fixed.win.told.join(QLatin1Char('|'))));
+    }
+
+    // Versions of a workbook: one is kept, listed, and gone back to (the workbook as it was just before is kept first), and one opens as a copy in a window of its own.
+    void versionsAreKeptListedAndRestored()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        write::VersionStore(e.path, QStringLiteral(".xlsx")).removeAll();
+        QVERIFY(e.win.w.versions().isEmpty());
+        QSignalSpy kept(&e.win.w, &CrunchWindow::versionKept);
+        QVERIFY(e.win.w.saveVersion(QStringLiteral("First")));
+        QVERIFY(kept.count() > 0 || kept.wait(20000));
+        QVERIFY(kept.last().first().toBool());
+        QCOMPARE(e.win.w.versions().size(), 1);
+        QCOMPARE(e.win.w.versions().first().name, QStringLiteral("First"));
+        QVERIFY(write::VersionStore(e.path, QStringLiteral(".xlsx")).read(e.win.w.versions().first().file).startsWith("PK"));
+        // a change, then back to the first
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("77"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("A1")), QStringLiteral("77"));
+        const QString first = e.win.w.versions().first().file;
+        QSignalSpy loaded(&e.win.w, &CrunchWindow::loadFinished);
+        QVERIFY(e.win.w.restoreVersion(first));
+        QVERIFY(loaded.count() > 0 || loaded.wait(60000));
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("A1")), QStringLiteral("1"));
+        QVERIFY(!e.win.w.isModified());
+        const QVector<write::DocVersion> all = e.win.w.versions();
+        QCOMPARE(all.size(), 2);
+        QVERIFY(all.first().name.startsWith(QLatin1String("Before restoring")));   // (what the workbook was just before, kept first)
+        // the kept state has the change
+        QVERIFY(write::VersionStore(e.path, QStringLiteral(".xlsx")).read(all.first().file).startsWith("PK"));
+        const QList<QWidget *> before = QApplication::topLevelWidgets();
+        QVERIFY(e.win.w.openVersionCopy(all.first().file));
+        bool opened = false;
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (auto *c = qobject_cast<CrunchWindow *>(top); c && c != &e.win.w && !before.contains(top)) {
+                opened = true;
+                c->setNotifier([](const QString &, const QString &) {});
+                QVERIFY(QTest::qWaitFor([&] { return c->session() != nullptr && !c->isCalculating(); }, 20000));
+                QVERIFY(c->windowTitle().contains(QLatin1String("Copy")));
+                c->setWindowModified(false);
+                c->close();
+            }
+        QVERIFY(opened);
+        write::VersionStore(e.path, QStringLiteral(".xlsx")).removeAll();
     }
 
     void personalInformationStaysOutOfLaterEdits()

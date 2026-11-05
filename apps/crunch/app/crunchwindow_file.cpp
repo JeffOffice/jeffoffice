@@ -145,7 +145,7 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         return false;
     }
     // A file that is open in a window is not opened again: that window is brought to the front
-    if (CrunchWindow *have = how == OpenHow::Copy ? nullptr : windowWith(path)) {
+    if (CrunchWindow *have = how == OpenHow::Copy || m_reopening ? nullptr : windowWith(path)) {
         have->setWindowState(have->windowState() & ~Qt::WindowMinimized);
         have->show();
         have->raise();
@@ -154,7 +154,7 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         return true;
     }
     // A new workbook nobody has changed gives way to the file (and comes back if the file can't be read).
-    const bool replacing = isUntouchedBlank() && how != OpenHow::NewWindow;
+    const bool replacing = (isUntouchedBlank() || m_reopening) && how != OpenHow::NewWindow;
     // A window that shows a workbook, or is reading one, stays; the new one opens in a window of its own.
     if (how == OpenHow::NewWindow || ((m_loaded || m_loading) && !replacing)) {
         auto *w = new CrunchWindow();

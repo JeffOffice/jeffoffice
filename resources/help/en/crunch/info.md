@@ -1,5 +1,5 @@
 # Info: properties, passwords, and Inspect
-<!-- keywords: info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, mark as final, final, read-only, password, encrypt, protect, inspect workbook, personal information, hidden sheets, notes, external links, custom xml, show in folder, copy path, folder, path -->
+<!-- keywords: info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, mark as final, final, read-only, password, encrypt, protect, inspect workbook, personal information, hidden sheets, notes, external links, custom xml, show in folder, copy path, folder, path, version history, versions, go back -->
 
 Click **File > Info** to see the facts about your workbook, and to protect it before you share it. Press **Esc** to go back to your workbook.
 
@@ -26,6 +26,17 @@ For stopping changes to a sheet or its layout, see [Protect a sheet or the workb
 ## Protect the sheet or the sheets
 
 **Protect Current Sheet** lets you choose what people may change on the sheet you are on, with a password if you like. **Protect Workbook Structure** stops people from adding, deleting, moving, hiding, or renaming sheets. Both are also on the **Review** tab.
+
+## Version History
+
+**Version History** keeps copies of your workbook on this computer. Nothing is sent anywhere. A copy is called a version. Keep one before a big change.
+
+- **Keep a Version** saves the workbook as it is now, with a name you choose.
+- **Open a Copy** opens a version in a window of its own, so you can look at it beside the workbook.
+- **Go Back to It** puts a version back as your workbook. The workbook as it is now is kept as a version first, so nothing is lost.
+- **Delete** throws a version away.
+
+The workbook must be saved first, because versions belong to a file. Going back works for an .xlsx file.
 
 ## Inspect Workbook
 
