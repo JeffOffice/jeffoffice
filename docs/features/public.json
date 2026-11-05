@@ -7708,13 +7708,13 @@
   "0922916720ba7dd26562524993023c41e86a0dd3b9a37930aa9b81ff6e4920bb": {
    "drop": false,
    "en": "Print several pages on one sheet (1, 2, 4, 6, 9, or 16), to a printer or a PDF, with copies and collating.",
-   "es": "Imprima varias páginas en una hoja (1, 2, 4, 6, 9 o 16), en una impresora o en un PDF, con copias e intercalado.",
+   "es": "Imprima varias páginas en una hoja (1, 2, 4, 6, 9 o 16), en una impresora o en un PDF, con copias e intercalación.",
    "fr": "Imprimez plusieurs pages sur une feuille (1, 2, 4, 6, 9 ou 16), vers une imprimante ou un PDF, avec copies et assemblage.",
    "soon": {
     "drop": false,
     "en": "Scaling to a paper size, printing a table or chart alone, and a sheet preview",
-    "es": "Escala a un tamaño de papel, impresión de una tabla o un gráfico por separado y vista previa de la hoja",
-    "fr": "Mise à l’échelle selon un format de papier, impression d’un tableau ou d’un graphique seul et aperçu de la feuille"
+    "es": "Ajuste a un tamaño de papel, impresión de una tabla o gráfico por separado y vista previa de la hoja",
+    "fr": "Mise à l’échelle sur un format de papier, impression d’un tableau ou d’un graphique seul et aperçu de la feuille"
    }
   },
   "093d2154f24db1116df3156ec36c9d2f5c5285cfa1e14963da1fd069aba57e13": {
@@ -9543,9 +9543,9 @@
   },
   "2362094d5e005d53f738f180839c18400e264f4823f42766bfa6cd95d10d1cb1": {
    "drop": false,
-   "en": "Insert an address block and a greeting line with a choice of formats and a preview, insert merge fields from the list's columns, match fields, highlight fields on screen, and update labels in JeffWrite.",
-   "es": "Inserte un bloque de direcciones y una línea de saludo con una selección de formatos y vista previa, inserte campos de combinación a partir de las columnas de la lista, haga coincidir campos, resalte los campos en pantalla y actualice las etiquetas en JeffWrite.",
-   "fr": "Insérez un bloc d’adresse et une formule d’appel avec un choix de formats et un aperçu, insérez des champs de fusion à partir des colonnes de la liste, faites correspondre les champs, mettez les champs en surbrillance à l’écran et mettez à jour les étiquettes dans JeffWrite.",
+   "en": "Insert an address block and a greeting line with a choice of formats and a preview, insert merge fields from the list's columns, match fields, highlight fields, and update labels. Address block formats in files are read.",
+   "es": "Inserte un bloque de direcciones y una línea de saludo con una selección de formatos y una vista previa, inserte campos de combinación de las columnas de la lista, haga coincidir campos, resalte campos y actualice etiquetas. Se leen los formatos de bloque de direcciones de los archivos.",
+   "fr": "Insérez un bloc d’adresse et une formule d’appel avec un choix de formats et un aperçu, insérez des champs de fusion à partir des colonnes de la liste, faites correspondre les champs, surlignez les champs et mettez à jour les étiquettes. Les formats de bloc d’adresse des fichiers sont lus.",
    "soon": {
     "drop": true,
     "en": "",
@@ -11583,7 +11583,7 @@
   },
   "407387422f0b0617c250bf0a96ff8c8ac821ef87ba5d95b6d2015094f6c644e3": {
    "drop": false,
-   "en": "Insert a table of figures from a caption label or a paragraph style, with or without the label and number, and update it with `F9`.",
+   "en": "Insert a table of figures from a caption label or from a paragraph style, with or without the label and number, and update it with `F9`.",
    "es": "Inserte una tabla de ilustraciones a partir de una etiqueta de título o de un estilo de párrafo, con o sin la etiqueta y el número, y actualícela con `F9`.",
    "fr": "Insérez une table des illustrations à partir d’une étiquette de légende ou d’un style de paragraphe, avec ou sans l’étiquette et le numéro, et mettez-la à jour avec `F9`.",
    "soon": {
@@ -12027,9 +12027,9 @@
   },
   "46c40a94412c5b251c573c8ecfca55513cd1811dcd75a20b3768bfed478ebf1c": {
    "drop": false,
-   "en": "Table Properties sets alignment, indent, text wrapping around the table, preferred width, default cell margins, space between cells, allowing rows to break across pages, repeating header rows, vertical alignment, no wrap, and alt text.",
-   "es": "Propiedades de tabla permite establecer la alineación, la sangría, el ajuste del texto alrededor de la tabla, el ancho preferido, los márgenes predeterminados de las celdas, el espacio entre celdas, si las filas pueden dividirse entre páginas, las filas de encabezado repetidas, la alineación vertical, sin ajuste de texto y el texto alternativo.",
-   "fr": "Les propriétés du tableau permettent de définir l’alignement, le retrait, l’habillage du texte autour du tableau, la largeur préférée, les marges de cellule par défaut, l’espacement entre les cellules, l’autorisation de couper les lignes entre deux pages, les lignes d’en-tête répétées, l’alignement vertical, l’absence de retour à la ligne et le texte de remplacement.",
+   "en": "The Table Properties dialog sets alignment, indent, text wrapping around the table, preferred width, default cell margins, space between cells, row breaking across pages, repeating header rows, vertical alignment, no wrap, and alt text.",
+   "es": "El cuadro de diálogo Propiedades de tabla permite definir la alineación, la sangría, el ajuste del texto alrededor de la tabla, el ancho preferido, los márgenes predeterminados de las celdas, el espacio entre celdas, la división de filas entre páginas, las filas de encabezado repetidas, la alineación vertical, no ajustar texto y el texto alternativo.",
+   "fr": "La boîte de dialogue Propriétés du tableau permet de définir l’alignement, le retrait, l’habillage du texte autour du tableau, la largeur préférée, les marges par défaut des cellules, l’espacement entre les cellules, la coupure des lignes entre les pages, les lignes d’en-tête répétées, l’alignement vertical, l’absence de retour à la ligne et le texte de remplacement.",
    "soon": {
     "drop": false,
     "en": "Fit text in table cells",
@@ -12675,9 +12675,9 @@
   },
   "503fe987edbb4c85eaaadaeadeccee354b0f4436a3af467c5b00b334bbc9a5d8": {
    "drop": false,
-   "en": "Look up the first word of a cell's text in the English thesaurus with `Shift+F7`, and replace it with the choice in the cell.",
-   "es": "Busque la primera palabra del texto de una celda en el diccionario de sinónimos en inglés con `Shift+F7` y reemplácela en la celda con la opción elegida.",
-   "fr": "Recherchez le premier mot du texte d’une cellule dans le dictionnaire des synonymes anglais avec `Shift+F7` et remplacez-le dans la cellule par le choix retenu.",
+   "en": "Look up synonyms for the first word of a cell's text in the English word list with `Shift+F7`, and replace the text in the cell with the choice.",
+   "es": "Busque sinónimos de la primera palabra del texto de una celda en la lista de palabras en inglés con `Shift+F7` y reemplace el texto de la celda con la opción elegida.",
+   "fr": "Recherchez des synonymes du premier mot du texte d’une cellule dans la liste de mots anglais avec `Shift+F7` et remplacez le texte de la cellule par le choix effectué.",
    "soon": {
     "drop": true,
     "en": "",
@@ -13576,8 +13576,8 @@
   "5c34b57399223a89106ff905ef936d779f707cab21ec22982aae3e0295eaa90d": {
    "drop": false,
    "en": "Page size and orientation can be set for each section in Page Setup.",
-   "es": "El tamaño y la orientación de la página se pueden establecer para cada sección en Configurar página.",
-   "fr": "La taille et l’orientation de la page peuvent être définies pour chaque section dans Mise en page.",
+   "es": "El tamaño de página y la orientación se pueden definir para cada sección en Configurar página.",
+   "fr": "La taille de page et l’orientation peuvent être définies pour chaque section dans Mise en page.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15832,13 +15832,13 @@
   "7c51ef92f411b9f7e50cd3168b36c429a15072662eb5a4c41849a07fcf2b73d6": {
    "drop": false,
    "en": "The Page Setup dialog sets margins, a left gutter, orientation, paper size, section start, a different first page, different odd and even pages, and the header and footer distances, for a section or the whole document.",
-   "es": "El cuadro de diálogo Configurar página permite establecer los márgenes, un medianil a la izquierda, la orientación, el tamaño del papel, el inicio de sección, una primera página distinta, páginas pares e impares distintas y las distancias del encabezado y del pie de página, para una sección o todo el documento.",
-   "fr": "La boîte de dialogue Mise en page permet de définir les marges, une reliure à gauche, l’orientation, la taille du papier, le début de section, une première page différente, des pages paires et impaires différentes et les distances de l’en-tête et du pied de page, pour une section ou tout le document.",
+   "es": "El cuadro de diálogo Configurar página permite definir márgenes, un medianil a la izquierda, orientación, tamaño de papel, inicio de sección, primera página distinta, páginas pares e impares distintas y las distancias del encabezado y del pie de página, para una sección o todo el documento.",
+   "fr": "La boîte de dialogue Mise en page permet de définir les marges, une reliure à gauche, l’orientation, la taille du papier, le début de section, une première page différente, des pages paires et impaires différentes et les distances de l’en-tête et du pied de page, pour une section ou pour tout le document.",
    "soon": {
     "drop": false,
-    "en": "Paper source, vertical page alignment, and a top gutter",
-    "es": "Origen del papel, alineación vertical de la página y medianil superior",
-    "fr": "Source du papier, alignement vertical de la page et reliure en haut"
+    "en": "Paper source, vertical page alignment, and a top gutter in Page Setup",
+    "es": "Origen del papel, alineación vertical de la página y medianil superior en Configurar página",
+    "fr": "Source du papier, alignement vertical de la page et reliure en haut dans Mise en page"
    }
   },
   "7c611972899c7b5cf05def3eddfe9e2c32aed8881f6f50a985358c79a912efad": {
@@ -16371,14 +16371,14 @@
   },
   "83637ae4e8d1ee446744a6cbcbb05e71f6cb0c0e94e0c52cc16778a2487189a3": {
    "drop": false,
-   "en": "Select a cell, row, column, or table; insert and delete rows, columns, and the table; and delete cells, shifting the remaining cells left.",
-   "es": "Seleccione una celda, fila, columna o tabla; inserte y elimine filas, columnas y la tabla; y elimine celdas desplazando las restantes hacia la izquierda.",
-   "fr": "Sélectionnez une cellule, une ligne, une colonne ou un tableau ; insérez et supprimez des lignes, des colonnes et le tableau ; et supprimez des cellules en décalant les autres vers la gauche.",
+   "en": "Select a cell, row, column, or table; insert and delete rows, columns, and the table; delete cells and shift the remaining cells left.",
+   "es": "Seleccione una celda, fila, columna o tabla; inserte y elimine filas, columnas y la tabla; elimine celdas y desplace a la izquierda las celdas restantes.",
+   "fr": "Sélectionnez une cellule, une ligne, une colonne ou un tableau ; insérez et supprimez des lignes, des colonnes et le tableau ; supprimez des cellules et décalez les cellules restantes vers la gauche.",
    "soon": {
     "drop": false,
-    "en": "Delete cells: shift up",
-    "es": "Eliminar celdas: desplazar hacia arriba",
-    "fr": "Suppression de cellules : décalage vers le haut"
+    "en": "Delete cells with shift up",
+    "es": "Eliminar celdas desplazando hacia arriba",
+    "fr": "Suppression de cellules avec décalage vers le haut"
    }
   },
   "839dcb2592ecc34c9aa5c9d67bbf3ac3d7dab632d5901335af1629b71dc62e80": {
@@ -18087,9 +18087,9 @@
   },
   "9bc3016fdb3be5dc709a4383a65347dcd6e678cca268129752036f6c8a8a467a": {
    "drop": false,
-   "en": "Show or hide a zero in cells that have a zero value for the sheet in view, kept with the sheet in `.xlsx`; other display options, such as showing formulas, page breaks, outline symbols, and objects, are available as ribbon commands.",
-   "es": "Muestre u oculte un cero en las celdas con valor cero en la hoja visible, y se conserva con la hoja en `.xlsx`; otras opciones de visualización, como mostrar fórmulas, saltos de página, símbolos de esquema y objetos, están disponibles como comandos de la cinta de opciones.",
-   "fr": "Affichez ou masquez un zéro dans les cellules de valeur zéro pour la feuille affichée, conservé avec la feuille dans `.xlsx` ; d’autres options d’affichage, comme l’affichage des formules, des sauts de page, des symboles du plan et des objets, sont disponibles dans les commandes du ruban.",
+   "en": "Show or hide zeros in cells for the sheet in view, kept with the sheet in `.xlsx`. Formulas, page breaks, outline symbols, objects, and right-to-left sheets can be set from ribbon commands.",
+   "es": "Muestre u oculte los ceros en las celdas de la hoja activa, y se conserva con la hoja en `.xlsx`. Las fórmulas, los saltos de página, los símbolos de esquema, los objetos y las hojas de derecha a izquierda se pueden ajustar desde los comandos de la cinta de opciones.",
+   "fr": "Affichez ou masquez les zéros dans les cellules de la feuille active, réglage conservé avec la feuille dans `.xlsx`. Les formules, les sauts de page, les symboles de plan, les objets et les feuilles de droite à gauche se règlent depuis les commandes du ruban.",
    "soon": {
     "drop": false,
     "en": "Gridline color, default zoom, and standard width",
@@ -18430,7 +18430,7 @@
     "drop": false,
     "en": "Chart Filters button",
     "es": "Botón Filtros de gráfico",
-    "fr": "Bouton Filtres du graphique"
+    "fr": "Bouton Filtres de graphique"
    }
   },
   "a066d857ed93ffc2963175f7e3e98e1b22a2c0ad667bdd1a9cd4b989a05e89d3": {
@@ -18543,9 +18543,9 @@
   },
   "a2b1ab10a9c0bc1bc8291361c1242815ce0aa696ed21397f97b0cfad28bf8a51": {
    "drop": false,
-   "en": "Floating pictures can be brought forward or sent backward, to the front or back, and placed in front of or behind text.",
-   "es": "Las imágenes flotantes se pueden traer adelante o enviar atrás, al frente o al fondo, y colocar delante o detrás del texto.",
-   "fr": "Les images flottantes peuvent être avancées ou reculées, placées au premier plan ou à l’arrière-plan, et mises devant ou derrière le texte.",
+   "en": "Floating pictures can be moved forward or backward among other floating pictures, to the front or back, and in front of or behind text.",
+   "es": "Las imágenes flotantes se pueden mover hacia delante o hacia atrás entre otras imágenes flotantes, al frente o al fondo, y delante o detrás del texto.",
+   "fr": "Les images flottantes peuvent être avancées ou reculées parmi les autres images flottantes, placées au premier plan ou à l’arrière-plan, et devant ou derrière le texte.",
    "soon": {
     "drop": false,
     "en": "Align, Group, and Rotate or Flip, and arranging shapes and text boxes",
@@ -20775,13 +20775,13 @@
   },
   "c7962d6340d42ecbbeae73bcf7e489a94b6b85a5e79d8ab7151f97a73d193066": {
    "drop": false,
-   "en": "Hyphenation can be set to none or automatic for the document. You can set the hyphenation zone, the limit on hyphens in a row, and whether words in capitals are hyphenated, and \"don't hyphenate\" is respected per paragraph.",
-   "es": "La separación silábica del documento se puede establecer en ninguna o automática. Usted puede definir la zona de separación, el límite de guiones consecutivos y si se separan las palabras en mayúsculas, y se respeta la opción de no separar por párrafo.",
-   "fr": "La césure du document peut être réglée sur aucune ou automatique. Vous pouvez définir la zone de césure, la limite de traits d’union consécutifs et la césure des mots en majuscules, et l’option « ne pas couper les mots » est respectée par paragraphe.",
+   "en": "Hyphenation can be set to none or automatic for the document, with the hyphenation zone, a limit on hyphens in a row, and hyphenation of words in capitals. A file's automatic hyphenation and per-paragraph \"don't hyphenate\" settings are used, with the bundled dictionary of the text's language.",
+   "es": "La separación de palabras con guiones se puede establecer en ninguna o automática para el documento, con la zona de separación, un límite de guiones consecutivos y la separación de palabras en mayúsculas. Se respetan la separación automática de un archivo y el ajuste «no separar» por párrafo, con el diccionario incluido para el idioma del texto.",
+   "fr": "La césure peut être réglée sur aucune ou automatique pour le document, avec la zone de césure, une limite de traits d’union consécutifs et la césure des mots en majuscules. La césure automatique d’un fichier et le réglage « pas de césure » par paragraphe sont pris en compte, avec le dictionnaire inclus pour la langue du texte.",
    "soon": {
     "drop": false,
     "en": "Manual hyphenation",
-    "es": "Separación silábica manual",
+    "es": "Separación manual de palabras con guiones",
     "fr": "Césure manuelle"
    }
   },
@@ -21064,12 +21064,12 @@
   "cb341234ab0740f9e6073cd0ef2d9b9d073b3e26dfa2bbca04318180110ff374": {
    "drop": false,
    "en": "Margins can be set in the Page Setup dialog, including a left gutter.",
-   "es": "Los márgenes se pueden establecer en el cuadro de diálogo Configurar página, incluido un medianil a la izquierda.",
+   "es": "Los márgenes se pueden definir en el cuadro de diálogo Configurar página, incluido un medianil a la izquierda.",
    "fr": "Les marges peuvent être définies dans la boîte de dialogue Mise en page, y compris une reliure à gauche.",
    "soon": {
     "drop": false,
     "en": "Mirror margins and a top gutter",
-    "es": "Márgenes simétricos y medianil superior",
+    "es": "Márgenes simétricos y un medianil superior",
     "fr": "Marges en miroir et reliure en haut"
    }
   },
@@ -21580,7 +21580,7 @@
   "d20fa339b4b1237ec5515822f6f77b051634115a12e637f702a2ef1a3923a893": {
    "drop": false,
    "en": "The header and footer distances are set in Page Setup.",
-   "es": "Las distancias del encabezado y del pie de página se establecen en Configurar página.",
+   "es": "Las distancias del encabezado y del pie de página se definen en Configurar página.",
    "fr": "Les distances de l’en-tête et du pied de page se définissent dans Mise en page.",
    "soon": {
     "drop": false,
