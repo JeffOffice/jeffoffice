@@ -47,6 +47,13 @@ public:
     enum Column { NameColumn, ValueColumn, RefersColumn, ScopeColumn, CommentColumn, ColumnCount };
     explicit NamesModel(crunch::EditSession *session, QObject *parent = nullptr);
     void setFilter(const QString &text);
+    // The rows in order of a column's text (names, texts, and values by their letters without regard to case; the value column by the number when it is one), and the way it goes.
+    // A model that is not sorted lists the names in the order they are held.
+    void sortBy(int column, Qt::SortOrder order);
+    int sortColumn() const { return m_sortColumn; }
+    Qt::SortOrder sortOrder() const { return m_sortOrder; }
+    // The name points to an error: what it stands for names a place that is gone (#REF!), or its value is an error.
+    bool pointsToError(int id) const;
     void reload();
     int idAt(int row) const { return row >= 0 && row < int(m_ids.size()) ? m_ids[size_t(row)] : -1; }
     int rowOf(int id) const;
@@ -62,8 +69,11 @@ private:
     QString scopeText(const crunch::NameEntry &e) const;
     crunch::EditSession *m_session;
     QString m_filter;
+    QString textOf(int id, int column) const;
     std::vector<int> m_ids;
     int m_total = 0, m_leftOut = 0;
+    int m_sortColumn = -1;
+    Qt::SortOrder m_sortOrder = Qt::AscendingOrder;
 };
 
 class NamesDialog : public QDialog {
