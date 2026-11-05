@@ -24,6 +24,43 @@ class SheetFnTextTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    // FILTERXML picks values out of XML text with an XPath expression: paths, attributes, predicates, and functions; many values come as a column, none is #N/A, and text that is not XML,
+    // has a document type, or is no expression is #VALUE!.
+    void filterXmlReadsValuesWithXPath()
+    {
+        const QString xml = QStringLiteral("<shop><item id=\"a\" kind=\"fruit\"><name>Apple</name><price>1.5</price></item><item id=\"b\" kind=\"nut\"><name>Cashew</name><price>7</price></item>"
+                                           "<item id=\"c\" kind=\"fruit\"><name>Plum</name><price>2.25</price></item></shop>");
+        Grid g;
+        g.s("A1", xml);
+        Settings arr;
+        arr.array = true;
+        const E scalar[] = {
+            {"_xlfn.FILTERXML(A1,\"/shop/item[1]/name\")", "s:Apple"},
+            {"_xlfn.FILTERXML(A1,\"//item[2]/price\")", "n:7"},
+            {"_xlfn.FILTERXML(A1,\"//item[@id='c']/name\")", "s:Plum"},
+            {"_xlfn.FILTERXML(A1,\"//item[last()]/@id\")", "s:c"},
+            {"_xlfn.FILTERXML(A1,\"count(//item)\")", "n:3"},
+            {"_xlfn.FILTERXML(A1,\"sum(//price)\")", "n:10.75"},
+            {"_xlfn.FILTERXML(A1,\"//item[price>2][1]/name\")", "s:Cashew"},
+            {"_xlfn.FILTERXML(A1,\"//item[name='Plum']/@kind\")", "s:fruit"},
+            {"_xlfn.FILTERXML(A1,\"//item[contains(name,'sh')]/price\")", "n:7"},
+            {"_xlfn.FILTERXML(A1,\"string-length(//item[1]/name)\")", "n:5"},
+            {"_xlfn.FILTERXML(A1,\"//nothing\")", "e:#N/A"},
+            {"_xlfn.FILTERXML(A1,\"//item[\")", "e:#VALUE!"},
+            {"_xlfn.FILTERXML(\"<a><b></a>\",\"/a\")", "e:#VALUE!"},
+            {"_xlfn.FILTERXML(\"not xml\",\"/a\")", "e:#VALUE!"},
+            {"_xlfn.FILTERXML(\"<!DOCTYPE a [<!ENTITY x 'y'>]><a>&x;</a>\",\"/a\")", "e:#VALUE!"},
+            {"_xlfn.FILTERXML(\"<a>x &amp; y</a>\",\"/a\")", "s:x & y"},
+        };
+        CHECK_EVALS(scalar, g, Settings());
+        const E column[] = {
+            {"_xlfn.FILTERXML(A1,\"//name\")", "a:3x1[s:Apple;s:Cashew;s:Plum]"},
+            {"_xlfn.FILTERXML(A1,\"//item[@kind='fruit']/price\")", "a:2x1[n:1.5;n:2.25]"},
+            {"_xlfn.FILTERXML(A1,\"//item/@id\")", "a:3x1[s:a;s:b;s:c]"},
+        };
+        CHECK_EVALS(column, g, arr);
+    }
+
     void cuttingText()
     {
         Grid g;
