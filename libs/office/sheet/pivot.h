@@ -81,12 +81,14 @@ struct PivotCacheField {
     QVector<qint32> records;     // for each record, the place of its value in `items`
     QString sharedAttrs;         // the attributes of <sharedItems> (kept for writing: containsBlank and the like are made again when written)
     PivotFieldGroup group;
+    QString formula;             // a calculated field: its formula over the other fields (it has no records; group.databaseField is false)
     bool hasRaw = false;               // (a field that is the base of a group) `items` and `records` are the groups; these are the field's own
     QVector<PivotValue> rawItems;
     QVector<qint32> rawRecords;
     int rawSharedCount = 0;
     bool rawHasShared = false;
     QString rawSharedAttrs;
+    bool isCalculated() const { return !formula.isEmpty(); }
     const QVector<PivotValue> &storedItems() const { return hasRaw ? rawItems : items; }
     const QVector<qint32> &storedRecords() const { return hasRaw ? rawRecords : records; }
     bool storedHasShared() const { return hasRaw ? rawHasShared : hasShared; }
@@ -139,6 +141,7 @@ struct PivotField {
     bool hasItems = false;
     int sortByData = -1;         // the field is sorted by the values of this data field (autoSortScope)
     int src = -1;                // the place of its element in the part the table was read from (-1: a field made here)
+    bool calculated = false;     // (a field made here from a formula) it is not offered to the rows, columns, or filters, and has no subtotals
 };
 
 struct PivotDataField {

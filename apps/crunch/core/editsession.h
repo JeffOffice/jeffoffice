@@ -398,6 +398,10 @@ public:
     // has on an axis; a field is added for each coarser part of a date. Ungroup takes the grouping of the field away, and the fields that were added for it.
     Outcome groupPivotField(int table, int field, const QStringList &levels, double start, double end, double step, bool autoStart, bool autoEnd);
     Outcome ungroupPivotField(int table, int field);
+    // A calculated field: a field made from a formula over the other fields (their totals in each cell, as in "=Sales*0.1"). With `field` below zero a new one is made (and put in the values); otherwise the
+    // formula and name of that field are changed. Delete takes the field and the values made from it away. One step of Undo each; the pivot table must not share its data with another.
+    Outcome setPivotCalculatedField(int table, int field, const QString &name, const QString &formula);
+    Outcome deletePivotCalculatedField(int table, int field);
     // The rows behind a value of a pivot table (the cell at `row`, `col` of `sheet`), put on a new sheet with the names of the fields above them: one step of Undo for the sheet, one for the rows.
     // `made` is the sheet's place. A cell that is no value, or a table that can't be read, is refused.
     Outcome showPivotDetail(int sheet, quint32 row, quint32 col, int *made = nullptr);

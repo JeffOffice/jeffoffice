@@ -3,6 +3,7 @@
 #include "sheethelpers.h"
 
 #include "sheet/pivot.h"
+#include "sheet/pivotformula.h"
 #include "sheet/slicer.h"
 #include "../timing.h"
 #include "sheet/xlsxsave.h"
@@ -642,6 +643,124 @@ private Q_SLOTS:
         QCOMPARE(c.items[0].x, 1);
         patched = patchSlicerSelection(head + "<i x='99999999999' s='1'/><i x='1'/>" + tail, QSet<qint32>{0, 1});
         QVERIFY2(patched.contains("<i x='99999999999' s='1'/>") && patched.contains("<i x='1' s=\"1\"/>"), patched.constData());
+    }
+
+    // The formula of a calculated field: numbers, operators, percent, a field's name (quoted when it has spaces), functions, and the errors a sum gives.
+    void aCalculatedFieldsFormulaIsReadAndWorkedOut()
+    {
+        auto run = [&](const QString &formula) {
+            QString why;
+            const auto f = PivotFormula::parse(formula, &why);
+            if (!f) return QStringLiteral("ERR ") + why;
+            const PivotFormulaValue v = f->evaluate([&](const QString &name) {
+                if (name.compare(QLatin1String("Amount"), Qt::CaseInsensitive) == 0) return PivotFormulaValue::num(40);
+                if (name == QLatin1String("Unit price")) return PivotFormulaValue::num(2.5);
+                if (name == QLatin1String("Zero")) return PivotFormulaValue::num(0);
+                return PivotFormulaValue::err(QStringLiteral("#NAME?"));
+            });
+            switch (v.kind) {
+            case PivotFormulaValue::Number: return QString::number(v.number, 'g', 15);
+            case PivotFormulaValue::Bool: return v.number != 0 ? QStringLiteral("TRUE") : QStringLiteral("FALSE");
+            default: return v.text;
+            }
+        };
+        QCOMPARE(run(QStringLiteral("=Amount*0.1")), QStringLiteral("4"));
+        QCOMPARE(run(QStringLiteral("Amount * 'Unit price' + 1")), QStringLiteral("101"));
+        QCOMPARE(run(QStringLiteral("=-Amount^2")), QStringLiteral("1600"));   // (the minus binds first, as in a cell)
+        QCOMPARE(run(QStringLiteral("=Amount*10%")), QStringLiteral("4"));
+        QCOMPARE(run(QStringLiteral("=IF(Amount>30, Amount, 0)")), QStringLiteral("40"));
+        QCOMPARE(run(QStringLiteral("=ROUND(Amount/3, 1)")), QStringLiteral("13.3"));
+        QCOMPARE(run(QStringLiteral("=Amount/Zero")), QStringLiteral("#DIV/0!"));
+        QCOMPARE(run(QStringLiteral("=Missing+1")), QStringLiteral("#NAME?"));
+        QCOMPARE(run(QStringLiteral("=NoSuchFunction(1)")), QStringLiteral("#NAME?"));
+        QVERIFY(run(QStringLiteral("=Amount*")).startsWith(QLatin1String("ERR ")));
+        QVERIFY(run(QStringLiteral("=(Amount")).startsWith(QLatin1String("ERR ")));
+        QVERIFY(run(QString(QByteArray("(").repeated(200)) + QStringLiteral("1") + QString(QByteArray(")").repeated(200))).startsWith(QLatin1String("ERR ")));
+        QCOMPARE(PivotFormula::parse(QStringLiteral("='Unit price'*Amount+amount"), nullptr)->names(), (QStringList{QStringLiteral("Unit price"), QStringLiteral("Amount")}));
+    }
+
+    // A calculated field has no records: it is worked out in each cell from the totals of the fields it names (so Amount*Amount of a total is the total squared), the totals too, and it is written
+    // with its formula and read back; a refresh from the data keeps it.
+    void aCalculatedFieldIsWorkedOutPerCellAndKept()
+    {
+        QByteArray def = cacheDefinition();
+        def.replace("</cacheFields>", "<cacheField name=\"Bonus\" numFmtId=\"0\" formula=\"Amount*0.1\" databaseField=\"0\"/>"
+                                      "<cacheField name=\"Square\" numFmtId=\"0\" formula=\"Amount*Amount\" databaseField=\"0\"/></cacheFields>");
+        def.replace("cacheFields count=\"3\"", "cacheFields count=\"5\"");
+        const QByteArray table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotTableDefinition xmlns=\"%1\" name=\"PivotTable1\" cacheId=\"1\" dataOnRows=\"0\" dataCaption=\"Values\" compact=\"0\" compactData=\"0\">"
+                                                "<location ref=\"E3:G6\" firstHeaderRow=\"0\" firstDataRow=\"1\" firstDataCol=\"1\"/><pivotFields count=\"5\">"
+                                                "<pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\" showAll=\"0\"><items count=\"3\"><item x=\"0\"/><item x=\"1\"/><item t=\"default\"/></items></pivotField>"
+                                                "<pivotField compact=\"0\" outline=\"0\" showAll=\"0\"/><pivotField compact=\"0\" outline=\"0\" showAll=\"0\"/>"
+                                                "<pivotField dataField=\"1\" dragToRow=\"0\" dragToCol=\"0\" dragToPage=\"0\" compact=\"0\" outline=\"0\" showAll=\"0\" defaultSubtotal=\"0\"/>"
+                                                "<pivotField dataField=\"1\" dragToRow=\"0\" dragToCol=\"0\" dragToPage=\"0\" compact=\"0\" outline=\"0\" showAll=\"0\" defaultSubtotal=\"0\"/></pivotFields>"
+                                                "<rowFields count=\"1\"><field x=\"0\"/></rowFields><colFields count=\"1\"><field x=\"-2\"/></colFields>"
+                                                "<dataFields count=\"2\"><dataField name=\"Sum of Bonus\" fld=\"3\" baseField=\"0\" baseItem=\"0\"/><dataField name=\"Sum of Square\" fld=\"4\" baseField=\"0\" baseItem=\"0\"/></dataFields>"
+                                                "</pivotTableDefinition>").arg(QLatin1String(kNs)).toUtf8();
+        Worked w = work(table, def, cacheRecords());
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(w.cache.fields.size(), 5);
+        QVERIFY(w.cache.fields[3].isCalculated());
+        QCOMPARE(w.cache.fields[3].formula, QStringLiteral("Amount*0.1"));
+        QVERIFY(w.cache.unsupported.isEmpty());
+        QCOMPARE(w.grid.cols, 3);
+        QCOMPARE(rowText(w.grid, 2), (QStringList{QStringLiteral("East"), QStringLiteral("3.5"), QStringLiteral("1225")}));
+        QCOMPARE(rowText(w.grid, 3), (QStringList{QStringLiteral("West"), QStringLiteral("1.4"), QStringLiteral("196")}));
+        QCOMPARE(rowText(w.grid, 4), (QStringList{QStringLiteral("Grand Total"), QStringLiteral("4.9"), QStringLiteral("2401")}));
+        // written with its formula and no sharedItems, no values in the records; read back the same
+        const QByteArray written = writePivotCacheDefinition(def, w.cache, 6, 45000, DateSystem::Date1900);
+        QVERIFY2(written.contains("formula=\"Amount*0.1\"") && written.contains("databaseField=\"0\""), written.constData());
+        QByteArray records = writePivotCacheRecords(w.cache, DateSystem::Date1900);
+        QVERIFY2(records.contains("<r><x v=\"0\"/><x v=\"0\"/><n v=\"10\"/></r>"), records.constData());
+        PivotCache again;
+        QVERIFY2(readPivotCache(written, records, DateSystem::Date1900, &again, &w.why), qPrintable(w.why));
+        QCOMPARE(again.fields.size(), 5);
+        QCOMPARE(again.fields[4].formula, QStringLiteral("Amount*Amount"));
+        PivotGrid grid;
+        QVERIFY2(computePivot(w.table, again, &grid, &w.why), qPrintable(w.why));
+        QVERIFY(grid.cells == w.grid.cells);
+        // a name that is not a field is an error in the cells, not a table that can't be shown
+        PivotCache broken = w.cache;
+        broken.fields[3].formula = QStringLiteral("Nothing*2");
+        QVERIFY2(computePivot(w.table, broken, &grid, &w.why), qPrintable(w.why));
+        QCOMPARE(grid.at(2, 1).kind, PivotCell::Error);
+        QCOMPARE(grid.at(2, 1).text, QStringLiteral("#NAME?"));
+        // a formula that can't be read is a table kept as it was saved
+        broken.fields[3].formula = QStringLiteral("Amount*");
+        QVERIFY(!computePivot(w.table, broken, &grid, &w.why));
+        // read again from the data: the calculated fields are still there, after the others
+        PivotSource src;
+        src.cell = [&](quint32 r, quint32 c) {
+            static const char *const names[] = {"Region", "Month", "Amount"};
+            static const char *const reg[] = {"East", "East", "East", "West", "West", "West"};
+            static const char *const mon[] = {"Jan", "Jan", "Feb", "Jan", "Feb", "Feb"};
+            static const double amt[] = {10, 5, 20, 7, 3, 4};
+            PivotValue v;
+            if (r == 0) {
+                v.kind = PivotValue::Text;
+                v.text = QLatin1String(names[c]);
+            } else if (c < 2) {
+                v.kind = PivotValue::Text;
+                v.text = QLatin1String(c == 0 ? reg[r - 1] : mon[r - 1]);
+            } else {
+                v.kind = PivotValue::Number;
+                v.number = amt[r - 1];
+            }
+            return v;
+        };
+        src.row1 = 0;
+        src.col1 = 0;
+        src.row2 = 6;
+        src.col2 = 2;
+        PivotCache fresh;
+        QVERIFY2(buildPivotCache(src, w.cache, &fresh, &w.why), qPrintable(w.why));
+        QCOMPARE(fresh.fields.size(), 5);
+        QCOMPARE(fresh.fields[3].name, QStringLiteral("Bonus"));
+        QCOMPARE(fresh.fields[3].formula, QStringLiteral("Amount*0.1"));
+        QCOMPARE(fresh.fromField[3], 3);
+        PivotTable matched = w.table;
+        matchPivotItems(&matched, w.cache, fresh);
+        QVERIFY2(computePivot(matched, fresh, &grid, &w.why), qPrintable(w.why));
+        QVERIFY(grid.cells == w.grid.cells);
     }
 
     // Dates are grouped by years and months (a field added for the coarser part), numbers in steps; the groups are written, read back, and read again from new data; a field of text can't be grouped.
