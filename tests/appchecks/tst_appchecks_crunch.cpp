@@ -297,7 +297,7 @@ private Q_SLOTS:
                 waitFor([&] { return quiet(w); });
             }),
             in(QStringLiteral("three shapes picked together"), [](CrunchWindow *w) {
-                for (const auto &at : {std::pair<int, int>{20, 20}, {300, 140}, {560, 260}}) {
+                for (const auto &at : {std::pair<int, int>{20, 20}, {300, 60}, {560, 260}}) {
                     w->insertShape(QStringLiteral("rect"));
                     waitFor([&] { return quiet(w); });
                     placePickedObject(w, at.first, at.second);
