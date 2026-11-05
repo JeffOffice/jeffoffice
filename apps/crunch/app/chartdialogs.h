@@ -19,6 +19,7 @@ class QComboBox;
 class QDoubleSpinBox;
 class QLabel;
 class QLineEdit;
+class QPlainTextEdit;
 class QListWidget;
 class QRadioButton;
 class QTableWidget;
@@ -149,6 +150,7 @@ struct ObjectProperties {
     double widthPoints = 0, heightPoints = 0;
     jp::office::sheet::AnchorKind follows = jp::office::sheet::AnchorKind::TwoCell;   // two cells: moves and sizes with them; one: moves; absolute: neither
     QString name;
+    QString description;   // its alternative text, for people who cannot see it
     bool keepProportions = false;
     bool prints = true;   // on the printed pages
 };
@@ -163,6 +165,8 @@ private:
     QDoubleSpinBox *m_width = nullptr, *m_height = nullptr;
     QRadioButton *m_sizes = nullptr, *m_moves = nullptr, *m_stays = nullptr;
     QCheckBox *m_ratio = nullptr, *m_prints = nullptr;
+    QLineEdit *m_name = nullptr;
+    QPlainTextEdit *m_alt = nullptr;
     double m_ratioOf = 1;
     ObjectProperties m_now;
 };

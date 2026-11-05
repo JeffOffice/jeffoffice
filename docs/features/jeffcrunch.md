@@ -464,7 +464,7 @@ A pivot table is a report that groups and totals a list for you: put a list of s
 
 - [~] **1.0** Corrections (sharpen and soften, brightness and contrast), Color (saturation, tone, recolor), Artistic Effects, Transparency, Compress Pictures, Change Picture, Reset Picture, and Remove Background *(shared: libs/draw picture effects, JeffPub's Picture Tools)*
 - [~] **1.0** Picture Styles, Picture Border, Picture Effects (shadow, reflection, glow, soft edges, bevel, 3-D rotation), and Picture Layout *(shared: JeffPub's Picture Tools)*
-- [~] **1.0** Crop (to a shape, to an aspect ratio, fill, and fit), Size, Arrange, and Alt Text *(shared: JeffPub's Picture Tools)*
+- [~] **1.0** Crop (to a shape, to an aspect ratio, fill, and fit), Size, Arrange, and Alt Text *(shared: JeffPub's Picture Tools; done November 4, 2026: Name and Alt Text for any chart, picture, or shape, in Properties, saved as the name and descr of its drawing element and read back; not done: the rest)*
 - [~] **1.0** A picture's properties: move and size with cells, move but don't size, or don't move or size with cells; locked; print object; the picture as a cell's fill or as the sheet's background *(the choice is made in Properties and saved; Print this object is offered and saved since November 4, 2026; locked and a picture as a cell's fill or the sheet's background are not offered)*
 
 ### Shape Format, Text Box, and WordArt tabs

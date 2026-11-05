@@ -161,6 +161,11 @@ public:
     bool exists(int sheet, int id);
     jp::office::sheet::ObjectKind kindOf(int sheet, int id);
     QString nameOf(int sheet, int id);
+    QString descriptionOf(int sheet, int id);
+    // The state of the object with a new name (empty: as it is) and alternative text.
+    ObjectState stateWithNames(int sheet, int id, const QString &name, const QString &description);
+    // Whether another object of the sheet has the name.
+    bool nameTaken(int sheet, int id, const QString &name);
     // Where an object goes when it is brought forward (+1) or sent backward (-1), or to the front (2) or the back (-2): its place among the sheet's objects, or -1 for none (it is there already).
     int zTarget(int sheet, int id, int how);
     // Whether the object can be put in another place in the drawing (the file does not store it in one element with another).
@@ -229,6 +234,7 @@ private:
         QByteArray pasteXml, pasteNamespaces;
         QList<jp::crunch::ClipMedia> pasteMedia;
         QString savedPivotName;                        // the name the chart's pivot source has in the file being written
+        QString fileDescription, savedDescription;     // its alternative text as the file has it, and as the save in flight writes it
         QString fileName, savedName;                   // its name as the file has it, and as the save in flight writes it
         bool madeHere = false;                         // a person made it here (a chart, a pasted picture or shape): after a save has dropped it, it is written again from what is held of it
         std::weak_ptr<const jp::crunch::ObjectRevive> revive;   // what writes an object of the file back (held by the step that took it away)

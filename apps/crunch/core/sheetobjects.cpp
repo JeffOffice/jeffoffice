@@ -309,6 +309,7 @@ void SheetObjects::list(int sheet, Sheet &s)
         o->meta = d;
         o->fileAnchor = o->base = o->anchor = d.anchor;
         o->fileName = d.name;
+        o->fileDescription = d.description;
         o->filePrints = d.prints;
         replay(sheet, *o);
         s.objects.push_back(std::move(o));
@@ -896,6 +897,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
                         }
                     }
                     xml = withFirstObjectPrints(withFirstObjectId(withFirstObjectName(xml, o->meta.name), o->meta.id), o->meta.prints);
+                    if (!o->meta.description.isEmpty() || o->meta.description != o->fileDescription) xml = withFirstObjectDescription(xml, o->meta.description);
                     AddedObject obj;
                     obj.xml = xml;
                     o->savedPivotName.clear();
@@ -929,6 +931,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
                     }
                     if (!isChart) o->savedPart = QStringLiteral("-");
                     o->savedName = o->meta.name;
+                    o->savedDescription = o->meta.description;
                     o->savedPrints = o->meta.prints;
                     add.objects.push_back(std::move(obj));
                     continue;
@@ -940,9 +943,10 @@ void SheetObjects::addToSave(SaveChanges *changes)
                     else want.editAs = o->anchor.editAs;
                     o->savedAnchor = want;
                     AddedObject obj;
-                    obj.xml = objectAnchorXml(want, o->pasteNamespaces, withFirstObjectName(o->pasteXml, o->meta.name));
+                    obj.xml = objectAnchorXml(want, o->pasteNamespaces, withFirstObjectDescription(withFirstObjectName(o->pasteXml, o->meta.name), o->meta.description));
                     if (!o->meta.prints) obj.xml = withFirstObjectPrints(obj.xml, false);
                     o->savedName = o->meta.name;
+                    o->savedDescription = o->meta.description;
                     o->savedPrints = o->meta.prints;
                     for (const jp::crunch::ClipMedia &m : std::as_const(o->pasteMedia)) {
                         AddedPart part;
@@ -974,8 +978,10 @@ void SheetObjects::addToSave(SaveChanges *changes)
                 const QString token = QStringLiteral("@@chart%1@@").arg(add.objects.size());
                 AddedObject obj;
                 obj.xml = chartAnchorXml(want, int(o->meta.id), o->meta.name, token);
+                if (!o->meta.description.isEmpty()) obj.xml = withFirstObjectDescription(obj.xml, o->meta.description);
                 if (!o->meta.prints) obj.xml = withFirstObjectPrints(obj.xml, false);
                 o->savedName = o->meta.name;
+                o->savedDescription = o->meta.description;
                 o->savedPrints = o->meta.prints;
                 // (the part is written by the thread that writes the file: it is made from the model, which is a copy)
                 AddedPart part;
@@ -990,6 +996,8 @@ void SheetObjects::addToSave(SaveChanges *changes)
             }
             if (!o->meta.chartPart.isEmpty()) aliveParts.insert(o->meta.chartPart.toLower());
             // what the file will have for the object: the anchor as the cells' edits leave it, or, for one a person moved or that keeps its size, as its size and place now give it
+            o->savedDescription = o->meta.description;
+            if (o->meta.description != o->fileDescription && !s.drawingPart.isEmpty() && o->meta.ordinal >= 0) changes->objectDescriptions[s.drawingPart][o->meta.ordinal] = o->meta.description;
             o->savedName = o->meta.name;
             if (o->meta.name != o->fileName && !s.drawingPart.isEmpty() && o->meta.ordinal >= 0) changes->objectNames[s.drawingPart][o->meta.ordinal] = o->meta.name;
             o->savedPrints = o->meta.prints;
@@ -1114,6 +1122,7 @@ void SheetObjects::saved()
             }
             o->fileChart = o->chart;
             o->fileName = o->savedName;
+            o->fileDescription = o->savedDescription;
             o->filePrints = o->savedPrints;
         }
         s.drawing.rootChildren = std::max(0, s.drawing.rootChildren - removedNow) + addedNow;
@@ -1274,6 +1283,8 @@ ObjectState SheetObjects::stateOf(int sheet, int id)
     st.placements = o->placements;
     st.chart = o->chart;
     st.name = o->meta.name;
+    st.describes = true;
+    st.description = o->meta.description;
     st.madeHere = o->madeHere;
     st.prints = o->meta.prints ? 1 : 0;
     st.refs = o->refPlacements;
@@ -1294,6 +1305,29 @@ ObjectState SheetObjects::stateWithChart(int sheet, int id, const Chart &chart)
     p.refs = chartRefs(chart);
     for (QString &ref : p.refs) ref = unfollowSheetOps(ref);
     st.refs.push_back(p);
+    return st;
+}
+
+QString SheetObjects::descriptionOf(int sheet, int id)
+{
+    const Object *o = find(sheet, id);
+    return o ? o->meta.description : QString();
+}
+
+bool SheetObjects::nameTaken(int sheet, int id, const QString &name)
+{
+    const Sheet &s = sheetState(sheet);
+    for (const std::shared_ptr<Object> &o : s.objects)
+        if (o->id != id && !o->deleted && o->meta.name.compare(name, Qt::CaseInsensitive) == 0) return true;
+    return false;
+}
+
+ObjectState SheetObjects::stateWithNames(int sheet, int id, const QString &name, const QString &description)
+{
+    ObjectState st = stateOf(sheet, id);
+    if (!name.isEmpty()) st.name = name;
+    st.describes = true;
+    st.description = description;
     return st;
 }
 
@@ -1334,6 +1368,7 @@ void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
         }
     }
     if (!st.name.isEmpty()) o->meta.name = st.name;
+    if (st.describes) o->meta.description = st.description;
     if (st.prints >= 0) o->meta.prints = st.prints != 0;
     replay(sheet, *o);
     o->frozen = o->anchor.kind != AnchorKind::TwoCell;

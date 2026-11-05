@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, logarithmic, log scale, save as picture, title text, legend key -->
+<!-- keywords: chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, title text, legend key -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -24,7 +24,7 @@ Click a chart, picture, or shape to pick it. Drag it to move it, or drag one of 
 - The arrow keys move it a few pixels at a time. **Ctrl** with an arrow moves it one pixel, **Shift** with an arrow makes it larger or smaller, and **Alt** with an arrow goes to the next edge of a cell.
 - **Esc** while you drag puts it back.
 
-Each move or size is one step you can undo. Right-click the object and choose **Properties** to type its size, and to choose what it does when you insert, delete, or resize cells: move and size with the cells, move with them but keep its size, or stay where it is. The choice is saved in the file. **Print this object**, in the same box, turns off the object on the printed pages (it still shows on the screen); the file keeps that choice too.
+Each move or size is one step you can undo. Right-click the object and choose **Properties** to type its **Name** (each object on a sheet needs its own) and its **Alt text** (a short sentence that tells a person who cannot see the object what it shows), to type its size, and to choose what it does when you insert, delete, or resize cells: move and size with the cells, move with them but keep its size, or stay where it is. The choice is saved in the file. **Print this object**, in the same box, turns off the object on the printed pages (it still shows on the screen); the file keeps that choice too.
 
 ## Change what a chart shows
 

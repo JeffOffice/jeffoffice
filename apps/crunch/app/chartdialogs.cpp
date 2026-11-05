@@ -11,6 +11,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QPlainTextEdit>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPixmap>
@@ -580,6 +581,16 @@ ObjectPropertiesDialog::ObjectPropertiesDialog(const ObjectProperties &now, QWid
     m_width->setValue(now.widthPoints);
     m_height->setValue(now.heightPoints);
     m_ratioOf = now.heightPoints > 0 ? now.widthPoints / now.heightPoints : 1;
+    m_name = new QLineEdit(now.name, this);
+    m_name->setObjectName(QStringLiteral("objectName"));
+    m_name->setAccessibleName(tr("Name"));
+    form->addRow(tr("Name"), m_name);
+    m_alt = new QPlainTextEdit(now.description, this);
+    m_alt->setObjectName(QStringLiteral("objectAltText"));
+    m_alt->setAccessibleName(tr("Alt text"));
+    m_alt->setMaximumHeight(64);
+    m_alt->setTabChangesFocus(true);
+    form->addRow(tr("Alt text"), m_alt);
     form->addRow(tr("Width"), m_width);
     form->addRow(tr("Height"), m_height);
     m_ratio = new QCheckBox(tr("Keep the proportions"), this);
@@ -619,6 +630,8 @@ ObjectPropertiesDialog::ObjectPropertiesDialog(const ObjectProperties &now, QWid
 ObjectProperties ObjectPropertiesDialog::result() const
 {
     ObjectProperties p = m_now;
+    p.name = m_name->text().trimmed().isEmpty() ? m_now.name : m_name->text().trimmed();
+    p.description = m_alt->toPlainText().trimmed();
     p.widthPoints = m_width->value();
     p.heightPoints = m_height->value();
     p.follows = m_moves->isChecked() ? AnchorKind::OneCell : m_stays->isChecked() ? AnchorKind::Absolute : AnchorKind::TwoCell;

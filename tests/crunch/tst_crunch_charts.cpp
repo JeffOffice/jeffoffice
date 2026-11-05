@@ -1014,6 +1014,55 @@ private Q_SLOTS:
         QVERIFY(e.win.w.grab().save(dir + QStringLiteral("/chart-tab.png")));
     }
 
+    // Properties holds the object's name and alternative text: each a step of Undo, saved as the name and descr of the object in the file, and read back.
+    void anObjectIsNamedAndGivenAltText()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("object.properties"))->isEnabled());
+        QString startedAs;
+        e.win.w.setPropertiesAsker([&](const ObjectProperties &now, ObjectProperties *out) {
+            *out = now;
+            startedAs = now.name + QLatin1Char('|') + now.description;
+            out->name = QStringLiteral("Units chart");
+            out->description = QStringLiteral("Bars of units sold by quarter");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("object.properties"))->trigger();
+        QCOMPARE(startedAs, QStringLiteral("Sales|"));
+        QCOMPARE(e.win.w.objects()->nameOf(0, 0), QStringLiteral("Units chart"));
+        QCOMPARE(e.win.w.objects()->descriptionOf(0, 0), QStringLiteral("Bars of units sold by quarter"));
+        QVERIFY(save(e));
+        auto descrOf = [&](const QString &name) {
+            Package p;
+            QString why;
+            if (!p.readLazyFile(e.path, &why)) return QString(QStringLiteral("(no file)"));
+            QDomDocument doc;
+            if (!parseXml(p.part(QStringLiteral("/xl/drawings/drawing1.xml")), &doc)) return QString(QStringLiteral("(no drawing)"));
+            const QDomNodeList all = doc.elementsByTagName(QStringLiteral("cNvPr"));
+            for (int i = 0; i < all.size(); ++i)
+                if (all.at(i).toElement().attribute(QStringLiteral("name")) == name) return all.at(i).toElement().attribute(QStringLiteral("descr"), QStringLiteral("(none)"));
+            return QString(QStringLiteral("(not found)"));
+        };
+        QCOMPARE(descrOf(QStringLiteral("Units chart")), QStringLiteral("Bars of units sold by quarter"));
+        // the alternative text alone, and then taken away again: the attribute is left out
+        e.win.w.setPropertiesAsker([&](const ObjectProperties &now, ObjectProperties *out) {
+            *out = now;
+            out->description.clear();
+            return true;
+        });
+        e.win.w.act(QStringLiteral("object.properties"))->trigger();
+        QVERIFY(save(e));
+        QCOMPARE(descrOf(QStringLiteral("Units chart")), QStringLiteral("(none)"));
+        pressUndo(&e.win.w);
+        QCOMPARE(e.win.w.objects()->descriptionOf(0, 0), QStringLiteral("Bars of units sold by quarter"));
+        pressUndo(&e.win.w);
+        QCOMPARE(e.win.w.objects()->nameOf(0, 0), QStringLiteral("Sales"));
+        QVERIFY(e.win.w.objects()->descriptionOf(0, 0).isEmpty());
+    }
+
     void theChartDesignTabAppearsWithAChart()
     {
         EditWindow e;

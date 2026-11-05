@@ -394,6 +394,7 @@ void CrunchWindow::propertiesDialog()
     p.heightPoints = box.h * 0.75;
     p.follows = now.editAs;
     p.name = m_objects->nameOf(m_sheet, id);
+    p.description = m_objects->descriptionOf(m_sheet, id);
     p.keepProportions = m_objects->kindOf(m_sheet, id) == ObjectKind::Picture;
     p.prints = m_objects->printsOf(m_sheet, id);
     ObjectProperties out = p;
@@ -403,6 +404,22 @@ void CrunchWindow::propertiesDialog()
         ObjectPropertiesDialog d(p, this);
         if (d.exec() != QDialog::Accepted) return;
         out = d.result();
+    }
+    if (out.name != p.name || out.description != p.description) {
+        // (a name no other object of the sheet has)
+        if (out.name != p.name && m_objects->nameTaken(m_sheet, id, out.name)) {
+            notice(tr("Properties"), tr("Another object on this sheet is called \"%1\". Pick a different name.").arg(out.name));
+            out.name = p.name;
+        }
+        if (out.name != p.name || out.description != p.description) {
+            crunch::ObjectEdit e;
+            e.sheet = m_sheet;
+            e.id = id;
+            e.before = m_objects->stateOf(m_sheet, id);
+            e.after = m_objects->stateWithNames(m_sheet, id, out.name, out.description);
+            const crunch::EditSession::Outcome o = m_session->changeObjects({e}, out.name != p.name ? tr("Rename Object") : tr("Alt Text"));
+            if (!o.ok) notice(tr("Properties"), o.problem);
+        }
     }
     if (out.prints != p.prints) {
         crunch::ObjectEdit e;

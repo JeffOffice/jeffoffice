@@ -148,7 +148,7 @@ bool reorderDrawingChildren(const QByteArray &xml, const std::vector<int> &order
 namespace {
 
 // `element[from, to)` with the name of its first cNvPr set; false (and `edit` untouched) if it has none.
-bool nameEdit(const QByteArray &element, qsizetype from, qsizetype to, const QString &name, qsizetype *tagStart, qsizetype *tagEnd, QByteArray *replacement)
+bool attributeEdit(const QByteArray &element, qsizetype from, qsizetype to, const QString &attributeName, const QString &name, bool leaveOutIfEmpty, qsizetype *tagStart, qsizetype *tagEnd, QByteArray *replacement)
 {
     qsizetype pos = from;
     Tag t;
@@ -156,15 +156,17 @@ bool nameEdit(const QByteArray &element, qsizetype from, qsizetype to, const QSt
         pos = t.end;
         if (t.closing || t.local != "cNvPr") continue;
         QByteArray text = element.mid(t.start, t.end - t.start);
-        static const QRegularExpression attr(QStringLiteral("\\sname\\s*=\\s*(\"[^\"]*\"|'[^']*')"));
+        const QRegularExpression attr(QStringLiteral("\\s") + attributeName + QStringLiteral("\\s*=\\s*(\"[^\"]*\"|'[^']*')"));
         const QString s = QString::fromUtf8(text);
         const QRegularExpressionMatch m = attr.match(s);
         const QString value = QStringLiteral("\"") + QString::fromUtf8(xmlscan::escapeAttribute(name)) + QStringLiteral("\"");
         QString now;
-        if (m.hasMatch()) now = s.left(m.capturedStart(1)) + value + s.mid(m.capturedEnd(1));
+        if (m.hasMatch() && leaveOutIfEmpty && name.isEmpty()) now = s.left(m.capturedStart(0)) + s.mid(m.capturedEnd(0));
+        else if (m.hasMatch()) now = s.left(m.capturedStart(1)) + value + s.mid(m.capturedEnd(1));
+        else if (leaveOutIfEmpty && name.isEmpty()) now = s;
         else {
             const qsizetype at = s.indexOf(QLatin1String("cNvPr")) + 5;
-            now = s.left(at) + QStringLiteral(" name=") + value + s.mid(at);
+            now = s.left(at) + QLatin1Char(' ') + attributeName + QStringLiteral("=") + value + s.mid(at);
         }
         *tagStart = t.start;
         *tagEnd = t.end;
@@ -172,6 +174,16 @@ bool nameEdit(const QByteArray &element, qsizetype from, qsizetype to, const QSt
         return true;
     }
     return false;
+}
+
+bool nameEdit(const QByteArray &element, qsizetype from, qsizetype to, const QString &name, qsizetype *tagStart, qsizetype *tagEnd, QByteArray *replacement)
+{
+    return attributeEdit(element, from, to, QStringLiteral("name"), name, false, tagStart, tagEnd, replacement);
+}
+
+bool descriptionEdit(const QByteArray &element, qsizetype from, qsizetype to, const QString &text, qsizetype *tagStart, qsizetype *tagEnd, QByteArray *replacement)
+{
+    return attributeEdit(element, from, to, QStringLiteral("descr"), text, true, tagStart, tagEnd, replacement);
 }
 
 } // namespace
@@ -284,6 +296,38 @@ QByteArray withFirstObjectName(const QByteArray &element, const QString &name)
     QByteArray r;
     if (!nameEdit(element, 0, element.size(), name, &a, &b, &r)) return element;
     return element.left(a) + r + element.mid(b);
+}
+
+QByteArray withFirstObjectDescription(const QByteArray &element, const QString &text)
+{
+    qsizetype a = 0, b = 0;
+    QByteArray r;
+    if (!descriptionEdit(element, 0, element.size(), text, &a, &b, &r)) return element;
+    return element.left(a) + r + element.mid(b);
+}
+
+bool setDrawingObjectDescriptions(const QByteArray &xml, const std::map<int, QString> &texts, QByteArray *out, bool *changed)
+{
+    *out = xml;
+    *changed = false;
+    if (texts.empty()) return true;
+    std::vector<std::pair<qsizetype, qsizetype>> children;
+    if (!childrenOfRoot(xml, &children)) return false;
+    QByteArray result;
+    qsizetype copied = 0;
+    for (const auto &[ordinal, text] : texts) {
+        if (ordinal < 0 || size_t(ordinal) >= children.size()) continue;
+        qsizetype a = 0, b = 0;
+        QByteArray r;
+        if (!descriptionEdit(xml, children[size_t(ordinal)].first, children[size_t(ordinal)].second, text, &a, &b, &r) || a < copied) continue;
+        result += xml.mid(copied, a - copied) + r;
+        copied = b;
+    }
+    if (copied == 0) return true;
+    result += xml.mid(copied);
+    *out = result;
+    *changed = *out != xml;
+    return true;
 }
 
 bool setDrawingObjectNames(const QByteArray &xml, const std::map<int, QString> &names, QByteArray *out, bool *changed)
