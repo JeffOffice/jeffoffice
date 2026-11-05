@@ -17,14 +17,14 @@ namespace {
 
 constexpr qint64 kLargestIndex = 4 << 20;   // (the list is read from a file the person could have changed: not past this)
 
-bool plainName(const QString &file)
+bool plainName(const QString &file, const QString &extension)
 {
-    return !file.isEmpty() && file.size() < 80 && !file.contains(QLatin1Char('/')) && !file.contains(QLatin1Char('\\')) && !file.startsWith(QLatin1Char('.')) && file.endsWith(QLatin1String(".docx"));
+    return !file.isEmpty() && file.size() < 80 && !file.contains(QLatin1Char('/')) && !file.contains(QLatin1Char('\\')) && !file.startsWith(QLatin1Char('.')) && file.endsWith(extension);
 }
 
 } // namespace
 
-VersionStore::VersionStore(const QString &documentPath)
+VersionStore::VersionStore(const QString &documentPath, const QString &extension) : m_extension(extension)
 {
     const QFileInfo info(documentPath);
     const QString canonical = info.canonicalFilePath().isEmpty() ? info.absoluteFilePath() : info.canonicalFilePath();
@@ -44,7 +44,7 @@ QVector<DocVersion> VersionStore::load() const
         d.file = o.value(QStringLiteral("file")).toString();
         d.name = o.value(QStringLiteral("name")).toString();
         d.saved = QDateTime::fromString(o.value(QStringLiteral("saved")).toString(), Qt::ISODate);
-        if (!plainName(d.file)) continue;
+        if (!plainName(d.file, m_extension)) continue;
         const QFileInfo copy(m_folder + QLatin1Char('/') + d.file);
         if (!copy.isFile()) continue;   // (a copy taken away by hand is not listed)
         d.size = copy.size();
@@ -89,8 +89,8 @@ bool VersionStore::add(const QString &name, const QByteArray &docx, QString *err
     d.saved = QDateTime::currentDateTime();
     // (a name that no copy has: the time to the millisecond, and a count if two come at once)
     QString base = d.saved.toString(QStringLiteral("yyyyMMdd-HHmmss-zzz"));
-    d.file = base + QStringLiteral(".docx");
-    for (int n = 2; QFileInfo::exists(m_folder + QLatin1Char('/') + d.file); ++n) d.file = base + QLatin1Char('-') + QString::number(n) + QStringLiteral(".docx");
+    d.file = base + m_extension;
+    for (int n = 2; QFileInfo::exists(m_folder + QLatin1Char('/') + d.file); ++n) d.file = base + QLatin1Char('-') + QString::number(n) + m_extension;
     d.name = name.simplified().left(120);
     QSaveFile f(m_folder + QLatin1Char('/') + d.file);
     if (!f.open(QIODevice::WriteOnly) || f.write(docx) != docx.size() || !f.commit()) {
@@ -108,7 +108,7 @@ bool VersionStore::add(const QString &name, const QByteArray &docx, QString *err
 
 QByteArray VersionStore::read(const QString &file) const
 {
-    if (!plainName(file)) return {};
+    if (!plainName(file, m_extension)) return {};
     bool listed = false;
     for (const DocVersion &d : load()) listed = listed || d.file == file;
     if (!listed) return {};
@@ -118,7 +118,7 @@ QByteArray VersionStore::read(const QString &file) const
 
 bool VersionStore::remove(const QString &file)
 {
-    if (!plainName(file)) return false;
+    if (!plainName(file, m_extension)) return false;
     QVector<DocVersion> all = load();
     bool found = false;
     for (int i = 0; i < all.size(); ++i)
