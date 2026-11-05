@@ -1218,6 +1218,7 @@ public:
     void recommendedChartsDialog();
     // The dialogs, made but not shown, for whoever shows them (the window runs them; a tool takes pictures of them). Null if there is nothing for them to work on.
     QDialog *makeInsertChartDialog();
+    QDialog *makeRecommendedChartsDialog();   // null when the cells suit no chart
     QDialog *makeSelectDataDialog();
     QDialog *makeChangeTypeDialog();
     bool moveObject(int id, const jp::office::sheet::DrawingAnchor &anchor);

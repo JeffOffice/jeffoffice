@@ -294,6 +294,16 @@ QDialog *CrunchWindow::makeInsertChartDialog()
     return new InsertChartDialog([this](ChartKind k, int inRows, const QSize &px) { return chartPreviewImage(k, inRows, px); }, ChartKind::Column, this);
 }
 
+QDialog *CrunchWindow::makeRecommendedChartsDialog()
+{
+    ChartPlan plan;
+    if (!m_objects || !m_objects->cells() || !chartPlanFor(ChartKind::Column, -1, &plan)) return nullptr;
+    const QVector<ChartKind> kinds = recommendChartKinds(*m_objects->cells(), m_sheet, plan);
+    if (kinds.isEmpty()) return nullptr;
+    m_previewBlock = jp::office::sheet::CellRange();
+    return new InsertChartDialog([this](ChartKind k, int inRows, const QSize &px) { return chartPreviewImage(k, inRows, px); }, kinds.first(), this, kinds, tr("Recommended Charts"));
+}
+
 void CrunchWindow::insertChartDialog()
 {
     if (!m_session || !m_objects || m_chartSheetShown) return;
