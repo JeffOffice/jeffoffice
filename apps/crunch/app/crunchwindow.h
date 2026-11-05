@@ -587,6 +587,7 @@ private:
     void justifySelection();
     void fillAcrossDialog();
     // the outline of the rows and columns (crunchwindow_outline.cpp)
+    void flashFillSelection();
     void createOutlineActions();
     QWidget *buildOutlineGutters(QWidget *parent);
     void refreshOutline(bool force = false);

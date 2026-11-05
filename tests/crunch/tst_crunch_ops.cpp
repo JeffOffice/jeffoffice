@@ -5,6 +5,7 @@
 #include "app/filldialogs.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
+#include "core/flashfill.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
@@ -260,6 +261,76 @@ private Q_SLOTS:
         for (int i : {0, 1, 5, 3}) e.win.w.statsChoiceMenu()->actions().at(i)->trigger();   // Average, Count, Sum, then Minimum off: the last one stays
         QCOMPARE(e.view()->statChoices(), int(grid::StatMinimum));
         Settings::get().setValue(QStringLiteral("crunch/statusStats"), grid::kDefaultStatChoices);   // (the choice is the person's: the next window starts as it was)
+    }
+
+    // Flash Fill finds how the cells typed by hand come from the cells beside them, and fills the empty cells of the column the same way, as one step.
+    void flashFillLearnsFromTheExamples()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Smith, Ann", "A2=Jones, Bob", "A3=Lee, Cy", "A4=Park, Di", "B1=Ann Smith"})));
+        crunch::EditSession *s = e.win.w.session();
+        int filled = 0;
+        const crunch::EditSession::Outcome first = s->flashFill(0, 0, 1, &filled);
+        QVERIFY2(first.ok, qPrintable(first.problem));
+        QCOMPARE(filled, 3);
+        QCOMPARE(shown(e, QStringLiteral("B1:B4")), QStringLiteral("Ann Smith|Bob Jones|Cy Lee|Di Park"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        pressUndo(e.view());
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("B1:B4")), QStringLiteral("Ann Smith|||"));
+    }
+
+    void flashFillChangesCaseAndTakesInitialsAndPieces()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=ann smith", "A2=bob jones", "A3=cy lee", "B1=A. SMITH", "B2=B. JONES", "C1=Ann", "D1=x-100", "D2=y-250", "D3=z-7", "E1=100"})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->flashFill(0, 0, 1).ok);
+        QCOMPARE(shown(e, QStringLiteral("B1:B3")), QStringLiteral("A. SMITH|B. JONES|C. LEE"));
+        QVERIFY(s->flashFill(0, 0, 4).ok);   // the number after the dash
+        QCOMPARE(shown(e, QStringLiteral("E1:E3")), QStringLiteral("100|250|7"));
+    }
+
+    // The search is held to limits: long texts and many neighbors make no unbounded work, and a pattern that is only typed text is not one.
+    void flashFillSearchIsBounded()
+    {
+        QVector<crunch::FlashFillExample> ex;
+        for (int i = 0; i < 40; ++i) {
+            crunch::FlashFillExample x;
+            for (int c = 0; c < 40; ++c) x.sources << QString(QByteArray("ab cd ef ").repeated(200)) + QString::number(i + c);
+            x.output = QString(QByteArray("zq%1 ").repeated(3)).arg(i);
+            ex << x;
+        }
+        const crunch::FlashFillPattern none = crunch::learnFlashFill(ex);
+        QVERIFY(!none.isValid());
+        crunch::FlashFillExample same;
+        same.sources << QStringLiteral("a");
+        same.output = QStringLiteral("typed");
+        QVERIFY(!crunch::learnFlashFill({same}).isValid());
+        QVERIFY(!crunch::learnFlashFill({}).isValid());
+    }
+
+    void flashFillRefusesWhenThereIsNothingToLearnOrFill()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=one", "A2=two", "B1=zzz"})));
+        crunch::EditSession *s = e.win.w.session();
+        crunch::EditSession::Outcome o = s->flashFill(0, 0, 1);   // "zzz" is in no neighbor
+        QVERIFY(!o.ok && !o.problem.isEmpty());
+        QVERIFY(!s->flashFill(0, 5, 3).ok);   // nothing beside row 6
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+    }
+
+    void flashFillIsACommandOnTheFillMenu()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Smith, Ann", "A2=Jones, Bob", "B1=Ann"})));
+        QAction *a = e.win.w.act(QStringLiteral("fill.flash"));
+        QVERIFY(a && a->isEnabled());
+        QCOMPARE(a->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::CTRL | Qt::Key_E).toString(QKeySequence::NativeText));
+        e.select(QStringLiteral("B2"));
+        a->trigger();
+        QTRY_COMPARE(shown(e, QStringLiteral("B1:B2")), QStringLiteral("Ann|Bob"));
     }
 
     // Ctrl+D and Ctrl+R copy the first row (column) of the selection over the rest, and a single cell takes what is above (left of) it; one step each; the keys are the platform's.

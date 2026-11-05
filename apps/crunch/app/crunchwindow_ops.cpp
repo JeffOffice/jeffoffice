@@ -45,7 +45,8 @@ void CrunchWindow::createOpsActions()
     mk("fill.series", tr("Series…"), "", QKeySequence(), [this] { fillSeriesDialog(); });
     mk("fill.justify", tr("Justify"), "", QKeySequence(), [this] { justifySelection(); });
     mk("fill.across", tr("Across Worksheets…"), "", QKeySequence(), [this] { fillAcrossDialog(); });
-    m_opsActions << QStringLiteral("fill.justify") << QStringLiteral("fill.across");
+    mk("fill.flash", tr("Flash Fill"), "", QKeySequence(Qt::CTRL | Qt::Key_E), [this] { flashFillSelection(); });
+    m_opsActions << QStringLiteral("fill.justify") << QStringLiteral("fill.across") << QStringLiteral("fill.flash");
     mk("edit.fill", tr("Fill"), "arrow-down-to-line", QKeySequence(), [this] { fillSelection(crunch::EditSession::FillDirection::Down); });
     m_opsActions << QStringLiteral("fill.down") << QStringLiteral("fill.right") << QStringLiteral("fill.up") << QStringLiteral("fill.left") << QStringLiteral("fill.series") << QStringLiteral("edit.fill");
     connect(m_view, &grid::GridView::fillRequested, this, [this](const grid::GridRange &source, const grid::GridRange &extent, bool ctrl) { fillDragged(source, extent, ctrl); });
@@ -462,6 +463,22 @@ void CrunchWindow::justifySelection()
     }
     if (!o.ok) {
         notice(tr("Justify"), o.problem);
+        return;
+    }
+    if (m_loader.changesMade() != before) m_calculating = true;
+}
+
+// Fill > Flash Fill: fills the column of the cell with the cursor from the pattern of the cells typed in it by hand.
+void CrunchWindow::flashFillSelection()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed()) return;
+    const grid::Selection &sel = m_view->selection();
+    const qint64 before = m_loader.changesMade();
+    int filled = 0;
+    const crunch::EditSession::Outcome o = m_session->flashFill(m_sheet, quint32(sel.activeRow), quint32(sel.activeCol), &filled);
+    if (!o.ok) {
+        notice(tr("Flash Fill"), o.problem);
         return;
     }
     if (m_loader.changesMade() != before) m_calculating = true;

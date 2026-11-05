@@ -467,6 +467,10 @@ public:
     Outcome fillAcrossSheets(int sheet, const jp::office::sheet::CellRange &range, const std::vector<int> &targets, FillWhat what);
 
 
+    // Flash Fill: the cells of column `col` that hold what was typed by hand are the examples; how they come from the cells beside them (core/flashfill.h) is found, and the empty cells of the
+    // column, in the rows round `row` that have something beside them, are filled with what the same steps make, as one step. Not ok, and nothing changed, if no pattern fits the examples,
+    // there is nothing to fill, or a cell cannot be changed; `filled` is how many cells were filled.
+    Outcome flashFill(int sheet, quint32 row, quint32 col, int *filled = nullptr);
 
     // ---- tables (edittables.cpp). A table is named by its place among the workbook's tables (Workbook::tables); each of these is one step of Undo, and nothing is changed when it is not ok.
     // The table whose cells include the cell, or -1; and the one whose header row, data, or totals row it is in is the same table.
