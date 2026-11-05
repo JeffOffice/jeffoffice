@@ -1775,7 +1775,7 @@ bool TableProps::operator==(const TableProps &o) const
 {
     return align == o.align && indent == o.indent && widthKind == o.widthKind && width == o.width && fixedLayout == o.fixedLayout && margins == o.margins && spacing == o.spacing &&
            altTitle == o.altTitle && altText == o.altText && style == o.style && look == o.look && rowHeight == o.rowHeight && rowExact == o.rowExact && cantSplit == o.cantSplit &&
-           header == o.header && columnWidth == o.columnWidth && valign == o.valign && noWrap == o.noWrap;
+           header == o.header && columnWidth == o.columnWidth && valign == o.valign && noWrap == o.noWrap && wrapAround == o.wrapAround;
 }
 
 TableProps tablePropsAt(WriteDoc &doc, const QTextCursor &c)
@@ -1798,6 +1798,7 @@ TableProps tablePropsAt(WriteDoc &doc, const QTextCursor &c)
     }
     p.fixedLayout = m.layout == QLatin1String("fixed");
     p.margins = data.margins;
+    p.wrapAround = data.place.has_value();
     p.spacing = data.spacing;
     p.altTitle = textOfElement(x.open, "tblCaption");
     p.altText = textOfElement(x.open, "tblDescription");
@@ -1836,6 +1837,9 @@ void setTableProps(WriteDoc &doc, QTextCursor &c, const TableProps &was, const T
                                                                               : QByteArray("<w:tblW w:w=\"0\" w:type=\"auto\"/>");
             table.push_back({"tblW", w});
         }
+        // (Text wrapped round the table: it is set at a place, a little from the text on either side, with the text going round it; off, it is in the text again.)
+        if (now.wrapAround != was.wrapAround)
+            table.push_back({"tblpPr", now.wrapAround ? QByteArray("<w:tblpPr w:leftFromText=\"180\" w:rightFromText=\"180\" w:vertAnchor=\"text\" w:horzAnchor=\"margin\" w:tblpXSpec=\"left\" w:tblpY=\"1\"/>") : QByteArray()});
         if (now.fixedLayout != was.fixedLayout) table.push_back({"tblLayout", QByteArray("<w:tblLayout w:type=\"") + (now.fixedLayout ? "fixed" : "autofit") + "\"/>"});
         if (now.margins != was.margins)
             table.push_back({"tblCellMar", "<w:tblCellMar><w:top w:w=\"" + twipsText(now.margins.top()) + "\" w:type=\"dxa\"/><w:left w:w=\"" + twipsText(now.margins.left()) +

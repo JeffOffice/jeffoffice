@@ -131,6 +131,7 @@ struct TableProps {
     double gridWidth = 0;               // (the columns' widths together; not set by setTableProps)
     flow::CellAlign valign = flow::CellAlign::Top;
     bool noWrap = false;
+    bool wrapAround = false;            // the table is set at a place with the text going round it (w:tblpPr)
     bool operator==(const TableProps &o) const;
 };
 TableProps tablePropsAt(WriteDoc &doc, const QTextCursor &c);

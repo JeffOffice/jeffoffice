@@ -18,6 +18,7 @@
 #include "core/outlineops.h"
 #include "core/pictureops.h"
 #include "core/pagesetup.h"
+#include "app/tabledialogs.h"
 #include "app/writedialogs.h"
 #include "core/proofops.h"
 #include "core/tableops.h"
@@ -30,6 +31,7 @@
 #include <QImage>
 #include <QRegularExpression>
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
 #include <QTimer>
@@ -941,6 +943,69 @@ private Q_SLOTS:
         w.setAlignmentTabAsker([](QString &, QString &, QString &) { return false; });
         w.act(QStringLiteral("hf.alignmentTab"))->trigger();
         QCOMPARE(story->toPlainText().count(QChar::ObjectReplacementCharacter), 1);
+    }
+
+    // ---------------------------------------------------------------- Tables
+    void textWrapsRoundATableThatTheTablePropertiesSetAtAPlace()
+    {
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1500\"/><w:gridCol w:w=\"1500\"/></w:tblGrid>"
+                                 "<w:tr><w:tc><w:p><w:r><w:t>a1</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>b1</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx(table + "<w:p><w:r><w:t>After the table, words that go round it.</w:t></w:r></w:p>", QByteArray()), &err);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->toPlainText().indexOf(QLatin1String("a1")) + 1);
+        const TableProps was = tablePropsAt(*doc, c);
+        QVERIFY(!was.wrapAround);
+        TableProps now = was;
+        now.wrapAround = true;
+        setTableProps(*doc, c, was, now);
+        QVERIFY(tablePropsAt(*doc, c).wrapAround);
+        QVERIFY(doc->flow().tables.get(cellKeyOf(c.block()))->table->place.has_value());
+        // The file says it, in the schema's place (after the style, before the width), and reads back the same.
+        office::Package p;
+        p.read(doc->toDocx());
+        const QByteArray xml = p.part(QStringLiteral("/word/document.xml"));
+        QVERIFY2(xml.contains("<w:tblpPr "), xml.constData());
+        QVERIFY(xml.indexOf("<w:tblpPr ") < xml.indexOf("<w:tblW "));
+        auto again = WriteDoc::fromDocx(doc->toDocx(), &err);
+        QVERIFY(again);
+        QTextCursor d(again->story());
+        d.setPosition(again->story()->toPlainText().indexOf(QLatin1String("a1")) + 1);
+        QVERIFY(tablePropsAt(*again, d).wrapAround);
+        // Off again takes the element away; one step each.
+        TableProps off = tablePropsAt(*doc, c);
+        off.wrapAround = false;
+        setTableProps(*doc, c, tablePropsAt(*doc, c), off);
+        QVERIFY(!tablePropsAt(*doc, c).wrapAround);
+        office::Package q;
+        q.read(doc->toDocx());
+        QVERIFY(!q.part(QStringLiteral("/word/document.xml")).contains("tblpPr"));
+        QVERIFY(doc->undo());
+        QVERIFY(tablePropsAt(*doc, c).wrapAround);
+    }
+
+    void theTablePropertiesDialogHasAWrapTextAroundChoice()
+    {
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>a1</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p/>";
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx(table, QByteArray()), &err);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->toPlainText().indexOf(QLatin1String("a1")) + 1);
+        bool found = false;
+        QTimer::singleShot(0, [&found] {
+            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dlg) return;
+            if (auto *around = dlg->findChild<QCheckBox *>(QStringLiteral("wrapAround"))) {
+                found = true;
+                around->setChecked(true);
+            }
+            dlg->accept();
+        });
+        tablePropertiesDialog(nullptr, doc.get(), &c);
+        QVERIFY(found);
+        QVERIFY(tablePropsAt(*doc, c).wrapAround);
     }
 
     // ---------------------------------------------------------------- Paper sizes

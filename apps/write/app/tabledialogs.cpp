@@ -197,6 +197,10 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     fixedLayout->setObjectName(QStringLiteral("fixedLayout"));
     fixedLayout->setChecked(was.fixedLayout);
     tf->addRow(QString(), fixedLayout);
+    auto *wrapAround = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Wrap text around the table")), tablePage);
+    wrapAround->setObjectName(QStringLiteral("wrapAround"));
+    wrapAround->setChecked(was.wrapAround);
+    tf->addRow(QString(), wrapAround);
     auto *top = new MeasureSpin(tablePage), *left = new MeasureSpin(tablePage), *bottom = new MeasureSpin(tablePage), *right = new MeasureSpin(tablePage);
     top->setObjectName(QStringLiteral("marginTop"));
     left->setObjectName(QStringLiteral("marginLeft"));
@@ -308,6 +312,7 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     TableProps now = was;
     now.align = flow::TableData::Align(align->currentData().toInt());
     now.indent = took(indent, was.indent);
+    now.wrapAround = wrapAround->isChecked();
     now.widthKind = TableProps::Width(widthKind->currentData().toInt());
     now.width = now.widthKind == TableProps::Width::Points ? took(widthPoints, was.widthKind == now.widthKind ? was.width : widthPoints->value())
                 : now.widthKind == TableProps::Width::Percent ? took(widthPercent, was.widthKind == now.widthKind ? was.width : widthPercent->value()) : 0;
