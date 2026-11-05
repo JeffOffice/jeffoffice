@@ -1338,6 +1338,54 @@ private Q_SLOTS:
         QTRY_COMPARE(pane->matchCount(), 1);
     }
 
+    void theMiniToolbarFloatsAboveWordsSelectedWithTheMouseAndGoesWhenTheSelectionDoes()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("Some words to pick out of the line.")))), QString());
+        auto *mini = w.view()->findChild<QFrame *>(QStringLiteral("miniToolbar"));
+        QVERIFY(mini);
+        QVERIFY(!mini->isVisible());
+        QTextCursor c(w.document()->story());
+        c.setPosition(5);
+        c.setPosition(10, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        // (A selection made with the keys brings none: only one made with the mouse.)
+        QVERIFY(!mini->isVisible());
+        Q_EMIT w.view()->selectionMade();
+        QTRY_VERIFY(mini->isVisible());
+        QRect first;
+        QVERIFY(w.view()->positionRect(5, &first));
+        QVERIFY2(mini->geometry().bottom() <= first.top() + 2, qPrintable(QStringLiteral("mini %1,%2 selection top %3").arg(mini->x()).arg(mini->y()).arg(first.top())));
+        QVERIFY(w.view()->viewport()->rect().contains(mini->geometry()));
+        shot(&w, QStringLiteral("mini-toolbar.png"));
+        // Its buttons are the window's own commands: Bold takes the words bold, in one step.
+        QToolButton *bold = nullptr;
+        for (QToolButton *b : mini->findChildren<QToolButton *>())
+            if (b->defaultAction() == w.act(QStringLiteral("fmt.bold"))) bold = b;
+        QVERIFY(bold);
+        QVERIFY(mini->findChildren<QToolButton *>().size() >= 6);
+        bold->click();
+        QTextCursor probe(w.document()->story());
+        probe.setPosition(6);
+        probe.setPosition(7, QTextCursor::KeepAnchor);
+        QVERIFY(probe.charFormat().fontWeight() >= QFont::DemiBold);
+        QVERIFY(mini->isVisible());   // (it stays for the next choice)
+        // Collapsing the selection, or typing, takes it away.
+        c.setPosition(2);
+        w.view()->setCursor(c);
+        QTRY_VERIFY(!mini->isVisible());
+        c.setPosition(5);
+        c.setPosition(10, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        Q_EMIT w.view()->selectionMade();
+        QTRY_VERIFY(mini->isVisible());
+        w.view()->insertText(QStringLiteral("x"));
+        QTRY_VERIFY(!mini->isVisible());
+    }
+
     // ---- the review's fixes
     void saveAsOfAProtectedDocumentDoesNotLiftTheProtection()
     {

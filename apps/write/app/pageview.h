@@ -93,6 +93,8 @@ public:
     QImage pageImage(int index, int width);
     // The caret: where it is in the window, if it is on a page that is shown.
     bool caretRect(QRect *rect);
+    // The line of text at a position of the document, as a rectangle of the viewport (a caret's place); false when that page is not laid out.
+    bool positionRect(int position, QRect *rect);
     // Draws the caret while the view has not the keyboard (for screenshots).
     void setCaretWithoutFocus(bool on) { m_caretWithoutFocus = on; viewport()->update(); }
 
