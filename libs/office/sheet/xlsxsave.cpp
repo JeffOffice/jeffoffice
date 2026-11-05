@@ -555,6 +555,26 @@ bool removeRelationshipOfType(const QByteArray &xml, const QString &typeSuffix, 
     return false;
 }
 
+bool removeExternalReferences(const QByteArray &xml, QByteArray *out)
+{
+    Tag t;
+    qsizetype pos = 0, start = -1;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.local != "externalReferences") continue;
+        if (!t.closing) {
+            start = t.start;
+            if (!t.selfClosing) continue;
+        }
+        if (start < 0) return false;
+        qsizetype from = start;
+        while (from > 0 && isSpace(xml[from - 1])) --from;
+        *out = xml.left(from) + xml.mid(t.end);
+        return true;
+    }
+    return false;
+}
+
 bool setFullCalcOnLoad(const QByteArray &xml, QByteArray *out)
 {
     Tag calc;
@@ -2396,6 +2416,47 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             }
         }
     }
+    // ---- links to other workbooks, and the custom XML data, taken out: their parts (and the parts those relate to), the workbook's relationships to them, and their types go (the list of links in
+    // the workbook part is taken out below)
+    if (changes.dropExternalLinks || changes.dropCustomXml) {
+        QVector<Relationship> links;
+        if (changes.dropExternalLinks) links += package.relationshipsOfType(book.mainPart(), QStringLiteral("/externalLink"));
+        if (changes.dropCustomXml) links += package.relationshipsOfType(book.mainPart(), QStringLiteral("/customXml"));
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        const QString mainEntryName = package.entryName(book.mainPart());
+        const int relsEntry = entryAt.value(plain(relationshipsPartOf(mainEntryName)), -1);
+        QByteArray types, rels;
+        const bool have = !links.isEmpty() && typesEntry >= 0 && relsEntry >= 0 && (replaced.contains(typesEntry) ? (types = replaced.value(typesEntry), true) : inflate(typesEntry, &types))
+                          && (replaced.contains(relsEntry) ? (rels = replaced.value(relsEntry), true) : inflate(relsEntry, &rels));
+        if (have) {
+            QStringList ids;
+            auto dropPart = [&](const QString &part) {
+                QByteArray t2;
+                if (removeContentTypeOverride(types, part, &t2)) types = t2;
+                const int entry = entryOfPart(part);
+                if (entry >= 0) dropped.insert(entry);
+                const int relsOfPart = entryAt.value(plain(relationshipsPartOf(package.entryName(part).isEmpty() ? part : package.entryName(part))), -1);
+                if (relsOfPart >= 0) dropped.insert(relsOfPart);
+            };
+            for (const Relationship &r : links) {
+                ids << r.id;
+                if (r.external) continue;
+                dropPart(r.target);
+                // (what the part relates to, such as the properties of a custom XML item, goes with it)
+                for (const Relationship &inner : package.relationships(r.target))
+                    if (!inner.external) dropPart(inner.target);
+            }
+            QByteArray r2;
+            if (removeRelationshipsById(rels, ids, &r2)) rels = r2;
+            replaced.insert(typesEntry, types);
+            replaced.insert(relsEntry, rels);
+        }
+    }
     // ---- another kind of workbook file: the main part's type is the new kind's, and a kind with no macros has no project
     if (!changes.targetKind.isEmpty()) {
         QString newType;
@@ -2583,7 +2644,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         }
         filterNames.push_back(name);
     }
-    if (!newPivotCaches.empty() || changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged || changes.setWorkbookProtection) {
+    if (!newPivotCaches.empty() || changes.dropExternalLinks || changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged || changes.setWorkbookProtection) {
         const int index = entryOfPart(book.mainPart());
         QByteArray xml, patched;
         if (index >= 0 && inflate(index, &xml)) {
@@ -2622,6 +2683,10 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 if (!addPivotCaches(xml, newPivotCaches, &patched)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook part is not in the form this program changes."));
                 changed = true;
                 xml = patched;
+            }
+            if (changes.dropExternalLinks && removeExternalReferences(xml, &patched)) {
+                xml = patched;
+                changed = true;
             }
             if (changes.fullCalcOnLoad && setFullCalcOnLoad(xml, &patched)) {
                 xml = patched;

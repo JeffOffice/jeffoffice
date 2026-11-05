@@ -899,6 +899,14 @@ public:
     // The worker has told every result there is to tell (the calculation is finished, with no change after it unworked).
     void calculationFinished();
 
+    // ---- links to other workbooks (Inspect Workbook): every cell that reads one keeps the value it shows (each is a step of Undo, which is forgotten after, since the links are gone), a defined
+    // name that stands for one becomes #REF!, and the next save leaves the link parts out. `cells` and `names` count what was changed; not ok, with a sentence, when a cell can't be (locked, or in an array).
+    int externalLinkCells() const;
+    Outcome breakExternalLinks(int *cells = nullptr, int *names = nullptr);
+    bool externalLinksDropped() const { return m_dropExternalLinks; }
+    // The custom XML data (what other programs added to the file) is left out at the next save.
+    void dropCustomXml() { m_dropCustomXml = true; }
+    bool customXmlDropped() const { return m_dropCustomXml; }
     // ---- defined names (see core/nametable.h). Each of these is one step of Undo.
     struct NameDraft {
         QString name;
@@ -1234,6 +1242,8 @@ private:
     void compactLinesFor(const jp::office::sheet::StructEdit &edit);
     void forgetLineSteps(int sheet, bool rows);
     int m_saveGen = 0;                 // how many times the workbook has been saved
+    bool m_dropCustomXml = false;
+    bool m_dropExternalLinks = false;  // the links to other workbooks are taken out at the next save (see breakExternalLinks)
     int m_forgotBySave = 0;            // the steps the last save made Undo forget (see forgetDeletesInFile)
     ResultMap m_fileResults;  // what the file holds for formulas whose value there is not the one the workbook was read with (after a save)
 };

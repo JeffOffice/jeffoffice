@@ -47,8 +47,8 @@ Click **Inspect Workbook** before you send a workbook to someone. It lists what 
 - **Hidden sheets** are sheets that do not show as tabs. **Show All** shows them, so you can see what they hold, and delete the ones you don't want.
 - **Hidden rows and columns** are lines you hid by hand. Rows hidden by a filter are not counted. **Show All** shows them, so you can see what they hold.
 - **Headers and footers** are the text printed at the top and the bottom of every page. **Remove All** clears them on every sheet.
-- **External links** are links to values in other workbooks. This list only counts them. Break them on the **Data** tab.
-- **Custom XML data** is data that other programs added to the file. This list only counts it.
+- **External links** are links to values in other workbooks. **Remove All** turns each cell that reads one into the number or text it shows now, and leaves out the links when you save. A name that stood for a place in another workbook becomes **#REF!**, which is an error that says the place is gone. You can't undo this, so save a copy first if you may want the links back.
+- **Custom XML data** is data that other programs added to the file, which you can't see on a sheet. **Remove All** leaves it out when you save.
 
 Save the workbook afterward to keep the clean copy.
 

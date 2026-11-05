@@ -2,6 +2,7 @@
 // keeps all that is not a cell. Each kind of part is tried in a workbook made here, with a cell edited elsewhere; a macro project is kept as a macro project is.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "app/infopage.h"
 #include "app/otherformats.h"
 #include "core/loader.h"
 #include "core/appinfo.h"
@@ -283,6 +284,75 @@ private Q_SLOTS:
 
     // The parts of a link to another workbook (the cached values and where it points) are written back as they were, and so is the formula that reads them.
     void anExternalLinkSurvivesAnEditElsewhere() { keepsWhatItDoesNotEdit(externalLinkBook(), QStringLiteral("D1"), QStringLiteral("5")); }
+
+    // Inspect Workbook takes the links to other workbooks out: a cell that read one keeps the value it showed, a name that stood for one is #REF!, and the file has no part, link,
+    // list entry, or type for them.
+    void inspectTakesExternalLinksOut()
+    {
+        const QByteArray book = repack(externalLinkBook(), [](Parts &p) {
+            p[QStringLiteral("xl/workbook.xml")].replace("</externalReferences>", "</externalReferences><definedNames><definedName name=\"Px\">[1]Prices!$A$1</definedName></definedNames>");
+        });
+        EditWindow e;
+        QVERIFY(e.open(book, QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        const QVector<InspectItem> items = e.win.w.inspectItems();
+        const InspectItem *item = nullptr;
+        for (const InspectItem &i : items)
+            if (i.title == QLatin1String("External links")) item = &i;
+        QVERIFY(item);
+        QCOMPARE(item->count(), 1);
+        QVERIFY(item->removable);
+        QVERIFY(item->remove() >= 1);
+        QVERIFY(e.settle());
+        QCOMPARE(item->count(), 0);
+        QCOMPARE(e.win.w.session()->editText(0, 4, 0), QStringLiteral("84"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        Parts now;
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        readZip(f.readAll(), now);
+        for (auto it = now.begin(); it != now.end(); ++it) QVERIFY2(!it.key().contains(QLatin1String("externalLink")), qPrintable(it.key()));
+        QVERIFY(!now.value(QStringLiteral("xl/workbook.xml")).contains("externalReference"));
+        QVERIFY(!now.value(kBookRels).contains("externalLink"));
+        QVERIFY(!now.value(QStringLiteral("[Content_Types].xml")).contains("externalLink"));
+        QVERIFY2(!now.value(kSheet).contains("[1]"), now.value(kSheet).constData());
+        QVERIFY(now.value(QStringLiteral("xl/workbook.xml")).contains("#REF!"));
+        f.seek(0);
+        EditWindow again;
+        QVERIFY(again.open(f.readAll(), QStringLiteral("links2.xlsx")));
+        const QVector<InspectItem> items2 = again.win.w.inspectItems();
+        for (const InspectItem &i : items2)
+            if (i.title == QLatin1String("External links")) QCOMPARE(i.count(), 0);
+    }
+
+    // Inspect Workbook leaves the custom XML out: the parts, what they relate to, the workbook's link to them, and their types; nothing else of the file changes.
+    void inspectTakesCustomXmlOut()
+    {
+        EditWindow e;
+        QVERIFY(e.open(otherPartsBook(), QStringLiteral("xmlparts.xlsx")));
+        QVERIFY(e.settle());
+        const QVector<InspectItem> items = e.win.w.inspectItems();
+        const InspectItem *item = nullptr;
+        for (const InspectItem &i : items)
+            if (i.title == QLatin1String("Custom XML data")) item = &i;
+        QVERIFY(item);
+        QCOMPARE(item->count(), 1);
+        QVERIFY(item->remove() >= 1);
+        QCOMPARE(item->count(), 0);
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        Parts now;
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        readZip(f.readAll(), now);
+        for (auto it = now.begin(); it != now.end(); ++it) QVERIFY2(!it.key().startsWith(QLatin1String("customXml")), qPrintable(it.key()));
+        QVERIFY(!now.value(kBookRels).contains("customXml"));
+        QVERIFY(!now.value(QStringLiteral("[Content_Types].xml")).contains("customXml"));
+        QVERIFY(now.contains(kSheet));
+    }
 
     // A picture, its drawing, and the image are written back as they were.
     void aPictureAndItsDrawingSurviveAnEditElsewhere() { keepsWhatItDoesNotEdit(drawingBook(), QStringLiteral("D1"), QStringLiteral("5")); }

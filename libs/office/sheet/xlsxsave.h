@@ -349,6 +349,10 @@ struct SaveChanges {
     std::map<QString, std::function<QByteArray()>> producedParts;
     // Ask the program that opens the file to work every formula out again (a result that could not be worked out here is stale).
     bool fullCalcOnLoad = false;
+    // The links to other workbooks are taken out: their parts, the workbook's list of them, its relationships to them, and their types. (The cells and names that read them are changed first.)
+    bool dropExternalLinks = false;
+    // The custom XML parts (data other programs added: the workbook's relationships to them, the parts, what they relate to, and their types) are taken out.
+    bool dropCustomXml = false;
     // The sheets: when a person added, deleted, renamed, moved, hid, or showed one (the workbook's own list is then made from the Workbook's: names, states, and the order of the tabs, with the
     // parts and relationships of the new sheets it has planned), and the renames and deletes in the order made (everything in the file that names a sheet follows them).
     // The workbook's protection of its structure, when a person changed it (made into the element `workbookProtection` in place of the file's).

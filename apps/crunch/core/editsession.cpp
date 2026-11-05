@@ -1849,6 +1849,8 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
         }
     }
     changes.fullCalcOnLoad = (anyTouched || liveResults > 0 || newSheets) && needsCalc;
+    changes.dropExternalLinks = m_dropExternalLinks;
+    changes.dropCustomXml = m_dropCustomXml;
     return true;
 }
 
@@ -1890,6 +1892,8 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_tableRewrites.clear();
     m_nameRenames.clear();
     m_calcFile = m_calcNow;
+    m_dropExternalLinks = false;
+    m_dropCustomXml = false;
     m_nameTable.rebase([this](const NameEntry &e) {
         QString text;
         m_book->calc->nameText(e.scope, e.name, &text);

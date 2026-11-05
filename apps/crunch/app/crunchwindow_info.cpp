@@ -258,10 +258,36 @@ QVector<InspectItem> CrunchWindow::inspectItems()
             if (re.match(name).hasMatch()) ++n;
         return n;
     };
-    items.push_back({tr("External links"), tr("Links to values in other workbooks. Break them on the Data tab."), [partsMatching] { return partsMatching(QStringLiteral("^/xl/externalLinks/externalLink[0-9]*\\.xml$")); },
-                     nullptr, false, QString()});
-    items.push_back({tr("Custom XML data"), tr("Data that other programs added to the file, which you can't see on a sheet."), [partsMatching] { return partsMatching(QStringLiteral("^/customXml/item[0-9]*\\.xml$")); },
-                     nullptr, false, QString()});
+    const QString linkParts = QStringLiteral("^/xl/externalLinks/externalLink[0-9]*\\.xml$");
+    items.push_back({tr("External links"), tr("Links to values in other workbooks. Removing them turns each cell that reads one into the value it shows. This can't be undone."),
+                     [this, session, partsMatching, linkParts] { return session->externalLinksDropped() ? 0 : partsMatching(linkParts); },
+                     [this, session, partsMatching, linkParts] {
+                         const int parts = partsMatching(linkParts);
+                         if (session->externalLinksDropped() || parts == 0) return 0;
+                         const crunch::EditSession::Outcome o = session->breakExternalLinks();
+                         if (!o.ok) {
+                             notice(tr("Remove External Links"), o.problem);
+                             return 0;
+                         }
+                         m_protectionChanged = true;
+                         setWindowModified(true);
+                         updateEditActions();
+                         return parts;
+                     },
+                     true, QString()});
+    const QString customParts = QStringLiteral("^/customXml/item[0-9]*\\.xml$");
+    items.push_back({tr("Custom XML data"), tr("Data that other programs added to the file, which you can't see on a sheet. It is left out when you save."),
+                     [session, partsMatching, customParts] { return session->customXmlDropped() ? 0 : partsMatching(customParts); },
+                     [this, session, partsMatching, customParts] {
+                         const int parts = partsMatching(customParts);
+                         if (session->customXmlDropped() || parts == 0) return 0;
+                         session->dropCustomXml();
+                         m_protectionChanged = true;
+                         setWindowModified(true);
+                         updateEditActions();
+                         return parts;
+                     },
+                     true, QString()});
     return items;
 }
 
