@@ -1,5 +1,5 @@
 # Use styles
-<!-- keywords: manage styles, hide a style, recommended styles, styles, style, styles pane, heading, normal, create style, new style, modify style, change style, based on, next style, update automatically, gallery, character style, paragraph style, ctrl+alt+shift+s -->
+<!-- keywords: manage styles, locked style, lock a style, limit formatting, restrict formatting, export styles, template file, dotx, hide a style, recommended styles, styles, style, styles pane, heading, normal, create style, new style, modify style, change style, based on, next style, update automatically, gallery, character style, paragraph style, ctrl+alt+shift+s -->
 
 A **style** is a saved set of looks: a font, a size, spacing, and more. When you give a style to a paragraph, the paragraph takes all of its looks at once. When you change the style, every paragraph that has it changes too. That is why styles keep long documents tidy.
 
@@ -28,6 +28,8 @@ Click the small arrow at the corner of the **Styles** group, or press **Ctrl+Alt
 - Click **Manage…** under the list to choose, for each style, whether it is **Recommended** (shown in the gallery), whether it is **Hidden** (left out of every list), and its **Order in the lists**. A lower number comes first. Click **OK**, and all the changes happen in one step, so one **Undo** takes them back.
 - In **Manage…**, click **Delete** to remove a style you made. Paragraphs that had it go back to Normal, and the styles that were based on it are based on what it was based on. Styles that come with JeffWrite can't be deleted. Deleting is one step, so **Undo** brings the style back.
 - In **Manage…**, click **Import from file…** to copy styles from another document. Pick the file, check the styles you want, and click **OK**. A style that needs another style brings it along. Styles you already have are left alone unless you check **Replace styles that have the same name**. Importing is one step to undo.
+- In **Manage…**, click **Export to file…** to save some of your styles in a template file (a **.dotx** file). Check the styles you want, click **OK**, and pick where to save it. Another document can take them from that file with **Import from file…**. A style that needs another style brings it along.
+- Check **Locked** for a style to lock it. Then check **Limit formatting to the styles that are not locked** to turn the limit on. While the limit is on, nobody can format text by hand, such as with **Bold** or **Center**, and nobody can use a locked style. They can still use every other style. The status bar says so when a command is turned down. Uncheck the box to turn the limit off. If the document is protected with a password, stop that protection first, in **Review > Restrict Editing**. The limit and the locks are saved in the file.
 - Under the list, the **Sort** box puts the styles in order. **Alphabetical** goes by name. **As Recommended** puts the most useful styles first. **By Type** lists paragraph styles, then linked styles, then character styles. **Based On** groups each style with the style it is built on.
 
 ## Make a style from your text

@@ -369,6 +369,16 @@ public:
     // The document's protection (w:documentProtection): what it allows and whether it is enforced. Like Track Changes, a setting written with the document, not a step of the history.
     std::optional<office::wml::DocumentProtection> protection() const { return m_protection; }
     void setProtection(const std::optional<office::wml::DocumentProtection> &protection);
+    // Formatting is limited (Manage Styles): the protection limits it and is enforced. Direct formatting is then refused, as is giving text a style that is locked; `formattingRefused` says that a
+    // command was turned down for it since the last time that was asked (so the window can say why nothing changed).
+    bool formattingLimited() const { return m_protection && m_protection->enforced && m_protection->formatting; }
+    void noteFormattingRefused() { m_formattingRefused = true; }
+    bool takeFormattingRefused()
+    {
+        const bool was = m_formattingRefused;
+        m_formattingRefused = false;
+        return was;
+    }
     // How a kind of note is numbered and where it is set, as the settings say now: the format of its numbers (a w:numFmt value; "decimal" where the file says none), the number the first
     // shows, whether the numbers begin again with each section or page (continuous, eachSect, eachPage), and where they are set (the footnotes' pageBottom or beneathText, the endnotes'
     // sectEnd or docEnd; empty where the file says none).
@@ -933,7 +943,7 @@ private:
     int m_fieldCodesCount = 0;
     int m_fieldCodeView = 0;
     bool m_showHidden = false;
-    bool m_collapseAny = false, m_collapseSuspended = false;
+    bool m_collapseAny = false, m_collapseSuspended = false, m_formattingRefused = false;
     void renewCollapse();
     double m_webWidth = 0;
     bool m_webSuspended = false;

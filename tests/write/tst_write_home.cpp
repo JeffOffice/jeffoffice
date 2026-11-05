@@ -1827,6 +1827,70 @@ private Q_SLOTS:
         QCOMPARE(w.document()->toDocx(), saved);
     }
 
+    void theSpecialCodesFindSectionBreaksFieldsAndNoteMarks()
+    {
+        const QString wml = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QByteArray body =
+            para(run("Alpha ") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r><w:fldSimple w:instr=\" PAGE \"><w:r><w:t>7</w:t></w:r></w:fldSimple>") +
+            "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr><w:r><w:t>ends the section</w:t></w:r></w:p>" +
+            para(run("Beta ") + "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> DATE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>today</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>" +
+                 "<w:r><w:endnoteReference w:id=\"2\"/></w:r> end of it");
+        office::PackageWriter pw;
+        pw.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + body + "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:body></w:document>"), wml + QStringLiteral("document.main+xml"));
+        pw.addPart(QStringLiteral("/word/footnotes.xml"), xml(QByteArray("<w:footnotes ") + kNs + "><w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> a footnote</w:t></w:r></w:p></w:footnote></w:footnotes>"), wml + QStringLiteral("footnotes+xml"));
+        pw.addPart(QStringLiteral("/word/endnotes.xml"), xml(QByteArray("<w:endnotes ") + kNs + "><w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> an endnote</w:t></w:r></w:p></w:endnote></w:endnotes>"), wml + QStringLiteral("endnotes+xml"));
+        pw.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        pw.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("footnotes"), QStringLiteral("/word/footnotes.xml"));
+        pw.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("endnotes"), QStringLiteral("/word/endnotes.xml"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(pw.finish()), QString());
+        w.act(QStringLiteral("edit.replace"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QTRY_VERIFY(w.view()->pageCount() >= 1);
+        auto count = [&](const QString &q) {
+            pane->findBox()->setText(q);
+            QTest::qWait(60);
+            pane->findBox()->setText(q);
+            return pane->matchCount();
+        };
+        QTRY_COMPARE(count(QStringLiteral("^b")), 1);   // (the one section break)
+        QTRY_COMPARE(count(QStringLiteral("^f")), 1);
+        QTRY_COMPARE(count(QStringLiteral("^e")), 1);
+        QTRY_COMPARE(count(QStringLiteral("^d")), 2);   // (the simple field and the one made of marks)
+        QTRY_COMPARE(count(QStringLiteral("Alpha ^f")), 1);
+        // The words that show are as they were: text across a field's start is found as it was (without ^d), and the marks are not text.
+        QTRY_COMPARE(count(QStringLiteral("Beta today")), 1);
+        QTRY_COMPARE(count(QStringLiteral("ends the section^bBeta")), 1);
+        QTRY_COMPARE(count(QStringLiteral("^p")), 1);   // (the paragraph mark between the others: the section break is not one)
+        // The Special menu has them.
+        QStringList names;
+        for (QAction *a : pane->specialButton()->menu()->actions()) names << a->text();
+        for (const char *n : {"Section Break", "Field", "Footnote Mark", "Endnote Mark"}) QVERIFY2(names.contains(QString::fromLatin1(n)), n);
+        // Find Next goes to each, and Replace leaves them be (a mark that is replaced would lose what it stands for).
+        pane->findBox()->setText(QStringLiteral("^b"));
+        QVERIFY(pane->findNext());
+        const QString before = w.document()->story()->toPlainText();
+        pane->replaceBox()->setText(QStringLiteral("X"));
+        pane->replaceAll();
+        QVERIFY2(pane->status().contains(QStringLiteral("no replacements")), qPrintable(pane->status()));
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+        QTRY_COMPARE(count(QStringLiteral("^b")), 1);
+        pane->findBox()->setText(QStringLiteral("^d"));
+        QVERIFY(pane->findNext());
+        pane->replaceOne();
+        QVERIFY2(pane->status().contains(QStringLiteral("not replaced")), qPrintable(pane->status()));
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+        // With wildcards on, the codes work the same.
+        auto *wild = pane->findChild<QCheckBox *>(QStringLiteral("useWildcards"));
+        wild->setChecked(true);
+        QTRY_COMPARE(count(QStringLiteral("^b")), 1);
+        QTRY_COMPARE(count(QStringLiteral("^f")), 1);
+    }
+
     void theFindPaneCanSearchWithWildcardsAndReplaceWithGroups()
     {
         WriteWindow w;
@@ -2044,6 +2108,134 @@ private Q_SLOTS:
         QCOMPARE(doc->styleSheet().find(kidId)->basedOn, id);
         QVERIFY(doc->redo());
         QVERIFY(!doc->styleSheet().find(id));
+    }
+
+    void aLockedStyleIsWrittenAndFormattingCanBeLimitedToTheStylesThatAreNotLocked()
+    {
+        auto doc = open(makeDocx(para(run("some words"))));
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        QString problem;
+        office::wml::Style loud = styleFromSelection(*doc, c, QStringLiteral("Loud"));
+        loud.basedOn = QStringLiteral("Normal");
+        const QString loudId = createStyle(*doc, c, loud, &problem, false);
+        QVERIFY2(!loudId.isEmpty(), qPrintable(problem));
+        QVERIFY(!styleLocked(*doc, loudId));
+        QVERIFY(setStyleLocked(*doc, loudId, true));
+        QVERIFY(styleLocked(*doc, loudId));
+        QVERIFY2(part(doc->toDocx(), QStringLiteral("/word/styles.xml")).contains("<w:locked/>"), "the lock is written");
+        // (Not limited yet: anything goes.)
+        QVERIFY(!doc->formattingLimited());
+        toggleBold(*doc, c);
+        QVERIFY(!doc->takeFormattingRefused());
+        QVERIFY(doc->undo());
+        // Limited: no formatting by hand, no locked style, and the styles that are not locked still work.
+        doc->setProtection(office::wml::protectionWithFormatting(std::nullopt, true));
+        QVERIFY(doc->formattingLimited());
+        const QString text = doc->story()->toPlainText();
+        toggleBold(*doc, c);
+        QVERIFY(doc->takeFormattingRefused());
+        QVERIFY(doc->story()->begin().begin().fragment().charFormat().fontWeight() < QFont::DemiBold);
+        setAlignment(*doc, c, Qt::AlignHCenter);
+        QVERIFY(doc->takeFormattingRefused());
+        applyParagraphStyle(*doc, c, loudId);
+        QVERIFY(doc->takeFormattingRefused());
+        QVERIFY(doc->story()->begin().blockFormat().stringProperty(tp::StyleName) != loudId);
+        applyParagraphStyle(*doc, c, QStringLiteral("Heading1"));
+        QVERIFY(!doc->takeFormattingRefused());
+        QCOMPARE(doc->story()->begin().blockFormat().stringProperty(tp::StyleName), QStringLiteral("Heading1"));
+        QCOMPARE(doc->story()->toPlainText(), text);
+        // The settings part says so, and a file that says so is limited when it is opened.
+        const QByteArray bytes = doc->toDocx();
+        const QByteArray settings = part(bytes, QStringLiteral("/word/settings.xml"));
+        QVERIFY2(settings.contains("<w:documentProtection") && settings.contains("w:formatting=\"1\"") && settings.contains("w:enforcement=\"1\""), settings.constData());
+        auto again = open(bytes);
+        QVERIFY(again->formattingLimited());
+        QVERIFY(styleLocked(*again, loudId));
+        // Limited off: the element goes (it said nothing else).
+        QVERIFY(!office::wml::protectionWithFormatting(again->protection(), false).formatting);
+        again->setProtection(std::nullopt);
+        QVERIFY(!again->formattingLimited());
+        QVERIFY(!part(again->toDocx(), QStringLiteral("/word/settings.xml")).contains("documentProtection"));
+        // A protection that is there keeps what else it says.
+        const office::wml::DocumentProtection edit = office::wml::makeDocumentProtection(QStringLiteral("trackedChanges"), QString());
+        const office::wml::DocumentProtection both = office::wml::protectionWithFormatting(edit, true);
+        QVERIFY(both.formatting && both.enforced && both.edit == QLatin1String("trackedChanges") && both.xml.contains("w:edit=\"trackedChanges\""));
+        QVERIFY(!office::wml::protectionWithFormatting(both, false).xml.contains("formatting"));
+    }
+
+    void exportStylesWritesATemplateThatImportStylesCanTakeThemFrom()
+    {
+        auto doc = open(makeDocx(para(run("some words"))));
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        toggleBold(*doc, c);
+        QString problem;
+        office::wml::Style loud = styleFromSelection(*doc, c, QStringLiteral("Loud"));
+        loud.basedOn = QStringLiteral("Normal");
+        const QString loudId = createStyle(*doc, c, loud, &problem, false);
+        QVERIFY2(!loudId.isEmpty(), qPrintable(problem));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("styles.dotx"));
+        QVERIFY2(exportStyles(*doc, {loudId}, path, &problem), qPrintable(problem));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        QVERIFY(bytes.size() > 500);
+        office::Package pack;
+        QVERIFY(pack.read(bytes));
+        QVERIFY2(pack.contentType(QStringLiteral("/word/document.xml")).contains(QLatin1String("template.main+xml")), "a template");
+        auto back = open(bytes);
+        QVERIFY(back);
+        const office::wml::Style *got = back->styleSheet().find(loudId);
+        QVERIFY(got);
+        QCOMPARE(got->name, QStringLiteral("Loud"));
+        // Nothing to write to is a problem said, and no file.
+        QVERIFY(!exportStyles(*doc, {loudId}, dir.filePath(QStringLiteral("no/such/folder/x.dotx")), &problem));
+        QVERIFY(!problem.isEmpty());
+        // The dialog's own button: styles to check, then a file (here the dialog is only looked at).
+        auto target = open(makeDocx(para(run("target"))));
+        QCOMPARE(importStyles(*target, *back, {loudId}, false, &problem), 1);
+    }
+
+    void manageStylesLocksAStyleAndLimitsFormattingFromTheDialog()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a paragraph")))), QString());
+        QVERIFY(!w.document()->formattingLimited());
+        withDialog([&w] { w.act(QStringLiteral("style.manage"))->trigger(); }, QStringLiteral("manageStylesDialog"), [](QDialog *d) {
+            auto *list = d->findChild<QListWidget *>(QStringLiteral("manageStylesList"));
+            QVERIFY(list);
+            for (int i = 0; i < list->count(); ++i)
+                if (list->item(i)->data(Qt::UserRole).toString() == QLatin1String("Heading2")) list->setCurrentRow(i);
+            auto *locked = d->findChild<QCheckBox *>(QStringLiteral("manageLocked"));
+            auto *limit = d->findChild<QCheckBox *>(QStringLiteral("manageLimitFormatting"));
+            QVERIFY(locked && limit && d->findChild<QPushButton *>(QStringLiteral("manageExport")));
+            QVERIFY(!locked->isChecked() && !limit->isChecked());
+            locked->setChecked(true);
+            limit->setChecked(true);
+            shot(d, QStringLiteral("manage-styles-restrict.png"));
+        });
+        QVERIFY(styleLocked(*w.document(), QStringLiteral("Heading2")));
+        QVERIFY(w.document()->formattingLimited());
+        // The Bold command is refused, and the window says why.
+        QVERIFY(w.act(QStringLiteral("fmt.bold")));
+        w.act(QStringLiteral("fmt.bold"))->trigger();
+        QVERIFY(w.statusBar()->currentMessage().contains(QStringLiteral("limited")));
+        // Turned off again from the dialog: the protection goes, the lock stays.
+        withDialog([&w] { w.act(QStringLiteral("style.manage"))->trigger(); }, QStringLiteral("manageStylesDialog"), [](QDialog *d) {
+            auto *limit = d->findChild<QCheckBox *>(QStringLiteral("manageLimitFormatting"));
+            QVERIFY(limit && limit->isChecked());
+            limit->setChecked(false);
+        });
+        QVERIFY(!w.document()->formattingLimited());
+        QVERIFY(!w.document()->protection().has_value());
+        QVERIFY(styleLocked(*w.document(), QStringLiteral("Heading2")));
     }
 
     void importingStylesFromAnotherDocumentCopiesThemWithTheirBaseInOneStep()

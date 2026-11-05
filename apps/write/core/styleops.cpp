@@ -9,11 +9,13 @@
 
 #include <QCoreApplication>
 #include <QHash>
+#include <QSaveFile>
 #include <QSet>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <algorithm>
 #include <functional>
+#include <memory>
 
 using namespace jp::office;
 using namespace jp::office::wml;
@@ -304,6 +306,43 @@ bool setStyleListing(WriteDoc &doc, const QString &id, bool inGallery, bool hidd
     if (priority >= 0) def.uiPriority = std::clamp(priority, 0, 99);
     QTextCursor none;
     return modifyStyle(doc, none, id, def, problem);
+}
+
+bool styleLocked(const WriteDoc &doc, const QString &id)
+{
+    const Style *s = doc.styleSheet().find(id);
+    return s && office::wml::styleLateLocked(s->late);
+}
+
+bool setStyleLocked(WriteDoc &doc, const QString &id, bool locked, QString *problem)
+{
+    const std::optional<Style> found = styleOfDocument(doc, id);
+    if (!found) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::Styles", "The document has no such style.");
+        return false;
+    }
+    if (office::wml::styleLateLocked(found->late) == locked) return true;
+    Style def = *found;
+    def.late = office::wml::styleLateWithLock(def.late, locked);
+    QTextCursor none;
+    return modifyStyle(doc, none, id, def, problem);
+}
+
+bool exportStyles(const WriteDoc &doc, const QStringList &ids, const QString &path, QString *problem)
+{
+    auto fail = [&](const QString &why) {
+        if (problem) *problem = why;
+        return false;
+    };
+    std::unique_ptr<WriteDoc> target = WriteDoc::blank();
+    QString why;
+    if (importStyles(*target, doc, ids, true, &why) <= 0 && !why.isEmpty()) return fail(why);
+    QString err;
+    const QByteArray bytes = target->toDocx(&err, true);
+    if (bytes.isEmpty()) return fail(err.isEmpty() ? QCoreApplication::translate("jp::write::Styles", "The styles can't be written to a file.") : err);
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) return fail(QCoreApplication::translate("jp::write::Styles", "The file can't be written."));
+    return true;
 }
 
 std::optional<Style> styleOfDocument(const WriteDoc &doc, const QString &id)

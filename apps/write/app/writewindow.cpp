@@ -295,7 +295,9 @@ struct Edit {
     void operator()(const std::function<void(write::WriteDoc &, QTextCursor &)> &fn) const
     {
         if (!w->document()) return;
+        w->document()->takeFormattingRefused();
         fn(*w->document(), w->view()->cursor());
+        if (w->document()->takeFormattingRefused()) w->statusBar()->showMessage(QCoreApplication::translate("jp::WriteWindow", "Formatting is limited in this document. Only styles that are not locked can be used."), 6000);
         w->view()->setFocus(Qt::OtherFocusReason);
         w->view()->viewport()->update();
     }

@@ -510,10 +510,16 @@ QByteArray settingsWithTrackRevisions(const QByteArray &settings, bool on);
 struct DocumentProtection {
     QString edit;
     bool enforced = false;
+    bool formatting = false;   // w:formatting: formatting is limited to the styles that are not locked (enforced when `enforced`)
     QByteArray xml;
     bool hasPassword() const;
 };
 std::optional<DocumentProtection> settingsDocumentProtection(const QByteArray &settings);
+// The protection with w:formatting turned on or off (the rest of the element as it is written); with none given, a protection that allows all editing and only limits formatting when `on`.
+DocumentProtection protectionWithFormatting(const std::optional<DocumentProtection> &protection, bool on);
+// Whether a style (its `late` elements) is locked (w:locked): not to be used while formatting is limited. And the elements with the lock set or taken off.
+bool styleLateLocked(const QByteArray &late);
+QByteArray styleLateWithLock(const QByteArray &late, bool locked);
 // The settings with the protection `protection` (none: the element taken out), in the place the schema gives it. An empty part gives a minimal one.
 QByteArray settingsWithDocumentProtection(const QByteArray &settings, const std::optional<DocumentProtection> &protection);
 // A protection that allows `edit` and is enforced, with the password's hash as other word processors write it (the attributes cryptProviderType, cryptAlgorithmClass, cryptAlgorithmType,

@@ -2268,6 +2268,10 @@ static void followAutoRedefine(WriteDoc &doc, QTextCursor &c)
 
 void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextCharFormat &)> &change)
 {
+    if (doc.formattingLimited()) {
+        doc.noteFormattingRefused();
+        return;
+    }
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     Q_UNUSED(doc);
@@ -2556,6 +2560,10 @@ void clearFormatting(WriteDoc &doc, QTextCursor &c)
 
 void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextBlockFormat &)> &change)
 {
+    if (doc.formattingLimited()) {
+        doc.noteFormattingRefused();
+        return;
+    }
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     Q_UNUSED(doc);
@@ -2852,6 +2860,10 @@ QTextCharFormat restyleCharFormat(const QTextCharFormat &f, const QTextCharForma
 
 void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
+    if (doc.formattingLimited() && styleLocked(doc, styleId)) {
+        doc.noteFormattingRefused();
+        return;
+    }
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
@@ -2872,6 +2884,10 @@ void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 
 void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
+    if (doc.formattingLimited() && styleLocked(doc, styleId)) {
+        doc.noteFormattingRefused();
+        return;
+    }
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     c.beginEditBlock();
