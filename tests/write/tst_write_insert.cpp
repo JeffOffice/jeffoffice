@@ -884,6 +884,42 @@ private Q_SLOTS:
         QCOMPARE(pane->results()->count(), 1);   // ("No results")
     }
 
+    void theNavigationPaneResultsCanBeListedByHeadingAndByPage()
+    {
+        QByteArray body;
+        body += "<w:p><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:r><w:t>One</w:t></w:r></w:p>" + para("a beta here") + "<w:p><w:pPr><w:outlineLvl w:val=\"1\"/></w:pPr><w:r><w:t>One A</w:t></w:r></w:p>"
+                + para("beta and beta") + "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p><w:p><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:r><w:t>Two</w:t></w:r></w:p>" + para("last beta");
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        w.act("view.navigationPane")->trigger();
+        NavigationPane *pane = w.navigationPane();
+        QTRY_COMPARE(w.view()->pageCount(), 2);
+        pane->tabs()->setCurrentIndex(2);
+        pane->searchBox()->setText(QStringLiteral("beta"));
+        pane->search();
+        QCOMPARE(pane->results()->count(), 4);   // (as text: the places alone)
+        pane->groupBox()->setCurrentIndex(1);
+        QStringList rows;
+        for (int i = 0; i < pane->results()->count(); ++i) rows << pane->results()->item(i)->text();
+        QCOMPARE(pane->results()->count(), 7);
+        QCOMPARE(rows[0], QStringLiteral("One"));
+        QCOMPARE(rows[2], QStringLiteral("One A"));
+        QCOMPARE(rows[5], QStringLiteral("Two"));
+        QVERIFY(rows[1].contains(QStringLiteral("beta")));
+        QVERIFY(!(pane->results()->item(0)->flags() & Qt::ItemIsSelectable));
+        Q_EMIT pane->results()->itemClicked(pane->results()->item(4));
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("beta"));
+        QCOMPARE(w.view()->cursor().block().text(), QStringLiteral("beta and beta"));
+        pane->groupBox()->setCurrentIndex(2);
+        QCOMPARE(pane->results()->count(), 6);
+        QCOMPARE(pane->results()->item(0)->text(), QStringLiteral("Page 1"));
+        QCOMPARE(pane->results()->item(4)->text(), QStringLiteral("Page 2"));
+        pane->groupBox()->setCurrentIndex(0);
+        QCOMPARE(pane->results()->count(), 4);
+    }
+
     void theNavigationPaneShowsThePages()
     {
         Win win({"one"});
