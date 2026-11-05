@@ -1,5 +1,5 @@
 # Find your way with the Navigation pane
-<!-- keywords: collapse heading, expand heading, fold, triangle, navigation pane, navigation, headings, outline, pages, thumbnails, results, results by heading, results by page, search, promote, demote, collapse, expand, outline view, outlining, page movement, side to side, read mode, draft view, split, move heading, show level, focus, focus mode, full screen, gridlines -->
+<!-- keywords: web layout, web view, wrap to window, collapse heading, expand heading, fold, triangle, navigation pane, navigation, headings, outline, pages, thumbnails, results, results by heading, results by page, search, promote, demote, collapse, expand, outline view, outlining, page movement, side to side, read mode, draft view, split, move heading, show level, focus, focus mode, full screen, gridlines -->
 
 The **Navigation pane** is a panel on the left of the window. Open it with **View > Navigation Pane**. It has three tabs.
 
@@ -55,6 +55,12 @@ This only changes what you see on the screen. Printing, saving to PDF, and savin
 ## Draft view
 
 **View > Draft** shows the pages one after the other, with no page edges, shadows, headers, or footers. A dotted line shows where each page ends, and it says **Page Break** or **Section Break** where one was put in. You can still write and edit. Choose **Print Layout** to go back to the pages as they print.
+
+## Web Layout
+
+**View > Web Layout** shows your words as they would look on a web page. The text is as wide as the window, and it wraps again when you make the window wider or narrower. There are no page edges, no page breaks, no headers, and no footers. You can still write and edit. Choose **Print Layout** to go back to the pages as they print.
+
+Web Layout is only a way to look at the document. Printing, saving to PDF, and saving the file all use the pages as the document has them. Page numbers in fields, such as in a table of contents, are worked out from those pages too.
 
 ## Split
 

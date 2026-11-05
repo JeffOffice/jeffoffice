@@ -244,6 +244,7 @@ QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const Q
 
 QVector<PdfBookmark> headingBookmarks(WriteDoc &doc, const QVector<int> &pages)
 {
+    const WriteDoc::PrintLayout printPages(doc);
     QVector<PdfBookmark> out;
     for (const OutlineHeading &h : outlineHeadings(doc)) {
         const int page = doc.pager().pageOfPosition(h.position);

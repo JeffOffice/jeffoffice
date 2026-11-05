@@ -317,6 +317,31 @@ void PageView::setDraft(bool on)
     viewport()->update();
 }
 
+void PageView::setWebLayout(bool on)
+{
+    if (m_web == on || (on && !m_doc)) return;
+    if (on) {
+        leaveHeaderFooter();
+        leaveNote();
+    }
+    m_web = on;
+    if (m_doc) {
+        if (on) fitWebWidth();
+        else m_doc->setWebLayout(0);
+        startPagination();
+    }
+    relayout();
+    viewport()->update();
+}
+
+// The text is as wide as the window: the pages' width is what the window holds beside the gap round them, as points.
+void PageView::fitWebWidth()
+{
+    if (!m_doc || !m_web) return;
+    const int bar = verticalScrollBar()->isVisible() ? 0 : verticalScrollBar()->sizeHint().width();   // (as if the bar were there: its showing must not change the width)
+    m_doc->setWebLayout(std::max(120.0, (viewport()->width() - bar - 2 * kMargin) / scale()));
+}
+
 void PageView::setShowBodyWhileEditingHeader(bool on)
 {
     if (m_showBodyInHeader == on) return;
@@ -388,6 +413,7 @@ void PageView::dropRendered(int fromPage)
 
 void PageView::relayout()
 {
+    if (m_web && !m_relayouting) fitWebWidth();   // (the text is as wide as the window, now)
     if (m_relayouting) return;
     ++m_layoutSerial;
     m_relayouting = true;
@@ -402,7 +428,7 @@ void PageView::relayout()
     const int known = pg.pagesKnown();
     m_complete = pg.complete();
     const double s = scale();
-    const double gap = m_draft ? 0.0 : kGap;
+    const double gap = m_draft || m_web ? 0.0 : kGap;
     const int cols = m_sideToSide ? std::max(1, known) : std::max(1, m_across);
     // The sizes of the pages: while edits wait to be laid out, those of pages not made yet are as they were.
     QVector<QSizeF> sizes(known);
@@ -412,6 +438,12 @@ void PageView::relayout()
         if (settled || i < 1) sizes[i] = pg.page(i).size * s;
         else if (i < before.size() && !m_rects[i].isEmpty()) sizes[i] = before[i].size();
         else sizes[i] = sizes[i - 1];
+    }
+    // Web Layout: the last page ends a little below the text, not 24 inches down.
+    if (m_web && settled && m_complete && known > 0 && !m_hf.active && !m_note.active) {
+        int page = 0;
+        QLineF end;
+        if (caretLine(m_doc->story()->characterCount() - 1, &page, &end) && page == known - 1) sizes[page].setHeight(std::min(sizes[page].height(), (end.y2() + 24.0) * s));
     }
     const int rows = (known + cols - 1) / cols;
     QVector<double> rowW(rows, 0.0), rowH(rows, 0.0);
@@ -652,7 +684,7 @@ void PageView::paintEvent(QPaintEvent *e)
         if (!r.intersects(visible)) continue;
         const QRectF dev = r.translated(-sx, -sy);
         // The page's shadow and its paper.
-        if (!m_draft)
+        if (!m_draft && !m_web)
             for (int k = 4; k >= 1; --k) p.fillRect(dev.adjusted(k, k, k, k), QColor(0, 0, 0, dark ? 28 : 14));
         p.fillRect(dev, Qt::white);
         const auto page = rendered(i);
@@ -669,7 +701,7 @@ void PageView::paintEvent(QPaintEvent *e)
             d.marks = m_marks;
             d.gridlines = m_gridlines;
             d.shadeFields = m_shadeFields;
-            d.draft = m_draft;
+            d.draft = m_draft || m_web;
             d.found = m_findHighlights.isEmpty() ? nullptr : &m_findHighlights;
             d.foundIn = m_findSide;
             d.pageCount = std::max(1, m_knownPages);
@@ -707,6 +739,7 @@ void PageView::paintEvent(QPaintEvent *e)
             if (m_reviewMarks.changeBars || m_reviewMarks.formatBars || m_reviewMarks.comments || m_reviewMarks.deletions) paintReviewMarks(p, *page);
             p.restore();
         }
+        if (m_web) continue;   // (no end of a page is shown)
         if (m_draft) {
             // The end of a page is a dotted line, named where the next page begins a section or the break was asked for.
             if (i + 1 < m_knownPages) {
@@ -1780,7 +1813,7 @@ int PageView::pageShowingNote(const QTextDocument *story)
 
 bool PageView::enterSideStory(QTextDocument *story, int *page)
 {
-    if (!m_doc || !story) return false;
+    if (!m_doc || !story || m_web || m_draft) return false;   // (no header, footer, or note is shown to be edited in these views)
     int at = -1, id = 0, section = 0, slot = 0;
     bool footer = false, ok = false;
     if (m_doc->footnoteIdOf(story, &id)) {

@@ -55,6 +55,7 @@
 #include <QTemporaryDir>
 #include <QFile>
 #include <QCryptographicHash>
+#include <QScrollBar>
 #include <QTest>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -1774,6 +1775,56 @@ private Q_SLOTS:
         QTRY_VERIFY(grey(vp) > none + 10);
         QTest::mouseClick(vp, Qt::LeftButton, Qt::NoModifier, triangle);
         QVERIFY(!headingCollapsed(*w.document(), 0));
+    }
+
+    void webLayoutSetsTheTextAsWideAsTheWindowAndGivesTheNormalPagesBack()
+    {
+        QByteArray body;
+        for (int i = 0; i < 90; ++i) body += para(run("A paragraph of plain words that is long enough to run onto a second line when the window gets narrow, and then some more words after it."));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        QTRY_VERIFY(w.view()->pageCount() >= 2);
+        const int printPages = w.view()->pageCount();
+        const double printWidth = w.document()->flow().section(0).paper.width();
+        const QByteArray saved = w.document()->toDocx();
+        QRect last;
+        const int lastAt = w.document()->story()->characterCount() - 2;
+        w.act(QStringLiteral("view.webLayout"))->trigger();
+        QVERIFY(w.view()->webLayout());
+        QVERIFY(w.act(QStringLiteral("view.webLayout"))->isChecked());
+        QVERIFY(!w.act(QStringLiteral("view.printLayout"))->isChecked());
+        // One page's width of the window, no page breaks to speak of, and the window's width: a narrower window sets more lines.
+        const double webWidth = w.document()->flow().section(0).paper.width();
+        QVERIFY2(webWidth > 300 && webWidth != printWidth, qPrintable(QString::number(webWidth)));
+        QTRY_VERIFY(w.view()->pageCount() < printPages);
+        QTRY_VERIFY(w.view()->positionRect(0, &last));
+        const QSize wide = w.view()->viewport()->size();
+        QRect wideLast;
+        w.view()->showCursor([&] { QTextCursor c(w.document()->story()); c.setPosition(lastAt); return c; }());
+        QTRY_VERIFY(w.view()->positionRect(lastAt, &wideLast));
+        const int wideHeight = int(w.view()->verticalScrollBar()->maximum()) + wide.height();
+        w.resize(560, 800);
+        QTRY_VERIFY(w.document()->flow().section(0).paper.width() < webWidth - 200);
+        QTRY_VERIFY(int(w.view()->verticalScrollBar()->maximum()) + w.view()->viewport()->height() > wideHeight + 200);
+        shot(&w, QStringLiteral("web-layout.png"));
+        // The file is as it was, and fields' page numbers are of the pages the file has.
+        QCOMPARE(w.document()->toDocx(), saved);
+        {
+            const write::WriteDoc::PrintLayout print(*w.document());
+            QCOMPARE(w.document()->flow().section(0).paper.width(), printWidth);
+        }
+        QTRY_VERIFY(w.document()->flow().section(0).paper.width() < webWidth - 200);
+        // The page view comes back as the file has it.
+        w.act(QStringLiteral("view.printLayout"))->trigger();
+        QVERIFY(!w.view()->webLayout());
+        QCOMPARE(w.document()->flow().section(0).paper.width(), printWidth);
+        QTRY_COMPARE(w.view()->pageCount(), printPages);
+        QVERIFY(w.act(QStringLiteral("view.printLayout"))->isChecked());
+        QVERIFY(!w.act(QStringLiteral("view.webLayout"))->isChecked());
+        QCOMPARE(w.document()->toDocx(), saved);
     }
 
     void theFindPaneCanSearchWithWildcardsAndReplaceWithGroups()

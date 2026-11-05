@@ -712,6 +712,7 @@ void WriteDoc::syncSections()
         m_sections = list;
         f.sections.clear();
         for (const SectionProps &p : m_sections) f.sections << flowSectionOf(p, m_wml.evenAndOddHeaders);
+        for (flow::Section &fs : f.sections) fitSectionToWeb(fs);
     } else if (keys != m_sectionKeys || f.sections.size() != int(keys.size())) {
         changed = true;
         const int oldCount = int(m_sectionKeys.size()), newCount = int(keys.size());
@@ -725,6 +726,7 @@ void WriteDoc::syncSections()
         for (int i = prefix; i < newCount - suffix; ++i) {
             SectionProps p = i == newCount - 1 ? m_last : unpackSection(storedBytesOf(keys[i]));
             madeFlow << flowSectionOf(p, m_wml.evenAndOddHeaders);
+            fitSectionToWeb(madeFlow.last());
             made.push_back(std::move(p));
             ++m_sectionsMade;
         }
@@ -735,6 +737,7 @@ void WriteDoc::syncSections()
             for (int i = 0; i < newCount; ++i) {
                 m_sections[i] = i == newCount - 1 ? m_last : unpackSection(storedBytesOf(keys[i]));
                 f.sections[i] = flowSectionOf(m_sections[i], m_wml.evenAndOddHeaders);
+                fitSectionToWeb(f.sections[i]);
             }
             m_sectionsMade += newCount;
             from = 0;
@@ -840,7 +843,62 @@ void WriteDoc::attachHeaders(int from)
         }
         // (The numbers of the lines are in the file's "line number" character style.)
         if (s.lineNumbers.countBy > 0) s.lineNumbers.format = styleCharFormat(defaultParagraphStyle(), QStringLiteral("LineNumber"));
+        fitSectionToWeb(s);
     }
+}
+
+// Web Layout: the section is one column as wide as the window, on a page that is tall (24 inches, so that its end is seldom seen) with small margins, and runs on from the one before.
+void WriteDoc::fitSectionToWeb(flow::Section &s) const
+{
+    if (m_webWidth <= 0 || m_webSuspended) return;
+    s.paper = QSizeF(m_webWidth, 1728);
+    s.orientation = flow::Section::Orientation::Portrait;
+    s.margins = QMarginsF(18, 12, 18, 12);
+    s.columns = 1;
+    s.columnWidths.clear();
+    s.columnSpaces.clear();
+    s.columnLine = false;
+    s.pageBorders = flow::PageBorders();
+    s.lineNumbers = flow::Section::LineNumbers();
+    s.header = flow::HeaderFooter();
+    s.footer = flow::HeaderFooter();
+    s.differentFirstPage = false;
+    s.differentOddEven = false;
+    s.startParity = flow::Section::Parity::Any;
+    s.firstPageNumber.reset();
+    s.continuous = true;
+}
+
+// The sections made again from their properties, with the view's fit, and the headers set in them again.
+void WriteDoc::rebuildSections()
+{
+    flow::FlowDocument &f = *m_flow;
+    f.sections.clear();
+    for (const SectionProps &p : m_sections) f.sections << flowSectionOf(p, m_wml.evenAndOddHeaders);
+    attachHeaders(0);   // (which fits each section to the view)
+    if (m_pager) m_pager->invalidate();   // (every page: their sizes, and what is measured of the tables and notes, are not the same)
+    Q_EMIT sectionsChanged();
+}
+
+void WriteDoc::setWebLayout(double widthPoints)
+{
+    widthPoints = std::max(0.0, widthPoints);
+    if (std::abs(widthPoints - m_webWidth) < 0.5) return;
+    m_webWidth = widthPoints;
+    if (!m_webSuspended) rebuildSections();
+}
+
+void WriteDoc::suspendWebLayout(bool on)
+{
+    if (on == m_webSuspended) return;
+    m_webSuspended = on;
+    if (m_webWidth > 0) rebuildSections();
+}
+
+flow::Section WriteDoc::sectionAsFile(int index) const
+{
+    index = std::clamp(index, 0, int(m_sections.size()) - 1);
+    return flowSectionOf(m_sections[index], m_wml.evenAndOddHeaders);
 }
 
 void WriteDoc::setSectionProps(int index, const SectionProps &props)

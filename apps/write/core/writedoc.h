@@ -432,6 +432,34 @@ public:
     bool collapseActive() const { return m_collapseAny; }
     void suspendCollapse(bool on);
     bool collapseSuspended() const { return m_collapseSuspended; }
+    // Web Layout (a view of the text, not a change to it): the text is set as one column as wide as the window (`widthPoints`, 0 for the pages as the file has them), with no page borders, line numbers,
+    // headers, or footers, and every section running on from the one before. The paper and the page numbers that fields show are of the pages as the file has them, so those are made with it suspended.
+    void setWebLayout(double widthPoints);
+    double webLayoutWidth() const { return m_webWidth; }
+    void suspendWebLayout(bool on);
+    bool webLayoutSuspended() const { return m_webSuspended; }
+    // The section as its properties say, whatever the view (what page setup changes are made from).
+    flow::Section sectionAsFile(int index) const;
+    // While one lives, the pages are as the file has them (Web Layout and collapsed headings are set aside): for whatever asks which page something is on, or writes the pages out.
+    class PrintLayout {
+    public:
+        explicit PrintLayout(WriteDoc &doc) : m_doc(doc), m_web(doc.webLayoutWidth() > 0 && !doc.webLayoutSuspended()), m_collapse(doc.collapseActive() && !doc.collapseSuspended())
+        {
+            if (m_web) m_doc.suspendWebLayout(true);
+            if (m_collapse) m_doc.suspendCollapse(true);
+        }
+        ~PrintLayout()
+        {
+            if (m_collapse) m_doc.suspendCollapse(false);
+            if (m_web) m_doc.suspendWebLayout(false);
+        }
+        PrintLayout(const PrintLayout &) = delete;
+        PrintLayout &operator=(const PrintLayout &) = delete;
+
+    private:
+        WriteDoc &m_doc;
+        bool m_web, m_collapse;
+    };
 
     // ---- tables
     // What the last table command that did nothing said of why (empty when it did what it was asked): a limit of the file, or a shape it can't take.
@@ -907,6 +935,10 @@ private:
     bool m_showHidden = false;
     bool m_collapseAny = false, m_collapseSuspended = false;
     void renewCollapse();
+    double m_webWidth = 0;
+    bool m_webSuspended = false;
+    void fitSectionToWeb(flow::Section &section) const;
+    void rebuildSections();
     int hiddenBit() const { return m_showHidden ? tp::kRevisionShowHidden : 0; }
     void writeReviewSettings(office::wml::Document *out);
     void writeSourcesPart(office::wml::Document *out);

@@ -76,6 +76,9 @@ public:
     // Page movement: the pages in a column (the usual), or all in one row that the window scrolls side to side.
     // Draft: the pages run on without edges, shadows, headers, or footers, a dotted line (named for a page or section break) where each ends.
     void setDraft(bool on);
+    // Web Layout: the text is set as one column as wide as the window, with no page edges or breaks shown (the document's own pages come back when it ends).
+    void setWebLayout(bool on);
+    bool webLayout() const { return m_web; }
     bool draft() const { return m_draft; }
     // While a header or footer is edited the page's own text is shown dimmed (the usual), or left out.
     void setShowBodyWhileEditingHeader(bool on);
@@ -468,7 +471,8 @@ private:
     double m_zoom = 1.0;
     ZoomMode m_mode = ZoomMode::Percent;
     int m_across = 1, m_down = 1;
-    bool m_sideToSide = false, m_draft = false, m_showBodyInHeader = true;
+    bool m_sideToSide = false, m_draft = false, m_web = false, m_showBodyInHeader = true;
+    void fitWebWidth();
     bool m_marks = false;
     QVector<QPair<int, int>> m_findHighlights;
     std::function<QVector<QPair<int, int>>(const QTextDocument *)> m_findSide;

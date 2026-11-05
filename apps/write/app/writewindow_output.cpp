@@ -43,20 +43,21 @@
 namespace jp {
 
 namespace {
-// Hidden text shown on the screen, and the paragraphs that collapsed headings hide, are laid out without for the paper and the file (every paragraph is there), and as they were after.
+// Hidden text shown on the screen, the web view, and the paragraphs that collapsed headings hide are laid out without for the paper and the file (every paragraph is there), and as they were after.
 struct HiddenTextOff {
-    explicit HiddenTextOff(write::WriteDoc *doc) : m_doc(doc), m_was(doc && doc->showsHiddenText()), m_collapsed(doc && doc->collapseActive() && !doc->collapseSuspended())
+    explicit HiddenTextOff(write::WriteDoc *doc) : m_doc(doc), m_was(doc && doc->showsHiddenText())
     {
         if (m_was) m_doc->setShowHiddenText(false);
-        if (m_collapsed) m_doc->suspendCollapse(true);
+        if (doc) m_print = std::make_unique<write::WriteDoc::PrintLayout>(*doc);
     }
     ~HiddenTextOff()
     {
+        m_print.reset();
         if (m_was) m_doc->setShowHiddenText(true);
-        if (m_collapsed) m_doc->suspendCollapse(false);
     }
     write::WriteDoc *m_doc;
-    bool m_was, m_collapsed;
+    bool m_was;
+    std::unique_ptr<write::WriteDoc::PrintLayout> m_print;   // (Web Layout and collapsed headings are for the screen too)
 };
 } // namespace
 

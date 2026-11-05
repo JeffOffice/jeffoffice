@@ -883,6 +883,7 @@ PassResult updatePass(WriteDoc &doc, const UpdateOptions &options, bool keepChan
 
 UpdateReport updateFields(WriteDoc &doc, const UpdateOptions &options, bool keepChanges)
 {
+    const WriteDoc::PrintLayout printPages(doc);   // (the page numbers are the pages the file has, in whatever view)
     // The step and what an edit does round itself are made when the first change is: an update that changes nothing makes no step.
     std::optional<WriteDoc::StepGroup> group;
     std::optional<EditScope> scope;
@@ -911,6 +912,7 @@ UpdateReport updateFields(WriteDoc &doc, const UpdateOptions &options, bool keep
 
 UpdateReport updateFieldsAt(WriteDoc &doc, const QTextCursor &c)
 {
+    const WriteDoc::PrintLayout printPages(doc);
     UpdateOptions o;
     if (c.hasSelection()) {
         o.from = c.selectionStart();

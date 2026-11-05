@@ -60,6 +60,7 @@ WordStats countWordsIn(const QTextDocument *story, int from, int to, bool withEn
 // The lines of the text's pages that hold part of [from, to).
 static int linesBetween(WriteDoc &doc, int from, int to)
 {
+    const WriteDoc::PrintLayout printPages(doc);
     flow::Paginator &pager = doc.pager();
     const int pages = pager.pageCount();
     int n = 0;

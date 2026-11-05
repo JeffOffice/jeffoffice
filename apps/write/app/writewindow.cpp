@@ -363,7 +363,7 @@ void WriteWindow::changeSection(const std::function<void(flow::Section &)> &chan
     if (!m_doc) return;
     const int index = m_view->cursorSection();
     office::wml::SectionProps props = m_doc->sectionProps(index);
-    flow::Section s = flow::Section(m_doc->flow().section(index));
+    flow::Section s = m_doc->sectionAsFile(index);   // (the pages as the file has them, whatever the view)
     const flow::Section was = s;
     change(s);
     s.margins = QMarginsF(std::max(0.0, s.margins.left()), std::max(0.0, s.margins.top()), std::max(0.0, s.margins.right()), std::max(0.0, s.margins.bottom()));
