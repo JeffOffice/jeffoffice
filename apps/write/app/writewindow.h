@@ -15,6 +15,8 @@
 #include "app/optionsdialog.h"
 
 #include <QHash>
+#include <QImage>
+#include <QSizeF>
 #include <QPointer>
 #include <QKeySequence>
 #include <QSet>
@@ -58,7 +60,7 @@ struct Recovered;
 
 // What Print and Export to PDF are asked to do: which pages and, for printing, where and how many copies.
 struct WriteOutputOptions {
-    enum class Range { All, Current, Pages };
+    enum class Range { All, Current, Pages, Selection };
     Range range = Range::All;
     QString pages;        // "1-3, 5": for Range::Pages
     QString printer;      // the name of the printer; empty is the default one
@@ -165,6 +167,11 @@ public:
     bool exportPdfPages(const WriteOutputOptions &options);
     // Asks which pages (all, the current page, or a range), then exports them.
     bool exportPdfAsk();
+    // A copy of the document with only the selection left in it (its page setup, styles, headers, and footers stay), for printing the selection; null when nothing is selected.
+    std::unique_ptr<write::WriteDoc> selectionDocument();
+    // The page `index` of what `options` prints, as a picture `width` pixels wide (the selection's own pages for Range::Selection), and its size in points.
+    QImage outputPageImage(const WriteOutputOptions &options, int index, int width);
+    QSizeF outputPageSize(const WriteOutputOptions &options, int index);
     // Where editing stopped: the place is kept with the file's name when the window closes and when the file is saved, and the file opens there again.
     void rememberPlace();
     // The last three places the text was edited, the latest first (Shift+F5 goes to each in turn).
@@ -413,6 +420,7 @@ private:
     std::function<void(QPrinter &)> m_printerPreparer;
     std::function<FormatChoice(const QStringList &)> m_formatAsker;
     std::function<bool()> m_stackTurner;
+    std::unique_ptr<write::WriteDoc> m_selectionDoc;   // the copy that the last count of the pages to print for the selection was made from
     QList<int> m_editPlaces;
     int m_placeStep = 0;
     void recordPlace(int position);

@@ -4,6 +4,8 @@
 
 #include "app/filedialogs.h"
 #include "app/pageoutput.h"
+#include "app/pagepaint.h"
+#include "core/editops.h"
 #include "app/pageview.h"
 #include "core/appinfo.h"
 #include "core/emailops.h"
@@ -20,6 +22,7 @@
 #include <QPageLayout>
 #include <QPageSize>
 #include <QPdfWriter>
+#include <QPainter>
 #include <QPrinter>
 #include <QSaveFile>
 #include <QComboBox>
@@ -54,7 +57,12 @@ QVector<int> WriteWindow::outputPages(const WriteOutputOptions &options)
     if (!m_doc) return out;
     m_view->paginateAll();
     const int count = m_view->pageCount();
-    if (options.range == WriteOutputOptions::Range::Current) {
+    if (options.range == WriteOutputOptions::Range::Selection) {
+        // The pages of a copy that holds the selection alone.
+        m_selectionDoc = selectionDocument();
+        if (!m_selectionDoc) return out;
+        for (int i = 0, n = m_selectionDoc->pager().pageCount(); i < n; ++i) out << i;
+    } else if (options.range == WriteOutputOptions::Range::Current) {
         out << std::clamp(m_view->currentPage(), 0, std::max(0, count - 1));
     } else if (options.range == WriteOutputOptions::Range::All) {
         for (int i = 0; i < count; ++i) out << i;
@@ -70,6 +78,57 @@ QVector<int> WriteWindow::outputPages(const WriteOutputOptions &options)
     }
     if (options.reverse) std::reverse(out.begin(), out.end());
     return out;
+}
+
+std::unique_ptr<write::WriteDoc> WriteWindow::selectionDocument()
+{
+    if (!m_doc) return nullptr;
+    const QTextCursor &c = m_view->cursor();
+    if (!c.hasSelection() || c.document() != m_doc->story()) return nullptr;
+    const int from = c.selectionStart(), to = c.selectionEnd();
+    QString err;
+    const QByteArray bytes = m_doc->toDocx(&err);
+    if (bytes.isEmpty()) return nullptr;
+    auto copy = write::WriteDoc::fromDocx(bytes, &err, nullptr);
+    if (!copy) return nullptr;
+    // What follows the selection goes first, so that the positions before it stay where they were.
+    QTextDocument *story = copy->story();
+    const int end = std::max(0, story->characterCount() - 1);
+    if (to < end) {
+        QTextCursor tail(story);
+        tail.setPosition(std::min(to, end));
+        tail.setPosition(end, QTextCursor::KeepAnchor);
+        write::removeSelection(*copy, tail);
+    }
+    if (from > 0) {
+        QTextCursor head(story);
+        head.setPosition(0);
+        head.setPosition(std::min(from, std::max(0, story->characterCount() - 1)), QTextCursor::KeepAnchor);
+        write::removeSelection(*copy, head);
+    }
+    return copy;
+}
+
+QSizeF WriteWindow::outputPageSize(const WriteOutputOptions &options, int index)
+{
+    if (options.range == WriteOutputOptions::Range::Selection && m_selectionDoc) return m_selectionDoc->pager().page(index).size;
+    return m_doc ? m_doc->pager().page(index).size : QSizeF();
+}
+
+QImage WriteWindow::outputPageImage(const WriteOutputOptions &options, int index, int width)
+{
+    if (options.range != WriteOutputOptions::Range::Selection) return m_view->pageImage(index, width);
+    if (!m_selectionDoc) return {};
+    const auto page = m_selectionDoc->pager().materialize(index);
+    if (!page || page->size.width() <= 0) return {};
+    QImage image(width, std::max(1, int(std::lround(width * page->size.height() / page->size.width()))), QImage::Format_RGB32);
+    image.fill(Qt::white);
+    QPainter p(&image);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.scale(width / page->size.width(), width / page->size.width());
+    LayoutCache cache;
+    write::paintPage(&p, *page, &cache, write::PageDrawing());
+    return image;
 }
 
 QString WriteWindow::pdfPathToWrite(const QString &title)
@@ -367,6 +426,9 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     const QVector<int> pages = outputPages(options);
     if (pages.isEmpty()) return false;
+    // (the selection prints from the copy that holds it alone)
+    write::WriteDoc *source = options.range == WriteOutputOptions::Range::Selection ? m_selectionDoc.get() : m_doc.get();
+    const int sourcePages = options.range == WriteOutputOptions::Range::Selection ? m_selectionDoc->pager().pageCount() : m_view->pageCount();
     QPrinter printer(QPrinter::HighResolution);
     printer.setDocName(displayName());
     QString path;
@@ -394,7 +456,7 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     const bool again = !options.toFile && !printer.supportsMultipleCopies();
     const QVector<int> sheets = again ? write::sheetOrder(pages, options.copies, options.collate) : pages;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    bool ok = write::paintSheets(*m_doc, &printer, sheets, m_view->pageCount(), printer.colorMode() == QPrinter::GrayScale);
+    bool ok = write::paintSheets(*source, &printer, sheets, sourcePages, printer.colorMode() == QPrinter::GrayScale);
     QString err;
     if (ok && made) {
         QFile whole(made->fileName());

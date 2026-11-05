@@ -661,6 +661,45 @@ private Q_SLOTS:
         QCOMPARE(pagesIn(o), 1);
     }
 
+    void printingTheSelectionPrintsOnlyIt()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        w.show();
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("alpha\nbeta words\ngamma"));
+        WriteOutputOptions o;
+        o.range = WriteOutputOptions::Range::Selection;
+        // nothing is selected: nothing to print
+        QVERIFY(w.outputPages(o).isEmpty());
+        QVERIFY(!w.selectionDocument());
+        QTextCursor c(w.document()->story());
+        c.setPosition(6);
+        c.setPosition(16, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        QCOMPARE(w.outputPages(o).size(), 1);
+        auto doc = w.selectionDocument();
+        QVERIFY(doc);
+        const QString text = doc->story()->toPlainText();
+        QVERIFY(text.contains(QLatin1String("beta words")));
+        QVERIFY(!text.contains(QLatin1String("alpha")));
+        QVERIFY(!text.contains(QLatin1String("gamma")));
+        // the document itself is as it was
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("alpha\nbeta words\ngamma"));
+        // printed (to a file here): a page that holds the selection alone
+        const QString path = dir.filePath(QStringLiteral("sel.pdf"));
+        w.setPrinterPreparer([&](QPrinter &printer) {
+            printer.setOutputFormat(QPrinter::PdfFormat);
+            printer.setOutputFileName(path);
+        });
+        QVERIFY(w.printOutput(o));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(PdfDocument::shared(f.readAll())->pageCount(), 1);
+        // the image of the page shown for the Print page is the selection's, not the document's
+        QVERIFY(!w.outputPageImage(o, 0, 200).isNull());
+    }
+
     void aWindowStartsAnUntitledDocumentFromABuiltInTemplate()
     {
         WriteWindow w;

@@ -371,6 +371,9 @@ QWidget *WriteFileScreen::buildPrint()
     all->setObjectName(QStringLiteral("printRangeAll"));
     auto *current = new QRadioButton(tr("Current page"), w);
     current->setObjectName(QStringLiteral("printRangeCurrent"));
+    auto *selection = new QRadioButton(tr("Selection"), w);
+    selection->setObjectName(QStringLiteral("printRangeSelection"));
+    selection->setToolTip(tr("Print only what is selected in the document."));
     auto *some = new QRadioButton(tr("Pages:"), w);
     some->setObjectName(QStringLiteral("printRangePages"));
     auto *text = new QLineEdit(w);
@@ -379,7 +382,7 @@ QWidget *WriteFileScreen::buildPrint()
     text->setPlaceholderText(tr("1-3, 5, p2s3"));
     text->setToolTip(tr("Page numbers and ranges, separated by commas. p2s3 is the second page of section 3, and s3 is all of section 3."));
     auto *group = new QButtonGroup(w);
-    for (QRadioButton *r : {all, current, some}) {
+    for (QRadioButton *r : {all, current, selection, some}) {
         group->addButton(r);
         left->addWidget(r);
     }
@@ -436,6 +439,7 @@ QWidget *WriteFileScreen::buildPrint()
     auto options = [=]() {
         WriteOutputOptions o;
         if (current->isChecked()) o.range = WriteOutputOptions::Range::Current;
+        else if (selection->isChecked()) o.range = WriteOutputOptions::Range::Selection;
         else if (some->isChecked()) {
             o.range = WriteOutputOptions::Range::Pages;
             o.pages = text->text();
@@ -453,12 +457,16 @@ QWidget *WriteFileScreen::buildPrint()
     auto page = std::make_shared<int>(0);
     // The words, the arrows, and the Print button for what is chosen; the pages it covers.
     auto covered = [=]() {
+        // (the selection can be printed only while there is one)
+        const bool hasSelection = view->cursor().hasSelection() && view->cursor().document() == m_win->document()->story();
+        selection->setEnabled(hasSelection);
+        if (!hasSelection && selection->isChecked()) all->setChecked(true);
         const QVector<int> pages = m_win->outputPages(options());
         text->setEnabled(some->isChecked());
         const bool bad = some->isChecked() && pages.isEmpty();
         text->setStyleSheet(bad && !text->text().isEmpty() ? QStringLiteral("QLineEdit { border: 1px solid #c42b1c; }") : QString());
         *page = std::clamp(*page, 0, std::max(0, int(pages.size()) - 1));
-        pageLabel->setText(bad ? tr("Enter page numbers, such as 1-3, 5.") : pages.isEmpty() ? tr("There are no pages to print.") : tr("Page %1 of %2").arg(pages[*page] + 1).arg(pageCount));
+        pageLabel->setText(bad ? tr("Enter page numbers, such as 1-3, 5.") : pages.isEmpty() ? tr("There are no pages to print.") : tr("Page %1 of %2").arg(pages[*page] + 1).arg(selection->isChecked() ? int(pages.size()) : pageCount));
         previous->setEnabled(*page > 0);
         next->setEnabled(*page + 1 < pages.size());
         printBtn->setEnabled(!pages.isEmpty());
@@ -473,10 +481,10 @@ QWidget *WriteFileScreen::buildPrint()
         if (pages.isEmpty()) {
             paper->clear();
         } else {
-            const QSizeF shown = m_win->document()->pager().page(pages[*page]).size;
+            const QSizeF shown = m_win->outputPageSize(options(), pages[*page]);
             bool differ = false;
             for (int index : pages) {
-                const QSizeF size = m_win->document()->pager().page(index).size;
+                const QSizeF size = m_win->outputPageSize(options(), index);
                 differ |= std::abs(size.width() - shown.width()) > 1 || std::abs(size.height() - shown.height()) > 1;
             }
             paper->setText(write::paperDescription(shown) + (differ ? tr(" (the document's sections set other paper for some pages)") : QString()));
@@ -491,11 +499,11 @@ QWidget *WriteFileScreen::buildPrint()
         }
         const qreal dpr = preview->devicePixelRatioF();
         const int room = std::max(preview->minimumHeight(), w->window()->height() - 200);
-        const QSizeF paper = m_win->document()->pager().page(pages[*page]).size;
+        const QSizeF paper = m_win->outputPageSize(options(), pages[*page]);
         const double scale = std::min((preview->width() - 16) / paper.width(), (room - 18) / paper.height());
         if (scale <= 0) return;
         const int widthPx = std::max(1, int(std::lround(paper.width() * scale * dpr)));
-        QImage img = view->pageImage(pages[*page], widthPx);
+        QImage img = m_win->outputPageImage(options(), pages[*page], widthPx);
         img.setDevicePixelRatio(dpr);
         preview->setPixmap(paperPixmap(img, QSize(int(std::ceil(paper.width() * scale)) + 16, int(std::ceil(paper.height() * scale)) + 18), dpr));
     };
