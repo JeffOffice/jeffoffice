@@ -656,6 +656,13 @@ private:
             val("c:crossBetween", QString::fromLatin1(a.between ? "between" : "midCat"));
             if (a.majorUnit > 0) val("c:majorUnit", number(a.majorUnit));
             if (a.minorUnit > 0) val("c:minorUnit", number(a.minorUnit));
+            if (a.dispUnitFactor() != 1) {
+                w.writeStartElement(QStringLiteral("c:dispUnits"));
+                if (a.dispUnit == QLatin1String("custom")) val("c:custUnit", number(a.dispUnitCustom));
+                else val("c:builtInUnit", a.dispUnit);
+                raw(a.dispUnitsLabel);
+                w.writeEndElement();
+            }
         } else {
             flag("c:auto", a.autoKind);
             if (!date) val("c:lblAlgn", QStringLiteral("ctr"));

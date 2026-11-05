@@ -142,7 +142,7 @@ private:
     jp::office::ChartAxis m_axis;
     QCheckBox *m_autoMin = nullptr, *m_autoMax = nullptr, *m_autoMajor = nullptr, *m_autoMinor = nullptr, *m_reversed = nullptr, *m_log = nullptr, *m_linked = nullptr, *m_rotate = nullptr;
     QDoubleSpinBox *m_min = nullptr, *m_max = nullptr, *m_major = nullptr, *m_minor = nullptr, *m_crossAt = nullptr, *m_angle = nullptr, *m_logBase = nullptr;
-    QComboBox *m_crosses = nullptr, *m_majorTick = nullptr, *m_minorTick = nullptr, *m_labels = nullptr;
+    QComboBox *m_crosses = nullptr, *m_majorTick = nullptr, *m_minorTick = nullptr, *m_labels = nullptr, *m_units = nullptr;
     QLineEdit *m_format = nullptr;
 };
 

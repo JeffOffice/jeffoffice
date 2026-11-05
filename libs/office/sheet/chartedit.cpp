@@ -281,6 +281,8 @@ void setAxisFormat(Chart *chart, bool horizontal, bool secondary, const ChartAxi
     a->minorUnit = from.minorUnit;
     a->reversed = from.reversed;
     a->logBase = from.logBase;
+    a->dispUnit = from.dispUnit;
+    a->dispUnitCustom = from.dispUnitCustom;
     a->crosses = from.crosses;
     a->hasCrossesAt = from.hasCrossesAt;
     a->crossesAt = from.crossesAt;

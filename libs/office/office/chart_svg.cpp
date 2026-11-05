@@ -1244,6 +1244,7 @@ QStringList ChartPainter::categoryLabels() const
 QString ChartPainter::valueText(double v, const ChartAxis &axis, const ChartSeries *first, bool percent) const
 {
     if (std::fabs(v) < 1e-12) v = 0;
+    if (axis.kind == ChartAxis::Value) v /= axis.dispUnitFactor();   // (display units)
     if (!axis.formatLinked) return formatChartNumber(v, axis.format);
     if (percent) return formatChartNumber(v, QStringLiteral("0%"));
     return formatChartNumber(v, first ? first->format : QString());

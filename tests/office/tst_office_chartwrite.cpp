@@ -23,6 +23,13 @@ ChartSeries seriesOf(const QString &name, const QString &nameRef, const QString 
     return s;
 }
 
+ChartAxis *axisOf(Chart &c, qint64 id)
+{
+    for (ChartAxis &a : c.axes)
+        if (a.id == id) return &a;
+    return nullptr;
+}
+
 // Columns with a line over them, the line against a second value axis, with a title, axis titles, a legend at the bottom, and data labels on the line.
 Chart comboChart()
 {
@@ -208,6 +215,46 @@ private Q_SLOTS:
         QVERIFY(svg.contains("alpha") && svg.contains("gamma &amp; co"));
         // the same chart without it draws neither
         QVERIFY(!chartSvg(comboChart(), QSizeF(480, 288)).contains("alpha"));
+    }
+
+    // Display units of a value axis (c:dispUnits): written after the axis' units, read back, and the labels drawn divided by the unit.
+    void displayUnitsAreKeptAndDrawn()
+    {
+        Chart c = comboChart();
+        axisOf(c, 222)->dispUnit = QStringLiteral("thousands");
+        axisOf(c, 222)->majorUnit = 10;
+        QCOMPARE(axisOf(c, 222)->dispUnitFactor(), 1000.0);
+        const QByteArray xml = writeChartPart(c);
+        QDomDocument doc;
+        QVERIFY(doc.setContent(xml, true));
+        const QDomNodeList units = doc.elementsByTagNameNS(QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/chart"), QStringLiteral("dispUnits"));
+        QCOMPARE(units.size(), 1);
+        QCOMPARE(units.at(0).toElement().firstChildElement().localName(), QStringLiteral("builtInUnit"));
+        QCOMPARE(units.at(0).toElement().firstChildElement().attribute(QStringLiteral("val")), QStringLiteral("thousands"));
+        QCOMPARE(units.at(0).previousSiblingElement().localName(), QStringLiteral("majorUnit"));
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(xml, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        QCOMPARE(r.axis(222)->dispUnit, QStringLiteral("thousands"));
+        QCOMPARE(writeChartPart(r), xml);
+        QVERIFY(chartIsFullyModeled(xml, nullptr));
+        // a custom unit
+        Chart d = comboChart();
+        axisOf(d, 222)->dispUnit = QStringLiteral("custom");
+        axisOf(d, 222)->dispUnitCustom = 250;
+        Chart back;
+        QVERIFY(readChart(writeChartPart(d), defaultTheme(), ColorMap(), &back, &err));
+        QCOMPARE(back.axis(222)->dispUnitFactor(), 250.0);
+        // the labels: 10, 20, 30 ... thousands of a thousand are 0.01 ... so divide the values 10000s
+        Chart big = comboChart();
+        for (ChartSeries &s : big.plots[0].series)
+            for (double &v : s.values) v *= 1000;
+        axisOf(big, 222)->autoMax = true;
+        const QByteArray plain = chartSvg(big, QSizeF(480, 288));
+        axisOf(big, 222)->dispUnit = QStringLiteral("thousands");
+        const QByteArray divided = chartSvg(big, QSizeF(480, 288));
+        QVERIFY(plain.contains("30000") || plain.contains("30,000"));
+        QVERIFY(!divided.contains("30000") && !divided.contains("30,000"));
     }
 
     void aLabelsLegendKeyIsKeptAndDrawn()

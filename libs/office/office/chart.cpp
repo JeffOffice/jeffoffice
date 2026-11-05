@@ -991,6 +991,19 @@ ChartAxis Reader::readAxis(const QDomElement &e) const
     a.autoKind = flagOf(cChild(e, "auto"), true);
     a.tickMarkSkip = int(std::clamp<qint64>(parseInt(valOf(cChild(e, "tickMarkSkip")), 0), 0, 10000));
     a.lineKept = keptIn(cChild(e, "spPr"), QColor());
+    if (const QDomElement units = cChild(e, "dispUnits"); !units.isNull() && a.kind == ChartAxis::Value) {
+        if (const QDomElement built = cChild(units, "builtInUnit"); !built.isNull()) {
+            a.dispUnit = valOf(built);
+        } else if (const QDomElement custom = cChild(units, "custUnit"); !custom.isNull()) {
+            const double v = numberOf(custom, 0);
+            if (std::isfinite(v) && v > 0) {
+                a.dispUnit = QStringLiteral("custom");
+                a.dispUnitCustom = v;
+            }
+        }
+        if (a.dispUnitFactor() == 1) a.dispUnit.clear();
+        else a.dispUnitsLabel = fragment(cChild(units, "dispUnitsLbl"));
+    }
     return a;
 }
 
@@ -1166,6 +1179,15 @@ QString chartFrameRelId(const QDomElement &graphicFrame)
     for (QDomElement c = aChild(aChild(graphicFrame, "graphic"), "graphicData").firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
         if (c.localName() == QLatin1String("chart") && isChartNs(c.namespaceURI())) return attrNs(c, ns::R, QStringLiteral("id"));
     return QString();
+}
+
+double ChartAxis::dispUnitFactor() const
+{
+    static const QMap<QString, double> units = {{QStringLiteral("hundreds"), 1e2}, {QStringLiteral("thousands"), 1e3}, {QStringLiteral("tenThousands"), 1e4}, {QStringLiteral("hundredThousands"), 1e5},
+                                                {QStringLiteral("millions"), 1e6}, {QStringLiteral("tenMillions"), 1e7}, {QStringLiteral("hundredMillions"), 1e8}, {QStringLiteral("billions"), 1e9},
+                                                {QStringLiteral("trillions"), 1e12}};
+    if (dispUnit == QLatin1String("custom")) return std::isfinite(dispUnitCustom) && dispUnitCustom > 0 ? dispUnitCustom : 1;
+    return units.value(dispUnit, 1.0);
 }
 
 const ChartAxis *Chart::axis(qint64 id) const

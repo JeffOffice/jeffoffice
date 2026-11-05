@@ -208,6 +208,13 @@ struct ChartAxis {
     bool autoKind = true;           // c:auto
     int tickMarkSkip = 0;           // every nth tick mark; 0: the usual
     ChartKept lineKept;             // of the axis line's c:spPr
+    // A value axis' display units (c:dispUnits): its labels show the numbers divided by the unit. A built-in unit ("hundreds", "thousands", "tenThousands", "hundredThousands", "millions",
+    // "tenMillions", "hundredMillions", "billions", "trillions"), or "custom" with `dispUnitCustom`; empty for none. `dispUnitsLabel` is the file's c:dispUnitsLbl, kept as it was written.
+    QString dispUnit;
+    double dispUnitCustom = 0;
+    QByteArray dispUnitsLabel;
+    // What the labels are divided by (1 for none).
+    double dispUnitFactor() const;
 };
 
 struct ChartLegend {

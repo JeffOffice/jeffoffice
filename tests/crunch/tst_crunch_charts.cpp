@@ -948,6 +948,34 @@ private Q_SLOTS:
         QVERIFY(d.problem().isEmpty());
     }
 
+    // Display units are chosen in the Format Axis box (a value axis only), kept through Undo and the file, and the labels show the numbers divided.
+    void displayUnitsAreChosenInTheFormatAxisBox()
+    {
+        ChartAxis axis;
+        axis.kind = ChartAxis::Value;
+        FormatAxisDialog d(axis, QStringLiteral("Format Axis"));
+        QComboBox *units = d.findChild<QComboBox *>(QStringLiteral("axisDisplayUnits"));
+        QVERIFY(units);
+        QVERIFY(d.result().dispUnit.isEmpty());
+        units->setCurrentIndex(units->findData(QStringLiteral("millions")));
+        QCOMPARE(d.result().dispUnit, QStringLiteral("millions"));
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.axisV"))->isEnabled());
+        e.win.w.setFormatAxisAsker([](bool, ChartAxis *a) {
+            a->dispUnit = QStringLiteral("thousands");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("chartdesign.axisV"))->trigger();
+        QCOMPARE(primaryAxis(chartOf(e), false)->dispUnit, QStringLiteral("thousands"));
+        QVERIFY(save(e));
+        QCOMPARE(primaryAxis(savedCharts(e.path)[0].chart, false)->dispUnit, QStringLiteral("thousands"));
+        pressUndo(&e.win.w);
+        QVERIFY(primaryAxis(chartOf(e), false)->dispUnit.isEmpty());
+    }
+
     void theWindowRefusesAnAxisThatCannotBeUsed()
     {
         EditWindow e;
