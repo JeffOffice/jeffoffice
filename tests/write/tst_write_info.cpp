@@ -473,12 +473,41 @@ private Q_SLOTS:
         QVERIFY(canWriteCodePage(1252) && canWriteCodePage(28592) && !canWriteCodePage(99999));
     }
 
-    void aTextFileOpensWithTheEncodingChosenAndSavesBackTheSameWay()
+    void aTextFileOpensWithoutAskingWhenItsEncodingIsPlain()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray utf16 = QByteArray("\xFE\xFF", 2) + QByteArray(QStringEncoder(QStringConverter::Utf16BE)(QStringLiteral("one é\r\ntwo")));
+        const QList<QPair<QByteArray, QString>> files = {{QByteArray("plain ascii\ntwo"), QStringLiteral("plain ascii\ntwo")},
+                                                         {QByteArray("\xEF\xBB\xBF" "bom \xC3\xA9"), QStringLiteral("bom é")},
+                                                         {QByteArray("utf8 caf\xC3\xA9\r\nx"), QStringLiteral("utf8 café\nx")},
+                                                         {utf16, QStringLiteral("one é\ntwo")}};
+        int n = 0;
+        for (const auto &f : files) {
+            const QString path = dir.filePath(QStringLiteral("f%1.txt").arg(n++));
+            QFile out(path);
+            QVERIFY(out.open(QIODevice::WriteOnly) && out.write(f.first) == f.first.size());
+            out.close();
+            WriteWindow w;
+            w.setTextFormChooser([&](TextForm *, const QByteArray *) {
+                QTest::qFail("asked about a file whose encoding is plain", __FILE__, __LINE__);
+                return false;
+            });
+            QVERIFY(w.openFile(path));
+            QCOMPARE(visibleText(*w.document()), f.second);
+            // saved again without a question, in the form it was read in
+            QVERIFY(w.save());
+            QVERIFY(!w.isModified());
+        }
+        // (a file that is not valid UTF-8 is still asked about: see the next test)
+    }
+
+    void aTextFileThatIsNotUtf8IsAskedAboutAndSavesBackTheSameWay()
     {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
         const QString path = dir.filePath(QStringLiteral("notes.txt"));
-        const QByteArray original = QByteArray("\xFE\xFF", 2) + QByteArray(QStringEncoder(QStringConverter::Utf16BE)(QStringLiteral("one é\r\ntwo\r\n\r\nfour")));
+        const QByteArray original("caf\xE9\r\ntwo\r\n\r\nfour");
         {
             QFile f(path);
             QVERIFY(f.open(QIODevice::WriteOnly) && f.write(original) == original.size());
@@ -493,15 +522,16 @@ private Q_SLOTS:
                 shown = *sample;
                 offered = *form;
             }
+            form->encoding = TextEncoding::CodePage;
+            form->codePage = 1252;
             return true;
         });
         QVERIFY(w.openFile(path));
         QCOMPARE(shown, original);
-        QVERIFY(offered.encoding == TextEncoding::Utf16Be && offered.ends == LineEnds::Windows);
-        QCOMPARE(visibleText(*w.document()), QStringLiteral("one é\ntwo\n\nfour"));
+        QVERIFY(offered.encoding == TextEncoding::CodePage && offered.ends == LineEnds::Windows);
+        QCOMPARE(visibleText(*w.document()), QStringLiteral("café\ntwo\n\nfour"));
         QCOMPARE(w.document()->story()->blockCount(), 4);
         QVERIFY(!w.isModified());
-        // saved again: the same bytes, with no question about the form
         w.setTextFormChooser([&](TextForm *, const QByteArray *) {
             QTest::qFail("the form is asked a second time", __FILE__, __LINE__);
             return false;

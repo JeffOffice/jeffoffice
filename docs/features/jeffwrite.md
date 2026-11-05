@@ -588,7 +588,7 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 
 ### Other formats
 - [x] **first release** PDF export (see Share and Export) *(shared: JeffPub)*
-- [x] **first release** Open and save plain text with the encoding chosen (UTF-8, UTF-16, Windows code pages, ISO 8859, and the East Asian ones) and the line ends chosen *(`.txt` opens after a question that offers the encoding its first bytes point to, with a preview of the first lines; the line ends (LF, CR LF, or CR) come from the file; Save writes it back in the same form, Save As to `.txt` asks once; a character the encoding can't hold is saved as a question mark and counted; the East Asian pages are written where the system or Qt converts to them)*
+- [x] **first release** Open and save plain text with the encoding chosen (UTF-8, UTF-16, Windows code pages, ISO 8859, and the East Asian ones) and the line ends chosen *(`.txt` opens at once when it has a byte order mark or is valid UTF-8 (ASCII too), and otherwise after a question that offers the code page of the person's language, with a preview of the first lines; the line ends (LF, CR LF, or CR) come from the file; Save writes it back in the same form, Save As to `.txt` asks once; a character the encoding can't hold is saved as a question mark and counted; the East Asian pages are written where the system or Qt converts to them)*
 - [ ] **1.0** Open an HTML page as a document, and save a document as HTML (single file and filtered) *(shared: JeffPub's web export)*
 - [ ] **1.0** EPUB export (see Beyond Word) *(shared: JeffPub's EPUB writer)*
 - [ ] **later** Open a PDF as editable text and pictures (Word's PDF reflow)

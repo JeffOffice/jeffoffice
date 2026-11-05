@@ -191,7 +191,8 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
         // A plain text file is read in the encoding the person confirms (the one its first bytes point to is offered).
         textForm = write::detectTextForm(bytes);
         QApplication::restoreOverrideCursor();
-        const bool chosen = askTextForm(tr("Open Plain Text"), tr("\"%1\" is a plain text file. Choose the encoding that shows its characters right; the first lines are shown below.").arg(QFileInfo(path).fileName()), &textForm, &bytes);
+        // (A file with a byte order mark, or that is valid UTF-8, ASCII included, opens as it is; the question is for bytes that are not UTF-8.)
+        const bool chosen = textForm.encoding != write::TextEncoding::CodePage || askTextForm(tr("Open Plain Text"), tr("\"%1\" is a plain text file. It is not Unicode, so choose the encoding that shows its characters right; the first lines are shown below.").arg(QFileInfo(path).fileName()), &textForm, &bytes);
         QApplication::setOverrideCursor(Qt::WaitCursor);
         if (!chosen) cancelledAsking = true;
         else {
