@@ -595,6 +595,7 @@ struct Shape {
     // and the border it is drawn with (its weight in points, 0 for none, and its color).
     double cropL = 0, cropT = 0, cropR = 0, cropB = 0;
     QString clearColor;
+    QString cropShape;                    // the shape a picture is cut to (DrawingML's prstGeom in the picture's shape properties), empty for a rectangle
     // A picture's brightness and contrast (each from -1 to 1), and whether its colors are turned to gray or to black and white (DrawingML's a:lum, a:grayscl, a:biLevel in the blip).
     double bright = 0, contrast = 0;
     bool gray = false, biLevel = false;
