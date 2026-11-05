@@ -5,7 +5,7 @@ The **Home > Font** group has buttons for the common changes: font, size, bold, 
 
 ## The mini toolbar
 
-When you select words with the mouse, a small bar floats above them. It has the buttons you use most: **Bold**, **Italic**, **Underline**, make the text smaller or bigger, left, center, and right alignment, bullets, and numbers. They are the same buttons as on the ribbon, so you can change the look without moving the mouse far. The bar goes away when you click elsewhere or type.
+When you select words with the mouse, a small bar floats above them. It has the buttons you use most: **Bold**, **Italic**, **Underline**, make the text smaller or bigger, left, center, and right alignment, bullets, and numbers. A **font box** sits above them, and a **font color** button is at their end. They are the same buttons as on the ribbon, so you can change the look without moving the mouse far. The bar goes away when you click elsewhere or type.
 
 ## The font list
 
