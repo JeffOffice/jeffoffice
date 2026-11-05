@@ -201,15 +201,26 @@ void pageSetupAttributes(QByteArray *tag, const PageSetup &from, const PageSetup
 
 QByteArray breaksXml(const QVector<PageBreak> &list, bool rows, const QByteArray &p)
 {
-    if (list.isEmpty()) return QByteArray();
+    // the format wants the breaks in order, each one's span inside the sheet and not crossed, and no more than 1026 of them: an old file's garbage (ends past the
+    // sheet, start after end) makes the whole file refused, so a span that cannot be is written as the whole width
+    const quint32 across = rows ? 16383u : 1048575u, along = rows ? quint32(kMaxRows) : quint32(kMaxColumns);
+    QVector<PageBreak> sorted;
+    for (const PageBreak &b : list)
+        if (b.before >= 1 && b.before < along) sorted.append(b);
+    std::sort(sorted.begin(), sorted.end(), [](const PageBreak &a, const PageBreak &b) { return a.before < b.before; });
+    sorted.erase(std::unique(sorted.begin(), sorted.end(), [](const PageBreak &a, const PageBreak &b) { return a.before == b.before; }), sorted.end());
+    if (sorted.size() > 1026) sorted.resize(1026);
+    if (sorted.isEmpty()) return QByteArray();
     int manual = 0;
-    for (const PageBreak &b : list) manual += b.manual ? 1 : 0;
+    for (const PageBreak &b : std::as_const(sorted)) manual += b.manual ? 1 : 0;
     const QByteArray name = rows ? "rowBreaks" : "colBreaks";
-    QByteArray out = "<" + p + name + " count=\"" + QByteArray::number(list.size()) + "\" manualBreakCount=\"" + QByteArray::number(manual) + "\">";
-    for (const PageBreak &b : list) {
+    QByteArray out = "<" + p + name + " count=\"" + QByteArray::number(sorted.size()) + "\" manualBreakCount=\"" + QByteArray::number(manual) + "\">";
+    for (const PageBreak &b : std::as_const(sorted)) {
+        quint32 lo = b.min, hi = b.max != 0 ? b.max : across;
+        if (hi > across || lo > hi) lo = 0, hi = across;
         out += "<" + p + "brk id=\"" + QByteArray::number(b.before) + "\"";
-        if (b.min != 0) out += " min=\"" + QByteArray::number(b.min) + "\"";
-        out += " max=\"" + QByteArray::number(b.max != 0 ? b.max : (rows ? 16383u : 1048575u)) + "\"";
+        if (lo != 0) out += " min=\"" + QByteArray::number(lo) + "\"";
+        out += " max=\"" + QByteArray::number(hi) + "\"";
         if (b.manual) out += " man=\"1\"";
         out += "/>";
     }
