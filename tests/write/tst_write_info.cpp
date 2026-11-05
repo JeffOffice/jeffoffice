@@ -440,6 +440,33 @@ private Q_SLOTS:
         QVERIFY(fileBytes(dir.filePath(QStringLiteral("out.txt"))).endsWith("second"));
     }
 
+    // Save as Web Page writes the document's words as one page with its looks, Save as Filtered Web Page the structure alone; a path of nothing writes nothing.
+    void webPagesAreWrittenFromTheDocumentInBothForms()
+    {
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("caf\u00e9 <b> & more\nsecond"));
+        QTextCursor c(w.document()->story());
+        c.setPosition(0);
+        c.setPosition(4, QTextCursor::KeepAnchor);
+        QTextCharFormat bold;
+        bold.setFontWeight(QFont::Bold);
+        c.mergeCharFormat(bold);
+        QTemporaryDir dir;
+        QVERIFY(!w.exportWeb(QString(), true));
+        QVERIFY(w.exportWeb(dir.filePath(QStringLiteral("page.html")), true));
+        QVERIFY(w.exportWeb(dir.filePath(QStringLiteral("small.html")), false));
+        const QString page = QString::fromUtf8(fileBytes(dir.filePath(QStringLiteral("page.html"))));
+        const QString small = QString::fromUtf8(fileBytes(dir.filePath(QStringLiteral("small.html"))));
+        QVERIFY2(page.startsWith(QLatin1String("<!DOCTYPE html>")), qPrintable(page));
+        QVERIFY2(page.contains(QStringLiteral("<b>caf\u00e9</b> &lt;b&gt; &amp; more")), qPrintable(page));
+        QVERIFY(page.contains(QLatin1String(">second</p>")));
+        QVERIFY(small.contains(QLatin1String("<p>second</p>")));
+        QVERIFY(page.contains(QLatin1String("<style>")));
+        QVERIFY(small.contains(QStringLiteral("<b>caf\u00e9</b> &lt;b&gt; &amp; more")));
+        QVERIFY(!small.contains(QLatin1String("<style>")));
+    }
+
     void textFilesAreReadAndWrittenInTheEncodingAndLineEndsChosen()
     {
         // UTF-16 either way round, the mark deciding; a code page; and the three line ends.

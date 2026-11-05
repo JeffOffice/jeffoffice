@@ -1,5 +1,5 @@
 # Open, save, print, and export
-<!-- keywords: email, eml, bookmarks, pdf bookmarks, shift+f5, last edit, where you stopped, built-in templates, gallery, letter, report, brief, manuscript, newsletter, open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ott, repair, open and repair, damaged -->
+<!-- keywords: web page, html, save as web page, filtered web page, email, eml, bookmarks, pdf bookmarks, shift+f5, last edit, where you stopped, built-in templates, gallery, letter, report, brief, manuscript, newsletter, open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ott, repair, open and repair, damaged -->
 
 Click **File** at the top left to see the File screen. It has pages for New, Open, Print, and Export, and commands for Save and Save As. Press **Esc** to go back to your document.
 
@@ -15,6 +15,7 @@ Press **Ctrl+O**, or click **File > Open**. Click **Browse** to pick a file. Jef
 - **.dotx** is a template. A template opens as a new document made from it, so the template stays as it is.
 - **.docm** and **.dotm** are a document and a template that can hold **macros**, small programs that come with a file. JeffWrite never runs them. It keeps them as they were when you save as .docm or .dotm. If you save as .docx or .odt, the macros are left out, and JeffWrite tells you so.
 - **.txt** is plain text, only the words. When you open one, JeffWrite reads it at once if it is plain ASCII or Unicode. If it is not, JeffWrite asks which encoding to read it in and shows the first lines, so you can see that the letters look right. An **encoding** is the way a file stores letters, such as UTF-8 or Windows 1252. When you save as .txt, you choose the encoding and the line ends, and the file keeps only the words: no fonts, pictures, or table lines.
+- **.html** is a web page. You can save one from **File > Export**; see below. JeffWrite does not open web pages yet.
 - **.doc** and **.dot** are the older kinds of document and template. JeffWrite reads them, and it saves what you do with them as a new .docx file.
 - **.odt**, **.ott**, and **.fodt** are OpenDocument files. JeffWrite reads all three. It saves .odt files, and it saves what you do with a .ott or .fodt file as a new .odt file. See [Open and save OpenDocument files](open-odt).
 - **.rtf** is Rich Text Format. JeffWrite reads it and saves it. See [Open RTF files](open-rtf).
@@ -77,6 +78,15 @@ An .odt file can't hold everything a .docx file can. When you save as .odt, Jeff
 ## Make a PDF
 
 Click **File > Export > Export to PDF**. Choose which pages to include: all, the current page, or a range such as 1-3, 5 (p2s3 and s3 work here too). Then choose a name. The PDF looks the same on every computer, because the fonts go inside it. The document's title, author, subject, and keywords go into the PDF. Each heading becomes a **bookmark**, an entry in the list that a PDF reader shows beside the pages. Click a bookmark to jump to its page.
+
+## Save as a web page
+
+Click **File > Export** and choose one of two kinds of web page. A **web page** is a file you can open in any web browser.
+
+- **Save as Web Page** makes one .html file that holds your words, their looks, and your pictures. You can send that one file by itself. The looks it keeps are the font, the size, the color, the highlight, bold, italic, underline, alignment, and the space around paragraphs.
+- **Save as Filtered Web Page** makes a small .html file with only the structure: headings, bold and italic, lists, tables, links, and pictures. It has no fonts, sizes, or colors, so you can give it your own looks later.
+
+Both keep headings, bulleted and numbered lists, tables with joined cells, links, and pictures. Hidden text, the words that a tracked change deleted, comments, headers, footers, and notes are left out. A link that would start a program or run a script is saved as plain words.
 
 ## Make an email
 

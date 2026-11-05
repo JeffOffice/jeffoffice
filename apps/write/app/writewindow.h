@@ -225,6 +225,9 @@ public:
     // Save as Plain Text: asks for the encoding, the line ends, and the file; and the writing itself (an empty path asks nothing and writes nothing).
     bool exportTextAsk();
     bool exportText(const QString &path, write::TextEncoding encoding, write::LineEnds ends, int codePage = 1252);
+    // Save as Web Page (the page with its looks and pictures in one file) or as Filtered Web Page (the structure alone): asks for the file, and the writing itself.
+    bool exportWebAsk(bool singleFile);
+    bool exportWeb(const QString &path, bool singleFile);
     // Asks how a text file is read or written (the encoding and line ends, with a preview of `sample`, the file's bytes, if given); false if cancelled. Tests stand in for the dialog.
     bool askTextForm(const QString &title, const QString &intro, write::TextForm *form, const QByteArray *sample = nullptr);
     // Asks what the message holds (the document, a PDF, or the pages), then makes it as exportEmail does.

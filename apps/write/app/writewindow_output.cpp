@@ -323,6 +323,37 @@ bool WriteWindow::exportText(const QString &path, write::TextEncoding encoding, 
     return true;
 }
 
+bool WriteWindow::exportWeb(const QString &path, bool singleFile)
+{
+    if (!m_doc || path.isEmpty()) return false;
+    const QString what = singleFile ? tr("Save as Web Page") : tr("Save as Filtered Web Page");
+    const office::PackageProps props = m_doc->packageProps();
+    const QByteArray bytes = m_doc->toHtml(singleFile, props.title.isEmpty() ? displayName() : props.title, QLocale().bcp47Name());
+    QSaveFile file(path);
+    QString err;
+    const bool ok = !bytes.isEmpty() && file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
+    if (!ok) {
+        err = bytes.isEmpty() ? tr("The document could not be made into a page.") : file.errorString();
+        jp::plainWarning(this, what, tr("%1 couldn't export \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
+        return false;
+    }
+    statusBar()->showMessage(tr("Exported %1").arg(QFileInfo(path).fileName()), 5000);
+    return true;
+}
+
+bool WriteWindow::exportWebAsk(bool singleFile)
+{
+    if (!m_doc) return false;
+    const QString dir = m_path.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(m_path).absolutePath();
+    const QString filter = tr("Web Page (*.html *.htm)");
+    const QString title = singleFile ? tr("Save as Web Page") : tr("Save as Filtered Web Page");
+    const QString suggested = dir + QLatin1Char('/') + displayName() + QStringLiteral(".html");
+    QString path = m_pathChooser ? m_pathChooser(suggested, filter) : askSavePath(this, title, suggested, filter);
+    if (path.isEmpty()) return false;
+    if (QFileInfo(path).suffix().isEmpty()) path += QStringLiteral(".html");
+    return exportWeb(path, singleFile);
+}
+
 bool WriteWindow::exportEmailAsk()
 {
     if (!m_doc) return false;

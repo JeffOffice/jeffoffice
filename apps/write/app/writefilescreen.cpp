@@ -616,6 +616,18 @@ QWidget *WriteFileScreen::buildExport()
         if (m_win->exportTextAsk()) Q_EMIT closeRequested();
     });
     v->addWidget(t);
+    auto *web = new ActionCard(QStringLiteral("file-text"), tr("Save as Web Page"), tr("One .html file with the words, the looks, and the pictures in it, to open in any web browser."), w);
+    web->setObjectName(QStringLiteral("exportWeb"));
+    connect(web, &QAbstractButton::clicked, this, [this] {
+        if (m_win->exportWebAsk(true)) Q_EMIT closeRequested();
+    });
+    v->addWidget(web);
+    auto *filtered = new ActionCard(QStringLiteral("file-text"), tr("Save as Filtered Web Page"), tr("A small .html file with only the structure: headings, lists, tables, links, and pictures. You choose the looks later."), w);
+    filtered->setObjectName(QStringLiteral("exportWebFiltered"));
+    connect(filtered, &QAbstractButton::clicked, this, [this] {
+        if (m_win->exportWebAsk(false)) Q_EMIT closeRequested();
+    });
+    v->addWidget(filtered);
     // A message as a file, for an email program: nothing is sent through an account.
     auto *mail = new ActionCard(QStringLiteral("mail"), tr("Make an Email"), tr("A message file with the document, a PDF, or the pages in it. Open it in your email program, add who it is for, and send it."), w);
     mail->setObjectName(QStringLiteral("exportEmail"));
