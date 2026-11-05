@@ -1677,6 +1677,35 @@ private Q_SLOTS:
         QTRY_VERIFY(!mini->isVisible());
     }
 
+    void theMiniToolbarHasTheFontBoxAndTheFontColorButton()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("Some words to pick from here")))), QString());
+        QTextCursor c(w.document()->story());
+        c.setPosition(5);
+        c.setPosition(10, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        Q_EMIT w.view()->selectionMade();
+        auto *mini = w.view()->findChild<QFrame *>(QStringLiteral("miniToolbar"));
+        QVERIFY(mini);
+        QTRY_VERIFY(mini->isVisible());
+        auto *font = mini->findChild<FontCombo *>();
+        auto *color = mini->findChild<ColorButton *>();
+        QVERIFY(font && color);
+        shot(&w, QStringLiteral("mini-toolbar.png"));
+        // The font box follows the selection and sets the font of it.
+        Q_EMIT font->familyChosen(QStringLiteral("Courier New"));
+        QTextCursor in(w.document()->story());
+        in.setPosition(7);
+        in.setPosition(8, QTextCursor::KeepAnchor);
+        QCOMPARE(in.charFormat().fontFamilies().toStringList().value(0), QStringLiteral("Courier New"));
+        Q_EMIT color->colorPicked(ColorRef::rgb(QColor(0x12, 0x34, 0x56)));
+        QCOMPARE(in.charFormat().foreground().color(), QColor(0x12, 0x34, 0x56));
+        QVERIFY(mini->isVisible());
+    }
 
     void manageStylesChangesWhichStylesAreRecommendedHiddenAndInWhatOrderInOneStep()
     {
