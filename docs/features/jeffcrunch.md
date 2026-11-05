@@ -66,8 +66,8 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 
 ### New
 - [~] **first release** Blank workbook, using the defaults of the Normal template (one sheet, Calibri 11, the Office theme) *(a blank workbook has one sheet and Calibri 11; it has no theme part of its own yet)*
-- [~] **first release** Template gallery with live previews and categories, starting with a few built-in templates (budget, invoice, expense report, loan schedule, calendar, and timesheet) written by JeffOffice and open-licensed *(shared: JeffPub's New page)*
-- [ ] **1.0** More built-in templates: checkbook register, grade book, inventory list, mileage log, project plan, and sales report
+- [~] **first release** Template gallery with live previews and categories, starting with a few built-in templates (budget, invoice, expense report, loan schedule, calendar, and timesheet) written by JeffOffice and open-licensed *(done November 4, 2026: the New page lists twelve built-in templates by kind (Finance, Business, Planning, Education), each made in code with original layouts (apps/crunch/core/templates.cpp), and a workbook made from one has no file of its own; not done: live previews)*
+- [x] **1.0** More built-in templates: checkbook register, grade book, inventory list, mileage log, project plan, and sales report *(done November 4, 2026, with the first six; their texts are in English)*
 - [x] **1.0** Save as a template (`.xltx`, `.ots`) and reuse your own under My Templates; a template can hold formulas, styles, and sheets *(File > Save as Template puts an `.xltx` in My Templates, with a picture of the sheet, and the New page lists them; a workbook made from one has no file of its own; Save As writes `.xltx` and `.ots`)*
 - [~] **1.0** The default workbook and sheet: set the font, size, number of sheets, and view of every new workbook or new sheet (`Book.xltx` and `Sheet.xltx` in the original) *(done: File > Options > New Workbooks sets the font, its size, and the number of sheets a new workbook starts with; not done: the view, and a default for sheets added later)*
 

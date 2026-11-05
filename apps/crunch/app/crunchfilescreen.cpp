@@ -6,6 +6,12 @@
 #include "app/icons.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
+#include "core/templates.h"
+#include <QDateTime>
+#include <QDir>
+#include <QGridLayout>
+#include <QSaveFile>
+#include <QStandardPaths>
 
 #include <QAction>
 #include <QFileInfo>
@@ -90,6 +96,43 @@ QWidget *CrunchFileScreen::buildNew()
     cards->addWidget(blank, 1);
     cards->addStretch(1);
     v->addLayout(cards);
+    // The templates JeffCrunch has ready, by kind: a workbook made from one is a copy with no file of its own.
+    {
+        const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/templates");
+        QDir().mkpath(dir);
+        for (const QFileInfo &old : QDir(dir).entryInfoList(QDir::Files))
+            if (old.lastModified().daysTo(QDateTime::currentDateTime()) > 7) QFile::remove(old.absoluteFilePath());
+        QStringList categories;
+        const QVector<crunch::TemplateInfo> all = crunch::builtinTemplates();
+        for (const crunch::TemplateInfo &t : all)
+            if (!categories.contains(t.category)) categories << t.category;
+        for (const QString &category : categories) {
+            auto *label = sectionLabel(category, w);
+            label->setContentsMargins(2, 12, 0, 2);
+            v->addWidget(label);
+            auto *row = new QGridLayout();
+            row->setSpacing(12);
+            int n = 0;
+            for (const crunch::TemplateInfo &t : all) {
+                if (t.category != category) continue;
+                auto *card = new ActionCard(QStringLiteral("file-spreadsheet"), t.name, t.description, w);
+                card->setObjectName(QStringLiteral("template_") + t.id);
+                card->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+                connect(card, &QAbstractButton::clicked, this, [this, id = t.id, dir] {
+                    const QByteArray bytes = crunch::builtinTemplateBytes(id);
+                    const QString path = QStringLiteral("%1/%2-%3.xlsx").arg(dir, id, QString::number(QDateTime::currentMSecsSinceEpoch()));
+                    QSaveFile file(path);
+                    if (bytes.isEmpty() || !file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) return;
+                    m_win->openFile(path, OpenHow::Copy);
+                    Q_EMIT closeRequested();
+                });
+                row->addWidget(card, n / 3, n % 3);
+                ++n;
+            }
+            for (int c = 0; c < 3; ++c) row->setColumnStretch(c, 1);
+            v->addLayout(row);
+        }
+    }
     // The templates a person saved: a workbook made from one starts as the template is, with no file of its own.
     v->addWidget(myTemplatesPanel(w, {QStringLiteral("*.xltx"), QStringLiteral("*.ots")}, QStringLiteral("file-spreadsheet"), [this](const QString &path) {
         m_win->openFile(path, OpenHow::Copy);

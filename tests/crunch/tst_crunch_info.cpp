@@ -6,6 +6,7 @@
 #include "app/settings.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
+#include "core/templates.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
@@ -179,6 +180,40 @@ private Q_SLOTS:
         QCOMPARE(item->count(), 1);
         QCOMPARE(item->remove(), 1);
         QCOMPARE(item->count(), 0);
+    }
+
+    // Every built-in template opens, works its formulas out with no error, and says what it should.
+    void everyBuiltInTemplateOpensAndWorksItsFormulasOut()
+    {
+        const QVector<crunch::TemplateInfo> all = crunch::builtinTemplates();
+        QVERIFY(all.size() >= 12);
+        QStringList ids;
+        for (const crunch::TemplateInfo &t : all) {
+            QVERIFY(!ids.contains(t.id));
+            ids << t.id;
+            QVERIFY(!t.name.isEmpty() && !t.category.isEmpty() && !t.description.isEmpty());
+            const QByteArray bytes = crunch::builtinTemplateBytes(t.id);
+            QVERIFY2(!bytes.isEmpty(), qPrintable(t.id));
+            EditWindow e;
+            QVERIFY2(e.open(bytes), qPrintable(t.id));
+            QVERIFY2(e.settle(), qPrintable(t.id));
+            for (int row = 1; row <= 80; ++row)
+                for (int col = 0; col < 16; ++col) {
+                    const QString ref = QString(QChar(u'A' + col)) + QString::number(row);
+                    QVERIFY2(!e.shownAt(ref).startsWith(QLatin1Char('#')), qPrintable(t.id + QLatin1Char(' ') + ref + QLatin1Char(' ') + e.shownAt(ref)));
+                }
+            if (t.id == QLatin1String("loan")) {
+                QCOMPARE(e.shownAt(QStringLiteral("B6")), QStringLiteral("$386.66"));
+                QVERIFY(e.shownAt(QStringLiteral("E70")).endsWith(QLatin1String("0.00")));   // (sixty payments: the balance is paid off at the last)
+                QVERIFY(e.shownAt(QStringLiteral("A71")).isEmpty());
+            }
+            if (t.id == QLatin1String("calendar")) {
+                QCOMPARE(e.shownAt(QStringLiteral("A4")), QStringLiteral("January 2027"));
+                QCOMPARE(e.shownAt(QStringLiteral("F6")), QStringLiteral("1"));   // (January 1, 2027 is a Friday)
+            }
+            if (t.id == QLatin1String("budget")) QCOMPARE(e.shownAt(QStringLiteral("B7")), QStringLiteral("$0.00"));
+        }
+        QVERIFY(crunch::builtinTemplateBytes(QStringLiteral("none")).isEmpty());
     }
 
     void personalInformationStaysOutOfLaterEdits()
