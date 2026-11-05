@@ -2,6 +2,7 @@
 
 #include "app/writedialogs.h"
 
+#include "app/plaintext.h"
 #include "core/styleops.h"
 #include "core/writedoc.h"
 #include "office/package.h"
@@ -133,7 +134,7 @@ void manageStylesDialog(QWidget *parent, WriteDoc *doc)
         std::unique_ptr<WriteDoc> other;
         if (office::readWholeFile(path, &bytes, &err) && !bytes.isEmpty()) other = WriteDoc::fromFile(bytes, &err, nullptr);
         if (!other) {
-            QMessageBox::warning(&dlg, QCoreApplication::translate("jp::write::Dialogs", "Import Styles"), QCoreApplication::translate("jp::write::Dialogs", "The styles of that file can't be read."));
+            jp::plainWarning(&dlg, QCoreApplication::translate("jp::write::Dialogs", "Import Styles"), QCoreApplication::translate("jp::write::Dialogs", "The styles of that file can't be read."));
             return;
         }
         const QSet<QString> had(before.keyBegin(), before.keyEnd());
@@ -186,7 +187,7 @@ bool importStylesDialog(QWidget *parent, WriteDoc *doc, const WriteDoc &other)
         item->setCheckState(Qt::Unchecked);
     }
     if (list->count() == 0) {
-        QMessageBox::information(parent, QCoreApplication::translate("jp::write::Dialogs", "Import Styles"), QCoreApplication::translate("jp::write::Dialogs", "That file has no styles of its own to import."));
+        jp::plainInformation(parent, QCoreApplication::translate("jp::write::Dialogs", "Import Styles"), QCoreApplication::translate("jp::write::Dialogs", "That file has no styles of its own to import."));
         return false;
     }
     if (dlg.exec() != QDialog::Accepted) return false;
@@ -196,7 +197,7 @@ bool importStylesDialog(QWidget *parent, WriteDoc *doc, const WriteDoc &other)
     if (ids.isEmpty()) return false;
     QString problem;
     const int n = importStyles(*doc, other, ids, replace->isChecked(), &problem);
-    if (n == 0 && !problem.isEmpty()) QMessageBox::warning(parent, QCoreApplication::translate("jp::write::Dialogs", "Import Styles"), problem);
+    if (n == 0 && !problem.isEmpty()) jp::plainWarning(parent, QCoreApplication::translate("jp::write::Dialogs", "Import Styles"), problem);
     return n > 0;
 }
 
