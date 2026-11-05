@@ -298,6 +298,25 @@ private Q_SLOTS:
         write::VersionStore(e.path, QStringLiteral(".xlsx")).removeAll();
     }
 
+    // Make an Email: a .eml file with the workbook, or the workbook as a PDF, attached; nothing is sent.
+    void aWorkbookIsMadeIntoAnEmailFile()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        for (const bool pdf : {false, true}) {
+            const QString target = e.folder.dir.filePath(pdf ? QStringLiteral("pdf.eml") : QStringLiteral("book.eml"));
+            e.win.w.setSavePicker([target](const QString &, const QString &) { return target; });
+            QVERIFY2(e.win.w.exportEmail(pdf ? CrunchWindow::EmailWhat::Pdf : CrunchWindow::EmailWhat::Workbook), qPrintable(e.win.told.join(QLatin1Char('|'))));
+            QFile f(target);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray message = f.readAll();
+            QVERIFY(message.contains("MIME-Version: 1.0"));
+            QVERIFY2(message.contains(pdf ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"), message.left(600).constData());
+            QVERIFY(message.contains(pdf ? ".pdf" : ".xlsx"));
+            QVERIFY(message.contains("Content-Transfer-Encoding: base64"));
+        }
+    }
+
     void personalInformationStaysOutOfLaterEdits()
     {
         EditWindow e;

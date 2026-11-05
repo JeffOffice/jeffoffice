@@ -442,6 +442,12 @@ QWidget *CrunchFileScreen::buildExport()
         if (m_win->exportPdf(true, true)) Q_EMIT closeRequested();
     });
     v->addWidget(archive);
+    auto *mail = new ActionCard(QStringLiteral("mail"), tr("Make an Email"), tr("A message file with the workbook, or a PDF of it, in it. Open it in your email program, add who it is for, and send it."), w);
+    mail->setObjectName(QStringLiteral("exportEmail"));
+    connect(mail, &QAbstractButton::clicked, this, [this] {
+        if (m_win->exportEmailAsk()) Q_EMIT closeRequested();
+    });
+    v->addWidget(mail);
     v->addStretch(1);
     return w;
 }

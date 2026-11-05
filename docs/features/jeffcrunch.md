@@ -102,7 +102,7 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 - [x] **1.0** More code pages when saving a text file: the East Asian ones, Hebrew, Arabic, the Baltic, Vietnamese, and Thai *(done November 4, 2026: Japanese, both Chinese, Korean, Hebrew, Arabic, Baltic, Vietnamese, and Thai are in the question; a file in a page the program does not write is saved in UTF-8 with the mark, and the question says which)*
 - [~] **1.0** PDF/A, tagged PDF, PDF with a password *(shared: JeffPub's PDF export)* *(PDF/A-1b done November 4, 2026: File > Export > Export the whole workbook as PDF/A; Qt writes the fonts, the identification, and the color output intent; not done: tagged PDF and a password, which Qt's PDF writer does not offer)*
 - [~] **1.0** Save as a single-file web page, and a selection or chart as an HTML table or picture *(shared: JeffPub's web export)*
-- [~] **1.0** **(alt)** Email: make a ready-to-send `.eml` with the workbook as an attachment, or a PDF, instead of sending through an online account *(shared: JeffPub's .eml export)*
+- [x] **1.0** **(alt)** Email: make a ready-to-send `.eml` with the workbook as an attachment, or a PDF, instead of sending through an online account *(done November 4, 2026: File > Export > Make an Email, with the workbook as a file or as a PDF; a workbook with a password is sent with it; the message writer is shared with JeffWrite in libs/shell/app/emailops.cpp)*
 - [ ] **1.0** **(alt)** Share without a cloud account: a package with the workbook and its pictures for another computer
 - [ ] **later** Save as `.xlsm` and `.xltm`, keeping macros untouched and never running them
 - [ ] **later** Export a table to a SQLite file or to SQL `INSERT` statements
