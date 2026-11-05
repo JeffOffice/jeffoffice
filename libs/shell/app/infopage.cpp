@@ -401,6 +401,12 @@ QWidget *buildInfoPage(QWidget *parent, const InfoHost &h)
                     : QCoreApplication::translate("jp::InfoPage", "Ask for a password to open this file. The file is scrambled when you save it."),
              [h] { h.encrypt(); });
     }
+    if (h.protectSheet)
+        card(QStringLiteral("infoProtectSheet"), QStringLiteral("lock"), QCoreApplication::translate("jp::InfoPage", "Protect Current Sheet"),
+             QCoreApplication::translate("jp::InfoPage", "Choose what people may change on this sheet, with a password if you like."), [h] { h.protectSheet(); });
+    if (h.protectStructure)
+        card(QStringLiteral("infoProtectStructure"), QStringLiteral("lock"), QCoreApplication::translate("jp::InfoPage", "Protect Workbook Structure"),
+             QCoreApplication::translate("jp::InfoPage", "Stop people from adding, deleting, moving, hiding, or renaming sheets."), [h] { h.protectStructure(); });
     if (h.inspect)
         card(QStringLiteral("infoInspect"), QStringLiteral("scan-search"), book ? QCoreApplication::translate("jp::InfoPage", "Inspect Workbook") : QCoreApplication::translate("jp::InfoPage", "Inspect Document"),
              QCoreApplication::translate("jp::InfoPage", "Find what you may not want to share, such as comments and personal information, and remove it."), [h] { h.inspect(); });

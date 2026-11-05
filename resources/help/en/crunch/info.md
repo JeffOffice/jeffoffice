@@ -23,6 +23,10 @@ Click **Encrypt with Password** to ask for a password whenever the file is opene
 
 For stopping changes to a sheet or its layout, see [Protect a sheet or the workbook](protect).
 
+## Protect the sheet or the sheets
+
+**Protect Current Sheet** lets you choose what people may change on the sheet you are on, with a password if you like. **Protect Workbook Structure** stops people from adding, deleting, moving, hiding, or renaming sheets. Both are also on the **Review** tab.
+
 ## Inspect Workbook
 
 Click **Inspect Workbook** before you send a workbook to someone. It lists what the file holds that you may not want to share, and how many of each it found:

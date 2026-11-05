@@ -65,6 +65,8 @@ QWidget *CrunchWindow::buildInfoPage(QWidget *parent)
     h.hasPassword = [this] { return hasUserPassword(); };
     h.encrypt = [this] { protectWithPassword(); };
     h.inspect = [this] { inspectWorkbook(); };
+    h.protectSheet = [this] { protectSheet(); };
+    h.protectStructure = [this] { protectWorkbook(); };
     h.checkCompatibility = [this] { checkCompatibility(); };
     return jp::buildInfoPage(parent, h);
 }
