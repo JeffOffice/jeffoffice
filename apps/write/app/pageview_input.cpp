@@ -426,7 +426,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
     }
     if (e->button() != Qt::LeftButton) return;
     // Ctrl+click on a link inside the text (a reference or a table of contents line with its link, or a link to a bookmark) goes to what it names.
-    if ((e->modifiers() & Qt::ControlModifier) && followLinkAt(at)) return;
+    if (((e->modifiers() & Qt::ControlModifier) || (!m_linkNeedsCtrl && !(e->modifiers() & Qt::ShiftModifier))) && followLinkAt(at)) return;
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
     const bool again = now - m_lastClickTime < QApplication::doubleClickInterval() && (e->position().toPoint() - m_lastPos).manhattanLength() < 6;
     // (A double click event is the second press of a pair, whatever came before it.)
@@ -434,7 +434,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
     m_lastClickTime = now;
     m_lastPos = e->position().toPoint();
     // A press inside the selection may begin a drag of its text: the selection stays until the pointer has moved (or the button is let go, which puts the caret there).
-    if (m_clicks == 1 && m_textDragAllowed && !m_readOnly && !(e->modifiers() & Qt::ShiftModifier) && m_cursor.hasSelection() && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story() &&
+    if (m_clicks == 1 && m_textDragAllowed && m_dragTextOption && !m_readOnly && !(e->modifiers() & Qt::ShiftModifier) && m_cursor.hasSelection() && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story() &&
         at >= m_cursor.selectionStart() && at < m_cursor.selectionEnd() && !isLocked(m_cursor.block())) {
         m_textDrag.pending = true;
         m_textDrag.start = e->position().toPoint();

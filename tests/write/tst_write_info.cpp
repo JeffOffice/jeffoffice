@@ -14,6 +14,7 @@
 #include "core/fieldops.h"
 #include "core/fonts.h"
 #include "core/inspectops.h"
+#include "core/linkops.h"
 #include "core/textexport.h"
 #include "core/writedoc.h"
 #include "office/officecrypt.h"
@@ -21,6 +22,7 @@
 #include "office/packageprops.h"
 #include "text/textprops.h"
 
+#include <QCheckBox>
 #include <QFile>
 #include <QLineEdit>
 #include <QPushButton>
@@ -375,6 +377,64 @@ private Q_SLOTS:
         QCOMPARE(w.document()->packageProps().title, QStringLiteral("From the page"));
         QVERIFY(w.isModified());
         w.hideFileScreen();
+    }
+
+    // Options > Advanced: a link is followed by Ctrl+click until the person asks for a plain click; the choice is kept and a new window starts with it.
+    void theAdvancedPageLetsALinkFollowOnAPlainClick()
+    {
+        Settings::get().setValue(QStringLiteral("edit/ctrlClickLinks"), true);
+        Settings::get().setValue(QStringLiteral("edit/dragText"), true);
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("see link here"));
+        QTextCursor sel(w.document()->story());
+        sel.setPosition(4);
+        sel.setPosition(8, QTextCursor::KeepAnchor);
+        QString problem;
+        QVERIFY2(insertHyperlink(*w.document(), sel, QStringLiteral("https://example.com"), QString(), QString(), QString(), &problem), qPrintable(problem));
+        QStringList opened;
+        w.setLinkOpener([&](const QString &a) { opened << a; });
+        auto click = [&](Qt::KeyboardModifiers keys) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(6);
+            w.view()->setCursor(c);
+            QRect r;
+            QVERIFY(w.view()->caretRect(&r));
+            QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, keys, r.center());
+        };
+        click(Qt::NoModifier);
+        QVERIFY(opened.isEmpty());
+        click(Qt::ControlModifier);
+        QCOMPARE(opened, (QStringList{"https://example.com"}));
+        opened.clear();
+        QVector<OptionsPage> pages = w.optionsPages();
+        QList<QWidget *> built;
+        for (const OptionsPage &p : pages) built << p.build();
+        auto box = [&](const char *name) {
+            for (QWidget *page : built)
+                if (auto *f = page->findChild<QCheckBox *>(QString::fromLatin1(name))) return f;
+            return static_cast<QCheckBox *>(nullptr);
+        };
+        QCheckBox *ctrl = box("ctrlClickLinks"), *drag = box("dragText");
+        QVERIFY(ctrl && drag);
+        QVERIFY(ctrl->isChecked() && drag->isChecked());
+        ctrl->setChecked(false);
+        drag->setChecked(false);
+        for (const OptionsPage &p : pages)
+            if (p.apply) p.apply();
+        qDeleteAll(built);
+        QVERIFY(!w.view()->linkNeedsCtrl());
+        click(Qt::NoModifier);
+        QCOMPARE(opened, (QStringList{"https://example.com"}));
+        // (A click with Shift is a selection, not a link.)
+        opened.clear();
+        click(Qt::ShiftModifier);
+        QVERIFY(opened.isEmpty());
+        WriteWindow v;
+        QVERIFY(!v.view()->linkNeedsCtrl());
+        Settings::get().setValue(QStringLiteral("edit/ctrlClickLinks"), true);
+        Settings::get().setValue(QStringLiteral("edit/dragText"), true);
     }
 
     void printingOnlyOddOrEvenPagesAndInReverse()

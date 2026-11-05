@@ -470,6 +470,7 @@ private:
     int m_placeStep = 0;
     void recordPlace(int position);
     void applyDisplayDefaults();
+    void applyEditingDefaults();   // Options > Advanced: how a link is followed, and dragging text
     void returnToPlace(const QString &path);
     static QString placeKey(const QString &path);
     FormatChoice askFormatChoice(const QStringList &lost, const QString &kind = QStringLiteral(".odt"));

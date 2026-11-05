@@ -40,6 +40,12 @@ void WriteWindow::applyDisplayDefaults()
     m_view->setShowGridlines(grid);
 }
 
+void WriteWindow::applyEditingDefaults()
+{
+    m_view->setLinkNeedsCtrl(Settings::get().value(QStringLiteral("edit/ctrlClickLinks"), true).toBool());
+    m_view->setDragTextOption(Settings::get().value(QStringLiteral("edit/dragText"), true).toBool());
+}
+
 QVector<OptionsPage> WriteWindow::optionsPages()
 {
     struct Fields {
@@ -48,6 +54,7 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         QLineEdit *folder = nullptr;
         QCheckBox *marks = nullptr, *grid = nullptr;
         QComboBox *units = nullptr;
+        QCheckBox *ctrlLinks = nullptr, *dragText = nullptr, *privacy = nullptr;
     };
     auto f = std::make_shared<Fields>();
     QVector<OptionsPage> pages;
@@ -119,10 +126,21 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         f->units->addItem(QCoreApplication::translate("Dialogs", "Picas"), int(Unit::Pica));
         f->units->setCurrentIndex(std::max(0, f->units->findData(int(Settings::get().unit()))));
         form->addRow(QCoreApplication::translate("Dialogs", "Show measurements in:"), f->units);
+        f->ctrlLinks = new QCheckBox(QCoreApplication::translate("Dialogs", "Use Ctrl+click to follow a link"), page);
+        f->ctrlLinks->setObjectName(QStringLiteral("ctrlClickLinks"));
+        f->ctrlLinks->setChecked(Settings::get().value(QStringLiteral("edit/ctrlClickLinks"), true).toBool());
+        form->addRow(f->ctrlLinks);
+        f->dragText = new QCheckBox(QCoreApplication::translate("Dialogs", "Allow text to be dragged and dropped"), page);
+        f->dragText->setObjectName(QStringLiteral("dragText"));
+        f->dragText->setChecked(Settings::get().value(QStringLiteral("edit/dragText"), true).toBool());
+        form->addRow(f->dragText);
         return page;
     }, [this, f] {
         Settings::get().setUnit(static_cast<Unit>(f->units->currentData().toInt()));
         m_ruler->update();   // (the ruler's marks are in the unit chosen)
+        Settings::get().setValue(QStringLiteral("edit/ctrlClickLinks"), f->ctrlLinks->isChecked());
+        Settings::get().setValue(QStringLiteral("edit/dragText"), f->dragText->isChecked());
+        applyEditingDefaults();
     }};
     return pages;
 }

@@ -207,6 +207,10 @@ public:
     QMimeData *prepareTextDrag();
     // Whether a press inside the selection begins a drag of it (Copy Formatting turns it off: a press there is the start of a new selection).
     void setTextDragAllowed(bool allowed) { m_textDragAllowed = allowed; }
+    // Options > Advanced: whether a link is followed by Ctrl+click (true, the default) or by a plain click, and whether selected text can be dragged to move or copy it.
+    void setLinkNeedsCtrl(bool on) { m_linkNeedsCtrl = on; }
+    bool linkNeedsCtrl() const { return m_linkNeedsCtrl; }
+    void setDragTextOption(bool on) { m_dragTextOption = on; }
 
     // Lays out every page now (for the count).
     void paginateAll();
@@ -365,6 +369,7 @@ private:
     bool wantsTextDrop(const QMimeData *mime) const;
     TextDrag m_textDrag;
     bool m_textDragAllowed = true;
+    bool m_linkNeedsCtrl = true, m_dragTextOption = true;
     PictureDrag m_pictureDrag;
     // Dragging the border at the right of a table's column, or at the foot of a row: the position of a cell of the column, its width when the drag began, and where the pointer began.
     struct ColumnDrag {
