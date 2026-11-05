@@ -174,9 +174,16 @@ bool tableOfFiguresDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     label->setObjectName(QStringLiteral("figuresLabel"));
     label->addItems(captionLabelChoices(*doc));
     auto *leader = leaderBox(&dlg, "figuresLeader");
+    auto *style = new QComboBox(&dlg);
+    style->setObjectName(QStringLiteral("figuresStyle"));
+    style->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "(none: use the caption label)")), QString());
+    for (const QString &name : paragraphStyleNames(*doc)) style->addItem(name, name);
     form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Caption label:")), label);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Or the paragraphs of the style:")), style);
     form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Tab leader:")), leader);
     v->addLayout(form);
+    // (A style chosen takes the place of the label: the label and the label-and-number choice then do nothing.)
+    QObject::connect(style, &QComboBox::currentIndexChanged, &dlg, [label](int i) { label->setEnabled(i <= 0); });
     auto *includeLabel = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Include label and number")), &dlg);
     includeLabel->setObjectName(QStringLiteral("figuresIncludeLabel"));
     includeLabel->setChecked(true);
@@ -204,6 +211,7 @@ bool tableOfFiguresDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     o.rightAlign = right->isChecked();
     o.leader = leader->currentData().toString();
     o.hyperlinks = links->isChecked();
+    o.style = style->currentData().toString();
     QTextCursor c = view->cursor();
     const bool ok = insertTableOfFigures(*doc, c, o);
     if (ok) view->showCursor(c);

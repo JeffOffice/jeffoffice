@@ -1,5 +1,5 @@
 # Captions and tables of figures
-<!-- keywords: caption, figure, table of figures, label, number, SEQ, insert caption, list of figures, chapter number, update table -->
+<!-- keywords: table of figures from a style, list of paragraphs of a style, caption, figure, table of figures, label, number, SEQ, insert caption, list of figures, chapter number, update table -->
 
 A **caption** is a short line of text under a picture or table, or over one, such as "Figure 1: Sunrise." JeffWrite numbers captions for you. If you add one in the middle, the numbers after it go up.
 
@@ -25,6 +25,8 @@ A **table of figures** lists your captions with their pages, like a table of con
 4. Click **OK**.
 
 Turn off **Include label and number** to list only the words after the number.
+
+You can also build the table from a paragraph style. Pick a style in **Or the paragraphs of the style**. Every paragraph in that style, such as a heading style, then becomes a line of the table. The caption label is not used then.
 
 ## Update the numbers and the table
 

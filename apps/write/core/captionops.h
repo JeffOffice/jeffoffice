@@ -32,7 +32,10 @@ struct FiguresOptions {
     bool rightAlign = true;
     QString leader = QStringLiteral("dot");
     bool hyperlinks = true;
+    QString style;               // the lines are the paragraphs of this style (by its name) instead of the captions of a label; empty for a label's captions
 };
+// The names of the document's paragraph styles that are shown in its style list, to choose from for a table of figures built from a style.
+QStringList paragraphStyleNames(WriteDoc &doc);
 // The code a table of figures with these options has.
 QString figuresCode(const FiguresOptions &options);
 // Puts a table of figures, built now, at the caret (in a paragraph of its own), as one step of the history.

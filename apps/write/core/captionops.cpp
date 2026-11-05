@@ -125,10 +125,27 @@ bool insertCaption(WriteDoc &doc, QTextCursor &c, const CaptionOptions &o, QStri
     return true;
 }
 
+QStringList paragraphStyleNames(WriteDoc &doc)
+{
+    QStringList names;
+    for (const office::wml::Style &s : doc.styleSheet().styles)
+        if (s.type == QLatin1String("paragraph") && !s.semiHidden && !s.name.isEmpty() && !names.contains(s.name)) names << s.name;
+    names.sort(Qt::CaseInsensitive);
+    return names;
+}
+
 QString figuresCode(const FiguresOptions &o)
 {
     QString id = o.label.simplified();
     id.remove(QLatin1Char('"'));
+    const QString style = QString(o.style).simplified().remove(QLatin1Char('"')).remove(QLatin1Char(',')).remove(QLatin1Char(';'));
+    if (!style.isEmpty()) {
+        QString byStyle = QStringLiteral(" TOC \\h \\z \\t \"%1,1\"").arg(style);
+        if (!o.hyperlinks) byStyle.remove(QStringLiteral(" \\h"));
+        if (!o.pageNumbers) byStyle += QStringLiteral(" \\n");
+        else if (!o.rightAlign) byStyle += QStringLiteral(" \\p \" \"");
+        return byStyle + QLatin1Char(' ');
+    }
     QString code = o.includeLabel ? QStringLiteral(" TOC \\h \\z \\c \"%1\"").arg(id) : QStringLiteral(" TOC \\h \\z \\a \"%1\"").arg(id);
     if (!o.hyperlinks) code.remove(QStringLiteral(" \\h"));
     if (!o.pageNumbers) code += QStringLiteral(" \\n");

@@ -422,6 +422,30 @@ private Q_SLOTS:
         QVERIFY2(lines(*doc).contains(QStringLiteral("Sunrise")), qPrintable(lines(*doc).join('|')));
     }
 
+    void aTableOfFiguresCanListTheParagraphsOfAStyle()
+    {
+        auto doc = open(makeDocx(para(run("Alpha"), "<w:pStyle w:val=\"Heading2\"/>") + para(run("Body")) + para(run("Beta"), "<w:pStyle w:val=\"Heading2\"/>") + para(run("End"))));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->characterCount() - 1);
+        FiguresOptions f;
+        f.style = QStringLiteral("Heading2");
+        QCOMPARE(figuresCode(f), QStringLiteral(" TOC \\h \\z \\t \"Heading2,1\" "));
+        QVERIFY(insertTableOfFigures(*doc, c, f));
+        const QStringList l = lines(*doc);
+        QVERIFY2(l.contains(QStringLiteral("Alpha\t1")) && l.contains(QStringLiteral("Beta\t1")), qPrintable(l.join('|')));
+        QVERIFY(!l.join('|').contains(QStringLiteral("Body\t")));
+        const QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("TOC \\h \\z \\t \"Heading2,1\""));
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(updateFields(*again).changed, 0);
+        // The styles the dialog offers are the document's paragraph styles, by name.
+        auto blank = WriteDoc::blank();
+        const QStringList names = paragraphStyleNames(*blank);
+        QVERIFY2(names.contains(QStringLiteral("Normal")), qPrintable(names.join('|')));
+    }
+
     // ---- index
     void anIndexListsTheMarkedEntriesSortedWithTheirPages()
     {

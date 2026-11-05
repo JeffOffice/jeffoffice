@@ -296,7 +296,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 
 ### Captions
 - [~] **1.0** Insert Caption: label (Figure, Table, Equation, or your own), above or below, numbering with the chapter number, exclude the label, and AutoCaption *(SEQ field: ours <1%, public 3%)* *(round 8: Insert Caption puts a Caption paragraph with a SEQ field next to the selection or the whole table, counts from the heading of a chapter, and renumbers the others; not AutoCaption)*
-- [~] **1.0** Insert Table of Figures from a caption label or a style, and update it *(round 8: from a caption label, with or without the label and number, in the style table of figures, updated with F9; a table from a style is read and updated from a file's code but not asked for in the box)*
+- [x] **1.0** Insert Table of Figures from a caption label or a style, and update it *(round 8: from a caption label, with or without the label and number, in the style table of figures, updated with F9; a table from a style is read and updated from a file's code; round 11: the box asks for it too, "Or the paragraphs of the style", written as `TOC \t "Style,1"`)*
 - [x] **first release** Cross-reference to a heading, numbered item, bookmark, footnote, endnote, caption, or page, as its text, number, page, or "above" and "below," inserted as a link *(also the Insert > Links command; PAGEREF: ours 19% (.docx 38%, .doc and .rtf <1%), public <1%)* *(beta wave F: References > Cross-reference to a heading, bookmark, footnote, endnote, numbered item, or caption as its text, number, page, or above and below, as a link; Ctrl+click follows it)*
 
 ### Index
