@@ -4,6 +4,7 @@
 #include "sheethelpers.h"
 
 #include "sheet/calculation.h"
+#include "sheet/cellinfo.h"
 
 #include "core/threadtime.h"
 
@@ -1254,6 +1255,60 @@ private Q_SLOTS:
         QCOMPARE(shown("B1"), QStringLiteral("n:10"));
         QVERIFY(settle(b).finished);
         QCOMPARE(shown("B1"), QStringLiteral("n:14"));
+    }
+
+    // CELL's format, color, parentheses, protect, prefix, and width, and INFO, read the workbook: a cell's number format, its alignment and lock, its column's width, where the file is.
+    void cellAndInfoReadTheWorkbook()
+    {
+        const QByteArray styles = stylesXml(QStringLiteral("<numFmt numFmtId=\"164\" formatCode=\"#,##0.00_);[Red](#,##0.00)\"/>"),
+                                            QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"164\"/><xf numFmtId=\"10\" applyAlignment=\"1\"><alignment horizontal=\"right\"/></xf>"
+                                                           "<xf numFmtId=\"15\"><protection locked=\"0\"/></xf>"));
+        auto text = [](const QString &ref, const QString &t, int s) { return QStringLiteral("<c r=\"%1\" s=\"%3\" t=\"inlineStr\"><is><t>%2</t></is></c>").arg(ref, t).arg(s); };
+        const QString rows = rowXml(1, QStringLiteral("<c r=\"A1\" s=\"1\"><v>5</v></c>") + text("B1", "hi", 2) + QStringLiteral("<c r=\"C1\" s=\"3\"><v>45366</v></c>")
+                                           + cellXml("D1", "CELL(\"format\",A1)") + cellXml("E1", "CELL(\"color\",A1)") + cellXml("F1", "CELL(\"parentheses\",A1)")
+                                           + cellXml("G1", "CELL(\"prefix\",B1)") + cellXml("H1", "CELL(\"protect\",C1)") + cellXml("I1", "CELL(\"protect\",A1)")
+                                           + cellXml("J1", "CELL(\"width\",A1)") + cellXml("K1", "CELL(\"width\",B1)") + cellXml("L1", "CELL(\"format\",C1)")
+                                           + cellXml("M1", "CELL(\"prefix\",A1)") + cellXml("N1", "CELL(\"filename\",A1)") + cellXml("O1", "INFO(\"recalc\")")
+                                           + cellXml("P1", "INFO(\"numfile\")") + cellXml("Q1", "INFO(\"directory\")") + cellXml("R1", "CELL(\"format\",B1)"));
+        const QByteArray sheet = worksheet(rows).replace("<sheetData>", "<cols><col min=\"1\" max=\"1\" width=\"13.7109375\" customWidth=\"1\"/></cols><sheetData>");
+        Book b;
+        QVERIFY(b.open(buildXlsx({sheet}, QByteArray(), QString(), QStringLiteral("calcMode=\"manual\""), styles)));
+        b.calc->setFilePath(QStringLiteral("/tmp/books/Budget.xlsx"));
+        QVERIFY(settle(b).finished);
+        QCOMPARE(b.at("D1"), QStringLiteral("s:,2-"));
+        QCOMPARE(b.at("E1"), QStringLiteral("n:1"));
+        QCOMPARE(b.at("F1"), QStringLiteral("n:0"));
+        QCOMPARE(b.at("G1"), QStringLiteral("s:\""));
+        QCOMPARE(b.at("H1"), QStringLiteral("n:0"));
+        QCOMPARE(b.at("I1"), QStringLiteral("n:1"));
+        QCOMPARE(b.at("J1"), QStringLiteral("n:13"));
+        QCOMPARE(b.at("K1"), QStringLiteral("n:8"));
+        QCOMPARE(b.at("L1"), QStringLiteral("s:D1"));
+        QCOMPARE(b.at("M1"), QStringLiteral("s:"));
+        QVERIFY2(b.at("N1").endsWith(QStringLiteral("[Budget.xlsx]Sheet1")), qPrintable(b.at("N1")));
+        QCOMPARE(b.at("O1"), QStringLiteral("s:Manual"));
+        QCOMPARE(b.at("P1"), QStringLiteral("n:1"));
+        QVERIFY2(b.at("Q1").startsWith(QStringLiteral("s:")) && b.at("Q1").contains(QStringLiteral("books")), qPrintable(b.at("Q1")));
+        QCOMPARE(b.at("R1"), QStringLiteral("s:P2"));
+    }
+
+    // What a number format code is, as CELL names it.
+    void numberFormatsAreNamedAsCellNamesThem()
+    {
+        using jp::office::sheet::summarizeFormat;
+        const struct {
+            const char *code;
+            const char *name;
+        } cases[] = {
+            {"General", "G"}, {"0", "F0"}, {"0.00", "F2"}, {"#,##0", ",0"}, {"#,##0.00", ",2"}, {"0%", "P0"}, {"0.00%", "P2"}, {"0.00E+00", "S2"}, {"$#,##0_);($#,##0)", "C0"},
+            {"$#,##0_);[Red]($#,##0)", "C0-"}, {"#,##0.0_);(#,##0.0)", ",1"}, {"(0.0)", "F1()"}, {"d-mmm-yy", "D1"}, {"d-mmm", "D2"}, {"mmm-yy", "D3"}, {"m/d/yy", "D4"},
+            {"m/d/yyyy", "D4"}, {"mm/dd", "D5"}, {"h:mm:ss AM/PM", "D6"}, {"h:mm AM/PM", "D7"}, {"h:mm:ss", "D8"}, {"h:mm", "D9"}, {"@", "G"}, {"[$EUR-407] #,##0.00", "C2"},
+            {"0.00 \"m\"", "F2"}, {"# ?/?", "G"},
+        };
+        for (const auto &c : cases) QCOMPARE(summarizeFormat(QString::fromLatin1(c.code)).code, QString::fromLatin1(c.name));
+        QVERIFY(summarizeFormat(QStringLiteral("0;[Red]-0")).negativeColor);
+        QVERIFY(!summarizeFormat(QStringLiteral("[Red]0;-0")).negativeColor);
+        QVERIFY(summarizeFormat(QStringLiteral("(0)")).parentheses);
     }
 
     // A load that registers formulas (a hundred thousand of them) stops where the cancel flag says: a window that is closed does not wait for the rest.

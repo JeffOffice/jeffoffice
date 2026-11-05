@@ -531,9 +531,30 @@ Value fnCell(Call &c)
     }
     for (const char *later : {"filename", "format", "color", "parentheses", "prefix", "protect", "width"})
         if (kind == QLatin1String(later)) {
+            Value answer;
+            if (c.context().source && c.context().source->cellInfo(at.sheet1, at.row1, at.col1, kind, &answer)) return answer;
             c.machine().unsupported |= 4;
             return c.error(ErrorKind::Value);
         }
+    return c.error(ErrorKind::Value);
+}
+
+// INFO(type): the program and the workbook. What only the host knows (the folder, the number of sheets, how the workbook calculates) comes from the source; the memory and the processor
+// are not told (#N/A, as the original does now).
+Value fnInfo(Call &c)
+{
+    QString kind;
+    if (!c.text(0, &kind)) return c.failure();
+    kind = kind.toLower();
+    for (const char *later : {"directory", "numfile", "origin", "osversion", "recalc", "release", "system"})
+        if (kind == QLatin1String(later)) {
+            Value answer;
+            if (c.context().source && c.context().source->environmentInfo(kind, &answer)) return answer;
+            c.machine().unsupported |= 4;
+            return c.error(ErrorKind::Value);
+        }
+    for (const char *gone : {"memavail", "memused", "totmem", "cpu"})
+        if (kind == QLatin1String(gone)) return c.error(ErrorKind::NA);
     return c.error(ErrorKind::Value);
 }
 
@@ -566,6 +587,7 @@ void registerLookupFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"COLUMNS", 1, 1, "n", 0, fnColumns});
     r.push_back({"ADDRESS", 2, 5, "vvvvv", 0, fnAddress});
     r.push_back({"CELL", 1, 2, "vn", 0, fnCell});
+    r.push_back({"INFO", 1, 1, "v", kFnVolatile, fnInfo});
     r.push_back({"TRANSPOSE", 1, 1, "a", 0, fnTranspose});
     r.push_back({"GETPIVOTDATA", 2, 255, "vxv", 0, fnGetPivotData});
 }

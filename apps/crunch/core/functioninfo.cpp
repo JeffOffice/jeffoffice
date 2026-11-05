@@ -478,6 +478,7 @@ const FunctionDoc kDocs[] = {
     {"AREAS", Cat::LookupReference, "reference", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Gives the number of separate blocks of cells in a reference.")},
     {"SHEET", Cat::Information, "[value]", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Gives the number of a sheet, counting the first sheet as 1.")},
     {"SHEETS", Cat::Information, "[reference]", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Gives the number of sheets in a reference, or in the workbook.")},
+    {"INFO", Cat::Information, "info_type", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Tells something about the program or the workbook, such as its folder or how it calculates.")},
     {"ISFORMULA", Cat::Information, "reference", QT_TRANSLATE_NOOP("jp::crunch::Functions", "True when the cell holds a formula.")},
     {"FORMULATEXT", Cat::LookupReference, "reference", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Gives the formula of a cell as text.")},
 };
