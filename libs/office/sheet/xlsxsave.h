@@ -277,6 +277,8 @@ struct SaveChanges {
     };
     QVector<StyleAdded> newStyles;
     qint64 styleXfsBefore = 0;
+    // Named styles hidden or shown since the file was opened (the name and whether it is hidden now): the `hidden` of its `cellStyle` is set to say so.
+    QVector<QPair<QString, bool>> styleVisibility;
     // Parts to be written anew whole, by the part's name (the table parts that changed).
     std::map<QString, QByteArray> replacedParts;
     // Tables made here: the sheet they are on, the part they are written to, and its bytes (the part, its type, and the sheet's link to it are made); and the parts of tables taken out (the

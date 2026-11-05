@@ -67,6 +67,22 @@ private Q_SLOTS:
         QCOMPARE(pageSetupOfXml(out), now);
     }
 
+    // The print quality is written where the file has it, and added when it has none.
+    void thePrintQualityIsPatched()
+    {
+        const QByteArray tail = tailOf("<pageSetup paperSize=\"9\" horizontalDpi=\"600\" verticalDpi=\"600\"/>");
+        PageSetup now = pageSetupOfXml(tail);
+        QCOMPARE(now.horizontalDpi, 600);
+        now.horizontalDpi = now.verticalDpi = 300;
+        QCOMPARE(patchPageSetupTail(tail, now, QByteArray()), tailOf("<pageSetup paperSize=\"9\" horizontalDpi=\"300\" verticalDpi=\"300\"/>"));
+        const QByteArray bare = tailOf("<pageSetup paperSize=\"9\"/>");
+        PageSetup other = pageSetupOfXml(bare);
+        other.horizontalDpi = other.verticalDpi = 1200;
+        const QByteArray out = patchPageSetupTail(bare, other, QByteArray());
+        QVERIFY(out.contains("horizontalDpi=\"1200\"") && out.contains("verticalDpi=\"1200\""));
+        QCOMPARE(pageSetupOfXml(out), other);
+    }
+
     // Elements the file lacks are put in the order the format has them: after what comes before them and before what comes after.
     void missingElementsGoWhereTheFormatPutsThem()
     {

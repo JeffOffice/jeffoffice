@@ -1,5 +1,5 @@
 # Fill cells and add them up
-<!-- keywords: fill, series, drag, handle, double-click, custom list, AutoFill, Ctrl+D, Ctrl+R, down, right, up, left, number, date, weekday, month, year, step, stop, copy, Sum, sum, average, count, max, min, Alt+equals, total -->
+<!-- keywords: fill, series, drag, handle, double-click, custom list, AutoFill, Ctrl+D, Ctrl+R, down, right, up, left, number, date, weekday, month, year, step, stop, copy, Sum, sum, average, count, max, min, Alt+equals, total, Flash Fill, Ctrl+E, pattern, split names -->
 
 ## Fill
 
@@ -28,6 +28,8 @@ After you drag the fill handle, the small **Fill Options** button appears at the
 A fill does not go into or out of merged cells, because it would leave values in cells the merged area hides. Unmerge them first.
 
 **Fill > Justify** puts the text of the selected cells of one column into lines as wide as the column, in the cells from the first one down; leftover cells of the selection are emptied. If the text needs more cells than you selected, JeffCrunch asks whether to use the cells below. It works only on text.
+
+**Fill > Flash Fill** (**Ctrl+E**) fills a column for you from a pattern you show it. Type the result you want by hand in the first one or two cells of a column, next to the cells it comes from. Then put the cursor in that column and choose Flash Fill. JeffCrunch works out how your examples were made from the cells beside them, and fills in the empty cells the same way. Example: column A holds names like **Smith, Ann**. In B1 you type **Ann Smith**. Flash Fill fills B2 and below with the other names turned around the same way. It can take a word from a cell, the first letter of a word, or the first or last few letters, in capitals, small letters, or as it was, and it can add text that is the same in every example, such as a space or a dot. If it cannot find a pattern, it tells you. Type one or two more examples, and try again. It is one step of Undo.
 
 **Fill > Across Worksheets** copies the selected cells to the same cells of the sheets you check in a list: everything, just the contents, or just the formats. It is one step of Undo.
 

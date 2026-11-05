@@ -15,6 +15,8 @@
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
+#include <QMenu>
+#include <QToolButton>
 #include <QDataStream>
 #include <QMimeData>
 #include <QSettings>
@@ -199,6 +201,155 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("n:1"));
         QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("-"));
         QVERIFY(!e.view()->hasCopyBorder());
+    }
+
+    // Paste Special with number formats: the value (or formula) comes with its number format, and the look the cell had (here a border) stays; a plain Values paste brings no format.
+    void pasteSpecialValuesAndNumberFormatsKeepTheLook()
+    {
+        using What = crunch::EditSession::PasteOptions::What;
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1=2"})));
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("50%"));
+        crunch::EditSession *s = e.win.w.session();
+        jp::office::sheet::BorderSide thin;
+        thin.style = jp::office::sheet::BorderStyle::Thin;
+        QVERIFY(s->setBorders(0, rangeOf(QStringLiteral("B1")), crunch::EditSession::EdgeLeft, thin, QStringLiteral("Borders")).ok);
+        const crunch::ClipData clip = s->copyCells(0, rangeOf(QStringLiteral("A1")), false);
+        crunch::EditSession::PasteOptions o;
+        o.what = What::ValuesAndNumberFormats;
+        QVERIFY(s->paste(0, rangeOf(QStringLiteral("B1")), clip, o).ok);
+        QCOMPARE(shown(e, QStringLiteral("B1")), QStringLiteral("50%"));
+        QVERIFY(e.view()->sheet().looks().look(e.view()->sheet().styleOf(0, 1, e.view()->sheet().cellAt(0, 1))).left.style == jp::office::sheet::BorderStyle::Thin);
+        o.what = What::Values;
+        QVERIFY(s->paste(0, rangeOf(QStringLiteral("C1")), clip, o).ok);
+        QCOMPARE(shown(e, QStringLiteral("C1")), QStringLiteral("0.5"));
+        o.what = What::FormulasAndNumberFormats;
+        QVERIFY(s->paste(0, rangeOf(QStringLiteral("D1")), clip, o).ok);
+        QCOMPARE(shown(e, QStringLiteral("D1")), QStringLiteral("50%"));
+    }
+
+    // All Except Borders brings everything but the borders: the cell takes the copy's number format and look, and keeps the borders it had (and a plain All takes the copy's).
+    void pasteSpecialAllExceptBordersKeepsTheBorders()
+    {
+        using What = crunch::EditSession::PasteOptions::What;
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1=y", "E1=z"})));
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("50%"));
+        crunch::EditSession *s = e.win.w.session();
+        jp::office::sheet::BorderSide thick;
+        thick.style = jp::office::sheet::BorderStyle::Thick;
+        QVERIFY(s->setBorders(0, rangeOf(QStringLiteral("B1:B2")), crunch::EditSession::EdgeLeft | crunch::EditSession::EdgeRight | crunch::EditSession::EdgeTop | crunch::EditSession::EdgeBottom, thick, QStringLiteral("Borders")).ok);
+        const auto sides = [&](const QString &ref) {
+            quint32 r = 0, c = 0;
+            parseCellRef(ref, &r, &c);
+            const grid::CellLook &l = e.view()->sheet().looks().look(e.view()->sheet().styleOf(r, c, e.view()->sheet().cellAt(r, c)));
+            return QVector<int>{int(l.left.style), int(l.right.style), int(l.top.style), int(l.bottom.style)};
+        };
+        const QVector<int> before = sides(QStringLiteral("B1"));
+        QVERIFY(before[0] != 0 && before[1] != 0);
+        const crunch::ClipData clip = s->copyCells(0, rangeOf(QStringLiteral("A1")), false);
+        crunch::EditSession::PasteOptions o;
+        o.what = What::AllExceptBorders;
+        QVERIFY(s->paste(0, rangeOf(QStringLiteral("B1")), clip, o).ok);
+        QCOMPARE(shown(e, QStringLiteral("B1")), QStringLiteral("50%"));
+        QCOMPARE(sides(QStringLiteral("B1")), before);
+        o.what = What::All;
+        QVERIFY(s->paste(0, rangeOf(QStringLiteral("B1")), clip, o).ok);
+        QCOMPARE(shown(e, QStringLiteral("B1")), QStringLiteral("50%"));
+        QVERIFY(sides(QStringLiteral("B1")) != before);   // (the copy had none)
+    }
+
+    // Paste Special > Column Widths gives the columns the widths of the copy, and Comments and Notes brings the notes; each is one step of Undo, and the clipboard form keeps both.
+    void pasteSpecialColumnWidthsAndNotes()
+    {
+        using What = crunch::EditSession::PasteOptions::What;
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=x", "B1=y", "D1=z"})));
+        crunch::EditSession *s = e.win.w.session();
+        crunch::EditSession::SizeChange wide;
+        wide.setSize = true;
+        wide.size = 30;
+        QVERIFY(s->resizeColumns(0, 0, 0, wide, QStringLiteral("Width")).ok);
+        QVERIFY(s->setNote(0, 0, 0, QStringLiteral("Check this"), QStringLiteral("Ann"), false, QStringLiteral("Note")).ok);
+        const int steps = e.win.w.undoStack()->count();
+        crunch::ClipData clip = s->copyCells(0, rangeOf(QStringLiteral("A1:B1")), false);
+        QCOMPARE(clip.notes.size(), size_t(1));
+        QCOMPARE(clip.columnWidths.size(), size_t(2));
+        QVERIFY(clip.columnWidths[0] > 0 && clip.columnWidths[1] < 0);
+        crunch::ClipData back;
+        QVERIFY(crunch::ClipData::fromBytes(clip.toBytes(), &back));
+        QCOMPARE(back.notes.size(), size_t(1));
+        QCOMPARE(back.notes[0].text, QStringLiteral("Check this"));
+        QCOMPARE(back.columnWidths, clip.columnWidths);
+        crunch::EditSession::PasteOptions o;
+        o.what = What::ColumnWidths;
+        QVERIFY(s->paste(0, rangeOf(QStringLiteral("D1")), back, o).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(e.view()->sheet().columnWidth(3), e.view()->sheet().columnWidth(0));
+        o.what = What::Comments;
+        QVERIFY(s->paste(0, rangeOf(QStringLiteral("D1")), back, o).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 2);
+        QVERIFY(s->anchors().noteAt(0, 0, 3));
+        QCOMPARE(s->anchors().noteAt(0, 0, 3)->text, QStringLiteral("Check this"));
+        QCOMPARE(shown(e, QStringLiteral("D1")), QStringLiteral("z"));   // (no cell changed)
+        pressUndo(e.view());
+        QVERIFY(!s->anchors().noteAt(0, 0, 3));
+    }
+
+    // Copy as Picture and Copy as Bitmap put an image of the selected cells (as drawn on screen, without the selection's tint) on the clipboard; the bitmap is the smaller.
+    void copyAsPictureMakesAnImageOfTheCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Hello", "B1=2", "A2=x"})));
+        e.view()->selectRange(0, 0, 1, 1);
+        QAction *picture = e.win.w.act(QStringLiteral("edit.copyPicture")), *bitmap = e.win.w.act(QStringLiteral("edit.copyBitmap"));
+        QVERIFY(picture && bitmap);
+        QVERIFY(picture->isEnabled() && bitmap->isEnabled());
+        QApplication::clipboard()->clear();
+        picture->trigger();
+        QTRY_VERIFY(!QApplication::clipboard()->image().isNull());
+        const QImage big = QApplication::clipboard()->image();
+        QVERIFY(big.width() > 60 && big.height() > 20);
+        // the empty cell B2, at the bottom right, is white: the selection's tint is not in the picture
+        QCOMPARE(big.pixelColor(big.width() * 3 / 4, big.height() * 3 / 4), QColor(Qt::white));
+        bool dark = false;   // (and the text is drawn)
+        for (int y = 0; y < big.height() && !dark; ++y)
+            for (int x = 0; x < big.width() && !dark; ++x) dark = qGray(big.pixel(x, y)) < 100;
+        QVERIFY(dark);
+        QApplication::clipboard()->clear();
+        bitmap->trigger();
+        QTRY_VERIFY(!QApplication::clipboard()->image().isNull());
+        QVERIFY(QApplication::clipboard()->image().width() < big.width());
+        // a block too big for one picture is told, and the clipboard is left alone
+        QApplication::clipboard()->clear();
+        e.view()->selectRange(0, 0, 5000, 40);
+        picture->trigger();
+        QVERIFY(QApplication::clipboard()->image().isNull());
+    }
+
+    // The Paste button's menu offers each of Paste Special's choices, and each does what the dialog's choice does.
+    void thePasteGalleryOffersPasteSpecialsChoices()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1=y"})));
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("50%"));
+        const QStringList ids = {"paste.exceptBorders", "paste.formulaFormats", "paste.valueFormats", "paste.widths", "paste.notes"};
+        for (const QString &id : ids) QVERIFY2(e.win.w.act(id), qPrintable(id));
+        QToolButton *pasteButton = nullptr;
+        for (QToolButton *b : e.win.w.findChildren<QToolButton *>())
+            if (b->defaultAction() && b->defaultAction()->objectName() == QLatin1String("edit.paste") && b->menu()) pasteButton = b;
+        QVERIFY(pasteButton);
+        QStringList inMenu;
+        for (const QAction *a : pasteButton->menu()->actions()) inMenu << a->objectName();
+        for (const QString &id : ids) QVERIFY2(inMenu.contains(id), qPrintable(id));
+        copyRange(e, QStringLiteral("A1"));
+        paste(e, QStringLiteral("D1"), "paste.valueFormats");
+        QCOMPARE(shown(e, QStringLiteral("D1")), QStringLiteral("50%"));
+        paste(e, QStringLiteral("E1"), "paste.exceptBorders");
+        QCOMPARE(shown(e, QStringLiteral("E1")), QStringLiteral("50%"));
     }
 
     // Paste Special: values (a formula becomes its result), formulas, formats, the block turned over, the empty cells left, and an operation made with what is there.

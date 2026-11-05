@@ -12,7 +12,7 @@ namespace jp::office::sheet {
 bool PageSetup::operator==(const PageSetup &o) const
 {
     return paperSize == o.paperSize && paperWidth == o.paperWidth && paperHeight == o.paperHeight && orientation == o.orientation && scale == o.scale && fitToWidth == o.fitToWidth
-           && fitToHeight == o.fitToHeight && fitToPage == o.fitToPage && firstPageNumber == o.firstPageNumber && useFirstPageNumber == o.useFirstPageNumber && pageOrder == o.pageOrder
+           && fitToHeight == o.fitToHeight && fitToPage == o.fitToPage && firstPageNumber == o.firstPageNumber && useFirstPageNumber == o.useFirstPageNumber && horizontalDpi == o.horizontalDpi && verticalDpi == o.verticalDpi && pageOrder == o.pageOrder
            && blackAndWhite == o.blackAndWhite && draft == o.draft && comments == o.comments && errors == o.errors && margins == o.margins && gridLines == o.gridLines
            && headings == o.headings && centerHorizontally == o.centerHorizontally && centerVertically == o.centerVertically && headerFooter == o.headerFooter
            && rowBreaks == o.rowBreaks && colBreaks == o.colBreaks && printArea == o.printArea && titles == o.titles;
@@ -116,6 +116,8 @@ void readPageSetupAttributes(const QXmlStreamAttributes &a, PageSetup *out)
     if (lengthPoints(attr(a, "paperHeight"), &pt)) out->paperHeight = pt;
     setInt(a, "scale", kMinPageScale, kMaxPageScale, &out->scale);
     setInt(a, "firstPageNumber", 0, 32767, &out->firstPageNumber, false);
+    setInt(a, "horizontalDpi", 1, 32767, &out->horizontalDpi, false);
+    setInt(a, "verticalDpi", 1, 32767, &out->verticalDpi, false);
     setInt(a, "fitToWidth", 0, kMaxFitPages, &out->fitToWidth);
     setInt(a, "fitToHeight", 0, kMaxFitPages, &out->fitToHeight);
     const QStringView order = attr(a, "pageOrder");

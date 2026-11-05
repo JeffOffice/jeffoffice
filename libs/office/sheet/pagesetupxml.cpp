@@ -170,7 +170,7 @@ bool sameGroup(Group g, const PageSetup &a, const PageSetup &b)
     case PageMargins: return a.margins == b.margins;
     case PageSetupG:
         return a.paperSize == b.paperSize && a.scale == b.scale && a.firstPageNumber == b.firstPageNumber && a.fitToWidth == b.fitToWidth && a.fitToHeight == b.fitToHeight && a.pageOrder == b.pageOrder
-               && a.orientation == b.orientation && a.blackAndWhite == b.blackAndWhite && a.draft == b.draft && a.comments == b.comments && a.errors == b.errors && a.useFirstPageNumber == b.useFirstPageNumber;
+               && a.orientation == b.orientation && a.blackAndWhite == b.blackAndWhite && a.draft == b.draft && a.comments == b.comments && a.errors == b.errors && a.useFirstPageNumber == b.useFirstPageNumber && a.horizontalDpi == b.horizontalDpi && a.verticalDpi == b.verticalDpi;
     case HeaderFooterG: return a.headerFooter == b.headerFooter;
     case RowBreaks: return a.rowBreaks == b.rowBreaks;
     case ColBreaks: return a.colBreaks == b.colBreaks;
@@ -197,6 +197,8 @@ void pageSetupAttributes(QByteArray *tag, const PageSetup &from, const PageSetup
     if (now.comments != from.comments) setAttr(tag, "cellComments", commentsText(now.comments));
     if (now.useFirstPageNumber != from.useFirstPageNumber) setAttr(tag, "useFirstPageNumber", boolText(now.useFirstPageNumber));
     if (now.errors != from.errors) setAttr(tag, "errors", errorsText(now.errors));
+    if (now.horizontalDpi != from.horizontalDpi) setAttr(tag, "horizontalDpi", QByteArray::number(now.horizontalDpi));
+    if (now.verticalDpi != from.verticalDpi) setAttr(tag, "verticalDpi", QByteArray::number(now.verticalDpi));
 }
 
 QByteArray breaksXml(const QVector<PageBreak> &list, bool rows, const QByteArray &p)

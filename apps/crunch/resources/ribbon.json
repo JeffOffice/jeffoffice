@@ -20,10 +20,10 @@
               "large": "edit.paste",
               "keytip": "V",
               "split": true,
-              "menu": ["edit.paste", "paste.formulas", "paste.values", "paste.formats", "paste.transpose", "-", "paste.special"]
+              "menu": ["edit.paste", "paste.formulas", "paste.values", "paste.formats", "paste.transpose", "-", "paste.exceptBorders", "paste.formulaFormats", "paste.valueFormats", "paste.widths", "paste.notes", "-", "paste.special"]
             },
             {"small": "edit.cut", "keytip": "X"},
-            {"small": "edit.copy", "keytip": "C"},
+            {"small": "edit.copy", "keytip": "C", "split": true, "menu": ["edit.copy", "edit.copyPicture", "edit.copyBitmap"]},
             {"small": "fmt.painter", "keytip": "FP"}
           ]
         },
@@ -146,7 +146,7 @@
               "split": true,
               "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min", "-", "edit.autosum.more"]
             },
-            {"small": "edit.fill", "keytip": "FI", "split": true, "menu": ["fill.down", "fill.right", "fill.up", "fill.left", "-", "fill.series", "fill.across", "fill.justify"]},
+            {"small": "edit.fill", "keytip": "FI", "split": true, "menu": ["fill.down", "fill.right", "fill.up", "fill.left", "-", "fill.series", "fill.across", "fill.justify", "fill.flash"]},
             {"small": "edit.clear", "keytip": "E", "split": true, "menu": ["edit.clear.all", "edit.clear.formats", "edit.clear.contents", "edit.clear.notes", "edit.clear.links"]},
             {"large": "edit.sort", "keytip": "SS", "menu": ["sort.ascending", "sort.descending", "sort.custom", "-", "filter.toggle", "filter.clear", "filter.reapply"]},
             {"large": "edit.find", "keytip": "FD", "split": true, "menu": ["find.find", "find.replace", "-", "find.goto", "find.gotoSpecial"]}
@@ -164,6 +164,7 @@
           "items": [
             {"large": "insert.table", "keytip": "T"},
             {"large": "insert.pivot", "keytip": "V"},
+            {"large": "insert.pivotRecommended", "keytip": "VR"},
             {"large": "insert.pivotChart", "keytip": "VC"}
           ]
         },

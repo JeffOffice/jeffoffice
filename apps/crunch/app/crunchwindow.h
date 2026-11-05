@@ -294,6 +294,8 @@ public:
     void setRemoveDuplicatesAsker(std::function<bool(const QStringList &, QList<int> *)> asker) { m_removeDuplicatesAsker = std::move(asker); }
     void setPivotMoveAsker(std::function<bool(QString *)> asker) { m_pivotMoveAsker = std::move(asker); }
     void setPivotCreateAsker(std::function<bool(QString *, bool *, QString *)> asker) { m_pivotCreateAsker = std::move(asker); }
+    // test hook: which of the recommended pivot tables is made (a place in the list given; false: none)
+    void setPivotAdviceAsker(std::function<bool(const QVector<crunch::PivotAdvice> &, int *)> asker) { m_pivotAdviceAsker = std::move(asker); }
     SlicerPane *slicerPane() const { return m_slicerPane; }
     int slicerFills() const { return m_slicerFills; }   // (for tests: how many times the pane was filled)
     void setPivotOptionsAsker(std::function<bool(bool *)> asker) { m_pivotOptionsAsker = std::move(asker); }   // test hook: whether a click writes GETPIVOTDATA
@@ -591,6 +593,7 @@ private:
     void refill(const QString &id);
     void fillStackChanged();
     void justifySelection();
+    void flashFillSelection();
     void fillAcrossDialog();
     // the outline of the rows and columns (crunchwindow_outline.cpp)
     void createOutlineActions();
@@ -824,6 +827,7 @@ private:
     QSet<QLineEdit *> m_coloredLines;
     bool pointAtPivotCell(qint64 row, qint64 col);   // a click on a value of a pivot table while a formula is typed writes GETPIVOTDATA (unless that is turned off)
     void insertPivotCommand();
+    void insertRecommendedPivotCommand();
     bool pointAtTableCell(qint64 row, qint64 col);   // a click on a cell of a table while a formula is typed writes a reference by the table's names
     jp::office::sheet::TableStyleBook m_tableStyleBook;
     bool m_tableStylesFor = false;
@@ -851,6 +855,7 @@ private:
     std::shared_ptr<const jp::office::sheet::PivotTable> m_pivotShown;   // the table the pane shows (held, so that what is compared is never another one at a freed one's address)
     int m_pivotShownIndex = -1;
     std::function<bool(QString *, bool *, QString *)> m_pivotCreateAsker;
+    std::function<bool(const QVector<crunch::PivotAdvice> &, int *)> m_pivotAdviceAsker;
     std::function<bool(QString *)> m_pivotMoveAsker;
     std::function<bool(const QStringList &, QList<int> *)> m_removeDuplicatesAsker;
     std::function<bool(bool *)> m_pivotOptionsAsker;
@@ -989,6 +994,7 @@ private:
     // the clipboard (crunchwindow_clip.cpp)
     void createClipboardActions();
     void copySelection();
+    void copyAsPicture(bool bitmap);
     void cutSelection();
     void copyOrCut(bool cut);
     void copyStep();
@@ -1041,6 +1047,7 @@ private:
     void mergeCommand(crunch::EditSession::MergeKind kind);
     void clearCommand(int what);
     void newCellStyleCommand();
+    void deleteCellStyleCommand();
     void applyCellStyle(const QString &name);
     void formatPainterCommand();
     void paintFormats();

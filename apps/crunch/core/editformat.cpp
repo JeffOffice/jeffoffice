@@ -338,6 +338,75 @@ EditSession::Outcome EditSession::newCellStyle(int sheet, quint32 row, quint32 c
     return out;
 }
 
+EditSession::Outcome EditSession::deleteCellStyle(const QString &name)
+{
+    Outcome out;
+    auto refuse = [&](const QString &why) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    };
+    QString why;
+    if (!canEdit(&why)) return refuse(why);
+    const QString trimmed = name.trimmed();
+    qint32 place = -1, normal = -1;
+    struct Run {
+        int sheet;
+        CellRange range;
+    };
+    std::vector<Run> runs;
+    {
+        // (read with the worker held back: it reads the workbook's styles)
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) return refuse(tr("The workbook is busy. Try again in a moment."));
+        const jp::office::sheet::Styles &styles = m_book->book->styles();
+        bool found = false;
+        for (const jp::office::sheet::CellStyleName &n : styles.cellStyles)
+            if (n.name.compare(trimmed, Qt::CaseInsensitive) == 0 && !n.hidden) {
+                found = true;
+                place = qint32(n.xfId);
+                if (n.builtin == 0) return refuse(tr("The Normal style can't be deleted. Every cell without a style of its own uses it."));
+            }
+        if (!found) return refuse(tr("This workbook has no style called \"%1\".").arg(trimmed));
+        for (const jp::office::sheet::CellStyleName &n : styles.cellStyles)
+            if (n.builtin == 0) normal = qint32(n.xfId);
+        if (normal < 0 || normal == place) return refuse(tr("This workbook has no Normal style to return the cells to."));
+        for (int sheet = 0; sheet < m_book->calc->sheetCount(); ++sheet) {
+            const jp::office::sheet::Sheet &model = m_book->calc->sheet(sheet);
+            if (model.extentRows == 0 || model.extentCols == 0) continue;
+            quint32 lastRow = model.extentRows - 1, lastCol = model.extentCols - 1;
+            Run open{sheet, CellRange()};
+            quint32 openRow = 0;
+            model.cells.forEachInRange(0, 0, lastRow, lastCol, [&](quint32 row, quint32 col, const jp::office::sheet::Cell &) {
+                const quint32 style = m_book->calc->content(sheet, row, col).style;
+                if (styles.format(style).xfId != quint32(place)) return true;
+                if (open.range.valid && openRow == row && open.range.col2 + 1 == col) {
+                    open.range.col2 = col;
+                    return true;
+                }
+                if (open.range.valid) runs.push_back(open);
+                open.range.valid = true;
+                open.range.row1 = open.range.row2 = row;
+                open.range.col1 = open.range.col2 = col;
+                openRow = row;
+                return runs.size() < 5000;
+            });
+            if (open.range.valid) runs.push_back(open);
+            if (runs.size() >= 5000) return refuse(tr("That style is used by too many cells to take out at once (more than 5,000 runs of cells)."));
+        }
+        m_book->book->setStyleHidden(trimmed, true);   // (hidden now, so that nothing reads it again; Undo shows it)
+    }
+    m_undo.beginMacro(tr("Delete Cell Style"));
+    pushStyleHidden(trimmed);
+    for (const Run &r : runs) {
+        out = applyStyle(r.sheet, r.range, quint32(normal), tr("Delete Cell Style"));
+        if (!out.ok) break;
+    }
+    m_undo.endMacro();
+    if (!out.ok) m_undo.undo();   // (the cells could not all be changed: the style stays)
+    return out;
+}
+
 EditSession::Outcome EditSession::clearFormats(int sheet, const CellRange &range)
 {
     return restyleRange(sheet, range, nullptr, tr("Clearing formats"));

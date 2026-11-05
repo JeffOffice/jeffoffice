@@ -172,6 +172,13 @@ private Q_SLOTS:
         };
         m_app.contexts = {
             in(QStringLiteral("a block of cells selected"), [](CrunchWindow *w) { w->view()->selectRange(0, 0, 2, 2); }),
+            in(QStringLiteral("two examples typed beside a column of data"), [](CrunchWindow *w) {
+                const char *names[] = {"Smith, Ann", "Jones, Bob", "Lee, Cy", "Park, Di"};
+                for (int r = 0; r < 4; ++r) enter(w, r, 0, QString::fromLatin1(names[r]));
+                enter(w, 0, 1, QStringLiteral("Ann Smith"));
+                enter(w, 1, 1, QStringLiteral("Bob Jones"));
+                w->view()->selectCell(2, 1);
+            }),
             in(QStringLiteral("whole rows selected"), [](CrunchWindow *w) { w->view()->selectRows(0, 1); }),
             in(QStringLiteral("whole columns selected"), [](CrunchWindow *w) { w->view()->selectColumns(0, 1); }),
             in(QStringLiteral("a formula's cell selected"), [](CrunchWindow *w) { w->view()->selectCell(0, 1); }),
@@ -401,6 +408,7 @@ private Q_SLOTS:
         // (where a command is best tried first: the others come after, so the hints only make the run quicker)
         m_app.hints = {
             {QStringLiteral("pivot."), {QStringLiteral("the cursor in a pivot table")}},
+            {QStringLiteral("fill.flash"), {QStringLiteral("two examples typed beside a column of data")}},
             {QStringLiteral("hf."), {QStringLiteral("the header of a page being typed in")}},
             {QStringLiteral("notes."), {QStringLiteral("a note in two cells, the later one selected"), QStringLiteral("a note in two cells, the earlier one selected"), QStringLiteral("a cell with a note")}},
             {QStringLiteral("object."), {QStringLiteral("two charts, the later one selected")}},
@@ -432,6 +440,7 @@ private Q_SLOTS:
             {QStringLiteral("formulas.evaluate"), QStringLiteral("it tells in a message to select a cell with a formula (none is selected here), and shows its dialog only for one")},
             {QStringLiteral("data.circleInvalid"), QStringLiteral("it tells in a message that every cell follows its rule (no rule is set here), and draws ovals only when one does not")},
             {QStringLiteral("review.statistics"), QStringLiteral("it tells the numbers in a message and changes nothing in the workbook")},
+            {QStringLiteral("style.delete"), QStringLiteral("it needs a style the workbook made for itself, and says so when there is none; the Cell Styles tests run it with one")},
         };
         m_app.neverRun = {
             {QStringLiteral("cond.clearSelection"), QStringLiteral("it is on only when a rule of conditional formatting covers the selected cells, and no place here has a rule; the conditional formatting tests run it")},

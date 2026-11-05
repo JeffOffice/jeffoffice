@@ -77,6 +77,11 @@ QByteArray ClipData::toBytes() const
     }
     s << quint32(merges.size());
     for (const CellRange &m : merges) s << m.row1 << m.col1 << m.row2 << m.col2;
+    // (after the merges, so that a reader that stops there reads the rest as it always did)
+    s << quint32(notes.size());
+    for (const ClipNote &n : notes) s << n.dRow << n.dCol << n.text << n.author << n.shown;
+    s << quint32(columnWidths.size());
+    for (const double w : columnWidths) s << w;
     return bytes;
 }
 
@@ -119,6 +124,26 @@ bool ClipData::fromBytes(const QByteArray &bytes, ClipData *out)
         d.merges.push_back(m);
     }
     if (s.status() != QDataStream::Ok) return false;
+    if (!s.atEnd()) {
+        quint32 notes = 0, widths = 0;
+        s >> notes;
+        constexpr qint64 kLeastNoteBytes = 17;
+        if (s.status() != QDataStream::Ok || qint64(notes) > (bytes.size() - s.device()->pos()) / kLeastNoteBytes || qint64(notes) > qint64(d.rows) * qint64(d.cols)) return false;
+        for (quint32 i = 0; i < notes; ++i) {
+            ClipNote n;
+            s >> n.dRow >> n.dCol >> n.text >> n.author >> n.shown;
+            if (s.status() != QDataStream::Ok || n.dRow >= d.rows || n.dCol >= d.cols) return false;
+            d.notes.push_back(std::move(n));
+        }
+        s >> widths;
+        if (s.status() != QDataStream::Ok || widths > d.cols || qint64(widths) * 8 > bytes.size() - s.device()->pos()) return false;
+        for (quint32 i = 0; i < widths; ++i) {
+            double w = 0;
+            s >> w;
+            d.columnWidths.push_back(w);
+        }
+        if (s.status() != QDataStream::Ok) return false;
+    }
     *out = std::move(d);
     return true;
 }

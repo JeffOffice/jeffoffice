@@ -511,6 +511,70 @@ private Q_SLOTS:
         QVERIFY(g.looks().look(g.cellAt(0, 0)->style).bold);
     }
 
+    // Delete Cell Style takes a style out of the gallery and returns the cells that use it to Normal, as one step of Undo that gives both back; it is saved (the style is kept in the file, marked
+    // hidden, as the format does), and Normal and a name the workbook does not have are refused.
+    void deletingACellStyleReturnsItsCellsToNormal()
+    {
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        e.select(QStringLiteral("A1"));
+        run(e, "fmt.bold");
+        QString answer = QStringLiteral("Mine");
+        e.win.w.setStyleNameAsker([&answer](QString *name) {
+            *name = answer;
+            return true;
+        });
+        selectRange(e, QStringLiteral("A1"));
+        run(e, "style.new");
+        QMenu *styles = menuNamed(e, "stylesMenu");
+        styles->aboutToShow();
+        QAction *mine = actionTextOf(styles, QStringLiteral("Mine"));
+        QVERIFY(mine);
+        selectRange(e, QStringLiteral("B2"));
+        mine->trigger();
+        QVERIFY(lookAt(e, QStringLiteral("A1")).bold && lookAt(e, QStringLiteral("B2")).bold);
+        const int steps = e.win.w.undoStack()->count();
+        QVERIFY(e.win.w.act(QStringLiteral("style.delete")));
+        QVERIFY(e.win.w.act(QStringLiteral("style.delete"))->isEnabled());
+        answer = QStringLiteral("Normal");
+        run(e, "style.delete");
+        answer = QStringLiteral("No Such Style");
+        run(e, "style.delete");
+        QCOMPARE(e.win.told.size(), 2);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        e.win.told.clear();
+        answer = QStringLiteral("Mine");
+        run(e, "style.delete");
+        QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join('|')));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QVERIFY(!lookAt(e, QStringLiteral("A1")).bold && !lookAt(e, QStringLiteral("B2")).bold);
+        styles->aboutToShow();
+        QVERIFY(!actionTextOf(styles, QStringLiteral("Mine")));
+        // saved: the style is in the file, marked hidden, and a window that opens it does not list it and shows the cells as Normal
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        Package p;
+        QString why;
+        QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
+        const QByteArray part = p.part(QStringLiteral("/xl/styles.xml"));
+        const qsizetype at = part.indexOf("name=\"Mine\"");
+        QVERIFY2(at >= 0, part.constData());
+        QVERIFY2(part.mid(at, 80).contains("hidden=\"1\""), part.mid(at, 120).constData());
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const grid::GridSheet &g = second.w.view()->sheet();
+        QVERIFY(!g.looks().look(g.cellAt(0, 0)->style).bold);
+        // Undo gives the style and the cells' look back, Redo takes them out again
+        e.win.w.undoStack()->undo();
+        QVERIFY(lookAt(e, QStringLiteral("A1")).bold && lookAt(e, QStringLiteral("B2")).bold);
+        styles->aboutToShow();
+        QVERIFY(actionTextOf(styles, QStringLiteral("Mine")));
+        e.win.w.undoStack()->redo();
+        QVERIFY(!lookAt(e, QStringLiteral("A1")).bold);
+    }
+
     // Undo takes a New Cell Style back out whole (the style, and the cell formats made for it), so the same name can be made again and nothing unused is written; a name with a control character
     // is refused.
     void undoOfANewCellStyleTakesTheStyleOut()

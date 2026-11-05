@@ -2,6 +2,7 @@
 // paste moves the cells; Paste Special asks what to paste and what to do with it.
 #include "app/crunchwindow.h"
 
+#include "core/printjob.h"
 #include "sheet/cellref.h"
 
 #include <QAction>
@@ -15,10 +16,12 @@
 #include <QGroupBox>
 #include <QLineEdit>
 #include <QMimeData>
+#include <QPainter>
 #include <QRadioButton>
 #include <QVBoxLayout>
 
 #include <atomic>
+#include <cmath>
 
 namespace jp {
 
@@ -51,11 +54,74 @@ void CrunchWindow::createClipboardActions()
         o.transpose = true;
         pasteClipboard(o);
     });
+    // the rest of the Paste menu: each of Paste Special's choices, made at once
+    auto gallery = [&](const char *id, const QString &text, Options::What what) {
+        mk(QString::fromLatin1(id), text, "", QKeySequence(), [this, what] {
+            Options o;
+            o.what = what;
+            pasteClipboard(o);
+        });
+        m_opsActions << QString::fromLatin1(id);
+    };
+    gallery("paste.exceptBorders", tr("No Borders"), Options::What::AllExceptBorders);
+    gallery("paste.formulaFormats", tr("Formulas and Number Formatting"), Options::What::FormulasAndNumberFormats);
+    gallery("paste.valueFormats", tr("Values and Number Formatting"), Options::What::ValuesAndNumberFormats);
+    gallery("paste.widths", tr("Keep Source Column Widths"), Options::What::ColumnWidths);
+    gallery("paste.notes", tr("Comments and Notes"), Options::What::Comments);
+    mk("edit.copyPicture", tr("Copy as Picture"), "image", QKeySequence(), [this] { copyAsPicture(false); });
+    mk("edit.copyBitmap", tr("Copy as Bitmap"), "image", QKeySequence(), [this] { copyAsPicture(true); });
+    m_opsActions << QStringLiteral("edit.copyPicture") << QStringLiteral("edit.copyBitmap");
     mk("paste.special", tr("Paste Special…"), "", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V), [this] { pasteSpecial(); });
     for (const char *id : {"edit.cut", "edit.paste", "paste.values", "paste.formulas", "paste.formats", "paste.transpose", "paste.special"}) m_opsActions << QString::fromLatin1(id);
     connect(m_view, &grid::GridView::copyBorderCleared, this, [this] { forgetClip(); });
     connect(QApplication::clipboard(), &QClipboard::dataChanged, this, [this] { onClipboardChanged(); });
     updateEditActions();
+}
+
+// Copy as Picture and Copy as Bitmap: the selected cells as the grid draws them (the screen's gridlines, no selection tint), cut from the page the print job lays them on, as an image on the
+// clipboard (the picture at twice the screen's resolution, the bitmap at the screen's). A block that does not go on one page is told, and nothing is copied.
+void CrunchWindow::copyAsPicture(bool bitmap)
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !m_session || m_sheet < 0 || m_chartSheetShown) return;
+    const CellRange r = selectedRange();
+    crunch::PrintJobOptions o;
+    o.what = crunch::PrintWhat::Selection;
+    o.selection = r;
+    o.ignorePrintArea = true;
+    o.setMargins = true;
+    o.margins = jp::office::sheet::PageMargins();
+    o.margins.left = o.margins.right = o.margins.top = o.margins.bottom = o.margins.header = o.margins.footer = 0;
+    o.scaling = crunch::PrintScaling::NoScaling;
+    QString why;
+    const std::unique_ptr<crunch::PrintJob> job = makePrintJob(o, &why);
+    if (!job) {
+        notice(tr("Copy as Picture"), why.isEmpty() ? tr("There is nothing to make a picture of.") : why);
+        return;
+    }
+    QRectF box;
+    if (job->pageCount() != 1 || !job->rangeRect(0, r.row1, r.col1, r.row2, r.col2, &box) || box.isEmpty()) {
+        notice(tr("Copy as Picture"), tr("These cells do not fit in one picture. Select fewer cells, and try again."));
+        return;
+    }
+    job->setScreenMarks(act(QStringLiteral("view.gridlines"))->isChecked(), false);
+    const double scale = (bitmap ? 96.0 : 192.0) / 72.0;
+    const QSizeF paper = job->pageSize(0);
+    const QSize pixels(int(std::ceil(paper.width() * scale)), int(std::ceil(paper.height() * scale)));
+    if (pixels.isEmpty() || qint64(pixels.width()) * pixels.height() > crunch::kMaxPreviewPixels) {
+        notice(tr("Copy as Picture"), tr("These cells do not fit in one picture. Select fewer cells, and try again."));
+        return;
+    }
+    QImage page(pixels, QImage::Format_ARGB32);
+    page.fill(Qt::white);
+    {
+        QPainter p(&page);
+        p.setRenderHint(QPainter::TextAntialiasing);
+        p.scale(scale, scale);
+        job->paint(&p, 0);
+    }
+    const QRect cut = QRectF(box.x() * scale, box.y() * scale, box.width() * scale, box.height() * scale).toAlignedRect().intersected(page.rect());
+    QApplication::clipboard()->setImage(page.copy(cut));
 }
 
 // The clipboard was changed by someone: if it is not the copy made here that it holds, the border of the cells goes.
@@ -235,7 +301,7 @@ void CrunchWindow::pasteSpecial()
         auto *what = new QGroupBox(tr("Paste"));
         auto *whatLayout = new QVBoxLayout(what);
         auto *whatGroup = new QButtonGroup(&dialog);
-        const QStringList whatNames = {tr("All"), tr("Formulas"), tr("Values"), tr("Formats")};
+        const QStringList whatNames = {tr("All"), tr("Formulas"), tr("Values"), tr("Formats"), tr("All Except Borders"), tr("Formulas and Number Formats"), tr("Values and Number Formats"), tr("Column Widths"), tr("Comments and Notes")};
         for (int i = 0; i < whatNames.size(); ++i) {
             auto *b = new QRadioButton(whatNames[i]);
             b->setChecked(i == 0);

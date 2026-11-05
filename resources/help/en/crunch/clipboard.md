@@ -1,5 +1,5 @@
 # Cut, copy, and paste
-<!-- keywords: cut, copy, paste, clipboard, move, duplicate, special, values, formulas, formats, transpose, skip blanks, add, subtract, multiply, divide, operation, merged, text, tab, html, web page, other program, Escape, marching ants, border -->
+<!-- keywords: cut, copy, paste, clipboard, move, duplicate, special, values, formulas, formats, transpose, skip blanks, add, subtract, multiply, divide, operation, merged, text, tab, html, web page, other program, Escape, marching ants, border, column widths, notes, comments, number formats, all except borders, picture, bitmap, copy as picture -->
 
 **Copy** (**{key:Copy}**) puts a copy of the selected cells on the clipboard, a place the computer keeps for one thing at a time. **Paste** (**{key:Paste}**) puts what is on the clipboard into the cells starting at the selected cell. **Cut** (**{key:Cut}**) is like copy, but when you paste, the cells are moved and the old place is emptied.
 
@@ -20,9 +20,19 @@ When you cut cells and paste them, the cells really move. Every formula that poi
 **Ctrl+Alt+V**, or the arrow under **Paste** on the Home tab, lets you choose what to paste:
 
 - **All**, **Formulas**, **Values**, or **Formats**. *Values* turns a formula into the number or text it shows.
+- **All Except Borders**: everything, but the cells keep the borders they had.
+- **Formulas and Number Formats**, or **Values and Number Formats**: the formulas (or the values) come with how the numbers are shown, such as percent or a date, but not the colors, fonts, or borders. The cells keep the look they had.
+- **Column Widths**: the columns you paste into get the widths of the columns you copied.
+- **Comments and Notes**: the notes of the copied cells are put on the cells you paste into. No cell value changes.
 - An **operation**: **Add**, **Subtract**, **Multiply**, or **Divide**. The numbers you copied are combined with the numbers already in the cells. Example: the cells hold 10 and 20, you copied 5, and you chose *Multiply*: they become 50 and 100.
 - **Skip blanks**: empty cells in the copy leave the cells they land on as they were.
 - **Transpose**: rows become columns and columns become rows.
+
+## The Paste menu and pictures
+
+The arrow under **Paste** lists the usual choices, and also **No Borders**, **Formulas and Number Formatting**, **Values and Number Formatting**, **Keep Source Column Widths**, and **Comments and Notes**. They are the same as the choices in Paste Special, one click each.
+
+The arrow next to **Copy** has **Copy as Picture** and **Copy as Bitmap**. Each puts a picture of the selected cells on the clipboard, drawn as you see them, with the gridlines. A bitmap is the size of the screen. A picture has twice as many dots, so it stays sharp when it is made larger. Paste it into JeffWrite or JeffDeck as an image. If the cells do not fit in one picture, select fewer.
 
 ## Between programs
 
