@@ -324,6 +324,19 @@ private Q_SLOTS:
                 waitFor([&] { return quiet(w); });
                 w->view()->selectCell(4, 0);
             }),
+            in(QStringLiteral("a cell circled by Circle Invalid Data"), [](CrunchWindow *w) {
+                enter(w, 1, 1, QStringLiteral("50"));
+                waitFor([&] { return quiet(w); });
+                jp::office::sheet::CellRange cell;
+                jp::office::sheet::parseRangeRef(QStringLiteral("B2"), &cell);
+                jp::office::sheet::Validation rule;
+                rule.type = jp::office::sheet::Validation::Type::Whole;
+                rule.compare = jp::office::sheet::Validation::Compare::Between;
+                rule.formula1 = "1";
+                rule.formula2 = "9";
+                w->setValidationOn(cell, rule);
+                w->circleInvalidData();
+            }),
             in(QStringLiteral("a hidden row and column, around them selected"), [](CrunchWindow *w) {
                 w->view()->selectRows(1, 1);
                 w->act(QStringLiteral("format.hideRows"))->trigger();
@@ -405,6 +418,7 @@ private Q_SLOTS:
             {QStringLiteral("table."), {QStringLiteral("the cursor in a table")}},
             {QStringLiteral("spark."), {QStringLiteral("a cell with a sparkline selected")}},
             {QStringLiteral("view.pageBreaks"), {QStringLiteral("a sheet that runs over a page")}},
+            {QStringLiteral("data.clearCircles"), {QStringLiteral("a cell circled by Circle Invalid Data")}},
         };
         m_app.skipped = {};
         // What a command may leave as it is, where what it does has nothing to do.
@@ -420,7 +434,6 @@ private Q_SLOTS:
             {QStringLiteral("review.statistics"), QStringLiteral("it tells the numbers in a message and changes nothing in the workbook")},
         };
         m_app.neverRun = {
-            {QStringLiteral("data.clearCircles"), QStringLiteral("it is on only when cells are circled by Circle Invalid Data, and no place here has a rule that a cell breaks; the data tools tests run it")},
             {QStringLiteral("cond.clearSelection"), QStringLiteral("it is on only when a rule of conditional formatting covers the selected cells, and no place here has a rule; the conditional formatting tests run it")},
             {QStringLiteral("cond.clearSheet"), QStringLiteral("it is on only when the sheet has a rule of conditional formatting, and no place here has one; the conditional formatting tests run it")},
         };

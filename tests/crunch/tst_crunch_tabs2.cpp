@@ -2,6 +2,7 @@
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/ribbon.h"
+#include "app/settings.h"
 #include "core/advancedfilter.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
@@ -193,7 +194,8 @@ private Q_SLOTS:
         QStringList kinds = names(more);
         QVERIFY(kinds.contains(QStringLiteral("Statistical")));
         QVERIFY(kinds.contains(QStringLiteral("Database")));
-        // nothing used yet
+        // nothing used yet (an earlier test may have used one)
+        Settings::get().setValue(QStringLiteral("formulas/recentFunctions"), QStringList());
         QMenu *recent = menuOf(QStringLiteral("Recently Used"));
         QVERIFY(recent);
         QVERIFY(w.recentFunctions().isEmpty());
