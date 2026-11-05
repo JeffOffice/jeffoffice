@@ -696,6 +696,141 @@ bool setPictureWrap(WriteDoc &doc, int position, PictureWrap wrap)
     });
 }
 
+namespace {
+
+// A floating picture's place in the layers of the page: where it is, its height (w:relativeHeight), and whether it is in the layer behind the text.
+struct Layer {
+    int position = 0;
+    qint64 z = 0;
+    bool behind = false;
+};
+
+// The floating pictures of the story, the ones behind the text first, each layer from the lowest to the highest (pictures of the same height by their place in the text).
+QVector<Layer> floatingLayers(WriteDoc &doc)
+{
+    QVector<Layer> out;
+    QTextDocument *story = doc.story();
+    for (int p = 0; p + 1 < story->characterCount(); ++p) {
+        if (!isPictureAt(story, p)) continue;
+        Inline atom;
+        Model m;
+        if (!drawingAtomOf(formatAfter(story, p), &atom) || !parseDrawing(atom.raw, &m) || !m.floating) continue;
+        out.push_back({p, m.relativeHeight, m.wrap == PictureWrap::BehindText});
+    }
+    std::stable_sort(out.begin(), out.end(), [](const Layer &a, const Layer &b) { return a.behind != b.behind ? a.behind : a.z < b.z; });
+    return out;
+}
+
+
+// What an order command changes: the new height of each picture that moves, and whether the one asked for ends up behind the text.
+struct OrderPlan {
+    bool any = false;
+    bool toBehind = false;
+    QVector<std::pair<int, qint64>> heights;   // position, new height
+};
+
+OrderPlan planPictureOrder(WriteDoc &doc, int position, PictureOrder order)
+{
+    OrderPlan none;
+    constexpr qint64 kMostHeight = 4294967295LL;
+    const QVector<Layer> all = floatingLayers(doc);
+    QVector<Layer> behind, front;
+    Layer mine;
+    bool found = false;
+    for (const Layer &l : all) {
+        if (l.position == position) {
+            mine = l;
+            found = true;
+        } else {
+            (l.behind ? behind : front).push_back(l);
+        }
+    }
+    if (!found) return none;
+    // Where it stands in its own layer now (among the others of it).
+    QVector<Layer> &own = mine.behind ? behind : front;
+    int index = 0;
+    while (index < own.size() && (own[index].z < mine.z || (own[index].z == mine.z && own[index].position < mine.position))) ++index;
+    bool toBehind = mine.behind;
+    int target = index;
+    switch (order) {
+    case PictureOrder::BringToFront:
+        if (!mine.behind && index == front.size()) return none;
+        toBehind = false;
+        target = front.size();
+        break;
+    case PictureOrder::SendToBack:
+        if (index == 0) return none;
+        target = 0;
+        break;
+    case PictureOrder::BringForward:
+        if (index < own.size()) {
+            target = index + 1;
+        } else if (mine.behind) {
+            toBehind = false;
+            target = 0;
+        } else {
+            return none;
+        }
+        break;
+    case PictureOrder::SendBackward:
+        if (index > 0) {
+            target = index - 1;
+        } else if (!mine.behind) {
+            toBehind = true;
+            target = behind.size();
+        } else {
+            return none;
+        }
+        break;
+    }
+    QVector<Layer> &into = toBehind ? behind : front;
+    target = std::clamp(target, 0, int(into.size()));
+    mine.behind = toBehind;
+    into.insert(target, mine);
+    // Heights rise along the layer from the picture put in on: its own stays if it fits between its new neighbors, else it is the one above the lower; each one above it that is not
+    // higher than the one before is raised to the next height. Only a picture whose height changes is written again.
+    const qint64 prevZ = target > 0 ? into[target - 1].z : -1;
+    const qint64 nextZ = target + 1 < into.size() ? into[target + 1].z : kMostHeight + 1;
+    qint64 z = mine.z;
+    if (!(z > prevZ && z < nextZ)) z = prevZ >= 0 ? prevZ + 1 : std::max<qint64>(0, nextZ - 1);
+    QVector<std::pair<int, qint64>> heights;   // position, new height
+    heights.push_back({position, z});
+    for (int i = target + 1; i < into.size(); ++i) {
+        const qint64 raised = std::max(into[i].z, z + 1);
+        if (raised > kMostHeight) return none;
+        if (raised != into[i].z) heights.push_back({into[i].position, raised});
+        z = raised;
+    }
+    OrderPlan plan;
+    plan.any = true;
+    plan.toBehind = toBehind;
+    plan.heights = heights;
+    return plan;
+}
+
+} // namespace
+
+bool canOrderPicture(WriteDoc &doc, int position, PictureOrder order) { return planPictureOrder(doc, position, order).any; }
+
+bool setPictureOrder(WriteDoc &doc, int position, PictureOrder order)
+{
+    const OrderPlan plan = planPictureOrder(doc, position, order);
+    if (!plan.any) return false;
+    const WriteDoc::StepGroup group(doc);
+    bool changed = false;
+    for (const auto &h : plan.heights) {
+        const bool isMine = h.first == position;
+        changed |= changePicture(doc, h.first, [&](Model &m) {
+            const PictureWrap was = m.wrap;
+            if (isMine && plan.toBehind != (m.wrap == PictureWrap::BehindText)) m.wrap = plan.toBehind ? PictureWrap::BehindText : PictureWrap::InFrontOfText;
+            if (m.relativeHeight == h.second && m.wrap == was) return false;
+            m.relativeHeight = h.second;
+            return true;
+        });
+    }
+    return changed;
+}
+
 bool setPictureAltText(WriteDoc &doc, int position, const QString &alt)
 {
     const QByteArray text = attribute(alt, kMostAltTextLength);

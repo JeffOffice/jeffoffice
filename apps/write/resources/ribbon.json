@@ -1908,6 +1908,24 @@
               "menu": "@pictureWrap"
             },
             {
+              "large": {
+                "id": "ribbon.bringForward",
+                "text": "Bring Forward",
+                "icon": "arrow-up"
+              },
+              "keytip": "BF",
+              "menu": "@pictureForward"
+            },
+            {
+              "large": {
+                "id": "ribbon.sendBackward",
+                "text": "Send Backward",
+                "icon": "arrow-down"
+              },
+              "keytip": "SB",
+              "menu": "@pictureBackward"
+            },
+            {
               "large": "picture.altText",
               "keytip": "AT"
             },

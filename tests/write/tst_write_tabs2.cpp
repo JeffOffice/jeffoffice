@@ -15,6 +15,7 @@
 #include "core/insertops.h"
 #include "core/linkops.h"
 #include "core/outlineops.h"
+#include "core/pictureops.h"
 #include "core/pagesetup.h"
 #include "app/writedialogs.h"
 #include "core/proofops.h"
@@ -24,6 +25,9 @@
 
 #include "office/package.h"
 #include <QAction>
+#include <QBuffer>
+#include <QImage>
+#include <QRegularExpression>
 #include <QApplication>
 #include <QComboBox>
 #include <QDialog>
@@ -146,6 +150,38 @@ std::unique_ptr<WriteDoc> capsDoc(const QByteArray &settings)
     const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"720\" w:bottom=\"1440\" w:left=\"720\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
     QString err;
     return WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r></w:p>" + sect, settings), &err);
+}
+
+QByteArray bluePng()
+{
+    QImage image(40, 20, QImage::Format_ARGB32);
+    image.fill(Qt::blue);
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    return png;
+}
+
+// The positions of the pictures of the story, in order.
+QList<int> picturePositions(WriteDoc &doc)
+{
+    QList<int> out;
+    for (int p = 0; p + 1 < doc.story()->characterCount(); ++p)
+        if (isPictureAt(doc.story(), p)) out << p;
+    return out;
+}
+
+// The heights (w:relativeHeight) of the pictures the file holds, in the order of the text.
+QList<qint64> pictureHeights(const QByteArray &docx)
+{
+    office::Package p;
+    p.read(docx);
+    const QString xml = QString::fromUtf8(p.part(QStringLiteral("/word/document.xml")));
+    QList<qint64> out;
+    auto it = QRegularExpression(QStringLiteral("relativeHeight=\"([0-9]+)\"")).globalMatch(xml);
+    while (it.hasNext()) out << it.next().captured(1).toLongLong();
+    return out;
 }
 
 // The longest run of lines in a row that end inside a word (a hyphenated break), and how many lines there are.
@@ -782,6 +818,55 @@ private Q_SLOTS:
         w.setHyphenationAsker([](double &, int &) { return false; });
         w.act(QStringLiteral("layout.hyphenation.options"))->trigger();
         QCOMPARE(w.document()->hyphenLimit(), 2);
+    }
+
+    // ---------------------------------------------------------------- Arrange
+    void floatingPicturesMoveForwardAndBackwardInTheLayers()
+    {
+        auto doc = WriteDoc::blank();
+        QTextCursor c(doc->story());
+        for (int i = 0; i < 3; ++i) {
+            QCOMPARE(insertPicture(*doc, c, bluePng(), QStringLiteral("p%1").arg(i), PictureWrap::Square), PictureResult::Ok);
+            insertText(*doc, c, QStringLiteral(" "));
+        }
+        QCOMPARE(insertPicture(*doc, c, bluePng(), QStringLiteral("flat")), PictureResult::Ok);   // (in line with the text: no layer)
+        const QList<int> at = picturePositions(*doc);
+        QCOMPARE(at.size(), 4);
+        QVERIFY(!canOrderPicture(*doc, at[3], PictureOrder::BringToFront));
+        QVERIFY(!setPictureOrder(*doc, at[3], PictureOrder::BringToFront));
+        // Level to begin with (a new picture is at the usual height), the last of them is the one in front: none to bring to the front, a place to send to the back.
+        QVERIFY(canOrderPicture(*doc, at[2], PictureOrder::SendToBack));
+        QVERIFY(setPictureOrder(*doc, at[2], PictureOrder::SendToBack));
+        QList<qint64> z = pictureHeights(doc->toDocx());
+        QCOMPARE(z.size(), 3);
+        QVERIFY2(z[2] < z[0] && z[2] < z[1], qPrintable(QString::number(z[2])));
+        // The first to the front: above both.
+        QVERIFY(setPictureOrder(*doc, at[0], PictureOrder::BringToFront));
+        z = pictureHeights(doc->toDocx());
+        QVERIFY(z[0] > z[1] && z[0] > z[2] && z[1] > z[2]);
+        QVERIFY(!canOrderPicture(*doc, at[0], PictureOrder::BringToFront));
+        // The one at the back goes one forward: above the middle one, below the front one.
+        QVERIFY(setPictureOrder(*doc, at[2], PictureOrder::BringForward));
+        z = pictureHeights(doc->toDocx());
+        QVERIFY2(z[2] > z[1] && z[2] < z[0], qPrintable(QString::number(z[0]) + "," + QString::number(z[1]) + "," + QString::number(z[2])));
+        // And one backward again, which is one step of the history each time.
+        QVERIFY(setPictureOrder(*doc, at[2], PictureOrder::SendBackward));
+        z = pictureHeights(doc->toDocx());
+        QVERIFY(z[2] < z[1]);
+        QVERIFY(doc->undo());
+        z = pictureHeights(doc->toDocx());
+        QVERIFY(z[2] > z[1] && z[2] < z[0]);
+        // The lowest one sent backward goes behind the text; one more step forward brings it out in front of it again.
+        QVERIFY(setPictureOrder(*doc, at[1], PictureOrder::SendBackward));
+        QCOMPARE(pictureAt(*doc, doc->story(), at[1]).wrap, PictureWrap::BehindText);
+        QVERIFY(!canOrderPicture(*doc, at[1], PictureOrder::SendBackward));
+        QVERIFY(setPictureOrder(*doc, at[1], PictureOrder::BringForward));
+        QCOMPARE(pictureAt(*doc, doc->story(), at[1]).wrap, PictureWrap::InFrontOfText);
+        // The file reads back with the same layers.
+        QString err;
+        auto again = WriteDoc::fromDocx(doc->toDocx(), &err);
+        QVERIFY(again);
+        QCOMPARE(pictureHeights(again->toDocx()), pictureHeights(doc->toDocx()));
     }
 
     // ---------------------------------------------------------------- Page Setup
