@@ -206,6 +206,69 @@ private Q_SLOTS:
         QVERIFY(!jp::crunch::parseScenarioCells(QStringLiteral("A1:A20 C1:C20"), &cells, &why));
     }
 
+    // The changing cells of a scenario follow rows and columns inserted or deleted (a cell that is deleted drops out), in the same step as the edit, and Show and the saved file use the new cells.
+    void scenarioCellsFollowRowsAndColumnsInsertedOrDeleted()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=1", "B2=2", "C3=3", "D4=4"}})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.addScenario(QStringLiteral("Set"), QStringLiteral("B2 C3 D4"), QString(), {QStringLiteral("20"), QStringLiteral("30"), QStringLiteral("40")}));
+        auto refs = [&] {
+            QStringList out;
+            for (const auto &c : w.session()->scenariosOf(0).list[0].cells) out << c.ref;
+            return out;
+        };
+        QVERIFY(w.session()->insertRows(0, 0, 1).ok);   // a row above them all
+        QCOMPARE(refs(), (QStringList{QStringLiteral("B3"), QStringLiteral("C4"), QStringLiteral("D5")}));
+        QVERIFY(w.session()->deleteColumns(0, 2, 1).ok);   // column C goes: its cell drops out, D moves to C
+        QCOMPARE(refs(), (QStringList{QStringLiteral("B3"), QStringLiteral("C5")}));
+        QCOMPARE(w.session()->scenariosOf(0).sqref, QStringLiteral("B3 C5"));
+        // Undo puts all three cells back where they were, and Redo moves them again
+        w.undoStack()->undo();
+        w.undoStack()->undo();
+        QCOMPARE(refs(), (QStringList{QStringLiteral("B2"), QStringLiteral("C3"), QStringLiteral("D4")}));
+        w.undoStack()->redo();
+        w.undoStack()->redo();
+        QCOMPARE(refs(), (QStringList{QStringLiteral("B3"), QStringLiteral("C5")}));
+        QVERIFY(w.showScenario(0));
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->editText(0, 2, 1), QStringLiteral("20"));
+        QCOMPARE(w.session()->editText(0, 4, 2), QStringLiteral("40"));
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY(savedOk(saved));
+        QVERIFY(savedSheetXml(e.path).contains("r=\"C5\""));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QCOMPARE(second.w.session()->scenariosOf(0).list[0].cells.size(), 2);
+    }
+
+    // The same for Insert Cells and Delete Cells (shifting down, up, right, or left).
+    void scenarioCellsFollowInsertedAndDeletedCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=1", "B2=2", "C3=3", "D4=4"}})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.addScenario(QStringLiteral("Set"), QStringLiteral("B2 C3 D4"), QString(), {QStringLiteral("20"), QStringLiteral("30"), QStringLiteral("40")}));
+        auto refs = [&] {
+            QStringList out;
+            for (const auto &c : w.session()->scenariosOf(0).list[0].cells) out << c.ref;
+            return out;
+        };
+        QVERIFY(w.session()->insertCells(0, rangeOf(QStringLiteral("B1:B1")), true).ok);
+        QCOMPARE(refs(), (QStringList{QStringLiteral("B3"), QStringLiteral("C3"), QStringLiteral("D4")}));
+        QVERIFY(w.session()->deleteCells(0, rangeOf(QStringLiteral("C3:C3")), false).ok);   // C3 is gone, D4 does not move (row 4), the cell right of C3 in row 3 would
+        QCOMPARE(refs(), (QStringList{QStringLiteral("B3"), QStringLiteral("D4")}));
+        QVERIFY(w.session()->deleteCells(0, rangeOf(QStringLiteral("B3:B3")), true).ok);   // B3 is gone
+        QCOMPARE(refs(), (QStringList{QStringLiteral("D4")}));
+        QVERIFY(w.session()->insertCells(0, rangeOf(QStringLiteral("D1:D1")), false).ok);   // shifted right: D4 is untouched (another row)
+        QCOMPARE(refs(), (QStringList{QStringLiteral("D4")}));
+        QVERIFY(w.session()->insertCells(0, rangeOf(QStringLiteral("A4:C4")), false).ok);   // three cells right in row 4
+        QCOMPARE(refs(), (QStringList{QStringLiteral("G4")}));
+    }
+
     // A file that holds more scenarios than any real one is read up to a limit.
     void scenariosPastTheLimitAreLeftOut()
     {

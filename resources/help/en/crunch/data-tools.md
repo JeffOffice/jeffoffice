@@ -66,7 +66,7 @@ A scenario is a named set of values for some cells. Use scenarios to try "what i
 2. Press **Add**. Type a name, such as High sales. In **Changing cells**, type the cells the scenario sets, such as B1:B3 or D5. A scenario can change up to 32 cells. The cells you selected are filled in for you. Each cell starts with the value it holds now. Type the value this scenario should use in the table, and press **OK**.
 3. Pick a scenario in the list and press **Show** to put its values in the cells. Double-clicking a name does the same. Press **Edit** to change its name, its comment, or its values. Press **Delete** to take it away.
 
-Show, Add, Edit, and Delete are each one step that you can undo. A scenario keeps the cell names it was made with. If you insert or delete rows or columns, check that its cells are still the right ones.
+Show, Add, Edit, and Delete are each one step that you can undo.
 
 **Summary** puts all the scenarios side by side on a new sheet called Scenario Summary. It asks for the result cells, which are the cells you want to compare, such as the total in B10. For each scenario, the summary shows the values of the changing cells and what the result cells come to, worked out with that scenario's values. A column called Current Values shows how the cells were when you made the summary. Your own cells are left as they were.
 

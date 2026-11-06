@@ -335,6 +335,8 @@ public:
         std::vector<std::pair<int, QVector<CondRule>>> conditionalFormats;
         // and the sparklines of the sheets they changed in
         std::vector<std::pair<int, QVector<SparklineGroup>>> sparklines;
+        // and the scenarios of the sheets they changed in
+        std::vector<std::pair<int, ScenarioList>> scenarios;
         // a Move: the merged ranges of the sheet it went to, as they were (the first sheet's are in `merges`)
         QVector<CellRange> toMerges;
         qint64 toMergeCount = 0;
@@ -534,6 +536,7 @@ public:
         std::vector<std::pair<int, QVector<Validation>>> validations;         // rules of validation, as they were, of the sheets that had a formula to change
         std::vector<std::pair<int, QVector<CondRule>>> conditionalFormats;    // and of conditional formatting
         std::vector<std::pair<int, QVector<SparklineGroup>>> sparklines;      // and the sparklines
+        std::vector<std::pair<int, ScenarioList>> scenarios;                  // and the scenarios
         qint64 bytes() const;
     };
     // Every reference to the sheet `oldName` in every formula (the cells', the defined names', the rules'): changed to name `newName`, or, when it is empty (the sheet is deleted), #REF!. The
@@ -865,6 +868,7 @@ private:
     void adjustValidations(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
     void adjustConditionalFormats(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
     void adjustSparklines(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
+    void adjustScenarios(const StructEdit &edit, EditRecord *record);
     // A cell that is deleted or written over, as it is, for Undo to put back (an array formula or a data table is put back as one: see putBackKinds).
     EditRecord::GoneCell goneCell(int sheet, quint32 row, quint32 col, const Cell &c) const;
     void pushGone(EditRecord *rec, int sheet, quint32 row, quint32 col, const Cell &c) const;   // (a cell that is deleted or written over, in the record; and with the id frame the formula as it is held)

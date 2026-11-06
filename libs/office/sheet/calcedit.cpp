@@ -1317,6 +1317,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     adjustValidations(e, names, rec);
     adjustConditionalFormats(e, names, rec);
     adjustSparklines(e, names, rec);
+    adjustScenarios(e, rec);
 
     // ---- the defined names (one held in ids is as it was for an edit of whole lines: the same ids; for an edit of cells it is looked at by its places)
     bool namesChanged = false;
@@ -1606,6 +1607,8 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
         if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].conditionalFormats = entry.second;
     for (const auto &entry : rec.sparklines)
         if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].sparklineGroups = entry.second;
+    for (const auto &entry : rec.scenarios)
+        if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].scenarios = entry.second;
     // (a list the edit did not change is as it was; if the edit that undoes it changed one, that one is put back as it was before that: what the edit left)
     if (rec.rangesSaved) S.ranges = rec.ranges;
     else if (throwaway.rangesSaved) S.ranges = throwaway.ranges;
@@ -1815,6 +1818,42 @@ void Calculation::adjustSparklines(const StructEdit &e, const QStringList &names
         if (!changed) continue;
         rec->sparklines.push_back({si, sheet.sparklineGroups});
         sheet.sparklineGroups = std::move(now);
+    }
+}
+
+// The scenarios follow the edit: each changing cell is where the edit puts it, and one whose cell is gone is dropped (a scenario left with no cell goes too). The sheets whose scenarios changed
+// are recorded as they were.
+void Calculation::adjustScenarios(const StructEdit &e, EditRecord *rec)
+{
+    for (int si = 0; si < int(m_sheets.size()); ++si) {
+        Sheet &sheet = m_sheets[size_t(si)];
+        if (sheet.scenarios.list.isEmpty()) continue;
+        ScenarioList now = sheet.scenarios;
+        now.list.clear();
+        QStringList places;
+        for (const Scenario &was : sheet.scenarios.list) {
+            Scenario s = was;
+            s.cells.clear();
+            for (ScenarioCell c : was.cells) {
+                quint32 row = 0, col = 0;
+                if (!parseCellRef(c.ref, &row, &col)) {
+                    s.cells.append(c);
+                    continue;
+                }
+                int at = si;
+                if (adjustCell(e, &at, &row, &col) == RefFate::Gone || at != si) continue;
+                c.ref = cellName(row, col);
+                if (!places.contains(c.ref)) places << c.ref;
+                s.cells.append(c);
+            }
+            if (!s.cells.isEmpty()) now.list.append(s);
+        }
+        if (now.current >= now.list.size()) now.current = 0;
+        if (now.show >= now.list.size()) now.show = 0;
+        if (!places.isEmpty()) now.sqref = places.join(QLatin1Char(' '));
+        if (now == sheet.scenarios) continue;
+        rec->scenarios.push_back({si, sheet.scenarios});
+        sheet.scenarios = std::move(now);
     }
 }
 
