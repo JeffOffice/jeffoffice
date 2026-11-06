@@ -12592,30 +12592,9 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
 <context>
     <name>Splash</name>
     <message>
-        <location filename="../libs/shell/app/splash.cpp" line="+37"/>
-        <source>Starting…</source>
-        <translation type="unfinished">Avvio in corso…</translation>
-    </message>
-    <message>
-        <location line="+83"/>
+        <location filename="../libs/shell/app/firstwindow.cpp" line="44"/>
         <source>Opening %1…</source>
         <translation type="unfinished">Apertura di %1 in corso…</translation>
-    </message>
-    <message>
-        <location filename="../apps/pub/main.cpp" line="-15"/>
-        <location filename="../apps/deck/main.cpp" line="+5"/>
-        <location filename="../apps/write/main.cpp" line="+5"/>
-        <location filename="../apps/crunch/main.cpp" line="+5"/>
-        <source>Loading fonts…</source>
-        <translation type="unfinished">Caricamento dei tipi di carattere…</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <location filename="../apps/deck/main.cpp" line="+9"/>
-        <location filename="../apps/write/main.cpp" line="+9"/>
-        <location filename="../apps/crunch/main.cpp" line="+9"/>
-        <source>Setting up the window…</source>
-        <translation type="unfinished">Impostazione della finestra…</translation>
     </message>
 </context>
 <context>

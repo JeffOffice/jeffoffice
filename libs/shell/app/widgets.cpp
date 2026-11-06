@@ -897,6 +897,17 @@ FontCombo::FontCombo(QWidget *parent) : QComboBox(parent)
     setMaxVisibleItems(18);
     setItemDelegate(new FontDelegate(this));
     populate();
+    // The list is made again when fonts are added (the bundled ones come after the window is built): once, however many are added.
+    connect(qGuiApp, &QGuiApplication::fontDatabaseChanged, this, [this] {
+        if (m_refill) return;
+        m_refill = true;
+        QTimer::singleShot(0, this, [this] {
+            m_refill = false;
+            const QString keep = currentText();
+            populate();
+            setEditText(keep);
+        });
+    });
     auto choose = [this](int i) {
         if (m_updating || i < 0) return;
         const QString fam = itemData(i, Qt::UserRole).toString();

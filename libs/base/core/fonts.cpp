@@ -3,6 +3,7 @@
 #include <atomic>
 #include <map>
 #include <mutex>
+#include <system_error>
 #include <thread>
 #include <vector>
 
@@ -499,6 +500,11 @@ static const StandInWidths *measuredStandIn(const QString &family)
     const auto w = standInWidths().constFind(family);
     if (w == standInWidths().constEnd()) return nullptr;
     static QHash<QString, bool> drawn;   // main thread only, like all layout
+    static int drawnGeneration = -1;     // (what is drawn depends on which fonts there are: asked again when they change)
+    if (drawnGeneration != fontGeneration()) {
+        drawn.clear();
+        drawnGeneration = fontGeneration();
+    }
     auto it = drawn.constFind(family);
     if (it == drawn.constEnd()) {
         QFont f(family);
@@ -640,6 +646,11 @@ double substituteHeightScale(const QString &family, bool bold)
     const auto h = t.constFind(family);
     if (h == t.constEnd()) return 1;
     static QHash<QString, bool> drawn;   // main thread only, like all layout
+    static int drawnGeneration = -1;
+    if (drawnGeneration != fontGeneration()) {
+        drawn.clear();
+        drawnGeneration = fontGeneration();
+    }
     auto it = drawn.constFind(family);
     if (it == drawn.constEnd()) {
         QFont f(family);
@@ -703,6 +714,11 @@ static const QHash<QString, NamedWeights> &weightsByName()
 int substituteWeight(const QString &family, bool bold)
 {
     static QHash<QString, int> cache;
+    static int cacheGeneration = -1;
+    if (cacheGeneration != fontGeneration()) {
+        cache.clear();
+        cacheGeneration = fontGeneration();
+    }
     const QString key = family + (bold ? QStringLiteral("|1") : QStringLiteral("|0"));
     auto it = cache.constFind(key);
     if (it != cache.constEnd()) return *it;
@@ -893,6 +909,11 @@ QString substituteStyleName(const QString &family, bool bold, bool italic)
     // isn't: that name is the upright face.
     if (italic || !weightsByName().contains(family.toLower())) return {};
     static QHash<QString, QString> named;   // main thread only, like all layout
+    static int namedGeneration = -1;
+    if (namedGeneration != fontGeneration()) {
+        named.clear();
+        namedGeneration = fontGeneration();
+    }
     const QString key = family + (bold ? QStringLiteral("|1") : QStringLiteral("|0"));
     auto it = named.constFind(key);
     if (it == named.constEnd()) {
@@ -972,7 +993,13 @@ QStringList missingSubstituteKeys()
         for (int i = from; i < keys.size(); i += step) missing[i] = QFontDatabase::hasFamily(keys[i]) ? 0 : 1;
     };
     std::vector<std::thread> workers;
-    for (int k = 1; k < threads; ++k) workers.emplace_back(ask, k, threads);
+    for (int k = 1; k < threads; ++k) {
+        try {
+            workers.emplace_back(ask, k, threads);
+        } catch (const std::system_error &) {
+            ask(k, threads);   // (no thread to be had: this one asks for those names too)
+        }
+    }
     ask(0, threads);
     for (std::thread &w : workers) w.join();
     QStringList out;

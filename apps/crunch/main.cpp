@@ -99,8 +99,8 @@ int main(int argc, char **argv)
     cli.addOptions({shotOpt, sizeOpt, zoomOpt, sheetOpt, stageOpt, tabOpt, insertOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Workbooks to open."), QStringLiteral("[files...]"));
     cli.process(app);
-    const bool staged = !cli.isSet(shotOpt) && !qEnvironmentVariableIsSet("JP_SERIAL_START") && !jp::familyMayBeBundled(QApplication::font().family());
-    if (!staged) jp::initCore();
+    const bool plain = !cli.isSet(shotOpt);   // (not a job that makes a file and quits)
+    jp::StagedStart start(plain);
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
     jp::followSystemTheme();
@@ -152,22 +152,12 @@ int main(int argc, char **argv)
         }
         return app.exec();
     }
-#ifdef Q_OS_WIN
-    // Lets the installer see that JeffCrunch is running and ask to close it first.
-    CreateMutexW(nullptr, FALSE, L"JeffCrunchRunning");
-#endif
     w->setPromptForText(true);   // (a text file asks how it is read)
-    std::unique_ptr<jp::FirstWindow> first;
-    if (staged) {
-        // The window is up before the fonts are added and the file is read, so it shows at once and says what it is doing.
-        if (!files.isEmpty()) w->statusBar()->showMessage(jp::openingStatus(files.first()));
-        first = std::make_unique<jp::FirstWindow>(w);
-        if (!first->open()) return 0;   // (closed meanwhile: nothing to open into)
-        jp::startupMark("window shown first");
-        jp::initCore();
-        jp::startupMark("initCore done");
-        if (files.isEmpty()) jp::traceDrawn(w, "window usable");
-    }
+#ifdef Q_OS_WIN
+    // Lets the installer see that JeffCrunch is running and ask to close it first (before the window shows).
+    if (plain) CreateMutexW(nullptr, FALSE, L"JeffCrunchRunning");
+#endif
+    if (!start.showFirst(w, files.value(0))) return 0;
     w->show();
     jp::startupMark("window shown");
     if (files.isEmpty()) {
@@ -178,18 +168,14 @@ int main(int argc, char **argv)
         jp::traceDrawn(w, "file drawn");
         for (int i = 1; i < files.size(); ++i) w->openFile(files[i]);   // (each in a window of its own)
     }
-    if (first && !files.isEmpty() && w->statusBar()->currentMessage() == jp::openingStatus(files.first())) w->statusBar()->clearMessage();
-    first.reset();
+    if (start.staged() && !files.isEmpty() && w->statusBar()->currentMessage() == jp::openingStatus(files.first())) w->statusBar()->clearMessage();
+    start.finish();
     if (cli.isSet(zoomOpt) && cli.value(zoomOpt).toDouble() > 0) w->view()->setZoom(cli.value(zoomOpt).toDouble() / 100.0);
     if (cli.isSet(stageOpt)) w->showFileScreen(cli.value(stageOpt));
     auto *up = new jp::Updater(w);
     jp::setUpdater(up);
     up->checkOnStartup();
     jp::telemetry::start(w);
-    // (A hook for comparing starts: JP_GRAB=<png> saves the window JP_GRAB_MS (1500) milliseconds after the start and quits; JP_SERIAL_START=1 adds the fonts before the window is built.)
-    if (qEnvironmentVariableIsSet("JP_GRAB")) QTimer::singleShot(qEnvironmentVariableIntValue("JP_GRAB_MS") > 0 ? qEnvironmentVariableIntValue("JP_GRAB_MS") : 1500, w, [w] {
-        w->grab().save(qEnvironmentVariable("JP_GRAB"));
-        QApplication::exit(0);
-    });
+    jp::grabAfterStart(w);
     return app.exec();
 }

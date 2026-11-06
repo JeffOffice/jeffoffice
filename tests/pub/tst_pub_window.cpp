@@ -46,6 +46,37 @@ private Q_SLOTS:
         QCoreApplication::instance()->removeEventFilter(&seen);
     }
 
+    // The start sequence the four programs share: a file the system asks to open while the first window opens its own is held, and once start.finish() is called
+    // (the programs call it after the open) a later one reaches the handler at once, as one for another window must on a Mac.
+    void startSequenceLetsLaterFileEventsThrough()
+    {
+        struct Seen : QObject {
+            QStringList paths;
+            bool eventFilter(QObject *, QEvent *e) override
+            {
+                if (e->type() == QEvent::FileOpen) paths << static_cast<QFileOpenEvent *>(e)->file();
+                return false;
+            }
+        } seen;
+        QCoreApplication::instance()->installEventFilter(&seen);
+        QWidget window;
+        jp::StagedStart start(true);
+        if (!start.staged()) {
+            QCoreApplication::instance()->removeEventFilter(&seen);
+            QSKIP("this computer's own font is one of the bundled ones: the fonts are added first");
+        }
+        QVERIFY(start.showFirst(&window, QStringLiteral("/x/a.docx")));
+        QFileOpenEvent held(QStringLiteral("/x/held.docx"));
+        QCoreApplication::sendEvent(QCoreApplication::instance(), &held);
+        QVERIFY(seen.paths.isEmpty());
+        start.finish();
+        QTRY_COMPARE(seen.paths, (QStringList{QStringLiteral("/x/held.docx")}));
+        QFileOpenEvent later(QStringLiteral("/x/later.docx"));
+        QCoreApplication::sendEvent(QCoreApplication::instance(), &later);
+        QCOMPARE(seen.paths.size(), 2);
+        QCoreApplication::instance()->removeEventFilter(&seen);
+    }
+
     void firstWindowClosedMeanwhileIsGone()
     {
         auto *window = new QWidget;

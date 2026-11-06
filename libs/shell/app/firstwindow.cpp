@@ -1,12 +1,20 @@
 #include "app/firstwindow.h"
 #include "core/startuptrace.h"
 
+#include "core/fonts.h"
+
+#include <QApplication>
 #include <QCoreApplication>
+#include <QFontInfo>
+#include <QMainWindow>
+#include <QStatusBar>
 #include <QFileInfo>
 #include <QElapsedTimer>
 #include <QFileOpenEvent>
 #include <QTimer>
 #include <QWindow>
+
+#include <cstdio>
 
 namespace jp {
 
@@ -69,6 +77,42 @@ void traceDrawn(QWidget *window, const char *what)
     if (!qEnvironmentVariableIsSet("JP_STARTUP_TRACE")) return;
     // (a paint is posted after the call, and the zero timer comes after it)
     QTimer::singleShot(0, window, [what] { startupMark(what); });
+}
+
+StagedStart::StagedStart(bool plain)
+    : m_staged(plain && !qEnvironmentVariableIsSet("JP_SERIAL_START") && !familyMayBeBundled(QFontInfo(QApplication::font()).family()))
+{
+    if (!m_staged) initCore();
+}
+
+bool StagedStart::showFirst(QWidget *window, const QString &fileToOpen)
+{
+    if (!m_staged) return true;
+    // The window is up before the fonts are added and the file is read, so it shows at once and says what it is doing.
+    if (!fileToOpen.isEmpty())
+        if (auto *main = qobject_cast<QMainWindow *>(window)) main->statusBar()->showMessage(openingStatus(fileToOpen));
+    m_first = std::make_unique<FirstWindow>(window);
+    if (!m_first->open()) return false;   // (closed meanwhile: nothing to open into)
+    startupMark("window shown first");
+    initCore();
+    startupMark("initCore done");
+    if (fileToOpen.isEmpty()) {
+        traceDrawn(window, "window usable");
+        m_first.reset();
+    }
+    return true;
+}
+
+void grabAfterStart(QWidget *window)
+{
+    if (!qEnvironmentVariableIsSet("JP_GRAB") || !qEnvironmentVariableIsSet("JP_STARTUP_TRACE")) return;
+    const int ms = qEnvironmentVariableIntValue("JP_GRAB_MS");
+    QTimer::singleShot(ms > 0 ? ms : 1500, window, [window] {
+        const QString path = qEnvironmentVariable("JP_GRAB");
+        const bool ok = window->grab().save(path);
+        if (!ok) std::fprintf(stderr, "JP_GRAB: can't save %s\n", qPrintable(path));
+        QCoreApplication::exit(ok ? 0 : 1);
+    });
 }
 
 } // namespace jp

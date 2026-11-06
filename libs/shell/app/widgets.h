@@ -162,6 +162,7 @@ private:
     void rememberFamily(const QString &family);
     QString m_heading, m_body;
     bool m_updating = false;
+    bool m_refill = false;
 };
 
 class SizeCombo : public QComboBox {

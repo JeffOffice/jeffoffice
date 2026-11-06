@@ -86,8 +86,8 @@ int main(int argc, char **argv)
     cli.addOptions({shotOpt, sizeOpt, templOpt, stageOpt, pdfOpt, pdfaOpt, tabOpt, helpTopicOpt, wikiOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Publications to open."), QStringLiteral("[files...]"));
     cli.process(app);
-    const bool staged = !cli.isSet(shotOpt) && !cli.isSet(pdfOpt) && !cli.isSet(wikiOpt) && !qEnvironmentVariableIsSet("JP_SERIAL_START") && !jp::familyMayBeBundled(QApplication::font().family());
-    if (!staged) jp::initCore();
+    const bool plain = !cli.isSet(shotOpt) && !cli.isSet(pdfOpt) && !cli.isSet(wikiOpt);   // (not a job that makes a file and quits)
+    jp::StagedStart start(plain);
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
     jp::followSystemTheme();
@@ -108,18 +108,11 @@ int main(int argc, char **argv)
 
     jp::installFileOpenHandler(&app);
     const QStringList files = cli.positionalArguments();
-    std::unique_ptr<jp::FirstWindow> first;
-    if (staged) {
-        // The window is up before the fonts are added and the file is read, so it shows at once and says what it is doing.
-        if (!files.isEmpty()) w->statusBar()->showMessage(jp::openingStatus(files.first()));
-        first = std::make_unique<jp::FirstWindow>(w);
-        if (!first->open()) return 0;   // (closed meanwhile: nothing to open into)
-        jp::startupMark("window shown first");
-        jp::initCore();
-        jp::startupMark("initCore done");
-        if (files.isEmpty()) jp::traceDrawn(w, "window usable");
-        if (files.isEmpty()) first.reset();
-    }
+#ifdef Q_OS_WIN
+    // Lets the installer see that JeffPub is running and ask to close it first (before the window shows).
+    if (plain) CreateMutexW(nullptr, FALSE, L"JeffPubRunning");
+#endif
+    if (!start.showFirst(w, files.value(0))) return 0;
     if (!files.isEmpty()) {
         QPointer<jp::MainWindow> guard(w);
         w->openFile(files.first());
@@ -140,6 +133,7 @@ int main(int argc, char **argv)
         }
     }
 
+    start.finish();   // (the first window has opened its file: file-open events go to the handler again)
     if (cli.isSet(pdfOpt)) {
         w->exportPdf(cli.value(pdfOpt), false, cli.isSet(pdfaOpt));
         delete w;
@@ -164,10 +158,6 @@ int main(int argc, char **argv)
         return app.exec();
     }
 
-#ifdef Q_OS_WIN
-    // Lets the installer see that JeffPub is running and ask to close it first.
-    CreateMutexW(nullptr, FALSE, L"JeffPubRunning");
-#endif
     w->show();
     jp::startupMark("window shown");
     // A normal exit takes this run's automatic recovery copies with it; copies a
@@ -181,10 +171,6 @@ int main(int argc, char **argv)
     if (cli.isSet(stageOpt)) w->showBackstage(cli.value(stageOpt));
     else if (files.isEmpty() && !cli.isSet(templOpt) && jp::Settings::get().value(QStringLiteral("ui/startBackstage"), true).toBool())
         w->showBackstage(QStringLiteral("new"));
-    // (A hook for comparing starts: JP_GRAB=<png> saves the window JP_GRAB_MS (1500) milliseconds after the start and quits; JP_SERIAL_START=1 adds the fonts before the window is built.)
-    if (qEnvironmentVariableIsSet("JP_GRAB")) QTimer::singleShot(qEnvironmentVariableIntValue("JP_GRAB_MS") > 0 ? qEnvironmentVariableIntValue("JP_GRAB_MS") : 1500, w, [w] {
-        w->grab().save(qEnvironmentVariable("JP_GRAB"));
-        QApplication::exit(0);
-    });
+    jp::grabAfterStart(w);
     return app.exec();
 }

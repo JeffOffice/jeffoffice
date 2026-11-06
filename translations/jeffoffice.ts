@@ -12560,29 +12560,8 @@ Open it in your email program, add recipients and send.</source>
 <context>
     <name>Splash</name>
     <message>
-        <location filename="../libs/shell/app/splash.cpp" line="+34"/>
-        <source>Starting…</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+83"/>
+        <location filename="../libs/shell/app/firstwindow.cpp" line="44"/>
         <source>Opening %1…</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../apps/pub/main.cpp" line="-15"/>
-        <location filename="../apps/deck/main.cpp" line="+5"/>
-        <location filename="../apps/write/main.cpp" line="+5"/>
-        <location filename="../apps/crunch/main.cpp" line="+5"/>
-        <source>Loading fonts…</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <location filename="../apps/deck/main.cpp" line="+9"/>
-        <location filename="../apps/write/main.cpp" line="+9"/>
-        <location filename="../apps/crunch/main.cpp" line="+9"/>
-        <source>Setting up the window…</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

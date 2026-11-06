@@ -98,8 +98,8 @@ int main(int argc, char **argv)
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Documents to open."), QStringLiteral("[files...]"));
     cli.process(app);
     jp::startupMark("cli processed");
-    const bool staged = !cli.isSet(shotOpt) && !qEnvironmentVariableIsSet("JP_SERIAL_START") && !jp::familyMayBeBundled(QApplication::font().family());
-    if (!staged) jp::initCore();
+    const bool plain = !cli.isSet(shotOpt);   // (not a job that makes a file and quits)
+    jp::StagedStart start(plain);
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
     jp::followSystemTheme();
@@ -112,18 +112,11 @@ int main(int argc, char **argv)
     jp::traceFirstPaint(w);
     w->setAttribute(Qt::WA_DeleteOnClose);
     const QStringList files = cli.positionalArguments();
-    std::unique_ptr<jp::FirstWindow> first;
-    if (staged) {
-        // The window is up before the fonts are added and the file is read, so it shows at once and says what it is doing.
-        if (!files.isEmpty()) w->statusBar()->showMessage(jp::openingStatus(files.first()));
-        first = std::make_unique<jp::FirstWindow>(w);
-        if (!first->open()) return 0;   // (closed meanwhile: nothing to open into)
-        jp::startupMark("window shown first");
-        jp::initCore();
-        jp::startupMark("initCore done");
-        if (files.isEmpty()) jp::traceDrawn(w, "window usable");
-        if (files.isEmpty()) first.reset();
-    }
+#ifdef Q_OS_WIN
+    // Lets the installer see that JeffWrite is running and ask to close it first (before the window shows).
+    if (plain) CreateMutexW(nullptr, FALSE, L"JeffWriteRunning");
+#endif
+    if (!start.showFirst(w, files.value(0))) return 0;
     if (!files.isEmpty()) {
         QPointer<jp::WriteWindow> guard(w);
         w->openFile(files.first());
@@ -137,6 +130,7 @@ int main(int argc, char **argv)
             other->show();
         }
     }
+    start.finish();   // (the first window has opened its file: file-open events go to the handler again)
     auto applyView = [w, &cli, &zoomOpt, &pageOpt, &tabOpt] {
         if (cli.isSet(tabOpt))
             if (jp::RibbonTab *t = w->ribbon()->tab(cli.value(tabOpt))) w->ribbon()->showTab(t);
@@ -199,10 +193,6 @@ int main(int argc, char **argv)
         });
         return app.exec();
     }
-#ifdef Q_OS_WIN
-    // Lets the installer see that JeffWrite is running and ask to close it first.
-    CreateMutexW(nullptr, FALSE, L"JeffWriteRunning");
-#endif
     w->show();
     jp::startupMark("window shown");
     applyView();
@@ -214,10 +204,6 @@ int main(int argc, char **argv)
     jp::setUpdater(up);
     up->checkOnStartup();
     jp::telemetry::start(w);
-    // (A hook for comparing starts: JP_GRAB=<png> saves the window JP_GRAB_MS (1500) milliseconds after the start and quits; JP_SERIAL_START=1 adds the fonts before the window is built.)
-    if (qEnvironmentVariableIsSet("JP_GRAB")) QTimer::singleShot(qEnvironmentVariableIntValue("JP_GRAB_MS") > 0 ? qEnvironmentVariableIntValue("JP_GRAB_MS") : 1500, w, [w] {
-        w->grab().save(qEnvironmentVariable("JP_GRAB"));
-        QApplication::exit(0);
-    });
+    jp::grabAfterStart(w);
     return app.exec();
 }

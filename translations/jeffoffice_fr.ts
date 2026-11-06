@@ -12592,30 +12592,9 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
 <context>
     <name>Splash</name>
     <message>
-        <location filename="../libs/shell/app/splash.cpp" line="+37"/>
-        <source>Starting…</source>
-        <translation type="unfinished">Démarrage…</translation>
-    </message>
-    <message>
-        <location line="+83"/>
+        <location filename="../libs/shell/app/firstwindow.cpp" line="44"/>
         <source>Opening %1…</source>
         <translation type="unfinished">Ouverture de %1…</translation>
-    </message>
-    <message>
-        <location filename="../apps/pub/main.cpp" line="-15"/>
-        <location filename="../apps/deck/main.cpp" line="+5"/>
-        <location filename="../apps/write/main.cpp" line="+5"/>
-        <location filename="../apps/crunch/main.cpp" line="+5"/>
-        <source>Loading fonts…</source>
-        <translation type="unfinished">Chargement des polices…</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <location filename="../apps/deck/main.cpp" line="+9"/>
-        <location filename="../apps/write/main.cpp" line="+9"/>
-        <location filename="../apps/crunch/main.cpp" line="+9"/>
-        <source>Setting up the window…</source>
-        <translation type="unfinished">Configuration de la fenêtre…</translation>
     </message>
 </context>
 <context>

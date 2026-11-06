@@ -1231,6 +1231,41 @@ private Q_SLOTS:
         QVERIFY(!jp::familyMayBeBundled(QStringLiteral("Segoe UI Variable")));
     }
 
+    // What the layout works out from which fonts there are (a missing font drawn as its stand-in, how tall) is asked again when fonts are added: the bundled fonts
+    // come after the window is built.
+    void whatIsDrawnAsAStandInFollowsTheFontsThere()
+    {
+        jp::initCore();
+        QFontDatabase::removeAllApplicationFonts();
+        jp::fontsChanged();
+        if (QFontDatabase::hasFamily(QStringLiteral("Anton"))) QSKIP("this computer has Anton of its own");
+        QCOMPARE(jp::substituteHeightScale(QStringLiteral("Impact")), 1.0);   // (the stand-in is not here: drawn as it is)
+        jp::loadBundledFonts();
+        jp::installFontSubstitutions();
+        QVERIFY2(jp::substituteHeightScale(QStringLiteral("Impact")) < 1.0, "asked again after the stand-in came");
+    }
+
+    // A font list made before the bundled fonts are added gets them when they come.
+    void fontComboListsFontsAddedLater()
+    {
+        jp::initCore();
+        QFontDatabase::removeAllApplicationFonts();
+        jp::fontsChanged();
+        QCoreApplication::processEvents();
+        if (QFontDatabase::hasFamily(QStringLiteral("Lobster"))) QSKIP("this computer has Lobster of its own");
+        jp::FontCombo combo;
+        const auto listed = [&](const QString &family) {
+            for (int i = 0; i < combo.count(); ++i)
+                if (combo.itemData(i, Qt::UserRole).toString() == family) return true;
+            return false;
+        };
+        QVERIFY(!listed(QStringLiteral("Lobster")));
+        combo.setEditText(QStringLiteral("Typed"));
+        jp::loadBundledFonts();
+        QTRY_VERIFY(listed(QStringLiteral("Lobster")));
+        QCOMPARE(combo.currentText(), QStringLiteral("Typed"));
+    }
+
     // The names the table has no font for are asked of the font database by several threads at the start; the answer is the one a single thread gets.
     void missingSubstituteKeysAreTheSameWhenAskedOneByOne()
     {
@@ -1241,7 +1276,7 @@ private Q_SLOTS:
         serial.sort();
         QStringList asked = jp::missingSubstituteKeys();
         asked.sort();
-        QVERIFY(!serial.isEmpty());
+        if (serial.isEmpty()) QSKIP("this computer has a font for every name in the table");
         QCOMPARE(asked, serial);
     }
 
