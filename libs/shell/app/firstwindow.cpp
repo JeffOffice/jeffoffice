@@ -1,4 +1,6 @@
 #include "app/firstwindow.h"
+#include "core/startuptrace.h"
+
 #include <QCoreApplication>
 #include <QFileInfo>
 #include <QElapsedTimer>
@@ -6,6 +8,27 @@
 #include <QWindow>
 
 namespace jp {
+
+namespace {
+class FirstPaintTracer : public QObject {
+public:
+    using QObject::QObject;
+    bool eventFilter(QObject *o, QEvent *e) override
+    {
+        if (e->type() == QEvent::Paint && o == parent()) {
+            startupMark("first paint");
+            o->removeEventFilter(this);
+            deleteLater();
+        }
+        return false;
+    }
+};
+} // namespace
+
+void traceFirstPaint(QWidget *window)
+{
+    if (qEnvironmentVariableIsSet("JP_STARTUP_TRACE")) window->installEventFilter(new FirstPaintTracer(window));
+}
 
 QString openingStatus(const QString &path)
 {

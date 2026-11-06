@@ -27,6 +27,8 @@
 #include <QDir>
 #include <QImage>
 #include <QFileOpenEvent>
+#include <QStatusBar>
+#include <memory>
 #include <QStyleFactory>
 #include <QTimer>
 
@@ -97,8 +99,8 @@ int main(int argc, char **argv)
     cli.addOptions({shotOpt, sizeOpt, zoomOpt, sheetOpt, stageOpt, tabOpt, insertOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Workbooks to open."), QStringLiteral("[files...]"));
     cli.process(app);
-    jp::initCore();
-    jp::startupMark("initCore done");
+    const bool staged = !cli.isSet(shotOpt) && !qEnvironmentVariableIsSet("JP_SERIAL_START");
+    if (!staged) jp::initCore();
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
     jp::followSystemTheme();
@@ -107,6 +109,7 @@ int main(int argc, char **argv)
     app.installEventFilter(new FileOpener(&app));
     auto *w = new jp::CrunchWindow();
     jp::startupMark("window built");
+    jp::traceFirstPaint(w);
     w->setAttribute(Qt::WA_DeleteOnClose);
     const QStringList files = cli.positionalArguments();
     if (cli.isSet(shotOpt)) {
@@ -154,6 +157,16 @@ int main(int argc, char **argv)
     CreateMutexW(nullptr, FALSE, L"JeffCrunchRunning");
 #endif
     w->setPromptForText(true);   // (a text file asks how it is read)
+    std::unique_ptr<jp::FirstWindow> first;
+    if (staged) {
+        // The window is up before the fonts are added and the file is read, so it shows at once and says what it is doing.
+        if (!files.isEmpty()) w->statusBar()->showMessage(jp::openingStatus(files.first()));
+        first = std::make_unique<jp::FirstWindow>(w);
+        if (!first->open()) return 0;   // (closed meanwhile: nothing to open into)
+        jp::startupMark("window shown first");
+        jp::initCore();
+        jp::startupMark("initCore done");
+    }
     w->show();
     jp::startupMark("window shown");
     if (files.isEmpty()) {
@@ -162,11 +175,17 @@ int main(int argc, char **argv)
         if (!w->openFile(files.first())) w->newBlank();
         for (int i = 1; i < files.size(); ++i) w->openFile(files[i]);   // (each in a window of its own)
     }
+    if (first && !files.isEmpty() && w->statusBar()->currentMessage() == jp::openingStatus(files.first())) w->statusBar()->clearMessage();
+    first.reset();
     if (cli.isSet(zoomOpt) && cli.value(zoomOpt).toDouble() > 0) w->view()->setZoom(cli.value(zoomOpt).toDouble() / 100.0);
     if (cli.isSet(stageOpt)) w->showFileScreen(cli.value(stageOpt));
     auto *up = new jp::Updater(w);
     jp::setUpdater(up);
     up->checkOnStartup();
     jp::telemetry::start(w);
+    if (qEnvironmentVariableIsSet("JP_GRAB")) QTimer::singleShot(qEnvironmentVariableIntValue("JP_GRAB_MS") > 0 ? qEnvironmentVariableIntValue("JP_GRAB_MS") : 1500, w, [w] {
+        w->grab().save(qEnvironmentVariable("JP_GRAB"));
+        QApplication::exit(0);
+    });
     return app.exec();
 }

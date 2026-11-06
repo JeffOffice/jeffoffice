@@ -93,8 +93,8 @@ int main(int argc, char **argv)
     cli.addOptions({shotOpt, sizeOpt, viewOpt, stageOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Presentations to open."), QStringLiteral("[files...]"));
     cli.process(app);
-    jp::initCore();
-    jp::startupMark("initCore done");
+    const bool staged = !cli.isSet(shotOpt) && !qEnvironmentVariableIsSet("JP_SERIAL_START");
+    if (!staged) jp::initCore();
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
     jp::followSystemTheme();
@@ -103,17 +103,22 @@ int main(int argc, char **argv)
     app.installEventFilter(new FileOpener(&app));
     auto *w = new jp::DeckWindow();
     jp::startupMark("window built");
+    jp::traceFirstPaint(w);
     w->setAttribute(Qt::WA_DeleteOnClose);
     const QStringList files = cli.positionalArguments();
+    std::unique_ptr<jp::FirstWindow> first;
+    if (staged) {
+        // The window is up before the fonts are added and the file is read, so it shows at once and says what it is doing.
+        if (!files.isEmpty()) w->statusBar()->showMessage(jp::openingStatus(files.first()));
+        first = std::make_unique<jp::FirstWindow>(w);
+        if (!first->open()) return 0;   // (closed meanwhile: nothing to open into)
+        jp::startupMark("window shown first");
+        jp::initCore();
+        jp::startupMark("initCore done");
+        if (files.isEmpty()) first.reset();
+    }
     if (!files.isEmpty()) {
         QPointer<jp::DeckWindow> guard(w);
-        std::unique_ptr<jp::FirstWindow> first;
-        if (!cli.isSet(shotOpt)) {
-            // The window is up before the file is read, so it shows at once and says what it is doing.
-            w->statusBar()->showMessage(jp::openingStatus(files.first()));
-            first = std::make_unique<jp::FirstWindow>(w);
-            if (!first->open()) return 0;   // (closed meanwhile: nothing to open into)
-        }
         // (A screenshot has nobody to click a box: a file that can't be opened is said on stderr and the run ends.)
         if (cli.isSet(shotOpt))
             w->setNotifier([](const QString &, const QString &text) { QTextStream(stderr) << text << "\n"; });
@@ -157,5 +162,9 @@ int main(int argc, char **argv)
     jp::setUpdater(up);
     up->checkOnStartup();
     jp::telemetry::start(w);
+    if (qEnvironmentVariableIsSet("JP_GRAB")) QTimer::singleShot(qEnvironmentVariableIntValue("JP_GRAB_MS") > 0 ? qEnvironmentVariableIntValue("JP_GRAB_MS") : 1500, w, [w] {
+        w->grab().save(qEnvironmentVariable("JP_GRAB"));
+        QApplication::exit(0);
+    });
     return app.exec();
 }

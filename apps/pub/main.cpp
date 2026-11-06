@@ -86,8 +86,8 @@ int main(int argc, char **argv)
     cli.addOptions({shotOpt, sizeOpt, templOpt, stageOpt, pdfOpt, pdfaOpt, tabOpt, helpTopicOpt, wikiOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Publications to open."), QStringLiteral("[files...]"));
     cli.process(app);
-    jp::initCore();
-    jp::startupMark("initCore done");
+    const bool staged = !cli.isSet(shotOpt) && !cli.isSet(pdfOpt) && !cli.isSet(wikiOpt) && !qEnvironmentVariableIsSet("JP_SERIAL_START");
+    if (!staged) jp::initCore();
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
     jp::followSystemTheme();
@@ -95,6 +95,7 @@ int main(int argc, char **argv)
     jp::installFocusRing(&app);
     auto *w = new jp::MainWindow();
     jp::startupMark("window built");
+    jp::traceFirstPaint(w);
     w->setAttribute(Qt::WA_DeleteOnClose);
 
     if (cli.isSet(wikiOpt)) {
@@ -107,15 +108,19 @@ int main(int argc, char **argv)
 
     jp::installFileOpenHandler(&app);
     const QStringList files = cli.positionalArguments();
+    std::unique_ptr<jp::FirstWindow> first;
+    if (staged) {
+        // The window is up before the fonts are added and the file is read, so it shows at once and says what it is doing.
+        if (!files.isEmpty()) w->statusBar()->showMessage(jp::openingStatus(files.first()));
+        first = std::make_unique<jp::FirstWindow>(w);
+        if (!first->open()) return 0;   // (closed meanwhile: nothing to open into)
+        jp::startupMark("window shown first");
+        jp::initCore();
+        jp::startupMark("initCore done");
+        if (files.isEmpty()) first.reset();
+    }
     if (!files.isEmpty()) {
         QPointer<jp::MainWindow> guard(w);
-        std::unique_ptr<jp::FirstWindow> first;
-        if (!cli.isSet(shotOpt) && !cli.isSet(pdfOpt)) {
-            // The window is up before the file is read, so it shows at once and says what it is doing.
-            w->statusBar()->showMessage(jp::openingStatus(files.first()));
-            first = std::make_unique<jp::FirstWindow>(w);
-            if (!first->open()) return 0;   // (closed meanwhile: nothing to open into)
-        }
         w->openFile(files.first());
         if (guard && w->statusBar()->currentMessage() == jp::openingStatus(files.first())) w->statusBar()->clearMessage();
         for (int i = 1; i < files.size(); ++i) {
@@ -173,5 +178,9 @@ int main(int argc, char **argv)
     if (cli.isSet(stageOpt)) w->showBackstage(cli.value(stageOpt));
     else if (files.isEmpty() && !cli.isSet(templOpt) && jp::Settings::get().value(QStringLiteral("ui/startBackstage"), true).toBool())
         w->showBackstage(QStringLiteral("new"));
+    if (qEnvironmentVariableIsSet("JP_GRAB")) QTimer::singleShot(qEnvironmentVariableIntValue("JP_GRAB_MS") > 0 ? qEnvironmentVariableIntValue("JP_GRAB_MS") : 1500, w, [w] {
+        w->grab().save(qEnvironmentVariable("JP_GRAB"));
+        QApplication::exit(0);
+    });
     return app.exec();
 }
