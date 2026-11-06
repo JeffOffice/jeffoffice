@@ -16,7 +16,7 @@
 #include "app/icons.h"
 #include "app/recovery.h"
 #include "app/settings.h"
-#include "app/splash.h"
+#include "app/firstwindow.h"
 #include "app/telemetry.h"
 #include "app/theme.h"
 #include "app/updater.h"
@@ -90,10 +90,6 @@ int main(int argc, char **argv)
     cli.addOptions({shotOpt, sizeOpt, viewOpt, stageOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Presentations to open."), QStringLiteral("[files...]"));
     cli.process(app);
-
-    // The loading card, up before the slow part of the start (not for the jobs that make a file and quit).
-    jp::StartupSplash *splash = cli.isSet(shotOpt) ? nullptr : jp::showStartupSplash();
-    if (splash) splash->step(QCoreApplication::translate("Splash", "Loading fonts…"), 0.3);
     jp::initCore();
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
@@ -101,20 +97,16 @@ int main(int argc, char **argv)
     jp::installUiPolish();
     jp::installFocusRing(&app);
     app.installEventFilter(new FileOpener(&app));
-
-    if (splash) splash->step(QCoreApplication::translate("Splash", "Setting up the window…"), 0.6);
     auto *w = new jp::DeckWindow();
     w->setAttribute(Qt::WA_DeleteOnClose);
     const QStringList files = cli.positionalArguments();
     if (!files.isEmpty()) {
-        if (splash) splash->step(jp::openingStatus(files.first()), 0.8);
         QPointer<jp::DeckWindow> guard(w);
         std::unique_ptr<jp::FirstWindow> first;
         if (!cli.isSet(shotOpt)) {
             // The window is up before the file is read, so it shows at once and says what it is doing.
             w->statusBar()->showMessage(jp::openingStatus(files.first()));
-            first = std::make_unique<jp::FirstWindow>(w, splash);
-            splash = nullptr;
+            first = std::make_unique<jp::FirstWindow>(w);
             if (!first->open()) return 0;   // (closed meanwhile: nothing to open into)
         }
         // (A screenshot has nobody to click a box: a file that can't be opened is said on stderr and the run ends.)
@@ -159,6 +151,5 @@ int main(int argc, char **argv)
     jp::setUpdater(up);
     up->checkOnStartup();
     jp::telemetry::start(w);
-    if (splash) splash->finish(w);   // (it goes when the window is drawn)
     return app.exec();
 }

@@ -17,13 +17,14 @@
 #include "app/recovery.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
-#include "app/splash.h"
+#include "app/firstwindow.h"
 #include "app/telemetry.h"
 #include "app/theme.h"
 #include "app/updater.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
 #include "core/fonts.h"
+#include "core/startuptrace.h"
 
 #include <QApplication>
 #include <QPointer>
@@ -69,6 +70,7 @@ public:
 
 int main(int argc, char **argv)
 {
+    jp::startupMark("main entered");
     Q_INIT_RESOURCE(resources);   // icons and font measurements, in the shared libraries
     Q_INIT_RESOURCE(write);       // JeffWrite's ribbon
     jp::setAppInfo(jp::writeAppInfo());
@@ -77,6 +79,7 @@ int main(int argc, char **argv)
     QApplication::setApplicationVersion(QStringLiteral(JP_VERSION));
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
+    jp::startupMark("QApplication built");
     jp::crash::install(jp::crash::reportPath());   // sent with the statistics on the next start, if they're on
     jp::recovery::setCopySuffix(QStringLiteral(".docx"));   // automatic recovery keeps documents
     jp::installTranslations();   // before the command line and any window build their text
@@ -94,31 +97,27 @@ int main(int argc, char **argv)
     cli.addOptions({shotOpt, sizeOpt, zoomOpt, pageOpt, stageOpt, tabOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Documents to open."), QStringLiteral("[files...]"));
     cli.process(app);
-
-    // The loading card, up before the slow part of the start (not for the jobs that make a file and quit).
-    jp::StartupSplash *splash = cli.isSet(shotOpt) ? nullptr : jp::showStartupSplash();
-    if (splash) splash->step(QCoreApplication::translate("Splash", "Loading fonts…"), 0.3);
+    jp::startupMark("cli processed");
     jp::initCore();
+    jp::startupMark("initCore done");
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
     jp::followSystemTheme();
+    jp::startupMark("theme applied");
     jp::installUiPolish();
     jp::installFocusRing(&app);
     app.installEventFilter(new FileOpener(&app));
-
-    if (splash) splash->step(QCoreApplication::translate("Splash", "Setting up the window…"), 0.6);
     auto *w = new jp::WriteWindow();
+    jp::startupMark("window built");
     w->setAttribute(Qt::WA_DeleteOnClose);
     const QStringList files = cli.positionalArguments();
     if (!files.isEmpty()) {
-        if (splash) splash->step(jp::openingStatus(files.first()), 0.8);
         QPointer<jp::WriteWindow> guard(w);
         std::unique_ptr<jp::FirstWindow> first;
         if (!cli.isSet(shotOpt)) {
             // The window is up before the file is read, so it shows at once and says what it is doing.
             w->statusBar()->showMessage(jp::openingStatus(files.first()));
-            first = std::make_unique<jp::FirstWindow>(w, splash);
-            splash = nullptr;
+            first = std::make_unique<jp::FirstWindow>(w);
             if (!first->open()) return 0;   // (closed meanwhile: nothing to open into)
         }
         w->openFile(files.first());
@@ -197,6 +196,7 @@ int main(int argc, char **argv)
     CreateMutexW(nullptr, FALSE, L"JeffWriteRunning");
 #endif
     w->show();
+    jp::startupMark("window shown");
     applyView();
     if (cli.isSet(stageOpt)) w->showFileScreen(cli.value(stageOpt));
     // A normal exit takes this run's automatic recovery copies with it; copies a crashed run left are offered once the window is up.
@@ -206,6 +206,5 @@ int main(int argc, char **argv)
     jp::setUpdater(up);
     up->checkOnStartup();
     jp::telemetry::start(w);
-    if (splash) splash->finish(w);   // (it goes when the window is drawn)
     return app.exec();
 }

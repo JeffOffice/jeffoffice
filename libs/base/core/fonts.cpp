@@ -10,6 +10,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFont>
+#include "core/startuptrace.h"
 #include <QFontDatabase>
 #include <QFontInfo>
 #include <QGuiApplication>
@@ -90,7 +91,9 @@ int loadFontsFrom(const QStringList &dirs)
     // fontconfig, in an order that follows a hash of each file's path: so for a family both have (DejaVu Sans, Carlito, and Caladea, on many Linux computers) the winner
     // depended on the folder the fonts were in (an AppImage's changes at every start). Built first, the database has the computer's fonts before ours are added, as it does
     // when Qt rebuilds it after a font is removed, and ours come last, wherever they are.
+    startupMark("fonts: before system db build");
     (void)QFontDatabase::families();
+    startupMark("fonts: system db built");
 #endif
     int n = 0;
     for (const QString &d : dirs) {
@@ -971,7 +974,9 @@ void initCore()
     if (done) return;
     done = true;
     QImageReader::setAllocationLimit(2048);   // megabytes; print covers carry 600 dpi photos
+    startupMark("initCore: begin");
     loadBundledFonts();
+    startupMark("initCore: bundled fonts loaded");
     installFontSubstitutions();
 }
 

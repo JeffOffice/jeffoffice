@@ -2,7 +2,7 @@
 #include "grid/gridview.h"
 #include "pubhelpers.h"
 #include "app/optionsdialog.h"
-#include "app/splash.h"
+#include "app/firstwindow.h"
 #include "core/appinfo.h"
 #include "canvas/canvasaccessible.h"
 #include <QDoubleSpinBox>
@@ -1809,23 +1809,10 @@ private Q_SLOTS:
         QVERIFY2(missing.isEmpty(), qPrintable(QStringLiteral("not in ribbon_strings.cpp (run tools/ribbon_strings.py): ") + missing.join(QStringLiteral(", "))));
     }
 
-    // The loading card: none without a screen (tests, --screenshot); drawn in the app's color with its tile, it says
-    // what the start is doing and how far along it is, and a file being opened is named by its name alone.
-    void theStartupSplashShowsTheAppAndWhatItIsDoing()
+    // A file being opened is named in the status line by its name alone.
+    void openingStatusNamesTheFile()
     {
-        QCOMPARE(jp::showStartupSplash(), nullptr);   // (the offscreen platform has no screen)
-        jp::StartupSplash s;
-        QCOMPARE(s.status(), QStringLiteral("Starting…"));
-        s.step(jp::openingStatus(QStringLiteral("/home/someone/Spring Flyer.jpub")), 0.8);
-        QCOMPARE(s.status(), QStringLiteral("Opening Spring Flyer.jpub…"));
-        QCOMPARE(s.progress(), 0.8);
-        s.step(QStringLiteral("x"), 7);
-        QCOMPARE(s.progress(), 1.0);
-        const QImage img = s.grab().toImage();
-        const qreal dpr = img.devicePixelRatio();
-        const QColor accent = jp::appInfo().accent.isValid() ? jp::appInfo().accent : QColor(0x1A, 0x5F, 0xD6);
-        QCOMPARE(img.pixelColor(QPoint(300, 90) * dpr).rgb(), accent.rgb());     // the card
-        QCOMPARE(img.pixelColor(QPoint(46, 30) * dpr).rgb(), QColor(Qt::white).rgb());   // the tile
+        QCOMPARE(jp::openingStatus(QStringLiteral("/home/someone/Spring Flyer.jpub")), QStringLiteral("Opening Spring Flyer.jpub…"));
     }
 
     // Automatic recovery keeps one copy per document and run: two "Cover.pub"
