@@ -8,6 +8,7 @@
 
 #include <functional>
 
+class QCheckBox;
 class QLabel;
 class QLineEdit;
 class QListWidget;
@@ -46,6 +47,9 @@ public:
     ScenarioEditDialog(bool adding, std::function<QString(const QString &)> currentText, QWidget *parent = nullptr);
     void setName(const QString &name);
     void setComment(const QString &comment);
+    // Prevent changes: the scenario can't be edited or deleted while the sheet is protected.
+    void setLocked(bool locked);
+    bool locked() const;
     // The cells (as text) and the values the dialog shows for them.
     void setCells(const QString &text, const QStringList &values);
     QString name() const;
@@ -59,6 +63,7 @@ private:
     bool m_adding;
     std::function<QString(const QString &)> m_currentText;
     QLineEdit *m_name = nullptr, *m_cells = nullptr, *m_comment = nullptr;
+    QCheckBox *m_locked = nullptr;
     QLabel *m_problem = nullptr;
     QTableWidget *m_table = nullptr;
     QPushButton *m_ok = nullptr;

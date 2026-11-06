@@ -717,6 +717,7 @@ void CrunchWindow::createActions()
     createSheetActions();
     createPageActions();
     createViewActions();
+    createCustomViewActions();
     createWindowActions();
     createPageLayoutActions();
     createOutlineActions();

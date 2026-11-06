@@ -235,6 +235,22 @@ private Q_SLOTS:
         }
     }
 
+    // The named views of the workbook are said to be left out of a copy in an older kind of file.
+    void customViewsAreSaidToBeLeftOutOfACopy()
+    {
+        Win o;
+        QVERIFY(o.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"))}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QString(), QByteArray(), QString(), QList<int>(),
+                                 QStringLiteral("<customWorkbookViews><customWorkbookView name=\"Plain\" guid=\"{AAAAAAAA-0000-0000-0000-000000000001}\" windowWidth=\"16000\" windowHeight=\"9000\" activeSheetId=\"1\"/></customWorkbookViews>")),
+                       QStringLiteral("views.xlsx")));
+        o.lossAnswer = CrunchWindow::LossAnswer::Cancel;
+        const QString target = o.dir.filePath(QStringLiteral("copy.ods"));
+        QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
+        QVERIFY(o.w.saveAs(target));
+        QVERIFY(copied.count() > 0 || copied.wait(20000));
+        QVERIFY2(o.told.last().contains(QLatin1String("custom views")), qPrintable(o.told.last()));
+        QVERIFY(!QFile::exists(target));
+    }
+
     // The kinds of file are in the Save As dialog.
     void theSaveDialogListsTheTwoKinds()
     {

@@ -305,6 +305,7 @@ EditSession::EditSession(WorkbookLoader *loader, const std::shared_ptr<LoadedBoo
             if (m_book->notesTruncated[i]) m_anchors.setTruncated(int(i), true);
         for (int i = 0; i < m_book->calc->sheetCount(); ++i) m_fileProtection.push_back(m_book->calc->sheet(i).protection);
         if (m_book->book) m_fileBookProtection = m_book->book->info().protection;
+        if (m_book->book) m_fileCustomViews = m_book->book->info().customViews;
     }
     if (m_book && m_book->book) {
         const jp::office::sheet::WorkbookInfo &info = m_book->book->info();
@@ -1861,6 +1862,10 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
             changes.setWorkbookProtection = true;
             changes.workbookProtection = book.info().protection;
         }
+        if (book.info().customViews != m_fileCustomViews) {
+            changes.setCustomViews = true;
+            changes.customViews = book.info().customViews;
+        }
     }
     changes.edits = m_edits;
     changes.permutes = m_permutes;
@@ -1979,6 +1984,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_fileProtection.clear();
     for (int i = 0; i < m_book->calc->sheetCount(); ++i) m_fileProtection.push_back(m_book->calc->sheet(i).protection);
     m_fileBookProtection = m_book->book->info().protection;
+    m_fileCustomViews = m_book->book->info().customViews;
     for (const auto &[sheet, rel] : snapshot.headerDrawings) m_pages.setHeaderDrawing(sheet, rel);
     forgetDeletesInFile();
     // what differs from the file is what differs from the file just written

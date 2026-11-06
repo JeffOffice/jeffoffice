@@ -22,6 +22,7 @@ struct SubtotalSpec {
     int function = 9;                  // a number from subtotalFunctions (9 is Sum)
     std::vector<quint32> columns;      // the columns to add a subtotal to (columns of the sheet)
     bool replace = true;               // subtotals already in the list are taken away first
+    bool pageBreaks = false;           // a page break after each run's subtotal row (Remove All takes them away again)
 };
 
 // `beforeEnd` is called just before the step (one macro of the undo stack) ends, for a window that must note the changes first.

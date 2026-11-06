@@ -925,7 +925,11 @@ public:
     // How a sheet is shown (0 the cells, 1 the page breaks, 2 the pages) and at what zoom in percent: kept for saving, not a step of Undo.
     void setSheetView(int sheet, int kind, int zoom) { m_pages.setView(sheet, kind, zoom); }
     void setSheetPane(int sheet, const jp::office::sheet::SheetView &pane) { m_pages.setPane(sheet, pane); }
-    bool viewsChanged() const { return m_pages.viewsChanged(); }
+    bool viewsChanged() const { return m_pages.viewsChanged() || customViewsChanged(); }
+    // The workbook's custom views (named ways to look at it), and the same changed: kept for saving, not a step of Undo.
+    const QVector<jp::office::sheet::CustomView> &customViews() const;
+    bool customViewsChanged() const;
+    void setCustomViews(const QVector<jp::office::sheet::CustomView> &views);
 
     // The edits that insert or delete rows, columns, or cells since the file was read or saved that are done (not undone), in order: what the objects over the cells are moved by.
     const std::vector<jp::office::sheet::StructEdit> &structureEdits() const { return m_edits; }
@@ -1277,6 +1281,7 @@ private:
     CellAnchors m_anchors;
     std::vector<jp::office::sheet::SheetProtection> m_fileProtection;   // the protection of each sheet as the file has it now (read, or last saved)
     jp::office::sheet::WorkbookProtection m_fileBookProtection;
+    QVector<jp::office::sheet::CustomView> m_fileCustomViews;   // the custom views as the file has them now
     std::vector<jp::office::sheet::ColumnRename> m_renames;   // and the table columns renamed, for the names, validations, rules, and charts that name them
     std::vector<jp::office::sheet::TableRewrite> m_tableRewrites;   // and the tables renamed or made plain cells, for the same
     std::shared_ptr<SlicedPush> m_fill;

@@ -13,6 +13,7 @@
 #include "office/packageprops.h"
 #include "sheet/drawingadd.h"
 #include "sheet/drawingsave.h"
+#include "sheet/customviews.h"
 #include "sheet/links.h"
 #include "sheet/notesave.h"
 #include "sheet/pagesetupxml.h"
@@ -364,6 +365,9 @@ struct SaveChanges {
     // The workbook's protection of its structure, when a person changed it (made into the element `workbookProtection` in place of the file's).
     bool setWorkbookProtection = false;
     WorkbookProtection workbookProtection;
+    // The workbook's custom views, when a person changed them (made into the element `customWorkbookViews` in place of the file's).
+    bool setCustomViews = false;
+    QVector<CustomView> customViews;
     // The workbook's properties, when a person changed them: the core, extended, and custom parts get them (a part the file lacks is made, with its type and the package's relationship to it;
     // the custom part goes when no property is left).
     bool setProperties = false;

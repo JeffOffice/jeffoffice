@@ -2,6 +2,7 @@
 
 #include "core/scenarios.h"
 
+#include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QHash>
@@ -123,6 +124,9 @@ ScenarioEditDialog::ScenarioEditDialog(bool adding, std::function<QString(const 
     form->addRow(tr("&Changing cells:"), m_cells);
     form->addRow(tr("C&omment:"), m_comment);
     layout->addLayout(form);
+    m_locked = new QCheckBox(tr("&Prevent changes (while the sheet is protected)"), this);
+    m_locked->setObjectName(QStringLiteral("scenarioLocked"));
+    layout->addWidget(m_locked);
     m_problem = new QLabel(this);
     m_problem->setObjectName(QStringLiteral("scenarioProblem"));
     m_problem->setTextFormat(Qt::PlainText);
@@ -149,6 +153,8 @@ ScenarioEditDialog::ScenarioEditDialog(bool adding, std::function<QString(const 
 
 void ScenarioEditDialog::setName(const QString &name) { m_name->setText(name); }
 void ScenarioEditDialog::setComment(const QString &comment) { m_comment->setText(comment); }
+void ScenarioEditDialog::setLocked(bool locked) { m_locked->setChecked(locked); }
+bool ScenarioEditDialog::locked() const { return m_locked->isChecked(); }
 QString ScenarioEditDialog::name() const { return m_name->text().trimmed(); }
 QString ScenarioEditDialog::cellsText() const { return m_cells->text().trimmed(); }
 QString ScenarioEditDialog::comment() const { return m_comment->text().trimmed(); }

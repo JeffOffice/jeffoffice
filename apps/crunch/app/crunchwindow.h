@@ -36,6 +36,7 @@
 #include "grid/pagelayoutview.h"
 #include "grid/valuestore.h"
 #include "sheet/chartmake.h"
+#include "sheet/customviews.h"
 #include "sheet/pagesetup.h"
 #include "sheet/tablestyle.h"
 
@@ -987,15 +988,15 @@ public:
     // Goal Seek without the question: the cell with the formula, the value wanted, and the cell to change (names such as "B3"). The solution is one step of Undo; false (nothing changed) if none was found.
     bool goalSeekIn(const QString &setCell, const QString &valueWanted, const QString &changeCell);
     // The Scenario Manager: named sets of values for cells. `changing` is the cells as text ("B1:B3,D5", at most 32), `values` their values in order (a cell with none keeps what it holds).
-    bool addScenario(const QString &name, const QString &changing, const QString &comment, const QStringList &values);
-    bool editScenario(int index, const QString &name, const QString &comment, const QStringList &values);
+    bool addScenario(const QString &name, const QString &changing, const QString &comment, const QStringList &values, bool locked = false);
+    bool editScenario(int index, const QString &name, const QString &comment, const QStringList &values, int locked = -1);
     bool showScenario(int index);
     bool deleteScenario(int index);
     // A new sheet that sets the scenarios side by side, with what the result cells (as text) come to under each.
     bool scenarioSummary(const QString &resultCells);
     // Subtotal without the question: the list is the selection (or the block around the cell with the cursor); columns are places in the list, 0 is its first column. `function` is the number
     // SUBTOTAL is called with (9 is Sum). One step of Undo. removeSubtotalsIn is Remove All.
-    bool subtotalIn(int changeColumn, int function, const std::vector<int> &columns, bool replace = true);
+    bool subtotalIn(int changeColumn, int function, const std::vector<int> &columns, bool replace = true, bool pageBreaks = false);
     bool removeSubtotalsIn();
     // Advanced Filter without the question: the list and the conditions as ranges ("A1:C20"), where to copy the rows to (a cell name; empty to hide the other rows in the list), and whether rows
     // that repeat an earlier one are left out. One step of Undo.
@@ -1188,6 +1189,13 @@ private:
     void setSynchronousScrolling(bool on);
     // the views of a sheet: the cells, the page breaks, the pages (crunchwindow_views.cpp)
     void createViewActions();
+    // ---- custom views (crunchwindow_customviews.cpp)
+    void createCustomViewActions();
+    jp::office::sheet::CustomView captureCustomView(const QString &name);
+    void customViews();
+public:
+    bool showCustomView(const QString &name);
+private:
     void addViewButtons(QStatusBar *bar);
     void showViewKind(int kind);
     void breakLineMoved(bool column, qint64 from, qint64 to);

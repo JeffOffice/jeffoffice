@@ -454,7 +454,8 @@
           "items": [
             {"large": "view.normal", "keytip": "N"},
             {"large": "view.pageLayout", "keytip": "L"},
-            {"large": "view.pageBreakView", "keytip": "B"}
+            {"large": "view.pageBreakView", "keytip": "B"},
+            {"large": "view.customViews", "keytip": "CV"}
           ]
         },
         {

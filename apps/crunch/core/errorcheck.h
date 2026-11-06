@@ -1,5 +1,5 @@
 #pragma once
-// Error Checking: the cells of a sheet that may be wrong. A formula that comes to an error, and a number that is kept as text. Each has a sentence that says what is the matter. What a person
+// Error Checking: the cells of a sheet that may be wrong. A formula that comes to an error, a number that is kept as text, a formula that differs from the ones on both sides of it (which agree with each other), and a date kept as text with a year of two digits. Each has a sentence that says what is the matter. What a person
 // chose to ignore is the window's to keep.
 
 #include "core/editsession.h"
@@ -10,7 +10,7 @@
 namespace jp::crunch {
 
 struct FormulaProblem {
-    enum class Kind : quint8 { ErrorValue, NumberAsText } kind = Kind::ErrorValue;
+    enum class Kind : quint8 { ErrorValue, NumberAsText, InconsistentFormula, TwoDigitYear } kind = Kind::ErrorValue;
     int sheet = 0;
     quint32 row = 0, col = 0;
     QString explanation;

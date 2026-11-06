@@ -172,6 +172,7 @@ QStringList Features::result() const
         }
     if (!m_book.sharedStrings().rich.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "formatting inside a text"));
     if (m_book.info().protection.lockStructure) add(QT_TRANSLATE_NOOP("Sheet", "workbook protection"));
+    if (!m_book.info().customViews.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "custom views"));
     QStringList out(found.cbegin(), found.cend());
     std::sort(out.begin(), out.end());
     return out;

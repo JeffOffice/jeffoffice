@@ -4,6 +4,7 @@
 #include "core/formulaspot.h"
 #include "core/outline.h"
 #include "sheet/cellref.h"
+#include "sheet/pagesetup.h"
 
 #include <QCoreApplication>
 #include <QUndoStack>
@@ -94,6 +95,15 @@ EditSession::Outcome removeSubtotals(EditSession &session, int sheet, CellRange 
     QUndoStack *stack = session.undoStack();
     stack->beginMacro(QCoreApplication::translate("jp::crunch::Subtotal", "Remove All Subtotals"));
     EditSession::Outcome out;
+    {
+        // the page breaks right after the subtotal rows go with them
+        PageSetup setup = session.pages().sheet(sheet);
+        const auto before = setup.rowBreaks.size();
+        setup.rowBreaks.erase(std::remove_if(setup.rowBreaks.begin(), setup.rowBreaks.end(),
+                                             [&](const PageBreak &b) { return b.manual && b.before > 0 && std::binary_search(rows.begin(), rows.end(), b.before - 1); }),
+                              setup.rowBreaks.end());
+        if (setup.rowBreaks.size() != before) out = session.setPageSetup(sheet, setup, QCoreApplication::translate("jp::crunch::Subtotal", "Remove All Subtotals"));
+    }
     // (from the bottom up, a run of rows at a time, so that the rows still to go keep their places)
     for (size_t i = rows.size(); i > 0 && out.ok;) {
         size_t first = i - 1;
@@ -183,6 +193,25 @@ EditSession::Outcome applySubtotals(EditSession &session, int sheet, CellRange r
         const Outline outline = session.outlineOf(sheet, false);
         const auto changes = outline.group(runs[i].first + shift, runs[i].last + shift);
         if (!changes.empty()) out = session.changeOutline(sheet, false, changes, QCoreApplication::translate("jp::crunch::Subtotal", "Subtotal"));
+    }
+    if (out.ok && spec.pageBreaks && !runs.empty()) {
+        PageSetup setup = session.pages().sheet(sheet);
+        for (size_t i = 0; i < runs.size(); ++i) {
+            const quint32 at = runs[i].last + quint32(i) + 2;   // (the row after the run's subtotal row)
+            bool have = false;
+            for (PageBreak &b : setup.rowBreaks)
+                if (b.before == at) {
+                    b.manual = true;
+                    have = true;
+                }
+            if (have || setup.rowBreaks.size() >= kMaxPageBreaks) continue;
+            PageBreak b;
+            b.before = at;
+            b.max = 16383;
+            setup.rowBreaks.append(b);
+        }
+        std::sort(setup.rowBreaks.begin(), setup.rowBreaks.end(), [](const PageBreak &x, const PageBreak &y) { return x.before < y.before; });
+        out = session.setPageSetup(sheet, setup, QCoreApplication::translate("jp::crunch::Subtotal", "Subtotal"));
     }
     if (beforeEnd) beforeEnd();
     stack->endMacro();

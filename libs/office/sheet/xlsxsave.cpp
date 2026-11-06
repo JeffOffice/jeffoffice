@@ -1210,6 +1210,40 @@ bool patchWorkbookProtection(const QByteArray &xml, const WorkbookProtection &p,
     *out = xml.left(at.start) + element + xml.mid(at.start);
     return true;
 }
+
+// The workbook part with its `customWorkbookViews` made from the views, in place of the file's (taken out when there are none), or where the format has it (after the calculation
+// settings, before the pivot caches and the rest).
+bool patchCustomViews(const QByteArray &xml, const QVector<CustomView> &views, QByteArray *out)
+{
+    Tag root;
+    if (!xmlscan::nextTag(xml, 0, &root) || root.closing) return false;
+    const QByteArray prefix(xmlscan::prefixOf(root.name));
+    const QByteArray element = customWorkbookViewsElement(views, prefix);
+    Tag t;
+    if (findStart(xml, "customWorkbookViews", &t)) {
+        qsizetype end = t.end;
+        if (!t.selfClosing) {
+            Tag close;
+            if (!findEnd(xml, t, &close)) return false;
+            end = close.end;
+        }
+        *out = xml.left(t.start) + element + xml.mid(end);
+        return true;
+    }
+    if (element.isEmpty()) {
+        *out = xml;
+        return true;
+    }
+    qsizetype at = -1;
+    for (const char *later : {"pivotCaches", "smartTagPr", "smartTagTypes", "webPublishing", "fileRecoveryPr", "webPublishObjects", "extLst"}) {
+        Tag l;
+        if (findStart(xml, later, &l) && (at < 0 || l.start < at)) at = l.start;
+    }
+    if (at < 0) at = xml.lastIndexOf("</");
+    if (at < 0) return false;
+    *out = xml.left(at) + element + xml.mid(at);
+    return true;
+}
 } // namespace
 
 bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *out, QString *error, SaveReport *report, const std::atomic<bool> *cancel)
@@ -2649,7 +2683,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         }
         filterNames.push_back(name);
     }
-    if (!newPivotCaches.empty() || changes.dropExternalLinks || changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged || changes.setWorkbookProtection) {
+    if (!newPivotCaches.empty() || changes.dropExternalLinks || changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged || changes.setWorkbookProtection || changes.setCustomViews) {
         const int index = entryOfPart(book.mainPart());
         QByteArray xml, patched;
         if (index >= 0 && inflate(index, &xml)) {
@@ -2681,6 +2715,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             }
             if (changes.setWorkbookProtection) {
                 if (!patchWorkbookProtection(xml, changes.workbookProtection, &patched)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's protection could not be saved."));
+                changed = changed || patched != xml;
+                xml = patched;
+            }
+            if (changes.setCustomViews) {
+                if (!patchCustomViews(xml, changes.customViews, &patched)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's custom views could not be saved."));
                 changed = changed || patched != xml;
                 xml = patched;
             }

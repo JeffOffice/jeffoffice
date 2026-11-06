@@ -116,4 +116,20 @@ EditSession::Outcome EditSession::setWorkbookProtection(const WorkbookProtection
     return out;
 }
 
+const QVector<jp::office::sheet::CustomView> &EditSession::customViews() const
+{
+    static const QVector<jp::office::sheet::CustomView> none;
+    return m_book && m_book->book ? m_book->book->info().customViews : none;
+}
+
+bool EditSession::customViewsChanged() const
+{
+    return m_book && m_book->book && m_book->book->info().customViews != m_fileCustomViews;
+}
+
+void EditSession::setCustomViews(const QVector<jp::office::sheet::CustomView> &views)
+{
+    if (m_book && m_book->book) m_book->book->setCustomViews(views);
+}
+
 } // namespace jp::crunch

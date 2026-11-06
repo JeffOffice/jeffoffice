@@ -2,6 +2,7 @@
 // The dialogs of notes and links, and what the window passes them: a note's words, and a link's kind, address, shown text, and screen tip. The window asks for them through functions it is
 // given (a test gives its own); these are the ones it uses by default.
 
+#include "app/customviewsdialog.h"
 #include "app/protectdialogs.h"
 #include "app/textimportdialog.h"
 #include "sheet/links.h"
@@ -70,6 +71,8 @@ struct AnchorHooks {
     std::function<bool(FilePasswordRequest *)> filePasswordAsker;
     // Protecting the workbook with a password: the dialog that takes the password twice, or removes it (false: the person cancelled).
     std::function<bool(SetFilePasswordRequest *)> setFilePasswordAsker;
+    // Custom Views: the box that lists, adds, deletes, and chooses to show the workbook's named views.
+    std::function<bool(CustomViewsRequest *)> customViewsAsker;
 };
 
 class NoteDialog : public QDialog {

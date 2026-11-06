@@ -2,6 +2,7 @@
 #include "wml/wmlhtmlread.h"
 #include "sheet/sheetreader.h"
 #include "sheet/xmlscan.h"
+#include "sheet/customviews.h"
 #include "sheet/builtinstyles.h"
 
 #include "calc/numfmt.h"
@@ -680,7 +681,7 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
         return false;
     };
     int depth = 0;
-    bool inSheets = false, inNames = false, inName = false, rootSeen = false, inViews = false, viewSeen = false;
+    bool inSheets = false, inNames = false, inName = false, rootSeen = false, inViews = false, viewSeen = false, customOpen = false;
     DefinedName name;
     qint64 nameChars = 0;
     while (!r.atEnd()) {
@@ -726,6 +727,16 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
                 out->activeTab = ok && active >= 0 ? active : 0;
                 const int first = attribute(r, "firstSheet").toInt(&ok);
                 out->firstSheet = ok && first >= 0 ? first : 0;
+            } else if (depth == 3 && isElement(r, "customWorkbookView") && !inNames && !inSheets) {
+                if (out->customViews.size() < kMaxCustomViews) {
+                    out->customViews.append(CustomView());
+                    readCustomViewAttributes(r, &out->customViews.last());
+                    customOpen = true;
+                }
+            } else if (depth == 6 && customOpen && r.namespaceUri() == QLatin1String(kCustomViewNs) && isElement(r, "view")) {
+                readCustomViewState(r, &out->customViews.last());
+            } else if (depth == 7 && customOpen && out->customViews.last().hasState && r.namespaceUri() == QLatin1String(kCustomViewNs) && isElement(r, "sheet")) {
+                readCustomViewSheet(r, &out->customViews.last());
             } else if (depth == 2 && isElement(r, "definedNames")) {
                 inNames = true;
             } else if (depth == 3 && inNames && isElement(r, "definedName")) {
@@ -768,6 +779,7 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
                 out->definedNames.append(name);
                 inName = false;
             }
+            if (depth == 3) customOpen = false;
             if (depth == 2) {
                 inSheets = false;
                 inNames = false;

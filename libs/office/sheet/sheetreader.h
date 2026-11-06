@@ -10,6 +10,7 @@
 #include "sheet/csvimport.h"
 #include "sheet/pivotbook.h"
 #include "sheet/slicer.h"
+#include "sheet/customviews.h"
 #include "sheet/protection.h"
 #include "sheet/sheetmodel.h"
 #include "sheet/tables.h"
@@ -195,6 +196,7 @@ struct WorkbookInfo {
     int activeTab = 0;      // the sheet (from 0, in the order the workbook has them) that was open when it was saved
     int firstSheet = 0;     // the first tab of the row of tabs that shows
     WorkbookProtection protection;   // the protection of the workbook's structure (workbookProtection)
+    QVector<CustomView> customViews; // the named views (customWorkbookViews)
 };
 
 // Reads the workbook part. Each sheet has its name, id, state, and the Id of
@@ -387,6 +389,7 @@ public:
     void setSheetDeleted(int sheet, bool deleted);
     void setSheetOrder(const QVector<int> &order) { m_info.order = order; }
     void setWorkbookProtection(const WorkbookProtection &protection) { m_info.protection = protection; }
+    void setCustomViews(const QVector<CustomView> &views) { m_info.customViews = views; }
     // The tab that is open in the file, by its place in the order the tabs are in now: where the sheet the file says is open is (or, if it was deleted or is hidden, the first that is shown).
     int activeTabNow() const;
     // The part, relationship, and sheet number the package would have for a new sheet (names none that the package, or another new sheet, has), chosen once and kept.

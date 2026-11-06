@@ -55,7 +55,7 @@ void CrunchWindow::scenarioManagerDialog()
             for (const QString &c : cells) values << currentText(c);
             edit.setCells(text, values);
         }
-        if (edit.exec() == QDialog::Accepted) addScenario(edit.name(), edit.cellsText(), edit.comment(), edit.values());
+        if (edit.exec() == QDialog::Accepted) addScenario(edit.name(), edit.cellsText(), edit.comment(), edit.values(), edit.locked());
         refresh();
     });
     connect(&dialog, &ScenarioManagerDialog::editRequested, this, [&](int index) {
@@ -65,10 +65,11 @@ void CrunchWindow::scenarioManagerDialog()
         ScenarioEditDialog edit(false, currentText, &dialog);
         edit.setName(s.name);
         edit.setComment(s.comment);
+        edit.setLocked(s.locked);
         QStringList values;
         for (const ScenarioCell &c : s.cells) values << c.value;
         edit.setCells(refsOf(s), values);
-        if (edit.exec() == QDialog::Accepted) editScenario(index, edit.name(), edit.comment(), edit.values());
+        if (edit.exec() == QDialog::Accepted) editScenario(index, edit.name(), edit.comment(), edit.values(), edit.locked() ? 1 : 0);
         refresh();
     });
     connect(&dialog, &ScenarioManagerDialog::deleteRequested, this, [&](int index) {
@@ -90,7 +91,7 @@ void CrunchWindow::scenarioManagerDialog()
     dialog.exec();
 }
 
-bool CrunchWindow::addScenario(const QString &name, const QString &changing, const QString &comment, const QStringList &values)
+bool CrunchWindow::addScenario(const QString &name, const QString &changing, const QString &comment, const QStringList &values, bool locked)
 {
     const QString title = tr("Add Scenario");
     if (!m_session || !editingAllowed()) return false;
@@ -117,6 +118,7 @@ bool CrunchWindow::addScenario(const QString &name, const QString &changing, con
     Scenario s;
     s.name = clean;
     s.comment = comment.trimmed();
+    s.locked = locked;
     s.user = qEnvironmentVariable("USER", qEnvironmentVariable("USERNAME")).left(255);
     for (int i = 0; i < cells.size(); ++i) {
         ScenarioCell c;
@@ -137,7 +139,7 @@ bool CrunchWindow::addScenario(const QString &name, const QString &changing, con
     return true;
 }
 
-bool CrunchWindow::editScenario(int index, const QString &name, const QString &comment, const QStringList &values)
+bool CrunchWindow::editScenario(int index, const QString &name, const QString &comment, const QStringList &values, int locked)
 {
     const QString title = tr("Edit Scenario");
     if (!m_session || !editingAllowed()) return false;
@@ -155,6 +157,7 @@ bool CrunchWindow::editScenario(int index, const QString &name, const QString &c
     Scenario &s = list.list[index];
     s.name = clean;
     s.comment = comment.trimmed();
+    if (locked >= 0) s.locked = locked != 0;
     for (int i = 0; i < s.cells.size() && i < values.size(); ++i) s.cells[i].value = values[i];
     const crunch::EditSession::Outcome o = m_session->setScenarios(m_sheet, list, title);
     if (!o.ok) {

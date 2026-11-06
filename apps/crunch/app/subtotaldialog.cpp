@@ -46,6 +46,9 @@ SubtotalDialog::SubtotalDialog(const QStringList &names, QWidget *parent) : QDia
     m_replace->setObjectName(QStringLiteral("subtotalReplace"));
     m_replace->setChecked(true);
     layout->addWidget(m_replace);
+    m_pageBreaks = new QCheckBox(tr("Page break between groups"), this);
+    m_pageBreaks->setObjectName(QStringLiteral("subtotalPageBreaks"));
+    layout->addWidget(m_pageBreaks);
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     auto *remove = buttons->addButton(tr("Remove All"), QDialogButtonBox::ResetRole);
     remove->setObjectName(QStringLiteral("subtotalRemoveAll"));
@@ -61,6 +64,7 @@ SubtotalDialog::SubtotalDialog(const QStringList &names, QWidget *parent) : QDia
 int SubtotalDialog::changeColumn() const { return m_at->currentIndex(); }
 int SubtotalDialog::function() const { return m_function->currentData().toInt(); }
 bool SubtotalDialog::replace() const { return m_replace->isChecked(); }
+bool SubtotalDialog::pageBreaks() const { return m_pageBreaks->isChecked(); }
 
 QList<int> SubtotalDialog::totalColumns() const
 {

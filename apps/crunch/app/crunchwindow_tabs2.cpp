@@ -253,10 +253,10 @@ void CrunchWindow::subtotalDialog()
     }
     std::vector<int> columns;
     for (const int c : dialog.totalColumns()) columns.push_back(c);
-    subtotalIn(dialog.changeColumn(), dialog.function(), columns, dialog.replace());
+    subtotalIn(dialog.changeColumn(), dialog.function(), columns, dialog.replace(), dialog.pageBreaks());
 }
 
-bool CrunchWindow::subtotalIn(int changeColumn, int function, const std::vector<int> &columns, bool replace)
+bool CrunchWindow::subtotalIn(int changeColumn, int function, const std::vector<int> &columns, bool replace, bool pageBreaks)
 {
     if (!m_session || !editingAllowed()) return false;
     const jp::office::sheet::CellRange range = listRegion(tr("Subtotal"));
@@ -265,6 +265,7 @@ bool CrunchWindow::subtotalIn(int changeColumn, int function, const std::vector<
     spec.column = range.col1 + quint32(std::max(0, changeColumn));
     spec.function = function;
     spec.replace = replace;
+    spec.pageBreaks = pageBreaks;
     for (const int c : columns) spec.columns.push_back(range.col1 + quint32(std::max(0, c)));
     const qint64 before = m_loader.changesMade();
     int groups = 0;
@@ -430,7 +431,13 @@ bool CrunchWindow::advancedFilterIn(const QString &listText, const QString &crit
 namespace {
 quint16 ignoreBitOf(crunch::FormulaProblem::Kind kind)
 {
-    return kind == crunch::FormulaProblem::Kind::ErrorValue ? jp::office::sheet::IgnoredError::EvalError : jp::office::sheet::IgnoredError::NumberStoredAsText;
+    using jp::office::sheet::IgnoredError;
+    switch (kind) {
+    case crunch::FormulaProblem::Kind::ErrorValue: return IgnoredError::EvalError;
+    case crunch::FormulaProblem::Kind::InconsistentFormula: return IgnoredError::Formula;
+    case crunch::FormulaProblem::Kind::TwoDigitYear: return IgnoredError::TwoDigitTextYear;
+    default: return IgnoredError::NumberStoredAsText;
+    }
 }
 }
 

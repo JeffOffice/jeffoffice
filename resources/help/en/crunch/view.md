@@ -1,11 +1,19 @@
 # Change the view
-<!-- keywords: outline, group, ungroup, collapse, expand, detail, level, view, zoom, right-to-left, right to left, Arabic, Hebrew, mirrored, freeze, freeze panes, unfreeze, gridlines, headings, formula bar, collapse the ribbon, full screen, status bar, minimum, maximum, show formulas, sheet tabs, hidden sheets, headers, new window, arrange all, side by side, synchronous scrolling, switch windows -->
+<!-- keywords: outline, group, ungroup, collapse, expand, detail, level, view, zoom, right-to-left, right to left, Arabic, Hebrew, mirrored, freeze, freeze panes, unfreeze, gridlines, headings, formula bar, collapse the ribbon, full screen, status bar, minimum, maximum, show formulas, sheet tabs, hidden sheets, headers, new window, arrange all, side by side, synchronous scrolling, switch windows, custom views, saved view, named view -->
 
 The **View** tab changes how the sheet looks on your screen. It never changes the workbook.
 
 ## Views
 
 The **Views** group of the View tab (and the three buttons at the bottom right of the window) change what the sheet shows. **Normal** is the cells as they are. **Page Layout** shows the pages as they print, with their header and footer. **Page Breaks** shades what does not print, numbers the pages, and lets you drag the lines where pages begin. See [Set up the pages](page-layout) for the last two. Each sheet remembers its view, and the workbook saves it.
+
+## Custom views
+
+A **custom view** is a name for the way the workbook looks right now. It keeps which sheet is in front, which rows and columns are hidden, the zoom, the frozen rows and columns, the cell chosen in each sheet, the gridlines and headings, and the size of the window. You can have a view for reading and a view for checking, and switch between them in one click.
+
+On the **View** tab, click **Custom Views**. To keep the look you have now, type a name and click **Add**. If a view already has that name, the new look takes its place. To use a view, click its name and then **Show**. Showing a view hides and shows rows and columns as one step, so **Undo** puts them back. To remove a view, click it and then **Delete**.
+
+The views are saved with the workbook. A view does not keep a filter, only the rows it has hidden. It also does not move when you insert or delete rows or columns, so make the view again after you do. Views that other programs saved are listed, and they show the sheet and the window size.
 
 ## Zoom
 

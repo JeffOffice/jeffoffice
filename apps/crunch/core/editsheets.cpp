@@ -648,6 +648,16 @@ EditSession::Outcome EditSession::setScenarios(int sheet, jp::office::sheet::Sce
     }
     const jp::office::sheet::ScenarioList &now = m_book->calc->sheet(sheet).scenarios;
     if (now == list) return out;   // (nothing to change)
+    // on a protected sheet whose scenarios are protected, a scenario that was set to prevent changes is neither changed nor deleted
+    const jp::office::sheet::SheetProtection &lock = m_book->calc->sheet(sheet).protection;
+    if (lock.enabled && lock.scenarios) {
+        for (const jp::office::sheet::Scenario &s : now.list) {
+            if (!s.locked || list.list.contains(s)) continue;
+            out.ok = false;
+            out.problem = tr("The scenario \"%1\" is set to prevent changes, and the sheet is protected. Unprotect the sheet to change or delete it.").arg(s.name);
+            return out;
+        }
+    }
     SheetEdit e;
     e.kind = SheetEdit::Kind::Scenarios;
     e.sheet = sheet;
