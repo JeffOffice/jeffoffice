@@ -1787,6 +1787,8 @@ private Q_SLOTS:
         w.show();
         w.setDocument(open(makeDocx(body)), QString());
         QTRY_VERIFY(w.view()->pageCount() >= 2);
+        // (all pages laid out first: pages are set a few at a time, so a count read before that can be short of the whole)
+        w.view()->paginateAll();
         const int printPages = w.view()->pageCount();
         const double printWidth = w.document()->flow().section(0).paper.width();
         const QByteArray saved = w.document()->toDocx();
