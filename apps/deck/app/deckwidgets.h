@@ -49,6 +49,7 @@ private:
     };
     QRect tileRect(int i) const;
     int tileAt(const QPoint &p) const;
+    void drawPicture(Tile &t);
     Editor *m_ed;
     QVector<Tile> m_tiles;
     QString m_current;

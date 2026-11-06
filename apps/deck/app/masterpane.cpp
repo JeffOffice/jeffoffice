@@ -102,11 +102,22 @@ MasterPane::MasterPane(Editor *ed, QWidget *parent) : QListWidget(parent), m_ed(
     m_timer.setSingleShot(true);
     m_timer.setInterval(120);
     connect(&m_timer, &QTimer::timeout, this, &MasterPane::rebuild);
+    // The rows (and their thumbnails, the cost of a start) are made when the pane is first shown or asked.
     connect(this, &QListWidget::currentRowChanged, this, [this](int row) {
         const QString id = row >= 0 ? item(row)->data(IdRole).toString() : QString();
         if (!m_updating && !id.isEmpty() && id != m_ed->masterView()) m_ed->setMasterView(id);
     });
-    rebuild();
+}
+
+void MasterPane::ensureBuilt() const
+{
+    if (!m_built) const_cast<MasterPane *>(this)->rebuild();
+}
+
+void MasterPane::showEvent(QShowEvent *e)
+{
+    ensureBuilt();
+    QListWidget::showEvent(e);
 }
 
 void MasterPane::refresh(bool soon)
@@ -119,6 +130,7 @@ void MasterPane::rebuild()
 {
     const Document *d = m_ed->doc();
     if (!d) return;
+    m_built = true;
     m_timer.stop();
     m_updating = true;
     // Each slide master with its layouts; then the layouts that name no slide master, as the first's.
@@ -167,6 +179,7 @@ void MasterPane::rebuild()
 
 void MasterPane::followCurrent()
 {
+    if (!m_built) return;   // (the rows follow the current page when they are made)
     const int row = rowOf(m_ed->masterView());
     if (row == currentRow()) return;
     m_updating = true;
@@ -176,6 +189,7 @@ void MasterPane::followCurrent()
 
 int MasterPane::rowOf(const QString &id) const
 {
+    ensureBuilt();
     for (int row = 0; row < count(); ++row)
         if (item(row)->data(IdRole).toString() == id) return row;
     return -1;
@@ -183,6 +197,7 @@ int MasterPane::rowOf(const QString &id) const
 
 QStringList MasterPane::ids() const
 {
+    ensureBuilt();
     QStringList out;
     for (int row = 0; row < count(); ++row) out << item(row)->data(IdRole).toString();
     return out;
@@ -202,12 +217,14 @@ QString MasterPane::nameOf(const QString &id) const
 
 QString MasterPane::currentId() const
 {
+    ensureBuilt();
     const int row = currentRow();
     return row < 0 ? QString() : item(row)->data(IdRole).toString();
 }
 
 void MasterPane::selectPage(const QString &id)
 {
+    ensureBuilt();
     if (const int row = rowOf(id); row >= 0) setCurrentRow(row);
 }
 

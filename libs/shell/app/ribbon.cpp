@@ -1052,13 +1052,24 @@ private:
 };
 
 // ---------------- ribbon ----------------
+namespace {
+// The tabs' pages, one showing. Its size is that of the page showing: a stacked layout asks every page, which polished and measured the controls of every tab at
+// the first show (the pages are all one height, and the width of the ribbon is the window's).
+class RibbonBody : public QStackedWidget {
+public:
+    explicit RibbonBody(QWidget *parent) : QStackedWidget(parent) { connect(this, &QStackedWidget::currentChanged, this, [this] { updateGeometry(); }); }
+    QSize sizeHint() const override { return currentWidget() ? currentWidget()->sizeHint() : QSize(); }
+    QSize minimumSizeHint() const override { return currentWidget() ? currentWidget()->minimumSizeHint() : QSize(); }
+};
+} // namespace
+
 Ribbon::Ribbon(QWidget *parent) : QWidget(parent)
 {
     auto *v = new QVBoxLayout(this);
     v->setContentsMargins(0, 0, 0, 0);
     v->setSpacing(0);
     m_header = new RibbonHeader(this);
-    m_stack = new QStackedWidget(this);
+    m_stack = new RibbonBody(this);
     updateBodyHeight();
     v->addWidget(m_header);
     v->addWidget(m_stack);

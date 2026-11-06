@@ -36,12 +36,17 @@ public:
     // The commands of the right-click menu (a null action is a separator).
     void setMenuActions(const QList<QAction *> &actions);
 
+protected:
+    void showEvent(QShowEvent *e) override;
+
 private:
     void rebuild();
+    void ensureBuilt() const;
     int rowOf(const QString &id) const;
     Editor *m_ed;
     QTimer m_timer;
     bool m_updating = false;
+    bool m_built = false;
     // What each page looked like when its thumbnail was drawn.
     QHash<QString, QByteArray> m_seen;
 };

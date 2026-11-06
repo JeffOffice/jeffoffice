@@ -92,17 +92,27 @@ void LayoutGallery::reload()
     m_tiles.clear();
     const Document *d = m_ed->doc();
     if (!d) return;
-    const qreal dpr = devicePixelRatioF();
     const int page = m_ed->currentPage();
     const MasterPage *current = page >= 0 && page < d->pages.size() ? d->masterFor(*d->pages[page]) : nullptr;
     m_current = current ? deck::layoutKey(*d, *current) : QString();
-    for (MasterPage *l : deck::layouts(*d, deck::slideMasterOf(*d, page))) {
-        QImage pic = layoutPicture(*d, *l, int(std::lround(kPictureWidth * dpr)));
-        pic.setDevicePixelRatio(dpr);
-        m_tiles << Tile{deck::layoutKey(*d, *l), QCoreApplication::translate("Ribbon", l->name.toUtf8().constData()), pic};
-    }
+    // The pictures are drawn when a tile is first painted: a gallery in a menu is built with the window, long before it is shown (and read again when it is).
+    for (MasterPage *l : deck::layouts(*d, deck::slideMasterOf(*d, page)))
+        m_tiles << Tile{deck::layoutKey(*d, *l), QCoreApplication::translate("Ribbon", l->name.toUtf8().constData()), QImage()};
     updateGeometry();
     update();
+}
+
+void LayoutGallery::drawPicture(Tile &t)
+{
+    const Document *d = m_ed->doc();
+    if (!d) return;
+    const qreal dpr = devicePixelRatioF();
+    for (MasterPage *l : deck::layouts(*d, deck::slideMasterOf(*d, m_ed->currentPage())))
+        if (deck::layoutKey(*d, *l) == t.type) {
+            t.picture = layoutPicture(*d, *l, int(std::lround(kPictureWidth * dpr)));
+            t.picture.setDevicePixelRatio(dpr);
+            return;
+        }
 }
 
 QRect LayoutGallery::tileRect(int i) const
@@ -130,6 +140,7 @@ void LayoutGallery::paintEvent(QPaintEvent *)
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
     for (int i = 0; i < m_tiles.size(); ++i) {
+        if (m_tiles[i].picture.isNull()) drawPicture(m_tiles[i]);
         const Tile &t = m_tiles[i];
         const QRectF r = QRectF(tileRect(i)).adjusted(2, 2, -2, -2);
         const bool current = t.type == m_current, hot = i == m_hover;
