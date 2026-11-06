@@ -662,7 +662,9 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
             s.kind = Shape::Rect;
             s.filled = s.stroked = false;
             out->push_back(s);
-            readGroupMembers(t, group, s, mapOfGroup(t, childNamed(t, group, "grpSpPr"), GroupMap(), true), 0, out);
+            // (A group in the line has its parts set from the column's corner: the flow code's character anchor is the line's left edge, so it could not place them at the group.)
+            const Shape &place = s;
+            readGroupMembers(t, group, place, mapOfGroup(t, childNamed(t, group, "grpSpPr"), GroupMap(), true), 0, out);
             if (out->size() >= kMostShapes) return;
             continue;
         }

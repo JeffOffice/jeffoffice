@@ -326,13 +326,15 @@ bool parseDrawing(const QByteArray &raw, Model *m)
 int highestDrawingIdIn(const QByteArray &bytes)
 {
     int highest = 0;
-    for (qsizetype at = bytes.indexOf("docPr"); at >= 0; at = bytes.indexOf("docPr", at + 5)) {
-        const qsizetype id = bytes.indexOf(" id=\"", at);
-        if (id < 0 || id - at > 400) continue;
-        int value = 0, digits = 0;
-        for (qsizetype i = id + 5; i < bytes.size() && bytes[i] >= '0' && bytes[i] <= '9' && digits < 9; ++i, ++digits) value = value * 10 + (bytes[i] - '0');
-        highest = std::max(highest, value);
-    }
+    // (A drawing's wp:docPr, and the cNvPr of each member of a group, which names itself.)
+    for (const char *needle : {"docPr", "cNvPr"})
+        for (qsizetype at = bytes.indexOf(needle); at >= 0; at = bytes.indexOf(needle, at + 5)) {
+            const qsizetype id = bytes.indexOf(" id=\"", at);
+            if (id < 0 || id - at > 400) continue;
+            int value = 0, digits = 0;
+            for (qsizetype i = id + 5; i < bytes.size() && bytes[i] >= '0' && bytes[i] <= '9' && digits < 9; ++i, ++digits) value = value * 10 + (bytes[i] - '0');
+            highest = std::max(highest, value);
+        }
     return highest;
 }
 
@@ -345,7 +347,7 @@ int highestDrawingId(const QTextDocument *story)
             const QTextCharFormat cf = it.fragment().charFormat();
             if (!cf.hasProperty(prop::Atom)) continue;
             const QByteArray bytes = storedBytes(cf, prop::Atom);
-            if (bytes.contains("docPr")) highest = std::max(highest, highestDrawingIdIn(bytes));
+            if (bytes.contains("docPr") || bytes.contains("cNvPr")) highest = std::max(highest, highestDrawingIdIn(bytes));
         }
     return std::min(highest, 2000000000 - 2);
 }
@@ -732,7 +734,7 @@ PictureResult insertPictureImage(WriteDoc &doc, QTextCursor &c, const QImage &im
     return insertPrepared(doc, c, p, QString(), wrap, QString());
 }
 
-bool setPictureBox(WriteDoc &doc, int position, double width, double height, const std::optional<QPointF> &pageTopLeft)
+bool setPictureBox(WriteDoc &doc, int position, double width, double height, const std::optional<QPointF> &pageTopLeft, bool keepGlue)
 {
     if (!std::isfinite(width) || !std::isfinite(height)) return false;
     if (pageTopLeft && (!std::isfinite(pageTopLeft->x()) || !std::isfinite(pageTopLeft->y()))) return false;
@@ -762,7 +764,7 @@ bool setPictureBox(WriteDoc &doc, int position, double width, double height, con
             m.posV = posV;
         }
         // (A connector moved or sized by hand lets go of the shapes it was joined to.)
-        if (changed) m.graphic = withoutGlue(m.graphic);
+        if (changed && !keepGlue) m.graphic = withoutGlue(m.graphic);
         return changed;
     }, true);
 }
@@ -962,9 +964,9 @@ bool setPictureDecorative(WriteDoc &doc, int position, bool decorative)
     }, true);
 }
 
-bool setPicturePlace(WriteDoc &doc, int position, double pageX, double pageY)
+bool setPicturePlace(WriteDoc &doc, int position, double pageX, double pageY, bool keepGlue)
 {
-    return setPictureBox(doc, position, 0, 0, QPointF(pageX, pageY));
+    return setPictureBox(doc, position, 0, 0, QPointF(pageX, pageY), keepGlue);
 }
 
 bool movePictureInText(WriteDoc &doc, int position, int to)
@@ -1859,8 +1861,9 @@ bool partsOfGroup(const Model &g, QVector<GroupPart> *out)
                 p.id = t.attr(k, "id").toUtf8();
             }
         parts.push_back(p);
+        if (parts.size() > kMostGroupMembers) return false;   // (no further: a file can hold any number)
     }
-    if (parts.isEmpty() || parts.size() > kMostGroupMembers) return false;
+    if (parts.isEmpty()) return false;
     *out = parts;
     return true;
 }
@@ -1881,7 +1884,24 @@ QVector<QPointF> connectionSites(const QRectF &r, const QString &preset)
         return {QPointF(c.x(), r.top()), QPointF(c.x() - dx, c.y() - dy), QPointF(r.left(), c.y()), QPointF(c.x() - dx, c.y() + dy),
                 QPointF(c.x(), r.bottom()), QPointF(c.x() + dx, c.y() + dy), QPointF(r.right(), c.y()), QPointF(c.x() + dx, c.y() - dy)};
     }
+    // (The triangle: the apex, the middle of each slanted side, and the foot's corners and middle.)
+    if (preset == QLatin1String("triangle"))
+        return {QPointF(c.x(), r.top()), QPointF(r.left() + r.width() / 4, c.y()), QPointF(r.left(), r.bottom()), QPointF(c.x(), r.bottom()), QPointF(r.right(), r.bottom()), QPointF(r.right() - r.width() / 4, c.y())};
+    // (The hexagon: its six corners as it has them with its usual proportions.)
+    if (preset == QLatin1String("hexagon")) {
+        const double x1 = r.left() + r.width() * 0.25, x2 = r.right() - r.width() * 0.25;
+        return {QPointF(r.right(), c.y()), QPointF(x2, r.bottom()), QPointF(x1, r.bottom()), QPointF(r.left(), c.y()), QPointF(x1, r.top()), QPointF(x2, r.top())};
+    }
+    // (Any other: the middle of each side, as a rectangle has them; a diamond, a rounded rectangle, and the arrows are near enough.)
     return {QPointF(c.x(), r.top()), QPointF(r.left(), c.y()), QPointF(c.x(), r.bottom()), QPointF(r.right(), c.y())};
+}
+
+// The place of a site: one a shape does not have (a file from another program counts sites its own way) is the middle of the side that the number falls on, so the connector stays glued.
+QPointF connectionSite(const QRectF &r, const QString &preset, int index)
+{
+    const QVector<QPointF> sites = connectionSites(r, preset);
+    if (index >= 0 && index < sites.size()) return sites[index];
+    return connectionSites(r, QString()).value(((index % 4) + 4) % 4);
 }
 
 // The ids (a drawing's wp:docPr id) of what a connector is glued to, and the sites; -1 for an end that is free.
@@ -1924,12 +1944,19 @@ void setConnectorFrame(Model &m, const QPointF &p1, const QPointF &p2)
     const QRegularExpressionMatch found = xfrm.match(text);
     if (found.hasMatch()) {
         QString tag = found.captured();
+        const bool selfClosed = tag.endsWith(QLatin1String("/>"));
         static const QRegularExpression flips(QStringLiteral("\\s(flipH|flipV)=\"[^\"]*\""));
         tag.remove(flips);
         QString add;
         if (p2.x() < p1.x()) add += QStringLiteral(" flipH=\"1\"");
         if (p2.y() < p1.y()) add += QStringLiteral(" flipV=\"1\"");
-        tag.insert(tag.size() - 1, add);
+        if (selfClosed) {
+            // (An empty frame gets its place and size.)
+            tag.chop(2);
+            tag += add + QStringLiteral("><a:off x=\"0\" y=\"0\"/><a:ext cx=\"%1\" cy=\"%2\"/></a:xfrm>").arg(m.cx).arg(m.cy);
+        } else {
+            tag.insert(tag.size() - 1, add);
+        }
         text.replace(found.capturedStart(), found.capturedLength(), tag);
         m.graphic = text.toUtf8();
     }
@@ -1938,20 +1965,22 @@ void setConnectorFrame(Model &m, const QPointF &p1, const QPointF &p2)
     m.posV = "<wp:positionV relativeFrom=\"page\"><wp:posOffset>" + QByteArray::number(ey) + "</wp:posOffset></wp:positionV>";
 }
 
-// The shape an id names (a wp:docPr id), by scanning the text's drawings; -1 for none.
-int positionOfDrawingId(const WriteDoc &doc, int id)
+// Every id a drawing's bytes name (its wp:docPr, and the cNvPr of each member of a group).
+QVector<int> drawingIdsIn(const QByteArray &bytes)
 {
-    const QTextDocument *story = doc.story();
-    for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
-        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
-            Inline atom;
-            if (!drawingAtomOf(it.fragment().charFormat(), &atom)) continue;
-            Model m;
-            if (!parseDrawing(atom.raw, &m) || attributeValue(m.docPr, "id").toInt() != id) continue;
-            return it.fragment().position();
+    QVector<int> ids;
+    for (const char *needle : {"docPr", "cNvPr"})
+        for (qsizetype at = bytes.indexOf(needle); at >= 0 && ids.size() < 200; at = bytes.indexOf(needle, at + 5)) {
+            const qsizetype id = bytes.indexOf(" id=\"", at);
+            if (id < 0 || id - at > 400) continue;
+            int value = 0, digits = 0;
+            for (qsizetype i = id + 5; i < bytes.size() && bytes[i] >= '0' && bytes[i] <= '9' && digits < 9; ++i, ++digits) value = value * 10 + (bytes[i] - '0');
+            ids.push_back(value);
         }
-    return -1;
+    return ids;
 }
+
+constexpr int kMostConnectorsRerouted = 200;
 
 } // namespace
 
@@ -2013,53 +2042,70 @@ PictureResult connectObjects(WriteDoc &doc, int from, const QRectF &fromRect, in
 int rerouteConnectors(WriteDoc &doc, const QVector<std::pair<int, QRectF>> &moved, const std::function<bool(int, QRectF *)> &rectOf)
 {
     QTextDocument *story = doc.story();
-    // The ids of the moved objects.
-    QHash<int, int> idOf;      // wp:docPr id -> position, for the moved ones
-    for (const auto &m : moved) {
-        Inline atom;
-        Model model;
-        if (!drawingAtomOf(formatAfter(story, m.first), &atom) || !parseDrawing(atom.raw, &model)) continue;
-        idOf.insert(attributeValue(model.docPr, "id").toInt(), m.first);
-    }
-    if (idOf.isEmpty()) return 0;
-    // The connectors that are glued to one of them.
-    QVector<int> connectors;
+    // One pass over the drawings: where each id is (a member of a group is where its group is), and the connectors that are glued to anything.
+    QHash<int, int> positionOfId;
+    QVector<std::pair<int, Glue>> glued;
     for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
             Inline atom;
-            if (!drawingAtomOf(it.fragment().charFormat(), &atom) || !atom.raw.contains("Cxn")) continue;
-            Model m;
-            if (!parseDrawing(atom.raw, &m)) continue;
-            const Glue g = glueOf(m.graphic);
-            if (idOf.contains(g.startId) || idOf.contains(g.endId)) connectors.push_back(it.fragment().position());
+            if (!drawingAtomOf(cf, &atom)) continue;
+            const int at = it.fragment().position();
+            for (const int id : drawingIdsIn(atom.raw))
+                if (!positionOfId.contains(id)) positionOfId.insert(id, at);
+            if (atom.raw.contains("Cxn")) {
+                const Glue g = glueOf(atom.raw);
+                if (g.startId >= 0 || g.endId >= 0) glued.push_back({at, g});
+            }
         }
-    int count = 0;
+    QHash<int, QRectF> movedRect;
+    for (const auto &m : moved) movedRect.insert(m.first, m.second);
+    int count = 0, tried = 0;
     const WriteDoc::StepGroup step(doc);
-    for (const int cp : connectors) {
-        Inline atom;
-        Model m;
-        if (!drawingAtomOf(formatAfter(story, cp), &atom) || !parseDrawing(atom.raw, &m)) continue;
-        const Glue g = glueOf(m.graphic);
+    for (const auto &entry : glued) {
+        const int cp = entry.first;
+        const Glue &g = entry.second;
+        auto movedEnd = [&](int id) { return id >= 0 && movedRect.contains(positionOfId.value(id, -1)); };
+        if (!movedEnd(g.startId) && !movedEnd(g.endId)) continue;
+        if (++tried > kMostConnectorsRerouted) break;
         QPointF ends[2];
         bool ok = true;
         for (int side = 0; side < 2 && ok; ++side) {
             const int id = side == 0 ? g.startId : g.endId, site = side == 0 ? g.startSite : g.endSite;
-            int pos = -1;
-            QRectF rect;
-            bool found = false;
-            for (const auto &mv : moved)
-                if (idOf.value(id, -2) == mv.first) {
-                    pos = mv.first;
-                    rect = mv.second;
-                    found = true;
-                }
-            if (!found) {
-                pos = positionOfDrawingId(doc, id);
-                found = pos >= 0 && rectOf(pos, &rect);
+            const int pos = id >= 0 ? positionOfId.value(id, -1) : -1;   // (an id that names nothing leaves the connector as it is)
+            if (pos < 0 || site < 0) {
+                ok = false;
+                break;
             }
-            const QVector<QPointF> sites = found ? connectionSites(rect, pictureAt(doc, story, pos).preset) : QVector<QPointF>();
-            if (!found || site < 0 || site >= sites.size()) ok = false;
-            else ends[side] = sites[site];
+            QRectF rect;
+            if (movedRect.contains(pos)) rect = movedRect.value(pos);
+            else if (!rectOf(pos, &rect)) ok = false;
+            if (!ok) break;
+            Inline atom;
+            Model model;
+            QString preset;
+            QRectF shown = rect;
+            if (drawingAtomOf(formatAfter(story, pos), &atom) && parseDrawing(atom.raw, &model)) {
+                QVector<GroupPart> parts;
+                if (model.graphic.contains("<wpg:wgp") && partsOfGroup(model, &parts)) {
+                    // A member of a group: its rectangle is the group's corner and its place in the group.
+                    bool found = false;
+                    for (const GroupPart &gp : std::as_const(parts))
+                        if (gp.id.toInt() == id) {
+                            shown = QRectF(rect.left() + gp.x / kEmuPerPoint, rect.top() + gp.y / kEmuPerPoint, gp.cx / kEmuPerPoint, gp.cy / kEmuPerPoint);
+                            const qsizetype p = gp.element.indexOf("prst=\"");
+                            if (p >= 0) preset = QString::fromUtf8(gp.element.mid(p + 6, gp.element.indexOf('"', p + 6) - p - 6));
+                            found = true;
+                        }
+                    if (!found) ok = false;
+                } else {
+                    preset = pictureAt(doc, story, pos).preset;
+                }
+            } else {
+                ok = false;
+            }
+            if (ok) ends[side] = connectionSite(shown, preset, site);
         }
         if (!ok) continue;
         if (changePicture(doc, cp, [&](Model &model) {
@@ -2291,7 +2337,8 @@ bool ungroupObject(WriteDoc &doc, int position, const QPointF &pageTopLeft, QVec
         // (A shape in a group names itself; out of it, the drawing names it.)
         static const QRegularExpression ownName(QStringLiteral("<wps:cNvPr\\b[^>]*/>"));
         if (!p.picture) element = QString::fromUtf8(element).remove(ownName).toUtf8();
-        const int id = doc.nextDrawingId(story);
+        // (A part keeps the id it had, so that what is glued to it stays glued; one without a usable id gets a new one.)
+        const int id = p.id.toInt() > 0 ? p.id.toInt() : doc.nextDrawingId(story);
         m.graphic = "<a:graphic><a:graphicData uri=\"" + QByteArray(p.picture ? "http://schemas.openxmlformats.org/drawingml/2006/picture" : kShapeUri) + "\">" + element + "</a:graphicData></a:graphic>";
         m.cx = p.cx;
         m.cy = p.cy;

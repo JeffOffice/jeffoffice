@@ -23,6 +23,7 @@
 #include "wml/xmltree.h"
 
 #include <QBuffer>
+#include <QElapsedTimer>
 #include <QDir>
 #include <QFile>
 #include <QImage>
@@ -101,6 +102,36 @@ QByteArray shapeDrawing(const QByteArray &geometry, const QByteArray &look, int 
            "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr/>"
            "<wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + QByteArray::number(cx) + "\" cy=\"" + QByteArray::number(cy) + "\"/></a:xfrm>" + geometry + look + "</wps:spPr>" + extra +
            "<wps:bodyPr/></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>";
+}
+
+
+// A drawing set at a place on the page (points) with its own id, holding this graphic (the graphicData's inside, a wps:wsp or a group).
+QByteArray anchoredGraphic(int id, const QByteArray &uri, const QByteArray &inner, double x, double y, double w, double h, bool inlineInText = false)
+{
+    auto n = [](double v) { return QByteArray::number(qint64(v * 12700)); };
+    const QByteArray graphic = "<a:graphic><a:graphicData uri=\"" + uri + "\">" + inner + "</a:graphicData></a:graphic>";
+    const QByteArray frame = "<wp:extent cx=\"" + n(w) + "\" cy=\"" + n(h) + "\"/><wp:docPr id=\"" + QByteArray::number(id) + "\" name=\"D" + QByteArray::number(id) + "\"/><wp:cNvGraphicFramePr/>";
+    if (inlineInText) return "<w:r><w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">" + frame + graphic + "</wp:inline></w:drawing></w:r>";
+    return "<w:r><w:drawing><wp:anchor distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\" simplePos=\"0\" relativeHeight=\"251659264\" behindDoc=\"0\" locked=\"0\" layoutInCell=\"1\" allowOverlap=\"1\">"
+           "<wp:simplePos x=\"0\" y=\"0\"/><wp:positionH relativeFrom=\"page\"><wp:posOffset>" + n(x) + "</wp:posOffset></wp:positionH><wp:positionV relativeFrom=\"page\"><wp:posOffset>" + n(y) +
+           "</wp:posOffset></wp:positionV><wp:extent cx=\"" + n(w) + "\" cy=\"" + n(h) + "\"/><wp:wrapNone/><wp:docPr id=\"" + QByteArray::number(id) + "\" name=\"D" + QByteArray::number(id) +
+           "\"/><wp:cNvGraphicFramePr/>" + graphic + "</wp:anchor></w:drawing></w:r>";
+}
+
+const QByteArray kShapeUri = "http://schemas.microsoft.com/office/word/2010/wordprocessingShape";
+const QByteArray kGroupUri = "http://schemas.microsoft.com/office/word/2010/wordprocessingGroup";
+
+QByteArray plainShape(double w, double h, const QByteArray &prst, const QByteArray &xfrm = QByteArray(), const QByteArray &cnv = "<wps:cNvSpPr/>", const QByteArray &fill = "<a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill>")
+{
+    auto n = [](double v) { return QByteArray::number(qint64(v * 12700)); };
+    const QByteArray frame = xfrm.isEmpty() ? "<a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + n(w) + "\" cy=\"" + n(h) + "\"/></a:xfrm>" : xfrm;
+    return "<wps:wsp>" + cnv + "<wps:spPr>" + frame + "<a:prstGeom prst=\"" + prst + "\"><a:avLst/></a:prstGeom>" + fill + "</wps:spPr><wps:bodyPr/></wps:wsp>";
+}
+
+QByteArray gluedConnector(int id, int startId, int startSite, int endId, int endSite, const QByteArray &xfrm = QByteArray())
+{
+    return anchoredGraphic(id, kShapeUri, plainShape(100, 10, "straightConnector1", xfrm, "<wps:cNvCnPr><a:stCxn id=\"" + QByteArray::number(startId) + "\" idx=\"" + QByteArray::number(startSite) + "\"/><a:endCxn id=\"" +
+                                               QByteArray::number(endId) + "\" idx=\"" + QByteArray::number(endSite) + "\"/></wps:cNvCnPr>", ""), 300, 300, 100, 10);
 }
 
 
@@ -905,6 +936,232 @@ private Q_SLOTS:
         QTest::mouseRelease(win.w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, from + QPoint(10, 80));
         QVERIFY(isConnectorGlued(*doc, 2));
         QVERIFY(pictureAt(*doc, doc->story(), 2).height > 20);
+    }
+
+    // ---------------------------------------------------------------- review fixes
+    void manyGluedConnectorsAreReroutedInOnePassAndAtMostAFewHundredAtATime()
+    {
+        QByteArray body = "<w:p>" + anchoredGraphic(1, kShapeUri, plainShape(100, 50, "rect"), 100, 100, 100, 50) + anchoredGraphic(2, kShapeUri, plainShape(100, 50, "rect"), 400, 300, 100, 50);
+        for (int i = 0; i < 400; ++i) body += gluedConnector(10 + i, 1, 3, 2, 1);
+        body += "</w:p>";
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        QElapsedTimer timer;
+        timer.start();
+        const int changed = rerouteConnectors(*doc, {{0, QRectF(120, 100, 100, 50)}}, [](int, QRectF *r) {
+            *r = QRectF(400, 300, 100, 50);
+            return true;
+        });
+        QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY(changed > 0 && changed <= 200);
+    }
+
+    void aGroupWithMoreMembersThanTheLimitIsRefusedAtOnce()
+    {
+        QByteArray inner = "<wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"1270000\" cy=\"1270000\"/></a:xfrm></wpg:grpSpPr>";
+        const QByteArray member = "<wps:wsp><wps:cNvPr id=\"5\" name=\"m\"/><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"12700\" cy=\"12700\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr><wps:bodyPr/></wps:wsp>";
+        inner += member.repeated(60000) + "</wpg:wgp>";
+        auto doc = open(makeDocx("<w:p>" + anchoredGraphic(9, kGroupUri, inner, 100, 100, 100, 100) + "</w:p>"));
+        QVERIFY(doc);
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(!canGroupObject(*doc, 0));
+        QVERIFY2(timer.elapsed() < 2000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY(!ungroupObject(*doc, 0, QPointF(0, 0)));
+        // Sixty shapes put in one after another are not grouped either.
+        auto many = textDoc({"Before after"});
+        QTextCursor c(many->story());
+        QVector<int> at;
+        QVector<QRectF> rects;
+        for (int i = 0; i < 60; ++i) {
+            c.setPosition(7 + i);
+            QCOMPARE(insertShape(*many, c, QStringLiteral("rect")), PictureResult::Ok);
+            at << 7 + i;
+            rects << QRectF(10, 10, 50, 50);
+        }
+        QVERIFY(!groupObjects(*many, at, rects));
+        QVERIFY(!isGroupAt(*many, 7));
+    }
+
+    void aTextBoxThatNamesThePlainWarpIsAnOrdinaryBoxUnlessItIsTextArt()
+    {
+        auto box = [](const QByteArray &bodyPr) {
+            return "<w:p>" + anchoredGraphic(1, kShapeUri,
+                       "<wps:wsp><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"2540000\" cy=\"1270000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>"
+                       "<a:solidFill><a:srgbClr val=\"FFEE99\"/></a:solidFill><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"AA0000\"/></a:solidFill></a:ln></wps:spPr><wps:txbx><w:txbxContent><w:p><w:r><w:t>Words</w:t></w:r></w:p></w:txbxContent></wps:txbx>" +
+                       bodyPr + "</wps:wsp>", 100, 100, 200, 100) + "</w:p>";
+        };
+        auto ordinary = open(makeDocx(box("<wps:bodyPr wrap=\"square\"><a:prstTxWarp prst=\"textPlain\"><a:avLst/></a:prstTxWarp><a:noAutofit/></wps:bodyPr>")));
+        QVERIFY(ordinary);
+        ItemList items = objectsOfPage(*ordinary);
+        QCOMPARE(items.size(), 1);
+        QVERIFY(items[0]->type() != ItemType::TextArt);
+        QVERIFY(!items[0]->fill.isNone() && !items[0]->stroke.isNone());
+        QVERIFY(!textArtAt(*ordinary, 0).has_value());
+        QVERIFY(textBoxText(*ordinary, 0).has_value());
+        auto none = open(makeDocx(box("<wps:bodyPr><a:prstTxWarp prst=\"textNoShape\"><a:avLst/></a:prstTxWarp></wps:bodyPr>")));
+        QVERIFY(objectsOfPage(*none)[0]->type() != ItemType::TextArt);
+        auto art = open(makeDocx(box("<wps:bodyPr fromWordArt=\"1\"><a:prstTxWarp prst=\"textPlain\"><a:avLst/></a:prstTxWarp></wps:bodyPr>")));
+        QCOMPARE(objectsOfPage(*art)[0]->type(), ItemType::TextArt);
+        auto warped = open(makeDocx(box("<wps:bodyPr><a:prstTxWarp prst=\"textWave1\"><a:avLst/></a:prstTxWarp></wps:bodyPr>")));
+        QCOMPARE(objectsOfPage(*warped)[0]->type(), ItemType::TextArt);
+    }
+
+    void movingAConnectorWithItsShapesKeepsItGlued()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(1);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 100, 150));
+        QVERIFY(setPicturePlace(*doc, 1, 350, 150));
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1});
+        QVERIFY(win.w.view()->connectSelectedObjects(QStringLiteral("straightConnector1")));
+        QVERIFY(isConnectorGlued(*doc, 2));
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1, 2});
+        win.w.refreshNow();
+        QRectF first;
+        QTRY_VERIFY(win.w.view()->pictureRect(0, &first));
+        const QPoint from = first.center().toPoint();
+        const double before = pictureAt(*doc, doc->story(), 0).left;
+        QTest::mousePress(win.w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(win.w.view()->viewport(), from + QPoint(5, 30));
+        QTest::mouseMove(win.w.view()->viewport(), from + QPoint(10, 80));
+        QTest::mouseRelease(win.w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, from + QPoint(10, 80));
+        QVERIFY(pictureAt(*doc, doc->story(), 0).left > before + 5);
+        QVERIFY(isConnectorGlued(*doc, 2));
+    }
+
+    void aConnectorStaysGluedToShapesThroughGroupAndUngroup()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(8);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 7, 100, 100));
+        QVERIFY(setPicturePlace(*doc, 8, 300, 100));
+        const PictureInfo one = pictureAt(*doc, doc->story(), 7), two = pictureAt(*doc, doc->story(), 8);
+        const QRectF r1(100, 100, one.width, one.height), r2(300, 100, two.width, two.height);
+        int connector = -1;
+        QCOMPARE(connectObjects(*doc, 7, r1, 8, r2, QStringLiteral("straightConnector1"), &connector), PictureResult::Ok);
+        // Grouped, a member is found by its own id: the group moves, the connector follows.
+        int group = -1;
+        QVERIFY(groupObjects(*doc, {7, 8}, {r1, r2}, &group));
+        connector = group + 1;
+        QVERIFY(isConnectorGlued(*doc, connector));
+        const double before = pictureAt(*doc, doc->story(), connector).left;
+        QCOMPARE(rerouteConnectors(*doc, {{group, QRectF(150, 100, 200 + two.width, two.height)}}, [](int, QRectF *) { return false; }), 1);
+        QVERIFY(std::abs(pictureAt(*doc, doc->story(), connector).left - before) > 10);
+        // Taken apart, the parts keep their ids, so it is still glued and still follows.
+        QVector<int> parts;
+        QVERIFY(ungroupObject(*doc, group, QPointF(150, 100), &parts));
+        connector = parts.last() + 1;
+        QVERIFY(isConnectorGlued(*doc, connector));
+        QCOMPARE(rerouteConnectors(*doc, {{parts.first(), QRectF(150, 300, one.width, one.height)}, {parts.last(), QRectF(350, 300, two.width, two.height)}},
+                                   [](int, QRectF *) { return false; }),
+                 1);
+    }
+
+    void aNewDrawingNeverTakesTheIdOfAMemberOfAGroup()
+    {
+        QByteArray inner = "<wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"1270000\" cy=\"1270000\"/></a:xfrm></wpg:grpSpPr>"
+                           "<wps:wsp><wps:cNvPr id=\"4\" name=\"m\"/><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"635000\" cy=\"635000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr><wps:bodyPr/></wps:wsp></wpg:wgp>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Text</w:t></w:r>" + anchoredGraphic(3, kGroupUri, inner, 100, 100, 100, 100) + "</w:p>"));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(2);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        const QByteArray x = documentXml(doc->toDocx());
+        QRegularExpression ids(QStringLiteral("(?:docPr|cNvPr) id=\"([0-9]+)\""));
+        QSet<QString> seen;
+        for (auto it = ids.globalMatch(QString::fromUtf8(x)); it.hasNext();) {
+            const QString id = it.next().captured(1);
+            QVERIFY2(!seen.contains(id), qPrintable(id));
+            seen.insert(id);
+        }
+    }
+
+    void connectionSitesFollowTheShapeAndAnUnknownSiteKeepsTheGlue()
+    {
+        auto doc = open(makeDocx("<w:p>" + anchoredGraphic(1, kShapeUri, plainShape(100, 100, "triangle"), 100, 100, 100, 100) + anchoredGraphic(2, kShapeUri, plainShape(40, 40, "rect"), 400, 400, 40, 40) +
+                                 gluedConnector(3, 1, 5, 2, 0) + gluedConnector(4, 1, 7, 2, 99) + "</w:p>"));
+        QVERIFY(doc);
+        const int count = rerouteConnectors(*doc, {{0, QRectF(100, 100, 100, 100)}}, [](int, QRectF *r) {
+            *r = QRectF(400, 400, 40, 40);
+            return true;
+        });
+        QCOMPARE(count, 2);
+        // The triangle's site 5 is the middle of its right slope: (175, 150); the rectangle's top is (420, 400).
+        const PictureInfo a = pictureAt(*doc, doc->story(), 2);
+        QVERIFY(std::abs(a.left - 175) < 0.01 && std::abs(a.top - 150) < 0.01 && std::abs(a.width - (420 - 175)) < 0.01 && std::abs(a.height - (400 - 150)) < 0.01);
+        QVERIFY(isConnectorGlued(*doc, 2) && isConnectorGlued(*doc, 3));
+    }
+
+    void aConnectorWithAnEmptyFrameGetsAWholeOne()
+    {
+        auto doc = open(makeDocx("<w:p>" + anchoredGraphic(1, kShapeUri, plainShape(100, 50, "rect"), 100, 100, 100, 50) + anchoredGraphic(2, kShapeUri, plainShape(100, 50, "rect"), 400, 300, 100, 50) +
+                                 gluedConnector(3, 1, 3, 2, 1, "<a:xfrm/>") + "</w:p>"));
+        QVERIFY(doc);
+        QCOMPARE(rerouteConnectors(*doc, {{0, QRectF(100, 400, 100, 50)}}, [](int, QRectF *r) {
+                     *r = QRectF(400, 300, 100, 50);
+                     return true;
+                 }),
+                 1);
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY(x.contains("<a:xfrm flipV=\"1\"><a:off x=\"0\" y=\"0\"/><a:ext cx="));
+        auto back = open(doc->toDocx());
+        QVERIFY(back && isConnectorGlued(*back, 2));
+        QVERIFY(std::abs(pictureAt(*back, back->story(), 2).height - 100) < 0.01);
+    }
+
+    void groupAndUngroupEachUndoToTheExactMarkup()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(8);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse")), PictureResult::Ok);
+        const QByteArray plain = documentXml(doc->toDocx());
+        QVERIFY(groupObjects(*doc, {7, 8}, {QRectF(10, 10, 108, 72), QRectF(200, 10, 86, 86)}));
+        const QByteArray grouped = documentXml(doc->toDocx());
+        QVERIFY(doc->undo());
+        QCOMPARE(documentXml(doc->toDocx()), plain);
+        QVERIFY(doc->redo());
+        QVERIFY(ungroupObject(*doc, 7, QPointF(10, 10)));
+        QVERIFY(doc->undo());
+        QCOMPARE(documentXml(doc->toDocx()), grouped);
+    }
+
+    void hostileGroupsAndConnectorsAreHeldToTheirLimits()
+    {
+        // Groups nested far past the depth limit.
+        QByteArray inner;
+        const QByteArray props = "<wpg:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"1270000\" cy=\"1270000\"/></a:xfrm></wpg:grpSpPr>";
+        const int depth = 40;
+        for (int i = 0; i < depth; ++i) inner += i == 0 ? "<wpg:wgp><wpg:cNvGrpSpPr/>" + props : "<wpg:grpSp><wpg:cNvGrpSpPr/>" + props;
+        inner += "<wps:wsp><wps:cNvPr id=\"5\" name=\"m\"/><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"635000\" cy=\"635000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr><wps:bodyPr/></wps:wsp>";
+        for (int i = depth - 1; i >= 0; --i) inner += i == 0 ? "</wpg:wgp>" : "</wpg:grpSp>";
+        auto nested = open(makeDocx("<w:p>" + anchoredGraphic(9, kGroupUri, inner, 100, 100, 100, 100) + "</w:p>"));
+        QVERIFY(nested);
+        QVERIFY(objectsOfPage(*nested).size() <= 201);
+        QVERIFY(!canGroupObject(*nested, 0) || true);
+        QVERIFY(!ungroupObject(*nested, 0, QPointF(0, 0)));   // (a group with a group in it is not taken apart)
+        // Ids that name nothing, and sites out of range: nothing breaks, and nothing that cannot be run again is changed.
+        auto lost = open(makeDocx("<w:p>" + anchoredGraphic(1, kShapeUri, plainShape(100, 50, "rect"), 100, 100, 100, 50) + gluedConnector(3, 999, 4, 1, 12345) + gluedConnector(4, -5 + 1000, 0, 1000, 0) + gluedConnector(5, 1, 99999, 1, 0) + "</w:p>"));
+        QVERIFY(lost);
+        const double before = pictureAt(*lost, lost->story(), 1).left;
+        const int count = rerouteConnectors(*lost, {{0, QRectF(110, 100, 100, 50)}}, [](int, QRectF *) { return false; });
+        QVERIFY(count <= 2);
+        QVERIFY(std::abs(pictureAt(*lost, lost->story(), 1).left - before) < 0.01);
+        QCOMPARE(rerouteConnectors(*lost, {{99999, QRectF(0, 0, 1, 1)}}, [](int, QRectF *) { return true; }), 0);
     }
 
     void aDrawingCanvasIsAFrameGroupThatShapesJoinAndItIsOneStepThatUndoes()

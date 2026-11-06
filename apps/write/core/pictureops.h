@@ -111,7 +111,7 @@ PictureResult insertPictureImage(WriteDoc &doc, QTextCursor &c, const QImage &im
 // make no difference. Sizes are in points and held to the least and most above.
 bool setPictureSize(WriteDoc &doc, int position, double width, double height);
 // The size and the place (the picture's top left corner on the page) in one step; with no place, only the size; with no size (0), only the place.
-bool setPictureBox(WriteDoc &doc, int position, double width, double height, const std::optional<QPointF> &pageTopLeft);
+bool setPictureBox(WriteDoc &doc, int position, double width, double height, const std::optional<QPointF> &pageTopLeft, bool keepGlue = false);
 bool setPictureWrap(WriteDoc &doc, int position, PictureWrap wrap);
 // Moves the floating picture at `position` in the layers as `order` says, as one step that undoes (the pictures it passes are given heights to keep their order). False where it does
 // not move (an inline picture, or one already there); `canOrderPicture` says whether it would.
@@ -121,7 +121,8 @@ bool setPictureAltText(WriteDoc &doc, int position, const QString &alt);
 // Mark as Decorative: the picture is marked as adding nothing to the page's meaning, and its description is taken off; off, the mark goes.
 bool setPictureDecorative(WriteDoc &doc, int position, bool decorative);
 // Sets a picture at a place on the page, measured from its top left corner (points): it becomes one that is set at a place (square, if it was in line).
-bool setPicturePlace(WriteDoc &doc, int position, double pageX, double pageY);
+// (A connector that is glued lets go when moved or sized by hand, unless `keepGlue` says it moves with the shapes it is glued to.)
+bool setPicturePlace(WriteDoc &doc, int position, double pageX, double pageY, bool keepGlue = false);
 // Moves an inline picture to another place in the text (`to`, a position outside the picture): one step.
 bool movePictureInText(WriteDoc &doc, int position, int to);
 

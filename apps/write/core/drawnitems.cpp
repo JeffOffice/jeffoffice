@@ -228,20 +228,24 @@ ItemPtr textArtItem(const Shape &s)
     XmlTree shape;
     if (!shape.parse(s.wsp, nullptr)) return nullptr;
     QString warp;
+    bool fromArt = false;
     {
         std::vector<int> stack{shape.root()};
         for (int steps = 0; !stack.empty() && steps < 400; ++steps) {
             const int n = stack.back();
             stack.pop_back();
-            if (shape.localName(n) == "prstTxWarp") {
-                warp = shape.attr(n, "prst");
-                break;
+            if (shape.localName(n) == "bodyPr") {
+                const QString v = shape.attr(n, "fromWordArt");
+                fromArt = v == QLatin1String("1") || v == QLatin1String("true");
             }
+            if (shape.localName(n) == "prstTxWarp") warp = shape.attr(n, "prst");
             for (int c = shape.firstChild(n); c >= 0; c = shape.next(c)) stack.push_back(c);
         }
     }
     const QString transform = warp.isEmpty() ? QString() : office::textArtTransformOfWarp(warp);
-    if (transform.isEmpty() && warp != QLatin1String("textPlain")) return nullptr;
+    if (transform.isEmpty()) return nullptr;
+    // (A box that says "plain text" and is not text art of its own is an ordinary text box, as other programs write them.)
+    if (warp == QLatin1String("textPlain") && !fromArt) return nullptr;
     XmlTree words;
     if (!words.parse(s.textBox, nullptr)) return nullptr;
     const int top = words.root();

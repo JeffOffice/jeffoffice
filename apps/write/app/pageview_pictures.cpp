@@ -396,9 +396,9 @@ void PageView::endPictureDrag(const QPoint &pos)
                 }
                 const WriteDoc::StepGroup step(*m_doc);
                 const QRectF startOnPage((d.start.left() - pr.left()) / s, (d.start.top() - pr.top()) / s, d.start.width() / s, d.start.height() / s);
-                changed = setPicturePlace(*m_doc, d.position, (d.now.left() - pr.left()) / s, (d.now.top() - pr.top()) / s);
+                changed = setPicturePlace(*m_doc, d.position, (d.now.left() - pr.left()) / s, (d.now.top() - pr.top()) / s, !others.isEmpty());
                 const QPointF delta((d.now.left() - d.start.left()) / s, (d.now.top() - d.start.top()) / s);
-                for (const auto &o : others) setPicturePlace(*m_doc, o.first, o.second.left() + delta.x(), o.second.top() + delta.y());
+                for (const auto &o : others) setPicturePlace(*m_doc, o.first, o.second.left() + delta.x(), o.second.top() + delta.y(), true);
                 if (changed) {
                     QVector<std::pair<int, QRectF>> moved{{d.position, startOnPage.translated(delta)}};
                     for (const auto &o : others) moved.push_back({o.first, o.second.translated(delta)});
