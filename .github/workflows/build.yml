@@ -10,8 +10,13 @@ on:
       - '.github/workflows/features.yml'
   pull_request:
   # By hand, to build and test a branch before it goes to main:
-  # gh workflow run build.yml --ref <branch>
+  # gh workflow run build.yml --ref <branch> -f mac_both=false
   workflow_dispatch:
+    inputs:
+      mac_both:
+        description: 'Build the Mac programs for both processors (Apple and Intel), as a release needs'
+        type: boolean
+        default: true
 
 jobs:
   build:
@@ -21,12 +26,12 @@ jobs:
       SHIP_WRITE: 'true'
       SHIP_CRUNCH: 'true'
       # A Mac build for both processors (Apple and Intel) compiles everything twice. Only a run started by hand, the kind a release takes its files from,
-      # builds and packages for both; a push builds for Apple's processors alone.
-      MAC_ARCHS: ${{ github.event_name == 'workflow_dispatch' && 'arm64;x86_64' || 'arm64' }}
+      # builds and packages for both (unless it is told mac_both=false, as a branch's test run is); a push builds for Apple's processors alone.
+      MAC_ARCHS: ${{ github.event_name == 'workflow_dispatch' && inputs.mac_both && 'arm64;x86_64' || 'arm64' }}
       # Our own machine keeps its compiler cache in a folder of its own, kept from run to run; GitHub's machines keep it in GitHub's cache.
       CCACHE_DIR: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && '/ccache' || format('{0}/.ccache', github.workspace) }}
-      # (precompiled headers: without these, ccache caches no file that reads one)
-      CCACHE_SLOPPINESS: pch_defines,time_macros
+      # (precompiled headers: without these, ccache caches no file that reads one; the header times because a fresh checkout's files are all new)
+      CCACHE_SLOPPINESS: pch_defines,time_macros,include_file_mtime,include_file_ctime
     strategy:
       fail-fast: false
       matrix:
