@@ -1,5 +1,5 @@
 # Type in cells
-<!-- keywords: type, typing, enter, edit, change, cell, entry, formula bar, F2, double click, Tab, Escape, give up, undo, redo, delete, clear, percent, currency, money, date, time, number, text, apostrophe, formula, equals, replace, limit, characters -->
+<!-- keywords: bold word, part of a cell, rich text, format part of text, color a word, runs, type, typing, enter, edit, change, cell, entry, formula bar, F2, double click, Tab, Escape, give up, undo, redo, delete, clear, percent, currency, money, date, time, number, text, apostrophe, formula, equals, replace, limit, characters -->
 
 To put something in a cell, select the cell and start typing. What you type replaces what the cell held. Press **Enter** to keep it, or **Esc** to give it up and leave the cell as it was.
 
@@ -34,6 +34,19 @@ When you type over a cell, an arrow key finishes the entry and moves the selecti
 In **File > Options > Editing**, choose whether **Enter** moves down, right, up, or left, or does not move.
 
 If you type in several cells along a row with **Tab**, then press **Enter**, the selection goes down to the next row, in the column where you started. If you select a block of cells first, **Enter** and **Tab** move through the block.
+
+## Format part of the text
+
+Some words in a cell can look different from the rest. For example, one word can be bold or red.
+
+1. Press F2 to edit the cell (or double-click it).
+2. Select the words you want to change, with Shift and the arrow keys or with the mouse.
+3. Use **Bold**, **Italic**, **Underline**, **Strikethrough**, **Font**, **Font Size**, or **Font Color** on the **Home** tab, or Ctrl+B, Ctrl+I, and Ctrl+U.
+4. Press Enter.
+
+Only the words you selected change. The rest of the cell keeps the cell's own look. The entry box shows the words in one look while you edit, and the cell shows each part in its own look when you press Enter. If you type or delete words later, the formatting moves with the words. Choosing a font or size with no words selected changes the whole cell, as always.
+
+Cells that have formatting inside the text from another program show it, keep it, and save it back. A cell you change keeps its formatting. Formatting inside a text applies to text, not to numbers or formulas. A copy saved as an older .xls file or as .ods keeps the words, and the save tells you that the formatting inside them is not kept.
 
 ## What you type becomes
 

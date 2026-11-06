@@ -3,10 +3,12 @@
 
 #include "app/crunchwindow.h"
 
+#include "app/objectpicker.h"
 #include "core/sheetobjects.h"
 
 #include <QFileInfo>
 #include <QMetaObject>
+#include <QUndoStack>
 #include <QUuid>
 
 namespace jp {
@@ -25,7 +27,22 @@ void CrunchWindow::setupObjects()
         return QStringLiteral("[%1]%2!%3").arg(file, sheets[sheet].name, pb.table(c.pivotTable).table->name);
     });
     m_objects->layer()->attach(&m_view->sheet().layout());
-    m_view->setOverlay(m_objects->layer());
+    m_picker = new ObjectPicker(m_objects->layer(), this);
+    m_view->setOverlay(m_picker);
+    // (the layer asks for its own repaints: the view has set its hook on the picker)
+    m_objects->layer()->setRepaintHook([this](const QRect &) { m_view->viewport()->update(); });
+    connect(m_picker, &ObjectPicker::pickedChanged, this, [this] {
+        updateChartState();
+        updateArrangeActions();
+    });
+    connect(m_picker, &ObjectPicker::deleteRequested, this, [this] {
+        const std::vector<int> ids = pickedObjects();
+        if (ids.size() < 2 || !m_session || m_edit.active || m_saving) return;
+        QUndoStack *stack = m_session->undoStack();
+        stack->beginMacro(tr("Delete Objects"));
+        for (const int id : ids) deleteObject(id);
+        stack->endMacro();
+    });
     m_objects->layer()->setDeleteHook([this](int id) { deleteObject(id); });
     // the person moves or sizes an object, picks one, or asks for its menu
     connect(m_objects->layer(), &jp::grid::ObjectLayer::objectMoved, this, [this](int id, const jp::office::sheet::DrawingAnchor &anchor) { moveObject(id, anchor); });

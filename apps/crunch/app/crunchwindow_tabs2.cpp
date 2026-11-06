@@ -46,6 +46,7 @@ void CrunchWindow::createTabs2Actions()
 {
     mk("review.statistics", tr("Workbook Statistics"), "chart-no-axes-column", QKeySequence(), [this] { workbookStatisticsDialog(); });
     mk("data.goalSeek", tr("Goal Seek"), "target", QKeySequence(), [this] { goalSeekDialog(); });
+    mk("data.scenarioManager", tr("Scenario Manager…"), "clipboard-list", QKeySequence(), [this] { scenarioManagerDialog(); });
     mk("data.advancedFilter", tr("Advanced"), "list-filter", QKeySequence(), [this] { advancedFilterDialog(); });
     mk("formulas.errorChecking", tr("Error Checking…"), "triangle-alert", QKeySequence(), [this] { errorCheckingDialog(); });
     mk("formulas.watchWindow", tr("Watch Window"), "eye", QKeySequence(), [this] { showWatchWindow(); });
@@ -62,7 +63,7 @@ void CrunchWindow::createTabs2Actions()
     mk("review.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] { showAccessibilityPane(); });
     mk("data.consolidate", tr("Consolidate"), "combine", QKeySequence(), [this] { consolidateDialog(); });
     mk("data.subtotal", tr("Subtotal"), "sigma", QKeySequence(), [this] { subtotalDialog(); });
-    for (const char *id : {"review.statistics", "data.goalSeek", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "review.accessibility", "review.thesaurus"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"review.statistics", "data.goalSeek", "data.scenarioManager", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "review.accessibility", "review.thesaurus"}) m_opsActions << QString::fromLatin1(id);
     connect(this, &CrunchWindow::calculationFinished, this, [this] {
         refreshInvalidCircles();
         refreshCellFlags();

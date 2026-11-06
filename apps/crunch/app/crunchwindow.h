@@ -102,6 +102,7 @@ struct GroupChoice;
 struct CalculatedFieldChoice;
 struct PivotOptionsChoice;
 class HelpWindow;
+class ObjectPicker;
 class Ribbon;
 struct RibbonParts;
 namespace crunch {
@@ -110,6 +111,7 @@ struct PrintChoices;
 struct PrintJobOptions;
 class SheetObjects;
 struct ObjectClip;
+enum class ObjectAlign;
 class SheetTabBar;
 }
 
@@ -952,6 +954,7 @@ private:
     void createTabs2Actions();
     void workbookStatisticsDialog();
     void goalSeekDialog();
+    void scenarioManagerDialog();
     void subtotalDialog();
     void advancedFilterDialog();
     void clearAdvancedFilter();
@@ -983,6 +986,13 @@ private:
 public:
     // Goal Seek without the question: the cell with the formula, the value wanted, and the cell to change (names such as "B3"). The solution is one step of Undo; false (nothing changed) if none was found.
     bool goalSeekIn(const QString &setCell, const QString &valueWanted, const QString &changeCell);
+    // The Scenario Manager: named sets of values for cells. `changing` is the cells as text ("B1:B3,D5", at most 32), `values` their values in order (a cell with none keeps what it holds).
+    bool addScenario(const QString &name, const QString &changing, const QString &comment, const QStringList &values);
+    bool editScenario(int index, const QString &name, const QString &comment, const QStringList &values);
+    bool showScenario(int index);
+    bool deleteScenario(int index);
+    // A new sheet that sets the scenarios side by side, with what the result cells (as text) come to under each.
+    bool scenarioSummary(const QString &resultCells);
     // Subtotal without the question: the list is the selection (or the block around the cell with the cursor); columns are places in the list, 0 is its first column. `function` is the number
     // SUBTOTAL is called with (9 is Sum). One step of Undo. removeSubtotalsIn is Remove All.
     bool subtotalIn(int changeColumn, int function, const std::vector<int> &columns, bool replace = true);
@@ -1249,6 +1259,11 @@ private:
     void connectObjects();
     void deleteObject(int id);
     std::unique_ptr<crunch::SheetObjects> m_objects;
+    ObjectPicker *m_picker = nullptr;
+    // The formatting inside the text of the entry being made, and as it was when the entry began (the entry's text is `m_editRich.text`).
+    jp::office::sheet::RichText m_editRich, m_editRichFirst;
+    void adjustEditRuns(const QString &now);
+    bool applyRunFormat(const jp::office::sheet::FormatChange &change);
     quint64 m_objectsToken = 0;
     bool m_chartSheetShown = false;   // the sheet in view is a chart sheet: no command that works on cells is on
 
@@ -1315,6 +1330,15 @@ public:
     void propertiesDialog();
     // The picked object, or -1.
     int pickedObject() const;
+    // The objects picked together (Shift or Ctrl and a click, or a box drawn with Select Objects on), or the one picked: back to front. And Group, Ungroup, and Align for them (each one step of
+    // Undo; false, with nothing changed, when the objects can't). `how` is a crunch::ObjectAlign.
+    std::vector<int> pickedObjects() const;
+    void pickObjects(const std::vector<int> &ids);
+    void setSelectObjectsMode(bool on);
+    bool groupObjects();
+    bool ungroupObjects();
+    bool alignObjects(crunch::ObjectAlign how);
+    jp::ObjectPicker *objectPicker() const { return m_picker; }
     // The chart buttons beside the picked chart (the elements, the looks), and what the context menu of an object has; for tests.
     QToolButton *chartElementsButton() const { return m_chartPlus; }
     QToolButton *chartLooksButton() const { return m_chartBrush; }
@@ -1340,6 +1364,8 @@ public:
 private:
     void createChartActions();
     void createInsertObjectActions();
+    void createArrangeActions();
+    void updateArrangeActions();
     void createDrawBorderActions();
     void startDrawBorder(int mode);
     void endDrawBorder();

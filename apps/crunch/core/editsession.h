@@ -141,7 +141,7 @@ struct SizeEdit {
 // A sheet added, copied, renamed, deleted, moved, shown or hidden, or given a tab color by a step. The sheets are never renumbered (see Calculation::addSheet): `sheet` is the sheet's place for
 // good, and what a step changes of the order of the tabs is kept whole.
 struct SheetEdit {
-    enum class Kind { Insert, Copy, Delete, Rename, Move, State, TabColor, Sparklines, Validations, IgnoredErrors } kind = Kind::Insert;
+    enum class Kind { Insert, Copy, Delete, Rename, Move, State, TabColor, Sparklines, Validations, IgnoredErrors, Scenarios, RichText } kind = Kind::Insert;
     int sheet = 0;
     QString nameBefore, nameAfter;
     QVector<int> orderBefore, orderAfter;
@@ -150,6 +150,13 @@ struct SheetEdit {
     QVector<jp::office::sheet::SparklineGroup> sparksBefore, sparksAfter;   // Sparklines: the sheet's groups as they were and are
     QVector<jp::office::sheet::Validation> rulesBefore, rulesAfter;   // Validations: the sheet's rules of validation as they were and are
     QVector<jp::office::sheet::IgnoredError> ignoredBefore, ignoredAfter;   // IgnoredErrors: the sheet's checks left out for cells, as they were and are
+    jp::office::sheet::ScenarioList scenariosBefore, scenariosAfter;   // Scenarios: the sheet's scenarios as they were and are
+    // RichText: cells (by their mark) whose runs of formatting were and are as given (none: a plain text)
+    struct RichChange {
+        quint64 key = 0;
+        std::optional<jp::office::sheet::RichText> before, after;
+    };
+    std::vector<RichChange> richChanges;
     int copyOf = -1;                                       // Copy: the sheet it is a copy of
     std::vector<std::pair<QString, QString>> tableRenames;   // Copy: the tables that were copied, by the name they had and have (the copy's formulas name its own tables)
     jp::office::sheet::Calculation::SheetRewrite rewrite;  // Rename and Delete: what the formulas were (made when the step is done)
@@ -362,7 +369,10 @@ public:
     void schedulePurge();   // (a step was forgotten, or dead cells wait: the slices begin when the loop is idle)
     // Types text into a cell, as the person typed it: a number, a percent, a date, TRUE, a formula, or text; the cell takes the format the entry asks for if it has none of its own. The
     // change is one step on the undo stack. Not ok, and nothing changed, if the text is a formula that is not one, or is too long, or the cell cannot be changed.
-    Outcome type(int sheet, quint32 row, quint32 col, const QString &typed, bool checkRule = true);
+    // `rich`, when given, is the formatting inside the text typed (kept if the entry is a text): the entry and the formatting are one step.
+    Outcome type(int sheet, quint32 row, quint32 col, const QString &typed, bool checkRule = true, const jp::office::sheet::RichText *rich = nullptr);
+    // Whether the sheet may have text with runs of formatting (the file has some, or a person made some): the grid asks for the runs only then.
+    bool mayHaveRich(int sheet) const;
     // The same entry in every cell of the block (Ctrl+Enter): a formula is written for the cell the cursor is on (`activeRow`, `activeCol`) and reads, in each of the others, as a copy of it
     // would. One step; nothing is changed if a cell cannot be, or the block is larger than kMaxCellsPerEdit.
     Outcome typeInto(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2, quint32 activeRow, quint32 activeCol, const QString &typed, bool checkRule = true);
@@ -831,6 +841,14 @@ public:
     // The checks of Error Checking left out for cells (kept in the file as `ignoredErrors`), and the same changed: one step.
     const QVector<jp::office::sheet::IgnoredError> &ignoredErrorsOf(int sheet) const;
     Outcome setIgnoredErrors(int sheet, QVector<jp::office::sheet::IgnoredError> list, const QString &text);
+    // The sheet's scenarios (kept in the file as `scenarios`), and the same changed: one step.
+    const jp::office::sheet::ScenarioList &scenariosOf(int sheet) const;
+    Outcome setScenarios(int sheet, jp::office::sheet::ScenarioList list, const QString &text);
+
+    // The formatting inside the text of a cell (runs of bold, italic, underline, color, font, and size): what the cell holds, if it is a text that has runs (read from the file, or put in by a
+    // step). setRichText gives a text cell the runs (the text is the cell's: one step), or takes them away with none.
+    std::optional<jp::office::sheet::RichText> richOf(int sheet, quint32 row, quint32 col) const;
+    Outcome setRichText(int sheet, quint32 row, quint32 col, const jp::office::sheet::RichText &rich, const QString &text);
     Outcome setSparklines(int sheet, QVector<jp::office::sheet::SparklineGroup> groups, const QString &text);
     const QVector<jp::office::sheet::SparklineGroup> &sparklinesOf(int sheet) const;
     // Whether a sheet holds any cells (what a person is asked about before it is deleted).
@@ -1028,6 +1046,8 @@ public:
 Q_SIGNALS:
     // The sheets were changed (added, deleted, renamed, moved, shown, hidden, or given a color) by a step, Undo, or Redo: the window makes its tabs again.
     void sheetsChanged();
+    // The formatting inside the text of cells of a sheet changed (a step, Undo, or Redo): the window draws the sheet's texts again.
+    void richTextChanged(int sheet);
     // The sparklines of a sheet were changed by a step, undone, or redone.
     void sparklinesChanged(int sheet);
     void conditionalFormatsChanged(int sheet);
@@ -1199,6 +1219,8 @@ private:
     std::set<int> m_sheetsRestyled;                       // the sheets a step gave the format of very many cells (drawn again whole)
     std::set<int> m_statesChanged;                        // the sheets a step hid or showed
     std::set<int> m_ignoredChanged;                       // the sheets whose ignored errors a step changed
+    std::set<int> m_scenariosChanged;                     // the sheets whose scenarios a step changed
+    std::map<quint64, jp::office::sheet::RichText> m_rich;   // the formatting inside the text of cells a person made (by mark): written as runs
     std::set<int> m_validationsChanged;                   // the sheets whose rules of validation a step changed
     std::set<int> m_sparklinesChanged;                    // the sheets whose sparklines a step changed
     std::set<int> m_tabColorsChanged;                     // the sheets whose tab color a step changed

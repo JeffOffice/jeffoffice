@@ -528,14 +528,32 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                     f.gradient = true;
                     inGradient = true;
                     gradientColorTaken = false;
+                    f.path = attribute(r, "type") == QLatin1String("path");
+                    f.degree = boundedNumber(attribute(r, "degree"), -36000, 36000, 0);
+                    f.left = boundedNumber(attribute(r, "left"), 0, 1, 0);
+                    f.right = boundedNumber(attribute(r, "right"), 0, 1, 0);
+                    f.top = boundedNumber(attribute(r, "top"), 0, 1, 0);
+                    f.bottom = boundedNumber(attribute(r, "bottom"), 0, 1, 0);
                 }
             } else if (depth == 5 && where == Where::Fills && !out->fills.isEmpty() && !inGradient) {
                 FillSpec &f = out->fills.last();
                 if (isElement(r, "fgColor")) f.fg = colorOf(r);
                 else if (isElement(r, "bgColor")) f.bg = colorOf(r);
-            } else if (depth == 6 && where == Where::Fills && !out->fills.isEmpty() && inGradient && !gradientColorTaken && isElement(r, "color")) {
-                out->fills.last().fg = colorOf(r);
-                gradientColorTaken = true;
+            } else if (depth == 5 && where == Where::Fills && !out->fills.isEmpty() && inGradient && isElement(r, "stop")) {
+                FillSpec &f = out->fills.last();
+                if (f.stops.size() < kMaxGradientStops) {
+                    GradientStop stop;
+                    stop.position = boundedNumber(attribute(r, "position"), 0, 1, 0);
+                    f.stops.append(stop);
+                }
+            } else if (depth == 6 && where == Where::Fills && !out->fills.isEmpty() && inGradient && isElement(r, "color")) {
+                FillSpec &f = out->fills.last();
+                if (!f.stops.isEmpty() && !f.stops.last().color.isSet()) f.stops.last().color = colorOf(r);
+                if (!gradientColorTaken) {
+                    f.fg = colorOf(r);
+                    gradientColorTaken = true;
+                }
+                if (f.stops.size() >= 2) f.bg = f.stops.last().color;
             } else if (depth == 3 && where == Where::Borders && isElement(r, "border")) {
                 if (out->borders.size() >= limits.borders) return fail(QCoreApplication::translate("Sheet", "The file has more borders than any real file has."));
                 BorderSpec b;
@@ -850,6 +868,24 @@ private:
     QString m_type;
     bool m_haveValue = false, m_haveInline = false;
     QString m_value, m_inline, m_formula;
+    // the runs of formatting in an inline string being read (Limits::richText)
+    RichRuns m_inlineRuns;
+    QHash<QByteArray, quint32> m_runFontIds;
+    FontSpec m_runFont;
+    bool m_inRun = false, m_inRunProps = false, m_haveRunProps = false, m_inlineOwnFont = false;
+    quint32 m_runStart = 0;
+    qint64 m_runCount = 0;
+    quint32 internRunFont(const FontSpec &f)
+    {
+        const QByteArray key = f.name.toUtf8() + '|' + QByteArray::number(f.size) + '|' + char('0' + f.bold) + char('0' + f.italic) + char('0' + f.strike) + char('0' + int(f.underline)) + char('0' + f.vertAlign)
+            + '|' + QByteArray::number(int(f.color.kind)) + ',' + QByteArray::number(f.color.rgb) + ',' + QByteArray::number(f.color.index) + ',' + QByteArray::number(f.color.tint);
+        auto it = m_runFontIds.constFind(key);
+        if (it == m_runFontIds.cend()) {
+            m_sheet.richFonts.append(f);
+            it = m_runFontIds.insert(key, quint32(m_sheet.richFonts.size() - 1));
+        }
+        return it.value();
+    }
     // the formula in the making
     enum Kind { Normal, Array, Shared, Table } m_kind = Normal;
     qint64 m_si = -1;
@@ -1166,6 +1202,8 @@ bool SheetReader::startCell(const QXmlStreamReader &r)
     m_haveValue = m_haveInline = false;
     m_value.clear();
     m_inline.clear();
+    m_inlineRuns.clear();
+    m_inRun = m_inRunProps = m_inlineOwnFont = false;
     m_formula.clear();
     m_kind = Normal;
     m_haveRef = false;
@@ -1311,8 +1349,10 @@ bool SheetReader::endCell()
     };
     if (type == QLatin1String("inlineStr")) {
         if (m_haveInline) {
+            const bool escapes = m_inline.contains(QLatin1String("_x"));
             decodeEscapes(&m_inline);
             pooled(CellType::InlineString, m_inline);
+            if (m_limits.richText && m_inlineOwnFont && !m_inlineRuns.isEmpty() && !escapes) m_sheet.richTexts.insert(qint32(c.number), m_inlineRuns);
         }
     } else if (m_haveValue) {
         if (type == QLatin1String("s")) {
@@ -1379,7 +1419,7 @@ bool SheetReader::read(QIODevice *in)
     QXmlStreamReader &r = src.reader;
     int depth = 0, phonetic = 0;
     bool rootSeen = false, inData = false, inRow = false, inCell = false, inFormula = false, inValue = false, inInline = false, inText = false, inMerge = false;
-    bool inSheetPr = false, inViews = false, inCols = false, inView = false, inValidations = false, inRule = false, inLinks = false, inIgnored = false;
+    bool inSheetPr = false, inViews = false, inCols = false, inView = false, inValidations = false, inRule = false, inLinks = false, inIgnored = false, inScenarios = false, scenarioOpen = false;
     bool inHeaderFooter = false;
     int inBreaks = 0;              // 1 while the row breaks are read, 2 for the column breaks
     QString *hfText = nullptr;     // the header or footer text being read
@@ -1460,6 +1500,13 @@ bool SheetReader::read(QIODevice *in)
                     inValidations = true;
                 } else if (isElement(r, "ignoredErrors")) {
                     inIgnored = true;
+                } else if (isElement(r, "scenarios")) {
+                    inScenarios = true;
+                    bool ok1 = false, ok2 = false;
+                    const int current = attribute(r, "current").toInt(&ok1), show = attribute(r, "show").toInt(&ok2);
+                    m_sheet.scenarios.current = ok1 && current >= 0 && current < ScenarioList::kMaxScenarios ? current : 0;
+                    m_sheet.scenarios.show = ok2 && show >= 0 && show < ScenarioList::kMaxScenarios ? show : 0;
+                    m_sheet.scenarios.sqref = attribute(r, "sqref").left(2000).toString();
                 } else if (isElement(r, "conditionalFormatting")) {
                     inCond = true;
                     condRanges.clear();
@@ -1640,6 +1687,30 @@ bool SheetReader::read(QIODevice *in)
                     }
                     if (!ig.ranges.isEmpty() && ig.kinds) m_sheet.ignoredErrors.append(ig);
                 }
+            } else if (depth == 3 && inScenarios && isElement(r, "scenario")) {
+                scenarioOpen = m_sheet.scenarios.list.size() < ScenarioList::kMaxScenarios;
+                if (scenarioOpen) {
+                    Scenario sc;
+                    sc.name = attribute(r, "name").left(255).toString();
+                    sc.user = attribute(r, "user").left(255).toString();
+                    sc.comment = attribute(r, "comment").left(255).toString();
+                    sc.locked = parseBool(attribute(r, "locked").toString());
+                    sc.hidden = parseBool(attribute(r, "hidden").toString());
+                    m_sheet.scenarios.list.append(sc);
+                }
+            } else if (depth == 4 && inScenarios && scenarioOpen && isElement(r, "inputCells")) {
+                Scenario &sc = m_sheet.scenarios.list.last();
+                if (sc.cells.size() < ScenarioList::kMaxCells) {
+                    ScenarioCell c;
+                    c.ref = attribute(r, "r").left(32).toString();
+                    c.value = attribute(r, "val").left(32767).toString();
+                    c.deleted = parseBool(attribute(r, "deleted").toString());
+                    c.undone = parseBool(attribute(r, "undone").toString());
+                    bool ok = false;
+                    const int fmt = attribute(r, "numFmtId").toInt(&ok);
+                    c.numFmtId = ok && fmt >= 0 ? fmt : -1;
+                    if (!c.ref.isEmpty()) sc.cells.append(c);
+                }
             } else if (depth == 3 && inLinks && isElement(r, "hyperlink")) {
                 readLink(r, &m_sheet.links);
             } else if (depth == 3 && inValidations && isElement(r, "dataValidation")) {
@@ -1740,11 +1811,37 @@ bool SheetReader::read(QIODevice *in)
                     inInline = true;
                     m_haveInline = true;
                     m_inline.clear();
+                    m_inlineRuns.clear();
+                    m_inRun = m_inRunProps = m_inlineOwnFont = false;
                 }
             } else if (inInline && !phonetic) {
                 // The text of an inline string is its <t> and the <t> of its runs, as in a shared string.
                 if (isElement(r, "rPh") || isElement(r, "phoneticPr")) phonetic = depth;
-                else if (isElement(r, "t") && (depth == 6 || depth == 7)) inText = true;
+                else if (m_limits.richText && depth == 6 && isElement(r, "r")) {
+                    m_inRun = true;
+                    m_haveRunProps = false;
+                    m_runFont = FontSpec();
+                    m_runStart = quint32(m_inline.size());
+                } else if (m_inRun && depth == 7 && isElement(r, "rPr")) {
+                    m_inRunProps = true;
+                    m_haveRunProps = true;
+                } else if (m_inRunProps && depth == 8) {
+                    if (isElement(r, "b")) m_runFont.bold = flagOf(r);
+                    else if (isElement(r, "i")) m_runFont.italic = flagOf(r);
+                    else if (isElement(r, "strike")) m_runFont.strike = flagOf(r);
+                    else if (isElement(r, "sz")) m_runFont.size = boundedNumber(attribute(r, "val"), 1, 409.5, 11);
+                    else if (isElement(r, "rFont")) m_runFont.name = attribute(r, "val").left(kMaxFontNameChars).toString();
+                    else if (isElement(r, "color")) m_runFont.color = colorOf(r);
+                    else if (isElement(r, "u")) {
+                        const QStringView v = attribute(r, "val");
+                        m_runFont.underline = v == QLatin1String("none") ? Underline::None : v == QLatin1String("double") ? Underline::Double
+                                              : v == QLatin1String("singleAccounting") ? Underline::SingleAccounting : v == QLatin1String("doubleAccounting") ? Underline::DoubleAccounting : Underline::Single;
+                    } else if (isElement(r, "vertAlign")) {
+                        const QStringView v = attribute(r, "val");
+                        m_runFont.vertAlign = v == QLatin1String("superscript") ? 1 : v == QLatin1String("subscript") ? 2 : 0;
+                    }
+                }
+                if (isElement(r, "t") && (depth == 6 || depth == 7)) inText = true;
             }
             break;
         case QXmlStreamReader::EndElement:
@@ -1759,6 +1856,18 @@ bool SheetReader::read(QIODevice *in)
                     spark.groups.clear();
                     if (spark.lossy) m_sheet.sparklinesLossy = true;
                     if (m_options.sparklineBudget) m_options.sparklineBudget->set(m_options.sparklineSheet, spark.charsUsed, spark.count);
+                }
+            }
+            if (m_inRunProps && depth == 7) m_inRunProps = false;
+            if (m_inRun && depth == 6 && !phonetic && isElement(r, "r")) {
+                m_inRun = false;
+                if (m_haveRunProps) m_inlineOwnFont = true;
+                if (m_runCount < m_limits.richRuns) {
+                    RichRun run;
+                    run.start = m_runStart;
+                    run.font = m_haveRunProps ? internRunFont(m_runFont) : RichRun::kCellFont;
+                    m_inlineRuns.append(run);
+                    ++m_runCount;
                 }
             }
             if (phonetic == depth) phonetic = 0;
@@ -1819,6 +1928,8 @@ bool SheetReader::read(QIODevice *in)
                 if (!rule.ranges.isEmpty() && m_sheet.validations.size() < kMaxValidations) m_sheet.validations.append(rule);
             } else if (depth == 3 && inRow) {
                 inRow = false;
+            } else if (depth == 3 && inScenarios) {
+                scenarioOpen = false;
             } else if (depth == 3 && inView) {
                 inView = false;
                 endView();
@@ -1827,7 +1938,7 @@ bool SheetReader::read(QIODevice *in)
             } else if (depth == 2) {
                 inData = inMerge = inSheetPr = inViews = inCols = inValidations = inCond = inExtension = inLinks = false;
                 inHeaderFooter = false;
-                inIgnored = false;
+                inIgnored = inScenarios = scenarioOpen = false;
                 inBreaks = 0;
             }
             --depth;
@@ -2482,8 +2593,19 @@ quint64 hashOf(const FontSpec &f)
 
 quint64 hashOf(const FillSpec &f)
 {
-    quint64 h = mixed(1469598103934665603ull, quint64(f.pattern) | quint64(f.gradient) << 8);
-    return mixed(mixed(h, hashOf(f.fg)), hashOf(f.bg));
+    quint64 h = mixed(1469598103934665603ull, quint64(f.pattern) | quint64(f.gradient) << 8 | quint64(f.path) << 9);
+    h = mixed(mixed(h, hashOf(f.fg)), hashOf(f.bg));
+    if (!f.gradient) return h;
+    quint64 bits = 0;
+    for (const double d : {f.degree, f.left, f.right, f.top, f.bottom}) {
+        std::memcpy(&bits, &d, sizeof(bits));
+        h = mixed(h, bits);
+    }
+    for (const GradientStop &s : f.stops) {
+        std::memcpy(&bits, &s.position, sizeof(bits));
+        h = mixed(mixed(h, bits), hashOf(s.color));
+    }
+    return h;
 }
 
 quint64 hashOf(const BorderSide &s)

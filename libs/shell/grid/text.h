@@ -24,6 +24,18 @@ public:
 
 enum class Kind : quint8 { Empty, Text, Number, Bool, Error };
 
+// A stretch of a text in a font of its own (the formatting inside one cell's text): from `start` to the next run's start. A run that has no font of its own is in the cell's.
+struct TextRun {
+    int start = 0;
+    bool own = false;          // the run has a font of its own: family, pointSize, and the styles below
+    QString family;
+    double pointSize = 11;
+    bool bold = false, italic = false, strike = false;
+    Underline underline = Underline::None;
+    quint8 vertAlign = 0;
+    QRgb color = 0;            // 0: the cell's text color
+};
+
 // What one cell shows.
 struct Shown {
     QString text;              // what is drawn (a number too wide for its cell is the "#" that fills it)
@@ -32,6 +44,7 @@ struct Shown {
     bool hashes = false;       // a number too wide for the cell: `text` is "#" repeated
     double width = 0;          // of the text, as the meter says
     HAlign align = HAlign::Left;   // where it sits (the look's, or for "general" the one the value has: numbers right, text left, true and false and errors centered)
+    std::vector<TextRun> runs; // formatting inside the text: in order, the first at 0 (empty for a text in one font)
     int fillAt = -1;           // a "*x" in the number format: the text is padded with this character to fill the cell (where in `text`), or -1
     QChar fillChar;
 };

@@ -120,6 +120,7 @@ void Features::note(const Sheet &sheet)
 {
     auto add = [&](const char *what) { m_found.insert(QCoreApplication::translate("Sheet", what)); };
     if (!sheet.validations.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "data validation"));
+    if (!sheet.scenarios.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "scenarios"));
     if (!sheet.conditionalFormats.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "conditional formatting"));
     if (sheet.autoFilter.valid()) add(QT_TRANSLATE_NOOP("Sheet", "filters"));
     if (sheet.isProtected) add(QT_TRANSLATE_NOOP("Sheet", "sheet protection"));
@@ -164,6 +165,12 @@ QStringList Features::result() const
     }
     // (a pivot table made in this session has no part in the package yet: the model says)
     if (m_book.pivots().tableCount() > 0) add(QT_TRANSLATE_NOOP("Sheet", "pivot tables"));
+    for (const FillSpec &f : m_book.styles().fills)
+        if (f.gradient && f.stops.size() >= 2) {
+            add(QT_TRANSLATE_NOOP("Sheet", "gradient fills (they are shown as one color)"));
+            break;
+        }
+    if (!m_book.sharedStrings().rich.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "formatting inside a text"));
     if (m_book.info().protection.lockStructure) add(QT_TRANSLATE_NOOP("Sheet", "workbook protection"));
     QStringList out(found.cbegin(), found.cend());
     std::sort(out.begin(), out.end());

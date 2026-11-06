@@ -1890,6 +1890,7 @@
     <file alias="en_AU/crunch/charts.md">help/en_AU/crunch/charts.md</file>
     <file alias="en_AU/crunch/clipboard.md">help/en_AU/crunch/clipboard.md</file>
     <file alias="en_AU/crunch/conditional-formats.md">help/en_AU/crunch/conditional-formats.md</file>
+    <file alias="en_AU/crunch/edit-cells.md">help/en_AU/crunch/edit-cells.md</file>
     <file alias="en_AU/crunch/format-cells.md">help/en_AU/crunch/format-cells.md</file>
     <file alias="en_AU/crunch/formulas.md">help/en_AU/crunch/formulas.md</file>
     <file alias="en_AU/crunch/language.md">help/en_AU/crunch/language.md</file>
@@ -1983,6 +1984,7 @@
     <file alias="en_CA/crunch/charts.md">help/en_CA/crunch/charts.md</file>
     <file alias="en_CA/crunch/clipboard.md">help/en_CA/crunch/clipboard.md</file>
     <file alias="en_CA/crunch/conditional-formats.md">help/en_CA/crunch/conditional-formats.md</file>
+    <file alias="en_CA/crunch/edit-cells.md">help/en_CA/crunch/edit-cells.md</file>
     <file alias="en_CA/crunch/format-cells.md">help/en_CA/crunch/format-cells.md</file>
     <file alias="en_CA/crunch/formulas.md">help/en_CA/crunch/formulas.md</file>
     <file alias="en_CA/crunch/language.md">help/en_CA/crunch/language.md</file>
@@ -2075,6 +2077,7 @@
     <file alias="en_GB/crunch/charts.md">help/en_GB/crunch/charts.md</file>
     <file alias="en_GB/crunch/clipboard.md">help/en_GB/crunch/clipboard.md</file>
     <file alias="en_GB/crunch/conditional-formats.md">help/en_GB/crunch/conditional-formats.md</file>
+    <file alias="en_GB/crunch/edit-cells.md">help/en_GB/crunch/edit-cells.md</file>
     <file alias="en_GB/crunch/format-cells.md">help/en_GB/crunch/format-cells.md</file>
     <file alias="en_GB/crunch/formulas.md">help/en_GB/crunch/formulas.md</file>
     <file alias="en_GB/crunch/language.md">help/en_GB/crunch/language.md</file>

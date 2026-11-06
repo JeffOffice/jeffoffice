@@ -97,6 +97,22 @@ const char *patternName(PatternKind k)
 
 QByteArray fillElement(const FillSpec &f)
 {
+    if (f.gradient && !f.stops.isEmpty()) {
+        QByteArray g = "<fill><gradientFill";
+        if (f.path) g += " type=\"path\"";
+        if (f.degree != 0) g += " degree=\"" + real(f.degree) + "\"";
+        if (f.left != 0) g += " left=\"" + real(f.left) + "\"";
+        if (f.right != 0) g += " right=\"" + real(f.right) + "\"";
+        if (f.top != 0) g += " top=\"" + real(f.top) + "\"";
+        if (f.bottom != 0) g += " bottom=\"" + real(f.bottom) + "\"";
+        g += ">";
+        for (const GradientStop &s : f.stops) {
+            QByteArray color = colorElement("color", s.color);
+            if (color.isEmpty()) color = "<color rgb=\"FF000000\"/>";
+            g += "<stop position=\"" + real(s.position) + "\">" + color + "</stop>";
+        }
+        return g + "</gradientFill></fill>";
+    }
     QByteArray e = QByteArray("<fill><patternFill patternType=\"") + patternName(f.pattern) + "\"";
     const QByteArray fg = colorElement("fgColor", f.fg), bg = colorElement("bgColor", f.bg);
     if (fg.isEmpty() && bg.isEmpty()) return e + "/></fill>";
@@ -473,6 +489,7 @@ public:
         }
         if (!cells()) return false;
         if (m_sheet.isProtected) m_out += "<sheetProtection sheet=\"1\" objects=\"1\" scenarios=\"1\"/>";
+        m_out += scenariosXml(m_sheet.scenarios);
         if (!m_sheet.merges.isEmpty()) {
             QByteArray merges = "<mergeCells" + attr("count", num(m_sheet.merges.size())) + ">";
             for (const CellRange &r : m_sheet.merges) merges += "<mergeCell" + attr("ref", rangeName(r).toLatin1()) + "/>";
@@ -716,6 +733,43 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
 }
 
 
+// The `scenarios` element for a sheet's scenarios (empty for none).
+QByteArray scenariosXml(const ScenarioList &list)
+{
+    QByteArray generated;
+    if (!list.list.isEmpty()) {
+        auto text = [](const QString &s) { return xmlscan::escapeAttribute(s); };
+        generated = "<scenarios";
+        if (list.current > 0) generated += " current=\"" + QByteArray::number(list.current) + "\"";
+        if (list.show > 0) generated += " show=\"" + QByteArray::number(list.show) + "\"";
+        if (!list.sqref.isEmpty()) generated += " sqref=\"" + text(list.sqref) + "\"";
+        generated += ">";
+        int written = 0;
+        for (const Scenario &s : list.list) {
+            if (++written > ScenarioList::kMaxScenarios) break;
+            generated += "<scenario name=\"" + text(s.name) + "\"";
+            if (s.locked) generated += " locked=\"1\"";
+            if (s.hidden) generated += " hidden=\"1\"";
+            generated += " count=\"" + QByteArray::number(int(s.cells.size())) + "\"";
+            if (!s.user.isEmpty()) generated += " user=\"" + text(s.user) + "\"";
+            if (!s.comment.isEmpty()) generated += " comment=\"" + text(s.comment) + "\"";
+            generated += ">";
+            for (const ScenarioCell &c : s.cells) {
+                generated += "<inputCells r=\"" + text(c.ref) + "\"";
+                if (c.deleted) generated += " deleted=\"1\"";
+                if (c.undone) generated += " undone=\"1\"";
+                generated += " val=\"" + text(c.value) + "\"";
+                if (c.numFmtId >= 0) generated += " numFmtId=\"" + QByteArray::number(c.numFmtId) + "\"";
+                generated += "/>";
+            }
+            generated += "</scenario>";
+        }
+        generated += "</scenarios>";
+    }
+    return generated;
+}
+
+QByteArray richRunsXml(const QString &text, const RichRuns &runs, const QVector<FontSpec> &fonts) { return richRuns(text, runs, fonts); }
 QByteArray colorXml(const char *name, const ColorSpec &c) { return colorElement(name, c); }
 QByteArray fontXml(const FontSpec &f) { return fontElement(f); }
 QByteArray fillXml(const FillSpec &f) { return fillElement(f); }

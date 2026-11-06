@@ -127,6 +127,13 @@ public:
 
     // What the cell shows. The width it is shown in is its column's, or its merged range's. Cached by the cell's place.
     Shown shown(quint32 row, quint32 col, const Cell &cell) const;
+    // Where the grid asks for the formatting inside a cell's text (false for none): a text that has runs is shown in them. The runs are of the text the cell holds.
+    using RichSource = std::function<bool(quint32 row, quint32 col, jp::office::sheet::RichText *out)>;
+    void setRichSource(RichSource source)
+    {
+        m_rich = std::move(source);
+        invalidateTexts();
+    }
     // The text of a cell for a copy: what it holds as its format shows it, not cut to its cell (a number is never "#", a text keeps its line breaks and all its letters).
     QString textOf(quint32 row, quint32 col, const Cell &cell) const;
     // The text of a cell for a file of values, as it is stored: a number with all the digits it needs (the shortest that reads back the same), a date or time as ISO text (2026-03-04,
@@ -217,6 +224,7 @@ private:
     LookTable m_looks;
     const TextMeter *m_meter = nullptr;
     mutable std::unordered_map<quint64, Shown> m_texts;
+    RichSource m_rich;
     mutable qint64 m_textsMade = 0;
     bool m_showFormulas = false;
     mutable qint64 m_measured = 0;

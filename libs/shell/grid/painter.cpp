@@ -1,5 +1,9 @@
 #include "grid/painter.h"
 
+#include <QTextLayout>
+#include <QTextLine>
+#include <QTextOption>
+
 #include "grid/sparklinepaint.h"
 #include "sheet/cellref.h"
 
@@ -245,6 +249,29 @@ void GridPainter::drawFill(QPainter *p, const QRect &rect, const CellLook &look,
 {
     if (look.pattern == PatternKind::None || m_mono) return;
     ++m_stats.fills;
+    if (look.gradient) {
+        const GradientLook &g = *look.gradient;
+        const QRectF r(rect);
+        QGradientStops stops;
+        for (const auto &s : g.stops) stops.append({std::clamp(s.first, 0.0, 1.0), QColor::fromRgba(s.second)});
+        std::stable_sort(stops.begin(), stops.end(), [](const QGradientStop &a, const QGradientStop &b) { return a.first < b.first; });
+        if (g.path) {
+            const QPointF c(r.left() + (g.left + g.right) / 2 * r.width(), r.top() + (g.top + g.bottom) / 2 * r.height());
+            const double radius = std::max(1.0, std::max({std::hypot(c.x() - r.left(), c.y() - r.top()), std::hypot(r.right() - c.x(), c.y() - r.top()), std::hypot(c.x() - r.left(), r.bottom() - c.y()),
+                                                          std::hypot(r.right() - c.x(), r.bottom() - c.y())}));
+            QRadialGradient grad(c, radius);
+            grad.setStops(stops);
+            p->fillRect(rect, QBrush(grad));
+        } else {
+            const double rad = g.degree * 3.14159265358979323846 / 180.0;
+            const QPointF dir(std::cos(rad), std::sin(rad)), c = r.center();
+            const double half = (std::abs(r.width() * dir.x()) + std::abs(r.height() * dir.y())) / 2;
+            QLinearGradient grad(c - dir * half, c + dir * half);
+            grad.setStops(stops);
+            p->fillRect(rect, QBrush(grad));
+        }
+        return;
+    }
     if (look.pattern == PatternKind::Solid) {
         p->fillRect(rect, QColor::fromRgba(look.fg));
         return;
@@ -581,6 +608,67 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
     if (sh.hashes) ++m_stats.hashed;
     const QRgb ink = m_mono ? 0xFF000000u : sh.color ? sh.color : look.textColor;
     const bool otherUnderline = look.underline == Underline::Double || look.underline == Underline::SingleAccounting || look.underline == Underline::DoubleAccounting;
+    // Formatting inside the text: each run in its own font, laid out as one text (wrapped if the cell wraps).
+    if (!sh.runs.empty() && look.rotation == 0 && look.readingOrder != 2 && !sh.hashes) {
+        QTextLayout layout(text, font);
+        QList<QTextLayout::FormatRange> formats;
+        for (size_t i = 0; i < sh.runs.size(); ++i) {
+            const TextRun &run = sh.runs[i];
+            const int from = run.start, to = i + 1 < sh.runs.size() ? sh.runs[i + 1].start : int(text.size());
+            if (to <= from) continue;
+            QTextLayout::FormatRange range;
+            range.start = from;
+            range.length = to - from;
+            QFont rf = font;
+            Underline underline = look.underline;
+            bool strike = look.strike;
+            if (run.own) {
+                rf = QFont(run.family.isEmpty() ? QFont().family() : run.family);
+                rf.setPixelSize(std::max(1, int(std::lround(run.pointSize * 96.0 / 72.0 * z * (run.vertAlign ? 0.65 : 1.0)))));
+                rf.setBold(run.bold);
+                rf.setItalic(run.italic);
+                rf.setKerning(false);
+                rf.setStyleStrategy(QFont::PreferAntialias);
+                rf.setHintingPreference(QFont::PreferNoHinting);
+                underline = run.underline;
+                strike = run.strike;
+            }
+            rf.setUnderline(underline == Underline::Single || underline == Underline::SingleAccounting);
+            rf.setStrikeOut(strike);
+            range.format.setFont(rf);
+            if (run.vertAlign == 1) range.format.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
+            else if (run.vertAlign == 2) range.format.setVerticalAlignment(QTextCharFormat::AlignSubScript);
+            range.format.setForeground(QColor::fromRgba(m_mono ? 0xFF000000u : run.color ? run.color : sh.color ? sh.color : look.textColor));
+            formats.append(range);
+        }
+        layout.setFormats(formats);
+        QTextOption option;
+        option.setWrapMode(look.wrap ? QTextOption::WordWrap : QTextOption::NoWrap);
+        layout.setTextOption(option);
+        layout.beginLayout();
+        std::vector<QTextLine> lines;
+        double height = 0;
+        for (;;) {
+            QTextLine line = layout.createLine();
+            if (!line.isValid()) break;
+            line.setLineWidth(look.wrap ? std::max(1, r.width()) : 1e7);
+            line.setPosition(QPointF(0, height));
+            height += line.height();
+            lines.push_back(line);
+            if (lines.size() > 500) break;
+        }
+        layout.endLayout();
+        const double top = (flags & Qt::AlignTop) ? r.top() : (flags & Qt::AlignVCenter) ? r.top() + (r.height() - height) / 2 : r.bottom() + 1 - height;
+        p->save();
+        p->setClipRect(box & area);
+        for (const QTextLine &line : lines) {
+            const double lw = line.naturalTextWidth();
+            const double x = left ? r.left() : right ? r.right() + 1 - lw : r.left() + (r.width() - lw) / 2;
+            line.draw(p, QPointF(std::round(x), std::round(top)));
+        }
+        p->restore();
+        return;
+    }
     // A line of text with nothing special (not turned, not wrapped, not shrunk) is drawn from its baseline as a run of glyphs, where no layout of a box is needed.
     if (look.rotation == 0 && !look.wrap && look.readingOrder != 2 && font.pixelSize() == fontFor(look).pixelSize()) {
         const size_t id = look.fontId;

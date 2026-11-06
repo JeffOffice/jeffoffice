@@ -19,6 +19,8 @@
 #include "crunch/editwindow.h"
 #include "grid/gridview.h"
 #include "grid/pagelayoutview.h"
+#include "core/objectstate.h"
+#include "core/sheetobjects.h"
 #include "testrunner.h"
 
 #include <QClipboard>
@@ -38,6 +40,26 @@ CrunchWindow *asCrunch(AppWindow *w) { return static_cast<CrunchWindow *>(w); }
 
 // Whether the window is ready for a person: nothing opening, nothing being worked out.
 bool quiet(CrunchWindow *w) { return !w->isLoading() && !w->isCalculating() && !w->isSaving(); }
+
+// The object that is picked, moved to a place of the sheet (the grid's units): a new shape goes to the middle of the cells in view, so several are put apart.
+void placePickedObject(CrunchWindow *w, double x, double y)
+{
+    const int id = w->pickedObject();
+    if (id < 0) return;
+    jp::grid::ObjectBox box = w->objects()->layer()->boxNow(id);
+    box.x = x;
+    box.y = y;
+    jp::office::sheet::DrawingAnchor anchor;
+    w->objects()->layer()->attach(&w->view()->sheet().layout());
+    if (!w->objects()->layer()->anchorAtBox(box, jp::office::sheet::AnchorKind::TwoCell, &anchor)) return;
+    jp::crunch::ObjectEdit edit;
+    edit.sheet = w->activeSheet();
+    edit.id = id;
+    edit.before = w->objects()->stateOf(edit.sheet, id);
+    edit.after = w->objects()->stateMoved(edit.sheet, id, anchor);
+    w->session()->changeObjects({edit}, QStringLiteral("Move"));
+    waitFor([&] { return quiet(w); });
+}
 
 CrunchWindow *launchBlank()
 {
@@ -274,6 +296,24 @@ private Q_SLOTS:
                 w->insertShape(QStringLiteral("rect"));
                 waitFor([&] { return quiet(w); });
             }),
+            in(QStringLiteral("three shapes picked together"), [](CrunchWindow *w) {
+                for (const auto &at : {std::pair<int, int>{20, 20}, {300, 60}, {560, 260}}) {
+                    w->insertShape(QStringLiteral("rect"));
+                    waitFor([&] { return quiet(w); });
+                    placePickedObject(w, at.first, at.second);
+                }
+                w->pickObjects(w->objects()->idsOf(w->activeSheet()));
+            }),
+            in(QStringLiteral("a group selected"), [](CrunchWindow *w) {
+                for (const auto &at : {std::pair<int, int>{20, 20}, {300, 140}}) {
+                    w->insertShape(QStringLiteral("rect"));
+                    waitFor([&] { return quiet(w); });
+                    placePickedObject(w, at.first, at.second);
+                }
+                w->pickObjects(w->objects()->idsOf(w->activeSheet()));
+                w->groupObjects();
+                waitFor([&] { return quiet(w); });
+            }),
             in(QStringLiteral("a note in two cells, the later one selected"), [](CrunchWindow *w) {
                 w->session()->setNote(0, 0, 0, QStringLiteral("A note"), QStringLiteral("me"), false, QStringLiteral("Add Note"));
                 w->session()->setNote(0, 1, 1, QStringLiteral("Another"), QStringLiteral("me"), false, QStringLiteral("Add Note"));
@@ -466,6 +506,10 @@ private Q_SLOTS:
             {QStringLiteral("notes."), {QStringLiteral("a note in two cells, the later one selected"), QStringLiteral("a note in two cells, the earlier one selected"), QStringLiteral("a cell with a note")}},
             {QStringLiteral("object."), {QStringLiteral("two charts, the later one selected"), QStringLiteral("a shape selected"), QStringLiteral("a picture selected")}},
             {QStringLiteral("object.crop"), {QStringLiteral("a picture selected")}},
+            {QStringLiteral("object.align"), {QStringLiteral("three shapes picked together")}},
+            {QStringLiteral("object.distribute"), {QStringLiteral("three shapes picked together")}},
+            {QStringLiteral("object.group"), {QStringLiteral("three shapes picked together")}},
+            {QStringLiteral("object.ungroup"), {QStringLiteral("a group selected")}},
             {QStringLiteral("chartdesign."), {QStringLiteral("a chart selected")}},
             {QStringLiteral("chartdesign.moveChart"), {QStringLiteral("a chart selected, and a second sheet")}},
             {QStringLiteral("link."), {QStringLiteral("a cell with a link")}},
@@ -500,6 +544,7 @@ private Q_SLOTS:
             {QStringLiteral("win.cascade"), QStringLiteral("it sets the open windows in a stack, and with one window the window keeps its place on the screen the checks run on")},
             {QStringLiteral("review.statistics"), QStringLiteral("it tells the numbers in a message and changes nothing in the workbook")},
             {QStringLiteral("style.delete"), QStringLiteral("it needs a style the workbook made for itself, and says so when there is none; the Cell Styles tests run it with one")},
+            {QStringLiteral("object.selectObjects"), QStringLiteral("it turns a mode on or off (a box drawn over empty cells then picks the objects inside it); the Shapes tests draw the box")},
             {QStringLiteral("insert.picture"), QStringLiteral("it asks for a picture file, and with none chosen nothing changes; the chart tests put pictures in")},
             {QStringLiteral("chartdesign.saveTemplate"), QStringLiteral("it writes a template file and nothing on the screen changes; the chart tests open the file")},
             {QStringLiteral("chartdesign.saveAsPicture"), QStringLiteral("it writes a picture file and nothing on the screen changes; the chart tests open the file")},

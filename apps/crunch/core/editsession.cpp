@@ -455,6 +455,7 @@ void EditSession::cleanChanged(bool clean)
     m_statesChanged.clear();
     m_tabColorsChanged.clear();
     m_ignoredChanged.clear();
+    m_scenariosChanged.clear();
     m_validationsChanged.clear();
     m_sparklinesChanged.clear();
     m_sheetOps.clear();
@@ -703,7 +704,14 @@ EditSession::Outcome EditSession::checkRule(int sheet, quint32 row, quint32 col,
     return out;
 }
 
-EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, const QString &typed, bool checkRule_)
+bool EditSession::mayHaveRich(int sheet) const
+{
+    if (!m_rich.empty()) return true;
+    if (!m_book || !m_book->book || !m_book->calc || sheet < 0 || sheet >= m_book->calc->sheetCount()) return false;
+    return !m_book->book->sharedStrings().rich.isEmpty() || !m_book->calc->sheet(sheet).richTexts.isEmpty();
+}
+
+EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, const QString &typed, bool checkRule_, const jp::office::sheet::RichText *rich)
 {
     Outcome out;
     QString why;
@@ -732,6 +740,20 @@ EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, cons
     }
     const CellChange entry = ch;
     Step step;
+    if (rich && !rich->isEmpty() && !ch.after.isFormula && ch.after.value.isText() && ch.after.value.text() == rich->text && rich->runs.size() <= 10000 && rich->fonts.size() <= 10000) {
+        const quint64 key = markOf(sheet, row, col);
+        if (key != kNoKey) {
+            SheetEdit e;
+            e.kind = SheetEdit::Kind::RichText;
+            e.sheet = sheet;
+            SheetEdit::RichChange change;
+            change.key = key;
+            change.before = richOf(sheet, row, col);
+            change.after = *rich;
+            e.richChanges.push_back(change);
+            step.sheets.push_back(std::move(e));
+        }
+    }
     step.cells.push_back(std::move(ch));
     pushStep(std::move(step), tr("Typing in %1").arg(cellName(row, col)));
     // what typing in a table's cell, or next to one, brings with it: the table grows; a formula typed in an empty column becomes the column's
@@ -1505,6 +1527,14 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
                 }
             } else {
                 cell.value = savedValue(c.value, hasShared ? c.sharedString : -1);
+                if (c.value.isText() && key != kNoKey) {
+                    const auto rich = m_rich.find(key);
+                    if (rich != m_rich.end() && rich->second.text == c.value.text()) {
+                        cell.value.sharedString = -1;   // (written in the cell, with its runs)
+                        cell.value.richRuns = rich->second.runs;
+                        cell.value.richFonts = rich->second.fonts;
+                    }
+                }
             }
         }
         changes.sheets[sheet].cells.push_back(cell);
@@ -1591,6 +1621,12 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
             SheetChanges &sc = changes.sheets[sheet];
             sc.replaceIgnoredErrors = true;
             sc.ignoredErrors = calc->sheet(sheet).ignoredErrors;
+        }
+        for (const int sheet : m_scenariosChanged) {
+            if (!written(sheet)) continue;
+            SheetChanges &sc = changes.sheets[sheet];
+            sc.replaceScenarios = true;
+            sc.scenarios = calc->sheet(sheet).scenarios;
         }
         for (const int sheet : m_validationsChanged) {
             if (!written(sheet)) continue;
@@ -1913,6 +1949,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_statesChanged.clear();
     m_tabColorsChanged.clear();
     m_ignoredChanged.clear();
+    m_scenariosChanged.clear();
     m_validationsChanged.clear();
     m_sparklinesChanged.clear();
     m_sheetOps.clear();

@@ -626,6 +626,101 @@ EditSession::Outcome EditSession::setIgnoredErrors(int sheet, QVector<jp::office
     return pushSheetEdit(e, text);
 }
 
+const jp::office::sheet::ScenarioList &EditSession::scenariosOf(int sheet) const
+{
+    static const jp::office::sheet::ScenarioList none;
+    return m_book && m_book->calc && sheet >= 0 && sheet < m_book->calc->sheetCount() ? m_book->calc->sheet(sheet).scenarios : none;
+}
+
+EditSession::Outcome EditSession::setScenarios(int sheet, jp::office::sheet::ScenarioList list, const QString &text)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    if (list.list.size() > jp::office::sheet::ScenarioList::kMaxScenarios) {
+        out.ok = false;
+        out.problem = tr("A sheet holds at most %1 scenarios.").arg(jp::office::sheet::ScenarioList::kMaxScenarios);
+        return out;
+    }
+    const jp::office::sheet::ScenarioList &now = m_book->calc->sheet(sheet).scenarios;
+    if (now == list) return out;   // (nothing to change)
+    SheetEdit e;
+    e.kind = SheetEdit::Kind::Scenarios;
+    e.sheet = sheet;
+    e.scenariosBefore = now;
+    e.scenariosAfter = list;
+    return pushSheetEdit(e, text);
+}
+
+std::optional<jp::office::sheet::RichText> EditSession::richOf(int sheet, quint32 row, quint32 col) const
+{
+    using namespace jp::office::sheet;
+    if (!m_book || !m_book->calc || !m_book->book || sheet < 0 || sheet >= m_book->calc->sheetCount()) return std::nullopt;
+    const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
+    if (!c.exists || c.isFormula || !c.value.isText()) return std::nullopt;
+    const quint64 key = markOf(sheet, row, col);
+    if (key != kNoKey) {
+        const auto made = m_rich.find(key);
+        if (made != m_rich.end()) return made->second.text == c.value.text() ? std::optional<RichText>(made->second) : std::nullopt;
+        if (m_touched.count(key)) return std::nullopt;   // (typed over: plain)
+    }
+    // as the file has it: a shared string with runs, or an inline string with runs
+    const Cell *cell = m_book->calc->sheet(sheet).cells.find(row, col);
+    RichText out;
+    out.text = c.value.text();
+    if (c.sharedString >= 0) {
+        const SharedStrings &shared = m_book->book->sharedStrings();
+        const auto runs = shared.rich.constFind(c.sharedString);
+        if (runs == shared.rich.cend()) return std::nullopt;
+        out.runs = runs.value();
+        out.fonts = shared.richFonts;
+        return out;
+    }
+    if (cell && cell->type == CellType::InlineString) {
+        const Sheet &model = m_book->calc->sheet(sheet);
+        const auto runs = model.richTexts.constFind(cell->textIndex());
+        if (runs == model.richTexts.cend()) return std::nullopt;
+        out.runs = runs.value();
+        out.fonts = model.richFonts;
+        return out;
+    }
+    return std::nullopt;
+}
+
+EditSession::Outcome EditSession::setRichText(int sheet, quint32 row, quint32 col, const jp::office::sheet::RichText &rich, const QString &text)
+{
+    Outcome out;
+    auto refuse = [&](const QString &why) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    };
+    QString why;
+    if (!canEdit(&why) || !canEditCell(sheet, row, col, &why)) return refuse(why);
+    const jp::office::sheet::Calculation::CellContent c = m_book->calc->content(sheet, row, col);
+    const bool want = !rich.isEmpty();
+    if (want && (!c.exists || c.isFormula || !c.value.isText() || c.value.text() != rich.text)) return refuse(tr("Formatting inside a text needs a cell that holds text, not a number or a formula."));
+    if (rich.runs.size() > 10000 || rich.fonts.size() > 10000) return refuse(tr("The text has more formatting inside it than JeffCrunch keeps."));
+    const quint64 key = markOf(sheet, row, col);
+    if (key == kNoKey) return refuse(tr("That cell is outside the sheet."));
+    const std::optional<jp::office::sheet::RichText> now = richOf(sheet, row, col);
+    if (!now && !want) return out;
+    if (now && want && now->text == rich.text && now->runs == rich.runs && now->fonts == rich.fonts) return out;
+    SheetEdit e;
+    e.kind = SheetEdit::Kind::RichText;
+    e.sheet = sheet;
+    SheetEdit::RichChange change;
+    change.key = key;
+    change.before = now;
+    if (want) change.after = rich;
+    e.richChanges.push_back(change);
+    return pushSheetEdit(e, text);
+}
+
 // A sheet that was added is taken away: the values, results, and marks kept by cell for it are let go of, so that a sheet added later at its place starts with none.
 void EditSession::forgetSheet(int sheet)
 {
@@ -755,6 +850,19 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
         case SheetEdit::Kind::IgnoredErrors:
             calc->setIgnoredErrors(e.sheet, forward ? e.ignoredAfter : e.ignoredBefore);
             m_ignoredChanged.insert(e.sheet);
+            break;
+        case SheetEdit::Kind::Scenarios:
+            calc->setScenarios(e.sheet, forward ? e.scenariosAfter : e.scenariosBefore);
+            m_scenariosChanged.insert(e.sheet);
+            break;
+        case SheetEdit::Kind::RichText:
+            for (const SheetEdit::RichChange &r : e.richChanges) {
+                const std::optional<jp::office::sheet::RichText> &v = forward ? r.after : r.before;
+                if (v) m_rich[r.key] = *v;
+                else m_rich.erase(r.key);
+                m_touched.insert(r.key);
+            }
+            Q_EMIT richTextChanged(e.sheet);
             break;
         case SheetEdit::Kind::Validations:
             calc->setValidations(e.sheet, forward ? e.rulesAfter : e.rulesBefore);

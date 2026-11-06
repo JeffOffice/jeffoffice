@@ -41,6 +41,8 @@ struct SavedValue {
     double number = 0;          // a number; 1 or 0 for a bool; the error's place (CellError) for an error
     QString text;
     qint32 sharedString = -1;   // a text: its place in the shared strings if it has one (the file is given them), else it is written in the cell
+    RichRuns richRuns;          // a text written in the cell with runs of formatting inside it: the runs, and the fonts they name
+    QVector<FontSpec> richFonts;
 };
 
 // A cell the person changed, put in whole: what it holds, its format, and its formula.
@@ -101,6 +103,9 @@ struct SheetChanges {
     // And the checks of Error Checking left out for cells: the file's `ignoredErrors` is made from these.
     bool replaceIgnoredErrors = false;
     QVector<IgnoredError> ignoredErrors;
+    // And the scenarios of the Scenario Manager: the file's `scenarios` is made from these.
+    bool replaceScenarios = false;
+    ScenarioList scenarios;
     // The default sizes (`sheetFormatPr`), when a person changed them: the default height of rows (and whether it is a person's), and the default width of columns (none when 0).
     bool replaceFormat = false;
     SheetFormat format;
@@ -177,7 +182,7 @@ struct SheetChanges {
     QString drawingRelId;
     // The links from the sheet to its tables' parts: the ids of the relationships of tables made here (saving sets them, from SaveChanges::addedTables), and of tables taken out.
     std::vector<QString> addTableRels, removeTableRels;
-    bool empty() const { return !replaceSparklines && !replaceValidations && !replaceIgnoredErrors && !condEdit && drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && noteOps.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    bool empty() const { return !replaceSparklines && !replaceValidations && !replaceIgnoredErrors && !replaceScenarios && !condEdit && drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && noteOps.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.

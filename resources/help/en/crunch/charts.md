@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, shape styles, styles, insert shape, text box, shapes, arrow, oval, rectangle, star -->
+<!-- keywords: group, ungroup, align, align left, distribute, select objects, several shapes, pick several, drag box, chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, shape styles, styles, insert shape, text box, shapes, arrow, oval, rectangle, star -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -101,6 +101,18 @@ A picture or shape is copied and pasted the same way as a chart. A shape that us
 
 
 Copy a chart and paste it into the same workbook, on any sheet: the copy reads the same cells as the first. Paste it into another workbook and it keeps the numbers it showed but no longer reads cells, because the cells it would read there are not the ones it was made from.
+
+## Pick several objects, group them, and line them up
+
+Click one object, then hold Shift or Ctrl and click another to pick it too. Click a picked one again with Shift or Ctrl to let it go. Picked objects each get a dashed frame. You can also choose **Select Objects** on the **Shape Format** tab and drag a box over empty cells: every object that fits wholly inside the box is picked. Press Esc, or choose **Select Objects** again, to go back to picking cells. Press Delete to remove all the picked objects in one step.
+
+With two or more picked, the **Shape Format** tab has these in the **Arrange** group:
+
+- **Group** joins the picked shapes, pictures, and lines into one object. It moves and sizes as one, and the file keeps it as a group. A chart can't be put in a group.
+- **Ungroup** takes a picked group apart. Each part goes back where it is on the sheet.
+- **Align** lines up the picked objects: **Align Left**, **Align Center**, **Align Right**, **Align Top**, **Align Middle**, and **Align Bottom**. They line up with the edge or middle of the whole set. **Distribute Horizontally** and **Distribute Vertically** space three or more objects evenly between the two at the ends.
+
+Group, Ungroup, and each Align choice are one step that you can undo.
 
 ## Name it
 
