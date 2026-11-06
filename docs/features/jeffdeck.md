@@ -640,6 +640,17 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 ### What must survive a round trip
 - [~] **1.0** A checklist for every format JeffDeck saves: slide size, masters, layouts, and themes; each slide's placeholders, text with its runs, lists, and fields; shapes, pictures, and their effects; tables, charts, SmartArt, and equations; notes and their master; comments with replies; sections; hidden slides; transitions and animations with their timing; movies and sounds with their trim and volume; custom shows and show settings; headers and footers; fonts; alt text; and the document's properties *(most are tested one by one; properties, alt text, and a notes master could not be confirmed)*
 
+### Keynote `.key` (Apple's iWork)
+
+Asked for by Jeff on November 5, 2026: people who are sent these files, or move from a Mac, can open them, and later save them.
+
+- [ ] **later** Open `.key` presentations from the 2013 and later versions (a zip of Snappy-compressed protocol-buffer parts): slides and their layouts and masters, text and its styles, pictures, shapes, tables, charts, movies and sounds, speaker notes, and the slide size. A part that can't be read is shown from the preview picture the file carries, with a message
+- [ ] **later** Transitions and builds: the ones JeffDeck has are mapped to its own, and the rest become the nearest one, listed when the file opens
+- [ ] **later** Open the older form from the 2009 versions (XML inside a zip, or a package folder rather than a single file), at least the text and layout
+- [ ] **later** Save as `.key` that Keynote opens without a repair message. The format is not published, so writing comes after reading is solid, and a save warns about what the copy can't hold
+- [ ] **later** Safety: sizes, counts, nesting, and decompressed size in what the file holds are limited, as for every other format, and a damaged part is skipped with a message rather than stopping the open
+- [ ] **later** On macOS, the app is offered for these files in Open With, and a file shared as a package folder opens as one document
+
 ## Shared with other JeffOffice apps
 
 The suite-wide map of shared parts, [shared.md](shared.md), says where each lives, which app builds it first, and who uses it; where this list disagrees with it, the map holds.

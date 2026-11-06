@@ -628,6 +628,17 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 - [ ] **later** Open WordPerfect (`.wpd`) and Microsoft Works (`.wps`) documents *(shared: librevenge, already in third_party)*
 - [ ] **later** XPS: not offered, since the format has no use outside Windows
 
+### Pages `.pages` (Apple's iWork)
+
+Asked for by Jeff on November 5, 2026: people who are sent these files, or move from a Mac, can open them, and later save them.
+
+- [ ] **later** Open `.pages` documents from the 2013 and later versions (a zip of Snappy-compressed protocol-buffer parts): text and its styles, lists, tables, pictures, shapes and text boxes, headers and footers, footnotes, sections, and comments, laid out close to the original. A part that can't be read is shown from the preview picture the file carries, with a message
+- [ ] **later** Page layout documents (free-placed text boxes rather than flowing text) open with each box where the file puts it
+- [ ] **later** Open the older form from the 2009 versions (XML inside a zip, or a package folder rather than a single file), at least the text and layout
+- [ ] **later** Save as `.pages` that Pages opens without a repair message. The format is not published, so writing comes after reading is solid, and a save warns about what the copy can't hold
+- [ ] **later** Safety: sizes, counts, nesting, and decompressed size in what the file holds are limited, as for every other format, and a damaged part is skipped with a message rather than stopping the open
+- [ ] **later** On macOS, the app is offered for these files in Open With, and a file shared as a package folder opens as one document
+
 ## Shared with other JeffOffice apps
 
 The suite-wide map of shared parts, [shared.md](shared.md), says where each lives, which app builds it first, and who uses it; where this list disagrees with it, the map holds.

@@ -722,6 +722,18 @@ What our own `.csv` files look like, to set the defaults (counts only): 1,267 fi
 ### What must survive a round trip
 - [ ] **first release** A checklist for every format that JeffCrunch saves: formulas as written, stored results with their types, number formats, styles and theme colors, column widths and row heights, merged cells, hidden rows, columns, and sheets, defined names and their scopes, print setup with headers and footers, notes (text, size, and position), data validation and conditional formats, tables and their styles, pivot tables, charts (series formulas and formatting, extension elements included), drawings and their anchors (move and size with cells, or not), hyperlinks, outline levels, sheet views, protection, workbook settings (calculation, iteration, date system), external-link caches, and custom properties; anything JeffCrunch can't hold in a format is named by Check Compatibility before the file is written
 
+### Numbers `.numbers` (Apple's iWork)
+
+Asked for by Jeff on November 5, 2026: people who are sent these files, or move from a Mac, can open them, and later save them.
+
+- [ ] **later** Open `.numbers` workbooks from the 2013 and later versions (a zip of Snappy-compressed protocol-buffer parts): each sheet's tables, with their values, formulas, number formats, cell styles, merged cells, and headers; charts; pictures and shapes; and text boxes. A part that can't be read is shown from the preview picture the file carries, with a message
+- [ ] **later** A sheet that holds several freely placed tables becomes one sheet per table, or one sheet with each table at its place, by the person's choice, with formulas that name another table rewritten to cell references that work
+- [ ] **later** Formulas: the functions both programs have keep their results; any function JeffCrunch lacks is kept as text with its stored value shown, and listed when the file opens
+- [ ] **later** Open the older form from the 2009 versions (XML inside a zip, or a package folder rather than a single file), at least the text and layout
+- [ ] **later** Save as `.numbers` that Numbers opens without a repair message. The format is not published, so writing comes after reading is solid, and a save warns about what the copy can't hold
+- [ ] **later** Safety: sizes, counts, nesting, and decompressed size in what the file holds are limited, as for every other format, and a damaged part is skipped with a message rather than stopping the open
+- [ ] **later** On macOS, the app is offered for these files in Open With, and a file shared as a package folder opens as one document
+
 ## Shared with other JeffOffice apps
 
 The suite-wide map of shared parts, [shared.md](shared.md), says where each lives, which app builds it first, and who uses it; where this list disagrees with it, the map holds.
