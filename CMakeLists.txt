@@ -147,7 +147,7 @@ qt_add_executable(jptests
   tests/pub/pubhelpers.cpp
   tests/pub/tst_pub_commands.cpp
   tests/pub/tst_pub_export.cpp
-  tests/pub/tst_pub_file.cpp
+  tests/pub/tst_pub_file.cpp tests/pub/tst_pub_file_02.cpp
   tests/pub/tst_pub_find.cpp
   tests/pub/tst_pub_formatpane.cpp
   tests/pub/tst_pub_fonts.cpp
@@ -317,7 +317,7 @@ add_test(NAME wmltests COMMAND wmltests)
 set_tests_properties(wmltests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 # The tests of libs/flow and of the changes below it that it needs.
-qt_add_executable(flowtests tests/flow/tst_flow.cpp)
+qt_add_executable(flowtests tests/flow/tst_flow.cpp tests/flow/tst_flow_02.cpp tests/flow/tst_flow_03.cpp tests/flow/tst_flow_04.cpp tests/flow/tst_flow_05.cpp tests/flow/tst_flow_06.cpp tests/flow/tst_flow_07.cpp tests/flow/tst_flow_08.cpp)
 target_link_libraries(flowtests PRIVATE jo_flow Qt6::Test)
 set_target_properties(flowtests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME flowtests COMMAND flowtests)
@@ -458,7 +458,7 @@ endif()
 target_link_libraries(jeffwrite PRIVATE jwcore)
 jo_add_version_info(jeffwrite JeffWrite "JeffWrite: documents")
 set_target_properties(jeffwrite PROPERTIES OUTPUT_NAME JeffWrite)
-qt_add_executable(writetests tests/write/tst_write.cpp tests/office/dochelpers.cpp)
+qt_add_executable(writetests tests/write/tst_write.cpp tests/write/tst_write_02.cpp tests/write/tst_write_03.cpp tests/write/tst_write_04.cpp tests/write/tst_write_05.cpp tests/write/tst_write_06.cpp tests/write/tst_write_07.cpp tests/write/tst_write_08.cpp tests/write/tst_write_09.cpp tests/write/tst_write_10.cpp tests/write/tst_write_11.cpp tests/write/tst_write_12.cpp tests/write/tst_write_13.cpp tests/office/dochelpers.cpp)
 target_link_libraries(writetests PRIVATE jwcore Qt6::Test)
 target_compile_definitions(writetests PRIVATE JW_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 set_target_properties(writetests PROPERTIES WIN32_EXECUTABLE OFF)
@@ -572,7 +572,7 @@ target_link_libraries(jeffcrunch PRIVATE jccore)
 jo_add_version_info(jeffcrunch JeffCrunch "JeffCrunch: spreadsheets")
 set_target_properties(jeffcrunch PROPERTIES OUTPUT_NAME JeffCrunch)
 # The tests of the window (the grid's own are in sheettests).
-qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/crunch/tst_crunch_rules.cpp tests/crunch/tst_crunch_xls.cpp tests/crunch/tst_crunch_convert.cpp tests/crunch/tst_crunch_copy.cpp tests/crunch/tst_crunch_datatable.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp tests/sheet/odshelpers.cpp tests/crunch/tst_crunch_format.cpp tests/crunch/tst_crunch_formatcodes.cpp tests/crunch/tst_crunch_formatdialog.cpp tests/crunch/tst_crunch_formatui.cpp tests/crunch/tst_crunch_sheets.cpp tests/crunch/tst_crunch_review.cpp tests/crunch/tst_crunch_drawings.cpp tests/crunch/tst_crunch_print.cpp tests/crunch/tst_crunch_find.cpp tests/crunch/tst_crunch_sort.cpp tests/crunch/tst_crunch_datatools.cpp tests/crunch/tst_crunch_filter.cpp tests/crunch/tst_crunch_function.cpp tests/crunch/tst_crunch_charts.cpp tests/crunch/tst_crunch_names.cpp tests/crunch/tst_crunch_formulas.cpp tests/crunch/tst_crunch_notes.cpp tests/crunch/tst_crunch_links.cpp tests/crunch/tst_crunch_protect.cpp tests/crunch/tst_crunch_autoheight.cpp tests/crunch/tst_crunch_text.cpp tests/crunch/tst_crunch_tables.cpp tests/crunch/tst_crunch_pivot.cpp tests/crunch/tst_crunch_structmodel.cpp tests/crunch/structmodel.cpp tests/crunch/tst_crunch_viewedit.cpp tests/crunch/tst_crunch_keep.cpp tests/crunch/tst_crunch_hostile.cpp tests/crunch/tst_crunch_outline.cpp tests/crunch/tst_crunch_point.cpp tests/crunch/tst_crunch_sparklines.cpp tests/crunch/tst_crunch_info.cpp tests/crunch/tst_crunch_c12home.cpp tests/crunch/tst_crunch_c12cells.cpp tests/crunch/tst_crunch_c12fill.cpp)
+qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_edit_02.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/crunch/tst_crunch_rules.cpp tests/crunch/tst_crunch_xls.cpp tests/crunch/tst_crunch_convert.cpp tests/crunch/tst_crunch_copy.cpp tests/crunch/tst_crunch_datatable.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp tests/sheet/odshelpers.cpp tests/crunch/tst_crunch_format.cpp tests/crunch/tst_crunch_formatcodes.cpp tests/crunch/tst_crunch_formatdialog.cpp tests/crunch/tst_crunch_formatui.cpp tests/crunch/tst_crunch_sheets.cpp tests/crunch/tst_crunch_review.cpp tests/crunch/tst_crunch_drawings.cpp tests/crunch/tst_crunch_print.cpp tests/crunch/tst_crunch_print_02.cpp tests/crunch/tst_crunch_find.cpp tests/crunch/tst_crunch_sort.cpp tests/crunch/tst_crunch_datatools.cpp tests/crunch/tst_crunch_filter.cpp tests/crunch/tst_crunch_function.cpp tests/crunch/tst_crunch_charts.cpp tests/crunch/tst_crunch_names.cpp tests/crunch/tst_crunch_formulas.cpp tests/crunch/tst_crunch_notes.cpp tests/crunch/tst_crunch_links.cpp tests/crunch/tst_crunch_protect.cpp tests/crunch/tst_crunch_autoheight.cpp tests/crunch/tst_crunch_text.cpp tests/crunch/tst_crunch_tables.cpp tests/crunch/tst_crunch_pivot.cpp tests/crunch/tst_crunch_structmodel.cpp tests/crunch/structmodel.cpp tests/crunch/tst_crunch_viewedit.cpp tests/crunch/tst_crunch_keep.cpp tests/crunch/tst_crunch_hostile.cpp tests/crunch/tst_crunch_outline.cpp tests/crunch/tst_crunch_point.cpp tests/crunch/tst_crunch_sparklines.cpp tests/crunch/tst_crunch_info.cpp tests/crunch/tst_crunch_c12home.cpp tests/crunch/tst_crunch_c12cells.cpp tests/crunch/tst_crunch_c12fill.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_tabs2.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_c12file.cpp)
 target_link_libraries(crunchtests PRIVATE jccore Qt6::Test)
