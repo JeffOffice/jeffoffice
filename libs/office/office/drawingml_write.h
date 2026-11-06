@@ -100,4 +100,9 @@ void writeLine(QXmlStreamWriter &w, const Stroke &stroke, DrawingWriteContext &c
 // freeform).
 QString presetForShape(const QString &shapeId);
 
+// The name of the text warp (a:prstTxWarp's prst) a text art transform is written as ("textPlain" for the plain one, or one that has no warp of the standard's), and the transform
+// a warp's name stands for ("plain" for textPlain; empty for a name that is none of the standard's).
+QString textWarpPreset(const QString &transform);
+QString textArtTransformOfWarp(const QString &prst);
+
 } // namespace jp::office

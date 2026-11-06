@@ -1342,4 +1342,20 @@ void writeLine(QXmlStreamWriter &w, const Stroke &stroke, DrawingWriteContext &c
     writeOutline(w, "a:ln", stroke, ctx);
 }
 
+QString textWarpPreset(const QString &transform)
+{
+    const int type = textArtShapeType(transform);
+    return QLatin1String(type >= 136 && type < 136 + int(std::size(kTextWarps)) ? kTextWarps[type - 136] : "textPlain");
+}
+
+QString textArtTransformOfWarp(const QString &prst)
+{
+    for (int i = 0; i < int(std::size(kTextWarps)); ++i)
+        if (prst == QLatin1String(kTextWarps[i])) {
+            const QString transform = textArtForShapeType(136 + i);
+            return transform.isEmpty() ? QStringLiteral("plain") : transform;
+        }
+    return QString();
+}
+
 } // namespace jp::office

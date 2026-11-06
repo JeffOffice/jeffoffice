@@ -495,6 +495,122 @@ public:
 // DrawingML: wp:inline and wp:anchor. Lengths are EMU (12,700 to the point).
 double emu(const QString &v) { return fin(v.toDouble() / 12700.0); }
 
+// A drawing's group (wpg:wgp): the group is one frame, which holds the anchor's place, wrap, and alt text, followed by each member as a shape of its own set at its place in the
+// frame (the way a group of the older drawing format is read). A member is placed through the group's map from the units of its members to EMU from the frame's corner.
+struct GroupMap {
+    double x0 = 0, y0 = 0, kx = 1, ky = 1;
+};
+
+int childNamed(const XmlTree &t, int n, const char *local)
+{
+    for (int k = t.firstChild(n); k >= 0; k = t.next(k))
+        if (t.localName(k) == local) return k;
+    return -1;
+}
+
+double emuNumber(const XmlTree &t, int n, const char *name) { return std::clamp(t.attr(n, name).toDouble(), -1.0e10, 1.0e10); }
+
+// The map a group's own members are placed by, inside the map of the group around it (`outer`).
+GroupMap mapOfGroup(const XmlTree &t, int groupProps, const GroupMap &outer, bool top)
+{
+    GroupMap m = outer;
+    const int xfrm = groupProps >= 0 ? childNamed(t, groupProps, "xfrm") : -1;
+    if (xfrm < 0) return m;
+    const int off = childNamed(t, xfrm, "off"), ext = childNamed(t, xfrm, "ext"), chOff = childNamed(t, xfrm, "chOff"), chExt = childNamed(t, xfrm, "chExt");
+    if (ext < 0 || chExt < 0) return m;
+    const double ex = emuNumber(t, ext, "cx"), ey = emuNumber(t, ext, "cy"), cx = emuNumber(t, chExt, "cx"), cy = emuNumber(t, chExt, "cy");
+    const double sx = cx > 0 ? ex / cx : 1, sy = cy > 0 ? ey / cy : 1;
+    const double ox = off >= 0 ? emuNumber(t, off, "x") : 0, oy = off >= 0 ? emuNumber(t, off, "y") : 0;
+    const double px = chOff >= 0 ? emuNumber(t, chOff, "x") : 0, py = chOff >= 0 ? emuNumber(t, chOff, "y") : 0;
+    // (The top group's frame is the origin, whatever its own offset; a nested group's is placed by the map around it.)
+    m.kx = outer.kx * sx;
+    m.ky = outer.ky * sy;
+    m.x0 = outer.x0 + outer.kx * ((top ? 0 : ox) - px * sx);
+    m.y0 = outer.y0 + outer.ky * ((top ? 0 : oy) - py * sy);
+    return m;
+}
+
+void readGroupMembers(const XmlTree &t, int group, const Shape &frame, const GroupMap &map, int depth, QVector<Shape> *out)
+{
+    for (int c = t.firstChild(group); c >= 0 && out->size() < kMostShapes; c = t.next(c)) {
+        const QByteArray name = t.localName(c);
+        if (name == "grpSp" || name == "wgp") {
+            if (depth < kMostGroupDepth) readGroupMembers(t, c, frame, mapOfGroup(t, childNamed(t, c, "grpSpPr"), map, false), depth + 1, out);
+            continue;
+        }
+        if (name != "wsp" && name != "pic") continue;
+        const int props = childNamed(t, c, "spPr");
+        const int xfrm = props >= 0 ? childNamed(t, props, "xfrm") : -1;
+        const int off = xfrm >= 0 ? childNamed(t, xfrm, "off") : -1, ext = xfrm >= 0 ? childNamed(t, xfrm, "ext") : -1;
+        if (off < 0 || ext < 0) continue;
+        Shape s;
+        s.kind = Shape::Rect;
+        s.floating = true;
+        s.behind = frame.behind;
+        s.z = frame.z;
+        s.wrap = Shape::WrapNone;
+        s.hRel = frame.hRel;
+        s.vRel = frame.vRel;
+        s.left = fin(frame.left + (map.x0 + map.kx * emuNumber(t, off, "x")) / 12700.0);
+        s.top = fin(frame.top + (map.y0 + map.ky * emuNumber(t, off, "y")) / 12700.0);
+        s.width = std::clamp(fin(map.kx * emuNumber(t, ext, "cx") / 12700.0), 0.0, 10000.0);
+        s.height = std::clamp(fin(map.ky * emuNumber(t, ext, "cy") / 12700.0), 0.0, 10000.0);
+        s.gapLeft = s.gapRight = s.gapTop = s.gapBottom = 0;
+        const int nv = name == "pic" ? childNamed(t, c, "nvPicPr") : c;
+        const int cNvPr = nv >= 0 ? childNamed(t, nv, "cNvPr") : -1;
+        if (cNvPr >= 0) s.alt = t.attr(cNvPr, "descr");
+        if (name == "pic") {
+            s.kind = Shape::Picture;
+            std::vector<int> stack{c};
+            while (!stack.empty() && s.embed.isEmpty()) {
+                const int n = stack.back();
+                stack.pop_back();
+                if (t.localName(n) == "blip") s.embed = t.attr(n, "embed", NsR);
+                for (int k = t.firstChild(n); k >= 0; k = t.next(k)) stack.push_back(k);
+            }
+            if (s.embed.isEmpty()) continue;
+            if (t.has(xfrm, "rot")) s.rotation = fin(std::fmod(t.attr(xfrm, "rot").toDouble() / 60000.0, 360.0));
+            const int blipFill = childNamed(t, c, "blipFill");
+            const int src = blipFill >= 0 ? childNamed(t, blipFill, "srcRect") : -1;
+            if (src >= 0) {
+                auto share = [&](const char *edge) {
+                    const double v = t.attr(src, edge).toDouble() / 100000.0;
+                    return std::isfinite(v) ? std::clamp(v, -1.0, 1.0) : 0.0;
+                };
+                s.cropL = share("l");
+                s.cropT = share("t");
+                s.cropR = share("r");
+                s.cropB = share("b");
+                if (s.cropL + s.cropR >= 0.98 || s.cropT + s.cropB >= 0.98) s.cropL = s.cropT = s.cropR = s.cropB = 0;
+            }
+        } else {
+            s.wsp = "<x " + declarations() + ">" + t.raw(c) + "</x>";
+            for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
+                if (t.localName(k) == "txbx") {
+                    const int content = childNamed(t, k, "txbxContent");
+                    if (content >= 0) {
+                        s.textBox = textBoxXml(t, content);
+                        s.kind = Shape::TextBox;
+                    }
+                } else if (t.localName(k) == "bodyPr") {
+                    const char *names[4] = {"lIns", "tIns", "rIns", "bIns"};
+                    for (int i = 0; i < 4; ++i)
+                        if (t.has(k, names[i])) s.inset[i] = std::clamp(emu(t.attr(k, names[i])), 0.0, 1000.0);
+                }
+            }
+        }
+        out->push_back(s);
+    }
+}
+
+// The group an anchor or inline drawing holds, -1 for none.
+int wordGroupOf(const XmlTree &t, int item)
+{
+    const int graphic = childNamed(t, item, "graphic");
+    const int data = graphic >= 0 ? childNamed(t, graphic, "graphicData") : -1;
+    return data >= 0 ? childNamed(t, data, "wgp") : -1;
+}
+
 void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
 {
     for (int c = t.firstChild(drawing); c >= 0; c = t.next(c)) {
@@ -541,6 +657,15 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
         }
         if (!s.floating) s.wrap = Shape::WrapNone;
         keepBehindOnlyWithoutAWall(&s);
+        if (const int group = wordGroupOf(t, c); group >= 0) {
+            // The frame (nothing to draw), then each member where the group puts it.
+            s.kind = Shape::Rect;
+            s.filled = s.stroked = false;
+            out->push_back(s);
+            readGroupMembers(t, group, s, mapOfGroup(t, childNamed(t, group, "grpSpPr"), GroupMap(), true), 0, out);
+            if (out->size() >= kMostShapes) return;
+            continue;
+        }
         // The picture's data and a text box's text: found anywhere inside.
         std::vector<int> stack{c};
         int shapeNode = -1;
@@ -624,6 +749,15 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
         }
         if (shapeNode >= 0) {
             if (s.kind == Shape::Picture) s.kind = Shape::Rect;
+            // A picture that fills the shape (in its own shape properties) is its fill, not a picture of the object's own.
+            for (int k = t.firstChild(shapeNode); k >= 0; k = t.next(k)) {
+                if (t.localName(k) != "spPr") continue;
+                const int blipFill = childNamed(t, k, "blipFill"), blip = blipFill >= 0 ? childNamed(t, blipFill, "blip") : -1;
+                if (blip < 0) break;
+                s.fillEmbed = t.attr(blip, "embed", NsR);
+                if (s.embed == s.fillEmbed) s.embed.clear();
+                break;
+            }
             // The text's room in the shape (its insets, in EMU).
             for (int k = t.firstChild(shapeNode); k >= 0; k = t.next(k))
                 if (t.localName(k) == "bodyPr") {
