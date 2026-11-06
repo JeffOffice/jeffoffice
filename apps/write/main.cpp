@@ -26,6 +26,7 @@
 #include "core/fonts.h"
 
 #include <QApplication>
+#include <QStatusBar>
 #include <QTabWidget>
 #include <QCommandLineParser>
 #include <QFileOpenEvent>
@@ -109,7 +110,18 @@ int main(int argc, char **argv)
     const QStringList files = cli.positionalArguments();
     if (!files.isEmpty()) {
         if (splash) splash->step(jp::openingStatus(files.first()), 0.8);
+        if (!cli.isSet(shotOpt)) {
+            // The window is up before the file is read, so it shows at once and says what it is doing.
+            w->statusBar()->showMessage(jp::openingStatus(files.first()));
+            w->show();
+            if (splash) {
+                splash->finish(w);
+                splash = nullptr;
+            }
+            QCoreApplication::processEvents();
+        }
         w->openFile(files.first());
+        if (w->statusBar()->currentMessage() == jp::openingStatus(files.first())) w->statusBar()->clearMessage();
         for (int i = 1; i < files.size(); ++i) {
             auto *other = new jp::WriteWindow();
             other->setAttribute(Qt::WA_DeleteOnClose);
