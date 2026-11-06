@@ -153,7 +153,20 @@ void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool
     const int sheet = m_sheet;
     const quint32 row = quint32(std::max<qint64>(0, sel.activeRow)), col = quint32(std::max<qint64>(0, sel.activeCol));
     QString why;
+    const bool forcedToBar = !fromBar && !m_editInCell;
+    if (forcedToBar) fromBar = true;
     if (!m_session->canEditCell(sheet, row, col, &why)) {
+        // a cell in a range that has a password is opened with it
+        const QString title = m_session->passwordRangeAt(sheet, row, col);
+        if (!title.isEmpty() && !m_passwordJob) {
+            jp::office::sheet::PasswordHash hash;
+            for (const jp::office::sheet::EditRange &r : m_session->protectionOf(sheet).editRanges)
+                if (r.title == title) hash = r.password;
+            askPassword(title, hash, [this, sheet, title, initial, mode, fromBar] {
+                if (m_session && m_session->openEditRange(sheet, title)) beginEdit(initial, mode, fromBar);
+            });
+            return;
+        }
         notice(tr("Edit"), why);
         return;
     }
@@ -172,11 +185,17 @@ void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool
     m_syncingEditors = true;
     m_cellEditor->setMode(mode);
     m_cellEditor->setText(initial);
-    if (!fromBar) m_formulaBar->setText(initial);
+    if (!fromBar || forcedToBar) m_formulaBar->setText(initial);
     m_syncingEditors = false;
     m_cellEditor->show();
     m_cellEditor->raise();
     placeEditor();
+    if (forcedToBar) {
+        // (editing in the formula bar only: the strip over the cell is not shown)
+        m_cellEditor->hide();
+        m_formulaBar->setFocus(Qt::OtherFocusReason);
+        m_formulaBar->setCursorPosition(int(initial.size()));
+    }
     if (!fromBar) {
         m_cellEditor->setFocus(Qt::OtherFocusReason);
         m_cellEditor->setCursorPosition(int(initial.size()));
@@ -229,6 +248,35 @@ void CrunchWindow::setShowZeros(bool on)
     m_view->setShowZeros(on);
     syncPanes();
     if (m_session && m_session->viewsChanged()) setWindowModified(true);
+}
+
+void CrunchWindow::setEditInCell(bool on)
+{
+    m_editInCell = on;
+    Settings::get().setValue(QStringLiteral("crunch/editInCell"), on);
+}
+
+void CrunchWindow::setGridlineColor(const QColor &color)
+{
+    if (!color.isValid()) return;
+    m_view->setGridlineColor(color);
+    Settings::get().setValue(QStringLiteral("crunch/gridColor"), color.name());
+}
+
+int CrunchWindow::defaultZoom() const { return std::clamp(Settings::get().value(QStringLiteral("crunch/defaultZoom"), 100).toInt(), 10, 400); }
+
+void CrunchWindow::setDefaultZoom(int percent) { Settings::get().setValue(QStringLiteral("crunch/defaultZoom"), std::clamp(percent, 10, 400)); }
+
+bool CrunchWindow::removePersonalOnSave() const { return Settings::get().value(QStringLiteral("crunch/removePersonalOnSave"), false).toBool(); }
+
+void CrunchWindow::setRemovePersonalOnSave(bool on) { Settings::get().setValue(QStringLiteral("crunch/removePersonalOnSave"), on); }
+
+void CrunchWindow::setStandardColumnWidth(double shown)
+{
+    if (!m_session || m_sheet < 0 || shown <= 0 || !editingAllowed()) return;
+    const int mdw = m_view->sheet().looks().maxDigitWidth();
+    const crunch::EditSession::Outcome o = m_session->setDefaultSizes(m_sheet, grid::GridSheet::widthOfShown(shown, mdw), std::nullopt, tr("Default Width"));
+    if (!o.ok) notice(tr("Default Width"), o.problem);
 }
 
 void CrunchWindow::setDragEditing(bool on)

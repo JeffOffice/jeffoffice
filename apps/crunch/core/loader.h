@@ -103,6 +103,7 @@ struct BlankDefaults {
     double size = 11;
     int sheets = 1;                              // how many sheets: "Sheet1", "Sheet2", ...
     int paperSize = 1;                           // what each sheet prints on: 1 (Letter, as a file with none says) or 9 (A4)
+    int zoom = 100;                              // the zoom each sheet is shown at, in percent (10 to 400)
 };
 // (a font name with a character a name can't have, a size outside 1 to 409, or a count outside 1 to 255 is the usual one)
 QByteArray blankWorkbookBytes(const BlankDefaults &defaults = BlankDefaults());

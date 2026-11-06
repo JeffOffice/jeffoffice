@@ -6,10 +6,13 @@
 
 #include <QDialog>
 #include <QMap>
+#include <QStringList>
+#include <QVector>
 
 class QCheckBox;
 class QLabel;
 class QLineEdit;
+class QListWidget;
 
 namespace jp {
 
@@ -24,6 +27,15 @@ struct WorkbookProtectRequest {
     bool lockWindows = false;
     QString password;
     bool hadPassword = false;
+};
+
+// Allow Edit Ranges: the ranges a protected sheet leaves open.
+struct EditRangesRequest {
+    QVector<jp::office::sheet::EditRange> ranges;   // in: the sheet's; out: as chosen (a range whose password was not touched keeps its hash)
+    QMap<QString, QString> passwords;               // out: the password typed for a range (by its title): new or changed; never kept past the call that makes its hash
+    QStringList removePasswords;                    // out: the titles of ranges whose password the person took off
+    QString selection;                              // in: the cells selected, which a new range starts with
+    bool sheetProtected = false;                    // in: the sheet is protected now (the dialog says the ranges only matter then)
 };
 
 struct PasswordRequest {
@@ -60,6 +72,23 @@ private:
     QLabel *m_problem = nullptr;
     QMap<QString, QCheckBox *> m_checks;
     ProtectRequest m_request;
+};
+
+class EditRangesDialog : public QDialog {
+    Q_OBJECT
+public:
+    explicit EditRangesDialog(const EditRangesRequest &request, QWidget *parent = nullptr);
+    EditRangesRequest result() const { return m_request; }
+    QListWidget *list() const { return m_list; }
+    // Adds a range (as New does, after the box that asks for it), or changes the one in row `row`; false, with `problem`, if the title is empty or used, or the cells are not a range.
+    bool setRange(int row, const jp::office::sheet::EditRange &range, const QString &typedPassword, bool removePassword, QString *problem);
+    void removeRow(int row);
+
+private:
+    void reload();
+    void ask(int row);
+    QListWidget *m_list = nullptr;
+    EditRangesRequest m_request;
 };
 
 class ProtectWorkbookDialog : public QDialog {

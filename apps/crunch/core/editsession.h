@@ -25,6 +25,8 @@
 #include "sheet/xlsxsave.h"
 
 #include <QLocale>
+#include <QSet>
+#include <QVector>
 #include <QObject>
 #include <QTimer>
 #include <QUndoStack>
@@ -605,6 +607,12 @@ public:
     const jp::office::sheet::SheetProtection &protectionOf(int sheet) const;
     // Whether the cell has its protection setting "locked" (whether or not the sheet is protected).
     bool cellIsLocked(int sheet, quint32 row, quint32 col) const;
+    // Allow Edit Ranges: whether the cell is in a range the protection leaves open (one with no password, or one whose password was given in this session); the title of the range with a
+    // password that holds the cell and has not been opened ("" if none); the password of that range was given (it stays open until the workbook is closed); and the ranges replaced, in one step.
+    bool inOpenEditRange(int sheet, quint32 row, quint32 col) const;
+    QString passwordRangeAt(int sheet, quint32 row, quint32 col) const;
+    bool openEditRange(int sheet, const QString &title);
+    Outcome setEditRanges(int sheet, const QVector<jp::office::sheet::EditRange> &ranges, const QString &stepText);
     // Protects the sheet as the settings say (or takes the protection off): one step. The password is already a hash.
     Outcome setSheetProtection(int sheet, const jp::office::sheet::SheetProtection &protection, const QString &stepText);
     const jp::office::sheet::WorkbookProtection &workbookProtection() const;
@@ -1135,7 +1143,9 @@ private:
     // The change typing `typed` into a cell makes (not a header cell's, not checked against the cell's rule): false, with the problem, if it can't be put in; `none` if it changes nothing.
     bool typedChange(int sheet, quint32 row, quint32 col, const QString &typed, CellChange *change, bool *none, Outcome *problem);
     // Whether a cell of that format on the sheet can't be changed: the sheet is protected and the cell is locked.
-    bool isLocked(int sheet, quint32 style) const;
+    bool isLocked(int sheet, quint32 style, quint32 row, quint32 col) const;
+    static QString editRangeKey(int sheet, const jp::office::sheet::EditRange &range);
+    QSet<QString> m_openEditRanges;   // the ranges with a password whose password was given in this session (as sheet and title)
     bool formulaHidden(int sheet, quint32 style) const;
     QString lockedMessage() const;
     bool storedEquals(int sheet, quint32 rowId, quint32 colId, const jp::calc::Value &value) const;   // (the cell named by the ids of its row and column)

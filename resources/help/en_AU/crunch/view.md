@@ -1,5 +1,5 @@
 # Change the view
-<!-- keywords: outline, group, ungroup, collapse, expand, detail, level, view, zoom, right-to-left, right to left, Arabic, Hebrew, mirrored, freeze, freeze panes, unfreeze, gridlines, headings, formula bar, collapse the ribbon, full screen, status bar, minimum, maximum, show formulas, sheet tabs, hidden sheets, headers -->
+<!-- keywords: outline, group, ungroup, collapse, expand, detail, level, view, zoom, right-to-left, right to left, Arabic, Hebrew, mirrored, freeze, freeze panes, unfreeze, gridlines, headings, formula bar, collapse the ribbon, full screen, status bar, minimum, maximum, show formulas, sheet tabs, hidden sheets, headers, new window, arrange all, side by side, synchronous scrolling, switch windows -->
 
 The **View** tab changes how the sheet looks on your screen. It never changes the workbook.
 
@@ -37,6 +37,15 @@ A workbook that was saved with frozen panes opens with them.
 ## Sheets
 
 The tabs at the bottom are the sheets of the workbook. Click a tab to show that sheet. Each sheet remembers where you were in it. Sheets that are hidden are not shown. A coloured line under a tab is the colour of the sheet's tab. To add, rename, move, copy, hide, delete, or colour a sheet, see [Work with sheets](sheets).
+
+## Windows
+
+On the **View** tab, in the **Window** group:
+
+- **New Window** opens the workbook's file in a second window, for reading. You can look at two parts of one workbook at once. The second window cannot change the file, so the two never disagree. Save the workbook first, so the new window shows what you have now.
+- **Arrange All** puts every open JeffCrunch window side by side, each in its own column of the screen.
+- **View Side by Side** puts this window and another one on the two halves of the screen. While **Synchronous Scrolling** is on, scrolling one window scrolls the other the same distance. Turn that off to scroll them apart. Click **View Side by Side** again to let them go. **Reset Window Position** puts the two halves back if you moved the windows.
+- **Switch Windows** lists the open windows. Click one to bring it to the front.
 
 ## Sheets that read from right to left
 

@@ -106,6 +106,7 @@ bool CrunchWindow::newBlank()
     defaults.size = Settings::get().value(QStringLiteral("crunch/newFontSize"), defaults.size).toDouble();
     defaults.sheets = Settings::get().value(QStringLiteral("crunch/newSheets"), defaults.sheets).toInt();
     defaults.paperSize = jp::usesLetterPaper(QLocale()) ? 1 : 9;   // Letter where Letter is used, else A4
+    defaults.zoom = Settings::get().value(QStringLiteral("crunch/defaultZoom"), defaults.zoom).toInt();
     m_loader.startBlank(defaults);
     setStatus(tr("Ready"));
     updateTitle();
@@ -146,7 +147,7 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         return false;
     }
     // A file that is open in a window is not opened again: that window is brought to the front
-    if (CrunchWindow *have = how == OpenHow::Copy || m_reopening ? nullptr : windowWith(path)) {
+    if (CrunchWindow *have = how == OpenHow::Copy || m_reopening || m_secondView ? nullptr : windowWith(path)) {
         have->setWindowState(have->windowState() & ~Qt::WindowMinimized);
         have->show();
         have->raise();

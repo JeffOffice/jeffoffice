@@ -87,6 +87,7 @@ void CrunchWindow::createProtectActions()
 {
     mk("protect.sheet", tr("Protect Sheet"), "lock", QKeySequence(), [this] { protectSheet(); }, false, false);
     mk("protect.workbook", tr("Protect Workbook"), "shield", QKeySequence(), [this] { protectWorkbook(); }, false, false);
+    mk("protect.editRanges", tr("Allow Edit Ranges"), "lock-open", QKeySequence(), [this] { allowEditRanges(); }, false, false);
     mk("protect.password", tr("Protect with Password"), "key", QKeySequence(), [this] { protectWithPassword(); }, false, false);
     connect(m_view, &grid::GridView::selectionChanged, this, &CrunchWindow::guardSelection);
 }
@@ -144,6 +145,58 @@ void CrunchWindow::updateProtectActions()
     act("protect.workbook")->setText(locked ? tr("Unprotect Workbook") : tr("Protect Workbook"));
     act("protect.workbook")->setEnabled(m_session && !m_saving && !m_passwordJob);
     act("protect.password")->setEnabled(m_session && !m_saving && !m_passwordJob);
+    act("protect.editRanges")->setEnabled(open);
+}
+
+// Allow Edit Ranges: the ranges of the sheet that stay open when it is protected, each with a password or without. The passwords typed are made into their hashes one after the other (off the
+// window's thread), and then the ranges are put in as one step of Undo.
+void CrunchWindow::allowEditRanges()
+{
+    if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+    if (!m_session || m_sheet < 0 || m_passwordJob) return;
+    QString why;
+    if (!m_session->canEdit(&why) || !m_session->canEditSheet(m_sheet, &why)) {
+        notice(tr("Allow Edit Ranges"), why);
+        return;
+    }
+    const int sheet = m_sheet;
+    // (a sheet that is protected with a password asks for it first: ranges are a way round the protection)
+    const SheetProtection now = m_session->protectionOf(sheet);
+    auto proceed = [this, sheet, now] {
+        EditRangesRequest req;
+        req.ranges = now.editRanges;
+        req.selection = m_view->rangeName();
+        req.sheetProtected = now.enabled;
+        if (m_anchorHooks.editRangesAsker) {
+            if (!m_anchorHooks.editRangesAsker(&req)) return;
+        } else {
+            EditRangesDialog dialog(req, this);
+            if (dialog.exec() != QDialog::Accepted) return;
+            req = dialog.result();
+        }
+        // each range that has a typed password gets its hash, one at a time
+        auto ranges = std::make_shared<QVector<jp::office::sheet::EditRange>>(req.ranges);
+        auto typed = std::make_shared<QMap<QString, QString>>(req.passwords);
+        auto step = std::make_shared<std::function<void()>>();
+        *step = [this, sheet, ranges, typed, step] {
+            for (jp::office::sheet::EditRange &r : *ranges) {
+                if (!typed->contains(r.title)) continue;
+                const QString text = typed->take(r.title);
+                const QString title = r.title;
+                hashPassword(text, [this, sheet, ranges, step, title](const PasswordHash &hash) {
+                    for (jp::office::sheet::EditRange &e : *ranges)
+                        if (e.title == title) e.password = hash;
+                    (*step)();
+                });
+                return;
+            }
+            const crunch::EditSession::Outcome o = m_session->setEditRanges(sheet, *ranges, tr("Allow Edit Ranges"));
+            if (!o.ok) notice(tr("Allow Edit Ranges"), o.problem);
+        };
+        (*step)();
+    };
+    if (now.enabled && now.password.isSet()) askPassword(m_loaded->book->info().sheets[sheet].name, now.password, proceed);
+    else proceed();
 }
 
 // Asks for the password of `hash`, checks it, and, if it is the right one, goes on with `onRight` (the person is told why not otherwise). A hash with no password asks nothing. The check is

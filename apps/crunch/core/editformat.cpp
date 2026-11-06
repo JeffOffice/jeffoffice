@@ -496,7 +496,7 @@ EditSession::Outcome EditSession::clearAll(int sheet, const CellRange &range)
             array = true;
             return false;
         }
-        if (isLocked(sheet, before.style)) {
+        if (isLocked(sheet, before.style, cellRow, cellCol)) {
             locked = true;
             return false;
         }
@@ -623,7 +623,7 @@ EditSession::Outcome EditSession::mergeCells(int sheet, const CellRange &range, 
             if (cellRow == b.row1 && cellCol == b.col1) return true;
             if (!content.isFormula && content.value.isEmpty()) return true;
             needAsk = true;
-            if (isLocked(sheet, content.style)) {
+            if (isLocked(sheet, content.style, cellRow, cellCol)) {
                 bad = true;
                 return false;
             }

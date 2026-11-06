@@ -503,14 +503,47 @@ bool EditSession::canEditCell(int sheet, quint32 row, quint32 col, QString *why)
     const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
     if (!c.editable) return refuse(tr("You can't change part of an array or a data table."));
     // (a cell that holds nothing has its row's or its column's format, and so its lock)
-    if (isLocked(sheet, c.exists ? c.style : implicitStyle(sheet, row, col))) return refuse(lockedMessage());
+    if (isLocked(sheet, c.exists ? c.style : implicitStyle(sheet, row, col), row, col)) return refuse(lockedMessage());
     return true;
 }
 
-bool EditSession::isLocked(int sheet, quint32 style) const
+bool EditSession::isLocked(int sheet, quint32 style, quint32 row, quint32 col) const
 {
     if (!m_book || !m_book->calc || !m_book->book || sheet < 0 || sheet >= m_book->calc->sheetCount()) return false;
-    return m_book->calc->sheet(sheet).isProtected && m_book->book->styles().format(style).locked;
+    if (!m_book->calc->sheet(sheet).isProtected || !m_book->book->styles().format(style).locked) return false;
+    return !inOpenEditRange(sheet, row, col);
+}
+
+bool EditSession::inOpenEditRange(int sheet, quint32 row, quint32 col) const
+{
+    if (!m_book || !m_book->calc || sheet < 0 || sheet >= m_book->calc->sheetCount()) return false;
+    for (const jp::office::sheet::EditRange &r : m_book->calc->sheet(sheet).protection.editRanges)
+        if ((!r.password.isSet() || m_openEditRanges.contains(editRangeKey(sheet, r))) && r.contains(row, col)) return true;
+    return false;
+}
+
+QString EditSession::editRangeKey(int sheet, const jp::office::sheet::EditRange &range)
+{
+    return QString::number(sheet) + QLatin1Char('\x1f') + range.title;
+}
+
+QString EditSession::passwordRangeAt(int sheet, quint32 row, quint32 col) const
+{
+    if (!m_book || !m_book->calc || sheet < 0 || sheet >= m_book->calc->sheetCount() || !m_book->calc->sheet(sheet).isProtected) return QString();
+    for (const jp::office::sheet::EditRange &r : m_book->calc->sheet(sheet).protection.editRanges)
+        if (r.password.isSet() && !m_openEditRanges.contains(editRangeKey(sheet, r)) && r.contains(row, col)) return r.title;
+    return QString();
+}
+
+bool EditSession::openEditRange(int sheet, const QString &title)
+{
+    if (!m_book || !m_book->calc || sheet < 0 || sheet >= m_book->calc->sheetCount()) return false;
+    for (const jp::office::sheet::EditRange &r : m_book->calc->sheet(sheet).protection.editRanges)
+        if (r.title == title) {
+            m_openEditRanges.insert(editRangeKey(sheet, r));
+            return true;
+        }
+    return false;
 }
 
 QString EditSession::lockedMessage() const
@@ -904,7 +937,7 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
             header = true;
             return false;
         }
-        if (isLocked(sheet, before.style)) {
+        if (isLocked(sheet, before.style, cellRow, cellCol)) {
             locked = true;
             return false;
         }

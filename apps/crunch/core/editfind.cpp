@@ -142,7 +142,7 @@ bool EditSession::prepareReplace(ReplacePlan &plan, qint64 budget)
             plan.problem = tr("%1 is part of an array or a data table, so it can't be changed one cell at a time. Nothing was replaced.").arg(where);
             break;
         }
-        if (isLocked(spot.sheet, before.style)) {
+        if (isLocked(spot.sheet, before.style, spot.row, spot.col)) {
             plan.problem = tr("%1 is locked, and its sheet is protected, so it can't be changed. Nothing was replaced.").arg(where);
             break;
         }

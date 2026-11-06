@@ -110,6 +110,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Style Options"),
     QT_TRANSLATE_NOOP("Ribbon", "Styles"),
     QT_TRANSLATE_NOOP("Ribbon", "Subtotals"),
+    QT_TRANSLATE_NOOP("Ribbon", "Switch Windows"),
     QT_TRANSLATE_NOOP("Ribbon", "Tab Color"),
     QT_TRANSLATE_NOOP("Ribbon", "Table"),
     QT_TRANSLATE_NOOP("Ribbon", "Table Choices"),

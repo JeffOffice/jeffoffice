@@ -1,5 +1,5 @@
 # Change JeffCrunch's settings
-<!-- keywords: editing, autocomplete, fill handle, drag and drop, decimal places, options, settings, preferences, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about -->
+<!-- keywords: editing, autocomplete, fill handle, drag and drop, decimal places, options, settings, preferences, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about, edit in cell, gridline color, default zoom, standard width, privacy, personal information -->
 
 Your settings are in the **JeffCrunch Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
@@ -12,6 +12,18 @@ The **Editing** page changes how typing in cells works.
 - **Use the fill handle, and drag cells to move or copy them** turns on the small square at the corner of the selection and the dragging of the selection's border. Turn it off if you keep moving cells by accident. Copy and Paste still work.
 - **Show a zero in cells that have a zero value (this sheet)** turns zeros on or off for the sheet you are looking at. When it is off, a cell that holds 0 looks empty, but it still holds the 0 and adds up as 0. The choice is saved with the sheet.
 - **Put a decimal point in whole numbers that are typed** is called automatic decimal places. Set **Places** to 2, and typing 1234 enters 12.34. Set it to -2, and typing 5 enters 500. A number you type with a decimal point is entered as typed.
+
+- **Allow editing directly in cells** is on by default. When you turn it off, a typed entry or F2 goes to the formula bar, and the cell shows the result only when you finish.
+
+## Display options
+
+- **Gridline color** is the color of the lines between cells on your screen. It is a choice for your screen only, not saved in the workbook.
+- **Zoom of a new workbook** is how large the sheets of a new workbook look, from 10% to 400%.
+- **Standard column width (this sheet)** is the width of every column of this sheet that has no width of its own. It is the same as **Default Width** on the Home tab.
+
+## Privacy options
+
+- **Take my name and company out of a workbook's properties each time it is saved** clears the author, who saved it last, the company, and the manager from the workbook's properties when you save. The properties are the facts a file keeps about itself.
 
 ## Usage statistics
 

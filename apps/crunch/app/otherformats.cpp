@@ -44,7 +44,7 @@ QString copyWarning(const QString &ending, const QStringList &notKept, const QSt
     return text;
 }
 
-QString openFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx *.xlsm *.xltx *.xltm *.xlam *.xls *.ods *.ots *.fods *.csv *.tsv *.txt)"); }
+QString openFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx *.xlsm *.xltx *.xltm *.xlam *.xls *.ods *.ots *.fods *.csv *.tsv *.txt *.html *.htm)"); }
 
 QString workbookKindOfType(const QString &mainContentType)
 {

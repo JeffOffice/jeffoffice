@@ -1,5 +1,5 @@
 # Print and make a PDF
-<!-- keywords: pages on a sheet, several pages per sheet, n-up, odd pages, even pages, both sides, duplex, print, printer, preview, pdf, export, copies, collate, pages, page range, selection, entire workbook, scaling, fit, email, page breaks, dashed lines, save as pdf -->
+<!-- keywords: pages on a sheet, several pages per sheet, n-up, odd pages, even pages, both sides, duplex, print, printer, preview, pdf, export, copies, collate, pages, page range, selection, entire workbook, scaling, fit, email, page breaks, dashed lines, save as pdf, scale to paper, paper size, sheet preview -->
 
 Choose **File > Print** (or press **Ctrl+P**). The page opens with a preview of the pages that will come out, one at a time. Use the arrows under it to go from page to page, and **Fit page** or the zoom buttons to see more or less of a page. The preview is drawn the way the printer and the PDF are, so what you see is what you get.
 
@@ -16,6 +16,14 @@ Choose **File > Print** (or press **Ctrl+P**). The page opens with a preview of 
 - **Page Setup** opens the dialog for the sheet you are on.
 
 Under the preview, JeffCrunch says when something needs your attention: a sheet that needs more pages than it can make, a sheet shrunk so far that the letters are very small, or a sheet with nothing on it.
+
+## Scale to a paper size
+
+**Scale to paper** makes each page smaller or larger to fit the paper you pick, keeping its shape and putting it in the middle. Use it to print for a paper your printer does not have, such as a page set up for A4 on letter paper. **No scaling** prints each page on its own paper. The preview shows the sheet of paper that will come out.
+
+## Several pages on a sheet
+
+**Pages on a sheet** puts 2, 4, 6, 9, or 16 pages on each sheet of paper, each one smaller and in a frame. The preview shows the whole sheet, and the label under it says which sheet you are looking at, such as **Sheet 1 of 2**. Use **Next** and **Previous** to look at the other sheets.
 
 ## The printer
 

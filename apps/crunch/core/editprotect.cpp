@@ -88,6 +88,14 @@ EditSession::Outcome EditSession::setSheetProtection(int sheet, const SheetProte
     return out;
 }
 
+EditSession::Outcome EditSession::setEditRanges(int sheet, const QVector<jp::office::sheet::EditRange> &ranges, const QString &stepText)
+{
+    if (!m_book || !m_book->calc || sheet < 0 || sheet >= m_book->calc->sheetCount()) return Outcome();
+    SheetProtection p = m_book->calc->sheet(sheet).protection;
+    p.editRanges = ranges;
+    return setSheetProtection(sheet, p, stepText);
+}
+
 EditSession::Outcome EditSession::setWorkbookProtection(const WorkbookProtection &protection, const QString &stepText)
 {
     Outcome out;

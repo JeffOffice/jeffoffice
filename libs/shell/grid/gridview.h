@@ -72,6 +72,9 @@ public:
     bool showZeros() const { return m_sheet.showZeros(); }
     void setShowZeros(bool on);
     void setShowGridlines(bool on);
+    // The color the gridlines are drawn in (a view setting, not the sheet's).
+    QColor gridlineColor() const { return m_gridColor; }
+    void setGridlineColor(const QColor &color);
     // The sheet reads from the right (column A at the right edge): the grid is laid out and drawn mirrored. (Set when a sheet is shown; the data's own view says it first.)
     void setRightToLeft(bool on);
     // The sheet's rules of conditional formatting were changed: they are read again and the cells drawn.
@@ -410,6 +413,7 @@ private:
     std::unique_ptr<Nav> m_nav;
     Selection m_selection;
     bool m_gridlines = true, m_headings = true;
+    QColor m_gridColor = QColor(0xD4, 0xD4, 0xD4);
     // the mouse
     enum class Drag { None, Cells, Rows, Columns, Fill, MoveCells, Resize, BreakLine, BreakEdge, Point, MarkMove, MarkResize } m_drag = Drag::None;
     PointSpan::Kind m_pointKind = PointSpan::Kind::Cells;

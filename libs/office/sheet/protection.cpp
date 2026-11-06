@@ -1,5 +1,7 @@
 #include "sheet/protection.h"
 
+#include "sheet/cellref.h"
+
 #include <QCryptographicHash>
 #include <QRandomGenerator>
 
@@ -109,7 +111,7 @@ bool SheetProtection::operator==(const SheetProtection &o) const
     return enabled == o.enabled && objects == o.objects && scenarios == o.scenarios && allowSelectLocked == o.allowSelectLocked && allowSelectUnlocked == o.allowSelectUnlocked
            && allowFormatCells == o.allowFormatCells && allowFormatColumns == o.allowFormatColumns && allowFormatRows == o.allowFormatRows && allowInsertColumns == o.allowInsertColumns
            && allowInsertRows == o.allowInsertRows && allowInsertLinks == o.allowInsertLinks && allowDeleteColumns == o.allowDeleteColumns && allowDeleteRows == o.allowDeleteRows
-           && allowSort == o.allowSort && allowFilter == o.allowFilter && allowPivot == o.allowPivot && password == o.password;
+           && allowSort == o.allowSort && allowFilter == o.allowFilter && allowPivot == o.allowPivot && password == o.password && editRanges == o.editRanges;
 }
 
 namespace {
@@ -151,6 +153,33 @@ QByteArray sheetProtectionElement(const SheetProtection &p, const QByteArray &pr
     if (!p.allowSelectUnlocked) e += " selectUnlockedCells=\"1\"";
     e += "/>";
     return e;
+}
+
+bool EditRange::contains(quint32 row, quint32 col) const
+{
+    for (const QString &part : sqref.split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+        CellRange r;
+        if (parseRangeRef(part, &r) && row >= r.row1 && row <= r.row2 && col >= r.col1 && col <= r.col2) return true;
+    }
+    return false;
+}
+
+QString editRangeAfterEdit(const QString &sqref, int sheet, const StructEdit &edit)
+{
+    return adjustSqref(sqref, edit, sheet);
+}
+
+QByteArray protectedRangesElement(const SheetProtection &p, const QByteArray &prefix)
+{
+    if (p.editRanges.isEmpty()) return QByteArray();
+    auto escaped = [](const QString &text) { return text.toHtmlEscaped().replace(QLatin1Char('"'), QStringLiteral("&quot;")).toUtf8(); };
+    QByteArray e = "<" + prefix + "protectedRanges>";
+    for (const EditRange &r : p.editRanges) {
+        e += "<" + prefix + "protectedRange" + hashAttributes(r.password, "algorithmName", "hashValue", "saltValue", "spinCount", "password") + " sqref=\"" + escaped(r.sqref) + "\" name=\"" + escaped(r.title) + "\"";
+        if (!r.securityDescriptor.isEmpty()) e += " securityDescriptor=\"" + escaped(r.securityDescriptor) + "\"";
+        e += "/>";
+    }
+    return e + "</" + prefix + "protectedRanges>";
 }
 
 QByteArray workbookProtectionElement(const WorkbookProtection &p, const QByteArray &prefix)

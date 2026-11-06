@@ -55,6 +55,7 @@ struct PrintJobOptions {
     bool setMargins = false;
     jp::office::sheet::PageMargins margins;
     PrintScaling scaling = PrintScaling::AsSheet;
+    int scaleToPaper = 0;                       // a paper size (the format's number) each page is scaled to fit onto, in its proportions and centered (0: pages print on their own paper)
     QDateTime now;                              // what the date and time fields show (now, if not set)
     std::function<QDateTime()> clock;           // where "now" is read from when `now` is not set, once per job (the system's clock if none)
     QString fileName, folder;                   // what the file name and folder fields show
@@ -190,6 +191,8 @@ public:
     // The paper size and the painting of a group of pages that share a sheet (see `perSheet` below).
     QSizeF sheetFor(const QVector<int> &group, int perSheet) const;
     void paintGroup(QPainter *painter, const QVector<int> &group, const QSizeF &sheet, int perSheet);
+    // The sheet of paper a group makes, as a picture of the width (its height follows), on white: what the printer or the PDF gets for that group.
+    QImage previewSheet(const QVector<int> &group, int perSheet, int widthPixels);
     // The page as a picture of the width (its height follows), on white.
     QImage preview(int page, int widthPixels);
 

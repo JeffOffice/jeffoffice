@@ -1895,6 +1895,7 @@
     <file alias="en_AU/crunch/language.md">help/en_AU/crunch/language.md</file>
     <file alias="en_AU/crunch/notes-links.md">help/en_AU/crunch/notes-links.md</file>
     <file alias="en_AU/crunch/open-save.md">help/en_AU/crunch/open-save.md</file>
+    <file alias="en_AU/crunch/options.md">help/en_AU/crunch/options.md</file>
     <file alias="en_AU/crunch/page-setup.md">help/en_AU/crunch/page-setup.md</file>
     <file alias="en_AU/crunch/pivot-tables.md">help/en_AU/crunch/pivot-tables.md</file>
     <file alias="en_AU/crunch/sheets.md">help/en_AU/crunch/sheets.md</file>
@@ -1987,6 +1988,7 @@
     <file alias="en_CA/crunch/language.md">help/en_CA/crunch/language.md</file>
     <file alias="en_CA/crunch/notes-links.md">help/en_CA/crunch/notes-links.md</file>
     <file alias="en_CA/crunch/open-save.md">help/en_CA/crunch/open-save.md</file>
+    <file alias="en_CA/crunch/options.md">help/en_CA/crunch/options.md</file>
     <file alias="en_CA/crunch/page-setup.md">help/en_CA/crunch/page-setup.md</file>
     <file alias="en_CA/crunch/pivot-tables.md">help/en_CA/crunch/pivot-tables.md</file>
     <file alias="en_CA/crunch/sheets.md">help/en_CA/crunch/sheets.md</file>
@@ -2078,6 +2080,7 @@
     <file alias="en_GB/crunch/language.md">help/en_GB/crunch/language.md</file>
     <file alias="en_GB/crunch/notes-links.md">help/en_GB/crunch/notes-links.md</file>
     <file alias="en_GB/crunch/open-save.md">help/en_GB/crunch/open-save.md</file>
+    <file alias="en_GB/crunch/options.md">help/en_GB/crunch/options.md</file>
     <file alias="en_GB/crunch/page-setup.md">help/en_GB/crunch/page-setup.md</file>
     <file alias="en_GB/crunch/pivot-tables.md">help/en_GB/crunch/pivot-tables.md</file>
     <file alias="en_GB/crunch/sheets.md">help/en_GB/crunch/sheets.md</file>

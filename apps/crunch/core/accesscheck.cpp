@@ -37,6 +37,13 @@ double contrastRatio(quint32 text, quint32 fill)
 
 } // namespace
 
+int firstObjectOutOfReadingOrder(const std::vector<std::pair<quint32, quint32>> &at)
+{
+    for (size_t i = 1; i < at.size(); ++i)
+        if (at[i] < at[i - 1]) return int(i);
+    return -1;
+}
+
 std::vector<AccessIssue> checkAccessibility(const EditSession &session, SheetObjects *objects, int most)
 {
     std::vector<AccessIssue> out;
@@ -102,6 +109,50 @@ std::vector<AccessIssue> checkAccessibility(const EditSession &session, SheetObj
             });
         }
     }
+    // Blank rows and columns between cells that hold data (the first of each run of blanks, at most a few for each sheet): used to space things out, they read as the end of the data.
+    if (calc) {
+        constexpr int kMostBlankPerSheet = 5;
+        qint64 work = 0;
+        for (int s = 0; s < int(sheets.size()) && s < calc->sheetCount() && int(out.size()) < most; ++s) {
+            if (sheets[size_t(s)].deleted) continue;
+            QSet<quint32> rowsUsed, colsUsed;
+            calc->sheet(s).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+                if (++work > kContrastWork || (c.type == CellType::Empty && !c.hasFormula())) return;
+                rowsUsed.insert(row);
+                colsUsed.insert(col);
+            });
+            auto gaps = [&](const QSet<quint32> &used, bool rows) {
+                QList<quint32> sorted(used.begin(), used.end());
+                std::sort(sorted.begin(), sorted.end());
+                int found = 0;
+                for (int i = 1; i < sorted.size() && found < kMostBlankPerSheet; ++i) {
+                    if (sorted[i] == sorted[i - 1] + 1) continue;
+                    ++found;
+                    const quint32 first = sorted[i - 1] + 1;
+                    add(AccessIssue::BlankLayoutCells, AccessIssue::Tip, s, rows ? first : 0, rows ? 0 : first,
+                        (rows ? QCoreApplication::translate(ctx, "Row %1 on %2 is blank between rows that hold data. A screen reader takes a blank row for the end of the table. Use the cell's own space (a row height, or a border) instead.").arg(first + 1)
+                              : QCoreApplication::translate(ctx, "Column %1 on %2 is blank between columns that hold data. A screen reader takes a blank column for the end of the table. Use the cell's own space (a column width, or a border) instead.").arg(columnName(first)))
+                            .arg(sheets[size_t(s)].name));
+                }
+            };
+            gaps(rowsUsed, true);
+            gaps(colsUsed, false);
+        }
+    }
+    // Objects stacked in another order than they sit on the sheet are read in that order.
+    if (objects)
+        for (int s = 0; s < int(sheets.size()) && int(out.size()) < most; ++s) {
+            if (sheets[size_t(s)].deleted) continue;
+            std::vector<std::pair<quint32, quint32>> at;
+            const auto described = objects->describe(s);
+            for (const SheetObjects::ObjectInfo &o : described) at.emplace_back(o.row, o.col);
+            const int bad = firstObjectOutOfReadingOrder(at);
+            if (bad < 0) continue;
+            const SheetObjects::ObjectInfo &o = described[size_t(bad)];
+            add(AccessIssue::ReadingOrder, AccessIssue::Tip, s, o.row, o.col,
+                QCoreApplication::translate(ctx, "On %1 a screen reader reaches \"%2\" in another order than it sits on the sheet. Put the objects in order from top to bottom, and then from left to right.")
+                    .arg(sheets[size_t(s)].name, o.name.isEmpty() ? QCoreApplication::translate(ctx, "(no name)") : o.name));
+        }
     for (const Table &t : book->tables()) {
         if (t.headerRows != 0 || t.sheet < 0 || t.sheet >= int(sheets.size()) || sheets[size_t(t.sheet)].deleted) continue;
         add(AccessIssue::TableWithoutHeader, AccessIssue::Error, t.sheet, t.row1, t.col1,

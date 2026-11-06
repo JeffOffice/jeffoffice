@@ -661,6 +661,25 @@ QImage PrintJob::preview(int page, int widthPixels)
     return img;
 }
 
+QImage PrintJob::previewSheet(const QVector<int> &group, int perSheet, int widthPixels)
+{
+    perSheet = perSheet == 2 || perSheet == 4 || perSheet == 6 || perSheet == 9 || perSheet == 16 ? perSheet : 1;
+    if (group.isEmpty() || group.first() < 0 || group.first() >= pageCount() || widthPixels < 1) return QImage();
+    const QSizeF size = sheetFor(group, perSheet);
+    if (size.isEmpty()) return QImage();
+    const double ratio = size.height() / size.width();
+    if (double(widthPixels) * widthPixels * ratio > double(kMaxPreviewPixels)) widthPixels = std::max(1, int(std::sqrt(double(kMaxPreviewPixels) / ratio)));
+    const double k = double(widthPixels) / size.width();
+    QImage img(widthPixels, std::max(1, int(std::lround(size.height() * k))), QImage::Format_ARGB32_Premultiplied);
+    img.fill(Qt::white);
+    QPainter p(&img);
+    p.setRenderHint(QPainter::TextAntialiasing, true);
+    p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+    p.scale(k, k);
+    paintGroup(&p, group, size, perSheet);
+    return img;
+}
+
 namespace {
 
 // Sets the sheet of paper to the page's size. A printer is given a standard size where the paper is one, and the way up; a PDF has the size as it is.
@@ -702,6 +721,13 @@ void gridOf(int perSheet, int *cols, int *rows)
 QSizeF PrintJob::sheetFor(const QVector<int> &group, int perSheet) const
 {
     QSizeF size = pageSize(group.first());
+    if (m_options.scaleToPaper > 0) {
+        double w = 0, h = 0;
+        jp::office::sheet::paperSizePoints(m_options.scaleToPaper, &w, &h);
+        QSizeF paper(w, h);
+        if ((size.width() > size.height()) != (paper.width() > paper.height())) paper.transpose();
+        size = paper;
+    }
     if ((perSheet == 2 || perSheet == 6) && size.height() > size.width()) size.transpose();
     return size;
 }
@@ -709,6 +735,18 @@ QSizeF PrintJob::sheetFor(const QVector<int> &group, int perSheet) const
 void PrintJob::paintGroup(QPainter *painter, const QVector<int> &group, const QSizeF &sheet, int perSheet)
 {
     if (perSheet == 1) {
+        const QSizeF size = pageSize(group.first());
+        if (m_options.scaleToPaper > 0 && size.width() > 0 && size.height() > 0 && (size != sheet)) {
+            // (the page is shrunk or grown to the paper, keeping its proportions, and put in the middle)
+            const double k = std::min(sheet.width() / size.width(), sheet.height() / size.height());
+            painter->save();
+            painter->translate((sheet.width() - size.width() * k) / 2, (sheet.height() - size.height() * k) / 2);
+            painter->scale(k, k);
+            painter->setClipRect(QRectF(QPointF(0, 0), size));
+            paint(painter, group.first());
+            painter->restore();
+            return;
+        }
         paint(painter, group.first());
         return;
     }

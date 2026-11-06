@@ -62,6 +62,8 @@ struct AnchorHooks {
     std::function<bool(ProtectRequest *)> protectAsker;
     std::function<bool(WorkbookProtectRequest *)> workbookProtectAsker;
     std::function<bool(PasswordRequest *)> passwordAsker;
+    // Allow Edit Ranges: the dialog that lists, adds, changes, and deletes the ranges a protected sheet leaves open.
+    std::function<bool(EditRangesRequest *)> editRangesAsker;
     // Opening a text file of values: the dialog that says how it is read (the request holds the file's first bytes and what it is found to be).
     std::function<bool(TextImportRequest *)> textImportAsker;
     // Opening a file that is protected with a password: the question (false: the person cancelled).

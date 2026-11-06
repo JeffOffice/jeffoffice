@@ -161,7 +161,7 @@ EditSession::Outcome EditSession::pasteChanges(int sheet, const CellRange &targe
                     if (!make(spot, &ch, &problem)) return problem;
                     if (sameMeaning(ch.before, ch.after) && ch.formatCode.isEmpty()) continue;
                     if (!ch.before.editable) return refuse(tr("You can't change part of an array or a data table."));
-                    if (isLocked(sheet, ch.before.exists ? ch.before.style : implicitStyle(sheet, spot.row, spot.col))) return refuse(lockedMessage());
+                    if (isLocked(sheet, ch.before.exists ? ch.before.style : implicitStyle(sheet, spot.row, spot.col), spot.row, spot.col)) return refuse(lockedMessage());
                     if (m_book->book->tableHeaderAt(sheet, spot.row, spot.col, nullptr) >= 0)
                         return refuse(tr("The first row of a table holds the names of its columns, so cells can't be pasted over it. Paste below it, or change the names one by one."));
                     step.cells.push_back(std::move(ch));

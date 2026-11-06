@@ -241,6 +241,20 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
     step.structure = std::make_shared<StructChange>();
     step.structure->drops = m_lineDrops;
     step.structure->edit = edit;
+    // the edit ranges of the sheet's protection move with the lines (a step of its own part, so that Undo brings back the ranges that were cut or taken out)
+    if (edit.kind != StructEdit::Kind::Move && edit.kind != StructEdit::Kind::Offset && m_book && m_book->calc && edit.sheet >= 0 && edit.sheet < m_book->calc->sheetCount()
+        && !m_book->calc->sheet(edit.sheet).protection.editRanges.isEmpty()) {
+        ProtectEdit pe;
+        pe.sheet = edit.sheet;
+        pe.sheetBefore = m_book->calc->sheet(edit.sheet).protection;
+        pe.sheetAfter = pe.sheetBefore;
+        pe.sheetAfter.editRanges.clear();
+        for (jp::office::sheet::EditRange r : pe.sheetBefore.editRanges) {
+            r.sqref = jp::office::sheet::editRangeAfterEdit(r.sqref, edit.sheet, edit);
+            if (!r.sqref.isEmpty()) pe.sheetAfter.editRanges.append(r);
+        }
+        if (!(pe.sheetAfter == pe.sheetBefore)) step.protections.push_back(std::move(pe));
+    }
     pushStep(std::move(step), text);
     if (big) {
         // (it is done, and what it holds is let go of with the steps before it: it is not kept, and Undo does not go back over it)
