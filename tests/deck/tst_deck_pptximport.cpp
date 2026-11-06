@@ -1774,6 +1774,36 @@ private Q_SLOTS:
         QVERIFY2(did <= 50000, qPrintable(QString::number(did)));
     }
 
+    // A run with nobody at the window (a screenshot) sets a notifier: a file that can't be opened is said to it, and no box waits for a click (a cut-off package hung the run).
+    void unreadableFileIsSaidNotBoxed()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray whole = pack(samplePptx());
+        const QString cut = dir.filePath(QStringLiteral("cut.pptx"));
+        QFile f(cut);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(whole.left(whole.size() / 2));   // (its list of parts, at the end, is missing)
+        f.close();
+        QString told;
+        bool boxed = false;
+        QTimer watchdog;
+        watchdog.setInterval(20);
+        connect(&watchdog, &QTimer::timeout, this, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                boxed = true;
+                box->close();
+            }
+        });
+        watchdog.start();
+        DeckWindow w;
+        w.setNotifier([&](const QString &, const QString &text) { told = text; });
+        QVERIFY(!w.openFile(cut));
+        watchdog.stop();
+        QVERIFY2(!boxed, "a box waited for a click");
+        QVERIFY2(told.contains(QStringLiteral("cut.pptx")), qPrintable(told));
+    }
+
     // File > Open: the window takes the presentation in place of an untouched new one.
     void windowOpensFile()
     {

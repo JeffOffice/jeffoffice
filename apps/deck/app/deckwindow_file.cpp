@@ -74,7 +74,9 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
     QApplication::restoreOverrideCursor();
     const QString name = QFileInfo(path).fileName();
     if (!doc) {
-        jp::plainWarning(this, tr("Open"), tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, notes));
+        const QString text = tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, notes);
+        if (m_notifier) m_notifier(tr("Open"), text);   // (a run with nobody at the window, a screenshot, says it instead of waiting on a box)
+        else jp::plainWarning(this, tr("Open"), text);
         return false;
     }
     // A new presentation nobody has touched gives way; any other stays.
@@ -109,8 +111,11 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
         if (m_notifier) m_notifier(tr("Open and Repair"), text);
         else jp::plainInformation(target, tr("Open and Repair"), text);
     }
-    if (!notes.isEmpty())
-        jp::plainWarning(target, tr("Open"), tr("Some of \"%1\" couldn't be read and was left out.\n\n%2").arg(name, notes));
+    if (!notes.isEmpty()) {
+        const QString text = tr("Some of \"%1\" couldn't be read and was left out.\n\n%2").arg(name, notes);
+        if (m_notifier) m_notifier(tr("Open"), text);
+        else jp::plainWarning(target, tr("Open"), text);
+    }
     return true;
 }
 

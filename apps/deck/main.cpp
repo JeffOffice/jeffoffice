@@ -25,6 +25,7 @@
 #include <QApplication>
 #include <QPointer>
 #include <QStatusBar>
+#include <QTextStream>
 #include <memory>
 #include <QCommandLineParser>
 #include <QFileOpenEvent>
@@ -116,7 +117,10 @@ int main(int argc, char **argv)
             splash = nullptr;
             if (!first->open()) return 0;   // (closed meanwhile: nothing to open into)
         }
-        w->openFile(files.first());
+        // (A screenshot has nobody to click a box: a file that can't be opened is said on stderr and the run ends.)
+        if (cli.isSet(shotOpt))
+            w->setNotifier([](const QString &, const QString &text) { QTextStream(stderr) << text << "\n"; });
+        if (!w->openFile(files.first()) && cli.isSet(shotOpt)) return 1;
         if (guard && w->statusBar()->currentMessage() == jp::openingStatus(files.first())) w->statusBar()->clearMessage();
         for (int i = 1; i < files.size(); ++i) {
             auto *other = new jp::DeckWindow();
