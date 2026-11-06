@@ -166,6 +166,25 @@ qint64 Table::nextFilled(bool column, qint64 i, qint64 last) const
     return found;
 }
 
+void Table::eachFilled(bool column, qint64 first, qint64 last, const std::function<bool(qint64, const Value &)> &f) const
+{
+    if (first > last) return;
+    if (!m_isRef) {
+        for (qint64 i = first; i <= last; ++i) {
+            const Value v = column ? m_array.at(int(i), 0) : m_array.at(0, int(i));
+            if (!v.isEmpty() && !f(i, v)) return;
+        }
+        return;
+    }
+    const RefArea &a = m_area;
+    auto take = [&](quint32 row, quint32 col, const Value &v) {
+        if (v.isEmpty()) return true;
+        return f(column ? qint64(row) - qint64(a.row1) : qint64(col) - qint64(a.col1), v);
+    };
+    if (column) m_machine->source().visit(a.sheet1, quint32(qint64(a.row1) + first), a.col1, quint32(qint64(a.row1) + last), a.col1, take);
+    else m_machine->source().visit(a.sheet1, a.row1, quint32(qint64(a.col1) + first), a.row1, quint32(qint64(a.col1) + last), take);
+}
+
 qint64 Table::previousFilled(bool column, qint64 i, qint64 first) const
 {
     if (i < first) return first - 1;

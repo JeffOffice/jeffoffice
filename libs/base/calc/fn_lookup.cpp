@@ -146,11 +146,20 @@ qint64 searchSorted(Call &c, const Value &key, qint64 n, bool descending, const 
 qint64 searchExact(Call &c, const Value &key, qint64 n, const Line &line)
 {
     const bool wildcards = key.isText() && hasWildcards(key.text());
-    for (qint64 i = line.table.nextFilled(line.column, 0, n - 1); i < n; i = line.table.nextFilled(line.column, i + 1, n - 1)) {
-        if (!c.machine().charge(1)) return -2;
-        if (matchesExactly(key, line.at(i), wildcards)) return i;
-    }
-    return -1;
+    qint64 found = -1;
+    // (each cell is read once, on the way: the places that hold something are walked, and the one that matches first is the answer)
+    line.table.eachFilled(line.column, 0, n - 1, [&](qint64 i, const Value &cell) {
+        if (!c.machine().charge(1)) {
+            found = -2;
+            return false;
+        }
+        if (matchesExactly(key, cell, wildcards)) {
+            found = i;
+            return false;
+        }
+        return true;
+    });
+    return found;
 }
 
 // The value looked for: an empty one is 0; an error is the result. With `limited` a text of more than 255 characters is a #VALUE! (VLOOKUP, HLOOKUP, and MATCH

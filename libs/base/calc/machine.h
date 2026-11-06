@@ -111,6 +111,8 @@ public:
     // back to `first` that does, or first - 1. For cells these are found among those the sheet stores, not by looking at each place.
     qint64 nextFilled(bool column, qint64 i, qint64 last) const;
     qint64 previousFilled(bool column, qint64 i, qint64 first) const;
+    // Each place from `first` to `last` along column 0 (`column`) or row 0 that holds something, in order, with its value (read once): f(i, value) returns false to stop.
+    void eachFilled(bool column, qint64 first, qint64 last, const std::function<bool(qint64, const Value &)> &f) const;
     // Where the table starts on its sheet (for a reference).
     bool isRef() const { return m_isRef; }
     const RefArea &area() const { return m_area; }
