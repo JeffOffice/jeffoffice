@@ -526,9 +526,11 @@ def check_help(en, out):
     if len(HEADING.findall(en)) != len(HEADING.findall(out)):
         return "keep the same headings"
     if sorted(COMMENT.findall(en)) != sorted(COMMENT.findall(out)):
-        return "keep the <!-- --> comments"
+        want = [c for c in re.findall(r"<!--.*?-->", en) if not c.startswith("<!-- keywords:")]
+        return ("keep the <!-- --> comments: \"<!-- keywords:\" stays in English at the start of its comment, and these stay exactly as they are, each one in its place: "
+                + ", ".join(sorted(set(want))) if want else "keep the <!-- --> comments; \"<!-- keywords:\" stays in English at the start of its comment")
     if m := BANNED.search(out):
-        return f"don't name {m.group(1)}"
+        return f"don't name {m.group(1)}; it is a trademark, so use the term the glossary gives (for PivotTable, the glossary's Pivot Table)"
     return ""
 
 
@@ -600,18 +602,22 @@ List each place where the translation's meaning drifted: something said differen
 
 
 def translate_topic(api, system, rsystem, tid, en, report):
-    notes = ""
+    notes, failed = "", ""
     for attempt in range(2):
+        # (a translation that failed a check is sent back to be corrected: a fresh one tends to repeat the same habit)
+        ask = (f"\n\nYour last translation, below, has this problem: {notes}\nAnswer with the whole translation again, with only that corrected.\n\n{failed}" if failed
+               else f"\n\nA reviewer found these problems in your last translation; avoid them:\n{notes}" if notes else "")
         try:
-            out = api.ask(system, f"Topic \"{tid}\":\n\n{en}" + (f"\n\nA reviewer found these problems in your last translation; avoid them:\n{notes}" if notes else ""), max_tokens=32000)
+            out = api.ask(system, f"Topic \"{tid}\":\n\n{en}" + ask, max_tokens=32000)
         except Exception as e:
             report.problem(f"Help topic {tid}: not translated ({e})")
             return None
         out = out.strip() + "\n"
         why = check_help(en, out)
         if why:
-            notes = why
+            notes, failed = why, out
             continue
+        failed = ""
         try:
             review = api.ask(rsystem, f"English:\n\n{en}\n\n{LANGUAGES_LABEL}:\n\n{out}", HELP_REVIEW_SCHEMA)
         except Exception as e:
