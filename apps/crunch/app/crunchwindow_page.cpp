@@ -92,6 +92,7 @@ void CrunchWindow::createPageActions()
                 for (PageBreak &b : *list)
                     if (qint64(b.before) == at) {
                         b.manual = true;
+                        b.bySubtotal = false;
                         return;
                     }
                 if (list->size() >= jp::office::sheet::kMaxPageBreaks) return;

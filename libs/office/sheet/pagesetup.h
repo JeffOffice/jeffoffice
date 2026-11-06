@@ -50,6 +50,7 @@ struct PageBreak {
     quint32 before = 0;
     quint32 min = 0, max = 0;
     bool manual = true;
+    bool bySubtotal = false;   // put in by Subtotal in this session (not kept in a file): Remove All takes away only these, never a person's own break
     bool operator==(const PageBreak &o) const { return before == o.before && min == o.min && max == o.max && manual == o.manual; }
 };
 

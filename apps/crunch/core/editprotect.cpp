@@ -28,6 +28,11 @@ bool EditSession::cellIsLocked(int sheet, quint32 row, quint32 col) const
     return m_book->book->styles().format(c.exists ? c.style : implicitStyle(sheet, row, col)).locked;
 }
 
+bool EditSession::styleIsLocked(quint32 style) const
+{
+    return !m_book || !m_book->book || m_book->book->styles().format(style).locked;
+}
+
 bool EditSession::allows(int sheet, Allow what, QString *why) const
 {
     if (!m_book || !m_book->calc || sheet < 0 || sheet >= m_book->calc->sheetCount()) return true;

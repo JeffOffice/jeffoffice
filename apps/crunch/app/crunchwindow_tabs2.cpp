@@ -66,7 +66,7 @@ void CrunchWindow::createTabs2Actions()
     for (const char *id : {"review.statistics", "data.goalSeek", "data.scenarioManager", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "review.accessibility", "review.thesaurus"}) m_opsActions << QString::fromLatin1(id);
     connect(this, &CrunchWindow::calculationFinished, this, [this] {
         refreshInvalidCircles();
-        refreshCellFlags();
+        refreshCellFlags(true);
     });
     updateEditActions();
 }
@@ -442,20 +442,55 @@ quint16 ignoreBitOf(crunch::FormulaProblem::Kind kind)
 }
 }
 
-std::vector<crunch::FormulaProblem> CrunchWindow::formulaProblems() const
+namespace {
+// The cells a person chose to ignore, by kind, so that a problem is looked up and not compared with each range: the ranges of a kind sorted by their first row, with the largest last row of those up to each.
+struct IgnoreIndex {
+    struct Entry {
+        quint32 row1, row2, col1, col2;
+    };
+    struct Kind {
+        std::vector<Entry> ranges;
+        std::vector<quint32> reach;   // the largest row2 among ranges[0..i]
+    };
+    std::map<quint16, Kind> kinds;
+    explicit IgnoreIndex(const QVector<jp::office::sheet::IgnoredError> &ignored)
+    {
+        for (const jp::office::sheet::IgnoredError &e : ignored)
+            for (const quint16 bit : {quint16(1), quint16(2), quint16(4), quint16(8), quint16(16), quint16(32), quint16(64), quint16(128), quint16(256)})
+                if (e.kinds & bit)
+                    for (const jp::office::sheet::CellRange &r : e.ranges) kinds[bit].ranges.push_back({r.row1, r.row2, r.col1, r.col2});
+        for (auto &[bit, k] : kinds) {
+            std::sort(k.ranges.begin(), k.ranges.end(), [](const Entry &a, const Entry &b) { return a.row1 < b.row1; });
+            quint32 top = 0;
+            for (const Entry &e : k.ranges) k.reach.push_back(top = std::max(top, e.row2));
+        }
+    }
+    bool has(quint16 bit, quint32 row, quint32 col) const
+    {
+        const auto found = kinds.find(bit);
+        if (found == kinds.end()) return false;
+        const Kind &k = found->second;
+        // the ranges that begin at or above the row, from the last backwards while some of them still reach it
+        size_t n = size_t(std::upper_bound(k.ranges.begin(), k.ranges.end(), row, [](quint32 r, const Entry &e) { return r < e.row1; }) - k.ranges.begin());
+        while (n > 0 && k.reach[n - 1] >= row) {
+            const Entry &e = k.ranges[--n];
+            if (row <= e.row2 && col >= e.col1 && col <= e.col2) return true;
+        }
+        return false;
+    }
+};
+} // namespace
+
+std::vector<crunch::FormulaProblem> CrunchWindow::formulaProblems(bool patterns) const
 {
     std::vector<crunch::FormulaProblem> out;
     if (!m_session) return out;
-    const auto &ignored = m_session->ignoredErrorsOf(m_sheet);
-    for (const crunch::FormulaProblem &p : crunch::findFormulaProblems(*m_session, m_sheet)) {
-        bool left = false;
-        for (const jp::office::sheet::IgnoredError &e : ignored) {
-            if (!(e.kinds & ignoreBitOf(p.kind))) continue;
-            for (const jp::office::sheet::CellRange &r : e.ranges)
-                if (p.row >= r.row1 && p.row <= r.row2 && p.col >= r.col1 && p.col <= r.col2) left = true;
-        }
-        if (!left) out.push_back(p);
-    }
+    std::vector<crunch::FormulaProblem> found = crunch::findFormulaProblems(*m_session, m_sheet, nullptr, patterns);
+    // (a window that asks after each change has the neighbor rule from the slices that ran, for this sheet)
+    if (!patterns && m_patternSheet == m_sheet) found = crunch::mergeInconsistent(std::move(found), m_patternFound);
+    const IgnoreIndex ignored(m_session->ignoredErrorsOf(m_sheet));
+    for (const crunch::FormulaProblem &p : found)
+        if (!ignored.has(ignoreBitOf(p.kind), p.row, p.col)) out.push_back(p);
     return out;
 }
 
@@ -733,13 +768,42 @@ std::vector<jp::office::sheet::CellRange> CrunchWindow::circledCells() const
 }
 
 // The ovals and the green triangles of the sheet in view.
-void CrunchWindow::refreshCellFlags()
+// The rule of inconsistent formulas runs a slice at a time while the window is idle, and starts again at each change; the corners it found last are shown meanwhile.
+void CrunchWindow::startPatternScan()
+{
+    m_patternScan.reset();
+    if (!m_session || !m_haveCalc || !m_session->calculation()) return;
+    m_patternScan = std::make_unique<crunch::InconsistentScan>(*m_session, m_sheet);
+    if (!m_patternTimer) {
+        m_patternTimer = new QTimer(this);
+        m_patternTimer->setSingleShot(true);
+        connect(m_patternTimer, &QTimer::timeout, this, [this] {
+            if (!m_patternScan || !m_session || !m_session->calculation()) return;
+            if (m_calculating || m_loading || m_saving) {   // (the cells are being worked on: later)
+                m_patternTimer->start(50);
+                return;
+            }
+            if (!m_patternScan->step(1000)) {
+                m_patternTimer->start(0);
+                return;
+            }
+            m_patternFound = m_patternScan->found();
+            m_patternSheet = m_patternScan->sheet();
+            m_patternScan.reset();
+            refreshCellFlags(false);
+        });
+    }
+    m_patternTimer->start(0);
+}
+
+void CrunchWindow::refreshCellFlags(bool rescan)
 {
     std::vector<grid::GridRange> ovals, corners;
     for (const auto &r : circledCells()) ovals.push_back(grid::GridRange{qint64(r.row1), qint64(r.col1), qint64(r.row2), qint64(r.col2)});
     if (m_session && m_loaded && m_haveCalc) {
         // (a green triangle on each cell with a problem)
-        for (const crunch::FormulaProblem &p : formulaProblems()) corners.push_back(grid::GridRange{qint64(p.row), qint64(p.col), qint64(p.row), qint64(p.col)});
+        for (const crunch::FormulaProblem &p : formulaProblems(false)) corners.push_back(grid::GridRange{qint64(p.row), qint64(p.col), qint64(p.row), qint64(p.col)});
+        if (rescan) startPatternScan();
     }
     if (QAction *a = act(QStringLiteral("data.clearCircles"))) a->setEnabled(!m_invalidCircled.empty());
     m_view->setCellFlags(std::move(ovals), std::move(corners));

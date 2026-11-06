@@ -1865,6 +1865,12 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
         if (book.info().customViews != m_fileCustomViews) {
             changes.setCustomViews = true;
             changes.customViews = book.info().customViews;
+            // (a view the file had that is gone: the entries of the sheets that name it go too)
+            for (const jp::office::sheet::CustomView &was : m_fileCustomViews) {
+                bool kept = false;
+                for (const jp::office::sheet::CustomView &now : book.info().customViews) kept = kept || now.guid.compare(was.guid, Qt::CaseInsensitive) == 0;
+                if (!kept && !was.guid.isEmpty()) changes.dropViewGuids << was.guid;
+            }
         }
     }
     changes.edits = m_edits;

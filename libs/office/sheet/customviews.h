@@ -14,8 +14,13 @@ namespace jp::office::sheet {
 
 constexpr int kMaxCustomViews = 200;
 constexpr int kMaxCustomViewSheets = 1000;
+// The most runs of hidden rows and columns one view holds, all its sheets together. Reading, making a view, and showing one all use this one number, so a view that is kept reads back as it was.
 constexpr int kMaxCustomViewSpans = 20000;
 constexpr int kMaxCustomViewNameChars = 255;
+// The size of a sheet.
+constexpr quint32 kCustomViewRows = 1048576, kCustomViewColumns = 16384;
+// The most rows and columns a view may hold frozen (more would leave nothing to scroll): a view that asks for more is read with no frozen panes.
+constexpr quint32 kCustomViewMaxFrozenRows = 1000, kCustomViewMaxFrozenCols = 200;
 
 // One sheet as a view left it. Rows and columns count from 0; a span is first and last, both included.
 struct CustomViewSheet {
@@ -42,13 +47,22 @@ struct CustomView {
     QVector<CustomViewSheet> sheets;
     // The attributes of a view this program does not look at (autoUpdate, onlySync, and the others), kept as they were.
     QVector<QPair<QString, QString>> otherAttributes;
+    // What other programs put in the view's `extLst` (each `ext` that is not ours), kept as it was read.
+    QByteArray foreignExt;
     bool operator==(const CustomView &o) const
     {
         return name == o.name && guid == o.guid && activeSheet == o.activeSheet && activeSheetId == o.activeSheetId && windowWidth == o.windowWidth && windowHeight == o.windowHeight
             && xWindow == o.xWindow && yWindow == o.yWindow && gridlines == o.gridlines && headings == o.headings && formulaBar == o.formulaBar && hasState == o.hasState
-            && sheets == o.sheets && otherAttributes == o.otherAttributes;
+            && sheets == o.sheets && otherAttributes == o.otherAttributes && foreignExt == o.foreignExt;
     }
 };
+
+// A sheet was renamed: the views name it by its new name. A sheet was deleted: the views no longer hold it.
+void renameCustomViewSheet(QVector<CustomView> *views, const QString &from, const QString &to);
+void dropCustomViewSheet(QVector<CustomView> *views, const QString &name);
+
+// How many spans a view holds in all.
+int customViewSpanCount(const CustomView &view);
 
 // The namespace of our extension, and its `ext` uri.
 extern const char kCustomViewNs[];
@@ -59,7 +73,8 @@ QString newCustomViewGuid();
 
 // Spans as the file's text ("2:4 7", counting from 1) and back; the text of a hostile file is read as far as it makes sense.
 QString spansToText(const QVector<QPair<quint32, quint32>> &spans);
-QVector<QPair<quint32, quint32>> spansFromText(const QString &text);
+// Reads at most `most` spans, stopping there without looking at the rest; each is kept inside `lines` rows (or columns) or dropped.
+QVector<QPair<quint32, quint32>> spansFromText(const QString &text, quint32 lines = kCustomViewRows, int most = kMaxCustomViewSpans);
 
 // Spans sorted, with the ones that touch or overlap joined; and the part of `a` that `b` does not cover (both given normalized).
 QVector<QPair<quint32, quint32>> normalizedSpans(QVector<QPair<quint32, quint32>> spans);
@@ -68,6 +83,19 @@ QVector<QPair<quint32, quint32>> spansWithout(const QVector<QPair<quint32, quint
 // Reads the `customWorkbookView` the reader is on (its attributes), and the element of ours that sits inside it (`readCustomViewState` on the `view` element, `readCustomViewSheet` on each
 // `sheet`).
 void readCustomViewAttributes(const QXmlStreamReader &r, CustomView *view);
+// Copies the `ext` elements of a view that are not ours: feed it each token after the view's start tag; `feed` is true once the view's end tag has been given.
+class CustomViewForeign {
+public:
+    CustomViewForeign();
+    ~CustomViewForeign();
+    bool feed(const QXmlStreamReader &r);
+    QByteArray bytes() const { return m_bytes; }
+
+private:
+    QByteArray m_bytes;
+    int m_level = 0;
+    bool m_copying = false;
+};
 void readCustomViewState(const QXmlStreamReader &r, CustomView *view);
 void readCustomViewSheet(const QXmlStreamReader &r, CustomView *view);
 

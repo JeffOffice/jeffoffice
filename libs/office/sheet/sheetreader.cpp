@@ -684,8 +684,15 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
     bool inSheets = false, inNames = false, inName = false, rootSeen = false, inViews = false, viewSeen = false, customOpen = false;
     DefinedName name;
     qint64 nameChars = 0;
+    bool inCustomViews = false;
+    std::unique_ptr<CustomViewForeign> foreign;   // the part of the view being read that other programs wrote
     while (!r.atEnd()) {
-        switch (r.readNext()) {
+        const QXmlStreamReader::TokenType token = r.readNext();
+        if (foreign && foreign->feed(r)) {
+            out->customViews.last().foreignExt = foreign->bytes();
+            foreign.reset();
+        }
+        switch (token) {
         case QXmlStreamReader::DTD:
             return fail(QCoreApplication::translate("Sheet", "The file begins with instructions that this program does not allow, so it can't be read."));
         case QXmlStreamReader::StartElement:
@@ -727,11 +734,14 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
                 out->activeTab = ok && active >= 0 ? active : 0;
                 const int first = attribute(r, "firstSheet").toInt(&ok);
                 out->firstSheet = ok && first >= 0 ? first : 0;
-            } else if (depth == 3 && isElement(r, "customWorkbookView") && !inNames && !inSheets) {
+            } else if (depth == 2 && isElement(r, "customWorkbookViews")) {
+                inCustomViews = true;
+            } else if (depth == 3 && inCustomViews && isElement(r, "customWorkbookView")) {
                 if (out->customViews.size() < kMaxCustomViews) {
                     out->customViews.append(CustomView());
                     readCustomViewAttributes(r, &out->customViews.last());
                     customOpen = true;
+                    foreign = std::make_unique<CustomViewForeign>();
                 }
             } else if (depth == 6 && customOpen && r.namespaceUri() == QLatin1String(kCustomViewNs) && isElement(r, "view")) {
                 readCustomViewState(r, &out->customViews.last());
@@ -784,6 +794,7 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
                 inSheets = false;
                 inNames = false;
                 inViews = false;
+                inCustomViews = false;
             }
             --depth;
             break;

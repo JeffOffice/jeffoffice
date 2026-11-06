@@ -11,9 +11,9 @@ The **Views** group of the View tab (and the three buttons at the bottom right o
 
 A **custom view** is a name for the way the workbook looks right now. It keeps which sheet is in front, which rows and columns are hidden, the zoom, the frozen rows and columns, the cell chosen in each sheet, the gridlines and headings, and the size of the window. You can have a view for reading and a view for checking, and switch between them in one click.
 
-On the **View** tab, click **Custom Views**. To keep the look you have now, type a name and click **Add**. If a view already has that name, the new look takes its place. To use a view, click its name and then **Show**. Showing a view hides and shows rows and columns as one step, so **Undo** puts them back. To remove a view, click it and then **Delete**.
+On the **View** tab, click **Custom Views**. To keep the look you have now, type a name and click **Add**. If a view already has that name, the new look takes its place. To use a view, click its name and then **Show**. Showing a view is one step, so **Undo** puts everything back: the rows and columns, the sheet in front, the zoom, the frozen panes, the cell, the gridlines, the headings, the formula bar, and the size of the window. Rows that a filter hides are left to the filter. To remove a view, click it and then **Delete**.
 
-The views are saved with the workbook. A view does not keep a filter, only the rows it has hidden. It also does not move when you insert or delete rows or columns, so make the view again after you do. Views that other programs saved are listed, and they show the sheet and the window size.
+The views are saved with the workbook. A view does not keep a filter, only the rows you hid by hand. It does not move when you insert or delete rows or columns, so make the view again after you do. If the workbook has more runs of hidden rows and columns than a view can keep (20,000), **Add** tells you so and keeps nothing. When you rename a sheet the views follow it, and when you delete one it leaves the views. Views that other programs saved are listed, and they show the sheet and the window size.
 
 ## Zoom
 

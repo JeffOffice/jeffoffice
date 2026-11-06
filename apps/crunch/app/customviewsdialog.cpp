@@ -31,6 +31,11 @@ CustomViewsDialog::CustomViewsDialog(const CustomViewsRequest &request, QWidget 
     m_list->setAccessibleName(tr("Views"));
     listLabel->setBuddy(m_list);
     layout->addWidget(m_list, 1);
+    m_problem = new QLabel(this);
+    m_problem->setObjectName(QStringLiteral("customViewProblem"));
+    m_problem->setTextFormat(Qt::PlainText);
+    m_problem->setWordWrap(true);
+    layout->addWidget(m_problem);
     auto *row = new QHBoxLayout;
     auto *nameLabel = new QLabel(tr("Name:"), this);
     m_name = new QLineEdit(this);
@@ -85,11 +90,19 @@ void CustomViewsDialog::addView()
 {
     const QString name = m_name->text().trimmed();
     if (name.isEmpty() || !m_request.capture) return;
-    CustomView made = m_request.capture(name);
+    CustomView made;
+    QString problem;
+    m_problem->clear();
+    if (!m_request.capture(name, &made, &problem)) {
+        m_problem->setText(problem);   // (nothing is kept: a view that would read back different is not saved)
+        return;
+    }
     made.name = name;
     for (CustomView &v : m_request.views) {
         if (v.name.compare(name, Qt::CaseInsensitive) != 0) continue;
         made.guid = v.guid;   // (replacing a view keeps its identity)
+        made.otherAttributes = v.otherAttributes;
+        made.foreignExt = v.foreignExt;
         v = made;
         m_name->clear();
         refresh();
@@ -114,7 +127,7 @@ void CustomViewsDialog::showView()
 {
     const int row = m_list->currentRow();
     if (row < 0 || row >= m_request.views.size()) return;
-    m_request.show = m_request.views[row].name;
+    m_request.show = row;
     accept();
 }
 

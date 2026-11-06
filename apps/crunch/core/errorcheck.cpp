@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <map>
+#include <set>
 
 namespace jp::crunch {
 
@@ -18,8 +19,6 @@ using jp::calc::ErrorKind;
 using jp::calc::Value;
 
 namespace {
-
-constexpr qint64 kMaxPatternCells = 200000;
 
 QString errorSentence(ErrorKind e)
 {
@@ -50,6 +49,8 @@ bool looksLikeNumber(const QString &text)
 // A date kept as text with a year of two digits: 3/4/24, 3-4-24, or 3.4.24.
 bool looksLikeTwoDigitYear(const QString &text)
 {
+    // (a quick look first: the text is at most 10 characters and holds a separator)
+    if (text.size() < 6 || text.size() > 12 || (!text.contains(QLatin1Char('/')) && !text.contains(QLatin1Char('.')) && !text.contains(QLatin1Char('-')))) return false;
     static const QRegularExpression date(QStringLiteral("^\\s*\\d{1,2}([/.-])\\d{1,2}\\1\\d{2}\\s*$"));
     return date.match(text).hasMatch();
 }
@@ -84,50 +85,76 @@ QString relativeKey(const QString &formula, quint32 row, quint32 col)
 
 } // namespace
 
-std::vector<FormulaProblem> findFormulaProblems(const EditSession &session, int sheet, bool *truncated)
+const QString &InconsistentScan::keyAt(qint64 row, qint64 col)
+{
+    static const QString none;
+    if (row < 0 || col < 0 || row >= qint64(kMaxRows) || col >= qint64(kMaxColumns)) return none;
+    const quint64 id = (quint64(row) << 20) | quint64(col);
+    const auto found = m_keys.find(id);
+    if (found != m_keys.end()) return found->second;
+    const Cell *cell = m_calc->sheet(m_sheet).cells.find(quint32(row), quint32(col));
+    QString key;
+    if (cell && cell->hasFormula() && !(cell->flags & ArrayMember)) {
+        const Calculation::CellContent content = m_calc->content(m_sheet, quint32(row), quint32(col));
+        if (content.isFormula) key = relativeKey(content.formula, quint32(row), quint32(col));
+    }
+    return m_keys.emplace(id, key).first->second;
+}
+
+bool InconsistentScan::formulaAt(qint64 row, qint64 col) const
+{
+    if (row < 0 || col < 0 || row >= qint64(kMaxRows) || col >= qint64(kMaxColumns)) return false;
+    const Cell *cell = m_calc->sheet(m_sheet).cells.find(quint32(row), quint32(col));
+    return cell && cell->hasFormula() && !(cell->flags & ArrayMember);
+}
+
+InconsistentScan::InconsistentScan(const EditSession &session, int sheet) : m_sheet(sheet)
+{
+    m_calc = session.calculation();
+    if (!m_calc || sheet < 0 || sheet >= m_calc->sheetCount() || m_calc->sheet(sheet).cells.cellCount() > kMaxPatternCells) return;
+    // (the places of the formulas, in order of row and then column: the slices go through them)
+    m_calc->sheet(sheet).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+        if (c.hasFormula() && !(c.flags & ArrayMember)) m_places.push_back((quint64(row) << 20) | quint64(col));
+    });
+    std::sort(m_places.begin(), m_places.end());
+}
+
+bool InconsistentScan::step(int cells)
+{
+    for (; m_next < m_places.size() && cells > 0; ++m_next, --cells) {
+        const qint64 row = qint64(m_places[m_next] >> 20), col = qint64(m_places[m_next] & 0xFFFFF);
+        const bool sides = formulaAt(row, col - 1) && formulaAt(row, col + 1), updown = formulaAt(row - 1, col) && formulaAt(row + 1, col);
+        if (!sides && !updown) continue;
+        const QString own = keyAt(row, col);
+        if (own.isEmpty()) continue;
+        bool odd = false;
+        if (sides) {
+            const QString &left = keyAt(row, col - 1), &right = keyAt(row, col + 1);
+            odd = !left.isEmpty() && left == right && left != own;
+        }
+        if (!odd && updown) {
+            const QString &above = keyAt(row - 1, col), &below = keyAt(row + 1, col);
+            odd = !above.isEmpty() && above == below && above != own;
+        }
+        if (!odd || m_found.size() >= kMaxFormulaProblems) continue;
+        FormulaProblem p;
+        p.kind = FormulaProblem::Kind::InconsistentFormula;
+        p.sheet = m_sheet;
+        p.row = quint32(row);
+        p.col = quint32(col);
+        p.explanation = QCoreApplication::translate("jp::crunch::ErrorCheck", "This formula is not like the formulas next to it. The ones on both sides of it are alike, and this one is not.");
+        m_found.push_back(p);
+    }
+    return m_next >= m_places.size();
+}
+
+std::vector<FormulaProblem> findFormulaProblems(const EditSession &session, int sheet, bool *truncated, bool patterns)
 {
     std::vector<FormulaProblem> out;
     if (truncated) *truncated = false;
     const Calculation *calc = session.calculation();
     if (!calc || sheet < 0 || sheet >= calc->sheetCount()) return out;
     bool full = false;
-    // the pattern of the formula in a cell (empty for a cell with no formula of its own), kept for the cells looked at
-    std::map<quint64, QString> keys;
-    auto keyAt = [&](qint64 row, qint64 col) -> const QString & {
-        static const QString none;
-        if (row < 0 || col < 0 || row >= qint64(kMaxRows) || col >= qint64(kMaxColumns)) return none;
-        const quint64 id = (quint64(row) << 20) | quint64(col);
-        const auto found = keys.find(id);
-        if (found != keys.end()) return found->second;
-        const Cell *cell = calc->sheet(sheet).cells.find(quint32(row), quint32(col));
-        QString key;
-        if (cell && cell->hasFormula() && !(cell->flags & ArrayMember)) {
-            const Calculation::CellContent content = calc->content(sheet, quint32(row), quint32(col));
-            if (content.isFormula) key = relativeKey(content.formula, quint32(row), quint32(col));
-        }
-        return keys.emplace(id, key).first->second;
-    };
-    // (the pattern of every formula is worked out only for sheets of a size that is checked at each change; a bigger sheet is left to the other rules)
-    const bool patterns = calc->sheet(sheet).cells.cellCount() <= kMaxPatternCells;
-    auto formulaAt = [&](qint64 row, qint64 col) {
-        if (row < 0 || col < 0 || row >= qint64(kMaxRows) || col >= qint64(kMaxColumns)) return false;
-        const Cell *cell = calc->sheet(sheet).cells.find(quint32(row), quint32(col));
-        return cell && cell->hasFormula() && !(cell->flags & ArrayMember);
-    };
-    auto isInconsistent = [&](quint32 row, quint32 col) {
-        if (!patterns) return false;
-        const bool sides = formulaAt(row, qint64(col) - 1) && formulaAt(row, qint64(col) + 1), updown = formulaAt(qint64(row) - 1, col) && formulaAt(qint64(row) + 1, col);
-        if (!sides && !updown) return false;
-        const QString own = keyAt(row, col);
-        if (own.isEmpty()) return false;
-        if (sides) {
-            const QString &left = keyAt(qint64(row), qint64(col) - 1), &right = keyAt(qint64(row), qint64(col) + 1);
-            if (!left.isEmpty() && left == right && left != own) return true;
-        }
-        if (!updown) return false;
-        const QString &above = keyAt(qint64(row) - 1, qint64(col)), &below = keyAt(qint64(row) + 1, qint64(col));
-        return !above.isEmpty() && above == below && above != own;
-    };
     calc->sheet(sheet).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
         if (full || (c.flags & ArrayMember)) return;
         FormulaProblem p;
@@ -139,12 +166,9 @@ std::vector<FormulaProblem> findFormulaProblems(const EditSession &session, int 
             if (v.isError()) {
                 p.kind = FormulaProblem::Kind::ErrorValue;
                 p.explanation = errorSentence(v.errorKind());
-            } else if (!session.cellIsLocked(sheet, row, col)) {
+            } else if (!session.styleIsLocked(c.style)) {
                 p.kind = FormulaProblem::Kind::UnlockedFormula;
                 p.explanation = QCoreApplication::translate("jp::crunch::ErrorCheck", "This formula is in a cell that is not locked, so it can be changed even when the sheet is protected. Lock the cell to keep the formula safe.");
-            } else if (isInconsistent(row, col)) {
-                p.kind = FormulaProblem::Kind::InconsistentFormula;
-                p.explanation = QCoreApplication::translate("jp::crunch::ErrorCheck", "This formula is not like the formulas next to it. The ones on both sides of it are alike, and this one is not.");
             } else {
                 return;
             }
@@ -170,8 +194,30 @@ std::vector<FormulaProblem> findFormulaProblems(const EditSession &session, int 
         }
         out.push_back(p);
     });
+    if (patterns) {
+        InconsistentScan scan(session, sheet);
+        while (!scan.step(1 << 20)) {}
+        out = mergeInconsistent(std::move(out), scan.found(), truncated);
+    }
     std::sort(out.begin(), out.end(), [](const FormulaProblem &a, const FormulaProblem &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; });
     return out;
+}
+
+std::vector<FormulaProblem> mergeInconsistent(std::vector<FormulaProblem> base, const std::vector<FormulaProblem> &found, bool *truncated)
+{
+    // (a cell that has another problem keeps that one)
+    std::set<quint64> have;
+    for (const FormulaProblem &p : base) have.insert((quint64(p.row) << 20) | p.col);
+    for (const FormulaProblem &p : found) {
+        if (have.count((quint64(p.row) << 20) | p.col)) continue;
+        if (base.size() >= kMaxFormulaProblems) {
+            if (truncated) *truncated = true;
+            break;
+        }
+        base.push_back(p);
+    }
+    std::sort(base.begin(), base.end(), [](const FormulaProblem &a, const FormulaProblem &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; });
+    return base;
 }
 
 } // namespace jp::crunch

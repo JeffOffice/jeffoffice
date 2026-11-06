@@ -157,6 +157,7 @@ struct SheetEdit {
         std::optional<jp::office::sheet::RichText> before, after;
     };
     std::vector<RichChange> richChanges;
+    QVector<jp::office::sheet::CustomView> viewsBefore;    // Delete: the custom views as they were (a deleted sheet is taken out of them)
     int copyOf = -1;                                       // Copy: the sheet it is a copy of
     std::vector<std::pair<QString, QString>> tableRenames;   // Copy: the tables that were copied, by the name they had and have (the copy's formulas name its own tables)
     jp::office::sheet::Calculation::SheetRewrite rewrite;  // Rename and Delete: what the formulas were (made when the step is done)
@@ -617,6 +618,8 @@ public:
     const jp::office::sheet::SheetProtection &protectionOf(int sheet) const;
     // Whether the cell has its protection setting "locked" (whether or not the sheet is protected).
     bool cellIsLocked(int sheet, quint32 row, quint32 col) const;
+    // Whether a cell format (as a cell holds its place) locks the cell.
+    bool styleIsLocked(quint32 style) const;
     // Allow Edit Ranges: whether the cell is in a range the protection leaves open (one with no password, or one whose password was given in this session); the title of the range with a
     // password that holds the cell and has not been opened ("" if none); the password of that range was given (it stays open until the workbook is closed); and the ranges replaced, in one step.
     bool inOpenEditRange(int sheet, quint32 row, quint32 col) const;

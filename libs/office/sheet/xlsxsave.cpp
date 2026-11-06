@@ -1213,6 +1213,43 @@ bool patchWorkbookProtection(const QByteArray &xml, const WorkbookProtection &p,
 
 // The workbook part with its `customWorkbookViews` made from the views, in place of the file's (taken out when there are none), or where the format has it (after the calculation
 // settings, before the pivot caches and the rest).
+bool stripCustomSheetViews(const QByteArray &xml, const QSet<QString> &guids, QByteArray *out)
+{
+    *out = xml;
+    Tag container, closeC;
+    if (!findStart(xml, "customSheetViews", &container) || container.selfClosing) return true;
+    if (!findEnd(xml, container, &closeC)) return false;
+    QByteArray body;
+    qsizetype cursor = container.end, scan = container.end;
+    int remaining = 0, removed = 0;
+    Tag t;
+    while (xmlscan::nextTag(xml, scan, &t) && t.start < closeC.start) {
+        scan = t.end;
+        if (t.closing || t.local != "customSheetView") continue;
+        qsizetype end = t.end;
+        if (!t.selfClosing) {
+            Tag c;
+            if (!findEnd(xml, t, &c)) return false;
+            end = c.end;
+        }
+        scan = end;
+        const QByteArray tagBytes = xml.mid(t.start, t.end - t.start);
+        qsizetype vs = 0, ve = 0;
+        const bool drop = xmlscan::attributeValue(tagBytes, "guid", &vs, &ve) && guids.contains(QString::fromUtf8(tagBytes.mid(vs, ve - vs)).toUpper());
+        if (!drop) {
+            ++remaining;
+            continue;
+        }
+        body += xml.mid(cursor, t.start - cursor);
+        cursor = end;
+        ++removed;
+    }
+    if (removed == 0) return true;
+    body += xml.mid(cursor, closeC.start - cursor);
+    *out = remaining == 0 ? xml.left(container.start) + xml.mid(closeC.end) : xml.left(container.end) + body + xml.mid(closeC.start);
+    return true;
+}
+
 bool patchCustomViews(const QByteArray &xml, const QVector<CustomView> &views, QByteArray *out)
 {
     Tag root;
@@ -2740,6 +2777,24 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         }
     }
 
+    // ---- the custom views that were deleted: the sheets that hold an entry for one are written again without it
+    QSet<QString> viewGuids;
+    for (const QString &g : changes.dropViewGuids) viewGuids.insert(g.toUpper());
+    QHash<int, int> stripEntries;   // entry -> sheet
+    if (!viewGuids.isEmpty()) {
+        for (int sheet = 0; sheet < book.info().sheets.size(); ++sheet) {
+            const SheetEntry &se = book.info().sheets[sheet];
+            if (se.deleted || se.isNew || se.kind != SheetKind::Worksheet || se.part.isEmpty()) continue;
+            const int index = entryOfPart(se.part);
+            QByteArray data;
+            if (index < 0 || !inflate(index, &data) || !data.contains("customSheetView")) continue;
+            QByteArray stripped;
+            if (!stripCustomSheetViews(data, viewGuids, &stripped) || stripped == data) continue;
+            stripEntries.insert(index, sheet);
+            sheetOfEntry.insert(index, sheet);
+        }
+    }
+
     // ---- the new ZIP, entry by entry in the old order
     ZipWriter zip;
     ZipSink sink(&zip);
@@ -2761,19 +2816,28 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             const auto changed = changes.sheets.find(sheet);
             const bool patch = changed != changes.sheets.end() && !changed->second.empty();
             const bool mover = moveSheets.contains(sheet);
+            static const SheetChanges noChanges;
             zip.beginStream(e.name, true);
             ZipEntryDevice device(bytes, e);
             bool ok = device.open(QIODevice::ReadOnly);
+            // (a sheet that loses entries of deleted custom views is written to memory first, and those taken out)
+            BufferSink whole;
+            PartSink *target = stripEntries.contains(i) ? static_cast<PartSink *>(&whole) : static_cast<PartSink *>(&sink);
             if (ok && mover && patch) {
                 // (the file's cells are put in the places the edits leave them, and then the cells that changed are put in)
                 BufferSink moved;
                 ok = moveSheetPart(&device, &moved, ctx, sheet, nullptr, &why, cancel);
                 QBuffer in(&moved.bytes);
-                ok = ok && in.open(QIODevice::ReadOnly) && patchSheet(&in, &sink, changed->second, hasShared, &why, cancel);
+                ok = ok && in.open(QIODevice::ReadOnly) && patchSheet(&in, target, changed->second, hasShared, &why, cancel);
             } else if (ok && mover) {
-                ok = moveSheetPart(&device, &sink, ctx, sheet, nullptr, &why, cancel);
+                ok = moveSheetPart(&device, target, ctx, sheet, nullptr, &why, cancel);
             } else if (ok) {
-                ok = patchSheet(&device, &sink, changes.sheets.at(sheet), hasShared, &why, cancel);
+                ok = patchSheet(&device, target, changed != changes.sheets.end() ? changed->second : noChanges, hasShared, &why, cancel);
+            }
+            if (ok && target == &whole) {
+                QByteArray stripped;
+                ok = stripCustomSheetViews(whole.bytes, viewGuids, &stripped);
+                if (ok) sink.write(stripped.constData(), stripped.size());
             }
             if (!ok) {
                 zip.endStream();

@@ -100,7 +100,7 @@ EditSession::Outcome removeSubtotals(EditSession &session, int sheet, CellRange 
         PageSetup setup = session.pages().sheet(sheet);
         const auto before = setup.rowBreaks.size();
         setup.rowBreaks.erase(std::remove_if(setup.rowBreaks.begin(), setup.rowBreaks.end(),
-                                             [&](const PageBreak &b) { return b.manual && b.before > 0 && std::binary_search(rows.begin(), rows.end(), b.before - 1); }),
+                                             [&](const PageBreak &b) { return b.bySubtotal && b.before > 0 && std::binary_search(rows.begin(), rows.end(), b.before - 1); }),
                               setup.rowBreaks.end());
         if (setup.rowBreaks.size() != before) out = session.setPageSetup(sheet, setup, QCoreApplication::translate("jp::crunch::Subtotal", "Remove All Subtotals"));
     }
@@ -199,15 +199,12 @@ EditSession::Outcome applySubtotals(EditSession &session, int sheet, CellRange r
         for (size_t i = 0; i < runs.size(); ++i) {
             const quint32 at = runs[i].last + quint32(i) + 2;   // (the row after the run's subtotal row)
             bool have = false;
-            for (PageBreak &b : setup.rowBreaks)
-                if (b.before == at) {
-                    b.manual = true;
-                    have = true;
-                }
+            for (const PageBreak &b : setup.rowBreaks) have = have || b.before == at;   // (a break that is there is the person's, and stays theirs)
             if (have || setup.rowBreaks.size() >= kMaxPageBreaks) continue;
             PageBreak b;
             b.before = at;
             b.max = 16383;
+            b.bySubtotal = true;
             setup.rowBreaks.append(b);
         }
         std::sort(setup.rowBreaks.begin(), setup.rowBreaks.end(), [](const PageBreak &x, const PageBreak &y) { return x.before < y.before; });

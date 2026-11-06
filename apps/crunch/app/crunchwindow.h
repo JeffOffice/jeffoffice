@@ -974,8 +974,13 @@ private:
     QPointer<AccessibilityPane> m_accessPane;
     // Circles drawn by Circle Invalid Data, by sheet (cleared by Clear Validation Circles; looked at again as the sheet is worked out).
     std::map<int, std::vector<jp::office::sheet::CellRange>> m_invalidCircled;
+    std::unique_ptr<crunch::InconsistentScan> m_patternScan;   // the rule of inconsistent formulas, being run a slice at a time
+    QTimer *m_patternTimer = nullptr;
+    std::vector<crunch::FormulaProblem> m_patternFound;        // what it found for m_patternSheet
+    int m_patternSheet = -1;
     void refreshInvalidCircles();
-    void refreshCellFlags();
+    void refreshCellFlags(bool rescan = false);
+    void startPatternScan();
     void refreshWatches();
     struct Watch {
         int sheet;
@@ -1002,7 +1007,8 @@ public:
     // that repeat an earlier one are left out. One step of Undo.
     bool advancedFilterIn(const QString &list, const QString &criteria, const QString &copyTo = QString(), bool unique = false);
     // The cells of the sheet in view that Error Checking would show: a formula with an error, and a number kept as text (what was ignored is left out).
-    std::vector<crunch::FormulaProblem> formulaProblems() const;
+    // `patterns`: with the rule that looks at the neighbors worked out now (a person asks); else with what the slices found for the sheet.
+    std::vector<crunch::FormulaProblem> formulaProblems(bool patterns = true) const;
     // Ignores the problem of that cell (kept in the file, one step of Undo).
     void ignoreFormulaProblem(quint32 row, quint32 col);
     // The cells the Watch Window lists (kept while the workbook is open), and adding one; false if it is watched already or too many are.
@@ -1191,10 +1197,13 @@ private:
     void createViewActions();
     // ---- custom views (crunchwindow_customviews.cpp)
     void createCustomViewActions();
-    jp::office::sheet::CustomView captureCustomView(const QString &name);
+    jp::office::sheet::CustomView lookOfWorkbook(bool hidden, bool *tooMany = nullptr);
+    bool captureCustomView(const QString &name, jp::office::sheet::CustomView *view, QString *problem);
     void customViews();
 public:
     bool showCustomView(const QString &name);
+    bool showCustomViewAt(int index);
+    void applyCustomViewLook(const jp::office::sheet::CustomView &view);
 private:
     void addViewButtons(QStatusBar *bar);
     void showViewKind(int kind);

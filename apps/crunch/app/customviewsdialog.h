@@ -9,6 +9,7 @@
 
 #include <functional>
 
+class QLabel;
 class QLineEdit;
 class QListWidget;
 class QPushButton;
@@ -17,9 +18,9 @@ namespace jp {
 
 struct CustomViewsRequest {
     QVector<jp::office::sheet::CustomView> views;   // in: the views now; out: the views after
-    // Makes a view of how the workbook looks now, under a name.
-    std::function<jp::office::sheet::CustomView(const QString &)> capture;
-    QString show;                                    // out: the name of the view to show (empty for none)
+    // Makes a view of how the workbook looks now, under a name; false, with what is the matter, when it can't be kept whole.
+    std::function<bool(const QString &, jp::office::sheet::CustomView *, QString *)> capture;
+    int show = -1;                                   // out: the place in `views` of the view to show (-1 for none)
 };
 
 class CustomViewsDialog : public QDialog {
@@ -36,6 +37,7 @@ private:
     CustomViewsRequest m_request;
     QListWidget *m_list = nullptr;
     QLineEdit *m_name = nullptr;
+    QLabel *m_problem = nullptr;
     QPushButton *m_add = nullptr, *m_delete = nullptr, *m_show = nullptr;
 };
 

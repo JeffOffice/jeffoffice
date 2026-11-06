@@ -14,6 +14,8 @@
 #include "../localepin.h"
 
 #include <QAction>
+#include <QElapsedTimer>
+#include <QLabel>
 #include <QListWidget>
 #include <QLineEdit>
 #include <QPushButton>
@@ -47,6 +49,16 @@ QByteArray savedPart(const QString &path, const QString &part)
     return parts.value(part);
 }
 
+// Adds a view of how the workbook looks now to the request, as the box's Add does.
+void addNow(CustomViewsRequest *r, const QString &name)
+{
+    CustomView v;
+    QString problem;
+    QVERIFY2(r->capture(name, &v, &problem), qPrintable(problem));
+    v.name = name;
+    r->views.append(v);
+}
+
 QVector<quint32> hiddenRows(CrunchWindow &w, int sheet)
 {
     QVector<quint32> out;
@@ -68,11 +80,130 @@ private Q_SLOTS:
     }
     void cleanup() { m_pin.reset(); }
 
+    // ---- the review of round 13
+    void spansStopAtTheirCapWithoutReadingTheRest()
+    {
+        using namespace jp::office::sheet;
+        QString many = QStringLiteral("3 ").repeated(8 << 20);
+        QElapsedTimer t;
+        t.start();
+        QCOMPARE(spansFromText(many, kCustomViewRows, 5).size(), 5);
+        QVERIFY2(t.elapsed() < 500, "the whole text was split before the cap was applied");
+        // a run reads inside the sheet: one that starts past the last row is dropped, one that ends past it is cut, and what is not a span is skipped
+        QCOMPARE(spansFromText(QStringLiteral("1048576 1048577 5:99999999 abc 7:x 8:"), kCustomViewRows), (Spans{{1048575, 1048575}, {4, 1048575}}));
+        QCOMPARE(spansFromText(QStringLiteral("16384 16385 2:20000"), kCustomViewColumns), (Spans{{16383, 16383}, {1, 16383}}));
+    }
+
+    void aViewIsReadWithinTheSheetAndEachSheetOnce()
+    {
+        using namespace jp::office::sheet;
+        QString sheets;
+        for (int i = 0; i < 1000; ++i)
+            sheets += QStringLiteral("<jocv:sheet name=\"Sheet1\" zoom=\"100\" frozenRows=\"4000000\" frozenCols=\"5\" row=\"99999999\" col=\"99999\" hiddenRows=\"%1\"/>").arg(QString(QStringLiteral("2 ")).repeated(5000) + QStringLiteral("2000000"));
+        EditWindow e;
+        QVERIFY(e.open(viewsBook(QStringLiteral("<customWorkbookViews><customWorkbookView name=\"Hostile\" guid=\"{H}\" windowWidth=\"1\" windowHeight=\"1\" activeSheetId=\"1\"><extLst><ext uri=\"%1\">"
+                                                  "<jocv:view xmlns:jocv=\"%2\" activeSheet=\"Sheet1\">%3</jocv:view></ext></extLst></customWorkbookView></customWorkbookViews>")
+                                     .arg(QLatin1String(kCustomViewExtUri), QLatin1String(kCustomViewNs), sheets))));
+        crunch::EditSession *s = e.win.w.session();
+        QCOMPARE(s->customViews().size(), 1);
+        const CustomView v = s->customViews()[0];
+        QCOMPARE(v.sheets.size(), 1);   // (the same sheet 1,000 times is one)
+        QVERIFY(customViewSpanCount(v) <= kMaxCustomViewSpans);
+        QCOMPARE(v.sheets[0].frozenRows, quint32(0));   // (more frozen than a window shows is no frozen pane)
+        QCOMPARE(v.sheets[0].frozenCols, quint32(0));
+        QVERIFY(v.sheets[0].activeRow < kCustomViewRows && v.sheets[0].activeCol < kCustomViewColumns);
+        QVERIFY(v.sheets[0].hiddenRows.last().second < kCustomViewRows);
+        // showing it is quick, one step, and leaves the cell inside the sheet
+        QElapsedTimer t;
+        t.start();
+        QVERIFY(e.win.w.showCustomViewAt(0));
+        QVERIFY2(t.elapsed() < 20000, "showing a view took too long");
+        QVERIFY(e.view()->selection().activeRow < qint64(kCustomViewRows));
+    }
+
+    void aViewThatWouldReadBackDifferentIsNotKept()
+    {
+        QString rows;
+        for (int r = 1; r <= 40001; r += 2) rows += QStringLiteral("<row r=\"%1\" hidden=\"1\"><c r=\"A%1\"><v>1</v></c></row>").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        CrunchWindow &w = e.win.w;
+        QString said;
+        bool kept = true;
+        w.anchorHooks().customViewsAsker = [&said, &kept](CustomViewsRequest *r) {
+            CustomView v;
+            kept = r->capture(QStringLiteral("Big"), &v, &said);
+            return false;
+        };
+        w.act(QStringLiteral("view.customViews"))->trigger();
+        QVERIFY(!kept);
+        QVERIFY2(said.contains(QStringLiteral("can't be kept")), qPrintable(said));
+        QVERIFY(w.session()->customViews().isEmpty());
+        // the box says so and keeps nothing
+        CustomViewsRequest req;
+        req.capture = [](const QString &, CustomView *, QString *problem) {
+            *problem = QStringLiteral("too much");
+            return false;
+        };
+        CustomViewsDialog box(req);
+        box.findChild<QLineEdit *>(QStringLiteral("customViewName"))->setText(QStringLiteral("X"));
+        box.findChild<QPushButton *>(QStringLiteral("customViewAdd"))->click();
+        QCOMPARE(box.findChild<QListWidget *>(QStringLiteral("customViewList"))->count(), 0);
+        QCOMPARE(box.findChild<QLabel *>(QStringLiteral("customViewProblem"))->text(), QStringLiteral("too much"));
+    }
+
+    void aViewElementOutsideTheViewListIsNotAView()
+    {
+        EditWindow e;
+        QVERIFY(e.open(viewsBook(QStringLiteral("<fileSharing><customWorkbookView name=\"Stray\" guid=\"{S}\" windowWidth=\"1\" windowHeight=\"1\" activeSheetId=\"1\"/></fileSharing>"))));
+        QVERIFY(e.win.w.session()->customViews().isEmpty());
+    }
+
+    void errorCheckingForTheCellsFlagsRunsInSlicesAndNotOnEachChange()
+    {
+        QString rows;
+        for (int r = 1; r <= 5; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*%2</f><v>0</v></c></row>").arg(r).arg(r == 3 ? 3 : 2);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(e.settle());
+        // without the neighbor rule the answer has none; the rule runs a few cells at a time and gives the same as the whole
+        const crunch::EditSession &s = *e.win.w.session();
+        const auto plain = crunch::findFormulaProblems(s, 0, nullptr, false);
+        QVERIFY(plain.empty());
+        crunch::InconsistentScan scan(s, 0);
+        int slices = 0;
+        while (!scan.step(1)) ++slices;
+        QVERIFY(slices >= 4);
+        QCOMPARE(scan.found().size(), size_t(1));
+        QCOMPARE(crunch::findFormulaProblems(s, 0).size(), size_t(1));
+        // the window shows the corner once the idle slices are through, and a person who asks gets it at once
+        QTRY_VERIFY(!e.win.w.formulaProblems(false).empty());
+        QCOMPARE(e.win.w.formulaProblems().size(), size_t(1));
+    }
+
+    void ignoredErrorsAreLookedUpByAnIndex()
+    {
+        QString rows, ignored = QStringLiteral("<ignoredErrors><ignoredError sqref=\"A10:A12 A20\" numberStoredAsText=\"1\"/>");
+        for (int r = 1; r <= 4000; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" t=\"inlineStr\"><is><t>%1</t></is></c></row>").arg(r);
+        for (int i = 0; i < 9000; ++i) ignored += QStringLiteral("<ignoredError sqref=\"C%1:D%2\" numberStoredAsText=\"1\"/>").arg(i * 2 + 1).arg(i * 2 + 2);
+        ignored += QStringLiteral("</ignoredErrors>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, ignored)})));
+        QVERIFY(e.settle());
+        QElapsedTimer t;
+        t.start();
+        const auto problems = e.win.w.formulaProblems(false);
+        QVERIFY2(t.elapsed() < 400, qPrintable(QString::number(t.elapsed()) + QStringLiteral(" ms")));
+        // (A10:A12 and A20 are ignored, the rest of the first 4,000 are not; the list stops at its cap)
+        QCOMPARE(problems.size(), size_t(4000 - 4));
+        for (const auto &p : problems) QVERIFY(!(p.col == 0 && (p.row == 9 || p.row == 10 || p.row == 11 || p.row == 19)));
+    }
+
     void spansAreReadAsFarAsTheyMakeSenseAndNeverGrowPastTheirCap()
     {
         using namespace jp::office::sheet;
         QCOMPARE(spansToText(Spans{{0, 0}, {2, 4}, {9, 9}}), QStringLiteral("1 3:5 10"));
-        const Spans read = normalizedSpans(spansFromText(QStringLiteral("7 2:4 3 x -3 5:2 9999999999 1:9999999999 5:6 :")));
+        const Spans read = normalizedSpans(spansFromText(QStringLiteral("7 2:4 3 x -3 5:2 9999999999 5:6 :")));
         QCOMPARE(read, (Spans{{1, 6}}));   // 2:4, 3, 5:6, and 7 touch one another
         QCOMPARE(spansWithout(Spans{{0, 9}}, Spans{{2, 3}, {7, 20}}), (Spans{{0, 1}, {4, 6}}));
         QCOMPARE(spansWithout(Spans{{5, 5}}, Spans{{5, 5}}), Spans());
@@ -86,23 +217,40 @@ private Q_SLOTS:
     void aViewFromAnotherProgramIsListedAndKept()
     {
         EditWindow e;
-        QVERIFY(e.open(viewsBook(QStringLiteral("<customWorkbookViews><customWorkbookView name=\"Plain\" guid=\"{AAAAAAAA-0000-0000-0000-000000000001}\" autoUpdate=\"1\" mergeInterval=\"5\" "
-                                                  "windowWidth=\"16000\" windowHeight=\"9000\" activeSheetId=\"2\"/></customWorkbookViews>"))));
-        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.open(viewsBook(QStringLiteral("<customWorkbookViews><customWorkbookView xmlns:ex=\"urn:example:other\" ex:uid=\"{U1}\" name=\"Plain\" guid=\"{AAAAAAAA-0000-0000-0000-000000000001}\" autoUpdate=\"1\" mergeInterval=\"5\" "
+                                                  "windowWidth=\"16000\" windowHeight=\"9000\" activeSheetId=\"2\"><extLst><ext uri=\"{OTHER-1}\" xmlns:e2=\"urn:example:two\"><e2:thing a=\"1\">text &amp; more</e2:thing></ext></extLst>"
+                                                  "</customWorkbookView></customWorkbookViews>"))));
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = w.session();
         QCOMPARE(s->customViews().size(), 1);
-        const CustomView &v = s->customViews()[0];
+        const CustomView v = s->customViews()[0];
         QCOMPARE(v.name, QStringLiteral("Plain"));
         QCOMPARE(v.activeSheetId, 2);
         QVERIFY(!v.hasState);
         QCOMPARE(v.windowWidth, 16000);
+        QVERIFY(v.foreignExt.contains("e2:thing"));
         QVERIFY(!s->customViewsChanged());
-        QVERIFY(s->type(0, 0, 0, QStringLiteral("5")).ok);
-        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
-        QVERIFY(e.win.w.save());
+        // a change to the list of views makes the writer run: the view keeps all of it, namespaced attributes and the elements of other programs too
+        w.anchorHooks().customViewsAsker = [](CustomViewsRequest *r) {
+            addNow(r, QStringLiteral("Mine"));
+            return true;
+        };
+        w.act(QStringLiteral("view.customViews"))->trigger();
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
         QVERIFY2(savedOk(saved, 20000), "the save failed");
         const QByteArray xml = savedPart(e.path, QStringLiteral("xl/workbook.xml"));
         QVERIFY2(xml.contains("name=\"Plain\"") && xml.contains("autoUpdate=\"1\"") && xml.contains("mergeInterval=\"5\"") && xml.contains("windowWidth=\"16000\"") && xml.contains("activeSheetId=\"2\""), xml.constData());
+        QVERIFY2(xml.contains("ex:uid=\"{U1}\"") && xml.contains("xmlns:ex=\"urn:example:other\""), xml.constData());
+        QVERIFY2(xml.contains("uri=\"{OTHER-1}\"") && xml.contains("<e2:thing a=\"1\">text &amp; more</e2:thing>") && xml.contains("name=\"Mine\""), xml.constData());
         QVERIFY2(xml.indexOf("<calcPr") < xml.indexOf("<customWorkbookViews"), xml.constData());
+        // and what was written is read again as it was
+        QFile written(e.path);
+        QVERIFY(written.open(QIODevice::ReadOnly));
+        EditWindow again;
+        QVERIFY(again.open(written.readAll()));
+        QVERIFY2(again.win.w.session()->customViews().size() == 2, xml.constData());
+        QVERIFY(again.win.w.session()->customViews()[0] == s->customViews()[0]);
     }
 
     void aViewKeepsTheLookOfTheWorkbookAndShowsItAgain()
@@ -124,7 +272,7 @@ private Q_SLOTS:
         const qint64 frozen = e.view()->sheet().layout().frozenRows();
         QVERIFY(frozen >= 1);
         w.anchorHooks().customViewsAsker = [](CustomViewsRequest *r) {
-            r->views.append(r->capture(QStringLiteral("Review")));
+            addNow(r, QStringLiteral("Review"));
             return true;
         };
         w.act(QStringLiteral("view.customViews"))->trigger();
@@ -154,7 +302,7 @@ private Q_SLOTS:
         QVERIFY(hiddenRows(w, 0).isEmpty());
         // Show brings it all back in one step of Undo
         w.anchorHooks().customViewsAsker = [](CustomViewsRequest *r) {
-            r->show = QStringLiteral("review");   // (names match without regard to case)
+            r->show = 0;
             return true;
         };
         const int before = s->undoStack()->index();
@@ -183,7 +331,7 @@ private Q_SLOTS:
         hide.hidden = true;
         QVERIFY(s->resizeRows(0, 1, 2, hide, QStringLiteral("hide")).ok);
         w.anchorHooks().customViewsAsker = [](CustomViewsRequest *r) {
-            r->views.append(r->capture(QStringLiteral("Two & <more>")));
+            addNow(r, QStringLiteral("Two & <more>"));
             return true;
         };
         w.act(QStringLiteral("view.customViews"))->trigger();
@@ -333,15 +481,229 @@ private Q_SLOTS:
         QVERIFY(w.session()->ignoredErrorsOf(0)[0].kinds & jp::office::sheet::IgnoredError::UnlockedFormula);
     }
 
+    void aSheetRenamedOrDeletedIsFollowedInTheViews()
+    {
+        EditWindow e;
+        QVERIFY(e.open(viewsBook()));
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = w.session();
+        w.anchorHooks().customViewsAsker = [](CustomViewsRequest *r) {
+            addNow(r, QStringLiteral("All"));
+            return true;
+        };
+        w.act(QStringLiteral("view.customViews"))->trigger();
+        QCOMPARE(s->customViews()[0].sheets.size(), 2);
+        QVERIFY(s->renameSheet(1, QStringLiteral("Totals")).ok);
+        QCOMPARE(s->customViews()[0].sheets[1].name, QStringLiteral("Totals"));
+        w.undoStack()->undo();
+        QCOMPARE(s->customViews()[0].sheets[1].name, QStringLiteral("Sheet2"));
+        w.undoStack()->redo();
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        const QByteArray xml = savedPart(e.path, QStringLiteral("xl/workbook.xml"));
+        QVERIFY2(xml.contains("<jocv:sheet name=\"Totals\"") && !xml.contains("<jocv:sheet name=\"Sheet2\""), xml.constData());
+        // deleted, the sheet is no longer in any view; Undo brings it back
+        QVERIFY(s->deleteSheet(1).ok);
+        QCOMPARE(s->customViews()[0].sheets.size(), 1);
+        QCOMPARE(s->customViews()[0].sheets[0].name, QStringLiteral("Sheet1"));
+        w.undoStack()->undo();
+        QCOMPARE(s->customViews()[0].sheets.size(), 2);
+    }
+
+    void showingAViewIsUndoneWholeAndRedoneWhole()
+    {
+        EditWindow e;
+        QVERIFY(e.open(viewsBook()));
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = w.session();
+        w.resize(1100, 640);
+        e.view()->setZoom(1.5);
+        e.view()->freezeTopRow();
+        e.select(QStringLiteral("B3"));
+        crunch::EditSession::SizeChange hide;
+        hide.setHidden = true;
+        hide.hidden = true;
+        QVERIFY(s->resizeRows(0, 1, 1, hide, QStringLiteral("hide")).ok);
+        w.anchorHooks().customViewsAsker = [](CustomViewsRequest *r) {
+            addNow(r, QStringLiteral("Look"));
+            return true;
+        };
+        w.act(QStringLiteral("view.customViews"))->trigger();
+        // now everything is otherwise
+        QVERIFY(s->resizeRows(0, 0, 10, [] { crunch::EditSession::SizeChange c; c.setHidden = true; return c; }(), QStringLiteral("show")).ok);
+        w.setActiveSheet(1);
+        e.view()->setZoom(0.75);
+        e.view()->setShowGridlines(false);
+        e.view()->setShowHeadings(false);
+        w.act(QStringLiteral("view.formulaBar"))->setChecked(false);
+        w.resize(900, 600);
+        e.select(QStringLiteral("C5"));
+        w.anchorHooks().customViewsAsker = [](CustomViewsRequest *r) {
+            r->show = 0;
+            return true;
+        };
+        const int steps = s->undoStack()->count();
+        w.act(QStringLiteral("view.customViews"))->trigger();
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        auto isShown = [&] {
+            return w.activeSheet() == 0 && w.view()->zoom() == 1.5 && w.view()->sheet().layout().frozenRows() >= 1 && e.selected() == QStringLiteral("B3") && w.view()->showGridlines() && w.view()->showHeadings()
+                && w.act(QStringLiteral("view.formulaBar"))->isChecked() && w.width() == 1100 && hiddenRows(w, 0) == QVector<quint32>{1};
+        };
+        QVERIFY(isShown());
+        s->undoStack()->undo();
+        QCOMPARE(w.activeSheet(), 1);
+        QCOMPARE(w.view()->zoom(), 0.75);
+        QVERIFY(!w.view()->showGridlines() && !w.view()->showHeadings());
+        QVERIFY(!w.act(QStringLiteral("view.formulaBar"))->isChecked());
+        QCOMPARE(w.width(), 900);
+        QCOMPARE(e.selected(), QStringLiteral("C5"));
+        QVERIFY(hiddenRows(w, 0).isEmpty());
+        s->undoStack()->redo();
+        QVERIFY(isShown());
+    }
+
+    void rowsAFilterHidesAreLeftToTheFilter()
+    {
+        QString rows;
+        for (int r = 1; r <= 6; ++r) rows += QStringLiteral("<row r=\"%1\"%2><c r=\"A%1\"><v>%1</v></c></row>").arg(r).arg(r == 1 || r == 3 ? QString() : QStringLiteral(" hidden=\"1\""));
+        const QString filter = QStringLiteral("<autoFilter ref=\"A1:A6\"><filterColumn colId=\"0\"><filters><filter val=\"3\"/></filters></filterColumn></autoFilter>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, filter)})));
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = w.session();
+        QCOMPARE(hiddenRows(w, 0), (QVector<quint32>{1, 3, 4, 5}));
+        w.anchorHooks().customViewsAsker = [](CustomViewsRequest *r) {
+            addNow(r, QStringLiteral("Now"));
+            return true;
+        };
+        w.act(QStringLiteral("view.customViews"))->trigger();
+        QVERIFY2(s->customViews()[0].sheets[0].hiddenRows.isEmpty(), "the rows the filter hides are not the view's");
+        w.anchorHooks().customViewsAsker = [](CustomViewsRequest *r) {
+            r->show = 0;
+            return true;
+        };
+        w.act(QStringLiteral("view.customViews"))->trigger();
+        QCOMPARE(hiddenRows(w, 0), (QVector<quint32>{1, 3, 4, 5}));   // (the filter's rows are still hidden)
+    }
+
+    void twoViewsWithOneNameAreToldApartByTheirPlace()
+    {
+        const QString two = QStringLiteral("<customWorkbookViews>"
+            "<customWorkbookView name=\"Same\" guid=\"{A}\" windowWidth=\"9000\" windowHeight=\"9000\" activeSheetId=\"1\"/>"
+            "<customWorkbookView name=\"Same\" guid=\"{B}\" windowWidth=\"9000\" windowHeight=\"9000\" activeSheetId=\"2\"><extLst><ext uri=\"%1\"><jocv:view xmlns:jocv=\"%2\" activeSheet=\"Sheet2\">"
+            "<jocv:sheet name=\"Sheet2\" zoom=\"200\"/></jocv:view></ext></extLst></customWorkbookView></customWorkbookViews>");
+        EditWindow e;
+        QVERIFY(e.open(viewsBook(two.arg(QLatin1String(jp::office::sheet::kCustomViewExtUri), QLatin1String(jp::office::sheet::kCustomViewNs)))));
+        CrunchWindow &w = e.win.w;
+        w.anchorHooks().customViewsAsker = [](CustomViewsRequest *r) {
+            r->show = 1;   // (the second "Same")
+            return true;
+        };
+        w.act(QStringLiteral("view.customViews"))->trigger();
+        QCOMPARE(w.activeSheet(), 1);
+        QCOMPARE(w.view()->zoom(), 2.0);
+    }
+
+    void aViewNameWithControlCharactersIsWrittenAsValidXml()
+    {
+        EditWindow e;
+        QVERIFY(e.open(viewsBook()));
+        CrunchWindow &w = e.win.w;
+        w.anchorHooks().customViewsAsker = [](CustomViewsRequest *r) {
+            addNow(r, QStringLiteral("A\x01" "B\x1f\tC\n"));
+            return true;
+        };
+        w.act(QStringLiteral("view.customViews"))->trigger();
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        const QByteArray xml = savedPart(e.path, QStringLiteral("xl/workbook.xml"));
+        for (const char bad : {'\x01', '\x1f'}) QVERIFY(!xml.contains(bad));
+        QVERIFY(xml.contains("name=\"A B  C \""));
+        QFile written(e.path);
+        QVERIFY(written.open(QIODevice::ReadOnly));
+        EditWindow again;
+        QVERIFY(again.open(written.readAll()));
+        QCOMPARE(again.win.w.session()->customViews().size(), 1);
+    }
+
+    // The entries of the sheets that name a view that was deleted go with it.
+    void deletingAViewTakesItsSheetEntriesOut()
+    {
+        const QString sheetViews = QStringLiteral("<customSheetViews><customSheetView guid=\"{DEAD-1}\" scale=\"90\"><selection activeCell=\"A1\"/></customSheetView><customSheetView guid=\"{KEEP-2}\"/></customSheetViews>");
+        const QString two = QStringLiteral("<customWorkbookViews><customWorkbookView name=\"Gone\" guid=\"{DEAD-1}\" windowWidth=\"9000\" windowHeight=\"9000\" activeSheetId=\"1\"/>"
+                                           "<customWorkbookView name=\"Stays\" guid=\"{KEEP-2}\" windowWidth=\"9000\" windowHeight=\"9000\" activeSheetId=\"1\"/></customWorkbookViews>");
+        QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, sheetViews)}, QByteArray(), QString(), QStringLiteral("calcId=\"1\""), QByteArray(), QStringList(), QString(), QByteArray(), QString(), QList<int>(), two)));
+        CrunchWindow &w = e.win.w;
+        w.anchorHooks().customViewsAsker = [](CustomViewsRequest *r) {
+            r->views.removeAt(0);
+            return true;
+        };
+        w.act(QStringLiteral("view.customViews"))->trigger();
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        const QByteArray sheet = savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml"));
+        QVERIFY2(!sheet.contains("{DEAD-1}") && sheet.contains("{KEEP-2}") && sheet.contains("<customSheetViews>"), sheet.constData());
+        // with the last one gone too, the list goes
+        QFile written(e.path);
+        QVERIFY(written.open(QIODevice::ReadOnly));
+        EditWindow again;
+        QVERIFY(again.open(written.readAll()));
+        again.win.w.anchorHooks().customViewsAsker = [](CustomViewsRequest *r) {
+            r->views.clear();
+            return true;
+        };
+        again.win.w.act(QStringLiteral("view.customViews"))->trigger();
+        QSignalSpy saved2(&again.win.w, &CrunchWindow::saved);
+        QVERIFY(again.win.w.save());
+        QVERIFY2(savedOk(saved2, 20000), "the save failed");
+        QVERIFY(!savedPart(again.path, QStringLiteral("xl/worksheets/sheet1.xml")).contains("customSheetView"));
+    }
+
+    // Remove All takes away the breaks Subtotal put in, and never a break the person made, whether it is by the subtotals or not.
+    void subtotalRemoveAllKeepsThePersonsOwnBreaks()
+    {
+        auto text = [](const QString &ref, const QString &t) { return QStringLiteral("<c r=\"%1\" t=\"inlineStr\"><is><t>%2</t></is></c>").arg(ref, t); };
+        const QString rows = QStringLiteral("<row r=\"1\">") + text(QStringLiteral("A1"), QStringLiteral("Region")) + text(QStringLiteral("B1"), QStringLiteral("Sales")) + QStringLiteral("</row>")
+            + QStringLiteral("<row r=\"2\">") + text(QStringLiteral("A2"), QStringLiteral("East")) + QStringLiteral("<c r=\"B2\"><v>10</v></c></row>")
+            + QStringLiteral("<row r=\"3\">") + text(QStringLiteral("A3"), QStringLiteral("East")) + QStringLiteral("<c r=\"B3\"><v>20</v></c></row>")
+            + QStringLiteral("<row r=\"4\">") + text(QStringLiteral("A4"), QStringLiteral("West")) + QStringLiteral("<c r=\"B4\"><v>5</v></c></row>");
+        // the person's own break is before row 5 (below the list, where the first subtotal row will be: after Subtotal it is at the same place)
+        const QString page = QStringLiteral("<rowBreaks count=\"1\" manualBreakCount=\"1\"><brk id=\"4\" max=\"16383\" man=\"1\"/></rowBreaks>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, page)})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = w.session();
+        auto breaks = [s] {
+            QVector<quint32> out;
+            for (const auto &b : s->pages().sheet(0).rowBreaks) out.append(b.before);
+            return out;
+        };
+        QCOMPARE(breaks(), (QVector<quint32>{4}));
+        e.select(QStringLiteral("A2"));
+        QVERIFY(w.subtotalIn(0, 9, {1}, true, true));
+        QVERIFY(e.settle());
+        // (the person's break before West moved down one row with the first subtotal row inserted above it? no: it follows its row, and ours are before West's subtotal's next row and the grand total)
+        QVERIFY(breaks().size() >= 2);
+        e.select(QStringLiteral("A2"));
+        QVERIFY(w.removeSubtotalsIn());
+        QVERIFY(e.settle());
+        QCOMPARE(breaks(), (QVector<quint32>{4}));   // the person's own break is where it was
+    }
+
     void theBoxAddsReplacesDeletesAndShows()
     {
         CustomViewsRequest req;
         int made = 0;
-        req.capture = [&made](const QString &name) {
-            CustomView v;
-            v.name = name;
-            v.guid = QStringLiteral("{G%1}").arg(++made);
-            return v;
+        req.capture = [&made](const QString &name, CustomView *v, QString *) {
+            v->name = name;
+            v->guid = QStringLiteral("{G%1}").arg(++made);
+            return true;
         };
         CustomViewsDialog box(req);
         auto *list = box.findChild<QListWidget *>(QStringLiteral("customViewList"));
@@ -371,7 +733,7 @@ private Q_SLOTS:
         QCOMPARE(box.result().views.size(), 1);
         list->setCurrentRow(0);
         show->click();
-        QCOMPARE(box.result().show, QStringLiteral("print"));
+        QCOMPARE(box.result().show, 0);
     }
 
 private:

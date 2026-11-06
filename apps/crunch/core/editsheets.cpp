@@ -805,6 +805,12 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                 }
                 sparklinesRead(e.rewrite);
                 book.setSheetName(e.sheet, QString());
+                e.viewsBefore = book.info().customViews;
+                if (!e.viewsBefore.isEmpty()) {
+                    QVector<jp::office::sheet::CustomView> kept = e.viewsBefore;
+                    jp::office::sheet::dropCustomViewSheet(&kept, e.nameBefore);
+                    book.setCustomViews(kept);
+                }
                 book.setSheetDeleted(e.sheet, true);
                 book.setSheetOrder(e.orderAfter);
                 for (const Calculation::EditRecord::Place &p : e.rewrite.rewritten)
@@ -815,6 +821,7 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                 m_sheetOps.push_back(op);
             } else {
                 book.setSheetName(e.sheet, e.nameBefore);
+                if (!e.viewsBefore.isEmpty()) book.setCustomViews(e.viewsBefore);
                 book.setSheetDeleted(e.sheet, false);
                 calc->setSheetNames(e.sheet, QString(), e.nameBefore);
                 sparklinesRead(e.rewrite);
@@ -832,6 +839,11 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                     return false;
                 }
                 book.setSheetName(e.sheet, e.nameAfter);
+                if (!book.info().customViews.isEmpty()) {
+                    QVector<jp::office::sheet::CustomView> renamed = book.info().customViews;
+                    jp::office::sheet::renameCustomViewSheet(&renamed, e.nameBefore, e.nameAfter);
+                    book.setCustomViews(renamed);
+                }
                 sparklinesRead(e.rewrite);
                 for (const Calculation::EditRecord::Place &p : e.rewrite.rewritten)
                     if (!p.dataTable) markTouched(p.sheet, p.row, p.col);
@@ -843,6 +855,11 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
             } else {
                 calc->setSheetNames(e.sheet, e.nameAfter, e.nameBefore);
                 book.setSheetName(e.sheet, e.nameBefore);
+                if (!book.info().customViews.isEmpty()) {
+                    QVector<jp::office::sheet::CustomView> renamed = book.info().customViews;
+                    jp::office::sheet::renameCustomViewSheet(&renamed, e.nameAfter, e.nameBefore);
+                    book.setCustomViews(renamed);
+                }
                 sparklinesRead(e.rewrite);
                 calc->undoSheetRewrite(e.rewrite);
                 if (!m_sheetOps.empty() && m_sheetOps.back().kind == SheetOp::Kind::Rename && m_sheetOps.back().name == e.nameBefore && m_sheetOps.back().newName == e.nameAfter) m_sheetOps.pop_back();

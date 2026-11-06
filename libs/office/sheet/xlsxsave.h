@@ -368,6 +368,8 @@ struct SaveChanges {
     // The workbook's custom views, when a person changed them (made into the element `customWorkbookViews` in place of the file's).
     bool setCustomViews = false;
     QVector<CustomView> customViews;
+    // The guids of custom views that were deleted: the sheets' `customSheetView` entries that name them go too.
+    QStringList dropViewGuids;
     // The workbook's properties, when a person changed them: the core, extended, and custom parts get them (a part the file lacks is made, with its type and the package's relationship to it;
     // the custom part goes when no property is left).
     bool setProperties = false;
