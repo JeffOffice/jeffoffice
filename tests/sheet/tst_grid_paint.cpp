@@ -251,6 +251,7 @@ private Q_SLOTS:
             thin.top = Fixture::side(BorderStyle::Thin, 0xFF0000);
             f.blank(12, 2, f.border(thin));
             f.text(5, 0, QStringLiteral("a text long enough to spill"));
+            f.options.gridColor = QColor(0x00, 0xC0, 0xFF);   // (a color the text's smoothed edges can't make, as the gray could)
             f.build();
             f.grid.layout().rows.setDefaultSize(17);
             f.grid.layout().cols.setDefaultSize(63);
