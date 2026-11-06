@@ -3,7 +3,7 @@
   "jeffcrunch": {
    "name": "JeffCrunch",
    "reviewed": {
-    "day": "5",
+    "day": "6",
     "month": "November",
     "year": "2026"
    },
@@ -931,7 +931,7 @@
         },
         {
          "status": "partly",
-         "text": "093d2154f24db1116df3156ec36c9d2f5c5285cfa1e14963da1fd069aba57e13"
+         "text": "cffbe2c953799d0cd964c1d1272253c3033f6d14934150421268c0643932453a"
         },
         {
          "status": "partly",
@@ -1071,7 +1071,7 @@
         },
         {
          "status": "partly",
-         "text": "6be76f17ff8d42a46db874d9ab4d927f532aafa9f26cd30125a7926510e5a162"
+         "text": "7aea90d6d9c19a07b07ae9517628abbfd92ee206310ca8d503057b8ee25cd2d5"
         },
         {
          "status": "todo",
@@ -1093,7 +1093,7 @@
         },
         {
          "status": "partly",
-         "text": "59e365b19e508755f7938593c7b6818a6fcf7b3961777ad6c8f14e60982285cc"
+         "text": "87b1a61b8bee7ed6b4a33a4be98e89dac70e33b7255b4f4329764bb67acb5ff4"
         }
        ]
       }
@@ -1173,8 +1173,8 @@
          "text": "19171f665a1c01ed6057548c1b0c4203d4fc81724be9b0c95eec9730e7f9588a"
         },
         {
-         "status": "todo",
-         "text": "5d8e92d6a1d2e08d4addf6dd9eb8c7a71a538607dde04dd15792ef424db57f1b"
+         "status": "partly",
+         "text": "1dd1af8033b34ce0cbfbdf0a78caab13d031e9c77ab25bc79a2ccb86b85a8c65"
         }
        ]
       },
@@ -1269,7 +1269,7 @@
         },
         {
          "status": "partly",
-         "text": "97c16ff77d867f1ec48ab41cc783bb081c2088ca8c419ac39827930a74189ab0"
+         "text": "0a9f40b2828ec07bf8f65aa47f96d0e9922e7a131398ff63ad19ea34fb037059"
         },
         {
          "status": "partly",
@@ -1343,8 +1343,8 @@
        "heading": "d04a57cde3a6fcb29f1c73ad14a2c52c49d060d6172d1a07351be59a916f1177",
        "items": [
         {
-         "status": "todo",
-         "text": "d26d9f2c518b0313c42e2800ba6fab1b1d032a5d5d664806bb813d6d98c98579"
+         "status": "partly",
+         "text": "bed8721c9fa886d800525bb8f146f952aaedb5bfc8cbd2740ea9b3fb9fdfde19"
         },
         {
          "status": "partly",
@@ -1393,7 +1393,7 @@
         },
         {
          "status": "partly",
-         "text": "fdb0ac9a2e7d94b66f99d849bd48cd12a0d42604ff3805662e7d846d8bea544c"
+         "text": "72dee83a567c47153ee56d33c7e8c4d81f03e837018c655e247662ac0beb200e"
         },
         {
          "status": "partly",
@@ -7743,18 +7743,6 @@
     "fr": ""
    }
   },
-  "093d2154f24db1116df3156ec36c9d2f5c5285cfa1e14963da1fd069aba57e13": {
-   "drop": false,
-   "en": "Formulas > Error Checking steps through formulas that give an error and numbers stored as text, goes to each cell, and says what is wrong. A green triangle marks each cell with a problem, and Ignore Error is saved in the file and is one step of Undo.",
-   "es": "Fórmulas > Comprobación de errores recorre las fórmulas que dan error y los números almacenados como texto, va a cada celda e indica cuál es el problema. Un triángulo verde marca cada celda con un problema, e Omitir error se guarda en el archivo y es un solo paso de Deshacer.",
-   "fr": "Formules > Vérification des erreurs parcourt les formules qui donnent une erreur et les nombres stockés sous forme de texte, accède à chaque cellule et indique le problème. Un triangle vert marque chaque cellule problématique, et Ignorer l’erreur est enregistré dans le fichier et forme une seule étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "More error-checking rules, and a menu on the green corner marker",
-    "es": "Más reglas de comprobación de errores y un menú en el marcador verde de la esquina",
-    "fr": "Autres règles de vérification des erreurs et menu sur le marqueur vert d’angle"
-   }
-  },
   "0942b9f1f36d623017a8c4266087711c24415571c3799165e20d4faa21198e47": {
    "drop": true,
    "en": "",
@@ -7981,6 +7969,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "0a9f40b2828ec07bf8f65aa47f96d0e9922e7a131398ff63ad19ea34fb037059": {
+   "drop": false,
+   "en": "The Table Styles gallery in JeffCrunch applies a style to a table, and Clear takes the look off. New Table Style asks for a name and the fill, text color, and bold of the header row, row stripes, totals row, and first column. It adds the style to a Custom group of the gallery, applies it to the table, and saves it in the file.",
+   "es": "La galería de estilos de tabla de JeffCrunch aplica un estilo a una tabla, y Borrar quita el aspecto. Nuevo estilo de tabla pide un nombre y el relleno, el color del texto y la negrita de la fila de encabezado, las filas con bandas, la fila de totales y la primera columna. Agrega el estilo a un grupo Personalizado de la galería, lo aplica a la tabla y lo guarda en el archivo.",
+   "fr": "La galerie de styles de tableau de JeffCrunch applique un style à un tableau, et Effacer retire l’aspect. Nouveau style de tableau demande un nom ainsi que le remplissage, la couleur du texte et le gras de la ligne d’en-tête, des lignes alternées, de la ligne des totaux et de la première colonne. Il ajoute le style à un groupe Personnalisé de la galerie, l’applique au tableau et l’enregistre dans le fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Table styles: borders, fonts, column stripes, corner cells, and changing or deleting a style",
+    "es": "Estilos de tabla: bordes, fuentes, bandas de columnas, celdas de esquina y cambio o eliminación de un estilo",
+    "fr": "Styles de tableau : bordures, polices, colonnes alternées, cellules d’angle, et modification ou suppression d’un style"
    }
   },
   "0b34cd64f82fde71f3a8b0ba442f605358125c966553788d079f42478c3b6ea5": {
@@ -9133,6 +9133,18 @@
     "en": "Compatibility Mode title and Convert command",
     "es": "Título de modo de compatibilidad y comando Convertir",
     "fr": "Titre du mode de compatibilité et commande Convertir"
+   }
+  },
+  "1dd1af8033b34ce0cbfbdf0a78caab13d031e9c77ab25bc79a2ccb86b85a8c65": {
+   "drop": false,
+   "en": "Custom Views in JeffCrunch lists, adds, deletes, and shows named views. A view keeps the sheet in front, each sheet’s hidden rows and columns, zoom, frozen panes, chosen cell, gridlines, headings, formula bar, and window size. Views are saved in the workbook, and views made by other programs are listed and kept.",
+   "es": "Las vistas personalizadas de JeffCrunch enumeran, agregan, eliminan y muestran vistas con nombre. Una vista conserva la hoja activa, las filas y columnas ocultas de cada hoja, el zoom, los paneles inmovilizados, la celda elegida, las líneas de cuadrícula, los encabezados, la barra de fórmulas y el tamaño de la ventana. Las vistas se guardan en el libro, y las vistas creadas por otros programas se enumeran y se conservan.",
+   "fr": "Les vues personnalisées de JeffCrunch listent, ajoutent, suppriment et affichent des vues nommées. Une vue conserve la feuille active, les lignes et colonnes masquées de chaque feuille, le zoom, les volets figés, la cellule choisie, le quadrillage, les en-têtes, la barre de formule et la taille de la fenêtre. Les vues sont enregistrées dans le classeur, et les vues créées par d’autres programmes sont listées et conservées.",
+   "soon": {
+    "drop": false,
+    "en": "Custom Views: filters, print settings, and window position",
+    "es": "Vistas personalizadas: filtros, configuración de impresión y posición de la ventana",
+    "fr": "Vues personnalisées : filtres, paramètres d’impression et position de la fenêtre"
    }
   },
   "1e3be64860c7664da0b12049f1f9b56683b1d1db3ff7cc7a4eae2d1dfcc53dfd": {
@@ -13551,18 +13563,6 @@
     "fr": ""
    }
   },
-  "59e365b19e508755f7938593c7b6818a6fcf7b3961777ad6c8f14e60982285cc": {
-   "drop": false,
-   "en": "Data > Subtotal inserts subtotals at each change in a column, using Sum, Count, Average, Max, Min, Product, Count Numbers, StdDev, StdDevp, Var, or Varp on the checked columns. It replaces earlier subtotals, adds a grand total, groups each run in the outline, and has Remove All, in one step of Undo.",
-   "es": "Datos > Subtotal inserta subtotales en cada cambio de una columna, con Suma, Cuenta, Promedio, Máx, Mín, Producto, Contar números, Desvest, Desvestp, Var o Varp en las columnas marcadas. Reemplaza los subtotales anteriores, agrega un total general, agrupa cada tramo en el esquema e incluye Quitar todos, en un solo paso de Deshacer.",
-   "fr": "Données > Sous-total insère des sous-totaux à chaque changement dans une colonne, avec Somme, Nb, Moyenne, Max, Min, Produit, Nb de nombres, Écartype, Écartypep, Var ou Varp sur les colonnes cochées. Il remplace les sous-totaux précédents, ajoute un total général, regroupe chaque série dans le plan et propose Supprimer tout, en une seule étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Page break between groups, and the summary above the data",
-    "es": "Salto de página entre grupos y resumen encima de los datos",
-    "fr": "Saut de page entre les groupes et synthèse au-dessus des données"
-   }
-  },
   "59e42435723d6ece64b6b3cf0d26816ff73175344e8e10e60901d9d36072e474": {
    "drop": false,
    "en": "JeffPub never runs macros in a publication, and linked pictures follow the rule below.",
@@ -13801,18 +13801,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "5d8e92d6a1d2e08d4addf6dd9eb8c7a71a538607dde04dd15792ef424db57f1b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Custom Views: named combinations of view, filters, hidden rows and columns, print settings, and window position",
-    "es": "Vistas personalizadas: combinaciones con nombre de vista, filtros, filas y columnas ocultas, ajustes de impresión y posición de la ventana",
-    "fr": "Affichages personnalisés : combinaisons nommées d’affichage, de filtres, de lignes et colonnes masquées, de paramètres d’impression et de position de fenêtre"
    }
   },
   "5d90fd69877b96b5e4c5a951d6f5453046078299b08939f941197805f9369c0e": {
@@ -14871,18 +14859,6 @@
     "fr": ""
    }
   },
-  "6be76f17ff8d42a46db874d9ab4d927f532aafa9f26cd30125a7926510e5a162": {
-   "drop": false,
-   "en": "Add, edit, delete, and show scenarios with named sets of input values, up to 32 changing cells each, with a comment. A summary places the scenarios side by side on a new sheet with the result cells worked out for each. Scenarios in a file are kept and shown.",
-   "es": "Agregue, edite, elimine y muestre escenarios con conjuntos de valores de entrada con nombre, hasta 32 celdas cambiantes cada uno, con un comentario. Un resumen coloca los escenarios lado a lado en una hoja nueva con las celdas de resultado calculadas para cada uno. Los escenarios de un archivo se conservan y se muestran.",
-   "fr": "Ajoutez, modifiez, supprimez et affichez des scénarios avec des jeux de valeurs d’entrée nommés, jusqu’à 32 cellules variables chacun, avec un commentaire. Une synthèse place les scénarios côte à côte sur une nouvelle feuille avec les cellules de résultat calculées pour chacun. Les scénarios d’un fichier sont conservés et affichés.",
-   "soon": {
-    "drop": false,
-    "en": "Scenario merge from other workbooks and locked scenarios on protected sheets",
-    "es": "Combinación de escenarios de otros libros y escenarios bloqueados en hojas protegidas",
-    "fr": "Fusion de scénarios depuis d’autres classeurs et scénarios verrouillés sur les feuilles protégées"
-   }
-  },
   "6beabdbde9ec8510142f0fc2f6a3b99d630a920199b88e3595f94258df8a6721": {
    "drop": false,
    "en": "Info",
@@ -15411,6 +15387,18 @@
     "fr": ""
    }
   },
+  "72dee83a567c47153ee56d33c7e8c4d81f03e837018c655e247662ac0beb200e": {
+   "drop": false,
+   "en": "Charts in JeffCrunch support trendlines of every kind, with the equation and R-squared, set from the Trendline menu. They also support drop lines, high-low lines, up/down bars, and error bars (fixed value, percentage, standard deviation, standard error, and custom amounts from cells) on column, line, scatter, and area charts.",
+   "es": "Los gráficos de JeffCrunch admiten líneas de tendencia de todos los tipos, con la ecuación y R cuadrado, que se definen en el menú Línea de tendencia. También admiten líneas de caída, líneas de máximos y mínimos, barras ascendentes y descendentes, y barras de error (valor fijo, porcentaje, desviación estándar, error estándar e importes personalizados de celdas) en gráficos de columnas, líneas, dispersión y áreas.",
+   "fr": "Les graphiques de JeffCrunch prennent en charge les courbes de tendance de tous types, avec l’équation et le R carré, réglées depuis le menu Courbe de tendance. Ils prennent aussi en charge les lignes de projection, les lignes haut-bas, les barres haut/bas et les barres d’erreur (valeur fixe, pourcentage, écart type, erreur standard et valeurs personnalisées issues de cellules) sur les graphiques en colonnes, en courbes, en nuage de points et en aires.",
+   "soon": {
+    "drop": false,
+    "en": "Chart options: error bar looks, data table, series lines, and trendline controls for forecast, intercept, and order",
+    "es": "Opciones de gráfico: aspecto de las barras de error, tabla de datos, líneas de series y controles de línea de tendencia para pronóstico, intersección y orden",
+    "fr": "Options de graphique : aspect des barres d’erreur, tableau de données, lignes de séries et commandes de courbe de tendance pour la prévision, l’ordonnée à l’origine et l’ordre"
+   }
+  },
   "7328f46f882bce9a4591f6b9e95e4b09b002412f79c4e87aad75cb66550145ce": {
    "drop": false,
    "en": "JeffPub's menus and Help are available in English, German, Spanish, French, Italian, Dutch, and Portuguese. The translations are machine-made and can be corrected by anyone.",
@@ -15901,6 +15889,18 @@
     "en": "Graphics tab for SVG pictures: change the graphic, Convert to Shape, styles, fill, outline, and effects",
     "es": "Pestaña Gráficos para imágenes SVG: cambiar el gráfico, convertir en forma, estilos, relleno, contorno y efectos",
     "fr": "Onglet Graphiques pour les images SVG : changer le graphique, convertir en forme, styles, remplissage, contour et effets"
+   }
+  },
+  "7aea90d6d9c19a07b07ae9517628abbfd92ee206310ca8d503057b8ee25cd2d5": {
+   "drop": false,
+   "en": "Scenario Manager in JeffCrunch adds, edits, deletes, and shows scenarios of up to 32 changing cells each, with a comment. Summary puts the scenarios side by side on a new sheet with the result cells worked out under each. Scenarios in a file are kept, and a scenario set to prevent changes is protected while the sheet is protected.",
+   "es": "El Administrador de escenarios de JeffCrunch agrega, edita, elimina y muestra escenarios de hasta 32 celdas cambiantes cada uno, con un comentario. El resumen coloca los escenarios uno junto a otro en una hoja nueva, con las celdas de resultado calculadas bajo cada uno. Los escenarios de un archivo se conservan, y un escenario configurado para impedir cambios queda protegido mientras la hoja está protegida.",
+   "fr": "Le gestionnaire de scénarios de JeffCrunch ajoute, modifie, supprime et affiche des scénarios de 32 cellules variables au maximum chacun, avec un commentaire. Le résumé place les scénarios côte à côte sur une nouvelle feuille, avec les cellules de résultat calculées sous chacun. Les scénarios d’un fichier sont conservés, et un scénario réglé pour empêcher les modifications est protégé tant que la feuille est protégée.",
+   "soon": {
+    "drop": false,
+    "en": "Scenario Manager: merge from other workbooks and hide a scenario on a protected sheet",
+    "es": "Administrador de escenarios: combinar desde otros libros y ocultar un escenario en una hoja protegida",
+    "fr": "Gestionnaire de scénarios : fusion depuis d’autres classeurs et masquage d’un scénario sur une feuille protégée"
    }
   },
   "7af548a96b87ea065562937711e69b5c4415cf099fbcb1255af7b19b3c688df6": {
@@ -16657,6 +16657,18 @@
     "en": "Effects",
     "es": "Efectos",
     "fr": "Effets"
+   }
+  },
+  "87b1a61b8bee7ed6b4a33a4be98e89dac70e33b7255b4f4329764bb67acb5ff4": {
+   "drop": false,
+   "en": "Subtotal in JeffCrunch inserts a subtotal row at each change in a column, using Sum, Count, Average, Max, Min, Product, Count Numbers, StdDev, StdDevp, Var, or Varp on the columns you check. It replaces earlier subtotals, adds a grand total, groups each run in the outline, can put a page break between groups, and has Remove All. It is one step of Undo.",
+   "es": "Subtotal en JeffCrunch inserta una fila de subtotal en cada cambio de una columna, con Suma, Contar, Promedio, Máx, Mín, Producto, Contar números, Desvest, Desvestp, Var o Varp en las columnas que usted marque. Reemplaza los subtotales anteriores, agrega un total general, agrupa cada tramo en el esquema, puede insertar un salto de página entre grupos y tiene Quitar todos. Es un paso de Deshacer.",
+   "fr": "Sous-total dans JeffCrunch insère une ligne de sous-total à chaque changement dans une colonne, avec Somme, Nb, Moyenne, Max, Min, Produit, Nb de nombres, Écartype, Écartypep, Var ou Varp sur les colonnes que vous cochez. Il remplace les sous-totaux précédents, ajoute un total général, regroupe chaque série dans le plan, peut insérer un saut de page entre les groupes et propose Supprimer tout. Il correspond à une étape d’Annuler.",
+   "soon": {
+    "drop": false,
+    "en": "Subtotal summary above the data",
+    "es": "Resumen de subtotales sobre los datos",
+    "fr": "Résumé des sous-totaux au-dessus des données"
    }
   },
   "87c0f484ff28e102672ec0b68d029161ee739b881683d1ac8ed5123170b9d43a": {
@@ -17785,18 +17797,6 @@
     "en": "A larger gallery of built-in header and footer designs",
     "es": "Una galería más amplia de diseños de encabezado y pie de página",
     "fr": "Galerie plus large de modèles d’en-tête et de pied de page"
-   }
-  },
-  "97c16ff77d867f1ec48ab41cc783bb081c2088ca8c419ac39827930a74189ab0": {
-   "drop": false,
-   "en": "Apply a table style from the Table Styles gallery with live preview, and clear a table’s style to remove its look.",
-   "es": "Aplique un estilo de tabla desde la galería de estilos de tabla con vista previa en vivo, y borre el estilo de una tabla para quitar su aspecto.",
-   "fr": "Appliquez un style de tableau depuis la galerie des styles de tableau avec aperçu en direct, et effacez le style d’un tableau pour en retirer l’aspect.",
-   "soon": {
-    "drop": false,
-    "en": "New Table Style: define a style for each part of a table",
-    "es": "Nuevo estilo de tabla: defina un estilo para cada parte de una tabla",
-    "fr": "Nouveau style de tableau : définir un style pour chaque partie d’un tableau"
    }
   },
   "9848cd66c9afa034654c5f893684892375514c468e13863cc63777fc54a3cfc6": {
@@ -20115,6 +20115,18 @@
     "fr": ""
    }
   },
+  "bed8721c9fa886d800525bb8f146f952aaedb5bfc8cbd2740ea9b3fb9fdfde19": {
+   "drop": false,
+   "en": "A pivot chart in JeffCrunch shows buttons with the names of its table’s fields: report filters under the title, and rows, values, and columns along the bottom. Field Buttons in the + menu shows or hides each kind, with Show All and Hide All, as one step of Undo. The setting is kept in the file, and a new pivot chart shows the buttons.",
+   "es": "Un gráfico dinámico de JeffCrunch muestra botones con los nombres de los campos de su tabla: los filtros de informe bajo el título, y las filas, los valores y las columnas en la parte inferior. Botones de campo, en el menú +, muestra u oculta cada tipo, con Mostrar todo y Ocultar todo, como un paso de Deshacer. La configuración se guarda en el archivo, y un gráfico dinámico nuevo muestra los botones.",
+   "fr": "Un graphique croisé dynamique de JeffCrunch affiche des boutons portant les noms des champs de son tableau : les filtres de rapport sous le titre, et les lignes, valeurs et colonnes en bas. Boutons de champ, dans le menu +, affiche ou masque chaque type, avec Tout afficher et Tout masquer, en une seule étape d’Annuler. Le réglage est conservé dans le fichier, et un nouveau graphique croisé dynamique affiche les boutons.",
+   "soon": {
+    "drop": false,
+    "en": "Pivot chart buttons: click to filter or sort, and expand and collapse buttons; other Analyze commands",
+    "es": "Botones de gráfico dinámico: clic para filtrar u ordenar, y botones de expandir y contraer; otros comandos de Analizar",
+    "fr": "Boutons de graphique croisé dynamique : clic pour filtrer ou trier, et boutons de développement et de réduction ; autres commandes d’analyse"
+   }
+  },
   "bf1cd745b8479ad88d42bcea660169ef4ddd97e3ee97fcd967bb58c4098f4278": {
    "drop": false,
    "en": "A sheet that reads right to left is drawn mirrored.",
@@ -21459,6 +21471,18 @@
     "fr": ""
    }
   },
+  "cffbe2c953799d0cd964c1d1272253c3033f6d14934150421268c0643932453a": {
+   "drop": false,
+   "en": "Error Checking in JeffCrunch steps through formulas that give an error, numbers stored as text, formulas that differ from the formulas on both sides, two-digit years in dates stored as text, and formulas in unlocked cells. It goes to each cell, says what is the matter, and marks the cell with a green triangle. Ignore Error is kept in the file and is one step of Undo.",
+   "es": "La comprobación de errores de JeffCrunch recorre las fórmulas que dan un error, los números almacenados como texto, las fórmulas que difieren de las fórmulas a ambos lados, los años de dos dígitos en fechas almacenadas como texto y las fórmulas en celdas desbloqueadas. Va a cada celda, indica cuál es el problema y marca la celda con un triángulo verde. Ignorar error se guarda en el archivo y es un paso de Deshacer.",
+   "fr": "La vérification des erreurs de JeffCrunch parcourt les formules qui donnent une erreur, les nombres stockés sous forme de texte, les formules différentes de celles situées de part et d’autre, les années à deux chiffres dans des dates stockées sous forme de texte et les formules dans des cellules déverrouillées. Elle va à chaque cellule, indique le problème et marque la cellule d’un triangle vert. Ignorer l’erreur est conservé dans le fichier et correspond à une étape d’Annuler.",
+   "soon": {
+    "drop": false,
+    "en": "Error Checking rules: formulas that leave out neighboring cells and formulas that read empty cells",
+    "es": "Reglas de comprobación de errores: fórmulas que omiten celdas vecinas y fórmulas que leen celdas vacías",
+    "fr": "Règles de vérification des erreurs : formules qui omettent des cellules voisines et formules qui lisent des cellules vides"
+   }
+  },
   "d04a57cde3a6fcb29f1c73ad14a2c52c49d060d6172d1a07351be59a916f1177": {
    "drop": false,
    "en": "Pivot chart tabs (while a pivot chart is selected)",
@@ -21613,18 +21637,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d26d9f2c518b0313c42e2800ba6fab1b1d032a5d5d664806bb813d6d98c98579": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Pivot chart Analyze tab: field buttons, expand and collapse buttons, field list, and refresh, change source, and clear commands",
-    "es": "Pestaña Analizar del gráfico dinámico: botones de campo, botones de expandir y contraer, lista de campos y comandos de actualizar, cambiar origen y borrar",
-    "fr": "Onglet Analyse du graphique croisé dynamique : boutons de champ, boutons développer et réduire, liste des champs et commandes d’actualisation, de changement de source et d’effacement"
    }
   },
   "d2d26d34661cf2d2bfecbc2f35a22a6e1f3bbb534cdf72e2bad35a972ce2357f": {
@@ -24529,18 +24541,6 @@
     "en": "Data label leader lines; a different label range for each series",
     "es": "Líneas guía de etiquetas de datos; un rango de etiquetas distinto para cada serie",
     "fr": "Lignes de repère des étiquettes de données ; une plage d’étiquettes différente pour chaque série"
-   }
-  },
-  "fdb0ac9a2e7d94b66f99d849bd48cd12a0d42604ff3805662e7d846d8bea544c": {
-   "drop": false,
-   "en": "In JeffCrunch, charts support trendlines of every kind, with the equation and R-squared, set from the Trendline menu. Error bars (fixed value, percentage, standard deviation, standard error, and custom amounts a file holds) work on columns, lines, and scatter points. Drop lines, high-low lines, and up/down bars are also available.",
-   "es": "En JeffCrunch, los gráficos admiten líneas de tendencia de todos los tipos, con la ecuación y R cuadrado, que se definen desde el menú Línea de tendencia. Las barras de error (valor fijo, porcentaje, desviación estándar, error estándar y cantidades personalizadas que contiene un archivo) funcionan en columnas, líneas y puntos de dispersión. También están disponibles las líneas de caída, las líneas de máximos y mínimos y las barras ascendentes y descendentes.",
-   "fr": "Dans JeffCrunch, les graphiques prennent en charge les courbes de tendance de tous types, avec l’équation et le R carré, réglées depuis le menu Courbe de tendance. Les barres d’erreur (valeur fixe, pourcentage, écart type, erreur type et valeurs personnalisées contenues dans un fichier) fonctionnent sur les colonnes, les lignes et les points de nuage. Les lignes de projection, les lignes haut-bas et les barres haussières/baissières sont aussi disponibles.",
-   "soon": {
-    "drop": false,
-    "en": "Typed-in custom error bar amounts; error bars on area charts; error bar look; data table; series lines; trendline forecast, intercept, and order controls",
-    "es": "Cantidades personalizadas escritas para barras de error; barras de error en gráficos de áreas; aspecto de las barras de error; tabla de datos; líneas de series; controles de pronóstico, intersección y orden de la línea de tendencia",
-    "fr": "Valeurs personnalisées saisies pour les barres d’erreur ; barres d’erreur sur les graphiques en aires ; apparence des barres d’erreur ; tableau de données ; lignes de séries ; commandes de prévision, d’ordonnée à l’origine et d’ordre des courbes de tendance"
    }
   },
   "fdbaf331e6f7a0f3d092a7f68bb98fa540c40280d11f3d9279d5df254b086fbd": {
