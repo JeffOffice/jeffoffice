@@ -6514,14 +6514,14 @@ Open them with your email program to send.</source>
 <context>
     <name>Main</name>
     <message>
-        <location filename="../apps/pub/main.cpp" line="+68"/>
+        <location filename="../apps/pub/main.cpp" line="+71"/>
         <source>JeffPub desktop publishing</source>
         <translation type="unfinished">JeffPub, autoedición</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/deck/main.cpp" line="+82"/>
-        <location filename="../apps/write/main.cpp" line="+85"/>
+        <location filename="../apps/deck/main.cpp" line="+85"/>
+        <location filename="../apps/write/main.cpp" line="+88"/>
         <location filename="../apps/crunch/main.cpp" line="+87"/>
         <source>Save a screenshot of the window and quit.</source>
         <translation type="unfinished">Guardar una captura de pantalla de la ventana y salir.</translation>
@@ -12592,7 +12592,7 @@ Open it in your email program, add recipients and send.</source>
 <context>
     <name>Splash</name>
     <message>
-        <location filename="../libs/shell/app/splash.cpp" line="+34"/>
+        <location filename="../libs/shell/app/splash.cpp" line="+37"/>
         <source>Starting…</source>
         <translation type="unfinished">Iniciando…</translation>
     </message>
@@ -15294,7 +15294,7 @@ Autoedición</translation>
 <context>
     <name>Widgets</name>
     <message>
-        <location filename="../libs/shell/app/widgets.cpp" line="+1149"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="+1173"/>
         <source>Standard</source>
         <translation type="unfinished">Estándar</translation>
     </message>
@@ -17027,7 +17027,7 @@ Origen: %3</translation>
 <context>
     <name>jp::ColorButton</name>
     <message>
-        <location filename="../libs/shell/app/widgets.cpp" line="-977"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="-1000"/>
         <source>Applies the color shown; Down arrow or F4 opens more colors.</source>
         <translation type="unfinished">Aplica el color mostrado; Flecha abajo o F4 abre más colores.</translation>
     </message>
@@ -30926,7 +30926,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Escriba o elija la fuente del texto seleccionado.</translation>
     </message>
     <message>
-        <location line="+53"/>
+        <location line="+56"/>
         <source>Scheme Fonts</source>
         <translation type="unfinished">Fuentes de la combinación</translation>
     </message>
@@ -32335,7 +32335,7 @@ No se puede leer el archivo.</translation>
 <context>
     <name>jp::Gallery</name>
     <message>
-        <location filename="../libs/shell/app/widgets.cpp" line="-437"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="-440"/>
         <source>Gallery</source>
         <translation type="unfinished">Galería</translation>
     </message>
@@ -40254,7 +40254,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::SizeCombo</name>
     <message>
-        <location filename="../libs/shell/app/widgets.cpp" line="+250"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="+273"/>
         <source>Font Size</source>
         <translation type="unfinished">Tamaño de fuente</translation>
     </message>

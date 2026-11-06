@@ -6514,14 +6514,14 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
 <context>
     <name>Main</name>
     <message>
-        <location filename="../apps/pub/main.cpp" line="+68"/>
+        <location filename="../apps/pub/main.cpp" line="+71"/>
         <source>JeffPub desktop publishing</source>
         <translation type="unfinished">JeffPub desktop publishing</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/deck/main.cpp" line="+82"/>
-        <location filename="../apps/write/main.cpp" line="+85"/>
+        <location filename="../apps/deck/main.cpp" line="+85"/>
+        <location filename="../apps/write/main.cpp" line="+88"/>
         <location filename="../apps/crunch/main.cpp" line="+87"/>
         <source>Save a screenshot of the window and quit.</source>
         <translation type="unfinished">Een schermafbeelding van het venster opslaan en afsluiten.</translation>
@@ -12592,7 +12592,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
 <context>
     <name>Splash</name>
     <message>
-        <location filename="../libs/shell/app/splash.cpp" line="+34"/>
+        <location filename="../libs/shell/app/splash.cpp" line="+37"/>
         <source>Starting…</source>
         <translation type="unfinished">Starten…</translation>
     </message>
@@ -15294,7 +15294,7 @@ Desktop publishing</translation>
 <context>
     <name>Widgets</name>
     <message>
-        <location filename="../libs/shell/app/widgets.cpp" line="+1149"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="+1173"/>
         <source>Standard</source>
         <translation type="unfinished">Standaard</translation>
     </message>
@@ -17027,7 +17027,7 @@ Bron: %3</translation>
 <context>
     <name>jp::ColorButton</name>
     <message>
-        <location filename="../libs/shell/app/widgets.cpp" line="-977"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="-1000"/>
         <source>Applies the color shown; Down arrow or F4 opens more colors.</source>
         <translation type="unfinished">Past de weergegeven kleur toe; Pijl-omlaag of F4 opent meer kleuren.</translation>
     </message>
@@ -30926,7 +30926,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Typ of kies het lettertype van de geselecteerde tekst.</translation>
     </message>
     <message>
-        <location line="+53"/>
+        <location line="+56"/>
         <source>Scheme Fonts</source>
         <translation type="unfinished">Schemalettertypen</translation>
     </message>
@@ -32335,7 +32335,7 @@ Het bestand kan niet worden gelezen.</translation>
 <context>
     <name>jp::Gallery</name>
     <message>
-        <location filename="../libs/shell/app/widgets.cpp" line="-437"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="-440"/>
         <source>Gallery</source>
         <translation type="unfinished">Galerie</translation>
     </message>
@@ -40254,7 +40254,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::SizeCombo</name>
     <message>
-        <location filename="../libs/shell/app/widgets.cpp" line="+250"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="+273"/>
         <source>Font Size</source>
         <translation type="unfinished">Tekengrootte</translation>
     </message>
