@@ -212,12 +212,12 @@ private Q_SLOTS:
                     QVERIFY2(!e.shownAt(ref).startsWith(QLatin1Char('#')), qPrintable(t.id + QLatin1Char(' ') + ref + QLatin1Char(' ') + e.shownAt(ref)));
                 }
             if (t.id == QLatin1String("loan")) {
-                QCOMPARE(e.shownAt(QStringLiteral("B6")), QStringLiteral("$386.66"));
+                QCOMPARE(e.shownAt(QStringLiteral("B6")), QStringLiteral("$386") + QLocale().decimalPoint() + QStringLiteral("66"));
                 QVERIFY(e.shownAt(QStringLiteral("E70")).endsWith(QStringLiteral("0") + QLocale().decimalPoint() + QStringLiteral("00")));   // (sixty payments: the balance is paid off at the last)
                 QVERIFY(e.shownAt(QStringLiteral("A71")).isEmpty());
             }
             if (t.id == QLatin1String("calendar")) {
-                QCOMPARE(e.shownAt(QStringLiteral("A4")), QStringLiteral("January 2027"));
+                QCOMPARE(e.shownAt(QStringLiteral("A4")), QStringLiteral("January 2027"));   // (month names follow the interface language, numbers the computer's)
                 QCOMPARE(e.shownAt(QStringLiteral("F6")), QStringLiteral("1"));   // (January 1, 2027 is a Friday)
             }
             if (t.id == QLatin1String("budget")) QCOMPARE(e.shownAt(QStringLiteral("B7")), QStringLiteral("$0") + QLocale().decimalPoint() + QStringLiteral("00"));   // (in the computer's own decimal mark)
