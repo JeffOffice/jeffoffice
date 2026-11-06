@@ -507,7 +507,7 @@ def m_startup(rows, tools, files, runs, tmp, log, use_x):
                             if tb is not None:
                                 tl.append(tb)
                             rss = max(rss, rs_) if tool == "ours" else float("nan")
-                        for name, v, note in (("startup-x-first-window", ts, "first mapped window, over 100x100; ours is the splash" if tool == "ours" else "first mapped window, over 100x100"),
+                        for name, v, note in (("startup-x-first-window", ts, "first mapped window, over 100x100"),
                                               ("startup-x-main-window", tl, "first mapped window of 600x400 or more (the 800x600 screen caps the size)")):
                             rows.append(dict(measure=name, kind=ext, tier=label, file=rel, size=size, tool=tool, ok=bool(v), note="" if v else "no window", runs=runs,
                                              wall=median(v), cpu=float("nan"), rss=rss, load=loadavg(), extra=note))
@@ -525,7 +525,7 @@ def summarize(rows, out_md, meta):
     lines = ["# Speed bench: JeffOffice vs LibreOffice", "", meta, ""]
     lines.append("Wall seconds unless noted. Median and p90 are over files; ratio is the median of ours/LibreOffice over files both tools finished (above 1.0 means we are slower). RSS is the peak of one process; fails count files that errored, timed out (%d s), or wrote nothing." % TIMEOUT)
     lines.append("")
-    lines.append("Notes: startup-offscreen compares our offscreen start to a first drawn window (--screenshot) with LibreOffice's headless first-page render (the nearest thing it has; for the empty case it is a start with no window, so not comparable and left out of the losses list). startup-x is the time to a mapped window on a private X server; ours shows a splash first (first-window) and the main window later (main-window); LibreOffice here starts without a splash. convert-save for xlsx uses a helper that reads every sheet and writes the file; the writer copies unchanged parts, so it is cheaper than re-serializing.")
+    lines.append("Notes: startup-offscreen compares our offscreen start to a first drawn window (--screenshot) with LibreOffice's headless first-page render (the nearest thing it has; for the empty case it is a start with no window, so not comparable and left out of the losses list). startup-x is the time to a mapped window on a private X server; the first window mapped (first-window) and the first one of 600x400 or more (main-window), which for ours is the same window. convert-save for xlsx uses a helper that reads every sheet and writes the file; the writer copies unchanged parts, so it is cheaper than re-serializing.")
     lines.append("")
     lines.append("| measure | kind | tier | files | ours med | ours p90 | LO med | LO p90 | ratio med | ratio worst | ours cpu med | LO cpu med | ours RSS MB med/max | LO RSS MB med/max | ours fails | LO fails |")
     lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")

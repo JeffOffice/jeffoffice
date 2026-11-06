@@ -115,6 +115,7 @@ int main(int argc, char **argv)
         jp::startupMark("window shown first");
         jp::initCore();
         jp::startupMark("initCore done");
+        if (files.isEmpty()) jp::traceDrawn(w, "window usable");
         if (files.isEmpty()) first.reset();
     }
     if (!files.isEmpty()) {
@@ -123,6 +124,8 @@ int main(int argc, char **argv)
         if (cli.isSet(shotOpt))
             w->setNotifier([](const QString &, const QString &text) { QTextStream(stderr) << text << "\n"; });
         if (!w->openFile(files.first()) && cli.isSet(shotOpt)) return 1;
+        jp::startupMark("file opened");
+        jp::traceDrawn(w, "file drawn");
         if (guard && w->statusBar()->currentMessage() == jp::openingStatus(files.first())) w->statusBar()->clearMessage();
         for (int i = 1; i < files.size(); ++i) {
             auto *other = new jp::DeckWindow();

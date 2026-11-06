@@ -8,6 +8,8 @@ namespace jp {
 
 // With JP_STARTUP_TRACE set, notes (as startupMark does) when the window is first painted. Nothing happens without it.
 void traceFirstPaint(QWidget *window);
+// With JP_STARTUP_TRACE set, notes when the event loop first has nothing to paint or answer after this call (the window and what was opened in it are drawn).
+void traceDrawn(QWidget *window, const char *what);
 
 // The status line for opening a file: "Opening Budget.xlsx…".
 QString openingStatus(const QString &path);

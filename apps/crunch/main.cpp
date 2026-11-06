@@ -166,6 +166,7 @@ int main(int argc, char **argv)
         jp::startupMark("window shown first");
         jp::initCore();
         jp::startupMark("initCore done");
+        if (files.isEmpty()) jp::traceDrawn(w, "window usable");
     }
     w->show();
     jp::startupMark("window shown");
@@ -173,6 +174,8 @@ int main(int argc, char **argv)
         w->newBlank();
     } else {
         if (!w->openFile(files.first())) w->newBlank();
+        jp::startupMark("file opened");
+        jp::traceDrawn(w, "file drawn");
         for (int i = 1; i < files.size(); ++i) w->openFile(files[i]);   // (each in a window of its own)
     }
     if (first && !files.isEmpty() && w->statusBar()->currentMessage() == jp::openingStatus(files.first())) w->statusBar()->clearMessage();

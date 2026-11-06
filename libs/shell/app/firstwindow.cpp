@@ -5,6 +5,7 @@
 #include <QFileInfo>
 #include <QElapsedTimer>
 #include <QFileOpenEvent>
+#include <QTimer>
 #include <QWindow>
 
 namespace jp {
@@ -61,6 +62,13 @@ bool FirstWindow::eventFilter(QObject *o, QEvent *e)
         return true;
     }
     return QObject::eventFilter(o, e);
+}
+
+void traceDrawn(QWidget *window, const char *what)
+{
+    if (!qEnvironmentVariableIsSet("JP_STARTUP_TRACE")) return;
+    // (a paint is posted after the call, and the zero timer comes after it)
+    QTimer::singleShot(0, window, [what] { startupMark(what); });
 }
 
 } // namespace jp

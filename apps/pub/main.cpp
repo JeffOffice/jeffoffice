@@ -117,11 +117,14 @@ int main(int argc, char **argv)
         jp::startupMark("window shown first");
         jp::initCore();
         jp::startupMark("initCore done");
+        if (files.isEmpty()) jp::traceDrawn(w, "window usable");
         if (files.isEmpty()) first.reset();
     }
     if (!files.isEmpty()) {
         QPointer<jp::MainWindow> guard(w);
         w->openFile(files.first());
+        jp::startupMark("file opened");
+        jp::traceDrawn(w, "file drawn");
         if (guard && w->statusBar()->currentMessage() == jp::openingStatus(files.first())) w->statusBar()->clearMessage();
         for (int i = 1; i < files.size(); ++i) {
             auto *other = new jp::MainWindow();
