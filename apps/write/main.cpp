@@ -98,7 +98,7 @@ int main(int argc, char **argv)
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Documents to open."), QStringLiteral("[files...]"));
     cli.process(app);
     jp::startupMark("cli processed");
-    const bool staged = !cli.isSet(shotOpt) && !qEnvironmentVariableIsSet("JP_SERIAL_START");
+    const bool staged = !cli.isSet(shotOpt) && !qEnvironmentVariableIsSet("JP_SERIAL_START") && !jp::familyMayBeBundled(QApplication::font().family());
     if (!staged) jp::initCore();
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());

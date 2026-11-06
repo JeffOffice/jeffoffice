@@ -1221,6 +1221,16 @@ private Q_SLOTS:
 #endif
     }
 
+    // A window built before the bundled fonts are added is only the same as one built after them if its font is not one of them.
+    void theProgramsFontIsToldFromTheBundledOnes()
+    {
+        QVERIFY(jp::familyMayBeBundled(QStringLiteral("DejaVu Sans")));
+        QVERIFY(jp::familyMayBeBundled(QStringLiteral("open sans")));
+        QVERIFY(jp::familyMayBeBundled(QString()));
+        QVERIFY(!jp::familyMayBeBundled(QStringLiteral("Cantarell")));
+        QVERIFY(!jp::familyMayBeBundled(QStringLiteral("Segoe UI Variable")));
+    }
+
     // The names the table has no font for are asked of the font database by several threads at the start; the answer is the one a single thread gets.
     void missingSubstituteKeysAreTheSameWhenAskedOneByOne()
     {

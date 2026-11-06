@@ -136,5 +136,8 @@ double fontPointFactor();
 // One-time setup shared by the app, tools and tests: fonts, substitutions,
 // and room for the very large pictures print publications use.
 void initCore();
+// Whether a family might be one of the bundled fonts (a file of the fonts folder starts with its name, spaces left out). A window built before the bundled fonts are
+// added gets the same sizes only if the program's own font is not one of them.
+bool familyMayBeBundled(const QString &family);
 
 } // namespace jp

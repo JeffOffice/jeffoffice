@@ -1011,6 +1011,19 @@ void initCore()
     installFontSubstitutions();
 }
 
+bool familyMayBeBundled(const QString &family)
+{
+    const QString name = family.toLower().remove(QLatin1Char(' '));
+    if (name.isEmpty()) return true;
+    for (const QString &d : bundledFontDirs()) {
+        const QDir dir(d);
+        if (!dir.exists()) continue;
+        for (const QString &f : dir.entryList({"*.ttf", "*.otf"}, QDir::Files))
+            if (f.toLower().remove(QLatin1Char(' ')).startsWith(name)) return true;
+    }
+    return false;
+}
+
 const QHash<char16_t, double> *originalLetterWidths(const QString &family, bool bold, bool italic)
 {
     // As for the kerning: the lines are told apart at first, and the widths of a face are read the first time it is asked for.

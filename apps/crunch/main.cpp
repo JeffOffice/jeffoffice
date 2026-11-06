@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     cli.addOptions({shotOpt, sizeOpt, zoomOpt, sheetOpt, stageOpt, tabOpt, insertOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Workbooks to open."), QStringLiteral("[files...]"));
     cli.process(app);
-    const bool staged = !cli.isSet(shotOpt) && !qEnvironmentVariableIsSet("JP_SERIAL_START");
+    const bool staged = !cli.isSet(shotOpt) && !qEnvironmentVariableIsSet("JP_SERIAL_START") && !jp::familyMayBeBundled(QApplication::font().family());
     if (!staged) jp::initCore();
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());

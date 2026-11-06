@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     cli.addOptions({shotOpt, sizeOpt, templOpt, stageOpt, pdfOpt, pdfaOpt, tabOpt, helpTopicOpt, wikiOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Publications to open."), QStringLiteral("[files...]"));
     cli.process(app);
-    const bool staged = !cli.isSet(shotOpt) && !cli.isSet(pdfOpt) && !cli.isSet(wikiOpt) && !qEnvironmentVariableIsSet("JP_SERIAL_START");
+    const bool staged = !cli.isSet(shotOpt) && !cli.isSet(pdfOpt) && !cli.isSet(wikiOpt) && !qEnvironmentVariableIsSet("JP_SERIAL_START") && !jp::familyMayBeBundled(QApplication::font().family());
     if (!staged) jp::initCore();
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
