@@ -565,6 +565,40 @@ private Q_SLOTS:
                  asWrite(w)->view()->selectPicture(0);
                  asWrite(w)->refreshNow();
              }, false},
+            {QStringLiteral("a text art selected"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 write::TextArtSpec spec;
+                 spec.text = QStringLiteral("Art");
+                 write::insertTextArt(*doc, c, spec);
+                 asWrite(w)->view()->selectPicture(0);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("two shapes selected together"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 write::insertShape(*doc, c, QStringLiteral("rect"));
+                 c.setPosition(1);
+                 write::insertShape(*doc, c, QStringLiteral("ellipse"));
+                 asWrite(w)->view()->selectObjects({0, 1});
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a group selected"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 write::insertShape(*doc, c, QStringLiteral("rect"));
+                 c.setPosition(1);
+                 write::insertShape(*doc, c, QStringLiteral("ellipse"));
+                 write::groupObjects(*doc, {0, 1}, {QRectF(100, 100, 80, 60), QRectF(200, 150, 80, 60)});
+                 asWrite(w)->view()->selectPicture(0);
+                 asWrite(w)->refreshNow();
+             }, false},
             {QStringLiteral("a watermark"), [typed](AppWindow *w, bool f) {
                  typed(w, f);
                  write::WatermarkSetup mark;

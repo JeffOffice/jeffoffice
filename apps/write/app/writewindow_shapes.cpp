@@ -15,6 +15,7 @@
 #include "office/drawingml.h"
 #include "office/drawingml_geometry.h"
 #include "render/shapes.h"
+#include "render/textart.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -97,6 +98,26 @@ QVector<GalleryItem> shapeItems(bool replaceable)
     for (const write::ShapeGroup &g : write::shapeGallery()) {
         if (replaceable && g.name == QLatin1String("Lines")) continue;
         for (const QString &preset : g.presets) v << GalleryItem{preset, presetTitle(preset), presetIcon(preset), groupTitle(g.name)};
+    }
+    return v;
+}
+
+// The Text Art gallery: "Aa" drawn in each style.
+QVector<GalleryItem> textArtItems()
+{
+    QVector<GalleryItem> v;
+    for (const TextArtStyle &st : textArtStyles()) {
+        const QString sid = st.id;
+        v << GalleryItem{sid, QCoreApplication::translate("Render", st.name.toUtf8().constData()), drawnIcon([sid](QPainter *p, const QRectF &rc) {
+            TextArtItem w;
+            for (const TextArtStyle &s : textArtStyles())
+                if (s.id == sid) applyTextArtStyle(w, s);
+            w.text = QStringLiteral("Aa");
+            w.rect = QRectF(QPointF(0, 0), rc.size() * 0.8);
+            const QPainterPath path = textArtPath(w, w.rect.size()).translated(rc.topLeft() + QPointF(rc.width() * 0.1, rc.height() * 0.1));
+            p->fillPath(path, w.fill.brush(path.boundingRect(), ColorScheme()));
+            if (!w.stroke.isNone()) p->strokePath(path, QPen(w.stroke.color.resolve(ColorScheme()), std::max(0.5, w.stroke.width / 2)));
+        }), QString()};
     }
     return v;
 }
@@ -190,6 +211,34 @@ void WriteWindow::createShapeActions()
         mk(QStringLiteral("arrange.align.") + QLatin1String(a.id), QCoreApplication::translate("jp::WriteWindow", a.text), a.icon, QKeySequence(), [this, which] { alignSelectedObject(which); });
     }
     mk("arrange.alignToPage", tr("Align to Page"), "file", QKeySequence(), [] {}, true);
+    for (const TextArtTransform &t : textArtTransforms()) {
+        const QString id = t.id;
+        mk(QStringLiteral("shape.textArt.warp.") + id, t.name, "waves", QKeySequence(), [this, id] {
+            m_view->changeSelectedPicture([id](write::WriteDoc &d, int position) { return write::setTextArtWarp(d, position, id); });
+            m_view->setFocus(Qt::OtherFocusReason);
+        }, true);
+    }
+    mk("insert.drawingCanvas", tr("Drawing Canvas"), "frame", QKeySequence(), [this] {
+        if (m_doc) m_view->insertDrawingCanvasObject();
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("shape.pictureFill", tr("Picture Fill…"), "image", QKeySequence(), [this] { fillSelectedShapeWithPicture(); });
+    mk("arrange.group", tr("Group"), "group", QKeySequence(QStringLiteral("Ctrl+Alt+G")), [this] {
+        m_view->groupSelectedObjects();
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    for (const auto &k : {std::pair<const char *, const char *>{"straight", "straightConnector1"}, {"elbow", "bentConnector3"}, {"curved", "curvedConnector3"}}) {
+        const QString preset = QLatin1String(k.second);
+        const QString text = QLatin1String(k.first) == QLatin1String("straight") ? tr("Straight Connector") : QLatin1String(k.first) == QLatin1String("elbow") ? tr("Elbow Connector") : tr("Curved Connector");
+        mk(QStringLiteral("arrange.connect.") + QLatin1String(k.first), text, "route", QKeySequence(), [this, preset] {
+            m_view->connectSelectedObjects(preset);
+            m_view->setFocus(Qt::OtherFocusReason);
+        });
+    }
+    mk("arrange.ungroup", tr("Ungroup"), "ungroup", QKeySequence(QStringLiteral("Ctrl+Alt+Shift+G")), [this] {
+        m_view->ungroupSelectedObject();
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
     struct Gradient {
         const char *id, *text;
         double angle;
@@ -724,6 +773,35 @@ void WriteWindow::changeSelectedPicture()
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
+// Shape Format > Picture Fill: a picture chosen from a file is stretched over the shape or text box.
+void WriteWindow::fillSelectedShapeWithPicture()
+{
+    const int at = m_view->selectedPicture();
+    if (!m_doc || at < 0) return;
+    QString path;
+    if (m_pictureChooser) {
+        path = m_pictureChooser();
+    } else {
+        const QString dir = Settings::get().value(QStringLiteral("dirs/pictures"), QStandardPaths::writableLocation(QStandardPaths::PicturesLocation)).toString();
+        const QString filter = tr("Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg)") + QStringLiteral(";;") + tr("All Files (*)");
+        const QStringList paths = askPicturePaths(this, tr("Picture Fill"), dir, filter, false, nullptr);
+        if (paths.isEmpty()) return;
+        Settings::get().setValue(QStringLiteral("dirs/pictures"), QFileInfo(paths.first()).absolutePath());
+        path = paths.first();
+    }
+    if (path.isEmpty()) return;
+    QByteArray bytes;
+    const write::PictureResult read = write::readPictureFile(path, &bytes);
+    if (read != write::PictureResult::Ok) {
+        statusBar()->showMessage(read == write::PictureResult::TooLarge ? tr("That picture is too large to put in a document.") : tr("%1 can't be opened as a picture.").arg(QFileInfo(path).fileName()), 8000);
+        return;
+    }
+    m_doc->pictureNotice.clear();
+    const bool changed = m_view->changeSelectedPicture([bytes](write::WriteDoc &d, int position) { return write::setShapePictureFill(d, position, bytes) == write::PictureResult::Ok; });
+    if (!changed && m_doc->pictureNotice.isEmpty()) statusBar()->showMessage(tr("%1 can't be used as a fill.").arg(QFileInfo(path).fileName()), 8000);
+    m_view->setFocus(Qt::OtherFocusReason);
+}
+
 void WriteWindow::shapeRibbonParts(RibbonParts &parts)
 {
     chartRibbonParts(parts);
@@ -816,6 +894,11 @@ void WriteWindow::shapeRibbonParts(RibbonParts &parts)
         m->addAction(act("arrange.alignToPage"));
         return m;
     };
+    parts.menus[QStringLiteral("connectShapes")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        for (const char *id : {"straight", "elbow", "curved"}) m->addAction(act(QStringLiteral("arrange.connect.") + QLatin1String(id)));
+        return m;
+    };
     parts.menus[QStringLiteral("shapeGradient")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
         for (const char *id : {"down", "up", "right", "left", "diagonal", "sunset"}) m->addAction(act(QStringLiteral("shape.gradient.") + QLatin1String(id)));
@@ -834,6 +917,36 @@ void WriteWindow::shapeRibbonParts(RibbonParts &parts)
     parts.menus[QStringLiteral("shapeRotate")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
         for (const char *id : {"right", "left", "none"}) m->addAction(act(QStringLiteral("shape.rotate.") + QLatin1String(id)));
+        return m;
+    };
+    parts.widgets[QStringLiteral("textArtButton")] = [this]() -> QWidget * {
+        auto *b = new GalleryButton(icon("case-sensitive"), tr("Text Art"), QSize(30, 30), 6, true);
+        b->setToolTip(tr("Text Art"));
+        b->setItemsProvider([] { return textArtItems(); });
+        connect(b, &GalleryButton::activated, this, [this](const QString &style) {
+            if (m_doc) m_view->insertTextArtObject(style);
+            m_view->setFocus(Qt::OtherFocusReason);
+        });
+        return b;
+    };
+    parts.widgets[QStringLiteral("textArtStyles")] = [this]() -> QWidget * {
+        auto *b = new GalleryButton(icon("case-sensitive"), tr("Text Art Styles"), QSize(30, 30), 6, true);
+        b->setToolTip(tr("Text Art Styles"));
+        b->setItemsProvider([] { return textArtItems(); });
+        connect(b, &GalleryButton::activated, this, [this](const QString &style) {
+            m_view->changeSelectedPicture([style](write::WriteDoc &d, int position) { return write::setTextArtStyle(d, position, style); });
+            m_view->setFocus(Qt::OtherFocusReason);
+        });
+        return b;
+    };
+    parts.menus[QStringLiteral("textArtWarp")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        auto *group = new QActionGroup(m);
+        for (const TextArtTransform &t : textArtTransforms()) {
+            QAction *a = act(QStringLiteral("shape.textArt.warp.") + t.id);
+            group->addAction(a);
+            m->addAction(a);
+        }
         return m;
     };
     parts.widgets[QStringLiteral("shapesButton")] = [this]() -> QWidget * {
@@ -931,14 +1044,17 @@ void WriteWindow::refreshShapeUi()
     const bool body = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
     for (const write::TextBoxDesign &design : write::textBoxDesigns()) act(QStringLiteral("insert.textBox.") + design.id)->setEnabled(body);
     act("insert.equation")->setEnabled(body);
+    act("insert.drawingCanvas")->setEnabled(body);
     for (int i = 0; i < write::equationGallery().size(); ++i) act(QStringLiteral("insert.equation.design.%1").arg(i))->setEnabled(body);
     const int at = m_doc ? m_view->selectedPicture() : -1;
     const write::PictureInfo info = at >= 0 ? write::pictureAt(*m_doc, m_doc->story(), at) : write::PictureInfo();
     const bool shape = info.valid && info.kind != write::DrawnKind::Picture && info.kind != write::DrawnKind::Chart;
     refreshChartUi();
     m_ribbon->setContextVisible(QStringLiteral("Shape Tools"), shape, false);
-    const bool editable = shape && info.editable;
-    const bool drawn = info.valid && info.editable && info.kind != write::DrawnKind::Chart;
+    // (A group is one object: its parts take no fill, line, or words through it; it moves, sizes, orders, and is taken apart.)
+    const bool group = info.valid && write::isGroupAt(*m_doc, at);
+    const bool editable = shape && info.editable && !group;
+    const bool drawn = info.valid && info.editable && info.kind != write::DrawnKind::Chart && !group;
     const bool picture = info.valid && info.kind == write::DrawnKind::Picture && info.editable;
     for (QAction *a : m_actions) {
         const QString name = a->objectName();
@@ -962,6 +1078,29 @@ void WriteWindow::refreshShapeUi()
         act("picture.recolor.none")->setChecked(!info.grayscale && !info.blackWhite);
         act("picture.recolor.gray")->setChecked(info.grayscale);
         act("picture.recolor.bw")->setChecked(info.blackWhite);
+    }
+    {
+        // Group needs two or more objects selected together that can join; Ungroup, a group that can be taken apart.
+        const QVector<int> together = m_doc ? m_view->selectedObjects() : QVector<int>();
+        bool canJoin = together.size() >= 2;
+        for (const int p : together) canJoin = canJoin && write::canGroupObject(*m_doc, p);
+        act("arrange.group")->setEnabled(canJoin);
+        act("arrange.ungroup")->setEnabled(group && info.editable);
+        // Connect needs exactly two objects, each a shape, text box, or picture that floats.
+        bool canConnect = together.size() == 2;
+        for (const int p : together) {
+            const write::PictureInfo pi = write::pictureAt(*m_doc, m_doc->story(), p);
+            canConnect = canConnect && pi.valid && pi.editable && pi.floating && pi.kind != write::DrawnKind::Line && pi.kind != write::DrawnKind::Chart;
+        }
+        for (const char *id : {"straight", "elbow", "curved"}) act(QStringLiteral("arrange.connect.") + QLatin1String(id))->setEnabled(canConnect);
+    }
+    {
+        const std::optional<write::TextArtSpec> art = info.valid && info.editable && m_doc ? write::textArtAt(*m_doc, at) : std::nullopt;
+        for (const TextArtTransform &t : textArtTransforms()) {
+            QAction *a = act(QStringLiteral("shape.textArt.warp.") + t.id);
+            a->setEnabled(art.has_value());
+            a->setChecked(art && art->warp == t.id);
+        }
     }
     act("shape.editText")->setEnabled(editable && write::textBoxText(*m_doc, at).has_value());
     for (const double w : kWeights) act(QStringLiteral("shape.weight.%1").arg(w))->setChecked(drawn && std::abs(info.lineWeight - w) < 0.01);

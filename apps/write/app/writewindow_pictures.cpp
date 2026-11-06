@@ -244,6 +244,8 @@ void WriteWindow::addPictureContextMenu(QMenu &menu)
     for (const char *id : {"inline", "square", "tight", "topBottom", "behind", "front"}) wrap->addAction(act(QStringLiteral("picture.wrap.") + QLatin1String(id)));
     QMenu *order = menu.addMenu(tr("Arrange"));
     for (const char *id : {"front", "forward", "back", "backward"}) order->addAction(act(QStringLiteral("picture.order.") + QLatin1String(id)));
+    menu.addAction(act("arrange.group"));
+    menu.addAction(act("arrange.ungroup"));
     menu.addAction(act("picture.altText"));
     menu.addAction(act("picture.decorative"));
     if (act("shape.editText")->isEnabled()) menu.addAction(act("shape.editText"));

@@ -15,6 +15,8 @@
 #include "core/writedoc.h"
 #include "text/textprops.h"
 #include "office/drawingml.h"
+#include "office/drawingml_write.h"
+#include "render/textart.h"
 #include "office/drawingml_geometry.h"
 #include "office/package.h"
 #include "wml/wml.h"
@@ -44,7 +46,7 @@ namespace {
 
 const char kNs[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
                    "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
-                   "xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"";
+                   "xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\" xmlns:wpg=\"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup\"";
 
 QByteArray makeDocx(const QByteArray &body)
 {
@@ -423,6 +425,73 @@ private Q_SLOTS:
         QTRY_VERIFY(!win.tabShown(QStringLiteral("Shape Format")));
     }
 
+    void ctrlClickSelectsSeveralObjectsGroupAndUngroupWorkFromTheWindowAndADragMovesThemAll()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(1);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse")), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 100, 150));
+        QVERIFY(setPicturePlace(*doc, 1, 300, 250));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        QCOMPARE(win.w.view()->selectedObjects(), (QVector<int>{0}));
+        QVERIFY(!win.w.act("arrange.group")->isEnabled() && !win.w.act("arrange.ungroup")->isEnabled());
+        QRectF first, second;
+        QTRY_VERIFY(win.w.view()->pictureRect(0, &first) && win.w.view()->pictureRect(1, &second));
+        // Ctrl+click on the other adds it; Ctrl+click again takes it out.
+        QTest::mouseClick(win.w.view()->viewport(), Qt::LeftButton, Qt::ControlModifier, second.center().toPoint());
+        QCOMPARE(win.w.view()->selectedObjects(), (QVector<int>{0, 1}));
+        win.w.refreshNow();
+        QVERIFY(win.w.act("arrange.group")->isEnabled());
+        QTest::mouseClick(win.w.view()->viewport(), Qt::LeftButton, Qt::ControlModifier, second.center().toPoint());
+        QCOMPARE(win.w.view()->selectedObjects(), (QVector<int>{0}));
+        QTest::mouseClick(win.w.view()->viewport(), Qt::LeftButton, Qt::ControlModifier, second.center().toPoint());
+        QCOMPARE(win.w.view()->selectedObjects(), (QVector<int>{0, 1}));
+        // A drag of one moves both, in one step.
+        const double firstLeft = pictureAt(*doc, doc->story(), 0).left, secondLeft = pictureAt(*doc, doc->story(), 1).left;
+        const QPoint from = first.center().toPoint();
+        QTest::mousePress(win.w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(win.w.view()->viewport(), from + QPoint(20, 10));
+        QTest::mouseMove(win.w.view()->viewport(), from + QPoint(60, 30));
+        QTest::mouseRelease(win.w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, from + QPoint(60, 30));
+        const double moved = pictureAt(*doc, doc->story(), 0).left - firstLeft;
+        QVERIFY(moved > 20);
+        QVERIFY(std::abs((pictureAt(*doc, doc->story(), 1).left - secondLeft) - moved) < 0.01);
+        QCOMPARE(win.w.view()->selectedObjects(), (QVector<int>{0, 1}));
+        QVERIFY(doc->undo());
+        QVERIFY(std::abs(pictureAt(*doc, doc->story(), 0).left - firstLeft) < 0.01 && std::abs(pictureAt(*doc, doc->story(), 1).left - secondLeft) < 0.01);
+        QVERIFY(doc->redo());
+        // Group from the window: one object, selected; Ungroup puts the two back, both selected.
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        const int length = doc->story()->characterCount();
+        win.w.act("arrange.group")->trigger();
+        QCOMPARE(doc->story()->characterCount(), length - 1);
+        QVERIFY(isGroupAt(*doc, 0));
+        QCOMPARE(win.w.view()->selectedObjects(), (QVector<int>{0}));
+        win.w.refreshNow();
+        QVERIFY(win.w.act("arrange.ungroup")->isEnabled() && !win.w.act("arrange.group")->isEnabled());
+        QVERIFY(!win.w.act("shape.editText")->isEnabled() && !win.w.act("arrange.align.left")->isEnabled());
+        QVERIFY(win.w.act("picture.altText")->isEnabled());
+        win.w.act("arrange.ungroup")->trigger();
+        QCOMPARE(doc->story()->characterCount(), length);
+        QCOMPARE(win.w.view()->selectedObjects(), (QVector<int>{0, 1}));
+        QVERIFY(doc->undo());
+        QVERIFY(isGroupAt(*doc, 0));
+        // Objects in line with the text can't be grouped.
+        QVERIFY(doc->undo());
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Inline));
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        QVERIFY(!win.w.view()->groupSelectedObjects());
+        QVERIFY(!isGroupAt(*doc, 0));
+    }
+
     // ---------------------------------------------------------------- picture adjustments
     void aPictureIsCutKeepingItsScaleAndTheCutIsSavedDrawnAndReset()
     {
@@ -519,6 +588,409 @@ private Q_SLOTS:
         QCOMPARE(pictureAt(*back, back->story(), 7).alignDown, QStringLiteral("center"));
         QVERIFY(doc->undo());
         QVERIFY(pictureAt(*doc, doc->story(), 7).alignDown.isEmpty() || pictureAt(*doc, doc->story(), 7).alignDown != QLatin1String("center"));
+    }
+
+    void aGroupOfAFileIsDrawnAsItsMembersWhereTheGroupPutsThem()
+    {
+        auto member = [](int id, int x, int cx, const QByteArray &rgb) {
+            return "<wps:wsp><wps:cNvPr id=\"" + QByteArray::number(id) + "\" name=\"Part " + QByteArray::number(id) + "\"/><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"" + QByteArray::number(x) +
+                   "\" y=\"0\"/><a:ext cx=\"" + QByteArray::number(cx) + "\" cy=\"1270000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val=\"" + rgb +
+                   "\"/></a:solidFill></wps:spPr><wps:bodyPr/></wps:wsp>";
+        };
+        // The members' units are twice the group's: a member at 2,540,000 is 1,270,000 EMU (100 points) from the group's corner.
+        const QByteArray body = "<w:p><w:r><w:drawing><wp:anchor distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\" simplePos=\"0\" relativeHeight=\"251659264\" behindDoc=\"0\" locked=\"0\" layoutInCell=\"1\" allowOverlap=\"1\">"
+                                "<wp:simplePos x=\"0\" y=\"0\"/><wp:positionH relativeFrom=\"page\"><wp:posOffset>1270000</wp:posOffset></wp:positionH><wp:positionV relativeFrom=\"page\"><wp:posOffset>1270000</wp:posOffset></wp:positionV>"
+                                "<wp:extent cx=\"2540000\" cy=\"635000\"/><wp:wrapNone/><wp:docPr id=\"9\" name=\"Group 9\"/><wp:cNvGraphicFramePr/>"
+                                "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup\"><wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/>"
+                                "<a:ext cx=\"2540000\" cy=\"635000\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"5080000\" cy=\"1270000\"/></a:xfrm></wpg:grpSpPr>" +
+                                member(10, 0, 2540000, "FF0000") + member(11, 2540000, 2540000, "0000FF") + "</wpg:wgp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p><w:p><w:r><w:t>Text</w:t></w:r></w:p>";
+        QByteArray docx = makeDocx(body);
+        // (The group's prefix is declared on the document.)
+        auto doc = open(docx);
+        QVERIFY(doc);
+        ItemList filled;
+        for (const auto &it : objectsOfPage(*doc))
+            if (it->type() == ItemType::Shape && !it->fill.isNone()) filled.push_back(it);
+        QCOMPARE(filled.size(), 2);
+        std::sort(filled.begin(), filled.end(), [](const ItemPtr &a, const ItemPtr &b) { return a->rect.left() < b->rect.left(); });
+        QCOMPARE(filled[0]->fill.color.rgbValue(), QColor(255, 0, 0));
+        QCOMPARE(filled[1]->fill.color.rgbValue(), QColor(0, 0, 255));
+        QCOMPARE(filled[0]->rect.size(), QSizeF(100, 50));
+        QVERIFY(std::abs((filled[1]->rect.left() - filled[0]->rect.left()) - 100) < 0.01);
+        QVERIFY(std::abs(filled[0]->rect.left() - 100) < 0.01);
+        QVERIFY(isGroupAt(*doc, 0));
+        const PictureInfo info = pictureAt(*doc, doc->story(), 0);
+        QVERIFY(info.valid && info.floating);
+        QCOMPARE(info.width, 200.0);
+        QCOMPARE(info.height, 50.0);
+        // The group is one object: the fill of a part is not changed through it, and its words are not read as a box's.
+        QVERIFY(!setShapeFill(*doc, 0, QStringLiteral("00FF00")));
+        QVERIFY(!textBoxText(*doc, 0).has_value());
+        // Moving it moves every part; it is saved as it was.
+        QVERIFY(setPicturePlace(*doc, 0, 200, 300));
+        QVERIFY(setPictureAltText(*doc, 0, QStringLiteral("Two boxes")));
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY(saved.contains("<wpg:wgp>") && saved.contains("<wps:cNvPr id=\"11\""));
+        QVERIFY(saved.contains("descr=\"Two boxes\""));
+        auto back = open(doc->toDocx());
+        QVERIFY(isGroupAt(*back, 0));
+        ItemList moved;
+        for (const auto &it : objectsOfPage(*back))
+            if (it->type() == ItemType::Shape && !it->fill.isNone()) moved.push_back(it);
+        QCOMPARE(moved.size(), 2);
+        std::sort(moved.begin(), moved.end(), [](const ItemPtr &a, const ItemPtr &b) { return a->rect.left() < b->rect.left(); });
+        QVERIFY(std::abs(moved[0]->rect.left() - 200) < 0.01 && std::abs(moved[0]->rect.top() - 300) < 0.01);
+    }
+
+    void shapesAreGroupedIntoOneObjectThatIsSavedAndTakenApartInOneStepEach()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(8);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse")), PictureResult::Ok);
+        QVERIFY(canGroupObject(*doc, 7) && canGroupObject(*doc, 8));
+        const PictureInfo one = pictureAt(*doc, doc->story(), 7), two = pictureAt(*doc, doc->story(), 8);
+        const QRectF r1(100, 100, one.width, one.height), r2(250, 150, two.width, two.height);
+        const double width = 250 + two.width - 100, height = std::max(100 + one.height, 150 + two.height) - 100;
+        const int length = doc->story()->characterCount();
+        QVERIFY(!groupObjects(*doc, {7}, {r1}));
+        QVERIFY(!groupObjects(*doc, {7, 7}, {r1, r1}));
+        QVERIFY(!groupObjects(*doc, {7, 2}, {r1, r1}));
+        int at = -1;
+        QVERIFY(groupObjects(*doc, {8, 7}, {r2, r1}, &at));
+        QCOMPARE(at, 7);
+        QCOMPARE(doc->story()->characterCount(), length - 1);
+        QVERIFY(isGroupAt(*doc, 7));
+        QVERIFY(canGroupObject(*doc, 7));   // (a group joins by its parts)
+        PictureInfo info = pictureAt(*doc, doc->story(), 7);
+        QVERIFY(info.valid && info.floating && info.editable);
+        QVERIFY(std::abs(info.width - width) < 0.01 && std::abs(info.height - height) < 0.01);
+        QVERIFY(info.placeIsOffset && std::abs(info.left - 100) < 0.01 && std::abs(info.top - 100) < 0.01);
+        int filled = 0;
+        for (const auto &it : objectsOfPage(*doc)) filled += it->type() == ItemType::Shape && !it->fill.isNone();
+        QCOMPARE(filled, 2);
+        // The group is sized as one: the parts follow.
+        QVERIFY(setPictureSize(*doc, 7, width * 2, height));
+        ItemList sized;
+        for (const auto &it : objectsOfPage(*doc))
+            if (it->type() == ItemType::Shape && !it->fill.isNone()) sized.push_back(it);
+        std::sort(sized.begin(), sized.end(), [](const ItemPtr &a, const ItemPtr &b) { return a->rect.left() < b->rect.left(); });
+        QVERIFY(std::abs(sized[0]->rect.width() - one.width * 2) < 0.01);
+        QVERIFY(doc->undo());
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY(saved.contains("<wpg:wgp>") && saved.contains("<wpg:grpSpPr>") && saved.contains("<a:chExt"));
+        QCOMPARE(saved.count("<wps:cNvPr"), 2);
+        QVERIFY(saved.contains("xmlns:wpg="));
+        auto back = open(doc->toDocx());
+        QVERIFY(isGroupAt(*back, 7));
+        // Taking it apart puts the parts where they were.
+        QVector<int> parts;
+        QVERIFY(!ungroupObject(*doc, 2, QPointF(0, 0)));
+        QVERIFY(ungroupObject(*doc, 7, QPointF(100, 100), &parts));
+        QCOMPARE(parts, (QVector<int>{7, 8}));
+        QCOMPARE(doc->story()->characterCount(), length);
+        QVERIFY(!isGroupAt(*doc, 7) && !isGroupAt(*doc, 8));
+        // (The parts come back in the order of their layers.)
+        PictureInfo a = pictureAt(*doc, doc->story(), 7), b = pictureAt(*doc, doc->story(), 8);
+        if (a.left > b.left) std::swap(a, b);
+        QVERIFY(std::abs(a.left - 100) < 0.01 && std::abs(a.top - 100) < 0.01 && std::abs(a.width - one.width) < 0.01 && std::abs(a.height - one.height) < 0.01);
+        QVERIFY(std::abs(b.left - 250) < 0.01 && std::abs(b.top - 150) < 0.01 && std::abs(b.height - two.height) < 0.01);
+        QVERIFY(!documentXml(doc->toDocx()).contains("wpg:wgp"));
+        // One step each way.
+        QVERIFY(doc->undo());
+        QVERIFY(isGroupAt(*doc, 7));
+        QCOMPARE(doc->story()->characterCount(), length - 1);
+        QVERIFY(doc->undo());
+        QVERIFY(!isGroupAt(*doc, 7));
+        QCOMPARE(doc->story()->characterCount(), length);
+        QVERIFY(doc->redo());
+        QVERIFY(isGroupAt(*doc, 7));
+    }
+
+    void aGroupJoinedWithAnotherObjectGivesItsPartsToTheNewGroup()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        for (int i = 0; i < 3; ++i) {
+            c.setPosition(7 + i);
+            QCOMPARE(insertShape(*doc, c, i == 1 ? QStringLiteral("ellipse") : QStringLiteral("rect")), PictureResult::Ok);
+        }
+        const PictureInfo s7 = pictureAt(*doc, doc->story(), 7), s8 = pictureAt(*doc, doc->story(), 8), s9 = pictureAt(*doc, doc->story(), 9);
+        QVERIFY(groupObjects(*doc, {7, 8}, {QRectF(100, 100, s7.width, s7.height), QRectF(110 + s7.width, 100, s8.width, s8.height)}));
+        QVERIFY(canGroupObject(*doc, 7) && canGroupObject(*doc, 8));
+        const PictureInfo group = pictureAt(*doc, doc->story(), 7);
+        QVERIFY(std::abs(group.width - (s7.width + 10 + s8.width)) < 0.01);
+        int at = -1;
+        const double below = 100 + group.height + 50;
+        QVERIFY(groupObjects(*doc, {7, 8}, {QRectF(100, 100, group.width, group.height), QRectF(100, below, s9.width, s9.height)}, &at));
+        const QByteArray saved = documentXml(doc->toDocx());
+        QCOMPARE(saved.count("<wpg:wgp>"), 1);
+        QCOMPARE(saved.count("<wps:cNvPr"), 3);
+        const PictureInfo info = pictureAt(*doc, doc->story(), 7);
+        QVERIFY(std::abs(info.width - std::max(group.width, s9.width)) < 0.01 && std::abs(info.height - (group.height + 50 + s9.height)) < 0.01);
+        QVector<int> parts;
+        QVERIFY(ungroupObject(*doc, 7, QPointF(100, 100), &parts));
+        QCOMPARE(parts.size(), 3);
+        double lowest = 0;
+        for (const int p : parts) lowest = std::max(lowest, pictureAt(*doc, doc->story(), p).top);
+        QVERIFY(std::abs(lowest - below) < 0.01);
+    }
+
+    void textArtIsPutInDrawnWarpedStyledAndChangedOneStepEach()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        TextArtSpec spec;
+        spec.text = QStringLiteral("Hello\nWorld");
+        spec.styleId = textArtStyles().first().id;
+        spec.size = 40;
+        QCOMPARE(insertTextArt(*doc, c, spec), PictureResult::Ok);
+        const PictureInfo info = pictureAt(*doc, doc->story(), 7);
+        QVERIFY(info.valid && info.editable && info.floating);
+        auto artOfPage = [](WriteDoc &d) -> std::shared_ptr<TextArtItem> {
+            const ItemList items = objectsOfPage(d);
+            return items.size() == 1 && items[0]->type() == ItemType::TextArt ? std::static_pointer_cast<TextArtItem>(items[0]) : nullptr;
+        };
+        auto art = artOfPage(*doc);
+        QVERIFY(art);
+        QCOMPARE(art->text, QStringLiteral("Hello\nWorld"));
+        QCOMPARE(art->font, textArtStyles().first().font);
+        QVERIFY(art->size > 39 && art->size < 41);
+        std::optional<TextArtSpec> now = textArtAt(*doc, 7);
+        QVERIFY(now);
+        QCOMPARE(now->text, QStringLiteral("Hello\nWorld"));
+        // Its words are the words of a box; a plain text box is no text art.
+        QCOMPARE(textBoxText(*doc, 7).value_or(QStringList()), (QStringList{"Hello", "World"}));
+        auto boxed = textDoc({"Before after"});
+        QTextCursor b(boxed->story());
+        b.setPosition(7);
+        QCOMPARE(insertTextBox(*boxed, b, textBoxDesigns().first()), PictureResult::Ok);
+        QVERIFY(!textArtAt(*boxed, 7).has_value() && !setTextArtWarp(*boxed, 7, QStringLiteral("plain")));
+        // A warp: any but the plain one, written as the standard's name.
+        QString wave;
+        for (const TextArtTransform &t : textArtTransforms())
+            if (office::textWarpPreset(t.id) != QLatin1String("textPlain") && wave.isEmpty()) wave = t.id;
+        QVERIFY(!wave.isEmpty());
+        QVERIFY(setTextArtWarp(*doc, 7, wave));
+        QVERIFY(!setTextArtWarp(*doc, 7, wave));
+        QVERIFY(!setTextArtWarp(*doc, 7, QStringLiteral("no such warp")));
+        QCOMPARE(textArtAt(*doc, 7)->warp, wave);
+        art = artOfPage(*doc);
+        QVERIFY(art);
+        QCOMPARE(art->transform_, wave);
+        // Another style changes the letters' font and look; the warp and the words stay.
+        QString other;
+        for (const TextArtStyle &st : textArtStyles())
+            if (st.font != textArtStyles().first().font && other.isEmpty()) other = st.id;
+        QVERIFY(!other.isEmpty());
+        QVERIFY(setTextArtStyle(*doc, 7, other));
+        QVERIFY(!setTextArtStyle(*doc, 7, QStringLiteral("no such style")));
+        art = artOfPage(*doc);
+        QVERIFY(art);
+        QCOMPARE(art->text, QStringLiteral("Hello\nWorld"));
+        QCOMPARE(art->transform_, wave);
+        for (const TextArtStyle &st : textArtStyles())
+            if (st.id == other) QCOMPARE(art->font, st.font);
+        // New words through Edit Text stay text art.
+        QVERIFY(setTextBoxText(*doc, 7, {"Third"}));
+        art = artOfPage(*doc);
+        QVERIFY(art);
+        QCOMPARE(art->text, QStringLiteral("Third"));
+        // Saved as a box that names the warp; read back the same.
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY(x.contains(QByteArray("<a:prstTxWarp prst=\"") + office::textWarpPreset(wave).toLatin1() + "\""));
+        QVERIFY(x.contains("fromWordArt=\"1\"") && x.contains("<w14:textFill>"));
+        auto back = open(doc->toDocx());
+        art = artOfPage(*back);
+        QVERIFY(art);
+        QCOMPARE(art->text, QStringLiteral("Third"));
+        QCOMPARE(art->transform_, wave);
+        QVERIFY(doc->undo());
+        QVERIFY(doc->undo());
+        QCOMPARE(artOfPage(*doc)->text, QStringLiteral("Hello\nWorld"));
+    }
+
+    void aConnectorIsGluedToTwoShapesAndRunsAgainWhenOneMovesAndLetsGoWhenMovedByHand()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(8);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse")), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 7, 100, 100));
+        QVERIFY(setPicturePlace(*doc, 8, 400, 300));
+        const PictureInfo a = pictureAt(*doc, doc->story(), 7), b = pictureAt(*doc, doc->story(), 8);
+        const QRectF ra(100, 100, a.width, a.height), rb(400, 300, b.width, b.height);
+        const int length = doc->story()->characterCount();
+        int at = -1;
+        QVERIFY(connectObjects(*doc, 7, ra, 7, ra) == PictureResult::Refused);
+        QVERIFY(connectObjects(*doc, 7, ra, 8, rb, QStringLiteral("rect")) == PictureResult::Refused);
+        QCOMPARE(connectObjects(*doc, 7, ra, 8, rb, QStringLiteral("bentConnector3"), &at), PictureResult::Ok);
+        QCOMPARE(at, 9);
+        QCOMPARE(doc->story()->characterCount(), length + 1);
+        QVERIFY(isConnectorGlued(*doc, 9) && !isConnectorGlued(*doc, 7));
+        QByteArray x = documentXml(doc->toDocx());
+        QVERIFY(x.contains("<wps:cNvCnPr><a:stCxn id=\"") && x.contains("<a:endCxn id=\""));
+        // It runs from a site of the rectangle (its right or its bottom, the ones that face the ellipse) to a site of the ellipse.
+        QRegularExpression startSite(QStringLiteral("<a:stCxn id=\"[0-9]+\" idx=\"([0-9]+)\"/>"));
+        const int site = QRegularExpression(startSite).match(QString::fromUtf8(x)).captured(1).toInt();
+        QVERIFY(site == 2 || site == 3);
+        QVERIFY(pictureAt(*doc, doc->story(), 9).kind == DrawnKind::Line);
+        auto back = open(doc->toDocx());
+        QVERIFY(isConnectorGlued(*back, 9));
+        // The rectangle moves: the connector's frame follows it (the view does this after a drag).
+        const double before = pictureAt(*doc, doc->story(), 9).height;
+        QVERIFY(setPicturePlace(*doc, 7, 100, 20));
+        const QRectF moved(100, 20, a.width, a.height);
+        QCOMPARE(rerouteConnectors(*doc, {{7, moved}}, [&](int position, QRectF *r) {
+                     if (position != 8) return false;
+                     *r = rb;
+                     return true;
+                 }),
+                 1);
+        QVERIFY(std::abs(pictureAt(*doc, doc->story(), 9).height - before) > 1);
+        QVERIFY(isConnectorGlued(*doc, 9));
+        // Nothing glued to an object that moves: nothing runs.
+        QCOMPARE(rerouteConnectors(*doc, {{9, QRectF(0, 0, 10, 10)}}, [](int, QRectF *) { return false; }), 0);
+        // Moved by hand, the connector lets go.
+        QVERIFY(setPicturePlace(*doc, 9, 10, 10));
+        QVERIFY(!isConnectorGlued(*doc, 9));
+        QVERIFY(!documentXml(doc->toDocx()).contains("<a:stCxn"));
+        // A line is not joined to anything.
+        c.setPosition(10);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("line")), PictureResult::Ok);
+        QVERIFY(connectObjects(*doc, 10, QRectF(0, 0, 50, 1), 8, rb) == PictureResult::Refused);
+    }
+
+    void connectAndADragThatMovesAShapeWorkFromTheWindow()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(1);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 100, 150));
+        QVERIFY(setPicturePlace(*doc, 1, 350, 150));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        QVERIFY(!win.w.act("arrange.connect.straight")->isEnabled());
+        QRectF first, second;
+        QTRY_VERIFY(win.w.view()->pictureRect(0, &first) && win.w.view()->pictureRect(1, &second));
+        QTest::mouseClick(win.w.view()->viewport(), Qt::LeftButton, Qt::ControlModifier, second.center().toPoint());
+        win.w.refreshNow();
+        QVERIFY(win.w.act("arrange.connect.straight")->isEnabled() && win.w.act("arrange.connect.elbow")->isEnabled());
+        const int length = doc->story()->characterCount();
+        win.w.act("arrange.connect.straight")->trigger();
+        QCOMPARE(doc->story()->characterCount(), length + 1);
+        QCOMPARE(win.w.view()->selectedPicture(), 2);
+        QVERIFY(isConnectorGlued(*doc, 2));
+        // A straight connector between two rectangles side by side is level, and as long as the gap.
+        const PictureInfo link = pictureAt(*doc, doc->story(), 2);
+        QVERIFY(link.height < 1 && link.width > 100);
+        // Dragging the first rectangle down moves the connector's end with it.
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        QTRY_VERIFY(win.w.view()->pictureRect(0, &first));
+        const QPoint from = first.center().toPoint();
+        QTest::mousePress(win.w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(win.w.view()->viewport(), from + QPoint(5, 30));
+        QTest::mouseMove(win.w.view()->viewport(), from + QPoint(10, 80));
+        QTest::mouseRelease(win.w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, from + QPoint(10, 80));
+        QVERIFY(isConnectorGlued(*doc, 2));
+        QVERIFY(pictureAt(*doc, doc->story(), 2).height > 20);
+    }
+
+    void aDrawingCanvasIsAFrameGroupThatShapesJoinAndItIsOneStepThatUndoes()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        const int length = doc->story()->characterCount();
+        QCOMPARE(insertDrawingCanvas(*doc, c), PictureResult::Ok);
+        QCOMPARE(doc->story()->characterCount(), length + 1);
+        QVERIFY(isGroupAt(*doc, 7));
+        PictureInfo info = pictureAt(*doc, doc->story(), 7);
+        QVERIFY(info.valid && info.floating && info.editable);
+        QVERIFY(std::abs(info.width - 432) < 0.01 && std::abs(info.height - 216) < 0.01);
+        QCOMPARE(info.wrap, PictureWrap::TopAndBottom);
+        // The frame is drawn: a rectangle with a line and no fill.
+        int outlined = 0;
+        for (const auto &it : objectsOfPage(*doc)) outlined += it->type() == ItemType::Shape && it->fill.isNone() && !it->stroke.isNone();
+        QCOMPARE(outlined, 1);
+        c.setPosition(8);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("star5")), PictureResult::Ok);
+        int at = -1;
+        QVERIFY(groupObjects(*doc, {7, 8}, {QRectF(72, 100, 432, 216), QRectF(150, 150, 60, 60)}, &at));
+        QCOMPARE(documentXml(doc->toDocx()).count("<wps:cNvPr"), 2);
+        info = pictureAt(*doc, doc->story(), 7);
+        QVERIFY(std::abs(info.width - 432) < 0.01 && std::abs(info.height - 216) < 0.01);
+        auto back = open(doc->toDocx());
+        QVERIFY(isGroupAt(*back, 7));
+        QVERIFY(doc->undo());
+        QVERIFY(doc->undo());
+        QCOMPARE(doc->story()->characterCount(), length + 1);
+        QVERIFY(doc->undo());
+        QCOMPARE(doc->story()->characterCount(), length);
+        QVERIFY(doc->redo());
+        QVERIFY(isGroupAt(*doc, 7));
+    }
+
+    void aShapeAndATextBoxAreFilledWithAPictureSavedDrawnAndReadBack()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        QVERIFY(!pictureAt(*doc, doc->story(), 7).pictureFill);
+        QCOMPARE(setShapePictureFill(*doc, 7, pngOf(40, 40)), PictureResult::Ok);
+        PictureInfo info = pictureAt(*doc, doc->story(), 7);
+        QVERIFY(info.pictureFill && info.valid && info.editable && info.kind == DrawnKind::Shape);
+        auto fillOfPage = [](WriteDoc &d) {
+            const ItemList items = objectsOfPage(d);
+            return items.size() == 1 ? items[0]->fill : Fill::none();
+        };
+        Fill fill = fillOfPage(*doc);
+        QCOMPARE(fill.type, Fill::Picture);
+        QVERIFY(!fill.imageId.isEmpty());
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY(x.contains("<a:blipFill") && x.contains("<a:blip r:embed=\""));
+        auto back = open(doc->toDocx());
+        QVERIFY(pictureAt(*back, back->story(), 7).pictureFill);
+        QCOMPARE(fillOfPage(*back).type, Fill::Picture);
+        // A solid color takes the picture off; the picture comes back with Undo.
+        QVERIFY(setShapeFill(*doc, 7, QStringLiteral("00FF00")));
+        QVERIFY(!pictureAt(*doc, doc->story(), 7).pictureFill);
+        QCOMPARE(fillOfPage(*doc).type, Fill::Solid);
+        QVERIFY(doc->undo());
+        QVERIFY(pictureAt(*doc, doc->story(), 7).pictureFill);
+        QVERIFY(doc->undo());
+        QVERIFY(!pictureAt(*doc, doc->story(), 7).pictureFill);
+        QVERIFY(doc->redo());
+        QVERIFY(pictureAt(*doc, doc->story(), 7).pictureFill);
+        // A text box keeps its words under the picture; a picture, and bytes that are no picture, are refused.
+        auto boxed = textDoc({"Before after"});
+        QTextCursor b(boxed->story());
+        b.setPosition(7);
+        QCOMPARE(insertTextBox(*boxed, b, textBoxDesigns().first()), PictureResult::Ok);
+        QCOMPARE(setShapePictureFill(*boxed, 7, pngOf(30, 20)), PictureResult::Ok);
+        QVERIFY(pictureAt(*boxed, boxed->story(), 7).pictureFill);
+        QVERIFY(textBoxText(*boxed, 7).has_value());
+        auto reread = open(boxed->toDocx());
+        QVERIFY(pictureAt(*reread, reread->story(), 7).pictureFill);
+        QVERIFY(textBoxText(*reread, 7).has_value());
+        auto picture = textDoc({"Before after"});
+        QTextCursor p(picture->story());
+        p.setPosition(7);
+        QCOMPARE(insertPicture(*picture, p, pngOf(40, 40)), PictureResult::Ok);
+        QCOMPARE(setShapePictureFill(*picture, 7, pngOf(40, 40)), PictureResult::Refused);
+        QCOMPARE(setShapePictureFill(*doc, 7, QByteArray("not a picture")), PictureResult::Unreadable);
     }
 
     void aShapeTakesAGradientFill()

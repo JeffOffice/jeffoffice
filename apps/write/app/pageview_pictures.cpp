@@ -51,9 +51,144 @@ int PageView::selectedPicture() const
 void PageView::selectPicture(int position)
 {
     if (!m_doc || m_hf.active || m_note.active || !isDrawnObjectAt(m_doc->story(), position)) return;
+    m_moreObjects.clear();
     m_cursor.setPosition(position);
     m_cursor.setPosition(position + 1, QTextCursor::KeepAnchor);
     caretMoved();
+}
+
+QVector<int> PageView::selectedObjects() const
+{
+    const int first = selectedPicture();
+    if (first < 0) return {};
+    QVector<int> out{first};
+    if (m_doc && m_moreObjectsRevision == m_doc->story()->revision())
+        for (const int p : m_moreObjects)
+            if (p != first && isDrawnObjectAt(m_doc->story(), p)) out.push_back(p);
+    return out;
+}
+
+bool PageView::toggleObjectInSelection(int position)
+{
+    const int first = selectedPicture();
+    if (first < 0 || !m_doc || m_hf.active || m_note.active || !isDrawnObjectAt(m_doc->story(), position) || position == first) return false;
+    QVector<int> now = selectedObjects();
+    now.removeAll(first);
+    if (now.contains(position)) now.removeAll(position);
+    else now.push_back(position);
+    std::sort(now.begin(), now.end());
+    m_moreObjects = now;
+    m_moreObjectsRevision = m_doc->story()->revision();
+    viewport()->update();
+    Q_EMIT caretChanged();
+    return true;
+}
+
+void PageView::selectObjects(const QVector<int> &positions)
+{
+    if (positions.isEmpty()) return;
+    selectPicture(positions.first());
+    m_moreObjects = positions.mid(1);
+    m_moreObjectsRevision = m_doc ? m_doc->story()->revision() : -1;
+    viewport()->update();
+}
+
+bool PageView::groupSelectedObjects()
+{
+    if (!m_doc || m_readOnly) return false;
+    const QVector<int> positions = selectedObjects();
+    if (positions.size() < 2) {
+        Q_EMIT notice(tr("Select two or more objects first: click one, then hold Ctrl and click the others."));
+        return false;
+    }
+    QVector<QRectF> rects;
+    int page = -1;
+    for (const int p : positions) {
+        QRectF onPage;
+        int at = 0;
+        if (!pictureAt(*m_doc, m_doc->story(), p).floating || !floatingPictureRect(p, &onPage, &at)) {
+            Q_EMIT notice(tr("An object in line with the text can't be grouped. Choose another wrap for it first."));
+            return false;
+        }
+        if (page >= 0 && at != page) {
+            Q_EMIT notice(tr("Objects on different pages can't be grouped."));
+            return false;
+        }
+        page = at;
+        rects.push_back(onPage);
+    }
+    m_doc->pictureNotice.clear();
+    int made = -1;
+    if (!groupObjects(*m_doc, positions, rects, &made)) {
+        Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? tr("These objects can't be grouped. A chart, a group, and an object in line with the text can't join a group.") : m_doc->pictureNotice);
+        return false;
+    }
+    selectPicture(made);
+    Q_EMIT contentChanged();
+    viewport()->update();
+    Q_EMIT caretChanged();
+    return true;
+}
+
+bool PageView::connectSelectedObjects(const QString &preset)
+{
+    if (!m_doc || m_readOnly) return false;
+    const QVector<int> positions = selectedObjects();
+    if (positions.size() != 2) {
+        Q_EMIT notice(tr("Select two shapes first: click one, then hold Ctrl and click the other."));
+        return false;
+    }
+    QRectF rects[2];
+    int pages[2] = {0, 0};
+    for (int i = 0; i < 2; ++i)
+        if (!pictureAt(*m_doc, m_doc->story(), positions[i]).floating || !floatingPictureRect(positions[i], &rects[i], &pages[i])) {
+            Q_EMIT notice(tr("An object in line with the text can't be joined. Choose another wrap for it first."));
+            return false;
+        }
+    if (pages[0] != pages[1]) {
+        Q_EMIT notice(tr("Shapes on different pages can't be joined."));
+        return false;
+    }
+    m_doc->pictureNotice.clear();
+    int made = -1;
+    if (connectObjects(*m_doc, positions[0], rects[0], positions[1], rects[1], preset, &made) != PictureResult::Ok) {
+        Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? tr("These can't be joined. A line, a chart, and an object in line with the text can't be joined.") : m_doc->pictureNotice);
+        return false;
+    }
+    selectPicture(made);
+    Q_EMIT contentChanged();
+    viewport()->update();
+    Q_EMIT caretChanged();
+    return true;
+}
+
+void PageView::rerouteGluedConnectors(const QVector<std::pair<int, QRectF>> &moved)
+{
+    if (!m_doc || moved.isEmpty()) return;
+    rerouteConnectors(*m_doc, moved, [this](int position, QRectF *rect) {
+        int page = 0;
+        return floatingPictureRect(position, rect, &page);
+    });
+}
+
+bool PageView::ungroupSelectedObject()
+{
+    const int position = selectedPicture();
+    if (!m_doc || m_readOnly || position < 0 || !isGroupAt(*m_doc, position)) return false;
+    QRectF onPage;
+    int page = 0;
+    if (!floatingPictureRect(position, &onPage, &page)) return false;
+    QVector<int> parts;
+    m_doc->pictureNotice.clear();
+    if (!ungroupObject(*m_doc, position, onPage.topLeft(), &parts)) {
+        Q_EMIT notice(tr("This group can't be taken apart: it is turned, or has another group in it."));
+        return false;
+    }
+    selectObjects(parts);
+    Q_EMIT contentChanged();
+    viewport()->update();
+    Q_EMIT caretChanged();
+    return true;
 }
 
 bool PageView::inlinePictureRect(int position, const PictureInfo &info, QRectF *rect)
@@ -159,6 +294,15 @@ bool PageView::beginPictureDrag(QMouseEvent *e)
     if (!m_doc || m_readOnly || m_hf.active || m_note.active || e->button() != Qt::LeftButton) return false;
     const QPoint pos = e->position().toPoint();
     int target = selectedPicture();
+    // Ctrl+click on another object adds it to the selection (or takes it out).
+    if (target >= 0 && (e->modifiers() & Qt::ControlModifier)) {
+        const int other = pictureAtPoint(pos);
+        if (other >= 0 && other != target) {
+            toggleObjectInSelection(other);
+            m_pictureDrag = PictureDrag();
+            return true;
+        }
+    }
     PictureHandle handle = target >= 0 ? pictureHandleAt(pos) : PictureHandle::None;
     if (handle == PictureHandle::None) {
         target = pictureAtPoint(pos);
@@ -242,7 +386,32 @@ void PageView::endPictureDrag(const QPoint &pos)
         if (d.floating) {
             if (m_pictureDragPage >= 0 && m_pictureDragPage < m_rects.size()) {
                 const QRectF pr = m_rects[m_pictureDragPage].translated(-d.scrollAtStart.x(), -d.scrollAtStart.y());
+                // The others selected with it move the same way, in the same step.
+                const QVector<int> together = selectedObjects();
+                QVector<std::pair<int, QRectF>> others;
+                for (const int p : together) {
+                    QRectF onPage;
+                    int otherPage = 0;
+                    if (p != d.position && pictureAt(*m_doc, m_doc->story(), p).floating && floatingPictureRect(p, &onPage, &otherPage)) others.push_back({p, onPage});
+                }
+                const WriteDoc::StepGroup step(*m_doc);
+                const QRectF startOnPage((d.start.left() - pr.left()) / s, (d.start.top() - pr.top()) / s, d.start.width() / s, d.start.height() / s);
                 changed = setPicturePlace(*m_doc, d.position, (d.now.left() - pr.left()) / s, (d.now.top() - pr.top()) / s);
+                const QPointF delta((d.now.left() - d.start.left()) / s, (d.now.top() - d.start.top()) / s);
+                for (const auto &o : others) setPicturePlace(*m_doc, o.first, o.second.left() + delta.x(), o.second.top() + delta.y());
+                if (changed) {
+                    QVector<std::pair<int, QRectF>> moved{{d.position, startOnPage.translated(delta)}};
+                    for (const auto &o : others) moved.push_back({o.first, o.second.translated(delta)});
+                    rerouteGluedConnectors(moved);
+                }
+                if (changed && !others.isEmpty()) {
+                    QVector<int> keep = together;
+                    keep.removeAll(d.position);
+                    keep.push_front(d.position);
+                    selectPicture(d.position);
+                    m_moreObjects = keep.mid(1);
+                    m_moreObjectsRevision = -2;   // (set again below, once the text has changed)
+                }
             }
         } else {
             const int to = positionAt(hitAt(pos));
@@ -259,13 +428,25 @@ void PageView::endPictureDrag(const QPoint &pos)
             const QRectF pr = m_rects[m_pictureDragPage].translated(-d.scrollAtStart.x(), -d.scrollAtStart.y());
             place = QPointF((d.now.left() - pr.left()) / s, (d.now.top() - pr.top()) / s);
         }
+        const WriteDoc::StepGroup step(*m_doc);
         changed = setPictureBox(*m_doc, d.position, d.now.width() / s, d.now.height() / s, place);
+        if (changed && d.floating && m_pictureDragPage >= 0 && m_pictureDragPage < m_rects.size()) {
+            const QRectF pr = m_rects[m_pictureDragPage].translated(-d.scrollAtStart.x(), -d.scrollAtStart.y());
+            rerouteGluedConnectors({{d.position, QRectF((d.now.left() - pr.left()) / s, (d.now.top() - pr.top()) / s, d.now.width() / s, d.now.height() / s)}});
+        }
     }
     if (!changed && !m_doc->pictureNotice.isEmpty()) Q_EMIT notice(m_doc->pictureNotice);
     if (changed) {
+        const bool keepOthers = m_moreObjectsRevision == -2;
+        const QVector<int> others = m_moreObjects;
         selectPicture(selectAt);
+        if (keepOthers) {
+            m_moreObjects = others;
+            m_moreObjectsRevision = m_doc->story()->revision();
+        }
         Q_EMIT contentChanged();
     }
+    m_moreObjectsRevision = m_moreObjectsRevision == -2 ? -1 : m_moreObjectsRevision;
     Q_EMIT caretChanged();
 }
 
@@ -281,6 +462,10 @@ void PageView::paintPictureHandles(QPainter &p)
     p.setBrush(Qt::NoBrush);
     p.setPen(QPen(accent, 1.5));
     p.drawRect(r);
+    for (const int other : selectedObjects()) {
+        QRectF o;
+        if (other != position && pictureRect(other, &o)) p.drawRect(o);
+    }
     if (m_pictureDrag.active && m_pictureDrag.moved) {
         p.setPen(QPen(accent, 1.5, Qt::DashLine));
         p.drawRect(m_pictureDrag.now);
@@ -349,6 +534,41 @@ bool PageView::insertShapeObject(const QString &preset)
         return true;
     }
     Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "That shape can't be put here.") : m_doc->pictureNotice);
+    return false;
+}
+
+bool PageView::insertDrawingCanvasObject()
+{
+    if (!m_doc) return false;
+    m_doc->pictureNotice.clear();
+    QTextCursor c = m_cursor;
+    const PictureResult result = insertDrawingCanvas(*m_doc, c);
+    if (result == PictureResult::Ok) {
+        m_cursor = c;
+        selectPicture(c.position() - 1);
+        Q_EMIT contentChanged();
+        return true;
+    }
+    Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "A drawing canvas can't be put here.") : m_doc->pictureNotice);
+    return false;
+}
+
+bool PageView::insertTextArtObject(const QString &styleId)
+{
+    if (!m_doc) return false;
+    m_doc->pictureNotice.clear();
+    QTextCursor c = m_cursor;
+    TextArtSpec spec;
+    spec.styleId = styleId;
+    spec.text = QCoreApplication::translate("jp::write::Pictures", "Your Text Here");
+    const PictureResult result = insertTextArt(*m_doc, c, spec);
+    if (result == PictureResult::Ok) {
+        m_cursor = c;
+        selectPicture(c.position() - 1);
+        Q_EMIT contentChanged();
+        return true;
+    }
+    Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "That Text Art can't be put here.") : m_doc->pictureNotice);
     return false;
 }
 

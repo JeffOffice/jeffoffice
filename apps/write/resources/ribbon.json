@@ -304,6 +304,10 @@
               "keytip": "SH"
             },
             {
+              "large": "insert.drawingCanvas",
+              "keytip": "DK"
+            },
+            {
               "large": "insert.icons",
               "keytip": "IC"
             },
@@ -407,6 +411,10 @@
                 "insert.textBox.band",
                 "insert.textBox.note"
               ]
+            },
+            {
+              "widget": "textArtButton",
+              "keytip": "WA"
             },
             {
               "large": "insert.textFromFile",
@@ -2106,6 +2114,23 @@
               "menu": "@objectAlign"
             },
             {
+              "large": "arrange.group",
+              "keytip": "GP"
+            },
+            {
+              "large": "arrange.ungroup",
+              "keytip": "UP"
+            },
+            {
+              "large": {
+                "id": "ribbon.connectShapes",
+                "text": "Connect",
+                "icon": "route"
+              },
+              "keytip": "CN",
+              "menu": "@connectShapes"
+            },
+            {
               "large": {
                 "id": "ribbon.pictureRotate",
                 "text": "Rotate",
@@ -2232,6 +2257,29 @@
               },
               "keytip": "GR",
               "menu": "@shapeGradient"
+            },
+            {
+              "large": "shape.pictureFill",
+              "keytip": "PF"
+            }
+          ]
+        },
+        {
+          "name": "Text Art",
+          "keytip": "ZW",
+          "items": [
+            {
+              "widget": "textArtStyles",
+              "keytip": "TY"
+            },
+            {
+              "large": {
+                "id": "ribbon.textArtWarp",
+                "text": "Text Warp",
+                "icon": "waves"
+              },
+              "keytip": "TW",
+              "menu": "@textArtWarp"
             }
           ]
         },
@@ -2265,6 +2313,23 @@
               },
               "keytip": "AL",
               "menu": "@objectAlign"
+            },
+            {
+              "large": "arrange.group",
+              "keytip": "GP"
+            },
+            {
+              "large": "arrange.ungroup",
+              "keytip": "UP"
+            },
+            {
+              "large": {
+                "id": "ribbon.pictureConnectShapes",
+                "text": "Connect",
+                "icon": "route"
+              },
+              "keytip": "CN",
+              "menu": "@connectShapes"
             },
             {
               "large": "picture.altText",

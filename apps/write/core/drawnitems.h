@@ -42,6 +42,9 @@ void showAsMissing(PictureItem &pic);
 // colors and styles where the document has a theme. A shape that is a line is a LineItem (its ends from the frame's top left corner); any other is a ShapeItem or a TextItem
 // whose frame is Shape's size; a shape the reader gives as several faces is its first face. None when the shape can't be read.
 ItemPtr wspItem(const office::wml::Shape &s, const office::Theme *theme);
+// A text box that is Text Art (its shape properties name a warp of the text, one of the standard's), as the Text Art the pages draw: its words (a paragraph a line), and the look of
+// its first letters (font, size, bold, italic, fill and outline), with the warp as the text art transform. None for any other shape.
+ItemPtr textArtItem(const office::wml::Shape &s);
 // The preset a shape is drawn as: its own kind's (an arc, a bracket) where the drawing format numbers it, else a rectangle or an ellipse.
 QString presetOf(const office::wml::Shape &s);
 // Makes the item the shape of the shape's own kind (see presetOf). An arc of the drawing format is the quarter of an ellipse twice its frame's size, from the

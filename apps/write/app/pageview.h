@@ -212,6 +212,20 @@ public:
     // The place in the text of the selected picture, -1 for none.
     int selectedPicture() const;
     void selectPicture(int position);
+    // The drawn objects selected together: the one selected (selectedPicture) and those added with Ctrl+click, in the order of the text; the same as selectedPicture alone where
+    // none was added. The added ones go when the text changes or another object is selected on its own.
+    QVector<int> selectedObjects() const;
+    // Adds the object at `position` to the selection, or takes it out when it is in; the first one selected stays the selected picture. False where it can't be (none selected, or
+    // not a drawn object).
+    bool toggleObjectInSelection(int position);
+    // Selects these objects together (the first is the selected picture).
+    void selectObjects(const QVector<int> &positions);
+    // Group joins the selected objects into one (two or more, each set at a place on one page), Ungroup takes the selected group apart; each is one step, and false with a notice
+    // when it can't be done.
+    bool groupSelectedObjects();
+    // Connect joins the two objects selected with a glued connector of this kind (see connectObjects); the connector is then selected.
+    bool connectSelectedObjects(const QString &preset);
+    bool ungroupSelectedObject();
     // The picture's rectangle in the window; false where it is not on a page that is drawn.
     bool pictureRect(int position, QRectF *rect);
     // The handle (or the picture itself) at a point of the window; and the point a handle is at.
@@ -228,6 +242,10 @@ public:
     bool insertShapeObject(const QString &preset);
     bool insertTextBoxObject(const TextBoxDesign &design);
     bool insertChartObject(ChartForm form);
+    // A Text Art in a style of the gallery at the cursor (its words to start from, the program's); it is selected when it is in.
+    bool insertTextArtObject(const QString &styleId);
+    // A drawing canvas at the cursor (a frame for shapes that go together); it is selected when it is in.
+    bool insertDrawingCanvasObject();
     // The picture's size, wrap, and alt text, with the notice told when the change cannot be made.
     bool changeSelectedPicture(const std::function<bool(WriteDoc &, int)> &change);
 
@@ -480,6 +498,10 @@ private:
     } m_reviewCache;
     const ReviewCache::PageMarks &reviewMarksOf(int storyFrom, int lo, int hi);
     int m_pictureDragPage = -1;
+    // After a drag or a resize: every connector glued to the objects moved runs between its sites again (one step with the change).
+    void rerouteGluedConnectors(const QVector<std::pair<int, QRectF>> &moved);
+    QVector<int> m_moreObjects;   // the objects added to the selection, and the revision of the text they were chosen in
+    int m_moreObjectsRevision = -1;
 
     WriteDoc *m_doc = nullptr;
     QTextCursor m_cursor;

@@ -5,6 +5,8 @@
 #include "office/chart.h"
 #include "office/chart_write.h"
 #include "office/drawingml_color.h"
+#include "office/drawingml_write.h"
+#include "render/textart.h"
 #include "office/theme.h"
 #include "sheet/chartmake.h"
 #include "core/writeprops.h"
@@ -304,7 +306,7 @@ bool parseDrawing(const QByteArray &raw, Model *m)
         }
     }
     const bool isChart = out.graphic.contains("drawingml/2006/chart") && out.graphic.contains("<c:chart");
-    const bool isShape = out.graphic.contains("wsp") && !out.graphic.contains("blip");
+    const bool isShape = out.graphic.contains("wsp") && !out.graphic.contains("<pic:pic");
     // (A line may have no height or no width, but not neither.)
     if (out.graphic.isEmpty() || !(out.graphic.contains("blip") || isShape || isChart) || (isShape ? out.cx < 0 || out.cy < 0 || out.cx + out.cy <= 0 : out.cx <= 0 || out.cy <= 0)) return false;
     if (out.docPr.isEmpty()) out.docPr = {{"id", "\"1\""}, {"name", "\"Picture\""}};
@@ -535,7 +537,7 @@ PictureResult insertPrepared(WriteDoc &doc, QTextCursor &c, const Prepared &p, c
 }
 
 // Gives the character after `position` the picture `change` makes of its model: the element written again and the form the pages show, as one change of its format.
-bool changePicture(WriteDoc &doc, int position, const std::function<bool(Model &)> &change)
+bool changePicture(WriteDoc &doc, int position, const std::function<bool(Model &)> &change, bool groupsToo = false)
 {
     QTextDocument *story = doc.story();
     if (position < 0 || position + 1 > story->characterCount() - 1) return false;
@@ -545,6 +547,8 @@ bool changePicture(WriteDoc &doc, int position, const std::function<bool(Model &
     if (!drawingAtomOf(cf, &atom)) return false;
     Model m;
     if (!parseDrawing(atom.raw, &m)) return false;
+    // (A group is changed as a whole by the few commands that say so: its size, place, wrap, layer, and alt text.)
+    if (!groupsToo && m.graphic.contains("<wpg:wgp")) return false;
     const Model before = m;
     if (!change(m)) return false;
     atom.raw = drawingXml(m);
@@ -566,6 +570,8 @@ bool changePicture(WriteDoc &doc, int position, const std::function<bool(Model &
     doc.keepObjectsForTheHistory();
     return true;
 }
+
+QByteArray withoutGlue(const QByteArray &graphic);
 
 // The graphic's own size, the frame's `a:ext` (the first with a size): written again for a picture of another size.
 QByteArray graphicWithSize(const QByteArray &graphic, qint64 cx, qint64 cy)
@@ -682,6 +688,7 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
         }
         return info;
     }
+    info.pictureFill = !s.fillEmbed.isEmpty();
     if (const ItemPtr look = wspItem(s, doc.theme())) {
         if (const auto *shape = look->type() == ItemType::Shape ? static_cast<const ShapeItem *>(look.get()) : nullptr) info.preset = shape->shape;
         auto rgb = [](const ColorRef &c) { return c.rgbValue().isValid() ? c.rgbValue().name(QColor::HexRgb).mid(1).toUpper() : QString(); };
@@ -754,8 +761,10 @@ bool setPictureBox(WriteDoc &doc, int position, double width, double height, con
             m.posH = posH;
             m.posV = posV;
         }
+        // (A connector moved or sized by hand lets go of the shapes it was joined to.)
+        if (changed) m.graphic = withoutGlue(m.graphic);
         return changed;
-    });
+    }, true);
 }
 
 bool setPictureSize(WriteDoc &doc, int position, double width, double height) { return setPictureBox(doc, position, width, height, std::nullopt); }
@@ -777,7 +786,7 @@ bool setPictureWrap(WriteDoc &doc, int position, PictureWrap wrap)
         }
         m.wrap = wrap;
         return true;
-    });
+    }, true);
 }
 
 namespace {
@@ -910,7 +919,7 @@ bool setPictureOrder(WriteDoc &doc, int position, PictureOrder order)
             if (m.relativeHeight == h.second && m.wrap == was) return false;
             m.relativeHeight = h.second;
             return true;
-        });
+        }, true);
     }
     return changed;
 }
@@ -923,7 +932,7 @@ bool setPictureAltText(WriteDoc &doc, int position, const QString &alt)
         if (text.isEmpty()) removeAttribute(&m.docPr, "descr");
         else setAttribute(&m.docPr, "descr", quote(text));
         return true;
-    });
+    }, true);
 }
 
 bool setPictureDecorative(WriteDoc &doc, int position, bool decorative)
@@ -950,7 +959,7 @@ bool setPictureDecorative(WriteDoc &doc, int position, bool decorative)
         // A picture that adds nothing has no description (a screen reader skips it).
         removeAttribute(&m.docPr, "descr");
         return true;
-    });
+    }, true);
 }
 
 bool setPicturePlace(WriteDoc &doc, int position, double pageX, double pageY)
@@ -979,6 +988,7 @@ bool movePictureInText(WriteDoc &doc, int position, int to)
 
 namespace {
 
+constexpr int kMostGroupMembers = 50;
 constexpr double kMostBoxTextLength = 50000;
 constexpr int kMostBoxParagraphs = 2000;
 
@@ -1123,7 +1133,7 @@ QByteArray geometryElement(const QString &preset) { return "<a:prstGeom prst=\""
 bool changeSpPrOf(WriteDoc &doc, int position, bool shapesOnly, const std::function<bool(SpPr *, const Model &)> &edit)
 {
     return changePicture(doc, position, [&](Model &m) {
-        const bool shape = m.graphic.contains("wsp") && !m.graphic.contains("blip");
+        const bool shape = m.graphic.contains("wsp") && !m.graphic.contains("<pic:pic");
         if (shapesOnly && !shape) return false;
         SpPr sp;
         if (!splitSpPr(m.graphic, &sp)) return false;
@@ -1180,7 +1190,7 @@ QByteArray shapeGraphic(const QString &preset, qint64 cx, qint64 cy, const Shape
 }
 
 // A shape or text box at the cursor from its graphic.
-PictureResult insertShapeGraphic(WriteDoc &doc, QTextCursor &c, const QByteArray &graphic, double width, double height, PictureWrap wrap, const QString &namePrefix)
+PictureResult insertShapeGraphic(WriteDoc &doc, QTextCursor &c, const QByteArray &graphic, double width, double height, PictureWrap wrap, const QString &namePrefix, bool newerText = false)
 {
     if (c.document() != doc.story()) {
         doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put in a header, a footer, or a note yet.");
@@ -1198,6 +1208,8 @@ PictureResult insertShapeGraphic(WriteDoc &doc, QTextCursor &c, const QByteArray
     if (m.wrap == PictureWrap::BehindText) m.relativeHeight = 251658240 - 1;
     m.frameProps = "<wp:cNvGraphicFramePr/>";
     m.declarations = {{"xmlns:wps", quote("http://schemas.microsoft.com/office/word/2010/wordprocessingShape")}, {"xmlns:w", quote("http://schemas.openxmlformats.org/wordprocessingml/2006/main")}};
+    if (newerText) m.declarations.push_back({"xmlns:w14", quote("http://schemas.microsoft.com/office/word/2010/wordml")});
+    if (graphic.contains("<wpg:wgp")) m.declarations.push_back({"xmlns:wpg", quote("http://schemas.microsoft.com/office/word/2010/wordprocessingGroup")});
     m.graphic = graphic;
     Inline atom;
     atom.kind = Inline::RunAtom;
@@ -1402,7 +1414,7 @@ std::optional<QStringList> textBoxText(const WriteDoc &doc, int position)
     Inline atom;
     if (!drawingAtomOf(formatAfter(story, position), &atom)) return std::nullopt;
     Model m;
-    if (!parseDrawing(atom.raw, &m)) return std::nullopt;
+    if (!parseDrawing(atom.raw, &m) || m.graphic.contains("<wpg:wgp")) return std::nullopt;
     const BoxContent box = boxContentOf(m.graphic);
     if (box.begin < 0 || !box.simple) return std::nullopt;
     return box.paragraphs.isEmpty() ? QStringList{QString()} : box.paragraphs;
@@ -1469,6 +1481,153 @@ bool setShapeLine(WriteDoc &doc, int position, const QString &rgb, double weight
         const QByteArray now = lineElement(before, color, weight, dash);
         if (before == now) return false;
         setSlot(sp, SlotLine, "ln", now);
+        return true;
+    });
+}
+
+PictureResult setShapePictureFill(WriteDoc &doc, int position, const QByteArray &bytes)
+{
+    Prepared p;
+    if (const PictureResult r = prepare(bytes, &p); r != PictureResult::Ok) return r;
+    // (Only a plain shape or text box takes a picture fill; the check comes before the picture is kept.)
+    {
+        Inline atom;
+        Model m;
+        if (!drawingAtomOf(formatAfter(doc.story(), position), &atom) || !parseDrawing(atom.raw, &m) || !m.graphic.contains("wsp") || m.graphic.contains("<pic:pic") || m.graphic.contains("<wpg:wgp")) return PictureResult::Refused;
+    }
+    bool added = false;
+    const QString rid = doc.addMedia(p.bytes, p.extension, p.contentType, &added);
+    if (added && doc.mediaBytes() > doc.mediaLimit) {
+        doc.removeMedia(rid);
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.");
+        return PictureResult::TooLarge;
+    }
+    const bool changed = changeSpPrOf(doc, position, true, [&](SpPr *sp, const Model &) {
+        setSlot(sp, SlotFill, "blipFill", "<a:blipFill rotWithShape=\"1\"><a:blip r:embed=\"" + rid.toUtf8() + "\"/><a:stretch><a:fillRect/></a:stretch></a:blipFill>");
+        return true;
+    });
+    if (!changed) {
+        if (added) doc.removeMedia(rid);
+        return PictureResult::Refused;
+    }
+    return PictureResult::Ok;
+}
+
+// ---- Text Art
+
+namespace {
+
+QByteArray rgbOf(const ColorRef &c, const QByteArray &fallback)
+{
+    const QColor q = c.rgbValue();
+    return q.isValid() ? q.name(QColor::HexRgb).mid(1).toUpper().toLatin1() : fallback;
+}
+
+// The graphic of a text art box of this size: its words in the style's letters (a run of the style's font, fill, and outline), and the warp the text is bent into.
+QByteArray textArtGraphic(const TextArtSpec &spec, qint64 cx, qint64 cy)
+{
+    const TextArtStyle *style = nullptr;
+    for (const TextArtStyle &st : textArtStyles())
+        if (st.id == spec.styleId) style = &st;
+    TextArtStyle plain;
+    if (!style) {
+        for (const TextArtStyle &st : textArtStyles())
+            if (!style && st.id == QLatin1String("plain")) style = &st;
+        if (!style) style = textArtStyles().isEmpty() ? &plain : &textArtStyles().first();
+    }
+    auto n = [](qint64 v) { return QByteArray::number(v); };
+    const Fill &f = style->fill;
+    const QByteArray fill = rgbOf(f.type == Fill::Gradient && !f.stops.isEmpty() ? f.stops.first().color : f.color, "1F1F1F");
+    const bool outlined = !style->stroke.isNone() && style->stroke.width > 0;
+    const QByteArray outline = rgbOf(style->stroke.color, fill);
+    const qint64 half = qint64(std::llround(std::clamp(spec.size, 6.0, 400.0) * 2));
+    const QString font = style->font.isEmpty() ? QStringLiteral("Archivo Black") : style->font;
+    const QByteArray face = attribute(font, 80);
+    QByteArray rPr = "<w:rPr><w:rFonts w:ascii=\"" + face + "\" w:hAnsi=\"" + face + "\" w:cs=\"" + face + "\"/>";
+    if (style->bold) rPr += "<w:b/><w:bCs/>";
+    if (style->italic) rPr += "<w:i/><w:iCs/>";
+    rPr += "<w:color w:val=\"" + fill + "\"/><w:sz w:val=\"" + n(half) + "\"/><w:szCs w:val=\"" + n(half) + "\"/>";
+    if (outlined)
+        rPr += "<w14:textOutline w14:w=\"" + n(qint64(std::llround(std::clamp(style->stroke.width, 0.25, 20.0) * kEmuPerPoint))) + "\" w14:cap=\"flat\" w14:cmpd=\"sng\" w14:algn=\"ctr\"><w14:solidFill><w14:srgbClr w14:val=\"" +
+               outline + "\"/></w14:solidFill><w14:prstDash w14:val=\"solid\"/><w14:round/></w14:textOutline>";
+    rPr += "<w14:textFill><w14:solidFill><w14:srgbClr w14:val=\"" + fill + "\"/></w14:solidFill></w14:textFill></w:rPr>";
+    QByteArray content = "<w:txbxContent>";
+    const QStringList lines = (spec.text.isEmpty() ? QStringLiteral("Your Text Here") : spec.text).split(QLatin1Char('\n'));
+    for (const QString &line : lines) content += "<w:p><w:pPr><w:jc w:val=\"center\"/></w:pPr><w:r>" + rPr + "<w:t xml:space=\"preserve\">" + attribute(line, 400) + "</w:t></w:r></w:p>";
+    content += "</w:txbxContent>";
+    const QString transform = spec.warp.isEmpty() ? style->transform : spec.warp;
+    QByteArray g = "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr txBox=\"1\"/>";
+    g += "<wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + n(cx) + "\" cy=\"" + n(cy) + "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></wps:spPr>";
+    g += "<wps:txbx>" + content + "</wps:txbx>";
+    g += "<wps:bodyPr rot=\"0\" vert=\"horz\" wrap=\"none\" lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\" fromWordArt=\"1\" anchor=\"ctr\" anchorCtr=\"0\"><a:prstTxWarp prst=\"" +
+         office::textWarpPreset(transform).toLatin1() + "\"><a:avLst/></a:prstTxWarp><a:noAutofit/></wps:bodyPr>";
+    return g + "</wps:wsp></a:graphicData></a:graphic>";
+}
+
+} // namespace
+
+PictureResult insertTextArt(WriteDoc &doc, QTextCursor &c, const TextArtSpec &spec, PictureWrap wrap)
+{
+    const double size = std::clamp(spec.size, 6.0, 400.0);
+    // (About the width of its words, a little more than the letters take; a line of it is as high as its size and a half.)
+    const QStringList lines = (spec.text.isEmpty() ? QStringLiteral("Your Text Here") : spec.text).split(QLatin1Char('\n'));
+    int longest = 1;
+    for (const QString &line : lines) longest = std::max<int>(longest, int(line.size()));
+    const double width = std::clamp(longest * size * 0.62 + size, 30.0, 468.0), height = std::clamp(lines.size() * size * 1.5, 20.0, 600.0);
+    TextArtSpec made = spec;
+    made.size = size;
+    const QSizeF box(width, height);
+    return insertShapeGraphic(doc, c, textArtGraphic(made, emuOf(box.width()), emuOf(box.height())), box.width(), box.height(), wrap, QStringLiteral("Text Art"), true);
+}
+
+std::optional<TextArtSpec> textArtAt(const WriteDoc &doc, int position)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return std::nullopt;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return std::nullopt;
+    const QVector<Shape> shapes = readShapes(atom.raw);
+    if (shapes.isEmpty() || shapes.first().wsp.contains("<wpg:wgp")) return std::nullopt;
+    const ItemPtr item = textArtItem(shapes.first());
+    if (!item || item->type() != ItemType::TextArt) return std::nullopt;
+    const auto *art = static_cast<const TextArtItem *>(item.get());
+    TextArtSpec spec;
+    spec.text = art->text;
+    spec.warp = art->transform_;
+    spec.size = art->size;
+    return spec;
+}
+
+bool setTextArtStyle(WriteDoc &doc, int position, const QString &styleId)
+{
+    const std::optional<TextArtSpec> now = textArtAt(doc, position);
+    bool known = false;
+    for (const TextArtStyle &st : textArtStyles()) known = known || st.id == styleId;
+    if (!now || !known) return false;
+    return changePicture(doc, position, [&](Model &m) {
+        TextArtSpec spec = *now;
+        spec.styleId = styleId;
+        const QByteArray graphic = textArtGraphic(spec, m.cx, m.cy);
+        if (graphic == m.graphic) return false;
+        m.graphic = graphic;
+        return true;
+    });
+}
+
+bool setTextArtWarp(WriteDoc &doc, int position, const QString &transform)
+{
+    const std::optional<TextArtSpec> now = textArtAt(doc, position);
+    bool known = false;
+    for (const TextArtTransform &t : textArtTransforms()) known = known || t.id == transform;
+    if (!now || !known) return false;
+    return changePicture(doc, position, [&](Model &m) {
+        static const QRegularExpression warp(QStringLiteral("<a:prstTxWarp prst=\"[A-Za-z0-9]*\""));
+        QString text = QString::fromUtf8(m.graphic);
+        const QRegularExpressionMatch found = warp.match(text);
+        const QString now = QStringLiteral("<a:prstTxWarp prst=\"%1\"").arg(office::textWarpPreset(transform));
+        if (!found.hasMatch() || found.captured() == now) return false;
+        text.replace(found.capturedStart(), found.capturedLength(), now);
+        m.graphic = text.toUtf8();
         return true;
     });
 }
@@ -1569,6 +1728,612 @@ bool setShapePreset(WriteDoc &doc, int position, const QString &preset)
     });
 }
 
+
+// ---- Groups
+
+namespace {
+
+const char kGroupUri[] = "http://schemas.microsoft.com/office/word/2010/wordprocessingGroup";
+const char kShapeUri[] = "http://schemas.microsoft.com/office/word/2010/wordprocessingShape";
+
+// The element start tag of `raw` without the prefix declarations (a group's drawing declares them all).
+QByteArray withoutDeclarations(const QByteArray &raw)
+{
+    const qsizetype end = raw.indexOf('>');
+    if (end < 0) return raw;
+    static const QRegularExpression declared(QStringLiteral(" xmlns(:[A-Za-z0-9]+)?=\"[^\"]*\""));
+    return QString::fromUtf8(raw.left(end)).remove(declared).toUtf8() + raw.mid(end);
+}
+
+// The one element (wps:wsp or pic:pic) a plain shape's or picture's graphic holds, as written.
+bool memberElement(const QByteArray &graphic, QByteArray *element, bool *picture)
+{
+    XmlTree t;
+    if (!t.parse("<x " + declarations() + ">" + graphic + "</x>", nullptr)) return false;
+    const int g = t.firstChild(t.root());
+    if (g < 0 || t.localName(g) != "graphic") return false;
+    const int data = t.firstChild(g);
+    if (data < 0 || t.localName(data) != "graphicData") return false;
+    const int e = t.firstChild(data);
+    if (e < 0 || t.next(e) >= 0) return false;
+    const QByteArray name = t.localName(e);
+    if (name != "wsp" && name != "pic") return false;
+    *element = withoutDeclarations(t.raw(e));
+    *picture = name == "pic";
+    return true;
+}
+
+// The element with its frame set to an offset and a size (EMU) in its group's units; the turn and flips it had stay.
+QByteArray withFrame(const QByteArray &element, qint64 x, qint64 y, qint64 cx, qint64 cy)
+{
+    SpPr sp;
+    if (!splitSpPr(element, &sp)) return {};
+    QByteArray attrs;
+    for (const SpPr::Child &c : sp.children)
+        if (c.slot == SlotXfrm) attrs = written(attributesOf(c.raw.left(c.raw.indexOf('>') + 1)));
+    auto n = [](qint64 v) { return QByteArray::number(v); };
+    setSlot(&sp, SlotXfrm, "xfrm", "<a:xfrm" + attrs + "><a:off x=\"" + n(x) + "\" y=\"" + n(y) + "\"/><a:ext cx=\"" + n(cx) + "\" cy=\"" + n(cy) + "\"/></a:xfrm>");
+    return joinSpPr(element, sp);
+}
+
+// Whether a drawing is one that can be a member of a group: set at a place, a plain shape, text box, line, or picture (a group joins by its parts).
+bool plainMember(const Model &m)
+{
+    if (!m.floating || m.graphic.contains("wpg:wgp") || m.graphic.contains("c:chart")) return false;
+    QByteArray element;
+    bool picture = false;
+    return memberElement(m.graphic, &element, &picture);
+}
+
+qint64 emuRound(double points) { return qint64(std::llround(std::clamp(points, -kMostPictureOffset, kMostPictureOffset + 20000) * kEmuPerPoint)); }
+
+// A part of a group: its element as written, its place and size in EMU from the group's top left corner (the group's own units worked through), and its names.
+struct GroupPart {
+    QByteArray element, id, name, descr;
+    qint64 x = 0, y = 0, cx = 0, cy = 0;
+    bool picture = false;
+};
+
+// The parts of the group a model holds. False for a group that is turned or flipped, one with a group or another kind of object inside it, or one with no usable parts.
+bool partsOfGroup(const Model &g, QVector<GroupPart> *out)
+{
+    if (!g.floating || !g.graphic.contains("<wpg:wgp")) return false;
+    XmlTree t;
+    if (!t.parse("<x " + declarations() + ">" + g.graphic + "</x>", nullptr)) return false;
+    const int ga = t.firstChild(t.root());
+    const int data = ga >= 0 ? t.firstChild(ga) : -1;
+    const int group = data >= 0 ? t.firstChild(data) : -1;
+    if (group < 0 || t.localName(group) != "wgp") return false;
+    double kx = 1, ky = 1, chx = 0, chy = 0;
+    for (int k = t.firstChild(group); k >= 0; k = t.next(k)) {
+        if (t.localName(k) != "grpSpPr") continue;
+        for (int x = t.firstChild(k); x >= 0; x = t.next(x)) {
+            if (t.localName(x) != "xfrm") continue;
+            if (t.has(x, "rot") && t.attr(x, "rot").toDouble() != 0) return false;
+            if (t.attr(x, "flipH") == QLatin1String("1") || t.attr(x, "flipV") == QLatin1String("1")) return false;
+            double ex = 0, ey = 0, cx = 0, cy = 0;
+            for (int o = t.firstChild(x); o >= 0; o = t.next(o)) {
+                const QByteArray local = t.localName(o);
+                if (local == "ext") { ex = t.attr(o, "cx").toDouble(); ey = t.attr(o, "cy").toDouble(); }
+                else if (local == "chExt") { cx = t.attr(o, "cx").toDouble(); cy = t.attr(o, "cy").toDouble(); }
+                else if (local == "chOff") { chx = t.attr(o, "x").toDouble(); chy = t.attr(o, "y").toDouble(); }
+            }
+            if (cx > 0 && cy > 0) { kx = ex / cx; ky = ey / cy; }
+        }
+    }
+    QVector<GroupPart> parts;
+    for (int c = t.firstChild(group); c >= 0; c = t.next(c)) {
+        const QByteArray local = t.localName(c);
+        if (local != "wsp" && local != "pic") {
+            if (local == "grpSp" || local == "wgp" || local == "graphicFrame" || local == "contentPart") return false;
+            continue;
+        }
+        GroupPart p;
+        p.picture = local == "pic";
+        p.element = withoutDeclarations(t.raw(c));
+        SpPr sp;
+        if (!splitSpPr(p.element, &sp)) return false;
+        bool framed = false;
+        for (const SpPr::Child &ch : sp.children) {
+            if (ch.slot != SlotXfrm) continue;
+            XmlTree x;
+            if (!x.parse("<x " + declarations() + ">" + ch.raw + "</x>", nullptr)) return false;
+            const int xf = x.firstChild(x.root());
+            for (int o = xf >= 0 ? x.firstChild(xf) : -1; o >= 0; o = x.next(o)) {
+                if (x.localName(o) == "off") {
+                    p.x = qint64(std::llround((x.attr(o, "x").toDouble() - chx) * kx));
+                    p.y = qint64(std::llround((x.attr(o, "y").toDouble() - chy) * ky));
+                    framed = true;
+                } else if (x.localName(o) == "ext") {
+                    p.cx = qint64(std::llround(x.attr(o, "cx").toDouble() * kx));
+                    p.cy = qint64(std::llround(x.attr(o, "cy").toDouble() * ky));
+                }
+            }
+        }
+        if (!framed || p.cx < 0 || p.cy < 0 || p.cx + p.cy <= 0) return false;
+        const int nv = p.picture ? t.firstChild(c) : c;
+        for (int k = nv >= 0 ? t.firstChild(nv) : -1; k >= 0; k = t.next(k))
+            if (t.localName(k) == "cNvPr") {
+                p.name = t.attr(k, "name").toUtf8();
+                p.descr = t.attr(k, "descr").toUtf8();
+                p.id = t.attr(k, "id").toUtf8();
+            }
+        parts.push_back(p);
+    }
+    if (parts.isEmpty() || parts.size() > kMostGroupMembers) return false;
+    *out = parts;
+    return true;
+}
+
+} // namespace
+
+// ---- Connectors
+
+namespace {
+
+// The connection sites of a shape in the order the drawing format counts them: for an ellipse eight, from the top and counterclockwise; for any other shape (as a rectangle has them) four,
+// the top, the left, the bottom, and the right.
+QVector<QPointF> connectionSites(const QRectF &r, const QString &preset)
+{
+    const QPointF c = r.center();
+    if (preset == QLatin1String("ellipse")) {
+        const double dx = r.width() / 2 * std::cos(M_PI / 4), dy = r.height() / 2 * std::sin(M_PI / 4);
+        return {QPointF(c.x(), r.top()), QPointF(c.x() - dx, c.y() - dy), QPointF(r.left(), c.y()), QPointF(c.x() - dx, c.y() + dy),
+                QPointF(c.x(), r.bottom()), QPointF(c.x() + dx, c.y() + dy), QPointF(r.right(), c.y()), QPointF(c.x() + dx, c.y() - dy)};
+    }
+    return {QPointF(c.x(), r.top()), QPointF(r.left(), c.y()), QPointF(c.x(), r.bottom()), QPointF(r.right(), c.y())};
+}
+
+// The ids (a drawing's wp:docPr id) of what a connector is glued to, and the sites; -1 for an end that is free.
+struct Glue {
+    int startId = -1, startSite = -1, endId = -1, endSite = -1;
+};
+
+Glue glueOf(const QByteArray &graphic)
+{
+    Glue g;
+    static const QRegularExpression start(QStringLiteral("<a:stCxn\\s+id=\"([0-9]+)\"\\s+idx=\"([0-9]+)\"")), end(QStringLiteral("<a:endCxn\\s+id=\"([0-9]+)\"\\s+idx=\"([0-9]+)\""));
+    const QString text = QString::fromUtf8(graphic);
+    if (const auto m = start.match(text); m.hasMatch()) {
+        g.startId = m.captured(1).toInt();
+        g.startSite = m.captured(2).toInt();
+    }
+    if (const auto m = end.match(text); m.hasMatch()) {
+        g.endId = m.captured(1).toInt();
+        g.endSite = m.captured(2).toInt();
+    }
+    return g;
+}
+
+// The graphic with its connection element taken out (a connector moved or sized by hand lets go of what it was joined to).
+QByteArray withoutGlue(const QByteArray &graphic)
+{
+    static const QRegularExpression glue(QStringLiteral("<a:(stCxn|endCxn)\\b[^>]*/>"));
+    return QString::fromUtf8(graphic).remove(glue).toUtf8();
+}
+
+// A connector's frame from its two ends (points on the page): the place, the size, and the flips that make its start the first end.
+void setConnectorFrame(Model &m, const QPointF &p1, const QPointF &p2)
+{
+    const double x = std::min(p1.x(), p2.x()), y = std::min(p1.y(), p2.y());
+    m.cx = emuOf(std::abs(p2.x() - p1.x()));
+    m.cy = emuOf(std::abs(p2.y() - p1.y()));
+    m.graphic = graphicWithSize(m.graphic, m.cx, m.cy);
+    QString text = QString::fromUtf8(m.graphic);
+    static const QRegularExpression xfrm(QStringLiteral("<a:xfrm\\b[^>]*>"));
+    const QRegularExpressionMatch found = xfrm.match(text);
+    if (found.hasMatch()) {
+        QString tag = found.captured();
+        static const QRegularExpression flips(QStringLiteral("\\s(flipH|flipV)=\"[^\"]*\""));
+        tag.remove(flips);
+        QString add;
+        if (p2.x() < p1.x()) add += QStringLiteral(" flipH=\"1\"");
+        if (p2.y() < p1.y()) add += QStringLiteral(" flipV=\"1\"");
+        tag.insert(tag.size() - 1, add);
+        text.replace(found.capturedStart(), found.capturedLength(), tag);
+        m.graphic = text.toUtf8();
+    }
+    const qint64 ex = qint64(std::llround(std::clamp(x, -kMostPictureOffset, kMostPictureOffset) * kEmuPerPoint)), ey = qint64(std::llround(std::clamp(y, -kMostPictureOffset, kMostPictureOffset) * kEmuPerPoint));
+    m.posH = "<wp:positionH relativeFrom=\"page\"><wp:posOffset>" + QByteArray::number(ex) + "</wp:posOffset></wp:positionH>";
+    m.posV = "<wp:positionV relativeFrom=\"page\"><wp:posOffset>" + QByteArray::number(ey) + "</wp:posOffset></wp:positionV>";
+}
+
+// The shape an id names (a wp:docPr id), by scanning the text's drawings; -1 for none.
+int positionOfDrawingId(const WriteDoc &doc, int id)
+{
+    const QTextDocument *story = doc.story();
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            Inline atom;
+            if (!drawingAtomOf(it.fragment().charFormat(), &atom)) continue;
+            Model m;
+            if (!parseDrawing(atom.raw, &m) || attributeValue(m.docPr, "id").toInt() != id) continue;
+            return it.fragment().position();
+        }
+    return -1;
+}
+
+} // namespace
+
+PictureResult connectObjects(WriteDoc &doc, int from, const QRectF &fromRect, int to, const QRectF &toRect, const QString &preset, int *position)
+{
+    QTextDocument *story = doc.story();
+    static const QStringList kinds = {QStringLiteral("straightConnector1"), QStringLiteral("bentConnector3"), QStringLiteral("curvedConnector3")};
+    if (!kinds.contains(preset) || from == to || !fromRect.isValid() || !toRect.isValid()) return PictureResult::Refused;
+    int ids[2] = {0, 0};
+    QString presets[2];
+    int at = 0;
+    for (const int p : {from, to}) {
+        Inline atom;
+        Model m;
+        if (p < 0 || p + 1 > story->characterCount() - 1 || !drawingAtomOf(formatAfter(story, p), &atom) || !parseDrawing(atom.raw, &m) || !m.floating || m.graphic.contains("c:chart")) return PictureResult::Refused;
+        const PictureInfo info = pictureAt(doc, story, p);
+        if (info.kind == DrawnKind::Line) return PictureResult::Refused;
+        ids[at] = attributeValue(m.docPr, "id").toInt();
+        presets[at] = info.preset;
+        ++at;
+    }
+    if (ids[0] <= 0 || ids[1] <= 0 || ids[0] == ids[1]) return PictureResult::Refused;
+    // The two sites that are nearest each other.
+    const QVector<QPointF> a = connectionSites(fromRect, presets[0]), b = connectionSites(toRect, presets[1]);
+    int bestA = 0, bestB = 0;
+    double best = -1;
+    for (int i = 0; i < a.size(); ++i)
+        for (int j = 0; j < b.size(); ++j) {
+            const double d = std::hypot(a[i].x() - b[j].x(), a[i].y() - b[j].y());
+            if (best < 0 || d < best - 0.001) {
+                best = d;
+                bestA = i;
+                bestB = j;
+            }
+        }
+    const QPointF p1 = a[bestA], p2 = b[bestB];
+    ShapeLook look;
+    look.fill.clear();
+    QByteArray graphic = shapeGraphic(preset, emuOf(std::abs(p2.x() - p1.x())), emuOf(std::abs(p2.y() - p1.y())), look, "<a:tailEnd type=\"triangle\"/>", nullptr);
+    const QByteArray glue = "<wps:cNvCnPr><a:stCxn id=\"" + QByteArray::number(ids[0]) + "\" idx=\"" + QByteArray::number(bestA) + "\"/><a:endCxn id=\"" + QByteArray::number(ids[1]) + "\" idx=\"" +
+                            QByteArray::number(bestB) + "\"/></wps:cNvCnPr>";
+    graphic.replace("<wps:cNvSpPr/>", glue);
+    // After the later of the two, so that every place held stays.
+    QTextCursor c(story);
+    c.setPosition(std::max(from, to) + 1);
+    const WriteDoc::StepGroup step(doc);
+    PictureResult made = insertShapeGraphic(doc, c, graphic, std::max(1.0, std::abs(p2.x() - p1.x())), std::max(1.0, std::abs(p2.y() - p1.y())), PictureWrap::InFrontOfText, QStringLiteral("Connector"));
+    if (made != PictureResult::Ok) return made;
+    const int where = std::max(from, to) + 1;
+    const bool framed = changePicture(doc, where, [&](Model &m) {
+        setConnectorFrame(m, p1, p2);
+        return true;
+    });
+    if (!framed) return PictureResult::Refused;
+    if (position) *position = where;
+    return PictureResult::Ok;
+}
+
+int rerouteConnectors(WriteDoc &doc, const QVector<std::pair<int, QRectF>> &moved, const std::function<bool(int, QRectF *)> &rectOf)
+{
+    QTextDocument *story = doc.story();
+    // The ids of the moved objects.
+    QHash<int, int> idOf;      // wp:docPr id -> position, for the moved ones
+    for (const auto &m : moved) {
+        Inline atom;
+        Model model;
+        if (!drawingAtomOf(formatAfter(story, m.first), &atom) || !parseDrawing(atom.raw, &model)) continue;
+        idOf.insert(attributeValue(model.docPr, "id").toInt(), m.first);
+    }
+    if (idOf.isEmpty()) return 0;
+    // The connectors that are glued to one of them.
+    QVector<int> connectors;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            Inline atom;
+            if (!drawingAtomOf(it.fragment().charFormat(), &atom) || !atom.raw.contains("Cxn")) continue;
+            Model m;
+            if (!parseDrawing(atom.raw, &m)) continue;
+            const Glue g = glueOf(m.graphic);
+            if (idOf.contains(g.startId) || idOf.contains(g.endId)) connectors.push_back(it.fragment().position());
+        }
+    int count = 0;
+    const WriteDoc::StepGroup step(doc);
+    for (const int cp : connectors) {
+        Inline atom;
+        Model m;
+        if (!drawingAtomOf(formatAfter(story, cp), &atom) || !parseDrawing(atom.raw, &m)) continue;
+        const Glue g = glueOf(m.graphic);
+        QPointF ends[2];
+        bool ok = true;
+        for (int side = 0; side < 2 && ok; ++side) {
+            const int id = side == 0 ? g.startId : g.endId, site = side == 0 ? g.startSite : g.endSite;
+            int pos = -1;
+            QRectF rect;
+            bool found = false;
+            for (const auto &mv : moved)
+                if (idOf.value(id, -2) == mv.first) {
+                    pos = mv.first;
+                    rect = mv.second;
+                    found = true;
+                }
+            if (!found) {
+                pos = positionOfDrawingId(doc, id);
+                found = pos >= 0 && rectOf(pos, &rect);
+            }
+            const QVector<QPointF> sites = found ? connectionSites(rect, pictureAt(doc, story, pos).preset) : QVector<QPointF>();
+            if (!found || site < 0 || site >= sites.size()) ok = false;
+            else ends[side] = sites[site];
+        }
+        if (!ok) continue;
+        if (changePicture(doc, cp, [&](Model &model) {
+                setConnectorFrame(model, ends[0], ends[1]);
+                return true;
+            }))
+            ++count;
+    }
+    return count;
+}
+
+bool isConnectorGlued(const WriteDoc &doc, int position)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return false;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return false;
+    Model m;
+    if (!parseDrawing(atom.raw, &m)) return false;
+    const Glue g = glueOf(m.graphic);
+    return g.startId >= 0 || g.endId >= 0;
+}
+
+PictureResult insertDrawingCanvas(WriteDoc &doc, QTextCursor &c, const QSizeF &size)
+{
+    const QSizeF box(std::clamp(size.width(), 36.0, 468.0), std::clamp(size.height(), 36.0, 600.0));
+    auto n = [](qint64 v) { return QByteArray::number(v); };
+    const qint64 cx = emuOf(box.width()), cy = emuOf(box.height());
+    // The canvas is a group that holds its frame: a rectangle with no fill and a thin pale line, behind the shapes that are joined to it.
+    const QByteArray frame = "<wps:wsp><wps:cNvPr id=\"" + n(doc.nextDrawingId(doc.story())) + "\" name=\"Canvas Frame\"/><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + n(cx) + "\" cy=\"" + n(cy) +
+                             "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:noFill/><a:ln w=\"9525\"><a:solidFill><a:srgbClr val=\"BFBFBF\"/></a:solidFill><a:prstDash val=\"dash\"/></a:ln></wps:spPr>"
+                             "<wps:bodyPr/></wps:wsp>";
+    const QByteArray graphic = "<a:graphic><a:graphicData uri=\"" + QByteArray(kGroupUri) + "\"><wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + n(cx) + "\" cy=\"" + n(cy) +
+                               "\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"" + n(cx) + "\" cy=\"" + n(cy) + "\"/></a:xfrm></wpg:grpSpPr>" + frame + "</wpg:wgp></a:graphicData></a:graphic>";
+    return insertShapeGraphic(doc, c, graphic, box.width(), box.height(), PictureWrap::TopAndBottom, QStringLiteral("Drawing Canvas"));
+}
+
+bool isGroupAt(const WriteDoc &doc, int position)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return false;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return false;
+    Model m;
+    return parseDrawing(atom.raw, &m) && m.graphic.contains("<wpg:wgp");
+}
+
+bool canGroupObject(const WriteDoc &doc, int position)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return false;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return false;
+    Model m;
+    if (!parseDrawing(atom.raw, &m)) return false;
+    QVector<GroupPart> parts;
+    return plainMember(m) || partsOfGroup(m, &parts);
+}
+
+bool groupObjects(WriteDoc &doc, const QVector<int> &positionsIn, const QVector<QRectF> &pageRects, int *groupPosition)
+{
+    QTextDocument *story = doc.story();
+    if (positionsIn.size() < 2 || positionsIn.size() > kMostGroupMembers || positionsIn.size() != pageRects.size()) return false;
+    // What goes in the group: each plain object as it is, each group by its parts (a group does not hold a group).
+    struct Piece {
+        QRectF rect;                    // points, on the page
+        QByteArray element, id, name, descr;
+        qint64 cx = 0, cy = 0, height = 0;
+        bool picture = false;
+    };
+    struct Member {
+        int position;
+        Model model;
+    };
+    QVector<Member> members;
+    QVector<Piece> pieces;
+    for (int i = 0; i < positionsIn.size(); ++i) {
+        const QRectF r = pageRects[i];
+        if (!std::isfinite(r.left()) || !std::isfinite(r.top()) || !std::isfinite(r.width()) || !std::isfinite(r.height()) || r.width() < 0 || r.height() < 0) return false;
+        Member m;
+        m.position = positionsIn[i];
+        if (m.position < 0 || m.position + 1 > story->characterCount() - 1 || isLocked(story->findBlock(m.position))) return false;
+        Inline atom;
+        if (!drawingAtomOf(formatAfter(story, m.position), &atom) || !parseDrawing(atom.raw, &m.model)) return false;
+        for (const Member &o : members)
+            if (o.position == m.position) return false;
+        QVector<GroupPart> parts;
+        if (plainMember(m.model)) {
+            Piece p;
+            // (The size is the drawing's own; where it is on the page is the view's.)
+            p.rect = QRectF(r.topLeft(), QSizeF(m.model.cx / kEmuPerPoint, m.model.cy / kEmuPerPoint));
+            p.cx = m.model.cx;
+            p.cy = m.model.cy;
+            p.height = m.model.relativeHeight;
+            if (!memberElement(m.model.graphic, &p.element, &p.picture)) return false;
+            p.id = attributeValue(m.model.docPr, "id");
+            p.name = attributeValue(m.model.docPr, "name");
+            p.descr = attributeValue(m.model.docPr, "descr");
+            pieces.push_back(p);
+        } else if (partsOfGroup(m.model, &parts)) {
+            for (const GroupPart &gp : parts) {
+                Piece p;
+                p.rect = QRectF(r.left() + gp.x / kEmuPerPoint, r.top() + gp.y / kEmuPerPoint, gp.cx / kEmuPerPoint, gp.cy / kEmuPerPoint);
+                p.element = gp.element;
+                p.picture = gp.picture;
+                p.cx = gp.cx;
+                p.cy = gp.cy;
+                p.height = m.model.relativeHeight;
+                p.id = gp.id;
+                p.name = gp.name;
+                p.descr = gp.descr;
+                pieces.push_back(p);
+            }
+        } else {
+            return false;
+        }
+        members.push_back(m);
+    }
+    if (pieces.size() > kMostGroupMembers) return false;
+    std::sort(members.begin(), members.end(), [](const Member &a, const Member &b) { return a.position < b.position; });
+    QRectF box = pieces.first().rect;
+    for (const Piece &p : pieces) box = box.united(p.rect);
+    const qint64 bx = emuRound(box.left()), by = emuRound(box.top());
+    const qint64 gw = std::max<qint64>(1, emuOf(box.width())), gh = std::max<qint64>(1, emuOf(box.height()));
+    if (gw > emuOf(kMostPictureSize * 2) || gh > emuOf(kMostPictureSize * 2)) return false;
+    // The parts, in the order the layers have them (the one lowest first).
+    QVector<int> order(pieces.size());
+    for (int i = 0; i < order.size(); ++i) order[i] = i;
+    std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return pieces[a].height < pieces[b].height; });
+    QByteArray children;
+    Attributes decls = members.first().model.declarations;
+    qint64 highest = 0;
+    for (const Member &m : members) {
+        highest = std::max(highest, m.model.relativeHeight);
+        for (const auto &d : m.model.declarations) {
+            bool has = false;
+            for (const auto &e : decls) has = has || e.first == d.first;
+            if (!has) decls.push_back(d);
+        }
+    }
+    for (const int i : order) {
+        const Piece &p = pieces[i];
+        const qint64 x = emuRound(p.rect.left()) - bx, y = emuRound(p.rect.top()) - by;
+        QByteArray element = withFrame(p.element, x, y, std::max<qint64>(p.cx, 0), std::max<qint64>(p.cy, 0));
+        if (element.isEmpty()) return false;
+        if (!p.picture && !element.contains("<wps:cNvPr")) {
+            QByteArray cNvPr = "<wps:cNvPr";
+            if (!p.id.isEmpty()) cNvPr += " id=" + quote(p.id);
+            if (!p.name.isEmpty()) cNvPr += " name=" + quote(p.name);
+            if (!p.descr.isEmpty()) cNvPr += " descr=" + quote(p.descr);
+            cNvPr += "/>";
+            const qsizetype at = element.indexOf('>');
+            if (at < 0) return false;
+            element.insert(at + 1, cNvPr);
+        }
+        children += element;
+    }
+    auto n = [](qint64 v) { return QByteArray::number(v); };
+    const QByteArray graphic = "<a:graphic><a:graphicData uri=\"" + QByteArray(kGroupUri) + "\"><wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + n(gw) +
+                               "\" cy=\"" + n(gh) + "\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"" + n(gw) + "\" cy=\"" + n(gh) + "\"/></a:xfrm></wpg:grpSpPr>" + children + "</wpg:wgp></a:graphicData></a:graphic>";
+    const int first = members.first().position;
+    const int id = doc.nextDrawingId(story);
+    QTextCursor edit(story);
+    edit.beginEditBlock();
+    const bool changed = changePicture(doc, first, [&](Model &g) {
+        g = members.first().model;
+        g.floating = true;
+        g.wrap = PictureWrap::InFrontOfText;
+        g.wrapRaw.clear();
+        g.wrapRawOf = PictureWrap::InFrontOfText;
+        g.cx = gw;
+        g.cy = gh;
+        g.distL = g.distR = g.distT = g.distB = 0;
+        g.posH = "<wp:positionH relativeFrom=\"page\"><wp:posOffset>" + n(bx) + "</wp:posOffset></wp:positionH>";
+        g.posV = "<wp:positionV relativeFrom=\"page\"><wp:posOffset>" + n(by) + "</wp:posOffset></wp:positionV>";
+        g.effectExtent.clear();
+        g.between.clear();
+        g.trailing.clear();
+        g.frameProps = "<wp:cNvGraphicFramePr/>";
+        g.relativeHeight = highest;
+        g.docPr = {{"id", quote(n(id))}, {"name", quote("Group " + n(id))}};
+        g.docPrInner.clear();
+        g.graphic = graphic;
+        g.declarations = decls;
+        for (const auto &required : {std::pair<QByteArray, QByteArray>{"xmlns:wpg", quote(kGroupUri)}, {"xmlns:wps", quote(kShapeUri)}}) {
+            bool has = false;
+            for (const auto &d : g.declarations) has = has || d.first == required.first;
+            if (!has) g.declarations.push_back(required);
+        }
+        return true;
+    }, true);
+    if (!changed) {
+        edit.endEditBlock();
+        return false;
+    }
+    // The others go, from the last to the first so that the places hold.
+    for (int i = members.size() - 1; i >= 0; --i) {
+        if (members[i].position == first) continue;
+        const QTextCharFormat was = formatAfter(story, members[i].position);
+        QTextCursor del(story);
+        del.setPosition(members[i].position);
+        del.setPosition(members[i].position + 1, QTextCursor::KeepAnchor);
+        del.removeSelectedText();
+        doc.retireDrawnForm(was);
+    }
+    edit.endEditBlock();
+    doc.keepObjectsForTheHistory();
+    if (groupPosition) *groupPosition = first;
+    return true;
+}
+
+bool ungroupObject(WriteDoc &doc, int position, const QPointF &pageTopLeft, QVector<int> *positions)
+{
+    QTextDocument *story = doc.story();
+    if (position < 0 || position + 1 > story->characterCount() - 1 || isLocked(story->findBlock(position))) return false;
+    if (!std::isfinite(pageTopLeft.x()) || !std::isfinite(pageTopLeft.y())) return false;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return false;
+    Model g;
+    QVector<GroupPart> parts;
+    if (!parseDrawing(atom.raw, &g) || !partsOfGroup(g, &parts)) return false;
+    const qint64 gx = emuRound(pageTopLeft.x()), gy = emuRound(pageTopLeft.y());
+    QVector<Model> models;
+    for (int i = 0; i < parts.size(); ++i) {
+        const GroupPart &p = parts[i];
+        Model m = g;
+        QByteArray element = withFrame(p.element, 0, 0, p.cx, p.cy);
+        if (element.isEmpty()) return false;
+        // (A shape in a group names itself; out of it, the drawing names it.)
+        static const QRegularExpression ownName(QStringLiteral("<wps:cNvPr\\b[^>]*/>"));
+        if (!p.picture) element = QString::fromUtf8(element).remove(ownName).toUtf8();
+        const int id = doc.nextDrawingId(story);
+        m.graphic = "<a:graphic><a:graphicData uri=\"" + QByteArray(p.picture ? "http://schemas.openxmlformats.org/drawingml/2006/picture" : kShapeUri) + "\">" + element + "</a:graphicData></a:graphic>";
+        m.cx = p.cx;
+        m.cy = p.cy;
+        m.posH = "<wp:positionH relativeFrom=\"page\"><wp:posOffset>" + QByteArray::number(gx + p.x) + "</wp:posOffset></wp:positionH>";
+        m.posV = "<wp:positionV relativeFrom=\"page\"><wp:posOffset>" + QByteArray::number(gy + p.y) + "</wp:posOffset></wp:positionV>";
+        m.docPr = {{"id", quote(QByteArray::number(id))}, {"name", quote(attribute(p.name.isEmpty() ? QStringLiteral("Shape %1").arg(id) : QString::fromUtf8(p.name), 255))}};
+        if (!p.descr.isEmpty()) m.docPr.push_back({"descr", quote(attribute(QString::fromUtf8(p.descr), kMostAltTextLength))});
+        m.docPrInner.clear();
+        m.frameProps = p.picture ? QByteArray("<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect=\"1\"/></wp:cNvGraphicFramePr>") : QByteArray("<wp:cNvGraphicFramePr/>");
+        m.relativeHeight = std::min<qint64>(4294967295LL, g.relativeHeight + i);
+        models.push_back(m);
+    }
+    QTextCursor edit(story);
+    edit.beginEditBlock();
+    const bool changed = changePicture(doc, position, [&](Model &m) {
+        m = models.first();
+        return true;
+    }, true);
+    if (!changed) {
+        edit.endEditBlock();
+        return false;
+    }
+    QVector<int> where{position};
+    for (int i = 1; i < models.size(); ++i) {
+        Inline made;
+        made.kind = Inline::RunAtom;
+        made.tag = QStringLiteral("drawing");
+        made.raw = drawingXml(models[i]);
+        QTextCursor at(story);
+        at.setPosition(position + i);
+        if (!insertDrawnAtom(doc, at, made)) {
+            edit.endEditBlock();
+            doc.undo();
+            return false;
+        }
+        where.push_back(position + i);
+    }
+    edit.endEditBlock();
+    doc.keepObjectsForTheHistory();
+    if (positions) *positions = where;
+    return true;
+}
 
 // ---- Picture adjustments
 

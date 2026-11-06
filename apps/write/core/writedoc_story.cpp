@@ -1730,6 +1730,16 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         } else if (const ItemPtr wspLine = s.kind != Shape::Line && s.kind != Shape::TextBox && !s.wsp.isEmpty() ? wspItem(s, theme()) : nullptr; wspLine && wspLine->type() == ItemType::Line) {
             wspLine->altText = s.alt;
             o.item = wspLine;
+        } else if (const ItemPtr art = textArtItem(s)) {
+            // Text Art: the words bent into the warp the shape's text names, stretched to its frame.
+            art->rect = QRectF(0, 0, s.width, s.height);
+            art->altText = s.alt;
+            if (const ItemPtr ref = wspItem(s, theme())) {
+                art->rotation = ref->rotation;
+                art->flipH = ref->flipH;
+                art->flipV = ref->flipV;
+            }
+            o.item = art;
         } else if (s.kind == Shape::Line) {
             auto line = std::make_shared<LineItem>();
             line->p1 = QPointF(s.x1, s.y1);

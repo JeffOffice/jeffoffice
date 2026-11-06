@@ -2,6 +2,8 @@
 
 #include "core/shapetypes.h"
 #include "office/drawingml.h"
+#include "office/drawingml_write.h"
+#include "wml/xmltree.h"
 #include "office/xml.h"
 
 #include <QBuffer>
@@ -218,6 +220,96 @@ ItemPtr wspItem(const Shape &s, const office::Theme *theme)
     }
     if (item->type() != ItemType::Line) item->rect = QRectF(0, 0, s.width, s.height);
     return item;
+}
+
+ItemPtr textArtItem(const Shape &s)
+{
+    if (s.kind != Shape::TextBox || s.wsp.isEmpty() || s.textBox.isEmpty()) return nullptr;
+    XmlTree shape;
+    if (!shape.parse(s.wsp, nullptr)) return nullptr;
+    QString warp;
+    {
+        std::vector<int> stack{shape.root()};
+        for (int steps = 0; !stack.empty() && steps < 400; ++steps) {
+            const int n = stack.back();
+            stack.pop_back();
+            if (shape.localName(n) == "prstTxWarp") {
+                warp = shape.attr(n, "prst");
+                break;
+            }
+            for (int c = shape.firstChild(n); c >= 0; c = shape.next(c)) stack.push_back(c);
+        }
+    }
+    const QString transform = warp.isEmpty() ? QString() : office::textArtTransformOfWarp(warp);
+    if (transform.isEmpty() && warp != QLatin1String("textPlain")) return nullptr;
+    XmlTree words;
+    if (!words.parse(s.textBox, nullptr)) return nullptr;
+    const int top = words.root();
+    if (top < 0 || words.localName(top) != "txbxContent") return nullptr;
+    auto art = std::make_shared<TextArtItem>();
+    art->transform_ = transform.isEmpty() ? QStringLiteral("plain") : transform;
+    QStringList lines;
+    int firstRun = -1, firstPara = -1;
+    for (int p = words.firstChild(top); p >= 0 && lines.size() < 200; p = words.next(p)) {
+        if (words.localName(p) != "p") continue;
+        if (firstPara < 0) firstPara = p;
+        QString line;
+        for (int r = words.firstChild(p); r >= 0; r = words.next(r)) {
+            if (words.localName(r) != "r") continue;
+            if (firstRun < 0) firstRun = r;
+            for (int k = words.firstChild(r); k >= 0; k = words.next(k)) {
+                const QByteArray local = words.localName(k);
+                if (local == "t") line += words.text(k);
+                else if (local == "br") line += QLatin1Char('\n');
+                else if (local == "tab") line += QLatin1Char(' ');
+            }
+        }
+        lines << line;
+    }
+    art->text = lines.join(QLatin1Char('\n'));
+    if (const int ppr = firstPara >= 0 ? words.child(firstPara, "pPr") : -1; ppr >= 0)
+        if (const int jc = words.child(ppr, "jc"); jc >= 0) {
+            const QString v = words.val(jc);
+            art->align = v == QLatin1String("left") || v == QLatin1String("start") ? 0 : v == QLatin1String("right") || v == QLatin1String("end") ? 2 : v == QLatin1String("both") ? 3 : 1;
+        }
+    QColor fill(Qt::black), line;
+    double outline = 0;
+    if (const int rpr = firstRun >= 0 ? words.child(firstRun, "rPr") : -1; rpr >= 0) {
+        auto on = [&](const char *name) {
+            const int n = words.child(rpr, name);
+            if (n < 0) return false;
+            const QString v = words.val(n);
+            return v.isEmpty() || (v != QLatin1String("0") && v != QLatin1String("false") && v != QLatin1String("off"));
+        };
+        if (const int fonts = words.child(rpr, "rFonts"); fonts >= 0 && !words.attr(fonts, "ascii").isEmpty()) art->font = words.attr(fonts, "ascii");
+        art->bold = on("b");
+        art->italic = on("i");
+        if (const int sz = words.child(rpr, "sz"); sz >= 0) art->size = std::clamp(words.val(sz).toDouble() / 2.0, 1.0, 4000.0);
+        if (const int color = words.child(rpr, "color"); color >= 0 && QColor(QLatin1Char('#') + words.val(color)).isValid()) fill = QColor(QLatin1Char('#') + words.val(color));
+        if (const int sp = words.child(rpr, "spacing"); sp >= 0) art->spacing = std::clamp(1.0 + words.val(sp).toDouble() / 20.0 / std::max(1.0, art->size), 0.5, 2.0);
+        // The letters' own fill and outline (the newer markup's, which comes after the usual properties).
+        for (int k = words.firstChild(rpr); k >= 0; k = words.next(k)) {
+            const QByteArray local = words.localName(k);
+            if (local != "textFill" && local != "textOutline") continue;
+            std::vector<int> stack{k};
+            QString rgb;
+            for (int steps = 0; !stack.empty() && steps < 50 && rgb.isEmpty(); ++steps) {
+                const int n = stack.back();
+                stack.pop_back();
+                if (words.localName(n) == "srgbClr") rgb = words.attrAny(n, "val");
+                for (int c = words.firstChild(n); c >= 0; c = words.next(c)) stack.push_back(c);
+            }
+            const QColor c(QLatin1Char('#') + rgb);
+            if (local == "textFill" && c.isValid()) fill = c;
+            if (local == "textOutline" && c.isValid()) {
+                line = c;
+                outline = std::clamp(words.attrAny(k, "w").toDouble() / 12700.0, 0.0, 100.0);
+            }
+        }
+    }
+    art->fill = Fill::solid(ColorRef::rgb(fill));
+    art->stroke = line.isValid() && outline > 0 ? Stroke::line(ColorRef::rgb(line), outline) : Stroke::none();
+    return art;
 }
 
 QString presetOf(const Shape &s)

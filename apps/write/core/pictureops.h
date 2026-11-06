@@ -10,11 +10,14 @@
 #include <QImage>
 #include <QMarginsF>
 #include <QPointF>
+#include <QRectF>
 #include <QSizeF>
 #include <QStringList>
 #include <QVector>
 #include <QTextCursor>
+#include <functional>
 #include <optional>
+#include <utility>
 
 namespace jp::write {
 
@@ -85,6 +88,7 @@ struct PictureInfo {
     bool alignedToPage = false;
     QString gradientFrom, gradientTo;
     double gradientAngle = 0;
+    bool pictureFill = false;   // a shape filled with a picture
 };
 
 // The picture at a place of the story (the character just after `position`); `valid` is false for any other character.
@@ -187,6 +191,8 @@ bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs);
 // is none; `weight` is in points (held to 0.25 to 100), and `dash` the drawing format's name for how the line is dashed.
 bool setShapeFill(WriteDoc &doc, int position, const QString &rgb);
 bool setShapeLine(WriteDoc &doc, int position, const QString &rgb, double weight, const QString &dash);
+// Fills the shape or text box with a picture (the bytes of a picture file, as insertPicture takes them), stretched over it; one step. Refused for any other object.
+PictureResult setShapePictureFill(WriteDoc &doc, int position, const QByteArray &bytes);
 // Turns the object to this many degrees clockwise (any number: it is held to 0 up to 360).
 bool setShapeRotation(WriteDoc &doc, int position, double degrees);
 // Fills the shape with a gradient from one color to the other (RRGGBB), along an angle in degrees (0 across, from left to right, 90 down); one step.
@@ -199,6 +205,53 @@ enum class ObjectAlign { Left, Center, Right, Top, Middle, Bottom };
 bool alignObject(WriteDoc &doc, int position, ObjectAlign align, bool toPage);
 // Another shape of the gallery in its place, its size and look kept.
 bool setShapePreset(WriteDoc &doc, int position, const QString &preset);
+
+// ---- Connectors
+
+// A connector of this kind (straightConnector1, bentConnector3, or curvedConnector3) from the object at `from` to the one at `to`, each where `fromRect` and `toRect` say (points, on the
+// page), glued: it runs between the nearest connection sites of the two (an ellipse has eight, any other shape four) and is saved with the file format's connection elements, so that
+// other programs keep it joined too. One step that undoes; `position` gets its place in the text. Refused for a line, a chart, an object in line with the text, or the same object twice.
+PictureResult connectObjects(WriteDoc &doc, int from, const QRectF &fromRect, int to, const QRectF &toRect, const QString &preset = QStringLiteral("straightConnector1"), int *position = nullptr);
+// The objects at these places (each with its new rectangle, in points on the page) have moved or changed size: every connector glued to one of them runs again between the sites it was
+// glued to. `rectOf` gives the rectangle of any other object (false when it has none). One step; how many connectors changed.
+int rerouteConnectors(WriteDoc &doc, const QVector<std::pair<int, QRectF>> &moved, const std::function<bool(int, QRectF *)> &rectOf);
+// Whether the object at `position` is a connector that is glued to something.
+bool isConnectorGlued(const WriteDoc &doc, int position);
+
+// ---- Text Art
+
+// Words bent into a shape (a wave, an arch, a circle, and the rest), set in letters with a fill and an outline of their own, as a text box of the drawing format that names the warp.
+// `styleId` is one of the styles of the shared Text Art gallery (the plain one when empty or unknown); `warp` is one of the shared text art transforms (its style's own when empty).
+struct TextArtSpec {
+    QString text;     // a line a paragraph
+    QString styleId;
+    QString warp;
+    double size = 48; // points, of the letters before they are stretched to the box
+};
+// A Text Art at the cursor in place of a selection, set at the cursor with the text going round it (or as `wrap` says), one step that undoes.
+PictureResult insertTextArt(WriteDoc &doc, QTextCursor &c, const TextArtSpec &spec = TextArtSpec(), PictureWrap wrap = PictureWrap::Square);
+// The words and the warp of the text art at `position` (the style is not kept in a file); none for any other object.
+std::optional<TextArtSpec> textArtAt(const WriteDoc &doc, int position);
+// The style (its fill, outline, and font) of the text art at `position` is another of the gallery's, the words and the warp staying; and its warp is another of the shared transforms
+// ("plain" for none), the look staying. One step each; false when the object is no text art, the name is unknown, or nothing would change.
+bool setTextArtStyle(WriteDoc &doc, int position, const QString &styleId);
+bool setTextArtWarp(WriteDoc &doc, int position, const QString &transform);
+
+// ---- Groups
+
+// A drawing canvas at the cursor: a frame (a group that holds one empty rectangle with a pale dashed line, set above and below the text) for shapes and pictures that belong together;
+// select it and the shapes, and Group joins them into it. One step that undoes; refused outside the body text.
+PictureResult insertDrawingCanvas(WriteDoc &doc, QTextCursor &c, const QSizeF &size = QSizeF(432, 216));
+// Whether the drawn object at `position` is a group (a set of shapes, text boxes, lines, and pictures that move and size as one), and whether it could be a member of one: set at a
+// place (not in line with the text), and a plain shape, text box, line, or picture (a chart, or a group, is not).
+bool isGroupAt(const WriteDoc &doc, int position);
+bool canGroupObject(const WriteDoc &doc, int position);
+// Joins the objects at `positions` (two or more, each where `pageRects` says, in points on the page they are on: the view knows) into one group, set in front of the text at the
+// corner of their common rectangle, as one step. The group takes the first object's place in the text; the others are taken out. False (nothing done) where one cannot be a member.
+bool groupObjects(WriteDoc &doc, const QVector<int> &positions, const QVector<QRectF> &pageRects, int *groupPosition = nullptr);
+// Takes the group at `position` apart: each member is an object of its own at the place it had on the page (the group's top left corner is `pageTopLeft`), as one step. A turned or
+// flipped group, and one with a group inside it, is not taken apart. `positions` gets the members' places in the text.
+bool ungroupObject(WriteDoc &doc, int position, const QPointF &pageTopLeft, QVector<int> *positions = nullptr);
 
 // ---- Charts
 

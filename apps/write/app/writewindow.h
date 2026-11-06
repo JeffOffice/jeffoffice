@@ -380,6 +380,7 @@ private:
     void headerRibbonParts(RibbonParts &parts);
     void removeEdited(bool footer);
     void insertPictureFromFile();
+    void fillSelectedShapeWithPicture();
     void insertPictureFromClipboard();
     void insertIconsFromPicker();
     void showPageSetupDialog();
