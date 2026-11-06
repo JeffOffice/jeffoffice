@@ -1,16 +1,16 @@
-# Help voor JeffPub
-<!-- keywords: inhoud, inhoudsopgave, help, onderwerpen, hulp, starten, beginnen -->
+# JeffPub Help
+<!-- keywords: inhoud, help, onderwerpen, start -->
 
-Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te voeren. Druk op elk moment op **F1** voor hulp bij waar u mee bezig bent: het tabblad van het lint waarop u zich bevindt, het dialoogvenster dat u hebt geopend of het object dat u hebt geselecteerd.
+Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht om uit te voeren. Druk op **F1** om op elk moment hulp te krijgen bij wat u aan het doen bent: het linttabblad waarop u staat, het dialoogvenster dat u open hebt, of het object dat u hebt geselecteerd.
 
 ## Aan de slag
 
 - [Welkom bij JeffPub](start)
-- [Uw weg vinden in het venster](window)
+- [Wegwijs worden in het venster](window)
 - [Een nieuwe publicatie starten](create)
 - [Publicaties openen en opslaan](open-save)
 - [Werken met .pub-bestanden](pub-files)
-- [Niet-opgeslagen werk terughalen](recover)
+- [Niet-opgeslagen werk herstellen](recover)
 
 ## Tekst
 
@@ -31,17 +31,17 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te v
 - [Afbeeldingenbeheer](graphics-manager)
 - [Vormen en lijnen tekenen](shapes)
 - [Pictogrammen, streepjescodes en andere objecten](insert-objects)
-- [Objecten verplaatsen, uitlijnen, groeperen en stapelen](arrange)
-- [Tekst om objecten laten teruglopen](wrap)
+- [Objecten verplaatsen, uitlijnen, groeperen en lagen ordenen](arrange)
+- [Tekst laten teruglopen om objecten](wrap)
 
 ## Pagina's
 
 - [Paginaformaat, marges en indeling](page-setup)
 - [Kleuren- en lettertypeschema's](color-schemes)
-- [De sjabloon van een publicatie wijzigen](change-template)
-- [Basispagina's, kopteksten en paginanummers](master-pages)
+- [Het sjabloon van een publicatie wijzigen](change-template)
+- [Basispagina's, koptekst en paginanummers](master-pages)
 - [Pagina's toevoegen, verplaatsen en verwijderen](pages)
-- [Linialen, hulplijnen en uitlijnen](guides)
+- [Linialen, hulplijnen en uitlijnen op hulplijnen](guides)
 
 ## Verzendlijsten
 
@@ -62,7 +62,7 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te v
 - [Een taal kiezen](language)
 - [Hulp krijgen en problemen melden](support)
 
-## De tabbladen van het lint
+## De linttabbladen
 
 - [Bestand](tab-file), [Start](tab-home), [Invoegen](tab-insert), [Paginaontwerp](tab-page-design), [Verzendlijsten](tab-mailings), [Controleren](tab-review), [Beeld](tab-view) en [Help](tab-help)
 - Tabbladen die verschijnen wanneer u iets selecteert: [Tekstvak](tab-text-box), [Vormopmaak](tab-shape-format), [Afbeeldingsopmaak](tab-picture-format), [Tabelontwerp en Tabelindeling](tab-table), [Tekstopmaak-indeling](tab-text-art) en [Basispagina](tab-master-page)

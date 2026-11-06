@@ -1,23 +1,23 @@
 # Ajuda do JeffWrite
-<!-- keywords: índice, ajuda, tópicos, início, conteúdo -->
+<!-- keywords: conteúdo, ajuda, tópicos, início -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que está ou a página do ecrã Ficheiro em que se encontra.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do ecrã Ficheiro em que está.
 
 ## Primeiros passos
 
 - [Bem-vindo ao JeffWrite](start)
 - [Abrir, guardar, imprimir e exportar](open-save)
-- [Informações: propriedades, palavras-passe e Inspecionar](info)
+- [Info: propriedades, palavras-passe e Inspecionar](info)
 - [Abrir e guardar ficheiros OpenDocument](open-odt)
 - [Abrir ficheiros RTF](open-rtf)
 - [Imprimir](print)
 
-## Trabalhar no texto
+## Trabalhar o texto
 
 - [Verificar a ortografia](spelling)
-- [Contar palavras, definir o idioma, verificar a acessibilidade e pesquisar palavras](proofing-tools)
+- [Contar palavras, definir o idioma, verificar a acessibilidade e procurar palavras](proofing-tools)
 - [Controlar alterações, e aceitar ou rejeitar](track-changes)
-- [Adicionar comentários e responder a comentários](comments)
+- [Adicionar e responder a comentários](comments)
 - [Proteger um documento e bloquear o controlo de alterações](protect)
 
 ## Escrever e alterar texto

@@ -119,7 +119,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../apps/crunch/app/crunchwindow_formulas.cpp" line="+203"/>
+        <location filename="../../apps/crunch/app/crunchwindow_formulas.cpp" line="+205"/>
         <source>%n name(s) made. %1 left out: empty, repeated, or already there.</source>
         <translation>
             <numerusform>%n name made. %1 left out: empty, repeated, or already there.</numerusform>
@@ -135,7 +135,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1"/>
+        <location line="+72"/>
         <source>%n reference(s) written as names.</source>
         <translation>
             <numerusform>%n reference written as a name.</numerusform>
@@ -143,7 +143,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+1"/>
+        <location filename="../../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+235"/>
         <source>%n icon(s) inserted</source>
         <translation>
             <numerusform>%n icon inserted</numerusform>
@@ -151,7 +151,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../apps/crunch/app/crunchwindow_calc.cpp" line="+140"/>
+        <location filename="../../apps/crunch/app/crunchwindow_calc.cpp" line="+149"/>
         <source>Circular references: %n cell(s)</source>
         <translation>
             <numerusform>Circular references: %n cell</numerusform>
@@ -175,7 +175,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../apps/crunch/app/crunchwindow_audit.cpp" line="+99"/>
+        <location filename="../../apps/crunch/app/crunchwindow_audit.cpp" line="+101"/>
         <source>Only the first %n arrow(s) are drawn.</source>
         <translation>
             <numerusform>Only the first %n arrow is drawn.</numerusform>
@@ -185,6 +185,7 @@
     <message numerus="yes">
         <location line="+0"/>
         <location line="+47"/>
+        <location line="+62"/>
         <source>%n arrow(s) drawn.</source>
         <translation>
             <numerusform>%n arrow drawn.</numerusform>
@@ -192,7 +193,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+0"/>
+        <location line="-62"/>
         <source>%n arrow(s) drawn. %1 more are not drawn: too many.</source>
         <translation>
             <numerusform>%n arrow drawn. %1 more are not drawn: too many.</numerusform>
@@ -293,7 +294,7 @@
 <context>
     <name>jp::NamesDialog</name>
     <message numerus="yes">
-        <location filename="../../apps/crunch/app/namesdialog.cpp" line="+264"/>
+        <location filename="../../apps/crunch/app/namesdialog.cpp" line="+324"/>
         <source>%n name(s)</source>
         <translation>
             <numerusform>%n name</numerusform>
@@ -315,7 +316,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../../apps/write/app/writewindow.cpp" line="+672"/>
+        <location filename="../../apps/write/app/writewindow.cpp" line="+698"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
@@ -323,7 +324,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../apps/write/app/writewindow_home.cpp" line="+222"/>
+        <location filename="../../apps/write/app/writewindow_home.cpp" line="+227"/>
         <source>There are too many paragraphs to sort at once. Select %n paragraph(s) or fewer.</source>
         <translation>
             <numerusform>There are too many paragraphs to sort at once. Select %n paragraph or fewer.</numerusform>
@@ -358,7 +359,7 @@
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../../apps/crunch/core/editsession.cpp" line="+950"/>
+        <location filename="../../apps/crunch/core/editsession.cpp" line="+1006"/>
         <source>Clearing %n cell(s)</source>
         <translation>
             <numerusform>Clearing %n cell</numerusform>
@@ -366,7 +367,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../apps/crunch/core/editpivot.cpp" line="+1138"/>
+        <location filename="../../apps/crunch/core/editpivot.cpp" line="+1196"/>
         <source>%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.</source>
         <translation>
             <numerusform>%n pivot table was not read again when the file opened: there is too much data. Use Refresh All.</numerusform>
@@ -466,7 +467,7 @@
 <context>
     <name>jp::office::wml</name>
     <message numerus="yes">
-        <location filename="../../libs/office/wml/wmlread.cpp" line="+1550"/>
+        <location filename="../../libs/office/wml/wmlread.cpp" line="+1551"/>
         <source>%n part or link of the file had a name that could not be used, and was left out.</source>
         <translation>
             <numerusform>%n part or link of the file had a name that could not be used, and was left out.</numerusform>

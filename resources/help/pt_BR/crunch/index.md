@@ -12,11 +12,11 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Digitar em células](edit-cells)
 - [Regras para o conteúdo de uma célula](rules)
 
-## Ver uma pasta de trabalho
+## Examinar uma pasta de trabalho
 
 - [Selecionar células e navegar](select-and-move)
 - [Alterar o modo de exibição](view)
-- [Como as fórmulas são mostradas e calculadas](formulas)
+- [Como as fórmulas são exibidas e calculadas](formulas)
 - [Nomes para células e valores](names)
 - [Formatação condicional](conditional-formats)
 
@@ -27,7 +27,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Estilos de célula](cell-styles)
 - [Trabalhar com planilhas](sheets)
 - [Inserir e excluir linhas, colunas e células](insert-delete)
-- [Alterar a largura de colunas e a altura de linhas](sizes)
+- [Alterar a largura das colunas e a altura das linhas](sizes)
 - [Recortar, copiar e colar](clipboard)
 - [Preencher células e somá-las](fill-sum)
 - [Localizar, substituir e ir para](find-replace)
@@ -36,7 +36,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Tabelas](tables)
 - [Tabelas dinâmicas](pivot-tables)
 - [Inserir uma função](insert-function)
-- [Digitar uma função com a caixa de diálogo Argumentos da Função](function-arguments)
+- [Inserir uma função com a caixa de diálogo Argumentos da Função](function-arguments)
 - [Gráficos, imagens e formas](charts)
 - [Anotações e links](notes-links)
 - [Proteger uma planilha ou a pasta de trabalho](protect)

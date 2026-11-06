@@ -1,18 +1,18 @@
-# JeffCrunch Guida
-<!-- keywords: sommario, guida, argomenti, inizio -->
+# Guida di JeffCrunch
+<!-- keywords: sommario, guida, argomenti, inizio, aiuto, contenuto -->
 
-Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione in uso o la pagina della schermata File in uso.
+Digita nella casella di ricerca in alto per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione attiva o la pagina della schermata File che stai visualizzando.
 
 ## Per iniziare
 
 - [Benvenuto in JeffCrunch](start)
-- [Aprire e salvare cartelle di lavoro](open-save)
-- [Info: proprietà, password e Ispeziona](info)
-- [Aprire cartelle di lavoro protette da password](open-password)
-- [Digitare nelle celle](edit-cells)
+- [Apertura e salvataggio di cartelle di lavoro](open-save)
+- [Informazioni: proprietà, password e Ispeziona documento](info)
+- [Apertura di cartelle di lavoro protette da password](open-password)
+- [Digitazione nelle celle](edit-cells)
 - [Regole per il contenuto di una cella](rules)
 
-## Visualizzare una cartella di lavoro
+## Esaminare una cartella di lavoro
 
 - [Selezionare celle e spostarsi](select-and-move)
 - [Cambiare la visualizzazione](view)
@@ -23,11 +23,11 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 ## Modificare una cartella di lavoro
 
 - [Formattare le celle](format-cells)
-- [Formati numerici e lingua](number-formats)
-- [Stili di cella](cell-styles)
+- [Formati numero e lingua](number-formats)
+- [Stili cella](cell-styles)
 - [Lavorare con i fogli](sheets)
 - [Inserire ed eliminare righe, colonne e celle](insert-delete)
-- [Cambiare la larghezza delle colonne e l'altezza delle righe](sizes)
+- [Modificare la larghezza delle colonne e l'altezza delle righe](sizes)
 - [Taglia, copia e incolla](clipboard)
 - [Riempire celle e sommarle](fill-sum)
 - [Trova, sostituisci e vai a](find-replace)
@@ -36,12 +36,12 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 - [Tabelle](tables)
 - [Tabelle pivot](pivot-tables)
 - [Inserire una funzione](insert-function)
-- [Inserire una funzione con la finestra Argomenti funzione](function-arguments)
+- [Inserire una funzione con la finestra di dialogo Argomenti funzione](function-arguments)
 - [Grafici, immagini e forme](charts)
 - [Note e collegamenti](notes-links)
 - [Proteggere un foglio o la cartella di lavoro](protect)
 
-## Stampare
+## Stampa
 
 - [Impostare le pagine](page-layout)
 - [La finestra di dialogo Imposta pagina](page-setup)

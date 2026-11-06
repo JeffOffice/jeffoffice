@@ -1,5 +1,5 @@
-# JeffWrite Guida
-<!-- keywords: sommario, guida, argomenti, inizio -->
+# Guida di JeffWrite
+<!-- keywords: contenuti, guida, argomenti, inizio, sommario, aiuto -->
 
 Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione in uso o la pagina della schermata File in uso.
 
@@ -7,53 +7,53 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 - [Benvenuto in JeffWrite](start)
 - [Apri, salva, stampa ed esporta](open-save)
-- [Info: proprietà, password e Ispeziona](info)
+- [Info: proprietà, password e Ispeziona documento](info)
 - [Apri e salva file OpenDocument](open-odt)
 - [Apri file RTF](open-rtf)
 - [Stampa](print)
 
-## Lavorare sul testo
+## Lavora sul testo
 
-- [Controllare l'ortografia](spelling)
-- [Contare le parole, impostare la lingua, verificare l'accessibilità e cercare parole](proofing-tools)
-- [Tenere traccia delle modifiche e accettarle o rifiutarle](track-changes)
-- [Aggiungere e rispondere ai commenti](comments)
-- [Proteggere un documento e bloccare il controllo delle modifiche](protect)
+- [Controlla l'ortografia](spelling)
+- [Conta le parole, imposta la lingua, verifica l'accessibilità e cerca le parole](proofing-tools)
+- [Tieni traccia delle modifiche, quindi accettale o rifiutale](track-changes)
+- [Aggiungi e rispondi ai commenti](comments)
+- [Proteggi un documento e blocca il rilevamento delle modifiche](protect)
 
-## Scrivere e modificare il testo
+## Scrivi e modifica il testo
 
-- [Cambiare l'aspetto del testo](font)
-- [Cambiare maiuscole/minuscole, ordinare e incollare in altri modi](home-tools)
-- [Usare gli stili](styles)
-- [Copiare un aspetto con Copia formato](format-painter)
-- [Aggiungere intestazioni, piè di pagina e numeri di pagina](headers-footers)
-- [Creare e modificare le tabelle](tables)
-- [Aggiungere note a piè di pagina e note di chiusura](footnotes-endnotes)
-- [Creare un sommario](table-of-contents)
-- [Aggiungere didascalie e un indice delle figure](captions)
-- [Citare fonti e creare una bibliografia](citations)
-- [Creare un indice analitico](making-an-index)
-- [Creare un indice delle fonti giuridiche](table-of-authorities)
-- [Usare i campi](fields)
-- [Indicare un altro punto con riferimenti incrociati](cross-references)
-- [Contrassegnare punti con segnalibri](bookmarks)
+- [Cambia l'aspetto del testo](font)
+- [Cambia maiuscole/minuscole, ordina e incolla in altri modi](home-tools)
+- [Usa gli stili](styles)
+- [Copia un aspetto con Copia formato](format-painter)
+- [Aggiungi intestazioni, piè di pagina e numeri di pagina](headers-footers)
+- [Crea e modifica tabelle](tables)
+- [Aggiungi note a piè di pagina e note di chiusura](footnotes-endnotes)
+- [Crea un sommario](table-of-contents)
+- [Aggiungi didascalie e un indice delle figure](captions)
+- [Cita le fonti e crea una bibliografia](citations)
+- [Crea un indice analitico](making-an-index)
+- [Crea un indice delle fonti giuridiche](table-of-authorities)
+- [Usa i campi](fields)
+- [Punta a un altro punto con i riferimenti incrociati](cross-references)
+- [Contrassegna i punti con i segnalibri](bookmarks)
 - [Stampa unione, buste ed etichette](mail-merge)
-- [Aggiungere e modificare immagini](pictures)
+- [Aggiungi e modifica immagini](pictures)
 - [Forme e caselle di testo](shapes-text-boxes)
 - [Grafici](charts)
 - [Equazioni](equations)
-- [Impostare la pagina](page-setup)
+- [Imposta la pagina](page-setup)
 - [Interruzioni, colonne, sillabazione e numerazione di riga](breaks-columns)
-- [Inserire simboli e caratteri speciali](symbols-special-characters)
-- [Aggiungere collegamenti e testo da altri file](links)
-- [Cambiare il colore e i bordi delle pagine](page-look)
-- [Orientarsi con il riquadro di navigazione](navigation-pane)
-- [Usare il righello](ruler)
-- [Trovare e sostituire parole](find-replace)
-- [Andare a un punto e spostare il testo](go-to-and-move-text)
+- [Inserisci simboli e caratteri speciali](symbols-special-characters)
+- [Aggiungi collegamenti e testo da altri file](links)
+- [Cambia il colore e i bordi delle pagine](page-look)
+- [Orientati con il riquadro di navigazione](navigation-pane)
+- [Usa il righello](ruler)
+- [Trova e sostituisci le parole](find-replace)
+- [Vai a un punto e sposta il testo](go-to-and-move-text)
 
-## Lavorare più velocemente
+## Lavora più velocemente
 
-- [Usare JeffWrite con la tastiera](keyboard)
-- [Modificare le impostazioni di JeffWrite](options)
-- [Scegliere una lingua](language)
+- [Usa JeffWrite con la tastiera](keyboard)
+- [Cambia le impostazioni di JeffWrite](options)
+- [Scegli una lingua](language)

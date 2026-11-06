@@ -1,23 +1,23 @@
 # Guida di JeffDeck
-<!-- keywords: sommario, guida, aiuto, argomenti, indice, inizio, introduzione -->
+<!-- keywords: sommario, guida, argomenti, inizio, contenuti -->
 
-Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione in cui ti trovi, il riquadro in cui stai lavorando o l'oggetto selezionato.
+Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione attiva, il riquadro in uso o l'oggetto selezionato.
 
 ## Per iniziare
 
-- [Benvenuti in JeffDeck](start)
+- [Benvenuto in JeffDeck](start)
 - [Orientarsi nella finestra](window)
-- [Aprire e salvare le presentazioni](open-save)
+- [Aprire e salvare presentazioni](open-save)
 - [Recuperare il lavoro non salvato](recover)
 
 ## Diapositive
 
 - [Aggiungere, modificare ed eliminare diapositive](slides)
-- [Riutilizzare diapositive di un'altra presentazione](reuse)
-- [Visualizzazione struttura, Sequenza diapositive e visualizzazione Schema diapositiva](views)
+- [Riutilizzare diapositive da un'altra presentazione](reuse)
+- [Visualizzazione Struttura, Sequenza diapositive e Visualizzazione schema diapositiva](views)
 - [Dimensioni diapositiva, sfondo e piè di pagina](design)
 
-## In una diapositiva
+## Sulla diapositiva
 
 - [Digitare e formattare il testo](text)
 - [Forme, immagini, tabelle e testo artistico](objects)
@@ -25,14 +25,14 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 - [Note del relatore](notes)
 - [Commenti](comments)
 
-## Movimento
+## Transizioni e animazioni
 
-- [Transizioni tra le diapositive](transitions)
+- [Transizioni tra diapositive](transitions)
 - [Animazioni](animations)
 
-## Presentare
+## Presentazione
 
-- [Eseguire la presentazione e usare la Visualizzazione Relatore](show)
+- [Avviare la presentazione e usare la Visualizzazione Relatore](show)
 
 ## Stampa e condivisione
 
@@ -48,4 +48,4 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 ## Le schede della barra multifunzione
 
 - [Home](tab-home), [Inserisci](tab-insert), [Struttura](tab-design), [Transizioni](tab-transitions), [Animazioni](tab-animations), [Presentazione](tab-slide-show), [Revisione](tab-review) e [Visualizza](tab-view)
-- [Riproduzione](tab-playback) viene visualizzata quando è selezionato un video o un audio
+- [Riproduzione](tab-playback) viene visualizzata quando è selezionato un filmato o un suono

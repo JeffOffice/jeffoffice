@@ -1,7 +1,7 @@
 # JeffWrite-Hilfe
-<!-- keywords: Inhalt, Hilfe, Themen, Start, Hilfethemen, Übersicht -->
+<!-- keywords: Inhalt, Hilfe, Themen, Start, Inhaltsverzeichnis -->
 
-Geben Sie oben in das Suchfeld einen Begriff ein, um ein Thema oder einen Befehl zu finden, der ausgeführt werden soll. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands, auf der Sie sich befinden, oder zur Seite der Backstage-Ansicht „Datei“, auf der Sie sich befinden.
+Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands oder zur Seite des Menüs „Datei“, auf der Sie sich befinden.
 
 ## Erste Schritte
 
@@ -16,7 +16,7 @@ Geben Sie oben in das Suchfeld einen Begriff ein, um ein Thema oder einen Befehl
 
 - [Rechtschreibung prüfen](spelling)
 - [Wörter zählen, Sprache festlegen, Barrierefreiheit prüfen und Wörter nachschlagen](proofing-tools)
-- [Änderungen nachverfolgen, annehmen und ablehnen](track-changes)
+- [Änderungen nachverfolgen, annehmen oder ablehnen](track-changes)
 - [Kommentare hinzufügen und beantworten](comments)
 - [Dokument schützen und Nachverfolgung sperren](protect)
 
@@ -25,13 +25,13 @@ Geben Sie oben in das Suchfeld einen Begriff ein, um ein Thema oder einen Befehl
 - [Textformatierung ändern](font)
 - [Groß-/Kleinschreibung ändern, sortieren und auf andere Weise einfügen](home-tools)
 - [Formatvorlagen verwenden](styles)
-- [Eine Formatierung mit „Formatierung kopieren“ übertragen](format-painter)
-- [Kopf- und Fußzeilen sowie Seitenzahlen hinzufügen](headers-footers)
+- [Ein Erscheinungsbild mit Formatierung kopieren übertragen](format-painter)
+- [Kopfzeilen, Fußzeilen und Seitenzahlen hinzufügen](headers-footers)
 - [Tabellen erstellen und ändern](tables)
 - [Fußnoten und Endnoten hinzufügen](footnotes-endnotes)
 - [Ein Inhaltsverzeichnis erstellen](table-of-contents)
 - [Beschriftungen und ein Abbildungsverzeichnis hinzufügen](captions)
-- [Quellen angeben und ein Literaturverzeichnis erstellen](citations)
+- [Quellen zitieren und ein Literaturverzeichnis erstellen](citations)
 - [Ein Stichwortverzeichnis erstellen](making-an-index)
 - [Ein Verzeichnis der Rechtsquellen erstellen](table-of-authorities)
 - [Felder verwenden](fields)
@@ -44,7 +44,7 @@ Geben Sie oben in das Suchfeld einen Begriff ein, um ein Thema oder einen Befehl
 - [Gleichungen](equations)
 - [Seite einrichten](page-setup)
 - [Umbrüche, Spalten, Silbentrennung und Zeilennummern](breaks-columns)
-- [Sonderzeichen und Symbole einfügen](symbols-special-characters)
+- [Symbole und Sonderzeichen einfügen](symbols-special-characters)
 - [Links und Text aus anderen Dateien hinzufügen](links)
 - [Farbe und Rahmen der Seiten ändern](page-look)
 - [Mit dem Navigationsbereich den Überblick behalten](navigation-pane)
@@ -54,6 +54,6 @@ Geben Sie oben in das Suchfeld einen Begriff ein, um ein Thema oder einen Befehl
 
 ## Schneller arbeiten
 
-- [JeffWrite mit der Tastatur bedienen](keyboard)
+- [JeffWrite mit der Tastatur verwenden](keyboard)
 - [JeffWrite-Einstellungen ändern](options)
-- [Sprache wählen](language)
+- [Sprache auswählen](language)

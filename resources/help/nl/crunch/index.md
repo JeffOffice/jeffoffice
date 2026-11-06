@@ -1,7 +1,7 @@
 # JeffCrunch Help
 <!-- keywords: inhoud, help, onderwerpen, start -->
 
-Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u wilt uitvoeren. Druk op **F1** om op elk moment hulp te krijgen bij wat u aan het doen bent: het linttabblad waarop u staat, of de pagina van het scherm Bestand waarop u staat.
+Typ in het zoekvak hierboven om een onderwerp te vinden, of een opdracht die u wilt uitvoeren. Druk op **F1** om op elk moment hulp te krijgen bij wat u aan het doen bent: het linttabblad waarop u staat, of de pagina van het scherm Bestand waarop u staat.
 
 ## Aan de slag
 
@@ -9,12 +9,12 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u w
 - [Werkmappen openen en opslaan](open-save)
 - [Info: eigenschappen, wachtwoorden en Controleren](info)
 - [Werkmappen met wachtwoord openen](open-password)
-- [Tekst typen in cellen](edit-cells)
+- [Typen in cellen](edit-cells)
 - [Regels voor wat een cel mag bevatten](rules)
 
 ## Een werkmap bekijken
 
-- [Cellen selecteren en je erdoor bewegen](select-and-move)
+- [Cellen selecteren en navigeren](select-and-move)
 - [De weergave wijzigen](view)
 - [Hoe formules worden weergegeven en berekend](formulas)
 - [Namen voor cellen en waarden](names)
@@ -30,7 +30,7 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u w
 - [De breedte van kolommen en de hoogte van rijen wijzigen](sizes)
 - [Knippen, kopiëren en plakken](clipboard)
 - [Cellen doorvoeren en optellen](fill-sum)
-- [Zoeken, vervangen en naar een locatie gaan](find-replace)
+- [Zoeken, vervangen en Ga naar](find-replace)
 - [Sorteren en filteren](sort-filter)
 - [Gegevenshulpmiddelen](data-tools)
 - [Tabellen](tables)
@@ -45,7 +45,7 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u w
 
 - [De pagina's instellen](page-layout)
 - [Het dialoogvenster Pagina-instelling](page-setup)
-- [Afdrukken en een PDF maken](printing)
+- [Afdrukken en een pdf maken](printing)
 
 ## Sneller werken
 

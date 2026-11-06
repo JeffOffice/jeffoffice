@@ -1,7 +1,7 @@
-# Ajuda do JeffCrunch
+# JeffCrunch Ajuda
 <!-- keywords: conteúdo, ajuda, tópicos, início -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** a qualquer momento para obter ajuda sobre o que está a fazer: o separador do friso em que está ou a página do ecrã Ficheiro em que se encontra.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** a qualquer momento para obter ajuda sobre o que está a fazer: o separador do friso em que está ou a página do Ficheiro em que se encontra.
 
 ## Primeiros passos
 
@@ -28,7 +28,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Trabalhar com folhas](sheets)
 - [Inserir e eliminar linhas, colunas e células](insert-delete)
 - [Alterar a largura das colunas e a altura das linhas](sizes)
-- [Recortar, copiar e colar](clipboard)
+- [Cortar, copiar e colar](clipboard)
 - [Preencher células e somá-las](fill-sum)
 - [Localizar, substituir e ir para](find-replace)
 - [Ordenar e filtrar](sort-filter)

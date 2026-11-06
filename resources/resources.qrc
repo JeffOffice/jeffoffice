@@ -1576,6 +1576,7 @@
     <file alias="de/crunch/insert-delete.md">help/de/crunch/insert-delete.md</file>
     <file alias="de/crunch/insert-function.md">help/de/crunch/insert-function.md</file>
     <file alias="de/crunch/keyboard.md">help/de/crunch/keyboard.md</file>
+    <file alias="de/crunch/language.md">help/de/crunch/language.md</file>
     <file alias="de/crunch/names.md">help/de/crunch/names.md</file>
     <file alias="de/crunch/notes-links.md">help/de/crunch/notes-links.md</file>
     <file alias="de/crunch/number-formats.md">help/de/crunch/number-formats.md</file>
@@ -1602,6 +1603,7 @@
     <file alias="de/deck/format-shape.md">help/de/deck/format-shape.md</file>
     <file alias="de/deck/index.md">help/de/deck/index.md</file>
     <file alias="de/deck/keyboard.md">help/de/deck/keyboard.md</file>
+    <file alias="de/deck/language.md">help/de/deck/language.md</file>
     <file alias="de/deck/notes.md">help/de/deck/notes.md</file>
     <file alias="de/deck/objects.md">help/de/deck/objects.md</file>
     <file alias="de/deck/open-save.md">help/de/deck/open-save.md</file>
@@ -1634,6 +1636,7 @@
     <file alias="de/index.md">help/de/index.md</file>
     <file alias="de/insert-objects.md">help/de/insert-objects.md</file>
     <file alias="de/keyboard.md">help/de/keyboard.md</file>
+    <file alias="de/language.md">help/de/language.md</file>
     <file alias="de/linked-text.md">help/de/linked-text.md</file>
     <file alias="de/lists-tabs.md">help/de/lists-tabs.md</file>
     <file alias="de/mail-merge.md">help/de/mail-merge.md</file>
@@ -1691,6 +1694,7 @@
     <file alias="de/write/index.md">help/de/write/index.md</file>
     <file alias="de/write/info.md">help/de/write/info.md</file>
     <file alias="de/write/keyboard.md">help/de/write/keyboard.md</file>
+    <file alias="de/write/language.md">help/de/write/language.md</file>
     <file alias="de/write/links.md">help/de/write/links.md</file>
     <file alias="de/write/mail-merge.md">help/de/write/mail-merge.md</file>
     <file alias="de/write/making-an-index.md">help/de/write/making-an-index.md</file>
@@ -1706,6 +1710,7 @@
     <file alias="de/write/proofing-tools.md">help/de/write/proofing-tools.md</file>
     <file alias="de/write/protect.md">help/de/write/protect.md</file>
     <file alias="de/write/ruler.md">help/de/write/ruler.md</file>
+    <file alias="de/write/shapes-text-boxes.md">help/de/write/shapes-text-boxes.md</file>
     <file alias="de/write/spelling.md">help/de/write/spelling.md</file>
     <file alias="de/write/start.md">help/de/write/start.md</file>
     <file alias="de/write/styles.md">help/de/write/styles.md</file>
@@ -2183,6 +2188,7 @@
     <file alias="es/crunch/insert-delete.md">help/es/crunch/insert-delete.md</file>
     <file alias="es/crunch/insert-function.md">help/es/crunch/insert-function.md</file>
     <file alias="es/crunch/keyboard.md">help/es/crunch/keyboard.md</file>
+    <file alias="es/crunch/language.md">help/es/crunch/language.md</file>
     <file alias="es/crunch/names.md">help/es/crunch/names.md</file>
     <file alias="es/crunch/notes-links.md">help/es/crunch/notes-links.md</file>
     <file alias="es/crunch/number-formats.md">help/es/crunch/number-formats.md</file>
@@ -2209,6 +2215,7 @@
     <file alias="es/deck/format-shape.md">help/es/deck/format-shape.md</file>
     <file alias="es/deck/index.md">help/es/deck/index.md</file>
     <file alias="es/deck/keyboard.md">help/es/deck/keyboard.md</file>
+    <file alias="es/deck/language.md">help/es/deck/language.md</file>
     <file alias="es/deck/notes.md">help/es/deck/notes.md</file>
     <file alias="es/deck/objects.md">help/es/deck/objects.md</file>
     <file alias="es/deck/open-save.md">help/es/deck/open-save.md</file>
@@ -2241,6 +2248,7 @@
     <file alias="es/index.md">help/es/index.md</file>
     <file alias="es/insert-objects.md">help/es/insert-objects.md</file>
     <file alias="es/keyboard.md">help/es/keyboard.md</file>
+    <file alias="es/language.md">help/es/language.md</file>
     <file alias="es/linked-text.md">help/es/linked-text.md</file>
     <file alias="es/lists-tabs.md">help/es/lists-tabs.md</file>
     <file alias="es/mail-merge.md">help/es/mail-merge.md</file>
@@ -2298,6 +2306,7 @@
     <file alias="es/write/index.md">help/es/write/index.md</file>
     <file alias="es/write/info.md">help/es/write/info.md</file>
     <file alias="es/write/keyboard.md">help/es/write/keyboard.md</file>
+    <file alias="es/write/language.md">help/es/write/language.md</file>
     <file alias="es/write/links.md">help/es/write/links.md</file>
     <file alias="es/write/mail-merge.md">help/es/write/mail-merge.md</file>
     <file alias="es/write/making-an-index.md">help/es/write/making-an-index.md</file>
@@ -2343,6 +2352,7 @@
     <file alias="fr/crunch/insert-delete.md">help/fr/crunch/insert-delete.md</file>
     <file alias="fr/crunch/insert-function.md">help/fr/crunch/insert-function.md</file>
     <file alias="fr/crunch/keyboard.md">help/fr/crunch/keyboard.md</file>
+    <file alias="fr/crunch/language.md">help/fr/crunch/language.md</file>
     <file alias="fr/crunch/names.md">help/fr/crunch/names.md</file>
     <file alias="fr/crunch/notes-links.md">help/fr/crunch/notes-links.md</file>
     <file alias="fr/crunch/number-formats.md">help/fr/crunch/number-formats.md</file>
@@ -2369,6 +2379,7 @@
     <file alias="fr/deck/format-shape.md">help/fr/deck/format-shape.md</file>
     <file alias="fr/deck/index.md">help/fr/deck/index.md</file>
     <file alias="fr/deck/keyboard.md">help/fr/deck/keyboard.md</file>
+    <file alias="fr/deck/language.md">help/fr/deck/language.md</file>
     <file alias="fr/deck/notes.md">help/fr/deck/notes.md</file>
     <file alias="fr/deck/objects.md">help/fr/deck/objects.md</file>
     <file alias="fr/deck/open-save.md">help/fr/deck/open-save.md</file>
@@ -2401,6 +2412,7 @@
     <file alias="fr/index.md">help/fr/index.md</file>
     <file alias="fr/insert-objects.md">help/fr/insert-objects.md</file>
     <file alias="fr/keyboard.md">help/fr/keyboard.md</file>
+    <file alias="fr/language.md">help/fr/language.md</file>
     <file alias="fr/linked-text.md">help/fr/linked-text.md</file>
     <file alias="fr/lists-tabs.md">help/fr/lists-tabs.md</file>
     <file alias="fr/mail-merge.md">help/fr/mail-merge.md</file>
@@ -2458,6 +2470,7 @@
     <file alias="fr/write/index.md">help/fr/write/index.md</file>
     <file alias="fr/write/info.md">help/fr/write/info.md</file>
     <file alias="fr/write/keyboard.md">help/fr/write/keyboard.md</file>
+    <file alias="fr/write/language.md">help/fr/write/language.md</file>
     <file alias="fr/write/links.md">help/fr/write/links.md</file>
     <file alias="fr/write/mail-merge.md">help/fr/write/mail-merge.md</file>
     <file alias="fr/write/making-an-index.md">help/fr/write/making-an-index.md</file>
@@ -2503,6 +2516,7 @@
     <file alias="it/crunch/insert-delete.md">help/it/crunch/insert-delete.md</file>
     <file alias="it/crunch/insert-function.md">help/it/crunch/insert-function.md</file>
     <file alias="it/crunch/keyboard.md">help/it/crunch/keyboard.md</file>
+    <file alias="it/crunch/language.md">help/it/crunch/language.md</file>
     <file alias="it/crunch/names.md">help/it/crunch/names.md</file>
     <file alias="it/crunch/notes-links.md">help/it/crunch/notes-links.md</file>
     <file alias="it/crunch/number-formats.md">help/it/crunch/number-formats.md</file>
@@ -2529,6 +2543,7 @@
     <file alias="it/deck/format-shape.md">help/it/deck/format-shape.md</file>
     <file alias="it/deck/index.md">help/it/deck/index.md</file>
     <file alias="it/deck/keyboard.md">help/it/deck/keyboard.md</file>
+    <file alias="it/deck/language.md">help/it/deck/language.md</file>
     <file alias="it/deck/notes.md">help/it/deck/notes.md</file>
     <file alias="it/deck/objects.md">help/it/deck/objects.md</file>
     <file alias="it/deck/open-save.md">help/it/deck/open-save.md</file>
@@ -2561,6 +2576,7 @@
     <file alias="it/index.md">help/it/index.md</file>
     <file alias="it/insert-objects.md">help/it/insert-objects.md</file>
     <file alias="it/keyboard.md">help/it/keyboard.md</file>
+    <file alias="it/language.md">help/it/language.md</file>
     <file alias="it/linked-text.md">help/it/linked-text.md</file>
     <file alias="it/lists-tabs.md">help/it/lists-tabs.md</file>
     <file alias="it/mail-merge.md">help/it/mail-merge.md</file>
@@ -2618,6 +2634,7 @@
     <file alias="it/write/index.md">help/it/write/index.md</file>
     <file alias="it/write/info.md">help/it/write/info.md</file>
     <file alias="it/write/keyboard.md">help/it/write/keyboard.md</file>
+    <file alias="it/write/language.md">help/it/write/language.md</file>
     <file alias="it/write/links.md">help/it/write/links.md</file>
     <file alias="it/write/mail-merge.md">help/it/write/mail-merge.md</file>
     <file alias="it/write/making-an-index.md">help/it/write/making-an-index.md</file>
@@ -2663,6 +2680,7 @@
     <file alias="nl/crunch/insert-delete.md">help/nl/crunch/insert-delete.md</file>
     <file alias="nl/crunch/insert-function.md">help/nl/crunch/insert-function.md</file>
     <file alias="nl/crunch/keyboard.md">help/nl/crunch/keyboard.md</file>
+    <file alias="nl/crunch/language.md">help/nl/crunch/language.md</file>
     <file alias="nl/crunch/names.md">help/nl/crunch/names.md</file>
     <file alias="nl/crunch/notes-links.md">help/nl/crunch/notes-links.md</file>
     <file alias="nl/crunch/number-formats.md">help/nl/crunch/number-formats.md</file>
@@ -2689,6 +2707,7 @@
     <file alias="nl/deck/format-shape.md">help/nl/deck/format-shape.md</file>
     <file alias="nl/deck/index.md">help/nl/deck/index.md</file>
     <file alias="nl/deck/keyboard.md">help/nl/deck/keyboard.md</file>
+    <file alias="nl/deck/language.md">help/nl/deck/language.md</file>
     <file alias="nl/deck/notes.md">help/nl/deck/notes.md</file>
     <file alias="nl/deck/objects.md">help/nl/deck/objects.md</file>
     <file alias="nl/deck/open-save.md">help/nl/deck/open-save.md</file>
@@ -2721,6 +2740,7 @@
     <file alias="nl/index.md">help/nl/index.md</file>
     <file alias="nl/insert-objects.md">help/nl/insert-objects.md</file>
     <file alias="nl/keyboard.md">help/nl/keyboard.md</file>
+    <file alias="nl/language.md">help/nl/language.md</file>
     <file alias="nl/linked-text.md">help/nl/linked-text.md</file>
     <file alias="nl/lists-tabs.md">help/nl/lists-tabs.md</file>
     <file alias="nl/mail-merge.md">help/nl/mail-merge.md</file>
@@ -2778,6 +2798,7 @@
     <file alias="nl/write/index.md">help/nl/write/index.md</file>
     <file alias="nl/write/info.md">help/nl/write/info.md</file>
     <file alias="nl/write/keyboard.md">help/nl/write/keyboard.md</file>
+    <file alias="nl/write/language.md">help/nl/write/language.md</file>
     <file alias="nl/write/links.md">help/nl/write/links.md</file>
     <file alias="nl/write/mail-merge.md">help/nl/write/mail-merge.md</file>
     <file alias="nl/write/making-an-index.md">help/nl/write/making-an-index.md</file>
@@ -2823,6 +2844,7 @@
     <file alias="pt_BR/crunch/insert-delete.md">help/pt_BR/crunch/insert-delete.md</file>
     <file alias="pt_BR/crunch/insert-function.md">help/pt_BR/crunch/insert-function.md</file>
     <file alias="pt_BR/crunch/keyboard.md">help/pt_BR/crunch/keyboard.md</file>
+    <file alias="pt_BR/crunch/language.md">help/pt_BR/crunch/language.md</file>
     <file alias="pt_BR/crunch/names.md">help/pt_BR/crunch/names.md</file>
     <file alias="pt_BR/crunch/notes-links.md">help/pt_BR/crunch/notes-links.md</file>
     <file alias="pt_BR/crunch/number-formats.md">help/pt_BR/crunch/number-formats.md</file>
@@ -2849,6 +2871,7 @@
     <file alias="pt_BR/deck/format-shape.md">help/pt_BR/deck/format-shape.md</file>
     <file alias="pt_BR/deck/index.md">help/pt_BR/deck/index.md</file>
     <file alias="pt_BR/deck/keyboard.md">help/pt_BR/deck/keyboard.md</file>
+    <file alias="pt_BR/deck/language.md">help/pt_BR/deck/language.md</file>
     <file alias="pt_BR/deck/notes.md">help/pt_BR/deck/notes.md</file>
     <file alias="pt_BR/deck/objects.md">help/pt_BR/deck/objects.md</file>
     <file alias="pt_BR/deck/open-save.md">help/pt_BR/deck/open-save.md</file>
@@ -2881,6 +2904,7 @@
     <file alias="pt_BR/index.md">help/pt_BR/index.md</file>
     <file alias="pt_BR/insert-objects.md">help/pt_BR/insert-objects.md</file>
     <file alias="pt_BR/keyboard.md">help/pt_BR/keyboard.md</file>
+    <file alias="pt_BR/language.md">help/pt_BR/language.md</file>
     <file alias="pt_BR/linked-text.md">help/pt_BR/linked-text.md</file>
     <file alias="pt_BR/lists-tabs.md">help/pt_BR/lists-tabs.md</file>
     <file alias="pt_BR/mail-merge.md">help/pt_BR/mail-merge.md</file>
@@ -2938,6 +2962,7 @@
     <file alias="pt_BR/write/index.md">help/pt_BR/write/index.md</file>
     <file alias="pt_BR/write/info.md">help/pt_BR/write/info.md</file>
     <file alias="pt_BR/write/keyboard.md">help/pt_BR/write/keyboard.md</file>
+    <file alias="pt_BR/write/language.md">help/pt_BR/write/language.md</file>
     <file alias="pt_BR/write/links.md">help/pt_BR/write/links.md</file>
     <file alias="pt_BR/write/mail-merge.md">help/pt_BR/write/mail-merge.md</file>
     <file alias="pt_BR/write/making-an-index.md">help/pt_BR/write/making-an-index.md</file>
@@ -2983,6 +3008,7 @@
     <file alias="pt_PT/crunch/insert-delete.md">help/pt_PT/crunch/insert-delete.md</file>
     <file alias="pt_PT/crunch/insert-function.md">help/pt_PT/crunch/insert-function.md</file>
     <file alias="pt_PT/crunch/keyboard.md">help/pt_PT/crunch/keyboard.md</file>
+    <file alias="pt_PT/crunch/language.md">help/pt_PT/crunch/language.md</file>
     <file alias="pt_PT/crunch/names.md">help/pt_PT/crunch/names.md</file>
     <file alias="pt_PT/crunch/notes-links.md">help/pt_PT/crunch/notes-links.md</file>
     <file alias="pt_PT/crunch/number-formats.md">help/pt_PT/crunch/number-formats.md</file>
@@ -3009,6 +3035,7 @@
     <file alias="pt_PT/deck/format-shape.md">help/pt_PT/deck/format-shape.md</file>
     <file alias="pt_PT/deck/index.md">help/pt_PT/deck/index.md</file>
     <file alias="pt_PT/deck/keyboard.md">help/pt_PT/deck/keyboard.md</file>
+    <file alias="pt_PT/deck/language.md">help/pt_PT/deck/language.md</file>
     <file alias="pt_PT/deck/notes.md">help/pt_PT/deck/notes.md</file>
     <file alias="pt_PT/deck/objects.md">help/pt_PT/deck/objects.md</file>
     <file alias="pt_PT/deck/open-save.md">help/pt_PT/deck/open-save.md</file>
@@ -3041,6 +3068,7 @@
     <file alias="pt_PT/index.md">help/pt_PT/index.md</file>
     <file alias="pt_PT/insert-objects.md">help/pt_PT/insert-objects.md</file>
     <file alias="pt_PT/keyboard.md">help/pt_PT/keyboard.md</file>
+    <file alias="pt_PT/language.md">help/pt_PT/language.md</file>
     <file alias="pt_PT/linked-text.md">help/pt_PT/linked-text.md</file>
     <file alias="pt_PT/lists-tabs.md">help/pt_PT/lists-tabs.md</file>
     <file alias="pt_PT/mail-merge.md">help/pt_PT/mail-merge.md</file>
@@ -3098,6 +3126,7 @@
     <file alias="pt_PT/write/index.md">help/pt_PT/write/index.md</file>
     <file alias="pt_PT/write/info.md">help/pt_PT/write/info.md</file>
     <file alias="pt_PT/write/keyboard.md">help/pt_PT/write/keyboard.md</file>
+    <file alias="pt_PT/write/language.md">help/pt_PT/write/language.md</file>
     <file alias="pt_PT/write/links.md">help/pt_PT/write/links.md</file>
     <file alias="pt_PT/write/mail-merge.md">help/pt_PT/write/mail-merge.md</file>
     <file alias="pt_PT/write/making-an-index.md">help/pt_PT/write/making-an-index.md</file>

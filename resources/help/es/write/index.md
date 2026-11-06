@@ -1,18 +1,18 @@
 # Ayuda de JeffWrite
-<!-- keywords: contenido, ayuda, temas, inicio, índice -->
+<!-- keywords: contenido, ayuda, temas, inicio -->
 
-Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Presione **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
 
 ## Primeros pasos
 
-- [Bienvenido a JeffWrite](start)
+- [Bienvenida a JeffWrite](start)
 - [Abrir, guardar, imprimir y exportar](open-save)
-- [Información: propiedades, contraseñas e Inspeccionar documento](info)
+- [Información: propiedades, contraseñas e Inspeccionar](info)
 - [Abrir y guardar archivos OpenDocument](open-odt)
 - [Abrir archivos RTF](open-rtf)
 - [Imprimir](print)
 
-## Revisar el texto
+## Trabajar con el texto
 
 - [Comprobar la ortografía](spelling)
 - [Contar palabras, definir el idioma, comprobar la accesibilidad y buscar palabras](proofing-tools)
@@ -20,14 +20,14 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Agregar y responder comentarios](comments)
 - [Proteger un documento y bloquear el control de cambios](protect)
 
-## Escribir y modificar el texto
+## Escribir y cambiar texto
 
 - [Cambiar el aspecto del texto](font)
 - [Cambiar mayúsculas y minúsculas, ordenar y pegar de otras formas](home-tools)
 - [Usar estilos](styles)
-- [Copiar un formato con Copiar formato](format-painter)
+- [Copiar un aspecto con Copiar formato](format-painter)
 - [Agregar encabezados, pies de página y números de página](headers-footers)
-- [Crear y modificar tablas](tables)
+- [Crear y cambiar tablas](tables)
 - [Agregar notas al pie y notas al final](footnotes-endnotes)
 - [Crear una tabla de contenido](table-of-contents)
 - [Agregar títulos y una tabla de ilustraciones](captions)
@@ -43,7 +43,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Gráficos](charts)
 - [Ecuaciones](equations)
 - [Configurar la página](page-setup)
-- [Saltos, columnas, división de palabras y numeración de líneas](breaks-columns)
+- [Saltos, columnas, división de palabras y números de línea](breaks-columns)
 - [Insertar símbolos y caracteres especiales](symbols-special-characters)
 - [Agregar vínculos y texto de otros archivos](links)
 - [Cambiar el color y los bordes de las páginas](page-look)

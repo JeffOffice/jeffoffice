@@ -1,13 +1,13 @@
 # Ajuda do JeffPub
-<!-- keywords: conteúdo, índice, ajuda, tópicos, início, começar -->
+<!-- keywords: conteúdo, ajuda, tópicos, início -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra, a caixa de diálogo que tem aberta ou o objeto que selecionou.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra, a caixa de diálogo aberta ou o objeto selecionado.
 
-## Introdução
+## Primeiros passos
 
 - [Bem-vindo ao JeffPub](start)
-- [Orientar-se na janela](window)
-- [Iniciar uma nova publicação](create)
+- [Conhecer a janela](window)
+- [Criar uma nova publicação](create)
 - [Abrir e guardar publicações](open-save)
 - [Trabalhar com ficheiros .pub](pub-files)
 - [Recuperar trabalho não guardado](recover)
@@ -15,7 +15,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 ## Texto
 
 - [Adicionar e formatar caixas de texto](text-boxes)
-- [Fazer fluir o texto entre caixas de texto](linked-text)
+- [Ligar texto entre caixas de texto](linked-text)
 - [Formatar texto](formatting-text)
 - [Marcas, numeração e tabulações](lists-tabs)
 - [Utilizar estilos](styles)
@@ -32,7 +32,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Desenhar formas e linhas](shapes)
 - [Ícones, códigos de barras e outros objetos](insert-objects)
 - [Mover, alinhar, agrupar e organizar objetos em camadas](arrange)
-- [Moldar texto à volta de objetos](wrap)
+- [Moldar texto em redor de objetos](wrap)
 
 ## Páginas
 
@@ -62,7 +62,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Escolher um idioma](language)
 - [Obter ajuda e comunicar problemas](support)
 
-## Os separadores do friso
+## Separadores do friso
 
-- [Ficheiro](tab-file), [Base](tab-home), [Inserir](tab-insert), [Estrutura da Página](tab-page-design), [Correspondência](tab-mailings), [Rever](tab-review), [Ver](tab-view) e [Ajuda](tab-help)
+- [Ficheiro](tab-file), [Base](tab-home), [Inserir](tab-insert), [Design de Página](tab-page-design), [Correspondência](tab-mailings), [Rever](tab-review), [Ver](tab-view) e [Ajuda](tab-help)
 - Separadores que aparecem quando seleciona algo: [Caixa de Texto](tab-text-box), [Formato da Forma](tab-shape-format), [Formato da Imagem](tab-picture-format), [Estrutura da Tabela e Esquema da Tabela](tab-table), [Formato do Texto Artístico](tab-text-art) e [Página Modelo](tab-master-page)

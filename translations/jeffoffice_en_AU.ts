@@ -161,6 +161,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>PivotOptionsDialog</name>
+    <message>
+        <source>Merge and center cells with labels</source>
+        <translation>Merge and centre cells with labels</translation>
+    </message>
+</context>
+<context>
     <name>PptxImport</name>
     <message>
         <source>The slide master %1 has no theme, so JeffDeck's colors and fonts stand in.</source>
@@ -199,6 +206,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>tab colors</source>
         <translation>tab colours</translation>
+    </message>
+    <message>
+        <source>gradient fills (they are shown as one color)</source>
+        <translation>gradient fills (they are shown as one colour)</translation>
     </message>
 </context>
 <context>
@@ -356,8 +367,20 @@ Download it from %2 now? (%3, once.)</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
+        <source>Gridline color</source>
+        <translation>Gridline colour</translation>
+    </message>
+    <message>
+        <source>Gridline color:</source>
+        <translation>Gridline colour:</translation>
+    </message>
+    <message>
         <source>Chart Colors and Styles</source>
         <translation>Chart Colours and Styles</translation>
+    </message>
+    <message>
+        <source>Align Center</source>
+        <translation>Align Centre</translation>
     </message>
     <message>
         <source>Merge and Center</source>
@@ -390,6 +413,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Sparkline Color</source>
         <translation>Sparkline Colour</translation>
+    </message>
+    <message>
+        <source>Light Gray</source>
+        <translation>Light Grey</translation>
     </message>
     <message>
         <source>Sparkline Marker Color</source>
@@ -521,6 +548,22 @@ Download it from %2 now? (%3, once.)</translation>
         <source>All one color</source>
         <translation>All one colour</translation>
     </message>
+    <message>
+        <source>&amp;Fill with a gradient of two colors</source>
+        <translation>&amp;Fill with a gradient of two colours</translation>
+    </message>
+    <message>
+        <source>Second Color</source>
+        <translation>Second Colour</translation>
+    </message>
+    <message>
+        <source>&amp;Second Color:</source>
+        <translation>&amp;Second Colour:</translation>
+    </message>
+    <message>
+        <source>From the center out</source>
+        <translation>From the centre out</translation>
+    </message>
 </context>
 <context>
     <name>jp::FormatPane</name>
@@ -615,13 +658,6 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Inserted. Check that its license fits how you'll use it.</source>
         <translation>Inserted. Check that its licence fits how you'll use it.</translation>
-    </message>
-</context>
-<context>
-    <name>jp::PivotOptionsDialog</name>
-    <message>
-        <source>Merge and center cells with labels</source>
-        <translation>Merge and centre cells with labels</translation>
     </message>
 </context>
 <context>

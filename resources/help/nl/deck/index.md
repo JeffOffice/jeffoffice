@@ -1,27 +1,27 @@
-# Help bij JeffDeck
-<!-- keywords: inhoud, help, onderwerpen, starten, inhoudsopgave, beginnen -->
+# JeffDeck Help
+<!-- keywords: inhoud, help, onderwerpen, starten -->
 
-Typ in het zoekvak hierboven om een onderwerp te vinden of een opdracht uit te voeren. Druk op elk moment op **F1** voor hulp bij wat u aan het doen bent: het tabblad van het lint waarop u zich bevindt, het deelvenster waarin u werkt of het object dat u hebt geselecteerd.
+Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op **F1** om op elk moment hulp te krijgen bij wat u aan het doen bent: het linttabblad waarop u staat, het deelvenster waarin u werkt, of het object dat u hebt geselecteerd.
 
 ## Aan de slag
 
 - [Welkom bij JeffDeck](start)
-- [Uw weg vinden in het venster](window)
+- [De venster-indeling verkennen](window)
 - [Presentaties openen en opslaan](open-save)
-- [Niet-opgeslagen werk terughalen](recover)
+- [Niet-opgeslagen werk herstellen](recover)
 
 ## Dia's
 
 - [Dia's toevoegen, wijzigen en verwijderen](slides)
-- [Dia's uit een andere presentatie opnieuw gebruiken](reuse)
-- [Overzichtsweergave, de diasorteerder en de diamodelweergave](views)
+- [Dia's uit een andere presentatie hergebruiken](reuse)
+- [Overzichtsweergave, de Diasorteerder en de weergave Diamodel](views)
 - [Diaformaat, achtergrond en voetteksten](design)
 
 ## Op een dia
 
 - [Tekst typen en opmaken](text)
 - [Vormen, afbeeldingen, tabellen en tekstopmaak](objects)
-- [Het deelvenster Vorm opmaken en het tabblad Vormopmaak](format-shape)
+- [Het taakvenster Vorm opmaken en het tabblad Vormopmaak](format-shape)
 - [Sprekersnotities](notes)
 - [Opmerkingen](comments)
 
@@ -36,16 +36,16 @@ Typ in het zoekvak hierboven om een onderwerp te vinden of een opdracht uit te v
 
 ## Afdrukken en delen
 
-- [Afdrukken, PDF en dia-afbeeldingen](printing)
+- [Afdrukken, pdf en dia-afbeeldingen](printing)
 
-## Help en instellingen
+## Hulp en instellingen
 
 - [JeffDeck met het toetsenbord gebruiken](keyboard)
-- [De instellingen van JeffDeck wijzigen](options)
+- [JeffDecks instellingen wijzigen](options)
 - [Een taal kiezen](language)
 - [Het scherm Bestand](file-screen)
 
 ## De tabbladen van het lint
 
 - [Start](tab-home), [Invoegen](tab-insert), [Ontwerp](tab-design), [Overgangen](tab-transitions), [Animaties](tab-animations), [Diavoorstelling](tab-slide-show), [Controleren](tab-review) en [Beeld](tab-view)
-- [Afspelen](tab-playback) wordt weergegeven wanneer een video of geluid is geselecteerd
+- [Afspelen](tab-playback) wordt weergegeven terwijl een film of geluid is geselecteerd

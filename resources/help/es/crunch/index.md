@@ -1,7 +1,7 @@
 # Ayuda de JeffCrunch
-<!-- keywords: contenido, ayuda, temas, inicio -->
+<!-- keywords: contenido, ayuda, temas, inicio, índice -->
 
-Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que está o la página de la pantalla Archivo en la que se encuentra.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Presione **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
 
 ## Primeros pasos
 
@@ -12,9 +12,9 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Escribir en las celdas](edit-cells)
 - [Reglas para el contenido de una celda](rules)
 
-## Consultar un libro
+## Ver un libro
 
-- [Seleccionar celdas y desplazarse](select-and-move)
+- [Seleccionar celdas y moverse](select-and-move)
 - [Cambiar la vista](view)
 - [Cómo se muestran y calculan las fórmulas](formulas)
 - [Nombres para celdas y valores](names)
@@ -36,7 +36,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Tablas](tables)
 - [Tablas dinámicas](pivot-tables)
 - [Insertar una función](insert-function)
-- [Introducir una función con el cuadro de diálogo Argumentos de función](function-arguments)
+- [Escribir una función con el cuadro de diálogo Argumentos de función](function-arguments)
 - [Gráficos, imágenes y formas](charts)
 - [Notas y vínculos](notes-links)
 - [Proteger una hoja o el libro](protect)

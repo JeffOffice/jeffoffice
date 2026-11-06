@@ -1,12 +1,12 @@
 # JeffDeck-Hilfe
-<!-- keywords: Inhalt, Hilfe, Themen, Start, Übersicht, Einstieg, Inhaltsverzeichnis -->
+<!-- keywords: Inhalt, Hilfe, Themen, Start -->
 
-Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur aktuellen Registerkarte des Menübands, zum Bereich, in dem Sie sich befinden, oder zum ausgewählten Objekt.
+Geben Sie oben in das Suchfeld ein, um ein Thema oder einen Befehl zu finden, den Sie ausführen möchten. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands, auf der Sie sich befinden, zum Bereich, in dem Sie arbeiten, oder zum ausgewählten Objekt.
 
 ## Erste Schritte
 
 - [Willkommen bei JeffDeck](start)
-- [Im Fenster zurechtfinden](window)
+- [Sich im Fenster zurechtfinden](window)
 - [Präsentationen öffnen und speichern](open-save)
 - [Nicht gespeicherte Arbeit wiederherstellen](recover)
 
@@ -14,7 +14,7 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 
 - [Folien hinzufügen, ändern und löschen](slides)
 - [Folien aus einer anderen Präsentation wiederverwenden](reuse)
-- [Gliederungsansicht, Foliensortierung und Folienmasteransicht](views)
+- [Gliederungsansicht, Foliensortierung und Folienmaster-Ansicht](views)
 - [Foliengröße, Hintergrund und Fußzeilen](design)
 
 ## Auf einer Folie
@@ -30,22 +30,22 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 - [Übergänge zwischen Folien](transitions)
 - [Animationen](animations)
 
-## Vorführen
+## Präsentation
 
-- [Bildschirmpräsentation vorführen und Referentenansicht verwenden](show)
+- [Bildschirmpräsentation abspielen und die Referentenansicht verwenden](show)
 
-## Drucken und weitergeben
+## Drucken und Freigeben
 
 - [Drucken, PDF und Folienbilder](printing)
 
 ## Hilfe und Einstellungen
 
-- [JeffDeck mit der Tastatur bedienen](keyboard)
-- [Einstellungen von JeffDeck ändern](options)
-- [Sprache wählen](language)
-- [Das Menü „Datei“](file-screen)
+- [JeffDeck mit der Tastatur verwenden](keyboard)
+- [JeffDecks Einstellungen ändern](options)
+- [Eine Sprache auswählen](language)
+- [Die Ansicht „Datei“](file-screen)
 
-## Die Registerkarten des Menübands
+## Registerkarten des Menübands
 
 - [Start](tab-home), [Einfügen](tab-insert), [Entwurf](tab-design), [Übergänge](tab-transitions), [Animationen](tab-animations), [Bildschirmpräsentation](tab-slide-show), [Überprüfen](tab-review) und [Ansicht](tab-view)
-- [Wiedergabe](tab-playback) wird angezeigt, wenn ein Video oder Audio ausgewählt ist
+- [Wiedergabe](tab-playback) wird angezeigt, während ein Film oder Ton ausgewählt ist

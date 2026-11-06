@@ -1,15 +1,15 @@
 # Aide de JeffCrunch
-<!-- keywords: sommaire, aide, rubriques, démarrer, contenu -->
+<!-- keywords: sommaire, aide, rubriques, démarrage -->
 
 Saisissez du texte dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez à tout moment sur **F1** pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban ou la page de l'écran Fichier que vous affichez.
 
-## Pour bien démarrer
+## Prise en main
 
 - [Bienvenue dans JeffCrunch](start)
 - [Ouvrir et enregistrer des classeurs](open-save)
 - [Informations : propriétés, mots de passe et Inspecter](info)
-- [Ouvrir des classeurs protégés par mot de passe](open-password)
-- [Saisir des contenus dans les cellules](edit-cells)
+- [Ouvrir des classeurs protégés par un mot de passe](open-password)
+- [Saisir des données dans les cellules](edit-cells)
 - [Règles de contenu d'une cellule](rules)
 
 ## Consulter un classeur
@@ -23,13 +23,13 @@ Saisissez du texte dans la zone de recherche ci-dessus pour trouver une rubrique
 ## Modifier un classeur
 
 - [Mettre en forme les cellules](format-cells)
-- [Formats de nombre et langue](number-formats)
+- [Formats de nombre et votre langue](number-formats)
 - [Styles de cellule](cell-styles)
 - [Gérer les feuilles](sheets)
 - [Insérer et supprimer des lignes, des colonnes et des cellules](insert-delete)
 - [Modifier la largeur des colonnes et la hauteur des lignes](sizes)
 - [Couper, copier et coller](clipboard)
-- [Recopier des cellules et faire la somme](fill-sum)
+- [Recopier des cellules et calculer leur somme](fill-sum)
 - [Rechercher, remplacer et atteindre](find-replace)
 - [Trier et filtrer](sort-filter)
 - [Outils de données](data-tools)
@@ -43,12 +43,12 @@ Saisissez du texte dans la zone de recherche ci-dessus pour trouver une rubrique
 
 ## Imprimer
 
-- [Mettre en page les pages](page-layout)
+- [Mettre en page les feuilles](page-layout)
 - [La boîte de dialogue Mise en page](page-setup)
 - [Imprimer et créer un PDF](printing)
 
 ## Travailler plus vite
 
 - [Utiliser JeffCrunch au clavier](keyboard)
-- [Modifier les options de JeffCrunch](options)
+- [Modifier les paramètres de JeffCrunch](options)
 - [Choisir une langue](language)

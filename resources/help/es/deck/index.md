@@ -1,12 +1,12 @@
 # Ayuda de JeffDeck
-<!-- keywords: contenido, ayuda, temas, inicio, índice, empezar, comenzar -->
+<!-- keywords: contenido, ayuda, temas, inicio -->
 
-Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Presione **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el panel en el que está o el objeto que ha seleccionado.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el panel en el que está o el objeto que ha seleccionado.
 
-## Introducción
+## Primeros pasos
 
-- [Bienvenido a JeffDeck](start)
-- [Moverse por la ventana](window)
+- [Bienvenida a JeffDeck](start)
+- [Orientarse en la ventana](window)
 - [Abrir y guardar presentaciones](open-save)
 - [Recuperar trabajo no guardado](recover)
 
@@ -14,12 +14,12 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Agregar, cambiar y eliminar diapositivas](slides)
 - [Reutilizar diapositivas de otra presentación](reuse)
-- [La Vista Esquema, el Clasificador de diapositivas y la vista Patrón de diapositivas](views)
+- [Vista Esquema, Clasificador de diapositivas y vista Patrón de diapositivas](views)
 - [Tamaño de diapositiva, fondo y pies de página](design)
 
 ## En una diapositiva
 
-- [Escribir texto y darle formato](text)
+- [Escribir y dar formato al texto](text)
 - [Formas, imágenes, tablas y texto artístico](objects)
 - [El panel Formato de forma y la pestaña Formato de forma](format-shape)
 - [Notas del orador](notes)
@@ -36,7 +36,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 ## Imprimir y compartir
 
-- [Imprimir, crear PDF e imágenes de diapositivas](printing)
+- [Imprimir, PDF e imágenes de diapositivas](printing)
 
 ## Ayuda y configuración
 
@@ -45,7 +45,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Elegir un idioma](language)
 - [La pantalla Archivo](file-screen)
 
-## Las pestañas de la cinta de opciones
+## Pestañas de la cinta de opciones
 
 - [Inicio](tab-home), [Insertar](tab-insert), [Diseño](tab-design), [Transiciones](tab-transitions), [Animaciones](tab-animations), [Presentación con diapositivas](tab-slide-show), [Revisar](tab-review) y [Vista](tab-view)
 - [Reproducción](tab-playback) aparece mientras hay un vídeo o un sonido seleccionado

@@ -1,13 +1,13 @@
-# Ajuda do JeffPub
-<!-- keywords: conteúdo, ajuda, tópicos, início, sumário, índice, começar -->
+# JeffPub Ajuda
+<!-- keywords: conteúdo, ajuda, tópicos, início -->
 
-Digite na caixa de pesquisa acima para localizar um tópico ou um comando a ser executado. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, a caixa de diálogo aberta ou o objeto selecionado.
+Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, a caixa de diálogo aberta ou o objeto selecionado.
 
-## Introdução
+## Primeiros passos
 
 - [Boas-vindas ao JeffPub](start)
 - [Conheça a janela](window)
-- [Criar uma nova publicação](create)
+- [Iniciar uma nova publicação](create)
 - [Abrir e salvar publicações](open-save)
 - [Trabalhar com arquivos .pub](pub-files)
 - [Recuperar trabalho não salvo](recover)
@@ -15,7 +15,7 @@ Digite na caixa de pesquisa acima para localizar um tópico ou um comando a ser 
 ## Texto
 
 - [Adicionar e formatar caixas de texto](text-boxes)
-- [Fazer o texto fluir entre caixas de texto](linked-text)
+- [Fluir texto entre caixas de texto](linked-text)
 - [Formatar texto](formatting-text)
 - [Marcadores, numeração e tabulações](lists-tabs)
 - [Usar estilos](styles)
@@ -32,7 +32,7 @@ Digite na caixa de pesquisa acima para localizar um tópico ou um comando a ser 
 - [Desenhar formas e linhas](shapes)
 - [Ícones, códigos de barras e outros objetos](insert-objects)
 - [Mover, alinhar, agrupar e organizar objetos em camadas](arrange)
-- [Quebra de texto em torno de objetos](wrap)
+- [Quebrar texto ao redor de objetos](wrap)
 
 ## Páginas
 
@@ -57,12 +57,12 @@ Digite na caixa de pesquisa acima para localizar um tópico ou um comando a ser 
 
 - [Usar o JeffPub com o teclado](keyboard)
 - [Leitores de tela, alto contraste e texto alternativo](accessibility)
-- [Verificar o design](design-checker)
+- [Verificar seu design](design-checker)
 - [Alterar as configurações do JeffPub](options)
 - [Escolher um idioma](language)
 - [Obter ajuda e relatar problemas](support)
 
-## As guias da faixa de opções
+## Guias da faixa de opções
 
 - [Arquivo](tab-file), [Página Inicial](tab-home), [Inserir](tab-insert), [Design da Página](tab-page-design), [Correspondências](tab-mailings), [Revisão](tab-review), [Exibir](tab-view) e [Ajuda](tab-help)
 - Guias que aparecem quando você seleciona algo: [Caixa de Texto](tab-text-box), [Formato da Forma](tab-shape-format), [Formato da Imagem](tab-picture-format), [Design da Tabela e Layout da Tabela](tab-table), [Formato do Texto Artístico](tab-text-art) e [Página Mestra](tab-master-page)

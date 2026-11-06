@@ -1,20 +1,20 @@
 # JeffCrunch-Hilfe
-<!-- keywords: Inhalt, Hilfe, Themen, Start -->
+<!-- keywords: Inhalt, Hilfe, Themen, Start, Hilfethemen -->
 
-Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: die Registerkarte des Menübands oder die Seite der Backstage-Ansicht „Datei“, auf der Sie sich befinden.
+Geben Sie oben in das Suchfeld ein, um ein Thema oder einen Befehl zu finden, den Sie ausführen möchten. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands, auf der Sie sich befinden, oder zur Seite der Backstage-Ansicht „Datei“, auf der Sie sich befinden.
 
 ## Erste Schritte
 
 - [Willkommen bei JeffCrunch](start)
 - [Arbeitsmappen öffnen und speichern](open-save)
-- [Info: Eigenschaften, Kennwörter und Arbeitsmappe prüfen](info)
-- [Kennwortgeschützte Arbeitsmappen öffnen](open-password)
+- [Info: Eigenschaften, Kennwörter und Dokumente prüfen](info)
+- [Arbeitsmappen mit Kennwortschutz öffnen](open-password)
 - [In Zellen eingeben](edit-cells)
 - [Regeln für den Inhalt einer Zelle](rules)
 
 ## Eine Arbeitsmappe ansehen
 
-- [Zellen auswählen und navigieren](select-and-move)
+- [Zellen auswählen und sich darin bewegen](select-and-move)
 - [Ansicht ändern](view)
 - [Anzeige und Berechnung von Formeln](formulas)
 - [Namen für Zellen und Werte](names)
@@ -30,7 +30,7 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 - [Spaltenbreite und Zeilenhöhe ändern](sizes)
 - [Ausschneiden, Kopieren und Einfügen](clipboard)
 - [Zellen ausfüllen und summieren](fill-sum)
-- [Suchen, ersetzen und gehe zu](find-replace)
+- [Suchen, Ersetzen und Gehe zu](find-replace)
 - [Sortieren und filtern](sort-filter)
 - [Datentools](data-tools)
 - [Tabellen](tables)
@@ -51,4 +51,4 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 
 - [JeffCrunch mit der Tastatur verwenden](keyboard)
 - [Einstellungen von JeffCrunch ändern](options)
-- [Sprache wählen](language)
+- [Sprache auswählen](language)
