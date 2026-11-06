@@ -533,6 +533,9 @@ public:
         bool firstColumn = false, lastColumn = false, rowStripes = true, columnStripes = false, filterButtons = true;
     };
     Outcome setTableMarks(int table, const TableMarks &marks);
+    // A table style of the workbook's own, made of the looks of some parts of a table (one step of Undo; Undo takes it out again unless the file has been saved with it). Refused with a reason
+    // when the name is empty or taken.
+    Outcome defineTableStyle(const QString &name, const QVector<jp::office::sheet::Workbook::TableStylePart> &parts);
     // The row of column names on or off. Off: the names' cells are cleared and the table begins at the row under them. On: the row above the table (which must be empty) is the table's, with
     // the columns' names in it.
     Outcome setTableHeaderRow(int table, bool on);
@@ -1008,7 +1011,7 @@ public:
     // What the file needs to be made, taken now (nothing is held on to): false, with a message, if it can't be made.
     struct Snapshot {
         jp::office::sheet::SaveChanges changes;
-        int strings = 0, numberFormats = 0, cellFormats = 0, fonts = 0, fills = 0, borders = 0, styles = 0, dxfs = 0;   // how many of the workbook's additions are in it
+        int strings = 0, numberFormats = 0, cellFormats = 0, fonts = 0, fills = 0, borders = 0, styles = 0, dxfs = 0, tableStyles = 0;   // how many of the workbook's additions are in it
         std::map<quint64, jp::calc::Value> results;            // the results it holds (to be the file's, once it is written)
         std::vector<quint64> touchedFormulas;                  // the formula cells it holds whole, with the results they were given
         std::map<quint64, jp::calc::Value> touchedResults;

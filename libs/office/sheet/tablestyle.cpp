@@ -275,6 +275,13 @@ void TableStyleBook::setCustom(const QVector<CustomTableStyle> &custom, const QV
     }
 }
 
+QStringList TableStyleBook::customNames() const
+{
+    QStringList out;
+    for (const TableStyle &s : m_custom) out << s.name;
+    return out;
+}
+
 const TableStyle *TableStyleBook::find(const QString &name) const
 {
     for (const TableStyle &s : m_custom)

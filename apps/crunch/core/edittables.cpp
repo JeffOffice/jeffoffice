@@ -580,6 +580,56 @@ EditSession::Outcome EditSession::setTableMarks(int table, const TableMarks &mar
     return pushTableStep(std::move(step), tr("Changing a table's look"));
 }
 
+namespace {
+
+// A table style the workbook defines: put in by Redo, taken out again by Undo.
+class TableStyleDefined : public QUndoCommand {
+public:
+    TableStyleDefined(Workbook *book, const QString &name, const QVector<Workbook::TableStylePart> &parts, const QString &text) : QUndoCommand(text), m_book(book), m_name(name), m_parts(parts) {}
+    void redo() override
+    {
+        if (m_first) {
+            m_first = false;
+            return;
+        }
+        m_book->defineTableStyle(m_name, m_parts);   // (refused when the file has it by now: it is there)
+    }
+    void undo() override { m_book->removeAddedTableStyle(m_name); }
+
+private:
+    Workbook *m_book;
+    QString m_name;
+    QVector<Workbook::TableStylePart> m_parts;
+    bool m_first = true;
+};
+
+} // namespace
+
+EditSession::Outcome EditSession::defineTableStyle(const QString &name, const QVector<Workbook::TableStylePart> &parts)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    if (!hold) {
+        out.ok = false;
+        out.problem = tr("The workbook is busy. Try again in a moment.");
+        return out;
+    }
+    if (!m_book->book->defineTableStyle(name, parts, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    hold.reset();
+    m_undo.push(new TableStyleDefined(m_book->book.get(), name.trimmed(), parts, tr("New Table Style")));
+    return out;
+}
+
 EditSession::Outcome EditSession::setTableHeaderRow(int table, bool on)
 {
     Outcome out;

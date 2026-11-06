@@ -16,6 +16,8 @@
 
 #include <QAction>
 #include <QCheckBox>
+#include <QColorDialog>
+#include <QHBoxLayout>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -30,6 +32,9 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QWidgetAction>
+
+#include <memory>
+#include <vector>
 
 namespace jp {
 
@@ -85,14 +90,16 @@ QPixmap swatchOf(const TableStyle &style, const jp::office::sheet::Styles &style
 // The gallery: the built-in looks in their groups, a button for each; a click chooses one.
 class TableLooksPicker : public QWidget {
 public:
-    TableLooksPicker(const jp::office::sheet::Styles &styles, const jp::office::sheet::TableStyleBook &book, const QString &current, const std::function<void(const QString &)> &choose, QWidget *parent)
+    TableLooksPicker(const jp::office::sheet::Styles &styles, const jp::office::sheet::TableStyleBook &book, const QString &current, const std::function<void(const QString &)> &choose, const std::function<void()> &makeNew, QWidget *parent)
         : QWidget(parent)
     {
         setObjectName(QStringLiteral("tableLooksPicker"));
         auto *layout = new QVBoxLayout(this);
         layout->setContentsMargins(8, 6, 8, 6);
         const qreal ratio = devicePixelRatioF();
-        for (const jp::office::sheet::TableStyleGroup &group : jp::office::sheet::tableStyleGroups()) {
+        QVector<jp::office::sheet::TableStyleGroup> groups = jp::office::sheet::tableStyleGroups();
+        if (book.customCount() > 0) groups.prepend({QCoreApplication::translate("jp::CrunchWindow", "Custom"), book.customNames()});
+        for (const jp::office::sheet::TableStyleGroup &group : std::as_const(groups)) {
             auto *title = new QLabel(group.title, this);
             title->setStyleSheet(QStringLiteral("font-weight: bold;"));
             layout->addWidget(title);
@@ -109,8 +116,9 @@ public:
                 b->setCheckable(true);
                 b->setChecked(name.compare(current, Qt::CaseInsensitive) == 0);
                 b->setAutoRaise(true);
-                b->setToolTip(jp::plainToolTip(QCoreApplication::translate("jp::CrunchWindow", "Table look %1").arg(name.mid(10))));
-                b->setAccessibleName(QCoreApplication::translate("jp::CrunchWindow", "Table look %1").arg(name.mid(10)));
+                const QString shown = name.startsWith(QLatin1String("TableStyle")) ? name.mid(10) : name;
+                b->setToolTip(jp::plainToolTip(QCoreApplication::translate("jp::CrunchWindow", "Table look %1").arg(shown)));
+                b->setAccessibleName(QCoreApplication::translate("jp::CrunchWindow", "Table look %1").arg(shown));
                 connect(b, &QToolButton::clicked, this, [choose, name, this] {
                     choose(name);
                     if (QWidget *menu = window()) menu->close();
@@ -120,6 +128,16 @@ public:
             }
             layout->addLayout(grid);
         }
+        auto *more = new QToolButton(this);
+        more->setObjectName(QStringLiteral("tableLook.new"));
+        more->setText(QCoreApplication::translate("jp::CrunchWindow", "New Table Style…"));
+        more->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        more->setAutoRaise(true);
+        connect(more, &QToolButton::clicked, this, [makeNew, this] {
+            if (QWidget *menu = window()) menu->close();
+            makeNew();
+        });
+        layout->addWidget(more);
     }
 };
 
@@ -141,9 +159,9 @@ void CrunchWindow::updateTableLooks()
 {
     if (!m_loaded || !m_loaded->book) return;
     const jp::office::sheet::Styles &styles = m_loaded->book->styles();
-    if (!m_tableStylesFor) {
+    if (m_tableStylesSeen != styles.tableStyles.size() + styles.dxfs.size() * 10000) {
         m_tableStyleBook.setCustom(styles.tableStyles, styles.dxfs);
-        m_tableStylesFor = true;
+        m_tableStylesSeen = styles.tableStyles.size() + styles.dxfs.size() * 10000;
     }
     std::vector<grid::GridSheet::TableSkin> skins;
     if (!m_chartSheetShown)
@@ -551,7 +569,98 @@ QWidget *CrunchWindow::makeTableLooksPicker(QWidget *parent)
     updateTableLooks();
     const int t = selectedTable();
     const QString current = t >= 0 ? m_session->workbook()->tables()[t].styleName : QString();
-    return new TableLooksPicker(m_loaded->book->styles(), m_tableStyleBook, current, [this](const QString &style) { tableGalleryChosen(style); }, parent);
+    return new TableLooksPicker(m_loaded->book->styles(), m_tableStyleBook, current, [this](const QString &style) { tableGalleryChosen(style); }, [this] { newTableStyle(); }, parent);
+}
+
+// New Table Style: a name and the looks of four parts (the header row, the stripes of rows, the totals row, and the first column); the style joins the gallery and is put on the table the cursor is in.
+void CrunchWindow::newTableStyle()
+{
+    using jp::office::sheet::DifferentialFormat;
+    using jp::office::sheet::TablePart;
+    using jp::office::sheet::Workbook;
+    if (!m_loaded || !m_loaded->book || !m_session || !editingAllowed()) return;
+    QString name;
+    QVector<Workbook::TableStylePart> parts;
+    if (m_tableStyleAsker) {
+        if (!m_tableStyleAsker(&name, &parts)) return;
+    } else {
+        QDialog dialog(this);
+        dialog.setWindowTitle(tr("New Table Style"));
+        auto *form = new QFormLayout(&dialog);
+        auto *nameBox = new QLineEdit(tr("Table Style %1").arg(m_loaded->book->styles().tableStyles.size() + 1), &dialog);
+        form->addRow(tr("Name:"), nameBox);
+        struct Row {
+            QCheckBox *on;
+            QToolButton *fill, *text;
+            QCheckBox *bold;
+            QColor fillColor, textColor;
+        };
+        std::vector<std::unique_ptr<Row>> rows;
+        auto addRow = [&](const QString &label, bool on, const QColor &fill, const QColor &text, bool bold) {
+            rows.push_back(std::unique_ptr<Row>(new Row{new QCheckBox(label, &dialog), new QToolButton(&dialog), new QToolButton(&dialog), new QCheckBox(tr("Bold"), &dialog), fill, text}));
+            Row *row = rows.back().get();
+            row->on->setChecked(on);
+            row->bold->setChecked(bold);
+            auto paint = [row] {
+                row->fill->setText(tr("Fill"));
+                row->fill->setStyleSheet(QStringLiteral("background:%1;").arg(row->fillColor.isValid() ? row->fillColor.name() : QStringLiteral("transparent")));
+                row->text->setText(tr("Text"));
+                row->text->setStyleSheet(QStringLiteral("color:%1;").arg(row->textColor.isValid() ? row->textColor.name() : QStringLiteral("palette(text)")));
+            };
+            paint();
+            connect(row->fill, &QToolButton::clicked, &dialog, [row, paint, &dialog] {
+                const QColor c = QColorDialog::getColor(row->fillColor, &dialog, tr("Fill"));
+                if (c.isValid()) row->fillColor = c, paint();
+            });
+            connect(row->text, &QToolButton::clicked, &dialog, [row, paint, &dialog] {
+                const QColor c = QColorDialog::getColor(row->textColor, &dialog, tr("Text"));
+                if (c.isValid()) row->textColor = c, paint();
+            });
+            auto *line = new QHBoxLayout();
+            for (QWidget *w : {static_cast<QWidget *>(row->on), static_cast<QWidget *>(row->fill), static_cast<QWidget *>(row->text), static_cast<QWidget *>(row->bold)}) line->addWidget(w);
+            form->addRow(line);
+            return row;
+        };
+        Row *header = addRow(tr("Header row"), true, QColor(0x2E6E8E), QColor(Qt::white), true);
+        Row *stripe = addRow(tr("Row stripes"), true, QColor(0xE6EEF3), QColor(), false);
+        Row *total = addRow(tr("Totals row"), true, QColor(), QColor(), true);
+        Row *first = addRow(tr("First column"), false, QColor(), QColor(), true);
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        form->addRow(buttons);
+        if (dialog.exec() != QDialog::Accepted) return;
+        name = nameBox->text();
+        auto take = [&](Row *row, TablePart part) {
+            if (!row->on->isChecked()) return;
+            Workbook::TableStylePart one;
+            one.part = part;
+            if (row->fillColor.isValid()) {
+                one.format.hasFill = true;
+                one.format.fill.pattern = jp::office::sheet::PatternKind::Solid;
+                one.format.fill.bg = jp::office::sheet::ColorSpec::fromRgb(row->fillColor.rgb());
+            }
+            if (row->textColor.isValid()) one.format.fontColor = jp::office::sheet::ColorSpec::fromRgb(row->textColor.rgb());
+            if (row->bold->isChecked()) one.format.bold = true;
+            if (!one.format.isEmpty()) parts.append(one);
+        };
+        take(header, TablePart::HeaderRow);
+        take(stripe, TablePart::FirstRowStripe);
+        take(total, TablePart::TotalRow);
+        take(first, TablePart::FirstColumn);
+    }
+    if (parts.isEmpty()) {
+        notice(tr("New Table Style"), tr("Choose a look for at least one part of the table."));
+        return;
+    }
+    if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+    const auto made = m_session->defineTableStyle(name, parts);
+    if (!made.ok) {
+        notice(tr("New Table Style"), made.problem);
+        return;
+    }
+    updateTableLooks();
+    if (selectedTable() >= 0) tableGalleryChosen(name.trimmed());
 }
 
 // The table's commands in the menu of the cells (right-click), when the cursor is in a table: rows and columns put in beside the selection (whole rows and columns of the sheet, as Insert makes them:

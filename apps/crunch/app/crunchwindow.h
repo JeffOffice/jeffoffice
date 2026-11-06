@@ -38,6 +38,7 @@
 #include "sheet/chartmake.h"
 #include "sheet/customviews.h"
 #include "sheet/pagesetup.h"
+#include "sheet/sheetreader.h"
 #include "sheet/tablestyle.h"
 
 #include <QElapsedTimer>
@@ -304,6 +305,8 @@ public:
     // ---- tables (crunchwindow_tables.cpp)
     // The gallery of looks as a widget (what the Table Looks menus hold), and a choice from it. For tests: the questions Insert > Table and Change Table Size ask are answered by these.
     QWidget *makeTableLooksPicker(QWidget *parent);
+    void newTableStyle();
+    void setTableStyleAsker(std::function<bool(QString *, QVector<jp::office::sheet::Workbook::TableStylePart> *)> asker) { m_tableStyleAsker = std::move(asker); }
     void tableGalleryChosen(const QString &style);
     bool showTotalsMenu(qint64 row, qint64 col);
     void setSparklineAsker(std::function<bool(QString *, QString *)> asker) { m_sparklineAsker = std::move(asker); }
@@ -910,7 +913,8 @@ private:
     void insertRecommendedPivotCommand();
     bool pointAtTableCell(qint64 row, qint64 col);   // a click on a cell of a table while a formula is typed writes a reference by the table's names
     jp::office::sheet::TableStyleBook m_tableStyleBook;
-    bool m_tableStylesFor = false;
+    qsizetype m_tableStylesSeen = -1;
+    std::function<bool(QString *, QVector<jp::office::sheet::Workbook::TableStylePart> *)> m_tableStyleAsker;   // test hook: the name and the looks New Table Style asks for
     std::function<bool(QString *, bool *)> m_tableMakeAsker;    // test hook: the table's cells' header choice
     std::function<bool(QString *)> m_tableNameAsker;
     std::function<bool(jp::office::sheet::CellRange *)> m_tableSizeAsker;

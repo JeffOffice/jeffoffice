@@ -1,6 +1,7 @@
 #include "sheet/htmlbook.h"
 #include "wml/wmlhtmlread.h"
 #include "sheet/sheetreader.h"
+#include "sheet/tablestyle.h"
 #include "sheet/xmlscan.h"
 #include "sheet/customviews.h"
 #include "sheet/builtinstyles.h"
@@ -2695,6 +2696,54 @@ qint32 Workbook::dxfFor(const DifferentialFormat &f)
     return qint32(m_styles.dxfs.size() - 1);
 }
 
+bool Workbook::defineTableStyle(const QString &name, const QVector<TableStylePart> &parts, QString *why)
+{
+    auto refuse = [&](const QString &text) {
+        if (why) *why = text;
+        return false;
+    };
+    const QString trimmed = name.trimmed();
+    if (trimmed.isEmpty() || trimmed.size() > 255) return refuse(QCoreApplication::translate("jp::office::sheet::Workbook", "Give the table style a name."));
+    if (m_stylesPart.isEmpty()) return refuse(QCoreApplication::translate("jp::office::sheet::Workbook", "This workbook has no place to keep a table style."));
+    if (builtinTableStyle(trimmed) || m_styles.tableStyles.size() >= 1000) return refuse(QCoreApplication::translate("jp::office::sheet::Workbook", "A table style has that name already."));
+    for (const CustomTableStyle &c : std::as_const(m_styles.tableStyles))
+        if (c.name.compare(trimmed, Qt::CaseInsensitive) == 0) return refuse(QCoreApplication::translate("jp::office::sheet::Workbook", "A table style has that name already."));
+    const int dxfsBefore = int(m_styles.dxfs.size());
+    CustomTableStyle style;
+    style.name = trimmed;
+    for (const TableStylePart &p : parts) {
+        const qint32 dxf = dxfFor(p.format);
+        if (dxf < 0) {
+            while (m_styles.dxfs.size() > dxfsBefore && removeAddedDxf(qint32(m_styles.dxfs.size() - 1))) {}
+            return refuse(QCoreApplication::translate("jp::office::sheet::Workbook", "This workbook has no place to keep the look of a table style."));
+        }
+        CustomTableStyle::Part part;
+        part.part = p.part;
+        part.dxf = dxf;
+        style.parts.append(part);
+    }
+    m_styles.tableStyles.append(style);
+    m_tableStylesAdded.append(style);
+    m_tableStyleDxfsBefore.append(dxfsBefore);
+    return true;
+}
+
+bool Workbook::removeAddedTableStyle(const QString &name)
+{
+    if (m_tableStylesAdded.isEmpty() || m_tableStylesAdded.last().name != name) return false;
+    const int dxfsBefore = m_tableStyleDxfsBefore.last();
+    m_tableStylesAdded.removeLast();
+    m_tableStyleDxfsBefore.removeLast();
+    for (int i = int(m_styles.tableStyles.size()) - 1; i >= 0; --i)
+        if (m_styles.tableStyles[i].name == name) {
+            m_styles.tableStyles.removeAt(i);
+            break;
+        }
+    // (the formats it added go too, while they are the last and were added since the file was written)
+    while (m_styles.dxfs.size() > dxfsBefore && m_styles.dxfs.size() > m_dxfsInFile && removeAddedDxf(qint32(m_styles.dxfs.size() - 1))) {}
+    return true;
+}
+
 bool Workbook::removeAddedDxf(qint32 place)
 {
     if (place < 0 || m_dxfsAdded.isEmpty() || place != qint32(m_styles.dxfs.size() - 1) || place < m_dxfsInFile) return false;
@@ -3300,6 +3349,8 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
     m_styleXfsInFile += counts.styles;
     m_dxfsInFile += counts.dxfs;
     m_dxfsAdded = m_dxfsAdded.mid(counts.dxfs);
+    m_tableStylesAdded = m_tableStylesAdded.mid(counts.tableStyles);
+    m_tableStyleDxfsBefore = m_tableStyleDxfsBefore.mid(counts.tableStyles);
     m_sharedAdded = m_sharedAdded.mid(strings);
     m_numFmtsAdded = m_numFmtsAdded.mid(numberFormats);
     m_formatsAdded = m_formatsAdded.mid(cellFormats);

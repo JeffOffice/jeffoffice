@@ -444,7 +444,8 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
         QByteArray items;
         for (const DifferentialFormat &d : changes.newDxfs) {
             QByteArray one = "<dxf>";
-            if (d.fontColor.isSet()) one += "<font>" + colorXml("color", d.fontColor) + "</font>";
+            if (d.fontColor.isSet() || d.bold || d.italic)
+                one += "<font>" + QByteArray(d.bold ? (*d.bold ? "<b/>" : "<b val=\"0\"/>") : "") + QByteArray(d.italic ? (*d.italic ? "<i/>" : "<i val=\"0\"/>") : "") + (d.fontColor.isSet() ? colorXml("color", d.fontColor) : QByteArray()) + "</font>";
             if (d.hasFill) one += "<fill><patternFill patternType=\"solid\">" + colorXml("fgColor", d.fill.bg.isSet() ? d.fill.bg : d.fill.fg) + colorXml("bgColor", d.fill.bg.isSet() ? d.fill.bg : d.fill.fg) + "</patternFill></fill>";
             one += "</dxf>";
             items += prefixed(one, p);
@@ -466,6 +467,33 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
                 insertAt = close.start;
             }
             result = result.left(insertAt) + "<" + p + "dxfs count=\"" + QByteArray::number(changes.newDxfs.size()) + "\">" + items + "</" + p + "dxfs>" + result.mid(insertAt);
+        }
+    }
+    if (!changes.newTableStyles.isEmpty()) {
+        static const char *const kinds[] = {"wholeTable", "headerRow", "totalRow", "firstColumn", "lastColumn", "firstRowStripe", "secondRowStripe", "firstColumnStripe", "secondColumnStripe",
+                                            "firstHeaderCell", "lastHeaderCell", "firstTotalCell", "lastTotalCell"};
+        QByteArray items;
+        for (const CustomTableStyle &st : changes.newTableStyles) {
+            QByteArray one = "<tableStyle name=\"" + xmlscan::escapeAttribute(st.name) + "\" pivot=\"0\" count=\"" + QByteArray::number(st.parts.size()) + "\">";
+            for (const CustomTableStyle::Part &part : st.parts)
+                one += "<tableStyleElement type=\"" + QByteArray(kinds[size_t(part.part)]) + "\" dxfId=\"" + QByteArray::number(part.dxf) + "\"" + (part.size > 1 ? " size=\"" + QByteArray::number(part.size) + "\"" : QByteArray()) + "/>";
+            one += "</tableStyle>";
+            items += prefixed(one, p);
+        }
+        Tag stylesTag;
+        if (findStart(result, "tableStyles", &stylesTag, 0)) {
+            if (!appendToList(&result, "tableStyles", items, changes.newTableStyles.size())) return bad();
+        } else {
+            Tag at;
+            qsizetype insertAt = -1;
+            for (const char *after : {"colors", "extLst"})
+                if (findStart(result, after, &at, 0)) insertAt = insertAt < 0 ? at.start : std::min<qsizetype>(insertAt, at.start);
+            if (insertAt < 0) {
+                Tag close;
+                if (!findEnd(result, root, &close)) return bad();
+                insertAt = close.start;
+            }
+            result = result.left(insertAt) + "<" + p + "tableStyles count=\"" + QByteArray::number(changes.newTableStyles.size()) + "\" defaultTableStyle=\"TableStyleMedium2\" defaultPivotStyle=\"PivotStyleLight16\">" + items + "</" + p + "tableStyles>" + result.mid(insertAt);
         }
     }
     if (!changes.newNumberFormats.isEmpty()) {
@@ -2444,7 +2472,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         replaced.insert(index, patched);
     }
     // ---- the styles
-    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty() || !changes.newFonts.isEmpty() || !changes.newFills.isEmpty() || !changes.newBorders.isEmpty() || !changes.newStyles.isEmpty() || !changes.styleVisibility.isEmpty() || !changes.newDxfs.isEmpty()) {
+    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty() || !changes.newFonts.isEmpty() || !changes.newFills.isEmpty() || !changes.newBorders.isEmpty() || !changes.newStyles.isEmpty() || !changes.styleVisibility.isEmpty() || !changes.newDxfs.isEmpty() || !changes.newTableStyles.isEmpty()) {
         const int index = entryOfPart(book.stylesPart());
         QByteArray xml, patched;
         if (index < 0 || !inflate(index, &xml)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The styles part is not in the file."));

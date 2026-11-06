@@ -1901,6 +1901,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
         changes.styleXfsBefore = book.styleXfsInFile();
         changes.styleVisibility = book.styleVisibility();
         changes.newDxfs = book.addedDxfs();
+        changes.newTableStyles = book.addedTableStyles();
     }
     out->numberFormats = int(changes.newNumberFormats.size());
     out->cellFormats = int(changes.newCellFormats.size());
@@ -1909,6 +1910,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
     out->borders = int(changes.newBorders.size());
     out->styles = int(changes.newStyles.size());
     out->dxfs = int(changes.newDxfs.size());
+    out->tableStyles = int(changes.newTableStyles.size());
     // The other program is asked to work every formula out again when this program could not: a formula it keeps apart that may read what changed, a result it did not get to, or a
     // formula it gave no result.
     const bool needsCalc = calc->isDirty() || resultMissing || calc->keptCount() > 0;
@@ -1947,6 +1949,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     counts.borders = snapshot.borders;
     counts.styles = snapshot.styles;
     counts.dxfs = snapshot.dxfs;
+    counts.tableStyles = snapshot.tableStyles;
     m_book->book->savedTo(package, counts);
     for (const auto &[key, v] : snapshot.results) m_fileResults.set(key, v);
     for (const auto &[key, v] : snapshot.touchedResults) m_fileResults.set(key, v);

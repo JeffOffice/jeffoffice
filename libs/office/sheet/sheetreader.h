@@ -348,6 +348,16 @@ public:
     qint32 dxfFor(const DifferentialFormat &format);
     // Takes the differential format at `place` back out when it is the last, was added since the file was read or saved, and `place` is where it was put (Undo). False otherwise.
     bool removeAddedDxf(qint32 place);
+    // Defines a table style of the workbook's own: the differential format of each part (the formats are put among the file's `dxfs`, as dxfFor does). False, with the reason, if the name is empty,
+    // is taken (by a built-in style or one the workbook has), or the workbook has no styles part to put it in or has as many as it may.
+    struct TableStylePart {
+        TablePart part = TablePart::WholeTable;
+        DifferentialFormat format;
+    };
+    bool defineTableStyle(const QString &name, const QVector<TableStylePart> &parts, QString *why = nullptr);
+    // Takes a style defined since the file was read or saved back out, with the formats it added (Undo). False if the file has it.
+    bool removeAddedTableStyle(const QString &name);
+    QVector<CustomTableStyle> addedTableStyles() const { return m_tableStylesAdded; }
     // Whether the rules of conditional formatting the sheet's file has are all ones this program holds whole: not a rule of a kind it does not know, one with an extension list (the 2010 forms
     // of icon sets and data bars link to one), a table's `pivot` mark, the 2010 extension block, or more ranges or rules than are read. Only then may the rules be written anew.
     bool conditionalFormatsAreWhole(int sheet) const;
@@ -368,7 +378,7 @@ public:
     // The file has been written with the first `strings`, `numberFormats`, and `cellFormats` (and the fonts, fills, borders, and styles) of what was added: the package is the new file's, and
     // those are in it.
     struct SavedCounts {
-        int strings = 0, numberFormats = 0, cellFormats = 0, fonts = 0, fills = 0, borders = 0, styles = 0, dxfs = 0;
+        int strings = 0, numberFormats = 0, cellFormats = 0, fonts = 0, fills = 0, borders = 0, styles = 0, dxfs = 0, tableStyles = 0;
     };
     void savedTo(const Package &package, const SavedCounts &counts);
     void savedTo(const Package &package, int strings, int numberFormats, int cellFormats)
@@ -470,6 +480,8 @@ private:
     QVector<QPair<QString, bool>> m_stylesVisibility;
     QVector<DifferentialFormat> m_dxfsAdded;
     qint64 m_dxfsInFile = 0;
+    QVector<CustomTableStyle> m_tableStylesAdded;
+    QVector<int> m_tableStyleDxfsBefore;   // for each style added, how many differential formats there were before it
     qint64 m_fontsInFile = 0, m_fillsInFile = 0, m_bordersInFile = 0, m_styleXfsInFile = 0;
     std::unordered_multimap<quint64, quint32> m_formatIndex;   // the cell formats by a hash of what they are, to find an equal one (made when first needed)
     bool m_formatIndexMade = false;

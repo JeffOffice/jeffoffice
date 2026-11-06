@@ -277,6 +277,8 @@ struct SaveChanges {
     qint64 fontsBefore = 0, fillsBefore = 0, bordersBefore = 0;
     // And differential formats added (for the colors a filter asks for), at the end of the file's `dxfs`.
     QVector<DifferentialFormat> newDxfs;
+    // And the table styles the workbook defines (the file's `tableStyles`), each part naming a differential format by its place.
+    QVector<CustomTableStyle> newTableStyles;
     struct StyleAdded {
         CellFormat format;
         CellStyleName name;

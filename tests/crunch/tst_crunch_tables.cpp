@@ -784,6 +784,109 @@ private Q_SLOTS:
         QVERIFY(!refused.ok && !refused.problem.isEmpty());
     }
 
+    // New Table Style: a style of the workbook's own is made from the looks of some parts (one step, taken out again by Undo), used by a table, joins the gallery, and is saved in the file's
+    // `tableStyles` after its `dxfs`, with its looks, and read back.
+    void aNewTableStyleIsMadeUsedAndSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()}, QByteArray(), QString(), QString(), stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/>")))));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVector<jp::office::sheet::Workbook::TableStylePart> parts(2);
+        parts[0].part = TablePart::HeaderRow;
+        parts[0].format.hasFill = true;
+        parts[0].format.fill.pattern = jp::office::sheet::PatternKind::Solid;
+        parts[0].format.fill.bg = ColorSpec::fromRgb(0x2E6E8E);
+        parts[0].format.fontColor = ColorSpec::fromRgb(0xFFFFFF);
+        parts[0].format.bold = true;
+        parts[1].part = TablePart::FirstRowStripe;
+        parts[1].format.hasFill = true;
+        parts[1].format.fill.pattern = jp::office::sheet::PatternKind::Solid;
+        parts[1].format.fill.bg = ColorSpec::fromRgb(0xE6EEF3);
+        QUndoStack *u = e.win.w.undoStack();
+        const int steps = u->count();
+        QVERIFY(!s->defineTableStyle(QString(), parts).ok);
+        QVERIFY(!s->defineTableStyle(QStringLiteral("TableStyleDark1"), parts).ok);
+        QCOMPARE(u->count(), steps);
+        // made, and taken out again by Undo, which also takes out the looks it added
+        const qsizetype dxfs = e.win.w.session()->workbook()->styles().dxfs.size();
+        QVERIFY(s->defineTableStyle(QStringLiteral("Mine"), parts).ok);
+        QCOMPARE(u->count(), steps + 1);
+        QVERIFY(!s->defineTableStyle(QStringLiteral("mine"), parts).ok);
+        QCOMPARE(e.win.w.session()->workbook()->styles().tableStyles.size(), 1);
+        u->undo();
+        QVERIFY(e.win.w.session()->workbook()->styles().tableStyles.isEmpty());
+        QCOMPARE(e.win.w.session()->workbook()->styles().dxfs.size(), dxfs);
+        u->redo();
+        QCOMPARE(e.win.w.session()->workbook()->styles().tableStyles.size(), 1);
+        // the table uses it, and the gallery lists it
+        crunch::EditSession::TableMarks marks;
+        marks.style = QStringLiteral("Mine");
+        marks.rowStripes = true;
+        QVERIFY(s->setTableMarks(0, marks).ok);
+        QVERIFY(e.settle());
+        QWidget *picker = e.win.w.makeTableLooksPicker(nullptr);
+        QVERIFY(picker->findChild<QToolButton *>(QStringLiteral("tableLook.Mine")));
+        delete picker;
+        QVERIFY(saveNow(e));
+        Saved back;
+        QVERIFY(back.open(e.path));
+        const jp::office::sheet::Styles &styles = back.book.styles();
+        QCOMPARE(styles.tableStyles.size(), 1);
+        QCOMPARE(styles.tableStyles[0].name, QStringLiteral("Mine"));
+        QCOMPARE(styles.tableStyles[0].parts.size(), 2);
+        const qint32 header = styles.tableStyles[0].parts[0].dxf;
+        QVERIFY(header >= 0 && header < styles.dxfs.size());
+        QVERIFY(styles.dxfs[header].bold && *styles.dxfs[header].bold);
+        QCOMPARE(styles.dxfs[header].fill.bg.rgb, quint32(0x2E6E8E));
+        QCOMPARE(styles.dxfs[header].fontColor.rgb, quint32(0xFFFFFF));
+        QCOMPARE(back.book.tables().first().styleName, QStringLiteral("Mine"));
+        const QByteArray xml = back.book.package().part(back.book.stylesPart());
+        QVERIFY(xml.indexOf("<dxfs") >= 0 && xml.indexOf("<dxfs") < xml.indexOf("<tableStyles"));
+        QVERIFY(xml.contains("name=\"Mine\"") && xml.contains("type=\"headerRow\""));
+    }
+
+    // The question New Table Style asks is answered with a name and looks: the style is made and put on the table the cursor is in, as two steps; no looks, or a taken name, makes nothing.
+    void newTableStyleFromTheWindow()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()}, QByteArray(), QString(), QString(), stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/>")))));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        e.select(QStringLiteral("B3"));
+        QString told;
+        e.win.w.setNotifier([&told](const QString &, const QString &text) { told = text; });
+        e.win.w.setTableStyleAsker([](QString *name, QVector<jp::office::sheet::Workbook::TableStylePart> *parts) {
+            *name = QStringLiteral("Ocean");
+            jp::office::sheet::Workbook::TableStylePart p;
+            p.part = TablePart::TotalRow;
+            p.format.bold = true;
+            parts->append(p);
+            return true;
+        });
+        QUndoStack *u = e.win.w.undoStack();
+        const int steps = u->count();
+        e.win.w.newTableStyle();
+        QCOMPARE(u->count(), steps + 2);
+        QCOMPARE(s->workbook()->tables().first().styleName, QStringLiteral("Ocean"));
+        QVERIFY(told.isEmpty());
+        e.win.w.newTableStyle();   // (the name is taken)
+        QVERIFY(!told.isEmpty());
+        QCOMPARE(u->count(), steps + 2);
+        e.win.w.setTableStyleAsker([](QString *name, QVector<jp::office::sheet::Workbook::TableStylePart> *) {
+            *name = QStringLiteral("Empty");
+            return true;
+        });
+        told.clear();
+        e.win.w.newTableStyle();
+        QVERIFY(!told.isEmpty());
+        QCOMPARE(u->count(), steps + 2);
+    }
+
     // A formula with a table's name worked out in the window, and the references to a column that is renamed in its header follow.
     void structuredReferencesWorkInFormulasAndFollowRenamedColumns()
     {
@@ -1087,7 +1190,7 @@ private Q_SLOTS:
         picker->show();
         auto *button = picker->findChild<QToolButton *>(QStringLiteral("tableLook.TableStyleDark1"));
         QVERIFY(button);
-        QCOMPARE(picker->findChildren<QToolButton *>().size(), 60);
+        QCOMPARE(picker->findChildren<QToolButton *>().size(), 61);   // (the looks, and New Table Style)
         saveShot(picker, QStringLiteral("table-looks-gallery"));
         button->click();
         QCOMPARE(w.session()->workbook()->tables().first().styleName, QStringLiteral("TableStyleDark1"));

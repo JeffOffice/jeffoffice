@@ -44,6 +44,7 @@ public:
     void setCustom(const QVector<CustomTableStyle> &custom, const QVector<DifferentialFormat> &dxfs);
     const TableStyle *find(const QString &name) const;
     int customCount() const { return int(m_custom.size()); }
+    QStringList customNames() const;
 private:
     std::vector<TableStyle> m_custom;
 };
