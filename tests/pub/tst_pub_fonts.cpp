@@ -1,6 +1,7 @@
 // JeffPub's tests of stand-in fonts, letter widths, and bold drawn by hand.
 #include "pubhelpers.h"
 
+#include <QScopeGuard>
 #include <map>
 
 template <class Key, class Parse, class Get>
@@ -1231,38 +1232,54 @@ private Q_SLOTS:
         QVERIFY(!jp::familyMayBeBundled(QStringLiteral("Segoe UI Variable")));
     }
 
-    // What the layout works out from which fonts there are (a missing font drawn as its stand-in, how tall) is asked again when fonts are added: the bundled fonts
+    // What the layout works out from which fonts there are (a missing font drawn as its stand-in, how tall) is asked again when fonts change: the bundled fonts
     // come after the window is built.
     void whatIsDrawnAsAStandInFollowsTheFontsThere()
     {
         jp::initCore();
-        QFontDatabase::removeAllApplicationFonts();
+        if (QFontDatabase::hasFamily(QStringLiteral("Impact"))) QSKIP("this computer has Impact of its own");
+        if (!QFontDatabase::hasFamily(QStringLiteral("Anton"))) QSKIP("Anton is not here");
+        QFont::removeSubstitutions(QStringLiteral("Impact"));
         jp::fontsChanged();
-        if (QFontDatabase::hasFamily(QStringLiteral("Anton"))) QSKIP("this computer has Anton of its own");
-        QCOMPARE(jp::substituteHeightScale(QStringLiteral("Impact")), 1.0);   // (the stand-in is not here: drawn as it is)
-        jp::loadBundledFonts();
-        jp::installFontSubstitutions();
+        QCOMPARE(jp::substituteHeightScale(QStringLiteral("Impact")), 1.0);   // (the stand-in is not named for it: drawn as it is)
+        QFont::insertSubstitutions(QStringLiteral("Impact"), {QStringLiteral("Anton")});
+        jp::fontsChanged();
         QVERIFY2(jp::substituteHeightScale(QStringLiteral("Impact")) < 1.0, "asked again after the stand-in came");
     }
 
-    // A font list made before the bundled fonts are added gets them when they come.
+    // A font list made before a font is added gets it when it comes (the bundled fonts are added after the window is built).
     void fontComboListsFontsAddedLater()
     {
         jp::initCore();
-        QFontDatabase::removeAllApplicationFonts();
-        jp::fontsChanged();
-        QCoreApplication::processEvents();
-        if (QFontDatabase::hasFamily(QStringLiteral("Lobster"))) QSKIP("this computer has Lobster of its own");
+        // A bundled font under another name (same length, so the file's tables stay as they are).
+        QByteArray font;
+        for (const QString &d : jp::bundledFontDirs()) {
+            QFile f(QDir(d).filePath(QStringLiteral("Lobster-Regular.ttf")));
+            if (f.open(QIODevice::ReadOnly)) {
+                font = f.readAll();
+                break;
+            }
+        }
+        QVERIFY(!font.isEmpty());
+        font.replace(QByteArray("Lobster"), QByteArray("Lobsteq"));
+        font.replace(QByteArray("\0L\0o\0b\0s\0t\0e\0r", 14), QByteArray("\0L\0o\0b\0s\0t\0e\0q", 14));
+        if (QFontDatabase::hasFamily(QStringLiteral("Lobsteq"))) QSKIP("already here");
         jp::FontCombo combo;
         const auto listed = [&](const QString &family) {
             for (int i = 0; i < combo.count(); ++i)
                 if (combo.itemData(i, Qt::UserRole).toString() == family) return true;
             return false;
         };
-        QVERIFY(!listed(QStringLiteral("Lobster")));
+        QVERIFY(!listed(QStringLiteral("Lobsteq")));
         combo.setEditText(QStringLiteral("Typed"));
-        jp::loadBundledFonts();
-        QTRY_VERIFY(listed(QStringLiteral("Lobster")));
+        const int id = QFontDatabase::addApplicationFontFromData(font);
+        jp::fontsChanged();
+        const auto remove = qScopeGuard([&] {
+            if (id >= 0) QFontDatabase::removeApplicationFont(id);
+            jp::fontsChanged();
+        });
+        if (id < 0 || !QFontDatabase::hasFamily(QStringLiteral("Lobsteq"))) QSKIP("this platform does not take the renamed font");
+        QTRY_VERIFY(listed(QStringLiteral("Lobsteq")));
         QCOMPARE(combo.currentText(), QStringLiteral("Typed"));
     }
 
