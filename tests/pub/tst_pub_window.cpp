@@ -1106,6 +1106,27 @@ private Q_SLOTS:
         QVERIFY2(rtl.first > 80, qPrintable(QString::number(rtl.first)));
     }
 
+    // The ribbon asks for the size of the tab showing, not of every tab (asking all of them built and polished every tab at the first show).
+    void ribbonSizeIsThatOfTheShowingTab()
+    {
+        auto *ribbon = new jp::Ribbon;
+        std::unique_ptr<QWidget> own(ribbon);
+        auto *shown = ribbon->addTab(QStringLiteral("Shown"));
+        shown->addGroup(QStringLiteral("One"))->addWidget(new QLabel(QStringLiteral("x")));
+        shown->finish();
+        auto *other = ribbon->addTab(QStringLiteral("Other"));
+        auto *spin = new QDoubleSpinBox;
+        other->addGroup(QStringLiteral("Two"))->addWidget(spin);
+        other->finish();
+        ribbon->showTab(shown);
+        (void)ribbon->sizeHint();
+        (void)ribbon->minimumSizeHint();
+        QVERIFY2(!spin->testAttribute(Qt::WA_WState_Polished), "the controls of a tab that is not showing were asked their size");
+        ribbon->showTab(other);
+        (void)ribbon->sizeHint();
+        QVERIFY(spin->testAttribute(Qt::WA_WState_Polished));
+    }
+
     // The ribbon's sizes follow the font: the body and the rows are taller for a larger font (and 100 and 22 for the usual one), the number boxes take the width their number needs.
     void ribbonSizesFollowTheFont()
     {

@@ -76,11 +76,11 @@ FormatPane::FormatPane(Editor *ed, QWidget *parent) : QWidget(parent), m_ed(ed)
     m_frame->setTitle(tr("Format Shape"));
     m_frame->setAccessibleName(tr("Format pane"));
 
-    PanePage *fill = m_frame->addPage(QStringLiteral("fill"), icon(QStringLiteral("paint-bucket")), tr("Fill & Line"));
-    PanePage *effects = m_frame->addPage(QStringLiteral("effects"), icon(QStringLiteral("sparkles")), tr("Effects"));
-    PanePage *size = m_frame->addPage(QStringLiteral("size"), icon(QStringLiteral("scaling")), tr("Size & Properties"));
-    PanePage *picture = m_frame->addPage(QStringLiteral("picture"), icon(QStringLiteral("image")), tr("Picture"));
-    format::buildPages(this, fill, effects, size, picture);
+    m_frame->addPage(QStringLiteral("fill"), icon(QStringLiteral("paint-bucket")), tr("Fill & Line"));
+    m_frame->addPage(QStringLiteral("effects"), icon(QStringLiteral("sparkles")), tr("Effects"));
+    m_frame->addPage(QStringLiteral("size"), icon(QStringLiteral("scaling")), tr("Size & Properties"));
+    m_frame->addPage(QStringLiteral("picture"), icon(QStringLiteral("image")), tr("Picture"));
+    // (The controls of the pages are made when the pane is first shown or asked for them: it is closed at the start of a program.)
 
     connect(m_frame, &PaneFrame::closeRequested, this, [this] {
         m_session->finish();
@@ -102,7 +102,15 @@ FormatPane::FormatPane(Editor *ed, QWidget *parent) : QWidget(parent), m_ed(ed)
     connect(ed, &Editor::pageChanged, this, leave);
     connect(ed, &Editor::documentReplaced, this, leave);
     connect(ed, &Editor::changed, this, [this] { follow(); });
-    reload();
+}
+
+void FormatPane::ensureBuilt() const
+{
+    if (m_built) return;
+    auto *self = const_cast<FormatPane *>(this);
+    self->m_built = true;
+    format::buildPages(self, m_frame->page(int(Tab::FillLine)), m_frame->page(int(Tab::Effects)), m_frame->page(int(Tab::SizeProperties)), m_frame->page(int(Tab::Picture)));
+    self->reload();
 }
 
 FormatPane::~FormatPane()
@@ -115,10 +123,15 @@ QString FormatPane::title() const { return m_frame->title(); }
 
 FormatPane::Tab FormatPane::currentTab() const { return Tab(std::max(0, m_frame->currentPage())); }
 
-bool FormatPane::isTabShown(Tab tab) const { return m_frame->isPageVisible(int(tab)); }
+bool FormatPane::isTabShown(Tab tab) const
+{
+    ensureBuilt();
+    return m_frame->isPageVisible(int(tab));
+}
 
 void FormatPane::showTab(Tab tab)
 {
+    ensureBuilt();
     if (isTabShown(tab)) m_frame->setCurrentPage(int(tab));
 }
 
@@ -174,6 +187,7 @@ bool FormatPane::chooseFillPicture()
 void FormatPane::showEvent(QShowEvent *e)
 {
     QWidget::showEvent(e);
+    ensureBuilt();
     reload();
 }
 
@@ -186,6 +200,7 @@ void FormatPane::follow()
 
 void FormatPane::reload()
 {
+    ensureBuilt();
     const QVector<Item *> sel = m_session->items();
     if (sel.isEmpty()) {
         m_frame->setMessage(tr("Select a shape, text box, line, or picture to format it."));

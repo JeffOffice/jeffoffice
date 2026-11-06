@@ -52,7 +52,11 @@ public:
     explicit FormatPane(Editor *ed, QWidget *parent = nullptr);
     ~FormatPane() override;
     Editor *editor() const { return m_ed; }
-    PaneFrame *frame() const { return m_frame; }
+    PaneFrame *frame() const
+    {
+        ensureBuilt();
+        return m_frame;
+    }
     FormatSession *session() const { return m_session; }
     // "Format Shape", or "Format Picture" while only pictures are selected.
     QString title() const;
@@ -81,10 +85,12 @@ protected:
 
 private:
     void follow();
+    void ensureBuilt() const;
     Editor *m_ed;
     PaneFrame *m_frame;
     FormatSession *m_session;
     std::function<QString()> m_pictureChooser;
+    bool m_built = false;
 };
 
 } // namespace jp

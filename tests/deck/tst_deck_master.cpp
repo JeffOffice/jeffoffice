@@ -5,6 +5,16 @@ class DeckMasterTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    // The master pane makes its rows (and draws their thumbnails) when it is first shown or asked, not when the window is built: it is hidden at the start.
+    void masterPaneMakesItsRowsWhenFirstAsked()
+    {
+        DeckWindow w;
+        MasterPane *pane = w.masterPane();
+        QCOMPARE(pane->count(), 0);
+        QVERIFY(!pane->ids().isEmpty());
+        QCOMPARE(pane->count(), int(pane->ids().size()));
+    }
+
     void initTestCase() { initDeckTestCase(); }
 
 private:

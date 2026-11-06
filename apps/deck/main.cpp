@@ -165,6 +165,7 @@ int main(int argc, char **argv)
     jp::setUpdater(up);
     up->checkOnStartup();
     jp::telemetry::start(w);
+    // (A hook for comparing starts: JP_GRAB=<png> saves the window JP_GRAB_MS (1500) milliseconds after the start and quits; JP_SERIAL_START=1 adds the fonts before the window is built.)
     if (qEnvironmentVariableIsSet("JP_GRAB")) QTimer::singleShot(qEnvironmentVariableIntValue("JP_GRAB_MS") > 0 ? qEnvironmentVariableIntValue("JP_GRAB_MS") : 1500, w, [w] {
         w->grab().save(qEnvironmentVariable("JP_GRAB"));
         QApplication::exit(0);

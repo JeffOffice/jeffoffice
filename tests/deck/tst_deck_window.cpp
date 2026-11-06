@@ -809,6 +809,21 @@ private Q_SLOTS:
         QVERIFY(!dlg.options().date);
     }
 
+    // A gallery's pictures are drawn when it is first painted (the ones in the ribbon's menus are built with the window and shown much later).
+    void layoutGalleryDrawsItsPicturesWhenFirstPainted()
+    {
+        DeckWindow w;
+        LayoutGallery g(w.editor());
+        g.resize(g.sizeHint());
+        const QImage img = g.grab().toImage();
+        // (each picture is a white slide; the gallery's own ground is not white)
+        int white = 0;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x)
+                if (img.pixelColor(x, y) == QColor(Qt::white)) ++white;
+        QVERIFY2(white > 9 * 1000, qPrintable(QString::number(white)));
+    }
+
     // New Slide's gallery shows each layout as a picture and says which was chosen.
     void layoutGalleryShowsEachLayout()
     {
