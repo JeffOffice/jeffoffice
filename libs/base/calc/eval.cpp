@@ -489,8 +489,14 @@ Item Machine::runProgram(const Program &p, bool)
                 break;
             }
             // The name is known by what it is: the sheet whose own name it is, or the workbook's (when the sheet has none of its own, the workbook's is the one that answers).
-            const int scope = formula == ctx.source->heldName(-1, name, &workbookIds) ? -1 : sheet;
-            stack.push_back(evaluateText(formula, false, true, sheet, QString::number(scope) + QLatin1Char('|') + name.toUpper(), inIds));
+            // (with no sheet, the workbook's is the only one there is: it is not asked for twice)
+            const int scope = sheet == -1 || formula == ctx.source->heldName(-1, name, &workbookIds) ? -1 : sheet;
+            QString identity;
+            identity.reserve(name.size() + 4);
+            identity += QString::number(scope);
+            identity += QLatin1Char('|');
+            identity += name.toUpper();
+            stack.push_back(evaluateText(formula, false, true, sheet, identity, inIds));
             break;
         }
         case Op::PushTable: {
@@ -640,7 +646,11 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
         return Item::ofError(ErrorKind::Ref);
     }
     // (A text in R1C1 form means what it says relative to the cell it is worked out for, so it is kept for that cell.)
-    QString key = QString(r1c1 ? QLatin1Char('R') : QLatin1Char('A')) + (relativeToA1 ? QLatin1Char('n') : QLatin1Char('t')) + (inIds ? QLatin1Char('i') : QLatin1Char('p'));
+    QString key;
+    key.reserve(text.size() + (r1c1 ? 32 : 3));
+    key += r1c1 ? QLatin1Char('R') : QLatin1Char('A');
+    key += relativeToA1 ? QLatin1Char('n') : QLatin1Char('t');
+    key += inIds ? QLatin1Char('i') : QLatin1Char('p');
     if (r1c1) key += QString::number(ctx.row) + QLatin1Char(',') + QString::number(ctx.col) + QLatin1Char(':');
     key += text;
     // A text that is asked for while it is being worked out is a circle: a name that stands for itself, directly or through others. It is no number, and is not worked out
