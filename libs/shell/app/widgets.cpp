@@ -32,6 +32,7 @@
 #include <QGuiApplication>
 #include <QPushButton>
 #include <QScreen>
+#include <QStandardItemModel>
 #include <QStyledItemDelegate>
 #include <QVBoxLayout>
 #include "app/plaintext.h"
@@ -932,12 +933,15 @@ void FontCombo::populate()
 {
     m_updating = true;
     clear();
+    // The items are made apart and given to the model at once (one change for the combo to follow, not three per font).
+    QList<QStandardItem *> items;
     auto add = [&](const QString &text, const QString &value, const QString &fam, bool header = false) {
-        addItem(text);
-        setItemData(count() - 1, value, Qt::UserRole);
-        setItemData(count() - 1, fam, Qt::UserRole + 1);
-        setItemData(count() - 1, header, Qt::UserRole + 2);
-        if (header) setItemData(count() - 1, 0, Qt::UserRole - 1);   // disabled
+        auto *item = new QStandardItem(text);
+        item->setData(value, Qt::UserRole);
+        item->setData(fam, Qt::UserRole + 1);
+        item->setData(header, Qt::UserRole + 2);
+        if (header) item->setData(0, Qt::UserRole - 1);   // disabled
+        items << item;
     };
     add(tr("Scheme Fonts"), QString(), QString(), true);
     add(m_heading.isEmpty() ? QStringLiteral("+Headings") : m_heading + QStringLiteral(" (Headings)"), QStringLiteral("+Heading"), m_heading);
@@ -948,14 +952,34 @@ void FontCombo::populate()
         for (const QString &f : recent) add(f, f, f);
     }
     add(tr("All Fonts"), QString(), QString(), true);
+    // (Which families are listed is asked of the font database once for each state of it: it is slow, and the same for every list.)
+    static QHash<QString, bool> listed;
+    static int listedGeneration = -1;
+    if (listedGeneration != fontGeneration()) {
+        listed.clear();
+        listedGeneration = fontGeneration();
+    }
     QStringList fams = visibleFontFamilies();
     fams.removeDuplicates();
     for (const QString &f : fams) {
-        if (QFontDatabase::isPrivateFamily(f) || f.startsWith('.')) continue;
-        // Old bitmap and vector fonts (Modern, Roman, Script, Small Fonts...)
-        // can't be scaled for print, so they aren't listed.
-        if (!QFontDatabase::isSmoothlyScalable(f)) continue;
-        add(f, f, f);
+        auto at = listed.find(f);
+        if (at == listed.end()) {
+            // Old bitmap and vector fonts (Modern, Roman, Script, Small Fonts...)
+            // can't be scaled for print, so they aren't listed.
+            const bool shown = !(QFontDatabase::isPrivateFamily(f) || f.startsWith('.')) && QFontDatabase::isSmoothlyScalable(f);
+            at = listed.insert(f, shown);
+        }
+        if (at.value()) add(f, f, f);
+    }
+    if (auto *m = qobject_cast<QStandardItemModel *>(model())) {
+        m->invisibleRootItem()->appendRows(items);
+    } else {
+        for (QStandardItem *item : items) {
+            addItem(item->text());
+            for (const int role : {int(Qt::UserRole), int(Qt::UserRole) + 1, int(Qt::UserRole) + 2, int(Qt::UserRole) - 1})
+                if (item->data(role).isValid()) setItemData(count() - 1, item->data(role), role);
+            delete item;
+        }
     }
     m_updating = false;
 }

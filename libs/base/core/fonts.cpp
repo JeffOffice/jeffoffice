@@ -1,6 +1,8 @@
 #include "core/fonts.h"
 
 #include <atomic>
+#include <map>
+#include <mutex>
 
 #include "core/appinfo.h"
 
@@ -975,33 +977,48 @@ void initCore()
 
 const QHash<char16_t, double> *originalLetterWidths(const QString &family, bool bold, bool italic)
 {
-    static const QHash<QString, QHash<char16_t, double>> table = [] {
-        QHash<QString, QHash<char16_t, double>> t;
+    // As for the kerning: the lines are told apart at first, and the widths of a face are read the first time it is asked for.
+    struct Lazy {
+        QVector<char16_t> chars;
+        QHash<QString, QByteArray> widths;                        // "family|style" -> the text of its widths
+        std::map<QString, QHash<char16_t, double>> read;           // (nodes stay where they are, so a pointer given out stays good)
+        std::mutex lock;
+    };
+    static Lazy &table = *[] {
+        auto *t = new Lazy;
         if (!QFile::exists(QStringLiteral(":/fontwidths.txt"))) initCoreResources();
         QFile f(QStringLiteral(":/fontwidths.txt"));
         if (!f.open(QIODevice::ReadOnly)) return t;
-        QVector<char16_t> chars;
         const QList<QByteArray> lines = f.readAll().split('\n');
         for (const QByteArray &line : lines) {
             if (line.isEmpty() || line.startsWith('#')) continue;
             const QList<QByteArray> p = line.split('\t');
-            if (chars.isEmpty()) {
-                for (const QByteArray &c : line.split(',')) chars << char16_t(c.toUInt());
+            if (t->chars.isEmpty()) {
+                for (const QByteArray &c : line.split(',')) t->chars << char16_t(c.toUInt());
                 continue;
             }
             if (p.size() < 3) continue;
-            QHash<char16_t, double> widths;
-            const QList<QByteArray> ws = p[2].split(',');
-            for (int i = 0; i < std::min(ws.size(), qsizetype(chars.size())); ++i)
-                if (const int w = ws[i].toInt(); w >= 0) widths.insert(chars[i], w / 2048.0);
-            t.insert(QString::fromUtf8(p[0]).toLower() + QLatin1Char('|') + QString::fromLatin1(p[1]), widths);
+            t->widths.insert(QString::fromUtf8(p[0]).toLower() + QLatin1Char('|') + QString::fromLatin1(p[1]), p[2]);
         }
         return t;
     }();
     const QString fam = family.toLower() + QLatin1Char('|');
     const int style = (bold ? 1 : 0) + (italic ? 2 : 0);
-    for (int s : {style, style & 1, style & 2, 0})
-        if (auto it = table.constFind(fam + QString::number(s)); it != table.constEnd()) return &*it;
+    const std::lock_guard<std::mutex> guard(table.lock);
+    for (int s : {style, style & 1, style & 2, 0}) {
+        const QString key = fam + QString::number(s);
+        const auto raw = table.widths.constFind(key);
+        if (raw == table.widths.constEnd()) continue;
+        auto it = table.read.find(key);
+        if (it == table.read.end()) {
+            QHash<char16_t, double> widths;
+            const QList<QByteArray> ws = raw->split(',');
+            for (int i = 0; i < std::min(ws.size(), qsizetype(table.chars.size())); ++i)
+                if (const int w = ws[i].toInt(); w >= 0) widths.insert(table.chars[i], w / 2048.0);
+            it = table.read.emplace(key, std::move(widths)).first;
+        }
+        return &it->second;
+    }
     return nullptr;
 }
 
@@ -1062,29 +1079,49 @@ const QHash<char16_t, double> *symbolFontLetterWidths(const QString &family)
 
 const QHash<quint32, double> *originalKerning(const QString &family, bool bold, bool italic)
 {
-    static const QHash<QString, QHash<quint32, double>> table = [] {
-        QHash<QString, QHash<quint32, double>> t;
+    // The table is big (about 1.8 MB) and a start needs the pairs of a few faces: the lines are only told apart at first, and the pairs of a face are read the first time it is asked for.
+    struct Lazy {
+        QHash<QString, QByteArray> pairs;                        // "family|style" -> the text of its pairs
+        std::map<QString, QHash<quint32, double>> read;           // (nodes stay where they are, so a pointer given out stays good)
+        std::mutex lock;
+    };
+    static Lazy &table = *[] {
+        auto *t = new Lazy;
         if (!QFile::exists(QStringLiteral(":/fontkerning.txt"))) initCoreResources();
         QFile f(QStringLiteral(":/fontkerning.txt"));
         if (!f.open(QIODevice::ReadOnly)) return t;
-        const QList<QByteArray> lines = f.readAll().split('\n');
-        for (const QByteArray &line : lines) {
+        const QByteArray all = f.readAll();
+        qsizetype at = 0;
+        while (at < all.size()) {
+            qsizetype end = all.indexOf('\n', at);
+            if (end < 0) end = all.size();
+            const QByteArray line = all.mid(at, end - at);
+            at = end + 1;
             if (line.isEmpty() || line.startsWith('#')) continue;
             const QList<QByteArray> p = line.split('\t');
             if (p.size() < 3) continue;
-            QHash<quint32, double> pairs;
-            for (const QByteArray &e : p[2].split(',')) {
-                const QList<QByteArray> v = e.split(':');
-                if (v.size() == 3) pairs.insert(v[0].toUInt() << 16 | v[1].toUInt(), v[2].toInt() / 2048.0);
-            }
-            t.insert(QString::fromUtf8(p[0]).toLower() + QLatin1Char('|') + QString::fromLatin1(p[1]), pairs);
+            t->pairs.insert(QString::fromUtf8(p[0]).toLower() + QLatin1Char('|') + QString::fromLatin1(p[1]), p[2]);
         }
         return t;
     }();
     const QString fam = family.toLower() + QLatin1Char('|');
     const int style = (bold ? 1 : 0) + (italic ? 2 : 0);
-    for (int s : {style, style & 1, style & 2, 0})
-        if (auto it = table.constFind(fam + QString::number(s)); it != table.constEnd()) return &*it;
+    const std::lock_guard<std::mutex> guard(table.lock);
+    for (int s : {style, style & 1, style & 2, 0}) {
+        const QString key = fam + QString::number(s);
+        const auto raw = table.pairs.constFind(key);
+        if (raw == table.pairs.constEnd()) continue;
+        auto it = table.read.find(key);
+        if (it == table.read.end()) {
+            QHash<quint32, double> pairs;
+            for (const QByteArray &e : raw->split(',')) {
+                const QList<QByteArray> v = e.split(':');
+                if (v.size() == 3) pairs.insert(v[0].toUInt() << 16 | v[1].toUInt(), v[2].toInt() / 2048.0);
+            }
+            it = table.read.emplace(key, std::move(pairs)).first;
+        }
+        return &it->second;
+    }
     return nullptr;
 }
 
