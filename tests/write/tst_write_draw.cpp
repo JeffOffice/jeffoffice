@@ -1140,6 +1140,46 @@ private Q_SLOTS:
         QCOMPARE(documentXml(doc->toDocx()), grouped);
     }
 
+    void aGroupInTheLineIsSetWhereItSitsInTheLineAndTheLineMakesRoomForIt()
+    {
+        auto part = [](int id, int x, const char *rgb) {
+            return "<wps:wsp><wps:cNvPr id=\"" + QByteArray::number(id) + "\" name=\"m\"/><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"" + QByteArray::number(x * 12700) +
+                   "\" y=\"0\"/><a:ext cx=\"635000\" cy=\"1270000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val=\"" + QByteArray(rgb) + "\"/></a:solidFill></wps:spPr><wps:bodyPr/></wps:wsp>";
+        };
+        const QByteArray inner = "<wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"1270000\" cy=\"1270000\"/></a:xfrm></wpg:grpSpPr>" +
+                                 part(5, 0, "FF0000") + part(6, 50, "0000FF") + "</wpg:wgp>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">Some words before the group </w:t></w:r>" + anchoredGraphic(9, kGroupUri, inner, 0, 0, 100, 100, true) + "</w:p><w:p><w:r><w:t>Next</w:t></w:r></w:p>"));
+        QVERIFY(doc);
+        // The group is one object of the line, with its two parts, set after the words: not at the column's left edge, and the line is as tall as the group.
+        std::shared_ptr<GroupItem> group;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QString json = it.fragment().charFormat().stringProperty(tp::InlineObject);
+                if (json.isEmpty()) continue;
+                const ItemPtr item = Item::fromJsonAny(QJsonDocument::fromJson(json.toUtf8()).object());
+                if (item && item->type() == ItemType::Group) group = std::static_pointer_cast<GroupItem>(item);
+            }
+        QVERIFY(group);
+        QCOMPARE(int(group->children.size()), 2);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        // Its parts are where the group puts them, from the group's own corner (the line draws the group where it sits among the words).
+        QVERIFY(std::abs((group->children[1]->rect.left() - group->children[0]->rect.left()) - 50) < 0.01);
+        QVERIFY(std::abs(group->children[0]->rect.width() - 50) < 0.01 && std::abs(group->children[0]->rect.height() - 100) < 0.01);
+        // The line makes room for it as for a picture: the paragraph is as tall as the group and a line of words.
+        auto words = open(makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">Some words before the group </w:t></w:r></w:p>"));
+        auto heightOf = [](WriteDoc &d) {
+            const auto p = d.pager().materialize(0);
+            return p->doc->pages[0]->items.empty() ? 0.0 : p->doc->pages[0]->items.front()->rect.height();
+        };
+        QVERIFY(heightOf(*doc) - heightOf(*words) > 80);
+        // And it is the group's own place in the line, not the column's corner: the window's rectangle for it is as wide as the group.
+        Win win(("<w:p><w:r><w:t xml:space=\"preserve\">Some words before the group </w:t></w:r>" + anchoredGraphic(9, kGroupUri, inner, 0, 0, 100, 100, true) + "</w:p>"));
+        QRectF at;
+        QTRY_VERIFY(win.w.view()->pictureRect(win.w.document()->story()->characterCount() - 2, &at));
+        QVERIFY(at.width() > 50);
+    }
+
     void hostileGroupsAndConnectorsAreHeldToTheirLimits()
     {
         // Groups nested far past the depth limit.

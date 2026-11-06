@@ -25,6 +25,7 @@
 #include <memory>
 #include <atomic>
 #include <optional>
+#include <vector>
 
 namespace jp::office::wml {
 
@@ -570,6 +571,7 @@ struct Shape {
     enum Side { SideBoth, SideLeft, SideRight, SideLargest };
     Kind kind = Rect;
     bool floating = false;
+    std::vector<Shape> parts;             // the parts of a group set in the line (a drawing's group): their places are from the group's corner, in points; the group is this object's room
     bool room = false;                    // an empty object in the line that holds the room of a group set in the line (its members are set from it)
     double width = 0, height = 0;
     double left = 0, top = 0;             // from the reference, when the object is not aligned

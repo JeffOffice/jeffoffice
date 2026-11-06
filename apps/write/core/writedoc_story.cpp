@@ -1660,7 +1660,41 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             room->fill = Fill::none();
             room->stroke = Stroke::none();
             room->wrap.left = room->wrap.right = room->wrap.top = room->wrap.bottom = 0;
-            format->setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(room->toJson()).toJson(QJsonDocument::Compact)));
+            ItemPtr inlineItem = room;
+            if (!s.parts.empty()) {
+                // A group in the line: its parts, from its corner, set in the line as one object (so the line is as tall as the group and the parts move with it).
+                auto group = std::make_shared<GroupItem>();
+                for (const Shape &part : s.parts) {
+                    ItemPtr child;
+                    if (part.kind == Shape::Picture) {
+                        const int image = pictureOf(part);
+                        if (image < 0 || part.width <= 0 || part.height <= 0) continue;
+                        auto pic = std::make_shared<PictureItem>();
+                        pic->rect = QRectF(0, 0, part.width, part.height);
+                        dressPicture(*pic, part);
+                        pic->imageId = QStringLiteral("flow-img:%1").arg(image);
+                        pic->altText = part.alt;
+                        child = pic;
+                    } else {
+                        child = wspItem(part, theme());
+                        if (!child) {
+                            auto box = std::make_shared<ShapeItem>();
+                            box->rect = QRectF(0, 0, part.width, part.height);
+                            box->fill = Fill::none();
+                            box->stroke = Stroke::none();
+                            child = box;
+                        }
+                        child->altText = part.alt;
+                    }
+                    if (child->type() == ItemType::Line) child->moveBy(part.left, part.top);
+                    else child->rect = QRectF(part.left, part.top, part.width, part.height);
+                    group->children.push_back(child);
+                }
+                group->rect = QRectF(0, 0, s.width, s.height);
+                group->wrap.left = group->wrap.right = group->wrap.top = group->wrap.bottom = 0;
+                if (!group->children.empty()) inlineItem = group;
+            }
+            format->setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(inlineItem->toJson()).toJson(QJsonDocument::Compact)));
             inlinePicture = true;
             continue;
         }

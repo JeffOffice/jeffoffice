@@ -661,10 +661,20 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
             // The frame (nothing to draw), then each member where the group puts it.
             s.kind = Shape::Rect;
             s.filled = s.stroked = false;
-            out->push_back(s);
-            // (A group in the line has its parts set from the column's corner: the flow code's character anchor is the line's left edge, so it could not place them at the group.)
-            const Shape &place = s;
-            readGroupMembers(t, group, place, mapOfGroup(t, childNamed(t, group, "grpSpPr"), GroupMap(), true), 0, out);
+            if (!s.floating) {
+                // A group in the line is an object of the line, as large as it says: its parts are kept with it, from its corner, and the line draws them where it sits.
+                s.room = true;
+                s.wrap = Shape::WrapNone;
+                QVector<Shape> parts;
+                Shape place = s;
+                place.left = place.top = 0;
+                readGroupMembers(t, group, place, mapOfGroup(t, childNamed(t, group, "grpSpPr"), GroupMap(), true), 0, &parts);
+                for (const Shape &part : std::as_const(parts)) s.parts.push_back(part);
+                out->push_back(s);
+            } else {
+                out->push_back(s);
+                readGroupMembers(t, group, s, mapOfGroup(t, childNamed(t, group, "grpSpPr"), GroupMap(), true), 0, out);
+            }
             if (out->size() >= kMostShapes) return;
             continue;
         }
