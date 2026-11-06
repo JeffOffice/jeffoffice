@@ -245,10 +245,13 @@ private Q_SLOTS:
         QVERIFY2(xml.contains("uri=\"{OTHER-1}\"") && xml.contains("<e2:thing a=\"1\">text &amp; more</e2:thing>") && xml.contains("name=\"Mine\""), xml.constData());
         QVERIFY2(xml.indexOf("<calcPr") < xml.indexOf("<customWorkbookViews"), xml.constData());
         // and what was written is read again as it was
-        QFile written(e.path);
-        QVERIFY(written.open(QIODevice::ReadOnly));
         EditWindow again;
-        QVERIFY(again.open(written.readAll()));
+        {
+            // (closed again at once: Windows can't replace or reuse a file that is still open)
+            QFile written(e.path);
+            QVERIFY(written.open(QIODevice::ReadOnly));
+            QVERIFY(again.open(written.readAll()));
+        }
         QVERIFY2(again.win.w.session()->customViews().size() == 2, xml.constData());
         QVERIFY(again.win.w.session()->customViews()[0] == s->customViews()[0]);
     }
@@ -344,9 +347,12 @@ private Q_SLOTS:
         // read again by a new window: the same view
         const QVector<CustomView> was = s->customViews();
         EditWindow again;
-        QFile written(e.path);
-        QVERIFY(written.open(QIODevice::ReadOnly));
-        QVERIFY(again.open(written.readAll()));
+        {
+            // (closed again at once: Windows can't replace or reuse a file that is still open)
+            QFile written(e.path);
+            QVERIFY(written.open(QIODevice::ReadOnly));
+            QVERIFY(again.open(written.readAll()));
+        }
         QCOMPARE(again.win.w.session()->customViews().size(), 1);
         QVERIFY(again.win.w.session()->customViews()[0] == was[0]);
         QVERIFY(!again.win.w.session()->customViewsChanged());
@@ -621,10 +627,13 @@ private Q_SLOTS:
         const QByteArray xml = savedPart(e.path, QStringLiteral("xl/workbook.xml"));
         for (const char bad : {'\x01', '\x1f'}) QVERIFY(!xml.contains(bad));
         QVERIFY(xml.contains("name=\"A B  C \""));
-        QFile written(e.path);
-        QVERIFY(written.open(QIODevice::ReadOnly));
         EditWindow again;
-        QVERIFY(again.open(written.readAll()));
+        {
+            // (closed again at once: Windows can't replace or reuse a file that is still open)
+            QFile written(e.path);
+            QVERIFY(written.open(QIODevice::ReadOnly));
+            QVERIFY(again.open(written.readAll()));
+        }
         QCOMPARE(again.win.w.session()->customViews().size(), 1);
     }
 
@@ -649,10 +658,13 @@ private Q_SLOTS:
         const QByteArray sheet = savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml"));
         QVERIFY2(!sheet.contains("{DEAD-1}") && sheet.contains("{KEEP-2}") && sheet.contains("<customSheetViews>"), sheet.constData());
         // with the last one gone too, the list goes
-        QFile written(e.path);
-        QVERIFY(written.open(QIODevice::ReadOnly));
         EditWindow again;
-        QVERIFY(again.open(written.readAll()));
+        {
+            // (closed again at once: Windows can't replace or reuse a file that is still open)
+            QFile written(e.path);
+            QVERIFY(written.open(QIODevice::ReadOnly));
+            QVERIFY(again.open(written.readAll()));
+        }
         again.win.w.anchorHooks().customViewsAsker = [](CustomViewsRequest *r) {
             r->views.clear();
             return true;
