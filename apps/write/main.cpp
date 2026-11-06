@@ -161,7 +161,13 @@ int main(int argc, char **argv)
                 for (int i = 0; i < w->ribbon()->tabCount(); ++i)
                     if (w->ribbon()->tabName(i) == tab) w->ribbon()->showTab(w->ribbon()->tabPage(i));
             // (A hook for screenshots: select the drawn object at this position of the text, which brings up its Picture Format or Shape Format tab.)
-            if (qEnvironmentVariableIsSet("JW_SCREENSHOT_SELECT")) w->view()->selectPicture(qEnvironmentVariableIntValue("JW_SCREENSHOT_SELECT"));
+            // (Several, separated by commas, are selected together.)
+            if (qEnvironmentVariableIsSet("JW_SCREENSHOT_SELECT")) {
+                QVector<int> together;
+                for (const QString &n : qEnvironmentVariable("JW_SCREENSHOT_SELECT").split(QLatin1Char(',')))
+                    together << n.toInt();
+                w->view()->selectObjects(together);
+            }
             // (And the Navigation pane, open on its tab: JW_SCREENSHOT_NAVIGATION=0 for Headings, 1 for Pages, 2 for Results.)
             if (qEnvironmentVariableIsSet("JW_SCREENSHOT_NAVIGATION")) {
                 w->showNavigationPane(true);
