@@ -408,6 +408,55 @@ private Q_SLOTS:
         QVERIFY2(xml.contains("sqref=\"A2:A3\"") && xml.contains("sqref=\"B2:C5\""), xml.constData());
     }
 
+    // Insert and Delete Cells (shift down, up, right, left) move the edit ranges as other references move, in the edit's own step of Undo, and the file holds them.
+    void editRangesFollowInsertedAndDeletedCells()
+    {
+        QString rows;
+        for (int r = 1; r <= 6; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>1</v></c><c r=\"B%1\"><v>2</v></c><c r=\"C%1\"><v>3</v></c></row>").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, QStringLiteral("<protectedRanges><protectedRange sqref=\"A3:A4\" name=\"Down\"/>"
+                                                                "<protectedRange sqref=\"B2:C2\" name=\"Right\"/></protectedRanges>"))})));
+        crunch::EditSession *s = e.win.w.session();
+        auto cells = [&] {
+            QStringList out;
+            for (const EditRange &r : s->protectionOf(0).editRanges) out << r.title + QLatin1Char('=') + r.sqref;
+            return out.join(QLatin1Char(' '));
+        };
+        QVERIFY(s->insertCells(0, rangeOf(QStringLiteral("A1:A2")), true).ok);   // two cells down in column A
+        QTRY_COMPARE(cells(), QStringLiteral("Down=A5:A6 Right=B2:C2"));
+        QVERIFY(s->insertCells(0, rangeOf(QStringLiteral("A2:A2")), false).ok);   // one cell right in row 2: "Right" is whole inside that row, so it moves
+        QTRY_COMPARE(cells(), QStringLiteral("Down=A5:A6 Right=C2:D2"));
+        QVERIFY(s->deleteCells(0, rangeOf(QStringLiteral("A1:A2")), true).ok);   // shift up: back
+        QTRY_COMPARE(cells(), QStringLiteral("Down=A3:A4 Right=C2:D2"));
+        QVERIFY(s->deleteCells(0, rangeOf(QStringLiteral("A1:A1")), true).ok);
+        QTRY_COMPARE(cells(), QStringLiteral("Down=A2:A3 Right=C2:D2"));
+        QVERIFY(s->insertCells(0, rangeOf(QStringLiteral("A2:C2")), false).ok);   // a whole row of cells shifted right: "Right" moves
+        QTRY_COMPARE(cells(), QStringLiteral("Down=A2:A3 Right=F2:G2"));
+        QVERIFY(s->deleteCells(0, rangeOf(QStringLiteral("A2:C2")), false).ok);   // shift left: back
+        QTRY_COMPARE(cells(), QStringLiteral("Down=A2:A3 Right=C2:D2"));
+        QVERIFY(s->deleteCells(0, rangeOf(QStringLiteral("C2:C2")), false).ok);   // one cell of "Right" taken out: it shrinks
+        QTRY_COMPARE(cells(), QStringLiteral("Down=A2:A3 Right=C2"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        const QByteArray xml = savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml"));
+        QVERIFY2(xml.contains("sqref=\"A2:A3\"") && xml.contains("sqref=\"C2\""), xml.constData());
+    }
+
+    // Undo of an edit of cells brings the ranges back with it.
+    void undoOfAnEditOfCellsBringsTheEditRangesBack()
+    {
+        QString rows;
+        for (int r = 1; r <= 6; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>1</v></c></row>").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, QStringLiteral("<protectedRanges><protectedRange sqref=\"A3:A4\" name=\"Down\"/></protectedRanges>"))})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->insertCells(0, rangeOf(QStringLiteral("A1:A2")), true).ok);
+        QTRY_COMPARE(s->protectionOf(0).editRanges[0].sqref, QStringLiteral("A5:A6"));
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QTRY_COMPARE(s->protectionOf(0).editRanges[0].sqref, QStringLiteral("A3:A4"));
+    }
+
     // An edit range's password is kept as its salted hash (never the text), and one the file holds in the older form is still checked.
     void anEditRangePasswordIsHashedAndTheOlderFormIsChecked()
     {

@@ -3,6 +3,8 @@
 // shown), with or without a password. A password is never kept as text: what the file holds is a salted hash of it (the strong form: the algorithm, the hash, the salt, and how many
 // times the hash was repeated), or the older 16-bit number, which is read and checked but never written for a new password.
 
+#include "sheet/refshift.h"
+
 #include <QByteArray>
 #include <QString>
 #include <QVector>
@@ -53,9 +55,9 @@ struct EditRange {
     bool operator==(const EditRange &o) const { return title == o.title && sqref == o.sqref && password == o.password && securityDescriptor == o.securityDescriptor; }
 };
 constexpr int kMaxEditRanges = 256;
-// The cells of an edit range (as the file names them) after `count` rows (or columns) are put in at `first` (from 0), or taken out from there: a range at or below the place moves, a range that
-// holds it grows (put in) or shrinks (taken out), and a range that is taken out whole is gone (the result is empty).
-QString editRangeAfterLines(const QString &sqref, bool rows, bool insert, quint32 first, quint32 count);
+// The cells of an edit range (as the file names them) after an edit that puts in or takes out rows, columns, or cells on its sheet, worked out as every other reference is (sheet/refshift.h):
+// a range moves, grows, or shrinks, and one that is taken out whole is gone (the result is empty).
+QString editRangeAfterEdit(const QString &sqref, int sheet, const StructEdit &edit);
 
 struct SheetProtection {
     bool enabled = false;

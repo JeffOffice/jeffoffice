@@ -242,17 +242,15 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
     step.structure->drops = m_lineDrops;
     step.structure->edit = edit;
     // the edit ranges of the sheet's protection move with the lines (a step of its own part, so that Undo brings back the ranges that were cut or taken out)
-    using K = StructEdit::Kind;
-    if ((edit.kind == K::InsertRows || edit.kind == K::DeleteRows || edit.kind == K::InsertColumns || edit.kind == K::DeleteColumns) && m_book && m_book->calc && edit.sheet >= 0
-        && edit.sheet < m_book->calc->sheetCount() && !m_book->calc->sheet(edit.sheet).protection.editRanges.isEmpty()) {
+    if (edit.kind != StructEdit::Kind::Move && edit.kind != StructEdit::Kind::Offset && m_book && m_book->calc && edit.sheet >= 0 && edit.sheet < m_book->calc->sheetCount()
+        && !m_book->calc->sheet(edit.sheet).protection.editRanges.isEmpty()) {
         ProtectEdit pe;
         pe.sheet = edit.sheet;
         pe.sheetBefore = m_book->calc->sheet(edit.sheet).protection;
         pe.sheetAfter = pe.sheetBefore;
         pe.sheetAfter.editRanges.clear();
-        const bool rows = edit.kind == K::InsertRows || edit.kind == K::DeleteRows, insert = edit.kind == K::InsertRows || edit.kind == K::InsertColumns;
         for (jp::office::sheet::EditRange r : pe.sheetBefore.editRanges) {
-            r.sqref = jp::office::sheet::editRangeAfterLines(r.sqref, rows, insert, edit.first, edit.count);
+            r.sqref = jp::office::sheet::editRangeAfterEdit(r.sqref, edit.sheet, edit);
             if (!r.sqref.isEmpty()) pe.sheetAfter.editRanges.append(r);
         }
         if (!(pe.sheetAfter == pe.sheetBefore)) step.protections.push_back(std::move(pe));
