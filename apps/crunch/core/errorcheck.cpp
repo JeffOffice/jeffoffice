@@ -139,6 +139,9 @@ std::vector<FormulaProblem> findFormulaProblems(const EditSession &session, int 
             if (v.isError()) {
                 p.kind = FormulaProblem::Kind::ErrorValue;
                 p.explanation = errorSentence(v.errorKind());
+            } else if (!session.cellIsLocked(sheet, row, col)) {
+                p.kind = FormulaProblem::Kind::UnlockedFormula;
+                p.explanation = QCoreApplication::translate("jp::crunch::ErrorCheck", "This formula is in a cell that is not locked, so it can be changed even when the sheet is protected. Lock the cell to keep the formula safe.");
             } else if (isInconsistent(row, col)) {
                 p.kind = FormulaProblem::Kind::InconsistentFormula;
                 p.explanation = QCoreApplication::translate("jp::crunch::ErrorCheck", "This formula is not like the formulas next to it. The ones on both sides of it are alike, and this one is not.");

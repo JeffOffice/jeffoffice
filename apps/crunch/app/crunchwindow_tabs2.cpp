@@ -436,6 +436,7 @@ quint16 ignoreBitOf(crunch::FormulaProblem::Kind kind)
     case crunch::FormulaProblem::Kind::ErrorValue: return IgnoredError::EvalError;
     case crunch::FormulaProblem::Kind::InconsistentFormula: return IgnoredError::Formula;
     case crunch::FormulaProblem::Kind::TwoDigitYear: return IgnoredError::TwoDigitTextYear;
+    case crunch::FormulaProblem::Kind::UnlockedFormula: return IgnoredError::UnlockedFormula;
     default: return IgnoredError::NumberStoredAsText;
     }
 }

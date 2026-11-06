@@ -314,6 +314,25 @@ private Q_SLOTS:
         QVERIFY2(sheet.contains("formula=\"1\"") && sheet.contains("twoDigitTextYear=\"1\""), sheet.constData());
     }
 
+    // A formula in a cell that is not locked is found (it can be changed on a protected sheet), and Ignore Error keeps that too.
+    void errorCheckingFindsAFormulaInAnUnlockedCell()
+    {
+        const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"0\" applyProtection=\"1\"><protection locked=\"0\"/></xf>"));
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f>A1*2</f><v>2</v></c><c r=\"C1\" s=\"1\"><f>A1*3</f><v>3</v></c><c r=\"D1\" s=\"1\"><v>4</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), styles)));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        auto problems = w.formulaProblems();
+        QCOMPARE(problems.size(), size_t(1));   // (the unlocked cell with no formula is no problem)
+        QVERIFY(problems[0].kind == crunch::FormulaProblem::Kind::UnlockedFormula);
+        QCOMPARE(problems[0].col, quint32(2));
+        w.ignoreFormulaProblem(0, 2);
+        QVERIFY(w.formulaProblems().empty());
+        QCOMPARE(int(w.session()->ignoredErrorsOf(0).size()), 1);
+        QVERIFY(w.session()->ignoredErrorsOf(0)[0].kinds & jp::office::sheet::IgnoredError::UnlockedFormula);
+    }
+
     void theBoxAddsReplacesDeletesAndShows()
     {
         CustomViewsRequest req;
