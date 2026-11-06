@@ -1,5 +1,5 @@
 # Shapes and text boxes
-<!-- keywords: shape, shapes, text box, textbox, rectangle, arrow, star, callout, line, draw, insert shape, shape format, fill, outline, weight, dashes, rotate, change shape, edit text, sidebar, pull quote, banner, shape styles, gradient, align, gradient fill -->
+<!-- keywords: shape, shapes, text box, textbox, rectangle, arrow, star, callout, line, draw, insert shape, shape format, fill, outline, weight, dashes, rotate, change shape, edit text, sidebar, pull quote, banner, shape styles, gradient, align, gradient fill, group, ungroup, select several, picture fill, text art, warp, drawing canvas, connector, connect shapes, glue -->
 
 A **shape** is a drawn figure, such as a rectangle, an arrow, a star, or a speech bubble. A **text box** is a shape that holds words. Both float on the page, and the words of the document go round them. This topic shows how to put them in and change them.
 
@@ -10,7 +10,7 @@ A **shape** is a drawn figure, such as a rectangle, an arrow, a star, or a speec
 
 The shape appears with its handles, and the **Shape Format** tab opens. It is blue, with a darker blue line round it. The words go round it, a square wrap.
 
-A **line** is as long as a shape of its own and has no fill. The **Arrow** is a line with a head at the end. **Elbow Arrow** bends once at a right angle, and **Curved Arrow** bends in a smooth curve. Both have a head at the end. They are not joined to the shapes at their ends: move them by hand.
+A **line** is as long as a shape of its own and has no fill. The **Arrow** is a line with a head at the end. **Elbow Arrow** bends once at a right angle, and **Curved Arrow** bends in a smooth curve. Both have a head at the end. To join two shapes with a line that stays joined, see "Join shapes with a connector" below.
 
 ## Put a text box in
 
@@ -33,6 +33,7 @@ Click the shape to select it. Drag a handle to change its size, or drag the shap
 - **Shape Outline** sets the color of the line round it. Choose **No Outline** to take the line off.
 - **Weight** is how thick the line is. **Dashes** makes the line solid, dotted, or dashed.
 - **Gradient** fills the shape with a color that fades into another. The first five choices fade from a lighter to a darker shade of the shape's own color (or of blue, if it has no color), in the direction you pick. **Sunset** fades from yellow to red.
+- **Picture Fill** stretches a picture from a file over the inside of the shape or text box. To go back to a color, use **Shape Fill**.
 - **Align** lines the shape up with the margins or the page. See [Add and change pictures](pictures).
 - **Change Shape** puts another shape in the same place, with the same size and colors.
 - **Rotate** turns the shape a quarter turn to the right or the left, or back to no turn.
@@ -42,6 +43,52 @@ Click the shape to select it. Drag a handle to change its size, or drag the shap
 
 Each change is one step to undo.
 
+## Text Art
+
+**Text Art** is a few words drawn in big, bold letters that bend into a shape, such as a wave or an arch.
+
+1. Click **Insert > Text Art**, and pick a style. The words "Your Text Here" appear at the caret.
+2. Click **Shape Format > Edit Text** and type your own words. Each line you type is a line of the art.
+3. Click **Text Art Styles** to try another look, and **Text Warp** to pick the shape the words bend into. "Plain" keeps them straight.
+
+The art stretches to fill its frame, so drag a handle to make it taller, wider, or smaller. Each change is one step to undo.
+
+## Drawing canvas
+
+A **drawing canvas** is a frame for shapes that belong together.
+
+1. Click **Insert > Drawing Canvas**. A frame with a pale dashed line appears.
+2. Put the shapes you want on top of it.
+3. Click the canvas, hold **Ctrl** and click each shape, and click **Group**.
+
+The canvas and its shapes now move and change size as one piece.
+
+## Join shapes with a connector
+
+A **connector** is a line or an arrow that stays joined to two shapes. When you move either shape, or change its size, the connector moves its end to follow.
+
+1. Click the first shape. Hold **Ctrl** and click the second shape.
+2. Click **Connect** on the **Arrange** part of the tab, and pick **Straight Connector**, **Elbow Connector**, or **Curved Connector**.
+
+The connector runs between the two closest connection points of the shapes. A rectangle has four connection points (the middle of each side), and an ellipse has eight. The connector has an arrowhead at the second shape.
+
+If you drag the connector itself, or change its size, it lets go of the shapes and becomes an ordinary line. The shapes must float on the page. Other programs keep the connector joined when they open the file.
+
+## Group shapes together
+
+A **group** ties several shapes, text boxes, lines, and pictures into one object. The group moves and changes size as one piece.
+
+1. Click the first object. Hold **Ctrl** and click each other object you want to add. Each one gets a line round it. (Hold **Ctrl** and click an object again to take it out.)
+2. Click **Group** on the **Arrange** part of the tab (or press Ctrl+Alt+G).
+
+Every object must float on the page. An object that is in line with the text can't join a group: change its **Wrap Text** first. A chart can't join a group. A group never holds another group: if you pick a group as well, its parts join the new group.
+
+When several objects are selected together, you can drag one of them, and all of them move.
+
+To take a group apart, select it and click **Ungroup**. Each part goes back to its own place on the page and stays selected. A group that is turned can't be taken apart.
+
+You can move a group, change its size, change its layer (**Bring Forward**, **Send Backward**), and give it alt text. To change the fill or the words of one part, take the group apart first. All of this is one step to undo.
+
 ## Shapes in other documents
 
-JeffWrite draws the shapes and text boxes that a document holds, with their fill, line, and turn. It can change the ones that the document stores as a plain shape or text box. A group of shapes is kept as it was.
+JeffWrite draws the shapes and text boxes that a document holds, with their fill, line, and turn. It can change the ones that the document stores as a plain shape or text box. A group in a document is drawn with all its parts, and it is kept as it was.
