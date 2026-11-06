@@ -31,7 +31,9 @@
 #include <algorithm>
 
 #include <QApplication>
+#include <QPointer>
 #include <QStatusBar>
+#include <memory>
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QPalette>
@@ -108,18 +110,17 @@ int main(int argc, char **argv)
     const QStringList files = cli.positionalArguments();
     if (!files.isEmpty()) {
         if (splash) splash->step(jp::openingStatus(files.first()), 0.8);
+        QPointer<jp::MainWindow> guard(w);
+        std::unique_ptr<jp::FirstWindow> first;
         if (!cli.isSet(shotOpt) && !cli.isSet(pdfOpt)) {
             // The window is up before the file is read, so it shows at once and says what it is doing.
             w->statusBar()->showMessage(jp::openingStatus(files.first()));
-            w->show();
-            if (splash) {
-                splash->finish(w);
-                splash = nullptr;
-            }
-            QCoreApplication::processEvents();
+            first = std::make_unique<jp::FirstWindow>(w, splash);
+            splash = nullptr;
+            if (!first->open()) return 0;   // (closed meanwhile: nothing to open into)
         }
         w->openFile(files.first());
-        if (w->statusBar()->currentMessage() == jp::openingStatus(files.first())) w->statusBar()->clearMessage();
+        if (guard && w->statusBar()->currentMessage() == jp::openingStatus(files.first())) w->statusBar()->clearMessage();
         for (int i = 1; i < files.size(); ++i) {
             auto *other = new jp::MainWindow();
             other->setAttribute(Qt::WA_DeleteOnClose);

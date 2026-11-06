@@ -6,6 +6,8 @@
 #include "core/appinfo.h"
 #include "canvas/canvasaccessible.h"
 #include <QDoubleSpinBox>
+#include <QFileOpenEvent>
+#include <QPointer>
 #include <QStackedWidget>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -15,6 +17,45 @@ class PubWindowTests : public QObject {
 
 private Q_SLOTS:
     void initTestCase() { initPubTestCase(); }
+
+    // The first window of a start that opens a file: shown and drawn before the file is read; a file the system asks to open meanwhile is kept and given to the app's own
+    // handler afterward (so it is opened once, by the first window's open); a window closed meanwhile is said to be gone.
+    void firstWindowHoldsFileOpenEvents()
+    {
+        struct Seen : QObject {
+            QStringList paths;
+            bool eventFilter(QObject *, QEvent *e) override
+            {
+                if (e->type() == QEvent::FileOpen) paths << static_cast<QFileOpenEvent *>(e)->file();
+                return false;
+            }
+        } seen;
+        QCoreApplication::instance()->installEventFilter(&seen);   // (the app's own handler: asked after the first window's)
+        QWidget window;
+        QCoreApplication::postEvent(QCoreApplication::instance(), new QFileOpenEvent(QStringLiteral("/x/one.docx")));
+        {
+            jp::FirstWindow first(&window, nullptr);
+            QVERIFY(first.open());
+            QVERIFY(window.isVisible());
+            QVERIFY(window.windowHandle()->isExposed());
+            QCoreApplication::postEvent(QCoreApplication::instance(), new QFileOpenEvent(QStringLiteral("/x/two.docx")));
+            QCoreApplication::processEvents();
+            QVERIFY(seen.paths.isEmpty());   // (held: not handled while the first window's open is on)
+        }
+        QTRY_COMPARE(seen.paths, (QStringList{QStringLiteral("/x/one.docx"), QStringLiteral("/x/two.docx")}));
+        QCoreApplication::instance()->removeEventFilter(&seen);
+    }
+
+    void firstWindowClosedMeanwhileIsGone()
+    {
+        auto *window = new QWidget;
+        window->setAttribute(Qt::WA_DeleteOnClose);
+        QPointer<QWidget> alive(window);
+        QTimer::singleShot(0, window, &QWidget::close);
+        jp::FirstWindow first(window, nullptr);
+        QVERIFY(!first.open());
+        QTRY_VERIFY(!alive);
+    }
 
     // The ribbon as built, one control per line. JP_RIBBON_DUMP=file writes
     // it, to compare a rebuilt ribbon with the one before; with

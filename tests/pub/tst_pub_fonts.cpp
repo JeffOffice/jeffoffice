@@ -1,6 +1,61 @@
 // JeffPub's tests of stand-in fonts, letter widths, and bold drawn by hand.
 #include "pubhelpers.h"
 
+#include <map>
+
+template <class Key, class Parse, class Get>
+static void checkLazyTable(const char *resource, int fieldsBefore, Parse parse, Get get)
+{
+    QFile f(QString::fromLatin1(resource));
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    std::map<QString, QHash<Key, double>> want;   // "family|style" (family lowered) -> the face, the last line winning
+    QVector<char16_t> chars;
+    int lines = 0;
+    for (const QByteArray &line : f.readAll().split('\n')) {
+        if (line.isEmpty() || line.startsWith('#')) continue;
+        if (fieldsBefore && chars.isEmpty()) {
+            for (const QByteArray &c : line.split(',')) chars << char16_t(c.toUInt());
+            continue;
+        }
+        const QList<QByteArray> p = line.split('\t');
+        if (p.size() < 3) continue;
+        want[QString::fromUtf8(p[0]).toLower() + QLatin1Char('|') + QString::fromLatin1(p[1])] = parse(p[2], chars);
+        ++lines;
+    }
+    QVERIFY(lines > 20);
+    QStringList keys;
+    for (const auto &e : want) keys << e.first;
+    std::reverse(keys.begin(), keys.end());   // (out of order)
+    std::map<QString, const QHash<Key, double> *> seen;
+    for (const QString &key : keys) {
+        const QString fam = key.section(QLatin1Char('|'), 0, 0);
+        const int style = key.section(QLatin1Char('|'), 1).toInt();
+        const QHash<Key, double> *got = get(fam, style & 1, style & 2);
+        QVERIFY2(got, qPrintable(key));
+        QCOMPARE(*got, want.at(key));
+        QCOMPARE(get(fam, style & 1, style & 2), got);   // (read twice: the same place)
+        seen[key] = got;
+    }
+    // a style the table lacks
+    int fell = 0;
+    for (const QString &key : keys) {
+        const QString fam = key.section(QLatin1Char('|'), 0, 0);
+        for (int style = 0; style < 4; ++style) {
+            if (want.count(fam + QLatin1Char('|') + QString::number(style))) continue;
+            QString use;
+            for (int s : {style, style & 1, style & 2, 0})
+                if (want.count(fam + QLatin1Char('|') + QString::number(s))) { use = fam + QLatin1Char('|') + QString::number(s); break; }
+            const QHash<Key, double> *got = get(fam, style & 1, style & 2);
+            if (use.isEmpty()) QVERIFY(!got);
+            else QCOMPARE(got, seen.at(use));
+            ++fell;
+        }
+    }
+    QVERIFY(fell > 0);
+    QVERIFY(!get(QStringLiteral("No Such Family Anywhere"), false, false));
+}
+
+
 class PubFontTests : public QObject {
     Q_OBJECT
 
@@ -1845,82 +1900,75 @@ private Q_SLOTS:
         }
     }
 
-    // Every face's kerning pairs come out as the table holds them (they are read when a face is first asked for), and a face the table lacks has none.
+    // The kerning pairs and the letter widths come out as the tables hold them: for every face (the last line of a case-variant or repeated face wins, as the table was read
+    // whole before), in any order, the same pointer each time, and a style the table lacks falls back as bold-and-italic, bold, italic, regular.
     void kerningPairsAreTheTableOnes()
     {
-        QFile f(QStringLiteral(":/fontkerning.txt"));
-        QVERIFY(f.open(QIODevice::ReadOnly));
-        int checked = 0;
-        for (const QByteArray &line : f.readAll().split('\n')) {
-            const QList<QByteArray> p = line.split('\t');
-            if (line.startsWith('#') || p.size() < 3) continue;
-            QHash<quint32, double> want;
-            for (const QByteArray &e : p[2].split(',')) {
-                const QList<QByteArray> v = e.split(':');
-                if (v.size() == 3) want.insert(v[0].toUInt() << 16 | v[1].toUInt(), v[2].toInt() / 2048.0);
-            }
-            const int style = p[1].toInt();
-            const QHash<quint32, double> *got = jp::originalKerning(QString::fromUtf8(p[0]), style & 1, style & 2);
-            QVERIFY2(got, p[0].constData());
-            QCOMPARE(*got, want);
-            if (++checked >= 400) break;
-        }
-        QVERIFY(checked > 20);
-        QVERIFY(!jp::originalKerning(QStringLiteral("No Such Family Anywhere"), false, false));
+        checkLazyTable<quint32>(":/fontkerning.txt", 0,
+                                [](const QByteArray &text, const QVector<char16_t> &) {
+                                    QHash<quint32, double> pairs;
+                                    for (const QByteArray &e : text.split(',')) {
+                                        const QList<QByteArray> v = e.split(':');
+                                        if (v.size() == 3) pairs.insert(v[0].toUInt() << 16 | v[1].toUInt(), v[2].toInt() / 2048.0);
+                                    }
+                                    return pairs;
+                                },
+                                [](const QString &fam, bool bold, bool italic) { return jp::originalKerning(fam, bold, italic); });
     }
 
-    // Every face's letter widths come out as the table holds them (read when a face is first asked for).
     void letterWidthsAreTheTableOnes()
     {
-        QFile f(QStringLiteral(":/fontwidths.txt"));
-        QVERIFY(f.open(QIODevice::ReadOnly));
-        QVector<char16_t> chars;
-        int checked = 0;
-        for (const QByteArray &line : f.readAll().split('\n')) {
-            if (line.isEmpty() || line.startsWith('#')) continue;
-            if (chars.isEmpty()) {
-                for (const QByteArray &c : line.split(',')) chars << char16_t(c.toUInt());
-                continue;
-            }
-            const QList<QByteArray> p = line.split('\t');
-            if (p.size() < 3) continue;
-            QHash<char16_t, double> want;
-            const QList<QByteArray> ws = p[2].split(',');
-            for (int i = 0; i < qMin(ws.size(), qsizetype(chars.size())); ++i)
-                if (const int w = ws[i].toInt(); w >= 0) want.insert(chars[i], w / 2048.0);
-            const int style = p[1].toInt();
-            const QHash<char16_t, double> *got = jp::originalLetterWidths(QString::fromUtf8(p[0]), style & 1, style & 2);
-            QVERIFY2(got, p[0].constData());
-            QCOMPARE(*got, want);
-            if (++checked >= 400) break;
-        }
-        QVERIFY(checked > 20);
+        checkLazyTable<char16_t>(":/fontwidths.txt", 1,
+                                 [](const QByteArray &text, const QVector<char16_t> &chars) {
+                                     QHash<char16_t, double> widths;
+                                     const QList<QByteArray> ws = text.split(',');
+                                     for (int i = 0; i < qMin(ws.size(), qsizetype(chars.size())); ++i)
+                                         if (const int w = ws[i].toInt(); w >= 0) widths.insert(chars[i], w / 2048.0);
+                                     return widths;
+                                 },
+                                 [](const QString &fam, bool bold, bool italic) { return jp::originalLetterWidths(fam, bold, italic); });
     }
 
-    // The font list: the scheme fonts, then the fonts (headers cannot be chosen, every font carries its own name), the same again after the scheme fonts change.
+    // The font list: the scheme fonts, then the recent fonts, then the fonts; headers cannot be chosen, every font carries its own name; it is made again when the scheme fonts
+    // change and when the font database does.
     void fontListHoldsHeadersAndFamilies()
     {
+        jp::Settings::get().setValue(QStringLiteral("fonts/recent"), QStringList());
         jp::FontCombo combo;
-        combo.setSchemeFonts(QStringLiteral("Tinos"), QStringLiteral("Arimo"));
         auto *model = combo.model();
-        QVERIFY(model->rowCount() > 20);
-        QCOMPARE(model->index(0, 0).data().toString(), QStringLiteral("Scheme Fonts"));
-        QVERIFY(!(model->flags(model->index(0, 0)) & Qt::ItemIsEnabled));
-        QCOMPARE(model->index(1, 0).data().toString(), QStringLiteral("Tinos (Headings)"));
-        QCOMPARE(model->index(1, 0).data(Qt::UserRole).toString(), QStringLiteral("+Heading"));
-        QCOMPARE(model->index(2, 0).data(Qt::UserRole + 1).toString(), QStringLiteral("Arimo"));
-        QVERIFY(model->flags(model->index(2, 0)) & Qt::ItemIsEnabled);
-        int firstFont = -1;
-        for (int i = 0; i < model->rowCount(); ++i)
-            if (model->index(i, 0).data().toString() == QStringLiteral("All Fonts")) firstFont = i + 1;
-        QVERIFY(firstFont > 0 && firstFont < model->rowCount());
-        QVERIFY(!(model->flags(model->index(firstFont - 1, 0)) & Qt::ItemIsEnabled));
-        for (int i = firstFont; i < model->rowCount(); ++i) {
-            const QString name = model->index(i, 0).data().toString();
-            QCOMPARE(model->index(i, 0).data(Qt::UserRole).toString(), name);
-            QVERIFY(model->flags(model->index(i, 0)) & Qt::ItemIsEnabled);
-        }
-        QVERIFY(combo.findData(QStringLiteral("Arimo"), Qt::UserRole) >= firstFont);
+        auto check = [&](const QString &heading, const QString &body) {
+            QVERIFY(model->rowCount() > 4);
+            QCOMPARE(model->index(0, 0).data().toString(), QStringLiteral("Scheme Fonts"));
+            QVERIFY(!(model->flags(model->index(0, 0)) & Qt::ItemIsEnabled));
+            QCOMPARE(model->index(1, 0).data().toString(), heading + QStringLiteral(" (Headings)"));
+            QCOMPARE(model->index(1, 0).data(Qt::UserRole).toString(), QStringLiteral("+Heading"));
+            QCOMPARE(model->index(1, 0).data(Qt::UserRole + 1).toString(), heading);
+            QCOMPARE(model->index(2, 0).data().toString(), body + QStringLiteral(" (Body)"));
+            QCOMPARE(model->index(2, 0).data(Qt::UserRole + 1).toString(), body);
+            QVERIFY(model->flags(model->index(2, 0)) & Qt::ItemIsEnabled);
+            QCOMPARE(model->index(3, 0).data().toString(), QStringLiteral("All Fonts"));
+            QVERIFY(!(model->flags(model->index(3, 0)) & Qt::ItemIsEnabled));
+            QVERIFY(model->rowCount() > 4);
+            for (int i = 4; i < model->rowCount(); ++i) {
+                const QString name = model->index(i, 0).data().toString();
+                QCOMPARE(model->index(i, 0).data(Qt::UserRole).toString(), name);
+                QCOMPARE(model->index(i, 0).data(Qt::UserRole + 1).toString(), name);
+                QVERIFY(model->flags(model->index(i, 0)) & Qt::ItemIsEnabled);
+            }
+            QCOMPARE(combo.findData(model->index(4, 0).data().toString(), Qt::UserRole), 4);
+        };
+        QCOMPARE(model->index(1, 0).data().toString(), QStringLiteral("+Headings"));   // (no scheme fonts yet: the plain names)
+        QCOMPARE(model->index(2, 0).data().toString(), QStringLiteral("+Body"));
+        combo.setSchemeFonts(QStringLiteral("Heading Face"), QStringLiteral("Body Face"));
+        check(QStringLiteral("Heading Face"), QStringLiteral("Body Face"));
+        combo.setSchemeFonts(QStringLiteral("Other Heading"), QStringLiteral("Other Body"));
+        check(QStringLiteral("Other Heading"), QStringLiteral("Other Body"));
+        // the font database changed: the list is the same made again
+        const int rows = model->rowCount();
+        jp::fontsChanged();
+        combo.setSchemeFonts(QStringLiteral("Third"), QStringLiteral("Fourth"));
+        check(QStringLiteral("Third"), QStringLiteral("Fourth"));
+        QCOMPARE(model->rowCount(), rows);
     }
 
     // A font with no italic face (Impact; Garamond's bold) is slanted by
