@@ -5181,7 +5181,7 @@
   "jeffwrite": {
    "name": "JeffWrite",
    "reviewed": {
-    "day": "5",
+    "day": "6",
     "month": "November",
     "year": "2026"
    },
@@ -5788,8 +5788,8 @@
          "text": "ffdcefe08fd40fbe27f754083de8c7f47124c53e96c24df8eee35efc621a4aeb"
         },
         {
-         "status": "todo",
-         "text": "900c88ee26da905c26976ecbdd17e6e7820f99196f856486b4dd71b2449be2f6"
+         "status": "partly",
+         "text": "4310f176870837d9bede601afc8c63c027acd101256c46dc5327473287692874"
         },
         {
          "status": "partly",
@@ -5832,7 +5832,7 @@
         },
         {
          "status": "partly",
-         "text": "d8b66e9a32d6ec5b77750181153f1fed3473d62ce593091f2395c82b4ac59431"
+         "text": "ca80ae149b1015cc17a91cbfc61867a1ca40ee92d744da6c5d7fb7ef648be2ff"
         },
         {
          "status": "partly",
@@ -6449,7 +6449,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "f11211eb42999497b8ebffeb5bdb3bb06c870f2187b6ef07588e01abca706986"
+         "text": "c7effcf66af8bf7a353d41feefdd18c211371eb52bf5164fce5978a6a09ec9f3"
         },
         {
          "status": "partly",
@@ -6457,11 +6457,11 @@
         },
         {
          "status": "partly",
-         "text": "8d57775771c4a86e0523a301470ddb39e6588cbc539e9cdbe08d4205ea695d4a"
+         "text": "1895931d921e0806d6958de93b460bd95f043dc602bc21ad434c5d544c4e19da"
         },
         {
          "status": "partly",
-         "text": "d4dda923868ce84ed1829d33326031d94f4dc3134c31dc8968d3667a53ebbb38"
+         "text": "689127f2e98deea85bc06c6cf7178a31c2f40a9086a336cf0ae555e1bf004a21"
         }
        ]
       },
@@ -6554,7 +6554,7 @@
       },
       {
        "status": "partly",
-       "text": "b8c30ff9ad9834c11a6d506fd06a1ec0b1e275f60442b61b082c39d049e49481"
+       "text": "d2d26d34661cf2d2bfecbc2f35a22a6e1f3bbb534cdf72e2bad35a972ce2357f"
       },
       {
        "status": "partly",
@@ -8845,6 +8845,18 @@
     "en": "Chart template folder listed in the Chart Kind box",
     "es": "Carpeta de plantillas de gráficos en la lista del cuadro Chart Kind",
     "fr": "Dossier de modèles de graphique dans la liste de la zone Chart Kind"
+   }
+  },
+  "1895931d921e0806d6958de93b460bd95f043dc602bc21ad434c5d544c4e19da": {
+   "drop": false,
+   "en": "Insert shapes and change a shape while keeping its size and look. Align floating objects to the margins or page, rotate them, and join two shapes with a straight, elbow, or curved connector. Select several objects to move them together, and group or ungroup them.",
+   "es": "Inserte formas y cambie una forma conservando su tamaño y aspecto. Alinee objetos flotantes con los márgenes o la página, gírelos y una dos formas con un conector recto, en ángulo o curvo. Seleccione varios objetos para moverlos juntos, y agrúpelos o desagrúpelos.",
+   "fr": "Insérez des formes et changez une forme en gardant sa taille et son aspect. Alignez des objets flottants sur les marges ou la page, faites-les pivoter et reliez deux formes par un connecteur droit, en coude ou courbe. Sélectionnez plusieurs objets pour les déplacer ensemble, puis groupez-les ou dissociez-les.",
+   "soon": {
+    "drop": false,
+    "en": "Edit Points and rerouting connectors",
+    "es": "Edición de puntos y redirección de conectores",
+    "fr": "Modification des points et reroutage des connecteurs"
    }
   },
   "18d1d5b665ef44829cfec26184694d030700c0a7e9313bbbf7d811618a5108ab": {
@@ -11775,6 +11787,18 @@
     "fr": ""
    }
   },
+  "4310f176870837d9bede601afc8c63c027acd101256c46dc5327473287692874": {
+   "drop": false,
+   "en": "Insert a drawing canvas, a frame that sits above and below the text. Select it together with shapes, group them, and they move and resize as one.",
+   "es": "Inserte un lienzo de dibujo, un marco que se coloca arriba y abajo del texto. Selecciónelo junto con formas, agrúpelos y se mueven y cambian de tamaño como uno solo.",
+   "fr": "Insérez une zone de dessin, un cadre placé au-dessus et en dessous du texte. Sélectionnez-la avec des formes, groupez-les, et elles se déplacent et se redimensionnent ensemble.",
+   "soon": {
+    "drop": false,
+    "en": "Drawing canvas: drop shapes into it by dragging",
+    "es": "Lienzo de dibujo: soltar formas en él arrastrando",
+    "fr": "Zone de dessin : y déposer des formes par glisser-déposer"
+   }
+  },
   "433250fa0899b16175636b7806777a192bbe71cbf9934ddd978b81c78786aa81": {
    "drop": true,
    "en": "",
@@ -14547,6 +14571,18 @@
     "fr": ""
    }
   },
+  "689127f2e98deea85bc06c6cf7178a31c2f40a9086a336cf0ae555e1bf004a21": {
+   "drop": false,
+   "en": "Change the style and warp of a text style box from the Shape Format tab.",
+   "es": "Cambie el estilo y la deformación de un cuadro de estilo de texto desde la pestaña Formato de forma.",
+   "fr": "Modifiez le style et la déformation d’une zone de style de texte depuis l’onglet Format de la forme.",
+   "soon": {
+    "drop": false,
+    "en": "Text styles on ordinary text",
+    "es": "Estilos de texto en texto normal",
+    "fr": "Styles de texte sur du texte ordinaire"
+   }
+  },
   "68b2647cd070870f7d502842bc1af1f9f156a2ceabb9cae691bd87b19e567fe9": {
    "drop": true,
    "en": "",
@@ -16983,18 +17019,6 @@
     "fr": ""
    }
   },
-  "8d57775771c4a86e0523a301470ddb39e6588cbc539e9cdbe08d4205ea695d4a": {
-   "drop": false,
-   "en": "Insert shapes and change a shape while keeping its size and look in JeffWrite. Align a floating object with the margins or the page, and make an in-line object float in front of the text.",
-   "es": "Inserte formas y cambie una forma conservando su tamaño y aspecto en JeffWrite. Alinee un objeto flotante con los márgenes o la página, y haga que un objeto en línea flote delante del texto.",
-   "fr": "Insérez des formes et changez une forme en conservant sa taille et son aspect dans JeffWrite. Alignez un objet flottant sur les marges ou la page, et faites flotter un objet en ligne devant le texte.",
-   "soon": {
-    "drop": false,
-    "en": "Edit Points and connectors; Group",
-    "es": "Edición de puntos y conectores; agrupar",
-    "fr": "Modification des points et connecteurs ; groupement"
-   }
-  },
   "8dc8e377958dfd656ef7d675e16c547d528f752a29245823da6963cd26572e26": {
    "drop": false,
    "en": "Field Settings in JeffCrunch sets a custom name, automatic or no subtotals, the form (compact, outline, or tabular), repeated item labels, and a blank line after each item. It also sorts by labels or by a value and filters by labels, by a value, and by top or bottom items, with a check for each item.",
@@ -17173,18 +17197,6 @@
     "en": "Drawn shapes without text, formulas, and charts in `.odt` files",
     "es": "Formas dibujadas sin texto, fórmulas y gráficos en archivos `.odt`",
     "fr": "Formes dessinées sans texte, formules et graphiques dans les fichiers `.odt`"
-   }
-  },
-  "900c88ee26da905c26976ecbdd17e6e7820f99196f856486b4dd71b2449be2f6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Drawing canvas: a frame that holds shapes and pictures together",
-    "es": "Lienzo de dibujo: un marco que agrupa formas e imágenes",
-    "fr": "Zone de dessin : un cadre qui regroupe formes et images"
    }
   },
   "903a2aefb3ca2b85b1485d03bc57752fe778ed51305515752d939fa726c0cb78": {
@@ -19767,18 +19779,6 @@
     "fr": ""
    }
   },
-  "b8c30ff9ad9834c11a6d506fd06a1ec0b1e275f60442b61b082c39d049e49481": {
-   "drop": false,
-   "en": "On a picture, the right-click menu offers Wrap Text and Edit Alt Text.",
-   "es": "En una imagen, el menú de clic derecho ofrece Ajustar texto y Editar texto alternativo.",
-   "fr": "Sur une image, le menu du clic droit propose Habillage du texte et Modifier le texte de remplacement.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "b95f24ebeeb74e04273a0b257aa6c828f3f87f1501ce7b700f6e445a151b10eb": {
    "drop": false,
    "en": "A missing font is replaced by a stand-in with the same letter widths, so lines break where they did.",
@@ -20775,6 +20775,18 @@
     "fr": ""
    }
   },
+  "c7effcf66af8bf7a353d41feefdd18c211371eb52bf5164fce5978a6a09ec9f3": {
+   "drop": false,
+   "en": "Apply one of 12 shape styles, set a shape's fill and outline color or none, and change outline weight and dashes. Fill a shape with a two-color gradient or with a picture from a file. Fills and outlines in files are drawn.",
+   "es": "Aplique uno de 12 estilos de forma, defina el color de relleno y de contorno de una forma o ninguno, y cambie el grosor y los guiones del contorno. Rellene una forma con un degradado de dos colores o con una imagen de un archivo. Los rellenos y contornos de los archivos se dibujan.",
+   "fr": "Appliquez l’un des 12 styles de forme, définissez la couleur de remplissage et de contour d’une forme ou aucune, et modifiez l’épaisseur et les tirets du contour. Remplissez une forme avec un dégradé de deux couleurs ou une image d’un fichier. Les remplissages et contours des fichiers sont dessinés.",
+   "soon": {
+    "drop": false,
+    "en": "Texture and pattern fills, arrow ends, shape effects, and the Format Shape pane",
+    "es": "Rellenos de textura y trama, extremos de flecha, efectos de forma y panel Formato de forma",
+    "fr": "Remplissages texture et motif, extrémités de flèche, effets de forme et volet Format de la forme"
+   }
+  },
   "c809b80382e748e79fbd42af1507541468397f3ca8fa6e40ae2a91cbc39e07e0": {
    "drop": false,
    "en": "In JeffDeck, the Morph transition pairs objects between slides, then moves, scales, turns, fades, and recolors them. The texts of a pair move by word or by character.",
@@ -20977,6 +20989,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "ca80ae149b1015cc17a91cbfc61867a1ca40ee92d744da6c5d7fb7ef648be2ff": {
+   "drop": false,
+   "en": "Insert text styles from a gallery of styles, with the words bent into the style's warp. Change the style, the warp (40 shapes), and the words afterward. Text boxes in files that name a warp are drawn with it.",
+   "es": "Inserte estilos de texto desde una galería de estilos, con las palabras curvadas según la deformación del estilo. Después puede cambiar el estilo, la deformación (40 formas) y las palabras. Los cuadros de texto de los archivos que indican una deformación se dibujan con ella.",
+   "fr": "Insérez des styles de texte depuis une galerie, avec les mots déformés selon le style. Vous pouvez ensuite modifier le style, la déformation (40 formes) et les mots. Les zones de texte des fichiers qui indiquent une déformation sont dessinées avec elle.",
+   "soon": {
+    "drop": false,
+    "en": "Text styles: gradient letters, effects, and warp adjust handles",
+    "es": "Estilos de texto: letras con degradado, efectos y controles de ajuste de la deformación",
+    "fr": "Styles de texte : lettres en dégradé, effets et poignées de réglage de la déformation"
    }
   },
   "cab609f46d1c839c8594ef8c475069d1ab35cd626862bc9c9108bd4055c079c5": {
@@ -21603,6 +21627,18 @@
     "fr": "Onglet Analyse du graphique croisé dynamique : boutons de champ, boutons développer et réduire, liste des champs et commandes d’actualisation, de changement de source et d’effacement"
    }
   },
+  "d2d26d34661cf2d2bfecbc2f35a22a6e1f3bbb534cdf72e2bad35a972ce2357f": {
+   "drop": false,
+   "en": "Right-click a picture to set text wrapping and alt text. Right-click an object to group or ungroup it.",
+   "es": "Haga clic con el botón derecho en una imagen para definir el ajuste del texto y el texto alternativo. Haga clic con el botón derecho en un objeto para agruparlo o desagruparlo.",
+   "fr": "Faites un clic droit sur une image pour définir l’habillage du texte et le texte alternatif. Faites un clic droit sur un objet pour le grouper ou le dissocier.",
+   "soon": {
+    "drop": false,
+    "en": "Shortcut menu for pictures, shapes, and text boxes: cut, copy, paste, bring to front, send to back, size and position, and format",
+    "es": "Menú contextual de imágenes, formas y cuadros de texto: cortar, copiar, pegar, traer al frente, enviar al fondo, tamaño y posición, y formato",
+    "fr": "Menu contextuel des images, formes et zones de texte : couper, copier, coller, premier plan, arrière-plan, taille et position, et format"
+   }
+  },
   "d308e235596fdf2b84368825bfdd6e04f2773431b7cb3a375d729c6c4488cdef": {
    "drop": false,
    "en": "Show Report Filter Pages on the Pivot Table tab creates a sheet for each filter item. Each sheet holds a copy of the table with its filter set to that item, and hidden items stay hidden. It can be undone in one step.",
@@ -21819,18 +21855,6 @@
     "fr": ""
    }
   },
-  "d4dda923868ce84ed1829d33326031d94f4dc3134c31dc8968d3667a53ebbb38": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "d50a9466651ec18bacc9d530b4c857d3a8620642a9434c7bf4b2fa70bedcd157": {
    "drop": false,
    "en": "Insert a drop cap in JeffWrite with None, Dropped, or Drop Cap Options, including the number of lines, the number of letters, and a font of its own. It is one Undo step, and the drop cap reopens as a drop cap when the file is opened again.",
@@ -22028,18 +22052,6 @@
    "en": "Header & Footer tab",
    "es": "Pestaña Encabezado y pie de página",
    "fr": "Onglet En-tête et pied de page",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "d8b66e9a32d6ec5b77750181153f1fed3473d62ce593091f2395c82b4ac59431": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
@@ -23605,18 +23617,6 @@
     "en": "Symbol galleries",
     "es": "Galerías de símbolos",
     "fr": "Galeries de symboles"
-   }
-  },
-  "f11211eb42999497b8ebffeb5bdb3bb06c870f2187b6ef07588e01abca706986": {
-   "drop": false,
-   "en": "Format shapes in JeffWrite with a gallery of 12 shape styles, fill color or none, outline color or none, weight, and dashes. Fill a shape with a two-color gradient.",
-   "es": "Dé formato a las formas en JeffWrite con una galería de 12 estilos, color de relleno o sin relleno, color de contorno o sin contorno, grosor y guiones. Rellene una forma con un degradado de dos colores.",
-   "fr": "Mettez en forme les formes dans JeffWrite avec une galerie de 12 styles, une couleur de remplissage ou aucun, une couleur de contour ou aucun, l’épaisseur et les tirets. Remplissez une forme avec un dégradé de deux couleurs.",
-   "soon": {
-    "drop": false,
-    "en": "Picture, texture, and pattern fills; arrow ends; effects; the Format Shape pane",
-    "es": "Rellenos de imagen, textura y trama; extremos de flecha; efectos; panel Formato de forma",
-    "fr": "Remplissages image, texture et motif ; extrémités de flèche ; effets ; volet Format de la forme"
    }
   },
   "f12ab3fb7dbad203ef1cf2e099a707f732655ee720a576c0326dca5c07babd77": {
