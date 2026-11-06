@@ -119,7 +119,7 @@
         },
         {
          "status": "partly",
-         "text": "2941ca9ba1e6012dec536a59840f174d30bb9a16ecd6fd0350a78d923d85f869"
+         "text": "2127b02106e075b5290f99961f49b74820ac1591fa36222a8c091e064befc3f8"
         },
         {
          "hide_soon": true,
@@ -249,7 +249,7 @@
         },
         {
          "status": "partly",
-         "text": "0922916720ba7dd26562524993023c41e86a0dd3b9a37930aa9b81ff6e4920bb"
+         "text": "ca0e79e25b124bb2f2c2004d2b16a802bca7a856c0c3559a8561882a0afd13e7"
         },
         {
          "hide_soon": true,
@@ -319,11 +319,11 @@
         },
         {
          "status": "partly",
-         "text": "7cc66d54c5068da08a69bc513718f421d39bddcbcadb34994e2453a8595e4938"
+         "text": "2b7a5a4abc21697f0908ac9dfb5e2ef51319a4de67344c7e36d57bef8d6bab77"
         },
         {
          "status": "partly",
-         "text": "9bc3016fdb3be5dc709a4383a65347dcd6e678cca268129752036f6c8a8a467a"
+         "text": "5342981b939c13de0d328a703c5b3648cb98d9acb529e084a4e3cf1e974d7154"
         },
         {
          "status": "todo",
@@ -346,8 +346,9 @@
          "text": "b1eac767ba26a2e0227c8aec122fc8c94f0da1c1bf672a2f38c52a4b042117ff"
         },
         {
-         "status": "partly",
-         "text": "98e34e912f81bafe8ce78ea85a07921fa0d6a884fa9a3e7809256b6cc7319400"
+         "hide_soon": true,
+         "status": "done",
+         "text": "e4948d88d3de2b56c3f03842fcdacb9f8230ddbe8c05e8e097be74328b0719a1"
         },
         {
          "status": "todo",
@@ -1120,8 +1121,8 @@
         },
         {
          "hide_soon": true,
-         "status": "partly",
-         "text": "935939a8980548987aac5850402875fc35b8b991186e7a9239b5afa0b345ecb2"
+         "status": "done",
+         "text": "dbc394cfdc1fcc92783ead152d21a9aa0791d40f76af9ee229446fde3b81a8e6"
         }
        ]
       },
@@ -1151,8 +1152,8 @@
          "text": "044d958297d94436c68f2818ec0de46cf2886e0adc2c275fcf95e81a3015324c"
         },
         {
-         "status": "todo",
-         "text": "c6640c5a90e6585e12fa38d55a873497caa11af1cb021deae8eba726a86e0855"
+         "status": "partly",
+         "text": "77d472eaf712c394f23018ab81b3d197b7f246b584d6ba9ae19fa6380e99943d"
         }
        ]
       }
@@ -1197,8 +1198,8 @@
          "text": "d3f0ae226166de7820b019d9088d818afac5ec9586f04a92eae5d8187b9941dc"
         },
         {
-         "status": "todo",
-         "text": "a6da045bc9eb0115cf16f2e1ffcc243ddaa71d4774dd975893b80fb7c1d9c7dd"
+         "status": "partly",
+         "text": "c82115d9f4bbc63f37f2466b2ea116a853a4f549cc55c0430f1816156425f001"
         },
         {
          "status": "partly",
@@ -2113,7 +2114,7 @@
         },
         {
          "status": "partly",
-         "text": "7a6cda6bd7c4703c33bf20bdf92f2aa715052852461732da95f07ec2a7f810eb"
+         "text": "9e15845446292537b9c9ccc1565f8b7f83817935aee60f236ae4e8b2074449ac"
         },
         {
          "status": "todo",
@@ -2191,7 +2192,7 @@
         },
         {
          "status": "partly",
-         "text": "9894e474ee4a6d5e1f8e4035ce525790331b830e087f88da88a2221fe1f31e9b"
+         "text": "6a2e2f0eecfb1c42139891bd25db69869829dac16e3bf2ba0b6ee95642134930"
         },
         {
          "status": "partly",
@@ -7729,18 +7730,6 @@
     "fr": ""
    }
   },
-  "0922916720ba7dd26562524993023c41e86a0dd3b9a37930aa9b81ff6e4920bb": {
-   "drop": false,
-   "en": "Print several pages on one sheet (1, 2, 4, 6, 9, or 16), to a printer or a PDF, with copies and collating.",
-   "es": "Imprima varias páginas en una hoja (1, 2, 4, 6, 9 o 16), en una impresora o en un PDF, con copias e intercalación.",
-   "fr": "Imprimez plusieurs pages sur une feuille (1, 2, 4, 6, 9 ou 16), vers une imprimante ou un PDF, avec copies et assemblage.",
-   "soon": {
-    "drop": false,
-    "en": "Scaling to a paper size, printing a table or chart alone, and a sheet preview",
-    "es": "Ajuste a un tamaño de papel, impresión de una tabla o gráfico por separado y vista previa de la hoja",
-    "fr": "Mise à l’échelle sur un format de papier, impression d’un tableau ou d’un graphique seul et aperçu de la feuille"
-   }
-  },
   "093d2154f24db1116df3156ec36c9d2f5c5285cfa1e14963da1fd069aba57e13": {
    "drop": false,
    "en": "Formulas > Error Checking steps through formulas that give an error and numbers stored as text, goes to each cell, and says what is wrong. A green triangle marks each cell with a problem, and Ignore Error is saved in the file and is one step of Undo.",
@@ -9361,6 +9350,18 @@
     "fr": ""
    }
   },
+  "2127b02106e075b5290f99961f49b74820ac1591fa36222a8c091e064befc3f8": {
+   "drop": false,
+   "en": "Check Accessibility in JeffCrunch lists charts and pictures with no alt text, tables with no header row, merged cells, and sheets with default names, and goes to each. It also flags text that is hard to read against a solid fill, blank rows or columns between data, and objects stacked in a different order than they sit on the sheet.",
+   "es": "La verificación de accesibilidad de JeffCrunch enumera los gráficos e imágenes sin texto alternativo, las tablas sin fila de encabezado, las celdas combinadas y las hojas con nombres predeterminados, y va a cada una. También señala el texto difícil de leer sobre un relleno sólido, las filas o columnas en blanco entre los datos y los objetos apilados en un orden distinto al que ocupan en la hoja.",
+   "fr": "La vérification de l’accessibilité de JeffCrunch répertorie les graphiques et images sans texte de remplacement, les tableaux sans ligne d’en-tête, les cellules fusionnées et les feuilles aux noms par défaut, et accède à chacun. Elle signale aussi le texte difficile à lire sur un fond uni, les lignes ou colonnes vides entre des données et les objets empilés dans un ordre différent de leur position sur la feuille.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "2132c27d243179890c5da6a94d8a84c76bdd5ef1780e76d050843ec343146d56": {
    "drop": true,
    "en": "",
@@ -10069,18 +10070,6 @@
     "fr": "Graphiques, images, commentaires, tableaux croisés dynamiques, macros, mises en forme conditionnelles et validation des données dans `.ods` : lecture"
    }
   },
-  "2941ca9ba1e6012dec536a59840f174d30bb9a16ecd6fd0350a78d923d85f869": {
-   "drop": false,
-   "en": "Check Accessibility lists charts and pictures with no alt text, tables with no header row, merged cells, sheets with default names, and text that is hard to read against its fill. It goes to each item.",
-   "es": "Comprobar accesibilidad enumera los gráficos e imágenes sin texto alternativo, las tablas sin fila de encabezado, las celdas combinadas, las hojas con nombres predeterminados y el texto difícil de leer sobre su relleno. Permite ir a cada elemento.",
-   "fr": "Vérifier l’accessibilité répertorie les graphiques et images sans texte de remplacement, les tableaux sans ligne d’en-tête, les cellules fusionnées, les feuilles aux noms par défaut et le texte difficile à lire sur son remplissage. Elle permet d’accéder à chaque élément.",
-   "soon": {
-    "drop": false,
-    "en": "Accessibility checks: blank cells used for layout and reading order",
-    "es": "Comprobaciones de accesibilidad: celdas en blanco usadas para el diseño y orden de lectura",
-    "fr": "Contrôles d’accessibilité : cellules vides utilisées pour la mise en page et ordre de lecture"
-   }
-  },
   "29484d236f66a10a66c57203781d56b7ec5dbfa244876a3e26ec35856eb3acb1": {
    "drop": false,
    "en": "In JeffWrite, you can insert a table of contents from a gallery (Contents, Contents with Full Title, or Contents to Fill In) or a custom dialog. The table is built from heading styles, outline levels, or table entry fields, covers levels 1 to 9, and offers right-aligned page numbers, a tab leader, and links.",
@@ -10271,6 +10260,18 @@
     "en": "Page borders: art borders, shadow, and 3-D",
     "es": "Bordes de página: bordes artísticos, sombra y 3D",
     "fr": "Bordures de page : bordures décoratives, ombre et 3D"
+   }
+  },
+  "2b7a5a4abc21697f0908ac9dfb5e2ef51319a4de67344c7e36d57bef8d6bab77": {
+   "drop": false,
+   "en": "In File > Options > Editing in JeffCrunch, you can choose where `Enter` moves the selection, turn AutoComplete for text typed in a column on or off, turn the fill handle and dragging cells on or off, set automatic decimal places (positive or negative), and choose to edit directly in the cell or only in the formula bar.",
+   "es": "En Archivo > Opciones > Edición de JeffCrunch, usted puede elegir hacia dónde mueve la selección la tecla `Enter`, activar o desactivar el autocompletado de textos escritos en una columna, activar o desactivar el controlador de relleno y el arrastre de celdas, establecer decimales automáticos (positivos o negativos) y elegir si edita directamente en la celda o solo en la barra de fórmulas.",
+   "fr": "Dans Fichier > Options > Édition de JeffCrunch, vous pouvez choisir où la touche `Enter` déplace la sélection, activer ou désactiver la saisie semi-automatique des textes saisis dans une colonne, activer ou désactiver la poignée de recopie et le glissement de cellules, définir des décimales automatiques (positives ou négatives) et choisir de modifier directement dans la cellule ou seulement dans la barre de formule.",
+   "soon": {
+    "drop": false,
+    "en": "Extending data range formats and formulas; cut, copy, and paste choices",
+    "es": "Ampliación de formatos y fórmulas de rangos de datos; opciones de cortar, copiar y pegar",
+    "fr": "Extension des formats et formules des plages de données ; options de couper, copier et coller"
    }
   },
   "2b895b13a4b13c66b3fedafe088b525838efb6b35640f26f218a50c620f6a838": {
@@ -13021,6 +13022,18 @@
     "fr": "Enregistrement de vos propres équations dans la galerie"
    }
   },
+  "5342981b939c13de0d328a703c5b3648cb98d9acb529e084a4e3cf1e974d7154": {
+   "drop": false,
+   "en": "In JeffCrunch, Options > Editing can show a zero in cells with a zero value for the sheet in view, kept with the sheet in `.xlsx`. Options > Display sets the gridline color (a setting of the computer, not kept in the workbook), the zoom a new workbook starts at, and the standard column width of the sheet in view. Other display options are ribbon commands.",
+   "es": "En JeffCrunch, Opciones > Edición puede mostrar un cero en las celdas con valor cero de la hoja activa, y se conserva con la hoja en `.xlsx`. Opciones > Pantalla establece el color de las líneas de cuadrícula (un ajuste del equipo, no guardado en el libro), el zoom con el que comienza un libro nuevo y el ancho de columna estándar de la hoja activa. Las demás opciones de visualización son comandos de la cinta de opciones.",
+   "fr": "Dans JeffCrunch, Options > Édition peut afficher un zéro dans les cellules de valeur zéro de la feuille active, conservé avec la feuille dans `.xlsx`. Options > Affichage définit la couleur du quadrillage (un réglage de l’ordinateur, non conservé dans le classeur), le zoom de départ d’un nouveau classeur et la largeur de colonne standard de la feuille active. Les autres options d’affichage sont des commandes du ruban.",
+   "soon": {
+    "drop": false,
+    "en": "Gridline color kept with each sheet",
+    "es": "Color de las líneas de cuadrícula guardado con cada hoja",
+    "fr": "Couleur du quadrillage conservée avec chaque feuille"
+   }
+  },
   "53866ed0250fb4e810279811dd09ebb332d4392acb613260e320ece6362c5c92": {
    "drop": false,
    "en": "Fields",
@@ -14713,6 +14726,18 @@
     "fr": "Styles liés, de tableau et de liste, et styles pour les nouveaux documents"
    }
   },
+  "6a2e2f0eecfb1c42139891bd25db69869829dac16e3bf2ba0b6ee95642134930": {
+   "drop": false,
+   "en": "JeffCrunch opens a `.html` or `.htm` page, and a page saved with a workbook’s name, with each table as a sheet. Cells are read as typed, and joined cells leave blanks.",
+   "es": "JeffCrunch abre una página `.html` o `.htm`, y una página guardada con el nombre de un libro, con cada tabla como una hoja. Las celdas se leen tal como se escribieron, y las celdas combinadas dejan espacios en blanco.",
+   "fr": "JeffCrunch ouvre une page `.html` ou `.htm`, et une page enregistrée sous le nom d’un classeur, chaque tableau devenant une feuille. Les cellules sont lues telles que saisies, et les cellules jointes laissent des blancs.",
+   "soon": {
+    "drop": false,
+    "en": "Save a sheet as HTML: a whole page",
+    "es": "Guardar una hoja como HTML: una página completa",
+    "fr": "Enregistrement d’une feuille en HTML : une page entière"
+   }
+  },
   "6aace3cbb991a11d468d3ec90185eb8db8b3b2923db11da09c320266b73004d7": {
    "drop": false,
    "en": "View tab",
@@ -15589,6 +15614,18 @@
     "fr": ""
    }
   },
+  "77d472eaf712c394f23018ab81b3d197b7f246b584d6ba9ae19fa6380e99943d": {
+   "drop": false,
+   "en": "Allow Edit Ranges in JeffCrunch lists, adds, changes, and deletes ranges, each with an optional password. On a protected sheet, a range with no password can be changed freely, and one with a password asks for it the first time a cell of it is changed. Ranges are read from and written to `.xlsx`, and move, shrink, or follow inserted and deleted rows, columns, and cells, in one step of Undo.",
+   "es": "Permitir editar rangos en JeffCrunch enumera, agrega, modifica y elimina rangos, cada uno con una contraseña opcional. En una hoja protegida, un rango sin contraseña puede modificarse libremente, y uno con contraseña la solicita la primera vez que se cambia una de sus celdas. Los rangos se leen y se escriben en `.xlsx`, y se mueven, se reducen o siguen las filas, columnas y celdas insertadas y eliminadas, en un solo paso de deshacer.",
+   "fr": "Autoriser la modification des plages dans JeffCrunch répertorie, ajoute, modifie et supprime des plages, chacune avec un mot de passe facultatif. Sur une feuille protégée, une plage sans mot de passe peut être modifiée librement, et une plage avec mot de passe le demande à la première modification d’une de ses cellules. Les plages sont lues et écrites dans `.xlsx`, et se déplacent, se réduisent ou suivent les lignes, colonnes et cellules insérées et supprimées, en une seule étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Edit ranges for named users",
+    "es": "Rangos editables para usuarios con nombre",
+    "fr": "Plages modifiables pour des utilisateurs nommés"
+   }
+  },
   "7817afba3947f8cddb80ccc7ad6ea0f0f208dfa3fb08b7e8a2784e0af1acc1db": {
    "drop": false,
    "en": "JeffPub saves `.pub` files with pages and master pages, text boxes and linked text boxes, character and paragraph formatting, shapes, lines, pictures, tables with merged cells, fills, borders, shadows, Text Art, named paragraph styles, and process (CMYK) colors. Saving reports any objects it leaves out.",
@@ -15769,18 +15806,6 @@
     "fr": ""
    }
   },
-  "7a6cda6bd7c4703c33bf20bdf92f2aa715052852461732da95f07ec2a7f810eb": {
-   "drop": false,
-   "en": "JeffCrunch tells files apart by their content. A file that is not a spreadsheet or is damaged is refused with a message.",
-   "es": "JeffCrunch distingue los archivos por su contenido. Un archivo que no es una hoja de cálculo o está dañado se rechaza con un mensaje.",
-   "fr": "JeffCrunch distingue les fichiers par leur contenu. Un fichier qui n’est pas un tableur ou qui est endommagé est refusé avec un message.",
-   "soon": {
-    "drop": false,
-    "en": "Web page or text saved with an `.xls` name: open as what it is",
-    "es": "Página web o texto guardado con nombre `.xls`: apertura como lo que es",
-    "fr": "Page web ou texte enregistré avec un nom `.xls` : ouverture selon sa nature réelle"
-   }
-  },
   "7aa4a1fb9d2d2518fe9cdc2bd3f154c31becd6ff37ba7f213d63a4161f198e97": {
    "drop": true,
    "en": "",
@@ -15923,18 +15948,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "7cc66d54c5068da08a69bc513718f421d39bddcbcadb34994e2453a8595e4938": {
-   "drop": false,
-   "en": "In File > Options > Editing, choose where `Enter` moves the selection, turn AutoComplete for text typed in a column on or off, turn the fill handle and cell dragging on or off, and set automatic decimal places, positive or negative.",
-   "es": "En Archivo > Opciones > Edición, puede elegir hacia dónde mueve la selección la tecla `Enter`, activar o desactivar el autocompletado del texto escrito en una columna, activar o desactivar el controlador de relleno y el arrastre de celdas, y definir los decimales automáticos, positivos o negativos.",
-   "fr": "Dans Fichier > Options > Édition, vous pouvez choisir où `Entrée` déplace la sélection, activer ou désactiver la saisie semi-automatique du texte tapé dans une colonne, activer ou désactiver la poignée de recopie et le glissement des cellules, et définir les décimales automatiques, positives ou négatives.",
-   "soon": {
-    "drop": false,
-    "en": "Editing directly in the cell, extending data range formats and formulas, and cut, copy, and paste choices",
-    "es": "Edición directa en la celda, extensión de formatos y fórmulas de rangos de datos, y opciones de cortar, copiar y pegar",
-    "fr": "Modification directe dans la cellule, extension des formats et formules de plages de données, et options de couper, copier et coller"
    }
   },
   "7cd24f147c2a163a1eace73e96f61e7e02cbc1a1db39938df871ab6dabbeb156": {
@@ -17437,18 +17450,6 @@
     "fr": "Volet de texte de remplacement et texte de remplacement pour les tableaux"
    }
   },
-  "935939a8980548987aac5850402875fc35b8b991186e7a9239b5afa0b345ecb2": {
-   "drop": false,
-   "en": "Check Accessibility finds missing alt text, merged cells, default sheet names, tables with no header row, and low color contrast.",
-   "es": "Comprobar accesibilidad detecta el texto alternativo que falta, las celdas combinadas, los nombres de hoja predeterminados, las tablas sin fila de encabezado y el bajo contraste de color.",
-   "fr": "Vérifier l’accessibilité détecte les textes de remplacement manquants, les cellules fusionnées, les noms de feuille par défaut, les tableaux sans ligne d’en-tête et le faible contraste des couleurs.",
-   "soon": {
-    "drop": false,
-    "en": "Accessibility checks: blank cells used for layout and reading order",
-    "es": "Comprobaciones de accesibilidad: celdas en blanco usadas para el diseño y orden de lectura",
-    "fr": "Contrôles d’accessibilité : cellules vides utilisées pour la mise en page et ordre de lecture"
-   }
-  },
   "935d9041c421786ecc251f9e96cffb6d6c0442f353ee740937acf47b2e7dbec3": {
    "drop": false,
    "en": "In JeffWrite, Insert > Bookmark (`Ctrl+Shift+F5`) adds, deletes, and goes to a bookmark, sorts bookmarks by name or location, and shows hidden bookmarks.",
@@ -17809,18 +17810,6 @@
     "fr": ""
    }
   },
-  "9894e474ee4a6d5e1f8e4035ce525790331b830e087f88da88a2221fe1f31e9b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "HTML: open a page’s tables as a workbook and save a sheet",
-    "es": "HTML: abrir las tablas de una página como libro y guardar una hoja",
-    "fr": "HTML : ouvrir les tableaux d’une page comme classeur et enregistrer une feuille"
-   }
-  },
   "989808c9b1f952cc20b9f733ffd9a3496fb5723fd9938e02ca7a5dc48c239e3e": {
    "drop": false,
    "en": "A file that can't be read gives a clear message in plain words and never crashes JeffCrunch or affects the other open workbooks.",
@@ -17831,18 +17820,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "98e34e912f81bafe8ce78ea85a07921fa0d6a884fa9a3e7809256b6cc7319400": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Privacy options: remove personal information on save, and control what is sent",
-    "es": "Opciones de privacidad: eliminar la información personal al guardar y controlar lo que se envía",
-    "fr": "Options de confidentialité : suppression des informations personnelles à l’enregistrement et contrôle de ce qui est envoyé"
    }
   },
   "98f659bdff47d9ed861f749515b25fc0306ecc84dd9064186680f70042d151ad": {
@@ -18097,18 +18074,6 @@
     "fr": ""
    }
   },
-  "9bc3016fdb3be5dc709a4383a65347dcd6e678cca268129752036f6c8a8a467a": {
-   "drop": false,
-   "en": "Show or hide zeros in cells for the sheet in view, kept with the sheet in `.xlsx`. Formulas, page breaks, outline symbols, objects, and right-to-left sheets can be set from ribbon commands.",
-   "es": "Muestre u oculte los ceros en las celdas de la hoja activa, y se conserva con la hoja en `.xlsx`. Las fórmulas, los saltos de página, los símbolos de esquema, los objetos y las hojas de derecha a izquierda se pueden ajustar desde los comandos de la cinta de opciones.",
-   "fr": "Affichez ou masquez les zéros dans les cellules de la feuille active, réglage conservé avec la feuille dans `.xlsx`. Les formules, les sauts de page, les symboles de plan, les objets et les feuilles de droite à gauche se règlent depuis les commandes du ruban.",
-   "soon": {
-    "drop": false,
-    "en": "Gridline color, default zoom, and standard width",
-    "es": "Color de las líneas de cuadrícula, zoom predeterminado y ancho estándar",
-    "fr": "Couleur du quadrillage, zoom par défaut et largeur standard"
-   }
-  },
   "9c10415e74925578c3ef08ab8a69282498a27c45d9ca138fd1de27ea46331724": {
    "drop": false,
    "en": "Compare checks the open document against a file you choose, word by word or letter by letter, optionally ignoring capitals or white space. The result opens in a new window as tracked changes signed with a name you give. Accepting all gives the revised text, and rejecting all gives the first version. It compares body text.",
@@ -18311,6 +18276,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "9e15845446292537b9c9ccc1565f8b7f83817935aee60f236ae4e8b2074449ac": {
+   "drop": false,
+   "en": "JeffCrunch tells a file that is not a spreadsheet, or is damaged, apart by its content and refuses it with a message. A web page saved with a `.xls` name opens as what it is, with its tables as the sheets.",
+   "es": "JeffCrunch distingue por su contenido un archivo que no es una hoja de cálculo o está dañado, y lo rechaza con un mensaje. Una página web guardada con el nombre `.xls` se abre como lo que es, con sus tablas como hojas.",
+   "fr": "JeffCrunch reconnaît par son contenu un fichier qui n’est pas un classeur ou qui est endommagé, et le refuse avec un message. Une page web enregistrée sous un nom `.xls` s’ouvre comme telle, ses tableaux devenant les feuilles.",
+   "soon": {
+    "drop": false,
+    "en": "Text saved with a `.xls` name: open as text",
+    "es": "Texto guardado con el nombre `.xls`: apertura como texto",
+    "fr": "Texte enregistré sous un nom `.xls` : ouverture comme texte"
    }
   },
   "9e330c2662d1f26c68a3cf8c33c77dd4fe2c99bcc1a0bfc77dbf70dd899caa14": {
@@ -18731,18 +18708,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "a6da045bc9eb0115cf16f2e1ffcc243ddaa71d4774dd975893b80fb7c1d9c7dd": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "New Window, Arrange All, View Side by Side with synchronous scrolling, Reset Window Position, Hide and Unhide window, and Switch Windows",
-    "es": "Nueva ventana, Organizar todo, Ver en paralelo con desplazamiento sincrónico, Restablecer posición de la ventana, Ocultar y mostrar ventana, y Cambiar ventanas",
-    "fr": "Nouvelle fenêtre, Réorganiser tout, Affichage côte à côte avec défilement synchrone, Rétablir la position de la fenêtre, Masquer et afficher la fenêtre, et Changer de fenêtre"
    }
   },
   "a7491f408e93ea0a813a53673cab8f963e1de47a3ba4ae9a8603cda210b77329": {
@@ -20689,18 +20654,6 @@
     "fr": "Plus de modèles inclus sous licence ouverte : cours, rapport, présentation commerciale, album photo et formation"
    }
   },
-  "c6640c5a90e6585e12fa38d55a873497caa11af1cb021deae8eba726a86e0855": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Allow Edit Ranges: ranges that can be edited on a protected sheet, each with its own password or named users",
-    "es": "Permitir editar rangos: rangos que se pueden editar en una hoja protegida, cada uno con su propia contraseña o con usuarios con nombre",
-    "fr": "Autoriser la modification de plages : plages modifiables sur une feuille protégée, chacune avec son propre mot de passe ou des utilisateurs nommés"
-   }
-  },
   "c680260f0afc04000e26cd83e1c7e585c3bbd07290514d872abc72921c5a9fdc": {
    "drop": false,
    "en": "Data > Consolidate combines ranges from one or several sheets by position or by the names in the top row and left column. It uses Sum, Count, Average, Max, Min, Product, Count Numbers, StdDev, StdDevp, Var, or Varp, as numbers or as formulas that link to the source cells, in one step of Undo.",
@@ -20819,6 +20772,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "c82115d9f4bbc63f37f2466b2ea116a853a4f549cc55c0430f1816156425f001": {
+   "drop": false,
+   "en": "View > Window in JeffCrunch has New Window (the saved file of the workbook in a second window, open for reading only), Arrange All, Cascade, View Side by Side with Synchronous Scrolling, Reset Window Position, and Switch Windows.",
+   "es": "Vista > Ventana en JeffCrunch ofrece Nueva ventana (el archivo guardado del libro en una segunda ventana abierta solo para lectura), Organizar todo, Cascada, Ver en paralelo con desplazamiento sincrónico, Restablecer posición de la ventana y Cambiar ventanas.",
+   "fr": "Affichage > Fenêtre dans JeffCrunch propose Nouvelle fenêtre (le fichier enregistré du classeur dans une seconde fenêtre ouverte en lecture seule), Réorganiser tout, Cascade, Affichage côte à côte avec défilement synchrone, Rétablir la position de la fenêtre et Changer de fenêtre.",
+   "soon": {
+    "drop": false,
+    "en": "Hide and Unhide a window; a second view that shows edits as they are made",
+    "es": "Ocultar y mostrar una ventana; una segunda vista que muestra las ediciones a medida que se hacen",
+    "fr": "Masquer et afficher une fenêtre ; une seconde vue qui montre les modifications au fur et à mesure"
    }
   },
   "c83d1940c2e2be214eb60d0bd064b10018b3fef9d22bc3115fa614462fa9dbfb": {
@@ -20963,6 +20928,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "ca0e79e25b124bb2f2c2004d2b16a802bca7a856c0c3559a8561882a0afd13e7": {
+   "drop": false,
+   "en": "Print in JeffCrunch puts 1, 2, 4, 6, 9, or 16 pages on a sheet, to a printer or a PDF, with copies and collating. You can scale to a paper size, and the preview shows the sheet of paper with a count of sheets.",
+   "es": "La impresión de JeffCrunch coloca 1, 2, 4, 6, 9 o 16 páginas en una hoja, en una impresora o en un PDF, con copias e intercalado. Usted puede ajustar la escala a un tamaño de papel, y la vista previa muestra la hoja de papel con el número de hojas.",
+   "fr": "L’impression de JeffCrunch place 1, 2, 4, 6, 9 ou 16 pages sur une feuille, vers une imprimante ou un PDF, avec copies et assemblage. Vous pouvez mettre à l’échelle selon un format de papier, et l’aperçu montre la feuille de papier avec le nombre de feuilles.",
+   "soon": {
+    "drop": false,
+    "en": "Print a table or chart alone",
+    "es": "Impresión de una tabla o un gráfico por separado",
+    "fr": "Impression d’un tableau ou d’un graphique seul"
    }
   },
   "ca3164260439315344f964206b36f2099235b1141753507909e30140953db828": {
@@ -22189,6 +22166,18 @@
     "fr": ""
    }
   },
+  "dbc394cfdc1fcc92783ead152d21a9aa0791d40f76af9ee229446fde3b81a8e6": {
+   "drop": false,
+   "en": "Check Accessibility in JeffCrunch finds missing alt text, merged cells, default sheet names, tables with no header row, low color contrast, blank cells used for layout, and the reading order of objects.",
+   "es": "La verificación de accesibilidad de JeffCrunch detecta texto alternativo ausente, celdas combinadas, nombres de hoja predeterminados, tablas sin fila de encabezado, bajo contraste de color, celdas en blanco usadas para el diseño y el orden de lectura de los objetos.",
+   "fr": "La vérification de l’accessibilité de JeffCrunch détecte les textes de remplacement manquants, les cellules fusionnées, les noms de feuille par défaut, les tableaux sans ligne d’en-tête, le faible contraste des couleurs, les cellules vides utilisées pour la mise en page et l’ordre de lecture des objets.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "dbfad81bf0879812fa8e428f75d12304041607a0fe66b4b404b474b35456d0c6": {
    "drop": false,
    "en": "Draw tab",
@@ -22770,6 +22759,18 @@
    "en": "JeffPub supports layering, grouping, and locking objects (lock position and size).",
    "es": "JeffPub permite ordenar en capas, agrupar y bloquear objetos (bloquear posición y tamaño).",
    "fr": "JeffPub permet de superposer, grouper et verrouiller des objets (verrouillage de la position et de la taille).",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e4948d88d3de2b56c3f03842fcdacb9f8230ddbe8c05e8e097be74328b0719a1": {
+   "drop": false,
+   "en": "In JeffCrunch, Options > Privacy removes the author, the person who saved it last, the company, and the manager from the properties each time a workbook is saved.",
+   "es": "En JeffCrunch, Opciones > Privacidad elimina el autor, la persona que lo guardó por última vez, la empresa y el responsable de las propiedades cada vez que se guarda un libro.",
+   "fr": "Dans JeffCrunch, Options > Confidentialité supprime l’auteur, la dernière personne ayant enregistré, la société et le responsable des propriétés à chaque enregistrement d’un classeur.",
    "soon": {
     "drop": true,
     "en": "",
