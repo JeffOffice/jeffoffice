@@ -16,7 +16,14 @@
 #include "app/filterpopup.h"
 #include "app/formulahelper.h"
 #include "core/formulaspot.h"
+#include <QApplication>
+#include <QCheckBox>
+#include <QColorDialog>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QElapsedTimer>
+#include <QLineEdit>
+#include <QTimer>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -819,6 +826,12 @@ private Q_SLOTS:
         u->undo();
         QVERIFY(e.win.w.session()->workbook()->styles().tableStyles.isEmpty());
         QCOMPARE(e.win.w.session()->workbook()->styles().dxfs.size(), dxfs);
+        // (the gallery has it only while the style is there)
+        {
+            QWidget *none = e.win.w.makeTableLooksPicker(nullptr);
+            QVERIFY(!none->findChild<QToolButton *>(QStringLiteral("tableLook.Mine")));
+            delete none;
+        }
         u->redo();
         QCOMPARE(e.win.w.session()->workbook()->styles().tableStyles.size(), 1);
         // the table uses it, and the gallery lists it
@@ -885,6 +898,79 @@ private Q_SLOTS:
         e.win.w.newTableStyle();
         QVERIFY(!told.isEmpty());
         QCOMPARE(u->count(), steps + 2);
+    }
+
+    // The looks of a table style keep strike-through and underline: formats that differ in only one of them are two, and the saved file holds both and reads them back.
+    void tableStyleLooksKeepStrikeAndUnderline()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()}, QByteArray(), QString(), QString(), stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/>")))));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVector<jp::office::sheet::Workbook::TableStylePart> parts(3);
+        parts[0].part = TablePart::HeaderRow;
+        parts[0].format.bold = true;
+        parts[1].part = TablePart::TotalRow;
+        parts[1].format.bold = true;
+        parts[1].format.strike = true;
+        parts[2].part = TablePart::FirstColumn;
+        parts[2].format.bold = true;
+        parts[2].format.underline = jp::office::sheet::Underline::Double;
+        QVERIFY(s->defineTableStyle(QStringLiteral("Lines"), parts).ok);
+        const auto &made = s->workbook()->styles().tableStyles.last();
+        QCOMPARE(made.parts.size(), 3);
+        QVERIFY(made.parts[0].dxf != made.parts[1].dxf && made.parts[0].dxf != made.parts[2].dxf && made.parts[1].dxf != made.parts[2].dxf);
+        QVERIFY(saveNow(e));
+        Saved back;
+        QVERIFY(back.open(e.path));
+        const jp::office::sheet::Styles &styles = back.book.styles();
+        QCOMPARE(styles.tableStyles.size(), 1);
+        const auto &st = styles.tableStyles[0];
+        QVERIFY(styles.dxfs[st.parts[1].dxf].strike && *styles.dxfs[st.parts[1].dxf].strike);
+        QVERIFY(!styles.dxfs[st.parts[0].dxf].strike && !styles.dxfs[st.parts[0].dxf].underline);
+        QVERIFY(styles.dxfs[st.parts[2].dxf].underline && *styles.dxfs[st.parts[2].dxf].underline == jp::office::sheet::Underline::Double);
+    }
+
+    // New Table Style through its own dialog: the name typed, a fill chosen in the color dialog, the stripes left out, bold left on; OK makes the style and puts it on the table.
+    void newTableStyleThroughItsDialog()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()}, QByteArray(), QString(), QString(), stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/>")))));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        e.select(QStringLiteral("B3"));
+        bool dialogFound = false;
+        QTimer::singleShot(0, &e.win.w, [&] {
+            auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dialog || dialog->objectName() != QLatin1String("newTableStyleDialog")) return;
+            dialogFound = true;
+            dialog->findChild<QLineEdit *>(QStringLiteral("tableStyleName"))->setText(QStringLiteral("Through Dialog"));
+            dialog->findChild<QCheckBox *>(QStringLiteral("tableStyleRow.stripe"))->setChecked(false);
+            dialog->findChild<QCheckBox *>(QStringLiteral("tableStyleRow.total"))->setChecked(false);
+            QTimer::singleShot(0, dialog, [] {
+                if (auto *colors = qobject_cast<QColorDialog *>(QApplication::activeModalWidget())) {
+                    colors->setCurrentColor(QColor(0x112233));
+                    colors->accept();
+                }
+            });
+            dialog->findChild<QToolButton *>(QStringLiteral("tableStyleFill.header"))->click();
+            dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+        });
+        e.win.w.newTableStyle();
+        QVERIFY(dialogFound);
+        QCOMPARE(s->workbook()->tables().first().styleName, QStringLiteral("Through Dialog"));
+        const jp::office::sheet::Styles &styles = s->workbook()->styles();
+        QCOMPARE(styles.tableStyles.size(), 1);
+        const auto &parts = styles.tableStyles[0].parts;
+        QCOMPARE(parts.size(), 1);   // (the header row: the stripes and the totals were left out, the first column was never on)
+        QCOMPARE(int(parts[0].part), int(TablePart::HeaderRow));
+        const jp::office::sheet::DifferentialFormat &look = styles.dxfs[parts[0].dxf];
+        QCOMPARE(look.fill.bg.rgb, quint32(0x112233));
+        QVERIFY(look.bold && *look.bold);
+        QCOMPARE(look.fontColor.rgb, quint32(0xFFFFFF));
     }
 
     // A formula with a table's name worked out in the window, and the references to a column that is renamed in its header follow.

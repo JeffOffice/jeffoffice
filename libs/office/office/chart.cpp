@@ -1123,22 +1123,41 @@ bool Reader::read(const QDomElement &root, QString *error)
     if (const QDomElement pivot = cChild(root, "pivotSource"); !pivot.isNull()) {
         c.pivotName = cChild(pivot, "name").text().left(512);
         c.pivotFmtId = int(parseInt(valOf(cChild(pivot, "fmtId")), 0));
-        for (QDomElement x = cChild(pivot, "extLst").firstChildElement(); !x.isNull(); x = x.nextSiblingElement())
-            for (QDomElement o = x.firstChildElement(); !o.isNull(); o = o.nextSiblingElement()) {
-                if (o.localName() != QLatin1String("pivotOptions")) continue;
-                c.pivotButtons.set = true;
-                auto zone = [&o](const char *name) {
-                    for (QDomElement z = o.firstChildElement(); !z.isNull(); z = z.nextSiblingElement())
-                        if (z.localName() == QLatin1String(name)) return flagOf(z, false);
-                    return false;
-                };
-                c.pivotButtons.filter = zone("dropZoneFilter");
-                c.pivotButtons.categories = zone("dropZoneCategories");
-                c.pivotButtons.data = zone("dropZoneData");
-                c.pivotButtons.series = zone("dropZoneSeries");
-                c.pivotButtons.visible = zone("dropZonesVisible");
+        static const QString kPivotUri = QStringLiteral("{781A3756-C4B2-4CAC-9D66-4F8BD8637D16}");
+        static const QString kC14 = QStringLiteral("http://schemas.microsoft.com/office/drawing/2007/8/2/chart");
+        bool buttonsRead = false;
+        for (QDomElement x = cChild(pivot, "extLst").firstChildElement(); !x.isNull(); x = x.nextSiblingElement()) {
+            QDomElement options;
+            if (!buttonsRead && x.localName() == QLatin1String("ext") && x.attribute(QStringLiteral("uri")) == kPivotUri)
+                for (QDomElement o = x.firstChildElement(); !o.isNull(); o = o.nextSiblingElement())
+                    if (o.localName() == QLatin1String("pivotOptions") && o.namespaceURI() == kC14) {
+                        options = o;
+                        break;
+                    }
+            if (options.isNull()) {
+                c.pivotSourceExt += fragment(x);
+                continue;
             }
+            buttonsRead = true;
+            c.pivotButtons.set = true;
+            static const char *const names[5] = {"dropZoneFilter", "dropZoneCategories", "dropZoneData", "dropZoneSeries", "dropZonesVisible"};
+            bool *flags[5] = {&c.pivotButtons.filter, &c.pivotButtons.categories, &c.pivotButtons.data, &c.pivotButtons.series, &c.pivotButtons.visible};
+            for (int k = 0; k < 5; ++k) *flags[k] = false;
+            for (QDomElement z = options.firstChildElement(); !z.isNull(); z = z.nextSiblingElement()) {
+                int k = 0;
+                while (k < 5 && !(z.localName() == QLatin1String(names[k]) && z.namespaceURI() == kC14 && !(c.pivotButtons.present & (1 << k)))) ++k;
+                if (k < 5) {
+                    *flags[k] = flagOf(z, false);
+                    c.pivotButtons.present |= quint8(1 << k);
+                } else {
+                    c.pivotButtons.innerExtra += fragment(z);
+                }
+            }
+            for (QDomElement o = x.firstChildElement(); !o.isNull(); o = o.nextSiblingElement())
+                if (o != options) c.pivotButtons.extExtra += fragment(o);
+        }
     }
+    c.pivotFmts = fragment(cChild(chart, "pivotFmts"));
     c.userShapesId = attrNs(cChild(root, "userShapes"), ns::R, QStringLiteral("id"));
     if (const QDomElement ext = cChild(root, "externalData"); !ext.isNull()) {
         c.externalDataId = attrNs(ext, ns::R, QStringLiteral("id"));

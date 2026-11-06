@@ -285,6 +285,55 @@ private Q_SLOTS:
         QVERIFY(reads);
     }
 
+    // Custom error bars count against the chart's budget of cells and read after every series has its own: four series of 10,000 points with bars on both sides keep all their values and
+    // categories, and what the bars read is only what is left.
+    void customBarsDoNotStarveLaterSeries()
+    {
+        FakeCells f;
+        constexpr int kRows = 10000;
+        for (int r = 0; r < kRows; ++r) {
+            const QString row = QString::number(r + 1);
+            f.set(0, QStringLiteral("A") + row, Value::text(QStringLiteral("c%1").arg(r)));
+            for (const char col : {'B', 'C', 'D', 'E'}) f.set(0, QString(QLatin1Char(col)) + row, Value::number(r + 1));
+            f.set(0, QStringLiteral("F") + row, Value::number(1));
+            f.set(0, QStringLiteral("G") + row, Value::number(2));
+        }
+        Chart c = readIt(chartPart(QStringLiteral("barChart"), eastWest()));
+        const ChartSeries proto = c.plots[0].series[0];
+        c.plots[0].series.clear();
+        for (int k = 0; k < 4; ++k) {
+            ChartSeries s = proto;
+            s.nameRef.clear();
+            s.categoryRef = QStringLiteral("Sheet1!$A$1:$A$10000");
+            s.valueRef = QStringLiteral("Sheet1!$%1$1:$%1$10000").arg(QChar('B' + k));
+            c.plots[0].series.append(s);
+        }
+        setCustomErrorBars(&c, QStringLiteral("Sheet1!$F$1:$F$10000"), QStringLiteral("Sheet1!$G$1:$G$10000"));
+        applyChartCells(&c, 0, f);
+        qint64 total = 0;
+        for (const ChartSeries &s : c.plots[0].series) {
+            QCOMPARE(s.values.size(), kRows);
+            QCOMPARE(s.categories.size(), kRows);
+            total += s.values.size() + s.categories.size();
+            for (const ChartErrorBars &b : s.errorBars) total += b.plus.size() + b.minus.size();
+        }
+        QVERIFY2(total <= kMaxChartCells, qPrintable(QString::number(total)));
+        QVERIFY(c.plots[0].series[0].errorBars[0].plus.size() > 0);   // (the bars read what was left)
+    }
+
+    // Custom error bars' ranges follow the rows put in and taken out, as the series' do.
+    void customErrorBarRangesFollowInsertedAndDeletedRows()
+    {
+        Chart c = readIt(chartPart(QStringLiteral("barChart"), eastWest()));
+        setCustomErrorBars(&c, QStringLiteral("Sheet1!$E$2:$E$4"), QStringLiteral("Sheet1!$F$2:$F$4"));
+        Chart inserted = c;
+        moveChartRefs(&inserted, {QStringLiteral("Sheet1")}, {StructEdit::insertRows(0, 0, 2)}, 0);
+        QCOMPARE(customErrorBarRefs(inserted), (QStringList{"Sheet1!$E$4:$E$6", "Sheet1!$F$4:$F$6"}));
+        Chart deleted = c;
+        moveChartRefs(&deleted, {QStringLiteral("Sheet1")}, {StructEdit::deleteRows(0, 1, 1)}, 0);
+        QCOMPARE(customErrorBarRefs(deleted), (QStringList{"Sheet1!$E$2:$E$3", "Sheet1!$F$2:$F$3"}));
+    }
+
     // A series takes its name, categories, and values from the cells; changing a cell changes the chart; the picture is drawn from them and changes with them.
     void seriesFollowTheirCells()
     {

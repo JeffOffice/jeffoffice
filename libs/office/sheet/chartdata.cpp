@@ -471,19 +471,6 @@ int applyChartCells(Chart *chart, int ownSheet, const ChartCells &cells)
                 }
                 s.labelCellsText = words;
             }
-            // the amounts custom error bars read
-            for (ChartErrorBars &b : s.errorBars)
-                for (const bool plusSide : {true, false}) {
-                    const QString &ref = plusSide ? b.plusRef : b.minusRef;
-                    if (ref.isEmpty() || !readChartRef(ref, ownSheet, cells, std::max(0, std::min(kMaxChartSeriesCells, budget)), &d, false)) continue;
-                    budget -= int(d.points.size());
-                    QVector<double> amounts;
-                    for (const ChartPoint &p : std::as_const(d.points)) {
-                        if (p.hidden && chart->plotVisibleOnly) continue;
-                        amounts.push_back(p.isNumber ? p.number : 0.0);
-                    }
-                    (plusSide ? b.plus : b.minus) = amounts;
-                }
             // the categories, or the x values of a scatter
             const QString &catRef = scatter ? s.xRef : s.categoryRef;
             if (!catRef.isEmpty() && readChartRef(catRef, ownSheet, cells, std::max(0, std::min(kMaxChartSeriesCells, budget)), &d)) {
@@ -518,6 +505,23 @@ int applyChartCells(Chart *chart, int ownSheet, const ChartCells &cells)
     else if (chart->title.automatic && count == 1) chart->title.text = onlyName;
     for (ChartAxis &a : chart->axes)
         if (textOf(a.title.ref, ownSheet, cells, &budget, &text)) a.title.text = text;
+    // the amounts custom error bars read: after every series has what it reads (so bars do not starve a later series), within what is left
+    for (ChartPlot &plot : chart->plots)
+        for (ChartSeries &s : plot.series)
+            for (ChartErrorBars &b : s.errorBars)
+                for (const bool plusSide : {true, false}) {
+                    const QString &ref = plusSide ? b.plusRef : b.minusRef;
+                    const int room = std::max(0, std::min(kMaxChartSeriesCells, budget));
+                    ChartRefData d;
+                    if (ref.isEmpty() || room <= 0 || !readChartRef(ref, ownSheet, cells, room, &d, false)) continue;
+                    budget -= int(d.points.size());
+                    QVector<double> amounts;
+                    for (const ChartPoint &p : std::as_const(d.points)) {
+                        if (p.hidden && chart->plotVisibleOnly) continue;
+                        amounts.push_back(p.isNumber ? p.number : 0.0);
+                    }
+                    (plusSide ? b.plus : b.minus) = amounts;
+                }
     return read;
 }
 

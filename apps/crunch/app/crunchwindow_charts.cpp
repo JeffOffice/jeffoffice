@@ -945,7 +945,7 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
             legend->addSeparator();
             check(legend, tr("Over the Chart"), e.legendOverlay, [code = e.legendPosition, on = !e.legendOverlay](Chart *c) { setLegend(c, code, on); }, tr("Legend"));
         }
-        if (chart.type() == ChartType::Bar || chart.type() == ChartType::Line || chart.type() == ChartType::Scatter || chart.type() == ChartType::Area) {
+        if (errorBarsApply(chart)) {
             QMenu *bars = menu->addMenu(tr("Error Bars"));
             bars->setObjectName(QStringLiteral("errorBarsMenu"));
             auto *barGroup = new QActionGroup(bars);

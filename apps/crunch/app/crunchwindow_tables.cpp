@@ -90,7 +90,7 @@ QPixmap swatchOf(const TableStyle &style, const jp::office::sheet::Styles &style
 // The gallery: the built-in looks in their groups, a button for each; a click chooses one.
 class TableLooksPicker : public QWidget {
 public:
-    TableLooksPicker(const jp::office::sheet::Styles &styles, const jp::office::sheet::TableStyleBook &book, const QString &current, const std::function<void(const QString &)> &choose, const std::function<void()> &makeNew, QWidget *parent)
+    TableLooksPicker(const jp::office::sheet::Styles &styles, const jp::office::sheet::TableStyleBook &book, const QString &current, const std::function<void(const QString &)> &choose, const std::function<void()> &makeNew, QHash<QString, QPixmap> *swatches, QWidget *parent)
         : QWidget(parent)
     {
         setObjectName(QStringLiteral("tableLooksPicker"));
@@ -111,7 +111,10 @@ public:
                 if (!style) continue;
                 auto *b = new QToolButton(this);
                 b->setObjectName(QStringLiteral("tableLook.") + name);
-                b->setIcon(QIcon(swatchOf(*style, styles, true, false, ratio)));
+                // (a swatch is drawn once for as long as the styles are the same: a workbook may hold a thousand of its own)
+                const QString key = name + QLatin1Char('|') + QString::number(ratio);
+                if (swatches && !swatches->contains(key)) swatches->insert(key, swatchOf(*style, styles, true, false, ratio));
+                b->setIcon(QIcon(swatches ? swatches->value(key) : swatchOf(*style, styles, true, false, ratio)));
                 b->setIconSize(QSize(64, 49));
                 b->setCheckable(true);
                 b->setChecked(name.compare(current, Qt::CaseInsensitive) == 0);
@@ -159,9 +162,11 @@ void CrunchWindow::updateTableLooks()
 {
     if (!m_loaded || !m_loaded->book) return;
     const jp::office::sheet::Styles &styles = m_loaded->book->styles();
-    if (m_tableStylesSeen != styles.tableStyles.size() + styles.dxfs.size() * 10000) {
+    if (m_tableStylesBook != m_loaded->book.get() || m_tableStylesSeen != m_loaded->book->tableStyleStamp()) {
         m_tableStyleBook.setCustom(styles.tableStyles, styles.dxfs);
-        m_tableStylesSeen = styles.tableStyles.size() + styles.dxfs.size() * 10000;
+        m_tableStylesBook = m_loaded->book.get();
+        m_tableStylesSeen = m_loaded->book->tableStyleStamp();
+        m_tableSwatches.clear();
     }
     std::vector<grid::GridSheet::TableSkin> skins;
     if (!m_chartSheetShown)
@@ -569,7 +574,7 @@ QWidget *CrunchWindow::makeTableLooksPicker(QWidget *parent)
     updateTableLooks();
     const int t = selectedTable();
     const QString current = t >= 0 ? m_session->workbook()->tables()[t].styleName : QString();
-    return new TableLooksPicker(m_loaded->book->styles(), m_tableStyleBook, current, [this](const QString &style) { tableGalleryChosen(style); }, [this] { newTableStyle(); }, parent);
+    return new TableLooksPicker(m_loaded->book->styles(), m_tableStyleBook, current, [this](const QString &style) { tableGalleryChosen(style); }, [this] { newTableStyle(); }, &m_tableSwatches, parent);
 }
 
 // New Table Style: a name and the looks of four parts (the header row, the stripes of rows, the totals row, and the first column); the style joins the gallery and is put on the table the cursor is in.
@@ -587,7 +592,9 @@ void CrunchWindow::newTableStyle()
         QDialog dialog(this);
         dialog.setWindowTitle(tr("New Table Style"));
         auto *form = new QFormLayout(&dialog);
+        dialog.setObjectName(QStringLiteral("newTableStyleDialog"));
         auto *nameBox = new QLineEdit(tr("Table Style %1").arg(m_loaded->book->styles().tableStyles.size() + 1), &dialog);
+        nameBox->setObjectName(QStringLiteral("tableStyleName"));
         form->addRow(tr("Name:"), nameBox);
         struct Row {
             QCheckBox *on;
@@ -596,9 +603,13 @@ void CrunchWindow::newTableStyle()
             QColor fillColor, textColor;
         };
         std::vector<std::unique_ptr<Row>> rows;
-        auto addRow = [&](const QString &label, bool on, const QColor &fill, const QColor &text, bool bold) {
+        auto addRow = [&](const QString &key, const QString &label, bool on, const QColor &fill, const QColor &text, bool bold) {
             rows.push_back(std::unique_ptr<Row>(new Row{new QCheckBox(label, &dialog), new QToolButton(&dialog), new QToolButton(&dialog), new QCheckBox(tr("Bold"), &dialog), fill, text}));
             Row *row = rows.back().get();
+            row->on->setObjectName(QStringLiteral("tableStyleRow.") + key);
+            row->fill->setObjectName(QStringLiteral("tableStyleFill.") + key);
+            row->text->setObjectName(QStringLiteral("tableStyleText.") + key);
+            row->bold->setObjectName(QStringLiteral("tableStyleBold.") + key);
             row->on->setChecked(on);
             row->bold->setChecked(bold);
             auto paint = [row] {
@@ -621,10 +632,10 @@ void CrunchWindow::newTableStyle()
             form->addRow(line);
             return row;
         };
-        Row *header = addRow(tr("Header row"), true, QColor(0x2E6E8E), QColor(Qt::white), true);
-        Row *stripe = addRow(tr("Row stripes"), true, QColor(0xE6EEF3), QColor(), false);
-        Row *total = addRow(tr("Totals row"), true, QColor(), QColor(), true);
-        Row *first = addRow(tr("First column"), false, QColor(), QColor(), true);
+        Row *header = addRow(QStringLiteral("header"), tr("Header row"), true, QColor(0x2E6E8E), QColor(Qt::white), true);
+        Row *stripe = addRow(QStringLiteral("stripe"), tr("Row stripes"), true, QColor(0xE6EEF3), QColor(), false);
+        Row *total = addRow(QStringLiteral("total"), tr("Totals row"), true, QColor(), QColor(), true);
+        Row *first = addRow(QStringLiteral("first"), tr("First column"), false, QColor(), QColor(), true);
         auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

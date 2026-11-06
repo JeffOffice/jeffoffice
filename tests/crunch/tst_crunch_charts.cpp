@@ -888,6 +888,38 @@ private Q_SLOTS:
         QCOMPARE(dataLabelsCellsRef(chartOf(e)), ref);
     }
 
+    // What a chart is drawn from includes the field buttons' names and the error bars' amounts, so a renamed field or a changed amount draws the chart again.
+    void aChartIsDrawnAgainWhenItsButtonNamesOrBarAmountsChange()
+    {
+        jp::office::Chart c;
+        jp::office::ChartPlot plot;
+        plot.type = jp::office::ChartType::Bar;
+        jp::office::ChartSeries series;
+        series.values = QVector<double>{1, 2, 3};
+        jp::office::ChartErrorBars bars;
+        bars.valueType = QStringLiteral("cust");
+        bars.plus = QVector<double>{1, 1, 1};
+        series.errorBars << bars;
+        plot.series << series;
+        c.plots << plot;
+        c.pivotName = QStringLiteral("[Book1.xlsx]Sheet1!PivotTable1");
+        c.pivotButtons.set = true;
+        c.pivotButtons.categoryNames = QStringList{QStringLiteral("Region")};
+        const quint64 base = crunch::chartDataKey(c);
+        Chart renamed = c;
+        renamed.pivotButtons.categoryNames = QStringList{QStringLiteral("Territory")};
+        QVERIFY(crunch::chartDataKey(renamed) != base);
+        Chart added = c;
+        added.pivotButtons.dataNames = QStringList{QStringLiteral("Sum of Amount")};
+        QVERIFY(crunch::chartDataKey(added) != base);
+        Chart amounts = c;
+        amounts.plots[0].series[0].errorBars[0].plus = QVector<double>{1, 5, 1};
+        QVERIFY(crunch::chartDataKey(amounts) != base);
+        amounts.plots[0].series[0].errorBars[0].minus = QVector<double>{2};
+        QVERIFY(crunch::chartDataKey(amounts) != crunch::chartDataKey(c));
+        QCOMPARE(crunch::chartDataKey(c), base);
+    }
+
     // Custom, in the Error Bars list: the cells for the amounts above and below are asked for, the amounts are read from them (one step of Undo), and the file holds the ranges and the numbers.
     void errorBarsTakeCustomAmountsFromCells()
     {

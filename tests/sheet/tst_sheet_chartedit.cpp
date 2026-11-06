@@ -96,6 +96,79 @@ private Q_SLOTS:
         QVERIFY(customErrorBarRefs(c).isEmpty());
     }
 
+    // A scatter chart's x bars stay when the vertical ones are set, and the vertical bars keep their line and end caps when set again.
+    void settingBarsKeepsTheOtherDirectionAndTheLook()
+    {
+        Chart c = columns(ChartKind::Scatter);
+        for (ChartSeries &s : c.plots[0].series) {
+            ChartErrorBars x;
+            x.direction = QStringLiteral("x");
+            x.valueType = QStringLiteral("fixedVal");
+            x.value = 3;
+            x.line.set = true;
+            x.line.color = QColor("#00FF00");
+            ChartErrorBars y;
+            y.direction = QStringLiteral("y");
+            y.valueType = QStringLiteral("percentage");
+            y.noEndCap = true;
+            y.line.set = true;
+            y.line.color = QColor("#FF0000");
+            s.errorBars = QVector<ChartErrorBars>{x, y};
+        }
+        setCustomErrorBars(&c, QStringLiteral("Sheet1!$E$2:$E$4"), QString());
+        for (const ChartSeries &s : c.plots[0].series) {
+            QCOMPARE(s.errorBars.size(), 2);
+            QCOMPARE(s.errorBars[0].direction, QStringLiteral("x"));
+            QCOMPARE(s.errorBars[0].value, 3.0);
+            QCOMPARE(s.errorBars[0].line.color.name(), QStringLiteral("#00ff00"));
+            QCOMPARE(s.errorBars[1].valueType, QStringLiteral("cust"));
+            QVERIFY(s.errorBars[1].noEndCap);
+            QCOMPARE(s.errorBars[1].line.color.name(), QStringLiteral("#ff0000"));
+        }
+        setErrorBars(&c, QStringLiteral("fixedVal"), 2);
+        QCOMPARE(c.plots[0].series[0].errorBars.size(), 2);
+        QCOMPARE(c.plots[0].series[0].errorBars[1].value, 2.0);
+        QVERIFY(c.plots[0].series[0].errorBars[1].noEndCap);
+    }
+
+    // A percent-stacked area is drawn in percent, so it does not take error bars (in the units of the values): none are offered, set, or drawn; a stacked area does take them.
+    void percentStackedAreasTakeNoErrorBars()
+    {
+        Chart area = columns(ChartKind::Area);
+        QVERIFY(errorBarsApply(area));
+        area.plots[0].grouping = ChartGrouping::PercentStacked;
+        QVERIFY(!errorBarsApply(area));
+        const QByteArray plain = chartSvg(area, QSizeF(480, 288));
+        setErrorBars(&area, QStringLiteral("fixedVal"), 2);
+        QVERIFY(errorBarsKind(area).isEmpty());
+        for (ChartSeries &s : area.plots[0].series) {
+            ChartErrorBars b;
+            b.valueType = QStringLiteral("fixedVal");
+            s.errorBars << b;
+        }
+        QCOMPARE(chartSvg(area, QSizeF(480, 288)), plain);   // (a file's bars are kept but not drawn out of scale)
+        area.plots[0].grouping = ChartGrouping::Stacked;
+        QVERIFY(errorBarsApply(area));
+    }
+
+    // A chart too small for the strips of field buttons draws without them and without a negative plot; a button with no name is not drawn.
+    void tinyPivotChartsAndBlankNamesDrawNoButtons()
+    {
+        Chart c = columns();
+        c.pivotName = QStringLiteral("[Book1.xlsx]Sheet1!PivotTable1");
+        setPivotButtons(&c, PivotButton::All, true);
+        c.pivotButtons.categoryNames = QStringList{QString(), QStringLiteral("Region")};
+        c.pivotButtons.filterNames = QStringList{QStringLiteral("Year")};
+        const QByteArray small = chartSvg(c, QSizeF(120, 60));
+        QVERIFY(!small.contains("Region") && !small.contains("Year"));
+        QVERIFY(!small.contains("NaN") && !small.contains("-nan"));
+        c.pivotButtons.categoryNames = QStringList{QString()};
+        c.pivotButtons.filterNames.clear();
+        const QByteArray blank = chartSvg(c, QSizeF(480, 288));
+        c.pivotButtons.categoryNames.clear();
+        QCOMPARE(blank, chartSvg(c, QSizeF(480, 288)));
+    }
+
     // The field buttons of a pivot chart go on and off by kind and are kept through writing; a chart that follows no table has none.
     void pivotChartFieldButtonsGoOnAndOff()
     {

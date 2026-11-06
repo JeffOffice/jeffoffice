@@ -483,11 +483,43 @@ QString dataLabelsCellsRef(const Chart &chart)
     return QString();
 }
 
+namespace {
+
+// Whether a plot takes error bars: bars, lines, scatter, and areas (not a percent-stacked area: its bars would be in the units of the values, and the area is drawn in percent).
+bool takesErrorBars(const ChartPlot &p)
+{
+    if (p.type == ChartType::Area) return p.grouping != ChartGrouping::PercentStacked;
+    return p.type == ChartType::Bar || p.type == ChartType::Line || p.type == ChartType::Scatter;
+}
+
+// Puts `bars` among the series' error bars in place of the ones in its direction (x for a scatter's x, else y), which lend it their line and end caps; the other direction's stay as they are.
+void putBars(ChartSeries &s, ChartErrorBars bars)
+{
+    const bool xDirection = bars.direction == QLatin1String("x");
+    for (ChartErrorBars &old : s.errorBars) {
+        if ((old.direction == QLatin1String("x")) != xDirection) continue;
+        bars.line = old.line;
+        bars.noEndCap = old.noEndCap;
+        old = bars;
+        return;
+    }
+    s.errorBars.append(bars);
+}
+
+} // namespace
+
+bool errorBarsApply(const Chart &chart)
+{
+    for (const ChartPlot &p : chart.plots)
+        if (takesErrorBars(p)) return true;
+    return false;
+}
+
 void setErrorBars(Chart *chart, const QString &kind, double value)
 {
     if (kind == QLatin1String("cust")) return;
     for (ChartPlot &p : chart->plots) {
-        if (p.type != ChartType::Bar && p.type != ChartType::Line && p.type != ChartType::Scatter && p.type != ChartType::Area) continue;
+        if (!takesErrorBars(p)) continue;
         for (ChartSeries &s : p.series) {
             if (kind.isEmpty()) {
                 s.errorBars.clear();
@@ -497,7 +529,7 @@ void setErrorBars(Chart *chart, const QString &kind, double value)
             b.valueType = kind;
             b.value = std::max(0.0, value);
             if (p.type == ChartType::Scatter) b.direction = QStringLiteral("y");
-            s.errorBars = QVector<ChartErrorBars>{b};
+            putBars(s, b);
         }
     }
 }
@@ -505,7 +537,7 @@ void setErrorBars(Chart *chart, const QString &kind, double value)
 void setCustomErrorBars(Chart *chart, const QString &plusRef, const QString &minusRef)
 {
     for (ChartPlot &p : chart->plots) {
-        if (p.type != ChartType::Bar && p.type != ChartType::Line && p.type != ChartType::Scatter && p.type != ChartType::Area) continue;
+        if (!takesErrorBars(p)) continue;
         for (ChartSeries &s : p.series) {
             ChartErrorBars b;
             b.valueType = QStringLiteral("cust");
@@ -514,7 +546,7 @@ void setCustomErrorBars(Chart *chart, const QString &plusRef, const QString &min
             if (plusRef.isEmpty()) b.barType = QStringLiteral("minus");
             else if (minusRef.isEmpty()) b.barType = QStringLiteral("plus");
             if (p.type == ChartType::Scatter) b.direction = QStringLiteral("y");
-            s.errorBars = QVector<ChartErrorBars>{b};
+            putBars(s, b);
         }
     }
 }
@@ -531,6 +563,7 @@ void setPivotButtons(Chart *chart, PivotButton which, bool on)
 {
     if (chart->pivotName.isEmpty()) return;
     Chart::PivotButtons &b = chart->pivotButtons;
+    if (!b.set) b.present = 0x1F;   // (options made here are written whole)
     b.set = true;
     b.visible = true;
     switch (which) {

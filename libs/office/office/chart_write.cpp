@@ -3,6 +3,7 @@
 #include "office/xml.h"
 
 #include <QDomDocument>
+#include <functional>
 #include <QHash>
 #include <QSet>
 #include <QXmlStreamReader>
@@ -66,24 +67,29 @@ public:
             w.writeStartElement(QStringLiteral("c:pivotSource"));
             w.writeTextElement(QStringLiteral("c:name"), c.pivotName);
             val("c:fmtId", QString::number(c.pivotFmtId));
-            if (c.pivotButtons.set) {
+            if (c.pivotButtons.set || !c.pivotSourceExt.isEmpty()) {
                 static const char kC14Ns[] = "http://schemas.microsoft.com/office/drawing/2007/8/2/chart";
                 w.writeStartElement(QStringLiteral("c:extLst"));
-                w.writeStartElement(QStringLiteral("c:ext"));
-                w.writeAttribute(QStringLiteral("uri"), QStringLiteral("{781A3756-C4B2-4CAC-9D66-4F8BD8637D16}"));
-                w.writeNamespace(QString::fromLatin1(kC14Ns), QStringLiteral("c14"));
-                w.writeStartElement(QStringLiteral("c14:pivotOptions"));
-                auto zone = [&](const char *name, bool on) {
-                    w.writeEmptyElement(QString::fromLatin1(name));
-                    w.writeAttribute(QStringLiteral("val"), on ? QStringLiteral("1") : QStringLiteral("0"));
-                };
-                zone("c14:dropZoneFilter", c.pivotButtons.filter);
-                zone("c14:dropZoneCategories", c.pivotButtons.categories);
-                zone("c14:dropZoneData", c.pivotButtons.data);
-                zone("c14:dropZoneSeries", c.pivotButtons.series);
-                zone("c14:dropZonesVisible", c.pivotButtons.visible);
-                w.writeEndElement();
-                w.writeEndElement();
+                if (c.pivotButtons.set) {
+                    w.writeStartElement(QStringLiteral("c:ext"));
+                    w.writeAttribute(QStringLiteral("uri"), QStringLiteral("{781A3756-C4B2-4CAC-9D66-4F8BD8637D16}"));
+                    w.writeNamespace(QString::fromLatin1(kC14Ns), QStringLiteral("c14"));
+                    w.writeStartElement(QStringLiteral("c14:pivotOptions"));
+                    // (an element the file did not write stays unwritten unless it is on now)
+                    const struct { const char *name; bool on; } zones[5] = {{"c14:dropZoneFilter", c.pivotButtons.filter}, {"c14:dropZoneCategories", c.pivotButtons.categories},
+                                                                            {"c14:dropZoneData", c.pivotButtons.data}, {"c14:dropZoneSeries", c.pivotButtons.series},
+                                                                            {"c14:dropZonesVisible", c.pivotButtons.visible}};
+                    for (int k = 0; k < 5; ++k) {
+                        if (!zones[k].on && !(c.pivotButtons.present & (1 << k))) continue;
+                        w.writeEmptyElement(QString::fromLatin1(zones[k].name));
+                        w.writeAttribute(QStringLiteral("val"), zones[k].on ? QStringLiteral("1") : QStringLiteral("0"));
+                    }
+                    raw(c.pivotButtons.innerExtra);
+                    w.writeEndElement();
+                    raw(c.pivotButtons.extExtra);
+                    w.writeEndElement();
+                }
+                raw(c.pivotSourceExt);
                 w.writeEndElement();
             }
             w.writeEndElement();
@@ -763,6 +769,7 @@ private:
         w.writeStartElement(QStringLiteral("c:chart"));
         if (c.title.present) title(c.title, false);
         flag("c:autoTitleDeleted", !c.title.present);
+        raw(c.pivotFmts);
         w.writeStartElement(QStringLiteral("c:plotArea"));
         if (c.plotManual) manualPlace(true, c.plotX, c.plotY, c.plotW, c.plotH, c.plotInner ? "inner" : "outer");
         else w.writeEmptyElement(QStringLiteral("c:layout"));
@@ -877,8 +884,8 @@ void collect(const QDomElement &e, Shape *out, int depth, QStringList &path)
                     path.removeLast();
                     continue;
                 }
-                // (the field buttons of a pivot chart: the model holds them)
-                if (c.localName() == QLatin1String("pivotOptions") && path.isEmpty() == false && path.last() == QLatin1String("pivotSource")) continue;
+                // (a pivot chart's extensions: the field buttons are in the model, the rest is kept as the file wrote it; chartLosses checks that each one is written back)
+                if (!path.isEmpty() && path.last() == QLatin1String("pivotSource")) continue;
                 // (leader lines turned off draw nothing)
                 if (c.localName() == QLatin1String("showLeaderLines") && isOff(c)) continue;
                 if (c.localName() != QLatin1String("uniqueId")) out->problem = QStringLiteral("extLst (%1)").arg(c.localName());
@@ -987,6 +994,30 @@ QStringList chartLosses(const QByteArray &chartPartXml, bool firstOnly)
         attrs.sort();
         for (const QString &attr : std::as_const(attrs))
             if (!isHarmlessAttribute(attr) && !(name == QLatin1String("pt") && attr == QLatin1String("formatCode")) && !now.elements.value(name).contains(attr) && no(name + QLatin1Char('@') + attr)) return lost;
+    }
+    // the extensions of c:pivotSource are each written back, with what is in them
+    {
+        auto extensions = [](QDomDocument &d) {
+            QStringList out;
+            const QDomNodeList sources = d.elementsByTagNameNS(QString::fromLatin1(kCNs), QStringLiteral("pivotSource"));
+            for (int i = 0; i < sources.size(); ++i)
+                for (QDomElement l = sources.at(i).firstChildElement(); !l.isNull(); l = l.nextSiblingElement())
+                    if (l.localName() == QLatin1String("extLst"))
+                        for (QDomElement x = l.firstChildElement(); !x.isNull(); x = x.nextSiblingElement()) {
+                            QStringList inner;
+                            std::function<void(const QDomElement &)> walk = [&](const QDomElement &e) {
+                                inner << e.namespaceURI() + QLatin1Char('|') + e.localName();
+                                for (QDomElement k = e.firstChildElement(); !k.isNull(); k = k.nextSiblingElement()) walk(k);
+                            };
+                            walk(x);
+                            out << inner.join(QLatin1Char(','));
+                        }
+            return out;
+        };
+        QStringList before = extensions(doc), after = extensions(out);
+        before.sort();
+        after.sort();
+        if (before != after && no(QStringLiteral("pivotSource extensions"))) return lost;
     }
     // a value that is only written as the usual one
     const QDomNodeList over = doc.elementsByTagNameNS(QString::fromLatin1(kCNs), QStringLiteral("showDLblsOverMax"));

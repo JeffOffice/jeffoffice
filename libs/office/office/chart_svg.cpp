@@ -1169,9 +1169,10 @@ void ChartPainter::drawAreas(const View &v, const Scale &scale)
             m_p->drawPolygon(shape);
         }
     }
+    // (a percent-stacked area is drawn in percent: bars in the units of the values would not fit it)
     for (int k = 0; k < plot.series.size(); ++k) {
         const ChartSeries &s = plot.series[k];
-        if (!s.errorBars.isEmpty())
+        if (!s.errorBars.isEmpty() && plot.grouping != ChartGrouping::PercentStacked)
             drawErrorBars(s, [&](int i, double dv, bool, QPointF *out) {
                 if (i >= m_n || !std::isfinite(v.segs[k][i].to)) return false;
                 *out = at(catUnit(i), v.segs[k][i].to + dv, scale);
@@ -1840,8 +1841,8 @@ void ChartPainter::paint()
 
     // The field buttons of a pivot chart keep a strip of their own: the report filter's under the title, the others along the bottom.
     const bool buttons = c.pivotButtons.any();
-    const bool topButtons = buttons && c.pivotButtons.filter && !c.pivotButtons.filterNames.isEmpty();
-    const bool bottomButtons = buttons && ((c.pivotButtons.categories && !c.pivotButtons.categoryNames.isEmpty()) || (c.pivotButtons.data && !c.pivotButtons.dataNames.isEmpty()) || (c.pivotButtons.series && !c.pivotButtons.seriesNames.isEmpty()));
+    bool topButtons = buttons && c.pivotButtons.filter && Chart::PivotButtons::named(c.pivotButtons.filterNames);
+    bool bottomButtons = buttons && ((c.pivotButtons.categories && Chart::PivotButtons::named(c.pivotButtons.categoryNames)) || (c.pivotButtons.data && Chart::PivotButtons::named(c.pivotButtons.dataNames)) || (c.pivotButtons.series && Chart::PivotButtons::named(c.pivotButtons.seriesNames)));
     const double strip = heightOf(fontOf(ChartFont(), 8, false)) + 8;
     QRectF topStrip, bottomStrip;
 
@@ -1856,6 +1857,8 @@ void ChartPainter::paint()
         if (!c.title.overlay) area.setTop(area.top() + h + margin * 0.6);
     }
 
+    // (a chart too small to give the buttons their strips and keep room for the plot draws no buttons)
+    if ((topButtons || bottomButtons) && area.height() < (topButtons ? strip : 0) + (bottomButtons ? strip : 0) + margin * 1.2 + 40) topButtons = bottomButtons = false;
     if (topButtons) {
         topStrip = QRectF(area.left(), area.top(), area.width(), strip);
         area.setTop(area.top() + strip + margin * 0.6);
@@ -1928,6 +1931,7 @@ void ChartPainter::drawFieldButtons(const QStringList &names, const QRectF &row,
     double x = fromRight ? row.right() : row.left();
     int drawn = 0;
     for (const QString &name : names) {
+        if (name.isEmpty()) continue;
         if (++drawn > 8) break;
         const double w = widthOf(font, name) + 22;
         const QRectF box(fromRight ? x - w : x, row.top() + 2, w, row.height() - 4);

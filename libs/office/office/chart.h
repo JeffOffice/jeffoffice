@@ -282,14 +282,25 @@ struct Chart {
     // A chart that follows a pivot table (c:pivotSource): the table's name as the file writes it ("[Book.xlsx]Sheet1!Table1", or just the table's name) and the chart's format id.
     QString pivotName;
     int pivotFmtId = 0;
+    QByteArray pivotSourceExt;      // the extensions of c:pivotSource other than the field buttons' (another program's pivot options, say), as the file wrote them
+    QByteArray pivotFmts;           // c:pivotFmts (the looks the pivot table gave the chart's parts), as the file wrote it
     // The field buttons of a pivot chart (the file's pivot options): which kinds are shown, and the names of the fields they stand for (not in the file: the program fills the names in from the
     // table the chart follows each time it reads the chart's cells).
     struct PivotButtons {
         bool set = false;               // the file says (or the program set) which are shown
         bool filter = true, categories = true, data = true, series = true;   // the report filter, axis, value, and legend fields
         bool visible = true;            // the buttons are shown at all
+        quint8 present = 0;             // which of the five elements the file wrote (bits 0 to 4: filter, categories, data, series, visible): one it did not write is not written back unless it is on
+        QByteArray innerExtra;          // what else the file's pivotOptions holds, as it wrote it
+        QByteArray extExtra;            // what else the file's extension holds beside pivotOptions, as it wrote it
         QStringList filterNames, categoryNames, dataNames, seriesNames;
-        bool any() const { return set && visible && ((filter && !filterNames.isEmpty()) || (categories && !categoryNames.isEmpty()) || (data && !dataNames.isEmpty()) || (series && !seriesNames.isEmpty())); }
+        static bool named(const QStringList &names)
+        {
+            for (const QString &n : names)
+                if (!n.isEmpty()) return true;
+            return false;
+        }
+        bool any() const { return set && visible && ((filter && named(filterNames)) || (categories && named(categoryNames)) || (data && named(dataNames)) || (series && named(seriesNames))); }
     } pivotButtons;
     int pivotTable = -1;   // (not in the file) for a chart made here: the place of its table among the workbook's, so that the name above is made again from the table's name when the file is saved
     bool externalAutoUpdate = false;

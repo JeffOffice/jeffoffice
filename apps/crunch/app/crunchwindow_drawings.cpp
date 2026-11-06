@@ -27,13 +27,28 @@ void CrunchWindow::setupObjects()
         return QStringLiteral("[%1]%2!%3").arg(file, sheets[sheet].name, pb.table(c.pivotTable).table->name);
     });
     // the buttons of a pivot chart carry the names of its table's fields
-    m_objects->setPivotFielder([this](jp::office::Chart *c) {
+    m_objects->setPivotFielder([this](jp::office::Chart *c, int ownSheet) {
         if (!m_session || !m_loaded) return;
         const auto &pb = m_session->workbook()->pivots();
-        const QString name = c->pivotName.mid(c->pivotName.lastIndexOf(QLatin1Char('!')) + 1);
+        const auto &sheets = m_loaded->book->info().sheets;
+        // "[Book.xlsx]Sheet1!Table1": the sheet (maybe quoted) and the table; a name with no sheet in it is a table of the chart's own sheet
+        QString text = c->pivotName;
+        if (text.startsWith(QLatin1Char('['))) text = text.mid(text.indexOf(QLatin1Char(']')) + 1);
+        const int bang = int(text.lastIndexOf(QLatin1Char('!')));
+        const QString name = text.mid(bang + 1);
+        QString sheetName = bang > 0 ? text.left(bang) : QString();
+        if (sheetName.size() > 1 && sheetName.startsWith(QLatin1Char('\'')) && sheetName.endsWith(QLatin1Char('\''))) sheetName = sheetName.mid(1, sheetName.size() - 2).replace(QStringLiteral("''"), QStringLiteral("'"));
         for (int t = 0; t < pb.tableCount(); ++t) {
             const auto &entry = pb.table(t);
-            if (!entry.table || entry.table->name != name || entry.cache < 0) continue;
+            if (!entry.table || entry.cache < 0) continue;
+            const int tableSheet = pb.sheetOfTable(t);
+            if (tableSheet < 0 || tableSheet >= sheets.size()) continue;
+            // (a chart made here knows its table's place; one a file holds is found by the table's name and its sheet's)
+            if (c->pivotTable >= 0) {
+                if (t != c->pivotTable) continue;
+            } else if (entry.table->name != name || (sheetName.isEmpty() ? tableSheet != ownSheet : sheets[tableSheet].name.compare(sheetName, Qt::CaseInsensitive) != 0)) {
+                continue;
+            }
             const auto &cache = pb.cache(entry.cache).cache;
             if (!cache) return;
             const jp::office::sheet::PivotTable &pt = *entry.table;
@@ -52,10 +67,14 @@ void CrunchWindow::setupObjects()
             for (int f : pt.rowFields) b.categoryNames << fieldName(f);
             for (int f : pt.colFields) b.seriesNames << fieldName(f);
             for (const auto &d : pt.dataFields) b.dataNames << (d.name.isEmpty() ? fieldName(d.fld) : d.name);
-            b.categoryNames.removeAll(QString());
-            b.seriesNames.removeAll(QString());
+            for (QStringList *l : {&b.filterNames, &b.categoryNames, &b.seriesNames, &b.dataNames}) l->removeAll(QString());
             return;
         }
+        // (no such table: no names, so no buttons)
+        c->pivotButtons.filterNames.clear();
+        c->pivotButtons.categoryNames.clear();
+        c->pivotButtons.seriesNames.clear();
+        c->pivotButtons.dataNames.clear();
     });
     m_objects->layer()->attach(&m_view->sheet().layout());
     m_picker = new ObjectPicker(m_objects->layer(), this);

@@ -43,6 +43,7 @@
 
 #include <QElapsedTimer>
 #include <QHash>
+#include <QPixmap>
 #include <QKeySequence>
 #include <QLabel>
 #include <QPointer>
@@ -913,7 +914,9 @@ private:
     void insertRecommendedPivotCommand();
     bool pointAtTableCell(qint64 row, qint64 col);   // a click on a cell of a table while a formula is typed writes a reference by the table's names
     jp::office::sheet::TableStyleBook m_tableStyleBook;
-    qsizetype m_tableStylesSeen = -1;
+    quint64 m_tableStylesSeen = 0;                       // the book's table style stamp when m_tableStyleBook was made
+    const jp::office::sheet::Workbook *m_tableStylesBook = nullptr;
+    QHash<QString, QPixmap> m_tableSwatches;             // the gallery's swatches, drawn once while the styles stay the same
     std::function<bool(QString *, QVector<jp::office::sheet::Workbook::TableStylePart> *)> m_tableStyleAsker;   // test hook: the name and the looks New Table Style asks for
     std::function<bool(QString *, bool *)> m_tableMakeAsker;    // test hook: the table's cells' header choice
     std::function<bool(QString *)> m_tableNameAsker;

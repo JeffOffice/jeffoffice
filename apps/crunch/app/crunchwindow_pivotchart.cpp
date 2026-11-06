@@ -56,7 +56,8 @@ bool CrunchWindow::insertPivotChart()
     Chart chart = makeChart(ChartKind::Column, plan, m_objects->theme(), plan.points);
     const QString book = m_path.isEmpty() ? QStringLiteral("Book1.xlsx") : QFileInfo(m_path).fileName();
     chart.pivotName = QStringLiteral("[%1]%2!%3").arg(book, sheetName, pt.name);
-    chart.pivotButtons.set = true;   // (a new pivot chart shows its field buttons)
+    chart.pivotButtons.set = true;
+    chart.pivotButtons.present = 0x1F;   // (a new pivot chart shows its field buttons)
     chart.pivotTable = t;   // (named again from the table's own name when the file is saved)
     QString why;
     const DrawingAnchor anchor = newObjectAnchor(480, 288);

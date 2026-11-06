@@ -2686,8 +2686,8 @@ qint32 Workbook::dxfFor(const DifferentialFormat &f)
     // (only a format added here is matched: one the file has may hold more than the model keeps of it)
     for (qsizetype i = m_dxfsInFile; i < m_styles.dxfs.size(); ++i) {
         const DifferentialFormat &d = m_styles.dxfs[i];
-        if (d.hasBorder || d.numberFormat || d.strike || d.underline) continue;
-        if (d.bold == f.bold && d.italic == f.italic && d.fontColor == f.fontColor && d.hasFill == f.hasFill && (!f.hasFill || (d.fill.pattern == f.fill.pattern && d.fill.bg == f.fill.bg && d.fill.fg == f.fill.fg)))
+        if (d.hasBorder || d.numberFormat) continue;
+        if (d.bold == f.bold && d.italic == f.italic && d.strike == f.strike && d.underline == f.underline && d.fontColor == f.fontColor && d.hasFill == f.hasFill && (!f.hasFill || (d.fill.pattern == f.fill.pattern && d.fill.bg == f.fill.bg && d.fill.fg == f.fill.fg)))
             return qint32(i);
     }
     if (m_styles.dxfs.size() >= 100000) return -1;
@@ -2705,7 +2705,8 @@ bool Workbook::defineTableStyle(const QString &name, const QVector<TableStylePar
     const QString trimmed = name.trimmed();
     if (trimmed.isEmpty() || trimmed.size() > 255) return refuse(QCoreApplication::translate("jp::office::sheet::Workbook", "Give the table style a name."));
     if (m_stylesPart.isEmpty()) return refuse(QCoreApplication::translate("jp::office::sheet::Workbook", "This workbook has no place to keep a table style."));
-    if (builtinTableStyle(trimmed) || m_styles.tableStyles.size() >= 1000) return refuse(QCoreApplication::translate("jp::office::sheet::Workbook", "A table style has that name already."));
+    if (builtinTableStyle(trimmed)) return refuse(QCoreApplication::translate("jp::office::sheet::Workbook", "A table style has that name already."));
+    if (m_styles.tableStyles.size() >= kMaxTableStyles) return refuse(QCoreApplication::translate("jp::office::sheet::Workbook", "A workbook holds up to %1 table styles, and this one has that many.").arg(kMaxTableStyles));
     for (const CustomTableStyle &c : std::as_const(m_styles.tableStyles))
         if (c.name.compare(trimmed, Qt::CaseInsensitive) == 0) return refuse(QCoreApplication::translate("jp::office::sheet::Workbook", "A table style has that name already."));
     const int dxfsBefore = int(m_styles.dxfs.size());
@@ -2725,6 +2726,7 @@ bool Workbook::defineTableStyle(const QString &name, const QVector<TableStylePar
     m_styles.tableStyles.append(style);
     m_tableStylesAdded.append(style);
     m_tableStyleDxfsBefore.append(dxfsBefore);
+    ++m_tableStyleStamp;
     return true;
 }
 
@@ -2734,6 +2736,7 @@ bool Workbook::removeAddedTableStyle(const QString &name)
     const int dxfsBefore = m_tableStyleDxfsBefore.last();
     m_tableStylesAdded.removeLast();
     m_tableStyleDxfsBefore.removeLast();
+    ++m_tableStyleStamp;
     for (int i = int(m_styles.tableStyles.size()) - 1; i >= 0; --i)
         if (m_styles.tableStyles[i].name == name) {
             m_styles.tableStyles.removeAt(i);

@@ -28,10 +28,8 @@ using namespace jp::office::sheet;
 using jp::grid::LayerObject;
 using jp::grid::RenderRequest;
 
-namespace {
-
 // What the numbers and words a chart is drawn from come to (never 0).
-quint64 dataKey(const jp::office::Chart &c)
+quint64 chartDataKey(const jp::office::Chart &c)
 {
     quint64 h = 1469598103934665603ull;
     auto mix = [&h](quint64 v) { h = (h ^ v) * 1099511628211ull; };
@@ -49,9 +47,21 @@ quint64 dataKey(const jp::office::Chart &c)
             for (const double v : s.categoryNumbers) mix(quint64(qHash(v, 13)));
             mix(quint64(s.xValues.size()));
             for (const double v : s.xValues) mix(quint64(qHash(v, 17)));
+            for (const jp::office::ChartErrorBars &b : s.errorBars) {
+                mix(quint64(b.plus.size()));
+                for (const double v : b.plus) mix(quint64(qHash(v, 19)));
+                mix(quint64(b.minus.size()));
+                for (const double v : b.minus) mix(quint64(qHash(v, 23)));
+            }
         }
+    for (const QStringList *names : {&c.pivotButtons.filterNames, &c.pivotButtons.categoryNames, &c.pivotButtons.dataNames, &c.pivotButtons.seriesNames}) {
+        mix(quint64(names->size()));
+        for (const QString &t : *names) text(t);
+    }
     return h | 1;
 }
+
+namespace {
 
 // What the drawing code may keep for the whole workbook, as a presentation's import may (the sample workbooks' largest drawing holds 1,889 shapes, 313 texts, and 75 pictures).
 constexpr qint64 kBudgetObjects = kMaxWorkbookObjects, kBudgetStories = 30000, kBudgetParagraphs = 300000, kBudgetRuns = 500000, kBudgetLetters = 20000000;
@@ -494,10 +504,10 @@ std::function<QImage()> SheetObjects::prepareChart(int sheet, Object &o, const R
     setChartRefs(chart.get(), o.refs);
     if (m_cells) {
         applyChartCells(chart.get(), sheet, *m_cells);
-        if (m_pivotFielder && !chart->pivotName.isEmpty() && chart->pivotButtons.set) m_pivotFielder(chart.get());
+        if (m_pivotFielder && !chart->pivotName.isEmpty() && chart->pivotButtons.set) m_pivotFielder(chart.get(), sheet);
         if (o.added || o.chart != o.fileChart) applyChartFormats(chart.get(), sheet, *m_cells);   // (a chart made here has no format of its own: its cells' are what it shows its numbers in)
         o.reads = ChartReadIndex(jp::office::sheet::chartReads(*chart, sheet, *m_cells));
-        o.drawnKey = dataKey(*chart);
+        o.drawnKey = chartDataKey(*chart);
         ++m_chartsDrawn;
     }
     const double side = kChartMaxSide;
@@ -755,11 +765,15 @@ bool SheetObjects::chartDataChanged(int sheet, Object &o, qint64 *budget)
     Chart c = *o.chart;
     setChartRefs(&c, o.refs);
     applyChartCells(&c, sheet, *m_cells);
+    if (m_pivotFielder && !c.pivotName.isEmpty() && c.pivotButtons.set) m_pivotFielder(&c, sheet);
     qint64 points = 1;
     for (const ChartPlot &plot : std::as_const(c.plots))
-        for (const ChartSeries &s : plot.series) points += s.values.size() + s.categories.size();
+        for (const ChartSeries &s : plot.series) {
+            points += s.values.size() + s.categories.size();
+            for (const jp::office::ChartErrorBars &b : s.errorBars) points += b.plus.size() + b.minus.size();
+        }
     *budget -= points;
-    return dataKey(c) != o.drawnKey;
+    return chartDataKey(c) != o.drawnKey;
 }
 
 void SheetObjects::sizesChanged(int sheet)

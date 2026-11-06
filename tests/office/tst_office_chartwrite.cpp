@@ -384,6 +384,54 @@ private Q_SLOTS:
         QVERIFY(drawn.contains("#ff0000") || drawn.contains("#FF0000") || drawn.contains("rgb(255,0,0)"));
     }
 
+    // A pivot chart as another program writes it (pivotSource with its field-button options and a second extension of its own, and pivotFmts) can be edited: what the model does not hold is
+    // written back as it was, an element of the options the file did not write is not made, and an extension in another namespace or under another identifier is not taken for the options.
+    void aPivotChartOfAnotherProgramIsEditableAndKeptWhole()
+    {
+        Chart c = comboChart();
+        c.pivotName = QStringLiteral("[Book1.xlsx]Sheet1!PivotTable1");
+        c.pivotFmtId = 3;
+        QByteArray xml = writeChartPart(c);
+        const QByteArray ext =
+            "<c:extLst>"
+            "<c:ext uri=\"{781A3756-C4B2-4CAC-9D66-4F8BD8637D16}\" xmlns:c14=\"http://schemas.microsoft.com/office/drawing/2007/8/2/chart\">"
+            "<c14:pivotOptions><c14:dropZoneFilter val=\"1\"/><c14:dropZoneData val=\"1\"/><c14:dropZonesVisible val=\"1\"/><c14:madeUpOption val=\"7\"/></c14:pivotOptions>"
+            "<c14:madeUpSibling foo=\"bar\"/></c:ext>"
+            "<c:ext uri=\"{E28EC0CA-F0BB-4C9C-879D-F8772B89E7AC}\" xmlns:c16=\"http://schemas.microsoft.com/office/drawing/2014/chart\">"
+            "<c16:pivotOptions16><c16:showExpandCollapseFieldButtons val=\"1\"/></c16:pivotOptions16></c:ext>"
+            "</c:extLst>";
+        QVERIFY(xml.contains("</c:pivotSource>"));
+        xml.replace("</c:pivotSource>", ext + "</c:pivotSource>");
+        const QByteArray fmts = "<c:pivotFmts><c:pivotFmt><c:idx val=\"0\"/><c:spPr><a:solidFill><a:srgbClr val=\"123456\"/></a:solidFill></c:spPr><c:marker><c:symbol val=\"none\"/></c:marker></c:pivotFmt></c:pivotFmts>";
+        xml.replace("<c:plotArea>", fmts + "<c:plotArea>");
+        QString why;
+        QVERIFY2(chartIsFullyModeled(xml, &why), qPrintable(why));
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(xml, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        QVERIFY(r.pivotButtons.set && r.pivotButtons.filter && r.pivotButtons.data && r.pivotButtons.visible && !r.pivotButtons.categories && !r.pivotButtons.series);
+        // an edit: the legend's buttons go on; the rest comes back as it was
+        r.pivotButtons.series = true;
+        const QByteArray out = writeChartPart(r);
+        QVERIFY(out.contains("pivotOptions16") && out.contains("showExpandCollapseFieldButtons"));
+        QVERIFY(out.contains("madeUpOption") && out.contains("madeUpSibling"));
+        QVERIFY(out.contains("<c:pivotFmts>") && out.contains("123456"));
+        QVERIFY(out.indexOf("<c:pivotFmts>") < out.indexOf("<c:plotArea>"));
+        QVERIFY(!out.contains("dropZoneCategories"));                     // (the file did not say it, and it is off)
+        QVERIFY(out.contains("c14:dropZoneSeries"));                      // (now on)
+        QVERIFY(chartIsFullyModeled(out, &why));
+        Chart again;
+        QVERIFY2(readChart(out, defaultTheme(), ColorMap(), &again, &err), qPrintable(err));
+        QCOMPARE(writeChartPart(again), out);
+        // options in another namespace, or under another identifier, are not the field buttons
+        QByteArray other = writeChartPart(c);
+        other.replace("</c:pivotSource>", "<c:extLst><c:ext uri=\"{781A3756-C4B2-4CAC-9D66-4F8BD8637D16}\" xmlns:x=\"urn:other\"><x:pivotOptions><x:dropZoneFilter val=\"1\"/></x:pivotOptions></c:ext></c:extLst></c:pivotSource>");
+        Chart o;
+        QVERIFY2(readChart(other, defaultTheme(), ColorMap(), &o, &err), qPrintable(err));
+        QVERIFY(!o.pivotButtons.set);
+        QVERIFY(writeChartPart(o).contains("urn:other"));
+    }
+
     // The display units' label (c:dispUnitsLbl): kept, and the unit's name drawn with the axis, as its title or added to the title.
     void theDisplayUnitsLabelIsKeptAndDrawn()
     {

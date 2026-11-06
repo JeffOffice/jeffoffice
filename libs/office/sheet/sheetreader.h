@@ -357,6 +357,8 @@ public:
     bool defineTableStyle(const QString &name, const QVector<TableStylePart> &parts, QString *why = nullptr);
     // Takes a style defined since the file was read or saved back out, with the formats it added (Undo). False if the file has it.
     bool removeAddedTableStyle(const QString &name);
+    // A number that changes whenever a table style is made or taken out (a window keeps what it drew from the styles as long as it is the same).
+    quint64 tableStyleStamp() const { return m_tableStyleStamp; }
     QVector<CustomTableStyle> addedTableStyles() const { return m_tableStylesAdded; }
     // Whether the rules of conditional formatting the sheet's file has are all ones this program holds whole: not a rule of a kind it does not know, one with an extension list (the 2010 forms
     // of icon sets and data bars link to one), a table's `pivot` mark, the 2010 extension block, or more ranges or rules than are read. Only then may the rules be written anew.
@@ -480,6 +482,7 @@ private:
     QVector<QPair<QString, bool>> m_stylesVisibility;
     QVector<DifferentialFormat> m_dxfsAdded;
     qint64 m_dxfsInFile = 0;
+    quint64 m_tableStyleStamp = 1;
     QVector<CustomTableStyle> m_tableStylesAdded;
     QVector<int> m_tableStyleDxfsBefore;   // for each style added, how many differential formats there were before it
     qint64 m_fontsInFile = 0, m_fillsInFile = 0, m_bordersInFile = 0, m_styleXfsInFile = 0;

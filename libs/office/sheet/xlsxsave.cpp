@@ -444,8 +444,20 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
         QByteArray items;
         for (const DifferentialFormat &d : changes.newDxfs) {
             QByteArray one = "<dxf>";
-            if (d.fontColor.isSet() || d.bold || d.italic)
-                one += "<font>" + QByteArray(d.bold ? (*d.bold ? "<b/>" : "<b val=\"0\"/>") : "") + QByteArray(d.italic ? (*d.italic ? "<i/>" : "<i val=\"0\"/>") : "") + (d.fontColor.isSet() ? colorXml("color", d.fontColor) : QByteArray()) + "</font>";
+            if (d.fontColor.isSet() || d.bold || d.italic || d.strike || d.underline) {
+                QByteArray underline;
+                if (d.underline) {
+                    switch (*d.underline) {
+                    case Underline::None: underline = "<u val=\"none\"/>"; break;
+                    case Underline::Single: underline = "<u/>"; break;
+                    case Underline::Double: underline = "<u val=\"double\"/>"; break;
+                    case Underline::SingleAccounting: underline = "<u val=\"singleAccounting\"/>"; break;
+                    case Underline::DoubleAccounting: underline = "<u val=\"doubleAccounting\"/>"; break;
+                    }
+                }
+                one += "<font>" + QByteArray(d.bold ? (*d.bold ? "<b/>" : "<b val=\"0\"/>") : "") + QByteArray(d.italic ? (*d.italic ? "<i/>" : "<i val=\"0\"/>") : "")
+                       + QByteArray(d.strike ? (*d.strike ? "<strike/>" : "<strike val=\"0\"/>") : "") + underline + (d.fontColor.isSet() ? colorXml("color", d.fontColor) : QByteArray()) + "</font>";
+            }
             if (d.hasFill) one += "<fill><patternFill patternType=\"solid\">" + colorXml("fgColor", d.fill.bg.isSet() ? d.fill.bg : d.fill.fg) + colorXml("bgColor", d.fill.bg.isSet() ? d.fill.bg : d.fill.fg) + "</patternFill></fill>";
             one += "</dxf>";
             items += prefixed(one, p);
