@@ -1167,6 +1167,15 @@ void ChartPainter::drawAreas(const View &v, const Scale &scale)
             m_p->drawPolygon(shape);
         }
     }
+    for (int k = 0; k < plot.series.size(); ++k) {
+        const ChartSeries &s = plot.series[k];
+        if (!s.errorBars.isEmpty())
+            drawErrorBars(s, [&](int i, double dv, bool, QPointF *out) {
+                if (i >= m_n || !std::isfinite(v.segs[k][i].to)) return false;
+                *out = at(catUnit(i), v.segs[k][i].to + dv, scale);
+                return true;
+            });
+    }
     {
         const bool stackedLike = plot.grouping == ChartGrouping::Stacked || plot.grouping == ChartGrouping::PercentStacked;
         for (const ChartSeries &s : plot.series) {

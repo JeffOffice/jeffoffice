@@ -70,6 +70,32 @@ private Q_SLOTS:
         QVERIFY(errorBarsKind(pie).isEmpty());
     }
 
+    // An area chart takes error bars too: they are set on its series, drawn, and kept through writing.
+    void areaChartsTakeErrorBars()
+    {
+        Chart area = columns(ChartKind::Area);
+        const QByteArray plain = chartSvg(area, QSizeF(480, 288));
+        setErrorBars(&area, QStringLiteral("fixedVal"), 2);
+        QCOMPARE(errorBarsKind(area), QStringLiteral("fixedVal"));
+        QVERIFY(chartSvg(area, QSizeF(480, 288)) != plain);
+        QCOMPARE(errorBarsKind(roundTrip(area)), QStringLiteral("fixedVal"));
+    }
+
+    // Custom error bars name the cells for each side, are kept through writing, and a one-sided pair makes a one-sided bar.
+    void customErrorBarsNameTheirCells()
+    {
+        Chart c = columns();
+        QVERIFY(customErrorBarRefs(c).isEmpty());
+        setCustomErrorBars(&c, QStringLiteral("Sheet1!$E$2:$E$4"), QString());
+        QCOMPARE(customErrorBarRefs(c), (QStringList{"Sheet1!$E$2:$E$4", QString()}));
+        QCOMPARE(seriesOf(c)[0].errorBars[0].barType, QStringLiteral("plus"));
+        const Chart back = roundTrip(c);
+        QCOMPARE(errorBarsKind(back), QStringLiteral("cust"));
+        QCOMPARE(customErrorBarRefs(back).value(0), QStringLiteral("Sheet1!$E$2:$E$4"));
+        setErrorBars(&c, QStringLiteral("fixedVal"));
+        QVERIFY(customErrorBarRefs(c).isEmpty());
+    }
+
     // Drop lines, high-low lines, and up-down bars are offered for line plots (the last two with two series or more), set on every plot that takes them, and kept through writing.
     void linesBetweenSeriesGoOnAndOff()
     {

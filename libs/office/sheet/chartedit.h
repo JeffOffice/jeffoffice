@@ -93,6 +93,11 @@ void setDataLabelParts(Chart *chart, const ChartLabelParts &parts);
 // Error bars on every series of the bar, line, and scatter plots: "fixedVal" (`value` each way), "percentage" (`value` percent), "stdDev" (`value` standard deviations), or "stdErr"; an empty
 // `kind` takes them away. The bars are both ways, with end caps; a custom pair of ranges a file holds is left as it is by a change of kind only if it is `kind` "cust" (no change).
 void setErrorBars(Chart *chart, const QString &kind, double value = 1);
+// Custom error bars on the same plots: the amounts above come from the cells `plusRef` names, those below from `minusRef` (either may be empty for a one-sided bar). The numbers come
+// from applyChartCells.
+void setCustomErrorBars(Chart *chart, const QString &plusRef, const QString &minusRef);
+// The two references (above, below) of the first series' custom error bars; empty when they are not custom.
+QStringList customErrorBarRefs(const Chart &chart);
 // The kind the first series' error bars have ("" for none).
 QString errorBarsKind(const Chart &chart);
 

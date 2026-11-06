@@ -276,6 +276,10 @@ QVector<ChartBlock> chartReads(const Chart &chart, int ownSheet, const ChartCell
             add(s.valueRef);
             add(s.xRef);
             add(s.labelCellsRef);
+            for (int i = 0; i < 2; ++i) {
+                add(s.errorBars.value(i).plusRef);
+                add(s.errorBars.value(i).minusRef);
+            }
         }
     add(chart.title.ref);
     for (const ChartAxis &a : chart.axes) add(a.title.ref);
@@ -381,7 +385,10 @@ QStringList chartRefs(const Chart &chart)
 {
     QStringList out;
     for (const ChartPlot &plot : chart.plots)
-        for (const ChartSeries &s : plot.series) out << s.nameRef << s.categoryRef << s.valueRef << s.xRef << s.labelCellsRef;
+        for (const ChartSeries &s : plot.series) {
+            out << s.nameRef << s.categoryRef << s.valueRef << s.xRef << s.labelCellsRef;
+            for (int i = 0; i < 2; ++i) out << s.errorBars.value(i).plusRef << s.errorBars.value(i).minusRef;
+        }
     out << chart.title.ref;
     for (const ChartAxis &a : chart.axes) out << a.title.ref;
     return out;
@@ -398,6 +405,10 @@ void setChartRefs(Chart *chart, const QStringList &refs)
             s.valueRef = next();
             s.xRef = next();
             s.labelCellsRef = next();
+            for (int i = 0; i < 2; ++i) {
+                const QString plus = next(), minus = next();
+                if (i < s.errorBars.size()) s.errorBars[i].plusRef = plus, s.errorBars[i].minusRef = minus;
+            }
         }
     chart->title.ref = next();
     for (ChartAxis &a : chart->axes) a.title.ref = next();
@@ -412,6 +423,11 @@ void moveChartRefs(Chart *chart, const QStringList &sheetNames, const std::vecto
         for (ChartSeries &s : plot.series)
             for (QString *ref : {&s.nameRef, &s.categoryRef, &s.valueRef, &s.xRef, &s.labelCellsRef})
                 if (!ref->isEmpty()) *ref = movedRef(*ref, sheetNames, edits, ownSheet);
+    for (ChartPlot &plot : chart->plots)
+        for (ChartSeries &s : plot.series)
+            for (ChartErrorBars &b : s.errorBars)
+                for (QString *ref : {&b.plusRef, &b.minusRef})
+                    if (!ref->isEmpty()) *ref = movedRef(*ref, sheetNames, edits, ownSheet);
     if (!chart->title.ref.isEmpty()) chart->title.ref = movedRef(chart->title.ref, sheetNames, edits, ownSheet);
     for (ChartAxis &a : chart->axes)
         if (!a.title.ref.isEmpty()) a.title.ref = movedRef(a.title.ref, sheetNames, edits, ownSheet);
@@ -455,6 +471,19 @@ int applyChartCells(Chart *chart, int ownSheet, const ChartCells &cells)
                 }
                 s.labelCellsText = words;
             }
+            // the amounts custom error bars read
+            for (ChartErrorBars &b : s.errorBars)
+                for (const bool plusSide : {true, false}) {
+                    const QString &ref = plusSide ? b.plusRef : b.minusRef;
+                    if (ref.isEmpty() || !readChartRef(ref, ownSheet, cells, std::max(0, std::min(kMaxChartSeriesCells, budget)), &d, false)) continue;
+                    budget -= int(d.points.size());
+                    QVector<double> amounts;
+                    for (const ChartPoint &p : std::as_const(d.points)) {
+                        if (p.hidden && chart->plotVisibleOnly) continue;
+                        amounts.push_back(p.isNumber ? p.number : 0.0);
+                    }
+                    (plusSide ? b.plus : b.minus) = amounts;
+                }
             // the categories, or the x values of a scatter
             const QString &catRef = scatter ? s.xRef : s.categoryRef;
             if (!catRef.isEmpty() && readChartRef(catRef, ownSheet, cells, std::max(0, std::min(kMaxChartSeriesCells, budget)), &d)) {

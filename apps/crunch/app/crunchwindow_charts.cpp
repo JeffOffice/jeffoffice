@@ -945,7 +945,7 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
             legend->addSeparator();
             check(legend, tr("Over the Chart"), e.legendOverlay, [code = e.legendPosition, on = !e.legendOverlay](Chart *c) { setLegend(c, code, on); }, tr("Legend"));
         }
-        if (chart.type() == ChartType::Bar || chart.type() == ChartType::Line || chart.type() == ChartType::Scatter) {
+        if (chart.type() == ChartType::Bar || chart.type() == ChartType::Line || chart.type() == ChartType::Scatter || chart.type() == ChartType::Area) {
             QMenu *bars = menu->addMenu(tr("Error Bars"));
             bars->setObjectName(QStringLiteral("errorBarsMenu"));
             auto *barGroup = new QActionGroup(bars);
@@ -955,7 +955,47 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
             choice(bars, barGroup, tr("Percentage (5%)"), kind == QLatin1String("percentage"), [](Chart *c) { setErrorBars(c, QStringLiteral("percentage"), 5); }, tr("Error Bars"));
             choice(bars, barGroup, tr("Standard Deviation"), kind == QLatin1String("stdDev"), [](Chart *c) { setErrorBars(c, QStringLiteral("stdDev"), 1); }, tr("Error Bars"));
             choice(bars, barGroup, tr("Fixed Value (1)"), kind == QLatin1String("fixedVal"), [](Chart *c) { setErrorBars(c, QStringLiteral("fixedVal"), 1); }, tr("Error Bars"));
-            if (kind == QLatin1String("cust")) choice(bars, barGroup, tr("Custom"), true, [](Chart *) {}, tr("Error Bars"))->setEnabled(false);
+            // Custom: the amounts above and below each point are read from cells typed in (empty: none on that side).
+            QAction *custom = bars->addAction(tr("Custom…"));
+            custom->setObjectName(QStringLiteral("customErrorBarsAction"));
+            custom->setCheckable(true);
+            custom->setChecked(kind == QLatin1String("cust"));
+            connect(custom, &QAction::triggered, this, [this, now = customErrorBarRefs(chart)] {
+                QStringList refs{now.value(0), now.value(1)};
+                for (int side = 0; side < 2; ++side) {
+                    const QString title = side == 0 ? tr("Custom Error Bars: Positive") : tr("Custom Error Bars: Negative");
+                    QString text = refs[side];
+                    bool ok = false;
+                    if (m_chartTextAsker) ok = m_chartTextAsker(title, &text);
+                    else text = QInputDialog::getText(this, title, tr("The cells that hold the amounts, such as =Sheet1!$D$2:$D$4 (leave empty for none):"), QLineEdit::Normal, text, &ok);
+                    if (!ok) return;
+                    text = text.trimmed();
+                    if (text.startsWith(QLatin1Char('='))) text = text.mid(1).trimmed();
+                    if (!text.isEmpty()) {
+                        if (!m_objects || !m_objects->cells() || !m_loaded || !m_loaded->book) return;
+                        if (!text.contains(QLatin1Char('!'))) {
+                            const QString own = m_loaded->book->info().sheets[m_sheet].name;
+                            text = (own.contains(QRegularExpression(QStringLiteral("[^A-Za-z0-9_]"))) ? QStringLiteral("'") + QString(own).replace(QLatin1Char('\''), QStringLiteral("''")) + QStringLiteral("'") : own) + QLatin1Char('!') + text;
+                        }
+                        QVector<ChartBlock> blocks;
+                        if (!chartBlocks(text, m_sheet, *m_objects->cells(), &blocks) || blocks.size() != 1) {
+                            notice(tr("Custom Error Bars"), tr("\"%1\" isn't a range JeffCrunch can find. Write it like =Sheet1!$D$2:$D$4.").arg(text));
+                            return;
+                        }
+                        const auto r = blocks[0].range;
+                        const int bang = int(text.lastIndexOf(QLatin1Char('!')));
+                        text = text.left(bang + 1) + QStringLiteral("$") + columnName(r.col1) + QStringLiteral("$") + QString::number(qint64(r.row1) + 1);
+                        if (r.row1 != r.row2 || r.col1 != r.col2) text += QStringLiteral(":$") + columnName(r.col2) + QStringLiteral("$") + QString::number(qint64(r.row2) + 1);
+                    }
+                    refs[side] = text;
+                }
+                if (refs[0].isEmpty() && refs[1].isEmpty()) return;
+                const int sheet = m_sheet;
+                changePickedChart(tr("Error Bars"), [this, refs, sheet](Chart *c) {
+                    setCustomErrorBars(c, refs[0], refs[1]);
+                    if (m_objects->cells()) applyChartCells(c, sheet, *m_objects->cells());
+                });
+            });
         }
         if (plotLinesApply(chart, PlotLines::Drop)) {
             QMenu *lines = menu->addMenu(tr("Lines"));

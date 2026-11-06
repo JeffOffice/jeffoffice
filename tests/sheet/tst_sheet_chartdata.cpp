@@ -6,6 +6,7 @@
 #include "grid/chartcells.h"
 #include "office/theme.h"
 #include "sheet/chartdata.h"
+#include "sheet/chartedit.h"
 #include "sheet/recalc.h"
 
 #include <QMap>
@@ -253,6 +254,34 @@ private Q_SLOTS:
         QVector<ChartBlock> blocks = chartReads(c, 0, f);
         bool reads = false;
         for (const ChartBlock &b : blocks) reads = reads || (b.range.col1 == 4 && b.range.row1 == 1 && b.range.row2 == 3);
+        QVERIFY(reads);
+    }
+
+    // Custom error bars read their amounts from the cells typed in, follow those cells, and the chart reads them.
+    void customErrorBarsFollowTheirCells()
+    {
+        FakeCells f = FakeCells::regional();
+        f.set(0, QStringLiteral("E2"), Value::number(1));
+        f.set(0, QStringLiteral("E3"), Value::number(2));
+        f.set(0, QStringLiteral("E4"), Value::number(3));
+        f.set(0, QStringLiteral("F2"), Value::number(7));
+        Chart c = readIt(chartPart(QStringLiteral("barChart"), eastWest()));
+        setCustomErrorBars(&c, QStringLiteral("Sheet1!$E$2:$E$4"), QStringLiteral("Sheet1!$F$2"));
+        QCOMPARE(customErrorBarRefs(c), (QStringList{"Sheet1!$E$2:$E$4", "Sheet1!$F$2"}));
+        QCOMPARE(applyChartCells(&c, 0, f), 2);
+        QVERIFY(sameNumbers(c.plots[0].series[0].errorBars[0].plus, {1, 2, 3}));
+        QVERIFY(sameNumbers(c.plots[0].series[0].errorBars[0].minus, {7}));
+        const QStringList refs = chartRefs(c);
+        QVERIFY(refs.contains(QStringLiteral("Sheet1!$E$2:$E$4")) && refs.contains(QStringLiteral("Sheet1!$F$2")));
+        Chart again = readIt(chartPart(QStringLiteral("barChart"), eastWest()));
+        setCustomErrorBars(&again, QString(), QString());
+        setChartRefs(&again, refs);
+        QCOMPARE(customErrorBarRefs(again), (QStringList{"Sheet1!$E$2:$E$4", "Sheet1!$F$2"}));
+        f.set(0, QStringLiteral("E3"), Value::number(9));
+        applyChartCells(&c, 0, f);
+        QVERIFY(sameNumbers(c.plots[0].series[0].errorBars[0].plus, {1, 9, 3}));
+        bool reads = false;
+        for (const ChartBlock &b : chartReads(c, 0, f)) reads = reads || (b.range.col1 == 4 && b.range.row1 == 1 && b.range.row2 == 3);
         QVERIFY(reads);
     }
 

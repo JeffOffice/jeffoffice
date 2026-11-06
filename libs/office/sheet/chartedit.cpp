@@ -487,7 +487,7 @@ void setErrorBars(Chart *chart, const QString &kind, double value)
 {
     if (kind == QLatin1String("cust")) return;
     for (ChartPlot &p : chart->plots) {
-        if (p.type != ChartType::Bar && p.type != ChartType::Line && p.type != ChartType::Scatter) continue;
+        if (p.type != ChartType::Bar && p.type != ChartType::Line && p.type != ChartType::Scatter && p.type != ChartType::Area) continue;
         for (ChartSeries &s : p.series) {
             if (kind.isEmpty()) {
                 s.errorBars.clear();
@@ -500,6 +500,31 @@ void setErrorBars(Chart *chart, const QString &kind, double value)
             s.errorBars = QVector<ChartErrorBars>{b};
         }
     }
+}
+
+void setCustomErrorBars(Chart *chart, const QString &plusRef, const QString &minusRef)
+{
+    for (ChartPlot &p : chart->plots) {
+        if (p.type != ChartType::Bar && p.type != ChartType::Line && p.type != ChartType::Scatter && p.type != ChartType::Area) continue;
+        for (ChartSeries &s : p.series) {
+            ChartErrorBars b;
+            b.valueType = QStringLiteral("cust");
+            b.plusRef = plusRef;
+            b.minusRef = minusRef;
+            if (plusRef.isEmpty()) b.barType = QStringLiteral("minus");
+            else if (minusRef.isEmpty()) b.barType = QStringLiteral("plus");
+            if (p.type == ChartType::Scatter) b.direction = QStringLiteral("y");
+            s.errorBars = QVector<ChartErrorBars>{b};
+        }
+    }
+}
+
+QStringList customErrorBarRefs(const Chart &chart)
+{
+    for (const ChartPlot &p : chart.plots)
+        for (const ChartSeries &s : p.series)
+            if (!s.errorBars.isEmpty() && s.errorBars.first().valueType == QLatin1String("cust")) return {s.errorBars.first().plusRef, s.errorBars.first().minusRef};
+    return {};
 }
 
 QString errorBarsKind(const Chart &chart)

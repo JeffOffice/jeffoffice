@@ -888,6 +888,54 @@ private Q_SLOTS:
         QCOMPARE(dataLabelsCellsRef(chartOf(e)), ref);
     }
 
+    // Custom, in the Error Bars list: the cells for the amounts above and below are asked for, the amounts are read from them (one step of Undo), and the file holds the ranges and the numbers.
+    void errorBarsTakeCustomAmountsFromCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.chartElementsButton() && e.win.w.chartElementsButton()->isVisible());
+        QMenu *menu = e.win.w.chartElementsButton()->menu();
+        auto fire = [&](const QStringList &path) {
+            QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+            QMenu *m = menu;
+            QAction *found = nullptr;
+            for (int i = 0; i < path.size(); ++i) {
+                found = nullptr;
+                for (QAction *a : m->actions())
+                    if (a->text() == path[i]) found = a;
+                if (!found) return false;
+                if (i + 1 < path.size()) m = found->menu();
+            }
+            found->trigger();
+            return true;
+        };
+        QStringList asked;
+        e.win.w.setChartTextAsker([&asked](const QString &title, QString *text) {
+            asked << title;
+            *text = title.endsWith(QStringLiteral("Positive")) ? QStringLiteral("=B2:B4") : QString();
+            return true;
+        });
+        const int steps = e.win.w.session()->undoStack()->count();
+        QVERIFY(fire({"Error Bars", "Custom…"}));
+        QCOMPARE(asked.size(), 2);
+        QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);
+        QCOMPARE(errorBarsKind(chartOf(e)), QStringLiteral("cust"));
+        const QStringList refs = customErrorBarRefs(chartOf(e));
+        QVERIFY2(refs.value(0).endsWith(QStringLiteral("!$B$2:$B$4")), qPrintable(refs.join('|')));
+        QVERIFY(refs.value(1).isEmpty());
+        const ChartErrorBars bars = seriesOf(chartOf(e)).value(0).errorBars.value(0);
+        QCOMPARE(bars.plus.size(), 3);
+        QCOMPARE(bars.barType, QStringLiteral("plus"));
+        QVERIFY(save(e));
+        const ChartErrorBars saved = seriesOf(savedCharts(e.path)[0].chart).value(0).errorBars.value(0);
+        QCOMPARE(saved.plusRef, refs.value(0));
+        QCOMPARE(saved.plus, bars.plus);
+        pressUndo(&e.win.w);
+        QVERIFY(errorBarsKind(chartOf(e)) != QStringLiteral("cust"));
+    }
+
     // Format Axis sets an axis from the Chart tab as one step of Undo, only for a chart that has the axis, and the saved file holds it.
     void anAxisIsFormattedFromTheChartTab()
     {
