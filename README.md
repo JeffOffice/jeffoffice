@@ -114,6 +114,17 @@ Help is built into each app (press F1). JeffPub's is also published to the proje
 
 All four apps, and their Help, are in American English, German, Spanish, French, Italian, Dutch, and Portuguese (Brazil and Portugal). They follow your computer's language, or the one chosen in File > Options > General. The translations are in [translations](translations/README.md).
 
+## Building and testing
+
+Build with CMake and Qt 6 (`cmake -S . -B build -G Ninja`, then `ninja -C build <targets>`). Two settings keep rebuilds short, and both are plain CMake that works with GCC, MinGW, and clang:
+
+- **Precompiled headers** (`-DJO_PRECOMPILE_HEADERS=OFF` turns them off). The Qt and standard headers that most files include are compiled once, in [cmake/precompile.cmake](cmake/precompile.cmake). With a compiler cache, set `sloppiness = pch_defines,time_macros` in its configuration so that files built with a precompiled header are still cached.
+- **Split test files.** The big test programs are in parts of about 2,000 lines each (`tests/write/tst_write.cpp` with `tst_write_02.cpp` and on, and the same for the flow, JeffPub file, and JeffCrunch edit and print tests). A part holds the test functions of one class, which is declared in the `.h` beside it, so a change rebuilds one part.
+
+Run one test program with `./writetests`, one test function with `./writetests nameOfTheFunction`, and the list of functions with `./writetests -functions`. Tests must run with `QT_QPA_PLATFORM=offscreen` and a temporary `HOME` and `XDG_CONFIG_HOME`.
+
+The app-check programs (`pubchecks`, `deckchecks`, `writechecks`, and `crunchchecks`) can run one part of the commands: `JO_APPCHECK_SHARD=2/4 ./crunchchecks everyCommandOnABlankDocument everyCommandOnADocumentFromAFile commandsNeverRun` runs the second of four parts. Commands are divided by family (the name up to its last dot), so every command is checked in exactly one part. [tools/gate.sh](tools/gate.sh) runs the whole set of builds, checks, and tests, with the four parts of each app-check program side by side.
+
 ## Built with
 
 - **C++17** and **Qt 6** (Widgets and Graphics View), built with **CMake**
