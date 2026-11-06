@@ -418,12 +418,13 @@
          "text": "cdbd400faf3de1eea9d63deeff17c7e7d7d9b4f819489eb568effcc531b38487"
         },
         {
-         "status": "partly",
-         "text": "e6be626c1131c1700009faf22717dab633b42032a9a364008fca063d0493f896"
+         "hide_soon": true,
+         "status": "done",
+         "text": "7038147a2786ab88bde7f84cc12cc721289d24daadcd097cb921a1be639404f5"
         },
         {
-         "status": "todo",
-         "text": "477a520c947c44972a00183708ee3a1965a47a0059bffe92aa057df5a183b48a"
+         "status": "partly",
+         "text": "008962f94e3d2128edce15b8daeaadc68377a2eb48780d82db04e905ac9a658a"
         }
        ]
       },
@@ -863,7 +864,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "3c963266595fb17f2c1d7be4df6347275360f9d0dab89d6e23ba885caf38d3e1"
+         "text": "552e99313727bdc6b30f346137141bdedd3d06eac65141b9c95d5f7d0e4ec29d"
         }
        ]
       }
@@ -1069,8 +1070,8 @@
          "text": "39bc53233a40c9fa85497dd2fe2792ab6def01fec2b7f0e41f294aee823d094d"
         },
         {
-         "status": "todo",
-         "text": "8c0a324ced34ceafb087a6a1c4aaecb8158bd227a1efc0472c526a99502bf658"
+         "status": "partly",
+         "text": "6be76f17ff8d42a46db874d9ab4d927f532aafa9f26cd30125a7926510e5a162"
         },
         {
          "status": "todo",
@@ -1483,7 +1484,7 @@
         },
         {
          "status": "partly",
-         "text": "c3596f2a7775ff0cc69205f0ed1a30823db2320f8db5de4cdc50336518ab8cca"
+         "text": "bea493bf866b3409ca77922e7c6e2dc78de325ad0cca86ca8e7dee1e4a5be1c6"
         },
         {
          "status": "partly",
@@ -7034,6 +7035,18 @@
     "fr": ""
    }
   },
+  "008962f94e3d2128edce15b8daeaadc68377a2eb48780d82db04e905ac9a658a": {
+   "drop": false,
+   "en": "Format part of a cell’s text in JeffCrunch with bold, italic, underline, strikethrough, color, font, size, and superscript or subscript. The formatting is shown in the cell, kept, and saved as rich text. Select words while editing and use the font commands to change only those words.",
+   "es": "En JeffCrunch puede dar formato a una parte del texto de una celda con negrita, cursiva, subrayado, tachado, color, fuente, tamaño y superíndice o subíndice. El formato se muestra en la celda, se conserva y se guarda como texto enriquecido. Seleccione palabras mientras edita y use los comandos de fuente para cambiar solo esas palabras.",
+   "fr": "Dans JeffCrunch, vous pouvez mettre en forme une partie du texte d’une cellule : gras, italique, souligné, barré, couleur, police, taille, exposant ou indice. La mise en forme s’affiche dans la cellule, est conservée et enregistrée en texte enrichi. Sélectionnez des mots pendant la modification et utilisez les commandes de police pour ne changer que ces mots.",
+   "soon": {
+    "drop": false,
+    "en": "Rich text formatting shown in the entry box while editing",
+    "es": "Formato de texto enriquecido visible en el cuadro de entrada durante la edición",
+    "fr": "Mise en forme du texte enrichi visible dans la zone de saisie pendant la modification"
+   }
+  },
   "009b3de0946ff315b78384cc74116d2078909f9500543335238af9144f8ab9c1": {
    "drop": false,
    "en": "In JeffDeck, the transitions gallery offers None, Morph, Fade, Push, Wipe, Split, Reveal, Cover, Uncover, Zoom, and Cut. A cut goes through black. The effect is shown on the slide in the pane, marked with a star.",
@@ -11318,18 +11331,6 @@
     "fr": ""
    }
   },
-  "3c963266595fb17f2c1d7be4df6347275360f9d0dab89d6e23ba885caf38d3e1": {
-   "drop": false,
-   "en": "Bring objects to the front or send them to the back.",
-   "es": "Traiga objetos al frente o envíelos al fondo.",
-   "fr": "Mettez des objets au premier plan ou à l’arrière-plan.",
-   "soon": {
-    "drop": false,
-    "en": "Selection pane, align, group, rotate, flip, and snap",
-    "es": "Panel de selección, alinear, agrupar, girar, voltear y ajustar",
-    "fr": "Volet de sélection, alignement, groupement, rotation, retournement et magnétisme"
-   }
-  },
   "3cae3183e37a90d8065c4b0aa6b294a879bdd4a0db5a12bc5e47a065450f8499": {
    "drop": false,
    "en": "Floating pictures, shapes, and text boxes: text wraps around their shape, and they are anchored to a paragraph and move with it.",
@@ -12108,18 +12109,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "477a520c947c44972a00183708ee3a1965a47a0059bffe92aa057df5a183b48a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Formatting part of a cell’s text: show, keep, and edit in the cell and in the formula bar",
-    "es": "Formato de una parte del texto de una celda: mostrar, conservar y editar en la celda y en la barra de fórmulas",
-    "fr": "Mise en forme d’une partie du texte d’une cellule : affichage, conservation et modification dans la cellule et dans la barre de formule"
    }
   },
   "477b8815e182adfa52339a6210e067ed84b01c51c522f75cef4164d8ac332bea": {
@@ -13188,6 +13177,18 @@
     "en": "Notes with formatting: bold, italic, lists, links, and pictures in speaker notes",
     "es": "Notas con formato: negrita, cursiva, listas, vínculos e imágenes en las notas del orador",
     "fr": "Notes mises en forme : gras, italique, listes, liens et images dans les notes du présentateur"
+   }
+  },
+  "552e99313727bdc6b30f346137141bdedd3d06eac65141b9c95d5f7d0e4ec29d": {
+   "drop": false,
+   "en": "Bring objects to the front or send them to the back.",
+   "es": "Traiga objetos al frente o envíelos al fondo.",
+   "fr": "Placez des objets au premier plan ou à l’arrière-plan.",
+   "soon": {
+    "drop": false,
+    "en": "Selection pane, align, group, rotate, flip, and snap",
+    "es": "Panel de selección, alinear, agrupar, girar, voltear y ajustar",
+    "fr": "Volet de sélection, alignement, groupement, rotation, retournement et magnétisme"
    }
   },
   "55302e714a3a4bde745e62c0f8c4926571bc9f3280310ef51bc5e5b19f9840c8": {
@@ -14834,6 +14835,18 @@
     "fr": ""
    }
   },
+  "6be76f17ff8d42a46db874d9ab4d927f532aafa9f26cd30125a7926510e5a162": {
+   "drop": false,
+   "en": "Add, edit, delete, and show scenarios with named sets of input values, up to 32 changing cells each, with a comment. A summary places the scenarios side by side on a new sheet with the result cells worked out for each. Scenarios in a file are kept and shown.",
+   "es": "Agregue, edite, elimine y muestre escenarios con conjuntos de valores de entrada con nombre, hasta 32 celdas cambiantes cada uno, con un comentario. Un resumen coloca los escenarios lado a lado en una hoja nueva con las celdas de resultado calculadas para cada uno. Los escenarios de un archivo se conservan y se muestran.",
+   "fr": "Ajoutez, modifiez, supprimez et affichez des scénarios avec des jeux de valeurs d’entrée nommés, jusqu’à 32 cellules variables chacun, avec un commentaire. Une synthèse place les scénarios côte à côte sur une nouvelle feuille avec les cellules de résultat calculées pour chacun. Les scénarios d’un fichier sont conservés et affichés.",
+   "soon": {
+    "drop": false,
+    "en": "Scenario merge from other workbooks and locked scenarios on protected sheets",
+    "es": "Combinación de escenarios de otros libros y escenarios bloqueados en hojas protegidas",
+    "fr": "Fusion de scénarios depuis d’autres classeurs et scénarios verrouillés sur les feuilles protégées"
+   }
+  },
   "6beabdbde9ec8510142f0fc2f6a3b99d630a920199b88e3595f94258df8a6721": {
    "drop": false,
    "en": "Info",
@@ -15139,6 +15152,18 @@
    "en": "In JeffWrite, you can open a document read-only, as a copy, or in a new window. A read-only document refuses typing, dropping, dragging, and commands that change it, and Save asks for a new name.",
    "es": "En JeffWrite, usted puede abrir un documento como solo lectura, como copia o en una ventana nueva. Un documento de solo lectura no admite escritura, soltar ni arrastrar, rechaza los comandos que lo modifican, y Guardar pide un nombre nuevo.",
    "fr": "Dans JeffWrite, vous pouvez ouvrir un document en lecture seule, en tant que copie ou dans une nouvelle fenêtre. Un document en lecture seule refuse la saisie, le dépôt, le glisser et les commandes qui le modifient, et Enregistrer demande un nouveau nom.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "7038147a2786ab88bde7f84cc12cc721289d24daadcd097cb921a1be639404f5": {
+   "drop": false,
+   "en": "Format cells in JeffCrunch with a dialog that has Font, Border, and Fill tabs. Fills can be two-color patterns or gradients of two colors in five directions, with a live preview.",
+   "es": "En JeffCrunch puede dar formato a las celdas con un cuadro de diálogo que tiene pestañas de Fuente, Borde y Relleno. Los rellenos pueden ser tramas de dos colores o degradados de dos colores en cinco direcciones, con vista previa en vivo.",
+   "fr": "Dans JeffCrunch, vous mettez en forme les cellules avec une boîte de dialogue dotée des onglets Police, Bordure et Remplissage. Les remplissages peuvent être des motifs à deux couleurs ou des dégradés de deux couleurs dans cinq directions, avec un aperçu en direct.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16872,18 +16897,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "8c0a324ced34ceafb087a6a1c4aaecb8158bd227a1efc0472c526a99502bf658": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Scenario Manager: named input sets, merge, and summary report",
-    "es": "Administrador de escenarios: conjuntos de entradas con nombre, combinar e informe de resumen",
-    "fr": "Gestionnaire de scénarios : jeux de valeurs nommés, fusion et rapport de synthèse"
    }
   },
   "8c64ef5b34bf9eb33805e5caa716f3a5485d72396cc5a24cfafa7802d478bfc1": {
@@ -20066,6 +20079,18 @@
     "fr": ""
    }
   },
+  "bea493bf866b3409ca77922e7c6e2dc78de325ad0cca86ca8e7dee1e4a5be1c6": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Text styles, text fill, text outline, and text effects for shapes, and align and group for objects",
+    "es": "Estilos de texto, relleno de texto, contorno de texto y efectos de texto para formas, y alinear y agrupar para objetos",
+    "fr": "Styles de texte, remplissage du texte, contour du texte et effets de texte pour les formes, et alignement et groupement des objets"
+   }
+  },
   "bea7657e37bcebfaf5305cd8db6cd49e2f176b9a1df203e4665dbe8d3c568fc3": {
    "drop": false,
    "en": "In JeffCrunch, From Text/CSV on the Data tab opens a text file through an import preview, where you choose the file origin and encoding, the delimiter, and the column types, then loads it into a sheet. Text files can also be opened with File > Open.",
@@ -20388,18 +20413,6 @@
     "en": "`RATE` and `DB`",
     "es": "`RATE` y `DB`",
     "fr": "`RATE` et `DB`"
-   }
-  },
-  "c3596f2a7775ff0cc69205f0ed1a30823db2320f8db5de4cdc50336518ab8cca": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Text styles, text fill, text outline, and text effects for shapes, and align and group for objects",
-    "es": "Estilos de texto, relleno de texto, contorno de texto y efectos de texto para formas, y alinear y agrupar objetos",
-    "fr": "Styles de texte, remplissage de texte, contour de texte et effets de texte pour les formes, et alignement et groupement des objets"
    }
   },
   "c36593733c4bd0a82fb88fb1d8fd88c3f4c020508d53b28995252d7519fd76b6": {
@@ -22980,18 +22993,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "e6be626c1131c1700009faf22717dab633b42032a9a364008fca063d0493f896": {
-   "drop": false,
-   "en": "The Format Cells dialog in JeffCrunch has Font, Border, and Fill tabs, with two-color pattern fills and a live preview.",
-   "es": "El cuadro de diálogo Formato de celdas de JeffCrunch tiene las pestañas Fuente, Borde y Relleno, con rellenos de trama de dos colores y una vista previa.",
-   "fr": "La boîte de dialogue Format de cellule de JeffCrunch comprend les onglets Police, Bordure et Remplissage, avec des motifs à deux couleurs et un aperçu.",
-   "soon": {
-    "drop": false,
-    "en": "Gradient fills: create",
-    "es": "Rellenos degradados: crear",
-    "fr": "Remplissages en dégradé : création"
    }
   },
   "e6e2880e938ed3d719538d584ca11aba1213b6dc7d1c826617d808a308b03808": {
