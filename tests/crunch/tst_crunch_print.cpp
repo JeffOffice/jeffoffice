@@ -1536,6 +1536,32 @@ void CrunchPrintTests::objectsPrintInPlaceUnlessTheyAreNotToBe()
 }
 
 
+// A sheet with no cells but with a drawing prints the drawing: the block runs from A1 to the last cell it covers. Without a drawing that prints (hidden, or told not to print), it has nothing.
+void CrunchPrintTests::aSheetOfOnlyDrawingsPrintsThem()
+{
+    const QString red = drawtest::twoCell(3, 1, 6, 5, drawtest::shapeElement(2, QStringLiteral("Red"), QStringLiteral("rect"), QString(), QStringLiteral("FF0000")));
+    EditWindow e;
+    QVERIFY(e.open(drawtest::bookWithDrawing({worksheet(QString())}, drawtest::drawingPart(red), {})));
+    CrunchWindow &w = e.win.w;
+    QString why;
+    const std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+    QVERIFY2(job, qPrintable(why));
+    QCOMPARE(job->pageCount(), 1);
+    QVERIFY(job->printOf(0)->areas[0].row2 >= 4);
+    QVERIFY(job->printOf(0)->areas[0].col2 >= 5);
+    const QImage img = job->preview(0, 612);
+    const QRgb inRed = img.pixel(int(50.4 + 3 * 50.25 + 8), int(54 + 15 + 5));
+    QVERIFY2(qRed(inRed) > 200 && qGreen(inRed) < 60 && qBlue(inRed) < 60, qPrintable(QString::number(inRed, 16)));
+    // one told not to print leaves the sheet with nothing
+    QString quiet = red;
+    quiet.replace(QStringLiteral("<xdr:clientData/>"), QStringLiteral("<xdr:clientData fPrintsWithSheet=\"0\"/>"));
+    EditWindow none;
+    QVERIFY(none.open(drawtest::bookWithDrawing({worksheet(QString())}, drawtest::drawingPart(quiet), {})));
+    QString noneWhy;
+    QVERIFY(!none.win.w.makePrintJob(crunch::PrintJobOptions(), &noneWhy));
+    QVERIFY(noneWhy.contains(QStringLiteral("nothing to print")));
+}
+
 // A job with more pages than it may have is cut short, and says so; a sheet with nothing on it says that; odd margins and scales still give pages.
 void CrunchPrintTests::aJobThatNeedsTooManyPagesIsCutShort()
 {

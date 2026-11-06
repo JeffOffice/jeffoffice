@@ -221,6 +221,7 @@ private Q_SLOTS:
     void thePageBreakLinesOfAMillionRowsAreWorkedOutInSlices();
     void pageLinesComeFromTheCutsAndTheBreaks();
     void objectsPrintInPlaceUnlessTheyAreNotToBe();
+    void aSheetOfOnlyDrawingsPrintsThem();
     void aJobThatNeedsTooManyPagesIsCutShort();
     void hostilePageSettingsAreBounded();
     void insertedRowsAndAPrintAreaAreSavedTogether();
