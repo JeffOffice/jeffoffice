@@ -10,6 +10,7 @@
 #include <QGlyphRun>
 #include <QImage>
 #include <QLinearGradient>
+#include <QPaintEngine>
 #include <QPixmap>
 #include <QPolygonF>
 #include <QRawFont>
@@ -281,6 +282,37 @@ void GridPainter::drawFill(QPainter *p, const QRect &rect, const CellLook &look,
     p->fillRect(rect, patternBrush(look.pattern, look.fg, look.bg));
 }
 
+// Where a line along an edge of the grid lies across it, in the painter's units: `thickness` pixels of the grid wide, beginning `first` pixels from the edge at `edge` (an x for a
+// vertical line). On a screen scaled by a fraction (125% or 150%), a pixel of the grid is a pixel and a quarter or a half of the screen, so a line one pixel wide would cover one
+// pixel of the screen or two by where it falls, and the gridlines would look thin and thick by turns. There the line is a whole number of the screen's pixels (the grid's width
+// times the scale, rounded down, at least one), those of the pixels it would cover that are nearest the edge. At a whole scale, and on paper, it is where it was.
+QPair<qreal, qreal> GridPainter::lineAcross(const QPainter *p, int edge, int first, int thickness, bool vertical)
+{
+    const qreal a = edge + first, b = edge + first + thickness;
+    const QTransform t = p->deviceTransform();
+    const qreal m = vertical ? t.m11() : t.m22(), shift = vertical ? t.dx() : t.dy();
+    const qreal scale = std::abs(m);
+    if (t.type() > QTransform::TxScale || scale <= 1 || scale == std::floor(scale) || !p->paintEngine() || p->paintEngine()->type() != QPaintEngine::Raster) return {a, b};
+    // (the screen's pixels the line covers are those whose middles are in it)
+    const qreal d1 = m * a + shift, d2 = m * b + shift, de = m * edge + shift;
+    const qreal lo = std::min(d1, d2), hi = std::max(d1, d2);
+    const int first0 = int(std::ceil(lo - 0.5)), end0 = int(std::ceil(hi - 0.5));
+    const int n = std::min(end0 - first0, std::max(1, int(std::floor(scale * thickness))));
+    int from = first0 + (end0 - first0 - n) / 2;
+    if (de >= hi) from = end0 - n;
+    else if (de <= lo) from = first0;
+    const qreal x1 = (from - shift) / m, x2 = (from + n - shift) / m;
+    return {std::min(x1, x2), std::max(x1, x2)};
+}
+
+// A line along an edge (as lineAcross puts it), from `from` for `length` pixels of the grid along it.
+void GridPainter::fillLine(QPainter *p, int edge, int first, int thickness, int from, int length, bool vertical, const QColor &color)
+{
+    const QPair<qreal, qreal> across = lineAcross(p, edge, first, thickness, vertical);
+    const qreal size = across.second - across.first;
+    p->fillRect(vertical ? QRectF(across.first, from, size, length) : QRectF(from, across.first, length, size), color);
+}
+
 // A border on the edge that begins at (x, y) and goes `length` pixels, down (vertical) or right. A line's own pixels lie on the side of the edge before it (the last pixel of
 // the cell above or to the left, where a gridline is), thicker ones reaching over it.
 void GridPainter::drawEdge(QPainter *p, const LineLook &line, int x, int y, int length, bool vertical, const QRect &clip)
@@ -316,15 +348,15 @@ void GridPainter::drawEdge(QPainter *p, const LineLook &line, int x, int y, int 
     const int reach = two ? 3 : std::abs(first) + thickness;   // (the pixels of the line lie within this of the edge)
     if (across + 2 < acrossLo - reach || across - reach > acrossHi) return;
     const int from = int(lo), size = int(hi - lo);
-    auto rect = [&](int offset, int width) { return vertical ? QRect(x + offset, y + from, width, size) : QRect(x + from, y + offset, size, width); };
+    const int edge = across, start = (vertical ? y : x) + from;
     if (two) {
-        p->fillRect(rect(-2, 1), color);
-        p->fillRect(rect(0, 1), color);
+        fillLine(p, edge, -2, 1, start, size, vertical, color);
+        fillLine(p, edge, 0, 1, start, size, vertical, color);
         return;
     }
     if (thickness == 2) first = -1;
     if (dashes.isEmpty()) {
-        p->fillRect(rect(first, thickness), color);
+        fillLine(p, edge, first, thickness, start, size, vertical, color);
         return;
     }
     // a dashed line: dashes of the pattern's lengths along the edge, from the whole pattern that the part in the clip begins in
@@ -353,7 +385,7 @@ void GridPainter::drawEdge(QPainter *p, const LineLook &line, int x, int y, int 
         const int run = int(dashes[int(step % size_t(dashes.size()))]);
         if (step % 2 == 0) {
             const qint64 begin = std::max(at, lo), end = std::min(at + run, hi);
-            if (end > begin) p->fillRect(vertical ? QRect(x + first, y + int(begin), thickness, int(end - begin)) : QRect(x + int(begin), y + first, int(end - begin), thickness), color);
+            if (end > begin) fillLine(p, edge, first, thickness, (vertical ? y : x) + int(begin), int(end - begin), vertical, color);
         }
         at += run;
         ++step;
@@ -822,11 +854,11 @@ void GridPainter::paintPane(QPainter *p, Pane which, const QRect &clip, const Pa
     if (o.gridlines) {
         const int x0 = firstCol.start, x1 = lastCol.start + lastCol.size, y0 = firstRow.start, y1 = lastRow.start + lastRow.size;
         for (size_t i = r0; i < r1; ++i) {
-            p->fillRect(QRect(x0, w.rows[i].start + w.rows[i].size - 1, x1 - x0, 1), o.gridColor);
+            fillLine(p, w.rows[i].start + w.rows[i].size, -1, 1, x0, x1 - x0, false, o.gridColor);
             ++m_stats.gridLines;
         }
         for (size_t j = c0; j < c1; ++j) {
-            p->fillRect(QRect(w.cols[j].start + w.cols[j].size - 1, y0, 1, y1 - y0), o.gridColor);
+            fillLine(p, w.cols[j].start + w.cols[j].size, -1, 1, y0, y1 - y0, true, o.gridColor);
             ++m_stats.gridLines;
         }
     }
@@ -1077,11 +1109,17 @@ marked:
             QRect box(w.cols[j].start, rs.start, w.cols[j].size, rs.size);
             if (o.gridlines && sp.left + sp.right > 0) {
                 // the gridlines between the cells the text runs over are under it: they are not drawn (those of cells with a fill are covered already)
+                // (down to where the row's own gridline begins, as it is drawn)
                 auto plain = [&](size_t k) { return !w.looks[i * C + k] || !w.looks[i * C + k]->hasFill(); };
+                const qreal top = rs.start, bottom = lineAcross(p, rs.start + rs.size, -1, 1, false).first;
+                auto erase = [&](const Span &col) {
+                    const QPair<qreal, qreal> across = lineAcross(p, col.start + col.size, -1, 1, true);
+                    p->fillRect(QRectF(across.first, top, across.second - across.first, bottom - top), o.paper);
+                };
                 for (size_t k = j; k + 1 < c1 && sp.right > 0 && w.cols[k + 1].index <= w.cols[j].index + sp.right; ++k)
-                    if (plain(k) && plain(k + 1)) p->fillRect(QRect(w.cols[k].start + w.cols[k].size - 1, rs.start, 1, rs.size - 1), o.paper);
+                    if (plain(k) && plain(k + 1)) erase(w.cols[k]);
                 for (size_t k = j; k > c0 && sp.left > 0 && w.cols[k - 1].index >= w.cols[j].index - sp.left; --k)
-                    if (plain(k) && plain(k - 1)) p->fillRect(QRect(w.cols[k - 1].start + w.cols[k - 1].size - 1, rs.start, 1, rs.size - 1), o.paper);
+                    if (plain(k) && plain(k - 1)) erase(w.cols[k - 1]);
             }
             if (sp.left + sp.right > 0) {
                 const int x0 = L.xEdge(w.cols[j].index - sp.left, frozenCols), x1 = L.xEdge(w.cols[j].index + sp.right + 1, frozenCols);
@@ -1292,8 +1330,8 @@ void GridPainter::paintHeaders(QPainter *p, const QRect &clip, const PaintOption
     if (corner.intersects(clip)) {
         p->setClipRect(corner & clip);
         p->fillRect(corner, o.headerBackground);
-        p->fillRect(QRect(hw - 1, 0, 1, hh), o.headerLine);
-        p->fillRect(QRect(0, hh - 1, hw, 1), o.headerLine);
+        fillLine(p, hw, -1, 1, 0, hh, true, o.headerLine);
+        fillLine(p, hh, -1, 1, 0, hw, false, o.headerLine);
         ++m_stats.headersDrawn;
     }
     for (Pane which : {Pane::Left, Pane::Body}) {
@@ -1313,8 +1351,8 @@ void GridPainter::paintHeaders(QPainter *p, const QRect &clip, const PaintOption
                 if (b <= a) continue;
                 const QRect cell(a, 0, b - a, hh);
                 p->fillRect(cell, colSelected(c) ? o.headerSelected : o.headerBackground);
-                p->fillRect(QRect(b - 1, 0, 1, hh), o.headerLine);
-                p->fillRect(QRect(a, hh - 1, b - a, 1), o.headerLine);
+                fillLine(p, b, -1, 1, 0, hh, true, o.headerLine);
+                fillLine(p, hh, -1, 1, a, b - a, false, o.headerLine);
                 if (cell.width() >= 12) {
                     p->setPen(o.headerText);
                     drawHeaderText(p, cell, columnName(quint32(c)));
@@ -1341,8 +1379,8 @@ void GridPainter::paintHeaders(QPainter *p, const QRect &clip, const PaintOption
                 if (b <= a) continue;
                 const QRect cell(0, a, hw, b - a);
                 p->fillRect(cell, rowSelected(r) ? o.headerSelected : o.headerBackground);
-                p->fillRect(QRect(hw - 1, a, 1, b - a), o.headerLine);
-                p->fillRect(QRect(0, b - 1, hw, 1), o.headerLine);
+                fillLine(p, hw, -1, 1, a, b - a, true, o.headerLine);
+                fillLine(p, b, -1, 1, 0, hw, false, o.headerLine);
                 if (cell.height() >= 10) {
                     p->setPen(o.headerText);
                     drawHeaderText(p, cell, QString::number(r + 1));

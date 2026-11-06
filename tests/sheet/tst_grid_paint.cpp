@@ -239,6 +239,61 @@ private Q_SLOTS:
         QCOMPARE(px(small, 10, 100), g.options.backdrop.rgb());
     }
 
+    // On a screen scaled by a fraction (125%, 150%, 175%), every gridline and thin border is one pixel of the screen wide: a pixel of the grid is more than one of the screen
+    // there, and a line one pixel of the grid wide fell on one pixel of the screen or two by turns, so the lines looked uneven. Text that spills over a gridline still hides it whole.
+    // (Rows of 17 pixels, those of a sheet in 10-point Arial, and columns of 63: their edges fall between the screen's pixels at all three scales.)
+    void linesAreOneScreenPixelAtFractionalScales()
+    {
+        QStringList problems;   // (each scale is tried, and all that are wrong are told)
+        for (const qreal scale : {1.25, 1.5, 1.75}) {
+            Fixture f;
+            BorderSpec thin;
+            thin.top = Fixture::side(BorderStyle::Thin, 0xFF0000);
+            f.blank(12, 2, f.border(thin));
+            f.text(5, 0, QStringLiteral("a text long enough to spill"));
+            f.build();
+            f.grid.layout().rows.setDefaultSize(17);
+            f.grid.layout().cols.setDefaultSize(63);
+            f.grid.layout().setViewport(f.size);
+            QImage img((QSizeF(f.size) * scale).toSize(), QImage::Format_RGB32);
+            img.setDevicePixelRatio(scale);
+            img.fill(QColor(0xFF, 0x00, 0xFF));
+            {
+                QPainter p(&img);
+                f.painter->paint(&p, QRect(QPoint(0, 0), f.size), f.options);
+            }
+            const QRgb grid = f.options.gridColor.rgb(), red = QColor(0xFF0000).rgb();
+            // the runs of one color down a column of the screen, and across a row of it
+            auto runs = [&](bool down, int at, int to, QRgb color) {
+                QList<int> out;
+                int run = 0;
+                for (int i = 0; i < to; ++i) {
+                    const bool in = (down ? img.pixel(at, i) : img.pixel(i, at)) == color;
+                    if (in) ++run;
+                    if ((!in || i == to - 1) && run > 0) {
+                        out.append(run);
+                        run = 0;
+                    }
+                }
+                return out;
+            };
+            const int rowsDown = int(17 * 10 * scale), colsAcross = int(64 * 5 * scale);
+            const QList<int> across = runs(true, int(200 * scale), rowsDown, grid), downs = runs(false, int(10 * scale), colsAcross, grid);
+            if (across.size() != 10 || downs.size() != 5) problems << QStringLiteral("%1: %2 gridlines across and %3 down").arg(scale).arg(across.size()).arg(downs.size());
+            for (int r : across + downs)
+                if (r != 1) problems << QStringLiteral("%1: a gridline %2 pixels wide").arg(scale).arg(r);
+            const QList<int> border = runs(true, int((126 + 30) * scale), int(300 * scale), red);
+            if (border != QList<int>{1}) problems << QStringLiteral("%1: the thin border is %2 lines, the first %3 pixels wide").arg(scale).arg(border.size()).arg(border.value(0));
+            // row 5 (from 85 to 102 of the grid): down the first gridline the text runs over, only the row's own gridline crosses it
+            int x = int(10 * scale);
+            while (x < colsAcross && img.pixel(x, int(25 * scale)) != grid) ++x;
+            int inRow = 0;
+            for (int y = int(std::ceil(85 * scale)); y < int(std::ceil(102 * scale - 0.5)); ++y) inRow += img.pixel(x, y) == grid;
+            if (inRow != 1) problems << QStringLiteral("%1: %2 pixels of the gridline under the text").arg(scale).arg(inRow);
+        }
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QStringLiteral("; "))));
+    }
+
     // A border is drawn on the edge between two cells, as thick as its style says, and where two cells' borders meet the heavier line is the one drawn.
     void bordersAreDrawnInTheirStylesAndTheHeavierLineWins()
     {

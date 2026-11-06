@@ -123,6 +123,8 @@ private:
     void paintDashedRange(QPainter *p, Pane which, const QRect &area, const GridRange &r, const QColor &color, int phase, bool outside);
     void drawFill(QPainter *p, const QRect &rect, const CellLook &look, const PaintOptions &o);
     void drawEdge(QPainter *p, const LineLook &line, int x, int y, int length, bool vertical, const QRect &clip);
+    static QPair<qreal, qreal> lineAcross(const QPainter *p, int edge, int first, int thickness, bool vertical);
+    static void fillLine(QPainter *p, int edge, int first, int thickness, int from, int length, bool vertical, const QColor &color);
     void drawText(QPainter *p, const QRect &cell, const QRect &box, const QRect &area, const CellLook &look, const Shown &shown, const PaintOptions &o);
     void drawHeaderText(QPainter *p, const QRect &cell, const QString &text);
     void drawBar(QPainter *p, const QRect &cell, const CondBar &bar, bool gridlines);
