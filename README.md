@@ -13,7 +13,7 @@ More apps are on the way: JeffMail for email and calendars, and JeffBase for dat
 
 JeffOffice is an independent project. Its goals are compatibility and interoperability, so that it works with Office files and the people who use them, and then to do more, and to do it better.
 
-> **Status:** beta (0.22). JeffPub's and JeffDeck's features are in place and are being polished; JeffWrite and JeffCrunch are betas, with the main features working and more still being built (see [JeffWrite](#jeffwrite) and [JeffCrunch](#jeffcrunch)). Downloads are on the [Releases page](https://github.com/JeffOffice/jeffoffice/releases):
+> **Status:** beta (0.23). JeffPub's and JeffDeck's features are in place and are being polished; JeffWrite and JeffCrunch are betas, with the main features working and more still being built (see [JeffWrite](#jeffwrite) and [JeffCrunch](#jeffcrunch)). Downloads are on the [Releases page](https://github.com/JeffOffice/jeffoffice/releases):
 >
 > - **Windows:** `JeffOffice-Setup.exe` installs JeffPub and JeffDeck (you can leave JeffDeck out), and JeffWrite and JeffCrunch if you tick them. No administrator rights are needed. The last page of the installer says where to find the apps: in the Start menu.
 > - **Mac:** `JeffOffice-<version>.dmg` holds all four apps. It isn't signed yet, so macOS asks before opening each one the first time.
