@@ -185,6 +185,8 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
           JP_TEST_TRACE: '1'
+          # (our own Linux machine has the processors to run the biggest programs in parts; GitHub's have two to four)
+          CI_SPLIT: ${{ runner.environment == 'self-hosted' && '4' || '1' }}
 
       # What every app's window must pass (tests/appchecks): the first five minutes of a person who launches it with no file, its standard commands, and every one of its commands run
       # once on a blank document and once on one opened from a file. The four programs run side by side (they wait on conditions, not on time, so a busy machine only makes them
@@ -194,35 +196,13 @@ jobs:
         timeout-minutes: 25
         shell: bash
         run: |
-          for N in pubchecks deckchecks writechecks crunchchecks; do
-            if [ "$RUNNER_OS" = "Windows" ]; then P=build/$N.exe; else P=build/$N; fi
-            ( "$P" -v1 -o $N-results.txt,txt -o -,txt > $N.log 2>&1; echo $? > $N.code ) &
-          done
-          wait
-          code=0
-          for N in pubchecks deckchecks writechecks crunchchecks; do
-            echo "--- $N-results.txt"; cat $N-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
-            ncode=$(cat $N.code 2>/dev/null || echo 1)
-            echo "$N exit code: $ncode"
-            if [ "$ncode" -ne 0 ]; then echo "--- $N.log (the end)"; tail -60 $N.log; fi
-            # A crash: the program again under the system's debugger, for the stack (a crash can depend on the commands before it; the stack of the first one is in the log).
-            if [ "$ncode" -ne 0 ] && ! grep -q "Totals:" $N-results.txt 2>/dev/null; then
-              echo "--- stack of the crash of $N"
-              if [ "$RUNNER_OS" = "Windows" ]; then P=build/$N.exe; else P=build/$N; fi
-              if [ "$RUNNER_OS" = "macOS" ]; then
-                T=$(command -v timeout || command -v gtimeout || true); $T ${T:+600} lldb --batch -o run -k "thread backtrace all -c 30" -- "$P" -silent 2>&1 | tail -120
-              else
-                G=gdb
-                if [ "$RUNNER_OS" = "Windows" ]; then G="$(cygpath -u "$IQTA_TOOLS")/mingw1310_64/bin/gdb.exe"; fi
-                timeout 600 "$G" -q -batch -ex run -ex "thread apply all bt 30" --args "$P" -silent 2>&1 | grep -v '^\[' | tail -120
-              fi
-            fi
-            if [ "$code" -eq 0 ]; then code=$ncode; fi
-          done
-          exit $code
+          # (the same runner as the tests: side by side, a results file each, the debugger's stack for a crash; on our own Linux machine each
+          # program's three long checks run in four parts, JO_APPCHECK_SHARD)
+          bash tools/ci_tests.sh crunchchecks writechecks pubchecks deckchecks
         env:
           QT_QPA_PLATFORM: offscreen
           JP_TEST_TRACE: '1'
+          CI_SPLIT: ${{ runner.environment == 'self-hosted' && '4' || '1' }}
 
       - name: Export check PDFs
         if: matrix.part == 'checks'
