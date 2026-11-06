@@ -1360,7 +1360,7 @@
         },
         {
          "status": "partly",
-         "text": "a028603afd877e0901bcda59fbe3bbe91cfd2bc24a36f849446bfca18d630835"
+         "text": "063f9908ef35fd8ce6ff8f930881f62576e68316be1533a2bfccfcb7226f2a87"
         },
         {
          "hide_soon": true,
@@ -1383,15 +1383,15 @@
         },
         {
          "status": "partly",
-         "text": "cf24e11bd2bd373c359b4c31ea9232fb9399b9f802f7f28f946d7f54e7196b38"
+         "text": "201fcdfae81a395e7369808cb2148ebe9e4e689180a364ea916a9773f144aa25"
         },
         {
          "status": "partly",
-         "text": "866a14b461221cd13446f7934b3649e1b9dfbcd71b042a031aae0395f8c1d4db"
+         "text": "fdad22fabfb721239f3432e1b0c833f4200b3c2e6bf610fa2d615a0a4596c58c"
         },
         {
          "status": "partly",
-         "text": "e3671097c867a9909c5e44ca165b913aafc4723823247e76009bc8550cdb6515"
+         "text": "fdb0ac9a2e7d94b66f99d849bd48cd12a0d42604ff3805662e7d846d8bea544c"
         },
         {
          "status": "partly",
@@ -5691,7 +5691,7 @@
         },
         {
          "status": "partly",
-         "text": "e689f1b4f76a0db0169475bfacc54b9b6ded6291798f8c052e7bfa9d3fa4dddd"
+         "text": "e510ae864f4bc62d9f23e0f7f1c3a561ff75b4e38948ba8c898164bdce5c0c94"
         },
         {
          "status": "partly",
@@ -5709,7 +5709,7 @@
         },
         {
          "status": "partly",
-         "text": "f68ea5332237e774735640e7d90da9bf3a9f59e26f9b85fb0e3801d4b8ffd04b"
+         "text": "5c0052f674d41882bae31b12d685ca6c1d303584e49d0069a6e704704fd29099"
         },
         {
          "hide_soon": true,
@@ -5718,7 +5718,7 @@
         },
         {
          "status": "partly",
-         "text": "06f2ccca2410d2c2cb0c5d00707909a98090752a0cd4c859de32c531e51e4922"
+         "text": "a77d1267dc8984acde4d2c5f67b57802afd0e7a79d36b5fabd8048da7e037d03"
         },
         {
          "status": "todo",
@@ -6228,7 +6228,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "8b8be0b091b7940ea39002d8dc4861942b8c03bc0b3894775032937816a01f20"
+         "text": "ef5aa12f922054c4eeb7ed32c2cb48d1aff535a10788573a8a749acf4fd19890"
         }
        ]
       }
@@ -6247,7 +6247,7 @@
         },
         {
          "status": "partly",
-         "text": "efc5cea7eb62f78b6960a731996d24d597796a3912d57e0dae9c6f3b64aff75e"
+         "text": "e9fe6804c5ead419194e76f40e5a14605424544e4030575d350bef77d806922d"
         },
         {
          "hide_soon": true,
@@ -6268,8 +6268,9 @@
          "text": "119de554cb24fc5abace1dc8ad0f6b61dbfb616876b2375ec5c842205cd1d654"
         },
         {
-         "status": "todo",
-         "text": "7379e597142b9a4b7da1adb6fd090415f4820395209d9a18ac71c53a8893d11a"
+         "hide_soon": true,
+         "status": "done",
+         "text": "d075d8622f8d6e75ac71c4046ceb3f6d96b420659707b8dd3e5650c6d2dd8c6b"
         },
         {
          "hide_soon": true,
@@ -7440,6 +7441,18 @@
     "fr": ""
    }
   },
+  "063f9908ef35fd8ce6ff8f930881f62576e68316be1533a2bfccfcb7226f2a87": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Chart Filters button",
+    "es": "Botón Filtros de gráfico",
+    "fr": "Bouton Filtres du graphique"
+   }
+  },
   "064118c41ca481c01bc6b6520cac3848533de7c016a5fa3a34160404bd194fda": {
    "drop": false,
    "en": "Choose font color and highlight color from the Home tab.",
@@ -7570,18 +7583,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "06f2ccca2410d2c2cb0c5d00707909a98090752a0cd4c859de32c531e51e4922": {
-   "drop": false,
-   "en": "Find and replace with wildcards and groups, the codes `^p`, `^t`, `^#`, `^$`, and `^w`, and replacement with `\\1` to `\\9`, `^&`, and `^t`. It also offers sounds like, all word forms, ignoring punctuation and white space, a Special menu, and find by format (bold, italic, underline, strikethrough, highlight, font, or paragraph style). Each Replace All is one step.",
-   "es": "Busque y reemplace con comodines y grupos, los códigos `^p`, `^t`, `^#`, `^$` y `^w`, y reemplazo con `\\1` a `\\9`, `^&` y `^t`. También ofrece suena como, todas las formas de una palabra, ignorar signos de puntuación y espacios en blanco, un menú Especial y búsqueda por formato (negrita, cursiva, subrayado, tachado, resaltado, fuente o estilo de párrafo). Cada Reemplazar todo es un solo paso.",
-   "fr": "Recherchez et remplacez avec des caractères génériques et des groupes, les codes `^p`, `^t`, `^#`, `^$` et `^w`, et un remplacement avec `\\1` à `\\9`, `^&` et `^t`. Sont aussi proposés : prononciation proche, toutes les formes d’un mot, ignorer la ponctuation et les espaces, un menu Spécial et la recherche par format (gras, italique, souligné, barré, surlignage, police ou style de paragraphe). Chaque Remplacer tout est une seule étape.",
-   "soon": {
-    "drop": false,
-    "en": "Replace with the clipboard; search headers, footers, and notes; section break, field, and footnote mark codes; find by paragraph, tabs, language, and frame",
-    "es": "Reemplazo con el portapapeles; búsqueda en encabezados, pies de página y notas; códigos de salto de sección, campo y marca de nota al pie; búsqueda por párrafo, tabulaciones, idioma y marco",
-    "fr": "Remplacement par le presse-papiers ; recherche dans les en-têtes, pieds de page et notes ; codes de saut de section, de champ et d’appel de note de bas de page ; recherche par paragraphe, tabulations, langue et cadre"
    }
   },
   "07240d6fcb5a0b4699576d7cb4cd766e442f744cc98e9cb81c4d64b273e2a382": {
@@ -9298,6 +9299,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "201fcdfae81a395e7369808cb2148ebe9e4e689180a364ea916a9773f144aa25": {
+   "drop": false,
+   "en": "In JeffCrunch, the Format Horizontal Axis and Format Vertical Axis panes set the bounds, major and minor units, a log scale, reverse order, where the other axis crosses, display units, number format, tick marks, and label position and turn. The display units name can be drawn with the axis.",
+   "es": "En JeffCrunch, los paneles Dar formato al eje horizontal y Dar formato al eje vertical definen los límites, las unidades principal y secundaria, una escala logarítmica, el orden inverso, el punto donde se cruza el otro eje, las unidades de visualización, el formato de número, las marcas de graduación y la posición y el giro de las etiquetas. El nombre de las unidades de visualización puede dibujarse con el eje.",
+   "fr": "Dans JeffCrunch, les volets Format de l’axe horizontal et Format de l’axe vertical définissent les bornes, les unités principales et secondaires, une échelle logarithmique, l’ordre inversé, l’endroit où l’autre axe croise, les unités d’affichage, le format de nombre, les graduations, ainsi que la position et la rotation des étiquettes. Le nom des unités d’affichage peut être dessiné avec l’axe.",
+   "soon": {
+    "drop": false,
+    "en": "Axis text direction; format panes for a series and a point",
+    "es": "Dirección del texto del eje; paneles de formato para una serie y un punto",
+    "fr": "Direction du texte de l’axe ; volets de format pour une série et un point"
    }
   },
   "204ebea6183d0f25ba58448264e9988cd6e9410280b629a04f48fc71bc624a27": {
@@ -13656,6 +13669,18 @@
     "fr": ""
    }
   },
+  "5c0052f674d41882bae31b12d685ca6c1d303584e49d0069a6e704704fd29099": {
+   "drop": false,
+   "en": "In JeffWrite, you can find and replace text with `Ctrl+H`, using Replace and Replace All in the body, tables, headers, footers, and footnotes. Replace All is one step that reports how many matches it changed and can be undone, and the new words take the look of the first of the old ones.",
+   "es": "En JeffWrite, usted puede buscar y reemplazar texto con `Ctrl+H`, usando Reemplazar y Reemplazar todo en el cuerpo, las tablas, los encabezados, los pies de página y las notas al pie. Reemplazar todo es un solo paso que indica cuántas coincidencias cambió y se puede deshacer, y las palabras nuevas toman el aspecto de la primera de las palabras reemplazadas.",
+   "fr": "Dans JeffWrite, vous pouvez rechercher et remplacer du texte avec `Ctrl+H`, en utilisant Remplacer et Tout remplacer dans le corps, les tableaux, les en-têtes, les pieds de page et les notes de bas de page. Tout remplacer est une seule étape qui indique le nombre de correspondances modifiées et qui peut être annulée, et les nouveaux mots reprennent l’apparence du premier des anciens.",
+   "soon": {
+    "drop": false,
+    "en": "Replace direction",
+    "es": "Dirección de reemplazo",
+    "fr": "Sens du remplacement"
+   }
+  },
   "5c237df33390abaad70067f48bd95ebb34af64c9262c57fc39b56960144ab640": {
    "drop": false,
    "en": "Share and Export",
@@ -15324,18 +15349,6 @@
     "fr": ""
    }
   },
-  "7379e597142b9a4b7da1adb6fd090415f4820395209d9a18ac71c53a8893d11a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Collapse and expand headings in the document",
-    "es": "Contraer y expandir encabezados en el documento",
-    "fr": "Réduire et développer les titres dans le document"
-   }
-  },
   "73ab224bd3076d2a1b0cc93b416da64cf212c0372fb8f53b2c4920cbaf4fb10d": {
    "drop": false,
    "en": "JeffPub has Commercial Print Information: color model (RGB, process CMYK, spot colors, or process plus spot) and embedded-font management. Spot colors print on their own separation plates, and a process-color publication makes a CMYK PDF.",
@@ -16512,18 +16525,6 @@
     "fr": ""
    }
   },
-  "866a14b461221cd13446f7934b3649e1b9dfbcd71b042a031aae0395f8c1d4db": {
-   "drop": false,
-   "en": "Data Labels can show the value, category name, series name, percentage, or legend key, with a separator, a position, and a number format. Label Contains is used to choose what each label shows.",
-   "es": "Data Labels puede mostrar el valor, el nombre de categoría, el nombre de serie, el porcentaje o la clave de leyenda, con un separador, una posición y un formato de número. Con Label Contains se elige lo que muestra cada etiqueta.",
-   "fr": "Data Labels peut afficher la valeur, le nom de catégorie, le nom de série, le pourcentage ou la clé de légende, avec un séparateur, une position et un format de nombre. Label Contains permet de choisir ce que chaque étiquette affiche.",
-   "soon": {
-    "drop": false,
-    "en": "Data labels: leader lines and labels from a cell range",
-    "es": "Etiquetas de datos: líneas guía y etiquetas desde un rango de celdas",
-    "fr": "Étiquettes de données : lignes de repère et étiquettes issues d’une plage de cellules"
-   }
-  },
   "866cdf910db933b4394921828f7c8ffb6c9596dcb4f00ddc012598222de57316": {
    "drop": false,
    "en": "JeffWrite saves `.docx`, `.dotx`, and `.odt` files.",
@@ -16858,18 +16859,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "8b8be0b091b7940ea39002d8dc4861942b8c03bc0b3894775032937816a01f20": {
-   "drop": false,
-   "en": "Restrict Editing allows no changes (read only), tracked changes, comments, or filling in forms, with an optional password. A protected file opens held that way, and Stop Protection asks for the password.",
-   "es": "Restringir edición permite no hacer cambios (solo lectura), cambios con seguimiento, comentarios o rellenar formularios, con una contraseña opcional. Un archivo protegido se abre con esa restricción, y Detener protección pide la contraseña.",
-   "fr": "Restreindre la modification permet de n’autoriser aucune modification (lecture seule), les modifications suivies, les commentaires ou le remplissage de formulaires, avec un mot de passe facultatif. Un fichier protégé s’ouvre avec cette restriction, et Arrêter la protection demande le mot de passe.",
-   "soon": {
-    "drop": false,
-    "en": "Limit formatting to chosen styles; exceptions for people or parts",
-    "es": "Limitar el formato a estilos elegidos; excepciones para personas o partes",
-    "fr": "Limitation de la mise en forme à des styles choisis ; exceptions pour des personnes ou des parties"
    }
   },
   "8c0a324ced34ceafb087a6a1c4aaecb8158bd227a1efc0472c526a99502bf658": {
@@ -18444,18 +18433,6 @@
     "fr": "Obtention de données depuis du texte, CSV, classeurs, JSON, XML, pages web, dossiers, SQLite, ODBC, PostgreSQL et MySQL sous forme d’étapes visibles, modifiables et actualisables"
    }
   },
-  "a028603afd877e0901bcda59fbe3bbe91cfd2bc24a36f849446bfca18d630835": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Chart Filters button",
-    "es": "Botón Filtros de gráfico",
-    "fr": "Bouton Filtres de graphique"
-   }
-  },
   "a061f70eac04a257b91af05bc1173784bfd50bba035da90fa09a08229cb9d9dd": {
    "drop": false,
    "en": "JeffPub has a Graphics Manager pane that lists every picture with its page, format, size, file, status, and resolution, and lets you go to a picture, save a copy, or replace it. Pictures can be inserted, linked to their files, or both.",
@@ -18790,6 +18767,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "a77d1267dc8984acde4d2c5f67b57802afd0e7a79d36b5fabd8048da7e037d03": {
+   "drop": false,
+   "en": "In JeffWrite, Advanced Find and Replace supports wildcards with groups, sounds like, all forms of a word, and ignoring punctuation and white space. You can find by format (bold, italic, underline, strikethrough, highlight, font, or paragraph style) and use a Special menu for marks such as paragraph, tab, digit, section break, field, and footnote and endnote marks. Replace accepts `\\1` to `\\9`, `^&`, and `^t`, and each Replace All is one step.",
+   "es": "En JeffWrite, Buscar y reemplazar avanzado admite comodines con grupos, suena como, todas las formas de una palabra e ignorar signos de puntuación y espacios en blanco. Usted puede buscar por formato (negrita, cursiva, subrayado, tachado, resaltado, fuente o estilo de párrafo) y usar un menú Especial para marcas como párrafo, tabulación, dígito, salto de sección, campo y marcas de nota al pie y nota final. Reemplazar acepta `\\1` a `\\9`, `^&` y `^t`, y cada Reemplazar todo es un solo paso.",
+   "fr": "Dans JeffWrite, la recherche et le remplacement avancés prennent en charge les caractères génériques avec groupes, la recherche phonétique, toutes les formes d’un mot et l’ignorance de la ponctuation et des espaces. Vous pouvez rechercher par mise en forme (gras, italique, souligné, barré, surlignage, police ou style de paragraphe) et utiliser un menu Spécial pour des marques comme le paragraphe, la tabulation, le chiffre, le saut de section, le champ et les marques de note de bas de page et de fin. Remplacer accepte `\\1` à `\\9`, `^&` et `^t`, et chaque Tout remplacer est une seule étape.",
+   "soon": {
+    "drop": false,
+    "en": "Replace with the clipboard; find by paragraph, tabs, language, or frame",
+    "es": "Reemplazo con el portapapeles; búsqueda por párrafo, tabulaciones, idioma o marco",
+    "fr": "Remplacement par le presse-papiers ; recherche par paragraphe, tabulations, langue ou cadre"
    }
   },
   "a78e22da01066a8673786cef7d1ffaafeec941998deada19c253f2e234393636": {
@@ -21384,18 +21373,6 @@
     "fr": ""
    }
   },
-  "cf24e11bd2bd373c359b4c31ea9232fb9399b9f802f7f28f946d7f54e7196b38": {
-   "drop": false,
-   "en": "Format Horizontal Axis and Format Vertical Axis on the Chart tab set bounds, major and minor units, reverse order, where the other axis crosses, number format, tick marks, label position, and label rotation. A log scale with a base from 2 to 1000 can be chosen in Format Axis.",
-   "es": "Format Horizontal Axis y Format Vertical Axis, en la pestaña Chart, establecen los límites, las unidades principales y secundarias, el orden inverso, el punto donde se cruza el otro eje, el formato de número, las marcas de graduación, la posición de las etiquetas y su giro. En Format Axis puede elegir una escala logarítmica con base de 2 a 1000.",
-   "fr": "Format Horizontal Axis et Format Vertical Axis, dans l’onglet Chart, définissent les bornes, les unités principales et secondaires, l’ordre inverse, le point où l’autre axe croise, le format de nombre, les graduations, la position des étiquettes et leur rotation. Dans Format Axis, vous pouvez choisir une échelle logarithmique de base 2 à 1000.",
-   "soon": {
-    "drop": false,
-    "en": "Axis display units and text direction; format panes for a series and a point",
-    "es": "Unidades de visualización y dirección del texto de los ejes; paneles de formato para una serie y un punto",
-    "fr": "Unités d’affichage et sens du texte des axes ; volets de format pour une série et un point"
-   }
-  },
   "cf30c78b4294d33a089b3a912a03bd8b39298fd416fa6569c29e9708f7046321": {
    "drop": false,
    "en": "Printing and color",
@@ -21490,6 +21467,18 @@
     "en": "Show Notes and the notes pane",
     "es": "Mostrar notas y panel de notas",
     "fr": "Afficher les notes et volet des notes"
+   }
+  },
+  "d075d8622f8d6e75ac71c4046ceb3f6d96b420659707b8dd3e5650c6d2dd8c6b": {
+   "drop": false,
+   "en": "In JeffWrite, you can collapse and expand headings in the document itself, using a small triangle in the margin beside a heading. The paragraphs under a collapsed heading are hidden on screen only, and printing, PDF, and saving still include them.",
+   "es": "En JeffWrite, usted puede contraer y expandir los títulos en el propio documento, mediante un pequeño triángulo en el margen junto a un título. Los párrafos bajo un título contraído se ocultan solo en pantalla, y la impresión, el PDF y el guardado los siguen incluyendo.",
+   "fr": "Dans JeffWrite, vous pouvez réduire et développer les titres dans le document lui-même, grâce à un petit triangle dans la marge à côté d’un titre. Les paragraphes sous un titre réduit sont masqués à l’écran uniquement, et l’impression, le PDF et l’enregistrement les incluent toujours.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "d0982d849a7ffb80b053632caba431b0cda09a891a8025f6ecad374a81ce673c": {
@@ -22680,18 +22669,6 @@
     "fr": ""
    }
   },
-  "e3671097c867a9909c5e44ca165b913aafc4723823247e76009bc8550cdb6515": {
-   "drop": false,
-   "en": "In JeffCrunch, trendlines of every kind can be drawn over a chart with a legend entry, and the Trendline menu of Chart Parts sets the kind, the equation, and R-squared.",
-   "es": "En JeffCrunch, las líneas de tendencia de todos los tipos se dibujan sobre el gráfico con una entrada en la leyenda, y el menú Línea de tendencia de Elementos del gráfico permite definir el tipo, la ecuación y R cuadrado.",
-   "fr": "Dans JeffCrunch, les courbes de tendance de tous types sont tracées sur le graphique avec une entrée de légende, et le menu Courbe de tendance des éléments de graphique permet de définir le type, l’équation et le R carré.",
-   "soon": {
-    "drop": false,
-    "en": "Error bars, data table, drop lines, high-low lines, series lines, and up/down bars",
-    "es": "Barras de error, tabla de datos, líneas de caída, líneas de máximos y mínimos, líneas de series y barras ascendentes/descendentes",
-    "fr": "Barres d’erreur, tableau de données, lignes de projection, lignes haut-bas, lignes de séries et barres haussières/baissières"
-   }
-  },
   "e39f7d3d0ce51c1ceab13b26f14e1594f5a759bc6c8ca4af9d158fa808f0f588": {
    "drop": false,
    "en": "Saving an old `.ppt`, `.pps`, or `.pot` file asks for a new name and saves a `.pptx` (a `.ppsx` for a `.pps`), never writing over the old file.",
@@ -22836,6 +22813,18 @@
     "fr": ""
    }
   },
+  "e510ae864f4bc62d9f23e0f7f1c3a561ff75b4e38948ba8c898164bdce5c0c94": {
+   "drop": false,
+   "en": "In JeffWrite, you can manage styles: list every style, mark styles as recommended or hidden, set their order in the lists, modify a style, and delete a style you made. You can import styles from another document, export styles to a `.dotx` template, lock individual styles, and limit formatting to the styles that are not locked.",
+   "es": "En JeffWrite, usted puede administrar estilos: ver todos los estilos, marcarlos como recomendados u ocultos, definir su orden en las listas, modificar un estilo y eliminar un estilo que usted creó. Puede importar estilos de otro documento, exportar estilos a una plantilla `.dotx`, bloquear estilos individuales y limitar el formato a los estilos que no están bloqueados.",
+   "fr": "Dans JeffWrite, vous pouvez gérer les styles : afficher tous les styles, les marquer comme recommandés ou masqués, définir leur ordre dans les listes, modifier un style et supprimer un style que vous avez créé. Vous pouvez importer des styles d’un autre document, exporter des styles vers un modèle `.dotx`, verrouiller des styles individuels et limiter la mise en forme aux styles non verrouillés.",
+   "soon": {
+    "drop": false,
+    "en": "Default styles for new documents",
+    "es": "Estilos predeterminados para documentos nuevos",
+    "fr": "Styles par défaut pour les nouveaux documents"
+   }
+  },
   "e561e4ef2ebbcd573b45a6935e2f0a8a9dd38d9a35d0cb281f67e94138f87076": {
    "drop": false,
    "en": "JeffPub has frames for text boxes, pictures, shapes, lines, arrows, tables, Text Art, groups, and embedded objects.",
@@ -22954,18 +22943,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "e689f1b4f76a0db0169475bfacc54b9b6ded6291798f8c052e7bfa9d3fa4dddd": {
-   "drop": false,
-   "en": "Manage Styles lists every style and lets you set which are recommended in the gallery, which are hidden, and their order in the lists, applied together as one step. You can modify styles, delete a style you made (its paragraphs go back to Normal), and import styles from another document, optionally replacing those with the same name.",
-   "es": "Administrar estilos enumera todos los estilos y permite definir cuáles se recomiendan en la galería, cuáles están ocultos y su orden en las listas, todo aplicado en un solo paso. Puede modificar estilos, eliminar un estilo creado por usted (sus párrafos vuelven a Normal) e importar estilos de otro documento, con la opción de reemplazar los del mismo nombre.",
-   "fr": "Gérer les styles répertorie tous les styles et permet de choisir ceux qui sont recommandés dans la galerie, ceux qui sont masqués et leur ordre dans les listes, le tout appliqué en une seule étape. Vous pouvez modifier des styles, supprimer un style que vous avez créé (ses paragraphes repassent en Normal) et importer des styles d’un autre document, en remplaçant éventuellement ceux du même nom.",
-   "soon": {
-    "drop": false,
-    "en": "Restrict formatting, defaults for new documents, and export styles to a file",
-    "es": "Restricción de formato, valores predeterminados para documentos nuevos y exportación de estilos a un archivo",
-    "fr": "Restriction de la mise en forme, valeurs par défaut des nouveaux documents et export des styles vers un fichier"
    }
   },
   "e68e2e1156670317759f54f66cd96ce1f18b86bfdcf67d951b337fb66345dc86": {
@@ -23206,6 +23183,18 @@
     "en": "Align objects: left, center, right, top, middle, bottom, and distribute",
     "es": "Alinear objetos: izquierda, centro, derecha, arriba, medio, abajo y distribuir",
     "fr": "Alignement des objets : gauche, centre, droite, haut, milieu, bas et répartition"
+   }
+  },
+  "e9fe6804c5ead419194e76f40e5a14605424544e4030575d350bef77d806922d": {
+   "drop": false,
+   "en": "In JeffWrite, Read Mode hides the ribbon, ruler, and panes, shows the pages in a row each fitted to the window, and keeps the text from being changed; `Esc`, `F11`, or the command again ends it. Web Layout sets the text as one column as wide as the window, with no page edges, breaks, headers, or footers.",
+   "es": "En JeffWrite, el Modo de lectura oculta la cinta de opciones, la regla y los paneles, muestra las páginas en fila ajustadas a la ventana e impide que se cambie el texto; `Esc`, `F11` o el mismo comando lo terminan. El Diseño web presenta el texto en una sola columna tan ancha como la ventana, sin bordes de página, saltos, encabezados ni pies de página.",
+   "fr": "Dans JeffWrite, le mode Lecture masque le ruban, la règle et les volets, affiche les pages en rangée ajustées à la fenêtre et empêche toute modification du texte ; `Esc`, `F11` ou la même commande y met fin. La mise en page Web présente le texte en une seule colonne aussi large que la fenêtre, sans bords de page, sauts, en-têtes ni pieds de page.",
+   "soon": {
+    "drop": false,
+    "en": "Read Mode column width, page color, and layout choices",
+    "es": "Ancho de columna, color de página y opciones de diseño del Modo de lectura",
+    "fr": "Largeur de colonne, couleur de page et choix de mise en page du mode Lecture"
    }
   },
   "e9ffc178542493e8fe85d5f6ee6c1cf3e226cec8cc2389e484397004dcb3a6e3": {
@@ -23508,6 +23497,18 @@
     "fr": ""
    }
   },
+  "ef5aa12f922054c4eeb7ed32c2cb48d1aff535a10788573a8a749acf4fd19890": {
+   "drop": false,
+   "en": "In JeffWrite, Restrict Editing allows no changes, tracked changes only, comments only, or filling in forms only, with an optional password. A protected file opens with its protection in place, and Stop Protection asks for the password. You can also limit formatting to the styles that are not locked.",
+   "es": "En JeffWrite, Restringir edición permite no permitir cambios, solo cambios con control de cambios, solo comentarios o solo rellenar formularios, con una contraseña opcional. Un archivo protegido se abre con su protección activa, y Detener protección solicita la contraseña. También puede limitar el formato a los estilos que no están bloqueados.",
+   "fr": "Dans JeffWrite, Restreindre la modification permet aucune modification, uniquement les modifications suivies, uniquement les commentaires ou uniquement le remplissage de formulaires, avec un mot de passe facultatif. Un fichier protégé s’ouvre avec sa protection active, et Arrêter la protection demande le mot de passe. Vous pouvez aussi limiter la mise en forme aux styles non verrouillés.",
+   "soon": {
+    "drop": false,
+    "en": "Editing exceptions for people or parts",
+    "es": "Excepciones de edición para personas o partes",
+    "fr": "Exceptions de modification pour des personnes ou des parties"
+   }
+  },
   "ef91474722c578709bc32cdae5da59a27418ec8aec270b67b8202d104b74f4e5": {
    "drop": false,
    "en": "In JeffDeck, set row height and column width by number or by dragging the borders, and distribute rows and columns evenly.",
@@ -23530,18 +23531,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "efc5cea7eb62f78b6960a731996d24d597796a3912d57e0dae9c6f3b64aff75e": {
-   "drop": false,
-   "en": "Read Mode hides the ribbon, ruler, and panes, shows the pages in a row each fitted to the window, and keeps the text from being changed. Press `Esc` or `F11`, or use the command again, to end it.",
-   "es": "El modo de lectura oculta la cinta de opciones, la regla y los paneles, muestra las páginas en fila, cada una ajustada a la ventana, e impide que se cambie el texto. Pulse `Esc` o `F11`, o use el comando de nuevo, para salir.",
-   "fr": "Le mode lecture masque le ruban, la règle et les volets, affiche les pages en rangée, chacune ajustée à la fenêtre, et empêche toute modification du texte. Appuyez sur `Échap` ou `F11`, ou réutilisez la commande, pour le quitter.",
-   "soon": {
-    "drop": false,
-    "en": "Web Layout; Read Mode column width, page color, and layout choices",
-    "es": "Diseño web; ancho de columna, color de página y opciones de diseño en el modo de lectura",
-    "fr": "Mode Web ; largeur de colonne, couleur de page et choix de mise en page en mode lecture"
    }
   },
   "efcd6cbed4b2eb967be58b082c47b8c9a083306c02ce2169953006389d917961": {
@@ -23878,18 +23867,6 @@
     "en": "Save as a single-file web page, and a selection or chart as an HTML table or picture",
     "es": "Guardar como página web de un solo archivo, y una selección o un gráfico como tabla HTML o imagen",
     "fr": "Enregistrement en page web à fichier unique, et d’une sélection ou d’un graphique en tableau HTML ou en image"
-   }
-  },
-  "f68ea5332237e774735640e7d90da9bf3a9f59e26f9b85fb0e3801d4b8ffd04b": {
-   "drop": false,
-   "en": "In JeffWrite, `Ctrl+H` opens Replace. Replace and Replace All work in the body and tables, and Replace All is one step that says how many were replaced.",
-   "es": "En JeffWrite, `Ctrl+H` abre Reemplazar. Reemplazar y Reemplazar todo funcionan en el cuerpo y las tablas, y Reemplazar todo es un solo paso que indica cuántas coincidencias se reemplazaron.",
-   "fr": "Dans JeffWrite, `Ctrl+H` ouvre Remplacer. Remplacer et Remplacer tout fonctionnent dans le corps du texte et les tableaux, et Remplacer tout s’effectue en une seule étape qui indique le nombre de remplacements.",
-   "soon": {
-    "drop": false,
-    "en": "Replace direction, and search in headers, footers, and notes",
-    "es": "Dirección de reemplazo y búsqueda en encabezados, pies de página y notas",
-    "fr": "Sens du remplacement et recherche dans les en-têtes, pieds de page et notes"
    }
   },
   "f6b4751dcb2b67dea2c5bd1a5006ecaf2e94fa01aeeafbec44629ec805709b4f": {
@@ -24538,6 +24515,30 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "fdad22fabfb721239f3432e1b0c833f4200b3c2e6bf610fa2d615a0a4596c58c": {
+   "drop": false,
+   "en": "In JeffCrunch, data labels can show the value, category name, series name, percentage, or legend key, with a separator, a position, and a number format. Value From Cells reads labels from a range of cells, one for each point, and follows the cells as they change.",
+   "es": "En JeffCrunch, las etiquetas de datos pueden mostrar el valor, el nombre de la categoría, el nombre de la serie, el porcentaje o la clave de leyenda, con un separador, una posición y un formato de número. Valor de las celdas lee las etiquetas de un rango de celdas, una por cada punto, y las actualiza cuando las celdas cambian.",
+   "fr": "Dans JeffCrunch, les étiquettes de données peuvent afficher la valeur, le nom de la catégorie, le nom de la série, le pourcentage ou la clé de légende, avec un séparateur, une position et un format de nombre. Valeur des cellules lit les étiquettes depuis une plage de cellules, une par point, et suit les cellules lorsqu’elles changent.",
+   "soon": {
+    "drop": false,
+    "en": "Data label leader lines; a different label range for each series",
+    "es": "Líneas guía de etiquetas de datos; un rango de etiquetas distinto para cada serie",
+    "fr": "Lignes de repère des étiquettes de données ; une plage d’étiquettes différente pour chaque série"
+   }
+  },
+  "fdb0ac9a2e7d94b66f99d849bd48cd12a0d42604ff3805662e7d846d8bea544c": {
+   "drop": false,
+   "en": "In JeffCrunch, charts support trendlines of every kind, with the equation and R-squared, set from the Trendline menu. Error bars (fixed value, percentage, standard deviation, standard error, and custom amounts a file holds) work on columns, lines, and scatter points. Drop lines, high-low lines, and up/down bars are also available.",
+   "es": "En JeffCrunch, los gráficos admiten líneas de tendencia de todos los tipos, con la ecuación y R cuadrado, que se definen desde el menú Línea de tendencia. Las barras de error (valor fijo, porcentaje, desviación estándar, error estándar y cantidades personalizadas que contiene un archivo) funcionan en columnas, líneas y puntos de dispersión. También están disponibles las líneas de caída, las líneas de máximos y mínimos y las barras ascendentes y descendentes.",
+   "fr": "Dans JeffCrunch, les graphiques prennent en charge les courbes de tendance de tous types, avec l’équation et le R carré, réglées depuis le menu Courbe de tendance. Les barres d’erreur (valeur fixe, pourcentage, écart type, erreur type et valeurs personnalisées contenues dans un fichier) fonctionnent sur les colonnes, les lignes et les points de nuage. Les lignes de projection, les lignes haut-bas et les barres haussières/baissières sont aussi disponibles.",
+   "soon": {
+    "drop": false,
+    "en": "Typed-in custom error bar amounts; error bars on area charts; error bar look; data table; series lines; trendline forecast, intercept, and order controls",
+    "es": "Cantidades personalizadas escritas para barras de error; barras de error en gráficos de áreas; aspecto de las barras de error; tabla de datos; líneas de series; controles de pronóstico, intersección y orden de la línea de tendencia",
+    "fr": "Valeurs personnalisées saisies pour les barres d’erreur ; barres d’erreur sur les graphiques en aires ; apparence des barres d’erreur ; tableau de données ; lignes de séries ; commandes de prévision, d’ordonnée à l’origine et d’ordre des courbes de tendance"
    }
   },
   "fdbaf331e6f7a0f3d092a7f68bb98fa540c40280d11f3d9279d5df254b086fbd": {
