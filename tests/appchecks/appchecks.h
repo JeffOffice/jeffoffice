@@ -182,6 +182,9 @@ QStringList runEveryAction(Adapter &app, bool fromFile, QStringList *report);
 // After both states have been run: the commands that no state ran, each of which must have a reason in `neverRun`.
 QStringList checkNeverRun(Adapter &app, QStringList *report);
 
+// Whether this run owns the command: always, unless JO_APPCHECK_SHARD=k/n splits the commands among n runs (see appchecks.cpp).
+bool ownsCommand(const Adapter &app, const QString &id);
+
 // A new window, and the window File > New opens, are typed into with no click first: the window is made active, plain letter keys go to the widget that has the focus, and the typing
 // lands in the document (or, for an app that needs a click first, does nothing: no command, dialog, or screen). Failures are returned as lines.
 QStringList checkTypingWithoutAClick(Adapter &app);

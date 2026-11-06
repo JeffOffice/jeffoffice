@@ -713,6 +713,26 @@ Outcome observe(Adapter &app, jp::AppWindow *w, const QAction *skip, Watch &watc
     return out;
 }
 
+// JO_APPCHECK_SHARD="k/n" (k from 1 to n) makes a run check only its part of the commands: the commands are grouped by family (the id up to its last dot, which the
+// "after another of its family" step needs together), the families are sorted, and family number i belongs to part i % n + 1. Every part together checks every command once.
+bool ownsCommand(const Adapter &app, const QString &id)
+{
+    static const QString spec = QString::fromLocal8Bit(qgetenv("JO_APPCHECK_SHARD"));
+    if (spec.isEmpty()) return true;
+    const QStringList kn = spec.split(QLatin1Char('/'));
+    bool okK = false, okN = false;
+    const int k = kn.value(0).toInt(&okK), n = kn.value(1).toInt(&okN);
+    if (!okK || !okN || n < 1 || k < 1 || k > n) return true;
+    auto familyOf = [](const QString &x) { return x.left(std::max(0, int(x.lastIndexOf(QLatin1Char('.'))))); };
+    static QStringList families;
+    if (families.isEmpty()) {
+        for (const QString &x : app.allIds) families << familyOf(x);
+        families.removeDuplicates();
+        families.sort();
+    }
+    return families.indexOf(familyOf(id)) % n + 1 == k;
+}
+
 // Why a command is allowed to do nothing a test can see in this state ("" if it is not): the key of the list is its id, or a start of ids ending in "*", with "@blank" or "@file" for one state.
 QString quietBecause(const Adapter &app, const QString &id, bool fromFile, bool *wildcard)
 {
@@ -798,6 +818,7 @@ QStringList runEveryAction(Adapter &app, bool fromFile, QStringList *report)
     // (JP_CHECKS_ONLY names the commands to run, by their starts and commas, while the checks are being written)
     const QStringList only = QString::fromLocal8Bit(qgetenv("JP_CHECKS_ONLY")).split(QLatin1Char(','), Qt::SkipEmptyParts);
     for (const QString &id : ids) {
+        if (!ownsCommand(app, id)) continue;
         if (!only.isEmpty() && std::none_of(only.begin(), only.end(), [&](const QString &o) { return id.startsWith(o); })) continue;
         if (app.skipped.contains(id)) {
             if (report) *report << id + QLatin1String(": skipped (") + app.skipped.value(id) + QLatin1Char(')');
@@ -997,7 +1018,7 @@ QStringList checkNeverRun(Adapter &app, QStringList *report)
 {
     QStringList fails, left;
     for (const QString &id : app.allIds)
-        if (!app.ran.contains(id) && !app.skipped.contains(id)) left << id;
+        if (ownsCommand(app, id) && !app.ran.contains(id) && !app.skipped.contains(id)) left << id;
     left.sort();
     if (report) *report << QStringLiteral("%1: %2 of %3 commands are never run in either state").arg(app.name).arg(left.size()).arg(app.allIds.size());
     for (const QString &id : left) {
@@ -1005,7 +1026,7 @@ QStringList checkNeverRun(Adapter &app, QStringList *report)
         if (report) *report << id + QLatin1String(": ") + app.neverRun.value(id, QStringLiteral("(no reason)"));
     }
     for (auto it = app.neverRun.cbegin(); it != app.neverRun.cend(); ++it)
-        if (app.ran.contains(it.key())) fails << app.name + QLatin1String(": ") + it.key() + QLatin1String(" is listed as never run, but it is: take it off the list");
+        if (ownsCommand(app, it.key()) && app.ran.contains(it.key())) fails << app.name + QLatin1String(": ") + it.key() + QLatin1String(" is listed as never run, but it is: take it off the list");
     return fails;
 }
 

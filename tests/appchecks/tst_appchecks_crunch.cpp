@@ -734,7 +734,7 @@ private Q_SLOTS:
         // And none of them is on the ribbon, where a button that never works is a stub.
         std::unique_ptr<AppWindow> w(m_app.launch());
         for (const QToolButton *b : w->ribbon()->findChildren<QToolButton *>())
-            if (const QAction *a = b->defaultAction(); a && m_app.allIds.contains(a->objectName()) && !m_app.ran.contains(a->objectName()) && !m_app.skipped.contains(a->objectName()))
+            if (const QAction *a = b->defaultAction(); a && ownsCommand(m_app, a->objectName()) && m_app.allIds.contains(a->objectName()) && !m_app.ran.contains(a->objectName()) && !m_app.skipped.contains(a->objectName()))
                 fails << QStringLiteral("%1 is on the ribbon, and no test could ever enable it").arg(a->objectName());
         qInfo("%s", qPrintable(report.first()));
         if (qEnvironmentVariableIsSet("JP_CHECKS_REPORT")) qInfo("%s", qPrintable(report.join('\n')));
