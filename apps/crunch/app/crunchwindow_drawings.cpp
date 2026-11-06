@@ -26,6 +26,37 @@ void CrunchWindow::setupObjects()
         const QString file = !m_saveFileName.isEmpty() ? m_saveFileName : m_path.isEmpty() ? QStringLiteral("Book1.xlsx") : QFileInfo(m_path).fileName();
         return QStringLiteral("[%1]%2!%3").arg(file, sheets[sheet].name, pb.table(c.pivotTable).table->name);
     });
+    // the buttons of a pivot chart carry the names of its table's fields
+    m_objects->setPivotFielder([this](jp::office::Chart *c) {
+        if (!m_session || !m_loaded) return;
+        const auto &pb = m_session->workbook()->pivots();
+        const QString name = c->pivotName.mid(c->pivotName.lastIndexOf(QLatin1Char('!')) + 1);
+        for (int t = 0; t < pb.tableCount(); ++t) {
+            const auto &entry = pb.table(t);
+            if (!entry.table || entry.table->name != name || entry.cache < 0) continue;
+            const auto &cache = pb.cache(entry.cache).cache;
+            if (!cache) return;
+            const jp::office::sheet::PivotTable &pt = *entry.table;
+            auto fieldName = [&](int f) {
+                if (f == -2) return pt.dataCaption;
+                if (f < 0 || f >= pt.fields.size()) return QString();
+                if (!pt.fields[f].name.isEmpty()) return pt.fields[f].name;
+                return f < cache->fields.size() ? cache->fields[f].name : QString();
+            };
+            jp::office::Chart::PivotButtons &b = c->pivotButtons;
+            b.filterNames.clear();
+            b.categoryNames.clear();
+            b.seriesNames.clear();
+            b.dataNames.clear();
+            for (const auto &p : pt.pageFields) b.filterNames << fieldName(p.fld);
+            for (int f : pt.rowFields) b.categoryNames << fieldName(f);
+            for (int f : pt.colFields) b.seriesNames << fieldName(f);
+            for (const auto &d : pt.dataFields) b.dataNames << (d.name.isEmpty() ? fieldName(d.fld) : d.name);
+            b.categoryNames.removeAll(QString());
+            b.seriesNames.removeAll(QString());
+            return;
+        }
+    });
     m_objects->layer()->attach(&m_view->sheet().layout());
     m_picker = new ObjectPicker(m_objects->layer(), this);
     m_view->setOverlay(m_picker);

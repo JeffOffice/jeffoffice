@@ -98,6 +98,10 @@ void setErrorBars(Chart *chart, const QString &kind, double value = 1);
 void setCustomErrorBars(Chart *chart, const QString &plusRef, const QString &minusRef);
 // The two references (above, below) of the first series' custom error bars; empty when they are not custom.
 QStringList customErrorBarRefs(const Chart &chart);
+// The field buttons of a pivot chart: which kinds are shown (the report filter's, the axis's, the legend's, and the values'). `All` turns every kind on or off. Only a chart that follows a pivot table has them.
+enum class PivotButton { Filter, Axis, Legend, Value, All };
+void setPivotButtons(Chart *chart, PivotButton which, bool on);
+bool pivotButtonsOn(const Chart &chart, PivotButton which);
 // The kind the first series' error bars have ("" for none).
 QString errorBarsKind(const Chart &chart);
 

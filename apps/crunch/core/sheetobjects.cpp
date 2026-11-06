@@ -494,6 +494,7 @@ std::function<QImage()> SheetObjects::prepareChart(int sheet, Object &o, const R
     setChartRefs(chart.get(), o.refs);
     if (m_cells) {
         applyChartCells(chart.get(), sheet, *m_cells);
+        if (m_pivotFielder && !chart->pivotName.isEmpty() && chart->pivotButtons.set) m_pivotFielder(chart.get());
         if (o.added || o.chart != o.fileChart) applyChartFormats(chart.get(), sheet, *m_cells);   // (a chart made here has no format of its own: its cells' are what it shows its numbers in)
         o.reads = ChartReadIndex(jp::office::sheet::chartReads(*chart, sheet, *m_cells));
         o.drawnKey = dataKey(*chart);

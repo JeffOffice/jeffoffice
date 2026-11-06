@@ -437,7 +437,7 @@ A pivot table is a report that groups and totals a list for you: put a list of s
 
 ### Pivot chart tabs (while a pivot chart is selected)
 
-- [ ] **1.0** Pivot chart Analyze: show or hide field buttons (axis, legend, report filter, value), expand and collapse buttons, and the field list, plus the pivot table's refresh, change source, and clear commands; the pivot chart changes with its pivot table, and its formatting stays after a refresh
+- [~] **1.0** Pivot chart Analyze: show or hide field buttons (axis, legend, report filter, value), expand and collapse buttons, and the field list, plus the pivot table's refresh, change source, and clear commands; the pivot chart changes with its pivot table, and its formatting stays after a refresh *(done November 6, 2026: a pivot chart draws buttons with the names of its table's fields (the report filters under the title, the rows, values, and columns along the bottom); Field Buttons in the + menu shows or hides each kind, Show All, and Hide All, as one step of Undo, kept in the file as the chart's pivot options; a new pivot chart shows them; not done: clicking a button to filter or sort, expand and collapse buttons, and the Analyze tab's other commands)*
 - [~] **1.0** Pivot chart tab and Format: the same as the Chart tab and Chart Format (below) *(done November 4, 2026: a picked pivot chart has the Chart tab (kind, data, titles, labels, Save as Picture), its changes are kept with the table's chart and stay after a refresh; not done: the Format tab's parts for it)*
 
 ### Chart and Chart Format tabs (while a chart is selected)

@@ -282,6 +282,15 @@ struct Chart {
     // A chart that follows a pivot table (c:pivotSource): the table's name as the file writes it ("[Book.xlsx]Sheet1!Table1", or just the table's name) and the chart's format id.
     QString pivotName;
     int pivotFmtId = 0;
+    // The field buttons of a pivot chart (the file's pivot options): which kinds are shown, and the names of the fields they stand for (not in the file: the program fills the names in from the
+    // table the chart follows each time it reads the chart's cells).
+    struct PivotButtons {
+        bool set = false;               // the file says (or the program set) which are shown
+        bool filter = true, categories = true, data = true, series = true;   // the report filter, axis, value, and legend fields
+        bool visible = true;            // the buttons are shown at all
+        QStringList filterNames, categoryNames, dataNames, seriesNames;
+        bool any() const { return set && visible && ((filter && !filterNames.isEmpty()) || (categories && !categoryNames.isEmpty()) || (data && !dataNames.isEmpty()) || (series && !seriesNames.isEmpty())); }
+    } pivotButtons;
     int pivotTable = -1;   // (not in the file) for a chart made here: the place of its table among the workbook's, so that the name above is made again from the table's name when the file is saved
     bool externalAutoUpdate = false;
     void clearPartLinks() { userShapesId.clear(); externalDataId.clear(); }

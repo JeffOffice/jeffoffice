@@ -1123,6 +1123,21 @@ bool Reader::read(const QDomElement &root, QString *error)
     if (const QDomElement pivot = cChild(root, "pivotSource"); !pivot.isNull()) {
         c.pivotName = cChild(pivot, "name").text().left(512);
         c.pivotFmtId = int(parseInt(valOf(cChild(pivot, "fmtId")), 0));
+        for (QDomElement x = cChild(pivot, "extLst").firstChildElement(); !x.isNull(); x = x.nextSiblingElement())
+            for (QDomElement o = x.firstChildElement(); !o.isNull(); o = o.nextSiblingElement()) {
+                if (o.localName() != QLatin1String("pivotOptions")) continue;
+                c.pivotButtons.set = true;
+                auto zone = [&o](const char *name) {
+                    for (QDomElement z = o.firstChildElement(); !z.isNull(); z = z.nextSiblingElement())
+                        if (z.localName() == QLatin1String(name)) return flagOf(z, false);
+                    return false;
+                };
+                c.pivotButtons.filter = zone("dropZoneFilter");
+                c.pivotButtons.categories = zone("dropZoneCategories");
+                c.pivotButtons.data = zone("dropZoneData");
+                c.pivotButtons.series = zone("dropZoneSeries");
+                c.pivotButtons.visible = zone("dropZonesVisible");
+            }
     }
     c.userShapesId = attrNs(cChild(root, "userShapes"), ns::R, QStringLiteral("id"));
     if (const QDomElement ext = cChild(root, "externalData"); !ext.isNull()) {

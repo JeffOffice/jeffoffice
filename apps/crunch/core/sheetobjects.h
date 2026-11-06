@@ -133,6 +133,8 @@ public:
         qint64 maxBytes = jp::office::sheet::kMaxAddedBytes;   // the pictures pasted since the last save
     };
     // How a pivot chart made here is named in the file now (`[file]Sheet!Table`, from the table's place the chart keeps): asked at each save, so that a rename or a Save As is followed.
+    // Fills in the names of the fields a pivot chart's buttons stand for, from the table the chart follows.
+    void setPivotFielder(const std::function<void(jp::office::Chart *)> &fielder) { m_pivotFielder = fielder; }
     void setPivotNamer(const std::function<QString(const jp::office::Chart &)> &namer) { m_pivotNamer = namer; }
     void setLimits(const Limits &limits) { m_limits = limits; }
     const Limits &limits() const { return m_limits; }
@@ -332,6 +334,7 @@ private:
     qint64 m_editSteps = 0;
     Limits m_limits;
     std::function<QString(const jp::office::Chart &)> m_pivotNamer;
+    std::function<void(jp::office::Chart *)> m_pivotFielder;
     int m_epoch = 0;                                         // counts the saves that followed edits to rows and columns (see core/objectstate.h)
 };
 

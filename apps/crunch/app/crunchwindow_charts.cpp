@@ -997,6 +997,19 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
                 });
             });
         }
+        if (!chart.pivotName.isEmpty()) {
+            QMenu *buttons = menu->addMenu(tr("Field Buttons"));
+            buttons->setObjectName(QStringLiteral("fieldButtonsMenu"));
+            const struct { const char *name; PivotButton which; } kinds[] = {{QT_TRANSLATE_NOOP("jp::CrunchWindow", "Report Filter Field Buttons"), PivotButton::Filter},
+                                                                             {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Axis Field Buttons"), PivotButton::Axis},
+                                                                             {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Legend Field Buttons"), PivotButton::Legend},
+                                                                             {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Value Field Buttons"), PivotButton::Value}};
+            for (const auto &k : kinds)
+                check(buttons, QCoreApplication::translate("jp::CrunchWindow", k.name), pivotButtonsOn(chart, k.which), [which = k.which, on = !pivotButtonsOn(chart, k.which)](Chart *c) { setPivotButtons(c, which, on); }, tr("Field Buttons"));
+            buttons->addSeparator();
+            check(buttons, tr("Show All"), pivotButtonsOn(chart, PivotButton::All), [](Chart *c) { setPivotButtons(c, PivotButton::All, true); }, tr("Field Buttons"));
+            check(buttons, tr("Hide All"), chart.pivotButtons.set && !chart.pivotButtons.filter && !chart.pivotButtons.categories && !chart.pivotButtons.series && !chart.pivotButtons.data, [](Chart *c) { setPivotButtons(c, PivotButton::All, false); }, tr("Field Buttons"));
+        }
         if (plotLinesApply(chart, PlotLines::Drop)) {
             QMenu *lines = menu->addMenu(tr("Lines"));
             lines->setObjectName(QStringLiteral("plotLinesMenu"));

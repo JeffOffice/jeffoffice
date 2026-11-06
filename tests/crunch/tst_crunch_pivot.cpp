@@ -1546,6 +1546,62 @@ private Q_SLOTS:
         QVERIFY(!any);
     }
 
+    // A new pivot chart shows its field buttons (saved as the chart's pivot options); Field Buttons in the elements list turns kinds off and on, as one step of Undo, and the file keeps each.
+    void aPivotChartHasFieldButtons()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("insert.pivotChart"))->trigger();
+        finish(e);
+        QTRY_VERIFY(e.win.w.pickedObject() >= 0);
+        QTRY_VERIFY(e.win.w.chartElementsButton() && e.win.w.chartElementsButton()->isVisible());
+        QMenu *menu = e.win.w.chartElementsButton()->menu();
+        auto fire = [&](const QStringList &path) {
+            QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+            QMenu *m = menu;
+            QAction *found = nullptr;
+            for (int i = 0; i < path.size(); ++i) {
+                found = nullptr;
+                for (QAction *a : m->actions())
+                    if (a->text() == path[i]) found = a;
+                if (!found) return false;
+                if (i + 1 < path.size()) m = found->menu();
+            }
+            found->trigger();
+            return true;
+        };
+        auto savedChart = [&] {
+            const Parts saved = readParts(e.path);
+            QByteArray chart;
+            for (auto it = saved.cbegin(); it != saved.cend(); ++it)
+                if (it.key().startsWith(QLatin1String("xl/charts/chart")) && it.key().endsWith(QLatin1String(".xml"))) chart = it.value();
+            return chart;
+        };
+        auto zone = [&](const char *name) {
+            const QByteArray chart = savedChart();
+            return chart.contains(QByteArray("<c14:") + name + " val=\"1\"/>") ? 1 : chart.contains(QByteArray("<c14:") + name + " val=\"0\"/>") ? 0 : -1;
+        };
+        QVERIFY(saveNow(e));
+        QVERIFY2(zone("dropZonesVisible") == 1 && zone("dropZoneFilter") == 1 && zone("dropZoneSeries") == 1, savedChart().constData());
+        const int steps = e.win.w.session()->undoStack()->count();
+        QString told;
+        e.win.w.setNotifier([&told](const QString &, const QString &text) { told = text; });
+        QVERIFY(fire({"Field Buttons", "Legend Field Buttons"}));
+        QVERIFY2(told.isEmpty(), qPrintable(told));
+        QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);
+        QVERIFY(saveNow(e));
+        QVERIFY2(zone("dropZoneSeries") == 0 && zone("dropZoneCategories") == 1, savedChart().constData());
+        QVERIFY(fire({"Field Buttons", "Hide All"}));
+        QVERIFY(saveNow(e));
+        QVERIFY2(zone("dropZoneFilter") == 0 && zone("dropZoneCategories") == 0 && zone("dropZoneData") == 0, savedChart().constData());
+        pressUndo(&e.win.w);
+        pressUndo(&e.win.w);
+        QVERIFY(saveNow(e));
+        QVERIFY2(zone("dropZoneSeries") == 1 && zone("dropZoneData") == 1, savedChart().constData());
+    }
+
     // A pivot chart has the Chart tab of any chart: its look is changed there, the saved chart is still the table's chart, and a refresh of the table leaves what was changed.
     void aPivotChartHasTheChartTab()
     {

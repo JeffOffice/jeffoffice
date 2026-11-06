@@ -242,6 +242,8 @@ private:
     QFont legendFont() const;
     QSizeF legendSize(const QVector<Entry> &entries, double available, QVector<int> *rowBreaks) const;
     void drawLegend(const QRectF &box, const QVector<Entry> &entries, const QVector<int> &rowBreaks);
+    // The field buttons of a pivot chart: a row of buttons for each side, left to right from `from` (or right to left from its right edge), each a rounded box with the field's name and an arrow.
+    void drawFieldButtons(const QStringList &names, const QRectF &row, bool fromRight);
     void drawKey(const Entry &e, const QRectF &key);
     void drawMarker(const QPointF &c, ChartMarker::Symbol symbol, double size, const QColor &fill, const QColor &line, bool noFill, bool noLine);
     // A marker's shape added to a path (so that the markers of a series can be drawn as one); true if it is made of strokes, not of a fill.
@@ -1836,6 +1838,13 @@ void ChartPainter::paint()
     const double margin = std::clamp(std::min(m_size.width(), m_size.height()) * 0.018, 3.0, 7.0);
     QRectF area = full.adjusted(margin, margin, -margin, -margin);
 
+    // The field buttons of a pivot chart keep a strip of their own: the report filter's under the title, the others along the bottom.
+    const bool buttons = c.pivotButtons.any();
+    const bool topButtons = buttons && c.pivotButtons.filter && !c.pivotButtons.filterNames.isEmpty();
+    const bool bottomButtons = buttons && ((c.pivotButtons.categories && !c.pivotButtons.categoryNames.isEmpty()) || (c.pivotButtons.data && !c.pivotButtons.dataNames.isEmpty()) || (c.pivotButtons.series && !c.pivotButtons.seriesNames.isEmpty()));
+    const double strip = heightOf(fontOf(ChartFont(), 8, false)) + 8;
+    QRectF topStrip, bottomStrip;
+
     // The title across the top.
     if (c.title.present && !c.title.text.isEmpty()) {
         QFont font;
@@ -1845,6 +1854,15 @@ void ChartPainter::paint()
         // (across the top, or where the file puts its corner; the room it would take is kept either way, as the plot is laid out for it)
         drawAxisTitle(c.title, font, color, QPointF(area.center().x(), area.top()), 0.0, 0);
         if (!c.title.overlay) area.setTop(area.top() + h + margin * 0.6);
+    }
+
+    if (topButtons) {
+        topStrip = QRectF(area.left(), area.top(), area.width(), strip);
+        area.setTop(area.top() + strip + margin * 0.6);
+    }
+    if (bottomButtons) {
+        bottomStrip = QRectF(area.left(), area.bottom() - strip, area.width(), strip);
+        area.setBottom(area.bottom() - strip - margin * 0.6);
     }
 
     // The legend: where the file puts it, else at its side (and the plot has what is left, unless the legend lies over it). It is drawn after the plot, so a column does not cover it.
@@ -1893,6 +1911,39 @@ void ChartPainter::paint()
         else paintAxes(area);
     }
     if (!legend.isEmpty()) drawLegend(legendBox, legend, legendBreaks);
+    if (topButtons) drawFieldButtons(c.pivotButtons.filterNames, topStrip, false);
+    if (bottomButtons) {
+        QStringList left;
+        if (c.pivotButtons.categories) left << c.pivotButtons.categoryNames;
+        if (c.pivotButtons.data) left << c.pivotButtons.dataNames;
+        if (!left.isEmpty()) drawFieldButtons(left, bottomStrip, false);
+        if (c.pivotButtons.series && !c.pivotButtons.seriesNames.isEmpty()) drawFieldButtons(c.pivotButtons.seriesNames, bottomStrip, true);
+    }
+}
+
+void ChartPainter::drawFieldButtons(const QStringList &names, const QRectF &row, bool fromRight)
+{
+    const QFont font = fontOf(ChartFont(), 8, false);
+    const QColor ink = colorOf(ChartFont());
+    double x = fromRight ? row.right() : row.left();
+    int drawn = 0;
+    for (const QString &name : names) {
+        if (++drawn > 8) break;
+        const double w = widthOf(font, name) + 22;
+        const QRectF box(fromRight ? x - w : x, row.top() + 2, w, row.height() - 4);
+        if (box.left() < row.left() - 0.5 || box.right() > row.right() + 0.5) break;
+        m_p->save();
+        m_p->setPen(QPen(QColor(0xA6, 0xA6, 0xA6), 0.75));
+        m_p->setBrush(QColor(0xF2, 0xF2, 0xF2));
+        m_p->drawRoundedRect(box, 3, 3);
+        m_p->setPen(Qt::NoPen);
+        m_p->setBrush(ink);
+        const QPointF c(box.right() - 8, box.center().y());
+        m_p->drawPolygon(QPolygonF{QPointF(c.x() - 3, c.y() - 1.5), QPointF(c.x() + 3, c.y() - 1.5), QPointF(c.x(), c.y() + 2)});
+        m_p->restore();
+        drawText(name, font, ink, QPointF(box.left() + 6, box.center().y()), 0, 0.5);
+        x += fromRight ? -(w + 4) : w + 4;
+    }
 }
 
 } // namespace

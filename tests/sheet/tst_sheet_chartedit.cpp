@@ -96,6 +96,29 @@ private Q_SLOTS:
         QVERIFY(customErrorBarRefs(c).isEmpty());
     }
 
+    // The field buttons of a pivot chart go on and off by kind and are kept through writing; a chart that follows no table has none.
+    void pivotChartFieldButtonsGoOnAndOff()
+    {
+        Chart c = columns();
+        setPivotButtons(&c, PivotButton::All, true);
+        QVERIFY(!pivotButtonsOn(c, PivotButton::All));   // (no table: no buttons)
+        c.pivotName = QStringLiteral("[Book1.xlsx]Sheet1!PivotTable1");
+        setPivotButtons(&c, PivotButton::All, true);
+        QVERIFY(pivotButtonsOn(c, PivotButton::All));
+        setPivotButtons(&c, PivotButton::Legend, false);
+        QVERIFY(!pivotButtonsOn(c, PivotButton::Legend) && pivotButtonsOn(c, PivotButton::Axis) && !pivotButtonsOn(c, PivotButton::All));
+        const Chart back = roundTrip(c);
+        QVERIFY(!pivotButtonsOn(back, PivotButton::Legend) && pivotButtonsOn(back, PivotButton::Filter) && pivotButtonsOn(back, PivotButton::Value));
+        // the buttons are drawn with the fields' names, and take room of their own
+        const QByteArray plain = chartSvg(c, QSizeF(480, 288));
+        c.pivotButtons.categoryNames = QStringList{QStringLiteral("Region")};
+        c.pivotButtons.filterNames = QStringList{QStringLiteral("Year")};
+        const QByteArray drawn = chartSvg(c, QSizeF(480, 288));
+        QVERIFY(drawn != plain && drawn.contains("Region") && drawn.contains("Year"));
+        setPivotButtons(&c, PivotButton::All, false);
+        QVERIFY(!chartSvg(c, QSizeF(480, 288)).contains("Region"));
+    }
+
     // Drop lines, high-low lines, and up-down bars are offered for line plots (the last two with two series or more), set on every plot that takes them, and kept through writing.
     void linesBetweenSeriesGoOnAndOff()
     {

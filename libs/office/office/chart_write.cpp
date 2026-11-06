@@ -66,6 +66,26 @@ public:
             w.writeStartElement(QStringLiteral("c:pivotSource"));
             w.writeTextElement(QStringLiteral("c:name"), c.pivotName);
             val("c:fmtId", QString::number(c.pivotFmtId));
+            if (c.pivotButtons.set) {
+                static const char kC14Ns[] = "http://schemas.microsoft.com/office/drawing/2007/8/2/chart";
+                w.writeStartElement(QStringLiteral("c:extLst"));
+                w.writeStartElement(QStringLiteral("c:ext"));
+                w.writeAttribute(QStringLiteral("uri"), QStringLiteral("{781A3756-C4B2-4CAC-9D66-4F8BD8637D16}"));
+                w.writeNamespace(QString::fromLatin1(kC14Ns), QStringLiteral("c14"));
+                w.writeStartElement(QStringLiteral("c14:pivotOptions"));
+                auto zone = [&](const char *name, bool on) {
+                    w.writeEmptyElement(QString::fromLatin1(name));
+                    w.writeAttribute(QStringLiteral("val"), on ? QStringLiteral("1") : QStringLiteral("0"));
+                };
+                zone("c14:dropZoneFilter", c.pivotButtons.filter);
+                zone("c14:dropZoneCategories", c.pivotButtons.categories);
+                zone("c14:dropZoneData", c.pivotButtons.data);
+                zone("c14:dropZoneSeries", c.pivotButtons.series);
+                zone("c14:dropZonesVisible", c.pivotButtons.visible);
+                w.writeEndElement();
+                w.writeEndElement();
+                w.writeEndElement();
+            }
             w.writeEndElement();
         }
         chart();
@@ -857,6 +877,8 @@ void collect(const QDomElement &e, Shape *out, int depth, QStringList &path)
                     path.removeLast();
                     continue;
                 }
+                // (the field buttons of a pivot chart: the model holds them)
+                if (c.localName() == QLatin1String("pivotOptions") && path.isEmpty() == false && path.last() == QLatin1String("pivotSource")) continue;
                 // (leader lines turned off draw nothing)
                 if (c.localName() == QLatin1String("showLeaderLines") && isOff(c)) continue;
                 if (c.localName() != QLatin1String("uniqueId")) out->problem = QStringLiteral("extLst (%1)").arg(c.localName());

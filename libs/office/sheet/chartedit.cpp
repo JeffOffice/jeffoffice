@@ -527,6 +527,35 @@ QStringList customErrorBarRefs(const Chart &chart)
     return {};
 }
 
+void setPivotButtons(Chart *chart, PivotButton which, bool on)
+{
+    if (chart->pivotName.isEmpty()) return;
+    Chart::PivotButtons &b = chart->pivotButtons;
+    b.set = true;
+    b.visible = true;
+    switch (which) {
+    case PivotButton::Filter: b.filter = on; break;
+    case PivotButton::Axis: b.categories = on; break;
+    case PivotButton::Legend: b.series = on; break;
+    case PivotButton::Value: b.data = on; break;
+    case PivotButton::All: b.filter = b.categories = b.series = b.data = on; break;
+    }
+}
+
+bool pivotButtonsOn(const Chart &chart, PivotButton which)
+{
+    const Chart::PivotButtons &b = chart.pivotButtons;
+    if (chart.pivotName.isEmpty() || !b.set || !b.visible) return false;
+    switch (which) {
+    case PivotButton::Filter: return b.filter;
+    case PivotButton::Axis: return b.categories;
+    case PivotButton::Legend: return b.series;
+    case PivotButton::Value: return b.data;
+    case PivotButton::All: return b.filter && b.categories && b.series && b.data;
+    }
+    return false;
+}
+
 QString errorBarsKind(const Chart &chart)
 {
     for (const ChartPlot &p : chart.plots)
