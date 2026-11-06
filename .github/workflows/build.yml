@@ -25,6 +25,8 @@ jobs:
       MAC_ARCHS: ${{ github.event_name == 'workflow_dispatch' && 'arm64;x86_64' || 'arm64' }}
       # Our own machine keeps its compiler cache in a folder of its own, kept from run to run; GitHub's machines keep it in GitHub's cache.
       CCACHE_DIR: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && '/ccache' || format('{0}/.ccache', github.workspace) }}
+      # (precompiled headers: without these, ccache caches no file that reads one)
+      CCACHE_SLOPPINESS: pch_defines,time_macros
     strategy:
       fail-fast: false
       matrix:
