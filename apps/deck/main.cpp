@@ -21,6 +21,7 @@
 #include "app/theme.h"
 #include "app/updater.h"
 #include "core/fonts.h"
+#include "core/startuptrace.h"
 
 #include <QApplication>
 #include <QPointer>
@@ -67,6 +68,7 @@ public:
 
 int main(int argc, char **argv)
 {
+    jp::startupMark("main entered");
     Q_INIT_RESOURCE(resources);   // icons and font measurements, in the shared libraries
     Q_INIT_RESOURCE(deck);        // JeffDeck's ribbon
     jp::setAppInfo(jp::deckAppInfo());
@@ -75,6 +77,7 @@ int main(int argc, char **argv)
     QApplication::setApplicationVersion(QStringLiteral(JP_VERSION));
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
+    jp::startupMark("QApplication built");
     jp::crash::install(jp::crash::reportPath());   // sent with the statistics on the next start, if they're on
     jp::recovery::setCopySuffix(QStringLiteral(".pptx"));   // automatic recovery keeps presentations
     jp::installTranslations();   // before the command line and any window build their text
@@ -91,6 +94,7 @@ int main(int argc, char **argv)
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Presentations to open."), QStringLiteral("[files...]"));
     cli.process(app);
     jp::initCore();
+    jp::startupMark("initCore done");
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
     jp::followSystemTheme();
@@ -98,6 +102,7 @@ int main(int argc, char **argv)
     jp::installFocusRing(&app);
     app.installEventFilter(new FileOpener(&app));
     auto *w = new jp::DeckWindow();
+    jp::startupMark("window built");
     w->setAttribute(Qt::WA_DeleteOnClose);
     const QStringList files = cli.positionalArguments();
     if (!files.isEmpty()) {
@@ -142,6 +147,7 @@ int main(int argc, char **argv)
     CreateMutexW(nullptr, FALSE, L"JeffDeckRunning");
 #endif
     w->show();
+    jp::startupMark("window shown");
     if (cli.isSet(stageOpt)) w->showFileScreen(cli.value(stageOpt));
     // A normal exit takes this run's automatic recovery copies with it; copies a
     // crashed run left are offered once the window is up.

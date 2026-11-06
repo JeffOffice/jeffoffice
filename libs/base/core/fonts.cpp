@@ -3,6 +3,8 @@
 #include <atomic>
 #include <map>
 #include <mutex>
+#include <thread>
+#include <vector>
 
 #include "core/appinfo.h"
 
@@ -16,6 +18,7 @@
 #include <QGuiApplication>
 #include <QHash>
 #include <QImageReader>
+#include <QThread>
 #include <algorithm>
 #include <cmath>
 
@@ -927,10 +930,13 @@ QByteArray fontWithItalicFlags(const QByteArray &font)
     const auto set32 = [&](qsizetype at, quint32 v) { set16(at, quint16(v >> 16)); set16(at + 2, quint16(v & 0xFFFF)); };
     // The sum of a table's 32-bit words, padded with zeros.
     const auto sum = [&](qsizetype at, qsizetype length) {
+        const uchar *bytes = reinterpret_cast<const uchar *>(out.constData()) + at;
         quint32 total = 0;
-        for (qsizetype i = 0; i < length; i += 4) {
+        qsizetype i = 0;
+        for (; i + 4 <= length; i += 4) total += quint32(bytes[i]) << 24 | quint32(bytes[i + 1]) << 16 | quint32(bytes[i + 2]) << 8 | bytes[i + 3];
+        if (i < length) {
             quint32 word = 0;
-            for (qsizetype k = 0; k < 4; ++k) word = word << 8 | (i + k < length ? uchar(out[at + i + k]) : 0);
+            for (qsizetype k = 0; k < 4; ++k) word = word << 8 | (i + k < length ? bytes[i + k] : 0);
             total += word;
         }
         return total;
@@ -944,6 +950,8 @@ QByteArray fontWithItalicFlags(const QByteArray &font)
     return out;
 }
 
+QStringList standInKeysForTest() { return table().keys(); }
+
 QStringList standInFamiliesForTest()
 {
     QStringList out = table().values();
@@ -952,17 +960,40 @@ QStringList standInFamiliesForTest()
     return out;
 }
 
-void installFontSubstitutions()
+// The names in the table that this computer has no font for. The font database is asked for each (about 0.2 ms apiece, a quarter of the start), so the
+// questions are split among threads.
+QStringList missingSubstituteKeys()
 {
     const auto &t = table();
-    for (auto it = t.cbegin(); it != t.cend(); ++it) {
-        if (QFontDatabase::hasFamily(it.key())) continue;
-        QStringList subs{standInOnThisPlatform(it.value())};
+    const QStringList keys = t.keys();
+    QVector<char> missing(keys.size(), 0);
+    const int threads = std::clamp(QThread::idealThreadCount(), 1, 4);
+    const auto ask = [&](int from, int step) {
+        for (int i = from; i < keys.size(); i += step) missing[i] = QFontDatabase::hasFamily(keys[i]) ? 0 : 1;
+    };
+    std::vector<std::thread> workers;
+    for (int k = 1; k < threads; ++k) workers.emplace_back(ask, k, threads);
+    ask(0, threads);
+    for (std::thread &w : workers) w.join();
+    QStringList out;
+    for (int i = 0; i < keys.size(); ++i)
+        if (missing[i]) out << keys[i];
+    return out;
+}
+
+static void substitute(const QStringList &keys)
+{
+    const auto &t = table();
+    for (const QString &key : keys) {
+        const QString standIn = t.value(key);
+        QStringList subs{standInOnThisPlatform(standIn)};
         // Sensible generic fallbacks after the named substitute.
-        subs << (it.value().contains("Mono") || it.value() == "Cousine" ? QStringLiteral("Cousine") : QStringLiteral("Arimo"));
-        QFont::insertSubstitutions(it.key(), subs);
+        subs << (standIn.contains("Mono") || standIn == "Cousine" ? QStringLiteral("Cousine") : QStringLiteral("Arimo"));
+        QFont::insertSubstitutions(key, subs);
     }
 }
+
+void installFontSubstitutions() { substitute(missingSubstituteKeys()); }
 
 } // namespace jp
 

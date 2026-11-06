@@ -17,6 +17,9 @@ int loadFontsFrom(const QStringList &dirs);  // the same from the first of these
 int fontGeneration();
 void fontsChanged();
 void installFontSubstitutions();
+// The names of the substitution table that this computer has no font for (in the table's order); what installFontSubstitutions() gives a stand-in.
+QStringList missingSubstituteKeys();
+QStringList standInKeysForTest();   // every name the table has a stand-in for
 QString substituteFor(const QString &family); // empty if none / font available
 int substituteStretch(const QString &family, bool bold = false, bool italic = false);
 // The stretch (percent) to give Qt so text is drawn that wide. Qt's macOS text

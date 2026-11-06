@@ -26,6 +26,7 @@
 #include "app/firstwindow.h"
 #include "app/icons.h"
 #include "core/fonts.h"
+#include "core/startuptrace.h"
 #include "templates/templates.h"
 
 #include <algorithm>
@@ -50,6 +51,7 @@
 
 int main(int argc, char **argv)
 {
+    jp::startupMark("main entered");
     Q_INIT_RESOURCE(resources);   // the icons live in the static jpcore library
     jp::setAppInfo(jp::pubAppInfo());   // who the shared libraries say is running
     QApplication::setApplicationName(QStringLiteral("JeffPub"));
@@ -57,6 +59,7 @@ int main(int argc, char **argv)
     QApplication::setApplicationVersion(QStringLiteral(JP_VERSION));
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
+    jp::startupMark("QApplication built");
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/app.png")));
     jp::moveFromJeffPub79();   // settings and files kept under the old name
     jp::crash::install(jp::crash::reportPath());   // sent with the statistics on the next start, if they're on
@@ -84,12 +87,14 @@ int main(int argc, char **argv)
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Publications to open."), QStringLiteral("[files...]"));
     cli.process(app);
     jp::initCore();
+    jp::startupMark("initCore done");
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
     jp::followSystemTheme();
     jp::installUiPolish();
     jp::installFocusRing(&app);
     auto *w = new jp::MainWindow();
+    jp::startupMark("window built");
     w->setAttribute(Qt::WA_DeleteOnClose);
 
     if (cli.isSet(wikiOpt)) {
@@ -156,6 +161,7 @@ int main(int argc, char **argv)
     CreateMutexW(nullptr, FALSE, L"JeffPubRunning");
 #endif
     w->show();
+    jp::startupMark("window shown");
     // A normal exit takes this run's automatic recovery copies with it; copies a
     // crashed run left are offered once the window is up.
     QObject::connect(&app, &QCoreApplication::aboutToQuit, [] { jp::recovery::endSession(); });

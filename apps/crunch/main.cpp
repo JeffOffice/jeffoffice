@@ -20,6 +20,7 @@
 #include "app/theme.h"
 #include "app/updater.h"
 #include "core/fonts.h"
+#include "core/startuptrace.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -69,6 +70,7 @@ public:
 
 int main(int argc, char **argv)
 {
+    jp::startupMark("main entered");
     Q_INIT_RESOURCE(resources);   // icons and font measurements, in the shared libraries
     Q_INIT_RESOURCE(crunch);      // JeffCrunch's ribbon
     jp::setAppInfo(jp::crunchAppInfo());
@@ -77,6 +79,7 @@ int main(int argc, char **argv)
     QApplication::setApplicationVersion(QStringLiteral(JP_VERSION));
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
+    jp::startupMark("QApplication built");
     jp::crash::install(jp::crash::reportPath());   // sent with the statistics on the next start, if they're on
     jp::installTranslations();   // before the command line and any window build their text
 
@@ -95,6 +98,7 @@ int main(int argc, char **argv)
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Workbooks to open."), QStringLiteral("[files...]"));
     cli.process(app);
     jp::initCore();
+    jp::startupMark("initCore done");
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
     jp::followSystemTheme();
@@ -102,6 +106,7 @@ int main(int argc, char **argv)
     jp::installFocusRing(&app);
     app.installEventFilter(new FileOpener(&app));
     auto *w = new jp::CrunchWindow();
+    jp::startupMark("window built");
     w->setAttribute(Qt::WA_DeleteOnClose);
     const QStringList files = cli.positionalArguments();
     if (cli.isSet(shotOpt)) {
@@ -150,6 +155,7 @@ int main(int argc, char **argv)
 #endif
     w->setPromptForText(true);   // (a text file asks how it is read)
     w->show();
+    jp::startupMark("window shown");
     if (files.isEmpty()) {
         w->newBlank();
     } else {

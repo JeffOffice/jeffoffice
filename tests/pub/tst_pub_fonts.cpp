@@ -1221,6 +1221,20 @@ private Q_SLOTS:
 #endif
     }
 
+    // The names the table has no font for are asked of the font database by several threads at the start; the answer is the one a single thread gets.
+    void missingSubstituteKeysAreTheSameWhenAskedOneByOne()
+    {
+        jp::initCore();
+        QStringList serial;
+        for (const QString &key : jp::standInKeysForTest())
+            if (!QFontDatabase::hasFamily(key)) serial << key;
+        serial.sort();
+        QStringList asked = jp::missingSubstituteKeys();
+        asked.sort();
+        QVERIFY(!serial.isEmpty());
+        QCOMPARE(asked, serial);
+    }
+
     // How the platform's text engine draws the stretched stand-ins (each
     // engine stretches a font its own way: the Mac applied a QFont's stretch
     // twice). For each family and style the table stretches, one STRETCHPROBE

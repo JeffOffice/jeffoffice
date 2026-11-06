@@ -34,7 +34,7 @@ private Q_SLOTS:
         QWidget window;
         QCoreApplication::postEvent(QCoreApplication::instance(), new QFileOpenEvent(QStringLiteral("/x/one.docx")));
         {
-            jp::FirstWindow first(&window, nullptr);
+            jp::FirstWindow first(&window);
             QVERIFY(first.open());
             QVERIFY(window.isVisible());
             QVERIFY(window.windowHandle()->isExposed());
@@ -52,7 +52,7 @@ private Q_SLOTS:
         window->setAttribute(Qt::WA_DeleteOnClose);
         QPointer<QWidget> alive(window);
         QTimer::singleShot(0, window, &QWidget::close);
-        jp::FirstWindow first(window, nullptr);
+        jp::FirstWindow first(window);
         QVERIFY(!first.open());
         QTRY_VERIFY(!alive);
     }
