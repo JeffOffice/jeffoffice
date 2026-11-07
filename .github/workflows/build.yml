@@ -20,14 +20,19 @@ on:
 
 jobs:
   build:
+    # (Windows and macOS: "build (windows, tests, 1/2)"; Linux runs each part in one job: "build (linux, tests)")
+    name: build (${{ matrix.name }}, ${{ matrix.part }}${{ matrix.name != 'linux' && format(', {0}/2', matrix.shard) || '' }})
     env:
       # JeffWrite and JeffCrunch are built and tested on every run. Each goes into the installer, the Linux packages, and the Mac disk image only
       # when its switch is "true": the owner decides when it ships.
       SHIP_WRITE: 'true'
       SHIP_CRUNCH: 'true'
       # A Mac build for both processors (Apple and Intel) compiles everything twice. Only a run started by hand, the kind a release takes its files from,
-      # builds and packages for both (unless it is told mac_both=false, as a branch's test run is); a push builds for Apple's processors alone.
-      MAC_ARCHS: ${{ github.event_name == 'workflow_dispatch' && inputs.mac_both && 'arm64;x86_64' || 'arm64' }}
+      # builds and packages for both (unless it is told mac_both=false, as a branch's test run is); a push builds for Apple's processors alone. Only the
+      # job that packages (checks, 1/2) builds for both: the others only test, and a test runs the Apple half of a two-processor program anyway.
+      MAC_ARCHS: ${{ github.event_name == 'workflow_dispatch' && inputs.mac_both && matrix.part == 'checks' && matrix.shard == 1 && 'arm64;x86_64' || 'arm64' }}
+      # Which half of its part this job is ("1/2" or "2/2"; none on Linux, which runs a part in one job): tools/ci_targets.sh says what each half builds and runs.
+      SHARD: ${{ matrix.name == 'linux' && '' || format('{0}/2', matrix.shard) }}
       # Our own machine keeps its compiler cache in a folder of its own, kept from run to run; GitHub's machines keep it in GitHub's cache.
       CCACHE_DIR: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && '/ccache' || format('{0}/.ccache', github.workspace) }}
       # (precompiled headers: without these, ccache caches no file that reads one; the header times because a fresh checkout's files are all new)
@@ -39,6 +44,12 @@ jobs:
         # Each system builds twice, side by side (the compiler cache makes the second build a few minutes): one job runs the tests, the other the app
         # checks, the other checks, and the packaging. One after another they took 18 minutes.
         part: [tests, checks]
+        # Windows and macOS split each part in two halves that build and run about half each (tools/ci_targets.sh): the checks' first half builds and
+        # packages the apps; Linux, on our own machine, has the processors to run a part in one job (and splits the biggest programs, CI_SPLIT).
+        shard: [1, 2]
+        exclude:
+          - name: linux
+            shard: 2
         include:
           - name: linux
             os: ubuntu-24.04
@@ -127,12 +138,20 @@ jobs:
           foreach ($try in 1..2) { choco install ccache -y --no-progress; if (Get-Command ccache -ErrorAction SilentlyContinue) { break }; Start-Sleep -Seconds 20 }
           exit 0
 
-      - uses: actions/cache@v4
+      # One cache for each job (system, part, half), so that each has its own objects: ccache-<system>-<processors>-<part><half>-<commit>. A job restores
+      # the newest of its own, else the newest of any of its system (the first run after a change of the halves, or a half that has none yet), and saves a
+      # new one only when it compiled something, after the build (the Save step below). An entry holds one job's objects, and the Build step caps its size:
+      # macOS 0.8 GB (the release's two-processor entry, one job, 1.6 GB), Windows 0.3 GB. The four jobs of a system together keep 3.1 GB on macOS and 1.2 GB
+      # on Windows; with the Qt caches (2.0 GB) and a release's entry that is under 8 GB of GitHub's 10, so the newest entries of each job are never the oldest.
+      - name: Restore the compiler cache
         if: runner.environment != 'self-hosted'
+        uses: actions/cache/restore@v4
         with:
           path: .ccache
-          key: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ github.sha }}
-          restore-keys: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-
+          key: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ matrix.part }}${{ matrix.shard }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ matrix.part }}${{ matrix.shard }}-
+            ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-
 
       # Each shared library uses only the ones below it (libs/base < draw <
       # text < office < shell < page < flow < apps), and no app reaches into another.
@@ -172,20 +191,31 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX $LAUNCH $EXTRA
 
       - name: Build
+        id: build
         shell: bash
         env:
           CCACHE_BASEDIR: ${{ github.workspace }}
-          CCACHE_MAXSIZE: ${{ runner.environment == 'self-hosted' && '20G' || '3G' }}   # (a two-processor Mac build keeps two of everything: about 1.3 GB)
+          # (the caps keep an entry of the compiler cache within its share of GitHub's 10 GB; the Build step trims to the cap before the Save step, and the
+          # objects a build used are the newest, so what a cap drops is what no job of this half used lately)
+          CCACHE_MAXSIZE: ${{ runner.environment == 'self-hosted' && '20G' || (matrix.name == 'windows' && '300M' || (matrix.name == 'linux' && '3G' || (contains(env.MAC_ARCHS, ';') && '1600M' || '800M'))) }}
           CCACHE_COMPILERCHECK: content
-          FULL_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.mac_both && 'true' || 'false' }}
+          # (only the job that packages: the others build their own programs)
+          FULL_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.mac_both && matrix.part == 'checks' && matrix.shard == 1 && 'true' || 'false' }}
         run: |
           if command -v ccache >/dev/null 2>&1; then ccache --zero-stats; fi
           # (our own machine caps the parallel compiles through its runner settings: a compile of every core at once runs out of memory there)
-          # A release (started by hand with mac_both on) builds everything; every other run builds only what its part uses (tools/ci_targets.sh).
-          if [ "$FULL_BUILD" = true ]; then TARGETS=""; else TARGETS="--target $(bash tools/ci_targets.sh ${{ matrix.part }} "$RUNNER_OS")"; fi
+          # A release (started by hand with mac_both on) builds everything in the job that packages; every other job builds only what its half of its part
+          # uses (tools/ci_targets.sh).
+          if [ "$FULL_BUILD" = true ]; then TARGETS=""; else TARGETS="--target $(bash tools/ci_targets.sh ${{ matrix.part }} "$RUNNER_OS" "$SHARD")"; fi
           echo "building: ${TARGETS:-everything}"
           cmake --build build --parallel ${CMAKE_BUILD_PARALLEL_LEVEL:-} $TARGETS
-          if command -v ccache >/dev/null 2>&1; then ccache --show-stats; fi
+          if command -v ccache >/dev/null 2>&1; then
+            ccache --show-stats
+            # (what the Save step looks at: a build that compiled nothing leaves the cache as it was restored; "unknown" saves)
+            m=$(ccache --print-stats 2>/dev/null | awk -F'\t' '$1 == "cache_miss" {print $2}')
+            echo "misses=${m:-unknown}" >> "$GITHUB_OUTPUT"
+            ccache --cleanup
+          fi
 
       # Programs in the build folder find the GCC runtime through PATH, which can hold another GCC's copy first (the 20261004 runner image crashed in the
       # first test). Both jobs use the compiler's own copy, beside the programs, as the packaged program does.
@@ -203,8 +233,8 @@ jobs:
         run: |
           # The programs run side by side, longest first, each with its own results file (Windows runners drop their console output)
           # (tools/ci_tests.sh): one after another they took 12 to 17 minutes.
-          # (the list is the one the Build step builds: tools/ci_targets.sh)
-          bash tools/ci_tests.sh $(bash tools/ci_targets.sh tests)
+          # (the list is the one the Build step builds: tools/ci_targets.sh; a program in both halves runs half of its test classes in each)
+          bash tools/ci_tests.sh $(bash tools/ci_targets.sh tests "$RUNNER_OS" "$SHARD" run)
         env:
           QT_QPA_PLATFORM: offscreen
           JP_TEST_TRACE: '1'
@@ -220,15 +250,15 @@ jobs:
         shell: bash
         run: |
           # (the same runner as the tests: side by side, a results file each, the debugger's stack for a crash; on our own Linux machine each
-          # program's three long checks run in four parts, JO_APPCHECK_SHARD)
-          bash tools/ci_tests.sh crunchchecks writechecks pubchecks deckchecks
+          # program's three long checks run in four parts, JO_APPCHECK_SHARD; on Windows and macOS the second half runs crunchchecks in two parts for the same reason)
+          bash tools/ci_tests.sh $(bash tools/ci_targets.sh checks "$RUNNER_OS" "$SHARD" run)
         env:
           QT_QPA_PLATFORM: offscreen
           JP_TEST_TRACE: '1'
           CI_SPLIT: ${{ runner.environment == 'self-hosted' && '4' || '1' }}
 
       - name: Export check PDFs
-        if: matrix.part == 'checks'
+        if: matrix.part == 'checks' && matrix.shard == 1
         shell: bash
         run: |
           # PDFs exported by this platform's build, to compare against Linux.
@@ -246,7 +276,7 @@ jobs:
           QT_QPA_PLATFORM: offscreen
 
       - uses: actions/upload-artifact@v4
-        if: matrix.part == 'checks'
+        if: matrix.part == 'checks' && matrix.shard == 1
         with:
           name: pdf-check-${{ matrix.name }}
           path: pdf-check
@@ -267,7 +297,7 @@ jobs:
           path: help-wiki
 
       - name: Package (Windows)
-        if: runner.os == 'Windows' && matrix.part == 'checks'
+        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
         shell: pwsh
         run: |
           # The suite's folder: both apps beside the Qt they share.
@@ -303,7 +333,7 @@ jobs:
           Copy-Item -Recurse third_party/ffmpeg/licenses dist/JeffOffice/licenses/ffmpeg
 
       - name: Installer (Windows)
-        if: runner.os == 'Windows' && matrix.part == 'checks'
+        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
         shell: pwsh
         run: |
           $ver = (Select-String -Path CMakeLists.txt -Pattern 'project\(JeffPub VERSION ([0-9.]+)').Matches[0].Groups[1].Value
@@ -316,7 +346,7 @@ jobs:
           Move-Item packaging/windows/JeffOffice-Setup.exe installer/
 
       - uses: actions/upload-artifact@v4
-        if: runner.os == 'Windows' && matrix.part == 'checks'
+        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
         with:
           name: JeffOffice-Setup
           path: installer
@@ -324,7 +354,7 @@ jobs:
       # The command-line tool, for testing on Windows: it runs from the
       # program's folder (same DLLs). Not part of the release.
       - name: Developer tools (Windows)
-        if: runner.os == 'Windows' && matrix.part == 'checks'
+        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dev-tools | Out-Null
@@ -332,7 +362,7 @@ jobs:
           Copy-Item build/pdfium.dll dev-tools/
 
       - uses: actions/upload-artifact@v4
-        if: runner.os == 'Windows' && matrix.part == 'checks'
+        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
         with:
           name: JeffOffice-windows-tools
           path: dev-tools
@@ -389,7 +419,7 @@ jobs:
           path: linux-packages
 
       - name: Package (macOS)
-        if: runner.os == 'macOS' && matrix.part == 'checks' && github.event_name == 'workflow_dispatch'
+        if: runner.os == 'macOS' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
         run: |
           ver=$(sed -n 's/^project(JeffPub VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           mkdir -p dist macos-dmg
@@ -450,16 +480,26 @@ jobs:
           ls -la macos-dmg
 
       - uses: actions/upload-artifact@v4
-        if: runner.os == 'macOS' && matrix.part == 'checks' && github.event_name == 'workflow_dispatch'
+        if: runner.os == 'macOS' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
         with:
           name: JeffOffice-macos-dmg
           path: macos-dmg
 
       - uses: actions/upload-artifact@v4
-        if: matrix.part == 'checks'
+        if: matrix.part == 'checks' && matrix.shard == 1
         with:
           name: JeffOffice-${{ matrix.name }}
           path: dist/JeffOffice
+
+      # The compiler cache, as the Build step left it, when it compiled something (a run that only hit leaves the entry it restored as it is; restoring
+      # keeps it from being evicted), even when a later step failed. Only main's runs and Linux's save: a branch or pull request on Windows or macOS
+      # restores main's, and keeps its own out of the 10 GB.
+      - name: Save the compiler cache
+        if: ${{ !cancelled() && runner.environment != 'self-hosted' && (github.ref == 'refs/heads/main' || matrix.name == 'linux') && steps.build.outputs.misses != '' && steps.build.outputs.misses != '0' }}
+        uses: actions/cache/save@v4
+        with:
+          path: .ccache
+          key: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ matrix.part }}${{ matrix.shard }}-${{ github.sha }}
 
   # A quick check of the Windows installer's script (a minute, not an hour): it is built here from stand-in files, by
   # hand-started runs only. The real installer is made by the Windows "checks" job above, from the real programs.
