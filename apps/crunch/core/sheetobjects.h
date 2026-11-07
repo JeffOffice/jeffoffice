@@ -19,7 +19,9 @@
 #include "grid/objectlayer.h"
 #include "grid/valuestore.h"
 #include "office/chart.h"
+#include "office/diagram.h"
 #include "office/drawingml.h"
+#include "render/diagramdrawing.h"
 #include "render/renderer.h"
 #include "sheet/chartdata.h"
 #include "sheet/drawing.h"
@@ -36,17 +38,22 @@
 
 namespace jp::crunch {
 
+// The most diagrams of a workbook that are drawn from their drawings (a diagram that many frames show is drawn once for each size); the rest are boxes that say what they are.
+constexpr int kMaxDiagramsDrawn = 200;
+// And the most the pictures of their drawings come to, in bytes of SVG.
+constexpr qint64 kMaxDiagramBytes = qint64(64) << 20;
+
 // What a sheet's drawing holds and how much of it is shown, for the window's words and the yardsticks.
 struct DrawingCounts {
     int anchors = 0;         // anchors in the drawing part
-    int charts = 0, pictures = 0, shapes = 0, groups = 0, connectors = 0;   // objects read, by kind
+    int charts = 0, pictures = 0, shapes = 0, groups = 0, connectors = 0, diagrams = 0;   // objects read, by kind
     int shown = 0;           // objects that can be drawn
     int leftOut = 0;         // objects read that cannot be drawn (a chart that is not one, a picture that cannot be read, a group of nothing...)
     int hidden = 0;          // objects the file hides (they are not drawn)
     int skipped = 0;         // anchors that hold nothing that is read (tables, controls, ink)
     bool truncated = false;  // more anchors than may be read
     QStringList why;         // in words, each thing left out
-    int total() const { return charts + pictures + shapes + groups + connectors; }
+    int total() const { return charts + pictures + shapes + groups + connectors + diagrams; }
 };
 
 // What the numbers, words, error-bar amounts, and field-button names a chart is drawn from come to (never 0): a chart is drawn again when this changes.
@@ -208,6 +215,9 @@ public:
     int chartPartsRead() const { return m_chartPartsRead; }
     // How many drawings were parsed on a worker thread (see show).
     int drawingsParsedApart() const { return m_parsedApart; }
+    // How many diagrams were drawn from their drawings so far (at most kMaxDiagramsDrawn: the rest are boxes), and the SVG picture a diagram object was made as (empty for none).
+    int diagramsDrawn() const { return m_diagramsDrawn; }
+    QByteArray diagramPicture(int sheet, int id);
     // How many edits of rows and columns have been worked into objects (one for each object and edit; an Undo works the edits since the file's again, for each object).
     qint64 editSteps() const { return m_editSteps; }
     // Whether the sheet's drawing has been read (listed), and how many pictures the drawing code left out for their size or kept (what it holds of them is the file's bytes, never decoded here).
@@ -243,6 +253,7 @@ private:
         std::vector<jp::crunch::RefPlacement> refPlacements;   // what a person made the chart read
         std::shared_ptr<const jp::office::Chart> fileChart;   // the chart as the file's part gave it (a chart that is another was changed by a person)
         QString savedPart;                             // what saving makes for it: the chart part's name
+        QString diagramKey;                            // for a diagram: the picture made of it (m_diagramPictures)
         qint64 points = 0;                             // what a chart that is new or changed holds, for the limits
         std::shared_ptr<QDomDocument> ownDoc;          // for a picture or shape put here from a copy: its element's own document, the package that has the pictures it names, how it is read, and its XML to be written
         std::shared_ptr<jp::office::Package> ownPackage;
@@ -273,6 +284,7 @@ private:
         std::shared_ptr<jp::office::DrawingContext> context;
         QHash<QString, std::shared_ptr<const jp::office::Chart>> parsed;   // the charts read, by part (the part is read once, whatever number of anchors name it)
         QHash<QString, QString> failedParts;           // chart parts that could not be read, and why
+        QHash<QString, QString> diagramParts;          // the drawing part each diagram data link leads to (empty: the file keeps none)
         DrawingCounts counts;
         int nextId = 0;                                // the id of the next object put on the sheet
         qint64 nextShapeId = 2;                        // and the number the next one has in the drawing
@@ -287,6 +299,7 @@ private:
     bool parseApart(int sheet, Sheet &s);
     void parsed(int sheet, quint64 generation, const std::shared_ptr<QDomDocument> &doc, const QString &why);
     void ensureBuilt(int sheet, Object &o);
+    jp::ItemPtr diagramItem(Sheet &s, Object &o);
     void readContext();
     std::function<QImage()> prepareChart(int sheet, Object &o, const jp::grid::RenderRequest &q);
     QImage renderItem(Object &o, const jp::grid::RenderRequest &q);
@@ -326,6 +339,15 @@ private:
     std::unique_ptr<jp::Document> m_doc;
     jp::LayoutCache m_layoutCache;
     QHash<QString, QString> m_images;
+    // The pictures made of diagrams, by drawing and size (a diagram that many frames show is drawn once), and what has been drawn.
+    struct DiagramPicture {
+        QString imageId;
+        QByteArray svg;
+        QSizeF size;
+    };
+    QHash<QString, DiagramPicture> m_diagramPictures;
+    int m_diagramsDrawn = 0;
+    qint64 m_diagramBytes = 0;
     jp::office::DrawingBudget m_budget;
     jp::office::Theme m_theme;
     QDomDocument m_themeDoc;

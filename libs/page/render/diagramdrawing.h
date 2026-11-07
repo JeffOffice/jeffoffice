@@ -29,10 +29,11 @@ QByteArray diagramSvg(const QDomElement &spTree, const office::DrawingContext &c
 constexpr int kMostDiagramShapes = 2000;
 
 // The diagram a drawing part holds (`drawingXml`, the part named `drawingPart` in `package`, whose links name the pictures in it; none: its pictures are left out), drawn for a
-// frame of size `natural` (the size it was made for, in points) and shown at `shown`. The look of the theme is the document's own. Empty if the part is no drawing, or is damaged,
+// frame of size `natural` (the size it was made for, in points; empty for the size the shapes themselves say, taking the room round them to be the same on both sides, which is what a frame
+// of a spreadsheet's diagram, whose own size is 0 by 0, comes to) and shown at `shown` (empty: as large as `natural`). `drawnSize` is given the size it was drawn for. The look of the theme is the document's own. Empty if the part is no drawing, or is damaged,
 // or has no shapes that are drawn. A drawing is read within the limits of office::parseXml and kMostDiagramShapes shapes, and groups nested no deeper than the shape reader allows.
 QByteArray diagramDrawingSvg(const QByteArray &drawingXml, const QString &drawingPart, const office::Package *package, const office::Theme &theme, const QSizeF &natural,
-                             const QSizeF &shown, int *imagesLeftOut = nullptr);
+                             const QSizeF &shown, int *imagesLeftOut = nullptr, QSizeF *drawnSize = nullptr);
 
 // The box that stands for a diagram whose file keeps no drawing (and no picture of it): a pale box with a dashed line round it that says what it is, in `size` points.
 QByteArray diagramPlaceholderSvg(const QSizeF &size);

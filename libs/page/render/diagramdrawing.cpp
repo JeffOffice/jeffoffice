@@ -1,5 +1,6 @@
 #include "render/diagramdrawing.h"
 
+#include "office/chart.h"
 #include "office/diagram.h"
 #include "office/xml.h"
 #include "render/renderer.h"
@@ -83,6 +84,29 @@ QByteArray asPicture(const QByteArray &svg, const QSizeF &drawn, const QSizeF &s
     return text.toUtf8();
 }
 
+// The size the shapes of a drawing say it was made for: from the top left corner to the farthest edge of its shapes, with as much room again at the far edges as the shapes leave at the near
+// ones (a diagram's layout sets its shapes in the middle of its frame). Empty for a drawing with no shape that has a size.
+QSizeF extentOfShapes(const QDomElement &tree)
+{
+    double left = 1e18, top = 1e18, right = 0, bottom = 0;
+    int seen = 0;
+    for (QDomElement e = tree.firstChildElement(); !e.isNull() && seen < 20000; e = e.nextSiblingElement(), ++seen) {
+        const QString kind = e.localName();
+        if (kind != QLatin1String("sp") && kind != QLatin1String("grpSp")) continue;
+        const QDomElement props = office::child(e, office::kDiagramDrawingNs, kind == QLatin1String("sp") ? QStringLiteral("spPr") : QStringLiteral("grpSpPr"));
+        const QDomElement xfrm = office::child(props, office::ns::A, QStringLiteral("xfrm")), off = office::child(xfrm, office::ns::A, QStringLiteral("off")), ext = office::child(xfrm, office::ns::A, QStringLiteral("ext"));
+        if (ext.isNull()) continue;
+        const double x = office::emuToPoints(office::parseInt(office::attr(off, QStringLiteral("x")))), y = office::emuToPoints(office::parseInt(office::attr(off, QStringLiteral("y"))));
+        const double w = office::emuToPoints(office::parseInt(office::attr(ext, QStringLiteral("cx")))), h = office::emuToPoints(office::parseInt(office::attr(ext, QStringLiteral("cy"))));
+        left = std::min(left, std::max(0.0, x));
+        top = std::min(top, std::max(0.0, y));
+        right = std::max(right, x + w);
+        bottom = std::max(bottom, y + h);
+    }
+    if (right <= 0 || bottom <= 0 || left > right || top > bottom) return QSizeF();
+    return QSizeF(std::min(right + left, office::kChartMaxSide), std::min(bottom + top, office::kChartMaxSide));
+}
+
 } // namespace
 
 QByteArray diagramSvg(const QDomElement &spTree, const office::DrawingContext &base, const office::TextStyleStack &styles, const QSizeF &size, const Document &like,
@@ -132,16 +156,20 @@ QByteArray diagramSvg(const QDomElement &spTree, const office::DrawingContext &b
     return svg;
 }
 
-QByteArray diagramDrawingSvg(const QByteArray &drawingXml, const QString &drawingPart, const office::Package *package, const office::Theme &theme, const QSizeF &natural,
-                             const QSizeF &shown, int *imagesLeftOut)
+QByteArray diagramDrawingSvg(const QByteArray &drawingXml, const QString &drawingPart, const office::Package *package, const office::Theme &theme, const QSizeF &frame,
+                             const QSizeF &shown, int *imagesLeftOut, QSizeF *drawnSize)
 {
-    if (drawingXml.isEmpty() || natural.width() < 1 || natural.height() < 1) return {};
+    if (drawingXml.isEmpty()) return {};
     QDomDocument dom;
     if (!office::parseXml(drawingXml, &dom)) return {};
     const QDomElement root = dom.documentElement();
     if (root.localName() != QLatin1String("drawing") || root.namespaceURI() != office::kDiagramDrawingNs) return {};
     const QDomElement tree = office::child(root, office::kDiagramDrawingNs, QStringLiteral("spTree"));
     if (tree.isNull()) return {};
+    QSizeF natural = frame;
+    if (natural.width() < 1 || natural.height() < 1) natural = extentOfShapes(tree);
+    if (natural.width() < 1 || natural.height() < 1) return {};
+    if (drawnSize) *drawnSize = natural;
 
     office::DrawingContext ctx;
     ctx.package = package;

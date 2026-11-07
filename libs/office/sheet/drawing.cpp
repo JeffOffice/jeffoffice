@@ -1,6 +1,7 @@
 #include "sheet/drawing.h"
 
 #include "office/chart.h"
+#include "office/diagram.h"
 #include "office/xml.h"
 #include "sheet/cellref.h"
 
@@ -71,11 +72,20 @@ bool readObject(const QDomElement &anchor, const Package &package, const QString
         } else if (local == QLatin1String("graphicFrame")) {
             nv = childByLocal(c, "nvGraphicFramePr");
             const QString id = chartFrameRelId(c);
-            if (id.isEmpty()) continue;   // (a table, a slicer: not read)
-            const Relationship rel = package.relationship(part, id);
-            if (rel.id.isEmpty() || rel.external || !package.hasPart(rel.target)) continue;
-            o->kind = ObjectKind::Chart;
-            o->chartPart = rel.target;
+            if (id.isEmpty()) {
+                if (!isDiagramFrame(c)) continue;   // (a table, a slicer: not read)
+                // A diagram: drawn from the drawing its data part names, found when the object is made (the part may be large, and need not be read to list the drawing).
+                o->kind = ObjectKind::Diagram;
+                o->diagramData = diagramFrameLinks(c).data;
+                const QDomElement ext = childByLocal(childByLocal(c, "xfrm"), "ext");
+                o->diagramCx = emuOf(attr(ext, QStringLiteral("cx")));
+                o->diagramCy = emuOf(attr(ext, QStringLiteral("cy")));
+            } else {
+                const Relationship rel = package.relationship(part, id);
+                if (rel.id.isEmpty() || rel.external || !package.hasPart(rel.target)) continue;
+                o->kind = ObjectKind::Chart;
+                o->chartPart = rel.target;
+            }
         } else {
             continue;
         }

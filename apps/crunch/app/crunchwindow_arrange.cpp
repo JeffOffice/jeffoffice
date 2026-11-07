@@ -64,7 +64,7 @@ void CrunchWindow::updateArrangeActions()
     const std::vector<int> ids = pickedObjects();
     const bool usable = m_session && !m_saving && !m_chartSheetShown;
     bool groupable = ids.size() >= 2 && usable;
-    for (const int id : ids) groupable = groupable && m_objects->kindOf(m_sheet, id) != ObjectKind::Chart;
+    for (const int id : ids) groupable = groupable && m_objects->kindOf(m_sheet, id) != ObjectKind::Chart && m_objects->kindOf(m_sheet, id) != ObjectKind::Diagram;
     act(QStringLiteral("object.group"))->setEnabled(groupable);
     act(QStringLiteral("object.ungroup"))->setEnabled(usable && ids.size() == 1 && m_objects->kindOf(m_sheet, ids.front()) == ObjectKind::Group);
     for (const char *name : {"object.alignLeft", "object.alignCenter", "object.alignRight", "object.alignTop", "object.alignMiddle", "object.alignBottom"}) act(QString::fromLatin1(name))->setEnabled(usable && ids.size() >= 2);
@@ -132,6 +132,10 @@ bool CrunchWindow::groupObjects()
         QString why;
         if (m_objects->kindOf(m_sheet, id) == ObjectKind::Chart) {
             notice(title, tr("A chart can't be put in a group."));
+            return false;
+        }
+        if (m_objects->kindOf(m_sheet, id) == ObjectKind::Diagram) {
+            notice(title, tr("A diagram can't be put in a group."));
             return false;
         }
         if (!m_objects->canDelete(m_sheet, id, &why)) {

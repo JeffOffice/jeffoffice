@@ -1,6 +1,7 @@
 // Tests of the charts, pictures, and shapes over the cells in JeffCrunch's window: they are shown where their anchors put them, a chart is drawn from the cells it reads and again when one
 // changes (typed, or worked out), and objects and charts move when rows are inserted or deleted, undone and redone. Every workbook is built here.
 #include "../sheet/drawinghelpers.h"
+#include "../office/diagramsample.h"
 #include "../stablesaves.h"
 #include "savedok.h"
 #include "editwindow.h"
@@ -11,6 +12,7 @@
 #include "office/chart.h"
 #include "office/package.h"
 #include "office/theme.h"
+#include "render/diagramdrawing.h"
 #include "office/xml.h"
 
 #include <QDir>
@@ -44,6 +46,39 @@ QByteArray drawingBook()
                             + twoCell(0, 17, 4, 17, connectorElement(7));
     return bookWithDrawing({worksheet(rows)}, drawingPart(anchors),
                            {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), series)), imageTarget(QStringLiteral("rIdP"), 1, pngBytes(8, 4, Qt::red))});
+}
+
+// A diagram's frame, as the spreadsheet program writes one: it names the four parts by the links of the drawing, and the frame's own size is 0 by 0 (the anchor says how large it is).
+QString diagramFrame(int id, const QString &name, const QString &dataId = QStringLiteral("rIdDm"))
+{
+    return QStringLiteral("<xdr:graphicFrame macro=\"\"><xdr:nvGraphicFramePr><xdr:cNvPr id=\"%1\" name=\"%2\" descr=\"A process\"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>"
+                          "<xdr:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></xdr:xfrm><a:graphic><a:graphicData uri=\"%3\"><dgm:relIds xmlns:dgm=\"%3\" r:dm=\"%4\" r:lo=\"rIdLo\" r:qs=\"rIdQs\" r:cs=\"rIdCs\"/>"
+                          "</a:graphicData></a:graphic></xdr:graphicFrame>")
+        .arg(id).arg(name, diagramtest::dgmNs(), dataId);
+}
+
+// The five parts of a diagram, named by the links of the drawing, the numbered one `n` (the links are suffixed with it when n > 1).
+QVector<DrawingTarget> diagramTargets(bool withDrawing = true, const QByteArray &drawingXml = diagramtest::diagramDrawingXml(), int n = 1)
+{
+    using namespace diagramtest;
+    const QString base = QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.");
+    const QString suffix = n > 1 ? QString::number(n) : QString();
+    auto part = [&](const QString &id, const QString &kind, const QString &file, const QByteArray &bytes, const QString &type) {
+        return DrawingTarget{id + suffix, QStringLiteral("xl/diagrams/%1%2.xml").arg(file).arg(n), bytes, type, kind};
+    };
+    QVector<DrawingTarget> out;
+    out << part(QStringLiteral("rIdDm"), QStringLiteral("diagramData"), QStringLiteral("data"), diagramDataXml(withDrawing ? QStringLiteral("rIdDrw") + suffix : QString()), base + QStringLiteral("diagramData+xml"));
+    out << part(QStringLiteral("rIdLo"), QStringLiteral("diagramLayout"), QStringLiteral("layout"), diagramOtherXml("layoutDef"), base + QStringLiteral("diagramLayout+xml"));
+    out << part(QStringLiteral("rIdQs"), QStringLiteral("diagramQuickStyle"), QStringLiteral("quickStyle"), diagramOtherXml("styleDef"), base + QStringLiteral("diagramStyle+xml"));
+    out << part(QStringLiteral("rIdCs"), QStringLiteral("diagramColors"), QStringLiteral("colors"), diagramOtherXml("colorsDef"), base + QStringLiteral("diagramColors+xml"));
+    if (withDrawing) out << part(QStringLiteral("rIdDrw"), QStringLiteral("diagramDrawing"), QStringLiteral("drawing"), drawingXml, QStringLiteral("application/vnd.ms-office.drawingml.diagramDrawing+xml"));
+    return out;
+}
+
+// A workbook with a diagram over A7:E14 (the frame of 0 by 0, as a real file has it; its drawing is 4 by 1.5 inches in its own space).
+QByteArray diagramBook(bool withDrawing = true, const QByteArray &drawingXml = diagramtest::diagramDrawingXml())
+{
+    return bookWithDrawing({dataSheet()}, drawingPart(twoCell(0, 6, 5, 14, diagramFrame(2, QStringLiteral("Diagram 1")))), diagramTargets(withDrawing, drawingXml));
 }
 
 // A PNG that says it is 100,000 by 100,000 pixels and holds no pixels (only its header and its end).
@@ -1950,6 +1985,129 @@ private Q_SLOTS:
 
     // The workbook is the same bytes each time it is saved, in whatever process: nothing written follows the order of a hash that Qt seeds anew for each process.
     void aSavedWorkbookIsTheSameBytesInEachProcess() { JP_VERIFY_SAME_SAVES("savesTheWorkbookWithObjects"); }
+
+    // A diagram of a sheet is drawn from the drawing its file keeps (the frame's own size is 0, so the anchor gives the size), is picked as one object, and is saved with every part as it was.
+    void aDiagramIsShownFromItsSavedDrawingPickedAndKeptWhole()
+    {
+        EditWindow e;
+        const QByteArray original = diagramBook();
+        QVERIFY(e.open(original));
+        QTRY_VERIFY(shown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        const crunch::DrawingCounts c = o->counts(0);
+        QCOMPARE(c.diagrams, 1);
+        QCOMPARE(c.shown, 1);
+        QCOMPARE(c.leftOut, 0);
+        QCOMPARE(c.skipped, 0);
+        o->layer()->prepareAll();
+        const QImage img = shot(e);
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        const QRect box = L.rangeRect(6, 0, 13, 4);
+        // the second shape's blue and the third's green, where the drawing puts them in the anchor's box
+        auto near = [&](double fx, double fy, const QColor &want) {
+            const QColor got = QColor::fromRgb(at(img, box.left() + int(box.width() * fx), box.top() + int(box.height() * fy)));
+            return std::abs(got.red() - want.red()) < 6 && std::abs(got.green() - want.green()) < 6 && std::abs(got.blue() - want.blue()) < 6;
+        };
+        QVERIFY2(near(0.37, 0.65, QColor(0x33, 0x66, 0x99)), "the blue shape");
+        QVERIFY2(near(0.72, 0.65, QColor(0x20, 0xA0, 0x40)), "the green shape");
+        // picked as one object
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, box.center());
+        QCOMPARE(o->layer()->selectedId(), 0);
+        // a cell is typed over and the file saved: every part of the diagram is as it was
+        e.select(QStringLiteral("B3"));
+        e.enter(QStringLiteral("55"));
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        office::Package before, after;
+        QString why;
+        QVERIFY(before.readLazy(original, &why));
+        QVERIFY2(after.readLazyFile(e.path, &why), qPrintable(why));
+        for (const char *name : {"data1", "layout1", "quickStyle1", "colors1", "drawing1"}) {
+            const QString part = QStringLiteral("/xl/diagrams/%1.xml").arg(QLatin1String(name));
+            QVERIFY2(after.hasPart(part), qPrintable(part));
+            QCOMPARE(after.part(part), before.part(part));
+        }
+        QCOMPARE(after.relationships(QStringLiteral("/xl/drawings/drawing1.xml")).size(), 5);
+        QVERIFY(after.part(QStringLiteral("/xl/drawings/drawing1.xml")).contains("r:dm=\"rIdDm\""));
+    }
+
+    // A diagram whose file keeps no drawing is a box that says what it is, and its parts are kept all the same.
+    void aDiagramWithoutADrawingIsALabeledBoxAndKept()
+    {
+        EditWindow e;
+        QVERIFY(e.open(diagramBook(false)));
+        QTRY_VERIFY(shown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        const crunch::DrawingCounts c = o->counts(0);
+        QCOMPARE(c.diagrams, 1);
+        QCOMPARE(c.shown, 1);
+        QCOMPARE(c.leftOut, 0);
+        o->layer()->prepareAll();
+        const QImage img = shot(e);
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        const QRect box = L.rangeRect(6, 0, 13, 4);
+        const QColor pale = QColor::fromRgb(at(img, box.left() + 12, box.top() + 12));
+        QVERIFY2(pale.red() > 225 && pale.red() < 250 && pale.green() == pale.red(), qPrintable(pale.name()));
+        e.select(QStringLiteral("B3"));
+        e.enter(QStringLiteral("56"));
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        const QMap<QString, QByteArray> parts = savedParts(e.path);
+        QVERIFY(parts.contains(QStringLiteral("xl/diagrams/data1.xml")) && parts.contains(QStringLiteral("xl/diagrams/layout1.xml")));
+    }
+
+    // A drawing nested far deeper than a diagram is, one with a great many shapes, and more diagrams than a workbook draws, neither hang nor crash; each is capped, and every part is kept.
+    void aHostileDiagramDrawingIsCapped()
+    {
+        using namespace diagramtest;
+        QString deep;
+        for (int i = 0; i < 20000; ++i) deep += QStringLiteral("<dsp:grpSp><dsp:nvGrpSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvGrpSpPr/></dsp:nvGrpSpPr><dsp:grpSpPr/>");
+        deep += diagramShapeXml(0, 0, 914400, 914400, QStringLiteral("rect"), QStringLiteral("<a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill>"), QStringLiteral("x"));
+        for (int i = 0; i < 20000; ++i) deep += QStringLiteral("</dsp:grpSp>");
+        {
+            EditWindow e;
+            QVERIFY(e.open(diagramBook(true, diagramDrawingXml(deep))));
+            QTRY_VERIFY(shown(e, 1));
+            crunch::SheetObjects *o = e.win.w.objects();
+            QCOMPARE(o->counts(0).diagrams, 1);
+            o->layer()->prepareAll();
+            QVERIFY(!shot(e).isNull());
+        }
+        {
+            QString many;
+            for (int i = 0; i < 30000; ++i)
+                many += QStringLiteral("<dsp:sp><dsp:nvSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvSpPr/></dsp:nvSpPr><dsp:spPr><a:xfrm><a:off x=\"%1\" y=\"%2\"/><a:ext cx=\"9144\" cy=\"9144\"/></a:xfrm>"
+                                       "<a:prstGeom prst=\"rect\"/><a:solidFill><a:srgbClr val=\"AB12CD\"/></a:solidFill></dsp:spPr></dsp:sp>").arg(i % 100 * 9144).arg(i / 100 * 9144);
+            EditWindow e;
+            QVERIFY(e.open(diagramBook(true, diagramDrawingXml(many))));
+            QTRY_VERIFY(shown(e, 1));
+            e.win.w.objects()->layer()->prepareAll();
+            const QByteArray svg = e.win.w.objects()->diagramPicture(0, 0).toLower();
+            QVERIFY(!svg.isEmpty());
+            QVERIFY2(svg.count("ab12cd") <= jp::kMostDiagramShapes, qPrintable(QString::number(svg.count("ab12cd"))));
+        }
+        {
+            // 230 diagrams, each with parts of its own: 200 are drawn from their drawings, the rest are boxes
+            QString anchors;
+            QVector<DrawingTarget> targets;
+            for (int i = 1; i <= 230; ++i) {
+                anchors += twoCell(0, 20 + i, 3, 21 + i, diagramFrame(i + 1, QStringLiteral("Diagram %1").arg(i), i > 1 ? QStringLiteral("rIdDm%1").arg(i) : QStringLiteral("rIdDm")));
+                targets += diagramTargets(true, diagramDrawingXml(), i);
+            }
+            EditWindow e;
+            QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), targets)));
+            QTRY_VERIFY(shown(e, 230));
+            crunch::SheetObjects *o = e.win.w.objects();
+            const crunch::DrawingCounts c = o->counts(0);
+            QCOMPARE(c.diagrams, 230);
+            QCOMPARE(c.shown, 230);
+            QVERIFY2(o->diagramsDrawn() <= crunch::kMaxDiagramsDrawn && o->diagramsDrawn() > 0, qPrintable(QString::number(o->diagramsDrawn())));
+        }
+    }
 };
 
 JP_TEST_CLASS(CrunchDrawingTests)

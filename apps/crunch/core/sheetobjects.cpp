@@ -312,6 +312,7 @@ void SheetObjects::list(int sheet, Sheet &s)
         case ObjectKind::Shape: ++c.shapes; break;
         case ObjectKind::Group: ++c.groups; break;
         case ObjectKind::Connector: ++c.connectors; break;
+        case ObjectKind::Diagram: ++c.diagrams; break;
         case ObjectKind::Other: break;
         }
         if (d.hidden) {
@@ -408,6 +409,54 @@ void SheetObjects::applyEdit(int sheet, Object &o, const StructEdit &edit)
     refreshRefs(o);
 }
 
+// A diagram of a sheet as a picture: its drawing as the file keeps it (the part its data part names), or a box that says what it is where the file keeps none or the workbook has drawn as many
+// diagrams as it may. The size the drawing was made for is the frame's, else what its shapes say.
+ItemPtr SheetObjects::diagramItem(Sheet &s, Object &o)
+{
+    readContext();
+    const Package &package = m_book->package();
+    const QString key = s.drawingPart + QLatin1Char('|') + o.meta.diagramData;
+    auto found = s.diagramParts.constFind(key);
+    if (found == s.diagramParts.cend()) found = s.diagramParts.insert(key, diagramDrawingPartOf(package, s.drawingPart, o.meta.diagramData));
+    const QString drawing = found.value();
+    const QSizeF frame(std::clamp(emuToPoints(o.meta.diagramCx), 0.0, kChartMaxSide), std::clamp(emuToPoints(o.meta.diagramCy), 0.0, kChartMaxSide));
+    const QString pictureKey = QStringLiteral("%1|%2x%3").arg(drawing).arg(frame.width()).arg(frame.height());
+    auto made = m_diagramPictures.constFind(pictureKey);
+    if (made == m_diagramPictures.cend()) {
+        DiagramPicture pic;
+        QByteArray svg;
+        if (!drawing.isEmpty() && m_diagramsDrawn < kMaxDiagramsDrawn && m_diagramBytes < kMaxDiagramBytes) {
+            ++m_diagramsDrawn;
+            svg = diagramDrawingSvg(package.part(drawing), drawing, &package, m_theme, frame, QSizeF(), nullptr, &pic.size);
+        }
+        if (svg.isEmpty()) {
+            pic.size = frame.isEmpty() ? QSizeF(288, 216) : frame;
+            svg = diagramPlaceholderSvg(pic.size);
+        }
+        m_diagramBytes += svg.size();
+        pic.svg = svg;
+        pic.imageId = m_doc->addImage(svg, QStringLiteral("svg"));
+        made = m_diagramPictures.insert(pictureKey, pic);
+    }
+    auto pic = std::make_shared<PictureItem>();
+    pic->rect = QRectF(QPointF(0, 0), made->size);
+    pic->imgRect = QRectF(QPointF(0, 0), made->size);
+    pic->imageId = made->imageId;
+    pic->name = o.meta.name;
+    pic->altText = o.meta.description;
+    pic->wrap.mode = Wrap::None;
+    o.diagramKey = pictureKey;
+    return pic;
+}
+
+QByteArray SheetObjects::diagramPicture(int sheet, int id)
+{
+    Object *o = find(sheet, id);
+    if (!o) return {};
+    ensureBuilt(sheet, *o);
+    return m_diagramPictures.value(o->diagramKey).svg;
+}
+
 void SheetObjects::ensureBuilt(int sheet, Object &o)
 {
     if (o.built) return;
@@ -458,6 +507,13 @@ void SheetObjects::ensureBuilt(int sheet, Object &o)
         if (!m_applied.empty())
             for (QString &ref : o.movedRefs) ref = movedChartRef(ref, names, m_applied, sheet);
         refreshRefs(o);
+        o.made = true;
+    } else if (o.meta.kind == ObjectKind::Diagram) {
+        o.item = diagramItem(s, o);
+        if (!o.item) {
+            leaveOut(tr("a diagram that could not be shown"));
+            return;
+        }
         o.made = true;
     } else {
         o.item = readShape(o.meta.element, o.ownContext ? *o.ownContext : *s.context);
@@ -554,7 +610,7 @@ LayerObject SheetObjects::layerObject(int sheet, const std::shared_ptr<Object> &
     l.name = o->meta.name;
     l.thin = o->meta.kind == ObjectKind::Connector;
     l.margin = 4;   // (until the object is made and says)
-    l.hitInk = o->meta.kind != ObjectKind::Picture && o->meta.kind != ObjectKind::Chart;
+    l.hitInk = o->meta.kind != ObjectKind::Picture && o->meta.kind != ObjectKind::Chart && o->meta.kind != ObjectKind::Diagram;
     const bool chart = o->meta.kind == ObjectKind::Chart;
     if (chart) l.prepare = [this, sheet, o](const RenderRequest &q) { return prepareChart(sheet, *o, q); };
     else l.render = [this, o](const RenderRequest &q) { return renderItem(*o, q); };
@@ -1805,7 +1861,7 @@ bool SheetObjects::copyElement(int sheet, int id, jp::crunch::ObjectClip *clip, 
         return false;
     };
     Object *o = find(sheet, id);
-    if (!o || o->meta.kind == ObjectKind::Chart || o->meta.kind == ObjectKind::Other) return refuse(tr("This object can't be copied."));
+    if (!o || o->meta.kind == ObjectKind::Chart || o->meta.kind == ObjectKind::Diagram || o->meta.kind == ObjectKind::Other) return refuse(tr("This object can't be copied."));
     Sheet &s = sheetState(sheet);
     ensureBuilt(sheet, *o);
     if (!o->made || o->meta.element.isNull()) return refuse(tr("This object can't be shown here, so it can't be copied."));
