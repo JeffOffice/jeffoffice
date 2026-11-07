@@ -28,6 +28,7 @@
 #include <QSettings>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QUrl>
 #include <QtTest>
 
 #include <functional>
@@ -398,6 +399,75 @@ private Q_SLOTS:
         QCOMPARE(broken.count(), 1);
         QCOMPARE(d.table()->rowCount(), 0);
         QCOMPARE(e.win.w.session()->editText(0, 4, 0), QStringLiteral("84"));
+    }
+
+    // Change Source points a link at another file (one step of Undo, written to the link's relationships at the next save, the formulas as they were), and Update Values gives the cells that are
+    // only a reference to the source the values it has now; a cell that does more with them keeps the value its file stored.
+    void editLinksChangeTheSourceAndUpdateTheValues()
+    {
+        const QByteArray book = repack(externalLinkBook(), [](Parts &p) {
+            p[kSheet].replace("[1]Prices!A1*2", "[1]Sheet1!A1*2");
+            p[kSheet].replace("</row></sheetData>", "</row><row r=\"6\"><c r=\"A6\"><f>[1]Sheet1!A1</f><v>42</v></c></row></sheetData>");
+        });
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString source = QDir(dir.path()).absoluteFilePath(QStringLiteral("prices.xlsx"));
+        {
+            QFile f(source);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(bookOfSheets({{"A1=7", "A2=hello"}}));
+        }
+        EditWindow e;
+        QVERIFY(e.open(book, QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        EditLinksDialog d(s, dir.path());
+        d.setSourceChooser([&](const QString &) { return source; });
+        // the file named is not on this computer: nothing is read
+        QVERIFY(!d.updateRow(0));
+        QVERIFY(d.note().contains(QStringLiteral("can't be found")));
+        QCOMPARE(e.valueAt(QStringLiteral("A6")), QStringLiteral("n:42"));
+        // Change Source
+        QVERIFY(d.changeRow(0));
+        QCOMPARE(s->externalLinkSources()[0].shown, source);
+        QVERIFY(s->externalLinkSources()[0].local);
+        QCOMPARE(d.table()->item(0, 0)->text(), source);
+        d.show();
+        saveShot(&d, QStringLiteral("edit-links-change-source"));
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Change Source"));
+        e.win.w.undoStack()->undo();
+        QCOMPARE(s->externalLinkSources()[0].shown, QStringLiteral("C:/data/prices.xlsx"));
+        e.win.w.undoStack()->redo();
+        QCOMPARE(s->externalLinkSources()[0].shown, source);
+        // Update Values
+        QSignalSpy changed(&d, &EditLinksDialog::linksChanged);
+        QVERIFY(d.updateRow(0));
+        QCOMPARE(changed.count(), 1);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A6")), QStringLiteral("n:7"));
+        QCOMPARE(e.valueAt(QStringLiteral("A5")), QStringLiteral("n:84"));   // (it multiplies the value: it keeps the one its file stored)
+        QCOMPARE(s->editText(0, 5, 0), QStringLiteral("=[1]Sheet1!A1"));
+        QVERIFY(d.note().contains(QStringLiteral("1 more")));
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Update Values"));
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A6")), QStringLiteral("n:42"));
+        e.win.w.undoStack()->redo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A6")), QStringLiteral("n:7"));
+        // the save writes the new address in the link's relationships and the new value in the cell, and keeps the formula
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        Parts now;
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        readZip(f.readAll(), now);
+        const QByteArray rels = now.value(QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels"));
+        QVERIFY2(rels.contains(QUrl::fromLocalFile(source).toString(QUrl::FullyEncoded).toUtf8()), rels.constData());
+        QVERIFY2(!rels.contains("C:/data"), rels.constData());
+        QVERIFY2(now.value(kSheet).contains("<f>[1]Sheet1!A1</f><v>7</v>"), now.value(kSheet).constData());
+        QVERIFY(now.value(QStringLiteral("xl/externalLinks/externalLink1.xml")).contains("<v>42</v>"));
     }
 
     // Inspect Workbook leaves the custom XML out: the parts, what they relate to, the workbook's link to them, and their types; nothing else of the file changes.

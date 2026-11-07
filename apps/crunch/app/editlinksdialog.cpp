@@ -4,6 +4,7 @@
 
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -41,6 +42,12 @@ EditLinksDialog::EditLinksDialog(crunch::EditSession *session, const QString &ba
     check->setObjectName(QStringLiteral("editLinksCheck"));
     m_break = new QPushButton(tr("Break Link"), this);
     m_break->setObjectName(QStringLiteral("editLinksBreak"));
+    m_update = new QPushButton(tr("Update Values"), this);
+    m_update->setObjectName(QStringLiteral("editLinksUpdate"));
+    m_change = new QPushButton(tr("Change Source…"), this);
+    m_change->setObjectName(QStringLiteral("editLinksChange"));
+    row->addWidget(m_update);
+    row->addWidget(m_change);
     row->addWidget(m_open);
     row->addWidget(check);
     row->addWidget(m_break);
@@ -62,10 +69,14 @@ EditLinksDialog::EditLinksDialog(crunch::EditSession *session, const QString &ba
         Q_EMIT openRequested(path);
     });
     connect(m_break, &QPushButton::clicked, this, [this] { breakRow(m_table->currentRow()); });
+    connect(m_update, &QPushButton::clicked, this, [this] { updateRow(m_table->currentRow()); });
+    connect(m_change, &QPushButton::clicked, this, [this] { changeRow(m_table->currentRow()); });
     auto sync = [this] {
         const bool one = m_table->currentRow() >= 0 && m_table->currentRow() < int(m_sources.size());
         m_open->setEnabled(one);
         m_break->setEnabled(one);
+        m_update->setEnabled(one);
+        m_change->setEnabled(one);
     };
     connect(m_table, &QTableWidget::currentCellChanged, this, sync);
     resize(620, 300);
@@ -108,6 +119,49 @@ void EditLinksDialog::checkStatus()
         }
         if (QTableWidgetItem *item = m_table->item(r, 2)) item->setText(text);
     }
+}
+
+QString EditLinksDialog::note() const { return m_note->text(); }
+
+bool EditLinksDialog::updateRow(int row)
+{
+    if (row < 0 || row >= int(m_sources.size())) return false;
+    const crunch::EditSession::ExternalSource s = m_sources[size_t(row)];
+    const QString path = localPath(s, m_baseDir);
+    if (path.isEmpty() || !QFileInfo::exists(path)) {
+        m_note->setText(tr("That workbook can't be found on this computer, so its values are not updated. Use Change Source to point to it."));
+        return false;
+    }
+    crunch::EditSession::ExternalUpdate done;
+    const crunch::EditSession::Outcome o = m_session->updateExternalValues(s.index, path, &done);
+    if (!o.ok) {
+        m_note->setText(o.problem);
+        return false;
+    }
+    m_note->setText(done.kept > 0 ? tr("%n cell(s) have the values the source has now. %1 more combine them with other values, so they keep the values the file stored.", nullptr, done.updated).arg(done.kept)
+                                  : tr("%n cell(s) have the values the source has now.", nullptr, done.updated));
+    Q_EMIT linksChanged();
+    return true;
+}
+
+bool EditLinksDialog::changeRow(int row)
+{
+    if (row < 0 || row >= int(m_sources.size())) return false;
+    const crunch::EditSession::ExternalSource s = m_sources[size_t(row)];
+    const QString from = localPath(s, m_baseDir);
+    const QString start = !from.isEmpty() ? QFileInfo(from).absolutePath() : m_baseDir;
+    const QString path = m_chooser ? m_chooser(start) : QFileDialog::getOpenFileName(this, tr("Change Source"), start, tr("Workbooks (*.xlsx *.xlsm *.xls *.ods);;All files (*)"));
+    if (path.isEmpty()) return false;
+    const crunch::EditSession::Outcome o = m_session->changeExternalSource(s.index, path);
+    if (!o.ok) {
+        plainWarning(this, windowTitle(), o.problem);
+        return false;
+    }
+    reload();
+    m_table->selectRow(row);
+    m_note->setText(tr("The link now points to the workbook \"%1\". Use Update Values to read its values.").arg(QFileInfo(path).fileName()));
+    Q_EMIT linksChanged();
+    return true;
 }
 
 bool EditLinksDialog::breakRow(int row, bool ask)

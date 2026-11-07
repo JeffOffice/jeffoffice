@@ -2532,6 +2532,31 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             }
         }
     }
+    // ---- links to other workbooks pointed at another file: the Target of the relationship of the kind externalLinkPath in each link's own relationships
+    if (!changes.dropExternalLinks) {
+        static const QRegularExpression element(QStringLiteral("<(?:\\w+:)?Relationship\\b[^>]*>"));
+        static const QRegularExpression target(QStringLiteral("\\bTarget\\s*=\\s*(\"[^\"]*\"|'[^']*')"));
+        for (const auto &[part, address] : changes.externalTargets) {
+            const QString entry = package.entryName(part);
+            if (entry.isEmpty()) continue;
+            const int relsEntry = entryAt.value(plain(relationshipsPartOf(entry)), -1);
+            QByteArray bytes;
+            if (relsEntry < 0 || !(replaced.contains(relsEntry) ? (bytes = replaced.value(relsEntry), true) : inflate(relsEntry, &bytes))) continue;
+            QString xml = QString::fromUtf8(bytes);
+            QString escaped = address;
+            escaped.replace(QLatin1Char('&'), QStringLiteral("&amp;")).replace(QLatin1Char('<'), QStringLiteral("&lt;")).replace(QLatin1Char('"'), QStringLiteral("&quot;"));
+            for (QRegularExpressionMatch m = element.match(xml); m.hasMatch(); m = element.match(xml, m.capturedEnd())) {
+                QString tag = m.captured();
+                if (!tag.contains(QLatin1String("/externalLinkPath"))) continue;
+                const QRegularExpressionMatch t = target.match(tag);
+                if (!t.hasMatch()) continue;
+                tag.replace(t.capturedStart(), t.capturedLength(), QStringLiteral("Target=\"") + escaped + QLatin1Char('"'));
+                xml.replace(m.capturedStart(), m.capturedLength(), tag);
+                replaced.insert(relsEntry, xml.toUtf8());
+                break;
+            }
+        }
+    }
     // ---- links to other workbooks, and the custom XML data, taken out: their parts (and the parts those relate to), the workbook's relationships to them, and their types go (the list of links in
     // the workbook part is taken out below)
     if (changes.dropExternalLinks || changes.dropCustomXml) {

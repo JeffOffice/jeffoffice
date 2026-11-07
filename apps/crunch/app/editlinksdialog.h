@@ -5,6 +5,8 @@
 
 #include <QDialog>
 
+#include <functional>
+
 class QLabel;
 class QPushButton;
 class QTableWidget;
@@ -23,17 +25,25 @@ public:
     static QString localPath(const crunch::EditSession::ExternalSource &source, const QString &baseDir);
     // Breaks the links to the source in the row (the person is asked first, unless `ask` is false); true if they were.
     bool breakRow(int row, bool ask = true);
+    // Gives the cells that read the source in the row the values the source has now (the file on this computer is read); false, with the reason in the note, if it can't be.
+    bool updateRow(int row);
+    // Points the source in the row at another file: the one the chooser gives (it is asked with the folder to begin in; a test gives its own); false if none is chosen.
+    bool changeRow(int row);
+    void setSourceChooser(std::function<QString(const QString &)> chooser) { m_chooser = std::move(chooser); }
+    QString note() const;
 
 Q_SIGNALS:
     void openRequested(const QString &path);
     void linksBroken();
+    void linksChanged();   // values were updated or a source was changed
 
 private:
     void reload();
     crunch::EditSession *m_session;
     QString m_baseDir;
     QTableWidget *m_table = nullptr;
-    QPushButton *m_open = nullptr, *m_break = nullptr;
+    QPushButton *m_open = nullptr, *m_break = nullptr, *m_update = nullptr, *m_change = nullptr;
+    std::function<QString(const QString &)> m_chooser;
     QLabel *m_note = nullptr;
     std::vector<crunch::EditSession::ExternalSource> m_sources;
 };

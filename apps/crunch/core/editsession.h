@@ -963,6 +963,20 @@ public:
     // link is left the saver leaves the link parts out.
     Outcome breakExternalLinks(int *cells = nullptr, int *names = nullptr, int only = 0);
     bool externalLinksDropped() const { return m_dropExternalLinks; }
+    // Update Values: reads the workbook at `path` (the source numbered `index`, from 1) and gives each cell whose formula is only a reference to a cell of it the value that cell has there now. A cell
+    // whose formula does more with such a value (`[1]Prices!A1*2`) keeps what its file stored, since the engine does not work out formulas that read another workbook; those are counted in
+    // `kept`, with those whose place the source does not have. One step of Undo. Not ok, with a sentence, when the file can't be read.
+    struct ExternalUpdate {
+        int updated = 0;   // cells given a value from the source
+        int kept = 0;      // cells that read the source and keep the value their file stored
+    };
+    Outcome updateExternalValues(int index, const QString &path, ExternalUpdate *result = nullptr);
+    // Change Source: the source numbered `index` is another file, `path` (a file on this computer). The formulas are not changed; the file's link to it is, at the next save. One step of Undo.
+    Outcome changeExternalSource(int index, const QString &path);
+    // Used by the step of Undo that Change Source makes: the address the link has (empty for the one the file has).
+    void setExternalTarget(int index, const QString &target);
+    // The links pointed at another file, for the next save: the address by the name of the link's part.
+    std::map<QString, QString> externalSourceParts() const;
     // The custom XML data (what other programs added to the file) is left out at the next save.
     void dropCustomXml() { m_dropCustomXml = true; }
     bool customXmlDropped() const { return m_dropCustomXml; }
@@ -1309,6 +1323,7 @@ private:
     void forgetLineSteps(int sheet, bool rows);
     int m_saveGen = 0;                 // how many times the workbook has been saved
     bool m_dropCustomXml = false;
+    std::map<int, QString> m_externalTargets;   // the address each source was changed to (Change Source), by its number; the file's own is not in it
     bool m_dropExternalLinks = false;  // the links to other workbooks are taken out at the next save (see breakExternalLinks)
     int m_forgotBySave = 0;            // the steps the last save made Undo forget (see forgetDeletesInFile)
     ResultMap m_fileResults;  // what the file holds for formulas whose value there is not the one the workbook was read with (after a save)

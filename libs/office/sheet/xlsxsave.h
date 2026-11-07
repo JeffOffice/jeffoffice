@@ -360,6 +360,8 @@ struct SaveChanges {
     bool fullCalcOnLoad = false;
     // The links to other workbooks are taken out: their parts, the workbook's list of them, its relationships to them, and their types. (The cells and names that read them are changed first.)
     bool dropExternalLinks = false;
+    // Links to other workbooks pointed at another file (Change Source): for each link's part (by its name), the address its relationship of the kind externalLinkPath gets as its Target.
+    std::map<QString, QString> externalTargets;
     // The custom XML parts (data other programs added: the workbook's relationships to them, the parts, what they relate to, and their types) are taken out.
     bool dropCustomXml = false;
     // The sheets: when a person added, deleted, renamed, moved, hid, or showed one (the workbook's own list is then made from the Workbook's: names, states, and the order of the tabs, with the
