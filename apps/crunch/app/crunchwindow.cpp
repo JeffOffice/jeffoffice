@@ -878,8 +878,13 @@ void CrunchWindow::goToName()
         // (an address, a cell of another sheet, whole columns or rows, or the name of a range)
         const crunch::GoToTarget t = crunch::resolveGoTo(*m_session, text, m_sheet);
         if (t.ok) {
-            if (t.sheet != m_sheet) setActiveSheet(t.sheet);
-            if (t.sheet == m_sheet) {
+            if (t.sheet != m_sheet && !sheetHasTab(t.sheet)) {
+                notice(tr("Go To"), hiddenSheetText());
+                done = true;
+            } else if (t.sheet != m_sheet) {
+                setActiveSheet(t.sheet);
+            }
+            if (!done && t.sheet == m_sheet) {
                 if (t.wholeRows) m_view->selectRows(t.range.row1, t.range.row2);
                 else if (t.wholeColumns) m_view->selectColumns(t.range.col1, t.range.col2);
                 else m_view->selectRange(t.range.row1, t.range.col1, t.range.row2, t.range.col2);

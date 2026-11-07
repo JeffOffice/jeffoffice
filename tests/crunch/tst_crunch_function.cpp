@@ -1052,6 +1052,33 @@ private Q_SLOTS:
         e.view()->selectRange(1, 3, 2, 3);
         QVERIFY(!w.inputMessage());
     }
+    // While the Function Arguments dialog is pointing at cells, Undo and Redo are off like every other command that changes the workbook.
+    void undoAndRedoAreOffWhileTheArgumentsDialogPicks()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=1"}})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.act(QStringLiteral("sheet.insertEnd"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(w.activeSheet(), 1);
+        QVERIFY(w.act(QStringLiteral("edit.undo"))->isEnabled());
+        bool enabledInside = true;
+        int stepsInside = -1, stepsBefore = w.undoStack()->count();
+        w.setFunctionAsker([](QString *name) { *name = QStringLiteral("SQRT"); return true; });
+        w.setArgumentsAsker([&](FunctionArgumentsDialog *) {
+            enabledInside = w.act(QStringLiteral("edit.undo"))->isEnabled();
+            w.act(QStringLiteral("edit.undo"))->trigger();
+            stepsInside = w.undoStack()->count();
+            return false;
+        });
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QVERIFY(!enabledInside);
+        QCOMPARE(stepsInside, stepsBefore);
+        QVERIFY(w.act(QStringLiteral("edit.undo"))->isEnabled());   // (and back on afterward)
+        QVERIFY(w.shownSheets().contains(w.activeSheet()));
+    }
+
 private:
     QLocale m_localeBefore;
     std::unique_ptr<PinnedLocale> m_pin;

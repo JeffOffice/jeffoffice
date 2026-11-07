@@ -38,6 +38,37 @@ void CrunchWindow::noteRowsChanged(int sheet, const std::vector<jp::grid::ValueS
     if (sheet == m_sheet) scheduleAutoHeights();
 }
 
+// Rows inserted or deleted: the rows waiting to be measured, and the rows measured, are the rows they were (by their place) before the edit; they follow their rows.
+void CrunchWindow::noteRowsMoved(const jp::office::sheet::StructEdit &edit)
+{
+    if (!edit.changesRows()) return;
+    auto follow = [&](quint32 row, quint32 *to) {
+        int sheet = edit.sheet;
+        quint32 col = 0;
+        *to = row;
+        if (jp::office::sheet::adjustCell(edit, &sheet, to, &col) == jp::office::sheet::RefFate::Gone) return false;
+        return true;
+    };
+    const auto dirty = m_autoDirty.find(edit.sheet);
+    if (dirty != m_autoDirty.end()) {
+        std::set<quint32> moved;
+        for (const quint32 row : dirty->second) {
+            quint32 to = 0;
+            if (follow(row, &to)) moved.insert(to);
+        }
+        dirty->second = std::move(moved);
+    }
+    const auto seen = m_autoSeen.find(edit.sheet);
+    if (seen != m_autoSeen.end()) {
+        std::unordered_map<quint32, int> moved;
+        for (const auto &entry : seen->second) {
+            quint32 to = 0;
+            if (follow(entry.first, &to)) moved[to] = entry.second;
+        }
+        seen->second = std::move(moved);
+    }
+}
+
 void CrunchWindow::noteWidthsChanged(int sheet)
 {
     if (m_applyingHeights) return;

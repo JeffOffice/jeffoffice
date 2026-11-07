@@ -621,6 +621,36 @@ private Q_SLOTS:
         QVERIFY(!lookAt(e, QStringLiteral("A1")).bold);
     }
 
+    // A style step that cannot reach the workbook (the worker is not to be held for a moment) is not skipped as if it were done: the stack is given up with a message, like any other step.
+    void aStyleStepThatCannotBeDoneIsGivenUpNotSkipped()
+    {
+        auto styleNamed = [](const jp::office::sheet::Workbook *book, const QString &name) {
+            bool present = false;
+            for (const auto &n : book->styles().cellStyles) present = present || (n.name == name && !n.hidden);
+            return present;
+        };
+        for (const bool deleting : {false, true}) {
+            EditWindow e;
+            QVERIFY(e.open(uiBook()));
+            crunch::EditSession *s = e.win.w.session();
+            const jp::office::sheet::Workbook *book = s->workbook();
+            jp::office::sheet::CellRange one;
+            one.valid = true;
+            one.row1 = one.row2 = one.col1 = one.col2 = 0;
+            QVERIFY(s->newCellStyle(0, 0, 0, one, QStringLiteral("Mine")).ok);
+            if (deleting) QVERIFY(s->deleteCellStyle(QStringLiteral("Mine")).ok);
+            QSignalSpy failed(s, &crunch::EditSession::stepFailed);
+            e.win.w.undoStack()->undo();
+            QVERIFY(failed.isEmpty());
+            QCOMPARE(styleNamed(book, QStringLiteral("Mine")), deleting);
+            e.win.w.workbookLoader().refuseHolds(1);   // (the first thing Redo reaches for the workbook is the style)
+            e.win.w.undoStack()->redo();
+            e.win.w.workbookLoader().refuseHolds(0);
+            // either the style is as the step says, or Undo and Redo were given up and the person was told
+            QVERIFY2(failed.count() == 1 || styleNamed(book, QStringLiteral("Mine")) == !deleting, deleting ? "delete" : "new");
+        }
+    }
+
     // Undo takes a New Cell Style back out whole (the style, and the cell formats made for it), so the same name can be made again and nothing unused is written; a name with a control character
     // is refused.
     void undoOfANewCellStyleTakesTheStyleOut()

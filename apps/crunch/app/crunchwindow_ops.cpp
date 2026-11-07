@@ -327,6 +327,12 @@ void CrunchWindow::refill(const QString &id)
         hideFillOptions();
         return;
     }
+    // (taking the fill back is an Undo: it waits for what Undo waits for)
+    if (m_edit.active || m_saving || m_passwordJob || !editingAllowed()) return;
+    if (m_session->isSlicing()) {
+        setStatus(tr("A large change is still being made. It can be changed again when that is done."));
+        return;
+    }
     crunch::EditSession::FillOptions options;
     options.kind = m_lastFill.kind;
     if (id == QLatin1String("fillOpt.copy")) {

@@ -481,6 +481,78 @@ private Q_SLOTS:
         QTRY_COMPARE(cell(0, 2), QStringLiteral("42"));
     }
 
+    // The Watch Window's rows are the watches of sheets that are there: Delete and Go To act on the watch of the row picked, not the one at that place in the list of all.
+    void watchRowsActOnTheirOwnWatch()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=1"}, {"A1=2"}, {"A1=3"}})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.act(QStringLiteral("formulas.watchWindow"))->trigger();
+        QVERIFY(w.addWatch(1, 0, 0));
+        QVERIFY(w.addWatch(0, 0, 0));
+        QVERIFY(w.addWatch(2, 0, 0));
+        QVERIFY(w.session()->deleteSheet(1).ok);
+        Q_EMIT w.calculationFinished();
+        auto t = w.watchWindow()->table();
+        auto names = [&] {
+            QStringList out;
+            for (int r = 0; r < t->rowCount(); ++r) out << t->item(r, 0)->text();
+            return out;
+        };
+        QCOMPARE(names(), (QStringList{"Sheet1", "Sheet3"}));
+        // Go To on the second row is Sheet3
+        Q_EMIT w.watchWindow()->goToRequested(1);
+        QCOMPARE(w.activeSheet(), 2);
+        // Delete on the second row takes the Sheet3 watch
+        Q_EMIT w.watchWindow()->deleteRequested(QList<int>{1});
+        QCOMPARE(names(), (QStringList{"Sheet1"}));
+        QCOMPARE(w.watchCount(), 2);   // (the watch of the deleted sheet waits for Undo)
+    }
+
+    // A watch is on the cell it was put on: rows and columns inserted or deleted move it, and one on a deleted row is let go of.
+    void watchesFollowInsertedAndDeletedRowsAndColumns()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=11", "A2=22", "B1=33"}})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.act(QStringLiteral("formulas.watchWindow"))->trigger();
+        QVERIFY(w.addWatch(0, 0, 0));
+        QVERIFY(w.addWatch(0, 1, 0));
+        auto t = w.watchWindow()->table();
+        QVERIFY(w.session()->insertRows(0, 0, 1).ok);
+        QVERIFY(e.settle());
+        Q_EMIT w.calculationFinished();
+        QCOMPARE(t->item(0, 1)->text(), QStringLiteral("A2"));
+        QCOMPARE(t->item(0, 2)->text(), QStringLiteral("11"));
+        QCOMPARE(t->item(1, 1)->text(), QStringLiteral("A3"));
+        QVERIFY(w.session()->insertColumns(0, 0, 1).ok);
+        QVERIFY(e.settle());
+        Q_EMIT w.calculationFinished();
+        QCOMPARE(t->item(0, 1)->text(), QStringLiteral("B2"));
+        QVERIFY(w.session()->deleteRows(0, 2, 1).ok);   // the row of the 22
+        QVERIFY(e.settle());
+        Q_EMIT w.calculationFinished();
+        QCOMPARE(t->rowCount(), 1);
+        QCOMPARE(t->item(0, 1)->text(), QStringLiteral("B2"));
+        QCOMPARE(t->item(0, 2)->text(), QStringLiteral("11"));
+        QCOMPARE(w.watchCount(), 1);
+    }
+
+    // The watches belong to the workbook: a window that takes another workbook has none of the old one's.
+    void watchesGoWithTheWorkbook()
+    {
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.addWatch(0, 0, 0));
+        QCOMPARE(w.watchCount(), 1);
+        const QString path = e.folder.write(QStringLiteral("other.xlsx"), bookOfSheets({{"A1=5"}}));
+        QVERIFY(e.win.open(path));
+        QCOMPARE(w.watchCount(), 0);
+    }
+
     void evaluateFormulaWorksOutOnePartAtATime()
     {
         EditWindow e;

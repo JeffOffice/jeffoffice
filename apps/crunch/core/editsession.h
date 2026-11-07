@@ -930,12 +930,12 @@ public:
     Outcome deleteCellStyle(const QString &name);
     // (the steps of New Cell Style: pushed after the style is made, and Undo and Redo take it out and put it in again)
     void pushStyleMade(const QString &name, quint32 format);
-    void forgetNewStyle(const QString &name);
-    void rememberNewStyle(const QString &name, quint32 format);
+    bool forgetNewStyle(const QString &name);
+    bool rememberNewStyle(const QString &name, quint32 format);
     Outcome newCellStyle(int sheet, quint32 row, quint32 col, const jp::office::sheet::CellRange &range, const QString &name);
     // (the step of Delete Cell Style that takes the style out of the lists: pushed after it is hidden, and Undo and Redo show it and hide it again)
     void pushStyleHidden(const QString &name);
-    void hideStyleNamed(const QString &name, bool hidden);
+    bool hideStyleNamed(const QString &name, bool hidden);
 
     // An object over the cells is taken away (Delete with it picked), put there, moved, or changed: one step, which Undo gives back. The hook (setObjectHook) is told the change when the step is
     // done, undone, and done again (`forward`: the object is to have the state after). A step that took an object away is like one that deleted rows: Undo goes back as far as the last such
@@ -1123,6 +1123,8 @@ Q_SIGNALS:
 
 private:
     friend class ChangeCells;
+    friend class StyleMade;
+    friend class StyleHidden;
     // A step could not be undone or done again: every step is forgotten (the workbook is not as the stack says), and `stepFailed` says so.
     void giveUpUndo(const QString &stepText, bool redoing);
     // Forgets every step that is done (and what each holds): Undo does not go back over them.

@@ -153,6 +153,7 @@ void CrunchWindow::functionArguments(const crunch::FunctionDoc &doc, const QStri
     });
     dialog.setHelpTopic(functionHelpTopic(QString::fromLatin1(doc.name)));
     m_argsDialog = &dialog;
+    updateEditActions();
     connect(&dialog, &FunctionArgumentsDialog::helpRequested, this, [this, &dialog](const QString &topic) {
         // (Help is a window of the dialog's own, so the dialog that blocks this window does not block it)
         auto *w = dialog.findChild<HelpWindow *>(QString(), Qt::FindDirectChildrenOnly);
@@ -188,6 +189,7 @@ void CrunchWindow::functionArguments(const crunch::FunctionDoc &doc, const QStri
     }
     QObject::disconnect(pointing);
     m_argsDialog = nullptr;
+    if (m_session.get() == session) updateEditActions();
     if (m_session.get() != session) return;   // (the workbook was closed or replaced: there is nothing to put the call in)
     // the sheet, selection, and entry as they were
     if (m_sheet != sheet) setActiveSheet(sheet);

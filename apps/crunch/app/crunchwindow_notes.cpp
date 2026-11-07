@@ -520,6 +520,7 @@ void CrunchWindow::goToPlace(const QString &place)
         return;
     }
     setActiveSheet(sheet);
+    if (m_sheet != sheet) return;
     m_view->selectRange(range.row1, range.col1, range.row2, range.col2);
     m_view->ensureVisible(range.row1, range.col1);
     m_view->setFocus();

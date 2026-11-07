@@ -110,7 +110,7 @@ void CrunchWindow::setLocale(const QLocale &locale)
 void CrunchWindow::updateEditActions()
 {
     QUndoStack *u = undoStack();
-    const bool open = m_session && !m_saving && !isReadOnly();
+    const bool open = m_session && !m_saving && !isReadOnly() && !m_argsDialog;
     const bool stepping = m_applying || (m_session && m_session->isSlicing());   // (Undo and Redo wait while a large change is being put in)
     act("edit.undo")->setEnabled(open && !stepping && m_session->canUndo());
     act("edit.redo")->setEnabled(open && !stepping && u->canRedo());
@@ -407,6 +407,7 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
         return true;
     }
     const qint64 before = m_loader.changesMade();
+    const int stackBefore = m_session->undoStack()->index();
     // Ctrl+Enter puts the entry in every selected cell
     const grid::GridRange block = m_view->selection().range;
     const bool fill = way == CellEditor::Way::Fill && m_edit.sheet == m_sheet && !m_view->selection().isOneCell();
@@ -434,7 +435,7 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
         return false;
     }
     if (m_loader.changesMade() != before) m_calculating = true;
-    widenForEntry(m_edit.sheet, m_edit.row, m_edit.col);
+    if (m_session->undoStack()->index() > stackBefore) widenForEntry(m_edit.sheet, m_edit.row, m_edit.col);   // (an entry that made no step has none to widen in)
     finishEdit(way);
     return true;
 }
@@ -540,7 +541,7 @@ void CrunchWindow::clearSelection()
 void CrunchWindow::undoRedo(bool redo)
 {
     QUndoStack *u = undoStack();
-    if (!u || m_edit.active || m_saving || m_passwordJob) return;
+    if (!u || m_edit.active || m_saving || m_passwordJob || m_argsDialog) return;
     if (m_applying || m_session->isSlicing()) {
         setStatus(tr("A large change is still being made. It can be changed again when that is done."));
         return;
@@ -558,7 +559,7 @@ void CrunchWindow::undoRedo(bool redo)
 void CrunchWindow::undoRedoNow(bool redo)
 {
     QUndoStack *u = undoStack();
-    if (!u || m_edit.active || m_saving || m_applying || m_session->isSlicing()) return;
+    if (!u || m_edit.active || m_saving || m_applying || m_argsDialog || m_session->isSlicing()) return;
     if (redo ? !u->canRedo() : !m_session->canUndo()) return;
     const qint64 before = m_loader.changesMade();
     const QString what = redo ? u->redoText() : u->undoText();

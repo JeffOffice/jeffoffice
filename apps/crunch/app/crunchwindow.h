@@ -652,6 +652,8 @@ private:
     void updateBars();
     void showBlank();
     void dropWorkbook();
+    bool sheetHasTab(int sheetIndex) const;
+    QString hiddenSheetText();
     static QString nextUntitledName();
     void showSheet(int sheetIndex, bool keepView);
     void afterSheetShown(int sheetIndex, bool inPlace);
@@ -1022,6 +1024,7 @@ private:
         quint32 row, col;
     };
     QList<Watch> m_watches;
+    QList<int> m_watchRows;   // the watch (its place in m_watches) each row of the Watch Window shows
     QPointer<WatchWindow> m_watchWindow;
     // (ends a step made with beginMacro; see crunchwindow_tabs2.cpp)
 public:
@@ -1620,6 +1623,7 @@ private:
     int m_autoSlices = 0, m_autoMostRowsInASlice = 0;
     void noteRowsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells);
     void noteWidthsChanged(int sheet);
+    void noteRowsMoved(const jp::office::sheet::StructEdit &edit);
     std::map<int, std::set<quint32>> m_autoDirty;                       // by sheet: the rows an edit changed, not measured yet
     std::map<int, std::unordered_map<quint32, int>> m_autoSeen;         // by sheet: the rows measured, and the generation of the widths they were
     std::map<int, int> m_autoGen;                                       // by sheet: how many times the widths changed

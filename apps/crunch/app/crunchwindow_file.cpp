@@ -77,6 +77,9 @@ void CrunchWindow::dropWorkbook()
     m_originalPath.clear();
     m_blank = false;
     if (m_argsDialog) m_argsDialog->reject();   // (its call has nowhere to go once the workbook is gone)
+    removeArrows();   // (the arrows and the watches are the old workbook's cells)
+    m_watches.clear();
+    m_watchRows.clear();
     m_session.reset();
     m_loaded.reset();
     m_haveFirstScreen = m_haveCalc = false;
@@ -131,6 +134,7 @@ void CrunchWindow::browseAndOpen(OpenHow how)
 void CrunchWindow::setReadOnly(bool on)
 {
     AppWindow::setReadOnly(on);
+    if (on) hideFillOptions();   // (Fill Options takes a fill back: a window open for reading only has no such button)
     if (!m_actions.isEmpty()) {
         updateEditActions();
         updateFinalNote();
@@ -472,9 +476,26 @@ void CrunchWindow::rememberView()
     syncPanes();   // (a sheet that is left keeps the scroll and the cursor it had)
 }
 
+// Whether the sheet is one with a tab: there, not deleted, and not hidden (a hidden or very hidden sheet is shown only by Unhide Sheet). The sheet in view is always one of these.
+bool CrunchWindow::sheetHasTab(int sheetIndex) const
+{
+    if (!m_loaded || !m_loaded->book) return false;
+    const auto &sheets = m_loaded->book->info().sheets;
+    return sheetIndex >= 0 && sheetIndex < sheets.size() && !sheets[sheetIndex].deleted && sheets[sheetIndex].state == SheetState::Visible;
+}
+
+QString CrunchWindow::hiddenSheetText()
+{
+    return tr("That sheet is hidden. Use Unhide Sheet to show it first.");
+}
+
 void CrunchWindow::setActiveSheet(int sheetIndex)
 {
     if (!m_loaded || !m_loaded->book || sheetIndex == m_sheet || sheetIndex < 0 || sheetIndex >= m_loaded->book->info().sheets.size()) return;
+    if (!sheetHasTab(sheetIndex)) {
+        if (!m_loaded->book->info().sheets[sheetIndex].deleted) setStatus(hiddenSheetText());
+        return;
+    }
     if (!m_haveCalc && sheetIndex != m_loaded->previewSheet) return;   // (the other sheets are not read yet)
     hideFillOptions();
     const bool keepEdit = keepEditOnSheetChange(sheetIndex);

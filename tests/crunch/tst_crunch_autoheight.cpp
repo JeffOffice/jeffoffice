@@ -94,6 +94,28 @@ private Q_SLOTS:
         QTRY_COMPARE(rowPx(e, 0), plain);
     }
 
+    // Rows inserted ahead of a row that is waiting to be measured: the row that was changed is the one measured, wherever it is by then.
+    void rowsToMeasureFollowRowsInsertedAndDeleted()
+    {
+        EditWindow e;
+        QVERIFY(e.open(textBook()));
+        const int plain = rowPx(e, 0);
+        QTRY_VERIFY(e.win.w.autoHeightSlices() >= 1);
+        QTest::qWait(300);   // (the rows in view have been looked at)
+        const int slices = e.win.w.autoHeightSlices();
+        QVERIFY(wrap(e, QStringLiteral("A1"), true).ok);   // (marked to be measured; not yet)
+        QCOMPARE(e.win.w.autoHeightSlices(), slices);
+        QVERIFY(e.win.w.session()->insertRows(0, 0, 2).ok);
+        QTRY_VERIFY(rowPx(e, 2) >= plain * 2);
+        QCOMPARE(rowPx(e, 0), plain);
+        QCOMPARE(rowPx(e, 1), plain);
+        // and rows deleted ahead of it
+        QTest::qWait(300);
+        QVERIFY(wrap(e, QStringLiteral("A3"), false).ok);
+        QVERIFY(e.win.w.session()->deleteRows(0, 0, 2).ok);
+        QTRY_COMPARE(rowPx(e, 0), plain);
+    }
+
     void aRowAPersonGaveAHeightKeepsIt()
     {
         EditWindow e;

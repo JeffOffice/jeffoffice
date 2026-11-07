@@ -574,10 +574,13 @@ void CrunchWindow::refreshWatches()
 {
     if (!m_watchWindow) return;
     QVector<QStringList> rows;
+    m_watchRows.clear();
     if (m_session && m_loaded && m_loaded->book) {
         const auto &sheets = m_loaded->book->info().sheets;
-        for (const Watch &w : m_watches) {
+        for (int i = 0; i < int(m_watches.size()); ++i) {
+            const Watch &w = m_watches[i];
             if (w.sheet < 0 || w.sheet >= int(sheets.size()) || sheets[size_t(w.sheet)].deleted) continue;
+            m_watchRows.push_back(i);
             const jp::calc::Value v = m_session->valueAt(w.sheet, w.row, w.col);
             QString shown;
             if (v.isNumber()) shown = QLocale().toString(v.number(), 'g', 12);
@@ -603,14 +606,20 @@ void CrunchWindow::showWatchWindow()
                     if (!addWatch(m_sheet, row, col)) return;
         });
         connect(m_watchWindow, &WatchWindow::deleteRequested, this, [this](const QList<int> &rows) {
-            for (int i = int(rows.size()) - 1; i >= 0; --i)
-                if (rows[i] >= 0 && rows[i] < m_watches.size()) m_watches.removeAt(rows[i]);
+            // (the rows are the watches of sheets that are there: m_watchRows says which watch each row is)
+            QList<int> picked;
+            for (const int row : rows)
+                if (row >= 0 && row < m_watchRows.size()) picked << m_watchRows[row];
+            std::sort(picked.begin(), picked.end());
+            for (int i = int(picked.size()) - 1; i >= 0; --i)
+                if (picked[i] >= 0 && picked[i] < m_watches.size()) m_watches.removeAt(picked[i]);
             refreshWatches();
         });
-        connect(m_watchWindow, &WatchWindow::goToRequested, this, [this](int i) {
-            if (i < 0 || i >= m_watches.size()) return;
-            const Watch w = m_watches[i];
+        connect(m_watchWindow, &WatchWindow::goToRequested, this, [this](int row) {
+            if (row < 0 || row >= m_watchRows.size() || m_watchRows[row] >= m_watches.size()) return;
+            const Watch w = m_watches[m_watchRows[row]];
             if (w.sheet != m_sheet) setActiveSheet(w.sheet);
+            if (w.sheet != m_sheet) return;
             m_view->selectCell(w.row, w.col);
         });
         connect(this, &CrunchWindow::calculationFinished, m_watchWindow, [this] { refreshWatches(); });
@@ -839,6 +848,7 @@ void CrunchWindow::showAccessibilityPane()
         connect(m_accessPane, &AccessibilityPane::recheckRequested, this, [this] { checkAccessibilityNow(); });
         connect(m_accessPane, &AccessibilityPane::goToRequested, this, [this](int sheet, quint32 row, quint32 col) {
             if (sheet != m_sheet) setActiveSheet(sheet);
+            if (sheet != m_sheet) return;
             m_view->selectCell(row, col);
             m_view->ensureVisible(row, col);
         });

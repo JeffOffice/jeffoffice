@@ -143,6 +143,43 @@ private Q_SLOTS:
     }
 
     // The names a sheet may have, and that a name that is refused changes nothing.
+    // A file whose sheets are all hidden opens with its first sheet shown: a window always has a tab to work in.
+    void aFileWithEverySheetHiddenOpensWithTheFirstShown()
+    {
+        EditWindow e;
+        const QByteArray a = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"));
+        const QByteArray b = worksheet(QStringLiteral("<row r=\"2\"><c r=\"B2\"><v>2</v></c></row>"));
+        QVERIFY(e.open(buildXlsx({a, b}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QString(), QByteArray(), QString(), QList<int>{0, 1})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QCOMPARE(w.shownSheets(), QVector<int>{0});
+        QCOMPARE(w.activeSheet(), 0);
+        QCOMPARE(w.loaded()->book->info().sheets[1].state, SheetState::Hidden);
+    }
+
+    // A hidden sheet is not gone to by a reference: the person is told, and the sheet in view stays one with a tab. A sheet that was deleted is not either.
+    void hiddenAndDeletedSheetsAreNotShown()
+    {
+        EditWindow e;
+        const QByteArray a = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"));
+        const QByteArray b = worksheet(QStringLiteral("<row r=\"2\"><c r=\"B2\"><v>2</v></c></row>"));
+        const QByteArray c = worksheet(QStringLiteral("<row r=\"3\"><c r=\"C3\"><v>3</v></c></row>"));
+        QVERIFY(e.open(buildXlsx({a, b, c}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QString(), QByteArray(), QString(), QList<int>{1})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QVERIFY(!w.goToReference(QStringLiteral("Sheet2!B2")));
+        QCOMPARE(w.activeSheet(), 0);
+        QVERIFY(!e.win.told.isEmpty());
+        QVERIFY(w.shownSheets().contains(w.activeSheet()));
+        w.setActiveSheet(1);
+        QCOMPARE(w.activeSheet(), 0);
+        QVERIFY(w.session()->deleteSheet(2).ok);
+        QVERIFY(e.settle());
+        w.setActiveSheet(2);
+        QCOMPARE(w.activeSheet(), 0);
+        QVERIFY(w.goToReference(QStringLiteral("Sheet1!A1")));
+    }
+
     void sheetNamesAreChecked()
     {
         EditWindow e;

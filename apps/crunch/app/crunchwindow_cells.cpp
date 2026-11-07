@@ -223,6 +223,21 @@ bool CrunchWindow::askShift(ShiftRequest *request)
 void CrunchWindow::onCellsMoved(const StructEdit &edit)
 {
     if (!m_loaded) return;
+    noteRowsMoved(edit);
+    if (!m_watches.isEmpty()) {
+        // (a watch is on its cell, wherever rows, columns, or cells move it; one whose cell is gone is let go of)
+        for (int i = int(m_watches.size()) - 1; i >= 0; --i) {
+            int sheet = m_watches[i].sheet;
+            quint32 row = m_watches[i].row, col = m_watches[i].col;
+            const jp::office::sheet::RefFate fate = jp::office::sheet::adjustCell(edit, &sheet, &row, &col);
+            if (fate == jp::office::sheet::RefFate::Gone) {
+                m_watches.removeAt(i);
+            } else if (fate == jp::office::sheet::RefFate::Moved) {
+                m_watches[i] = {sheet, row, col};
+            }
+        }
+        refreshWatches();
+    }
     for (const int sheet : {edit.sheet, edit.toSheet})
         if (sheet >= 0 && size_t(sheet) < m_loaded->geometry.size()) m_loaded->geometry[size_t(sheet)].reset();   // (the one made ahead is of the sheet as it was)
     if (m_sheet == edit.sheet && (edit.changesRows() || edit.changesColumns()) && m_haveCalc && m_view->followEdit(edit)) {

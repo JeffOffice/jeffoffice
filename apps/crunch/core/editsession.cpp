@@ -105,9 +105,12 @@ public:
             m_first = false;
             return;
         }
-        m_session->rememberNewStyle(m_name, m_format);
+        if (!m_session->rememberNewStyle(m_name, m_format)) m_session->giveUpUndo(text(), true);
     }
-    void undo() override { m_session->forgetNewStyle(m_name); }
+    void undo() override
+    {
+        if (!m_session->forgetNewStyle(m_name)) m_session->giveUpUndo(text(), false);
+    }
 
 private:
     EditSession *m_session;
@@ -126,9 +129,12 @@ public:
             m_first = false;
             return;
         }
-        m_session->hideStyleNamed(m_name, true);
+        if (!m_session->hideStyleNamed(m_name, true)) m_session->giveUpUndo(text(), true);
     }
-    void undo() override { m_session->hideStyleNamed(m_name, false); }
+    void undo() override
+    {
+        if (!m_session->hideStyleNamed(m_name, false)) m_session->giveUpUndo(text(), false);
+    }
 
 private:
     EditSession *m_session;
@@ -138,21 +144,31 @@ private:
 
 void EditSession::pushStyleHidden(const QString &name) { m_undo.push(new StyleHidden(this, name)); }
 
-void EditSession::hideStyleNamed(const QString &name, bool hidden)
+// (false: the workbook could not be reached, so the step is not as the stack says)
+bool EditSession::hideStyleNamed(const QString &name, bool hidden)
 {
-    if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) m_book->book->setStyleHidden(name, hidden);
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    if (!hold) return false;
+    m_book->book->setStyleHidden(name, hidden);
+    return true;
 }
 
 void EditSession::pushStyleMade(const QString &name, quint32 format) { m_undo.push(new StyleMade(this, name, format)); }
 
-void EditSession::forgetNewStyle(const QString &name)
+bool EditSession::forgetNewStyle(const QString &name)
 {
-    if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) m_book->book->removeAddedStyle(name);
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    if (!hold) return false;
+    m_book->book->removeAddedStyle(name);
+    return true;
 }
 
-void EditSession::rememberNewStyle(const QString &name, quint32 format)
+bool EditSession::rememberNewStyle(const QString &name, quint32 format)
 {
-    if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) m_book->book->addNamedStyle(name, format);
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    if (!hold) return false;
+    m_book->book->addNamedStyle(name, format);
+    return true;
 }
 
 class ChangeCells : public QUndoCommand {

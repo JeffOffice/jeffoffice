@@ -255,6 +255,18 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
         out->passwordNeed = book->passwordNeed();
         return false;   // (any kind: the package of XML parts, the older binary form, or another format)
     }
+    {
+        // a file whose sheets are all hidden would open with no tab to work in: its first sheet is shown
+        const WorkbookInfo &info = book->info();
+        int first = -1;
+        bool anyShown = false;
+        for (const int i : info.order) {
+            if (i < 0 || i >= info.sheets.size() || info.sheets[i].deleted) continue;
+            if (info.sheets[i].state == SheetState::Visible) anyShown = true;
+            if (first < 0) first = i;
+        }
+        if (!anyShown && first >= 0) book->setSheetState(first, SheetState::Visible);
+    }
     book->pivots();   // (the same for the pivot tables: only where they are is read here; GETPIVOTDATA asks the book from the worker)
     book->tables();   // (read now: the worker looks at the tables as it works formulas out, and the window changes them, neither of which may be the first to read them)
     out->book = book;

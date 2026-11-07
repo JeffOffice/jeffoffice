@@ -360,6 +360,10 @@ bool CrunchWindow::goToReference(const QString &text)
         return false;
     }
     if (t.sheet != m_sheet) {
+        if (!sheetHasTab(t.sheet)) {
+            notice(tr("Go To"), hiddenSheetText());
+            return false;
+        }
         setActiveSheet(t.sheet);
         if (m_sheet != t.sheet) return false;
     }

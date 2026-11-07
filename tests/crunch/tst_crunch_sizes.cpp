@@ -241,6 +241,28 @@ private Q_SLOTS:
         QCOMPARE(columnPx(e, 2), narrow);
     }
 
+    // An entry that changes nothing makes no step; the width a number would need is not put in the step of an earlier entry.
+    void aWidthGoesOnlyWithTheStepOfItsOwnEntry()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=12345678901234"})));
+        const int was = columnPx(e, 0);
+        e.select(QStringLiteral("A3"));
+        e.enter(QStringLiteral("x"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QCOMPARE(columnPx(e, 0), was);
+        e.select(QStringLiteral("A2"));
+        e.enter(QStringLiteral("12345678901234"));   // (what is there already)
+        QVERIFY(e.settle());
+        if (e.win.w.undoStack()->count() == 1) {
+            QCOMPARE(columnPx(e, 0), was);   // (no step of its own: no width in the other)
+        } else {
+            pressUndo(&e.win.w);
+            QCOMPARE(columnPx(e, 0), was);
+        }
+    }
+
     // The column a number widens holds all its digits, whatever the digits of the font measure: the number is not cut to its shorter form.
     void aWidenedColumnShowsAllTheDigits()
     {

@@ -355,6 +355,7 @@ void SelectDataDialog::moveSeries(int index, int delta)
     const int to = index + delta;
     if (index < 0 || to < 0 || index >= m_series.size() || to >= m_series.size()) return;
     std::swap(m_series[index], m_series[to]);
+    std::swap(m_kinds[index], m_kinds[to]);
     m_list->setCurrentRow(to);
     rebuildList();
     m_list->setCurrentRow(to);

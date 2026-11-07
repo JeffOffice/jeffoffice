@@ -922,6 +922,33 @@ private Q_SLOTS:
         QVERIFY(!s->fillAcrossSheets(0, rangeOf(QStringLiteral("A1")), {}, What::All).ok);
     }
 
+    // The Fill Options button takes the fill back and does it again; a window that is open for reading only changes nothing that way, and the button goes away.
+    void fillOptionsDoNothingInAReadOnlyWindow()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=%0.25"})));
+        e.win.w.session()->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+        CrunchWindow &w = e.win.w;
+        grid::GridRange source, extent;
+        source.row1 = source.row2 = 0;
+        source.col1 = source.col2 = 0;
+        extent = source;
+        extent.row2 = 2;
+        Q_EMIT e.view()->fillRequested(source, extent, false);
+        QVERIFY(w.fillOptionsButton() && w.fillOptionsButton()->isVisible());
+        QAction *valuesOnly = nullptr;
+        for (QAction *a : w.fillOptionsButton()->menu()->actions())
+            if (a->objectName() == QLatin1String("fillOpt.valuesOnly")) valuesOnly = a;
+        QVERIFY(valuesOnly);
+        const QString before = w.session()->editText(0, 1, 0);
+        const int steps = w.undoStack()->count();
+        w.setReadOnly(true);
+        QVERIFY(!w.fillOptionsButton()->isVisible());
+        valuesOnly->trigger();
+        QCOMPARE(w.session()->editText(0, 1, 0), before);
+        QCOMPARE(w.undoStack()->count(), steps);
+    }
+
     // After the fill handle is dragged, a small button offers how the cells were filled: copied, as a series, just the formats, without the formats, and (for dates) by days, weekdays, months, or
     // years. Choosing one takes the fill back and does it again that way, so the fill is still one step; any other edit takes the button away.
     void theFillHandleOffersHowTheCellsWereFilled()

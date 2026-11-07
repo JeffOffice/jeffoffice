@@ -3492,6 +3492,39 @@ private Q_SLOTS:
         QVERIFY(seriesCount(d.result()) <= kMaxMadeSeries);
     }
 
+    // A series that is moved, removed, or edited in Select Data keeps its own chart type and axis.
+    void selectDataKeepsEachSeriesKindWhenSeriesMove()
+    {
+        ChartPlan plan = planChartFrom(QStringLiteral("Sheet1"), rangeOf(QStringLiteral("A1:C4")), true, true, false, ChartKind::Column);
+        Chart combo = withSeriesKinds(makeChart(ChartKind::Column, plan, defaultTheme()), {SeriesKind{ChartKind::Column, false}, SeriesKind{ChartKind::Line, true}}, defaultTheme());
+        SelectDataRequest request;
+        request.chart = combo;
+        request.theme = defaultTheme();
+        SelectDataDialog d(request);
+        const QString s0 = d.seriesAt(0).valueRef, s1 = d.seriesAt(1).valueRef;
+        auto kindOf = [](const Chart &c, const QString &ref) {
+            const QVector<ChartSeries> all = seriesOf(c);
+            const QVector<SeriesKind> kinds = seriesKindsOf(c);
+            for (int i = 0; i < all.size(); ++i)
+                if (all[i].valueRef == ref) return QStringLiteral("%1/%2").arg(int(kinds[i].kind)).arg(kinds[i].secondary);
+            return QStringLiteral("missing");
+        };
+        const QString a0 = kindOf(d.result(), s0), a1 = kindOf(d.result(), s1);
+        QVERIFY(a0 != a1);
+        d.moveSeries(0, 1);
+        QCOMPARE(kindOf(d.result(), s0), a0);
+        QCOMPARE(kindOf(d.result(), s1), a1);
+        d.moveSeries(1, -1);
+        QCOMPARE(kindOf(d.result(), s0), a0);
+        QCOMPARE(kindOf(d.result(), s1), a1);
+        ChartSeries edited = d.seriesAt(1);
+        edited.name = QStringLiteral("Renamed");
+        d.setSeries(1, edited);
+        QCOMPARE(kindOf(d.result(), s1), a1);
+        d.removeSeries(0);
+        QCOMPARE(kindOf(d.result(), s1).section(QLatin1Char('/'), 0, 0), a1.section(QLatin1Char('/'), 0, 0));   // (alone, a series is on the first axis)
+    }
+
     void changeTypeGivesTheKindsOfTheSeries()
     {
         int draws = 0;

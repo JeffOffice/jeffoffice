@@ -219,6 +219,7 @@ bool CrunchWindow::showCircularReferences()
     connect(list, &QListWidget::itemDoubleClicked, &dialog, [this, &dialog](QListWidgetItem *item) {
         const int sheet = item->data(Qt::UserRole).toInt();
         if (sheet != m_sheet) setActiveSheet(sheet);
+        if (sheet != m_sheet) return;
         m_view->selectCell(item->data(Qt::UserRole + 1).toLongLong(), item->data(Qt::UserRole + 2).toLongLong());
         m_view->ensureVisible(item->data(Qt::UserRole + 1).toLongLong(), item->data(Qt::UserRole + 2).toLongLong());
         dialog.accept();
