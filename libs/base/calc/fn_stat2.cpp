@@ -29,7 +29,11 @@ bool numbersAt(Call &c, int i, std::vector<double> *x, Value *error)
 {
     bool ok = true;
     const bool done = c.each(i, [&](const Value &v, bool typed) {
-        if (v.isNumber()) x->push_back(v.number());
+        if (v.isNumber() && !std::isfinite(v.number())) {
+            *error = Value::error(ErrorKind::Num);
+            ok = false;
+            return false;
+        } else if (v.isNumber()) x->push_back(v.number());
         else if (v.isError()) {
             *error = v;
             ok = false;

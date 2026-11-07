@@ -6,6 +6,7 @@
 #include <QtEndian>
 #include <algorithm>
 #include <cstring>
+#include <vector>
 
 namespace jp {
 
@@ -15,42 +16,133 @@ namespace {
 // outside the data, whatever the caller checked.
 quint16 get16(const QByteArray &a, qsizetype at) { return at >= 0 && at + 2 <= a.size() ? qFromLittleEndian<quint16>(a.constData() + at) : 0; }
 quint32 get32(const QByteArray &a, qsizetype at) { return at >= 0 && at + 4 <= a.size() ? qFromLittleEndian<quint32>(a.constData() + at) : 0; }
+quint64 get64(const QByteArray &a, qsizetype at) { return at >= 0 && at + 8 <= a.size() ? qFromLittleEndian<quint64>(a.constData() + at) : 0; }
 
 } // namespace
 
-bool readZipDirectory(const QByteArray &zip, QVector<ZipEntry> *out)
+bool readZipEnd(const std::function<QByteArray(qint64, qint64)> &readAt, qint64 size, ZipEnd *out)
 {
-    out->clear();
-    if (zip.size() < 22) return false;
+    if (size < 22) return false;
+    // The end record is in the last 65,557 bytes; the long form's locator is the 20 bytes before it.
+    const qint64 tailAt = std::max<qint64>(0, size - 65557 - 20);
+    const QByteArray tail = readAt(tailAt, size - tailAt);
+    if (tail.size() != size - tailAt) return false;
     qsizetype eocd = -1;
-    for (qsizetype i = zip.size() - 22; i >= std::max<qsizetype>(0, zip.size() - 65557); --i)
-        if (get32(zip, i) == 0x06054b50) {
+    for (qsizetype i = tail.size() - 22; i >= 0; --i)
+        if (get32(tail, i) == 0x06054b50) {
             eocd = i;
             break;
         }
     if (eocd < 0) return false;
-    const int count = get16(zip, eocd + 10);
-    qint64 p = get32(zip, eocd + 16);
-    for (int i = 0; i < count; ++i) {
-        if (p + 46 > zip.size() || get32(zip, p) != 0x02014b50) return false;
+    quint64 count = get16(tail, eocd + 10);
+    qint64 dirSize = get32(tail, eocd + 12), dirAt = get32(tail, eocd + 16);
+    if (eocd >= 20 && get32(tail, eocd - 20) == 0x07064b50) {
+        const quint64 at = get64(tail, eocd - 20 + 8);
+        if (at > quint64(size) || at + 56 > quint64(size)) return false;
+        const QByteArray rec = readAt(qint64(at), 56);
+        if (rec.size() < 56 || get32(rec, 0) != 0x06064b50) return false;
+        const quint64 total = get64(rec, 32), cdSize = get64(rec, 40), cdAt = get64(rec, 48);
+        // (a short record that holds its value is the one that counts, as for any reader)
+        if (count == 0xFFFF) count = total;
+        if (dirSize == qint64(0xFFFFFFFFu)) {
+            if (cdSize > quint64(size)) return false;
+            dirSize = qint64(cdSize);
+        }
+        if (dirAt == qint64(0xFFFFFFFFu)) {
+            if (cdAt > quint64(size)) return false;
+            dirAt = qint64(cdAt);
+        }
+    }
+    // (every record is at least 46 bytes: a count past what the file can hold is no count)
+    if (count > quint64(size) / 46) return false;
+    out->count = count;
+    out->dirAt = dirAt;
+    out->dirSize = dirSize;
+    return true;
+}
+
+bool readZipRecord(const QByteArray &dir, qint64 p, ZipRecord *out, qint64 *next)
+{
+    if (p < 0 || p + 46 > dir.size() || get32(dir, p) != 0x02014b50) return false;
+    ZipRecord r;
+    r.method = get16(dir, p + 10);
+    r.crc = get32(dir, p + 16);
+    const quint32 csize = get32(dir, p + 20), usize = get32(dir, p + 24), local = get32(dir, p + 42);
+    r.csize = csize;
+    r.usize = usize;
+    r.local = local;
+    const quint16 nlen = get16(dir, p + 28), xlen = get16(dir, p + 30), clen = get16(dir, p + 32);
+    // The record's name, extra field and comment must fit too.
+    if (p + 46 + qint64(nlen) + xlen + clen > dir.size()) return false;
+    r.name = QString::fromUtf8(dir.constData() + p + 46, nlen);
+    if (usize == 0xFFFFFFFFu || csize == 0xFFFFFFFFu || local == 0xFFFFFFFFu) {
+        // what did not fit is in the extra field of kind 1, in this order, only for those that did not
+        bool found = false;
+        qint64 q = p + 46 + nlen;
+        const qint64 extraEnd = q + xlen;
+        while (q + 4 <= extraEnd && !found) {
+            const quint16 id = get16(dir, q), len = get16(dir, q + 2);
+            if (q + 4 + len > extraEnd) return false;
+            if (id == 1) {
+                found = true;
+                qint64 at = q + 4;
+                auto take = [&](qint64 *field) {
+                    if (at + 8 > q + 4 + len) return false;
+                    const quint64 v = get64(dir, at);
+                    if (v > quint64(1) << 62) return false;
+                    *field = qint64(v);
+                    at += 8;
+                    return true;
+                };
+                if (usize == 0xFFFFFFFFu && !take(&r.usize)) return false;
+                if (csize == 0xFFFFFFFFu && !take(&r.csize)) return false;
+                if (local == 0xFFFFFFFFu && !take(&r.local)) return false;
+            }
+            q += 4 + len;
+        }
+        if (!found) return false;
+    }
+    *next = p + 46 + qint64(nlen) + xlen + clen;
+    *out = r;
+    return true;
+}
+
+bool readZipDirectory(const QByteArray &zip, QVector<ZipEntry> *out)
+{
+    out->clear();
+    ZipEnd end;
+    if (!readZipEnd([&](qint64 at, qint64 n) { return at >= 0 && at <= zip.size() ? zip.mid(qsizetype(at), qsizetype(n)) : QByteArray(); }, zip.size(), &end)) return false;
+    qint64 p = end.dirAt;
+    out->reserve(qsizetype(end.count));
+    // Where each entry's local header begins and its bytes end, to see that no two overlap.
+    std::vector<std::pair<qint64, qint64>> spans;
+    spans.reserve(size_t(end.count));
+    for (quint64 i = 0; i < end.count; ++i) {
+        ZipRecord r;
+        qint64 next = 0;
+        if (!readZipRecord(zip, p, &r, &next)) return false;
+        p = next;
         ZipEntry e;
-        e.method = get16(zip, p + 10);
-        e.crc = get32(zip, p + 16);
-        e.csize = get32(zip, p + 20);
-        e.usize = get32(zip, p + 24);
-        const quint16 nlen = get16(zip, p + 28), xlen = get16(zip, p + 30), clen = get16(zip, p + 32);
-        const qint64 local = get32(zip, p + 42);
-        // The entry's name, extra field and comment must fit in the file too.
-        if (p + 46 + qint64(nlen) + xlen + clen > zip.size()) return false;
-        e.name = QString::fromUtf8(zip.constData() + p + 46, nlen);
-        p += 46 + qint64(nlen) + xlen + clen;
+        e.name = r.name;
+        e.method = r.method;
+        e.crc = r.crc;
+        e.csize = r.csize;
+        e.usize = r.usize;
+        const qint64 local = r.local;
         if (local + 30 > zip.size() || get32(zip, local) != 0x04034b50) return false;
         e.dataAt = local + 30 + get16(zip, local + 26) + get16(zip, local + 28);
         if (e.method != 0 && e.method != 8) return false;
         if (e.dataAt + e.csize > zip.size()) return false;
         if (e.method == 0) e.usize = e.csize;
+        spans.emplace_back(local, e.dataAt + e.csize);
         out->append(e);
     }
+    std::sort(spans.begin(), spans.end());
+    for (size_t i = 1; i < spans.size(); ++i)
+        if (spans[i].first < spans[i - 1].second) {
+            out->clear();
+            return false;
+        }
     return true;
 }
 

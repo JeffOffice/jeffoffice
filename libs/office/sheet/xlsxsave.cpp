@@ -1,6 +1,7 @@
 // Saving a workbook as the old file with only what changed put in anew: see xlsxsave.h.
 
 #include "sheet/xlsxsave.h"
+#include "office/freeid.h"
 
 #include "sheet/hfpictures.h"
 #include "sheet/notes.h"
@@ -1474,12 +1475,12 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             if ((e.kind != SheetKind::Worksheet && !(e.kind == SheetKind::Chartsheet && e.isNew)) || add.part.isEmpty() || objects > kMaxAddedObjects)
                 return fail(QCoreApplication::translate("jp::office::sheet::Save", "Objects were put on a sheet this program can't put them on."));
             if (!e.isNew && !drawingPartOf(package, e.part).isEmpty()) continue;
-            QStringList used;
+            RelationshipIds used;
             if (!e.isNew)
                 for (const Relationship &r : package.relationships(e.part)) used << r.id;
             else if (const auto own = requested.sheets.find(sheet); own != requested.sheets.end() && !own->second.copyFromPart.isEmpty())
                 for (const Relationship &r : package.relationships(own->second.copyFromPart)) used << r.id;   // (a copy keeps the ids its links have)
-            const QString id = freeRelationshipId(used);
+            const QString id = used.takeFree();
             newDrawingRel[sheet] = id;
             adjusted.sheets[sheet].drawingRelId = id;
         }
@@ -1556,14 +1557,14 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 if (!w.fileRel.isEmpty()) {
                     w.relId = w.fileRel;   // (a link kept, even when it is made to name another drawing)
                 } else {
-                    QStringList used;
+                    RelationshipIds used;
                     if (!se.isNew) {
                         for (const Relationship &r : package.relationships(se.part)) used << r.id;
                     } else if (!sc.copyFromPart.isEmpty()) {
                         for (const Relationship &r : package.relationships(sc.copyFromPart)) used << r.id;
                     }
                     if (const auto d = newDrawingRel.find(sheet); d != newDrawingRel.end()) used << d->second;
-                    w.relId = freeRelationshipId(used);
+                    w.relId = used.takeFree();
                     w.newRel = true;
                 }
                 for (const HeaderPicture &pic : std::as_const(w.pictures)) {
@@ -1627,7 +1628,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 useChanges = &adjusted;
             }
             SheetChanges &ac = adjusted.sheets[sheet];
-            QStringList used;
+            RelationshipIds used;
             // (a sheet that was added has no relationships in the file; a copy of a sheet has those of the sheet it is copied from, with the ids its links name)
             if (!se.isNew) {
                 for (const Relationship &r : package.relationships(se.part)) used << r.id;
@@ -1661,14 +1662,14 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     w.newComments = true;
                     w.commentsPart = freePartName(QStringLiteral("/xl/comments"), QStringLiteral(".xml"), taken);
                     taken.insert(w.commentsPart.toLower());
-                    w.commentsRel = freeRelationshipId(used);
+                    w.commentsRel = used.takeFree();
                     used << w.commentsRel;
                 }
                 if (w.vmlPart.isEmpty()) {
                     w.newVml = true;
                     w.vmlPart = freePartName(QStringLiteral("/xl/drawings/vmlDrawing"), QStringLiteral(".vml"), taken);
                     taken.insert(w.vmlPart.toLower());
-                    w.vmlRel = freeRelationshipId(used);
+                    w.vmlRel = used.takeFree();
                     used << w.vmlRel;
                     ac.legacyRelId = w.vmlRel;
                 }
@@ -1678,7 +1679,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     w.newThread = true;
                     w.threadPart = freePartName(QStringLiteral("/xl/threadedComments/threadedComment"), QStringLiteral(".xml"), taken);
                     taken.insert(w.threadPart.toLower());
-                    w.threadRel = freeRelationshipId(used);
+                    w.threadRel = used.takeFree();
                     used << w.threadRel;
                 }
                 noteWrites.push_back(w);
@@ -1701,7 +1702,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                         usedLinkIds[sheet].insert(l.relId);
                         continue;
                     }
-                    const QString id = freeRelationshipId(used);
+                    const QString id = used.takeFree();
                     used << id;
                     known.insert(l.target, id);
                     l.relId = id;
@@ -1727,12 +1728,12 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         QSet<QString> takenParts;
         for (const QString &n : package.partNames()) takenParts.insert(n.toLower());
         qint64 bytesOfTables = 0;
-        std::map<int, QStringList> usedIds;
-        auto idsOf = [&](int sheet) -> QStringList & {
+        std::map<int, RelationshipIds> usedIds;
+        auto idsOf = [&](int sheet) -> RelationshipIds & {
             auto it = usedIds.find(sheet);
             if (it != usedIds.end()) return it->second;
             const SheetEntry &se = book.info().sheets[sheet];
-            QStringList used;
+            RelationshipIds used;
             if (!se.isNew) {
                 for (const Relationship &r : package.relationships(se.part)) used << r.id;
             } else if (const auto own = requested.sheets.find(sheet); own != requested.sheets.end() && !own->second.copyFromPart.isEmpty()) {
@@ -1770,11 +1771,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             if (se.kind != SheetKind::Worksheet || se.part.isEmpty() || add.xml.isEmpty() || bytesOfTables > kMaxAddedBytes || takenParts.contains(add.part.toLower()))
                 return fail(QCoreApplication::translate("jp::office::sheet::Save", "A table was made that this program can't put in the file."));
             takenParts.insert(add.part.toLower());
-            QStringList &used = idsOf(add.sheet);
+            RelationshipIds &used = idsOf(add.sheet);
             TableLink link;
             link.sheet = add.sheet;
             link.part = add.part;
-            link.relId = freeRelationshipId(used);
+            link.relId = used.takeFree();
             link.xml = add.xml;
             used << link.relId;
             tableLinks.push_back(link);
@@ -2075,7 +2076,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             } else if (taken.contains(drawingPart.toLower())) {
                 return bad();
             }
-            QStringList used = relationshipIds(drawingRels);
+            RelationshipIds used(relationshipIds(drawingRels));
             QByteArray anchors;
             // a part the object relates to is written (when the file does not have it) with the relationships and content types that name it, and the parts it reaches in turn
             std::function<bool(const AddedPart &, const QString &, QByteArray *, const QString &, int)> writePart = [&](const AddedPart &part0, const QString &owner, QByteArray *ownerRels, const QString &id, int depth) -> bool {
@@ -2124,7 +2125,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             for (const AddedObject &obj : add.objects) {
                 QByteArray xml = obj.xml;
                 for (const AddedPart &part : obj.parts) {
-                    const QString id = freeRelationshipId(used);
+                    const QString id = used.takeFree();
                     used << id;
                     xml.replace(xmlscan::escapeAttribute(part.token), xmlscan::escapeAttribute(id));
                     if (!writePart(part, drawingPart, &drawingRels, id, 0)) return bad();
@@ -2360,7 +2361,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                  return props.custom.isEmpty() ? QByteArray() : writeCustomProps(old, props);
              }},
         };
-        QStringList used = relationshipIds(rootRels);
+        RelationshipIds used(relationshipIds(rootRels));
         for (const Prop &part : parts) {
             QString name;
             for (const Relationship &r : package.relationshipsOfType(QStringLiteral("/"), QString::fromLatin1(part.suffix)))
@@ -2396,7 +2397,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             QByteArray t2, r2;
             if (!addContentOverride(types, newName, QString::fromLatin1(part.contentType), &t2)) return bad();
             types = t2;
-            const QString id = freeRelationshipId(used);
+            const QString id = used.takeFree();
             used << id;
             if (!addRelationship(rootRels, id, QString::fromLatin1(part.relationship), newName.mid(1), &r2)) return bad();
             rootRels = r2;
@@ -2426,18 +2427,27 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         const int mainRelsEntry = entryAt.value(plain(entryName(mainRelsName)), -1);
         QByteArray mainRels;
         if (mainRelsEntry < 0 || !(replaced.contains(mainRelsEntry) ? (mainRels = replaced.value(mainRelsEntry), true) : inflate(mainRelsEntry, &mainRels))) return bad();
-        int nextCacheId = 1;
+        std::vector<int> cacheIds;   // (the ids the workbook's caches have; a new cache's is none of them, and is the next after the greatest unless that is past what an int holds)
         {
             static const QRegularExpression ids(QStringLiteral("cacheId=\"(\\d+)\""));
-            for (auto m = ids.globalMatch(QString::fromUtf8(mainXml)); m.hasNext();) nextCacheId = std::max(nextCacheId, m.next().captured(1).toInt() + 1);
+            for (auto m = ids.globalMatch(QString::fromUtf8(mainXml)); m.hasNext();) {
+                bool ok = false;
+                const int id = m.next().captured(1).toInt(&ok);
+                if (ok) cacheIds.push_back(id);
+            }
         }
+        auto takeCacheId = [&] {
+            const int id = nextFreeId(cacheIds);
+            cacheIds.push_back(id);
+            return id;
+        };
         std::map<QString, int> cacheIdOf;
         for (const SaveChanges::AddedPivot &a : changes.addedPivots) {
             if (a.sheet < 0 || a.sheet >= book.info().sheets.size()) return bad();
             const SheetEntry &se = book.info().sheets[a.sheet];
             if (se.deleted) continue;   // (a table on a sheet that was deleted: nothing of it is written)
             if (!cacheIdOf.count(a.definitionPart)) {
-                cacheIdOf[a.definitionPart] = nextCacheId++;
+                cacheIdOf[a.definitionPart] = takeCacheId();
                 if (a.newCache) {
                     const QString relId = QStringLiteral("rIdPivotCache%1").arg(cacheIdOf[a.definitionPart]);
                     newPivotCaches.emplace_back(cacheIdOf[a.definitionPart], relId);
@@ -2628,9 +2638,9 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     const int mainRelsEntry = entryAt.value(plain(entryName(relationshipsPartOf(package.entryName(book.mainPart())))), -1);
                     QByteArray mainRels, r2;
                     if (mainRelsEntry < 0 || !(replaced.contains(mainRelsEntry) ? (mainRels = replaced.value(mainRelsEntry), true) : inflate(mainRelsEntry, &mainRels))) return bad();
-                    QStringList usedIds;
+                    RelationshipIds usedIds;
                     for (const Relationship &r : package.relationships(book.mainPart())) usedIds << r.id;
-                    if (!addRelationship(mainRels, freeRelationshipId(usedIds), QStringLiteral("http://schemas.microsoft.com/office/2017/10/relationships/person"), relativeTarget(book.mainPart(), personPart), &r2)) return bad();
+                    if (!addRelationship(mainRels, usedIds.takeFree(), QStringLiteral("http://schemas.microsoft.com/office/2017/10/relationships/person"), relativeTarget(book.mainPart(), personPart), &r2)) return bad();
                     replaced.insert(mainRelsEntry, r2);
                 }
             }

@@ -384,7 +384,7 @@ private Q_SLOTS:
         };
         CHECK_EVALS(cases, g, Settings());
         const Outcome circle = evOutcome("P+Sheet2!P", g);
-        QVERIFY2(circle.text == "e:#REF!" && circle.status == EvalStatus::TooDeep && circle.work < 200, qPrintable(said(circle)));
+        QVERIFY2(circle.text == "e:#REF!" && circle.status == EvalStatus::TooDeep && circle.work < 1000, qPrintable(said(circle)));
         const Outcome fine = evOutcome("Q", g);
         QVERIFY2(fine.status == EvalStatus::Ok, qPrintable(said(fine)));
     }
@@ -541,7 +541,7 @@ private Q_SLOTS:
         loops.name("Pong", "Ping+1");
         for (const char *f : {"Selfie", "Ping", "Selfie+Ping", "SUM(Pong)"}) {
             const Outcome o = evOutcome(QString::fromLatin1(f), loops);
-            QVERIFY2(o.text == "e:#REF!" && o.status == EvalStatus::TooDeep && o.work < 100, f);
+            QVERIFY2(o.text == "e:#REF!" && o.status == EvalStatus::TooDeep && o.work < 1000, f);
         }
         // arrays of the most that a formula can write, and of a column of the grid
         Settings array;

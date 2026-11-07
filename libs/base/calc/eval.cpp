@@ -639,8 +639,9 @@ Item Machine::runProgram(const Program &p, bool)
 
 Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, int, const QString &identity, bool inIds)
 {
-    // Looking a text up takes as long as it is (its key is made and hashed).
-    if (!charge(2 + qint64(text.size()) / 64)) return Item::ofError(ErrorKind::Value);
+    // Looking a text up takes as long as it is (its key is made and hashed), and putting a name to work costs far more than a step (its key, its lookup among those being worked
+    // out, its program's start): measured, a name used 3^14 times took 16 s at the old charge of two steps.
+    if (!charge(kNameEvalCharge + qint64(text.size()) / 16)) return Item::ofError(ErrorKind::Value);
     if (nameDepth >= kMaxNameDepth) {
         if (status == EvalStatus::Ok) status = EvalStatus::TooDeep;
         return Item::ofError(ErrorKind::Ref);

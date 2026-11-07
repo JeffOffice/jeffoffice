@@ -931,6 +931,26 @@ private Q_SLOTS:
         QVERIFY(!saveXlsx(b, clash, &refused, &why));
     }
 
+    // Finding a free relationship id takes the same time however many are taken: twenty thousand ids and two thousand new links are about twenty-two thousand looks, not forty
+    // million (counted, not timed).
+    void aFreeRelationshipIdIsFoundInTheSameTimeWhateverIsTaken()
+    {
+        QStringList taken;
+        for (int i = 1; i <= 20000; ++i) taken << QStringLiteral("rId%1").arg(i);
+        RelationshipIds ids(taken);
+        QSet<QString> made;
+        for (int i = 0; i < 2000; ++i) made.insert(ids.takeFree());
+        QCOMPARE(int(made.size()), 2000);
+        QVERIFY(!made.contains(QStringLiteral("rId1")) && !made.contains(QStringLiteral("rId20000")));
+        QVERIFY(made.contains(QStringLiteral("rId20001")) && made.contains(QStringLiteral("rId22000")));
+        QVERIFY2(ids.probes() < 100000, qPrintable(QString::number(ids.probes())));
+        RelationshipIds gaps(QStringList{QStringLiteral("rId1"), QStringLiteral("rId2"), QStringLiteral("rId4")});
+        QCOMPARE(gaps.takeFree(), QStringLiteral("rId3"));
+        QCOMPARE(gaps.takeFree(), QStringLiteral("rId5"));
+        gaps << QStringLiteral("rId6");
+        QCOMPARE(gaps.takeFree(), QStringLiteral("rId7"));
+    }
+
     void thePiecesOfAdditionsAreMadeRight()
     {
         QCOMPARE(relativeTarget(QStringLiteral("/xl/drawings/drawing1.xml"), QStringLiteral("/xl/charts/chart1.xml")), QStringLiteral("../charts/chart1.xml"));

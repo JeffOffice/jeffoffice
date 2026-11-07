@@ -1487,8 +1487,13 @@ private:
             const double v = b.f64();
             if (b.bad()) return true;
             Cell c = makeCell(xf);
-            c.type = CellType::Number;
-            c.number = v;
+            if (std::isfinite(v)) {
+                c.type = CellType::Number;
+                c.number = v;
+            } else {   // (a number that is not one: kept as the error, as the readers of the XML forms keep it)
+                c.type = CellType::Error;
+                c.number = double(int(CellError::Num));
+            }
             return addCell(row, col, c);
         }
         case kRk: {

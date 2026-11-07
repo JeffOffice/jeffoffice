@@ -1,3 +1,4 @@
+#include "office/freeid.h"
 #include "sheet/htmlbook.h"
 #include "wml/wmlhtmlread.h"
 #include "sheet/sheetreader.h"
@@ -3561,11 +3562,11 @@ std::vector<TablePlace> Workbook::moveTables(const StructEdit &edit)
         if (edit.sheet == t.sheet && edit.kind == K::InsertColumns && edit.first > was.col1 && edit.first <= was.col2) {
             const int at = int(edit.first - was.col1);
             for (quint32 k = 0; k < edit.count; ++k) {
-                int id = 0;
-                for (const TableColumnInfo &c : t.info) id = std::max(id, c.id);
+                std::vector<int> ids;
+                for (const TableColumnInfo &c : t.info) ids.push_back(c.id);
                 t.columns.insert(at + int(k), freshTableColumnName(t.columns, int(t.columns.size()) + 1));
                 TableColumnInfo ci;
-                ci.id = id + 1;
+                ci.id = nextFreeId(ids);
                 t.info.insert(at + int(k), ci);
             }
             for (FilterColumn &fc : t.filter.columns)
@@ -3676,9 +3677,9 @@ QString Workbook::freshTablePart() const
 int Workbook::freshTableId() const
 {
     tables();
-    int id = 0;
-    for (const Table &t : m_tables) id = std::max(id, t.id);
-    return id + 1;
+    std::vector<int> ids;
+    for (const Table &t : m_tables) ids.push_back(t.id);
+    return nextFreeId(ids);
 }
 
 std::vector<Workbook::TableAdd> Workbook::addedTables() const

@@ -487,7 +487,7 @@ Value gcdLcm(Call &c, bool lcm)
             }
             x = v.isNumber() ? v.number() : x;
             x = std::floor(x);
-            if (x < 0 || x > 9007199254740991.0) {
+            if (!(x >= 0 && x <= 9007199254740991.0)) {   // (NaN is none of these: its division would never come to an end)
                 error = Value::error(ErrorKind::Num);
                 failed = true;
                 return false;

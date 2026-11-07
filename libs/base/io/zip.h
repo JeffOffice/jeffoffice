@@ -24,22 +24,25 @@ public:
     void endStream();
     // How many bytes the ZIP is so far (what a streamed entry has written is in it).
     qint64 size() const { return m_out.size(); }
+    // Every entry's record is written in the long form (the one that has room for sizes and places past 4 GiB), as a ZIP that needs it has them; for a test of the readers.
+    void useLongRecords(bool on) { m_long = on; }
     QByteArray finish();
     ~ZipWriter();
     ZipWriter() = default;
     ZipWriter(const ZipWriter &) = delete;
     ZipWriter &operator=(const ZipWriter &) = delete;
 private:
-    struct Entry { QString name; quint32 crc; quint32 size; quint32 csize; quint16 method; quint32 offset; };
+    struct Entry { QString name; quint32 crc; quint64 size; quint64 csize; quint16 method; quint64 offset; };
     struct Stream;
     QByteArray m_out;
     QVector<Entry> m_entries;
     Stream *m_stream = nullptr;
+    bool m_long = false;
 };
 
 // Returns entries by name; empty map and false if the data is not a readable
 // zip. Deflated entries are inflated (up to 1 GB each, checked by CRC).
-bool readZip(const QByteArray &zip, QMap<QString, QByteArray> &out, QString *error = nullptr);
+bool readZip(const QByteArray &zip, QMap<QString, QByteArray> &out, QString *error = nullptr, qint64 maxInflated = qint64(1) << 31);
 // One stored entry read straight from a file (the directory, then just that
 // entry), without loading the rest; empty if it isn't there.
 QByteArray readZipEntry(const QString &path, const QString &name);

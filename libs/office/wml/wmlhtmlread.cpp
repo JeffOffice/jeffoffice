@@ -18,6 +18,7 @@
 #include <QTextTableCell>
 
 #include <algorithm>
+#include <climits>
 
 namespace jp::office::wml {
 
@@ -380,7 +381,7 @@ bool readHtml(const QByteArray &html, Document *out, QString *error, const QStri
     Document d = newDocument();
     Reader r{&d};
     r.baseDir = baseDir;
-    for (const Num &n : d.numbering.nums) r.nextNumId = std::max(r.nextNumId, n.id + 1);
+    for (const Num &n : d.numbering.nums) r.nextNumId = std::max(r.nextNumId, n.id < INT_MAX ? n.id + 1 : n.id);
     QVector<Block> body;
     r.frameContent(page.rootFrame()->begin(), page.rootFrame()->end(), &body, 0);
     if (body.isEmpty()) body.push_back(Block());

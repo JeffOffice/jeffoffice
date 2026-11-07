@@ -350,6 +350,7 @@ Value fnSubtotal(Call &c)
 {
     double f;
     if (!c.number(0, &f)) return c.failure();
+    if (!(std::fabs(f) < 1000)) return c.error(ErrorKind::Value);   // (no function number is that large; the cast below would be undefined)
     int fn = int(std::trunc(f));
     // (1 to 11 leave out the rows a filter hides; 101 to 111 leave out every hidden row)
     const int hiddenRows = fn >= 101 && fn <= 111 ? 1 : 2;
@@ -943,7 +944,14 @@ bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error, b
             if (hiddenRows > 0 && sheet >= 0 && c.machine().source().rowHiddenKind(sheet, row) >= hiddenRows) return true;
             double x;
             switch (v.kind()) {
-            case Value::Kind::Number: out->push_back(v.number()); break;
+            case Value::Kind::Number:
+                if (!std::isfinite(v.number())) {   // (a number that is not one: NaN breaks the order the sorting functions rely on)
+                    *error = Value::error(ErrorKind::Num);
+                    ok = false;
+                    return false;
+                }
+                out->push_back(v.number());
+                break;
             case Value::Kind::Bool:
                 if (typed) out->push_back(v.number());
                 break;

@@ -23,6 +23,8 @@ namespace jp::calc {
 
 constexpr qint64 kMaxEvalWork = 50000000;
 constexpr int kMaxNameDepth = 16;
+// The steps charged for each evaluation of a name or of a text given to INDIRECT: about what the work costs next to a step of a program.
+constexpr qint64 kNameEvalCharge = 128;
 // The characters of text one evaluation may make as the elements of arrays (a text is two bytes a character): a column of long texts joined to itself is millions of them.
 constexpr qint64 kMaxMadeTextChars = 64000000;
 

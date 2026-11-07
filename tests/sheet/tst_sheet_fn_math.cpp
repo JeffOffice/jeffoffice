@@ -4,6 +4,7 @@
 #include "calchelpers.h"
 
 #include <cmath>
+#include <limits>
 
 using namespace jp::calc;
 
@@ -533,6 +534,28 @@ private Q_SLOTS:
             QCOMPARE(ev(cases[4].formula), QString::fromLatin1(cases[4].value));
         }
         QCOMPARE(ev(cases[1].formula), QString::fromLatin1(cases[1].value));
+    }
+
+    // A number that is not one (NaN or infinity can still come in through a cell a program wrote) gives #NUM! where a function reads it, and never loops, indexes, or casts.
+    void aNumberThatIsNotANumberGivesNumInTheFunctionsThatReadIt()
+    {
+        Grid g;
+        g.n("A1", std::numeric_limits<double>::quiet_NaN());
+        g.n("A2", std::numeric_limits<double>::infinity());
+        g.n("A3", 2);
+        g.n("A4", 2);
+        const E cases[] = {
+            {"GCD(A1,2)", "e:#NUM!"},     {"GCD(A2,2)", "e:#NUM!"},      {"LCM(A1,3)", "e:#NUM!"},        {"LCM(3,A2)", "e:#NUM!"},
+            {"MODE(A1:A4)", "e:#NUM!"},   {"MODE(A2:A4)", "e:#NUM!"}, {"_xlfn.MODE.MULT(A1:A4)", "e:#NUM!"}, {"BAHTTEXT(A1)", "e:#NUM!"},
+            {"BAHTTEXT(A2)", "e:#NUM!"},  {"ROUND(2.5,A1)", "e:#NUM!"},  {"TRUNC(2.5,A2)", "e:#NUM!"},      {"FACT(A1)", "e:#NUM!"},
+            {"FREQUENCY(A1:A4,A1:A4)", "e:#NUM!"}, {"TRIMMEAN(A1:A4,A3)", "e:#NUM!"}, {"SUBTOTAL(A1,A3:A4)", "e:#NUM!"},
+            {"PERCENTRANK(A1:A4,2)", "e:#NUM!"}, {"EDATE(A1,1)", "e:#NUM!"},  {"WEEKDAY(A1)", "e:#NUM!"},  {"LEFT(\"abc\",A1)", "e:#NUM!"},
+            {"GCD(4,6)", "n:2"},          {"MODE(A3:A4)", "n:2"},
+        };
+        for (const auto &c : cases) {
+            const QString got = ev(QString::fromUtf8(c.formula), g);
+            QVERIFY2(got == QString::fromUtf8(c.value), qPrintable(QString::fromUtf8(c.formula) + QStringLiteral(" gave [") + got + QStringLiteral("]")));
+        }
     }
 
     void volatileFunctionsAreMarked()

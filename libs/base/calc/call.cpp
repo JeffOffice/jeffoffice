@@ -9,7 +9,14 @@ bool coerceNumber(const Value &v, DateSystem system, double *out, ErrorKind *err
 {
     switch (v.kind()) {
     case Value::Kind::Number:
-    case Value::Kind::Bool: *out = v.number(); return true;
+    case Value::Kind::Bool:
+        // (a number that is not one can come in through a cell a program wrote: no function reads it, so none loops on it or casts it to an integer)
+        if (!std::isfinite(v.number())) {
+            *error = ErrorKind::Num;
+            return false;
+        }
+        *out = v.number();
+        return true;
     case Value::Kind::Empty: *out = 0; return true;
     case Value::Kind::Text:
         if (textToNumber(v.text(), system, out)) return true;

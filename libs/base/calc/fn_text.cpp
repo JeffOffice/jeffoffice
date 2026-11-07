@@ -524,7 +524,7 @@ QString thaiBelowMillion(qint64 n, bool hasHigher)
     const int len = int(digits.size());
     for (int i = 0; i < len; ++i) {
         const int d = digits[i].digitValue(), p = len - 1 - i;
-        if (d == 0) continue;
+        if (d <= 0 || d > 9 || p > 5) continue;   // (a sign, a character that is no digit, or a place past the table has no word)
         if (p == 0 && d == 1 && (len > 1 || hasHigher)) out += ed;
         else if (p == 1 && d == 2) out += yi;
         else if (p == 1 && d == 1) {
@@ -552,7 +552,7 @@ Value fnBahtText(Call &c)
 {
     double v;
     if (!c.number(0, &v)) return c.failure();
-    if (std::fabs(v) >= 1e15) return c.error(ErrorKind::Value);
+    if (!(std::fabs(v) < 1e15)) return c.error(ErrorKind::Value);
     const bool negative = v < 0;
     v = std::fabs(v);
     qint64 baht = qint64(std::floor(v));

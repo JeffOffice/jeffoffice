@@ -1,4 +1,5 @@
 #include "io/zip.h"
+#include "io/zipindex.h"
 
 #include "core/appinfo.h"
 
@@ -10,6 +11,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <memory>
 
 namespace jp {
 
@@ -32,6 +34,9 @@ quint32 crc32(const QByteArray &data)
 
 static void put16(QByteArray &a, quint16 v) { char b[2]; qToLittleEndian(v, b); a.append(b, 2); }
 static void put32(QByteArray &a, quint32 v) { char b[4]; qToLittleEndian(v, b); a.append(b, 4); }
+static void put64(QByteArray &a, quint64 v) { char b[8]; qToLittleEndian(v, b); a.append(b, 8); }
+// What a 32-bit field of a local header holds of a size: the size, or all ones when it is past the field (the directory has it whole).
+static quint32 field32(quint64 v) { return v >= 0xFFFFFFFFu ? 0xFFFFFFFFu : quint32(v); }
 
 // Raw deflate (no zlib header), as ZIP entries hold it.
 static QByteArray deflateRaw(const QByteArray &in)
@@ -72,7 +77,7 @@ static QByteArray inflateRaw(const QByteArray &in, qsizetype expected, bool *ok)
 }
 
 // Inflates raw deflate data as far as it goes: `consumed` is how many input bytes the stream took, `ended` whether it reached its end. What came out before a break is kept.
-static QByteArray inflateAsFarAsItGoes(const char *in, qsizetype available, qint64 limit, qsizetype *consumed, bool *ended, bool *overLimit, qint64 expected = -1)
+static QByteArray inflateAsFarAsItGoes(const char *in, qsizetype available, qint64 limit, qsizetype *consumed, bool *ended, bool *overLimit, qint64 expected = -1, qint64 *made = nullptr)
 {
     *consumed = 0;
     *ended = false;
@@ -90,6 +95,7 @@ static QByteArray inflateAsFarAsItGoes(const char *in, qsizetype available, qint
         zs.avail_out = sizeof(buf);
         const int r = ::inflate(&zs, Z_NO_FLUSH);
         out.append(buf, qsizetype(sizeof(buf) - zs.avail_out));
+        if (made) *made = out.size();
         if (out.size() > limit) {
             *overLimit = true;
             out.clear();   // (what is over the limit is not kept: not a part of it either)
@@ -136,6 +142,7 @@ void scanZipEach(const QByteArray &zip, const std::function<void(ZipScanEntry &)
             continue;
         }
         const qint64 allowed = std::min<qint64>(maxEntryBytes, maxTotalBytes - total);
+        qint64 inflated = -1;
         if (flags & 1) {
             e.problem = QStringLiteral("encrypted");
             next = sizesKnown && qsizetype(csize) <= room ? dataAt + qsizetype(csize) : dataAt;
@@ -166,8 +173,10 @@ void scanZipEach(const QByteArray &zip, const std::function<void(ZipScanEntry &)
         } else if (method == 8) {
             qsizetype consumed = 0;
             bool ended = false, over = false;
+            qint64 made = 0;
             const qsizetype span = sizesKnown ? std::min<qsizetype>(qsizetype(csize), room) : room;
-            e.data = inflateAsFarAsItGoes(zip.constData() + dataAt, span, allowed, &consumed, &ended, &over, sizesKnown ? qint64(usize) : -1);
+            e.data = inflateAsFarAsItGoes(zip.constData() + dataAt, span, allowed, &consumed, &ended, &over, sizesKnown ? qint64(usize) : -1, &made);
+            inflated = made;   // (an entry left out as too large was inflated as far as the limit: that is work done, and counts)
             e.whole = ended && (!sizesKnown || (qsizetype(usize) == e.data.size() && jp::crc32(e.data) == crc));
             if (over) e.problem = QStringLiteral("too large");
             else if (!e.whole) e.problem = ended ? QStringLiteral("damaged") : QStringLiteral("cut short");
@@ -176,7 +185,7 @@ void scanZipEach(const QByteArray &zip, const std::function<void(ZipScanEntry &)
             e.problem = QStringLiteral("a kind of compression that isn't read");
             next = sizesKnown && qsizetype(csize) <= room ? dataAt + qsizetype(csize) : dataAt;
         }
-        total += e.data.size();
+        total += std::max<qint64>(e.data.size(), inflated);
         ++taken;
         at = std::max(next, at + 4);
         each(e);
@@ -204,15 +213,15 @@ void ZipWriter::add(const QString &name, const QByteArray &data, bool compress)
     QByteArray packed = compress ? deflateRaw(data) : QByteArray();
     const bool deflated = !packed.isEmpty() && packed.size() < data.size();
     if (!deflated) packed = data;
-    Entry e{name, crc32(data), quint32(data.size()), quint32(packed.size()), quint16(deflated ? 8 : 0), quint32(m_out.size())};
+    Entry e{name, crc32(data), quint64(data.size()), quint64(packed.size()), quint16(deflated ? 8 : 0), quint64(m_out.size())};
     put32(m_out, 0x04034b50);
     put16(m_out, 20);        // version needed
     put16(m_out, 0x0800);    // UTF-8 names
     put16(m_out, e.method);  // stored or deflated
     put16(m_out, 0); put16(m_out, 0x21); // time, date (1980-01-01)
     put32(m_out, e.crc);
-    put32(m_out, e.csize);
-    put32(m_out, e.size);
+    put32(m_out, field32(e.csize));
+    put32(m_out, field32(e.size));
     put16(m_out, quint16(n.size()));
     put16(m_out, 0);
     m_out.append(n);
@@ -223,7 +232,7 @@ void ZipWriter::add(const QString &name, const QByteArray &data, bool compress)
 void ZipWriter::addRaw(const QString &name, quint16 method, quint32 crc, quint32 csize, quint32 usize, const char *bytes)
 {
     const QByteArray n = name.toUtf8();
-    Entry e{name, crc, usize, csize, method, quint32(m_out.size())};
+    Entry e{name, crc, usize, csize, method, quint64(m_out.size())};
     put32(m_out, 0x04034b50);
     put16(m_out, 20);
     put16(m_out, 0x0800);
@@ -316,13 +325,13 @@ void ZipWriter::endStream()
         } while (r != Z_STREAM_END && r == Z_OK);
         deflateEnd(&s.z);
     }
-    const quint32 csize = quint32(m_out.size() - dataAt), usize = quint32(s.usize);
+    const quint64 csize = quint64(m_out.size() - dataAt), usize = s.usize;
     char fields[12];
     qToLittleEndian(s.crc, fields);
-    qToLittleEndian(csize, fields + 4);
-    qToLittleEndian(usize, fields + 8);
+    qToLittleEndian(field32(csize), fields + 4);
+    qToLittleEndian(field32(usize), fields + 8);
     std::memcpy(m_out.data() + s.headerAt + 14, fields, 12);
-    m_entries << Entry{s.name, s.crc, usize, csize, quint16(s.deflated ? 8 : 0), quint32(s.headerAt)};
+    m_entries << Entry{s.name, s.crc, usize, csize, quint16(s.deflated ? 8 : 0), quint64(s.headerAt)};
     delete m_stream;
     m_stream = nullptr;
 }
@@ -330,30 +339,57 @@ void ZipWriter::endStream()
 QByteArray ZipWriter::finish()
 {
     if (m_stream) endStream();
-    const quint32 cdStart = quint32(m_out.size());
+    const quint64 cdStart = quint64(m_out.size());
     for (const auto &e : m_entries) {
         const QByteArray n = e.name.toUtf8();
+        // What does not fit a field of the record is put in the extra field of kind 1 (in this order), and the field holds all ones.
+        const bool bigSize = m_long || e.size >= 0xFFFFFFFFu, bigCsize = m_long || e.csize >= 0xFFFFFFFFu, bigOffset = m_long || e.offset >= 0xFFFFFFFFu;
+        const int longFields = int(bigSize) + int(bigCsize) + int(bigOffset);
+        const bool isLong = longFields > 0;
         put32(m_out, 0x02014b50);
-        put16(m_out, 20); put16(m_out, 20);
+        put16(m_out, isLong ? 45 : 20); put16(m_out, isLong ? 45 : 20);
         put16(m_out, 0x0800);
         put16(m_out, e.method);
         put16(m_out, 0); put16(m_out, 0x21);
         put32(m_out, e.crc);
-        put32(m_out, e.csize);
-        put32(m_out, e.size);
+        put32(m_out, bigCsize ? 0xFFFFFFFFu : quint32(e.csize));
+        put32(m_out, bigSize ? 0xFFFFFFFFu : quint32(e.size));
         put16(m_out, quint16(n.size()));
-        put16(m_out, 0); put16(m_out, 0); put16(m_out, 0); put16(m_out, 0);
+        put16(m_out, isLong ? quint16(4 + 8 * longFields) : 0); put16(m_out, 0); put16(m_out, 0); put16(m_out, 0);
         put32(m_out, 0);
-        put32(m_out, e.offset);
+        put32(m_out, bigOffset ? 0xFFFFFFFFu : quint32(e.offset));
         m_out.append(n);
+        if (isLong) {
+            put16(m_out, 1);
+            put16(m_out, quint16(8 * longFields));
+            if (bigSize) put64(m_out, e.size);
+            if (bigCsize) put64(m_out, e.csize);
+            if (bigOffset) put64(m_out, e.offset);
+        }
     }
-    const quint32 cdSize = quint32(m_out.size()) - cdStart;
+    const quint64 cdSize = quint64(m_out.size()) - cdStart;
+    const quint64 count = quint64(m_entries.size());
+    // More entries, or a directory or ZIP, than the end record's fields hold: the long end record (and its locator) says it, and the end record's fields hold all ones.
+    const bool longEnd = m_long || count >= 0xFFFF || cdStart >= 0xFFFFFFFFu || cdSize >= 0xFFFFFFFFu;
+    if (longEnd) {
+        const quint64 at = quint64(m_out.size());
+        put32(m_out, 0x06064b50);
+        put64(m_out, 44);
+        put16(m_out, 45); put16(m_out, 45);
+        put32(m_out, 0); put32(m_out, 0);
+        put64(m_out, count); put64(m_out, count);
+        put64(m_out, cdSize); put64(m_out, cdStart);
+        put32(m_out, 0x07064b50);
+        put32(m_out, 0);
+        put64(m_out, at);
+        put32(m_out, 1);
+    }
     put32(m_out, 0x06054b50);
     put16(m_out, 0); put16(m_out, 0);
-    put16(m_out, quint16(m_entries.size()));
-    put16(m_out, quint16(m_entries.size()));
-    put32(m_out, cdSize);
-    put32(m_out, cdStart);
+    put16(m_out, longEnd ? 0xFFFF : quint16(count));
+    put16(m_out, longEnd ? 0xFFFF : quint16(count));
+    put32(m_out, longEnd ? 0xFFFFFFFFu : quint32(cdSize));
+    put32(m_out, longEnd ? 0xFFFFFFFFu : quint32(cdStart));
     put16(m_out, 0);
     return m_out;
 }
@@ -363,38 +399,28 @@ QByteArray ZipWriter::finish()
 static quint16 get16(const QByteArray &a, qsizetype at) { return at >= 0 && at + 2 <= a.size() ? qFromLittleEndian<quint16>(a.constData() + at) : 0; }
 static quint32 get32(const QByteArray &a, qsizetype at) { return at >= 0 && at + 4 <= a.size() ? qFromLittleEndian<quint32>(a.constData() + at) : 0; }
 
-bool readZip(const QByteArray &zip, QMap<QString, QByteArray> &out, QString *error)
+bool readZip(const QByteArray &zip, QMap<QString, QByteArray> &out, QString *error, qint64 maxInflated)
 {
     auto fail = [&](const QString &m) { if (error) *error = m; return false; };
     if (zip.size() < 22) return fail(QCoreApplication::translate("Import", "The file is too small to be a publication."));
-    qsizetype eocd = -1;
-    for (qsizetype i = zip.size() - 22; i >= std::max<qsizetype>(0, zip.size() - 65557); --i)
-        if (get32(zip, i) == 0x06054b50) { eocd = i; break; }
-    if (eocd < 0) return fail(QCoreApplication::translate("Import", "The file is not a %1 publication (no ZIP directory).").arg(appInfo().name));
-    const int count = get16(zip, eocd + 10);
-    qsizetype p = get32(zip, eocd + 16);
-    for (int i = 0; i < count; ++i) {
-        if (p + 46 > zip.size() || get32(zip, p) != 0x02014b50) return fail(QCoreApplication::translate("Import", "The publication's file directory is damaged."));
-        const quint16 method = get16(zip, p + 10);
-        const quint32 crc = get32(zip, p + 16), csize = get32(zip, p + 20), usize = get32(zip, p + 24);
-        const quint16 nlen = get16(zip, p + 28), xlen = get16(zip, p + 30), clen = get16(zip, p + 32);
-        const quint32 local = get32(zip, p + 42);
-        // The entry's name, extra field and comment must fit in the file too.
-        if (p + 46 + qsizetype(nlen) + xlen + clen > zip.size()) return fail(QCoreApplication::translate("Import", "The publication's file directory is damaged."));
-        const QString name = QString::fromUtf8(zip.constData() + p + 46, nlen);
-        p += 46 + nlen + xlen + clen;
-        if (qsizetype(local) + 30 > zip.size()) return fail(QCoreApplication::translate("Import", "The publication is truncated."));
-        const qsizetype data = local + 30 + get16(zip, local + 26) + get16(zip, local + 28);
-        if (method != 0 && method != 8) return fail(QCoreApplication::translate("Import", "The publication uses a compression method %1 cannot read.").arg(appInfo().name));
-        if (data + qsizetype(csize) > zip.size()) return fail(QCoreApplication::translate("Import", "The publication is truncated."));
-        if (method == 8) {
-            bool ok = false;
-            const QByteArray inflated = inflateRaw(zip.mid(data, csize), qsizetype(usize), &ok);
-            if (!ok || crc32(inflated) != crc) return fail(QCoreApplication::translate("Import", "The publication is damaged."));
-            out.insert(name, inflated);
-        } else {
-            out.insert(name, zip.mid(data, csize));
+    QVector<ZipEntry> directory;
+    if (!readZipDirectory(zip, &directory)) {
+        switch (zipFault(zip)) {
+        case ZipFault::NoEnd: return fail(QCoreApplication::translate("Import", "The file is not a %1 publication (no ZIP directory).").arg(appInfo().name));
+        case ZipFault::UnsupportedMethod: return fail(QCoreApplication::translate("Import", "The publication uses a compression method %1 cannot read.").arg(appInfo().name));
+        default: return fail(QCoreApplication::translate("Import", "The publication's file directory is damaged."));
         }
+    }
+    // What the entries say they come to is checked before any is inflated, and each byte that comes out of an inflater is counted too, so no directory can make more.
+    qint64 declared = 0;
+    for (const ZipEntry &e : std::as_const(directory)) declared += e.usize;
+    if (maxInflated >= 0 && declared > maxInflated) return fail(QCoreApplication::translate("Import", "The publication holds more than %1 can read.").arg(appInfo().name));
+    auto budget = std::make_shared<InflateBudget>();
+    budget->limit = maxInflated;
+    for (const ZipEntry &e : std::as_const(directory)) {
+        QByteArray bytes;
+        if (!inflateZipEntry(zip, e, &bytes, budget)) return fail(QCoreApplication::translate("Import", "The publication is damaged."));
+        out.insert(e.name, bytes);   // (of two entries of one name the later is the one read, as readZipEntry gives it)
     }
     return true;
 }
@@ -403,33 +429,35 @@ QByteArray readZipEntry(const QString &path, const QString &name)
 {
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly) || f.size() < 22) return {};
-    // The end-of-directory record sits in the last 65,557 bytes.
-    const qint64 tailAt = std::max<qint64>(0, f.size() - 65557);
-    f.seek(tailAt);
-    const QByteArray tail = f.read(f.size() - tailAt);
-    qsizetype eocd = -1;
-    for (qsizetype i = tail.size() - 22; i >= 0; --i)
-        if (get32(tail, i) == 0x06054b50) { eocd = i; break; }
-    if (eocd < 0) return {};
-    const quint32 dirSize = get32(tail, eocd + 12), dirAt = get32(tail, eocd + 16);
-    if (qint64(dirAt) + dirSize > f.size() || dirSize > 64 * 1024 * 1024) return {};
-    f.seek(dirAt);
-    const QByteArray dir = f.read(dirSize);
-    for (qsizetype p = 0; p + 46 <= dir.size() && get32(dir, p) == 0x02014b50;) {
-        const quint16 method = get16(dir, p + 10), nlen = get16(dir, p + 28), xlen = get16(dir, p + 30), clen = get16(dir, p + 32);
-        const quint32 csize = get32(dir, p + 20), local = get32(dir, p + 42);
-        if (p + 46 + qsizetype(nlen) + xlen + clen > dir.size()) return {};
-        const QString entry = QString::fromUtf8(dir.constData() + p + 46, nlen);
-        p += 46 + nlen + xlen + clen;
-        if (entry != name) continue;
-        if (method != 0 || !f.seek(local)) return {};
-        const QByteArray head = f.read(30);
-        if (head.size() < 30) return {};
-        const qint64 data = qint64(local) + 30 + get16(head, 26) + get16(head, 28);
-        if (data + csize > f.size() || !f.seek(data)) return {};
-        return f.read(csize);
+    auto readAt = [&](qint64 at, qint64 n) {
+        if (!f.seek(at)) return QByteArray();
+        return f.read(n);
+    };
+    ZipEnd end;
+    if (!readZipEnd(readAt, f.size(), &end)) return {};
+    if (end.dirAt < 0 || end.dirAt + end.dirSize > f.size() || end.dirSize > 64 * 1024 * 1024) return {};
+    const QByteArray dir = readAt(end.dirAt, end.dirSize);
+    // (of two entries of one name the later is the one given, as readZip gives it)
+    ZipRecord found;
+    bool have = false;
+    qint64 p = 0;
+    for (quint64 i = 0; i < end.count; ++i) {
+        ZipRecord r;
+        qint64 next = 0;
+        if (!readZipRecord(dir, p, &r, &next)) return {};
+        p = next;
+        if (r.name != name) continue;
+        found = r;
+        have = true;
     }
-    return {};
+    if (!have || found.method != 0) return {};
+    const QByteArray head = readAt(found.local, 30);
+    if (head.size() < 30 || get32(head, 0) != 0x04034b50) return {};
+    const qint64 data = found.local + 30 + get16(head, 26) + get16(head, 28);
+    if (data + found.csize > f.size()) return {};
+    const QByteArray bytes = readAt(data, found.csize);
+    if (bytes.size() != found.csize || crc32(bytes) != found.crc) return {};
+    return bytes;
 }
 
 } // namespace jp

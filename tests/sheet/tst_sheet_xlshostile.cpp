@@ -5,6 +5,7 @@
 #include "sheet/calculation.h"
 #include "sheet/xlsxsave.h"
 
+#include <limits>
 #include <random>
 
 namespace {
@@ -95,6 +96,23 @@ class SheetXlsHostileTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    // A NUMBER record can spell NaN or infinity: the reader keeps the cell as the #NUM! error, as the readers of the XML forms do, so no function ever reads a number that is none.
+    void aNumberRecordThatIsNotANumberIsReadAsAnError()
+    {
+        Book b;
+        b.sheet(QStringLiteral("S"), number(0, 0, std::numeric_limits<double>::quiet_NaN()) + number(0, 1, std::numeric_limits<double>::infinity())
+                    + number(0, 2, -std::numeric_limits<double>::infinity()) + number(0, 3, 2.5));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QCOMPARE(show(s, wb.sharedStrings(), QStringLiteral("A1")), QStringLiteral("e:#NUM!"));
+        QCOMPARE(show(s, wb.sharedStrings(), QStringLiteral("B1")), QStringLiteral("e:#NUM!"));
+        QCOMPARE(show(s, wb.sharedStrings(), QStringLiteral("C1")), QStringLiteral("e:#NUM!"));
+        QCOMPARE(show(s, wb.sharedStrings(), QStringLiteral("D1")), QStringLiteral("n:2.5"));
+    }
+
     // The book the other tests damage is itself read whole.
     void theModelBookIsRead()
     {

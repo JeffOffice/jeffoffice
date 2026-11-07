@@ -1,6 +1,7 @@
 #include "sheet/tables.h"
 
 #include "sheet/sheetreader.h"
+#include "office/freeid.h"
 
 #include <QCoreApplication>
 #include <QRegularExpression>
@@ -313,19 +314,38 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info, QStr
             t.fileColumns = t.columns;
             if (!readTableModel(bytes, &t)) continue;
             t.fileSignature = tableSignature(t);
+            // The ids of a table's columns are unique in the table, and positive: those that repeat (or are none) are given new ones. The signature above is of the ids as the file
+            // has them, so a table so renumbered is a changed table, and its part is written again with the new ids.
+            {
+                QSet<int> seen;
+                std::vector<int> all;
+                for (const TableColumnInfo &ci : std::as_const(t.info)) all.push_back(ci.id);
+                for (TableColumnInfo &ci : t.info) {
+                    if (ci.id > 0 && !seen.contains(ci.id)) {
+                        seen.insert(ci.id);
+                        continue;
+                    }
+                    ci.id = nextFreeId(all);
+                    all.push_back(ci.id);
+                    seen.insert(ci.id);
+                }
+            }
             tables.append(t);
         }
     }
-    // a table that has the name, the id, or cells of one before it is left out: the file is not valid, and two tables there would be taken for one another
+    // a table that has the name or cells of one before it is left out: the file is not valid, and two tables there would be taken for one another; one that has only an id of one before it is given a new id
     {
         QVector<Table> kept;
         QSet<QString> names;
         QSet<int> ids;
+        std::vector<int> allIds;   // (every id the file gives, and those given since: a new id is none of them)
+        for (const Table &t : std::as_const(tables)) allIds.push_back(t.id);
         std::vector<std::vector<int>> onSheet(size_t(info.sheets.size()));
         int dropped = 0;
         QString first;
-        for (const Table &t : std::as_const(tables)) {
-            bool bad = names.contains(t.name.toLower()) || ids.contains(t.id);
+        for (const Table &original : std::as_const(tables)) {
+            Table t = original;
+            bool bad = names.contains(t.name.toLower());
             if (!bad && t.sheet >= 0 && t.sheet < int(onSheet.size()))
                 for (const int k : onSheet[size_t(t.sheet)]) {
                     const Table &o = kept[k];
@@ -337,6 +357,11 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info, QStr
             if (bad) {
                 if (dropped++ == 0) first = t.name;
                 continue;
+            }
+            // (the id of a table is unique in the workbook: a table whose id another has is given a new one, and so is changed, and its part is written again)
+            if (ids.contains(t.id)) {
+                t.id = nextFreeId(allIds);
+                allIds.push_back(t.id);
             }
             names.insert(t.name.toLower());
             ids.insert(t.id);

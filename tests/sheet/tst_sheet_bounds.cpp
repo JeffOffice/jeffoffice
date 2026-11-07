@@ -22,6 +22,17 @@ QString repeatedArguments(const QString &argument, int count)
 // The most megabytes the process may grow by while a build is refused: the cells an evaluation may hold at once, and the text it may make, are a few hundred.
 constexpr qint64 kMostGrowth = 500;
 
+// A grid that counts the cells read from it.
+class CountingGrid : public Grid {
+public:
+    Value cell(int sheet, quint32 row, quint32 col) const override
+    {
+        ++reads;
+        return Grid::cell(sheet, row, col);
+    }
+    mutable qint64 reads = 0;
+};
+
 } // namespace
 
 class SheetBoundsTests : public QObject {
@@ -172,7 +183,7 @@ private Q_SLOTS:
         g.name("Chain3", "5");
         for (const char *f : {"M", "Q", "Alpha", "LEN(P)", "R", "M+Q+Alpha+Beta", "SUM(M,M,M)"}) {
             const Outcome o = evOutcome(QString::fromLatin1(f), g, Settings(), 2000000);
-            QVERIFY2(o.text == "e:#REF!" && o.status == EvalStatus::TooDeep && o.work < 500, qPrintable(QString::fromLatin1(f) + QStringLiteral(": ") + said(o)));
+            QVERIFY2(o.text == "e:#REF!" && o.status == EvalStatus::TooDeep && o.work < 1000, qPrintable(QString::fromLatin1(f) + QStringLiteral(": ") + said(o)));
         }
         // names that call one another without a circle are worked out as they always were
         const Outcome chain = evOutcome("Chain+Chain", g);
@@ -180,6 +191,19 @@ private Q_SLOTS:
         // a name used twice in one formula is not a circle
         g.name("Twice", "Chain3+1");
         QCOMPARE(ev("Twice*Twice", g), num(36));
+    }
+
+    // A name that is used costs more than a step or two (its text is keyed, hashed, and looked up, and its program run): names that use names fourteen levels deep, three
+    // uses each, are 3^14 evaluations, and they run out of steps after a few hundred thousand of them, not after millions.
+    void nameEvaluationIsChargedWhatItCosts()
+    {
+        CountingGrid g;
+        g.n("A1", 1);
+        g.name("NX_14", "Sheet1!$A$1");
+        for (int k = 13; k >= 0; --k) g.name(QStringLiteral("NX_%1").arg(k), QStringLiteral("SUM(NX_%1,NX_%1,NX_%1)").arg(k + 1));
+        const Outcome o = evOutcome("NX_0", g);
+        QVERIFY2(o.text.startsWith("e:") && o.status == EvalStatus::TooMuchWork, qPrintable(said(o)));
+        QVERIFY2(g.reads < 600000, qPrintable(QString::number(g.reads)));
     }
 
     // Comparing two texts takes as long as they are, and is counted so: a column of long texts matched against a long text runs out of steps, instead of taking seconds

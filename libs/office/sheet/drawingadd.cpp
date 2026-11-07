@@ -125,6 +125,30 @@ QString freeRelationshipId(const QStringList &used)
     }
 }
 
+RelationshipIds::RelationshipIds(const QStringList &ids)
+{
+    for (const QString &id : ids) m_set.insert(id);
+}
+
+RelationshipIds &RelationshipIds::operator<<(const QString &id)
+{
+    m_set.insert(id);
+    return *this;
+}
+
+QString RelationshipIds::takeFree()
+{
+    for (;; ++m_next) {
+        ++m_probes;
+        const QString id = QStringLiteral("rId%1").arg(m_next);
+        if (!m_set.contains(id)) {
+            m_set.insert(id);
+            ++m_next;
+            return id;
+        }
+    }
+}
+
 QByteArray relationshipXml(const QString &id, const QString &type, const QString &target, bool external)
 {
     return "<Relationship Id=\"" + escapeBytes(id) + "\" Type=\"" + (type.contains(QLatin1Char(':')) ? escapeBytes(type) : QByteArray(kRelType) + escapeBytes(type)) + "\" Target=\"" + escapeBytes(target) + "\""

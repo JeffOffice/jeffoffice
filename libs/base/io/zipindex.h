@@ -17,6 +17,7 @@
 #include <QVector>
 
 #include <atomic>
+#include <functional>
 #include <memory>
 
 namespace jp {
@@ -38,11 +39,34 @@ constexpr qint64 kMaxZipEntryBytes = qint64(2) << 30;
 // Why an entry could not be given.
 enum class ZipFailure { None, Damaged, TooLarge, OverBudget };
 
+// Where the directory is and how many records it has, from the end record of a ZIP of `size` bytes (and, when the ZIP has one, the long end record that holds what the short one
+// has no room for). `readAt(at, n)` gives n bytes from the place `at` (fewer at the end).
+struct ZipEnd {
+    qint64 dirAt = 0;
+    qint64 dirSize = 0;
+    quint64 count = 0;
+};
+bool readZipEnd(const std::function<QByteArray(qint64, qint64)> &readAt, qint64 size, ZipEnd *out);
+// One record of the directory (in `dir`, from `p`): its name, way of packing, checksum, sizes, and the place of its local header, those that did not fit the record read from its
+// extra field. `next` is where the next record begins. False if the record is not whole.
+struct ZipRecord {
+    QString name;
+    quint16 method = 0;
+    quint32 crc = 0;
+    qint64 csize = 0;
+    qint64 usize = 0;
+    qint64 local = 0;
+};
+bool readZipRecord(const QByteArray &dir, qint64 p, ZipRecord *out, qint64 *next);
+
 // Every entry, in the order of the directory. False if the directory can't
-// be read or an entry isn't inside the data or isn't stored or deflated.
-// Nothing is inflated.
+// be read or an entry isn't inside the data or isn't stored or deflated, or
+// if the bytes of two entries (with their local headers) overlap: an entry
+// that shares its bytes with another is how a small file is made to inflate
+// to a great many bytes. Nothing is inflated. (The long form, for more than
+// 65,535 entries or more than 4 GiB, is read.)
 bool readZipDirectory(const QByteArray &zip, QVector<ZipEntry> *out);
-// Why readZipDirectory cannot read the zip (None if it can): no end-of-directory record (a copy cut short), the zip64 form, a way of packing other than stored and deflate, or a directory or
+// Why readZipDirectory cannot read the zip (None if it can): no end-of-directory record (a copy cut short), the long form when it is broken, a way of packing other than stored and deflate, or a directory or
 // entry that is broken (a header that is not one, data past the end of the file).
 enum class ZipFault { None, NoEnd, Zip64, UnsupportedMethod, Damaged };
 ZipFault zipFault(const QByteArray &zip);

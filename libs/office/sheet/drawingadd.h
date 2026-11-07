@@ -65,6 +65,23 @@ QByteArray newDrawingXml(const QByteArray &anchors);
 QStringList relationshipIds(const QByteArray &relsXml);
 // The first "rIdN" not among the ids.
 QString freeRelationshipId(const QStringList &used);
+// The ids a relationships part names, kept so that finding a free one takes the same time however many there are: each id taken is held, and the search for the next begins where
+// the last one ended (ids are only added, so none below that is free again).
+class RelationshipIds {
+public:
+    RelationshipIds() = default;
+    RelationshipIds(const QStringList &ids);   // NOLINT
+    RelationshipIds &operator<<(const QString &id);
+    bool contains(const QString &id) const { return m_set.contains(id); }
+    // The first "rIdN" not among the ids, which is then among them.
+    QString takeFree();
+    // The ids looked at by all the searches so far (for a test to count).
+    qint64 probes() const { return m_probes; }
+private:
+    QSet<QString> m_set;
+    int m_next = 1;
+    qint64 m_probes = 0;
+};
 // One Relationship element, as the part writes it.
 QByteArray relationshipXml(const QString &id, const QString &type, const QString &target, bool external = false);
 // The relationships part with one more relationship (made, if `relsXml` is empty). `type` is the last word of the type, or a whole type; `target` is as the part writes it.

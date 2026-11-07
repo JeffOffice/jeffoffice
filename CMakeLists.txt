@@ -256,6 +256,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_look.cpp
   tests/sheet/tst_sheet_numfmt.cpp
   tests/sheet/tst_sheet_package.cpp
+  tests/sheet/tst_sheet_zip.cpp
   tests/sheet/tst_sheet_pagesetup.cpp
   tests/sheet/tst_sheet_pagesave.cpp
   tests/sheet/tst_sheet_pagefollow.cpp

@@ -4,6 +4,7 @@
 #include "sheethelpers.h"
 
 #include "io/zipindex.h"
+#include "office/freeid.h"
 #include "sheet/calculation.h"
 #include "sheet/structref.h"
 #include "sheet/tables.h"
@@ -541,7 +542,65 @@ private Q_SLOTS:
         QCOMPARE(calc.cell(0, r, c).debug(), QStringLiteral("n:16"));
     }
 
-    // A file with two tables of one name, one id, or the same cells keeps the first of them and says what it left out; a part nested past any real one is not a table.
+    // The id after the greatest a file has is the next number, unless that is past what an int holds: then the smallest that is free.
+    void theNextFreeIdDoesNotOverflow()
+    {
+        using jp::office::nextFreeId;
+        QCOMPARE(nextFreeId({}), 1);
+        QCOMPARE(nextFreeId({1, 2, 3}), 4);
+        QCOMPARE(nextFreeId({-4, 0}), 1);
+        QCOMPARE(nextFreeId({INT_MAX - 1}), INT_MAX);
+        QCOMPARE(nextFreeId({INT_MAX}), 1);
+        QCOMPARE(nextFreeId({INT_MAX, 1, 2, 4}), 3);
+        QCOMPARE(nextFreeId({2, INT_MAX, 1}), 3);
+    }
+
+    // Ids a file gives are unique when they are saved: a table's column ids that repeat (or are none) are renumbered when the table is read, and the part is rewritten with them.
+    void columnIdsThatRepeatAreRenumbered()
+    {
+        const QString part = QStringLiteral("<table xmlns=\"%1\" id=\"1\" name=\"T\" displayName=\"T\" ref=\"A1:C2\"><tableColumns count=\"3\"><tableColumn id=\"1\" name=\"A\"/>"
+                                            "<tableColumn id=\"1\" name=\"B\"/><tableColumn id=\"0\" name=\"C\"/></tableColumns></table>").arg(QLatin1String(kNs));
+        Open o;
+        QVERIFY(o.ok(withTables(buildXlsx({worksheet(QStringLiteral("<row r=\"1\">%1%2%3</row>").arg(inlineCell(QStringLiteral("A1"), QStringLiteral("A")), inlineCell(QStringLiteral("B1"), QStringLiteral("B")),
+                                                                                                       inlineCell(QStringLiteral("C1"), QStringLiteral("C"))))}), {part})));
+        const QVector<Table> tables = o.b.tables();
+        QCOMPARE(tables.size(), 1);
+        QSet<int> ids;
+        for (const TableColumnInfo &c : tables.first().info) {
+            QVERIFY(c.id > 0);
+            ids.insert(c.id);
+        }
+        QCOMPARE(int(ids.size()), 3);
+        QCOMPARE(tables.first().info.first().id, 1);   // (the first keeps its id)
+        const auto changed = o.b.changedTableParts();
+        QCOMPARE(int(changed.size()), 1);
+        const QString xml = QString::fromUtf8(changed.begin()->second);
+        QCOMPARE(xml.count(QStringLiteral("<tableColumn id=\"1\"")), 1);
+        QCOMPARE(xml.count(QStringLiteral("id=\"0\"")), 0);
+    }
+
+    // An id at the end of the numbers an id can have has no id after it: a new table and a new column are given the smallest id that is free, not an overflow.
+    void aNewIdAfterTheLastPossibleOneIsTheSmallestFree()
+    {
+        const QString part = QStringLiteral("<table xmlns=\"%1\" id=\"2147483647\" name=\"T\" displayName=\"T\" ref=\"A1:B2\"><tableColumns count=\"2\"><tableColumn id=\"2147483647\" name=\"A\"/>"
+                                            "<tableColumn id=\"2\" name=\"B\"/></tableColumns></table>").arg(QLatin1String(kNs));
+        Open o;
+        QVERIFY(o.ok(withTables(buildXlsx({worksheet(QStringLiteral("<row r=\"1\">%1%2</row>").arg(inlineCell(QStringLiteral("A1"), QStringLiteral("A")), inlineCell(QStringLiteral("B1"), QStringLiteral("B"))))}), {part})));
+        QCOMPARE(o.b.tables().size(), 1);
+        QCOMPARE(o.b.freshTableId(), 1);
+        o.b.moveTables(StructEdit::insertColumns(0, 1, 1));
+        const Table t = o.b.tables().first();
+        QCOMPARE(int(t.info.size()), 3);
+        QSet<int> ids;
+        for (const TableColumnInfo &c : t.info) {
+            QVERIFY(c.id > 0);
+            ids.insert(c.id);
+        }
+        QCOMPARE(int(ids.size()), 3);
+    }
+
+    // A file with two tables of one name or the same cells keeps the first of them and says what it left out; two of one id are both kept, and the later is given a new id
+    // (so the file it is saved in is valid); a part nested past any real one is not a table.
     void tablesThatClashAreLeftOut()
     {
         auto part = [&](int id, const QString &name, const QString &ref, const QString &columns) {
@@ -549,16 +608,19 @@ private Q_SLOTS:
         };
         const QString cols = QStringLiteral("<tableColumn id=\"1\" name=\"A\"/><tableColumn id=\"2\" name=\"B\"/>");
         const QStringList parts = {part(1, QStringLiteral("One"), QStringLiteral("A1:B3"), cols), part(2, QStringLiteral("one"), QStringLiteral("D1:E3"), cols),        // (the name again)
-                                   part(1, QStringLiteral("Two"), QStringLiteral("G1:H3"), cols),                                                                        // (the id again)
+                                   part(1, QStringLiteral("Two"), QStringLiteral("G1:H3"), cols),                                                                        // (the id again: kept)
                                    part(3, QStringLiteral("Three"), QStringLiteral("B2:C5"), cols),                                                                      // (cells of the first)
                                    part(4, QStringLiteral("Four"), QStringLiteral("J1:K3"), cols)};
         Open o;
         QVERIFY(o.ok(withTables(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"/>"))}), parts)));
         QStringList names;
         for (const Table &t : o.b.tables()) names << t.name;
-        QCOMPARE(names, (QStringList{QStringLiteral("One"), QStringLiteral("Four")}));
+        QCOMPARE(names, (QStringList{QStringLiteral("One"), QStringLiteral("Two"), QStringLiteral("Four")}));
+        QSet<int> ids;
+        for (const Table &t : o.b.tables()) ids.insert(t.id);
+        QCOMPARE(int(ids.size()), 3);
         QVERIFY(!o.b.skippedFeatures().isEmpty());
-        QVERIFY(o.b.skippedFeatures().join(QLatin1Char(' ')).contains(QStringLiteral("3 table")));
+        QVERIFY(o.b.skippedFeatures().join(QLatin1Char(' ')).contains(QStringLiteral("2 table")));
         // nested too deep
         QString deep = QStringLiteral("<extLst>");
         for (int i = 0; i < 400; ++i) deep += QStringLiteral("<ext>");
