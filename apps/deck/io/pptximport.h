@@ -35,6 +35,7 @@ std::unique_ptr<Document> importPresentationFile(const QString &path, QString *e
 // to be indexed, and a few lookups for each placeholder asked about; a list gone through for each would count its length each time).
 struct PptxImportWork {
     qint64 placeholdersExamined = 0;
+    qint64 chartPartsParsed = 0;   // the chart parts read and parsed (a part that frames name again at many sizes is parsed once)
 };
 PptxImportWork pptxImportWorkForTest();
 

@@ -72,6 +72,12 @@ constexpr int kMaxNotes = 20;
 constexpr qint64 kMinSlideEmu = 12700, kMaxSlideEmu = 51206400;
 // A chart keeps the parts it relates to (its workbook, a drawing laid over it...), down to this depth, at most so many, of at most this much in all.
 constexpr int kMaxChartParts = 32, kMaxChartDepth = 4;
+// A chart part is drawn at no more than this many sizes (a frame of another size takes the nearest drawing), and a file's charts are drawn no more
+// than this many times in all; its parsed charts are kept while the parts they come from come to no more than this.
+constexpr int kMaxChartSizes = 4, kMaxChartDrawings = 300;
+constexpr qint64 kMaxChartReadBytes = 64 << 20;
+// The XML a file may have kept as written (slides' timing and transitions, and the frames not read) in all: this many elements and bytes.
+constexpr qint64 kMaxKeptNodes = 150000, kMaxKeptXmlBytes = 32 << 20;
 constexpr qint64 kMaxChartBytes = 64 << 20;
 // A diagram keeps its parts as a chart does, down to the pictures in its drawing; all the diagrams of a file keep no more than this between them.
 constexpr qint64 kMaxDiagramBytes = 256 << 20;
@@ -682,6 +688,18 @@ private:
         bool coarser = false;
     };
     QHash<QString, ChartDrawing> m_chartDrawings;
+    struct ChartRead {
+        bool ok = false;
+        office::Chart chart;
+    };
+    QHash<QString, ChartRead> m_chartReads;           // the charts read, by part and look without the size, so a part is parsed once
+    qint64 m_chartReadBytes = 0;
+    QHash<QString, QVector<QPair<QSizeF, ChartDrawing>>> m_chartSizes;   // what was drawn of each, by size
+    int m_chartsDrawn = 0;                        // the charts drawn so far, those that couldn't be too
+    bool m_chartsRanOut = false;
+    qint64 m_keptNodes = 0, m_keptXmlBytes = 0;    // what the XML kept as written comes to, in all
+    bool m_keptRanOut = false;
+    bool keepXml(const QDomElement &e, QString *out);
     QHash<QString, std::optional<QJsonObject>> m_chartParts;
     qint64 m_diagramBytes = 0;                    // what the diagrams' kept parts come to, in all
     int m_diagramsDrawn = 0;                      // the diagrams drawn so far, and what their drawings come to
@@ -704,6 +722,34 @@ private:
     QDomElement m_tableStyles;                    // the root of the table styles part, once read; null if there is none
 };
 
+// The XML of an element, to be kept as written, if the file has room left for it (kMaxKeptNodes, kMaxKeptXmlBytes); otherwise false, and the
+// file is told that what ran past is not kept.
+bool Importer::keepXml(const QDomElement &e, QString *out)
+{
+    if (m_keptRanOut) return false;
+    qint64 nodes = 0;
+    QVector<QDomElement> pending{e};
+    while (!pending.isEmpty() && m_keptNodes + nodes <= kMaxKeptNodes) {
+        const QDomElement at = pending.takeLast();
+        ++nodes;
+        for (QDomElement k = at.firstChildElement(); !k.isNull(); k = k.nextSiblingElement()) pending.append(k);
+        if (pending.size() > kMaxKeptNodes) break;
+    }
+    if (!pending.isEmpty() || m_keptNodes + nodes > kMaxKeptNodes) {
+        m_keptRanOut = true;
+        return false;
+    }
+    *out = standaloneXml(e);
+    if (m_keptXmlBytes + out->size() * 2 > kMaxKeptXmlBytes) {
+        m_keptRanOut = true;
+        out->clear();
+        return false;
+    }
+    m_keptNodes += nodes;
+    m_keptXmlBytes += out->size() * 2;
+    return true;
+}
+
 void Importer::note(const QString &text)
 {
     if (m_notes.size() < kMaxNotes) m_notes << text;
@@ -721,6 +767,10 @@ void Importer::sayWhatRanOut()
     if (m_budget.ranOut[B::Runs]) note(QCoreApplication::translate("PptxImport", "The file holds more than %1 runs of text in all; the rest are left out.").arg(kMaxRuns));
     if (m_budget.ranOut[B::Letters]) note(QCoreApplication::translate("PptxImport", "The file holds more than %1 letters of text in all; the rest are left out.").arg(kMaxLetters));
     if (m_budget.longBody) note(QCoreApplication::translate("PptxImport", "Some text is longer than a text box is read to, so the rest of it is left out."));
+    if (m_keptRanOut)
+        note(QCoreApplication::translate("PptxImport", "The file holds more than %1 MB of animation, transition, and other settings in all; what is past that is left out.").arg(kMaxKeptXmlBytes >> 20));
+    if (m_chartsRanOut)
+        note(QCoreApplication::translate("PptxImport", "The file holds more than %1 charts in all; the rest are kept as written, not shown.").arg(kMaxChartDrawings));
     if (m_diagramsRanOut)
         note(QCoreApplication::translate("PptxImport", "The file holds more than %1 diagrams, or diagrams that are drawn from more than %2 MB in all; the rest are kept as written, not shown.").arg(kMaxDiagrams).arg(kMaxDiagramSvgBytes >> 20));
     if (m_pageFull)
@@ -1236,13 +1286,45 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     // A frame is no larger than a slide can be (a chart is drawn that large, not as large as a file says it is).
     const QRectF rect(points(off, "x"), points(off, "y"), std::clamp(points(ext, "cx"), 0.0, office::kChartMaxSide), std::clamp(points(ext, "cy"), 0.0, office::kChartMaxSide));
     if (rect.width() < 1 || rect.height() < 1) return false;
-    // A chart that many frames show is read and drawn once for each size and look.
+    // A chart that many frames show is read once, and drawn once for each size and look, for only so many sizes.
     const QString look = drawingLook(sc, rel.target, rect);
     auto drawn = m_chartDrawings.constFind(look);
     if (drawn == m_chartDrawings.cend()) {
-        office::Chart chart;
+        const QString whole = drawingLook(sc, rel.target, QRectF());
+        QVector<QPair<QSizeF, ChartDrawing>> &sizes = m_chartSizes[whole];
         ChartDrawing d;
-        if (office::readChart(m_pkg.part(rel.target), sc.ctx.theme, sc.ctx.colors, &chart)) d.imageId = addImage(office::chartSvg(chart, rect.size(), &d.coarser), QStringLiteral("svg"));
+        if (sizes.size() >= kMaxChartSizes || (!sizes.isEmpty() && sizes.first().second.imageId.isEmpty())) {
+            // The drawing nearest in shape (a part that couldn't be drawn once can't be at all).
+            double best = -1;
+            for (const auto &have : std::as_const(sizes)) {
+                if (have.second.imageId.isEmpty() && !sizes.first().second.imageId.isEmpty()) continue;
+                const double apart = std::abs(std::log(have.first.width() / have.first.height()) - std::log(rect.width() / rect.height()));
+                if (best < 0 || apart < best) best = apart, d = have.second;
+            }
+        } else {
+            if (m_chartsDrawn >= kMaxChartDrawings) {
+                m_chartsRanOut = true;
+                return false;
+            }
+            ++m_chartsDrawn;
+            ChartRead once;
+            const ChartRead *read = nullptr;
+            if (const auto kept = m_chartReads.constFind(whole); kept != m_chartReads.cend()) {
+                read = &*kept;
+            } else {
+                const QByteArray bytes = m_pkg.part(rel.target);
+                ++g_work.chartPartsParsed;
+                once.ok = office::readChart(bytes, sc.ctx.theme, sc.ctx.colors, &once.chart);
+                if (m_chartReadBytes + bytes.size() > kMaxChartReadBytes) {
+                    read = &once;   // too much held already: this one is drawn and let go
+                } else {
+                    m_chartReadBytes += bytes.size();
+                    read = &*m_chartReads.insert(whole, std::move(once));
+                }
+            }
+            if (read->ok) d.imageId = addImage(office::chartSvg(read->chart, rect.size(), &d.coarser), QStringLiteral("svg"));
+            sizes.append({rect.size(), d});
+        }
         drawn = m_chartDrawings.insert(look, d);
     }
     if (drawn->imageId.isEmpty()) return false;
@@ -1466,7 +1548,9 @@ void Importer::keepUnread(const QDomElement &whole, const QDomElement &frame, Sc
     if (xfrm.isNull()) xfrm = aChild(frame, "xfrm");
     const QDomElement off = aChild(xfrm, "off"), ext = aChild(xfrm, "ext");
     auto points = [](const QDomElement &e, const char *name) { return office::emuToPoints(office::parseInt(office::attr(e, QLatin1String(name)))); };
-    sc.unread.append(QJsonObject{{"xml", standaloneXml(whole)},
+    QString xml;
+    if (!keepXml(whole, &xml)) return;
+    sc.unread.append(QJsonObject{{"xml", xml},
                                  {"x", points(off, "x")},
                                  {"y", points(off, "y")},
                                  {"w", points(ext, "cx")},
@@ -1578,14 +1662,15 @@ bool Importer::readSlide(int number, const QString &part)
 
     // How the slide changes to the next, and what moves on it, as written.
     for (const QDomElement &c : office::children(root)) {
+        QString kept;
         if (office::isElement(c, office::ns::P, QStringLiteral("transition"))) {
-            page->props[QStringLiteral("transitionXml")] = standaloneXml(c);
+            if (keepXml(c, &kept)) page->props[QStringLiteral("transitionXml")] = kept;
         } else if (office::isElement(c, office::ns::P, QStringLiteral("timing"))) {
-            page->props[QStringLiteral("timingXml")] = standaloneXml(c);
+            if (keepXml(c, &kept)) page->props[QStringLiteral("timingXml")] = kept;
         } else if (office::isElement(c, kMc, QStringLiteral("AlternateContent"))) {
             // A transition with another form for programs that don't know the first.
             for (const QDomElement &alt : office::children(c))
-                if (!pChild(alt, "transition").isNull()) page->props[QStringLiteral("transitionXml")] = standaloneXml(c);
+                if (!pChild(alt, "transition").isNull() && keepXml(c, &kept)) page->props[QStringLiteral("transitionXml")] = kept;
         }
     }
     // The show plays it, and the Transitions tab shows it; saved again unchanged, the XML read is written back.

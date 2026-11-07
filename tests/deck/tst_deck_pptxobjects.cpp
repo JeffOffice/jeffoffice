@@ -724,6 +724,85 @@ private Q_SLOTS:
         QVERIFY2(office::chartSvgsMadeForTest() - drawn <= 1, qPrintable(QString::number(office::chartSvgsMadeForTest() - drawn)));
     }
 
+    // One chart in frames of many different sizes is read once and drawn for only a few sizes (the other frames take the nearest drawing), and a
+    // file's charts are drawn only so many times in all, the rest of the frames being kept as written.
+    void importBoundsTheChartWorkAFileCanAsk()
+    {
+        Parts p = chartPptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        const qsizetype named = xml.indexOf(QStringLiteral("name=\"Chart 8\""));
+        const qsizetype from = xml.lastIndexOf(QStringLiteral("<p:graphicFrame>"), named), to = xml.indexOf(QStringLiteral("</p:graphicFrame>"), named) + 17;
+        const QString frame = xml.mid(from, to - from);
+        static const QRegularExpression ext(QStringLiteral("<a:ext cx=\"\\d+\""));
+        QVERIFY(frame.contains(ext));
+        QString frames;
+        for (int i = 0; i < 120; ++i) {
+            QString f = frame;
+            f.replace(QStringLiteral("id=\"9\""), QStringLiteral("id=\"%1\"").arg(100 + i));
+            f.replace(ext, QStringLiteral("<a:ext cx=\"%1\"").arg(2000000 + i * 40000));
+            frames += f;
+        }
+        xml.replace(frame, frames);
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        const qint64 drawn = office::chartSvgsMadeForTest();
+        const qint64 read = deck::pptxImportWorkForTest().chartPartsParsed;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        int charts = 0;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Picture && it->name == QLatin1String("Chart 8")) ++charts;
+        QCOMPARE(charts, 120);
+        QVERIFY2(office::chartSvgsMadeForTest() - drawn <= 4, qPrintable(QString::number(office::chartSvgsMadeForTest() - drawn)));
+        QCOMPARE(deck::pptxImportWorkForTest().chartPartsParsed - read, qint64(1));
+        // Charts of many parts: they are drawn up to the limit, and the rest of the frames stay as the file wrote them.
+        Parts q = chartPptx();
+        QString slide = QString::fromUtf8(q.data["/ppt/slides/slide1.xml"].xml);
+        QString chartXml = QString::fromUtf8(q.data["/ppt/charts/chart1.xml"].xml);
+        chartXml.remove(QStringLiteral("<c:externalData r:id=\"rId1\"><c:autoUpdate val=\"0\"/></c:externalData><c:userShapes r:id=\"rId2\"/>"));
+        QString many;
+        for (int i = 0; i < 400; ++i) {
+            const QString target = QStringLiteral("/ppt/charts/chart%1.xml").arg(i + 10);
+            q.data[target] = {q.data["/ppt/charts/chart1.xml"].type, chartXml.toUtf8()};
+            q.rels << Rel{"/ppt/slides/slide1.xml", "chart", target};
+            QString f = frame;
+            f.replace(QStringLiteral("id=\"9\""), QStringLiteral("id=\"%1\"").arg(100 + i));
+            f.replace(QStringLiteral("r:id=\"rId4\""), QStringLiteral("r:id=\"rId%1\"").arg(5 + i));
+            many += f;
+        }
+        slide.replace(frame, many);
+        q.data["/ppt/slides/slide1.xml"].xml = slide.toUtf8();
+        const qint64 drawn2 = office::chartSvgsMadeForTest();
+        err.clear();
+        d = deck::importPresentation(pack(q), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(office::chartSvgsMadeForTest() - drawn2 > 0, "the charts are drawn at all");
+        QVERIFY2(office::chartSvgsMadeForTest() - drawn2 <= 300, qPrintable(QString::number(office::chartSvgsMadeForTest() - drawn2)));
+        QVERIFY2(err.contains(QStringLiteral("charts")), qPrintable(err));
+    }
+
+    // The animation and transition XML a file keeps as written is held to a total for the whole file, not only to a limit for each slide, and a file
+    // that passes it is told what was left out.
+    void importHoldsTheKeptXmlToATotalForTheFile()
+    {
+        Parts p = samplePptx();
+        const QString junk = QStringLiteral("<p:timing><p:tnLst><p:par><p:cTn id=\"1\"><p:childTnLst>") + QByteArray("<p:par><p:cTn id=\"2\"/></p:par>").repeated(40000) +
+                             QStringLiteral("</p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>");
+        for (const QString &name : {QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/ppt/slides/slide2.xml")}) {
+            QString xml = QString::fromUtf8(p.data[name].xml);
+            xml.remove(QRegularExpression(QStringLiteral("<p:timing.*?</p:timing>"), QRegularExpression::DotMatchesEverythingOption));
+            xml.replace(QStringLiteral("</p:sld>"), junk + QStringLiteral("</p:sld>"));
+            p.data[name].xml = xml.toUtf8();
+        }
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        int kept = 0;
+        for (const auto &page : d->pages) kept += page->props.contains(QStringLiteral("timingXml"));
+        QVERIFY2(kept >= 1 && kept < 2, qPrintable(QString::number(kept)));
+        QVERIFY2(err.contains(QStringLiteral("animation, transition")), qPrintable(err));
+    }
+
     // A chart on a slide is a picture of it (an SVG drawn from the values the file stores), in the frame's place, and its parts
     // (the chart, the workbook behind it, and what they link to) are kept with the slide to be written back.
     void importReadsChartsAsPictures()
