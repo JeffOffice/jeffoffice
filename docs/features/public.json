@@ -1377,8 +1377,9 @@
          "text": "5b586f0b40eb033aa609fc977caa59ce5ccdd70db4bbcc43793a4ad81cef91c4"
         },
         {
-         "status": "partly",
-         "text": "52e24d7a402dc0f75b59c7a3a9fa5be4edb936fcb06792fc2b1c6895706d8bde"
+         "hide_soon": true,
+         "status": "done",
+         "text": "44904cfbc3b61d2cfbae526840459e74bcb912929617d7adc8142e9dbe3f9dfd"
         },
         {
          "hide_soon": true,
@@ -11933,6 +11934,18 @@
     "fr": ""
    }
   },
+  "44904cfbc3b61d2cfbae526840459e74bcb912929617d7adc8142e9dbe3f9dfd": {
+   "drop": false,
+   "en": "Move a chart onto its own chart sheet or into any worksheet from the Chart tab with `Move Chart`. A chart can also be moved from a chart sheet back onto a worksheet, and each move can be undone in one step.",
+   "es": "Desde la pestaña Gráfico, con `Move Chart`, usted puede mover un gráfico a su propia hoja de gráfico o a cualquier hoja. También puede devolver un gráfico de una hoja de gráfico a una hoja normal, y cada movimiento se deshace en un solo paso.",
+   "fr": "Depuis l’onglet Graphique, avec `Move Chart`, vous pouvez déplacer un graphique vers sa propre feuille de graphique ou vers n’importe quelle feuille. Vous pouvez aussi ramener un graphique d’une feuille de graphique vers une feuille de calcul, et chaque déplacement s’annule en une seule étape.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "44d1081dbb68637ec86727e0b8d9fd52bf581b7acc0d5863db7b8b88e7649a4f": {
    "drop": false,
    "en": "Insert building blocks: page parts (headings, pull quotes, sidebars, stories, tables of contents), calendars (by month and year, with options), borders and accents, and advertisements. Save your own with Save as Building Block; Page Parts lists them under My Building Blocks.",
@@ -12987,18 +13000,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "52e24d7a402dc0f75b59c7a3a9fa5be4edb936fcb06792fc2b1c6895706d8bde": {
-   "drop": false,
-   "en": "Move Chart: move a chart to another worksheet in one step that `Undo` can reverse.",
-   "es": "Mover gráfico: traslade un gráfico a otra hoja en un solo paso que `Deshacer` puede revertir.",
-   "fr": "Déplacer le graphique : déplacez un graphique vers une autre feuille en une seule étape que `Annuler` peut inverser.",
-   "soon": {
-    "drop": false,
-    "en": "Chart sheets: move a chart onto its own new chart sheet, or off a chart sheet",
-    "es": "Hojas de gráfico: mover un gráfico a una hoja de gráfico nueva propia, o fuera de una hoja de gráfico",
-    "fr": "Feuilles de graphique : déplacer un graphique vers une nouvelle feuille de graphique dédiée, ou hors d’une feuille de graphique"
    }
   },
   "530e2a06ebacb4a9783fd47ab8cc50342a965550bd0455eaf0b1b85a36c1e7d2": {
