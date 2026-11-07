@@ -1,4 +1,5 @@
 #include "app/deckwindow.h"
+#include "core/startuptrace.h"
 
 #include "app/deckcanvas.h"
 #include "app/deckdialogs.h"
@@ -94,7 +95,9 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     createDesignActions();
     createViewActions();
     createShapeFormatActions();
+    startupMark("win: before ribbon");
     buildRibbon();
+    startupMark("win: ribbon built");
     buildStatusBar();
     describeForScreenReaders(m_split);
     describeForScreenReaders(statusBar());

@@ -84,6 +84,12 @@ struct RibbonParts {
 // description, else its tooltip), and each box's typing field the box's name.
 void describeForScreenReaders(QWidget *root);
 
+// With this on, every tab but the first is made empty and gets its groups the first time it is shown (Ribbon::showTab, RibbonTab::groups, describe): the window
+// is up sooner, and the other tabs cost their time when they are used. The programs turn it on at the start; tests build whole ribbons unless they ask
+// (JP_EAGER_RIBBON=1 or JP_LAZY_RIBBON=1 in the environment overrides it, for comparing).
+void setLazyRibbonTabs(bool on);
+bool lazyRibbonTabs();
+
 bool buildRibbon(Ribbon *r, const QByteArray &json, const RibbonParts &parts, QObject *actionOwner, QString *error);
 
 } // namespace jp

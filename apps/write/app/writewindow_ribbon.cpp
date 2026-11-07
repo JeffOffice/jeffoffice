@@ -95,9 +95,22 @@ void WriteWindow::buildRibbon()
     parts.launchers[QStringLiteral("notes")] = [this] { act("refs.notesOptions")->trigger(); };
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
     // The Copy Formatting button is double-clicked to keep it on, and Esc in the text turns it off (see eventFilter).
-    for (QToolButton *b : m_ribbon->findChildren<QToolButton *>())
-        if (b->defaultAction() && b->defaultAction() == act(QStringLiteral("edit.formatPainter"))) b->installEventFilter(this);
+    watchFormatPainter(m_ribbon);
     m_view->installEventFilter(this);
+    // A tab is made when first shown: what shows the window's state in its controls (the font box, the page fields) is brought up to date then.
+    connect(m_ribbon, &Ribbon::tabBuilt, this, [this](RibbonTab *page) {
+        watchFormatPainter(page);
+        ribbonTabMade(page);
+    });
+    connect(m_ribbon, &Ribbon::tabsBuilt, this, [this] {
+        if (m_doc) refreshUi();
+    });
+}
+
+void WriteWindow::watchFormatPainter(QWidget *root)
+{
+    for (QToolButton *b : root->findChildren<QToolButton *>())
+        if (b->defaultAction() && b->defaultAction() == act(QStringLiteral("edit.formatPainter"))) b->installEventFilter(this);
 }
 
 void WriteWindow::ribbonParts(RibbonParts &parts)

@@ -137,6 +137,8 @@ void MainWindow::buildRibbon()
 
     m_ribbon->showTab(m_ribbon->tab(QStringLiteral("Home")));
     connect(m_ribbon, &Ribbon::tabChanged, this, [this] { refreshUi(); });
+    connect(m_ribbon, &Ribbon::tabBuilt, this, [this](RibbonTab *page) { ribbonTabMade(page); });
+    connect(m_ribbon, &Ribbon::tabsBuilt, this, [this] { refreshUi(); });   // (tabs made for Help's list of where commands are)
 }
 
 // Text, color and measurement controls. Each factory makes a new control and
@@ -331,7 +333,7 @@ void MainWindow::ribbonControlParts(RibbonParts &parts)
         zoomBox->setEditable(true);
         for (const char *z : {"400%", "300%", "200%", "150%", "100%", "75%", "66%", "50%", "33%", "25%", "10%"}) zoomBox->addItem(QString::fromLatin1(z));
         zoomBox->setFixedWidth(80);
-        zoomBox->setCurrentText(QStringLiteral("100%"));
+        zoomBox->setCurrentText(QStringLiteral("%1%").arg(std::lround(m_canvas->zoom() * 100)));   // (as now: the box may be made after the zoom was set)
         connect(zoomBox, &QComboBox::textActivated, this, [this](const QString &s) {
             const double z = QString(s).remove('%').toDouble() / 100.0;
             if (z > 0) { m_canvas->zoomToFit(Canvas::Fit::None); m_canvas->setZoom(z); }

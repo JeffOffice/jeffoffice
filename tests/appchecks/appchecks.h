@@ -194,6 +194,8 @@ QStringList checkTypingWithoutAClick(Adapter &app);
 // body, no text is cut, every title shows whole, and the groups of a tab are equally tall. Failures are returned as lines (app/tab/group/control with the rectangles). With the
 // environment variable JP_RIBBON_SHOTS naming a folder, a picture of every tab at both widths is saved there too.
 QStringList checkRibbonLayout(Adapter &app);
+// The window's ribbon with its tabs made as they are first shown looks and holds what it does when all are made at once (see jp::setLazyRibbonTabs).
+QStringList checkLazyRibbon(Adapter &app);
 
 // Shared by the first-five-minutes tests: a window that was closed, and whether it asked.
 struct CloseResult {

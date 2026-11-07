@@ -16,16 +16,20 @@
 #include <QToolButton>
 #include <QAbstractButton>
 #include <QComboBox>
+#include <atomic>
+#include <memory>
 #include <QAbstractSpinBox>
 
 namespace jp {
+
+static void nameUnnamedControls(QWidget *r);
 
 namespace {
 
 // Everything the file shows goes through the "Ribbon" translation context.
 QString tr(const QString &s) { return QCoreApplication::translate("Ribbon", s.toUtf8().constData()); }
 
-class Builder {
+class Builder : public std::enable_shared_from_this<Builder> {
 public:
     Builder(Ribbon *r, const RibbonParts &parts, QObject *owner)
         : m_r(r), m_p(parts), m_owner(owner)
@@ -40,6 +44,8 @@ public:
         allow(root, {"fileKeytip", "quickAccess", "templates", "tabs"}, QStringLiteral("the file"));
         m_r->setFileKeytip(keytipOf(root, "fileKeytip"));
         m_templates = root.value(QLatin1String("templates")).toObject();
+        m_lazy = lazyRibbonTabs();
+        if (m_lazy) collectDefinitions(root.value(QLatin1String("tabs")));
         for (const QJsonValue &v : root.value(QLatin1String("quickAccess")).toArray()) quickAccess(v);
         const QJsonArray tabs = root.value(QLatin1String("tabs")).toArray();
         if (tabs.isEmpty()) problem(QStringLiteral("the file has no tabs"));
@@ -49,6 +55,21 @@ public:
     QStringList problems() const { return m_problems; }
 
 private:
+    // A command the file defines inline can be used by its id in a tab made before the tab that defines it, so (with tabs made late) the definitions are found first.
+    void collectDefinitions(const QJsonValue &v)
+    {
+        if (v.isArray()) {
+            for (const QJsonValue &e : v.toArray()) collectDefinitions(e);
+        } else if (v.isObject()) {
+            const QJsonObject o = v.toObject();
+            if (o.value(QLatin1String("id")).isString() && o.value(QLatin1String("text")).isString()) {
+                const QString id = o.value(QLatin1String("id")).toString();
+                if (!m_defined.contains(id)) m_defined.insert(id, o);
+            }
+            for (auto it = o.begin(); it != o.end(); ++it) collectDefinitions(it.value());
+        }
+    }
+
     // ---- reporting ----
     void problem(const QString &what)
     {
@@ -103,6 +124,7 @@ private:
             const QString id = v.toString();
             if (QAction *a = m_inline.value(id)) return a;
             if (QAction *a = m_p.action ? m_p.action(id) : nullptr) return a;
+            if (const auto d = m_defined.constFind(id); d != m_defined.constEnd()) return command(QJsonValue(*d));
             problem(QStringLiteral("unknown command \"%1\"").arg(id));
             return nullptr;
         }
@@ -253,13 +275,31 @@ private:
             color = m_p.colors.value(colorName);
             if (!color.isValid()) problem(QStringLiteral("unknown color \"%1\"").arg(colorName));
         }
-        RibbonTab *t = m_r->addTab(name, context, color, tr(name));
+        RibbonTab *t = m_r->addTab(name, context, color, tr(name), m_lazy && m_r->tabCount() > 0);   // (the first tab is the one showing at the start)
         m_r->setTabKeytip(t, keytipOf(o));
         const QJsonArray groups = o.value(QLatin1String("groups")).toArray();
         if (groups.isEmpty()) problem(QStringLiteral("a tab needs groups"));
+        if (m_lazy && m_r->tabCount() > 1) {
+            // (the others are made when first shown)
+            t->setBuilder([self = shared_from_this(), name, groups](RibbonTab *page) { self->buildGroups(page, name, groups, true); });
+            m_where.clear();
+            return;
+        }
+        buildGroups(t, name, groups, false);
+        m_where.clear();
+    }
+
+    void buildGroups(RibbonTab *t, const QString &name, const QJsonArray &groups, bool late)
+    {
+        const QString was = m_where;
+        const qsizetype known = m_problems.size();
+        m_where = name;
         for (const QJsonValue &g : groups) group(t, g.toObject());
         t->finish();
-        m_where.clear();
+        m_where = was;
+        if (!late) return;
+        nameUnnamedControls(t);
+        for (qsizetype i = known; i < m_problems.size(); ++i) qWarning("ribbon: %s", qPrintable(m_problems[i]));
     }
 
     void group(RibbonTab *t, QJsonObject o)
@@ -405,10 +445,12 @@ private:
     }
 
     Ribbon *m_r;
-    const RibbonParts &m_p;
+    RibbonParts m_p;
     QObject *m_owner;
     QWidget *m_menuParent = nullptr;
     QJsonObject m_templates;
+    bool m_lazy = false;
+    QHash<QString, QJsonObject> m_defined;   // the file's inline commands, by id (with tabs made late)
     QHash<QString, QAction *> m_inline;   // commands the file made, by id
     QStringList m_problems;
     QString m_where;                      // "Home / Font", for messages
@@ -418,7 +460,7 @@ private:
 
 // A control with no name of its own for screen readers (a spin box, an
 // icon-only dropdown) takes its tooltip's, without the shortcut.
-static void nameUnnamedControls(Ribbon *r)
+static void nameUnnamedControls(QWidget *r)
 {
     static const QRegularExpression shortcut(QStringLiteral("\\s*\\([^()]*\\)$"));
     for (QWidget *w : r->findChildren<QWidget *>()) {
@@ -463,6 +505,15 @@ void describeForScreenReaders(QWidget *root)
     }
 }
 
+static std::atomic<int> g_lazyTabs{0};
+void setLazyRibbonTabs(bool on) { g_lazyTabs = on ? 1 : 0; }
+bool lazyRibbonTabs()
+{
+    if (qEnvironmentVariableIsSet("JP_EAGER_RIBBON")) return false;
+    if (qEnvironmentVariableIsSet("JP_LAZY_RIBBON")) return true;
+    return g_lazyTabs != 0;
+}
+
 bool buildRibbon(Ribbon *r, const QByteArray &json, const RibbonParts &parts, QObject *actionOwner, QString *error)
 {
     QJsonParseError pe;
@@ -471,11 +522,11 @@ bool buildRibbon(Ribbon *r, const QByteArray &json, const RibbonParts &parts, QO
         if (error) *error = QStringLiteral("ribbon file isn't valid JSON: %1 (at byte %2)").arg(pe.errorString()).arg(pe.offset);
         return false;
     }
-    Builder b(r, parts, actionOwner);
-    b.build(doc.object());
+    const auto b = std::make_shared<Builder>(r, parts, actionOwner);
+    b->build(doc.object());
     nameUnnamedControls(r);
-    if (b.problems().isEmpty()) return true;
-    if (error) *error = b.problems().join(QLatin1Char('\n'));
+    if (b->problems().isEmpty()) return true;
+    if (error) *error = b->problems().join(QLatin1Char('\n'));
     return false;
 }
 

@@ -6,6 +6,7 @@
 //                                        (works with QT_QPA_PLATFORM=offscreen)
 //   JeffCrunch --backstage <page>        open on a File page (open, about)
 
+#include "app/ribbonbuilder.h"
 #include "app/crash.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
@@ -101,6 +102,7 @@ int main(int argc, char **argv)
     cli.process(app);
     const bool plain = !cli.isSet(shotOpt);   // (not a job that makes a file and quits)
     jp::StagedStart start(plain);
+    jp::setLazyRibbonTabs(true);   // the ribbon's other tabs are made when first shown
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
     jp::followSystemTheme();

@@ -554,6 +554,20 @@ RibbonGroup *RibbonTab::addGroup(const QString &title)
     return g;
 }
 
+void RibbonTab::ensureBuilt()
+{
+    if (m_attach) {
+        const auto attach = std::move(m_attach);
+        m_attach = nullptr;
+        attach();
+    }
+    if (!m_builder) return;
+    const auto fn = std::move(m_builder);
+    m_builder = nullptr;
+    fn(this);
+    Q_EMIT built();
+}
+
 void RibbonTab::finish()
 {
     m_layout->addStretch(1);
@@ -1084,6 +1098,13 @@ Ribbon::Ribbon(QWidget *parent) : QWidget(parent)
     connect(UiTheme::instance(), &UiTheme::changed, this, &Ribbon::restyle);   // the look switched in Options
 }
 
+Ribbon::~Ribbon()
+{
+    // (a page not yet in the ribbon has no owner)
+    for (const Tab &t : m_tabs)
+        if (!t.scroll) delete t.page;
+}
+
 // The body holds a group's title (19), its margin (4), the tab's (6), and either the tallest large button or three rows: 100 for the usual font, more for a larger one.
 void Ribbon::updateBodyHeight()
 {
@@ -1121,7 +1142,7 @@ void Ribbon::restyle()
     paint(this);
     paint(m_stack);
     for (const Tab &t : m_tabs) {
-        paint(t.scroll);
+        if (t.scroll) paint(t.scroll);
         paint(t.page);
     }
     for (QFrame *f : findChildren<QFrame *>(QStringLiteral("jpRibbonSeparator"))) f->setStyleSheet(QStringLiteral("background:%1;").arg(lineColor().name()));
@@ -1144,9 +1165,8 @@ void Ribbon::focusCurrentTab()
     if (QWidget *b = tabButton(m_current)) b->setFocus(Qt::TabFocusReason);
 }
 
-RibbonTab *Ribbon::addTab(const QString &name, const QString &contextGroup, const QColor &color, const QString &title)
+QScrollArea *Ribbon::makeScroll(RibbonTab *page)
 {
-    auto *page = new RibbonTab();
     auto *scroll = new QScrollArea();
     scroll->setFocusPolicy(Qt::NoFocus);   // only holds the controls; Tab goes to them
     scroll->setWidget(page);
@@ -1158,9 +1178,35 @@ RibbonTab *Ribbon::addTab(const QString &name, const QString &contextGroup, cons
     QPalette pal = scroll->palette();
     pal.setColor(QPalette::Window, ribbonBg());
     scroll->setPalette(pal);
+    m_stack->addWidget(scroll);
+    return scroll;
+}
+
+void Ribbon::attachPage(RibbonTab *page)
+{
+    for (Tab &t : m_tabs)
+        if (t.page == page && !t.scroll) t.scroll = makeScroll(page);
+}
+
+RibbonTab *Ribbon::addTab(const QString &name, const QString &contextGroup, const QColor &color, const QString &title, bool deferred)
+{
+    auto *page = new RibbonTab();
+    QPalette pal = page->palette();
+    pal.setColor(QPalette::Window, ribbonBg());
     page->setAutoFillBackground(true);
     page->setPalette(pal);
-    m_stack->addWidget(scroll);
+    // The scroll area that holds the page costs several widgets: a tab to be made late gets it with its controls.
+    QScrollArea *scroll = deferred ? nullptr : makeScroll(page);
+    if (deferred) page->m_attach = [this, page] { attachPage(page); };
+    connect(page, &RibbonTab::built, this, [this, page] {
+        Q_EMIT tabBuilt(page);
+        if (m_builtQueued) return;
+        m_builtQueued = true;
+        QMetaObject::invokeMethod(this, [this] {
+            m_builtQueued = false;
+            Q_EMIT tabsBuilt();
+        }, Qt::QueuedConnection);
+    });
     m_tabs.push_back(Tab{name, contextGroup, color, page, scroll, contextGroup.isEmpty(), title.isEmpty() ? name : title, QString(), int(m_tabs.size()), false});
     m_header->addTabButton(int(m_tabs.size()) - 1);
     return page;
@@ -1228,6 +1274,7 @@ void Ribbon::sortTabs()
 
 void Ribbon::showTab(RibbonTab *t)
 {
+    if (t) t->ensureBuilt();
     for (int i = 0; i < m_tabs.size(); ++i)
         if (m_tabs[i].page == t) {
             m_current = i;
@@ -1349,8 +1396,14 @@ void describeLayout(const QLayout *l, int depth, QStringList &out, bool keytips)
 }
 } // namespace
 
+void Ribbon::buildAllTabs()
+{
+    for (const Tab &t : m_tabs) t.page->ensureBuilt();
+}
+
 QString Ribbon::describe(bool keytips) const
 {
+    const_cast<Ribbon *>(this)->buildAllTabs();
     QStringList out;
     if (keytips && !m_fileKeytip.isEmpty()) out << QStringLiteral("file keytip=") + m_fileKeytip;
     QStringList qat;

@@ -1,4 +1,5 @@
 #include "app/writewindow.h"
+#include "core/startuptrace.h"
 
 #include "io/crypto.h"
 
@@ -115,8 +116,11 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     column->addWidget(m_outline, 1);
     setCentralWidget(central);
 
+    startupMark("win: widgets made");
     createActions();
+    startupMark("win: actions made");
     buildRibbon();
+    startupMark("win: ribbon built");
     buildStatusBar();
     describeForScreenReaders(m_view);
     describeForScreenReaders(statusBar());
@@ -159,7 +163,9 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     applyEditingDefaults();
     resize(1280, 800);
     updateTitle();
+    startupMark("win: before first refresh");
     refreshUi();
+    startupMark("win: ctor end");
 }
 
 WriteWindow::~WriteWindow()

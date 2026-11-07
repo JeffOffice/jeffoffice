@@ -3,6 +3,7 @@
 #include "app/filedialogs.h"
 #include "app/help.h"
 #include "app/ribbon.h"
+#include "app/ribbonbuilder.h"
 #include "app/settings.h"
 #include "app/icons.h"
 #include "core/appinfo.h"
@@ -1073,6 +1074,83 @@ private:
     Qt::ColorScheme m_scheme;
     bool m_dark, m_contrast;
 };
+}
+
+// The ribbon when its tabs are made as they are first shown looks and holds what it does when every tab is made at once: the same picture of each tab, the same description. Only the
+// first tab is made at the start, so the other tabs get their controls (and the window's state in them) when shown.
+QStringList checkLazyRibbon(Adapter &app)
+{
+    // One window at a time (a second window would take the first one's place as the active window, and typing would not reach it alike): each tab's picture, and the description.
+    struct Shots {
+        QStringList names;
+        QList<QImage> pictures;
+        QString description;
+        int left = 0;   // tabs not yet made at the start
+        qint64 showMs = 0;   // the time showTab took over all of them
+        int notMade = 0;
+        bool ok = false;
+    };
+    auto collect = [&](bool lazy) {
+        Shots out;
+        jp::setLazyRibbonTabs(lazy);
+        std::unique_ptr<jp::AppWindow> w(app.launch());
+        jp::setLazyRibbonTabs(false);
+        if (!w || !w->ribbon()) return out;
+        w->resize(1280, 760);
+        drain();
+        if (app.settle) app.settle(w.get());
+        // (some words typed first, so the window's state is not the blank one; the contextual tabs stay as the window has them: each is shown by showTab, the window shows the rest as
+        // the selection says)
+        if (app.type) {
+            app.type(w.get());
+            drain();
+            if (app.settle) app.settle(w.get());
+        }
+        jp::Ribbon *r = w->ribbon();
+        for (int i = 0; i < r->tabCount(); ++i) out.left += r->tabAt(i)->isBuilt() ? 0 : 1;
+        for (int i = 0; i < r->tabCount(); ++i) {
+            QElapsedTimer shown;
+            shown.start();
+            r->showTab(r->tabAt(i));
+            out.showMs += shown.elapsed();
+            drain();
+            if (app.settle) app.settle(w.get());
+            if (!r->tabAt(i)->isBuilt()) ++out.notMade;
+            // (a button the pointer happens to be over is lit: no button is)
+            r->setAttribute(Qt::WA_UnderMouse, false);
+            for (QWidget *c : r->findChildren<QWidget *>()) c->setAttribute(Qt::WA_UnderMouse, false);
+            out.names << r->tabName(i);
+            out.pictures << r->grab().toImage();
+        }
+        out.description = r->describe(true);
+        out.ok = true;
+        return out;
+    };
+    const Shots whole = collect(false), late = collect(true);
+    if (!whole.ok || !late.ok || whole.names != late.names) return {app.name + QLatin1String(": no window with a ribbon, or its tabs differ")};
+    qInfo("lazy ribbon: %s, %d of %lld tabs were made late; showing every tab took %lld ms when they were made late and %lld ms when they were there", qPrintable(app.name), late.left, qint64(late.names.size()), late.showMs, whole.showMs);
+    QStringList fails;
+    if (late.left < 2) fails << QStringLiteral("%1: %2 tabs were left to make late").arg(app.name).arg(late.left);
+    if (late.notMade) fails << QStringLiteral("%1: %2 tabs were not made when shown").arg(app.name).arg(late.notMade);
+    for (int i = 0; i < whole.names.size(); ++i) {
+        const QImage &x = whole.pictures[i], &y = late.pictures[i];
+        if (x == y) continue;
+        // (where they differ: the first and last rows and columns that do)
+        QRect box;
+        if (x.size() == y.size())
+            for (int row = 0; row < x.height(); ++row)
+                for (int col = 0; col < x.width(); ++col)
+                    if (x.pixel(col, row) != y.pixel(col, row)) box = box.isNull() ? QRect(col, row, 1, 1) : box.united(QRect(col, row, 1, 1));
+        if (const QString dir = qEnvironmentVariable("JP_LAZY_SHOTS"); !dir.isEmpty()) {
+            QDir().mkpath(dir);
+            const QString name = QString(whole.names[i]).replace(QRegularExpression(QStringLiteral("[^A-Za-z0-9]+")), QStringLiteral("-"));
+            x.save(QStringLiteral("%1/%2-%3-whole.png").arg(dir, app.name, name));
+            y.save(QStringLiteral("%1/%2-%3-late.png").arg(dir, app.name, name));
+        }
+        fails << QStringLiteral("%1/%2: looks different when made late (differs in %3,%4 %5x%6)").arg(app.name, whole.names[i]).arg(box.x()).arg(box.y()).arg(box.width()).arg(box.height());
+    }
+    if (whole.description != late.description) fails << app.name + QLatin1String(": the ribbon holds something else when its tabs are made late");
+    return fails;
 }
 
 QStringList checkRibbonLayout(Adapter &app)

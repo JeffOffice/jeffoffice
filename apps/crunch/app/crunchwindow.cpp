@@ -1,4 +1,5 @@
 #include "app/crunchwindow.h"
+#include "core/startuptrace.h"
 
 #include "core/fixeddecimals.h"
 #include <QInputMethodEvent>
@@ -132,7 +133,9 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     m_breaksStepTimer.setInterval(0);
     connect(&m_breaksStepTimer, &QTimer::timeout, this, &CrunchWindow::stepPageBreaks);
     createActions();
+    startupMark("win: before ribbon");
     buildRibbon();
+    startupMark("win: ribbon built");
     buildStatusBar();
     describeForScreenReaders(m_view);
     describeForScreenReaders(statusBar());

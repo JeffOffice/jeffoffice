@@ -72,14 +72,25 @@ class RibbonTab : public QWidget {
 public:
     explicit RibbonTab(QWidget *parent = nullptr);
     RibbonGroup *addGroup(const QString &title);
-    QList<RibbonGroup *> groups() const { return m_groups; }
+    QList<RibbonGroup *> groups() const
+    {
+        const_cast<RibbonTab *>(this)->ensureBuilt();
+        return m_groups;
+    }
     void finish();
+    // A tab can be made empty and filled the first time it is shown (or asked for its groups): `fn` makes the groups, and `built()` follows.
+    void setBuilder(std::function<void(RibbonTab *)> fn) { m_builder = std::move(fn); }
+    bool isBuilt() const { return !m_builder && !m_attach; }
+    void ensureBuilt();
     QSize minimumSizeHint() const override;
     int collapsedCount() const;
     // The single button each group shows when there's no room.
     QToolButton *collapsedButton(int i) const { return m_buttons.value(i); }
     bool isCollapsed(int i) const { return m_collapsed.value(i); }
     void popUp(int i);   // a collapsed group in a dropdown
+
+Q_SIGNALS:
+    void built();        // the groups of a tab made with setBuilder are there
 
 protected:
     void resizeEvent(QResizeEvent *e) override;
@@ -88,6 +99,9 @@ protected:
 private:
     void relayout();
     QHBoxLayout *m_layout;
+    std::function<void(RibbonTab *)> m_builder;
+    std::function<void()> m_attach;   // (a deferred tab's place in the ribbon, made with its controls)
+    friend class Ribbon;
     QVector<RibbonGroup *> m_groups;
     QVector<QToolButton *> m_buttons;   // collapsed form of each group
     QVector<bool> m_collapsed;
@@ -102,10 +116,12 @@ class Ribbon : public QWidget {
     Q_OBJECT
 public:
     explicit Ribbon(QWidget *parent = nullptr);
+    ~Ribbon() override;
     // `name` identifies the tab in code (tab(), setContextVisible()); `title`
     // is what the header shows, the name translated (the name when empty).
+    // A `deferred` tab (one to be made late with RibbonTab::setBuilder) is only a page until it is first shown or asked for its groups.
     RibbonTab *addTab(const QString &name, const QString &contextGroup = QString(), const QColor &color = QColor(),
-                      const QString &title = QString());
+                      const QString &title = QString(), bool deferred = false);
     // With `first`, the group's tabs come before all the others, right after
     // File, while shown, and the first of them is the current tab when they
     // appear (the Master Page tab does this).
@@ -119,6 +135,7 @@ public:
     bool isMinimized() const { return m_minimized; }
     // The tabs in order, for KeyTips and tests.
     int tabCount() const { return int(m_tabs.size()); }
+    // (the page of a tab not shown yet may still be empty: groups() makes them, as does showTab())
     RibbonTab *tabAt(int i) const { return m_tabs.value(i).page; }
     QString tabName(int i) const { return m_tabs.value(i).name; }
     QString tabTitle(int i) const { return m_tabs.value(i).title; }
@@ -140,6 +157,7 @@ public:
     // `keytips`, each line that has a KeyTip ends with it.
     QString describe(bool keytips = false) const;
 
+    void buildAllTabs();      // every tab made with a builder gets its groups now
     void focusCurrentTab();   // the keyboard enters the ribbon (F6)
     void restyle();           // the colors, again for the current look
 
@@ -147,6 +165,8 @@ Q_SIGNALS:
     void fileClicked();
     void helpClicked();       // the "?" beside the collapse chevron
     void tabChanged();
+    void tabBuilt(RibbonTab *t);   // a tab made lazily has its controls now (before it shows)
+    void tabsBuilt();              // after one or more tabs were made: once, from the event loop (what shows the window's state in their controls is to be brought up to date)
     void leaveRequested();    // Escape: back to the page
 
 protected:
@@ -168,6 +188,8 @@ private:
         bool first = false;   // placed before the rest
     };
     void sortTabs();
+    QScrollArea *makeScroll(RibbonTab *page);
+    void attachPage(RibbonTab *page);
     QVector<Tab> m_tabs;
     int m_current = 0;
     RibbonHeader *m_header;
@@ -175,6 +197,7 @@ private:
     QList<QAction *> m_qat;
     QString m_fileKeytip;
     bool m_minimized = false;
+    bool m_builtQueued = false;
 };
 
 // The height of a small button and of every row of controls beside it (22 at the usual font, taller for a larger one): three rows fit the ribbon's body.

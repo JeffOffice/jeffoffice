@@ -19,6 +19,14 @@ void CrunchWindow::buildRibbon()
     QByteArray json;
     if (f.open(QIODevice::ReadOnly)) json = f.readAll();
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
+    // A tab is made when first shown: what shows the workbook's state in its controls (the page fields, the table name) is brought up to date then.
+    connect(m_ribbon, &Ribbon::tabBuilt, this, [this](RibbonTab *page) { ribbonTabMade(page); });
+    connect(m_ribbon, &Ribbon::tabsBuilt, this, [this] {
+        if (!m_session) return;
+        updateFormatState(true);
+        updatePageActions();
+        updateBars();
+    });
 }
 
 void CrunchWindow::ribbonParts(RibbonParts &parts)

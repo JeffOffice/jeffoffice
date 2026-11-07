@@ -10,6 +10,7 @@ class QAction;
 namespace jp {
 
 class Ribbon;
+class RibbonTab;
 
 class AppWindow : public QMainWindow {
     Q_OBJECT
@@ -45,6 +46,8 @@ public:
     }
 
 protected:
+    // A ribbon tab made when first shown is turned off, as the others are, if the document is read-only (the windows call this from the ribbon's tabBuilt).
+    void ribbonTabMade(RibbonTab *tab);
     bool m_readOnly = false;
 };
 

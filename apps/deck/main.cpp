@@ -7,6 +7,7 @@
 //   JeffDeck --view normal|outline|sorter|master  start in that view
 //   JeffDeck --backstage <page>         open on a File page (new, open, print, ...)
 
+#include "app/ribbonbuilder.h"
 #include "app/crash.h"
 #include "app/deckinfo.h"
 #include "app/deckwindow.h"
@@ -95,6 +96,7 @@ int main(int argc, char **argv)
     cli.process(app);
     const bool plain = !cli.isSet(shotOpt);   // (not a job that makes a file and quits)
     jp::StagedStart start(plain);
+    jp::setLazyRibbonTabs(true);   // the ribbon's other tabs are made when first shown
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
     jp::followSystemTheme();

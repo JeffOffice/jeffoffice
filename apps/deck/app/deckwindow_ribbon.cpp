@@ -51,6 +51,14 @@ void DeckWindow::buildRibbon()
     parts.launchers[QStringLiteral("font")] = [this] { act("fmt.fontDialog")->trigger(); };
     parts.launchers[QStringLiteral("paragraph")] = [this] { act("para.dialog")->trigger(); };
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
+    // A tab is made when first shown: what shows the presentation's state in its controls (the font box, the shape sizes) is brought up to date then.
+    connect(m_ribbon, &Ribbon::tabBuilt, this, [this](RibbonTab *page) { ribbonTabMade(page); });
+    connect(m_ribbon, &Ribbon::tabsBuilt, this, [this] {
+        if (!m_ed || !m_ed->doc()) return;
+        refreshUi();
+        refreshShapeFormat();
+        refreshTable();
+    });
 }
 
 // Text, color, and check box controls. Each factory makes a new control and

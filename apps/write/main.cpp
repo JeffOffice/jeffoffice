@@ -14,6 +14,7 @@
 #include "app/navpane.h"
 #include "app/pageview.h"
 #include "app/ribbon.h"
+#include "app/ribbonbuilder.h"
 #include "app/recovery.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
@@ -100,6 +101,7 @@ int main(int argc, char **argv)
     jp::startupMark("cli processed");
     const bool plain = !cli.isSet(shotOpt);   // (not a job that makes a file and quits)
     jp::StagedStart start(plain);
+    jp::setLazyRibbonTabs(true);   // the ribbon's other tabs are made when first shown
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
     jp::followSystemTheme();

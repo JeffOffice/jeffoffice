@@ -95,6 +95,29 @@ bool menuAllowedReadOnly(const QMenu *menu)
     return true;
 }
 
+// Turns the controls of a tab that are not safe in a read-only document off (or back on).
+void applyReadOnlyToTab(RibbonTab *tab, bool on)
+{
+    for (RibbonGroup *g : tab->groups())
+        for (QWidget *c : g->controls()) {
+            auto *button = qobject_cast<QToolButton *>(c);
+            bool safe = true;
+            if (button && button->menu()) safe = menuAllowedReadOnly(button->menu());
+            else if (button && button->defaultAction()) safe = true;   // (a button for a command: the command is refused, or off, by its id)
+            else safe = AppWindow::ribbonControlAllowedReadOnly(c->property("ribbonWidget").toString());
+            if (safe) continue;
+            if (on) {
+                if (c->isEnabled()) {
+                    c->setProperty("readOnlyOff", true);
+                    c->setEnabled(false);
+                }
+            } else if (c->property("readOnlyOff").toBool()) {
+                c->setProperty("readOnlyOff", false);
+                c->setEnabled(true);
+            }
+        }
+}
+
 } // namespace
 
 bool AppWindow::ribbonControlAllowedReadOnly(const QString &name)
@@ -113,26 +136,13 @@ void AppWindow::setReadOnly(bool on)
     if (!r) return;
     for (int i = 0; i < r->tabCount(); ++i) {
         RibbonTab *tab = r->tabAt(i);
-        if (!tab) continue;
-        for (RibbonGroup *g : tab->groups())
-            for (QWidget *c : g->controls()) {
-                auto *button = qobject_cast<QToolButton *>(c);
-                bool safe = true;
-                if (button && button->menu()) safe = menuAllowedReadOnly(button->menu());
-                else if (button && button->defaultAction()) safe = true;   // (a button for a command: the command is refused, or off, by its id)
-                else safe = ribbonControlAllowedReadOnly(c->property("ribbonWidget").toString());
-                if (safe) continue;
-                if (on) {
-                    if (c->isEnabled()) {
-                        c->setProperty("readOnlyOff", true);
-                        c->setEnabled(false);
-                    }
-                } else if (c->property("readOnlyOff").toBool()) {
-                    c->setProperty("readOnlyOff", false);
-                    c->setEnabled(true);
-                }
-            }
+        if (tab && tab->isBuilt()) applyReadOnlyToTab(tab, on);   // (a tab made later is turned off when it is made, if the document is still read-only then)
     }
+}
+
+void AppWindow::ribbonTabMade(RibbonTab *tab)
+{
+    if (m_readOnly && tab) applyReadOnlyToTab(tab, true);
 }
 
 void AppWindow::refuseReadOnlyChange()

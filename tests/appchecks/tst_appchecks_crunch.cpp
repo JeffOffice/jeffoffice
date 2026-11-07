@@ -708,6 +708,13 @@ private Q_SLOTS:
         QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
     }
 
+    // The tabs of the ribbon made as they are first shown (as the program does at its start) look and hold what they do when all are made at once.
+    void ribbonTabsMadeLate()
+    {
+        const QStringList fails = checkLazyRibbon(m_app);
+        QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
+    }
+
     // ---- 3. every command
     void everyCommandOnABlankDocument()
     {

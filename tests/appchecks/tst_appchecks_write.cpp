@@ -1687,6 +1687,13 @@ private Q_SLOTS:
         QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
     }
 
+    // The tabs of the ribbon made as they are first shown (as the program does at its start) look and hold what they do when all are made at once.
+    void ribbonTabsMadeLate()
+    {
+        const QStringList fails = checkLazyRibbon(m_app);
+        QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
+    }
+
     // ---- 3. every command
     // The commands of wave D: Create Style, Modify Style, Update Style, Copy Formatting, Copy and Paste Format, Go To, and the Styles pane. Each is one step that undoes to the bytes before it,
     // and the style made saves and opens the same.
