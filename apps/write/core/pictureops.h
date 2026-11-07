@@ -26,8 +26,8 @@ enum class PictureWrap { Inline, Square, Tight, TopAndBottom, BehindText, InFron
 // layer, or one step forward or backward, which past the end of the layer takes it behind (or in front of) the text.
 enum class PictureOrder { BringToFront, SendToBack, BringForward, SendBackward };
 
-// What a drawn object of the text is: a picture, a shape of the drawing format (a rectangle, an arrow, a star, and the rest), a text box, a line, or a chart.
-enum class DrawnKind { Picture, Shape, TextBox, Line, Chart };
+// What a drawn object of the text is: a picture, a shape of the drawing format (a rectangle, an arrow, a star, and the rest), a text box, a line, a chart, or a diagram.
+enum class DrawnKind { Picture, Shape, TextBox, Line, Chart, Diagram };
 
 // The most bytes of a picture's file that are taken, the most pixels it may hold, and the longest side; and the least and most a picture is made, in points, on a side.
 constexpr qint64 kMostPictureBytes = qint64(48) << 20;

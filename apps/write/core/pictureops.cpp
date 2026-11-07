@@ -306,9 +306,10 @@ bool parseDrawing(const QByteArray &raw, Model *m)
         }
     }
     const bool isChart = out.graphic.contains("drawingml/2006/chart") && out.graphic.contains("<c:chart");
+    const bool isDiagram = out.graphic.contains("drawingml/2006/diagram") && out.graphic.contains("relIds");
     const bool isShape = out.graphic.contains("wsp") && !out.graphic.contains("<pic:pic");
     // (A line may have no height or no width, but not neither.)
-    if (out.graphic.isEmpty() || !(out.graphic.contains("blip") || isShape || isChart) || (isShape ? out.cx < 0 || out.cy < 0 || out.cx + out.cy <= 0 : out.cx <= 0 || out.cy <= 0)) return false;
+    if (out.graphic.isEmpty() || !(out.graphic.contains("blip") || isShape || isChart || isDiagram) || (isShape ? out.cx < 0 || out.cy < 0 || out.cx + out.cy <= 0 : out.cx <= 0 || out.cy <= 0)) return false;
     if (out.docPr.isEmpty()) out.docPr = {{"id", "\"1\""}, {"name", "\"Picture\""}};
     if (!out.floating) {
         out.wrap = PictureWrap::Inline;
@@ -362,12 +363,13 @@ QTextCharFormat formatAfter(const QTextDocument *story, int position)
     return QTextCharFormat();
 }
 
-bool isPictureShape(const QVector<Shape> &shapes) { return !shapes.isEmpty() && shapes.first().kind == Shape::Picture && shapes.first().chartEmbed.isEmpty(); }
+bool isPictureShape(const QVector<Shape> &shapes) { return !shapes.isEmpty() && shapes.first().kind == Shape::Picture && shapes.first().chartEmbed.isEmpty() && shapes.first().diagramEmbed.isEmpty(); }
 
 // A drawn object's kind: a shape of the drawing format that is a line is a line, one with text is a text box.
 DrawnKind kindOfShape(const Shape &s)
 {
     if (!s.chartEmbed.isEmpty()) return DrawnKind::Chart;
+    if (!s.diagramEmbed.isEmpty()) return DrawnKind::Diagram;
     if (s.kind == Shape::Picture) return DrawnKind::Picture;
     if (s.kind == Shape::TextBox) return DrawnKind::TextBox;
     if (s.kind == Shape::Line) return DrawnKind::Line;

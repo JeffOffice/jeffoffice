@@ -1048,13 +1048,13 @@ void WriteWindow::refreshShapeUi()
     for (int i = 0; i < write::equationGallery().size(); ++i) act(QStringLiteral("insert.equation.design.%1").arg(i))->setEnabled(body);
     const int at = m_doc ? m_view->selectedPicture() : -1;
     const write::PictureInfo info = at >= 0 ? write::pictureAt(*m_doc, m_doc->story(), at) : write::PictureInfo();
-    const bool shape = info.valid && info.kind != write::DrawnKind::Picture && info.kind != write::DrawnKind::Chart;
+    const bool shape = info.valid && info.kind != write::DrawnKind::Picture && info.kind != write::DrawnKind::Chart && info.kind != write::DrawnKind::Diagram;
     refreshChartUi();
     m_ribbon->setContextVisible(QStringLiteral("Shape Tools"), shape, false);
     // (A group is one object: its parts take no fill, line, or words through it; it moves, sizes, orders, and is taken apart.)
     const bool group = info.valid && write::isGroupAt(*m_doc, at);
     const bool editable = shape && info.editable && !group;
-    const bool drawn = info.valid && info.editable && info.kind != write::DrawnKind::Chart && !group;
+    const bool drawn = info.valid && info.editable && info.kind != write::DrawnKind::Chart && info.kind != write::DrawnKind::Diagram && !group;
     const bool picture = info.valid && info.kind == write::DrawnKind::Picture && info.editable;
     for (QAction *a : m_actions) {
         const QString name = a->objectName();
@@ -1090,7 +1090,7 @@ void WriteWindow::refreshShapeUi()
         bool canConnect = together.size() == 2;
         for (const int p : together) {
             const write::PictureInfo pi = write::pictureAt(*m_doc, m_doc->story(), p);
-            canConnect = canConnect && pi.valid && pi.editable && pi.floating && pi.kind != write::DrawnKind::Line && pi.kind != write::DrawnKind::Chart;
+            canConnect = canConnect && pi.valid && pi.editable && pi.floating && pi.kind != write::DrawnKind::Line && pi.kind != write::DrawnKind::Chart && pi.kind != write::DrawnKind::Diagram;
         }
         for (const char *id : {"straight", "elbow", "curved"}) act(QStringLiteral("arrange.connect.") + QLatin1String(id))->setEnabled(canConnect);
     }
@@ -1107,7 +1107,7 @@ void WriteWindow::refreshShapeUi()
     for (const char *id : {"solid", "dot", "sysDot", "dash", "dashDot", "lgDash"})
         act(QStringLiteral("shape.dash.") + QLatin1String(id))->setChecked(drawn && (info.lineDash.isEmpty() ? QLatin1String(id) == QLatin1String("solid") : info.lineDash == QLatin1String(id)));
     m_updatingFields = true;
-    if (info.valid && (shape || info.kind == write::DrawnKind::Chart))
+    if (info.valid && (shape || info.kind == write::DrawnKind::Chart || info.kind == write::DrawnKind::Diagram))
         for (int i = 0; i + 1 < m_shapeFields.size(); i += 2) {
             m_shapeFields[i]->setPoints(info.height);
             m_shapeFields[i + 1]->setPoints(info.width);

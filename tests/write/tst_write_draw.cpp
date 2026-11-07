@@ -2,6 +2,8 @@
 // built here from a few lines of XML.
 
 #include "../isolatesettings.h"
+#include "../office/diagramsample.h"
+#include "rtcheck.h"
 #include "app/pageview.h"
 #include "app/ribbon.h"
 #include "app/writewindow.h"
@@ -17,6 +19,7 @@
 #include "office/drawingml.h"
 #include "office/drawingml_write.h"
 #include "render/textart.h"
+#include "render/diagramdrawing.h"
 #include "office/drawingml_geometry.h"
 #include "office/package.h"
 #include "wml/wml.h"
@@ -162,6 +165,57 @@ std::shared_ptr<PictureItem> pictureOfPage(WriteDoc &doc)
     for (const auto &it : page->doc->pages[0]->items)
         if (it->type() == ItemType::Picture) return std::static_pointer_cast<PictureItem>(it);
     return nullptr;
+}
+
+// A document with a diagram after the words "Diagram: ", as the word processor writes one: the frame names the data, layout, style, and colors parts, the data part names the link of the
+// drawing it kept (`withDrawing`), and the main part links all five. `fallback` is the picture of the choice's other form (a picture bytes), `inlineInText` sets it in the line.
+struct DiagramFile {
+    QByteArray docx;
+    QByteArray drawing;
+};
+DiagramFile diagramDocx(bool withDrawing, bool inlineInText = true, const QByteArray &fallbackPng = QByteArray(), const QByteArray &drawingXml = diagramtest::diagramDrawingXml(), int widthPoints = 288, int heightPoints = 108)
+{
+    using namespace diagramtest;
+    office::PackageWriter w;
+    const QString base = QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.");
+    w.addPart(QStringLiteral("/word/diagrams/data1.xml"), diagramDataXml(withDrawing ? QStringLiteral("rIdDrw") : QString()), base + QStringLiteral("diagramData+xml"));
+    w.addPart(QStringLiteral("/word/diagrams/layout1.xml"), diagramOtherXml("layoutDef"), base + QStringLiteral("diagramLayout+xml"));
+    w.addPart(QStringLiteral("/word/diagrams/quickStyle1.xml"), diagramOtherXml("styleDef"), base + QStringLiteral("diagramStyle+xml"));
+    w.addPart(QStringLiteral("/word/diagrams/colors1.xml"), diagramOtherXml("colorsDef"), base + QStringLiteral("diagramColors+xml"));
+    if (withDrawing) w.addPart(QStringLiteral("/word/diagrams/drawing1.xml"), drawingXml, QStringLiteral("application/vnd.ms-office.drawingml.diagramDrawing+xml"));
+    w.addRelationship(QStringLiteral("/"), relBase() + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdDm"), relBase() + QStringLiteral("diagramData"), QStringLiteral("/word/diagrams/data1.xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdLo"), relBase() + QStringLiteral("diagramLayout"), QStringLiteral("/word/diagrams/layout1.xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdQs"), relBase() + QStringLiteral("diagramQuickStyle"), QStringLiteral("/word/diagrams/quickStyle1.xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdCs"), relBase() + QStringLiteral("diagramColors"), QStringLiteral("/word/diagrams/colors1.xml"));
+    if (withDrawing) w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdDrw"), drawingRelType(), QStringLiteral("/word/diagrams/drawing1.xml"));
+    if (!fallbackPng.isEmpty()) {
+        w.addPart(QStringLiteral("/word/media/fallback.png"), fallbackPng, QStringLiteral("image/png"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdFb"), relBase() + QStringLiteral("image"), QStringLiteral("/word/media/fallback.png"));
+    }
+    const QByteArray ids = "<dgm:relIds xmlns:dgm=\"" + dgmNs().toUtf8() + "\" r:dm=\"rIdDm\" r:lo=\"rIdLo\" r:qs=\"rIdQs\" r:cs=\"rIdCs\"/>";
+    QByteArray run = anchoredGraphic(3, dgmNs().toUtf8(), ids, 100, 300, widthPoints, heightPoints, inlineInText);
+    if (!fallbackPng.isEmpty()) {
+        // (the newer form is a choice, the older a picture of the same size)
+        const QByteArray choice = run.mid(run.indexOf("<w:drawing>"), run.indexOf("</w:drawing>") + 12 - run.indexOf("<w:drawing>"));
+        run = "<w:r><mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"dgm\">" + choice + "</mc:Choice><mc:Fallback>"
+              "<w:pict xmlns:v=\"urn:schemas-microsoft-com:vml\"><v:shape id=\"d\" type=\"#t\" style=\"width:" + QByteArray::number(widthPoints) + "pt;height:" + QByteArray::number(heightPoints) +
+              "pt\"><v:imagedata r:id=\"rIdFb\"/></v:shape></w:pict></mc:Fallback></mc:AlternateContent></w:r>";
+    }
+    w.addPart(QStringLiteral("/word/document.xml"),
+              QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + " xmlns:dgm=\"" + dgmNs().toUtf8() + "\"><w:body><w:p><w:r><w:t xml:space=\"preserve\">Diagram: </w:t></w:r>" + run +
+                  "</w:p><w:p><w:r><w:t>After.</w:t></w:r></w:p></w:body></w:document>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    return {w.finish(), drawingXml};
+}
+
+// The last picture in SVG form the flow of the document holds, after the first page was drawn (the drawing of a diagram; a size changed makes a new one).
+QByteArray drawnSvg(WriteDoc &doc)
+{
+    pictureOfPage(doc);
+    for (qsizetype i = doc.flow().images.size() - 1; i >= 0; --i)
+        if (doc.flow().images[i].format == QLatin1String("svg")) return doc.flow().images[i].bytes;
+    return {};
 }
 
 // The window on a document of one paragraph, the caret at the end of its first word.
@@ -1913,6 +1967,186 @@ private Q_SLOTS:
         again.start(0);
         win.w.act("chart.editData")->trigger();
         QCOMPARE(info().data.values.value(0).value(0), 99.0);
+    }
+
+    // ---------------------------------------------------------------- diagrams
+    // A diagram in a file is drawn from the drawing the file keeps beside it, as one object (set in the line or at a place), and saving writes all its parts as they were.
+    void aDiagramAFileHoldsIsDrawnFromItsSavedDrawingAsOneObjectAndSavedWhole()
+    {
+        for (const bool inlineInText : {true, false}) {
+            const DiagramFile file = diagramDocx(true, inlineInText);
+            auto doc = open(file.docx);
+            QVERIFY(doc);
+            QVERIFY(isDrawnObjectAt(doc->story(), 9));
+            QVERIFY(!isPictureAt(doc->story(), 9));
+            const PictureInfo info = pictureAt(*doc, doc->story(), 9);
+            QVERIFY(info.valid);
+            QCOMPARE(info.kind, DrawnKind::Diagram);
+            QCOMPARE(info.floating, !inlineInText);
+            QCOMPARE(info.width, 288.0);
+            QCOMPARE(info.height, 108.0);
+            const QByteArray svg = drawnSvg(*doc).toLower();
+            QVERIFY2(svg.contains("336699") && svg.contains("20a040"), "the shapes of the drawing are drawn");
+            // Sized as one object: the drawing is scaled with its frame.
+            QVERIFY(setPictureSize(*doc, 9, 144, 54));
+            QCOMPARE(pictureAt(*doc, doc->story(), 9).width, 144.0);
+            const QByteArray smaller = drawnSvg(*doc).toLower();
+            QVERIFY(smaller != svg && smaller.contains("336699"));
+            QVERIFY(doc->undo());
+            QCOMPARE(pictureAt(*doc, doc->story(), 9).width, 288.0);
+            if (!inlineInText) {
+                // Moved as one object.
+                QVERIFY(setPicturePlace(*doc, 9, 200, 250));
+                const PictureInfo moved = pictureAt(*doc, doc->story(), 9);
+                QVERIFY(std::abs(moved.left - 200) < 0.5 && std::abs(moved.top - 250) < 0.5);
+            }
+            // Saved: every part as it was, with the links, and the frame as it was.
+            const QByteArray saved = doc->toDocx();
+            office::Package before, after;
+            QVERIFY(before.read(file.docx));
+            QVERIFY(after.read(saved));
+            for (const char *name : {"data1", "layout1", "quickStyle1", "colors1", "drawing1"}) {
+                const QString part = QStringLiteral("/word/diagrams/%1.xml").arg(QLatin1String(name));
+                QVERIFY2(after.hasPart(part), qPrintable(part));
+                QCOMPARE(after.part(part), before.part(part));
+            }
+            QCOMPARE(after.relationshipsOfType(after.mainPart(), QStringLiteral("/diagramDrawing")).size(), 1);
+            QCOMPARE(after.relationshipsOfType(after.mainPart(), QStringLiteral("/diagramData")).size(), 1);
+            QVERIFY(documentXml(saved).contains("r:dm=\"rIdDm\""));
+            QVERIFY2(rt::danglingReferences(saved).isEmpty(), qPrintable(rt::danglingReferences(saved).join(QLatin1Char(' '))));
+            auto back = open(saved);
+            QVERIFY(back);
+            QCOMPARE(pictureAt(*back, back->story(), 9).kind, DrawnKind::Diagram);
+            QVERIFY(drawnSvg(*back).toLower().contains("336699"));
+        }
+    }
+
+    // A diagram whose file keeps no drawing shows the picture that the older form of the object holds, or else a box that says what it is.
+    void aDiagramWithoutADrawingShowsItsFallbackPictureOrALabeledPlaceholder()
+    {
+        const QByteArray png = pngOf(20, 10, QColor(30, 200, 30));
+        {
+            auto doc = open(diagramDocx(false, true, png).docx);
+            QVERIFY(doc);
+            const auto pic = pictureOfPage(*doc);
+            QVERIFY(pic);
+            QVERIFY2(!doc->flow().images.isEmpty() && doc->flow().images.last().format == QLatin1String("png"), "the fallback picture is the one drawn");
+        }
+        {
+            auto doc = open(diagramDocx(false, true).docx);
+            QVERIFY(doc);
+            QCOMPARE(pictureAt(*doc, doc->story(), 9).kind, DrawnKind::Diagram);
+            const QByteArray svg = drawnSvg(*doc);
+            QVERIFY2(!svg.isEmpty(), "a box stands in");
+            QVERIFY(pictureOfPage(*doc));
+            QCOMPARE(pictureAt(*doc, doc->story(), 9).width, 288.0);
+            // The parts are kept all the same.
+            office::Package p;
+            QVERIFY(p.read(doc->toDocx()));
+            QVERIFY(p.hasPart(QStringLiteral("/word/diagrams/data1.xml")));
+            QVERIFY(p.hasPart(QStringLiteral("/word/diagrams/layout1.xml")));
+        }
+    }
+
+    // A drawing nested far deeper than any diagram is, or with a great many shapes, or whose links lead round in a circle, neither hangs nor crashes; the shapes drawn are capped.
+    void aHostileDiagramDrawingIsCappedAndNeitherHangsNorCrashes()
+    {
+        using namespace diagramtest;
+        // 20,000 groups inside each other.
+        QString deep;
+        for (int i = 0; i < 20000; ++i) deep += QStringLiteral("<dsp:grpSp><dsp:nvGrpSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvGrpSpPr/></dsp:nvGrpSpPr><dsp:grpSpPr/>");
+        deep += diagramShapeXml(0, 0, 914400, 914400, QStringLiteral("rect"), QStringLiteral("<a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill>"), QStringLiteral("x"));
+        for (int i = 0; i < 20000; ++i) deep += QStringLiteral("</dsp:grpSp>");
+        {
+            QElapsedTimer timer;
+            timer.start();
+            auto doc = open(diagramDocx(true, true, QByteArray(), diagramDrawingXml(deep)).docx);
+            if (doc) {
+                pictureOfPage(*doc);
+                QCOMPARE(pictureAt(*doc, doc->story(), 9).kind, DrawnKind::Diagram);
+            }
+            QVERIFY2(timer.elapsed() < 20000, "too slow");
+        }
+        // A hundred thousand shapes: no more than the cap are drawn.
+        QString many;
+        for (int i = 0; i < 100000; ++i) many += diagramShapeXml(i % 100 * 9144, i / 100 * 9144, 9144, 9144, QStringLiteral("rect"), QStringLiteral("<a:solidFill><a:srgbClr val=\"AB12CD\"/></a:solidFill>"), QString());
+        {
+            QElapsedTimer timer;
+            timer.start();
+            auto doc = open(diagramDocx(true, true, QByteArray(), diagramDrawingXml(many)).docx);
+            QVERIFY(doc);
+            const QByteArray svg = drawnSvg(*doc).toLower();
+            QVERIFY2(svg.count("ab12cd") <= kMostDiagramShapes, qPrintable(QString::number(svg.count("ab12cd"))));
+            QVERIFY2(timer.elapsed() < 60000, "too slow");
+        }
+        // The data part names, as the drawing's link, the link of the data part itself: it is not a drawing, and a box stands in.
+        {
+            DiagramFile file = diagramDocx(true, true);
+            office::Package p;
+            QVERIFY(p.read(file.docx));
+            office::PackageWriter w;
+            for (const QString &n : p.partNames()) w.addPart(n, n.endsWith(QLatin1String("data1.xml")) ? QByteArray(p.part(n)).replace("rIdDrw", "rIdDm") : p.part(n), p.contentType(n));
+            for (const office::Relationship &r : p.relationships(p.mainPart())) w.addRelationshipWithId(p.mainPart(), r.id, r.type, r.target, r.external);
+            for (const office::Relationship &r : p.relationships(QStringLiteral("/"))) w.addRelationshipWithId(QStringLiteral("/"), r.id, r.type, r.target, r.external);
+            auto doc = open(w.finish());
+            QVERIFY(doc);
+            QVERIFY(!drawnSvg(*doc).toLower().contains("336699"));
+            QVERIFY(pictureOfPage(*doc));
+        }
+    }
+
+    // A document may draw only so many diagrams: the rest are boxes, and the parts of all are kept.
+    void aDocumentDrawsOnlyAsManyDiagramsAsTheCapAllows()
+    {
+        const DiagramFile one = diagramDocx(true, true);
+        office::Package p;
+        QVERIFY(p.read(one.docx));
+        QByteArray body;
+        for (int i = 0; i < kMostDiagramsDrawn + 20; ++i) body += "<w:p>" + anchoredGraphic(10 + i, diagramtest::dgmNs().toUtf8(), "<dgm:relIds xmlns:dgm=\"" + diagramtest::dgmNs().toUtf8() + "\" r:dm=\"rIdDm\" r:lo=\"rIdLo\" r:qs=\"rIdQs\" r:cs=\"rIdCs\"/>", 0, 0, 100 + i, 50, true) + "</w:p>";
+        office::PackageWriter w;
+        for (const QString &n : p.partNames())
+            if (n != p.mainPart()) w.addPart(n, p.part(n), p.contentType(n));
+        w.addPart(p.mainPart(), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>", p.contentType(p.mainPart()));
+        for (const office::Relationship &r : p.relationships(p.mainPart())) w.addRelationshipWithId(p.mainPart(), r.id, r.type, r.target, r.external);
+        w.addRelationship(QStringLiteral("/"), diagramtest::relBase() + QStringLiteral("officeDocument"), p.mainPart());
+        auto doc = open(w.finish());
+        QVERIFY(doc);
+        pictureOfPage(*doc);
+        for (int i = 0; i < doc->story()->characterCount(); ++i) doc->pager().materialize(0);
+        int drawn = 0;
+        for (const flow::FlowImage &image : doc->flow().images) drawn += image.format == QLatin1String("svg") && image.bytes.toLower().contains("336699");
+        QVERIFY2(drawn <= kMostDiagramsDrawn, qPrintable(QString::number(drawn)));
+        QVERIFY(drawn > 0);
+    }
+
+    // Sized and moved in the window as one object, and put on paper as vectors: the PDF holds no picture of it.
+    void aDiagramInTheWindowIsSelectedLikeAChartAndPrintedAsVectors()
+    {
+        const DiagramFile file = diagramDocx(true, true);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString docx = dir.filePath(QStringLiteral("d.docx"));
+        {
+            QFile f(docx);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(file.docx);
+        }
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(docx));
+        w.resize(1100, 800);
+        w.show();
+        w.view()->selectPicture(9);
+        QCOMPARE(w.view()->selectedPicture(), 9);
+        QVERIFY(!w.act(QStringLiteral("shape.editText"))->isEnabled());
+        const QString pdfPath = dir.filePath(QStringLiteral("d.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return pdfPath; });
+        QVERIFY(w.exportPdf());
+        QFile pdf(pdfPath);
+        QVERIFY(pdf.open(QIODevice::ReadOnly));
+        const QByteArray bytes = pdf.readAll();
+        QVERIFY(bytes.size() > 100);
+        QVERIFY2(!bytes.contains("/Subtype /Image") && !bytes.contains("/Subtype/Image"), "drawn as vectors");
     }
 };
 

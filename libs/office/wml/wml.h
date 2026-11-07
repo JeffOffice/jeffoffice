@@ -591,6 +591,7 @@ struct Shape {
     bool arrowEnd = false, arrowStart = false;
     QString embed;                        // a picture's relationship Id
     QString chartEmbed;                   // a chart's: the Id of the relationship that names its part (DrawingML's c:chart)
+    QString diagramEmbed;                 // a diagram's: the Id of the relationship that names its data part (DrawingML's dgm:relIds, r:dm); the drawing it keeps is named by that part
     QString fillEmbed;                    // the Id of a picture that fills the shape, stretched over it (VML's v:fill of type frame)
     QString pictEmbed;                    // the Id of the picture's other form (VML's r:pict: a compressed picture the program keeps beside it)
     QString alt;                          // its description
@@ -632,6 +633,8 @@ struct Shape {
 // The objects of a w:pict, w:drawing, or mc:AlternateContent element kept as written (a run's atom): in order, nested ones (a group's members) after it.
 // A VML shape that is only a template (a shape type) is none.
 QVector<Shape> readShapes(const QByteArray &xml);
+// The objects of the fallback of an mc:AlternateContent element (the older form of the object, a picture usually); none for any other element.
+QVector<Shape> readFallbackShapes(const QByteArray &xml);
 
 // A footnote or endnote of footnotes.xml or endnotes.xml: its Id, its type (empty for an ordinary note; "separator", "continuationSeparator", and
 // "continuationNotice" for the paragraphs the program sets between the text and the notes), and what it holds.

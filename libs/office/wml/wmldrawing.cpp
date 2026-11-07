@@ -681,7 +681,7 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
         // The picture's data and a text box's text: found anywhere inside.
         std::vector<int> stack{c};
         int shapeNode = -1;
-        while (!stack.empty() && s.embed.isEmpty() && s.textBox.isEmpty() && s.chartEmbed.isEmpty()) {
+        while (!stack.empty() && s.embed.isEmpty() && s.textBox.isEmpty() && s.chartEmbed.isEmpty() && s.diagramEmbed.isEmpty()) {
             const int n = stack.back();
             stack.pop_back();
             // (A shape that is a member of a group is not read as the whole of it: only one that is the drawing's own.)
@@ -752,6 +752,9 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                 }
             }
             if (t.localName(n) == "chart" && t.parent(n) >= 0 && t.localName(t.parent(n)) == "graphicData" && s.chartEmbed.isEmpty()) s.chartEmbed = t.attr(n, "id", NsR);
+            if (t.localName(n) == "relIds" && t.parent(n) >= 0 && t.localName(t.parent(n)) == "graphicData" && t.attr(t.parent(n), "uri") == QLatin1String("http://schemas.openxmlformats.org/drawingml/2006/diagram")
+                && s.diagramEmbed.isEmpty())
+                s.diagramEmbed = t.attr(n, "dm", NsR);
             if (t.localName(n) == "txbxContent" && s.textBox.isEmpty()) {
                 s.textBox = textBoxXml(t, n);
                 s.kind = Shape::TextBox;
@@ -778,13 +781,36 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                         if (t.has(k, names[i])) s.inset[i] = std::clamp(emu(t.attr(k, names[i])), 0.0, 1000.0);
                 }
         }
-        if (s.kind == Shape::Picture && s.embed.isEmpty() && s.chartEmbed.isEmpty()) continue;   // (a graphic that is neither a picture nor a chart: no picture of it)
+        if (s.kind == Shape::Picture && s.embed.isEmpty() && s.chartEmbed.isEmpty() && s.diagramEmbed.isEmpty()) continue;   // (a graphic that is neither a picture, a chart, nor a diagram: no picture of it)
         out->push_back(s);
         if (out->size() >= kMostShapes) return;
     }
 }
 
 } // namespace
+
+QVector<Shape> readFallbackShapes(const QByteArray &xml)
+{
+    QVector<Shape> out;
+    static const QByteArray open = "<x " + declarations() + ">";
+    XmlTree tree;
+    if (!tree.parse(open + xml + "</x>", nullptr)) return out;
+    const int root = tree.firstChild(tree.root());
+    if (root < 0 || tree.localName(root) != "AlternateContent") return out;
+    for (int c = tree.firstChild(root); c >= 0; c = tree.next(c)) {
+        if (tree.localName(c) != "Fallback") continue;
+        for (int k = tree.firstChild(c); k >= 0; k = tree.next(k)) {
+            if (tree.ns(k) == NsW && tree.localName(k) == "drawing") readDrawing(tree, k, &out);
+            else if (tree.ns(k) == NsW && (tree.localName(k) == "pict" || tree.localName(k) == "object")) {
+                Vml vml(tree);
+                vml.walk(k, 1, 1, 0, 0, 0);
+                out << vml.out;
+            }
+        }
+        break;
+    }
+    return out;
+}
 
 QVector<Shape> readShapes(const QByteArray &xml)
 {

@@ -6,6 +6,8 @@
 
 #include "core/drawnitems.h"
 #include "office/chart.h"
+#include "office/diagram.h"
+#include "render/diagramdrawing.h"
 #include "office/theme.h"
 #include "core/tablemodel.h"
 #include "core/wordformat.h"
@@ -46,6 +48,7 @@ struct NumState {
 void WriteDoc::buildStory(const QVector<Block> &body)
 {
     m_letteringShapes = m_letteringLetters = m_boxTableCells = 0;
+    m_diagramsDrawn = 0;
     m_endnoteRefs.clear();
     fillStory(story(), body, false);
     appendEndnotes();
@@ -1568,6 +1571,44 @@ void WriteDoc::collectObjectRecords()
     m_collectAt = std::max<qsizetype>(2000, 2 * m_objectHeld.size());
 }
 
+QByteArray WriteDoc::diagramPicture(const QVector<Relationship> &links, const QString &dataId, double width, double height)
+{
+    const QString drawing = diagramDrawingPartOf(links, [this](const QString &name) { return partData(name); }, dataId);
+    QString type;
+    const QByteArray xml = drawing.isEmpty() ? QByteArray() : partData(drawing, &type);
+    if (xml.isEmpty() || xml.size() > kMostDiagramDrawingBytes) return {};
+    // The frame the drawing was made for is the one it was first shown in: a frame sized since scales the drawing.
+    if (m_diagramMade.size() > 4 * kMostDiagramsDrawn) m_diagramMade.clear();
+    const QSizeF shown(width, height);
+    const QSizeF natural = m_diagramMade.value(drawing, shown);
+    m_diagramMade.insert(drawing, natural);
+    const QString key = QStringLiteral("%1|%2x%3|%4x%5").arg(drawing).arg(natural.width()).arg(natural.height()).arg(width).arg(height);
+    const auto kept = m_diagramPictures.constFind(key);
+    if (kept != m_diagramPictures.cend()) return kept.value();
+    if (m_diagramsDrawn >= kMostDiagramsDrawn || m_diagramBytes > (qint64(128) << 20)) return {};
+    ++m_diagramsDrawn;
+    // The pictures the drawing names (its fills), in a package of their own for the shapes' reader.
+    PackageWriter w;
+    w.addPart(drawing, xml, type);
+    qint64 pictureBytes = 0;
+    int pictures = 0;
+    for (const Relationship &r : m_wml.partRelationships.value(drawing)) {
+        if (r.external || !r.type.endsWith(QLatin1String("/image")) || ++pictures > 64) continue;
+        QString contentType;
+        const QByteArray bytes = partData(r.target, &contentType);
+        if (bytes.isEmpty() || (pictureBytes += bytes.size()) > (qint64(64) << 20)) continue;
+        w.addPart(r.target, bytes, contentType);
+        w.addRelationshipWithId(drawing, r.id, r.type, r.target);
+    }
+    Package package;
+    package.read(w.finish());
+    QByteArray svg = diagramDrawingSvg(xml, drawing, &package, theme() ? *theme() : defaultTheme(), natural, shown);
+    m_diagramBytes += svg.size();
+    if (m_diagramPictures.size() > 4 * kMostDiagramsDrawn) m_diagramPictures.clear();
+    m_diagramPictures.insert(key, svg);
+    return svg;
+}
+
 bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFormat *format, double lineWidth, const QVector<Inline> *content)
 {
     const QVector<Shape> shapes = readShapes(atom.raw);
@@ -1592,8 +1633,35 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         return true;
     };
     bool shownMissing = false;   // (the picture the last call made is the mark of a picture that cannot be shown)
-    auto pictureOf = [&](const Shape &s) -> int {
+    std::function<int(const Shape &)> pictureOf = [&](const Shape &s) -> int {
         shownMissing = false;
+        // A diagram is drawn from the drawing its file keeps (at the size of its frame), kept with the document's pictures; one with no drawing is the picture the older form of the
+        // object holds, or else a box that says what it is.
+        if (s.embed.isEmpty() && !s.diagramEmbed.isEmpty()) {
+            if (f.images.size() >= kMostImages || s.width <= 0 || s.height <= 0) return -1;
+            const QVector<Relationship> &diagramLinks = part.isEmpty() ? m_wml.mainRelationships : m_wml.partRelationships.value(part);
+            QByteArray svg = diagramPicture(diagramLinks, s.diagramEmbed, s.width, s.height);
+            if (svg.isEmpty()) {
+                for (const Shape &older : readFallbackShapes(atom.raw)) {
+                    if (older.kind != Shape::Picture || older.embed.isEmpty()) continue;
+                    Shape stand = s;
+                    stand.diagramEmbed.clear();
+                    stand.embed = older.embed;
+                    stand.pictEmbed = older.pictEmbed;
+                    const int image = pictureOf(stand);
+                    if (image >= 0) return image;
+                }
+                svg = diagramPlaceholderSvg(QSizeF(s.width, s.height));
+            }
+            if (svg.isEmpty()) return -1;
+            for (int i = 0; i < f.images.size(); ++i)
+                if (f.images[i].bytes == svg) return i;
+            flow::FlowImage image;
+            image.bytes = svg;
+            image.format = QStringLiteral("svg");
+            f.images.push_back(image);
+            return int(f.images.size()) - 1;
+        }
         // A chart is drawn as the picture its part makes (at the size of its frame), kept with the document's pictures.
         if (s.embed.isEmpty() && !s.chartEmbed.isEmpty()) {
             if (f.images.size() >= kMostImages || s.width <= 0 || s.height <= 0) return -1;

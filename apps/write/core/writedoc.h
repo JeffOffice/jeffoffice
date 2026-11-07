@@ -38,6 +38,9 @@ struct StyleEntry {
 };
 
 namespace mail { struct State; }
+// The most diagrams a document draws (each from the drawing its file keeps, once for each size it is shown at); the rest are shown as boxes that say what they are.
+constexpr int kMostDiagramsDrawn = 500;
+
 class WriteDoc;
 // The most the pictures of a document come to together.
 constexpr qint64 kMostMediaBytes = qint64(512) << 20;
@@ -567,6 +570,9 @@ public:
     office::Relationship mainRelationship(const QString &id) const;
     // A kept part's bytes (and its content type); empty if the document has no such part.
     QByteArray partData(const QString &absoluteName, QString *contentType = nullptr) const;
+    // A diagram of the text drawn from the drawing its data part names (`dataId`, a link of `links`), shown at `width` by `height` points: the picture as SVG, scaled with the frame
+    // from the size it was first shown at. Empty if the file keeps no drawing for it, or the document has drawn as many diagrams as it may (kMostDiagramsDrawn).
+    QByteArray diagramPicture(const QVector<office::Relationship> &links, const QString &dataId, double width, double height);
     // ---- the file's properties (the core, extended, and custom parts of docProps)
     office::PackageProps packageProps() const;
     // Puts the properties in the file's parts (made where the file has none, with the relationship that names each) and counts the document as changed. What the parts hold besides stays.
@@ -928,6 +934,11 @@ private:
     bool m_tailsStripped = false;                              // the endnotes were taken out of the story, to be set again
     const office::wml::SectionProps *m_tailSection = nullptr;  // the section whose endnotes are being set (its page's width is the separator's), or none: the last
     int m_boxTableCells = 0;   // the cells of the tables that the text boxes drawn so far hold (a document's boxes have kMostBoxTableCells of them in all: the rest are kept as they were)
+    // The diagrams drawn: each drawing part at the size it was first shown (the frame it was made for), the pictures made (by part and sizes), and how many were made since the story was built.
+    QHash<QString, QSizeF> m_diagramMade;
+    QHash<QString, QByteArray> m_diagramPictures;
+    int m_diagramsDrawn = 0;
+    qint64 m_diagramBytes = 0;
     int m_letteringShapes = 0, m_letteringLetters = 0;   // the lettering on a path the document has drawn so far, and its letters (each is outlined, and may be stroked: they are bounded)
     bool m_syncing = false;
     bool m_trackChanges = false, m_trackAtOpen = false;
