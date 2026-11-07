@@ -307,9 +307,12 @@ void paragraphDialog(QWidget *p, Editor *ed, int tab)
     trow->addWidget(addTab);
     trow->addWidget(delTab);
     trow->addWidget(clrTab);
-    QObject::connect(addTab, &QPushButton::clicked, t3, [&] { addTabRow(QTextOption::Tab(36 * (tabList->rowCount() + 1), QTextOption::LeftTab), QChar()); });
-    QObject::connect(delTab, &QPushButton::clicked, t3, [&] { if (tabList->currentRow() >= 0) tabList->removeRow(tabList->currentRow()); });
-    QObject::connect(clrTab, &QPushButton::clicked, t3, [&] { tabList->setRowCount(0); });
+    // A paragraph keeps at most tp::kMaxTabStops stops (what a .pub file's formatting page holds): Add is dimmed when the list is full.
+    auto addRoom = [&] { addTab->setEnabled(tabList->rowCount() < tp::kMaxTabStops); };
+    QObject::connect(addTab, &QPushButton::clicked, t3, [&] { addTabRow(QTextOption::Tab(36 * (tabList->rowCount() + 1), QTextOption::LeftTab), QChar()); addRoom(); });
+    QObject::connect(delTab, &QPushButton::clicked, t3, [&] { if (tabList->currentRow() >= 0) tabList->removeRow(tabList->currentRow()); addRoom(); });
+    QObject::connect(clrTab, &QPushButton::clicked, t3, [&] { tabList->setRowCount(0); addRoom(); });
+    addRoom();
     f3->addWidget(tabList);
     f3->addLayout(trow);
     // The publication's default tab stops, for every paragraph without stops of its own (Publisher takes 1 to 1,584 points).
@@ -358,6 +361,7 @@ void paragraphDialog(QWidget *p, Editor *ed, int tab)
     QList<QTextOption::Tab> newTabs;
     QString newLeaders;
     for (const auto &r : rows) {
+        if (newTabs.size() >= tp::kMaxTabStops) break;
         newTabs << r.first;
         newLeaders += r.second;
     }

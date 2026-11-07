@@ -43,7 +43,8 @@ namespace jp {
 namespace {
 
 constexpr double kEmuPerPt = 12700.0;
-inline qint64 emu(double pt) { return qint64(std::llround(pt * kEmuPerPt)); }
+// A length in EMU, kept within 32 signed bits (about 169,000 points): the file stores 32-bit lengths, and a larger one would wrap around to a small one.
+inline qint64 emu(double pt) { return pt != pt ? 0 : qint64(std::llround(std::clamp(pt, -169000.0, 169000.0) * kEmuPerPt)); }
 // A line weight or an indent as a 32-bit length: 0 to 1584 points (Publisher's largest weight), so a damaged value
 // can't wrap around to something small.
 inline quint32 emuCapped(double pt) { return quint32(emu(pt > 0 ? std::min(pt, 1584.0) : 0.0)); }
@@ -573,7 +574,10 @@ QVector<QByteArray> formattingPages(const QVector<Run> &runs, QVector<quint32> *
         int bottom = 512;
         QHash<QByteArray, int> placed;
         while (i < runs.size()) {
-            const QByteArray &p = runs[i].props;
+            // A block too big for a page of its own (the page holds 512 bytes with its header and one run) can't be written: it
+            // is replaced by an empty block, so a page always gets a run and the save goes on.
+            const QByteArray empty = QByteArray("\x04\x00\x00\x00", 4);
+            const QByteArray &p = ends.isEmpty() && 8 + 6 + 2 + int(runs[i].props.size()) > 512 ? empty : runs[i].props;
             const int need = placed.contains(p) ? 0 : int(p.size());
             const int header = 8 + (ends.size() + 1) * 6;
             if (header + 2 > bottom - need) break;
@@ -984,7 +988,8 @@ QVector<B> PubWriter::paraBlocks(const QTextBlock &block)
     // Tab stops: a count, then each one's position, alignment (left left
     // out, 1 right, 2 center, 3 decimal) and leader character ('.', '-',
     // '_' or 0xB7 for bullets; left out for none).
-    const QList<QTextOption::Tab> tabs = f.tabPositions();
+    QList<QTextOption::Tab> tabs = f.tabPositions();
+    if (tabs.size() > tp::kMaxTabStops) tabs = tabs.mid(0, tp::kMaxTabStops);   // (more would not fit a formatting page)
     if (!tabs.isEmpty()) {
         const QString leaders = f.stringProperty(tp::TabLeaders);
         QVector<B> stops;
@@ -1066,6 +1071,7 @@ void PubWriter::addStory(int textId, const QVector<const QTextDocument *> &docs,
             // A line break (Shift+Enter) is \n in Publisher's text: .pub files never hold
             // \v, which Publisher 2021 draws as a box.
             t.replace(QChar::LineSeparator, QLatin1Char('\n'));
+            t.replace(QChar(0x0b), QLatin1Char('\n'));
             t.replace(QChar(0x2029), QChar('\r'));
             const QString field = fr.charFormat().stringProperty(tp::Field);
             const int story = int(m_storyLengths.size());
@@ -1394,7 +1400,7 @@ QByteArray PubWriter::write(QStringList *skipped)
     auto masterFor = [&](const Page &pg, int index) {
         const bool left = spreads && index % 2 == 1;
         for (int k = 0; k < m_doc.masters.size(); ++k)
-            if (m_doc.masters[k]->abbr == pg.masterId) return left ? masterSeqs[k].left : masterSeqs[k].seq;
+            if (m_doc.masters[k]->id == pg.masterId) return left ? masterSeqs[k].left : masterSeqs[k].seq;
         return left ? masterSeqs[0].left : kMaster;
     };
 
@@ -2448,7 +2454,7 @@ QByteArray PubWriter::write(QStringList *skipped)
     for (int k = 0; k < 4; ++k) {
         const quint32 s = kSpecial[k];
         // The last holds the objects set in text.
-        const bool inl = k == 3 && surfaces.last() == &inlinePage;
+        const bool inl = k == 3 && !surfaces.isEmpty() && surfaces.last() == &inlinePage;
         cw.put(s, {0x43, 256, pageBody(inl ? pageShapes[surfaces.size() - 1] : QVector<quint32>{}, s + 1, s + 2, false, true, specScratch[k], specExt[k])});
         cw.put(s + 1, {0x60, s, {u32(0x05, 1)}});
         cw.put(s + 2, {0x77, s, webForm()});

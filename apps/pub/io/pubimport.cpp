@@ -528,7 +528,7 @@ public:
         if (const RVNGPropertyListVector *tabs = p.child("style:tab-stops")) {
             QList<QTextOption::Tab> tl;
             QString leaders;   // a character per tab stop, a space for none
-            for (unsigned long i = 0; i < tabs->count(); ++i) {
+            for (unsigned long i = 0; i < tabs->count() && int(i) < tp::kMaxTabStops; ++i) {
                 const RVNGPropertyList &t = (*tabs)[i];
                 const QString type = str(t["style:type"]);
                 QTextOption::Tab tab;

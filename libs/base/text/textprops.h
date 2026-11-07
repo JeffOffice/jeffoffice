@@ -23,6 +23,10 @@ inline bool isBulletList(QTextListFormat::Style s)
 
 namespace jp::tp {
 
+// The most tab stops a paragraph keeps: the .pub format holds a paragraph's properties in one 512-byte formatting page, and 24 stops
+// with the other paragraph properties fit it. The Tabs dialog, the ruler, and the importers stop here.
+inline constexpr int kMaxTabStops = 24;
+
 enum : int {
     // character
     ColorRefP = QTextFormat::UserProperty + 1,   // QString ColorRef for the text color

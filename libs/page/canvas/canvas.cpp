@@ -3447,6 +3447,7 @@ void Ruler::mousePressEvent(QMouseEvent *e)
             const double pos = m_c->toPage(viewAt(e)).x() - tr.left;
             QTextBlockFormat bf;
             QList<QTextOption::Tab> tabs = tr.tabs;
+            if (tabs.size() >= tp::kMaxTabStops) return;   // (a paragraph keeps no more)
             tabs << QTextOption::Tab(pos, QTextOption::LeftTab);
             std::sort(tabs.begin(), tabs.end(), [](const QTextOption::Tab &a, const QTextOption::Tab &b) { return a.position < b.position; });
             bf.setTabPositions(tabs);
