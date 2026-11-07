@@ -30,11 +30,11 @@ QVector<Section> stored(const Document &d)
 void fit(QVector<Section> &list, int slides)
 {
     if (list.isEmpty()) return;
-    int total = 0;
+    qint64 total = 0;   // (counts a file gives can be billions)
     for (const Section &s : std::as_const(list)) total += s.count;
-    if (total < slides) list.last().count += slides - total;
+    if (total < slides) list.last().count += int(slides - total);
     for (int i = int(list.size()) - 1; i >= 0 && total > slides; --i) {
-        const int cut = std::min(list[i].count, total - slides);
+        const int cut = int(std::min<qint64>(list[i].count, total - slides));
         list[i].count -= cut;
         total -= cut;
     }

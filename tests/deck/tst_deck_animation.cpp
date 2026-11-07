@@ -105,6 +105,48 @@ private Q_SLOTS:
                         {animXml("<p:cmd type='call' cmd='playFrom(0.0)'><p:cBhvr><p:cTn id='%1' dur='1' fill='hold'/>%2</p:cBhvr></p:cmd>").arg(animId()).arg(animTarget(spid))});
     }
 
+    // Times a file writes as "inf" or "nan" are not times: they read as if they were not written, so nothing begins at the end of time and no
+    // number the show works with is infinite.
+    void animationIgnoresTimesThatAreNotNumbers()
+    {
+        QString xml = animTiming(animStep({animGroup(0, {animFadeIn(4, 500), animFlyIn(5, 400)})}));
+        xml.replace(QStringLiteral("delay=\"0\""), QStringLiteral("delay=\"inf\""));
+        xml.replace(QStringLiteral("dur=\"500\""), QStringLiteral("dur=\"inf\""));
+        xml.replace(QStringLiteral("dur=\"400\""), QStringLiteral("dur=\"nan\""));
+        xml.replace(QStringLiteral("fill=\"hold\""), QStringLiteral("fill=\"hold\" repeatCount=\"inf\" accel=\"nan\" decel=\"inf\" repeatDur=\"inf\""));
+        QVERIFY(xml.contains(QStringLiteral("delay=\"inf\"")) && xml.contains(QStringLiteral("dur=\"nan\"")));
+        const deck::Timeline tl = deck::readTimeline(xml);
+        QVERIFY(!tl.steps.isEmpty());
+        int seen = 0;
+        for (const deck::Step &step : tl.steps) {
+            QVERIFY(std::isfinite(step.duration()));
+            for (const deck::Effect &e : step.effects) {
+                QVERIFY2(std::isfinite(e.begin) && std::isfinite(e.repeat) && std::isfinite(e.end()), qPrintable(QString::number(e.begin)));
+                for (const deck::Behavior &b : e.behaviors) {
+                    const deck::Timing &t = b.timing;
+                    QVERIFY2(std::isfinite(t.begin) && std::isfinite(t.duration) && std::isfinite(t.accel) && std::isfinite(t.decel) && std::isfinite(t.repeat) && std::isfinite(t.repeatDuration),
+                             qPrintable(QStringLiteral("%1 %2 %3 %4 %5 %6").arg(t.begin).arg(t.duration).arg(t.accel).arg(t.decel).arg(t.repeat).arg(t.repeatDuration)));
+                    ++seen;
+                }
+            }
+        }
+        QVERIFY(seen > 0);
+        // Keyframes at a time that is not a number are not kept.
+        const QString key = animXml("<p:anim calcmode='lin' valueType='num'><p:cBhvr><p:cTn id='%1' dur='500' fill='hold'/>%2<p:attrNameLst><p:attrName>ppt_x</p:attrName></p:attrNameLst></p:cBhvr>"
+                                    "<p:tavLst><p:tav tm='nan'><p:val><p:fltVal val='inf'/></p:val></p:tav><p:tav tm='50000'><p:val><p:fltVal val='1'/></p:val></p:tav></p:tavLst></p:anim>")
+                                .arg(animId()).arg(animTarget(4));
+        const deck::Timeline withKeys = deck::readTimeline(animTiming(animStep({animGroup(0, {animNode("emph", 1, 0, "clickEffect", 0, {key})})})));
+        int keys = 0;
+        for (const deck::Step &step : withKeys.steps)
+            for (const deck::Effect &e : step.effects)
+                for (const deck::Behavior &b : e.behaviors)
+                    for (const deck::Keyframe &k : b.keys) {
+                        QVERIFY(std::isfinite(k.at));
+                        ++keys;
+                    }
+        QVERIFY(keys >= 1);
+    }
+
     // The steps of a slide's timing, their effects, and the behaviors of each,
     // with their times: a click starts a step, an effect that goes with the
     // one before starts with it (its delay on top), and one after starts when
@@ -1596,6 +1638,46 @@ private Q_SLOTS:
         w.act("anim.add.emph.spin")->trigger();
         QCOMPARE(int(deck::readAnimations(page()).effects.size()), 2);
         QCOMPARE(w.animationPane()->rowCount(), 2);
+    }
+
+    // The rows picked in the animation pane are effects, not places in the list: when an effect above them goes, the same effects stay picked, and
+    // a pick is not carried over to another slide's list.
+    void windowAnimationPaneKeepsTheSameEffectsPickedWhenRowsMove()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        auto page = [ed]() -> Page & { return *ed->doc()->pages[0]; };
+        ed->select(page().items[0]->id);
+        w.act("anim.set.entr.fade")->trigger();
+        ed->select(page().items[1]->id);
+        w.act("anim.set.entr.fly")->trigger();
+        ed->select(page().items[0]->id);
+        w.act("anim.add.emph.spin")->trigger();
+        ed->select(page().items[1]->id);
+        w.act("anim.add.emph.spin")->trigger();
+        ed->clearSelection();
+        auto *pane = w.animationPane();
+        QCOMPARE(pane->rowCount(), 4);
+        pane->list()->setCurrentRow(2, QItemSelectionModel::ClearAndSelect);
+        QCOMPARE(pane->selectedRows(), QVector<int>({2}));
+        // The first effect goes (as an undo elsewhere would take it): the third is the second row now, and still the one picked.
+        deck::AnimSequence seq = deck::readAnimations(page(), ed->doc());
+        const int pickedShape = seq.effects[2].shape, otherShape = seq.effects[3].shape;
+        QVERIFY(pickedShape != otherShape);
+        seq.effects.removeAt(0);
+        deck::setAnimations(*ed->doc(), page(), seq);
+        pane->reload();
+        QCOMPARE(pane->rowCount(), 3);
+        QCOMPARE(pane->selectedRows(), QVector<int>({1}));
+        // The commands mean it too: With Previous changes the effect picked, not the one that took its place in the list.
+        w.act("anim.start.with")->trigger();
+        const deck::AnimSequence after = deck::readAnimations(page(), ed->doc());
+        QCOMPARE(int(after.effects.size()), 3);
+        QCOMPARE(after.effects[1].shape, pickedShape);
+        QVERIFY2(after.effects[1].start == deck::EffectStart::WithPrevious, qPrintable(QStringLiteral("%1 %2 %3").arg(int(after.effects[0].start)).arg(int(after.effects[1].start)).arg(int(after.effects[2].start))));
+        QCOMPARE(after.effects[2].shape, otherShape);
+        QVERIFY(after.effects[2].start != deck::EffectStart::WithPrevious);
     }
 
     // A build of what a kept sequence aims at stays with it.

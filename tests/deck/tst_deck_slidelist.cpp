@@ -202,6 +202,35 @@ private Q_SLOTS:
         QCOMPARE(int(ed->doc()->pages.size()), 1);
     }
 
+    // The selected slides stay the same slides when others come or go (an undo, a change made elsewhere): the selection and its anchor follow the
+    // slides, not their places.
+    void slideSorterSelectionFollowsTheSlidesNotTheirPlaces()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"One", "Two", "Three", "Four", "Five"});
+        Editor *ed = w.editor();
+        w.act("view.sorter")->trigger();
+        SlideSorter *s = w.slideSorter();
+        QTRY_COMPARE(s->slideCount(), 5);
+        s->select({3, 4}, 4);
+        QCOMPARE(s->selection(), QList<int>({3, 4}));
+        QCOMPARE(s->anchorSlide(), 4);
+        // The first slide goes (as an undo of a New Slide would take one): the same two slides are selected, a place earlier.
+        ed->beginChange(QStringLiteral("Delete Slide"));
+        ed->doc()->pages.removeAt(0);
+        ed->endChange();
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"Two", "Three", "Four", "Five"}));
+        QCOMPARE(s->selection(), QList<int>({2, 3}));
+        QCOMPARE(s->anchorSlide(), 3);
+        // Taking it back puts them where they were.
+        ed->undo();
+        QCOMPARE(titlesOf(*ed->doc()), (QStringList{"One", "Two", "Three", "Four", "Five"}));
+        QCOMPARE(s->selection(), QList<int>({3, 4}));
+        QCOMPARE(s->anchorSlide(), 4);
+    }
+
     // Duplicate (Ctrl+D) puts each copy after its slide; Hide hides them all;
     // New Slide goes after the selection; each is one step that undoes.
     void slideSorterDuplicatesHidesAndAddsSlides()
@@ -337,6 +366,22 @@ private Q_SLOTS:
         QTest::keyClick(s, Qt::Key_Return);
         QCOMPARE(w.view(), DeckWindow::View::Normal);
         QCOMPARE(ed->currentPage(), 1);
+    }
+
+    // A file that gives its sections counts of two billion each still has sections that add up to the slides.
+    void sectionCountsOfAHugeFileStillAddUp()
+    {
+        auto d = lettered(6);
+        const int big = 2147483647;
+        d->appData[QStringLiteral("sections")] = QJsonArray{QJsonObject{{"id", "{A}"}, {"name", "One"}, {"count", big}}, QJsonObject{{"id", "{B}"}, {"name", "Two"}, {"count", big}},
+                                                            QJsonObject{{"id", "{C}"}, {"name", "Three"}, {"count", big}}};
+        qint64 total = 0;
+        for (const deck::Section &section : deck::sectionsOf(*d)) {
+            QVERIFY2(section.count >= 0, qPrintable(QString::number(section.count)));
+            total += section.count;
+        }
+        QCOMPARE(total, qint64(6));
+        QCOMPARE(int(deck::sectionsOf(*d).size()), 3);
     }
 
     // The zoom slider and Ctrl+wheel change the thumbnails' size, and Normal

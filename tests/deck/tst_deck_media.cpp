@@ -295,6 +295,27 @@ private Q_SLOTS:
         QCOMPARE(int(deck::readTimeline(slide.props.value(QStringLiteral("timingXml")).toString()).steps.size()), 3);
     }
 
+    // A sound whose node comes before the main sequence in the timing, set to play by itself: taking its old node out moves the sequence, and the
+    // new call goes into the sequence where it is now.
+    void mediaSetToPlayAutomaticallyWhenItsNodeComesBeforeTheMainSequence()
+    {
+        Page slide;
+        auto sound = mediaPicture(3, "audio");
+        slide.items.push_back(sound);
+        slide.props[QStringLiteral("timingXml")] = QStringLiteral(
+            "<p:timing xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childTnLst>"
+            "<p:audio><p:cMediaNode vol=\"80000\"><p:cTn id=\"5\" fill=\"hold\" display=\"0\"><p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid=\"3\"/></p:tgtEl></p:cMediaNode></p:audio>"
+            "<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"2\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst/></p:cTn><p:prevCondLst><p:cond evt=\"onPrev\" delay=\"0\"/></p:prevCondLst>"
+            "<p:nextCondLst><p:cond evt=\"onNext\" delay=\"0\"/></p:nextCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>");
+        deck::MediaPlay play = deck::mediaPlayOf(slide, *sound);
+        play.start = deck::MediaStart::Automatically;
+        deck::setMediaPlay(slide, *sound, play, 5000);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY2(deck::mediaPlayOf(slide, *sound).start == deck::MediaStart::Automatically, qPrintable(xml));
+        QCOMPARE(xml.count(QStringLiteral("<p:audio")), 1);
+        QCOMPARE(int(deck::readTimeline(xml).steps.size()), 1);
+    }
+
     // A movie's trim and fade are read from the picture's p14:media, written back with it, and read again the same.
     void mediaTrimAndFadeSurviveTheRoundTrip()
     {
@@ -1109,6 +1130,26 @@ private Q_SLOTS:
         // Back on the slide, with all its steps played, the sound starts again when the slide has none to play first.
         show.previous();
         QCOMPARE(show.currentSlide(), 0);
+    }
+
+    // A show moved to another presentation does not go on playing the old one's media (its players belong to the old presentation, which the window is
+    // free to delete).
+    void showMediaStopsWhenTheShowIsBoundToAnotherPresentation()
+    {
+        auto d = showDeck(2);
+        deck::MediaPlay automatic;
+        automatic.start = deck::MediaStart::Automatically;
+        auto sound = showMedia(*d, 0, testWav(3000), QStringLiteral("tune.wav"), QPointF(700, 400), automatic);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QPointer<MediaPlayback> tune = show.media()->playbackOf(sound->id);
+        QVERIFY(tune);
+        auto other = showDeck(2);
+        show.rebind(other.get());
+        QVERIFY(!show.media()->playbackOf(sound->id));
+        QTRY_VERIFY(tune.isNull());
     }
 
     // A sound set to play across slides goes on over as many as the file says, then stops.

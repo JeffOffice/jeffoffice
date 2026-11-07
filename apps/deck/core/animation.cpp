@@ -171,7 +171,7 @@ double delayOf(const QDomElement &cTn)
         if (d.isEmpty() || d == QLatin1String("indefinite")) continue;
         bool ok = false;
         const double v = d.toDouble(&ok);
-        if (ok) return std::max(0.0, v);
+        if (ok && std::isfinite(v)) return std::max(0.0, v);
     }
     return 0;
 }
@@ -180,7 +180,7 @@ double numberOr(const QString &s, double fallback)
 {
     bool ok = false;
     const double v = s.toDouble(&ok);
-    return ok ? v : fallback;
+    return ok && std::isfinite(v) ? v : fallback;
 }
 
 Timing timingOf(const QDomElement &cTn, double base)
@@ -822,7 +822,7 @@ void applyBehavior(TargetState &s, const Behavior &b, const Geometry &g, double 
         } else if (playsAttribute(b.attribute)) {
             bool ok = false;
             const double v = b.to.toDouble(&ok);
-            if (ok) setAttribute(s, b, b.attribute, v, g);
+            if (ok && std::isfinite(v)) setAttribute(s, b, b.attribute, v, g);
         }
         break;
     case Behavior::Kind::Animate: {
