@@ -679,9 +679,8 @@ private Q_SLOTS:
         QCOMPARE(b.view->horizontalScrollBar()->geometry().left(), fullLeft);
     }
 
-    // A box is as long as the style's scroll bar is wide (half of it, at least 6 pixels), has a name for a screen reader, and taking the boxes away is safe at any time: while one is being
-    // dragged (the drag ends), and after a box is gone already.
-    void aSplitBoxIsSizedByTheStyleHasANameAndIsSafeToTakeAway()
+    // A box is as long as the style's scroll bar is wide (half of it, at least 6 pixels), and has a name for a screen reader.
+    void aSplitBoxIsSizedByTheStyleAndHasAName()
     {
         Book b;
         for (quint32 r = 0; r < 300; ++r) b.number(r, 0, r);
@@ -695,18 +694,37 @@ private Q_SLOTS:
         const int extent = b.view->style()->pixelMetric(QStyle::PM_ScrollBarExtent, nullptr, b.view->verticalScrollBar());
         QCOMPARE(down->height(), std::max(6, extent / 2));
         QCOMPARE(across->width(), std::max(6, extent / 2));
-        // the boxes go while one is held: the mouse moving in the view does not drag a bar
+    }
+
+    // Taking the boxes away while one is held ends the drag: the mouse moving in the view does not drag a bar.
+    void takingTheSplitBoxesAwayWhileOneIsHeldEndsTheDrag()
+    {
+        Book b;
+        for (quint32 r = 0; r < 300; ++r) b.number(r, 0, r);
+        b.show(QSize(900, 600));
+        b.view->setSplitBoxes(true);
+        if (!b.view->splitBoxes()) QSKIP("this style draws its scroll bars over the sheet: there is no end of a bar for a box");
         b.view->splitBoxPress(true);
         b.view->setSplitBoxes(false);
         QTest::mouseMove(b.view->viewport(), QPoint(b.layout().headerWidth() + 40, b.layout().headerHeight() + 120));
         QVERIFY(!b.view->isSplit());
-        // a box gone before the call (its container went first)
+    }
+
+    // A box that is gone already (its container went first) does not make taking the boxes away unsafe, and the grid does not hand out the box.
+    void aSplitBoxThatIsGoneIsNotUsedAgain()
+    {
+        Book b;
+        for (quint32 r = 0; r < 300; ++r) b.number(r, 0, r);
+        b.show(QSize(900, 600));
         b.view->setSplitBoxes(true);
+        if (!b.view->splitBoxes()) QSKIP("this style draws its scroll bars over the sheet: there is no end of a bar for a box");
         QVERIFY(b.view->splitBox(true));
         delete b.view->splitBox(true);
         QVERIFY(!b.view->splitBox(true));
         b.view->setSplitBoxes(false);
         QVERIFY(!b.view->splitBox(false));
+        b.view->setSplitBoxes(true);   // (and they can be made again)
+        QVERIFY(b.view->splitBox(true) && b.view->splitBox(false));
     }
 
     // Keys, clicks, and scrolling on a sheet with nothing in it, and with its rows hidden, do not fail.

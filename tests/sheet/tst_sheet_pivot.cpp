@@ -963,11 +963,17 @@ private Q_SLOTS:
         w.cache.calcItems[0].solveOrder = w.cache.calcItems[1].solveOrder = 4;
         const QByteArray same = writePivotCacheDefinition(twoCalcItemDefinition(true), w.cache, 6, 45000, DateSystem::Date1900);
         QVERIFY(same.indexOf("formula=\"East-West\"") < same.indexOf("formula=\"Jan+1\""));
-        // an order in an extension (the biggest number a file can say) is not an order
+    }
+
+    // An order in an extension of an item (the biggest number a file can say) is not an order: the order of the elements is.
+    void anOrderInAnExtensionOfAnItemIsNotASolveOrder()
+    {
+        Worked w;
         QByteArray def = twoCalcItemDefinition(true);
         def.replace("</calculatedItem></calculatedItems>", "<extLst><ext uri=\"{3B0E6D52-6C1D-4B52-9D76-0F0C3E1B7A41}\" xmlns:jc=\"urn:jeffcrunch:pivot\"><jc:solveOrder v=\"2147483647\"/></ext></extLst></calculatedItem></calculatedItems>");
         PivotCache ext;
         QVERIFY2(readPivotCache(def, cacheRecords(), DateSystem::Date1900, &ext, &w.why), qPrintable(w.why));
+        QCOMPARE(ext.calcItems.size(), 2);
         QCOMPARE(ext.calcItems[1].solveOrder, 2);
     }
 
@@ -987,7 +993,11 @@ private Q_SLOTS:
         // changed here, and there is none left: the element goes
         w.cache.calcItemsEdited = true;
         QVERIFY(!writePivotCacheDefinition(def, w.cache, 6, 45000, DateSystem::Date1900).contains("calculatedItems"));
-        // a calculatedItem under another parent is not read
+    }
+
+    // A calculatedItem that is not under calculatedItems (a file can put the element anywhere) is not an item.
+    void aCalculatedItemUnderAnotherParentIsNotRead()
+    {
         QByteArray other = calcItemDefinition(QStringLiteral("East+West"));
         other.replace("<calculatedItems count=\"1\">", "<cacheHierarchies count=\"1\">").replace("</calculatedItems>", "</cacheHierarchies>");
         PivotCache cache;

@@ -477,8 +477,8 @@ private Q_SLOTS:
         QVERIFY(!s->externalCachedValues().empty());
     }
 
-    // The values of cells that the link's part did not list are put in order (rows, then cells in a row), and a part that has no sheetDataSet gets one before an extension list.
-    void updatedValuesAreWrittenInTheOrderOfThePartAndBeforeItsExtensions()
+    // A link part that has no sheetDataSet gets one before an extension list.
+    void aNewSheetDataSetIsPutBeforeTheExtensionsOfALinkPart()
     {
         const QByteArray book = repack(externalLinkBook(), [](Parts &p) {
             QByteArray &link = p[QStringLiteral("xl/externalLinks/externalLink1.xml")];
@@ -509,9 +509,42 @@ private Q_SLOTS:
         readZip(f.readAll(), now);
         const QByteArray part = now.value(QStringLiteral("xl/externalLinks/externalLink1.xml"));
         QVERIFY2(part.indexOf("<sheetDataSet") > 0 && part.indexOf("<sheetDataSet") < part.indexOf("<extLst"), part.constData());
-        QVERIFY2(part.indexOf("r=\"A1\"") > 0 && part.indexOf("r=\"A1\"") < part.indexOf("r=\"B3\""), part.constData());
-        QVERIFY2(part.indexOf("<row r=\"1\"") < part.indexOf("<row r=\"3\""), part.constData());
-        QVERIFY2(part.contains("<v>9</v>") && part.contains("<v>7</v>"), part.constData());
+    }
+
+    // The cells of a link part are put in order: the rows by their numbers, and the cells of a row by their columns, whatever order they were read in.
+    void updatedValuesAreWrittenInTheOrderOfRowsAndCells()
+    {
+        const QByteArray book = repack(externalLinkBook(), [](Parts &p) {
+            QByteArray &link = p[QStringLiteral("xl/externalLinks/externalLink1.xml")];
+            link.replace("<sheetName val=\"Prices\"/>", "<sheetName val=\"Sheet1\"/>");
+            link.replace(link.indexOf("<sheetDataSet>"), link.indexOf("</sheetDataSet>") + 15 - link.indexOf("<sheetDataSet>"), "");
+            p[kSheet].replace("[1]Prices!A1*2", "[1]Sheet1!A1*2");
+            p[kSheet].replace("</row></sheetData>", "</row><row r=\"6\"><c r=\"A6\"><f>[1]Sheet1!B3</f><v>0</v></c><c r=\"B6\"><f>[1]Sheet1!A3</f><v>0</v></c></row><row r=\"7\"><c r=\"A7\"><f>[1]Sheet1!A1</f><v>0</v></c></row></sheetData>");
+        });
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString source = QDir(dir.path()).absoluteFilePath(QStringLiteral("prices.xlsx"));
+        {
+            QFile f(source);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(bookOfSheets({{"A1=7", "A3=8", "B3=9"}}));
+        }
+        EditWindow e;
+        QVERIFY(e.open(book, QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.session()->updateExternalValues(1, source).ok);
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        Parts now;
+        readZip(f.readAll(), now);
+        const QByteArray part = now.value(QStringLiteral("xl/externalLinks/externalLink1.xml"));
+        QVERIFY2(part.indexOf("<row r=\"1\"") > 0 && part.indexOf("<row r=\"1\"") < part.indexOf("<row r=\"3\""), part.constData());
+        QVERIFY2(part.indexOf("r=\"A3\"") > 0 && part.indexOf("r=\"A3\"") < part.indexOf("r=\"B3\""), part.constData());
+        QVERIFY2(part.contains("<v>9</v>") && part.contains("<v>8</v>") && part.contains("<v>7</v>"), part.constData());
     }
 
     // Break Link with nothing to break (no link in the workbook, or none that anything reads, of the number asked for) does nothing: no step of Undo, and the links are not marked to leave out.
