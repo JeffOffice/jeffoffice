@@ -35,7 +35,8 @@ constexpr qint64 kPivotMaxLevelCells = 40000000;       // the leaves of an axis 
 constexpr qint64 kPivotMaxFanOut = 60000000;           // each group of records is put in the lines it is a part of, on both axes: the most of those it is put in
 constexpr qint64 kPivotMaxCreateCells = 10000000;      // the cells of the data a pivot table is made of on the window's thread
 constexpr int kPivotMaxSubtotalKinds = 12;             // the functions a field has for its subtotal lines, one line of each
-constexpr int kPivotMaxCalcItems = 500;                // the calculated items of one cache
+constexpr int kPivotMaxCalcItems = 500;
+constexpr int kPivotMaxCalcDepth = 120;                // calculated items worked out from one another, one inside the next (1.4 KB of stack each: see pivotcalc.cpp)                // the calculated items of one cache
 constexpr qint64 kPivotMaxCalcWork = 30000000;         // the names a table's calculated items look up, all the cells together
 constexpr qint64 kPivotMaxRows = 1048576;            // lines of the rows' axis, and of the columns' (a sheet's rows and columns)
 constexpr qint64 kPivotMaxCols = 16384;
@@ -99,7 +100,7 @@ struct PivotCacheField {
 };
 
 // A calculated item: an item of a field that is worked out in each cell from other items of the same field (East+West). It is one of the field's shared items that no record has. When a cell
-// has two (one on the rows and one on the columns), the one with the higher solve order is worked out last, from cells that have the lower one already.
+// has two (one on the rows and one on the columns), the one with the higher solve order is worked out last, from cells that have the lower one already. The file's order of the items is the solve order.
 struct PivotCalcItem {
     QString field;               // the cache field's name
     QString name;                // the item's name (it is also the text of one of the field's shared items)
@@ -113,6 +114,7 @@ struct PivotCache {
     bool externalSource = false; // (from the head of the definition only) the source names a link to another workbook
     QVector<PivotCacheField> fields;
     QVector<PivotCalcItem> calcItems;
+    bool calcItemsEdited = false;   // (not in the file) the items were changed here: the part's calculatedItems are written again, else the file's own stay as they are
     qint64 recordCount = 0;
     bool saveData = true, refreshOnLoad = false;
     QString unsupported;         // why the cache can't be worked from or read again (grouped or calculated fields, ...); empty when it can
@@ -257,6 +259,9 @@ void pivotRemoveFields(PivotTable *table, const QVector<int> &removed);
 struct PivotOptions {
     // How a number shows in text (the "7/1/2001" of "7/1/2001 Total"): by a number format's id; empty for the plain number.
     std::function<QString(double value, int numFmtId, int gridRow, int gridCol)> format;
+    // The work the calculated items may take (names looked up and lines made; kPivotMaxCalcWork), and where the work done is put when asked.
+    qint64 calcWorkLimit = kPivotMaxCalcWork;
+    qint64 *calcWorkDone = nullptr;
 };
 bool computePivot(const PivotTable &table, const PivotCache &cache, PivotGrid *out, QString *why, const PivotOptions &options = PivotOptions());
 

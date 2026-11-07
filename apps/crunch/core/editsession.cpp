@@ -1981,7 +1981,8 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_nameRenames.clear();
     m_calcFile = m_calcNow;
     // (the links the file just written has no parts for: a formula that read one must not come back by Undo)
-    if (m_dropExternalLinks) forgetStepsDone();
+    // (what the save took out is what the snapshot said, not the flag now: an Undo of Break Link while the file was being written brought the formulas back to a file without the links)
+    if (snapshot.changes.dropExternalLinks) forgetStepsDone();
     m_dropExternalLinks = false;
     m_externalUpdated.clear();
     m_dropCustomXml = false;

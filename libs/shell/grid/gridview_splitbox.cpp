@@ -5,6 +5,8 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScrollBar>
+#include <QStyle>
+#include <QStyleOption>
 
 #include <algorithm>
 
@@ -12,7 +14,6 @@ namespace jp::grid {
 
 namespace {
 
-constexpr int kBox = 8;   // the box's length along its scroll bar, in pixels
 
 class SplitBox : public QWidget {
 public:
@@ -67,6 +68,10 @@ void GridView::setSplitBoxes(bool on)
 {
     if (m_splitBoxes == on) return;
     if (on) {
+        // (a style that draws its scroll bars over the sheet, and shows them while they are used, has no end of a bar to put a box at)
+        if (style()->styleHint(QStyle::SH_ScrollBar_Transient, nullptr, verticalScrollBar())) return;
+        // (half the width of a scroll bar, at least 6 pixels: it grows with the screen's scale and the style's own measures)
+        const int kBox = std::max(6, style()->pixelMetric(QStyle::PM_ScrollBarExtent, nullptr, verticalScrollBar()) / 2);
         // (the area keeps each scroll bar in a container of its own with a box layout of one item: a box put in that layout takes the end of the bar, and goes with the bar when it is hidden)
         auto *rowsLayout = qobject_cast<QBoxLayout *>(verticalScrollBar()->parentWidget() ? verticalScrollBar()->parentWidget()->layout() : nullptr);
         auto *colsLayout = qobject_cast<QBoxLayout *>(horizontalScrollBar()->parentWidget() ? horizontalScrollBar()->parentWidget()->layout() : nullptr);
@@ -77,6 +82,8 @@ void GridView::setSplitBoxes(bool on)
         m_boxCols->setParent(horizontalScrollBar()->parentWidget());
         m_boxRows->setFixedHeight(kBox);
         m_boxCols->setFixedWidth(kBox);
+        m_boxRows->setAccessibleName(tr("Split box, rows"));
+        m_boxCols->setAccessibleName(tr("Split box, columns"));
         m_boxRows->setToolTip(tr("Drag down to split the view into top and bottom parts"));
         m_boxCols->setToolTip(tr("Drag right to split the view into left and right parts"));
         rowsLayout->insertWidget(0, m_boxRows);
@@ -84,9 +91,9 @@ void GridView::setSplitBoxes(bool on)
         m_boxRows->show();
         m_boxCols->show();
     } else {
-        delete m_boxRows;   // (a widget takes itself out of its layout)
-        delete m_boxCols;
-        m_boxRows = m_boxCols = nullptr;
+        if (m_drag == Drag::SplitBar) m_drag = Drag::None;   // (a box that was being dragged is gone)
+        delete m_boxRows.data();   // (a widget takes itself out of its layout)
+        delete m_boxCols.data();
     }
     m_splitBoxes = on;
 }

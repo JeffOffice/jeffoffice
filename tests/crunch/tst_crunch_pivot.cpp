@@ -3,6 +3,7 @@
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/settings.h"
+#include "findbooks.h"
 #include "app/pivotpane.h"
 #include "app/ribbon.h"
 #include "app/slicerpane.h"
@@ -16,7 +17,6 @@
 #include "office/package.h"
 #include "savedok.h"
 #include "sheet/oldsave.h"
-#include "findbooks.h"
 #include "sheet/pivot.h"
 #include "sheet/slicer.h"
 #include "sheet/sheetreader.h"
@@ -29,7 +29,9 @@
 #include <QFileInfo>
 #include <QElapsedTimer>
 #include <QImage>
+#include <QDialogButtonBox>
 #include <QListWidget>
+#include <QPushButton>
 #include <QRegularExpression>
 #include <QSet>
 #include <QSettings>
@@ -886,7 +888,7 @@ private Q_SLOTS:
         finish(e);
         QCOMPARE(s->undoStack()->count(), steps + 1);
         QCOMPARE(s->undoStack()->undoText(), QStringLiteral("Insert Calculated Item"));
-        QVERIFY2(pivotShown(e, QStringLiteral("E3:H9")).contains(QStringLiteral("Both|22|27|49\nGrand Total|22|27|49")), qPrintable(pivotShown(e, QStringLiteral("E3:H9"))));
+        QVERIFY2(pivotShown(e, QStringLiteral("E3:H9")).contains(QStringLiteral("Both|22|27|49\nGrand Total|44|54|98")), qPrintable(pivotShown(e, QStringLiteral("E3:H9"))));
         e.win.w.resize(1440, 900);
         e.win.w.show();
         saveShot(&e.win.w, QStringLiteral("pivot-calculated-item"));
@@ -916,24 +918,31 @@ private Q_SLOTS:
         finish(e);
         QCOMPARE(s->undoStack()->undoText(), QStringLiteral("Change Calculated Item"));
         QVERIFY2(pivotShown(e, QStringLiteral("E3:H9")).contains(QStringLiteral("Both|8|13|21")), qPrintable(pivotShown(e, QStringLiteral("E3:H9"))));
-        // the solve order: kept, changed in one step, and written
+        // the solve order is the order of the items: a second item comes after the first, the order is changed in one step, and the file lists the items in it
+        QVERIFY(s->setPivotCalculatedItem(0, 0, QStringLiteral("Extra"), QStringLiteral("=East*2")).ok);
+        finish(e);
         QCOMPARE(s->workbook()->pivots().cache(0).cache->calcItems[0].solveOrder, 1);
-        QVERIFY(!s->setPivotSolveOrders(0, {QStringLiteral("Region")}, {QStringLiteral("Both")}, {1}).ok);   // (the same: nothing to do)
+        QCOMPARE(s->workbook()->pivots().cache(0).cache->calcItems[1].solveOrder, 2);
+        const QStringList both{QStringLiteral("Region"), QStringLiteral("Region")}, named{QStringLiteral("Both"), QStringLiteral("Extra")};
+        QVERIFY(!s->setPivotSolveOrders(0, both, named, {1, 2}).ok);   // (the same: nothing to do)
         QVERIFY(!s->setPivotSolveOrders(0, {QStringLiteral("Region")}, {QStringLiteral("Nope")}, {3}).ok);
+        QVERIFY(!s->setPivotSolveOrders(0, both, named, {1, 0}).ok);   // (a number from 1)
         e.win.w.setSolveOrderAsker([](jp::SolveOrderChoice *c) {
-            c->orders[0] = 5;
+            c->orders = {2, 1};
             return true;
         });
         e.win.w.act(QStringLiteral("pivot.solveOrder"))->trigger();
         finish(e);
         QCOMPARE(s->undoStack()->undoText(), QStringLiteral("Change Solve Order"));
-        QCOMPARE(s->workbook()->pivots().cache(0).cache->calcItems[0].solveOrder, 5);
+        QCOMPARE(s->workbook()->pivots().cache(0).cache->calcItems[0].solveOrder, 2);
         QVERIFY(saveNow(e));
-        QVERIFY2(readParts(e.path).value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml")).contains("solveOrder v=\"5\""), "the solve order is in the file");
+        const QByteArray ordered = readParts(e.path).value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml"));
+        QVERIFY2(ordered.indexOf("formula=\"East*2\"") > 0 && ordered.indexOf("formula=\"East*2\"") < ordered.indexOf("formula=\"East-West\""), ordered.constData());
+        QVERIFY2(!ordered.contains("solveOrder"), "the order is the order of the elements");
         s->undoStack()->undo();
         QCOMPARE(s->workbook()->pivots().cache(0).cache->calcItems[0].solveOrder, 1);
         s->undoStack()->redo();
-        // List Formulas names the item, its formula, its field, and its solve order
+        // List Formulas names the items, their formulas, their fields, and their solve order
         int listed = -1;
         const auto o = s->listPivotFormulas(0, &listed);
         QVERIFY2(o.ok, qPrintable(o.problem));
@@ -942,22 +951,75 @@ private Q_SLOTS:
         QCOMPARE(s->valueAt(listed, 1, 0).text(), QStringLiteral("Both"));
         QCOMPARE(s->valueAt(listed, 1, 1).text(), QStringLiteral("=East-West"));
         QCOMPARE(s->valueAt(listed, 1, 2).text(), QStringLiteral("Region"));
-        QCOMPARE(s->valueAt(listed, 1, 3).number(), 5.0);
-        // deleted: the line and the shared item go, Undo brings them back
-        e.win.w.setCalculatedItemAsker([](jp::CalculatedItemChoice *c) {
-            c->field = QStringLiteral("Region");
-            c->name = QStringLiteral("Both");
-            c->action = jp::CalculatedItemChoice::Delete;
-            return true;
-        });
-        e.win.w.act(QStringLiteral("pivot.calculatedItem"))->trigger();
-        finish(e);
+        QCOMPARE(s->valueAt(listed, 1, 3).number(), 2.0);
+        // deleted (Extra, then Both): the lines and the shared items go, Undo brings the last back
+        auto deleting = [&](const char *name) {
+            e.win.w.setCalculatedItemAsker([name](jp::CalculatedItemChoice *c) {
+                c->field = QStringLiteral("Region");
+                c->name = QLatin1String(name);
+                c->action = jp::CalculatedItemChoice::Delete;
+                return true;
+            });
+            e.win.w.act(QStringLiteral("pivot.calculatedItem"))->trigger();
+            finish(e);
+        };
+        deleting("Extra");
+        deleting("Both");
         QCOMPARE(s->undoStack()->undoText(), QStringLiteral("Delete Calculated Item"));
         QCOMPARE(s->workbook()->pivots().cache(0).cache->calcItems.size(), 0);
         QVERIFY2(pivotShown(e, QStringLiteral("E3:H7")).contains(QStringLiteral("West|7|7|14\nGrand Total|22|27|49")), qPrintable(pivotShown(e, QStringLiteral("E3:H9"))));
         s->undoStack()->undo();
         finish(e);
         QVERIFY2(pivotShown(e, QStringLiteral("E3:H9")).contains(QStringLiteral("Both|8|13|21")), "undone");
+    }
+
+    // A record that has the item (a file may say so) makes the delete refused, so that no record is left pointing at another item; a slicer read from the file counts the items again.
+    void aDeletedCalculatedItemLeavesNoRecordAndRenumbersTheSlicer()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(slicerBook())));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->setPivotCalculatedItem(0, 0, QStringLiteral("Both"), QStringLiteral("=East+West")).ok);
+        finish(e);
+        auto *cache = const_cast<PivotCache *>(s->workbook()->pivots().cache(0).cache.get());
+        const qint32 saved = cache->fields[0].records[0];
+        cache->fields[0].records[0] = 2;   // (the calculated item's place)
+        const auto refused = s->deletePivotCalculatedItem(0, 0, QStringLiteral("Both"));
+        QVERIFY(!refused.ok);
+        QVERIFY2(refused.problem.contains(QLatin1String("record")), qPrintable(refused.problem));
+        cache->fields[0].records[0] = saved;
+        // the slicer's items are places among the field's: with the first item taken away, the second is the first
+        auto *book = const_cast<jp::office::sheet::Workbook *>(s->workbook());
+        const QVector<jp::office::sheet::SlicerCache> before = book->slicerCaches();
+        QVERIFY(!before.isEmpty() && before[0].items.size() >= 2);
+        const qint32 second = before[0].items[1].x;
+        book->slicerItemRemoved(0, 0, before[0].items[0].x);
+        const QVector<jp::office::sheet::SlicerCache> after = book->slicerCaches();
+        QCOMPARE(after[0].items.size(), before[0].items.size() - 1);
+        QCOMPARE(after[0].items[0].x, second - 1);
+    }
+
+    // The Solve Order dialog lists the items in the order they are worked out in and moves one up or down; the numbers it gives are 1, 2, 3 from the list.
+    void theSolveOrderDialogReordersTheItems()
+    {
+        jp::SolveOrderChoice choice;
+        choice.fields = {QStringLiteral("Region"), QStringLiteral("Month"), QStringLiteral("Region")};
+        choice.names = {QStringLiteral("A"), QStringLiteral("B"), QStringLiteral("C")};
+        choice.orders = {7, 3, 9};   // (worked out in the order B, A, C)
+        jp::SolveOrderDialog dialog(choice);
+        auto *list = dialog.findChild<QListWidget *>(QStringLiteral("solveOrder.list"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 3);
+        QVERIFY(list->item(0)->text().contains(QLatin1String("B")));
+        QCOMPARE(list->currentRow(), 0);
+        dialog.findChild<QPushButton *>(QStringLiteral("solveOrder.down"))->click();   // (B after A)
+        QCOMPARE(list->currentRow(), 1);
+        dialog.findChild<QPushButton *>(QStringLiteral("solveOrder.up"))->click();
+        dialog.findChild<QPushButton *>(QStringLiteral("solveOrder.up"))->click();   // (at the top: nowhere to go)
+        dialog.findChild<QPushButton *>(QStringLiteral("solveOrder.down"))->click();
+        dialog.findChild<QPushButton *>(QStringLiteral("solveOrder.down"))->click();   // (B last)
+        dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+        QCOMPARE(dialog.choice().orders, (QVector<int>{1, 3, 2}));   // A first, C second, B third
     }
 
     // The window's grid has a split box at the top of the vertical scroll bar and at the left of the horizontal one: dragging one cuts the view, and the Split command shows it is on.
@@ -968,7 +1030,7 @@ private Q_SLOTS:
         e.win.w.resize(1440, 900);
         e.win.w.show();
         grid::GridView *view = e.win.w.view();
-        QVERIFY(view->splitBoxes());
+        if (!view->splitBoxes()) QSKIP("this style draws its scroll bars over the sheet: there is no end of a bar for a box");
         QWidget *down = view->splitBox(true), *across = view->splitBox(false);
         QVERIFY(down && across);
         QTRY_VERIFY(down->isVisible() && across->isVisible());

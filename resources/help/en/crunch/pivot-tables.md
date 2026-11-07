@@ -161,7 +161,7 @@ A calculated item is an item you make from other items of the same field. For ex
 
 Click a cell in the pivot table, and choose **Calculated Item** on the **Pivot Table** tab. Pick the **Field**. It must be in the rows or the columns. Type a **Name** and a **Formula**. Write an item's name in the formula, or double-click it in the **Items** list to put it there. Put a name that has spaces in single quotes, as in `='Big East'+West`. You can use numbers, `+ - * / ^ %`, and brackets.
 
-The new item gets a line in the report. In each column, it shows the formula worked out from the lines of the items it names. The grand totals and the subtotals are those of the rows of the list, so the new item is not counted in them twice. If an item the formula names is hidden, the cell shows **#REF!**. If the formula names an item that is not there, the cell shows **#NAME?**.
+The new item gets a line in the report. In each column, it shows the formula worked out from the lines of the items it names. The new item counts in the totals. A total of sums, such as a grand total or a subtotal, adds the line of the new item to the lines of the other items. So with East at 35, West at 14, and Both (East plus West) at 49, the grand total is 98. If an item the formula names is hidden, the cell shows **#REF!**. If the formula names an item that is not there, the cell shows **#NAME?**.
 
 To change an item, pick its name in the **Name** box. Its formula shows. Change it and choose **Modify**. **Delete** takes the item and its line away. Each is one step of **Undo**. A calculated item is saved with the file and is kept when the report is refreshed. Two pivot tables made from the same data can't have one, because a calculated item is a part of the data they share.
 
@@ -169,7 +169,7 @@ To change an item, pick its name in the **Name** box. Its formula shows. Change 
 
 Sometimes one cell has two calculated items. One is in its row and the other is in its column. The order in which they are worked out can change the answer. Say the row item is `=East-West` and the column item is `=Jan+1`. Worked out in one order, the cell is (East - West) + 1. In the other order, it is (East + 1) - (West + 1), which is a different number.
 
-**Solve Order** on the **Pivot Table** tab lists each calculated item with a number. The item with the higher number is worked out last. Pick an item in the list and change its number in the **Solve order** box. The numbers are saved with the file. **List Formulas** shows them next to each item's formula.
+**Solve Order** on the **Pivot Table** tab lists the calculated items in the order they are worked out. The item lower in the list is worked out last. Choose an item and click **Move Up** or **Move Down**. The order is saved with the file as the order of the items, and other programs read it the same way. **List Formulas** shows each item's place in it.
 
 ## Show the rows behind a value
 

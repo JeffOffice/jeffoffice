@@ -422,6 +422,8 @@ public:
     PivotBook &pivots() const;
     // The slicers' and timelines' caches the workbook names (as the file has them), and the slicers or timelines a sheet has (by the sheet's relationships), each part read once.
     QVector<SlicerCache> slicerCaches() const;
+    // An item of a pivot cache's field was taken away (a calculated item): the slicers that read the field count their items again (those after it are one place nearer the first).
+    void slicerItemRemoved(int pivotCache, int field, qint32 item);
     QVector<SlicerView> slicerViews(int sheet) const;
     // The slicer parts this session has written with a choice of their own: they are looked at again at each save (Undo may bring the table back to what the file had before).
     QSet<QString> &slicerPartsWritten() const { return m_slicerPartsWritten; }

@@ -293,10 +293,14 @@ QByteArray writePivotCacheDefinition(const QByteArray &original, const PivotCach
     if (!fields.isNull()) root.replaceChild(made, fields);
     else root.insertAfter(made, source);
     // the calculated items (after cacheFields and the elements that follow it before them in the schema)
-    for (QDomElement old = childNamed(root, QStringLiteral("calculatedItems")); !old.isNull(); old = childNamed(root, QStringLiteral("calculatedItems"))) root.removeChild(old);
+    // (what the file has stays as it is unless the items were changed here: an item this program could not read is not lost by a save)
     QDomElement calcs = doc.createElement(QStringLiteral("calculatedItems"));
     int written = 0;
-    for (const PivotCalcItem &c : cache.calcItems) {
+    // (the file's order of the items is the order they are worked out in)
+    QVector<PivotCalcItem> ordered = cache.calcItems;
+    std::stable_sort(ordered.begin(), ordered.end(), [](const PivotCalcItem &a, const PivotCalcItem &b) { return a.solveOrder < b.solveOrder; });
+    for (const PivotCalcItem &c : ordered) {
+        if (!cache.calcItemsEdited) break;
         int f = -1, x = -1;
         for (int i = 0; i < cache.fields.size() && f < 0; ++i)
             if (cache.fields[i].name == c.field) f = i;
@@ -323,18 +327,11 @@ QByteArray writePivotCacheDefinition(const QByteArray &original, const PivotCach
         refs.appendChild(ref);
         area.appendChild(refs);
         item.appendChild(area);
-        // (the schema has no word for the order in which items are worked out: it is kept in an extension that other programs pass over)
-        QDomElement list = doc.createElement(QStringLiteral("extLst"));
-        QDomElement ext = doc.createElement(QStringLiteral("ext"));
-        ext.setAttribute(QStringLiteral("uri"), QStringLiteral("{3B0E6D52-6C1D-4B52-9D76-0F0C3E1B7A41}"));
-        ext.setAttribute(QStringLiteral("xmlns:jc"), QStringLiteral("urn:jeffcrunch:pivot"));
-        QDomElement so = doc.createElement(QStringLiteral("jc:solveOrder"));
-        so.setAttribute(QStringLiteral("v"), QString::number(c.solveOrder));
-        ext.appendChild(so);
-        list.appendChild(ext);
-        item.appendChild(list);
         calcs.appendChild(item);
         ++written;
+    }
+    if (cache.calcItemsEdited) {
+        for (QDomElement old = childNamed(root, QStringLiteral("calculatedItems")); !old.isNull(); old = childNamed(root, QStringLiteral("calculatedItems"))) root.removeChild(old);
     }
     if (written > 0) {
         calcs.setAttribute(QStringLiteral("count"), QString::number(written));

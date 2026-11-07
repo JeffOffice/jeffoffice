@@ -158,6 +158,8 @@ bool buildPivotCache(const PivotSource &src, const PivotCache &prev, PivotCache 
         if (p >= 0)
             for (const PivotCalcItem &ci : prev.calcItems)
                 if (ci.field == prev.fields[p].name) {
+                    // (a value in the data that the item is named for would be taken for it: the data is not read again until one of them is renamed)
+                    if (dist.texts.constFind(ci.name.toCaseFolded()) != dist.texts.constEnd()) return fail(QStringLiteral("a value of \"%1\" has the same name as the calculated item \"%2\"").arg(prev.fields[p].name, ci.name));
                     PivotValue v;
                     v.kind = PivotValue::Text;
                     v.text = ci.name;
@@ -204,6 +206,7 @@ bool buildPivotCache(const PivotSource &src, const PivotCache &prev, PivotCache 
         pf.records.resize(temp.size());
         for (qsizetype i = 0; i < temp.size(); ++i) pf.records[i] = newId[temp[i]];
     }
+    out->calcItemsEdited = !prev.calcItems.isEmpty();   // (the items are written again: the places of the shared items may have moved)
     for (const PivotCalcItem &ci : prev.calcItems)
         for (int f = 0; f < nCols; ++f)
             if (out->fromField[f] >= 0 && prev.fields[out->fromField[f]].name == ci.field) {

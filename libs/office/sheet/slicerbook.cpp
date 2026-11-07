@@ -20,6 +20,25 @@ int slicerPartsParsed()
     return gParsed.load();
 }
 
+void Workbook::slicerItemRemoved(int pivotCache, int field, qint32 item)
+{
+    slicerCaches();   // (read, if they have not been)
+    for (SlicerCache &sc : m_slicerCaches) {
+        if (sc.timeline) continue;
+        bool mine = false;
+        for (const auto &t : slicerTargets(*this, sc))
+            if (pivots().table(t.first).cache == pivotCache && t.second == field) mine = true;
+        if (!mine) continue;
+        QVector<SlicerItem> kept;
+        for (SlicerItem it : sc.items) {
+            if (it.x == item) continue;
+            if (it.x > item) --it.x;
+            kept.append(it);
+        }
+        sc.items = kept;
+    }
+}
+
 QVector<SlicerCache> Workbook::slicerCaches() const
 {
     if (m_slicerCachesRead) return m_slicerCaches;

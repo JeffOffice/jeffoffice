@@ -13,7 +13,6 @@ class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
-class QSpinBox;
 class QListWidget;
 class QListWidgetItem;
 class QToolButton;
@@ -156,7 +155,7 @@ private:
     QPushButton *m_add = nullptr, *m_delete = nullptr;
 };
 
-// What Solve Order asks: each calculated item (its field and name) and the order it is worked out in; an item of a higher order is worked out after those of a lower one.
+// What Solve Order asks: each calculated item (its field and name) and the order it is worked out in; an item of a higher number is worked out after those of a lower one. The dialog puts them in a list and gives the numbers 1, 2, 3 from the list's order.
 struct SolveOrderChoice {
     QStringList fields, names;
     QVector<int> orders;
@@ -171,7 +170,7 @@ public:
 private:
     SolveOrderChoice m_choice;
     QListWidget *m_list = nullptr;
-    QSpinBox *m_order = nullptr;
+    QVector<int> m_order;   // the items (their places in the choice) in the order they are worked out in
 };
 
 // What Pivot Table Options sets: the name, how labels, errors, and empty cells show, the grand totals, what a refresh keeps, and whether the data is read again when the file opens.

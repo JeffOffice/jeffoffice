@@ -1482,6 +1482,7 @@ EditSession::Outcome EditSession::setPivotCalculatedItem(int table, int field, c
     ch.table = table;
     ch.now = std::make_shared<PivotTable>(old);
     PivotTable &t = *ch.now;
+    cache->calcItemsEdited = true;
     if (calcAt >= 0) {
         cache->calcItems[calcAt].formula = text;
     } else {
@@ -1507,7 +1508,7 @@ EditSession::Outcome EditSession::setPivotCalculatedItem(int table, int field, c
         pf.items.insert(at, item);
         pf.hasItems = true;
         int top = 0;
-        for (const PivotCalcItem &c : cache->calcItems) top = std::max(top, c.solveOrder);
+        for (const PivotCalcItem &c : cache->calcItems) top = std::max(top, std::min(c.solveOrder, 99999));
         PivotCalcItem made;
         made.field = cf.name;
         made.name = use;
@@ -1554,7 +1555,10 @@ EditSession::Outcome EditSession::deletePivotCalculatedItem(int table, int field
         const auto p = jp::office::sheet::PivotFormula::parse(ce.cache->calcItems[k].formula, nullptr);
         if (p && p->names().contains(gone, Qt::CaseInsensitive)) return refuse(tr("The calculated item \"%1\" uses this one. Delete or change it first.").arg(ce.cache->calcItems[k].name));
     }
+    for (qint32 r : cf0.records)
+        if (r == x) return refuse(tr("A record of the data has this item, so it can't be taken away."));   // (a calculated item has none; a file may say otherwise)
     auto cache = std::make_shared<PivotCache>(*ce.cache);
+    cache->calcItemsEdited = true;
     cache->calcItems.removeAt(calcAt);
     PivotCacheField &cf = cache->fields[field];
     cf.items.removeAt(x);
@@ -1583,7 +1587,10 @@ EditSession::Outcome EditSession::deletePivotCalculatedItem(int table, int field
     ch.source = ce.source;
     ch.sourceSheet = ce.sourceSheet;
     ch.sourceName = ce.sourceName;
-    return pivotStep({ch}, tr("Delete Calculated Item"));
+    const Outcome done = pivotStep({ch}, tr("Delete Calculated Item"));
+    // (a slicer that was read from the file counts the items by their places: those after the one taken away moved up by one)
+    if (done.ok) m_book->book->slicerItemRemoved(ci, field, x);
+    return done;
 }
 
 EditSession::Outcome EditSession::setPivotSolveOrders(int table, const QStringList &fields, const QStringList &names, const QVector<int> &orders)
@@ -1601,6 +1608,7 @@ EditSession::Outcome EditSession::setPivotSolveOrders(int table, const QStringLi
     const PivotCacheEntry &ce = pb.cache(ci);
     if (fields.size() != names.size() || names.size() != orders.size()) return refuse(tr("This is not a calculated item."));
     auto cache = std::make_shared<PivotCache>(*ce.cache);
+    cache->calcItemsEdited = true;
     bool changed = false;
     for (int i = 0; i < names.size(); ++i) {
         bool found = false;

@@ -12,6 +12,7 @@
 #include "grid/textwalk.h"
 
 #include <QAbstractScrollArea>
+#include <QPointer>
 #include <QInputMethodEvent>
 #include <QElapsedTimer>
 #include <QTimer>
@@ -111,7 +112,7 @@ public:
     // mouse; there are none until asked for. A bar made by a box is moved by its box or by the bar itself, and taken away by a double click on the bar.
     void setSplitBoxes(bool on);
     bool splitBoxes() const { return m_splitBoxes; }
-    QWidget *splitBox(bool rows) const { return rows ? m_boxRows : m_boxCols; }
+    QWidget *splitBox(bool rows) const { return rows ? m_boxRows.data() : m_boxCols.data(); }   // (null when there are none, or a style draws its scroll bars over the sheet and has no place for them)
     void splitBoxPress(bool rows);
     void splitBoxMove(bool rows, const QPoint &viewportPos);   // (the pointer, in the view's own coordinates)
     void splitBoxRelease();
@@ -507,7 +508,7 @@ private:
     GridOverlay *m_overlay = nullptr;
     bool m_cellsEnabled = true;
     bool m_splitBoxes = false;
-    QWidget *m_boxRows = nullptr, *m_boxCols = nullptr;
+    QPointer<QWidget> m_boxRows, m_boxCols;   // (children of the scroll bars' containers: they go if a container does)
     void moveSplitBar(const QPoint &lp);
     bool m_dragEditing = true;
     std::vector<PageBreakLine> m_breakRows, m_breakCols;

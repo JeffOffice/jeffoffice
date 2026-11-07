@@ -258,6 +258,7 @@ bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp:
         if (v.kind != PivotValue::Text || v.text.isEmpty()) continue;
         c.field = out->fields[f].name;
         c.name = v.text;
+        c.solveOrder = int(items.size()) + 1;   // (the order of the elements is the order the items are worked out in)
         items.append(c);
     }
     out->calcItems = items;
@@ -281,14 +282,16 @@ bool readPivotCacheCore(const QByteArray &definition, const QByteArray &records,
     bool inShared = false, inGroupItems = false, inDiscrete = false;
     std::vector<PivotIntern> interns;
     PivotCalcItem *calc = nullptr;   // the calculated item being read: its field's place and its item's place are kept as numbers until the fields are all in
-    bool calcNamed = false;
+    bool calcNamed = false, inCalcItems = false;
     qint64 distinct = 0, groupEntries = 0;   // (the items a field's groups name, all the fields together)
     while (!r.atEnd()) {
         const auto tok = r.readNext();
         if (tok == QXmlStreamReader::StartElement) {
             ++depth;
             const QStringView n = r.name();
-            if (n == QLatin1String("calculatedItem") && depth == 3 && out->calcItems.size() < kPivotMaxCalcItems) {
+            if (n == QLatin1String("calculatedItems") && depth == 2) {
+                inCalcItems = true;
+            } else if (n == QLatin1String("calculatedItem") && depth == 3 && inCalcItems && out->calcItems.size() < kPivotMaxCalcItems) {
                 PivotCalcItem item;
                 item.field = r.attributes().value(QLatin1String("field")).toString();
                 item.formula = r.attributes().value(QLatin1String("formula")).toString();
@@ -301,8 +304,6 @@ bool readPivotCacheCore(const QByteArray &definition, const QByteArray &records,
             } else if (calc && n == QLatin1String("x") && depth == 7 && !calcNamed) {
                 calc->name = r.attributes().value(QLatin1String("v")).toString();
                 calcNamed = true;
-            } else if (calc && n == QLatin1String("solveOrder") && depth >= 5) {
-                calc->solveOrder = toInt(r.attributes().value(QLatin1String("v")), calc->solveOrder);
             }
             if (depth == 1) {
                 if (n != QLatin1String("pivotCacheDefinition")) return fail(QStringLiteral("not a pivot cache definition"));
@@ -396,7 +397,9 @@ bool readPivotCacheCore(const QByteArray &definition, const QByteArray &records,
                 g.labels.append(v.kind == PivotValue::Text || v.kind == PivotValue::Error ? v.text : v.kind == PivotValue::Missing ? QString() : QString::number(v.number, 'g', 15));
             }
         } else if (tok == QXmlStreamReader::EndElement) {
-            if (r.name() == QLatin1String("calculatedItem") && depth == 3) {
+            if (r.name() == QLatin1String("calculatedItems") && depth == 2) {
+                inCalcItems = false;
+            } else if (r.name() == QLatin1String("calculatedItem") && depth == 3) {
                 calc = nullptr;
             } else if (r.name() == QLatin1String("sharedItems") && depth == 4) {
                 inShared = false;

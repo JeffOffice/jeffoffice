@@ -13,7 +13,7 @@
 #include <QListWidget>
 #include <QMenu>
 #include <QPushButton>
-#include <QSpinBox>
+#include <QHBoxLayout>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -635,36 +635,44 @@ SolveOrderDialog::SolveOrderDialog(const SolveOrderChoice &c, QWidget *parent) :
     setWindowTitle(tr("Solve Order"));
     setObjectName(QStringLiteral("solveOrderDialog"));
     auto *layout = new QVBoxLayout(this);
-    layout->addWidget(new QLabel(tr("When a cell has two calculated items, the one of the higher number is worked out last."), this));
+    layout->addWidget(new QLabel(tr("When a cell has two calculated items, the one lower in the list is worked out last. Choose an item and move it up or down."), this));
+    // (the items in the order they are worked out in: by their numbers, and for the same number the one made first)
+    for (int i = 0; i < m_choice.names.size(); ++i) m_order.append(i);
+    std::stable_sort(m_order.begin(), m_order.end(), [&](int a, int b) { return m_choice.orders[a] < m_choice.orders[b]; });
     m_list = new QListWidget(this);
     m_list->setObjectName(QStringLiteral("solveOrder.list"));
     m_list->setAccessibleName(tr("Calculated items"));
     layout->addWidget(m_list);
-    auto *form = new QFormLayout;
-    m_order = new QSpinBox(this);
-    m_order->setObjectName(QStringLiteral("solveOrder.order"));
-    m_order->setAccessibleName(tr("Solve order"));
-    m_order->setRange(1, 100000);
-    form->addRow(tr("Solve order:"), m_order);
-    layout->addLayout(form);
+    auto *buttons = new QHBoxLayout;
+    auto *up = new QPushButton(tr("Move Up"), this);
+    up->setObjectName(QStringLiteral("solveOrder.up"));
+    auto *down = new QPushButton(tr("Move Down"), this);
+    down->setObjectName(QStringLiteral("solveOrder.down"));
+    buttons->addWidget(up);
+    buttons->addWidget(down);
+    buttons->addStretch(1);
+    layout->addLayout(buttons);
     auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     layout->addWidget(box);
-    auto label = [this](int i) { return tr("%1: %2 (%3)").arg(m_choice.fields[i], m_choice.names[i]).arg(m_choice.orders[i]); };
-    for (int i = 0; i < m_choice.names.size(); ++i) m_list->addItem(label(i));
-    connect(m_list, &QListWidget::currentRowChanged, this, [this](int row) {
-        m_order->setEnabled(row >= 0);
-        if (row >= 0 && row < m_choice.orders.size()) m_order->setValue(m_choice.orders[row]);
+    auto fill = [this](int select) {
+        m_list->clear();
+        for (int k = 0; k < m_order.size(); ++k) m_list->addItem(tr("%1. %2: %3").arg(k + 1).arg(m_choice.fields[m_order[k]], m_choice.names[m_order[k]]));
+        m_list->setCurrentRow(select);
+    };
+    auto move = [this, fill](int by) {
+        const int row = m_list->currentRow(), to = row + by;
+        if (row < 0 || to < 0 || to >= m_order.size()) return;
+        std::swap(m_order[row], m_order[to]);
+        fill(to);
+    };
+    connect(up, &QPushButton::clicked, this, [move] { move(-1); });
+    connect(down, &QPushButton::clicked, this, [move] { move(1); });
+    connect(box, &QDialogButtonBox::accepted, this, [this] {
+        for (int k = 0; k < m_order.size(); ++k) m_choice.orders[m_order[k]] = k + 1;
+        accept();
     });
-    connect(m_order, qOverload<int>(&QSpinBox::valueChanged), this, [this, label](int v) {
-        const int row = m_list->currentRow();
-        if (row < 0 || row >= m_choice.orders.size()) return;
-        m_choice.orders[row] = v;
-        m_list->item(row)->setText(label(row));
-    });
-    connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    m_order->setEnabled(false);
-    if (m_list->count() > 0) m_list->setCurrentRow(0);
+    fill(m_order.isEmpty() ? -1 : 0);
 }
 
 // ---------------------------------------------------------------- Pivot Table Options

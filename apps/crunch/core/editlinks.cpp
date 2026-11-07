@@ -7,6 +7,7 @@
 #include "sheet/sheetreader.h"
 
 #include <QFileInfo>
+#include <set>
 #include <QRegularExpression>
 #include <QUndoCommand>
 #include <QUrl>
@@ -87,6 +88,22 @@ public:
 private:
     EditSession *m_session;
     bool m_before, m_after;
+};
+
+// That a link's values were read again, for the saver: Undo takes it back to what it was.
+class UpdatedMark : public QUndoCommand {
+public:
+    UpdatedMark(std::set<int> *marks, int index, bool was) : m_marks(marks), m_index(index), m_was(was) {}
+    void redo() override { m_marks->insert(m_index); }
+    void undo() override
+    {
+        if (!m_was) m_marks->erase(m_index);
+    }
+
+private:
+    std::set<int> *m_marks;
+    int m_index;
+    bool m_was;
 };
 
 // The address a file on this computer is written as in a link.
@@ -290,8 +307,10 @@ EditSession::Outcome EditSession::updateExternalValues(int index, const QString 
         result->cut = cut;
     }
     if (step.cells.empty()) return out;
-    m_externalUpdated.insert(index);
+    m_undo.beginMacro(tr("Update Values"));
     pushStep(std::move(step), tr("Update Values"));
+    m_undo.push(new UpdatedMark(&m_externalUpdated, index, m_externalUpdated.count(index) > 0));
+    m_undo.endMacro();
     return out;
 }
 
@@ -317,6 +336,9 @@ EditSession::Outcome EditSession::breakExternalLinks(int *cells, int *names, int
     QVector<int> nameIds;
     for (int id = 0; id < m_nameTable.slots(); ++id)
         if (nameListed(id) && readsAnotherWorkbook(nameTextOf(id), only)) nameIds.append(id);
+    // (no link at all, or nothing that reads the one asked for and none to leave out of the file: nothing is done, and nothing is a step of Undo)
+    const bool leaveOut = !m_dropExternalLinks && !externalLinkSources().empty() && (only == 0 || externalLinkCells() - int(places.size()) <= 0);
+    if (places.empty() && nameIds.isEmpty() && !leaveOut) return out;
     // (one step of Undo: the cells, the names, and the links that are left out of the file)
     m_undo.beginMacro(tr("Break Link"));
     int done = 0, left = 0;

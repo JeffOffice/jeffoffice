@@ -1,5 +1,6 @@
 // What a save keeps (the keep-on-save audit of the beta): every part of a workbook that JeffCrunch does not edit is written back as it was, byte for byte, and the sheet that was edited
 // keeps all that is not a cell. Each kind of part is tried in a workbook made here, with a cell edited elsewhere; a macro project is kept as a macro project is.
+#include "findbooks.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/editlinksdialog.h"
@@ -9,7 +10,6 @@
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "editwindow.h"
-#include "findbooks.h"
 #include "io/cfb.h"
 #include "office/package.h"
 #include "sheet/sheetreader.h"
@@ -444,6 +444,117 @@ private Q_SLOTS:
         QVERIFY(again.settle());
         QCOMPARE(again.valueAt(QStringLiteral("A6")), QStringLiteral("n:7"));
         QCOMPARE(int(again.win.w.session()->externalLinkSources().size()), 1);
+    }
+
+    // Undo of Update Values takes the link back to what it was: nothing of it is written to the link's part at the next save, and Redo marks it again.
+    void undoOfUpdateValuesTakesTheLinkBackToWhatItWas()
+    {
+        const QByteArray book = repack(externalLinkBook(), [](Parts &p) {
+            p[QStringLiteral("xl/externalLinks/externalLink1.xml")].replace("<sheetName val=\"Prices\"/>", "<sheetName val=\"Sheet1\"/>");
+            p[kSheet].replace("[1]Prices!A1*2", "[1]Sheet1!A1*2");
+            p[kSheet].replace("</row></sheetData>", "</row><row r=\"6\"><c r=\"A6\"><f>[1]Sheet1!A1</f><v>42</v></c></row></sheetData>");
+        });
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString source = QDir(dir.path()).absoluteFilePath(QStringLiteral("prices.xlsx"));
+        {
+            QFile f(source);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(bookOfSheets({{"A1=7", "A2=hello"}}));
+        }
+        EditWindow e;
+        QVERIFY(e.open(book, QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->externalCachedValues().empty());
+        QVERIFY(s->updateExternalValues(1, source).ok);
+        QVERIFY(!s->externalCachedValues().empty());
+        QCOMPARE(s->undoStack()->undoText(), QStringLiteral("Update Values"));
+        s->undoStack()->undo();
+        QVERIFY(e.settle());
+        QVERIFY(s->externalCachedValues().empty());
+        s->undoStack()->redo();
+        QVERIFY(!s->externalCachedValues().empty());
+    }
+
+    // The values of cells that the link's part did not list are put in order (rows, then cells in a row), and a part that has no sheetDataSet gets one before an extension list.
+    void updatedValuesAreWrittenInTheOrderOfThePartAndBeforeItsExtensions()
+    {
+        const QByteArray book = repack(externalLinkBook(), [](Parts &p) {
+            QByteArray &link = p[QStringLiteral("xl/externalLinks/externalLink1.xml")];
+            link.replace("<sheetName val=\"Prices\"/>", "<sheetName val=\"Sheet1\"/>");
+            link.replace(link.indexOf("<sheetDataSet>"), link.indexOf("</sheetDataSet>") + 15 - link.indexOf("<sheetDataSet>"), "<extLst/>");
+            p[kSheet].replace("[1]Prices!A1*2", "[1]Sheet1!A1*2");
+            p[kSheet].replace("</row></sheetData>", "</row><row r=\"6\"><c r=\"A6\"><f>[1]Sheet1!B3</f><v>0</v></c></row><row r=\"7\"><c r=\"A7\"><f>[1]Sheet1!A1</f><v>0</v></c></row></sheetData>");
+        });
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString source = QDir(dir.path()).absoluteFilePath(QStringLiteral("prices.xlsx"));
+        {
+            QFile f(source);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(bookOfSheets({{"A1=7", "B3=9"}}));
+        }
+        EditWindow e;
+        QVERIFY(e.open(book, QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.session()->updateExternalValues(1, source).ok);
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        Parts now;
+        readZip(f.readAll(), now);
+        const QByteArray part = now.value(QStringLiteral("xl/externalLinks/externalLink1.xml"));
+        QVERIFY2(part.indexOf("<sheetDataSet") > 0 && part.indexOf("<sheetDataSet") < part.indexOf("<extLst"), part.constData());
+        QVERIFY2(part.indexOf("r=\"A1\"") > 0 && part.indexOf("r=\"A1\"") < part.indexOf("r=\"B3\""), part.constData());
+        QVERIFY2(part.indexOf("<row r=\"1\"") < part.indexOf("<row r=\"3\""), part.constData());
+        QVERIFY2(part.contains("<v>9</v>") && part.contains("<v>7</v>"), part.constData());
+    }
+
+    // Break Link with nothing to break (no link in the workbook, or none that anything reads, of the number asked for) does nothing: no step of Undo, and the links are not marked to leave out.
+    void breakLinkWithNothingToBreakDoesNothing()
+    {
+        EditWindow none;
+        QVERIFY(none.open(editBook(), QStringLiteral("none.xlsx")));
+        QVERIFY(none.settle());
+        crunch::EditSession *s = none.win.w.session();
+        int steps = s->undoStack()->count();
+        QVERIFY(s->breakExternalLinks(nullptr, nullptr, 0).ok);
+        QCOMPARE(s->undoStack()->count(), steps);
+        QVERIFY(!s->externalLinksDropped());
+        EditWindow some;
+        QVERIFY(some.open(externalLinkBook(), QStringLiteral("some.xlsx")));
+        QVERIFY(some.settle());
+        s = some.win.w.session();
+        steps = s->undoStack()->count();
+        QVERIFY(s->breakExternalLinks(nullptr, nullptr, 2).ok);   // (there is no second link)
+        QCOMPARE(s->undoStack()->count(), steps);
+        QVERIFY(!s->externalLinksDropped());
+        QCOMPARE(s->editText(0, 4, 0), QStringLiteral("=[1]Prices!A1*2"));
+    }
+
+    // A save that was started before Break Link was undone took the links out: its own snapshot says so, and the steps are let go of whatever the flag is when the save is finished.
+    void anUndoOfBreakLinkDuringASaveStillLetsGoOfTheSteps()
+    {
+        EditWindow e;
+        QVERIFY(e.open(externalLinkBook(), QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->insertRows(0, 10, 1).ok);   // (a step before the break)
+        QVERIFY(s->breakExternalLinks(nullptr, nullptr, 0).ok);
+        QVERIFY(s->externalLinksDropped());
+        crunch::EditSession::Snapshot snapshot;
+        QString why;
+        QVERIFY2(s->takeSnapshot(&snapshot, &why), qPrintable(why));
+        QVERIFY(snapshot.changes.dropExternalLinks);
+        s->undoStack()->undo();   // (while the file is being written)
+        QVERIFY(!s->externalLinksDropped());
+        QVERIFY(s->canUndo());
+        s->saved(snapshot, s->workbook()->package());
+        QVERIFY2(!s->canUndo(), "the file has no links to go back to");
     }
 
     // Break Link is one step of Undo: the cells that read the sources are their values, the names are #REF!, and the links are left out of the file; Undo brings all of that back. After a save

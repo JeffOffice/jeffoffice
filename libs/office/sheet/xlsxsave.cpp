@@ -26,6 +26,8 @@
 #include <QSet>
 
 #include <algorithm>
+#include <map>
+#include <tuple>
 
 namespace jp::office::sheet {
 
@@ -60,10 +62,31 @@ bool patchExternalLinkValues(const QByteArray &xml, const std::vector<SaveChange
     QDomElement set = child(book, "sheetDataSet");
     if (set.isNull()) {
         set = doc.createElement(prefix + QStringLiteral("sheetDataSet"));
-        book.appendChild(set);   // (the last of the book's children but an extension: sheetNames and definedNames come before)
+        // (the schema has the set after sheetNames and definedNames, and before an extension list)
+        const QDomElement ext = child(book, "extLst");
+        if (ext.isNull()) book.appendChild(set);
+        else book.insertBefore(set, ext);
+    }
+    // what the part has, found once: each sheet's data, each row, and each cell, by their places (a cell is put in order among those of its row)
+    QHash<QString, int> idOfName;
+    for (int i = 0; i < sheetNames.size(); ++i) idOfName.insert(sheetNames[i].toCaseFolded(), i);
+    std::map<int, QDomElement> datas;
+    std::map<std::pair<int, quint32>, QDomElement> rows;
+    std::map<std::tuple<int, quint32, quint32>, QDomElement> cellsAt;
+    for (QDomElement d = set.firstChildElement(); !d.isNull(); d = d.nextSiblingElement()) {
+        const int id = d.attribute(QStringLiteral("sheetId")).toInt();
+        datas[id] = d;
+        for (QDomElement r = d.firstChildElement(); !r.isNull(); r = r.nextSiblingElement()) {
+            const quint32 rn = r.attribute(QStringLiteral("r")).toUInt();
+            rows[{id, rn}] = r;
+            for (QDomElement e = r.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
+                quint32 rr = 0, cl = 0;
+                if (parseCellRef(e.attribute(QStringLiteral("r")), &rr, &cl)) cellsAt[{id, rn, cl}] = e;
+            }
+        }
     }
     for (const SaveChanges::ExternalCachedCell &c : cells) {
-        int id = int(sheetNames.indexOf(QRegularExpression(QStringLiteral("^") + QRegularExpression::escape(c.sheet) + QStringLiteral("$"), QRegularExpression::CaseInsensitiveOption)));
+        int id = idOfName.value(c.sheet.toCaseFolded(), -1);
         if (id < 0) {
             // (a sheet the formulas name that the link does not list is added at the end of the list: the places of the others stay)
             if (sheetNames.size() >= 10000) continue;
@@ -72,46 +95,39 @@ bool patchExternalLinkValues(const QByteArray &xml, const std::vector<SaveChange
             names.appendChild(added);
             sheetNames << c.sheet;
             id = int(sheetNames.size()) - 1;
+            idOfName.insert(c.sheet.toCaseFolded(), id);
         }
-        QDomElement data;
-        for (QDomElement e = set.firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
-            if (e.attribute(QStringLiteral("sheetId")).toInt() == id) data = e;
-        if (data.isNull()) {
-            data = doc.createElement(prefix + QStringLiteral("sheetData"));
+        auto dataIt = datas.find(id);
+        if (dataIt == datas.end()) {
+            QDomElement data = doc.createElement(prefix + QStringLiteral("sheetData"));
             data.setAttribute(QStringLiteral("sheetId"), QString::number(id));
-            QDomNode before;
-            for (QDomElement e = set.firstChildElement(); !e.isNull() && before.isNull(); e = e.nextSiblingElement())
-                if (e.attribute(QStringLiteral("sheetId")).toInt() > id) before = e;
-            if (before.isNull()) set.appendChild(data);
-            else set.insertBefore(data, before);
+            const auto next = datas.upper_bound(id);
+            if (next == datas.end()) set.appendChild(data);
+            else set.insertBefore(data, next->second);
+            dataIt = datas.emplace(id, data).first;
         }
-        QDomElement row;
-        for (QDomElement e = data.firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
-            if (e.attribute(QStringLiteral("r")).toUInt() == c.row + 1) row = e;
-        if (row.isNull()) {
-            row = doc.createElement(prefix + QStringLiteral("row"));
-            row.setAttribute(QStringLiteral("r"), QString::number(qulonglong(c.row) + 1));
-            QDomNode before;
-            for (QDomElement e = data.firstChildElement(); !e.isNull() && before.isNull(); e = e.nextSiblingElement())
-                if (e.attribute(QStringLiteral("r")).toUInt() > c.row + 1) before = e;
-            if (before.isNull()) data.appendChild(row);
-            else data.insertBefore(row, before);
+        QDomElement data = dataIt->second;
+        const quint32 rn = c.row + 1;
+        auto rowIt = rows.find({id, rn});
+        if (rowIt == rows.end()) {
+            QDomElement row = doc.createElement(prefix + QStringLiteral("row"));
+            row.setAttribute(QStringLiteral("r"), QString::number(rn));
+            const auto next = rows.upper_bound({id, rn});
+            if (next == rows.end() || next->first.first != id) data.appendChild(row);
+            else data.insertBefore(row, next->second);
+            rowIt = rows.emplace(std::make_pair(id, rn), row).first;
         }
-        const QString ref = cellName(c.row, c.col);
-        QDomElement cell;
-        QDomNode before;
-        for (QDomElement e = row.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
-            quint32 r = 0, cl = 0;
-            if (!parseCellRef(e.attribute(QStringLiteral("r")), &r, &cl)) continue;
-            if (cl == c.col) cell = e;
-            else if (cl > c.col && before.isNull()) before = e;
+        QDomElement row = rowIt->second;
+        auto cellIt = cellsAt.find({id, rn, c.col});
+        if (cellIt == cellsAt.end()) {
+            QDomElement cell = doc.createElement(prefix + QStringLiteral("cell"));
+            cell.setAttribute(QStringLiteral("r"), cellName(c.row, c.col));
+            const auto next = cellsAt.upper_bound({id, rn, c.col});
+            if (next == cellsAt.end() || std::get<0>(next->first) != id || std::get<1>(next->first) != rn) row.appendChild(cell);
+            else row.insertBefore(cell, next->second);
+            cellIt = cellsAt.emplace(std::make_tuple(id, rn, c.col), cell).first;
         }
-        if (cell.isNull()) {
-            cell = doc.createElement(prefix + QStringLiteral("cell"));
-            cell.setAttribute(QStringLiteral("r"), ref);
-            if (before.isNull()) row.appendChild(cell);
-            else row.insertBefore(cell, before);
-        }
+        QDomElement cell = cellIt->second;
         while (cell.hasChildNodes()) cell.removeChild(cell.firstChild());
         const char *type = c.kind == 's' ? "str" : c.kind == 'b' ? "b" : c.kind == 'e' ? "e" : "n";
         if (c.kind == 'n') cell.removeAttribute(QStringLiteral("t"));
