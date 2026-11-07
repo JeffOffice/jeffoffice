@@ -831,6 +831,7 @@ private Q_SLOTS:
     {
         Worked w = work(calcItemTable(), calcItemDefinition(QStringLiteral("East+West")));
         QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(w.cache.calcItems.size(), 1);
         w.cache.calcItems[0].solveOrder = 7;
         const QByteArray written = writePivotCacheDefinition(calcItemDefinition(QStringLiteral("East+West")), w.cache, 6, 45000, DateSystem::Date1900);
         QVERIFY2(written.contains("<calculatedItems count=\"1\"><calculatedItem field=\"0\" formula=\"East+West\">"), written.constData());

@@ -1,10 +1,9 @@
 // The split boxes of a grid: a small box at the top of the vertical scroll bar and at the left end of the horizontal one. Dragging one makes the bar that cuts the rows (or the columns), or moves it.
 #include "grid/gridview.h"
 
-#include <QApplication>
+#include <QBoxLayout>
 #include <QMouseEvent>
 #include <QPainter>
-#include <QResizeEvent>
 #include <QScrollBar>
 
 #include <algorithm>
@@ -67,85 +66,29 @@ private:
 void GridView::setSplitBoxes(bool on)
 {
     if (m_splitBoxes == on) return;
-    m_splitBoxes = on;
     if (on) {
+        // (the area keeps each scroll bar in a container of its own with a box layout of one item: a box put in that layout takes the end of the bar, and goes with the bar when it is hidden)
+        auto *rowsLayout = qobject_cast<QBoxLayout *>(verticalScrollBar()->parentWidget() ? verticalScrollBar()->parentWidget()->layout() : nullptr);
+        auto *colsLayout = qobject_cast<QBoxLayout *>(horizontalScrollBar()->parentWidget() ? horizontalScrollBar()->parentWidget()->layout() : nullptr);
+        if (!rowsLayout || !colsLayout) return;
         m_boxRows = new SplitBox(this, true);
         m_boxCols = new SplitBox(this, false);
+        m_boxRows->setParent(verticalScrollBar()->parentWidget());
+        m_boxCols->setParent(horizontalScrollBar()->parentWidget());
+        m_boxRows->setFixedHeight(kBox);
+        m_boxCols->setFixedWidth(kBox);
         m_boxRows->setToolTip(tr("Drag down to split the view into top and bottom parts"));
         m_boxCols->setToolTip(tr("Drag right to split the view into left and right parts"));
-        m_boxRows->hide();
-        m_boxCols->hide();
-        verticalScrollBar()->installEventFilter(this);
-        horizontalScrollBar()->installEventFilter(this);
-        placeSplitBoxes();
+        rowsLayout->insertWidget(0, m_boxRows);
+        colsLayout->insertWidget(0, m_boxCols);
+        m_boxRows->show();
+        m_boxCols->show();
     } else {
-        verticalScrollBar()->removeEventFilter(this);
-        horizontalScrollBar()->removeEventFilter(this);
-        delete m_boxRows;
+        delete m_boxRows;   // (a widget takes itself out of its layout)
         delete m_boxCols;
         m_boxRows = m_boxCols = nullptr;
-        // (the scroll bars take their whole length again)
-        if (!m_fullRows.isNull() && verticalScrollBar()->geometry().top() == m_fullRows.top() + kBox) verticalScrollBar()->setGeometry(m_fullRows);
-        if (!m_fullCols.isNull() && horizontalScrollBar()->geometry().width() == m_fullCols.width() - kBox) horizontalScrollBar()->setGeometry(m_fullCols);
-        m_fullRows = m_fullCols = QRect();
     }
-}
-
-bool GridView::eventFilter(QObject *watched, QEvent *event)
-{
-    if (m_splitBoxes && (watched == verticalScrollBar() || watched == horizontalScrollBar())) {
-        switch (event->type()) {
-        case QEvent::Resize:
-        case QEvent::Move:
-        case QEvent::Show:
-        case QEvent::Hide: placeSplitBoxes(); break;
-        default: break;
-        }
-    }
-    return QAbstractScrollArea::eventFilter(watched, event);
-}
-
-// Puts each box where its scroll bar begins and shortens the bar by the box. The area lays the bars out itself whenever one comes or goes or the view is resized, so this runs after each of
-// those: a bar that is as this left it (it begins where its box ends) is let be.
-void GridView::placeSplitBoxes()
-{
-    if (!m_splitBoxes || m_placingBoxes || !m_boxRows) return;
-    m_placingBoxes = true;
-    struct Done {
-        bool *flag;
-        ~Done() { *flag = false; }
-    } done{&m_placingBoxes};
-    QScrollBar *v = verticalScrollBar(), *h = horizontalScrollBar();
-    const bool rtl = layoutDirection() == Qt::RightToLeft;
-    {
-        const QRect g = v->geometry();
-        if (v->isHidden() || g.height() < 5 * kBox) {
-            m_boxRows->hide();
-        } else if (g.top() != m_boxRows->y() + kBox || g.left() != m_boxRows->x()) {
-            m_fullRows = g;
-            m_boxRows->setGeometry(g.left(), g.top(), g.width(), kBox);
-            v->setGeometry(g.left(), g.top() + kBox, g.width(), g.height() - kBox);
-            m_boxRows->show();
-            m_boxRows->raise();
-        }
-    }
-    {
-        const QRect g = h->geometry();
-        if (h->isHidden() || g.width() < 5 * kBox) {
-            m_boxCols->hide();
-        } else if (g.top() != m_boxCols->y() || (rtl ? g.right() != m_boxCols->geometry().left() - 1 : g.left() != m_boxCols->x() + kBox)) {
-            m_fullCols = g;
-            if (rtl) {
-                m_boxCols->setGeometry(g.right() - kBox + 1, g.top(), kBox, g.height());
-                h->setGeometry(g.left(), g.top(), g.width() - kBox, g.height());
-            } else {
-                m_boxCols->setGeometry(g.left(), g.top(), kBox, g.height());
-                h->setGeometry(g.left() + kBox, g.top(), g.width() - kBox, g.height());
-            }
-            m_boxCols->show();
-            m_boxCols->raise();
-        }
-    }
+    m_splitBoxes = on;
 }
 
 void GridView::splitBoxPress(bool rows)

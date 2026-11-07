@@ -350,7 +350,6 @@ Q_SIGNALS:
     void printEdgeRequested(int area, int side, qint64 to);
 
 protected:
-    bool eventFilter(QObject *watched, QEvent *event) override;
     void paintEvent(QPaintEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
     void mousePressEvent(QMouseEvent *e) override;
@@ -507,10 +506,8 @@ private:
     std::function<bool(qint64, qint64)> m_pointGuard;
     GridOverlay *m_overlay = nullptr;
     bool m_cellsEnabled = true;
-    bool m_splitBoxes = false, m_placingBoxes = false;
+    bool m_splitBoxes = false;
     QWidget *m_boxRows = nullptr, *m_boxCols = nullptr;
-    QRect m_fullRows, m_fullCols;   // the scroll bars as the area laid them out, before the boxes took their ends
-    void placeSplitBoxes();
     void moveSplitBar(const QPoint &lp);
     bool m_dragEditing = true;
     std::vector<PageBreakLine> m_breakRows, m_breakCols;
