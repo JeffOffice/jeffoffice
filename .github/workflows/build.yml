@@ -177,10 +177,14 @@ jobs:
           CCACHE_BASEDIR: ${{ github.workspace }}
           CCACHE_MAXSIZE: ${{ runner.environment == 'self-hosted' && '20G' || '3G' }}   # (a two-processor Mac build keeps two of everything: about 1.3 GB)
           CCACHE_COMPILERCHECK: content
+          FULL_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.mac_both && 'true' || 'false' }}
         run: |
           if command -v ccache >/dev/null 2>&1; then ccache --zero-stats; fi
           # (our own machine caps the parallel compiles through its runner settings: a compile of every core at once runs out of memory there)
-          cmake --build build --parallel ${CMAKE_BUILD_PARALLEL_LEVEL:-}
+          # A release (started by hand with mac_both on) builds everything; every other run builds only what its part uses (tools/ci_targets.sh).
+          if [ "$FULL_BUILD" = true ]; then TARGETS=""; else TARGETS="--target $(bash tools/ci_targets.sh ${{ matrix.part }} "$RUNNER_OS")"; fi
+          echo "building: ${TARGETS:-everything}"
+          cmake --build build --parallel ${CMAKE_BUILD_PARALLEL_LEVEL:-} $TARGETS
           if command -v ccache >/dev/null 2>&1; then ccache --show-stats; fi
 
       # Programs in the build folder find the GCC runtime through PATH, which can hold another GCC's copy first (the 20261004 runner image crashed in the
@@ -199,7 +203,8 @@ jobs:
         run: |
           # The programs run side by side, longest first, each with its own results file (Windows runners drop their console output)
           # (tools/ci_tests.sh): one after another they took 12 to 17 minutes.
-          bash tools/ci_tests.sh flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests
+          # (the list is the one the Build step builds: tools/ci_targets.sh)
+          bash tools/ci_tests.sh $(bash tools/ci_targets.sh tests)
         env:
           QT_QPA_PLATFORM: offscreen
           JP_TEST_TRACE: '1'
@@ -230,6 +235,7 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then A=build/JeffPub.exe
           elif [ "$RUNNER_OS" = "macOS" ]; then A=build/JeffPub.app/Contents/MacOS/JeffPub
           else A=build/JeffPub; fi
+          test -x "$A" || { echo "$A was not built"; exit 1; }
           mkdir -p pdf-check
           "$A" --template newsletter-classic --export-pdf pdf-check/newsletter-classic.pdf || true
           "$A" --template flyer-announce --export-pdf pdf-check/flyer-announce.pdf || true

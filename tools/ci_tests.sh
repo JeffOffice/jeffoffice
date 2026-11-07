@@ -12,6 +12,11 @@
 set -u
 
 ext=""; [ "${RUNNER_OS:-}" = "Windows" ] && ext=".exe"
+
+# A program the build did not make (a CI part builds only the targets in tools/ci_targets.sh) stops everything here, by name.
+missing=0
+for N in "$@"; do [ -x "build/$N$ext" ] || { echo "ci_tests.sh: build/$N$ext was not built (is its target in tools/ci_targets.sh?)" >&2; missing=1; }; done
+[ "$missing" -eq 0 ] || exit 2
 jobs=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
 split=${CI_SPLIT:-1}
 LONG="everyCommandOnABlankDocument everyCommandOnADocumentFromAFile commandsNeverRun"
