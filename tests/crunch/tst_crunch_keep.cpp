@@ -463,6 +463,7 @@ private Q_SLOTS:
         QFile f(e.path);
         QVERIFY(f.open(QIODevice::ReadOnly));
         readZip(f.readAll(), now);
+        f.close();   // (an open file can't be replaced on Windows: the next save would fail)
         const QByteArray rels = now.value(QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels"));
         QVERIFY2(rels.contains(QUrl::fromLocalFile(source).toString(QUrl::FullyEncoded).toUtf8()), rels.constData());
         QVERIFY2(!rels.contains("C:/data"), rels.constData());
