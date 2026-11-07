@@ -225,6 +225,9 @@ struct ReadOptions {
     // With screenRows: the rows above the view are cut down before the parser sees them (see rowskip.h), which is far faster for a sheet saved scrolled far down; false gives every row to the
     // parser (what a test compares the result with).
     bool skipRows = true;
+    // The rows of plain cells (numbers, shared strings, formulas with their results) are read by a scanner of their own, many times faster than the XML parser, and every other row is given to the
+    // parser as it was; false gives every row to the parser (what a test compares the result with).
+    bool fastRows = true;
     DateSystem dateSystem = DateSystem::Date1900;   // for the cells of type "d", written as dates
     // The workbook's allowance for sparklines (all its sheets together), and which sheet this is.
     std::shared_ptr<SparklineBudget> sparklineBudget;

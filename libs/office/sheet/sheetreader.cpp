@@ -1,6 +1,7 @@
 #include "sheet/htmlbook.h"
 #include "wml/wmlhtmlread.h"
 #include "sheet/sheetreader.h"
+#include "sheet/rowfast.h"
 #include "sheet/tablestyle.h"
 #include "sheet/xmlscan.h"
 #include "sheet/customviews.h"
@@ -31,6 +32,7 @@
 #include <QSet>
 #include <set>
 #include <QXmlStreamReader>
+#include <QVarLengthArray>
 #include <algorithm>
 #include <cstring>
 #include <cmath>
@@ -52,9 +54,10 @@ void decodeEscapes(QString *s) { xmlscan::decodeEscapes(s); }
 struct XmlSource {
     QIODevice *raw;
     XmlGuardDevice guard;
+    RowFeed feed;   // (between the guard and the parser of a sheet whose rows are scanned; the others are read from the guard)
     QXmlStreamReader reader;
     // The most bytes of XML in one piece is four to a character of a string at the most (and at least what no tag or declaration comes to).
-    XmlSource(QIODevice *in, const Limits &limits) : raw(in), guard(in, std::max<qint64>(4 * limits.stringChars, 65536)), reader(&guard) {}
+    XmlSource(QIODevice *in, const Limits &limits, bool scanRows = false) : raw(in), guard(in, std::max<qint64>(4 * limits.stringChars, 65536)), feed(&guard), reader(scanRows ? static_cast<QIODevice *>(&feed) : &guard) {}
 
     // Why the reading stopped short, in words; empty if it didn't.
     QString problem() const
@@ -89,6 +92,12 @@ QStringView attribute(const QXmlStreamReader &r, const char *name, bool *present
     if (present) *present = false;
     return {};
 }
+
+// The attributes of an element, as the parser gives them and as the scanner of rows does (a handler that reads either asks by name).
+struct XmlAttributes {
+    const QXmlStreamReader &r;
+    QStringView operator()(const char *name, bool *present = nullptr) const { return attribute(r, name, present); }
+};
 
 // The settings of a `sheetProtection` element. In the file an item set is one that is not allowed; all but the two selections are set unless the file says otherwise.
 void readProtection(const QXmlStreamReader &r, SheetProtection *out)
@@ -852,7 +861,7 @@ private:
     static constexpr qsizetype kMaxCondRules = 50000;
     static constexpr qint64 kMaxFilterValues = 200000;
     static qint64 stringBytes(qint64 chars) { return kSlotBytes + std::max<qint64>(32, (24 + 2 * chars + 2 + 8 + 15) / 16 * 16); }
-    bool startRow(const QXmlStreamReader &r);
+    template <class Attrs> bool startRow(const Attrs &attribute);
     bool startColumns(const QXmlStreamReader &r);
     void startView(const QXmlStreamReader &r);
     void startPane(const QXmlStreamReader &r);
@@ -862,7 +871,10 @@ private:
     Validation readRule(const QXmlStreamReader &r) const;
     CondRule readCondRule(const QXmlStreamReader &r) const;
     bool startCell(const QXmlStreamReader &r);
-    bool startFormula(const QXmlStreamReader &r);
+    bool startCell(QStringView at, bool present, QStringView style, QStringView type);
+    template <class Attrs> bool startFormula(const Attrs &attribute);
+    enum class Scan { Back, Failed };
+    Scan scanRows(XmlSource &src, qint64 *nextReport);
     bool endFormula();
     bool endCell();
     void finish();
@@ -939,10 +951,11 @@ bool looksLikeAddress(QStringView s)
     return run([](QChar c) { return c.unicode() >= '0' && c.unicode() <= '9'; }) && i == s.size();
 }
 
-bool SheetReader::startRow(const QXmlStreamReader &r)
+template <class Attrs>
+bool SheetReader::startRow(const Attrs &attribute)
 {
     bool present = false;
-    const QStringView at = attribute(r, "r", &present);
+    const QStringView at = attribute("r", &present);
     bool ok = false;
     const qint64 given = present ? at.toLongLong(&ok) : 0;
     if (ok) {
@@ -976,7 +989,7 @@ bool SheetReader::startRow(const QXmlStreamReader &r)
     }
     // A row that is not as the sheet's default is kept: its height, whether it is hidden, and the format its empty cells have.
     bool hasHeight = false;
-    const QStringView ht = attribute(r, "ht", &hasHeight);
+    const QStringView ht = attribute("ht", &hasHeight);
     RowSpec spec;
     spec.row = m_row;
     if (hasHeight) {
@@ -984,14 +997,14 @@ bool SheetReader::startRow(const QXmlStreamReader &r)
         const double v = ht.trimmed().toDouble(&numeric);
         if (numeric && std::isfinite(v) && v >= 0) spec.height = std::min(v, 409.5);
     }
-    spec.hidden = parseBool(attribute(r, "hidden").toString());
-    spec.customHeight = parseBool(attribute(r, "customHeight").toString());
-    spec.customFormat = parseBool(attribute(r, "customFormat").toString());
+    spec.hidden = parseBool(attribute("hidden").toString());
+    spec.customHeight = parseBool(attribute("customHeight").toString());
+    spec.customFormat = parseBool(attribute("customFormat").toString());
     bool styleOk = false;
-    const uint style = attribute(r, "s").toUInt(&styleOk);
+    const uint style = attribute("s").toUInt(&styleOk);
     spec.style = styleOk && spec.customFormat ? style : 0;
-    spec.outline = quint8(std::clamp(attribute(r, "outlineLevel").toInt(), 0, 7));
-    spec.collapsed = parseBool(attribute(r, "collapsed").toString());
+    spec.outline = quint8(std::clamp(attribute("outlineLevel").toInt(), 0, 7));
+    spec.collapsed = parseBool(attribute("collapsed").toString());
     const bool otherHeight = spec.height >= 0 && std::abs(spec.height - m_sheet.format.defaultRowHeight) > 0.001;
     // (a sheet that hides the rows it does not list needs to know which it lists)
     if (spec.hidden || spec.customFormat || otherHeight || m_sheet.format.zeroHeight || spec.outline > 0 || spec.collapsed) {
@@ -1204,6 +1217,11 @@ bool SheetReader::startCell(const QXmlStreamReader &r)
             type = a.value();
         }
     }
+    return startCell(at, present, style, type);
+}
+
+bool SheetReader::startCell(QStringView at, bool present, QStringView style, QStringView type)
+{
     m_cell = Cell();
     quint32 row = 0, col = 0;
     if (present && parseCellRef(at, &row, &col)) {
@@ -1234,13 +1252,14 @@ bool SheetReader::startCell(const QXmlStreamReader &r)
     return true;
 }
 
-bool SheetReader::startFormula(const QXmlStreamReader &r)
+template <class Attrs>
+bool SheetReader::startFormula(const Attrs &attribute)
 {
-    const QStringView kind = attribute(r, "t");
+    const QStringView kind = attribute("t");
     bool hasSi = false;
     m_kind = kind == QLatin1String("array") ? Array : kind == QLatin1String("shared") ? Shared : kind == QLatin1String("dataTable") ? Table : Normal;
     m_si = -1;
-    const QStringView si = attribute(r, "si", &hasSi);
+    const QStringView si = attribute("si", &hasSi);
     if (hasSi) {
         bool ok = false;
         const qint64 v = si.toLongLong(&ok);
@@ -1250,12 +1269,12 @@ bool SheetReader::startFormula(const QXmlStreamReader &r)
     if (m_kind == Shared && m_si < 0) m_kind = Normal;
     m_haveRef = false;
     bool hasRef = false;
-    const QStringView ref = attribute(r, "ref", &hasRef);
+    const QStringView ref = attribute("ref", &hasRef);
     if (hasRef) m_haveRef = parseRangeRef(ref, &m_ref);
     if (m_kind == Table) {
-        m_r1 = attribute(r, "r1").toString();
-        m_r2 = attribute(r, "r2").toString();
-        m_dtr = parseBool(attribute(r, "dtr").toString());
+        m_r1 = attribute("r1").toString();
+        m_r2 = attribute("r2").toString();
+        m_dtr = parseBool(attribute("dtr").toString());
     }
     m_formula.clear();
     return true;
@@ -1435,11 +1454,355 @@ bool SheetReader::endCell()
     return true;
 }
 
+namespace {
+
+// Where the text of a cell may have a byte: the characters the scanner of rows reads as they are (printable ASCII, a tab, a line feed). Anything else (an entity, a letter past ASCII, a carriage
+// return, a control) is for the parser.
+struct TextTable {
+    bool ok[256];
+    constexpr TextTable() : ok()
+    {
+        for (int c = 0x20; c < 0x7F; ++c) ok[c] = true;
+        ok[0x09] = ok[0x0A] = true;
+        ok['&'] = ok['<'] = false;
+    }
+};
+constexpr TextTable kText;
+
+enum class Cut { Ok, More, Bad };
+
+struct RawAttr {
+    QByteArrayView name, value;
+};
+
+// The attributes in the tag whose name has been passed (p is after it): ` name="value"` each, with one space before it and nothing else but the closing `>` or `/>`. More says the bytes ended inside the tag.
+Cut cutAttributes(const char *&p, const char *end, RawAttr *out, int maxAttrs, int *count, bool *selfClosing)
+{
+    int n = 0;
+    *selfClosing = false;
+    for (;;) {
+        if (p >= end) return Cut::More;
+        const char c = *p;
+        if (c == '>') {
+            ++p;
+            break;
+        }
+        if (c == '/') {
+            if (p + 1 >= end) return Cut::More;
+            if (p[1] != '>') return Cut::Bad;
+            p += 2;
+            *selfClosing = true;
+            break;
+        }
+        if (c != ' ') return Cut::Bad;
+        ++p;
+        const char *nameStart = p;
+        while (p < end && ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9') || *p == '_')) ++p;
+        if (p >= end) return Cut::More;
+        if (p == nameStart || *p != '=') return Cut::Bad;
+        const QByteArrayView name(nameStart, p - nameStart);
+        ++p;
+        if (p >= end) return Cut::More;
+        if (*p != '"') return Cut::Bad;
+        ++p;
+        const char *valueStart = p;
+        while (p < end && *p != '"') {
+            if (!kText.ok[static_cast<unsigned char>(*p)] || *p == '\t' || *p == '\n') return Cut::Bad;
+            ++p;
+        }
+        if (p >= end) return Cut::More;
+        if (n >= maxAttrs) return Cut::Bad;
+        for (int i = 0; i < n; ++i)
+            if (out[i].name == name) return Cut::Bad;   // (a name twice is for the parser to refuse)
+        out[n++] = {name, QByteArrayView(valueStart, p - valueStart)};
+        ++p;
+    }
+    *count = n;
+    return Cut::Ok;
+}
+
+// The text up to the next "<": More if the bytes end first.
+Cut cutText(const char *&p, const char *end, QByteArrayView *text)
+{
+    const char *start = p;
+    while (p < end && *p != '<') {
+        if (!kText.ok[static_cast<unsigned char>(*p)]) return Cut::Bad;
+        if (*p == '>' && p - start >= 2 && p[-1] == ']' && p[-2] == ']') return Cut::Bad;
+        ++p;
+    }
+    if (p >= end) return Cut::More;
+    *text = QByteArrayView(start, p - start);
+    return Cut::Ok;
+}
+
+bool startsHere(const char *p, const char *end, const char *what, size_t n) { return size_t(end - p) >= n && std::memcmp(p, what, n) == 0; }
+
+constexpr int kMaxCellAttributes = 8, kMaxRowAttributes = 16;
+
+struct RawCell {
+    RawAttr attrs[kMaxCellAttributes];
+    int count = 0;
+    bool hasF = false, hasV = false;
+    RawAttr fAttrs[kMaxCellAttributes];
+    int fCount = 0;
+    QByteArrayView f, v;
+};
+
+struct RawRow {
+    RawAttr attrs[kMaxRowAttributes];
+    int count = 0;
+    std::vector<RawCell> cells;
+    size_t nCells = 0;
+    qsizetype length = 0;
+};
+
+// The row at p: its attributes and cells, if it is of the plain form (`row` with `c` inside it, each cell with at most a `v` and an `f`, text with nothing in it but printable ASCII).
+Cut cutRow(const char *start, const char *end, RawRow *row)
+{
+    const char *p = start;
+    if (!startsHere(p, end, "<row", 4)) return end - p < 4 ? Cut::More : Cut::Bad;
+    p += 4;
+    if (p >= end) return Cut::More;
+    if (*p != ' ' && *p != '>' && *p != '/') return Cut::Bad;
+    bool selfClosing = false;
+    if (Cut c = cutAttributes(p, end, row->attrs, kMaxRowAttributes, &row->count, &selfClosing); c != Cut::Ok) return c;
+    row->nCells = 0;
+    if (selfClosing) {
+        row->length = p - start;
+        return Cut::Ok;
+    }
+    for (;;) {
+        if (end - p < 2) return Cut::More;
+        if (p[0] != '<') return Cut::Bad;
+        if (p[1] == '/') {
+            if (end - p < 6) return Cut::More;
+            if (!startsHere(p, end, "</row>", 6)) return Cut::Bad;
+            p += 6;
+            break;
+        }
+        if (end - p < 3) return Cut::More;
+        if (p[1] != 'c' || (p[2] != ' ' && p[2] != '>' && p[2] != '/')) return Cut::Bad;
+        p += 2;
+        if (row->nCells == row->cells.size()) row->cells.emplace_back();
+        RawCell &cell = row->cells[row->nCells];
+        cell.hasF = cell.hasV = false;
+        cell.fCount = 0;
+        cell.f = cell.v = QByteArrayView();
+        bool cellClosed = false;
+        if (Cut c = cutAttributes(p, end, cell.attrs, kMaxCellAttributes, &cell.count, &cellClosed); c != Cut::Ok) return c;
+        if (!cellClosed) {
+            for (;;) {
+                if (end - p < 3) return Cut::More;
+                if (p[0] != '<') return Cut::Bad;
+                if (p[1] == '/') {
+                    if (end - p < 4) return Cut::More;
+                    if (!startsHere(p, end, "</c>", 4)) return Cut::Bad;
+                    p += 4;
+                    break;
+                }
+                if (p[1] == 'v') {
+                    if (cell.hasV) return Cut::Bad;
+                    if (p[2] == '/') {
+                        if (end - p < 4) return Cut::More;
+                        if (p[3] != '>') return Cut::Bad;
+                        p += 4;
+                    } else if (p[2] == '>') {
+                        p += 3;
+                        if (Cut c = cutText(p, end, &cell.v); c != Cut::Ok) return c;
+                        if (end - p < 4) return Cut::More;
+                        if (!startsHere(p, end, "</v>", 4)) return Cut::Bad;
+                        p += 4;
+                    } else {
+                        return Cut::Bad;
+                    }
+                    cell.hasV = true;
+                } else if (p[1] == 'f') {
+                    if (cell.hasF) return Cut::Bad;
+                    if (p[2] != ' ' && p[2] != '>' && p[2] != '/') return Cut::Bad;
+                    p += 2;
+                    bool fClosed = false;
+                    if (Cut c = cutAttributes(p, end, cell.fAttrs, kMaxCellAttributes, &cell.fCount, &fClosed); c != Cut::Ok) return c;
+                    if (!fClosed) {
+                        if (Cut c = cutText(p, end, &cell.f); c != Cut::Ok) return c;
+                        if (end - p < 4) return Cut::More;
+                        if (!startsHere(p, end, "</f>", 4)) return Cut::Bad;
+                        p += 4;
+                    }
+                    cell.hasF = true;
+                } else {
+                    return Cut::Bad;
+                }
+            }
+        }
+        ++row->nCells;
+    }
+    row->length = p - start;
+    return Cut::Ok;
+}
+
+// The attributes of a scanned element, as a handler asks for them: by name, as text.
+struct ScannedAttributes {
+    const RawAttr *attrs;
+    int count;
+    char16_t *arena;
+    QStringView operator()(const char *name, bool *present = nullptr) const
+    {
+        const size_t n = std::strlen(name);
+        char16_t *at = arena;
+        for (int i = 0; i < count; ++i) {
+            const QByteArrayView v = attrs[i].value;
+            if (attrs[i].name.size() == qsizetype(n) && std::memcmp(attrs[i].name.data(), name, n) == 0) {
+                for (qsizetype k = 0; k < v.size(); ++k) at[k] = char16_t(static_cast<unsigned char>(v[k]));
+                if (present) *present = true;
+                return QStringView(at, v.size());
+            }
+            at += v.size();
+        }
+        if (present) *present = false;
+        return {};
+    }
+};
+
+// The text widened into a string, which keeps its room from one cell to the next.
+void widen(QByteArrayView text, QString *out)
+{
+    out->resize(text.size());
+    QChar *d = out->data();
+    for (qsizetype i = 0; i < text.size(); ++i) d[i] = QChar(char16_t(static_cast<unsigned char>(text[i])));
+}
+
+} // namespace
+
+// The rows the parser has not been given: the plain ones are read here, with the handlers the parser's elements call, in the order it would call them. The first row that is not plain (and the
+// rest of the part, if what comes is not a row) is given back to the parser, which reads it and stops again after it.
+SheetReader::Scan SheetReader::scanRows(XmlSource &src, qint64 *nextReport)
+{
+    RowFeed &feed = src.feed;
+    if (!feed.takeOver()) return Scan::Back;
+    RawRow row;
+    std::vector<char16_t> arena;
+    for (;;) {
+        if (src.guard.bytesPassed() >= *nextReport) {
+            *nextReport = src.guard.bytesPassed() + kReportEveryBytes;
+            if (m_options.progress && !m_options.progress(m_cells)) {
+                fail(QCoreApplication::translate("Sheet", "The read was stopped."));
+                return Scan::Failed;
+            }
+        }
+        Cut cut;
+        for (;;) {
+            const QByteArrayView held = feed.bytes();
+            if (held.size() < 6) {
+                cut = Cut::More;
+            } else if (held[0] != '<' || held[1] == '/') {
+                feed.giveBack();   // (the end of the rows, or something that is not a row)
+                return Scan::Back;
+            } else {
+                cut = cutRow(held.data(), held.data() + held.size(), &row);
+            }
+            if (cut == Cut::More) {
+                if (feed.more()) continue;
+                feed.giveBack();   // (the part ends in the row: the parser says how)
+                return Scan::Back;
+            }
+            break;
+        }
+        if (cut == Cut::Bad) {
+            // the row goes to the parser as one piece (to its end, if it can be found), and the parser stops after it
+            qsizetype length = -1;
+            for (;;) {
+                const QByteArrayView held = feed.bytes();
+                const char *p = held.constData();
+                const char *end = p + held.size();
+                const char *q = p + 4;
+                char quote = 0;
+                while (q < end && (quote || *q != '>')) {
+                    if (quote) quote = *q == quote ? 0 : quote;
+                    else if (*q == '"' || *q == '\'') quote = *q;
+                    ++q;
+                }
+                if (q < end) {
+                    if (q[-1] == '/') {
+                        length = q + 1 - p;
+                    } else {
+                        const qsizetype close = held.indexOf(QByteArrayView("</row>", 6), q + 1 - p);
+                        if (close >= 0) length = close + 6;
+                    }
+                }
+                if (length >= 0 || !feed.more()) break;
+            }
+            if (length >= 0) feed.giveBackThenPause(length);
+            else feed.giveBack();
+            return Scan::Back;
+        }
+        // the row is plain: its handlers are called as the parser would call them
+        qsizetype room = 0;
+        for (int i = 0; i < row.count; ++i) room += row.attrs[i].value.size();
+        if (qsizetype(arena.size()) < room) arena.resize(size_t(room));
+        ++m_sheet.stats.fastRows;
+        if (!startRow(ScannedAttributes{row.attrs, row.count, arena.data()})) return Scan::Failed;
+        if (m_stop) {
+            feed.giveBack();
+            return Scan::Back;
+        }
+        for (size_t ci = 0; ci < row.nCells; ++ci) {
+            const RawCell &cell = row.cells[ci];
+            char16_t buffer[3][48];
+            QString spill[3];
+            bool present = false;
+            QStringView at, style, type;
+            auto wide = [&](int k, QByteArrayView v) {
+                if (v.size() > 48) {
+                    spill[k] = QString::fromLatin1(v);
+                    return QStringView(spill[k]);
+                }
+                for (qsizetype n = 0; n < v.size(); ++n) buffer[k][n] = char16_t(static_cast<unsigned char>(v[n]));
+                return QStringView(buffer[k], v.size());
+            };
+            for (int i = 0; i < cell.count; ++i) {
+                const RawAttr &a = cell.attrs[i];
+                if (a.name.size() != 1) continue;
+                if (a.name[0] == 'r') {
+                    at = wide(0, a.value);
+                    present = true;
+                } else if (a.name[0] == 's') {
+                    style = wide(1, a.value);
+                } else if (a.name[0] == 't') {
+                    type = wide(2, a.value);
+                }
+            }
+            if (!startCell(at, present, style, type)) return Scan::Failed;
+            if (cell.hasF) {
+                qsizetype need = 0;
+                for (int i = 0; i < cell.fCount; ++i) need += cell.fAttrs[i].value.size();
+                if (qsizetype(arena.size()) < need) arena.resize(size_t(need));
+                if (!startFormula(ScannedAttributes{cell.fAttrs, cell.fCount, arena.data()})) return Scan::Failed;
+                widen(cell.f, &m_formula);
+                if (m_formula.size() > m_limits.formulaChars) {
+                    fail(QCoreApplication::translate("Sheet", "A formula is longer than any real file has."));
+                    return Scan::Failed;
+                }
+                if (!endFormula()) return Scan::Failed;
+            }
+            if (cell.hasV) {
+                m_haveValue = true;
+                widen(cell.v, &m_value);
+                if (m_value.size() > m_limits.stringChars) {
+                    fail(QCoreApplication::translate("Sheet", "A string is longer than any real file has."));
+                    return Scan::Failed;
+                }
+            }
+            if (!endCell()) return Scan::Failed;
+        }
+        feed.consume(row.length);
+    }
+}
+
 void SheetReader::finish() { m_sheet.cells.finish(); }
 
 bool SheetReader::read(QIODevice *in)
 {
-    XmlSource src(in, m_limits);
+    XmlSource src(in, m_limits, m_options.fastRows);
     QXmlStreamReader &r = src.reader;
     int depth = 0, phonetic = 0;
     bool rootSeen = false, inData = false, inRow = false, inCell = false, inFormula = false, inValue = false, inInline = false, inText = false, inMerge = false;
@@ -1817,7 +2180,7 @@ bool SheetReader::read(QIODevice *in)
             } else if (depth == 4 && inView && isElement(r, "selection")) {
                 startSelection(r);
             } else if (depth == 3 && inData && isElement(r, "row")) {
-                ok = startRow(r);
+                ok = startRow(XmlAttributes{r});
                 if (ok && m_stop) break;
                 inRow = ok;
             } else if (depth == 4 && inRow && isElement(r, "c")) {
@@ -1826,7 +2189,7 @@ bool SheetReader::read(QIODevice *in)
             } else if (depth == 5 && inCell) {
                 if (isElement(r, "f")) {
                     inFormula = true;
-                    ok = startFormula(r);
+                    ok = startFormula(XmlAttributes{r});
                 } else if (isElement(r, "v")) {
                     inValue = true;
                     m_haveValue = true;
@@ -1991,6 +2354,10 @@ bool SheetReader::read(QIODevice *in)
             break;
         default:
             break;
+        }
+        // (the parser has been given the start of the rows, or the end of a row, and no more: the plain rows that come next are scanned)
+        if (inData && depth == 2 && !inRow && ok && !m_stop && src.feed.paused()) {
+            if (scanRows(src, &nextReport) == Scan::Failed) ok = false;
         }
     }
     if (ok) {

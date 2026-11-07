@@ -70,6 +70,53 @@ QString describe(const Sheet &s)
     return out;
 }
 
+// Rows of every kind the scanner of plain rows reads, and of every kind it hands to the parser.
+QByteArray makeMixedSheet(int rows, const QByteArray &between = QByteArray())
+{
+    QByteArray body;
+    for (int r = 1; r <= rows; ++r) {
+        const QByteArray n = QByteArray::number(r);
+        QByteArray row = "<row r=\"" + n + "\" spans=\"1:6\"";
+        if (r % 7 == 0) row += " ht=\"30\" customHeight=\"1\"";
+        if (r % 11 == 0) row += " hidden=\"true\"";
+        row += ">";
+        row += "<c r=\"A" + n + "\" s=\"1\"><v>" + n + ".5</v></c><c r=\"B" + n + "\" t=\"s\"><v>" + QByteArray::number(r % 3) + "</v></c>";
+        row += "<c r=\"C" + n + "\"><f>A" + n + "*2</f><v>" + QByteArray::number(r * 2 + 1) + "</v></c>";
+        if (r == 3) row += "<c r=\"D3\"><f t=\"shared\" ref=\"D3:D9\" si=\"0\">A3&gt;1</f><v>1</v></c>";
+        else if (r > 3 && r <= 9) row += "<c r=\"D" + n + "\"><f t=\"shared\" si=\"0\"/><v>1</v></c>";
+        if (r % 5 == 0) row += "<c r=\"E" + n + "\" t=\"b\"><v>1</v></c><c r=\"F" + n + "\" t=\"e\"><v>#DIV/0!</v></c>";
+        if (r % 6 == 0) row += "<c r=\"G" + n + "\" t=\"str\"><f>\"x\"&amp;A" + n + "</f><v>x" + n + "</v></c>";
+        if (r % 8 == 0) row += "<c r=\"H" + n + "\" s=\"2\"/>";
+        if (r % 9 == 0) row += "<c><v>7</v></c><c t=\"s\"><v>1</v></c>";
+        if (r % 13 == 0) row += "<c r=\"I" + n + "\" t=\"inlineStr\"><is><t>row " + n + "</t></is></c>";   // (given to the parser)
+        if (r % 17 == 0) row += "<c r=\"J" + n + "\" t=\"str\"><v>caf\xC3\xA9 &amp; more</v></c>";   // (an entity and a letter past ASCII)
+        if (r % 19 == 0) row += "<c r=\"K" + n + "\"><f t=\"array\" ref=\"K" + n + ":K" + n + "\">SUM(A1:A3)</f><v>6</v></c>";
+        if (r % 23 == 0) row += "<c r=\"L" + n + "\"><v>1</v><f>1+1</f></c>";
+        row += "</row>";
+        if (r % 29 == 0) row = "<row r=\"" + n + "\" ht=\"20\" customHeight=\"1\"/>";
+        if (r % 31 == 0) row = "<row r=\"" + n + "\"><c r=\"A" + n + "\" t=\"n\"><v> 12 </v></c></row>";
+        body += row;
+        if (r % 37 == 0) body += between;
+    }
+    return worksheet(QString::fromLatin1(body), QString(), QStringLiteral("<dimension ref=\"A1:L%1\"/>").arg(rows));
+}
+
+QString describeAll(const Sheet &s)
+{
+    return describe(s) + QStringLiteral("stats %1 %2 %3 %4 %5 %6 %7 %8\n").arg(s.formulaCells).arg(s.storedResults).arg(s.stats.longestFormula).arg(s.stats.expandedFormulaChars).arg(s.stats.heldBytes).arg(s.stats.sharedFormulas).arg(s.stats.rowSpecs).arg(s.stats.longestString);
+}
+
+bool readRows(const QByteArray &xml, bool fastRows, Sheet *out, qint64 stopAfterRow = -1)
+{
+    QByteArray copy = xml;
+    QBuffer buffer(&copy);
+    buffer.open(QIODevice::ReadOnly);
+    ReadOptions o;
+    o.fastRows = fastRows;
+    o.stopAfterRow = stopAfterRow;
+    return readSheetPart(&buffer, o, out);
+}
+
 } // namespace
 
 class SheetRowSkipTests : public QObject {
@@ -273,6 +320,70 @@ private Q_SLOTS:
         QVERIFY(at(fast, QStringLiteral("A100001")) != nullptr);
         QVERIFY(at(fast, QStringLiteral("A99999")) == nullptr);
         QVERIFY2(fast.stats.xmlBytes * 10 < xml.size(), qPrintable(QStringLiteral("%1 of %2").arg(fast.stats.xmlBytes).arg(xml.size())));
+    }
+
+    // Rows of plain cells are read by the scanner of rows and the others by the parser, and the sheet is the one the parser makes of every row.
+    void plainRowsAreScannedAndTheSheetIsTheSame()
+    {
+        const QByteArray xml = makeMixedSheet(400);
+        Sheet fast, slow;
+        QVERIFY(readRows(xml, true, &fast));
+        QVERIFY(readRows(xml, false, &slow));
+        QCOMPARE(describeAll(fast), describeAll(slow));
+        QCOMPARE(slow.stats.fastRows, qint64(0));
+        // (the rows with an inline string, an entity, a letter past ASCII, or a value before its formula are the parser's; the rest are the scanner's)
+        QVERIFY2(fast.stats.fastRows > 250 && fast.stats.fastRows < 400, qPrintable(QString::number(fast.stats.fastRows)));
+        QVERIFY(at(fast, QStringLiteral("A399")) != nullptr);
+        QCOMPARE(fast.formulaText(*at(fast, QStringLiteral("D5"))), QStringLiteral("A5>1"));
+    }
+
+    // The scanner gives the parser the rest when the XML is not in the form it reads, and takes the rows up again after a row the parser reads.
+    void theScannerHandsOverAndTakesBack()
+    {
+        Sheet a, b;
+        // whitespace between the rows, a comment between rows, and a prefixed row: the scanner stops or the parser reads that row, and the sheet is the same
+        for (const QByteArray &between : {QByteArray("\n  "), QByteArray("<!-- note -->"), QByteArray("<row r=\"900\" xmlns:q=\"urn:q\" q:z=\"1\"><c r=\"A900\"><v>9</v></c></row>")}) {
+            const QByteArray xml = makeMixedSheet(200, between);
+            QVERIFY(readRows(xml, true, &a));
+            QVERIFY(readRows(xml, false, &b));
+            QCOMPARE(describeAll(a), describeAll(b));
+        }
+        // a stop at a row (the first screen) is the same
+        const QByteArray xml = makeMixedSheet(300);
+        QVERIFY(readRows(xml, true, &a, 150));
+        QVERIFY(readRows(xml, false, &b, 150));
+        QVERIFY(a.partial && b.partial);
+        QCOMPARE(describeAll(a), describeAll(b));
+        QVERIFY(a.stats.fastRows > 100);
+        // a part cut off in a row fails in the same words
+        QByteArray cut = makeMixedSheet(100);
+        cut.truncate(cut.indexOf("<row r=\"60\"") + 40);
+        QVERIFY(!readRows(cut, true, &a));
+        QVERIFY(!readRows(cut, false, &b));
+        QCOMPARE(a.error, b.error);
+        QVERIFY(!a.error.isEmpty());
+        QCOMPARE(describeAll(a), describeAll(b));
+    }
+
+    // A formula over the limit is refused as it is when the parser reads it.
+    void theScannerKeepsTheLimits()
+    {
+        QByteArray rows;
+        for (int r = 1; r <= 5; ++r) rows += "<row r=\"" + QByteArray::number(r) + "\"><c r=\"A" + QByteArray::number(r) + "\"><f>" + QByteArray(r * 10, 'A') + "</f><v>1</v></c></row>";
+        const QByteArray xml = worksheet(QString::fromLatin1(rows));
+        Sheet a, b;
+        for (bool fast : {true, false}) {
+            QByteArray copy = xml;
+            QBuffer buffer(&copy);
+            buffer.open(QIODevice::ReadOnly);
+            ReadOptions o;
+            o.limits.formulaChars = 30;
+            o.fastRows = fast;
+            QVERIFY(!readSheetPart(&buffer, o, fast ? &a : &b));
+        }
+        QVERIFY(!a.error.isEmpty());
+        QCOMPARE(a.error, b.error);
+        QCOMPARE(describeAll(a), describeAll(b));
     }
 };
 
