@@ -72,6 +72,8 @@ private Q_SLOTS:
     void theFormulaBarEdits();
     void anEntryThatWasNotChangedCommitsNothing();
     void aFormulaTypedWithAPrefixedFunctionKeepsItsPrefixInTheFile();
+    void clearAllOnEmptyCellsLeavesNothingForTheWorker();
+    void aSaveThatDoesNothingWhenResumedDoesNotLeaveTheWindowToClose();
     void saveACopyKeepsWorkingInTheOriginal();
     void aBackupCopyIsKeptOnSave();
     void aWorkbookOpenedReadOnlyCannotBeChanged();

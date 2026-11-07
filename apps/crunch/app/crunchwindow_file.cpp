@@ -583,8 +583,15 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
             if (!m_saveAfterCalculation.isNull()) {
                 const QString path = m_saveAfterCalculation;
                 m_saveAfterCalculation.clear();
-                if (std::exchange(m_copyAfterCalculation, false)) startCopy(path);
-                else startSave(path);
+                const bool copy = std::exchange(m_copyAfterCalculation, false);
+                if (m_trialMacros > 0) {
+                    m_saveAfterTrial = path;
+                    m_copyAfterTrial = copy;
+                } else {
+                    const bool started = copy ? startCopy(path) : startSave(path);
+                    // (a save that failed, or found nothing to save, gives up the close that waited for it)
+                    if (!started || (!m_saving && m_saveAfterCalculation.isNull() && m_saveAfterTrial.isNull())) m_closeAfterSave = false;
+                }
             }
             return;
         }

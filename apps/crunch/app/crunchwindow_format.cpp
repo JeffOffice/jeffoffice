@@ -682,6 +682,7 @@ void CrunchWindow::clearCommand(int what)
     if (!editingAllowed()) return;
     const CellRange range = selectedRange();
     crunch::EditSession::Outcome o;
+    const qint64 before = m_loader.changesMade();
     if (what == 0) o = m_session->clearAll(m_sheet, range);
     else if (what == 1) o = m_session->clearFormats(m_sheet, range);
     else {
@@ -689,7 +690,7 @@ void CrunchWindow::clearCommand(int what)
         return;
     }
     if (!o.ok) notice(tr("Clear"), o.problem);
-    else if (what == 0) m_calculating = true;
+    else if (what == 0 && m_loader.changesMade() != before) m_calculating = true;
     updateFormatState();
 }
 

@@ -627,6 +627,50 @@ void CrunchEditTests::aFormulaTypedWithAPrefixedFunctionKeepsItsPrefixInTheFile(
 }
 
 
+// Clear All on cells that hold nothing changes nothing, so there is nothing for the worker to work out: Save writes the file at once.
+void CrunchEditTests::clearAllOnEmptyCellsLeavesNothingForTheWorker()
+{
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("100"));
+    QVERIFY(e.settle());
+    e.select(QStringLiteral("F20"));
+    e.win.w.act(QStringLiteral("edit.clear.all"))->trigger();
+    QVERIFY(!e.win.w.isCalculating());
+    QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+    QVERIFY(e.win.w.save());
+    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:100"));
+}
+
+// A close that waits for a save which then finds nothing to save (the change was undone while the calculation went) is given up: a later Save does not close the window.
+void CrunchEditTests::aSaveThatDoesNothingWhenResumedDoesNotLeaveTheWindowToClose()
+{
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    CrunchWindow &w = e.win.w;
+    w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Save; });
+    w.setWorkerPace(20000);
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("100"));
+    QVERIFY(w.isCalculating());
+    w.close();                                                                      // (asks, is told Save, and the save waits for the calculation)
+    QVERIFY(w.isVisible());
+    pressUndo(&w);
+    QVERIFY(!w.session()->isModified());
+    w.setWorkerPace(0);
+    QVERIFY(e.settle());
+    QVERIFY(w.isVisible());
+    e.select(QStringLiteral("A2"));
+    e.enter(QStringLiteral("5"));
+    QVERIFY(e.settle());
+    QSignalSpy saved(&w, &CrunchWindow::saved);
+    QVERIFY(w.save());
+    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY(w.isVisible());
+}
+
 // Save a Copy writes the workbook to another file and goes on with the original: the window keeps its name and its unsaved changes, and the copy has them.
 void CrunchEditTests::saveACopyKeepsWorkingInTheOriginal()
 {

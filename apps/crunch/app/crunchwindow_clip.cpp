@@ -434,12 +434,13 @@ void CrunchWindow::pasteTextImport()
     }
     const QVector<QStringList> table = crunch::splitDelimitedText(text, req.choices);
     if (table.isEmpty()) return;
+    const qint64 before = m_loader.changesMade();
     const crunch::EditSession::Outcome o = m_session->pasteText(m_sheet, selectedRange(), table, crunch::EditSession::PasteOptions());
     if (!o.ok) {
         if (!o.confirm) notice(tr("Paste Text Import"), o.problem);
         return;
     }
-    m_calculating = true;
+    if (m_loader.changesMade() != before) m_calculating = true;
     if (o.range.valid) {
         widenForCells(m_sheet, o.range);
         m_view->selectRange(o.range.row1, o.range.col1, o.range.row2, o.range.col2);
@@ -471,12 +472,13 @@ void CrunchWindow::pasteLink()
         for (quint32 c = 0; c < clip.cols; ++c) row << QLatin1Char('=') + jp::office::sheet::chartRef(name, CellRange{clip.source.row1 + r, clip.source.col1 + c, clip.source.row1 + r, clip.source.col1 + c, true});
         table << row;
     }
+    const qint64 before = m_loader.changesMade();
     const crunch::EditSession::Outcome o = m_session->pasteText(m_sheet, selectedRange(), table, crunch::EditSession::PasteOptions());
     if (!o.ok) {
         if (!o.confirm) notice(tr("Paste Link"), o.problem);
         return;
     }
-    m_calculating = true;
+    if (m_loader.changesMade() != before) m_calculating = true;
     if (o.range.valid) m_view->selectRange(o.range.row1, o.range.col1, o.range.row2, o.range.col2);
 }
 
