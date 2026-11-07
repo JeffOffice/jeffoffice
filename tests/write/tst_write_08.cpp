@@ -1812,7 +1812,8 @@ void WriteTests::everyTableCommandRunsOnHostileTables()
             }
             const double seconds = clock.elapsed() / 1000.0;
             const QString why = QStringLiteral("%1 command %2 took %3 s").arg(QLatin1String(d.name)).arg(command).arg(seconds);
-            QVERIFY2(seconds < d.bound, qPrintable(why));
+            // (A checked build, with the memory and undefined-behavior checkers, runs slower and sets JP_TEST_TIME_SCALE.)
+            QVERIFY2(seconds < d.bound * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(why));
             QVERIFY2(doc->flow().tables.liveCount() < 200000, qPrintable(why));
             const QByteArray zip = doc->toDocx();
             QVERIFY2(!zip.isEmpty(), qPrintable(why));

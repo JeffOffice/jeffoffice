@@ -334,9 +334,10 @@ std::shared_ptr<TableLayout> TableLayout::make(const TableContext &ctx, int i0, 
         int col = std::clamp(r.data->before, 0, kMostGridColumns - 1);
         for (int i = r.cell0; i < r.cell0 + r.cells; ++i) {
             Cell &c = t->m_cells[size_t(i)];
-            c.col = col;
-            c.span = std::clamp(c.rec->cell.span, 1, kMostGridColumns - col);
-            col += c.span;
+            // (A row with more cells than the grid has columns puts the rest in its last column.)
+            c.col = std::min(col, kMostGridColumns - 1);
+            c.span = std::clamp(c.rec->cell.span, 1, kMostGridColumns - c.col);
+            col = c.col + c.span;
         }
         columns = std::max(columns, col);
     }
