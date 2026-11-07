@@ -468,6 +468,8 @@ def m_startup(rows, tools, files, runs, tmp, log, use_x):
     try:
         for ext, (app, lo_flag) in apps.items():
             all_files = [x for t in files[ext].values() for x in t]
+            # (fuzzer cases are broken on purpose: neither tool starts on them, so they make no startup measure)
+            all_files = [x for x in all_files if "fuzz" not in os.path.basename(x[0]).lower()] or all_files
             if not all_files:
                 continue
             tiny = min(all_files, key=lambda x: x[1])
