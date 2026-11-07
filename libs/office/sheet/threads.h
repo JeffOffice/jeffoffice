@@ -31,6 +31,9 @@ constexpr qint64 kMaxThreadCommentsPerBook = 400000;
 constexpr int kMaxThreadExtraChars = 4000;
 // The most a comment's words and a new comment's words may hold.
 constexpr int kMaxThreadCommentChars = 32767;
+// The most characters of the older note that stands for a thread (a cell holds 32,767), and of a thread's words as a note shows them.
+constexpr int kMaxLegacyNoteChars = 32767;
+constexpr qint64 kMaxThreadWordsChars = qint64(8) << 20;
 
 // Whether two threads are the same (null is a thread with no comments).
 bool sameThread(const ThreadPtr &a, const ThreadPtr &b);

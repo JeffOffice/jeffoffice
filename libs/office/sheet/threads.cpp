@@ -16,14 +16,29 @@ bool sameThread(const ThreadPtr &a, const ThreadPtr &b)
     return na == nb && (na == 0 || *a == *b);
 }
 
+namespace {
+
+// The text held to `most` characters, ending with an ellipsis when it was cut (not between the halves of a pair).
+QString cutTo(QString text, qsizetype most)
+{
+    if (text.size() <= most) return text;
+    qsizetype keep = most - 1;
+    if (keep > 0 && text[keep - 1].isHighSurrogate()) --keep;
+    text.truncate(keep);
+    return text + QChar(0x2026);
+}
+
+} // namespace
+
 QString threadWords(const ThreadList &thread)
 {
     QString out;
     for (const ThreadComment &c : thread) {
         if (!out.isEmpty()) out += QStringLiteral("\n\n");
         out += c.author.isEmpty() ? c.text : c.author + QStringLiteral(": ") + c.text;
+        if (out.size() > kMaxThreadWordsChars) break;   // (the rest is not worked out: the words are cut below)
     }
-    return out;
+    return cutTo(std::move(out), kMaxThreadWordsChars);
 }
 
 QString legacyThreadText(const ThreadList &thread)
@@ -33,8 +48,9 @@ QString legacyThreadText(const ThreadList &thread)
         const ThreadComment &c = thread[i];
         out += i == 0 ? QStringLiteral("\n\nComment:\n    ") : QStringLiteral("\nReply:\n    ");
         out += c.text;
+        if (out.size() > kMaxLegacyNoteChars) break;
     }
-    return out;
+    return cutTo(std::move(out), kMaxLegacyNoteChars);
 }
 
 QString legacyThreadAuthor(const ThreadList &thread) { return QStringLiteral("tc=") + (thread.empty() ? QString() : thread.front().id); }

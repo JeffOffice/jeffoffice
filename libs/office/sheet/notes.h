@@ -10,6 +10,7 @@
 #include <QString>
 
 #include <map>
+#include <set>
 #include <vector>
 
 namespace jp::office::sheet {
@@ -39,7 +40,9 @@ struct NoteInfo {
     bool threaded = false;   // the text is that of a thread of comments (`thread` holds them)
     ThreadPtr thread;        // the thread's comments, for a note that is one
     bool threadCut = false;  // the file's thread had more comments than are read: it is shown and kept, and not changed
-    bool threadEdited = false;   // a person changed the thread since the file was read or saved (the next save writes it whole)
+    bool threadEdited = false;   // the thread is not what the file has (the next save writes it whole)
+    ThreadPtr fileThread;        // the thread as the file has it (null for none); `fileSaves` is the number of saves it was true at, so that a copy kept by Undo can tell it is out of date
+    int fileSaves = 0;
     bool operator==(const NoteInfo &o) const { return author == o.author && text == o.text && shown == o.shown && threaded == o.threaded && threadCut == o.threadCut && sameThread(thread, o.thread); }
 };
 
@@ -48,6 +51,12 @@ struct NoteReadContext {
     std::map<QString, QString> persons;
     std::map<QString, std::pair<QString, QString>> personIds;   // each person's user id and provider id
     qint64 threadComments = 0;                                  // how many comments of threads have been read
+    struct ThreadPart {                                         // a thread part as it was read (by its name: a part that many sheets name is read once)
+        std::map<quint64, ThreadList> threads;
+        std::set<quint64> cut;
+        bool truncated = false;
+    };
+    std::map<QString, ThreadPart> threadParts;
     bool personsRead = false;
     qint64 chars = 0;
     bool exhausted = false;                                  // the budget of characters is spent: nothing more is read
@@ -63,6 +72,8 @@ std::map<quint64, NoteInfo> readSheetNoteInfos(const Workbook &book, int sheet, 
 
 // How many times a sheet's notes have been read from a file since the program began (a test counts them to see that a search does not read them again and again).
 qint64 noteReads();
+// How many thread parts have been parsed since the program began (a part that many sheets name is parsed once for a workbook).
+qint64 threadPartReads();
 // Just the texts (what Find looks in).
 std::map<quint64, QString> readSheetNotes(const Workbook &book, int sheet, bool *truncated = nullptr);
 

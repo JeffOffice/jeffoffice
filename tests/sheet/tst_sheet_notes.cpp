@@ -598,6 +598,178 @@ private Q_SLOTS:
         QVERIFY(people.contains("displayName=\"Hal\"") && !people.contains("userId=\"\"") && !people.contains("providerId=\"\""));
     }
 
+    void bigExtrasAreChargedToTheBooksBudgetSoThePerBookTotalHolds()
+    {
+        // 25 cells of 480 comments, each with some 3,300 characters of mentions: the extras alone are more than the book may read
+        QByteArray extra = "<mentions>";
+        for (int i = 0; i < 22; ++i) extra += "<mention mentionpersonId=\"{AAAAAAAA-0000-0000-0000-000000000001}\" mentionId=\"{99999999-0000-0000-0000-00000000" + QByteArray::number(1000 + i) + "}\" startIndex=\"0\" length=\"1\"/>";
+        extra += "</mentions>";
+        QByteArray threads = "<ThreadedComments xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\">";
+        for (int cell = 1; cell <= 25; ++cell)
+            for (int i = 0; i < 480; ++i)
+                threads += "<threadedComment ref=\"A" + QByteArray::number(cell) + "\" id=\"{C" + QByteArray::number(cell) + "-" + QByteArray::number(i) + "}\"><text>x</text>" + extra + "</threadedComment>";
+        threads += "</ThreadedComments>";
+        auto o = open(notesBook(true, threads));
+        QVERIFY(o->ok);
+        NoteReadContext ctx;
+        bool truncated = false;
+        const auto notes = readSheetNoteInfos(o->book, 0, &truncated, kMaxNotes, &ctx);
+        qint64 comments = 0;
+        for (const auto &n : notes)
+            if (n.second.thread) comments += qint64(n.second.thread->size());
+        QVERIFY(truncated);
+        QVERIFY(ctx.exhausted);
+        QVERIFY(comments < 25 * 480);
+        QVERIFY2(ctx.chars <= kMaxNoteCharsPerBook + 5000, qPrintable(QString::number(ctx.chars)));
+    }
+
+    void aThreadPartThatTwentyFiveSheetsNameIsParsedOnce()
+    {
+        QVector<QByteArray> sheets;
+        for (int i = 0; i < 25; ++i) sheets.push_back(worksheet(kRows));
+        QVector<ExtraPart> parts;
+        parts.push_back({QStringLiteral("xl/threadedComments/threadedComment1.xml"), QByteArray(kThreads), QStringLiteral("application/vnd.ms-excel.threadedcomments+xml"), -1, QString(), QString(), QString()});
+        QMap<QString, QByteArray> all = entriesOf(withParts(buildXlsx(sheets), parts));
+        for (int i = 1; i <= 25; ++i)
+            all[QStringLiteral("xl/worksheets/_rels/sheet%1.xml.rels").arg(i)] =
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.microsoft.com/office/2017/10/relationships/threadedComment\" Target=\"../threadedComments/threadedComment1.xml\"/></Relationships>";
+        auto o = open(zipOf(all));
+        QVERIFY(o->ok);
+        NoteReadContext ctx;
+        const qint64 before = threadPartReads();
+        for (int i = 0; i < 25; ++i) {
+            const auto notes = readSheetNoteInfos(o->book, i, nullptr, kMaxNotes, &ctx);
+            QVERIFY2(notes.count(noteKey(4, 1)) && notes.at(noteKey(4, 1)).thread && notes.at(noteKey(4, 1)).thread->size() == 2, qPrintable(QString::number(i)));
+        }
+        QCOMPARE(threadPartReads() - before, qint64(1));
+    }
+
+    void aPersonThatTheListLacksIsNotAddedAsABlankOne()
+    {
+        const ThreadList list = {comment(QStringLiteral("{A0000000-0000-0000-0000-000000000001}"), QString(), QStringLiteral("{GONE}"), QString(), QStringLiteral("whose?"))};
+        SaveChanges changes;
+        changes.sheets[0].noteOps = {putThread(0, 0, list)};
+        QString why;
+        // a workbook with no list of people is not given one for a person it has no name for
+        auto plain = open(plainBook());
+        QVERIFY(plain->ok);
+        auto fresh = saved(*plain, changes, &why);
+        QVERIFY2(fresh, qPrintable(why));
+        QVERIFY(!entriesOf(fresh->bytes).contains(QStringLiteral("xl/persons/person.xml")));
+        // and one that has a list keeps it as it is
+        auto o = open(notesBook());
+        QVERIFY(o->ok);
+        auto again = saved(*o, changes, &why);
+        QVERIFY2(again, qPrintable(why));
+        QCOMPARE(entriesOf(again->bytes).value(QStringLiteral("xl/persons/person.xml")), QByteArray(kPersons));
+    }
+
+    void theOlderNoteForAThreadIsCappedAndTheThreadsWordsStayUnderTheLimit()
+    {
+        ThreadList list;
+        for (int i = 0; i < 3; ++i) list.push_back(comment(QStringLiteral("{B%1}").arg(i), i ? list[0].id : QString(), QStringLiteral("{P}"), QStringLiteral("Ann"), QString(30000, QLatin1Char('x'))));
+        const QString legacy = legacyThreadText(list);
+        QVERIFY2(legacy.size() <= 32767, qPrintable(QString::number(legacy.size())));
+        QVERIFY(legacy.endsWith(QChar(0x2026)));
+        // a thread of the most comments, each of the most characters: its words and its older note are held to the limits
+        ThreadList big;
+        for (int i = 0; i < 300; ++i) big.push_back(comment(QStringLiteral("{C%1}").arg(i), i ? big[0].id : QString(), QStringLiteral("{P}"), QStringLiteral("Ann"), QString(kMaxThreadCommentChars, QLatin1Char('y'))));
+        auto o = open(plainBook());
+        QVERIFY(o->ok);
+        SaveChanges changes;
+        changes.sheets[0].noteOps = {putThread(0, 0, big)};
+        QString why;
+        auto again = saved(*o, changes, &why);
+        QVERIFY2(again, qPrintable(why));
+        const NoteInfo n = readSheetNoteInfos(again->book, 0).at(noteKey(0, 0));
+        QVERIFY(n.thread);
+        QCOMPARE(n.thread->size(), big.size());
+        QVERIFY2(n.text.size() <= kMaxNoteChars, qPrintable(QString::number(n.text.size())));
+        QVERIFY(entriesOf(again->bytes).value(QStringLiteral("xl/comments1.xml")).size() < 100000);
+    }
+
+    void aThreadPartWithAPrefixedRootIsChangedThroughTheWriter()
+    {
+        QByteArray threads = "<tc:ThreadedComments xmlns:tc=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\"><tc:threadedComment ref=\"B5\" dT=\"2024-01-01T10:00:00.00\" personId=\"{AAAAAAAA-0000-0000-0000-000000000001}\" id=\"{11111111-2222-3333-4444-555555555555}\">"
+                             "<tc:text>Is this figure final?</tc:text></tc:threadedComment></tc:ThreadedComments>";
+        auto o = open(notesBook(true, threads));
+        QVERIFY(o->ok);
+        const auto before = readSheetNoteInfos(o->book, 0);
+        QVERIFY(before.at(noteKey(4, 1)).thread);
+        ThreadList list = *before.at(noteKey(4, 1)).thread;
+        list.push_back(comment(QStringLiteral("{77777777-0000-0000-0000-000000000005}"), list[0].id, list[0].personId, list[0].author, QStringLiteral("Yes")));
+        SaveChanges changes;
+        changes.sheets[0].noteOps = {putThread(4, 1, list)};
+        QString why;
+        auto again = saved(*o, changes, &why);
+        QVERIFY2(again, qPrintable(why));
+        const QByteArray part = entriesOf(again->bytes).value(QStringLiteral("xl/threadedComments/threadedComment1.xml"));
+        QVERIFY2(part.contains("<tc:threadedComment ") && !part.contains("<threadedComment "), part.constData());
+        const NoteInfo n = readSheetNoteInfos(again->book, 0).at(noteKey(4, 1));
+        QVERIFY(n.thread);
+        QCOMPARE(*n.thread, list);
+    }
+
+    void theCapsOnCommentsInABookAndOnAnExtraAreHit()
+    {
+        // 1,000 cells of 401 comments: 401,000, one more thousand than a book is read with
+        QByteArray threads = "<ThreadedComments xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\">";
+        for (int cell = 1; cell <= 1000; ++cell)
+            for (int i = 0; i < 401; ++i) threads += "<threadedComment ref=\"A" + QByteArray::number(cell) + "\" id=\"{" + QByteArray::number(i) + "}\"><text>x</text></threadedComment>";
+        threads += "</ThreadedComments>";
+        auto o = open(notesBook(true, threads));
+        QVERIFY(o->ok);
+        bool truncated = false;
+        const auto notes = readSheetNoteInfos(o->book, 0, &truncated);
+        qint64 comments = 0;
+        for (const auto &n : notes)
+            if (n.second.thread) comments += qint64(n.second.thread->size());
+        QVERIFY(truncated);
+        QCOMPARE(comments, kMaxThreadCommentsPerBook);
+        // an extra of more than 4,000 characters is let go of, and one of fewer is kept
+        auto mentions = [](int count) {
+            QByteArray x = "<mentions>";
+            for (int i = 0; i < count; ++i) x += "<mention mentionpersonId=\"{AAAAAAAA-0000-0000-0000-000000000001}\" mentionId=\"{" + QByteArray::number(i) + "}\" startIndex=\"0\" length=\"1\"/>";
+            return x + "</mentions>";
+        };
+        QByteArray two = "<ThreadedComments xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\"><threadedComment ref=\"B5\" id=\"{S}\"><text>small</text>" + mentions(3)
+                         + "</threadedComment><threadedComment ref=\"B5\" id=\"{L}\"><text>large</text>" + mentions(60) + "</threadedComment></ThreadedComments>";
+        auto p = open(notesBook(true, two));
+        QVERIFY(p->ok);
+        const NoteInfo n = readSheetNoteInfos(p->book, 0).at(noteKey(4, 1));
+        QVERIFY(n.thread && n.thread->size() == 2);
+        QVERIFY(!n.thread->at(0).extra.isEmpty());
+        QVERIFY(n.thread->at(1).extra.isEmpty());
+    }
+
+    void twoThreadPartsOnOneSheetAreChangedTogetherAndNoCommentIsTwice()
+    {
+        QMap<QString, QByteArray> all = entriesOf(notesBook());
+        all[QStringLiteral("xl/threadedComments/threadedComment2.xml")] =
+            "<ThreadedComments xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\"><threadedComment ref=\"C3\" dT=\"2024-02-01T10:00:00.00\" personId=\"{AAAAAAAA-0000-0000-0000-000000000001}\" id=\"{22222222-2222-3333-4444-555555555555}\"><text>Second part</text></threadedComment></ThreadedComments>";
+        QByteArray types = all.value(QStringLiteral("[Content_Types].xml"));
+        types.replace("</Types>", "<Override PartName=\"/xl/threadedComments/threadedComment2.xml\" ContentType=\"application/vnd.ms-excel.threadedcomments+xml\"/></Types>");
+        all[QStringLiteral("[Content_Types].xml")] = types;
+        QByteArray rels = all.value(QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels"));
+        rels.replace("</Relationships>", "<Relationship Id=\"rId9\" Type=\"http://schemas.microsoft.com/office/2017/10/relationships/threadedComment\" Target=\"../threadedComments/threadedComment2.xml\"/></Relationships>");
+        all[QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")] = rels;
+        auto o = open(zipOf(all));
+        QVERIFY(o->ok);
+        const auto before = readSheetNoteInfos(o->book, 0);
+        QVERIFY(before.at(noteKey(2, 2)).thread && before.at(noteKey(4, 1)).thread);
+        ThreadList first = *before.at(noteKey(4, 1)).thread, second = *before.at(noteKey(2, 2)).thread;
+        first.push_back(comment(QStringLiteral("{77777777-0000-0000-0000-000000000006}"), first[0].id, first[0].personId, first[0].author, QStringLiteral("one")));
+        second.push_back(comment(QStringLiteral("{77777777-0000-0000-0000-000000000007}"), second[0].id, second[0].personId, second[0].author, QStringLiteral("two")));
+        SaveChanges changes;
+        changes.sheets[0].noteOps = {putThread(4, 1, first), putThread(2, 2, second)};
+        QString why;
+        auto again = saved(*o, changes, &why);
+        QVERIFY2(again, qPrintable(why));
+        const auto notes = readSheetNoteInfos(again->book, 0);
+        QCOMPARE(*notes.at(noteKey(4, 1)).thread, first);
+        QCOMPARE(*notes.at(noteKey(2, 2)).thread, second);
+    }
+
     void aNotesChangeLeavesUnrelatedPartsByteForByte()
     {
         auto o = open(notesBook());

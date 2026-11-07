@@ -94,7 +94,8 @@ std::vector<ThreadPerson> threadPersons(const std::vector<NoteOp> &ops)
     for (const NoteOp &op : ops) {
         if (op.remove || !op.thread) continue;
         for (const ThreadComment &c : *op.thread) {
-            if (c.personId.isEmpty() || !seen.insert(c.personId).second) continue;
+            // (a person the file's list has no name for is not made a blank one: the list stays as the file had it)
+            if (c.personId.isEmpty() || c.author.isEmpty() || !seen.insert(c.personId).second) continue;
             out.push_back({c.personId, c.author, c.userId, c.providerId});
         }
     }
