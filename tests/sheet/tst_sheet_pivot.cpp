@@ -81,6 +81,45 @@ QStringList rowText(const PivotGrid &g, int r)
     return out;
 }
 
+// Region with the calculated item "Both" as its third shared item; the formula is the item's.
+QByteArray calcItemDefinition(const QString &formula)
+{
+    QByteArray def = cacheDefinition();
+    def.replace("<s v=\"East\"/><s v=\"West\"/>", "<s v=\"East\"/><s v=\"West\"/><s v=\"Both\"/>");
+    def.replace("sharedItems count=\"2\"><s v=\"East", "sharedItems count=\"3\"><s v=\"East");
+    def.replace("</cacheFields>", QStringLiteral("</cacheFields><calculatedItems count=\"1\"><calculatedItem field=\"0\" formula=\"%1\"><pivotArea type=\"data\" outline=\"0\" fieldPosition=\"0\"><references count=\"1\">"
+                                                "<reference field=\"0\" count=\"1\"><x v=\"2\"/></reference></references></pivotArea></calculatedItem></calculatedItems>").arg(formula).toUtf8());
+    return def;
+}
+
+QByteArray calcItemTable()
+{
+    return tableDefinition(true, QString(), QStringLiteral("<pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\" showAll=\"0\"><items count=\"4\"><item x=\"0\"/><item x=\"1\"/><item x=\"2\"/><item t=\"default\"/></items></pivotField>"));
+}
+
+// Region has "Gap" (East-West) and Month has "Plus" (Jan+1), with the solve orders given.
+QByteArray twoCalcItemDefinition(int rowOrder, int colOrder)
+{
+    QByteArray def = cacheDefinition();
+    def.replace("<s v=\"East\"/><s v=\"West\"/>", "<s v=\"East\"/><s v=\"West\"/><s v=\"Gap\"/>");
+    def.replace("<s v=\"Jan\"/><s v=\"Feb\"/>", "<s v=\"Jan\"/><s v=\"Feb\"/><s v=\"Plus\"/>");
+    def.replace("sharedItems count=\"2\"", "sharedItems count=\"3\"");
+    auto item = [](int field, const char *formula, int order) {
+        return QStringLiteral("<calculatedItem field=\"%1\" formula=\"%2\"><pivotArea type=\"data\" outline=\"0\" fieldPosition=\"0\"><references count=\"1\"><reference field=\"%1\" count=\"1\"><x v=\"2\"/></reference></references></pivotArea>"
+                              "<extLst><ext uri=\"{3B0E6D52-6C1D-4B52-9D76-0F0C3E1B7A41}\" xmlns:jc=\"urn:jeffcrunch:pivot\"><jc:solveOrder v=\"%3\"/></ext></extLst></calculatedItem>").arg(field).arg(QLatin1String(formula)).arg(order);
+    };
+    def.replace("</cacheFields>", ("</cacheFields><calculatedItems count=\"2\">" + item(0, "East-West", rowOrder) + item(1, "Jan+1", colOrder) + "</calculatedItems>").toUtf8());
+    return def;
+}
+
+QByteArray twoCalcItemTable()
+{
+    const QString items = QStringLiteral("<items count=\"4\"><item x=\"0\"/><item x=\"1\"/><item x=\"2\"/><item t=\"default\"/></items>");
+    return tableDefinition(true, QString(), QStringLiteral("<pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\" showAll=\"0\">") + items + QStringLiteral("</pivotField>"))
+        .replace("<pivotField axis=\"axisCol\" compact=\"0\" outline=\"0\" showAll=\"0\"><items count=\"3\"><item x=\"0\"/><item x=\"1\"/><item t=\"default\"/></items>",
+                 ("<pivotField axis=\"axisCol\" compact=\"0\" outline=\"0\" showAll=\"0\">" + items).toUtf8());
+}
+
 } // namespace
 
 class SheetPivotTests : public QObject {
@@ -760,6 +799,180 @@ private Q_SLOTS:
         PivotTable matched = w.table;
         matchPivotItems(&matched, w.cache, fresh);
         QVERIFY2(computePivot(matched, fresh, &grid, &w.why), qPrintable(w.why));
+        QVERIFY(grid.cells == w.grid.cells);
+    }
+
+    // A calculated item is an item of a field worked out in each cell from other items of that field (East+West): its line shows the sum of those lines, in every column, and the
+    // grand totals are those of the records alone (the item is not counted twice).
+    void aCalculatedItemIsWorkedOutFromTheItemsItNames()
+    {
+        const Worked w = work(calcItemTable(), calcItemDefinition(QStringLiteral("East+West")));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(w.cache.calcItems.size(), 1);
+        QCOMPARE(w.cache.calcItems[0].name, QStringLiteral("Both"));
+        QCOMPARE(w.cache.calcItems[0].field, QStringLiteral("Region"));
+        QCOMPARE(w.cache.calcItems[0].formula, QStringLiteral("East+West"));
+        QCOMPARE(w.grid.rows, 6);
+        QCOMPARE(rowText(w.grid, 2), (QStringList{QStringLiteral("East"), QStringLiteral("15"), QStringLiteral("20"), QStringLiteral("35")}));
+        QCOMPARE(rowText(w.grid, 4), (QStringList{QStringLiteral("Both"), QStringLiteral("22"), QStringLiteral("27"), QStringLiteral("49")}));
+        QCOMPARE(rowText(w.grid, 5), (QStringList{QStringLiteral("Grand Total"), QStringLiteral("22"), QStringLiteral("27"), QStringLiteral("49")}));
+        // another formula: names with spaces in quotes, numbers, and a division that finds nothing to divide by
+        const Worked other = work(calcItemTable(), calcItemDefinition(QStringLiteral("(East-West)*2")));
+        QVERIFY2(other.ok, qPrintable(other.why));
+        QCOMPARE(rowText(other.grid, 4), (QStringList{QStringLiteral("Both"), QStringLiteral("16"), QStringLiteral("26"), QStringLiteral("42")}));
+        const Worked zero = work(calcItemTable(), calcItemDefinition(QStringLiteral("East/(West-West)")));
+        QVERIFY2(zero.ok, qPrintable(zero.why));
+        QCOMPARE(zero.grid.at(4, 1).kind, PivotCell::Error);
+        QCOMPARE(zero.grid.at(4, 1).text, QStringLiteral("#DIV/0!"));
+    }
+
+    // The item is written (the cache's calculatedItems, with its shared item) and read back with its solve order, and the same cells come out.
+    void aCalculatedItemIsWrittenAndReadBack()
+    {
+        Worked w = work(calcItemTable(), calcItemDefinition(QStringLiteral("East+West")));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        w.cache.calcItems[0].solveOrder = 7;
+        const QByteArray written = writePivotCacheDefinition(calcItemDefinition(QStringLiteral("East+West")), w.cache, 6, 45000, DateSystem::Date1900);
+        QVERIFY2(written.contains("<calculatedItems count=\"1\"><calculatedItem field=\"0\" formula=\"East+West\">"), written.constData());
+        QVERIFY2(written.contains("<x v=\"2\"/></reference>") && written.contains("<pivotArea ") && written.contains("<reference "), written.constData());
+        QVERIFY2(written.contains("solveOrder"), written.constData());
+        QVERIFY2(written.indexOf("</cacheFields>") < written.indexOf("<calculatedItems"), written.constData());
+        PivotCache again;
+        QVERIFY2(readPivotCache(written, writePivotCacheRecords(w.cache, DateSystem::Date1900), DateSystem::Date1900, &again, &w.why), qPrintable(w.why));
+        QCOMPARE(again.calcItems.size(), 1);
+        QCOMPARE(again.calcItems[0].name, QStringLiteral("Both"));
+        QCOMPARE(again.calcItems[0].formula, QStringLiteral("East+West"));
+        QCOMPARE(again.calcItems[0].solveOrder, 7);
+        PivotGrid grid;
+        QVERIFY2(computePivot(w.table, again, &grid, &w.why), qPrintable(w.why));
+        QVERIFY(grid.cells == w.grid.cells);
+        // an item taken away leaves no calculatedItems
+        PivotCache none = w.cache;
+        none.calcItems.clear();
+        QVERIFY(!writePivotCacheDefinition(calcItemDefinition(QStringLiteral("East+West")), none, 6, 45000, DateSystem::Date1900).contains("calculatedItems"));
+    }
+
+    // A cell with two calculated items (one in the rows, one in the columns) is worked out with the one of the higher solve order last, from cells that have the other already.
+    void solveOrderDecidesWhichOfTwoCalculatedItemsIsWorkedOutLast()
+    {
+        auto at = [&](int rowOrder, int colOrder) {
+            const Worked w = work(twoCalcItemTable(), twoCalcItemDefinition(rowOrder, colOrder));
+            if (!w.ok) return QStringLiteral("ERR ") + w.why;
+            return text(w.grid, 4, 3);
+        };
+        // (East-West) of the Jan+1 column: the column's item last is (15-7)+1; the row's item last is (15+1)-(7+1)
+        QCOMPARE(at(1, 2), QStringLiteral("9"));
+        QCOMPARE(at(2, 1), QStringLiteral("8"));
+        const Worked w = work(twoCalcItemTable(), twoCalcItemDefinition(1, 2));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(rowText(w.grid, 4), (QStringList{QStringLiteral("Gap"), QStringLiteral("8"), QStringLiteral("13"), QStringLiteral("9"), QStringLiteral("21")}));   // (Jan, Feb, the item "Plus", and the total)
+    }
+
+    // A formula that names itself, an item that is not there, items that name each other, and a great many items give error values and finish.
+    void hostileCalculatedItemsGiveErrorsAndFinish()
+    {
+        Worked w = work(calcItemTable(), calcItemDefinition(QStringLiteral("Both+1")));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(w.grid.at(4, 1).kind, PivotCell::Error);
+        QCOMPARE(w.grid.at(4, 1).text, QStringLiteral("#REF!"));
+        w = work(calcItemTable(), calcItemDefinition(QStringLiteral("East+Nowhere")));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(w.grid.at(4, 1).text, QStringLiteral("#NAME?"));
+        // two items that name each other
+        PivotCache loop = w.cache;
+        loop.fields[0].items.append(PivotValue());
+        loop.fields[0].items.last().kind = PivotValue::Text;
+        loop.fields[0].items.last().text = QStringLiteral("Other");
+        loop.fields[0].sharedCount = 4;
+        loop.calcItems[0].formula = QStringLiteral("Other+1");
+        loop.calcItems.append(PivotCalcItem{QStringLiteral("Region"), QStringLiteral("Other"), QStringLiteral("Both+1"), 2});
+        PivotTable table = w.table;
+        PivotTableItem extra;
+        extra.x = 3;
+        table.fields[0].items.insert(3, extra);
+        PivotGrid grid;
+        QVERIFY2(computePivot(table, loop, &grid, &w.why), qPrintable(w.why));
+        QCOMPARE(grid.at(4, 1).kind, PivotCell::Error);
+        // two hundred items, each the sum of the one before twice: a chain that doubles at every step must not be worked out as a tree
+        PivotCache chain = w.cache;
+        PivotTable chainTable = w.table;
+        chain.calcItems.clear();
+        chain.fields[0].items.resize(2);
+        PivotTableItem totalLine = chainTable.fields[0].items.last();
+        chainTable.fields[0].items.clear();
+        for (int x = 0; x < 2; ++x) {
+            PivotTableItem real;
+            real.x = x;
+            chainTable.fields[0].items.append(real);
+        }
+        chainTable.fields[0].items.append(totalLine);
+        for (int i = 0; i < 200; ++i) {
+            PivotValue v;
+            v.kind = PivotValue::Text;
+            v.text = QStringLiteral("C%1").arg(i);
+            chain.fields[0].items.append(v);
+            chain.calcItems.append(PivotCalcItem{QStringLiteral("Region"), v.text, i == 0 ? QStringLiteral("East+West") : QStringLiteral("C%1+C%1").arg(i - 1), i + 1});
+            PivotTableItem it;
+            it.x = i + 2;
+            chainTable.fields[0].items.insert(chainTable.fields[0].items.size() - 1, it);
+        }
+        chain.fields[0].sharedCount = 202;
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY2(computePivot(chainTable, chain, &grid, &w.why), qPrintable(w.why));
+        QVERIFY2(timer.elapsed() < 5000, "a chain of items is worked out cell by cell, not as a tree");
+        QCOMPARE(grid.rows, 2 + 2 + 200 + 1);
+        // a file with more calculated items than the bound is read with the ones it can hold
+        QByteArray many = "<calculatedItems count=\"900\">";
+        for (int i = 0; i < 900; ++i) many += "<calculatedItem field=\"0\" formula=\"East\"><pivotArea type=\"data\"><references count=\"1\"><reference field=\"0\" count=\"1\"><x v=\"2\"/></reference></references></pivotArea></calculatedItem>";
+        many += "</calculatedItems>";
+        QByteArray def = calcItemDefinition(QStringLiteral("East"));
+        def.replace(def.indexOf("<calculatedItems"), def.indexOf("</calculatedItems>") + 17 - def.indexOf("<calculatedItems"), many);
+        PivotCache big;
+        QVERIFY2(readPivotCache(def, cacheRecords(), DateSystem::Date1900, &big, &w.why), qPrintable(w.why));
+        QVERIFY(big.calcItems.size() <= kPivotMaxCalcItems);
+    }
+
+    // A refresh from the data keeps a calculated item: it is still the field's shared item, and the table's line for it is still there.
+    void aRefreshKeepsACalculatedItem()
+    {
+        const Worked w = work(calcItemTable(), calcItemDefinition(QStringLiteral("East+West")));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        PivotSource src;
+        src.cell = [&](quint32 r, quint32 c) {
+            static const char *const names[] = {"Region", "Month", "Amount"};
+            static const char *const reg[] = {"East", "East", "East", "West", "West", "West"};
+            static const char *const mon[] = {"Jan", "Jan", "Feb", "Jan", "Feb", "Feb"};
+            static const double amt[] = {10, 5, 20, 7, 3, 4};
+            PivotValue v;
+            if (r == 0) {
+                v.kind = PivotValue::Text;
+                v.text = QLatin1String(names[c]);
+            } else if (c < 2) {
+                v.kind = PivotValue::Text;
+                v.text = QLatin1String(c == 0 ? reg[r - 1] : mon[r - 1]);
+            } else {
+                v.kind = PivotValue::Number;
+                v.number = amt[r - 1];
+            }
+            return v;
+        };
+        src.row1 = 0;
+        src.col1 = 0;
+        src.row2 = 6;
+        src.col2 = 2;
+        src.axisFields.insert(0);
+        src.axisFields.insert(1);
+        PivotCache fresh;
+        QString why;
+        QVERIFY2(buildPivotCache(src, w.cache, &fresh, &why), qPrintable(why));
+        QCOMPARE(fresh.calcItems.size(), 1);
+        QCOMPARE(fresh.calcItems[0].name, QStringLiteral("Both"));
+        QCOMPARE(fresh.calcItems[0].formula, QStringLiteral("East+West"));
+        PivotTable matched = w.table;
+        matchPivotItems(&matched, w.cache, fresh);
+        PivotGrid grid;
+        QVERIFY2(computePivot(matched, fresh, &grid, &why), qPrintable(why));
         QVERIFY(grid.cells == w.grid.cells);
     }
 

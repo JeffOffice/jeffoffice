@@ -35,6 +35,8 @@ constexpr qint64 kPivotMaxLevelCells = 40000000;       // the leaves of an axis 
 constexpr qint64 kPivotMaxFanOut = 60000000;           // each group of records is put in the lines it is a part of, on both axes: the most of those it is put in
 constexpr qint64 kPivotMaxCreateCells = 10000000;      // the cells of the data a pivot table is made of on the window's thread
 constexpr int kPivotMaxSubtotalKinds = 12;             // the functions a field has for its subtotal lines, one line of each
+constexpr int kPivotMaxCalcItems = 500;                // the calculated items of one cache
+constexpr qint64 kPivotMaxCalcWork = 30000000;         // the names a table's calculated items look up, all the cells together
 constexpr qint64 kPivotMaxRows = 1048576;            // lines of the rows' axis, and of the columns' (a sheet's rows and columns)
 constexpr qint64 kPivotMaxCols = 16384;
 // What a part of a pivot table or cache may be once inflated (a table's, a cache definition's, the records').
@@ -96,11 +98,21 @@ struct PivotCacheField {
     qint8 numericKnown = -1;   // whether the field holds numbers only, worked out when the cache is read or made (-1: not worked out: pivotFieldIsNumeric then reads the items, and keeps nothing)
 };
 
+// A calculated item: an item of a field that is worked out in each cell from other items of the same field (East+West). It is one of the field's shared items that no record has. When a cell
+// has two (one on the rows and one on the columns), the one with the higher solve order is worked out last, from cells that have the lower one already.
+struct PivotCalcItem {
+    QString field;               // the cache field's name
+    QString name;                // the item's name (it is also the text of one of the field's shared items)
+    QString formula;             // over the names of other items of the field; no "="
+    int solveOrder = 1;
+};
+
 struct PivotCache {
     QString sourceType = QStringLiteral("worksheet");
     QString sheet, ref, name;    // the source: a range on a sheet, or a table or a name
     bool externalSource = false; // (from the head of the definition only) the source names a link to another workbook
     QVector<PivotCacheField> fields;
+    QVector<PivotCalcItem> calcItems;
     qint64 recordCount = 0;
     bool saveData = true, refreshOnLoad = false;
     QString unsupported;         // why the cache can't be worked from or read again (grouped or calculated fields, ...); empty when it can

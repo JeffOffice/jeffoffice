@@ -866,6 +866,8 @@
           "keytip": "ZQ",
           "items": [
             {"large": "pivot.calculatedField", "keytip": "CF"},
+            {"large": "pivot.calculatedItem", "keytip": "CM"},
+            {"large": "pivot.solveOrder", "keytip": "SV"},
             {"large": "pivot.listFormulas", "keytip": "LF"}
           ]
         },

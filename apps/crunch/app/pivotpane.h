@@ -13,6 +13,7 @@ class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QSpinBox;
 class QListWidget;
 class QListWidgetItem;
 class QToolButton;
@@ -124,6 +125,53 @@ private:
     QLineEdit *m_formula = nullptr;
     QListWidget *m_fields = nullptr;
     QPushButton *m_add = nullptr, *m_delete = nullptr;
+};
+
+// What Calculated Item asks: the field (one in the rows or the columns), a name and a formula over that field's items; the fields that can have one, with their items and the calculated items
+// they have (name and formula), to pick one to change or delete.
+struct CalculatedItemChoice {
+    enum Action : quint8 { Add, Delete } action = Add;
+    QString field, name, formula;
+    struct Field {
+        QString name;
+        QStringList items;
+        QStringList calcNames, calcFormulas;
+    };
+    QVector<Field> fields;
+};
+
+class CalculatedItemDialog : public QDialog {
+    Q_OBJECT
+public:
+    explicit CalculatedItemDialog(const CalculatedItemChoice &choice, QWidget *parent = nullptr);
+    CalculatedItemChoice choice() const;
+
+private:
+    void fieldChanged();
+    void nameChanged();
+    CalculatedItemChoice m_choice;
+    QComboBox *m_field = nullptr, *m_name = nullptr;
+    QLineEdit *m_formula = nullptr;
+    QListWidget *m_items = nullptr;
+    QPushButton *m_add = nullptr, *m_delete = nullptr;
+};
+
+// What Solve Order asks: each calculated item (its field and name) and the order it is worked out in; an item of a higher order is worked out after those of a lower one.
+struct SolveOrderChoice {
+    QStringList fields, names;
+    QVector<int> orders;
+};
+
+class SolveOrderDialog : public QDialog {
+    Q_OBJECT
+public:
+    explicit SolveOrderDialog(const SolveOrderChoice &choice, QWidget *parent = nullptr);
+    SolveOrderChoice choice() const { return m_choice; }
+
+private:
+    SolveOrderChoice m_choice;
+    QListWidget *m_list = nullptr;
+    QSpinBox *m_order = nullptr;
 };
 
 // What Pivot Table Options sets: the name, how labels, errors, and empty cells show, the grand totals, what a refresh keeps, and whether the data is read again when the file opens.

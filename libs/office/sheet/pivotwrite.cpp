@@ -292,6 +292,59 @@ QByteArray writePivotCacheDefinition(const QByteArray &original, const PivotCach
     }
     if (!fields.isNull()) root.replaceChild(made, fields);
     else root.insertAfter(made, source);
+    // the calculated items (after cacheFields and the elements that follow it before them in the schema)
+    for (QDomElement old = childNamed(root, QStringLiteral("calculatedItems")); !old.isNull(); old = childNamed(root, QStringLiteral("calculatedItems"))) root.removeChild(old);
+    QDomElement calcs = doc.createElement(QStringLiteral("calculatedItems"));
+    int written = 0;
+    for (const PivotCalcItem &c : cache.calcItems) {
+        int f = -1, x = -1;
+        for (int i = 0; i < cache.fields.size() && f < 0; ++i)
+            if (cache.fields[i].name == c.field) f = i;
+        if (f < 0) continue;
+        const QVector<PivotValue> &stored = cache.fields[f].storedItems();
+        for (int i = 0; i < stored.size() && x < 0; ++i)
+            if (stored[i].kind == PivotValue::Text && stored[i].text == c.name) x = i;
+        if (x < 0 || !cache.fields[f].storedHasShared() || x >= cache.fields[f].storedSharedCount()) continue;
+        QDomElement item = doc.createElement(QStringLiteral("calculatedItem"));
+        item.setAttribute(QStringLiteral("field"), QString::number(f));
+        item.setAttribute(QStringLiteral("formula"), c.formula);
+        QDomElement area = doc.createElement(QStringLiteral("pivotArea"));
+        area.setAttribute(QStringLiteral("type"), QStringLiteral("data"));
+        area.setAttribute(QStringLiteral("outline"), QStringLiteral("0"));
+        area.setAttribute(QStringLiteral("fieldPosition"), QStringLiteral("0"));
+        QDomElement refs = doc.createElement(QStringLiteral("references"));
+        refs.setAttribute(QStringLiteral("count"), QStringLiteral("1"));
+        QDomElement ref = doc.createElement(QStringLiteral("reference"));
+        ref.setAttribute(QStringLiteral("field"), QString::number(f));
+        ref.setAttribute(QStringLiteral("count"), QStringLiteral("1"));
+        QDomElement xe = doc.createElement(QStringLiteral("x"));
+        xe.setAttribute(QStringLiteral("v"), QString::number(x));
+        ref.appendChild(xe);
+        refs.appendChild(ref);
+        area.appendChild(refs);
+        item.appendChild(area);
+        // (the schema has no word for the order in which items are worked out: it is kept in an extension that other programs pass over)
+        QDomElement list = doc.createElement(QStringLiteral("extLst"));
+        QDomElement ext = doc.createElement(QStringLiteral("ext"));
+        ext.setAttribute(QStringLiteral("uri"), QStringLiteral("{3B0E6D52-6C1D-4B52-9D76-0F0C3E1B7A41}"));
+        ext.setAttribute(QStringLiteral("xmlns:jc"), QStringLiteral("urn:jeffcrunch:pivot"));
+        QDomElement so = doc.createElement(QStringLiteral("jc:solveOrder"));
+        so.setAttribute(QStringLiteral("v"), QString::number(c.solveOrder));
+        ext.appendChild(so);
+        list.appendChild(ext);
+        item.appendChild(list);
+        calcs.appendChild(item);
+        ++written;
+    }
+    if (written > 0) {
+        calcs.setAttribute(QStringLiteral("count"), QString::number(written));
+        QDomNode after = childNamed(root, QStringLiteral("cacheFields"));
+        for (const char *name : {"cacheHierarchies", "kpis", "tupleCache"}) {
+            const QDomElement e = childNamed(root, QLatin1String(name));
+            if (!e.isNull()) after = e;
+        }
+        root.insertAfter(calcs, after);
+    }
     return doc.toByteArray(-1);
 }
 

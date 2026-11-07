@@ -1007,7 +1007,7 @@ EditSession::Outcome EditSession::listPivotFormulas(int table, int *made)
     QVector<int> calc;
     for (int f = 0; f < cache.fields.size(); ++f)
         if (cache.fields[f].isCalculated()) calc.append(f);
-    if (calc.isEmpty()) return refuse(tr("This pivot table has no calculated fields."));
+    if (calc.isEmpty() && cache.calcItems.isEmpty()) return refuse(tr("This pivot table has no calculated fields or items."));
     const auto &sheets = m_book->book->info().sheets;
     QString name;
     for (int n = 1;; ++n) {
@@ -1021,7 +1021,7 @@ EditSession::Outcome EditSession::listPivotFormulas(int table, int *made)
     const Outcome inserted = insertSheet(int(sheets.size()), name, &target);
     if (!inserted.ok) return inserted;
     Step step;
-    auto put = [&](quint32 r, quint32 c, const QString &text) {
+    auto putValue = [&](quint32 r, quint32 c, const Value &v, bool share) {
         CellChange cc;
         cc.sheet = target;
         cc.row = r;
@@ -1031,17 +1031,36 @@ EditSession::Outcome EditSession::listPivotFormulas(int table, int *made)
         cc.after.exists = true;
         cc.after.isFormula = false;
         cc.after.formula.clear();
-        cc.after.value = Value::text(text);
+        cc.after.value = v;
         cc.after.sharedString = -1;
         cc.after.hasStored = false;
-        cc.textToShare = !m_book->book->sharedStringsPart().isEmpty();
+        cc.textToShare = share && !m_book->book->sharedStringsPart().isEmpty();
         step.cells.push_back(std::move(cc));
     };
-    put(0, 0, tr("Calculated Field"));
-    put(0, 1, tr("Formula"));
-    for (int k = 0; k < calc.size(); ++k) {
-        put(quint32(k) + 1, 0, cache.fields[calc[k]].name);
-        put(quint32(k) + 1, 1, QLatin1Char('=') + cache.fields[calc[k]].formula);
+    auto put = [&](quint32 r, quint32 c, const QString &text) { putValue(r, c, Value::text(text), true); };
+    quint32 next = 0;
+    if (!calc.isEmpty()) {
+        put(0, 0, tr("Calculated Field"));
+        put(0, 1, tr("Formula"));
+        for (int k = 0; k < calc.size(); ++k) {
+            put(quint32(k) + 1, 0, cache.fields[calc[k]].name);
+            put(quint32(k) + 1, 1, QLatin1Char('=') + cache.fields[calc[k]].formula);
+        }
+        next = quint32(calc.size()) + 2;
+    }
+    if (!cache.calcItems.isEmpty()) {
+        put(next, 0, tr("Calculated Item"));
+        put(next, 1, tr("Formula"));
+        put(next, 2, tr("Field"));
+        put(next, 3, tr("Solve Order"));
+        for (int k = 0; k < cache.calcItems.size(); ++k) {
+            const PivotCalcItem &c = cache.calcItems[k];
+            const quint32 r = next + quint32(k) + 1;
+            put(r, 0, c.name);
+            put(r, 1, QLatin1Char('=') + c.formula);
+            put(r, 2, c.field);
+            putValue(r, 3, Value::number(c.solveOrder), false);
+        }
     }
     out = pushTableStep(std::move(step), tr("List Formulas"));
     if (out.ok && made) *made = target;
@@ -1409,6 +1428,202 @@ EditSession::Outcome EditSession::deletePivotCalculatedField(int table, int fiel
     ch.sourceSheet = ce.sourceSheet;
     ch.sourceName = ce.sourceName;
     return pivotStep({ch}, tr("Delete Calculated Field"));
+}
+
+// The place of the item of the field that a calculated item's formula names, or -1 (the same reading the table uses: the text of a text item, or a number as it is written).
+static int pivotItemNamed(const PivotCacheField &f, const QString &name)
+{
+    for (int i = 0; i < f.items.size(); ++i) {
+        const PivotValue &v = f.items[i];
+        const QString label = v.kind == PivotValue::Text ? v.text : v.kind == PivotValue::Number ? QString::number(v.number, 'g', 15) : QString();
+        if (!label.isEmpty() && label.compare(name, Qt::CaseInsensitive) == 0) return i;
+    }
+    return -1;
+}
+
+EditSession::Outcome EditSession::setPivotCalculatedItem(int table, int field, const QString &name, const QString &formula)
+{
+    Outcome out;
+    QString why;
+    auto refuse = [&](const QString &m) {
+        out.ok = false;
+        out.problem = m;
+        return out;
+    };
+    if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) return refuse(why.isEmpty() ? tr("There is no pivot table here.") : why);
+    PivotBook &pb = m_book->book->pivots();
+    const int ci = pb.table(table).cache;
+    const PivotCacheEntry &ce = pb.cache(ci);
+    if (pb.tablesOfCache(ci).size() > 1) return refuse(tr("Another pivot table is made from the same data. A calculated item is a part of the data, so it can't be made while two tables share it."));
+    const PivotTable &old = *pb.table(table).table;
+    if (field < 0 || field >= ce.cache->fields.size() || field >= old.fields.size() || ce.cache->fields[field].isCalculated()) return refuse(tr("Choose a field that is in the rows or the columns."));
+    if (!old.rowFields.contains(field) && !old.colFields.contains(field)) return refuse(tr("Choose a field that is in the rows or the columns."));
+    const PivotCacheField &cf0 = ce.cache->fields[field];
+    if (cf0.group.kind != PivotFieldGroup::None || cf0.hasRaw) return refuse(tr("A grouped field can't have a calculated item."));
+    const QString use = name.trimmed();
+    if (use.isEmpty()) return refuse(tr("Give the item a name."));
+    int calcAt = -1;
+    for (int k = 0; k < ce.cache->calcItems.size(); ++k)
+        if (ce.cache->calcItems[k].field == cf0.name && ce.cache->calcItems[k].name.compare(use, Qt::CaseInsensitive) == 0) calcAt = k;
+    if (calcAt < 0 && pivotItemNamed(cf0, use) >= 0) return refuse(tr("An item is already called \"%1\". Choose another name.").arg(use));
+    if (calcAt < 0 && ce.cache->calcItems.size() >= kPivotMaxCalcItems) return refuse(tr("There are too many calculated items."));
+    QString problem;
+    const auto parsed = jp::office::sheet::PivotFormula::parse(formula, &problem);
+    if (!parsed) return refuse(tr("The formula can't be read: %1.").arg(problem));
+    if (parsed->names().isEmpty()) return refuse(tr("The formula names no item of \"%1\".").arg(cf0.name));
+    for (const QString &n : parsed->names()) {
+        if (n.compare(use, Qt::CaseInsensitive) == 0) return refuse(tr("The formula names the item it is the formula of."));
+        if (pivotItemNamed(cf0, n) < 0) return refuse(tr("The formula names \"%1\", which is not an item of \"%2\".").arg(n, cf0.name));
+    }
+    QString text = formula.trimmed();
+    if (text.startsWith(QLatin1Char('='))) text = text.mid(1).trimmed();
+    auto cache = std::make_shared<PivotCache>(*ce.cache);
+    PivotChange ch;
+    ch.table = table;
+    ch.now = std::make_shared<PivotTable>(old);
+    PivotTable &t = *ch.now;
+    if (calcAt >= 0) {
+        cache->calcItems[calcAt].formula = text;
+    } else {
+        // (the field's items are all shared, as they are for a field on an axis)
+        pivotPrepareFields(&t, cache.get());
+        PivotCacheField &cf = cache->fields[field];
+        if (cf.items.size() != cf.sharedCount || !cf.hasShared) return refuse(tr("The items of this field can't be added to."));
+        PivotValue v;
+        v.kind = PivotValue::Text;
+        v.text = use;
+        cf.items.append(v);
+        cf.sharedCount = int(cf.items.size());
+        cf.numericKnown = -1;
+        PivotField &pf = t.fields[field];
+        PivotTableItem item;
+        item.x = int(cf.items.size()) - 1;
+        qsizetype at = pf.items.size();
+        for (qsizetype i = 0; i < pf.items.size(); ++i)
+            if (!pf.items[i].t.isEmpty()) {
+                at = i;
+                break;
+            }
+        pf.items.insert(at, item);
+        pf.hasItems = true;
+        int top = 0;
+        for (const PivotCalcItem &c : cache->calcItems) top = std::max(top, c.solveOrder);
+        PivotCalcItem made;
+        made.field = cf.name;
+        made.name = use;
+        made.formula = text;
+        made.solveOrder = top + 1;
+        cache->calcItems.append(made);
+    }
+    pivotNormalizeLayout(&t);
+    pivotPrepareFields(&t, cache.get());
+    pivotKeepNumericFlags(cache.get());
+    ch.structure = calcAt < 0;
+    ch.cache = ci;
+    ch.cacheNow = cache;
+    ch.source = ce.source;
+    ch.sourceSheet = ce.sourceSheet;
+    ch.sourceName = ce.sourceName;
+    return pivotStep({ch}, calcAt < 0 ? tr("Insert Calculated Item") : tr("Change Calculated Item"));
+}
+
+EditSession::Outcome EditSession::deletePivotCalculatedItem(int table, int field, const QString &name)
+{
+    Outcome out;
+    QString why;
+    auto refuse = [&](const QString &m) {
+        out.ok = false;
+        out.problem = m;
+        return out;
+    };
+    if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) return refuse(why.isEmpty() ? tr("There is no pivot table here.") : why);
+    PivotBook &pb = m_book->book->pivots();
+    const int ci = pb.table(table).cache;
+    const PivotCacheEntry &ce = pb.cache(ci);
+    if (pb.tablesOfCache(ci).size() > 1) return refuse(tr("Another pivot table is made from the same data, so the item can't be taken away from this one alone."));
+    if (field < 0 || field >= ce.cache->fields.size()) return refuse(tr("This is not a calculated item."));
+    const PivotCacheField &cf0 = ce.cache->fields[field];
+    int calcAt = -1;
+    for (int k = 0; k < ce.cache->calcItems.size(); ++k)
+        if (ce.cache->calcItems[k].field == cf0.name && ce.cache->calcItems[k].name.compare(name.trimmed(), Qt::CaseInsensitive) == 0) calcAt = k;
+    const int x = calcAt < 0 ? -1 : pivotItemNamed(cf0, ce.cache->calcItems[calcAt].name);
+    if (calcAt < 0 || x < 0 || cf0.items.size() != cf0.sharedCount || cf0.hasRaw) return refuse(tr("This is not a calculated item."));
+    const QString gone = ce.cache->calcItems[calcAt].name;
+    for (int k = 0; k < ce.cache->calcItems.size(); ++k) {
+        if (k == calcAt || ce.cache->calcItems[k].field != cf0.name) continue;
+        const auto p = jp::office::sheet::PivotFormula::parse(ce.cache->calcItems[k].formula, nullptr);
+        if (p && p->names().contains(gone, Qt::CaseInsensitive)) return refuse(tr("The calculated item \"%1\" uses this one. Delete or change it first.").arg(ce.cache->calcItems[k].name));
+    }
+    auto cache = std::make_shared<PivotCache>(*ce.cache);
+    cache->calcItems.removeAt(calcAt);
+    PivotCacheField &cf = cache->fields[field];
+    cf.items.removeAt(x);
+    cf.sharedCount = int(cf.items.size());
+    cf.numericKnown = -1;
+    for (qint32 &r : cf.records)
+        if (r > x) --r;
+    PivotChange ch;
+    ch.table = table;
+    ch.now = std::make_shared<PivotTable>(*pb.table(table).table);
+    PivotTable &t = *ch.now;
+    PivotField &pf = t.fields[field];
+    for (qsizetype i = pf.items.size() - 1; i >= 0; --i) {
+        if (!pf.items[i].t.isEmpty()) continue;
+        if (pf.items[i].x == x) pf.items.removeAt(i);
+        else if (pf.items[i].x > x) --pf.items[i].x;
+    }
+    for (PivotPageField &pg : t.pageFields)
+        if (pg.fld == field) pg.item = -1;
+    pivotNormalizeLayout(&t);
+    pivotPrepareFields(&t, cache.get());
+    pivotKeepNumericFlags(cache.get());
+    ch.structure = true;
+    ch.cache = ci;
+    ch.cacheNow = cache;
+    ch.source = ce.source;
+    ch.sourceSheet = ce.sourceSheet;
+    ch.sourceName = ce.sourceName;
+    return pivotStep({ch}, tr("Delete Calculated Item"));
+}
+
+EditSession::Outcome EditSession::setPivotSolveOrders(int table, const QStringList &fields, const QStringList &names, const QVector<int> &orders)
+{
+    Outcome out;
+    QString why;
+    auto refuse = [&](const QString &m) {
+        out.ok = false;
+        out.problem = m;
+        return out;
+    };
+    if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) return refuse(why.isEmpty() ? tr("There is no pivot table here.") : why);
+    PivotBook &pb = m_book->book->pivots();
+    const int ci = pb.table(table).cache;
+    const PivotCacheEntry &ce = pb.cache(ci);
+    if (fields.size() != names.size() || names.size() != orders.size()) return refuse(tr("This is not a calculated item."));
+    auto cache = std::make_shared<PivotCache>(*ce.cache);
+    bool changed = false;
+    for (int i = 0; i < names.size(); ++i) {
+        bool found = false;
+        for (PivotCalcItem &c : cache->calcItems)
+            if (c.field == fields[i] && c.name.compare(names[i], Qt::CaseInsensitive) == 0) {
+                found = true;
+                if (orders[i] < 1 || orders[i] > 100000) return refuse(tr("The solve order is a whole number from 1 to 100000."));
+                changed = changed || c.solveOrder != orders[i];
+                c.solveOrder = orders[i];
+            }
+        if (!found) return refuse(tr("This is not a calculated item."));
+    }
+    if (!changed) return refuse(tr("The solve order is the same."));
+    PivotChange ch;
+    ch.table = table;
+    ch.now = std::make_shared<PivotTable>(*pb.table(table).table);
+    ch.structure = false;
+    ch.cache = ci;
+    ch.cacheNow = cache;
+    ch.source = ce.source;
+    ch.sourceSheet = ce.sourceSheet;
+    ch.sourceName = ce.sourceName;
+    return pivotStep({ch}, tr("Change Solve Order"));
 }
 
 EditSession::Outcome EditSession::drillPivotItem(int sheet, quint32 row, quint32 col, bool open)

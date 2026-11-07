@@ -558,7 +558,9 @@ void CrunchWindow::createPivotActions()
         }
         if (made >= 0) goToFound(made, 0, 0);
     });
-    m_opsActions << QStringLiteral("pivot.calculatedField") << QStringLiteral("pivot.listFormulas");
+    mk("pivot.calculatedItem", tr("Calculated Item…"), "calculator", QKeySequence(), [this] { askCalculatedItem(); });
+    mk("pivot.solveOrder", tr("Solve Order…"), "list-ordered", QKeySequence(), [this] { askSolveOrder(); });
+    m_opsActions << QStringLiteral("pivot.calculatedField") << QStringLiteral("pivot.listFormulas") << QStringLiteral("pivot.calculatedItem") << QStringLiteral("pivot.solveOrder");
     mk("pivot.fieldSettings", tr("Field Settings…"), "settings", QKeySequence(), [this] {
         const int f = m_pivotPane ? m_pivotPane->selectedField() : -1;
         if (selectedPivot() < 0) {
@@ -1038,6 +1040,107 @@ void CrunchWindow::askCalculatedField()
     updateTableLooks();
 }
 
+void CrunchWindow::askCalculatedItem()
+{
+    const int t = selectedPivot();
+    const QString title = tr("Calculated Item");
+    if (t < 0 || !m_session) {
+        notice(title, tr("Click a cell in a pivot table first."), false);
+        return;
+    }
+    if (!editingAllowed()) return;
+    if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+    QString why;
+    if (!m_session->pivotUsable(t, &why)) {
+        notice(title, why);
+        return;
+    }
+    const PivotTableEntry &entry = m_session->workbook()->pivots().table(t);
+    const PivotCache *cache = entry.cache >= 0 ? m_session->workbook()->pivots().cache(entry.cache).cache.get() : nullptr;
+    if (!cache || !entry.table) return;
+    CalculatedItemChoice choice;
+    QVector<int> places;
+    for (int f = 0; f < cache->fields.size(); ++f) {
+        if (cache->fields[f].isCalculated() || (!entry.table->rowFields.contains(f) && !entry.table->colFields.contains(f))) continue;
+        CalculatedItemChoice::Field field;
+        field.name = cache->fields[f].name;
+        for (const PivotValue &v : cache->fields[f].items)
+            if (v.kind == PivotValue::Text) field.items << v.text;
+            else if (v.kind == PivotValue::Number) field.items << QString::number(v.number, 'g', 15);
+        for (const PivotCalcItem &c : cache->calcItems)
+            if (c.field == field.name) {
+                field.calcNames << c.name;
+                field.calcFormulas << c.formula;
+            }
+        choice.fields.append(field);
+        places.append(f);
+    }
+    if (choice.fields.isEmpty()) {
+        notice(title, tr("Put a field in the rows or the columns first."));
+        return;
+    }
+    if (m_calculatedItemAsker) {
+        if (!m_calculatedItemAsker(&choice)) return;
+    } else {
+        CalculatedItemDialog dialog(choice, this);
+        if (dialog.exec() != QDialog::Accepted) return;
+        choice = dialog.choice();
+    }
+    int field = -1;
+    for (int i = 0; i < choice.fields.size(); ++i)
+        if (choice.fields[i].name.compare(choice.field, Qt::CaseInsensitive) == 0) field = places[i];
+    if (field < 0) {
+        notice(title, tr("Choose a field that is in the rows or the columns."));
+        return;
+    }
+    const auto done = choice.action == CalculatedItemChoice::Delete ? m_session->deletePivotCalculatedItem(t, field, choice.name) : m_session->setPivotCalculatedItem(t, field, choice.name, choice.formula);
+    pivotProblem(title, done);
+    m_pivotShown = nullptr;
+    updatePivotTab();
+    updateTableLooks();
+}
+
+void CrunchWindow::askSolveOrder()
+{
+    const int t = selectedPivot();
+    const QString title = tr("Solve Order");
+    if (t < 0 || !m_session) {
+        notice(title, tr("Click a cell in a pivot table first."), false);
+        return;
+    }
+    if (!editingAllowed()) return;
+    if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+    QString why;
+    if (!m_session->pivotUsable(t, &why)) {
+        notice(title, why);
+        return;
+    }
+    const PivotTableEntry &entry = m_session->workbook()->pivots().table(t);
+    const PivotCache *cache = entry.cache >= 0 ? m_session->workbook()->pivots().cache(entry.cache).cache.get() : nullptr;
+    if (!cache) return;
+    SolveOrderChoice choice;
+    for (const PivotCalcItem &c : cache->calcItems) {
+        choice.fields << c.field;
+        choice.names << c.name;
+        choice.orders << c.solveOrder;
+    }
+    if (choice.names.isEmpty()) {
+        notice(title, tr("This pivot table has no calculated items."));
+        return;
+    }
+    if (m_solveOrderAsker) {
+        if (!m_solveOrderAsker(&choice)) return;
+    } else {
+        SolveOrderDialog dialog(choice, this);
+        if (dialog.exec() != QDialog::Accepted) return;
+        choice = dialog.choice();
+    }
+    pivotProblem(title, m_session->setPivotSolveOrders(t, choice.fields, choice.names, choice.orders));
+    m_pivotShown = nullptr;
+    updatePivotTab();
+    updateTableLooks();
+}
+
 void CrunchWindow::fillSlicers()
 {
     if (!m_slicerPane || !m_session || m_slicerFilling) return;
@@ -1165,7 +1268,7 @@ void CrunchWindow::updatePivotFieldActions()
     // (a command that works on a pivot table's cell is dimmed away from one, not left to say so when it is used)
     const bool open = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;
     const bool inTable = selectedPivot() >= 0;
-    for (const char *id : {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.calculatedField", "pivot.listFormulas", "pivot.showDetail", "pivot.selectAll", "pivot.selectValues", "pivot.selectLabels", "pivot.move", "pivot.drillDown", "pivot.drillUp"})
+    for (const char *id : {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.calculatedField", "pivot.listFormulas", "pivot.calculatedItem", "pivot.solveOrder", "pivot.showDetail", "pivot.selectAll", "pivot.selectValues", "pivot.selectLabels", "pivot.move", "pivot.drillDown", "pivot.drillUp"})
         if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(open && inTable);
     {
         bool filtered = false;

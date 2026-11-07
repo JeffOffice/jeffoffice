@@ -105,6 +105,8 @@ struct ValueFieldSettings;
 struct FieldSettings;
 struct GroupChoice;
 struct CalculatedFieldChoice;
+struct CalculatedItemChoice;
+struct SolveOrderChoice;
 struct PivotOptionsChoice;
 class HelpWindow;
 class ObjectPicker;
@@ -345,6 +347,8 @@ public:
     void setPivotSourceAsker(std::function<bool(QString *)> asker) { m_pivotSourceAsker = std::move(asker); }
     void setValueFieldAsker(std::function<bool(QString *, QString *)> asker) { m_valueFieldAsker = std::move(asker); }
     void setCalculatedFieldAsker(std::function<bool(jp::CalculatedFieldChoice *)> asker) { m_calculatedAsker = std::move(asker); }   // test hook: all of Calculated Field
+    void setCalculatedItemAsker(std::function<bool(jp::CalculatedItemChoice *)> asker) { m_calculatedItemAsker = std::move(asker); }   // test hook: all of Calculated Item
+    void setSolveOrderAsker(std::function<bool(jp::SolveOrderChoice *)> asker) { m_solveOrderAsker = std::move(asker); }   // test hook: all of Solve Order
     void setGroupAsker(std::function<bool(jp::GroupChoice *)> asker) { m_groupAsker = std::move(asker); }   // test hook: all of Group Field
     void setFieldSettingsAsker(std::function<bool(jp::FieldSettings *)> asker) { m_fieldSettingsAsker = std::move(asker); }   // test hook: all of Field Settings
     void setPivotOptionsChoiceAsker(std::function<bool(jp::PivotOptionsChoice *)> asker) { m_pivotOptionsChoiceAsker = std::move(asker); }   // test hook: all of Pivot Table Options
@@ -957,6 +961,8 @@ private:
     bool insertPivotChart();
     void askGroupField(int field);
     void askCalculatedField();
+    void askCalculatedItem();
+    void askSolveOrder();
     void pivotProblem(const QString &title, const jp::crunch::EditSession::Outcome &o);
     PivotFieldsPane *m_pivotPane = nullptr;
     QDockWidget *m_pivotDock = nullptr;
@@ -973,6 +979,8 @@ private:
     std::function<bool(jp::FieldSettings *)> m_fieldSettingsAsker;
     std::function<bool(jp::GroupChoice *)> m_groupAsker;
     std::function<bool(jp::CalculatedFieldChoice *)> m_calculatedAsker;
+    std::function<bool(jp::CalculatedItemChoice *)> m_calculatedItemAsker;
+    std::function<bool(jp::SolveOrderChoice *)> m_solveOrderAsker;
     std::function<bool(jp::PivotOptionsChoice *)> m_pivotOptionsChoiceAsker;
     // the data tools: Remove Duplicates and Text to Columns (crunchwindow_datatools.cpp)
     void createDataToolsActions();

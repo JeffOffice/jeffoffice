@@ -16,6 +16,7 @@
 #include "office/package.h"
 #include "savedok.h"
 #include "sheet/oldsave.h"
+#include "findbooks.h"
 #include "sheet/pivot.h"
 #include "sheet/slicer.h"
 #include "sheet/sheetreader.h"
@@ -862,6 +863,126 @@ private Q_SLOTS:
         QCOMPARE(s->valueAt(made, 1, 0).text(), QStringLiteral("Bonus"));
         QCOMPARE(s->valueAt(made, 1, 1).text(), QStringLiteral("=Amount*0.1"));
         QCOMPARE(s->valueAt(made, 2, 1).text(), QStringLiteral("=Bonus/Amount"));
+    }
+
+    // Calculated Item: an item of a field in the rows is worked out from other items of the field (=East+West); a bad name, formula, or field is said and changes nothing; it is saved in the cache's
+    // calculatedItems, read back, changed, given a solve order, listed by List Formulas, deleted, and each is one step of Undo.
+    void aCalculatedItemIsAddedChangedOrderedListedAndDeleted()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        const int steps = s->undoStack()->count();
+        QVERIFY(!s->setPivotCalculatedItem(0, 0, QStringLiteral("Both"), QStringLiteral("=East+")).ok);
+        QVERIFY(!s->setPivotCalculatedItem(0, 0, QStringLiteral("Both"), QStringLiteral("=East+Nowhere")).ok);
+        QVERIFY(!s->setPivotCalculatedItem(0, 0, QStringLiteral("Both"), QStringLiteral("=Both+East")).ok);
+        QVERIFY(!s->setPivotCalculatedItem(0, 0, QStringLiteral("East"), QStringLiteral("=East+West")).ok);
+        QVERIFY(!s->setPivotCalculatedItem(0, 0, QString(), QStringLiteral("=East+West")).ok);
+        QVERIFY(!s->setPivotCalculatedItem(0, 2, QStringLiteral("Both"), QStringLiteral("=East+West")).ok);   // (Amount is not in the rows or the columns)
+        QCOMPARE(s->undoStack()->count(), steps);
+        const auto made = s->setPivotCalculatedItem(0, 0, QStringLiteral("Both"), QStringLiteral("=East+West"));
+        QVERIFY2(made.ok, qPrintable(made.problem));
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(s->undoStack()->undoText(), QStringLiteral("Insert Calculated Item"));
+        QVERIFY2(pivotShown(e, QStringLiteral("E3:H9")).contains(QStringLiteral("Both|22|27|49\nGrand Total|22|27|49")), qPrintable(pivotShown(e, QStringLiteral("E3:H9"))));
+        e.win.w.resize(1440, 900);
+        e.win.w.show();
+        saveShot(&e.win.w, QStringLiteral("pivot-calculated-item"));
+        QVERIFY(saveNow(e));
+        const Parts saved = readParts(e.path);
+        const QByteArray definition = saved.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml"));
+        QVERIFY2(definition.contains("<calculatedItems count=\"1\">") && definition.contains("formula=\"East+West\"") && definition.contains("<s v=\"Both\"/>"), definition.constData());
+        const QByteArray table = saved.value(QStringLiteral("xl/pivotTables/pivotTable1.xml"));
+        QVERIFY2(table.contains("<items count=\"4\"><item x=\"0\"/><item x=\"1\"/><item x=\"2\"/><item t=\"default\"/></items>"), table.constData());
+        checkShapes(saved);
+        // read back, and read again from the data
+        EditWindow again;
+        QVERIFY(again.open([&] { QFile f(e.path); f.open(QIODevice::ReadOnly); return f.readAll(); }(), QStringLiteral("again.xlsx")));
+        QVERIFY(again.win.w.session()->pivotUsable(0));
+        QCOMPARE(again.win.w.session()->workbook()->pivots().cache(0).cache->calcItems.size(), 1);
+        QVERIFY(again.win.w.session()->refreshPivot(0).ok);
+        finish(again);
+        QVERIFY2(pivotShown(again, QStringLiteral("E3:H9")).contains(QStringLiteral("Both|22|27|49")), qPrintable(pivotShown(again, QStringLiteral("E3:H9"))));
+        // changed through the dialog's own hook
+        e.win.w.setCalculatedItemAsker([](jp::CalculatedItemChoice *c) {
+            c->field = QStringLiteral("Region");
+            c->name = QStringLiteral("Both");
+            c->formula = QStringLiteral("=East-West");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("pivot.calculatedItem"))->trigger();
+        finish(e);
+        QCOMPARE(s->undoStack()->undoText(), QStringLiteral("Change Calculated Item"));
+        QVERIFY2(pivotShown(e, QStringLiteral("E3:H9")).contains(QStringLiteral("Both|8|13|21")), qPrintable(pivotShown(e, QStringLiteral("E3:H9"))));
+        // the solve order: kept, changed in one step, and written
+        QCOMPARE(s->workbook()->pivots().cache(0).cache->calcItems[0].solveOrder, 1);
+        QVERIFY(!s->setPivotSolveOrders(0, {QStringLiteral("Region")}, {QStringLiteral("Both")}, {1}).ok);   // (the same: nothing to do)
+        QVERIFY(!s->setPivotSolveOrders(0, {QStringLiteral("Region")}, {QStringLiteral("Nope")}, {3}).ok);
+        e.win.w.setSolveOrderAsker([](jp::SolveOrderChoice *c) {
+            c->orders[0] = 5;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("pivot.solveOrder"))->trigger();
+        finish(e);
+        QCOMPARE(s->undoStack()->undoText(), QStringLiteral("Change Solve Order"));
+        QCOMPARE(s->workbook()->pivots().cache(0).cache->calcItems[0].solveOrder, 5);
+        QVERIFY(saveNow(e));
+        QVERIFY2(readParts(e.path).value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml")).contains("solveOrder v=\"5\""), "the solve order is in the file");
+        s->undoStack()->undo();
+        QCOMPARE(s->workbook()->pivots().cache(0).cache->calcItems[0].solveOrder, 1);
+        s->undoStack()->redo();
+        // List Formulas names the item, its formula, its field, and its solve order
+        int listed = -1;
+        const auto o = s->listPivotFormulas(0, &listed);
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        finish(e);
+        QCOMPARE(s->valueAt(listed, 0, 0).text(), QStringLiteral("Calculated Item"));
+        QCOMPARE(s->valueAt(listed, 1, 0).text(), QStringLiteral("Both"));
+        QCOMPARE(s->valueAt(listed, 1, 1).text(), QStringLiteral("=East-West"));
+        QCOMPARE(s->valueAt(listed, 1, 2).text(), QStringLiteral("Region"));
+        QCOMPARE(s->valueAt(listed, 1, 3).number(), 5.0);
+        // deleted: the line and the shared item go, Undo brings them back
+        e.win.w.setCalculatedItemAsker([](jp::CalculatedItemChoice *c) {
+            c->field = QStringLiteral("Region");
+            c->name = QStringLiteral("Both");
+            c->action = jp::CalculatedItemChoice::Delete;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("pivot.calculatedItem"))->trigger();
+        finish(e);
+        QCOMPARE(s->undoStack()->undoText(), QStringLiteral("Delete Calculated Item"));
+        QCOMPARE(s->workbook()->pivots().cache(0).cache->calcItems.size(), 0);
+        QVERIFY2(pivotShown(e, QStringLiteral("E3:H7")).contains(QStringLiteral("West|7|7|14\nGrand Total|22|27|49")), qPrintable(pivotShown(e, QStringLiteral("E3:H9"))));
+        s->undoStack()->undo();
+        finish(e);
+        QVERIFY2(pivotShown(e, QStringLiteral("E3:H9")).contains(QStringLiteral("Both|8|13|21")), "undone");
+    }
+
+    // The window's grid has a split box at the top of the vertical scroll bar and at the left of the horizontal one: dragging one cuts the view, and the Split command shows it is on.
+    void theGridHasSplitBoxesAtTheEndsOfTheScrollBars()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        e.win.w.resize(1440, 900);
+        e.win.w.show();
+        grid::GridView *view = e.win.w.view();
+        QVERIFY(view->splitBoxes());
+        QWidget *down = view->splitBox(true), *across = view->splitBox(false);
+        QVERIFY(down && across);
+        QTRY_VERIFY(down->isVisible() && across->isVisible());
+        QVERIFY(!e.win.w.act(QStringLiteral("view.split"))->isChecked());
+        QTest::mousePress(down, Qt::LeftButton, Qt::NoModifier, QPoint(2, 2));
+        QTest::mouseMove(down, QPoint(2, 140));
+        QTest::mouseRelease(down, Qt::LeftButton, Qt::NoModifier, QPoint(2, 140));
+        QVERIFY(view->isSplit());
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("view.split"))->isChecked());
+        QTest::mousePress(across, Qt::LeftButton, Qt::NoModifier, QPoint(2, 2));
+        QTest::mouseMove(across, QPoint(260, 2));
+        QTest::mouseRelease(across, Qt::LeftButton, Qt::NoModifier, QPoint(260, 2));
+        saveShot(&e.win.w, QStringLiteral("split-box"));
+        QVERIFY(view->sheet().layout().splitWidth() > 0 && view->sheet().layout().splitHeight() > 0);
     }
 
     // A double click on a value shows the rows behind it on a new sheet; a label is edited as always.

@@ -154,6 +154,15 @@ bool buildPivotCache(const PivotSource &src, const PivotCache &prev, PivotCache 
             hasText = hasText || v.kind == PivotValue::Text || v.kind == PivotValue::Bool || v.kind == PivotValue::Error;
             temp.append(dist.idOf(v));
         }
+        // (a calculated item is one of the field's items that no record has: it stays among them)
+        if (p >= 0)
+            for (const PivotCalcItem &ci : prev.calcItems)
+                if (ci.field == prev.fields[p].name) {
+                    PivotValue v;
+                    v.kind = PivotValue::Text;
+                    v.text = ci.name;
+                    dist.idOf(v);
+                }
         distinctAll += dist.values.size();
         if (dist.values.size() > kPivotMaxItemsPerField || distinctAll > 12000000) return fail(QStringLiteral("the source has too many different values"));
         // (a field keeps being shared or not as it was, as the original program keeps it; a new field of text is shared, unless a text is too long for a shared item (more than 255 characters))
@@ -195,6 +204,13 @@ bool buildPivotCache(const PivotSource &src, const PivotCache &prev, PivotCache 
         pf.records.resize(temp.size());
         for (qsizetype i = 0; i < temp.size(); ++i) pf.records[i] = newId[temp[i]];
     }
+    for (const PivotCalcItem &ci : prev.calcItems)
+        for (int f = 0; f < nCols; ++f)
+            if (out->fromField[f] >= 0 && prev.fields[out->fromField[f]].name == ci.field) {
+                PivotCalcItem kept = ci;
+                kept.field = out->fields[f].name;
+                out->calcItems.append(kept);
+            }
     // the calculated fields go on after the others: a formula names its fields, so it is worked out from the new values
     for (int p = 0; p < prev.fields.size(); ++p) {
         if (!prev.fields[p].isCalculated()) continue;

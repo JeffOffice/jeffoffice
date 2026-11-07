@@ -1,5 +1,5 @@
 # Pivot tables
-<!-- keywords: list formulas, calculated field, formula field, report filter pages, pivot table, drill down, drill up, insert pivot table, create, make, select, move pivot table, getpivotdata, generate getpivotdata, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average, show values as, percent of total, difference, running total, number format, field settings, sort, filter, top, group, ungroup, dates, months, years, expand, collapse, options, style, banded rows, blank rows, repeat labels, refresh when the file opens, pivot chart, slicer, timeline, show details, drill down, rows behind a value -->
+<!-- keywords: list formulas, calculated field, calculated item, solve order, formula field, report filter pages, pivot table, drill down, drill up, insert pivot table, create, make, select, move pivot table, getpivotdata, generate getpivotdata, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average, show values as, percent of total, difference, running total, number format, field settings, sort, filter, top, group, ungroup, dates, months, years, expand, collapse, options, style, banded rows, blank rows, repeat labels, refresh when the file opens, pivot chart, slicer, timeline, show details, drill down, rows behind a value -->
 
 A pivot table is a small report made from a long list. The list has one row for each sale, say; the report adds the sales up by region and month. You do not write any formulas. You say which columns of the list go down the side, which go across the top, and which one is added up, and the report fills itself in.
 
@@ -60,7 +60,7 @@ When you click a value of a pivot table while you type a formula, JeffCrunch wri
 
 A pivot table in a workbook is shown as it was saved. If you change nothing about it, the file is saved with the pivot table exactly as it was. When you refresh it or change it, JeffCrunch works the report out again, puts the new numbers in the cells, and writes the pivot table back so that the program that made it opens it without complaint.
 
-JeffCrunch works out pivot tables that add, count, average, and so on, that group dates and numbers, and that show values as a share, a difference, or a running total. A pivot table that has a calculated field or item, shows a value as a rank or as a share of a parent, has groups of items that someone made by hand, or uses a data model is shown and kept as saved, and the commands tell you they cannot change it.
+JeffCrunch works out pivot tables that add, count, average, and so on, that group dates and numbers, and that show values as a share, a difference, or a running total. A pivot table that shows a value as a rank or as a share of a parent, has groups of items that someone made by hand, or uses a data model is shown and kept as saved, and the commands tell you they cannot change it.
 
 Click any cell of a pivot table. The **Pivot Table** tab appears.
 
@@ -151,9 +151,25 @@ Choose **Add**. The new field is put in the **Values** box. It also shows in the
 
 A calculated field is worked out in every cell of the report. A field's name stands for the total of that field in the cell, so `=Amount*Amount` squares the cell's total. It does not square each row and add them up. A grand total uses the totals of the whole list.
 
-**List Formulas** (next to **Calculated Field**) makes a new sheet that names each calculated field and its formula. **Undo** takes the cells away, and another **Undo** takes the sheet away.
+**List Formulas** (next to **Calculated Field**) makes a new sheet that names each calculated field and its formula, and each calculated item with its formula, its field, and its solve order. **Undo** takes the cells away, and another **Undo** takes the sheet away.
 
 To change a field, pick its name in the **Name** box. Its formula shows. Change it and choose **Modify**. **Delete** takes the field and its value away. Each is one step of **Undo**. A calculated field is saved with the file and is kept when the report is refreshed. Two pivot tables made from the same data can't have one, because a calculated field is a part of the data they share.
+
+## Calculated items
+
+A calculated item is an item you make from other items of the same field. For example, the field Region has the items East and West. A new item named Both can be `=East+West`.
+
+Click a cell in the pivot table, and choose **Calculated Item** on the **Pivot Table** tab. Pick the **Field**. It must be in the rows or the columns. Type a **Name** and a **Formula**. Write an item's name in the formula, or double-click it in the **Items** list to put it there. Put a name that has spaces in single quotes, as in `='Big East'+West`. You can use numbers, `+ - * / ^ %`, and brackets.
+
+The new item gets a line in the report. In each column, it shows the formula worked out from the lines of the items it names. The grand totals and the subtotals are those of the rows of the list, so the new item is not counted in them twice. If an item the formula names is hidden, the cell shows **#REF!**. If the formula names an item that is not there, the cell shows **#NAME?**.
+
+To change an item, pick its name in the **Name** box. Its formula shows. Change it and choose **Modify**. **Delete** takes the item and its line away. Each is one step of **Undo**. A calculated item is saved with the file and is kept when the report is refreshed. Two pivot tables made from the same data can't have one, because a calculated item is a part of the data they share.
+
+### Solve order
+
+Sometimes one cell has two calculated items. One is in its row and the other is in its column. The order in which they are worked out can change the answer. Say the row item is `=East-West` and the column item is `=Jan+1`. Worked out in one order, the cell is (East - West) + 1. In the other order, it is (East + 1) - (West + 1), which is a different number.
+
+**Solve Order** on the **Pivot Table** tab lists each calculated item with a number. The item with the higher number is worked out last. Pick an item in the list and change its number in the **Solve order** box. The numbers are saved with the file. **List Formulas** shows them next to each item's formula.
 
 ## Show the rows behind a value
 

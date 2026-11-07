@@ -247,6 +247,20 @@ bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp:
                 return true;
             }
         }
+    // the calculated items name their field and item by place: they become names (one that has no field or no item there is dropped)
+    QVector<PivotCalcItem> items;
+    for (PivotCalcItem c : out->calcItems) {
+        bool okField = false, okItem = false;
+        const int f = c.field.toInt(&okField);
+        const int x = c.name.toInt(&okItem);
+        if (!okField || !okItem || f < 0 || f >= out->fields.size() || x < 0 || x >= out->fields[f].items.size() || c.formula.isEmpty()) continue;
+        const PivotValue &v = out->fields[f].items[x];
+        if (v.kind != PivotValue::Text || v.text.isEmpty()) continue;
+        c.field = out->fields[f].name;
+        c.name = v.text;
+        items.append(c);
+    }
+    out->calcItems = items;
     pivotKeepNumericFlags(out);
     return true;
 }
@@ -266,12 +280,30 @@ bool readPivotCacheCore(const QByteArray &definition, const QByteArray &records,
     PivotCacheField *cur = nullptr, *dcur = nullptr;   // the field being read, or (for one with no records) its place among the others
     bool inShared = false, inGroupItems = false, inDiscrete = false;
     std::vector<PivotIntern> interns;
+    PivotCalcItem *calc = nullptr;   // the calculated item being read: its field's place and its item's place are kept as numbers until the fields are all in
+    bool calcNamed = false;
     qint64 distinct = 0, groupEntries = 0;   // (the items a field's groups name, all the fields together)
     while (!r.atEnd()) {
         const auto tok = r.readNext();
         if (tok == QXmlStreamReader::StartElement) {
             ++depth;
             const QStringView n = r.name();
+            if (n == QLatin1String("calculatedItem") && depth == 3 && out->calcItems.size() < kPivotMaxCalcItems) {
+                PivotCalcItem item;
+                item.field = r.attributes().value(QLatin1String("field")).toString();
+                item.formula = r.attributes().value(QLatin1String("formula")).toString();
+                item.solveOrder = int(out->calcItems.size()) + 1;
+                out->calcItems.append(item);
+                calc = &out->calcItems.last();
+                calcNamed = false;
+            } else if (calc && n == QLatin1String("reference") && depth == 6 && calc->field.isEmpty()) {
+                calc->field = r.attributes().value(QLatin1String("field")).toString();
+            } else if (calc && n == QLatin1String("x") && depth == 7 && !calcNamed) {
+                calc->name = r.attributes().value(QLatin1String("v")).toString();
+                calcNamed = true;
+            } else if (calc && n == QLatin1String("solveOrder") && depth >= 5) {
+                calc->solveOrder = toInt(r.attributes().value(QLatin1String("v")), calc->solveOrder);
+            }
             if (depth == 1) {
                 if (n != QLatin1String("pivotCacheDefinition")) return fail(QStringLiteral("not a pivot cache definition"));
                 sawRoot = true;
@@ -364,7 +396,9 @@ bool readPivotCacheCore(const QByteArray &definition, const QByteArray &records,
                 g.labels.append(v.kind == PivotValue::Text || v.kind == PivotValue::Error ? v.text : v.kind == PivotValue::Missing ? QString() : QString::number(v.number, 'g', 15));
             }
         } else if (tok == QXmlStreamReader::EndElement) {
-            if (r.name() == QLatin1String("sharedItems") && depth == 4) {
+            if (r.name() == QLatin1String("calculatedItem") && depth == 3) {
+                calc = nullptr;
+            } else if (r.name() == QLatin1String("sharedItems") && depth == 4) {
                 inShared = false;
                 if (cur) cur->sharedCount = int(cur->items.size());
             } else if (r.name() == QLatin1String("cacheField") && depth == 3) {

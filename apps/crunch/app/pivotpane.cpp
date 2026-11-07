@@ -13,6 +13,7 @@
 #include <QListWidget>
 #include <QMenu>
 #include <QPushButton>
+#include <QSpinBox>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -534,6 +535,136 @@ CalculatedFieldChoice CalculatedFieldDialog::choice() const
     c.name = m_name->currentText().trimmed();
     c.formula = m_formula->text().trimmed();
     return c;
+}
+
+// ---------------------------------------------------------------- Calculated Item
+
+CalculatedItemDialog::CalculatedItemDialog(const CalculatedItemChoice &c, QWidget *parent) : QDialog(parent), m_choice(c)
+{
+    setWindowTitle(tr("Insert Calculated Item"));
+    setObjectName(QStringLiteral("calculatedItemDialog"));
+    auto *form = new QFormLayout(this);
+    m_field = new QComboBox(this);
+    m_field->setObjectName(QStringLiteral("calcItem.field"));
+    m_field->setAccessibleName(tr("Field"));
+    for (const CalculatedItemChoice::Field &f : c.fields) m_field->addItem(f.name);
+    const int at = m_field->findText(c.field);
+    if (at >= 0) m_field->setCurrentIndex(at);
+    form->addRow(tr("Field:"), m_field);
+    m_name = new QComboBox(this);
+    m_name->setEditable(true);
+    m_name->setObjectName(QStringLiteral("calcItem.name"));
+    m_name->setAccessibleName(tr("Name"));
+    form->addRow(tr("Name:"), m_name);
+    m_formula = new QLineEdit(c.formula, this);
+    m_formula->setObjectName(QStringLiteral("calcItem.formula"));
+    m_formula->setAccessibleName(tr("Formula"));
+    m_formula->setMinimumWidth(320);
+    form->addRow(tr("Formula:"), m_formula);
+    m_items = new QListWidget(this);
+    m_items->setObjectName(QStringLiteral("calcItem.items"));
+    m_items->setAccessibleName(tr("Items"));
+    form->addRow(tr("Items:"), m_items);
+    auto *hint = new QLabel(tr("Double-click an item to put its name in the formula. An item's name stands for its value in each cell."), this);
+    hint->setWordWrap(true);
+    form->addRow(hint);
+    auto *box = new QDialogButtonBox(this);
+    m_add = box->addButton(tr("Add"), QDialogButtonBox::AcceptRole);
+    m_add->setObjectName(QStringLiteral("calcItem.add"));
+    m_delete = box->addButton(tr("Delete"), QDialogButtonBox::DestructiveRole);
+    m_delete->setObjectName(QStringLiteral("calcItem.delete"));
+    box->addButton(QDialogButtonBox::Close);
+    form->addRow(box);
+    connect(m_add, &QAbstractButton::clicked, this, [this] {
+        m_choice.action = CalculatedItemChoice::Add;
+        accept();
+    });
+    connect(m_delete, &QAbstractButton::clicked, this, [this] {
+        m_choice.action = CalculatedItemChoice::Delete;
+        accept();
+    });
+    connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    connect(m_items, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *item) {
+        const QString name = item->text();
+        const bool plain = !name.isEmpty() && std::all_of(name.begin(), name.end(), [](QChar ch) { return ch.isLetterOrNumber() || ch == QLatin1Char('_'); }) && !name.at(0).isDigit();
+        m_formula->insert(plain ? name : QLatin1Char('\'') + QString(name).replace(QLatin1Char('\''), QStringLiteral("''")) + QLatin1Char('\''));
+        m_formula->setFocus();
+    });
+    connect(m_field, &QComboBox::currentTextChanged, this, [this] { fieldChanged(); });
+    connect(m_name, &QComboBox::currentTextChanged, this, [this] { nameChanged(); });
+    fieldChanged();
+    m_name->setCurrentText(c.name);
+}
+
+void CalculatedItemDialog::fieldChanged()
+{
+    const int at = m_field->currentIndex();
+    m_items->clear();
+    const QString typed = m_name->currentText();
+    m_name->clear();
+    if (at >= 0 && at < m_choice.fields.size()) {
+        m_items->addItems(m_choice.fields[at].items);
+        m_name->addItems(m_choice.fields[at].calcNames);
+    }
+    m_name->setCurrentText(typed);
+    nameChanged();
+}
+
+void CalculatedItemDialog::nameChanged()
+{
+    const int f = m_field->currentIndex();
+    const int at = f >= 0 && f < m_choice.fields.size() ? int(m_choice.fields[f].calcNames.indexOf(m_name->currentText().trimmed())) : -1;
+    if (at >= 0 && at < m_choice.fields[f].calcFormulas.size() && m_formula->text() != m_choice.fields[f].calcFormulas[at]) m_formula->setText(QLatin1Char('=') + m_choice.fields[f].calcFormulas[at]);
+    m_add->setText(at >= 0 ? tr("Modify") : tr("Add"));
+    m_delete->setEnabled(at >= 0);
+}
+
+CalculatedItemChoice CalculatedItemDialog::choice() const
+{
+    CalculatedItemChoice c = m_choice;
+    c.field = m_field->currentText();
+    c.name = m_name->currentText().trimmed();
+    c.formula = m_formula->text().trimmed();
+    return c;
+}
+
+// ---------------------------------------------------------------- Solve Order
+
+SolveOrderDialog::SolveOrderDialog(const SolveOrderChoice &c, QWidget *parent) : QDialog(parent), m_choice(c)
+{
+    setWindowTitle(tr("Solve Order"));
+    setObjectName(QStringLiteral("solveOrderDialog"));
+    auto *layout = new QVBoxLayout(this);
+    layout->addWidget(new QLabel(tr("When a cell has two calculated items, the one of the higher number is worked out last."), this));
+    m_list = new QListWidget(this);
+    m_list->setObjectName(QStringLiteral("solveOrder.list"));
+    m_list->setAccessibleName(tr("Calculated items"));
+    layout->addWidget(m_list);
+    auto *form = new QFormLayout;
+    m_order = new QSpinBox(this);
+    m_order->setObjectName(QStringLiteral("solveOrder.order"));
+    m_order->setAccessibleName(tr("Solve order"));
+    m_order->setRange(1, 100000);
+    form->addRow(tr("Solve order:"), m_order);
+    layout->addLayout(form);
+    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    layout->addWidget(box);
+    auto label = [this](int i) { return tr("%1: %2 (%3)").arg(m_choice.fields[i], m_choice.names[i]).arg(m_choice.orders[i]); };
+    for (int i = 0; i < m_choice.names.size(); ++i) m_list->addItem(label(i));
+    connect(m_list, &QListWidget::currentRowChanged, this, [this](int row) {
+        m_order->setEnabled(row >= 0);
+        if (row >= 0 && row < m_choice.orders.size()) m_order->setValue(m_choice.orders[row]);
+    });
+    connect(m_order, qOverload<int>(&QSpinBox::valueChanged), this, [this, label](int v) {
+        const int row = m_list->currentRow();
+        if (row < 0 || row >= m_choice.orders.size()) return;
+        m_choice.orders[row] = v;
+        m_list->item(row)->setText(label(row));
+    });
+    connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    m_order->setEnabled(false);
+    if (m_list->count() > 0) m_list->setCurrentRow(0);
 }
 
 // ---------------------------------------------------------------- Pivot Table Options

@@ -458,6 +458,48 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
     for (int f = 0; f < nf; ++f)
         if (used[f]) positions(f, &posOf[f], &itemOfPos[f]);
 
+    // the calculated items of fields on an axis: each one's item, the items its formula names, and its formula, read once
+    struct CalcInfo {
+        int field = -1, shared = -1, order = 1;
+        std::shared_ptr<const PivotFormula> formula;
+        QStringList names;
+        QVector<qint32> refShared;   // for each name, the place of the item in the field's shared items (-1: none of that name)
+    };
+    std::vector<CalcInfo> calcs;
+    QHash<quint64, int> calcOfItem;   // (field, shared item) to its place in `calcs`
+    {
+        auto label = [](const PivotValue &v) {
+            switch (v.kind) {
+            case PivotValue::Text: return v.text;
+            case PivotValue::Number: return QString::number(v.number, 'g', 15);
+            default: return QString();
+            }
+        };
+        for (const PivotCalcItem &ci : c.calcItems) {
+            CalcInfo info;
+            for (int f = 0; f < nf && info.field < 0; ++f)
+                if (!c.fields[f].isCalculated() && c.fields[f].name.compare(ci.field, Qt::CaseInsensitive) == 0) info.field = f;
+            if (info.field < 0 || !used[info.field]) continue;
+            const auto &items = c.fields[info.field].items;
+            for (int i = 0; i < items.size() && info.shared < 0; ++i)
+                if (items[i].kind == PivotValue::Text && items[i].text.compare(ci.name, Qt::CaseInsensitive) == 0) info.shared = i;
+            if (info.shared < 0 || calcOfItem.contains((quint64(info.field) << 32) | quint32(info.shared))) continue;
+            info.order = ci.solveOrder;
+            info.formula = PivotFormula::parse(ci.formula, nullptr);
+            if (info.formula) {
+                info.names = info.formula->names();
+                for (const QString &n : info.names) {
+                    qint32 at = -1;
+                    for (int i = 0; i < items.size() && at < 0; ++i)
+                        if (label(items[i]).compare(n, Qt::CaseInsensitive) == 0) at = i;
+                    info.refShared.append(at);
+                }
+            }
+            calcOfItem.insert((quint64(info.field) << 32) | quint32(info.shared), int(calcs.size()));
+            calcs.push_back(std::move(info));
+        }
+    }
+
     // the records that are in
     std::vector<bool> in(size_t(nrec), true);
     for (const PivotPageField &p : t.pageFields) {
@@ -593,6 +635,44 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
     };
     onlyValues(t.rowFields, rowTuples);
     onlyValues(t.colFields, colTuples);
+    // a calculated item has no records, so its lines are made from the others: wherever an item of its field has a line, the calculated item has one too (a table with two calculated items
+    // across fields has a line for each pair)
+    auto injectCalculated = [&](const QVector<int> &fields, std::vector<Tuple> &tuples, std::unordered_map<std::string, int> &ids, bool isRows) -> bool {
+        if (calcs.empty()) return true;
+        struct Level {
+            int level;
+            std::vector<int> own;       // the places of the calculated items of the level's field
+            std::vector<char> isOwn;    // by place
+        };
+        std::vector<Level> levels;
+        for (int l = 0; l < fields.size(); ++l) {
+            if (fields[l] < 0) continue;
+            Level lv;
+            lv.level = l;
+            lv.isOwn.assign(posOf[fields[l]].size() + 1, 0);
+            for (const CalcInfo &ci : calcs) {
+                const int own = ci.field == fields[l] ? posOf[ci.field][ci.shared] : -1;
+                if (own < 0) continue;
+                lv.own.push_back(own);
+                if (size_t(own) < lv.isOwn.size()) lv.isOwn[size_t(own)] = 1;
+            }
+            if (!lv.own.empty()) levels.push_back(std::move(lv));
+        }
+        for (size_t i = 0; i < tuples.size(); ++i)
+            for (const Level &lv : levels) {
+                const int p = tuples[i][size_t(lv.level)];
+                if (p < 0 || (size_t(p) < lv.isOwn.size() && lv.isOwn[size_t(p)])) continue;
+                for (int own : lv.own) {
+                    Tuple made = tuples[i];
+                    made[size_t(lv.level)] = own;
+                    if (!ids.emplace(keyOf(made), int(tuples.size())).second) continue;
+                    tuples.push_back(std::move(made));
+                    if (tuples.size() > size_t(isRows ? kPivotMaxRows : kPivotMaxCols) || qint64(tuples.size()) * (qint64(fields.size()) + 1) > kPivotMaxLevelCells) return false;
+                }
+            }
+        return true;
+    };
+    if (!injectCalculated(t.rowFields, rowTuples, rowId, true) || !injectCalculated(t.colFields, colTuples, colId, false)) return fail(QStringLiteral("the table would have too many lines"));
     // the leaves in order: by the places of the items, and for a field sorted by a value, by that value of the items in their group
     auto sortLeaves = [&](std::vector<Tuple> &tuples, std::vector<int> *newOf, const QVector<int> &fields, SortSpec &sp) {
         const int nL = int(fields.size());
@@ -968,6 +1048,136 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             shown[size_t(ri) * nCI + ci] = pc;
             dataOf[size_t(ri) * nCI + ci] = di;
             fnAt[size_t(ri) * nCI + ci] = fn;
+        }
+    }
+    if (!calcs.empty() && D > 0) {
+        // the path of each line (the place of its item at each level it reaches), the line of a kind and a path, and the calculated items a line has
+        struct Side {
+            std::vector<Tuple> path;
+            std::unordered_map<std::string, int> lineOf;
+            std::vector<std::vector<std::pair<int, int>>> comps;   // for each line, (level, calculated item) pairs
+            bool any = false;
+        };
+        auto keyOfLine = [](const PivotAxisItem &it, const Tuple &path) {
+            Tuple k(path);
+            k.push_back(-7);
+            k.push_back(it.t.isEmpty() ? 0 : it.t.at(0).unicode());
+            k.push_back(it.i);
+            return keyOf(k);
+        };
+        auto sideOf = [&](const Axis &ax, const QVector<int> &fields) {
+            Side sd;
+            const int nLevels = int(fields.size());
+            sd.path.resize(ax.items.size());
+            sd.comps.resize(ax.items.size());
+            Tuple cur(size_t(nLevels), -1);
+            for (size_t i = 0; i < ax.items.size(); ++i) {
+                const PivotAxisItem &it = ax.items[i];
+                if (it.t != QLatin1String("grand") && it.t != QLatin1String("blank")) {
+                    int levels = 0;
+                    for (int k = 0; k < it.x.size() && it.r + k < nLevels; ++k) {
+                        cur[size_t(it.r + k)] = it.x[k];
+                        levels = it.r + k + 1;
+                    }
+                    for (int l = levels; l < nLevels; ++l) cur[size_t(l)] = -1;
+                    sd.path[i] = Tuple(cur.begin(), cur.begin() + levels);
+                }
+                if (it.labelOnly) continue;
+                sd.lineOf.emplace(keyOfLine(it, sd.path[i]), int(i));
+                for (int l = 0; l < int(sd.path[i].size()); ++l) {
+                    if (fields[l] < 0 || sd.path[i][size_t(l)] < 0) continue;
+                    const auto &list = itemOfPos[fields[l]];
+                    const int pos = sd.path[i][size_t(l)];
+                    const int shared = t.fields[fields[l]].hasItems ? (pos < list.size() ? list[pos]->x : -1) : pos;
+                    const auto found = calcOfItem.constFind((quint64(fields[l]) << 32) | quint32(shared));
+                    if (shared >= 0 && found != calcOfItem.constEnd()) {
+                        sd.comps[i].emplace_back(l, found.value());
+                        sd.any = true;
+                    }
+                }
+            }
+            return sd;
+        };
+        const Side rowSide = sideOf(rowAx, t.rowFields), colSide = sideOf(colAx, t.colFields);
+        if (rowSide.any || colSide.any) {
+            std::vector<char> state(size_t(nRI) * size_t(nCI), 0);
+            qint64 work = 0;
+            bool tooMuch = false;
+            std::function<void(int, int, int)> eval = [&](int ri, int ci, int depth) {
+                const size_t at = size_t(ri) * size_t(nCI) + size_t(ci);
+                if (state[at] == 2 || dataOf[at] < 0) return;
+                PivotCell &out = shown[at];
+                auto fail = [&](const QString &e) {
+                    out = PivotCell();
+                    out.kind = PivotCell::Error;
+                    out.text = e;
+                    out.isValue = true;
+                    state[at] = 2;
+                };
+                if (state[at] == 1 || depth > 400) return fail(QStringLiteral("#REF!"));
+                // the item worked out last: the highest solve order (of two with the same, the one made later)
+                int axis = -1, level = 0, best = -1;
+                for (int a = 0; a < 2; ++a)
+                    for (const auto &lc : (a == 0 ? rowSide : colSide).comps[size_t(a == 0 ? ri : ci)])
+                        if (best < 0 || std::tie(calcs[size_t(lc.second)].order, lc.second) > std::tie(calcs[size_t(best)].order, best)) {
+                            axis = a;
+                            level = lc.first;
+                            best = lc.second;
+                        }
+                if (best < 0) return;
+                const CalcInfo &info = calcs[size_t(best)];
+                if (!info.formula) return fail(QStringLiteral("#NAME?"));
+                work += qint64(info.names.size()) + 1;
+                if (work > kPivotMaxCalcWork) {
+                    tooMuch = true;
+                    return fail(QStringLiteral("#REF!"));
+                }
+                state[at] = 1;
+                bool anyValue = false;
+                const Side &side = axis == 0 ? rowSide : colSide;
+                const int line = axis == 0 ? ri : ci;
+                const PivotFormulaValue fv = info.formula->evaluate([&](const QString &name) -> PivotFormulaValue {
+                    const int j = int(info.names.indexOf(name));
+                    const qint32 x = j >= 0 && j < info.refShared.size() ? info.refShared[j] : -1;
+                    if (x < 0) return PivotFormulaValue::err(QStringLiteral("#NAME?"));
+                    const int pos = x == info.shared ? -1 : posOf[info.field][x];
+                    if (pos < 0) return PivotFormulaValue::err(QStringLiteral("#REF!"));
+                    Tuple path = side.path[size_t(line)];
+                    path[size_t(level)] = pos;
+                    const auto found = side.lineOf.find(keyOfLine((axis == 0 ? rowAx : colAx).items[line], path));
+                    if (found == side.lineOf.end()) return PivotFormulaValue::num(0);   // (no line: the item has nothing in this place)
+                    const int rl = axis == 0 ? found->second : ri, cl = axis == 0 ? ci : found->second;
+                    eval(rl, cl, depth + 1);
+                    const PivotCell &ref = shown[size_t(rl) * size_t(nCI) + size_t(cl)];
+                    switch (ref.kind) {
+                    case PivotCell::Number: anyValue = true; return PivotFormulaValue::num(ref.number);
+                    case PivotCell::Empty: return PivotFormulaValue::num(0);
+                    case PivotCell::Error: return PivotFormulaValue::err(ref.text);
+                    default: return PivotFormulaValue::err(QStringLiteral("#VALUE!"));
+                    }
+                });
+                const int di = dataOf[at];
+                PivotCell pc;
+                pc.isValue = true;
+                pc.numFmtId = t.dataFields[di].numFmtCode.isEmpty() ? t.dataFields[di].numFmtId : -2 - di;
+                switch (fv.kind) {
+                case PivotFormulaValue::Number:
+                    if (anyValue) {
+                        pc.kind = PivotCell::Number;
+                        pc.number = fv.number;
+                    }
+                    break;
+                case PivotFormulaValue::Bool: pc.kind = PivotCell::Bool; pc.number = fv.number; break;
+                case PivotFormulaValue::Text: pc.kind = PivotCell::Text; pc.text = fv.text; break;
+                case PivotFormulaValue::Error: pc.kind = PivotCell::Error; pc.text = fv.text; break;
+                }
+                out = pc;
+                state[at] = 2;
+            };
+            for (int ri = 0; ri < nRI && !tooMuch; ++ri)
+                for (int ci = 0; ci < nCI && !tooMuch; ++ci)
+                    if (!rowSide.comps[size_t(ri)].empty() || !colSide.comps[size_t(ci)].empty()) eval(ri, ci, 0);
+            if (tooMuch) return fail(QStringLiteral("the calculated items would take too much work to total"));
         }
     }
     if (anyShownAs) {
