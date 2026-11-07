@@ -1140,7 +1140,15 @@ QStringList checkLazyRibbon(Adapter &app)
             r->setAttribute(Qt::WA_UnderMouse, false);
             for (QWidget *c : r->findChildren<QWidget *>()) c->setAttribute(Qt::WA_UnderMouse, false);
             out.names << r->tabName(i);
-            out.pictures << r->grab().toImage();
+            // (a picture again until it stops changing: a gallery that fills itself a little at a time on a busy machine is done when it is)
+            QImage picture = r->grab().toImage();
+            for (int again = 0; again < 8; ++again) {
+                drain();
+                const QImage next = r->grab().toImage();
+                if (next == picture) break;
+                picture = next;
+            }
+            out.pictures << picture;
             for (QWidget *c : r->tabAt(i)->findChildren<QWidget *>()) {
                 out.accessible += QStringLiteral("%1/%2|%3|%4|%5|%6|%7\n").arg(r->tabName(i), QString::fromLatin1(c->metaObject()->className()), c->objectName(), c->accessibleName(), c->accessibleDescription(), c->whatsThis().isEmpty() ? QStringLiteral("-") : QStringLiteral("help"), c->toolTip());
             }
