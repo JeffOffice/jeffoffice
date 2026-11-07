@@ -1,4 +1,4 @@
-#include "io/pptxdiagram.h"
+#include "render/diagramdrawing.h"
 
 #include "office/xml.h"
 #include "render/renderer.h"

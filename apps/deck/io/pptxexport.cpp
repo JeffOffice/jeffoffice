@@ -9,7 +9,7 @@
 #include "core/media.h"
 #include "core/sections.h"
 #include "core/themes.h"
-#include "io/pptxdiagram.h"
+#include "render/diagramdrawing.h"
 #include "io/pptxfonts.h"
 #include "io/pptxshow.h"
 #include "io/pptxtablestyles.h"

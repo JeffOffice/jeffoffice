@@ -5,7 +5,7 @@
 #include "core/deck.h"
 #include "core/embeddedfonts.h"
 #include "core/sections.h"
-#include "io/pptxdiagram.h"
+#include "render/diagramdrawing.h"
 #include "io/pptxfonts.h"
 #include "io/pptxshow.h"
 #include "io/pptxtablestyles.h"
