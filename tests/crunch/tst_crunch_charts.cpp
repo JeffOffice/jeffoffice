@@ -1433,7 +1433,7 @@ private Q_SLOTS:
         if (!shots.isEmpty()) {
             e.win.w.objects()->layer()->prepareAll();
             e.win.w.resize(1000, 700);
-            QTest::qWait(100);
+            QCoreApplication::processEvents();
             e.win.w.grab().save(shots + QStringLiteral("/chart-sheet.png"));
         }
     }
