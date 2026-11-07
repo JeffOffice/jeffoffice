@@ -78,6 +78,7 @@ void CrunchWindow::createEditing()
         notice(tr("Undo"), what);
         updateEditActions();
     });
+    connect(m_session.get(), &crunch::EditSession::fillFinished, this, &CrunchWindow::updateEditActions);   // (Undo and Redo are on again when the last slice is in)
     QUndoStack *u = m_session->undoStack();
     connect(u, &QUndoStack::indexChanged, this, [this] { removeArrows(); });   // (the arrows are of the cells as they were)
     connect(u, &QUndoStack::canUndoChanged, this, &CrunchWindow::updateEditActions);
@@ -110,8 +111,9 @@ void CrunchWindow::updateEditActions()
 {
     QUndoStack *u = undoStack();
     const bool open = m_session && !m_saving && !isReadOnly();
-    act("edit.undo")->setEnabled(open && m_session->canUndo());
-    act("edit.redo")->setEnabled(open && u->canRedo());
+    const bool stepping = m_applying || (m_session && m_session->isSlicing());   // (Undo and Redo wait while a large change is being put in)
+    act("edit.undo")->setEnabled(open && !stepping && m_session->canUndo());
+    act("edit.redo")->setEnabled(open && !stepping && u->canRedo());
     act("edit.undo")->setToolTip(jp::plainToolTip(u && m_session->canUndo() ? tr("Undo %1 (%2)").arg(u->undoText(), QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)) : tr("Undo")));
     act("edit.redo")->setToolTip(jp::plainToolTip(u && u->canRedo() ? tr("Redo %1 (%2)").arg(u->redoText(), QKeySequence(QKeySequence::Redo).toString(QKeySequence::NativeText)) : tr("Redo")));
     // (a chart sheet has no cells to work on: none of the commands that do is on while one is in view, and they are back on a sheet of cells)
@@ -538,6 +540,10 @@ void CrunchWindow::undoRedo(bool redo)
 {
     QUndoStack *u = undoStack();
     if (!u || m_edit.active || m_saving || m_passwordJob) return;
+    if (m_applying || m_session->isSlicing()) {
+        setStatus(tr("A large change is still being made. It can be changed again when that is done."));
+        return;
+    }
     if (redo ? !u->canRedo() : !m_session->canUndo()) return;
     jp::office::sheet::PasswordHash guard;
     QString what;
@@ -551,7 +557,7 @@ void CrunchWindow::undoRedo(bool redo)
 void CrunchWindow::undoRedoNow(bool redo)
 {
     QUndoStack *u = undoStack();
-    if (!u || m_edit.active || m_saving) return;
+    if (!u || m_edit.active || m_saving || m_applying || m_session->isSlicing()) return;
     if (redo ? !u->canRedo() : !m_session->canUndo()) return;
     const qint64 before = m_loader.changesMade();
     const QString what = redo ? u->redoText() : u->undoText();

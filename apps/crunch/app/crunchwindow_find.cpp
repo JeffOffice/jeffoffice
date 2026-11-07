@@ -262,6 +262,7 @@ void CrunchWindow::setFixedSlices(qint64 cells)
 void CrunchWindow::runApply(int what, const std::function<crunch::EditSession::Outcome(qint64)> &step, const std::function<void(const crunch::EditSession::Outcome &)> &done)
 {
     m_applying = what;
+    updateEditActions();
     m_applyStep = step;
     m_applyDone = done;
     m_applyTuner.reset();
@@ -285,6 +286,7 @@ void CrunchWindow::stepApply()
     m_applyStep = nullptr;
     m_applyDone = nullptr;
     m_applying = 0;
+    updateEditActions();
     if (done) done(o);
 }
 

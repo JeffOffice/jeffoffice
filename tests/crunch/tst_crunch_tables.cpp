@@ -1802,6 +1802,33 @@ private Q_SLOTS:
         QVERIFY(e.settle());
     }
 
+    // Undo and Redo wait while a column is being filled a slice at a time: the step before it is not undone from under it, and one Undo afterward takes back the fill.
+    void undoWaitsWhileAColumnIsBeingFilled()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"/>"))})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:B6001")), true, QString()).ok);
+        QVERIFY(s->type(0, 1, 0, QStringLiteral("7")).ok);
+        QUndoStack *u = e.win.w.undoStack();
+        QVERIFY(s->type(0, 1, 1, QStringLiteral("=A2*2")).ok);
+        QVERIFY(s->isSlicing());
+        const int index = u->index();
+        pressUndo(&e.win.w);
+        QCOMPARE(u->index(), index);
+        QCOMPARE(editOf(e, QStringLiteral("A2")), QStringLiteral("7"));
+        QTRY_VERIFY_WITH_TIMEOUT(!s->fillPending(), 120000);
+        QCOMPARE(editOf(e, QStringLiteral("B6001")), QStringLiteral("=A6001*2"));
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("edit.undo"))->isEnabled());
+        pressUndo(&e.win.w);
+        QCOMPARE(u->index(), index);
+        QCOMPARE(editOf(e, QStringLiteral("B6001")), QString());
+        QCOMPARE(editOf(e, QStringLiteral("A2")), QStringLiteral("7"));
+        QVERIFY(e.settle());
+    }
+
     // A sheet that has tables can be deleted: its tables go with it, what names them on other sheets is #REF! (in the cells, and in the file), and Undo brings the tables and the formulas back.
     void aSheetWithTablesCanBeDeleted()
     {

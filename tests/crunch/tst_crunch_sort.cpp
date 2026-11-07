@@ -544,6 +544,38 @@ private Q_SLOTS:
         QVERIFY(!w.isApplying());
     }
 
+    void undoAndRedoWaitWhileALargeSortIsBeingPutIn()
+    {
+        QStringList cells;
+        for (int r = 1; r <= 5000; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg((r * 7919) % 5003);
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(cells)));
+        CrunchWindow &w = e.win.w;
+        w.setFixedSlices(500);
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("5"));                                               // (a step to undo, so that Undo is on before the sort)
+        const QString first = shown(e, QStringLiteral("A1:A4"));
+        QVERIFY(w.act(QStringLiteral("edit.undo"))->isEnabled());
+        const int steps = w.undoStack()->count();
+        QSignalSpy finished(&w, &CrunchWindow::sortFinished);
+        QVERIFY(w.sortRange(rangeOf(QStringLiteral("A1:A5000")), byColumn(0)));
+        QVERIFY(w.isSorting());
+        for (int turns = 0; turns < 100000 && !w.isApplying() && w.isSorting(); ++turns) QCoreApplication::processEvents(QEventLoop::AllEvents);   // (one turn at a time, to stop in the middle)
+        QVERIFY(w.isApplying());                                                    // (the plan is made, and the cells are being put in)
+        QVERIFY(!w.act(QStringLiteral("edit.undo"))->isEnabled());
+        QVERIFY(!w.act(QStringLiteral("edit.redo"))->isEnabled());
+        pressUndo(&w);                                                              // (refused: the step before the sort is not undone under it)
+        QCOMPARE(w.undoStack()->index(), steps);
+        QCOMPARE(shown(e, QStringLiteral("A1:A4")), first);
+        QTRY_COMPARE(finished.count(), 1);
+        QVERIFY(finished.last().first().toBool());
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        QVERIFY(w.act(QStringLiteral("edit.undo"))->isEnabled());
+        pressUndo(&w);
+        QCOMPARE(w.undoStack()->index(), steps);
+        QCOMPARE(shown(e, QStringLiteral("A1:A4")), first);                         // (one Undo gives back the cells exactly)
+    }
+
     void aHeaderIsGuessedFromTextOverNumbersAndColorsAreListed()
     {
         EditWindow e;
