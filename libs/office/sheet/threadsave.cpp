@@ -43,8 +43,11 @@ bool elementEnd(const QByteArray &xml, const Tag &open, qsizetype *end)
 
 QByteArray commentXml(const QByteArray &prefix, const QString &ref, const ThreadComment &c)
 {
-    QByteArray x = "<" + prefix + "threadedComment ref=\"" + ref.toLatin1() + "\" dT=\"" + xmlscan::escapeAttribute(c.time) + "\" personId=\"" + xmlscan::escapeAttribute(c.personId) + "\" id=\""
-                   + xmlscan::escapeAttribute(c.id) + "\"";
+    // (an attribute the file did not have is not made up: the time and the person are written when the comment has them)
+    QByteArray x = "<" + prefix + "threadedComment ref=\"" + ref.toLatin1() + "\"";
+    if (!c.time.isEmpty()) x += " dT=\"" + xmlscan::escapeAttribute(c.time) + "\"";
+    if (!c.personId.isEmpty()) x += " personId=\"" + xmlscan::escapeAttribute(c.personId) + "\"";
+    x += " id=\"" + xmlscan::escapeAttribute(c.id) + "\"";
     if (!c.parentId.isEmpty()) x += " parentId=\"" + xmlscan::escapeAttribute(c.parentId) + "\"";
     if (c.done) x += " done=\"1\"";
     x += "><" + prefix + "text>" + xmlscan::escapeText(c.text) + "</" + prefix + "text>" + c.extra.toUtf8() + "</" + prefix + "threadedComment>";
@@ -69,8 +72,10 @@ const char kDeclaration[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone
 
 QByteArray personXml(const QByteArray &prefix, const ThreadPerson &p)
 {
-    return "<" + prefix + "person displayName=\"" + xmlscan::escapeAttribute(p.name) + "\" id=\"" + xmlscan::escapeAttribute(p.id) + "\" userId=\"" + xmlscan::escapeAttribute(p.userId) + "\" providerId=\""
-           + xmlscan::escapeAttribute(p.providerId.isEmpty() ? QStringLiteral("None") : p.providerId) + "\"/>";
+    QByteArray x = "<" + prefix + "person displayName=\"" + xmlscan::escapeAttribute(p.name) + "\" id=\"" + xmlscan::escapeAttribute(p.id) + "\"";
+    if (!p.userId.isEmpty()) x += " userId=\"" + xmlscan::escapeAttribute(p.userId) + "\"";
+    if (!p.providerId.isEmpty()) x += " providerId=\"" + xmlscan::escapeAttribute(p.providerId) + "\"";
+    return x + "/>";
 }
 
 } // namespace

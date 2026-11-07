@@ -562,6 +562,42 @@ private Q_SLOTS:
         QCOMPARE(*n.thread, list);
     }
 
+    void aCommentThatHasNoTimeOrPersonInTheFileIsWrittenWithoutThemAndAPersonKeepsOnlyWhatItHad()
+    {
+        // (a thread from a program that writes neither a time nor a user id: nothing is made up for it)
+        QByteArray threads = "<ThreadedComments xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\"><threadedComment ref=\"B5\" personId=\"{AAAAAAAA-0000-0000-0000-000000000003}\" id=\"{11111111-2222-3333-4444-555555555555}\" done=\"0\">"
+                             "<text xml:space=\"preserve\">no time\n</text></threadedComment></ThreadedComments>";
+        QByteArray persons = "<personList xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\"><person displayName=\"Gil\" id=\"{AAAAAAAA-0000-0000-0000-000000000003}\"/></personList>";
+        QMap<QString, QByteArray> all = entriesOf(notesBook(true, threads));
+        all[QStringLiteral("xl/persons/person.xml")] = persons;
+        auto o = open(zipOf(all));
+        QVERIFY(o->ok);
+        const auto before = readSheetNoteInfos(o->book, 0);
+        QVERIFY(before.at(noteKey(4, 1)).thread);
+        ThreadList list = *before.at(noteKey(4, 1)).thread;
+        QVERIFY(list[0].time.isEmpty() && list[0].userId.isEmpty());
+        list.push_back(comment(QStringLiteral("{77777777-0000-0000-0000-000000000003}"), list[0].id, list[0].personId, list[0].author, QStringLiteral("reply")));
+        SaveChanges changes;
+        changes.sheets[0].noteOps = {putThread(4, 1, list)};
+        QString why;
+        auto again = saved(*o, changes, &why);
+        QVERIFY2(again, qPrintable(why));
+        const auto parts = entriesOf(again->bytes);
+        const QByteArray written = parts.value(QStringLiteral("xl/threadedComments/threadedComment1.xml"));
+        QVERIFY2(!written.contains("dT=\"\""), written.constData());
+        QVERIFY(written.contains("id=\"{11111111-2222-3333-4444-555555555555}\"") && !written.contains("personId=\"\""));
+        QCOMPARE(parts.value(QStringLiteral("xl/persons/person.xml")), persons);   // (the person was in the list: the list is as it was)
+        // a person who is new has the ids it was given
+        list.push_back(comment(QStringLiteral("{77777777-0000-0000-0000-000000000004}"), list[0].id, QStringLiteral("{C0000000-0000-0000-0000-000000000009}"), QStringLiteral("Hal"), QStringLiteral("hi")));
+        list.back().userId.clear();
+        list.back().providerId.clear();
+        changes.sheets[0].noteOps = {putThread(4, 1, list)};
+        auto third = saved(*o, changes, &why);
+        QVERIFY2(third, qPrintable(why));
+        const QByteArray people = entriesOf(third->bytes).value(QStringLiteral("xl/persons/person.xml"));
+        QVERIFY(people.contains("displayName=\"Hal\"") && !people.contains("userId=\"\"") && !people.contains("providerId=\"\""));
+    }
+
     void aNotesChangeLeavesUnrelatedPartsByteForByte()
     {
         auto o = open(notesBook());
