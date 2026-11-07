@@ -1000,7 +1000,7 @@
         },
         {
          "status": "partly",
-         "text": "f1a20fc1cadb369ff39e7d184932e737a702e016688255847ee168bcb4269b9a"
+         "text": "ef5239ba281972a9f5873f1ddac73e1a5a006beb4b7aba105cb9442fda66f195"
         }
        ]
       },
@@ -1200,7 +1200,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "e1362a50dc05cc051727b266499e18bfc937912e3927376b44be034b009661ec"
+         "text": "6bac1c618af83da247be49e0a7aa3feccf6f365d71eba1a1f8d730b6c1707bc9"
         },
         {
          "status": "partly",
@@ -1311,8 +1311,9 @@
          "text": "694f2d850314aec7ecff9177dc38cff43c3192141d8852bd37c713791fcc2085"
         },
         {
-         "status": "partly",
-         "text": "2e0fa83fac514f91afac07714a92aa738f83a4ca07211d84a3cc0ed91bc91fce"
+         "hide_soon": true,
+         "status": "done",
+         "text": "c1385eff263b71d5bf4c43563cb48d761cf5da35ad0b84a7a18fdbb01004e3e0"
         },
         {
          "hide_soon": true,
@@ -10496,18 +10497,6 @@
     "fr": ""
    }
   },
-  "2e0fa83fac514f91afac07714a92aa738f83a4ca07211d84a3cc0ed91bc91fce": {
-   "drop": false,
-   "en": "In JeffCrunch, you can add, change, and delete a calculated field in a pivot table, defined by a formula over the other fields, and list all calculated field formulas on a new sheet.",
-   "es": "En JeffCrunch, usted puede agregar, cambiar y eliminar un campo calculado en una tabla dinámica, definido por una fórmula sobre los demás campos, y listar todas las fórmulas de campos calculados en una hoja nueva.",
-   "fr": "Dans JeffCrunch, vous pouvez ajouter, modifier et supprimer un champ calculé dans un tableau croisé dynamique, défini par une formule sur les autres champs, et lister toutes les formules des champs calculés dans une nouvelle feuille.",
-   "soon": {
-    "drop": false,
-    "en": "Calculated Item and Solve Order",
-    "es": "Elemento calculado y orden de resolución",
-    "fr": "Élément calculé et ordre de résolution"
-   }
-  },
   "2e4eb77ee5ce97eb5a9bb86aca03329ddd049016871aff2f8b889190d42f82a4": {
    "drop": true,
    "en": "",
@@ -14785,6 +14774,18 @@
    "en": "JeffPub bundles open fonts, including stand-ins with the same letter widths as common fonts. A missing common font keeps its letter widths and kerning on its stand-in, so lines break the same way. Where a font has no italic or bold face, JeffPub slants or emboldens the stand-in by hand.",
    "es": "JeffPub incluye fuentes abiertas, entre ellas sustitutas con los mismos anchos de letra que las fuentes comunes. Una fuente común ausente conserva el ancho de letra y el kerning en su sustituta, de modo que las líneas se cortan igual. Si una fuente no tiene cursiva o negrita, JeffPub inclina o engrosa la sustituta de forma manual.",
    "fr": "JeffPub inclut des polices libres, dont des polices de remplacement aux largeurs de lettres identiques à celles des polices courantes. Une police courante absente conserve ses largeurs de lettres et son crénage sur sa police de remplacement, de sorte que les lignes se coupent de la même façon. Quand une police n’a pas d’italique ou de gras, JeffPub incline ou épaissit la police de remplacement.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "6bac1c618af83da247be49e0a7aa3feccf6f365d71eba1a1f8d730b6c1707bc9": {
+   "drop": false,
+   "en": "In JeffCrunch, Split divides the view into two or four panes that scroll independently. You can drag a bar to move it and double-click it to remove it. Splits are saved and read in `.xlsx` and `.ods` files.",
+   "es": "En JeffCrunch, Split divide la vista en dos o cuatro paneles que se desplazan de forma independiente. Usted puede arrastrar una barra para moverla y hacer doble clic en ella para quitarla. Las divisiones se guardan y se leen en archivos `.xlsx` y `.ods`.",
+   "fr": "Dans JeffCrunch, Split divise la vue en deux ou quatre volets qui défilent indépendamment. Vous pouvez faire glisser une barre pour la déplacer et double-cliquer dessus pour la supprimer. Les fractionnements sont enregistrés et lus dans les fichiers `.xlsx` et `.ods`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20288,6 +20289,18 @@
     "fr": ""
    }
   },
+  "c1385eff263b71d5bf4c43563cb48d761cf5da35ad0b84a7a18fdbb01004e3e0": {
+   "drop": false,
+   "en": "In JeffCrunch, you can add, change, and delete calculated fields and calculated items in a pivot table, change the solve order, and list the formulas on a sheet. Changes are one step of Undo, and the formulas are saved with the file and kept on refresh.",
+   "es": "En JeffCrunch, usted puede agregar, cambiar y eliminar campos calculados y elementos calculados en una tabla dinámica, cambiar el orden de resolución y enumerar las fórmulas en una hoja. Los cambios son un solo paso de deshacer, y las fórmulas se guardan con el archivo y se conservan al actualizar.",
+   "fr": "Dans JeffCrunch, vous pouvez ajouter, modifier et supprimer des champs calculés et des éléments calculés dans un tableau croisé dynamique, changer l’ordre de résolution et lister les formules dans une feuille. Les modifications correspondent à une seule étape d’annulation, et les formules sont enregistrées avec le fichier et conservées à l’actualisation.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "c150c6a5abb92c0582b63aa4004a5ab6e70d91473165f56636260a52c305598d": {
    "drop": false,
    "en": "Numbering",
@@ -22508,18 +22521,6 @@
     "fr": ""
    }
   },
-  "e1362a50dc05cc051727b266499e18bfc937912e3927376b44be034b009661ec": {
-   "drop": false,
-   "en": "Split the view into two or four panes that scroll independently. Drag a bar to move it and double-click it to remove it. The split is saved and read in `.xlsx` and `.ods` files.",
-   "es": "Divida la vista en dos o cuatro paneles que se desplazan de forma independiente. Arrastre una barra para moverla y haga doble clic para quitarla. La división se guarda y se lee en archivos `.xlsx` y `.ods`.",
-   "fr": "Divisez la vue en deux ou quatre volets qui défilent indépendamment. Faites glisser une barre pour la déplacer et double-cliquez dessus pour la supprimer. La division est enregistrée et lue dans les fichiers `.xlsx` et `.ods`.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "e16b5e989a8a6f08832d8e60263b06dd7869362a9a85341b339821e47f557ac8": {
    "drop": false,
    "en": "Old macro-sheet calls in `.xls` files are kept as written and show the stored result.",
@@ -23528,6 +23529,18 @@
     "fr": ""
    }
   },
+  "ef5239ba281972a9f5873f1ddac73e1a5a006beb4b7aba105cb9442fda66f195": {
+   "drop": false,
+   "en": "Edit Links lists the external workbooks a workbook points to. You can check status, open a source, break a link, update values from a source file on this computer, and change a link’s source. A link shows the values the file stored until you update it.",
+   "es": "Edit Links muestra los libros externos a los que apunta un libro. Usted puede comprobar el estado, abrir un origen, romper un vínculo, actualizar valores desde un archivo de origen en este equipo y cambiar el origen de un vínculo. Un vínculo muestra los valores que guardó el archivo hasta que usted lo actualiza.",
+   "fr": "Edit Links répertorie les classeurs externes vers lesquels pointe un classeur. Vous pouvez vérifier l’état, ouvrir une source, rompre une liaison, mettre à jour les valeurs depuis un fichier source sur cet ordinateur et changer la source d’une liaison. Une liaison affiche les valeurs enregistrées dans le fichier jusqu’à ce que vous la mettiez à jour.",
+   "soon": {
+    "drop": false,
+    "en": "Update Values for formulas that do more than read one cell, and for web address sources",
+    "es": "Actualización de valores para fórmulas que hacen más que leer una celda y para orígenes con dirección web",
+    "fr": "Mise à jour des valeurs pour les formules qui font plus que lire une cellule et pour les sources à adresse web"
+   }
+  },
   "ef5aa12f922054c4eeb7ed32c2cb48d1aff535a10788573a8a749acf4fd19890": {
    "drop": false,
    "en": "In JeffWrite, Restrict Editing allows no changes, tracked changes only, comments only, or filling in forms only, with an optional password. A protected file opens with its protection in place, and Stop Protection asks for the password. You can also limit formatting to the styles that are not locked.",
@@ -23682,18 +23695,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "f1a20fc1cadb369ff39e7d184932e737a702e016688255847ee168bcb4269b9a": {
-   "drop": false,
-   "en": "Edit Links lists the external workbooks a workbook points to. Check Status, Open Source, Update Values, Change Source, and Break Link are available. A link is shown with the values the file stored until you update it.",
-   "es": "Edit Links enumera los libros externos a los que apunta un libro. Están disponibles Check Status, Open Source, Update Values, Change Source y Break Link. Un vínculo se muestra con los valores que guardó el archivo hasta que usted lo actualice.",
-   "fr": "Edit Links répertorie les classeurs externes vers lesquels pointe un classeur. Check Status, Open Source, Update Values, Change Source et Break Link sont disponibles. Un lien s’affiche avec les valeurs enregistrées dans le fichier tant que vous ne le mettez pas à jour.",
-   "soon": {
-    "drop": false,
-    "en": "Update Values for formulas that do more than read one cell",
-    "es": "Update Values para fórmulas que hacen más que leer una celda",
-    "fr": "Update Values pour les formules qui font plus que lire une cellule"
    }
   },
   "f1cc43b576d5b11a95c6f288a41e2b01b8e28a567d4fe7217ae1fe07a5d0cbe5": {
