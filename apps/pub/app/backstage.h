@@ -15,6 +15,10 @@ class Backstage : public FileScreen {
     Q_OBJECT
 public:
     explicit Backstage(MainWindow *win);
+    // While held, the New page makes no template thumbnails (they are laid out with the bundled fonts, which a start adds after its first window shows); its list shows
+    // the blank page in their places until released. The New page can be up and drawn at the first paint that way.
+    void holdThumbnails(bool hold) { m_holdThumbs = hold; }
+    int thumbnailCount() const { return int(m_thumbs.size()); }
 
 private:
     QWidget *buildPage(const QString &key);
@@ -32,6 +36,7 @@ private:
     // options in m_thumbOptions (other options start the collection afresh).
     QHash<QString, QIcon> m_thumbs;
     QString m_thumbOptions;
+    bool m_holdThumbs = false;
 };
 
 } // namespace jp

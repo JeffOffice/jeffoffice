@@ -34,6 +34,9 @@ public:
     // An entry that runs something instead of showing a page.
     void addCommand(const QString &key, const QString &icon, const QString &label, const std::function<void()> &run);
     void showPage(const QString &key);
+    // The page's entry lit and its place empty, the page itself not made: a screen that is up at the window's first paint (making a page takes a while); makeCurrentPage() makes it.
+    void showPageFrame(const QString &key);
+    void makeCurrentPage();
     QString currentPage() const;   // "info", "new", "print"...
 
 Q_SIGNALS:

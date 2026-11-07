@@ -129,6 +129,13 @@ public:
     bool exportHtmlTo(const QString &path);
     void printPublication();
     void showBackstage(const QString &page = QString());
+    // The start screen for a start that shows the window before the fonts are added: put up before the window is shown, so the first picture of the window is it (never the empty
+    // publication), its frame first (the side panel, the page's place empty) and the page from fillStartScreen(), with the template thumbnails held back (the blank page stands in)
+    // until endStartScreen(), which is called once the fonts are added.
+    void beginStartScreen(const QString &page);
+    void fillStartScreen();   // makes its page (once the first picture of the window is drawn)
+    void endStartScreen();
+    int backstageThumbnailCount() const;
     void hideBackstage();
     void showTaskPane(const QString &name);
     void hideTaskPane();

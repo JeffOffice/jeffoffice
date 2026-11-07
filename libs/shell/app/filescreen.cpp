@@ -160,4 +160,18 @@ void FileScreen::showPage(const QString &key)
     }
 }
 
+void FileScreen::showPageFrame(const QString &key)
+{
+    m_stack->setCurrentIndex(m_index.value(key, 0));
+    if (QAbstractButton *b = m_navItems.value(key)) b->setChecked(true);
+}
+
+void FileScreen::makeCurrentPage()
+{
+    const QString key = currentPage();
+    if (key.isEmpty()) return;
+    rebuild(key);
+    m_stack->setCurrentIndex(m_index.value(key, 0));
+}
+
 } // namespace jp

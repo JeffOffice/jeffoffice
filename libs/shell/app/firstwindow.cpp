@@ -19,14 +19,16 @@
 namespace jp {
 
 namespace {
+// The first paint of the window or of anything in it (a start screen covering the whole window is what paints, then, and not the window itself).
 class FirstPaintTracer : public QObject {
 public:
     using QObject::QObject;
     bool eventFilter(QObject *o, QEvent *e) override
     {
-        if (e->type() == QEvent::Paint && o == parent()) {
+        auto *window = static_cast<QWidget *>(parent());
+        if (e->type() == QEvent::Paint && (o == window || window->isAncestorOf(qobject_cast<QWidget *>(o)))) {
             startupMark("first paint");
-            o->removeEventFilter(this);
+            QCoreApplication::instance()->removeEventFilter(this);
             deleteLater();
         }
         return false;
@@ -36,7 +38,7 @@ public:
 
 void traceFirstPaint(QWidget *window)
 {
-    if (qEnvironmentVariableIsSet("JP_STARTUP_TRACE")) window->installEventFilter(new FirstPaintTracer(window));
+    if (qEnvironmentVariableIsSet("JP_STARTUP_TRACE")) QCoreApplication::instance()->installEventFilter(new FirstPaintTracer(window));
 }
 
 QString openingStatus(const QString &path)
@@ -85,7 +87,7 @@ StagedStart::StagedStart(bool plain)
     if (!m_staged) initCore();
 }
 
-bool StagedStart::showFirst(QWidget *window, const QString &fileToOpen)
+bool StagedStart::showFirst(QWidget *window, const QString &fileToOpen, const std::function<void()> &whenDrawn)
 {
     if (!m_staged) return true;
     // The window is up before the fonts are added and the file is read, so it shows at once and says what it is doing.
@@ -94,6 +96,19 @@ bool StagedStart::showFirst(QWidget *window, const QString &fileToOpen)
     m_first = std::make_unique<FirstWindow>(window);
     if (!m_first->open()) return false;   // (closed meanwhile: nothing to open into)
     startupMark("window shown first");
+    if (whenDrawn) {
+        whenDrawn();
+        // (what it made is drawn: its layout done, and the window painted at once, with no keys or clicks taken in)
+        for (int round = 0; round < 8; ++round) {   // (until a round has nothing left to do, or for a while)
+            QElapsedTimer handled;
+            handled.start();
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 50);
+            if (handled.elapsed() < 5) break;
+        }
+        window->repaint();
+        QGuiApplication::sync();   // (to the screen now: the fonts take a while, and the events are not handled then)
+        startupMark("after the first picture");
+    }
     initCore();
     startupMark("initCore done");
     if (fileToOpen.isEmpty()) {

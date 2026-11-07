@@ -3,9 +3,13 @@
 #include "pubhelpers.h"
 #include "app/optionsdialog.h"
 #include "app/firstwindow.h"
+#include "app/filescreen.h"
 #include "core/appinfo.h"
 #include "canvas/canvasaccessible.h"
 #include <QDoubleSpinBox>
+#include <QListWidget>
+#include <QElapsedTimer>
+#include <QSignalSpy>
 #include <QFileOpenEvent>
 #include <QPointer>
 #include <QStackedWidget>
@@ -75,6 +79,87 @@ private Q_SLOTS:
         QCoreApplication::sendEvent(QCoreApplication::instance(), &later);
         QCOMPARE(seen.paths.size(), 2);
         QCoreApplication::instance()->removeEventFilter(&seen);
+    }
+
+    // A plain start shows the start screen (File > New) from the first paint, never the empty publication first; its template thumbnails are made after the fonts are
+    // added, so while they are held the list shows the blank page in their places, and once released they are made.
+    void startScreenIsUpAtFirstPaintAndThumbnailsWait()
+    {
+        jp::MainWindow w;
+        // The first widget of the window that is painted: it must be the start screen or part of it (the ribbon and the publication under it are not drawn at all).
+        struct FirstPaint : QObject {
+            QWidget *window = nullptr, *screen = nullptr;
+            QString first;
+            bool eventFilter(QObject *o, QEvent *e) override
+            {
+                auto *w = qobject_cast<QWidget *>(o);
+                if (e->type() == QEvent::Paint && first.isEmpty() && w && window && w != window && window->isAncestorOf(w))
+                    first = screen && (w == screen || screen->isAncestorOf(w)) ? QStringLiteral("start screen") : QString::fromLatin1(w->metaObject()->className());
+                return false;
+            }
+        } paints;
+        paints.window = &w;
+        qApp->installEventFilter(&paints);
+        w.beginStartScreen(QStringLiteral("new"));
+        paints.screen = w.findChild<jp::FileScreen *>();
+        QVERIFY(paints.screen);
+        w.show();
+        QTRY_VERIFY(!paints.first.isEmpty());
+        QCOMPARE(paints.first, QStringLiteral("start screen"));
+        // (the first picture is the frame, drawn without making the page: that is for fillStartScreen(), after it)
+        QCOMPARE(paints.screen->findChildren<QListWidget *>().size(), 0);
+        w.fillStartScreen();
+        qApp->removeEventFilter(&paints);
+        QVERIFY(paints.screen->findChildren<QListWidget *>().size() >= 2);
+        // (and shown: the page is the one in front, the list of templates is on screen)
+        QVERIFY(w.isVisible());
+        const auto lists = paints.screen->findChildren<QListWidget *>();
+        QVERIFY(std::any_of(lists.cbegin(), lists.cend(), [](QListWidget *l) { return l->isVisible() && l->count() > 2; }));
+        QElapsedTimer waited;
+        waited.start();
+        while (waited.elapsed() < 150) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        QCOMPARE(w.backstageThumbnailCount(), 0);   // (held: none made yet)
+        w.endStartScreen();
+        QTRY_VERIFY(w.backstageThumbnailCount() > 0);
+    }
+
+    // A document open for reading only turns off the ribbon's controls that change it; a tab made later (when first shown) is turned off as it is made, as if it had been there.
+    void readOnlyTurnsOffControlsOfTabsMadeLate()
+    {
+        struct Reset {
+            ~Reset() { jp::setLazyRibbonTabs(false); }
+        } reset;
+        auto make = [](bool lazy) {
+            jp::setLazyRibbonTabs(lazy);
+            auto w = std::make_unique<jp::MainWindow>();
+            jp::setLazyRibbonTabs(false);
+            w->setReadOnly(true);
+            return w;
+        };
+        const auto whole = make(false), late = make(true);
+        jp::Ribbon *a = whole->findChild<jp::Ribbon *>(), *b = late->findChild<jp::Ribbon *>();
+        QVERIFY(a && b);
+        QCOMPARE(a->tabCount(), b->tabCount());
+        int made = 0;
+        for (int i = 0; i < a->tabCount(); ++i) made += b->tabAt(i)->isBuilt() ? 1 : 0;
+        QVERIFY(made < a->tabCount());   // (some tab was left to make late)
+        auto states = [](jp::Ribbon *r, int i) {
+            QStringList out;
+            for (jp::RibbonGroup *g : r->tabAt(i)->groups())
+                for (QWidget *c : g->controls()) out << QStringLiteral("%1 %2 %3").arg(g->title(), c->metaObject()->className()).arg(c->isEnabled());
+            return out;
+        };
+        int off = 0;
+        for (int i = 0; i < a->tabCount(); ++i) {
+            b->showTab(b->tabAt(i));   // (made now, if not yet)
+            QCoreApplication::processEvents();
+            a->showTab(a->tabAt(i));
+            QCoreApplication::processEvents();
+            const QStringList want = states(a, i);
+            QCOMPARE(states(b, i), want);
+            for (const QString &line : want) off += line.endsWith(QLatin1Char('0')) ? 1 : 0;
+        }
+        QVERIFY(off > 20);   // (the read-only window did turn controls off)
     }
 
     void firstWindowClosedMeanwhileIsGone()
@@ -345,6 +430,69 @@ private Q_SLOTS:
         QVERIFY2(d.contains(QStringLiteral("tab Two (Ctx, #0000ff) keytip=JT")), qPrintable(d));
         QVERIFY2(d.contains(QStringLiteral("group SHARED launcher=\"SHARED SETTINGS\" keytip=ZS launcher-keytip=SS")), qPrintable(d));
         QVERIFY(!r.describe().contains(QStringLiteral("keytip")));
+    }
+
+    // With lazy tabs, only the first tab's controls are made at the start; each other tab gets them when it is first shown (or asked for its groups, or described),
+    // looks the same as when built whole, and a command defined in a later tab can be used by its id in an earlier one.
+    void ribbonTabsAreMadeWhenFirstShown()
+    {
+        QAction known(QStringLiteral("Known"));
+        known.setObjectName(QStringLiteral("known"));
+        int boxes = 0;
+        jp::RibbonParts parts;
+        parts.action = [&](const QString &id) { return id == QLatin1String("known") ? &known : nullptr; };
+        parts.widgets[QStringLiteral("box")] = [&]() -> QWidget * { ++boxes; return new QComboBox(); };
+        const QByteArray json = R"({"tabs": [
+            {"name": "One", "keytip": "O", "groups": [{"name": "A", "keytip": "ZA", "items": [{"large": "known", "keytip": "K"}, {"widget": "box", "keytip": "BX"}]}]},
+            {"name": "Two", "keytip": "T", "groups": [{"name": "B", "keytip": "ZB", "items": [{"large": {"id": "made.here", "text": "Made Here", "icon": "table"}, "keytip": "L"}, {"widget": "box", "keytip": "BY"}]}]},
+            {"name": "Three", "keytip": "H", "groups": [{"name": "C", "keytip": "ZC", "items": [{"small": "made.here", "keytip": "L"}]}]}]})";
+        struct Reset {
+            ~Reset() { jp::setLazyRibbonTabs(false); }
+        } reset;
+        jp::setLazyRibbonTabs(false);
+        jp::Ribbon whole;
+        QString err;
+        QVERIFY2(jp::buildRibbon(&whole, json, parts, &whole, &err), qPrintable(err));
+        QCOMPARE(boxes, 2);
+        const QString expected = whole.describe(true);
+
+        boxes = 0;
+        jp::setLazyRibbonTabs(true);
+        jp::Ribbon r;
+        QSignalSpy built(&r, &jp::Ribbon::tabBuilt);
+        QVERIFY2(jp::buildRibbon(&r, json, parts, &r, &err), qPrintable(err));
+        QCOMPARE(boxes, 1);   // only the first tab's box
+        QVERIFY(r.tabAt(0)->isBuilt());
+        QVERIFY(!r.tabAt(1)->isBuilt());
+        QVERIFY(!r.tabAt(2)->isBuilt());
+        QCOMPARE(built.size(), 0);
+
+        // (a command defined in tab Two is used by its id in tab Three: Three is shown first, before Two is made)
+        r.showTab(r.tabAt(2));
+        QVERIFY(r.tabAt(2)->isBuilt());
+        QVERIFY(!r.tabAt(1)->isBuilt());
+        QCOMPARE(boxes, 1);
+        QCOMPARE(built.size(), 1);
+        QCOMPARE(built.value(0).value(0).value<jp::RibbonTab *>(), r.tabAt(2));
+        QCOMPARE(r.tabAt(2)->groups()[0]->controls().size(), 1);
+
+        r.showTab(r.tabAt(1));
+        QVERIFY(r.tabAt(1)->isBuilt());
+        QCOMPARE(boxes, 2);
+        QCOMPARE(built.size(), 2);
+        r.showTab(r.tabAt(1));
+        QCOMPARE(built.size(), 2);   // (made once)
+        QCOMPARE(r.tabAt(1)->groups().size(), 1);
+        QCOMPARE(r.tabAt(1)->groups()[0]->controls().size(), 2);
+
+        // asking a tab for its groups makes it (and so does describing the ribbon)
+        jp::Ribbon again;
+        QVERIFY2(jp::buildRibbon(&again, json, parts, &again, &err), qPrintable(err));
+        QVERIFY(!again.tabAt(1)->isBuilt());
+        QCOMPARE(again.tabAt(1)->groups().size(), 1);
+        QVERIFY(again.tabAt(1)->isBuilt());
+        QVERIFY(!again.tabAt(2)->isBuilt());
+        QCOMPARE(r.describe(true), expected);
     }
 
     // Setting a group's launcher again cut every connection from its button,

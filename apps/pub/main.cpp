@@ -10,6 +10,7 @@
 //                                         into a new folder and quit (also
 //                                         with QT_QPA_PLATFORM=offscreen)
 
+#include "app/ribbonbuilder.h"
 #include "app/telemetry.h"
 #include "app/crash.h"
 #include "app/editor.h"
@@ -88,6 +89,7 @@ int main(int argc, char **argv)
     cli.process(app);
     const bool plain = !cli.isSet(shotOpt) && !cli.isSet(pdfOpt) && !cli.isSet(wikiOpt);   // (not a job that makes a file and quits)
     jp::StagedStart start(plain);
+    jp::setLazyRibbonTabs(true);   // the ribbon's other tabs are made when first shown
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
     jp::followSystemTheme();
@@ -112,7 +114,14 @@ int main(int argc, char **argv)
     // Lets the installer see that JeffPub is running and ask to close it first (before the window shows).
     if (plain) CreateMutexW(nullptr, FALSE, L"JeffPubRunning");
 #endif
-    if (!start.showFirst(w, files.value(0))) return 0;
+    // A plain start with nothing to open shows the start screen from the first paint (never the empty publication first): its template thumbnails wait for the fonts.
+    const bool startScreen = start.staged() && !cli.isSet(shotOpt) && !cli.isSet(pdfOpt) && files.isEmpty() && !cli.isSet(templOpt) &&
+                             (cli.isSet(stageOpt) || jp::Settings::get().value(QStringLiteral("ui/startBackstage"), true).toBool());
+    if (startScreen) {
+        w->beginStartScreen(cli.isSet(stageOpt) ? cli.value(stageOpt) : QStringLiteral("new"));
+    }
+    if (!start.showFirst(w, files.value(0), startScreen ? std::function<void()>([w] { w->fillStartScreen(); }) : nullptr)) return 0;
+    if (startScreen) w->endStartScreen();
     if (!files.isEmpty()) {
         QPointer<jp::MainWindow> guard(w);
         w->openFile(files.first());
@@ -168,9 +177,11 @@ int main(int argc, char **argv)
     jp::setUpdater(up);
     up->checkOnStartup();
     jp::telemetry::start(w);
-    if (cli.isSet(stageOpt)) w->showBackstage(cli.value(stageOpt));
-    else if (files.isEmpty() && !cli.isSet(templOpt) && jp::Settings::get().value(QStringLiteral("ui/startBackstage"), true).toBool())
-        w->showBackstage(QStringLiteral("new"));
+    if (!startScreen) {
+        if (cli.isSet(stageOpt)) w->showBackstage(cli.value(stageOpt));
+        else if (files.isEmpty() && !cli.isSet(templOpt) && jp::Settings::get().value(QStringLiteral("ui/startBackstage"), true).toBool())
+            w->showBackstage(QStringLiteral("new"));
+    }
     jp::grabAfterStart(w);
     return app.exec();
 }

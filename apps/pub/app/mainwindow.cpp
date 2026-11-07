@@ -1,5 +1,6 @@
 #include <QScopeGuard>
 #include "app/mainwindow.h"
+#include "core/startuptrace.h"
 #include "templates/changetemplate.h"
 #include "app/help.h"
 #include "app/recovery.h"
@@ -129,7 +130,9 @@ MainWindow::MainWindow(QWidget *parent) : AppWindow(parent)
     setCentralWidget(m_split);
 
     createActions();
+    startupMark("win: before ribbon");
     buildRibbon();
+    startupMark("win: ribbon built");
     buildStatusBar();
     describeForScreenReaders(m_split);   // the pages, the page, and the panes
     describeForScreenReaders(statusBar());
@@ -369,6 +372,23 @@ void MainWindow::showBackstage(const QString &page)
     m_backstage->raise();
     m_backstage->setFocus();
 }
+
+void MainWindow::beginStartScreen(const QString &page)
+{
+    m_backstage->holdThumbnails(true);
+    m_ed->endTextEdit();
+    m_backstage->setGeometry(rect());
+    m_backstage->showPageFrame(page.isEmpty() ? QStringLiteral("info") : page);
+    m_backstage->show();
+    m_backstage->raise();
+    m_backstage->setFocus();
+}
+
+void MainWindow::fillStartScreen() { m_backstage->makeCurrentPage(); }
+
+void MainWindow::endStartScreen() { m_backstage->holdThumbnails(false); }
+
+int MainWindow::backstageThumbnailCount() const { return m_backstage->thumbnailCount(); }
 
 void MainWindow::hideBackstage()
 {

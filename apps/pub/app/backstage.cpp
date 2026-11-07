@@ -462,6 +462,11 @@ QWidget *Backstage::buildNew(bool change)
             thumbTimer->stop();
             return;
         }
+        if (m_holdThumbs) {   // (asked again in a moment, not at once)
+            thumbTimer->setInterval(20);
+            return;
+        }
+        thumbTimer->setInterval(0);
         const auto [it, t] = pending->takeFirst();
         auto doc = t->build(*pendingOptions);
         const QIcon made(thumbFor(*doc));

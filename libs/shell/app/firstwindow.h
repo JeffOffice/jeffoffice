@@ -5,6 +5,7 @@
 #include <QStringList>
 #include <QWidget>
 
+#include <functional>
 #include <memory>
 
 namespace jp {
@@ -41,7 +42,8 @@ public:
     explicit StagedStart(bool plain);
     bool staged() const { return m_staged; }
     // With the window built: shows it, waits until it is drawn, and adds the fonts (a no-op in the other order). False if the window was closed meanwhile.
-    bool showFirst(QWidget *window, const QString &fileToOpen = QString());
+    // `whenDrawn`, if given, is called once the first picture of the window is drawn (and before the fonts are added); what it makes is drawn too before they are.
+    bool showFirst(QWidget *window, const QString &fileToOpen = QString(), const std::function<void()> &whenDrawn = nullptr);
     // The file is open (or there is none): file-open events go to the program's handler again.
     void finish() { m_first.reset(); }
 
