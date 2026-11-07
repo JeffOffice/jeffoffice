@@ -13,7 +13,7 @@ class QVBoxLayout;
 
 namespace jp {
 
-class CommentsPane : public QWidget {
+class CommentThreadsPane : public QWidget {
     Q_OBJECT
 public:
     struct Comment {
@@ -31,7 +31,7 @@ public:
     static constexpr int kMaxCards = 300;
     static constexpr int kMaxShownComments = 40;
 
-    explicit CommentsPane(QWidget *parent = nullptr);
+    explicit CommentThreadsPane(QWidget *parent = nullptr);
     // Draws the cards. `current` is the thread the cursor is on (its card is marked), or none; `more` is how many threads are not drawn.
     void setThreads(const std::vector<Thread> &threads, qint64 currentRow, qint64 currentCol, int more);
     int cardCount() const { return m_cards; }

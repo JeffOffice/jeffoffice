@@ -1,7 +1,7 @@
 // Tests of the notes of cells in the window: the mark on a cell that has one, the note that appears when the pointer rests on it, New, Edit, Delete, and Show or Hide as steps of Undo,
 // the notes following rows, columns, and a sort, and the file keeping all of them (and a conversation of comments as it was). Every workbook is built here.
 #include "app/anchordialogs.h"
-#include "app/commentspane.h"
+#include "app/threadspane.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "core/appinfo.h"
@@ -419,7 +419,7 @@ private Q_SLOTS:
         QCOMPARE(n->thread->at(0).text, QStringLiteral("Check B1"));
         QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
         // the pane opens with it and lists both threads (B1 and D2) in the order of the cells
-        CommentsPane *pane = e.win.w.commentsPane();
+        CommentThreadsPane *pane = e.win.w.commentsPane();
         QVERIFY(pane);
         QCOMPARE(pane->cardCount(), 2);
         QVERIFY(e.win.w.act(QStringLiteral("comments.show"))->isChecked());
@@ -438,7 +438,7 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(bookWithNotes()));
         e.win.w.act(QStringLiteral("comments.show"))->trigger();
-        CommentsPane *pane = e.win.w.commentsPane();
+        CommentThreadsPane *pane = e.win.w.commentsPane();
         QVERIFY(pane && pane->cardCount() == 1);
         auto button = [&](const char *name) { return pane->findChild<QPushButton *>(QString::fromLatin1(name)); };
         const int steps = e.win.w.undoStack()->count();
@@ -472,6 +472,7 @@ private Q_SLOTS:
         crunch::EditSession *s = e.win.w.session();
         QVERIFY(s->replyToComment(0, 1, 3, QStringLiteral("It is."), QStringLiteral("Ann Lee"), QStringLiteral("Reply")).ok);
         QVERIFY(s->resolveThread(0, 1, 3, true, QStringLiteral("Resolve Thread")).ok);
+        QTest::mouseMove(e.view()->viewport(), centerOf(e, QStringLiteral("B3")));   // (the pointer was on D2 in the test before: a move there from elsewhere is the one that is noticed)
         QTest::mouseMove(e.view()->viewport(), centerOf(e, QStringLiteral("D2")));
         auto popup = [&]() -> QLabel * { return e.win.w.findChild<QLabel *>(QStringLiteral("notePopup")); };
         QTRY_VERIFY(popup() && popup()->isVisible());
@@ -542,6 +543,7 @@ private Q_SLOTS:
         QVERIFY(n && n->thread && n->threadCut);
         QCOMPARE(n->thread->size(), size_t(jp::office::sheet::kMaxThreadComments));
         // shown: the popup and the pane draw a few of them, and say how many more there are
+        QTest::mouseMove(e.view()->viewport(), centerOf(e, QStringLiteral("B3")));   // (the pointer was on D2 in the test before: a move there from elsewhere is the one that is noticed)
         QTest::mouseMove(e.view()->viewport(), centerOf(e, QStringLiteral("D2")));
         auto popup = [&]() -> QLabel * { return e.win.w.findChild<QLabel *>(QStringLiteral("notePopup")); };
         QTRY_VERIFY(popup() && popup()->isVisible());

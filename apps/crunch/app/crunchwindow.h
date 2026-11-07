@@ -10,7 +10,7 @@
 
 #include <tuple>
 #include "app/anchordialogs.h"
-#include "app/commentspane.h"
+#include "app/threadspane.h"
 #include "app/celleditor.h"
 #include "app/filterpopup.h"
 #include "app/finddialog.h"
@@ -78,7 +78,7 @@ class QDomElement;
 namespace jp {
 
 class SlicerPane;
-class CommentsPane;
+class CommentThreadsPane;
 class OutlineGutter;
 }
 class QUrl;
@@ -339,7 +339,7 @@ public:
     // test hook: which of the recommended pivot tables is made (a place in the list given; false: none)
     void setPivotAdviceAsker(std::function<bool(const QVector<crunch::PivotAdvice> &, int *)> asker) { m_pivotAdviceAsker = std::move(asker); }
     SlicerPane *slicerPane() const { return m_slicerPane; }
-    CommentsPane *commentsPane() const { return m_commentsPane.data(); }
+    CommentThreadsPane *commentsPane() const { return m_commentsPane.data(); }
     int slicerFills() const { return m_slicerFills; }   // (for tests: how many times the pane was filled)
     void setPivotOptionsAsker(std::function<bool(bool *)> asker) { m_pivotOptionsAsker = std::move(asker); }   // test hook: whether a click writes GETPIVOTDATA
     void setPivotSourceAsker(std::function<bool(QString *)> asker) { m_pivotSourceAsker = std::move(asker); }
@@ -1465,7 +1465,7 @@ private:
     QString m_path;
     SlicerPane *m_slicerPane = nullptr;
     QDockWidget *m_slicerDock = nullptr;
-    QPointer<CommentsPane> m_commentsPane;   // (the pane and its dock are children of the window: they go with it, and a signal that arrives as it goes finds them gone)
+    QPointer<CommentThreadsPane> m_commentsPane;   // (the pane and its dock are children of the window: they go with it, and a signal that arrives as it goes finds them gone)
     QPointer<QDockWidget> m_commentsDock;
     bool m_slicerFilling = false;
     quintptr m_slicersStamp = 0;   // the pivot tables as the pane last showed the slicers of

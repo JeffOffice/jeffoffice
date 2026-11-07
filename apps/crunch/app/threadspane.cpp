@@ -1,4 +1,4 @@
-#include "app/commentspane.h"
+#include "app/threadspane.h"
 
 #include "app/plaintext.h"
 
@@ -11,7 +11,7 @@
 
 namespace jp {
 
-CommentsPane::CommentsPane(QWidget *parent) : QWidget(parent)
+CommentThreadsPane::CommentThreadsPane(QWidget *parent) : QWidget(parent)
 {
     setObjectName(QStringLiteral("commentsPane"));
     auto *outer = new QVBoxLayout(this);
@@ -23,9 +23,9 @@ CommentsPane::CommentsPane(QWidget *parent) : QWidget(parent)
     setThreads({}, -1, -1, 0);
 }
 
-QString CommentsPane::emptyText() const { return tr("There are no comments on this sheet. Select a cell, and choose New Comment to start a thread."); }
+QString CommentThreadsPane::emptyText() const { return tr("There are no comments on this sheet. Select a cell, and choose New Comment to start a thread."); }
 
-void CommentsPane::setThreads(const std::vector<Thread> &threads, qint64 currentRow, qint64 currentCol, int more)
+void CommentThreadsPane::setThreads(const std::vector<Thread> &threads, qint64 currentRow, qint64 currentCol, int more)
 {
     // (nothing is drawn again when the cards would be the same)
     QString signature = QString::number(currentRow) + QLatin1Char(',') + QString::number(currentCol) + QLatin1Char(',') + QString::number(more);

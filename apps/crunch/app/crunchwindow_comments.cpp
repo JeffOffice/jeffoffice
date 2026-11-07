@@ -5,7 +5,7 @@
 #include "app/crunchwindow.h"
 
 #include "app/anchordialogs.h"
-#include "app/commentspane.h"
+#include "app/threadspane.h"
 #include "app/plaintext.h"
 #include "core/anchors.h"
 
@@ -51,7 +51,7 @@ QString CrunchWindow::threadTipText(const NoteInfo &note)
     if (jp::office::sheet::threadResolved(*note.thread)) out += tr("Resolved") + QStringLiteral("\n");
     int shown = 0;
     const std::vector<int> depths = jp::office::sheet::threadDepths(*note.thread);
-    for (size_t i = 0; i < note.thread->size() && shown < CommentsPane::kMaxShownComments; ++i, ++shown) {
+    for (size_t i = 0; i < note.thread->size() && shown < CommentThreadsPane::kMaxShownComments; ++i, ++shown) {
         const ThreadComment &c = note.thread->at(i);
         const QString indent(2 * std::min(depths[i], 3), QLatin1Char(' '));
         const QString who = c.author.isEmpty() ? tr("Unknown") : c.author;
@@ -252,17 +252,17 @@ void CrunchWindow::showCommentsPane(bool show)
         m_commentsDock = new QDockWidget(tr("Comments"), this);
         m_commentsDock->setObjectName(QStringLiteral("commentsDock"));
         m_commentsDock->setFeatures(QDockWidget::DockWidgetClosable);
-        m_commentsPane = new CommentsPane(m_commentsDock);
+        m_commentsPane = new CommentThreadsPane(m_commentsDock);
         m_commentsDock->setWidget(m_commentsPane);
         addDockWidget(Qt::RightDockWidgetArea, m_commentsDock.data());
         resizeDocks({m_commentsDock.data()}, {300}, Qt::Horizontal);
-        connect(m_commentsPane.data(), &CommentsPane::threadChosen, this, [this](quint32 row, quint32 col) {
+        connect(m_commentsPane.data(), &CommentThreadsPane::threadChosen, this, [this](quint32 row, quint32 col) {
             m_view->selectCell(row, col);
             m_view->ensureVisible(row, col);
         });
-        connect(m_commentsPane.data(), &CommentsPane::replyRequested, this, [this](quint32 row, quint32 col) { replyToThreadAt(row, col); });
-        connect(m_commentsPane.data(), &CommentsPane::resolveRequested, this, [this](quint32 row, quint32 col, bool resolved) { setThreadResolvedAt(row, col, resolved); });
-        connect(m_commentsPane.data(), &CommentsPane::deleteRequested, this, [this](quint32 row, quint32 col) { deleteThreadsAt({{row, col}}); });
+        connect(m_commentsPane.data(), &CommentThreadsPane::replyRequested, this, [this](quint32 row, quint32 col) { replyToThreadAt(row, col); });
+        connect(m_commentsPane.data(), &CommentThreadsPane::resolveRequested, this, [this](quint32 row, quint32 col, bool resolved) { setThreadResolvedAt(row, col, resolved); });
+        connect(m_commentsPane.data(), &CommentThreadsPane::deleteRequested, this, [this](quint32 row, quint32 col) { deleteThreadsAt({{row, col}}); });
         connect(m_commentsDock.data(), &QDockWidget::visibilityChanged, this, [this](bool visible) {
             if (QAction *a = act(QStringLiteral("comments.show"))) {
                 const QSignalBlocker block(a);
@@ -284,17 +284,17 @@ void CrunchWindow::showCommentsPane(bool show)
 void CrunchWindow::fillComments()
 {
     if (!m_commentsPane) return;
-    std::vector<CommentsPane::Thread> threads;
+    std::vector<CommentThreadsPane::Thread> threads;
     int more = 0;
     const grid::Selection &sel = m_view->selection();
     if (m_session && m_sheet >= 0 && !m_chartSheetShown)
         for (const auto &n : m_session->anchors().notes(m_sheet)) {
             if (!n.second.thread || n.second.thread->empty()) continue;
-            if (threads.size() >= size_t(CommentsPane::kMaxCards)) {
+            if (threads.size() >= size_t(CommentThreadsPane::kMaxCards)) {
                 ++more;
                 continue;
             }
-            CommentsPane::Thread t;
+            CommentThreadsPane::Thread t;
             t.row = quint32(n.first >> 32);
             t.col = quint32(n.first & 0xFFFFFFFFu);
             t.cell = jp::office::sheet::cellName(t.row, t.col);
@@ -302,7 +302,7 @@ void CrunchWindow::fillComments()
             t.locked = n.second.threadCut;
             const std::vector<int> depths = jp::office::sheet::threadDepths(*n.second.thread);
             for (size_t i = 0; i < n.second.thread->size(); ++i) {
-                if (i >= size_t(CommentsPane::kMaxShownComments)) {
+                if (i >= size_t(CommentThreadsPane::kMaxShownComments)) {
                     t.more = int(n.second.thread->size() - i);
                     break;
                 }
