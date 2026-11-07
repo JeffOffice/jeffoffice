@@ -921,8 +921,9 @@
        "heading": "fab948a7b5fcffab46918542a88e110182102c0b8665abc2c60355b4885cb1e9",
        "items": [
         {
-         "status": "partly",
-         "text": "4bc5aa7075b03172cde25ca530af5903bc5479091c5e225b9ea04223d1e71718"
+         "hide_soon": true,
+         "status": "done",
+         "text": "8d9710d620cda6360c0f460bc42ab6cbd47e084a89cb63c8f4d58899881696a9"
         },
         {
          "hide_soon": true,
@@ -998,7 +999,7 @@
         },
         {
          "status": "partly",
-         "text": "54731d9c5588336746b682beac1850583b0bf91110cc7d291f40557ce897a743"
+         "text": "f1a20fc1cadb369ff39e7d184932e737a702e016688255847ee168bcb4269b9a"
         }
        ]
       },
@@ -1195,8 +1196,9 @@
          "text": "00553150fa74cc2b27d9b9baf97f1d8055a710a9637a55ceb9bc8a2ee51afc1b"
         },
         {
-         "status": "todo",
-         "text": "d3f0ae226166de7820b019d9088d818afac5ec9586f04a92eae5d8187b9941dc"
+         "hide_soon": true,
+         "status": "done",
+         "text": "e1362a50dc05cc051727b266499e18bfc937912e3927376b44be034b009661ec"
         },
         {
          "status": "partly",
@@ -1859,7 +1861,7 @@
         },
         {
          "status": "partly",
-         "text": "e42743bd4e04d12edd3d1d98023d11c39d958a1bfcbe5db181a3f2b006dd1b68"
+         "text": "d029fd185cae96b2acc3c9ebf28a60580da1d5f93613b665fa081caf10656b2c"
         },
         {
          "hide_soon": true,
@@ -12447,18 +12449,6 @@
     "fr": ""
    }
   },
-  "4bc5aa7075b03172cde25ca530af5903bc5479091c5e225b9ea04223d1e71718": {
-   "drop": false,
-   "en": "In JeffCrunch, you can draw arrows to the cells a formula reads and to the formulas that read a cell, clear the arrows, and trace an error back to the error cells it reads.",
-   "es": "En JeffCrunch, usted puede dibujar flechas hacia las celdas que lee una fórmula y hacia las fórmulas que leen una celda, borrar las flechas y rastrear un error hasta las celdas con error que lee.",
-   "fr": "Dans JeffCrunch, vous pouvez tracer des flèches vers les cellules lues par une formule et vers les formules qui lisent une cellule, effacer les flèches et remonter une erreur jusqu’aux cellules en erreur qu’elle lit.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "4bc5cbadcafb7a0a2caefa92dfce77ed2864b0338321e4044a15202f4b352b40": {
    "drop": false,
    "en": "Older binary `.doc` and `.dot`",
@@ -13117,18 +13107,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "54731d9c5588336746b682beac1850583b0bf91110cc7d291f40557ce897a743": {
-   "drop": false,
-   "en": "In JeffCrunch, Data > Edit Links lists the external workbooks that formulas read. You can check the status of a source, open it, or break a link to turn the cells into their values.",
-   "es": "En JeffCrunch, Datos > Modificar vínculos muestra los libros externos que leen las fórmulas. Usted puede comprobar el estado de un origen, abrirlo o romper un vínculo para convertir las celdas en sus valores.",
-   "fr": "Dans JeffCrunch, Données > Modifier les liens liste les classeurs externes lus par les formules. Vous pouvez vérifier l’état d’une source, l’ouvrir ou rompre un lien pour convertir les cellules en leurs valeurs.",
-   "soon": {
-    "drop": false,
-    "en": "Update Values, Change Source, and stored values of linked sources",
-    "es": "Actualizar valores, cambiar origen y valores almacenados de los orígenes vinculados",
-    "fr": "Mise à jour des valeurs, changement de source et valeurs stockées des sources liées"
    }
   },
   "547456a22dbe31bc34e42d7abf751684315e4d66479425fd766e1bc5f81f3ae8": {
@@ -17024,6 +17002,18 @@
    "en": "New",
    "es": "Nuevo",
    "fr": "Nouveau",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "8d9710d620cda6360c0f460bc42ab6cbd47e084a89cb63c8f4d58899881696a9": {
+   "drop": false,
+   "en": "Show the cells a formula reads and the cells that read a given cell, with arrows that extend one step more with each click, and clear the arrows. Trace an error back to the cell that causes it, and step through the cells on a sheet that show an error with Next Error and Previous Error.",
+   "es": "Muestre las celdas que lee una fórmula y las celdas que leen una celda dada, con flechas que avanzan un paso más con cada clic, y borre las flechas. Rastree un error hasta la celda que lo causa y recorra las celdas de una hoja que muestran un error con Siguiente error y Error anterior.",
+   "fr": "Affichez les cellules qu’une formule lit et les cellules qui lisent une cellule donnée, avec des flèches qui avancent d’une étape de plus à chaque clic, puis effacez les flèches. Remontez une erreur jusqu’à la cellule qui la provoque et parcourez les cellules d’une feuille qui affichent une erreur avec Erreur suivante et Erreur précédente.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21483,6 +21473,18 @@
     "fr": "Règles de vérification des erreurs : formules qui omettent des cellules voisines et formules qui lisent des cellules vides"
    }
   },
+  "d029fd185cae96b2acc3c9ebf28a60580da1d5f93613b665fa081caf10656b2c": {
+   "drop": false,
+   "en": "External references, such as `[Prices.xlsx]Sheet1!$A$1` or a defined name in another workbook, show the values the file stored without opening the other workbook, and Edit Links updates cells that only reference a cell of the source.",
+   "es": "Las referencias externas, como `[Prices.xlsx]Sheet1!$A$1` o un nombre definido en otro libro, muestran los valores que guardó el archivo sin abrir el otro libro, y Edit Links actualiza las celdas que solo hacen referencia a una celda del origen.",
+   "fr": "Les références externes, comme `[Prices.xlsx]Sheet1!$A$1` ou un nom défini dans un autre classeur, affichent les valeurs enregistrées dans le fichier sans ouvrir l’autre classeur, et Edit Links met à jour les cellules qui ne font que référencer une cellule de la source.",
+   "soon": {
+    "drop": false,
+    "en": "Formulas that work with values from another workbook: calculate",
+    "es": "Fórmulas que trabajan con valores de otro libro: cálculo",
+    "fr": "Formules qui utilisent des valeurs d’un autre classeur : calcul"
+   }
+  },
   "d04a57cde3a6fcb29f1c73ad14a2c52c49d060d6172d1a07351be59a916f1177": {
    "drop": false,
    "en": "Pivot chart tabs (while a pivot chart is selected)",
@@ -21733,18 +21735,6 @@
     "en": "Links in a PDF: clickable hyperlinks from the publication",
     "es": "Vínculos en un PDF: hipervínculos de la publicación en los que se puede hacer clic",
     "fr": "Liens dans un PDF : hyperliens de la publication sur lesquels cliquer"
-   }
-  },
-  "d3f0ae226166de7820b019d9088d818afac5ec9586f04a92eae5d8187b9941dc": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Split: four panes that scroll apart",
-    "es": "Dividir: cuatro paneles que se desplazan por separado",
-    "fr": "Fractionner : quatre volets qui défilent séparément"
    }
   },
   "d421b6c65828b3d9f8bcc52f4a412e1183cc18472ada7534595a63f8b623a20e": {
@@ -22503,6 +22493,18 @@
     "fr": ""
    }
   },
+  "e1362a50dc05cc051727b266499e18bfc937912e3927376b44be034b009661ec": {
+   "drop": false,
+   "en": "Split the view into two or four panes that scroll independently. Drag a bar to move it and double-click it to remove it. The split is saved and read in `.xlsx` and `.ods` files.",
+   "es": "Divida la vista en dos o cuatro paneles que se desplazan de forma independiente. Arrastre una barra para moverla y haga doble clic para quitarla. La división se guarda y se lee en archivos `.xlsx` y `.ods`.",
+   "fr": "Divisez la vue en deux ou quatre volets qui défilent indépendamment. Faites glisser une barre pour la déplacer et double-cliquez dessus pour la supprimer. La division est enregistrée et lue dans les fichiers `.xlsx` et `.ods`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "e16b5e989a8a6f08832d8e60263b06dd7869362a9a85341b339821e47f557ac8": {
    "drop": false,
    "en": "Old macro-sheet calls in `.xls` files are kept as written and show the stored result.",
@@ -22777,18 +22779,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "e42743bd4e04d12edd3d1d98023d11c39d958a1bfcbe5db181a3f2b006dd1b68": {
-   "drop": false,
-   "en": "JeffCrunch shows the values a file stored for external references without opening the other workbook, and keeps the link parts.",
-   "es": "JeffCrunch muestra los valores que el documento guardó para las referencias externas sin abrir el otro libro, y conserva las partes de los vínculos.",
-   "fr": "JeffCrunch affiche les valeurs enregistrées dans le fichier pour les références externes sans ouvrir l’autre classeur, et conserve les parties des liens.",
-   "soon": {
-    "drop": false,
-    "en": "Edit Links: update external references on request",
-    "es": "Edición de vínculos: actualizar las referencias externas a petición",
-    "fr": "Modification des liens : mise à jour des références externes à la demande"
    }
   },
   "e4909f9574f475c64362dd26a897c973eba8a48408347852dfbb93f2e5ed2580": {
@@ -23677,6 +23667,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "f1a20fc1cadb369ff39e7d184932e737a702e016688255847ee168bcb4269b9a": {
+   "drop": false,
+   "en": "Edit Links lists the external workbooks a workbook points to. Check Status, Open Source, Update Values, Change Source, and Break Link are available. A link is shown with the values the file stored until you update it.",
+   "es": "Edit Links enumera los libros externos a los que apunta un libro. Están disponibles Check Status, Open Source, Update Values, Change Source y Break Link. Un vínculo se muestra con los valores que guardó el archivo hasta que usted lo actualice.",
+   "fr": "Edit Links répertorie les classeurs externes vers lesquels pointe un classeur. Check Status, Open Source, Update Values, Change Source et Break Link sont disponibles. Un lien s’affiche avec les valeurs enregistrées dans le fichier tant que vous ne le mettez pas à jour.",
+   "soon": {
+    "drop": false,
+    "en": "Update Values for formulas that do more than read one cell",
+    "es": "Update Values para fórmulas que hacen más que leer una celda",
+    "fr": "Update Values pour les formules qui font plus que lire une cellule"
    }
   },
   "f1cc43b576d5b11a95c6f288a41e2b01b8e28a567d4fe7217ae1fe07a5d0cbe5": {
