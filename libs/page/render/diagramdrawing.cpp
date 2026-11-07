@@ -1,48 +1,25 @@
 #include "render/diagramdrawing.h"
 
+#include "office/diagram.h"
 #include "office/xml.h"
 #include "render/renderer.h"
 #include "render/svgexport.h"
 
 #include <QBuffer>
+#include <QCoreApplication>
+#include <QDomDocument>
 #include <QHash>
 #include <QImage>
 #include <QImageReader>
 #include <QRegularExpression>
+#include <QTextBlock>
+#include <QTextCursor>
+#include <QTextDocument>
 #include <memory>
 
-namespace jp::deck {
+namespace jp {
 
 namespace {
-
-QDomElement aChild(const QDomElement &e, const char *name) { return office::child(e, office::ns::A, QLatin1String(name)); }
-
-// Where the data part names the drawing's link: the first dsp:dataModelExt with a relId. The part may be large, so this reads the bytes in place.
-bool findDrawingLinkId(const QByteArray &xml, qsizetype *valueAt, qsizetype *valueEnd)
-{
-    static const QByteArray tag("dataModelExt");
-    qsizetype from = 0;
-    // A part that has one at all has it in its extension list; a few are looked at, not every one.
-    for (int tries = 0; tries < 16; ++tries) {
-        const qsizetype at = xml.indexOf(tag, from);
-        if (at < 0) return false;
-        const qsizetype close = xml.indexOf('>', at);
-        if (close < 0) return false;
-        const QByteArray element = QByteArray::fromRawData(xml.constData() + at, close - at);
-        const qsizetype name = element.indexOf(" relId=\"");
-        if (name >= 0) {
-            const qsizetype start = at + name + 8;
-            const qsizetype stop = xml.indexOf('"', start);
-            if (stop > start && stop < close) {
-                *valueAt = start;
-                *valueEnd = stop;
-                return true;
-            }
-        }
-        from = close;
-    }
-    return false;
-}
 
 // The longest side, in pixels, a picture keeps in a drawing: each use of one is a copy of it in the SVG, and a photograph of twelve megapixels would
 // make a drawing of tens of megabytes. And the largest an SVG may be: past it, the pictures in the drawing are left out of it.
@@ -88,8 +65,9 @@ constexpr double kPixelsPerPoint = 3;
 
 // The SVG as the picture is made of it: without the writer's title and description (which say what made it, and a diagram says nothing of that),
 // and asking to be drawn kPixelsPerPoint to the point, in the coordinates (points) it has.
-QByteArray asPicture(const QByteArray &svg, const QSizeF &size)
+QByteArray asPicture(const QByteArray &svg, const QSizeF &drawn, const QSizeF &shown)
 {
+    const QSizeF size = shown.isEmpty() ? drawn : shown;
     static const QRegularExpression note(QStringLiteral("<(title|desc)>[^<]*</\\1>|<(title|desc)/>"));
     static const QRegularExpression root(QStringLiteral("<svg\\b[^>]*>"), QRegularExpression::DotMatchesEverythingOption);
     QString text = QString::fromUtf8(svg);
@@ -107,45 +85,8 @@ QByteArray asPicture(const QByteArray &svg, const QSizeF &size)
 
 } // namespace
 
-bool isDiagramFrame(const QDomElement &graphicFrame)
-{
-    if (graphicFrame.isNull() || graphicFrame.localName() != QLatin1String("graphicFrame")) return false;
-    const QDomElement data = aChild(aChild(graphicFrame, "graphic"), "graphicData");
-    return office::attr(data, QStringLiteral("uri")) == kDiagramNs;
-}
-
-DiagramLinks diagramFrameLinks(const QDomElement &graphicFrame)
-{
-    DiagramLinks links;
-    if (!isDiagramFrame(graphicFrame)) return links;
-    for (QDomElement c = aChild(aChild(graphicFrame, "graphic"), "graphicData").firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
-        if (c.localName() != QLatin1String("relIds") || c.namespaceURI() != kDiagramNs) continue;
-        links.data = office::attrNs(c, office::ns::R, QStringLiteral("dm"));
-        links.layout = office::attrNs(c, office::ns::R, QStringLiteral("lo"));
-        links.style = office::attrNs(c, office::ns::R, QStringLiteral("qs"));
-        links.colors = office::attrNs(c, office::ns::R, QStringLiteral("cs"));
-        break;
-    }
-    return links;
-}
-
-QString diagramDrawingLinkId(const QByteArray &dataXml)
-{
-    qsizetype at = 0, end = 0;
-    return findDrawingLinkId(dataXml, &at, &end) ? QString::fromUtf8(dataXml.mid(at, end - at)) : QString();
-}
-
-QByteArray withDiagramDrawingLinkId(const QByteArray &dataXml, const QString &id)
-{
-    qsizetype at = 0, end = 0;
-    if (!findDrawingLinkId(dataXml, &at, &end)) return dataXml;
-    QByteArray out = dataXml;
-    out.replace(at, end - at, id.toUtf8());
-    return out;
-}
-
 QByteArray diagramSvg(const QDomElement &spTree, const office::DrawingContext &base, const office::TextStyleStack &styles, const QSizeF &size, const Document &like,
-                      int *imagesLeftOut)
+                      int *imagesLeftOut, const QSizeF &shown)
 {
     // The drawing is set in a presentation of its own the size of the frame, with the look of the one it is in; that is thrown away.
     Document scratch;
@@ -178,17 +119,89 @@ QByteArray diagramSvg(const QDomElement &spTree, const office::DrawingContext &b
     paint.opt.output = true;
     // A picture in it is kept as fine as a screen the width of a slide shows it, four points to the pixel.
     paint.opt.maxImageDpi = 432;
-    QByteArray svg = asPicture(pageSvg(paint, 0, QString(), true), size);
+    QByteArray svg = asPicture(pageSvg(paint, 0, QString(), true), size, shown);
     if (svg.size() > kMaxDrawingBytes) {
         // Each use of a picture is a copy of it: a drawing that has too many shows its pictures as the color they average, and its pictures' places empty.
         walkItems(page->items, [&](const ItemPtr &it) {
             if (it->fill.type == Fill::Picture || it->fill.type == Fill::Texture) it->fill = Fill::solid(ColorRef::rgb(averageOf(scratch.image(it->fill.imageId))));
             if (it->type() == ItemType::Picture) static_cast<PictureItem &>(*it).imageId.clear();
         });
-        svg = asPicture(pageSvg(paint, 0, QString(), true), size);
+        svg = asPicture(pageSvg(paint, 0, QString(), true), size, shown);
     }
     if (imagesLeftOut) *imagesLeftOut += scratch.imagesLeftOut;
     return svg;
 }
 
-} // namespace jp::deck
+QByteArray diagramDrawingSvg(const QByteArray &drawingXml, const QString &drawingPart, const office::Package *package, const office::Theme &theme, const QSizeF &natural,
+                             const QSizeF &shown, int *imagesLeftOut)
+{
+    if (drawingXml.isEmpty() || natural.width() < 1 || natural.height() < 1) return {};
+    QDomDocument dom;
+    if (!office::parseXml(drawingXml, &dom)) return {};
+    const QDomElement root = dom.documentElement();
+    if (root.localName() != QLatin1String("drawing") || root.namespaceURI() != office::kDiagramDrawingNs) return {};
+    const QDomElement tree = office::child(root, office::kDiagramDrawingNs, QStringLiteral("spTree"));
+    if (tree.isNull()) return {};
+
+    office::DrawingContext ctx;
+    ctx.package = package;
+    ctx.part = drawingPart;
+    ctx.theme = theme;
+    QDomDocument themeDoc;
+    if (!theme.xml.isEmpty() && office::parseXml(theme.xml, &themeDoc))
+        ctx.formats = office::child(office::child(themeDoc.documentElement(), office::ns::A, QStringLiteral("themeElements")), office::ns::A, QStringLiteral("fmtScheme"));
+    // What one drawing may keep: its shapes, and the words in them.
+    office::DrawingBudget budget;
+    using B = office::DrawingBudget;
+    budget.left[B::Objects] = kMostDiagramShapes;
+    budget.left[B::Stories] = kMostDiagramShapes;
+    budget.left[B::Cells] = 0;
+    budget.left[B::Paragraphs] = 20000;
+    budget.left[B::Runs] = 50000;
+    budget.left[B::Letters] = 500000;
+    ctx.budget = &budget;
+    const Document like;
+    return diagramSvg(tree, ctx, office::TextStyleStack(), natural, like, imagesLeftOut, shown);
+}
+
+QByteArray diagramPlaceholderSvg(const QSizeF &size)
+{
+    Document scratch;
+    scratch.masters.clear();
+    scratch.slideText = true;
+    scratch.setup.size = scratch.setup.sheet = size;
+    scratch.setup.margins = QMarginsF(0, 0, 0, 0);
+    auto page = std::make_shared<Page>();
+    page->masterId.clear();
+    scratch.pages << page;
+    auto box = std::make_shared<TextItem>();
+    box->rect = QRectF(QPointF(0, 0), size);
+    box->fill = Fill::solid(ColorRef::rgb(QColor(0xF3, 0xF3, 0xF3)));
+    box->stroke = Stroke::line(ColorRef::rgb(QColor(0x80, 0x80, 0x80)), 1);
+    box->stroke.dash = Stroke::DashLine;
+    box->valign = VAlign::Middle;
+    box->insets = QMarginsF(6, 6, 6, 6);
+    box->storyId = scratch.createStory(QCoreApplication::translate("jp::DiagramDrawing", "Diagram (the file keeps no picture of it)"));
+    if (QTextDocument *words = scratch.storyDoc(box->storyId)) {
+        QTextCursor c(words);
+        c.select(QTextCursor::Document);
+        QTextCharFormat look;
+        QFont font = words->defaultFont();
+        font.setPointSizeF(std::clamp(size.height() / 8, 8.0, 14.0));
+        look.setFont(font);
+        look.setForeground(QColor(0x50, 0x50, 0x50));
+        c.mergeCharFormat(look);
+        QTextBlockFormat centered;
+        centered.setAlignment(Qt::AlignHCenter);
+        c.mergeBlockFormat(centered);
+    }
+    page->items.push_back(box);
+    LayoutCache cache;
+    PaintContext paint;
+    paint.doc = &scratch;
+    paint.cache = &cache;
+    paint.opt.output = true;
+    return asPicture(pageSvg(paint, 0, QString(), true), size, QSizeF());
+}
+
+} // namespace jp

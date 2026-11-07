@@ -5,6 +5,7 @@
 #include "core/deck.h"
 #include "core/embeddedfonts.h"
 #include "core/sections.h"
+#include "office/diagram.h"
 #include "render/diagramdrawing.h"
 #include "io/pptxfonts.h"
 #include "io/pptxshow.h"
@@ -39,6 +40,13 @@
 #include <utility>
 
 namespace jp::deck {
+
+using office::DiagramLinks;
+using office::diagramDrawingLinkId;
+using office::diagramFrameLinks;
+using office::isDiagramFrame;
+using office::kDiagramDrawingNs;
+using office::withDiagramDrawingLinkId;
 
 namespace {
 

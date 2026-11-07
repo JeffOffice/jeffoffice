@@ -9,6 +9,7 @@
 #include "core/media.h"
 #include "core/sections.h"
 #include "core/themes.h"
+#include "office/diagram.h"
 #include "render/diagramdrawing.h"
 #include "io/pptxfonts.h"
 #include "io/pptxshow.h"
@@ -47,6 +48,13 @@
 #include <memory>
 
 namespace jp::deck {
+
+using office::DiagramLinks;
+using office::diagramDrawingLinkId;
+using office::diagramFrameLinks;
+using office::isDiagramFrame;
+using office::kDiagramDrawingNs;
+using office::withDiagramDrawingLinkId;
 
 namespace {
 
