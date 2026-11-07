@@ -1114,6 +1114,50 @@ private Q_SLOTS:
         QCOMPARE(int(e.view()->checkArrows().size()), 2);
     }
 
+    // Next Error and Previous Error step through the cells of the sheet that show an error, in the order of the rows and round at the ends: each is selected and the arrows are drawn
+    // all the way back to the cell that makes the error.
+    void nextAndPreviousErrorStepThroughTheErrorsAndDrawTheirSources()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=1", "B1==A1/0", "C1==B1+1", "D1==C1*2", "E1==A1+1", "A3==1/0"}})));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(kEnglish);
+        QVERIFY(e.settle());
+        QVERIFY(w.act(QStringLiteral("formulas.nextError"))->isEnabled());
+        QVERIFY(w.act(QStringLiteral("formulas.previousError"))->isEnabled());
+        e.select(QStringLiteral("E1"));
+        QVERIFY(w.stepError(true));
+        QCOMPARE(e.selected(), QStringLiteral("A3"));   // (the next error in the rows; it reads nothing, so it makes the error itself)
+        QCOMPARE(int(e.view()->checkArrows().size()), 0);
+        QVERIFY(w.statusText().contains(QStringLiteral("Error 4 of 4")));
+        QVERIFY(w.statusText().contains(QStringLiteral("makes the error itself")));
+        QVERIFY(w.stepError(true));   // (round to the first)
+        QCOMPARE(e.selected(), QStringLiteral("B1"));
+        QVERIFY(w.statusText().contains(QStringLiteral("Error 1 of 4")));
+        QVERIFY(w.stepError(true));
+        QCOMPARE(e.selected(), QStringLiteral("C1"));
+        QCOMPARE(int(e.view()->checkArrows().size()), 1);   // B1 -> C1
+        QVERIFY(w.stepError(true));
+        QCOMPARE(e.selected(), QStringLiteral("D1"));
+        QCOMPARE(int(e.view()->checkArrows().size()), 2);   // B1 -> C1 -> D1, the whole way back
+        QVERIFY(w.statusText().contains(QStringLiteral("go to the cell that makes it")));
+        if (jp::RibbonTab *t = w.ribbon()->tab(QStringLiteral("Formulas"))) w.ribbon()->showTab(t);
+        saveShot(&w, QStringLiteral("trace-error-step"));
+        QVERIFY(w.stepError(false));
+        QCOMPARE(e.selected(), QStringLiteral("C1"));
+        QCOMPARE(int(e.view()->checkArrows().size()), 1);
+        QVERIFY(w.stepError(false));
+        QVERIFY(w.stepError(false));
+        QCOMPARE(e.selected(), QStringLiteral("A3"));   // (backward from the first goes round to the last)
+        // a sheet with no error says so and stays
+        EditWindow clean;
+        QVERIFY(clean.open(bookOfSheets({{"A1=1", "B1==A1+1"}})));
+        clean.win.w.setLocale(kEnglish);
+        QVERIFY(clean.settle());
+        QVERIFY(!clean.win.w.stepError(true));
+        QVERIFY(clean.win.w.statusText().contains(QStringLiteral("No cell on this sheet shows an error")));
+    }
+
     void applyNamesPutsNamesInFormulasAsOneStep()
     {
         EditWindow e;

@@ -1,6 +1,7 @@
 // The Formulas tab, the parts about checking formulas: arrows from what a formula reads to the formula, and from a cell to the formulas that read it, one step more with each click; and the
 // outlines on cells in circles. The arrows are drawn by the grid (GridView::setCheckMarks); here is what they are.
 #include "app/crunchwindow.h"
+#include "core/gotospecial.h"
 
 #include <QAction>
 
@@ -16,7 +17,9 @@ void CrunchWindow::createAuditActions()
     mk("formulas.traceDependents", tr("Show What Uses This Cell"), "arrow-up-from-dot", QKeySequence(), [this] { traceDependents(); }, false, false);
     mk("formulas.traceError", tr("Trace Error"), "triangle-alert", QKeySequence(), [this] { traceError(); }, false, false);
     mk("formulas.removeArrows", tr("Clear Arrows"), "eraser", QKeySequence(), [this] { removeArrows(); }, false, false);
-    for (const char *id : {"formulas.tracePrecedents", "formulas.traceDependents", "formulas.traceError", "formulas.removeArrows"}) m_opsActions << QString::fromLatin1(id);
+    mk("formulas.nextError", tr("Next Error"), "arrow-big-down", QKeySequence(), [this] { stepError(true); }, false, false);
+    mk("formulas.previousError", tr("Previous Error"), "arrow-big-up", QKeySequence(), [this] { stepError(false); }, false, false);
+    for (const char *id : {"formulas.tracePrecedents", "formulas.traceDependents", "formulas.traceError", "formulas.removeArrows", "formulas.nextError", "formulas.previousError"}) m_opsActions << QString::fromLatin1(id);
     updateEditActions();
 }
 
@@ -208,6 +211,45 @@ bool CrunchWindow::traceError()
         return false;
     }
     setStatus(tr("%n arrow(s) drawn.", nullptr, int(m_trace.size())));
+    return true;
+}
+
+// Next Error and Previous Error: the cells of the sheet that show an error are stepped through in the order of the rows (and in the row of the columns), round from the last to the first. The cell
+// is selected and the arrows are drawn all the way to the cell that makes the error.
+bool CrunchWindow::stepError(bool forward)
+{
+    if (!m_session || !m_loaded || !commitEdit()) return false;
+    const grid::Selection &sel = m_view->selection();
+    const qint64 row = std::max<qint64>(0, sel.activeRow), col = std::max<qint64>(0, sel.activeCol);
+    crunch::SpecialOptions options;
+    options.kind = crunch::SpecialKind::Errors;
+    const crunch::SpecialResult found = crunch::goToSpecial(*m_session, m_sheet, CellRange(), quint32(row), quint32(col), options);
+    constexpr qint64 kMostErrors = 200000;
+    std::vector<std::pair<qint64, qint64>> cells;
+    for (const CellRange &r : found.ranges)
+        for (qint64 y = r.row1; y <= r.row2 && qint64(cells.size()) < kMostErrors; ++y)
+            for (qint64 x = r.col1; x <= r.col2 && qint64(cells.size()) < kMostErrors; ++x) cells.push_back({y, x});
+    if (cells.empty()) {
+        setStatus(tr("No cell on this sheet shows an error."));
+        return false;
+    }
+    std::sort(cells.begin(), cells.end());
+    const std::pair<qint64, qint64> here{row, col};
+    size_t at = 0;
+    if (forward) {
+        const auto it = std::upper_bound(cells.begin(), cells.end(), here);
+        at = it == cells.end() ? 0 : size_t(it - cells.begin());
+    } else {
+        const auto it = std::lower_bound(cells.begin(), cells.end(), here);
+        at = it == cells.begin() ? cells.size() - 1 : size_t(it - cells.begin()) - 1;
+    }
+    removeArrows();
+    m_view->selectCell(cells[at].first, cells[at].second);
+    m_view->ensureVisible(cells[at].first, cells[at].second);
+    // the arrows to what makes it: one step more at a time until a cell reads no error
+    for (int step = 0; step < 200 && traceError(); ++step) {}
+    setStatus(tr("Error %1 of %2%3.").arg(int(at) + 1).arg(int(cells.size())).arg(found.truncated ? tr(" or more") : QString()) + QLatin1Char(' ')
+              + (m_trace.empty() ? tr("The cell makes the error itself.") : tr("The arrows go to the cell that makes it.")));
     return true;
 }
 

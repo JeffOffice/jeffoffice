@@ -318,6 +318,8 @@
             {"small": "formulas.removeArrows", "keytip": "RA"},
             {"small": "view.formulas", "keytip": "H"},
             {"small": "formulas.errorChecking", "keytip": "EC"},
+            {"small": "formulas.nextError", "keytip": "NE"},
+            {"small": "formulas.previousError", "keytip": "PE"},
             {"small": "formulas.watchWindow", "keytip": "WW"},
             {"small": "formulas.evaluate", "keytip": "EF"},
             {"small": "formulas.circular", "keytip": "CR"}

@@ -1,5 +1,5 @@
 # How formulas are shown and calculated
-<!-- keywords: trace error, calculate before save, formula, formulas, calculate, calculation, recalculate, function, functions, value, result, stored, F9, circular, show formulas, formula bar, error, point, pointing, click a cell, reference, F4, error checking, ignore error, evaluate formula, step, watch window, watch, let, name a value, cell function, info function, filterxml, xml, xpath-->
+<!-- keywords: next error, previous error, step through errors, trace error, calculate before save, formula, formulas, calculate, calculation, recalculate, function, functions, value, result, stored, F9, circular, show formulas, formula bar, error, point, pointing, click a cell, reference, F4, error checking, ignore error, evaluate formula, step, watch window, watch, let, name a value, cell function, info function, filterxml, xml, xpath-->
 
 A **formula** is a cell that works out its value from other cells, such as =SUM(B3:B8). The cell shows the value, and the **formula bar** shows the formula.
 
@@ -74,6 +74,8 @@ Some models need such a circle on purpose. Choose **Go Round Circular Formulas**
 Select a cell and click **Show What Feeds This Cell** to draw arrows from the cells its formula reads. Click again to go one step further back. **Show What Uses This Cell** draws arrows to the formulas that read the cell, and each click goes one step on. A small page stands for a cell on another sheet. At most 2,000 arrows are drawn, and the status bar says when there were more. **Clear Arrows** clears them, and so does any change to the workbook.
 
 When a cell shows an error such as #DIV/0!, select it and click **Trace Error**. Arrows are drawn to the cells it reads that show an error too. Click again to go one step further back. When no cell it reads shows an error, the status bar says that this cell makes the error, and that is the one to fix.
+
+To go through every error on the sheet, click **Next Error** or **Previous Error**. The cells that show an error are visited one row after another, and after the last one it starts again at the first. Each cell is selected, and the arrows are drawn all the way back to the cell that makes the error. The status bar says which error you are on, and how many there are.
 
 ## Error Checking
 

@@ -518,6 +518,8 @@ private Q_SLOTS:
             {QStringLiteral("sheet."), {QStringLiteral("a second sheet"), QStringLiteral("a hidden sheet")}},
             {QStringLiteral("formulas.trace"), {QStringLiteral("a formula's cell selected")}},
             {QStringLiteral("formulas.traceError"), {QStringLiteral("an error that comes from a cell it reads")}},
+            {QStringLiteral("formulas.nextError"), {QStringLiteral("an error that comes from a cell it reads")}},
+            {QStringLiteral("formulas.previousError"), {QStringLiteral("an error that comes from a cell it reads")}},
             {QStringLiteral("formulas.removeArrows"), {QStringLiteral("arrows drawn to a formula's cells")}},
             {QStringLiteral("formulas.circular"), {QStringLiteral("a formula that refers to itself")}},
             {QStringLiteral("format.unhide"), {QStringLiteral("a hidden row and column, around them selected")}},
