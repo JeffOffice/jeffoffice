@@ -173,7 +173,7 @@ bool EditLinksDialog::breakRow(int row, bool ask)
     if (row < 0 || row >= int(m_sources.size())) return false;
     const crunch::EditSession::ExternalSource s = m_sources[size_t(row)];
     if (ask) {
-        const auto answer = plainQuestion(this, windowTitle(), tr("Break the links to \"%1\"? Each cell that reads it keeps the value it shows now. This can't be undone.").arg(s.shown));
+        const auto answer = plainQuestion(this, windowTitle(), tr("Break the links to \"%1\"? Each cell that reads it keeps the value it shows now. Undo brings the links back until you save the workbook.").arg(s.shown));
         if (answer != QMessageBox::Yes) return false;
     }
     const crunch::EditSession::Outcome o = m_session->breakExternalLinks(nullptr, nullptr, s.index);

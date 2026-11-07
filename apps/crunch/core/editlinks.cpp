@@ -39,6 +39,13 @@ bool readsAnotherWorkbook(const QString &formula, int only = 0)
     return false;
 }
 
+// A formula that is only a reference to one cell of the source: `[1]Prices!A1` or `'[1]My Prices'!$A$1` (captures: the number and the sheet's name, or the number and the quoted name; the cell).
+const QRegularExpression &directPattern()
+{
+    static const QRegularExpression direct(QStringLiteral("^=?\\s*(?:\\[(\\d+)\\]([^'!\\[\\]]+)|'\\[(\\d+)\\]((?:[^']|'')+)')!\\$?([A-Za-z]{1,3})\\$?(\\d+)\\s*$"));
+    return direct;
+}
+
 // The part of each source the workbook names, in the order of the numbers in its formulas.
 QStringList linkPartsOf(const jp::office::Package &package, const QString &main)
 {
@@ -68,6 +75,18 @@ private:
     EditSession *m_session;
     int m_index;
     QString m_before, m_after;
+};
+
+// What Break Link does to the list of links, and Undo takes back: the saver leaves the link parts out, or not.
+class LinksDropped : public QUndoCommand {
+public:
+    LinksDropped(EditSession *session, bool before, bool after, const QString &text) : QUndoCommand(text), m_session(session), m_before(before), m_after(after) {}
+    void redo() override { m_session->setExternalLinksDropped(m_after); }
+    void undo() override { m_session->setExternalLinksDropped(m_before); }
+
+private:
+    EditSession *m_session;
+    bool m_before, m_after;
 };
 
 // The address a file on this computer is written as in a link.
@@ -138,6 +157,35 @@ std::map<QString, QString> EditSession::externalSourceParts() const
     return out;
 }
 
+std::map<QString, std::vector<jp::office::sheet::SaveChanges::ExternalCachedCell>> EditSession::externalCachedValues() const
+{
+    std::map<QString, std::vector<jp::office::sheet::SaveChanges::ExternalCachedCell>> out;
+    if (m_externalUpdated.empty() || m_dropExternalLinks || !m_book || !m_book->book || !m_book->calc) return out;
+    const QStringList parts = linkPartsOf(m_book->book->package(), m_book->book->mainPart());
+    const QRegularExpression &direct = directPattern();
+    m_book->calc->forEachFormulaText([&](int sheet, quint32 row, quint32 col, const QString &formula) {
+        if (!readsAnotherWorkbook(formula)) return;
+        const QRegularExpressionMatch m = direct.match(formula);
+        if (!m.hasMatch()) return;
+        const int index = (m.captured(1).isEmpty() ? m.captured(3) : m.captured(1)).toInt();
+        if (!m_externalUpdated.count(index) || index < 1 || index > parts.size() || parts[index - 1].isEmpty()) return;
+        jp::office::sheet::SaveChanges::ExternalCachedCell c;
+        c.sheet = m.captured(1).isEmpty() ? m.captured(4).replace(QStringLiteral("''"), QStringLiteral("'")) : m.captured(2);
+        if (!jp::office::sheet::parseCellRef(m.captured(5) + m.captured(6), &c.row, &c.col)) return;
+        const auto content = m_book->calc->content(sheet, row, col);
+        const jp::calc::Value v = content.hasStored ? content.stored : content.value;
+        switch (v.kind()) {
+        case jp::calc::Value::Kind::Number: c.number = v.number(); break;
+        case jp::calc::Value::Kind::Bool: c.kind = 'b'; c.number = v.boolean() ? 1 : 0; break;
+        case jp::calc::Value::Kind::Text: c.kind = 's'; c.text = v.text(); break;
+        case jp::calc::Value::Kind::Error: c.kind = 'e'; c.text = jp::calc::errorKindText(v.errorKind()); break;
+        default: return;
+        }
+        out[parts[index - 1]].push_back(c);
+    });
+    return out;
+}
+
 EditSession::Outcome EditSession::changeExternalSource(int index, const QString &path)
 {
     Outcome out;
@@ -175,7 +223,7 @@ EditSession::Outcome EditSession::updateExternalValues(int index, const QString 
     if (!QFileInfo(path).isFile()) return refuse(tr("The workbook \"%1\" is not a file that can be read.").arg(path));
     if (path.isEmpty() || !source.openFile(path, &error)) return refuse(tr("The workbook \"%1\" could not be opened. %2").arg(path, error));
     // a formula that is only a reference to one cell of the source: `[1]Prices!A1` or `'[1]My Prices'!$A$1`
-    static const QRegularExpression direct(QStringLiteral("^=?\\s*(?:\\[(\\d+)\\]([^'!\\[\\]]+)|'\\[(\\d+)\\]((?:[^']|'')+)')!\\$?([A-Za-z]{1,3})\\$?(\\d+)\\s*$"));
+    const QRegularExpression &direct = directPattern();
     struct Place {
         int sheet;
         quint32 row, col;
@@ -242,6 +290,7 @@ EditSession::Outcome EditSession::updateExternalValues(int index, const QString 
         result->cut = cut;
     }
     if (step.cells.empty()) return out;
+    m_externalUpdated.insert(index);
     pushStep(std::move(step), tr("Update Values"));
     return out;
 }
@@ -265,6 +314,11 @@ EditSession::Outcome EditSession::breakExternalLinks(int *cells, int *names, int
     m_book->calc->forEachFormulaText([&](int sheet, quint32 row, quint32 col, const QString &formula) {
         if (readsAnotherWorkbook(formula, only)) places.push_back({sheet, row, col});
     });
+    QVector<int> nameIds;
+    for (int id = 0; id < m_nameTable.slots(); ++id)
+        if (nameListed(id) && readsAnotherWorkbook(nameTextOf(id), only)) nameIds.append(id);
+    // (one step of Undo: the cells, the names, and the links that are left out of the file)
+    m_undo.beginMacro(tr("Break Link"));
     int done = 0, left = 0;
     for (const Place &p : places) {
         jp::office::sheet::CellRange one;
@@ -278,8 +332,7 @@ EditSession::Outcome EditSession::breakExternalLinks(int *cells, int *names, int
         else ++left;
     }
     int renamed = 0;
-    for (int id = 0; id < m_nameTable.slots(); ++id) {
-        if (!nameListed(id) || !readsAnotherWorkbook(nameTextOf(id), only)) continue;
+    for (int id : nameIds) {
         const NameEntry &e = m_nameTable.at(id);
         NameDraft d;
         d.name = e.name;
@@ -291,14 +344,13 @@ EditSession::Outcome EditSession::breakExternalLinks(int *cells, int *names, int
     }
     if (cells) *cells = done;
     if (names) *names = renamed;
+    if (left == 0 && !m_dropExternalLinks && (only == 0 || externalLinkCells() == 0)) m_undo.push(new LinksDropped(this, false, true, tr("Break Link")));
+    m_undo.endMacro();
     if (left > 0) {
         out.ok = false;
         out.problem = tr("Some cells that read another workbook could not be changed, because they are locked or part of an array. The links stay.");
         return out;
     }
-    // (the steps that held the formulas are let go of: the links are gone from the file, and a formula brought back would read one)
-    forgetStepsDone();
-    if (only == 0 || externalLinkCells() == 0) m_dropExternalLinks = true;
     return out;
 }
 

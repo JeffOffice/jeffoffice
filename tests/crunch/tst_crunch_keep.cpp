@@ -401,6 +401,82 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.session()->editText(0, 4, 0), QStringLiteral("84"));
     }
 
+    // Update Values keeps the values it read in the link's own part, so that a save and a reopen without the source show them; Undo of the update takes the cells back to what the file stored.
+    void updateValuesAreKeptInTheLinkPart()
+    {
+        const QByteArray book = repack(externalLinkBook(), [](Parts &p) {
+            p[QStringLiteral("xl/externalLinks/externalLink1.xml")].replace("<sheetName val=\"Prices\"/>", "<sheetName val=\"Sheet1\"/>");
+            p[kSheet].replace("[1]Prices!A1*2", "[1]Sheet1!A1*2");
+            p[kSheet].replace("</row></sheetData>", "</row><row r=\"6\"><c r=\"A6\"><f>[1]Sheet1!A1</f><v>42</v></c></row></sheetData>");
+        });
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString source = QDir(dir.path()).absoluteFilePath(QStringLiteral("prices.xlsx"));
+        {
+            QFile f(source);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(bookOfSheets({{"A1=7", "A2=hello"}}));
+        }
+        EditWindow e;
+        QVERIFY(e.open(book, QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        crunch::EditSession::ExternalUpdate result;
+        QVERIFY(s->updateExternalValues(1, source, &result).ok);
+        QCOMPARE(result.updated, 1);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A6")), QStringLiteral("n:7"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        f.close();
+        Parts now;
+        readZip(bytes, now);
+        const QByteArray part = now.value(QStringLiteral("xl/externalLinks/externalLink1.xml"));
+        QVERIFY2(part.contains("<v>7</v>") && !part.contains("<v>42</v>"), part.constData());
+        QVERIFY2(part.contains("sheetId=\"0\"") && part.contains("r=\"A1\""), part.constData());
+        // reopened, and the source is not asked for: the cell shows the new value, and the part still has it
+        EditWindow again;
+        QVERIFY(again.open(bytes, QStringLiteral("links2.xlsx")));
+        QVERIFY(again.settle());
+        QCOMPARE(again.valueAt(QStringLiteral("A6")), QStringLiteral("n:7"));
+        QCOMPARE(int(again.win.w.session()->externalLinkSources().size()), 1);
+    }
+
+    // Break Link is one step of Undo: the cells that read the sources are their values, the names are #REF!, and the links are left out of the file; Undo brings all of that back. After a save
+    // that left the links out, the step is let go of (the file no longer has the links to go back to).
+    void breakLinkIsOneStepOfUndo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(externalLinkBook(), QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        const int steps = s->undoStack()->count();
+        QVERIFY(s->breakExternalLinks(nullptr, nullptr, 0).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(s->editText(0, 4, 0), QStringLiteral("84"));
+        QVERIFY(s->externalLinksDropped());
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(s->undoStack()->undoText(), QStringLiteral("Break Link"));
+        QVERIFY(s->canUndo());
+        s->undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(s->editText(0, 4, 0), QStringLiteral("=[1]Prices!A1*2"));
+        QVERIFY(!s->externalLinksDropped());
+        QCOMPARE(int(s->externalLinkSources().size()), 1);
+        s->undoStack()->redo();
+        QVERIFY(e.settle());
+        QCOMPARE(s->editText(0, 4, 0), QStringLiteral("84"));
+        QVERIFY(s->externalLinksDropped());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        QVERIFY(!s->canUndo());
+    }
+
     // Change Source points a link at another file (one step of Undo, written to the link's relationships at the next save, the formulas as they were), and Update Values gives the cells that are
     // only a reference to the source the values it has now; a cell that does more with them keeps the value its file stored.
     void editLinksChangeTheSourceAndUpdateTheValues()

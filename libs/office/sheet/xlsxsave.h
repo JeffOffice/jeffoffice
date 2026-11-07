@@ -362,6 +362,15 @@ struct SaveChanges {
     bool dropExternalLinks = false;
     // Links to other workbooks pointed at another file (Change Source): for each link's part (by its name), the address its relationship of the kind externalLinkPath gets as its Target.
     std::map<QString, QString> externalTargets;
+    // The values a link's part keeps of the other workbook's cells (Update Values): for each link's part (by its name), the cells to put in its sheetDataSet, in place of what it has for them.
+    struct ExternalCachedCell {
+        QString sheet;               // the other workbook's sheet, by name
+        quint32 row = 0, col = 0;
+        char kind = 'n';             // n (a number), s (text), b (true or false), or e (an error, its number in `text` as the file spells it)
+        double number = 0;
+        QString text;
+    };
+    std::map<QString, std::vector<ExternalCachedCell>> externalValues;
     // The custom XML parts (data other programs added: the workbook's relationships to them, the parts, what they relate to, and their types) are taken out.
     bool dropCustomXml = false;
     // The sheets: when a person added, deleted, renamed, moved, hid, or showed one (the workbook's own list is then made from the Workbook's: names, states, and the order of the tabs, with the

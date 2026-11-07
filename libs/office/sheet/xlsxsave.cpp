@@ -9,6 +9,7 @@
 #include <functional>
 #include "io/zip.h"
 #include "io/zipindex.h"
+#include "sheet/pivot.h"
 #include "sheet/structsave.h"
 #include "sheet/xlsxbase.h"
 #include "sheet/xmlscan.h"
@@ -16,6 +17,8 @@
 #include <QCoreApplication>
 #include <QBuffer>
 #include <QDir>
+#include <QDomDocument>
+#include <QDomElement>
 #include <QFileInfo>
 #include <QHash>
 #include <QSaveFile>
@@ -27,6 +30,100 @@
 namespace jp::office::sheet {
 
 namespace {
+
+// The cells of the other workbook a link part keeps (its sheetDataSet), with these put in: a cell that is there gets the new value, one that is not is added in its place. False when the part is
+// not one this can change (another kind of link, or too big).
+bool patchExternalLinkValues(const QByteArray &xml, const std::vector<SaveChanges::ExternalCachedCell> &cells, QByteArray *out)
+{
+    constexpr int kMostDepth = 32;
+    if (xml.size() > (32 << 20) || xml.count('<') > 2000000 || pivotXmlDepth(xml, kMostDepth) > kMostDepth) return false;
+    QDomDocument doc;
+    if (!doc.setContent(xml)) return false;
+    QDomElement root = doc.documentElement();
+    QDomElement book;
+    for (QDomElement e = root.firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
+        if (e.tagName() == QLatin1String("externalBook") || e.tagName().endsWith(QLatin1String(":externalBook"))) book = e;
+    if (book.isNull()) return false;
+    auto child = [](const QDomElement &parent, const char *name) {
+        for (QDomElement e = parent.firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
+            if (e.tagName() == QLatin1String(name) || e.tagName().endsWith(QLatin1Char(':') + QString::fromLatin1(name))) return e;
+        return QDomElement();
+    };
+    const QString prefix = book.tagName().contains(QLatin1Char(':')) ? book.tagName().section(QLatin1Char(':'), 0, 0) + QLatin1Char(':') : QString();
+    QDomElement names = child(book, "sheetNames");
+    if (names.isNull()) {
+        names = doc.createElement(prefix + QStringLiteral("sheetNames"));
+        book.insertBefore(names, book.firstChild());
+    }
+    QStringList sheetNames;
+    for (QDomElement e = names.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) sheetNames << e.attribute(QStringLiteral("val"));
+    QDomElement set = child(book, "sheetDataSet");
+    if (set.isNull()) {
+        set = doc.createElement(prefix + QStringLiteral("sheetDataSet"));
+        book.appendChild(set);   // (the last of the book's children but an extension: sheetNames and definedNames come before)
+    }
+    for (const SaveChanges::ExternalCachedCell &c : cells) {
+        int id = int(sheetNames.indexOf(QRegularExpression(QStringLiteral("^") + QRegularExpression::escape(c.sheet) + QStringLiteral("$"), QRegularExpression::CaseInsensitiveOption)));
+        if (id < 0) {
+            // (a sheet the formulas name that the link does not list is added at the end of the list: the places of the others stay)
+            if (sheetNames.size() >= 10000) continue;
+            QDomElement added = doc.createElement(prefix + QStringLiteral("sheetName"));
+            added.setAttribute(QStringLiteral("val"), c.sheet);
+            names.appendChild(added);
+            sheetNames << c.sheet;
+            id = int(sheetNames.size()) - 1;
+        }
+        QDomElement data;
+        for (QDomElement e = set.firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
+            if (e.attribute(QStringLiteral("sheetId")).toInt() == id) data = e;
+        if (data.isNull()) {
+            data = doc.createElement(prefix + QStringLiteral("sheetData"));
+            data.setAttribute(QStringLiteral("sheetId"), QString::number(id));
+            QDomNode before;
+            for (QDomElement e = set.firstChildElement(); !e.isNull() && before.isNull(); e = e.nextSiblingElement())
+                if (e.attribute(QStringLiteral("sheetId")).toInt() > id) before = e;
+            if (before.isNull()) set.appendChild(data);
+            else set.insertBefore(data, before);
+        }
+        QDomElement row;
+        for (QDomElement e = data.firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
+            if (e.attribute(QStringLiteral("r")).toUInt() == c.row + 1) row = e;
+        if (row.isNull()) {
+            row = doc.createElement(prefix + QStringLiteral("row"));
+            row.setAttribute(QStringLiteral("r"), QString::number(qulonglong(c.row) + 1));
+            QDomNode before;
+            for (QDomElement e = data.firstChildElement(); !e.isNull() && before.isNull(); e = e.nextSiblingElement())
+                if (e.attribute(QStringLiteral("r")).toUInt() > c.row + 1) before = e;
+            if (before.isNull()) data.appendChild(row);
+            else data.insertBefore(row, before);
+        }
+        const QString ref = cellName(c.row, c.col);
+        QDomElement cell;
+        QDomNode before;
+        for (QDomElement e = row.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
+            quint32 r = 0, cl = 0;
+            if (!parseCellRef(e.attribute(QStringLiteral("r")), &r, &cl)) continue;
+            if (cl == c.col) cell = e;
+            else if (cl > c.col && before.isNull()) before = e;
+        }
+        if (cell.isNull()) {
+            cell = doc.createElement(prefix + QStringLiteral("cell"));
+            cell.setAttribute(QStringLiteral("r"), ref);
+            if (before.isNull()) row.appendChild(cell);
+            else row.insertBefore(cell, before);
+        }
+        while (cell.hasChildNodes()) cell.removeChild(cell.firstChild());
+        const char *type = c.kind == 's' ? "str" : c.kind == 'b' ? "b" : c.kind == 'e' ? "e" : "n";
+        if (c.kind == 'n') cell.removeAttribute(QStringLiteral("t"));
+        else cell.setAttribute(QStringLiteral("t"), QLatin1String(type));
+        QDomElement v = doc.createElement(prefix + QStringLiteral("v"));
+        v.appendChild(doc.createTextNode(c.kind == 'n' || c.kind == 'b' ? QString::number(c.number, 'g', 17) : c.text));
+        cell.appendChild(v);
+    }
+    *out = doc.toByteArray(-1);
+    return true;
+}
+
 
 using xmlscan::Tag;
 
@@ -2646,6 +2743,16 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 replaced.insert(relsEntry, xml.toUtf8());
                 break;
             }
+        }
+    }
+    // ---- links to other workbooks that were read again (Update Values): the values the link's own part keeps of the other workbook's cells
+    if (!changes.dropExternalLinks) {
+        for (const auto &[part, cells] : changes.externalValues) {
+            const QString entry = package.entryName(part);
+            const int at = entry.isEmpty() ? -1 : entryAt.value(plain(entry), -1);
+            QByteArray bytes, patched;
+            if (at < 0 || !(replaced.contains(at) ? (bytes = replaced.value(at), true) : inflate(at, &bytes))) continue;
+            if (patchExternalLinkValues(bytes, cells, &patched)) replaced.insert(at, patched);
         }
     }
     // ---- links to other workbooks, and the custom XML data, taken out: their parts (and the parts those relate to), the workbook's relationships to them, and their types go (the list of links in

@@ -12,10 +12,10 @@ The **Data** tab has the tools that work on a list of values: getting text from 
 If a workbook has formulas that read another workbook (such as ='[Prices.xlsx]Sheet1'!A1), **Edit Links** in the **Get Data** group lists those other workbooks, which are called sources. Each row shows where the source is, and its status. Until the workbook is opened again with its sources, it shows the numbers its file stored from them.
 
 - **Check Status** looks for each source on this computer and says **Found**, or says that it was not found. A source on the web is not fetched, so its status says it was not checked.
-- **Update Values** reads the chosen source from this computer and gives each cell that is only a reference to one of its cells the value that cell has now. A cell that does more with the value, such as `=[1]Prices!A1*2`, keeps the number its file stored, and the message under the list says how many cells were updated and how many were not. Update Values is one step, so **Undo** puts the old values back.
+- **Update Values** reads the chosen source from this computer and gives each cell that is only a reference to one of its cells the value that cell has now. A cell that does more with the value, such as `=[1]Prices!A1*2`, keeps the number its file stored, and the message under the list says how many cells were updated and how many were not. Update Values is one step, so **Undo** puts the old values back. The new values are also written into the link's own part of the file when you save, so the workbook shows them the next time it is opened, even when the source is not there.
 - **Change Source** lets you pick another file for the chosen link, for example when the workbook was moved. The formulas stay as they are. The new place is written to the file when you save, and **Undo** takes the change back.
 - **Open Source** opens the chosen source in a new window, when it can be found.
-- **Break Link** turns every cell that reads the chosen source into the value it shows now, and a name that stood for a place in it into **#REF!**. This can't be undone, so JeffCrunch asks first. When no link is left, the file is saved without the parts that held them.
+- **Break Link** turns every cell that reads the chosen source into the value it shows now, and a name that stood for a place in it into **#REF!**. JeffCrunch asks first. Break Link is one step, so **Undo** brings the formulas, the names, and the links back, until you save the workbook. When no link is left, the file is saved without the parts that held them.
 
 ## Sort and filter
 

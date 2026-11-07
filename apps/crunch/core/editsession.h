@@ -418,6 +418,11 @@ public:
     // formula and name of that field are changed. Delete takes the field and the values made from it away. One step of Undo each; the pivot table must not share its data with another.
     Outcome setPivotCalculatedField(int table, int field, const QString &name, const QString &formula);
     Outcome deletePivotCalculatedField(int table, int field);
+    // Calculated Item: an item of a field in the rows or columns that is worked out from other items of it (a formula over their names). `field` is the cache's field; an item of that name that is
+    // calculated is changed, else a new one is made. Solve order: the order in which items that meet in a cell are worked out (the highest last); several are set in one step.
+    Outcome setPivotCalculatedItem(int table, int field, const QString &name, const QString &formula);
+    Outcome deletePivotCalculatedItem(int table, int field, const QString &name);
+    Outcome setPivotSolveOrders(int table, const QStringList &fields, const QStringList &names, const QVector<int> &orders);
     // List Formulas: a new sheet that names each calculated field of the table and its formula (`made` is given the sheet's place). One step of Undo for the cells, and one for the sheet.
     Outcome listPivotFormulas(int table, int *made = nullptr);
     // The rows behind a value of a pivot table (the cell at `row`, `col` of `sheet`), put on a new sheet with the names of the fields above them: one step of Undo for the sheet, one for the rows.
@@ -980,6 +985,8 @@ public:
     // link is left the saver leaves the link parts out.
     Outcome breakExternalLinks(int *cells = nullptr, int *names = nullptr, int only = 0);
     bool externalLinksDropped() const { return m_dropExternalLinks; }
+    void setExternalLinksDropped(bool dropped) { m_dropExternalLinks = dropped; }   // (Break Link and its Undo)
+    std::map<QString, std::vector<jp::office::sheet::SaveChanges::ExternalCachedCell>> externalCachedValues() const;   // by link part
     // Update Values: reads the workbook at `path` (the source numbered `index`, from 1) and gives each cell whose formula is only a reference to a cell of it the value that cell has there now. A cell
     // whose formula does more with such a value (`[1]Prices!A1*2`) keeps what its file stored, since the engine does not work out formulas that read another workbook; those are counted in
     // `kept`, with those whose place the source does not have. One step of Undo. Not ok, with a sentence, when the file can't be read.
@@ -1347,6 +1354,7 @@ private:
     int m_saveGen = 0;                 // how many times the workbook has been saved
     bool m_dropCustomXml = false;
     std::map<int, QString> m_externalTargets;   // the address each source was changed to (Change Source), by its number; the file's own is not in it
+    std::set<int> m_externalUpdated;   // the links whose values were read again (Update Values): the saver puts those values in the links' own parts
     bool m_dropExternalLinks = false;  // the links to other workbooks are taken out at the next save (see breakExternalLinks)
     int m_forgotBySave = 0;            // the steps the last save made Undo forget (see forgetDeletesInFile)
     ResultMap m_fileResults;  // what the file holds for formulas whose value there is not the one the workbook was read with (after a save)

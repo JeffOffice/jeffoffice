@@ -1804,6 +1804,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
     }
     changes.replacedParts = book.changedTableParts();
     changes.externalTargets = externalSourceParts();
+    changes.externalValues = externalCachedValues();
     // (a slicer's choice is its table's: when a click or an Undo left the table showing other items than the file's slicer part says, the part is written with the choice)
     for (auto &[part, bytes] : jp::office::sheet::slicerPartPatches(book)) changes.replacedParts[part] = std::move(bytes);
     // (the pivot parts are made by the thread that writes the file: a cache with many records takes long to write; a copy in another form does not take them)
@@ -1979,7 +1980,10 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_tableRewrites.clear();
     m_nameRenames.clear();
     m_calcFile = m_calcNow;
+    // (the links the file just written has no parts for: a formula that read one must not come back by Undo)
+    if (m_dropExternalLinks) forgetStepsDone();
     m_dropExternalLinks = false;
+    m_externalUpdated.clear();
     m_dropCustomXml = false;
     m_nameTable.rebase([this](const NameEntry &e) {
         QString text;
