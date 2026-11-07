@@ -141,6 +141,22 @@ private Q_SLOTS:
         QCOMPARE(b.at(QStringLiteral("B6")), QStringLiteral("n:10"));
     }
 
+    // A whole recalculation that is stopped before the tables' turn does not leave them forced: the next ordinary edit leaves tables kept by hand as they were.
+    void aStoppedWholeRecalculationDoesNotForceTheTablesAtTheNextEdit()
+    {
+        Book b;
+        QVERIFY(b.open(oneInput()));
+        b.calc->setDataTablesAutomatic(false);
+        QVERIFY(b.calc->recalculate().finished);
+        QCOMPARE(b.at(QStringLiteral("B6")), QStringLiteral("n:0"));   // (what the file stored)
+        std::atomic<bool> stop{true};
+        b.calc->invalidateAll();
+        QVERIFY(b.calc->recalculate(0, &stop, 0).cancelled);
+        QVERIFY(b.set(QStringLiteral("B2"), 5));
+        QVERIFY(b.calc->recalculate().finished);
+        QCOMPARE(b.at(QStringLiteral("B6")), QStringLiteral("n:0"));   // (left as it was until asked for)
+    }
+
     void withoutTheOptionATableKeepsWhatTheFileStored()
     {
         Book b;

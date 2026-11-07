@@ -2713,6 +2713,7 @@ Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::at
     }
     if (m_invalidate.active) {
         if (stopped()) {
+            m_tablesForce = false;
             pr.cancelled = true;
             return pr;
         }
@@ -2722,6 +2723,7 @@ Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::at
     if (m_begin.active && !m_onlyFresh) {
         if (stopped()) {
             abandon();
+            m_tablesForce = false;   // (a whole recalculation that is stopped does not leave the data tables to be forced by the next)
             pr.cancelled = true;
             return pr;
         }
@@ -2730,6 +2732,7 @@ Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::at
     for (;;) {
         if (stopped()) {
             abandon();
+            m_tablesForce = false;   // (a whole recalculation that is stopped does not leave the data tables to be forced by the next)
             pr.cancelled = true;
             return pr;
         }
@@ -2790,6 +2793,7 @@ Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::at
         if (m_evaluator.status() == EvalStatus::Cancelled) {
             // the formula was stopped in the middle: what it gave is of no worth, and it is to be worked out again
             abandon();
+            m_tablesForce = false;
             pr.cancelled = true;
             return pr;
         }
