@@ -571,18 +571,20 @@ void SlideShow::documentChanged()
         m_pos = it != index.constEnd() ? it.value() : std::clamp(oldPos, 0, int(ids.size()) - 1);
     }
     m_ids = ids;
-    // The times of slides that are gone are gone.
-    for (auto it = m_recorded.begin(); it != m_recorded.end();) it = index.contains(it.key()) ? std::next(it) : m_recorded.erase(it);
     if (gone) {
         m_atEnd = true;
         m_slide = m_target = -1;
         m_pos = m_targetPos = 0;
+        timeSlide(-1);
         update();
     } else {
         m_targetPos = m_pos;
         m_slide = m_target = slideAt(m_pos);
+        timeSlide(m_slide);   // (the time goes to the slide that is on the screen now)
         settle();
     }
+    // The times of slides that are gone are gone.
+    for (auto it = m_recorded.begin(); it != m_recorded.end();) it = index.contains(it.key()) ? std::next(it) : m_recorded.erase(it);
     Q_EMIT changed();
     Q_EMIT slidesChanged();
 }

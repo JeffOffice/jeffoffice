@@ -45,6 +45,8 @@ public:
     // The sections folded away, by their ids (the slides pane folds the same
     // ones). The setters that name one section or all tell collapsedChanged().
     bool isCollapsed(int section) const;
+    // Whether the view is scrolling by itself, for a slide dragged to its edge.
+    bool isAutoScrolling() const { return m_scrollTimer.isActive(); }
     void setCollapsed(int section, bool collapsed);
     void setAllCollapsed(bool collapsed);
     QSet<QString> collapsedSections() const { return m_collapsed; }

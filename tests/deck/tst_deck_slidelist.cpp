@@ -996,6 +996,27 @@ private Q_SLOTS:
         QCOMPARE(ed->currentPage(), 2);   // the one across from "Six", at the left
     }
 
+    // A press that comes while a drag is on (its release was lost) ends the drag, and the view stops scrolling by itself.
+    void aPressDuringALostDragStopsTheAutoScroll()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"One", "Two", "Three", "Four"});
+        w.act("view.sorter")->trigger();
+        SlideSorter *s = w.slideSorter();
+        QTRY_COMPARE(s->renderedCount(), 4);
+        QWidget *vp = s->viewport();
+        const QPoint from = centerOf(s, 0);
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(vp, from + QPoint(14, 14));
+        QTest::mouseMove(vp, from + QPoint(60, 40));
+        QVERIFY(s->isAutoScrolling());
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, centerOf(s, 2));       // (no release came)
+        QVERIFY(!s->isAutoScrolling());
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, centerOf(s, 2));
+    }
+
     // The Home tab's Section button: Add, Rename, Remove, Remove All, Collapse All, and Expand All.
     void ribbonSectionMenu()
     {

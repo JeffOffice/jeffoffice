@@ -1139,6 +1139,39 @@ private Q_SLOTS:
         QCOMPARE(show.recordedSeconds().value(1), 4.0);
     }
 
+    // The slide a rehearsal is on is deleted under it: the time goes to the slide that is now on the screen, and none is kept for the one that is gone; with every slide gone, the clock stops.
+    void rehearsalTimesTheSlideThatTakesThePlaceOfADeletedOne()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        qint64 now = 1000;
+        show.setClock([&now] { return now; });
+        show.setRecording(true);
+        show.show();
+        show.next();
+        QCOMPARE(show.currentSlide(), 1);
+        now += 2000;
+        d->pages.erase(d->pages.begin() + 1);
+        show.documentChanged();
+        QCOMPARE(show.currentSlide(), 1);
+        QCOMPARE(show.slideClock(), qint64(0));            // (counted from when the new slide came on)
+        now += 4000;
+        show.next();
+        QCOMPARE(show.currentSlide(), -1);
+        QCOMPARE(show.recordedSeconds().value(1), 4.0);
+        // every slide gone
+        SlideShow other(d.get(), &cache, 0);
+        other.setClock([&now] { return now; });
+        other.setRecording(true);
+        other.show();
+        now += 3000;
+        d->pages.clear();
+        other.documentChanged();
+        now += 5000;
+        QCOMPARE(other.slideClock(), qint64(0));
+    }
+
     // The Slide Show tab: Custom Slide Show lists the custom shows by name above Custom Shows..., and plays one; Set Up has Set Up Slide
     // Show, Rehearse Timings, and the Use Timings check box.
     void windowSlideShowTabHasSetUpAndCustomShows()

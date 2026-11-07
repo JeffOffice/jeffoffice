@@ -688,6 +688,7 @@ void SlideSorter::mousePressEvent(QMouseEvent *e)
     m_pressHeader = -1;
     m_collapseOnRelease = false;
     m_dragging = false;
+    m_scrollTimer.stop();   // (a drag whose release was lost)
     // A heading is no slide: a click on it folds or opens its section when let go.
     if (const int header = headerAt(e->pos()); header >= 0) {
         if (e->button() == Qt::LeftButton) {
