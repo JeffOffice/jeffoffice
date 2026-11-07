@@ -1357,7 +1357,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             const SheetEntry &e = book.info().sheets[sheet];
             if (e.deleted || add.objects.empty()) continue;
             objects += qint64(add.objects.size());
-            if (e.kind != SheetKind::Worksheet || add.part.isEmpty() || objects > kMaxAddedObjects)
+            if ((e.kind != SheetKind::Worksheet && !(e.kind == SheetKind::Chartsheet && e.isNew)) || add.part.isEmpty() || objects > kMaxAddedObjects)
                 return fail(QCoreApplication::translate("jp::office::sheet::Save", "Objects were put on a sheet this program can't put them on."));
             if (!e.isNew && !drawingPartOf(package, e.part).isEmpty()) continue;
             QStringList used;
@@ -2750,12 +2750,13 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             const SheetEntry &e = info.sheets[sheet];
             if (!e.isNew || e.deleted || e.part.isEmpty() || e.relId.isEmpty()) continue;
             QByteArray t2, r2;
-            if (!appendBefore(types, "Types", "<Override PartName=\"" + xmlscan::escapeAttribute(e.part) + "\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>", &t2))
+            const bool chartSheet = e.kind == SheetKind::Chartsheet;
+            if (!appendBefore(types, "Types", "<Override PartName=\"" + xmlscan::escapeAttribute(e.part) + "\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml." + (chartSheet ? "chartsheet" : "worksheet") + "+xml\"/>", &t2))
                 return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's relationships are not in the form this program changes."));
             types = t2;
             const QString target = e.part.startsWith(mainDir, Qt::CaseInsensitive) ? e.part.mid(mainDir.size()) : e.part;
             if (!appendBefore(rels, "Relationships",
-                              "<Relationship Id=\"" + xmlscan::escapeAttribute(e.relId) + "\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"" + xmlscan::escapeAttribute(target) + "\"/>", &r2))
+                              "<Relationship Id=\"" + xmlscan::escapeAttribute(e.relId) + "\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/" + (chartSheet ? "chartsheet" : "worksheet") + "\" Target=\"" + xmlscan::escapeAttribute(target) + "\"/>", &r2))
                 return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's relationships are not in the form this program changes."));
             rels = r2;
             newSheets.push_back({sheet, e.part});
@@ -2926,6 +2927,24 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     // the sheets that were added, made whole: the skeleton with their cells, sizes, and merged ranges put in
     for (const NewSheet &n : newSheets) {
         if (cancel && cancel->load()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
+        if (book.info().sheets[n.sheet].kind == SheetKind::Chartsheet) {
+            // a chart sheet a person made: the page that holds the chart's drawing, and the link to it
+            const auto drawingLink = newSheetRels.find(n.sheet);
+            QByteArray chartSheetXml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<chartsheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+                                       "<sheetViews><sheetView workbookViewId=\"0\" zoomToFit=\"1\"/></sheetViews>";
+            if (drawingLink != newSheetRels.end()) chartSheetXml += "<drawing r:id=\"" + xmlscan::escapeAttribute(newDrawingRel[n.sheet]) + "\"/>";
+            chartSheetXml += "</chartsheet>";
+            zip.add(n.part.startsWith(QLatin1Char('/')) ? n.part.mid(1) : n.part, chartSheetXml, true);
+            if (drawingLink != newSheetRels.end()) {
+                QString relsOfNew = relationshipsPartOf(n.part);
+                if (relsOfNew.startsWith(QLatin1Char('/'))) relsOfNew.remove(0, 1);
+                zip.add(relsOfNew, "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" + drawingLink->second + "</Relationships>", true);
+            }
+            rep.changedParts << n.part;
+            ++rep.partsChanged;
+            ++rep.sheetsRewritten;
+            continue;
+        }
         const auto found = changes.sheets.find(n.sheet);
         SheetChanges sc;
         if (found != changes.sheets.end()) sc = found->second;

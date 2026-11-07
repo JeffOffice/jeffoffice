@@ -18,7 +18,14 @@
 #include <QApplication>
 #include <QClipboard>
 #include <cmath>
+#include <QComboBox>
+#include <QDialogButtonBox>
+#include <QHBoxLayout>
 #include <QInputDialog>
+#include <QLabel>
+#include <QRadioButton>
+#include <QUndoStack>
+#include <QVBoxLayout>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMimeData>
@@ -598,16 +605,27 @@ void CrunchWindow::selectDataDialog()
     changePickedChart(tr("Chart Data"), [result](Chart *c) { *c = result; });
 }
 
-// Move Chart: the chart goes to another worksheet (where its cells put it there too): taken off this sheet and put on that one as one step. It still reads the cells it read.
+// The unused name for a new chart sheet: "Chart1", "Chart2", and so on.
+QString CrunchWindow::newChartSheetName() const
+{
+    for (int n = 1;; ++n) {
+        const QString name = tr("Chart%1").arg(n);
+        if (!m_session || m_session->validSheetName(name, -1)) return name;
+    }
+}
+
+// Move Chart: the chart goes to a chart sheet of its own (made for it), or onto a worksheet (where its cells put it there too). It is taken off this sheet and put on that one as one step, and
+// a chart sheet it leaves is deleted with it. It keeps reading the cells it read.
 void CrunchWindow::moveChartDialog()
 {
     const int id = pickedObject();
     if (id < 0 || !m_session || !m_objects || !m_loaded || !m_loaded->book) return;
     QString why;
-    if (!m_objects->canEditChart(m_sheet, id, &why)) {
+    if (!m_objects->canEditChart(m_sheet, id, &why, true)) {
         notice(tr("Move Chart"), why);
         return;
     }
+    const bool fromChartSheet = m_objects->isChartSheet(m_sheet);
     QStringList names;
     QVector<int> places;
     const auto &sheets = m_loaded->book->info().sheets;
@@ -616,21 +634,65 @@ void CrunchWindow::moveChartDialog()
             names << sheets[i].name;
             places << i;
         }
-    if (names.isEmpty()) {
+    const bool canMakeSheet = !fromChartSheet;
+    if (names.isEmpty() && !canMakeSheet) {
         notice(tr("Move Chart"), tr("There is no other worksheet to move the chart to."));
         return;
     }
     int chosen = 0;
-    if (m_moveChartAsker) {
+    bool newSheet = false;
+    QString sheetName = newChartSheetName();
+    if (m_moveChartPlaceAsker) {
+        if (!m_moveChartPlaceAsker(names, &newSheet, &sheetName, &chosen)) return;
+    } else if (m_moveChartAsker && !names.isEmpty()) {
         if (!m_moveChartAsker(names, &chosen)) return;
     } else {
-        bool ok = false;
-        const QString name = QInputDialog::getItem(this, tr("Move Chart"), tr("Move the chart to this sheet:"), names, 0, false, &ok);
-        if (!ok) return;
-        chosen = int(names.indexOf(name));
+        QDialog d(this);
+        d.setObjectName(QStringLiteral("moveChartDialog"));
+        d.setWindowTitle(tr("Move Chart"));
+        auto *layout = new QVBoxLayout(&d);
+        auto *intro = new QLabel(tr("Choose where to put the chart:"), &d);
+        layout->addWidget(intro);
+        auto *newRadio = new QRadioButton(tr("New sheet:"), &d);
+        auto *nameEdit = new QLineEdit(sheetName, &d);
+        auto *existingRadio = new QRadioButton(tr("Object in:"), &d);
+        auto *combo = new QComboBox(&d);
+        combo->addItems(names);
+        auto *row1 = new QHBoxLayout;
+        row1->addWidget(newRadio);
+        row1->addWidget(nameEdit, 1);
+        auto *row2 = new QHBoxLayout;
+        row2->addWidget(existingRadio);
+        row2->addWidget(combo, 1);
+        layout->addLayout(row1);
+        layout->addLayout(row2);
+        newRadio->setEnabled(canMakeSheet);
+        nameEdit->setEnabled(canMakeSheet);
+        existingRadio->setEnabled(!names.isEmpty());
+        combo->setEnabled(!names.isEmpty());
+        (canMakeSheet ? newRadio : existingRadio)->setChecked(true);
+        connect(newRadio, &QRadioButton::toggled, &d, [=](bool on) {
+            nameEdit->setEnabled(on);
+            combo->setEnabled(!on);
+        });
+        nameEdit->setEnabled(canMakeSheet);
+        combo->setEnabled(!canMakeSheet);
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
+        connect(buttons, &QDialogButtonBox::accepted, &d, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, &d, &QDialog::reject);
+        layout->addWidget(buttons);
+        if (m_moveChartShot) m_moveChartShot(&d);
+        if (d.exec() != QDialog::Accepted) return;
+        newSheet = newRadio->isChecked();
+        sheetName = nameEdit->text().trimmed();
+        chosen = combo->currentIndex();
     }
-    if (chosen < 0 || chosen >= places.size()) return;
-    const int target = places[chosen];
+    if (newSheet && !canMakeSheet) return;
+    if (!newSheet && (chosen < 0 || chosen >= places.size())) return;
+    if (newSheet && !m_session->validSheetName(sheetName, -1, &why)) {
+        notice(tr("Move Chart"), why);
+        return;
+    }
     const Chart chart = m_objects->chartNow(m_sheet, id);
     // (it keeps its size and its place in points: the cells it spans may be wider or narrower on the other sheet, and it is put over the cells those points reach there)
     const grid::ObjectBox box = m_objects->layer()->boxNow(id);
@@ -643,9 +705,34 @@ void CrunchWindow::moveChartDialog()
     anchor.y = qint64(std::llround(box.y * 9525.0));
     anchor.cx = qint64(std::llround(box.w * 9525.0));
     anchor.cy = qint64(std::llround(box.h * 9525.0));
-    anchor = m_objects->anchorKeepingSize(target, anchor);
+    if (fromChartSheet) {
+        // (a chart sheet's chart fills its page: on a worksheet it has the size of a chart made there)
+        anchor.x = anchor.y = 0;
+        anchor.cx = 9525 * 480;
+        anchor.cy = 9525 * 288;
+    }
+    QUndoStack *stack = m_session->undoStack();
+    stack->beginMacro(tr("Move Chart"));
+    int target = -1;
+    if (newSheet) {
+        const crunch::EditSession::Outcome made = m_session->insertChartSheet(-1, sheetName, &target);
+        if (!made.ok) {
+            stack->endMacro();
+            notice(tr("Move Chart"), made.problem);
+            return;
+        }
+        // (a chart sheet's chart fills its page: its place is the page's)
+        anchor.x = anchor.y = 0;
+        anchor.cx = 9525 * 640;
+        anchor.cy = 9525 * 480;
+    } else {
+        target = places[chosen];
+        anchor = m_objects->anchorKeepingSize(target, anchor);
+    }
     const int newId = m_objects->makeChart(target, chart, anchor, &why);
     if (newId < 0) {
+        stack->endMacro();
+        if (newSheet) stack->undo();
         notice(tr("Move Chart"), why);
         return;
     }
@@ -664,12 +751,21 @@ void CrunchWindow::moveChartDialog()
     here.before = m_objects->stateOf(target, newId);
     here.after = here.before;
     here.after.deleted = false;
+    const int from = m_sheet;
     const crunch::EditSession::Outcome o = m_session->changeObjects({away, here}, tr("Move Chart"));
     if (!o.ok) {
         m_objects->discardMade(target, newId);
+        stack->endMacro();
+        if (newSheet) stack->undo();
         notice(tr("Move Chart"), o.problem);
         return;
     }
+    if (fromChartSheet) {
+        // (a chart sheet with no chart is of no use: it goes)
+        const crunch::EditSession::Outcome gone = m_session->deleteSheet(from);
+        if (!gone.ok) setStatus(gone.problem);
+    }
+    stack->endMacro();
     setActiveSheet(target);
     m_objects->layer()->select(newId);
 }
@@ -1130,11 +1226,13 @@ void CrunchWindow::updateChartState()
     if (chart) editable = m_objects->canEditChart(m_sheet, id);
     for (const char *name : {"chartdesign.selectData", "chartdesign.changeType", "chartdesign.switch"}) act(QString::fromLatin1(name))->setEnabled(editable);
     {
-        // (Move Chart needs another worksheet to go to)
+        // (Move Chart needs a chart it can move: on a worksheet, a new chart sheet is always a place to go to; on a chart sheet, another worksheet is)
         bool other = false;
-        if (editable && m_loaded && m_loaded->book)
-            for (int i = 0; i < m_loaded->book->info().sheets.size(); ++i)
+        if (chart && m_loaded && m_loaded->book && m_objects->canEditChart(m_sheet, id, nullptr, true)) {
+            other = !m_objects->isChartSheet(m_sheet);
+            for (int i = 0; i < m_loaded->book->info().sheets.size() && !other; ++i)
                 if (i != m_sheet && !m_loaded->book->info().sheets[i].deleted && m_loaded->book->info().sheets[i].kind == jp::office::sheet::SheetKind::Worksheet) other = true;
+        }
         act(QStringLiteral("chartdesign.moveChart"))->setEnabled(other);
     }
     {

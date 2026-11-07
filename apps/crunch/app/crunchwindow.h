@@ -318,6 +318,9 @@ public:
     void setChartTextAsker(std::function<bool(const QString &, QString *)> asker) { m_chartTextAsker = std::move(asker); }
     void setFormatAxisAsker(std::function<bool(bool, jp::office::ChartAxis *)> asker) { m_formatAxisAsker = std::move(asker); }
     void setMoveChartAsker(std::function<bool(const QStringList &, int *)> asker) { m_moveChartAsker = std::move(asker); }
+    // test hook: the worksheets offered, then whether the chart goes to a new chart sheet (and its name) or to the worksheet at the place in the list
+    void setMoveChartPlaceAsker(std::function<bool(const QStringList &, bool *, QString *, int *)> asker) { m_moveChartPlaceAsker = std::move(asker); }
+    void setMoveChartShot(std::function<void(QDialog *)> shot) { m_moveChartShot = std::move(shot); }
     void moveChartDialog();
     void saveChartAsPicture();
     void saveChartTemplate();
@@ -884,6 +887,9 @@ private:
     std::function<QString(const QStringList &, bool *)> m_pageFieldAsker;   // test hook: which of the filters (by name) Report Filter Pages is made for
     std::function<bool(const QString &, QString *)> m_chartTextAsker;   // test hook: a short text asked for a chart (the title says what)
     std::function<bool(bool, jp::office::ChartAxis *)> m_formatAxisAsker;   // test hook: the axis (across: true) as the format pane left it
+    std::function<bool(const QStringList &, bool *, QString *, int *)> m_moveChartPlaceAsker;
+    std::function<void(QDialog *)> m_moveChartShot;   // test hook: sees the Move Chart dialog before it is shown
+    QString newChartSheetName() const;
     std::function<bool(const QStringList &, int *)> m_moveChartAsker;   // test hook: which of the sheets offered (by place in the list) the chart goes to
     std::function<bool(QString *)> m_dateAxisAsker;                // test hook: the cells of dates for a sparkline's date axis (empty: a general axis)
     std::function<bool(bool, double *)> m_axisValueAsker;          // test hook: the custom minimum (true) or maximum of a sparkline axis

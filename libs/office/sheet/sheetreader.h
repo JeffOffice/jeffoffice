@@ -397,7 +397,7 @@ public:
 
     // ---- the sheets as a person changes them (see apps/crunch/core/editsession.h). A sheet's place never changes: one added is given the next place, and one deleted keeps its own, marked.
     // What the file has stays in `fileName` and `part` until a save. The window's thread only, with the worker held back.
-    int addSheetEntry(const QString &name, SheetState state = SheetState::Visible);
+    int addSheetEntry(const QString &name, SheetState state = SheetState::Visible, SheetKind kind = SheetKind::Worksheet);
     void removeLastSheetEntry();   // (Undo of adding one)
     void setSheetName(int sheet, const QString &name);
     void setSheetState(int sheet, SheetState state);

@@ -187,6 +187,16 @@ QString EditSession::notCopiedNote(int sheet) const
 
 EditSession::Outcome EditSession::insertSheet(int before, const QString &name, int *made)
 {
+    return insertSheetOfKind(before, name, made, false);
+}
+
+EditSession::Outcome EditSession::insertChartSheet(int before, const QString &name, int *made)
+{
+    return insertSheetOfKind(before, name, made, true);
+}
+
+EditSession::Outcome EditSession::insertSheetOfKind(int before, const QString &name, int *made, bool chartSheet)
+{
     Outcome out;
     QString why;
     if (!canEdit(&why) || !structureOpen(&why) || sheetStepsRefused(&why) || sheetCapReached(*m_book->book, &why)) {
@@ -202,12 +212,13 @@ EditSession::Outcome EditSession::insertSheet(int before, const QString &name, i
     }
     SheetEdit e;
     e.kind = SheetEdit::Kind::Insert;
+    e.chartSheet = chartSheet;
     e.sheet = m_book->calc->sheetCount();
     e.nameAfter = nm;
     e.orderBefore = sheetOrder();
     e.orderAfter = orderWith(e.orderBefore, e.sheet, before);
     if (made) *made = e.sheet;
-    return pushSheetEdit(e, tr("Insert Sheet"));
+    return pushSheetEdit(e, chartSheet ? tr("Insert Chart Sheet") : tr("Insert Sheet"));
 }
 
 EditSession::Outcome EditSession::copySheet(int sheet, int before, const QString &name, int *made)
@@ -764,7 +775,7 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
         case SheetEdit::Kind::Copy:
             if (forward) {
                 const int made = calc->addSheet(e.nameAfter, e.kind == SheetEdit::Kind::Copy ? e.copyOf : -1);
-                const int entry = book.addSheetEntry(e.nameAfter);
+                const int entry = book.addSheetEntry(e.nameAfter, jp::office::sheet::SheetState::Visible, e.chartSheet ? jp::office::sheet::SheetKind::Chartsheet : jp::office::sheet::SheetKind::Worksheet);
                 if (made != e.sheet || entry != e.sheet) return false;
                 if (e.kind == SheetEdit::Kind::Copy) m_copies.push_back({made, e.copyOf, m_edits.size()});
                 if (!e.tableRenames.empty()) {

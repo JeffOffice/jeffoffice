@@ -159,6 +159,7 @@ struct SheetEdit {
     std::vector<RichChange> richChanges;
     QVector<jp::office::sheet::CustomView> viewsBefore;    // Delete: the custom views as they were (a deleted sheet is taken out of them)
     int copyOf = -1;                                       // Copy: the sheet it is a copy of
+    bool chartSheet = false;                               // Insert: the sheet is a chart sheet (it holds one chart and no cells)
     std::vector<std::pair<QString, QString>> tableRenames;   // Copy: the tables that were copied, by the name they had and have (the copy's formulas name its own tables)
     jp::office::sheet::Calculation::SheetRewrite rewrite;  // Rename and Delete: what the formulas were (made when the step is done)
     // Whether the step changes what the file's parts name (and so can't be undone against a file that was saved after it).
@@ -831,6 +832,8 @@ public:
     // A copy has the cells, formats, sizes, merged ranges, and rules of the sheet, and what its file says of its protection, filter, links, page setup, page breaks, outline, and the look of
     // its data bars; a sheet with a table can't be copied. What is left out (pictures, charts, notes, and the like) is said by the outcome's `problem`, with `ok` true.
     Outcome insertSheet(int before, const QString &name, int *made = nullptr);
+    // A new chart sheet (no cells; it holds one chart), put as insertSheet puts a sheet.
+    Outcome insertChartSheet(int before, const QString &name, int *made = nullptr);
     Outcome copySheet(int sheet, int before, const QString &name, int *made = nullptr);
     // Deletes a sheet (the last that is shown can't be); the sheet and everything in it, its tables too, are kept for Undo, and what named a table of it on another sheet is #REF!.
     Outcome deleteSheet(int sheet);
@@ -1262,6 +1265,7 @@ private:
     void applyPermute(jp::office::sheet::CellPermute &p, bool forward);
     void forgetNotes();
     bool applySheetEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book);
+    Outcome insertSheetOfKind(int before, const QString &name, int *made, bool chartSheet);
     Outcome pushSheetEdit(SheetEdit edit, const QString &text, std::vector<TableEdit> tables = {}, std::vector<CellChange> cells = {});
     bool sheetStepsRefused(QString *why);
     bool applyNameEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc);

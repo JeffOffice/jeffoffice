@@ -2591,10 +2591,11 @@ int Workbook::activeTabNow() const
     return 0;
 }
 
-int Workbook::addSheetEntry(const QString &name, SheetState state)
+int Workbook::addSheetEntry(const QString &name, SheetState state, SheetKind kind)
 {
     SheetEntry e;
     e.name = name;
+    e.kind = kind;
     e.state = state;
     e.isNew = true;
     int id = 0;
@@ -2640,8 +2641,9 @@ void Workbook::planSheetPart(int sheet)
     for (const SheetEntry &e : m_info.sheets) taken.insert(e.part.toLower());
     for (const QString &p : m_package.partNames()) taken.insert(p.toLower());
     int n = 1;
-    while (taken.contains(numberedPart(QStringLiteral("/xl/worksheets/sheet%1.xml"), n).toLower())) ++n;
-    m_info.sheets[sheet].part = numberedPart(QStringLiteral("/xl/worksheets/sheet%1.xml"), n);
+    const QString pattern = m_info.sheets[sheet].kind == SheetKind::Chartsheet ? QStringLiteral("/xl/chartsheets/sheet%1.xml") : QStringLiteral("/xl/worksheets/sheet%1.xml");
+    while (taken.contains(numberedPart(pattern, n).toLower())) ++n;
+    m_info.sheets[sheet].part = numberedPart(pattern, n);
     QSet<QString> ids;
     for (const Relationship &r : m_package.relationships(m_mainPart)) ids.insert(r.id.toLower());
     for (const SheetEntry &e : m_info.sheets) ids.insert(e.relId.toLower());

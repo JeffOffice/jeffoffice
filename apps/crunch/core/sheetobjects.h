@@ -170,7 +170,7 @@ public:
     ObjectState stateWithPrints(int sheet, int id, bool prints);
     bool printsOf(int sheet, int id);
     // Whether the object's chart can be changed (it is a chart, the file stores it by itself, and it holds nothing a chart saved from the model would lose); if not, why.
-    bool canEditChart(int sheet, int id, QString *why = nullptr);
+    bool canEditChart(int sheet, int id, QString *why = nullptr, bool onChartSheet = false);   // (onChartSheet: a chart on a chart sheet counts, as for Move Chart)
     // An object's place now, as the layer has it (the grid's units), and the sheet's object under that name; false if there is none.
     bool exists(int sheet, int id);
     jp::office::sheet::ObjectKind kindOf(int sheet, int id);

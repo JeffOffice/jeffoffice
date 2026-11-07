@@ -1006,7 +1006,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
                 o->savedPart = freePartName(QStringLiteral("/xl/charts/chart"), QStringLiteral(".xml"), takenNames());
                 takenNames().insert(o->savedPart.toLower());
                 DrawingAnchor want = o->anchor;
-                if (want.kind != AnchorKind::TwoCell) want = twoCellFor(*o, geometryOf().layout.rows, geometryOf().layout.cols);
+                if (want.kind != AnchorKind::TwoCell && !(isChartSheet(int(i)) && want.kind == AnchorKind::Absolute)) want = twoCellFor(*o, geometryOf().layout.rows, geometryOf().layout.cols);
                 else want.editAs = o->anchor.editAs;
                 o->savedAnchor = want;
                 if (o->meta.id <= 0) o->meta.id = s.nextShapeId++;
@@ -1389,6 +1389,11 @@ ObjectState SheetObjects::stateMoved(int sheet, int id, const DrawingAnchor &anc
 void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
 {
     Object *o = find(sheet, id);
+    if (!o && !st.deleted && st.chart && st.madeHere && !st.placements.empty() && m_book && sheet >= 0 && size_t(sheet) < m_sheets.size() && m_sheets[size_t(sheet)].nextId == id) {
+        // (a chart made on a sheet that was made here, and the sheet was taken away by Undo and is back by Redo: the sheet has no objects now, and the chart is made again as it was)
+        if (makeChart(sheet, *st.chart, st.placements.back().anchor) != id) return;
+        o = find(sheet, id);
+    }
     if (!o) return;
     // (a state of before a save that followed edits to rows and columns has places that are of other rows and columns: what it says of them is not used)
     const bool placed = st.epoch == m_epoch;
@@ -1616,8 +1621,12 @@ int SheetObjects::makeChart(int sheet, const Chart &chart, const DrawingAnchor &
         return -1;
     };
     if (!m_book || sheet < 0 || sheet >= int(m_sheets.size())) return refuse(tr("There is no such sheet."));
-    if (m_book->info().sheets[sheet].kind != SheetKind::Worksheet) return refuse(tr("A chart sheet holds one chart. Put charts on a worksheet."));
     Sheet &s = sheetState(sheet);
+    if (m_book->info().sheets[sheet].kind != SheetKind::Worksheet) {
+        // (a chart sheet a person made holds one chart: the one put on it here)
+        const bool empty = std::none_of(s.objects.begin(), s.objects.end(), [](const std::shared_ptr<Object> &o) { return !o->deleted; });
+        if (!(m_book->info().sheets[sheet].isNew && m_book->info().sheets[sheet].kind == SheetKind::Chartsheet && empty)) return refuse(tr("A chart sheet holds one chart. Put charts on a worksheet."));
+    }
     if (addedCount() >= m_limits.maxAdded)
         return refuse(tr("%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.").arg(QLocale().toString(m_limits.maxAdded)));
     if (m_objectsMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(QLocale().toString(kMaxWorkbookObjects)));
@@ -1941,7 +1950,7 @@ int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, con
     return o->id;
 }
 
-bool SheetObjects::canEditChart(int sheet, int id, QString *why)
+bool SheetObjects::canEditChart(int sheet, int id, QString *why, bool onChartSheet)
 {
     auto refuse = [&](const QString &text) {
         if (why) *why = text;
@@ -1952,7 +1961,7 @@ bool SheetObjects::canEditChart(int sheet, int id, QString *why)
     if (!o || o->meta.kind != ObjectKind::Chart) return refuse(tr("This is not a chart."));
     ensureBuilt(sheet, *o);
     if (!o->chart || !o->made) return refuse(tr("This chart can't be shown here, so it can't be changed."));
-    if (isChartSheet(sheet)) return refuse(tr("This chart is on a chart sheet."));
+    if (isChartSheet(sheet) && !onChartSheet) return refuse(tr("This chart is on a chart sheet."));
     if (o->added || o->chart != o->fileChart) return true;   // (made here, or changed here: the model is what there is)
     if (o->editable < 0) {
         int same = 0;

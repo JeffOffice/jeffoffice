@@ -60,6 +60,12 @@ QByteArray escapeBytes(const QString &text) { return xmlscan::escapeAttribute(te
 
 QByteArray chartAnchorXml(const DrawingAnchor &a, int shapeId, const QString &name, const QString &token)
 {
+    const QByteArray frame = QByteArray("<xdr:graphicFrame macro=\"\"><xdr:nvGraphicFramePr><xdr:cNvPr id=\"") + number(shapeId) + "\" name=\"" + escapeBytes(name) +
+                             "\"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></xdr:xfrm><a:graphic><a:graphicData uri=\"" + kC +
+                             "\"><c:chart r:id=\"" + escapeBytes(token) + "\"/></a:graphicData></a:graphic></xdr:graphicFrame>";
+    if (a.kind == AnchorKind::Absolute)   // (the anchor of a chart on a chart sheet: a place and a size, with no cells)
+        return QByteArray("<xdr:absoluteAnchor xmlns:xdr=\"") + kXdr + "\" xmlns:a=\"" + kA + "\" xmlns:c=\"" + kC + "\" xmlns:r=\"" + kR + "\"><xdr:pos x=\"" + number(a.x) + "\" y=\"" + number(a.y) + "\"/><xdr:ext cx=\"" +
+               number(a.cx) + "\" cy=\"" + number(a.cy) + "\"/>" + frame + "<xdr:clientData/></xdr:absoluteAnchor>";
     QByteArray edit;
     if (a.editAs == AnchorKind::OneCell) edit = " editAs=\"oneCell\"";
     else if (a.editAs == AnchorKind::Absolute) edit = " editAs=\"absolute\"";
