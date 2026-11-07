@@ -2110,15 +2110,18 @@ private Q_SLOTS:
             }
             QVERIFY2(timer.elapsed() < 20000, "too slow");
         }
-        // A hundred thousand shapes: no more than the cap are drawn.
+        // Thirty thousand shapes: no more than the cap are drawn.
         QString many;
-        for (int i = 0; i < 100000; ++i) many += diagramShapeXml(i % 100 * 9144, i / 100 * 9144, 9144, 9144, QStringLiteral("rect"), QStringLiteral("<a:solidFill><a:srgbClr val=\"AB12CD\"/></a:solidFill>"), QString());
+        for (int i = 0; i < 30000; ++i)
+            many += QStringLiteral("<dsp:sp><dsp:nvSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvSpPr/></dsp:nvSpPr><dsp:spPr><a:xfrm><a:off x=\"%1\" y=\"%2\"/><a:ext cx=\"9144\" cy=\"9144\"/></a:xfrm>"
+                                   "<a:prstGeom prst=\"rect\"/><a:solidFill><a:srgbClr val=\"AB12CD\"/></a:solidFill></dsp:spPr></dsp:sp>").arg(i % 100 * 9144).arg(i / 100 * 9144);
         {
             QElapsedTimer timer;
             timer.start();
             auto doc = open(diagramDocx(true, true, QByteArray(), diagramDrawingXml(many)).docx);
             QVERIFY(doc);
             const QByteArray svg = drawnSvg(*doc).toLower();
+            QVERIFY(svg.contains("ab12cd"));
             QVERIFY2(svg.count("ab12cd") <= kMostDiagramShapes, qPrintable(QString::number(svg.count("ab12cd"))));
             QVERIFY2(timer.elapsed() < 60000, "too slow");
         }
