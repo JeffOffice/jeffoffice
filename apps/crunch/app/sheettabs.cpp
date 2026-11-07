@@ -72,9 +72,29 @@ void SheetTabBar::setStripe(int tab, const QColor &color)
     update();
 }
 
+// A drag whose release never came (focus lost, Esc, the tabs taken away) is over; tabs that move later are no drag.
+void SheetTabBar::cancelDrag()
+{
+    m_pressed = m_dragMoved = false;
+    m_dragFrom = -1;
+}
+
+void SheetTabBar::keyPressEvent(QKeyEvent *e)
+{
+    if (e->key() == Qt::Key_Escape && m_pressed) cancelDrag();
+    QTabBar::keyPressEvent(e);
+}
+
+void SheetTabBar::focusOutEvent(QFocusEvent *e)
+{
+    cancelDrag();
+    QTabBar::focusOutEvent(e);
+}
+
 void SheetTabBar::clearTabs()
 {
     cancelRename();
+    cancelDrag();
     while (count() > 0) removeTab(count() - 1);
     m_stripes.clear();
     m_selected.clear();
@@ -116,6 +136,7 @@ void SheetTabBar::tabInserted(int index)
 void SheetTabBar::tabRemoved(int index)
 {
     QTabBar::tabRemoved(index);
+    cancelDrag();   // (the tab pressed may be the one that went)
     if (index < m_stripes.size()) m_stripes.remove(index);
     QSet<int> moved;
     for (const int t : m_selected)

@@ -48,6 +48,8 @@ protected:
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *e) override;
+    void keyPressEvent(QKeyEvent *e) override;
+    void focusOutEvent(QFocusEvent *e) override;
     void mouseDoubleClickEvent(QMouseEvent *e) override;
     void contextMenuEvent(QContextMenuEvent *e) override;
     void tabRemoved(int index) override;
@@ -55,6 +57,7 @@ protected:
 
 private:
     void applyLook();
+    void cancelDrag();
     QVector<QColor> m_stripes;
     QSet<int> m_selected;
     QPointer<QLineEdit> m_editor;

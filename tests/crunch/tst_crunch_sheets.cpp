@@ -742,6 +742,31 @@ private Q_SLOTS:
         QTest::keyClick(tabs->editor(), Qt::Key_Escape);
     }
 
+    // A drag of a tab whose release never came (focus lost, Esc, the tabs taken away) is over: tabs that move later are no drag, and the release that comes at last tells nothing.
+    void aTabDragIsGivenUpWhenItsReleaseIsLost()
+    {
+        for (int how = 0; how < 4; ++how) {   // 0 released as usual, 1 focus out, 2 Esc, 3 the tabs cleared
+            crunch::SheetTabBar tabs;
+            for (const char *name : {"One", "Two", "Three"}) tabs.addTab(QString::fromLatin1(name));
+            tabs.resize(400, 30);
+            tabs.show();
+            QSignalSpy dragged(&tabs, &crunch::SheetTabBar::tabDragged);
+            QTest::mousePress(&tabs, Qt::LeftButton, Qt::NoModifier, tabs.tabRect(0).center());
+            if (how == 1) {
+                QFocusEvent out(QEvent::FocusOut, Qt::OtherFocusReason);
+                QCoreApplication::sendEvent(&tabs, &out);
+            }
+            if (how == 2) QTest::keyClick(&tabs, Qt::Key_Escape);
+            if (how == 3) {
+                tabs.clearTabs();
+                for (const char *name : {"One", "Two", "Three"}) tabs.addTab(QString::fromLatin1(name));
+            }
+            tabs.moveTab(0, 1);
+            QTest::mouseRelease(&tabs, Qt::LeftButton, Qt::NoModifier, tabs.tabRect(1).center());
+            QCOMPARE(dragged.count(), how == 0 ? 1 : 0);
+        }
+    }
+
     // Ctrl and Shift pick several tabs; Hide, Delete, Tab Color, and Move or Copy are for all of them, each as one step.
     void severalTabsArePickedAndTheCommandsAreForAll()
     {
