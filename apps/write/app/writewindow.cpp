@@ -20,6 +20,7 @@
 #include "app/widgets.h"
 #include "app/writedialogs.h"
 #include "app/writefilescreen.h"
+#include "app/writefindpane.h"
 #include "core/appinfo.h"
 #include "core/commentops.h"
 #include "core/editops.h"
@@ -172,6 +173,8 @@ WriteWindow::~WriteWindow()
 {
     // (The pane's dock is taken down with the window's other children, after this: it must not reach the window's commands then.)
     if (m_navDock) m_navDock->disconnect(this);
+    // (The find pane clears the view's highlights when hidden: hide it now, while this is still a WriteWindow, not in QWidget's close below.)
+    if (m_find) m_find->hide();
     // (The view lets go of the document before the document goes.)
     m_view->setDocument(nullptr);
     crypto::wipe(m_filePassword);
