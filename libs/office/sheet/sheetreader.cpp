@@ -1497,6 +1497,7 @@ Cut cutAttributes(const char *&p, const char *end, RawAttr *out, int maxAttrs, i
         if (c != ' ') return Cut::Bad;
         ++p;
         const char *nameStart = p;
+        if (p < end && !((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') || *p == '_')) return Cut::Bad;   // (a name begins with a letter or an underscore)
         while (p < end && ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9') || *p == '_')) ++p;
         if (p >= end) return Cut::More;
         if (p == nameStart || *p != '=') return Cut::Bad;
@@ -1538,6 +1539,7 @@ Cut cutText(const char *&p, const char *end, QByteArrayView *text)
 bool startsHere(const char *p, const char *end, const char *what, size_t n) { return size_t(end - p) >= n && std::memcmp(p, what, n) == 0; }
 
 constexpr int kMaxCellAttributes = 8, kMaxRowAttributes = 16;
+constexpr qsizetype kMaxRowBytes = 8 << 20;   // a row of more bytes than this is not scanned
 
 struct RawCell {
     RawAttr attrs[kMaxCellAttributes];
@@ -1583,6 +1585,7 @@ Cut cutRow(const char *start, const char *end, RawRow *row)
         if (end - p < 3) return Cut::More;
         if (p[1] != 'c' || (p[2] != ' ' && p[2] != '>' && p[2] != '/')) return Cut::Bad;
         p += 2;
+        if (row->nCells >= kMaxColumns) return Cut::Bad;   // (more cells than a sheet has columns: the parser refuses it)
         if (row->nCells == row->cells.size()) row->cells.emplace_back();
         RawCell &cell = row->cells[row->nCells];
         cell.hasF = cell.hasV = false;
@@ -1701,8 +1704,12 @@ SheetReader::Scan SheetReader::scanRows(XmlSource &src, qint64 *nextReport)
                 cut = cutRow(held.data(), held.data() + held.size(), &row);
             }
             if (cut == Cut::More) {
-                if (feed.more()) continue;
-                feed.giveBack();   // (the part ends in the row: the parser says how)
+                // (the row is cut again when it has grown to twice the bytes, so that the work is in proportion to the row; a row of more than kMaxRowBytes is the parser's)
+                const qsizetype have = held.size();
+                while (feed.bytes().size() < std::max<qsizetype>(have * 2, have + 1) && have < kMaxRowBytes && feed.more()) {
+                }
+                if (feed.bytes().size() > have && have < kMaxRowBytes) continue;
+                feed.giveBack();   // (the part ends in the row, or the row is too long: the parser says how)
                 return Scan::Back;
             }
             break;
@@ -1729,7 +1736,11 @@ SheetReader::Scan SheetReader::scanRows(XmlSource &src, qint64 *nextReport)
                         if (close >= 0) length = close + 6;
                     }
                 }
-                if (length >= 0 || !feed.more()) break;
+                if (length >= 0) break;
+                const qsizetype have = held.size();
+                while (feed.bytes().size() < std::max<qsizetype>(have * 2, have + 1) && have < kMaxRowBytes && feed.more()) {
+                }
+                if (feed.bytes().size() <= have || have >= kMaxRowBytes) break;
             }
             if (length >= 0) feed.giveBackThenPause(length);
             else feed.giveBack();
@@ -2356,7 +2367,7 @@ bool SheetReader::read(QIODevice *in)
             break;
         }
         // (the parser has been given the start of the rows, or the end of a row, and no more: the plain rows that come next are scanned)
-        if (inData && depth == 2 && !inRow && ok && !m_stop && src.feed.paused()) {
+        if (inData && depth == 2 && !inRow && ok && !m_stop && src.feed.paused() && ((r.isStartElement() && isElement(r, "sheetData")) || (r.isEndElement() && isElement(r, "row")))) {
             if (scanRows(src, &nextReport) == Scan::Failed) ok = false;
         }
     }

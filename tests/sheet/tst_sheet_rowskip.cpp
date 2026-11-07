@@ -5,6 +5,7 @@
 #include "sheet/rowskip.h"
 
 #include <QBuffer>
+#include <QElapsedTimer>
 
 namespace {
 
@@ -331,7 +332,7 @@ private Q_SLOTS:
         QVERIFY(readRows(xml, false, &slow));
         QCOMPARE(describeAll(fast), describeAll(slow));
         QCOMPARE(slow.stats.fastRows, qint64(0));
-        // (the rows with an inline string, an entity, a letter past ASCII, or a value before its formula are the parser's; the rest are the scanner's)
+        // (the rows with an inline string, an entity, or a letter past ASCII are the parser's; the rest are the scanner's)
         QVERIFY2(fast.stats.fastRows > 250 && fast.stats.fastRows < 400, qPrintable(QString::number(fast.stats.fastRows)));
         QVERIFY(at(fast, QStringLiteral("A399")) != nullptr);
         QCOMPARE(fast.formulaText(*at(fast, QStringLiteral("D5"))), QStringLiteral("A5>1"));
@@ -378,6 +379,73 @@ private Q_SLOTS:
             buffer.open(QIODevice::ReadOnly);
             ReadOptions o;
             o.limits.formulaChars = 30;
+            o.fastRows = fast;
+            QVERIFY(!readSheetPart(&buffer, o, fast ? &a : &b));
+        }
+        QVERIFY(!a.error.isEmpty());
+        QCOMPARE(a.error, b.error);
+        QCOMPARE(describeAll(a), describeAll(b));
+    }
+
+    // A comment or an instruction between rows that have no number is read in the order of the file, not after the row that follows it.
+    void rowsWithoutNumbersKeepTheirOrderAroundComments()
+    {
+        for (const char *between : {"<!-- x -->", "<?pi x?>"}) {
+            const QByteArray xml = worksheet(QStringLiteral("<row><c><v>1</v></c></row>") + QLatin1String(between) + QStringLiteral("<row><c><v>2</v></c></row><row><c><v>3</v></c></row><row><c><v>4</v></c></row>"));
+            Sheet a, b;
+            QVERIFY(readRows(xml, true, &a));
+            QVERIFY(readRows(xml, false, &b));
+            QCOMPARE(describeAll(a), describeAll(b));
+            QVERIFY(at(a, QStringLiteral("A3")) != nullptr);
+            QCOMPARE(at(a, QStringLiteral("A3"))->number, 3.0);
+            QCOMPARE(at(a, QStringLiteral("A2"))->number, 2.0);
+        }
+    }
+
+    // A name that is no XML name (it begins with a digit) is for the parser, which refuses it.
+    void namesThatAreNotNamesGoToTheParser()
+    {
+        for (const char *cell : {"<row r=\"1\"><c 1=\"x\" r=\"A1\"><v>1</v></c></row>", "<row 1=\"x\" r=\"1\"><c r=\"A1\"><v>1</v></c></row>"}) {
+            const QByteArray xml = worksheet(QString::fromLatin1(cell));
+            Sheet a, b;
+            const bool fa = readRows(xml, true, &a), fb = readRows(xml, false, &b);
+            QCOMPARE(fa, fb);
+            QVERIFY(!fb);
+            QCOMPARE(a.error, b.error);
+            QCOMPARE(describeAll(a), describeAll(b));
+        }
+    }
+
+    // A row of more cells than a sheet has columns is refused as the parser refuses it, at once and without holding the row.
+    void aRowOfMillionsOfCellsIsRefusedAtOnce()
+    {
+        QByteArray row = "<row r=\"1\">";
+        for (int i = 0; i < 2000000; ++i) row += "<c/>";
+        row += "</row>";
+        const QByteArray xml = worksheet(QString::fromLatin1(row));
+        Sheet a, b;
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(!readRows(xml, true, &a));
+        const qint64 fastMs = timer.elapsed();
+        QVERIFY(!readRows(xml, false, &b));
+        QCOMPARE(a.error, b.error);
+        QVERIFY(!a.error.isEmpty());
+        QCOMPARE(a.stats.fastRows, qint64(0));
+        QVERIFY2(fastMs < 5000, qPrintable(QString::number(fastMs)));
+    }
+
+    // A string over the limit is refused as the parser refuses it.
+    void theScannerKeepsTheStringLimit()
+    {
+        const QByteArray xml = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"str\"><v>short</v></c></row><row r=\"2\"><c r=\"A2\" t=\"str\"><v>a value that is far too long</v></c></row>"));
+        Sheet a, b;
+        for (bool fast : {true, false}) {
+            QByteArray copy = xml;
+            QBuffer buffer(&copy);
+            buffer.open(QIODevice::ReadOnly);
+            ReadOptions o;
+            o.limits.stringChars = 10;
             o.fastRows = fast;
             QVERIFY(!readSheetPart(&buffer, o, fast ? &a : &b));
         }
