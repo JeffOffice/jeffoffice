@@ -408,6 +408,7 @@ void customPageSizesDialog(QWidget *p, Editor *ed)
 void gridGuidesDialog(QWidget *p, Editor *ed, int startTab)
 {
     Document *doc = ed->doc();
+    if (doc->pages.isEmpty() || doc->masters.isEmpty()) return;
     MasterPage *mp = ed->masterView().isEmpty() ? doc->masterFor(*doc->pages[ed->currentPage()]) : doc->master(ed->masterView());
     if (!mp) mp = doc->masters.first().get();
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Layout Guides"));
@@ -984,7 +985,7 @@ void businessInfoDialog(QWidget *p, Editor *ed)
 {
     Document *doc = ed->doc();
     QVector<BusinessInfo> sets = doc->biz;
-    int current = doc->bizCurrent;
+    int current = std::clamp(doc->bizCurrent, 0, std::max(0, int(sets.size()) - 1));
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Business Information"));
     auto *top = new QHBoxLayout();
     auto *setBox = new QComboBox(&dlg.d);
@@ -1419,6 +1420,7 @@ void pageNumberDialog(QWidget *p, Editor *ed)
     if (!dlg.exec()) return;
     Document *d = ed->doc();
     const QString code = QStringList{"page", "page:roman", "page:ROMAN", "page:alpha"}[format->currentIndex()];
+    if (d->pages.isEmpty() || d->masters.isEmpty()) return;
     MasterPage *m = d->masterFor(*d->pages[ed->currentPage()]);
     if (!m) m = d->masters.first().get();
     const QSizeF ps = d->pageSize();

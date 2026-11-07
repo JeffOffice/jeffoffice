@@ -317,6 +317,7 @@ void MainWindow::createActions()
     mk("ins.link", tr("Link"), "link", QKeySequence(Qt::CTRL | Qt::Key_K), [this] { hyperlinkDialog(this, m_ed); });
     mk("ins.bookmark", tr("Bookmark"), "bookmark", QKeySequence(), [this] { bookmarkDialog(this, m_ed); });
     mk("ins.header", tr("Header"), "panel-top", QKeySequence(), [this] {
+        if (m_ed->doc()->pages.isEmpty() || m_ed->doc()->masters.isEmpty()) return;
         const Page *pg = m_ed->doc()->pages[m_ed->currentPage()].get();
         m_ed->setMasterView(pg->masterId.isEmpty() ? m_ed->doc()->masters.first()->id : pg->masterId);
         // Put the caret in (or create) a header box at the top margin.
@@ -329,6 +330,7 @@ void MainWindow::createActions()
         m_ed->beginTextEdit(t->id);
     });
     mk("ins.footer", tr("Footer"), "panel-bottom", QKeySequence(), [this] {
+        if (m_ed->doc()->pages.isEmpty() || m_ed->doc()->masters.isEmpty()) return;
         const Page *pg = m_ed->doc()->pages[m_ed->currentPage()].get();
         m_ed->setMasterView(pg->masterId.isEmpty() ? m_ed->doc()->masters.first()->id : pg->masterId);
         const QSizeF ps = m_ed->doc()->pageSize();
@@ -583,6 +585,7 @@ void MainWindow::createActions()
     // ---------------- Master pages ----------------
     mk("view.master", tr("Master Page"), "layout-panel-top", QKeySequence(Qt::CTRL | Qt::Key_M), [ed] {
         if (!ed->masterView().isEmpty()) { ed->setMasterView(QString()); return; }
+        if (ed->doc()->pages.isEmpty() || ed->doc()->masters.isEmpty()) return;
         const Page *pg = ed->doc()->pages[ed->currentPage()].get();
         ed->setMasterView(pg->masterId.isEmpty() ? ed->doc()->masters.first()->id : pg->masterId);
     }, true);

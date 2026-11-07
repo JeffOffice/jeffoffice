@@ -1415,8 +1415,14 @@ QVector<TextItem *> Document::chainOf(const QString &frameId) const
     Item *it = item(frameId);
     if (!it || it->type() != ItemType::Text) return out;
     auto *head = static_cast<TextItem *>(it);
+    // Who links to whom, found in one walk of the publication (a walk for each step back is the square of the chain's length). The last box
+    // in the walk's order that links to a frame is its previous, as prevFrame says.
+    QHash<QString, TextItem *> previous;
+    forEachItem([&](Item *x, int, const QString &) {
+        if (x->type() == ItemType::Text && !static_cast<TextItem *>(x)->nextId.isEmpty()) previous.insert(static_cast<TextItem *>(x)->nextId, static_cast<TextItem *>(x));
+    });
     QSet<QString> seen{head->id};
-    while (TextItem *p = prevFrame(head->id)) {
+    while (TextItem *p = previous.value(head->id, nullptr)) {
         if (seen.contains(p->id)) break;
         seen.insert(p->id);
         head = p;
@@ -1758,7 +1764,7 @@ void Document::fromJson(const QJsonObject &o)
     biz.clear();
     for (const auto &v : o["business"].toArray()) biz << BusinessInfo::fromJson(v.toObject());
     if (biz.isEmpty()) biz << BusinessInfo();
-    bizCurrent = o["businessCurrent"].toInt();
+    bizCurrent = std::clamp(o["businessCurrent"].toInt(), 0, int(biz.size()) - 1);
     // Image metadata; bytes are attached by the file loader.
     for (const auto &v : o["images"].toArray()) {
         const auto io = v.toObject();
@@ -1817,7 +1823,15 @@ void Document::fromJson(const QJsonObject &o)
         print.overprint.fills = op["fills"].toBool(def.fills);
         print.overprint.threshold = std::clamp(op["threshold"].toInt(def.threshold), 1, 100);
     }
-    if (masters.isEmpty()) resetDefaults();
+    // A file with no masters keeps its colors, fonts, styles, and business info; it just gets the first master.
+    if (masters.isEmpty()) {
+        auto m = std::make_shared<MasterPage>();
+        m->id = "A";
+        m->name = "Master Page A";
+        masters << m;
+    }
+    // A publication always has a page.
+    if (pages.isEmpty()) addPage();
 }
 
 } // namespace jp

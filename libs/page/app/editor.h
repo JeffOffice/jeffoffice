@@ -45,6 +45,8 @@ public:
 
     Document *doc() const { return m_doc.get(); }
     LayoutCache &cache() { return m_cache; }
+    // Each step holds two compressed snapshots of the whole publication, so the list keeps this many steps.
+    static constexpr int kUndoSteps = 100;
     QUndoStack *undoStack() { return &m_undo; }
 
     void setDocument(std::unique_ptr<Document> d, const QString &path = QString());

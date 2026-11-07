@@ -53,6 +53,7 @@ private:
 Editor::Editor(QObject *parent) : QObject(parent)
 {
     m_doc = Document::blank(QSizeF(612, 792));
+    m_undo.setUndoLimit(kUndoSteps);
     m_typingTimer.setSingleShot(true);
     m_typingTimer.setInterval(1200);
     connect(&m_typingTimer, &QTimer::timeout, this, &Editor::flushTyping);
@@ -79,6 +80,7 @@ void Editor::setDocument(std::unique_ptr<Document> d, const QString &path)
     m_text = TextTarget();
     m_cursor = QTextCursor();
     m_doc = std::move(d);
+    if (m_doc->pages.isEmpty()) m_doc->addPage();
     m_cache.clear();
     m_path = path;
     if (!path.isEmpty()) m_doc->folder = QFileInfo(path).absolutePath();
@@ -117,6 +119,7 @@ QString Editor::displayName() const
 // ---------- view ----------
 void Editor::setCurrentPage(int i, bool keepTextEdit)
 {
+    if (m_doc->pages.isEmpty()) return;
     i = std::clamp(i, 0, int(m_doc->pages.size()) - 1);
     if (i == m_page && m_master.isEmpty()) return;
     leaveCrop();
@@ -177,7 +180,7 @@ PageBase *Editor::surface() const
 {
     if (!m_master.isEmpty())
         if (MasterPage *m = m_doc->master(m_master)) return m;
-    return m_doc->pages[std::clamp(m_page, 0, int(m_doc->pages.size()) - 1)].get();
+    return m_doc->pages[std::clamp(m_page, 0, std::max(0, int(m_doc->pages.size()) - 1))].get();
 }
 
 ItemList &Editor::surfaceItems() const { return surface()->items; }
@@ -499,7 +502,7 @@ void Editor::restore(const QByteArray &snap, const QStringList &sel, int page, c
     m_cursor = QTextCursor();
     m_doc->fromJson(jd.object());
     m_cache.clear();
-    m_page = std::clamp(page, 0, int(m_doc->pages.size()) - 1);
+    m_page = std::clamp(page, 0, std::max(0, int(m_doc->pages.size()) - 1));
     m_master = (!master.isEmpty() && m_doc->master(master)) ? master : QString();
     m_sel.clear();
     for (const auto &id : sel)
