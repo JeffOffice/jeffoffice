@@ -120,6 +120,15 @@ void ShowMedia::end()
     m_entries.clear();
 }
 
+void ShowMedia::rebind(const Document *doc)
+{
+    end();
+    m_doc = doc;
+    m_on = false;
+    m_slide = -1;
+    m_pageId.clear();
+}
+
 void ShowMedia::arrive(int slide, int done)
 {
     leave();

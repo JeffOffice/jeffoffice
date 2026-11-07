@@ -39,6 +39,8 @@ public:
     void leave();
     // The show is over (its last slide has gone, or it is closed): everything stops.
     void end();
+    // The show is bound to another presentation: everything stops, and nothing of the old one is used again.
+    void rebind(const Document *doc);
     // The click step (counting those that show something) begins: the media that go with it start.
     void stepStarted(int slide, int step);
     // A click or key forward when `done` steps have played: true when it starts or controls media instead (a step of

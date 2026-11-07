@@ -592,6 +592,7 @@ void SlideShow::documentChanged()
 void SlideShow::rebind(const Document *doc)
 {
     m_doc = doc;
+    m_media->rebind(doc);
     m_rebound = true;
     m_anim.stop();
     m_animating = false;
