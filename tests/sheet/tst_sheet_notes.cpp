@@ -66,13 +66,13 @@ QByteArray plainBook(const QString &after = QString())
 }
 
 // A workbook whose first sheet has the three notes (the one on B5 from a thread).
-QByteArray notesBook(bool threads = true)
+QByteArray notesBook(bool threads = true, const QByteArray &threadXml = QByteArray(kThreads))
 {
     QVector<ExtraPart> parts;
     parts.push_back({QStringLiteral("xl/comments1.xml"), QByteArray(kComments), kContentComments, 0, QStringLiteral("rId1"), QStringLiteral("comments"), QStringLiteral("../comments1.xml")});
     parts.push_back({QStringLiteral("xl/drawings/vmlDrawing1.vml"), QByteArray(kVml), kContentVml, 0, QStringLiteral("rId2"), QStringLiteral("vmlDrawing"), QStringLiteral("../drawings/vmlDrawing1.vml")});
     if (threads) {
-        parts.push_back({QStringLiteral("xl/threadedComments/threadedComment1.xml"), QByteArray(kThreads), QStringLiteral("application/vnd.ms-excel.threadedcomments+xml"), 0, QStringLiteral("rId3"),
+        parts.push_back({QStringLiteral("xl/threadedComments/threadedComment1.xml"), threadXml, QStringLiteral("application/vnd.ms-excel.threadedcomments+xml"), 0, QStringLiteral("rId3"),
                          QStringLiteral("threadedComment"), QStringLiteral("../threadedComments/threadedComment1.xml")});
     }
     QByteArray book = withParts(buildXlsx({worksheet(kRows, QStringLiteral("<legacyDrawing r:id=\"rId2\"/>"))}), parts);
@@ -134,6 +134,29 @@ NoteOp drop(quint32 row, quint32 col)
     op.row = row;
     op.col = col;
     op.remove = true;
+    return op;
+}
+
+ThreadComment comment(const QString &id, const QString &parent, const QString &person, const QString &name, const QString &text, bool done = false)
+{
+    ThreadComment c;
+    c.id = id;
+    c.parentId = parent;
+    c.personId = person;
+    c.author = name;
+    c.userId = name.toLower();
+    c.providerId = QStringLiteral("None");
+    c.time = QStringLiteral("2026-11-07T09:30:00.00");
+    c.text = text;
+    c.done = done;
+    return c;
+}
+
+// The change that puts a thread on a cell: the older note that stands for it, and the thread.
+NoteOp putThread(quint32 row, quint32 col, const ThreadList &list)
+{
+    NoteOp op = put(row, col, legacyThreadAuthor(list), legacyThreadText(list));
+    op.thread = std::make_shared<const ThreadList>(list);
     return op;
 }
 
@@ -371,6 +394,167 @@ private Q_SLOTS:
         QCOMPARE(vml.count("ObjectType=\"Note\""), 3);
         QVERIFY(vml.contains("<x:Row>6</x:Row>"));
         QVERIFY(vml.contains("id=\"_x0000_s1027\""));   // (the one the file had is as it was)
+    }
+
+    void threadsAreReadWithPeopleTimesRepliesAndResolved()
+    {
+        QByteArray threads = kThreads;
+        threads.replace("id=\"{11111111-2222-3333-4444-555555555555}\">", "id=\"{11111111-2222-3333-4444-555555555555}\" done=\"1\">");
+        auto o = open(notesBook(true, threads));
+        QVERIFY(o->ok);
+        const auto notes = readSheetNoteInfos(o->book, 0);
+        const NoteInfo &n = notes.at(noteKey(4, 1));
+        QVERIFY(n.threaded);
+        QVERIFY(n.thread);
+        QCOMPARE(n.thread->size(), size_t(2));
+        const ThreadComment &first = n.thread->at(0), &reply = n.thread->at(1);
+        QCOMPARE(first.author, QStringLiteral("Dee"));
+        QCOMPARE(first.userId, QStringLiteral("dee"));
+        QCOMPARE(first.time, QStringLiteral("2024-01-01T10:00:00.00"));
+        QVERIFY(first.parentId.isEmpty());
+        QVERIFY(first.done);
+        QCOMPARE(reply.author, QStringLiteral("Eli"));
+        QCOMPARE(reply.parentId, first.id);
+        QCOMPARE(reply.text, QStringLiteral("Yes, final."));
+        QVERIFY(threadResolved(*n.thread));
+        QCOMPARE(threadDepth(*n.thread, 1), 1);
+    }
+
+    void aThreadWithNoOlderNoteIsStillRead()
+    {
+        QByteArray comments = kComments;
+        comments.replace("<comment ref=\"B5\" authorId=\"2\" shapeId=\"0\"><text><t>[Threaded comment] fallback words</t></text></comment>", "");
+        QMap<QString, QByteArray> all = entriesOf(notesBook());
+        all[QStringLiteral("xl/comments1.xml")] = comments;
+        auto o = open(zipOf(all));
+        QVERIFY(o->ok);
+        const auto notes = readSheetNoteInfos(o->book, 0);
+        QVERIFY(notes.count(noteKey(4, 1)));
+        QVERIFY(notes.at(noteKey(4, 1)).thread);
+        QCOMPARE(notes.at(noteKey(4, 1)).thread->size(), size_t(2));
+    }
+
+    void hostileThreadsAreCappedAndEndInsteadOfHanging()
+    {
+        // thousands of replies, a person the list does not have, a parent that is itself, and two that name each other
+        QByteArray threads = "<ThreadedComments xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\">";
+        threads += "<threadedComment ref=\"B5\" dT=\"2024-01-01T10:00:00.00\" personId=\"{GONE}\" id=\"{R0}\" parentId=\"{R0}\"><text>loop</text></threadedComment>";
+        for (int i = 1; i < 3000; ++i)
+            threads += "<threadedComment ref=\"B5\" dT=\"2024-01-01T10:00:00.00\" personId=\"{GONE}\" id=\"{R" + QByteArray::number(i) + "}\" parentId=\"{R" + QByteArray::number(i % 2 ? i + 1 : i - 1) + "}\"><text>x</text></threadedComment>";
+        threads += "</ThreadedComments>";
+        auto o = open(notesBook(true, threads));
+        QVERIFY(o->ok);
+        const auto notes = readSheetNoteInfos(o->book, 0);
+        const NoteInfo &n = notes.at(noteKey(4, 1));
+        QVERIFY(n.thread);
+        QCOMPARE(n.thread->size(), size_t(kMaxThreadComments));
+        QVERIFY(n.threadCut);
+        QVERIFY(n.thread->at(0).author.isEmpty());
+        for (size_t i = 0; i < 40; ++i) QVERIFY(threadDepth(*n.thread, i) <= 32);
+    }
+
+    void aThreadIsSavedWithItsOlderNoteAndItsPeople()
+    {
+        auto o = open(notesBook());
+        QVERIFY(o->ok);
+        const auto before = readSheetNoteInfos(o->book, 0);
+        QVERIFY(before.at(noteKey(4, 1)).thread);
+        ThreadList list = *before.at(noteKey(4, 1)).thread;
+        list.push_back(comment(QStringLiteral("{77777777-0000-0000-0000-000000000001}"), list[0].id, QStringLiteral("{BBBBBBBB-0000-0000-0000-000000000009}"), QStringLiteral("Fay"), QStringLiteral("Thanks <both> & done")));
+        list[0].done = true;
+        SaveChanges changes;
+        changes.sheets[0].noteOps = {putThread(4, 1, list)};
+        QString why;
+        auto again = saved(*o, changes, &why);
+        QVERIFY2(again, qPrintable(why));
+        const NoteInfo n = readSheetNoteInfos(again->book, 0).at(noteKey(4, 1));
+        QVERIFY(n.threaded);
+        QVERIFY(n.thread);
+        QCOMPARE(*n.thread, list);
+        const auto parts = entriesOf(again->bytes);
+        QVERIFY(parts.value(QStringLiteral("xl/persons/person.xml")).contains("displayName=\"Fay\""));
+        QVERIFY(parts.value(QStringLiteral("xl/persons/person.xml")).contains("displayName=\"Dee\""));
+        const QByteArray older = parts.value(QStringLiteral("xl/comments1.xml"));
+        QVERIFY(older.contains("tc={11111111-2222-3333-4444-555555555555}"));
+        QVERIFY(older.contains("Reply:"));
+        QCOMPARE(older.count("ref=\"B5\""), 1);
+        QVERIFY(parts.value(QStringLiteral("xl/threadedComments/threadedComment1.xml")).contains("done=\"1\""));
+        // the notes beside it are as they were
+        QCOMPARE(readSheetNoteInfos(again->book, 0).at(noteKey(0, 0)).text, readSheetNoteInfos(o->book, 0).at(noteKey(0, 0)).text);
+    }
+
+    void aThreadOnASheetThatHadNoneMakesItsPartsAndTheirLinks()
+    {
+        auto o = open(plainBook());
+        QVERIFY(o->ok);
+        const ThreadList list = {comment(QStringLiteral("{A0000000-0000-0000-0000-000000000001}"), QString(), QStringLiteral("{C0000000-0000-0000-0000-000000000001}"), QStringLiteral("Gus"), QStringLiteral("First"))};
+        SaveChanges changes;
+        changes.sheets[0].noteOps = {putThread(0, 0, list)};
+        QString why;
+        auto again = saved(*o, changes, &why);
+        QVERIFY2(again, qPrintable(why));
+        const auto parts = entriesOf(again->bytes);
+        QVERIFY(parts.contains(QStringLiteral("xl/threadedComments/threadedComment1.xml")));
+        QVERIFY(parts.contains(QStringLiteral("xl/persons/person.xml")));
+        const QByteArray types = parts.value(QStringLiteral("[Content_Types].xml"));
+        QVERIFY(types.contains("application/vnd.ms-excel.threadedcomments+xml"));
+        QVERIFY(types.contains("application/vnd.ms-excel.person+xml"));
+        QVERIFY(parts.value(QStringLiteral("xl/_rels/workbook.xml.rels")).contains("relationships/person\""));
+        QVERIFY(parts.value(QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")).contains("relationships/threadedComment\""));
+        const NoteInfo n = readSheetNoteInfos(again->book, 0).at(noteKey(0, 0));
+        QVERIFY(n.threaded);
+        QCOMPARE(*n.thread, list);
+    }
+
+    void aThreadTurnedIntoANoteLeavesItsPartAndKeepsTheOthers()
+    {
+        auto o = open(notesBook());
+        QVERIFY(o->ok);
+        SaveChanges changes;
+        changes.sheets[0].noteOps = {put(4, 1, QStringLiteral("Dee"), QStringLiteral("plain now"))};
+        QString why;
+        auto again = saved(*o, changes, &why);
+        QVERIFY2(again, qPrintable(why));
+        const auto notes = readSheetNoteInfos(again->book, 0);
+        QVERIFY(!notes.at(noteKey(4, 1)).threaded);
+        QCOMPARE(notes.at(noteKey(4, 1)).text, QStringLiteral("plain now"));
+        QVERIFY(!entriesOf(again->bytes).value(QStringLiteral("xl/threadedComments/threadedComment1.xml")).contains("ref=\"B5\""));
+    }
+
+    void aThreadTakenAwayLeavesNeitherThreadNorNote()
+    {
+        auto o = open(notesBook());
+        QVERIFY(o->ok);
+        SaveChanges changes;
+        changes.sheets[0].noteOps = {drop(4, 1)};
+        QString why;
+        auto again = saved(*o, changes, &why);
+        QVERIFY2(again, qPrintable(why));
+        QVERIFY(readSheetNoteInfos(again->book, 0).count(noteKey(4, 1)) == 0);
+        QVERIFY(!entriesOf(again->bytes).value(QStringLiteral("xl/threadedComments/threadedComment1.xml")).contains("ref=\"B5\""));
+    }
+
+    void whoIsMentionedInACommentIsKeptWhenItsThreadIsSavedAgain()
+    {
+        QByteArray threads = kThreads;
+        threads.replace("<text>Is this figure final?</text>", "<text>@Eli is this figure final?</text><mentions><mention mentionpersonId=\"{AAAAAAAA-0000-0000-0000-000000000002}\" mentionId=\"{99999999-0000-0000-0000-000000000001}\" startIndex=\"0\" length=\"4\"/></mentions>");
+        auto o = open(notesBook(true, threads));
+        QVERIFY(o->ok);
+        const auto before = readSheetNoteInfos(o->book, 0);
+        QVERIFY(before.at(noteKey(4, 1)).thread);
+        ThreadList list = *before.at(noteKey(4, 1)).thread;
+        QVERIFY(list[0].extra.contains(QStringLiteral("mentionpersonId")));
+        QCOMPARE(list[0].text, QStringLiteral("@Eli is this figure final?"));
+        list.push_back(comment(QStringLiteral("{77777777-0000-0000-0000-000000000002}"), list[0].id, list[0].personId, list[0].author, QStringLiteral("Thanks")));
+        SaveChanges changes;
+        changes.sheets[0].noteOps = {putThread(4, 1, list)};
+        QString why;
+        auto again = saved(*o, changes, &why);
+        QVERIFY2(again, qPrintable(why));
+        QVERIFY2(entriesOf(again->bytes).value(QStringLiteral("xl/threadedComments/threadedComment1.xml")).contains("mentionpersonId"), entriesOf(again->bytes).value(QStringLiteral("xl/threadedComments/threadedComment1.xml")).constData());
+        const NoteInfo n = readSheetNoteInfos(again->book, 0).at(noteKey(4, 1));
+        QVERIFY(n.thread);
+        QCOMPARE(*n.thread, list);
     }
 
     void aNotesChangeLeavesUnrelatedPartsByteForByte()

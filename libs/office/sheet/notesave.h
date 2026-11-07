@@ -3,6 +3,8 @@
 // whether it is shown all the time). A change names the cells it is to: a note put (new, or replacing the one there) or taken away. The notes the change does not name are left exactly as
 // the file has them (their formatted text, their shapes, their sizes), and so are a thread's comments, which are not changed here.
 
+#include "sheet/threads.h"
+
 #include <QByteArray>
 #include <QString>
 
@@ -15,6 +17,7 @@ struct NoteOp {
     bool remove = false;      // the note on the cell is taken away (else it is put: made, or replaced)
     QString author, text;
     bool shown = false;       // shown all the time
+    ThreadPtr thread;         // for a note that stands for a thread of comments: the thread (its comments part is written beside the note, `author` and `text` being the older note's)
 };
 
 // The most operations one sheet's change may hold, and the most bytes of a note's text.

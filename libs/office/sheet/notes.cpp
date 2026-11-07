@@ -9,11 +9,30 @@
 #include <atomic>
 #include <algorithm>
 #include <memory>
+#include <set>
 
 namespace jp::office::sheet {
 
 namespace {
 std::atomic<qint64> g_noteReads{0};
+
+// A token of the reader written out again as XML text (an element is written with its own prefix and the namespaces it declares).
+void appendToken(QString *out, const QXmlStreamReader &r)
+{
+    auto escape = [](const QString &t) { return t.toHtmlEscaped().replace(QLatin1Char('"'), QStringLiteral("&quot;")); };
+    switch (r.tokenType()) {
+    case QXmlStreamReader::StartElement:
+        *out += QLatin1Char('<') + r.qualifiedName().toString();
+        for (const QXmlStreamNamespaceDeclaration &d : r.namespaceDeclarations())
+            *out += QStringLiteral(" xmlns") + (d.prefix().isEmpty() ? QString() : QLatin1Char(':') + d.prefix().toString()) + QStringLiteral("=\"") + escape(d.namespaceUri().toString()) + QLatin1Char('"');
+        for (const QXmlStreamAttribute &a : r.attributes()) *out += QLatin1Char(' ') + a.qualifiedName().toString() + QStringLiteral("=\"") + escape(a.value().toString()) + QLatin1Char('"');
+        *out += QLatin1Char('>');
+        break;
+    case QXmlStreamReader::EndElement: *out += QStringLiteral("</") + r.qualifiedName().toString() + QLatin1Char('>'); break;
+    case QXmlStreamReader::Characters: *out += r.text().toString().toHtmlEscaped(); break;
+    default: break;
+    }
+}
 
 // The name of each person a thread's comments are from, by the id the thread names: read once for the workbook, each name cut to kMaxPersonChars and counted in the budget.
 const std::map<QString, QString> &readPersons(const Workbook &book, NoteReadContext &ctx)
@@ -30,22 +49,26 @@ const std::map<QString, QString> &readPersons(const Workbook &book, NoteReadCont
             if (r.isStartElement() && r.name() == QLatin1String("person")) {
                 QString name = r.attributes().value(QLatin1String("displayName")).toString().left(kMaxPersonChars);
                 QString id = r.attributes().value(QLatin1String("id")).toString().left(kMaxPersonChars);
-                ctx.chars += name.size() + id.size();
+                const QString userId = r.attributes().value(QLatin1String("userId")).toString().left(kMaxPersonChars);
+                const QString providerId = r.attributes().value(QLatin1String("providerId")).toString().left(kMaxPersonChars);
+                ctx.chars += name.size() + id.size() + userId.size() + providerId.size();
                 if (ctx.chars > kMaxNoteCharsPerBook) {
                     ctx.exhausted = true;
                     return ctx.persons;
                 }
                 ctx.persons[id] = name;
+                ctx.personIds[id] = {userId, providerId};
             }
         }
     }
     return ctx.persons;
 }
 
-// The text of each thread of a sheet: by cell, its comments (the first, then the replies) with who wrote each, one under the other.
-std::map<quint64, QString> readThreads(const Workbook &book, const QString &sheetPart, bool *truncated, NoteReadContext &ctx)
+// The comments of each thread of a sheet: by cell, in the order the file has them (the first, then the replies), each with its person. A thread with more than kMaxThreadComments has the
+// first of them and is told in `cut`.
+std::map<quint64, ThreadList> readThreads(const Workbook &book, const QString &sheetPart, bool *truncated, NoteReadContext &ctx, std::set<quint64> *cut)
 {
-    std::map<quint64, QString> out;
+    std::map<quint64, ThreadList> out;
     const auto parts = book.package().relationshipsOfType(sheetPart, QStringLiteral("/threadedComment"));
     if (parts.isEmpty()) return out;
     const std::map<QString, QString> &persons = readPersons(book, ctx);
@@ -56,26 +79,57 @@ std::map<quint64, QString> readThreads(const Workbook &book, const QString &shee
         const std::unique_ptr<QIODevice> device = book.package().openPart(rel.target);
         if (!device) continue;
         QXmlStreamReader r(device.get());
-        int depth = 0;
+        int depth = 0, commentDepth = 0;
         bool inComment = false, inText = false;
         quint32 row = 0, col = 0;
-        QString who, text;
+        ThreadComment c;
+        QString extra;
+        bool extraTooBig = false, capturing = false;
         while (!r.atEnd()) {
-            switch (r.readNext()) {
+            const QXmlStreamReader::TokenType token = r.readNext();
+            switch (token) {
             case QXmlStreamReader::DTD: return out;
             case QXmlStreamReader::StartElement:
                 if (++depth > 40) return out;
-                if (r.name() == QLatin1String("threadedComment")) {
+                if (!inComment && r.name() == QLatin1String("threadedComment")) {
                     row = col = 0;
                     inComment = parseCellRef(r.attributes().value(QLatin1String("ref")), &row, &col);
-                    text.clear();
-                    const auto p = persons.find(r.attributes().value(QLatin1String("personId")).toString());
-                    who = p == persons.end() ? QString() : p->second;
-                } else if (inComment && r.name() == QLatin1String("text")) {
+                    commentDepth = depth;
+                    c = ThreadComment();
+                    extra.clear();
+                    extraTooBig = false;
+                    capturing = false;
+                    const QXmlStreamAttributes a = r.attributes();
+                    c.id = a.value(QLatin1String("id")).toString().left(kMaxPersonChars);
+                    c.parentId = a.value(QLatin1String("parentId")).toString().left(kMaxPersonChars);
+                    c.personId = a.value(QLatin1String("personId")).toString().left(kMaxPersonChars);
+                    c.time = a.value(QLatin1String("dT")).toString().left(64);
+                    const QStringView done = a.value(QLatin1String("done"));
+                    c.done = done == QLatin1String("1") || done == QLatin1String("true");
+                    const auto p = persons.find(c.personId);
+                    if (p != persons.end()) {
+                        c.author = p->second;
+                        const auto ids = ctx.personIds.find(c.personId);
+                        if (ids != ctx.personIds.end()) {
+                            c.userId = ids->second.first;
+                            c.providerId = ids->second.second;
+                        }
+                    }
+                } else if (inComment && depth == commentDepth + 1 && r.name() == QLatin1String("text")) {
                     inText = true;
+                } else if (inComment && depth == commentDepth + 1) {
+                    capturing = true;   // (what follows the words, such as who is mentioned, is kept as it is written)
+                }
+                if (capturing && !extraTooBig) {
+                    appendToken(&extra, r);
+                    if (extra.size() > kMaxThreadExtraChars) {
+                        extraTooBig = true;
+                        extra.clear();
+                    }
                 }
                 break;
             case QXmlStreamReader::Characters:
+                if (capturing && !extraTooBig) appendToken(&extra, r);
                 if (inComment && inText) {
                     chars += r.text().size();
                     if (chars > kMaxNoteCharsPerBook) {
@@ -83,22 +137,35 @@ std::map<quint64, QString> readThreads(const Workbook &book, const QString &shee
                         if (truncated) *truncated = true;
                         return out;
                     }
-                    text += r.text();
+                    c.text += r.text();
                 }
                 break;
             case QXmlStreamReader::EndElement:
                 --depth;
-                if (r.name() == QLatin1String("text")) inText = false;
-                if (r.name() == QLatin1String("threadedComment") && inComment) {
+                if (capturing && !extraTooBig) appendToken(&extra, r);
+                if (capturing && depth == commentDepth) capturing = false;
+                if (inComment && depth == commentDepth && r.name() == QLatin1String("text")) inText = false;
+                if (inComment && depth == commentDepth - 1 && r.name() == QLatin1String("threadedComment")) {
                     inComment = false;
-                    if (qint64(out.size()) >= kMaxNotes) {
+                    if (qint64(out.size()) >= kMaxNotes && !out.count(noteKey(row, col))) {
                         if (truncated) *truncated = true;
                         return out;
                     }
-                    QString &into = out[noteKey(row, col)];
-                    if (!into.isEmpty()) into += QStringLiteral("\n\n");
-                    xmlscan::decodeEscapes(&text);
-                    into += who.isEmpty() ? text : who + QStringLiteral(": ") + text;
+                    ThreadList &into = out[noteKey(row, col)];
+                    if (ctx.threadComments >= kMaxThreadCommentsPerBook) {
+                        if (truncated) *truncated = true;
+                        if (cut) cut->insert(noteKey(row, col));
+                        break;
+                    }
+                    if (into.size() >= size_t(kMaxThreadComments)) {
+                        if (cut) cut->insert(noteKey(row, col));
+                        break;
+                    }
+                    ++ctx.threadComments;
+                    xmlscan::decodeEscapes(&c.text);
+                    c.extra = extra;
+                    into.push_back(std::move(c));
+                    c = ThreadComment();
                 }
                 break;
             default: break;
@@ -353,27 +420,41 @@ std::map<quint64, NoteInfo> readSheetNoteInfos(const Workbook &book, int sheet, 
             commentsPart = rel.target;
             break;
         }
-    if (commentsPart.isEmpty()) return out;
-    const std::map<quint64, NoteInfo> &raw = commentsOf(book, commentsPart, truncated, c);
-    qint64 taken = 0;
-    for (const auto &n : raw) {
-        if (taken >= std::min(most, kMaxNotes)) {
-            if (truncated) *truncated = true;
-            break;
-        }
-        out.insert(out.end(), n);
-        ++taken;
-    }
-    bool anyThreaded = false;
-    for (const auto &n : out) anyThreaded = anyThreaded || n.second.threaded;
-    if (anyThreaded) {
-        const std::map<quint64, QString> threads = readThreads(book, info.sheets[sheet].part, truncated, c);
-        for (auto &n : out) {
-            if (!n.second.threaded) continue;
-            const auto t = threads.find(n.first);
-            if (t != threads.end()) n.second.text = t->second;
+    const bool hasThreads = !book.package().relationshipsOfType(info.sheets[sheet].part, QStringLiteral("/threadedComment")).isEmpty();
+    if (commentsPart.isEmpty() && !hasThreads) return out;
+    if (!commentsPart.isEmpty()) {
+        const std::map<quint64, NoteInfo> &raw = commentsOf(book, commentsPart, truncated, c);
+        qint64 taken = 0;
+        for (const auto &n : raw) {
+            if (taken >= std::min(most, kMaxNotes)) {
+                if (truncated) *truncated = true;
+                break;
+            }
+            out.insert(out.end(), n);
+            ++taken;
         }
     }
+    // the threads: each one's cell shows its comments (an older note on the cell stands for it; a thread with no older note has a note made for it)
+    std::set<quint64> cut;
+    if (hasThreads) {
+        std::map<quint64, ThreadList> threads = readThreads(book, info.sheets[sheet].part, truncated, c, &cut);
+        for (auto &t : threads) {
+            if (t.second.empty()) continue;
+            if (!out.count(t.first) && qint64(out.size()) >= std::min(most, kMaxNotes)) {
+                if (truncated) *truncated = true;
+                continue;
+            }
+            NoteInfo &n = out[t.first];
+            n.threaded = true;
+            n.author.clear();
+            n.text = threadWords(t.second);
+            n.threadCut = cut.count(t.first) > 0;
+            n.thread = std::make_shared<const ThreadList>(std::move(t.second));
+        }
+    }
+    // (an older note made for a thread that is not in the file is only a note)
+    for (auto &n : out)
+        if (n.second.threaded && !n.second.thread) n.second.threaded = false;
     QByteArray vml;
     if (!notesDrawingPart(book.package(), info.sheets[sheet].part, &vml).isEmpty()) {
         const std::map<quint64, bool> shown = noteShapes(vml);

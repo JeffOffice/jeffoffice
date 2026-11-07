@@ -4,6 +4,7 @@
 
 #include "sheet/hfpictures.h"
 #include "sheet/notes.h"
+#include "sheet/threadsave.h"
 
 #include <functional>
 #include "io/zip.h"
@@ -1489,6 +1490,9 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         QString commentsPart, vmlPart;
         bool newComments = false, newVml = false;
         QString commentsRel, vmlRel;     // the relationships that are made (empty: the file has them)
+        QStringList threadParts;         // the sheet's parts of threads that the file has
+        QString threadPart, threadRel;   // the part made for a sheet that had none, and the relationship to it
+        bool newThread = false;
     };
     std::vector<NoteWrite> noteWrites;
     struct LinkRel {
@@ -1554,6 +1558,15 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     w.vmlRel = freeRelationshipId(used);
                     used << w.vmlRel;
                     ac.legacyRelId = w.vmlRel;
+                }
+                for (const Relationship &r : package.relationshipsOfType(se.part, QStringLiteral("/threadedComment")))
+                    if (!r.external && package.hasPart(r.target)) w.threadParts << r.target;
+                if (w.threadParts.isEmpty() && opsHaveThreads(sc.noteOps)) {
+                    w.newThread = true;
+                    w.threadPart = freePartName(QStringLiteral("/xl/threadedComments/threadedComment"), QStringLiteral(".xml"), taken);
+                    taken.insert(w.threadPart.toLower());
+                    w.threadRel = freeRelationshipId(used);
+                    used << w.threadRel;
                 }
                 noteWrites.push_back(w);
             }
@@ -2448,6 +2461,65 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 const int index = partBytes(w.vmlPart, &xml);
                 if (index < 0 || !applyNoteOpsToDrawing(xml, ops, &now, &why)) return fail(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "The notes of a sheet could not be saved.") : why);
                 replaced.insert(index, now);
+            }
+            // the threads: the comments of the cells the changes name are taken out of the sheet's thread parts, and those they carry are put in the first
+            if (w.newThread) {
+                newEntries.emplace_back(entryName(w.threadPart), newThreadsPart(ops));
+                QByteArray t2;
+                if (!addContentOverride(types, w.threadPart, QStringLiteral("application/vnd.ms-excel.threadedcomments+xml"), &t2)) return bad();
+                types = t2;
+                if (!addRel(w.sheet, w.threadRel, QStringLiteral("http://schemas.microsoft.com/office/2017/10/relationships/threadedComment"), relativeTarget(se.part, w.threadPart), false)) return bad();
+            }
+            bool firstThreadPart = true;
+            for (const QString &part : w.threadParts) {
+                std::vector<NoteOp> mine = ops;
+                if (!firstThreadPart)
+                    for (NoteOp &op : mine) op.thread.reset();
+                firstThreadPart = false;
+                QByteArray xml, now;
+                bool changed = false;
+                const int index = partBytes(part, &xml);
+                if (index < 0 || !applyThreadOpsToPart(xml, mine, &now, &changed, &why)) return fail(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "The comments of a sheet could not be saved.") : why);
+                if (changed) replaced.insert(index, now);
+            }
+        }
+        // the people the threads name: those the workbook's list lacks are added (the list is made when the workbook had none)
+        {
+            std::vector<ThreadPerson> people;
+            std::set<QString> seenPeople;
+            for (const auto &[sheet, sc] : changes.sheets)
+                for (const ThreadPerson &p : threadPersons(sc.noteOps))
+                    if (seenPeople.insert(p.id).second) people.push_back(p);
+            if (!people.empty()) {
+                QString personPart;
+                for (const Relationship &r : package.relationshipsOfType(book.mainPart(), QStringLiteral("/person")))
+                    if (!r.external && package.hasPart(r.target)) {
+                        personPart = r.target;
+                        break;
+                    }
+                if (!personPart.isEmpty()) {
+                    QByteArray xml, now;
+                    bool changed = false;
+                    const int index = partBytes(personPart, &xml);
+                    if (index < 0 || !applyPersonsToPart(xml, people, &now, &changed, &why)) return fail(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "The comments of a sheet could not be saved.") : why);
+                    if (changed) replaced.insert(index, now);
+                } else {
+                    QSet<QString> takenNames;
+                    for (const QString &n : package.partNames()) takenNames.insert(n.toLower());
+                    for (const auto &e : newEntries) takenNames.insert(QStringLiteral("/") + e.first.toLower());
+                    personPart = takenNames.contains(QStringLiteral("/xl/persons/person.xml")) ? freePartName(QStringLiteral("/xl/persons/person"), QStringLiteral(".xml"), takenNames) : QStringLiteral("/xl/persons/person.xml");
+                    newEntries.emplace_back(entryName(personPart), newPersonsPart(people));
+                    QByteArray t2;
+                    if (!addContentOverride(types, personPart, QStringLiteral("application/vnd.ms-excel.person+xml"), &t2)) return bad();
+                    types = t2;
+                    const int mainRelsEntry = entryAt.value(plain(entryName(relationshipsPartOf(package.entryName(book.mainPart())))), -1);
+                    QByteArray mainRels, r2;
+                    if (mainRelsEntry < 0 || !(replaced.contains(mainRelsEntry) ? (mainRels = replaced.value(mainRelsEntry), true) : inflate(mainRelsEntry, &mainRels))) return bad();
+                    QStringList usedIds;
+                    for (const Relationship &r : package.relationships(book.mainPart())) usedIds << r.id;
+                    if (!addRelationship(mainRels, freeRelationshipId(usedIds), QStringLiteral("http://schemas.microsoft.com/office/2017/10/relationships/person"), relativeTarget(book.mainPart(), personPart), &r2)) return bad();
+                    replaced.insert(mainRelsEntry, r2);
+                }
             }
         }
         for (const auto &[sheet, list] : newLinkRels)

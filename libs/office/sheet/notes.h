@@ -5,6 +5,7 @@
 
 #include "office/package.h"
 #include "sheet/sheetreader.h"
+#include "sheet/threads.h"
 
 #include <QString>
 
@@ -35,13 +36,18 @@ struct NoteInfo {
     QString author;
     QString text;
     bool shown = false;      // the file shows the note all the time (not only when the pointer is on its cell)
-    bool threaded = false;   // the text is that of a thread of comments: shown, kept, and not changed
-    bool operator==(const NoteInfo &o) const { return author == o.author && text == o.text && shown == o.shown && threaded == o.threaded; }
+    bool threaded = false;   // the text is that of a thread of comments (`thread` holds them)
+    ThreadPtr thread;        // the thread's comments, for a note that is one
+    bool threadCut = false;  // the file's thread had more comments than are read: it is shown and kept, and not changed
+    bool threadEdited = false;   // a person changed the thread since the file was read or saved (the next save writes it whole)
+    bool operator==(const NoteInfo &o) const { return author == o.author && text == o.text && shown == o.shown && threaded == o.threaded && threadCut == o.threadCut && sameThread(thread, o.thread); }
 };
 
 struct NoteReadContext {
     std::map<QString, std::map<quint64, NoteInfo>> parts;   // by the comments part's name
     std::map<QString, QString> persons;
+    std::map<QString, std::pair<QString, QString>> personIds;   // each person's user id and provider id
+    qint64 threadComments = 0;                                  // how many comments of threads have been read
     bool personsRead = false;
     qint64 chars = 0;
     bool exhausted = false;                                  // the budget of characters is spent: nothing more is read
