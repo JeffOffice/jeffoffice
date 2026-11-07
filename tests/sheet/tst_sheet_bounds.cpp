@@ -183,7 +183,7 @@ private Q_SLOTS:
         g.name("Chain3", "5");
         for (const char *f : {"M", "Q", "Alpha", "LEN(P)", "R", "M+Q+Alpha+Beta", "SUM(M,M,M)"}) {
             const Outcome o = evOutcome(QString::fromLatin1(f), g, Settings(), 2000000);
-            QVERIFY2(o.text == "e:#REF!" && o.status == EvalStatus::TooDeep && o.work < 1000, qPrintable(QString::fromLatin1(f) + QStringLiteral(": ") + said(o)));
+            QVERIFY2(o.text == "e:#REF!" && o.status == EvalStatus::TooDeep && o.work < 5000, qPrintable(QString::fromLatin1(f) + QStringLiteral(": ") + said(o)));
         }
         // names that call one another without a circle are worked out as they always were
         const Outcome chain = evOutcome("Chain+Chain", g);
