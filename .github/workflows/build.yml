@@ -141,8 +141,8 @@ jobs:
       # One cache for each job (system, part, half), so that each has its own objects: ccache-<system>-<processors>-<part><half>-<commit>. A job restores
       # the newest of its own, else the newest of any of its system (the first run after a change of the halves, or a half that has none yet), and saves a
       # new one only when it compiled something, after the build (the Save step below). An entry holds one job's objects, and the Build step caps its size:
-      # macOS 0.8 GB (the release's two-processor entry, one job, 1.6 GB), Windows 0.3 GB. The four jobs of a system together keep 3.1 GB on macOS and 1.2 GB
-      # on Windows; with the Qt caches (2.0 GB) and a release's entry that is under 8 GB of GitHub's 10, so the newest entries of each job are never the oldest.
+      # macOS 1 GB (the release's two-processor entry, one job, 1.6 GB), Windows 0.5 GB. The four jobs of a system together keep 4 GB on macOS and 2 GB on
+      # Windows; with the Qt caches (2.0 GB) that is 8 GB of GitHub's 10 (a release's entry, rare, is the first to go), so each job's newest entry stays.
       - name: Restore the compiler cache
         if: runner.environment != 'self-hosted'
         uses: actions/cache/restore@v4
@@ -197,7 +197,7 @@ jobs:
           CCACHE_BASEDIR: ${{ github.workspace }}
           # (the caps keep an entry of the compiler cache within its share of GitHub's 10 GB; the Build step trims to the cap before the Save step, and the
           # objects a build used are the newest, so what a cap drops is what no job of this half used lately)
-          CCACHE_MAXSIZE: ${{ runner.environment == 'self-hosted' && '20G' || (matrix.name == 'windows' && '300M' || (matrix.name == 'linux' && '3G' || (contains(env.MAC_ARCHS, ';') && '1600M' || '800M'))) }}
+          CCACHE_MAXSIZE: ${{ runner.environment == 'self-hosted' && '20G' || (matrix.name == 'windows' && '500M' || (matrix.name == 'linux' && '3G' || (contains(env.MAC_ARCHS, ';') && '1600M' || '1G'))) }}
           CCACHE_COMPILERCHECK: content
           # (only the job that packages: the others build their own programs)
           FULL_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.mac_both && matrix.part == 'checks' && matrix.shard == 1 && 'true' || 'false' }}
