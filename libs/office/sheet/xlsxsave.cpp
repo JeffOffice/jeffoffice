@@ -2185,6 +2185,25 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         }
         replaced.insert(typesEntry, types);
     }
+    // ---- the extended properties list the sheets by name and count: with sheets added, deleted, renamed, or moved, the lists are out of date, so they are taken out (a program that reads the
+    // file makes them again; the rest of the part is as it was)
+    if (changes.sheetsChanged) {
+        for (const Relationship &r : package.relationshipsOfType(QStringLiteral("/"), QStringLiteral("/extended-properties"))) {
+            if (r.external || !package.hasPart(r.target)) continue;
+            const int entry = entryOfPart(r.target);
+            QByteArray old;
+            if (entry >= 0 && (replaced.contains(entry) ? (old = replaced.value(entry), true) : inflate(entry, &old))) {
+                static const QRegularExpression lists(QStringLiteral("<((?:\\w+:)?)(HeadingPairs|TitlesOfParts)\\b[^>]*?(?:/>|>.*?</\\1\\2>)"), QRegularExpression::DotMatchesEverythingOption);
+                const QString text = QString::fromUtf8(old);
+                if (!old.startsWith("\xFF\xFE") && !old.startsWith("\xFE\xFF") && text.contains(lists)) {
+                    QString now = text;
+                    now.remove(lists);
+                    replaced.insert(entry, now.toUtf8());
+                }
+            }
+            break;
+        }
+    }
     // ---- the properties of the workbook: the core, extended, and custom parts, made where the file has none
     if (changes.setProperties) {
         int typesEntry = -1;

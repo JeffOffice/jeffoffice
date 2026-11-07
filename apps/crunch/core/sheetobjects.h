@@ -151,6 +151,8 @@ public:
     bool chartRoom(int sheet, const jp::office::Chart &chart, int replacing, QString *why = nullptr) const;
     // Makes a chart object on a worksheet from the model (its references inside it, in the names the sheets have now). It is there but taken away (hidden) until a step gives it the state with
     // `deleted` false; discardMade() lets it go if the step is not made. The id, or -1 with the reason in `why`.
+    // Whether a chart like `chart` can be put on a sheet now (the limits makeChart keeps), judged from `sheet`, one that is there; else why.
+    bool canMakeChart(int sheet, const jp::office::Chart &chart, QString *why = nullptr);
     int makeChart(int sheet, const jp::office::Chart &chart, const jp::office::sheet::DrawingAnchor &anchor, QString *why = nullptr);
     void discardMade(int sheet, int id);
     // Copies a picture, shape, group, or connector into a clip (with the pictures it uses); false with the reason if it uses something that is not in the workbook. And puts one from a clip
@@ -317,6 +319,7 @@ private:
     SheetOpsSource m_sheetOps;
     std::vector<jp::office::sheet::StructEdit> m_applied;   // the edits the objects have had worked in
     std::vector<Sheet> m_sheets;
+    QHash<QString, int> m_drawingOwner;                      // the first sheet that names each drawing part (a file whose sheets share a drawing shows it on the first), lower case
     QHash<QString, int> m_chartSheet;                        // the sheet each chart part is on (by the drawing of the sheet), lower case
     QHash<QString, QStringList> m_partRefs;
     jp::grid::ObjectLayer m_layer;

@@ -143,6 +143,7 @@ void SheetObjects::open(const std::shared_ptr<Workbook> &book)
     m_applied.clear();
     m_partRefs.clear();
     m_chartSheet.clear();
+    m_drawingOwner.clear();
     if (m_book) {
         m_sheets.resize(size_t(m_book->info().sheets.size()));
         // the sheet each chart is on, by the drawing of the sheet (its relationships only: no part is read)
@@ -150,8 +151,10 @@ void SheetObjects::open(const std::shared_ptr<Workbook> &book)
         for (int sheet = 0; sheet < m_book->info().sheets.size(); ++sheet) {
             const QString drawing = drawingPartOf(package, m_book->info().sheets[sheet].part);
             if (drawing.isEmpty()) continue;
+            if (m_drawingOwner.contains(drawing.toLower())) continue;   // (a drawing two sheets name is the first sheet's: the second has none)
+            m_drawingOwner.insert(drawing.toLower(), sheet);
             for (const Relationship &r : package.relationshipsOfType(drawing, QStringLiteral("/chart")))
-                if (!r.external) m_chartSheet.insert(r.target.toLower(), sheet);
+                if (!r.external && !m_chartSheet.contains(r.target.toLower())) m_chartSheet.insert(r.target.toLower(), sheet);
         }
     }
     m_doc = std::make_unique<jp::Document>();
@@ -283,6 +286,7 @@ void SheetObjects::list(int sheet, Sheet &s)
     const SheetEntry &entry = m_book->info().sheets[sheet];
     s.chartSheet = entry.kind == SheetKind::Chartsheet;
     s.drawingPart = drawingPartOf(m_book->package(), entry.part);
+    if (!s.drawingPart.isEmpty() && m_drawingOwner.value(s.drawingPart.toLower(), sheet) != sheet) s.drawingPart.clear();
     if (s.drawingPart.isEmpty()) return;
     QString why;
     const std::shared_ptr<QDomDocument> parsedApart = std::move(s.parsedDoc);   // (what a worker made, if one did)
@@ -916,13 +920,23 @@ void SheetObjects::addToSave(SaveChanges *changes)
                     // a chart as the file had it (the same model, reading the same cells) comes back byte for byte; one changed since (or one that reads other cells) is written from its model, and keeps
                     // of what it reached only its style and its colors
                     const bool raw = !isChart || (o->chart && o->chart == rec->chart && o->refs == rec->refs);
+                    const bool onChartSheet = isChartSheet(int(i)) && o->anchor.kind == AnchorKind::Absolute && isChart;   // (a chart sheet's chart has a place and a size, no cells)
                     DrawingAnchor want = o->anchor;
-                    if (want.kind != AnchorKind::TwoCell) want = twoCellFor(*o, geometryOf().layout.rows, geometryOf().layout.cols);
-                    else want.editAs = o->anchor.editAs;
+                    if (want.kind != AnchorKind::TwoCell && !onChartSheet) want = twoCellFor(*o, geometryOf().layout.rows, geometryOf().layout.cols);
+                    else if (!onChartSheet) want.editAs = o->anchor.editAs;
                     o->savedAnchor = want;
                     if (o->meta.id <= 0) o->meta.id = s.nextShapeId++;
                     QByteArray xml = rec->anchorXml;
-                    if (rec->anchor.kind != AnchorKind::TwoCell || !nearly(want.from, rec->anchor.from) || !nearly(want.to, rec->anchor.to) || want.editAs != rec->anchor.editAs) {
+                    if (onChartSheet) {
+                        // (the chart's frame as the file had it, in an anchor of a place and a size)
+                        const qsizetype from = xml.indexOf("<xdr:graphicFrame"), to = xml.lastIndexOf("</xdr:graphicFrame>");
+                        if (from >= 0 && to > from) {
+                            const QByteArray frame = xml.mid(from, to + 19 - from);
+                            const QByteArray shell = chartAnchorXml(want, 1, QString(), QStringLiteral("x"));
+                            const qsizetype pos = shell.indexOf("<xdr:graphicFrame"), end = shell.lastIndexOf("</xdr:graphicFrame>");
+                            xml = shell.left(pos) + frame + shell.mid(end + 19);
+                        }
+                    } else if (rec->anchor.kind != AnchorKind::TwoCell || !nearly(want.from, rec->anchor.from) || !nearly(want.to, rec->anchor.to) || want.editAs != rec->anchor.editAs) {
                         const QByteArray wrapped = "<xdr:wsDr xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\">" + xml + "</xdr:wsDr>";
                         QByteArray patched;
                         bool changed = false;
@@ -1039,7 +1053,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
             if (o->meta.prints != o->filePrints && !s.drawingPart.isEmpty() && o->meta.ordinal >= 0) changes->objectPrints[s.drawingPart][o->meta.ordinal] = o->meta.prints;
             const DrawingAnchor inFile = movedAnchor(o->fileAnchor, int(i), edits);
             o->savedAnchor = inFile;
-            if (o->frozen && m_source) {
+            if (o->frozen && m_source && !isChartSheet(int(i))) {
                 const DrawingAnchor want = twoCellFor(*o, geometryOf().layout.rows, geometryOf().layout.cols);
                 if (!nearly(want.from, inFile.from) || !nearly(want.to, inFile.to) || want.editAs != inFile.editAs) {
                     changes->anchors[s.drawingPart][o->meta.ordinal] = want;
@@ -1612,6 +1626,19 @@ void SheetObjects::adoptRevive(int sheet, int id, const std::shared_ptr<const jp
         o->chart = revive->chart;
         o->refs = revive->refs;
     }
+}
+
+bool SheetObjects::canMakeChart(int sheet, const Chart &chart, QString *why)
+{
+    auto refuse = [&](const QString &text) {
+        if (why) *why = text;
+        return false;
+    };
+    if (!m_book || sheet < 0 || sheet >= int(m_sheets.size())) return refuse(tr("There is no such sheet."));
+    if (addedCount() >= m_limits.maxAdded)
+        return refuse(tr("%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.").arg(QLocale().toString(m_limits.maxAdded)));
+    if (m_objectsMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(QLocale().toString(kMaxWorkbookObjects)));
+    return chartRoom(sheet, chart, -1, why);
 }
 
 int SheetObjects::makeChart(int sheet, const Chart &chart, const DrawingAnchor &anchor, QString *why)

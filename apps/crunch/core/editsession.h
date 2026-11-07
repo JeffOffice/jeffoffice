@@ -834,6 +834,8 @@ public:
     Outcome insertSheet(int before, const QString &name, int *made = nullptr);
     // A new chart sheet (no cells; it holds one chart), put as insertSheet puts a sheet.
     Outcome insertChartSheet(int before, const QString &name, int *made = nullptr);
+    // Whether a sheet can be added (or, with `adding` false, deleted) now: the checks those steps make, asked before a group of steps is begun; else why.
+    bool canChangeSheetList(bool adding, QString *why = nullptr);
     Outcome copySheet(int sheet, int before, const QString &name, int *made = nullptr);
     // Deletes a sheet (the last that is shown can't be); the sheet and everything in it, its tables too, are kept for Undo, and what named a table of it on another sheet is #REF!.
     Outcome deleteSheet(int sheet);

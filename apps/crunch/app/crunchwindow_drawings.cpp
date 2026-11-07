@@ -194,8 +194,22 @@ void CrunchWindow::deleteObject(int id)
     after.revive = m_objects->captureRevive(m_sheet, id);
     crunch::ObjectState keep = before;
     keep.revive = after.revive;
+    // (a chart sheet with no chart is of no use: it goes with its chart, as one step)
+    const bool chartSheet = m_objects && m_objects->isChartSheet(m_sheet);
+    if (chartSheet && (!m_session->canChangeSheetList(false, &why) || !m_session->allows(m_sheet, crunch::EditSession::Allow::Objects, &why))) {
+        notice(tr("Delete"), why);
+        return;
+    }
+    QUndoStack *stack = m_session->undoStack();
+    if (chartSheet) stack->beginMacro(tr("Delete Chart Sheet"));
+    const int sheet = m_sheet;
     const crunch::EditSession::Outcome o = m_session->deleteObject(m_sheet, id, tr("Delete Object"), keep, after);
     if (!o.ok) notice(tr("Delete"), o.problem);
+    if (chartSheet) {
+        const crunch::EditSession::Outcome gone = o.ok ? m_session->deleteSheet(sheet) : o;
+        stack->endMacro();
+        if (!gone.ok) notice(tr("Delete"), gone.problem);
+    }
 }
 
 } // namespace jp

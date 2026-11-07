@@ -711,6 +711,20 @@ void CrunchWindow::moveChartDialog()
         anchor.cx = 9525 * 480;
         anchor.cy = 9525 * 288;
     }
+    // everything a step could refuse is asked before the first step is made: a refusal leaves no step to undo, redo, or save
+    if (newSheet && !m_session->canChangeSheetList(true, &why)) {
+        notice(tr("Move Chart"), why);
+        return;
+    }
+    if (fromChartSheet && !m_session->canChangeSheetList(false, &why)) {
+        notice(tr("Move Chart"), why);
+        return;
+    }
+    if (!m_session->allows(m_sheet, crunch::EditSession::Allow::Objects, &why) || (!newSheet && !m_session->allows(places[chosen], crunch::EditSession::Allow::Objects, &why)) ||
+        !m_objects->canMakeChart(m_sheet, chart, &why)) {
+        notice(tr("Move Chart"), why);
+        return;
+    }
     QUndoStack *stack = m_session->undoStack();
     stack->beginMacro(tr("Move Chart"));
     int target = -1;
@@ -718,6 +732,7 @@ void CrunchWindow::moveChartDialog()
         const crunch::EditSession::Outcome made = m_session->insertChartSheet(-1, sheetName, &target);
         if (!made.ok) {
             stack->endMacro();
+            stack->undo();
             notice(tr("Move Chart"), made.problem);
             return;
         }
@@ -732,7 +747,7 @@ void CrunchWindow::moveChartDialog()
     const int newId = m_objects->makeChart(target, chart, anchor, &why);
     if (newId < 0) {
         stack->endMacro();
-        if (newSheet) stack->undo();
+        stack->undo();
         notice(tr("Move Chart"), why);
         return;
     }
@@ -756,7 +771,7 @@ void CrunchWindow::moveChartDialog()
     if (!o.ok) {
         m_objects->discardMade(target, newId);
         stack->endMacro();
-        if (newSheet) stack->undo();
+        stack->undo();
         notice(tr("Move Chart"), o.problem);
         return;
     }

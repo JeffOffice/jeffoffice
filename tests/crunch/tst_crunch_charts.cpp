@@ -1438,6 +1438,354 @@ private Q_SLOTS:
         }
     }
 
+    // A book with a chart sheet "Sales Chart" after "Sheet1": the chart moved there and saved, and the file's bytes.
+    static QByteArray bookWithANewChartSheet()
+    {
+        EditWindow e;
+        if (!e.open(bookWithAChart())) return QByteArray();
+        if (!QTest::qWaitFor([&] { return objectsShown(e, 1); }, 5000)) return QByteArray();
+        e.win.w.objects()->layer()->select(0);
+        e.win.w.setMoveChartPlaceAsker([&](const QStringList &, bool *newSheet, QString *name, int *) {
+            *newSheet = true;
+            *name = QStringLiteral("Sales Chart");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("chartdesign.moveChart"))->trigger();
+        if (!save(e)) return QByteArray();
+        QFile f(e.path);
+        return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+    }
+    // The drawing the chart sheet (the first chart sheet part) of a file names, as the file has it.
+    static QByteArray chartSheetDrawing(const QByteArray &xlsx)
+    {
+        QMap<QString, QByteArray> parts;
+        jp::readZip(xlsx, parts);
+        const QByteArray rels = parts.value(QStringLiteral("xl/chartsheets/_rels/sheet1.xml.rels"));
+        const qsizetype at = rels.indexOf("../drawings/");
+        if (at < 0) return QByteArray();
+        return parts.value(QStringLiteral("xl/drawings/") + QString::fromLatin1(rels.mid(at + 12, rels.indexOf('"', at) - at - 12)));
+    }
+    static QByteArray savedBytes(EditWindow &e)
+    {
+        QFile f(e.path);
+        return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+    }
+
+    // A move that is refused (a workbook whose sheets are locked) leaves no step to undo or redo, and changes nothing.
+    void aRefusedMoveLeavesNoStep()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        jp::office::sheet::WorkbookProtection lock;
+        lock.lockStructure = true;
+        QVERIFY(e.win.w.session()->setWorkbookProtection(lock, QStringLiteral("Protect")).ok);
+        e.win.w.setMoveChartPlaceAsker([&](const QStringList &, bool *newSheet, QString *name, int *) {
+            *newSheet = true;
+            *name = QStringLiteral("Locked Chart");
+            return true;
+        });
+        QUndoStack *stack = e.win.w.session()->undoStack();
+        const int count = stack->count();
+        e.win.told.clear();
+        e.win.w.act(QStringLiteral("chartdesign.moveChart"))->trigger();
+        QCOMPARE(stack->count(), count);
+        QCOMPARE(stack->index(), count);
+        QVERIFY(!stack->canRedo());
+        QVERIFY(!e.win.told.isEmpty());
+        QCOMPARE(e.win.w.session()->workbook()->info().sheets.size(), 1);
+        QVERIFY(objectsShown(e, 1));
+    }
+
+    // A chart on a chart sheet that can't be deleted (the workbook's sheets are locked) is not moved: the whole move is refused.
+    void aChartIsNotMovedOffAChartSheetThatCannotGo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithANewChartSheet()));
+        e.win.w.setActiveSheet(1);
+        QTRY_VERIFY(objectsShown(e, 1, 1));
+        e.win.w.objects()->layer()->select(0);
+        jp::office::sheet::WorkbookProtection lock;
+        lock.lockStructure = true;
+        QVERIFY(e.win.w.session()->setWorkbookProtection(lock, QStringLiteral("Protect")).ok);
+        e.win.w.setMoveChartPlaceAsker([&](const QStringList &, bool *newSheet, QString *, int *chosen) {
+            *newSheet = false;
+            *chosen = 0;
+            return true;
+        });
+        QUndoStack *stack = e.win.w.session()->undoStack();
+        const int count = stack->count();
+        e.win.told.clear();
+        e.win.w.act(QStringLiteral("chartdesign.moveChart"))->trigger();
+        QCOMPARE(stack->count(), count);
+        QVERIFY(!e.win.told.isEmpty());
+        QCOMPARE(e.win.w.activeSheet(), 1);
+        QVERIFY(objectsShown(e, 1, 1));
+        QCOMPARE(e.win.w.session()->workbook()->info().order.size(), 2);
+        QCOMPARE(savedCharts(e.path, 0).size(), 0);
+    }
+
+    // A chart sheet's chart deleted takes the chart sheet with it, as one step of Undo; Undo brings both back.
+    void deletingAChartSheetsChartDeletesTheSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithANewChartSheet()));
+        e.win.w.setActiveSheet(1);
+        QTRY_VERIFY(objectsShown(e, 1, 1));
+        e.win.w.objects()->layer()->select(0);
+        QUndoStack *stack = e.win.w.session()->undoStack();
+        const int count = stack->count();
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("object.delete"))->isEnabled());
+        e.win.w.act(QStringLiteral("object.delete"))->trigger();
+        QCOMPARE(stack->count(), count + 1);
+        QCOMPARE(e.win.w.session()->workbook()->info().order.size(), 1);
+        stack->undo();
+        QCOMPARE(e.win.w.session()->workbook()->info().order.size(), 2);
+        e.win.w.setActiveSheet(1);
+        QTRY_VERIFY(objectsShown(e, 1, 1));
+        stack->redo();
+        QCOMPARE(e.win.w.session()->workbook()->info().order.size(), 1);
+        QVERIFY(save(e));
+        QCOMPARE(savedCharts(e.path, 0).size(), 0);
+        QMap<QString, QByteArray> parts;
+        jp::readZip(savedBytes(e), parts);
+        QVERIFY(!parts.contains(QStringLiteral("xl/chartsheets/sheet1.xml")));
+    }
+
+    // A chart sheet's chart keeps its place and size (an absolute anchor) through a save, a reopen, a change to a cell, and a save again.
+    void aChartSheetsChartKeepsItsAnchorThroughSaves()
+    {
+        const QByteArray first = bookWithANewChartSheet();
+        QVERIFY2(chartSheetDrawing(first).contains("<xdr:absoluteAnchor"), chartSheetDrawing(first).constData());
+        EditWindow e;
+        QVERIFY(e.open(first));
+        e.win.w.setActiveSheet(1);
+        QTRY_VERIFY(objectsShown(e, 1, 1));
+        e.win.w.setActiveSheet(0);
+        e.select(QStringLiteral("H1"));
+        e.enter(QStringLiteral("1"));
+        QVERIFY(e.settle());
+        QVERIFY(save(e));
+        const QByteArray second = chartSheetDrawing(savedBytes(e));
+        QVERIFY2(second.contains("<xdr:absoluteAnchor") && !second.contains("twoCellAnchor"), second.constData());
+        QCOMPARE(savedCharts(e.path, 1).size(), 1);
+    }
+
+    // The chart sheet put first, with a hidden sheet beside it: the file has them in that order and the chart is on the chart sheet; the chart then goes back onto a worksheet.
+    void aChartSheetFirstBesideAHiddenSheetSaves()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet(), dataSheet()}, drawingPart(twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Sales")))),
+                                       {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}}))})));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QVERIFY(e.win.w.session()->setSheetHidden(1, true).ok);
+        e.win.w.setMoveChartPlaceAsker([&](const QStringList &names, bool *newSheet, QString *name, int *) {
+            *newSheet = true;
+            *name = QStringLiteral("Front");
+            return names.isEmpty() || true;
+        });
+        e.win.w.act(QStringLiteral("chartdesign.moveChart"))->trigger();
+        QCOMPARE(e.win.w.session()->workbook()->info().sheets.size(), 3);
+        QVERIFY(e.win.w.session()->moveSheet(2, 0).ok);
+        QVERIFY(e.settle());
+        QVERIFY(save(e));
+        Package p;
+        QString why;
+        QVERIFY(p.readLazyFile(e.path, &why));
+        Workbook b;
+        QVERIFY(b.open(p, &why));
+        QCOMPARE(b.info().sheets.size(), 3);
+        QCOMPARE(b.info().sheets[0].name, QStringLiteral("Front"));
+        QVERIFY(b.info().sheets[0].kind == jp::office::sheet::SheetKind::Chartsheet);
+        QCOMPARE(int(b.info().sheets[2].state), int(jp::office::sheet::SheetState::Hidden));
+        QCOMPARE(savedCharts(e.path, 0).size(), 1);
+        QCOMPARE(savedCharts(e.path, 1).size(), 0);
+        // read again, the chart goes back onto the (shown) worksheet
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        EditWindow again;
+        QVERIFY(again.open(f.readAll()));
+        again.win.w.setActiveSheet(0);
+        QTRY_VERIFY(objectsShown(again, 1, 0));
+        again.win.w.objects()->layer()->select(0);
+        again.win.w.setMoveChartPlaceAsker([&](const QStringList &names, bool *newSheet, QString *, int *chosen) {
+            *newSheet = false;
+            *chosen = 0;
+            return names == QStringList{QStringLiteral("Sheet1")};
+        });
+        again.win.w.act(QStringLiteral("chartdesign.moveChart"))->trigger();
+        QVERIFY(save(again));
+        QCOMPARE(savedCharts(again.path, 0).size() + savedCharts(again.path, 1).size(), 1);   // (the chart sheet went: two sheets are left)
+    }
+
+    // Undo across a save: after the move is saved, Undo and Redo leave a workbook that saves with the chart in one place only.
+    void undoAndRedoAcrossASaveKeepTheChartInOnePlace()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        e.win.w.setMoveChartPlaceAsker([&](const QStringList &, bool *newSheet, QString *name, int *) {
+            *newSheet = true;
+            *name = QStringLiteral("Saved Chart");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("chartdesign.moveChart"))->trigger();
+        QVERIFY(save(e));
+        QUndoStack *stack = e.win.w.session()->undoStack();
+        // (the charts the file has, in all its sheets)
+        auto chartsInFile = [&] {
+            Package p;
+            QString why;
+            Workbook b;
+            if (!p.readLazyFile(e.path, &why) || !b.open(p, &why)) return -1;
+            int charts = 0;
+            for (int sheet = 0; sheet < b.info().sheets.size(); ++sheet) charts += savedCharts(e.path, sheet).size();
+            return charts;
+        };
+        QCOMPARE(chartsInFile(), 1);
+        // (Undo does not reach back over a save that wrote a sheet: if it does, what it leaves saves right; either way the chart is in one place)
+        if (e.win.w.session()->canUndo()) {
+            stack->undo();
+            QVERIFY(e.settle());
+            if (e.win.w.isModified()) QVERIFY(save(e));
+        }
+        QCOMPARE(chartsInFile(), 1);
+        if (stack->canRedo()) {
+            stack->redo();
+            QVERIFY(e.settle());
+            if (e.win.w.isModified()) QVERIFY(save(e));
+        }
+        QCOMPARE(chartsInFile(), 1);
+        // and a later step still works and saves: the chart sheet's name changes
+        e.win.w.setActiveSheet(0);
+        e.select(QStringLiteral("H1"));
+        e.enter(QStringLiteral("1"));
+        QVERIFY(e.settle());
+        QVERIFY(save(e));
+        QCOMPARE(chartsInFile(), 1);
+    }
+
+    // The dialog's "Object in" choice moves the chart onto the worksheet picked.
+    void theMoveChartDialogMovesToAWorksheetWhenAsked()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet(), dataSheet()}, drawingPart(twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Sales")))),
+                                       {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}}))})));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        e.win.w.setMoveChartShot([&](QDialog *d) {
+            const auto radios = d->findChildren<QRadioButton *>();
+            for (QRadioButton *r : radios)
+                if (r->text().contains(QStringLiteral("Object"))) r->setChecked(true);
+            QTimer::singleShot(0, d, &QDialog::accept);
+        });
+        e.win.w.act(QStringLiteral("chartdesign.moveChart"))->trigger();
+        QCOMPARE(e.win.w.session()->workbook()->info().sheets.size(), 2);
+        QCOMPARE(e.win.w.activeSheet(), 1);
+        QTRY_VERIFY(objectsShown(e, 1, 1));
+    }
+
+    // The sheet files a hostile workbook shares: a drawing that a chart sheet and a worksheet both name is shown on the first only.
+    void aDrawingSharedByTwoSheetsIsShownOnce()
+    {
+        QMap<QString, QByteArray> parts;
+        jp::readZip(bookWithANewChartSheet(), parts);
+        QByteArray chartRels = parts.value(QStringLiteral("xl/chartsheets/_rels/sheet1.xml.rels"));
+        const qsizetype at = chartRels.indexOf("../drawings/");
+        QVERIFY(at > 0);
+        const QByteArray drawingName = chartRels.mid(at + 12, chartRels.indexOf('"', at) - at - 12);
+        // the worksheet names the same drawing (in place of its own)
+        const QString relsName = QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels");
+        QByteArray sheetRels = parts.value(relsName);
+        QVERIFY(sheetRels.contains("../drawings/"));
+        const qsizetype own = sheetRels.indexOf("../drawings/");
+        const qsizetype ownEnd = sheetRels.indexOf('"', own);
+        sheetRels.replace(own, ownEnd - own, "../drawings/" + drawingName);
+        parts[relsName] = sheetRels;
+        jp::ZipWriter z;
+        for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+        EditWindow e;
+        QVERIFY(e.open(z.finish()));
+        QVERIFY(e.settle());
+        // (the first sheet that names it has it: the second shows nothing, and the chart is not drawn twice)
+        e.win.w.setActiveSheet(0);
+        QTRY_VERIFY(objectsShown(e, 1, 0));
+        e.win.w.setActiveSheet(1);
+        QTRY_VERIFY(objectsShown(e, 0, 1));
+    }
+
+    // The properties part's lists of sheet names (and their counts) are not left stale when sheets are added: they are taken out, or made right.
+    void theSheetListOfTheDocumentPropertiesFollowsTheSheets()
+    {
+        QMap<QString, QByteArray> parts;
+        jp::readZip(bookWithAChart(), parts);
+        parts[QStringLiteral("docProps/app.xml")] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\" xmlns:vt=\"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes\"><Application>Test</Application>"
+                                                     "<HeadingPairs><vt:vector size=\"2\" baseType=\"variant\"><vt:variant><vt:lpstr>Worksheets</vt:lpstr></vt:variant><vt:variant><vt:i4>1</vt:i4></vt:variant></vt:vector></HeadingPairs>"
+                                                     "<TitlesOfParts><vt:vector size=\"1\" baseType=\"lpstr\"><vt:lpstr>Sheet1</vt:lpstr></vt:vector></TitlesOfParts></Properties>";
+        parts[QStringLiteral("[Content_Types].xml")].replace("</Types>", "<Override PartName=\"/docProps/app.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.extended-properties+xml\"/></Types>");
+        parts[QStringLiteral("_rels/.rels")].replace("</Relationships>", "<Relationship Id=\"rIdApp\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties\" Target=\"docProps/app.xml\"/></Relationships>");
+        jp::ZipWriter z;
+        for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+        EditWindow e;
+        QVERIFY(e.open(z.finish()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        e.win.w.setMoveChartPlaceAsker([&](const QStringList &, bool *newSheet, QString *name, int *) {
+            *newSheet = true;
+            *name = QStringLiteral("Second");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("chartdesign.moveChart"))->trigger();
+        QVERIFY(save(e));
+        QMap<QString, QByteArray> saved;
+        jp::readZip(savedBytes(e), saved);
+        const QByteArray app = saved.value(QStringLiteral("docProps/app.xml"));
+        QVERIFY(app.contains("<Application>Test</Application>"));
+        const bool listed = app.contains("TitlesOfParts");
+        QVERIFY2(!listed || (app.contains("<vt:lpstr>Second</vt:lpstr>") && app.contains("<vt:i4>2</vt:i4>")), app.constData());
+    }
+
+    // With a chart sheet in view, commands that work on cells are refused or do nothing (no step, no change, no crash), and the keys and the wheel do no harm either.
+    void commandsOnCellsDoNothingOnAChartSheetMadeHere()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        e.win.w.setMoveChartPlaceAsker([&](const QStringList &, bool *newSheet, QString *name, int *) {
+            *newSheet = true;
+            *name = QStringLiteral("Plain Chart");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("chartdesign.moveChart"))->trigger();
+        QTRY_VERIFY(objectsShown(e, 1, 1));
+        QUndoStack *stack = e.win.w.session()->undoStack();
+        const int count = stack->count();
+        e.win.told.clear();
+        for (const char *id : {"edit.paste", "paste.values", "paste.special", "edit.sort", "edit.find", "find.find", "find.replace", "find.goto", "find.gotoSpecial", "edit.selectAll", "view.freeze", "view.freezeRow",
+                               "view.freezeCol", "view.pageBreakView", "view.pageLayout", "view.formulas", "view.gridlines", "edit.clear", "fill.down", "cells.insert", "cells.delete", "format.rowHeight"}) {
+            QAction *a = e.win.w.act(QString::fromLatin1(id));
+            if (!a) continue;
+            a->trigger();
+        }
+        QTest::keyClick(e.view(), Qt::Key_V, Qt::ControlModifier);
+        QTest::keyClick(e.view(), Qt::Key_A, Qt::ControlModifier);
+        QTest::keyClick(e.view(), Qt::Key_X);
+        QTest::keyClick(e.win.w.formulaBar(), Qt::Key_Y);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QTest::keyClick(e.view(), Qt::Key_Plus, Qt::ControlModifier);
+        QVERIFY(!e.win.w.cellEditor()->isVisible());
+        QCOMPARE(stack->count(), count);
+        QCOMPARE(e.win.w.activeSheet(), 1);
+        QVERIFY(e.win.w.formulaBar()->text().isEmpty());
+        // back on the first sheet, cells work
+        e.win.w.setActiveSheet(0);
+        QVERIFY(e.view()->cellsEnabled());
+    }
+
     // Save as Picture writes the picked chart as a picture file.
     void aChartIsSavedAsAPicture()
     {

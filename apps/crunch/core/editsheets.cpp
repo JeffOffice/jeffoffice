@@ -185,6 +185,11 @@ QString EditSession::notCopiedNote(int sheet) const
     return tr("The copy does not have the %1: those are not copied yet.").arg(QLocale().createSeparatedList(left));
 }
 
+bool EditSession::canChangeSheetList(bool adding, QString *why)
+{
+    return canEdit(why) && structureOpen(why) && !sheetStepsRefused(why) && !(adding && sheetCapReached(*m_book->book, why));
+}
+
 EditSession::Outcome EditSession::insertSheet(int before, const QString &name, int *made)
 {
     return insertSheetOfKind(before, name, made, false);
