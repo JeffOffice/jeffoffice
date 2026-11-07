@@ -1,5 +1,5 @@
 #pragma once
-// A diagram (SmartArt) drawn from the drawing a file keeps for it (see libs/office/office/diagram.h for how a frame, its data, and that drawing are linked): the shapes of the
+// A diagram drawn from the drawing a file keeps for it (see libs/office/office/diagram.h for how a frame, its data, and that drawing are linked): the shapes of the
 // drawing, in the space of the diagram's frame, set and painted as a slide's are, the letters as outlines, and kept as an SVG (a picture that is printed as vectors and drawn
 // on screen as fine as it is zoomed). JeffDeck, JeffWrite, and JeffCrunch all show a diagram through this.
 

@@ -1,5 +1,5 @@
 #pragma once
-// A diagram (SmartArt) in a file. Its frame (a graphic frame whose graphicData is the diagram namespace) names four parts of the file by the links of the part
+// A diagram in a file. Its frame (a graphic frame whose graphicData is the diagram namespace) names four parts of the file by the links of the part
 // it is in: the data, the layout, the quick style, and the colors (r:dm, r:lo, r:qs, r:cs). Beside them the program that made the diagram keeps it as it drew it, in a drawing
 // part the same part links to as well (the data part names that link, in dsp:dataModelExt's relId): shapes like a slide's, in the space of the frame, each with the rectangle
 // its text is set in (dsp:txXfrm). Showing the diagram is showing that drawing (libs/page/render/diagramdrawing.h draws it).

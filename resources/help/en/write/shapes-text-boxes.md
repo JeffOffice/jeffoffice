@@ -101,7 +101,7 @@ When the words in a text box do not fit, you can let them go on in a second text
 2. Click the first text box. On the **Shape Format** tab, click **Create Link**. The pointer turns into a hand.
 3. Click the second text box. (Press **Esc** if you change your mind.)
 
-Now the words of the first box go on in the second. If you change the size of a box, or type more words, the words move between the boxes by themselves. Only a box with no words, and that is not linked yet, can be the next one. The boxes must be on the same page. A chain holds up to 64 boxes.
+Now the words of the first box go on in the second. If you change the size of a box, or type more words, the words move between the boxes by themselves. Only a box with no words, and that is not linked yet, can be the next one. The boxes can be on different pages, so a story can go on at page 5. If the words are too many for the last box, a small red box with a plus sign shows at its lower right corner on the screen, so you know some words are not shown. Make the box bigger, or link one more box. A chain holds up to 64 boxes.
 
 To cut a chain, click a box that has another one after it, and click **Break Link**. The boxes after it become ordinary boxes with no words. The words stay in the first box. Create Link and Break Link are each one step that you can undo.
 
@@ -113,4 +113,4 @@ A **diagram** is a picture of boxes and arrows, such as a process or a family tr
 
 JeffWrite cannot change what is inside a diagram yet. When you save, the diagram is written back just as it was, so the program that made it can still change it. If a document has no picture of a diagram, JeffWrite shows the small picture that came with it, or a plain gray box that says it is a diagram.
 
-If you make a diagram bigger or smaller in JeffWrite, the picture is stretched to the new size. When you save and open the document again, the picture is drawn at the size the document says.
+If you make a diagram bigger or smaller in JeffWrite, the picture is stretched to the new size, the same way a picture is. The new size is saved, and the picture fills it when you open the document again.

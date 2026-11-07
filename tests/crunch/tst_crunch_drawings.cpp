@@ -10,6 +10,7 @@
 #include "core/printjob.h"
 #include "core/sheetobjects.h"
 #include "office/chart.h"
+#include "office/diagram.h"
 #include "office/package.h"
 #include "office/theme.h"
 #include "render/diagramdrawing.h"
@@ -2033,6 +2034,88 @@ private Q_SLOTS:
         QVERIFY(after.part(QStringLiteral("/xl/drawings/drawing1.xml")).contains("r:dm=\"rIdDm\""));
     }
 
+    // A diagram taken away and the file saved comes back with Undo whole: its four parts, its drawing (the data part names its link, which is a new id), and the frame.
+    void aDeletedDiagramComesBackWholeAfterASaveAndUndo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(diagramBook()));
+        QTRY_VERIFY(shown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        o->layer()->select(0);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(o->isDeleted(0, 0));
+        QVERIFY(saveWindow(e));
+        QVERIFY(reachedBy(e.path, QStringLiteral("diagramData")).isEmpty());
+        QVERIFY(reachedBy(e.path, QStringLiteral("diagramDrawing")).isEmpty());
+        QVERIFY2(e.win.w.session()->canUndo(), "Undo is offered for a delete that is in the saved file");
+        pressUndo(e.view());
+        QVERIFY(!o->isDeleted(0, 0));
+        QVERIFY(saveWindow(e));
+        const QVector<Reached> data = reachedBy(e.path, QStringLiteral("diagramData")), drawing = reachedBy(e.path, QStringLiteral("diagramDrawing"));
+        QCOMPARE(int(data.size()), 1);
+        QCOMPARE(int(drawing.size()), 1);
+        QCOMPARE(drawing[0].bytes, diagramtest::diagramDrawingXml());
+        for (const char *kind : {"diagramLayout", "diagramQuickStyle", "diagramColors"}) QCOMPARE(int(reachedBy(e.path, QLatin1String(kind)).size()), 1);
+        // the data part names the drawing's link as it is now: the link of the saved drawing part that leads to the drawing
+        office::Package p;
+        QString why;
+        QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
+        const QString id = office::diagramDrawingLinkId(data[0].bytes);
+        QVERIFY(!id.isEmpty());
+        const office::Relationship link = p.relationship(QStringLiteral("/xl/drawings/drawing1.xml"), id);
+        QVERIFY2(link.type.endsWith(QLatin1String("/diagramDrawing")) && link.target == drawing[0].part, qPrintable(id));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 1);
+        QCOMPARE(second.w.objects()->counts(0).diagrams, 1);
+        QVERIFY(second.w.objects()->diagramPicture(0, 0).toLower().contains("336699"));
+    }
+
+    // A diagram moved or sized by keys is one step of Undo each, and its parts are as they were when the file is saved.
+    void aDiagramMovedAndSizedIsUndone()
+    {
+        EditWindow e;
+        QVERIFY(e.open(diagramBook()));
+        QTRY_VERIFY(shown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        o->layer()->select(0);
+        shot(e);
+        auto rect = [&] {
+            shot(e);
+            return o->layer()->deviceRect(0, grid::Pane::Body);
+        };
+        rect();
+        QApplication::processEvents();
+        const QRect was = rect();
+        QVERIFY(!was.isEmpty());
+        QVERIFY(o->layer()->nudge(5, 3, false, false));
+        QCOMPARE(rect().topLeft(), was.topLeft() + QPoint(30, 18));
+        QCOMPARE(rect().size(), was.size());
+        QVERIFY(e.win.w.isModified());
+        pressUndo(&e.win.w);
+        QCOMPARE(rect(), was);
+        QVERIFY(!e.win.w.isModified());
+        QVERIFY(o->layer()->nudge(5, 3, true, false));
+        QCOMPARE(rect().size(), was.size() + QSize(30, 18));
+        pressUndo(&e.win.w);
+        QCOMPARE(rect(), was);
+        pressRedo(&e.win.w);
+        QCOMPARE(rect().size(), was.size() + QSize(30, 18));
+        QVERIFY(saveWindow(e));
+        const QVector<Reached> drawing = reachedBy(e.path, QStringLiteral("diagramDrawing"));
+        QCOMPARE(int(drawing.size()), 1);
+        QCOMPARE(drawing[0].bytes, diagramtest::diagramDrawingXml());
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 1);
+        second.w.objects()->layer()->prepareAll();
+        second.w.objects()->layer()->select(0);
+        second.w.grab();
+        QCOMPARE(second.w.objects()->layer()->deviceRect(0, grid::Pane::Body).size(), was.size() + QSize(30, 18));
+    }
+
     // A diagram whose file keeps no drawing is a box that says what it is, and its parts are kept all the same.
     void aDiagramWithoutADrawingIsALabeledBoxAndKept()
     {
@@ -2106,6 +2189,8 @@ private Q_SLOTS:
             QCOMPARE(c.diagrams, 230);
             QCOMPARE(c.shown, 230);
             QVERIFY2(o->diagramsDrawn() <= crunch::kMaxDiagramsDrawn && o->diagramsDrawn() > 0, qPrintable(QString::number(o->diagramsDrawn())));
+            // (the cap comes first: no more data parts are inflated than diagrams may be drawn)
+            QVERIFY2(o->diagramPartsRead() <= crunch::kMaxDiagramsDrawn, qPrintable(QString::number(o->diagramPartsRead())));
         }
     }
 };

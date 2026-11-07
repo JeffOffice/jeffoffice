@@ -217,6 +217,8 @@ public:
     int drawingsParsedApart() const { return m_parsedApart; }
     // How many diagrams were drawn from their drawings so far (at most kMaxDiagramsDrawn: the rest are boxes), and the SVG picture a diagram object was made as (empty for none).
     int diagramsDrawn() const { return m_diagramsDrawn; }
+    // How many data parts of diagrams were inflated to find their drawings (at most kMaxDiagramsDrawn).
+    int diagramPartsRead() const { return m_diagramPartsRead; }
     QByteArray diagramPicture(int sheet, int id);
     // How many edits of rows and columns have been worked into objects (one for each object and edit; an Undo works the edits since the file's again, for each object).
     qint64 editSteps() const { return m_editSteps; }
@@ -346,8 +348,8 @@ private:
         QSizeF size;
     };
     QHash<QString, DiagramPicture> m_diagramPictures;
-    int m_diagramsDrawn = 0;
-    qint64 m_diagramBytes = 0;
+    int m_diagramsDrawn = 0, m_diagramPartsRead = 0;
+    qint64 m_diagramBytes = 0, m_diagramDataBytes = 0;
     jp::office::DrawingBudget m_budget;
     jp::office::Theme m_theme;
     QDomDocument m_themeDoc;

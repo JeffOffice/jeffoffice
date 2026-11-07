@@ -56,7 +56,7 @@ struct DrawingObject {
     bool hidden = false;
     bool prints = true;            // the anchor does not say fPrintsWithSheet="0": the object is on the printed page
     QString chartPart;             // for a chart: the chart part's name
-    QString diagramData;           // for a diagram (SmartArt): the id of the drawing part's link to the diagram's data part, which names the drawing the file keeps of it (libs/office/office/diagram.h)
+    QString diagramData;           // for a diagram: the id of the drawing part's link to the diagram's data part, which names the drawing the file keeps of it (libs/office/office/diagram.h)
     qint64 diagramCx = 0, diagramCy = 0;   // for a diagram: the size its frame says (the frame of a spreadsheet's diagram says 0 by 0: the anchor gives the size)
     QDomElement element;           // the object's element (xdr:sp, xdr:pic, xdr:grpSp, xdr:cxnSp, or the graphic frame); lives as long as the SheetDrawing's document
 };

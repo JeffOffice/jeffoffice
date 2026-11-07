@@ -1,5 +1,5 @@
 #pragma once
-// A diagram (SmartArt) as the tests of the apps need one: the drawing part a file keeps beside the diagram's data, the data part that names it, and the three parts
+// A diagram as the tests of the apps need one: the drawing part a file keeps beside the diagram's data, the data part that names it, and the three parts
 // (layout, style, colors) the frame also names. Three shapes: a rectangle in the first accent color, a rounded one in blue, and a green one. Every byte is built here.
 
 #include <QByteArray>

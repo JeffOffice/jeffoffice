@@ -3,6 +3,8 @@
 #include "sheet/xlsxsave.h"
 #include "office/freeid.h"
 
+#include "office/diagram.h"
+
 #include "sheet/hfpictures.h"
 #include "sheet/notes.h"
 #include "sheet/threadsave.h"
@@ -1948,6 +1950,13 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         const int index = partBytes(part, &xml);
         if (index >= 0 && removeDrawingObjects(xml, ordinals, &now, &changed, &ids) && changed) {
             replaced.insert(index, now);
+            // a diagram's data part names the link of its drawing, which goes with it
+            for (const QString &id : QStringList(ids)) {
+                const Relationship r = package.relationship(part, id);
+                if (r.id.isEmpty() || r.external || !r.type.endsWith(QLatin1String("/diagramData")) || !package.hasPart(r.target)) continue;
+                const QString drawingLink = diagramDrawingLinkId(package.part(r.target));
+                if (!drawingLink.isEmpty() && !ids.contains(drawingLink)) ids << drawingLink;
+            }
             // the ids the drawing still names are kept
             for (const QString &id : namedRelationships(now)) ids.removeAll(id);
             if (!ids.isEmpty()) released.emplace_back(part, ids);
@@ -2124,11 +2133,23 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             };
             for (const AddedObject &obj : add.objects) {
                 QByteArray xml = obj.xml;
+                // (each part's link gets an id that is free, whatever the ids it had)
+                QVector<QString> given;
                 for (const AddedPart &part : obj.parts) {
                     const QString id = used.takeFree();
                     used << id;
+                    given << id;
                     xml.replace(xmlscan::escapeAttribute(part.token), xmlscan::escapeAttribute(id));
-                    if (!writePart(part, drawingPart, &drawingRels, id, 0)) return bad();
+                }
+                for (size_t k = 0; k < obj.parts.size(); ++k) {
+                    AddedPart part = obj.parts[k];
+                    // a diagram's data part names the link of its drawing by the token of the part that is the drawing: the id that part was given
+                    if (part.relType.endsWith(QLatin1String("diagramData")) && part.bytes.contains("@@revive")) {
+                        const QString token = diagramDrawingLinkId(part.bytes);
+                        for (size_t j = 0; j < obj.parts.size(); ++j)
+                            if (obj.parts[j].token == token) part.bytes = withDiagramDrawingLinkId(part.bytes, given[int(j)]);
+                    }
+                    if (!writePart(part, drawingPart, &drawingRels, given[int(k)], 0)) return bad();
                 }
                 anchors += xml;
             }

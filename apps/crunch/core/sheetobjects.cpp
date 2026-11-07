@@ -161,6 +161,9 @@ void SheetObjects::open(const std::shared_ptr<Workbook> &book)
     m_layoutCache.clear();
     m_images.clear();
     m_budget = DrawingBudget();
+    m_diagramPictures.clear();
+    m_diagramsDrawn = m_diagramPartsRead = 0;
+    m_diagramBytes = m_diagramDataBytes = 0;
     m_contextRead = false;
     m_shown = -1;
     m_objectsMade = 0;
@@ -415,10 +418,17 @@ ItemPtr SheetObjects::diagramItem(Sheet &s, Object &o)
 {
     readContext();
     const Package &package = m_book->package();
+    // (The caps come first: past them no data part is inflated, and the diagram is a box.)
+    const bool room = m_diagramsDrawn < kMaxDiagramsDrawn && m_diagramBytes < kMaxDiagramBytes && m_diagramPartsRead < kMaxDiagramsDrawn && m_diagramDataBytes < kMaxDiagramBytes;
     const QString key = s.drawingPart + QLatin1Char('|') + o.meta.diagramData;
     auto found = s.diagramParts.constFind(key);
-    if (found == s.diagramParts.cend()) found = s.diagramParts.insert(key, diagramDrawingPartOf(package, s.drawingPart, o.meta.diagramData));
-    const QString drawing = found.value();
+    if (found == s.diagramParts.cend() && room) {
+        ++m_diagramPartsRead;
+        const Relationship data = package.relationship(s.drawingPart, o.meta.diagramData);
+        if (!data.id.isEmpty() && !data.external) m_diagramDataBytes += std::max<qint64>(0, package.partSize(data.target));
+        found = s.diagramParts.insert(key, diagramDrawingPartOf(package, s.drawingPart, o.meta.diagramData));
+    }
+    const QString drawing = found == s.diagramParts.cend() ? QString() : found.value();
     const QSizeF frame(std::clamp(emuToPoints(o.meta.diagramCx), 0.0, kChartMaxSide), std::clamp(emuToPoints(o.meta.diagramCy), 0.0, kChartMaxSide));
     const QString pictureKey = QStringLiteral("%1|%2x%3").arg(drawing).arg(frame.width()).arg(frame.height());
     auto made = m_diagramPictures.constFind(pictureKey);
@@ -1644,6 +1654,25 @@ std::shared_ptr<const jp::crunch::ObjectRevive> SheetObjects::captureRevive(int 
         out += QLatin1Char(' ') + m.captured(1) + QLatin1Char('=') + quote + token + quote;
     }
     out += text.mid(last);
+    // A diagram's data part names the link of its drawing, which no attribute of the frame names: the drawing is kept too, and the data part says its token (the id it is given when it comes back).
+    if (o->meta.kind == ObjectKind::Diagram) {
+        std::vector<std::pair<QString, jp::crunch::RevivePart>> drawings;
+        for (auto &[token, part] : rec->parts) {
+            if (!part.relType.endsWith(QLatin1String("/diagramData"))) continue;
+            const QString linkId = diagramDrawingLinkId(part.bytes);
+            const Relationship drawingLink = linkId.isEmpty() ? Relationship() : package.relationship(s.drawingPart, linkId);
+            if (drawingLink.id.isEmpty() || drawingLink.external || !drawingLink.type.endsWith(QLatin1String("/diagramDrawing"))) continue;
+            jp::crunch::RevivePart drawingPart;
+            if (!captureRevivePart(package, drawingLink, 0, &read, &drawingPart)) {
+                if (why) *why = tr("This object holds more than JeffCrunch keeps for Undo.");
+                return nullptr;
+            }
+            const QString drawingToken = QStringLiteral("@@revive%1@@").arg(n++);
+            part.bytes = withDiagramDrawingLinkId(part.bytes, drawingToken);
+            drawings.emplace_back(drawingToken, std::move(drawingPart));
+        }
+        for (auto &d : drawings) rec->parts.emplace_back(std::move(d));
+    }
     if (unusable) {
         if (why) *why = tr("This chart names a part the file does not have, so it can't be kept for Undo.");
         return nullptr;

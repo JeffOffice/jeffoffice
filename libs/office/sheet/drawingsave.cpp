@@ -72,7 +72,7 @@ bool childrenOfRoot(const QByteArray &xml, std::vector<std::pair<qsizetype, qsiz
 
 const QRegularExpression &relAttributeRe()
 {
-    static const QRegularExpression re(QStringLiteral("\\b[A-Za-z_][\\w.-]*:(?:embed|link|id|pict)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"));
+    static const QRegularExpression re(QStringLiteral("\\b[A-Za-z_][\\w.-]*:(?:embed|link|id|pict|dm|lo|qs|cs)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"));
     return re;
 }
 

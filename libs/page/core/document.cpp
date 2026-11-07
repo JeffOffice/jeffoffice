@@ -1436,8 +1436,15 @@ QVector<TextItem *> Document::chainOf(const QString &frameId) const
     Item *it = item(frameId);
     if (!it || it->type() != ItemType::Text) return out;
     auto *head = static_cast<TextItem *>(it);
+    // The frames' places in their chains are found in one look at the items (the one before each frame is the one that names it as its next), not one for each frame of the chain.
+    QHash<QString, TextItem *> before;
+    forEachItem([&](Item *other, int, const QString &) {
+        if (other->type() != ItemType::Text) return;
+        auto *t = static_cast<TextItem *>(other);
+        if (!t->nextId.isEmpty()) before.insert(t->nextId, t);
+    });
     QSet<QString> seen{head->id};
-    while (TextItem *p = prevFrame(head->id)) {
+    while (TextItem *p = before.value(head->id)) {
         if (seen.contains(p->id)) break;
         seen.insert(p->id);
         head = p;
