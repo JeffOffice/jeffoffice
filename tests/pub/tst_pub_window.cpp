@@ -2258,6 +2258,18 @@ private Q_SLOTS:
         jp::recovery::setRoot(QString());
     }
 
+    // Another program's scan of the folder finds a run's folder just made and not yet locked (the run is about to take its lock): the scan leaves it, empty as it is.
+    void aFolderJustMadeIsNotTakenForAnOrphan()
+    {
+        QTemporaryDir dir;
+        jp::recovery::setRoot(dir.filePath(QStringLiteral("Recovery")));
+        const QString fresh = dir.filePath(QStringLiteral("Recovery/just-made"));
+        QVERIFY(QDir().mkpath(fresh));
+        QVERIFY(jp::recovery::orphans().isEmpty());
+        QVERIFY(QDir(fresh).exists());
+        jp::recovery::setRoot(QString());
+    }
+
     // A file the system hands over (macOS: double-clicked in the Finder)
     // opens in the empty window, and in a new one once that has a file.
     void fileOpenEvent()

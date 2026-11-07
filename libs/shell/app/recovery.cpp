@@ -97,7 +97,7 @@ QString sessionDir()
     QDir().mkpath(dir);
     auto lock = std::make_unique<QLockFile>(dir + QLatin1Char('/') + QLatin1String(kLockName));
     lock->setStaleLockTime(0);   // held for the whole run; only a dead run's lock is stale
-    if (!lock->tryLock(0)) return QString();
+    if (!lock->tryLock(1000)) return QString();   // (another run's scan of the folder may hold the lock for an instant)
     g_lock = std::move(lock);
     g_session = dir;
     return g_session;
@@ -174,7 +174,8 @@ void scanRoot(const QString &rootDir, QVector<Recovered> *out)
         if (!probe.tryLock(0)) continue;
         probe.unlock();
         const QFileInfoList copies = QDir(dir).entryInfoList({QLatin1Char('*') + s_suffix}, QDir::Files);
-        if (copies.isEmpty()) QDir(dir).removeRecursively();   // nothing left to offer
+        // (nothing left to offer; but a folder made a moment ago may be one a run is about to lock)
+        if (copies.isEmpty() && d.lastModified().secsTo(QDateTime::currentDateTime()) > 60) QDir(dir).removeRecursively();
         for (const QFileInfo &f : copies) *out << describe(f.absoluteFilePath());
     }
 }
