@@ -156,6 +156,11 @@ jobs:
         if: runner.os == 'Linux' && matrix.part == 'checks'
         run: python3 tools/check_third_party.py
 
+      # The Done, Partly, and Not yet counts in docs/features/README.md match the feature lists they count.
+      - name: Feature count check
+        if: runner.os == 'Linux' && matrix.part == 'checks'
+        run: python3 tools/check_feature_counts.py
+
       - name: Configure
         shell: bash
         run: |
