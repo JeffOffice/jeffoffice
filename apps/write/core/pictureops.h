@@ -192,6 +192,9 @@ PictureResult linkTextBoxes(WriteDoc &doc, int from, int to);
 bool isLinkedTextBox(const WriteDoc &doc, int position);
 bool hasLinkedTextBoxAfter(const WriteDoc &doc, int position);
 bool unlinkTextBox(WriteDoc &doc, int position);
+// Text boxes pasted or duplicated into the text (the drawings between the places `from` and `to`) are given chain numbers of their own, so that a pasted chain is a chain of its own and does not
+// take the members of the one it was copied from, and a pasted member whose first box was not pasted with it is a box of its own. Part of the edit that pasted them.
+void renumberPastedTextBoxChains(WriteDoc &doc, int from, int to);
 // The words of a text box, a paragraph each, or none when what it holds is more than words (a table, a picture, a field, a list): then it can't be edited as words.
 std::optional<QStringList> textBoxText(const WriteDoc &doc, int position);
 // Puts these paragraphs in the text box: each has the first paragraph's alignment and the first run's look. False when the box holds more than words, or the words are already so.

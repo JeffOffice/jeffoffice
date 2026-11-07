@@ -2,6 +2,7 @@
 
 #include "flow/flowdocument.h"
 
+#include "core/boxlinks.h"
 #include "core/drawnitems.h"
 #include "core/editops.h"
 #include "office/chart.h"
@@ -1464,43 +1465,9 @@ bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs)
     });
 }
 
-// ---- linked text boxes: the words of the first box of a chain go on in the boxes that follow it (the file's wps:txbx with an id, and wps:linkedTxbx with the id and the place in the chain)
+// ---- linked text boxes: the words of the first box of a chain go on in the boxes that follow it (core/boxlinks.h)
 
 namespace {
-
-// What a text box's element says of its chain: 0 for a box of its own; else the chain's number and the box's place in it (0 for the first, which holds the words). `hasId` is set for a first
-// box that says its number.
-struct BoxChain {
-    int number = 0, seq = 0;
-    bool member = false, hasId = false;
-};
-
-qint64 numberAttribute(const QString &attributes, const char *name)
-{
-    const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("\\b%1=\"([0-9]+)\"").arg(QLatin1String(name))).match(attributes);
-    return m.hasMatch() ? std::min<qint64>(m.captured(1).toLongLong(), 2000000000) : -1;
-}
-
-BoxChain boxChainOf(const QByteArray &graphic)
-{
-    BoxChain c;
-    if (!graphic.contains("xbx")) return c;
-    static const QRegularExpression member(QStringLiteral("<[A-Za-z0-9_]+:linkedTxbx\\b([^>]*)>")), first(QStringLiteral("<[A-Za-z0-9_]+:txbx\\b([^>]*)>"));
-    const QString text = QString::fromUtf8(graphic);
-    QRegularExpressionMatch m = member.match(text);
-    if (m.hasMatch()) {
-        c.member = true;
-        c.number = int(std::max<qint64>(0, numberAttribute(m.captured(1), "id")));
-        c.seq = int(std::max<qint64>(0, numberAttribute(m.captured(1), "seq")));
-        return c;
-    }
-    m = first.match(text);
-    if (m.hasMatch() && numberAttribute(m.captured(1), "id") > 0) {
-        c.hasId = true;
-        c.number = int(numberAttribute(m.captured(1), "id"));
-    }
-    return c;
-}
 
 struct BoxAt {
     int position = -1;
@@ -1520,7 +1487,7 @@ QVector<BoxAt> chainedBoxes(const QTextDocument *story)
             Inline atom;
             if (!drawingAtomOf(cf, &atom)) continue;
             const BoxChain chain = boxChainOf(atom.raw);
-            if (chain.number > 0) out.push_back({it.fragment().position(), chain});
+            if (chain.number >= 0) out.push_back({it.fragment().position(), chain});
         }
     return out;
 }
@@ -1549,42 +1516,11 @@ BoxState boxStateAt(const WriteDoc &doc, int position)
     return s;
 }
 
-// The element of a text box's words or its link, whole, in the graphic: where it begins and ends (-1 for none).
-bool boxElementIn(const QByteArray &graphic, qsizetype *begin, qsizetype *end)
+QSet<int> usedChainNumbers(const QVector<BoxAt> &boxes)
 {
-    static const QRegularExpression open(QStringLiteral("<([A-Za-z0-9_]+):(?:txbx|linkedTxbx)\\b[^>]*?(/?)>"));
-    const QString text = QString::fromUtf8(graphic);
-    const QRegularExpressionMatch m = open.match(text);
-    if (!m.hasMatch()) return false;
-    // (the offsets are in characters of the text; the graphic's own are bytes)
-    *begin = text.left(m.capturedStart()).toUtf8().size();
-    if (m.captured(2) == QLatin1String("/")) {
-        *end = *begin + m.captured().toUtf8().size();
-        return true;
-    }
-    const QByteArray closing = "</" + m.captured(1).toUtf8() + ":txbx>";
-    const qsizetype close = graphic.indexOf(closing, *begin);
-    if (close < 0) return false;
-    *end = close + closing.size();
-    return true;
-}
-
-// The highest chain number the text uses, and the places a chain has: for a number not used yet.
-int nextChainNumber(const QVector<BoxAt> &boxes)
-{
-    int highest = 0;
-    for (const BoxAt &b : boxes) highest = std::max(highest, b.chain.number);
-    return highest + 1;
-}
-
-QByteArray boxAttributeId(const QByteArray &graphic, int number)
-{
-    static const QRegularExpression open(QStringLiteral("<([A-Za-z0-9_]+):txbx\\b"));
-    QString text = QString::fromUtf8(graphic);
-    const QRegularExpressionMatch m = open.match(text);
-    if (!m.hasMatch()) return graphic;
-    text.insert(m.capturedEnd(), QStringLiteral(" id=\"%1\"").arg(number));
-    return text.toUtf8();
+    QSet<int> used;
+    for (const BoxAt &b : boxes) used.insert(b.chain.number);
+    return used;
 }
 
 } // namespace
@@ -1592,7 +1528,7 @@ QByteArray boxAttributeId(const QByteArray &graphic, int number)
 bool isLinkedTextBox(const WriteDoc &doc, int position)
 {
     const BoxState s = boxStateAt(doc, position);
-    if (!s.box || s.chain.number <= 0) return false;
+    if (!s.box || s.chain.number < 0) return false;
     if (s.chain.member) return true;
     for (const BoxAt &b : chainedBoxes(doc.story()))
         if (b.chain.member && b.chain.number == s.chain.number) return true;
@@ -1602,7 +1538,7 @@ bool isLinkedTextBox(const WriteDoc &doc, int position)
 bool hasLinkedTextBoxAfter(const WriteDoc &doc, int position)
 {
     const BoxState s = boxStateAt(doc, position);
-    if (!s.box || s.chain.number <= 0) return false;
+    if (!s.box || s.chain.number < 0) return false;
     for (const BoxAt &b : chainedBoxes(doc.story()))
         if (b.chain.member && b.chain.number == s.chain.number && b.chain.seq > s.chain.seq) return true;
     return false;
@@ -1611,23 +1547,17 @@ bool hasLinkedTextBoxAfter(const WriteDoc &doc, int position)
 bool canLinkTextBoxFrom(const WriteDoc &doc, int position)
 {
     const BoxState a = boxStateAt(doc, position);
-    if (!a.box || !a.editable || (a.chain.member && a.chain.seq >= flow::kMostLinkedBoxes - 1)) return false;
-    return a.chain.number <= 0 || !hasLinkedTextBoxAfter(doc, position);
+    if (!a.box || !a.editable || a.chain.number > kMostChainNumber || (a.chain.member && a.chain.seq >= flow::kMostLinkedBoxes - 1)) return false;
+    if (a.chain.number < 0) return freeChainNumber(usedChainNumbers(chainedBoxes(doc.story()))) >= 0;
+    return !hasLinkedTextBoxAfter(doc, position);
 }
 
 bool canLinkTextBoxes(const WriteDoc &doc, int from, int to)
 {
-    if (from == to) return false;
-    const BoxState a = boxStateAt(doc, from), b = boxStateAt(doc, to);
-    if (!a.box || !b.box || !a.editable || !b.editable || b.chain.member || !b.empty) return false;
-    if (b.chain.hasId && isLinkedTextBox(doc, to)) return false;   // (the first of a chain of its own)
-    if (a.chain.member && a.chain.seq >= flow::kMostLinkedBoxes - 1) return false;
-    if (a.chain.number > 0) {
-        // The end of its chain: no box follows it, and the one to go after it is not in the chain already.
-        if (hasLinkedTextBoxAfter(doc, from)) return false;
-        for (const BoxAt &x : chainedBoxes(doc.story()))
-            if (x.position == to && x.chain.number == a.chain.number) return false;
-    }
+    if (from == to || !canLinkTextBoxFrom(doc, from)) return false;
+    const BoxState b = boxStateAt(doc, to);
+    if (!b.box || !b.editable || b.chain.member || !b.empty) return false;
+    if (b.chain.number >= 0 && isLinkedTextBox(doc, to)) return false;   // (the first of a chain of its own)
     return true;
 }
 
@@ -1635,18 +1565,19 @@ PictureResult linkTextBoxes(WriteDoc &doc, int from, int to)
 {
     if (!canLinkTextBoxes(doc, from, to)) return PictureResult::Refused;
     const BoxState a = boxStateAt(doc, from);
-    const int number = a.chain.number > 0 ? a.chain.number : nextChainNumber(chainedBoxes(doc.story()));
+    const QVector<BoxAt> boxes = chainedBoxes(doc.story());
+    const int number = a.chain.number >= 0 ? a.chain.number : freeChainNumber(usedChainNumbers(boxes));
+    if (number < 0) return PictureResult::Refused;
     const int place = a.chain.member ? a.chain.seq + 1 : 1;
     const WriteDoc::StepGroup step(doc);
     bool ok = changePicture(doc, to, [&](Model &m) {
-        qsizetype begin = 0, end = 0;
-        if (!boxElementIn(m.graphic, &begin, &end)) return false;
-        const QString prefix = QString::fromUtf8(m.graphic.mid(begin + 1, m.graphic.indexOf(':', begin) - begin - 1));
-        m.graphic = m.graphic.left(begin) + "<" + prefix.toUtf8() + ":linkedTxbx id=\"" + QByteArray::number(number) + "\" seq=\"" + QByteArray::number(place) + "\"/>" + m.graphic.mid(end);
+        const QByteArray now = boxAsMember(m.graphic, number, place);
+        if (now == m.graphic) return false;
+        m.graphic = now;
         return true;
     });
-    if (ok && !a.chain.hasId && !a.chain.member) ok = changePicture(doc, from, [&](Model &m) {
-        const QByteArray now = boxAttributeId(m.graphic, number);
+    if (ok && a.chain.number < 0) ok = changePicture(doc, from, [&](Model &m) {
+        const QByteArray now = boxWithNumber(m.graphic, number);
         if (now == m.graphic) return false;
         m.graphic = now;
         return true;
@@ -1661,7 +1592,7 @@ PictureResult linkTextBoxes(WriteDoc &doc, int from, int to)
 bool unlinkTextBox(WriteDoc &doc, int position)
 {
     const BoxState s = boxStateAt(doc, position);
-    if (!s.box || s.chain.number <= 0 || !s.editable) return false;
+    if (!s.box || s.chain.number < 0 || !s.editable) return false;
     QVector<int> after;
     for (const BoxAt &b : chainedBoxes(doc.story()))
         if (b.chain.member && b.chain.number == s.chain.number && b.chain.seq > s.chain.seq) after.push_back(b.position);
@@ -1670,10 +1601,9 @@ bool unlinkTextBox(WriteDoc &doc, int position)
     bool ok = true;
     for (const int at : std::as_const(after))
         ok = ok && changePicture(doc, at, [&](Model &m) {
-            qsizetype begin = 0, end = 0;
-            if (!boxElementIn(m.graphic, &begin, &end)) return false;
-            const QByteArray prefix = m.graphic.mid(begin + 1, m.graphic.indexOf(':', begin) - begin - 1);
-            m.graphic = m.graphic.left(begin) + "<" + prefix + ":txbx><w:txbxContent><w:p/></w:txbxContent></" + prefix + ":txbx>" + m.graphic.mid(end);
+            const QByteArray now = boxAsPlain(m.graphic);
+            if (now == m.graphic) return false;
+            m.graphic = now;
             return true;
         });
     if (!ok) {
@@ -1681,6 +1611,51 @@ bool unlinkTextBox(WriteDoc &doc, int position)
         return false;
     }
     return true;
+}
+
+void renumberPastedTextBoxChains(WriteDoc &doc, int from, int to)
+{
+    QTextDocument *story = doc.story();
+    struct Pasted {
+        int position;
+        Inline atom;
+        QTextCharFormat format;
+        QByteArray raw;
+    };
+    QVector<Pasted> pasted;
+    QSet<int> used;
+    for (const BoxAt &b : chainedBoxes(story))
+        if (b.position < from || b.position >= to) used.insert(b.chain.number);
+    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() < to; b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            if (f.position() + f.length() <= from || f.position() >= to || !f.charFormat().hasProperty(prop::Atom)) continue;
+            const QByteArray bytes = storedBytes(f.charFormat(), prop::Atom);
+            if (!bytes.contains("xbx")) continue;
+            Inline atom;
+            if (!drawingAtomOf(f.charFormat(), &atom)) continue;
+            for (int k = 0; k < f.length(); ++k)
+                if (f.position() + k >= from && f.position() + k < to) pasted.push_back({f.position() + k, atom, f.charFormat(), atom.raw});
+        }
+    if (pasted.isEmpty()) return;
+    QVector<QByteArray *> raws;
+    for (Pasted &p : pasted) raws.push_back(&p.raw);
+    if (!renumberPastedBoxChains(raws, used)) return;
+    for (int i = int(pasted.size()) - 1; i >= 0; --i) {
+        Pasted &p = pasted[i];
+        if (p.raw == p.atom.raw) continue;
+        p.atom.raw = p.raw;
+        QTextCharFormat nf = p.format;
+        setStored(nf, prop::Atom, packAtom(p.atom));
+        nf.clearProperty(tp::InlineObject);
+        nf.clearProperty(flow::fp::AnchorId);
+        if (!doc.makeDrawnFormat(p.atom, &nf)) continue;
+        QTextCursor t(story);
+        t.setPosition(p.position);
+        t.setPosition(p.position + 1, QTextCursor::KeepAnchor);
+        t.setCharFormat(nf);
+    }
+    doc.keepObjectsForTheHistory();
 }
 
 bool setShapeFill(WriteDoc &doc, int position, const QString &rgb)

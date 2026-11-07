@@ -79,6 +79,8 @@ QByteArray asPicture(const QByteArray &svg, const QSizeF &drawn, const QSizeF &s
         static const QRegularExpression width(QStringLiteral("\\swidth=\"[^\"]*\"")), height(QStringLiteral("\\sheight=\"[^\"]*\""));
         tag.replace(width, QStringLiteral(" width=\"%1\"").arg(qRound(size.width() * kPixelsPerPoint)));
         tag.replace(height, QStringLiteral(" height=\"%1\"").arg(qRound(size.height() * kPixelsPerPoint)));
+        // A picture sized apart from the drawing is stretched with its frame, as a picture is.
+        if (!shown.isEmpty() && !tag.contains(QLatin1String("preserveAspectRatio"))) tag.replace(QStringLiteral("<svg"), QStringLiteral("<svg preserveAspectRatio=\"none\""));
         text.replace(m.capturedStart(), m.capturedLength(), tag);
     }
     return text.toUtf8();

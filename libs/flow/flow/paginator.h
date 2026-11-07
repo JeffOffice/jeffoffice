@@ -565,6 +565,15 @@ private:
     std::map<const QTextDocument *, std::vector<double>> m_furnitureBaseline;   // the text areas the sections that use a story had when it was last edited
     FlowDocument *m_doc;
     std::unique_ptr<TableFlow> m_tables;
+    // Linked text boxes: the words of a chain's first box, laid out over all the boxes of the chain in the order of their places (whatever pages they are on), and the share each box shows (the
+    // part of the words that begins in it). Kept for the chains as they are (the words' revision and the boxes' sizes), not made again for each page.
+    struct ChainShares {
+        QVector<int> objects;                                  // the chain's boxes (objects, from 1), in order
+        QVector<std::shared_ptr<QTextDocument>> stories;       // what each shows
+        bool overflow = false;                                 // the words go on past the last box
+    };
+    const ChainShares &chainShares(int linkId);
+    QHash<int, std::pair<QString, ChainShares>> m_chains;
     std::unique_ptr<QObject> m_watch;
     QVector<PageStart> m_starts;
     bool m_complete = false;

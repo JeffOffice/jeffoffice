@@ -570,9 +570,12 @@ public:
     office::Relationship mainRelationship(const QString &id) const;
     // A kept part's bytes (and its content type); empty if the document has no such part.
     QByteArray partData(const QString &absoluteName, QString *contentType = nullptr) const;
-    // A diagram of the text drawn from the drawing its data part names (`dataId`, a link of `links`), shown at `width` by `height` points: the picture as SVG, scaled with the frame
-    // from the size it was first shown at. Empty if the file keeps no drawing for it, or the document has drawn as many diagrams as it may (kMostDiagramsDrawn).
-    QByteArray diagramPicture(const QVector<office::Relationship> &links, const QString &dataId, double width, double height);
+    // A diagram of the text drawn from the drawing its data part names (`dataId`, a link of `links`, those of `part`), shown at `width` by `height` points: the picture as SVG, the drawing at its own
+    // size (what its shapes say) stretched to the frame. Empty if the file keeps no drawing for it, or the document has drawn as many diagrams as it may (kMostDiagramsDrawn).
+    // How many diagrams were drawn since the story was built, and the bytes of picture parts copied for them (for tests).
+    int diagramsDrawn() const { return int(m_diagramsSeen.size()); }
+    qint64 diagramImageBytes() const { return m_diagramImageBytes; }
+    QByteArray diagramPicture(const QString &part, const QVector<office::Relationship> &links, const QString &dataId, double width, double height);
     // ---- the file's properties (the core, extended, and custom parts of docProps)
     office::PackageProps packageProps() const;
     // Puts the properties in the file's parts (made where the file has none, with the relationship that names each) and counts the document as changed. What the parts hold besides stays.
@@ -935,10 +938,12 @@ private:
     const office::wml::SectionProps *m_tailSection = nullptr;  // the section whose endnotes are being set (its page's width is the separator's), or none: the last
     int m_boxTableCells = 0;   // the cells of the tables that the text boxes drawn so far hold (a document's boxes have kMostBoxTableCells of them in all: the rest are kept as they were)
     // The diagrams drawn: each drawing part at the size it was first shown (the frame it was made for), the pictures made (by part and sizes), and how many were made since the story was built.
-    QHash<QString, QSizeF> m_diagramMade;
-    QHash<QString, QByteArray> m_diagramPictures;
-    int m_diagramsDrawn = 0;
-    qint64 m_diagramBytes = 0;
+    QHash<QString, QString> m_diagramDrawingOf;               // the drawing part each diagram's data link leads to, by the part the frame is in and the link (found once)
+    QHash<QString, QByteArray> m_diagramPictures;             // the pictures made, by drawing and size
+    QSet<QString> m_diagramsSeen;                             // the drawings drawn since the story was built (at most kMostDiagramsDrawn)
+    QHash<QString, std::shared_ptr<office::Package>> m_diagramPackages;   // the pictures of each drawing, as the shapes' reader wants them
+    QSet<QString> m_diagramImages;                            // the picture parts that went into those, each counted once
+    qint64 m_diagramBytes = 0, m_diagramImageBytes = 0;       // what the pictures made, and the picture parts copied, come to
     int m_letteringShapes = 0, m_letteringLetters = 0;   // the lettering on a path the document has drawn so far, and its letters (each is outlined, and may be stroked: they are bounded)
     bool m_syncing = false;
     bool m_trackChanges = false, m_trackAtOpen = false;

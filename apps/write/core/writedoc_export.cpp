@@ -2,6 +2,7 @@
 // the pieces kept as XML go back where they were.
 
 #include "core/writedoc.h"
+#include "core/boxlinks.h"
 #include "rtf/rtfwrite.h"
 #include "odt/odt.h"
 #include "wml/wmlhtml.h"
@@ -335,6 +336,15 @@ bool WriteDoc::exportDocument(office::wml::Document *result, bool template_, boo
     syncSections();
     office::wml::Document out = m_wml;
     exportBody(&out.body);
+    // A chain of linked text boxes whose first box was taken away is boxes of their own: no member is written with a number no box holds.
+    {
+        QVector<QByteArray *> drawings;
+        for (office::wml::Block &b : out.body)
+            if (!b.isRaw)
+                for (office::wml::Inline &in : b.para.content)
+                    if (in.kind == office::wml::Inline::RunAtom && in.tag == QLatin1String("drawing") && in.raw.contains("xbx")) drawings.push_back(&in.raw);
+        repairBoxChains(drawings);
+    }
     makeChangeIdsUnique(*this, &out.body);
     // The built-in table styles that tables made have are part of the file while a table has one (and a style they are based on): a table taken back by Undo takes its style with it.
     if (!m_addedTableStyles.isEmpty()) {

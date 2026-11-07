@@ -2007,6 +2007,10 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
     c.beginEditBlock();
     int from = 0, to = 0;
     pasteInto(doc, c, clip.fragment, &from, &to, same);
+    // (The places the pasted text begins and ends at, which follow the edits made to it below.)
+    QTextCursor pastedFrom(c.document()), pastedTo(c.document());
+    pastedFrom.setPosition(from);
+    pastedTo.setPosition(to);
     if (same) {
         // The drawn forms the pasted pictures had are the ones the document may have let go since the copy: they are made again from the drawings (the same form, while it is held).
         struct Redo { int from, to; QTextCharFormat format; };
@@ -2038,6 +2042,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
             t.setPosition(redo[i].to, QTextCursor::KeepAnchor);
             t.setCharFormat(redo[i].format);
         }
+        renumberPastedTextBoxChains(doc, pastedFrom.position(), pastedTo.position());
         c.endEditBlock();
         doc.keepObjectsForTheHistory();
         return;
@@ -2165,6 +2170,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
         if (fixes[i].remove) t.removeSelectedText();
         else t.setCharFormat(fixes[i].format);
     }
+    renumberPastedTextBoxChains(doc, pastedFrom.position(), pastedTo.position());
     for (int i = int(standIns.size()) - 1; i >= 0; --i) {
         const QTextBlock b = d->findBlock(standIns[i]);
         if (!b.isValid() || !isLocked(b)) continue;

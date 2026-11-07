@@ -72,7 +72,7 @@ struct FloatingObject {
     int fillImage = -1;                     // a picture that fills a box or a text box, stretched over it: its place in FlowDocument::images
     std::shared_ptr<QTextDocument> story;   // a text box's text
     QMarginsF insets{7.2, 3.6, 7.2, 3.6};   // of a text box
-    int linkId = 0, linkSeq = 0;            // a text box in a chain of linked boxes: the chain's number (0: none) and its place in it (0 holds the words, which go on in 1, 2, ...)
+    int linkId = -1, linkSeq = 0;           // a text box in a chain of linked boxes: the chain's number (-1: none) and its place in it (0 holds the words, which go on in 1, 2, ...)
     Rel hRel = Rel::Column, vRel = Rel::Paragraph;
     Align hAlign = Align::None, vAlign = Align::None;
     double dx = 0, dy = 0;                  // from where it is measured (a line's ends are in the item's p1 and p2, from there too)

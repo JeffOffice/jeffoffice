@@ -263,6 +263,73 @@ void Paginator::tablesInBox(const QTextDocument *source, QTextDocument *copy, co
     }
 }
 
+// The shares of the chain `linkId`: the boxes in the order of their places in it (the first, place 0, holds the words; a place that repeats or goes back is left out, and a chain has at most
+// kMostLinkedBoxes boxes), the words laid out over their sizes one after the other, and each box's part of them. Empty for a number that is no chain of two boxes or more.
+const Paginator::ChainShares &Paginator::chainShares(int linkId)
+{
+    static const ChainShares none;
+    QVector<std::pair<int, int>> places;   // (place, object)
+    for (int i = 1; i <= m_doc->objects.size(); ++i) {
+        const FloatingObject &o = m_doc->objects[i - 1];
+        if (o.linkId == linkId && o.item && o.item->type() == ItemType::Text) places.push_back({o.linkSeq, i});
+    }
+    std::stable_sort(places.begin(), places.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+    if (places.size() < 2 || places.first().first != 0 || !m_doc->objects[places.first().second - 1].story) return none;
+    QVector<int> objects;
+    int lastPlace = -1;
+    for (const auto &p : std::as_const(places)) {
+        if (p.first <= lastPlace || objects.size() >= kMostLinkedBoxes) continue;
+        objects << p.second;
+        lastPlace = p.first;
+    }
+    if (objects.size() < 2) return none;
+    const std::shared_ptr<QTextDocument> &words = m_doc->objects[objects.first() - 1].story;
+    QString sig = QStringLiteral("%1/%2").arg(quintptr(words.get())).arg(words->revision());
+    QVector<FrameSpec> specs;
+    for (const int id : std::as_const(objects)) {
+        const FloatingObject &o = m_doc->objects[id - 1];
+        FrameSpec f;
+        f.size = o.item->rect.size();
+        f.insets = o.insets;
+        f.hyphenate = false;
+        specs << f;
+        sig += QStringLiteral("|%1x%2,%3,%4,%5,%6").arg(f.size.width()).arg(f.size.height()).arg(f.insets.left()).arg(f.insets.top()).arg(f.insets.right()).arg(f.insets.bottom());
+    }
+    auto kept = m_chains.constFind(linkId);
+    if (kept != m_chains.cend() && kept->first == sig && kept->second.objects == objects) return kept->second;
+    StoryLayout layout;
+    layout.build(words.get(), specs, m_doc->env);
+    const int total = std::max(0, words->characterCount() - 1);
+    QVector<int> starts;
+    int at = 0;
+    for (int k = 0; k < objects.size(); ++k) {
+        const int first = layout.firstPosition(k);
+        at = first >= at ? first : (first < 0 ? total : at);
+        starts << std::min(at, total);
+    }
+    ChainShares made;
+    made.objects = objects;
+    made.overflow = layout.overflow();
+    for (int k = 0; k < objects.size(); ++k) {
+        const int end = k + 1 < objects.size() ? starts[k + 1] : total;
+        std::shared_ptr<QTextDocument> share = cloneStory(words.get());
+        QTextCursor c(share.get());
+        if (end < total) {
+            c.setPosition(end);
+            c.setPosition(std::max(0, share->characterCount() - 1), QTextCursor::KeepAnchor);
+            c.removeSelectedText();
+        }
+        if (starts[k] > 0) {
+            c.setPosition(0);
+            c.setPosition(std::min(starts[k], std::max(0, share->characterCount() - 1)), QTextCursor::KeepAnchor);
+            c.removeSelectedText();
+        }
+        made.stories << share;
+    }
+    if (m_chains.size() > 64) m_chains.clear();
+    return m_chains.insert(linkId, {sig, made}).value().second;
+}
+
 void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped, const QVector<QRectF> &columns, MaterializedPage *page, size_t front,
                            MaterializedPage *boxTables)
 {
@@ -273,7 +340,6 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
         ItemPtr item;
         bool behind = false;
         bool isWall = false;
-        int linkId = 0, linkSeq = 0;
     };
     QVector<Made> made_;
     int made = 0;
@@ -329,8 +395,18 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                 auto *box = static_cast<TextItem *>(item.get());
                 auto s = std::make_shared<Story>();
                 s->id = QStringLiteral("flow-boxtext-%1-%2-%3").arg(d->pages[0]->id).arg(id).arg(made);
-                s->doc = cloneStory(o.story.get());
-                if (MaterializedPage *rowsOn = boxTables ? boxTables : page; rowsOn && storyHasTables(o.story.get())) tablesInBox(o.story.get(), s->doc.get(), placed, o.insets, number, d, rowsOn);
+                // A box of a chain of linked boxes shows its share of the chain's words; the last box says if they go on past it.
+                std::shared_ptr<QTextDocument> shown = o.story;
+                if (o.linkId >= 0) {
+                    const ChainShares &chain = chainShares(o.linkId);
+                    const int place = int(chain.objects.indexOf(id));
+                    if (place >= 0) {
+                        shown = chain.stories[place];
+                        box->overflowing = place == chain.objects.size() - 1 && chain.overflow;
+                    }
+                }
+                s->doc = cloneStory(shown.get());
+                if (MaterializedPage *rowsOn = boxTables ? boxTables : page; rowsOn && shown == o.story && storyHasTables(o.story.get())) tablesInBox(o.story.get(), s->doc.get(), placed, o.insets, number, d, rowsOn);
                 resolveImages(s->doc.get(), d);
                 d->stories.insert(s->id, s);
                 box->storyId = s->id;
@@ -380,7 +456,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                     made_.push_back({o.z, shape, false, true});
                 }
             }
-            made_.push_back({o.z, item, o.behind, false, o.linkId, o.linkSeq});
+            made_.push_back({o.z, item, o.behind});
             // A table set at a place is drawn there: its rows, in a fragment that the page paints with the others (the object is the room it takes, which draws nothing).
             if (a.table >= 0 && page) {
                 const std::shared_ptr<TableLayout> table = m_tables->layout(a.table);
@@ -391,27 +467,6 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                         page->tables.push_back(fragment);
                     }
                 }
-            }
-        }
-    }
-    // Linked text boxes: the words of a chain's first box go on in the boxes that follow it, in the order of their places in the chain. A box whose place repeats or goes back is not chained,
-    // and a chain has at most kMostLinkedBoxes boxes; a chain with no first box, or whose first has no words, is boxes of their own.
-    {
-        QMap<int, QVector<std::pair<int, TextItem *>>> chains;
-        for (const Made &m : made_)
-            if (m.linkId > 0 && m.item->type() == ItemType::Text) chains[m.linkId].push_back({m.linkSeq, static_cast<TextItem *>(m.item.get())});
-        for (auto &chain : chains) {
-            std::stable_sort(chain.begin(), chain.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
-            if (chain.size() < 2 || chain.first().first != 0 || chain.first().second->storyId.isEmpty()) continue;
-            TextItem *last = chain.first().second;
-            int length = 1, lastSeq = 0;
-            for (int i = 1; i < chain.size() && length < kMostLinkedBoxes; ++i) {
-                if (chain[i].first <= lastSeq) continue;
-                last->nextId = chain[i].second->id;
-                chain[i].second->storyId = chain.first().second->storyId;
-                last = chain[i].second;
-                lastSeq = chain[i].first;
-                ++length;
             }
         }
     }

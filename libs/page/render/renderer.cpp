@@ -855,6 +855,17 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
         if (spec.ctx.continuedFromPage > 0)
             drawPlainText(p, QPointF(t.insets.left(), t.insets.top() + 6 + (nfm.ascent() - nfm.descent()) / 2), nf, spec.ctx.resolve("contfrom"));
     }
+    if (t.overflowing && !ctx.opt.output) {
+        // (A box whose words go on past it: a little red box with a plus at its lower right corner.)
+        const QRectF mark(r.right() - 12, r.bottom() - 12, 11, 11);
+        p->save();
+        p->setPen(QPen(QColor(200, 30, 30), 1));
+        p->setBrush(QColor(255, 255, 255));
+        p->drawRect(mark);
+        p->drawLine(QPointF(mark.left() + 3, mark.center().y()), QPointF(mark.right() - 3, mark.center().y()));
+        p->drawLine(QPointF(mark.center().x(), mark.top() + 3), QPointF(mark.center().x(), mark.bottom() - 3));
+        p->restore();
+    }
     Renderer::strokePath(p, [&] { QPainterPath pp; pp.addRect(r); return pp; }(), t.stroke, cs);
 }
 

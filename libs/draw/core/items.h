@@ -105,6 +105,8 @@ public:
     // a slide's text box whose file anchors its text "centered".
     bool centerBlock = false;
     bool continuedOn = false, continuedFrom = false;
+    // The words go on past this box (the last box of a chain of linked boxes that is too small for them): a mark is drawn on the screen, so that no words are cut off unseen. Not saved.
+    bool overflowing = false;
     bool hyphenate = true;       // automatic hyphenation (on by default for text boxes, as in .pub files)
     // How far past the frame's right edge a word processor's right tab stop may take text: the room between the box and the page's edge where the box is the text area of a page
     // (the page's flow sets it); none (0), as a column or a text box has. Not saved.

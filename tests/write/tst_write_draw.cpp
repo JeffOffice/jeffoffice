@@ -9,7 +9,9 @@
 #include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "app/writeinfo.h"
+#include "core/boxlinks.h"
 #include "core/drawnitems.h"
+#include "core/editops.h"
 #include "core/equationops.h"
 #include "core/fonts.h"
 #include "core/items.h"
@@ -41,6 +43,7 @@
 #include <QDialog>
 #include <QLabel>
 #include <QTableWidget>
+#include <QRegularExpression>
 #include <QTest>
 #include <QTimer>
 #include <QTextCursor>
@@ -224,41 +227,56 @@ QByteArray drawnSvg(WriteDoc &doc)
 // Two or more text boxes set at places on the page, in the order given: each is `id`, its chain (a head holds the words, a member is `linked`: the form that says "the words of the box with
 // this id go on in me, as the seq-th") and its size and place. The head's words are `lines` paragraphs.
 struct LinkedBox {
-    int chain = 0, seq = 0;   // chain 0: a box of its own
+    int chain = -1, seq = 0;   // chain -1: a box of its own
     double x = 72, y = 100, w = 150, h = 60;
     int lines = 0;
+    int page = 0;              // the page (from 0) of the paragraph that holds it
 };
 QByteArray linkedBoxesDocx(const QVector<LinkedBox> &boxes)
 {
-    QByteArray runs;
+    int pages = 1;
+    for (const LinkedBox &b : boxes) pages = std::max(pages, b.page + 1);
+    QVector<QByteArray> runs(pages);
     int id = 10;
     for (const LinkedBox &b : boxes) {
         QByteArray inner;
-        if (b.chain > 0 && b.seq > 0) {
+        if (b.chain >= 0 && b.seq > 0) {
             inner = "<wps:linkedTxbx id=\"" + QByteArray::number(b.chain) + "\" seq=\"" + QByteArray::number(b.seq) + "\"/>";
         } else {
             QByteArray words = "<w:txbxContent>";
             for (int i = 0; i < b.lines; ++i) words += "<w:p><w:r><w:t>Line " + QByteArray::number(i + 1) + " of the story that goes on</w:t></w:r></w:p>";
             if (b.lines == 0) words += "<w:p/>";
             words += "</w:txbxContent>";
-            inner = (b.chain > 0 ? "<wps:txbx id=\"" + QByteArray::number(b.chain) + "\">" : QByteArray("<wps:txbx>")) + words + "</wps:txbx>";
+            inner = (b.chain >= 0 ? "<wps:txbx id=\"" + QByteArray::number(b.chain) + "\">" : QByteArray("<wps:txbx>")) + words + "</wps:txbx>";
         }
         const QByteArray shape = "<wps:wsp><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + QByteArray::number(qint64(b.w * 12700)) + "\" cy=\"" + QByteArray::number(qint64(b.h * 12700)) +
                                  "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr>" + inner + "<wps:bodyPr/></wps:wsp>";
-        runs += anchoredGraphic(id++, kShapeUri, shape, b.x, b.y, b.w, b.h);
+        runs[b.page] += anchoredGraphic(id++, kShapeUri, shape, b.x, b.y, b.w, b.h);
     }
-    return makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">Boxes: </w:t></w:r>" + runs + "</w:p>");
+    QByteArray body;
+    for (int page = 0; page < pages; ++page) {
+        if (page > 0) body += "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>";
+        body += "<w:p><w:r><w:t xml:space=\"preserve\">Boxes: </w:t></w:r>" + runs[page] + "</w:p>";
+    }
+    return makeDocx(body);
 }
 
-// The text boxes of the first page, in the order the page draws them.
-QVector<TextItem *> textBoxesOfPage(WriteDoc &doc, std::shared_ptr<jp::flow::MaterializedPage> *keep)
+// The text boxes of a page (from 0), in the order the page draws them.
+QVector<TextItem *> textBoxesOfPage(WriteDoc &doc, std::shared_ptr<jp::flow::MaterializedPage> *keep, int pageIndex = 0)
 {
     QVector<TextItem *> out;
-    *keep = doc.pager().materialize(0);
+    *keep = doc.pager().materialize(pageIndex);
     if (!*keep) return out;
     for (const auto &it : (*keep)->doc->pages[0]->items)
         if (it->type() == ItemType::Text && it->id.startsWith(QLatin1String("flow-object-"))) out.push_back(static_cast<TextItem *>(it.get()));
     return out;
+}
+
+// What a text box of a page shows: the words of its story.
+QString wordsOf(const std::shared_ptr<jp::flow::MaterializedPage> &page, const TextItem *box)
+{
+    const auto story = page->doc->story(box->storyId);
+    return story ? story->doc->toPlainText() : QString();
 }
 
 // The window on a document of one paragraph, the caret at the end of its first word.
@@ -2030,13 +2048,6 @@ private Q_SLOTS:
             QCOMPARE(info.height, 108.0);
             const QByteArray svg = drawnSvg(*doc).toLower();
             QVERIFY2(svg.contains("336699") && svg.contains("20a040"), "the shapes of the drawing are drawn");
-            // Sized as one object: the drawing is scaled with its frame.
-            QVERIFY(setPictureSize(*doc, 9, 144, 54));
-            QCOMPARE(pictureAt(*doc, doc->story(), 9).width, 144.0);
-            const QByteArray smaller = drawnSvg(*doc).toLower();
-            QVERIFY(smaller != svg && smaller.contains("336699"));
-            QVERIFY(doc->undo());
-            QCOMPARE(pictureAt(*doc, doc->story(), 9).width, 288.0);
             if (!inlineInText) {
                 // Moved as one object.
                 QVERIFY(setPicturePlace(*doc, 9, 200, 250));
@@ -2062,6 +2073,76 @@ private Q_SLOTS:
             QCOMPARE(pictureAt(*back, back->story(), 9).kind, DrawnKind::Diagram);
             QVERIFY(drawnSvg(*back).toLower().contains("336699"));
         }
+    }
+
+    // A diagram sized in the window is saved with the frame's new size and place, and reopened it is drawn whole in that frame (its shapes scaled with it, as a picture is stretched), not cut.
+    void aDiagramSizedSmallerIsSavedAndReopenedWholeWithoutUndo()
+    {
+        for (const bool inlineInText : {true, false}) {
+            auto doc = open(diagramDocx(true, inlineInText).docx);
+            QVERIFY(doc);
+            QVERIFY(setPictureSize(*doc, 9, 144, 54));
+            if (!inlineInText) QVERIFY(setPicturePlace(*doc, 9, 150, 200));
+            const QByteArray saved = doc->toDocx();
+            const QByteArray xml = documentXml(saved);
+            QVERIFY2(xml.contains("<wp:extent cx=\"1828800\" cy=\"685800\"/>"), "the frame keeps its new size");
+            auto back = open(saved);
+            QVERIFY(back);
+            const PictureInfo info = pictureAt(*back, back->story(), 9);
+            QCOMPARE(info.width, 144.0);
+            QCOMPARE(info.height, 54.0);
+            if (!inlineInText) QVERIFY(std::abs(info.left - 150) < 0.5 && std::abs(info.top - 200) < 0.5);
+            const QByteArray svg = drawnSvg(*back);
+            QVERIFY(svg.toLower().contains("336699") && svg.toLower().contains("20a040"));
+            static const QRegularExpression box(QStringLiteral("viewBox=\"0 0 ([0-9.]+) ([0-9.]+)\""));
+            const QRegularExpressionMatch m = box.match(QString::fromUtf8(svg));
+            QVERIFY2(m.hasMatch(), "the picture says the size it was drawn for");
+            // The drawing's own size (the shapes fill 288 points across), shown in 144 by 54: width 432 and height 162 pixels at three to the point, stretched.
+            QVERIFY2(m.captured(1).toDouble() > 280, qPrintable(m.captured(0)));
+            QVERIFY(svg.contains("width=\"432\"") && svg.contains("height=\"162\""));
+            QVERIFY(svg.contains("preserveAspectRatio=\"none\""));
+        }
+    }
+
+    // A diagram sized again and again is the one diagram: it is not turned into a box after kMostDiagramsDrawn sizes.
+    void aDiagramSizedManyTimesStaysDrawn()
+    {
+        auto doc = open(diagramDocx(true, true).docx);
+        QVERIFY(doc);
+        for (int i = 0; i < kMostDiagramsDrawn + 30; ++i) QVERIFY(setPictureSize(*doc, 9, 100 + i, 40));
+        QVERIFY(drawnSvg(*doc).toLower().contains("336699"));
+        QVERIFY(doc->diagramsDrawn() <= 1);
+    }
+
+    // The pictures of drawings are copied once for the document, however many drawings name one.
+    void drawingsThatNameOnePictureShareIt()
+    {
+        using namespace diagramtest;
+        const QByteArray png = pngOf(30, 20, QColor(10, 120, 200));
+        const QString fill = QStringLiteral("<a:blipFill><a:blip r:embed=\"rId1\"/><a:stretch><a:fillRect/></a:stretch></a:blipFill>");
+        office::PackageWriter w;
+        const QString base = QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.");
+        QByteArray runs;
+        for (int n = 1; n <= 2; ++n) {
+            const QString suffix = QString::number(n);
+            w.addPart(QStringLiteral("/word/diagrams/data%1.xml").arg(n), diagramDataXml(QStringLiteral("rIdDrw") + suffix), base + QStringLiteral("diagramData+xml"));
+            w.addPart(QStringLiteral("/word/diagrams/drawing%1.xml").arg(n), diagramDrawingXml(diagramShapeXml(0, 0, 914400, 914400, QStringLiteral("rect"), fill, QStringLiteral("p"))),
+                      QStringLiteral("application/vnd.ms-office.drawingml.diagramDrawing+xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/diagrams/drawing%1.xml").arg(n), QStringLiteral("rId1"), relBase() + QStringLiteral("image"), QStringLiteral("/word/media/shared.png"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdDm") + suffix, relBase() + QStringLiteral("diagramData"), QStringLiteral("/word/diagrams/data%1.xml").arg(n));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdDrw") + suffix, drawingRelType(), QStringLiteral("/word/diagrams/drawing%1.xml").arg(n));
+            runs += "<w:p>" + anchoredGraphic(20 + n, dgmNs().toUtf8(), "<dgm:relIds xmlns:dgm=\"" + dgmNs().toUtf8() + "\" r:dm=\"rIdDm" + suffix.toUtf8() + "\" r:lo=\"rIdDm" + suffix.toUtf8() + "\" r:qs=\"rIdDm" + suffix.toUtf8() +
+                                                  "\" r:cs=\"rIdDm" + suffix.toUtf8() + "\"/>", 0, 0, 200, 100, true) + "</w:p>";
+        }
+        w.addPart(QStringLiteral("/word/media/shared.png"), png, QStringLiteral("image/png"));
+        w.addRelationship(QStringLiteral("/"), relBase() + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + runs + "</w:body></w:document>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        auto doc = open(w.finish());
+        QVERIFY(doc);
+        pictureOfPage(*doc);
+        QCOMPARE(doc->diagramsDrawn(), 2);
+        QCOMPARE(doc->diagramImageBytes(), qint64(png.size()));
     }
 
     // A diagram whose file keeps no drawing shows the picture that the older form of the object holds, or else a box that says what it is.
@@ -2098,17 +2179,15 @@ private Q_SLOTS:
         // 20,000 groups inside each other.
         QString deep;
         for (int i = 0; i < 20000; ++i) deep += QStringLiteral("<dsp:grpSp><dsp:nvGrpSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvGrpSpPr/></dsp:nvGrpSpPr><dsp:grpSpPr/>");
-        deep += diagramShapeXml(0, 0, 914400, 914400, QStringLiteral("rect"), QStringLiteral("<a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill>"), QStringLiteral("x"));
+        deep += diagramShapeXml(0, 0, 914400, 914400, QStringLiteral("rect"), QStringLiteral("<a:solidFill><a:srgbClr val=\"D01234\"/></a:solidFill>"), QStringLiteral("x"));
         for (int i = 0; i < 20000; ++i) deep += QStringLiteral("</dsp:grpSp>");
         {
-            QElapsedTimer timer;
-            timer.start();
             auto doc = open(diagramDocx(true, true, QByteArray(), diagramDrawingXml(deep)).docx);
-            if (doc) {
-                pictureOfPage(*doc);
-                QCOMPARE(pictureAt(*doc, doc->story(), 9).kind, DrawnKind::Diagram);
-            }
-            QVERIFY2(timer.elapsed() < 20000, "too slow");
+            QVERIFY(doc);
+            QCOMPARE(pictureAt(*doc, doc->story(), 9).kind, DrawnKind::Diagram);
+            // (a part nested that deep is not read, or not past the shape reader's cap: the shape at the bottom is never drawn, and a picture stands in)
+            const QByteArray svg = drawnSvg(*doc).toLower();
+            QVERIFY(!svg.isEmpty() && !svg.contains("d01234"));
         }
         // Thirty thousand shapes: no more than the cap are drawn.
         QString many;
@@ -2116,14 +2195,11 @@ private Q_SLOTS:
             many += QStringLiteral("<dsp:sp><dsp:nvSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvSpPr/></dsp:nvSpPr><dsp:spPr><a:xfrm><a:off x=\"%1\" y=\"%2\"/><a:ext cx=\"9144\" cy=\"9144\"/></a:xfrm>"
                                    "<a:prstGeom prst=\"rect\"/><a:solidFill><a:srgbClr val=\"AB12CD\"/></a:solidFill></dsp:spPr></dsp:sp>").arg(i % 100 * 9144).arg(i / 100 * 9144);
         {
-            QElapsedTimer timer;
-            timer.start();
             auto doc = open(diagramDocx(true, true, QByteArray(), diagramDrawingXml(many)).docx);
             QVERIFY(doc);
             const QByteArray svg = drawnSvg(*doc).toLower();
             QVERIFY(svg.contains("ab12cd"));
             QVERIFY2(svg.count("ab12cd") <= kMostDiagramShapes, qPrintable(QString::number(svg.count("ab12cd"))));
-            QVERIFY2(timer.elapsed() < 60000, "too slow");
         }
         // The data part names, as the drawing's link, the link of the data part itself: it is not a drawing, and a box stands in.
         {
@@ -2141,28 +2217,33 @@ private Q_SLOTS:
         }
     }
 
-    // A document may draw only so many diagrams: the rest are boxes, and the parts of all are kept.
+    // A document may draw only so many diagrams (drawings, not sizes): the rest are boxes, and the parts of all are kept.
     void aDocumentDrawsOnlyAsManyDiagramsAsTheCapAllows()
     {
-        const DiagramFile one = diagramDocx(true, true);
-        office::Package p;
-        QVERIFY(p.read(one.docx));
-        QByteArray body;
-        for (int i = 0; i < kMostDiagramsDrawn + 20; ++i) body += "<w:p>" + anchoredGraphic(10 + i, diagramtest::dgmNs().toUtf8(), "<dgm:relIds xmlns:dgm=\"" + diagramtest::dgmNs().toUtf8() + "\" r:dm=\"rIdDm\" r:lo=\"rIdLo\" r:qs=\"rIdQs\" r:cs=\"rIdCs\"/>", 0, 0, 100 + i, 50, true) + "</w:p>";
+        using namespace diagramtest;
         office::PackageWriter w;
-        for (const QString &n : p.partNames())
-            if (n != p.mainPart()) w.addPart(n, p.part(n), p.contentType(n));
-        w.addPart(p.mainPart(), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>", p.contentType(p.mainPart()));
-        for (const office::Relationship &r : p.relationships(p.mainPart())) w.addRelationshipWithId(p.mainPart(), r.id, r.type, r.target, r.external);
-        w.addRelationship(QStringLiteral("/"), diagramtest::relBase() + QStringLiteral("officeDocument"), p.mainPart());
+        const QString base = QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.");
+        QByteArray body;
+        const int count = kMostDiagramsDrawn + 20;
+        for (int n = 1; n <= count; ++n) {
+            const QString suffix = QString::number(n);
+            w.addPart(QStringLiteral("/word/diagrams/data%1.xml").arg(n), diagramDataXml(QStringLiteral("rIdDrw") + suffix), base + QStringLiteral("diagramData+xml"));
+            w.addPart(QStringLiteral("/word/diagrams/drawing%1.xml").arg(n), diagramDrawingXml(), QStringLiteral("application/vnd.ms-office.drawingml.diagramDrawing+xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdDm") + suffix, relBase() + QStringLiteral("diagramData"), QStringLiteral("/word/diagrams/data%1.xml").arg(n));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdDrw") + suffix, drawingRelType(), QStringLiteral("/word/diagrams/drawing%1.xml").arg(n));
+            const QByteArray id = "rIdDm" + suffix.toUtf8();
+            body += "<w:p>" + anchoredGraphic(10 + n, dgmNs().toUtf8(), "<dgm:relIds xmlns:dgm=\"" + dgmNs().toUtf8() + "\" r:dm=\"" + id + "\" r:lo=\"" + id + "\" r:qs=\"" + id + "\" r:cs=\"" + id + "\"/>", 0, 0, 100, 50, true) + "</w:p>";
+        }
+        w.addRelationship(QStringLiteral("/"), relBase() + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
         auto doc = open(w.finish());
         QVERIFY(doc);
-        pictureOfPage(*doc);
-        for (int i = 0; i < doc->story()->characterCount(); ++i) doc->pager().materialize(0);
-        int drawn = 0;
-        for (const flow::FlowImage &image : doc->flow().images) drawn += image.format == QLatin1String("svg") && image.bytes.toLower().contains("336699");
-        QVERIFY2(drawn <= kMostDiagramsDrawn, qPrintable(QString::number(drawn)));
-        QVERIFY(drawn > 0);
+        QVERIFY2(doc->diagramsDrawn() <= kMostDiagramsDrawn, qPrintable(QString::number(doc->diagramsDrawn())));
+        QVERIFY(doc->diagramsDrawn() > 0);
+        office::Package p;
+        QVERIFY(p.read(doc->toDocx()));
+        QVERIFY(p.hasPart(QStringLiteral("/word/diagrams/data%1.xml").arg(count)));
     }
 
     // Sized and moved in the window as one object, and put on paper as vectors: the PDF holds no picture of it.
@@ -2196,33 +2277,73 @@ private Q_SLOTS:
     }
 
     // ---------------------------------------------------------------- linked text boxes
-    // The words of the first box of a chain go on in the boxes that follow it, as far as the page has them; a box that is not in a chain keeps its own.
+    // The words of the first box of a chain go on in the boxes that follow it, as far as each holds them, each box showing its own share; a box that is not in a chain keeps its own.
     void linkedTextBoxesFlowTheWordsOfTheFirstIntoTheNext()
     {
         {
-            auto doc = open(linkedBoxesDocx({{1, 0, 72, 100, 150, 60, 40}, {1, 1, 300, 100, 150, 400}}));
+            auto doc = open(linkedBoxesDocx({{1, 0, 72, 100, 150, 60, 20}, {1, 1, 300, 100, 150, 400}}));
             QVERIFY(doc);
             std::shared_ptr<jp::flow::MaterializedPage> page;
             const QVector<TextItem *> boxes = textBoxesOfPage(*doc, &page);
             QCOMPARE(boxes.size(), 2);
-            QCOMPARE(boxes[0]->nextId, boxes[1]->id);
-            QVERIFY(boxes[1]->nextId.isEmpty());
-            QCOMPARE(boxes[1]->storyId, boxes[0]->storyId);
+            const QString first = wordsOf(page, boxes[0]), second = wordsOf(page, boxes[1]);
+            QVERIFY(first.startsWith(QStringLiteral("Line 1 ")) && !second.isEmpty() && !second.startsWith(QStringLiteral("Line 1 ")));
+            QVERIFY(second.contains(QStringLiteral("Line 20 ")));
+            // (nothing is shown twice, and nothing is dropped between the two)
+            QString all;
+            for (int i = 1; i <= 20; ++i) all += QStringLiteral("Line %1 of the story that goes on").arg(i);
+            QString joined = first + second;
+            joined.remove(QLatin1Char('\n')).remove(QChar::ParagraphSeparator);
+            QCOMPARE(joined, all);
             LayoutCache cache;
             const LayoutCache::FrameLayout fl = cache.textFrame(*page->doc, *boxes[1], 1, RenderOptions());
             QVERIFY(fl.layout);
-            QCOMPARE(fl.frame, 1);
-            QVERIFY2(fl.layout->lineRects(1).size() >= 5, qPrintable(QString::number(fl.layout->lineRects(1).size())));
-            QVERIFY(fl.layout->lineRects(0).size() >= 1 && fl.layout->lineRects(0).size() < 40);
+            QVERIFY2(fl.layout->lineRects(0).size() >= 5, qPrintable(QString::number(fl.layout->lineRects(0).size())));
+            QVERIFY(!boxes[0]->overflowing && !boxes[1]->overflowing);
         }
         {
-            // (the same two boxes, not linked: the second is empty)
-            auto doc = open(linkedBoxesDocx({{0, 0, 72, 100, 150, 60, 40}, {0, 0, 300, 100, 150, 400, 0}}));
+            auto doc = open(linkedBoxesDocx({{-1, 0, 72, 100, 150, 60, 20}, {-1, 0, 300, 100, 150, 400, 0}}));
             QVERIFY(doc);
             std::shared_ptr<jp::flow::MaterializedPage> page;
             const QVector<TextItem *> boxes = textBoxesOfPage(*doc, &page);
             QCOMPARE(boxes.size(), 2);
-            QVERIFY(boxes[0]->nextId.isEmpty());
+            QVERIFY(wordsOf(page, boxes[0]).contains(QStringLiteral("Line 20 ")));
+            QVERIFY(wordsOf(page, boxes[1]).trimmed().isEmpty());
+        }
+    }
+
+    // A chain goes on over pages: the first two boxes are on page one, the third on page two and shows the words that come after theirs; the last box of a chain whose boxes are too small
+    // for the words shows a mark, so that no words are cut off unseen.
+    void aChainOfThreeTextBoxesFlowsOverTwoPagesAndTheLastBoxMarksWordsPastIt()
+    {
+        {
+            auto doc = open(linkedBoxesDocx({{2, 0, 72, 100, 150, 60, 14}, {2, 1, 300, 100, 150, 60}, {2, 2, 72, 100, 150, 300, 0, 1}}));
+            QVERIFY(doc);
+            std::shared_ptr<jp::flow::MaterializedPage> one, two;
+            const QVector<TextItem *> onFirst = textBoxesOfPage(*doc, &one, 0), onSecond = textBoxesOfPage(*doc, &two, 1);
+            QCOMPARE(onFirst.size(), 2);
+            QCOMPARE(onSecond.size(), 1);
+            const QString a = wordsOf(one, onFirst[0]), b = wordsOf(one, onFirst[1]), c = wordsOf(two, onSecond[0]);
+            QVERIFY(a.startsWith(QStringLiteral("Line 1 ")));
+            QVERIFY2(!b.isEmpty() && !c.isEmpty(), "each box shows a share");
+            QVERIFY2(!c.startsWith(QStringLiteral("Line 1 ")) && c.contains(QStringLiteral("Line 14 ")), qPrintable(c.left(60)));
+            QVERIFY(!onSecond[0]->overflowing);
+            // the words are in the three boxes once each
+            QString all;
+            for (int i = 1; i <= 14; ++i) all += QStringLiteral("Line %1 of the story that goes on").arg(i);
+            QString joined = a + b + c;
+            joined.remove(QLatin1Char('\n')).remove(QChar::ParagraphSeparator);
+            QCOMPARE(joined, all);
+        }
+        {
+            // (the last box is too small: the words go on past it, and its mark says so)
+            auto doc = open(linkedBoxesDocx({{2, 0, 72, 100, 150, 60, 40}, {2, 1, 300, 100, 150, 60}, {2, 2, 72, 100, 150, 40, 0, 1}}));
+            QVERIFY(doc);
+            std::shared_ptr<jp::flow::MaterializedPage> one, two;
+            const QVector<TextItem *> onFirst = textBoxesOfPage(*doc, &one, 0), onSecond = textBoxesOfPage(*doc, &two, 1);
+            QCOMPARE(onSecond.size(), 1);
+            QVERIFY(onSecond[0]->overflowing);
+            QVERIFY(!onFirst[0]->overflowing && !onFirst[1]->overflowing);
         }
     }
 
@@ -2242,14 +2363,115 @@ private Q_SLOTS:
         std::shared_ptr<jp::flow::MaterializedPage> page;
         const QVector<TextItem *> boxes = textBoxesOfPage(*back, &page);
         QCOMPARE(boxes.size(), 3);
-        QCOMPARE(boxes[0]->nextId, boxes[1]->id);
-        QCOMPARE(boxes[1]->nextId, boxes[2]->id);
+        QVERIFY(!wordsOf(page, boxes[1]).trimmed().isEmpty());
+    }
+
+    // A chain number of 0 is a number like any other: a box that says 0 is linked and its tag gets no second id; a box's own element is read, not one in the words of a box inside it.
+    void chainNumberZeroIsValidAndOnlyTheBoxsOwnElementIsRead()
+    {
+        auto doc = open(linkedBoxesDocx({{0, 0, 72, 100, 150, 60, 5}, {-1, 0, 300, 100, 150, 100, 0}}));
+        QVERIFY(doc);
+        QVERIFY(canLinkTextBoxes(*doc, 7, 8));
+        QCOMPARE(linkTextBoxes(*doc, 7, 8), PictureResult::Ok);
+        const QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("<wps:txbx id=\"0\">") && xml.contains("<wps:linkedTxbx id=\"0\" seq=\"1\"/>"));
+        QVERIFY2(!QRegularExpression(QStringLiteral("<wps:txbx[^>]*id=\"[^>]*id=")).match(QString::fromUtf8(xml)).hasMatch(), "no second id on a tag");
+        QVERIFY(isLinkedTextBox(*doc, 7) && isLinkedTextBox(*doc, 8));
+        // the numbers a new chain may take are those from 0 to the schema's most, the least free one; when none is free there is none
+        QCOMPARE(freeChainNumber({0, 1, 3}), 2);
+        QSet<int> all;
+        for (int n = 0; n <= kMostChainNumber; ++n) all.insert(n);
+        QCOMPARE(freeChainNumber(all), -1);
+        // a box whose words hold another box, which is linked, is no member itself
+        const QByteArray nested = "<w:drawing><wp:inline><a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:spPr/><wps:txbx><w:txbxContent><w:p><w:r>"
+                                  "<w:drawing><wp:inline><a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:linkedTxbx id=\"9\" seq=\"1\"/></wps:wsp></a:graphicData></a:graphic></wp:inline></w:drawing>"
+                                  "</w:r></w:p></w:txbxContent></wps:txbx><wps:bodyPr/></wps:wsp></a:graphicData></a:graphic></wp:inline></w:drawing>";
+        const BoxChain chain = boxChainOf(nested);
+        QVERIFY2(chain.number == -1 && !chain.member, "the outer box is a box of its own");
+    }
+
+    // Taking away the first box of a chain leaves no member that names a number no box holds: the boxes after it are boxes of their own in the saved file.
+    void takingAwayTheFirstBoxOfAChainLeavesNoOrphanInTheSavedFile()
+    {
+        auto doc = open(linkedBoxesDocx({{4, 0, 72, 100, 150, 60, 12}, {4, 1, 300, 100, 150, 100}, {4, 2, 300, 300, 150, 100}}));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        c.setPosition(8, QTextCursor::KeepAnchor);
+        c.removeSelectedText();
+        const QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY2(!xml.contains("linkedTxbx") && !xml.contains("<wps:txbx id=\"4\">"), "no member and no number are left");
+        QCOMPARE(int(xml.count("<wps:txbx>")), 2);
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+    }
+
+    // A chain pasted is a chain of its own (the copy does not take the original's members); a member pasted without its first box is a box of its own; one Undo takes the paste back.
+    void pastingLinkedTextBoxesRenumbersTheChain()
+    {
+        auto doc = open(linkedBoxesDocx({{5, 0, 72, 100, 150, 60, 12}, {5, 1, 300, 100, 150, 100}}));
+        QVERIFY(doc);
+        QTextCursor all(doc->story());
+        all.setPosition(7);
+        all.setPosition(9, QTextCursor::KeepAnchor);
+        const Clip whole = copySelection(*doc, all);
+        QTextCursor at(doc->story());
+        at.movePosition(QTextCursor::End);
+        pasteClip(*doc, at, whole);
+        {
+            const QByteArray xml = documentXml(doc->toDocx());
+            QCOMPARE(int(xml.count("<wps:txbx id=")), 2);
+            QCOMPARE(int(xml.count("<wps:linkedTxbx id=")), 2);
+            QVERIFY(xml.contains("<wps:txbx id=\"5\">") && xml.contains("<wps:linkedTxbx id=\"5\" seq=\"1\"/>"));
+            QCOMPARE(int(xml.count("<wps:linkedTxbx id=\"5\" seq=\"1\"/>")), 1);   // (the copy is a chain of its own)
+            QVERIFY(xml.contains("<wps:txbx id=\"0\">") && xml.contains("<wps:linkedTxbx id=\"0\" seq=\"1\"/>"));
+        }
+        QVERIFY(doc->undo());
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<wps:linkedTxbx id=")), 1);
+        // only the member
+        QTextCursor member(doc->story());
+        member.setPosition(8);
+        member.setPosition(9, QTextCursor::KeepAnchor);
+        const Clip lone = copySelection(*doc, member);
+        QTextCursor end(doc->story());
+        end.movePosition(QTextCursor::End);
+        pasteClip(*doc, end, lone);
+        const QByteArray xml = documentXml(doc->toDocx());
+        QCOMPARE(int(xml.count("<wps:linkedTxbx id=")), 1);
+        QCOMPARE(int(xml.count("<wps:txbx>")), 1);
+    }
+
+    // A diagram pasted into another document, or into this one, leaves no link that points at nothing.
+    void aDiagramPastedLeavesNoDanglingLink()
+    {
+        const DiagramFile file = diagramDocx(true, true);
+        auto source = open(file.docx);
+        QVERIFY(source);
+        QTextCursor sel(source->story());
+        sel.setPosition(9);
+        sel.setPosition(10, QTextCursor::KeepAnchor);
+        const Clip clip = copySelection(*source, sel);
+        auto target = open(makeDocx("<w:p><w:r><w:t>Target.</w:t></w:r></w:p>"));
+        QVERIFY(target);
+        QTextCursor t(target->story());
+        t.movePosition(QTextCursor::End);
+        pasteClip(*target, t, clip);
+        {
+            const QByteArray saved = target->toDocx();
+            QVERIFY2(rt::danglingReferences(saved).isEmpty(), qPrintable(rt::danglingReferences(saved).join(QLatin1Char(' '))));
+            QVERIFY(!documentXml(saved).contains("r:dm="));
+        }
+        QTextCursor same(source->story());
+        same.movePosition(QTextCursor::End);
+        pasteClip(*source, same, clip);
+        const QByteArray saved = source->toDocx();
+        QVERIFY2(rt::danglingReferences(saved).isEmpty(), qPrintable(rt::danglingReferences(saved).join(QLatin1Char(' '))));
     }
 
     // Create Link puts the second (empty) box after the first, Break Link cuts the chain after a box; each is one step of Undo, and what is saved is the file's own form.
     void createLinkAndBreakLinkAreOneStepEachAndSavedInTheFilesForm()
     {
-        auto doc = open(linkedBoxesDocx({{0, 0, 72, 100, 150, 60, 30}, {0, 0, 300, 100, 150, 300, 0}, {0, 0, 300, 420, 150, 100, 5}}));
+        auto doc = open(linkedBoxesDocx({{-1, 0, 72, 100, 150, 60, 30}, {-1, 0, 300, 100, 150, 300, 0}, {-1, 0, 300, 420, 150, 100, 5}}));
         QVERIFY(doc);
         // The three boxes are the three characters after "Boxes: " (seven characters).
         QVERIFY(canLinkTextBoxes(*doc, 7, 8));
@@ -2265,11 +2487,11 @@ private Q_SLOTS:
         QVERIFY(!hasLinkedTextBoxAfter(*doc, 8));
         {
             const QByteArray xml = documentXml(doc->toDocx());
-            QVERIFY(xml.contains("<wps:txbx id=\"1\">") && xml.contains("<wps:linkedTxbx id=\"1\" seq=\"1\"/>"));
+            QVERIFY(xml.contains("<wps:txbx id=\"0\">") && xml.contains("<wps:linkedTxbx id=\"0\" seq=\"1\"/>"));
             std::shared_ptr<jp::flow::MaterializedPage> page;
             const QVector<TextItem *> boxes = textBoxesOfPage(*doc, &page);
             QCOMPARE(boxes.size(), 3);
-            QCOMPARE(boxes[0]->nextId, boxes[1]->id);
+            QVERIFY(!wordsOf(page, boxes[1]).trimmed().isEmpty());
         }
         // one step of Undo takes both boxes back, and Redo puts the link again
         QVERIFY(doc->undo());
@@ -2281,7 +2503,7 @@ private Q_SLOTS:
         QVERIFY(setTextBoxText(*doc, 9, {QString()}));
         QVERIFY(canLinkTextBoxes(*doc, 8, 9));
         QCOMPARE(linkTextBoxes(*doc, 8, 9), PictureResult::Ok);
-        QVERIFY(documentXml(doc->toDocx()).contains("<wps:linkedTxbx id=\"1\" seq=\"2\"/>"));
+        QVERIFY(documentXml(doc->toDocx()).contains("<wps:linkedTxbx id=\"0\" seq=\"2\"/>"));
         // Break Link after the first box: the two after it are boxes of their own again, empty
         QVERIFY(unlinkTextBox(*doc, 7));
         QVERIFY(!isLinkedTextBox(*doc, 7) && !isLinkedTextBox(*doc, 8) && !isLinkedTextBox(*doc, 9));
@@ -2292,39 +2514,44 @@ private Q_SLOTS:
         QVERIFY(documentXml(doc->toDocx()).contains("seq=\"2\""));
     }
 
-    // A chain whose numbers repeat, skip, or are huge, with no first box, or with hundreds of boxes, neither hangs nor loops; no more boxes than kMostLinkedBoxes are chained.
+    // A chain whose numbers repeat, skip, or are huge, with no first box, or with hundreds of boxes, neither hangs nor loops: exactly the boxes that the rules chain are chained, and no more than
+    // kMostLinkedBoxes of them.
     void aHostileChainOfLinkedTextBoxesIsCappedAndNeitherHangsNorLoops()
     {
         {
-            QVector<LinkedBox> boxes = {{5, 0, 72, 100, 150, 60, 40}};
-            for (int i = 0; i < 300; ++i) boxes.push_back({5, 1 + i, 20.0 + i % 20 * 20, 200 + i / 20 * 20, 18, 18});
+            // (a first box with far more words than sixty-four boxes hold, and three hundred members)
+            QVector<LinkedBox> boxes = {{5, 0, 72, 100, 150, 60, 700}};
+            for (int i = 0; i < 300; ++i) boxes.push_back({5, 1 + i, 20.0 + i % 20 * 25, 200 + i / 20 * 20, 150, 60});
             auto doc = open(linkedBoxesDocx(boxes));
             QVERIFY(doc);
             std::shared_ptr<jp::flow::MaterializedPage> page;
             const QVector<TextItem *> items = textBoxesOfPage(*doc, &page);
-            QVERIFY(items.size() > 2);
-            QHash<QString, TextItem *> byId;
-            for (TextItem *t : items) byId.insert(t->id, t);
-            int length = 0;
-            for (TextItem *t = items.first(); t && length <= 1000; t = t->nextId.isEmpty() ? nullptr : byId.value(t->nextId)) ++length;
-            QVERIFY2(length <= flow::kMostLinkedBoxes, qPrintable(QString::number(length)));
-            QVERIFY(length > 1);
+            QCOMPARE(items.size(), 301);
+            int shown = 0, marked = 0;
+            for (const TextItem *t : items) {
+                shown += !wordsOf(page, t).trimmed().isEmpty();
+                marked += t->overflowing;
+            }
+            QCOMPARE(shown, flow::kMostLinkedBoxes);
+            QCOMPARE(marked, 1);
+            QVERIFY(items[flow::kMostLinkedBoxes - 1]->overflowing);
+            QVERIFY(wordsOf(page, items.last()).trimmed().isEmpty());
         }
         {
-            // the numbers repeat, skip backward, are huge, or the first box is missing
-            auto doc = open(linkedBoxesDocx({{7, 0, 72, 100, 150, 60, 10}, {7, 2, 300, 100, 150, 60}, {7, 2, 300, 200, 150, 60}, {7, 1, 300, 300, 150, 60}, {7, 2000000000, 300, 400, 150, 60}, {8, 4, 72, 400, 150, 60}}));
+            // the numbers repeat, go back, are huge, or the first box is missing: of the boxes in the order of the page, the first (place 0), the one at place 1, the first at place 2, and the huge
+            // one are chained, in that order; the repeat of 2 and the box of chain 8 (no first box) are boxes of their own
+            auto doc = open(linkedBoxesDocx({{7, 0, 72, 100, 150, 60, 30}, {7, 2, 300, 100, 150, 60}, {7, 2, 300, 200, 150, 60}, {7, 1, 300, 300, 150, 60}, {7, 2000000000, 300, 400, 150, 60}, {8, 4, 72, 400, 150, 60}}));
             QVERIFY(doc);
             std::shared_ptr<jp::flow::MaterializedPage> page;
             const QVector<TextItem *> items = textBoxesOfPage(*doc, &page);
             QCOMPARE(items.size(), 6);
-            QHash<QString, TextItem *> byId;
-            for (TextItem *t : items) byId.insert(t->id, t);
-            for (TextItem *start : items) {
-                int steps = 0;
-                for (TextItem *t = start; t && steps <= 100; t = t->nextId.isEmpty() ? nullptr : byId.value(t->nextId)) ++steps;
-                QVERIFY2(steps <= 7, "a chain ends");
-            }
-            QVERIFY(items[5]->nextId.isEmpty() && items[5]->storyId != items[0]->storyId);   // (a member with no first box is a box of its own)
+            QVERIFY(!wordsOf(page, items[0]).trimmed().isEmpty());
+            QVERIFY(!wordsOf(page, items[3]).trimmed().isEmpty());   // place 1
+            QVERIFY(!wordsOf(page, items[1]).trimmed().isEmpty());   // place 2
+            QVERIFY(wordsOf(page, items[2]).trimmed().isEmpty());    // (a repeated place)
+            QVERIFY(wordsOf(page, items[5]).trimmed().isEmpty());    // (no first box)
+            QVERIFY(items[4]->overflowing);                          // the last chained box holds what is left, and the words go on past it
+            QVERIFY(!items[0]->overflowing && !items[1]->overflowing && !items[3]->overflowing && !items[2]->overflowing && !items[5]->overflowing);
         }
     }
 

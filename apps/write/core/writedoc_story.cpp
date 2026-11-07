@@ -48,7 +48,11 @@ struct NumState {
 void WriteDoc::buildStory(const QVector<Block> &body)
 {
     m_letteringShapes = m_letteringLetters = m_boxTableCells = 0;
-    m_diagramsDrawn = 0;
+    m_diagramPictures.clear();
+    m_diagramsSeen.clear();
+    m_diagramPackages.clear();
+    m_diagramImages.clear();
+    m_diagramBytes = m_diagramImageBytes = 0;
     m_endnoteRefs.clear();
     fillStory(story(), body, false);
     appendEndnotes();
@@ -1571,40 +1575,55 @@ void WriteDoc::collectObjectRecords()
     m_collectAt = std::max<qsizetype>(2000, 2 * m_objectHeld.size());
 }
 
-QByteArray WriteDoc::diagramPicture(const QVector<Relationship> &links, const QString &dataId, double width, double height)
+QByteArray WriteDoc::diagramPicture(const QString &part, const QVector<Relationship> &links, const QString &dataId, double width, double height)
 {
-    const QString drawing = diagramDrawingPartOf(links, [this](const QString &name) { return partData(name); }, dataId);
-    QString type;
-    const QByteArray xml = drawing.isEmpty() ? QByteArray() : partData(drawing, &type);
-    if (xml.isEmpty() || xml.size() > kMostDiagramDrawingBytes) return {};
-    // The frame the drawing was made for is the one it was first shown in: a frame sized since scales the drawing.
-    if (m_diagramMade.size() > 4 * kMostDiagramsDrawn) m_diagramMade.clear();
-    const QSizeF shown(width, height);
-    const QSizeF natural = m_diagramMade.value(drawing, shown);
-    m_diagramMade.insert(drawing, natural);
-    const QString key = QStringLiteral("%1|%2x%3|%4x%5").arg(drawing).arg(natural.width()).arg(natural.height()).arg(width).arg(height);
+    // The drawing the data link leads to is looked for once (the data part is read to find it).
+    const QString linkKey = part + QLatin1Char('|') + dataId;
+    auto found = m_diagramDrawingOf.constFind(linkKey);
+    if (found == m_diagramDrawingOf.cend()) found = m_diagramDrawingOf.insert(linkKey, diagramDrawingPartOf(links, [this](const QString &name) { return partData(name); }, dataId));
+    const QString drawing = found.value();
+    if (drawing.isEmpty()) return {};
+    const QString key = QStringLiteral("%1|%2x%3").arg(drawing).arg(width).arg(height);
     const auto kept = m_diagramPictures.constFind(key);
     if (kept != m_diagramPictures.cend()) return kept.value();
-    if (m_diagramsDrawn >= kMostDiagramsDrawn || m_diagramBytes > (qint64(128) << 20)) return {};
-    ++m_diagramsDrawn;
-    // The pictures the drawing names (its fills), in a package of their own for the shapes' reader.
-    PackageWriter w;
-    w.addPart(drawing, xml, type);
-    qint64 pictureBytes = 0;
-    int pictures = 0;
-    for (const Relationship &r : m_wml.partRelationships.value(drawing)) {
-        if (r.external || !r.type.endsWith(QLatin1String("/image")) || ++pictures > 64) continue;
-        QString contentType;
-        const QByteArray bytes = partData(r.target, &contentType);
-        if (bytes.isEmpty() || (pictureBytes += bytes.size()) > (qint64(64) << 20)) continue;
-        w.addPart(r.target, bytes, contentType);
-        w.addRelationshipWithId(drawing, r.id, r.type, r.target);
+    // (What is counted is the diagrams, not the sizes they are drawn at: a diagram sized again and again is the one diagram.)
+    if (!m_diagramsSeen.contains(drawing) && m_diagramsSeen.size() >= kMostDiagramsDrawn) return {};
+    if (m_diagramBytes > (qint64(128) << 20)) return {};
+    QString type;
+    const QByteArray xml = partData(drawing, &type);
+    if (xml.isEmpty() || xml.size() > kMostDiagramDrawingBytes) return {};
+    m_diagramsSeen.insert(drawing);
+    // The pictures the drawing names (its fills) are in a package of their own for the shapes' reader, made once for the drawing; each picture part is copied once for the document, however
+    // many drawings name it, and the copies come to no more than a cap.
+    std::shared_ptr<Package> package = m_diagramPackages.value(drawing);
+    if (!package) {
+        PackageWriter w;
+        w.addPart(drawing, xml, type);
+        int pictures = 0;
+        for (const Relationship &r : m_wml.partRelationships.value(drawing)) {
+            if (r.external || !r.type.endsWith(QLatin1String("/image")) || ++pictures > 64) continue;
+            const qint64 size = m_diagramImages.contains(r.target) ? 0 : qint64(partData(r.target).size());
+            if (m_diagramImageBytes + size > (qint64(64) << 20)) continue;
+            QString contentType;
+            const QByteArray bytes = partData(r.target, &contentType);
+            if (bytes.isEmpty()) continue;
+            if (size > 0) {
+                m_diagramImageBytes += size;
+                m_diagramImages.insert(r.target);
+            }
+            w.addPart(r.target, bytes, contentType);
+            w.addRelationshipWithId(drawing, r.id, r.type, r.target);
+        }
+        package = std::make_shared<Package>();
+        package->read(w.finish());
+        m_diagramPackages.insert(drawing, package);
     }
-    Package package;
-    package.read(w.finish());
-    QByteArray svg = diagramDrawingSvg(xml, drawing, &package, theme() ? *theme() : defaultTheme(), natural, shown);
+    const QByteArray svg = diagramDrawingSvg(xml, drawing, package.get(), theme() ? *theme() : defaultTheme(), QSizeF(), QSizeF(width, height));
+    if (m_diagramPictures.size() > 4 * kMostDiagramsDrawn) {
+        m_diagramPictures.clear();
+        m_diagramBytes = 0;
+    }
     m_diagramBytes += svg.size();
-    if (m_diagramPictures.size() > 4 * kMostDiagramsDrawn) m_diagramPictures.clear();
     m_diagramPictures.insert(key, svg);
     return svg;
 }
@@ -1640,7 +1659,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         if (s.embed.isEmpty() && !s.diagramEmbed.isEmpty()) {
             if (f.images.size() >= kMostImages || s.width <= 0 || s.height <= 0) return -1;
             const QVector<Relationship> &diagramLinks = part.isEmpty() ? m_wml.mainRelationships : m_wml.partRelationships.value(part);
-            QByteArray svg = diagramPicture(diagramLinks, s.diagramEmbed, s.width, s.height);
+            QByteArray svg = diagramPicture(part, diagramLinks, s.diagramEmbed, s.width, s.height);
             if (svg.isEmpty()) {
                 for (const Shape &older : readFallbackShapes(atom.raw)) {
                     if (older.kind != Shape::Picture || older.embed.isEmpty()) continue;
