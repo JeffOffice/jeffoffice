@@ -22,6 +22,7 @@
 #include "office/repair.h"
 #include "odt/odttemplate.h"
 
+#include <QScopeGuard>
 #include <QAction>
 #include <QCryptographicHash>
 #include <QApplication>
@@ -413,14 +414,25 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
         return false;
     }
     // The mark that a document is final is a property a .odt file does not keep: said, so that the window and the file do not disagree.
+    office::PackageProps markedProps;
+    bool unmarkedForSave = false;
     if (odt && m_doc->markedAsFinal()) {
         notice(tr("Save"), tr("This document is marked as final, and a .odt file can't hold that mark. The file is saved without it."));
         if (!asCopy) {
-            office::PackageProps unmarked = m_doc->packageProps();
+            markedProps = m_doc->packageProps();
+            office::PackageProps unmarked = markedProps;
             unmarked.custom = office::withMarkAsFinal(unmarked.custom, false);
             m_doc->setPackageProps(unmarked);
+            unmarkedForSave = true;
         }
     }
+    // (the mark comes back if the save is given up or fails: the window and the file still agree)
+    auto restoreMark = [&] {
+        if (!unmarkedForSave) return;
+        unmarkedForSave = false;
+        m_doc->setPackageProps(markedProps);
+    };
+    const auto markGuard = qScopeGuard(restoreMark);
     const bool text = ending == QLatin1String("txt");
     const bool rtf = ending == QLatin1String("rtf");
     if (rtf && m_fileProtected) {
@@ -456,6 +468,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
                 QString beside = QFileInfo(path).absolutePath() + QLatin1Char('/') + QFileInfo(path).completeBaseName();
                 QString target = beside + QStringLiteral(".docx");
                 for (int n = 2; QFileInfo::exists(target); ++n) target = beside + QStringLiteral(" (%1).docx").arg(n);
+                restoreMark();
                 return saveTo(target, asCopy);
             }
             for (const QString &what : fresh) m_odtNoted.insert(what);   // (said now: not said again afterward)
@@ -476,6 +489,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
         jp::plainWarning(this, tr("Save"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
+    unmarkedForSave = false;   // (written without it)
     if (text) {
         if (lostChars > 0) notice(tr("Save"), tr("Some characters couldn't be saved in this encoding (%1 in all). They were saved as question marks.").arg(lostChars), true);
         if (!m_textNoted) {
@@ -619,7 +633,7 @@ void WriteWindow::autoRecover()
     }
     // Named for the document as it is now (Save As moves it).
     const QString copy = recovery::copyPath(m_path, displayName(), m_serial);
-    if (copy != m_recoveryCopy) dropRecoveryCopy();
+    const QString older = m_recoveryCopy;   // (kept until the new copy is written)
     const QString source = m_path.isEmpty() ? m_recoveredFrom : m_path;
     const bool written = recovery::write(
         [this](const QString &file, QString *error) {
@@ -633,7 +647,10 @@ void WriteWindow::autoRecover()
             return true;
         },
         copy, source, displayName());
-    if (written) m_recoveryCopy = copy;
+    if (written) {
+        m_recoveryCopy = copy;
+        if (!older.isEmpty() && older != copy) recovery::remove(older);
+    }
 }
 
 void WriteWindow::dropRecoveryCopy()

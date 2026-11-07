@@ -227,11 +227,14 @@ void DeckWindow::autoRecover()
     if (!m_ed->isModified()) return;
     // Named for the presentation as it is now (Save As moves it).
     const QString copy = recovery::copyPath(m_ed->filePath(), m_ed->displayName(), m_serial);
-    if (copy != m_recoveryCopy) dropRecoveryCopy();
+    const QString older = m_recoveryCopy;   // (kept until the new copy is written)
     const QString source = m_ed->filePath().isEmpty() ? m_recoveredFrom : m_ed->filePath();
     const bool written = recovery::write([this](const QString &file, QString *error) { return deck::savePresentationFile(*m_ed->doc(), file, error, nullptr, embedFontsOnSave()); },
                                          copy, source, m_ed->displayName());
-    if (written) m_recoveryCopy = copy;
+    if (written) {
+        m_recoveryCopy = copy;
+        if (!older.isEmpty() && older != copy) recovery::remove(older);
+    }
 }
 
 void DeckWindow::dropRecoveryCopy()

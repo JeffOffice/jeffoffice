@@ -683,10 +683,12 @@ void MainWindow::autoRecover()
     if (!m_ed->isModified()) return;
     // Named for the document as it is now (Save As moves it).
     const QString copy = recovery::copyPath(m_ed->filePath(), m_ed->displayName(), m_serial);
-    if (copy != m_recoveryCopy) dropRecoveryCopy();
+    const QString older = m_recoveryCopy;   // (kept until the new copy is written)
     QString err;
-    if (saveRecoveryCopy(*m_ed->doc(), copy, m_ed->filePath().isEmpty() ? m_recoveredFrom : m_ed->filePath(), m_ed->displayName(), &err))
+    if (saveRecoveryCopy(*m_ed->doc(), copy, m_ed->filePath().isEmpty() ? m_recoveredFrom : m_ed->filePath(), m_ed->displayName(), &err)) {
         m_recoveryCopy = copy;
+        if (!older.isEmpty() && older != copy) recovery::remove(older);
+    }
 }
 
 void MainWindow::dropRecoveryCopy()

@@ -230,6 +230,26 @@ private Q_SLOTS:
         QVERIFY(quiet.said.isEmpty());
     }
 
+    // A document marked as final keeps the mark when the save to .odt is given up or goes to a .docx instead.
+    void theFinalMarkIsKeptWhenASaveToOdtIsNotMade()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("x"));
+        QVERIFY(saveInto(w, dir, QStringLiteral("a.docx")));
+        w.setMarkedFinal(true);
+        QVERIFY(w.document()->markedAsFinal());
+        w.document()->setPageColor(QColor(0xFF, 0xF4, 0xD6));
+        WriteWindow::FormatChoice answer = WriteWindow::FormatChoice::Cancel;
+        w.setFormatAsker([&](const QStringList &) { return answer; });
+        QVERIFY(!saveInto(w, dir, QStringLiteral("b.odt")));
+        QVERIFY(w.document()->markedAsFinal());
+        answer = WriteWindow::FormatChoice::Docx;
+        QVERIFY(saveInto(w, dir, QStringLiteral("b.odt")));
+        QVERIFY(w.document()->markedAsFinal());
+    }
+
     void aDocumentAnOdtHoldsWholeIsNotAsked()
     {
         QTemporaryDir dir;
