@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QStringList>
+#include <QWidget>
 
 #include <memory>
 
