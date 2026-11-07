@@ -173,6 +173,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     connect(m_view, &grid::GridView::clearRequested, this, &CrunchWindow::clearSelection);
     connect(m_view, &grid::GridView::viewChanged, this, &CrunchWindow::placeEditor);
     connect(m_view, &grid::GridView::viewChanged, this, &CrunchWindow::scheduleAutoHeights);
+    m_view->setSplitBoxes(true);
     connect(m_view, &grid::GridView::splitChanged, this, [this] { syncPanes(); });
     connect(m_view, &grid::GridView::viewChanged, this, [this] {
         if (QAction *a = m_actions.value(QStringLiteral("view.split"))) a->setChecked(m_view->isSplit());   // (the command is checked while the view is split, whatever split it)

@@ -1383,6 +1383,20 @@ void GridView::mousePressEvent(QMouseEvent *e)
     m_lastMouse = lp;
 }
 
+void GridView::moveSplitBar(const QPoint &lp)
+{
+    // (a bar stays clear of both edges of its part, so that each side keeps room for a row or a column)
+    GridLayout &L = m_sheet.layout();
+    const double z = L.zoom();
+    const qint64 room = qint64(std::max(0, viewport()->width() - L.headerWidth()) / z) - 24, roomY = qint64(std::max(0, viewport()->height() - L.headerHeight()) / z) - 24;
+    const qint64 w = m_splitDragCols ? std::clamp<qint64>(qint64(std::lround((lp.x() - L.headerWidth()) / z)), 24, std::max<qint64>(24, room)) : L.splitWidth();
+    const qint64 h = m_splitDragRows ? std::clamp<qint64>(qint64(std::lround((lp.y() - L.headerHeight()) / z)), 12, std::max<qint64>(12, roomY)) : L.splitHeight();
+    if (w != L.splitWidth() || h != L.splitHeight()) {
+        L.setSplit(w, h);
+        layoutChanged();   // (the window is told once, when the bar is let go)
+    }
+}
+
 void GridView::mouseMoveEvent(QMouseEvent *e)
 {
     if (m_drag == Drag::None && overlayMove(e)) return;
@@ -1390,16 +1404,7 @@ void GridView::mouseMoveEvent(QMouseEvent *e)
     if (breakMove(lp)) return;
     m_lastMouse = lp;
     if (m_drag == Drag::SplitBar) {
-        // (a bar stays clear of both edges of its part, so that each side keeps room for a row or a column)
-        GridLayout &L = m_sheet.layout();
-        const double z = L.zoom();
-        const qint64 room = qint64(std::max(0, viewport()->width() - L.headerWidth()) / z) - 24, roomY = qint64(std::max(0, viewport()->height() - L.headerHeight()) / z) - 24;
-        const qint64 w = m_splitDragCols ? std::clamp<qint64>(qint64(std::lround((lp.x() - L.headerWidth()) / z)), 24, std::max<qint64>(24, room)) : L.splitWidth();
-        const qint64 h = m_splitDragRows ? std::clamp<qint64>(qint64(std::lround((lp.y() - L.headerHeight()) / z)), 12, std::max<qint64>(12, roomY)) : L.splitHeight();
-        if (w != L.splitWidth() || h != L.splitHeight()) {
-            L.setSplit(w, h);
-            layoutChanged();   // (the window is told once, when the bar is let go)
-        }
+        moveSplitBar(lp);
         return;
     }
     if (m_drag == Drag::Resize) {

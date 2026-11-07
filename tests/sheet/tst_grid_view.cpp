@@ -610,6 +610,67 @@ private Q_SLOTS:
         QCOMPARE(b.layout().splitWidth(), b.layout().cols.position(3));
     }
 
+    // A split box sits at the top of the vertical scroll bar and at the left end of the horizontal one (the bars begin after them); dragging one makes the bar that cuts the rows (columns) and
+    // then moves it, the other box's bar stays, and a double click on a bar takes it away. Nothing is there until the boxes are asked for.
+    void aSplitBoxAtTheEndOfAScrollBarMakesAndMovesTheBar()
+    {
+        Book b;
+        for (quint32 r = 0; r < 300; ++r)
+            for (quint32 c = 0; c < 30; ++c) b.number(r, c, r * 100 + c);
+        b.show(QSize(900, 600));
+        QVERIFY(!b.view->splitBox(true) && !b.view->splitBox(false));
+        const int fullTop = b.view->verticalScrollBar()->geometry().top(), fullLeft = b.view->horizontalScrollBar()->geometry().left();
+        b.view->setSplitBoxes(true);
+        QWidget *down = b.view->splitBox(true), *across = b.view->splitBox(false);
+        QVERIFY(down && across);
+        QTRY_VERIFY(down->isVisible() && across->isVisible());
+        QCOMPARE(b.view->verticalScrollBar()->geometry().top(), down->geometry().bottom() + 1);
+        QCOMPARE(down->width(), b.view->verticalScrollBar()->width());
+        QCOMPARE(b.view->horizontalScrollBar()->geometry().left(), across->geometry().right() + 1);
+        QCOMPARE(across->height(), b.view->horizontalScrollBar()->height());
+        GridLayout &L = b.layout();
+        QSignalSpy changed(b.view.get(), &GridView::splitChanged);
+        auto viewportY = [&](int y) { return b.view->viewport()->mapFromGlobal(down->mapToGlobal(QPoint(2, y))).y(); };
+        auto viewportX = [&](int x) { return b.view->viewport()->mapFromGlobal(across->mapToGlobal(QPoint(x, 2))).x(); };
+        // the box at the top of the vertical bar: a bar across, at the pointer
+        QTest::mousePress(down, Qt::LeftButton, Qt::NoModifier, QPoint(2, 2));
+        QTest::mouseMove(down, QPoint(2, 120));
+        QTest::mouseMove(down, QPoint(2, 180));
+        QCOMPARE(changed.count(), 0);   // (the window is told when the box is let go)
+        QTest::mouseRelease(down, Qt::LeftButton, Qt::NoModifier, QPoint(2, 180));
+        QCOMPARE(changed.count(), 1);
+        QVERIFY(b.view->isSplit());
+        QCOMPARE(L.splitHeight(), qint64(viewportY(180) - L.headerHeight()));
+        QCOMPARE(L.splitWidth(), qint64(0));
+        QVERIFY(b.view->verticalScrollBar()->geometry().top() > down->geometry().bottom());
+        // the same box again moves it
+        QTest::mousePress(down, Qt::LeftButton, Qt::NoModifier, QPoint(2, 2));
+        QTest::mouseMove(down, QPoint(2, 260));
+        QTest::mouseRelease(down, Qt::LeftButton, Qt::NoModifier, QPoint(2, 260));
+        QCOMPARE(L.splitHeight(), qint64(viewportY(260) - L.headerHeight()));
+        // the box at the left of the horizontal bar: a bar down, and the one across stays
+        const qint64 tall = L.splitHeight();
+        QTest::mousePress(across, Qt::LeftButton, Qt::NoModifier, QPoint(2, 2));
+        QTest::mouseMove(across, QPoint(300, 2));
+        QTest::mouseRelease(across, Qt::LeftButton, Qt::NoModifier, QPoint(300, 2));
+        QCOMPARE(L.splitWidth(), qint64(viewportX(300) - L.headerWidth()));
+        QCOMPARE(L.splitHeight(), tall);
+        // each part shows rows and columns of the sheet in order (the split was made at the second row and column in view)
+        QCOMPARE(L.pane(Pane::Corner).firstRow, qint64(0));
+        QCOMPARE(L.pane(Pane::Body).firstRow, qint64(1));
+        QCOMPARE(L.pane(Pane::Body).firstCol, qint64(1));
+        // a double click on a bar takes it away
+        QTest::mouseDClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(L.splitBarX(), 400));
+        QCOMPARE(L.splitWidth(), qint64(0));
+        QTest::mouseDClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(500, L.splitBarY()));
+        QVERIFY(!b.view->isSplit());
+        // without the boxes the scroll bars take their whole length again
+        b.view->setSplitBoxes(false);
+        QVERIFY(!b.view->splitBox(true));
+        QTRY_COMPARE(b.view->verticalScrollBar()->geometry().top(), fullTop);
+        QCOMPARE(b.view->horizontalScrollBar()->geometry().left(), fullLeft);
+    }
+
     // Keys, clicks, and scrolling on a sheet with nothing in it, and with its rows hidden, do not fail.
     void anEmptySheetTakesEveryKey()
     {

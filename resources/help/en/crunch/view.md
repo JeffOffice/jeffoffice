@@ -49,7 +49,7 @@ A workbook that was saved with frozen panes opens with them.
 1. Select the cell where the cut should be. The bars are put at the top and the left of that cell. A cell in the first row you can see gives only a vertical bar. A cell in the first column you can see gives only a horizontal bar.
 2. On the **View** tab, click **Split**.
 
-The wheel of the mouse moves the pane under the pointer. The scroll bars move the pane at the lower right. Drag a bar to move it. Double-click a bar to take that bar away, or double-click where the two bars cross to take both away. Click **Split** again to take the bars away.
+The wheel of the mouse moves the pane under the pointer. The scroll bars move the pane at the lower right. Drag a bar to move it. You can also make a bar with the small box at the top of the vertical scroll bar or at the left end of the horizontal one. Drag the box into the sheet, and a bar follows the pointer. A bar that you made with the top box cuts the rows. A bar that you made with the left box cuts the columns. Double-click a bar to take that bar away, or double-click where the two bars cross to take both away. Click **Split** again to take the bars away.
 
 Panes that are frozen and panes that are split are different, so a sheet has one kind at a time. When you click **Freeze Panes** on a split sheet, the split goes away first. When you click **Split** on a frozen sheet, the frozen panes are let go first.
 

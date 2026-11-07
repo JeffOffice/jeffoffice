@@ -107,6 +107,14 @@ public:
     void setSplitBars(qint64 width, qint64 height);
     // Scrolls the top part (or the left part) by whole rows (columns), the other parts staying; false if there is no split to scroll.
     bool scrollSplitPart(bool rows, int count);
+    // Split boxes: a small box at the top of the vertical scroll bar (it makes or moves the bar that cuts the rows) and at the left end of the horizontal one (the columns), dragged with the
+    // mouse; there are none until asked for. A bar made by a box is moved by its box or by the bar itself, and taken away by a double click on the bar.
+    void setSplitBoxes(bool on);
+    bool splitBoxes() const { return m_splitBoxes; }
+    QWidget *splitBox(bool rows) const { return rows ? m_boxRows : m_boxCols; }
+    void splitBoxPress(bool rows);
+    void splitBoxMove(bool rows, const QPoint &viewportPos);   // (the pointer, in the view's own coordinates)
+    void splitBoxRelease();
     // The first row and column that are shown in the grid's top left: the frozen part's, or if there is none the part that scrolls's.
     qint64 firstRowInView() const;
     qint64 firstColInView() const;
@@ -342,6 +350,7 @@ Q_SIGNALS:
     void printEdgeRequested(int area, int side, qint64 to);
 
 protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
     void paintEvent(QPaintEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
     void mousePressEvent(QMouseEvent *e) override;
@@ -498,6 +507,11 @@ private:
     std::function<bool(qint64, qint64)> m_pointGuard;
     GridOverlay *m_overlay = nullptr;
     bool m_cellsEnabled = true;
+    bool m_splitBoxes = false, m_placingBoxes = false;
+    QWidget *m_boxRows = nullptr, *m_boxCols = nullptr;
+    QRect m_fullRows, m_fullCols;   // the scroll bars as the area laid them out, before the boxes took their ends
+    void placeSplitBoxes();
+    void moveSplitBar(const QPoint &lp);
     bool m_dragEditing = true;
     std::vector<PageBreakLine> m_breakRows, m_breakCols;
     bool m_breakView = false, m_breakEditable = true;
