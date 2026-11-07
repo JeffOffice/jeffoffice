@@ -644,31 +644,52 @@ void CrunchEditTests::clearAllOnEmptyCellsLeavesNothingForTheWorker()
     QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:100"));
 }
 
-// A close that waits for a save which then finds nothing to save (the change was undone while the calculation went) is given up: a later Save does not close the window.
+// A close that waits for a save which then finds nothing to save (the change was undone while the calculation went) goes on: nothing is lost. A save that fails gives the close up, and a
+// later Save does not close the window.
 void CrunchEditTests::aSaveThatDoesNothingWhenResumedDoesNotLeaveTheWindowToClose()
 {
-    EditWindow e;
-    QVERIFY(e.open(editBook()));
-    CrunchWindow &w = e.win.w;
-    w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Save; });
-    w.setWorkerPace(20000);
-    e.select(QStringLiteral("A1"));
-    e.enter(QStringLiteral("100"));
-    QVERIFY(w.isCalculating());
-    w.close();                                                                      // (asks, is told Save, and the save waits for the calculation)
-    QVERIFY(w.isVisible());
-    pressUndo(&w);
-    QVERIFY(!w.session()->isModified());
-    w.setWorkerPace(0);
-    QVERIFY(e.settle());
-    QVERIFY(w.isVisible());
-    e.select(QStringLiteral("A2"));
-    e.enter(QStringLiteral("5"));
-    QVERIFY(e.settle());
-    QSignalSpy saved(&w, &CrunchWindow::saved);
-    QVERIFY(w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
-    QVERIFY(w.isVisible());
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Save; });
+        w.setWorkerPace(20000);
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("100"));
+        QVERIFY(w.isCalculating());
+        w.close();                                                                  // (asks, is told Save, and the save waits for the calculation)
+        QVERIFY(w.isVisible());
+        pressUndo(&w);
+        QVERIFY(!w.session()->isModified());
+        w.setWorkerPace(0);
+        QTRY_VERIFY_WITH_TIMEOUT(!w.isVisible(), 20000);
+    }
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Save; });
+        w.setChangedAsker([](const QString &) { return CrunchWindow::ChangedAnswer::Cancel; });
+        w.setWorkerPace(20000);
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("100"));
+        QVERIFY(w.isCalculating());
+        w.close();
+        QVERIFY(w.isVisible());
+        QFile other(e.path);                                                        // (another program changes the file: the save is refused)
+        QVERIFY(other.open(QIODevice::WriteOnly));
+        other.write(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>7</v></c></row>"))}));
+        other.close();
+        w.setWorkerPace(0);
+        QVERIFY(e.settle());
+        QVERIFY(w.session()->isModified());
+        QVERIFY(w.isVisible());
+        w.setChangedAsker([](const QString &) { return CrunchWindow::ChangedAnswer::Overwrite; });
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY(w.isVisible());
+    }
 }
 
 // Save a Copy writes the workbook to another file and goes on with the original: the window keeps its name and its unsaved changes, and the copy has them.

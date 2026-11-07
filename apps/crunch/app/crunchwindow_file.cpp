@@ -589,8 +589,12 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
                     m_copyAfterTrial = copy;
                 } else {
                     const bool started = copy ? startCopy(path) : startSave(path);
-                    // (a save that failed, or found nothing to save, gives up the close that waited for it)
-                    if (!started || (!m_saving && m_saveAfterCalculation.isNull() && m_saveAfterTrial.isNull())) m_closeAfterSave = false;
+                    // (a save that failed gives up the close that waited for it; one that found nothing to save lets the close go on, as nothing is lost)
+                    if (!started) m_closeAfterSave = false;
+                    else if (m_closeAfterSave && !m_saving && m_saveAfterCalculation.isNull() && m_saveAfterTrial.isNull()) {
+                        m_closeAfterSave = false;
+                        if (m_session && !m_session->isModified() && !m_protectionChanged) QTimer::singleShot(0, this, [this] { close(); });
+                    }
                 }
             }
             return;
