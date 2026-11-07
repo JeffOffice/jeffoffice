@@ -61,8 +61,13 @@ void CellAnchors::apply(const SideEdit &edit, bool forward)
     for (const SideEdit::Note &n : edit.notes) {
         const std::optional<NoteInfo> &now = forward ? n.after : n.before;
         const quint64 key = noteKey(n.row, n.col);
-        if (now) d.notes[key] = *now;
-        else d.notes.erase(key);
+        if (now) {
+            d.notes[key] = *now;
+            // (a thread that this step or its Undo changes is written whole at the next save, whichever way it went: after a save, Undo has to put the file's thread back too)
+            if (now->thread && !jp::office::sheet::sameThread(n.before ? n.before->thread : nullptr, n.after ? n.after->thread : nullptr)) d.notes[key].threadEdited = true;
+        } else {
+            d.notes.erase(key);
+        }
         d.noteTouched.insert(key);
     }
     const std::vector<LinkSpec> &out = forward ? edit.linksRemoved : edit.linksAdded;

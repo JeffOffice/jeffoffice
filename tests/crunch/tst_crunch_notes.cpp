@@ -567,6 +567,34 @@ private Q_SLOTS:
         QVERIFY(second.w.session()->anchors().noteAt(0, 1, 3)->threadCut);
     }
 
+    void undoAfterASaveWritesTheFilesThreadBackAndTheNextOpenHasIt()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithNotes()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->replyToComment(0, 1, 3, QStringLiteral("It is."), QStringLiteral("Ann Lee"), QStringLiteral("Reply")).ok);
+        QSignalSpy first(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(first, 20000), "the first save failed");
+        {
+            Window second;
+            QVERIFY(second.open(e.copyOfFile()));
+            QCOMPARE(second.w.session()->anchors().noteAt(0, 1, 3)->thread->size(), size_t(2));
+        }
+        // the reply is taken back after the save: the file's thread is the one with one comment again
+        e.win.w.undoStack()->undo();
+        QCOMPARE(s->anchors().noteAt(0, 1, 3)->thread->size(), size_t(1));
+        QSignalSpy next(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(next, 20000), "the second save failed");
+        Window third;
+        QVERIFY(third.open(e.copyOfFile()));
+        const NoteInfo *d2 = third.w.session()->anchors().noteAt(0, 1, 3);
+        QVERIFY(d2 && d2->thread);
+        QCOMPARE(d2->thread->size(), size_t(1));
+        QCOMPARE(d2->thread->at(0).text, QStringLiteral("Is the date right?"));
+    }
+
     void showAndHideChangeWhetherANoteIsShownAndCanBeUndone()
     {
         EditWindow e;
