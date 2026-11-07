@@ -44,13 +44,13 @@ namespace {
 struct Inflater {
     // Text and table parts of an office document stay far below this; more
     // is a decompression bomb (a few MB that inflate to gigabytes).
-    static constexpr qsizetype kMaxOut = 256 * 1024 * 1024;
     const uchar *in;
     qsizetype n, pos = 0;
     quint32 bitbuf = 0;
     int bitcnt = 0;
     QByteArray out;
     bool ok = true;
+    qsizetype maxOut = 256 * 1024 * 1024;
     int bits(int need)
     {
         quint32 v = bitbuf;
@@ -102,7 +102,7 @@ struct Inflater {
         while (ok) {
             int sym = decode(lencode);
             if (sym < 0) return false;
-            if (out.size() > kMaxOut) return false;
+            if (out.size() > maxOut) return false;
             if (sym < 256) out.append(char(sym));
             else if (sym == 256) return true;
             else {
@@ -129,7 +129,7 @@ struct Inflater {
                 if (pos + 4 > n) return false;
                 const int len = in[pos] | (in[pos + 1] << 8);
                 pos += 4;
-                if (pos + len > n || out.size() + len > kMaxOut) return false;
+                if (pos + len > n || out.size() + len > maxOut) return false;
                 out.append(reinterpret_cast<const char *>(in + pos), len);
                 pos += len;
             } else if (type == 1) {
@@ -177,8 +177,10 @@ struct Inflater {
     }
 };
 
-// Reads zip entries, inflating deflated ones (.docx and .xlsx documents).
-QMap<QString, QByteArray> readOfficeZip(const QByteArray &zip)
+// Reads the named parts of a zip, inflating deflated ones, and nothing else: a document's other parts are never inflated (a few KB can
+// inflate to gigabytes, and entries may share one stream). A part is refused if its data is also another entry's, or is larger than
+// `maxPart` once inflated. Only the first entry of a name counts.
+QMap<QString, QByteArray> readOfficeZip(const QByteArray &zip, const QStringList &wanted, qsizetype maxPart = 64 * 1024 * 1024)
 {
     QMap<QString, QByteArray> out;
     auto u16 = [&](qsizetype at) { return at >= 0 && at + 2 <= zip.size() ? quint16(uchar(zip[at]) | (uchar(zip[at + 1]) << 8)) : quint16(0); };
@@ -187,6 +189,8 @@ QMap<QString, QByteArray> readOfficeZip(const QByteArray &zip)
     for (qsizetype i = zip.size() - 22; i >= std::max<qsizetype>(0, zip.size() - 65557); --i)
         if (u32(i) == 0x06054b50) { eocd = i; break; }
     if (eocd < 0) return out;
+    struct Part { QString name; int method; qsizetype data, csize; };
+    QVector<Part> parts;
     const int count = u16(eocd + 10);
     qsizetype p = u32(eocd + 16);
     for (int i = 0; i < count && p + 46 <= zip.size(); ++i) {
@@ -200,10 +204,22 @@ QMap<QString, QByteArray> readOfficeZip(const QByteArray &zip)
         if (qsizetype(local) + 30 > zip.size()) continue;
         const qsizetype data = local + 30 + u16(local + 26) + u16(local + 28);
         if (data + qsizetype(csize) > zip.size()) continue;
-        if (method == 0) out.insert(name, zip.mid(data, csize));
-        else if (method == 8) {
-            Inflater inf{reinterpret_cast<const uchar *>(zip.constData() + data), qsizetype(csize)};
-            if (inf.run() || !inf.out.isEmpty()) out.insert(name, inf.out);
+        parts << Part{name, method, data, qsizetype(csize)};
+    }
+    QSet<QString> seen;
+    for (int i = 0; i < parts.size(); ++i) {
+        const Part &pt = parts[i];
+        if (!wanted.contains(pt.name) || seen.contains(pt.name)) continue;
+        seen.insert(pt.name);
+        bool shared = false;
+        for (int k = 0; k < parts.size() && !shared; ++k)
+            shared = k != i && parts[k].data < pt.data + pt.csize && pt.data < parts[k].data + parts[k].csize;
+        if (shared) continue;
+        if (pt.method == 0) { if (pt.csize <= maxPart) out.insert(pt.name, zip.mid(pt.data, pt.csize)); }
+        else if (pt.method == 8) {
+            Inflater inf{reinterpret_cast<const uchar *>(zip.constData() + pt.data), pt.csize};
+            inf.maxOut = maxPart;
+            if (inf.run()) out.insert(pt.name, inf.out);
         }
     }
     return out;
@@ -212,7 +228,7 @@ QMap<QString, QByteArray> readOfficeZip(const QByteArray &zip)
 
 QString docxToHtml(const QByteArray &docx)
 {
-    const auto files = readOfficeZip(docx);
+    const auto files = readOfficeZip(docx, {QStringLiteral("word/document.xml")});
     const QByteArray xml = files.value("word/document.xml");
     if (xml.isEmpty()) return {};
     QXmlStreamReader r(xml);
