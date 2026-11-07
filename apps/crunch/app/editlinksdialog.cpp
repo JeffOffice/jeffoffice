@@ -138,8 +138,8 @@ bool EditLinksDialog::updateRow(int row)
         m_note->setText(o.problem);
         return false;
     }
-    m_note->setText(done.kept > 0 ? tr("%n cell(s) have the values the source has now. %1 more combine them with other values, so they keep the values the file stored.", nullptr, done.updated).arg(done.kept)
-                                  : tr("%n cell(s) have the values the source has now.", nullptr, done.updated));
+    m_note->setText(done.kept > 0 ? tr("Cells given the values the source has now: %1. Cells that combine them with other values keep the values their file stored: %2.").arg(done.updated).arg(done.kept)
+                                  : tr("Cells given the values the source has now: %1.").arg(done.updated));
     Q_EMIT linksChanged();
     return true;
 }

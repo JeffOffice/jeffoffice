@@ -447,7 +447,7 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("A6")), QStringLiteral("n:7"));
         QCOMPARE(e.valueAt(QStringLiteral("A5")), QStringLiteral("n:84"));   // (it multiplies the value: it keeps the one its file stored)
         QCOMPARE(s->editText(0, 5, 0), QStringLiteral("=[1]Sheet1!A1"));
-        QVERIFY(d.note().contains(QStringLiteral("1 more")));
+        QVERIFY2(d.note().contains(QStringLiteral("now: 1. ")) && d.note().contains(QStringLiteral("stored: 1.")), qPrintable(d.note()));
         QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Update Values"));
         e.win.w.undoStack()->undo();
         QVERIFY(e.settle());
