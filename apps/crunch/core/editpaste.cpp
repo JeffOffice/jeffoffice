@@ -101,6 +101,31 @@ ClipData EditSession::copyCells(int sheet, const CellRange &range, bool cut) con
     for (quint32 r = 0; r < d.rows; ++r)
         for (quint32 c = 0; c < d.cols; ++c) {
             const NoteInfo *n = m_anchors.noteAt(sheet, range.row1 + r, range.col1 + c);
+            if (n && n->thread && !n->thread->empty() && !n->threadCut && d.threads.size() < size_t(jp::office::sheet::kMaxNotes)) {
+                // (a thread of comments is copied whole, to be made again with ids of its own; one with more comments than are read is not copied: the copy would be a part of it)
+                ClipThread t;
+                t.dRow = r;
+                t.dCol = c;
+                t.shown = n->shown;
+                for (const jp::office::sheet::ThreadComment &c0 : *n->thread) {
+                    ClipThreadComment cc;
+                    cc.author = c0.author;
+                    cc.userId = c0.userId;
+                    cc.providerId = c0.providerId;
+                    cc.personId = c0.personId;
+                    cc.time = c0.time;
+                    cc.text = c0.text;
+                    cc.done = c0.done;
+                    for (size_t k = 0; k < n->thread->size() && !c0.parentId.isEmpty(); ++k)
+                        if (n->thread->at(k).id == c0.parentId) {
+                            cc.parent = qint32(k);
+                            break;
+                        }
+                    t.comments.push_back(std::move(cc));
+                }
+                d.threads.push_back(std::move(t));
+                continue;
+            }
             if (!n || n->threaded || n->text.isEmpty()) continue;
             ClipNote cn;
             cn.dRow = r;
@@ -313,8 +338,20 @@ EditSession::Outcome EditSession::paste(int sheet, const CellRange &target, cons
         merges.push_back(m);
     }
     const bool widths = o.what == What::ColumnWidths && !o.transpose && !clip.columnWidths.empty();
-    const bool notes = o.what == What::Comments && !clip.notes.empty() && !o.transpose;
-    if (!widths && !notes) return pasteChanges(sheet, target, blockRows, blockCols, make, merges, o.what == What::All || o.what == What::AllExceptBorders || o.what == What::Formats, tr("Pasting"));
+    const bool threadsToo = !clip.threads.empty() && !o.transpose;
+    const bool notes = o.what == What::Comments && (!clip.notes.empty() || threadsToo) && !o.transpose;
+    if (!widths && !notes) {
+        const bool withThreads = threadsToo && (o.what == What::All || o.what == What::AllExceptBorders);
+        if (!withThreads) return pasteChanges(sheet, target, blockRows, blockCols, make, merges, o.what == What::All || o.what == What::AllExceptBorders || o.what == What::Formats, tr("Pasting"));
+        // (everything is pasted, and the threads of comments with it: one step to undo)
+        const int start = m_undo.index();
+        m_undo.beginMacro(tr("Pasting"));
+        Outcome done = pasteChanges(sheet, target, blockRows, blockCols, make, merges, true, tr("Pasting"));
+        if (done.ok) pasteThreads(sheet, target, clip, blockRows, blockCols);
+        m_undo.endMacro();
+        if (!done.ok) while (m_undo.index() > start) m_undo.undo();
+        return done;
+    }
     // the widths and the notes are steps of their own, and are one step to undo together
     Outcome result;
     QString why;
@@ -365,6 +402,7 @@ EditSession::Outcome EditSession::paste(int sheet, const CellRange &target, cons
                         break;
                     }
                 }
+        if (result.ok && !clip.threads.empty()) pasteThreads(sheet, target, clip, blockRows, blockCols);
     }
     m_undo.endMacro();
     if (!result.ok) {
@@ -429,6 +467,59 @@ EditSession::Outcome EditSession::pasteText(int sheet, const CellRange &target, 
 EditSession::Outcome EditSession::moveCells(int sheet, const CellRange &source, int toSheet, quint32 toRow, quint32 toCol)
 {
     return structure(StructEdit::move(sheet, source, toSheet, toRow, toCol), tr("Moving cells"));
+}
+
+// The threads of comments of a clip put on the target, tiled as the cells are: each is made again as a thread of its own (new ids for its comments, the people as they were). A cell that has a
+// thread with more comments than are read keeps it, and a sheet whose notes can't be changed gets none; nothing here refuses the paste.
+void EditSession::pasteThreads(int sheet, const CellRange &target, const ClipData &clip, quint32 blockRows, quint32 blockCols)
+{
+    if (clip.threads.empty() || blockRows == 0 || blockCols == 0 || !canEditNotes(sheet)) return;
+    const jp::office::sheet::Sheet &model = m_book->calc->sheet(sheet);
+    if (model.isProtected && model.protection.objects) return;
+    const quint32 targetRows = target.row2 - target.row1 + 1, targetCols = target.col2 - target.col1 + 1;
+    quint32 tilesRows = 1, tilesCols = 1;
+    if (targetRows >= blockRows && targetCols >= blockCols && targetRows % blockRows == 0 && targetCols % blockCols == 0) {
+        tilesRows = targetRows / blockRows;
+        tilesCols = targetCols / blockCols;
+    }
+    std::vector<SideEdit::Note> changes;
+    qint64 count = qint64(m_anchors.notes(sheet).size());
+    for (quint32 tr_ = 0; tr_ < tilesRows; ++tr_)
+        for (quint32 tc = 0; tc < tilesCols; ++tc)
+            for (const ClipThread &t : clip.threads) {
+                const quint32 row = target.row1 + tr_ * blockRows + t.dRow, col = target.col1 + tc * blockCols + t.dCol;
+                if (row >= kMaxRows || col >= kMaxColumns || t.comments.empty()) continue;
+                const NoteInfo *was = m_anchors.noteAt(sheet, row, col);
+                if (was && was->threadCut) continue;
+                if (!was && ++count > jp::office::sheet::kMaxNotes) return;
+                jp::office::sheet::ThreadList list;
+                for (const ClipThreadComment &c : t.comments) {
+                    jp::office::sheet::ThreadComment k;
+                    k.id = jp::office::sheet::newThreadId();
+                    k.parentId = c.parent >= 0 && size_t(c.parent) < list.size() ? list[size_t(c.parent)].id : QString();
+                    k.personId = c.personId;
+                    k.author = c.author;
+                    k.userId = c.userId;
+                    k.providerId = c.providerId;
+                    k.time = c.time;
+                    k.text = c.text;
+                    k.done = c.done;
+                    list.push_back(std::move(k));
+                }
+                NoteInfo now;
+                now.shown = t.shown;
+                now.threaded = true;
+                now.threadEdited = true;
+                now.text = jp::office::sheet::threadWords(list);
+                now.thread = std::make_shared<const jp::office::sheet::ThreadList>(std::move(list));
+                SideEdit::Note n;
+                n.row = row;
+                n.col = col;
+                if (was) n.before = *was;
+                n.after = std::move(now);
+                changes.push_back(std::move(n));
+            }
+    pushNoteChanges(sheet, std::move(changes), tr("Pasting"));
 }
 
 } // namespace jp::crunch

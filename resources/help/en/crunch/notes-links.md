@@ -12,7 +12,7 @@ To put a note on a cell, select it and use **Review > New Note** (or press **Shi
 - **Show Every Note** does the same for every note on the sheet; the same button then reads **Hide Every Note**.
 - **Previous Note** and **Next Note** go from one cell with a note to the next.
 
-Each of these is one step you can undo. A note goes with its cell when rows or columns are inserted or deleted, and when cells are sorted. **Clear All** takes the notes off the cells it clears.
+Each of these is one step you can undo. A note goes with its cell when rows or columns are inserted or deleted, and when cells are sorted. **Clear All** takes the notes and the comments off the cells it clears.
 
 A cell can also hold a conversation of **comments**, with replies. See the next part.
 

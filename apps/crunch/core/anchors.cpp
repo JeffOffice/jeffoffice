@@ -23,6 +23,7 @@ CellAnchors::SheetData &CellAnchors::sheetData(int sheet)
 
 void CellAnchors::open(std::vector<std::map<quint64, NoteInfo>> notes, std::vector<std::vector<LinkSpec>> links)
 {
+    ++m_generation;
     m_sheets.clear();
     m_sheets.resize(std::max(notes.size(), links.size()));
     for (size_t i = 0; i < notes.size(); ++i) m_sheets[i].notes = std::move(notes[i]);
@@ -57,14 +58,25 @@ std::vector<quint64> CellAnchors::noteCells(int sheet) const
 
 void CellAnchors::apply(const SideEdit &edit, bool forward)
 {
+    ++m_generation;
     SheetData &d = sheetData(edit.sheet);
     for (const SideEdit::Note &n : edit.notes) {
         const std::optional<NoteInfo> &now = forward ? n.after : n.before;
         const quint64 key = noteKey(n.row, n.col);
         if (now) {
-            d.notes[key] = *now;
-            // (a thread that this step or its Undo changes is written whole at the next save, whichever way it went: after a save, Undo has to put the file's thread back too)
-            if (now->thread && !jp::office::sheet::sameThread(n.before ? n.before->thread : nullptr, n.after ? n.after->thread : nullptr)) d.notes[key].threadEdited = true;
+            // (a thread is written whole at the next save when it is not what the file has: so Undo back to the file's own thread writes nothing, and Undo after a save writes the file's thread back.
+            // What the file has is kept with the live note; a note that is not there is told it by the step's copy, if no save has come since the copy was made)
+            ThreadPtr file;
+            const auto live = d.notes.find(key);
+            if (live != d.notes.end() && live->second.thread) file = live->second.fileThread;
+            else if (now->fileSaves == m_saves) file = now->fileThread;
+            NoteInfo put = *now;
+            if (put.thread) {
+                put.fileThread = file;
+                put.fileSaves = m_saves;
+                put.threadEdited = !jp::office::sheet::sameThread(put.thread, file);
+            }
+            d.notes[key] = std::move(put);
         } else {
             d.notes.erase(key);
         }
@@ -124,6 +136,7 @@ qint64 AnchorDelta::bytes() const
 
 std::shared_ptr<AnchorDelta> CellAnchors::followEdit(const StructEdit &edit, const QStringList &sheetNames)
 {
+    ++m_generation;
     using K = StructEdit::Kind;
     if (edit.kind == K::Offset) return nullptr;
     std::set<int> sheets = {edit.sheet};
@@ -269,6 +282,7 @@ std::shared_ptr<AnchorDelta> CellAnchors::followEdit(const StructEdit &edit, con
 
 void CellAnchors::undoEdit(const std::shared_ptr<AnchorDelta> &delta, const StructEdit &edit)
 {
+    ++m_generation;
     if (!delta) return;
     const bool saved = delta->saves != m_saves;
     // the links that went to another sheet are taken off its end, last first
@@ -343,6 +357,7 @@ void CellAnchors::undoEdit(const std::shared_ptr<AnchorDelta> &delta, const Stru
 
 void CellAnchors::permute(const CellPermute &p, bool forward)
 {
+    ++m_generation;
     SheetData &d = sheetData(p.sheet);
     auto place = [&](quint32 *row, quint32 *col) {
         quint32 &line = p.columns ? *col : *row;
@@ -398,12 +413,14 @@ void CellAnchors::permute(const CellPermute &p, bool forward)
 
 void CellAnchors::addSheet(int copyOf)
 {
+    ++m_generation;
     m_sheets.emplace_back();
     if (copyOf >= 0 && copyOf < int(m_sheets.size()) - 1) m_sheets.back().links = m_sheets[size_t(copyOf)].links;
 }
 
 void CellAnchors::removeLastSheet()
 {
+    ++m_generation;
     if (!m_sheets.empty()) m_sheets.pop_back();
 }
 
@@ -451,7 +468,11 @@ void CellAnchors::saved()
     for (SheetData &d : m_sheets) {
         d.noteTouched.clear();
         d.linkTouched.clear();
-        for (auto &n : d.notes) n.second.threadEdited = false;
+        for (auto &n : d.notes) {
+            n.second.threadEdited = false;
+            n.second.fileThread = n.second.thread;
+            n.second.fileSaves = m_saves;
+        }
     }
 }
 

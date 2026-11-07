@@ -198,13 +198,18 @@ EditSession::Outcome EditSession::removeLinks(int sheet, const CellRange &range,
     return Outcome();
 }
 
-SideEdit EditSession::notesAndLinksIn(int sheet, const CellRange &range) const
+SideEdit EditSession::notesAndLinksIn(int sheet, const CellRange &range, int *keptCut) const
 {
     SideEdit edit;
     edit.sheet = sheet;
     for (const auto &n : m_anchors.notes(sheet)) {
         const quint32 row = quint32(n.first >> 32), col = quint32(n.first & 0xFFFFFFFFu);
         if (!range.contains(row, col)) continue;
+        // (a thread with more comments than are read is not cleared: Undo could not bring back the comments that were never read)
+        if (n.second.threadCut) {
+            if (keptCut) ++*keptCut;
+            continue;
+        }
         SideEdit::Note note;
         note.row = row;
         note.col = col;
@@ -220,8 +225,9 @@ EditSession::Outcome EditSession::clearNotesAndLinks(int sheet, const CellRange 
 {
     QString why;
     if (!canEditNotes(sheet, &why)) return refused(why);
-    SideEdit edit = notesAndLinksIn(sheet, range);
-    if (edit.empty()) return Outcome();
+    int keptCut = 0;
+    SideEdit edit = notesAndLinksIn(sheet, range, &keptCut);
+    if (edit.empty()) return keptCut ? refused(tr("The comments here have more replies than JeffCrunch reads (%1), so it doesn't clear them: an Undo could not bring back what it never read.").arg(jp::office::sheet::kMaxThreadComments)) : Outcome();
     Step step;
     step.sides.push_back(std::move(edit));
     pushStep(std::move(step), stepText);

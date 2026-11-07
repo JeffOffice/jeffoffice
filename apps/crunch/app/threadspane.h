@@ -3,6 +3,7 @@
 #pragma once
 
 #include <QString>
+#include <QTimeZone>
 #include <QWidget>
 
 #include <vector>
@@ -12,6 +13,9 @@ class QScrollArea;
 class QVBoxLayout;
 
 namespace jp {
+
+// A comment's time (the file writes it in UTC, as 2026-11-07T09:30:00.00) as a person reads it: in the time zone `zone`, in the short form of the computer's language.
+QString commentTimeShown(const QString &time, const QTimeZone &zone = QTimeZone::systemTimeZone());
 
 class CommentThreadsPane : public QWidget {
     Q_OBJECT
@@ -35,6 +39,9 @@ public:
     // Draws the cards. `current` is the thread the cursor is on (its card is marked), or none; `more` is how many threads are not drawn.
     void setThreads(const std::vector<Thread> &threads, qint64 currentRow, qint64 currentCol, int more);
     int cardCount() const { return m_cards; }
+    // How many times the cards were given (a change of the cursor alone is not one) and the cell whose card is marked.
+    int setThreadsCalls() const { return m_calls; }
+    void setCurrent(qint64 row, qint64 col);
     QString emptyText() const;
 
 Q_SIGNALS:
@@ -43,6 +50,7 @@ Q_SIGNALS:
     void resolveRequested(quint32 row, quint32 col, bool resolved);
     void deleteRequested(quint32 row, quint32 col);
     void editRequested(quint32 row, quint32 col, int index);
+    void deleteCommentRequested(quint32 row, quint32 col, int index);
 
 protected:
     QSize sizeHint() const override { return QSize(300, 400); }
@@ -51,8 +59,7 @@ private:
     QScrollArea *m_scroll = nullptr;
     QWidget *m_body = nullptr;
     QVBoxLayout *m_layout = nullptr;
-    int m_cards = 0;
-    QString m_signature;
+    int m_cards = 0, m_calls = 0;
 };
 
 } // namespace jp

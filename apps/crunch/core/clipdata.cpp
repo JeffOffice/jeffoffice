@@ -1,5 +1,7 @@
 #include "core/clipdata.h"
 
+#include "sheet/notes.h"
+
 #include <QBuffer>
 #include <QDate>
 #include <QDataStream>
@@ -83,6 +85,12 @@ QByteArray ClipData::toBytes() const
     for (const ClipNote &n : notes) s << n.dRow << n.dCol << n.text << n.author << n.shown;
     s << quint32(columnWidths.size());
     for (const double w : columnWidths) s << w;
+    // (after the widths, for the same reason)
+    s << quint32(threads.size());
+    for (const ClipThread &t : threads) {
+        s << t.dRow << t.dCol << t.shown << quint32(t.comments.size());
+        for (const ClipThreadComment &c : t.comments) s << c.author << c.userId << c.providerId << c.personId << c.time << c.text << c.done << c.parent;
+    }
     return bytes;
 }
 
@@ -144,6 +152,26 @@ bool ClipData::fromBytes(const QByteArray &bytes, ClipData *out)
             d.columnWidths.push_back(w);
         }
         if (s.status() != QDataStream::Ok) return false;
+    }
+    if (!s.atEnd()) {
+        quint32 threads = 0;
+        s >> threads;
+        constexpr qint64 kLeastThreadBytes = 13;
+        if (s.status() != QDataStream::Ok || qint64(threads) > (bytes.size() - s.device()->pos()) / kLeastThreadBytes || qint64(threads) > qint64(d.rows) * qint64(d.cols)) return false;
+        qint64 total = 0;
+        for (quint32 i = 0; i < threads; ++i) {
+            ClipThread t;
+            quint32 count = 0;
+            s >> t.dRow >> t.dCol >> t.shown >> count;
+            if (s.status() != QDataStream::Ok || t.dRow >= d.rows || t.dCol >= d.cols || count > quint32(jp::office::sheet::kMaxThreadComments) || (total += count) > jp::office::sheet::kMaxNotes) return false;
+            for (quint32 k = 0; k < count; ++k) {
+                ClipThreadComment c;
+                s >> c.author >> c.userId >> c.providerId >> c.personId >> c.time >> c.text >> c.done >> c.parent;
+                if (s.status() != QDataStream::Ok || c.parent < -1 || c.parent >= qint32(count)) return false;
+                t.comments.push_back(std::move(c));
+            }
+            d.threads.push_back(std::move(t));
+        }
     }
     *out = std::move(d);
     return true;

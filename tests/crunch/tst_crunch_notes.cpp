@@ -20,6 +20,7 @@
 #include <QSettings>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QTimeZone>
 #include <QUndoStack>
 
 using namespace jp;
@@ -71,6 +72,22 @@ QByteArray bookWithNotes(const QByteArray &extraRows = QByteArray(), const QByte
     jp::ZipWriter z;
     for (auto it = all.begin(); it != all.end(); ++it) z.add(it.key(), it.value(), true);
     return z.finish();
+}
+
+QByteArray hugeThreadXml()
+{
+    QByteArray threads = "<ThreadedComments xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\">";
+    for (int i = 0; i < 600; ++i)
+        threads += "<threadedComment ref=\"D2\" dT=\"2024-01-01T10:00:00.00\" personId=\"{NOBODY}\" id=\"{R" + QByteArray::number(i) + "}\"" + (i ? " parentId=\"{R0}\"" : "") + "><text>reply " + QByteArray::number(i) + "</text></threadedComment>";
+    return threads + "</ThreadedComments>";
+}
+
+QString threadPartOf(const QString &path, const QString &name = QStringLiteral("xl/threadedComments/threadedComment1.xml"))
+{
+    QMap<QString, QByteArray> all;
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly) || !jp::readZip(f.readAll(), all)) return QStringLiteral("(not read)");
+    return all.contains(name) ? QString::fromUtf8(all.value(name)) : QStringLiteral("(no part)");
 }
 
 QPoint centerOf(EditWindow &e, const QString &ref)
@@ -562,6 +579,7 @@ private Q_SLOTS:
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
         QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QCOMPARE(threadPartOf(e.path), QString::fromUtf8(threads));   // (the part is byte for byte what it was)
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         QVERIFY(second.w.session()->anchors().noteAt(0, 1, 3)->threadCut);
@@ -593,6 +611,167 @@ private Q_SLOTS:
         QVERIFY(d2 && d2->thread);
         QCOMPARE(d2->thread->size(), size_t(1));
         QCOMPARE(d2->thread->at(0).text, QStringLiteral("Is the date right?"));
+    }
+
+    void clearAllAndDeleteLeaveAThreadOverTheCapAloneAndSayWhy()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithNotes(QByteArray(), hugeThreadXml())));
+        crunch::EditSession *s = e.win.w.session();
+        QUndoStack *u = e.win.w.undoStack();
+        const NoteInfo *n = s->anchors().noteAt(0, 1, 3);
+        QVERIFY(n && n->threadCut);
+        jp::office::sheet::CellRange all, d2;
+        jp::office::sheet::parseRangeRef(QStringLiteral("A1:D3"), &all);
+        jp::office::sheet::parseRangeRef(QStringLiteral("D2"), &d2);
+        const auto cleared = s->clearAll(0, all);
+        QVERIFY(cleared.ok);
+        QVERIFY2(cleared.problem.contains(QStringLiteral("comments")), qPrintable(cleared.problem));
+        QVERIFY(!s->anchors().noteAt(0, 0, 0));   // (the other notes are cleared, as ever)
+        QVERIFY(s->anchors().noteAt(0, 1, 3) && s->anchors().noteAt(0, 1, 3)->threadCut);
+        const int steps = u->count();
+        QVERIFY(!s->clearNotesAndLinks(0, d2, QStringLiteral("Clear Comments and Notes")).ok);
+        QVERIFY(!s->deleteThreads(0, {{1, 3}}, QStringLiteral("Delete Comment")).ok);
+        QVERIFY(!s->deleteComment(0, 1, 3, 1, QStringLiteral("Delete Comment")).ok);
+        QVERIFY(!s->deleteComment(0, 1, 3, 0, QStringLiteral("Delete Comment")).ok);
+        QCOMPARE(u->count(), steps);
+        QVERIFY(s->anchors().noteAt(0, 1, 3));
+    }
+
+    void cutMovesAThreadAndCopyPastesANewOneWithNewIdsAndNoThreadVanishes()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithNotes()));
+        crunch::EditSession *s = e.win.w.session();
+        const jp::office::sheet::ThreadList original = *s->anchors().noteAt(0, 1, 3)->thread;
+        jp::office::sheet::CellRange src, copyTo, cutTo;
+        jp::office::sheet::parseRangeRef(QStringLiteral("D2"), &src);
+        jp::office::sheet::parseRangeRef(QStringLiteral("F6"), &copyTo);
+        // Copy, through the bytes the clipboard holds, and paste everything: a thread of its own, with ids of its own
+        crunch::ClipData copied = s->copyCells(0, src, false), clip;
+        QVERIFY(crunch::ClipData::fromBytes(copied.toBytes(), &clip));
+        const auto pasted = s->paste(0, copyTo, clip, crunch::EditSession::PasteOptions());
+        QVERIFY2(pasted.ok, qPrintable(pasted.problem));
+        const NoteInfo *copy = s->anchors().noteAt(0, 5, 5);
+        QVERIFY(copy && copy->thread);
+        QCOMPARE(copy->thread->size(), original.size());
+        QCOMPARE(copy->thread->at(0).text, original.at(0).text);
+        QCOMPARE(copy->thread->at(0).personId, original.at(0).personId);
+        QVERIFY(copy->thread->at(0).id != original.at(0).id);
+        QVERIFY(*s->anchors().noteAt(0, 1, 3)->thread == original);   // (the source is as it was)
+        // Cut and paste moves it
+        QVERIFY(s->moveCells(0, src, 0, 8, 1).ok);
+        QVERIFY(!s->anchors().noteAt(0, 1, 3));
+        const NoteInfo *moved = s->anchors().noteAt(0, 8, 1);
+        QVERIFY(moved && moved->thread);
+        QVERIFY(*moved->thread == original);
+        // and the file has both, and not the one that moved, where it was
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const crunch::CellAnchors &a = second.w.session()->anchors();
+        QVERIFY(!a.noteAt(0, 1, 3));
+        QVERIFY(a.noteAt(0, 8, 1) && a.noteAt(0, 8, 1)->thread && *a.noteAt(0, 8, 1)->thread == original);
+        QVERIFY(a.noteAt(0, 5, 5) && a.noteAt(0, 5, 5)->thread && a.noteAt(0, 5, 5)->thread->at(0).id == copy->thread->at(0).id);
+    }
+
+    void aCommentsTimeIsShownInTheTimeZoneOfTheComputerNotInUTC()
+    {
+        const QTimeZone tokyo = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+        const QString expected = QLocale().toString(QDateTime(QDate(2026, 11, 7), QTime(18, 30, 0), tokyo), QLocale::ShortFormat);
+        QCOMPARE(commentTimeShown(QStringLiteral("2026-11-07T09:30:00.00"), tokyo), expected);
+        QCOMPARE(commentTimeShown(QStringLiteral("not a time"), tokyo), QStringLiteral("not a time"));
+    }
+
+    void undoBackToTheOriginalBeforeTheFirstSaveLeavesTheThreadPartAsItWas()
+    {
+        EditWindow e;
+        const QByteArray book = bookWithNotes();
+        QVERIFY(e.open(book));
+        crunch::EditSession *s = e.win.w.session();
+        const QString before = threadPartOf(e.path);
+        QVERIFY(s->replyToComment(0, 1, 3, QStringLiteral("x"), QStringLiteral("Ann Lee"), QStringLiteral("Reply")).ok);
+        QVERIFY(s->resolveThread(0, 1, 3, true, QStringLiteral("Resolve Thread")).ok);
+        e.win.w.undoStack()->undo();
+        e.win.w.undoStack()->undo();
+        QVERIFY(!s->anchors().noteAt(0, 1, 3)->threadEdited);
+        QVERIFY(s->setNote(0, 0, 0, QStringLiteral("changed"), QStringLiteral("Ann"), false, QStringLiteral("Edit Note")).ok);
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QCOMPARE(threadPartOf(e.path), before);
+        // and no list of people was made for a person the file had no name for
+        QCOMPARE(threadPartOf(e.path, QStringLiteral("xl/persons/person.xml")), QStringLiteral("(no part)"));
+    }
+
+    void theCommentsPaneIsNotGivenEveryCommentAgainWhenOnlyTheCursorMoves()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithNotes()));
+        QVERIFY(e.win.w.session()->newComment(0, 0, 1, QStringLiteral("B1"), QStringLiteral("Me"), QStringLiteral("New Comment")).ok);
+        e.win.w.act(QStringLiteral("comments.show"))->trigger();
+        CommentThreadsPane *pane = e.win.w.commentsPane();
+        QVERIFY(pane && pane->cardCount() == 2);
+        const int calls = pane->setThreadsCalls();
+        e.select(QStringLiteral("D2"));
+        e.select(QStringLiteral("B1"));
+        e.select(QStringLiteral("C3"));
+        QCOMPARE(pane->setThreadsCalls(), calls);
+        e.select(QStringLiteral("D2"));
+        int marked = 0;
+        for (QFrame *card : pane->findChildren<QFrame *>(QStringLiteral("commentCard")))
+            if (card->property("current").toBool()) {
+                ++marked;
+                QCOMPARE(card->property("cell").toString(), QStringLiteral("D2"));
+            }
+        QCOMPARE(marked, 1);
+    }
+
+    void theCardsAndTheirButtonsHaveNamesWithTheCellAndEditAndDeleteForEachComment()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithNotes()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->replyToComment(0, 1, 3, QStringLiteral("It is."), QStringLiteral("Ann Lee"), QStringLiteral("Reply")).ok);
+        e.win.w.act(QStringLiteral("comments.show"))->trigger();
+        CommentThreadsPane *pane = e.win.w.commentsPane();
+        QVERIFY(pane);
+        QFrame *card = pane->findChild<QFrame *>(QStringLiteral("commentCard"));
+        QVERIFY(card);
+        QVERIFY2(card->accessibleName().contains(QStringLiteral("D2")), qPrintable(card->accessibleName()));
+        for (const char *name : {"commentReply", "commentResolve", "commentDelete", "commentGoTo"}) {
+            QPushButton *b = card->findChild<QPushButton *>(QString::fromLatin1(name));
+            QVERIFY(b);
+            QVERIFY2(b->accessibleName().contains(QStringLiteral("D2")), name);
+        }
+        // an Edit for each comment, and a Delete for each reply (the first comment's Delete is the thread's)
+        const QList<QPushButton *> edits = card->findChildren<QPushButton *>(QStringLiteral("commentEdit"));
+        QCOMPARE(edits.size(), 2);
+        for (QPushButton *b : edits) QVERIFY(b->accessibleName().contains(QStringLiteral("D2")));
+        const QList<QPushButton *> replyDeletes = card->findChildren<QPushButton *>(QStringLiteral("commentDeleteReply"));
+        QCOMPARE(replyDeletes.size(), 1);
+        // Edit asks with the words now, and changes that comment; the reply's Delete takes only the reply
+        NoteRequest seen;
+        answerNotesWith(e, QStringLiteral("It is not."), &seen);
+        edits.at(1)->click();
+        QCOMPARE(seen.text, QStringLiteral("It is."));
+        QCOMPARE(s->anchors().noteAt(0, 1, 3)->thread->at(1).text, QStringLiteral("It is not."));
+        QTRY_VERIFY(!pane->findChildren<QPushButton *>(QStringLiteral("commentDeleteReply")).isEmpty());
+        pane->findChildren<QPushButton *>(QStringLiteral("commentDeleteReply")).first()->click();
+        QCOMPARE(s->anchors().noteAt(0, 1, 3)->thread->size(), size_t(1));
+        // every button can be reached with Tab, in the order they are drawn
+        QTRY_VERIFY(card = pane->findChild<QFrame *>(QStringLiteral("commentCard")));
+        const QList<QPushButton *> buttons = card->findChildren<QPushButton *>();
+        QVERIFY(buttons.size() >= 4);
+        for (QPushButton *b : buttons) QVERIFY(b->focusPolicy() != Qt::NoFocus);
+        QWidget *w = buttons.first();
+        for (int i = 1; i < buttons.size(); ++i) {
+            w = w->nextInFocusChain();
+            while (w && !qobject_cast<QPushButton *>(w)) w = w->nextInFocusChain();
+            QCOMPARE(w, static_cast<QWidget *>(buttons.at(i)));
+        }
     }
 
     void showAndHideChangeWhetherANoteIsShownAndCanBeUndone()

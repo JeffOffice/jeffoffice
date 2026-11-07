@@ -80,6 +80,8 @@ public:
     // The most notes a workbook's sheet and links are kept for (a sheet read with more has the first of them: see the readers' limits).
     void open(std::vector<std::map<quint64, jp::office::sheet::NoteInfo>> notes, std::vector<std::vector<jp::office::sheet::LinkSpec>> links);
     int sheetCount() const { return int(m_sheets.size()); }
+    // A number that is different after every change to the notes (a window that draws them again only when it is not the one it drew).
+    quint64 generation() const { return m_generation; }
     // A sheet that has more notes than are kept: its notes are shown and left as they are, and none is put on it or taken off it.
     void setTruncated(int sheet, bool on) { sheetData(sheet).truncated = on; }
     bool truncated(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) && m_sheets[size_t(sheet)].truncated; }
@@ -132,6 +134,7 @@ private:
 
     std::vector<SheetData> m_sheets;
     int m_saves = 0;
+    quint64 m_generation = 0;
 };
 
 } // namespace jp::crunch

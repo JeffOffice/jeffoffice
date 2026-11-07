@@ -1467,6 +1467,9 @@ private:
     QDockWidget *m_slicerDock = nullptr;
     QPointer<CommentThreadsPane> m_commentsPane;   // (the pane and its dock are children of the window: they go with it, and a signal that arrives as it goes finds them gone)
     QPointer<QDockWidget> m_commentsDock;
+    const void *m_commentsSession = nullptr;   // what the cards were made from: the session, the sheet, and the notes' generation
+    int m_commentsSheet = -3;
+    quint64 m_commentsGeneration = 0;
     bool m_slicerFilling = false;
     quintptr m_slicersStamp = 0;   // the pivot tables as the pane last showed the slicers of
     int m_slicerFills = 0;
@@ -1564,7 +1567,8 @@ private:
     // ---- comments: threads (crunchwindow_comments.cpp)
     void createCommentActions();
     void updateCommentActions();
-    bool askCommentText(const QString &title, const QString &where, QString *text);
+    bool askCommentText(const QString &title, const QString &where, QString *text, const QString &initial = QString());
+    void editCommentAt(quint32 row, quint32 col, int index);
     void newComment();
     void replyToThread();
     void replyToThreadAt(quint32 row, quint32 col);

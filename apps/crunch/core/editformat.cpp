@@ -551,10 +551,12 @@ EditSession::Outcome EditSession::clearAll(int sheet, const CellRange &range)
         }
         step.sizes.push_back(std::move(e));
     }
-    // the notes and links on the cells go with them (a conversation of comments is shown and kept, not cleared)
+    // the notes, the comments, and the links on the cells go with them (a thread with more comments than are read is kept, and the person is told)
     if (QString notReady; canEditNotes(sheet, &notReady) && allows(sheet, Allow::Objects)) {
-        SideEdit side = notesAndLinksIn(sheet, range);
+        int keptCut = 0;
+        SideEdit side = notesAndLinksIn(sheet, range, &keptCut);
         if (!side.empty()) step.sides.push_back(std::move(side));
+        if (keptCut) out.problem = tr("The comments on some cells have more replies than JeffCrunch reads (%1), so they were not cleared: an Undo could not bring back what it never read.").arg(jp::office::sheet::kMaxThreadComments);
     }
     if (step.empty()) return out;
     pushStep(std::move(step), tr("Clearing all"));

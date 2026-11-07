@@ -34,13 +34,6 @@ QString commentAuthor()
     return name.trimmed();
 }
 
-// A comment's time as a person reads it (the file's time is the form 2026-11-07T09:30:00.00).
-QString shownTime(const QString &time)
-{
-    const QDateTime t = QDateTime::fromString(time.left(19), Qt::ISODate);
-    return t.isValid() ? QLocale().toString(t, QLocale::ShortFormat) : time;
-}
-
 } // namespace
 
 // What a thread reads like where the pointer rests: each comment with who wrote it and when, the replies set in, and a line that says it is resolved.
@@ -55,7 +48,7 @@ QString CrunchWindow::threadTipText(const NoteInfo &note)
         const ThreadComment &c = note.thread->at(i);
         const QString indent(2 * std::min(depths[i], 3), QLatin1Char(' '));
         const QString who = c.author.isEmpty() ? tr("Unknown") : c.author;
-        out += indent + (c.time.isEmpty() ? who : tr("%1, %2").arg(who, shownTime(c.time))) + QLatin1Char('\n') + indent + c.text + QLatin1Char('\n');
+        out += indent + (c.time.isEmpty() ? who : tr("%1, %2").arg(who, commentTimeShown(c.time))) + QLatin1Char('\n') + indent + c.text + QLatin1Char('\n');
     }
     if (note.thread->size() > size_t(shown)) out += tr("and %1 more").arg(qint64(note.thread->size()) - shown) + QLatin1Char('\n');
     return out.trimmed();
@@ -109,9 +102,10 @@ void CrunchWindow::updateCommentActions()
     act("comments.revert")->setEnabled(can && anyConvertible);
 }
 
-bool CrunchWindow::askCommentText(const QString &title, const QString &where, QString *text)
+bool CrunchWindow::askCommentText(const QString &title, const QString &where, QString *text, const QString &initial)
 {
     NoteRequest req;
+    req.text = initial;
     req.where = where;
     req.title = title;
     req.author = commentAuthor();
@@ -160,6 +154,17 @@ void CrunchWindow::replyToThread()
     const grid::Selection &sel = m_view->selection();
     replyToThreadAt(quint32(std::max<qint64>(0, sel.activeRow)), quint32(std::max<qint64>(0, sel.activeCol)));
     m_view->setFocus();
+}
+
+void CrunchWindow::editCommentAt(quint32 row, quint32 col, int index)
+{
+    if (!m_session || m_sheet < 0) return;
+    const NoteInfo *was = m_session->anchors().noteAt(m_sheet, row, col);
+    if (!was || !was->thread || index < 0 || size_t(index) >= was->thread->size()) return;
+    QString text;
+    if (!askCommentText(tr("Comment on %1").arg(jp::office::sheet::cellName(row, col)), jp::office::sheet::cellName(row, col), &text, was->thread->at(size_t(index)).text)) return;
+    const crunch::EditSession::Outcome o = m_session->editComment(m_sheet, row, col, index, text, tr("Edit Comment"));
+    if (!o.ok) notice(tr("Comment"), o.problem);
 }
 
 void CrunchWindow::setThreadResolvedAt(quint32 row, quint32 col, bool resolved)
@@ -262,6 +267,12 @@ void CrunchWindow::showCommentsPane(bool show)
         });
         connect(m_commentsPane.data(), &CommentThreadsPane::replyRequested, this, [this](quint32 row, quint32 col) { replyToThreadAt(row, col); });
         connect(m_commentsPane.data(), &CommentThreadsPane::resolveRequested, this, [this](quint32 row, quint32 col, bool resolved) { setThreadResolvedAt(row, col, resolved); });
+        connect(m_commentsPane.data(), &CommentThreadsPane::editRequested, this, [this](quint32 row, quint32 col, int index) { editCommentAt(row, col, index); });
+        connect(m_commentsPane.data(), &CommentThreadsPane::deleteCommentRequested, this, [this](quint32 row, quint32 col, int index) {
+            if (!m_session || m_sheet < 0) return;
+            const crunch::EditSession::Outcome o = m_session->deleteComment(m_sheet, row, col, index, tr("Delete Comment"));
+            if (!o.ok) notice(tr("Comment"), o.problem);
+        });
         connect(m_commentsPane.data(), &CommentThreadsPane::deleteRequested, this, [this](quint32 row, quint32 col) { deleteThreadsAt({{row, col}}); });
         connect(m_commentsDock.data(), &QDockWidget::visibilityChanged, this, [this](bool visible) {
             if (QAction *a = act(QStringLiteral("comments.show"))) {
@@ -284,9 +295,23 @@ void CrunchWindow::showCommentsPane(bool show)
 void CrunchWindow::fillComments()
 {
     if (!m_commentsPane) return;
+    const grid::Selection &sel = m_view->selection();
+    // (the cards are made again only when the comments are not the ones they were made from: a cursor that moves only moves the mark. Not at all while the pane is shut: it is stale then)
+    if (!m_commentsDock || !m_commentsDock->isVisibleTo(this)) {
+        m_commentsSession = nullptr;
+        return;
+    }
+    const quint64 generation = m_session ? m_session->anchors().generation() : 0;
+    const int sheetKey = m_chartSheetShown ? -2 : m_sheet;
+    if (m_commentsSession == m_session.get() && m_commentsSheet == sheetKey && m_commentsGeneration == generation) {
+        m_commentsPane->setCurrent(sel.activeRow, sel.activeCol);
+        return;
+    }
+    m_commentsSession = m_session.get();
+    m_commentsSheet = sheetKey;
+    m_commentsGeneration = generation;
     std::vector<CommentThreadsPane::Thread> threads;
     int more = 0;
-    const grid::Selection &sel = m_view->selection();
     if (m_session && m_sheet >= 0 && !m_chartSheetShown)
         for (const auto &n : m_session->anchors().notes(m_sheet)) {
             if (!n.second.thread || n.second.thread->empty()) continue;
@@ -307,7 +332,7 @@ void CrunchWindow::fillComments()
                     break;
                 }
                 const ThreadComment &c = n.second.thread->at(i);
-                t.comments.push_back({c.author, shownTime(c.time), c.text, depths[i]});
+                t.comments.push_back({c.author, commentTimeShown(c.time), c.text, depths[i]});
             }
             threads.push_back(std::move(t));
         }

@@ -168,11 +168,12 @@ EditSession::Outcome EditSession::deleteComment(int sheet, quint32 row, quint32 
     if (!checked.ok) return checked;
     const NoteInfo *was = m_anchors.noteAt(sheet, row, col);
     if (!was || !was->thread || index < 0 || size_t(index) >= was->thread->size()) return refused(tr("There is no such comment."));
+    if (was->threadCut) return refused(tr("This thread has more comments than JeffCrunch changes (%1). It shows them, and keeps them, but doesn't change them.").arg(jp::office::sheet::kMaxThreadComments));
     SideEdit::Note n;
     n.row = row;
     n.col = col;
     n.before = *was;
-    if (index > 0 && !was->threadCut) {
+    if (index > 0) {
         // (a reply goes; the replies to it are now replies to the first comment)
         ThreadList list = *was->thread;
         const QString gone = list[size_t(index)].id;
@@ -191,15 +192,21 @@ EditSession::Outcome EditSession::deleteThreads(int sheet, const std::vector<std
     const jp::office::sheet::Sheet &model = m_book->calc->sheet(sheet);
     if (model.isProtected && model.protection.objects) return refused(tr("This sheet is protected, so its comments can't be changed. Take the protection off first."));
     std::vector<SideEdit::Note> notes;
+    int keptCut = 0;
     for (const auto &c : cells) {
         const NoteInfo *was = m_anchors.noteAt(sheet, c.first, c.second);
         if (!was || !was->thread) continue;
+        if (was->threadCut) {   // (Undo could not bring back the comments that were never read)
+            ++keptCut;
+            continue;
+        }
         SideEdit::Note n;
         n.row = c.first;
         n.col = c.second;
         n.before = *was;
         notes.push_back(std::move(n));
     }
+    if (notes.empty() && keptCut) return refused(tr("This thread has more comments than JeffCrunch changes (%1). It shows them, and keeps them, but doesn't delete them.").arg(jp::office::sheet::kMaxThreadComments));
     return pushNoteChanges(sheet, std::move(notes), stepText);
 }
 

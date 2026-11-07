@@ -33,6 +33,18 @@ struct ClipNote {
     bool shown = false;
 };
 
+// A thread of comments that was copied: its comments in order, each naming the one it replies to by place (so that a paste makes new ids).
+struct ClipThreadComment {
+    QString author, userId, providerId, personId, time, text;
+    bool done = false;
+    qint32 parent = -1;   // the place in the thread of the comment this one replies to, or -1
+};
+struct ClipThread {
+    quint32 dRow = 0, dCol = 0;
+    bool shown = false;
+    std::vector<ClipThreadComment> comments;
+};
+
 struct ClipData {
     qint64 token = 0;                                    // the workbook it was copied in (0 for none)
     qint64 serial = 0;                                   // and which copy it was there (a cut is pasted as a move only while it is the last copy)
@@ -42,6 +54,7 @@ struct ClipData {
     bool cut = false;
     std::vector<ClipCell> cells;                         // those that exist
     std::vector<jp::office::sheet::CellRange> merges;    // inside the block, from its first cell
+    std::vector<ClipThread> threads;                     // the threads of comments on the cells (a paste of everything makes each again, with ids of its own)
     std::vector<ClipNote> notes;                         // the notes of the cells (not those that are a conversation of comments)
     std::vector<double> columnWidths;                    // the width of each column of the block, in the sheet's units; below 0 for the sheet's usual
     bool valid() const { return rows > 0 && cols > 0; }

@@ -690,7 +690,8 @@ void CrunchWindow::clearCommand(int what)
         return;
     }
     if (!o.ok) notice(tr("Clear"), o.problem);
-    else if (what == 0 && m_loader.changesMade() != before) m_calculating = true;
+    else if (!o.problem.isEmpty()) notice(tr("Clear"), o.problem, false);   // (something was left, and is said)
+    if (o.ok && what == 0 && m_loader.changesMade() != before) m_calculating = true;
     updateFormatState();
 }
 
