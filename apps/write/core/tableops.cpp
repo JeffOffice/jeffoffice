@@ -2086,7 +2086,7 @@ bool insertTable(WriteDoc &doc, QTextCursor &c, const NewTable &table)
     TableCommand command(doc);
     if (table.rows < 1 || table.columns < 1 || table.rows > 500 || table.columns > 63) return false;
     QTextDocument *d = doc.story();
-    if (c.document() != d || cellKeyOf(d->findBlock(c.selectionStart()))) return false;
+    if (c.document() != d || cellKeyOf(d->findBlock(c.selectionStart())) || inEndnoteWords(c)) return false;   // (a note's words are paragraphs and no more: the notes the pages set hold no table)
     c.beginEditBlock();
     c.setPosition(c.selectionStart());
     if (c.position() > c.block().position()) insertParagraph(doc, c);
@@ -2757,7 +2757,7 @@ std::optional<QVector<double>> tableCellValues(WriteDoc &doc, int position, cons
 bool canConvertTextToTable(WriteDoc &doc, const QTextCursor &c)
 {
     const QTextDocument *d = doc.story();
-    if (c.document() != d) return false;
+    if (c.document() != d || inEndnoteWords(c)) return false;
     int a = c.selectionStart(), b = c.selectionEnd();
     if (b > a && d->findBlock(b).position() == b) --b;
     for (QTextBlock blk = d->findBlock(a); blk.isValid() && blk.position() <= b; blk = blk.next())

@@ -65,7 +65,7 @@ bool insertCaption(WriteDoc &doc, QTextCursor &c, const CaptionOptions &o, QStri
 {
     QTextDocument *story = doc.story();
     const QString label = o.label.simplified();
-    if (c.document() != story || !intoBody(c)) {
+    if (c.document() != story || inEndnoteWords(c) || !intoBody(c)) {
         if (problem) *problem = QCoreApplication::translate("jp::write::Captions", "A caption goes in the text, not in a header, a footer, or a note.");
         return false;
     }

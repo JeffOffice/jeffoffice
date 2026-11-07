@@ -600,7 +600,7 @@ bool insertTableOfContents(WriteDoc &doc, QTextCursor &c, const TocOptions &opti
 bool insertTocGallery(WriteDoc &doc, QTextCursor &c, TocGallery kind)
 {
     QTextDocument *story = doc.story();
-    if (c.document() != story || !intoBody(c)) return false;
+    if (c.document() != story || inEndnoteWords(c) || !intoBody(c)) return false;
     WriteDoc::StepGroup group(doc);
     EditScope scope(doc, story);
     const quint64 sheet = doc.styleSheetRevision();
@@ -638,7 +638,7 @@ bool insertTocGallery(WriteDoc &doc, QTextCursor &c, TocGallery kind)
 bool insertTableFromCode(WriteDoc &doc, QTextCursor &c, const QString &code, const QString &leader, bool *truncated)
 {
     QTextDocument *story = doc.story();
-    if (c.document() != story || !intoBody(c)) return false;
+    if (c.document() != story || inEndnoteWords(c) || !intoBody(c)) return false;
     WriteDoc::StepGroup group(doc);
     EditScope scope(doc, story);
     // (No edit block round it all: the pages must see the table's marks before its lines are made, and a block holds the news of the edits back. The group makes it one step.)

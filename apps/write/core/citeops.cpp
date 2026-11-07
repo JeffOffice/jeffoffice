@@ -720,7 +720,7 @@ bool insertCitation(WriteDoc &doc, QTextCursor &c, const QString &tag, const Cit
 bool insertBibliography(WriteDoc &doc, QTextCursor &c, BibliographyKind kind)
 {
     QTextDocument *story = doc.story();
-    if (c.document() != story || !intoBody(c)) return false;
+    if (c.document() != story || inEndnoteWords(c) || !intoBody(c)) return false;
     WriteDoc::StepGroup group(doc);
     EditScope scope(doc, story);
     const QString heading = kind == BibliographyKind::References ? QCoreApplication::translate("jp::write::Sources", "References")

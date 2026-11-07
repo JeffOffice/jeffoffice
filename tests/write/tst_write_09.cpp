@@ -797,6 +797,48 @@ void WriteTests::aFileThatCouldNotBeReadWholeIsNotSavedOverItsOriginal()
 }
 
 
+void WriteTests::aFileLeftPartsOutIsNotSavedOverItsOriginalByAnotherName()
+{
+    QMap<QString, QByteArray> items;
+    QVERIFY(jp::readZip(makeDocx("<w:p><w:r><w:t>whole enough</w:t></w:r></w:p>", kStyles), items));
+    jp::ZipWriter z;
+    for (auto it = items.cbegin(); it != items.cend(); ++it) z.add(it.key(), it.value(), true);
+    z.add(QStringLiteral("word/../../evil.xml"), "x", true);
+    const QByteArray original = z.finish();
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("original.docx"));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    f.write(original);
+    f.close();
+    WriteWindow win;
+    QStringList said;
+    win.setNotifier([&](const QString &, const QString &text) { said << text; });
+    QVERIFY(win.openFile(path));
+    QVERIFY(win.document()->leftSomethingOut());
+    QCOMPARE(said.size(), 1);   // (what was left out)
+    const auto unchanged = [&] {
+        QFile again(path);
+        return again.open(QIODevice::ReadOnly) && again.readAll() == original;
+    };
+    // A link to the file is the file.
+    const QString alias = dir.filePath(QStringLiteral("alias.docx"));
+    if (QFile::link(path, alias)) {   // (not every system lets a test make one)
+        QVERIFY(!win.saveTo(alias));
+        QCOMPARE(said.size(), 2);
+        QVERIFY(unchanged());
+    }
+    // And a name that differs in capitals only is the file, where the system keeps files that way.
+    const QString capitals = dir.filePath(QStringLiteral("ORIGINAL.docx"));
+    if (QFileInfo::exists(capitals)) {
+        const int before = said.size();
+        QVERIFY(!win.saveTo(capitals));
+        QCOMPARE(said.size(), before + 1);
+        QVERIFY(unchanged());
+    }
+}
+
 // A part with a % (or a space, or a letter outside ASCII) in its name is legal in a package, and stays: with its bytes, its content type, and
 // the link that names it.
 void WriteTests::partsWithPercentSignsAndSpacesInTheirNamesAreKept()

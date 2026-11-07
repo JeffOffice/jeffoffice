@@ -391,7 +391,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
         return false;
     }
     // (The same file again, by another way to it: the name is compared as the system sees it.)
-    if (m_doc->leftSomethingOut() && !m_protectedPath.isEmpty() && QFileInfo(path).absoluteFilePath() == QFileInfo(m_protectedPath).absoluteFilePath()) {
+    if (m_doc->leftSomethingOut() && !m_protectedPath.isEmpty() && sameFile(path, m_protectedPath)) {
         notice(tr("Save"), tr("Part of this file couldn't be opened, so saving it here would lose that part: choose a new name for the copy."));
         return false;
     }

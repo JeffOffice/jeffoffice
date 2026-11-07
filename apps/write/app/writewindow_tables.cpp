@@ -9,6 +9,7 @@
 #include "app/ribbonbuilder.h"
 #include "app/tabledialogs.h"
 #include "app/widgets.h"
+#include "core/editops.h"
 #include "core/fieldops.h"
 #include "core/tableops.h"
 #include "core/wordformat.h"
@@ -436,8 +437,9 @@ void WriteWindow::refreshTableUi()
         const QTextDocument *d = c.document();
         act("table.merge")->setEnabled(c.hasSelection() && write::cellKeyOf(d->findBlock(c.selectionStart())) != write::cellKeyOf(d->findBlock(c.selectionEnd())));
     }
-    const bool inBody = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
+    const bool inBody = m_doc && !m_view->inHeaderFooter() && !m_view->inNote() && !write::inEndnoteWords(m_view->cursor());   // (a note's words hold no table)
     act("insert.table")->setEnabled(inBody);
+    for (const char *id : {"insert.ready.calendar", "insert.ready.matrix", "insert.ready.list", "insert.ready.schedule"}) act(QString::fromLatin1(id))->setEnabled(inBody);
     act("table.draw")->setEnabled(inBody || act("table.draw")->isChecked());   // (the pen can draw a table where there is none)
     act("table.eraser")->setEnabled(in || act("table.eraser")->isChecked());
     act("insert.convertTextToTable")->setEnabled(inBody && !in);

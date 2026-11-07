@@ -1375,6 +1375,10 @@ private Q_SLOTS:
     void aStrayStartOfATagPastedInsideAnotherLeavesTheOthersWhole();
     void savingADocumentWithMacrosLeavesThemOutAndSaysSo();
     void aFileThatCouldNotBeReadWholeIsNotSavedOverItsOriginal();
+    void aFileLeftPartsOutIsNotSavedOverItsOriginalByAnotherName();
+    void noTableIsMadeInTheWordsOfAnEndnote();
+    void noBlocksOfFieldsOrCaptionsAreMadeInTheWordsOfAnEndnote();
+    void theTableCommandsAreDimmedInTheWordsOfAnEndnote();
     void partsWithPercentSignsAndSpacesInTheirNamesAreKept();
     void tablesNestedPastTheLimitOpenWithTheTextBelowAsPlainParagraphs();
     void aRichDocumentComesBackFaithfulAndWellFormed();

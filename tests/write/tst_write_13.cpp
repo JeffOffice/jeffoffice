@@ -1,4 +1,8 @@
 #include "tst_write.h"
+#include "core/tocops.h"
+#include "core/indexops.h"
+#include "core/captionops.h"
+#include "core/citeops.h"
 
 
 void WriteTests::modifyingAStyleRestylesTheTextKeepsWhatTheTextSaysAndIsOneStep()
@@ -1438,3 +1442,141 @@ void WriteTests::savesTheDocumentWithHeaderAndFooter()
 
 // The file is the same bytes each time it is saved, in whatever process: nothing written follows the order of a hash that Qt seeds anew for each process.
 void WriteTests::aSavedDocumentIsTheSameBytesInEachProcess() { JP_VERIFY_SAME_SAVES("savesTheDocumentWithHeaderAndFooter"); }
+
+
+namespace {
+// A document with one endnote set and its words' end returned: where the caret is when a person types in the note.
+int endnoteWordsEnd(WriteDoc &doc)
+{
+    QTextDocument *st = doc.story();
+    QTextCursor c(st);
+    c.setPosition(5);
+    if (!insertEndnote(doc, c)) return -1;
+    QTextCursor d(st);
+    d.setPosition(0);
+    insertText(doc, d, QStringLiteral("x"));   // (lets the endnotes settle)
+    int at = -1;
+    for (QTextBlock b = st->begin(); b.isValid(); b = b.next())
+        if (b.blockFormat().hasProperty(prop::EndnoteBlock) && b.text().contains(QChar::ObjectReplacementCharacter)) at = b.position() + b.length() - 1;
+    return at;
+}
+
+const QByteArray kHeadingThenText = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Intro</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">Alpha beta gamma delta.</w:t></w:r></w:p>";
+} // namespace
+
+void WriteTests::noTableIsMadeInTheWordsOfAnEndnote()
+{
+    auto doc = open(makeDocx(kHeadingThenText, kStyles));
+    QVERIFY(doc);
+    const int inNote = endnoteWordsEnd(*doc);
+    QVERIFY(inNote > 0);
+    QTextDocument *st = doc->story();
+    const QString before = st->toPlainText();
+    const int blocks = st->blockCount();
+    const auto still = [&] { return st->blockCount() == blocks && st->toPlainText() == before; };
+    QTextCursor c(st);
+    c.setPosition(inNote);
+    NewTable t;
+    t.rows = t.columns = 2;
+    QVERIFY(!insertTable(*doc, c, t));
+    QVERIFY(still());
+    c.setPosition(inNote);
+    QVERIFY(!insertReadyTable(*doc, c, ReadyTable::Calendar, QDate(2026, 11, 1)));
+    QVERIFY(still());
+    // (Words typed there first, and chosen: text made into a table goes nowhere in a note, either.)
+    insertText(*doc, c, QStringLiteral("note words"));
+    const QString typed = st->toPlainText();
+    const int typedBlocks = st->blockCount();
+    QTextCursor s(st);
+    s.setPosition(inNote);
+    s.setPosition(inNote + 10, QTextCursor::KeepAnchor);
+    QVERIFY(!convertTextToTable(*doc, s, TextSeparator::Paragraphs, QChar(), 1));
+    QCOMPARE(st->toPlainText(), typed);
+    QCOMPARE(st->blockCount(), typedBlocks);
+    // The notes still take edits and are set again, and the file is written and read.
+    QTextCursor g(st);
+    g.setPosition(8);
+    QVERIFY(insertEndnote(*doc, g));
+    QVERIFY(open(doc->toDocx()));
+}
+
+void WriteTests::noBlocksOfFieldsOrCaptionsAreMadeInTheWordsOfAnEndnote()
+{
+    auto doc = open(makeDocx(kHeadingThenText, kStyles));
+    QVERIFY(doc);
+    const int inNote = endnoteWordsEnd(*doc);
+    QVERIFY(inNote > 0);
+    QTextDocument *st = doc->story();
+    const QString before = st->toPlainText();
+    const int blocks = st->blockCount();
+    const auto still = [&] { return st->blockCount() == blocks && st->toPlainText() == before; };
+    const auto caret = [&] {
+        QTextCursor c(st);
+        c.setPosition(inNote);
+        return c;
+    };
+    QTextCursor c = caret();
+    QVERIFY(!insertTableOfContents(*doc, c, TocOptions()));
+    QVERIFY(still());
+    c = caret();
+    QVERIFY(!insertTocGallery(*doc, c, TocGallery::Automatic1));
+    QVERIFY(still());
+    c = caret();
+    QVERIFY(!insertIndex(*doc, c, IndexOptions()));
+    QVERIFY(still());
+    c = caret();
+    QVERIFY(!insertTableOfAuthorities(*doc, c, AuthoritiesOptions()));
+    QVERIFY(still());
+    c = caret();
+    QVERIFY(!insertTableOfFigures(*doc, c, FiguresOptions()));
+    QVERIFY(still());
+    c = caret();
+    QVERIFY(!insertBibliography(*doc, c, BibliographyKind::Bibliography));
+    QVERIFY(still());
+    c = caret();
+    CaptionOptions caption;
+    caption.label = QStringLiteral("Figure");
+    QString problem;
+    QVERIFY(!insertCaption(*doc, c, caption, &problem));
+    QVERIFY(still());
+    // The notes still take edits and are set again, and the file is written and read.
+    QTextCursor g(st);
+    g.setPosition(8);
+    QVERIFY(insertEndnote(*doc, g));
+    QVERIFY(open(doc->toDocx()));
+}
+
+void WriteTests::theTableCommandsAreDimmedInTheWordsOfAnEndnote()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("notes.docx"));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    f.write(makeDocx(kHeadingThenText, kStyles));
+    f.close();
+    WriteWindow win;
+    QVERIFY(win.openFile(path));
+    const int inNote = endnoteWordsEnd(*win.document());
+    QVERIFY(inNote > 0);
+    QTextCursor body(win.document()->story());
+    body.setPosition(2);
+    win.view()->setCursor(body);
+    QTRY_VERIFY(win.act(QStringLiteral("insert.table"))->isEnabled());
+    QVERIFY(win.act(QStringLiteral("insert.convertTextToTable"))->isEnabled());
+    QTextCursor note(win.document()->story());
+    note.setPosition(inNote);
+    win.view()->setCursor(note);
+    QTRY_VERIFY(!win.act(QStringLiteral("insert.table"))->isEnabled());
+    QVERIFY(!win.act(QStringLiteral("insert.convertTextToTable"))->isEnabled());
+    QVERIFY(!win.act(QStringLiteral("table.draw"))->isEnabled());
+    // The tables that are ready-made, the contents, the index, the figures, the bibliography, and the caption make paragraphs of their own: none in a note's words.
+    for (const char *id : {"insert.ready.calendar", "insert.ready.matrix", "insert.ready.list", "insert.ready.schedule", "refs.tocAutomatic1", "refs.tocAutomatic2", "refs.tocManual", "refs.insertCaption",
+                           "refs.tableOfFigures", "refs.bibliography.bibliography", "refs.bibliography.references", "refs.bibliography.worksCited", "refs.insertIndex", "refs.insertAuthorities"}) {
+        QVERIFY2(win.act(QString::fromLatin1(id)), id);
+        QVERIFY2(!win.act(QString::fromLatin1(id))->isEnabled(), id);
+    }
+    win.view()->setCursor(body);
+    QTRY_VERIFY(win.act(QStringLiteral("insert.table"))->isEnabled());
+    for (const char *id : {"insert.ready.calendar", "refs.tocAutomatic1", "refs.insertCaption", "refs.insertIndex"}) QVERIFY2(win.act(QString::fromLatin1(id))->isEnabled(), id);
+}

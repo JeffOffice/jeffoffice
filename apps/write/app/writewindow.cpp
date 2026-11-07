@@ -614,6 +614,11 @@ void WriteWindow::refreshUi()
                                    "refs.tableOfFigures", "refs.insertCitation", "refs.bibliography.bibliography", "refs.bibliography.references", "refs.bibliography.worksCited", "refs.markEntry", "refs.insertIndex",
                                    "refs.markCitation", "refs.insertAuthorities"})
                 act(QString::fromLatin1(id))->setEnabled(inText);
+            // (The ones that make paragraphs of their own put them in the text, not between the words of a note.)
+            if (inNoteWords)
+                for (const char *id : {"refs.tocAutomatic1", "refs.tocAutomatic2", "refs.tocManual", "refs.insertCaption", "refs.tableOfFigures", "refs.bibliography.bibliography", "refs.bibliography.references",
+                                       "refs.bibliography.worksCited", "refs.insertIndex", "refs.insertAuthorities"})
+                    act(QString::fromLatin1(id))->setEnabled(false);
             act("fields.lock")->setEnabled(near.unlocked);
             act("fields.unlock")->setEnabled(near.locked);
             act("fields.toggleAllCodes")->setEnabled(inText && m_doc->mayHaveFields());
