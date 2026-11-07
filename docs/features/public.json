@@ -729,8 +729,9 @@
        "heading": "414efa00510f17d5f3cba6f1f8876f9892ef2dcf017d5d928cf93fcea261e0b1",
        "items": [
         {
-         "status": "todo",
-         "text": "30f52b15403cdc8d2c001ad062ba538d3dbbeccb0475d1db7aba03cad94a6520"
+         "hide_soon": true,
+         "status": "done",
+         "text": "5de2b6daa0eca664c5d79213b7a5b1feebfdaa98ae8cd6a2db701c4c058ac032"
         }
        ]
       },
@@ -1136,8 +1137,9 @@
          "text": "7043ef0189689a0a99ccc32ab8c2db649782dff34c5ed84430a1969a81b7bcce"
         },
         {
-         "status": "todo",
-         "text": "f6b4751dcb2b67dea2c5bd1a5006ecaf2e94fa01aeeafbec44629ec805709b4f"
+         "hide_soon": true,
+         "status": "done",
+         "text": "60dd270b66e71aeb3d1a7aa0af8c0026195d9c606f40f7ce2b8399f1fc40ed6a"
         }
        ]
       },
@@ -10626,18 +10628,6 @@
     "fr": ""
    }
   },
-  "30f52b15403cdc8d2c001ad062ba538d3dbbeccb0475d1db7aba03cad94a6520": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Comment: threaded comments with replies",
-    "es": "Comentario: comentarios encadenados con respuestas",
-    "fr": "Commentaire : commentaires avec réponses"
-   }
-  },
   "30fade438ba0afa0df011492c5945886e8166bf19a17ee7d563e1a5da4dc3433": {
    "drop": false,
    "en": "Share and Export",
@@ -13830,6 +13820,18 @@
     "fr": ""
    }
   },
+  "5de2b6daa0eca664c5d79213b7a5b1feebfdaa98ae8cd6a2db701c4c058ac032": {
+   "drop": false,
+   "en": "In JeffCrunch, you can add threaded comments to cells, with replies, and also work with older-style cell notes.",
+   "es": "En JeffCrunch, usted puede agregar comentarios en hilo a las celdas, con respuestas, y también trabajar con notas de celda de estilo anterior.",
+   "fr": "Dans JeffCrunch, vous pouvez ajouter des commentaires en fil de discussion aux cellules, avec des réponses, et aussi travailler avec des notes de cellule d’ancien style.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "5e58bd4a0a374c91b67a7eca07e1677a0845687dcb343b0354cf5d54a8c7d351": {
    "drop": true,
    "en": "",
@@ -13991,6 +13993,18 @@
    "en": "JeffWrite opens `.docx` files, including text and formatting, styles, numbering, sections and page setup, headers and footers, notes, fields, bookmarks, links, tables, pictures, shapes and text boxes, equations, charts, content controls, comments, tracked changes, properties, themes, settings, and embedded fonts.",
    "es": "JeffWrite abre archivos `.docx`, incluidos texto y formato, estilos, numeración, secciones y configuración de página, encabezados y pies de página, notas, campos, marcadores, vínculos, tablas, imágenes, formas y cuadros de texto, ecuaciones, gráficos, controles de contenido, comentarios, cambios con seguimiento, propiedades, temas, configuraciones y fuentes incrustadas.",
    "fr": "JeffWrite ouvre les fichiers `.docx`, y compris le texte et la mise en forme, les styles, la numérotation, les sections et la mise en page, les en-têtes et pieds de page, les notes, les champs, les signets, les liens, les tableaux, les images, les formes et zones de texte, les équations, les graphiques, les contrôles de contenu, les commentaires, les modifications suivies, les propriétés, les thèmes, les paramètres et les polices incorporées.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "60dd270b66e71aeb3d1a7aa0af8c0026195d9c606f40f7ce2b8399f1fc40ed6a": {
+   "drop": false,
+   "en": "In JeffCrunch, you can create, reply to, resolve, reopen, and delete threaded comments, move to the previous or next comment, and show them in the Comments pane. Each thread shows its author, time, and replies. You can convert notes to comments and back.",
+   "es": "En JeffCrunch, usted puede crear, responder, resolver, reabrir y eliminar comentarios en hilo, ir al comentario anterior o siguiente, y mostrarlos en el panel de comentarios. Cada hilo muestra su autor, la hora y las respuestas. Puede convertir notas en comentarios y viceversa.",
+   "fr": "Dans JeffCrunch, vous pouvez créer, répondre à, résoudre, rouvrir et supprimer des commentaires en fil de discussion, passer au commentaire précédent ou suivant, et les afficher dans le volet des commentaires. Chaque fil indique son auteur, l’heure et les réponses. Vous pouvez convertir des notes en commentaires et inversement.",
    "soon": {
     "drop": true,
     "en": "",
@@ -23884,18 +23898,6 @@
     "en": "Save as a single-file web page, and a selection or chart as an HTML table or picture",
     "es": "Guardar como página web de un solo archivo, y una selección o un gráfico como tabla HTML o imagen",
     "fr": "Enregistrement en page web à fichier unique, et d’une sélection ou d’un graphique en tableau HTML ou en image"
-   }
-  },
-  "f6b4751dcb2b67dea2c5bd1a5006ecaf2e94fa01aeeafbec44629ec805709b4f": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Threaded comments: new comment, replies, resolve, delete, previous and next, and Show Comments",
-    "es": "Comentarios en conversación: nuevo comentario, respuestas, resolver, eliminar, anterior y siguiente, y Mostrar comentarios",
-    "fr": "Commentaires en fil de discussion : nouveau commentaire, réponses, résolution, suppression, précédent et suivant, et Afficher les commentaires"
    }
   },
   "f70fba0d817fa209d8fd86b3452e58c91b917b7dcc40f4cb8e6e7e4d4cffb429": {
