@@ -41,6 +41,7 @@
 //                                                matched, cells, matched cells; `unsup`: a function not in the registry and the cells that call it; `pat`: how mismatches look and
 //                                                how many; and `book`: the formula cells, the cells of each class in the order above, the volatile ones that were worked out and
 //                                                matched, whether the workbook calculates by hand, whether every sheet was read, and the seconds
+//   jcrunchtool bench <file.xlsx|file.xls> [runs=3]   the load, the first full recalculation, and the recalculation after one edit, timed in this process (the median of the runs: wall seconds / CPU seconds), with a checksum of the results and the load average
 //   jcrunchtool functions                      the functions the formula engine has: name, fewest and most arguments, and v (volatile) or f (written with the prefix _xlfn.)
 //   jcrunchtool recalc-full-one <file.xlsx|file.xls> [matches=3] [seconds=100]   every formula worked out from the constants (not from the results the file stored), in dependency order, and
 //                                                compared with its stored result; the formulas the engine cannot work out keep the stored result and mark what reads them (class Z);
@@ -91,6 +92,7 @@
 #include <algorithm>
 #include <atomic>
 #include <random>
+#include <time.h>
 
 using namespace jp::office;
 using namespace jp::office::sheet;
@@ -409,6 +411,132 @@ int recalcFullOne(const QString &path, int keepMatches, double seconds)
     return report.whole ? 0 : 2;
 }
 
+// One workbook timed in this process, `runs` times (the median of each is printed, with the load average beside it): the open (the file read), the load (the formulas
+// registered), the first full recalculation, and the recalculation after the edit of a constant that many formulas read; and a checksum of every formula's result, so
+// that two builds can be compared. Line: bench, file, formulas, open, load, calc, edit, dependents of the edited cell, checksum, load average.
+int benchOne(const QString &path, int runs)
+{
+    auto loadAverage = [] {
+        QFile f(QStringLiteral("/proc/loadavg"));
+        return f.open(QIODevice::ReadOnly) ? QString::fromLatin1(f.readAll().split(' ').value(0)) : QString();
+    };
+    auto cpuNow = [] {
+        timespec ts;
+        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts);
+        return double(ts.tv_sec) + double(ts.tv_nsec) / 1e9;
+    };
+    std::vector<double> marks, reads, opens, loads, calcs, edits, cpuLoads, cpuCalcs, cpuEdits;
+    qint64 formulas = 0, dependents = 0, queryWork = 0;
+    quint64 checksum = 0;
+    for (int run = 0; run < runs; ++run) {
+        QString why;
+        QElapsedTimer t;
+        t.start();
+        Workbook book;
+        if (!book.openFile(path, &why)) {
+            err() << path << ": " << why << "\n";
+            return 1;
+        }
+        opens.push_back(double(t.nsecsElapsed()) / 1e9);
+        CalcOptions options;
+        options.keepApart = true;
+        options.now = 45366.5;
+        if (qEnvironmentVariableIsSet("JCRUNCH_BENCH_NOGRAPH")) options.maxGraphBytes = 1;
+        t.restart();
+        {
+            WorkbookSource source(book);
+            source.loadAll();
+        }
+        reads.push_back(double(t.nsecsElapsed()) / 1e9);
+        t.restart();
+        double cpu0 = cpuNow();
+        Calculation calc(book, options);
+        calc.load();
+        loads.push_back(double(t.nsecsElapsed()) / 1e9);
+        cpuLoads.push_back(cpuNow() - cpu0);
+        t.restart();
+        cpu0 = cpuNow();
+        while (!calc.recalculate(0).finished) {}
+        calcs.push_back(double(t.nsecsElapsed()) / 1e9);
+        cpuCalcs.push_back(cpuNow() - cpu0);
+        // the constant number that the most formulas read, among the first few thousand
+        int bestSheet = -1;
+        quint32 bestRow = 0, bestCol = 0;
+        qint64 best = -1;
+        qint64 looked = 0;
+        for (int si = 0; si < calc.sheetCount() && looked < 3000; ++si)
+            calc.sheet(si).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+                if (looked >= 3000 || c.hasFormula() || c.type != CellType::Number) return;
+                ++looked;
+                std::vector<quint32> found;
+                calc.graph().dependentsOfCell(si, calc.sheet(si).cells.rowIdAt(row), calc.sheet(si).cells.colIdAt(col), &found);
+                if (qint64(found.size()) > best) {
+                    best = qint64(found.size());
+                    bestSheet = si;
+                    bestRow = row;
+                    bestCol = col;
+                }
+            });
+        dependents = best;
+        double editSeconds = 0, editCpu = 0;
+        if (bestSheet >= 0) {
+            const jp::calc::Value old = calc.cell(bestSheet, bestRow, bestCol);
+            t.restart();
+            cpu0 = cpuNow();
+            const qint64 workBefore = calc.graph().queryWork();
+            calc.setValue(bestSheet, bestRow, bestCol, jp::calc::Value::number(old.number() + 1));
+            queryWork = calc.graph().queryWork() - workBefore;
+            marks.push_back(double(t.nsecsElapsed()) / 1e9);
+            while (!calc.recalculate(0).finished) {}
+            editSeconds = double(t.nsecsElapsed()) / 1e9;
+            editCpu = cpuNow() - cpu0;
+            // (the cell is put back, and the results are summed as the first calculation left them)
+            calc.setValue(bestSheet, bestRow, bestCol, old);
+            while (!calc.recalculate(0).finished) {}
+        }
+        edits.push_back(editSeconds);
+        cpuEdits.push_back(editCpu);
+        formulas = 0;
+        quint64 sum = 1469598103934665603ull;
+        auto mix = [&](quint64 x) { sum = (sum ^ x) * 1099511628211ull; };
+        calc.forEachFormula([&](const Calculation::FormulaCell &fc) {
+            ++formulas;
+            std::vector<jp::calc::Value> pending{fc.ours};
+            while (!pending.empty()) {
+                const jp::calc::Value v = pending.back();
+                pending.pop_back();
+                if (v.isArray()) {
+                    for (int r = 0; r < v.rows(); ++r)
+                        for (int c = 0; c < v.cols(); ++c) pending.push_back(v.at(r, c));
+                } else if (v.isNumber()) {
+                    double d = v.number();
+                    quint64 bits;
+                    memcpy(&bits, &d, sizeof bits);
+                    mix(bits);
+                } else if (v.isText()) {
+                    for (const QChar ch : v.text()) mix(ch.unicode());
+                    mix(0x7e);
+                } else if (v.isBool()) {
+                    mix(v.boolean() ? 0x71 : 0x70);
+                } else if (v.isError()) {
+                    mix(0x100 + quint64(v.errorKind()));
+                } else {
+                    mix(0x55);
+                }
+            }
+        });
+        checksum = sum;
+    }
+    auto median = [](std::vector<double> v) {
+        std::sort(v.begin(), v.end());
+        return v[v.size() / 2];
+    };
+    const auto f3 = [&](const std::vector<double> &v) { return QString::number(median(v), 'f', 3); };
+    out() << "bench\t" << QFileInfo(path).fileName() << '\t' << formulas << "\tread " << f3(reads) << "\tload " << f3(loads) << '/' << f3(cpuLoads) << "\tcalc " << f3(calcs) << '/' << f3(cpuCalcs) << "\tedit " << f3(edits) << " (marking " << f3(marks) << ")" << '/' << f3(cpuEdits)
+          << "\tgraph work " << queryWork << "\tdependents " << dependents << "\tsum " << QString::number(checksum, 16) << "\tload average " << loadAverage() << "\n";
+    return 0;
+}
+
 int mutate(const QString &path, int count, quint32 seed, double seconds)
 {
     QString why;
@@ -712,6 +840,7 @@ int usage()
              "       jcrunchtool recalc <keys.txt> <out-dir> [jobs]\n"
              "       jcrunchtool recalc-full-one <file.xlsx|file.xls> [matches=3] [seconds=100]\n"
              "       jcrunchtool recalc-full <keys.txt> <out-dir> [jobs]\n"
+             "       jcrunchtool bench <file.xlsx|file.xls> [runs=3]\n"
              "       jcrunchtool grid-one [--full] <file.xlsx|file.xls>\n"
              "       jcrunchtool grid-window <file.xlsx|file.xls>\n"
              "       jcrunchtool grid-bench [rows=100000] [cols=20] [ruled]\n"
@@ -870,6 +999,7 @@ int main(int argc, char **argv)
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("recalc")) return recalc(args[1], args[2], args.value(3));
     if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("recalc-full-one")) return recalcFullOne(args[1], args.value(2, QStringLiteral("3")).toInt(), args.value(3, QStringLiteral("100")).toDouble());
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("recalc-full")) return recalc(args[1], args[2], args.value(3), QStringLiteral("crunch_recalc_full.py"));
+    if (args.size() >= 2 && args.size() <= 3 && args[0] == QLatin1String("bench")) return benchOne(args[1], std::max(1, args.value(2, QStringLiteral("3")).toInt()));
     if (args.size() == 1 && args[0] == QLatin1String("functions")) return listFunctions();
     if (args.size() >= 2 && args.size() <= 5 && args[0] == QLatin1String("mutate"))
         return mutate(args[1], args.value(2, QStringLiteral("3000")).toInt(), args.value(3, QStringLiteral("1")).toUInt(), args.value(4, QStringLiteral("60")).toDouble());
