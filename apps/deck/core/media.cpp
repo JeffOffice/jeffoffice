@@ -601,6 +601,7 @@ void setMediaPlay(Page &slide, PictureItem &pic, const MediaPlay &play, qint64 l
     if (!t.locate()) t.root = skeleton(), t.locate();
     t.scanIds(t.root);
     removeMedia(t, p.shape);
+    t.locate();   // (taking nodes out moved the main sequence)
     addMedia(t, p, lengthMs);
     dropEmptyMainSequence(t);
     if (timingIsEmpty(t)) slide.props.remove(QStringLiteral("timingXml"));
