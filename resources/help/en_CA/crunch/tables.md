@@ -1,5 +1,5 @@
 # Tables
-<!-- keywords: table, tables, remove duplicates, duplicates, summarize, clear style, structured reference, header row, totals row, calculated column, banded, striped, style, table looks, filter buttons, Ctrl+T, convert, plain cells, resize, column name, [@Column], Table1[Column] -->
+<!-- keywords: table, tables, remove duplicates, duplicates, summarize, clear style, structured reference, header row, totals row, calculated column, banded, striped, style, table looks, new table style, custom table style, filter buttons, Ctrl+T, convert, plain cells, resize, column name, [@Column], Table1[Column] -->
 
 A table is a block of cells with a row of names over its columns, treated as one thing: it has a name, a look, buttons to filter and sort its rows, and it grows when you add to it. Formulas can call its columns by name instead of by cell address.
 
@@ -8,6 +8,8 @@ A table is a block of cells with a row of names over its columns, treated as one
 Select the cells, or click a cell in the data, and choose **Table** on the **Insert** tab (**Ctrl+T**). JeffCrunch asks which cells the table covers and whether the first row holds the names of the columns. Names that are numbers, dates, or formulas become the text they show, empty names become Column1, Column2, and so on, and two columns with one name are numbered. If there are no names, the table has no row of names, and its columns are called Column1, Column2, and so on in formulas.
 
 The **Table Looks** gallery (**Home** tab, or the **Table** tab) shows the looks (**Clear**, under the gallery on the **Table** tab, takes the look off the table): light, medium, and dark, each in black and in the six colours of the workbook's theme. Choosing one for cells that are not a table makes them one. The look is drawn under what a cell has of its own: a fill, borders, a text colour, or bold that you set on a cell stays.
+
+To make a look of your own, choose **New Table Style** at the bottom of the gallery. Type a name. Then pick a fill colour, a text colour, and bold for each part you want to change: the header row, the stripes of rows, the totals row, and the first column. The new look appears in a **Custom** group at the top of the gallery, and it is put on the table you are in. It is saved in the file, so it is there when you open the file again.
 
 ## The Table tab
 
