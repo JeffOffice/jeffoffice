@@ -532,6 +532,19 @@ private Q_SLOTS:
         QVERIFY(!xml.contains("Fallback"));
     }
 
+    // A box inside the text of another keeps the outer box where its own numbers put it.
+    void aTextBoxInsideATextBoxLeavesTheOuterOneAlone()
+    {
+        const Document d = must(doc("\\pard Line {\\shp{\\*\\shpinst\\shpleft4320\\shptop200\\shpright5760\\shpbottom800\\shpbxmargin\\shpbypage\\shpwr3"
+                                    "{\\sp{\\sn shapeType}{\\sv 202}}{\\shptxt\\pard Outer {\\shp{\\*\\shpinst\\shpleft100\\shptop50\\shpright900\\shpbottom400"
+                                    "{\\sp{\\sn shapeType}{\\sv 202}}{\\shptxt\\pard Inner\\par}}} tail\\par}}} end\\par"));
+        QByteArray xml;
+        for (const Inline &in : d.body.first().para.content)
+            if (in.kind == Inline::RunAtom) xml += in.raw;
+        QVERIFY2(xml.contains("Outer") && xml.contains("Inner"), xml.constData());
+        QVERIFY2(xml.contains("margin-left:216.0pt"), xml.constData());
+    }
+
     void aLineAndARectangleShapeAreDrawn()
     {
         const Document d = must(doc("\\pard a{\\shp{\\*\\shpinst\\shpleft-99\\shptop1084\\shpright9440\\shpbottom1084{\\sp{\\sn shapeType}{\\sv 20}}{\\sp{\\sn lineColor}{\\sv 8388608}}}}"

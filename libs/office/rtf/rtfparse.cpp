@@ -68,7 +68,7 @@ struct State {
     int bsel = -1, btarget = 0;
     int tabType = 0, tabLead = 0;
     int uc = 1;
-    bool shp = false, shapeText = false;
+    bool shp = false, shapeText = false, shapePushed = false;
 };
 
 struct Picture {
@@ -215,6 +215,9 @@ private:
     } m_shape;
     ReadWork m_work;
     bool m_shapeOpen = false, m_shapeHadText = false;
+    // A shape in the text of another: the outer one's numbers are kept here while the inner is read (as deep as the text boxes go).
+    struct SavedShape { ShapeScratch shape; bool open, hadText; };
+    QVector<SavedShape> m_shapeStack;
     int m_shapes = 0;
     QString m_spName;
     CellDef m_pendCell;
@@ -959,6 +962,7 @@ void Reader::pushGroup()
     State child = st();
     child.owns = false;
     child.shapeText = false;
+    child.shapePushed = false;
     if (child.dest == Dest::StyleSheet) {
         child.dest = Dest::StyleDef;
         child.owns = true;
@@ -1064,7 +1068,16 @@ void Reader::popGroup()
             break;
         case Dest::Pict: finishPict(g); break;
         case Dest::Header: finishHeader(g); break;
-        case Dest::Shape: m_shapeOpen = false; if (!m_shapeHadText) finishShapeDrawing(); break;
+        case Dest::Shape:
+            m_shapeOpen = false;
+            if (!m_shapeHadText) finishShapeDrawing();
+            if (g.shapePushed && !m_shapeStack.isEmpty()) {
+                const SavedShape outer = m_shapeStack.takeLast();
+                m_shape = outer.shape;
+                m_shapeOpen = outer.open;
+                m_shapeHadText = outer.hadText;
+            }
+            break;
         case Dest::SpName: m_spName = m_name.trimmed(); m_name.clear(); break;
         case Dest::SpValue: {
             const int v = m_name.trimmed().toInt();
@@ -1567,7 +1580,16 @@ void Reader::destWord(State &g, uint32_t h, bool has, int param, bool *handled)
     case H("sp"): enter(Dest::ShapeProp); break;
     case H("sn"): enter(Dest::SpName); m_name.clear(); break;
     case H("sv"): enter(Dest::SpValue); m_name.clear(); break;
-    case H("shpinst"): enter(Dest::Shape); m_shape = ShapeScratch(); m_shapeOpen = true; m_shapeHadText = false; break;
+    case H("shpinst"):
+        enter(Dest::Shape);
+        if (m_shapeStack.size() < 4) {
+            m_shapeStack.push_back({m_shape, m_shapeOpen, m_shapeHadText});
+            g.shapePushed = true;
+        }
+        m_shape = ShapeScratch();
+        m_shapeOpen = true;
+        m_shapeHadText = false;
+        break;
     case H("shptxt"):
         if (m_shapeOpen && m_shapes < kMaxShapes && m_stories.size() < 3u && !m_stopped) {
             ++m_shapes;
