@@ -55,7 +55,18 @@ public:
     // Layout for a single story in one box (shape text, table cells).
     // `fitScale` and `lineCut` are what a shape's text that shrinks to fit is drawn at (see ShapeItem::shrinks).
     const StoryLayout *storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key, double fitScale = 1.0, double lineCut = 0);
-    void clear() { m_entries.clear(); m_fields.clear(); }
+    void clear() { m_entries.clear(); m_fields.clear(); m_passFrames.clear(); }
+    // While a Pass is alive the publication is not changed (a page being painted), so the layout of each text box is worked out once: a chain of
+    // boxes is set up whole for each of its boxes otherwise, the square of the chain's length.
+    class Pass {
+    public:
+        explicit Pass(LayoutCache *c);
+        ~Pass();
+        Pass(const Pass &) = delete;
+        Pass &operator=(const Pass &) = delete;
+    private:
+        LayoutCache *m_c;
+    };
 
 private:
     // What the fields of a story show that its layout's key doesn't say (the date and time, business information, mail merge values), as text,
@@ -74,6 +85,8 @@ private:
         double fitScale = 1.0;
     };
     QHash<QString, Entry> m_entries;
+    int m_pass = 0;
+    QHash<QString, FrameLayout> m_passFrames;   // by box and page, while a Pass is alive
 };
 
 struct PaintContext {
@@ -124,6 +137,8 @@ public:
     static QImage renderToImage(const PaintContext &ctx, int pageIndex, double scale, bool transparent = false);
     static QImage renderItemsToImage(const PaintContext &ctx, const ItemList &items, double scale);
 
+    // The objects looked at, and the wrap shapes made, for text boxes since the program began on this thread: a count for tests of cost.
+    static qint64 wrapWorkForTest();
     // Wrap obstacles (frame-local polygons) for a text box on a page.
     static QVector<QPolygonF> wrapObstacles(const Document &doc, const TextItem &frame, bool *covered = nullptr);   // covered: an object in front wraps around the whole box
     static FrameSpec frameSpec(const Document &doc, const TextItem &t, int pageNumber, const RenderOptions &opt);

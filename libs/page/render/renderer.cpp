@@ -1,4 +1,5 @@
 #include "render/renderer.h"
+#include <limits>
 
 #include "render/metafile.h"
 #include "render/pdfpage.h"
@@ -130,6 +131,28 @@ void Renderer::strokePath(QPainter *p, const QPainterPath &path, const Stroke &s
 }
 
 // ---------- layout cache ----------
+namespace {
+constexpr int kMaxWrapObstacles = 32, kMaxWrapCandidates = 512;
+// The shapes (outlines, not rectangles) a page makes for wrapping text while it is painted: each costs about a millisecond, and a page where every
+// box wraps around hundreds of others would take minutes. The boxes after the budget is spent wrap around rectangles only.
+constexpr int kMaxWrapShapesPerPage = 1024;
+thread_local qint64 g_wrapWork = 0;
+thread_local int g_wrapShapesLeft = std::numeric_limits<int>::max();
+}
+qint64 Renderer::wrapWorkForTest() { return g_wrapWork; }
+
+LayoutCache::Pass::Pass(LayoutCache *c) : m_c(c)
+{
+    if (m_c && m_c->m_pass++ == 0) g_wrapShapesLeft = kMaxWrapShapesPerPage;
+}
+LayoutCache::Pass::~Pass()
+{
+    if (m_c && --m_c->m_pass == 0) {
+        m_c->m_passFrames.clear();
+        g_wrapShapesLeft = std::numeric_limits<int>::max();
+    }
+}
+
 QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &frame, bool *covered)
 {
     QVector<QPolygonF> out;
@@ -151,11 +174,17 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
     if (idx < 0) return out;
     const QTransform inv = frame.transform().inverted();
     const QRectF fb = frame.bounds();
+    // A box's text is set around at most kMaxWrapObstacles objects in front of it, found among the next kMaxWrapCandidates: more would be a
+    // page where every box wraps around every other, which costs the square of the page's objects for each box.
+    int candidates = 0;
     std::function<void(const ItemPtr &)> consider = [&](const ItemPtr &o) {
         if (o->type() == ItemType::Group) {
             for (const auto &c : static_cast<GroupItem *>(o.get())->children) consider(c);
             return;
         }
+        if (out.size() >= kMaxWrapObstacles || candidates >= kMaxWrapCandidates) return;
+        ++candidates;
+        ++g_wrapWork;
         if (o->id == frame.id || o->wrap.mode == Wrap::None) return;
         // A text box pushes this box's text aside only if its own frame
         // reaches into the text area; then the wrap distance widens the gap.
@@ -165,6 +194,7 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
         // area pushed nothing in Publisher's pictures, one 0.6 pt in did.
         if (o->type() == ItemType::Text && !o->bounds().adjusted(0.55, 0.55, -0.55, -0.55).intersects(fb.marginsRemoved(frame.insets))) return;
         const Wrap &w = o->wrap;
+        ++g_wrapWork;
         QPainterPath pagePath;
         bool covers = false;
         if (w.mode == Wrap::Square || w.mode == Wrap::TopBottom) {
@@ -173,6 +203,13 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
             if (w.mode == Wrap::TopBottom) { b.setLeft(-1e5); b.setRight(1e5); }
             pagePath.addRect(b);
         } else {
+            if (g_wrapShapesLeft <= 0) {
+                // (a rectangle around the object stands in for its outline)
+                QRectF b = o->bounds().adjusted(-w.left, -w.top, w.right, w.bottom);
+                covers = b.contains(fb);
+                pagePath.addRect(b);
+            } else {
+            --g_wrapShapesLeft;
             QPainterPath local;
             if (!w.points.isEmpty()) local.addPolygon(w.points);
             else local = silhouette(doc, *o);
@@ -184,6 +221,7 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
                 pagePath = pagePath.united(st.createStroke(pagePath));
             }
             covers = pagePath.contains(fb);
+            }
         }
         const QRectF pb = pagePath.boundingRect();
         if (!pb.intersects(fb)) return;
@@ -206,7 +244,7 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
         }
         out << inv.map(pagePath.toFillPolygon());
     };
-    for (int i = idx + 1; i < int(list->size()); ++i) consider((*list)[i]);
+    for (int i = idx + 1; i < int(list->size()) && out.size() < kMaxWrapObstacles && candidates < kMaxWrapCandidates; ++i) consider((*list)[i]);
     return out;
 }
 
@@ -327,6 +365,12 @@ QString LayoutCache::fieldsKey(const Document &doc, const Story &story, const Fi
 LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextItem &frame, int pageNumber, const RenderOptions &opt)
 {
     FrameLayout out;
+    const bool frameOnPage = doc.find(frame.id).page >= 0;
+    const QString passKey = m_pass > 0 ? frame.id + (frameOnPage ? QString() : QStringLiteral("@") + QString::number(pageNumber)) : QString();
+    if (m_pass > 0) {
+        const auto seen = m_passFrames.constFind(passKey);
+        if (seen != m_passFrames.constEnd()) return *seen;
+    }
     QVector<TextItem *> chain = doc.chainOf(frame.id);
     // A text box set in text is on no page: it's a chain of its own.
     if (chain.isEmpty()) chain << const_cast<TextItem *>(&frame);
@@ -404,6 +448,17 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
     }
     out.layout = e.layout.get();
     out.fitScale = e.fitScale;
+    if (m_pass > 0) {
+        // The chain's other boxes share this layout; a chain on pages is the same whatever page number is asked.
+        if (doc.find(head->id).page >= 0)
+            for (int i = 0; i < chain.size(); ++i)
+                if (doc.find(chain[i]->id).page >= 0) {
+                    FrameLayout one = out;
+                    one.frame = i;
+                    m_passFrames.insert(chain[i]->id, one);
+                }
+        m_passFrames.insert(passKey, out);
+    }
     return out;
 }
 
@@ -1424,6 +1479,7 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
     // The pictures of the page's text effects, all together, are held to one budget.
     EffectBudget effectPixels(p);
     const Page &pg = *doc.pages[pageIndex];
+    LayoutCache::Pass pass(ctx.cache);
     PaintContext c = ctx;
     c.pageNumber = pageIndex + 1;
     c.pageCount = doc.pages.size();
