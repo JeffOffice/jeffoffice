@@ -394,7 +394,7 @@ private:
     void addTableContextMenu(QMenu &menu);
     void headerFooterModeChanged();
     void buildRibbon();
-    void watchFormatPainter(QWidget *root);
+    void watchCopyFormatting(QWidget *root);
     void ribbonParts(RibbonParts &parts);
     void buildStatusBar();
     void refreshUi();

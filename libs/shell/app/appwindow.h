@@ -48,6 +48,8 @@ public:
 protected:
     // A ribbon tab made when first shown is turned off, as the others are, if the document is read-only (the windows call this from the ribbon's tabBuilt).
     void ribbonTabMade(RibbonTab *tab);
+    // After the window brought the controls of tabs made late up to date (which can turn a control on that read-only turned off): turned off again.
+    void keepRibbonReadOnly();
     bool m_readOnly = false;
 };
 

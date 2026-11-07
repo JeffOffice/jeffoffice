@@ -19,6 +19,7 @@ public:
     // the blank page in their places until released. The New page can be up and drawn at the first paint that way.
     void holdThumbnails(bool hold) { m_holdThumbs = hold; }
     int thumbnailCount() const { return int(m_thumbs.size()); }
+    int heldThumbnailTicks() const { return m_heldTicks; }   // (for tests: how many times the thumbnail timer ran and found them held)
 
 private:
     QWidget *buildPage(const QString &key);
@@ -37,6 +38,7 @@ private:
     QHash<QString, QIcon> m_thumbs;
     QString m_thumbOptions;
     bool m_holdThumbs = false;
+    int m_heldTicks = 0;
 };
 
 } // namespace jp

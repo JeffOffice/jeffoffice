@@ -82,6 +82,8 @@ public:
     void setBuilder(std::function<void(RibbonTab *)> fn) { m_builder = std::move(fn); }
     bool isBuilt() const { return !m_builder && !m_attach; }
     void ensureBuilt();
+    // A tab shown just now (made late, or the window just resized) has its layout done, and its groups folded to the room there is, before anything reads which controls show.
+    void settle();
     QSize minimumSizeHint() const override;
     int collapsedCount() const;
     // The single button each group shows when there's no room.
@@ -116,7 +118,6 @@ class Ribbon : public QWidget {
     Q_OBJECT
 public:
     explicit Ribbon(QWidget *parent = nullptr);
-    ~Ribbon() override;
     // `name` identifies the tab in code (tab(), setContextVisible()); `title`
     // is what the header shows, the name translated (the name when empty).
     // A `deferred` tab (one to be made late with RibbonTab::setBuilder) is only a page until it is first shown or asked for its groups.
@@ -190,6 +191,7 @@ private:
     void sortTabs();
     QScrollArea *makeScroll(RibbonTab *page);
     void attachPage(RibbonTab *page);
+    QWidget *m_pending = nullptr;   // hidden: the parent of the pages of tabs not yet made
     QVector<Tab> m_tabs;
     int m_current = 0;
     RibbonHeader *m_header;

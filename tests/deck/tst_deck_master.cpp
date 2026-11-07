@@ -1,5 +1,6 @@
 // JeffDeck's tests of the slide master view.
 #include "deckhelpers.h"
+#include "app/ribbonbuilder.h"
 
 class DeckMasterTests : public QObject {
     Q_OBJECT
@@ -52,6 +53,31 @@ private:
 private Q_SLOTS:
     // View > Slide Master opens Slide Master view on the layout of the slide being edited: the thumbnails pane lists each slide master with its
     // layouts indented under it, the Slide Master tab comes first and is the one shown, and Close Master View goes back to the slide.
+    // A tab made after the Slide Master view opened has its slide-only commands that exist on the ribbon alone (Video and Audio on Insert) waiting too, as soon as it is made.
+    void slideCommandsOfRibbonTabsMadeLateWaitInTheMasterView()
+    {
+        struct Reset {
+            ~Reset() { jp::setLazyRibbonTabs(false); }
+        } reset;
+        jp::setLazyRibbonTabs(true);
+        DeckWindow w;
+        jp::setLazyRibbonTabs(false);
+        fillSlides(w, {"One", "Two"});
+        RibbonTab *insert = w.ribbon()->tab(QStringLiteral("Insert"));
+        QVERIFY(insert && !insert->isBuilt());
+        w.act(QStringLiteral("view.master"))->trigger();
+        QCOMPARE(w.view(), DeckWindow::View::Master);
+        QVERIFY(!insert->isBuilt());
+        w.ribbon()->showTab(insert);   // (made now; no events are handled before the checks)
+        for (const char *id : {"ribbon.video", "ribbon.audio"}) {
+            auto *a = w.findChild<QAction *>(QString::fromLatin1(id));
+            QVERIFY2(a, id);
+            QVERIFY2(!a->isEnabled(), id);
+        }
+        w.act(QStringLiteral("master.close"))->trigger();
+        QVERIFY(w.findChild<QAction *>(QStringLiteral("ribbon.video"))->isEnabled());
+    }
+
     void slideMasterViewOpensAndCloses()
     {
         DeckWindow w;

@@ -26,6 +26,7 @@ void CrunchWindow::buildRibbon()
         updateFormatState(true);
         updatePageActions();
         updateBars();
+        keepRibbonReadOnly();
     });
 }
 

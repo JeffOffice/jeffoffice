@@ -200,6 +200,7 @@ void KeyTips::showTab()
     m_level = InTab;
     RibbonTab *page = m_ribbon->current();
     if (!page) return hide();
+    page->settle();   // (a tab made just now: which controls show, and which groups fold, is known once its layout is done)
     // Each control with letters; a group that has folded into one button
     // shows the group's letters there, and opens with them.
     for (QWidget *w : page->findChildren<QWidget *>()) {

@@ -390,6 +390,8 @@ void MainWindow::endStartScreen() { m_backstage->holdThumbnails(false); }
 
 int MainWindow::backstageThumbnailCount() const { return m_backstage->thumbnailCount(); }
 
+int MainWindow::backstageHeldThumbnailTicks() const { return m_backstage->heldThumbnailTicks(); }
+
 void MainWindow::hideBackstage()
 {
     m_backstage->hide();

@@ -11,6 +11,7 @@
 #include <QFileInfo>
 #include <QElapsedTimer>
 #include <QFileOpenEvent>
+#include <QPointer>
 #include <QTimer>
 #include <QWindow>
 
@@ -96,21 +97,24 @@ bool StagedStart::showFirst(QWidget *window, const QString &fileToOpen, const st
     m_first = std::make_unique<FirstWindow>(window);
     if (!m_first->open()) return false;   // (closed meanwhile: nothing to open into)
     startupMark("window shown first");
+    QPointer<QWidget> alive(window);   // (a close that comes from the window system is not a key or a click: it is taken in, and the window may go)
     if (whenDrawn) {
         whenDrawn();
         // (what it made is drawn: its layout done, and the window painted at once, with no keys or clicks taken in)
-        for (int round = 0; round < 8; ++round) {   // (until a round has nothing left to do, or for a while)
+        for (int round = 0; round < 8 && alive; ++round) {   // (until a round has nothing left to do, or for a while)
             QElapsedTimer handled;
             handled.start();
             QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 50);
             if (handled.elapsed() < 5) break;
         }
+        if (!alive) return false;
         window->repaint();
         QGuiApplication::sync();   // (to the screen now: the fonts take a while, and the events are not handled then)
         startupMark("after the first picture");
     }
     initCore();
     startupMark("initCore done");
+    if (!alive || !m_first->open()) return false;
     if (fileToOpen.isEmpty()) {
         traceDrawn(window, "window usable");
         m_first.reset();

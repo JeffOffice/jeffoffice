@@ -1077,7 +1077,8 @@ private:
 }
 
 // The ribbon when its tabs are made as they are first shown looks and holds what it does when every tab is made at once: the same picture of each tab, the same description. Only the
-// first tab is made at the start, so the other tabs get their controls (and the window's state in them) when shown.
+// first tab is made at the start, so the other tabs get their controls (and the window's state in them) when shown. Compared in several places a person can be in: the window as launched
+// with some words typed, one opened from a file, each kind of object selected that brings up contextual tabs (a picture, a shape, a table, a chart), and a document open for reading only.
 QStringList checkLazyRibbon(Adapter &app)
 {
     // One window at a time (a second window would take the first one's place as the active window, and typing would not reach it alike): each tab's picture, and the description.
@@ -1091,19 +1092,37 @@ QStringList checkLazyRibbon(Adapter &app)
         int notMade = 0;
         bool ok = false;
     };
-    auto collect = [&](bool lazy) {
+    struct Scenario {
+        QString label;
+        bool file = false;
+        int context = -1;   // an index into app.contexts
+        bool readOnly = false;
+    };
+    QList<Scenario> scenarios{{QStringLiteral("typed words"), false, -1, false}, {QStringLiteral("from a file"), true, -1, false}, {QStringLiteral("read-only"), true, -1, true}};
+    for (const QString &word : {QStringLiteral("picture"), QStringLiteral("shape"), QStringLiteral("table"), QStringLiteral("chart")})
+        for (int c = 0; c < app.contexts.size(); ++c) {
+            const QString name = app.contexts[c].name.toLower();
+            if (name.contains(word) && !name.contains(QLatin1String("contents")) && !name.contains(QLatin1String("authorities")) && !name.contains(QLatin1String("pivot"))) {
+                scenarios << Scenario{app.contexts[c].name, app.contexts[c].fileOnly, c, false};
+                break;
+            }
+        }
+    auto collect = [&](bool lazy, const Scenario &sc) {
         Shots out;
         jp::setLazyRibbonTabs(lazy);
-        std::unique_ptr<jp::AppWindow> w(app.launch());
+        std::unique_ptr<jp::AppWindow> w(sc.file && !app.sampleFile.isEmpty() ? app.launchWith(app.sampleFile) : app.launch());
         jp::setLazyRibbonTabs(false);
         if (!w || !w->ribbon()) return out;
         w->resize(1280, 760);
         drain();
         if (app.settle) app.settle(w.get());
-        // (some words typed first, so the window's state is not the blank one; the contextual tabs stay as the window has them: each is shown by showTab, the window shows the rest as
-        // the selection says)
-        if (app.type) {
-            app.type(w.get());
+        // (the place first, so the window's state is not the blank one; the contextual tabs come as the selection says, and each tab is shown by showTab)
+        if (sc.context >= 0) app.contexts[sc.context].enter(w.get(), sc.file);
+        else if (!sc.file && app.type) app.type(w.get());
+        drain();
+        if (app.settle) app.settle(w.get());
+        if (sc.readOnly) {
+            w->setReadOnly(true);
             drain();
             if (app.settle) app.settle(w.get());
         }
@@ -1130,39 +1149,41 @@ QStringList checkLazyRibbon(Adapter &app)
         out.ok = true;
         return out;
     };
-    const Shots whole = collect(false), late = collect(true);
-    if (!whole.ok || !late.ok || whole.names != late.names) return {app.name + QLatin1String(": no window with a ribbon, or its tabs differ")};
-    qInfo("lazy ribbon: %s, %d of %lld tabs were made late; showing every tab took %lld ms when they were made late and %lld ms when they were there", qPrintable(app.name), late.left, qint64(late.names.size()), late.showMs, whole.showMs);
     QStringList fails;
-    if (late.left < 2) fails << QStringLiteral("%1: %2 tabs were left to make late").arg(app.name).arg(late.left);
-    if (late.notMade) fails << QStringLiteral("%1: %2 tabs were not made when shown").arg(app.name).arg(late.notMade);
-    for (int i = 0; i < whole.names.size(); ++i) {
-        const QImage &x = whole.pictures[i], &y = late.pictures[i];
-        if (x == y) continue;
-        // (where they differ: the first and last rows and columns that do)
-        QRect box;
-        if (x.size() == y.size())
-            for (int row = 0; row < x.height(); ++row)
-                for (int col = 0; col < x.width(); ++col)
-                    if (x.pixel(col, row) != y.pixel(col, row)) box = box.isNull() ? QRect(col, row, 1, 1) : box.united(QRect(col, row, 1, 1));
-        if (const QString dir = qEnvironmentVariable("JP_LAZY_SHOTS"); !dir.isEmpty()) {
-            QDir().mkpath(dir);
-            const QString name = QString(whole.names[i]).replace(QRegularExpression(QStringLiteral("[^A-Za-z0-9]+")), QStringLiteral("-"));
-            x.save(QStringLiteral("%1/%2-%3-whole.png").arg(dir, app.name, name));
-            y.save(QStringLiteral("%1/%2-%3-late.png").arg(dir, app.name, name));
+    bool first = true;
+    for (const Scenario &sc : scenarios) {
+        const Shots whole = collect(false, sc), late = collect(true, sc);
+        const QString where = app.name + QLatin1String(" (") + sc.label + QLatin1Char(')');
+        if (!whole.ok || !late.ok || whole.names != late.names) {
+            fails << where + QLatin1String(": no window with a ribbon, or its tabs differ");
+            continue;
         }
-        fails << QStringLiteral("%1/%2: looks different when made late (differs in %3,%4 %5x%6)").arg(app.name, whole.names[i]).arg(box.x()).arg(box.y()).arg(box.width()).arg(box.height());
-    }
-    if (whole.accessible != late.accessible)
-        if (const QString dir = qEnvironmentVariable("JP_LAZY_SHOTS"); !dir.isEmpty()) {
-            QDir().mkpath(dir);
-            for (const auto &one : {std::make_pair(QStringLiteral("whole"), whole.accessible), std::make_pair(QStringLiteral("late"), late.accessible)}) {
-                QFile f(QStringLiteral("%1/%2-names-%3.txt").arg(dir, app.name, one.first));
-                if (f.open(QIODevice::WriteOnly)) f.write(one.second.toUtf8());
+        if (first) {
+            qInfo("lazy ribbon: %s, %d of %lld tabs were made late; showing every tab took %lld ms when they were made late and %lld ms when they were there", qPrintable(app.name), late.left, qint64(late.names.size()), late.showMs, whole.showMs);
+            if (late.left < 2) fails << QStringLiteral("%1: %2 tabs were left to make late").arg(where).arg(late.left);
+            first = false;
+        }
+        if (late.notMade) fails << QStringLiteral("%1: %2 tabs were not made when shown").arg(where).arg(late.notMade);
+        for (int i = 0; i < whole.names.size(); ++i) {
+            const QImage &x = whole.pictures[i], &y = late.pictures[i];
+            if (x == y) continue;
+            // (where they differ: the first and last rows and columns that do)
+            QRect box;
+            if (x.size() == y.size())
+                for (int row = 0; row < x.height(); ++row)
+                    for (int col = 0; col < x.width(); ++col)
+                        if (x.pixel(col, row) != y.pixel(col, row)) box = box.isNull() ? QRect(col, row, 1, 1) : box.united(QRect(col, row, 1, 1));
+            if (const QString dir = qEnvironmentVariable("JP_LAZY_SHOTS"); !dir.isEmpty()) {
+                QDir().mkpath(dir);
+                const QString name = QString(sc.label + QLatin1Char('-') + whole.names[i]).replace(QRegularExpression(QStringLiteral("[^A-Za-z0-9]+")), QStringLiteral("-"));
+                x.save(QStringLiteral("%1/%2-%3-whole.png").arg(dir, app.name, name));
+                y.save(QStringLiteral("%1/%2-%3-late.png").arg(dir, app.name, name));
             }
+            fails << QStringLiteral("%1/%2: looks different when made late (differs in %3,%4 %5x%6)").arg(where, whole.names[i]).arg(box.x()).arg(box.y()).arg(box.width()).arg(box.height());
         }
-    if (whole.accessible != late.accessible) fails << app.name + QLatin1String(": the controls are named, described, or told differently for screen readers when their tabs are made late");
-    if (whole.description != late.description) fails << app.name + QLatin1String(": the ribbon holds something else when its tabs are made late");
+        if (whole.accessible != late.accessible) fails << where + QLatin1String(": the controls are named, described, or told differently for screen readers when their tabs are made late");
+        if (whole.description != late.description) fails << where + QLatin1String(": the ribbon holds something else when its tabs are made late");
+    }
     return fails;
 }
 

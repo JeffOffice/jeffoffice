@@ -52,12 +52,17 @@ void DeckWindow::buildRibbon()
     parts.launchers[QStringLiteral("paragraph")] = [this] { act("para.dialog")->trigger(); };
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
     // A tab is made when first shown: what shows the presentation's state in its controls (the font box, the shape sizes) is brought up to date then.
-    connect(m_ribbon, &Ribbon::tabBuilt, this, [this](RibbonTab *page) { ribbonTabMade(page); });
+    connect(m_ribbon, &Ribbon::tabBuilt, this, [this](RibbonTab *page) {
+        ribbonTabMade(page);
+        // (the commands of the ribbon alone that wait while a master is open: a tab made then must not show them on)
+        if (m_ed && m_ed->doc()) refreshMasterActions();
+    });
     connect(m_ribbon, &Ribbon::tabsBuilt, this, [this] {
         if (!m_ed || !m_ed->doc()) return;
         refreshUi();
         refreshShapeFormat();
         refreshTable();
+        keepRibbonReadOnly();
     });
 }
 

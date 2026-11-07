@@ -136,6 +136,7 @@ public:
     void fillStartScreen();   // makes its page (once the first picture of the window is drawn)
     void endStartScreen();
     int backstageThumbnailCount() const;
+    int backstageHeldThumbnailTicks() const;
     void hideBackstage();
     void showTaskPane(const QString &name);
     void hideTaskPane();

@@ -568,6 +568,18 @@ void RibbonTab::ensureBuilt()
     Q_EMIT built();
 }
 
+void RibbonTab::settle()
+{
+    if (QWidget *top = window())
+        if (QLayout *l = top->layout()) l->activate();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::LayoutRequest);
+    if (QWidget *view = parentWidget()) {
+        if (QLayout *l = view->layout()) l->activate();
+        if (QWidget *scroll = view->parentWidget()) QCoreApplication::sendPostedEvents(scroll, QEvent::LayoutRequest);
+    }
+    relayout();
+}
+
 void RibbonTab::finish()
 {
     m_layout->addStretch(1);
@@ -1084,6 +1096,8 @@ Ribbon::Ribbon(QWidget *parent) : QWidget(parent)
     v->setSpacing(0);
     m_header = new RibbonHeader(this);
     m_stack = new RibbonBody(this);
+    m_pending = new QWidget(this);
+    m_pending->hide();
     updateBodyHeight();
     v->addWidget(m_header);
     v->addWidget(m_stack);
@@ -1096,13 +1110,6 @@ Ribbon::Ribbon(QWidget *parent) : QWidget(parent)
     setAccessibleName(tr("Ribbon"));
     installArrowNavigation(this);
     connect(UiTheme::instance(), &UiTheme::changed, this, &Ribbon::restyle);   // the look switched in Options
-}
-
-Ribbon::~Ribbon()
-{
-    // (a page not yet in the ribbon has no owner)
-    for (const Tab &t : m_tabs)
-        if (!t.scroll) delete t.page;
 }
 
 // The body holds a group's title (19), its margin (4), the tab's (6), and either the tallest large button or three rows: 100 for the usual font, more for a larger one.
@@ -1190,7 +1197,7 @@ void Ribbon::attachPage(RibbonTab *page)
 
 RibbonTab *Ribbon::addTab(const QString &name, const QString &contextGroup, const QColor &color, const QString &title, bool deferred)
 {
-    auto *page = new RibbonTab();
+    auto *page = new RibbonTab(m_pending);   // (a deferred tab's page waits in a hidden holder until it is made: never a window of its own)
     QPalette pal = page->palette();
     pal.setColor(QPalette::Window, ribbonBg());
     page->setAutoFillBackground(true);

@@ -140,6 +140,14 @@ void AppWindow::setReadOnly(bool on)
     }
 }
 
+void AppWindow::keepRibbonReadOnly()
+{
+    Ribbon *r = ribbon();
+    if (!m_readOnly || !r) return;
+    for (int i = 0; i < r->tabCount(); ++i)
+        if (RibbonTab *tab = r->tabAt(i); tab && tab->isBuilt()) applyReadOnlyToTab(tab, true);
+}
+
 void AppWindow::ribbonTabMade(RibbonTab *tab)
 {
     if (m_readOnly && tab) applyReadOnlyToTab(tab, true);

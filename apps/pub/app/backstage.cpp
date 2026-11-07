@@ -463,6 +463,7 @@ QWidget *Backstage::buildNew(bool change)
             return;
         }
         if (m_holdThumbs) {   // (asked again in a moment, not at once)
+            ++m_heldTicks;
             thumbTimer->setInterval(20);
             return;
         }

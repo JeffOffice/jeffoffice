@@ -138,7 +138,10 @@ void MainWindow::buildRibbon()
     m_ribbon->showTab(m_ribbon->tab(QStringLiteral("Home")));
     connect(m_ribbon, &Ribbon::tabChanged, this, [this] { refreshUi(); });
     connect(m_ribbon, &Ribbon::tabBuilt, this, [this](RibbonTab *page) { ribbonTabMade(page); });
-    connect(m_ribbon, &Ribbon::tabsBuilt, this, [this] { refreshUi(); });   // (tabs made for Help's list of where commands are)
+    connect(m_ribbon, &Ribbon::tabsBuilt, this, [this] {
+        refreshUi();   // (tabs made for Help's list of where commands are)
+        keepRibbonReadOnly();
+    });
 }
 
 // Text, color and measurement controls. Each factory makes a new control and

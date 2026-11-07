@@ -115,10 +115,9 @@ private Q_SLOTS:
         QVERIFY(w.isVisible());
         const auto lists = paints.screen->findChildren<QListWidget *>();
         QVERIFY(std::any_of(lists.cbegin(), lists.cend(), [](QListWidget *l) { return l->isVisible() && l->count() > 2; }));
-        QElapsedTimer waited;
-        waited.start();
-        while (waited.elapsed() < 150) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-        QCOMPARE(w.backstageThumbnailCount(), 0);   // (held: none made yet)
+        // (held: the thumbnail timer has run, and found them held, and none was made; no waiting for a time)
+        QTRY_VERIFY(w.backstageHeldThumbnailTicks() >= 2);
+        QCOMPARE(w.backstageThumbnailCount(), 0);
         w.endStartScreen();
         QTRY_VERIFY(w.backstageThumbnailCount() > 0);
     }
@@ -129,37 +128,69 @@ private Q_SLOTS:
         struct Reset {
             ~Reset() { jp::setLazyRibbonTabs(false); }
         } reset;
-        auto make = [](bool lazy) {
+        auto make = [](bool lazy, bool readOnly) {
             jp::setLazyRibbonTabs(lazy);
             auto w = std::make_unique<jp::MainWindow>();
             jp::setLazyRibbonTabs(false);
-            w->setReadOnly(true);
+            if (readOnly) w->setReadOnly(true);
             return w;
         };
-        const auto whole = make(false), late = make(true);
-        jp::Ribbon *a = whole->findChild<jp::Ribbon *>(), *b = late->findChild<jp::Ribbon *>();
-        QVERIFY(a && b);
-        QCOMPARE(a->tabCount(), b->tabCount());
-        int made = 0;
-        for (int i = 0; i < a->tabCount(); ++i) made += b->tabAt(i)->isBuilt() ? 1 : 0;
-        QVERIFY(made < a->tabCount());   // (some tab was left to make late)
         auto states = [](jp::Ribbon *r, int i) {
             QStringList out;
             for (jp::RibbonGroup *g : r->tabAt(i)->groups())
                 for (QWidget *c : g->controls()) out << QStringLiteral("%1 %2 %3").arg(g->title(), c->metaObject()->className()).arg(c->isEnabled());
             return out;
         };
-        int off = 0;
+        auto off = [](const QStringList &lines) {
+            int n = 0;
+            for (const QString &line : lines) n += line.endsWith(QLatin1Char('0')) ? 1 : 0;
+            return n;
+        };
+        const auto open = make(false, false), whole = make(false, true), late = make(true, true);
+        jp::Ribbon *o = open->findChild<jp::Ribbon *>(), *a = whole->findChild<jp::Ribbon *>(), *b = late->findChild<jp::Ribbon *>();
+        QVERIFY(o && a && b);
+        QCOMPARE(a->tabCount(), b->tabCount());
+        int made = 0;
+        for (int i = 0; i < a->tabCount(); ++i) made += b->tabAt(i)->isBuilt() ? 1 : 0;
+        QVERIFY(made < a->tabCount());   // (some tab was left to make late)
+        // What the whole ribbon of the read-only window shows (taken before any event is handled), against the same window not read-only: controls were turned off.
+        QList<QStringList> want;
+        int offReadOnly = 0, offOpen = 0;
         for (int i = 0; i < a->tabCount(); ++i) {
-            b->showTab(b->tabAt(i));   // (made now, if not yet)
-            QCoreApplication::processEvents();
-            a->showTab(a->tabAt(i));
-            QCoreApplication::processEvents();
-            const QStringList want = states(a, i);
-            QCOMPARE(states(b, i), want);
-            for (const QString &line : want) off += line.endsWith(QLatin1Char('0')) ? 1 : 0;
+            want << states(a, i);
+            offReadOnly += off(want.last());
+            offOpen += off(states(o, i));
         }
-        QVERIFY(off > 20);   // (the read-only window did turn controls off)
+        QVERIFY2(offReadOnly > offOpen, qPrintable(QStringLiteral("%1 and %2 controls are off").arg(offReadOnly).arg(offOpen)));
+        // Each late tab is the same as it is made (before the refresh the window queues can change anything), and still after it.
+        for (int i = 0; i < a->tabCount(); ++i) {
+            b->showTab(b->tabAt(i));
+            QCOMPARE(states(b, i), want[i]);
+        }
+        QCoreApplication::processEvents();
+        for (int i = 0; i < a->tabCount(); ++i) QCOMPARE(states(b, i), want[i]);
+    }
+
+    // The window is closed by the window system while what the start made is being drawn (a close is not a key or a click, so it is taken in): showFirst says it is gone, and nothing
+    // after it (the repaint, the sync, the fonts) touches the window.
+    void startSequenceWindowClosedWhileDrawingIsGone()
+    {
+        auto *window = new QWidget;
+        window->setAttribute(Qt::WA_DeleteOnClose);
+        QPointer<QWidget> alive(window);
+        jp::StagedStart start(true);
+        if (!start.staged()) {
+            delete window;
+            QSKIP("this computer's own font is one of the bundled ones: the fonts are added first");
+        }
+        bool called = false;
+        const bool open = start.showFirst(window, QString(), [&] {
+            called = true;
+            QTimer::singleShot(0, window, &QWidget::close);
+        });
+        QVERIFY(called);
+        QVERIFY(!open);
+        QTRY_VERIFY(!alive);
     }
 
     void firstWindowClosedMeanwhileIsGone()
@@ -466,6 +497,11 @@ private Q_SLOTS:
         QVERIFY(!r.tabAt(1)->isBuilt());
         QVERIFY(!r.tabAt(2)->isBuilt());
         QCOMPARE(built.size(), 0);
+        // (the page of a tab not made yet waits inside the ribbon: it is no window of its own)
+        for (int i = 1; i < 3; ++i) {
+            QVERIFY(r.tabAt(i)->parentWidget());
+            QVERIFY(!QApplication::topLevelWidgets().contains(r.tabAt(i)));
+        }
 
         // (a command defined in tab Two is used by its id in tab Three: Three is shown first, before Two is made)
         r.showTab(r.tabAt(2));
@@ -1143,6 +1179,49 @@ private Q_SLOTS:
         QWidget *typing = QApplication::focusWidget();
         QVERIFY2(typing && (typing->inherits("jp::FontCombo") || (typing->parentWidget() && typing->parentWidget()->inherits("jp::FontCombo"))),
                  typing ? typing->metaObject()->className() : "nothing");
+    }
+
+    // In a narrow window, Alt and then the letter of a tab made only now shows the same letters, on the same controls (a folded group's letters on its button), as when every tab
+    // was made at the start.
+    void keyTipsOfATabMadeLateAreTheSame()
+    {
+        struct Reset {
+            ~Reset() { jp::setLazyRibbonTabs(false); }
+        } reset;
+        auto tipsOf = [](bool lazy, int width, int *folded) {
+            jp::setLazyRibbonTabs(lazy);
+            auto w = std::make_unique<jp::MainWindow>();
+            jp::setLazyRibbonTabs(false);
+            w->resize(1100, 800);
+            w->show();
+            if (!QTest::qWaitForWindowActive(w.get())) return QStringList{QStringLiteral("(not active)")};
+            w->resize(width, 800);   // (narrowed after it showed, before the tab is made)
+            QCoreApplication::processEvents();
+            auto *r = w->findChild<jp::Ribbon *>();
+            if (lazy && r->tab(QStringLiteral("Insert"))->isBuilt()) return QStringList{QStringLiteral("(already made)")};
+            QTest::keyPress(w.get(), Qt::Key_Alt);
+            QTest::keyRelease(w.get(), Qt::Key_Alt);
+            QTest::keyClick(w.get(), Qt::Key_N);   // Insert
+            QStringList out;
+            if (r->current() != r->tab(QStringLiteral("Insert"))) return QStringList{QStringLiteral("(Insert not shown)")};
+            *folded = r->current()->collapsedCount();
+            for (const auto &p : w->keyTips()->shown()) {
+                auto *b = qobject_cast<QToolButton *>(p.second);
+                out << QStringLiteral("%1 %2 %3").arg(p.first, QString::fromLatin1(p.second->metaObject()->className()), b ? (b->defaultAction() ? b->defaultAction()->objectName() : b->text()) : QString());
+            }
+            out.sort();
+            return out;
+        };
+        int foldedSomewhere = 0;
+        for (const int width : {420, 520, 640, 760, 900, 1100}) {
+            int foldedWhole = 0, foldedLate = 0;
+            const QStringList whole = tipsOf(false, width, &foldedWhole), late = tipsOf(true, width, &foldedLate);
+            QVERIFY2(whole.size() > 3, qPrintable(whole.join(QLatin1Char('\n'))));
+            QCOMPARE(foldedLate, foldedWhole);
+            QVERIFY2(late == whole, qPrintable(QStringLiteral("at %1 wide:\n%2\n--\n%3").arg(width).arg(whole.join(QLatin1Char('\n')), late.join(QLatin1Char('\n')))));
+            foldedSomewhere += foldedWhole;
+        }
+        QVERIFY2(foldedSomewhere > 0, "some width is narrow enough that a group folds");
     }
 
     // The tabs that don't fit the row go into the More menu: their KeyTips still open them, the More button has its own, the keyboard reaches it after the last tab, its menu is made
