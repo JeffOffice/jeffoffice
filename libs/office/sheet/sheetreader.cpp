@@ -977,9 +977,11 @@ bool SheetReader::startRow(const Attrs &attribute)
     if (m_options.screenRows > 0) {
         // the rows the view shows: those of a frozen part (which may begin below the first row), and `screenRows` from where the part that scrolls begins
         const SheetView &v = m_sheet.view;
-        const qint64 skipTop = v.frozen ? qint64(v.topRow) : 0;
-        const qint64 frozenEnd = v.frozen ? skipTop + qint64(v.frozenRows) : 0;
-        const qint64 begin = std::max(frozenEnd, v.frozen ? qint64(v.paneRow) : qint64(v.topRow));
+        // (a split's top part shows this many rows from where it begins, and its lower part as many from where that begins)
+        const bool held = v.frozen || (v.split && v.splitY > 0);
+        const qint64 skipTop = held ? qint64(v.topRow) : 0;
+        const qint64 frozenEnd = v.frozen ? skipTop + qint64(v.frozenRows) : v.split && v.splitY > 0 ? skipTop + m_options.screenRows : 0;
+        const qint64 begin = std::max(frozenEnd, held ? qint64(v.paneRow) : qint64(v.topRow));
         if (qint64(m_row) >= begin + m_options.screenRows) {
             m_sheet.partial = true;
             m_stop = true;
@@ -1137,10 +1139,27 @@ void SheetReader::startView(const QXmlStreamReader &r)
 
 void SheetReader::startPane(const QXmlStreamReader &r)
 {
-    if (!m_viewSeen || m_sheet.view.frozen || !m_activePane.isEmpty()) return;
+    if (!m_viewSeen || m_sheet.view.frozen || m_sheet.view.split || !m_activePane.isEmpty()) return;
     SheetView &v = m_sheet.view;
     const QStringView state = attribute(r, "state");
     m_activePane = attribute(r, "activePane").toString();
+    if (state == QLatin1String("split")) {
+        bool good = false;
+        const double sx = attribute(r, "xSplit").trimmed().toDouble(&good), sy = attribute(r, "ySplit").trimmed().toDouble(&good);
+        const double wide = std::isfinite(sx) && sx > 0 ? std::min(std::floor(sx), 1.0e6) : 0, tall = std::isfinite(sy) && sy > 0 ? std::min(std::floor(sy), 1.0e6) : 0;
+        if (wide == 0 && tall == 0) return;
+        v.split = true;
+        v.splitX = quint32(wide);
+        v.splitY = quint32(tall);
+        v.paneRow = tall > 0 ? v.topRow : 0;
+        v.paneCol = wide > 0 ? v.leftCol : 0;
+        quint32 srow = 0, scol = 0;
+        if (parseCellRef(attribute(r, "topLeftCell"), &srow, &scol)) {
+            v.paneRow = tall > 0 ? std::max(srow, v.topRow) : srow;
+            v.paneCol = wide > 0 ? std::max(scol, v.leftCol) : scol;
+        }
+        return;
+    }
     if (state != QLatin1String("frozen") && state != QLatin1String("frozenSplit")) return;
     bool ok = false;
     const double x = attribute(r, "xSplit").trimmed().toDouble(&ok), y = attribute(r, "ySplit").trimmed().toDouble(&ok);
@@ -1174,7 +1193,7 @@ void SheetReader::endView()
     if (m_selections.isEmpty()) return;
     const SheetView &view = m_sheet.view;
     QString want = m_activePane;
-    if (want.isEmpty()) want = view.frozen ? (view.frozenRows && view.frozenCols ? QStringLiteral("bottomRight") : view.frozenRows ? QStringLiteral("bottomLeft") : QStringLiteral("topRight"))
+    if (want.isEmpty()) want = view.split ? (view.splitX && view.splitY ? QStringLiteral("bottomRight") : view.splitY ? QStringLiteral("bottomLeft") : QStringLiteral("topRight")) : view.frozen ? (view.frozenRows && view.frozenCols ? QStringLiteral("bottomRight") : view.frozenRows ? QStringLiteral("bottomLeft") : QStringLiteral("topRight"))
                                            : QStringLiteral("topLeft");
     const Selection *chosen = &m_selections.first();
     for (const Selection &s : m_selections)

@@ -552,6 +552,82 @@ private Q_SLOTS:
         g.setSkipped(0, 0);
         QCOMPARE(g.pane(Pane::Body).firstRow, qint64(5));
     }
+
+    // A split cuts the window in four at bars of its own: the top and left parts show as many rows and columns as the bars leave room for, and each part scrolls along its axis
+    // alone (the parts that share a row of the window share its rows).
+    void splitPartsEachScrollOnTheirOwn()
+    {
+        GridLayout g = plain();
+        g.setFrozen(3, 2);   // (the split was made at row 3 and column 2)
+        g.setSplit(150, 70);
+        QVERIFY(g.isSplit());
+        PaneView c = g.pane(Pane::Corner), t = g.pane(Pane::Top), l = g.pane(Pane::Left), b = g.pane(Pane::Body);
+        QCOMPARE(c.rect, QRect(40, 20, 150, 70));
+        QCOMPARE(b.rect, QRect(40 + 150, 20 + 70, 640 - 150, 400 - 70));
+        QCOMPARE(c.firstRow, qint64(0));
+        QCOMPARE(c.lastRow, qint64(3));   // (a row begun in the part is in it)
+        QCOMPARE(c.lastCol, qint64(2));
+        QCOMPARE(b.firstRow, qint64(3));
+        QCOMPARE(b.firstCol, qint64(2));
+        QCOMPARE(g.splitBarX(), 40 + 150);
+        QCOMPARE(g.splitBarY(), 20 + 70);
+        // the part that scrolls goes back over the rows and columns the split was made at, no further than the first
+        g.setScroll(-10000, -10000);
+        QCOMPARE(g.scrollX(), -g.cols.position(2));
+        QCOMPARE(g.scrollY(), -g.rows.position(3));
+        QCOMPARE(g.pane(Pane::Body).firstRow, qint64(0));
+        QCOMPARE(g.pane(Pane::Body).firstCol, qint64(0));
+        g.setScroll(64 * 10, 20 * 40);
+        QCOMPARE(g.pane(Pane::Body).firstRow, qint64(43));
+        QCOMPARE(g.pane(Pane::Top).firstCol, qint64(12));   // (the top part right of the bar shares the columns of the body)
+        QCOMPARE(g.pane(Pane::Left).firstRow, qint64(43));
+        QCOMPARE(g.pane(Pane::Corner).firstRow, qint64(0));
+        // the top part scrolls on its own: the bottom part stays on the row it shows
+        QVERIFY(g.scrollSplitStart(true, 7));
+        QCOMPARE(g.pane(Pane::Corner).firstRow, qint64(7));
+        QCOMPARE(g.pane(Pane::Top).firstRow, qint64(7));
+        QCOMPARE(g.pane(Pane::Body).firstRow, qint64(43));
+        QCOMPARE(g.cellRect(7, 0).top(), 20);
+        QVERIFY(g.scrollSplitStart(false, 4));
+        QCOMPARE(g.pane(Pane::Corner).firstCol, qint64(4));
+        QCOMPARE(g.pane(Pane::Left).firstCol, qint64(4));
+        QCOMPARE(g.pane(Pane::Body).firstCol, qint64(12));
+        // a click in each part is on the cell that part shows there
+        Hit h = g.hit(QPoint(40 + 5, 20 + 5));
+        QCOMPARE(h.pane, Pane::Corner);
+        QCOMPARE(h.row, qint64(7));
+        QCOMPARE(h.col, qint64(4));
+        h = g.hit(QPoint(40 + 150 + 5, 20 + 70 + 5));
+        QCOMPARE(h.pane, Pane::Body);
+        QCOMPARE(h.row, qint64(43));
+        QCOMPARE(h.col, qint64(12));
+        h = g.hit(QPoint(40 + 150 + 5, 20 + 5));
+        QCOMPARE(h.pane, Pane::Top);
+        QCOMPARE(h.row, qint64(7));
+        QCOMPARE(h.col, qint64(12));
+        // no split: the parts are one again
+        g.setSplit(0, 0);
+        g.setSkipped(0, 0);
+        g.setFrozen(0, 0);
+        QVERIFY(!g.isSplit());
+        QCOMPARE(g.splitBarX(), -1);
+    }
+
+    // A cell in the top part is not scrolled to; one that no part shows is brought into the part that scrolls, even when it is above the row the split was made at.
+    void splitBringsACellIntoTheFirstPartThatCanShowIt()
+    {
+        GridLayout g = plain();
+        g.setFrozen(3, 2);
+        g.setSplit(150, 70);
+        g.setScroll(64 * 20, 20 * 50);
+        qint64 x = g.scrollX(), y = g.scrollY();
+        QVERIFY(!g.scrollToShow(1, 1, &x, &y));          // (shown whole in the top left part)
+        QVERIFY(g.scrollToShow(40, 1, &x, &y));
+        QCOMPARE(y, g.rows.position(40) - g.rows.position(3));   // (above where the part began: it goes back to it)
+        QCOMPARE(x, g.scrollX());
+        QVERIFY(g.ensureVisible(3, 40));
+        QVERIFY(g.pane(Pane::Body).firstCol <= 40 && g.pane(Pane::Body).lastCol >= 40);
+    }
 };
 
 JP_TEST_CLASS(GridMergeTests)

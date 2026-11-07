@@ -342,7 +342,13 @@ QByteArray newSheetSkeleton(const Sheet &sheet)
     if (v.zoom != 100 && v.zoom > 0) view += attr("zoomScale", num(v.zoom)) + attr("zoomScaleNormal", num(v.zoom));
     view += attr("workbookViewId", "0") + ">";
     QByteArray activePane;
-    if (v.frozen && (v.frozenRows || v.frozenCols)) {
+    if (v.split && (v.splitX || v.splitY)) {
+        activePane = v.splitX && v.splitY ? "bottomRight" : v.splitY ? "bottomLeft" : "topRight";
+        view += "<pane";
+        if (v.splitX) view += attr("xSplit", num(v.splitX));
+        if (v.splitY) view += attr("ySplit", num(v.splitY));
+        view += attr("topLeftCell", cellName(v.paneRow, v.paneCol).toLatin1()) + attr("activePane", activePane) + attr("state", "split") + "/>";
+    } else if (v.frozen && (v.frozenRows || v.frozenCols)) {
         activePane = v.frozenRows && v.frozenCols ? "bottomRight" : v.frozenRows ? "bottomLeft" : "topRight";
         view += "<pane";
         if (v.frozenCols) view += attr("xSplit", num(v.frozenCols));

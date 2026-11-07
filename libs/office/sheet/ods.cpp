@@ -1727,6 +1727,18 @@ private:
                 v.paneRow = quint32(std::min<qint64>(std::max<qint64>(integer("PositionBottom", top + rows), top + rows), kMaxRows - 1));
             }
         }
+        // (a split that is not held: the bars are at a place in pixels, and the part that scrolls begins at the cell the right and bottom positions name)
+        const bool hSplit = integer("HorizontalSplitMode", 0) == 1, vSplit = integer("VerticalSplitMode", 0) == 1;
+        if (!v.frozen && (hSplit || vSplit)) {
+            const qint64 wide = hSplit ? std::max<qint64>(0, integer("HorizontalSplitPosition", 0)) : 0, tall = vSplit ? std::max<qint64>(0, integer("VerticalSplitPosition", 0)) : 0;
+            if (wide > 0 || tall > 0) {
+                v.split = true;
+                v.splitX = quint32(std::min<qint64>(wide, 60000) * 15);
+                v.splitY = quint32(std::min<qint64>(tall, 60000) * 15);
+                v.paneCol = wide > 0 ? quint32(std::min<qint64>(std::max<qint64>(integer("PositionRight", left), left), kMaxColumns - 1)) : v.leftCol;
+                v.paneRow = tall > 0 ? quint32(std::min<qint64>(std::max<qint64>(integer("PositionBottom", top), top), kMaxRows - 1)) : v.topRow;
+            }
+        }
         const QString grid = m_m.found.viewItems.value(QStringLiteral("ShowGrid"));
         v.showGridLines = grid != QLatin1String("false");
         v.showZeros = m_m.found.viewItems.value(QStringLiteral("ShowZeroValues")) != QLatin1String("false");

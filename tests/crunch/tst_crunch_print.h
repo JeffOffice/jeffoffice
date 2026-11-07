@@ -232,6 +232,7 @@ private Q_SLOTS:
     void aFittedSheetCannotHaveItsLinesDragged();
     void theViewIsSavedAndComesBack();
     void frozenPanesAreSavedAndComeBack();
+    void splitPanesAreSavedAndComeBack();
     void sheetRightToLeftIsSavedAndComesBack();
     void notesPrintAtTheEndOfTheSheet();
     void theScrollAndTheCursorAreTakenAtTheSave();

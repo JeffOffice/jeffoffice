@@ -532,6 +532,7 @@ QByteArray paneFromChange(const QByteArray &head, const SheetView &v, const QByt
         if (viewEnd < 0) return head;   // (a view never closed: left as it is)
     }
     const bool frozen = v.frozen && (v.frozenRows || v.frozenCols);
+    const bool split = !frozen && v.split && (v.splitX || v.splitY);
     auto cell = [](quint32 r, quint32 c) { return cellName(r, c).toLatin1(); };
     auto sel = [&](const QByteArray &pane, const QByteArray &at) {
         QByteArray e = "<" + prefix + "selection";
@@ -539,7 +540,18 @@ QByteArray paneFromChange(const QByteArray &head, const SheetView &v, const QByt
         return e + " activeCell=\"" + at + "\" sqref=\"" + at + "\"/>";
     };
     QByteArray inner;
-    if (frozen) {
+    if (split) {
+        const QByteArray active = v.splitX && v.splitY ? "bottomRight" : v.splitY ? "bottomLeft" : "topRight";
+        inner += "<" + prefix + "pane";
+        if (v.splitX) inner += " xSplit=\"" + QByteArray::number(v.splitX) + "\"";
+        if (v.splitY) inner += " ySplit=\"" + QByteArray::number(v.splitY) + "\"";
+        inner += " topLeftCell=\"" + cell(v.paneRow, v.paneCol) + "\" activePane=\"" + active + "\" state=\"split\"/>";
+        if (v.splitX && v.splitY) {
+            inner += sel("topRight", cell(v.topRow, v.paneCol));
+            inner += sel("bottomLeft", cell(v.paneRow, v.leftCol));
+        }
+        inner += sel(active, cell(v.activeRow, v.activeCol));
+    } else if (frozen) {
         const QByteArray active = v.frozenRows && v.frozenCols ? "bottomRight" : v.frozenRows ? "bottomLeft" : "topRight";
         inner += "<" + prefix + "pane";
         if (v.frozenCols) inner += " xSplit=\"" + QByteArray::number(v.frozenCols) + "\"";
@@ -574,7 +586,7 @@ QByteArray paneFromChange(const QByteArray &head, const SheetView &v, const QByt
         const qsizetype end = selfClosing ? viewTagEnd : viewEnd;
         return head.left(viewAt) + tag + inner + "</" + prefix + "sheetView>" + head.mid(end);
     }
-    if (!frozen && !v.rightToLeft && v.showZeros) return head;
+    if (!frozen && !split && !v.rightToLeft && v.showZeros) return head;
     const QByteArray tag = startTag("<" + prefix + "sheetView workbookViewId=\"0\">");
     const qsizetype at = insertAt >= 0 ? insertAt : head.size();
     return head.left(at) + "<" + prefix + "sheetViews>" + tag + inner + "</" + prefix + "sheetView></" + prefix + "sheetViews>" + head.mid(at);

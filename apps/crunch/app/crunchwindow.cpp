@@ -173,6 +173,10 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     connect(m_view, &grid::GridView::clearRequested, this, &CrunchWindow::clearSelection);
     connect(m_view, &grid::GridView::viewChanged, this, &CrunchWindow::placeEditor);
     connect(m_view, &grid::GridView::viewChanged, this, &CrunchWindow::scheduleAutoHeights);
+    connect(m_view, &grid::GridView::splitChanged, this, [this] { syncPanes(); });
+    connect(m_view, &grid::GridView::viewChanged, this, [this] {
+        if (QAction *a = m_actions.value(QStringLiteral("view.split"))) a->setChecked(m_view->isSplit());   // (the command is checked while the view is split, whatever split it)
+    });
     m_view->setClickGuard([this] {
         // (a click that cannot point ends the entry on the formula's own sheet, and does no more: the cell it is over belongs to the sheet that was shown)
         const bool away = m_edit.active && m_sheet != m_edit.sheet;
@@ -693,6 +697,7 @@ void CrunchWindow::createActions()
     mk("view.freezeRow", tr("Freeze Top Row"), "panel-top", QKeySequence(), [this] { m_view->freezeTopRow(); syncPanes(); });
     mk("view.freezeCol", tr("Freeze First Column"), "panel-left", QKeySequence(), [this] { m_view->freezeFirstColumn(); syncPanes(); });
     mk("view.unfreeze", tr("Unfreeze Panes"), "panels-top-left", QKeySequence(), [this] { m_view->unfreeze(); syncPanes(); });
+    mk("view.split", tr("Split"), "grid-2x2", QKeySequence(), [this] { toggleSplit(); }, true);
     // ---- formulas
     mk("formulas.calculate", tr("Recalculate All"), "calculator", QKeySequence(Qt::Key_F9), [this] {
         // (the calculation is the worker's: it is asked to work everything out again, and does)
@@ -736,6 +741,19 @@ void CrunchWindow::createActions()
     createProtectActions();
 }
 
+// Split cuts the view at the top left of the cell with the cursor (a second use takes the bars away); the bars are kept with the sheet like held panes.
+void CrunchWindow::toggleSplit()
+{
+    if (m_view->isSplit()) {
+        m_view->removeSplit();
+    } else {
+        const grid::Selection &s = m_view->selection();
+        m_view->splitAt(s.activeRow, s.activeCol);
+    }
+    act("view.split")->setChecked(m_view->isSplit());
+    syncPanes();
+}
+
 void CrunchWindow::freezeAtSelection()
 {
     // the rows above the cell with the cursor that are in view, and the columns to its left that are (what was scrolled out of sight stays out of sight)
@@ -753,6 +771,14 @@ void CrunchWindow::syncPanes()
     v.frozenRows = quint32(std::max<qint64>(0, st.frozenRows - st.skipRows));
     v.frozenCols = quint32(std::max<qint64>(0, st.frozenCols - st.skipCols));
     v.frozen = v.frozenRows || v.frozenCols;
+    if (st.splitW > 0 || st.splitH > 0) {
+        // a split is kept in place of held rows and columns (the grid has the one or the other): the bars in twentieths of a point, and where the top left and lower right parts begin
+        v.frozen = false;
+        v.frozenRows = v.frozenCols = 0;
+        v.split = true;
+        v.splitX = quint32(std::clamp<qint64>(st.splitW * 15, 0, 1000000));
+        v.splitY = quint32(std::clamp<qint64>(st.splitH * 15, 0, 1000000));
+    }
     // where the view is now: the lines in view first (a direction that is not frozen is scrolled as it is), and for a frozen direction where the frozen part begins and where the part that scrolls does
     const grid::PaneView body = m_view->sheet().layout().pane(grid::Pane::Body);
     const quint32 firstRow = quint32(std::max<qint64>(0, m_view->firstRowInView())), firstCol = quint32(std::max<qint64>(0, m_view->firstColInView()));
@@ -760,6 +786,10 @@ void CrunchWindow::syncPanes()
     v.leftCol = v.frozenCols ? quint32(st.skipCols) : firstCol;
     v.paneRow = v.frozenRows ? quint32(std::max<qint64>(st.frozenRows, body.isEmpty() ? 0 : body.firstRow)) : firstRow;
     v.paneCol = v.frozenCols ? quint32(std::max<qint64>(st.frozenCols, body.isEmpty() ? 0 : body.firstCol)) : firstCol;
+    if (v.split) {
+        v.paneRow = st.splitH > 0 && !body.isEmpty() ? quint32(body.firstRow) : firstRow;
+        v.paneCol = st.splitW > 0 && !body.isEmpty() ? quint32(body.firstCol) : firstCol;
+    }
     const grid::Selection &sel = m_view->selection();
     v.activeRow = quint32(std::max<qint64>(0, sel.activeRow));
     v.activeCol = quint32(std::max<qint64>(0, sel.activeCol));

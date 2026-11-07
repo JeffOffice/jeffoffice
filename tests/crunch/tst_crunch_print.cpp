@@ -1,4 +1,7 @@
 #include "tst_crunch_print.h"
+#include "findbooks.h"
+
+#include <QScrollBar>
 
 void CrunchPrintTests::initTestCase()
 {
@@ -1932,6 +1935,68 @@ void CrunchPrintTests::frozenPanesAreSavedAndComeBack()
     Package pk2;
     QVERIFY(pk2.readLazyFile(again.path, &why));
     QVERIFY(!pk2.part(QStringLiteral("xl/worksheets/sheet1.xml")).contains("<pane"));
+}
+
+// Split panes made with View > Split are saved (the `pane` of the sheet's view in the state "split", in twentieths of a point), come back when the file is opened, and the command
+// is checked while they are there; holding panes takes them away.
+void CrunchPrintTests::splitPanesAreSavedAndComeBack()
+{
+    QByteArray bytes;
+    quint32 wide = 0;
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(!w.act(QStringLiteral("view.split"))->isChecked());
+        e.select(QStringLiteral("C5"));
+        w.act(QStringLiteral("view.split"))->trigger();
+        QVERIFY(w.act(QStringLiteral("view.split"))->isChecked());
+        QVERIFY(e.view()->isSplit());
+        wide = quint32(e.view()->viewState().splitW);
+        QVERIFY(wide > 0);
+
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        Package pk;
+        QString why;
+        QVERIFY(pk.readLazyFile(e.path, &why));
+        const QByteArray xml = pk.part(QStringLiteral("xl/worksheets/sheet1.xml"));
+        QVERIFY2(xml.contains(QStringLiteral("<pane xSplit=\"%1\" ySplit=\"%2\" topLeftCell=\"C5\" activePane=\"bottomRight\" state=\"split\"/>").arg(wide * 15).arg(e.view()->viewState().splitH * 15).toUtf8()), xml.left(900).constData());
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        bytes = f.readAll();
+        // (a picture, with each pane scrolled to a place of its own)
+        w.resize(1100, 700);
+        w.show();
+        QVERIFY(e.view()->scrollSplitPart(true, 30));
+        e.view()->verticalScrollBar()->setValue(int(e.view()->sheet().layout().rows.position(60)));
+        if (jp::RibbonTab *t = w.ribbon()->tab(QStringLiteral("View"))) w.ribbon()->showTab(t);
+        crunchtest::saveShot(&w, QStringLiteral("split-panes"));
+    }
+    EditWindow again;
+    QVERIFY(again.open(bytes));
+    QVERIFY(again.view()->isSplit());
+    QCOMPARE(quint32(again.view()->viewState().splitW), wide);
+    QVERIFY(again.win.w.act(QStringLiteral("view.split"))->isChecked());
+    // holding panes takes the split away, and the file then holds panes and no split
+    again.select(QStringLiteral("B10"));
+    again.win.w.act(QStringLiteral("view.freeze"))->trigger();
+    QVERIFY(!again.view()->isSplit());
+    QVERIFY(!again.win.w.act(QStringLiteral("view.split"))->isChecked());
+    QSignalSpy saved(&again.win.w, &CrunchWindow::saved);
+    QVERIFY(again.win.w.save());
+    QVERIFY2(savedOk(saved, 20000), qPrintable(again.win.told.join(QLatin1Char('|'))));
+    Package pk;
+    QString why;
+    QVERIFY(pk.readLazyFile(again.path, &why));
+    const QByteArray xml = pk.part(QStringLiteral("xl/worksheets/sheet1.xml"));
+    QVERIFY2(xml.contains("state=\"frozen\"") && !xml.contains("state=\"split\""), xml.left(900).constData());
+    // the command again, and again, takes it away
+    again.win.w.act(QStringLiteral("view.split"))->trigger();
+    QVERIFY(again.view()->isSplit());
+    again.win.w.act(QStringLiteral("view.split"))->trigger();
+    QVERIFY(!again.view()->isSplit());
 }
 
 

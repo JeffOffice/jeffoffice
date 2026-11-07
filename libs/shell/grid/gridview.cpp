@@ -92,6 +92,8 @@ GridView::ViewState GridView::viewState() const
     v.frozenCols = m_sheet.layout().frozenCols();
     v.skipRows = m_sheet.layout().skippedRows();
     v.skipCols = m_sheet.layout().skippedCols();
+    v.splitW = m_sheet.layout().splitWidth();
+    v.splitH = m_sheet.layout().splitHeight();
     v.zoom = zoom();
     v.gridlines = m_gridlines;
     v.headings = m_headings;
@@ -110,6 +112,7 @@ void GridView::setViewState(const ViewState &v)
     L.setZoom(v.zoom);
     L.setSkipped(v.skipRows, v.skipCols);
     L.setFrozen(v.frozenRows, v.frozenCols);
+    L.setSplit(v.splitW, v.splitH);
     L.setScroll(v.scrollX, v.scrollY);
     // (clamped to the sheet it is now: a sheet read whole may have fewer rows than the one the state was made for, never more than a sheet can have)
     m_selection = v.selection;
@@ -259,12 +262,12 @@ void GridView::updateScrollBars()
     m_syncingBars = true;
     const PaneView body = L.pane(Pane::Body);
     const int pageX = int(std::floor(double(std::max(0, body.rect.width())) / L.zoom())), pageY = int(std::floor(double(std::max(0, body.rect.height())) / L.zoom()));
-    verticalScrollBar()->setRange(0, int(std::min<qint64>(L.maxScrollY(), INT_MAX)));
+    verticalScrollBar()->setRange(int(std::max<qint64>(L.minScrollY(), INT_MIN)), int(std::min<qint64>(std::max(L.minScrollY(), L.maxScrollY()), INT_MAX)));
     verticalScrollBar()->setPageStep(std::max(1, pageY));
     verticalScrollBar()->setSingleStep(std::max(1, L.rows.defaultSize()));
     verticalScrollBar()->setValue(int(std::min<qint64>(L.scrollY(), INT_MAX)));
     horizontalScrollBar()->setInvertedAppearance(mirrored());   // (the sheet's first column is at the right)
-    horizontalScrollBar()->setRange(0, int(std::min<qint64>(L.maxScrollX(), INT_MAX)));
+    horizontalScrollBar()->setRange(int(std::max<qint64>(L.minScrollX(), INT_MIN)), int(std::min<qint64>(std::max(L.minScrollX(), L.maxScrollX()), INT_MAX)));
     horizontalScrollBar()->setPageStep(std::max(1, pageX));
     horizontalScrollBar()->setSingleStep(std::max(1, L.cols.defaultSize()));
     horizontalScrollBar()->setValue(int(std::min<qint64>(L.scrollX(), INT_MAX)));
@@ -325,7 +328,7 @@ void GridView::scrollRows(int rows)
     if (top < 0) top = L.rows.lastVisible();
     for (int i = 0; i < std::abs(rows); ++i) {
         const qint64 next = rows > 0 ? L.rows.nextVisible(top) : L.rows.previousVisible(top);
-        if (next < 0 || next >= L.rows.count() || (rows < 0 && next < L.frozenRows())) break;
+        if (next < 0 || next >= L.rows.count() || (rows < 0 && next < (L.splitHeight() > 0 ? L.rows.skipped() : L.frozenRows()))) break;
         top = next;
     }
     scrollTo(L.scrollX(), L.rows.position(top) - L.rows.position(L.frozenRows()));
@@ -348,7 +351,7 @@ void GridView::scrollColumns(int columns)
     if (left < 0) left = L.cols.lastVisible();
     for (int i = 0; i < std::abs(columns); ++i) {
         const qint64 next = columns > 0 ? L.cols.nextVisible(left) : L.cols.previousVisible(left);
-        if (next < 0 || next >= L.cols.count() || (columns < 0 && next < L.frozenCols())) break;
+        if (next < 0 || next >= L.cols.count() || (columns < 0 && next < (L.splitWidth() > 0 ? L.cols.skipped() : L.frozenCols()))) break;
         left = next;
     }
     scrollTo(L.cols.position(left) - L.cols.position(L.frozenCols()), L.scrollY());
@@ -418,7 +421,7 @@ qint64 GridView::firstRowInView() const
 {
     const GridLayout &L = m_sheet.layout();
     const qint64 first = L.rows.nextVisible(-1);
-    if (first < L.frozenRows()) return first;   // (the frozen rows are the top of the view)
+    if (first < L.frozenRows() || L.splitHeight() > 0) return first;   // (the frozen rows, or the top part of a split, are the top of the view)
     const qint64 top = L.rows.indexAt(L.rows.position(L.frozenRows()) + L.scrollY());
     return top >= 0 ? top : L.rows.lastVisible();
 }
@@ -427,7 +430,7 @@ qint64 GridView::firstColInView() const
 {
     const GridLayout &L = m_sheet.layout();
     const qint64 first = L.cols.nextVisible(-1);
-    if (first < L.frozenCols()) return first;
+    if (first < L.frozenCols() || L.splitWidth() > 0) return first;
     const qint64 left = L.cols.indexAt(L.cols.position(L.frozenCols()) + L.scrollX());
     return left >= 0 ? left : L.cols.lastVisible();
 }
@@ -435,6 +438,7 @@ qint64 GridView::firstColInView() const
 void GridView::freezeAt(qint64 row, qint64 col)
 {
     GridLayout &L = m_sheet.layout();
+    if (L.isSplit()) removeSplit();
     // where the view begins now (before what is frozen is changed)
     const qint64 viewTop = firstRowInView(), viewLeft = firstColInView();
     const bool rowsFrozen = row > viewTop, colsFrozen = col > viewLeft;
@@ -463,6 +467,75 @@ void GridView::freezeFirstColumn()
 }
 
 void GridView::unfreeze() { freezeAt(0, 0); }
+
+void GridView::splitAt(qint64 row, qint64 col)
+{
+    GridLayout &L = m_sheet.layout();
+    if (L.frozenRows() > L.skippedRows() || L.frozenCols() > L.skippedCols()) freezeAt(0, 0);
+    if (L.isSplit()) removeSplit();
+    const qint64 viewTop = firstRowInView(), viewLeft = firstColInView();
+    const bool rowsSplit = row > viewTop, colsSplit = col > viewLeft;
+    if (!rowsSplit && !colsSplit) return;
+    const qint64 absX = L.scrollX(), absY = L.scrollY();
+    // (the bars are kept clear of the far edges, so that each part has room for a row and a column)
+    const QSize v = viewport()->size();
+    const qint64 widest = std::max<qint64>(1, qint64((v.width() - L.headerWidth()) / L.zoom()) - 64), tallest = std::max<qint64>(1, qint64((v.height() - L.headerHeight()) / L.zoom()) - 40);
+    const qint64 width = colsSplit ? std::min(L.cols.position(col) - L.cols.position(viewLeft), widest) : 0;
+    const qint64 height = rowsSplit ? std::min(L.rows.position(row) - L.rows.position(viewTop), tallest) : 0;
+    L.setSkipped(rowsSplit ? viewTop : 0, colsSplit ? viewLeft : 0);
+    L.setFrozen(rowsSplit ? row : 0, colsSplit ? col : 0);
+    L.setSplit(width, height);
+    L.setScroll(colsSplit ? 0 : absX, rowsSplit ? 0 : absY);
+    layoutChanged();
+    Q_EMIT splitChanged();
+}
+
+void GridView::removeSplit(bool rows, bool cols)
+{
+    GridLayout &L = m_sheet.layout();
+    if (!L.isSplit()) return;
+    rows = rows && L.splitHeight() > 0;
+    cols = cols && L.splitWidth() > 0;
+    if (!rows && !cols) return;
+    // what is left in view is the part that scrolls (the lower right one)
+    const PaneView body = L.pane(Pane::Body);
+    const qint64 bodyRow = body.isEmpty() ? 0 : body.firstRow, bodyCol = body.isEmpty() ? 0 : body.firstCol;
+    const qint64 keepRows = rows ? 0 : L.frozenRows(), keepCols = cols ? 0 : L.frozenCols();
+    const qint64 skipRows = rows ? 0 : L.skippedRows(), skipCols = cols ? 0 : L.skippedCols();
+    const qint64 absX = L.scrollX(), absY = L.scrollY();
+    L.setSplit(cols ? 0 : L.splitWidth(), rows ? 0 : L.splitHeight());
+    L.setFrozen(keepRows, keepCols);
+    L.setSkipped(skipRows, skipCols);
+    L.setScroll(cols ? L.cols.position(bodyCol) : absX, rows ? L.rows.position(bodyRow) : absY);
+    layoutChanged();
+    Q_EMIT splitChanged();
+}
+
+void GridView::setSplitBars(qint64 width, qint64 height)
+{
+    GridLayout &L = m_sheet.layout();
+    L.setSplit(width, height);
+    layoutChanged();
+    Q_EMIT splitChanged();
+}
+
+bool GridView::scrollSplitPart(bool rows, int count)
+{
+    GridLayout &L = m_sheet.layout();
+    if (!(rows ? L.splitHeight() : L.splitWidth()) || count == 0) return false;
+    // (the lines before where the part begins are seen through a copy that skips none)
+    Axis axis = rows ? L.rows : L.cols;
+    qint64 first = axis.nextVisible(-1);
+    axis.setSkipped(0);
+    for (int i = 0; i < std::abs(count); ++i) {
+        const qint64 next = count > 0 ? axis.nextVisible(first) : axis.previousVisible(first);
+        if (next < 0 || next >= axis.count()) break;
+        first = next;
+    }
+    if (!L.scrollSplitStart(rows, first)) return false;
+    layoutChanged();
+    return true;
+}
 
 void GridView::invalidateValues()
 {
@@ -885,6 +958,7 @@ bool GridView::followEdit(const jp::office::sheet::StructEdit &edit)
     GridLayout &L = m_sheet.layout();
     const bool rows = edit.changesRows(), cols = edit.changesColumns();
     if (!rows && !cols) return false;
+    if (L.isSplit()) return false;   // (the parts of a split begin at lines of their own: the sheet is shown again)
     const bool insert = edit.kind == jp::office::sheet::StructEdit::Kind::InsertRows || edit.kind == jp::office::sheet::StructEdit::Kind::InsertColumns;
     const qint64 first = qint64(edit.first), count = qint64(edit.count);
     // where the part that scrolls begins, as a line and how far into it: the view stays at the line (the row or column number) it was at, whatever the sizes above it have become
@@ -1223,6 +1297,15 @@ void GridView::mousePressEvent(QMouseEvent *e)
     }
     if (e->button() == Qt::LeftButton && m_clickGuard && !m_clickGuard()) return;
     setFocus(Qt::MouseFocusReason);
+    if (e->button() == Qt::LeftButton && m_cellsEnabled && !m_breakView) {
+        const int bar = splitBarAt(mirror(e->pos()));
+        if (bar != 0) {
+            m_drag = Drag::SplitBar;
+            m_splitDragCols = bar & 1;
+            m_splitDragRows = bar & 2;
+            return;
+        }
+    }
     if (m_breakView && e->button() == Qt::LeftButton && m_cellsEnabled && breakPress(mirror(e->pos()))) return;
     if (overlayContext(e) || overlayPress(e) || !m_cellsEnabled) return;
     m_jump.reset();
@@ -1303,6 +1386,16 @@ void GridView::mouseMoveEvent(QMouseEvent *e)
     const QPoint lp = mirror(e->pos());
     if (breakMove(lp)) return;
     m_lastMouse = lp;
+    if (m_drag == Drag::SplitBar) {
+        // (a bar stays clear of both edges of its part, so that each side keeps room for a row or a column)
+        GridLayout &L = m_sheet.layout();
+        const double z = L.zoom();
+        const qint64 room = qint64(std::max(0, viewport()->width() - L.headerWidth()) / z) - 24, roomY = qint64(std::max(0, viewport()->height() - L.headerHeight()) / z) - 24;
+        const qint64 w = m_splitDragCols ? std::clamp<qint64>(qint64(std::lround((lp.x() - L.headerWidth()) / z)), 24, std::max<qint64>(24, room)) : L.splitWidth();
+        const qint64 h = m_splitDragRows ? std::clamp<qint64>(qint64(std::lround((lp.y() - L.headerHeight()) / z)), 12, std::max<qint64>(12, roomY)) : L.splitHeight();
+        if (w != L.splitWidth() || h != L.splitHeight()) setSplitBars(w, h);
+        return;
+    }
     if (m_drag == Drag::Resize) {
         const int at = m_resizeColumn ? lp.x() : lp.y();
         m_resizeSize = std::clamp(m_resizeSize0 + int(std::lround((at - m_resizeFrom) / m_sheet.layout().zoom())), 0, Axis::kMaxSize);
@@ -1315,6 +1408,10 @@ void GridView::mouseMoveEvent(QMouseEvent *e)
     }
     bool column = false;
     qint64 index = -1;
+    if (const int bar = splitBarAt(lp)) {
+        viewport()->setCursor(bar == 3 ? Qt::SizeAllCursor : bar == 1 ? Qt::SplitHCursor : Qt::SplitVCursor);
+        return;
+    }
     if (m_breakView) {
         const BreakGrab g = breakGrabAt(e->pos());
         if (g.kind != BreakGrab::Kind::None) {
@@ -1348,6 +1445,15 @@ void GridView::leaveEvent(QEvent *e)
 
 bool GridView::borderAt(const QPoint &p, bool *column, qint64 *index) const { return borderAtInLayout(mirror(p), column, index); }
 
+int GridView::splitBarAt(const QPoint &p) const
+{
+    const GridLayout &L = m_sheet.layout();
+    if (!L.isSplit()) return 0;
+    const int bx = L.splitBarX(), by = L.splitBarY();
+    const bool v = bx >= 0 && std::abs(p.x() - bx) <= 3 && p.y() >= L.headerHeight(), h = by >= 0 && std::abs(p.y() - by) <= 3 && p.x() >= L.headerWidth();
+    return (v ? 1 : 0) | (h ? 2 : 0);
+}
+
 bool GridView::borderAtInLayout(const QPoint &p, bool *column, qint64 *index) const
 {
     if (!m_headings) return false;
@@ -1376,6 +1482,10 @@ bool GridView::borderAtInLayout(const QPoint &p, bool *column, qint64 *index) co
 void GridView::mouseReleaseEvent(QMouseEvent *e)
 {
     if (m_drag == Drag::None && overlayRelease(e)) return;
+    if (m_drag == Drag::SplitBar) {
+        m_drag = Drag::None;
+        return;
+    }
     if (breakRelease()) return;
     if (m_drag == Drag::Resize) {
         m_drag = Drag::None;
@@ -1495,6 +1605,11 @@ void GridView::mouseDoubleClickEvent(QMouseEvent *e)
     bool column = false;
     qint64 index = -1;
     const QPoint lp = mirror(e->pos());
+    if (const int bar = splitBarAt(lp)) {
+        m_drag = Drag::None;
+        removeSplit(bar & 2, bar & 1);
+        return;
+    }
     if (borderAtInLayout(lp, &column, &index)) {
         m_drag = Drag::None;
         Q_EMIT fitRequested(column, index);
@@ -1556,14 +1671,40 @@ void GridView::wheelEvent(QWheelEvent *e)
         return;
     }
     const double z = zoom();
+    // over the top part (or the left part) of a split a turn of the wheel moves that part alone
+    const GridLayout &L = m_sheet.layout();
+    const Hit over = L.isSplit() ? L.hit(mirror(e->position().toPoint())) : Hit();
+    const bool topPart = L.splitHeight() > 0 && over.kind == Hit::Kind::Cell && (over.pane == Pane::Corner || over.pane == Pane::Top);
+    const bool leftPart = L.splitWidth() > 0 && over.kind == Hit::Kind::Cell && (over.pane == Pane::Corner || over.pane == Pane::Left);
+    auto stepsOf = [&](double pixels) {
+        const int n = int(std::lround(pixels / z / std::max(1, L.rows.defaultSize())));
+        return n != 0 ? n : pixels > 0 ? 1 : pixels < 0 ? -1 : 0;
+    };
     if (!e->pixelDelta().isNull()) {
-        scrollTo(m_sheet.layout().scrollX() + (mirrored() ? 1 : -1) * qint64(std::lround(e->pixelDelta().x() / z)), m_sheet.layout().scrollY() - qint64(std::lround(e->pixelDelta().y() / z)));
+        if (!topPart && !leftPart) {
+            scrollTo(m_sheet.layout().scrollX() + (mirrored() ? 1 : -1) * qint64(std::lround(e->pixelDelta().x() / z)), m_sheet.layout().scrollY() - qint64(std::lround(e->pixelDelta().y() / z)));
+        } else {
+            const int dy = e->pixelDelta().y(), dx = e->pixelDelta().x();
+            if (topPart && dy != 0) scrollSplitPart(true, -stepsOf(dy));
+            else if (dy != 0) scrollTo(L.scrollX(), L.scrollY() - qint64(std::lround(dy / z)));
+            if (leftPart && dx != 0) scrollSplitPart(false, (mirrored() ? 1 : -1) * stepsOf(dx));
+            else if (dx != 0) scrollTo(L.scrollX() + (mirrored() ? 1 : -1) * qint64(std::lround(dx / z)), L.scrollY());
+        }
     } else {
         const int steps = e->angleDelta().y() / 120;
         const int across = e->angleDelta().x() / 120;
-        if ((e->modifiers() & Qt::ShiftModifier) && steps != 0) scrollColumns(-steps * 3);
-        else if (steps != 0) scrollRows(-steps * 3);
-        if (across != 0) scrollColumns((mirrored() ? across : -across) * 3);
+        const bool sideways = (e->modifiers() & Qt::ShiftModifier) && steps != 0;
+        if (sideways) {
+            if (leftPart) scrollSplitPart(false, -steps * 3);
+            else scrollColumns(-steps * 3);
+        } else if (steps != 0) {
+            if (topPart) scrollSplitPart(true, -steps * 3);
+            else scrollRows(-steps * 3);
+        }
+        if (across != 0) {
+            if (leftPart) scrollSplitPart(false, (mirrored() ? across : -across) * 3);
+            else scrollColumns((mirrored() ? across : -across) * 3);
+        }
     }
     e->accept();
 }

@@ -382,6 +382,30 @@ private Q_SLOTS:
         QVERIFY(!sheet.view.frozen || (sheet.view.frozenCols < kMaxColumns && sheet.view.frozenRows < kMaxRows));
     }
 
+    // A split pane is read with its bars (twentieths of a point), where the top left part begins, and where the lower right one does.
+    void aSplitIsRead()
+    {
+        Sheet sheet;
+        QVERIFY(readSheetXml(worksheet(cell("A1", 1), QString(),
+                                       QStringLiteral("<sheetViews><sheetView topLeftCell=\"B2\"><pane xSplit=\"2400\" ySplit=\"1200\" topLeftCell=\"D6\" activePane=\"bottomRight\" state=\"split\"/>"
+                                                      "<selection pane=\"bottomRight\" activeCell=\"E7\" sqref=\"E7\"/></sheetView></sheetViews>")), &sheet));
+        const SheetView &v = sheet.view;
+        QVERIFY(v.split && !v.frozen);
+        QCOMPARE(v.splitX, 2400u);
+        QCOMPARE(v.splitY, 1200u);
+        QCOMPARE(v.topRow, 1u);
+        QCOMPARE(v.leftCol, 1u);
+        QCOMPARE(v.paneRow, 5u);
+        QCOMPARE(v.paneCol, 3u);
+        QCOMPARE(v.activeRow, 6u);
+        QCOMPARE(v.activeCol, 4u);
+        // a split with no bar is no split, and the numbers are bounded
+        QVERIFY(readSheetXml(worksheet(cell("A1", 1), QString(), QStringLiteral("<sheetViews><sheetView><pane xSplit=\"0\" state=\"split\"/></sheetView></sheetViews>")), &sheet));
+        QVERIFY(!sheet.view.split);
+        QVERIFY(readSheetXml(worksheet(cell("A1", 1), QString(), QStringLiteral("<sheetViews><sheetView><pane xSplit=\"1e30\" ySplit=\"-5\" state=\"split\"/></sheetView></sheetViews>")), &sheet));
+        QVERIFY(sheet.view.split && sheet.view.splitX <= 1000000u && sheet.view.splitY == 0u);
+    }
+
     // A read that stops at a row has the cells before it, and says it is part of the sheet: nothing after the rows (the merged ranges) is read.
     void aReadStopsAtARow()
     {

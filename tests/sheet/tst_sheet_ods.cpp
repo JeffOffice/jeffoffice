@@ -6,6 +6,7 @@
 #include "calc/numfmt.h"
 #include "io/zip.h"
 #include "sheet/ods.h"
+#include "sheet/oldsave.h"
 #include "sheet/xlsxbase.h"
 
 class SheetOdsTests : public QObject {
@@ -458,6 +459,36 @@ private Q_SLOTS:
         const Sheet t = readSheet(wb, 1);
         QVERIFY(!t.view.frozen);   // (a split that is not fixed is not kept)
         QCOMPARE(t.view.zoom, 100);
+    }
+
+    // A split that is not held (mode 1: the bars are at a place in pixels) is read and written again: the bars in twentieths of a point, and the cells the lower right part begins at.
+    void aSplitIsReadAndWrittenAgain()
+    {
+        QMap<QString, QMap<QString, QString>> sheets;
+        sheets[QStringLiteral("S")] = {{QStringLiteral("HorizontalSplitMode"), QStringLiteral("1")}, {QStringLiteral("VerticalSplitMode"), QStringLiteral("1")},
+                                       {QStringLiteral("HorizontalSplitPosition"), QStringLiteral("150")}, {QStringLiteral("VerticalSplitPosition"), QStringLiteral("60")},
+                                       {QStringLiteral("PositionLeft"), QStringLiteral("1")}, {QStringLiteral("PositionRight"), QStringLiteral("4")},
+                                       {QStringLiteral("PositionTop"), QStringLiteral("2")}, {QStringLiteral("PositionBottom"), QStringLiteral("30")}};
+        Workbook wb = open(buildOds(contentXml(table(QStringLiteral("S"), row(floatCell(1)))), QString(), settingsXml(sheets, QStringLiteral("S"))));
+        const Sheet s = readSheet(wb);
+        QVERIFY(s.view.split && !s.view.frozen);
+        QCOMPARE(s.view.splitX, 150u * 15u);
+        QCOMPARE(s.view.splitY, 60u * 15u);
+        QCOMPARE(s.view.leftCol, 1u);
+        QCOMPARE(s.view.topRow, 2u);
+        QCOMPARE(s.view.paneCol, 4u);
+        QCOMPARE(s.view.paneRow, 30u);
+        QByteArray out;
+        CopyReport report;
+        QString why;
+        QVERIFY2(saveOds(wb, &out, &report, &why), qPrintable(why));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(out, parts));
+        const QByteArray settings = parts.value(QStringLiteral("settings.xml"));
+        QVERIFY2(settings.contains("config:name=\"HorizontalSplitMode\" config:type=\"short\">1<"), settings.constData());
+        QVERIFY(settings.contains("config:name=\"VerticalSplitMode\" config:type=\"short\">1<"));
+        QVERIFY(settings.contains("config:name=\"HorizontalSplitPosition\" config:type=\"int\">150<"));
+        QVERIFY(settings.contains("config:name=\"PositionBottom\" config:type=\"int\">30<"));
     }
 
     // Named ranges and named expressions of the workbook and of a sheet.

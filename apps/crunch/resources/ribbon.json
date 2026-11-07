@@ -493,6 +493,7 @@
               "menu": ["view.freeze", "view.freezeRow", "view.freezeCol", "-", "view.unfreeze"]
             },
             {"large": "win.new", "keytip": "NW"},
+            {"small": "view.split", "keytip": "SP"},
             {"small": "win.arrange", "keytip": "AA"},
             {"small": "view.sideBySide", "keytip": "VB"},
             {"small": "view.syncScroll", "keytip": "SS"},

@@ -962,6 +962,33 @@ private Q_SLOTS:
         QCOMPARE(read.merges.size(), 1);
     }
 
+    // The bars of a split are written as a pane in the state "split" (in twentieths of a point) and read back, with the cells where the lower right part begins.
+    void aSplitViewIsWrittenAndReadBack()
+    {
+        Sheet sheet;
+        sheet.view.split = true;
+        sheet.view.splitX = 2400;
+        sheet.view.splitY = 1200;
+        sheet.view.paneRow = 5;
+        sheet.view.paneCol = 3;
+        const QByteArray skeleton = newSheetSkeleton(sheet);
+        QVERIFY2(skeleton.contains("<pane xSplit=\"2400\" ySplit=\"1200\" topLeftCell=\"D6\" activePane=\"bottomRight\" state=\"split\"/>"), skeleton.constData());
+        Sheet read;
+        QVERIFY2(readSheetXml(skeleton, &read), skeleton.constData());
+        QVERIFY(read.view.split && !read.view.frozen);
+        QCOMPARE(read.view.splitX, 2400u);
+        QCOMPARE(read.view.splitY, 1200u);
+        QCOMPARE(read.view.paneRow, 5u);
+        QCOMPARE(read.view.paneCol, 3u);
+        // only the columns cut: the pane is the right one
+        Sheet cols;
+        cols.view.split = true;
+        cols.view.splitX = 900;
+        cols.view.paneCol = 2;
+        const QByteArray one = newSheetSkeleton(cols);
+        QVERIFY2(one.contains("<pane xSplit=\"900\" topLeftCell=\"C1\" activePane=\"topRight\" state=\"split\"/>"), one.constData());
+    }
+
     // Fonts, fills, borders, and cell formats that a person's formatting made are put at the ends of their lists, each cell format a copy of the one it was made from with the places of its
     // font, fill, and border, its alignment and protection, and what the file said of it besides (the style it follows) kept.
     void stylesGetNewFontsFillsBordersAndWholeFormats()

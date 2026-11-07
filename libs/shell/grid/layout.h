@@ -64,12 +64,24 @@ public:
     void setSkipped(qint64 rows, qint64 cols);
     qint64 skippedRows() const { return rows.skipped(); }
     qint64 skippedCols() const { return cols.skipped(); }
+    // Split panes: in place of held rows and columns, bars at a place in the window (in the grid's units, from the start of the part, 0 for none) cut the view in two or four parts, each
+    // of which scrolls on its own along its axis. The top and left parts begin at the skipped row and column (and scroll by changing them); the bottom and right parts begin where the
+    // scroll puts them, which may be above the row `frozenRows()` (and left of the column `frozenCols()`) the split was made at, down to the first row that is not skipped. A split
+    // and held rows are not both in one direction.
+    void setSplit(qint64 width, qint64 height);
+    qint64 splitWidth() const { return m_splitW; }
+    qint64 splitHeight() const { return m_splitH; }
+    bool isSplit() const { return m_splitW > 0 || m_splitH > 0; }
+    // Moves where the top (left) part begins to `first`, the bottom (right) part staying where it is; true if that changed anything.
+    bool scrollSplitStart(bool inRows, qint64 first);
 
     // How far the part that scrolls has gone, in the grid's units, from where it begins (the end of the frozen rows or columns); kept between 0 and what lets the last row
     // (or column) be at the top (left) of the part.
     void setScroll(qint64 x, qint64 y);
     qint64 scrollX() const { return m_scrollX; }
     qint64 scrollY() const { return m_scrollY; }
+    qint64 minScrollX() const;   // (below 0 only with a split: the part that scrolls may show what is left of where the split was made)
+    qint64 minScrollY() const;
     qint64 maxScrollX() const;
     qint64 maxScrollY() const;
     // Scrolls as little as it takes for the cell to be whole in the part that scrolls (a cell in a frozen row or column needs none in that direction; one too large to fit
@@ -96,6 +108,9 @@ public:
     // The cell, or header, at a point of the window; a point past the last row or column (or on a hidden one's edge) is none.
     Hit hit(const QPoint &point) const;
     PaneView pane(Pane which) const;
+    // Where the bars of a split are on the screen (the x of the vertical bar, the y of the horizontal one); -1 for none.
+    int splitBarX() const { return m_splitW > 0 ? m_headerW + frozenWidth() : -1; }
+    int splitBarY() const { return m_splitH > 0 ? m_headerH + frozenHeight() : -1; }
     // The whole of what the grid shows of its rows and columns, left to right and top to bottom, including the frozen ones: where the cells are.
     QRect gridRect() const;
 
@@ -103,6 +118,9 @@ private:
     // The place on the screen, in one direction, of a place of the grid's.
     int screenX(qint64 logical, bool frozen) const;
     int screenY(qint64 logical, bool frozen) const;
+    // Whether the row (column) is in the top (left) part: with held rows, those before the line; with a split, the ones that part shows (else the bottom (right) part's).
+    bool rowInTop(qint64 row) const;
+    bool colInLeft(qint64 col) const;
     qint64 bodyOriginX() const;   // the grid's place at the left of the part that scrolls
     qint64 bodyOriginY() const;
     int frozenWidth() const;      // screen pixels
@@ -113,6 +131,7 @@ private:
     QSize m_viewport;
     qint64 m_frozenRows = 0, m_frozenCols = 0;
     qint64 m_scrollX = 0, m_scrollY = 0;
+    qint64 m_splitW = 0, m_splitH = 0;
 };
 
 } // namespace jp::grid

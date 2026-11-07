@@ -1,5 +1,5 @@
 # Change the view
-<!-- keywords: outline, group, ungroup, collapse, expand, detail, level, view, zoom, right-to-left, right to left, Arabic, Hebrew, mirrored, freeze, freeze panes, unfreeze, gridlines, headings, formula bar, collapse the ribbon, full screen, status bar, minimum, maximum, show formulas, sheet tabs, hidden sheets, headers, new window, arrange all, side by side, synchronous scrolling, switch windows, custom views, saved view, named view -->
+<!-- keywords: outline, group, ungroup, collapse, expand, detail, level, view, zoom, right-to-left, right to left, Arabic, Hebrew, mirrored, freeze, freeze panes, unfreeze, split, split panes, panes, split bar, gridlines, headings, formula bar, collapse the ribbon, full screen, status bar, minimum, maximum, show formulas, sheet tabs, hidden sheets, headers, new window, arrange all, side by side, synchronous scrolling, switch windows, custom views, saved view, named view -->
 
 The **View** tab changes how the sheet looks on your screen. It never changes the workbook.
 
@@ -41,6 +41,19 @@ When you select two or more cells, the status bar shows numbers about them. **Ri
 The frozen rows and columns are saved with the workbook, so they are held again when it is opened.
 
 A workbook that was saved with frozen panes opens with them.
+
+## Split the view into panes
+
+**Split** cuts the sheet into two or four **panes**. A pane is a part of the window that shows the sheet. Each pane scrolls on its own, so you can look at the top of a long list and the bottom of it at the same time.
+
+1. Select the cell where the cut should be. The bars are put at the top and the left of that cell. A cell in the first row you can see gives only a vertical bar. A cell in the first column you can see gives only a horizontal bar.
+2. On the **View** tab, click **Split**.
+
+The wheel of the mouse moves the pane under the pointer. The scroll bars move the pane at the lower right. Drag a bar to move it. Double-click a bar to take that bar away, or double-click where the two bars cross to take both away. Click **Split** again to take the bars away.
+
+Panes that are frozen and panes that are split are different, so a sheet has one kind at a time. When you click **Freeze Panes** on a split sheet, the split goes away first. When you click **Split** on a frozen sheet, the frozen panes are let go first.
+
+The bars are saved with the workbook, so the split is there again when the workbook is opened. The pane at the lower right can scroll back over the rows and columns that come before the bars. It can not go back further than the first row and column that the pane at the top left shows.
 
 ## Sheets
 

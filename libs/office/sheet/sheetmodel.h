@@ -1233,7 +1233,11 @@ struct SheetView {
     bool frozen = false;            // the first rows and columns stay in place (a split that is not frozen is not kept)
     quint32 frozenRows = 0, frozenCols = 0;
     quint32 topRow = 0, leftCol = 0;           // the cell at the top left of what shows (of the frozen part, when there is one)
-    quint32 paneRow = 0, paneCol = 0;          // the cell at the top left of the part that scrolls, when frozen
+    quint32 paneRow = 0, paneCol = 0;          // the cell at the top left of the part that scrolls, when frozen (or split)
+    // Split panes (state "split"): bars at a place in the window, in twentieths of a point from the first row and column of the part; 0 for none. A split and held rows and columns are not
+    // both kept. `topRow` and `leftCol` are then where the top left part begins, and `paneRow` and `paneCol` the lower right one.
+    bool split = false;
+    quint32 splitX = 0, splitY = 0;
     quint32 activeRow = 0, activeCol = 0;      // the cell the sheet was left on
 };
 

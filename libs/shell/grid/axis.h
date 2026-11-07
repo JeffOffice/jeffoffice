@@ -49,6 +49,8 @@ public:
     // sight). Nothing in them is a row any search finds, and the rows after them begin where the first of them would have.
     void setSkipped(qint64 count);
     qint64 skipped() const { return m_skip; }
+    // How far from the first row the first row that is not skipped is (the sizes of the skipped ones).
+    qint64 skippedExtent() const { return m_skip > 0 ? rawPosition(m_skip) : 0; }
 
     // A place with a size of its own (0 hides it). A size equal to the default is the default again. For a few edits; a sheet's own list is given whole to assign().
     void setSize(qint64 index, int size);

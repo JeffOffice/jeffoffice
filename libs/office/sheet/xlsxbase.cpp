@@ -455,7 +455,13 @@ public:
         if (v.topRow || v.leftCol) view += attr("topLeftCell", cellName(v.topRow, v.leftCol).toLatin1());
         view += attr("workbookViewId", "0") + ">";
         QByteArray activePane;
-        if (v.frozen && (v.frozenRows || v.frozenCols)) {
+        if (v.split && (v.splitX || v.splitY)) {
+            activePane = v.splitX && v.splitY ? "bottomRight" : v.splitY ? "bottomLeft" : "topRight";
+            view += "<pane";
+            if (v.splitX) view += attr("xSplit", num(v.splitX));
+            if (v.splitY) view += attr("ySplit", num(v.splitY));
+            view += attr("topLeftCell", cellName(v.paneRow, v.paneCol).toLatin1()) + attr("activePane", activePane) + attr("state", "split") + "/>";
+        } else if (v.frozen && (v.frozenRows || v.frozenCols)) {
             activePane = v.frozenRows && v.frozenCols ? "bottomRight" : v.frozenRows ? "bottomLeft" : "topRight";
             view += "<pane";
             if (v.frozenCols) view += attr("xSplit", num(v.frozenCols));

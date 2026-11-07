@@ -476,15 +476,18 @@ private:
             const SheetView &s = v.view;
             x += item(QStringLiteral("CursorPositionX"), "int", QString::number(s.activeCol));
             x += item(QStringLiteral("CursorPositionY"), "int", QString::number(s.activeRow));
-            x += item(QStringLiteral("HorizontalSplitMode"), "short", s.frozen && s.frozenCols > 0 ? QStringLiteral("2") : QStringLiteral("0"));
-            x += item(QStringLiteral("VerticalSplitMode"), "short", s.frozen && s.frozenRows > 0 ? QStringLiteral("2") : QStringLiteral("0"));
-            x += item(QStringLiteral("HorizontalSplitPosition"), "int", s.frozen ? QString::number(s.leftCol + s.frozenCols) : QStringLiteral("0"));
-            x += item(QStringLiteral("VerticalSplitPosition"), "int", s.frozen ? QString::number(s.topRow + s.frozenRows) : QStringLiteral("0"));
-            x += item(QStringLiteral("ActiveSplitRange"), "short", s.frozen ? (s.frozenCols > 0 && s.frozenRows > 0 ? QStringLiteral("3") : s.frozenRows > 0 ? QStringLiteral("2") : QStringLiteral("1")) : QStringLiteral("2"));
+            // (a split that is not held has its bars at a place in pixels, a twentieth of a point being a fifteenth of a pixel; the mode is 1 for it and 2 for held rows and columns)
+            const bool cut = !s.frozen && s.split && (s.splitX > 0 || s.splitY > 0);
+            x += item(QStringLiteral("HorizontalSplitMode"), "short", cut && s.splitX > 0 ? QStringLiteral("1") : s.frozen && s.frozenCols > 0 ? QStringLiteral("2") : QStringLiteral("0"));
+            x += item(QStringLiteral("VerticalSplitMode"), "short", cut && s.splitY > 0 ? QStringLiteral("1") : s.frozen && s.frozenRows > 0 ? QStringLiteral("2") : QStringLiteral("0"));
+            x += item(QStringLiteral("HorizontalSplitPosition"), "int", cut ? QString::number(s.splitX / 15) : s.frozen ? QString::number(s.leftCol + s.frozenCols) : QStringLiteral("0"));
+            x += item(QStringLiteral("VerticalSplitPosition"), "int", cut ? QString::number(s.splitY / 15) : s.frozen ? QString::number(s.topRow + s.frozenRows) : QStringLiteral("0"));
+            x += item(QStringLiteral("ActiveSplitRange"), "short", cut ? (s.splitX > 0 && s.splitY > 0 ? QStringLiteral("3") : s.splitY > 0 ? QStringLiteral("2") : QStringLiteral("1"))
+                                                                     : s.frozen ? (s.frozenCols > 0 && s.frozenRows > 0 ? QStringLiteral("3") : s.frozenRows > 0 ? QStringLiteral("2") : QStringLiteral("1")) : QStringLiteral("2"));
             x += item(QStringLiteral("PositionLeft"), "int", QString::number(s.leftCol));
-            x += item(QStringLiteral("PositionRight"), "int", QString::number(s.frozen ? std::max(s.paneCol, s.leftCol + s.frozenCols) : 0));
+            x += item(QStringLiteral("PositionRight"), "int", QString::number(cut ? s.paneCol : s.frozen ? std::max(s.paneCol, s.leftCol + s.frozenCols) : 0));
             x += item(QStringLiteral("PositionTop"), "int", QString::number(s.topRow));
-            x += item(QStringLiteral("PositionBottom"), "int", QString::number(s.frozen ? std::max(s.paneRow, s.topRow + s.frozenRows) : 0));
+            x += item(QStringLiteral("PositionBottom"), "int", QString::number(cut ? s.paneRow : s.frozen ? std::max(s.paneRow, s.topRow + s.frozenRows) : 0));
             x += item(QStringLiteral("ZoomType"), "short", QStringLiteral("0"));
             x += item(QStringLiteral("ZoomValue"), "int", QString::number(std::max(10, std::min(400, s.normalZoom > 0 ? s.normalZoom : s.zoom))));
             x += QStringLiteral("</config:config-item-map-entry>");

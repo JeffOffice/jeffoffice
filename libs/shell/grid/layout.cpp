@@ -36,6 +36,43 @@ void GridLayout::setSkipped(qint64 r, qint64 c)
     setScroll(m_scrollX, m_scrollY);
 }
 
+void GridLayout::setSplit(qint64 width, qint64 height)
+{
+    m_splitW = std::max<qint64>(0, width);
+    m_splitH = std::max<qint64>(0, height);
+    setScroll(m_scrollX, m_scrollY);
+}
+
+qint64 GridLayout::minScrollX() const { return m_splitW > 0 ? -cols.position(m_frozenCols) : 0; }
+qint64 GridLayout::minScrollY() const { return m_splitH > 0 ? -rows.position(m_frozenRows) : 0; }
+
+bool GridLayout::scrollSplitStart(bool inRows, qint64 first)
+{
+    Axis &a = inRows ? rows : cols;
+    const qint64 f = inRows ? m_frozenRows : m_frozenCols;
+    qint64 &scroll = inRows ? m_scrollY : m_scrollX;
+    if (!(inRows ? m_splitH : m_splitW)) return false;
+    first = clampTo(first, 0, std::max<qint64>(0, a.lastVisible()));
+    if (first == a.skipped()) return false;
+    const qint64 absolute = a.position(f) + scroll + a.skippedExtent();
+    a.setSkipped(first);
+    scroll = absolute - a.skippedExtent() - a.position(f);
+    setScroll(m_scrollX, m_scrollY);
+    return true;
+}
+
+bool GridLayout::rowInTop(qint64 row) const
+{
+    if (m_splitH <= 0) return row < m_frozenRows;
+    return row >= rows.skipped() && scaled(rows.position(row), m_zoom) < frozenHeight();
+}
+
+bool GridLayout::colInLeft(qint64 col) const
+{
+    if (m_splitW <= 0) return col < m_frozenCols;
+    return col >= cols.skipped() && scaled(cols.position(col), m_zoom) < frozenWidth();
+}
+
 qint64 GridLayout::maxScrollX() const
 {
     const qint64 last = cols.lastVisible();
@@ -50,15 +87,15 @@ qint64 GridLayout::maxScrollY() const
 
 void GridLayout::setScroll(qint64 x, qint64 y)
 {
-    m_scrollX = clampTo(x, 0, maxScrollX());
-    m_scrollY = clampTo(y, 0, maxScrollY());
+    m_scrollX = clampTo(x, minScrollX(), std::max(minScrollX(), maxScrollX()));
+    m_scrollY = clampTo(y, minScrollY(), std::max(minScrollY(), maxScrollY()));
 }
 
 qint64 GridLayout::bodyOriginX() const { return cols.position(m_frozenCols) + m_scrollX; }
 qint64 GridLayout::bodyOriginY() const { return rows.position(m_frozenRows) + m_scrollY; }
 
-int GridLayout::frozenWidth() const { return scaled(cols.position(m_frozenCols), m_zoom); }
-int GridLayout::frozenHeight() const { return scaled(rows.position(m_frozenRows), m_zoom); }
+int GridLayout::frozenWidth() const { return m_splitW > 0 ? scaled(m_splitW, m_zoom) : scaled(cols.position(m_frozenCols), m_zoom); }
+int GridLayout::frozenHeight() const { return m_splitH > 0 ? scaled(m_splitH, m_zoom) : scaled(rows.position(m_frozenRows), m_zoom); }
 
 int GridLayout::screenX(qint64 logical, bool frozen) const
 {
@@ -72,8 +109,8 @@ int GridLayout::screenY(qint64 logical, bool frozen) const
     return m_headerH + frozenHeight() + scaled(logical - bodyOriginY(), m_zoom);
 }
 
-int GridLayout::xOf(qint64 col) const { return screenX(cols.position(col), col < m_frozenCols); }
-int GridLayout::yOf(qint64 row) const { return screenY(rows.position(row), row < m_frozenRows); }
+int GridLayout::xOf(qint64 col) const { return screenX(cols.position(col), colInLeft(col)); }
+int GridLayout::yOf(qint64 row) const { return screenY(rows.position(row), rowInTop(row)); }
 
 int GridLayout::xEdge(qint64 col, bool frozen) const { return screenX(cols.position(col), frozen); }
 int GridLayout::yEdge(qint64 row, bool frozen) const { return screenY(rows.position(row), frozen); }
@@ -89,19 +126,27 @@ bool GridLayout::scrollToShow(qint64 row, qint64 col, qint64 *x, qint64 *y) cons
 {
     if (row < 0 || col < 0 || row >= rows.count() || col >= cols.count()) return false;
     const qint64 x0 = *x, y0 = *y;
-    auto fit = [&](const Axis &axis, qint64 index, qint64 frozen, int total, int headers, qint64 *scroll) {
-        if (index < frozen || axis.isHidden(index)) return;
+    auto fit = [&](const Axis &axis, qint64 index, qint64 frozen, int total, int headers, qint64 *scroll, bool split, int splitDevice) {
+        if (axis.isHidden(index)) return;
+        const qint64 start0 = axis.position(index), end0 = axis.position(index + 1);
+        if (split) {
+            // a row (column) that the top (left) part shows whole needs no scroll; any other is brought into the part that scrolls, which may show what is above (left of) the split
+            if (index >= axis.skipped() && scaled(end0, m_zoom) <= splitDevice) return;
+        } else if (index < frozen) {
+            return;
+        }
         const qint64 frozenPos = axis.position(frozen);
-        const qint64 start = axis.position(index), end = axis.position(index + 1);
-        const qint64 shown = qint64(std::floor(double(std::max(0, total - headers - scaled(frozenPos, m_zoom))) / m_zoom));
+        const qint64 start = start0, end = end0;
+        const int fixed = split ? splitDevice : scaled(frozenPos, m_zoom);
+        const qint64 shown = qint64(std::floor(double(std::max(0, total - headers - fixed)) / m_zoom));
         const qint64 origin = frozenPos + *scroll;
         if (start < origin || end - start > shown) *scroll = start - frozenPos;
         else if (end > origin + shown) *scroll = end - shown - frozenPos;
     };
-    fit(rows, row, m_frozenRows, m_viewport.height(), m_headerH, y);
-    fit(cols, col, m_frozenCols, m_viewport.width(), m_headerW, x);
-    *x = clampTo(*x, 0, maxScrollX());
-    *y = clampTo(*y, 0, maxScrollY());
+    fit(rows, row, m_frozenRows, m_viewport.height(), m_headerH, y, m_splitH > 0, frozenHeight());
+    fit(cols, col, m_frozenCols, m_viewport.width(), m_headerW, x, m_splitW > 0, frozenWidth());
+    *x = clampTo(*x, minScrollX(), std::max(minScrollX(), maxScrollX()));
+    *y = clampTo(*y, minScrollY(), std::max(minScrollY(), maxScrollY()));
     return *x != x0 || *y != y0;
 }
 
@@ -116,7 +161,7 @@ bool GridLayout::ensureVisible(qint64 row, qint64 col)
 QRect GridLayout::rangeRect(qint64 row1, qint64 col1, qint64 row2, qint64 col2) const
 {
     // in the part of the range's first cell, to its last
-    const bool fr = row1 < m_frozenRows, fc = col1 < m_frozenCols;
+    const bool fr = rowInTop(row1), fc = colInLeft(col1);
     const int left = screenX(cols.position(col1), fc), right = screenX(cols.position(col2 + 1), fc);
     const int top = screenY(rows.position(row1), fr), bottom = screenY(rows.position(row2 + 1), fr);
     return QRect(left, top, std::max(0, right - left), std::max(0, bottom - top));
@@ -155,7 +200,7 @@ Hit GridLayout::hit(const QPoint &p) const
     }
     // The row or column at a place in one direction. The plain division finds one that the rounding of the edges (as they are drawn) may put a row either side of, so its
     // edges are looked at and the one next to it tried.
-    auto find = [&](int at, int headers, const Axis &axis, qint64 frozen, int frozenDevice, qint64 origin) {
+    auto find = [&](int at, int headers, const Axis &axis, qint64 frozen, int frozenDevice, qint64 origin, bool split) {
         Found f;
         if (at < headers) return f;
         const int rel = at - headers;
@@ -172,15 +217,15 @@ Hit GridLayout::hit(const QPoint &p) const
                 if (next < axis.count() && start(next) <= at) i = next;
             }
         }
-        if ((i < frozen) != fz || start(i) > at) return f;
+        if ((!split && (i < frozen) != fz) || start(i) > at) return f;
         const qint64 next = axis.nextVisible(i);
         if (start(next < axis.count() ? next : axis.count()) <= at) return f;
         f.index = i;
         f.frozen = fz;
         return f;
     };
-    const Found col = find(p.x(), hx, cols, m_frozenCols, frozenWidth(), bodyOriginX());
-    const Found row = find(p.y(), hy, rows, m_frozenRows, frozenHeight(), bodyOriginY());
+    const Found col = find(p.x(), hx, cols, m_frozenCols, frozenWidth(), bodyOriginX(), m_splitW > 0);
+    const Found row = find(p.y(), hy, rows, m_frozenRows, frozenHeight(), bodyOriginY(), m_splitH > 0);
     if (inColumnHeader) {
         if (col.index < 0) return h;
         h.kind = Hit::Kind::ColumnHeader;
@@ -221,12 +266,12 @@ PaneView GridLayout::pane(Pane which) const
         return v;
     }
     // the rows or columns an axis shows in a part: the frozen ones, or those from the scroll to the edge of the window
-    auto span = [&](const Axis &axis, qint64 frozen, bool frozenPart, int device, qint64 origin, qint64 *first, qint64 *last) {
+    auto span = [&](const Axis &axis, qint64 frozen, bool frozenPart, int device, qint64 origin, bool split, qint64 *first, qint64 *last) {
         qint64 a, b;
         if (frozenPart) {
             a = axis.firstVisible();
-            b = axis.previousVisible(frozen);
-            if (a >= frozen || b < a) {
+            b = split ? axis.lastVisible() : axis.previousVisible(frozen);
+            if ((!split && a >= frozen) || b < a) {
                 *first = 0;
                 *last = -1;
                 return;
@@ -249,8 +294,8 @@ PaneView GridLayout::pane(Pane which) const
         *first = a;
         *last = b;
     };
-    span(rows, m_frozenRows, frozenRowsPart, v.rect.height(), bodyOriginY(), &v.firstRow, &v.lastRow);
-    span(cols, m_frozenCols, frozenColsPart, v.rect.width(), bodyOriginX(), &v.firstCol, &v.lastCol);
+    span(rows, m_frozenRows, frozenRowsPart, v.rect.height(), bodyOriginY(), m_splitH > 0, &v.firstRow, &v.lastRow);
+    span(cols, m_frozenCols, frozenColsPart, v.rect.width(), bodyOriginX(), m_splitW > 0, &v.firstCol, &v.lastCol);
     return v;
 }
 

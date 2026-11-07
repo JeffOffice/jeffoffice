@@ -498,6 +498,72 @@ private Q_SLOTS:
         QCOMPARE(b.layout().frozenRows(), qint64(0));
     }
 
+    // Split panes: the view is cut at the top left of the cell with the cursor, each part scrolls along its axis on its own, a bar is dragged to move it and double-clicked to take it away,
+    // and held panes and a split are not both there.
+    void aSplitCutsTheViewIntoPartsThatScrollOnTheirOwn()
+    {
+        Book b;
+        for (quint32 r = 0; r < 300; ++r)
+            for (quint32 c = 0; c < 30; ++c) b.number(r, c, r * 100 + c);
+        b.show();
+        QSignalSpy changed(b.view.get(), &GridView::splitChanged);
+        b.view->splitAt(4, 3);
+        QVERIFY(b.view->isSplit());
+        QCOMPARE(changed.count(), 1);
+        GridLayout &L = b.layout();
+        QCOMPARE(L.splitHeight(), L.rows.position(4));
+        QCOMPARE(L.splitWidth(), L.cols.position(3));
+        QCOMPARE(L.pane(Pane::Body).firstRow, qint64(4));
+        QCOMPARE(L.pane(Pane::Body).firstCol, qint64(3));
+        // the lower right part scrolls with the bars and does not move the others
+        b.view->verticalScrollBar()->setValue(int(L.rows.position(50) - L.rows.position(4)));
+        QCOMPARE(L.pane(Pane::Body).firstRow, qint64(50));
+        QCOMPARE(L.pane(Pane::Corner).firstRow, qint64(0));
+        // the wheel over the top left part moves that part, and the lower right one stays
+        QVERIFY(b.view->scrollSplitPart(true, 10));
+        QCOMPARE(L.pane(Pane::Corner).firstRow, qint64(10));
+        QCOMPARE(L.pane(Pane::Top).firstRow, qint64(10));
+        QCOMPARE(L.pane(Pane::Body).firstRow, qint64(50));
+        QVERIFY(b.view->scrollSplitPart(false, 2));
+        QCOMPARE(L.pane(Pane::Left).firstCol, qint64(2));
+        QCOMPARE(L.pane(Pane::Body).firstCol, qint64(3));
+        QVERIFY(b.view->scrollSplitPart(true, -4));
+        QCOMPARE(L.pane(Pane::Corner).firstRow, qint64(6));
+        // a click in each part selects the cell that part shows
+        QTest::mouseClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(L.headerWidth() + 5, L.headerHeight() + 5));
+        QCOMPARE(b.view->selection().activeRow, qint64(6));
+        QCOMPARE(b.view->selection().activeCol, qint64(2));
+        QTest::mouseClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(L.splitBarX() + 10, L.splitBarY() + 10));
+        QCOMPARE(b.view->selection().activeRow, qint64(50));
+        QCOMPARE(b.view->selection().activeCol, qint64(3));
+        // a bar is dragged to move it
+        const qint64 before = L.splitWidth(), tall = L.splitHeight();
+        const int bx = L.splitBarX();
+        QTest::mousePress(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(bx, 200));
+        QTest::mouseMove(b.view->viewport(), QPoint(bx + 70, 200));
+        QTest::mouseRelease(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(bx + 70, 200));
+        QCOMPARE(L.splitWidth(), before + 70);
+        QCOMPARE(L.splitHeight(), tall);
+        // a double click on a bar takes that bar away: the other stays
+        QTest::mouseDClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(L.splitBarX(), 200));
+        QCOMPARE(L.splitWidth(), qint64(0));
+        QVERIFY(L.splitHeight() > 0);
+        QVERIFY(b.view->isSplit());
+        // holding panes and a split are not both there: freezing takes the split away, and splitting lets the frozen rows go
+        b.view->freezeAt(55, 0);
+        QVERIFY(!b.view->isSplit());
+        QCOMPARE(L.frozenRows(), qint64(55));
+        b.view->splitAt(60, 0);
+        QVERIFY(b.view->isSplit());
+        QCOMPARE(L.frozenRows(), qint64(60));   // (the line the split was made at)
+        QCOMPARE(L.splitWidth(), qint64(0));
+        b.view->removeSplit();
+        QVERIFY(!b.view->isSplit());
+        // a cell in the first row and column in view splits nothing
+        b.view->splitAt(0, 0);
+        QVERIFY(!b.view->isSplit());
+    }
+
     // Keys, clicks, and scrolling on a sheet with nothing in it, and with its rows hidden, do not fail.
     void anEmptySheetTakesEveryKey()
     {

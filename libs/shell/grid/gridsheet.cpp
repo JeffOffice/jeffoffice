@@ -421,6 +421,14 @@ std::shared_ptr<GridGeometry> GridSheet::makeGeometry(const Sheet &sheet, const 
         layout.setSkipped(skipRows, skipCols);
         layout.setFrozen(skipRows + qint64(v.frozenRows), skipCols + qint64(v.frozenCols));
         layout.setScroll(layout.cols.position(qint64(v.paneCol)) - layout.cols.position(layout.frozenCols()), layout.rows.position(qint64(v.paneRow)) - layout.rows.position(layout.frozenRows()));
+    } else if (v.split && (v.splitX > 0 || v.splitY > 0)) {
+        // (a split: the top and left parts begin at the view's top left, the others at the cells the pane names; the bars are in twentieths of a point, the grid's units are pixels)
+        const bool byRow = v.splitY > 0, byCol = v.splitX > 0;
+        const qint64 skipRows = byRow ? qint64(v.topRow) : 0, skipCols = byCol ? qint64(v.leftCol) : 0;
+        layout.setSkipped(skipRows, skipCols);
+        layout.setFrozen(byRow ? std::max(qint64(v.paneRow), skipRows) : 0, byCol ? std::max(qint64(v.paneCol), skipCols) : 0);
+        layout.setSplit(byCol ? std::max<qint64>(1, qint64(std::lround(v.splitX / 15.0))) : 0, byRow ? std::max<qint64>(1, qint64(std::lround(v.splitY / 15.0))) : 0);
+        layout.setScroll(byCol ? 0 : layout.cols.position(qint64(v.leftCol)), byRow ? 0 : layout.rows.position(qint64(v.topRow)));
     } else {
         layout.setScroll(layout.cols.position(qint64(v.leftCol)), layout.rows.position(qint64(v.topRow)));
     }

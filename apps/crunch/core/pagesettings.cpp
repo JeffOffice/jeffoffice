@@ -52,6 +52,9 @@ namespace {
 bool samePanes(const jp::office::sheet::SheetView &a, const jp::office::sheet::SheetView &b)
 {
     if (a.rightToLeft != b.rightToLeft || a.showZeros != b.showZeros) return false;
+    const bool sa = a.split && (a.splitX || a.splitY), sb = b.split && (b.splitX || b.splitY);
+    if (sa != sb) return false;
+    if (sa) return a.splitX == b.splitX && a.splitY == b.splitY && a.topRow == b.topRow && a.leftCol == b.leftCol && a.paneRow == b.paneRow && a.paneCol == b.paneCol;
     const bool fa = a.frozen && (a.frozenRows || a.frozenCols), fb = b.frozen && (b.frozenRows || b.frozenCols);
     if (fa != fb) return false;
     if (!fa) return a.topRow == b.topRow && a.leftCol == b.leftCol;   // (not held: where the view is scrolled to)

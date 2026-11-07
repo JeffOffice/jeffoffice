@@ -45,6 +45,7 @@ public:
         qint64 scrollX = 0, scrollY = 0;
         qint64 frozenRows = 0, frozenCols = 0;   // where the frozen part ends, from the first row and column of the sheet
         qint64 skipRows = 0, skipCols = 0;       // and the rows and columns before where it begins, which are out of sight
+        qint64 splitW = 0, splitH = 0;           // the bars of a split (in the grid's units, 0 for none); the held counts are then where the part that scrolls was split from
         double zoom = 1.0;
         bool gridlines = true, headings = true, showZeros = true;
         bool valid = false;
@@ -96,6 +97,16 @@ public:
     void freezeTopRow();
     void freezeFirstColumn();
     void unfreeze();
+    // Split panes: the bars are put at the top left of the cell (none in a direction where the cell is in the first row or column in view; none at all, no split, when it is in both), and
+    // the view is cut in two or four parts that scroll on their own along their axis. Held rows and columns are let go first (a view has one or the other).
+    void splitAt(qint64 row, qint64 col);
+    // Takes away both bars, or the one that cuts the rows (`rows`) or the columns; the part that scrolls is what is left in view.
+    void removeSplit(bool rows = true, bool cols = true);
+    bool isSplit() const { return m_sheet.layout().isSplit(); }
+    // The bars as a file has them (in the grid's units from the start of the part; 0 for none): moves them, keeping what each part shows.
+    void setSplitBars(qint64 width, qint64 height);
+    // Scrolls the top part (or the left part) by whole rows (columns), the other parts staying; false if there is no split to scroll.
+    bool scrollSplitPart(bool rows, int count);
     // The first row and column that are shown in the grid's top left: the frozen part's, or if there is none the part that scrolls's.
     qint64 firstRowInView() const;
     qint64 firstColInView() const;
@@ -299,6 +310,7 @@ Q_SIGNALS:
     void hoverCellChanged(qint64 row, qint64 col);
     void cellClicked(qint64 row, qint64 col, Qt::KeyboardModifiers modifiers);
     void viewChanged();   // the scroll, frozen panes, or what is shown changed
+    void splitChanged();  // a split was made, a bar was moved, or a split was taken away
     // Something the rules of conditional formatting could not do for want of room (a limit): a sentence for the status bar, said once.
     void noticeRaised(const QString &text);
     // Keys that start an entry: a character that prints (with no Ctrl or Alt) is typed into the cell with the cursor in place of what it holds, and Backspace starts an entry with
@@ -394,6 +406,8 @@ private:
     void paintChecks(QPainter *painter, const QRect &clip);
     bool headerButtonPress(const QPoint &layoutPoint);
     bool borderAtInLayout(const QPoint &p, bool *column, qint64 *index) const;
+    // The bar of a split at a point of the layout: 1 the vertical one, 2 the horizontal one, 3 both at their crossing, 0 none.
+    int splitBarAt(const QPoint &p) const;
     void paintOverlay(QPainter *painter, const QRect &clip);
     void paintPageBreaks(QPainter *painter, const QRect &clip);
     void paintBreakView(QPainter *painter, const QRect &clip);
@@ -415,7 +429,8 @@ private:
     bool m_gridlines = true, m_headings = true;
     QColor m_gridColor = QColor(0xD4, 0xD4, 0xD4);
     // the mouse
-    enum class Drag { None, Cells, Rows, Columns, Fill, MoveCells, Resize, BreakLine, BreakEdge, Point, MarkMove, MarkResize } m_drag = Drag::None;
+    enum class Drag { None, Cells, Rows, Columns, Fill, MoveCells, Resize, BreakLine, BreakEdge, Point, MarkMove, MarkResize, SplitBar } m_drag = Drag::None;
+    bool m_splitDragCols = false, m_splitDragRows = false;   // the bars being dragged: the vertical one (the columns' split), the horizontal, or both at their crossing
     PointSpan::Kind m_pointKind = PointSpan::Kind::Cells;
     qint64 m_pointRow = 0, m_pointCol = 0;   // where a drag that points began
     std::function<bool(const PointSpan &, bool, Qt::KeyboardModifiers)> m_pointer;

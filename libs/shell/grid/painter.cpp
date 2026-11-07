@@ -1426,6 +1426,16 @@ void GridPainter::paint(QPainter *p, const QRect &clip, const PaintOptions &o)
     }
     for (Pane which : {Pane::Body, Pane::Left, Pane::Top, Pane::Corner}) paintPane(p, which, clip, o);
     if (o.headers) paintHeaders(p, clip, o);
+    if (m_sheet->layout().isSplit()) {
+        // the bars of a split: a band across the window, over the edges of the parts
+        const GridLayout &L = m_sheet->layout();
+        p->setClipRect(clip);
+        p->setPen(Qt::NoPen);
+        p->setBrush(o.headerLine.darker(150));
+        const QSize v = L.viewport();
+        if (L.splitBarX() >= 0 && L.splitBarX() < v.width()) p->drawRect(QRect(L.splitBarX() - 1, L.headerHeight(), 3, std::max(0, v.height() - L.headerHeight())) & clip);
+        if (L.splitBarY() >= 0 && L.splitBarY() < v.height()) p->drawRect(QRect(L.headerWidth(), L.splitBarY() - 1, std::max(0, v.width() - L.headerWidth()), 3) & clip);
+    }
     if (!o.dropDown.isEmpty() && o.dropDown.intersects(clip)) {
         // a small button with an arrow
         p->setPen(QPen(o.headerLine, 1));

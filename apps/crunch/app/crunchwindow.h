@@ -287,6 +287,7 @@ public:
     bool tracePrecedents();
     bool traceDependents();
     bool traceError();
+    bool stepError(bool forward);
     void removeArrows();
     int arrowCount() const { return int(m_trace.size()); }
     // The circular references named once in a message each time they begin (not again while they stay).
@@ -1115,6 +1116,7 @@ private:
     QString htmlOfClip(const crunch::ClipData &clip) const;
     void freezeAtSelection();
     void syncPanes();
+    void toggleSplit();
     // the sheets (crunchwindow_sheets.cpp): the tabs, and the commands that add, copy, rename, delete, move, hide, and color them
     void createSheetActions();
     void onSheetsChanged();
