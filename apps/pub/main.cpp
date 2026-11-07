@@ -115,10 +115,10 @@ int main(int argc, char **argv)
     if (plain) CreateMutexW(nullptr, FALSE, L"JeffPubRunning");
 #endif
     // A plain start with nothing to open shows the start screen from the first paint (never the empty publication first): its template thumbnails wait for the fonts.
-    const bool startScreen = start.staged() && !cli.isSet(shotOpt) && !cli.isSet(pdfOpt) && files.isEmpty() && !cli.isSet(templOpt) &&
-                             (cli.isSet(stageOpt) || jp::Settings::get().value(QStringLiteral("ui/startBackstage"), true).toBool());
+    const bool startScreen = start.staged() && !cli.isSet(shotOpt) && !cli.isSet(pdfOpt) && files.isEmpty() && !cli.isSet(templOpt) && !cli.isSet(stageOpt) &&
+                             jp::Settings::get().value(QStringLiteral("ui/startBackstage"), true).toBool();
     if (startScreen) {
-        w->beginStartScreen(cli.isSet(stageOpt) ? cli.value(stageOpt) : QStringLiteral("new"));
+        w->beginStartScreen(QStringLiteral("new"));
     }
     if (!start.showFirst(w, files.value(0), startScreen ? std::function<void()>([w] { w->fillStartScreen(); }) : nullptr)) return 0;
     if (startScreen) w->endStartScreen();
