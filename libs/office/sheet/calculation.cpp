@@ -575,6 +575,7 @@ void Calculation::keepStored(Node &n, char cls)
 
 void Calculation::registerNode(quint32 id, const std::vector<CellArea> *told)
 {
+    if (!m_deferGraph && !told) ensureGraph();   // (what was left for later is told first: a formula put in after the workbook was opened is told with the rest)
     Node &n = m_nodes[id];
     // (what a formula's own references name does not change; what it touched as it was worked out is told only if it is not what it touched the last time)
     quint64 toldHash = 0;
@@ -629,6 +630,65 @@ void Calculation::registerNode(quint32 id, const std::vector<CellArea> *told)
         m_threeD.erase(id);
         m_threeDSpan.erase(id);
     }
+    // (opened workbooks tell the graph when it is first needed: see ensureGraph)
+    if (m_deferGraph && !told) {
+        n.flags |= PendingGraph;
+        m_graphPending.push_back(id);
+        return;
+    }
+    n.flags &= quint16(~PendingGraph);   // (told now, with what it touched: the listing for later passes it by)
+    registerInGraph(id, told, toldHash);
+}
+
+// The formulas the graph was not told as the workbook was opened are told now, in the order they were registered.
+void Calculation::buildGraph()
+{
+    std::vector<quint32> pending;
+    pending.swap(m_graphPending);
+    // (the places a formula in places names are turned into ids by the order of the lines now: if lines were put in or taken out since, those are left to be worked out every time)
+    bool moved = false;
+    for (size_t i = 0; i < m_pendingLines.size() && i < m_sheets.size(); ++i)
+        if (m_pendingLines[i].first != m_sheets[i].cells.rows().version() || m_pendingLines[i].second != m_sheets[i].cells.cols().version()) moved = true;
+    m_pendingLines.clear();
+    for (const quint32 id : pending) {
+        if (id >= m_nodes.size()) continue;
+        Node &n = m_nodes[id];
+        if (!(n.flags & PendingGraph)) continue;
+        n.flags &= quint16(~PendingGraph);
+        if (n.flags & Dead) continue;
+        const Sheet &s = m_sheets[size_t(n.sheet)];
+        const Formula &f = s.formulas[n.formula];
+        const Compiled &slot = compiled(n.sheet, f.text, n.flags & Array);
+        const bool held = slot.program && inIds(s, f.text);
+        if (!held) {
+            if (moved) {
+                // (not told: worked out in every recalculation, as a formula past the graph's room is)
+                if (!(n.flags & Untracked)) {
+                    n.flags |= Untracked;
+                    ++m_untracked;
+                }
+                if (!(n.flags & Always)) {
+                    n.flags |= Always;
+                    listAlways(id);
+                }
+                continue;
+            }
+            m_areas.clear();
+            if (slot.program) resolveReferences(*slot.program, slot.bound, sheetCount(), n.sheet, f.dRow, f.dCol, &m_areas, nullptr);
+            std::sort(m_areas.begin(), m_areas.end());
+            m_areas.erase(std::unique(m_areas.begin(), m_areas.end()), m_areas.end());
+        }
+        registerInGraph(id, nullptr, 0);
+    }
+}
+
+// Tells the graph what the formula reads (registerNode's last step; m_areas holds the places its references name, and with `told` what it touched).
+void Calculation::registerInGraph(quint32 id, const std::vector<CellArea> *told, quint64 toldHash)
+{
+    Node &n = m_nodes[id];
+    const Sheet &s = m_sheets[size_t(n.sheet)];
+    const Formula &f = s.formulas[n.formula];
+    const Compiled &slot = compiled(n.sheet, f.text, n.flags & Array);
     // (the graph holds ids: a formula held in ids tells the ids its references name, an end that was deleted too, so that the line coming back is found; the blocks of the others, and of what a formula
     // touched as it was worked out, are places, which are turned into the ids of their lines, a sheet at a time, as a reader is told: see calc/idframe.h)
     m_idAreas.clear();
@@ -777,8 +837,8 @@ bool Calculation::readersOf(const CellArea &places, std::vector<quint32> *out, c
     idAreasOn(places, false, &ids);
     bool whole = true;
     for (const CellArea &a : ids) {
-        if (a.single()) whole = m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, out, stop) && whole;
-        else whole = m_graph->dependentsOfArea(a, out, stop) && whole;
+        if (a.single()) whole = liveGraph()->dependentsOfCell(a.sheet1, a.row1, a.col1, out, stop) && whole;
+        else whole = liveGraph()->dependentsOfArea(a, out, stop) && whole;
         if (!whole) break;
     }
     return whole;
@@ -1037,6 +1097,34 @@ void Calculation::visit(int sheet, quint32 row1, quint32 col1, quint32 row2, qui
     jp::calc::budget::addWork((walk.compared + walk.stepped) / 4);   // (the rows walked over to find the cells are work too: a column of a sheet of many rows is read row by row)
 }
 
+bool Calculation::constantsToken(int sheet, jp::calc::LineToken *out) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size()) || m_visitHook) return false;   // (a test that counts the visits reads the cells, as it always did)
+    const CellStore &cells = m_sheets[size_t(sheet)].cells;
+    out->a = cells.serial();
+    out->b = cells.stamp();
+    out->c = cells.rows().version();
+    out->d = cells.cols().version();
+    return true;
+}
+
+qint64 Calculation::visitConstants(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2, const std::function<bool(quint32, quint32, const Value &)> &f) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return -1;
+    const Sheet &s = m_sheets[size_t(sheet)];
+    CellStore::RangeWalk walk;
+    bool plain = true;
+    s.cells.forEachInRange(row1, col1, row2, std::min<quint32>(col2, kMaxColumns - 1), [&](quint32 row, quint32 col, const Cell &c) {
+        if (c.hasFormula() || (c.flags & (ArrayMember | Tainted | DataTable))) {
+            plain = false;
+            return false;
+        }
+        if (c.type == CellType::Empty) return true;
+        return f(row, col, valueOf(s, c));
+    }, &walk);
+    return plain ? (walk.compared + walk.stepped) / 4 : -1;
+}
+
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 // loading
 
@@ -1044,6 +1132,21 @@ bool Calculation::load()
 {
     static_assert(sizeof(Node) == 32, "a formula's node is 32 bytes");
     const bool whole = loadAll();
+    struct DeferGraph {
+        Calculation &c;
+        explicit DeferGraph(Calculation &calc) : c(calc)
+        {
+            c.m_graphPending.clear();
+            c.m_deferGraph = c.m_options.lazyGraph;
+        }
+        ~DeferGraph()
+        {
+            c.m_deferGraph = false;
+            c.m_pendingLines.clear();
+            if (!c.m_graphPending.empty())
+                for (const Sheet &s : c.m_sheets) c.m_pendingLines.emplace_back(s.cells.rows().version(), s.cells.cols().version());
+        }
+    } deferGraph(*this);
     const int sheets = int(m_sheets.size());
     m_state.assign(size_t(sheets), SheetState());
     m_nodes.clear();
@@ -1530,8 +1633,8 @@ void Calculation::markDependentsOfIds(std::vector<CellArea> *changed)
         if (!a.single() && asked.size() < kMaxAskedAreas) asked.insert(a);
         m_askedPeak = std::max<qint64>(m_askedPeak, qint64(asked.size()));
         found.clear();
-        if (a.single()) m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &found);
-        else m_graph->dependentsOfArea(a, &found);
+        if (a.single()) liveGraph()->dependentsOfCell(a.sheet1, a.row1, a.col1, &found);
+        else liveGraph()->dependentsOfArea(a, &found);
         m_readersFound += qint64(found.size());
         for (const quint32 id : found) {
             Node &n = m_nodes[id];
@@ -1681,7 +1784,7 @@ bool Calculation::questionHasAnAnswer(const Question &q) const
     for (const IdRun &r : q.dead) {
         CellArea a;
         lines(r.first, r.first + r.count - 1, &a);
-        m_graph->forEachDependent(a, [&](quint32 node) {
+        liveGraph()->forEachDependent(a, [&](quint32 node) {
             if (++looked > kLooks || live(node)) answer = true;
             return !answer;
         });
@@ -1690,7 +1793,7 @@ bool Calculation::questionHasAnAnswer(const Question &q) const
     for (const IdRun &r : q.deadBlank) {
         CellArea a;
         lines(r.first, r.first + r.count - 1, &a);
-        m_graph->forEachDependent(a, [&](quint32 node) {
+        liveGraph()->forEachDependent(a, [&](quint32 node) {
             if (++looked > kLooks || live(node)) answer = true;
             return !answer;
         }, true);
@@ -1708,7 +1811,7 @@ bool Calculation::questionHasAnAnswer(const Question &q) const
         };
         CellArea a;
         lines(q.gapLo, q.gapHi, &a);
-        m_graph->forEachDependent(a, visit, true);
+        liveGraph()->forEachDependent(a, visit, true);
         if (answer) return true;
     } else if (q.gapBefore != LineMapCore::kNone && q.gapAfter != LineMapCore::kNone) {
         auto visit = [&](quint32 node) {
@@ -1716,11 +1819,11 @@ bool Calculation::questionHasAnAnswer(const Question &q) const
             return !answer;
         };
         if (q.rows) {
-            m_graph->forEachHoldingRows(q.sheet, q.gapBefore, q.gapAfter, visit, true);
+            liveGraph()->forEachHoldingRows(q.sheet, q.gapBefore, q.gapAfter, visit, true);
         } else {
             CellArea a;
             lines(q.gapBefore, q.gapBefore, &a);
-            m_graph->forEachDependent(a, visit, true);
+            liveGraph()->forEachDependent(a, visit, true);
         }
         if (answer) return true;
     }
@@ -1752,13 +1855,13 @@ bool Calculation::buildAsked(const Question &q, std::vector<quint32> *out, const
     for (const IdRun &r : q.dead) {
         CellArea a;
         lines(r.first, r.first + r.count - 1, &a);
-        if (!m_graph->dependentsOfArea(a, &found, stop)) return false;
+        if (!liveGraph()->dependentsOfArea(a, &found, stop)) return false;
         take(false);
     }
     for (const IdRun &r : q.deadBlank) {
         CellArea a;
         lines(r.first, r.first + r.count - 1, &a);
-        if (!m_graph->dependentsOfArea(a, &found, stop, true)) return false;
+        if (!liveGraph()->dependentsOfArea(a, &found, stop, true)) return false;
         take(true);
     }
     for (const quint32 node : q.nodes)
@@ -1780,25 +1883,25 @@ bool Calculation::buildAsked(const Question &q, std::vector<quint32> *out, const
         // (inserted lines that held cells are gone or back: the blocks that held them hold the original lines either side)
         CellArea a;
         lines(q.gapBefore == LineMapCore::kNone ? 0 : q.gapBefore, q.gapAfter == LineMapCore::kNone ? (q.rows ? kMaxRowId : kMaxColId) : q.gapAfter, &a);
-        if (!m_graph->dependentsOfArea(a, &found, stop)) return false;
+        if (!liveGraph()->dependentsOfArea(a, &found, stop)) return false;
         take(false);
     }
     // set 1: the formulas that can notice an empty line, of which a block holds the gap
     if (q.gapWide) {
         CellArea a;
         lines(q.gapLo, q.gapHi, &a);
-        if (!m_graph->dependentsOfArea(a, &found, stop, true)) return false;
+        if (!liveGraph()->dependentsOfArea(a, &found, stop, true)) return false;
         take(true);
     } else if (q.gapBefore != LineMapCore::kNone && q.gapAfter != LineMapCore::kNone) {
         if (q.rows) {
-            if (!m_graph->dependentsHoldingRows(q.sheet, q.gapBefore, q.gapAfter, &found, stop, true)) return false;
+            if (!liveGraph()->dependentsHoldingRows(q.sheet, q.gapBefore, q.gapAfter, &found, stop, true)) return false;
         } else {
             // (a block holds both columns: it is among the readers of each; a formula that reads one in one block and the other in another is asked too, which is more and not less)
             CellArea a;
             lines(q.gapBefore, q.gapBefore, &a);
-            if (!m_graph->dependentsOfArea(a, &found, stop, true)) return false;
+            if (!liveGraph()->dependentsOfArea(a, &found, stop, true)) return false;
             lines(q.gapAfter, q.gapAfter, &a);
-            if (!m_graph->dependentsOfArea(a, &other, stop, true)) return false;
+            if (!liveGraph()->dependentsOfArea(a, &other, stop, true)) return false;
             std::sort(found.begin(), found.end());
             std::sort(other.begin(), other.end());
             std::vector<quint32> both;
@@ -1944,7 +2047,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         j.foundAt = 0;
         j.queried = a;
         // (a stop ends the search where it is: it is made again, whole, when the calculation goes on; a cell that two hundred thousand formulas read is a search that long)
-        const bool whole = a.single() ? m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &j.found, m_ctx.cancel) : m_graph->dependentsOfArea(a, &j.found, m_ctx.cancel);
+        const bool whole = a.single() ? liveGraph()->dependentsOfCell(a.sheet1, a.row1, a.col1, &j.found, m_ctx.cancel) : liveGraph()->dependentsOfArea(a, &j.found, m_ctx.cancel);
         if (!whole) {
             j.found.clear();
             j.changed.push_back(a);
@@ -2877,7 +2980,7 @@ void Calculation::releaseDeferred(bool discardSheetArea)
     if (pending >= 0 && !discardSheetArea) {
         // (the sheet that was worked out is read by formulas of another: only then is anything left waiting for it)
         std::vector<quint32> readers;
-        m_graph->dependentsOfArea(m_sheetArea, &readers);
+        liveGraph()->dependentsOfArea(m_sheetArea, &readers);
         bool other = false;
         for (const quint32 id : readers)
             if (!(m_nodes[id].flags & Dead) && m_nodes[id].sheet != pending) {
@@ -2954,7 +3057,7 @@ void Calculation::dropNode(quint32 id)
     m_heldBytes -= heldBy(n, id);
     if (n.kind == KindText && n.text >= 0) freeTextSlot(n.text);
     m_arrays.remove(id);
-    m_graph->clearPrecedents(id);
+    liveGraph()->clearPrecedents(id);
     if (!m_positionalNodes.empty()) m_positionalNodes.erase(id);
     if (!m_idToldNodes.empty()) m_idToldNodes.erase(id);
     if (!m_insertedEndsOf.empty()) forgetInsertedEnds(id);

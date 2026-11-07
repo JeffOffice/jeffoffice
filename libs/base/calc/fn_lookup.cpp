@@ -1,6 +1,7 @@
 // The lookup and reference functions. A lookup in sorted data (the approximate mode of VLOOKUP, HLOOKUP, MATCH, and LOOKUP) halves the range, as the original does,
 // so what it finds in data that is not in order is what the halving meets: it stops at the first cell equal to the value (and takes the last of the equal cells that
 // follow it), else it gives the last cell not after the value that it met; a cell of another kind than the value looked for, an error, and an empty cell are passed over.
+#include "calc/lookupindex.h"
 #include "calc/machine.h"
 
 #include <algorithm>
@@ -32,12 +33,35 @@ bool matchesExactly(const Value &key, const Value &cell, bool wildcards)
     return compareForLookup(key, cell) == 0;
 }
 
-// A column or a row of a table, read place by place: the places that hold nothing in a sheet that is mostly empty are jumped over, not stepped on.
+// A column or a row of a table, read place by place: the places that hold nothing in a sheet that is mostly empty are jumped over, not stepped on. Where the same line has been
+// searched before and holds nothing but constants, `snap` holds its values and the line is read from there (the same values, the same places).
 struct Line {
     const Table &table;
     bool column;
-    Value at(qint64 i) const { return column ? table.at(i, 0) : table.at(0, i); }
+    const LineSnapshot *snap = nullptr;
+    Value at(qint64 i) const { return snap ? snap->at(i) : column ? table.at(i, 0) : table.at(0, i); }
+    qint64 nextFilled(qint64 i, qint64 last) const { return snap ? snap->nextFilled(i, last) : table.nextFilled(column, i, last); }
+    qint64 previousFilled(qint64 i, qint64 first) const { return snap ? snap->previousFilled(i, first) : table.previousFilled(column, i, first); }
 };
+
+// The line of the table, with the index of it if there is one (see calc/lookupindex.h).
+Line lineOf(Call &c, const Table &t, bool column, qint64 n)
+{
+    Line line{t, column, nullptr};
+    if (!t.isRef() || n < LookupCache::kMinPlaces) return line;
+    const CellSource &source = c.machine().source();
+    LookupCache *cache = source.lookupCache();
+    if (!cache) return line;
+    const RefArea &a = t.area();
+    LineKey key;
+    key.sheet = a.sheet1;
+    key.column = column;
+    key.fixed = column ? a.col1 : a.row1;
+    key.from = column ? a.row1 : a.col1;
+    key.count = n;
+    line.snap = cache->find(source, key);
+    return line;
+}
 
 // The last cell of the run of cells equal to the value that starts at j (and goes on to hi at the most): the run ends at the first cell that is not equal; cells that
 // hold nothing are passed over. The end is found by doubling the steps and then halving, so a run of a million equal cells costs about forty looks; for a run that is
@@ -48,7 +72,7 @@ qint64 endOfEqualRun(Call &c, const Value &key, qint64 j, qint64 hi, const Line 
     // is the first cell at or after p (up to hi) that holds something equal to the value?
     auto equalAt = [&](qint64 p, qint64 *at) {
         if (p > hi) return false;
-        const qint64 q = line.table.nextFilled(line.column, p, hi);
+        const qint64 q = line.nextFilled(p, hi);
         if (q > hi) return false;
         *at = q;
         return compareForLookup(key, line.at(q)) == 0;
@@ -95,7 +119,7 @@ qint64 searchSorted(Call &c, const Value &key, qint64 n, bool descending, const 
         while (j <= hi) {
             const Value cell = line.at(j);
             if (cell.isEmpty()) {
-                j = line.table.nextFilled(line.column, j + 1, hi);
+                j = line.nextFilled(j + 1, hi);
             } else if ((order = compareForLookup(key, cell)) == 2) {
                 ++j;
             } else {
@@ -109,7 +133,7 @@ qint64 searchSorted(Call &c, const Value &key, qint64 n, bool descending, const 
             while (j >= lo) {
                 const Value cell = line.at(j);
                 if (cell.isEmpty()) {
-                    j = line.table.previousFilled(line.column, j - 1, lo);
+                    j = line.previousFilled(j - 1, lo);
                 } else if ((order = compareForLookup(key, cell)) == 2) {
                     --j;
                 } else {
@@ -147,6 +171,25 @@ qint64 searchExact(Call &c, const Value &key, qint64 n, const Line &line)
 {
     const bool wildcards = key.isText() && hasWildcards(key.text());
     qint64 found = -1;
+    if (line.snap) {
+        const LineSnapshot &snap = *line.snap;
+        bool usable;
+        const qint64 rank = snap.firstEqualRank(key, &usable);
+        if (usable) {
+            // (a step for each cell that holds something up to the one found, as the walk over the cells takes)
+            const qint64 steps = rank ? rank : snap.filledCount();
+            if (steps > 0) {
+                budget::addWork(snap.walkWork() * steps / snap.filledCount());
+                if (!c.machine().charge(steps)) return -2;
+            }
+            return rank ? snap.placeOfRank(rank) : -1;
+        }
+        for (qint64 r = 1; r <= snap.filledCount(); ++r) {
+            if (!c.machine().charge(1)) return -2;
+            if (matchesExactly(key, snap.valueOfRank(r), wildcards)) return snap.placeOfRank(r);
+        }
+        return -1;
+    }
     // (each cell is read once, on the way: the places that hold something are walked, and the one that matches first is the answer)
     line.table.eachFilled(line.column, 0, n - 1, [&](qint64 i, const Value &cell) {
         if (!c.machine().charge(1)) {
@@ -202,7 +245,7 @@ Value tableLookup(Call &c, bool vertical)
     const qint64 span = vertical ? t.fullCols() : t.fullRows();   // the columns of the table (rows for HLOOKUP)
     if (index > double(span)) return c.error(ErrorKind::Ref);
     const qint64 n = vertical ? t.rows() : t.cols();
-    const Line line{t, vertical};
+    const Line line = lineOf(c, t, vertical, n);
     qint64 found;
     if (exact) {
         found = searchExact(c, key, n, line);
@@ -230,7 +273,7 @@ Value fnMatch(Call &c)
     if (t.fullRows() != 1 && t.fullCols() != 1) return c.error(ErrorKind::NA);
     const bool column = t.fullCols() == 1;
     const qint64 n = column ? t.rows() : t.cols();
-    const Line line{t, column};
+    const Line line = lineOf(c, t, column, n);
     qint64 found;
     if (type == 0) {
         found = searchExact(c, key, n, line);
@@ -265,7 +308,7 @@ Value fnLookup(Call &c)
         vectorColumn = t.fullCols() <= t.fullRows();
         n = vectorColumn ? t.rows() : t.cols();
     }
-    const Line line{t, vectorColumn};
+    const Line line = lineOf(c, t, vectorColumn, n);
     const qint64 found = searchSorted(c, key, n, false, line);
     if (found == -2) return c.error(ErrorKind::Value);
     if (found < 0) return c.error(ErrorKind::NA);

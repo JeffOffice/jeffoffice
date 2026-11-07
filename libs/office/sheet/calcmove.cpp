@@ -191,7 +191,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     specialNodes(&candidates);
     std::sort(candidates.begin(), candidates.end());
     candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
-    const qint64 graphWorkBefore = m_graph->buildWork() + m_graph->queryWork();
+    const qint64 graphWorkBefore = liveGraph()->buildWork() + liveGraph()->queryWork();
     ++m_editStats.edits;
     m_editStats.formulasVisited += qint64(candidates.size());
 
@@ -424,7 +424,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     m_editStats.formulasRewritten += rec->formulasRewritten;
     m_editStats.namesRewritten += qint64(rec->names.size());
     m_editStats.rulesRewritten += qint64(rec->validations.size() + rec->conditionalFormats.size());
-    m_editStats.graphWork += m_graph->buildWork() + m_graph->queryWork() - graphWorkBefore;
+    m_editStats.graphWork += liveGraph()->buildWork() + liveGraph()->queryWork() - graphWorkBefore;
     // what read the places is worked out again
     queueDependents(area);
     CellArea dest = area;

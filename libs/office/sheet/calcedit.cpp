@@ -750,7 +750,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
     lap(0);
     m_editWork += qint64(candidates.size()) + qint64(m_special.size());
-    const qint64 graphWorkBefore = m_graph->buildWork() + m_graph->queryWork();
+    const qint64 graphWorkBefore = liveGraph()->buildWork() + liveGraph()->queryWork();
     ++m_editStats.edits;
     m_editStats.formulasVisited += qint64(candidates.size());
     struct Rewrite {
@@ -1433,7 +1433,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     m_editStats.formulasRewritten += rec->formulasRewritten;
     m_editStats.namesRewritten += qint64(rec->names.size());
     m_editStats.rulesRewritten += qint64(rec->validations.size() + rec->conditionalFormats.size());
-    m_editStats.graphWork += m_graph->buildWork() + m_graph->queryWork() - graphWorkBefore;
+    m_editStats.graphWork += liveGraph()->buildWork() + liveGraph()->queryWork() - graphWorkBefore;
     if (!m_running) beginRecalculation();
     return true;
 }

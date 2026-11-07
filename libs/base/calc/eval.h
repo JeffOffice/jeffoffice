@@ -28,6 +28,16 @@ constexpr qint64 kNameEvalCharge = 128;
 // The characters of text one evaluation may make as the elements of arrays (a text is two bytes a character): a column of long texts joined to itself is millions of them.
 constexpr qint64 kMaxMadeTextChars = 64000000;
 
+class LookupCache;
+
+// Says that the cells of a sheet, and the order of its rows and columns, are as they were when the token was given: two equal tokens of a sheet mean that no cell was written, and
+// no row or column inserted, deleted, or moved, between them. A source with no such token gives none.
+struct LineToken {
+    quint64 a = 0, b = 0, c = 0, d = 0;
+    bool operator==(const LineToken &o) const { return a == o.a && b == o.b && c == o.c && d == o.d; }
+    bool operator!=(const LineToken &o) const { return !(*this == o); }
+};
+
 // What a source answers when asked for the cells a table's columns stand for.
 enum class StructuredAnswer : quint8 { NotKnown, Area, Error };
 
@@ -113,6 +123,16 @@ public:
         Q_UNUSED(kind); Q_UNUSED(out);
         return false;
     }
+    // For the index of a line that lookups search again and again (calc/lookupindex.h): the token of the sheet's constants (false for a source that gives none), and a walk over an area like
+    // visit() that stops at once, giving -1, if a cell of the area holds a formula, is a cell of an array, or has a value that reads as tainted; else the steps the walk is counted at (what visit()
+    // adds to the work of the evaluation), which are not added here. A source that has the cache gives it.
+    virtual bool constantsToken(int sheet, LineToken *out) const { Q_UNUSED(sheet); Q_UNUSED(out); return false; }
+    virtual qint64 visitConstants(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2, const std::function<bool(quint32, quint32, const Value &)> &f) const
+    {
+        Q_UNUSED(sheet); Q_UNUSED(row1); Q_UNUSED(col1); Q_UNUSED(row2); Q_UNUSED(col2); Q_UNUSED(f);
+        return -1;
+    }
+    virtual LookupCache *lookupCache() const { return nullptr; }
     // Changes when the sheets or their names do, so a program re-reads which sheet each name is (a source that is replaced by another at the same address must
     // change it too).
     // (A source that breaks this is still read right: the evaluation checks the names a program is bound to on each run.)

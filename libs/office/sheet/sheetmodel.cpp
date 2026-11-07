@@ -35,6 +35,7 @@ CellError errorFromText(QStringView text, bool *known)
 
 void CellStore::add(quint32 row, quint32 col, const Cell &placed)
 {
+    ++m_stamp;
     const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
     if (rowId == kNoLine || colId == kNoLine) return;
     Cell cell = placed;
@@ -54,6 +55,7 @@ void CellStore::add(quint32 row, quint32 col, const Cell &placed)
 
 void CellStore::finish()
 {
+    ++m_stamp;
     m_count = 0;
     m_colCellsValid = false;   // (a cell added twice for one place stands once)
     for (auto &entry : m_blocks) {
@@ -78,6 +80,7 @@ void CellStore::finish()
 
 void CellStore::reorder()
 {
+    ++m_stamp;
     for (auto &entry : m_blocks) {
         Block &block = entry.second;
         if (block.ordered) continue;
@@ -107,10 +110,15 @@ const Cell *CellStore::findById(quint32 rowId, quint32 colId) const
     return at != cells.end() && at->rowId == rowId && at->colId == colId ? &*at : nullptr;
 }
 
-Cell *CellStore::findMutable(quint32 row, quint32 col) { return const_cast<Cell *>(find(row, col)); }
+Cell *CellStore::findMutable(quint32 row, quint32 col)
+{
+    ++m_stamp;
+    return const_cast<Cell *>(find(row, col));
+}
 
 Cell *CellStore::set(quint32 row, quint32 col, const Cell &placed)
 {
+    ++m_stamp;
     const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
     if (rowId == kNoLine || colId == kNoLine) return nullptr;
     Cell cell = placed;
@@ -130,6 +138,7 @@ Cell *CellStore::set(quint32 row, quint32 col, const Cell &placed)
 
 bool CellStore::erase(quint32 row, quint32 col)
 {
+    ++m_stamp;
     const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
     if (rowId == kNoLine || colId == kNoLine) return false;
     const auto block = m_blocks.find(rowId / kBlockRows);
@@ -162,6 +171,12 @@ quint64 CellStore::nextSerial()
 {
     static std::atomic<quint64> next{1};
     return next++;
+}
+
+quint64 CellStore::nextStamp()
+{
+    static std::atomic<quint64> next{1};
+    return next.fetch_add(1, std::memory_order_relaxed);
 }
 
 namespace {
@@ -231,6 +246,7 @@ qint64 CellStore::liveCellsIn(bool rows, const std::vector<jp::calc::IdRun> &run
 
 qint64 CellStore::purgeCells(bool rows, const std::vector<jp::calc::IdRun> &runs)
 {
+    ++m_stamp;
     qint64 gone = 0;
     if (runs.empty()) return 0;
     if (rows) {
@@ -273,6 +289,7 @@ qint64 CellStore::purgeCells(bool rows, const std::vector<jp::calc::IdRun> &runs
 
 jp::calc::LineStatus CellStore::insertLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift, std::vector<Cell> *deadFormulas)
 {
+    ++m_stamp;
     using jp::calc::LineStatus;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
     if (count == 0 || at >= map.size()) return LineStatus::OutOfRange;
@@ -292,6 +309,7 @@ jp::calc::LineStatus CellStore::insertLines(bool rows, quint32 at, quint32 count
 
 jp::calc::LineStatus CellStore::deleteLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift, std::vector<Cell> *deadFormulas, bool keepFormulas)
 {
+    ++m_stamp;
     using jp::calc::LineStatus;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
     if (count == 0 || at >= map.size()) return LineStatus::OutOfRange;
@@ -333,6 +351,7 @@ bool CellStore::needsCompaction(bool rows, quint32 count) const
 
 jp::calc::LineStatus CellStore::undoLines(bool rows, LineEdits &e, LineShift *shift, std::vector<Cell> *deadFormulas)
 {
+    ++m_stamp;
     using jp::calc::LineStatus;
     using Kind = jp::calc::LineEdit::Kind;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
@@ -361,6 +380,7 @@ jp::calc::LineStatus CellStore::undoLines(bool rows, LineEdits &e, LineShift *sh
 
 jp::calc::LineStatus CellStore::redoLines(bool rows, LineEdits &e, LineShift *shift, std::vector<Cell> *deadFormulas, bool keepFormulas)
 {
+    ++m_stamp;
     using jp::calc::LineStatus;
     using Kind = jp::calc::LineEdit::Kind;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
@@ -388,6 +408,7 @@ jp::calc::LineStatus CellStore::redoLines(bool rows, LineEdits &e, LineShift *sh
 
 void CellStore::forgetLines(bool rows, LineEdits *edits, bool keepDead)
 {
+    ++m_stamp;
     using Kind = jp::calc::LineEdit::Kind;
     LineEdits &e = *edits;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
@@ -471,6 +492,7 @@ qint64 CellStore::cellsInDeadRowsOfColumns(const std::vector<jp::calc::IdRun> &s
 
 void CellStore::finishForgetLines(bool rows, LineEdits *edits, bool keepDead)
 {
+    ++m_stamp;
     using Kind = jp::calc::LineEdit::Kind;
     LineEdits &e = *edits;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
@@ -488,6 +510,7 @@ quint32 CellStore::renumberLine(const std::vector<jp::calc::LineMapCore::Renumbe
 
 jp::calc::LineStatus CellStore::rebaseLines(bool rows, std::vector<jp::calc::LineMapCore::Renumber> *out)
 {
+    ++m_stamp;
     using jp::calc::LineStatus;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
     std::vector<jp::calc::LineMapCore::Renumber> table;
@@ -537,6 +560,7 @@ qint64 CellStore::deadCountByScan() const
 
 void CellStore::setLineLimits(const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols)
 {
+    ++m_stamp;
     if (!plain()) return;
     m_rows = jp::calc::RowMap(rows, rows.capacity);
     m_cols = jp::calc::ColMap(cols, cols.capacity);

@@ -153,8 +153,8 @@ public:
         quint32 first, count, base;
     };
 
-    CellStore() : m_serial(nextSerial()) {}
-    CellStore(const CellStore &o) : m_blocks(o.m_blocks), m_count(o.m_count), m_dead(o.m_dead), m_rows(o.m_rows), m_cols(o.m_cols), m_serial(nextSerial()) {}
+    CellStore() : m_serial(nextSerial()), m_stamp(nextStamp()) {}
+    CellStore(const CellStore &o) : m_blocks(o.m_blocks), m_count(o.m_count), m_dead(o.m_dead), m_rows(o.m_rows), m_cols(o.m_cols), m_serial(nextSerial()), m_stamp(nextStamp()) {}
     CellStore &operator=(const CellStore &o)
     {
         m_blocks = o.m_blocks;
@@ -163,12 +163,13 @@ public:
         m_rows = o.m_rows;
         m_cols = o.m_cols;
         m_serial = nextSerial();
+        m_stamp = nextStamp();
         m_last = nullptr;
         m_colCellsValid = false;
         return *this;
     }
     // A move takes the blocks and leaves the store it was taken from empty, with no memory of where it last added a cell (that place is a block it no longer has).
-    CellStore(CellStore &&o) noexcept : m_blocks(std::move(o.m_blocks)), m_count(o.m_count), m_dead(o.m_dead), m_rows(std::move(o.m_rows)), m_cols(std::move(o.m_cols)), m_serial(o.m_serial)
+    CellStore(CellStore &&o) noexcept : m_blocks(std::move(o.m_blocks)), m_count(o.m_count), m_dead(o.m_dead), m_rows(std::move(o.m_rows)), m_cols(std::move(o.m_cols)), m_serial(o.m_serial), m_stamp(o.m_stamp)
     {
         o.reset();
     }
@@ -181,6 +182,7 @@ public:
             m_rows = std::move(o.m_rows);
             m_cols = std::move(o.m_cols);
             m_serial = o.m_serial;
+            m_stamp = o.m_stamp;
             m_last = nullptr;
             m_colCellsValid = false;
             o.reset();
@@ -193,6 +195,8 @@ public:
     const jp::calc::ColMap &cols() const { return m_cols; }
     // A number that is this store's alone (a record of an edit of its rows or columns names it, so that it is never given to another sheet's order).
     quint64 serial() const { return m_serial; }
+    // Counts every write that may change a cell or the places of cells (a cell found to be written, one put or taken away, an edit of the lines); never goes back for one serial.
+    quint64 stamp() const { return m_stamp; }
 
     // Adds a cell at the place. A cell at a place that has one already replaces it (the
     // later one stands), as finish() decides.
@@ -208,7 +212,11 @@ public:
     // The same by the ids of the cell's row and column (what a formula's node and the window's marks hold): no turning of places into ids, so the cell is found wherever its row and column
     // are now (a deleted one is still found: it is held, dead).
     const Cell *findById(quint32 rowId, quint32 colId) const;
-    Cell *findMutableById(quint32 rowId, quint32 colId) { return const_cast<Cell *>(findById(rowId, colId)); }
+    Cell *findMutableById(quint32 rowId, quint32 colId)
+    {
+        m_stamp = nextStamp();
+        return const_cast<Cell *>(findById(rowId, colId));
+    }
     // Ids and places, one for the other (kNoLine for a place past the sheet's end, and for the id of a row or column that is deleted).
     quint32 rowIdAt(quint32 place) const { return rowIdOf(place); }
     quint32 colIdAt(quint32 place) const { return colIdOf(place); }
@@ -470,6 +478,7 @@ public:
     template <class Affected, class Map, class Moved>
     void reshuffle(quint32 firstRow, Affected affected, Map map, Moved moved, std::vector<PlacedCell> *removed)
     {
+        m_stamp = nextStamp();
         std::vector<PlacedCell> moving;
         quint32 firstKey = firstRow / kBlockRows;
         if (!m_rows.isIdentity()) {
@@ -657,6 +666,7 @@ public:
     template <class F>
     bool purgeSome(bool rows, const std::vector<jp::calc::IdRun> &runs, PurgeCursor *cursor, qint64 budget, qint64 *work, F onCell)
     {
+        m_stamp = nextStamp();
         if (cursor->done || runs.empty()) {
             cursor->done = true;
             return true;
@@ -764,8 +774,10 @@ private:
         }
     };
     static quint64 nextSerial();
+    static quint64 nextStamp();
     void reset()
     {
+        m_stamp = nextStamp();
         m_blocks.clear();
         m_count = 0;
         m_dead = 0;
@@ -1117,6 +1129,7 @@ private:
     jp::calc::RowMap m_rows{jp::calc::LineLimits::rows(), jp::calc::LineLimits::rows().capacity};
     jp::calc::ColMap m_cols{jp::calc::LineLimits::cols(), jp::calc::LineLimits::cols().capacity};
     quint64 m_serial = 0;
+    quint64 m_stamp = 0;   // (a number no other write of any store has) counts the writes to the cells and the edits of the lines; with the serial and the versions of the lines it says whether what the store holds is as it was (CellSource::constantsToken)
 };
 
 // What a formula cell holds. Cells of a shared formula point at one text (the

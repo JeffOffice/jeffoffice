@@ -13,6 +13,7 @@
 
 #include "calc/eval.h"
 #include "calc/graph.h"
+#include "calc/lookupindex.h"
 #include "calc/linemap.h"
 #include "calc/refs.h"
 #include "sheet/recalc.h"
@@ -51,6 +52,7 @@ struct CalcOptions {
     bool goRoundCircles = false;      // a workbook that asks for iterative calculation (or is told to: setIteration) has its circles worked out by going round them, as a window does; else (as the yardstick does)
                                       // they are given 0, or, with keepApart, kept apart as the file has them
     bool workOutWhatHasNoResult = false;   // with keepApart: a formula the file stored no result for is worked out (the yardstick keeps it apart, for want of a result to compare with; a window has nothing else to show)
+    bool lazyGraph = true;            // load() tells the dependency graph what the formulas read when it is first needed (an edit, a recalculation that marks from it, a question), not while the workbook is read
     qint64 workLimit = 0;             // steps for one formula; 0: the engine's own
     qint64 recalcWorkLimit = 0;       // the most steps a recalculation takes in all its slices; 0: kMaxRecalcWork
     qint64 maxHeldBytes = 0;          // the most bytes the texts and arrays that formulas gave may take together; 0: kMaxHeldBytes
@@ -188,6 +190,19 @@ public:
     // What the cells hold now: a formula's value is its last result, a constant what was put or read.
     jp::calc::Value cell(int sheet, quint32 row, quint32 col) const override;
     void visit(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2, const std::function<bool(quint32, quint32, const jp::calc::Value &)> &f) const override;
+    // The index of the columns and rows that lookups search again and again (calc/lookupindex.h): the token of a sheet's cells and lines, and a walk over constants only.
+    bool constantsToken(int sheet, jp::calc::LineToken *out) const override;
+    qint64 visitConstants(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2, const std::function<bool(quint32, quint32, const jp::calc::Value &)> &f) const override;
+    jp::calc::LookupCache *lookupCache() const override { return m_lookupIndexes ? &m_lookupCache : nullptr; }
+    // What the indexes did (for the tests and the bench); `useLookupIndexes(false)` reads every lookup's range from the cells, as before the indexes.
+    jp::calc::LookupStats lookupStats() const { return m_lookupCache.stats(); }
+    // The formulas the graph has not been told about yet (see CalcOptions::lazyGraph); 0 once something has used the graph.
+    qint64 graphPendingCount() const { return qint64(m_graphPending.size()); }
+    void useLookupIndexes(bool on)
+    {
+        m_lookupIndexes = on;
+        m_lookupCache.clear();
+    }
 
     // What a cell shows: its value; a formula that has never been worked out shows the result the file stored for it (nothing if it stored none), and one that waits to be
     // worked out again the value it had.
@@ -665,7 +680,11 @@ public:
     qint64 positionalFormulas() const;
     // Formulas the engine cannot work out and keeps apart (they keep the result the file stored); it walks the formulas, so it is for the times it is needed (a save).
     qint64 keptCount() const;
-    qint64 untrackedCount() const { return m_untracked; }      // formulas the graph was too full to hold
+    qint64 untrackedCount() const
+    {
+        ensureGraph();
+        return m_untracked;
+    }      // formulas the graph was too full to hold
     qint64 textSlotBytes() const;   // what the strings in the slots that hold the formulas' texts take, the free slots' too (a free slot holds none)
     qint64 heldBytes() const { return m_heldBytes; }   // what the texts and arrays that formulas gave take (the bound: CalcOptions::maxHeldBytes)
     // ---- what the worker is asked after an edit of whole rows or columns (docs/jeffcrunch-rowids.md, 4.6), counted: the questions answered (an edit that is rigid for every formula asks none) and the
@@ -681,7 +700,7 @@ public:
     qint64 observersLooked() const { return m_observersLooked; }     // places of those looked at by edits of lines, counted
     qint64 registrations() const { return m_registrations; }   // times a formula has told the graph what it reads (counted, so that a test can see that one that reads the same is not told again)
     qint64 alwaysListed() const { return qint64(m_always.size()); }   // formulas on the list of those worked out in every recalculation
-    const jp::calc::DependencyGraph &graph() const { return *m_graph; }
+    const jp::calc::DependencyGraph &graph() const { return *liveGraph(); }
     // The formulas the graph named as readers of the blocks that changed, over the life of the calculation (counted, so that a test can see a block asked again and again: docs/jeffcrunch-rowids.md, round 9).
     qint64 readersFound() const { return m_readersFound; }
     // The most blocks a recalculation held to ask the graph of only once (a count for the test of its bound).
@@ -723,7 +742,7 @@ private:
     // Whether the lines a delete of whole rows or columns takes out hold a formula whose text is in places, or an array or a data table (see applyEditImpl).
     bool deadLinesHoldSpecials(const StructEdit &edit, quint32 count) const;
     enum : quint8 { Dirty = 0, Queued = 1, Waiting = 2, Done = 3, Suspended = 4 };   // (Suspended: worked out, found to wait only for formulas on the way to it or in its own group)
-    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024, Retried = 2048, Worked = 4096, ThreeD = 8192, Iterating = 16384 };
+    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024, Retried = 2048, Worked = 4096, ThreeD = 8192, Iterating = 16384, PendingGraph = 32768 };
     enum : quint8 { KindEmpty = 0, KindNumber, KindText, KindBool, KindError, KindArray };
     struct Node {
         double number = 0;
@@ -879,6 +898,19 @@ private:
     bool applyMove(const StructEdit &edit, EditRecord *record);
     bool undoMove(const EditRecord &record, EditRecord *done);
     void registerNode(quint32 id, const std::vector<jp::calc::CellArea> *told);
+    void registerInGraph(quint32 id, const std::vector<jp::calc::CellArea> *told, quint64 toldHash);
+    // The graph as the calculation uses it: a workbook that was just opened has told it nothing yet (CalcOptions::lazyGraph), and tells it all at the first need (a recalculation that marks from the
+    // graph, an edit, a question about it).
+    jp::calc::DependencyGraph *liveGraph() const
+    {
+        ensureGraph();
+        return m_graph.get();
+    }
+    void ensureGraph() const
+    {
+        if (!m_graphPending.empty()) const_cast<Calculation *>(this)->buildGraph();
+    }
+    void buildGraph();
     jp::calc::Value nodeValue(const Node &n, quint32 id) const;
     void storeResult(Node &n, quint32 id, const jp::calc::Value &v, bool publish = true);
     void keepStored(Node &n, char cls);
@@ -944,6 +976,8 @@ private:
     }
     qint64 m_items = 0;                       // everything the chunked steps have done (Progress::jobItems is the part of it in one call)
     std::function<void()> m_visitHook;
+    mutable jp::calc::LookupCache m_lookupCache;
+    bool m_lookupIndexes = true;
     const std::atomic<bool> *m_cancel = nullptr;
     ResultSink m_sink;
     struct RuleIndex;
@@ -952,6 +986,9 @@ private:
     void forgetRuleIndex() { m_ruleIndex.clear(); m_ruleThread = nullptr; }
     mutable qint64 m_ruleEvaluations = 0, m_ruleLookupWork = 0;
     std::unique_ptr<jp::calc::DependencyGraph> m_graph;
+    bool m_deferGraph = false;                 // while load() registers the formulas: the graph is told when it is first needed
+    std::vector<quint32> m_graphPending;       // the formulas not yet told (flagged PendingGraph), in the order they were registered
+    std::vector<std::pair<quint64, quint64>> m_pendingLines;   // the versions of each sheet's rows and columns when the formulas were left, so that an edit of lines that came first is known
     jp::calc::Evaluator m_evaluator;
     jp::calc::EvalContext m_ctx;
     std::vector<Node> m_nodes;
