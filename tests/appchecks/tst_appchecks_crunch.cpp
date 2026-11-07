@@ -39,7 +39,7 @@ namespace {
 CrunchWindow *asCrunch(AppWindow *w) { return static_cast<CrunchWindow *>(w); }
 
 // Whether the window is ready for a person: nothing opening, nothing being worked out.
-bool quiet(CrunchWindow *w) { return !w->isLoading() && !w->isCalculating() && !w->isSaving(); }
+bool quiet(CrunchWindow *w) { return !w->isLoading() && !w->isCalculating() && !w->isSaving() && !w->busyForTest(); }
 
 // The object that is picked, moved to a place of the sheet (the grid's units): a new shape goes to the middle of the cells in view, so several are put apart.
 void placePickedObject(CrunchWindow *w, double x, double y)
@@ -138,6 +138,7 @@ private Q_SLOTS:
         m_app.settle = [](AppWindow *w) {
             waitFor([&] { return quiet(asCrunch(w)); });
             drain();
+            waitFor([&] { return quiet(asCrunch(w)); });   // (what the events just run began: the page lines, the scan, the worker)
         };
         m_app.listen = [](AppWindow *aw, Watch *watch) {
             auto *w = asCrunch(aw);
@@ -715,6 +716,20 @@ private Q_SLOTS:
     {
         const QStringList fails = checkLazyRibbon(m_app);
         QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
+    }
+
+    // A place made for a check is handed over with the window's own work done: the worker idle, and no page lines, scan, or row heights waiting on a timer.
+    void placesAreHandedOverSettled()
+    {
+        for (const auto &c : m_app.contexts) {
+            if (c.fileOnly || !c.name.contains(QLatin1String("pivot table"))) continue;   // (the places that queue calculation)
+            std::unique_ptr<AppWindow> w(m_app.launch());
+            QVERIFY(w);
+            c.enter(w.get(), false);
+            m_app.settle(w.get());
+            QVERIFY2(!asCrunch(w.get())->busyForTest(), qPrintable(c.name));
+            QVERIFY2(quiet(asCrunch(w.get())), qPrintable(c.name));
+        }
     }
 
     // ---- 3. every command

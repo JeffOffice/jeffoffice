@@ -581,6 +581,11 @@ public:
     };
     PageBreakWork pageBreakWork() const { return m_breakStats; }
     bool pageBreaksUnderWay() const { return bool(m_breakJob); }
+    // For tests: the window has work of its own still to do (the worker is not idle, the page lines, the scan for inconsistent formulas, or the row heights are under way or waiting for their timer).
+    bool busyForTest() const
+    {
+        return (m_loaded && !m_loaded->calcIdle.load()) || m_breakJob || m_breaksTimer.isActive() || m_breaksStepTimer.isActive() || m_patternScan || (m_patternTimer && m_patternTimer->isActive()) || m_autoTimer.isActive();
+    }
     void stepPageBreaksNow() { stepPageBreaks(); }
     static qint64 pageBreakSliceWork();
     // The lines for a sheet's pages: a row's line for each page that begins a band of rows, and a column's likewise (a break set by hand is marked, unless the sheet is fitted to pages).
