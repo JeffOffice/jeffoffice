@@ -1126,6 +1126,25 @@ void WriteTests::theModifyStyleDialogChangesTheStyleAndWithNoChangeLeavesTheFile
 }
 
 
+// A release that never came (the mouse let go outside the window) does not leave the drag on: a move with no button held ends it, and a later move with the button down selects nothing.
+void WriteTests::aDragOfTheMouseInTextEndsWhenNoButtonIsHeld()
+{
+    auto w = styWindow("<w:p><w:r><w:t>Alpha beta gamma delta epsilon</w:t></w:r></w:p>");
+    PageView *view = w->view();
+    w->refreshNow();
+    const QPoint from = styPointOf(view, 11), to = styPointOf(view, 16);
+    auto move = [&](const QPoint &p, Qt::MouseButtons held) {
+        QMouseEvent ev(QEvent::MouseMove, QPointF(p), QPointF(view->viewport()->mapToGlobal(p)), Qt::NoButton, held, Qt::NoModifier);
+        QCoreApplication::sendEvent(view->viewport(), &ev);
+    };
+    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+    move(from + QPoint(1, 0), Qt::NoButton);                                        // (the release was lost)
+    move(to, Qt::LeftButton);
+    QVERIFY2(!view->cursor().hasSelection(), qPrintable(view->cursor().selectedText()));
+    QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, to);
+}
+
+
 void WriteTests::theFormatPainterPaintsOnceOrStaysOnUntilEscapeAndEachPaintIsOneStep()
 {
     auto w = styWindow("<w:p><w:r><w:t>Alpha beta gamma delta epsilon</w:t></w:r></w:p>");

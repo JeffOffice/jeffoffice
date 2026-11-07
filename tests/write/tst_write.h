@@ -1628,6 +1628,7 @@ private Q_SLOTS:
     void theCreateStyleDialogMakesTheStyleOfTheSelectionAndOneUndoTakesItBack();
     void theModifyStyleDialogChangesTheStyleAndWithNoChangeLeavesTheFileAsItWas();
     void theFormatPainterPaintsOnceOrStaysOnUntilEscapeAndEachPaintIsOneStep();
+    void aDragOfTheMouseInTextEndsWhenNoButtonIsHeld();
     void goToOpensWithCtrlGAndPutsTheCaretAtThePlaceNamed();
     void dragAndDropMovesSelectedTextOrCopiesItWithCtrlInOneStep();
     void aClickInsideTheSelectionPutsTheCaretThereAndWithTheDragOffAPressStartsANewSelection();

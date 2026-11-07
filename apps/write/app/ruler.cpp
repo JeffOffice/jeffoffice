@@ -9,6 +9,9 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QEvent>
+#include <QKeyEvent>
+#include <QFocusEvent>
+#include <QHideEvent>
 #include <QHelpEvent>
 #include <QMouseEvent>
 #include <QPainter>
@@ -177,6 +180,7 @@ void Ruler::mousePressEvent(QMouseEvent *e)
         return;
     }
     m_drag = m == Marker::Blank ? Marker::TabStop : m;
+    grabKeyboard();   // (Esc gives the drag up)
     m_dragIndex = m == Marker::Blank ? -1 : index;
     m_dragMoved = false;
     m_dragOut = false;
@@ -196,8 +200,44 @@ void Ruler::mousePressEvent(QMouseEvent *e)
     update();
 }
 
+// A drag that is over without a release (the button let go outside the window, the focus or the ruler lost, Esc) changes nothing.
+void Ruler::cancelDrag()
+{
+    if (m_drag == Marker::None) return;
+    m_drag = Marker::None;
+    m_dragIndex = -1;
+    m_dragMoved = false;
+    m_dragOut = false;
+    releaseKeyboard();
+    m_state = read();
+    update();
+}
+
+void Ruler::keyPressEvent(QKeyEvent *e)
+{
+    if (e->key() == Qt::Key_Escape && m_drag != Marker::None) {
+        cancelDrag();
+        e->accept();
+        return;
+    }
+    QWidget::keyPressEvent(e);
+}
+
+void Ruler::focusOutEvent(QFocusEvent *e)
+{
+    cancelDrag();
+    QWidget::focusOutEvent(e);
+}
+
+void Ruler::hideEvent(QHideEvent *e)
+{
+    cancelDrag();
+    QWidget::hideEvent(e);
+}
+
 void Ruler::mouseMoveEvent(QMouseEvent *e)
 {
+    if (m_drag != Marker::None && !(e->buttons() & Qt::LeftButton)) cancelDrag();
     if (m_drag == Marker::None) {
         // The shape of the pointer says what a press would do.
         const Marker m = markerAt(e->position());
@@ -232,6 +272,7 @@ void Ruler::mouseReleaseEvent(QMouseEvent *e)
     m_drag = Marker::None;
     m_dragIndex = -1;
     m_dragOut = false;
+    releaseKeyboard();
     m_state = read();
     update();
 }

@@ -48,6 +48,9 @@ protected:
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *e) override;
+    void keyPressEvent(QKeyEvent *e) override;
+    void focusOutEvent(QFocusEvent *e) override;
+    void hideEvent(QHideEvent *e) override;
     bool event(QEvent *e) override;
     bool eventFilter(QObject *watched, QEvent *e) override;
 
@@ -66,6 +69,7 @@ private:
     double snapped(double points, Qt::KeyboardModifiers modifiers) const;
     State read() const;
     void commit();
+    void cancelDrag();
     QTextCursor cursor() const;
 
     PageView *m_view;

@@ -647,6 +647,10 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
             viewport()->setCursor(Qt::CursorShape(shape));
         }
     }
+    if (m_dragging && !(e->buttons() & Qt::LeftButton)) {   // (the release was lost)
+        m_dragging = false;
+        m_autoscroll.stop();
+    }
     if (!m_doc || !m_dragging || !(e->buttons() & Qt::LeftButton)) return;
     const int at = positionAt(hitAt(e->position().toPoint()));
     if (at < 0) return;

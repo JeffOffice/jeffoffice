@@ -967,6 +967,36 @@ private Q_SLOTS:
         }
     }
 
+    // A drag of a marker is given up by a move with no button held (the release was lost), by Esc, by the ruler losing focus, and by its being hidden: none of them changes the paragraph.
+    void aRulerDragIsGivenUpWhenItsReleaseIsLostOrItIsCancelled()
+    {
+        for (int how = 0; how < 5; ++how) {   // 0 release as usual, 1 no button held, 2 Esc, 3 focus out, 4 hidden
+            Win win;
+            write::Ruler *ruler = win.w.ruler();
+            QCoreApplication::processEvents();
+            QPointF at;
+            QVERIFY(ruler->markerPoint(write::Ruler::Marker::LeftIndent, 0, &at));
+            QCOMPARE(ruler->leftIndent(), 0.0);
+            auto send = [&](QEvent::Type type, const QPointF &where, Qt::MouseButtons held, Qt::MouseButton changed) {
+                QMouseEvent ev(type, where, ruler->mapToGlobal(where), changed, held, Qt::NoModifier);
+                QCoreApplication::sendEvent(ruler, &ev);
+            };
+            send(QEvent::MouseButtonPress, at, Qt::LeftButton, Qt::LeftButton);
+            const QPointF far = at + QPointF(60, 0);
+            send(QEvent::MouseMove, far, Qt::LeftButton, Qt::NoButton);
+            if (how == 1) send(QEvent::MouseMove, far, Qt::NoButton, Qt::NoButton);
+            if (how == 2) QTest::keyClick(ruler, Qt::Key_Escape);
+            if (how == 3) {
+                QFocusEvent out(QEvent::FocusOut, Qt::OtherFocusReason);
+                QCoreApplication::sendEvent(ruler, &out);
+            }
+            if (how == 4) ruler->hide();
+            send(QEvent::MouseButtonRelease, far, Qt::NoButton, Qt::LeftButton);
+            if (how == 0) QVERIFY2(ruler->leftIndent() > 1, "a drag that is finished moves the indent");
+            else QCOMPARE(ruler->leftIndent(), 0.0);
+        }
+    }
+
     // ---------------------------------------------------------------- Insert > Date & Time
     void theDateAndTimeDialogPutsInFixedTextOrAFieldThatUpdates()
     {
