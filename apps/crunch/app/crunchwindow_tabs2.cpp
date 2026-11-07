@@ -143,6 +143,10 @@ bool CrunchWindow::goalSeekIn(const QString &setText, const QString &valueText, 
 {
     if (!m_session || !editingAllowed()) return false;
     const QString title = tr("Goal Seek");
+    if (m_saving || !m_saveAfterCalculation.isNull() || !m_saveAfterTrial.isNull()) {
+        setStatus(tr("Goal Seek can start when the workbook is saved."));
+        return false;
+    }
     quint32 setRow = 0, setCol = 0, changeRow = 0, changeCol = 0;
     if (!jp::office::sheet::parseCellRef(setText, &setRow, &setCol)) {
         notice(title, tr("Write the cell with the formula as a cell name, such as B3."));
@@ -182,6 +186,14 @@ bool CrunchWindow::goalSeekIn(const QString &setText, const QString &valueText, 
     plain.setNumberOptions(QLocale::OmitGroupSeparator);
     QUndoStack *stack = m_session->undoStack();
     bool failedToType = false;
+    struct Trial {
+        CrunchWindow *w;
+        explicit Trial(CrunchWindow *window) : w(window) { ++w->m_trialMacros; }
+        ~Trial()
+        {
+            if (--w->m_trialMacros == 0) w->resumeSaveAfterTrial();
+        }
+    } trialOpen(this);
     stack->beginMacro(title);
     auto put = [&](double x) {
         const qint64 before = m_loader.changesMade();
@@ -856,12 +868,13 @@ bool CrunchWindow::replaceWordInCell(int sheet, quint32 row, quint32 col, const 
     if (word.at(0).isUpper()) replacement[0] = replacement.at(0).toUpper();
     text.replace(at, word.size(), replacement);
     if (!editingAllowed()) return false;
+    const qint64 before = m_loader.changesMade();
     const crunch::EditSession::Outcome o = m_session->type(sheet, row, col, text);
     if (!o.ok) {
         notice(tr("Thesaurus"), o.problem);
         return false;
     }
-    m_calculating = true;
+    if (m_loader.changesMade() != before) m_calculating = true;
     return true;
 }
 

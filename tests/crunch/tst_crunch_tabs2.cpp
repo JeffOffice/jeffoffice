@@ -17,6 +17,7 @@
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
 #include "findbooks.h"
+#include "savedok.h"
 
 #include <QAction>
 #include <QListWidget>
@@ -26,6 +27,7 @@
 #include <QToolButton>
 #include <QSignalSpy>
 #include <QTest>
+#include <QTimer>
 #include <QUndoStack>
 #include "../localepin.h"
 
@@ -144,6 +146,46 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QCOMPARE(shown(e, QStringLiteral("A1:C1")), QStringLiteral("1|5|6"));
         QVERIFY(e.win.w.act(QStringLiteral("data.goalSeek"))->isEnabled());
+    }
+
+    void aSaveAskedForInsideGoalSeekWaitsForTheEndAndSavesTheAnswer()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1==A1*2+3", "D1=x"})));
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("D1"));
+        e.enter(QStringLiteral("y"));                                               // (something to save)
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QString trialAtSave;
+        QTimer::singleShot(0, &w, [&] {   // (fires in the events the seek lets through between trials)
+            trialAtSave = w.session()->editText(0, 0, 0);
+            w.act(QStringLiteral("file.save"))->trigger();
+        });
+        QVERIFY(w.goalSeekIn(QStringLiteral("B1"), QStringLiteral("11"), QStringLiteral("A1")));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(!trialAtSave.isEmpty() && trialAtSave != QLatin1String("4"), qPrintable(trialAtSave));   // (the save was asked for while a trial value was in the cell)
+        QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:4"));      // (not a value tried on the way)
+        QCOMPARE(savedCell(e.path, QStringLiteral("D1")), QStringLiteral("i:y"));
+    }
+
+    void goalSeekIsRefusedWhileASaveWaitsForTheCalculation()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1==A1*2+3"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.setWorkerPace(20000);
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("2"));
+        QVERIFY(w.isCalculating());
+        QVERIFY(w.save());                                                          // (waits for the calculation)
+        const int steps = w.undoStack()->count();
+        QVERIFY(!w.goalSeekIn(QStringLiteral("B1"), QStringLiteral("11"), QStringLiteral("A1")));
+        QCOMPARE(w.undoStack()->count(), steps);
+        w.setWorkerPace(0);
+        QVERIFY(e.settle());
     }
 
     void goalSeekLeavesTheSheetAloneWhenItFailsOrIsAskedWrong()

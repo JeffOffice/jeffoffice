@@ -1044,6 +1044,11 @@ void CrunchWindow::closeEvent(QCloseEvent *e)
         e->ignore();
         return;
     }
+    if (m_trialMacros > 0) {
+        setStatus(tr("Close the window when Goal Seek or the Scenario Summary is done."));
+        e->ignore();
+        return;
+    }
     // an entry that is being made is finished (or the window stays, with the reason shown), and changes that are not saved are asked about
     if (!commitEdit() || !askAboutChanges()) {
         e->ignore();

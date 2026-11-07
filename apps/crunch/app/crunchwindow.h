@@ -1505,6 +1505,10 @@ private:
     bool m_reopening = false;   // (going back to a version: the workbook's file is read again in this window)
     QPointer<QThread> m_saveThread;
     QString m_saveAfterCalculation;
+    int m_trialMacros = 0;                 // Goal Seek or Scenario Summary has an undo step open and puts trial values in the cells
+    QString m_saveAfterTrial;              // a save that was asked for meanwhile waits for it to end
+    bool m_copyAfterTrial = false;
+    void resumeSaveAfterTrial();
     // (the repaired package is kept in a file that goes with this object, whatever ends the open: the read, a failed read, another open, or the window)
     std::unique_ptr<QTemporaryFile> m_repairTemp;
     QString m_lastRepairFile;   // the name of the last one, for a test

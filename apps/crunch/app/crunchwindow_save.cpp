@@ -19,6 +19,7 @@
 #include "core/loader.h"
 #include "sheet/xlsxsave.h"
 
+#include <QTimer>
 #include <QAction>
 #include <QCryptographicHash>
 #include <QApplication>
@@ -139,9 +140,30 @@ bool CrunchWindow::fileChangedOnDisk() const
     return false;
 }
 
+// A save asked for while trial values are in the cells (Goal Seek, Scenario Summary) waits until they are out again.
+void CrunchWindow::resumeSaveAfterTrial()
+{
+    if (m_saveAfterTrial.isNull()) return;
+    const QString path = m_saveAfterTrial;
+    const bool copy = m_copyAfterTrial;
+    m_saveAfterTrial.clear();
+    m_copyAfterTrial = false;
+    QPointer<CrunchWindow> self(this);
+    QTimer::singleShot(0, this, [self, path, copy] {
+        if (!self || !self->m_session) return;
+        if (copy) self->startCopy(path);
+        else self->startSave(path);
+    });
+}
+
 bool CrunchWindow::startSave(const QString &path)
 {
     if (!m_session || m_saving) return false;
+    if (m_trialMacros > 0) {
+        m_saveAfterTrial = path;
+        setStatus(tr("Saving when the trial values are out of the cells…"));
+        return true;
+    }
     m_saveFileName = QFileInfo(path).fileName();
     if (crunch::isCsvName(path)) return exportCsv(path);
     if (crunch::isCopyName(path)) return exportCopy(path);
@@ -346,7 +368,7 @@ bool CrunchWindow::askAboutChanges()
     if (answer == Answer::Save) {
         m_closeAfterSave = true;
         // (a save that says no may still have handed the person on to another one, as the .csv question does; the close waits for that, and is given up if none was started)
-        if (!save() && !m_saving && m_saveAfterCalculation.isNull()) m_closeAfterSave = false;
+        if (!save() && !m_saving && m_saveAfterCalculation.isNull() && m_saveAfterTrial.isNull()) m_closeAfterSave = false;
     }
     return false;
 }

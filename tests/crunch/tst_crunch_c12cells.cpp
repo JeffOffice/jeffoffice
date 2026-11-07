@@ -352,6 +352,25 @@ private Q_SLOTS:
         QCOMPARE(liveSheets(w), sheets);
     }
 
+    void scenarioSummaryIsRefusedWhileASaveWaitsForTheCalculation()
+    {
+        EditWindow e;
+        QVERIFY(e.open(inputsBook()));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.addScenario(QStringLiteral("Low"), QStringLiteral("A1:A2"), QString(), {QStringLiteral("1"), QStringLiteral("2")}));
+        w.setWorkerPace(20000);
+        e.select(QStringLiteral("C5"));
+        e.enter(QStringLiteral("9"));
+        QVERIFY(w.isCalculating());
+        QVERIFY(w.save());
+        const int sheets = liveSheets(w);
+        QVERIFY(!w.scenarioSummary(QStringLiteral("B1")));
+        QCOMPARE(liveSheets(w), sheets);
+        w.setWorkerPace(0);
+        QVERIFY(e.settle());
+    }
+
     // ---- Shapes: picking several, Align, Group, and Ungroup
 
     // What each Align choice does to boxes, as numbers.

@@ -231,6 +231,10 @@ bool CrunchWindow::scenarioSummary(const QString &resultText)
 {
     const QString title = tr("Scenario Summary");
     if (!m_session || !editingAllowed()) return false;
+    if (m_saving || !m_saveAfterCalculation.isNull() || !m_saveAfterTrial.isNull()) {
+        setStatus(tr("Scenario Summary can start when the workbook is saved."));
+        return false;
+    }
     const ScenarioList list = m_session->scenariosOf(m_sheet);
     if (list.list.isEmpty()) {
         notice(title, tr("This sheet has no scenarios. Add some first."));
@@ -270,6 +274,14 @@ bool CrunchWindow::scenarioSummary(const QString &resultText)
     nowResults = resultsNow();
     QVector<QStringList> underEach;
     QUndoStack *stack = m_session->undoStack();
+    struct Trial {
+        CrunchWindow *w;
+        explicit Trial(CrunchWindow *window) : w(window) { ++w->m_trialMacros; }
+        ~Trial()
+        {
+            if (--w->m_trialMacros == 0) w->resumeSaveAfterTrial();
+        }
+    } trialOpen(this);
     stack->beginMacro(title);
     bool failed = false;
     for (const Scenario &s : list.list) {
