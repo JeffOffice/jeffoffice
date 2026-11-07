@@ -124,8 +124,9 @@ QString joined(const QVector<QDomElement> &paragraphs)
 
 // What the charts drawn so far came to, so that a chart a frame names again for a size it was drawn at is not read and drawn again.
 struct Reader::ChartCache {
-    QHash<QString, QString> images;   // the part's name and the size, to the image id ("" for a chart that can't be drawn)
-    int drawn = 0;
+    QHash<QString, QString> images;   // the part's name and the size, to the image id
+    QSet<QString> broken;             // the parts that could not be drawn, so a part that fails is read once, not once per size
+    int drawn = 0;                    // the draws tried, those that failed too
 };
 
 QString Reader::chartImage(const QDomElement &object, const QSizeF &size)
@@ -138,12 +139,14 @@ QString Reader::chartImage(const QDomElement &object, const QSizeF &size)
     ChartCache &cache = *m_charts;
     const QString key = part + QLatin1Char('|') + QString::number(drawSize.width(), 'g', 17) + QLatin1Char('x') + QString::number(drawSize.height(), 'g', 17);
     if (const auto found = cache.images.constFind(key); found != cache.images.constEnd()) return found.value();
+    if (cache.broken.contains(part)) return QString();
     if (cache.drawn >= kMaxChartDrawings) {
         note(QCoreApplication::translate("OdpImport", "Only the first %1 charts are drawn; the rest are left out.").arg(kMaxChartDrawings));
         return QString();
     }
     const QString id = drawChart(part, drawSize);
-    if (!id.isEmpty()) ++cache.drawn;
+    ++cache.drawn;
+    if (id.isEmpty()) cache.broken.insert(part);
     cache.images.insert(key, id);
     return id;
 }

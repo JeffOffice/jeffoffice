@@ -622,6 +622,35 @@ private Q_SLOTS:
         QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("300")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
+    // A chart object that can't be drawn counts against the presentation's limit like one that can, and is read once, not once for each size.
+    void odpBrokenChartsAreCountedAndReadOnce()
+    {
+        QString err;
+        QStringList notes;
+        // Four hundred different broken objects (a hundred to a slide): the limit stops them, with its note.
+        QString pages;
+        QMap<QString, QByteArray> parts;
+        for (int p = 0; p < 4; ++p) {
+            QString frames;
+            for (int i = p * 100; i < p * 100 + 100; ++i) {
+                frames += QStringLiteral("<draw:frame draw:style-name=\"gr5\" draw:layer=\"layout\" svg:width=\"3cm\" svg:height=\"3cm\" svg:x=\"1cm\" svg:y=\"1cm\"><draw:object xlink:href=\"./Object %1\"/><draw:image xlink:href=\"./ObjectReplacements/Object %1\"/></draw:frame>").arg(i);
+                parts.insert(QStringLiteral("Object %1/content.xml").arg(i), QByteArray("<office:document-content/>"));
+                parts.insert(QStringLiteral("ObjectReplacements/Object %1").arg(i), QByteArray("VCLMTF\1\0 a metafile of the producer's own"));
+            }
+            pages += QStringLiteral("<draw:page draw:name=\"p%1\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\">").arg(p) + frames + QStringLiteral("</draw:page>");
+        }
+        auto d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), pages), odptest::odpStyles(), parts), &err, &notes);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("Only the first 300 charts")), qPrintable(notes.join(QLatin1Char('|'))));
+        // One broken object in a thousand sizes is one failure, not a thousand: the limit isn't reached.
+        QVector<QSizeF> sizes;
+        for (int i = 0; i < 1000; ++i) sizes << QSizeF(300 + i, 8);
+        notes.clear();
+        d = deck::importOdp(odptest::chartDeck(QByteArray("<office:document-content/>"), sizes), &err, &notes);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(!notes.join(QLatin1Char('|')).contains(QStringLiteral("Only the first")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
     // A chart with more points than a picture can show is drawn from some of them, and the file's notes say so.
     void odpChartWithMorePointsThanAPictureCanShowSaysSo()
     {
