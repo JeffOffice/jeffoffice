@@ -139,8 +139,8 @@ QIcon transitionIcon(const QString &type)
         const QColor paperA(0xDC, 0xE3, 0xEB), inkA(0x5B, 0x6B, 0x7D), paperB(0xF6, 0xDC, 0xCE);
         const QImage from = sample(paperA, inkA);
         const QImage to = sample(paperB, kStar);
-        QImage frame(from.size(), QImage::Format_RGB32);
-        frame.setDevicePixelRatio(dpr);
+        // (Starts as the old slide: a transition that leaves an edge pixel uncovered must not show whatever the memory held.)
+        QImage frame = from.copy();
         {
             QPainter q(&frame);
             deck::Transition t;
