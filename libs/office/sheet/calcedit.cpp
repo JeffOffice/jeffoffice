@@ -90,7 +90,7 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
     if (e.kind == K::Move) return canMoveCells(e, why);
     if (e.kind == K::Offset) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "That is not done by inserting or deleting.")));
     const Sheet &s = m_sheets[size_t(e.sheet)];
-    if (m_untracked > 0) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "This workbook has too many formulas for JeffCrunch to follow when rows, columns, or cells are inserted or deleted.")));
+    if (untrackedCount() > 0) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "This workbook has too many formulas for JeffCrunch to follow when rows, columns, or cells are inserted or deleted.")));
     if (s.isProtected) {
         // a protected sheet lets rows or columns be inserted or deleted if its protection allows it (and deleted only if none of the cells in them is locked)
         const SheetProtection &p = s.protection;

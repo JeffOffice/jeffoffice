@@ -11,6 +11,9 @@
 
 #include <QHash>
 
+class QThread;
+
+#include <list>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -44,6 +47,7 @@ public:
     // The work the walk that built this took to count, in the steps the sheet counts for a walk over its cells, for all of the filled places (an exact search that stops early takes its part).
     qint64 walkWork() const { return m_walkWork; }
     size_t bytes() const { return m_bytes; }
+    size_t estimateBytes() const;
 
 private:
     friend class LookupCache;
@@ -55,6 +59,7 @@ private:
     qint32 m_firstBool[2] = {0, 0};
     QHash<QString, qint32> m_texts;       // text of ASCII characters only, in lower case -> rank of the first
     std::vector<qint32> m_wideTexts;    // ranks of texts that have a character that is not ASCII, which are compared one by one
+    std::vector<qint32> m_longTexts;    // ranks of the texts of ASCII of 32 characters or more: a long key compared with them takes steps (compareText), which an indexed search takes too
     qint64 m_walkWork = 0;
     size_t m_bytes = 0;
     static const Value s_empty;
@@ -66,6 +71,7 @@ struct LookupStats {
     qint64 dropped = 0;        // indexes thrown away because their token was not the source's now
     qint64 evicted = 0;        // indexes thrown away to keep within the bounds
     qint64 refused = 0;        // lines that could not be indexed (a formula in them, or too big)
+    qint64 scanSteps = 0;      // steps of searches that were not served by an index
     qint64 bytes = 0;          // held now
     qint64 entries = 0;        // indexes held now
 };
@@ -74,24 +80,18 @@ class LookupCache {
 public:
     static constexpr qint64 kMaxBytes = qint64(128) << 20;
     static constexpr qint64 kMaxEntries = 64;     // indexes held
-    static constexpr qint64 kMaxSeen = 4096;      // lines remembered as searched once (a few bytes each)
-    static constexpr qint64 kMinPlaces = 16;    // a line shorter than this is read as it was
+    static constexpr qint64 kMaxSeen = 4096;      // lines remembered (a few bytes each)
+    static constexpr qint64 kMinPlaces = 32;      // a line shorter than this is read as it was: a build would not pay
 
-    // The index of the line, or null: for the first search of a line (or of a line whose cells changed since it was last searched) null, and from the second on, built if the line
-    // holds nothing but constants and the bounds allow it. The pointer holds until the next call.
+    // The index of the line, or null. A line is indexed once the searches of it that were not served by an index have cost (noteScan) as much as a build would, and again only after
+    // more, if the bounds had it thrown out: a line that does not stay is not built over and over. The pointer holds until the next call.
     const LineSnapshot *find(const CellSource &source, const LineKey &key);
+    // Told, after a search of a line that find() gave no index for, the steps the search took.
+    void noteScan(const LineKey &key, qint64 steps);
     void clear();
     LookupStats stats() const;
 
 private:
-    struct Entry {
-        LineKey key;
-        LineToken token;
-        std::unique_ptr<LineSnapshot> snapshot;   // null: the line was seen, or could not be indexed
-        int seen = 0;
-        bool refused = false;
-        quint64 used = 0;
-    };
     struct KeyHash {
         size_t operator()(const LineKey &k) const
         {
@@ -100,11 +100,24 @@ private:
             return size_t(h ^ (h >> 29));
         }
     };
-    std::unordered_map<LineKey, Entry, KeyHash> m_entries;
+    struct Entry {
+        LineKey key;
+        LineToken token;
+        std::unique_ptr<LineSnapshot> snapshot;
+        std::list<LineKey>::iterator builtAt;
+        qint64 scanned = 0;      // steps of the searches since the cells were last written (or the index thrown out)
+        int evictions = 0;       // times the index was thrown out for room: each doubles what the line must cost before it is built again
+        bool refused = false;
+    };
+    using Lru = std::list<Entry>;
+    void dropSnapshot(Entry &e);
+    std::unique_ptr<LineSnapshot> build(const CellSource &source, const LineKey &key, bool *refused);
+    Lru m_lru;                                          // most recently used first
+    std::unordered_map<LineKey, Lru::iterator, KeyHash> m_index;
+    std::list<LineKey> m_built;                         // the lines that have an index, most recently used first
     qint64 m_bytes = 0;
-    qint64 m_built = 0;
-    quint64 m_clock = 0;
     LookupStats m_stats;
+    QThread *m_thread = nullptr;                        // the thread that asked (a debug build checks that it is the only one)
 };
 
 } // namespace jp::calc

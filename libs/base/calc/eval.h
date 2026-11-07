@@ -33,8 +33,10 @@ class LookupCache;
 // Says that the cells of a sheet, and the order of its rows and columns, are as they were when the token was given: two equal tokens of a sheet mean that no cell was written, and
 // no row or column inserted, deleted, or moved, between them. A source with no such token gives none.
 struct LineToken {
-    quint64 a = 0, b = 0, c = 0, d = 0;
-    bool operator==(const LineToken &o) const { return a == o.a && b == o.b && c == o.c && d == o.d; }
+    quint64 a = 0, b = 0, c = 0, d = 0;   // what the sheet's cells and lines are as a whole (a write of many cells, an edit of lines)
+    quint64 e = 0;                        // the count of writes to single cells: see CellSource::wroteSince
+    bool operator==(const LineToken &o) const { return a == o.a && b == o.b && c == o.c && d == o.d && e == o.e; }
+    bool sameStructure(const LineToken &o) const { return a == o.a && b == o.b && c == o.c && d == o.d; }
     bool operator!=(const LineToken &o) const { return !(*this == o); }
 };
 
@@ -131,6 +133,12 @@ public:
     {
         Q_UNUSED(sheet); Q_UNUSED(row1); Q_UNUSED(col1); Q_UNUSED(row2); Q_UNUSED(col2); Q_UNUSED(f);
         return -1;
+    }
+    // Whether a cell of the block was written after the token's `e` was `since`; true when that cannot be said.
+    virtual bool wroteSince(int sheet, quint64 since, quint32 row1, quint32 col1, quint32 row2, quint32 col2) const
+    {
+        Q_UNUSED(sheet); Q_UNUSED(since); Q_UNUSED(row1); Q_UNUSED(col1); Q_UNUSED(row2); Q_UNUSED(col2);
+        return true;
     }
     virtual LookupCache *lookupCache() const { return nullptr; }
     // Changes when the sheets or their names do, so a program re-reads which sheet each name is (a source that is replaced by another at the same address must

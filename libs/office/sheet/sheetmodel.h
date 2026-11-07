@@ -164,6 +164,7 @@ public:
         m_cols = o.m_cols;
         m_serial = nextSerial();
         m_stamp = nextStamp();
+        m_writeStamp = 0;
         m_last = nullptr;
         m_colCellsValid = false;
         return *this;
@@ -171,6 +172,7 @@ public:
     // A move takes the blocks and leaves the store it was taken from empty, with no memory of where it last added a cell (that place is a block it no longer has).
     CellStore(CellStore &&o) noexcept : m_blocks(std::move(o.m_blocks)), m_count(o.m_count), m_dead(o.m_dead), m_rows(std::move(o.m_rows)), m_cols(std::move(o.m_cols)), m_serial(o.m_serial), m_stamp(o.m_stamp)
     {
+        takeLog(o);
         o.reset();
     }
     CellStore &operator=(CellStore &&o) noexcept
@@ -183,6 +185,7 @@ public:
             m_cols = std::move(o.m_cols);
             m_serial = o.m_serial;
             m_stamp = o.m_stamp;
+            takeLog(o);
             m_last = nullptr;
             m_colCellsValid = false;
             o.reset();
@@ -197,6 +200,10 @@ public:
     quint64 serial() const { return m_serial; }
     // Counts every write that may change a cell or the places of cells (a cell found to be written, one put or taken away, an edit of the lines); never goes back for one serial.
     quint64 stamp() const { return m_stamp; }
+    // The count of the writes to single cells (a cell found to be written, put, or taken away); a write of whole lines or of many cells at once counts in stamp() instead. wroteSince says whether a
+    // cell of the block was written after the count was `since` (true when the record of the writes is too short to say).
+    quint64 writeStamp() const { return m_writeStamp; }
+    bool wroteSince(quint64 since, quint32 row1, quint32 col1, quint32 row2, quint32 col2) const;
 
     // Adds a cell at the place. A cell at a place that has one already replaces it (the
     // later one stands), as finish() decides.
@@ -214,7 +221,7 @@ public:
     const Cell *findById(quint32 rowId, quint32 colId) const;
     Cell *findMutableById(quint32 rowId, quint32 colId)
     {
-        m_stamp = nextStamp();
+        noteWrite(rowId, colId);
         return const_cast<Cell *>(findById(rowId, colId));
     }
     // Ids and places, one for the other (kNoLine for a place past the sheet's end, and for the id of a row or column that is deleted).
@@ -478,7 +485,7 @@ public:
     template <class Affected, class Map, class Moved>
     void reshuffle(quint32 firstRow, Affected affected, Map map, Moved moved, std::vector<PlacedCell> *removed)
     {
-        m_stamp = nextStamp();
+        bumpAll();
         std::vector<PlacedCell> moving;
         quint32 firstKey = firstRow / kBlockRows;
         if (!m_rows.isIdentity()) {
@@ -666,7 +673,7 @@ public:
     template <class F>
     bool purgeSome(bool rows, const std::vector<jp::calc::IdRun> &runs, PurgeCursor *cursor, qint64 budget, qint64 *work, F onCell)
     {
-        m_stamp = nextStamp();
+        bumpAll();
         if (cursor->done || runs.empty()) {
             cursor->done = true;
             return true;
@@ -777,7 +784,7 @@ private:
     static quint64 nextStamp();
     void reset()
     {
-        m_stamp = nextStamp();
+        bumpAll();
         m_blocks.clear();
         m_count = 0;
         m_dead = 0;
@@ -1129,6 +1136,23 @@ private:
     jp::calc::RowMap m_rows{jp::calc::LineLimits::rows(), jp::calc::LineLimits::rows().capacity};
     jp::calc::ColMap m_cols{jp::calc::LineLimits::cols(), jp::calc::LineLimits::cols().capacity};
     quint64 m_serial = 0;
+    static constexpr quint64 kWriteLog = 128;
+    struct WriteRec {
+        quint32 rowId = 0, colId = 0;
+    };
+    WriteRec m_log[kWriteLog];
+    quint64 m_writeStamp = 0;
+    void bumpAll() { m_stamp = nextStamp(); }
+    void takeLog(const CellStore &o)
+    {
+        m_writeStamp = o.m_writeStamp;
+        std::copy(o.m_log, o.m_log + kWriteLog, m_log);
+    }
+    void noteWrite(quint32 rowId, quint32 colId)
+    {
+        m_log[size_t(m_writeStamp % kWriteLog)] = {rowId, colId};
+        ++m_writeStamp;
+    }
     quint64 m_stamp = 0;   // (a number no other write of any store has) counts the writes to the cells and the edits of the lines; with the serial and the versions of the lines it says whether what the store holds is as it was (CellSource::constantsToken)
 };
 

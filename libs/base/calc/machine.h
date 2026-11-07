@@ -239,6 +239,8 @@ public:
         return charge(qint64(std::min(n, 1e12)));
     }
     bool stopped() const { return over; }
+    // The steps counted so far.
+    qint64 workDone() const { return work; }
     void tooLarge()
     {
         over = true;

@@ -39,6 +39,8 @@ struct Line {
     const Table &table;
     bool column;
     const LineSnapshot *snap = nullptr;
+    bool keyed = false;   // a line the cache knows (a search not served by an index is told to it: see scanned)
+    LineKey key;
     Value at(qint64 i) const { return snap ? snap->at(i) : column ? table.at(i, 0) : table.at(0, i); }
     qint64 nextFilled(qint64 i, qint64 last) const { return snap ? snap->nextFilled(i, last) : table.nextFilled(column, i, last); }
     qint64 previousFilled(qint64 i, qint64 first) const { return snap ? snap->previousFilled(i, first) : table.previousFilled(column, i, first); }
@@ -60,7 +62,16 @@ Line lineOf(Call &c, const Table &t, bool column, qint64 n)
     key.from = column ? a.row1 : a.col1;
     key.count = n;
     line.snap = cache->find(source, key);
+    line.keyed = true;
+    line.key = key;
     return line;
+}
+
+// Tells the cache the steps a search of the line took, when no index served it: an index is built once the searches have cost what a build does.
+void scanned(Call &c, const Line &line, qint64 workBefore)
+{
+    if (line.snap || !line.keyed) return;
+    if (LookupCache *cache = c.machine().source().lookupCache()) cache->noteScan(line.key, std::max<qint64>(1, c.machine().workDone() - workBefore));
 }
 
 // The last cell of the run of cells equal to the value that starts at j (and goes on to hi at the most): the run ends at the first cell that is not equal; cells that
@@ -247,11 +258,14 @@ Value tableLookup(Call &c, bool vertical)
     const qint64 n = vertical ? t.rows() : t.cols();
     const Line line = lineOf(c, t, vertical, n);
     qint64 found;
+    const qint64 before = c.machine().workDone();
     if (exact) {
         found = searchExact(c, key, n, line);
+        scanned(c, line, before);
         if (found == -2) return c.error(ErrorKind::Value);
     } else {
         found = searchSorted(c, key, n, false, line);
+        scanned(c, line, before);
         if (found == -2) return c.error(ErrorKind::Value);
     }
     if (found < 0) return c.error(ErrorKind::NA);
@@ -275,11 +289,14 @@ Value fnMatch(Call &c)
     const qint64 n = column ? t.rows() : t.cols();
     const Line line = lineOf(c, t, column, n);
     qint64 found;
+    const qint64 before = c.machine().workDone();
     if (type == 0) {
         found = searchExact(c, key, n, line);
+        scanned(c, line, before);
         if (found == -2) return c.error(ErrorKind::Value);
     } else {
         found = searchSorted(c, key, n, type < 0, line);
+        scanned(c, line, before);
         if (found == -2) return c.error(ErrorKind::Value);
     }
     if (found < 0) return c.error(ErrorKind::NA);
@@ -309,7 +326,9 @@ Value fnLookup(Call &c)
         n = vectorColumn ? t.rows() : t.cols();
     }
     const Line line = lineOf(c, t, vectorColumn, n);
+    const qint64 before = c.machine().workDone();
     const qint64 found = searchSorted(c, key, n, false, line);
+    scanned(c, line, before);
     if (found == -2) return c.error(ErrorKind::Value);
     if (found < 0) return c.error(ErrorKind::NA);
     if (hasResult) {

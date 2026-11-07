@@ -1,6 +1,8 @@
 #include "calc/lookupindex.h"
 #include "calc/machine.h"
 
+#include <QThread>
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -57,6 +59,7 @@ quint64 numberBits(double v)
 }
 
 constexpr qsizetype kMostWideTexts = 16;
+constexpr qsizetype kMostLongTexts = 64;
 
 } // namespace
 
@@ -71,7 +74,8 @@ qint64 LineSnapshot::firstEqualRank(const Value &key, bool *usable) const
     if (key.isBool()) return m_firstBool[key.boolean() ? 1 : 0];
     if (key.isText()) {
         const QString &text = key.text();
-        if (!isAscii(text) || hasWildcards(text) || m_wideTexts.size() > size_t(kMostWideTexts)) {
+        const bool longKey = text.size() >= 32;
+        if (!isAscii(text) || hasWildcards(text) || m_wideTexts.size() > size_t(kMostWideTexts) || (longKey && m_longTexts.size() > size_t(kMostLongTexts))) {
             *usable = false;
             return 0;
         }
@@ -86,84 +90,59 @@ qint64 LineSnapshot::firstEqualRank(const Value &key, bool *usable) const
                 break;
             }
         }
+        // (the walk compares the key with each text on its way, and a long text that agrees with a long key for 32 characters or more takes a step for each 32: the same steps are taken here)
+        if (longKey) {
+            const qint64 stop = rank ? rank : filledCount();
+            for (const qint32 r : m_longTexts) {
+                if (r > stop) break;
+                if (std::binary_search(m_wideTexts.begin(), m_wideTexts.end(), r)) continue;   // (compared above)
+                compareText(text, m_values[size_t(r - 1)].text());
+            }
+        }
         return rank;
     }
     return 0;   // (nothing but a number, a text, or true or false is equal to a cell)
 }
 
-const LineSnapshot *LookupCache::find(const CellSource &source, const LineKey &key)
+size_t LineSnapshot::estimateBytes() const
 {
-    LineToken token;
-    if (!source.constantsToken(key.sheet, &token)) return nullptr;
-    ++m_clock;
-    auto it = m_entries.find(key);
-    if (it != m_entries.end()) {
-        Entry &e = it->second;
-        if (e.token == token) {
-            e.used = m_clock;
-            if (e.snapshot) {
-                ++m_stats.hits;
-                return e.snapshot.get();
-            }
-            if (e.refused) return nullptr;
-            // the second search of the line: the index is made now
-            ++e.seen;
-        } else {
-            // the cells changed: what was held is stale, and the line starts again as a line seen once
-            if (e.snapshot) {
-                m_bytes -= qint64(e.snapshot->bytes());
-                --m_built;
-                e.snapshot.reset();
-                ++m_stats.dropped;
-            }
-            e.token = token;
-            e.seen = 1;
-            e.refused = false;
-            e.used = m_clock;
-            return nullptr;
-        }
-    } else {
-        if (m_entries.size() >= size_t(kMaxSeen)) {
-            // (the line searched longest ago is forgotten, with its index if it has one)
-            auto oldest = m_entries.begin();
-            for (auto i = m_entries.begin(); i != m_entries.end(); ++i)
-                if (i->second.used < oldest->second.used) oldest = i;
-            if (oldest->second.snapshot) {
-                m_bytes -= qint64(oldest->second.snapshot->bytes());
-                --m_built;
-                ++m_stats.evicted;
-            }
-            m_entries.erase(oldest);
-        }
-        Entry fresh;
-        fresh.key = key;
-        fresh.token = token;
-        fresh.seen = 1;
-        fresh.used = m_clock;
-        m_entries.emplace(key, std::move(fresh));
-        return nullptr;
-    }
-    Entry &e = it->second;
-    if (key.count < kMinPlaces || key.count > qint64(INT32_MAX) / 2) {
-        e.refused = true;
-        return nullptr;
-    }
+    size_t n = sizeof(LineSnapshot) + m_places.capacity() * sizeof(qint32) + m_values.capacity() * sizeof(Value) + (m_wideTexts.capacity() + m_longTexts.capacity()) * sizeof(qint32);
+    for (const Value &v : m_values)
+        if (v.isText()) n += size_t(v.text().capacity()) * 2 + 32;
+    n += size_t(m_numbers.capacity()) * 8 + size_t(m_numbers.size()) * 32;
+    n += size_t(m_texts.capacity()) * 8;
+    for (auto it = m_texts.constBegin(); it != m_texts.constEnd(); ++it) n += 48 + size_t(it.key().capacity()) * 2;
+    return n;
+}
+
+void LookupCache::dropSnapshot(Entry &e)
+{
+    if (!e.snapshot) return;
+    m_bytes -= qint64(e.snapshot->bytes());
+    m_built.erase(e.builtAt);
+    e.snapshot.reset();
+}
+
+std::unique_ptr<LineSnapshot> LookupCache::build(const CellSource &source, const LineKey &key, bool *refused)
+{
+    *refused = true;
     auto snap = std::make_unique<LineSnapshot>();
     snap->m_count = key.count;
     const quint32 last = quint32(qint64(key.from) + key.count - 1);
-    qint64 walk;
     bool tooBig = false;
+    size_t running = 0;
     auto take = [&](quint32 row, quint32 col, const Value &v) {
         if (v.isEmpty()) return true;
         const qint64 place = key.column ? qint64(row) - qint64(key.from) : qint64(col) - qint64(key.from);
         const qint32 rank = qint32(snap->m_places.size()) + 1;
         snap->m_places.push_back(qint32(place));
         snap->m_values.push_back(v);
-        snap->m_bytes += sizeof(Value) + sizeof(qint32) + size_t(v.isText() ? v.text().size() * 2 : 0);
+        running += sizeof(Value) + sizeof(qint32) + size_t(v.isText() ? v.text().capacity() * 2 + 32 : 0);
         if (v.isNumber()) {
-            if (!snap->m_numbers.contains(numberBits(v.number()))) {
-                snap->m_numbers.insert(numberBits(v.number()), rank);
-                snap->m_bytes += 48;
+            const quint64 bits = numberBits(v.number());
+            if (!snap->m_numbers.contains(bits)) {
+                snap->m_numbers.insert(bits, rank);
+                running += 48;
             }
         } else if (v.isBool()) {
             if (!snap->m_firstBool[v.boolean() ? 1 : 0]) snap->m_firstBool[v.boolean() ? 1 : 0] = rank;
@@ -171,61 +150,124 @@ const LineSnapshot *LookupCache::find(const CellSource &source, const LineKey &k
             if (isAscii(v.text())) {
                 const QString lower = v.text().toLower();
                 if (!snap->m_texts.contains(lower)) {
-                    snap->m_bytes += 64 + size_t(lower.size()) * 2;
+                    running += 64 + size_t(lower.size()) * 2;
                     snap->m_texts.insert(lower, rank);
                 }
+                if (v.text().size() >= 32) snap->m_longTexts.push_back(rank);
             } else {
                 snap->m_wideTexts.push_back(rank);
             }
         }
-        if (qint64(snap->m_bytes) > kMaxBytes / 2) {
+        if (qint64(running) > kMaxBytes / 2) {
             tooBig = true;
             return false;
         }
         return true;
     };
-    if (key.column) walk = source.visitConstants(key.sheet, key.from, quint32(key.fixed), last, quint32(key.fixed), take);
-    else walk = source.visitConstants(key.sheet, quint32(key.fixed), key.from, quint32(key.fixed), last, take);
-    if (walk < 0 || tooBig) {
+    const qint64 walk = key.column ? source.visitConstants(key.sheet, key.from, quint32(key.fixed), last, quint32(key.fixed), take)
+                                   : source.visitConstants(key.sheet, quint32(key.fixed), key.from, quint32(key.fixed), last, take);
+    if (walk < 0 || tooBig) return nullptr;
+    snap->m_walkWork = walk;
+    snap->m_dense = qint64(snap->m_places.size()) == snap->m_count;
+    snap->m_places.shrink_to_fit();
+    snap->m_values.shrink_to_fit();
+    snap->m_bytes = snap->estimateBytes();
+    if (qint64(snap->m_bytes) > kMaxBytes / 2) return nullptr;
+    *refused = false;
+    return snap;
+}
+
+const LineSnapshot *LookupCache::find(const CellSource &source, const LineKey &key)
+{
+    Q_ASSERT(!m_thread || m_thread == QThread::currentThread());
+    if (!m_thread) m_thread = QThread::currentThread();
+    LineToken token;
+    if (key.count < kMinPlaces || key.count > qint64(INT32_MAX) / 2 || !source.constantsToken(key.sheet, &token)) return nullptr;
+    auto at = m_index.find(key);
+    if (at == m_index.end()) {
+        if (m_lru.size() >= size_t(kMaxSeen)) {
+            Entry &oldest = m_lru.back();
+            dropSnapshot(oldest);
+            m_index.erase(oldest.key);
+            m_lru.pop_back();
+        }
+        m_lru.emplace_front();
+        Entry &fresh = m_lru.front();
+        fresh.key = key;
+        fresh.token = token;
+        m_index.emplace(key, m_lru.begin());
+        return nullptr;
+    }
+    m_lru.splice(m_lru.begin(), m_lru, at->second);
+    Entry &e = m_lru.front();
+    if (e.token != token) {
+        const quint32 first = e.key.from, lastPlace = quint32(qint64(e.key.from) + e.key.count - 1);
+        const bool same = e.token.sameStructure(token)
+                          && !source.wroteSince(key.sheet, e.token.e, key.column ? first : quint32(key.fixed), key.column ? quint32(key.fixed) : first, key.column ? lastPlace : quint32(key.fixed),
+                                                key.column ? quint32(key.fixed) : lastPlace);
+        e.token = token;
+        if (!same) {
+            // the cells of the line (or the lines) changed: what was held is stale, and the line starts again
+            if (e.snapshot) ++m_stats.dropped;
+            dropSnapshot(e);
+            e.scanned = 0;
+            e.refused = false;
+            return nullptr;
+        }
+    }
+    if (e.snapshot) {
+        ++m_stats.hits;
+        m_built.splice(m_built.begin(), m_built, e.builtAt);
+        return e.snapshot.get();
+    }
+    if (e.refused) return nullptr;
+    // built once the searches that were read from the cells have cost what a build costs (a line that was thrown out for room, twice that, and so on)
+    if (e.scanned < e.key.count * (qint64(1) << std::min(e.evictions, 16))) return nullptr;
+    bool refused = false;
+    std::unique_ptr<LineSnapshot> snap = build(source, key, &refused);
+    if (!snap) {
         e.refused = true;
         ++m_stats.refused;
         return nullptr;
     }
-    snap->m_walkWork = walk;
-    snap->m_dense = qint64(snap->m_places.size()) == snap->m_count;
-    snap->m_bytes += sizeof(LineSnapshot);
     // room for it: the indexes used longest ago go first
-    while (m_bytes + qint64(snap->m_bytes) > kMaxBytes || m_built >= kMaxEntries) {
-        auto oldest = m_entries.end();
-        for (auto i = m_entries.begin(); i != m_entries.end(); ++i)
-            if (i->second.snapshot && (oldest == m_entries.end() || i->second.used < oldest->second.used)) oldest = i;
-        if (oldest == m_entries.end()) break;
-        m_bytes -= qint64(oldest->second.snapshot->bytes());
-        --m_built;
-        oldest->second.snapshot.reset();
-        oldest->second.refused = false;
-        oldest->second.seen = 1;
+    while ((m_bytes + qint64(snap->bytes()) > kMaxBytes || qint64(m_built.size()) >= kMaxEntries) && !m_built.empty()) {
+        Entry &victim = *m_index.at(m_built.back());
+        ++victim.evictions;
+        victim.scanned = 0;
+        dropSnapshot(victim);
         ++m_stats.evicted;
     }
-    m_bytes += qint64(snap->m_bytes);
-    ++m_built;
-    ++m_stats.builds;
+    m_bytes += qint64(snap->bytes());
+    m_built.push_front(key);
+    e.builtAt = m_built.begin();
     e.snapshot = std::move(snap);
+    ++m_stats.builds;
     return e.snapshot.get();
+}
+
+void LookupCache::noteScan(const LineKey &key, qint64 steps)
+{
+    m_stats.scanSteps += steps;
+    const auto at = m_index.find(key);
+    if (at == m_index.end() || at->second->snapshot) return;
+    at->second->scanned += steps;
 }
 
 void LookupCache::clear()
 {
-    m_entries.clear();
+    m_lru.clear();
+    m_index.clear();
+    m_built.clear();
     m_bytes = 0;
-    m_built = 0;
+    m_thread = nullptr;
 }
 
 LookupStats LookupCache::stats() const
 {
     LookupStats s = m_stats;
     s.bytes = m_bytes;
-    s.entries = m_built;
+    s.entries = qint64(m_built.size());
     return s;
 }
 

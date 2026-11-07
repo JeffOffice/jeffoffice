@@ -192,12 +192,20 @@ public:
     void visit(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2, const std::function<bool(quint32, quint32, const jp::calc::Value &)> &f) const override;
     // The index of the columns and rows that lookups search again and again (calc/lookupindex.h): the token of a sheet's cells and lines, and a walk over constants only.
     bool constantsToken(int sheet, jp::calc::LineToken *out) const override;
+    bool wroteSince(int sheet, quint64 since, quint32 row1, quint32 col1, quint32 row2, quint32 col2) const override;
     qint64 visitConstants(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2, const std::function<bool(quint32, quint32, const jp::calc::Value &)> &f) const override;
     jp::calc::LookupCache *lookupCache() const override { return m_lookupIndexes ? &m_lookupCache : nullptr; }
     // What the indexes did (for the tests and the bench); `useLookupIndexes(false)` reads every lookup's range from the cells, as before the indexes.
     jp::calc::LookupStats lookupStats() const { return m_lookupCache.stats(); }
     // The formulas the graph has not been told about yet (see CalcOptions::lazyGraph); 0 once something has used the graph.
+    qint64 workUsed() const { return m_workUsed; }   // the steps the last recalculation took
     qint64 graphPendingCount() const { return qint64(m_graphPending.size()); }
+    // For tests: says that lines of the sheets were put in or taken out since the formulas were left, as the graph is told them.
+    void pretendLinesMovedForTest()
+    {
+        if (m_pendingLines.empty()) m_pendingLines.assign(m_sheets.size(), {0, 0});
+        for (auto &p : m_pendingLines) ++p.first;
+    }
     void useLookupIndexes(bool on)
     {
         m_lookupIndexes = on;

@@ -35,7 +35,7 @@ CellError errorFromText(QStringView text, bool *known)
 
 void CellStore::add(quint32 row, quint32 col, const Cell &placed)
 {
-    ++m_stamp;
+    bumpAll();
     const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
     if (rowId == kNoLine || colId == kNoLine) return;
     Cell cell = placed;
@@ -55,7 +55,7 @@ void CellStore::add(quint32 row, quint32 col, const Cell &placed)
 
 void CellStore::finish()
 {
-    ++m_stamp;
+    bumpAll();
     m_count = 0;
     m_colCellsValid = false;   // (a cell added twice for one place stands once)
     for (auto &entry : m_blocks) {
@@ -80,7 +80,7 @@ void CellStore::finish()
 
 void CellStore::reorder()
 {
-    ++m_stamp;
+    bumpAll();
     for (auto &entry : m_blocks) {
         Block &block = entry.second;
         if (block.ordered) continue;
@@ -112,14 +112,15 @@ const Cell *CellStore::findById(quint32 rowId, quint32 colId) const
 
 Cell *CellStore::findMutable(quint32 row, quint32 col)
 {
-    ++m_stamp;
+    const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
+    noteWrite(rowId, colId);
     return const_cast<Cell *>(find(row, col));
 }
 
 Cell *CellStore::set(quint32 row, quint32 col, const Cell &placed)
 {
-    ++m_stamp;
     const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
+    noteWrite(rowId, colId);
     if (rowId == kNoLine || colId == kNoLine) return nullptr;
     Cell cell = placed;
     cell.rowId = rowId;
@@ -138,8 +139,8 @@ Cell *CellStore::set(quint32 row, quint32 col, const Cell &placed)
 
 bool CellStore::erase(quint32 row, quint32 col)
 {
-    ++m_stamp;
     const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
+    noteWrite(rowId, colId);
     if (rowId == kNoLine || colId == kNoLine) return false;
     const auto block = m_blocks.find(rowId / kBlockRows);
     if (block == m_blocks.end()) return false;
@@ -171,6 +172,19 @@ quint64 CellStore::nextSerial()
 {
     static std::atomic<quint64> next{1};
     return next++;
+}
+
+bool CellStore::wroteSince(quint64 since, quint32 row1, quint32 col1, quint32 row2, quint32 col2) const
+{
+    if (since >= m_writeStamp) return false;
+    if (m_writeStamp - since > kWriteLog) return true;   // (the log has lost some of the writes)
+    for (quint64 s = since + 1; s <= m_writeStamp; ++s) {
+        const WriteRec &w = m_log[size_t((s - 1) % kWriteLog)];
+        const quint32 r = w.rowId == kNoLine ? kNoLine : rowPosOf(w.rowId), c = w.colId == kNoLine ? kNoLine : colPosOf(w.colId);
+        if (r == kNoLine || c == kNoLine) return true;   // (a line that is not there: say it was written)
+        if (r >= row1 && r <= row2 && c >= col1 && c <= col2) return true;
+    }
+    return false;
 }
 
 quint64 CellStore::nextStamp()
@@ -246,7 +260,7 @@ qint64 CellStore::liveCellsIn(bool rows, const std::vector<jp::calc::IdRun> &run
 
 qint64 CellStore::purgeCells(bool rows, const std::vector<jp::calc::IdRun> &runs)
 {
-    ++m_stamp;
+    bumpAll();
     qint64 gone = 0;
     if (runs.empty()) return 0;
     if (rows) {
@@ -289,7 +303,7 @@ qint64 CellStore::purgeCells(bool rows, const std::vector<jp::calc::IdRun> &runs
 
 jp::calc::LineStatus CellStore::insertLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift, std::vector<Cell> *deadFormulas)
 {
-    ++m_stamp;
+    bumpAll();
     using jp::calc::LineStatus;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
     if (count == 0 || at >= map.size()) return LineStatus::OutOfRange;
@@ -309,7 +323,7 @@ jp::calc::LineStatus CellStore::insertLines(bool rows, quint32 at, quint32 count
 
 jp::calc::LineStatus CellStore::deleteLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift, std::vector<Cell> *deadFormulas, bool keepFormulas)
 {
-    ++m_stamp;
+    bumpAll();
     using jp::calc::LineStatus;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
     if (count == 0 || at >= map.size()) return LineStatus::OutOfRange;
@@ -351,7 +365,7 @@ bool CellStore::needsCompaction(bool rows, quint32 count) const
 
 jp::calc::LineStatus CellStore::undoLines(bool rows, LineEdits &e, LineShift *shift, std::vector<Cell> *deadFormulas)
 {
-    ++m_stamp;
+    bumpAll();
     using jp::calc::LineStatus;
     using Kind = jp::calc::LineEdit::Kind;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
@@ -380,7 +394,7 @@ jp::calc::LineStatus CellStore::undoLines(bool rows, LineEdits &e, LineShift *sh
 
 jp::calc::LineStatus CellStore::redoLines(bool rows, LineEdits &e, LineShift *shift, std::vector<Cell> *deadFormulas, bool keepFormulas)
 {
-    ++m_stamp;
+    bumpAll();
     using jp::calc::LineStatus;
     using Kind = jp::calc::LineEdit::Kind;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
@@ -408,7 +422,7 @@ jp::calc::LineStatus CellStore::redoLines(bool rows, LineEdits &e, LineShift *sh
 
 void CellStore::forgetLines(bool rows, LineEdits *edits, bool keepDead)
 {
-    ++m_stamp;
+    bumpAll();
     using Kind = jp::calc::LineEdit::Kind;
     LineEdits &e = *edits;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
@@ -492,7 +506,7 @@ qint64 CellStore::cellsInDeadRowsOfColumns(const std::vector<jp::calc::IdRun> &s
 
 void CellStore::finishForgetLines(bool rows, LineEdits *edits, bool keepDead)
 {
-    ++m_stamp;
+    bumpAll();
     using Kind = jp::calc::LineEdit::Kind;
     LineEdits &e = *edits;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
@@ -510,7 +524,7 @@ quint32 CellStore::renumberLine(const std::vector<jp::calc::LineMapCore::Renumbe
 
 jp::calc::LineStatus CellStore::rebaseLines(bool rows, std::vector<jp::calc::LineMapCore::Renumber> *out)
 {
-    ++m_stamp;
+    bumpAll();
     using jp::calc::LineStatus;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
     std::vector<jp::calc::LineMapCore::Renumber> table;
@@ -560,7 +574,7 @@ qint64 CellStore::deadCountByScan() const
 
 void CellStore::setLineLimits(const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols)
 {
-    ++m_stamp;
+    bumpAll();
     if (!plain()) return;
     m_rows = jp::calc::RowMap(rows, rows.capacity);
     m_cols = jp::calc::ColMap(cols, cols.capacity);

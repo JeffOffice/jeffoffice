@@ -32,7 +32,7 @@ bool Calculation::canMoveCells(const StructEdit &e, QString *why) const
     const quint64 rows = quint64(e.row2) - e.row1 + 1, cols = quint64(e.col2) - e.col1 + 1;
     if (quint64(e.toRow) + rows > kGridRows || quint64(e.toCol) + cols > kGridCols) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "That would push cells off the edge of the sheet.")));
     if (e.sheet == e.toSheet && e.toRow == e.row1 && e.toCol == e.col1) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "The cells are there already.")));
-    if (m_untracked > 0) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "This workbook has too many formulas for JeffCrunch to follow when cells are moved.")));
+    if (untrackedCount() > 0) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "This workbook has too many formulas for JeffCrunch to follow when cells are moved.")));
     const Sheet &from = m_sheets[size_t(e.sheet)], &to = m_sheets[size_t(e.toSheet)];
     if (from.isProtected || to.isProtected) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "This sheet is protected, so cells can't be moved on it. To do that, choose Unprotect Sheet on the Review tab.")));
     const quint32 toRow2 = e.toRow + quint32(rows) - 1, toCol2 = e.toCol + quint32(cols) - 1;

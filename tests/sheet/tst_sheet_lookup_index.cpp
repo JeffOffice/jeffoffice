@@ -231,36 +231,294 @@ private Q_SLOTS:
     // A range with a formula in it is read from the cells, as before, and counted as refused.
     void aRangeWithAFormulaIsNotIndexed()
     {
-        const QString formulas = fx("D1", "MATCH(40,$A$1:$A$40,0)") + fx("E1", "MATCH(20,$A$1:$A$40,0)") + fx("F1", "MATCH(40,$A$1:$A$40,0)");
+        const QString formulas = fx("D1", "MATCH(40,$A$1:$A$40,0)") + fx("E1", "MATCH(999,$A$1:$A$40,0)") + fx("F1", "MATCH(998,$A$1:$A$40,0)") + fx("G1", "MATCH(997,$A$1:$A$40,0)")
+                                 + fx("H1", "MATCH(996,$A$1:$A$40,0)");
         QString rows = dataRows(1, formulas);
         rows.replace(num("A11", "40"), fx("A11", "20+20"));
         Book b;
         QVERIFY(b.open(buildXlsx({worksheet(rows)})));
         b.finish();
         QCOMPARE(b.at("D1"), QStringLiteral("n:11"));
-        QCOMPARE(b.at("E1"), QStringLiteral("n:3"));
+        QCOMPARE(b.at("E1"), QStringLiteral("e:#N/A"));
         QCOMPARE(b.calc->lookupStats().hits, qint64(0));
         QVERIFY(b.calc->lookupStats().refused >= 1);
     }
 
-    // The indexes together hold at most their number, and the stats count them.
+    // More hot lines than the cache holds, searched round and round: the builds stay few (a line thrown out is not built again at once), and every answer is right.
     void theIndexesStayWithinTheirBounds()
     {
-        // 70 columns of 20 numbers, each searched by three formulas: more lines than the cache holds
+        // 70 columns of 40 numbers, each searched by three formulas that an edit of Z1 works out again
         CellRows m;
         for (int c = 0; c < 70; ++c)
-            for (int r = 1; r <= 20; ++r) m[r] += num(columnName(c) + QString::number(r), QString::number(r * 10 + c));
-        for (int c = 0; c < 70; ++c)
-            for (int k = 0; k < 3; ++k) m[21 + k] += fx(columnName(70 + c) + QString::number(21 + k), QStringLiteral("MATCH(%1,%2$1:%2$20,0)").arg(5 * 10 + c).arg(columnName(c)));
+            for (int r = 1; r <= 40; ++r) m[r] += num(columnName(c) + QString::number(r), QString::number(r * 10 + c));
+        m[1] += num("CC1", "0");
+        for (int k = 0; k < 3; ++k)
+            for (int c = 0; c < 70; ++c) m[41 + k] += fx(columnName(70 + c) + QString::number(41 + k), QStringLiteral("MATCH(%1+0*$CC$1,%2$1:%2$40,0)").arg(38 * 10 + c).arg(columnName(c)));
         Book b;
         QVERIFY(b.open(buildXlsx({worksheet(rowsOf(m))})));
         b.finish();
+        for (int round = 1; round <= 8; ++round) {
+            QVERIFY(b.calc->setValue(0, 0, 80, Value::number(round)));
+            b.finish();
+        }
         const LookupStats stats = b.calc->lookupStats();
         QVERIFY2(stats.entries <= LookupCache::kMaxEntries, qPrintable(QStringLiteral("entries %1").arg(stats.entries)));
-        QVERIFY(stats.evicted > 0);
-        QVERIFY(stats.builds > 0);
-        QVERIFY(stats.bytes > 0 && stats.bytes <= LookupCache::kMaxBytes);
-        for (int c = 0; c < 70; ++c) QCOMPARE(b.at(columnName(70 + c) + QStringLiteral("21")), QStringLiteral("n:5"));
+        QVERIFY(stats.bytes >= 0 && stats.bytes <= LookupCache::kMaxBytes);
+        QVERIFY2(stats.builds <= 150, qPrintable(QStringLiteral("builds %1").arg(stats.builds)));
+        for (int c = 0; c < 70; ++c) QCOMPARE(b.at(columnName(70 + c) + QStringLiteral("41")), QStringLiteral("n:38"));
+    }
+
+    // A table above the size a build pays at, searched with a key near its start: the answers are right and no index is built (the searches cost less than a build); with a key at its
+    // end the index is built once.
+    void aLargeRangeIsIndexedOnlyWhereItPays()
+    {
+        CellRows m;
+        for (int r = 1; r <= 3000; ++r) m[r] += num(QStringLiteral("A%1").arg(r), QString::number(r)) + num(QStringLiteral("B%1").arg(r), QString::number(r * 2));
+        for (int k = 0; k < 6; ++k) m[1 + k] += fx(QStringLiteral("D%1").arg(1 + k), QStringLiteral("VLOOKUP(%1+0*$F$1,$A$1:$B$3000,2,FALSE)").arg(3 + k)) + (k == 0 ? num("F1", "0") : QString());
+        Book early;
+        QVERIFY(early.open(buildXlsx({worksheet(rowsOf(m))})));
+        early.finish();
+        QCOMPARE(early.at("D1"), QStringLiteral("n:6"));
+        QCOMPARE(early.at("D6"), QStringLiteral("n:16"));
+        QCOMPARE(early.calc->lookupStats().builds, qint64(0));
+        CellRows far;
+        for (int r = 1; r <= 3000; ++r) far[r] += num(QStringLiteral("A%1").arg(r), QString::number(r)) + num(QStringLiteral("B%1").arg(r), QString::number(r * 2));
+        for (int k = 0; k < 6; ++k) far[1 + k] += fx(QStringLiteral("D%1").arg(1 + k), QStringLiteral("VLOOKUP(%1+0*$F$1,$A$1:$B$3000,2,FALSE)").arg(2990 + k)) + (k == 0 ? num("F1", "0") : QString());
+        Book late;
+        QVERIFY(late.open(buildXlsx({worksheet(rowsOf(far))})));
+        late.finish();
+        QCOMPARE(late.at("D1"), QStringLiteral("n:5980"));
+        QCOMPARE(late.calc->lookupStats().builds, qint64(1));
+        QVERIFY(late.calc->lookupStats().hits >= 3);
+    }
+
+    // An edit of a cell outside the searched table (a number, or a format), twenty times: the table's index is built once.
+    void editsOutsideTheTableKeepItsIndex()
+    {
+        CellRows m;
+        for (int r = 1; r <= 3000; ++r) m[r] += num(QStringLiteral("A%1").arg(r), QString::number(r)) + num(QStringLiteral("B%1").arg(r), QString::number(r * 2));
+        m[1] += fx("D1", "VLOOKUP($F$1,$A$1:$B$3000,2,FALSE)") + num("F1", "2990");
+        m[2] += fx("D2", "MATCH($F$1,$A$1:$A$3000,0)");
+        m[3] += fx("D3", "VLOOKUP($F$1+1,$A$1:$B$3000,2,FALSE)");
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rowsOf(m))})));
+        b.finish();
+        for (int i = 0; i < 20; ++i) {
+            QVERIFY(b.calc->setValue(0, 0, 5, Value::number(2980 + i)));
+            if (i % 2) QVERIFY(b.calc->setStyle(0, 4000 + i, 8, 0));
+            b.finish();
+            QCOMPARE(b.at("D2"), QStringLiteral("n:%1").arg(2980 + i));
+            QCOMPARE(b.at("D1"), QStringLiteral("n:%1").arg((2980 + i) * 2));
+        }
+        QVERIFY2(b.calc->lookupStats().builds <= 1, qPrintable(QStringLiteral("builds %1").arg(b.calc->lookupStats().builds)));
+        // a write inside the table drops it, and the answer is the new one
+        QVERIFY(b.calc->setValue(0, 100, 0, Value::number(77777)));
+        QVERIFY(b.calc->setValue(0, 0, 5, Value::number(77777)));
+        b.finish();
+        QCOMPARE(b.at("D2"), QStringLiteral("n:101"));
+    }
+
+    // Texts that look like numbers are not numbers to a lookup, with the index as without it; and a text against a number cell.
+    void aTextThatLooksLikeANumberIsNotTheNumber()
+    {
+        CellRows m;
+        for (int r = 1; r <= 40; ++r) m[r] += (r % 2 ? num(QStringLiteral("A%1").arg(r), QString::number(r)) : txt(QStringLiteral("A%1").arg(r), QString::number(r))) + num(QStringLiteral("B%1").arg(r), QString::number(r));
+        QStringList f;
+        for (int k = 0; k < 12; ++k) {
+            const int n = k == 0 ? 3 : k == 1 ? 4 : 4 + k;
+            const bool asText = k == 1 || (k > 1 && k % 2);
+            f << fx(QStringLiteral("D%1").arg(1 + k), QStringLiteral("MATCH(%1,$A$1:$A$40,0)").arg(asText ? QStringLiteral("\"%1\"").arg(n) : QString::number(n)));
+        }
+        for (int k = 0; k < 12; ++k) m[1 + k] += f[k];
+        const QByteArray zip = buildXlsx({worksheet(rowsOf(m))});
+        Book on, off;
+        QVERIFY(on.open(zip, true));
+        QVERIFY(off.open(zip, false));
+        on.finish();
+        off.finish();
+        for (int k = 1; k <= 12; ++k) QCOMPARE(on.at(QStringLiteral("D%1").arg(k)), off.at(QStringLiteral("D%1").arg(k)));
+        QCOMPARE(on.at("D1"), QStringLiteral("n:3"));       // 3 is a number in A3
+        QCOMPARE(on.at("D2"), QStringLiteral("n:4"));       // "4" is a text, and A4 holds one
+        QCOMPARE(on.at("D3"), QStringLiteral("e:#N/A"));    // the number 6, and A6 holds the text "6"
+        QCOMPARE(on.at("D4"), QStringLiteral("e:#N/A"));    // the text "7", and A7 holds the number 7
+    }
+
+    // The work an indexed search is counted at is what the scan's is, long texts that agree for hundreds of characters included.
+    void anIndexedSearchTakesTheStepsOfTheScan()
+    {
+        const QString prefix = QString(240, QLatin1Char(0x78));
+        CellRows m;
+        for (int r = 1; r <= 60; ++r) m[r] += txt(QStringLiteral("A%1").arg(r), prefix + QStringLiteral("%1").arg(r, 4, 10, QLatin1Char('0'))) + num(QStringLiteral("B%1").arg(r), QString::number(r));
+        for (int k = 0; k < 12; ++k) m[1 + k] += fx(QStringLiteral("D%1").arg(1 + k), QStringLiteral("MATCH(\"%1%2\",$A$1:$A$60,0)").arg(prefix).arg(40 + k, 4, 10, QLatin1Char('0')));
+        const QByteArray zip = buildXlsx({worksheet(rowsOf(m))});
+        Book on, off;
+        QVERIFY(on.open(zip, true));
+        QVERIFY(off.open(zip, false));
+        on.finish();
+        off.finish();
+        QVERIFY2(on.calc->lookupStats().hits >= 1, qPrintable(QStringLiteral("builds %1 refused %2 scan %3").arg(on.calc->lookupStats().builds).arg(on.calc->lookupStats().refused).arg(on.calc->lookupStats().scanSteps)));
+        QCOMPARE(on.at("D12"), off.at("D12"));
+        const qint64 a = on.calc->workUsed(), b = off.calc->workUsed();
+        QVERIFY2(qAbs(a - b) * 50 <= b, qPrintable(QStringLiteral("work %1 with the index, %2 without").arg(a).arg(b)));
+    }
+
+    // Undo and redo of an edit of rows, a paste, and a sort, each inside the searched range: the next lookup sees it.
+    void undoPasteAndSortAreSeenByTheNextLookup()
+    {
+        const QString formulas = fx("D1", "MATCH(555,$A$1:$A$40,0)") + fx("E1", "MATCH(556,$A$1:$A$40,0)") + fx("F1", "MATCH(557,$A$1:$A$40,0)") + fx("G1", "MATCH(558,$A$1:$A$40,0)")
+                                 + fx("H1", "MATCH(559,$A$1:$A$40,0)");
+        const QByteArray zip = buildXlsx({worksheet(dataRows(1, formulas))});
+        Book b, plain;
+        QVERIFY(b.open(zip));
+        QVERIFY(plain.open(zip, false));
+        auto both = [&](auto &&f) {
+            f(*b.calc);
+            f(*plain.calc);
+            b.finish();
+            plain.finish();
+            for (const char *ref : {"D1", "E1", "F1", "G1", "H1"}) QCOMPARE(b.at(ref), plain.at(ref));
+        };
+        b.finish();
+        plain.finish();
+        QVERIFY(b.calc->lookupStats().builds >= 1);
+        // paste: values written over a block
+        both([](Calculation &c) { for (int i = 0; i < 5; ++i) c.setValue(0, 30 + i, 0, Value::number(555 + i)); });
+        QCOMPARE(b.at("D1"), QStringLiteral("n:31"));
+        QCOMPARE(b.at("H1"), QStringLiteral("n:35"));
+        // sort: the same values in the other order
+        both([](Calculation &c) { for (int i = 0; i < 5; ++i) c.setValue(0, 30 + i, 0, Value::number(559 - i)); });
+        QCOMPARE(b.at("D1"), QStringLiteral("n:35"));
+        // an edit of rows, undone and done again
+        Calculation::EditRecord rec, recPlain;
+        QVERIFY(b.calc->applyEdit(StructEdit::insertRows(0, 5, 3), &rec));
+        QVERIFY(plain.calc->applyEdit(StructEdit::insertRows(0, 5, 3), &recPlain));
+        b.finish();
+        plain.finish();
+        QCOMPARE(b.at("D1"), QStringLiteral("n:38"));
+        QCOMPARE(b.at("D1"), plain.at("D1"));
+        QVERIFY(b.calc->undoEdit(rec));
+        QVERIFY(plain.calc->undoEdit(recPlain));
+        b.finish();
+        plain.finish();
+        QCOMPARE(b.at("D1"), QStringLiteral("n:35"));
+        for (const char *ref : {"D1", "E1", "F1", "G1", "H1"}) QCOMPARE(b.at(ref), plain.at(ref));
+        // delete rows, and undo it
+        Calculation::EditRecord del, delPlain;
+        QVERIFY(b.calc->applyEdit(StructEdit::deleteRows(0, 1, 2), &del));
+        QVERIFY(plain.calc->applyEdit(StructEdit::deleteRows(0, 1, 2), &delPlain));
+        b.finish();
+        plain.finish();
+        QCOMPARE(b.at("D1"), plain.at("D1"));
+        QVERIFY(b.calc->undoEdit(del));
+        QVERIFY(plain.calc->undoEdit(delPlain));
+        b.finish();
+        plain.finish();
+        QCOMPARE(b.at("D1"), QStringLiteral("n:35"));
+        // a cell put back whole
+        const Calculation::CellContent was = b.calc->content(0, 34, 0);
+        both([](Calculation &c) { c.setValue(0, 34, 0, Value::number(1)); });
+        QCOMPARE(b.at("D1"), QStringLiteral("e:#N/A"));   // (the 555 was in that cell)
+        QVERIFY(b.calc->put(0, 34, 0, was));
+        QVERIFY(plain.calc->put(0, 34, 0, was));
+        b.finish();
+        plain.finish();
+        for (const char *ref : {"D1", "E1", "F1", "G1", "H1"}) QCOMPARE(b.at(ref), plain.at(ref));
+    }
+
+    // A sheet renamed or deleted: a lookup that reads a range on it follows the rewrite, with the index as without it.
+    void aSheetRenamedOrDeletedIsFollowed()
+    {
+        QString f = fx("D1", "MATCH(555,Sheet2!$A$1:$A$40,0)") + fx("E1", "MATCH(556,Sheet2!$A$1:$A$40,0)") + fx("F1", "MATCH(557,Sheet2!$A$1:$A$40,0)") + fx("G1", "MATCH(558,Sheet2!$A$1:$A$40,0)");
+        CellRows other = dataMap();
+        other[30] += QString();
+        const QByteArray zip = buildXlsx({worksheet(row(1, f)), worksheet(rowsOf(other))});
+        Book b, plain;
+        QVERIFY(b.open(zip));
+        QVERIFY(plain.open(zip, false));
+        b.finish();
+        plain.finish();
+        QVERIFY(b.calc->setValue(1, 29, 0, Value::number(555)));
+        QVERIFY(plain.calc->setValue(1, 29, 0, Value::number(555)));
+        b.finish();
+        plain.finish();
+        QCOMPARE(b.at("D1"), QStringLiteral("n:30"));
+        Calculation::SheetRewrite r1, r2;
+        QVERIFY(b.calc->rewriteSheetReferences(QStringLiteral("Sheet2"), QString(), &r1));
+        QVERIFY(plain.calc->rewriteSheetReferences(QStringLiteral("Sheet2"), QString(), &r2));
+        b.finish();
+        plain.finish();
+        QCOMPARE(b.at("D1"), plain.at("D1"));
+        QCOMPARE(b.at("D1"), QStringLiteral("e:#REF!"));
+    }
+
+    // A workbook whose graph has no room for its formulas refuses the edits of lines, whether or not the graph was told yet.
+    void anEditOfLinesIsRefusedWhenTheGraphIsOverCapacity()
+    {
+        QString rows = row(1, num("A1", "1"));
+        for (int i = 2; i <= 200; ++i) rows += row(i, fx(QStringLiteral("B%1").arg(i), QStringLiteral("A1+%1").arg(i)) + fx(QStringLiteral("C%1").arg(i), QStringLiteral("SUM(A$1:A%1)").arg(i)));
+        const QByteArray zip = buildXlsx({worksheet(rows)});
+        for (const bool lazy : {false, true}) {
+            Package package;
+            Workbook book;
+            QString why;
+            QVERIFY(package.readLazy(zip, &why) && book.open(package, &why));
+            CalcOptions options;
+            options.lazyGraph = lazy;
+            options.maxGraphBytes = 8000;
+            Calculation calc(book, options);
+            QVERIFY(calc.load());
+            Calculation::EditRecord rec;
+            QVERIFY2(!calc.applyEdit(StructEdit::insertRows(0, 5, 1), &rec), lazy ? "lazy graph accepted the edit" : "eager graph accepted the edit");
+            QVERIFY(calc.untrackedCount() > 0);
+        }
+    }
+
+    // After an edit left to the recalculation, formulas the graph had no room for, those that change by themselves, and those in places all have the new value.
+    void theFirstRecalculationAfterAnEditWorksOutWhatTheGraphLeftOut()
+    {
+        QString rows = row(1, num("A1", "1") + fx("B1", "SUM(Sheet1:Sheet2!A2)+A1"));
+        for (int i = 2; i <= 150; ++i) rows += row(i, fx(QStringLiteral("C%1").arg(i), QStringLiteral("A1+%1").arg(i)) + fx(QStringLiteral("D%1").arg(i), QStringLiteral("OFFSET(A1,0,0)+%1").arg(i)));
+        const QByteArray sheet2 = worksheet(row(2, num("A2", "10")));
+        const QByteArray zip = buildXlsx({worksheet(rows), sheet2});
+        for (const Calculation::Marking marking : {Calculation::Marking::Later, Calculation::Marking::Now}) {
+            Package package;
+            Workbook book;
+            QString why;
+            QVERIFY(package.readLazy(zip, &why) && book.open(package, &why));
+            CalcOptions options;
+            options.maxGraphBytes = 9000;
+            Calculation calc(book, options);
+            QVERIFY(calc.load());
+            while (!calc.recalculate().finished) {}
+            QVERIFY(calc.setValue(0, 0, 0, Value::number(100), marking));
+            while (!calc.recalculate().finished) {}
+            QVERIFY(calc.untrackedCount() > 0);
+            QCOMPARE(calc.cell(0, 0, 1).debug(), QStringLiteral("n:110"));
+            for (int i = 2; i <= 150; ++i) {
+                QVERIFY2(calc.cell(0, quint32(i - 1), 2).debug() == QStringLiteral("n:%1").arg(100 + i), qPrintable(QStringLiteral("C%1 is %2").arg(i).arg(calc.cell(0, quint32(i - 1), 2).debug())));
+                QVERIFY2(calc.cell(0, quint32(i - 1), 3).debug() == QStringLiteral("n:%1").arg(100 + i), qPrintable(QStringLiteral("D%1 is %2").arg(i).arg(calc.cell(0, quint32(i - 1), 3).debug())));
+            }
+        }
+    }
+
+    // A formula the graph was not told because lines moved first is worked out every time; once it is a value, or told, the count of the untracked is right.
+    void theUntrackedCountFollowsAFormulaThatIsTold()
+    {
+        const QByteArray zip = buildXlsx({worksheet(row(1, num("A1", "1") + fx("B1", "SUM(Sheet1:Sheet2!A2)"))), worksheet(row(2, num("A2", "10")))});
+        Book b;
+        QVERIFY(b.open(zip));
+        b.calc->pretendLinesMovedForTest();
+        QCOMPARE(b.calc->untrackedCount(), qint64(1));
+        QVERIFY(b.calc->setValue(0, 0, 1, Value::number(5)));
+        QCOMPARE(b.calc->untrackedCount(), qint64(0));
+        // told after all: a formula put in again is followed like the rest
+        QVERIFY(b.calc->setFormula(0, 0, 1, QStringLiteral("SUM(Sheet1:Sheet2!A2)")));
+        b.finish();
+        QCOMPARE(b.calc->untrackedCount(), qint64(0));
+        QCOMPARE(b.at("B1"), QStringLiteral("n:10"));
+        QVERIFY(b.calc->setValue(1, 1, 0, Value::number(30)));
+        b.finish();
+        QCOMPARE(b.at("B1"), QStringLiteral("n:30"));
     }
 
     // A workbook that was just opened has told the graph nothing; the first need tells it all, and what it holds is what the eager way held.

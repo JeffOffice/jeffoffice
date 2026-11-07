@@ -705,6 +705,12 @@ void Calculation::registerInGraph(quint32 id, const std::vector<CellArea> *told,
     m_idAreas.erase(std::unique(m_idAreas.begin(), m_idAreas.end()), m_idAreas.end());
     const bool tracked = m_graph->setPrecedents(id, m_idAreas, n.traits & Insensitive);   // (marked, a formula that cannot notice an empty line is left out when the graph is asked for those that can)
     m_toldHash[id] = tracked ? toldHash : 0;   // (a formula the graph refused is told again next time)
+    if (tracked && (n.flags & Untracked)) {
+        // (it was left to be worked out every time, and the graph has room for it now: it is followed like the rest, unless it changes by itself)
+        n.flags &= quint16(~Untracked);
+        --m_untracked;
+        if (!(slot.dynamic || slot.changesByItself)) n.flags &= quint16(~Always);
+    }
     if (!tracked) {
         if (!(n.flags & Untracked)) {
             n.flags |= Untracked;
@@ -1105,7 +1111,14 @@ bool Calculation::constantsToken(int sheet, jp::calc::LineToken *out) const
     out->b = cells.stamp();
     out->c = cells.rows().version();
     out->d = cells.cols().version();
+    out->e = cells.writeStamp();
     return true;
+}
+
+bool Calculation::wroteSince(int sheet, quint64 since, quint32 row1, quint32 col1, quint32 row2, quint32 col2) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return true;
+    return m_sheets[size_t(sheet)].cells.wroteSince(since, row1, col1, row2, col2);
 }
 
 qint64 Calculation::visitConstants(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2, const std::function<bool(quint32, quint32, const Value &)> &f) const
@@ -1136,6 +1149,7 @@ bool Calculation::load()
         Calculation &c;
         explicit DeferGraph(Calculation &calc) : c(calc)
         {
+            c.m_lookupCache.clear();
             c.m_graphPending.clear();
             c.m_deferGraph = c.m_options.lazyGraph;
         }
@@ -1939,6 +1953,8 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
 {
     BeginJob &j = m_begin;
     Chunker ck{&m_items, spent, timeUp};
+    // (an edit left to the recalculation, or a question of the lines, is answered from the graph, which tells first what it was left: telling it can make formulas past its room worked out every time, and those are listed below)
+    if (!m_graphPending.empty() && (!j.changed.empty() || !m_questions.empty())) ensureGraph();
     // (the list is kept to the formulas that are on it: one that is gone, or not volatile now, is left off)
     while (!j.dependents && j.alwaysAt < m_always.size()) {
         if (!ck.next()) return false;
@@ -3057,6 +3073,7 @@ void Calculation::dropNode(quint32 id)
     m_heldBytes -= heldBy(n, id);
     if (n.kind == KindText && n.text >= 0) freeTextSlot(n.text);
     m_arrays.remove(id);
+    if (n.flags & Untracked) --m_untracked;
     liveGraph()->clearPrecedents(id);
     if (!m_positionalNodes.empty()) m_positionalNodes.erase(id);
     if (!m_idToldNodes.empty()) m_idToldNodes.erase(id);
