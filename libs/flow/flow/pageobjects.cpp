@@ -273,6 +273,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
         ItemPtr item;
         bool behind = false;
         bool isWall = false;
+        int linkId = 0, linkSeq = 0;
     };
     QVector<Made> made_;
     int made = 0;
@@ -379,7 +380,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                     made_.push_back({o.z, shape, false, true});
                 }
             }
-            made_.push_back({o.z, item, o.behind});
+            made_.push_back({o.z, item, o.behind, false, o.linkId, o.linkSeq});
             // A table set at a place is drawn there: its rows, in a fragment that the page paints with the others (the object is the room it takes, which draws nothing).
             if (a.table >= 0 && page) {
                 const std::shared_ptr<TableLayout> table = m_tables->layout(a.table);
@@ -390,6 +391,27 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                         page->tables.push_back(fragment);
                     }
                 }
+            }
+        }
+    }
+    // Linked text boxes: the words of a chain's first box go on in the boxes that follow it, in the order of their places in the chain. A box whose place repeats or goes back is not chained,
+    // and a chain has at most kMostLinkedBoxes boxes; a chain with no first box, or whose first has no words, is boxes of their own.
+    {
+        QMap<int, QVector<std::pair<int, TextItem *>>> chains;
+        for (const Made &m : made_)
+            if (m.linkId > 0 && m.item->type() == ItemType::Text) chains[m.linkId].push_back({m.linkSeq, static_cast<TextItem *>(m.item.get())});
+        for (auto &chain : chains) {
+            std::stable_sort(chain.begin(), chain.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+            if (chain.size() < 2 || chain.first().first != 0 || chain.first().second->storyId.isEmpty()) continue;
+            TextItem *last = chain.first().second;
+            int length = 1, lastSeq = 0;
+            for (int i = 1; i < chain.size() && length < kMostLinkedBoxes; ++i) {
+                if (chain[i].first <= lastSeq) continue;
+                last->nextId = chain[i].second->id;
+                chain[i].second->storyId = chain.first().second->storyId;
+                last = chain[i].second;
+                lastSeq = chain[i].first;
+                ++length;
             }
         }
     }

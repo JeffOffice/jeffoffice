@@ -194,6 +194,14 @@ void WriteWindow::createShapeActions()
         });
     }
     mk("shape.editText", tr("Edit Text…"), "square-pen", QKeySequence(), [this] { editShapeText(); });
+    mk("shape.createLink", tr("Create Link"), "link", QKeySequence(), [this] {
+        if (!m_doc) return;
+        m_view->beginTextBoxLink();
+        if (m_view->linkingTextBoxes()) statusBar()->showMessage(tr("Click the empty text box that the words should go on in."), 8000);
+    });
+    mk("shape.breakLink", tr("Break Link"), "unlink", QKeySequence(), [this] {
+        if (m_doc) m_view->breakTextBoxLink();
+    });
     mk("shape.rotate.right", tr("Rotate Right 90°"), "rotate-cw", QKeySequence(), [this] { turnSelectedShape(90, true); });
     mk("shape.rotate.left", tr("Rotate Left 90°"), "rotate-ccw", QKeySequence(), [this] { turnSelectedShape(-90, true); });
     mk("shape.rotate.none", tr("No Rotation"), "refresh-ccw", QKeySequence(), [this] { turnSelectedShape(0, false); });
@@ -1103,6 +1111,8 @@ void WriteWindow::refreshShapeUi()
         }
     }
     act("shape.editText")->setEnabled(editable && write::textBoxText(*m_doc, at).has_value());
+    act("shape.createLink")->setEnabled(info.valid && info.editable && info.kind == write::DrawnKind::TextBox && write::canLinkTextBoxFrom(*m_doc, at));
+    act("shape.breakLink")->setEnabled(info.valid && info.editable && info.kind == write::DrawnKind::TextBox && write::hasLinkedTextBoxAfter(*m_doc, at));
     for (const double w : kWeights) act(QStringLiteral("shape.weight.%1").arg(w))->setChecked(drawn && std::abs(info.lineWeight - w) < 0.01);
     for (const char *id : {"solid", "dot", "sysDot", "dash", "dashDot", "lgDash"})
         act(QStringLiteral("shape.dash.") + QLatin1String(id))->setChecked(drawn && (info.lineDash.isEmpty() ? QLatin1String(id) == QLatin1String("solid") : info.lineDash == QLatin1String(id)));

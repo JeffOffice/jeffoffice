@@ -565,6 +565,19 @@ private Q_SLOTS:
                  asWrite(w)->view()->selectPicture(0);
                  asWrite(w)->refreshNow();
              }, false},
+            {QStringLiteral("a text box that has another linked after it, selected"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 write::insertTextBox(*doc, c, write::textBoxDesigns().first());
+                 c.setPosition(1);
+                 write::insertTextBox(*doc, c, write::textBoxDesigns().first());
+                 write::setTextBoxText(*doc, 1, {QString()});
+                 write::linkTextBoxes(*doc, 0, 1);
+                 asWrite(w)->view()->selectPicture(0);
+                 asWrite(w)->refreshNow();
+             }, false},
             {QStringLiteral("a text art selected"), [typed](AppWindow *w, bool f) {
                  typed(w, f);
                  write::WriteDoc *doc = asWrite(w)->document();
@@ -630,6 +643,7 @@ private Q_SLOTS:
             {QStringLiteral("win.cascade"), QStringLiteral("it places the open windows, and there is one")},
             {QStringLiteral("mail.highlight"), QStringLiteral("it chooses whether merge fields are shaded on the screen, which shows only where the document has them; the mail tests check the pixels")},
             {QStringLiteral("mail.check"), QStringLiteral("it only reports on the merge (here: no errors are found); the mail tests check what it says")},
+            {QStringLiteral("shape.createLink"), QStringLiteral("it waits for a click on the text box that the words go on in, and changes nothing before it; createLinkAndBreakLinkWorkFromTheShapeFormatTab clicks it")},
             {QStringLiteral("picture.lockAspect"), QStringLiteral("it is the setting the next change of a picture's width or height reads, and changes nothing by itself")},
             {QStringLiteral("edit.copyFormat"), QStringLiteral("it only holds the look of the selection for Paste Format; the paste is the change")},
             {QStringLiteral("edit.pasteFormat"), QStringLiteral("it puts the look held on the selection, which here has that look already, or nothing is held yet")},

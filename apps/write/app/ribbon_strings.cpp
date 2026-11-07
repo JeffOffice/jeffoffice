@@ -141,6 +141,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Text"),
     QT_TRANSLATE_NOOP("Ribbon", "Text Art"),
     QT_TRANSLATE_NOOP("Ribbon", "Text Box"),
+    QT_TRANSLATE_NOOP("Ribbon", "Text Box Link"),
     QT_TRANSLATE_NOOP("Ribbon", "Text Direction"),
     QT_TRANSLATE_NOOP("Ribbon", "Text Highlight Color"),
     QT_TRANSLATE_NOOP("Ribbon", "Text Warp"),

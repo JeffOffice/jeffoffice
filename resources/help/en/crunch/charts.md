@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: field buttons, pivot chart buttons, group, ungroup, align, align left, distribute, select objects, several shapes, pick several, drag box, chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, shape styles, styles, insert shape, text box, shapes, arrow, oval, rectangle, star -->
+<!-- keywords: field buttons, pivot chart buttons, group, ungroup, align, align left, distribute, select objects, several shapes, pick several, drag box, chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, shape styles, styles, insert shape, text box, shapes, arrow, oval, rectangle, star, diagram, diagrams -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -126,3 +126,9 @@ Press **Delete** with the object picked. Undo brings it back.
 ## What is saved
 
 Everything above is saved in the file in the form other spreadsheet programs read, so a chart you make here opens there the same way. A chart that came from another program with something JeffCrunch cannot keep when it rewrites a chart (error bars, a three-dimensional chart) can still be moved, sized, and deleted, but its elements and data are not changed here.
+
+## Diagrams from other programs
+
+A **diagram** is a picture of boxes and arrows, such as a process, that another program made. JeffCrunch shows a diagram from the picture of it that the file keeps beside it. Click it to pick it, and drag it to move it. When you save the file, the diagram is written back just as it was, so the program that made it can still change it.
+
+JeffCrunch cannot change what is inside a diagram yet, and a diagram can't be copied or put in a group. If the file keeps no picture of a diagram, JeffCrunch shows a plain gray box that says it is a diagram.

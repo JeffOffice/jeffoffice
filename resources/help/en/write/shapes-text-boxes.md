@@ -1,5 +1,5 @@
 # Shapes and text boxes
-<!-- keywords: shape, shapes, text box, textbox, rectangle, arrow, star, callout, line, draw, insert shape, shape format, fill, outline, weight, dashes, rotate, change shape, edit text, sidebar, pull quote, banner, shape styles, gradient, align, gradient fill, group, ungroup, select several, picture fill, text art, warp, drawing canvas, connector, connect shapes, glue -->
+<!-- keywords: shape, shapes, text box, textbox, rectangle, arrow, star, callout, line, draw, insert shape, shape format, fill, outline, weight, dashes, rotate, change shape, edit text, sidebar, pull quote, banner, shape styles, gradient, align, gradient fill, group, ungroup, select several, picture fill, text art, warp, drawing canvas, connector, connect shapes, glue, link text boxes, create link, break link, linked text boxes, chain, diagram, diagrams -->
 
 A **shape** is a drawn figure, such as a rectangle, an arrow, a star, or a speech bubble. A **text box** is a shape that holds words. Both float on the page, and the words of the document go round them. This topic shows how to put them in and change them.
 
@@ -92,3 +92,25 @@ You can move a group, change its size, change its layer (**Bring Forward**, **Se
 ## Shapes in other documents
 
 JeffWrite draws the shapes and text boxes that a document holds, with their fill, line, and turn. It can change the ones that the document stores as a plain shape or text box. A group in a document is drawn with all its parts, and it is kept as it was.
+
+## Link text boxes
+
+When the words in a text box do not fit, you can let them go on in a second text box. The two boxes are then **linked**: the words fill the first box, and what does not fit shows in the next one. You can link a third box after the second, and so on.
+
+1. Put in two text boxes. Make sure the second one has no words in it.
+2. Click the first text box. On the **Shape Format** tab, click **Create Link**. The pointer turns into a hand.
+3. Click the second text box. (Press **Esc** if you change your mind.)
+
+Now the words of the first box go on in the second. If you change the size of a box, or type more words, the words move between the boxes by themselves. Only a box with no words, and that is not linked yet, can be the next one. The boxes must be on the same page. A chain holds up to 64 boxes.
+
+To cut a chain, click a box that has another one after it, and click **Break Link**. The boxes after it become ordinary boxes with no words. The words stay in the first box. Create Link and Break Link are each one step that you can undo.
+
+The words of a linked chain are kept in the first box. To change them, pick the first box and click **Edit Text**.
+
+## Diagrams in other documents
+
+A **diagram** is a picture of boxes and arrows, such as a process or a family tree, that another program made. JeffWrite shows a diagram from the picture of it that the document keeps beside it. The diagram is one object: click it to pick it, drag it to move it, and drag a handle to change its size. It prints and saves to PDF with sharp lines at any size.
+
+JeffWrite cannot change what is inside a diagram yet. When you save, the diagram is written back just as it was, so the program that made it can still change it. If a document has no picture of a diagram, JeffWrite shows the small picture that came with it, or a plain gray box that says it is a diagram.
+
+If you make a diagram bigger or smaller in JeffWrite, the picture is stretched to the new size. When you save and open the document again, the picture is drawn at the size the document says.

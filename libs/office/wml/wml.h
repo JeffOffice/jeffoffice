@@ -596,6 +596,9 @@ struct Shape {
     QString pictEmbed;                    // the Id of the picture's other form (VML's r:pict: a compressed picture the program keeps beside it)
     QString alt;                          // its description
     QByteArray textBox;                   // the w:txbxContent element of a text box, as written (insets: below)
+    // A text box in a chain of linked boxes (wps:txbx's id, and wps:linkedTxbx's id and seq): the chain's number (0 for a box of its own) and the box's place in it, 0 for the first, which
+    // holds the words, then 1, 2, and on. A box that is linked to the first has no words of its own: `textBox` is empty.
+    int linkId = 0, linkSeq = 0;
     // A shape of the drawing format's own (wps:wsp, directly in the drawing's graphic data): the element as written, inside a root that declares the usual prefixes, so that it
     // reads as a document of its own. Its geometry, fill, line, effects, and turn are read from it by the one who draws the shape (the shared drawing reader).
     QByteArray wsp;

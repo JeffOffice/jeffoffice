@@ -183,6 +183,15 @@ struct TextBoxDesign {
 const QVector<TextBoxDesign> &textBoxDesigns();
 // A text box of the design at the cursor, one step that undoes (PictureResult as above); a design of the simple kind with `design.paragraphs` empty holds one empty paragraph.
 PictureResult insertTextBox(WriteDoc &doc, QTextCursor &c, const TextBoxDesign &design);
+// Linked text boxes (the words of the first box go on in each box that follows it): whether the box at `from` can be followed by the one at `to` (an empty box that is in no chain, and the
+// first is the end of its chain), makes it so (one step), whether a box is in a chain and whether another follows it, and Break Link: the boxes after this one become boxes of their own, empty
+// (one step; false if none follows).
+bool canLinkTextBoxFrom(const WriteDoc &doc, int position);   // a text box that a box can follow: it is in no chain, or is the last of one
+bool canLinkTextBoxes(const WriteDoc &doc, int from, int to);
+PictureResult linkTextBoxes(WriteDoc &doc, int from, int to);
+bool isLinkedTextBox(const WriteDoc &doc, int position);
+bool hasLinkedTextBoxAfter(const WriteDoc &doc, int position);
+bool unlinkTextBox(WriteDoc &doc, int position);
 // The words of a text box, a paragraph each, or none when what it holds is more than words (a table, a picture, a field, a list): then it can't be edited as words.
 std::optional<QStringList> textBoxText(const WriteDoc &doc, int position);
 // Puts these paragraphs in the text box: each has the first paragraph's alignment and the first run's look. False when the box holds more than words, or the words are already so.

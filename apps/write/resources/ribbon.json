@@ -2216,6 +2216,20 @@
           ]
         },
         {
+          "name": "Text Box Link",
+          "keytip": "TB",
+          "items": [
+            {
+              "large": "shape.createLink",
+              "keytip": "CL"
+            },
+            {
+              "large": "shape.breakLink",
+              "keytip": "BL"
+            }
+          ]
+        },
+        {
           "name": "Shape Styles",
           "keytip": "SS",
           "items": [

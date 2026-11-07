@@ -19,6 +19,9 @@
 #include "office/drawingml.h"
 #include "office/drawingml_write.h"
 #include "render/textart.h"
+#include "render/renderer.h"
+#include "flow/flowdocument.h"
+#include "flow/paginator.h"
 #include "render/diagramdrawing.h"
 #include "office/drawingml_geometry.h"
 #include "office/package.h"
@@ -216,6 +219,46 @@ QByteArray drawnSvg(WriteDoc &doc)
     for (qsizetype i = doc.flow().images.size() - 1; i >= 0; --i)
         if (doc.flow().images[i].format == QLatin1String("svg")) return doc.flow().images[i].bytes;
     return {};
+}
+
+// Two or more text boxes set at places on the page, in the order given: each is `id`, its chain (a head holds the words, a member is `linked`: the form that says "the words of the box with
+// this id go on in me, as the seq-th") and its size and place. The head's words are `lines` paragraphs.
+struct LinkedBox {
+    int chain = 0, seq = 0;   // chain 0: a box of its own
+    double x = 72, y = 100, w = 150, h = 60;
+    int lines = 0;
+};
+QByteArray linkedBoxesDocx(const QVector<LinkedBox> &boxes)
+{
+    QByteArray runs;
+    int id = 10;
+    for (const LinkedBox &b : boxes) {
+        QByteArray inner;
+        if (b.chain > 0 && b.seq > 0) {
+            inner = "<wps:linkedTxbx id=\"" + QByteArray::number(b.chain) + "\" seq=\"" + QByteArray::number(b.seq) + "\"/>";
+        } else {
+            QByteArray words = "<w:txbxContent>";
+            for (int i = 0; i < b.lines; ++i) words += "<w:p><w:r><w:t>Line " + QByteArray::number(i + 1) + " of the story that goes on</w:t></w:r></w:p>";
+            if (b.lines == 0) words += "<w:p/>";
+            words += "</w:txbxContent>";
+            inner = (b.chain > 0 ? "<wps:txbx id=\"" + QByteArray::number(b.chain) + "\">" : QByteArray("<wps:txbx>")) + words + "</wps:txbx>";
+        }
+        const QByteArray shape = "<wps:wsp><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + QByteArray::number(qint64(b.w * 12700)) + "\" cy=\"" + QByteArray::number(qint64(b.h * 12700)) +
+                                 "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr>" + inner + "<wps:bodyPr/></wps:wsp>";
+        runs += anchoredGraphic(id++, kShapeUri, shape, b.x, b.y, b.w, b.h);
+    }
+    return makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">Boxes: </w:t></w:r>" + runs + "</w:p>");
+}
+
+// The text boxes of the first page, in the order the page draws them.
+QVector<TextItem *> textBoxesOfPage(WriteDoc &doc, std::shared_ptr<jp::flow::MaterializedPage> *keep)
+{
+    QVector<TextItem *> out;
+    *keep = doc.pager().materialize(0);
+    if (!*keep) return out;
+    for (const auto &it : (*keep)->doc->pages[0]->items)
+        if (it->type() == ItemType::Text && it->id.startsWith(QLatin1String("flow-object-"))) out.push_back(static_cast<TextItem *>(it.get()));
+    return out;
 }
 
 // The window on a document of one paragraph, the caret at the end of its first word.
@@ -2147,6 +2190,192 @@ private Q_SLOTS:
         const QByteArray bytes = pdf.readAll();
         QVERIFY(bytes.size() > 100);
         QVERIFY2(!bytes.contains("/Subtype /Image") && !bytes.contains("/Subtype/Image"), "drawn as vectors");
+    }
+
+    // ---------------------------------------------------------------- linked text boxes
+    // The words of the first box of a chain go on in the boxes that follow it, as far as the page has them; a box that is not in a chain keeps its own.
+    void linkedTextBoxesFlowTheWordsOfTheFirstIntoTheNext()
+    {
+        {
+            auto doc = open(linkedBoxesDocx({{1, 0, 72, 100, 150, 60, 40}, {1, 1, 300, 100, 150, 400}}));
+            QVERIFY(doc);
+            std::shared_ptr<jp::flow::MaterializedPage> page;
+            const QVector<TextItem *> boxes = textBoxesOfPage(*doc, &page);
+            QCOMPARE(boxes.size(), 2);
+            QCOMPARE(boxes[0]->nextId, boxes[1]->id);
+            QVERIFY(boxes[1]->nextId.isEmpty());
+            QCOMPARE(boxes[1]->storyId, boxes[0]->storyId);
+            LayoutCache cache;
+            const LayoutCache::FrameLayout fl = cache.textFrame(*page->doc, *boxes[1], 1, RenderOptions());
+            QVERIFY(fl.layout);
+            QCOMPARE(fl.frame, 1);
+            QVERIFY2(fl.layout->lineRects(1).size() >= 5, qPrintable(QString::number(fl.layout->lineRects(1).size())));
+            QVERIFY(fl.layout->lineRects(0).size() >= 1 && fl.layout->lineRects(0).size() < 40);
+        }
+        {
+            // (the same two boxes, not linked: the second is empty)
+            auto doc = open(linkedBoxesDocx({{0, 0, 72, 100, 150, 60, 40}, {0, 0, 300, 100, 150, 400, 0}}));
+            QVERIFY(doc);
+            std::shared_ptr<jp::flow::MaterializedPage> page;
+            const QVector<TextItem *> boxes = textBoxesOfPage(*doc, &page);
+            QCOMPARE(boxes.size(), 2);
+            QVERIFY(boxes[0]->nextId.isEmpty());
+        }
+    }
+
+    // Saved as the file's own form (the first box holds the words under an id, each next box says "linked, this id, the nth") and read back the same.
+    void aFileWithLinkedTextBoxesIsSavedAsItWasAndReadBackLinked()
+    {
+        const QByteArray file = linkedBoxesDocx({{3, 0, 72, 100, 150, 60, 12}, {3, 1, 300, 100, 150, 100}, {3, 2, 300, 300, 150, 100}});
+        auto doc = open(file);
+        QVERIFY(doc);
+        const QByteArray saved = doc->toDocx();
+        const QByteArray xml = documentXml(saved);
+        QVERIFY2(xml.contains("<wps:txbx id=\"3\">"), "the first box keeps its id");
+        QVERIFY(xml.contains("<wps:linkedTxbx id=\"3\" seq=\"1\"/>"));
+        QVERIFY(xml.contains("<wps:linkedTxbx id=\"3\" seq=\"2\"/>"));
+        auto back = open(saved);
+        QVERIFY(back);
+        std::shared_ptr<jp::flow::MaterializedPage> page;
+        const QVector<TextItem *> boxes = textBoxesOfPage(*back, &page);
+        QCOMPARE(boxes.size(), 3);
+        QCOMPARE(boxes[0]->nextId, boxes[1]->id);
+        QCOMPARE(boxes[1]->nextId, boxes[2]->id);
+    }
+
+    // Create Link puts the second (empty) box after the first, Break Link cuts the chain after a box; each is one step of Undo, and what is saved is the file's own form.
+    void createLinkAndBreakLinkAreOneStepEachAndSavedInTheFilesForm()
+    {
+        auto doc = open(linkedBoxesDocx({{0, 0, 72, 100, 150, 60, 30}, {0, 0, 300, 100, 150, 300, 0}, {0, 0, 300, 420, 150, 100, 5}}));
+        QVERIFY(doc);
+        // The three boxes are the three characters after "Boxes: " (seven characters).
+        QVERIFY(canLinkTextBoxes(*doc, 7, 8));
+        QVERIFY2(!canLinkTextBoxes(*doc, 7, 9), "a box that holds words is not linked to");
+        QVERIFY2(!canLinkTextBoxes(*doc, 7, 7), "not to itself");
+        QCOMPARE(linkTextBoxes(*doc, 7, 9), PictureResult::Refused);
+        QVERIFY(!isLinkedTextBox(*doc, 7));
+        QCOMPARE(linkTextBoxes(*doc, 7, 8), PictureResult::Ok);
+        QVERIFY2(isLinkedTextBox(*doc, 7), "the first box is in a chain");
+        QVERIFY2(isLinkedTextBox(*doc, 8), "the second box is in a chain");
+        QVERIFY2(!isLinkedTextBox(*doc, 9), "the third is not");
+        QVERIFY(hasLinkedTextBoxAfter(*doc, 7));
+        QVERIFY(!hasLinkedTextBoxAfter(*doc, 8));
+        {
+            const QByteArray xml = documentXml(doc->toDocx());
+            QVERIFY(xml.contains("<wps:txbx id=\"1\">") && xml.contains("<wps:linkedTxbx id=\"1\" seq=\"1\"/>"));
+            std::shared_ptr<jp::flow::MaterializedPage> page;
+            const QVector<TextItem *> boxes = textBoxesOfPage(*doc, &page);
+            QCOMPARE(boxes.size(), 3);
+            QCOMPARE(boxes[0]->nextId, boxes[1]->id);
+        }
+        // one step of Undo takes both boxes back, and Redo puts the link again
+        QVERIFY(doc->undo());
+        QVERIFY(!isLinkedTextBox(*doc, 7) && !isLinkedTextBox(*doc, 8));
+        QVERIFY(!documentXml(doc->toDocx()).contains("linkedTxbx"));
+        QVERIFY(doc->redo());
+        QVERIFY(isLinkedTextBox(*doc, 7) && isLinkedTextBox(*doc, 8));
+        // a third box (with words) cannot follow; the chain's end can be followed by an empty one
+        QVERIFY(setTextBoxText(*doc, 9, {QString()}));
+        QVERIFY(canLinkTextBoxes(*doc, 8, 9));
+        QCOMPARE(linkTextBoxes(*doc, 8, 9), PictureResult::Ok);
+        QVERIFY(documentXml(doc->toDocx()).contains("<wps:linkedTxbx id=\"1\" seq=\"2\"/>"));
+        // Break Link after the first box: the two after it are boxes of their own again, empty
+        QVERIFY(unlinkTextBox(*doc, 7));
+        QVERIFY(!isLinkedTextBox(*doc, 7) && !isLinkedTextBox(*doc, 8) && !isLinkedTextBox(*doc, 9));
+        QVERIFY(!documentXml(doc->toDocx()).contains("linkedTxbx"));
+        QVERIFY(!unlinkTextBox(*doc, 7));
+        QVERIFY(doc->undo());
+        QVERIFY(isLinkedTextBox(*doc, 7) && isLinkedTextBox(*doc, 8) && isLinkedTextBox(*doc, 9));
+        QVERIFY(documentXml(doc->toDocx()).contains("seq=\"2\""));
+    }
+
+    // A chain whose numbers repeat, skip, or are huge, with no first box, or with hundreds of boxes, neither hangs nor loops; no more boxes than kMostLinkedBoxes are chained.
+    void aHostileChainOfLinkedTextBoxesIsCappedAndNeitherHangsNorLoops()
+    {
+        {
+            QVector<LinkedBox> boxes = {{5, 0, 72, 100, 150, 60, 40}};
+            for (int i = 0; i < 300; ++i) boxes.push_back({5, 1 + i, 20.0 + i % 20 * 20, 200 + i / 20 * 20, 18, 18});
+            auto doc = open(linkedBoxesDocx(boxes));
+            QVERIFY(doc);
+            std::shared_ptr<jp::flow::MaterializedPage> page;
+            const QVector<TextItem *> items = textBoxesOfPage(*doc, &page);
+            QVERIFY(items.size() > 2);
+            QHash<QString, TextItem *> byId;
+            for (TextItem *t : items) byId.insert(t->id, t);
+            int length = 0;
+            for (TextItem *t = items.first(); t && length <= 1000; t = t->nextId.isEmpty() ? nullptr : byId.value(t->nextId)) ++length;
+            QVERIFY2(length <= flow::kMostLinkedBoxes, qPrintable(QString::number(length)));
+            QVERIFY(length > 1);
+        }
+        {
+            // the numbers repeat, skip backward, are huge, or the first box is missing
+            auto doc = open(linkedBoxesDocx({{7, 0, 72, 100, 150, 60, 10}, {7, 2, 300, 100, 150, 60}, {7, 2, 300, 200, 150, 60}, {7, 1, 300, 300, 150, 60}, {7, 2000000000, 300, 400, 150, 60}, {8, 4, 72, 400, 150, 60}}));
+            QVERIFY(doc);
+            std::shared_ptr<jp::flow::MaterializedPage> page;
+            const QVector<TextItem *> items = textBoxesOfPage(*doc, &page);
+            QCOMPARE(items.size(), 6);
+            QHash<QString, TextItem *> byId;
+            for (TextItem *t : items) byId.insert(t->id, t);
+            for (TextItem *start : items) {
+                int steps = 0;
+                for (TextItem *t = start; t && steps <= 100; t = t->nextId.isEmpty() ? nullptr : byId.value(t->nextId)) ++steps;
+                QVERIFY2(steps <= 7, "a chain ends");
+            }
+            QVERIFY(items[5]->nextId.isEmpty() && items[5]->storyId != items[0]->storyId);   // (a member with no first box is a box of its own)
+        }
+    }
+
+    // Create Link waits for a click on the box that follows (Esc leaves it); Break Link cuts the chain after the selected box; both are dimmed where they can do nothing.
+    void createLinkAndBreakLinkWorkFromTheShapeFormatTab()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertTextBox(*doc, c, textBoxDesigns().first()), PictureResult::Ok);
+        c.setPosition(1);
+        QCOMPARE(insertTextBox(*doc, c, textBoxDesigns().first()), PictureResult::Ok);
+        setTextBoxText(*doc, 1, {QString()});
+        QVERIFY(canLinkTextBoxes(*doc, 0, 1));
+        QVERIFY(setPicturePlace(*doc, 0, 100, 150));
+        QVERIFY(setPicturePlace(*doc, 1, 350, 150));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        QVERIFY(win.w.act(QStringLiteral("shape.createLink"))->isEnabled());
+        QVERIFY(!win.w.act(QStringLiteral("shape.breakLink"))->isEnabled());
+        win.w.act(QStringLiteral("shape.createLink"))->trigger();
+        QVERIFY(win.w.view()->linkingTextBoxes());
+        QTest::keyClick(win.w.view(), Qt::Key_Escape);
+        QVERIFY(!win.w.view()->linkingTextBoxes());
+        win.w.act(QStringLiteral("shape.createLink"))->trigger();
+        QRectF second;
+        QTRY_VERIFY(win.w.view()->pictureRect(1, &second));
+        QTest::mouseClick(win.w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, second.center().toPoint());
+        QVERIFY(!win.w.view()->linkingTextBoxes());
+        QVERIFY(isLinkedTextBox(*doc, 0) && isLinkedTextBox(*doc, 1));
+        win.w.refreshNow();
+        QVERIFY(!win.w.act(QStringLiteral("shape.createLink"))->isEnabled());
+        QVERIFY(win.w.act(QStringLiteral("shape.breakLink"))->isEnabled());
+        win.w.act(QStringLiteral("shape.breakLink"))->trigger();
+        QVERIFY(!isLinkedTextBox(*doc, 0) && !isLinkedTextBox(*doc, 1));
+        win.w.refreshNow();
+        QVERIFY(!win.w.act(QStringLiteral("shape.breakLink"))->isEnabled());
+        QVERIFY(win.w.act(QStringLiteral("shape.createLink"))->isEnabled());
+        QVERIFY(doc->undo());
+        QVERIFY(isLinkedTextBox(*doc, 0) && isLinkedTextBox(*doc, 1));
+        // a click on a box that holds words does not link: the notice says why
+        QVERIFY(doc->undo());
+        QVERIFY(!isLinkedTextBox(*doc, 0));
+        QVERIFY(setTextBoxText(*doc, 1, {QStringLiteral("Words")}));
+        QVERIFY(!canLinkTextBoxes(*doc, 0, 1));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        win.w.act(QStringLiteral("shape.createLink"))->trigger();
+        QTRY_VERIFY(win.w.view()->pictureRect(1, &second));
+        QTest::mouseClick(win.w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, second.center().toPoint());
+        QVERIFY(!isLinkedTextBox(*doc, 0));
     }
 };
 

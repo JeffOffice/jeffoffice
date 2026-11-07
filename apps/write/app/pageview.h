@@ -241,6 +241,11 @@ public:
     // A shape of the gallery, or a text box of a design, at the cursor; it is selected when it is in.
     bool insertShapeObject(const QString &preset);
     bool insertTextBoxObject(const TextBoxDesign &design);
+    // Create Link: the selected text box is to be followed by the text box that the next click is on (an empty one); Esc, or a click elsewhere, leaves it. Break Link: the boxes after the selected one
+    // become boxes of their own.
+    void beginTextBoxLink();
+    bool linkingTextBoxes() const { return m_linkFrom >= 0; }
+    bool breakTextBoxLink();
     bool insertChartObject(ChartForm form);
     // A Text Art in a style of the gallery at the cursor (its words to start from, the program's); it is selected when it is in.
     bool insertTextArtObject(const QString &styleId);
@@ -500,6 +505,7 @@ private:
     int m_pictureDragPage = -1;
     // After a drag or a resize: every connector glued to the objects moved runs between its sites again (one step with the change).
     void rerouteGluedConnectors(const QVector<std::pair<int, QRectF>> &moved);
+    int m_linkFrom = -1;          // the text box a Create Link waits for the next box of (its place in the text), or -1
     QVector<int> m_moreObjects;   // the objects added to the selection, and the revision of the text they were chosen in
     int m_moreObjectsRevision = -1;
 

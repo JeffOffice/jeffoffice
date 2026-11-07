@@ -407,6 +407,12 @@ void PageView::keyPressEvent(QKeyEvent *e)
         e->ignore();
         return;
     }
+    if (e->key() == Qt::Key_Escape && m_linkFrom >= 0) {
+        m_linkFrom = -1;
+        viewport()->unsetCursor();
+        e->accept();
+        return;
+    }
     if (e->key() == Qt::Key_Escape && m_tableTool != TableTool::None) {
         // (the pen or the eraser is put down; a line begun is let go)
         m_toolDrag = ToolDrag();
@@ -490,6 +496,24 @@ void PageView::mousePressEvent(QMouseEvent *e)
     if (!m_doc) return;
     setFocus(Qt::MouseFocusReason);
     m_movedFrom = -1;   // (a click has no way it went)
+    if (m_linkFrom >= 0) {
+        // Create Link is waiting for the box that follows: this click names it (or, on no box that can, leaves the link).
+        const int from = m_linkFrom, to = pictureAtPoint(e->position().toPoint());
+        m_linkFrom = -1;
+        viewport()->unsetCursor();
+        if (e->button() == Qt::LeftButton && to >= 0) {
+            m_doc->pictureNotice.clear();
+            if (linkTextBoxes(*m_doc, from, to) == PictureResult::Ok) {
+                selectPicture(from);
+                Q_EMIT contentChanged();
+            } else {
+                Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? tr("A text box can be followed only by a text box that has no words and is in no chain yet.") : m_doc->pictureNotice);
+            }
+            e->accept();
+            viewport()->update();
+            return;
+        }
+    }
     if (e->button() == Qt::LeftButton && e->type() != QEvent::MouseButtonDblClick && beginPictureDrag(e)) {
         e->accept();
         return;

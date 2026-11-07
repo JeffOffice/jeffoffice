@@ -588,6 +588,19 @@ bool PageView::insertTextBoxObject(const TextBoxDesign &design)
     return false;
 }
 
+void PageView::beginTextBoxLink()
+{
+    const int from = selectedPicture();
+    if (!m_doc || m_readOnly || from < 0 || !canLinkTextBoxFrom(*m_doc, from)) return;
+    m_linkFrom = from;
+    viewport()->setCursor(Qt::PointingHandCursor);
+}
+
+bool PageView::breakTextBoxLink()
+{
+    return changeSelectedPicture([](WriteDoc &doc, int position) { return unlinkTextBox(doc, position); });
+}
+
 bool PageView::insertChartObject(ChartForm form)
 {
     if (!m_doc) return false;

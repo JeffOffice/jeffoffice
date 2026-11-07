@@ -758,6 +758,15 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
             if (t.localName(n) == "txbxContent" && s.textBox.isEmpty()) {
                 s.textBox = textBoxXml(t, n);
                 s.kind = Shape::TextBox;
+                // The first box of a chain says its number.
+                if (const int box = t.parent(n); box >= 0 && t.localName(box) == "txbx" && t.has(box, "id")) s.linkId = int(std::clamp<qint64>(t.attr(box, "id").toLongLong(), 0, 2000000000));
+            }
+            if (t.localName(n) == "linkedTxbx" && s.textBox.isEmpty()) {
+                // A box that goes on from the one that holds the words: none of its own.
+                s.textBox = "<w:txbxContent " + declarations() + "/>";
+                s.kind = Shape::TextBox;
+                s.linkId = int(std::clamp<qint64>(t.attr(n, "id").toLongLong(), 0, 2000000000));
+                s.linkSeq = int(std::clamp<qint64>(t.attr(n, "seq").toLongLong(), 0, 2000000000));
             }
             for (int k = t.firstChild(n); k >= 0; k = t.next(k)) stack.push_back(k);
             if (stack.size() > 4000) break;

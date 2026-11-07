@@ -72,6 +72,7 @@ struct FloatingObject {
     int fillImage = -1;                     // a picture that fills a box or a text box, stretched over it: its place in FlowDocument::images
     std::shared_ptr<QTextDocument> story;   // a text box's text
     QMarginsF insets{7.2, 3.6, 7.2, 3.6};   // of a text box
+    int linkId = 0, linkSeq = 0;            // a text box in a chain of linked boxes: the chain's number (0: none) and its place in it (0 holds the words, which go on in 1, 2, ...)
     Rel hRel = Rel::Column, vRel = Rel::Paragraph;
     Align hAlign = Align::None, vAlign = Align::None;
     double dx = 0, dy = 0;                  // from where it is measured (a line's ends are in the item's p1 and p2, from there too)
@@ -89,6 +90,9 @@ struct FloatingObject {
     // A frame with no width of its own is as wide as the column; one that shrinks (a drop cap) is as wide as its longest line.
     bool frameShrinks = false;
 };
+
+// The most text boxes a chain of linked boxes has (a file that says more has the rest as boxes of their own).
+constexpr int kMostLinkedBoxes = 64;
 
 // A picture's bytes, shared by every page that shows it (a page of the document holds a copy of the reference).
 struct FlowImage {
