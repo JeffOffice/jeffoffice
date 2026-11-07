@@ -286,6 +286,9 @@ void changeKind(Anim &anim, const EffectKind &kind);
 // With the document, the effects of shapes the slide no longer has, and of paragraphs it no longer has, are left out.
 // A timing that can't be read is not editable.
 AnimSequence readAnimations(const Page &slide, const Document *doc = nullptr);
+// What tells each effect of the sequence from the others, for finding it again after the list changes (an effect added or taken out above it, an
+// undo): what it is and aims at, and which of the like ones it is. Same effect, same key.
+QStringList effectKeys(const AnimSequence &seq);
 // How many effects readAnimations has read from timings on this thread since the program began: a count for tests of cost (a timing is read as far as kMaxAnims effects).
 qint64 animationEffectsReadForTest();
 // The XML of the slide's timing for the sequence, aiming only at shapes that are on the slide (an effect aimed at one that isn't is dropped);

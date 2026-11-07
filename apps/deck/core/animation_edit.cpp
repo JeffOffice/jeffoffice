@@ -770,6 +770,17 @@ QString keptText(const QDomElement &e, const QStringList &texts, qsizetype at, c
 
 qint64 animationEffectsReadForTest() { return g_effectsRead; }
 
+QStringList effectKeys(const AnimSequence &seq)
+{
+    QStringList keys;
+    QHash<QString, int> seen;
+    for (const Anim &a : seq.effects) {
+        const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9").arg(a.kind, a.variant).arg(a.shape).arg(a.firstParagraph).arg(a.lastParagraph).arg(int(a.cls)).arg(int(a.start)).arg(a.duration).arg(a.delay);
+        keys << key + QLatin1Char('#') + QString::number(seen[key]++) + (a.custom() ? QLatin1Char('|') + QString::number(qHash(a.xml)) : QString());
+    }
+    return keys;
+}
+
 AnimSequence readAnimations(const Page &slide, const Document *doc)
 {
     AnimSequence seq;

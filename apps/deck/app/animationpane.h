@@ -83,7 +83,8 @@ protected:
     bool eventFilter(QObject *o, QEvent *e) override;
 
 private:
-    void rebuild();
+    void rebuild(const QStringList &pickedKeys = QStringList());
+    QStringList keysOfRows(const QVector<int> &rows) const;
     QListWidget *m_list = nullptr;
     QPushButton *m_playAll = nullptr, *m_playFrom = nullptr, *m_earlier = nullptr, *m_later = nullptr;
     QLabel *m_empty = nullptr;

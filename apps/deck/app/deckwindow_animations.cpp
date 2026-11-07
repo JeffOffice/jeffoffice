@@ -74,11 +74,22 @@ struct Anims {
         if (!p) return none;
         const quint64 signature = deck::animationSignature(*doc(), *p);
         if (p->id != cachedPage || signature != cachedSignature) {
+            // The effects picked stay picked where they are now; another slide's list has none of them.
+            QStringList keptKeys;
+            if (p->id == cachedPage && !picked.isEmpty()) {
+                const QStringList was = deck::effectKeys(cached);
+                for (int r : std::as_const(picked))
+                    if (r >= 0 && r < was.size()) keptKeys << was[r];
+            }
             cachedPage = p->id;
             cachedSignature = signature;
             cached = signature ? deck::readAnimations(*p, doc()) : deck::AnimSequence();
-            // The rows picked that the sequence no longer has are not picked.
-            picked.erase(std::remove_if(picked.begin(), picked.end(), [this](int r) { return r >= cached.effects.size(); }), picked.end());
+            picked.clear();
+            if (!keptKeys.isEmpty()) {
+                const QStringList now = deck::effectKeys(cached);
+                for (int r = 0; r < now.size(); ++r)
+                    if (keptKeys.contains(now[r])) picked << r;
+            }
         }
         return cached;
     }
@@ -89,6 +100,7 @@ struct Anims {
     {
         Page *p = slide();
         if (!p) return false;
+        sequence();   // (the rows picked follow the effects if the list changed since)
         deck::AnimSequence seq = deck::readAnimations(*p, doc());
         if (!seq.editable) {
             w->statusBar()->showMessage(QCoreApplication::translate("Animation", "The animations on this slide can't be changed here."), 6000);
@@ -164,6 +176,7 @@ struct Anims {
     {
         const deck::EffectKind *kind = deck::effectKind(kindId);
         if (!kind) return;
+        sequence();
         const QVector<int> rows = picked;
         edit(QCoreApplication::translate("Animation", "Animation"), [&](deck::AnimSequence &seq, Page &p) {
             const QVector<int> shapes = selectedShapes(p, true);
@@ -218,6 +231,7 @@ struct Anims {
     // No animation on the shapes selected (or the rows picked).
     void clear()
     {
+        sequence();
         const QVector<int> rows = picked;
         edit(QCoreApplication::translate("Animation", "Remove Animation"), [&](deck::AnimSequence &seq, Page &p) {
             QVector<int> remove = rows;

@@ -53,6 +53,7 @@ public:
     void setCollapsedSections(const QSet<QString> &ids);
     // The selected slides, in order. The current slide (the editor's) is one of them.
     QList<int> selection() const { return m_sel; }
+    int anchorSlide() const { return m_anchor; }   // where a Shift+click range starts
     void select(const QList<int> &slides, int current = -1);
     // How many slides have their thumbnail drawn.
     int renderedCount() const;
@@ -122,6 +123,7 @@ private:
     QStringList pageIds() const;
     QList<int> validSelection() const;
     void currentChanged();
+    void rebaseSelection();
     void setCurrent(int slide);
     void selectOnly(int slide);
     void selectRange(int from, int to);
@@ -141,6 +143,7 @@ private:
     // thumbnails drawn, by that look (a slide that changes back, or a copy,
     // finds its thumbnail again).
     QList<QByteArray> m_keys;
+    QStringList m_selBasis;    // the slides' ids that m_sel and m_anchor are places among
     QStringList m_ids;         // the slides' ids then
     QHash<QByteArray, QImage> m_images;
     QHash<QByteArray, QImage> m_latest;   // the last thumbnail drawn for each look, at whatever size

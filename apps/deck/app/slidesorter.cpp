@@ -105,16 +105,44 @@ SlideSorter::SlideSorter(Editor *ed, QWidget *parent) : QAbstractScrollArea(pare
     connect(&m_renderTimer, &QTimer::timeout, this, &SlideSorter::renderNext);
     m_scrollTimer.setInterval(40);
     connect(&m_scrollTimer, &QTimer::timeout, this, &SlideSorter::autoScroll);
-    connect(m_ed, &Editor::changed, this, &SlideSorter::documentChanged);
+    connect(m_ed, &Editor::changed, this, [this] {
+        rebaseSelection();
+        documentChanged();
+    });
     connect(m_ed, &Editor::pageChanged, this, &SlideSorter::currentChanged);
     connect(m_ed, &Editor::documentReplaced, this, [this] {
         m_sel.clear();
+        m_selBasis = pageIds();
         documentChanged();
         currentChanged();
     });
     connect(UiTheme::instance(), &UiTheme::changed, viewport(), qOverload<>(&QWidget::update));
     m_sel = {std::clamp(m_ed->currentPage(), 0, std::max(0, slideCount() - 1))};
     m_anchor = m_sel.first();
+    m_selBasis = pageIds();
+}
+
+// Slides came or went, or changed places: the same slides stay selected (the selection is places in the list, so it is carried from the slides it
+// was of to where they are now).
+void SlideSorter::rebaseSelection()
+{
+    const QStringList now = pageIds();
+    if (now == m_selBasis) return;
+    QHash<QString, int> at;
+    for (int i = 0; i < now.size(); ++i) at.insert(now[i], i);
+    QList<int> carried;
+    for (int i : std::as_const(m_sel))
+        if (i >= 0 && i < m_selBasis.size())
+            if (const auto found = at.constFind(m_selBasis[i]); found != at.cend()) carried << found.value();
+    std::sort(carried.begin(), carried.end());
+    carried.erase(std::unique(carried.begin(), carried.end()), carried.end());
+    if (m_anchor >= 0 && m_anchor < m_selBasis.size()) {
+        if (const auto found = at.constFind(m_selBasis[m_anchor]); found != at.cend()) m_anchor = found.value();
+        else if (!carried.isEmpty()) m_anchor = carried.first();
+    }
+    m_sel = carried;
+    if (m_sel.isEmpty() && !now.isEmpty()) m_sel = {std::clamp(m_ed->currentPage(), 0, int(now.size()) - 1)};
+    m_selBasis = now;
 }
 
 int SlideSorter::slideCount() const { return m_ed->doc() ? int(m_ed->doc()->pages.size()) : 0; }
@@ -604,6 +632,7 @@ void SlideSorter::setCurrent(int slide)
 void SlideSorter::selectOnly(int slide)
 {
     m_sel = {slide};
+    m_selBasis = pageIds();
     m_anchor = slide;
     setCurrent(slide);
     updateAccessibleText();
@@ -613,6 +642,7 @@ void SlideSorter::selectOnly(int slide)
 void SlideSorter::selectRange(int from, int to)
 {
     m_sel.clear();
+    m_selBasis = pageIds();
     for (int i = std::min(from, to); i <= std::max(from, to); ++i) m_sel << i;
     setCurrent(to);
     updateAccessibleText();
@@ -628,6 +658,7 @@ void SlideSorter::select(const QList<int> &slides, int current)
     std::sort(list.begin(), list.end());
     if (list.isEmpty()) return;
     m_sel = list;
+    m_selBasis = pageIds();
     if (current < 0 || current >= n) current = list.last();
     if (!m_sel.contains(current)) m_sel << current, std::sort(m_sel.begin(), m_sel.end());
     m_anchor = current;
@@ -639,10 +670,12 @@ void SlideSorter::select(const QList<int> &slides, int current)
 // The editor's current slide changed: if it wasn't us, it alone is selected.
 void SlideSorter::currentChanged()
 {
+    rebaseSelection();
     if (m_selfChange) return;
     const int cur = std::clamp(m_ed->currentPage(), 0, std::max(0, slideCount() - 1));
     if (!m_sel.contains(cur)) {
         m_sel = {cur};
+        m_selBasis = pageIds();
         m_anchor = cur;
     }
     if (isVisible()) ensureVisible(cur);
@@ -898,6 +931,7 @@ void SlideSorter::keyPressEvent(QKeyEvent *e)
     case Qt::Key_A:
         if (e->modifiers() & Qt::ControlModifier) {
             m_sel.clear();
+            m_selBasis = pageIds();
             for (int i = 0; i < n; ++i) m_sel << i;
             updateAccessibleText();
             viewport()->update();
@@ -991,6 +1025,7 @@ void SlideSorter::moveSlides(const QList<int> &slides, int before, int into)
     int cur = int(d->pages.indexOf(current));
     if (!now.contains(cur)) cur = now.last();
     m_sel = now;
+    m_selBasis = pageIds();
     m_anchor = cur;
     setCurrent(cur);
     m_ed->endChange();
@@ -1015,6 +1050,7 @@ void SlideSorter::deleteSelected()
     }
     const int to = std::clamp(doomed.first(), 0, int(d->pages.size()) - 1);
     m_sel = {to};
+    m_selBasis = pageIds();
     m_anchor = to;
     setCurrent(to);
     m_ed->endChange();
@@ -1035,6 +1071,7 @@ void SlideSorter::duplicateSelected()
     QList<int> made;
     for (int k = 0; k < from.size(); ++k) made << from[k] + k + 1;
     m_sel = made;
+    m_selBasis = pageIds();
     m_anchor = made.last();
     setCurrent(made.last());
     m_ed->endChange();

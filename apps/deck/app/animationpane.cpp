@@ -499,17 +499,31 @@ void AnimationPane::reload()
     // The rows show the shapes' names, so they are drawn again when those or the animations are not what they show.
     const quint64 signature = deck::animationSignature(*d, page);
     if (page.id == m_page && signature == m_signature) return;
+    // The effects picked stay picked where they are now (the rows picked are of the list as it was, and only of this slide).
+    const QStringList picked = page.id == m_page ? keysOfRows(selectedRows()) : QStringList();
     m_page = page.id;
     m_signature = signature;
     m_seq = signature ? deck::readAnimations(page, d) : deck::AnimSequence();
-    rebuild();
+    rebuild(picked);
 }
 
-void AnimationPane::rebuild()
+QStringList AnimationPane::keysOfRows(const QVector<int> &rows) const
+{
+    const QStringList all = deck::effectKeys(m_seq);
+    QStringList keys;
+    for (int r : rows)
+        if (r >= 0 && r < all.size()) keys << all[r];
+    return keys;
+}
+
+void AnimationPane::rebuild(const QStringList &pickedKeys)
 {
     const Document *d = m_ed->doc();
     const Page &page = *d->pages[m_ed->currentPage()];
-    const QVector<int> picked = selectedRows();
+    const QStringList keys = deck::effectKeys(m_seq);
+    QVector<int> picked;
+    for (int i = 0; i < keys.size(); ++i)
+        if (pickedKeys.contains(keys[i])) picked << i;
     QHash<int, const Item *> shapes;
     walkItems(page.items, [&](const ItemPtr &it) {
         if (it->sourceId > 0 && !shapes.contains(it->sourceId)) shapes.insert(it->sourceId, it.get());
