@@ -526,6 +526,39 @@ private Q_SLOTS:
         QVERIFY(ev("SUM(LEN(A1:A3000))", texts, array) == num(3000 * 15));
     }
 
+    // A source that renames its sheets without changing its generation() is still read right: the sheets a program is bound to are checked against the source on each run, so the
+    // contract (generation changes when the sheets or their names do) is a speed-up that a source breaking it cannot turn into a wrong answer.
+    void aSourceThatBreaksTheGenerationContractIsStillReadRight()
+    {
+        class Swapping : public Grid {
+        public:
+            int sheetIndex(const QString &name) const override
+            {
+                const int i = Grid::sheetIndex(name);
+                if (!swapped || i < 1) return i;
+                return i == 1 ? 2 : 1;
+            }
+            bool swapped = false;
+        };
+        Swapping g;
+        g.addSheet(QStringLiteral("Two"));
+        g.addSheet(QStringLiteral("Three"));
+        g.n("A1", 2, 1);
+        g.n("A1", 3, 2);
+        quint32 row = 0, col = 0;
+        jp::calc::ParseOptions options;
+        const jp::calc::ParseResult parsed = jp::calc::parseFormula(QStringLiteral("Two!A1"), options);
+        QVERIFY(parsed.ok());
+        jp::calc::EvalContext ctx;
+        ctx.source = &g;
+        ctx.row = row;
+        ctx.col = col;
+        jp::calc::Evaluator evaluator;
+        QCOMPARE(evaluator.evaluate(*parsed.program, ctx).debug(), QStringLiteral("n:2"));
+        g.swapped = true;
+        QCOMPARE(evaluator.evaluate(*parsed.program, ctx).debug(), QStringLiteral("n:3"));
+    }
+
     // Formulas as hostile as a file can make them (within the length a formula may have) are worked out, or refused, within the steps and the cells they are allowed: each
     // case says which error it ends in, and what it counted before it did.
     void hostileFormulasAreBounded()

@@ -51,6 +51,9 @@ QByteArray repairZip(const QByteArray &zip, QString *error = nullptr, RepairRepo
 QByteArray repairXml(const QByteArray &xml, bool *trimmed = nullptr, QString *stoppedBecause = nullptr);
 
 // What was done, in plain words, a line for each thing, for a message.
+// The byte of UTF-8 text that is `chars` UTF-16 units in (the unit a reader counts in), after a byte order mark if there is one. Text that is not valid UTF-8 is cut at a letter's
+// boundary all the same: a byte that does not begin a whole letter counts as one unit by itself.
+qsizetype byteOfChar(const QByteArray &x, qint64 chars);
 QString repairSummary(const RepairReport &report);
 
 } // namespace jp::office

@@ -69,7 +69,13 @@ double Machine::now() const
 bool Machine::bindSheets(const Program &p)
 {
     const qint64 generation = ctx.source->generation();
-    if (p.boundTo == ctx.source && p.boundGeneration == generation && p.boundSheets.size() == size_t(p.sheetNames.size())) return true;
+    if (p.boundTo == ctx.source && p.boundGeneration == generation && p.boundSheets.size() == size_t(p.sheetNames.size())) {
+        // The generation is a promise of the source's (it changes when the sheets or their names do), and a program trusts it to skip the lookups. A source that breaks the promise
+        // must not give a wrong answer for it: the few names a program holds are looked up again (cheap next to the run), and the binding is made anew if one has moved.
+        bool same = true;
+        for (int i = 0; i < p.sheetNames.size() && same; ++i) same = p.boundSheets[size_t(i)] == ctx.source->sheetIndex(p.sheetNames[i]);
+        if (same) return true;
+    }
     p.boundSheets.assign(size_t(p.sheetNames.size()), -1);
     for (int i = 0; i < p.sheetNames.size(); ++i) p.boundSheets[size_t(i)] = ctx.source->sheetIndex(p.sheetNames[i]);
     p.boundTo = ctx.source;

@@ -151,20 +151,6 @@ QByteArray mainRels(const QString &main, const QStringList &parts)
     return relsXml(links);
 }
 
-// The byte of UTF-8 text that is `chars` UTF-16 units in (the unit a reader counts in), after a byte order mark if there is one. The text must be valid UTF-8.
-qsizetype byteOfChar(const QByteArray &x, qint64 chars)
-{
-    qsizetype i = x.startsWith("\xEF\xBB\xBF") ? 3 : 0;
-    qint64 n = 0;
-    while (i < x.size() && n < chars) {
-        const uchar c = uchar(x[i]);
-        const int length = c < 0x80 ? 1 : c >= 0xF0 ? 4 : c >= 0xE0 ? 3 : 2;
-        n += length == 4 ? 2 : 1;
-        i += length;
-    }
-    return std::min<qsizetype>(i, x.size());
-}
-
 // How many bytes at the end of `x` are the start of a letter that is not all there.
 int incompleteTail(const QByteArray &x)
 {
@@ -187,6 +173,28 @@ constexpr qint64 kMaxXmlTokenBytes = qint64(64) << 20;   // one piece of XML (a 
 constexpr int kMaxXmlNameChars = 1024;                    // an element's name: real names are under 50 characters, and the names of the open elements are kept
 
 } // namespace
+
+// The byte of UTF-8 text that is `chars` UTF-16 units in (the unit a reader counts in), after a byte order mark if there is one. 
+qsizetype byteOfChar(const QByteArray &x, qint64 chars)
+{
+    qsizetype i = x.startsWith("\xEF\xBB\xBF") ? 3 : 0;
+    qint64 n = 0;
+    while (i < x.size() && n < chars) {
+        const uchar c = uchar(x[i]);
+        int length = c < 0x80 ? 1 : c >= 0xF5 ? 1 : c >= 0xF0 ? 4 : c >= 0xE0 ? 3 : c >= 0xC2 ? 2 : 1;   // (a continuation byte, 0xC0, 0xC1, and 0xF5 and up begin no letter)
+        // a letter whose continuation bytes are not all there is one broken unit by itself, and the bytes after it are their own
+        if (i + length > x.size()) length = 1;
+        for (int k = 1; k < length; ++k)
+            if ((uchar(x[i + k]) & 0xC0) != 0x80) {
+                length = 1;
+                break;
+            }
+        n += length == 4 ? 2 : 1;
+        i += length;
+    }
+    return std::min<qsizetype>(i, x.size());
+}
+
 
 QByteArray repairXml(const QByteArray &xml, bool *trimmed, QString *stoppedBecause)
 {

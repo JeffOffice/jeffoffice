@@ -115,6 +115,7 @@ public:
     }
     // Changes when the sheets or their names do, so a program re-reads which sheet each name is (a source that is replaced by another at the same address must
     // change it too).
+    // (A source that breaks this is still read right: the evaluation checks the names a program is bound to on each run.)
     virtual qint64 generation() const { return 0; }
 };
 

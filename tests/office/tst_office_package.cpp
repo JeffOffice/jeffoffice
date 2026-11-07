@@ -116,6 +116,18 @@ class OfficePackageTests : public QObject {
 
 
 private Q_SLOTS:
+    // The byte a count of characters comes to is a whole letter's end even when the text is not valid UTF-8: a lead byte with no continuation after it is one broken unit, not the
+    // start of a letter that swallows the bytes after it.
+    void aCharacterCountCutsAtALetterBoundaryInTextThatIsNotUtf8()
+    {
+        using jp::office::byteOfChar;
+        QCOMPARE(byteOfChar(QByteArray("a\xC3\xA9" "b"), 2), qsizetype(3));        // (valid: a, e-acute)
+        QCOMPARE(byteOfChar(QByteArray("ab\xE2" "cd"), 3), qsizetype(3));          // (a cut letter, then more: the three characters are a, b, and the broken one)
+        QCOMPARE(byteOfChar(QByteArray("a\x80" "bc"), 2), qsizetype(2));           // (a continuation byte alone)
+        QCOMPARE(byteOfChar(QByteArray("a\xF0\x9F" "bc"), 3), qsizetype(3));      // (a four-byte letter cut after two)
+        QCOMPARE(byteOfChar(QByteArray("\xF0\x9F\x98\x80" "x"), 2), qsizetype(4));   // (a letter of four bytes is two units)
+    }
+
     // The entries of a ZIP are found by their own headers: a file cut short, or with no directory, still gives the entries that are whole, and what there is of the last.
     void aDamagedZipGivesItsWholeEntries()
     {
