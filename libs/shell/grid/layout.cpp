@@ -64,13 +64,13 @@ bool GridLayout::scrollSplitStart(bool inRows, qint64 first)
 bool GridLayout::rowInTop(qint64 row) const
 {
     if (m_splitH <= 0) return row < m_frozenRows;
-    return row >= rows.skipped() && scaled(rows.position(row), m_zoom) < frozenHeight();
+    return row >= rows.skipped() && scaled(rows.position(row + 1), m_zoom) <= frozenHeight();
 }
 
 bool GridLayout::colInLeft(qint64 col) const
 {
     if (m_splitW <= 0) return col < m_frozenCols;
-    return col >= cols.skipped() && scaled(cols.position(col), m_zoom) < frozenWidth();
+    return col >= cols.skipped() && scaled(cols.position(col + 1), m_zoom) <= frozenWidth();
 }
 
 qint64 GridLayout::maxScrollX() const
@@ -94,8 +94,18 @@ void GridLayout::setScroll(qint64 x, qint64 y)
 qint64 GridLayout::bodyOriginX() const { return cols.position(m_frozenCols) + m_scrollX; }
 qint64 GridLayout::bodyOriginY() const { return rows.position(m_frozenRows) + m_scrollY; }
 
-int GridLayout::frozenWidth() const { return m_splitW > 0 ? scaled(m_splitW, m_zoom) : scaled(cols.position(m_frozenCols), m_zoom); }
-int GridLayout::frozenHeight() const { return m_splitH > 0 ? scaled(m_splitH, m_zoom) : scaled(rows.position(m_frozenRows), m_zoom); }
+namespace {
+// A split bar is drawn no nearer the far edge of the window than this, whatever a file or a smaller window says, so that the part beyond it can be used and the bar reached.
+constexpr int kBarRoom = 24;
+int barWithin(qint64 grid, double zoom, int window, int header)
+{
+    const int at = scaled(grid, zoom);
+    return window > 0 ? std::min(at, std::max(8, window - header - kBarRoom)) : at;
+}
+} // namespace
+
+int GridLayout::frozenWidth() const { return m_splitW > 0 ? barWithin(m_splitW, m_zoom, m_viewport.width(), m_headerW) : scaled(cols.position(m_frozenCols), m_zoom); }
+int GridLayout::frozenHeight() const { return m_splitH > 0 ? barWithin(m_splitH, m_zoom, m_viewport.height(), m_headerH) : scaled(rows.position(m_frozenRows), m_zoom); }
 
 int GridLayout::screenX(qint64 logical, bool frozen) const
 {

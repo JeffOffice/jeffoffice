@@ -1158,6 +1158,34 @@ private Q_SLOTS:
         QVERIFY(clean.win.w.statusText().contains(QStringLiteral("No cell on this sheet shows an error")));
     }
 
+    // A chain of errors longer than the steps taken says the arrows stop before the cell that makes it; and the list of errors is made once and stepped through while nothing changes.
+    void errorSteppingSaysWhenTheChainIsTooLongAndKeepsItsList()
+    {
+        QStringList cells = {"A1==1/0"};
+        for (int r = 2; r <= 230; ++r) cells << QStringLiteral("A%1==A%2+1").arg(r).arg(r - 1);
+        cells << QStringLiteral("A231=1");
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({cells})));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(kEnglish);
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("A231"));
+        QVERIFY(w.stepError(false));
+        QCOMPARE(e.selected(), QStringLiteral("A230"));
+        QVERIFY2(w.statusText().contains(QStringLiteral("stop before the cell that makes it")), qPrintable(w.statusText()));
+        QCOMPARE(int(e.view()->checkArrows().size()), 200);
+        const int builds = w.errorListBuilds();
+        QVERIFY(w.stepError(false));
+        QVERIFY(w.stepError(true));
+        QCOMPARE(w.errorListBuilds(), builds);
+        // a change of the sheet makes the list again
+        e.select(QStringLiteral("B1"));
+        e.enter(QStringLiteral("=1/0"));
+        QVERIFY(e.settle());
+        QVERIFY(w.stepError(true));
+        QVERIFY(w.errorListBuilds() > builds);
+    }
+
     void applyNamesPutsNamesInFormulasAsOneStep()
     {
         EditWindow e;

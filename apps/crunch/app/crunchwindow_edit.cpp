@@ -515,6 +515,7 @@ void CrunchWindow::onCellsChanged(int sheet, const std::vector<jp::grid::ValueSt
         for (size_t i = 0; i < cells.size() && i < 2000; ++i) places.emplace_back(cells[i].row, cells[i].col);
         m_view->formulaCellsChanged(places);
     }
+    m_errorListValid = false;
     if (sheet == m_sheet && m_view->valuesChanged(sheet, cells)) updateBars();
     if (m_undoing && !cells.empty()) {
         // Undo and Redo show the cell they changed

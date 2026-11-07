@@ -233,6 +233,7 @@ private Q_SLOTS:
     void theViewIsSavedAndComesBack();
     void frozenPanesAreSavedAndComeBack();
     void splitPanesAreSavedAndComeBack();
+    void theTopPanesScrollAndRowsInsertedAboveTheBarAreKept();
     void sheetRightToLeftIsSavedAndComesBack();
     void notesPrintAtTheEndOfTheSheet();
     void theScrollAndTheCursorAreTakenAtTheSave();

@@ -124,8 +124,8 @@ std::vector<EditSession::ExternalSource> EditSession::externalLinkSources() cons
 
 void EditSession::setExternalTarget(int index, const QString &target)
 {
-    if (target.isEmpty()) m_externalTargets.erase(index);
-    else m_externalTargets[index] = target;
+    // (kept after a save too: what the file now holds is not what an Undo of an earlier step goes back to, so the address is always written, as the step says)
+    if (!target.isEmpty()) m_externalTargets[index] = target;
 }
 
 std::map<QString, QString> EditSession::externalSourceParts() const
@@ -154,8 +154,7 @@ EditSession::Outcome EditSession::changeExternalSource(int index, const QString 
         return out;
     }
     const QString address = addressOf(path);
-    const auto was = m_externalTargets.find(index);
-    m_undo.push(new SourceChanged(this, index, was == m_externalTargets.end() ? QString() : was->second, address, tr("Change Source")));
+    m_undo.push(new SourceChanged(this, index, sources[size_t(index - 1)].target, address, tr("Change Source")));
     return out;
 }
 
@@ -172,6 +171,8 @@ EditSession::Outcome EditSession::updateExternalValues(int index, const QString 
     if (!canEdit(&why)) return refuse(why);
     jp::office::sheet::Workbook source;
     QString error;
+    // (only a file is read: a pipe or a device has no end to be read to)
+    if (!QFileInfo(path).isFile()) return refuse(tr("The workbook \"%1\" is not a file that can be read.").arg(path));
     if (path.isEmpty() || !source.openFile(path, &error)) return refuse(tr("The workbook \"%1\" could not be opened. %2").arg(path, error));
     // a formula that is only a reference to one cell of the source: `[1]Prices!A1` or `'[1]My Prices'!$A$1`
     static const QRegularExpression direct(QStringLiteral("^=?\\s*(?:\\[(\\d+)\\]([^'!\\[\\]]+)|'\\[(\\d+)\\]((?:[^']|'')+)')!\\$?([A-Za-z]{1,3})\\$?(\\d+)\\s*$"));
@@ -182,8 +183,10 @@ EditSession::Outcome EditSession::updateExternalValues(int index, const QString 
     };
     std::vector<Place> places;
     constexpr size_t kMostCells = 200000;
+    bool cut = false;
     m_book->calc->forEachFormulaText([&](int sheet, quint32 row, quint32 col, const QString &formula) {
-        if (places.size() < kMostCells && readsAnotherWorkbook(formula, index)) places.push_back({sheet, row, col, formula});
+        if (places.size() >= kMostCells) cut = true;
+        else if (readsAnotherWorkbook(formula, index)) places.push_back({sheet, row, col, formula});
     });
     std::map<QString, std::shared_ptr<jp::office::sheet::Sheet>> read;
     Step step;
@@ -236,6 +239,7 @@ EditSession::Outcome EditSession::updateExternalValues(int index, const QString 
     if (result) {
         result->updated = int(step.cells.size());
         result->kept = kept;
+        result->cut = cut;
     }
     if (step.cells.empty()) return out;
     pushStep(std::move(step), tr("Update Values"));

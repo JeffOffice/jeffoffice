@@ -1980,7 +1980,6 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_nameRenames.clear();
     m_calcFile = m_calcNow;
     m_dropExternalLinks = false;
-    m_externalTargets.clear();
     m_dropCustomXml = false;
     m_nameTable.rebase([this](const NameEntry &e) {
         QString text;

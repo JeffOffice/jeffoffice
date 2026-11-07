@@ -555,6 +555,7 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
     const std::vector<jp::grid::ValueStore::Item> &shown = m_session ? where : batch->items;
     if (m_objects) m_objects->cellsChanged(shown);
     m_workerCpuMicros = batch->workerCpuMicros;
+    m_errorListValid = false;
     const bool active = m_view->valuesChanged(m_sheet, shown);
     if (batch->last && m_session) m_session->pruneStamps(batch->epochs);
     if (m_viewKind == 2 && m_pageView && m_layoutPages) m_pageView->contentsChanged();   // (the pages show the values the calculation gave)

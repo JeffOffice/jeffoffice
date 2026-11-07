@@ -286,8 +286,10 @@ public:
     // on each time), and the arrows taken away. They are taken away by any change to the workbook. False, with the reason in the status line, when there is nothing to draw.
     bool tracePrecedents();
     bool traceDependents();
-    bool traceError();
+    bool traceError(bool quiet = false, bool *cut = nullptr);
     bool stepError(bool forward);
+    // How many times Next Error and Previous Error looked through the sheet for its errors (a test counts them: a press steps through the list kept).
+    int errorListBuilds() const { return m_errorListBuilds; }
     void removeArrows();
     int arrowCount() const { return int(m_trace.size()); }
     // The circular references named once in a message each time they begin (not again while they stay).
@@ -822,6 +824,9 @@ private:
     std::vector<crunch::TraceCell> m_traceUp, m_traceDown;   // the formulas the next step back and the next step on begin from
     bool m_tracedUp = false, m_tracedDown = false, m_tracedError = false;   // (m_tracedError: the arrows are Trace Error's, which follow errors only)
     bool startTrace(bool up);
+    std::vector<std::pair<qint64, qint64>> m_errorCells;   // the cells of the sheet in view that show an error, in order, for Next Error and Previous Error
+    bool m_errorListValid = false, m_errorListTruncated = false;
+    int m_errorListSheet = -1, m_errorListBuilds = 0;
     QLabel *m_calcNote = nullptr;
     std::vector<int> m_menuNames;
     qint64 m_menuGeneration = -1;

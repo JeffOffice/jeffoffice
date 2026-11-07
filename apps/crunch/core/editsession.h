@@ -969,6 +969,7 @@ public:
     struct ExternalUpdate {
         int updated = 0;   // cells given a value from the source
         int kept = 0;      // cells that read the source and keep the value their file stored
+        bool cut = false;  // more formulas than are looked at: the rest were not read
     };
     Outcome updateExternalValues(int index, const QString &path, ExternalUpdate *result = nullptr);
     // Change Source: the source numbered `index` is another file, `path` (a file on this computer). The formulas are not changed; the file's link to it is, at the next save. One step of Undo.

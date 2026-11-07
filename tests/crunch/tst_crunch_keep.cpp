@@ -468,6 +468,22 @@ private Q_SLOTS:
         QVERIFY2(!rels.contains("C:/data"), rels.constData());
         QVERIFY2(now.value(kSheet).contains("<f>[1]Sheet1!A1</f><v>7</v>"), now.value(kSheet).constData());
         QVERIFY(now.value(QStringLiteral("xl/externalLinks/externalLink1.xml")).contains("<v>42</v>"));
+        // Undo after the save goes back to the address the file had before the change, and the next save writes it
+        e.win.w.undoStack()->undo();   // (the values)
+        e.win.w.undoStack()->undo();   // (the source)
+        QCOMPARE(s->externalLinkSources()[0].shown, QStringLiteral("C:/data/prices.xlsx"));
+        QVERIFY(e.settle());
+        QSignalSpy again(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(again), "the second save failed");
+        Parts later;
+        QFile g(e.path);
+        QVERIFY(g.open(QIODevice::ReadOnly));
+        readZip(g.readAll(), later);
+        const QByteArray rels2 = later.value(QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels"));
+        QVERIFY2(rels2.contains("file:///C:/data/prices.xlsx") && !rels2.contains(QUrl::fromLocalFile(source).toString(QUrl::FullyEncoded).toUtf8()), rels2.constData());
+        // only a file is read: a folder is refused, with the reason
+        QVERIFY(!s->updateExternalValues(1, dir.path()).ok);
     }
 
     // Inspect Workbook leaves the custom XML out: the parts, what they relate to, the workbook's link to them, and their types; nothing else of the file changes.

@@ -154,8 +154,9 @@ bool CrunchWindow::traceDependents()
 }
 
 // Trace Error: from a cell that shows an error, the arrows go to the cells it reads that are errors too, one step more with each click, until a cell reads no error: that one makes it.
-bool CrunchWindow::traceError()
+bool CrunchWindow::traceError(bool quiet, bool *cut)
 {
+    bool fanCut = false;
     if (!m_session || !m_loaded || !commitEdit()) return false;
     const quint32 row = quint32(std::max<qint64>(0, m_view->selection().activeRow)), col = quint32(std::max<qint64>(0, m_view->selection().activeCol));
     if (!m_traceRoot.set || m_traceRoot.sheet != m_sheet || m_traceRoot.row != row || m_traceRoot.col != col || !m_tracedError) {
@@ -178,18 +179,27 @@ bool CrunchWindow::traceError()
     const size_t before = m_trace.size();
     std::vector<crunch::TraceCell> next;
     for (const crunch::TraceCell &f : m_traceUp) {
-        if (m_trace.size() >= grid::GridView::kMaxCheckArrows) break;
-        bool cut = false;
-        const std::vector<crunch::TraceBlock> blocks = crunch::cellsRead(*calc, f.sheet, f.row, f.col, &cut);
+        if (m_trace.size() >= grid::GridView::kMaxCheckArrows) {
+            fanCut = true;
+            break;
+        }
+        bool cutRead = false;
+        const std::vector<crunch::TraceBlock> blocks = crunch::cellsRead(*calc, f.sheet, f.row, f.col, &cutRead);
+        fanCut = fanCut || cutRead;
         for (const crunch::TraceBlock &b : blocks) {
-            if (m_trace.size() >= grid::GridView::kMaxCheckArrows) break;
+            if (m_trace.size() >= grid::GridView::kMaxCheckArrows) {
+                fanCut = true;
+                break;
+            }
             std::vector<crunch::TraceCell> formulas;
             formulaCellsIn(*calc, b, 200, &formulas);
+            fanCut = fanCut || formulas.size() >= 200;
             bool any = false;
             for (const crunch::TraceCell &c : formulas) {
                 if (!m_session->valueAt(c.sheet, c.row, c.col).isError()) continue;
                 any = true;
                 if (next.size() < 200) next.push_back(c);
+                else fanCut = true;
             }
             if (!any) continue;
             TraceArrow a;
@@ -205,12 +215,14 @@ bool CrunchWindow::traceError()
         }
     }
     m_traceUp = next;
+    if (cut) *cut = fanCut;
+    if (quiet) return m_trace.size() != before;
     refreshCheckMarks();
     if (m_trace.size() == before) {
         setStatus(tr("No cell this one reads has an error: this cell makes the error."));
         return false;
     }
-    setStatus(tr("%n arrow(s) drawn.", nullptr, int(m_trace.size())));
+    setStatus(tr("%n arrow(s) drawn.", nullptr, int(m_trace.size())) + (fanCut ? QLatin1Char(' ') + tr("Some cells it reads were not followed: there are too many.") : QString()));
     return true;
 }
 
@@ -221,19 +233,27 @@ bool CrunchWindow::stepError(bool forward)
     if (!m_session || !m_loaded || !commitEdit()) return false;
     const grid::Selection &sel = m_view->selection();
     const qint64 row = std::max<qint64>(0, sel.activeRow), col = std::max<qint64>(0, sel.activeCol);
-    crunch::SpecialOptions options;
-    options.kind = crunch::SpecialKind::Errors;
-    const crunch::SpecialResult found = crunch::goToSpecial(*m_session, m_sheet, CellRange(), quint32(row), quint32(col), options);
-    constexpr qint64 kMostErrors = 200000;
-    std::vector<std::pair<qint64, qint64>> cells;
-    for (const CellRange &r : found.ranges)
-        for (qint64 y = r.row1; y <= r.row2 && qint64(cells.size()) < kMostErrors; ++y)
-            for (qint64 x = r.col1; x <= r.col2 && qint64(cells.size()) < kMostErrors; ++x) cells.push_back({y, x});
+    // the list of cells that show an error is kept until the sheet's values change (the window drops it then): a press steps through it, and does not look at the sheet again
+    if (!m_errorListValid || m_errorListSheet != m_sheet) {
+        crunch::SpecialOptions options;
+        options.kind = crunch::SpecialKind::Errors;
+        const crunch::SpecialResult found = crunch::goToSpecial(*m_session, m_sheet, CellRange(), quint32(row), quint32(col), options);
+        constexpr qint64 kMostErrors = 200000;
+        m_errorCells.clear();
+        for (const CellRange &r : found.ranges)
+            for (qint64 y = r.row1; y <= r.row2 && qint64(m_errorCells.size()) < kMostErrors; ++y)
+                for (qint64 x = r.col1; x <= r.col2 && qint64(m_errorCells.size()) < kMostErrors; ++x) m_errorCells.push_back({y, x});
+        std::sort(m_errorCells.begin(), m_errorCells.end());
+        m_errorListTruncated = found.truncated;
+        m_errorListSheet = m_sheet;
+        m_errorListValid = true;
+        ++m_errorListBuilds;
+    }
+    const std::vector<std::pair<qint64, qint64>> &cells = m_errorCells;
     if (cells.empty()) {
         setStatus(tr("No cell on this sheet shows an error."));
         return false;
     }
-    std::sort(cells.begin(), cells.end());
     const std::pair<qint64, qint64> here{row, col};
     size_t at = 0;
     if (forward) {
@@ -246,10 +266,22 @@ bool CrunchWindow::stepError(bool forward)
     removeArrows();
     m_view->selectCell(cells[at].first, cells[at].second);
     m_view->ensureVisible(cells[at].first, cells[at].second);
-    // the arrows to what makes it: one step more at a time until a cell reads no error
-    for (int step = 0; step < 200 && traceError(); ++step) {}
-    setStatus(tr("Error %1 of %2%3.").arg(int(at) + 1).arg(int(cells.size())).arg(found.truncated ? tr(" or more") : QString()) + QLatin1Char(' ')
-              + (m_trace.empty() ? tr("The cell makes the error itself.") : tr("The arrows go to the cell that makes it.")));
+    // the arrows to what makes it: one step more at a time until a cell reads no error, or the steps this takes run out
+    constexpr int kMostSteps = 200;
+    bool fanCut = false, more = true;
+    int steps = 0;
+    for (; steps < kMostSteps; ++steps)
+        if (!traceError(true, &fanCut)) {
+            more = false;
+            break;
+        }
+    refreshCheckMarks();
+    QString how;
+    if (more) how = tr("The arrows stop before the cell that makes it: the chain is too long to follow.");
+    else if (m_trace.empty()) how = tr("The cell makes the error itself.");
+    else how = tr("The arrows go to the cell that makes it.");
+    if (fanCut) how += QLatin1Char(' ') + tr("Some cells it reads were not followed: there are too many.");
+    setStatus(tr("Error %1 of %2%3.").arg(int(at) + 1).arg(int(cells.size())).arg(m_errorListTruncated ? tr(" or more") : QString()) + QLatin1Char(' ') + how);
     return true;
 }
 

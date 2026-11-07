@@ -359,9 +359,14 @@ void GridView::scrollColumns(int columns)
 
 bool GridView::ensureVisible(qint64 row, qint64 col)
 {
-    const GridLayout &L = m_sheet.layout();
+    GridLayout &L = m_sheet.layout();
+    // a row or column before where the top (left) part of a split begins is shown by that part, brought back to it: no part shows a line it has scrolled past
+    bool brought = false;
+    if (L.splitHeight() > 0 && row >= 0 && row < L.rows.skipped()) brought = L.scrollSplitStart(true, row) || brought;
+    if (L.splitWidth() > 0 && col >= 0 && col < L.cols.skipped()) brought = L.scrollSplitStart(false, col) || brought;
+    if (brought) layoutChanged();
     qint64 x = L.scrollX(), y = L.scrollY();
-    if (!L.scrollToShow(row, col, &x, &y)) return false;
+    if (!L.scrollToShow(row, col, &x, &y)) return brought;
     // (the scroll is set by scrollTo, so that the pixels already drawn are moved and not drawn again)
     scrollTo(x, y);
     return true;
@@ -477,11 +482,10 @@ void GridView::splitAt(qint64 row, qint64 col)
     const bool rowsSplit = row > viewTop, colsSplit = col > viewLeft;
     if (!rowsSplit && !colsSplit) return;
     const qint64 absX = L.scrollX(), absY = L.scrollY();
-    // (the bars are kept clear of the far edges, so that each part has room for a row and a column)
-    const QSize v = viewport()->size();
-    const qint64 widest = std::max<qint64>(1, qint64((v.width() - L.headerWidth()) / L.zoom()) - 64), tallest = std::max<qint64>(1, qint64((v.height() - L.headerHeight()) / L.zoom()) - 40);
-    const qint64 width = colsSplit ? std::min(L.cols.position(col) - L.cols.position(viewLeft), widest) : 0;
-    const qint64 height = rowsSplit ? std::min(L.rows.position(row) - L.rows.position(viewTop), tallest) : 0;
+    // (the layout keeps a bar clear of the far edges of the window when it draws it, so what is kept here is where the cell is, whatever the size of the window now: a window not shown yet is small)
+    constexpr qint64 kFar = 200000;
+    const qint64 width = colsSplit ? std::min(L.cols.position(col) - L.cols.position(viewLeft), kFar) : 0;
+    const qint64 height = rowsSplit ? std::min(L.rows.position(row) - L.rows.position(viewTop), kFar) : 0;
     L.setSkipped(rowsSplit ? viewTop : 0, colsSplit ? viewLeft : 0);
     L.setFrozen(rowsSplit ? row : 0, colsSplit ? col : 0);
     L.setSplit(width, height);
@@ -958,7 +962,6 @@ bool GridView::followEdit(const jp::office::sheet::StructEdit &edit)
     GridLayout &L = m_sheet.layout();
     const bool rows = edit.changesRows(), cols = edit.changesColumns();
     if (!rows && !cols) return false;
-    if (L.isSplit()) return false;   // (the parts of a split begin at lines of their own: the sheet is shown again)
     const bool insert = edit.kind == jp::office::sheet::StructEdit::Kind::InsertRows || edit.kind == jp::office::sheet::StructEdit::Kind::InsertColumns;
     const qint64 first = qint64(edit.first), count = qint64(edit.count);
     // where the part that scrolls begins, as a line and how far into it: the view stays at the line (the row or column number) it was at, whatever the sizes above it have become
@@ -1393,7 +1396,10 @@ void GridView::mouseMoveEvent(QMouseEvent *e)
         const qint64 room = qint64(std::max(0, viewport()->width() - L.headerWidth()) / z) - 24, roomY = qint64(std::max(0, viewport()->height() - L.headerHeight()) / z) - 24;
         const qint64 w = m_splitDragCols ? std::clamp<qint64>(qint64(std::lround((lp.x() - L.headerWidth()) / z)), 24, std::max<qint64>(24, room)) : L.splitWidth();
         const qint64 h = m_splitDragRows ? std::clamp<qint64>(qint64(std::lround((lp.y() - L.headerHeight()) / z)), 12, std::max<qint64>(12, roomY)) : L.splitHeight();
-        if (w != L.splitWidth() || h != L.splitHeight()) setSplitBars(w, h);
+        if (w != L.splitWidth() || h != L.splitHeight()) {
+            L.setSplit(w, h);
+            layoutChanged();   // (the window is told once, when the bar is let go)
+        }
         return;
     }
     if (m_drag == Drag::Resize) {
@@ -1484,6 +1490,7 @@ void GridView::mouseReleaseEvent(QMouseEvent *e)
     if (m_drag == Drag::None && overlayRelease(e)) return;
     if (m_drag == Drag::SplitBar) {
         m_drag = Drag::None;
+        Q_EMIT splitChanged();
         return;
     }
     if (breakRelease()) return;

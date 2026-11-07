@@ -505,7 +505,7 @@ private Q_SLOTS:
         Book b;
         for (quint32 r = 0; r < 300; ++r)
             for (quint32 c = 0; c < 30; ++c) b.number(r, c, r * 100 + c);
-        b.show();
+        b.show(QSize(900, 600));
         QSignalSpy changed(b.view.get(), &GridView::splitChanged);
         b.view->splitAt(4, 3);
         QVERIFY(b.view->isSplit());
@@ -539,9 +539,13 @@ private Q_SLOTS:
         // a bar is dragged to move it
         const qint64 before = L.splitWidth(), tall = L.splitHeight();
         const int bx = L.splitBarX();
+        const int told = changed.count();
         QTest::mousePress(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(bx, 200));
+        QTest::mouseMove(b.view->viewport(), QPoint(bx + 30, 200));
         QTest::mouseMove(b.view->viewport(), QPoint(bx + 70, 200));
+        QCOMPARE(changed.count(), told);   // (the window is told when the bar is let go, not at each move)
         QTest::mouseRelease(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(bx + 70, 200));
+        QCOMPARE(changed.count(), told + 1);
         QCOMPARE(L.splitWidth(), before + 70);
         QCOMPARE(L.splitHeight(), tall);
         // a double click on a bar takes that bar away: the other stays
@@ -562,6 +566,48 @@ private Q_SLOTS:
         // a cell in the first row and column in view splits nothing
         b.view->splitAt(0, 0);
         QVERIFY(!b.view->isSplit());
+    }
+
+    // A cursor moved to a row above where the top part begins brings that part back to it: no cell is left where no part shows it.
+    void aCursorAboveWhereATopPartBeginsBringsThePartBack()
+    {
+        Book b;
+        for (quint32 r = 0; r < 300; ++r) b.number(r, 0, r);
+        b.show(QSize(900, 600));
+        b.view->splitAt(4, 0);
+        QVERIFY(b.view->scrollSplitPart(true, 10));
+        QCOMPARE(b.layout().pane(Pane::Top).firstRow, qint64(10));
+        b.view->selectCell(30, 0);
+        QTest::keyClick(b.view.get(), Qt::Key_Home, Qt::ControlModifier);
+        const qint64 row = b.view->selection().activeRow;
+        auto shown = [&](Pane p) {
+            const PaneView v = b.layout().pane(p);
+            return !v.isEmpty() && row >= v.firstRow && row <= v.lastRow;
+        };
+        QVERIFY2(shown(Pane::Top) || shown(Pane::Left) || shown(Pane::Top) || shown(Pane::Body), qPrintable(QString::number(row)));
+        QVERIFY(b.view->ensureVisible(2, 0) || b.layout().pane(Pane::Top).firstRow <= 2);
+        QVERIFY(b.layout().pane(Pane::Top).firstRow <= 2);
+        b.view->selectCell(0, 0);
+        b.view->ensureVisible(0, 0);
+        QCOMPARE(b.layout().pane(Pane::Top).firstRow, qint64(0));
+    }
+
+    // A split made before the window is shown (it is small then) keeps the cell it was made at; the bar is drawn clear of the edges when there is room.
+    void aSplitMadeBeforeTheWindowIsShownKeepsItsCell()
+    {
+        Book b;
+        for (quint32 r = 0; r < 100; ++r) b.number(r, 0, r);
+        b.sheet.cells.finish();
+        b.view = std::make_unique<GridView>();
+        b.view->resize(QSize(120, 60));
+        GridData d;
+        d.styles = &b.styles;
+        d.strings = &b.strings;
+        d.sheet = &b.sheet;
+        b.view->setData(d);
+        b.view->splitAt(10, 3);
+        QCOMPARE(b.layout().splitHeight(), b.layout().rows.position(10));
+        QCOMPARE(b.layout().splitWidth(), b.layout().cols.position(3));
     }
 
     // Keys, clicks, and scrolling on a sheet with nothing in it, and with its rows hidden, do not fail.

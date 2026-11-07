@@ -5,6 +5,7 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
+#include <QGuiApplication>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -133,13 +134,16 @@ bool EditLinksDialog::updateRow(int row)
         return false;
     }
     crunch::EditSession::ExternalUpdate done;
+    QGuiApplication::setOverrideCursor(Qt::WaitCursor);
     const crunch::EditSession::Outcome o = m_session->updateExternalValues(s.index, path, &done);
+    QGuiApplication::restoreOverrideCursor();
     if (!o.ok) {
         m_note->setText(o.problem);
         return false;
     }
     m_note->setText(done.kept > 0 ? tr("Cells given the values the source has now: %1. Cells that combine them with other values keep the values their file stored: %2.").arg(done.updated).arg(done.kept)
                                   : tr("Cells given the values the source has now: %1.").arg(done.updated));
+    if (done.cut) m_note->setText(m_note->text() + QLatin1Char(' ') + tr("...and more cells were not read: there are too many."));
     Q_EMIT linksChanged();
     return true;
 }

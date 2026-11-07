@@ -1144,8 +1144,7 @@ void SheetReader::startPane(const QXmlStreamReader &r)
     const QStringView state = attribute(r, "state");
     m_activePane = attribute(r, "activePane").toString();
     if (state == QLatin1String("split")) {
-        bool good = false;
-        const double sx = attribute(r, "xSplit").trimmed().toDouble(&good), sy = attribute(r, "ySplit").trimmed().toDouble(&good);
+        const double sx = attribute(r, "xSplit").trimmed().toDouble(), sy = attribute(r, "ySplit").trimmed().toDouble();
         const double wide = std::isfinite(sx) && sx > 0 ? std::min(std::floor(sx), 1.0e6) : 0, tall = std::isfinite(sy) && sy > 0 ? std::min(std::floor(sy), 1.0e6) : 0;
         if (wide == 0 && tall == 0) return;
         v.split = true;

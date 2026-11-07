@@ -613,6 +613,37 @@ private Q_SLOTS:
         QCOMPARE(g.splitBarX(), -1);
     }
 
+    // A bar that a file (or a smaller window) puts near or past the far edge is drawn clear of it: the part beyond it has room, and the bar is in the window to be reached.
+    void aSplitBarIsKeptInsideTheWindow()
+    {
+        GridLayout g = plain();
+        g.setFrozen(3, 2);
+        g.setSplit(1000000, 1000000);
+        QVERIFY(g.splitBarX() < 680 - 8 && g.splitBarY() < 420 - 8);
+        QVERIFY(g.pane(Pane::Body).rect.width() >= 8 && g.pane(Pane::Body).rect.height() >= 8);
+        QCOMPARE(g.splitWidth(), qint64(1000000));   // (what is kept is what was asked)
+        g.setSplit(150, 70);
+        QCOMPARE(g.splitBarX(), 40 + 150);
+        g.setViewport(QSize(200, 100));   // (a window made smaller)
+        QVERIFY(g.splitBarX() < 200 - 8 && g.splitBarY() < 100 - 8);
+        QVERIFY(g.pane(Pane::Body).rect.width() > 0 && g.pane(Pane::Body).rect.height() > 0);
+        QCOMPARE(g.hit(QPoint(g.splitBarX() + 2, g.splitBarY() + 2)).pane, Pane::Body);
+    }
+
+    // A row (or column) that the bar cuts across is the lower (right) part's, and is whole there: the cell is not drawn half in one part.
+    void aRowAcrossTheBarIsWholeInTheLowerPart()
+    {
+        GridLayout g = plain();
+        g.setFrozen(3, 2);
+        g.setSplit(150, 70);   // (row 3 is from 60 to 80; column 2 from 128 to 192)
+        qint64 x = g.scrollX(), y = g.scrollY();
+        QVERIFY(!g.scrollToShow(3, 0, &x, &y));
+        QVERIFY(g.pane(Pane::Left).rect.contains(g.cellRect(3, 0)));
+        QVERIFY(g.pane(Pane::Top).rect.contains(g.cellRect(0, 2)));
+        QVERIFY(g.pane(Pane::Body).rect.contains(g.cellRect(3, 2)));
+        QVERIFY(g.pane(Pane::Corner).rect.contains(g.cellRect(2, 1)));
+    }
+
     // A cell in the top part is not scrolled to; one that no part shows is brought into the part that scrolls, even when it is above the row the split was made at.
     void splitBringsACellIntoTheFirstPartThatCanShowIt()
     {

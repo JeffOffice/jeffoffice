@@ -2113,3 +2113,31 @@ void CrunchPrintTests::notesPrintAtTheEndOfTheSheet()
 
 
 JP_TEST_CLASS(CrunchPrintTests)
+
+// The top pane's scroll position is saved with the sheet's view, and rows inserted above the bar leave the lower pane at the row it was at, with the split still there.
+void CrunchPrintTests::theTopPanesScrollAndRowsInsertedAboveTheBarAreKept()
+{
+    EditWindow e;
+    QVERIFY(e.open(rowsWithFormulas(100, {})));
+    CrunchWindow &w = e.win.w;
+    e.select(QStringLiteral("C5"));
+    w.act(QStringLiteral("view.split"))->trigger();
+    QVERIFY(e.view()->scrollSplitPart(true, 30));
+    QVERIFY(e.view()->scrollSplitPart(false, 1));
+    e.view()->verticalScrollBar()->setValue(int(e.view()->sheet().layout().rows.position(60)));
+    const qint64 lower = e.view()->sheet().layout().pane(grid::Pane::Body).firstRow;
+    QVERIFY(lower >= 60);
+    QSignalSpy saved(&w, &CrunchWindow::saved);
+    QVERIFY(w.save());
+    QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+    Package pk;
+    QString why;
+    QVERIFY(pk.readLazyFile(e.path, &why));
+    const QByteArray xml = pk.part(QStringLiteral("xl/worksheets/sheet1.xml"));
+    QVERIFY2(xml.contains("<sheetView workbookViewId=\"0\" topLeftCell=\"B31\">") || xml.contains("topLeftCell=\"B31\""), xml.left(900).constData());
+    // rows put in above the bar
+    QVERIFY(w.session()->insertRows(0, 1, 2).ok);
+    QVERIFY(e.settle());
+    QVERIFY(e.view()->isSplit());
+    QCOMPARE(e.view()->sheet().layout().pane(grid::Pane::Body).firstRow, lower);
+}
