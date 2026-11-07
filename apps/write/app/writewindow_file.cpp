@@ -584,9 +584,16 @@ void WriteWindow::returnToPlace(const QString &path)
     m_view->showCursor(c);
 }
 
-void WriteWindow::recordPlace(int position)
+void WriteWindow::recordPlace(int position, int removed, int added)
 {
     m_placeStep = 0;
+    // (The places before this edit follow it, as a bookmark does: after the words that were cut they move up, inside them they are where the cut was, and after the words put in they move down.
+    //  `position` is where the new words end; the change began at position - added.)
+    const int began = position - added;
+    for (int &place : m_editPlaces) {
+        if (place >= began + removed) place += added - removed;
+        else if (place > began) place = began;
+    }
     // (an edit near the last one is the same place)
     if (!m_editPlaces.isEmpty() && qAbs(m_editPlaces.first() - position) <= 100) m_editPlaces[0] = position;
     else {

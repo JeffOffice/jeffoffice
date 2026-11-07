@@ -236,7 +236,7 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
             if (m_outlineOn && !m_outlineBusy) m_outline->rebuild();
         });
         resetEditPlaces();
-        connect(m_doc->story(), &QTextDocument::contentsChange, this, [this](int position, int, int added) { recordPlace(position + added); });
+        connect(m_doc->story(), &QTextDocument::contentsChange, this, [this](int position, int removed, int added) { recordPlace(position + added, removed, added); });
     }
     m_view->setDocument(m_doc.get());
     if (m_split->isVisible()) m_split->setDocument(m_doc.get());

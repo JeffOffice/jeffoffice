@@ -514,7 +514,7 @@ private:
     std::unique_ptr<write::WriteDoc> m_selectionDoc;   // the copy that the last count of the pages to print for the selection was made from
     QList<int> m_editPlaces;
     int m_placeStep = 0;
-    void recordPlace(int position);
+    void recordPlace(int position, int removed = 0, int added = 0);
     void applyDisplayDefaults();
     void applyEditingDefaults();   // Options > Advanced: how a link is followed, and dragging text
     void returnToPlace(const QString &path);

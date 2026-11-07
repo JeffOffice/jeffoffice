@@ -193,6 +193,34 @@ private Q_SLOTS:
         QCOMPARE(went, (QStringList{QStringLiteral("1901"), QStringLiteral("1301"), QStringLiteral("701"), QStringLiteral("1901")}));
     }
 
+    void lastPlacesFollowTheEditsThatCameAfterThem()
+    {
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("0123456789"));
+        w.document()->story()->setPlainText(QString(2500, QLatin1Char('x')));
+        w.resetEditPlaces();
+        QTextCursor c(w.document()->story());
+        c.setPosition(1900);
+        c.insertText(QStringLiteral("q"));
+        QCOMPARE(w.editPlaces(), (QList<int>{1901}));
+        // 300 letters put in far above it: the first edit's place moves down with its words.
+        c.setPosition(100);
+        c.insertText(QString(300, QLatin1Char('y')));
+        QCOMPARE(w.editPlaces(), (QList<int>{400, 2201}));
+        // 500 taken out above both: they move up (the one inside what went is where the cut was).
+        c.setPosition(50);
+        c.setPosition(550, QTextCursor::KeepAnchor);
+        c.removeSelectedText();
+        QCOMPARE(w.editPlaces(), (QList<int>{50, 1701}));
+        QStringList went;
+        for (int i = 0; i < 2; ++i) {
+            w.act(QStringLiteral("edit.lastPlace"))->trigger();
+            went << QString::number(w.view()->cursor().position());
+        }
+        QCOMPARE(went, (QStringList{QStringLiteral("50"), QStringLiteral("1701")}));
+    }
+
     void aSaveToOdtAsksFirstAndCanSaveADocxInstead()
     {
         QTemporaryDir dir;
