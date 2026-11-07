@@ -1085,6 +1085,7 @@ QStringList checkLazyRibbon(Adapter &app)
         QStringList names;
         QList<QImage> pictures;
         QString description;
+        QString accessible;   // what each control of each tab is called and described as, and whether it has help text, for screen readers (the help text of a button for a command that changes its own words is the words of the time it was made)
         int left = 0;   // tabs not yet made at the start
         qint64 showMs = 0;   // the time showTab took over all of them
         int notMade = 0;
@@ -1121,6 +1122,9 @@ QStringList checkLazyRibbon(Adapter &app)
             for (QWidget *c : r->findChildren<QWidget *>()) c->setAttribute(Qt::WA_UnderMouse, false);
             out.names << r->tabName(i);
             out.pictures << r->grab().toImage();
+            for (QWidget *c : r->tabAt(i)->findChildren<QWidget *>()) {
+                out.accessible += QStringLiteral("%1/%2|%3|%4|%5|%6|%7\n").arg(r->tabName(i), QString::fromLatin1(c->metaObject()->className()), c->objectName(), c->accessibleName(), c->accessibleDescription(), c->whatsThis().isEmpty() ? QStringLiteral("-") : QStringLiteral("help"), c->toolTip());
+            }
         }
         out.description = r->describe(true);
         out.ok = true;
@@ -1149,6 +1153,15 @@ QStringList checkLazyRibbon(Adapter &app)
         }
         fails << QStringLiteral("%1/%2: looks different when made late (differs in %3,%4 %5x%6)").arg(app.name, whole.names[i]).arg(box.x()).arg(box.y()).arg(box.width()).arg(box.height());
     }
+    if (whole.accessible != late.accessible)
+        if (const QString dir = qEnvironmentVariable("JP_LAZY_SHOTS"); !dir.isEmpty()) {
+            QDir().mkpath(dir);
+            for (const auto &one : {std::make_pair(QStringLiteral("whole"), whole.accessible), std::make_pair(QStringLiteral("late"), late.accessible)}) {
+                QFile f(QStringLiteral("%1/%2-names-%3.txt").arg(dir, app.name, one.first));
+                if (f.open(QIODevice::WriteOnly)) f.write(one.second.toUtf8());
+            }
+        }
+    if (whole.accessible != late.accessible) fails << app.name + QLatin1String(": the controls are named, described, or told differently for screen readers when their tabs are made late");
     if (whole.description != late.description) fails << app.name + QLatin1String(": the ribbon holds something else when its tabs are made late");
     return fails;
 }
