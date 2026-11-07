@@ -85,7 +85,8 @@ for A in "$@"; do
 done
 
 # (xargs -L takes a line that ends in a blank as going on to the next one)
-sed -i 's/[[:space:]]*$//' "$parts"
+# (not sed -i: macOS's sed reads the next argument as a backup suffix, leaves the blanks, and a part's line runs on into the next one's)
+sed 's/[[:space:]]*$//' "$parts" > "$parts.trim" && mv "$parts.trim" "$parts"
 # shellcheck disable=SC2016
 xargs -P "$jobs" -L 1 bash -c 'id=$1; prog=$2; shard=$3; shift 3; started=$(date +%s)
     if [ "$shard" != "-" ]; then export JO_APPCHECK_SHARD=$shard; fi
