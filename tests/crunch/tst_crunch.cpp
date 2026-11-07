@@ -291,8 +291,9 @@ private Q_SLOTS:
         {
             Window win;
             QVERIFY(win.open(folder.write(QStringLiteral("none.xlsx"), buildXlsx({sheet}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QString(), QByteArray(), QString(), {0}))));
-            QVERIFY(win.w.hasWorkbook());   // (every sheet hidden: the window still opens it)
-            QCOMPARE(win.w.sheetTabs()->count(), 0);
+            QVERIFY(win.w.hasWorkbook());   // (every sheet hidden: the window opens it with the first sheet shown)
+            QCOMPARE(win.w.sheetTabs()->count(), 1);
+            QCOMPARE(win.w.activeSheet(), 0);
         }
     }
 
