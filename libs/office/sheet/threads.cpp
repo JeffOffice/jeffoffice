@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <set>
+#include <unordered_map>
 
 namespace jp::office::sheet {
 
@@ -55,6 +56,26 @@ int threadDepth(const ThreadList &thread, size_t index)
         ++depth;
     }
     return depth;
+}
+
+std::vector<int> threadDepths(const ThreadList &thread)
+{
+    std::unordered_map<QString, size_t> at;
+    at.reserve(thread.size());
+    for (size_t i = 0; i < thread.size(); ++i) at.emplace(thread[i].id, i);   // (the first comment of an id is the one that replies name)
+    std::vector<int> out(thread.size(), 0);
+    for (size_t i = 0; i < thread.size(); ++i) {
+        size_t here = i;
+        int depth = 0;
+        while (!thread[here].parentId.isEmpty() && depth < 32) {
+            const auto up = at.find(thread[here].parentId);
+            if (up == at.end() || up->second == here) break;
+            here = up->second;
+            ++depth;
+        }
+        out[i] = depth;
+    }
+    return out;
 }
 
 QString newThreadId() { return QUuid::createUuid().toString(QUuid::WithBraces).toUpper(); }

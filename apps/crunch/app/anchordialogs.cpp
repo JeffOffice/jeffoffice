@@ -30,7 +30,7 @@ enum Kind { WebKind, PlaceKind, MailKind };
 NoteDialog::NoteDialog(const NoteRequest &request, QWidget *parent) : QDialog(parent)
 {
     setObjectName(QStringLiteral("noteDialog"));
-    setWindowTitle(tr("Note on %1").arg(request.where));
+    setWindowTitle(request.title.isEmpty() ? tr("Note on %1").arg(request.where) : request.title);
     auto *layout = new QVBoxLayout(this);
     if (!request.author.isEmpty()) {
         auto *by = plainLabel(new QLabel(tr("Written by %1").arg(request.author), this));
@@ -45,7 +45,7 @@ NoteDialog::NoteDialog(const NoteRequest &request, QWidget *parent) : QDialog(pa
     m_text->setMinimumSize(320, 140);
     layout->addWidget(m_text);
     if (request.readOnly) {
-        auto *why = new QLabel(tr("This note is a conversation of comments. JeffCrunch shows it and keeps it, but doesn't change it."), this);
+        auto *why = new QLabel(tr("This note is a conversation of comments. Change it with the commands in Comments, on the Review tab."), this);
         why->setWordWrap(true);
         why->setObjectName(QStringLiteral("noteReadOnly"));
         layout->addWidget(why);

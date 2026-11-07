@@ -26,6 +26,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Clear"),
     QT_TRANSLATE_NOOP("Ribbon", "Clipboard"),
     QT_TRANSLATE_NOOP("Ribbon", "Colors"),
+    QT_TRANSLATE_NOOP("Ribbon", "Comments"),
     QT_TRANSLATE_NOOP("Ribbon", "Conditional Formatting"),
     QT_TRANSLATE_NOOP("Ribbon", "Crop"),
     QT_TRANSLATE_NOOP("Ribbon", "Data"),

@@ -44,6 +44,8 @@ QString legacyThreadAuthor(const ThreadList &thread);
 bool threadResolved(const ThreadList &thread);
 // How many replies deep comment `index` is (0 for the first; the walk up stops at 32, so a loop of parents ends).
 int threadDepth(const ThreadList &thread, size_t index);
+// The depth of every comment of the thread, worked out together (the same numbers, in time that grows with the length of the thread, not with its square).
+std::vector<int> threadDepths(const ThreadList &thread);
 // A new id for a comment or a person: "{" and 36 characters of a random id in capitals and "}".
 QString newThreadId();
 // The time now as a comment writes it.

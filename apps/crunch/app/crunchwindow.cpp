@@ -260,6 +260,10 @@ CrunchWindow::~CrunchWindow()
     if (m_slicerPane) m_slicerPane->disconnect(this);
     m_slicerPane = nullptr;   // (the session's steps going tell the window: it must not fill a pane from a session that is going)
     m_slicerDock = nullptr;
+    if (m_commentsDock) m_commentsDock->disconnect(this);   // (and so is the Comments pane)
+    if (m_commentsPane) m_commentsPane->disconnect(this);
+    m_commentsPane = nullptr;
+    m_commentsDock = nullptr;
     // (the session's undo stack tells the window as its steps go: it is let go of first, and the window is not told)
     if (m_session) {
         m_session->undoStack()->disconnect(this);

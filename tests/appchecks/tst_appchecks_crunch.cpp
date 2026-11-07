@@ -376,6 +376,15 @@ private Q_SLOTS:
                 w->session()->setNote(0, 0, 0, QStringLiteral("A note"), QStringLiteral("me"), false, QStringLiteral("Add Note"));
                 w->view()->selectCell(0, 0);
             }),
+            in(QStringLiteral("a comment on a cell"), [](CrunchWindow *w) {
+                w->session()->newComment(0, 0, 0, QStringLiteral("A comment"), QStringLiteral("me"), QStringLiteral("New Comment"));
+                w->view()->selectCell(0, 0);
+            }),
+            in(QStringLiteral("a note and a comment, the note selected"), [](CrunchWindow *w) {
+                w->session()->setNote(0, 0, 0, QStringLiteral("A note"), QStringLiteral("me"), false, QStringLiteral("Add Note"));
+                w->session()->newComment(0, 1, 1, QStringLiteral("A comment"), QStringLiteral("me"), QStringLiteral("New Comment"));
+                w->view()->selectCell(0, 0);
+            }),
             in(QStringLiteral("a cell with a link"), [](CrunchWindow *w) {
                 jp::office::sheet::CellRange cell;
                 jp::office::sheet::parseRangeRef(QStringLiteral("B2"), &cell);
@@ -513,6 +522,7 @@ private Q_SLOTS:
             {QStringLiteral("object.ungroup"), {QStringLiteral("a group selected")}},
             {QStringLiteral("chartdesign."), {QStringLiteral("a chart selected")}},
             {QStringLiteral("chartdesign.moveChart"), {QStringLiteral("a chart selected, and a second sheet")}},
+            {QStringLiteral("comments."), {QStringLiteral("a comment on a cell"), QStringLiteral("a note and a comment, the note selected")}},
             {QStringLiteral("link."), {QStringLiteral("a cell with a link")}},
             {QStringLiteral("filter."), {QStringLiteral("a filter on"), QStringLiteral("a filter on, and a value changed after")}},
             {QStringLiteral("printarea."), {QStringLiteral("a print area set")}},

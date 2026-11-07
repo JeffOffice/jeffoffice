@@ -75,6 +75,7 @@ void CrunchWindow::createNoteActions()
     mk("link.remove", tr("Remove Link"), "unlink", QKeySequence(), [this] { removeSelectedLinks(); }, false, false);
     mk("edit.clear.notes", tr("Clear Comments and Notes"), "message-square-x", QKeySequence(), [this] { deleteSelectedNotes(); }, false, false);
     mk("edit.clear.links", tr("Clear Hyperlinks"), "unlink", QKeySequence(), [this] { removeSelectedLinks(); }, false, false);
+    createCommentActions();
     m_hoverTimer.setSingleShot(true);
     m_hoverTimer.setInterval(350);
     connect(&m_hoverTimer, &QTimer::timeout, this, &CrunchWindow::showHoverTip);
@@ -112,6 +113,7 @@ void CrunchWindow::refreshAnchors()
     }
     m_view->setShownNotes(std::move(shown));
     updateNoteActions();
+    fillComments();
 }
 
 void CrunchWindow::updateNoteActions()
@@ -171,6 +173,7 @@ void CrunchWindow::updateNoteActions()
             }
     act("link.remove")->setEnabled(can && anyLinks);
     act("edit.clear.links")->setEnabled(can && anyLinks);
+    updateCommentActions();
 }
 
 // ---- notes
@@ -188,6 +191,7 @@ void CrunchWindow::editNote()
     if (was) {
         req.text = was->text;
         req.readOnly = was->threaded;
+        if (was->threaded) req.title = tr("Comments on %1").arg(req.where);
     }
     if (!was) {
         QString why;
@@ -309,7 +313,7 @@ QString CrunchWindow::hoverTipText(bool *isNote) const
     const crunch::CellAnchors &a = m_session->anchors();
     if (const NoteInfo *n = a.noteAt(m_sheet, quint32(row), quint32(col))) {
         if (isNote) *isNote = true;
-        return n->text;
+        return n->thread ? threadTipText(*n) : n->text;
     }
     if (const LinkSpec *l = a.linkAt(m_sheet, quint32(row), quint32(col))) {
         QString where = l->tip;

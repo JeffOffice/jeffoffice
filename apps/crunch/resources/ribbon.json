@@ -435,6 +435,21 @@
           ]
         },
         {
+          "name": "Comments",
+          "keytip": "ZM",
+          "items": [
+            {"large": "comments.new", "keytip": "MN"},
+            {"small": "comments.reply", "keytip": "MR"},
+            {"small": "comments.resolve", "keytip": "MV"},
+            {"small": "comments.delete", "keytip": "MD"},
+            {"small": "comments.prev", "keytip": "MP"},
+            {"small": "comments.next", "keytip": "MX"},
+            {"small": "comments.show", "keytip": "MS"},
+            {"small": "comments.convert", "keytip": "MC"},
+            {"small": "comments.revert", "keytip": "MB"}
+          ]
+        },
+        {
           "name": "Protect",
           "keytip": "ZP",
           "items": [

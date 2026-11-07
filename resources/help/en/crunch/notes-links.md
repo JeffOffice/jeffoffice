@@ -1,5 +1,5 @@
-# Notes and links
-<!-- keywords: thesaurus, synonyms, word list, note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells, recent files -->
+# Notes, comments, and links
+<!-- keywords: comments pane, new comment, reply, resolve, reopen, thread, previous comment, next comment, show comments, convert notes to comments, convert comments to notes, thesaurus, synonyms, word list, note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells, recent files -->
 
 ## Notes
 
@@ -14,9 +14,29 @@ To put a note on a cell, select it and use **Review > New Note** (or press **Shi
 
 Each of these is one step you can undo. A note goes with its cell when rows or columns are inserted or deleted, and when cells are sorted. **Clear All** takes the notes off the cells it clears.
 
-A workbook may hold a conversation of comments, with replies. JeffCrunch shows the whole conversation as a note and keeps it when you save, but it does not change it: the note is read-only.
+A cell can also hold a conversation of **comments**, with replies. See the next part.
 
 Notes can be saved in an .xlsx workbook. A workbook opened from an older kind of file, or from a text file, keeps its notes only after you save it as an .xlsx workbook.
+
+## Comments
+
+A **comment** is like a note, but it starts a **thread**: people can reply to it, and one of them can mark the thread **resolved** when the question is answered. Each comment shows who wrote it and when. A cell with a thread has the same red mark as a cell with a note. Rest the pointer on the cell to read the whole thread, with each reply set in under the comment it answers. A thread that is resolved starts with the word **Resolved**.
+
+On the **Review** tab, in the **Comments** group:
+
+- **New Comment** (**Ctrl+Shift+F2**) starts a thread on the selected cell. Type the words and click **OK**. It works on a cell that has no note and no comments.
+- **Reply** adds your words to the thread on the selected cell.
+- **Resolve Thread** marks the thread as done. The same button then reads **Reopen Thread**, which opens it again.
+- **Delete Comment** takes away the threads on the selected cells.
+- **Previous Comment** and **Next Comment** go from one cell with a thread to the next.
+- **Show Comments** opens the **Comments** pane beside the sheet. It lists every thread on the sheet as a card: the cell, each comment with its author and time, and the buttons **Reply**, **Resolve** or **Reopen**, and **Delete**. **Go To** moves to the cell. The pane follows every change, and Undo too.
+- **Convert Notes to Comments** turns every plain note on the sheet into a thread of one comment. **Convert Comments to Notes** turns every thread back into a note. A note has no replies, so the comments of a thread become one note with all their words, and JeffCrunch asks before it does that to a thread that has replies.
+
+Each of these is one step you can undo.
+
+Programs that cannot show threads show a plain note in their place. JeffCrunch keeps that note, with the words of the thread, each time it saves. Threads, replies, and the people who wrote them stay as they were when you save and open the workbook again. A thread with more than 500 comments is shown and kept, but JeffCrunch does not add to it or change it.
+
+Comments are saved in an .xlsx workbook. A workbook opened from an older kind of file, or from a text file, keeps its comments only after you save it as an .xlsx workbook.
 
 ## Links
 

@@ -450,7 +450,12 @@ private Q_SLOTS:
         QCOMPARE(n.thread->size(), size_t(kMaxThreadComments));
         QVERIFY(n.threadCut);
         QVERIFY(n.thread->at(0).author.isEmpty());
-        for (size_t i = 0; i < 40; ++i) QVERIFY(threadDepth(*n.thread, i) <= 32);
+        const std::vector<int> depths = threadDepths(*n.thread);
+        QCOMPARE(depths.size(), n.thread->size());
+        for (size_t i = 0; i < n.thread->size(); i += 7) {
+            QVERIFY(depths[i] <= 32);
+            QCOMPARE(depths[i], threadDepth(*n.thread, i));
+        }
     }
 
     void aThreadIsSavedWithItsOlderNoteAndItsPeople()

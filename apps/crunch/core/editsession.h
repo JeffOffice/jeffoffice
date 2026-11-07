@@ -601,6 +601,17 @@ public:
     Outcome deleteNotes(int sheet, const std::vector<std::pair<quint32, quint32>> &cells, const QString &stepText);
     // Shows or hides the notes on the cells (those of them that have one): one step.
     Outcome showNotes(int sheet, const std::vector<std::pair<quint32, quint32>> &cells, bool shown, const QString &stepText);
+    // ---- comments: threads on cells (editcomments.cpp); each is one step. `author` is the name of the person who writes (a person of that name in the workbook's threads is reused).
+    // New Comment starts a thread on a cell that has no note and no thread; Reply adds to the thread; Edit changes the words of comment `index` (0 is the first); Resolve marks the thread
+    // resolved, or reopens it; Delete drops comment `index`, and the first comment drops the thread. A thread can be deleted whole, and notes can be made threads of one comment and back.
+    Outcome newComment(int sheet, quint32 row, quint32 col, const QString &text, const QString &author, const QString &stepText);
+    Outcome replyToComment(int sheet, quint32 row, quint32 col, const QString &text, const QString &author, const QString &stepText);
+    Outcome editComment(int sheet, quint32 row, quint32 col, int index, const QString &text, const QString &stepText);
+    Outcome resolveThread(int sheet, quint32 row, quint32 col, bool resolved, const QString &stepText);
+    Outcome deleteComment(int sheet, quint32 row, quint32 col, int index, const QString &stepText);
+    Outcome deleteThreads(int sheet, const std::vector<std::pair<quint32, quint32>> &cells, const QString &stepText);
+    Outcome convertNotesToComments(int sheet, const std::vector<std::pair<quint32, quint32>> &cells, const QString &author, const QString &stepText);
+    Outcome convertCommentsToNotes(int sheet, const std::vector<std::pair<quint32, quint32>> &cells, const QString &stepText);
     // Gives the cells of the range a link (taking the place of the links that are on those cells), or takes the links on the range away. One step.
     Outcome setLink(int sheet, const jp::office::sheet::CellRange &range, const jp::office::sheet::LinkSpec &link, const QString &stepText);
     // Not ok, with the reason, if a cell of the range is locked on a protected sheet (a cell with nothing in it has the lock of its row or column); the range is looked at cell by cell up to
@@ -1266,6 +1277,9 @@ private:
     QString notCopiedNote(int sheet) const;
     void applyPermute(jp::office::sheet::CellPermute &p, bool forward);
     void forgetNotes();
+    // Threads (editcomments.cpp): not ok, with the reason, if the notes of the cell cannot be changed; and the changes to cells' notes put as one step.
+    Outcome checkThreadCell(int sheet, quint32 row, quint32 col) const;
+    Outcome pushNoteChanges(int sheet, std::vector<SideEdit::Note> notes, const QString &stepText);
     bool applySheetEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book);
     Outcome insertSheetOfKind(int before, const QString &name, int *made, bool chartSheet);
     Outcome pushSheetEdit(SheetEdit edit, const QString &text, std::vector<TableEdit> tables = {}, std::vector<CellChange> cells = {});

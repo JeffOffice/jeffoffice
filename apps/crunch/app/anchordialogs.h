@@ -25,6 +25,7 @@ struct NoteRequest {
     QString text;           // in: the words now (empty for a new note); out: what the person made them
     QString author;
     bool readOnly = false;  // a note that belongs to a conversation of comments: shown, not changed
+    QString title;          // the dialog's title, if it is not the note's
 };
 
 struct LinkRequest {

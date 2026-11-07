@@ -47,7 +47,7 @@ EditSession::Outcome EditSession::setNote(int sheet, quint32 row, quint32 col, c
     if (text.isEmpty()) return refused(tr("A note needs some words. To take a note away, delete it."));
     if (text.size() > kMaxNoteLength) return refused(tr("A note can have up to %1 characters. Shorten it, and try again.").arg(kMaxNoteLength));
     const NoteInfo *was = m_anchors.noteAt(sheet, row, col);
-    if (was && was->threaded) return refused(tr("This note is a conversation of comments. JeffCrunch shows it, but doesn't change it."));
+    if (was && was->threaded) return refused(tr("This note is a conversation of comments. Change it with the commands in Comments, on the Review tab."));
     if (!was && qint64(m_anchors.notes(sheet).size()) >= jp::office::sheet::kMaxNotes) return refused(tr("A sheet can have up to %1 notes.").arg(jp::office::sheet::kMaxNotes));
     NoteInfo now;
     now.text = text;
@@ -90,7 +90,7 @@ EditSession::Outcome EditSession::deleteNotes(int sheet, const std::vector<std::
         n.before = *was;
         edit.notes.push_back(std::move(n));
     }
-    if (edit.notes.empty()) return threaded ? refused(tr("This note is a conversation of comments. JeffCrunch shows it, but doesn't change it.")) : Outcome();
+    if (edit.notes.empty()) return threaded ? refused(tr("This note is a conversation of comments. Change it with the commands in Comments, on the Review tab.")) : Outcome();
     Step step;
     step.sides.push_back(std::move(edit));
     pushStep(std::move(step), stepText);
@@ -204,7 +204,7 @@ SideEdit EditSession::notesAndLinksIn(int sheet, const CellRange &range) const
     edit.sheet = sheet;
     for (const auto &n : m_anchors.notes(sheet)) {
         const quint32 row = quint32(n.first >> 32), col = quint32(n.first & 0xFFFFFFFFu);
-        if (!range.contains(row, col) || n.second.threaded) continue;
+        if (!range.contains(row, col)) continue;
         SideEdit::Note note;
         note.row = row;
         note.col = col;

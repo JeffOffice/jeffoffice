@@ -419,8 +419,13 @@ void CellAnchors::addToSave(SaveChanges *changes) const
                 op.author = n->second.author;
                 op.text = n->second.text;
                 op.shown = n->second.shown;
-                // (a note of a thread is kept by the file as it is)
-                if (n->second.threaded) continue;
+                if (n->second.threaded) {
+                    // (a thread the person did not change is kept by the file as it is; one they changed is written whole, with the older note that stands for it)
+                    if (!n->second.threadEdited || !n->second.thread || n->second.thread->empty() || n->second.threadCut) continue;
+                    op.author = jp::office::sheet::legacyThreadAuthor(*n->second.thread);
+                    op.text = jp::office::sheet::legacyThreadText(*n->second.thread);
+                    op.thread = n->second.thread;
+                }
             }
             sc.noteOps.push_back(op);
         }
@@ -441,6 +446,7 @@ void CellAnchors::saved()
     for (SheetData &d : m_sheets) {
         d.noteTouched.clear();
         d.linkTouched.clear();
+        for (auto &n : d.notes) n.second.threadEdited = false;
     }
 }
 
