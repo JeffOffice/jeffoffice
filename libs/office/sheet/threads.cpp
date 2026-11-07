@@ -41,13 +41,14 @@ QString threadWords(const ThreadList &thread)
     return cutTo(std::move(out), kMaxThreadWordsChars);
 }
 
+// (Built with plain appends: the earlier form, QStringLiteral pieces chosen by ?:, stopped at a trap in the macOS build only; the cause was not pinned down.)
 QString legacyThreadText(const ThreadList &thread)
 {
-    QString out = QStringLiteral("[Threaded comment]\n\nThis cell has a thread of comments. A program that cannot show threads shows this note in its place, and changes made to the note are lost when the file is opened in a program that can.");
+    QString out = QString::fromLatin1("[Threaded comment]\n\nThis cell has a thread of comments. A program that cannot show threads shows this note in its place, and changes made to the note are lost when the file is opened in a program that can.");
     for (size_t i = 0; i < thread.size(); ++i) {
         const ThreadComment &c = thread[i];
-        out += i == 0 ? QStringLiteral("\n\nComment:\n    ") : QStringLiteral("\nReply:\n    ");
-        out += c.text;
+        out.append(QLatin1StringView(i == 0 ? "\n\nComment:\n    " : "\nReply:\n    "));
+        out.append(c.text);
         if (out.size() > kMaxLegacyNoteChars) break;
     }
     return cutTo(std::move(out), kMaxLegacyNoteChars);
