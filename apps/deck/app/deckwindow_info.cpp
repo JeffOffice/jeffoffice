@@ -22,6 +22,7 @@
 #include "office/officecrypt.h"
 #include "office/package.h"
 
+#include <QApplication>
 #include <QDateTime>
 #include <algorithm>
 #include <QFileInfo>
@@ -29,21 +30,6 @@
 #include <QStatusBar>
 
 namespace jp {
-
-namespace {
-
-// The package a version's file holds: the file is protected when the presentation is, with its password.
-bool packageOfVersion(const QByteArray &stored, const QString &password, QByteArray *zip)
-{
-    QByteArray info, package;
-    if (!office::splitProtectedPackage(stored, &info, &package)) {
-        *zip = stored;
-        return true;
-    }
-    return office::decryptPackage(info, package, password, office::kMaxOpenFileBytes, false, zip) == office::CryptResult::Ok;
-}
-
-} // namespace
 
 void DeckWindow::notice(const QString &title, const QString &text, bool warning)
 {
@@ -150,6 +136,11 @@ void DeckWindow::setMarkedFinal(bool on)
             if (wasReadOnly) setReadOnly(true);
             return;
         }
+        // (saved as a kind of file that can't hold the mark: the save left it out, and the presentation is not final)
+        if (!markedAsFinal()) {
+            statusBar()->showMessage(tr("The file that was saved can't hold the mark, so the presentation is not marked as final."), 8000);
+            return;
+        }
         setReadOnly(true);
         statusBar()->showMessage(tr("Marked as final and saved. It opens for reading only."), 8000);
     } else {
@@ -167,6 +158,8 @@ void DeckWindow::encryptWithPassword()
     QString password;
     const NewPasswordChoice choice = askNewFilePassword(this, m_fileProtected, &password);
     if (choice == NewPasswordChoice::Cancelled) return;
+    // (the versions kept follow the password: none is left in the clear, and Go Back opens them with the new one)
+    const QString before = m_fileProtected ? m_filePassword : QString();
     crypto::wipe(m_filePassword);
     if (choice == NewPasswordChoice::Removed) {
         m_fileProtected = false;
@@ -175,6 +168,12 @@ void DeckWindow::encryptWithPassword()
         m_fileProtected = true;
         m_filePassword = password;
         statusBar()->showMessage(tr("The presentation is protected with a password when you save."), 8000);
+    }
+    if (!m_ed->filePath().isEmpty()) {
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+        const int failed = write::reprotectVersions(m_ed->filePath(), QStringLiteral(".pptx"), before, m_fileProtected ? m_filePassword : QString());
+        QApplication::restoreOverrideCursor();
+        if (failed > 0) notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
     }
     crypto::wipe(password);
     // (a password is a change to save, as the properties are)
@@ -337,7 +336,7 @@ bool DeckWindow::restoreVersion(const QString &file)
     QByteArray zip;
     QString err;
     std::unique_ptr<Document> doc;
-    if (packageOfVersion(store.read(file), m_filePassword, &zip) && !zip.isEmpty()) doc = deck::importPresentation(zip, &err);
+    if (write::versionPackage(store.read(file), m_filePassword, &zip) && !zip.isEmpty()) doc = deck::importPresentation(zip, &err);
     if (!doc) {
         notice(tr("Version History"), tr("That version can't be opened.\n%1").arg(err), true);
         return false;
@@ -347,11 +346,15 @@ bool DeckWindow::restoreVersion(const QString &file)
         if (v.file == file) which = v.name;
     // What the presentation is now is kept first: going back loses nothing.
     if (!saveVersion(tr("Before restoring \"%1\"").arg(which))) return false;
+    // (a new presentation in the window clears the password and the names kept out: neither is lost by going back)
     const bool protectedNow = m_fileProtected;
+    QString password = m_filePassword;
     const bool namesOut = m_personalInfoRemoved;
     m_ed->endTextEdit();
     m_ed->setDocument(std::move(doc), path);
     m_fileProtected = protectedNow;
+    m_filePassword = password;
+    crypto::wipe(password);
     m_personalInfoRemoved = namesOut;
     m_ed->markUnsaved();
     m_canvas->zoomToFit(Canvas::Fit::WholePage);

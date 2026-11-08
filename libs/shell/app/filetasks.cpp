@@ -4,6 +4,8 @@
 #include "app/icons.h"
 #include "app/plaintext.h"
 #include "app/settings.h"
+#include "office/officecrypt.h"
+#include "office/package.h"
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -97,9 +99,20 @@ QString backupPathFor(const QString &path)
     return fi.absoluteDir().filePath(QStringLiteral("Backup of ") + fi.fileName());
 }
 
-BackupResult keepBackupBeforeSave(const QString &path)
+BackupResult keepBackupBeforeSave(const QString &path, const QString &password)
 {
     if (!backupOnSave() || !QFileInfo(path).isFile()) return BackupResult::NotNeeded;
+    if (!password.isEmpty()) {
+        QByteArray bytes, info, package;
+        if (!office::readWholeFile(path, &bytes)) return BackupResult::Failed;
+        if (!office::splitProtectedPackage(bytes, &info, &package)) {
+            bytes = office::encryptPackage(bytes, password);
+            if (bytes.isEmpty()) return BackupResult::Failed;
+        }
+        QSaveFile protectedOut(backupPathFor(path));
+        if (!protectedOut.open(QIODevice::WriteOnly) || protectedOut.write(bytes) != bytes.size()) return BackupResult::Failed;
+        return protectedOut.commit() ? BackupResult::Made : BackupResult::Failed;
+    }
     // The copy goes to a file of its own that replaces the old backup only when it is written whole.
     QFile in(path);
     if (!in.open(QIODevice::ReadOnly)) return BackupResult::Failed;
@@ -131,9 +144,9 @@ std::function<bool(const QString &)> &backupStandIn()
 
 void setBackupFailureStandIn(const std::function<bool(const QString &)> &standIn) { backupStandIn() = standIn; }
 
-bool backupBeforeSave(QWidget *parent, const QString &path)
+bool backupBeforeSave(QWidget *parent, const QString &path, const QString &password)
 {
-    if (keepBackupBeforeSave(path) != BackupResult::Failed) return true;
+    if (keepBackupBeforeSave(path, password) != BackupResult::Failed) return true;
     if (backupStandIn()) return backupStandIn()(path);
     return plainQuestion(parent, QCoreApplication::translate("FileTasks", "Save"),
                          QCoreApplication::translate("FileTasks", "A backup copy of \"%1\" couldn't be made, so the copy that is there is as it was.\n\nSave without a backup?").arg(QFileInfo(path).fileName()), QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;

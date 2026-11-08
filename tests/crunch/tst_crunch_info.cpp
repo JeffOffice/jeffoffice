@@ -1,6 +1,7 @@
 // Tests of JeffCrunch's Info page: the properties a workbook keeps (written at the next save, into parts the file may not have had), Mark as Final, and Inspect Workbook. Every workbook is
 // built here.
 #include <QLocale>
+#include "app/anchordialogs.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/filescreen.h"
@@ -103,6 +104,38 @@ private Q_SLOTS:
         QVERIFY(!after.contains(QStringLiteral("docProps/custom.xml")));
         QVERIFY(!after.value(QStringLiteral("_rels/.rels")).contains("custom-properties"));
         QVERIFY(!after.value(QStringLiteral("[Content_Types].xml")).contains("custom-properties"));
+    }
+
+    // A version of a workbook that asks for a password is kept protected, and a password put on, changed, or taken off is put on the versions already kept.
+    void versionsOfAProtectedWorkbookAreProtected()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        write::VersionStore store(e.path, QStringLiteral(".xlsx"));
+        store.removeAll();
+        auto firstVersion = [&] { return store.read(e.win.w.versions().first().file); };
+        QSignalSpy kept(&e.win.w, &CrunchWindow::versionKept);
+        QVERIFY(e.win.w.saveVersion(QStringLiteral("Plain")));
+        QVERIFY(kept.count() > 0 || kept.wait(20000));
+        QVERIFY(firstVersion().startsWith("PK"));
+        auto setPassword = [&](const QString &password, bool remove) {
+            e.win.w.anchorHooks().setFilePasswordAsker = [=](SetFilePasswordRequest *r) {
+                r->password = password;
+                r->remove = remove;
+                return true;
+            };
+            e.win.w.act(QStringLiteral("protect.password"))->trigger();
+        };
+        setPassword(QStringLiteral("one"), false);
+        QVERIFY(firstVersion().startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)));
+        kept.clear();
+        QVERIFY(e.win.w.saveVersion(QStringLiteral("Protected")));
+        QVERIFY(kept.count() > 0 || kept.wait(20000));
+        QVERIFY(firstVersion().startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)));
+        setPassword(QString(), true);
+        for (const write::DocVersion &v : e.win.w.versions()) QVERIFY2(store.read(v.file).startsWith("PK"), qPrintable(v.name));
+        e.win.w.setWindowModified(false);
+        store.removeAll();
     }
 
     void aWorkbookMarkedAsFinalOpensForReadingOnly()

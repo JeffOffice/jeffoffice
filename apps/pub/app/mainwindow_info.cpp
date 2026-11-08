@@ -132,6 +132,11 @@ void MainWindow::setMarkedFinal(bool on)
             if (wasReadOnly) setReadOnly(true);
             return;
         }
+        // (saved as a kind of file that can't hold the mark: the save left it out, and the publication is not final)
+        if (!markedAsFinal()) {
+            statusBar()->showMessage(tr("The file that was saved can't hold the mark, so the publication is not marked as final."), 8000);
+            return;
+        }
         setReadOnly(true);
         statusBar()->showMessage(tr("Marked as final and saved. It opens for reading only."), 8000);
     } else {

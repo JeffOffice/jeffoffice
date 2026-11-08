@@ -137,7 +137,8 @@ CryptResult parseAgile(const QByteArray &info, AgileInfo *out)
     // (the key that is unlocked is the data's key: its size, and the hash that makes the package's check, are the ones the data names)
     if (e.keyBits != out->keyBits) return CryptResult::Damaged;
     if (e.hash != out->hash) return CryptResult::Unsupported;
-    if (e.spinCount < 0 || e.spinCount > kMaxPackageSpinCount) return CryptResult::Damaged;
+    if (e.spinCount < 0) return CryptResult::Damaged;
+    if (e.spinCount > kMaxPackageSpinCount) return CryptResult::TooCostly;
     if (out->salt.size() != out->saltSize || e.salt.size() != e.saltSize) return CryptResult::Damaged;
     const qsizetype keyBytes = e.keyBits / 8;
     if (e.verifierInput.isEmpty() || e.verifierInput.size() % 16 || e.verifierValue.isEmpty() || e.verifierValue.size() % 16 || e.keyValue.size() % 16 || e.keyValue.size() < keyBytes) return CryptResult::Damaged;

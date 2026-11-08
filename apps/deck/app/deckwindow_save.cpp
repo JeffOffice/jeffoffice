@@ -181,7 +181,7 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     // A password protects a .pptx file; an .odp file can't be protected yet, and is never written without the protection the person asked for.
     const bool odf = deck::formatOfFileName(path) == deck::FileFormat::Odp;
     if (m_fileProtected && odf) {
-        notice(tr("Save"), tr("This presentation is protected with a password, and a .odp file can't hold a password yet. Save it as a .pptx file, or remove the password first (File > Info)."));
+        notice(tr("Save"), tr("This presentation is protected with a password, and a .%1 file can't hold a password yet. Save it as a .pptx file, or remove the password first (File > Info).").arg(QFileInfo(path).suffix().toLower()));
         return false;
     }
     // What was typed in the notes or a slide's text goes into the file.
@@ -208,7 +208,7 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     if (doc->props.author.isEmpty()) doc->props.author = Settings::get().userName();
     QString err;
     QStringList skipped;
-    if (!backupBeforeSave(this, path)) return false;
+    if (!backupBeforeSave(this, path, m_fileProtected ? m_filePassword : QString())) return false;
     if (!deck::saveAnyPresentationFile(*doc, path, &err, &skipped, embedFontsOnSave(), m_fileProtected ? m_filePassword : QString())) {
         jp::plainWarning(this, tr("Save"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;

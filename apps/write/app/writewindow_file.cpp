@@ -229,7 +229,7 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
     target->m_textNoted = false;
     target->m_personalInfoRemoved = false;
     target->m_recoveryNoted = false;
-    target->m_fileProtected = wasProtected && !tmpl && !copy;
+    target->m_fileProtected = wasProtected && !tmpl;   // (a copy of a protected file is protected too)
     crypto::wipe(target->m_filePassword);
     if (target->m_fileProtected) target->m_filePassword = openedWith;
     crypto::wipe(openedWith);
@@ -433,7 +433,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
             for (const QString &what : fresh) m_odtNoted.insert(what);   // (said now: not said again afterward)
         }
     }
-    if (!backupBeforeSave(this, path)) return false;
+    if (!backupBeforeSave(this, path, m_fileProtected ? m_filePassword : QString())) return false;
     QApplication::setOverrideCursor(Qt::WaitCursor);
     if (ott && !bytes.isEmpty()) bytes = office::odt::odfAsTemplate(bytes);
     if (m_fileProtected && !bytes.isEmpty()) bytes = office::encryptPackage(bytes, m_filePassword);

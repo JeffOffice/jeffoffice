@@ -2,6 +2,7 @@
 
 #include "app/crunchwindow.h"
 #include "app/versionhistory.h"
+#include "office/officecrypt.h"
 
 #include "app/plaintext.h"
 #include "app/otherformats.h"
@@ -66,11 +67,21 @@ bool CrunchWindow::saveVersion(const QString &name)
     setStatus(tr("Keeping a version…"));
     const std::shared_ptr<office::sheet::Workbook> book = m_loaded->book;
     const QPointer<CrunchWindow> self(this);
-    QThread *thread = QThread::create([self, book, snapshot, path, label] {
+    // (a version of a workbook that asks for a password asks for it too)
+    const bool protect = m_fileProtected;
+    const auto secret = std::make_shared<QString>(m_filePassword.isEmpty() ? office::defaultPassword() : m_filePassword);
+    QThread *thread = QThread::create([self, book, snapshot, path, label, protect, secret] {
         QByteArray bytes;
         QString message;
         office::sheet::SaveReport report;
         bool ok = office::sheet::saveXlsx(*book, snapshot->changes, &bytes, &message, &report);
+        if (ok && protect) {
+            bytes = office::encryptPackage(bytes, *secret);
+            if (bytes.isEmpty()) {
+                ok = false;
+                message = QCoreApplication::translate("jp::CrunchWindow", "The workbook could not be protected with the password.");
+            }
+        }
         if (ok) ok = write::VersionStore(path, kVersionEnding).add(label, bytes, &message);
         QMetaObject::invokeMethod(qApp, [self, ok, message] {
             if (!self) return;

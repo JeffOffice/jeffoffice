@@ -118,6 +118,37 @@ bool saveInto(WriteWindow &w, const QTemporaryDir &dir, const QString &name)
     return w.saveAs();
 }
 
+const QByteArray kCompound("\xD0\xCF\x11\xE0", 4);
+
+// The file is a protected package: it does not open when the question is cancelled, and it opens with this password.
+void verifyProtected(const QString &path, const QString &password)
+{
+    QVERIFY(fileBytes(path).startsWith(kCompound));
+    setOpenPasswordStandIn([](const QString &, bool, QString *) { return false; });
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(!w.openFile(path));
+    }
+    setOpenPasswordStandIn([password](const QString &, bool, QString *given) {
+        *given = password;
+        return true;
+    });
+    WriteWindow w;
+    w.setNotifier([](const QString &, const QString &) {});
+    QVERIFY(w.openFile(path));
+    QVERIFY(w.isPasswordProtected());
+}
+
+void protect(WriteWindow &w, const QString &password)
+{
+    setNewPasswordStandIn([password](bool, QString *given) {
+        *given = password;
+        return NewPasswordChoice::Set;
+    });
+    w.encryptWithPassword();
+}
+
 struct Quiet {
     Quiet(WriteWindow &w) { w.setNotifier([this](const QString &, const QString &text) { said << text; }); }
     QStringList said;
@@ -329,6 +360,101 @@ private Q_SLOTS:
         QVERIFY(bytes.startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)));
         QVERIFY(!bytes.contains("Secret plans"));
         QVERIFY(removeMyTemplate(found.first()));
+    }
+
+    // Going back to a version keeps the password, and the version itself was kept protected.
+    void goingBackToAVersionOfAProtectedDocumentKeepsThePassword()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Secret plans"));
+        protect(w, QStringLiteral("hunter2"));
+        QVERIFY(saveInto(w, dir, QStringLiteral("v.docx")));
+        const QString path = dir.filePath(QStringLiteral("v.docx"));
+        QVERIFY(w.saveVersion(QStringLiteral("First")));
+        QVERIFY(fileBytes(write::VersionStore(path).folder() + QLatin1Char('/') + w.versions().first().file).startsWith(kCompound));
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral(" and more"));
+        QVERIFY(w.restoreVersion(w.versions().first().file));
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("Secret plans"));
+        QVERIFY(w.isPasswordProtected());
+        QVERIFY(w.save());
+        verifyProtected(path, QStringLiteral("hunter2"));
+    }
+
+    // A password put on, changed, or taken off is put on every kept version, so none is left in the clear and Go Back still works.
+    void versionsFollowThePassword()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Plans"));
+        QVERIFY(saveInto(w, dir, QStringLiteral("f.docx")));
+        const QString path = dir.filePath(QStringLiteral("f.docx"));
+        QVERIFY(w.saveVersion(QStringLiteral("Plain")));
+        const write::VersionStore store(path);
+        auto versionFile = [&] { return store.folder() + QLatin1Char('/') + w.versions().first().file; };
+        QVERIFY(fileBytes(versionFile()).startsWith("PK"));
+        protect(w, QStringLiteral("one"));
+        QVERIFY(fileBytes(versionFile()).startsWith(kCompound));
+        protect(w, QStringLiteral("two"));
+        QVERIFY(w.restoreVersion(w.versions().first().file));
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("Plans"));
+        setNewPasswordStandIn([](bool has, QString *) { return has ? NewPasswordChoice::Removed : NewPasswordChoice::Cancelled; });
+        w.encryptWithPassword();
+        for (const write::DocVersion &v : w.versions()) QVERIFY2(fileBytes(store.folder() + QLatin1Char('/') + v.file).startsWith("PK"), qPrintable(v.name));
+    }
+
+    // A copy of a protected file is protected too: it keeps the password.
+    void aCopyOfAProtectedDocumentKeepsThePassword()
+    {
+        QTemporaryDir dir;
+        WriteWindow a;
+        Quiet quiet(a);
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("Secret plans"));
+        protect(a, QStringLiteral("hunter2"));
+        QVERIFY(saveInto(a, dir, QStringLiteral("p.docx")));
+        setOpenPasswordStandIn([](const QString &, bool, QString *given) {
+            *given = QStringLiteral("hunter2");
+            return true;
+        });
+        WriteWindow b;
+        Quiet quietB(b);
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("p.docx")), OpenHow::Copy));
+        QVERIFY(b.isPasswordProtected());
+        QVERIFY(saveInto(b, dir, QStringLiteral("copy.docx")));
+        verifyProtected(dir.filePath(QStringLiteral("copy.docx")), QStringLiteral("hunter2"));
+    }
+
+    // "Always create backup copy": the backup of a document that is protected is protected, even when the password has only just been put on.
+    void theBackupCopyIsProtectedToo()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Plans"));
+        QVERIFY(saveInto(w, dir, QStringLiteral("b.docx")));
+        const QString path = dir.filePath(QStringLiteral("b.docx"));
+        protect(w, QStringLiteral("hunter2"));
+        jptest::SettingGuard keep(QStringLiteral("save/backup"), true, false);
+        QVERIFY(w.save());
+        const QString backup = dir.filePath(QStringLiteral("Backup of b.docx"));
+        QVERIFY(QFileInfo::exists(backup));
+        verifyProtected(backup, QStringLiteral("hunter2"));
+    }
+
+    // Mark as Final on a document that is then saved as a kind of file that can't hold the mark leaves the window open for editing.
+    void markAsFinalDoesNotHoldAWindowWhoseFileCantKeepTheMark()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Words"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("m.odt")); });
+        w.setMarkedFinal(true);
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("m.odt"))));
+        QVERIFY(!w.document()->markedAsFinal());
+        QVERIFY(!w.isReadOnly());
     }
 
     void aProtectedDocumentIsNotSavedAsAnOdtWithoutItsPassword()

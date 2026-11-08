@@ -32,6 +32,8 @@ public:
     // The bytes of a version; empty if there is none by that file name.
     QByteArray read(const QString &file) const;
     bool remove(const QString &file);
+    // Puts `bytes` in the place of the version's (it keeps its name and time). False if there is no such version or it can't be written.
+    bool replace(const QString &file, const QByteArray &bytes);
     // Takes every version of the file away (and the folder).
     void removeAll();
 
@@ -41,5 +43,13 @@ private:
     QString m_folder;
     QString m_extension;
 };
+
+// The package a kept version holds: a version of a file that asks for a password was kept protected, and is opened here with `password`. A version that is not protected is as it is.
+// False when the password is not the one (or the version is damaged).
+bool versionPackage(const QByteArray &stored, const QString &password, QByteArray *package);
+
+// Gives every version kept for the file the protection the file has now: each is opened with `oldPassword` (a version in the clear is as it is) and protected with `newPassword`
+// (empty: not protected). The number of versions that could not be changed (the old password is not theirs) is returned.
+int reprotectVersions(const QString &documentPath, const QString &extension, const QString &oldPassword, const QString &newPassword);
 
 } // namespace jp::write

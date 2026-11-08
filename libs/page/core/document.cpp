@@ -611,8 +611,13 @@ DocProps DocProps::fromJson(const QJsonObject &o)
     p.modified = QDateTime::fromString(o["modified"].toString(), Qt::ISODate);
     p.lastModifiedBy = o["lastModifiedBy"].toString();
     p.printed = QDateTime::fromString(o["printed"].toString(), Qt::ISODate);
+    // (a file could hold any number of them, or one of any size: the properties of a package file are capped, and so are these)
+    constexpr int kMostCustom = 1000;
+    constexpr int kLongestPart = 64 * 1024;
     for (const QJsonValue &v : o["custom"].toArray()) {
+        if (p.custom.size() >= kMostCustom) break;
         const QJsonObject c = v.toObject();
+        if (c["name"].toString().size() > kLongestPart || c["value"].toString().size() > kLongestPart || c["raw"].toString().size() > kLongestPart) continue;
         office::CustomProperty cp;
         cp.name = c["name"].toString();
         cp.type = c["type"].toString();

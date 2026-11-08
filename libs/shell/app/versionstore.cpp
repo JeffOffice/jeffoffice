@@ -1,5 +1,8 @@
 #include "app/versionstore.h"
 
+#include "office/officecrypt.h"
+#include "office/package.h"
+
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
@@ -132,9 +135,45 @@ bool VersionStore::remove(const QString &file)
     return store(all, nullptr);
 }
 
+bool VersionStore::replace(const QString &file, const QByteArray &bytes)
+{
+    if (bytes.isEmpty() || !plainName(file, m_extension)) return false;
+    bool listed = false;
+    for (const DocVersion &d : load()) listed = listed || d.file == file;
+    if (!listed) return false;
+    QSaveFile f(m_folder + QLatin1Char('/') + file);
+    return f.open(QIODevice::WriteOnly) && f.write(bytes) == bytes.size() && f.commit();
+}
+
 void VersionStore::removeAll()
 {
     QDir(m_folder).removeRecursively();
+}
+
+bool versionPackage(const QByteArray &stored, const QString &password, QByteArray *package)
+{
+    QByteArray info, encrypted;
+    if (!office::splitProtectedPackage(stored, &info, &encrypted)) {
+        *package = stored;
+        return !stored.isEmpty();
+    }
+    return office::decryptPackage(info, encrypted, password, office::kMaxOpenFileBytes, false, package) == office::CryptResult::Ok;
+}
+
+int reprotectVersions(const QString &documentPath, const QString &extension, const QString &oldPassword, const QString &newPassword)
+{
+    VersionStore store(documentPath, extension);
+    int failed = 0;
+    for (const DocVersion &v : store.list()) {
+        QByteArray package;
+        if (!versionPackage(store.read(v.file), oldPassword, &package)) {
+            ++failed;
+            continue;
+        }
+        const QByteArray now = newPassword.isEmpty() ? package : office::encryptPackage(package, newPassword);
+        if (!store.replace(v.file, now)) ++failed;
+    }
+    return failed;
 }
 
 } // namespace jp::write

@@ -7,11 +7,13 @@
 #include "app/plaintext.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
+#include "app/versionstore.h"
 #include "core/commentops.h"
 #include "core/inspectops.h"
 #include "core/reviewops.h"
 #include "io/crypto.h"
 
+#include <QApplication>
 #include <QDateTime>
 #include <QFileInfo>
 #include <QStatusBar>
@@ -120,6 +122,13 @@ void WriteWindow::setMarkedFinal(bool on)
             if (wasReadOnly) setReadOnly(true);
             return;
         }
+        // (saved as a kind of file that can't hold the mark: the save left it out, and the document is not final)
+        if (!markFinalBlocked().isEmpty()) {
+            p.custom = office::withMarkAsFinal(p.custom, false);
+            applyProperties(p);
+            statusBar()->showMessage(tr("The file that was saved can't hold the mark, so the document is not marked as final."), 8000);
+            return;
+        }
         setReadOnly(true);
         statusBar()->showMessage(tr("Marked as final and saved. It opens for reading only."), 8000);
     } else {
@@ -136,6 +145,8 @@ void WriteWindow::encryptWithPassword()
     QString password;
     const NewPasswordChoice choice = askNewFilePassword(this, m_fileProtected, &password);
     if (choice == NewPasswordChoice::Cancelled) return;
+    // (the versions kept follow the password: none is left in the clear, and Go Back opens them with the new one)
+    const QString before = m_fileProtected ? m_filePassword : QString();
     crypto::wipe(m_filePassword);
     if (choice == NewPasswordChoice::Removed) {
         m_fileProtected = false;
@@ -144,6 +155,12 @@ void WriteWindow::encryptWithPassword()
         m_fileProtected = true;
         m_filePassword = password;
         statusBar()->showMessage(tr("The document is protected with a password when you save."), 8000);
+    }
+    if (!m_path.isEmpty()) {
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+        const int failed = write::reprotectVersions(m_path, QStringLiteral(".docx"), before, m_fileProtected ? m_filePassword : QString());
+        QApplication::restoreOverrideCursor();
+        if (failed > 0) notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
     }
     crypto::wipe(password);
     m_doc->setModified(true);

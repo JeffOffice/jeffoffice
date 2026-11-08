@@ -41,6 +41,7 @@ Click **Encrypt with Password** to ask for a password whenever the file is opene
 - A password **can't be found again** if you forget it. Keep it somewhere safe.
 - To change the password, click the same card again. Click **Remove Password** to take it off. The change is saved the next time you save.
 - Passwords work for **.pptx**, **.potx**, and **.ppsx** files. An **.odp** file can't hold a password yet, so JeffDeck will not save a protected presentation as .odp. It tells you instead of saving without the password.
+- The versions you kept and the backup copy follow the password: they are protected with it, and change when you change or remove it.
 - While a presentation has a password, JeffDeck keeps no recovery copy of it, because that copy would not be protected. Save often.
 
 To open a protected file, open it as usual. JeffDeck asks for the password. If it is not right, you can try again, or click **Cancel**. If the file is damaged, JeffDeck says so.

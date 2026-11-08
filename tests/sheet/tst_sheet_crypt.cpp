@@ -543,7 +543,9 @@ private Q_SLOTS:
             QElapsedTimer t;
             t.start();
             QByteArray out;
-            QCOMPARE(oc::decryptPackage(changed, packageOf(file, "EncryptedPackage"), QStringLiteral("x"), 1 << 30, false, &out), oc::CryptResult::Damaged);
+            // (a count past the limit asks for more work than is allowed; one that is not a count is damaged)
+            const bool costly = QByteArray(huge) == "2000000000" || QByteArray(huge) == "2000001";
+            QCOMPARE(oc::decryptPackage(changed, packageOf(file, "EncryptedPackage"), QStringLiteral("x"), 1 << 30, false, &out), costly ? oc::CryptResult::TooCostly : oc::CryptResult::Damaged);
             QVERIFY2(t.elapsed() < 2000, huge);
         }
         // (a made-up cipher, a hash that is not one, and a key of a size no cipher has)
@@ -598,7 +600,7 @@ private Q_SLOTS:
         QVERIFY(t.elapsed() < 1000);
         QVERIFY(asked >= 2);
         info.replace("spinCount=\"1500000\"", "spinCount=\"2000001\"");
-        QCOMPARE(oc::decryptPackage(info, packageOf(file, "EncryptedPackage"), QStringLiteral("x"), 1 << 30, false, &out), oc::CryptResult::Damaged);
+        QCOMPARE(oc::decryptPackage(info, packageOf(file, "EncryptedPackage"), QStringLiteral("x"), 1 << 30, false, &out), oc::CryptResult::TooCostly);
     }
 
     // ---- what the review asked for

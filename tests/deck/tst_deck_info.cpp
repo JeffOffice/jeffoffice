@@ -49,6 +49,38 @@ QByteArray protectedFile(const QString &password)
     return office::encryptPackage(deck::exportPresentation(*d), password, quickKey());
 }
 
+const QByteArray kCompound("\xD0\xCF\x11\xE0", 4);
+
+// The file is a protected package: it does not open when the question is cancelled, and it opens with this password.
+void verifyProtected(const QString &path, const QString &password)
+{
+    QVERIFY(fileBytes(path).startsWith(kCompound));
+    setOpenPasswordStandIn([](const QString &, bool, QString *) { return false; });
+    {
+        DeckWindow w;
+        Quiet quiet(w);
+        QVERIFY(!w.openFile(path));
+    }
+    setOpenPasswordStandIn([password](const QString &, bool, QString *given) {
+        *given = password;
+        return true;
+    });
+    DeckWindow w;
+    Quiet quiet(w);
+    QVERIFY(w.openFile(path));
+    QVERIFY(w.isPasswordProtected());
+    w.editor()->markSaved();
+}
+
+void protect(DeckWindow &w, const QString &password)
+{
+    setNewPasswordStandIn([password](bool, QString *given) {
+        *given = password;
+        return NewPasswordChoice::Set;
+    });
+    w.encryptWithPassword();
+}
+
 const InspectItem *find(const QVector<InspectItem> &items, const char *title)
 {
     for (const InspectItem &i : items)
@@ -140,8 +172,9 @@ private Q_SLOTS:
         QVERIFY(a.editor()->isModified());
         QVERIFY(a.saveTo(dir.filePath(QStringLiteral("s.pptx"))));
         const QByteArray bytes = fileBytes(dir.filePath(QStringLiteral("s.pptx")));
-        QVERIFY(bytes.startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)));
-        QVERIFY(!bytes.contains("Say hello"));
+        QVERIFY(bytes.startsWith(kCompound));
+        verifyProtected(dir.filePath(QStringLiteral("s.pptx")), QStringLiteral("hunter2"));
+        if (QTest::currentTestFailed()) return;
         setOpenPasswordStandIn([](const QString &, bool, QString *password) {
             *password = QStringLiteral("hunter2");
             return true;
@@ -190,8 +223,9 @@ private Q_SLOTS:
         const QStringList found = myTemplateFiles({QStringLiteral("*.potx")});
         QCOMPARE(found.size(), 1);
         const QByteArray bytes = fileBytes(found.first());
-        QVERIFY(bytes.startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)));
-        QVERIFY(!bytes.contains("Say hello"));
+        QVERIFY(bytes.startsWith(kCompound));
+        verifyProtected(found.first(), QStringLiteral("hunter2"));
+        if (QTest::currentTestFailed()) return;
         QVERIFY(removeMyTemplate(found.first()));
         // the other kinds of Save As and Save a Copy
         for (const char *name : {"a.potx", "b.ppsx", "c.pptx"}) {
@@ -201,7 +235,125 @@ private Q_SLOTS:
         QVERIFY(!w.saveTo(dir.filePath(QStringLiteral("d.otp")), true));
         QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("d.otp"))));
         QVERIFY(!quiet.said.isEmpty());
+        // (the message names the kind of file it refused)
+        QVERIFY2(quiet.said.last().contains(QLatin1String(".otp")) && !quiet.said.last().contains(QLatin1String(".odp")), qPrintable(quiet.said.last()));
         w.editor()->markSaved();
+    }
+
+    // Going back to a version keeps the password: the window and the next save are protected as before, and the version itself was kept protected.
+    void goingBackToAVersionKeepsThePassword()
+    {
+        QTemporaryDir dir;
+        DeckWindow w;
+        Quiet quiet(w);
+        w.editor()->setDocument(sample());
+        protect(w, QStringLiteral("hunter2"));
+        const QString path = dir.filePath(QStringLiteral("v.pptx"));
+        QVERIFY(w.saveTo(path));
+        QVERIFY(w.saveVersion(QStringLiteral("First")));
+        QVERIFY(fileBytes(write::VersionStore(path, QStringLiteral(".pptx")).folder() + QLatin1Char('/') + w.versions().first().file).startsWith(kCompound));
+        w.editor()->change(QStringLiteral("x"), [&] { w.editor()->doc()->props.title = QStringLiteral("Second title"); });
+        QVERIFY(w.restoreVersion(w.versions().first().file));
+        QCOMPARE(w.editor()->doc()->props.title, QStringLiteral("Sample"));
+        QVERIFY(w.isPasswordProtected());
+        QVERIFY(w.save());
+        verifyProtected(path, QStringLiteral("hunter2"));
+    }
+
+    // A password put on, changed, or taken off is put on every kept version, so none is left in the clear and Go Back still works.
+    void versionsFollowThePassword()
+    {
+        QTemporaryDir dir;
+        DeckWindow w;
+        Quiet quiet(w);
+        w.editor()->setDocument(sample());
+        const QString path = dir.filePath(QStringLiteral("f.pptx"));
+        QVERIFY(w.saveTo(path));
+        QVERIFY(w.saveVersion(QStringLiteral("Plain")));
+        const write::VersionStore store(path, QStringLiteral(".pptx"));
+        auto versionFile = [&] { return store.folder() + QLatin1Char('/') + w.versions().first().file; };
+        QVERIFY(fileBytes(versionFile()).startsWith("PK"));
+        protect(w, QStringLiteral("one"));
+        QVERIFY(fileBytes(versionFile()).startsWith(kCompound));
+        protect(w, QStringLiteral("two"));
+        QVERIFY(w.restoreVersion(w.versions().first().file));   // (opened with the new password)
+        QCOMPARE(w.editor()->doc()->props.title, QStringLiteral("Sample"));
+        QVERIFY(w.isPasswordProtected());
+        setNewPasswordStandIn([](bool has, QString *) { return has ? NewPasswordChoice::Removed : NewPasswordChoice::Cancelled; });
+        w.encryptWithPassword();
+        for (const write::DocVersion &v : w.versions()) QVERIFY2(fileBytes(store.folder() + QLatin1Char('/') + v.file).startsWith("PK"), qPrintable(v.name));
+        w.editor()->markSaved();
+    }
+
+    // A file protected with the password every program knows opens without a question.
+    void aFileWithTheCommonPasswordOpensWithoutAsking()
+    {
+        QTemporaryDir dir;
+        auto d = sample();
+        office::EncryptOptions o = quickKey();
+        const QString path = putFile(dir, QStringLiteral("c.pptx"), office::encryptPackage(deck::exportPresentation(*d), office::defaultPassword(), o));
+        QVERIFY(fileBytes(path).startsWith(kCompound));
+        bool asked = false;
+        setOpenPasswordStandIn([&](const QString &, bool, QString *) {
+            asked = true;
+            return false;
+        });
+        DeckWindow w;
+        Quiet quiet(w);
+        QVERIFY(w.openFile(path));
+        QVERIFY(!asked);
+        QCOMPARE(int(w.editor()->doc()->pages.size()), 2);
+        QVERIFY(quiet.said.isEmpty());
+    }
+
+    // A copy of a protected file or version is protected too: it keeps the password.
+    void aCopyOfAProtectedPresentationKeepsThePassword()
+    {
+        QTemporaryDir dir;
+        const QString path = putFile(dir, QStringLiteral("p.pptx"), protectedFile(QStringLiteral("hunter2")));
+        setOpenPasswordStandIn([](const QString &, bool, QString *given) {
+            *given = QStringLiteral("hunter2");
+            return true;
+        });
+        DeckWindow w;
+        Quiet quiet(w);
+        QVERIFY(w.openFile(path, OpenHow::Copy));
+        QVERIFY(w.isPasswordProtected());
+        QVERIFY(w.editor()->filePath().isEmpty());
+        const QString other = dir.filePath(QStringLiteral("copy.pptx"));
+        QVERIFY(w.saveTo(other));
+        verifyProtected(other, QStringLiteral("hunter2"));
+    }
+
+    // "Always create backup copy": the backup of a protected presentation is protected, and so is one made when the password has just been put on.
+    void theBackupCopyIsProtectedToo()
+    {
+        QTemporaryDir dir;
+        DeckWindow w;
+        Quiet quiet(w);
+        w.editor()->setDocument(sample());
+        const QString path = dir.filePath(QStringLiteral("b.pptx"));
+        QVERIFY(w.saveTo(path));   // (a plain file)
+        protect(w, QStringLiteral("hunter2"));
+        jptest::SettingGuard keep(QStringLiteral("save/backup"), true, false);
+        QVERIFY(w.saveTo(path));
+        const QString backup = dir.filePath(QStringLiteral("Backup of b.pptx"));
+        QVERIFY(QFileInfo::exists(backup));
+        verifyProtected(backup, QStringLiteral("hunter2"));
+    }
+
+    // Mark as Final on a presentation that is then saved where the mark can't be kept leaves the window open for editing.
+    void markAsFinalDoesNotHoldAWindowWhoseFileCantKeepTheMark()
+    {
+        QTemporaryDir dir;
+        DeckWindow w;
+        Quiet quiet(w);
+        w.editor()->setDocument(sample());
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("m.odp")); });
+        w.setMarkedFinal(true);
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("m.odp"))));
+        QVERIFY(!w.markedAsFinal());
+        QVERIFY(!w.isReadOnly());
     }
 
     void propertiesSurviveASaveAndReopen()

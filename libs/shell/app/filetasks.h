@@ -33,11 +33,12 @@ enum class BackupResult {
     Failed,      // the copy could not be made (the backup that was there before is as it was)
 };
 // With the option on and the file there already: copies it to backupPathFor(path), before a save writes over it. The copy is written under a name of its own and put in place when it is whole,
-// so a copy that fails leaves the old backup as it was.
-BackupResult keepBackupBeforeSave(const QString &path);
+// so a copy that fails leaves the old backup as it was. With a `password` (the file asks for one), a file in the clear is protected with it as it is copied: the backup of a protected file is
+// never left in the clear (a file that is protected already is copied as it is).
+BackupResult keepBackupBeforeSave(const QString &path, const QString &password = QString());
 // What a save does before it writes over `path`: keeps the backup, and when that fails asks whether to save without one (the answer is No unless the person says Yes). True when the save may
 // go on. A test stands in for the question with a function that gives the answer (set to an empty function: asked as usual).
-bool backupBeforeSave(QWidget *parent, const QString &path);
+bool backupBeforeSave(QWidget *parent, const QString &path, const QString &password = QString());
 void setBackupFailureStandIn(const std::function<bool(const QString &path)> &standIn);
 
 // ---- My Templates: the files a person saved as templates, in the app's data folder

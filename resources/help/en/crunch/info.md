@@ -19,7 +19,7 @@ Click **Mark as Final** to tell readers the workbook is finished. JeffCrunch sav
 
 ## Encrypt with Password
 
-Click **Encrypt with Password** to ask for a password whenever the file is opened. This is the same as **Protect with Password**. See [Open password-protected workbooks](open-password). A password protects an **.xlsx** file with strong protection. A password **can't be found again** if you forget it.
+Click **Encrypt with Password** to ask for a password whenever the file is opened. This is the same as **Protect with Password**. See [Open password-protected workbooks](open-password). A password protects an **.xlsx** file with strong protection. A password **can't be found again** if you forget it. The versions you kept and the backup copy follow the password.
 
 For stopping changes to a sheet or its layout, see [Protect a sheet or the workbook](protect).
 

@@ -246,7 +246,7 @@ bool CrunchWindow::startSave(const QString &path)
         snapshot->changes.setProperties = true;
         snapshot->changes.properties = *m_editedProps;
     }
-    if (!backupBeforeSave(this, path)) {
+    if (!backupBeforeSave(this, path, hasUserPassword() ? m_filePassword : QString())) {
         m_closeAfterSave = false;
         return false;
     }

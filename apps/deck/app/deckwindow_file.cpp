@@ -97,7 +97,8 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
                 handled = true;
             } else if (unlocked == PackageUnlock::Failed) {
                 handled = true;
-            } else if (wasProtected) {
+            } else if (bytes.startsWith("PK")) {
+                // (a package: one with the password every program knows opens without a question, and is not one that asks for a password)
                 doc = deck::importPresentation(bytes, &notes);
                 handled = true;
             }
@@ -134,6 +135,9 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
         target->m_ed->setDocument(std::move(doc));
         target->m_ed->setUntitledName((repairing ? tr("Repaired %1") : tr("Copy of %1")).arg(QFileInfo(path).completeBaseName()));
         target->m_ed->markUnsaved();
+        // (a copy of a protected presentation is protected too)
+        target->m_fileProtected = wasProtected;
+        if (wasProtected) target->m_filePassword = openedWith;
         target->updateTitle();
     } else {
         target->m_ed->setDocument(std::move(doc), path);

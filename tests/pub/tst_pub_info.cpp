@@ -2,6 +2,7 @@
 #include "pubhelpers.h"
 #include "../isolatesettings.h"
 #include "app/backstage.h"
+#include "app/filedialogs.h"
 #include "app/infopage.h"
 #include "office/packageprops.h"
 
@@ -190,6 +191,36 @@ private Q_SLOTS:
         for (const jp::InspectItem &i : items) QCOMPARE(i.count(), 0);
         jp::InspectDialog dialog(QStringLiteral("Inspect"), items, nullptr);
         QVERIFY(dialog.summaries().first().contains(QLatin1String("None found")));
+    }
+
+    // Mark as Final on a publication that is then saved as a .pub file, which can't hold the mark, leaves the window open for editing.
+    void markAsFinalDoesNotHoldAWindowWhoseFileCantKeepTheMark()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow w;
+        Quiet quiet(w);
+        const QString path = dir.filePath(QStringLiteral("m.pub"));
+        jp::setSavePathStandIn([&](const QString &, const QString &, const QString &, QString *) { return path; });
+        w.setMarkedFinal(true);
+        jp::setSavePathStandIn({});
+        QVERIFY(QFileInfo::exists(path));
+        QVERIFY(!w.markedAsFinal());
+        QVERIFY(!w.isReadOnly());
+        w.editor()->markSaved();
+    }
+
+    // A .jpub file can't make the program hold an endless list of custom properties, nor one with a huge value.
+    void aPublicationFileCannotCarryAnEndlessListOfCustomProperties()
+    {
+        QJsonArray many;
+        for (int i = 0; i < 5000; ++i) many.append(QJsonObject{{"name", QStringLiteral("p%1").arg(i)}, {"type", "lpwstr"}, {"value", "v"}});
+        QCOMPARE(jp::DocProps::fromJson(QJsonObject{{"custom", many}}).custom.size(), 1000);
+        QJsonArray big;
+        big.append(QJsonObject{{"name", "big"}, {"type", "lpwstr"}, {"value", QString(100000, QLatin1Char('x'))}});
+        big.append(QJsonObject{{"name", "small"}, {"type", "lpwstr"}, {"value", "ok"}});
+        const jp::DocProps p = jp::DocProps::fromJson(QJsonObject{{"custom", big}});
+        QCOMPARE(p.custom.size(), 1);
+        QCOMPARE(p.custom.first().name, QStringLiteral("small"));
     }
 
     void versionsAreKeptAndGoneBackTo()

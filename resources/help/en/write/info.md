@@ -28,6 +28,7 @@ Click **Mark as Final** to tell readers the document is finished. JeffWrite save
 Click **Encrypt with Password** to ask for a password whenever the file is opened. Type the password twice, and click **Protect**. The file is scrambled when you save it, so nobody can read it without the password. JeffWrite uses the strong kind of protection that other word processors use, so they can open the file with the password too.
 
 - A password **can't be found again** if you forget it. Keep it somewhere safe.
+- The versions you kept and the backup copy follow the password: they are protected with it, and change when you change or remove it.
 - To change the password, click the same card again. Click **Remove Password** to take it off. The change is saved the next time you save.
 - Passwords work for **.docx** files. A **.odt** file can't hold a password yet, so JeffWrite will not save a protected document as .odt. It tells you instead of saving without the password.
 
