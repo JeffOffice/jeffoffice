@@ -1463,7 +1463,7 @@ void WriteTests::aWordStillBeingTypedIsNotUnderlinedUntilTheCaretMovesOn()
     view.setDocument(doc.get());
     view.show();
     int count = 0;
-    Settings::get().setValue(QStringLiteral("proof/autocorrect"), false);   // (AutoCorrect would mend the slip)
+    const SettingGuard noAutoCorrect(QStringLiteral("proof/autocorrect"), false, true);   // (AutoCorrect would mend the slip)
     for (const QChar ch : QStringLiteral("recieve")) view.insertText(QString(ch));
     redBounds(view.grab().toImage(), view.pageRect(0), &count);
     QCOMPARE(count, 0);
@@ -1473,7 +1473,6 @@ void WriteTests::aWordStillBeingTypedIsNotUnderlinedUntilTheCaretMovesOn()
     QCOMPARE(count, 0);
     view.insertText(QStringLiteral(" "));
     QTRY_VERIFY((redBounds(view.grab().toImage(), view.pageRect(0), &count), count > 3));
-    Settings::get().setValue(QStringLiteral("proof/autocorrect"), true);
 }
 
 

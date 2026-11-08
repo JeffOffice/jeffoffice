@@ -102,6 +102,7 @@ private Q_SLOTS:
         Q_INIT_RESOURCE(write);
         setAppInfo(writeAppInfo());
         initCore();
+        Settings::get().setValue(QStringLiteral("proof/autocorrect"), false);   // (the typing check types lowercase words)
         m_app.name = QStringLiteral("JeffWrite");
         m_app.launch = [] { return static_cast<AppWindow *>(launchBlank()); };
         m_app.launchWith = [](const QString &path) -> AppWindow * {

@@ -22,6 +22,7 @@ These check boxes control spelling and typing help. See [Check spelling and hyph
 - **Replace text as you type (AutoCorrect)** fixes common typing mistakes.
 - **Replace straight quotes with smart quotes** turns " and ' into curly quotes.
 - **AutoFormat as you type (dashes, fractions, ordinals, automatic lists)**
+- **Turn web addresses into links as you type** makes a web or email address a link when you press the spacebar after it. Undo takes back just the link.
 
 ## Save
 

@@ -2873,6 +2873,7 @@ void Canvas::handleTextKey(QKeyEvent *e)
         return;
     case Qt::Key_Return:
     case Qt::Key_Enter:
+        m_ed->autoLinkWord();
         m_ed->autoCorrectWord();   // a word ends here too
         m_ed->autoFormatWord();
         m_ed->editText([&](QTextCursor &c) {

@@ -12,7 +12,8 @@ namespace jp::write {
 struct AutoOptions {
     bool correct = true;   // typing slips, symbols, and capitals (AutoCorrect)
     bool quotes = true;    // straight quotes made curly
-    bool format = true;    // dashes, fractions, ordinals, lists, links, *bold*, _underline_, and lines (AutoFormat)
+    bool format = true;    // dashes, fractions, ordinals, lists, *bold*, _underline_, and lines (AutoFormat)
+    bool links = true;     // web and email addresses made links
 };
 
 // `text` typed at the caret (or over the selection), with the fixes the options allow. A single character from the keyboard is the case; anything longer, or any text over a selection, is put in as it is.

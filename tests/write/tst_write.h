@@ -1648,4 +1648,10 @@ private Q_SLOTS:
     void aRowOfDashesAndEnterGivesTheParagraphABottomBorderAndOneUndoTakesItBack();
     void aWebOrEmailAddressFollowedBySpaceBecomesALinkAndOneUndoTakesTheLinkBack();
     void starredWordsBecomeBoldAndUnderscoredWordsBecomeUnderlinedAndOneUndoTakesJustThat();
+    void aQuoteTypedOverASelectionIsCurledAndAQuoteAfterADigitOrABracketIsChosenByIt();
+    void aNumberAndAParenthesisOrANumberOtherThanOneStartsNoListInWrite();
+    void withTrackChangesOnTheFixIsTrackedAndDeletedTextIsNotPartOfTheWord();
+    void aRuleKeepsTheParagraphsOtherBordersAndLeavesTheNextOneAlone();
+    void theLinkRuleFollowsItsOwnBoxAndAnAddressInBracketsBecomesALinkWithoutThem();
+    void everyKindOfFixCanBeUndoneAndDoneAgain();
 };

@@ -135,12 +135,15 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
     auto *autoformat = new QCheckBox(QCoreApplication::translate("Dialogs", "AutoFormat as you type (dashes, fractions, ordinals, automatic lists)"), proof);
     autoformat->setChecked(st.value("proof/autoformat", true).toBool());
     quotes->setChecked(st.value("proof/smartQuotes", true).toBool());
+    auto *autolink = new QCheckBox(QCoreApplication::translate("Dialogs", "Turn web addresses into links as you type"), proof);
+    autolink->setChecked(st.value("proof/autolink", true).toBool());
     pf->addRow(asType);
     pf->addRow(ignoreUpper);
     pf->addRow(ignoreNum);
     pf->addRow(autocorrect);
     pf->addRow(quotes);
     pf->addRow(autoformat);
+    pf->addRow(autolink);
     tabs->addTab(proof, QCoreApplication::translate("Dialogs", "Proofing"));
     for (const OptionsPage &page : appPages) tabs->addTab(page.build(), page.title);
     dlg.v->addWidget(tabs);
@@ -159,6 +162,7 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
     st.setValue("proof/autocorrect", autocorrect->isChecked());
     st.setValue("proof/smartQuotes", quotes->isChecked());
     st.setValue("proof/autoformat", autoformat->isChecked());
+    st.setValue("proof/autolink", autolink->isChecked());
     for (const OptionsPage &page : appPages)
         if (page.apply) page.apply();
     if (online) {

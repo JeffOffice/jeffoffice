@@ -688,6 +688,32 @@ void Editor::autoFormatWord()
     }
 }
 
+// A web or email address just before the cursor, when a space ends it, becomes a link (one step of its own); what is typed next is not in the link.
+void Editor::autoLinkWord()
+{
+    if (!isEditingText() || m_cursor.hasSelection() || !Settings::get().value("proof/autolink", true).toBool()) return;
+    const QTextBlock b = m_cursor.block();
+    const auto fix = autotext::linkWord(b.text().left(m_cursor.position() - b.position()));
+    if (!fix) return;
+    QTextCursor c = m_cursor;
+    c.setPosition(b.position() + fix->from);
+    c.setPosition(b.position() + fix->to, QTextCursor::KeepAnchor);
+    if (c.charFormat().isAnchor()) return;
+    flushTyping();
+    beginChange(tr("Insert Hyperlink"));
+    QTextCharFormat link;
+    link.setAnchor(true);
+    link.setAnchorHref(fix->with);
+    c.mergeCharFormat(link);
+    endChange();
+    textEdited();
+    // Typing goes on outside the link.
+    QTextCharFormat plain = m_cursor.charFormat();
+    plain.setAnchor(false);
+    plain.setAnchorHref(QString());
+    m_cursor.setCharFormat(plain);
+}
+
 void Editor::typeText(const QString &t)
 {
     if (!isEditingText()) return;
@@ -723,6 +749,7 @@ void Editor::typeText(const QString &t)
     }
     // A word ends: fix it before going on.
     if (s.size() == 1 && (s[0].isSpace() || QStringLiteral(".,;:!?").contains(s[0]))) {
+        if (s[0].isSpace()) autoLinkWord();
         autoCorrectWord();
         autoFormatWord();
     }

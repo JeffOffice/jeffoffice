@@ -44,6 +44,10 @@ void WriteTests::theSharedAutoCorrectRulesSayWhatToPutInPlaceOfWhat()
     QCOMPARE(link->to, 19);
     QCOMPARE(link->with, QStringLiteral("https://www.example.com"));
     QVERIFY(linkWord(QStringLiteral("mail me@example.org")));
+    const auto bracketed = linkWord(QStringLiteral("(www.example.com)"));
+    QVERIFY(bracketed);
+    QCOMPARE(bracketed->from, 1);
+    QCOMPARE(bracketed->to, 16);
     QVERIFY(!linkWord(QStringLiteral("plain words")));
     const auto mark = markWord(QStringLiteral("a *bold*"));
     QVERIFY(mark);
@@ -73,12 +77,9 @@ void WriteTests::typingFixesSlipsSymbolsAndSentenceCapitalsAndOneUndoTakesJustTh
     u.view.undo();
     QCOMPARE(u.text(), QStringLiteral("teh "));
     // Off: nothing is changed.
-    Settings::get().setValue(QStringLiteral("proof/autocorrect"), false);
-    Settings::get().setValue(QStringLiteral("proof/smartQuotes"), false);
+    const SettingGuard noCorrect(QStringLiteral("proof/autocorrect"), false, true), noQuotes(QStringLiteral("proof/smartQuotes"), false, true);
     Typer v;
     v.type(QStringLiteral("teh \"x\" "));
-    Settings::get().setValue(QStringLiteral("proof/autocorrect"), true);
-    Settings::get().setValue(QStringLiteral("proof/smartQuotes"), true);
     QCOMPARE(v.text(), QStringLiteral("teh \"x\" "));
 }
 
@@ -98,10 +99,9 @@ void WriteTests::typingMakesDashesFractionsAndRaisedOrdinalsAndOneUndoTakesJustT
     QCOMPARE(u.text(), QStringLiteral("A – b "));
     u.view.undo();
     QCOMPARE(u.text(), QStringLiteral("A - b "));
-    Settings::get().setValue(QStringLiteral("proof/autoformat"), false);
+    const SettingGuard noFormat(QStringLiteral("proof/autoformat"), false, true);
     Typer v;
     v.type(QStringLiteral("a--b 1/2 "));
-    Settings::get().setValue(QStringLiteral("proof/autoformat"), true);
     QCOMPARE(v.text(), QStringLiteral("a--b 1/2 "));
 }
 
@@ -167,7 +167,7 @@ void WriteTests::aWebOrEmailAddressFollowedBySpaceBecomesALinkAndOneUndoTakesThe
     QVERIFY(h.valid());
     QCOMPARE(h.address, QStringLiteral("https://www.example.com"));
     QVERIFY(!jp::write::hyperlinkAt(*t.doc, t.text().indexOf(QStringLiteral("now")) + 1).valid());
-    t.view.undo();   // " now" typed after the link
+    t.view.undo();   // the words typed after the link, with the space
     t.view.undo();   // the link
     QVERIFY(!jp::write::hyperlinkAt(*t.doc, at + 2).valid());
     QCOMPARE(t.text(), QStringLiteral("Visit www.example.com "));
@@ -203,4 +203,127 @@ void WriteTests::starredWordsBecomeBoldAndUnderscoredWordsBecomeUnderlinedAndOne
     Typer u;
     u.type(QStringLiteral("snake_case_name "));
     QCOMPARE(u.text(), QStringLiteral("snake_case_name "));
+}
+
+void WriteTests::aQuoteTypedOverASelectionIsCurledAndAQuoteAfterADigitOrABracketIsChosenByIt()
+{
+    Typer t(QByteArray("<w:p><w:r><w:t>Say x</w:t></w:r></w:p>"));
+    t.view.cursor().setPosition(4);
+    t.view.cursor().setPosition(5, QTextCursor::KeepAnchor);
+    t.type(QStringLiteral("\""));
+    QCOMPARE(t.text(), QStringLiteral("Say “"));
+    Typer u;
+    u.type(QStringLiteral("5\" ("));
+    u.type(QStringLiteral("\"x') 'y"));
+    QCOMPARE(u.text(), QStringLiteral("5” (“x’) ‘y"));
+}
+
+void WriteTests::aNumberAndAParenthesisOrANumberOtherThanOneStartsNoListInWrite()
+{
+    Typer t;
+    t.type(QStringLiteral("2. Second"));
+    QCOMPARE(t.text(), QStringLiteral("2. Second"));
+    QCOMPARE(listKindOf(*t.doc, t.doc->story()->firstBlock()), ListKind::None);
+    Typer u;
+    u.type(QStringLiteral("1) First"));
+    QCOMPARE(u.text(), QStringLiteral("1) First"));
+    QCOMPARE(listKindOf(*u.doc, u.doc->story()->firstBlock()), ListKind::None);
+    Typer v;
+    v.type(QStringLiteral("- Dash"));
+    QCOMPARE(listKindOf(*v.doc, v.doc->story()->firstBlock()), ListKind::Bullets);
+}
+
+void WriteTests::withTrackChangesOnTheFixIsTrackedAndDeletedTextIsNotPartOfTheWord()
+{
+    Typer t;
+    t.doc->setTrackChanges(true);
+    t.type(QStringLiteral("Say teh "));
+    // The mended word is there, and the marks of the tracked changes are in the text round it.
+    QVERIFY(t.text().contains(QStringLiteral("the")));
+    QVERIFY(t.text().contains(QChar::ObjectReplacementCharacter));
+    // Words that were deleted are not read as the text before the word: "Bye." is gone, so the word after "Hi. " starts a sentence.
+    Typer u(QByteArray("<w:p><w:r><w:t>Hi. Bye.</w:t></w:r></w:p>"));
+    u.doc->setTrackChanges(true);
+    QTextCursor gone(u.doc->story());
+    gone.setPosition(4);
+    gone.setPosition(8, QTextCursor::KeepAnchor);
+    removeSelection(*u.doc, gone);
+    u.view.cursor().movePosition(QTextCursor::End);
+    u.type(QStringLiteral("teh "));
+    QVERIFY2(u.text().contains(QStringLiteral("The ")), qPrintable(u.text()));
+}
+
+void WriteTests::aRuleKeepsTheParagraphsOtherBordersAndLeavesTheNextOneAlone()
+{
+    Typer t;
+    t.type(QStringLiteral("---"));
+    tp::ParaBox top;
+    top.top.style = QStringLiteral("single");
+    top.top.eighths = 4;
+    changeBlockFormat(*t.doc, t.view.cursor(), [&](QTextBlockFormat &bf) { bf.setProperty(tp::Borders, top.spec()); });
+    QTest::keyClick(&t.view, Qt::Key_Return);
+    auto box = [&](int n) { return tp::ParaBox::parse(t.doc->story()->findBlockByNumber(n).blockFormat().stringProperty(tp::Borders)); };
+    QVERIFY(box(0).top.visible());
+    QVERIFY(box(0).bottom.visible());
+    QVERIFY(!box(1).bottom.visible());
+}
+
+void WriteTests::theLinkRuleFollowsItsOwnBoxAndAnAddressInBracketsBecomesALinkWithoutThem()
+{
+    Typer t;
+    t.type(QStringLiteral("See (www.example.com) now"));
+    const int at = t.text().indexOf(QStringLiteral("www"));
+    QVERIFY(jp::write::hyperlinkAt(*t.doc, at + 2).valid());
+    QVERIFY(!jp::write::hyperlinkAt(*t.doc, at - 2).valid());
+    QVERIFY(!jp::write::hyperlinkAt(*t.doc, t.text().indexOf(QLatin1Char(')')) + 1).valid());
+    {
+        const SettingGuard noLinks(QStringLiteral("proof/autolink"), false, true);
+        Typer u;
+        u.type(QStringLiteral("Go to www.example.com now"));
+        QVERIFY(!jp::write::hyperlinkAt(*u.doc, u.text().indexOf(QStringLiteral("www")) + 2).valid());
+    }
+    // AutoFormat off does not stop the links: they have their own box.
+    const SettingGuard noFormat(QStringLiteral("proof/autoformat"), false, true);
+    Typer v;
+    v.type(QStringLiteral("Go to www.example.com now"));
+    QVERIFY(jp::write::hyperlinkAt(*v.doc, v.text().indexOf(QStringLiteral("www")) + 2).valid());
+}
+
+void WriteTests::everyKindOfFixCanBeUndoneAndDoneAgain()
+{
+    auto round = [&](const QString &typed, const QString &fixed, const QString &asTyped) {
+        Typer t;
+        t.type(typed);
+        QCOMPARE(t.text(), fixed);
+        t.view.undo();
+        QCOMPARE(t.text(), asTyped);
+        t.view.redo();
+        QCOMPARE(t.text(), fixed);
+    };
+    round(QStringLiteral("Wait--what "), QStringLiteral("Wait—what "), QStringLiteral("Wait--what "));
+    round(QStringLiteral("It is 1/2 "), QStringLiteral("It is ½ "), QStringLiteral("It is 1/2 "));
+    round(QStringLiteral("Is *bold* "), QStringLiteral("Is bold "), QStringLiteral("Is *bold* "));
+    round(QStringLiteral("Is _under_ "), QStringLiteral("Is under "), QStringLiteral("Is _under_ "));
+    Typer l;
+    l.type(QStringLiteral("Visit www.example.com "));
+    const int at = l.text().indexOf(QStringLiteral("www")) + 2;
+    QVERIFY(jp::write::hyperlinkAt(*l.doc, at).valid());
+    l.view.undo();
+    QVERIFY(!jp::write::hyperlinkAt(*l.doc, at).valid());
+    l.view.redo();
+    QVERIFY(jp::write::hyperlinkAt(*l.doc, at).valid());
+    Typer r;
+    r.type(QStringLiteral("---"));
+    QTest::keyClick(&r.view, Qt::Key_Return);
+    r.view.undo();
+    QCOMPARE(r.doc->story()->blockCount(), 1);
+    r.view.redo();
+    QCOMPARE(r.doc->story()->blockCount(), 2);
+    Typer n;
+    n.type(QStringLiteral("1. "));
+    QCOMPARE(listKindOf(*n.doc, n.doc->story()->firstBlock()), ListKind::Numbers);
+    n.view.undo();
+    QCOMPARE(listKindOf(*n.doc, n.doc->story()->firstBlock()), ListKind::None);
+    n.view.redo();
+    QCOMPARE(listKindOf(*n.doc, n.doc->story()->firstBlock()), ListKind::Numbers);
 }

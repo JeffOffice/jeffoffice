@@ -591,6 +591,63 @@ private Q_SLOTS:
         QCOMPARE(nb.textList()->format().start(), 3);
     }
 
+    // A web or email address followed by a space becomes a link (its own box in Options > Proofing), as one step of its own.
+    void typingWebAddressesBecomesLinks()
+    {
+        jp::MainWindow w;
+        w.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        jp::Editor *ed = w.editor();
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 300)));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id);
+        auto type = [&](const QString &s) { for (QChar c : s) ed->typeText(QString(c)); };
+        type(QStringLiteral("See www.example.com now, or write to me@example.org. Thanks"));
+        QTextDocument *doc = ed->doc()->storyDoc(box->storyId);
+        const QString text = doc->toPlainText();
+        auto href = [&](const QString &at) {
+            QTextCursor c(doc);
+            c.setPosition(int(text.indexOf(at)) + 2);
+            return c.charFormat().isAnchor() ? c.charFormat().anchorHref() : QString();
+        };
+        QCOMPARE(href(QStringLiteral("www")), QStringLiteral("https://www.example.com"));
+        QCOMPARE(href(QStringLiteral("now")), QString());
+        QCOMPARE(href(QStringLiteral("Thanks")), QString());
+        QCOMPARE(href(QStringLiteral("me@")), QStringLiteral("mailto:me@example.org"));
+        // The space after the address is not in the link.
+        QTextCursor sp(doc);
+        sp.setPosition(int(text.indexOf(QStringLiteral(" now"))) + 1);
+        QVERIFY(!sp.charFormat().isAnchor());
+        // One Undo for the link: the words stay.
+        ed->endTextEdit();
+        auto second = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 400, 400, 100)));
+        ed->addItem(second);
+        ed->beginTextEdit(second->id);
+        type(QStringLiteral("Go to www.example.com"));
+        type(QStringLiteral(" "));
+        QTextDocument *d2 = ed->doc()->storyDoc(second->storyId);
+        QTextCursor c2(d2);
+        c2.setPosition(8);
+        QVERIFY(c2.charFormat().isAnchor());
+        ed->flushTyping();
+        ed->undo();   // the space typed after the link
+        ed->undo();   // the link
+        c2.setPosition(8);
+        QVERIFY(!c2.charFormat().isAnchor());
+        QCOMPARE(d2->toPlainText(), QStringLiteral("Go to www.example.com"));
+        ed->endTextEdit();
+        // Off: no link.
+        jp::Settings::get().setValue("proof/autolink", false);
+        auto third = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 520, 400, 100)));
+        ed->addItem(third);
+        ed->beginTextEdit(third->id);
+        type(QStringLiteral("Go to www.example.com now"));
+        QTextCursor c3(ed->doc()->storyDoc(third->storyId));
+        c3.setPosition(8);
+        const bool linked = c3.charFormat().isAnchor();
+        jp::Settings::get().setValue("proof/autolink", true);
+        QVERIFY(!linked);
+    }
+
     // A long publication keeps all its text: .pub text past 64 KB of the
     // text stream used to wrap libmspub's 16-bit run positions, so every
     // story after the first ~32,000 characters opened empty.

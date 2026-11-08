@@ -490,6 +490,24 @@ private Q_SLOTS:
         QVERIFY(ids.contains(QStringLiteral("ellipse")) && ids.contains(QStringLiteral("rect")) && ids.contains(QStringLiteral("roundRect")));
     }
 
+    // A web address typed in a slide's text and followed by a space becomes a link.
+    void aTypedWebAddressBecomesALinkInASlide()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        const QString title = ed->doc()->pages[0]->items.front()->id;
+        ed->beginTextEdit(title);
+        for (const QChar ch : QStringLiteral("Go to www.example.com now")) ed->typeText(QString(ch));
+        QTextDocument *story = ed->doc()->storyDoc(static_cast<TextItem *>(ed->doc()->item(title))->storyId);
+        QTextCursor c(story);
+        c.setPosition(story->toPlainText().indexOf(QStringLiteral("www")) + 2);
+        QVERIFY(c.charFormat().isAnchor());
+        QCOMPARE(c.charFormat().anchorHref(), QStringLiteral("https://www.example.com"));
+        c.setPosition(story->toPlainText().indexOf(QStringLiteral("now")) + 2);
+        QVERIFY(!c.charFormat().isAnchor());
+        ed->endTextEdit();
+    }
+
     // Typing, or choosing another object, while a crop is going on is not part of the crop: the crop ends as a step of its own, then the other
     // thing is a step, and Undo takes back the last of them only.
     void editsDuringACropAreSeparateSteps()

@@ -284,7 +284,8 @@ void PageView::insertText(const QString &text)
     auto_.correct = st.value(QStringLiteral("proof/autocorrect"), true).toBool();
     auto_.quotes = st.value(QStringLiteral("proof/smartQuotes"), true).toBool();
     auto_.format = st.value(QStringLiteral("proof/autoformat"), true).toBool();
-    if (m_overtype) auto_ = write::AutoOptions{false, false, false};
+    auto_.links = st.value(QStringLiteral("proof/autolink"), true).toBool();
+    if (m_overtype) auto_ = write::AutoOptions{false, false, false, false};
     write::typeText(*m_doc, m_cursor, text, auto_);
     caretMoved();
 }

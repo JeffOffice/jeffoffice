@@ -111,7 +111,7 @@ std::optional<ListStart> listStart(const QString &before)
 
 std::optional<Fix> linkWord(const QString &before)
 {
-    static const QRegularExpression address(QStringLiteral("(?:^|\\s)((?:(?:https?://|www\\.)[^\\s<>]+|[\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)+[^\\s<>]*))$"));
+    static const QRegularExpression address(QStringLiteral("(?:^|[\\s(\\[<\"'“‘])((?:(?:https?://|www\\.)[^\\s<>]+|[\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)+[^\\s<>]*))$"));
     const auto m = address.match(before);
     if (!m.hasMatch()) return std::nullopt;
     const int from = int(m.capturedStart(1));
