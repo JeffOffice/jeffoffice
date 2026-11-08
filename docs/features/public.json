@@ -51,8 +51,9 @@
        "text": "ab67eee0cd587c7011b8d13213b3e8389c2038426557dbc3ba0d4ba0619188bc"
       },
       {
-       "status": "partly",
-       "text": "83fa0a49629f0bd9202d9ccadfe19a4ad9aff41cf723d0217dc7289963cfc39e"
+       "hide_soon": true,
+       "status": "done",
+       "text": "ece40f16626684f64082dd5efec8558d95a1cbfd4010af5a591580b8b56b0de5"
       },
       {
        "hide_soon": true,
@@ -127,8 +128,9 @@
          "text": "650ec837ff91daa8fb533f3b9c47b6f23fc7e33810fe985097c40f8d1ffe3e1e"
         },
         {
-         "status": "partly",
-         "text": "a066d857ed93ffc2963175f7e3e98e1b22a2c0ad667bdd1a9cd4b989a05e89d3"
+         "hide_soon": true,
+         "status": "done",
+         "text": "456bb3e3454e3db5d8984c143e25ec5867403d2748a54b15572ce3e0333fde4b"
         },
         {
          "hide_soon": true,
@@ -183,8 +185,9 @@
          "text": "989808c9b1f952cc20b9f733ffd9a3496fb5723fd9938e02ca7a5dc48c239e3e"
         },
         {
-         "status": "partly",
-         "text": "d108b0c0941ce5d5826cfb43e4d47d8356798bd436f07fcf863f4f174b096d10"
+         "hide_soon": true,
+         "status": "done",
+         "text": "fb34762d71b713b8725b73d3338f6929e153e876d9e70052b6e4488e180549c5"
         },
         {
          "hide_soon": true,
@@ -310,12 +313,13 @@
          "text": "09f4463054751fcc2b053afac4e1bb01151f7d7d1e12310d47f88b3d8d310d22"
         },
         {
-         "status": "partly",
-         "text": "8142b6bd031d5a724f9f6a09673b144af547e5c4a509c21b702d9b4227fbe563"
+         "hide_soon": true,
+         "status": "done",
+         "text": "4dbcebe423ed030c282a2817b382c4c949ab225db6a2d76c5a7f28115ef843d0"
         },
         {
          "status": "partly",
-         "text": "328aec9659bc0dd2fceeed37ba78ff18cd620002b882f8f0efa22bbe45fff269"
+         "text": "ccaff65feff90450fffb8bf3b43d9be0751abb80764e8d8bb8274ebf015dcfab"
         },
         {
          "status": "partly",
@@ -1110,8 +1114,9 @@
        "heading": "5f15cbbeab19122cc9e92d5579ef0b6f30a840996cd7fe0eab79cf3c3f314ec0",
        "items": [
         {
-         "status": "partly",
-         "text": "0cc8a5f182445c63a8ff58d9b35898b8ecec5d90e03d1185a481d792c8881772"
+         "hide_soon": true,
+         "status": "done",
+         "text": "d7a68230116e61d6bd050eb7aad93dee1b241dd8bb6c09d69f68efde61427cd7"
         },
         {
          "hide_soon": true,
@@ -1934,8 +1939,9 @@
          "text": "1be568c161a3c35590cec71871949b56da7013ea8ab81729ca9a7a3894ca9cf8"
         },
         {
-         "status": "partly",
-         "text": "a17e3324993d78bb885322c8259dc6138d5a3f66e3a7aa0833c6469e56eb5e9a"
+         "hide_soon": true,
+         "status": "done",
+         "text": "8f75370fbc9e2d0bfa0c622eb8470ea1f9c15289bfa8d82a73fc99c36321b96d"
         },
         {
          "status": "partly",
@@ -8248,18 +8254,6 @@
     "fr": "Récupération de données depuis un tableau ou une plage, une page web, un classeur, XML, JSON, un dossier et un PDF, en étapes modifiables et actualisables"
    }
   },
-  "0cc8a5f182445c63a8ff58d9b35898b8ecec5d90e03d1185a481d792c8881772": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Spelling (`F7`): check the sheet or selection, with ignore, change, add, and dictionaries",
-    "es": "Ortografía (`F7`): revisar la hoja o la selección, con omitir, cambiar, agregar y diccionarios",
-    "fr": "Orthographe (`F7`) : vérifier la feuille ou la sélection, avec ignorer, modifier, ajouter et dictionnaires"
-   }
-  },
   "0d4d5ec33d83b0e410846e0e0705fd863ff0ca8d4ec7f83a73ba39a105c8a02b": {
    "drop": false,
    "en": "Add numbered footnotes and endnotes (Insert > References). Footnotes sit at the bottom of the column under a short rule and split across columns when too tall; endnotes appear under \"Notes\" after the story. Note text is edited in a dialog.",
@@ -10996,18 +10990,6 @@
     "fr": ""
    }
   },
-  "328aec9659bc0dd2fceeed37ba78ff18cd620002b882f8f0efa22bbe45fff269": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Save options: default format, automatic recovery interval, and default folder",
-    "es": "Opciones de guardado: formato predeterminado, intervalo de recuperación automática y carpeta predeterminada",
-    "fr": "Options d’enregistrement : format par défaut, intervalle de récupération automatique et dossier par défaut"
-   }
-  },
   "32abd7080f973bfcd499f134dd63f09f7ea4f55b4b13a6966beda87cd5880b6a": {
    "drop": false,
    "en": "View tab",
@@ -12256,6 +12238,18 @@
     "fr": ""
    }
   },
+  "456bb3e3454e3db5d8984c143e25ec5867403d2748a54b15572ce3e0333fde4b": {
+   "drop": false,
+   "en": "Recover unsaved workbooks from the Open screen, and get an offer to recover them at the next start after a crash.",
+   "es": "Recupere libros no guardados desde la pantalla Abrir, y reciba la oferta de recuperarlos en el siguiente inicio tras un fallo.",
+   "fr": "Récupérez les classeurs non enregistrés depuis l’écran Ouvrir, et recevez une proposition de les récupérer au démarrage suivant après un plantage.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "458f082e295efc8a087a2421e05047389d5976a753188c74573ed8417cef71e0": {
    "drop": true,
    "en": "",
@@ -12825,6 +12819,18 @@
    "en": "Review tab",
    "es": "Pestaña Revisar",
    "fr": "Onglet Révision",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "4dbcebe423ed030c282a2817b382c4c949ab225db6a2d76c5a7f28115ef843d0": {
+   "drop": false,
+   "en": "Set proofing options: AutoCorrect (replacement list, capitalization rules, smart quotes), spelling, ignoring words in capitals or with numbers, and custom dictionaries. They apply to the underline in the cell editor, to spelling check, to AutoCorrect, and to web addresses.",
+   "es": "Defina las opciones de revisión: autocorrección (lista de reemplazos, reglas de mayúsculas, comillas tipográficas), ortografía, omitir palabras en mayúsculas o con números, y diccionarios personalizados. Se aplican al subrayado en el editor de celdas, a la revisión ortográfica, a la autocorrección y a las direcciones web.",
+   "fr": "Définissez les options de vérification : correction automatique (liste de remplacements, règles de majuscules, guillemets typographiques), orthographe, mots en majuscules ou contenant des chiffres ignorés, et dictionnaires personnalisés. Elles s’appliquent au soulignement dans l’éditeur de cellule, à la vérification orthographique, à la correction automatique et aux adresses web.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16804,18 +16810,6 @@
     "fr": "Inspecter le classeur : rechercher et supprimer les objets invisibles"
    }
   },
-  "8142b6bd031d5a724f9f6a09673b144af547e5c4a509c21b702d9b4227fbe563": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Proofing options: autocorrect, spelling, ignored words, and custom dictionaries",
-    "es": "Opciones de revisión: autocorrección, ortografía, palabras ignoradas y diccionarios personalizados",
-    "fr": "Options de vérification : correction automatique, orthographe, mots ignorés et dictionnaires personnalisés"
-   }
-  },
   "819b7a42f84d10870048a82a7c06c2118ce84f9641bc90b7af451b61b36d9356": {
    "drop": true,
    "en": "",
@@ -17018,18 +17012,6 @@
     "en": "Table move handle at the corner",
     "es": "Controlador para mover la tabla en la esquina",
     "fr": "Poignée de déplacement du tableau dans le coin"
-   }
-  },
-  "83fa0a49629f0bd9202d9ccadfe19a4ad9aff41cf723d0217dc7289963cfc39e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Spelling check (F7), offline, in 31 languages and regional forms",
-    "es": "Revisión ortográfica (F7), sin conexión, en 31 idiomas y variantes regionales",
-    "fr": "Vérification orthographique (F7), hors ligne, dans 31 langues et formes régionales"
    }
   },
   "844070ff3f18a60b9e50e79b9036f4bd880ecd6a2e8a15ea7d76c3bd92902b2e": {
@@ -17666,6 +17648,18 @@
     "en": "Play Across Slides: set with a command",
     "es": "Reproducir en varias diapositivas: ajuste mediante un comando",
     "fr": "Lecture sur plusieurs diapositives : réglage par une commande"
+   }
+  },
+  "8f75370fbc9e2d0bfa0c622eb8470ea1f9c15289bfa8d82a73fc99c36321b96d": {
+   "drop": false,
+   "en": "In the cell editor, AutoCorrect fixes words, two initial capitals, the first letter of sentences and day names, and applies smart quotes, dashes, and fractions. Each fix can be undone, formulas are never changed, and web or email addresses become links when that option is on.",
+   "es": "En el editor de celdas, la autocorrección arregla palabras, dos mayúsculas iniciales, la primera letra de las oraciones y los nombres de los días, y aplica comillas tipográficas, guiones y fracciones. Cada corrección se puede deshacer, las fórmulas nunca se modifican, y las direcciones web o de correo se convierten en vínculos cuando esa opción está activada.",
+   "fr": "Dans l’éditeur de cellule, la correction automatique corrige les mots, les deux majuscules initiales, la première lettre des phrases et les noms de jours, et applique guillemets typographiques, tirets et fractions. Chaque correction peut être annulée, les formules ne sont jamais modifiées, et les adresses web ou e-mail deviennent des liens lorsque cette option est activée.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "8f92c112f44b666516f4917e9f58902ced6ad2defe2cb273bd59290f49dfe503": {
@@ -18976,18 +18970,6 @@
     "fr": ""
    }
   },
-  "a066d857ed93ffc2963175f7e3e98e1b22a2c0ad667bdd1a9cd4b989a05e89d3": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Recover unsaved workbooks",
-    "es": "Recuperación de libros sin guardar",
-    "fr": "Récupération des classeurs non enregistrés"
-   }
-  },
   "a0a699829db6cc393e5aaa348b65607a22d89e6d0bb3e3ce296f2dd1d8b7db9d": {
    "drop": false,
    "en": "Print all pages, only the odd pages, or only the even pages within the page range. After the odd pages are sent to a printer, a message says to turn the stack over and print the even pages.",
@@ -19017,18 +18999,6 @@
    "en": "Shape Effects (shadow, reflection, glow, and soft edges) are on the Shape Format tab and in the Format Shape pane.",
    "es": "Los efectos de forma (sombra, reflejo, resplandor y bordes suaves) están en la pestaña Formato de forma y en el panel Formato de forma.",
    "fr": "Les effets de forme (ombre, reflet, lueur et bords adoucis) se trouvent dans l’onglet Format de la forme et dans le volet Format de la forme.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "a17e3324993d78bb885322c8259dc6138d5a3f66e3a7aa0833c6469e56eb5e9a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
@@ -21820,6 +21790,18 @@
     "fr": "Galerie de thèmes, couleurs, polices et effets : modifier, enregistrer et créer des thèmes"
    }
   },
+  "ccaff65feff90450fffb8bf3b43d9be0751abb80764e8d8bb8274ebf015dcfab": {
+   "drop": false,
+   "en": "Set the automatic recovery interval in the Save options.",
+   "es": "Defina el intervalo de recuperación automática en las opciones de Guardar.",
+   "fr": "Définissez l’intervalle de récupération automatique dans les options d’enregistrement.",
+   "soon": {
+    "drop": false,
+    "en": "Save options: default format and default folder",
+    "es": "Opciones de Guardar: formato predeterminado y carpeta predeterminada",
+    "fr": "Options d’enregistrement : format par défaut et dossier par défaut"
+   }
+  },
   "ccd1867c60a4a53290d043d91e705765b60f2025eb7e6d141a1c4a162e6c686c": {
    "drop": false,
    "en": "After saving an `.odp` file, a message lists what was left out.",
@@ -22142,18 +22124,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d108b0c0941ce5d5826cfb43e4d47d8356798bd436f07fcf863f4f174b096d10": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Automatic recovery: unsaved work offered again after a crash",
-    "es": "Recuperación automática: el trabajo sin guardar se ofrece de nuevo tras un fallo",
-    "fr": "Récupération automatique : le travail non enregistré est proposé à nouveau après un plantage"
    }
   },
   "d1520c2774534a3f2cdc5a1b1015fe6c3e8b1259f768bf31a171210e23b51cd4": {
@@ -22605,6 +22575,18 @@
    "en": "Page Movement on the View tab switches between vertical and side-to-side. Side to side puts all the pages in one row, the mouse wheel turns them past, and Go To Page scrolls across to a page.",
    "es": "Movimiento de página, en la pestaña Vista, alterna entre vertical y lateral. El modo lateral coloca todas las páginas en una fila, la rueda del ratón las pasa y Ir a la página se desplaza hasta una página.",
    "fr": "Déplacement des pages, dans l’onglet Affichage, permet de basculer entre vertical et horizontal. Le mode horizontal place toutes les pages sur une rangée, la molette de la souris les fait défiler et Atteindre la page fait défiler jusqu’à une page.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "d7a68230116e61d6bd050eb7aad93dee1b241dd8bb6c09d69f68efde61427cd7": {
+   "drop": false,
+   "en": "Check spelling (`F7`) in the sheet or the selected cells, skipping formulas, numbers, and dates. Ignore, Ignore All, Change, Change All, and Add are available, and a red underline with right-click suggestions appears in the cell editor.",
+   "es": "Revise la ortografía (`F7`) en la hoja o en las celdas seleccionadas, omitiendo fórmulas, números y fechas. Dispone de Omitir, Omitir todo, Cambiar, Cambiar todo y Agregar, y en el editor de celdas aparece un subrayado rojo con sugerencias al hacer clic derecho.",
+   "fr": "Vérifiez l’orthographe (`F7`) dans la feuille ou les cellules sélectionnées, en ignorant les formules, nombres et dates. Ignorer, Ignorer tout, Modifier, Modifier tout et Ajouter sont disponibles, et un soulignement rouge avec suggestions au clic droit apparaît dans l’éditeur de cellule.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24028,6 +24010,18 @@
     "fr": "Insertion > Code-barres : une colonne de codes en codes-barres vectoriels (EAN, UPC, Code 128, Code 39, QR)"
    }
   },
+  "ece40f16626684f64082dd5efec8558d95a1cbfd4010af5a591580b8b56b0de5": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Spelling check (F7), offline, in 31 languages and regional forms",
+    "es": "Revisión ortográfica (F7), sin conexión, en 31 idiomas y variantes regionales",
+    "fr": "Vérification orthographique (F7), hors ligne, dans 31 langues et formes régionales"
+   }
+  },
   "ecf899a7023677392ecaefef8a5e696b2eed55ed3acce23b9d2e87b7eb309d55": {
    "drop": false,
    "en": "Insert a picture from a file (PNG, JPEG, GIF, BMP, TIFF, WebP, or SVG), from the clipboard, or by dropping a file on a page. The picture is embedded, kept in the `.docx` file, and one step undoes it. Pictures are limited to 48 MB and 40 million pixels.",
@@ -24969,6 +24963,18 @@
    "en": "Picture Format tab (while a picture is selected)",
    "es": "Pestaña Formato de imagen (con una imagen seleccionada)",
    "fr": "Onglet Format de l’image (image sélectionnée)",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "fb34762d71b713b8725b73d3338f6929e153e876d9e70052b6e4488e180549c5": {
+   "drop": false,
+   "en": "A workbook with unsaved changes keeps a background copy as an `.xlsx` file at the interval set in the Save options. The copy is removed when the workbook is saved or closed, and nothing is written for an unchanged or password-protected workbook. Copies left by a crash are offered at the next start and open as unsaved work.",
+   "es": "Un libro con cambios sin guardar conserva una copia en segundo plano como archivo `.xlsx` en el intervalo definido en las opciones de Guardar. La copia se elimina al guardar o cerrar el libro, y no se escribe nada para un libro sin cambios o protegido con contraseña. Las copias que deja un fallo se ofrecen en el siguiente inicio y se abren como trabajo no guardado.",
+   "fr": "Un classeur contenant des modifications non enregistrées conserve une copie en arrière-plan au format `.xlsx`, à l’intervalle défini dans les options d’enregistrement. La copie est supprimée lorsque le classeur est enregistré ou fermé, et rien n’est écrit pour un classeur inchangé ou protégé par mot de passe. Les copies laissées par un plantage sont proposées au démarrage suivant et s’ouvrent comme travail non enregistré.",
    "soon": {
     "drop": true,
     "en": "",
