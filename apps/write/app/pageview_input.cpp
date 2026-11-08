@@ -2,6 +2,7 @@
 
 #include "app/pageview.h"
 
+#include "core/autoops.h"
 #include "core/editops.h"
 #include "core/linkops.h"
 #include "app/settings.h"
@@ -278,7 +279,13 @@ void PageView::insertText(const QString &text)
         const int n = std::min<int>(room, int(text.size()));
         if (n > 0) m_cursor.setPosition(m_cursor.position() + n, QTextCursor::KeepAnchor);
     }
-    write::insertText(*m_doc, m_cursor, text);
+    Settings &st = Settings::get();
+    write::AutoOptions auto_;
+    auto_.correct = st.value(QStringLiteral("proof/autocorrect"), true).toBool();
+    auto_.quotes = st.value(QStringLiteral("proof/smartQuotes"), true).toBool();
+    auto_.format = st.value(QStringLiteral("proof/autoformat"), true).toBool();
+    if (m_overtype) auto_ = write::AutoOptions{false, false, false};
+    write::typeText(*m_doc, m_cursor, text, auto_);
     caretMoved();
 }
 
@@ -367,7 +374,11 @@ void PageView::typeKey(int key, Qt::KeyboardModifiers m)
     case Qt::Key_Enter:
         if (ctrl) insertPageBreak(*m_doc, m_cursor);
         else if (shift) write::insertText(*m_doc, m_cursor, QString(QChar(QChar::LineSeparator)));
-        else insertParagraph(*m_doc, m_cursor);
+        else {
+            write::AutoOptions auto_;
+            auto_.format = Settings::get().value(QStringLiteral("proof/autoformat"), true).toBool();
+            if (!write::enterAfterRule(*m_doc, m_cursor, auto_)) insertParagraph(*m_doc, m_cursor);
+        }
         caretMoved();
         break;
     case Qt::Key_Tab:

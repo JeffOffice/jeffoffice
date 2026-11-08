@@ -6,6 +6,7 @@
 #include "app/settings.h"
 
 #include "core/texteffects.h"
+#include "text/autocorrect.h"
 #include "text/textprops.h"
 
 #include <QRegularExpression>
@@ -633,79 +634,22 @@ void Editor::insertText(const QString &t)
     textEdited();
 }
 
-// AutoCorrect: common typing slips and symbols, as most word processors
-// fix them by default.
-static const QHash<QString, QString> &autoCorrections()
-{
-    static const QHash<QString, QString> table = {
-        {"i", "I"}, {"teh", "the"}, {"adn", "and"}, {"nad", "and"}, {"taht", "that"}, {"thier", "their"}, {"recieve", "receive"},
-        {"recieved", "received"}, {"beleive", "believe"}, {"belive", "believe"}, {"wierd", "weird"}, {"freind", "friend"},
-        {"accomodate", "accommodate"}, {"acheive", "achieve"}, {"occured", "occurred"}, {"occurence", "occurrence"},
-        {"seperate", "separate"}, {"definately", "definitely"}, {"goverment", "government"}, {"untill", "until"},
-        {"wich", "which"}, {"whcih", "which"}, {"becuase", "because"}, {"becasue", "because"}, {"alot", "a lot"},
-        {"dont", "don't"}, {"doesnt", "doesn't"}, {"didnt", "didn't"}, {"cant", "can't"}, {"wont", "won't"},
-        {"isnt", "isn't"}, {"wasnt", "wasn't"}, {"arent", "aren't"}, {"couldnt", "couldn't"}, {"shouldnt", "shouldn't"},
-        {"wouldnt", "wouldn't"}, {"im", "I'm"}, {"ive", "I've"}, {"youre", "you're"}, {"theyre", "they're"},
-        {"tommorow", "tomorrow"}, {"tomorow", "tomorrow"}, {"calender", "calendar"}, {"neccessary", "necessary"},
-        {"neccesary", "necessary"}, {"publically", "publicly"}, {"existance", "existence"}, {"independant", "independent"},
-        {"embarass", "embarrass"}, {"enviroment", "environment"}, {"foriegn", "foreign"}, {"greatful", "grateful"},
-        {"harrass", "harass"}, {"knowlege", "knowledge"}, {"libary", "library"}, {"maintainance", "maintenance"},
-        {"millenium", "millennium"}, {"mispell", "misspell"}, {"noticable", "noticeable"}, {"posession", "possession"},
-        {"prefered", "preferred"}, {"recomend", "recommend"}, {"refered", "referred"}, {"relevent", "relevant"},
-        {"succesful", "successful"}, {"sucessful", "successful"}, {"supercede", "supersede"}, {"truely", "truly"},
-        {"wether", "whether"}, {"writting", "writing"}, {"yeild", "yield"}, {"hte", "the"}, {"tje", "the"}, {"fo", "of"},
-        {"(c)", QStringLiteral("©")}, {"(r)", QStringLiteral("®")}, {"(tm)", QStringLiteral("™")}};
-    return table;
-}
-
 void Editor::autoCorrectWord()
 {
     if (!isEditingText() || m_cursor.hasSelection() || !Settings::get().value("proof/autocorrect", true).toBool()) return;
     const QTextBlock b = m_cursor.block();
-    const QString text = b.text();
     const int rel = m_cursor.position() - b.position();
-    int start = rel;
-    auto wordChar = [](QChar c) { return c.isLetterOrNumber() || c == QLatin1Char('\'') || c == QChar(0x2019) || c == QLatin1Char('(') || c == QLatin1Char(')'); };
-    while (start > 0 && wordChar(text[start - 1])) --start;
-    QString word = text.mid(start, rel - start);
-    if (word.isEmpty() || word.contains(QChar::ObjectReplacementCharacter)) return;
-    QString fixed;
-    const auto hit = autoCorrections().constFind(word.toLower());
-    if (hit != autoCorrections().cend() && *hit != word) {
-        fixed = *hit;
-        // Keep the typed capitals: "Teh" becomes "The", "TEH" becomes "THE".
-        if (word.size() > 1 && word == word.toUpper() && word != word.toLower()) fixed = fixed.toUpper();
-        else if (word[0].isUpper()) fixed[0] = fixed[0].toUpper();
-    } else if (word.size() > 2 && word[0].isUpper() && word[1].isUpper() && word.mid(2) == word.mid(2).toLower() && word.mid(2) != word.mid(2).toUpper()) {
-        // Two initial capitals: "THursday" becomes "Thursday".
-        fixed = word;
-        fixed[1] = fixed[1].toLower();
-    }
-    // A capital at the start of a sentence.
-    QString base = fixed.isEmpty() ? word : fixed;
-    if (!base.isEmpty() && base[0].isLower()) {
-        int k = start - 1;
-        while (k >= 0 && text[k].isSpace()) --k;
-        // The paragraph's first word, or one after a sentence's end and a space.
-        const bool sentenceStart = k < 0 || (k < start - 1 && (text[k] == '.' || text[k] == '!' || text[k] == '?'));
-        // Not after an abbreviation such as "e.g." or "a.m.".
-        const bool abbreviation = k >= 2 && text[k] == '.' && text[k - 2] == '.';
-        if (sentenceStart && !abbreviation && base[0].isLetter()) {
-            base[0] = base[0].toUpper();
-            fixed = base;
-        }
-    }
-    if (fixed.isEmpty() || fixed == word) return;
-    if (Settings::get().value("proof/smartQuotes", true).toBool()) fixed.replace(QLatin1Char('\''), QChar(0x2019));
+    const auto fix = autotext::correctWord(b.text(), rel, Settings::get().value("proof/smartQuotes", true).toBool());
+    if (!fix) return;
     if (!m_typing) {
         beginChange(tr("Typing"));
         m_typing = true;
     }
     QTextCursor c = m_cursor;
-    c.setPosition(b.position() + start);
+    c.setPosition(b.position() + fix->from);
     c.setPosition(b.position() + rel, QTextCursor::KeepAnchor);
-    c.insertText(fixed, c.charFormat());
-    m_cursor.setPosition(b.position() + start + int(fixed.size()));
+    c.insertText(fix->with, c.charFormat());
+    m_cursor.setPosition(b.position() + fix->from + int(fix->with.size()));
     textEdited();
 }
 
@@ -717,44 +661,30 @@ void Editor::autoFormatWord()
     if (!isEditingText() || m_cursor.hasSelection() || !Settings::get().value("proof/autoformat", true).toBool()) return;
     const QTextBlock b = m_cursor.block();
     const QString text = b.text().left(m_cursor.position() - b.position());
-    auto replace = [&](int from, int to, const QString &with, const QTextCharFormat *fmt = nullptr) {
-        if (!m_typing) {
-            beginChange(tr("Typing"));
-            m_typing = true;
-        }
-        QTextCursor c = m_cursor;
-        c.setPosition(b.position() + from);
-        c.setPosition(b.position() + to, QTextCursor::KeepAnchor);
-        if (fmt) c.mergeCharFormat(*fmt);
-        else c.insertText(with, c.charFormat());
-        textEdited();
-    };
-    static const QRegularExpression emDash(QStringLiteral("[\\w.,!?)\"'”’]--[\\w(\"'“‘]\\S*$"));
-    static const QRegularExpression enDash(QStringLiteral("\\w - [\\w(\"'“‘]\\S*$"));
-    static const QRegularExpression fraction(QStringLiteral("(?:^|\\s)(1/2|1/4|3/4)$"));
-    static const QRegularExpression ordinal(QStringLiteral("(?:^|\\s)\\d*(?:1st|2nd|3rd|[04-9]th|1[1-3]th)$"));
-    if (const auto m = emDash.match(text); m.hasMatch()) {
-        replace(int(m.capturedStart()) + 1, int(m.capturedStart()) + 3, QString(QChar(0x2014)));
-        return;
+    const auto fix = autotext::formatWord(text);
+    if (!fix) return;
+    if (!m_typing) {
+        beginChange(tr("Typing"));
+        m_typing = true;
     }
-    if (const auto m = enDash.match(text); m.hasMatch()) {
-        replace(int(m.capturedStart()) + 2, int(m.capturedStart()) + 3, QString(QChar(0x2013)));
-        return;
-    }
-    if (const auto m = fraction.match(text); m.hasMatch()) {
-        const QString f = m.captured(1);
-        replace(int(m.capturedStart(1)), int(m.capturedEnd(1)), f == QLatin1String("1/2") ? QStringLiteral("½") : f == QLatin1String("1/4") ? QStringLiteral("¼") : QStringLiteral("¾"));
-        m_cursor.setPosition(b.position() + int(m.capturedStart(1)) + 1);
-        return;
-    }
-    if (const auto m = ordinal.match(text); m.hasMatch()) {
+    QTextCursor c = m_cursor;
+    c.setPosition(b.position() + fix->from);
+    c.setPosition(b.position() + fix->to, QTextCursor::KeepAnchor);
+    if (fix->superscript) {
         QTextCharFormat sup;
         sup.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
-        replace(int(text.size()) - 2, int(text.size()), QString(), &sup);
+        c.mergeCharFormat(sup);
+    } else {
+        c.insertText(fix->with, c.charFormat());
+    }
+    textEdited();
+    if (fix->superscript) {
         // Typing goes on in plain text.
         QTextCharFormat plain = m_cursor.charFormat();
         plain.setVerticalAlignment(QTextCharFormat::AlignNormal);
         m_cursor.setCharFormat(plain);
+    } else if (fix->with.size() == 1 && fix->to - fix->from == 3) {
+        m_cursor.setPosition(b.position() + fix->from + 1);
     }
 }
 
@@ -767,17 +697,16 @@ void Editor::typeText(const QString &t)
     if (s == QLatin1String(" ") && !m_cursor.hasSelection() && !m_cursor.block().textList() && Settings::get().value("proof/autoformat", true).toBool()) {
         const QTextBlock b = m_cursor.block();
         const QString before = b.text().left(m_cursor.position() - b.position());
-        static const QRegularExpression numbered(QStringLiteral("^(\\d{1,3})([.)])$"));
-        const auto m = numbered.match(before);
-        if (before == QLatin1String("*") || before == QLatin1String("-") || m.hasMatch()) {
+        const auto list = autotext::listStart(before);
+        if (list) {
             flushTyping();
             beginChange(tr("AutoFormat List"));
             QTextCursor c = m_cursor;
             c.setPosition(b.position());
-            c.setPosition(b.position() + int(before.size()), QTextCursor::KeepAnchor);
+            c.setPosition(b.position() + list->length, QTextCursor::KeepAnchor);
             c.removeSelectedText();
             m_cursor.setPosition(b.position());
-            if (m.hasMatch()) setList(2, m.captured(2) == QLatin1String(")") ? 6 : 0, QString(), m.captured(1).toInt());
+            if (list->numbered) setList(2, list->paren ? 6 : 0, QString(), list->number);
             else setList(1);
             endChange();
             textEdited();
@@ -790,9 +719,7 @@ void Editor::typeText(const QString &t)
         const QTextBlock b = m_cursor.block();
         const int rel = m_cursor.selectionStart() - b.position();
         const QChar before = rel > 0 ? b.text().at(rel - 1) : QChar();
-        const bool opening = before.isNull() || before.isSpace() || QStringLiteral("([{<—–“‘").contains(before);
-        if (s == QLatin1String("\"")) s = opening ? QStringLiteral("“") : QStringLiteral("”");
-        else s = opening ? QStringLiteral("‘") : QStringLiteral("’");
+        s = autotext::smartQuote(s, before);
     }
     // A word ends: fix it before going on.
     if (s.size() == 1 && (s[0].isSpace() || QStringLiteral(".,;:!?").contains(s[0]))) {

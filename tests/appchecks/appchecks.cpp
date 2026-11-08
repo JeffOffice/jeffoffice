@@ -399,7 +399,7 @@ QStringList checkTypingWithoutAClick(Adapter &app)
         drain();
         if (app.settle) app.settle(w);
         if (app.typedText) {
-            if (!app.typedText(w).contains(QStringLiteral("ab c"))) failures << which + QStringLiteral(": typing with the focus on a %1 did not land in the document (it holds \"%2\")").arg(where, app.typedText(w));
+            if (!app.typedText(w).contains(QStringLiteral("ab c"), Qt::CaseInsensitive)) failures << which + QStringLiteral(": typing with the focus on a %1 did not land in the document (it holds \"%2\")").arg(where, app.typedText(w));
         } else {
             if (!watch.dialogs.isEmpty()) failures << which + QStringLiteral(": typing with the focus on a %1 opened %2").arg(where, watch.dialogs.join(QStringLiteral("; ")));
             if (app.docState && app.docState(w) != state) failures << which + QStringLiteral(": typing with the focus on a %1 changed the document or the view").arg(where);

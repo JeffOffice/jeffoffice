@@ -1641,4 +1641,11 @@ private Q_SLOTS:
     void aCancelledStyleDialogOnABuiltInStyleTheDocumentLacksChangesNothing();
     void savesTheDocumentWithHeaderAndFooter();
     void aSavedDocumentIsTheSameBytesInEachProcess();
+    void theSharedAutoCorrectRulesSayWhatToPutInPlaceOfWhat();
+    void typingFixesSlipsSymbolsAndSentenceCapitalsAndOneUndoTakesJustTheFix();
+    void typingMakesDashesFractionsAndRaisedOrdinalsAndOneUndoTakesJustThat();
+    void typingOneAndAPeriodOrAStarAndASpaceStartsAListInWritesOwnListModelAndOneUndoTakesItBack();
+    void aRowOfDashesAndEnterGivesTheParagraphABottomBorderAndOneUndoTakesItBack();
+    void aWebOrEmailAddressFollowedBySpaceBecomesALinkAndOneUndoTakesTheLinkBack();
+    void starredWordsBecomeBoldAndUnderscoredWordsBecomeUnderlinedAndOneUndoTakesJustThat();
 };
