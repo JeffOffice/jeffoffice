@@ -121,7 +121,8 @@ private Q_SLOTS:
             return w;
         };
         m_app.type = [](AppWindow *w) { enter(asCrunch(w), 0, 0, QStringLiteral("12")); };
-        m_app.typedText = [](AppWindow *w) { return asCrunch(w)->isEditing() ? asCrunch(w)->cellEditor()->text() : QString(); };
+        // (AutoCorrect makes the first letter of the entry a capital when a word ends: the letters are what is asked)
+        m_app.typedText = [](AppWindow *w) { return asCrunch(w)->isEditing() ? asCrunch(w)->cellEditor()->text().toLower() : QString(); };
         m_app.showPrint = [](AppWindow *w) -> QWidget * {
             w->act(QStringLiteral("file.print"))->trigger();
             return w->findChild<FileScreen *>();
