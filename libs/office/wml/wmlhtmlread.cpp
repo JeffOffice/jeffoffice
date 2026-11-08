@@ -93,8 +93,8 @@ struct Reader {
         double w = width > 0 ? width : natural.width(), h = height > 0 ? height : natural.height();
         if (width > 0 && height <= 0) h = natural.height() * width / natural.width();
         if (height > 0 && width <= 0) w = natural.width() * height / natural.height();
-        w = std::max(1.0, w) * 0.75;
-        h = std::max(1.0, h) * 0.75;   // (points)
+        w = std::min(std::max(1.0, w), 1e7) * 0.75;   // (an infinite size from the page: the scale below would be 0 times infinity)
+        h = std::min(std::max(1.0, h), 1e7) * 0.75;   // (points)
         const double scale = std::min({1.0, 468.0 / w, 648.0 / h});
         const qint64 cx = qint64(w * scale * 12700), cy = qint64(h * scale * 12700);
         ++images;

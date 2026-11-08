@@ -12,6 +12,7 @@
 #include <QRegularExpression>
 #include <QSet>
 #include <algorithm>
+#include <cmath>
 #include <atomic>
 
 namespace jp::office::wml {
@@ -27,6 +28,8 @@ constexpr int kMaxContainerDepth = 24;
 constexpr int kMostTwips = 1000000;
 
 int clampTwips(qlonglong v) { return int(std::clamp<qlonglong>(v, -kMostTwips, kMostTwips)); }
+// A number from the file that is not a whole one (the cast of a value past 64 bits is undefined): clamped before it is cast.
+int clampTwips(double d) { return int(std::clamp(d, -double(kMostTwips), double(kMostTwips))); }
 
 std::optional<int> intOf(const XmlTree &t, int n, const char *attr = "val")
 {
@@ -36,8 +39,8 @@ std::optional<int> intOf(const XmlTree &t, int n, const char *attr = "val")
     qlonglong x = v.toLongLong(&ok);
     if (!ok) {
         const double d = v.toDouble(&ok);   // ("36.5")
-        if (!ok) return std::nullopt;
-        x = qlonglong(d);
+        if (!ok || !std::isfinite(d)) return std::nullopt;
+        return clampTwips(d);
     }
     return clampTwips(x);
 }
@@ -561,13 +564,14 @@ public:
         if (v.endsWith(QLatin1Char('%'))) {
             v.chop(1);
             w.type = QStringLiteral("pct");
-            w.w = clampTwips(qlonglong(v.toDouble() * 50));
+            const double pct = v.toDouble() * 50;
+            if (std::isfinite(pct)) w.w = clampTwips(pct);
             return w;
         }
         if (!v.isEmpty()) {
             bool ok = false;
             const double d = v.toDouble(&ok);
-            if (ok) w.w = clampTwips(qlonglong(d));
+            if (ok && std::isfinite(d)) w.w = clampTwips(d);
             if (w.type.isEmpty()) w.type = QStringLiteral("dxa");
         }
         return w;

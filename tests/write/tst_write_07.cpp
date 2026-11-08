@@ -391,6 +391,23 @@ void WriteTests::aRulesWidthFollowsItsSectionAndItsIndents()
     QVERIFY2(std::abs(narrow[0]->rect.width() - (468 - 72 - 36)) < 0.01, qPrintable(QString::number(narrow[0]->rect.width()) + " indented"));
 }
 
+// A number the file gives is cast to a whole one: infinite, not a number, or past 64 bits it was undefined, and read as a negative indent of 50000 points here.
+void WriteTests::numbersInAFileThatAreNotWholeOrNotFiniteAreClampedOrIgnored()
+{
+    auto indentOf = [&](const char *left) {
+        auto doc = open(makeDocx("<w:p><w:pPr><w:ind w:left=\"" + QByteArray(left) + "\"/></w:pPr><w:r><w:t>text</w:t></w:r></w:p>", kStyles));
+        return doc ? doc->story()->firstBlock().blockFormat().leftMargin() : -1e9;
+    };
+    QCOMPARE(indentOf("720"), 36.0);
+    QCOMPARE(indentOf("36.5"), 1.8);
+    QCOMPARE(indentOf("1e300"), 50000.0);
+    QCOMPARE(indentOf("9999999999999999999"), 50000.0);
+    QCOMPARE(indentOf("-1e300"), -50000.0);
+    QCOMPARE(indentOf("nan"), 0.0);
+    QCOMPARE(indentOf("inf"), 0.0);
+    QCOMPARE(indentOf("-inf"), 0.0);
+}
+
 
 // Lettering on a path is bounded: a document draws no more than a few lettering shapes and a few thousand characters of it, and no frame of it is larger than a few
 // pages (each letter is outlined and stroked, and a file of a thousand shapes of five hundred letters took minutes).

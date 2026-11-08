@@ -1214,6 +1214,7 @@ private Q_SLOTS:
     void automaticTextIsDrawnWhiteOnADarkFillAndNothingIsSaved();
     void theFillNearestTheTextDecidesItsAutomaticColor();
     void aRulesWidthFollowsItsSectionAndItsIndents();
+    void numbersInAFileThatAreNotWholeOrNotFiniteAreClampedOrIgnored();
     void letteringIsBoundedInCountLettersAndSize();
     void letteringDrawnAgainCostsLittle();
     void aPicturesBorderHasTheSidesTheFileSets();
