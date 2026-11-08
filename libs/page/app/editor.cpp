@@ -704,7 +704,11 @@ void Editor::deleteItems(const QStringList &ids)
         if (loc.list) loc.list->erase(loc.list->begin() + loc.index);
         if (loc.parent) {
             loc.parent->syncRect();
-            if (loc.parent->children.size() == 1) {
+            if (loc.parent->children.empty()) {
+                // A group a file gave with one child is empty without it.
+                const auto ploc = m_doc->find(loc.parent->id);
+                if (ploc.list) ploc.list->erase(ploc.list->begin() + ploc.index);
+            } else if (loc.parent->children.size() == 1) {
                 // A group of one dissolves.
                 const auto ploc = m_doc->find(loc.parent->id);
                 if (ploc.list) (*ploc.list)[ploc.index] = loc.parent->children.front();
@@ -1667,9 +1671,13 @@ void Editor::deletePage(int index)
     endTextEdit();
     beginChange(tr("Delete Page"));
     QStringList ids;
-    for (const auto &it : m_doc->pages[index]->items) ids << it->id;
+    walkItems(m_doc->pages[index]->items, [&](const ItemPtr &it) { ids << it->id; });
     removeFromChains(ids);
     m_doc->pages.removeAt(index);
+    // Drop stories no longer referenced.
+    const QSet<QString> used = m_doc->storiesInUse();
+    for (const auto &sid : m_doc->stories.keys())
+        if (!used.contains(sid)) m_doc->removeStory(sid);
     m_page = std::clamp(m_page >= index ? m_page - 1 : m_page, 0, int(m_doc->pages.size()) - 1);
     m_sel.clear();
     endChange();

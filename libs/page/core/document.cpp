@@ -1757,6 +1757,18 @@ void Document::fromJson(const QJsonObject &o)
     }
     scratch = itemsF(o["scratch"]);
     extra = itemsF(o["extra"]);
+    // Ids in a file are not always unique: the first item with one keeps it, and each later one gets its own,
+    // so an item is found, deleted, and linked by its own id. (Links to the id stay with the first.)
+    {
+        QSet<QString> seen;
+        auto own = [&](const ItemPtr &it) {
+            if (seen.contains(it->id)) it->id = newId();
+            seen.insert(it->id);
+        };
+        for (const auto &p : pages) walkItems(p->items, own);
+        for (const auto &m : masters) walkItems(m->items, own);
+        walkItems(scratch, own);
+    }
     const auto cso = o["colorScheme"].toObject();
     colors.name = cso["name"].toString();
     const auto cs = cso["colors"].toArray();

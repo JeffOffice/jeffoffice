@@ -881,6 +881,131 @@ private Q_SLOTS:
         QCOMPARE(int(ed.doc()->pages[0]->items.size()), 3);
     }
 
+    // Effect sizes a file gives stay in the ranges the Format pane offers, so a damaged value cannot make
+    // a blur that takes minutes.
+    void effectSizesFromAFileAreBounded()
+    {
+        using namespace jp;
+        const QJsonObject fx = QJsonDocument::fromJson(
+            "{\"shadow\":{\"blur\":1e7,\"dist\":1e7},\"glow\":{\"size\":1e7},\"softEdge\":1e7,"
+            "\"reflection\":{\"blur\":1e7,\"dist\":1e7,\"size\":1e7}}").object();
+        const Effects e = Effects::fromJson(fx);
+        QCOMPARE(e.shadow.blur, 100.0);
+        QCOMPARE(e.shadow.distance, 200.0);
+        QCOMPARE(e.glow.size, 150.0);
+        QCOMPARE(e.softEdge, 100.0);
+        QCOMPARE(e.reflection.blur, 100.0);
+        QCOMPARE(e.reflection.distance, 200.0);
+        QCOMPARE(e.reflection.size, 1.0);
+        QCOMPARE(Effects::fromJson(QJsonDocument::fromJson("{\"glow\":{\"size\":-5},\"shadow\":{\"blur\":-1,\"dist\":-1}}").object()).glow.size, 0.0);
+        // Drawn: the page is made at once (it took minutes at a radius of 1e7).
+        for (const char *key : {"glow", "shadow", "softEdge", "reflection"}) {
+            auto doc = Document::blank(QSizeF(200, 200));
+            auto box = std::make_shared<ShapeItem>();
+            box->shape = QStringLiteral("rect");
+            box->rect = QRectF(40, 40, 120, 120);
+            QJsonObject big;
+            if (QLatin1String(key) == QLatin1String("softEdge")) big["softEdge"] = 1e7;
+            else if (QLatin1String(key) == QLatin1String("glow")) big["glow"] = QJsonObject{{"size", 1e7}};
+            else big[key] = QJsonObject{{"blur", 1e7}, {"dist", 1e7}};
+            box->fx = Effects::fromJson(big);
+            doc->pages[0]->items.push_back(box);
+            PaintContext ctx;
+            ctx.doc = doc.get();
+            ctx.opt.output = true;
+            QVERIFY(!Renderer::renderToImage(ctx, 0, 1.0).isNull());
+        }
+    }
+
+    // Resizing a selection that has no width (two vertical lines) scales by one, not by nothing over
+    // nothing, so no point becomes infinite.
+    void resizingASelectionWithNoWidthStaysFinite()
+    {
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        jp::Editor *ed = w.editor();
+        for (const char *json : {"{\"type\":\"line\",\"id\":\"la\",\"p1\":[200,100],\"p2\":[200,300],\"stroke\":{\"color\":\"#000000\",\"width\":2}}",
+                                 "{\"type\":\"line\",\"id\":\"lb\",\"p1\":[200,150],\"p2\":[200,250],\"stroke\":{\"color\":\"#000000\",\"width\":2}}"})
+            ed->addItem(jp::Item::fromJsonAny(QJsonDocument::fromJson(json).object()));
+        ed->select(QStringList{"la", "lb"});
+        jp::Canvas *c = w.canvas();
+        QWidget *vp = c->viewport();
+        auto view = [&](QPointF page) { return c->pageToView(page).toPoint(); };
+        auto move = [&](QPointF page) {
+            const QPointF v = view(page);
+            QMouseEvent mv(QEvent::MouseMove, v, vp->mapToGlobal(v), Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+            QApplication::sendEvent(vp, &mv);
+        };
+        QTest::qWait(QApplication::doubleClickInterval() + 50);
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, view(QPointF(200, 300)));
+        move(QPointF(215, 315));
+        move(QPointF(230, 330));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, view(QPointF(230, 330)));
+        for (const char *id : {"la", "lb"}) {
+            auto *l = dynamic_cast<jp::LineItem *>(ed->doc()->item(id));
+            QVERIFY(l);
+            QVERIFY(std::isfinite(l->p1.x()) && std::isfinite(l->p1.y()) && std::isfinite(l->p2.x()) && std::isfinite(l->p2.y()));
+        }
+    }
+
+    // Items of one id in a file: the later ones get ids of their own, so deleting one deletes only that one.
+    void itemsOfOneIdInAFileGetOwnIds()
+    {
+        using namespace jp;
+        jp::Editor ed;
+        auto d = Document::blank(QSizeF(612, 792));
+        for (const char *json : {"{\"type\":\"shape\",\"id\":\"x\",\"rect\":[10,10,50,50],\"name\":\"first\"}",
+                                 "{\"type\":\"shape\",\"id\":\"x\",\"rect\":[100,10,50,50],\"name\":\"second\"}"})
+            d->pages[0]->items.push_back(Item::fromJsonAny(QJsonDocument::fromJson(json).object()));
+        auto loaded = std::make_unique<Document>();
+        loaded->fromJson(d->toJson());
+        ed.setDocument(std::move(loaded));
+        const auto &items = ed.doc()->pages[0]->items;
+        QCOMPARE(int(items.size()), 2);
+        QCOMPARE(items[0]->id, QStringLiteral("x"));
+        QVERIFY(items[1]->id != items[0]->id);
+        ed.deleteItems(QStringList{items[1]->id});
+        QCOMPARE(int(ed.doc()->pages[0]->items.size()), 1);
+        QCOMPARE(ed.doc()->pages[0]->items[0]->name, QStringLiteral("first"));
+    }
+
+    // A group a file gives with one child is gone, not left empty, when that child is deleted.
+    void deletingTheOnlyChildOfAFileGroupLeavesNoEmptyGroup()
+    {
+        using namespace jp;
+        jp::Editor ed;
+        auto d = Document::blank(QSizeF(612, 792));
+        d->pages[0]->items.push_back(Item::fromJsonAny(QJsonDocument::fromJson(
+            "{\"type\":\"group\",\"id\":\"g\",\"rect\":[0,0,0,0],\"children\":[{\"type\":\"shape\",\"id\":\"c\",\"rect\":[10,10,50,50]}]}").object()));
+        ed.setDocument(std::move(d));
+        ed.deleteItems(QStringList{"c"});
+        QCOMPARE(int(ed.doc()->pages[0]->items.size()), 0);
+        ed.undo();
+        QCOMPARE(int(ed.doc()->pages[0]->items.size()), 1);
+    }
+
+    // Deleting a page takes the chained boxes inside its groups out of their chains, and its stories go.
+    void deletingAPageUnlinksChainedBoxesInGroups()
+    {
+        using namespace jp;
+        jp::Editor ed;
+        auto mk = [](const char *json) { return Item::fromJsonAny(QJsonDocument::fromJson(json).object()); };
+        auto d = Document::blank(QSizeF(612, 792));
+        d->pages[0]->items.push_back(mk("{\"type\":\"text\",\"id\":\"a\",\"rect\":[10,10,50,50],\"next\":\"b\",\"story\":\"s1\"}"));
+        d->pages.push_back(std::make_shared<Page>());
+        d->pages[1]->items.push_back(mk("{\"type\":\"group\",\"id\":\"g\",\"rect\":[0,0,0,0],\"children\":[{\"type\":\"text\",\"id\":\"b\",\"rect\":[10,10,50,50],\"story\":\"s1\"},{\"type\":\"shape\",\"id\":\"z\",\"rect\":[1,1,5,5]}]}"));
+        ed.setDocument(std::move(d));
+        ed.deletePage(1);
+        auto *a = dynamic_cast<TextItem *>(ed.doc()->item("a"));
+        QVERIFY(a);
+        QVERIFY(a->nextId.isEmpty());
+        ed.undo();
+        QCOMPARE(int(ed.doc()->pages.size()), 2);
+    }
+
     // Shapes > Lines: Curve (clicks, a smooth line through them, double-click
     // to end), Freeform (clicks joined straight; clicking the first point
     // closes it) and Scribble (one stroke by hand).

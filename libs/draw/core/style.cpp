@@ -258,8 +258,8 @@ Effects Effects::fromJson(const QJsonObject &o)
         e.shadow.on = true;
         e.shadow.color = ColorRef::fromString(s["color"].toString());
         e.shadow.transparency = s["t"].toDouble(0.6);
-        e.shadow.blur = s["blur"].toDouble(4);
-        e.shadow.distance = s["dist"].toDouble(3);
+        e.shadow.blur = std::clamp(s["blur"].toDouble(4), 0.0, 100.0);
+        e.shadow.distance = std::clamp(s["dist"].toDouble(3), 0.0, 200.0);
         e.shadow.angle = s["angle"].toDouble(45);
         e.shadow.inner = s["inner"].toBool();
         e.shadow.size = std::clamp(s["size"].toDouble(100), 1.0, 1000.0);
@@ -268,17 +268,17 @@ Effects Effects::fromJson(const QJsonObject &o)
         const auto g = o["glow"].toObject();
         e.glow.on = true;
         e.glow.color = ColorRef::fromString(g["color"].toString());
-        e.glow.size = g["size"].toDouble(6);
+        e.glow.size = std::clamp(g["size"].toDouble(6), 0.0, 150.0);
         e.glow.transparency = g["t"].toDouble(0.4);
     }
-    e.softEdge = o["softEdge"].toDouble();
+    e.softEdge = std::clamp(o["softEdge"].toDouble(), 0.0, 100.0);
     if (o.contains("reflection")) {
         const auto r = o["reflection"].toObject();
         e.reflection.on = true;
         e.reflection.transparency = r["t"].toDouble(0.5);
-        e.reflection.size = r["size"].toDouble(0.5);
-        e.reflection.distance = r["dist"].toDouble();
-        e.reflection.blur = r["blur"].toDouble(0.5);
+        e.reflection.size = std::clamp(r["size"].toDouble(0.5), 0.0, 1.0);
+        e.reflection.distance = std::clamp(r["dist"].toDouble(), 0.0, 200.0);
+        e.reflection.blur = std::clamp(r["blur"].toDouble(0.5), 0.0, 100.0);
     }
     if (o.contains("bevel")) {
         const auto b = o["bevel"].toObject();

@@ -2083,11 +2083,11 @@ void Canvas::mouseMoveEvent(QMouseEvent *e)
             // Resize in the frame's own axes.
             if (it->type() == ItemType::Picture) {
                 auto *pic = static_cast<PictureItem *>(it);
-                const double kx = to.width() / from.width(), ky = to.height() / from.height();
+                const double kx = from.width() > 0 ? to.width() / from.width() : 1, ky = from.height() > 0 ? to.height() / from.height() : 1;
                 pic->imgRect = QRectF(pic->imgRect.x() * kx, pic->imgRect.y() * ky, pic->imgRect.width() * kx, pic->imgRect.height() * ky);
             } else if (it->type() == ItemType::Table) {
                 auto *t = static_cast<TableItem *>(it);
-                const double kx = to.width() / from.width(), ky = to.height() / from.height();
+                const double kx = from.width() > 0 ? to.width() / from.width() : 1, ky = from.height() > 0 ? to.height() / from.height() : 1;
                 for (double &cw : t->colW) cw *= kx;
                 for (double &rh : t->rowH) rh *= ky;
             }
@@ -2103,7 +2103,7 @@ void Canvas::mouseMoveEvent(QMouseEvent *e)
             if (hx[i] == 1) b.setRight(std::max(b.left() + 2, pg.x())); else if (hx[i] == -1) b.setLeft(std::min(b.right() - 2, pg.x()));
             if (hy[i] == 1) b.setBottom(std::max(b.top() + 2, pg.y())); else if (hy[i] == -1) b.setTop(std::min(b.bottom() - 2, pg.y()));
             if (hx[i] && hy[i] && !shift) {
-                const double s = std::max(b.width() / m_origBox.width(), b.height() / m_origBox.height());
+                const double s = std::max(m_origBox.width() > 0 ? b.width() / m_origBox.width() : 1, m_origBox.height() > 0 ? b.height() / m_origBox.height() : 1);
                 const QSizeF ns = m_origBox.size() * s;
                 if (hx[i] == 1) b.setRight(b.left() + ns.width()); else b.setLeft(b.right() - ns.width());
                 if (hy[i] == 1) b.setBottom(b.top() + ns.height()); else b.setTop(b.bottom() - ns.height());
