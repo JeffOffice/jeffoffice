@@ -1266,11 +1266,13 @@ private Q_SLOTS:
 
     void aLongKeyDoesNotFreezeTheWindowAndCanBeCancelled()
     {
+        // (the cancel comes from the window's own timer after it has ticked a few times, so a busy machine that starts
+        // the timers late can't make the test pass or fail by timing; a stall of a quarter second failed it on Windows CI)
         int ticks = 0;
         QTimer ticker;
-        QObject::connect(&ticker, &QTimer::timeout, [&] { ++ticks; });
+        QObject::connect(&ticker, &QTimer::timeout, [&] { if (++ticks == 6) cancelRunningForTest(); });
         ticker.start(10);
-        QTimer::singleShot(250, [] { cancelRunningForTest(); });
+        QTimer::singleShot(10000, [] { cancelRunningForTest(); });   // (the events never came: fail below, don't hang)
         const bool finished = runWithCancel(nullptr, QStringLiteral("working"), [](const std::atomic<bool> *cancel) {
             while (!cancel->load()) QThread::msleep(5);
         });
