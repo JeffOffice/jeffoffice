@@ -1127,6 +1127,33 @@ private Q_SLOTS:
         QVERIFY(runWithCancel(nullptr, QStringLiteral("working"), [](const std::atomic<bool> *) {}));
     }
 
+    // The window closes during the first 300 ms, before the note exists: the note is not made on it.
+    void aWindowClosedBeforeTheNoteShowsIsLeftAlone()
+    {
+        auto *w = new QWidget;
+        w->show();
+        QTimer::singleShot(100, [w] { delete w; });
+        QVERIFY(runWithCancel(w, QStringLiteral("working"), [](const std::atomic<bool> *) { QThread::msleep(600); }));
+    }
+
+    // Until the note shows, the window takes no input (it is enabled again after), and a second call while one runs is refused and runs nothing.
+    void theWindowTakesNoInputWhileTheWorkRunsAndASecondCallIsRefused()
+    {
+        QWidget w;
+        w.show();
+        bool disabledMeanwhile = false, nestedRan = false, nestedResult = true;
+        QTimer::singleShot(100, [&] {
+            disabledMeanwhile = !w.isEnabled();
+            nestedResult = runWithCancel(&w, QStringLiteral("again"), [&](const std::atomic<bool> *) { nestedRan = true; });
+        });
+        QVERIFY(runWithCancel(&w, QStringLiteral("working"), [](const std::atomic<bool> *) { QThread::msleep(500); }));
+        QVERIFY(disabledMeanwhile);
+        QVERIFY(!nestedResult);
+        QVERIFY(!nestedRan);
+        QVERIFY(w.isEnabled());
+        QVERIFY(runWithCancel(&w, QStringLiteral("after"), [](const std::atomic<bool> *) {}));   // (the flag of the first was let go)
+    }
+
     // A real key with many rounds of hashing, and a click on the Cancel button of the note that shows while it is made.
     void theCancelButtonOfTheNoteStopsALongKey()
     {

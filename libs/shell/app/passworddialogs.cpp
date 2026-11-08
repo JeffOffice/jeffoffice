@@ -143,8 +143,15 @@ std::atomic<bool> *g_running = nullptr;
 
 bool runWithCancel(QWidget *parent, const QString &text, const std::function<void(const std::atomic<bool> *cancel)> &work)
 {
+    // (one at a time: a second call, from an event handled meanwhile, would take the place of the first's flag)
+    if (g_running) return false;
     std::atomic<bool> stop{false};
     g_running = &stop;
+    // (the window takes no input until the note is up, and may be closed and deleted meanwhile)
+    const QPointer<QWidget> guard(parent);
+    const QPointer<QWidget> window(parent ? parent->window() : nullptr);
+    const bool windowWasEnabled = window && window->isEnabled();
+    if (window) window->setEnabled(false);
     QThread *thread = QThread::create([&] { work(&stop); });
     QEventLoop loop;
     QObject::connect(thread, &QThread::finished, &loop, &QEventLoop::quit);
@@ -152,6 +159,8 @@ bool runWithCancel(QWidget *parent, const QString &text, const std::function<voi
     QTimer later;
     later.setSingleShot(true);
     QObject::connect(&later, &QTimer::timeout, [&] {
+        if (parent && !guard) return;
+        if (window && windowWasEnabled) window->setEnabled(true);   // (the note is modal from here on)
         note = new QProgressDialog(text, QCoreApplication::translate("jp::PasswordDialogs", "Cancel"), 0, 0, parent);
         note->setObjectName(QStringLiteral("workNote"));
         note->setWindowModality(Qt::ApplicationModal);
@@ -167,6 +176,7 @@ bool runWithCancel(QWidget *parent, const QString &text, const std::function<voi
     thread->wait();
     delete thread;
     if (note) delete note.data();
+    if (window && windowWasEnabled) window->setEnabled(true);
     g_running = nullptr;
     return !stop.load();
 }
