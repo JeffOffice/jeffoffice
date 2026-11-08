@@ -6,6 +6,7 @@
 #include "grid/text.h"
 #include "calc/functions.h"
 #include "calc/numfmt.h"
+#include "calc/formula.h"
 #include "sheet/entry.h"
 #include "sheet/styles.h"
 
@@ -279,6 +280,37 @@ private Q_SLOTS:
         const EntryResult r = readEntry(sum(256), o);
         QVERIFY(!r.ok);
         QVERIFY2(r.problem.contains(QStringLiteral("255")), qPrintable(r.problem));
+    }
+
+    // A formula that is typed nests up to 64 levels, the most the other program reads in a file; 65 are refused with a sentence that says the limit. A file's formula may nest deeper.
+    void aFormulaNestedMoreThan64DeepIsRefused()
+    {
+        const EntryOptions o = options(en);
+        auto nested = [](int levels) {
+            QString text = QStringLiteral("=");
+            for (int i = 0; i < levels; ++i) text += QStringLiteral("IF(1,");
+            text += QLatin1Char('1');
+            for (int i = 0; i < levels; ++i) text += QStringLiteral(",2)");
+            return text;
+        };
+        QVERIFY(readEntry(nested(64), o).ok);
+        const EntryResult r = readEntry(nested(65), o);
+        QVERIFY(!r.ok);
+        QVERIFY2(r.problem.contains(QStringLiteral("64")), qPrintable(r.problem));
+        QVERIFY2(!r.problem.contains(QLatin1String("jp::")), qPrintable(r.problem));
+        // (the parser takes more when a file holds it)
+        QVERIFY(jp::calc::parseFormula(nested(65).mid(1)).ok());
+    }
+
+    // A whole number typed with more than 15 digits keeps the first 15 and zeros after them; a shorter one, and a number with a decimal mark or an exponent, is as typed.
+    void aWholeNumberOfMoreThan15DigitsKeeps15()
+    {
+        const EntryOptions o = options(en);
+        QCOMPARE(readEntry(QStringLiteral("1234567890123456789"), o).entry.number, 1234567890123450000.0);
+        QCOMPARE(readEntry(QStringLiteral("-1234567890123456789"), o).entry.number, -1234567890123450000.0);
+        QCOMPARE(readEntry(QStringLiteral("1234567890123456"), o).entry.number, 1234567890123450.0);
+        QCOMPARE(readEntry(QStringLiteral("123456789012345"), o).entry.number, 123456789012345.0);
+        QCOMPARE(readEntry(QStringLiteral("123456789012345.6"), o).entry.number, 123456789012345.6);
     }
 
     // A formula is kept as a file writes it: functions in capitals, and those added after the format's first release with the prefix the other programs need.

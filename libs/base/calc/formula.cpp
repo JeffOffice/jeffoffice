@@ -788,6 +788,7 @@ private:
     bool enter()
     {
         if (++depth > kMaxFormulaDepth) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "The formula has too many brackets inside one another."));
+        if (depth > opt.maxDepth) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "The formula has too many levels inside one another. A formula can nest up to %1 levels. Simplify it, and try again.").arg(opt.maxDepth));
         return true;
     }
 

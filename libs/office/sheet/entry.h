@@ -17,6 +17,7 @@ namespace jp::office::sheet {
 // The most characters a cell's text, and a formula, may have.
 constexpr int kMaxCellChars = 32767;
 constexpr int kMaxFormulaTypedChars = 8192;
+constexpr int kMaxFormulaTypedDepth = 64;
 
 struct Entry {
     enum class Kind : quint8 { Empty, Number, Text, Bool, Error, Formula } kind = Kind::Empty;

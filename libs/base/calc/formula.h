@@ -135,6 +135,7 @@ struct ParseOptions {
     bool arrayFormula = false;  // the formula is an array formula: worked out as an array
     bool definedName = false;   // the text of a defined name: a union ("A1,B2") may stand at the top level
     quint32 row = 0, col = 0;   // the cell the text is written for (r1c1: what "R[1]C[1]" is relative to)
+    int maxDepth = kMaxFormulaDepth;   // the most levels that may nest (a formula that is typed: 64, the most a file may have)
     int maxArgs = kMaxFormulaArgs;   // the most arguments a call may have (a formula that is typed: 255, the most a file may have)
     ParseLimits limits;              // how far the rows and columns of its references reach (A1 form only)
 };
