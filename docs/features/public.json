@@ -651,8 +651,9 @@
          "text": "098a0573a1b6f4a940eec33b0df2604da8b874027c7d7329c19e92ea4d1eea8e"
         },
         {
-         "status": "todo",
-         "text": "93cf3a85695eaba9b88afdaf11af09716ec2240995819563d172ab6702670fc5"
+         "hide_soon": true,
+         "status": "done",
+         "text": "1f261047763747d5e885f0d07b9a92968f487bfcd35cede237571c791ac1696a"
         },
         {
          "status": "partly",
@@ -5804,6 +5805,11 @@
         {
          "status": "partly",
          "text": "a94fe7d7c612d9d0d8415b17a13fdabced472dcce88f4f729092eb9966146671"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "676daa6880824eaa22de89f81eed0c3802660b5398dfc36a5317d952cfaf5c93"
         }
        ]
       },
@@ -6459,7 +6465,7 @@
         },
         {
          "status": "partly",
-         "text": "673229a14a06cbb82d6b2b90d73a79c4d0aaae0b9831eb7214ac7ff62ad824d5"
+         "text": "c336a3e3503373ebeb85d100dd5c1c53553ef83b204e0e0aeac6a049ad9984ca"
         },
         {
          "status": "partly",
@@ -9218,6 +9224,18 @@
    "en": "File (backstage)",
    "es": "Archivo (vista Backstage)",
    "fr": "Fichier (backstage)",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "1f261047763747d5e885f0d07b9a92968f487bfcd35cede237571c791ac1696a": {
+   "drop": false,
+   "en": "View diagrams on a sheet as they were saved. Pick and move a diagram over the cells, and save it back unchanged.",
+   "es": "Vea los diagramas de una hoja tal como se guardaron. Seleccione y mueva un diagrama sobre las celdas, y guárdelo de nuevo sin cambios.",
+   "fr": "Affichez les diagrammes d’une feuille tels qu’ils ont été enregistrés. Sélectionnez et déplacez un diagramme sur les cellules, puis réenregistrez-le sans modification.",
    "soon": {
     "drop": true,
     "en": "",
@@ -14505,16 +14523,16 @@
     "fr": ""
    }
   },
-  "673229a14a06cbb82d6b2b90d73a79c4d0aaae0b9831eb7214ac7ff62ad824d5": {
+  "676daa6880824eaa22de89f81eed0c3802660b5398dfc36a5317d952cfaf5c93": {
    "drop": false,
-   "en": "Text in shapes and text boxes from a file is laid out in the box, with its tables. The words of a text box that holds only words are edited in Shape Format > Edit Text or in the right-click menu, and the file's insets are used.",
-   "es": "El texto de las formas y los cuadros de texto de un documento se distribuye dentro del cuadro, junto con sus tablas. Las palabras de un cuadro de texto que contiene solo palabras se editan en Formato de forma > Editar texto o en el menú contextual, y se usan los márgenes internos del documento.",
-   "fr": "Le texte des formes et des zones de texte d’un document est disposé dans la zone, avec ses tableaux. Les mots d’une zone de texte qui ne contient que des mots se modifient dans Format de la forme > Modifier le texte ou dans le menu contextuel, et les marges internes du document sont utilisées.",
+   "en": "View diagrams as they are drawn in the file. Pick, move, and resize a diagram as a whole, print it or save it to PDF as vectors, and save it back unchanged.",
+   "es": "Vea los diagramas tal como están dibujados en el documento. Seleccione, mueva y cambie el tamaño de un diagrama como un todo, imprímalo o guárdelo en PDF como vectores, y guárdelo de nuevo sin cambios.",
+   "fr": "Affichez les diagrammes tels qu’ils sont dessinés dans le fichier. Sélectionnez, déplacez et redimensionnez un diagramme comme un tout, imprimez-le ou enregistrez-le en PDF en vectoriel, puis réenregistrez-le sans modification.",
    "soon": {
-    "drop": false,
-    "en": "Text box layout: direction, alignment, margins, wrap, text resizing, columns, and links between boxes; text editing in other shapes",
-    "es": "Diseño del cuadro de texto: dirección, alineación, márgenes, ajuste, cambio de tamaño del texto, columnas y vínculos entre cuadros; edición de texto en otras formas",
-    "fr": "Mise en forme des zones de texte : orientation, alignement, marges, habillage, redimensionnement du texte, colonnes et liens entre zones ; modification du texte dans les autres formes"
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "67b39fc6d76ae5b17c55c9c95d3dbdd954d8f84bb2bde5f04bc77d005916b246": {
@@ -17517,18 +17535,6 @@
     "fr": ""
    }
   },
-  "93cf3a85695eaba9b88afdaf11af09716ec2240995819563d172ab6702670fc5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Diagrams: edit",
-    "es": "Diagramas: edición",
-    "fr": "Diagrammes : modification"
-   }
-  },
   "93d06d010921d39597e0fcb0bdf96f58497f901e966f18aa401f9c952d5027fb": {
    "drop": false,
    "en": "Opens `.xlsx`, `.xlsm`, `.xls`, `.ods`, `.fods`, `.csv`, `.tsv`, and `.txt` files, and templates.",
@@ -20467,6 +20473,18 @@
     "en": "`RATE` and `DB`",
     "es": "`RATE` y `DB`",
     "fr": "`RATE` et `DB`"
+   }
+  },
+  "c336a3e3503373ebeb85d100dd5c1c53553ef83b204e0e0aeac6a049ad9984ca": {
+   "drop": false,
+   "en": "Edit the words of a text box that holds only words, in Shape Format > Edit Text or in the right-click menu. Text in shapes and text boxes from a file is laid out in the box, with its tables, and the file's insets are used. Create Link and Break Link on the Shape Format tab chain text boxes, each as one step of Undo. The words of the first box continue in the boxes after it, over pages, and are saved and read back as they were. A chain can have up to 64 boxes.",
+   "es": "Edite las palabras de un cuadro de texto que contiene solo palabras, en Formato de forma > Editar texto o en el menú contextual. El texto en formas y cuadros de texto de un documento se distribuye dentro del cuadro, con sus tablas, y se usan los márgenes internos del documento. Crear vínculo y Romper vínculo, en la pestaña Formato de forma, encadenan cuadros de texto, cada uno como un paso de Deshacer. Las palabras del primer cuadro continúan en los cuadros siguientes, a lo largo de las páginas, y se guardan y se leen tal como estaban. Una cadena puede tener hasta 64 cuadros.",
+   "fr": "Modifiez les mots d’une zone de texte qui ne contient que des mots, dans Format de la forme > Modifier le texte ou dans le menu contextuel. Le texte des formes et des zones de texte d’un fichier est disposé dans la zone, avec ses tableaux, et les marges internes du fichier sont utilisées. Créer un lien et Rompre le lien, dans l’onglet Format de la forme, chaînent les zones de texte, chacun en une seule étape d’Annuler. Les mots de la première zone se poursuivent dans les zones suivantes, sur plusieurs pages, et sont enregistrés et relus tels quels. Une chaîne peut contenir jusqu’à 64 zones.",
+   "soon": {
+    "drop": false,
+    "en": "Text direction, alignment, margins, wrap, automatic sizing, and columns in text boxes, and text editing in other shapes",
+    "es": "Dirección, alineación, márgenes, ajuste, tamaño automático y columnas del texto en cuadros de texto, y edición de texto en otras formas",
+    "fr": "Direction, alignement, marges, habillage, taille automatique et colonnes du texte dans les zones de texte, et modification du texte dans les autres formes"
    }
   },
   "c36593733c4bd0a82fb88fb1d8fd88c3f4c020508d53b28995252d7519fd76b6": {
