@@ -824,7 +824,9 @@ void WriteTests::aFileLeftPartsOutIsNotSavedOverItsOriginalByAnotherName()
     };
     // A link to the file is the file.
     const QString alias = dir.filePath(QStringLiteral("alias.docx"));
-    if (QFile::link(path, alias)) {   // (not every system lets a test make one)
+    // (not every system lets a test make one; on Windows QFile::link makes a .lnk shortcut, which is a file of its own: saving over it leaves the
+    // original alone, so only a real link is the file)
+    if (QFile::link(path, alias) && QFileInfo(alias).isSymLink() && !QFileInfo(alias).isShortcut()) {
         QVERIFY(!win.saveTo(alias));
         QCOMPARE(said.size(), 2);
         QVERIFY(unchanged());
