@@ -662,7 +662,7 @@
 <context>
     <name>BarcodeDialog</name>
     <message>
-        <location filename="../apps/pub/app/barcodedialog.cpp" line="+168"/>
+        <location filename="../apps/pub/app/barcodedialog.cpp" line="+169"/>
         <location line="+194"/>
         <source>Edit Barcode</source>
         <translation type="unfinished">Streepjescode bewerken</translation>
@@ -1877,7 +1877,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">%1 (donkerder %2%)</translation>
     </message>
     <message>
-        <location filename="../libs/page/core/document.cpp" line="+492"/>
+        <location filename="../libs/page/core/document.cpp" line="+495"/>
         <source>Organization Name</source>
         <translation type="unfinished">Naam organisatie</translation>
     </message>
@@ -1957,7 +1957,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Groep</translation>
     </message>
     <message>
-        <location line="+818"/>
+        <location line="+821"/>
         <source>Your Text Here</source>
         <translation type="unfinished">Uw tekst hier</translation>
     </message>
@@ -2509,7 +2509,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../libs/page/app/textdialogs.cpp" line="-1"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-68"/>
-        <location filename="../apps/pub/main.cpp" line="+173"/>
+        <location filename="../apps/pub/main.cpp" line="+174"/>
         <source>Add</source>
         <translation type="unfinished">Toevoegen</translation>
     </message>
@@ -5787,7 +5787,7 @@ Opslaan zonder reservekopie?</translation>
 <context>
     <name>FillEditor</name>
     <message>
-        <location filename="../libs/shell/app/propertyeditors.cpp" line="+976"/>
+        <location filename="../libs/shell/app/propertyeditors.cpp" line="+981"/>
         <source>Horizontal</source>
         <translation type="unfinished">Horizontaal</translation>
     </message>
@@ -6187,7 +6187,7 @@ Opslaan zonder reservekopie?</translation>
 <context>
     <name>Help</name>
     <message>
-        <location filename="../libs/shell/app/help.cpp" line="+259"/>
+        <location filename="../libs/shell/app/help.cpp" line="+260"/>
         <source>Quick Toolbar</source>
         <translation type="unfinished">Snelle werkbalk</translation>
     </message>
@@ -6588,9 +6588,9 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/deck/main.cpp" line="+90"/>
-        <location filename="../apps/write/main.cpp" line="+92"/>
-        <location filename="../apps/crunch/main.cpp" line="+93"/>
+        <location filename="../apps/deck/main.cpp" line="+91"/>
+        <location filename="../apps/write/main.cpp" line="+93"/>
+        <location filename="../apps/crunch/main.cpp" line="+94"/>
         <source>Save a screenshot of the window and quit.</source>
         <translation type="unfinished">Een schermafbeelding van het venster opslaan en afsluiten.</translation>
     </message>
@@ -6725,7 +6725,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+838"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+839"/>
         <source>A picture on page %1 has low resolution (%2 ppi; printers ask for 300).</source>
         <translation type="unfinished">Een afbeelding op pagina %1 heeft een lage resolutie (%2 ppi; drukkerijen vragen 300).</translation>
     </message>
@@ -6924,7 +6924,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>OdpExport</name>
     <message>
-        <location filename="../apps/deck/io/odpexport.cpp" line="+413"/>
+        <location filename="../apps/deck/io/odpexport.cpp" line="+414"/>
         <location line="+9"/>
         <source>Slide Master</source>
         <translation type="unfinished">Diamodel</translation>
@@ -7267,7 +7267,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>Online</name>
     <message>
-        <location filename="../libs/page/app/onlinepictures.cpp" line="+74"/>
+        <location filename="../libs/page/app/onlinepictures.cpp" line="+75"/>
         <source>It is too large.</source>
         <translation type="unfinished">Het bestand is te groot.</translation>
     </message>
@@ -12888,7 +12888,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
 <context>
     <name>Telemetry</name>
     <message>
-        <location filename="../libs/shell/app/telemetry.cpp" line="+154"/>
+        <location filename="../libs/shell/app/telemetry.cpp" line="+155"/>
         <source>Help improve %1</source>
         <translation type="unfinished">Help %1 te verbeteren</translation>
     </message>
@@ -15236,7 +15236,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Vervolg van pagina %1)</translation>
     </message>
     <message>
-        <location line="+6210"/>
+        <location line="+6217"/>
         <source>Notes</source>
         <translation type="unfinished">Notities</translation>
     </message>
@@ -15949,7 +15949,7 @@ Desktop publishing</translation>
 <context>
     <name>jp::Backstage</name>
     <message>
-        <location filename="../apps/pub/app/backstage.cpp" line="+107"/>
+        <location filename="../apps/pub/app/backstage.cpp" line="+108"/>
         <source>Back to publication</source>
         <translation type="unfinished">Terug naar publicatie</translation>
     </message>
@@ -16890,7 +16890,7 @@ Desktop publishing</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/backstage.cpp" line="+2"/>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="+735"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="+736"/>
         <source>Translate (opens in your browser)</source>
         <translation type="unfinished">Vertalen (wordt geopend in uw browser)</translation>
     </message>
@@ -17517,7 +17517,7 @@ Bron: %3</translation>
 <context>
     <name>jp::CrunchFileScreen</name>
     <message>
-        <location filename="../apps/crunch/app/crunchfilescreen.cpp" line="+98"/>
+        <location filename="../apps/crunch/app/crunchfilescreen.cpp" line="+99"/>
         <source>Back to workbook</source>
         <translation type="unfinished">Terug naar werkmap</translation>
     </message>
@@ -26795,7 +26795,7 @@ Het bestand kan niet worden gelezen.</translation>
 <context>
     <name>jp::DeckFileScreen</name>
     <message>
-        <location filename="../apps/deck/app/deckfilescreen.cpp" line="+118"/>
+        <location filename="../apps/deck/app/deckfilescreen.cpp" line="+119"/>
         <source>Back to presentation</source>
         <translation type="unfinished">Terug naar presentatie</translation>
     </message>
@@ -30419,7 +30419,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Verwijderen</translation>
     </message>
     <message>
-        <location line="+78"/>
+        <location line="+82"/>
         <source>In Line with Text</source>
         <translation type="unfinished">In tekstregel</translation>
     </message>
@@ -30600,7 +30600,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Pagina verwijderen</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+20"/>
         <source>Move Page</source>
         <translation type="unfinished">Pagina verplaatsen</translation>
     </message>
@@ -30912,7 +30912,7 @@ Het bestand kan niet worden gelezen.</translation>
 <context>
     <name>jp::FileScreen</name>
     <message>
-        <location filename="../libs/shell/app/filescreen.cpp" line="+63"/>
+        <location filename="../libs/shell/app/filescreen.cpp" line="+64"/>
         <source>Version %1</source>
         <translation type="unfinished">Versie %1</translation>
     </message>
@@ -39604,7 +39604,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">&quot;%1&quot; is beveiligd met een wachtwoord. Typ het om het bestand te openen.</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location line="+45"/>
         <source>Cancel</source>
         <translation type="unfinished">Annuleren</translation>
     </message>
@@ -41980,7 +41980,17 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Decimaalteken:</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
+        <source>Read formulas</source>
+        <translation type="unfinished">Formules importeren</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>A field that begins with an equals sign becomes a formula. Leave this off for a file you did not make, because a formula can be written to do harm.</source>
+        <translation type="unfinished">Een veld dat begint met een gelijkteken wordt een formule. Laat dit uitgeschakeld voor een bestand dat je zelf niet hebt gemaakt, omdat een formule zo geschreven kan zijn dat er schade mee wordt aangericht.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>First row to bring in</source>
         <translation type="unfinished">Eerste rij om te importeren</translation>
     </message>
@@ -41995,7 +42005,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Voorbeeld van de eerste rijen</translation>
     </message>
     <message>
-        <location line="+139"/>
+        <location line="+141"/>
         <source>Read as</source>
         <translation type="unfinished">Lezen als</translation>
     </message>
@@ -42351,7 +42361,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::Updater</name>
     <message>
-        <location filename="../libs/shell/app/updater.cpp" line="+142"/>
+        <location filename="../libs/shell/app/updater.cpp" line="+143"/>
         <location line="+16"/>
         <location line="+31"/>
         <source>Check for Updates</source>
@@ -45572,13 +45582,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Niet opslaan</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="+136"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="+144"/>
         <source>New</source>
         <translation type="unfinished">Nieuw</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+109"/>
+        <location line="+115"/>
         <location line="+43"/>
         <location line="+402"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
@@ -45586,7 +45596,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Openen</translation>
     </message>
     <message>
-        <location line="-523"/>
+        <location line="-529"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+138"/>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+151"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-373"/>
@@ -45596,13 +45606,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+0"/>
-        <location line="+159"/>
+        <location line="+165"/>
         <location line="+21"/>
         <source>Rich Text Format (*.rtf)</source>
         <translation type="unfinished">Rich Text Format (*.rtf)</translation>
     </message>
     <message>
-        <location line="-180"/>
+        <location line="-186"/>
         <source>OpenDocument Text (*.odt *.fodt *.ott)</source>
         <translation type="unfinished">OpenDocument-tekst (*.odt *.fodt *.ott)</translation>
     </message>
@@ -45612,13 +45622,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Sluiten</translation>
     </message>
     <message>
-        <location line="-79"/>
+        <location line="-84"/>
         <location filename="../apps/write/app/writewindow_protect.cpp" line="+52"/>
         <source>Checking the password…</source>
         <translation type="unfinished">Het wachtwoord wordt gecontroleerd…</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+33"/>
         <source>This file is protected in a way this program doesn&apos;t read.</source>
         <translation type="unfinished">Dit bestand is beveiligd op een manier die dit programma niet kan lezen.</translation>
     </message>
@@ -45639,7 +45649,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+49"/>
-        <location line="+158"/>
+        <location line="+164"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+1"/>
@@ -45661,13 +45671,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Opslaan</translation>
     </message>
     <message>
-        <location line="-402"/>
-        <location line="+195"/>
+        <location line="-408"/>
+        <location line="+201"/>
         <source>Save As</source>
         <translation type="unfinished">Opslaan als</translation>
     </message>
     <message>
-        <location line="-194"/>
+        <location line="-200"/>
         <source>Print…</source>
         <translation type="unfinished">Afdrukken…</translation>
     </message>
@@ -45697,7 +45707,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">&quot;%1&quot; is een bestand met platte tekst. Het is geen Unicode, dus kies de codering die de tekens goed weergeeft; de eerste regels staan hieronder.</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+34"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet openen.
@@ -45833,12 +45843,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 %3%4</translation>
     </message>
     <message>
-        <location line="-317"/>
+        <location line="-323"/>
         <source>Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</source>
         <translation type="unfinished">Documenten (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</translation>
     </message>
     <message>
-        <location line="+138"/>
+        <location line="+144"/>
         <source>This document came from a web page, which %1 doesn&apos;t write over, so it is saved as a new .docx file.</source>
         <translation type="unfinished">Dit document komt van een webpagina, die %1 niet overschrijft, dus wordt het opgeslagen als een nieuw .docx-bestand.</translation>
     </message>
@@ -48488,13 +48498,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+9"/>
         <location line="+25"/>
         <location line="+46"/>
-        <location line="+71"/>
+        <location line="+72"/>
         <location line="+344"/>
         <source>The formula is too long.</source>
         <translation type="unfinished">De formule is te lang.</translation>
     </message>
     <message>
-        <location line="-818"/>
+        <location line="-819"/>
         <source>That reference is outside the sheet. The last column is XFD, and the last row is 1,048,576.</source>
         <translation type="unfinished">Die verwijzing valt buiten het werkblad. De laatste kolom is XFD en de laatste rij is 1.048.576.</translation>
     </message>
@@ -48626,6 +48636,11 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+22"/>
         <source>The formula has too many brackets inside one another.</source>
         <translation type="unfinished">De formule heeft te veel geneste haakjes.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The formula has too many levels inside one another. A formula can nest up to %1 levels. Simplify it, and try again.</source>
+        <translation type="unfinished">De formule bevat te veel niveaus die in elkaar zijn genest. Een formule kan maximaal %1 niveaus diep genest zijn. Vereenvoudig de formule en probeer het opnieuw.</translation>
     </message>
     <message>
         <location line="+136"/>
@@ -49419,7 +49434,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Dit werkblad heeft meer notities dan JeffCrunch kan wijzigen (%1). Ze worden weergegeven en behouden, maar er kunnen geen notities worden toegevoegd of verwijderd.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editcomments.cpp" line="+30"/>
+        <location filename="../apps/crunch/core/editcomments.cpp" line="+31"/>
         <source>Unknown</source>
         <translation type="unfinished">Onbekend</translation>
     </message>
@@ -56522,7 +56537,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Het lezen is gestopt.</translation>
     </message>
     <message>
-        <location line="+274"/>
+        <location line="+276"/>
         <source>This file is not a text file of values separated by commas, semicolons, or tabs.</source>
         <translation type="unfinished">Dit bestand is geen tekstbestand met waarden gescheiden door komma&apos;s, puntkomma&apos;s of tabs.</translation>
     </message>
@@ -56560,7 +56575,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Een formule kan maximaal %1 tekens bevatten en deze heeft er %2. Maak de formule korter en probeer het opnieuw.</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+10"/>
         <source>The formula can&apos;t be read. %1</source>
         <translation type="unfinished">De formule kan niet worden gelezen. %1</translation>
     </message>
@@ -57388,12 +57403,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::office::wml</name>
     <message>
-        <location filename="../libs/office/wml/wmlread.cpp" line="+428"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+431"/>
         <source>[picture]</source>
         <translation type="unfinished">[afbeelding]</translation>
     </message>
     <message>
-        <location line="+545"/>
+        <location line="+546"/>
         <source>[Table: %1 rows by %2 columns]</source>
         <translation type="unfinished">[Tabel: %1 rijen bij %2 kolommen]</translation>
     </message>
