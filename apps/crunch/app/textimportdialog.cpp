@@ -167,6 +167,11 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     marks->addWidget(m_minus);
     marks->addStretch(1);
     form->addRow(tr("Decimal mark:"), marks);
+    m_formulas = new QCheckBox(tr("Read formulas"), this);
+    m_formulas->setObjectName(QStringLiteral("textImportReadFormulas"));
+    m_formulas->setToolTip(tr("A field that begins with an equals sign becomes a formula. Leave this off for a file you did not make, because a formula can be written to do harm."));
+    m_formulas->setChecked(request.choices.readFormulas);
+    form->addRow(QString(), m_formulas);
     m_start = new QSpinBox(this);
     m_start->setObjectName(QStringLiteral("textImportStart"));
     m_start->setAccessibleName(tr("First row to bring in"));
@@ -198,6 +203,7 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     connect(m_decimal, &QComboBox::currentIndexChanged, this, again);
     connect(m_thousands, &QComboBox::currentIndexChanged, this, again);
     connect(m_minus, &QCheckBox::toggled, this, again);
+    connect(m_formulas, &QCheckBox::toggled, this, again);
     connect(m_fixed, &QCheckBox::toggled, this, again);
     connect(m_breaks, &QLineEdit::textChanged, this, again);
     refresh();
@@ -230,6 +236,7 @@ CsvImport TextImportDialog::choices() const
     c.decimalMark = QChar(ushort(m_decimal->currentData().toInt()));
     c.thousandsMark = QChar(ushort(m_thousands->currentData().toInt()));
     c.trailingMinus = m_minus->isChecked();
+    c.readFormulas = m_formulas->isChecked();
     c.fixedWidth = m_fixed->isChecked();
     c.breaks.clear();
     if (c.fixedWidth) {

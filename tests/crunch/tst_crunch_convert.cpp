@@ -175,9 +175,8 @@ private Q_SLOTS:
         QCOMPARE(o.shown(0, 0), QStringLiteral("name"));
         QCOMPARE(o.shown(1, 1), QStringLiteral("12%"));
         QCOMPARE(o.shown(1, 2), QStringLiteral("1,234.50"));
-        o.select(2, 2);
-        QCOMPARE(o.view()->activeCellText(), QStringLiteral("=B2+B3"));
-        QCOMPARE(o.shown(2, 2), QStringLiteral("0.17"));
+        // (a field that begins with = is text unless the person asks for formulas)
+        QCOMPARE(o.shown(2, 2), QStringLiteral("=B2+B3"));
         QVERIFY(o.told.isEmpty());
     }
 

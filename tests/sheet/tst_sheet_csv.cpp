@@ -309,7 +309,7 @@ private Q_SLOTS:
         QCOMPARE(at1(wb, s, "K1"), QStringLiteral("i:May"));
     }
 
-    // A field that begins with = is a formula (kept with no result, which the window works out); one that is not a formula, a lone =, a sign and more, and an apostrophe are text.
+    // A field that begins with = is text unless the person asks for formulas; a sign and more, an apostrophe, and a lone = are text too.
     void formulasAndApostrophes()
     {
         LocaleScope locale(QLocale::c());
@@ -317,18 +317,59 @@ private Q_SLOTS:
         QString why;
         QVERIFY2(openCsv("1,2,=SUM(A1:B1),=,=1+,-hello,+49 30 1234,'quoted,=A1*2,'-5\n", &wb, &why), qPrintable(why));
         const Sheet s = readSheet(wb);
-        QCOMPARE(at1(wb, s, "C1"), QStringLiteral("-"));
-        QVERIFY(at(s, QStringLiteral("C1"))->hasFormula());
-        QCOMPARE(formulaOf(s, QStringLiteral("C1")), QStringLiteral("SUM(A1:B1)"));
+        QCOMPARE(at1(wb, s, "C1"), QStringLiteral("i:=SUM(A1:B1)"));
+        QVERIFY(!at(s, QStringLiteral("C1"))->hasFormula());
         QCOMPARE(at1(wb, s, "D1"), QStringLiteral("i:="));
         QCOMPARE(at1(wb, s, "E1"), QStringLiteral("i:=1+"));
         QCOMPARE(at1(wb, s, "F1"), QStringLiteral("i:-hello"));
         QCOMPARE(at1(wb, s, "G1"), QStringLiteral("i:+49 30 1234"));
         QCOMPARE(at1(wb, s, "H1"), QStringLiteral("i:'quoted"));
-        QCOMPARE(formulaOf(s, QStringLiteral("I1")), QStringLiteral("A1*2"));
+        QCOMPARE(at1(wb, s, "I1"), QStringLiteral("i:=A1*2"));
         QCOMPARE(at1(wb, s, "J1"), QStringLiteral("i:'-5"));
-        QCOMPARE(s.formulaCells, qint64(2));
+        QCOMPARE(s.formulaCells, qint64(0));
         QCOMPARE(s.storedResults, qint64(0));
+    }
+
+    // A hostile file can't plant a formula: =, +, -, and @ in front keep a field as text; a plain number with a sign is still a number.
+    void aFieldThatLooksLikeACommandStaysText()
+    {
+        LocaleScope locale(QLocale::c());
+        Workbook wb;
+        QString why;
+        QVERIFY2(openCsv("=1+1,+1+1,-1+1,@SUM(1),-5,+3,-2.5,=cmd|' /C calc'!A0,=TRUE,=5\n", &wb, &why), qPrintable(why));
+        const Sheet s = readSheet(wb);
+        QCOMPARE(s.formulaCells, qint64(0));
+        QCOMPARE(at1(wb, s, "A1"), QStringLiteral("i:=1+1"));
+        QCOMPARE(at1(wb, s, "B1"), QStringLiteral("i:+1+1"));
+        QCOMPARE(at1(wb, s, "C1"), QStringLiteral("i:-1+1"));
+        QCOMPARE(at1(wb, s, "D1"), QStringLiteral("i:@SUM(1)"));
+        QCOMPARE(at1(wb, s, "E1"), QStringLiteral("n:-5"));
+        QCOMPARE(at1(wb, s, "F1"), QStringLiteral("n:3"));
+        QCOMPARE(at1(wb, s, "G1"), QStringLiteral("n:-2.5"));
+        QCOMPARE(at1(wb, s, "H1"), QStringLiteral("i:=cmd|' /C calc'!A0"));
+        QCOMPARE(at1(wb, s, "I1"), QStringLiteral("i:=TRUE"));
+        QCOMPARE(at1(wb, s, "J1"), QStringLiteral("i:=5"));
+    }
+
+    // With "Read formulas" chosen, a field that begins with = is a formula, as it was.
+    void readFormulasIsAChoiceThatIsOffByDefault()
+    {
+        LocaleScope locale(QLocale::c());
+        QVERIFY(!CsvImport().readFormulas);
+        auto c = std::make_shared<CsvImport>();
+        c->readFormulas = true;
+        Limits limits;
+        limits.csv = c;
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBytes("1,2,=SUM(A1:B1),-hello,=\n", QStringLiteral("data.csv"), &wb, &why, limits), qPrintable(why));
+        const Sheet s = readSheet(wb);
+        QCOMPARE(at1(wb, s, "C1"), QStringLiteral("-"));
+        QVERIFY(at(s, QStringLiteral("C1"))->hasFormula());
+        QCOMPARE(formulaOf(s, QStringLiteral("C1")), QStringLiteral("SUM(A1:B1)"));
+        QCOMPARE(at1(wb, s, "D1"), QStringLiteral("i:-hello"));
+        QCOMPARE(at1(wb, s, "E1"), QStringLiteral("i:="));
+        QCOMPARE(s.formulaCells, qint64(1));
     }
 
     // The first rows are read at once and the sheet says it is cut short; the whole file is read after.
@@ -406,7 +447,11 @@ private Q_SLOTS:
         LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
         Workbook wb;
         QString why;
-        QVERIFY2(openCsv("12%,3/15/2024,=A1*2,\"two\nlines\",007\n", &wb, &why), qPrintable(why));
+        auto choices = std::make_shared<CsvImport>();
+        choices->readFormulas = true;
+        Limits limits;
+        limits.csv = choices;
+        QVERIFY2(openCsv("12%,3/15/2024,=A1*2,\"two\nlines\",007\n", &wb, &why, QStringLiteral("data.csv"), limits), qPrintable(why));
         QByteArray xlsx;
         QVERIFY2(writeBaseXlsx(wb, &xlsx, &why), qPrintable(why));
         Workbook back;

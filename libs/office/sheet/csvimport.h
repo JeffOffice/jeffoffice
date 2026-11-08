@@ -36,6 +36,8 @@ struct CsvImport {
     // The marks a number is written with in this file (null: the person's language's own), and whether a minus sign may come after the number ("1,234-").
     QChar decimalMark, thousandsMark;
     bool trailingMinus = false;
+    // Whether a field that begins with "=" is a formula. Off unless the person asks: a file from elsewhere can't plant a formula, and the field stays the text it is.
+    bool readFormulas = false;
     // A file of columns of fixed width: `breaks` are the places (counted in characters from 0, in order) where a column begins after the first. No separators or quotes then.
     bool fixedWidth = false;
     QVector<int> breaks;
@@ -46,7 +48,7 @@ struct CsvImport {
     bool operator==(const CsvImport &o) const
     {
         return separators == o.separators && mergeSeparators == o.mergeSeparators && quote == o.quote && encodingSet == o.encodingSet && encoding == o.encoding && codePage == o.codePage
-               && firstRow == o.firstRow && columns == o.columns && rest == o.rest && decimalMark == o.decimalMark && thousandsMark == o.thousandsMark && trailingMinus == o.trailingMinus
+               && firstRow == o.firstRow && columns == o.columns && rest == o.rest && decimalMark == o.decimalMark && thousandsMark == o.thousandsMark && trailingMinus == o.trailingMinus && readFormulas == o.readFormulas
                && fixedWidth == o.fixedWidth && breaks == o.breaks;
     }
 };

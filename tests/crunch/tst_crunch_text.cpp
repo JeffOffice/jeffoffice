@@ -152,6 +152,12 @@ private Q_SLOTS:
         auto *thousands = dialog.findChild<QComboBox *>(QStringLiteral("textImportThousands"));
         auto *minus = dialog.findChild<QCheckBox *>(QStringLiteral("textImportTrailingMinus"));
         QVERIFY(decimal && thousands && minus);
+        auto *readFormulas = dialog.findChild<QCheckBox *>(QStringLiteral("textImportReadFormulas"));
+        QVERIFY(readFormulas);
+        QVERIFY(!readFormulas->isChecked());   // (off unless the person asks)
+        QVERIFY(!dialog.choices().readFormulas);
+        readFormulas->setChecked(true);
+        QVERIFY(dialog.choices().readFormulas);
         decimal->setCurrentIndex(decimal->findText(QStringLiteral("Comma (,)")));
         thousands->setCurrentIndex(thousands->findText(QStringLiteral("Point (.)")));
         minus->setChecked(true);

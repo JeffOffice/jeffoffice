@@ -52,7 +52,7 @@ private:
     QLineEdit *m_other = nullptr;
     QSpinBox *m_start = nullptr;
     QComboBox *m_decimal = nullptr, *m_thousands = nullptr;
-    QCheckBox *m_minus = nullptr, *m_fixed = nullptr;
+    QCheckBox *m_minus = nullptr, *m_fixed = nullptr, *m_formulas = nullptr;
     QLineEdit *m_breaks = nullptr;
     QPlainTextEdit *m_ruler = nullptr;
     QTableWidget *m_table = nullptr;

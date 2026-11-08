@@ -820,7 +820,9 @@ private:
         Cell c;
         // text that stays text: an apostrophe in front (kept as it is), and digits that a number would damage
         if (field.front() == QLatin1Char('\'') || keepsAsText(field)) return addText(row, col, c, field.toString());
-        const bool formula = field.front() == QLatin1Char('=') && field.size() > 1;
+        const bool formula = m_choices.readFormulas && field.front() == QLatin1Char('=') && field.size() > 1;
+        // (a field that begins with = is text unless formulas are asked for: it could be a command in a hostile file)
+        if (!m_choices.readFormulas && field.front() == QLatin1Char('=')) return addText(row, col, c, field.toString());
         // true and false in the person's language (in English they are read by the typed entry)
         if (!m_true.isEmpty() && field.front().isLetter()) {
             const QStringView word = field.trimmed();
