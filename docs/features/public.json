@@ -1742,8 +1742,8 @@
        "text": "5af4a6bfdf127372942ce92dceffdd694afe495e75029b368e423ec383561260"
       },
       {
-       "status": "todo",
-       "text": "e16b5e989a8a6f08832d8e60263b06dd7869362a9a85341b339821e47f557ac8"
+       "status": "partly",
+       "text": "1f148429b35ccb8b0597aa6b3bba4194da9f129a3275a73aadf2febccfd5a44c"
       }
      ]
     },
@@ -1806,8 +1806,9 @@
        "heading": "ce8bd51d59a72f1dceb440742da3f5cb541675f3b4c88d9c94cbbcd709efc6c9",
        "items": [
         {
-         "status": "todo",
-         "text": "e1cbce04182e9d2c56909ccc464a03ebb7107763fc49f1b232ac894014c6d61d"
+         "hide_soon": true,
+         "status": "done",
+         "text": "1f76275627cd812f3a0aaa3ecdb92b112b9890278d08090ed1a5ba9d45430b9d"
         },
         {
          "status": "todo",
@@ -1838,8 +1839,9 @@
          "text": "1f9fd3c7e770d8c3484a7adf1bb101a9229244385609989c91a651941b333b22"
         },
         {
-         "status": "todo",
-         "text": "bf53f3ec144943dada5796a61e5cadc1a527c04413b9619164cfba46de48d570"
+         "hide_soon": true,
+         "status": "done",
+         "text": "e5a15c3980ab69e89d7f64608dc2000de5c66bc4c7bd0afc5f143110bd731a9e"
         }
        ]
       },
@@ -2040,8 +2042,9 @@
        "text": "de696aa52311e1e995e721732dd934c5727ed08e30e05a712e92ee3cb5fc4cbb"
       },
       {
-       "status": "todo",
-       "text": "80bdd003c47128dec4f78dc6f0f522dd0b51b13a8e127e1a033166fe0b8328e5"
+       "hide_soon": true,
+       "status": "done",
+       "text": "b40da7575dc84295b5430a0e2039746f2a4dc0a27d95b8117f6d60deae26e65e"
       },
       {
        "hide_soon": true,
@@ -9219,11 +9222,35 @@
     "fr": ""
    }
   },
+  "1f148429b35ccb8b0597aa6b3bba4194da9f129a3275a73aadf2febccfd5a44c": {
+   "drop": false,
+   "en": "Old macro-sheet calls in `.xls` files are kept as written and show the stored result.",
+   "es": "Las llamadas antiguas de hojas de macros en los archivos `.xls` se conservan tal como están escritas y muestran el resultado almacenado.",
+   "fr": "Les anciens appels de feuilles de macros dans les fichiers `.xls` sont conservés tels qu’ils ont été écrits et affichent le résultat enregistré.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "1f261047763747d5e885f0d07b9a92968f487bfcd35cede237571c791ac1696a": {
    "drop": false,
    "en": "View diagrams on a sheet as they were saved. Pick and move a diagram over the cells, and save it back unchanged.",
    "es": "Vea los diagramas de una hoja tal como se guardaron. Seleccione y mueva un diagrama sobre las celdas, y guárdelo de nuevo sin cambios.",
    "fr": "Affichez les diagrammes d’une feuille tels qu’ils ont été enregistrés. Sélectionnez et déplacez un diagramme sur les cellules, puis réenregistrez-le sans modification.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "1f76275627cd812f3a0aaa3ecdb92b112b9890278d08090ed1a5ba9d45430b9d": {
+   "drop": false,
+   "en": "Numbers are 64-bit floating point, with 15 significant digits kept and shown. A sum or difference that is almost zero next to its starting numbers is shown as exactly zero, and a whole number typed with more than 15 digits keeps the first 15 digits followed by zeros.",
+   "es": "Los números son de coma flotante de 64 bits, y se conservan y se muestran 15 dígitos significativos. Una suma o resta cuyo resultado es casi cero en comparación con los números de partida se muestra como cero exacto, y un número entero escrito con más de 15 dígitos conserva los primeros 15 seguidos de ceros.",
+   "fr": "Les nombres sont en virgule flottante sur 64 bits, avec 15 chiffres significatifs conservés et affichés. Une somme ou une différence presque nulle par rapport aux nombres de départ s’affiche comme exactement zéro, et un nombre entier saisi avec plus de 15 chiffres conserve les 15 premiers suivis de zéros.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16311,18 +16338,6 @@
     "fr": ""
    }
   },
-  "80bdd003c47128dec4f78dc6f0f522dd0b51b13a8e127e1a033166fe0b8328e5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Safe opening of files: formulas in `.csv` cells kept as text on request",
-    "es": "Apertura segura de archivos: fórmulas en celdas de `.csv` conservadas como texto si se solicita",
-    "fr": "Ouverture sécurisée des fichiers : formules des cellules `.csv` conservées comme texte sur demande"
-   }
-  },
   "80c3498e868adb35a9fc501eaa5289d9e54ca8ee130f58fea0530c701ff0e7b8": {
    "drop": false,
    "en": "The grid holds 1,048,576 rows by 16,384 columns (A1 to XFD1048576), stored sparsely so memory follows the cells that hold something. A workbook opens in the background while the first screen shows.",
@@ -19515,6 +19530,18 @@
     "fr": ""
    }
   },
+  "b40da7575dc84295b5430a0e2039746f2a4dc0a27d95b8117f6d60deae26e65e": {
+   "drop": false,
+   "en": "External links do not update, data connections do not run, and macros are kept but never run when a file opens. In an opened `.csv`, a field that starts with `=` is kept as text unless \"Read formulas\" is ticked in the text import window; plain numbers such as -5 or +3 stay numbers.",
+   "es": "Los vínculos externos no se actualizan, las conexiones de datos no se ejecutan y las macros se conservan, pero nunca se ejecutan al abrir un archivo. En un `.csv` abierto, un campo que empieza por `=` se conserva como texto, a menos que usted marque \"Read formulas\" en la ventana de importación de texto; los números simples como -5 o +3 siguen siendo números.",
+   "fr": "Les liens externes ne se mettent pas à jour, les connexions de données ne s’exécutent pas, et les macros sont conservées mais jamais exécutées à l’ouverture d’un fichier. Dans un `.csv` ouvert, un champ qui commence par `=` est conservé comme texte, sauf si vous cochez « Read formulas » dans la fenêtre d’importation de texte ; les nombres simples comme -5 ou +3 restent des nombres.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b42ba8a6efed652a9d71b46bc999da05ce6a44887a14f149869e0b0d8d3bbc67": {
    "drop": false,
    "en": "Open `.ods` and `.ots` files, with what is skipped reported. Save an `.ods` copy; `.xlsx` is the default.",
@@ -20233,18 +20260,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "bf53f3ec144943dada5796a61e5cadc1a527c04413b9619164cfba46de48d570": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Cell text up to 32,767 characters; formulas up to 8,192 characters, 64 levels deep, and 255 arguments",
-    "es": "Texto de celda de hasta 32 767 caracteres; fórmulas de hasta 8192 caracteres, 64 niveles de anidamiento y 255 argumentos",
-    "fr": "Texte de cellule jusqu’à 32 767 caractères ; formules jusqu’à 8 192 caractères, 64 niveaux d’imbrication et 255 arguments"
    }
   },
   "bfcb190aa034111c244a97b55c02f703497f9c3ff6a8a79fd3cdf169766a58a7": {
@@ -22575,18 +22590,6 @@
     "fr": ""
    }
   },
-  "e16b5e989a8a6f08832d8e60263b06dd7869362a9a85341b339821e47f557ac8": {
-   "drop": false,
-   "en": "Old macro-sheet calls in `.xls` files are kept as written and show the stored result.",
-   "es": "Las llamadas de hojas de macros antiguas en archivos `.xls` se conservan tal como están escritas y muestran el resultado almacenado.",
-   "fr": "Les anciens appels de feuilles de macros dans les fichiers `.xls` sont conservés tels qu’écrits et affichent le résultat stocké.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "e177edb4b1c9a45cb4a46392ee83bb29a251796dcaa19e3b21479aee3163e254": {
    "drop": false,
    "en": "Check spelling as you type with red wavy underlines, suggestions on right-click, Ignore All, and Add to Dictionary. The Spelling pane (`F7`) offers Change, Change All, Ignore, Ignore All, and Add, and skips words in capitals or with numbers.",
@@ -22621,18 +22624,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "e1cbce04182e9d2c56909ccc464a03ebb7107763fc49f1b232ac894014c6d61d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Numbers with 15 significant digits kept and shown, including near-zero results and large numbers",
-    "es": "Números con 15 cifras significativas conservadas y mostradas, incluidos los resultados casi nulos y los números grandes",
-    "fr": "Nombres avec 15 chiffres significatifs conservés et affichés, y compris les résultats proches de zéro et les grands nombres"
    }
   },
   "e23dd099fd5339b5763d3e905cdd45021cd4b206d103a4604192460416fdac59": {
@@ -22928,6 +22919,18 @@
    "en": "Pick one of twelve sparkline styles, set the color of the line or bars and of each kind of point, choose from nine line weights, and use the Axis menu.",
    "es": "Elija uno de doce estilos de minigráfico, defina el color de la línea o las barras y de cada tipo de punto, elija entre nueve grosores de línea y use el menú Eje.",
    "fr": "Choisissez l’un des douze styles de graphique miniature, réglez la couleur de la ligne ou des barres et de chaque type de point, choisissez parmi neuf épaisseurs de ligne et utilisez le menu Axe.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e5a15c3980ab69e89d7f64608dc2000de5c66bc4c7bd0afc5f143110bd731a9e": {
+   "drop": false,
+   "en": "A cell holds up to 32,767 characters of text, and the formula bar shows all of them. Formulas can be up to 8,192 characters long, nested 64 levels deep, with up to 255 arguments; a typed formula past these limits is refused with a message that says so.",
+   "es": "Una celda admite hasta 32 767 caracteres de texto, y la barra de fórmulas los muestra todos. Las fórmulas pueden tener hasta 8192 caracteres, 64 niveles de anidamiento y hasta 255 argumentos; si usted escribe una fórmula que supera estos límites, se rechaza con un mensaje que lo indica.",
+   "fr": "Une cellule peut contenir jusqu’à 32 767 caractères de texte, et la barre de formule les affiche tous. Les formules peuvent compter jusqu’à 8 192 caractères, 64 niveaux d’imbrication et 255 arguments ; une formule saisie au-delà de ces limites est refusée avec un message qui l’indique.",
    "soon": {
     "drop": true,
     "en": "",
