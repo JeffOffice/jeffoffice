@@ -4,6 +4,8 @@
 #include "sheet/xlsbytes.h"
 #include "sheet/xlscodepage.h"
 #include "sheet/xlsprint.h"
+#include "sheet/xlschart.h"
+#include "office/chart_write.h"
 #include "io/cfb.h"
 #include "sheet/xlsfunctions.h"
 
@@ -522,8 +524,15 @@ private:
     qint64 m_nameChars = 0;
     int m_externals = 0;
     QString m_placeProblem;
-    bool m_charts = false, m_pivots = false, m_comments = false;
+    bool m_charts = false, m_chartParts = false, m_pivots = false, m_comments = false;
     bool m_drawingsInSheets = false;
+    // The records of the charts in the sheets, read in finish() when the names and the list of sheets are known.
+    struct ChartSpan {
+        int sheet = 0;
+        qsizetype from = 0, to = 0;
+        XlsAnchor anchor;
+    };
+    QVector<ChartSpan> m_chartSpans;
 
     QString text(const char *p, int n) const { return xlsBytesToText(m_codepage, p, n); }
 
@@ -949,6 +958,16 @@ private:
         return true;
     }
 
+    // A chart's records are kept for finish(); past the limit the chart is not read.
+    void addChartSpan(int sheet, qsizetype from, qsizetype to, const XlsAnchor &anchor)
+    {
+        if (m_chartSpans.size() >= 1000 || to < from) {
+            m_charts = true;
+            return;
+        }
+        m_chartSpans.append(ChartSpan{sheet, from, to, anchor});
+    }
+
     // Where each sheet's data ends, and the features in it that are not read; no two sheets may share a record.
     bool placeSheets()
     {
@@ -968,7 +987,12 @@ private:
             int depth = 0;
             bool nestedChart = false;
             bool ended = false;
+            const qsizetype bodyStart = sc.offset();
             qsizetype last = sc.offset();
+            // the drawing record before an object gives its place; the substream of a chart follows the record of the chart object
+            XlsAnchor lastAnchor, chartAnchor;
+            bool haveAnchor = false, pendingDrawing = false;
+            qsizetype chartFrom = -1;
             while (sc.next(&r)) {
                 budget -= 4 + r.len;
                 if (budget < 0) {
@@ -982,20 +1006,60 @@ private:
                         return false;
                     }
                     Bytes b(m_d, r.pos + 2, r.pos + r.len);
-                    if (b.u16() == 0x0020) nestedChart = true;
+                    const bool chartType = b.u16() == 0x0020;
+                    if (chartType) nestedChart = true;
+                    if (depth == 1 && chartType && m_biff >= 8) {
+                        chartFrom = sc.offset();
+                        chartAnchor = haveAnchor ? lastAnchor : XlsAnchor{0, 0, 8, 15, 0, 0, 0, 0};
+                        haveAnchor = false;
+                    }
                     continue;
                 }
                 if (r.id == kEof) {
                     if (depth == 0) {
                         ended = true;
+                        if (p.type == 0x20 && m_biff >= 8) addChartSpan(i, bodyStart, r.pos - 4, XlsAnchor{0, 0, 10, 25, 0, 0, 0, 0});
                         break;
                     }
                     --depth;
+                    if (depth == 0 && chartFrom >= 0) {
+                        addChartSpan(i, chartFrom, r.pos - 4, chartAnchor);
+                        chartFrom = -1;
+                    }
                     continue;
                 }
                 switch (r.id) {
-                case kObj:
-                case kMsoDrawing: m_drawingsInSheets = true; break;
+                case kMsoDrawing:
+                    if (depth > 0) {
+                        m_drawingsInSheets = true;
+                        break;
+                    }
+                    if (pendingDrawing) m_drawingsInSheets = true;
+                    pendingDrawing = true;
+                    {
+                        XlsAnchor a;
+                        if (readXlsAnchor(m_d, r.pos, r.pos + r.len, &a)) {
+                            lastAnchor = a;
+                            haveAnchor = true;
+                        }
+                    }
+                    break;
+                case kObj: {
+                    bool chartObject = false;
+                    if (depth == 0 && m_biff >= 8) {
+                        Bytes ob(m_d, r.pos, r.pos + r.len);
+                        const quint16 ft = ob.u16();
+                        ob.u16();
+                        const quint16 ot = ob.u16();
+                        chartObject = !ob.bad() && ft == 0x15 && ot == 5;
+                    }
+                    if (!chartObject) {
+                        m_drawingsInSheets = true;
+                        haveAnchor = false;
+                    }
+                    pendingDrawing = false;
+                    break;
+                }
                 case kNote: m_comments = true; break;
                 case kSxView: m_pivots = true; break;
                 case kUncalced: if (depth == 0) m_uncalced = true; break;   // (a sheet's own record, near its start)
@@ -1017,8 +1081,8 @@ private:
                 default: break;
                 }
             }
-            if (nestedChart) m_charts = true;
-            if (p.type == 0x20) m_charts = true;
+            if (pendingDrawing) m_drawingsInSheets = true;
+            if ((nestedChart || p.type == 0x20) && m_biff < 8) m_charts = true;
             (void)ended;
             if (p.type != 0x06) spans.append({p.offset, last});
         }
@@ -1088,7 +1152,35 @@ private:
         book->m_fonts = styles->fonts;
         book->m_sharedStringCount = m_sst.strings.size();
         book->m_xfCount = m_xfs.size();
+        book->m_charts.resize(m_sheets.size());
+        qint64 chartBytes = 0;
+        for (const ChartSpan &span : std::as_const(m_chartSpans)) {
+            if (span.sheet < 0 || span.sheet >= m_sheets.size()) continue;
+            const XlsChartRead cr = readXlsChart(m_d, span.from, span.to, m_cx, m_sheets[span.sheet].name);
+            if (!cr.read) {
+                m_charts = true;
+                continue;
+            }
+            ImportedChart ic;
+            ic.part = office::writeChartPart(cr.chart);
+            chartBytes += ic.part.size();
+            if (chartBytes > (qint64(64) << 20)) {
+                m_charts = true;
+                break;
+            }
+            if (cr.lost) m_chartParts = true;
+            ic.col1 = span.anchor.col1;
+            ic.row1 = span.anchor.row1;
+            ic.col2 = span.anchor.col2;
+            ic.row2 = span.anchor.row2;
+            ic.colOff1 = span.anchor.colOff1;
+            ic.rowOff1 = span.anchor.rowOff1;
+            ic.colOff2 = span.anchor.colOff2;
+            ic.rowOff2 = span.anchor.rowOff2;
+            book->m_charts[span.sheet].append(ic);
+        }
         if (m_charts) book->m_skipped << QCoreApplication::translate("Sheet", "charts");
+        if (m_chartParts) book->m_skipped << QCoreApplication::translate("Sheet", "parts of charts");
         if (m_drawings || m_drawingsInSheets) book->m_skipped << QCoreApplication::translate("Sheet", "pictures and other drawing objects");
         if (m_pivots) book->m_skipped << QCoreApplication::translate("Sheet", "pivot tables");
         if (m_comments) book->m_skipped << QCoreApplication::translate("Sheet", "comments");
@@ -1275,6 +1367,7 @@ public:
     bool run(const XlsBook::Place &place)
     {
         bool ok = true;
+        m_s.importedCharts = m_book.m_charts.value(m_index);
         if (place.offset < 0 || place.type == 0x20 || place.type == 0x06) {
             m_s.cells.finish();
             return true;

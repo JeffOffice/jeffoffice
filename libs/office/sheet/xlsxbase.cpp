@@ -2,6 +2,7 @@
 
 #include "sheet/xlsxbase.h"
 #include "sheet/pagesetupxml.h"
+#include "sheet/drawingadd.h"
 
 #include "io/zip.h"
 #include "sheet/xmlscan.h"
@@ -502,6 +503,7 @@ public:
             m_out += merges + "</mergeCells>";
         }
         m_out += pageSetupElementsXml(m_sheet.page, QByteArray());
+        if (!m_sheet.importedCharts.isEmpty()) m_out += "<drawing r:id=\"rId1\"/>";   // (the drawing the charts of an older workbook are in: see writeBaseXlsx)
         m_out += "</worksheet>";
         m_out.flush();
         return !m_stopped;
@@ -692,17 +694,16 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         info.sheets = read;
     }
     ZipWriter zip;
+    QByteArray types = kXmlHead;
     // [Content_Types].xml and the relationships
     {
-        QByteArray types = kXmlHead;
         types += "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
                  "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/>"
                  "<Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/>";
         for (int i = 0; i < info.sheets.size(); ++i)
             types += "<Override PartName=\"" + baseSheetPart(i).toLatin1() + "\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>";
         types += "<Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/>"
-                 "<Override PartName=\"/xl/sharedStrings.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml\"/></Types>";
-        zip.add(QStringLiteral("[Content_Types].xml"), types, true);
+                 "<Override PartName=\"/xl/sharedStrings.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml\"/>";
         zip.add(QStringLiteral("_rels/.rels"),
                 QByteArray(kXmlHead) + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"" + kRelNs
                     + "/officeDocument\" Target=\"xl/workbook.xml\"/></Relationships>",
@@ -721,6 +722,7 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
     zip.add(QStringLiteral("xl/styles.xml"), stylesPart(book.styles(), qsizetype(book.cellFormatsInFile()), addedFormats), true);
     // the sheets, one at a time
     qint64 references = 0;
+    int drawings = 0, charts = 0;
     for (int i = 0; i < info.sheets.size(); ++i) {
         if (cancel && cancel->load(std::memory_order_relaxed)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
         Sheet sheet;
@@ -732,7 +734,42 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         const bool ok = writer.write();
         zip.endStream();
         if (!ok) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
+        if (!sheet.importedCharts.isEmpty()) {
+            // the charts of the older form: one drawing for the sheet, a part for each chart, and the relationships between them
+            ++drawings;
+            QByteArray anchors;
+            QByteArray drawingRels = kXmlHead;
+            drawingRels += "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">";
+            int k = 0;
+            for (const ImportedChart &chart : std::as_const(sheet.importedCharts)) {
+                ++k;
+                ++charts;
+                DrawingAnchor a;
+                a.from.col = chart.col1;
+                a.from.row = chart.row1;
+                a.from.colOff = chart.colOff1;
+                a.from.rowOff = chart.rowOff1;
+                a.to.col = std::max(chart.col2, chart.col1);
+                a.to.row = std::max(chart.row2, chart.row1);
+                a.to.colOff = chart.colOff2;
+                a.to.rowOff = chart.rowOff2;
+                anchors += chartAnchorXml(a, k + 1, QStringLiteral("Chart %1").arg(k), QStringLiteral("rId%1").arg(k));
+                zip.add(QStringLiteral("xl/charts/chart%1.xml").arg(charts), chart.part, true);
+                types += "<Override PartName=\"/xl/charts/chart" + num(charts) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/>";
+                drawingRels += "<Relationship Id=\"rId" + num(k) + "\" Type=\"" + kRelNs + "/chart\" Target=\"../charts/chart" + num(charts) + ".xml\"/>";
+            }
+            drawingRels += "</Relationships>";
+            zip.add(QStringLiteral("xl/drawings/drawing%1.xml").arg(drawings), newDrawingXml(anchors), true);
+            zip.add(QStringLiteral("xl/drawings/_rels/drawing%1.xml.rels").arg(drawings), drawingRels, true);
+            types += "<Override PartName=\"/xl/drawings/drawing" + num(drawings) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawing+xml\"/>";
+            zip.add(QStringLiteral("xl/worksheets/_rels/sheet%1.xml.rels").arg(i + 1),
+                    QByteArray(kXmlHead) + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"" + kRelNs + "/drawing\" Target=\"../drawings/drawing" +
+                        num(drawings) + ".xml\"/></Relationships>",
+                    true);
+        }
     }
+    types += "</Types>";
+    zip.add(QStringLiteral("[Content_Types].xml"), types, true);
     zip.add(QStringLiteral("xl/sharedStrings.xml"), sharedStringsPart(book.sharedStrings(), qsizetype(book.sharedStringsInFile()), references), true);
     *out = zip.finish();
     return true;

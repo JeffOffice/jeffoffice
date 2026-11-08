@@ -1441,6 +1441,13 @@ struct AutoFilter {
     bool operator==(const AutoFilter &o) const { return ref == o.ref && columns == o.columns && sortState == o.sortState; }
 };
 
+// A chart read from a workbook of the older binary form: the chart part as the XML form holds it (written from the chart model), and the cells it is anchored between.
+struct ImportedChart {
+    QByteArray part;
+    quint32 col1 = 0, row1 = 0, col2 = 0, row2 = 0;
+    qint64 colOff1 = 0, rowOff1 = 0, colOff2 = 0, rowOff2 = 0;   // EMU into the first and last cell
+};
+
 struct Sheet {
     CellStore cells;
     QVector<QString> texts;           // inline strings and the texts of formula results
@@ -1478,6 +1485,7 @@ struct Sheet {
     bool isProtected = false;         // the sheet is protected (sheetProtection): its locked cells can't be changed
     SheetProtection protection;       // and what the protection says (isProtected is its `enabled`)
     QVector<LinkSpec> links;          // the links on cells, in the order of the file (an address outside the workbook is resolved by Workbook::readSheet; a sheet read alone has the relationship's id)
+    QVector<ImportedChart> importedCharts;   // the charts of a sheet of the older binary form (see sheet/xlschart.h); they are written when the workbook is saved as the XML form
     QStringList notKept;              // what the sheet's file has that the program neither shows nor writes into a copy of the sheet, in words (sparklines, say)
     bool partial = false;             // the read was stopped at a row asked for (ReadOptions::stopAfterRow): the cells of the rows after it, and what follows the cells (the merged ranges), are not here
     quint32 extentRows = 0;           // the rows and columns the cells reach: the most of a cell that holds a value or a formula or has a format of its own (a style other than the first)

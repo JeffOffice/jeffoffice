@@ -5,8 +5,9 @@
 // The sheets are found by their place in the stream and read one at a time when asked for, as the XML reader does. Every length and count a file gives is checked
 // against the bytes there are and against the limits, nothing recurses, and nothing is made in the size a file claims before the bytes for it are seen.
 //
-// Not read (kept out of the way, and said so by skipped()): charts, drawing objects and pictures, pivot tables, comments, and the macros of a workbook. A workbook that
-// is encrypted is refused.
+// The charts of a BIFF8 workbook are read into the chart model (sheet/xlschart.h), and written as charts when the workbook is saved as the XML form. Not read (kept out of the way, and
+// said so by skipped()): the parts of a chart the model does not hold, drawing objects and pictures, pivot tables, comments, and the macros of a workbook. A workbook that is encrypted
+// is refused.
 
 #include "sheet/sheetreader.h"
 #include "sheet/xlsformula.h"
@@ -56,6 +57,7 @@ private:
     int m_codepage = 1252;
     QVector<Place> m_places;
     QStringList m_skipped;
+    QVector<QVector<ImportedChart>> m_charts;   // by the sheet's place: the charts read at the open
     XlsContext m_cx;
     QVector<FontSpec> m_fonts;   // the fonts as the model numbers them (and the file does), for the runs of formatting in the texts of cells
     qint64 m_sharedStringCount = 0;
