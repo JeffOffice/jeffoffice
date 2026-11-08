@@ -2928,6 +2928,9 @@ void StoryLayout::build(const QTextDocument *doc, const QVector<FrameSpec> &fram
     m_frames = frames;
 }
 
+// The most the frames' heights (and the 1000 between them) add up to, in points: eight times it is in Qt's fixed-point range (about 4.19 million points).
+static constexpr double kMostFrameY = 4.0e6;
+
 QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<FrameSpec> &frames, const LayoutEnv &env)
 {
     QVector<double> shifts(frames.size(), 0.0);
@@ -2957,8 +2960,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
 
     // Each frame's lines sit below the frames before it in the paragraph
     // layouts (fine units must stay within Qt's fixed-point range).
+    // The sum is held to kMostFrameY: past it the lines of the later frames are not drawn, so a taller frame (or a count of them) shares the offset of the frames after it.
     m_frameY = QVector<double>(nF + 1, 0.0);
-    for (int i = 0; i < nF; ++i) m_frameY[i + 1] = m_frameY[i] + std::max(1.0, frames[i].size.height()) + 1000;
+    for (int i = 0; i < nF; ++i) {
+        const double h = frames[i].size.height();
+        m_frameY[i + 1] = std::min(m_frameY[i] + (std::isnan(h) ? 1.0 : std::clamp(h, 1.0, kMostFrameY)) + 1000, kMostFrameY);
+    }
 
     int f = 0, c = 0;
     double y = 0;              // relative to column top
@@ -2994,9 +3001,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     const bool withNotes = noteDepth == 0 && nF > 0;
     const FieldSource *notesDoc = nF > 0 ? frames.first().ctx.doc : nullptr;
     int footCount = notesDoc && notesDoc->restartNotesEachPage() ? 0 : m_span.footnotesBefore + (notesDoc ? notesDoc->footnotesBefore() : 0), endCount = m_span.endnotesBefore + (notesDoc ? notesDoc->endnotesBefore() : 0);
-    QHash<int, double> reserve;   // a column's room for footnotes, by frame * 64 + column
-    QHash<int, double> lastTrail;   // the space after the last whole note of a column (a word processor's): it hangs below the column's foot where there is no room for it, by the same key
-    auto rkey = [](int fi, int ci) { return fi * 64 + ci; };
+    QHash<qint64, double> reserve;   // a column's room for footnotes, by rkey (frame and column)
+    QHash<qint64, double> lastTrail;   // the space after the last whole note of a column (a word processor's): it hangs below the column's foot where there is no room for it, by the same key
+    auto rkey = [](int fi, int ci) { return (qint64(fi) << 32) | quint32(ci); };   // (any number of columns: a frame * 64 + column met the next frame's first at the 65th)
     for (int k = 0; k < m_span.noteReserves.size() && k < nF; ++k)
         if (m_span.noteReserves[k] > 0) reserve[rkey(k, 0)] = m_span.noteReserves[k];
     QVector<int> carry;           // footnotes (in m_notes) with text left for the next column, in order
@@ -3017,7 +3024,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     const double continuationH = env.wordLines && notesDoc ? limited(notesDoc->noteContinuationHeight()) : 0.0;
     const double continuedGap = continuationH > 0 ? continuationH * scale + noticeGap : ruleGap;
     m_continuedGap = continuedGap;
-    QHash<int, double> gapOf;   // the gap above the notes of a column that begins with the part of a note from the column before, by frame * 64 + column
+    QHash<qint64, double> gapOf;   // the gap above the notes of a column that begins with the part of a note from the column before, by rkey
     auto noteFrame = [&](const Note &n, double width, double height) {
         FrameSpec fs = frames.first();
         fs.size = QSizeF(width, height);
@@ -3951,7 +3958,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             int rowIdx;
             bool rowActive, columnEmpty, overflow, blank;
             QVector<double> used;
-            QHash<int, double> reserve;
+            QHash<qint64, double> reserve;
             QVector<Note> notes;
             QVector<int> carry, seeded;
         };
@@ -5171,7 +5178,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         if (it.key() % 64 == 0 && it.key() / 64 >= 0 && it.key() / 64 < nF) m_noteReserves[it.key() / 64] = it.value();
     // Footnotes: stacked at the bottom of their column, under a short rule,
     // or, when one goes on from the column before, as wide as the column.
-    QHash<int, double> bodyEnds;   // the bottom of the lowest line of each column, by frame * 64 + column (when a column's notes hang)
+    QHash<qint64, double> bodyEnds;   // the bottom of the lowest line of each column, by rkey (when a column's notes hang)
     for (auto it = reserve.cbegin(); it != reserve.cend(); ++it) {
         const int fi = it.key() / 64, ci = it.key() % 64;
         if (fi < 0 || fi >= nF) continue;

@@ -392,6 +392,65 @@ private Q_SLOTS:
         QVERIFY2(*gapHi - *gapLo <= 2, qPrintable(QStringLiteral("gaps %1..%2 px").arg(*gapLo).arg(*gapHi)));
     }
 
+    // The frames' heights, and 1000 between them, add up in fine units that Qt holds to about 4.19 million points: past that the text of the later frames was not drawn.
+    void framesTallerThanQtsFixedPointRangeStillDrawTheTextOfTheLaterOnes()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat cf;
+        cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+        cf.setFontPointSize(12);
+        c.insertText(QStringLiteral("first frame text") + QChar(0x000E) + QStringLiteral("second frame text goes here and wraps around a few lines of text"), cf);
+        jp::FrameSpec a;
+        a.size = QSizeF(200, 4.5e6);
+        a.insets = QMarginsF(0, 0, 0, 0);
+        a.hyphenate = false;
+        jp::FrameSpec b = a;
+        b.size = QSizeF(200, 300);
+        jp::StoryLayout lay;
+        jp::LayoutEnv env;
+        env.wordLines = true;   // (a column break only in a word processor's layout)
+        lay.build(&doc, {a, b}, env);
+        QVERIFY(!lay.lineInfo(1).isEmpty());
+        QImage img(300, 400, QImage::Format_ARGB32_Premultiplied);
+        img.fill(Qt::white);
+        {
+            QPainter p(&img);
+            lay.paint(&p, 1, jp::PaintOptions());
+        }
+        int dark = 0;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x) dark += qGray(img.pixel(x, y)) < 128;
+        QVERIFY2(dark > 100, qPrintable(QString::number(dark) + " dark pixels in the second frame"));
+    }
+
+    // Room kept for notes is told apart by frame and column: a frame of 65 columns or more met the next frame's first column (frame * 64 + column).
+    void aFrameOfManyColumnsKeepsItsNoteRoomApartFromTheNextFrames()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat cf;
+        cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+        cf.setFontPointSize(12);
+        c.insertText(QString(70, QLatin1Char('x')), cf);
+        jp::FrameSpec a;
+        a.size = QSizeF(130, 20);
+        a.insets = QMarginsF(0, 0, 0, 0);
+        a.columns = 65;
+        a.gap = 0;
+        a.hyphenate = false;
+        jp::FrameSpec b = a;
+        b.columns = 1;
+        b.size = QSizeF(200, 40);
+        jp::StoryLayout::Span span;
+        span.noteReserves = {0.0, 100.0};   // (room kept in the second frame's first column)
+        jp::StoryLayout lay;
+        lay.build(&doc, {a, b}, jp::LayoutEnv(), span);
+        int inLast = 0;
+        for (const auto &line : lay.lineInfo(0)) inLast += line.rect.left() > 127;   // (each column is 2 points wide)
+        QVERIFY2(inLast > 0, qPrintable(QString::number(lay.lineInfo(0).size()) + " lines in the first frame, none in its 65th column"));
+    }
+
     // A line break (Shift+Enter) goes into a .pub as \n, as Publisher's own
     // files hold it; JeffPub wrote \v, which Publisher 2021 draws as a box
     // ("BASIC INCIDENT□COMMAND" on a cover). Opened again, it is a line break.
