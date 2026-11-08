@@ -1,5 +1,6 @@
 // Tools of the Review, Data, and Formulas tabs that are not part of an older group: Workbook Statistics, Goal Seek, Subtotal, and Advanced Filter.
 #include "app/crunchwindow.h"
+#include "app/spellingdialog.h"
 
 #include "app/advancedfilterdialog.h"
 #include "app/consolidatedialog.h"
@@ -59,11 +60,12 @@ void CrunchWindow::createTabs2Actions()
     });
     mk("data.clearCircles", tr("Clear Validation Circles"), "circle-slash", QKeySequence(), [this] { clearValidationCircles(); });
     act("data.clearCircles")->setEnabled(false);   // (on while some cells are circled)
+    mk("review.spelling", tr("Spelling"), "spell-check", QKeySequence(Qt::Key_F7), [this] { spelling(); });
     mk("review.thesaurus", tr("Thesaurus"), "book-a", QKeySequence(Qt::SHIFT | Qt::Key_F7), [this] { thesaurus(); });
     mk("review.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] { showAccessibilityPane(); });
     mk("data.consolidate", tr("Consolidate"), "combine", QKeySequence(), [this] { consolidateDialog(); });
     mk("data.subtotal", tr("Subtotal"), "sigma", QKeySequence(), [this] { subtotalDialog(); });
-    for (const char *id : {"review.statistics", "data.goalSeek", "data.scenarioManager", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "review.accessibility", "review.thesaurus"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"review.statistics", "data.goalSeek", "data.scenarioManager", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "review.accessibility", "review.thesaurus", "review.spelling"}) m_opsActions << QString::fromLatin1(id);
     connect(this, &CrunchWindow::calculationFinished, this, [this] {
         refreshInvalidCircles();
         refreshCellFlags(true);
@@ -886,6 +888,45 @@ bool CrunchWindow::replaceWordInCell(int sheet, quint32 row, quint32 col, const 
     }
     if (m_loader.changesMade() != before) m_calculating = true;
     return true;
+}
+
+void CrunchWindow::showCell(int sheet, quint32 row, quint32 col)
+{
+    if (sheet != m_sheet) setActiveSheet(sheet);
+    if (m_view->selection().isOneCell()) m_view->selectCell(row, col);
+    else m_view->ensureVisible(row, col);
+}
+
+bool CrunchWindow::replaceCellTexts(const std::vector<CellText> &changes, const QString &stepText)
+{
+    if (!m_session || changes.empty() || !editingAllowed()) return false;
+    const qint64 before = m_loader.changesMade();
+    QUndoStack *stack = m_session->undoStack();
+    const bool several = changes.size() > 1;
+    if (several) stack->beginMacro(stepText);
+    bool ok = true;
+    for (const CellText &c : changes) {
+        const crunch::EditSession::Outcome o = m_session->type(c.sheet, c.row, c.col, c.text, false);
+        if (!o.ok) {
+            notice(stepText, o.problem);
+            ok = false;
+            break;
+        }
+    }
+    if (several) stack->endMacro();
+    if (m_loader.changesMade() != before) m_calculating = true;
+    return ok;
+}
+
+void CrunchWindow::spelling()
+{
+    if (!m_session || m_sheet < 0 || !commitEdit()) return;
+    const grid::Selection &sel = m_view->selection();
+    jp::office::sheet::CellRange range{0, 0, jp::office::sheet::kMaxRows - 1, jp::office::sheet::kMaxColumns - 1, true};
+    // (more than one cell selected: only those, as the original does; else the whole sheet)
+    if (!sel.isOneCell()) range = selectedRange();
+    SpellingDialog dlg(this, m_sheet, range);
+    if (dlg.start()) dlg.exec();
 }
 
 void CrunchWindow::thesaurus()

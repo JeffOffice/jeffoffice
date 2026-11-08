@@ -317,6 +317,9 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
         m_diskProtected = m_fileProtected;
         m_diskDigest = m_fileProtected && m_savedDigest ? *m_savedDigest : QByteArray();
         m_protectionChanged = false;
+        dropRecoveryCopy();   // (the work is saved: it needs no copy)
+        m_recoveredFrom.clear();
+        if (m_recoveredCopy) recovery::discard(*std::exchange(m_recoveredCopy, std::nullopt));
         m_editedProps.reset();   // (the file has them now)
         setWindowModified(m_session->isModified());
         Settings::get().addRecentFile(path);

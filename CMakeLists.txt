@@ -585,6 +585,7 @@ qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp t
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_tabs2.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_c12file.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_c13file.cpp)
+target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_proof.cpp)
 target_link_libraries(crunchtests PRIVATE jccore Qt6::Test)
 target_include_directories(crunchtests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 target_compile_definitions(crunchtests PRIVATE JC_SOURCE_DIR="${CMAKE_SOURCE_DIR}")

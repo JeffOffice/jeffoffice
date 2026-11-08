@@ -241,6 +241,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     });
     showBlank();
     setupObjects();
+    createRecovery();
     resize(1280, 800);
     updateTitle();
     updateBars();
@@ -503,6 +504,21 @@ void CrunchWindow::createActions()
         auto choice = std::make_shared<QPointer<QComboBox>>();
         auto lists = std::make_shared<QPointer<QPlainTextEdit>>();
         QVector<OptionsPage> pages;
+        auto minutes = std::make_shared<QPointer<QSpinBox>>();
+        pages << OptionsPage{tr("Save"), [this, minutes] {
+            auto *page = new QWidget;
+            auto *layout = new QFormLayout(page);
+            auto *box = new QSpinBox(page);
+            box->setObjectName(QStringLiteral("autoRecoverMinutes"));
+            box->setRange(1, 120);
+            box->setValue(Settings::get().autoRecoverMinutes());
+            box->setSuffix(tr(" minutes"));
+            layout->addRow(tr("Save automatic recovery information every:"), box);
+            *minutes = box;
+            return static_cast<QWidget *>(page);
+        }, [minutes] {
+            if (*minutes) Settings::get().setValue(QStringLiteral("save/autoRecoverMinutes"), (*minutes)->value());
+        }};
         pages << OptionsPage{tr("Editing"), [this, choice] {
             auto *page = new QWidget;
             auto *layout = new QFormLayout(page);
@@ -1096,6 +1112,8 @@ void CrunchWindow::closeEvent(QCloseEvent *e)
     }
     stopCalculation();
     m_loader.cancel();
+    dropRecoveryCopy();   // (closed: the work was saved, or given up on purpose)
+    if (m_recoveredCopy) recovery::discard(*std::exchange(m_recoveredCopy, std::nullopt));
     e->accept();
 }
 

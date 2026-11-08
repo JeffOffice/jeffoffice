@@ -224,6 +224,9 @@ QWidget *CrunchFileScreen::buildOpen()
     auto *text = new ActionCard(QStringLiteral("file-text"), tr("Open a Text File"), tr("Choose how the columns of a .csv or .txt file are read."), w);
     connect(text, &QAbstractButton::clicked, this, [this] { m_win->act("file.openText")->trigger(); });
     cards->addWidget(text, 1);
+    auto *recover = new ActionCard(QStringLiteral("life-buoy"), tr("Recover Unsaved Work"), tr("Open copies of unsaved work %1 kept when it closed unexpectedly.").arg(appInfo().name), w);
+    connect(recover, &QAbstractButton::clicked, this, [this] { m_win->offerRecovery(true); });
+    cards->addWidget(recover, 1);
     v->addLayout(cards);
     v->addWidget(moreWaysToOpenCard(w, [this](OpenHow how) { m_win->browseAndOpen(how); }));
     v->addSpacing(14);

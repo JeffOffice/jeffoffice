@@ -5,6 +5,7 @@
 
 #include "app/appwindow.h"
 #include "app/versionstore.h"
+#include "app/recovery.h"
 #include "app/filetasks.h"
 #include "app/infopage.h"
 
@@ -43,6 +44,8 @@
 #include "sheet/tablestyle.h"
 
 #include <QElapsedTimer>
+#include <QTimer>
+#include <optional>
 #include <QHash>
 #include <QPixmap>
 #include <QKeySequence>
@@ -396,6 +399,15 @@ public:
     void versionHistory();
     bool isModified() const { return m_session && m_session->isModified(); }
     bool isSaving() const { return m_saving; }
+    // Automatic recovery: a workbook with changes that are not saved keeps a copy (in the file form the workbook is saved in) at the interval Options > Save sets; the copy goes when the work is
+    // saved or the window is closed, and one a crash left is offered at the next start. The copy is made in the background; `recoveryWritten` says when it is on disk.
+    void autoRecover();
+    int autoRecoverInterval() const { return m_recoverTimer.interval(); }   // ms
+    QString recoveryCopy() const { return m_recoveryCopy; }
+    bool isRecovering() const { return m_recovering; }
+    void offerRecovery(bool askIfNone = false);
+    // Opens a recovered copy as unsaved work, in this window while it has no workbook of its own, else in a new one; false, with the reason, if it can't be read at all.
+    CrunchWindow *openRecovered(const jp::recovery::Recovered &r, QString *error = nullptr);
     // What the person is asked when the window is closed with changes that are not saved: Save, Don't Save, or Cancel (a message box, unless this stands in for it: tests).
     enum class Answer { Save, Discard, Cancel };
     void setAsker(const std::function<Answer(const QString &title, const QString &text)> &asker) { m_asker = asker; }
@@ -557,6 +569,17 @@ public:
     // Review > Thesaurus: the first word of the text in the active cell is looked up in the word list, and the word chosen goes in its place. `thesaurusWordAt` is that word (empty for
     // none); `replaceWordInCell` puts `chosen` where `word` is in the cell's text (a capital first letter stays one).
     void thesaurus();
+    // Review > Spelling (F7): the Spelling dialog over the text cells of the sheet, or of the cells selected when there is more than one.
+    void spelling();
+    // New texts for cells (what Spelling changes), one step of Undo named `stepText`. False, with the reason told, if one can't be put in.
+    struct CellText {
+        int sheet;
+        quint32 row, col;
+        QString text;
+    };
+    bool replaceCellTexts(const std::vector<CellText> &changes, const QString &stepText);
+    // Shows the cell (the sheet is made the one in view; a single cell is selected, a selection of cells is kept).
+    void showCell(int sheet, quint32 row, quint32 col);
     QString thesaurusWordAt(int sheet, quint32 row, quint32 col) const;
     bool replaceWordInCell(int sheet, quint32 row, quint32 col, const QString &word, const QString &chosen);
     // Automatic decimal places (Options > Editing): 0 is off; with 2, typing 1234 enters 12.34; kept in the person's settings.
@@ -619,6 +642,8 @@ Q_SIGNALS:
     // A copy of the workbook was written as an .xls or .ods file, or could not be.
     void copyExported(const QString &path, bool ok);
     void versionKept(bool ok);
+    // An automatic recovery copy was written (ok), or could not be.
+    void recoveryWritten(bool ok);
     // The first rows are on the screen.
     void firstScreenShown();
     // The workbook is read whole (or could not be opened).
@@ -758,6 +783,7 @@ private:
     void beginEdit(const QString &initial, CellEditor::Mode mode, bool fromBar);
     void placeEditor();
     void finishEdit(CellEditor::Way way);
+    void linkEntry(const QString &text);
     void onCellsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells);
     void clearSelection();
     void undoRedo(bool redo);
@@ -1475,6 +1501,14 @@ private:
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
     QString m_path;
+    QTimer m_recoverTimer;
+    QString m_recoveryCopy;      // this window's automatic recovery copy, if written
+    QString m_recoveredFrom;     // a recovered workbook's original file, for the sidecar of its next copy
+    quint64 m_serial = 0;
+    bool m_recoveryNoted = false, m_recovering = false;
+    std::optional<jp::recovery::Recovered> m_recoveredCopy;   // the copy this window was opened from, discarded once its own copy is written
+    void dropRecoveryCopy();
+    void createRecovery();
     SlicerPane *m_slicerPane = nullptr;
     QDockWidget *m_slicerDock = nullptr;
     QPointer<CommentThreadsPane> m_commentsPane;   // (the pane and its dock are children of the window: they go with it, and a signal that arrives as it goes finds them gone)

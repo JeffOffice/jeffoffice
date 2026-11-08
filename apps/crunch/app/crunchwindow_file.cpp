@@ -65,6 +65,8 @@ void CrunchWindow::dropWorkbook()
     dropLayoutJob();
     m_loader.cancel();
     // (what was waiting for the old workbook is not done to the next: a save that waited for its calculation, a close that waited for that save, what was typed before it was ready)
+    dropRecoveryCopy();
+    m_recoveredFrom.clear();
     m_saveAfterCalculation.clear();
     m_copyAfterCalculation = false;
     m_closeAfterSave = false;
@@ -309,6 +311,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
         }
         const QString name = m_repairName.isEmpty() ? QFileInfo(m_path).fileName() : m_repairName;
         m_openAsCopy = false;
+        m_recoveredCopy.reset();
         m_repairTemp.reset();
         m_repairFile.clear();
         m_repairName.clear();
@@ -359,6 +362,18 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
         setReadOnly(true);
     }
     createEditing();
+    // (opened from a copy a crash left: it is unsaved work, which has no file, and keeps a copy of its own before the old one goes)
+    if (m_recoveredCopy) {
+        m_untitled = m_recoveredCopy->title;
+        m_recoveredFrom = m_recoveredCopy->source;
+        m_path.clear();
+        m_originalPath.clear();
+        m_protectionChanged = true;   // (what the file does not have: the window is marked, closing asks, and the next recovery copy is made)
+        setWindowModified(true);
+        updateTitle();
+        QPointer<CrunchWindow> self(this);
+        QTimer::singleShot(0, this, [self] { if (self) self->autoRecover(); });
+    }
     if (m_objects && m_loaded->calc) m_objects->setCells(m_loaded->calc.get(), &m_values);
     for (int i = 0; i < m_tabs->count(); ++i) m_tabs->setTabEnabled(i, true);
     // the stripes the sheets ask for, now that every sheet is read

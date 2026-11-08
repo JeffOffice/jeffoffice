@@ -4,6 +4,7 @@
 #include "app/crunchwindow.h"
 
 #include "core/autocomplete.h"
+#include "text/autocorrect.h"
 #include "core/fixeddecimals.h"
 #include "app/functionargumentsdialog.h"
 #include "app/formulahelper.h"
@@ -436,8 +437,23 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
     }
     if (m_loader.changesMade() != before) m_calculating = true;
     if (m_session->undoStack()->index() > stackBefore) widenForEntry(m_edit.sheet, m_edit.row, m_edit.col);   // (an entry that made no step has none to widen in)
+    if (!fill) linkEntry(text);
     finishEdit(way);
     return true;
+}
+
+// An entry that is a web or email address on its own becomes a link in its cell (when Options > Proofing turns web addresses into links as they are typed); never a formula.
+void CrunchWindow::linkEntry(const QString &text)
+{
+    if (!Settings::get().value(QStringLiteral("proof/autolink"), true).toBool() || CellEditor::isFormulaEntry(text)) return;
+    const std::optional<jp::autotext::Fix> address = jp::autotext::linkWord(text);
+    if (!address || address->from != 0 || address->to != int(text.size())) return;
+    jp::office::sheet::LinkSpec link;
+    link.range = jp::office::sheet::CellRange{m_edit.row, m_edit.col, m_edit.row, m_edit.col, true};
+    link.target = address->with;
+    link.display = text;
+    if (m_session->anchors().linkAt(m_edit.sheet, m_edit.row, m_edit.col) || !m_session->checkLink(m_edit.sheet, link.range, link).ok) return;
+    m_session->setLink(m_edit.sheet, link.range, link, tr("Put In a Link"));
 }
 
 void CrunchWindow::finishEdit(CellEditor::Way way)
