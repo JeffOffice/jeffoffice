@@ -44,10 +44,10 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 - [ ] **1.0** `jcrunchtool`, a command-line tool that converts between formats, recalculates and compares a workbook with the answers it stored, lists a file's parts, extracts a range as CSV, and runs the fidelity tests, as `jpubtool` and `jdecktool` do for the other apps *(shared: the pattern of those tools)*
 - [~] **1.0** PDF with a bookmark for each sheet, tags for screen readers, and PDF/A *(shared: JeffPub's PDF export)*
 - [x] **1.0** Insert > Icons: 1,539 open vector icons, searched by name *(shared: JeffPub's icon picker)* *(done November 5, 2026: Insert > Icons opens the shared picker and puts each icon chosen on the sheet as a 48-point picture drawn at 256 pixels, one step of Undo each)*
-- [~] **1.0** **(alt)** Insert > Pictures > Online Pictures searches Openverse and Wikimedia Commons, keeping the license and credit, in place of Bing *(shared: JeffPub's online pictures)*
+- [ ] **1.0** **(alt)** Insert > Pictures > Online Pictures searches Openverse and Wikimedia Commons, keeping the license and credit, in place of Bing *(shared: JeffPub's online pictures)*
 - [~] **1.0** Help that works offline, with a page for every function (what it does, each argument, and a worked example) and a search that also finds commands and runs them *(shared: libs/shell help; the function pages are new)*
 - [ ] **later** Copy a range as a Markdown table or an HTML table, and paste either back as cells
-- [~] **later** Insert > Barcode: a column of codes turned into barcodes for labels (EAN, UPC, Code 128, Code 39, QR), drawn as vector bars *(shared: libs/base/core barcode)*
+- [~] **1.0** Insert > Barcode: a column of codes turned into barcodes for labels (EAN, UPC, Code 128, Code 39, QR), drawn as vector bars *(shared: libs/base/core barcode)*
 
 ## File (backstage)
 
@@ -350,11 +350,16 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 - [x] **1.0** Thesaurus, from an open-licensed word list in the languages that have one *(done November 5, 2026: Review > Thesaurus (Shift+F7) looks up the first word of the cell's text in the English word list, and Replace puts the choice in the cell; the other languages follow when their lists are bundled)*
 - [x] **1.0** Workbook Statistics: the numbers of sheets, cells with data, formulas, charts, and pivot tables *(done November 4, 2026: Review > Workbook Statistics, and the same on the Info page: sheets, cells with data, formulas, charts, and pivot tables)*
 - [ ] **later** Speak Cells: read cells aloud as they are entered, by rows or by columns, with the system's speech
+- [ ] **1.0** Read Aloud with the system's voices: from the cursor, with the current word highlighted, and a speed and voice choice
+- [ ] **1.0** **(alt)** Grammar and style checking that runs on your own computer, instead of an online editor: Harper (open source, Apache-2.0), English first, other languages later (decided October 11, 2026)
+- [ ] **later** **(alt)** Dictate: speech to text by an open model on your own computer, instead of online dictation
+- [ ] **later** Redaction: mark text, pictures, or areas to black out, then apply it so the covered content is removed from the file itself, not just painted over; also export a redacted PDF *(shared: the same tool serves JeffWrite, JeffDeck, and JeffPub)*
 - [x] **1.0** Check Accessibility: missing alt text, merged cells, blank cells used for layout, duplicate sheet names, a header row not marked, low color contrast, and a reading order *(done: missing alt text, merged cells, default sheet names, a table with no header row, and low color contrast; blank cells used for layout and the reading order of objects done November 5, 2026)*
 
 ### Language
-- [ ] **later** **(alt)** Translate: not Microsoft Translator; an offline translator may follow (see the open questions)
+- [ ] **1.0** **(alt)** Translate: the selected cells or the whole workbook opened in an open translation service (LibreTranslate, with a server address you can change), instead of an online translation program *(shared: JeffPub's Translate)*
 - [ ] **later** Hangul and Hanja conversion, and Chinese simplified and traditional conversion
+- [ ] **1.0** Set the proofing language for the selected cells and for the whole workbook; spelling follows it
 
 ### Comments and Notes
 - [~] **first release** Notes (the original's older comments, a text box that shows on hover): New Note, Edit, Delete, Previous, Next, Show/Hide, Show Every Note, resize and move, and the author name; saved as the original does, both the note and its drawing *(done October 25, 2026: New, Edit, Delete, Previous, Next, Show or Hide, and Show Every Note, the red mark, the note on hover, the author kept, saved with the file's other notes as they were, moving with rows, columns, and a sort; a conversation of comments is shown read-only and kept; not yet: resizing and moving a note's box, and printing notes)* *(notes: ours <1%, public 7%, Enron 10% (1,540 workbooks), EUSES 6%, government 6%, POI 7%)*

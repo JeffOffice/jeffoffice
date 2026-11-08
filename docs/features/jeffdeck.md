@@ -41,12 +41,12 @@ What JeffDeck offers that the original doesn't, then the plans that go past Powe
 - [x] **1.0** Help and the interface offline, in English, German, Spanish, French, Italian, Dutch, and two forms of Portuguese; usage statistics and crash reports only for people who opted in, and commands counted by id, never by name
 - [x] **1.0** `jdecktool`, a command-line tool that draws each slide to a picture, lists a file's masters, layouts, and slides, reads and saves a file again while listing what was left out, prints to PDF, lists a slide's animation steps, and draws a morph at five points along the way, as `jpubtool` does for JeffPub
 - [~] **1.0** Spelling works offline in the bundled dictionaries, with no cloud service *(shared: the dictionaries in resources/dict; JeffDeck has the dialog and spelling as you type, no Set Language command)*
-- [~] **1.0** PDF with real text and embedded fonts; bookmarks for each slide title, tags for screen readers, and PDF/A are not there yet *(shared: JeffPub's PDF export)*
+- [~] **1.0** PDF with real text and embedded fonts *(shared: JeffPub's PDF export)*
 - [ ] **later** Slides from a plain-text or Markdown outline (paste or open one, get slides), and an outline written back as Markdown, beside the Outline view that already exists
 - [ ] **later** A self-contained web page of the slides, with the transitions and click steps, that plays in any browser
 - [ ] **later** **(alt)** Present on the local network: the audience opens a link in a browser on the same network and follows the show, with no account, in place of Present Online and Broadcast (see the open questions)
 - [ ] **later** **(alt)** Live captions in the show from speech recognition that runs on your own computer, in place of the original's online subtitles (model size and license to check)
-- [~] **later** A QR code or barcode put on a slide as a vector picture *(shared: libs/base/core barcode; no command in JeffDeck yet)*
+- [~] **1.0** A QR code or barcode put on a slide as a vector picture *(shared: libs/base/core barcode; no command in JeffDeck yet)*
 - [ ] **later** Edit with an external program: open a picture in the computer's image editor and take the changes back when it is saved
 
 ## File (backstage)
@@ -85,7 +85,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [ ] **1.0** Open and save the macro-enabled kinds (`.pptm`, `.ppsm`, `.potm`), keeping the macro project untouched and never running it *(macro projects: ours 0 of 19)*
 - [ ] **1.0** Save As lists `.ppt`, `.pps`, and `.pot`, with a warning of what they can't hold; until then Save on an old file asks for a new name (see File formats)
 - [ ] **1.0** A warning before saving to a kind that can't hold something in the presentation, naming what would change, with the choice to save a `.pptx` as well
-- [x] **later** Backup copy kept on every save *(Options > General, shared by every app)*
+- [x] **1.0** Backup copy kept on every save *(Options > General, shared by every app)*
 - [ ] **later** Protected View: files from the Internet open for reading only until you choose to edit them
 - [ ] **later** Open from a web address and save back
 
@@ -97,7 +97,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [ ] **1.0** Pure black and white, scale to fit paper, high quality, and printing comments and ink
 - [ ] **1.0** Edit the header and footer of notes pages and handouts from the Print page *(the handout's header and footer hold the title, the date, and the page number, and can't be changed)*
 - [ ] **later** Print several slides in a custom grid, and 4 slides per page with an Outline beside them
-- [ ] **later** Duplex printing by hand: print the odd pages, then the even ones, with a prompt to turn the stack over
+- [ ] **1.0** Duplex printing by hand: print the odd pages, then the even ones, with a prompt to turn the stack over
 
 ### Export and Share
 - [x] **1.0** Export to PDF with the same Print what, Order, and Range choices, real text with fonts inside, the presentation's title as the PDF's title, and the page count shown before saving
@@ -106,11 +106,12 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [ ] **1.0** Create a Video: MP4 of the show with transitions, animations, rehearsed timings, and narration, in a size chosen *(the design notes put it after the first release; it is the one big output the preview lacks)*
 - [ ] **1.0** PDF extras: bookmarks for each slide title, tags for screen readers, PDF/A, and PDF with a password *(shared: JeffPub's PDF export)*
 - [ ] **later** Package the presentation: copy it with its linked movies and sounds and its fonts to a folder or `.zip` (the original packs a CD)
-- [ ] **later** **(alt)** Email: a ready-to-send `.eml` with the presentation, or a PDF, attached, instead of sending through an online account *(shared: JeffPub's .eml export)*
+- [ ] **1.0** **(alt)** Email: a ready-to-send `.eml` with the presentation, or a PDF, attached, instead of sending through an online account *(shared: JeffPub's .eml export)*
 - [ ] **later** Create handouts in a word processor file (`.docx`, `.odt`) once JeffWrite exists
 - [ ] **later** Save as a single-file web page, and an outline as `.rtf` or Markdown
 
 ### Options
+- [ ] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports)
 - [x] **1.0** General: user name and initials (used on comments), interface theme (system, light, or dark), display language, update checks and beta builds, and usage statistics (opt in) *(shared: the choices belong to every JeffOffice app)*
 - [x] **1.0** Proofing: spelling as you type, ignore words in capitals or with numbers, AutoCorrect, smart quotes, and AutoFormat as you type (dashes, fractions, ordinals, automatic lists)
 - [ ] **1.0** AutoCorrect Options window: the replacement list, exceptions, capitalization rules, and math symbols *(only check boxes now)*
@@ -120,7 +121,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [ ] **1.0** Advanced: undo steps, the default slide show choices, print choices, cut and paste choices, and picture quality
 - [ ] **1.0** Customize the quick toolbar *(fixed at Undo, Redo, and From Beginning today)* and the ribbon
 - [ ] **1.0** Trust Center equivalents: what happens with linked files, linked media, and macros (kept, never run)
-- [ ] **later** Customize the keyboard: assign keys to commands, with the original's shortcuts as the starting set
+- [ ] **1.0** Customize the keyboard: assign keys to commands, with the original's shortcuts as the starting set
 - [~] **later** Accessibility options: high contrast, sound and animation feedback, and keyboard focus *(follows the system theme; the ribbon has KeyTips)*
 
 ### About
@@ -185,6 +186,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 
 ### Editing
 - [x] **1.0** (needed to drop Preview) Find (Ctrl+F) in slide text, tables, shapes, Text Art, and notes, with whole word and match case *(Home > Editing > Find opens a Find and Replace pane on the right; it searches every slide in order from the current one, shows each match on its slide, and can leave the notes out; the search is shared with JeffPub in libs/page/app/findreplace)*
+- [ ] **1.0** Go To: slide, section, comment, and object
 - [x] **1.0** (needed to drop Preview) Replace (Ctrl+H), one match at a time or Replace All as one undo step that says how many it changed
 - [ ] **1.0** Replace Fonts
 - [x] **1.0** Select All (Ctrl+A) in an object, on a slide, and in the Slide Sorter
@@ -233,7 +235,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [~] **later** Object: an embedded object from another program *(an embedded object in a file is kept as a frame and shows its saved picture, as far as could be confirmed; ours 1 of 19, 2 objects; nothing opens it)*
 
 ### Symbols
-- [~] **later** Equation: type or write math and see it set in type *(an equation in a file is shown as the picture the file keeps, in a box with other words too, and kept whole; it can't be changed; ours 0 of 19; follows the shared equation editor)*
+- [~] **1.0** Equation: type or write math and see it set in type *(an equation in a file is shown as the picture the file keeps, in a box with other words too, and kept whole; it can't be changed; ours 0 of 19; follows the shared equation editor)*
 - [x] **1.0** Symbol: a character that isn't on the keyboard
 
 ### Media
@@ -341,7 +343,10 @@ PowerPoint has a Record tab that records a show with the speaker's voice, ink, l
 - [x] **1.0** Word Count: words on the slides, and in the selection when typing
 - [ ] **1.0** Check Accessibility: a list of what a screen reader or a low-vision reader can't use (a missing alt text, a missing slide title, reading order, a table without a header row, low contrast, a movie without captions), with a task pane, and fixes by one click *(alt text exists in 14 of 19 decks; the canvas exposes its objects to screen readers)*
 - [ ] **1.0** Set Proofing Language for the selected text or the whole presentation, and Language preferences *(the dictionaries are bundled for English, German, Spanish, French, Italian, Dutch, and Portuguese; it could not be confirmed how a text gets its language)*
-- [ ] **later** **(alt)** Translate the selected text, a slide, or the presentation on your own computer, with an offline translation model (see Left out on purpose)
+- [ ] **1.0** **(alt)** Translate: the selected text, a slide, or the whole presentation opened in an open translation service (LibreTranslate, with a server address you can change), instead of an online translation program *(shared: JeffPub's Translate)*
+- [ ] **1.0** Read Aloud with the system's voices: from the cursor, with the current word highlighted, and a speed and voice choice
+- [ ] **1.0** **(alt)** Grammar and style checking that runs on your own computer, instead of an online editor: Harper (open source, Apache-2.0), English first, other languages later (decided October 11, 2026)
+- [ ] **later** Redaction: mark text, pictures, or areas to black out, then apply it so the covered content is removed from the file itself, not just painted over; also export a redacted PDF *(shared: the same tool serves JeffWrite, JeffPub, and JeffCrunch)*
 - [ ] **later** Smart Lookup and Insights
 - [x] **1.0** New Comment (Ctrl+Alt+M): a pane beside the slide with a box for the text, a marker on the slide you can drag to move the comment, replies, Resolve and Reopen, edit and delete buttons, your name and initials asked for once
 - [x] **1.0** Delete: the open comment, all comments on this slide, or all in the presentation; Previous and Next visit each comment on its slide; Show Comments hides or shows the pane and the markers; a presentation that comes with comments opens with them shown; Ctrl+Z takes any of it back *(comments: ours 0 of 19)*
@@ -368,7 +373,7 @@ PowerPoint has a Record tab that records a show with the speaker's voice, ink, l
 
 - [x] **1.0** Help (F1, and the question-mark button): topics for each tab, pane, and dialog open on the page for what you are doing, offline, and translated
 - [ ] **1.0** Tell Me: a box on the ribbon that finds a command and runs it *(Help topics have keywords; there is no command search)*
-- [ ] **later** What's New, a link to a community page, and Report a Problem from the Help tab *(About has links to the source, downloads, and problem reports)*
+- [ ] **1.0** What's New, a link to a community page, and Report a Problem from the Help tab *(About has links to the source, downloads, and problem reports)*
 
 ## The slide show and Presenter View
 
@@ -413,7 +418,7 @@ These tabs are shown while something is selected. JeffDeck has Playback (while a
 - [ ] **1.0** Picture Styles (frames, shadow, reflection, and rounded corners), Picture Border, and Picture Effects
 - [~] **1.0** Alt Text, Arrange, and Size (see Shape Format) *(Arrange is on the Home tab; alt text and size are in the pane's Size & Properties page; the Picture Format tab has no groups of its own for them)*
 - [ ] **later** Artistic Effects (blur, pencil sketch, paint, and the rest) *(a picture's blur and fill overlay are neither drawn nor saved yet)*
-- [ ] **later** Compress Pictures: a resolution for screen, print, or email, and delete the cropped areas
+- [ ] **1.0** Compress Pictures: a resolution for screen, print, or email, and delete the cropped areas
 - [ ] **later** Remove Background: mark areas to keep and remove
 - [ ] **later** Picture Layout: turn pictures into a diagram
 - [ ] **later** Graphics Format for icons and SVG pictures: Graphics Fill, Outline, and Effects, Change Graphic, and Convert to Shape *(an icon takes the theme's text color today)*
@@ -623,7 +628,7 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 
 ### PDF, pictures, video, and web
 - [x] **1.0** Export PDF of slides, notes pages, handouts, and the outline, with real text and fonts inside
-- [ ] **1.0** PDF/A, tagged PDF, bookmarks from slide titles, links, and PDF with a password
+- [ ] **1.0** Links in a PDF
 - [~] **1.0** Export a slide as a picture (PNG or JPEG, 1920 pixels across) *(one slide at a time; no other kinds or sizes)*
 - [ ] **1.0** Export all slides as pictures, GIF, TIFF, BMP, and SVG
 - [ ] **1.0** Export a video (MP4) with the show's timings and narration

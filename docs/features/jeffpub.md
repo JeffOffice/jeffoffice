@@ -52,6 +52,13 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 ## File (backstage)
 
 ### Info
+- [ ] **1.0** Mark as Final for `.jpub` publications (opens read-only with a note)
+- [ ] **1.0** Encrypt with a password: open and save a password-protected `.jpub` publication (`.pub` files can't hold a password)
+- [ ] **1.0** Inspect Publication: find and remove personal information and content off the page before sharing
+- [ ] **1.0** Check Compatibility: names what an older or other format can't hold before saving
+- [ ] **1.0** **(alt)** Version history without a cloud service: named local copies of a publication, compared and restored from Info
+- [ ] **1.0** Show a publication's folder and copy its path
+- [ ] **later** Add a digital signature with a certificate on your computer
 - [x] **1.0** Business Information: create, edit, and switch between named sets (name, tagline, contact person, title, address, phone/fax/email, logo)
 - [x] **1.0** Commercial Print Information: color model (RGB, process CMYK, spot colors, process + spot) and embedded-font management *(spot colors are named inks: they print on their own separation plates and are Separation colors in PDFs; a process-color publication makes a CMYK PDF, with colors entered as CMYK kept exactly)*
 - [x] **1.0** Run Design Checker from Info
@@ -64,6 +71,8 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Save as a template and reuse your own templates ("My Templates")
 
 ### Open / Save / Save As / Close
+- [ ] **later** Protected View: files from the Internet open for reading only until you choose to edit them
+- [ ] **later** Open from a web address and save back
 - [x] **1.0** Open JeffPub publications (`.jpub`) and recent publications, with pinning
 - [~] **1.0** Open `.pub` files (every version since 1998), including linked text boxes, pictures, shapes, and tables *(partial: text, pictures, shapes, and tables open; Publisher's shapes come back as JeffPub's own where they match, and picture crops, transparency, brightness, contrast, and recoloring are kept; checked against PDFs of the same files, most covers and pages now match closely; fonts stored inside the file and the page numbering of any section after the first are not brought in, and opening a file says so; see File formats)*
 - [x] **1.0** Save as `.pub` *(each part checked by opening the saved file in another .pub program. Saved: pages and master pages, text boxes and linked text boxes, character formatting (font, size, bold, italic, underline, strikethrough, small and all caps, superscript and subscript, color, letter spacing, and tracking), paragraphs (alignment, indents, spacing, line spacing, tab stops with leaders, bullets and numbering with their fonts, right-to-left direction), every shape (as Publisher's own where it matches, otherwise an exact outline), lines with dashes and arrowheads, text in shapes, rotation and flips, pictures with cropping, transparency, brightness, contrast, recoloring, and a clear color, pictures cut to a shape, tables with merged cells, fills (solid, gradient, picture, texture, and pattern) with transparency, borders with transparency, shadows, Text Art, named paragraph styles (each paragraph keeps its style), process (CMYK) colors. Saving reports objects it leaves out)*
@@ -92,13 +101,16 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Save for a Photo Printer
 - [x] **1.0** **(alt)** Email: send the current page as a picture, or the publication as an attachment. JeffPub creates a ready-to-send `.eml`, PDF, or HTML file instead of sending through a mail program.
 - [ ] **1.0** Links in a PDF: a hyperlink in the publication is a link you can click in the PDF *(no link is written today; the PDF/X path also removes any annotations)*
-- [ ] **later** Bookmarks in a PDF, from page names or Heading 1-3 *(the e-book export already builds its contents from the headings)*
-- [ ] **later** A tagged PDF for screen readers (headings, reading order, and alt text), and a PDF with a password
+- [ ] **1.0** Bookmarks in a PDF, from page names or Heading 1-3 *(the e-book export already builds its contents from the headings)*
+- [ ] **1.0** A tagged PDF for screen readers (headings, reading order, and alt text), and a PDF with a password
 
 ### Options
+- [ ] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports)
+- [ ] **1.0** Trust Center equivalents: what happens with linked files, linked media, and macros (kept, never run)
+- [ ] **1.0** Customize the keyboard: assign keys to commands, with the original's shortcuts as the starting set
 - [x] **1.0** General (user name and initials, light or dark interface, display language, usage statistics, update checks), Proofing (spelling as you type, ignoring words in capitals or with numbers, AutoCorrect of common misspellings, symbols, sentence capitals, and two initial capitals; smart quotes; AutoFormat as you type), Save (automatic recovery interval, backup copies), and Advanced (auto-select entire word, drag-and-drop text, hyphenation in new text boxes, measurement units, nudge amount, recent publication count)
 - [x] **1.0** Updates: Check for Updates now or each time JeffPub starts, with Update Now, Later, or Skip This Version, and a Get beta versions choice for early builds (two channels, Stable and Beta); the update choices are shared with the other JeffOffice apps
-- [ ] **later** Customize the ribbon and the quick toolbar *(the toolbar holds Save, Undo, Redo, and Print, and cannot be changed)*
+- [ ] **1.0** Customize the ribbon and the quick toolbar *(the toolbar holds Save, Undo, Redo, and Print, and cannot be changed)*
 
 ## Home tab
 - [x] **1.0** Clipboard: Paste (with its source formatting), Keep Text Only, Paste Special, Cut, Copy, Copy Formatting (single use and locked)
@@ -125,6 +137,9 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Building Blocks: Page Parts (headings, pull quotes, sidebars, stories, tables of contents), Calendars (by month and year, with options), Borders & Accents, Advertisements, and saving your own (Save as Building Block), which Page Parts lists under My Building Blocks
 - [x] **1.0** Text: Draw Text Box, Business Information fields, Text Art, Insert File (text, RTF, HTML, and `.docx` documents into a text box), Symbol (recently used symbols, kept between sessions, in the Symbol drop-down and the dialog, and the full character map), Date & Time (formats, update automatically), Object **(alt: places a PDF page, an SVG drawing, or a picture; documents from other programs can't be embedded)**
 - [x] **1.0** Links: Hyperlink (web, email, place in this document, new document), Bookmark
+- [ ] **1.0** Chart: insert, edit its data in a grid, and change its type (column, bar, line, pie, area, scatter, and the rest) *(shared: libs/office chart, also used by JeffWrite, JeffDeck, and JeffCrunch)*
+- [ ] **1.0** An equation editor *(shared: built for JeffWrite, also used by JeffDeck and JeffCrunch)*
+- [ ] **later** Screenshot and screen clipping (the system's screenshot tool works in the meantime)
 - [x] **1.0** Header & Footer: Header, Footer (open the master page), Page Number (position, format, start number from 1 to 1000, as in Publisher) *(the first page number and the style are saved in `.pub` files and read back; a publication has one numbering, so a later section of a Publisher file that numbers its pages on its own isn't kept, and opening one says so)*
 - [ ] **later** Draw Vertical Text Box: a text box whose text is turned from the start *(today a text box is drawn, then turned with Text Direction on the Text Box tab)*
 - [ ] **later** Sections: start page numbering again at a chosen page (Insert Section, Merge with Previous Section, and a page number format for each section), with the sections shown in the Pages list *(a Publisher file with several sections opens with the first section's numbering only; see the open questions)*
@@ -164,6 +179,10 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Thesaurus
 - [x] **1.0** Research **(alt: an offline thesaurus: synonyms and related words, without going online)**
 - [x] **1.0** Translate **(alt: opens the selected text in LibreTranslate, an open-source translation service)**
+- [ ] **1.0** Comments: New Comment, replies, resolve, delete, previous and next, and Show Comments *(shared: the review model for comments with replies)*
+- [ ] **1.0** Read Aloud with the system's voices: from the cursor, with the current word highlighted, and a speed and voice choice
+- [ ] **1.0** **(alt)** Grammar and style checking that runs on your own computer, instead of an online editor: Harper (open source, Apache-2.0), English first, other languages later (decided October 11, 2026)
+- [ ] **later** **(alt)** Dictate: speech to text by an open model on your own computer, instead of online dictation
 - [x] **1.0** Language: set the proofing language for selected text; spelling and automatic hyphenation follow it (English for the US, UK, Canada, and Australia; Spanish for Spain and Mexico; French; German; Italian; Dutch; Portuguese for Brazil and Portugal)
 - [x] **1.0** Word Count: pages, words, characters, paragraphs, text boxes, and pictures
 - [x] **1.0** Check group: Run Design Checker (also under File > Properties) and Hyphenation (automatic hyphenation, Insert Optional Hyphen, Add Optional Hyphens) beside Word Count
@@ -182,6 +201,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Help (F1, or the "?" beside the ribbon's collapse button) **(alt: built in and working offline, instead of web pages)**: a Help pane of 51 topics in plain language, with a contents page, links between topics, Back and Forward, and a search that finds topics and also commands, which it runs; F1 opens the topic for what you're doing (the ribbon tab, the task pane, the File page, the dialog, or the selected object), over a dialog in a window of its own; the same topics are published to the project's GitHub wiki with every push to main (`JeffPub --export-help-wiki`, see docs/help-wiki.md)
 - [x] **1.0** Feedback **(alt: a JeffPub GitHub page for reporting a problem or suggesting an idea, with the version filled in)**
 - [x] **1.0** Keyboard Shortcuts (a table of every command's keys, made from the commands themselves) and What's New (this version's release notes)
+- [ ] **1.0** A search box on the ribbon that finds a command by what it does and runs it *(shared: the help search)*
 
 ## Web tab (Publisher's web page tools)
 
@@ -394,7 +414,7 @@ What JeffPub is built on, what its work gave the other apps, and the pieces to b
 
 ### To build once, for several apps
 - [ ] **later** Move the rest of JeffPub's finished tools into libs/page and libs/shell: Find and Replace (a pane in apps/pub today), the crop tool's ribbon controls, and the paste choices *(needed by: JeffDeck, JeffPub, JeffWrite)*
-- [ ] **later** A Format pane and a Selection Pane, built once *(needed by: JeffDeck, JeffPub, JeffWrite; Publisher itself has the Format Object window and no Selection Pane)*
+- [ ] **1.0** A Format pane and a Selection Pane, built once *(needed by: JeffDeck, JeffPub, JeffWrite; Publisher itself has the Format Object window and no Selection Pane)*
 - [ ] **later** Shape styles, picture styles, and text effects menus on the effects the engine already draws, which would give letters Reflection and Bevel *(needed by: JeffDeck, JeffPub, JeffWrite)*
 - [ ] **later** A table engine for every app, starting from JeffPub's tables (merged cells, borders, diagonals, sizes, and the Table Design and Table Layout tabs) *(needed by: JeffWrite, JeffMail, JeffCrunch, JeffDeck)*
 - [ ] **later** A merge-source library (CSV, tab-delimited, `.xlsx`, `.ods`, vCard, and later JeffBase tables and JeffCrunch ranges) with filter, sort, duplicate, and address checks, moved out of libs/page/core and apps/pub *(needed by: JeffPub, JeffWrite, JeffMail, JeffBase)*
