@@ -1,6 +1,7 @@
 // The threads of comments on cells: starting one, replying, editing, resolving, deleting, and turning notes into threads and back. One step of Undo each; the model they are kept in is
 // core/anchors.h (a thread is the `thread` of the cell's NoteInfo).
 #include "core/editsession.h"
+#include <QCoreApplication>
 
 namespace jp::crunch {
 
