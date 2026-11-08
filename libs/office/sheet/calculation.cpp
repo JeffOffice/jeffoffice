@@ -1164,6 +1164,7 @@ bool Calculation::load()
     const int sheets = int(m_sheets.size());
     m_state.assign(size_t(sheets), SheetState());
     m_nodes.clear();
+    m_deferred.clear();
     m_index.clear();
     m_low.clear();
     m_toldHash.clear();
@@ -1674,6 +1675,16 @@ void Calculation::beginRecalculation()
     m_staleCorrections = 0;
     m_running = true;
     m_workUsed = 0;
+    // (the formulas the last recalculation left for want of steps are worked out in this one)
+    for (const quint32 id : m_deferred) {
+        if (id >= m_nodes.size()) continue;
+        Node &n = m_nodes[id];
+        if ((n.flags & (Dead | Kept)) || n.state != Done) continue;
+        n.state = Dirty;
+        ++m_notDone;
+        m_dirty.push_back(id);
+    }
+    m_deferred.clear();
     m_now = m_options.now > 0 ? m_options.now : clockSerial(m_ctx.dateSystem);
     // (what the recalculation begins with is marked a chunk at a time by stepBegin: the formulas that change by themselves, and all that read them)
     m_begin = BeginJob();
@@ -2491,12 +2502,15 @@ void Calculation::giveError(Node &n, quint32 id)
     }
 }
 
-// A formula that is not worked out for want of steps: it has the error, and is done.
+// A formula that is not worked out for want of steps: it keeps its result (kept apart, the file's value) and is done for this recalculation.
 void Calculation::refuseNode(quint32 id, Progress &pr)
 {
     Node &n = m_nodes[id];
     if ((n.flags & Dead) || n.state == Done) return;
-    giveError(n, id);
+    // Kept apart (the file's value stays, marked), or in the program: the cell keeps the result it has and is worked out in the next recalculation (beginRecalculation); it never shows
+    // an error it was not given.
+    if (m_options.keepApart) giveError(n, id);
+    else m_deferred.push_back(id);
     n.flags &= quint16(~Retried);
     n.state = Done;
     --m_notDone;

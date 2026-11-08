@@ -420,6 +420,7 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
     std::unique_lock<std::mutex> lock(state->model);
     bool everCircular = false, lastDue = false;
     qint64 lastCircular = 0;
+    bool lastOver = false, passOver = false;   // (a pass took the steps it may: said once, in the last batch)
     std::vector<Calculation::CircularCell> lastCells;
     // (the values are sent without the model: sending can wait for the window to take what it has)
     auto flush = [&](bool last, bool stopped, qint64 epoch) {
@@ -438,6 +439,7 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
         batch->epochs = std::move(epochs);
         batch->due = last && lastDue;
         batch->circular = last ? lastCircular : 0;
+        batch->overBudget = last && lastOver;
         if (last) batch->circleCells = lastCells;
         sendBatch(batch);
         sinceSent.restart();
@@ -489,6 +491,7 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
         } else for (;;) {
             const Calculation::Progress p = calc->recalculate(0, nullptr, kSliceMicros);
             circles += p.circular;
+            if (p.overBudget) passOver = true;
             if (p.cancelled) {
                 if (state->stopCalc.load() || state->cancel.load()) {
                     stopped = true;
@@ -536,6 +539,8 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
         lastDue = state->manual.load() && state->changes.load() > lastCalcEpoch && !(asked && !askedAll && !calc->isDirty());
         lastCells.clear();
         lastCircular = everCircular && !stopped ? calc->circularCells(&lastCells, 10000) : 0;
+        lastOver = passOver && !stopped;
+        passOver = false;
         flush(true, stopped, epoch);
         result->calcIdle = true;
         while (state->holds.load() > 0 && !state->cancel.load()) QThread::usleep(20);

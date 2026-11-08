@@ -81,7 +81,7 @@ public:
         qint64 work = 0;            // steps taken
         qint64 circular = 0;        // formulas found circular
         qint64 deepest = 0;         // the most formulas waiting for others at once
-        bool overBudget = false;    // the recalculation took the steps it may; the formulas it had not worked out have the error #VALUE! (or, kept apart, keep what the file stored)
+        bool overBudget = false;    // the recalculation took the steps it may; the formulas it had not worked out keep the results they had (or, kept apart, what the file stored) and are worked out by the next recalculation
         qint64 refused = 0;         // formulas that were given that error for want of steps, or because the values held would pass the bound
         qint64 jobItems = 0;        // things done by the steps that go a chunk at a time (formulas of a group given back, marked, refused, put right after a stop) in this call: what a test counts
                                     // to see that a slice does a bounded amount of work, whatever the machine's speed
@@ -1216,6 +1216,7 @@ private:
     static qint64 heldByValue(const jp::calc::Value &v);
     jp::calc::Value fitToRange(const Node &n, const jp::calc::Value &v) const;
     qint64 m_registrations = 0;
+    std::vector<quint32> m_deferred;   // the formulas left for want of steps, which keep the results they have until the next recalculation works them out
     qint64 m_workUsed = 0, m_workLimit = kMaxRecalcWork;   // the steps this recalculation has taken in all its slices, and the most it may
     qint64 m_heldBytes = 0, m_heldLimit = kMaxHeldBytes;
     bool m_running = false;

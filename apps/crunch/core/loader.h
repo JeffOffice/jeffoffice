@@ -66,6 +66,7 @@ struct CalcBatch {
     qint64 epoch = 0;              // for a last batch: how many changes the window had made when the calculation finished (WorkbookLoader::changesMade): all of them are worked out
     qint64 workerCpuMicros = 0;    // the worker thread's processor time since it began
     bool due = false;              // (a last batch) the workbook is set to be worked out by hand and has formulas waiting for it
+    bool overBudget = false;       // (a last batch) the calculation took the steps it may and left formulas, which keep their results until the next one
     qint64 circular = 0;           // (a last batch) the formulas in circles, which a person is to be told of (0 when the workbook goes round them, or has none)
     std::vector<jp::office::sheet::Calculation::CircularCell> circleCells;   // and the first of them, in the order of the sheets and cells
     std::vector<quint32> epochs;   // the structural epoch of each sheet when the batch was sent (Calculation::structEpoch): no value older than these is still on its way (each item has its own)

@@ -584,6 +584,11 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
     ++m_batches;
     if (batch->last) {
         followCalcBatch(*batch);
+        if (batch->overBudget && !m_overBudgetTold) {
+            // (said once: the formulas left keep the results they had, and are worked out with the next change)
+            m_overBudgetTold = true;
+            notice(tr("Calculation"), tr("This workbook has more to work out than one calculation does. The formulas that were left keep the values they had, and are worked out the next time you change something."));
+        }
         // (a calculation that was stopped has been said to be: only one that finished says so now; and one that has not worked out all the changes made since is not over)
         if (!batch->stopped && m_calculating && batch->epoch >= m_loader.changesMade()) {
             m_calculating = false;

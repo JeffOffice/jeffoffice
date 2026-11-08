@@ -1109,7 +1109,8 @@ private Q_SLOTS:
         QVERIFY2(p.work <= options.recalcWorkLimit + 20000, qPrintable(QString::number(p.work)));
         QVERIFY2(p.refused > 0 && p.refused < n, qPrintable(QString::number(p.refused)));
         QCOMPARE(b.at("C1"), QStringLiteral("n:%1").arg(4000 + 1));
-        QCOMPARE(b.at(QStringLiteral("C%1").arg(n)), QStringLiteral("e:#VALUE!"));
+        QVERIFY(b.at(QStringLiteral("C%1").arg(n)) != QStringLiteral("n:%1").arg(4000 + n));   // (not worked out: it keeps what it had, and shows no error)
+        QVERIFY(!b.at(QStringLiteral("C%1").arg(n)).startsWith(QLatin1String("e:")));
         QVERIFY(!b.calc->isDirty());
         // the same in slices: the same bound for all of them
         Book c;
@@ -1125,7 +1126,7 @@ private Q_SLOTS:
         }
         QVERIFY2(over && work <= options.recalcWorkLimit + 20000, qPrintable(QStringLiteral("%1 steps in slices").arg(work)));
         QCOMPARE(refused, p.refused);
-        QCOMPARE(c.at(QStringLiteral("C%1").arg(n)), QStringLiteral("e:#VALUE!"));
+        QVERIFY(!c.at(QStringLiteral("C%1").arg(n)).startsWith(QLatin1String("e:")));
         // an edit starts a recalculation with the whole bound
         QVERIFY(c.set("A1", Value::number(3)));
         const Calculation::Progress r = settle(c);
@@ -1133,8 +1134,8 @@ private Q_SLOTS:
         qint64 worked = 0, errors = 0;
         for (int i = 1; i <= n; ++i) {
             const QString v = c.at(QStringLiteral("C%1").arg(i));
-            if (v == QStringLiteral("e:#VALUE!")) ++errors;
-            else if (v == QStringLiteral("n:%1").arg(4005 + i)) ++worked;   // 9 and 999 fours, and the row
+            if (v == QStringLiteral("n:%1").arg(4005 + i)) ++worked;   // 9 and 999 fours, and the row
+            else if (!v.startsWith(QLatin1String("e:"))) ++errors;   // (left as it was: counted with the refused)
         }
         QVERIFY2(worked > 0 && errors == r.refused && worked + errors == n, qPrintable(QStringLiteral("%1 worked out, %2 with the error, %3 refused").arg(worked).arg(errors).arg(r.refused)));
         // formulas that read where a text says, nested forty deep, over a formula that takes many steps, are worked out again after each: the bound is on all of them
@@ -1149,6 +1150,43 @@ private Q_SLOTS:
         QVERIFY(d.open(buildXlsx({worksheet(chain)}), tight));
         const Calculation::Progress t = settle(d);
         QVERIFY2(t.finished && t.overBudget && t.work <= tight.recalcWorkLimit + 20000, qPrintable(QStringLiteral("%1 steps, %2 worked out").arg(t.work).arg(t.evaluated)));
+    }
+
+    // Many cheap formulas together pass the bound of a recalculation: those not worked out keep the results they had (none shows an error), and the next recalculation, after any
+    // edit, works out more of them. Counted in steps and cells, not timed.
+    void formulasLeftForWantOfStepsKeepTheirResultsAndAreWorkedOutNext()
+    {
+        const int n = 3000;
+        QString rows = rowXml(1, constant(QStringLiteral("A1"), "10") + constant(QStringLiteral("A2"), "1") + cellXml(QStringLiteral("D1"), QStringLiteral("A2*2"), QStringLiteral("2")));
+        for (int i = 1; i <= n; ++i) rows += rowXml(i + 1, cellXml(QStringLiteral("B%1").arg(i + 1), QStringLiteral("A1+%1").arg(i), QStringLiteral("-1")));
+        CalcOptions options;
+        options.recalcWorkLimit = 3000;
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)}), options));
+        auto count = [&](qint64 *fresh, qint64 *kept, qint64 *errors) {
+            *fresh = *kept = *errors = 0;
+            for (int i = 1; i <= n; ++i) {
+                const QString v = b.at(QStringLiteral("B%1").arg(i + 1));
+                if (v == QStringLiteral("n:%1").arg(10 + i)) ++*fresh;
+                else if (v.startsWith(QLatin1String("e:"))) ++*errors;
+                else ++*kept;   // (no result given: the window keeps showing the value the file stored)
+            }
+        };
+        const Calculation::Progress p = settle(b);
+        QVERIFY(p.finished && p.overBudget);
+        QVERIFY2(p.work <= options.recalcWorkLimit + 20000, qPrintable(QString::number(p.work)));
+        qint64 fresh = 0, kept = 0, errors = 0;
+        count(&fresh, &kept, &errors);
+        QVERIFY2(errors == 0 && fresh > 0 && kept > 0 && fresh + kept == n, qPrintable(QStringLiteral("%1 fresh, %2 kept, %3 errors").arg(fresh).arg(kept).arg(errors)));
+        QCOMPARE(kept, p.refused);
+        QVERIFY(!b.calc->isDirty());
+        // an edit that touches none of them starts the next recalculation, which works out more of those left
+        QVERIFY(b.set("A2", Value::number(5)));
+        const Calculation::Progress q = settle(b);
+        QVERIFY(q.finished);
+        qint64 fresh2 = 0, kept2 = 0, errors2 = 0;
+        count(&fresh2, &kept2, &errors2);
+        QVERIFY2(errors2 == 0 && fresh2 > fresh, qPrintable(QStringLiteral("%1 fresh before, %2 after, %3 errors").arg(fresh).arg(fresh2).arg(errors2)));
     }
 
     // The texts and arrays that formulas gave are held to a bound for the workbook: a formula whose value would pass it has the error #VALUE! (and the work goes on), and an array

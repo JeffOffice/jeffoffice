@@ -866,6 +866,7 @@ private:
     std::vector<jp::office::sheet::Calculation::CircularCell> m_circleCells;   // the first of them, in the order of the sheets and cells
     int m_circularNotices = 0;
     bool m_circularNoticed = false;
+    bool m_overBudgetTold = false;
     void createFunctionActions();
     void insertFunctionCommand(const QString &preset = QString());   // (`preset`: the function a menu chose; else the dialog picks one)
     std::function<bool(QString *)> m_functionAsker;
