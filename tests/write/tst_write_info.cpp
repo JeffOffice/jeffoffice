@@ -1187,6 +1187,34 @@ private Q_SLOTS:
         QCOMPARE(result, office::CryptResult::Cancelled);
     }
 
+    // The window is closed (and deleted, as the app sets it) while the password is checked: the open stops there, with no question asked of the dead window.
+    void aWindowClosedWhileThePasswordIsCheckedStopsTheOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        office::EncryptOptions options;
+        options.spinCount = 1000000;
+        const QString path = dir.filePath(QStringLiteral("p.docx"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(office::encryptPackage(makeDocx("<w:p><w:r><w:t>x</w:t></w:r></w:p>"), QStringLiteral("right"), options));
+        f.close();
+        bool asked = false;
+        setOpenPasswordStandIn([&](const QString &, bool, QString *) {
+            asked = true;
+            return false;
+        });
+        auto *w = new WriteWindow;
+        w->setAttribute(Qt::WA_DeleteOnClose);
+        w->show();
+        const QPointer<WriteWindow> alive(w);
+        QTimer::singleShot(100, [w] { w->close(); });
+        QVERIFY(!w->openFile(path));
+        QTRY_VERIFY(!alive);
+        QVERIFY2(!asked, "the question was put to the window that was closed");
+        setOpenPasswordStandIn(nullptr);
+    }
+
     void aWrongPartIsRemadeNotTrusted()
     {
         WriteWindow w;
