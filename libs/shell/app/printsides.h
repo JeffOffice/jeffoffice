@@ -33,18 +33,20 @@ QList<QPrinter::DuplexMode> supportedDuplexModes(const QString &printer);
 void setDuplexSupportStandIn(const std::function<QList<QPrinter::DuplexMode>(const QString &printer)> &standIn);
 
 // Both sides by hand: the two runs of a job. `inOrder` is what the job prints, a page or a sheet each, in the order it prints them. The first run is the first, third, and
-// so on, in order; the second run is the others, last first, so that they land on the backs of the first run's sheets when the stack is turned over. A job of one has
-// no second run.
+// so on, in order; the second run is the others, last first, so that each lands on the back of its front when the stack is turned over. When the last front has no
+// back (an odd number), the second run starts with `blank`, a sheet to leave empty. A job of one has no second run.
 template <class T>
 struct HandRuns {
     QVector<T> first, second;
 };
 template <class T>
-HandRuns<T> handRuns(const QVector<T> &inOrder)
+HandRuns<T> handRuns(const QVector<T> &inOrder, const T &blank = T())
 {
     HandRuns<T> runs;
     for (qsizetype i = 0; i < inOrder.size(); ++i) (i % 2 ? runs.second : runs.first).push_back(inOrder[i]);
     std::reverse(runs.second.begin(), runs.second.end());
+    // (an odd number of sheets: the last front has no back, and the second run starts with that one, which is a blank sheet)
+    if (inOrder.size() > 1 && inOrder.size() % 2) runs.second.prepend(blank);
     return runs;
 }
 // Tells the person to turn the stack over and put it back, after the first run; false when they give the job up. `standIn` answers in place of the message when it is

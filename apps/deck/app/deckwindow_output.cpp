@@ -306,6 +306,7 @@ void paintOnPrinter(QPrinter *printer, const Document &doc, LayoutCache *cache, 
         for (int i : std::as_const(pages)) {
             if (!first) printer->newPage();
             first = false;
+            if (i < 0) continue;   // (a blank sheet)
             p.save();
             p.scale(scale, scale);
             deck::paintOutputPage(&p, doc, cache, options, i, sheet);
@@ -335,7 +336,7 @@ bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::Duple
     if (byHandRuns) {
         QVector<int> all;
         for (int i = 0, n = deck::outputPageCount(doc, options, printer.pageRect(QPrinter::Point).size()); i < n; ++i) all << i;
-        const HandRuns<int> runs = handRuns(all);
+        const HandRuns<int> runs = handRuns(all, -1);   // (a front with no back leaves a blank sheet, -1)
         QApplication::setOverrideCursor(Qt::WaitCursor);
         paintOnPrinter(&printer, doc, &m_ed->cache(), options, &runs.first);
         QApplication::restoreOverrideCursor();

@@ -5,6 +5,7 @@
 //
 // Bounded: the pages of a job (kMaxJobPages; a sheet that needs more is cut short and the job says so), and the grids kept (the sheet being drawn and the one before).
 
+#include "app/printsides.h"
 #include "core/anchors.h"
 #include "core/loader.h"
 #include "core/pagesettings.h"
@@ -205,7 +206,8 @@ public:
     // The pages to a printer (any QPrinter, a file among them), one sheet of paper each; the printer's own copies are not used here (the caller repeats the pages).
     // `copies` of the pages are sent, each set together (collated) or each page's copies together; never made into a list (the number sent is held to kMaxSentPages).
     bool printTo(QPrinter *printer, const QVector<int> &pages, QString *error = nullptr, const std::function<bool(int done, int total)> &progress = nullptr, int copies = 1,
-                 bool collate = true, int perSheet = 1);
+                 bool collate = true, int perSheet = 1, const QVector<QVector<int>> *sheets = nullptr);
+    // With `sheets` the sheets are given (each a list of the pages that share it, an empty one is a blank sheet) and `pages` is not used: for both sides by hand.
     // `perSheet` (1, 2, 4, 6, 9, or 16) puts that many of the pages on each sheet of paper, each shrunk to fit its place in a grid and framed (the paper is that of the first page of the
     // sheet, turned to lie on its side for 2 and 6). Any other number is 1.
     // Whether the last export or print was stopped by its progress function (not a failure: nothing was written or sent past that point).
@@ -263,6 +265,9 @@ private:
 QVector<int> parsePageRange(const QString &text, int pageCount);
 // The pages (places from 0, so page 1 is 0) that are of the side: the odd-numbered pages, or the even-numbered ones; all of them for All.
 QVector<int> pagesOfSide(const QVector<int> &pages, PrintSides sides);
+// Both sides by hand: the pages shared out over physical sheets (`perSheet` pages to a sheet, the last sheet possibly short), as the two runs of sheets. The first run is the
+// first, third, ... sheets; the second is the others last first, with an empty sheet (a blank one) first when the last front has no back.
+HandRuns<QVector<int>> handSheetRuns(const QVector<int> &pages, int perSheet);
 // The pages in the order the sheets come out for `copies` of them: collated, the whole set again for each copy (1 2 3 1 2 3), else each page's copies together (1 1 2 2 3 3).
 QVector<int> sheetOrder(const QVector<int> &pages, int copies, bool collate);
 

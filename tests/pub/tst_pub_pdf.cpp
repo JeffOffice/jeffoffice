@@ -163,7 +163,7 @@ private Q_SLOTS:
         QVERIFY(jp::printDocumentByHand(&ed, &printer, QJsonObject(), nullptr));
         QCOMPARE(order, (QStringList{QStringLiteral("turn")}));
         QCOMPARE(firstRun, (QVector<int>{3}));          // (pages 1, 3, and 5)
-        QCOMPARE(pagesIn(file), 2);                      // (then 4 and 2)
+        QCOMPARE(pagesIn(file), 3);                      // (then a blank for the back of 5, then 4 and 2)
         // declined
         order.clear();
         turn = false;
@@ -186,6 +186,116 @@ private Q_SLOTS:
         QVERIFY(jp::printDocumentByHand(&ed, &printer, one, nullptr));
         QVERIFY(order.isEmpty());
         QCOMPARE(pagesIn(file), 1);
+    }
+
+    // Both sides by hand goes by physical sheets in every layout: the first, third, ... sheets, then the others last first, and a front with no back gets a blank sheet.
+    void handRunsFollowThePhysicalSheets()
+    {
+        auto expectedFirst = [](int all) {
+            QVector<int> v;
+            for (int i = 0; i < all; i += 2) v << i;
+            return v;
+        };
+        auto expectedSecond = [](int all) {
+            QVector<int> v;
+            if (all % 2) v << -1;
+            for (int i = all / 2 * 2 - 1; i >= 1; i -= 2) v << i;
+            return v;
+        };
+        QTemporaryDir dir;
+        auto run = [&](jp::Editor &ed, QJsonObject opts, int *all, QVector<int> *first, QVector<int> *second) {
+            QPrinter printer;
+            printer.setOutputFormat(QPrinter::PdfFormat);
+            printer.setOutputFileName(dir.filePath(QStringLiteral("r.pdf")));
+            jp::PrintReport report;
+            opts["handRun"] = "first";
+            jp::printDocument(&ed, &printer, opts, &report);
+            *all = report.all;
+            *first = report.sheets;
+            report = jp::PrintReport();
+            opts["handRun"] = "second";
+            jp::printDocument(&ed, &printer, opts, &report);
+            *second = report.sheets;
+        };
+        auto check = [&](jp::Editor &ed, const QJsonObject &opts, int wantedAll) {
+            int all = 0;
+            QVector<int> first, second;
+            run(ed, opts, &all, &first, &second);
+            QCOMPARE(all, wantedAll);
+            QCOMPARE(first, expectedFirst(all));
+            QCOMPARE(second, expectedSecond(all));
+        };
+        {   // a page to a sheet: five sheets
+            jp::Editor ed;
+            auto doc = jp::Document::blank(QSizeF(396, 612));
+            for (int i = 0; i < 4; ++i) doc->pages.push_back(std::make_shared<jp::Page>());
+            ed.setDocument(std::move(doc));
+            check(ed, QJsonObject(), 5);
+        }
+        {   // a booklet
+            jp::Editor ed;
+            auto doc = jp::Document::blank(QSizeF(396, 612));
+            for (int i = 0; i < 4; ++i) doc->pages.push_back(std::make_shared<jp::Page>());
+            ed.setDocument(std::move(doc));
+            QJsonObject booklet;
+            booklet["layout"] = "booklet";
+            check(ed, booklet, 4);
+        }
+        {   // small pages, many to a sheet (35 fit on Letter and on A4): 80 pages are three sheets, the last one short
+            jp::Editor ed;
+            auto doc = jp::Document::blank(QSizeF(100, 100));
+            for (int i = 0; i < 79; ++i) doc->pages.push_back(std::make_shared<jp::Page>());
+            ed.setDocument(std::move(doc));
+            QJsonObject multiple;
+            multiple["layout"] = "multiple";
+            multiple["copiesPerSheet"] = false;
+            check(ed, multiple, 3);
+        }
+        {   // a wide page in three tiles: three sheets
+            jp::Editor ed;
+            ed.setDocument(jp::Document::blank(QSizeF(1200, 400)));
+            QJsonObject tiled;
+            tiled["layout"] = "tiled";
+            check(ed, tiled, 3);
+        }
+        {   // two pages of six tiles each
+            jp::Editor ed;
+            auto doc = jp::Document::blank(QSizeF(1200, 900));
+            doc->pages.push_back(std::make_shared<jp::Page>());
+            ed.setDocument(std::move(doc));
+            QJsonObject tiled;
+            tiled["layout"] = "tiled";
+            check(ed, tiled, 12);
+        }
+    }
+
+    // The Sides choice is kept for the next time, as print/sides, the same as in the other apps.
+    void printPageSidesChoiceIsRemembered()
+    {
+        jp::Settings::get().setValue(QStringLiteral("print/sides"), 0);
+        {
+            jp::MainWindow w;
+            w.resize(1400, 900);
+            w.editor()->setDocument(jp::Document::blank(QSizeF(396, 612)));
+            w.show();
+            QVERIFY(QTest::qWaitForWindowExposed(&w));
+            w.showBackstage(QStringLiteral("print"));
+            auto *sides = w.findChild<QComboBox *>(QStringLiteral("printSides"));
+            QVERIFY(sides);
+            QCOMPARE(sides->currentIndex(), 0);
+            sides->setCurrentIndex(3);
+            QCOMPARE(jp::Settings::get().value(QStringLiteral("print/sides")).toInt(), 3);
+        }
+        jp::MainWindow later;
+        later.resize(1400, 900);
+        later.editor()->setDocument(jp::Document::blank(QSizeF(396, 612)));
+        later.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&later));
+        later.showBackstage(QStringLiteral("print"));
+        auto *again = later.findChild<QComboBox *>(QStringLiteral("printSides"));
+        QVERIFY(again);
+        QCOMPARE(again->currentIndex(), 3);
+        again->setCurrentIndex(0);
     }
 
     // File > Export > PDF/A writes a file that identifies itself as PDF/A-1b

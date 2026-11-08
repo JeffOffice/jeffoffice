@@ -835,27 +835,37 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
     return true;
 }
 
-bool PrintJob::printTo(QPrinter *printer, const QVector<int> &pages, QString *error, const std::function<bool(int, int)> &progress, int copies, bool collate, int perSheet)
+bool PrintJob::printTo(QPrinter *printer, const QVector<int> &pages, QString *error, const std::function<bool(int, int)> &progress, int copies, bool collate, int perSheet,
+                       const QVector<QVector<int>> *sheets)
 {
     auto fail = [&](const QString &text) {
         if (error) *error = text;
         return false;
     };
     m_cancelled = false;
-    if (pages.isEmpty()) return fail(QCoreApplication::translate("jp::crunch::PrintJob", "There are no pages to print."));
+    if (pages.isEmpty() && !sheets) return fail(QCoreApplication::translate("jp::crunch::PrintJob", "There are no pages to print."));
     // (the pages and their copies, in the order they come out, are worked out one at a time, not listed)
     copies = std::max(1, copies);
     perSheet = cleanPerSheet(perSheet);
-    const QVector<QVector<int>> groups = groupsOf(pages, perSheet);
+    const QVector<QVector<int>> groups = sheets ? *sheets : groupsOf(pages, perSheet);
     const qint64 n = groups.size();
+    if (n == 0) return fail(QCoreApplication::translate("jp::crunch::PrintJob", "There are no pages to print."));
     const qint64 total = std::min<qint64>(n * copies, kMaxSentPages);
+    // (a blank sheet, from both sides by hand, is the size of the sheets around it)
+    QSizeF blankSheet;
+    for (const QVector<int> &g : groups)
+        if (!g.isEmpty() && g.first() >= 0 && g.first() < pageCount()) {
+            blankSheet = sheetFor(g, perSheet);
+            break;
+        }
     printer->setFullPage(true);
     QPainter p;
     bool started = false;
     for (qint64 i = 0; i < total; ++i) {
         const QVector<int> &group = groups[int(collate ? i % n : i / copies)];
-        if (group.first() < 0 || group.first() >= pageCount()) continue;
-        const QSizeF sheet = sheetFor(group, perSheet);
+        const bool blank = group.isEmpty();
+        if (!blank && (group.first() < 0 || group.first() >= pageCount())) continue;
+        const QSizeF sheet = blank ? blankSheet : sheetFor(group, perSheet);
         setSheet(printer, sheet);
         if (!started) {
             started = p.begin(printer);
@@ -866,7 +876,7 @@ bool PrintJob::printTo(QPrinter *printer, const QVector<int> &pages, QString *er
         p.save();
         const double k = double(printer->logicalDpiX()) / 72.0;
         p.scale(k, k);
-        paintGroup(&p, group, sheet, perSheet);
+        if (!blank) paintGroup(&p, group, sheet, perSheet);
         p.restore();
         if (progress && !progress(int(i + 1), int(total))) {
             // (the job is called off before the painter ends: ending it is what hands the pages on, and a file the pages were going to is not left half made)
@@ -882,6 +892,12 @@ bool PrintJob::printTo(QPrinter *printer, const QVector<int> &pages, QString *er
 }
 
 // ---- ranges
+
+HandRuns<QVector<int>> handSheetRuns(const QVector<int> &pages, int perSheet)
+{
+    perSheet = std::max(1, perSheet);
+    return handRuns(groupsOf(pages, perSheet), QVector<int>());
+}
 
 QVector<int> pagesOfSide(const QVector<int> &pages, PrintSides sides)
 {

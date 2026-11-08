@@ -351,7 +351,7 @@ private Q_SLOTS:
         QVERIFY(w.printOutput(deck::OutputOptions(), QPrinter::DuplexNone, true));
         QCOMPARE(order, (QStringList{QStringLiteral("print"), QStringLiteral("turn"), QStringLiteral("print")}));
         QCOMPARE(turnedAfter, (QVector<int>{2}));   // (slides 1 and 3 first)
-        QCOMPARE(pagesIn(dir.filePath(QStringLiteral("h3.pdf"))), 1);   // (then slide 2)
+        QCOMPARE(pagesIn(dir.filePath(QStringLiteral("h3.pdf"))), 2);   // (then slide 2, behind slide 3's back, which is a blank sheet: it comes first)
         // declined: nothing more is sent
         order.clear();
         turn = false;

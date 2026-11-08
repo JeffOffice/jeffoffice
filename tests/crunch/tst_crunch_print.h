@@ -220,6 +220,7 @@ private Q_SLOTS:
     void theSidesChoiceFollowsThePrinterAndTheFileTarget();
     void theSidesChoiceByHandPrintsTheOddPagesThenTheEvenPages();
     void theSidesChoiceIsRememberedAcrossRestarts();
+    void theHandRunsAreMadeOfPhysicalSheets();
     void exportToPdfWritesTheSheetOrTheWorkbook();
     void thePageBreaksShowOnTheSheetAfterAPreview();
     void undoAndRedoOfTypingMoveThePagesAtOnce();

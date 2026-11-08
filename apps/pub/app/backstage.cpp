@@ -783,7 +783,7 @@ QWidget *Backstage::buildPrint()
     paper->addItems({"Letter", "Legal", "Tabloid", "A4", "A3", tr("Same as publication")});
     auto *sides = new QComboBox(w);
     sides->setObjectName(QStringLiteral("printSides"));
-    fillSidesBox(sides, true, int(SidesChoice::OneSide));   // (the words the other apps' Print pages use)
+    fillSidesBox(sides, true, Settings::get().value(QStringLiteral("print/sides"), int(SidesChoice::OneSide)).toInt());   // (the words the other apps' Print pages use)
     auto *color = new QComboBox(w);
     color->addItems({tr("Composite RGB"), tr("Composite grayscale"), tr("Separations (CMYK plates)")});
     // Printer's marks: they print outside the page, so they need paper larger
@@ -986,7 +986,10 @@ QWidget *Backstage::buildPrint()
     connect(next, &QToolButton::clicked, w, [=] { ++*state; render(); });
     connect(layout, &QComboBox::currentIndexChanged, w, [=] { *state = 0; render(); });
     connect(color, &QComboBox::currentIndexChanged, w, [=] { plates->setVisible(color->currentIndex() == 2); render(); });
-    connect(sides, &QComboBox::currentIndexChanged, w, [=] { render(); });
+    connect(sides, &QComboBox::currentIndexChanged, w, [=] {
+        Settings::get().setValue(QStringLiteral("print/sides"), sidesWanted(sides));
+        render();
+    });
     // (a printer that can't print on both sides, and a PDF file that has no sides, turn the choice off)
     auto fitSides = [=]() {
         const bool toFile = printer->currentData().toString() == QLatin1String("pdf");

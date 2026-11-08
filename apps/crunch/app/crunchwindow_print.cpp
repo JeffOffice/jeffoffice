@@ -143,22 +143,14 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
         if (!ok) notice(tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3").arg(appInfo().name, QFileInfo(path).fileName(), why));
         else setStatus(tr("Saved %1").arg(QFileInfo(path).fileName()));
     } else {
-        // Both sides by hand: the sheets are shared out, the first, third, ... then the others last first (a sheet holds the pages that share it).
-        QVector<QVector<int>> runs;
+        // Both sides by hand: the physical sheets are shared out, the first, third, ... then the others last first (a front with no back gets a blank sheet).
+        QVector<QVector<QVector<int>>> runs;
         if (c.byHand) {
-            QVector<QVector<int>> sheets;
-            const int per = std::max(1, c.pagesPerSheet);
-            for (int i = 0; i < pages.size(); i += per) sheets.push_back(pages.mid(i, per));
-            const HandRuns<QVector<int>> shared = handRuns(sheets);
-            for (const QVector<QVector<int>> &part : {shared.first, shared.second}) {
-                QVector<int> run;
-                for (const QVector<int> &sheet : part) run += sheet;
-                if (!run.isEmpty()) runs.push_back(run);
-            }
-        } else {
-            runs.push_back(pages);
+            const HandRuns<QVector<int>> shared = crunch::handSheetRuns(pages, c.pagesPerSheet);
+            runs.push_back(shared.first);
+            if (!shared.second.isEmpty()) runs.push_back(shared.second);
         }
-        for (int k = 0; k < runs.size(); ++k) {
+        for (int k = 0; k < std::max<int>(1, runs.size()); ++k) {
             if (k > 0 && !askToTurnStack(this)) return false;
             QPrinter &p = printer();
             p.setDocName(displayName());
@@ -169,7 +161,8 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
             if (m_printerPreparer) m_printerPreparer(p);
             // a printer that can't make copies is sent the pages again, in the order the copies are to come out
             const bool again = p.outputFormat() == QPrinter::NativeFormat && !p.supportsMultipleCopies();
-            ok = job->printTo(&p, runs[k], &why, progressFunction(tr("Printing"), tr("Sending the pages...")), again ? c.copies : 1, c.collate, c.pagesPerSheet);
+            ok = job->printTo(&p, pages, &why, progressFunction(tr("Printing"), tr("Sending the pages...")), again ? c.copies : 1, c.collate, c.pagesPerSheet,
+                              c.byHand ? &runs[k] : nullptr);
             if (!ok && job->wasCancelled()) {
                 setStatus(tr("Printing was cancelled"));
                 return false;

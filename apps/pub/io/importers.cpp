@@ -744,7 +744,7 @@ QVector<int> parsePageList(const QString &text, int pageCount)
     return out;
 }
 
-int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, int *allSheets)
+int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintReport *report)
 {
     Document *d = ed->doc();
     // A catalog prints its merged pages: a record in each cell.
@@ -778,21 +778,18 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, int *a
     QVector<int> list = parsePageList(opts.value("pages").toString(), int(d->pages.size()));
     if (list.isEmpty())
         for (int i = from; i <= to; ++i) list << i;
-    // Both sides by hand: a run of the pages, or of a booklet's sheet sides.
+    // Both sides by hand: a run of the physical sheets (the first, third, ... or the others last first, with -1 for a blank one); each layout counts its own sheets.
     const QString handRun = opts.value("handRun").toString();
     const bool booklet = layout == "booklet" || layout == "bookletTop";
-    QVector<QVector<int>> bookletSides;
-    if (booklet) bookletSides = bookletOrder(d->pages.size());
-    if (allSheets) *allSheets = booklet ? int(bookletSides.size()) : int(list.size());
-    if (!handRun.isEmpty()) {
-        if (booklet) {
-            const HandRuns<QVector<int>> runs = handRuns(bookletSides);
-            bookletSides = handRun == "first" ? runs.first : runs.second;
-        } else {
-            const HandRuns<int> runs = handRuns(list);
-            list = handRun == "first" ? runs.first : runs.second;
-        }
-    }
+    const QVector<QVector<int>> bookletSides = booklet ? bookletOrder(d->pages.size()) : QVector<QVector<int>>();
+    auto sheetsToSend = [&](int count) {
+        QVector<int> all;
+        for (int i = 0; i < count; ++i) all << i;
+        if (report) report->all = count;
+        if (handRun.isEmpty()) return all;
+        const HandRuns<int> runs = handRuns(all, -1);
+        return handRun == "first" ? runs.first : runs.second;
+    };
     int sent = 0;
     QPainter p;
     if (!p.begin(printer)) return 0;
@@ -809,9 +806,10 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, int *a
     const QString stamp = QLocale().toString(QDateTime::currentDateTime(), QLocale::ShortFormat);
     int plate = -1;
     bool first = true;
-    auto newSheet = [&] {
+    auto newSheet = [&](int index) {
         if (!first) printer->newPage();
         first = false;
+        if (report) report->sheets << index;
         ++sent;
     };
     auto drawPage = [&](int page, const QRectF &target) {
@@ -856,12 +854,14 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, int *a
     if (merged) records = d->merge.includedRows();
     for (int rec : records) {
         ctx.opt.mergeRecord = rec;
-        if (layout == "booklet" || layout == "bookletTop") {
+        if (booklet) {
             const bool top = layout == "bookletTop";
-            for (const auto &side : std::as_const(bookletSides))
+            for (int si : sheetsToSend(int(bookletSides.size()))) {
+                const QVector<int> side = si < 0 ? QVector<int>{-1, -1} : bookletSides[si];
                 for (int pl : plates) {
                     plate = pl;
-                    newSheet();
+                    newSheet(si);
+                    if (si < 0) continue;
                     if (!top) {
                         const double half = sheet.width() / 2;
                         const double s = std::min(half / ps.width(), sheet.height() / ps.height());
@@ -877,6 +877,7 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, int *a
                         drawPage(side[1], QRectF(QPointF((sheet.width() - sz.width()) / 2, half), sz));
                     }
                 }
+            }
         } else if (layout == "multiple") {
             // A publication laid out for several pages per sheet (business
             // cards, labels) places them by its own side and top margins and
@@ -890,11 +891,15 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, int *a
             const bool copies = opts.value("copiesPerSheet").toBool(true);
             const double ox = ownSheet ? sideM : (sheet.width() - (cols * ps.width() + (cols - 1) * gapH)) / 2;
             const double oy = ownSheet ? topM : (sheet.height() - (rows * ps.height() + (rows - 1) * gapV)) / 2;
-            int at = 0;
-            while (at < list.size()) {
+            // (a sheet is one page, copied across it, or the next rows * cols pages)
+            const int perSheetPages = copies ? 1 : rows * cols;
+            const int sheetCount = int((list.size() + perSheetPages - 1) / perSheetPages);
+            for (int si : sheetsToSend(sheetCount)) {
+                const int at = si * perSheetPages;
                 for (int pl : plates) {
                     plate = pl;
-                    newSheet();
+                    newSheet(si);
+                    if (si < 0) continue;
                     for (int rr = 0; rr < rows; ++rr)
                         for (int cc = 0; cc < cols; ++cc) {
                             const int k = copies ? at : at + rr * cols + cc;
@@ -902,32 +907,40 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, int *a
                             drawPage(list[k], QRectF(QPointF(ox + cc * (ps.width() + gapH), oy + rr * (ps.height() + gapV)), ps));
                         }
                 }
-                at += copies ? 1 : rows * cols;
             }
         } else if (layout == "tiled" || ps.width() > sheet.width() * 1.05 || ps.height() > sheet.height() * 1.05) {
             // Poster and banner printing: tile across sheets with a small overlap.
             const double overlap = opts.value("overlap").toDouble(18);
-            for (int page : std::as_const(list)) {
+            struct Tile {
+                int page;
+                double x, y;
+            };
+            QVector<Tile> tiles;
+            for (int page : std::as_const(list))
                 for (double y = 0; y < ps.height() - 0.5; y += sheet.height() - overlap)
-                    for (double x = 0; x < ps.width() - 0.5; x += sheet.width() - overlap) {
-                        newSheet();
-                        p.save();
-                        p.scale(dev, dev);
-                        p.translate(-x, -y);
-                        p.setClipRect(QRectF(x, y, sheet.width(), sheet.height()));
-                        Renderer::paintPage(&p, ctx, page);
-                        p.restore();
-                    }
+                    for (double x = 0; x < ps.width() - 0.5; x += sheet.width() - overlap) tiles.push_back({page, x, y});
+            for (int si : sheetsToSend(int(tiles.size()))) {
+                newSheet(si);
+                if (si < 0) continue;
+                const Tile &t = tiles[si];
+                p.save();
+                p.scale(dev, dev);
+                p.translate(-t.x, -t.y);
+                p.setClipRect(QRectF(t.x, t.y, sheet.width(), sheet.height()));
+                Renderer::paintPage(&p, ctx, t.page);
+                p.restore();
             }
         } else {
-            for (int page : std::as_const(list))
+            for (int si : sheetsToSend(int(list.size()))) {
                 for (int pl : plates) {
                     plate = pl;
-                    newSheet();
+                    newSheet(si);
+                    if (si < 0) continue;
                     const QSizeF fit = ps.scaled(sheet.size(), Qt::KeepAspectRatio);
                     const QSizeF sz = (ps.width() <= sheet.width() && ps.height() <= sheet.height()) ? ps : fit;
-                    drawPage(page, QRectF(QPointF((sheet.width() - sz.width()) / 2, (sheet.height() - sz.height()) / 2), sz));
+                    drawPage(list[si], QRectF(QPointF((sheet.width() - sz.width()) / 2, (sheet.height() - sz.height()) / 2), sz));
                 }
+            }
         }
     }
     p.end();
@@ -938,9 +951,9 @@ bool printDocumentByHand(Editor *ed, QPrinter *printer, const QJsonObject &opts,
 {
     QJsonObject run = opts;
     run["handRun"] = "first";
-    int all = 0;
-    if (printDocument(ed, printer, run, &all) <= 0) return false;
-    if (all < 2) return true;
+    PrintReport report;
+    if (printDocument(ed, printer, run, &report) <= 0) return false;
+    if (report.all < 2) return true;
     if (!askToTurnStack(parent)) return false;
     run["handRun"] = "second";
     return printDocument(ed, printer, run) > 0;

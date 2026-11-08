@@ -97,7 +97,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [ ] **1.0** Pure black and white, scale to fit paper, high quality, and printing comments and ink
 - [ ] **1.0** Edit the header and footer of notes pages and handouts from the Print page *(the handout's header and footer hold the title, the date, and the page number, and can't be changed)*
 - [ ] **later** Print several slides in a custom grid, and 4 slides per page with an Outline beside them
-- [ ] **1.0** Duplex printing by hand: print the odd pages, then the even ones, with a prompt to turn the stack over
+- [x] **1.0** Duplex printing by hand: print the odd pages, then the even ones, with a prompt to turn the stack over *(done November 8, 2026: Print > Sides > Print on both sides by hand: the first, third, ... pages, the message, then the others last first, a blank sheet first when the last page has no back; not for a PDF file)*
 
 ### Export and Share
 - [x] **1.0** Export to PDF with the same Print what, Order, and Range choices, real text with fonts inside, the presentation's title as the PDF's title, and the page count shown before saving

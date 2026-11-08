@@ -1423,7 +1423,7 @@ void CrunchPrintTests::theSidesChoiceByHandPrintsTheOddPagesThenTheEvenPages()
     QCOMPARE(order, (QStringList{QStringLiteral("print"), QStringLiteral("turn"), QStringLiteral("print")}));
     QCOMPARE(modes, (QVector<QPrinter::DuplexMode>{QPrinter::DuplexNone, QPrinter::DuplexNone}));
     QCOMPARE(counts, (QVector<int>{2}));   // (pages 1 and 3 first)
-    QCOMPARE(pagesIn(e.folder.dir.filePath(QStringLiteral("h3.pdf"))), 1);   // (then page 2)
+    QCOMPARE(pagesIn(e.folder.dir.filePath(QStringLiteral("h3.pdf"))), 2);   // (then page 2, behind the last page 3, which has no back: a blank sheet comes first)
     // declined: nothing more is sent
     order.clear();
     QVERIFY(openPrintPage(w));
@@ -1438,6 +1438,45 @@ void CrunchPrintTests::theSidesChoiceByHandPrintsTheOddPagesThenTheEvenPages()
     c.pageRange = QStringLiteral("2");
     QVERIFY(w.printWith(c));
     QCOMPARE(order, (QStringList{QStringLiteral("print")}));
+}
+
+
+// Both sides by hand with several pages on a sheet: the runs are made of physical sheets, a short last sheet keeps its pages together, and every back comes behind its front (a
+// front with no back gets a blank sheet in the second run, which is empty here).
+void CrunchPrintTests::theHandRunsAreMadeOfPhysicalSheets()
+{
+    using Sheets = QVector<QVector<int>>;
+    auto range = [](int from, int to) {
+        QVector<int> v;
+        for (int i = from; i <= to; ++i) v << i;
+        return v;
+    };
+    auto pagesOf = [&](int n) { return range(0, n - 1); };
+    {   // 7 pages, 2 on a sheet: four sheets, the last one short
+        const auto runs = crunch::handSheetRuns(pagesOf(7), 2);
+        QCOMPARE(runs.first, (Sheets{{0, 1}, {4, 5}}));
+        QCOMPARE(runs.second, (Sheets{{6}, {2, 3}}));
+    }
+    {   // 9 pages, 4 on a sheet: three sheets; the third has no back
+        const auto runs = crunch::handSheetRuns(pagesOf(9), 4);
+        QCOMPARE(runs.first, (Sheets{{0, 1, 2, 3}, {8}}));
+        QCOMPARE(runs.second, (Sheets{{}, {4, 5, 6, 7}}));
+    }
+    {   // 14 pages, 6 on a sheet
+        const auto runs = crunch::handSheetRuns(pagesOf(14), 6);
+        QCOMPARE(runs.first, (Sheets{range(0, 5), {12, 13}}));
+        QCOMPARE(runs.second, (Sheets{{}, range(6, 11)}));
+    }
+    {   // 5 pages, 2 on a sheet, a range that skips: the pages given are what is shared out
+        const auto runs = crunch::handSheetRuns({0, 2, 4, 6, 8}, 2);
+        QCOMPARE(runs.first, (Sheets{{0, 2}, {8}}));
+        QCOMPARE(runs.second, (Sheets{{}, {4, 6}}));
+    }
+    {   // one sheet: nothing to turn over
+        const auto runs = crunch::handSheetRuns(pagesOf(3), 4);
+        QCOMPARE(runs.first, (Sheets{{0, 1, 2}}));
+        QVERIFY(runs.second.isEmpty());
+    }
 }
 
 
