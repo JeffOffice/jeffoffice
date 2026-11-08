@@ -290,6 +290,51 @@ private Q_SLOTS:
     // The parts of a link to another workbook (the cached values and where it points) are written back as they were, and so is the formula that reads them.
     void anExternalLinkSurvivesAnEditElsewhere() { keepsWhatItDoesNotEdit(externalLinkBook(), QStringLiteral("D1"), QStringLiteral("5")); }
 
+    // A link to a workbook that is there beside this one is not read when the file opens, nor when the sheet is calculated again: the cell shows the value the file stored until the
+    // person asks for Update Values.
+    void anExternalLinkIsNotUpdatedUntilAsked()
+    {
+        EditWindow e;
+        const QByteArray source = repack(editBook(), [](Parts &p) {
+            p[QStringLiteral("xl/workbook.xml")].replace("name=\"Sheet1\"", "name=\"Prices\"");
+            p[kSheet].replace("<c r=\"A1\"><v>1</v></c>", "<c r=\"A1\"><v>1000</v></c>");
+        });
+        const QString sourcePath = e.folder.write(QStringLiteral("prices.xlsx"), source);
+        const QByteArray book = repack(externalLinkBook(), [](Parts &p) {
+            p[QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels")].replace("file:///C:/data/prices.xlsx", "prices.xlsx");
+            p[kSheet].replace("<f>[1]Prices!A1*2</f><v>84</v>", "<f>[1]Prices!A1</f><v>42</v>");
+        });
+        QVERIFY(e.open(book, QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("A5")), QStringLiteral("42"));
+        // another edit calculates what depends on it; the link keeps what the file stored
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("3"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("B1")), QStringLiteral("6"));
+        QCOMPARE(e.shownAt(QStringLiteral("A5")), QStringLiteral("42"));
+        // asked for, it reads the source
+        crunch::EditSession::ExternalUpdate done;
+        QVERIFY(e.win.w.session()->updateExternalValues(1, sourcePath, &done).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("A5")), QStringLiteral("1000"));
+    }
+
+    // A workbook with macros opens with no change at all: nothing ran, so there is no step to undo and nothing to save.
+    void aMacroWorkbookRunsNothingWhenItOpens()
+    {
+        const QByteArray book = repack(macroBookOf(QStringLiteral("application/vnd.ms-excel.sheet.macroEnabled.main+xml"), true), [](Parts &p) {
+            p[QStringLiteral("xl/workbook.xml")].replace("</sheets>", "</sheets><definedNames><definedName name=\"_xlnm.Auto_Open\">Sheet1!$A$1</definedName></definedNames>");
+        });
+        EditWindow e;
+        QVERIFY(e.open(book, QStringLiteral("macros.xlsm")));
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        QVERIFY(e.win.w.undoStack()->isClean());
+        QCOMPARE(e.shownAt(QStringLiteral("A1")), QStringLiteral("1"));
+        QCOMPARE(e.shownAt(QStringLiteral("B1")), QStringLiteral("2"));
+    }
+
     // Inspect Workbook takes the links to other workbooks out: a cell that read one keeps the value it showed, a name that stood for one is #REF!, and the file has no part, link,
     // list entry, or type for them.
     void inspectTakesExternalLinksOut()
