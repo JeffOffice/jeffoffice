@@ -1,5 +1,6 @@
 // JeffPub's tests of tables: editing, dividing cells, and saving them.
 #include "pubhelpers.h"
+#include "app/tableedit.h"
 
 class PubTableTests : public QObject {
     Q_OBJECT
@@ -719,6 +720,31 @@ private Q_SLOTS:
         w.act(QStringLiteral("valign.2"))->trigger();
         for (int r = 0; r < 3; ++r)
             for (int c = 0; c < 3; ++c) QCOMPARE(table()->cell(r, c).valign, r == 1 && c >= 1 ? jp::VAlign::Bottom : jp::VAlign::Top);
+    }
+
+    // A table a file gives with no rows or no columns has one of each at least, the cells to match, and
+    // text editing and Insert Row on it stay in range.
+    void aTableFromAFileHasARowAndAColumn()
+    {
+        for (const char *json : {"{\"type\":\"table\",\"id\":\"tb\",\"rect\":[50,50,200,100],\"rows\":0,\"cols\":2}",
+                                 "{\"type\":\"table\",\"id\":\"tb\",\"rect\":[50,50,200,100],\"rows\":3,\"cols\":0}",
+                                 "{\"type\":\"table\",\"id\":\"tb\",\"rect\":[50,50,200,100]}"}) {
+            jp::Editor ed;
+            auto d = jp::Document::blank(QSizeF(612, 792));
+            d->pages[0]->items.push_back(jp::Item::fromJsonAny(QJsonDocument::fromJson(json).object()));
+            ed.setDocument(std::move(d));
+            auto *t = dynamic_cast<jp::TableItem *>(ed.doc()->item("tb"));
+            QVERIFY(t);
+            QVERIFY2(t->rows >= 1 && t->cols >= 1, json);
+            QCOMPARE(int(t->cells.size()), t->rows * t->cols);
+            QCOMPARE(int(t->colW.size()), t->cols);
+            QCOMPARE(int(t->rowH.size()), t->rows);
+            ed.beginTextEdit("tb", 0, 0, 0, 0);
+            ed.endTextEdit();
+            ed.select(QStringList{"tb"});
+            jp::insertTableRows(&ed, true);
+            QCOMPARE(int(t->cells.size()), t->rows * t->cols);
+        }
     }
 
     // Table Layout > Size has Height and Width boxes for the whole table (and

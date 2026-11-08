@@ -797,9 +797,9 @@ void TableItem::fromJson(const QJsonObject &o)
 {
     Item::fromJson(o);
     // Twice the other program's largest table: more is a damaged file, and
-    // rows x cols cells are made below.
-    rows = std::clamp(o["rows"].toInt(), 0, kMaxTableRowsOrColumns);
-    cols = std::clamp(o["cols"].toInt(), 0, kMaxTableRowsOrColumns);
+    // rows x cols cells are made below. A table has a row and a column at least.
+    rows = std::clamp(o["rows"].toInt(), 1, kMaxTableRowsOrColumns);
+    cols = std::clamp(o["cols"].toInt(), 1, kMaxTableRowsOrColumns);
     colW.clear(); rowH.clear(); cells.clear();
     for (const auto &v : o["colW"].toArray()) colW.push_back(v.toDouble());
     for (const auto &v : o["rowH"].toArray()) rowH.push_back(v.toDouble());
