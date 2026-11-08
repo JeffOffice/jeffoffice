@@ -64,6 +64,7 @@ SpellingDialog::SpellingDialog(CrunchWindow *window, int sheet, const jp::office
     v->addLayout(row);
     m_progress = new QLabel(this);
     m_progress->setObjectName(QStringLiteral("spellingProgress"));
+    m_progress->setTextFormat(Qt::PlainText);
     v->addWidget(m_progress);
     connect(m_suggestions, &QListWidget::currentTextChanged, m_change, &QLineEdit::setText);
 }
