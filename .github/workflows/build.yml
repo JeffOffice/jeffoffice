@@ -331,6 +331,9 @@ jobs:
           Copy-Item build/pdfium.dll dist/JeffOffice/
           New-Item -ItemType Directory -Force dist/JeffOffice/licenses | Out-Null
           Copy-Item -Recurse third_party/pdfium/licenses dist/JeffOffice/licenses/pdfium
+          # qpdf (passwords in PDFs) and libjpeg-turbo, which it is built with.
+          Copy-Item -Recurse third_party/qpdf/licenses dist/JeffOffice/licenses/qpdf
+          Copy-Item -Recurse third_party/libjpeg_turbo/licenses dist/JeffOffice/licenses/libjpeg-turbo
           # Qt's LGPL and source offer, Lucide, MPL, and the GCC runtime exception (the MinGW DLLs are here).
           Copy-Item packaging/licenses/* dist/JeffOffice/licenses/
           # FFmpeg's notice and license, for the libraries JeffDeck carries.
@@ -411,6 +414,8 @@ jobs:
           # Everything the plugin links is in the package or on the system.
           if LD_LIBRARY_PATH=deb-check/opt/jeffoffice/lib ldd deb-check/opt/jeffoffice/plugins/multimedia/libffmpegmediaplugin.so | grep 'not found'; then exit 1; fi
           test -f deb-check/usr/share/doc/jeffoffice/pdfium/pdfium.txt
+          test -f deb-check/usr/share/doc/jeffoffice/qpdf/qpdf-Apache-2.0.txt
+          test -f deb-check/usr/share/doc/jeffoffice/libjpeg-turbo/libjpeg-turbo.md
           test -f deb-check/usr/share/doc/jeffoffice/ffmpeg/ffmpeg.txt
           test -f deb-check/usr/share/doc/jeffoffice/ffmpeg/LGPL-2.1.txt
           for f in LICENSE ADDITIONAL-TERMS.md licenses/LGPL-3.0.txt licenses/QT-NOTICE.txt licenses/LUCIDE-ISC.txt licenses/MPL-2.0.txt licenses/MPL-NOTICE.txt licenses/README.txt; do test -f deb-check/usr/share/doc/jeffoffice/$f; done
@@ -443,6 +448,8 @@ jobs:
             otool -l dist/$app.app/Contents/MacOS/$app | grep -A2 LC_RPATH | grep path || true
             mkdir -p dist/$app.app/Contents/Resources/licenses
             cp -R third_party/pdfium/licenses dist/$app.app/Contents/Resources/licenses/pdfium
+            cp -R third_party/qpdf/licenses dist/$app.app/Contents/Resources/licenses/qpdf
+            cp -R third_party/libjpeg_turbo/licenses dist/$app.app/Contents/Resources/licenses/libjpeg-turbo
             # Qt's LGPL and source offer, Lucide, and MPL texts, and the GPL and Additional Terms (no GCC runtime here).
             for f in packaging/licenses/*; do case $f in *GCC-RUNTIME*) ;; *) cp "$f" dist/$app.app/Contents/Resources/licenses/ ;; esac; done
             cp LICENSE ADDITIONAL-TERMS.md dist/$app.app/Contents/Resources/

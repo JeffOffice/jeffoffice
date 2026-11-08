@@ -6,9 +6,12 @@
 | `librevenge/` | [librevenge](https://sourceforge.net/p/libwpd/librevenge/), document interfaces and OLE2 streams | MPL-2.0 or LGPL-2.1+ | 0.0.5 |
 | `compat/` | JeffPub's minimal stand-ins for the Boost headers these libraries use | GPL-3.0 (this project) | — |
 | `ffmpeg/licenses/` | The notice and license text of the [FFmpeg](https://ffmpeg.org/) libraries that come with JeffDeck (for its movies and sounds, through Qt Multimedia), shipped with JeffDeck's packages | LGPL-2.1+ | 7.1 (the build Qt 6.8 ships) |
+| `qpdf/licenses/` | The license text of [qpdf](https://qpdf.org/) (Apache-2.0; it is also offered under the Artistic License 2.0) and its notice, shipped with every package. qpdf 12.4.2 is built from its release tarball (`cmake/qpdf.cmake`, checked against its SHA-256), as a static library with its own crypto code, to write PDFs with a password | Apache-2.0 | 12.4.2 |
+| `libjpeg_turbo/licenses/` | The license texts of [libjpeg-turbo](https://libjpeg-turbo.org/), which qpdf reads JPEG streams with; built from its release tarball without SIMD (`cmake/qpdf.cmake`) | IJG and BSD-3-Clause | 3.2.1 |
+| `qpdfwrap/` | The one file that includes qpdf's C++20 headers, behind an interface of standard types | GPL-3.0 (this project) | — |
 | `pdfium/licenses/` | The license texts of [PDFium](https://pdfium.googlesource.com/pdfium/) and of the libraries built into it, shipped with every package | see below | chromium/8086 (157.0.8086.0) |
 
-zlib is downloaded at build time when the system has none.
+zlib is downloaded at build time when the system has none. qpdf and libjpeg-turbo are downloaded when the build directory is made, and checked against their SHA-256; `FETCHCONTENT_SOURCE_DIR_QPDF` and `FETCHCONTENT_SOURCE_DIR_LIBJPEG_TURBO` name unpacked copies for a build that must not download.
 
 ## FFmpeg
 

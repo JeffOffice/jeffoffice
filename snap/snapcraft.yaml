@@ -151,6 +151,9 @@ parts:
       cp -r "$CRAFT_PART_SRC/resources/fonts" "$CRAFT_PART_SRC/resources/dict" "$d/usr/share/jeffoffice/"
       { printf 'JeffOffice\nCopyright (c) 2026 JeffOffice LLC\nLicense: GPL-3.0 (below)\n\n'; cat "$CRAFT_PART_SRC/LICENSE"; } > "$d/usr/share/doc/jeffoffice/copyright"
       cp "$CRAFT_PART_SRC/third_party/pdfium/licenses/"* "$d/usr/share/doc/jeffoffice/pdfium/"
+      mkdir -p "$d/usr/share/doc/jeffoffice/qpdf" "$d/usr/share/doc/jeffoffice/libjpeg-turbo"
+      cp "$CRAFT_PART_SRC/third_party/qpdf/licenses/"* "$d/usr/share/doc/jeffoffice/qpdf/"
+      cp "$CRAFT_PART_SRC/third_party/libjpeg_turbo/licenses/"* "$d/usr/share/doc/jeffoffice/libjpeg-turbo/"
       cp "$CRAFT_PART_SRC/LICENSE" "$CRAFT_PART_SRC/ADDITIONAL-TERMS.md" "$d/usr/share/doc/jeffoffice/"
       mkdir -p "$d/usr/share/doc/jeffoffice/licenses"
       for f in "$CRAFT_PART_SRC/packaging/licenses/"*; do case $f in *GCC-RUNTIME*) ;; *) cp "$f" "$d/usr/share/doc/jeffoffice/licenses/" ;; esac; done

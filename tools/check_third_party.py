@@ -27,6 +27,7 @@ JSON = "docs/third-party.json"
 PARTS = {
     "third_party/libmspub": "libmspub", "third_party/librevenge": "librevenge", "third_party/compat": None,
     "third_party/ffmpeg": "FFmpeg", "third_party/pdfium": "PDFium",
+    "third_party/qpdf": "qpdf", "third_party/qpdfwrap": None, "third_party/libjpeg_turbo": "libjpeg-turbo",
     "pdfium/abseil": "Abseil", "pdfium/agg23": "Anti-Grain Geometry", "pdfium/dragonbox-Apache2-LLVM": "dragonbox",
     "pdfium/dragonbox-Boost": "dragonbox", "pdfium/fast_float": "fast_float", "pdfium/freetype": "FreeType",
     "pdfium/harfbuzz": "HarfBuzz", "pdfium/highway": "Highway", "pdfium/icu": "ICU", "pdfium/lcms": "Little CMS", "pdfium/libjpeg_turbo": "libjpeg-turbo",

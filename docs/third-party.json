@@ -226,6 +226,34 @@
    ]
   },
   {
+   "name": "qpdf",
+   "url": "https://qpdf.org/",
+   "use": "Passwords in PDF files",
+   "license": "Apache-2.0",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/qpdf/licenses/qpdf-Apache-2.0.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "libjpeg-turbo (in qpdf)",
+   "url": "https://libjpeg-turbo.org/",
+   "use": "JPEG pictures in PDF files",
+   "license": "IJG and BSD-3-Clause",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/libjpeg_turbo/licenses/libjpeg-turbo.md",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
    "name": "pdfium-binaries",
    "url": "https://github.com/bblanchon/pdfium-binaries",
    "use": "PDFium, built",

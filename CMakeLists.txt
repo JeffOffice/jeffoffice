@@ -15,6 +15,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Netwo
 
 add_subdirectory(third_party)
 include(cmake/pdfium.cmake)
+include(cmake/qpdf.cmake)
 
 # The shared libraries every JeffOffice app builds on, lowest first. Each
 # uses only the ones below it (tools/check_layers.py checks every include):
@@ -45,7 +46,7 @@ target_sources(jo_base PRIVATE resources/resources.qrc)
 # The version is a function in one generated file, not a definition on every compile command: a bump recompiles that file alone.
 configure_file(libs/base/core/version.cpp.in ${CMAKE_BINARY_DIR}/generated/version.cpp @ONLY)
 target_sources(jo_base PRIVATE ${CMAKE_BINARY_DIR}/generated/version.cpp)
-target_link_libraries(jo_base PUBLIC Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport Qt6::Network PRIVATE jp_hunspell jp_zlib pdfium)
+target_link_libraries(jo_base PUBLIC Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport Qt6::Network PRIVATE jp_hunspell jp_zlib pdfium jp_qpdfwrap)
 target_compile_definitions(jo_base PUBLIC QT_NO_KEYWORDS PRIVATE JP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_compile_options(jo_base PUBLIC -Wall -Wextra -Wno-unused-parameter)
 jo_library(jo_draw libs/draw)
