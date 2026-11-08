@@ -18,17 +18,24 @@ endif()
 set(JP_PDFIUM_DIR ${CMAKE_BINARY_DIR}/_deps/pdfium)
 set(_pdfium_archive ${CMAKE_BINARY_DIR}/_deps/${_pdfium_asset})
 if(NOT EXISTS ${JP_PDFIUM_DIR}/include/fpdfview.h)
-  # (GitHub's release downloads answer 504 now and then: a few tries, a minute apart, before giving up)
+  # (GitHub's release downloads answer 504 now and then: a few tries, a minute apart, before giving up.
+  # The hash is checked here, not by file(DOWNLOAD): given EXPECTED_HASH, a failed try is a CMake error
+  # that fails the configure even when a later try succeeds.)
   foreach(_pdfium_try RANGE 1 4)
     file(DOWNLOAD https://github.com/bblanchon/pdfium-binaries/releases/download/${JP_PDFIUM_RELEASE}/${_pdfium_asset}
          ${_pdfium_archive}
-         EXPECTED_HASH SHA256=${_pdfium_sha256}
          TLS_VERIFY ON
          STATUS _pdfium_status)
     list(GET _pdfium_status 0 _pdfium_code)
     if(_pdfium_code EQUAL 0)
-      break()
+      file(SHA256 ${_pdfium_archive} _pdfium_got)
+      if(_pdfium_got STREQUAL _pdfium_sha256)
+        break()
+      endif()
+      set(_pdfium_code 1)
+      set(_pdfium_status "1;SHA-256 ${_pdfium_got}, expected ${_pdfium_sha256}")
     endif()
+    file(REMOVE ${_pdfium_archive})
     message(STATUS "Downloading PDFium (${_pdfium_asset}), try ${_pdfium_try} of 4, failed: ${_pdfium_status}")
     if(_pdfium_try LESS 4)
       execute_process(COMMAND ${CMAKE_COMMAND} -E sleep 60)
