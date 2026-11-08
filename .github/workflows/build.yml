@@ -63,28 +63,31 @@ jobs:
     runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || matrix.os }}
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: jurplel/install-qt-action@v4
+      - uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
         if: runner.os == 'Linux'
         with:
+          aqtversion: '==3.3.0'
           version: '6.8.3'
           modules: 'qtimageformats qtmultimedia'
           cache: true
 
       # Windows builds with MinGW-w64 (GCC), the compiler Qt ships for Windows.
-      - uses: jurplel/install-qt-action@v4
+      - uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
         if: runner.os == 'Windows'
         with:
+          aqtversion: '==3.3.0'
           version: '6.8.3'
           arch: 'win64_mingw'
           modules: 'qtimageformats qtmultimedia'
           tools: 'tools_mingw1310'
           cache: true
 
-      - uses: jurplel/install-qt-action@v4
+      - uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
         if: runner.os == 'macOS'
         with:
+          aqtversion: '==3.3.0'
           version: '6.8.3'
           host: 'mac'
           target: 'desktop'
@@ -145,7 +148,7 @@ jobs:
       # Windows; with the Qt caches (2.0 GB) that is 8 GB of GitHub's 10 (a release's entry, rare, is the first to go), so each job's newest entry stays.
       - name: Restore the compiler cache
         if: runner.environment != 'self-hosted'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .ccache
           key: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ matrix.part }}${{ matrix.shard }}-${{ github.sha }}
@@ -276,7 +279,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: matrix.part == 'checks' && matrix.shard == 1
         with:
           name: pdf-check-${{ matrix.name }}
@@ -291,7 +294,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: runner.os == 'Linux' && matrix.part == 'checks'
         with:
           name: help-wiki
@@ -346,7 +349,7 @@ jobs:
           New-Item -ItemType Directory -Force installer | Out-Null
           Move-Item packaging/windows/JeffOffice-Setup.exe installer/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
         with:
           name: JeffOffice-Setup
@@ -362,7 +365,7 @@ jobs:
           Copy-Item build/jpubtool.exe, build/jdecktool.exe dev-tools/
           Copy-Item build/pdfium.dll dev-tools/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
         with:
           name: JeffOffice-windows-tools
@@ -413,7 +416,7 @@ jobs:
           for f in LICENSE ADDITIONAL-TERMS.md licenses/LGPL-3.0.txt licenses/QT-NOTICE.txt licenses/LUCIDE-ISC.txt licenses/MPL-2.0.txt licenses/MPL-NOTICE.txt licenses/README.txt; do test -f deb-check/usr/share/doc/jeffoffice/$f; done
           ls -la linux-packages
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: runner.os == 'Linux' && matrix.part == 'checks'
         with:
           name: JeffOffice-linux-packages
@@ -480,13 +483,13 @@ jobs:
           done
           ls -la macos-dmg
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: runner.os == 'macOS' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
         with:
           name: JeffOffice-macos-dmg
           path: macos-dmg
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: matrix.part == 'checks' && matrix.shard == 1
         with:
           name: JeffOffice-${{ matrix.name }}
@@ -497,7 +500,7 @@ jobs:
       # restores main's, and keeps its own out of the 10 GB.
       - name: Save the compiler cache
         if: ${{ !cancelled() && runner.environment != 'self-hosted' && (github.ref == 'refs/heads/main' || matrix.name == 'linux') && steps.build.outputs.misses != '' && steps.build.outputs.misses != '0' }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .ccache
           key: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ matrix.part }}${{ matrix.shard }}-${{ github.sha }}
@@ -512,7 +515,7 @@ jobs:
       SHIP_WRITE: 'true'
       SHIP_CRUNCH: 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Stand-in files
         shell: pwsh
         run: |
@@ -529,7 +532,7 @@ jobs:
           ./packaging/windows/build-installer.ps1 -Version $ver -Write -Crunch
           New-Item -ItemType Directory -Force installer | Out-Null
           Move-Item packaging/windows/JeffOffice-Setup.exe installer/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: JeffOffice-Setup-stand-in
           path: installer
@@ -547,13 +550,13 @@ jobs:
       contents: write
     concurrency: wiki
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           sparse-checkout: tools/publish_help_wiki.sh
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: help-wiki
           path: help-wiki
