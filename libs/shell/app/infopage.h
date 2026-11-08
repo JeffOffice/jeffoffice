@@ -20,7 +20,7 @@ class QWidget;
 namespace jp {
 
 struct InfoHost {
-    enum class Kind { Document, Workbook };
+    enum class Kind { Document, Workbook, Presentation, Publication };
     Kind kind = Kind::Document;
     std::function<QString()> path;   // the file's path, empty when it has none yet
     std::function<office::PackageProps()> props;
@@ -41,6 +41,12 @@ struct InfoHost {
     std::function<void()> checkAccessibility;   // none: no card
     // The page the person is shown the file on, drawn small; none: no picture.
     std::function<QImage()> thumbnail;
+    // Cards of the app's own, after the others (an app's own settings for its files).
+    struct Card {
+        QString name, icon, title, text;   // the object name (for tests), the icon, and the words
+        std::function<void()> run;
+    };
+    QVector<Card> extraCards;
 };
 
 // The page, built for the host's file as it is now.

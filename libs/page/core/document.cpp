@@ -583,9 +583,18 @@ MergeSource MergeSource::fromJson(const QJsonObject &o)
 
 QJsonObject DocProps::toJson() const
 {
-    return {{"title", title}, {"subject", subject}, {"author", author}, {"manager", manager}, {"company", company},
-            {"category", category}, {"keywords", keywords}, {"comments", comments},
-            {"created", created.toString(Qt::ISODate)}, {"modified", modified.toString(Qt::ISODate)}};
+    QJsonObject o = {{"title", title}, {"subject", subject}, {"author", author}, {"manager", manager}, {"company", company},
+                     {"category", category}, {"keywords", keywords}, {"comments", comments},
+                     {"created", created.toString(Qt::ISODate)}, {"modified", modified.toString(Qt::ISODate)}};
+    if (!lastModifiedBy.isEmpty()) o["lastModifiedBy"] = lastModifiedBy;
+    if (printed.isValid()) o["printed"] = printed.toString(Qt::ISODate);
+    if (!custom.isEmpty()) {
+        QJsonArray list;
+        for (const office::CustomProperty &c : custom)
+            list.append(QJsonObject{{"name", c.name}, {"type", c.type}, {"value", c.value}, {"pid", c.pid}, {"fmtid", c.fmtid}, {"raw", QString::fromLatin1(c.raw.toBase64())}});
+        o["custom"] = list;
+    }
+    return o;
 }
 DocProps DocProps::fromJson(const QJsonObject &o)
 {
@@ -600,7 +609,56 @@ DocProps DocProps::fromJson(const QJsonObject &o)
     p.comments = o["comments"].toString();
     p.created = QDateTime::fromString(o["created"].toString(), Qt::ISODate);
     p.modified = QDateTime::fromString(o["modified"].toString(), Qt::ISODate);
+    p.lastModifiedBy = o["lastModifiedBy"].toString();
+    p.printed = QDateTime::fromString(o["printed"].toString(), Qt::ISODate);
+    for (const QJsonValue &v : o["custom"].toArray()) {
+        const QJsonObject c = v.toObject();
+        office::CustomProperty cp;
+        cp.name = c["name"].toString();
+        cp.type = c["type"].toString();
+        cp.value = c["value"].toString();
+        cp.pid = c["pid"].toInt();
+        cp.fmtid = c["fmtid"].toString();
+        cp.raw = QByteArray::fromBase64(c["raw"].toString().toLatin1());
+        p.custom.push_back(cp);
+    }
     return p;
+}
+office::PackageProps DocProps::toPackageProps() const
+{
+    office::PackageProps p;
+    p.title = title;
+    p.subject = subject;
+    p.creator = author;
+    p.keywords = keywords;
+    p.comments = comments;
+    p.lastModifiedBy = lastModifiedBy;
+    p.category = category;
+    p.company = company;
+    p.manager = manager;
+    p.created = created;
+    p.modified = modified;
+    p.printed = printed;
+    p.custom = custom;
+    p.truncated = truncated;
+    return p;
+}
+void DocProps::setFromPackageProps(const office::PackageProps &p)
+{
+    title = p.title;
+    subject = p.subject;
+    author = p.creator;
+    keywords = p.keywords;
+    comments = p.comments;
+    lastModifiedBy = p.lastModifiedBy;
+    category = p.category;
+    company = p.company;
+    manager = p.manager;
+    created = p.created;
+    modified = p.modified;
+    printed = p.printed;
+    custom = p.custom;
+    truncated = p.truncated;
 }
 
 // ---------- default styles ----------

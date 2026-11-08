@@ -337,7 +337,8 @@ void InspectDialog::removeRow(int row)
 
 QWidget *buildInfoPage(QWidget *parent, const InfoHost &h)
 {
-    const bool book = h.kind == InfoHost::Kind::Workbook;
+    const InfoHost::Kind kind = h.kind;
+    const bool book = kind == InfoHost::Kind::Workbook;
     auto *page = new QWidget(parent);
     page->setObjectName(QStringLiteral("infoPage"));
     auto *outer = new QVBoxLayout(page);
@@ -350,7 +351,11 @@ QWidget *buildInfoPage(QWidget *parent, const InfoHost &h)
     auto *pathIcon = new QLabel(page);
     pathIcon->setPixmap(icon(path.isEmpty() ? "file" : "folder").pixmap(QSize(16, 16), page->devicePixelRatioF()));
     where->addWidget(pathIcon);
-    auto *pathLabel = mutedLabel(path.isEmpty() ? (book ? QCoreApplication::translate("jp::InfoPage", "This workbook hasn't been saved yet.") : QCoreApplication::translate("jp::InfoPage", "This document hasn't been saved yet.")) : pathForCopy(path), page, 0.7);
+    auto *pathLabel = mutedLabel(path.isEmpty() ? (book ? QCoreApplication::translate("jp::InfoPage", "This workbook hasn't been saved yet.")
+                                                       : kind == InfoHost::Kind::Presentation ? QCoreApplication::translate("jp::InfoPage", "This presentation hasn't been saved yet.")
+                                                       : kind == InfoHost::Kind::Publication  ? QCoreApplication::translate("jp::InfoPage", "This publication hasn't been saved yet.")
+                                                                                              : QCoreApplication::translate("jp::InfoPage", "This document hasn't been saved yet."))
+                                                    : pathForCopy(path), page, 0.7);
     pathLabel->setObjectName(QStringLiteral("infoPath"));
     pathLabel->setTextFormat(Qt::PlainText);
     pathLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
@@ -391,8 +396,14 @@ QWidget *buildInfoPage(QWidget *parent, const InfoHost &h)
         left->addWidget(b);
     } else if (h.setMarkedFinal)
         card(QStringLiteral("infoMarkFinal"), QStringLiteral("flag"), final ? QCoreApplication::translate("jp::InfoPage", "Marked as Final") : QCoreApplication::translate("jp::InfoPage", "Mark as Final"),
-             final ? (book ? QCoreApplication::translate("jp::InfoPage", "This workbook is marked as final: it opens for reading only. Choose this to let people edit it again.") : QCoreApplication::translate("jp::InfoPage", "This document is marked as final: it opens for reading only. Choose this to let people edit it again."))
-                   : (book ? QCoreApplication::translate("jp::InfoPage", "Tell readers this workbook is finished. It opens for reading only, with a note.") : QCoreApplication::translate("jp::InfoPage", "Tell readers this document is finished. It opens for reading only, with a note.")),
+             final ? (book ? QCoreApplication::translate("jp::InfoPage", "This workbook is marked as final: it opens for reading only. Choose this to let people edit it again.")
+                           : kind == InfoHost::Kind::Presentation ? QCoreApplication::translate("jp::InfoPage", "This presentation is marked as final: it opens for reading only. Choose this to let people edit it again.")
+                           : kind == InfoHost::Kind::Publication  ? QCoreApplication::translate("jp::InfoPage", "This publication is marked as final: it opens for reading only. Choose this to let people edit it again.")
+                                                                  : QCoreApplication::translate("jp::InfoPage", "This document is marked as final: it opens for reading only. Choose this to let people edit it again."))
+                   : (book ? QCoreApplication::translate("jp::InfoPage", "Tell readers this workbook is finished. It opens for reading only, with a note.")
+                           : kind == InfoHost::Kind::Presentation ? QCoreApplication::translate("jp::InfoPage", "Tell readers this presentation is finished. It opens for reading only, with a note.")
+                           : kind == InfoHost::Kind::Publication  ? QCoreApplication::translate("jp::InfoPage", "Tell readers this publication is finished. It opens for reading only, with a note.")
+                                                                  : QCoreApplication::translate("jp::InfoPage", "Tell readers this document is finished. It opens for reading only, with a note.")),
              [h, final] { h.setMarkedFinal(!final); });
     if (h.encrypt) {
         const bool locked = h.hasPassword && h.hasPassword();
@@ -408,7 +419,10 @@ QWidget *buildInfoPage(QWidget *parent, const InfoHost &h)
         card(QStringLiteral("infoProtectStructure"), QStringLiteral("lock"), QCoreApplication::translate("jp::InfoPage", "Protect Workbook Structure"),
              QCoreApplication::translate("jp::InfoPage", "Stop people from adding, deleting, moving, hiding, or renaming sheets."), [h] { h.protectStructure(); });
     if (h.inspect)
-        card(QStringLiteral("infoInspect"), QStringLiteral("scan-search"), book ? QCoreApplication::translate("jp::InfoPage", "Inspect Workbook") : QCoreApplication::translate("jp::InfoPage", "Inspect Document"),
+        card(QStringLiteral("infoInspect"), QStringLiteral("scan-search"), book ? QCoreApplication::translate("jp::InfoPage", "Inspect Workbook")
+                                                                                                       : kind == InfoHost::Kind::Presentation ? QCoreApplication::translate("jp::InfoPage", "Inspect Presentation")
+                                                                                                       : kind == InfoHost::Kind::Publication  ? QCoreApplication::translate("jp::InfoPage", "Inspect Publication")
+                                                                                                                                              : QCoreApplication::translate("jp::InfoPage", "Inspect Document"),
              QCoreApplication::translate("jp::InfoPage", "Find what you may not want to share, such as comments and personal information, and remove it."), [h] { h.inspect(); });
     if (h.checkCompatibility)
         card(QStringLiteral("infoCompatibility"), QStringLiteral("list-checks"), QCoreApplication::translate("jp::InfoPage", "Check Compatibility"), QCoreApplication::translate("jp::InfoPage", "See what an older kind of file can't hold, before you save to it."),
@@ -419,6 +433,7 @@ QWidget *buildInfoPage(QWidget *parent, const InfoHost &h)
     if (h.versionHistory)
         card(QStringLiteral("infoVersions"), QStringLiteral("history"), QCoreApplication::translate("jp::InfoPage", "Version History"), QCoreApplication::translate("jp::InfoPage", "Keep named copies of this file on your computer, and compare them or go back to one."),
              [h] { h.versionHistory(); });
+    for (const InfoHost::Card &c : h.extraCards) card(c.name, c.icon, c.title, c.text, c.run);
     left->addStretch(1);
     body->addLayout(left, 1);
 

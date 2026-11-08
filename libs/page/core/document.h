@@ -5,6 +5,7 @@
 
 #include "core/items.h"
 #include "core/pictureinsert.h"
+#include "office/packageprops.h"
 #include "text/textengine.h"
 
 #include <QByteArray>
@@ -198,8 +199,17 @@ struct CatalogArea {
 struct DocProps {
     QString title, subject, author, manager, company, category, keywords, comments;
     QDateTime created = QDateTime::currentDateTime(), modified = QDateTime::currentDateTime();
+    // What a package file's properties hold besides those above: who saved it last, when it was printed, and the properties of a person's own (the mark that it is final
+    // is one). `truncated` is set by a reader that met more properties than it keeps; it is not saved.
+    QString lastModifiedBy;
+    QDateTime printed;
+    QVector<office::CustomProperty> custom;
+    bool truncated = false;
     QJsonObject toJson() const;
     static DocProps fromJson(const QJsonObject &o);
+    // The properties as the shared Info page has them (the author is the creator), and back.
+    office::PackageProps toPackageProps() const;
+    void setFromPackageProps(const office::PackageProps &p);
 };
 
 // Black overprinting in files for a printer (io/overprint applies it).

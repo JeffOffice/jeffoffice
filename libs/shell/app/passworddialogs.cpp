@@ -1,6 +1,9 @@
 #include "app/passworddialogs.h"
 
 #include "app/plaintext.h"
+#include "io/crypto.h"
+#include "office/officecrypt.h"
+#include "office/package.h"
 
 #include <QCoreApplication>
 #include <QEventLoop>
@@ -184,6 +187,57 @@ bool runWithCancel(QWidget *parent, const QString &text, const std::function<voi
 void cancelRunningForTest()
 {
     if (g_running) *g_running = true;
+}
+
+PackageUnlock unlockProtectedPackage(QWidget *parent, const QString &fileName, QByteArray *bytes, QString *kept, bool *wasProtected, QString *error)
+{
+    QByteArray info, package, zip;
+    if (!office::splitProtectedPackage(*bytes, &info, &package)) return PackageUnlock::Opened;
+    // (the file's own bytes are let go: the package inside is what is worked on, and a file of a gigabyte is not held twice more)
+    *bytes = QByteArray();
+    bytes->squeeze();
+    // (the window may be closed, from its title bar, while a password is checked: nothing is asked of it or done to it after)
+    const QPointer<QWidget> alive(parent);
+    auto decrypt = [&](const QString &password, office::CryptResult *result) {
+        const bool finished = runWithCancel(parent, QCoreApplication::translate("jp::PasswordDialogs", "Checking the password…"), [&](const std::atomic<bool> *cancel) {
+            *result = office::decryptPackage(info, package, password, office::kMaxOpenFileBytes, false, &zip, [cancel] { return cancel->load(); });
+        });
+        if (!finished) *result = office::CryptResult::Cancelled;
+    };
+    office::CryptResult r = office::CryptResult::Unsupported;
+    decrypt(office::defaultPassword(), &r);
+    if (parent && !alive) return PackageUnlock::WindowGone;
+    if (r == office::CryptResult::Ok) {
+        *bytes = zip;
+        return PackageUnlock::Opened;
+    }
+    bool wrong = false;
+    for (;;) {
+        QString password;
+        if (!askOpenFilePassword(parent, fileName, wrong, &password)) return PackageUnlock::Cancelled;
+        decrypt(password, &r);
+        if (parent && !alive) {
+            crypto::wipe(password);
+            return PackageUnlock::WindowGone;
+        }
+        if (r == office::CryptResult::Ok) {
+            *bytes = zip;
+            *kept = password;
+            *wasProtected = true;
+            return PackageUnlock::Opened;
+        }
+        crypto::wipe(password);
+        if (r == office::CryptResult::Cancelled) return PackageUnlock::Cancelled;
+        if (r == office::CryptResult::WrongPassword) {
+            wrong = true;
+            continue;
+        }
+        *error = r == office::CryptResult::Unsupported ? QCoreApplication::translate("jp::PasswordDialogs", "This file is protected in a way this program doesn't read.")
+               : r == office::CryptResult::TooLarge    ? QCoreApplication::translate("jp::PasswordDialogs", "The file is too large to open.")
+               : r == office::CryptResult::TooCostly   ? QCoreApplication::translate("jp::PasswordDialogs", "The password protection of this file asks for more work than this program allows.")
+                                                       : QCoreApplication::translate("jp::PasswordDialogs", "The file is damaged.");
+        return PackageUnlock::Failed;
+    }
 }
 
 } // namespace jp

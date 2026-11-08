@@ -2,6 +2,7 @@
 // The two questions about a file's password that every app asks the same way: the password to protect a file with (typed twice, and removable), and the password a protected file
 // asks for when it is opened. A password is a string the caller wipes after use; a test stands in for each question with a function.
 
+#include <QByteArray>
 #include <QString>
 #include <atomic>
 #include <functional>
@@ -27,5 +28,11 @@ void setOpenPasswordStandIn(const std::function<bool(const QString &fileName, bo
 bool runWithCancel(QWidget *parent, const QString &text, const std::function<void(const std::atomic<bool> *cancel)> &work);
 // For tests: presses the Cancel of the work that is running.
 void cancelRunningForTest();
+
+// A file protected with a password becomes the package inside it: the password that files protected only against changes by accident have is tried first, then the person is asked (above),
+// as often as it takes, with the key made on a thread of its own (runWithCancel). `bytes` is the package afterwards; `kept` the password that opened it and `wasProtected` true; a file that is not
+// protected is left as it is (Opened). A reason in `error` goes with Failed (a plain sentence); Cancelled asks for no message. WindowGone: `parent` was deleted meanwhile, and nothing of it may be touched.
+enum class PackageUnlock { Opened, Cancelled, Failed, WindowGone };
+PackageUnlock unlockProtectedPackage(QWidget *parent, const QString &fileName, QByteArray *bytes, QString *kept, bool *wasProtected, QString *error);
 
 } // namespace jp
