@@ -8,6 +8,7 @@
 #include "app/filetasks.h"
 #include "app/icons.h"
 #include "app/notespane.h"
+#include "app/printsides.h"
 #include "app/settings.h"
 #include "canvas/canvas.h"
 #include "core/appinfo.h"
@@ -345,6 +346,13 @@ QWidget *DeckFileScreen::buildPrint()
     range->addLayout(someRow);
     form->addRow(tr("Range:"), range);
 
+    // One side, or both sides flipped on the long or the short edge: the system's window starts with it.
+    auto *sides = new QComboBox(w);
+    sides->setObjectName(QStringLiteral("printDuplex"));
+    fillSidesBox(sides, false, Settings::get().value(QStringLiteral("output/sides"), int(SidesChoice::OneSide)).toInt());
+    updateSidesBox(sides, QString(), false);
+    form->addRow(tr("Sides:"), sides);
+
     auto *hidden = new QCheckBox(tr("Print hidden slides"), w);
     hidden->setObjectName(QStringLiteral("printHidden"));
     auto *frame = new QCheckBox(tr("Frame slides"), w);
@@ -472,6 +480,7 @@ QWidget *DeckFileScreen::buildPrint()
     };
     connect(what, &QComboBox::currentIndexChanged, w, [=] { remember(); restart(); });
     connect(order, &QComboBox::currentIndexChanged, w, [=] { remember(); paint(); });
+    connect(sides, &QComboBox::currentIndexChanged, w, [=] { Settings::get().setValue(QStringLiteral("output/sides"), sidesWanted(sides)); });
     connect(group, &QButtonGroup::buttonToggled, w, [=] { restart(); });
     connect(text, &QLineEdit::textChanged, w, [=] {
         // Typing a range is choosing one.
@@ -482,7 +491,7 @@ QWidget *DeckFileScreen::buildPrint()
     connect(previous, &QToolButton::clicked, w, [=] { --*page; paint(); });
     connect(next, &QToolButton::clicked, w, [=] { ++*page; paint(); });
     connect(printBtn, &QPushButton::clicked, this, [=] {
-        if (m_win->printOutput(options())) Q_EMIT closeRequested();
+        if (m_win->printOutput(options(), sidesDuplex(sides))) Q_EMIT closeRequested();
     });
     refresh();
     // The preview is drawn once the page has its size, and again when that changes.

@@ -7,6 +7,10 @@
 #include "app/slidespane.h"
 #include "app/widgets.h"
 #include "app/filetasks.h"
+#include "app/filedialogs.h"
+#include "app/printsides.h"
+#include <QComboBox>
+#include <QPrintDialog>
 #include <QListWidget>
 #include <QStandardPaths>
 
@@ -232,6 +236,77 @@ private Q_SLOTS:
         screen->findChild<QRadioButton *>(QStringLiteral("printRangeSlides"))->setChecked(true);
         screen->findChild<QLineEdit *>(QStringLiteral("printRangeText"))->setText(QStringLiteral("2-4"));
         QCOMPARE(pages->text(), QStringLiteral("Page 1 of 3"));
+        w.editor()->markSaved();
+    }
+
+    // The Sides choice: one side, or both sides flipped on the long or the short edge; the printer the system's window starts with is set to it, a PDF file is made with none,
+    // and the choice is on the page again when it is opened again.
+    void printPageSidesChoiceSetsTheDuplexModeOfThePrinter()
+    {
+        setDuplexSupportStandIn([](const QString &) { return QList<QPrinter::DuplexMode>{QPrinter::DuplexNone, QPrinter::DuplexLongSide, QPrinter::DuplexShortSide}; });
+        QTemporaryDir dir;
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        w.editor()->setDocument(showDeck(3));
+        QVector<QPrinter::DuplexMode> asked, painted;
+        bool toPdf = false;
+        setPrintDialogStandIn([&](QPrintDialog &dialog) {
+            asked << dialog.printer()->duplex();
+            if (toPdf) {
+                dialog.printer()->setOutputFormat(QPrinter::PdfFormat);
+                dialog.printer()->setOutputFileName(dir.filePath(QStringLiteral("out.pdf")));
+                dialog.printer()->setDuplex(QPrinter::DuplexLongSide);   // (what the window might have left)
+            }
+            return int(QDialog::Accepted);
+        });
+        w.setPrinterPreparer([&](QPrinter &p) { painted << p.duplex(); });
+        auto open = [&] {
+            w.showFileScreen(QStringLiteral("print"));
+            auto *screen = w.findChild<FileScreen *>();
+            return screen ? screen->findChild<QComboBox *>(QStringLiteral("printDuplex")) : nullptr;
+        };
+        QComboBox *sides = open();
+        QVERIFY(sides);
+        QCOMPARE(sides->count(), 3);   // (no by-hand entry in JeffDeck)
+        QCOMPARE(sides->itemText(0), QStringLiteral("Print on one side"));
+        QCOMPARE(sides->itemText(1), QStringLiteral("Print on both sides, flip on long edge"));
+        QCOMPARE(sides->itemText(2), QStringLiteral("Print on both sides, flip on short edge"));
+        QCOMPARE(sides->currentIndex(), 0);
+        const QVector<QPrinter::DuplexMode> wanted = {QPrinter::DuplexNone, QPrinter::DuplexLongSide, QPrinter::DuplexShortSide};
+        for (int i = 0; i < 3; ++i) {
+            sides = open();
+            QVERIFY(sides);
+            sides->setCurrentIndex(i);
+            QVERIFY(w.printOutput(deck::OutputOptions(), sidesDuplex(sides)));
+            QCOMPARE(asked.last(), wanted[i]);
+            QCOMPARE(painted.last(), wanted[i]);
+        }
+        sides = open();
+        QCOMPARE(sides->currentIndex(), 2);   // (as it was left)
+        // a PDF file has no sides, whatever the choice
+        toPdf = true;
+        QVERIFY(w.printOutput(deck::OutputOptions(), sidesDuplex(sides)));
+        QCOMPARE(painted.last(), QPrinter::DuplexNone);
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("out.pdf"))));
+        // and the choice is off while a file is the target
+        updateSidesBox(sides, QString(), true);
+        QVERIFY(!sides->isEnabled());
+        QCOMPARE(sidesDuplex(sides), QPrinter::DuplexNone);
+        updateSidesBox(sides, QString(), false);
+        QVERIFY(sides->isEnabled());
+        // a printer that can't print on both sides turns the two automatic choices off, with a reason
+        setDuplexSupportStandIn([](const QString &) { return QList<QPrinter::DuplexMode>{QPrinter::DuplexNone}; });
+        updateSidesBox(sides, QString(), false);
+        for (int i : {1, 2}) {
+            QVERIFY(!sides->model()->flags(sides->model()->index(i, 0)).testFlag(Qt::ItemIsEnabled));
+            QVERIFY(!sides->itemData(i, Qt::ToolTipRole).toString().isEmpty());
+        }
+        QCOMPARE(sides->currentIndex(), 0);
+        setDuplexSupportStandIn(nullptr);
+        setPrintDialogStandIn(nullptr);
+        sides->setCurrentIndex(0);
+        updateSidesBox(sides, QString(), false);
         w.editor()->markSaved();
     }
 

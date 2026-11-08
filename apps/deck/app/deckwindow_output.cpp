@@ -312,16 +312,20 @@ void paintOnPrinter(QPrinter *printer, const Document &doc, LayoutCache *cache, 
 
 } // namespace
 
-bool DeckWindow::printOutput(const deck::OutputOptions &options)
+bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::DuplexMode duplex)
 {
     settle(this);
     const Document &doc = *m_ed->doc();
     QPrinter printer(QPrinter::HighResolution);
     printer.setDocName(m_ed->displayName());
     setUpPrinter(&printer, doc, options);
+    printer.setDuplex(duplex);
     QPrintDialog dlg(&printer, this);
     dlg.setWindowTitle(tr("Print"));
     if (execPrintDialog(dlg) != QDialog::Accepted) return false;
+    // (a PDF file, which the window can print to, has no sides)
+    if (printer.outputFormat() == QPrinter::PdfFormat) printer.setDuplex(QPrinter::DuplexNone);
+    if (m_printerPreparer) m_printerPreparer(printer);
     QApplication::setOverrideCursor(Qt::WaitCursor);
     paintOnPrinter(&printer, doc, &m_ed->cache(), options);
     QApplication::restoreOverrideCursor();

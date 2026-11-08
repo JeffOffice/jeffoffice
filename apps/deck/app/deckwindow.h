@@ -10,6 +10,7 @@
 #include <QHash>
 #include <QKeySequence>
 #include <QPointer>
+#include <QPrinter>
 #include <QSet>
 #include <QTimer>
 #include <functional>
@@ -295,7 +296,10 @@ public:
     void hideFileScreen();
     // What the File screen's Print and Export pages do: ask where, then write
     // or print. False when nothing was written or sent.
-    bool printOutput(const deck::OutputOptions &options);
+    // `duplex` is what the printer starts as in the system's window (the Print page's Sides choice); a PDF file is made with none.
+    bool printOutput(const deck::OutputOptions &options, QPrinter::DuplexMode duplex = QPrinter::DuplexNone);
+    // A test sets it to see the printer as the pages are about to go to it (the program never does).
+    void setPrinterPreparer(const std::function<void(QPrinter &)> &preparer) { m_printerPreparer = preparer; }
     bool exportPdf();
     bool exportPicture();
 
@@ -462,6 +466,7 @@ private:
     std::function<void(const QString &, const QString &)> m_notifier;
     QString m_templatePath;      // a template this window wrote: saving again writes over it
     std::function<QString(const QString &, const QString &)> m_pathChooser;
+    std::function<void(QPrinter &)> m_printerPreparer;
     std::function<bool(const QString &)> m_showQuestion;
     quint64 m_serial = 0;
 };

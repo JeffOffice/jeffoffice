@@ -93,7 +93,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** Print page with a preview drawn the way the page is printed, and with page navigation; choices are remembered; Ctrl+P opens it
 - [x] **1.0** Print what: Slides (one per page, in the slide's shape), Notes Pages, Outline, and Handouts with 1, 2, 3, 4, 6, or 9 slides per page (lines beside each slide for 3), with the order across or down for 4 or more
 - [x] **1.0** Range: all, the current slide, or slide numbers and ranges such as 1-3, 5; hidden slides only when asked; a thin frame around each slide; grayscale
-- [~] **1.0** Printer, copies, collate, and one- or two-sided *(done in the system's print window, which JeffDeck opens; collate and two-sided are not on the Print page)*
+- [~] **1.0** Printer, copies, collate, and one- or two-sided *(done in the system's print window, which JeffDeck opens; November 8, 2026: a Sides choice on the Print page, one side or both sides flipped on the long or the short edge, remembered, that the system's window starts with, turned off for a printer that can't, and a PDF file made from that window has none; collate is not on the Print page)*
 - [ ] **1.0** Pure black and white, scale to fit paper, high quality, and printing comments and ink
 - [ ] **1.0** Edit the header and footer of notes pages and handouts from the Print page *(the handout's header and footer hold the title, the date, and the page number, and can't be changed)*
 - [ ] **later** Print several slides in a custom grid, and 4 slides per page with an Outline beside them

@@ -10,7 +10,8 @@ You can print your presentation, save it as a PDF, or save a slide as a picture.
 3. For handouts of 4 or more, **Order** says whether the slides run across the page and then down (**Horizontal**) or down and then across (**Vertical**).
 4. Under **Range**, choose **All slides** or **Current slide**, or choose **Slides** and type the numbers in the box: slide numbers and ranges with commas between them, such as 1-3, 5.
 5. Check what you need: **Print hidden slides**, **Frame slides** (a thin line around each slide), and **Grayscale**.
-6. Click **Print**. JeffDeck opens your system's print window, where you choose the printer and the number of copies.
+6. Under **Sides**, choose **Print on one side**, **Print on both sides, flip on long edge** (pages that turn like a book), or **Print on both sides, flip on short edge** (pages that turn like a notepad). They are dimmed when your printer can't print on both sides. Point at one to see why.
+7. Click **Print**. JeffDeck opens your system's print window, where you choose the printer and the number of copies. The window starts with your choice of sides. A PDF file made from that window has no sides.
 
 The preview on the right shows each page that will come out, with arrows to move from page to page. It is drawn the same way the page is printed. JeffDeck remembers your choices for next time.
 
