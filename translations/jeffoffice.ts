@@ -6855,7 +6855,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+64"/>
-        <source>SmartArt diagrams are saved as pictures: their parts can&apos;t be edited in this kind of file.</source>
+        <source>Diagrams are saved as pictures: their parts can&apos;t be edited in this kind of file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

@@ -6880,8 +6880,8 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     </message>
     <message>
         <location line="+64"/>
-        <source>SmartArt diagrams are saved as pictures: their parts can&apos;t be edited in this kind of file.</source>
-        <translation type="unfinished">Os diagramas SmartArt são guardados como imagens: as respetivas partes não podem ser editadas neste tipo de ficheiro.</translation>
+        <source>Diagrams are saved as pictures: their parts can&apos;t be edited in this kind of file.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>

@@ -472,12 +472,12 @@ private Q_SLOTS:
         }
     }
 
-    // A diagram (SmartArt) is a picture of its drawing, whose letters are outlines: the PDF has its words as text too, and the picture itself looks as
+    // A diagram is a picture of its drawing, whose letters are outlines: the PDF has its words as text too, and the picture itself looks as
     // it did (what says the words draws nothing: the picture without any text element is the same pixels).
     void exportPdfCarriesTheTextOfADiagram()
     {
         QString err;
-        auto d = deck::importPresentation(pack(smartArtPptx()), &err);
+        auto d = deck::importPresentation(pack(diagramPptx()), &err);
         QVERIFY2(d, qPrintable(err));
         const QByteArray pdf = pdfOf(*d, &err);
         QVERIFY2(!pdf.isEmpty(), qPrintable(err));
@@ -508,7 +508,7 @@ private Q_SLOTS:
     {
         QString err;
         auto picture = [&](const QString &defaultFont) {
-            Parts p = smartArtPptx();
+            Parts p = diagramPptx();
             QString pres = QString::fromUtf8(p.data["/ppt/presentation.xml"].xml);
             if (defaultFont != QLatin1String("+mn-lt")) pres.replace(QStringLiteral("<a:latin typeface=\"+mn-lt\"/>"), QStringLiteral("<a:latin typeface=\"%1\"/>").arg(defaultFont));
             p.data["/ppt/presentation.xml"].xml = pres.toUtf8();

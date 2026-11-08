@@ -193,7 +193,7 @@
  },
  {
   "app": "jeffdeck",
-  "source_startswith": "SmartArt drawn from the drawing a file keeps",
+  "source_startswith": "Diagrams drawn from the drawing a file keeps",
   "works": "Diagrams in a file are drawn from the drawing the file keeps and are written back as they were.",
   "soon": "Editing diagrams"
  },
@@ -440,7 +440,7 @@
  },
  {
   "app": "jeffcrunch",
-  "source_startswith": "SmartArt Design and Format",
+  "source_startswith": "Diagram Design and Format",
   "works": "Diagrams in a file are kept as saved.",
   "soon": "Diagrams: choose layouts, change colors, and edit text"
  },

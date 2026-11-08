@@ -223,7 +223,7 @@ The main window, then reading a message, then writing one. Everything that file,
 - [~] **1.0** Icons from the suite's open icon set *(shared: JeffPub's icon picker)*
 - [ ] **1.0** Quick Parts and AutoText: reusable pieces of text and layout, saved from a selection *(shared: the building-blocks gallery, to be built once)*
 - [ ] **1.0** Strip location and camera data from attached pictures, and hidden data from attached Office files, before sending, after asking
-- [ ] **later** Shapes, charts, SmartArt, equations, and 3-D models are inserted as pictures that look the same everywhere, not as live objects
+- [ ] **later** Shapes, charts, diagrams, equations, and 3-D models are inserted as pictures that look the same everywhere, not as live objects
 - [ ] **later** Screenshot and Screen Clipping, where the system allows the program to capture the screen
 - [ ] **later** Text boxes inserted as a bordered table cell, which is how other mail programs show them
 - [ ] **later** Draw tab: pens and highlighters, kept as a picture *(shared: the ink layer, to be built)*

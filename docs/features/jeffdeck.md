@@ -19,7 +19,7 @@ There is no "first release" tier here, because JeffDeck already shipped. Version
 
 How the evidence reads. A count reads "ours 4 of 19": the number of decks among our 19 real `.pptx` files that use the feature. Our reference collection is 54 real presentations (1,028 slides: 35 old `.ppt` and 19 `.pptx`) plus 10 built-in designs; the 64 are the ones every score below is measured on. Only the `.pptx` were counted, by reading their XML (390 slides); the `.ppt` are binary and were not, and the held-out test set was not opened. Nothing is counted yet for public presentations: the 40 old `.ppt` files from the U.S. government collection Govdocs1 were used only to measure fidelity, so **public** figures do not exist yet. Four cautions:
 
-- The collection is old. 52 of the 54 real presentations are 4:3 (the other two are 16:9), 12 of the 19 `.pptx` have speaker notes, and almost none use the newer features (SmartArt, equations, sections, comments, custom shows, embedded fonts, and macros all read 0 of 19). A zero here means "not in the sample", not "nobody uses it".
+- The collection is old. 52 of the 54 real presentations are 4:3 (the other two are 16:9), 12 of the 19 `.pptx` have speaker notes, and almost none use the newer features (diagrams, equations, sections, comments, custom shows, embedded fonts, and macros all read 0 of 19). A zero here means "not in the sample", not "nobody uses it".
 - Counts of a feature are decks, not occurrences: "ours 3 of 19" means 3 decks, and the item says how many uses when that helps. Where a count could be thrown off (for example, an old `.ppt` that PowerPoint converted writes empty timing parts), the item says which figure is trusted.
 - Slides, not presentations, are the unit of the fidelity scores; the two are kept apart below.
 - The README's "Not yet in the preview" list is older than the code in places: it still names text shrunk to fit its box, a picture's brightness and contrast, and some text shadows as gaps, and recent work on all three is in the tests (see Fidelity and testing). This list follows the code.
@@ -31,7 +31,7 @@ What JeffDeck offers that the original doesn't, then the plans that go past Powe
 - [x] **1.0** Runs on Linux and Windows, where PowerPoint ran only on Windows and Mac, and on macOS as the rest of the suite does *(shared: the suite's builds, installers, and AppImage; the Mac app is unsigned, so macOS asks before opening it the first time)*
 - [x] **1.0** Free and open source (GPL-3.0): no license fee, no subscription, no account or sign-in, nothing that has to be online
 - [x] **1.0** Installs without administrator rights, or runs with no installation (Windows `.zip`, Linux AppImage) *(shared: the suite's packaging)*
-- [x] **1.0** Nothing in a file is lost: what JeffDeck can't edit yet (charts, SmartArt diagrams, equations, animation effects it has no form for, transition effects it has no form for, and parts it doesn't know) is kept with its slide and written back whole; a duplicated slide keeps them too
+- [x] **1.0** Nothing in a file is lost: what JeffDeck can't edit yet (charts, diagrams, equations, animation effects it has no form for, transition effects it has no form for, and parts it doesn't know) is kept with its slide and written back whole; a duplicated slide keeps them too
 - [x] **1.0** Bundled open fonts, with stand-ins that keep the widths of Calibri, Arial, and the other common fonts, so a slide wraps where the original wraps on a computer without Microsoft's fonts
 - [x] **1.0** Embedded fonts that cannot clash: a saved `.pptx` carries the bundled fonts its text uses (never a font everyone has, never one whose license forbids it), and the fonts a file carries are used only while that presentation is open, under private names, so they never replace another presentation's font
 - [x] **1.0** Nine original themes (JeffOffice, Harbor, Ember, Almanac, Confetti, Granite, Orchard, Marquee, and Tideline), each with four variants, drawn by JeffOffice, with no Microsoft artwork
@@ -169,7 +169,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [ ] **later** Left-to-right and right-to-left paragraph buttons *(the shared editor can set a paragraph's reading direction; the ribbon has no button; ours 0 of 19)*
 - [x] **1.0** Align Text to the top, middle, or bottom of its box
 - [~] **1.0** Text fit: text too long for its placeholder shrinks to fit, and a file's saved fit is drawn exactly as the original draws it *(shrink on overflow: ours 14 of 19, and a shape that grows to its text 16 of 19; there is no choice between Do Not Autofit, Shrink Text on Overflow, and Resize Shape to Fit Text, and no text margins or wrap choice)*
-- [ ] **later** Convert to SmartArt
+- [ ] **later** Convert to Diagram
 
 ### Drawing
 - [x] **1.0** The Shapes gallery: lines, arrows, elbow and curved connectors, curves, freehand drawing, and shapes sorted by kind (also on Insert) *(preset shapes: ours 19 of 19; freeform 3; connectors 8)*
@@ -211,7 +211,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 ### Illustrations
 - [x] **1.0** Shapes (see Home), and Icons (see Beyond PowerPoint)
 - [ ] **1.0** Chart: the gallery of types (column, bar, line, pie, doughnut, area, scatter, and the rest) and a small data grid that fills it *(a chart in a file is drawn from its saved values and kept whole; creating and editing one is not there; charts: ours 1 of 19, 5 charts)*
-- [ ] **later** SmartArt: the gallery of layouts and a text pane, with the diagram laid out again as the text changes *(a diagram in a file is drawn from the drawing it saved and kept whole; ours 0 of 19; see the open questions)*
+- [ ] **later** Diagrams: the gallery of layouts and a text pane, with the diagram laid out again as the text changes *(a diagram in a file is drawn from the drawing it saved and kept whole; ours 0 of 19; see the open questions)*
 - [ ] **later** 3D Models: a model kept and shown, and turned in the show *(ours 0 of 19)*
 
 ### Links
@@ -303,7 +303,7 @@ PowerPoint's Draw tab is for ink on slides while editing. JeffDeck has ink only 
 - [ ] **1.0** Triggers: start an effect when a named shape is clicked, and when a movie bookmark is reached *(read and kept; not played, not made; ours: triggers 0 of 19)*
 - [ ] **later** Effects that change a color (Object Color, Complementary Color, Line Color, Fill Color, Font Color, and the color choices of Effect Options): kept and not played
 - [ ] **later** Sounds on effects, After Animation (dim, hide on the next click), and Animate Text by word or by letter *(sounds and color changes are kept as the file has them)*
-- [ ] **later** Build chart elements by series or category, and SmartArt by level
+- [ ] **later** Build chart elements by series or category, and diagrams by level
 - [ ] **later** Effect Options > Change Animation and Build Order changes after the first choice
 - [ ] **later** Physics-based effects: an object falls, bounces, and settles, or swings, with gravity and bounce you can set
 
@@ -415,7 +415,7 @@ These tabs are shown while something is selected. JeffDeck has Playback (while a
 - [ ] **later** Artistic Effects (blur, pencil sketch, paint, and the rest) *(a picture's blur and fill overlay are neither drawn nor saved yet)*
 - [ ] **later** Compress Pictures: a resolution for screen, print, or email, and delete the cropped areas
 - [ ] **later** Remove Background: mark areas to keep and remove
-- [ ] **later** Picture Layout: turn pictures into SmartArt
+- [ ] **later** Picture Layout: turn pictures into a diagram
 - [ ] **later** Graphics Format for icons and SVG pictures: Graphics Fill, Outline, and Effects, Change Graphic, and Convert to Shape *(an icon takes the theme's text color today)*
 - [x] **1.0** Resize a picture at a corner to keep its proportions, Shift to stretch it freely, turn it by its handle, and drop one picture on another to swap them (Ctrl to copy)
 
@@ -439,10 +439,10 @@ These tabs are shown while something is selected. JeffDeck has Playback (while a
 - [ ] **later** Combination charts, 3-D charts, stock, surface, radar, treemap, sunburst, histogram, box and whisker, waterfall, and funnel charts *(read and kept; drawing the rarer types and editing them follow)*
 - [ ] **later** Chart Elements, Chart Styles, and Chart Filters buttons beside the chart
 
-### SmartArt Design and Format (diagrams)
-- [x] **1.0** A SmartArt diagram in a file is drawn from the drawing it saved, treated as one object (selected, moved, resized, copied, and deleted as a whole), printed as vectors, and saved whole with all its parts, so the program that made it can still edit it *(ours 0 of 19)*
-- [ ] **later** Edit the text of a diagram, and add, remove, promote, and demote shapes, with the diagram laid out again *(needs a layout engine for the layouts SmartArt uses; see the open questions)*
-- [ ] **later** Layouts, Change Colors, SmartArt Styles, Reset Graphic, and Convert to Text or Shapes
+### Diagram Design and Format
+- [x] **1.0** A diagram in a file is drawn from the drawing it saved, treated as one object (selected, moved, resized, copied, and deleted as a whole), printed as vectors, and saved whole with all its parts, so the program that made it can still edit it *(ours 0 of 19)*
+- [ ] **later** Edit the text of a diagram, and add, remove, promote, and demote shapes, with the diagram laid out again *(needs a layout engine for the layouts diagrams use; see the open questions)*
+- [ ] **later** Layouts, Change Colors, Diagram Styles, Reset Graphic, and Convert to Text or Shapes
 - [ ] **later** A diagram with no saved drawing is drawn *(left unread today, since the file gave nothing to draw; the layout engine would draw it)*
 
 ### Video, Audio, and Playback (movies and sounds)
@@ -462,7 +462,7 @@ These tabs are shown while something is selected. JeffDeck has Playback (while a
 ### Slide Master, Handout Master, and Notes Master views
 - [x] **1.0** (needed to drop Preview) Slide Master view: the master and each layout opened and edited like slides, with a pane of them *(the pane lists each slide master with its layouts under it; what is changed on a master or layout reaches the layouts and slides that followed it, in the same step that undoes; .pptx keeps every master and layout, .odp the master pages and the layouts slides use)*
 - [x] **1.0** (needed to drop Preview) Edit Master: Insert Slide Master, Insert Layout, Delete, Rename, and Preserve; more than one master per file *(Delete says why when slides use the master or layout, and keeps the last master and each master's last layout; more than one master: ours 2 of 19; 234 layouts in 21 masters across the 19 .pptx)*
-- [x] **1.0** (needed to drop Preview) Master Layout and Insert Placeholder: which placeholders a layout has and where (title, text, content, picture, chart, table, media, online image, date, footer, and slide number), and Title and Footers check boxes *(a diagram place waits for SmartArt editing)*
+- [x] **1.0** (needed to drop Preview) Master Layout and Insert Placeholder: which placeholders a layout has and where (title, text, content, picture, chart, table, media, online image, date, footer, and slide number), and Title and Footers check boxes *(a diagram place waits for diagram editing)*
 - [~] **1.0** (needed to drop Preview) Edit the master's text styles: each level's bullet, font, size, color, indent, and spacing *(the text of the master's placeholders is edited with the Home tab's tools, and what a level looks like reaches the layouts and slides that had it; the lines of a new presentation's master all stand at the first level, so they share one style)*
 - [x] **1.0** (needed to drop Preview) Draw shapes and pictures on a master or a layout (a logo, a band, a line), and Hide Background Graphics on a slide *(Hide Background Graphics is on the Slide Master tab for a layout and in Format Background for a slide, and is saved)*
 - [~] **1.0** Edit Theme and Background groups in master view: Themes, Colors, Fonts, Effects, Background Styles, and Slide Size *(the Design tab's, changing the whole presentation; Effects is on the tab but not available; see Design)*
@@ -493,7 +493,7 @@ JeffDeck has right-click menus in the slides pane, the Slide Sorter, and the sho
 - [x] **1.0** Picture color changes drawn as the original draws them, in the order a file lists them (brightness and contrast, gray, black and white from a threshold, a color made clear or changed, one color for all, a duotone, a turned hue, and a tint), on pictures, picture fills, and backgrounds
 - [~] **1.0** Cropped pictures, flips, and turns *(drawn and saved; a picture turned over is written as a half turn and a mirror in an `.odp`)*
 - [x] **1.0** Charts drawn from their saved values as vectors (column, bar, line, pie, doughnut, area, and scatter), with a limit on points a picture can hold that says so when it is passed
-- [x] **1.0** SmartArt drawn from the drawing a file keeps, once for every frame that shows it, with a limit on how many are drawn
+- [x] **1.0** Diagrams drawn from the drawing a file keeps, once for every frame that shows it, with a limit on how many are drawn
 - [x] **1.0** Equations shown as the picture the file keeps beside them; embedded objects shown as their saved picture
 - [~] **1.0** Tables: borders, fills, and text drawn from the file, and rows grown to their text *(table styles by id could not be confirmed; ours 3 of 19)*
 - [x] **1.0** Effects on letters (outer and inner shadows, a glow, and a reflection) drawn under the letters, read from the run and from the list styles, masters, and layouts it inherits from, and saved as listed
@@ -570,7 +570,7 @@ Reading it: on its own decks JeffDeck's mean and its share under 2 are already b
 - [~] **1.0** A picture's brightness and contrast, drawn as the original draws them *(the formulas are fitted to reference pictures and tested; the README still lists it as a gap; a picture's blur, alpha effects, and fill overlay are neither drawn nor saved yet)*
 - [~] **1.0** Text shadows, glows, and reflections *(drawn as the original draws them and tested; the README still lists shadows as a gap; soft edges on words, bevels, and 3-D turns are not drawn)*
 - [ ] **1.0** Charts compared with PowerPoint's picture of each, as JeffCrunch's will be *(charts: ours 1 of 19 decks; the check finds how many charts the 64 hold)*
-- [ ] **1.0** Tables, SmartArt diagrams, and equations compared with reference pictures the same way *(tables: ours 3 of 19; SmartArt 0; equations 0)*
+- [ ] **1.0** Tables, diagrams, and equations compared with reference pictures the same way *(tables: ours 3 of 19; diagrams 0; equations 0)*
 - [ ] **1.0** Notes pages, handouts, and the outline printed to PDF compared with reference PDFs of them *(only slides are measured now)*
 - [ ] **1.0** Animations and transitions compared with reference frames *(the score looks at a still of each slide; effects are checked by the tests, not against the reference)*
 - [ ] **1.0** A repeatable slide comparison anyone can run: the scoring of the 64 was done on the build machine, and `tools/fidelity.py` in this repository scores `.pub` files only; add the slide version, made from `jdecktool render` and reference pictures, and write the numbers into each release's notes
@@ -593,10 +593,10 @@ Suite-wide rules decided October 11, 2026 (see Decided): nothing in a file runs 
 What each format needs, to open, to save, and to come back unchanged. "Round trip" means open, save, and open again without a repair message or a visible change.
 
 ### PowerPoint `.pptx`, `.potx`, and `.ppsx` (Open XML)
-- [x] **1.0** Open `.pptx` from PowerPoint 2007 to 2021 and Microsoft 365 (Transitional, and the Strict form too): slide sizes, masters, layouts, slides, notes, themes, text and its lists, tables, pictures, shapes, charts, SmartArt drawings, equations, comments, sections, transitions, animations, movies and sounds, and fonts that a file carries (plain, or squeezed with MicroType Express), with limits on how much one file may ask for
+- [x] **1.0** Open `.pptx` from PowerPoint 2007 to 2021 and Microsoft 365 (Transitional, and the Strict form too): slide sizes, masters, layouts, slides, notes, themes, text and its lists, tables, pictures, shapes, charts, diagram drawings, equations, comments, sections, transitions, animations, movies and sounds, and fonts that a file carries (plain, or squeezed with MicroType Express), with limits on how much one file may ask for
 - [x] **1.0** Save `.pptx` as a complete package with its elements in the standard's order, the master's text styles and theme, and the effects the editor makes; all 64 reference presentations JeffDeck saved open without a repair message *(the 54 real ones, old `.ppt` among them, and the 10 designs)*
 - [x] **1.0** `.potx` and `.ppsx` open and save as the same format in its template and show forms; a file opened from a template is saved under a new name
-- [x] **1.0** Round trip keeps what JeffDeck can't edit: charts, SmartArt (links kept working when ids change), equations (both alternatives), animation effects it has no kind for, transition effects it has no form for, unread frames, and compatibility markup
+- [x] **1.0** Round trip keeps what JeffDeck can't edit: charts, diagrams (links kept working when ids change), equations (both alternatives), animation effects it has no kind for, transition effects it has no form for, unread frames, and compatibility markup
 - [~] **1.0** Round trip keeps custom XML, tags, drawing and control parts, the VBA project, and printer settings *(could not be confirmed one by one; custom XML in files: ours 1 of 19, drawing parts 1, tags 0, VBA 0)*
 - [x] **1.0** Fonts in saved files: the bundled fonts the text uses, all characters, as an uncompressed Embedded OpenType part, on by default; fonts drawn in place of common ones are written as the common name; a font a file carries that JeffDeck doesn't have is written back while the slides still use it
 - [ ] **1.0** Open and save `.pptm`, `.ppsm`, and `.potm`, keeping the macro project untouched and never running it *(ours 0 of 19)*
@@ -618,7 +618,7 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 - [x] **1.0** Open `.odp` and `.otp` (ODF 1.1 to 1.3, LibreOffice's and Apache OpenOffice's): sizes, masters, layouts, text and lists, objects, pictures, tables, charts (categories, series, scatter domains), and notes, with limits for hostile files
 - [ ] **1.0** Read back everything JeffDeck writes: animations, comments, custom shows, and the show settings are in the file but listed as left out on opening *(they are written and LibreOffice plays them)*
 - [x] **1.0** Save `.odp` and `.otp` as LibreOffice writes its own: a master page for each master and layout with graphics or a background, every slide with its objects, text with every property explicit, pictures, movies and sounds kept in the file, tables, notes, comments, transitions, animations, text shrunk to fit at the size it was shrunk to, footers, custom shows, and the show settings; LibreOffice opens all 64 reference presentations saved this way; a file opened as `.odp` is saved as `.odp`
-- [~] **1.0** What an `.odp` has no place for: charts, SmartArt diagrams, and equations are saved as the pictures JeffDeck shows; sections, reflections, bevels, inner shadows, glows and reflections on words, effects that wait for a click on an object (a movie's are kept), and color effects are left out, and the message after the save lists them
+- [~] **1.0** What an `.odp` has no place for: charts, diagrams, and equations are saved as the pictures JeffDeck shows; sections, reflections, bevels, inner shadows, glows and reflections on words, effects that wait for a click on an object (a movie's are kept), and color effects are left out, and the message after the save lists them
 - [ ] **later** Flat OpenDocument (`.fodp`)
 
 ### PDF, pictures, video, and web
@@ -638,7 +638,7 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 - [ ] **later** Copy and paste of slides and objects to and from other programs in their clipboard forms
 
 ### What must survive a round trip
-- [~] **1.0** A checklist for every format JeffDeck saves: slide size, masters, layouts, and themes; each slide's placeholders, text with its runs, lists, and fields; shapes, pictures, and their effects; tables, charts, SmartArt, and equations; notes and their master; comments with replies; sections; hidden slides; transitions and animations with their timing; movies and sounds with their trim and volume; custom shows and show settings; headers and footers; fonts; alt text; and the document's properties *(most are tested one by one; properties, alt text, and a notes master could not be confirmed)*
+- [~] **1.0** A checklist for every format JeffDeck saves: slide size, masters, layouts, and themes; each slide's placeholders, text with its runs, lists, and fields; shapes, pictures, and their effects; tables, charts, diagrams, and equations; notes and their master; comments with replies; sections; hidden slides; transitions and animations with their timing; movies and sounds with their trim and volume; custom shows and show settings; headers and footers; fonts; alt text; and the document's properties *(most are tested one by one; properties, alt text, and a notes master could not be confirmed)*
 
 ### Keynote `.key` (Apple's iWork)
 
@@ -679,7 +679,7 @@ What JeffDeck builds on, and the pieces to build once so that JeffWrite, JeffCru
 - [ ] **later** An equation editor and layout for Office Math and MathML *(needed by: JeffWrite, JeffDeck, JeffCrunch)*
 - [ ] **later** Embedded worksheets: Insert > Object in JeffDeck shows the saved picture and opens in JeffCrunch's grid in place *(needed by: JeffCrunch, JeffWrite, JeffDeck)*
 - [ ] **later** An ink layer (pens, highlighter, eraser, ink to shape) built on the slide show's pen *(needed by: JeffWrite, JeffDeck, JeffCrunch)*
-- [ ] **later** A SmartArt layout engine, to edit a diagram and to draw one a file saved without a drawing *(needed by: JeffDeck, JeffWrite)*
+- [ ] **later** A diagram layout engine, to edit a diagram and to draw one a file saved without a drawing *(needed by: JeffDeck, JeffWrite)*
 - [ ] **later** Capture from the microphone, the camera, and the screen, for Record Slide Show, Record Audio, and Screen Recording *(needed by: JeffDeck)*
 - [ ] **later** A movie encoder for video export *(needed by: JeffDeck; see the open questions)*
 
@@ -695,7 +695,7 @@ Not planned, because they only work with an online service or a product JeffOffi
 
 ## Open questions
 
-1. SmartArt: does editing a diagram's text have to be in 1.0, or are showing, keeping, and moving one enough to drop the Preview label? Editing needs a layout engine for hundreds of layouts, and none of our 19 real `.pptx` has a diagram.
+1. Diagrams: does editing a diagram's text have to be in 1.0, or are showing, keeping, and moving one enough to drop the Preview label? Editing needs a layout engine for hundreds of layouts, and none of our 19 real `.pptx` has a diagram.
 2. Charts: does JeffDeck wait for the shared chart editor and JeffCrunch's grid, or ship a smaller chart editor of its own first?
 3. The fidelity bar for dropping Preview: JeffPub's numbers on the 64 reference decks, and what share under 2 on files it was never tuned on (57% now on the 40 old `.ppt` files)?
 4. Which transitions and effects make 1.0: the 2007 set (about 30 transitions and 3 dozen effects), or all of the original's roughly 50 transitions and 150 effects?

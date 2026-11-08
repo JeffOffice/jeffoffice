@@ -6880,8 +6880,8 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     </message>
     <message>
         <location line="+64"/>
-        <source>SmartArt diagrams are saved as pictures: their parts can&apos;t be edited in this kind of file.</source>
-        <translation type="unfinished">I diagrammi SmartArt vengono salvati come immagini: le loro parti non sono modificabili in questo tipo di file.</translation>
+        <source>Diagrams are saved as pictures: their parts can&apos;t be edited in this kind of file.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>

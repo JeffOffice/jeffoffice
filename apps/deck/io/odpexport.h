@@ -27,7 +27,7 @@
 // a master's text styles never changes what a slide shows; the master's own
 // are written too, for text typed later.
 //
-// What ODF has no form for is left out, and `skipped` says so: SmartArt
+// What ODF has no form for is left out, and `skipped` says so: diagrams
 // diagrams, charts, and equations are written as the pictures JeffDeck shows
 // (they are pictures to it too), frames that were never read, effects of
 // light and depth (reflection, bevel, turned-in-space), sections, and the

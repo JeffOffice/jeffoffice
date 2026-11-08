@@ -25,7 +25,7 @@ namespace jp::office {
 namespace {
 
 constexpr int kMaxGroupDepth = 64;
-// The drawing a diagram (SmartArt) keeps beside its data: shapes like a slide's, in this namespace.
+// The drawing a diagram keeps beside its data: shapes like a slide's, in this namespace.
 constexpr QLatin1String kDsp("http://schemas.microsoft.com/office/drawing/2008/diagram");
 constexpr int kMaxShapes = 10000;
 constexpr double kMaxPoint = 1e6;     // points: the farthest a position or a size is taken to be

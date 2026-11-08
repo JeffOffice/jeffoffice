@@ -1144,7 +1144,7 @@ QByteArray diagramDrawing()
             + QStringLiteral("</dsp:spTree></dsp:drawing>")).toUtf8();
 }
 
-Parts smartArtPptx(bool alone, bool withDrawing)
+Parts diagramPptx(bool alone, bool withDrawing)
 {
     Parts p = samplePptx();
     const QString slide = QStringLiteral("/ppt/slides/slide1.xml");

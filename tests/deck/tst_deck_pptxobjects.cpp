@@ -84,12 +84,12 @@ private:
     }
 
 private Q_SLOTS:
-    // A diagram (SmartArt) on a slide is a picture of its drawing (an SVG, drawn from the shapes the drawing part holds, in the frame's place), and
+    // A diagram on a slide is a picture of its drawing (an SVG, drawn from the shapes the drawing part holds, in the frame's place), and
     // what it is made of (the data, layout, style, and colors, the drawing, and the pictures in it) is kept with the slide to be written back.
     void importReadsDiagramsAsPictures()
     {
         QString err;
-        auto d = deck::importPresentation(pack(smartArtPptx()), &err);
+        auto d = deck::importPresentation(pack(diagramPptx()), &err);
         QVERIFY2(d, qPrintable(err));
         const Page &page = *d->pages[0];
         const PictureItem *pic = keptPicture(*d, page, QStringLiteral("diagram"));
@@ -129,7 +129,7 @@ private Q_SLOTS:
         QString why;
         QVERIFY2(office::parseXml(kept.value(QStringLiteral("frameXml")).toString().toUtf8(), &dom, &why), qPrintable(why));
         QVERIFY(office::isElement(dom.documentElement(), office::ns::P, QStringLiteral("graphicFrame")));
-        const Parts source = smartArtPptx();
+        const Parts source = diagramPptx();
         const QJsonObject parts = kept.value(QStringLiteral("parts")).toObject();
         QCOMPARE(parts.keys(), (QStringList{"/ppt/diagrams/colors1.xml", "/ppt/diagrams/data1.xml", "/ppt/diagrams/drawing1.xml", "/ppt/diagrams/layout1.xml", "/ppt/diagrams/quickStyle1.xml", "/ppt/media/diagram1.png"}));
         for (const QString &name : parts.keys()) {
@@ -149,20 +149,20 @@ private Q_SLOTS:
     void importLeavesADiagramWithoutADrawingUnread()
     {
         QString err;
-        auto d = deck::importPresentation(pack(smartArtPptx(false, false)), &err);
+        auto d = deck::importPresentation(pack(diagramPptx(false, false)), &err);
         QVERIFY2(d, qPrintable(err));
         QVERIFY(!keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
         QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("unread")).toArray().size()), 2);
         QCOMPARE(int(d->pages[0]->items.size()), readerReadsPictures() ? 6 : 5);
         // A drawing that isn't a drawing, or has no shapes to draw from, is the same.
-        Parts p = smartArtPptx();
+        Parts p = diagramPptx();
         p.data["/ppt/diagrams/drawing1.xml"].xml = "<dsp:other xmlns:dsp=\"http://schemas.microsoft.com/office/drawing/2008/diagram\"/>";
         d = deck::importPresentation(pack(p), &err);
         QVERIFY2(d, qPrintable(err));
         QVERIFY(!keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
         QCOMPARE(int(d->pages[0]->props.value(QStringLiteral("unread")).toArray().size()), 2);
         // A diagram whose data part is gone from the file is the same.
-        p = smartArtPptx();
+        p = diagramPptx();
         p.data.remove(QStringLiteral("/ppt/diagrams/data1.xml"));
         d = deck::importPresentation(pack(p), &err);
         QVERIFY2(d, qPrintable(err));
@@ -174,7 +174,7 @@ private Q_SLOTS:
     {
         QMap<QString, QByteArray> zip;
         QString err;
-        QVERIFY2(readZip(pack(smartArtPptx()), zip, &err), qPrintable(err));
+        QVERIFY2(readZip(pack(diagramPptx()), zip, &err), qPrintable(err));
         QString slide = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/slide1.xml")));
         const int at = int(slide.indexOf(QStringLiteral("<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"9\"")));
         const int end = int(slide.indexOf(QStringLiteral("</p:graphicFrame>"), at)) + 17;
@@ -207,7 +207,7 @@ private Q_SLOTS:
     // kept as an SVG, and a package may name thousands of parts that each hold one).
     void importLimitsTheDiagramsItDraws()
     {
-        const Parts base = smartArtPptx(true);
+        const Parts base = diagramPptx(true);
         QMap<QString, QByteArray> zip;
         QString err;
         QVERIFY2(readZip(pack(base), zip, &err), qPrintable(err));
@@ -256,7 +256,7 @@ private Q_SLOTS:
     // under the ids the file gave them (so what names them, the frame and the data part, is as it was).
     void exportWritesTheKeptDiagramParts()
     {
-        const Parts source = smartArtPptx(true);
+        const Parts source = diagramPptx(true);
         QString err;
         auto d = deck::importPresentation(pack(source), &err);
         QVERIFY2(d, qPrintable(err));
@@ -314,7 +314,7 @@ private Q_SLOTS:
     // nothing else in the data part changes.
     void exportKeepsDiagramLinksWorkingWhenTheirIdsChange()
     {
-        const Parts source = smartArtPptx();
+        const Parts source = diagramPptx();
         QString err;
         auto d = deck::importPresentation(pack(source), &err);
         QVERIFY2(d, qPrintable(err));
@@ -351,7 +351,7 @@ private Q_SLOTS:
     void exportPlacesAndDropsDiagrams()
     {
         QString err;
-        auto d = deck::importPresentation(pack(smartArtPptx(true)), &err);
+        auto d = deck::importPresentation(pack(diagramPptx(true)), &err);
         QVERIFY2(d, qPrintable(err));
         auto *pic = const_cast<PictureItem *>(keptPicture(*d, *d->pages[0], QStringLiteral("diagram")));
         QVERIFY(pic);
@@ -389,7 +389,7 @@ private Q_SLOTS:
     void exportDropsTheHyperlinksOfADiagramFrame()
     {
         QString err;
-        Parts p = smartArtPptx(true);
+        Parts p = diagramPptx(true);
         QString slide = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
         slide.replace(QStringLiteral("<p:cNvPr id=\"9\" name=\"Diagram 8\" descr=\"A process\"/>"), QStringLiteral("<p:cNvPr id=\"9\" name=\"Diagram 8\" descr=\"A process\"><a:hlinkClick r:id=\"rId7\"/></p:cNvPr>"));
         p.data["/ppt/slides/slide1.xml"].xml = slide.toUtf8();
@@ -408,7 +408,7 @@ private Q_SLOTS:
     void exportKeepsTheFrameOfAnUnmovedDiagramAsItWas()
     {
         QString err;
-        Parts p = smartArtPptx(true);
+        Parts p = diagramPptx(true);
         // A frame larger than a slide can be is drawn at the largest size, and written as it was while it isn't moved or resized.
         QString slide = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
         slide.replace(QStringLiteral("<a:off x=\"914400\" y=\"914400\"/><a:ext cx=\"3657600\" cy=\"1828800\"/>"), QStringLiteral("<a:off x=\"-914400\" y=\"914400\"/><a:ext cx=\"60000000\" cy=\"1828800\"/>"));
@@ -435,7 +435,7 @@ private Q_SLOTS:
     void duplicatedSlideKeepsItsDiagram()
     {
         QString err;
-        auto d = deck::importPresentation(pack(smartArtPptx()), &err);
+        auto d = deck::importPresentation(pack(diagramPptx()), &err);
         QVERIFY2(d, qPrintable(err));
         QCOMPARE(deck::duplicateSlide(*d, 0), 1);
         QVERIFY(keptPicture(*d, *d->pages[1], QStringLiteral("diagram")));
@@ -455,7 +455,7 @@ private Q_SLOTS:
     void diagramsSurviveAnotherRoundTrip()
     {
         QString err;
-        auto d = deck::importPresentation(pack(smartArtPptx()), &err);
+        auto d = deck::importPresentation(pack(diagramPptx()), &err);
         QVERIFY2(d, qPrintable(err));
         const QByteArray bytes = deck::exportPresentation(*d, &err);
         QVERIFY2(!bytes.isEmpty(), qPrintable(err));

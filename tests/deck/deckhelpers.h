@@ -419,11 +419,11 @@ QString diagramPlace(qint64 x, qint64 y, qint64 cx, qint64 cy);
 // The diagram's drawing: three shapes (a rectangle in the theme's first accent color, a rounded one with its text inset, a rectangle filled with a
 // picture of the drawing part's own), in the space of the frame, which is 3657600 by 1828800.
 QByteArray diagramDrawing();
-// The sample presentation with a diagram (SmartArt) on its first slide, as the presentation program writes one: the frame names the diagram's
+// The sample presentation with a diagram on its first slide, as the presentation program writes one: the frame names the diagram's
 // data, layout, quick style, and colors by the slide's links to them; the slide also links to the drawing part (the shapes as they were
 // drawn), which the data part names by that link's id (dsp:dataModelExt). `alone`: the slide has nothing else, so the links
 // are numbered as the presentation program numbers them (the layout 1, the data 2, and on to the drawing's 6).
-Parts smartArtPptx(bool alone = false, bool withDrawing = true);
+Parts diagramPptx(bool alone = false, bool withDrawing = true);
 // The picture a kept frame of one kind ("diagram", "equation") is on the slide: the one the slide's kept frames of that kind name.
 const PictureItem *keptPicture(const Document &d, const Page &page, const QString &kind);
 // The place an a:xfrm (or p:xfrm) says, in EMU: x, y, cx, cy.

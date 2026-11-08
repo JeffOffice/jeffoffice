@@ -34,7 +34,7 @@ The file you work on is called a **presentation**. It is a set of **slides**. Je
 
 **What does not work yet**
 
-- You can't add or edit charts, SmartArt diagrams, or equations. If a file has them, JeffDeck shows them and keeps them.
+- You can't add or edit charts, diagrams, or equations. If a file has them, JeffDeck shows them and keeps them.
 - Animations that start when you click an object, animations with sounds, and color animations are not available. If a file has them, JeffDeck keeps them.
 - Some slides look a little different from the way the original program draws them.
 

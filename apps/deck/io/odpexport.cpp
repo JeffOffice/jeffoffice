@@ -851,7 +851,7 @@ void Exporter::writeSlide(X &x, int index)
     // What this kind of file holds as a picture only.
     for (const QJsonValue &v : page.props.value(QStringLiteral("charts")).toArray()) {
         const QString kind = v.toObject().value(QStringLiteral("kind")).toString();
-        if (kind == QLatin1String("diagram")) sayOnce(QStringLiteral("diagram"), QCoreApplication::translate("OdpExport", "SmartArt diagrams are saved as pictures: their parts can't be edited in this kind of file."));
+        if (kind == QLatin1String("diagram")) sayOnce(QStringLiteral("diagram"), QCoreApplication::translate("OdpExport", "diagrams are saved as pictures: their parts can't be edited in this kind of file."));
         else if (kind == QLatin1String("equation")) sayOnce(QStringLiteral("equation"), QCoreApplication::translate("OdpExport", "Equations are saved as pictures."));
         else sayOnce(QStringLiteral("chart"), QCoreApplication::translate("OdpExport", "Charts are saved as pictures: their data can't be edited in this kind of file."));
     }

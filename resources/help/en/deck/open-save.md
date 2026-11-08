@@ -91,7 +91,7 @@ JeffDeck itself doesn't read animations, comments, custom shows, or the show set
 
 An .odp file has no place for a few things. JeffDeck lists them after the save, in the message at the bottom of the window:
 
-- **Charts, SmartArt diagrams, and equations** are saved as pictures. You can see them, but you can't edit their numbers or parts in the .odp file.
+- **Charts, diagrams, and equations** are saved as pictures. You can see them, but you can't edit their numbers or parts in the .odp file.
 - **Sections** are not saved.
 - **Bevels and inner shadows** are left out, and so are glows and reflections on words. A shadow on words is kept. A reflection on a shape, a line with a gradient, a line of two or three strokes, and a shadow's size are kept in a way only JeffDeck reads. Another program shows the shape without the reflection, the line in its first color, a single stroke, and the shadow at the object's size.
 - **Animation effects** that start when you click an object, and effects that change a color, are left out. A click on a movie, to pause it or play it again, is kept.
@@ -101,7 +101,7 @@ Keep your .pptx file too, if you need these things back.
 
 ## What is kept but not shown
 
-Some parts of a file are things JeffDeck can't show or change yet. It keeps them with their slides and writes them back when you save, so they are not lost. They include animations, which play in the show, movies and sounds, which don't play yet, and a transition effect JeffDeck has no form for, which plays as a fade. Charts and SmartArt diagrams show as they were saved. See [Welcome to JeffDeck](start).
+Some parts of a file are things JeffDeck can't show or change yet. It keeps them with their slides and writes them back when you save, so they are not lost. They include animations, which play in the show, movies and sounds, which don't play yet, and a transition effect JeffDeck has no form for, which plays as a fade. Charts and diagrams show as they were saved. See [Welcome to JeffDeck](start).
 
 ## Related
 

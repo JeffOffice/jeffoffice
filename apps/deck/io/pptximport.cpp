@@ -1366,7 +1366,7 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     return true;
 }
 
-// A frame that holds a diagram (SmartArt): a picture of its drawing in the frame's place. The drawing is the shapes the presentation program drew the
+// A frame that holds a diagram: a picture of its drawing in the frame's place. The drawing is the shapes the presentation program drew the
 // diagram with, set as slide shapes are and kept as an SVG (a picture that is printed as vectors, and drawn on screen at three pixels to the point).
 // What the diagram is made of is kept in the page's "charts", with the picture's id: the frame as written, the slide's links to its four parts and
 // its drawing, and the parts down to the pictures in the drawing, so saving writes the diagram itself again. A frame with no drawing (an older
