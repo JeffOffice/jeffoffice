@@ -9,7 +9,9 @@ class QWidget;
 
 namespace jp {
 
-// As readPictureFile (core/document.h); false too when the person cancels the password.
-bool readPictureFileAsking(QWidget *parent, const QString &path, int pdfPage, QByteArray *bytes, QString *format, QSize *pixels, QByteArray *fileHash = nullptr);
+// As readPictureFile (core/document.h); false too when the person cancels the password. `asksNotToBeCopied` says the PDF's owner asks that it not be copied (it is read
+// all the same: the limit is a request, and the caller shows a note).
+bool readPictureFileAsking(QWidget *parent, const QString &path, int pdfPage, QByteArray *bytes, QString *format, QSize *pixels, QByteArray *fileHash = nullptr,
+                           bool *asksNotToBeCopied = nullptr);
 
 } // namespace jp

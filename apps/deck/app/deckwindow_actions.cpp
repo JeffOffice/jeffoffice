@@ -26,6 +26,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QStandardPaths>
+#include <QStatusBar>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextList>
@@ -345,7 +346,9 @@ bool DeckWindow::insertPicture(const QString &path, const QPointF &at, const QSt
     QByteArray bytes = readPictureBytes(path);
     QString format;
     QSize pixels;
-    if (bytes.isEmpty() || !readPictureFileAsking(this, path, 0, &bytes, &format, &pixels)) return false;
+    bool asksNotToBeCopied = false;
+    if (bytes.isEmpty() || !readPictureFileAsking(this, path, 0, &bytes, &format, &pixels, nullptr, &asksNotToBeCopied)) return false;
+    if (asksNotToBeCopied) statusBar()->showMessage(tr("%1 asks not to be copied. It is placed all the same.").arg(QFileInfo(path).fileName()), 8000);
     Document *d = m_ed->doc();
     const QSizeF ps = d->pageSize();
     // Its pixels at 96 to the inch, no larger than most of the slide.

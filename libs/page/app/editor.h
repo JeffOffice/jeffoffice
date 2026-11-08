@@ -10,6 +10,8 @@
 #include <QObject>
 #include <QTextCursor>
 #include <QTimer>
+
+class QWidget;
 #include <QUndoStack>
 #include <functional>
 #include <optional>
@@ -225,8 +227,11 @@ public:
     void selectRecipients(const MergeSource &list);
     // Pictures linked to their files (Graphics Manager). Each is one undo
     // step and says why in the status bar when it can't be done.
-    bool updateLink(const QString &pictureId);      // reads the file again (every picture with this link follows)
-    bool changeLink(const QString &pictureId, const QString &path, int pdfPage = 0);   // links the picture to another file
+    // Reads the file again (every picture with this link follows). `askParent`: the window to ask the password of a PDF that has one from (none: it is not asked, and the
+    // link stays as it was); the person asks for this, so it may ask.
+    bool updateLink(const QString &pictureId, QWidget *askParent = nullptr);
+    // Links the picture to another file. `pdfPassword`: the password of a PDF already asked for (else `askParent`, as above, asks).
+    bool changeLink(const QString &pictureId, const QString &path, int pdfPage = 0, QWidget *askParent = nullptr, const QString &pdfPassword = QString());
     bool embedPicture(const QString &pictureId);    // a stored copy in place of the link
     void linkFrames(const QString &from, const QString &to);
     void breakLink(const QString &from);

@@ -533,9 +533,11 @@ public:
     bool exportPdf(bool wholeWorkbook, bool archival = false, const PdfProtection &protect = PdfProtection());
     // Email: makes a message as a .eml file (asking where to put it) with the workbook, or the workbook as a PDF; the person opens it in an email program. Nothing is sent.
     enum class EmailWhat { Workbook, Pdf };
-    bool exportEmail(EmailWhat what);
+    // `protect`: a password for the PDF of the Pdf form (the workbook as a file keeps the password the workbook has)
+    bool exportEmail(EmailWhat what, const PdfProtection &protect = PdfProtection());
     // Asks which of the two, then makes the message as exportEmail does.
-    bool exportEmailAsk();
+    // `fromPage`: the password chosen on the Export page, offered in the box
+    bool exportEmailAsk(const PdfProtection &fromPage = PdfProtection());
     // Prints what the choices say, to the printer or into a PDF file the person names (what asks for the name is the Save As picker). True when it was done; false, with the reason shown.
     bool printWith(const crunch::PrintChoices &choices);
     // What the Print screen has chosen (kept while the window is, so the screen comes back as it was left).

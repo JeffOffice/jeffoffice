@@ -10,7 +10,7 @@
 
 namespace jp {
 
-bool readPictureFileAsking(QWidget *parent, const QString &path, int pdfPage, QByteArray *bytes, QString *format, QSize *pixels, QByteArray *fileHash)
+bool readPictureFileAsking(QWidget *parent, const QString &path, int pdfPage, QByteArray *bytes, QString *format, QSize *pixels, QByteArray *fileHash, bool *asksNotToBeCopied)
 {
     if (bytes->isEmpty()) {
         *bytes = readPictureBytes(path);
@@ -20,6 +20,7 @@ bool readPictureFileAsking(QWidget *parent, const QString &path, int pdfPage, QB
     const auto wipe = qScopeGuard([&password] { crypto::wipe(password); });
     if (QFileInfo(path).suffix().compare(QLatin1String("pdf"), Qt::CaseInsensitive) == 0 || PdfDocument::looksLikePdf(*bytes)) {
         if (unlockPdf(parent, QFileInfo(path).fileName(), *bytes, &password) != PdfUnlock::Opened) return false;
+        if (asksNotToBeCopied) *asksNotToBeCopied = PdfDocument(*bytes, password).asksNotToBeCopied();
     }
     return readPictureFile(path, pdfPage, bytes, format, pixels, fileHash, password);
 }

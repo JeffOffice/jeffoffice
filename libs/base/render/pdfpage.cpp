@@ -130,6 +130,13 @@ bool PdfDocument::isValid() const { return d->doc != nullptr; }
 
 bool PdfDocument::needsPassword() const { return d->passwordWanted; }
 
+bool PdfDocument::asksNotToBeCopied() const
+{
+    QMutexLocker lock(&pdfiumLock());
+    // (bit 5 of the permissions: copy or extract text and graphics)
+    return d->doc && !(FPDF_GetDocPermissions(d->doc) & (1UL << 4));
+}
+
 bool PdfDocument::looksLikePdf(const QByteArray &bytes) { return bytes.left(1024).contains("%PDF-"); }
 
 std::shared_ptr<const PdfDocument> PdfDocument::shared(const QByteArray &bytes)

@@ -175,7 +175,8 @@ public:
     void setStackTurner(const std::function<bool()> &turner) { m_stackTurner = turner; }
     // Email: makes a message as a .eml file (asking where to put it) with the document, the document as a PDF, or its pages as pictures; the person opens it in an email program.
     enum class EmailWhat { Document, Pdf, Pages };
-    bool exportEmail(EmailWhat what);
+    // `protect`: a password for the PDF of the Pdf form (a document as a file keeps the password it has)
+    bool exportEmail(EmailWhat what, const jp::PdfProtection &protect = jp::PdfProtection());
     // The pages (by index) as a PDF, in memory; empty, with the reason, when they can't be made.
     QByteArray pdfBytes(const QVector<int> &pages, QString *error, bool archive = false);
     // Version history: named copies of the document kept on this computer (see app/versionstore.h). Each needs a file the document has been saved as.

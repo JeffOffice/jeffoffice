@@ -513,8 +513,11 @@ QWidget *CrunchFileScreen::buildExport()
         PdfProtection chosen = protect->protection();
         const bool done = m_win->exportPdf(false, false, chosen);
         chosen.wipe();
-        protect->clear();
-        if (done) Q_EMIT closeRequested();
+        // (the password is forgotten once the PDF is made; after a cancelled save or an error it stays for the next try)
+        if (done) {
+            protect->clear();
+            Q_EMIT closeRequested();
+        }
     });
     v->addWidget(sheet);
     auto *book = new ActionCard(QStringLiteral("file-output"), tr("Export the whole workbook to PDF"), tr("Every sheet that is shown, one after the other, in one PDF."), w);
@@ -523,8 +526,10 @@ QWidget *CrunchFileScreen::buildExport()
         PdfProtection chosen = protect->protection();
         const bool done = m_win->exportPdf(true, false, chosen);
         chosen.wipe();
-        protect->clear();
-        if (done) Q_EMIT closeRequested();
+        if (done) {
+            protect->clear();
+            Q_EMIT closeRequested();
+        }
     });
     v->addWidget(book);
     auto *archive = new ActionCard(QStringLiteral("file-output"), tr("Export the whole workbook as PDF/A"), tr("A PDF in the form made for keeping for years, with every font inside the file."), w);
@@ -536,8 +541,14 @@ QWidget *CrunchFileScreen::buildExport()
     protect->forbiddenBy({archive}, tr("PDF/A is turned off, because a PDF with a password can't be a PDF/A file."));
     auto *mail = new ActionCard(QStringLiteral("mail"), tr("Make an Email"), tr("A message file with the workbook, or a PDF of it, in it. Open it in your email program, add who it is for, and send it."), w);
     mail->setObjectName(QStringLiteral("exportEmail"));
-    connect(mail, &QAbstractButton::clicked, this, [this] {
-        if (m_win->exportEmailAsk()) Q_EMIT closeRequested();
+    connect(mail, &QAbstractButton::clicked, this, [this, protect] {
+        PdfProtection chosen = protect->protection();
+        const bool done = m_win->exportEmailAsk(chosen);
+        chosen.wipe();
+        if (done) {
+            protect->clear();
+            Q_EMIT closeRequested();
+        }
     });
     v->addWidget(mail);
     v->addStretch(1);

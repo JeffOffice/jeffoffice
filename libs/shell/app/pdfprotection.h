@@ -22,7 +22,9 @@ public:
 
     bool isProtected() const { return m_protection.isSet(); }
     // The protection to make the PDF with; the caller wipes its copy after use (PdfProtection::wipe).
-    PdfProtection protection() const { return m_protection; }
+    PdfProtection protection() const { return m_protection.copy(); }
+    // Takes a copy of the protection (a row that starts from the choice made on another page).
+    void setProtection(const PdfProtection &protection);
     // Forgets the password (the export is done): a password is for one export only.
     void clear();
     // These boxes are for standards that forbid encryption: each is unticked and disabled while a password is set, and `why` (the app's own words) joins the note.

@@ -51,9 +51,11 @@ In the **Create PDF** window, click **Encrypt with a password…**. Type the pas
 
 You can also check **Restrict printing, copying, and editing**, give a second password, and choose what is allowed. Those limits are only a request. Most PDF readers honor them, but they don't stop anyone who wants to get around them, so don't count on them to keep a file private.
 
-A forgotten password can't be recovered, so keep it somewhere safe. The password is used for that one PDF and is never saved. A PDF with a password can't be PDF/A or PDF/X, so those two are turned off while a password is set.
+A forgotten password can't be recovered, so keep it somewhere safe. The password is used for that one PDF and is never saved. A PDF with a password can't be PDF/A or PDF/X, so those two are turned off while a password is set. On **File > Share**, **Encrypt with a password…** above **Send as PDF** puts a password on the PDF in an email.
 
-When you place a PDF that has a password as a picture, JeffPub asks for the password. If it is wrong, JeffPub asks again; click **Cancel** to stop. The page in your publication is a copy and needs no password.
+When you place a PDF that has a password as a picture, JeffPub asks for the password. If it is wrong, JeffPub asks again; click **Cancel** to stop. The page in your publication is a copy and needs no password. If the PDF's owner asks that it not be copied, JeffPub places it all the same and shows a note saying so; that request is not a lock.
+
+A picture linked to a PDF with a password shows as **Not updated** when you open the publication, and JeffPub never asks for the password by itself. Click **Update Link** to be asked.
 
 ## Set up colors for a print shop
 

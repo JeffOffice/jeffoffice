@@ -38,7 +38,7 @@ You can also check **Restrict printing, copying, and editing**, give a second pa
 
 A forgotten password can't be recovered, so keep it somewhere safe. The password is used for that one PDF and is never saved.
 
-When you insert a PDF that has a password as a picture, JeffDeck asks for the password. If it is wrong, it asks again; click **Cancel** to stop. The slide gets a copy of the page that needs no password.
+When you insert a PDF that has a password as a picture, JeffDeck asks for the password. If it is wrong, it asks again; click **Cancel** to stop. The slide gets a copy of the page that needs no password. If the PDF's owner asks that it not be copied, JeffDeck places it all the same and shows a note saying so; that request is not a lock.
 
 ## Save a slide as a picture
 

@@ -159,10 +159,12 @@ bool FormatPane::applyFillPicture(const QString &path)
     QByteArray bytes = readPictureBytes(path);
     QString kind;
     QSize pixels;
-    if (bytes.isEmpty() || !readPictureFileAsking(this, path, 0, &bytes, &kind, &pixels)) {
+    bool asksNotToBeCopied = false;
+    if (bytes.isEmpty() || !readPictureFileAsking(this, path, 0, &bytes, &kind, &pixels, nullptr, &asksNotToBeCopied)) {
         Q_EMIT m_ed->status(tr("%1 can't be read as a picture.").arg(QFileInfo(path).fileName()));
         return false;
     }
+    if (asksNotToBeCopied) Q_EMIT m_ed->status(tr("%1 asks not to be copied. It is placed all the same.").arg(QFileInfo(path).fileName()));
     QString id;
     m_session->apply(tr("Fill"), [&](Item &it) {
         if (!formatops::takesFill(it)) return;

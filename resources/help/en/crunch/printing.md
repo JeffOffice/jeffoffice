@@ -36,7 +36,7 @@ Pick a printer from the list, or **Save as PDF**. **Printer settings** opens you
 
 **Export the whole workbook as PDF/A** makes a PDF in the form made for keeping for years. Every font is put inside the file, so it reads the same long from now. Programs that archive documents ask for this form.
 
-**Make an Email** makes a message file with your workbook in it, or a PDF of it. Nothing is sent. Open the file in your email program, add who it is for, and send it. A workbook that has a password stays locked in the message: whoever gets it needs the password to open it. The password itself is never put in the message. A PDF of the workbook has no password.
+**Make an Email** makes a message file with your workbook in it, or a PDF of it. Nothing is sent. Open the file in your email program, add who it is for, and send it. A workbook that has a password stays locked in the message: whoever gets it needs the password to open it. The password itself is never put in the message. A PDF of the workbook has a password only if you click **Encrypt with a password…** in the box, which is the same as for a PDF you export. Tell the person the password some other way than in the message.
 
 ## Protect a PDF with a password
 

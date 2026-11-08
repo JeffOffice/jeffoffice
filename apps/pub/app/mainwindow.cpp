@@ -1594,7 +1594,7 @@ static int choosePdfPage(QWidget *parent, const PdfDocument &pdf, const QString 
     return list->currentItem()->data(Qt::UserRole).toInt();
 }
 
-static bool readPicture(QWidget *parent, const QString &path, QByteArray *bytes, QString *fmt, QSize *px, int *page = nullptr, QByteArray *hash = nullptr)
+static bool readPicture(QWidget *parent, const QString &path, QByteArray *bytes, QString *fmt, QSize *px, int *page = nullptr, QByteArray *hash = nullptr, QString *passwordOut = nullptr)
 {
     *bytes = readPictureBytes(path);
     if (bytes->isEmpty()) return false;
@@ -1605,6 +1605,11 @@ static bool readPicture(QWidget *parent, const QString &path, QByteArray *bytes,
         // A PDF with a password asks for it first (a wrong one asks again, and Cancel stops).
         if (jp::unlockPdf(parent, QFileInfo(path).fileName(), *bytes, &pdfPassword) != jp::PdfUnlock::Opened) return false;
         const PdfDocument pdf(*bytes, pdfPassword);
+        // The owner of the PDF asks that it not be copied: a request, so it is placed, with a note.
+        if (pdf.isValid() && pdf.asksNotToBeCopied())
+            if (auto *window = qobject_cast<QMainWindow *>(parent ? parent->window() : nullptr))
+                window->statusBar()->showMessage(QCoreApplication::translate("MainWindow", "%1 asks not to be copied. It is placed all the same.").arg(QFileInfo(path).fileName()), 8000);
+        if (passwordOut) *passwordOut = QString(pdfPassword.constData(), pdfPassword.size());
         pdfPage = pdf.isValid() ? choosePdfPage(parent, pdf, QFileInfo(path).fileName()) : -1;
         if (pdfPage < 0) return false;
     }
@@ -1661,7 +1666,9 @@ void MainWindow::changePictureLink(const QString &pictureId)
     QString fmt;
     QSize px;
     int page = 0;
-    if (readPicture(this, paths.first(), &bytes, &fmt, &px, &page)) m_ed->changeLink(pictureId, paths.first(), page);
+    QString password;
+    const auto wipePassword = qScopeGuard([&password] { jp::crypto::wipe(password); });
+    if (readPicture(this, paths.first(), &bytes, &fmt, &px, &page, nullptr, &password)) m_ed->changeLink(pictureId, paths.first(), page, nullptr, password);
 }
 
 void MainWindow::insertFiles(const QStringList &paths, const QPointF &atIn, PictureInsert how)

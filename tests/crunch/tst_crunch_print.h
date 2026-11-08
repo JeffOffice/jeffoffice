@@ -223,6 +223,8 @@ private Q_SLOTS:
     void theHandRunsAreMadeOfPhysicalSheets();
     void exportToPdfWritesTheSheetOrTheWorkbook();
     void exportToPdfCanBeProtectedWithAPassword();
+    void anEmailedPdfCanHaveAPassword();
+    void aCancelledExportKeepsThePasswordOnThePage();
     void theExportPageOffersAPasswordAndTurnsOffPdfA();
     void thePageBreaksShowOnTheSheetAfterAPreview();
     void undoAndRedoOfTypingMoveThePagesAtOnce();

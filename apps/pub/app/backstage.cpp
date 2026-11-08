@@ -1,4 +1,5 @@
 #include "app/backstage.h"
+#include "app/pdfprotection.h"
 #include "core/version.h"
 #include "app/theme.h"
 
@@ -985,8 +986,14 @@ QWidget *Backstage::buildShare()
     row("paperclip", tr("Send as Attachment"), tr("Creates an email (.eml) with this publication attached."), [this] {
         emailAsAttachment(this, m_win->editor(), "jpub");
     });
-    row("file-text", tr("Send as PDF"), tr("Creates an email (.eml) with a PDF of this publication attached."), [this] {
-        emailAsAttachment(this, m_win->editor(), "pdf");
+    // A password for the PDF, for the one message: kept until a message is saved.
+    auto *protect = new jp::PdfProtectionRow(w);
+    v->addWidget(protect);
+    row("file-text", tr("Send as PDF"), tr("Creates an email (.eml) with a PDF of this publication attached."), [this, protect] {
+        PdfProtection chosen = protect->protection();
+        const bool saved = emailAsAttachment(this, m_win->editor(), "pdf", chosen);
+        chosen.wipe();
+        if (saved) protect->clear();
     });
     v->addStretch(1);
     return w;

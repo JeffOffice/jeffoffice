@@ -1,6 +1,7 @@
 // Make an Email: the workbook, or the workbook as a PDF, in a message file for an email program. The message is written by libs/shell/app/emailops.cpp.
 
 #include "app/crunchwindow.h"
+#include "app/pdfprotection.h"
 
 #include "app/emailops.h"
 #include "app/filedialogs.h"
@@ -20,6 +21,7 @@
 #include <QFileInfo>
 #include <QLabel>
 #include <QSaveFile>
+#include <QScopeGuard>
 #include <QStandardPaths>
 #include <QStatusBar>
 #include <QTemporaryDir>
@@ -27,7 +29,7 @@
 
 namespace jp {
 
-bool CrunchWindow::exportEmail(EmailWhat what)
+bool CrunchWindow::exportEmail(EmailWhat what, const PdfProtection &protect)
 {
     if (!m_session || !m_loaded || !m_loaded->book || m_saving || !commitEdit()) return false;
     if (m_loading || !m_haveCalc) {
@@ -56,7 +58,7 @@ bool CrunchWindow::exportEmail(EmailWhat what)
         crunch::PrintJobOptions options = m_printChoices->job;
         options.what = crunch::PrintWhat::Workbook;
         const QString path = dir.filePath(QStringLiteral("workbook.pdf"));
-        if (dir.isValid() && exportPdfTo(path, options, QString(), &err)) {
+        if (dir.isValid() && exportPdfTo(path, options, QString(), &err, nullptr, &protect)) {
             QFile f(path);
             if (f.open(QIODevice::ReadOnly)) bytes = f.readAll();
         }
@@ -94,7 +96,7 @@ bool CrunchWindow::exportEmail(EmailWhat what)
     return true;
 }
 
-bool CrunchWindow::exportEmailAsk()
+bool CrunchWindow::exportEmailAsk(const PdfProtection &fromPage)
 {
     QDialog dialog(this);
     dialog.setObjectName(QStringLiteral("emailDialog"));
@@ -110,12 +112,22 @@ bool CrunchWindow::exportEmailAsk()
     what->addItem(tr("The workbook, as a file"), int(EmailWhat::Workbook));
     what->addItem(tr("The workbook, as a PDF"), int(EmailWhat::Pdf));
     layout->addWidget(what);
+    // A password for a PDF (the workbook as a file keeps the password of its own; see exportEmail). It starts as the Export page's, if one was set there.
+    auto *protect = new PdfProtectionRow(&dialog);
+    protect->setProtection(fromPage);
+    layout->addWidget(protect);
+    auto syncProtect = [what, protect] { protect->setEnabled(what->currentData().toInt() == int(EmailWhat::Pdf)); };
+    connect(what, &QComboBox::currentIndexChanged, &dialog, syncProtect);
+    syncProtect();
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
     if (dialog.exec() != QDialog::Accepted) return false;
-    return exportEmail(static_cast<EmailWhat>(what->currentData().toInt()));
+    const EmailWhat chosen = static_cast<EmailWhat>(what->currentData().toInt());
+    PdfProtection locked = chosen == EmailWhat::Pdf ? protect->protection() : PdfProtection();
+    const auto wipe = qScopeGuard([&locked] { locked.wipe(); });
+    return exportEmail(chosen, locked);
 }
 
 } // namespace jp

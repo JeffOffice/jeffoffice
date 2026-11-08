@@ -17,7 +17,19 @@ struct PdfProtection {
     bool isSet() const { return !openPassword.isEmpty(); }
     // Overwrites both passwords before they are let go.
     void wipe();
+    // A copy that shares nothing with this one, so that wiping one leaves the other (a QString copy shares its characters until one is changed).
+    PdfProtection copy() const;
 };
+
+// PDF 2.0 (R6) passwords: normalized (NFKC, with the non-ASCII spaces made plain spaces, and the characters SASLprep prohibits refused: controls, unassigned and private-use
+// characters, and the bidirectional controls), and no longer than 127 bytes in UTF-8. A password typed as "e" and a combining accent is then the same as the one typed as "é".
+constexpr int kMostPdfPasswordBytes = 127;
+enum class PdfPasswordProblem { None, Forbidden, TooLong };
+// `normalized` is a copy of its own. On a problem it is empty.
+PdfPasswordProblem normalizePdfPassword(const QString &typed, QString *normalized);
+QString pdfPasswordProblemText(PdfPasswordProblem problem);
+// The password to try on a PDF that is being opened: normalized as above (the typed one if it cannot be), cut to the first 127 bytes as the standard says.
+QString pdfOpeningPassword(const QString &typed);
 
 // The most bytes of PDF that are encrypted (as the most of a picture file read: this reads the program's own output).
 constexpr qint64 kMostPdfEncryptBytes = 256 * 1024 * 1024;

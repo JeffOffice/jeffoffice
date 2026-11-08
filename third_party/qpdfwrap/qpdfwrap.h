@@ -3,6 +3,7 @@
 // libs/base/io/pdfcrypt.h is the program's own interface to it.
 
 #include <cstddef>
+#include <functional>
 #include <string>
 
 namespace jp::qpdfwrap {
@@ -13,8 +14,10 @@ struct EncryptOptions {
     bool allowPrint = true, allowExtract = true, allowModify = true;
 };
 
-// The PDF in `data`, written again with AES-256 (V 5, R 6) in `out`. False with a reason in `error` when qpdf cannot read it.
-bool encrypt(const char *data, size_t size, const EncryptOptions &options, std::string *out, std::string *error);
+// The PDF in `data`, written again with AES-256 (V 5, R 6): the result goes to `sink` in pieces as qpdf makes it, so that it is never held whole here as well as by the
+// caller. False with a reason in `error` when qpdf cannot read it.
+using Sink = std::function<void(const char *piece, size_t size)>;
+bool encrypt(const char *data, size_t size, const EncryptOptions &options, const Sink &sink, std::string *error);
 
 // The same PDF without encryption (for checking what a protected file holds).
 bool decrypt(const char *data, size_t size, const std::string &password, std::string *out, std::string *error);

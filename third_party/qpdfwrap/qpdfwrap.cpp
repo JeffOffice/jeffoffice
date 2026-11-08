@@ -1,6 +1,7 @@
 #include "qpdfwrap.h"
 
 #include <qpdf/Buffer.hh>
+#include <qpdf/Pl_Function.hh>
 #include <qpdf/QPDF.hh>
 #include <qpdf/QPDFWriter.hh>
 
@@ -9,13 +10,15 @@
 
 namespace jp::qpdfwrap {
 
-bool encrypt(const char *data, size_t size, const EncryptOptions &options, std::string *out, std::string *error)
+bool encrypt(const char *data, size_t size, const EncryptOptions &options, const Sink &sink, std::string *error)
 {
     try {
         QPDF pdf;
+        // (the input is read where it is, not copied)
         pdf.processMemoryFile("pdf", data, size);
         QPDFWriter writer(pdf);
-        writer.setOutputMemory();
+        Pl_Function out("out", nullptr, [&sink](const unsigned char *piece, size_t n) { sink(reinterpret_cast<const char *>(piece), n); });
+        writer.setOutputPipeline(&out);
         // The streams are kept as Qt wrote them: only their encryption is new.
         writer.setStreamDataMode(qpdf_s_preserve);
         writer.setObjectStreamMode(qpdf_o_preserve);
@@ -23,8 +26,6 @@ bool encrypt(const char *data, size_t size, const EncryptOptions &options, std::
         writer.setR6EncryptionParameters(options.openPassword.c_str(), options.ownerPassword.c_str(), true, options.allowExtract, options.allowModify,
                                          options.allowModify, options.allowModify, options.allowModify, options.allowPrint ? qpdf_r3p_full : qpdf_r3p_none, true);
         writer.write();
-        const std::shared_ptr<Buffer> made = writer.getBufferSharedPointer();
-        out->assign(reinterpret_cast<const char *>(made->getBuffer()), made->getSize());
         return true;
     } catch (const std::exception &e) {
         if (error) *error = e.what();

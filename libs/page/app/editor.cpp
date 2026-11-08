@@ -1,4 +1,5 @@
 #include "app/editor.h"
+#include "app/pictureask.h"
 #include "app/settings.h"
 #include "app/spelling.h"
 
@@ -1113,15 +1114,15 @@ void Editor::selectRecipients(const MergeSource &list)
     });
 }
 
-bool Editor::updateLink(const QString &pictureId)
+bool Editor::updateLink(const QString &pictureId, QWidget *askParent)
 {
     const auto *pic = dynamic_cast<PictureItem *>(m_doc->item(pictureId));
     if (!pic || !m_doc->images.value(pic->imageId).linked) return false;
     const ImageData d = m_doc->images.value(pic->imageId);
-    return changeLink(pictureId, d.sourcePath, d.linkPage);
+    return changeLink(pictureId, d.sourcePath, d.linkPage, askParent);
 }
 
-bool Editor::changeLink(const QString &pictureId, const QString &path, int pdfPage)
+bool Editor::changeLink(const QString &pictureId, const QString &path, int pdfPage, QWidget *askParent, const QString &pdfPassword)
 {
     auto *pic = dynamic_cast<PictureItem *>(m_doc->item(pictureId));
     if (!pic || pic->imageId.isEmpty()) return false;
@@ -1130,7 +1131,9 @@ bool Editor::changeLink(const QString &pictureId, const QString &path, int pdfPa
     QByteArray bytes, hash;
     QString format;
     QSize px;
-    if (!readPictureFile(path, pdfPage, &bytes, &format, &px, &hash)) {
+    const bool read = !pdfPassword.isEmpty() ? readPictureFile(path, pdfPage, &bytes, &format, &px, &hash, pdfPassword)
+                      : askParent ? readPictureFileAsking(askParent, path, pdfPage, &bytes, &format, &px, &hash) : readPictureFile(path, pdfPage, &bytes, &format, &px, &hash);
+    if (!read) {
         Q_EMIT status(QFileInfo(path).isFile() ? tr("JeffPub can't read \"%1\" as a picture.").arg(QFileInfo(path).fileName())
                                               : tr("JeffPub can't find \"%1\".").arg(QDir::toNativeSeparators(path)));
         return false;

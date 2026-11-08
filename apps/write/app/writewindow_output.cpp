@@ -282,7 +282,7 @@ bool WriteWindow::exportPdfPages(const WriteOutputOptions &options)
     return true;
 }
 
-bool WriteWindow::exportEmail(EmailWhat what)
+bool WriteWindow::exportEmail(EmailWhat what, const jp::PdfProtection &protect)
 {
     if (!m_doc) return false;
     constexpr int kMostPages = 30;   // (the pages of a message are pictures: a long document would make a message no mail program takes)
@@ -302,8 +302,13 @@ bool WriteWindow::exportEmail(EmailWhat what)
         ok = !bytes.isEmpty();
         attachments.push_back({name + QStringLiteral(".docx"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document"), bytes, QString()});
     } else if (what == EmailWhat::Pdf) {
-        const QByteArray bytes = pdfBytes(pages, &err);
+        QByteArray bytes = pdfBytes(pages, &err, false);
         ok = !bytes.isEmpty();
+        // (a PDF with a password is sent with it)
+        if (ok && protect.isSet()) {
+            bytes = jp::encryptPdf(bytes, protect, &err);
+            ok = !bytes.isEmpty();
+        }
         attachments.push_back({name + QStringLiteral(".pdf"), QStringLiteral("application/pdf"), bytes, QString()});
         text = tr("The document \"%1\" is attached as a PDF.").arg(name);
     } else {
@@ -414,12 +419,21 @@ bool WriteWindow::exportEmailAsk()
     auto *form = new QFormLayout;
     form->addRow(tr("Put in the message:"), what);
     layout->addLayout(form);
+    // A password for a PDF (a document as a file keeps its own password).
+    auto *protect = new jp::PdfProtectionRow(&dialog);
+    layout->addWidget(protect);
+    auto syncProtect = [what, protect] { protect->setEnabled(what->currentData().toInt() == int(EmailWhat::Pdf)); };
+    connect(what, &QComboBox::currentIndexChanged, &dialog, syncProtect);
+    syncProtect();
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
     if (dialog.exec() != QDialog::Accepted) return false;
-    return exportEmail(static_cast<EmailWhat>(what->currentData().toInt()));
+    const EmailWhat chosen = static_cast<EmailWhat>(what->currentData().toInt());
+    jp::PdfProtection locked = chosen == EmailWhat::Pdf ? protect->protection() : jp::PdfProtection();
+    const auto wipe = qScopeGuard([&locked] { locked.wipe(); });
+    return exportEmail(chosen, locked);
 }
 
 bool WriteWindow::askTextForm(const QString &title, const QString &intro, write::TextForm *form, const QByteArray *sample)

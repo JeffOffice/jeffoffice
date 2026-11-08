@@ -1206,6 +1206,13 @@ LinkStatus Document::linkStatus(const QString &imageId) const
     return LinkStatus::Linked;
 }
 
+// Whether the file is a PDF that is opened only with a password.
+static bool needsPdfPassword(const QString &path)
+{
+    const QByteArray file = readPictureBytes(path);
+    return PdfDocument::looksLikePdf(file) && PdfDocument(file).needsPassword();
+}
+
 void Document::refreshLinks()
 {
     for (auto it = images.begin(); it != images.end(); ++it) {
@@ -1222,6 +1229,8 @@ void Document::refreshLinks()
         QSize px;
         const bool read = d.followed && status != LinkStatus::Missing && !(stored && status == LinkStatus::Linked) &&
                           readPictureFile(d.sourcePath, d.linkPage, &bytes, &format, &px, &hash);
+        // A PDF with a password is never asked about here (opening a publication asks nothing): what the publication holds stands, marked Not updated, until Update Link.
+        if (!read && d.followed && status != LinkStatus::Missing && !(stored && status == LinkStatus::Linked) && needsPdfPassword(d.sourcePath)) d.followed = false;
         if (read) {
             d.bytes = bytes;
             d.format = format;

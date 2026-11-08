@@ -8,6 +8,7 @@
 #include "app/proofingdialogs.h"
 #include "app/spelling.h"
 #include "core/style.h"
+#include "io/pdfcrypt.h"
 
 #include <QString>
 #include <QPair>
@@ -26,7 +27,8 @@ class MainWindow;
 enum class PictureInsert;
 
 void emailCurrentPage(QWidget *parent, Editor *ed);
-void emailAsAttachment(QWidget *parent, Editor *ed, const QString &format);
+// `protect`: a password for the PDF of the "pdf" form. False when no message file was saved.
+bool emailAsAttachment(QWidget *parent, Editor *ed, const QString &format, const PdfProtection &protect = PdfProtection());
 // A mail header value from a name: one line, non-ASCII encoded (RFC 2047).
 QString emlHeaderText(const QString &s);
 void packAndGo(QWidget *parent, MainWindow *win, bool forPrinter);

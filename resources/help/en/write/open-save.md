@@ -102,7 +102,7 @@ In the **Export to PDF** box, tick **PDF/A, for keeping for a long time**. A PDF
 
 ## Make an email
 
-Click **File > Export > Make an Email** to make a message file (.eml). Nothing is sent. You choose what goes in the message: the document, the document as a PDF, or the pages shown as pictures in the message (the first 30 pages). Open the file in your email program, add who it is for, and send it.
+Click **File > Export > Make an Email** to make a message file (.eml). Nothing is sent. You choose what goes in the message: the document, the document as a PDF, or the pages shown as pictures in the message (the first 30 pages). Open the file in your email program, add who it is for, and send it. For a PDF, you can click **Encrypt with a password…** in the box; tell the person the password some other way than in the message.
 
 ## Related
 

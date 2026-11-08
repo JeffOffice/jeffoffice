@@ -1,6 +1,7 @@
 // JeffDeck's tests of PDF, pictures, handouts, and printed output.
 #include "deckhelpers.h"
 #include "../localepin.h"
+#include "../plainpdfwatch.h"
 #include "app/passworddialogs.h"
 #include "io/pdfcrypt.h"
 
@@ -1026,10 +1027,25 @@ private Q_SLOTS:
     // Export to PDF can protect the file with a password: the file written is encrypted (AES-256), opens with the password and not without, and nothing else is left beside it.
     void anExportWithAPasswordIsEncrypted()
     {
-        QTemporaryDir dir;
+        QTemporaryDir dir, keep;
+        ScratchTemp scratch;
         DeckWindow w;
-        const QString path = dir.filePath(QStringLiteral("locked.pdf"));
+        QString path = keep.filePath(QStringLiteral("plain.pdf"));
         w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+        // The control: an export with no password leaves a plain PDF, and the watch sees it.
+        PlainPdfWatch watch;
+        watch.dirs = {keep.path()};
+        answerOutputDialog();
+        QVERIFY(w.exportPdf());
+        QVERIFY2(!watch.plain.isEmpty(), "the watch does not see a plain PDF");
+        jp::PdfEncryptionInfo info;
+        QVERIFY(!jp::readPdfEncryption(fileBytes(path), QString(), &info) || !info.encrypted);
+        QVERIFY(PdfDocument(fileBytes(path)).isValid());
+        // With a password: nothing but encrypted PDFs in the folder and the temporary folder, at any moment of the export.
+        path = dir.filePath(QStringLiteral("locked.pdf"));
+        watch.dirs.clear();
+        watch.plain.clear();
+        watch.dirs = {dir.path(), scratch.path()};
         jp::setPdfProtectionStandIn([](bool, jp::PdfProtection *p) {
             p->openPassword = QStringLiteral("pw");
             return jp::NewPasswordChoice::Set;
@@ -1041,8 +1057,9 @@ private Q_SLOTS:
             button->click();
         });
         QVERIFY(w.exportPdf());
+        watch.dirs.clear();
+        QVERIFY2(watch.plain.isEmpty(), qPrintable(watch.plain.join(QLatin1Char(' '))));
         const QByteArray made = fileBytes(path);
-        jp::PdfEncryptionInfo info;
         QVERIFY(jp::readPdfEncryption(made, QStringLiteral("pw"), &info));
         QCOMPARE(info.version, 5);
         QCOMPARE(info.revision, 6);
@@ -1052,13 +1069,40 @@ private Q_SLOTS:
         QVERIFY(opened.isValid());
         QCOMPARE(opened.pageCount(), int(w.editor()->doc()->pages.size()));
         QCOMPARE(QDir(dir.path()).entryList(QDir::NoDotAndDotDot | QDir::AllEntries), QStringList{QStringLiteral("locked.pdf")});
+        QVERIFY2(QDir(scratch.path()).entryList(QDir::Files).isEmpty(), qPrintable(QDir(scratch.path()).entryList(QDir::Files).join(QLatin1Char(' '))));
         // The next export asks again: the password was for that one.
-        const QString second = dir.filePath(QStringLiteral("plain.pdf"));
-        w.setSavePathChooser([&](const QString &, const QString &) { return second; });
+        path = dir.filePath(QStringLiteral("again.pdf"));
         answerOutputDialog();
         QVERIFY(w.exportPdf());
-        QVERIFY(!jp::readPdfEncryption(fileBytes(second), QString(), &info) || !info.encrypted);
-        QVERIFY(PdfDocument(fileBytes(second)).isValid());
+        QVERIFY(PdfDocument(fileBytes(path)).isValid());
+    }
+
+    // A PDF that asks not to be copied is placed all the same, with a note.
+    void aPdfThatAsksNotToBeCopiedIsPlacedWithANote()
+    {
+        QTemporaryDir dir;
+        DeckWindow w;
+        const QString path = dir.filePath(QStringLiteral("nocopy.pdf"));
+        {
+            // (made by the shared function from a plain export)
+            QString err;
+            QVERIFY2(deck::exportPdf(*w.editor()->doc(), dir.filePath(QStringLiteral("plain.pdf")), deck::OutputOptions(), &err), qPrintable(err));
+            jp::PdfProtection p;
+            p.openPassword = QStringLiteral("pw");
+            p.limited = true;
+            p.ownerPassword = QStringLiteral("owner");
+            p.allowCopy = false;
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(jp::encryptPdf(fileBytes(dir.filePath(QStringLiteral("plain.pdf"))), p));
+        }
+        jp::setOpenPasswordStandIn([](const QString &, bool, QString *password) {
+            *password = QStringLiteral("pw");
+            return true;
+        });
+        const auto reset = qScopeGuard([] { jp::setOpenPasswordStandIn(nullptr); });
+        QVERIFY(w.insertPicture(path));
+        QVERIFY2(w.statusBar()->currentMessage().contains(QStringLiteral("asks not to be copied")), qPrintable(w.statusBar()->currentMessage()));
     }
 
     // A picture that is a PDF with a password asks for it: a wrong one asks again, and Cancel places nothing.

@@ -46,13 +46,14 @@ static QString emlEncode(const QByteArray &data)
     return out;
 }
 
-static void saveEml(QWidget *parent, const QString &name, const QString &body)
+static bool saveEml(QWidget *parent, const QString &name, const QString &body)
 {
     const QString path = askSavePath(parent, QCoreApplication::translate("Sharing", "Save Email"), name + ".eml", QCoreApplication::translate("Sharing", "Email Message (*.eml)"));
-    if (path.isEmpty()) return;
+    if (path.isEmpty()) return false;
     QFile f(path);
     if (f.open(QIODevice::WriteOnly)) f.write(body.toUtf8());
     jp::plainInformation(parent, QCoreApplication::translate("Sharing", "Email"), QCoreApplication::translate("Sharing", "Saved %1.\nOpen it in your email program, add recipients and send.").arg(QFileInfo(path).fileName()));
+    return true;
 }
 
 void emailCurrentPage(QWidget *parent, Editor *ed)
@@ -72,7 +73,7 @@ void emailCurrentPage(QWidget *parent, Editor *ed)
     saveEml(parent, ed->displayName(), eml);
 }
 
-void emailAsAttachment(QWidget *parent, Editor *ed, const QString &format)
+bool emailAsAttachment(QWidget *parent, Editor *ed, const QString &format, const PdfProtection &protect)
 {
     QByteArray data;
     QString fileName, mime;
@@ -82,7 +83,10 @@ void emailAsAttachment(QWidget *parent, Editor *ed, const QString &format)
         QTemporaryDir tmpDir;
         const QString tmp = tmpDir.filePath(QStringLiteral("share.pdf"));
         auto *win = qobject_cast<MainWindow *>(parent->window());
-        if (win && tmpDir.isValid()) win->exportPdf(tmp);
+        // (with a password, the file made here is the encrypted one: the plain PDF is never on the disk)
+        MainWindow::PdfSettings s;
+        s.protect = protect.copy();
+        if (win && tmpDir.isValid()) win->exportPdfTo(tmp, s);
         QFile f(tmp);
         if (f.open(QIODevice::ReadOnly)) data = f.readAll();
         fileName = ed->displayName() + ".pdf";
@@ -96,7 +100,7 @@ void emailAsAttachment(QWidget *parent, Editor *ed, const QString &format)
     eml += "--jp79\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n" + QStringLiteral("Attached: %1").arg(fileName) + "\r\n";
     eml += QStringLiteral("--jp79\r\nContent-Type: %1; name=\"%2\"\r\nContent-Disposition: attachment; filename=\"%2\"\r\nContent-Transfer-Encoding: base64\r\n\r\n").arg(mime, emlHeaderText(fileName));
     eml += emlEncode(data) + "--jp79--\r\n";
-    saveEml(parent, ed->displayName(), eml);
+    return saveEml(parent, ed->displayName(), eml);
 }
 
 QString userBlocksDir() { return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/BuildingBlocks"); }

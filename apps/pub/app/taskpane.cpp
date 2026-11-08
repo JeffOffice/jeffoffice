@@ -370,7 +370,7 @@ public:
         connect(m_sort, &QComboBox::currentIndexChanged, this, &GraphicsPane::refresh);
         connect(m_list, &QListWidget::currentItemChanged, this, [this](QListWidgetItem *it) { showDetails(it); });
         connect(m_update, &QPushButton::clicked, this, [this] {
-            if (auto *it = m_list->currentItem()) m_win->editor()->updateLink(it->data(Qt::UserRole).toString());
+            if (auto *it = m_list->currentItem()) m_win->editor()->updateLink(it->data(Qt::UserRole).toString(), m_win);
         });
         connect(m_change, &QPushButton::clicked, this, [this] {
             if (auto *it = m_list->currentItem()) m_win->changePictureLink(it->data(Qt::UserRole).toString());

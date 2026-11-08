@@ -29,6 +29,8 @@ public:
     bool isValid() const;
     // Whether the PDF could not be opened for want of the right password (none was given, or it was wrong).
     bool needsPassword() const;
+    // Whether the PDF, opened as it was, asks not to have its text and pictures copied (an owner's limit: a request, not a protection).
+    bool asksNotToBeCopied() const;
     int pageCount() const;
     QSizeF pageSize(int page) const;             // points, as the page shows (turned pages turned)
     QByteArray extractPage(int page) const;      // the page alone, as a one-page PDF

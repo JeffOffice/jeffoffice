@@ -13,21 +13,29 @@ set(JP_LIBJPEG_TURBO_SHA256 c27ad72a68da151177929aa969ae773a2da5ac2af9ce94607931
 # Sets ${name}_SOURCE_DIR to the unpacked tarball of ${name}: the folder FETCHCONTENT_SOURCE_DIR_<NAME> names when it is set (a build
 # that must not download), else downloaded from the URLs in turn. The hash is checked here, not by file(DOWNLOAD) given EXPECTED_HASH:
 # a failed try is then a CMake error that fails the configure even when a later URL would succeed (see cmake/pdfium.cmake).
-function(jp_fetch_source name sha256)
+# The folder is named for the version, and holds a stamp with the SHA-256 the tarball was checked against: a folder without the stamp, or
+# with one that is not the hash expected now (a half-unpacked folder, a bump of the hash, or a changed file), is made again.
+function(jp_fetch_source name version sha256)
   string(TOUPPER ${name} _upper)
   if(FETCHCONTENT_SOURCE_DIR_${_upper})
     set(${name}_SOURCE_DIR ${FETCHCONTENT_SOURCE_DIR_${_upper}} PARENT_SCOPE)
     return()
   endif()
-  set(_dir ${CMAKE_BINARY_DIR}/_deps/${name}-src)
-  if(NOT EXISTS ${_dir}/CMakeLists.txt)
-    set(_archive ${CMAKE_BINARY_DIR}/_deps/${name}.tar.gz)
+  set(_dir ${CMAKE_BINARY_DIR}/_deps/${name}-${version}-src)
+  set(_stamp ${_dir}/.jp-sha256)
+  set(_have "")
+  if(EXISTS ${_stamp} AND EXISTS ${_dir}/CMakeLists.txt)
+    file(READ ${_stamp} _have)
+    string(STRIP "${_have}" _have)
+  endif()
+  if(NOT _have STREQUAL sha256)
+    set(_archive ${CMAKE_BINARY_DIR}/_deps/${name}-${version}.tar.gz)
     set(_code 1)
     set(_status "no URL")
-    # (GitHub's release downloads answer 504 now and then: every URL is tried, twice, before giving up)
+    # (GitHub's release downloads answer 504 now and then: every URL is tried, twice, before giving up; none may hang a configure)
     foreach(_round RANGE 1 2)
       foreach(_url IN LISTS ARGN)
-        file(DOWNLOAD ${_url} ${_archive} TLS_VERIFY ON STATUS _status)
+        file(DOWNLOAD ${_url} ${_archive} TLS_VERIFY ON TIMEOUT 300 INACTIVITY_TIMEOUT 60 STATUS _status)
         list(GET _status 0 _code)
         if(_code EQUAL 0)
           file(SHA256 ${_archive} _got)
@@ -50,7 +58,7 @@ function(jp_fetch_source name sha256)
     if(NOT _code EQUAL 0)
       message(FATAL_ERROR "Downloading ${name} failed: ${_status}")
     endif()
-    # The tarball holds one folder; it becomes _dir.
+    # The tarball holds one folder; it becomes _dir, and the stamp is written last.
     file(REMOVE_RECURSE ${_dir} ${_dir}-unpack)
     file(ARCHIVE_EXTRACT INPUT ${_archive} DESTINATION ${_dir}-unpack)
     file(GLOB _top LIST_DIRECTORIES true ${_dir}-unpack/*)
@@ -58,15 +66,16 @@ function(jp_fetch_source name sha256)
     file(RENAME ${_top} ${_dir})
     file(REMOVE_RECURSE ${_dir}-unpack)
     file(REMOVE ${_archive})
+    file(WRITE ${_stamp} "${sha256}\n")
   endif()
   set(${name}_SOURCE_DIR ${_dir} PARENT_SCOPE)
 endfunction()
 
-jp_fetch_source(libjpeg_turbo ${JP_LIBJPEG_TURBO_SHA256}
+jp_fetch_source(libjpeg_turbo ${JP_LIBJPEG_TURBO_VERSION} ${JP_LIBJPEG_TURBO_SHA256}
   https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/${JP_LIBJPEG_TURBO_VERSION}/libjpeg-turbo-${JP_LIBJPEG_TURBO_VERSION}.tar.gz
   https://downloads.sourceforge.net/project/libjpeg-turbo/${JP_LIBJPEG_TURBO_VERSION}/libjpeg-turbo-${JP_LIBJPEG_TURBO_VERSION}.tar.gz
   https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/${JP_LIBJPEG_TURBO_VERSION}/libjpeg-turbo-${JP_LIBJPEG_TURBO_VERSION}.tar.gz)
-jp_fetch_source(qpdf ${JP_QPDF_SHA256}
+jp_fetch_source(qpdf ${JP_QPDF_VERSION} ${JP_QPDF_SHA256}
   https://github.com/qpdf/qpdf/releases/download/v${JP_QPDF_VERSION}/qpdf-${JP_QPDF_VERSION}.tar.gz
   https://downloads.sourceforge.net/project/qpdf/qpdf/${JP_QPDF_VERSION}/qpdf-${JP_QPDF_VERSION}.tar.gz
   https://github.com/qpdf/qpdf/releases/download/v${JP_QPDF_VERSION}/qpdf-${JP_QPDF_VERSION}.tar.gz)

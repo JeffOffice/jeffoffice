@@ -24,6 +24,8 @@
 #include "office/packageprops.h"
 #include "text/textprops.h"
 #include "app/pdfprotection.h"
+#include "../plainpdfwatch.h"
+#include "../emlpdf.h"
 #include "io/pdfcrypt.h"
 #include "render/pdfpage.h"
 
@@ -851,12 +853,22 @@ private Q_SLOTS:
     // A PDF can be protected with a password: the file is encrypted (AES-256), PDF/A is off with it, the PDF opens with the password and not without, and the plain PDF is not left beside it.
     void aPdfCanBeProtectedWithAPassword()
     {
-        QTemporaryDir dir;
+        QTemporaryDir dir, keep;
+        ScratchTemp scratch;
         WriteWindow w;
         Quiet quiet(w);
         typeText(*w.document(), w.view()->cursor(), QStringLiteral("keep this"));
-        const QString target = dir.filePath(QStringLiteral("locked.pdf"));
+        QString target = keep.filePath(QStringLiteral("plain.pdf"));
         w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        // The control: with no password the watch sees the plain PDF.
+        PlainPdfWatch watch;
+        watch.dirs = {keep.path()};
+        QVERIFY(w.exportPdfPages(WriteOutputOptions()));
+        QVERIFY2(!watch.plain.isEmpty(), "the watch does not see a plain PDF");
+        target = dir.filePath(QStringLiteral("locked.pdf"));
+        watch.dirs.clear();
+        watch.plain.clear();
+        watch.dirs = {dir.path(), scratch.path()};
         WriteOutputOptions o;
         o.pdfArchive = true;
         o.pdfProtect.openPassword = QStringLiteral("pw");
@@ -866,6 +878,8 @@ private Q_SLOTS:
         o.pdfProtect.allowCopy = false;
         o.pdfProtect.allowChange = false;
         QVERIFY(w.exportPdfPages(o));
+        watch.dirs.clear();
+        QVERIFY2(watch.plain.isEmpty(), qPrintable(watch.plain.join(QLatin1Char(' '))));
         const QByteArray made = fileBytes(target);
         jp::PdfEncryptionInfo info;
         QVERIFY(jp::readPdfEncryption(made, QStringLiteral("pw"), &info));
@@ -878,6 +892,36 @@ private Q_SLOTS:
         QVERIFY(opened.text(0).contains(QStringLiteral("keep this")));
         QVERIFY(!jp::decryptPdf(made, QStringLiteral("pw")).contains("pdfaid:part"));
         QCOMPARE(QDir(dir.path()).entryList(QDir::NoDotAndDotDot | QDir::AllEntries), QStringList{QStringLiteral("locked.pdf")});
+        QVERIFY2(QDir(scratch.path()).entryList(QDir::Files).isEmpty(), qPrintable(QDir(scratch.path()).entryList(QDir::Files).join(QLatin1Char(' '))));
+    }
+
+    // Make an Email with the PDF can put a password on it: the attachment is encrypted, and no plain PDF is on the disk meanwhile.
+    void anEmailedPdfCanHaveAPassword()
+    {
+        QTemporaryDir dir;
+        ScratchTemp scratch;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("mailed"));
+        const QString target = dir.filePath(QStringLiteral("mail.eml"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        jp::PdfProtection p;
+        p.openPassword = QStringLiteral("pw");
+        PlainPdfWatch watch;
+        watch.dirs = {dir.path(), scratch.path()};
+        QVERIFY(w.exportEmail(WriteWindow::EmailWhat::Pdf, p));
+        watch.dirs.clear();
+        QVERIFY2(watch.plain.isEmpty(), qPrintable(watch.plain.join(QLatin1Char(' '))));
+        const QByteArray attached = pdfAttachmentOf(fileBytes(target));
+        jp::PdfEncryptionInfo info;
+        QVERIFY(jp::readPdfEncryption(attached, QStringLiteral("pw"), &info));
+        QCOMPARE(info.version, 5);
+        QCOMPARE(info.revision, 6);
+        QVERIFY(!jp::PdfDocument(attached).isValid());
+        QVERIFY(jp::PdfDocument(attached, QStringLiteral("pw")).isValid());
+        // No password: a plain attachment, as before.
+        QVERIFY(w.exportEmail(WriteWindow::EmailWhat::Pdf));
+        QVERIFY(jp::PdfDocument(pdfAttachmentOf(fileBytes(target))).isValid());
     }
 
     // The Export to PDF box offers the password, and turns PDF/A off and out of reach while one is set.

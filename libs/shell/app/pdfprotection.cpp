@@ -36,6 +36,14 @@ void PdfProtectionRow::forbiddenBy(const QList<QAbstractButton *> &boxes, const 
     refresh();
 }
 
+void PdfProtectionRow::setProtection(const PdfProtection &protection)
+{
+    m_protection.wipe();
+    m_protection = protection.copy();
+    refresh();
+    Q_EMIT protectionChanged(isProtected());
+}
+
 void PdfProtectionRow::clear()
 {
     if (!isProtected()) return;
@@ -46,11 +54,11 @@ void PdfProtectionRow::clear()
 
 void PdfProtectionRow::ask()
 {
-    PdfProtection chosen = m_protection;
+    PdfProtection chosen = m_protection.copy();
     switch (askPdfProtection(window(), isProtected(), &chosen)) {
     case NewPasswordChoice::Set:
         m_protection.wipe();
-        m_protection = chosen;
+        m_protection = chosen.copy();
         break;
     case NewPasswordChoice::Removed:
         m_protection.wipe();
