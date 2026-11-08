@@ -1,7 +1,7 @@
 # Speed bench
 
 `speedbench.py` compares the JeffOffice command-line tools and apps with LibreOffice (`/usr/bin/soffice`) on the same
-files from the test collections (`/media/user/volume2/jo-corpora`, read only, nothing copied into the repo).
+files from the test collections (`/home/user/jo-corpora`, read only, nothing copied into the repo).
 
     python3 tools/bench/speedbench.py            # full run (about an hour on a busy machine)
     python3 tools/bench/speedbench.py --quick    # 10 files, one run each, a few minutes

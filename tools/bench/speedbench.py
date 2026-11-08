@@ -11,11 +11,11 @@ Measures (wall time, CPU time, and peak resident memory of the slowest process o
   Peak memory is recorded in every row of every measure.
 
 Results go to /home/user/jo-scratch/speedbench/ (CSV of every run, CSV per file, Markdown summary), never into the repo.
-The corpus at /media/user/volume2/jo-corpora is read only; nothing is copied out of it except into a temp dir that is removed.
+The corpus at /home/user/jo-corpora is read only; nothing is copied out of it except into a temp dir that is removed.
 """
 import argparse, csv, glob, os, random, re, shlex, shutil, signal, statistics, subprocess, sys, tempfile, threading, time, zipfile
 
-CORPUS = "/media/user/volume2/jo-corpora"
+CORPUS = "/home/user/jo-corpora"
 SEED = 20261105
 TIMEOUT = 120
 LO = "/usr/bin/soffice"
