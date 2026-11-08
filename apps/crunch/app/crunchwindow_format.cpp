@@ -2,6 +2,7 @@
 // (horizontal, vertical, wrap, indent, orientation), merging, the number format and its buttons, the cell styles, the Copy Formatting, and Clear. Each is one step of Undo (the edit
 // session makes them; this part says what the buttons mean and keeps the buttons in step with the cell with the cursor).
 #include "app/crunchwindow.h"
+#include "core/richadjust.h"
 #include "app/plaintext.h"
 
 #include "app/icons.h"
@@ -990,31 +991,7 @@ void CrunchWindow::formatRibbonParts(RibbonParts &parts)
 namespace jp {
 
 // The runs of an entry after the text changed from what they were made for to `now`: a run that begins in text that went begins where it was; runs after it move by what was added and taken.
-void CrunchWindow::adjustEditRuns(const QString &now)
-{
-    using jp::office::sheet::RichRun;
-    const QString old = m_editRich.text;
-    m_editRich.text = now;
-    if (m_editRich.runs.isEmpty() || old == now) return;
-    qsizetype p = 0;
-    while (p < old.size() && p < now.size() && old[p] == now[p]) ++p;
-    qsizetype s = 0;
-    while (s < old.size() - p && s < now.size() - p && old[old.size() - 1 - s] == now[now.size() - 1 - s]) ++s;
-    const qsizetype removed = old.size() - p - s, added = now.size() - p - s;
-    for (RichRun &run : m_editRich.runs) {
-        if (qsizetype(run.start) >= p + removed && run.start > 0) run.start = quint32(qsizetype(run.start) - removed + added);
-        else if (qsizetype(run.start) > p) run.start = quint32(p);
-    }
-    // (runs with nothing in them go, and the first begins at the first character)
-    QVector<RichRun> kept;
-    for (int i = 0; i < m_editRich.runs.size(); ++i) {
-        const qsizetype end = i + 1 < m_editRich.runs.size() ? qsizetype(m_editRich.runs[i + 1].start) : now.size();
-        if (end > qsizetype(m_editRich.runs[i].start) || (kept.isEmpty() && i + 1 == m_editRich.runs.size())) kept.append(m_editRich.runs[i]);
-    }
-    if (!kept.isEmpty()) kept[0].start = 0;
-    m_editRich.runs = kept;
-    if (now.isEmpty()) m_editRich.runs.clear();
-}
+void CrunchWindow::adjustEditRuns(const QString &now) { crunch::adjustRuns(&m_editRich, now); }
 
 // Bold, italic, underline, strikethrough, a font, a size, or a color, on the text selected in the entry (the cell editor or the formula bar): that stretch gets runs of its own. False when no
 // text is selected, or when the change is of more than the font: the entry is then put in the cell as always.

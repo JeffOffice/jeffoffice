@@ -1508,6 +1508,7 @@ private:
     bool m_recoveryNoted = false, m_recovering = false;
     std::optional<jp::recovery::Recovered> m_recoveredCopy;   // the copy this window was opened from, discarded once its own copy is written
     void dropRecoveryCopy();
+    void recoveryFinished(bool ok, const QString &copy);
     void createRecovery();
     SlicerPane *m_slicerPane = nullptr;
     QDockWidget *m_slicerDock = nullptr;

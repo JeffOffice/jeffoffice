@@ -70,36 +70,63 @@ void CrunchWindow::autoRecover()
     const QString title = displayName();
     const std::shared_ptr<office::sheet::Workbook> book = m_loaded->book;
     const QPointer<CrunchWindow> self(this);
+    // What the file is made from must not be what the window goes on editing: the workbook object grows (strings, formats) and changes (sheet names) with every edit. The thread reads the file
+    // again for itself and takes the list of sheets as it is now; the rest of what is saved is in the snapshot, a copy. Whatever holds a function that reads the window's models (a pivot
+    // table or a chart made in this run), and a workbook read from an older form, is written here, where nothing can change meanwhile.
+    const bool apart = !book->isConverted() && snapshot->changes.addedPivots.empty() && snapshot->changes.producedParts.empty();
     m_recovering = true;
-    // (the file is made on a thread of its own, from what the snapshot took: typing goes on meanwhile)
-    QThread *thread = QThread::create([self, book, snapshot, copy, source, title] {
-        const bool ok = recovery::write(
+    auto make = [snapshot, copy, source, title](const office::sheet::Workbook &from, const QByteArray &fileBytes, const office::sheet::WorkbookInfo *info) {
+        return recovery::write(
             [&](const QString &file, QString *error) {
                 QByteArray bytes;
                 office::sheet::SaveReport report;
-                return office::sheet::saveXlsx(*book, snapshot->changes, &bytes, error, &report) && office::sheet::writeFileAtomically(file, bytes, error);
+                if (!info) return office::sheet::saveXlsx(from, snapshot->changes, &bytes, error, &report) && office::sheet::writeFileAtomically(file, bytes, error);
+                office::Package package;
+                office::sheet::Workbook mine;
+                QString why;
+                if (!package.readLazy(fileBytes, &why) || !mine.open(package, &why)) {
+                    if (error) *error = why;
+                    return false;
+                }
+                mine.setInfo(*info);
+                return office::sheet::saveXlsx(mine, snapshot->changes, &bytes, error, &report) && office::sheet::writeFileAtomically(file, bytes, error);
             },
             copy, source, title);
+    };
+    if (!apart) {
+        recoveryFinished(make(*book, QByteArray(), nullptr), copy);
+        return;
+    }
+    const QByteArray fileBytes = book->package().fileBytes();   // (shared, not copied)
+    const auto info = std::make_shared<office::sheet::WorkbookInfo>(book->info());
+    QThread *thread = QThread::create([self, make, fileBytes, info, copy] {
+        office::sheet::Workbook none;
+        const bool ok = make(none, fileBytes, info.get());
         QMetaObject::invokeMethod(qApp, [self, ok, copy] {
             if (!self) {
                 if (ok) recovery::remove(copy);   // (the window went while its copy was being made)
                 return;
             }
-            const QString older = self->m_recoveryCopy;   // (kept until the new copy is written)
-            self->m_recovering = false;
-            if (ok) {
-                self->m_recoveryCopy = copy;
-                if (!older.isEmpty() && older != copy) recovery::remove(older);
-                if (self->m_recoveredCopy) {
-                    recovery::discard(*self->m_recoveredCopy);   // (this run keeps its own copy before the old one goes)
-                    self->m_recoveredCopy.reset();
-                }
-            }
-            Q_EMIT self->recoveryWritten(ok);
+            self->recoveryFinished(ok, copy);
         }, Qt::QueuedConnection);
     });
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);
     thread->start();
+}
+
+void CrunchWindow::recoveryFinished(bool ok, const QString &copy)
+{
+    const QString older = m_recoveryCopy;   // (kept until the new copy is written)
+    m_recovering = false;
+    if (ok) {
+        m_recoveryCopy = copy;
+        if (!older.isEmpty() && older != copy) recovery::remove(older);
+        if (m_recoveredCopy) {
+            recovery::discard(*m_recoveredCopy);   // (this run keeps its own copy before the old one goes)
+            m_recoveredCopy.reset();
+        }
+    }
+    Q_EMIT recoveryWritten(ok);
 }
 
 void CrunchWindow::dropRecoveryCopy()

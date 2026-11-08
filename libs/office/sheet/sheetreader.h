@@ -404,6 +404,8 @@ public:
     void setSheetName(int sheet, const QString &name);
     void setSheetState(int sheet, SheetState state);
     void setSheetDeleted(int sheet, bool deleted);
+    // The sheets, names, and the rest of the workbook's list as they are now (a copy of another reading of the same file takes the list of the window's: a save made on a thread of its own).
+    void setInfo(const WorkbookInfo &info) { m_info = info; }
     void setSheetOrder(const QVector<int> &order) { m_info.order = order; }
     void setWorkbookProtection(const WorkbookProtection &protection) { m_info.protection = protection; }
     void setCustomViews(const QVector<CustomView> &views) { m_info.customViews = views; }

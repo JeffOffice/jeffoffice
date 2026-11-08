@@ -13,6 +13,9 @@
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
 #include "../localepin.h"
+#include "../sheet/sheethelpers.h"
+#include "io/zip.h"
+#include "office/package.h"
 
 #include <QAction>
 #include <QDir>
@@ -52,6 +55,8 @@ bool recoverNow(CrunchWindow &w)
     w.autoRecover();
     return written.count() > 0 || written.wait(20000);
 }
+
+const jp::office::sheet::Cell *at_(const jp::office::sheet::Sheet &s, const char *ref) { return at(s, QString::fromLatin1(ref)); }
 
 } // namespace
 
@@ -425,6 +430,175 @@ private Q_SLOTS:
         QVERIFY(!e.win.w.session()->anchors().linkAt(0, r, c));
     }
 
+
+    // The copy is the workbook as it was when the copy was begun, however the typing goes on while it is written (the file is made from a private reading of the file and a copy of
+    // what changed, never from the workbook the window edits).
+    void aRecoveryCopyIsAConsistentSnapshotWhileTheEditingGoesOn()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".xlsx"));
+        {
+            // (a sheet big enough that the copy takes a while to write)
+            QByteArray rows;
+            for (int r = 10; r < 90000; ++r) {
+                rows += "<row r=\"" + QByteArray::number(r) + "\">";
+                for (const char *c : {"A", "B", "C", "D", "H"}) rows += "<c r=\"" + QByteArray(c) + QByteArray::number(r) + "\"><v>" + QByteArray::number(r * 7) + ".25</v></c>";
+                rows += "</row>";
+            }
+            EditWindow e;
+            QVERIFY(e.open(editBook(rows)));
+            CrunchWindow &w = e.win.w;
+            auto at = [](const char *ref, quint32 *r, quint32 *c) { QVERIFY(parseCellRef(QString::fromLatin1(ref), r, c)); };
+            quint32 r = 0, c = 0;
+            at("F2", &r, &c);
+            QVERIFY(w.session()->type(0, r, c, QStringLiteral("before the copy"), false).ok);
+            QVERIFY(e.settle());
+            QSignalSpy written(&w, &CrunchWindow::recoveryWritten);
+            w.autoRecover();   // the copy is begun: what it holds is what the workbook holds now
+            QVERIFY(w.isRecovering());
+            // ... and the person goes on: a new sheet name, new texts (new shared strings), a new number format, until the copy is written
+            QVERIFY(w.session()->renameSheet(0, QStringLiteral("Renamed")).ok);
+            int edits = 0;
+            QElapsedTimer limit;
+            limit.start();
+            while (written.isEmpty() && limit.elapsed() < 60000) {
+                at("G2", &r, &c);
+                QVERIFY(w.session()->type(0, r + quint32(edits % 50), c, QStringLiteral("later %1").arg(edits), false).ok);
+                at("H2", &r, &c);
+                QVERIFY(w.session()->type(0, r + quint32(edits % 50), c, QStringLiteral("%1.5%").arg(edits % 97), false).ok);
+                ++edits;
+                QCoreApplication::processEvents();
+            }
+            QVERIFY(!written.isEmpty() || written.wait(60000));
+            QVERIFY(written.last().first().toBool());
+            qInfo("RECOVERY race test: %d edit rounds while the copy was written", edits);
+            const QString copy = w.recoveryCopy();
+            QVERIFY(QFileInfo::exists(copy));
+            Package p;
+            QString why;
+            QVERIFY2(p.readLazyFile(copy, &why), qPrintable(why));
+            Workbook b;
+            QVERIFY2(b.open(p, &why), qPrintable(why));
+            QCOMPARE(b.info().sheets.value(0).name, QStringLiteral("Sheet1"));   // not the new name
+            Sheet s;
+            QVERIFY(b.readSheet(0, &s));
+            QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("F2")), QStringLiteral("s:before the copy"));
+            QVERIFY(!at_(s, "G2"));   // nothing typed after the copy was begun is in it
+            QVERIFY(!at_(s, "G3"));
+            w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
+        }
+        recovery::setRoot(QString());
+    }
+
+    // ---- Spelling keeps the formatting of the cell
+
+    void changingAWordKeepsTheOtherRunsOfARichCell()
+    {
+        const QByteArray strings = "<?xml version=\"1.0\"?><sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"1\" uniqueCount=\"1\"><si>"
+                                   "<r><rPr><b/><sz val=\"12\"/><rFont val=\"Arial\"/></rPr><t xml:space=\"preserve\">Big </t></r>"
+                                   "<r><rPr><sz val=\"12\"/><color rgb=\"FFFF0000\"/><rFont val=\"Arial\"/></rPr><t>zzqxwrd</t></r>"
+                                   "<r><t xml:space=\"preserve\"> plain here</t></r></si></sst>";
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"s\"><v>0</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)}, strings)));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        const auto before = w.session()->richOf(0, 0, 0);
+        QVERIFY(before.has_value());
+        QCOMPARE(int(before->runs.size()), 3);
+        SpellingDialog d(&w, 0, jp::office::sheet::CellRange{0, 0, 5, 5, true});
+        QVERIFY(d.start(true));
+        QCOMPARE(d.current()->word, QStringLiteral("zzqxwrd"));
+        d.setReplacement(QStringLiteral("wonder"));
+        d.change();
+        const auto after = w.session()->richOf(0, 0, 0);
+        QVERIFY(after.has_value());
+        QCOMPARE(after->text, QStringLiteral("Big wonder plain here"));
+        QCOMPARE(int(after->runs.size()), 3);
+        QCOMPARE(int(after->runs[0].start), 0);
+        QCOMPARE(int(after->runs[1].start), 4);
+        QCOMPARE(int(after->runs[2].start), 10);   // (the plain run moved on by the word's new length)
+        QVERIFY(after->fonts[int(after->runs[0].font)].bold);
+        QCOMPARE(after->fonts[int(after->runs[1].font)].color.rgb, 0xFF0000u);
+        QVERIFY(!after->fonts[int(after->runs[1].font)].bold);
+        QCOMPARE(after->runs[2].font, jp::office::sheet::RichRun::kCellFont);
+        w.session()->undoStack()->undo();
+        QCOMPARE(w.session()->richOf(0, 0, 0)->text, before->text);
+        QCOMPARE(int(w.session()->richOf(0, 0, 0)->runs.size()), 3);
+    }
+
+    // ---- a workbook with macros is recovered with its macros
+
+    void aRecoveredWorkbookWithMacrosStillHasThem()
+    {
+        QByteArray macroBook;
+        {
+            QMap<QString, QByteArray> parts;
+            QVERIFY(readZip(editBook(), parts));
+            ZipWriter z;
+            for (auto it = parts.begin(); it != parts.end(); ++it) {
+                QByteArray data = it.value();
+                if (it.key() == QLatin1String("[Content_Types].xml"))
+                    data.replace("spreadsheetml.sheet.main+xml", "ms-excel.sheet.macroEnabled.main+xml").replace("</Types>", "<Override PartName=\"/xl/vbaProject.bin\" ContentType=\"application/vnd.ms-office.vbaProject\"/></Types>");
+                if (it.key() == QLatin1String("xl/_rels/workbook.xml.rels"))
+                    data.replace("</Relationships>", "<Relationship Id=\"rIdVba\" Type=\"http://schemas.microsoft.com/office/2006/relationships/vbaProject\" Target=\"vbaProject.bin\"/></Relationships>");
+                z.add(it.key(), data, true);
+            }
+            z.add(QStringLiteral("xl/vbaProject.bin"), QByteArray("VBA project bytes \x01\x02\x03", 20), true);
+            macroBook = z.finish();
+        }
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".xlsx"));
+        {
+            EditWindow e;
+            QVERIFY(e.open(macroBook, QStringLiteral("macros.xlsm")));
+            e.select("E5");
+            e.enter("macro work");
+            QVERIFY(e.settle());
+            QVERIFY(recoverNow(e.win.w));
+            const QString copy = e.win.w.recoveryCopy();
+            QMap<QString, QByteArray> parts;
+            {
+                QFile f(copy);
+                QVERIFY(f.open(QIODevice::ReadOnly));
+                QVERIFY(readZip(f.readAll(), parts));
+            }
+            QVERIFY(parts.contains(QStringLiteral("xl/vbaProject.bin")));
+            QCOMPARE(parts.value(QStringLiteral("xl/vbaProject.bin")), QByteArray("VBA project bytes \x01\x02\x03", 20));
+            QVERIFY(parts.value(QStringLiteral("[Content_Types].xml")).contains("macroEnabled.main+xml"));
+            QVERIFY(parts.value(QStringLiteral("[Content_Types].xml")).contains("ms-office.vbaProject"));
+            QVERIFY(parts.value(QStringLiteral("xl/_rels/workbook.xml.rels")).contains("vbaProject"));
+            // a crash, and the copy opened as unsaved work: the macros are still in it, and it is still a workbook with macros
+            const QString crashed = QDir(root.path()).filePath(QStringLiteral("crashed-run"));
+            QVERIFY(QDir().mkpath(crashed));
+            QVERIFY(QFile::copy(copy, crashed + QStringLiteral("/macros.xlsx")));
+            QVERIFY(QFile::copy(copy.chopped(5) + QStringLiteral(".json"), crashed + QStringLiteral("/macros.json")));
+            const QVector<recovery::Recovered> found = recovery::orphans();
+            QCOMPARE(found.size(), 1);
+            Window host;
+            QVERIFY(host.openBlank());
+            QSignalSpy loaded(&host.w, &CrunchWindow::loadFinished);
+            QString err;
+            QVERIFY2(host.w.openRecovered(found[0], &err), qPrintable(err));
+            QTRY_VERIFY_WITH_TIMEOUT(loaded.count() > 0 && !host.w.recoveryCopy().isEmpty(), 20000);
+            // saved under a name of the kind, the macros are in the file
+            const QString out = e.folder.dir.filePath(QStringLiteral("recovered.xlsm"));
+            QVERIFY(saveAndWait(host.w, out));
+            QMap<QString, QByteArray> saved;
+            QFile f(out);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            QVERIFY(readZip(f.readAll(), saved));
+            QCOMPARE(saved.value(QStringLiteral("xl/vbaProject.bin")), QByteArray("VBA project bytes \x01\x02\x03", 20));
+            QVERIFY(saved.value(QStringLiteral("[Content_Types].xml")).contains("macroEnabled.main+xml"));
+            e.win.w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
+        }
+        recovery::setRoot(QString());
+    }
+
     // The time a recovery copy takes for a big workbook (JP_BIG_XLSX names one; it is only measured, never checked).
     void bigWorkbookRecoveryIsTimed()
     {
@@ -436,15 +610,15 @@ private Q_SLOTS:
         {
             Window win;
             QVERIFY(win.open(big));
-            QVERIFY(win.w.session()->type(0, 0, 0, QStringLiteral("changed"), false).ok);
+            for (quint32 i = 0; i < 2000; ++i) QVERIFY(win.w.session()->type(0, i, 9, QStringLiteral("changed %1").arg(i), false).ok);
             QElapsedTimer total, loop;
             QSignalSpy written(&win.w, &CrunchWindow::recoveryWritten);
             total.start();
             loop.start();
             win.w.autoRecover();
-            const qint64 blocked = loop.elapsed();
+            const double blocked = loop.nsecsElapsed() / 1e6;
             QVERIFY(written.wait(600000));
-            qInfo("RECOVERY big workbook %.1f MB: the window was held %lld ms, the copy took %lld ms in all", QFileInfo(big).size() / 1048576.0, blocked, total.elapsed());
+            qInfo("RECOVERY big workbook %.1f MB: the window was held %.1f ms (2000 edited cells), the copy took %lld ms in all", QFileInfo(big).size() / 1048576.0, blocked, total.elapsed());
             win.w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
         }
         recovery::setRoot(QString());

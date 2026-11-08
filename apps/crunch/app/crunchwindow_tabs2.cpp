@@ -1,6 +1,7 @@
 // Tools of the Review, Data, and Formulas tabs that are not part of an older group: Workbook Statistics, Goal Seek, Subtotal, and Advanced Filter.
 #include "app/crunchwindow.h"
 #include "app/spellingdialog.h"
+#include "core/richadjust.h"
 
 #include "app/advancedfilterdialog.h"
 #include "app/consolidatedialog.h"
@@ -906,7 +907,11 @@ bool CrunchWindow::replaceCellTexts(const std::vector<CellText> &changes, const 
     if (several) stack->beginMacro(stepText);
     bool ok = true;
     for (const CellText &c : changes) {
-        const crunch::EditSession::Outcome o = m_session->type(c.sheet, c.row, c.col, c.text, false);
+        // (the cell's formatting runs go with the words: only the stretch that changed is new)
+        std::optional<jp::office::sheet::RichText> rich = m_session->richOf(c.sheet, c.row, c.col);
+        if (rich && !rich->isEmpty()) crunch::adjustRuns(&*rich, c.text);
+        else rich.reset();
+        const crunch::EditSession::Outcome o = m_session->type(c.sheet, c.row, c.col, c.text, false, rich ? &*rich : nullptr);
         if (!o.ok) {
             notice(stepText, o.problem);
             ok = false;
