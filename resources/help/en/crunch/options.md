@@ -1,5 +1,5 @@
 # Change JeffCrunch's settings
-<!-- keywords: editing, autocomplete, fill handle, drag and drop, decimal places, options, settings, preferences, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about, edit in cell, gridline color, default zoom, standard width, privacy, personal information -->
+<!-- keywords: recovery, recover unsaved work, automatic recovery, proofing, editing, autocomplete, fill handle, drag and drop, decimal places, options, settings, preferences, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about, edit in cell, gridline color, default zoom, standard width, privacy, personal information -->
 
 Your settings are in the **JeffCrunch Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
@@ -14,6 +14,14 @@ The **Editing** page changes how typing in cells works.
 - **Put a decimal point in whole numbers that are typed** is called automatic decimal places. Set **Places** to 2, and typing 1234 enters 12.34. Set it to -2, and typing 5 enters 500. A number you type with a decimal point is entered as typed.
 
 - **Allow editing directly in cells** is on by default. When you turn it off, a typed entry or F2 goes to the formula bar, and the cell shows the result only when you finish.
+
+## Save options
+
+**Save automatic recovery information every** sets how often JeffCrunch keeps a copy of a workbook with changes you have not saved, from 1 to 120 minutes. The copy is a .xlsx file in a folder that JeffCrunch keeps for this purpose, made in the background so you can go on typing. It is removed when you save or close the workbook. If JeffCrunch closes by surprise, it offers the copies the next time it starts. You can also click **File > Open > Recover Unsaved Work**. A workbook that is protected with a password is not copied, because the copy would not be protected.
+
+## Proofing options
+
+The **Proofing** page is shared by the JeffOffice apps. It decides whether words in capital letters and words with numbers are ignored when spelling is checked, whether AutoCorrect fixes words as you type, whether straight quote marks become curly ones, whether dashes, fractions, and ordinals are changed, and whether a web address becomes a link. See [Spelling](notes-links) and [Type in cells](edit-cells).
 
 ## Display options
 
