@@ -2929,7 +2929,7 @@ void StoryLayout::build(const QTextDocument *doc, const QVector<FrameSpec> &fram
 }
 
 // The most the frames' heights (and the 1000 between them) add up to, in points: eight times it is in Qt's fixed-point range (about 4.19 million points).
-static constexpr double kMostFrameY = 4.0e6;
+static constexpr double kMostFrameY = 4.19e6;
 
 QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<FrameSpec> &frames, const LayoutEnv &env)
 {
