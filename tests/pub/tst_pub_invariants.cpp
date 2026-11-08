@@ -292,10 +292,17 @@ private Q_SLOTS:
         u.fromJson(to);
         QVERIFY(u.columnGap <= 1000);
         QVERIFY(u.hyphenZone >= 0);
-        QVERIFY(u.fitScale > 0 && u.fitScale <= 1);
+        QVERIFY(u.fitScale > 0 && u.fitScale <= 8);
         QVERIFY(int(u.valign) >= 0 && int(u.valign) <= int(jp::VAlign::Bottom));
         QVERIFY(int(u.autofit) >= 0 && int(u.autofit) <= int(jp::TextItem::GrowBox));
         QVERIFY(std::abs(u.insets.left()) <= 20000 && std::abs(u.insets.top()) <= 20000);
+
+        // (a best-fit box grown past full size keeps its stored scale)
+        QJsonObject grown = t.toJson();
+        grown["fitScale"] = 2.5;
+        jp::TextItem g;
+        g.fromJson(grown);
+        QCOMPARE(g.fitScale, 2.5);
 
         QJsonObject so = jp::PageSetup().toJson();
         so["margins"] = QJsonArray{1e12, -50, 1e12, 3};

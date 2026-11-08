@@ -248,7 +248,7 @@ void TextItem::fromJson(const QJsonObject &o)
     hyphenZone = std::clamp(o["hyphZone"].toDouble(18), 0.0, 1000.0);
     continuedFrom = o["contFrom"].toBool();
     prompt = o["prompt"].toString();
-    fitScale = std::clamp(o["fitScale"].toDouble(1.0), 0.01, 1.0);
+    fitScale = std::clamp(o["fitScale"].toDouble(1.0), 0.01, 8.0);   // (best fit grows text up to 8 times)
     fitLineCut = o["fitLineCut"].toDouble();
     fitAsStored = o["fitStored"].toBool();
 }
