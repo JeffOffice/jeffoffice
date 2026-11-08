@@ -92,7 +92,11 @@ private Q_SLOTS:
         QCOMPARE(jp::dict::match(QStringLiteral("en_gb")), QStringLiteral("en-GB"));
         QCOMPARE(jp::dict::match(QStringLiteral("en-NZ")), QStringLiteral("en-GB"));
         QCOMPARE(jp::dict::match(QStringLiteral("en")), QStringLiteral("en-US"));
-        QCOMPARE(jp::dict::match(QStringLiteral("es-AR")), QStringLiteral("es-MX"));
+        QCOMPARE(jp::dict::match(QStringLiteral("es-AR")), QStringLiteral("es-AR"));
+        QCOMPARE(jp::dict::match(QStringLiteral("es_cl")), QStringLiteral("es-CL"));
+        QCOMPARE(jp::dict::match(QStringLiteral("es-419")), QStringLiteral("es-MX"));
+        QCOMPARE(jp::dict::match(QStringLiteral("es-GQ")), QStringLiteral("es-MX"));
+        QCOMPARE(jp::dict::match(QStringLiteral("es")), QStringLiteral("es-MX"));
         QCOMPARE(jp::dict::match(QStringLiteral("es-ES")), QStringLiteral("es-ES"));
         QCOMPARE(jp::dict::match(QStringLiteral("fr-CA")), QStringLiteral("fr-FR"));
         QCOMPARE(jp::dict::match(QStringLiteral("de-CH")), QStringLiteral("de-DE"));
@@ -106,6 +110,40 @@ private Q_SLOTS:
             QVERIFY2(!jp::dict::hyphenationFile(l.code).isEmpty(), qPrintable(l.code));
         }
         QCOMPARE(jp::dict::languageName(QStringLiteral("pt-BR")), QStringLiteral("Portuguese (Brazil)"));
+    }
+
+    // Each Spanish region has its own dictionary: a word only that region uses
+    // is right there and wrong in Mexico's, and every region hyphenates.
+    void spanishRegions()
+    {
+        const struct { const char *region, *name, *word; } regions[] = {
+            {"AR", "Argentina", "abrime"}, {"BO", "Bolivia", "urpila"}, {"CL", "Chile", "afrechar"}, {"CO", "Colombia", "ahuyama"},
+            {"CR", "Costa Rica", "natilla"}, {"CU", "Cuba", "boniatillo"}, {"DO", "Dominican Republic", "abulencia"}, {"EC", "Ecuador", "bolsico"},
+            {"GT", "Guatemala", "pinolate"}, {"HN", "Honduras", "cumbear"}, {"NI", "Nicaragua", "coyundear"}, {"PA", "Panama", "ranchar"},
+            {"PE", "Peru", "huaico"}, {"PR", "Puerto Rico", "caculear"}, {"PY", "Paraguay", "garandumba"}, {"SV", "El Salvador", "ruchique"},
+            {"UY", "Uruguay", "paragolpe"}, {"VE", "Venezuela", "caney"},
+        };
+        for (const auto &r : regions) {
+            const QString code = QStringLiteral("es-") + QLatin1String(r.region);
+            QCOMPARE(jp::dict::match(code), code);
+            QCOMPARE(jp::dict::languageName(code), QStringLiteral("Spanish (%1)").arg(QLatin1String(r.name)));
+            QVERIFY2(jp::dict::hasSpelling(code), qPrintable(code));
+            QVERIFY2(jp::dict::spell(code, QString::fromUtf8(r.word)), qPrintable(code));
+            QVERIFY2(!jp::dict::spell(QStringLiteral("es-MX"), QString::fromUtf8(r.word)), qPrintable(code));
+            QVERIFY2(jp::dict::spell(code, QStringLiteral("acción")), qPrintable(code));
+            QVERIFY2(!jp::dict::spell(code, QStringLiteral("accion")), qPrintable(code));
+        }
+        // The United States has its own list, without the other regions' words.
+        QCOMPARE(jp::dict::match(QStringLiteral("es-US")), QStringLiteral("es-US"));
+        QVERIFY(jp::dict::spell(QStringLiteral("es-US"), QStringLiteral("acción")));
+        QVERIFY(!jp::dict::spell(QStringLiteral("es-US"), QStringLiteral("paragolpe")));
+        // The list names Mexico, then Spain, then the other regions.
+        QStringList codes;
+        for (const jp::dict::Language &l : jp::dict::languages())
+            if (l.code.startsWith(QLatin1String("es-"))) codes << l.code;
+        QCOMPARE(codes.value(0), QStringLiteral("es-MX"));
+        QCOMPARE(codes.value(1), QStringLiteral("es-ES"));
+        QCOMPARE(codes.size(), 21);
     }
 
     // Spelling checks each word in its own language: accented words, both
