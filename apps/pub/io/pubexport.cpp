@@ -2440,8 +2440,10 @@ QByteArray PubWriter::write(QStringList *skipped)
     for (int i = 0; i < pageSeq.size(); ++i) {
         // A booklet marks only its first page as a page (06 = 2).
         const bool leftPage = spreads && i % 2 == 1;
-        cw.put(pageSeq[i], {0x43, 256, pageBody(pageShapes[i], pageSub[i].first, pageSub[i].second, false, spreads && i > 0,
-                                                leftPage ? leftScratch : scratch, leftPage ? leftExt : ext, i, masterFor(*m_doc.pages[i], i))});
+        // (a publication with no pages left is written with one empty page: pageSeq always holds the first)
+        const bool real = i < m_doc.pages.size();
+        cw.put(pageSeq[i], {0x43, 256, pageBody(real ? pageShapes[i] : QVector<quint32>{}, pageSub[i].first, pageSub[i].second, false, spreads && i > 0,
+                                                leftPage ? leftScratch : scratch, leftPage ? leftExt : ext, i, real ? masterFor(*m_doc.pages[i], i) : kMaster)});
         cw.put(pageSub[i].first, {0x60, pageSeq[i], {}});
         cw.put(pageSub[i].second, {0x77, pageSeq[i], webForm()});
     }
