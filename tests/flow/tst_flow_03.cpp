@@ -1815,6 +1815,19 @@ void FlowTests::aSectionsLineNumbersAreDrawnInTheMarginAtEachLine()
     for (int i = 0; i < shown.size(); ++i) QCOMPARE(shown[i], QString::number(5 * (i + 1)));
 }
 
+void FlowTests::aDocumentWithNoSectionsIsPaginatedWithoutNumbersForItsLines()
+{
+    FlowDocument fd;
+    fd.env.wordLines = true;
+    fillStory(fd.story(), 24, 4, [](int, QTextBlockFormat &bf) { bf.setBottomMargin(0); }, 6, 12);
+    fd.sections.clear();
+    Paginator pg(&fd);
+    QVERIFY(pg.pageCount() >= 1);
+    const auto page = pg.materialize(0);
+    QVERIFY(page);
+    for (const auto &item : page->doc->pages[0]->items) QVERIFY(!item->id.startsWith(QLatin1String("flow-lineno-box")));
+}
+
 
 // Line numbers that run on (w:restart "continuous") go through the pages: a page's first line has the number after the last of the page before.
 void FlowTests::continuousLineNumbersRunOnThroughThePages()

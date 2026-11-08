@@ -1525,6 +1525,7 @@ private Q_SLOTS:
     void aPageOfSeventeenSectionsIsBoundedAndShowsEveryParagraph();
     void aPagesCopyCutsARunOfJoinedParagraphsWhereTheDocumentDoes();
     void aSectionsLineNumbersAreDrawnInTheMarginAtEachLine();
+    void aDocumentWithNoSectionsIsPaginatedWithoutNumbersForItsLines();
     void continuousLineNumbersRunOnThroughThePages();
     void newSectionLineNumbersBeginAgainAtEachSection();
     void lineNumbersByFiveGoOnAcrossAPage();

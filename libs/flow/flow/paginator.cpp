@@ -1719,7 +1719,7 @@ QVector<Paginator::NumberedLine> Paginator::numberLines(const Run &run, LineCoun
         if (bf.intProperty(fp::Cell) || bf.boolProperty(tp::OutOfLayout) || bf.boolProperty(fp::SuppressLineNumbers)) continue;
         const int column = ln.frame - run.firstFrame;
         if (column < 0 || column >= run.cols.size()) continue;
-        const int section = std::clamp(int(std::upper_bound(starts.cbegin(), starts.cend(), ln.pos) - starts.cbegin()) - 1, 0, int(m_doc->sections.size()) - 1);
+        const int section = std::clamp(int(std::upper_bound(starts.cbegin(), starts.cend(), ln.pos) - starts.cbegin()) - 1, 0, std::max(0, int(m_doc->sections.size()) - 1));
         const Section::LineNumbers &numbers = m_doc->section(section).lineNumbers;
         if (numbers.countBy <= 0) continue;
         using Restart = Section::LineNumbers::Restart;
