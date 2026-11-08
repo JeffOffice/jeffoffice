@@ -346,10 +346,12 @@ QWidget *DeckFileScreen::buildPrint()
     range->addLayout(someRow);
     form->addRow(tr("Range:"), range);
 
-    // One side, or both sides flipped on the long or the short edge: the system's window starts with it.
+    // One side, or both sides flipped on the long or the short edge (the system's window starts with it), or both sides by hand. It was kept as "output/sides" once.
+    Settings &sideSettings = Settings::get();
+    const int wantedSides = sideSettings.value(QStringLiteral("print/sides"), sideSettings.value(QStringLiteral("output/sides"), int(SidesChoice::OneSide))).toInt();
     auto *sides = new QComboBox(w);
     sides->setObjectName(QStringLiteral("printDuplex"));
-    fillSidesBox(sides, false, Settings::get().value(QStringLiteral("output/sides"), int(SidesChoice::OneSide)).toInt());
+    fillSidesBox(sides, true, wantedSides);
     updateSidesBox(sides, QString(), false);
     form->addRow(tr("Sides:"), sides);
 
@@ -480,7 +482,7 @@ QWidget *DeckFileScreen::buildPrint()
     };
     connect(what, &QComboBox::currentIndexChanged, w, [=] { remember(); restart(); });
     connect(order, &QComboBox::currentIndexChanged, w, [=] { remember(); paint(); });
-    connect(sides, &QComboBox::currentIndexChanged, w, [=] { Settings::get().setValue(QStringLiteral("output/sides"), sidesWanted(sides)); });
+    connect(sides, &QComboBox::currentIndexChanged, w, [=] { Settings::get().setValue(QStringLiteral("print/sides"), sidesWanted(sides)); });
     connect(group, &QButtonGroup::buttonToggled, w, [=] { restart(); });
     connect(text, &QLineEdit::textChanged, w, [=] {
         // Typing a range is choosing one.
@@ -491,7 +493,7 @@ QWidget *DeckFileScreen::buildPrint()
     connect(previous, &QToolButton::clicked, w, [=] { --*page; paint(); });
     connect(next, &QToolButton::clicked, w, [=] { ++*page; paint(); });
     connect(printBtn, &QPushButton::clicked, this, [=] {
-        if (m_win->printOutput(options(), sidesDuplex(sides))) Q_EMIT closeRequested();
+        if (m_win->printOutput(options(), sidesDuplex(sides), sidesByHand(sides))) Q_EMIT closeRequested();
     });
     refresh();
     // The preview is drawn once the page has its size, and again when that changes.

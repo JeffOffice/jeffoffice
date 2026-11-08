@@ -297,7 +297,9 @@ public:
     // What the File screen's Print and Export pages do: ask where, then write
     // or print. False when nothing was written or sent.
     // `duplex` is what the printer starts as in the system's window (the Print page's Sides choice); a PDF file is made with none.
-    bool printOutput(const deck::OutputOptions &options, QPrinter::DuplexMode duplex = QPrinter::DuplexNone);
+    // With `byHand`, the pages go in two runs for both sides by hand: the first, third, ... pages, a message to turn the stack over, then the others last first (the
+    // system's window is shown once).
+    bool printOutput(const deck::OutputOptions &options, QPrinter::DuplexMode duplex = QPrinter::DuplexNone, bool byHand = false);
     // A test sets it to see the printer as the pages are about to go to it (the program never does).
     void setPrinterPreparer(const std::function<void(QPrinter &)> &preparer) { m_printerPreparer = preparer; }
     bool exportPdf();

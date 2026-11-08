@@ -268,7 +268,8 @@ private Q_SLOTS:
         };
         QComboBox *sides = open();
         QVERIFY(sides);
-        QCOMPARE(sides->count(), 3);   // (no by-hand entry in JeffDeck)
+        QCOMPARE(sides->count(), 4);
+        QCOMPARE(sides->itemText(3), QStringLiteral("Print on both sides by hand"));
         QCOMPARE(sides->itemText(0), QStringLiteral("Print on one side"));
         QCOMPARE(sides->itemText(1), QStringLiteral("Print on both sides, flip on long edge"));
         QCOMPARE(sides->itemText(2), QStringLiteral("Print on both sides, flip on short edge"));
@@ -307,6 +308,65 @@ private Q_SLOTS:
         setPrintDialogStandIn(nullptr);
         sides->setCurrentIndex(0);
         updateSidesBox(sides, QString(), false);
+        w.editor()->markSaved();
+    }
+
+    // Both sides by hand: the odd pages, a message to turn the stack over, then the even pages (last first); a job of one page has no message, and declining it stops the job.
+    void printPageSidesChoiceByHandPrintsTwoRuns()
+    {
+        setDuplexSupportStandIn([](const QString &) { return QList<QPrinter::DuplexMode>{QPrinter::DuplexNone, QPrinter::DuplexLongSide, QPrinter::DuplexShortSide}; });
+        QTemporaryDir dir;
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        w.editor()->setDocument(showDeck(3));
+        auto pagesIn = [](const QString &path) {
+            QFile f(path);
+            if (!f.open(QIODevice::ReadOnly)) return -1;
+            const QByteArray pdf = f.readAll();
+            int pages = 0;
+            for (qsizetype at = pdf.indexOf("/Type /Page"); at >= 0; at = pdf.indexOf("/Type /Page", at + 1))
+                if (at + 11 >= pdf.size() || pdf[at + 11] != 's') ++pages;
+            return pages;
+        };
+        setPrintDialogStandIn([&](QPrintDialog &) { return int(QDialog::Accepted); });
+        QStringList order;
+        QVector<int> turnedAfter;
+        w.setPrinterPreparer([&](QPrinter &p) {
+            order << QStringLiteral("print");
+            p.setOutputFormat(QPrinter::PdfFormat);
+            p.setOutputFileName(dir.filePath(QStringLiteral("h%1.pdf").arg(order.size())));
+        });
+        bool turn = true;
+        setStackTurnerStandIn([&] {
+            order << QStringLiteral("turn");
+            turnedAfter << pagesIn(dir.filePath(QStringLiteral("h1.pdf")));
+            return turn;
+        });
+        w.showFileScreen(QStringLiteral("print"));
+        auto *sides = w.findChild<FileScreen *>()->findChild<QComboBox *>(QStringLiteral("printDuplex"));
+        QVERIFY(sides);
+        sides->setCurrentIndex(3);
+        QVERIFY(sidesByHand(sides));
+        QVERIFY(w.printOutput(deck::OutputOptions(), QPrinter::DuplexNone, true));
+        QCOMPARE(order, (QStringList{QStringLiteral("print"), QStringLiteral("turn"), QStringLiteral("print")}));
+        QCOMPARE(turnedAfter, (QVector<int>{2}));   // (slides 1 and 3 first)
+        QCOMPARE(pagesIn(dir.filePath(QStringLiteral("h3.pdf"))), 1);   // (then slide 2)
+        // declined: nothing more is sent
+        order.clear();
+        turn = false;
+        QVERIFY(!w.printOutput(deck::OutputOptions(), QPrinter::DuplexNone, true));
+        QCOMPARE(order, (QStringList{QStringLiteral("print"), QStringLiteral("turn")}));
+        // one slide: it is printed and there is nothing to turn over
+        order.clear();
+        deck::OutputOptions one;
+        one.slides = {0};
+        QVERIFY(w.printOutput(one, QPrinter::DuplexNone, true));
+        QCOMPARE(order, (QStringList{QStringLiteral("print")}));
+        setStackTurnerStandIn(nullptr);
+        setPrintDialogStandIn(nullptr);
+        setDuplexSupportStandIn(nullptr);
+        sides->setCurrentIndex(0);
         w.editor()->markSaved();
     }
 

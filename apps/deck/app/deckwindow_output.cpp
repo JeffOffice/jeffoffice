@@ -3,6 +3,7 @@
 // screen's Print page asks for (it chooses what to print, and previews it).
 
 #include "app/deckwindow.h"
+#include "app/printsides.h"
 
 #include "app/editor.h"
 #include "app/filedialogs.h"
@@ -283,7 +284,7 @@ void setUpPrinter(QPrinter *printer, const Document &doc, const deck::OutputOpti
 
 // Paints the output on a printer (the real one, or the preview's), a page on
 // each sheet, inside the margins it can print within.
-void paintOnPrinter(QPrinter *printer, const Document &doc, LayoutCache *cache, const deck::OutputOptions &optionsIn)
+void paintOnPrinter(QPrinter *printer, const Document &doc, LayoutCache *cache, const deck::OutputOptions &optionsIn, const QVector<int> *only = nullptr)
 {
     deck::OutputOptions options = optionsIn;
     if (printer->colorMode() == QPrinter::GrayScale) options.grayscale = true;
@@ -294,12 +295,15 @@ void paintOnPrinter(QPrinter *printer, const Document &doc, LayoutCache *cache, 
     p.setRenderHint(QPainter::SmoothPixmapTransform);
     const QSizeF sheet = printer->pageRect(QPrinter::Point).size();
     const double scale = printer->resolution() / 72.0;
-    const int pages = deck::outputPageCount(doc, options, sheet);
+    QVector<int> pages;
+    if (only) pages = *only;
+    else
+        for (int i = deck::outputPageCount(doc, options, sheet) - 1; i >= 0; --i) pages.prepend(i);
     // A printer that can't make copies is sent the pages again.
     const int copies = printer->supportsMultipleCopies() ? 1 : std::max(1, printer->copyCount());
     bool first = true;
     for (int c = 0; c < copies; ++c)
-        for (int i = 0; i < pages; ++i) {
+        for (int i : std::as_const(pages)) {
             if (!first) printer->newPage();
             first = false;
             p.save();
@@ -312,7 +316,7 @@ void paintOnPrinter(QPrinter *printer, const Document &doc, LayoutCache *cache, 
 
 } // namespace
 
-bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::DuplexMode duplex)
+bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::DuplexMode duplex, bool byHand)
 {
     settle(this);
     const Document &doc = *m_ed->doc();
@@ -325,7 +329,26 @@ bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::Duple
     if (execPrintDialog(dlg) != QDialog::Accepted) return false;
     // (a PDF file, which the window can print to, has no sides)
     if (printer.outputFormat() == QPrinter::PdfFormat) printer.setDuplex(QPrinter::DuplexNone);
+    const bool byHandRuns = byHand && printer.outputFormat() != QPrinter::PdfFormat;
     if (m_printerPreparer) m_printerPreparer(printer);
+    // Both sides by hand (a file has no sides): the first, third, ... pages, the stack turned over, then the others last first.
+    if (byHandRuns) {
+        QVector<int> all;
+        for (int i = 0, n = deck::outputPageCount(doc, options, printer.pageRect(QPrinter::Point).size()); i < n; ++i) all << i;
+        const HandRuns<int> runs = handRuns(all);
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+        paintOnPrinter(&printer, doc, &m_ed->cache(), options, &runs.first);
+        QApplication::restoreOverrideCursor();
+        if (!runs.second.isEmpty()) {
+            if (!askToTurnStack(this)) return false;
+            if (m_printerPreparer) m_printerPreparer(printer);
+            QApplication::setOverrideCursor(Qt::WaitCursor);
+            paintOnPrinter(&printer, doc, &m_ed->cache(), options, &runs.second);
+            QApplication::restoreOverrideCursor();
+        }
+        statusBar()->showMessage(tr("Sent %1 to the printer").arg(m_ed->displayName()), 5000);
+        return true;
+    }
     QApplication::setOverrideCursor(Qt::WaitCursor);
     paintOnPrinter(&printer, doc, &m_ed->cache(), options);
     QApplication::restoreOverrideCursor();
