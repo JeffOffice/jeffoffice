@@ -629,11 +629,16 @@ private Q_SLOTS:
         c2.setPosition(8);
         QVERIFY(c2.charFormat().isAnchor());
         ed->flushTyping();
-        ed->undo();   // the space typed after the link
-        ed->undo();   // the link
-        c2.setPosition(8);
-        QVERIFY(!c2.charFormat().isAnchor());
-        QCOMPARE(d2->toPlainText(), QStringLiteral("Go to www.example.com"));
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Typing"));   // the space typed after the link
+        ed->undo();
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Insert Hyperlink"));   // the link, a step of its own
+        ed->undo();
+        QTextDocument *back = ed->doc()->storyDoc(second->storyId);
+        QVERIFY(back);
+        QCOMPARE(back->toPlainText(), QStringLiteral("Go to www.example.com"));
+        QTextCursor c4(back);
+        c4.setPosition(8);
+        QVERIFY(!c4.charFormat().isAnchor());
         ed->endTextEdit();
         // Off: no link.
         jp::Settings::get().setValue("proof/autolink", false);
