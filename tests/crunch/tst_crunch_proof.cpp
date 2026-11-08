@@ -9,6 +9,8 @@
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "core/spellwalk.h"
+#include "sheet/entry.h"
+#include "text/autocorrect.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
@@ -19,11 +21,15 @@
 
 #include <QAction>
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QMenu>
 #include <QSettings>
+#include <QSemaphore>
 #include <QSignalSpy>
+#include <QThread>
+#include <thread>
 #include <QTemporaryDir>
 #include <QUndoStack>
 
@@ -57,6 +63,16 @@ bool recoverNow(CrunchWindow &w)
 }
 
 const jp::office::sheet::Cell *at_(const jp::office::sheet::Sheet &s, const char *ref) { return at(s, QString::fromLatin1(ref)); }
+
+// A thread that holds at a point until the test lets it go.
+struct Pause {
+    QSemaphore entered, proceed;
+    void hold()
+    {
+        entered.release();
+        proceed.tryAcquire(1, 30000);
+    }
+};
 
 } // namespace
 
@@ -159,7 +175,7 @@ private Q_SLOTS:
             QVERIFY(host.w.isWindowModified());
             quint32 r = 0, c = 0;
             parseCellRef(QStringLiteral("F6"), &r, &c);
-            QCOMPARE(host.w.session()->valueAt(0, r, c).text(), QStringLiteral("Lost work"));
+            QCOMPARE(host.w.session()->valueAt(0, r, c).text(), QStringLiteral("lost work"));
             QTRY_VERIFY_WITH_TIMEOUT(!QFileInfo::exists(found[0].file), 20000);   // the old copy goes once this window keeps its own
             QVERIFY(QFileInfo::exists(host.w.recoveryCopy()));
             lost.win.w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
@@ -329,7 +345,7 @@ private Q_SLOTS:
         e.select("E5");
         e.type("see speling ");
         CellEditor *editor = e.win.w.cellEditor();
-        QCOMPARE(editor->text(), QStringLiteral("See speling "));   // (the capital at the start of the entry is AutoCorrect's)
+        QCOMPARE(editor->text(), QStringLiteral("see speling "));
         QTRY_COMPARE(editor->misspellings().size(), 1);
         QCOMPARE(editor->misspellings().first(), qMakePair(4, 11));
         QMenu menu;
@@ -344,7 +360,7 @@ private Q_SLOTS:
         // a suggestion replaces the word
         for (QAction *a : menu.actions())
             if (a->text() == QLatin1String("spelling")) a->trigger();
-        QCOMPARE(editor->text(), QStringLiteral("See spelling "));
+        QCOMPARE(editor->text(), QStringLiteral("see spelling "));
         QTRY_VERIFY(editor->misspellings().isEmpty());
         e.key(Qt::Key_Escape);
         // a formula is not underlined
@@ -364,14 +380,14 @@ private Q_SLOTS:
         e.select("E5");
         e.type("see teh ");
         CellEditor *editor = e.win.w.cellEditor();
-        QCOMPARE(editor->text(), QStringLiteral("See the "));
+        QCOMPARE(editor->text(), QStringLiteral("see the "));
         // one Undo takes the fix back, and leaves what was typed
         pressUndo(editor);
-        QCOMPARE(editor->text(), QStringLiteral("See teh "));
+        QCOMPARE(editor->text(), QStringLiteral("see teh "));
         e.key(Qt::Key_Escape);
         e.select("E5");
         e.enter("see teh car");
-        QCOMPARE(e.shownAt("E5"), QStringLiteral("See the car"));
+        QCOMPARE(e.shownAt("E5"), QStringLiteral("see the car"));
         // a formula is left as typed
         e.select("E6");
         e.type("=teh ");
@@ -384,7 +400,7 @@ private Q_SLOTS:
         // smart quotes, a dash, and a fraction
         e.select("E8");
         e.type("say \"hi\" a--b add 1/2 ");
-        QCOMPARE(editor->text(), QString::fromUtf8("Say “hi” a—b add ½ "));
+        QCOMPARE(editor->text(), QString::fromUtf8("say “hi” a—b add ½ "));
         e.key(Qt::Key_Escape);
         // the options turn it off
         Settings::get().setValue(QStringLiteral("proof/autocorrect"), false);
@@ -431,63 +447,253 @@ private Q_SLOTS:
     }
 
 
-    // The copy is the workbook as it was when the copy was begun, however the typing goes on while it is written (the file is made from a private reading of the file and a copy of
-    // what changed, never from the workbook the window edits).
-    void aRecoveryCopyIsAConsistentSnapshotWhileTheEditingGoesOn()
+    // The copy is the workbook as it was when the copy was begun, whatever the window does while the thread writes it: the thread is held (a test hook) after it has read the file, the
+    // window renames a sheet, types new texts and numbers, adds and deletes sheets, and defines a name, and then the thread goes on. The copy is the workbook before all that; the next
+    // copy has it.
+    void aRecoveryCopyIsTheWorkbookAsItWasWhenTheCopyWasBegun()
     {
         QTemporaryDir root;
         QVERIFY(root.isValid());
         recovery::setRoot(root.path());
         recovery::setCopySuffix(QStringLiteral(".xlsx"));
         {
-            // (a sheet big enough that the copy takes a while to write)
-            QByteArray rows;
-            for (int r = 10; r < 90000; ++r) {
-                rows += "<row r=\"" + QByteArray::number(r) + "\">";
-                for (const char *c : {"A", "B", "C", "D", "H"}) rows += "<c r=\"" + QByteArray(c) + QByteArray::number(r) + "\"><v>" + QByteArray::number(r * 7) + ".25</v></c>";
-                rows += "</row>";
-            }
             EditWindow e;
-            QVERIFY(e.open(editBook(rows)));
+            QVERIFY(e.open(editBook()));
             CrunchWindow &w = e.win.w;
-            auto at = [](const char *ref, quint32 *r, quint32 *c) { QVERIFY(parseCellRef(QString::fromLatin1(ref), r, c)); };
-            quint32 r = 0, c = 0;
-            at("F2", &r, &c);
-            QVERIFY(w.session()->type(0, r, c, QStringLiteral("before the copy"), false).ok);
+            auto put = [&](const char *ref, const QString &text) {
+                quint32 r = 0, c = 0;
+                QVERIFY(parseCellRef(QString::fromLatin1(ref), &r, &c));
+                QVERIFY(w.session()->type(0, r, c, text, false).ok);
+            };
+            put("F2", QStringLiteral("before the copy"));
             QVERIFY(e.settle());
+            Pause pause;
+            w.setRecoveryHook([&pause] { pause.hold(); });
             QSignalSpy written(&w, &CrunchWindow::recoveryWritten);
-            w.autoRecover();   // the copy is begun: what it holds is what the workbook holds now
+            w.autoRecover();
             QVERIFY(w.isRecovering());
-            // ... and the person goes on: a new sheet name, new texts (new shared strings), a new number format, until the copy is written
+            QVERIFY(pause.entered.tryAcquire(1, 20000));
+            // ... the thread is held; the person goes on
             QVERIFY(w.session()->renameSheet(0, QStringLiteral("Renamed")).ok);
-            int edits = 0;
-            QElapsedTimer limit;
-            limit.start();
-            while (written.isEmpty() && limit.elapsed() < 60000) {
-                at("G2", &r, &c);
-                QVERIFY(w.session()->type(0, r + quint32(edits % 50), c, QStringLiteral("later %1").arg(edits), false).ok);
-                at("H2", &r, &c);
-                QVERIFY(w.session()->type(0, r + quint32(edits % 50), c, QStringLiteral("%1.5%").arg(edits % 97), false).ok);
-                ++edits;
-                QCoreApplication::processEvents();
-            }
-            QVERIFY(!written.isEmpty() || written.wait(60000));
+            for (int i = 0; i < 300; ++i) put("G2", QStringLiteral("later text %1").arg(i));   // (new shared strings, each)
+            put("H2", QStringLiteral("5%"));
+            put("H3", QStringLiteral("1/2/2024"));
+            int added = -1;
+            QVERIFY(w.session()->insertSheet(1, QStringLiteral("Added"), &added).ok);
+            QVERIFY(w.session()->deleteSheet(0).ok);
+            crunch::EditSession::NameDraft name;
+            name.name = QStringLiteral("LaterName");
+            name.text = QStringLiteral("=Added!$A$1");
+            QVERIFY(w.session()->defineName(name).ok);
+            pause.proceed.release();
+            QVERIFY(written.count() > 0 || written.wait(60000));
             QVERIFY(written.last().first().toBool());
-            qInfo("RECOVERY race test: %d edit rounds while the copy was written", edits);
             const QString copy = w.recoveryCopy();
             QVERIFY(QFileInfo::exists(copy));
-            Package p;
-            QString why;
-            QVERIFY2(p.readLazyFile(copy, &why), qPrintable(why));
-            Workbook b;
-            QVERIFY2(b.open(p, &why), qPrintable(why));
-            QCOMPARE(b.info().sheets.value(0).name, QStringLiteral("Sheet1"));   // not the new name
-            Sheet s;
-            QVERIFY(b.readSheet(0, &s));
-            QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("F2")), QStringLiteral("s:before the copy"));
-            QVERIFY(!at_(s, "G2"));   // nothing typed after the copy was begun is in it
-            QVERIFY(!at_(s, "G3"));
+            QMap<QString, QByteArray> parts;
+            {
+                QFile f(copy);
+                QVERIFY(f.open(QIODevice::ReadOnly));
+                QVERIFY(readZip(f.readAll(), parts));
+            }
+            const QByteArray book = parts.value(QStringLiteral("xl/workbook.xml"));
+            QVERIFY2(book.contains("name=\"Sheet1\""), book.constData());
+            QVERIFY(!book.contains("Renamed"));
+            QVERIFY(!book.contains("Added"));
+            QVERIFY(!book.contains("LaterName"));
+            QVERIFY(!parts.value(QStringLiteral("xl/sharedStrings.xml")).contains("later text"));
+            QVERIFY(parts.value(QStringLiteral("xl/sharedStrings.xml")).contains("before the copy"));
+            QVERIFY(!parts.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("r=\"G2\""));
+            // the next copy has what the window did since
+            w.setRecoveryHook({});
+            QVERIFY(recoverNow(w));
+            QMap<QString, QByteArray> later;
+            QFile f(w.recoveryCopy());
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            QVERIFY(readZip(f.readAll(), later));
+            QVERIFY(later.value(QStringLiteral("xl/workbook.xml")).contains("Added"));
+            QVERIFY(later.value(QStringLiteral("xl/workbook.xml")).contains("LaterName"));
+            QVERIFY(later.value(QStringLiteral("xl/sharedStrings.xml")).contains("later text 299"));
             w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
+        }
+        recovery::setRoot(QString());
+    }
+
+    // A copy that was being made when the workbook was saved, closed, given a password, or the program quit is not kept: nothing is left in the recovery folder.
+    void aCopyBeingMadeWhenTheWorkIsSavedIsNotKept()
+    {
+        QTemporaryDir root;
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".xlsx"));
+        {
+            EditWindow e;
+            QVERIFY(e.open(editBook()));
+            CrunchWindow &w = e.win.w;
+            e.select("E5");
+            e.enter("work");
+            QVERIFY(e.settle());
+            Pause pause;
+            w.setRecoveryHook([&pause] { pause.hold(); });
+            QSignalSpy written(&w, &CrunchWindow::recoveryWritten);
+            w.autoRecover();
+            QVERIFY(pause.entered.tryAcquire(1, 20000));
+            QVERIFY(saveAndWait(w, e.path));
+            pause.proceed.release();
+            QVERIFY(written.count() > 0 || written.wait(60000));
+            QVERIFY(!written.last().first().toBool());
+            QVERIFY(w.recoveryCopy().isEmpty());
+            QVERIFY(copiesUnder(root.path()).isEmpty());
+        }
+        recovery::setRoot(QString());
+    }
+
+    void aCopyBeingMadeWhenAPasswordIsSetIsNotKept()
+    {
+        QTemporaryDir root;
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".xlsx"));
+        {
+            EditWindow e;
+            QVERIFY(e.open(editBook()));
+            CrunchWindow &w = e.win.w;
+            e.select("E5");
+            e.enter("work");
+            QVERIFY(e.settle());
+            Pause pause;
+            w.setRecoveryHook([&pause] { pause.hold(); });
+            QSignalSpy written(&w, &CrunchWindow::recoveryWritten);
+            w.autoRecover();
+            QVERIFY(pause.entered.tryAcquire(1, 20000));
+            w.anchorHooks().setFilePasswordAsker = [](SetFilePasswordRequest *r) {
+                r->password = QStringLiteral("secret");
+                return true;
+            };
+            w.act("protect.password")->trigger();
+            pause.proceed.release();
+            QVERIFY(written.count() > 0 || written.wait(60000));
+            QVERIFY(!written.last().first().toBool());
+            QVERIFY(copiesUnder(root.path()).isEmpty());
+            // and none is made while the workbook has a password of a person's; the person is told once
+            w.setRecoveryHook({});
+            w.autoRecover();
+            QVERIFY(!w.isRecovering());
+            QVERIFY(copiesUnder(root.path()).isEmpty());
+            QVERIFY2(w.statusText().contains(QLatin1String("password")), qPrintable(w.statusText()));
+            w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
+        }
+        recovery::setRoot(QString());
+    }
+
+    void closingOrQuittingDuringACopyStopsItAndLeavesNothing()
+    {
+        for (const bool quit : {false, true}) {
+            QTemporaryDir root;
+            recovery::setRoot(root.path());
+            recovery::setCopySuffix(QStringLiteral(".xlsx"));
+            {
+                EditWindow e;
+                QVERIFY(e.open(editBook()));
+                CrunchWindow &w = e.win.w;
+                e.select("E5");
+                e.enter("work");
+                QVERIFY(e.settle());
+                Pause pause;
+                w.setRecoveryHook([&pause] { pause.hold(); });
+                w.autoRecover();
+                QVERIFY(pause.entered.tryAcquire(1, 20000));
+                w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
+                // (the window waits for the thread, which is held: it is let go from another thread a little later)
+                std::thread letGo([&pause] {
+                    QThread::msleep(300);
+                    pause.proceed.release();
+                });
+                if (quit) {
+                    CrunchWindow::finishRecoveries();
+                    recovery::endSession();
+                } else {
+                    QVERIFY(w.close());
+                }
+                letGo.join();
+                QVERIFY(!w.isRecovering());
+                QTest::qWait(50);   // (a finish that was on its way is dealt with)
+                QVERIFY(copiesUnder(root.path()).isEmpty());
+            }
+            recovery::setRoot(QString());
+        }
+    }
+
+    // Nothing changed since the last copy: the next tick makes none; a change makes one. A copy that can't be written is told once.
+    void aTickWithNothingNewMakesNoCopyAndAFailureIsTold()
+    {
+        QTemporaryDir root;
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".xlsx"));
+        {
+            EditWindow e;
+            QVERIFY(e.open(editBook()));
+            CrunchWindow &w = e.win.w;
+            e.select("E5");
+            e.enter("work");
+            QVERIFY(e.settle());
+            QVERIFY(recoverNow(w));
+            QSignalSpy written(&w, &CrunchWindow::recoveryWritten);
+            w.autoRecover();
+            QVERIFY(!w.isRecovering());
+            QTest::qWait(30);
+            QCOMPARE(written.count(), 0);
+            e.select("E6");
+            e.enter("more");
+            QVERIFY(e.settle());
+            w.autoRecover();
+            QVERIFY(w.isRecovering());
+            QVERIFY(written.wait(20000));
+            // a folder that cannot be made into the run's: the copy fails, and the status says so
+            QFile blocked(root.filePath(QStringLiteral("blocked")));
+            QVERIFY(blocked.open(QIODevice::WriteOnly));
+            blocked.close();
+            recovery::endSession();
+            recovery::setRoot(root.filePath(QStringLiteral("blocked")));
+            e.select("E7");
+            e.enter("again");
+            QVERIFY(e.settle());
+            QVERIFY(recoverNow(w));
+            QVERIFY(!written.last().first().toBool());
+            QVERIFY2(w.statusText().contains(QLatin1String("recovery")), qPrintable(w.statusText()));
+            w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
+        }
+        recovery::setRoot(QString());
+    }
+
+    // A new blank workbook, and a workbook read from a text file (which is written on the window's thread), are recovered too.
+    void aBlankWorkbookAndATextFileAreRecovered()
+    {
+        QTemporaryDir root;
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".xlsx"));
+        {
+            Window blank;
+            QVERIFY(blank.openBlank());
+            QVERIFY(blank.w.session()->type(0, 0, 0, QStringLiteral("typed in a new book"), false).ok);
+            QVERIFY(recoverNow(blank.w));
+            Folder folder;
+            Window again;
+            const QString copy = folder.dir.filePath(QStringLiteral("blank-copy.xlsx"));
+            QVERIFY(QFile::copy(blank.w.recoveryCopy(), copy));
+            QVERIFY(again.open(copy));
+            QCOMPARE(again.w.session()->valueAt(0, 0, 0).text(), QStringLiteral("typed in a new book"));
+            blank.w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
+            Window csv;
+            const QString csvPath = folder.write(QStringLiteral("values.csv"), "a,b\n1,2\n3,4\n");
+            QVERIFY(csv.open(csvPath));
+            QVERIFY(csv.w.session()->type(0, 0, 3, QStringLiteral("edited"), false).ok);
+            QVERIFY(recoverNow(csv.w));
+            Window fromCsv;
+            const QString csvCopy = folder.dir.filePath(QStringLiteral("csv-copy.xlsx"));
+            QVERIFY(QFile::copy(csv.w.recoveryCopy(), csvCopy));
+            QVERIFY(fromCsv.open(csvCopy));
+            QCOMPARE(fromCsv.w.session()->valueAt(0, 0, 3).text(), QStringLiteral("edited"));
+            QCOMPARE(fromCsv.w.session()->valueAt(0, 1, 0).number(), 1.0);
+            csv.w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
         }
         recovery::setRoot(QString());
     }
@@ -527,6 +733,190 @@ private Q_SLOTS:
         w.session()->undoStack()->undo();
         QCOMPARE(w.session()->richOf(0, 0, 0)->text, before->text);
         QCOMPARE(int(w.session()->richOf(0, 0, 0)->runs.size()), 3);
+    }
+
+
+    // ---- AutoCorrect in a cell: what is a formula, and what is prose
+
+    void anEntryIsAFormulaForAutoCorrectAsTheCellTakesIt()
+    {
+        using jp::office::sheet::EntryOptions;
+        using jp::office::sheet::readEntry;
+        EntryOptions options;
+        for (const QString &typed : {QStringLiteral("=1+2"), QStringLiteral("+ A1 - B1"), QStringLiteral("- hello"), QStringLiteral("-5"), QStringLiteral("+5"), QStringLiteral("-"), QStringLiteral("+A1"),
+                                     QStringLiteral("- 5"), QStringLiteral("-1/2"), QStringLiteral("-A1*2"), QStringLiteral("hello"), QStringLiteral("'-x"), QStringLiteral("--teh")}) {
+            const jp::office::sheet::EntryResult r = readEntry(typed, options);
+            const bool cell = r.entry.kind == jp::office::sheet::Entry::Kind::Formula || (!r.ok && (typed.startsWith(QLatin1Char('=')) || typed.startsWith(QLatin1Char('+')) || typed.startsWith(QLatin1Char('-'))));
+            QCOMPARE(CellEditor::isFormulaEntry(typed), cell && typed != QLatin1String("-") && typed != QLatin1String("+") && typed.size() > 0);
+        }
+        QVERIFY(CellEditor::isFormulaEntry(QStringLiteral("+ A1 - B1")));
+        QVERIFY(CellEditor::isFormulaEntry(QStringLiteral("- hello")));
+        QVERIFY(!CellEditor::isFormulaEntry(QStringLiteral("-5")));
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.select("E5");
+        e.type("+ A1 - B1 teh ");
+        QCOMPARE(e.win.w.cellEditor()->text(), QStringLiteral("+ A1 - B1 teh "));
+        e.key(Qt::Key_Escape);
+    }
+
+    void autoCorrectInACellLeavesCodesNamesAndAddressesAlone()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CellEditor *editor = e.win.w.cellEditor();
+        auto typed = [&](const char *ref, const char *text) {
+            e.select(ref);
+            e.type(QString::fromUtf8(text));
+            const QString got = editor->text();
+            e.key(Qt::Key_Escape);
+            return got;
+        };
+        // the first word of an entry is not made a capital; one after the end of a sentence is
+        QCOMPARE(typed("E5", "total of sales. next year "), QStringLiteral("total of sales. Next year "));
+        // a word in a name, an address, or a path is not
+        QCOMPARE(typed("E6", "see. report.xlsx and john.smith@x.com "), QStringLiteral("see. report.xlsx and john.smith@x.com "));
+        QCOMPARE(typed("E7", "Done. c:\\temp\\file "), QStringLiteral("Done. c:\\temp\\file "));
+        QCOMPARE(typed("E8", "Done. a/b "), QStringLiteral("Done. a/b "));
+        // an identifier typed alone is not changed by the replacement list, and prose is
+        QCOMPARE(typed("E9", "(c) "), QStringLiteral("(c) "));
+        QCOMPARE(typed("E10", "FO "), QStringLiteral("FO "));
+        QCOMPARE(typed("E11", "IM "), QStringLiteral("IM "));
+        QCOMPARE(typed("E12", "a (c) b "), QString::fromUtf8("a \u00a9 b "));
+        QCOMPARE(typed("E13", "x FO "), QStringLiteral("x OF "));
+        // two initial capitals are still fixed in a first word
+        QCOMPARE(typed("E14", "THursday "), QStringLiteral("Thursday "));
+        // an address typed whole is a link to the address as typed
+        quint32 r = 0, c = 0;
+        e.select("F5");
+        e.enter("https://example.org/Page");
+        parseCellRef(QStringLiteral("F5"), &r, &c);
+        const auto *link = e.win.w.session()->anchors().linkAt(0, r, c);
+        QVERIFY(link);
+        QCOMPARE(link->target, QStringLiteral("https://example.org/Page"));
+        QCOMPARE(e.shownAt("F5"), QStringLiteral("https://example.org/Page"));
+    }
+
+    // ---- Spelling writes text as text
+
+    void aCorrectedTextStaysTextWhateverItLooksLike()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        auto put = [&](const char *ref, const QString &text) {
+            quint32 r = 0, c = 0;
+            QVERIFY(parseCellRef(QString::fromLatin1(ref), &r, &c));
+            QVERIFY(w.session()->type(0, r, c, text, false).ok);
+        };
+        put("A5", QStringLiteral("'Febuary 3"));
+        put("A6", QStringLiteral("'-Febuary 3"));
+        put("A7", QStringLiteral("'Truee"));
+        put("A8", QStringLiteral("'zzqxwrd"));
+        QVERIFY(e.settle());
+        auto textAt = [&](quint32 row) { return w.session()->valueAt(0, row, 0); };
+        QVERIFY(textAt(4).isText());
+        SpellingDialog d(&w, 0, jp::office::sheet::CellRange{4, 0, 6, 0, true});
+        QVERIFY(d.start(true));
+        QCOMPARE(d.current()->word, QStringLiteral("Febuary"));
+        d.setReplacement(QStringLiteral("February"));
+        QVERIFY(d.change());
+        QVERIFY(textAt(4).isText());   // not a date
+        QCOMPARE(textAt(4).text(), QStringLiteral("February 3"));
+        QCOMPARE(d.current()->word, QStringLiteral("Febuary"));
+        d.setReplacement(QStringLiteral("February"));
+        QVERIFY(d.change());
+        QVERIFY(textAt(5).isText());   // not a formula
+        QCOMPARE(textAt(5).text(), QStringLiteral("-February 3"));
+        QCOMPARE(d.current()->word, QStringLiteral("Truee"));
+        d.setReplacement(QStringLiteral("TRUE"));
+        d.change();
+        QVERIFY(textAt(6).isText());   // not a truth value
+        QCOMPARE(textAt(6).text(), QStringLiteral("TRUE"));
+        // Change All is all or none: a locked cell among them stops it before any is changed
+        put("B5", QStringLiteral("zzqxwrd"));
+        put("B6", QStringLiteral("zzqxwrd"));
+        QVERIFY(e.settle());
+        const int steps = w.session()->undoStack()->index();
+        SpellingDialog all(&w, 0, jp::office::sheet::CellRange{0, 0, 20, 10, true});
+        QVERIFY(all.start(true));
+        all.setReplacement(QStringLiteral("word"));
+        QVERIFY(all.current());
+        all.changeAll();
+        QCOMPARE(w.session()->undoStack()->index(), steps + 1);
+        QCOMPARE(w.session()->valueAt(0, 4, 1).text(), QStringLiteral("word"));
+        QCOMPARE(w.session()->valueAt(0, 7, 0).text(), QStringLiteral("word"));
+        w.session()->undoStack()->undo();
+        QCOMPARE(w.session()->valueAt(0, 4, 1).text(), QStringLiteral("zzqxwrd"));
+        QCOMPARE(w.session()->valueAt(0, 7, 0).text(), QStringLiteral("zzqxwrd"));
+    }
+
+    // ---- a big sheet: the walk goes in slices
+
+    void theSpellingWalkOfAMillionCellsHoldsTheWindowOnlyBriefly()
+    {
+        QByteArray rows;
+        rows.reserve(60 * 1000 * 1000);
+        for (int r = 1; r <= 1000000; ++r) rows += "<row r=\"" + QByteArray::number(r) + "\"><c r=\"A" + QByteArray::number(r) + "\" t=\"s\"><v>" + QByteArray::number(r % 40) + "</v></c></row>";
+        QStringList strings;
+        for (int i = 0; i < 40; ++i) strings << QStringLiteral("<t>words that are right number %1 and some more of them</t>").arg(i);
+        strings[17] = QStringLiteral("<t>the cache holds this text of many words that are spelled right</t>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QString::fromLatin1(rows))}, sharedStringsXml(strings))));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.session()->type(0, 999998, 0, QStringLiteral("'at the end zzqxwrd"), false).ok);
+        QElapsedTimer total;
+        total.start();
+        SpellingDialog d(&w, 0, jp::office::sheet::CellRange{0, 0, 1048575, 16383, true});
+        QVERIFY(d.start(true));
+        qInfo("SPELLING walk of 1,000,000 text cells: %lld ms in all, the longest slice %lld ms", total.elapsed(), d.longestSliceMs());
+        QCOMPARE(d.current()->word, QStringLiteral("zzqxwrd"));
+        QCOMPARE(d.current()->row, quint32(999998));
+        QVERIFY2(d.longestSliceMs() < 300, qPrintable(QString::number(d.longestSliceMs())));
+    }
+
+    // ---- the cell editor measures once, and the address rule is fast
+
+    void theCellEditorMeasuresItsWordsOncePerTextNotAtEveryPaint()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.select("E5");
+        e.type("see speling here ");
+        CellEditor *editor = e.win.w.cellEditor();
+        QTRY_COMPARE(editor->misspellings().size(), 1);
+        const int measured = editor->measureCount();
+        QVERIFY(measured >= 1);
+        for (int i = 0; i < 5; ++i) {
+            editor->update();
+            QCoreApplication::processEvents();
+            editor->grab();
+        }
+        QCOMPARE(editor->measureCount(), measured);
+        e.key(Qt::Key_Escape);
+    }
+
+    void theAddressRuleTakesLinearTimeOnHostileText()
+    {
+        const int n = 30000;
+        const QStringList hostile{QStringLiteral("a@b") + QStringLiteral(".c").repeated(n / 2) + QLatin1Char(' '),
+                                  QStringLiteral("http://") + QString(n, QLatin1Char('a')) + QLatin1Char(' '),
+                                  QStringLiteral("a.").repeated(n / 2) + QLatin1Char('@'),
+                                  QStringLiteral("www.") + QStringLiteral(".a").repeated(n / 2) + QStringLiteral(" x"),
+                                  QStringLiteral("a@") + QStringLiteral("b-").repeated(n / 2) + QStringLiteral(" "),
+                                  QStringLiteral("x@y.z") + QStringLiteral("-.").repeated(n / 2) + QStringLiteral(" "),
+                                  QStringLiteral(" ").repeated(n),
+                                  QStringLiteral("a ").repeated(n / 2) + QStringLiteral("a@")};
+        qint64 worst = 0;
+        for (const QString &text : hostile) {
+            QElapsedTimer t;
+            t.start();
+            (void)autotext::linkWord(text);
+            worst = std::max(worst, t.elapsed());
+        }
+        qInfo("ADDRESS rule on 30,000 characters of hostile text: the slowest took %lld ms", worst);
+        QVERIFY2(worst < 50, qPrintable(QString::number(worst)));
     }
 
     // ---- a workbook with macros is recovered with its macros
@@ -595,6 +985,29 @@ private Q_SLOTS:
             QCOMPARE(saved.value(QStringLiteral("xl/vbaProject.bin")), QByteArray("VBA project bytes \x01\x02\x03", 20));
             QVERIFY(saved.value(QStringLiteral("[Content_Types].xml")).contains("macroEnabled.main+xml"));
             e.win.w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
+        }
+        recovery::setRoot(QString());
+    }
+
+    // The time a recovery copy takes for a big text file's workbook, which is written on the window's thread (JP_BIG_CSV names one; it is only measured, never checked).
+    void bigTextFileRecoveryIsTimed()
+    {
+        const QString big = qEnvironmentVariable("JP_BIG_CSV");
+        if (big.isEmpty()) QSKIP("JP_BIG_CSV is not set");
+        QTemporaryDir root;
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".xlsx"));
+        {
+            Window win;
+            QVERIFY(win.open(big));
+            QVERIFY(win.w.session()->type(0, 0, 5, QStringLiteral("changed"), false).ok);
+            QElapsedTimer held;
+            held.start();
+            win.w.autoRecover();
+            const double ms = held.nsecsElapsed() / 1e6;
+            QSignalSpy written(&win.w, &CrunchWindow::recoveryWritten);
+            qInfo("RECOVERY text file %.1f MB: the window was held %.0f ms by the tick", QFileInfo(big).size() / 1048576.0, ms);
+            win.w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
         }
         recovery::setRoot(QString());
     }

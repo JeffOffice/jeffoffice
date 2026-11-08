@@ -175,7 +175,10 @@ int main(int argc, char **argv)
     if (start.staged() && !files.isEmpty() && w->statusBar()->currentMessage() == jp::openingStatus(files.first())) w->statusBar()->clearMessage();
     start.finish();
     // A normal exit takes this run's automatic recovery copies with it; copies a crashed run left are offered once the window is up.
-    QObject::connect(&app, &QCoreApplication::aboutToQuit, [] { jp::recovery::endSession(); });
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, [] {
+        jp::CrunchWindow::finishRecoveries();   // (a copy being written is stopped before its folder is removed)
+        jp::recovery::endSession();
+    });
     QTimer::singleShot(0, w, [w] { w->offerRecovery(); });
     if (cli.isSet(zoomOpt) && cli.value(zoomOpt).toDouble() > 0) w->view()->setZoom(cli.value(zoomOpt).toDouble() / 100.0);
     if (cli.isSet(stageOpt)) w->showFileScreen(cli.value(stageOpt));

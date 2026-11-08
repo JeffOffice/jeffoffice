@@ -44,6 +44,8 @@ struct EntryResult {
 
 // Reads what was typed.
 EntryResult readEntry(const QString &typed, const EntryOptions &options);
+// Whether readEntry takes what was typed for a formula (it starts with =, or with a sign and then something that is not a number, a date, and the like), whether or not the formula can be read.
+bool isFormulaEntry(const QString &typed, const EntryOptions &options = EntryOptions());
 
 // A formula as a person types it, written as a file writes it: the names of functions in capitals, and the prefix "_xlfn." put before those that were added after the first release of the
 // file format (without it the other programs take the name for a function of someone's own: STDEV.S is _xlfn.STDEV.S in a file). Text in quotes, names of sheets, and names a function

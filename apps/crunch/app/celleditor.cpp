@@ -16,6 +16,8 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QRegularExpression>
+#include <optional>
+#include "sheet/entry.h"
 
 namespace jp {
 
@@ -35,24 +37,34 @@ CellEditor::CellEditor(QWidget *parent) : QLineEdit(parent)
     connect(this, &QLineEdit::cursorPositionChanged, &m_spellTimer, qOverload<>(&QTimer::start));
 }
 
-bool CellEditor::isFormulaEntry(const QString &text)
-{
-    if (text.startsWith(QLatin1Char('='))) return true;
-    if (text.size() < 2 || (text[0] != QLatin1Char('+') && text[0] != QLatin1Char('-'))) return false;
-    const QChar next = text[1];
-    return !(next.isDigit() || next == QLatin1Char('.') || next == QLatin1Char(',') || next.isSpace());
-}
+bool CellEditor::isFormulaEntry(const QString &text) { return jp::office::sheet::isFormulaEntry(text); }
 
 void CellEditor::checkSpelling()
 {
     m_spellTimer.stop();
     QVector<QPair<int, int>> wrong;
-    if (!isFormulaEntry(text()) && isVisible()) {
-        wrong = crunch::misspelledRanges(text());
+    const QString entry = text();
+    // (a text of many thousands of characters is not looked at as it is typed)
+    if (entry.size() <= kSpellLimit && !isFormulaEntry(entry) && isVisible()) {
+        wrong = crunch::misspelledRanges(entry);
         // (the word that is still being typed is not told of: the caret is at its end)
         const int caret = cursorPosition();
         if (hasFocus())
             wrong.erase(std::remove_if(wrong.begin(), wrong.end(), [&](const QPair<int, int> &w) { return w.second == caret; }), wrong.end());
+    }
+    // The places of the words are measured here, once for a text and a font, and not at every paint: how far along the line each character starts.
+    if (!wrong.isEmpty() && (m_measuredText != entry || m_measuredFont != font())) {
+        const QFontMetrics fm(font());
+        m_advances.resize(entry.size() + 1);
+        int x = 0;
+        for (int i = 0; i < entry.size(); ++i) {
+            m_advances[i] = x;
+            x += fm.horizontalAdvance(entry[i]);
+        }
+        m_advances[entry.size()] = x;
+        m_measuredText = entry;
+        ++m_measureCount;
+        m_measuredFont = font();
     }
     if (wrong == m_wrong) return;
     m_wrong = wrong;
@@ -62,15 +74,16 @@ void CellEditor::checkSpelling()
 void CellEditor::paintEvent(QPaintEvent *e)
 {
     QLineEdit::paintEvent(e);
-    if (m_wrong.isEmpty()) return;
+    if (m_wrong.isEmpty() || m_measuredText != text()) return;   // (the words are told of again when the measuring is done for the new text)
     QPainter p(this);
     p.setPen(QPen(QColor(0xD1, 0x34, 0x38), 1));
-    const QFontMetrics fm(font());
     const QRect caret = cursorRect();
-    const int origin = caret.x() - fm.horizontalAdvance(text().left(cursorPosition()));   // (where the text begins, as it is scrolled)
+    const int origin = caret.x() - m_advances.value(cursorPosition());   // (where the text begins, as it is scrolled)
     const int y = caret.bottom() - 1;
+    const QRect visible = e->rect();
     for (const auto &w : m_wrong) {
-        const int x1 = origin + fm.horizontalAdvance(text().left(w.first)), x2 = origin + fm.horizontalAdvance(text().left(w.second));
+        const int x1 = origin + m_advances.value(w.first), x2 = origin + m_advances.value(w.second);
+        if (x2 < visible.left() || x1 > visible.right()) continue;   // (only the words that are in the part being painted)
         QPainterPath wave;
         wave.moveTo(x1, y);
         bool up = true;
@@ -149,30 +162,60 @@ bool CellEditor::typeWithAutoCorrect(QKeyEvent *e)
     if (!QStringLiteral(" .,;:!?").contains(typed[0]) || hasSelectedText()) return true;
     int pos = cursorPosition();
     if (pos < 1 || text()[pos - 1] != typed[0] || isFormulaEntry(text())) return true;
-    // (an address is not corrected as it is typed: "https:" and "www." are not sentences)
-    if (typed[0] != QLatin1Char(' ')) {
-        static const QRegularExpression address(QStringLiteral("(?:^|\\s)(?:https?:|ftp:|mailto:|www\\.)|@|://"), QRegularExpression::CaseInsensitiveOption);
-        const QString entry = text().left(pos);
-        if (address.match(entry.mid(entry.lastIndexOf(QRegularExpression(QStringLiteral("\\s"))) + 1)).hasMatch()) return true;
-    }
+    const QString before = text().left(pos - 1);
     if (correct) {
-        const QString before = text().left(pos - 1);
-        if (const auto fix = autotext::correctWord(before, int(before.size()), quotes)) {
+        if (const auto fix = proseFix(before, typed[0], quotes)) {
             replaceRange(fix->from, fix->to, fix->with);
             pos += int(fix->with.size()) - (fix->to - fix->from);
             setCursorPosition(pos);
         }
     }
     if (format) {
-        const QString before = text().left(pos - 1);
+        const QString now = text().left(pos - 1);
         // (a fraction or an ordinal is made of what an entry of numbers is: only an entry with words in it is changed)
-        if (std::any_of(before.cbegin(), before.cend(), [](QChar c) { return c.isLetter(); }))
-            if (const auto fix = autotext::formatWord(before); fix && !fix->superscript) {
+        if (std::any_of(now.cbegin(), now.cend(), [](QChar c) { return c.isLetter(); }))
+            if (const auto fix = autotext::formatWord(now); fix && !fix->superscript) {
                 replaceRange(fix->from, fix->to, fix->with);
                 setCursorPosition(pos + int(fix->with.size()) - (fix->to - fix->from));
             }
     }
     return true;
+}
+
+// What AutoCorrect makes of the word that ends `before`, as an entry in a cell takes it. The rules are the programs' shared ones, with these for a cell, where an entry is as often a code, a
+// file name, or an address as a sentence: a word in a token with a dot, an at sign, or a slash (report.xlsx, john.smith@x.com, a path) is left alone; the first word of the entry is not
+// made a capital (a sentence has to end first: a period, !, or ?, and a space); and the replacements (a typing slip, (c), IM) are made only after the first word of the entry, in text with
+// words in it, so that an identifier typed alone is not changed.
+std::optional<autotext::Fix> CellEditor::proseFix(const QString &before, QChar typed, bool smartQuotes)
+{
+    const int tokenStart = int(before.lastIndexOf(QRegularExpression(QStringLiteral("\\s")))) + 1;
+    const QString token = before.mid(tokenStart);
+    if (token.contains(QRegularExpression(QStringLiteral("[./@\\\\]")))) return std::nullopt;
+    // the end of a sentence before the word, and a space after it
+    const QString head = before.left(tokenStart);
+    static const QRegularExpression sentenceEnd(QStringLiteral("[.!?]\\s+$"));
+    const bool capital = sentenceEnd.match(head).hasMatch() && typed != QLatin1Char('.') && typed != QLatin1Char(':');
+    const bool first = head.trimmed().isEmpty();
+    // (without a capital to give: the word is looked at in a text where it is no sentence's first)
+    static const QString lead = QStringLiteral("a ");
+    // (a sentence's end before the word is no end, when the word is not to be a capital)
+    QString text = lead + before;
+    if (capital) text = before;
+    else
+        for (int i = 0; i < tokenStart; ++i)
+            if (QStringLiteral(".!?").contains(text[i + lead.size()])) text[i + lead.size()] = QLatin1Char(',');
+    auto fix = autotext::correctWord(text, int(text.size()), smartQuotes);
+    if (!fix) return std::nullopt;
+    if (!capital) {
+        fix->from -= int(lead.size());
+        fix->to -= int(lead.size());
+    }
+    if (first) {
+        // (the only fix that is made to a first word is two initial capitals made one: "THursday")
+        const QString word = before.mid(fix->from, fix->to - fix->from);
+        if (word.size() < 3 || !word[0].isUpper() || !word[1].isUpper() || fix->with != word.left(1) + word.mid(1).toLower()) return std::nullopt;
+    }
+    return fix;
 }
 
 void CellEditor::keyPressEvent(QKeyEvent *e)

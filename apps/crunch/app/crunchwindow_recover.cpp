@@ -11,6 +11,7 @@
 #include "core/sheetobjects.h"
 #include "sheet/xlsxsave.h"
 
+#include <QApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
@@ -21,6 +22,8 @@
 #include <QPointer>
 #include <QPushButton>
 #include <QThread>
+#include <atomic>
+#include <array>
 #include <QVBoxLayout>
 
 namespace jp {
@@ -43,11 +46,12 @@ void CrunchWindow::autoRecover()
     // A copy is only for work that is not saved: it goes when the workbook is as its file is.
     if (!m_session->isModified() && !m_protectionChanged) {
         dropRecoveryCopy();
+        m_recoveryStamp = {-1, -1, -1, -1};
         return;
     }
     if (m_saving || m_recovering || m_trialMacros > 0 || m_session->isBusy()) return;
-    // (a workbook protected with a password is not written plainly into the recovery folder)
-    if (m_fileProtected) {
+    // (a workbook protected with a password of a person's is not written plainly into the recovery folder; one protected only with the password every program knows is)
+    if (hasUserPassword()) {
         dropRecoveryCopy();
         if (!m_recoveryNoted) {
             m_recoveryNoted = true;
@@ -55,6 +59,9 @@ void CrunchWindow::autoRecover()
         }
         return;
     }
+    // Nothing has changed since the last copy was begun: it is still the workbook.
+    const std::array<qint64, 4> stamp{m_loader.changesMade(), m_session->undoStack()->index(), m_session->undoStack()->count(), m_protectionChanged ? 1 : 0};
+    if (stamp == m_recoveryStamp && !m_recoveryCopy.isEmpty()) return;
     syncPanes();
     auto snapshot = std::make_shared<crunch::EditSession::Snapshot>();
     QString why;
@@ -64,60 +71,77 @@ void CrunchWindow::autoRecover()
         snapshot->changes.setProperties = true;
         snapshot->changes.properties = *m_editedProps;
     }
+    // (the rules the patch of a sheet takes away are written to a map the window's save reads: this copy has a map of its own, which nothing reads)
+    for (auto &entry : snapshot->changes.sheets)
+        if (entry.second.condRawOut) entry.second.condRawOut = std::make_shared<decltype(entry.second.condRawOut)::element_type>();
     // Named for the workbook as it is now (Save As moves it).
     const QString copy = recovery::copyPath(m_path, displayName(), m_serial);
     const QString source = m_path.isEmpty() ? m_recoveredFrom : m_path;
     const QString title = displayName();
     const std::shared_ptr<office::sheet::Workbook> book = m_loaded->book;
-    const QPointer<CrunchWindow> self(this);
+    const quint64 generation = m_recoveryGeneration;
     // What the file is made from must not be what the window goes on editing: the workbook object grows (strings, formats) and changes (sheet names) with every edit. The thread reads the file
-    // again for itself and takes the list of sheets as it is now; the rest of what is saved is in the snapshot, a copy. Whatever holds a function that reads the window's models (a pivot
-    // table or a chart made in this run), and a workbook read from an older form, is written here, where nothing can change meanwhile.
+    // again for itself and takes the list of sheets as it is now; the rest of what is saved is in the snapshot, a copy. A snapshot that holds a function that reads the window's models (a pivot
+    // table made in this run, or a chart part made from a model), and a workbook read from another form, are written here, where nothing can change meanwhile.
     const bool apart = !book->isConverted() && snapshot->changes.addedPivots.empty() && snapshot->changes.producedParts.empty();
     m_recovering = true;
-    auto make = [snapshot, copy, source, title](const office::sheet::Workbook &from, const QByteArray &fileBytes, const office::sheet::WorkbookInfo *info) {
+    m_recoveryStamp = stamp;
+    m_recoveryJobCopy = copy;
+    m_recoveryCancel = std::make_shared<std::atomic<bool>>(false);
+    const std::shared_ptr<std::atomic<bool>> cancel = m_recoveryCancel;
+    const std::function<void()> hook = m_recoveryHook;
+    auto make = [snapshot, copy, source, title, cancel, hook](const office::sheet::Workbook &from, const QByteArray &fileBytes, const office::sheet::WorkbookInfo *info, QString *error) {
         return recovery::write(
-            [&](const QString &file, QString *error) {
+            [&](const QString &file, QString *err) {
                 QByteArray bytes;
                 office::sheet::SaveReport report;
-                if (!info) return office::sheet::saveXlsx(from, snapshot->changes, &bytes, error, &report) && office::sheet::writeFileAtomically(file, bytes, error);
+                if (!info) return office::sheet::saveXlsx(from, snapshot->changes, &bytes, err, &report, cancel.get()) && office::sheet::writeFileAtomically(file, bytes, err);
                 office::Package package;
                 office::sheet::Workbook mine;
                 QString why;
-                if (!package.readLazy(fileBytes, &why) || !mine.open(package, &why)) {
-                    if (error) *error = why;
+                office::sheet::Limits limits;
+                limits.richText = true;   // (as the window reads: the runs of formatting inside texts are kept)
+                if (!package.readLazy(fileBytes, &why) || !mine.open(package, &why, limits)) {
+                    if (err) *err = tr("The workbook could not be read again for its copy: %1").arg(why);
                     return false;
                 }
                 mine.setInfo(*info);
-                return office::sheet::saveXlsx(mine, snapshot->changes, &bytes, error, &report) && office::sheet::writeFileAtomically(file, bytes, error);
+                if (hook) hook();   // (a test holds the thread here, while the window goes on)
+                return office::sheet::saveXlsx(mine, snapshot->changes, &bytes, err, &report, cancel.get()) && office::sheet::writeFileAtomically(file, bytes, err);
             },
-            copy, source, title);
+            copy, source, title, error);
     };
     if (!apart) {
-        recoveryFinished(make(*book, QByteArray(), nullptr), copy);
+        QString error;
+        const bool ok = make(*book, QByteArray(), nullptr, &error);
+        recoveryFinished(ok, copy, generation, error);
         return;
     }
     const QByteArray fileBytes = book->package().fileBytes();   // (shared, not copied)
     const auto info = std::make_shared<office::sheet::WorkbookInfo>(book->info());
-    QThread *thread = QThread::create([self, make, fileBytes, info, copy] {
+    QThread *thread = QThread::create([this, make, fileBytes, info, copy, generation] {
         office::sheet::Workbook none;
-        const bool ok = make(none, fileBytes, info.get());
-        QMetaObject::invokeMethod(qApp, [self, ok, copy] {
-            if (!self) {
-                if (ok) recovery::remove(copy);   // (the window went while its copy was being made)
-                return;
-            }
-            self->recoveryFinished(ok, copy);
-        }, Qt::QueuedConnection);
+        QString error;
+        const bool ok = make(none, fileBytes, info.get(), &error);
+        // (the window waits for this thread before it goes: cancelRecovery)
+        QMetaObject::invokeMethod(this, [this, ok, copy, generation, error] { recoveryFinished(ok, copy, generation, error); }, Qt::QueuedConnection);
     });
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);
-    thread->start();
+    m_recoveryThread = thread;
+    thread->start(QThread::LowPriority);
 }
 
-void CrunchWindow::recoveryFinished(bool ok, const QString &copy)
+void CrunchWindow::recoveryFinished(bool ok, const QString &copy, quint64 generation, const QString &error)
 {
     const QString older = m_recoveryCopy;   // (kept until the new copy is written)
     m_recovering = false;
+    m_recoveryJobCopy.clear();
+    // A copy begun before the workbook was saved, replaced, closed, or given a password is not of the workbook that is here now: it goes.
+    if (generation != m_recoveryGeneration) {
+        if (ok) recovery::remove(copy);
+        Q_EMIT recoveryWritten(false);
+        return;
+    }
     if (ok) {
         m_recoveryCopy = copy;
         if (!older.isEmpty() && older != copy) recovery::remove(older);
@@ -125,8 +149,40 @@ void CrunchWindow::recoveryFinished(bool ok, const QString &copy)
             recovery::discard(*m_recoveredCopy);   // (this run keeps its own copy before the old one goes)
             m_recoveredCopy.reset();
         }
+    } else {
+        m_recoveryStamp = {-1, -1, -1, -1};   // (tried again at the next tick)
+        qWarning("JeffCrunch: the recovery copy could not be made: %s", qPrintable(error));
+        if (!m_recoveryFailNoted) {
+            m_recoveryFailNoted = true;
+            setStatus(tr("A copy of your unsaved work could not be kept for recovery. %1").arg(error));
+        }
     }
     Q_EMIT recoveryWritten(ok);
+}
+
+// The copy being made is given up (the window is closing, or the program is quitting): the thread is asked to stop and waited for, and what it made is removed.
+void CrunchWindow::cancelRecovery()
+{
+    if (m_recoveryCancel) m_recoveryCancel->store(true);
+    if (m_recoveryThread) m_recoveryThread->wait();
+    if (m_recovering) recovery::remove(m_recoveryJobCopy);
+    m_recovering = false;
+    m_recoveryJobCopy.clear();
+    ++m_recoveryGeneration;   // (a finish that is on its way finds the copy out of date)
+}
+
+void CrunchWindow::finishRecoveries()
+{
+    for (QWidget *top : QApplication::topLevelWidgets())
+        if (auto *w = qobject_cast<CrunchWindow *>(top)) w->cancelRecovery();
+}
+
+// The copy no longer matches the workbook (it was saved, closed, replaced, or given a password): the one kept goes, and one that is being made is not kept when it is done.
+void CrunchWindow::invalidateRecovery()
+{
+    ++m_recoveryGeneration;
+    dropRecoveryCopy();
+    m_recoveryStamp = {-1, -1, -1, -1};
 }
 
 void CrunchWindow::dropRecoveryCopy()

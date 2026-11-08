@@ -4,6 +4,7 @@
 #include "app/spelling.h"
 #include "text/dictionaries.h"
 
+#include <QElapsedTimer>
 #include <QLocale>
 #include <QTextBlock>
 #include <QTextDocument>
@@ -60,25 +61,49 @@ SpellWalk::SpellWalk(const EditSession *session, int sheet, const jp::office::sh
     std::sort(m_cells.begin(), m_cells.end());
 }
 
-std::optional<SpellHit> SpellWalk::next()
+const QVector<QPair<int, int>> &SpellWalk::rangesOf(const QString &text)
 {
+    if (m_cacheRevision != spellingRevision()) {
+        m_cache.clear();
+        m_cacheRevision = spellingRevision();
+    }
+    auto it = m_cache.constFind(text);
+    if (it == m_cache.constEnd()) {
+        if (m_cache.size() > 4000) m_cache.clear();
+        it = m_cache.insert(text, misspelledRanges(text));
+    }
+    return *it;
+}
+
+SpellWalk::Result SpellWalk::step(qint64 budgetMs, SpellHit *hit)
+{
+    QElapsedTimer clock;
+    clock.start();
+    int looked = 0;
     for (; m_at < m_cells.size(); ++m_at, m_offset = 0) {
+        // (the clock is read now and then, not at every cell)
+        if (budgetMs > 0 && (++looked & 31) == 0 && clock.elapsed() >= budgetMs) return Result::More;
         QString text;
         if (!spellableText(*m_session, m_sheet, m_cells[m_at].first, m_cells[m_at].second, &text)) continue;
-        for (const auto &range : misspelledRanges(text)) {
+        for (const auto &range : rangesOf(text)) {
             if (range.first < m_offset) continue;
-            SpellHit hit;
-            hit.row = m_cells[m_at].first;
-            hit.col = m_cells[m_at].second;
-            hit.from = range.first;
-            hit.to = range.second;
-            hit.word = text.mid(range.first, range.second - range.first);
-            hit.text = text;
+            hit->row = m_cells[m_at].first;
+            hit->col = m_cells[m_at].second;
+            hit->from = range.first;
+            hit->to = range.second;
+            hit->word = text.mid(range.first, range.second - range.first);
+            hit->text = text;
             m_offset = range.second;
-            return hit;
+            return Result::Found;
         }
     }
-    return std::nullopt;
+    return Result::Done;
+}
+
+std::optional<SpellHit> SpellWalk::next()
+{
+    SpellHit hit;
+    return step(0, &hit) == Result::Found ? std::optional<SpellHit>(hit) : std::nullopt;
 }
 
 void SpellWalk::changed(int replacementEnd) { m_offset = replacementEnd; }

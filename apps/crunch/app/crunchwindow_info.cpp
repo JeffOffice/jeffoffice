@@ -37,7 +37,7 @@ void CrunchWindow::applyProperties(const office::PackageProps &edited)
     if (!p.created.isValid()) p.created = p.modified;
     m_editedProps = p;
     // (a change of the file's properties is a change to save, as a password is)
-    m_protectionChanged = true;
+    m_protectionChanged = true; invalidateRecovery();
     setWindowModified(true);
     updateEditActions();
 }
@@ -269,7 +269,7 @@ QVector<InspectItem> CrunchWindow::inspectItems()
                              notice(tr("Remove External Links"), o.problem);
                              return 0;
                          }
-                         m_protectionChanged = true;
+                         m_protectionChanged = true; invalidateRecovery();
                          setWindowModified(true);
                          updateEditActions();
                          return parts;
@@ -282,7 +282,7 @@ QVector<InspectItem> CrunchWindow::inspectItems()
                          const int parts = partsMatching(customParts);
                          if (session->customXmlDropped() || parts == 0) return 0;
                          session->dropCustomXml();
-                         m_protectionChanged = true;
+                         m_protectionChanged = true; invalidateRecovery();
                          setWindowModified(true);
                          updateEditActions();
                          return parts;

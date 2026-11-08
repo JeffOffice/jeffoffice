@@ -128,7 +128,7 @@ void CrunchWindow::protectWithPassword()
         if (failed > 0) notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
     }
     jp::crypto::wipe(req.password);
-    m_protectionChanged = true;
+    m_protectionChanged = true; invalidateRecovery();
     setWindowModified(true);
     updateEditActions();
 }

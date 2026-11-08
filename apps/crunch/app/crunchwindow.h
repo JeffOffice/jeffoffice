@@ -405,6 +405,11 @@ public:
     int autoRecoverInterval() const { return m_recoverTimer.interval(); }   // ms
     QString recoveryCopy() const { return m_recoveryCopy; }
     bool isRecovering() const { return m_recovering; }
+    // Gives up the copy being made and waits for its thread (a window going, the program quitting: before the recovery folder is removed).
+    void cancelRecovery();
+    static void finishRecoveries();
+    // For tests: called on the thread that makes the copy, after it has read the file and before it writes.
+    void setRecoveryHook(const std::function<void()> &hook) { m_recoveryHook = hook; }
     void offerRecovery(bool askIfNone = false);
     // Opens a recovered copy as unsaved work, in this window while it has no workbook of its own, else in a new one; false, with the reason, if it can't be read at all.
     CrunchWindow *openRecovered(const jp::recovery::Recovered &r, QString *error = nullptr);
@@ -1505,10 +1510,17 @@ private:
     QString m_recoveryCopy;      // this window's automatic recovery copy, if written
     QString m_recoveredFrom;     // a recovered workbook's original file, for the sidecar of its next copy
     quint64 m_serial = 0;
-    bool m_recoveryNoted = false, m_recovering = false;
+    bool m_recoveryNoted = false, m_recovering = false, m_recoveryFailNoted = false;
+    quint64 m_recoveryGeneration = 0;                       // raised when a copy being made stops being the workbook's (a save, a close, a new workbook, a password)
+    std::array<qint64, 4> m_recoveryStamp{-1, -1, -1, -1};  // what the workbook was when the last copy was begun (changes sent, undo index and count, protection)
+    QString m_recoveryJobCopy;                              // the file the copy being made is written to
+    QPointer<QThread> m_recoveryThread;
+    std::shared_ptr<std::atomic<bool>> m_recoveryCancel;
+    std::function<void()> m_recoveryHook;
     std::optional<jp::recovery::Recovered> m_recoveredCopy;   // the copy this window was opened from, discarded once its own copy is written
     void dropRecoveryCopy();
-    void recoveryFinished(bool ok, const QString &copy);
+    void recoveryFinished(bool ok, const QString &copy, quint64 generation, const QString &error);
+    void invalidateRecovery();
     void createRecovery();
     SlicerPane *m_slicerPane = nullptr;
     QDockWidget *m_slicerDock = nullptr;

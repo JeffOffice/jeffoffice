@@ -31,7 +31,7 @@ void CrunchWindow::editLinksCommand()
     EditLinksDialog dialog(m_session.get(), m_path.isEmpty() ? QString() : QFileInfo(m_path).absolutePath(), this);
     connect(&dialog, &EditLinksDialog::openRequested, this, [this](const QString &path) { openLinkSource(path); });
     connect(&dialog, &EditLinksDialog::linksBroken, this, [this] {
-        m_protectionChanged = true;
+        m_protectionChanged = true; invalidateRecovery();
         setWindowModified(true);
         updateEditActions();
     });

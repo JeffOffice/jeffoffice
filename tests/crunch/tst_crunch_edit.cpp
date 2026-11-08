@@ -2062,7 +2062,7 @@ void CrunchEditTests::saveWritesWhatChangedAndKeepsTheRest()
     QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("B2")), QStringLiteral("n:110"));
     QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("B3")), QStringLiteral("n:999"));    // (nothing that was changed is read by it: it is as the file had it)
     QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("F1")), QStringLiteral("n:0.25"));
-    QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("F2")), QStringLiteral("s:New text"));
+    QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("F2")), QStringLiteral("s:new text"));
     QCOMPARE(b.styles().numFmtId(at(s, QStringLiteral("F1"))->style), 9);
     QCOMPARE(b.sharedStrings().strings.size(), 2);
     // the formula is still a formula

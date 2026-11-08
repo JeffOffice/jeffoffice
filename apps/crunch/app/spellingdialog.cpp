@@ -6,6 +6,8 @@
 #include "text/dictionaries.h"
 
 #include <QCoreApplication>
+#include <QElapsedTimer>
+#include <QPointer>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -46,6 +48,7 @@ SpellingDialog::SpellingDialog(CrunchWindow *window, int sheet, const jp::office
                             Button{QCoreApplication::translate("Proofing", "Change All"), "spellingChangeAll", &SpellingDialog::changeAll},
                             Button{QCoreApplication::translate("Proofing", "Add"), "spellingAdd", &SpellingDialog::addToDictionary}}) {
         auto *button = new QPushButton(b.label, this);
+        m_buttons << button;
         button->setObjectName(QLatin1String(b.name));
         row->addWidget(button);
         connect(button, &QPushButton::clicked, this, [this, work = b.work] { (this->*work)(); });
@@ -53,8 +56,15 @@ SpellingDialog::SpellingDialog(CrunchWindow *window, int sheet, const jp::office
     auto *close = new QPushButton(QCoreApplication::translate("Proofing", "Close"), this);
     close->setObjectName(QStringLiteral("spellingClose"));
     row->addWidget(close);
-    connect(close, &QPushButton::clicked, this, &QDialog::reject);
+    // (Close while the dialog is still looking gives the looking up)
+    connect(close, &QPushButton::clicked, this, [this] {
+        if (m_looking) m_cancelled = true;
+        else reject();
+    });
     v->addLayout(row);
+    m_progress = new QLabel(this);
+    m_progress->setObjectName(QStringLiteral("spellingProgress"));
+    v->addWidget(m_progress);
     connect(m_suggestions, &QListWidget::currentTextChanged, m_change, &QLineEdit::setText);
 }
 
@@ -75,8 +85,34 @@ bool SpellingDialog::start(bool quiet)
 
 bool SpellingDialog::advance()
 {
-    m_hit = m_walk->next();
-    if (!m_hit) {
+    // The cells are looked at a slice at a time, and the window gets its turn between slices (a sheet may have a million text cells); Close gives it up.
+    m_looking = true;
+    m_cancelled = false;
+    for (QPushButton *b : m_buttons) b->setEnabled(false);
+    crunch::SpellHit hit;
+    crunch::SpellWalk::Result result;
+    const QPointer<SpellingDialog> self(this);
+    for (;;) {
+        QElapsedTimer slice;
+        slice.start();
+        result = m_walk->step(40, &hit);
+        m_longestSlice = std::max(m_longestSlice, slice.elapsed());
+        if (result != crunch::SpellWalk::Result::More) break;
+        m_progress->setText(QCoreApplication::translate("Proofing", "Checking… %1%").arg(int(m_walk->progress() * 100)));
+        QCoreApplication::processEvents();
+        if (!self) return false;
+        if (m_cancelled) break;
+    }
+    m_progress->clear();
+    m_looking = false;
+    for (QPushButton *b : m_buttons) b->setEnabled(true);
+    if (m_cancelled) {
+        m_hit.reset();
+        reject();
+        return false;
+    }
+    if (result == crunch::SpellWalk::Result::Done) {
+        m_hit.reset();
         m_notIn->clear();
         m_suggestions->clear();
         m_change->clear();
@@ -84,6 +120,7 @@ bool SpellingDialog::advance()
         accept();
         return false;
     }
+    m_hit = hit;
     m_win->showCell(m_sheet, m_hit->row, m_hit->col);
     m_notIn->setText(QStringLiteral("<b>%1</b>").arg(m_hit->word.toHtmlEscaped()));
     m_suggestions->clear();

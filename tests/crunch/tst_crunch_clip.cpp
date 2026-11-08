@@ -607,7 +607,7 @@ private Q_SLOTS:
         copyRange(e, QStringLiteral("L1:M1"));                                      // two empty cells
         e.select(QStringLiteral("J1"));
         e.win.w.act(QStringLiteral("paste.special"))->trigger();
-        QCOMPARE(shown(e, QStringLiteral("J1:K1")), QStringLiteral("keep|Keep too"));
+        QCOMPARE(shown(e, QStringLiteral("J1:K1")), QStringLiteral("keep|keep too"));
         // giving it up changes nothing
         const int steps = e.win.w.undoStack()->count();
         e.win.w.setPasteAsker([](crunch::EditSession::PasteOptions *) { return false; });

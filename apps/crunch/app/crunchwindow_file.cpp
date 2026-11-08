@@ -65,7 +65,7 @@ void CrunchWindow::dropWorkbook()
     dropLayoutJob();
     m_loader.cancel();
     // (what was waiting for the old workbook is not done to the next: a save that waited for its calculation, a close that waited for that save, what was typed before it was ready)
-    dropRecoveryCopy();
+    invalidateRecovery();
     m_recoveredFrom.clear();
     m_saveAfterCalculation.clear();
     m_copyAfterCalculation = false;
@@ -275,6 +275,7 @@ void CrunchWindow::onFirstScreen()
     cancelPageBreaks();
     dropLayoutJob();
     m_loaded = m_loader.result();
+    invalidateRecovery();   // (a copy begun for a workbook that was here before is not this one's)
     if (!m_loaded || !m_loaded->book || !m_loaded->preview) return;
     m_haveFirstScreen = true;
     openObjects();
@@ -328,6 +329,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
         return;
     }
     m_loaded = m_loader.result();
+    invalidateRecovery();
     // (a file that was protected is saved protected again, with the password that opened it, which is kept only while the workbook is open)
     jp::crypto::wipe(m_filePassword);
     m_fileProtected = m_diskProtected = m_loaded->protectedFile;

@@ -938,6 +938,16 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
     return r;
 }
 
+bool isFormulaEntry(const QString &typed, const EntryOptions &options)
+{
+    if (typed.isEmpty()) return false;
+    if (typed.front() == QLatin1Char('=')) return true;
+    // (as readEntry decides it: a sign and more, that is not a number or the like)
+    if (typed.size() < 2 || (typed.front() != QLatin1Char('+') && typed.front() != QLatin1Char('-')) || typed.trimmed().size() <= 1) return false;
+    const EntryResult r = readEntry(typed, options);
+    return r.entry.kind == Entry::Kind::Formula || !r.ok;
+}
+
 namespace {
 
 QString numberInLocale(double v, const QLocale &locale)

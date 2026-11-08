@@ -901,9 +901,22 @@ void CrunchWindow::showCell(int sheet, quint32 row, quint32 col)
 bool CrunchWindow::replaceCellTexts(const std::vector<CellText> &changes, const QString &stepText)
 {
     if (!m_session || changes.empty() || !editingAllowed()) return false;
+    // All or none: every cell is looked at first (a locked cell, a cell of an array, a text too long for a cell), so that a change that cannot be made stops before any is.
+    for (const CellText &c : changes) {
+        QString why;
+        if (!m_session->canEditCell(c.sheet, c.row, c.col, &why)) {
+            notice(stepText, why);
+            return false;
+        }
+        if (c.text.size() > jp::office::sheet::kMaxCellChars) {
+            notice(stepText, tr("A cell can hold up to %1 characters.").arg(QLocale().toString(jp::office::sheet::kMaxCellChars)));
+            return false;
+        }
+    }
     const qint64 before = m_loader.changesMade();
     QUndoStack *stack = m_session->undoStack();
     const bool several = changes.size() > 1;
+    const int index = stack->index();
     if (several) stack->beginMacro(stepText);
     bool ok = true;
     for (const CellText &c : changes) {
@@ -911,7 +924,8 @@ bool CrunchWindow::replaceCellTexts(const std::vector<CellText> &changes, const 
         std::optional<jp::office::sheet::RichText> rich = m_session->richOf(c.sheet, c.row, c.col);
         if (rich && !rich->isEmpty()) crunch::adjustRuns(&*rich, c.text);
         else rich.reset();
-        const crunch::EditSession::Outcome o = m_session->type(c.sheet, c.row, c.col, c.text, false, rich ? &*rich : nullptr);
+        // The new text is text: with an apostrophe in front, it is not read as an entry again (a date, TRUE, a number, a formula), and the cell stays the text it was.
+        const crunch::EditSession::Outcome o = m_session->type(c.sheet, c.row, c.col, QLatin1Char('\'') + c.text, false, rich ? &*rich : nullptr);
         if (!o.ok) {
             notice(stepText, o.problem);
             ok = false;
@@ -919,6 +933,7 @@ bool CrunchWindow::replaceCellTexts(const std::vector<CellText> &changes, const 
         }
     }
     if (several) stack->endMacro();
+    if (!ok && stack->index() > index) stack->undo();   // (not one of them is kept)
     if (m_loader.changesMade() != before) m_calculating = true;
     return ok;
 }

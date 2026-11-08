@@ -34,6 +34,8 @@ public:
     bool change();
     bool changeAll();
     bool addToDictionary();
+    // The longest the dialog held the window while it looked for a word, in milliseconds (for tests); and whether it was given up (Close) while looking.
+    qint64 longestSliceMs() const { return m_longestSlice; }
 
 private:
     bool advance();
@@ -44,7 +46,10 @@ private:
     QLabel *m_notIn;
     QLineEdit *m_change;
     QListWidget *m_suggestions;
-    bool m_quiet = false;
+    QLabel *m_progress;
+    QList<QPushButton *> m_buttons;
+    bool m_quiet = false, m_looking = false, m_cancelled = false;
+    qint64 m_longestSlice = 0;
 };
 
 } // namespace jp

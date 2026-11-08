@@ -249,6 +249,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 
 CrunchWindow::~CrunchWindow()
 {
+    cancelRecovery();   // (the thread that makes a copy is waited for: it calls back into the window)
     forgetFilePassword();   // (the password the workbook is protected with is wiped with the window)
     delete m_filterPopup.data();   // (while the window is whole: its going stops the listing, which the window's own timer and run are for)
     stopPasswordJob();   // (a password being worked on is given up with the window)
@@ -1112,7 +1113,8 @@ void CrunchWindow::closeEvent(QCloseEvent *e)
     }
     stopCalculation();
     m_loader.cancel();
-    dropRecoveryCopy();   // (closed: the work was saved, or given up on purpose)
+    cancelRecovery();
+    invalidateRecovery();   // (closed: the work was saved, or given up on purpose)
     if (m_recoveredCopy) recovery::discard(*std::exchange(m_recoveredCopy, std::nullopt));
     e->accept();
 }

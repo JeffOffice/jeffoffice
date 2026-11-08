@@ -8,6 +8,9 @@
 #include <QPair>
 #include <QTimer>
 #include <QVector>
+#include <QFont>
+#include <optional>
+#include "text/autocorrect.h"
 
 class QMenu;
 
@@ -28,12 +31,16 @@ public:
 
     // The misspelled words in the entry, as [start, end) places in its text, as they are underlined (an entry that is a formula has none; the word still being typed is not one).
     QVector<QPair<int, int>> misspellings() const { return m_wrong; }
+    // How many times the characters of an entry were measured for the underlines (once for a text and a font, not at every paint; for tests).
+    int measureCount() const { return m_measureCount; }
     void checkSpelling();
     // Puts the dictionary's words for the misspelled word at `position`, Ignore All, and Add to Dictionary in the menu, and a separator after them. False, with nothing put in, if the
     // word there is spelled right (or the entry is a formula).
     bool addSpellingSuggestions(QMenu &menu, int position);
     // Whether the entry is a formula (it starts with = , or with + or - and then something that is not a number): AutoCorrect leaves it alone.
     static bool isFormulaEntry(const QString &text);
+    // The most characters of an entry that are looked at for misspelled words as it is typed.
+    static constexpr int kSpellLimit = 20000;
 
 Q_SIGNALS:
     void finished(jp::CellEditor::Way way);
@@ -49,9 +56,14 @@ private:
     // A character typed, with the fixes AutoCorrect makes; false if it is typed as it is.
     bool typeWithAutoCorrect(QKeyEvent *e);
     void replaceRange(int from, int to, const QString &with);
+    static std::optional<jp::autotext::Fix> proseFix(const QString &before, QChar typed, bool smartQuotes);
     Mode m_mode = Mode::Typing;
     QVector<QPair<int, int>> m_wrong;
     QTimer m_spellTimer;
+    QString m_measuredText;       // the text whose characters are measured in m_advances (how far along the line each starts), with the font they were measured in
+    QFont m_measuredFont;
+    QVector<int> m_advances;
+    int m_measureCount = 0;
 };
 
 } // namespace jp
