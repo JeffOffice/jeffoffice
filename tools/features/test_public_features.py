@@ -153,7 +153,12 @@ class Scope(unittest.TestCase):
 
     def test_other_app_name(self):
         self.assertTrue(pf.scope_problems(self.ok(en="Install JeffDeck without rights."), self.ENTRY))
-        self.assertFalse(pf.scope_problems(self.ok(en="Install JeffCrunch without rights."), self.ENTRY))
+        self.assertFalse(pf.scope_problems(self.ok(en="Install the app without rights."), self.ENTRY))
+
+    def test_own_app_name(self):
+        # (the text sits on the app's own page: its name in every line is noise)
+        self.assertEqual(pf.scope_problems(self.ok(en="Install JeffCrunch without rights."), self.ENTRY), ["en names its own app, JeffCrunch"])
+        self.assertTrue(pf.scope_problems(self.ok(fr="Dans JeffCrunch, installez sans droits."), self.ENTRY))
 
     def test_other_app_allowed_when_source_names_it(self):
         e = dict(self.ENTRY, text="Paste into JeffWrite")

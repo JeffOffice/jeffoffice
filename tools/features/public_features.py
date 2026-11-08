@@ -209,6 +209,9 @@ def scope_problems(e, wanted_entry):
             for name in OTHER_APPS:
                 if name != own and name in t and name not in source:
                     out.append("%s %snames %s in %s's text" % (lang, label, name, own))
+            # (the texts sit on the app's own page, under its name: naming it again in every line made the name appear about 200 times a page, Nov 7)
+            if own in t:
+                out.append("%s %snames its own app, %s" % (lang, label, own))
         m = PROMISES.search(d.get("en") or "")
         if m:
             out.append("en %spromises something (%s)" % (label, m.group(0)))
@@ -249,7 +252,7 @@ To drop a text, set its drop flag (works_drop or soon_drop) true and its three s
 - kind "translate": the entry has "fixed" English text for "works" and/or "soon" (the value "drop" means that part is dropped) and "was_kind", the kind it would otherwise have. For each part in "fixed": return the English unchanged and its Spanish and French translations (a dropped part: its drop flag true and empty strings). For a part not in "fixed", write it by the rules of "was_kind".
 - An entry may carry "fixed": English text for "works" and/or "soon" that is already correct and final. Return it unchanged in the English field (works: en; soon: soon_en), with its drop flag false (or true when the fixed value is "drop"), and translate it into Spanish and French, always, whatever the entry's kind says (a "todo" entry with a fixed "works" text still gets that text translated into es and fr; a "feature" entry with a fixed "soon" text likewise). For a part that is not in "fixed", follow the rules as usual.
 - Never write "the original", "the original program", or "original" to mean another product. Do not write SmartArt (say "diagrams"), WordArt or Text Art (say "text styles"), Tell Me (say "command search"), AutoFilter (say "filter"), or Flash Fill. Never mention command-line or developer tools (names ending in "tool"), fuzzing, "repair message", test collections, or counts of files tested; drop those entries.
-- The app is the one named in the entry's "app" field; whenever the sentence needs the app's name, use that name, and never another app's name. Do not mention other JeffOffice apps at all unless the source text itself does.
+- The app is the one named in the entry's "app" field. Each text appears on that app's own page, under its name, so never name the app itself: write "Set the page color to a theme color", not "In JeffWrite, set the page color" or "JeffWrite sets the page color". Start with what the person does or what happens ("Print only the odd pages", "A damaged file does not crash the app"); where a sentence needs a subject, say "the app" or name the part ("the Styles pane"). Never use another app's name either. Do not mention other JeffOffice apps at all unless the source text itself does.
 - Never add a fact that is not in the source text or note. In "works" texts never say anything is "coming", "coming soon", "planned", "in progress", or "will" happen; say only what works now.
 - American English, with the Oxford comma ("A, B, and C"). No marketing superlatives or hype: no "best", "powerful", "seamless", "ultimate", and the like. State facts.
 - Keep file extensions exactly (.pub, .docx, .xlsx, .pptx, .odt, .ods, .odp, .csv, and so on), each in backticks. Also put keyboard keys and function names in backticks.
