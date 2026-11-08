@@ -1130,8 +1130,9 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
         if (rowSide.any || colSide.any) {
             std::vector<char> state(size_t(nRI) * size_t(nCI), 0);
             bool tooMuch = false;
-            // (how deep the cells that are worked out from one another go: each level is a call of this and a call of the formula. Measured, a level takes 1.4 KB of stack (kPivotMaxCalcDepth
-            // levels are 170 KB), and a thread of a program may have as little as 512 KB, so the depth is held to that and the stack in use is watched as well)
+            // (how deep the cells that are worked out from one another go: each level is a call of this and a call of the formula. Measured, a level takes 1.4 KB of stack on Linux and
+            // over 1.8 KB in the Windows build, where 110 levels passed the 200 KB guard (Nov 7), and a thread of a program may have as little as 512 KB, so the
+            // depth is held to 50, well under the guard everywhere, and the stack in use is watched as well)
             char *stackTop = nullptr;
             constexpr qint64 kMostStack = 200 * 1024;
             auto isLeafOf = [&](const Side &sd, int line, const Tuple &prefix) {
