@@ -135,12 +135,15 @@ void FileScreen::rebuild(const QString &key)
 {
     QWidget *w = m_builder ? m_builder(key) : nullptr;
     if (!w) return;
+    const int idx = m_index.value(key, -1);
+    if (idx < 0) {   // (no place for it: nothing would own the page)
+        delete w;
+        return;
+    }
     auto *scroll = new QScrollArea();
     scroll->setWidget(w);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
-    const int idx = m_index.value(key, -1);
-    if (idx < 0) return;
     QWidget *old = m_stack->widget(idx);
     m_stack->insertWidget(idx, scroll);
     m_stack->removeWidget(old);

@@ -97,7 +97,11 @@ QString sessionDir()
     QDir().mkpath(dir);
     auto lock = std::make_unique<QLockFile>(dir + QLatin1Char('/') + QLatin1String(kLockName));
     lock->setStaleLockTime(0);   // held for the whole run; only a dead run's lock is stale
-    if (!lock->tryLock(1000)) return QString();   // (another run's scan of the folder may hold the lock for an instant)
+    if (!lock->tryLock(1000)) {   // (another run's scan of the folder may hold the lock for an instant)
+        lock.reset();
+        QDir().rmdir(dir);   // (not left behind empty on every try; a folder with anything in it stays)
+        return QString();
+    }
     g_lock = std::move(lock);
     g_session = dir;
     return g_session;
