@@ -454,6 +454,45 @@ private Q_SLOTS:
         QVERIFY(tooMany);
     }
 
+    // Columns widened for the formulas that show follow an insert, so the one that moved is not left wide when the formulas go.
+    void showFormulasWidthsFollowAnInsertedColumn()
+    {
+        Book b;
+        b.number(0, 0, 1);
+        b.number(0, 1, 1);
+        b.number(0, 2, 1);
+        b.sheet.formulaTexts.append(QStringLiteral("SUM(A1:A1)+SUM(A2:A2)+SUM(A3:A3)+SUM(A4:A4)+SUM(A5:A5)+SUM(A6:A6)+SUM(A7:A7)"));
+        Formula fx;
+        fx.text = 0;
+        b.sheet.formulas.append(fx);
+        // (column B holds the formula)
+        PlacedCell c;
+        c.row = 1;
+        c.col = 1;
+        c.cell.type = CellType::Number;
+        c.cell.number = 1;
+        c.cell.flags = HasFormula;
+        c.cell.formula = 0;
+        b.sheet.cells.add(c);
+        b.sheet.extentRows = 2;
+        b.show(QSize(900, 400));
+        GridLayout &L = b.layout();
+        const int plain = L.cols.size(1);
+        b.view->setShowFormulas(true);
+        QVERIFY(L.cols.size(1) > plain);
+        const int wide = L.cols.size(1);
+        jp::office::sheet::StructEdit e;
+        e.kind = jp::office::sheet::StructEdit::Kind::InsertColumns;
+        e.sheet = 0;
+        e.first = 0;
+        e.count = 1;
+        QVERIFY(b.view->followEdit(e));
+        QCOMPARE(L.cols.size(2), wide);   // (the formula's column moved to C, and is as wide as it was)
+        b.view->setShowFormulas(false);
+        QCOMPARE(L.cols.size(1), plain);
+        QCOMPARE(L.cols.size(2), plain);
+    }
+
     // Zoom (Ctrl and the wheel, or asked for) changes the size of the cells and says so; the cell with the cursor is kept in view.
     void zoomChangesTheCellsAndSaysSo()
     {
@@ -677,6 +716,31 @@ private Q_SLOTS:
         QVERIFY(!b.view->splitBox(true));
         QTRY_COMPARE(b.view->verticalScrollBar()->geometry().top(), fullTop);
         QCOMPARE(b.view->horizontalScrollBar()->geometry().left(), fullLeft);
+    }
+
+    // With every row below the first in view hidden, there is no second row to make the bar at: dragging the box makes none (it did freeze every row).
+    void aSplitBoxMakesNoBarWhenNoRowOrColumnFollows()
+    {
+        Book b;
+        for (quint32 r = 0; r < 30; ++r)
+            for (quint32 c = 0; c < 6; ++c) b.number(r, c, r * 100 + c);
+        b.show(QSize(900, 600));
+        b.view->setSplitBoxes(true);
+        if (!b.view->splitBoxes()) QSKIP("this style draws its scroll bars over the sheet: there is no end of a bar for a box");
+        GridLayout &L = b.layout();
+        for (qint64 r = 1; r < L.rows.count(); ++r) L.rows.setSize(r, 0);
+        for (qint64 c = 1; c < L.cols.count(); ++c) L.cols.setSize(c, 0);
+        QWidget *down = b.view->splitBox(true), *across = b.view->splitBox(false);
+        QVERIFY(down && across);
+        auto inBox = [&](QWidget *box, const QPoint &viewportPos) { return box->mapFromGlobal(b.view->viewport()->mapToGlobal(viewportPos)); };
+        for (QWidget *box : {down, across}) {
+            QTest::mousePress(box, Qt::LeftButton, Qt::NoModifier, box->rect().center());
+            QTest::mouseMove(box, inBox(box, QPoint(L.headerWidth() + 40, L.headerHeight() + 40)));
+            QTest::mouseRelease(box, Qt::LeftButton, Qt::NoModifier, inBox(box, QPoint(L.headerWidth() + 40, L.headerHeight() + 40)));
+            QVERIFY2(!b.view->isSplit(), "a bar was made with no row or column to follow it");
+            QCOMPARE(L.frozenRows(), qint64(0));
+            QCOMPARE(L.frozenCols(), qint64(0));
+        }
     }
 
     // A box is as long as the style's scroll bar is wide (half of it, at least 6 pixels), and has a name for a screen reader.

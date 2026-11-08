@@ -974,6 +974,26 @@ bool GridView::followEdit(const jp::office::sheet::StructEdit &edit)
     if (!m_sheet.followEdit(edit)) return false;
     m_jump.reset();
     m_statsWalk.reset();
+    if (cols) {
+        // the widths the shown formulas gave are kept by column number: they move with their columns, and go with the ones taken away
+        const auto moved = [&](qint64 column, qint64 *to) {
+            if (column < first) *to = column;
+            else if (insert) *to = column + count;
+            else if (column < first + count) return false;
+            else *to = column - count;
+            return true;
+        };
+        std::vector<Widened> widened;
+        for (Widened w : m_widened)
+            if (moved(w.column, &w.column)) widened.push_back(w);
+        m_widened = std::move(widened);
+        std::map<qint64, int> fit;
+        for (const auto &f : m_formulaFit) {
+            qint64 to = 0;
+            if (moved(f.first, &to)) fit[to] = f.second;
+        }
+        m_formulaFit = std::move(fit);
+    }
     if (m_hoverRow >= 0 || m_hoverCol >= 0) {
         m_hoverRow = m_hoverCol = -1;
         Q_EMIT hoverCellChanged(-1, -1);

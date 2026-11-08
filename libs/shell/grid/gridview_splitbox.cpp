@@ -115,7 +115,7 @@ void GridView::splitBoxMove(bool rows, const QPoint &viewportPos)
         if (!L.isSplit() && (L.frozenRows() > L.skippedRows() || L.frozenCols() > L.skippedCols())) freezeAt(0, 0);
         const qint64 start = rows ? firstRowInView() : firstColInView();
         const qint64 at = rows ? L.rows.nextVisible(start) : L.cols.nextVisible(start);
-        if (at < 0) return;
+        if (at < 0 || at >= (rows ? L.rows.count() : L.cols.count())) return;   // (none follows: nextVisible says so with the count)
         constexpr qint64 kFar = 200000;
         const bool other = L.isSplit();   // (the bar the other box made stays)
         if (rows) {
