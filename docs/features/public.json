@@ -2336,20 +2336,22 @@
        "heading": "2a259015ffcc5ecd6bf0d06f6ee3d679f3ddad8ca4ee56c850dd8191c0a6e45a",
        "items": [
         {
+         "hide_soon": true,
+         "status": "done",
+         "text": "5ad92e0cb0846a0077b6036caca12b6fbfcf8b3f76887a278a18d160c68c4e0d"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "f7598bdeee762d9be9b4bf5a47073d7fc8d86696be382737974d5bee4b02b296"
+        },
+        {
          "status": "partly",
-         "text": "2c361525a6c663bbeb1779eccf043285d21b825878c7635d6ab35b96c64f3e8f"
+         "text": "9e822963d487ee8531fc3e7aeccf5658ff9afb0b77fc795fbacde3ae5df133f9"
         },
         {
-         "status": "todo",
-         "text": "25dd50466f29baf83339f9bb374c824ddc5ef94a7970c77c26da6113fb53681e"
-        },
-        {
-         "status": "todo",
-         "text": "f7e1193d372b2f1a536cbd45fb1994a60a5e68aea035ed8464959049fcfa4097"
-        },
-        {
-         "status": "todo",
-         "text": "a95efbe86afcf49dd7eced7df164d714beb46a36d04866f8eb369f142f889a9e"
+         "status": "partly",
+         "text": "5552c0066505bd5bff6e675fb58ca1c3358b8a9c95da92b58f02837ba79657a5"
         },
         {
          "status": "todo",
@@ -2360,8 +2362,8 @@
          "text": "ccd1867c60a4a53290d043d91e705765b60f2025eb7e6d141a1c4a162e6c686c"
         },
         {
-         "status": "todo",
-         "text": "8aaf11aa126f6a36ee1daf0d28e54856f2d64c96b6f306f6e5e319c5e6f4f5be"
+         "status": "partly",
+         "text": "f5c27cdcfca3c68720292dd7dffd3b026f4e3a846dd321002003fbe6a98d58b8"
         },
         {
          "status": "todo",
@@ -2434,8 +2436,9 @@
          "text": "47c0b141501e3c2a959bb990d2010aa5f48e96e44a078995821fc8fbf9750d78"
         },
         {
-         "status": "todo",
-         "text": "4eca8e234e2313f069afa59f15b34b4247cfedfb283bd6618eb66beab9f377d2"
+         "hide_soon": true,
+         "status": "done",
+         "text": "6d612d31aa4321b4ceb58a64a3b62487fa6a87d5a0bf37884bb33605517246f7"
         },
         {
          "status": "todo",
@@ -3917,8 +3920,9 @@
          "text": "1fa01fadb4a9c6789fdce4264f258857fb648f1856822f81c03a79b0e17fce36"
         },
         {
-         "status": "todo",
-         "text": "3995b42ea1e0afb731b3b633038e68f05f1c31fac4fa7ddf772ac779b9cbf83b"
+         "hide_soon": true,
+         "status": "done",
+         "text": "6bd3bb66bf7dfd1a1465f162aeef41e511e9705e122bcfff89b80aa4407e166e"
         },
         {
          "status": "todo",
@@ -4173,7 +4177,22 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "2ab76d38b0879a19ea225609c18e093cb5b6974ae81c93a7df53f8acaf1c208c"
+         "text": "6c1b23a42ca1ffdc58c09fe97ef2a99e5ae79afaf7c20ec03f4ba7745dcbf504"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "2165c63d4346ea1c560903cc21ef578d2bdd248e07136e5faa0b2177d9edde64"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "90428f654407f1bf0a051a49d4a8d919f7d860f9e7bebc2116fa524352503c5c"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "7636fe238f6f0efa5ab83f55e3ba023162bba738e3fa5bf47b1786de7122f8f5"
         }
        ]
       },
@@ -4614,7 +4633,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "726fc87f2c42aa076c8aaa07c4919af010f9053ce570ea673e790029f3d1bcd9"
+       "text": "d3dad535f086d11de90ebc213eb818f9e8a270329fb411ebd8781696b43a3437"
       }
      ]
     },
@@ -9657,6 +9676,18 @@
     "fr": "Lecture des films et sons liés lorsque le fichier est trouvé"
    }
   },
+  "2165c63d4346ea1c560903cc21ef578d2bdd248e07136e5faa0b2177d9edde64": {
+   "drop": false,
+   "en": "Mark a publication as final on the Info page: it is saved, then opens read-only with a note. A `.pub` file cannot hold the mark.",
+   "es": "Marque una publicación como final en la página Información: se guarda y luego se abre en modo de solo lectura con una nota. Un archivo `.pub` no puede conservar la marca.",
+   "fr": "Marquez une publication comme finale sur la page Informations : elle est enregistrée, puis s’ouvre en lecture seule avec une note. Un fichier `.pub` ne peut pas conserver ce marquage.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "216c52721693e443f90aaa4fdbf5da02e65616357ca25c9c69d6822e245ecc98": {
    "drop": false,
    "en": "Drag a picture to a place on the page. Positions in files relative to the page, margin, column, paragraph, and line are laid out.",
@@ -10089,18 +10120,6 @@
     "fr": ""
    }
   },
-  "25dd50466f29baf83339f9bb374c824ddc5ef94a7970c77c26da6113fb53681e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Custom properties, kept as saved",
-    "es": "Propiedades personalizadas, conservadas tal como se guardaron",
-    "fr": "Propriétés personnalisées, conservées telles qu’enregistrées"
-   }
-  },
   "260aa091e1eaa2b0b7ede93346626b5372ec996033e077fbc05196befe3bb0aa": {
    "drop": false,
    "en": "Draw tab",
@@ -10497,18 +10516,6 @@
     "fr": ""
    }
   },
-  "2ab76d38b0879a19ea225609c18e093cb5b6974ae81c93a7df53f8acaf1c208c": {
-   "drop": false,
-   "en": "Set publication properties: title, author, subject, keywords, and comments.",
-   "es": "Establezca las propiedades de la publicación: título, autor, asunto, palabras clave y comentarios.",
-   "fr": "Définissez les propriétés de la publication : titre, auteur, sujet, mots-clés et commentaires.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "2ac84829082ecdf59238791f62e70b641d9f700fb726582a56dc24e98d1f87a9": {
    "drop": false,
    "en": "Home tab",
@@ -10651,18 +10658,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "2c361525a6c663bbeb1779eccf043285d21b825878c7635d6ab35b96c64f3e8f": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Presentation properties: view and edit",
-    "es": "Propiedades de la presentación: ver y editar",
-    "fr": "Propriétés de la présentation : afficher et modifier"
    }
   },
   "2c5520488100c2eabf8e01ffe42c2a4671fc7865f67ae73b12c6257b3bd9597b": {
@@ -11455,18 +11450,6 @@
     "en": "Tagged PDF and PDF with a password",
     "es": "PDF etiquetado y PDF con contraseña",
     "fr": "PDF balisé et PDF avec mot de passe"
-   }
-  },
-  "3995b42ea1e0afb731b3b633038e68f05f1c31fac4fa7ddf772ac779b9cbf83b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Encrypted files: open, and save with a password",
-    "es": "Archivos cifrados: abrir y guardar con contraseña",
-    "fr": "Fichiers chiffrés : ouvrir et enregistrer avec un mot de passe"
    }
   },
   "39ac727bf5666ce3a985550487a5f33f32f551c95fab69063b0f53590b7f6a51": {
@@ -12885,18 +12868,6 @@
     "fr": "Images de diapositives : toutes à la fois, d’autres tailles, et GIF, TIFF, BMP et SVG"
    }
   },
-  "4eca8e234e2313f069afa59f15b34b4247cfedfb283bd6618eb66beab9f377d2": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Open an encrypted presentation with its password",
-    "es": "Abrir una presentación cifrada con su contraseña",
-    "fr": "Ouverture d’une présentation chiffrée avec son mot de passe"
-   }
-  },
   "4ee1cbd3e3d3d91ff3453e4364371fbf644532bfdde16cc1b07ff3b05dcf1324": {
    "drop": false,
    "en": "Open and save `.jpub` files, a ZIP of readable JSON and the full-quality pictures. Saving the same kind of file to the templates folder makes it a template.",
@@ -13545,6 +13516,18 @@
     "fr": "Aide (F1) : volet hors ligne avec sujets, sommaire, liens et recherche"
    }
   },
+  "5552c0066505bd5bff6e675fb58ca1c3358b8a9c95da92b58f02837ba79657a5": {
+   "drop": false,
+   "en": "Find and remove comments, notes, personal information, hidden slides, and content off the slide before sharing, from the Info page. Each removal is a step that can be undone.",
+   "es": "Busque y elimine comentarios, notas, información personal, diapositivas ocultas y contenido fuera de la diapositiva antes de compartir, desde la página Información. Cada eliminación es un paso que se puede deshacer.",
+   "fr": "Recherchez et supprimez les commentaires, les notes, les informations personnelles, les diapositives masquées et le contenu hors diapositive avant de partager, depuis la page Informations. Chaque suppression est une étape qui peut être annulée.",
+   "soon": {
+    "drop": false,
+    "en": "Custom XML: find and remove",
+    "es": "XML personalizado: buscar y eliminar",
+    "fr": "XML personnalisé : recherche et suppression"
+   }
+  },
   "55810b2788ed7ddb45688314a8ce67c929b9ff852496b1ed58a365140513e237": {
    "drop": false,
    "en": "Adjust brightness and contrast with presets, recolor a picture with presets or more variations, set a transparent color, compress pictures, and reset a picture.",
@@ -13886,6 +13869,18 @@
    "en": "",
    "es": "",
    "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "5ad92e0cb0846a0077b6036caca12b6fbfcf8b3f76887a278a18d160c68c4e0d": {
+   "drop": false,
+   "en": "View and edit the presentation title, author, subject, keywords, category, comments, company, and manager on the Info page, with the dates created, modified, and printed. The properties are saved in the file, and `Ctrl+Z` undoes an edit.",
+   "es": "Vea y edite el título, el autor, el asunto, las palabras clave, la categoría, los comentarios, la empresa y el responsable de la presentación en la página Información, con las fechas de creación, modificación e impresión. Las propiedades se guardan en el archivo, y `Ctrl+Z` deshace una edición.",
+   "fr": "Affichez et modifiez le titre, l’auteur, le sujet, les mots-clés, la catégorie, les commentaires, la société et le responsable de la présentation sur la page Informations, avec les dates de création, de modification et d’impression. Les propriétés sont enregistrées dans le fichier, et `Ctrl+Z` annule une modification.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15225,6 +15220,18 @@
     "fr": ""
    }
   },
+  "6bd3bb66bf7dfd1a1465f162aeef41e511e9705e122bcfff89b80aa4407e166e": {
+   "drop": false,
+   "en": "Open encrypted `.pptx`, `.potx`, and `.ppsx` files and save them with a password, using AES-256 encryption.",
+   "es": "Abra archivos `.pptx`, `.potx` y `.ppsx` cifrados y guárdelos con contraseña, con cifrado AES-256.",
+   "fr": "Ouvrez des fichiers `.pptx`, `.potx` et `.ppsx` chiffrés et enregistrez-les avec un mot de passe, avec un chiffrement AES-256.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "6bd4a37f8dda1e1b697e7aa05b60a310f7ba4ce6b6d69abf17e8d8ffb7febb9c": {
    "drop": false,
    "en": "Formulas tab",
@@ -15290,6 +15297,18 @@
    "en": "Registered to open `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt`, and `.ott` files on Windows, macOS, and Linux.",
    "es": "Registrada para abrir archivos `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt` y `.ott` en Windows, macOS y Linux.",
    "fr": "Enregistrée pour ouvrir les fichiers `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt` et `.ott` sous Windows, macOS et Linux.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "6c1b23a42ca1ffdc58c09fe97ef2a99e5ae79afaf7c20ec03f4ba7745dcbf504": {
+   "drop": false,
+   "en": "View and edit the publication title, author, subject, keywords, and comments, plus categories, company, manager, and custom properties, on the Info page. The properties are kept in the `.jpub` file, and `Ctrl+Z` undoes an edit.",
+   "es": "Vea y edite el título, el autor, el asunto, las palabras clave y los comentarios de la publicación, además de las categorías, la empresa, el responsable y las propiedades personalizadas, en la página Información. Las propiedades se guardan en el archivo `.jpub`, y `Ctrl+Z` deshace una edición.",
+   "fr": "Affichez et modifiez le titre, l’auteur, le sujet, les mots-clés et les commentaires de la publication, ainsi que les catégories, la société, le responsable et les propriétés personnalisées, sur la page Informations. Les propriétés sont conservées dans le fichier `.jpub`, et `Ctrl+Z` annule une modification.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15458,6 +15477,18 @@
    "en": "Use the Sum menu for Sum, Average, Count Numbers, Max, and Min, and press `Alt+=` (`Cmd+Shift+T` on a Mac) to insert the sum of the cells above or to the left. More Functions opens the function list.",
    "es": "Use el menú Suma para Suma, Promedio, Contar números, Máx y Mín, y pulse `Alt+=` (`Cmd+Shift+T` en Mac) para insertar la suma de las celdas de arriba o de la izquierda. Más funciones abre la lista de funciones.",
    "fr": "Utilisez le menu Somme pour Somme, Moyenne, Nb, Max et Min, et appuyez sur `Alt+=` (`Cmd+Maj+T` sur Mac) pour insérer la somme des cellules au-dessus ou à gauche. Autres fonctions ouvre la liste des fonctions.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "6d612d31aa4321b4ceb58a64a3b62487fa6a87d5a0bf37884bb33605517246f7": {
+   "drop": false,
+   "en": "Open an encrypted presentation by entering its password. A wrong password asks again, Cancel opens nothing, and a damaged file is reported as such.",
+   "es": "Abra una presentación cifrada introduciendo su contraseña. Si la contraseña es incorrecta, se solicita de nuevo; Cancelar no abre nada, y un archivo dañado se indica como tal.",
+   "fr": "Ouvrez une présentation chiffrée en saisissant son mot de passe. Un mot de passe incorrect est redemandé, Annuler n’ouvre rien, et un fichier endommagé est signalé comme tel.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15789,18 +15820,6 @@
     "fr": ""
    }
   },
-  "726fc87f2c42aa076c8aaa07c4919af010f9053ce570ea673e790029f3d1bcd9": {
-   "drop": false,
-   "en": "Run the Design Checker, also available under File > Properties, and use hyphenation: automatic hyphenation, insert an optional hyphen, or add optional hyphens.",
-   "es": "Ejecute el comprobador de diseño, también disponible en Archivo > Propiedades, y use la separación de palabras: automática, insertar un guion opcional o agregar guiones opcionales.",
-   "fr": "Lancez le vérificateur de conception, également disponible sous Fichier > Propriétés, et utilisez la césure : césure automatique, insertion d’un trait d’union optionnel ou ajout de traits d’union optionnels.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "7275674925cfb7cd23e165788aa52152d877c49a6fe9ea9dacbf96f7f50555a3": {
    "drop": false,
    "en": "Right-click text being edited for spelling suggestions, Ignore All, Add to Dictionary, cut, copy, paste, paste as plain text, the Font, Paragraph, and Bullets dialogs, hyperlink, thesaurus, text fit, and Format Object (Format Table in a table).",
@@ -15998,6 +16017,18 @@
    "en": "Slide Master, Handout Master, and Notes Master views",
    "es": "Vistas Patrón de diapositivas, Patrón de documentos y Patrón de notas",
    "fr": "Affichages Masque des diapositives, Masque du document et Masque des notes",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "7636fe238f6f0efa5ab83f55e3ba023162bba738e3fa5bf47b1786de7122f8f5": {
+   "drop": false,
+   "en": "Keep named local copies of a publication without a cloud service. Open a version as a copy, or go back to it, from the Info page.",
+   "es": "Conserve copias locales con nombre de una publicación sin un servicio en la nube. Abra una versión como copia, o vuelva a ella, desde la página Información.",
+   "fr": "Conservez des copies locales nommées d’une publication, sans service cloud. Ouvrez une version comme copie, ou revenez à celle-ci, depuis la page Informations.",
    "soon": {
     "drop": true,
     "en": "",
@@ -17361,18 +17392,6 @@
     "fr": "Chronologie : clic pour filtrer et choix du niveau de temps"
    }
   },
-  "8aaf11aa126f6a36ee1daf0d28e54856f2d64c96b6f306f6e5e319c5e6f4f5be": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Version history without a cloud service: named local copies, compared and restored",
-    "es": "Historial de versiones sin servicio en la nube: copias locales con nombre, comparadas y restauradas",
-    "fr": "Historique des versions sans service en ligne : copies locales nommées, comparées et restaurées"
-   }
-  },
   "8ac9786864861a19e301589c89cd265ff64e6818e7169546a1eb878c0c5ec044": {
    "drop": false,
    "en": "Print to a printer or a PDF file with copies, collate, and page ranges: all pages, the current page, the selection, or custom ranges such as 1-3, 5, 8-, and -2, plus a page of a section (`p2s3`) or a whole section (`s3`). Each page uses the paper and orientation its section sets. A Sides choice offers one side, both sides flipped on the long or short edge, or both sides by hand.",
@@ -17695,6 +17714,18 @@
     "en": "Tagged PDF, PDF with a password, and PDF/X-1a and PDF/X-4 for printers",
     "es": "PDF etiquetado, PDF con contraseña y PDF/X-1a y PDF/X-4 para imprentas",
     "fr": "PDF balisé, PDF avec mot de passe, et PDF/X-1a et PDF/X-4 pour les imprimeurs"
+   }
+  },
+  "90428f654407f1bf0a051a49d4a8d919f7d860f9e7bebc2116fa524352503c5c": {
+   "drop": false,
+   "en": "Find and remove personal information in the properties, business information, mail merge data, and objects on the scratch area.",
+   "es": "Busque y elimine la información personal en las propiedades, la información de empresa, los datos de combinación de correspondencia y los objetos del área de trabajo externa.",
+   "fr": "Recherchez et supprimez les informations personnelles dans les propriétés, les informations d’entreprise, les données de publipostage et les objets de la zone de travail hors page.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "9069dd246c9d9f8b24504d8c007bb4ae6421a5a3ca2232db656ad6d45bdef606": {
@@ -18825,6 +18856,18 @@
     "fr": "Options d’accessibilité : retour sonore et animé, contraste élevé et focus du clavier"
    }
   },
+  "9e822963d487ee8531fc3e7aeccf5658ff9afb0b77fc795fbacde3ae5df133f9": {
+   "drop": false,
+   "en": "Protect a presentation on the Info page: mark it as final (it opens read-only with a note), or encrypt it with a password to open and save a password-protected `.pptx` with strong encryption. An `.odp` file cannot hold the mark or a password, and a save to one says so.",
+   "es": "Proteja una presentación en la página Información: márquela como final (se abre en modo de solo lectura con una nota) o cífrela con contraseña para abrir y guardar un `.pptx` protegido con contraseña y cifrado seguro. Un archivo `.odp` no puede conservar la marca ni una contraseña, y al guardar en uno se le avisa.",
+   "fr": "Protégez une présentation sur la page Informations : marquez-la comme finale (elle s’ouvre en lecture seule avec une note) ou chiffrez-la avec un mot de passe pour ouvrir et enregistrer un `.pptx` protégé par mot de passe avec un chiffrement fort. Un fichier `.odp` ne peut pas conserver le marquage ni un mot de passe, et un enregistrement dans ce format le signale.",
+   "soon": {
+    "drop": false,
+    "en": "Always open read-only",
+    "es": "Abrir siempre en modo de solo lectura",
+    "fr": "Ouverture systématique en lecture seule"
+   }
+  },
   "9ebbc171279f2e91b493067b377c161a6b71228288f86736e07a658b255e8b09": {
    "drop": false,
    "en": "Insert a cover page from three designs (Classic, Band, and Plain), each with a title, subtitle, author, and date, one cover to a document, in one step that undoes. Remove Current Cover Page removes it.",
@@ -19399,18 +19442,6 @@
     "en": "Charts: axes, gridlines, trendlines, error bars, quick layouts, colors, and styles",
     "es": "Gráficos: ejes, líneas de cuadrícula, líneas de tendencia, barras de error, diseños rápidos, colores y estilos",
     "fr": "Graphiques : axes, quadrillage, courbes de tendance, barres d’erreur, dispositions rapides, couleurs et styles"
-   }
-  },
-  "a95efbe86afcf49dd7eced7df164d714beb46a36d04866f8eb369f142f889a9e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Inspect Presentation: find and remove comments, notes, personal information, hidden slides, off-slide content, and custom XML before sharing",
-    "es": "Inspeccionar presentación: buscar y quitar comentarios, notas, información personal, diapositivas ocultas, contenido fuera de la diapositiva y XML personalizado antes de compartir",
-    "fr": "Inspection de la présentation : rechercher et supprimer commentaires, notes, informations personnelles, diapositives masquées, contenu hors diapositive et XML personnalisé avant le partage"
    }
   },
   "a96884d5e4cd243b4f143d9dfe088f0d37d3913647d8ad507b53bd7b7bca6b73": {
@@ -22305,6 +22336,18 @@
     "fr": "Liens dans un PDF : hyperliens de la publication sur lesquels cliquer"
    }
   },
+  "d3dad535f086d11de90ebc213eb818f9e8a270329fb411ebd8781696b43a3437": {
+   "drop": false,
+   "en": "In the Check group, run the design checker and set hyphenation (automatic hyphenation, insert an optional hyphen, add optional hyphens), next to word count.",
+   "es": "En el grupo Revisar, ejecute el comprobador de diseño y configure la separación silábica (automática, insertar un guion opcional, agregar guiones opcionales), junto al recuento de palabras.",
+   "fr": "Dans le groupe Vérification, lancez le vérificateur de conception et réglez la césure (césure automatique, insertion d’un trait d’union conditionnel, ajout de traits d’union conditionnels), à côté du nombre de mots.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "d407f20b5919cee18c64954bd0b94d888902bf3ac90007cbaf9fe226e8590cd8": {
    "drop": false,
    "en": "Runs on Linux (x86_64), Windows 10 and 11 (x86_64), and macOS (Apple silicon and Intel).",
@@ -24465,6 +24508,18 @@
     "fr": ""
    }
   },
+  "f5c27cdcfca3c68720292dd7dffd3b026f4e3a846dd321002003fbe6a98d58b8": {
+   "drop": false,
+   "en": "Keep named local copies of a presentation without a cloud service. Open a version as a copy, restore it, or delete it from the Info page. A version of a protected presentation is protected too.",
+   "es": "Conserve copias locales con nombre de una presentación sin un servicio en la nube. Abra una versión como copia, restáurela o elimínela desde la página Información. Una versión de una presentación protegida también está protegida.",
+   "fr": "Conservez des copies locales nommées d’une présentation, sans service cloud. Ouvrez une version comme copie, restaurez-la ou supprimez-la depuis la page Informations. Une version d’une présentation protégée est elle aussi protégée.",
+   "soon": {
+    "drop": false,
+    "en": "Version comparison",
+    "es": "Comparación de versiones",
+    "fr": "Comparaison de versions"
+   }
+  },
   "f5db565cb2f968cc7e82188b07dfb112e0c4de1dbf5b318f84613b111dbba9bd": {
    "drop": false,
    "en": "Use `OFFSET` and `INDIRECT`, which build a reference from numbers or text and recalculate on every change, along with `CHOOSE`, `ROW`, `COLUMN`, `ADDRESS`, and `TRANSPOSE`.",
@@ -24518,6 +24573,18 @@
    "en": "Draw tab",
    "es": "Pestaña Dibujar",
    "fr": "Onglet Dessin",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "f7598bdeee762d9be9b4bf5a47073d7fc8d86696be382737974d5bee4b02b296": {
+   "drop": false,
+   "en": "Add, change, and remove custom properties in the Custom Properties box on the Info page. A custom property of a kind the app does not support is kept as the file had it.",
+   "es": "Agregue, cambie y elimine propiedades personalizadas en el cuadro Propiedades personalizadas de la página Información. Una propiedad personalizada de un tipo que la aplicación no admite se conserva como estaba en el archivo.",
+   "fr": "Ajoutez, modifiez et supprimez des propriétés personnalisées dans la zone Propriétés personnalisées de la page Informations. Une propriété personnalisée d’un type non pris en charge est conservée telle qu’elle figurait dans le fichier.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24583,18 +24650,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "f7e1193d372b2f1a536cbd45fb1994a60a5e68aea035ed8464959049fcfa4097": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Protect Presentation: mark as final, encrypt with a password, and always open read-only",
-    "es": "Proteger presentación: marcar como final, cifrar con contraseña y abrir siempre como solo lectura",
-    "fr": "Protection de la présentation : marquer comme finale, chiffrer avec un mot de passe et toujours ouvrir en lecture seule"
    }
   },
   "f7e47c29ca7ee7a20803309d16bf17f374d638632c54a057e47397c3bdf6833f": {
