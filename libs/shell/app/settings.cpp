@@ -1,6 +1,7 @@
 #include "app/settings.h"
 
 #include "core/appinfo.h"
+#include <algorithm>
 
 #include <QDir>
 #include <QDirIterator>
@@ -175,7 +176,8 @@ void Settings::addRecentFile(const QString &path)
     QStringList l = recentFiles();
     l.removeAll(path);
     l.prepend(path);
-    while (l.size() > m_s.value("recentCount", 25).toInt()) l.removeLast();
+    const int keep = std::clamp(m_s.value("recentCount", 25).toInt(), 0, 50);   // (the range the Options box allows: a hand-edited file may hold any number)
+    while (l.size() > keep) l.removeLast();
     m_s.setValue("recent", l);
 }
 

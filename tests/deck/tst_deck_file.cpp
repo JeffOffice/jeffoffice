@@ -144,6 +144,20 @@ private Q_SLOTS:
         Settings::get().removeRecentFile(pinned);
     }
 
+    // A hand-edited settings file may hold any recent count: adding a file keeps the 0 to 50 the Options box allows.
+    void aRecentCountOutsideTheOptionsRangeIsClamped()
+    {
+        Settings &st = Settings::get();
+        const QVariant was = st.value(QStringLiteral("recentCount"), 25);
+        st.setValue(QStringLiteral("recentCount"), -1);
+        st.addRecentFile(QStringLiteral("/tmp/clamp-a.pptx"));
+        QCOMPARE(st.recentFiles().size(), 0);
+        st.setValue(QStringLiteral("recentCount"), 1000);
+        for (int i = 0; i < 60; ++i) st.addRecentFile(QStringLiteral("/tmp/clamp-%1.pptx").arg(i));
+        QCOMPARE(st.recentFiles().size(), 50);
+        st.setValue(QStringLiteral("recentCount"), was);
+    }
+
     // Save and Save As are commands in the sidebar: they save, and the screen
     // goes away once the file is written.
     void windowFileScreenSaves()

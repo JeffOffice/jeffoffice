@@ -744,6 +744,38 @@ private Q_SLOTS:
         QVERIFY(done.count() >= 5);
     }
 
+    // A gradient whose stops are listed out of order is shown and edited in order of place: moving one keeps it between its neighbors.
+    void gradientEditorOrdersStopsListedOutOfOrder()
+    {
+        GradientEditor g;
+        g.resize(300, 400);
+        g.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&g));
+        Fill base;
+        base.type = Fill::Gradient;
+        base.stops = {{0.8, ColorRef::rgb(Qt::red), 0}, {0.5, ColorRef::rgb(Qt::green), 0}, {0.3, ColorRef::rgb(Qt::blue), 0}};
+        // (a second gradient with as many stops: the edit is then one property of one stop in each)
+        Fill other = base;
+        other.stops = {{0.9, ColorRef::rgb(Qt::red), 0}, {0.1, ColorRef::rgb(Qt::green), 0}, {0.4, ColorRef::rgb(Qt::blue), 0}};
+        g.setGradients({base, other});
+        Recorder<GradientEditor, FillChange> changed(&g, &GradientEditor::changed);
+        auto *pos = g.findChild<NumberField *>(QStringLiteral("stopPosition"));
+        QVERIFY(pos);
+        g.bar()->setCurrent(1);
+        pos->box()->setValue(60);
+        Fill f = base, o = other;
+        changed.last()(f);
+        changed.last()(o);
+        QCOMPARE(f.stops.size(), 3);
+        QCOMPARE(f.stops[0].pos, 0.3);
+        QCOMPARE(f.stops[1].pos, 0.6);
+        QCOMPARE(f.stops[2].pos, 0.8);
+        QCOMPARE(f.stops[1].color, ColorRef::rgb(Qt::green));
+        QCOMPARE(o.stops[0].pos, 0.1);
+        QCOMPARE(o.stops[1].pos, 0.6);
+        QCOMPARE(o.stops[2].pos, 0.9);
+    }
+
     // A line editor: none, solid, or gradient; the color, width, compound type, dash type, cap, join, and arrows of the lines, each change
     // leaving the rest of every line alone.
     void lineEditorShowsLinesAndSaysChangesToApply()

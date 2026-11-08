@@ -84,7 +84,12 @@ NumberField *percentField(const QString &name, QWidget *parent, bool slider = tr
 // The stops of a gradient as it draws them: the two colors of one that lists none.
 QVector<GradientStop> stopsOf(const Fill &f)
 {
-    if (!f.stops.isEmpty()) return f.stops;
+    if (!f.stops.isEmpty()) {
+        // (in order of place: a file may list them otherwise, and the editing below keeps a stop between its neighbors)
+        QVector<GradientStop> sorted = f.stops;
+        std::stable_sort(sorted.begin(), sorted.end(), [](const GradientStop &a, const GradientStop &b) { return a.pos < b.pos; });
+        return sorted;
+    }
     return {{0, f.color, f.transparency}, {1, f.color2.isNone() ? ColorRef::rgb(Qt::white) : f.color2, f.transparency}};
 }
 
