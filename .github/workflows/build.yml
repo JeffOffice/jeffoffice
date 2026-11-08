@@ -196,8 +196,9 @@ jobs:
         env:
           CCACHE_BASEDIR: ${{ github.workspace }}
           # (the caps keep an entry of the compiler cache within its share of GitHub's 10 GB; the Build step trims to the cap before the Save step, and the
-          # objects a build used are the newest, so what a cap drops is what no job of this half used lately)
-          CCACHE_MAXSIZE: ${{ runner.environment == 'self-hosted' && '20G' || (matrix.name == 'windows' && '500M' || (matrix.name == 'linux' && '3G' || (contains(env.MAC_ARCHS, ';') && '1600M' || '1G'))) }}
+          # objects a build used are the newest, so what a cap drops is what no job of this half used lately; Windows checks 2/2 outgrew 500M on Nov 7 and
+          # rebuilt 83% of its files each run, so Windows has 800M: one run's entries come to about 8.4 GB)
+          CCACHE_MAXSIZE: ${{ runner.environment == 'self-hosted' && '20G' || (matrix.name == 'windows' && '800M' || (matrix.name == 'linux' && '3G' || (contains(env.MAC_ARCHS, ';') && '1600M' || '1G'))) }}
           CCACHE_COMPILERCHECK: content
           # (only the job that packages: the others build their own programs)
           FULL_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.mac_both && matrix.part == 'checks' && matrix.shard == 1 && 'true' || 'false' }}
