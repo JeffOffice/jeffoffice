@@ -152,7 +152,8 @@ bool DeckWindow::saveAsTemplate()
     m_ed->endTextEdit();
     QString err;
     QStringList skipped;
-    if (!deck::saveAnyPresentationFile(*m_ed->doc(), path, &err, &skipped, Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool())) {
+    // (a template of a presentation that asks for a password asks for it too)
+    if (!deck::saveAnyPresentationFile(*m_ed->doc(), path, &err, &skipped, Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool(), m_fileProtected ? m_filePassword : QString())) {
         jp::plainWarning(this, tr("Save as Template"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }

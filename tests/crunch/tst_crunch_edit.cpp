@@ -1,4 +1,5 @@
 #include "tst_crunch_edit.h"
+#include "app/anchordialogs.h"
 
 void CrunchEditTests::initTestCase()
 {
@@ -1083,6 +1084,37 @@ void CrunchEditTests::saveAsTemplatePutsAWorkbookInMyTemplates()
     second.win.w.act(QStringLiteral("file.saveAs"))->trigger();
     QVERIFY2(offered.endsWith(QLatin1String(".xlsx")), qPrintable(offered));
     QVERIFY(removeMyTemplate(found.first()));
+}
+
+
+// Save as Template from a workbook that asks for a password writes a template that asks for it too.
+void CrunchEditTests::aTemplateOfAProtectedWorkbookIsProtectedToo()
+{
+    jptest::TestModeGuard testMode;
+    QDir(myTemplatesFolder()).removeRecursively();
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    e.win.w.anchorHooks().setFilePasswordAsker = [](SetFilePasswordRequest *r) {
+        r->password = QStringLiteral("hunter2");
+        r->remove = false;
+        return true;
+    };
+    e.win.w.act(QStringLiteral("protect.password"))->trigger();
+    setTemplateNameStandIn([](const QString &) { return QStringLiteral("Secret"); });
+    QSignalSpy made(&e.win.w, &CrunchWindow::copyExported);
+    const bool started = e.win.w.saveAsTemplate();
+    setTemplateNameStandIn({});
+    QVERIFY(started);
+    QTRY_COMPARE_WITH_TIMEOUT(made.count(), 1, 20000);
+    QVERIFY(made.first().at(1).toBool());
+    const QStringList found = myTemplateFiles({QStringLiteral("*.xltx")});
+    QCOMPARE(found.size(), 1);
+    QFile f(found.first());
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    QVERIFY(f.read(4) == QByteArray("\xD0\xCF\x11\xE0", 4));
+    f.close();
+    QVERIFY(removeMyTemplate(found.first()));
+    e.win.w.setWindowModified(false);
 }
 
 

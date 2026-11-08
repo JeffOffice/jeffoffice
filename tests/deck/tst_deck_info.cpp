@@ -1,5 +1,7 @@
 // Tests of JeffDeck's Info page: the properties a .pptx keeps, Mark as Final, a password, Version History, and Inspect Document. Every file is made here, in a temporary folder.
 #include "../isolatesettings.h"
+#include "../settingguard.h"
+#include "app/filetasks.h"
 #include "app/infopage.h"
 #include "app/passworddialogs.h"
 #include "deckhelpers.h"
@@ -165,6 +167,41 @@ private Q_SLOTS:
         QVERIFY(!b.isPasswordProtected());
         QVERIFY(b.save());
         QVERIFY(fileBytes(dir.filePath(QStringLiteral("s.pptx"))).startsWith("PK"));
+    }
+
+    // Save as Template (to My Templates) and every Save As keep the password on: a template is a file somebody can read.
+    void aTemplateOfAProtectedPresentationIsProtectedToo()
+    {
+        jptest::TestModeGuard testMode;
+        QDir(myTemplatesFolder()).removeRecursively();
+        QTemporaryDir dir;
+        DeckWindow w;
+        Quiet quiet(w);
+        w.editor()->setDocument(sample());
+        setNewPasswordStandIn([](bool, QString *password) {
+            *password = QStringLiteral("hunter2");
+            return NewPasswordChoice::Set;
+        });
+        w.encryptWithPassword();
+        setTemplateNameStandIn([](const QString &) { return QStringLiteral("Secret"); });
+        const bool saved = w.saveAsTemplate();
+        setTemplateNameStandIn({});
+        QVERIFY(saved);
+        const QStringList found = myTemplateFiles({QStringLiteral("*.potx")});
+        QCOMPARE(found.size(), 1);
+        const QByteArray bytes = fileBytes(found.first());
+        QVERIFY(bytes.startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)));
+        QVERIFY(!bytes.contains("Say hello"));
+        QVERIFY(removeMyTemplate(found.first()));
+        // the other kinds of Save As and Save a Copy
+        for (const char *name : {"a.potx", "b.ppsx", "c.pptx"}) {
+            QVERIFY(w.saveTo(dir.filePath(QString::fromLatin1(name)), true));
+            QVERIFY2(fileBytes(dir.filePath(QString::fromLatin1(name))).startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)), name);
+        }
+        QVERIFY(!w.saveTo(dir.filePath(QStringLiteral("d.otp")), true));
+        QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("d.otp"))));
+        QVERIFY(!quiet.said.isEmpty());
+        w.editor()->markSaved();
     }
 
     void propertiesSurviveASaveAndReopen()

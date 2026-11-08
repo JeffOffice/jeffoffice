@@ -1,6 +1,8 @@
 // Tests of JeffWrite's Info page: the properties a .docx keeps, Mark as Final, a password, Inspect Document, and Check Compatibility. Every file is made here in code.
 
 #include "../isolatesettings.h"
+#include "../settingguard.h"
+#include "app/filetasks.h"
 #include "app/filescreen.h"
 #include "app/infopage.h"
 #include "app/passworddialogs.h"
@@ -303,6 +305,30 @@ private Q_SLOTS:
         QVERIFY(!b.isPasswordProtected());
         QVERIFY(b.save());
         QVERIFY(fileBytes(dir.filePath(QStringLiteral("s.docx"))).startsWith("PK"));
+    }
+
+    void aTemplateOfAProtectedDocumentIsProtectedToo()
+    {
+        jptest::TestModeGuard testMode;
+        QDir(myTemplatesFolder()).removeRecursively();
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Secret plans"));
+        setNewPasswordStandIn([](bool, QString *password) {
+            *password = QStringLiteral("hunter2");
+            return NewPasswordChoice::Set;
+        });
+        w.encryptWithPassword();
+        setTemplateNameStandIn([](const QString &) { return QStringLiteral("Secret"); });
+        const bool saved = w.saveAsTemplate();
+        setTemplateNameStandIn({});
+        QVERIFY(saved);
+        const QStringList found = myTemplateFiles({QStringLiteral("*.dotx")});
+        QCOMPARE(found.size(), 1);
+        const QByteArray bytes = fileBytes(found.first());
+        QVERIFY(bytes.startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)));
+        QVERIFY(!bytes.contains("Secret plans"));
+        QVERIFY(removeMyTemplate(found.first()));
     }
 
     void aProtectedDocumentIsNotSavedAsAnOdtWithoutItsPassword()

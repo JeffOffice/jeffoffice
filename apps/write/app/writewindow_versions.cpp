@@ -5,6 +5,7 @@
 #include "app/pageview.h"
 #include "app/plaintext.h"
 #include "app/settings.h"
+#include "app/versionhistory.h"
 #include "core/appinfo.h"
 
 #include <QApplication>
@@ -98,81 +99,22 @@ void WriteWindow::versionHistory()
 {
     if (!m_doc) return;
     if (m_path.isEmpty()) {
-        notice(tr("Version History"), tr("Save the document first. A version is kept for a file, under the file's name."), true);
+        notice(tr("Version History"), versionsNeedAFile(VersionHistoryHost::Kind::Document), true);
         return;
     }
-    QDialog dialog(this);
-    dialog.setObjectName(QStringLiteral("versionDialog"));
-    dialog.setWindowTitle(tr("Version History"));
-    dialog.resize(560, 380);
-    auto *layout = new QVBoxLayout(&dialog);
-    auto *intro = new QLabel(tr("Versions are copies of this document that are kept on this computer. Keep one before a big change. Later you can compare it with the document, or go back to it."), &dialog);
-    intro->setWordWrap(true);
-    layout->addWidget(intro);
-    auto *list = new QListWidget(&dialog);
-    list->setObjectName(QStringLiteral("versionList"));
-    layout->addWidget(list, 1);
-    auto *row = new QHBoxLayout();
-    auto *keep = new QPushButton(tr("Keep a Version…"), &dialog);
-    auto *open = new QPushButton(tr("Open a Copy"), &dialog);
-    auto *compare = new QPushButton(tr("Compare"), &dialog);
-    auto *restore = new QPushButton(tr("Go Back to It"), &dialog);
-    auto *drop = new QPushButton(tr("Delete"), &dialog);
-    for (QPushButton *b : {keep, open, compare, restore, drop}) row->addWidget(b);
-    layout->addLayout(row);
-    auto *close = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
-    connect(close, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-    layout->addWidget(close);
-    QDialog *dlg = &dialog;
-    auto fill = [this, list] {
-        list->clear();
-        for (const write::DocVersion &v : versions()) {
-            auto *it = new QListWidgetItem(tr("%1 (%2, %3 KB)").arg(v.name, QLocale().toString(v.saved, QLocale::ShortFormat)).arg(QLocale().toString(std::max<qint64>(1, v.size / 1024))));
-            it->setData(Qt::UserRole, v.file);
-            list->addItem(it);
-        }
-        if (list->count()) list->setCurrentRow(0);
+    VersionHistoryHost host;
+    host.kind = VersionHistoryHost::Kind::Document;
+    host.path = m_path;
+    host.extension = QStringLiteral(".docx");
+    host.keep = [this](const QString &name, QObject *, const std::function<void()> &refresh) {
+        if (!saveVersion(name)) return false;
+        refresh();
+        return true;
     };
-    auto chosen = [list] { return list->currentItem() ? list->currentItem()->data(Qt::UserRole).toString() : QString(); };
-    auto sync = [=] { for (QPushButton *b : {open, compare, restore, drop}) b->setEnabled(list->currentItem() != nullptr); };
-    connect(list, &QListWidget::currentRowChanged, dlg, sync);
-    connect(keep, &QPushButton::clicked, dlg, [=, this] {
-        bool ok = false;
-        const QString name = QInputDialog::getText(dlg, tr("Keep a Version"), tr("Name for this version:"), QLineEdit::Normal, tr("Version %1").arg(versions().size() + 1), &ok);
-        if (ok && saveVersion(name)) {
-            fill();
-            sync();
-        }
-    });
-    connect(open, &QPushButton::clicked, dlg, [=, this] {
-        const QString file = chosen();
-        if (file.isEmpty()) return;
-        dlg->accept();
-        openFile(write::VersionStore(m_path).folder() + QLatin1Char('/') + file, OpenHow::Copy);
-    });
-    connect(compare, &QPushButton::clicked, dlg, [=, this] {
-        const QString file = chosen();
-        if (file.isEmpty()) return;
-        dlg->accept();
-        compareWithVersion(file);
-    });
-    connect(restore, &QPushButton::clicked, dlg, [=, this] {
-        const QString file = chosen();
-        if (file.isEmpty()) return;
-        if (jp::plainQuestion(dlg, tr("Go Back"), tr("Go back to this version? The document as it is now is kept as a version first.")) != QMessageBox::Yes) return;
-        dlg->accept();
-        restoreVersion(file);
-    });
-    connect(drop, &QPushButton::clicked, dlg, [=, this] {
-        const QString file = chosen();
-        if (file.isEmpty()) return;
-        write::VersionStore(m_path).remove(file);
-        fill();
-        sync();
-    });
-    fill();
-    sync();
-    dialog.exec();
+    host.openCopy = [this](const QString &copy) { openFile(copy, OpenHow::Copy); };
+    host.compare = [this](const QString &file) { compareWithVersion(file); };
+    host.restore = [this](const QString &file) { return restoreVersion(file); };
+    showVersionHistory(this, host);
 }
 
 } // namespace jp

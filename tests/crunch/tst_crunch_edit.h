@@ -85,6 +85,7 @@ private Q_SLOTS:
     void aWorkbookOpenedAsACopyHasNoFile();
     void aWorkbookCanBeOpenedInANewWindow();
     void saveAsTemplatePutsAWorkbookInMyTemplates();
+    void aTemplateOfAProtectedWorkbookIsProtectedToo();
     void aWorkbookCanBeSavedAsTemplatesInBothKinds();
     void aWorkbookCutShortOpensRepaired();
     void backspaceStartsAnEmptyEntry();

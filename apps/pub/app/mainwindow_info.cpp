@@ -291,7 +291,11 @@ void MainWindow::versionHistory()
     host.kind = VersionHistoryHost::Kind::Publication;
     host.path = m_ed->filePath();
     host.extension = QStringLiteral(".jpub");
-    host.keep = [this](const QString &name) { return saveVersion(name); };
+    host.keep = [this](const QString &name, QObject *, const std::function<void()> &refresh) {
+        if (!saveVersion(name)) return false;
+        refresh();
+        return true;
+    };
     host.openCopy = [this](const QString &copy) { openFile(copy, OpenHow::Copy); };
     host.restore = [this](const QString &file) { return restoreVersion(file); };
     showVersionHistory(this, host);

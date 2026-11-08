@@ -48,63 +48,6 @@ namespace jp {
 
 namespace {
 
-enum class UnlockResult { Opened, Cancelled, Failed, WindowGone };
-
-// A file protected with a password becomes the package inside it: the password files protected only against changes by accident have is tried first, then the person is asked, as often as it
-// takes. `bytes` is the package afterwards; `kept` the password that opened it; a file that is not protected is left as it is.
-UnlockResult unlockProtected(QWidget *parent, const QString &fileName, QByteArray *bytes, QString *kept, bool *wasProtected, QString *error)
-{
-    QByteArray info, package, zip;
-    if (!office::splitProtectedPackage(*bytes, &info, &package)) return UnlockResult::Opened;
-    // (the file's own bytes are let go: the package inside is what is worked on, and a file of a gigabyte is not held twice more)
-    *bytes = QByteArray();
-    bytes->squeeze();
-    // (the window may be closed, from its title bar, while a password is checked: nothing is asked of it or done to it after)
-    const QPointer<QWidget> alive(parent);
-    auto decrypt = [&](const QString &password, office::CryptResult *result) {
-        // On a thread of its own, with a note and a Cancel button: a key made with many rounds of hashing takes seconds.
-        const bool finished = runWithCancel(parent, QCoreApplication::translate("jp::WriteWindow", "Checking the password…"), [&](const std::atomic<bool> *cancel) {
-            *result = office::decryptPackage(info, package, password, office::kMaxOpenFileBytes, false, &zip, [cancel] { return cancel->load(); });
-        });
-        if (!finished) *result = office::CryptResult::Cancelled;
-    };
-    office::CryptResult r = office::CryptResult::Unsupported;
-    decrypt(office::defaultPassword(), &r);
-    if (parent && !alive) return UnlockResult::WindowGone;
-    if (r == office::CryptResult::Ok) {
-        *bytes = zip;
-        return UnlockResult::Opened;
-    }
-    bool wrong = false;
-    for (;;) {
-        QString password;
-        if (!askOpenFilePassword(parent, fileName, wrong, &password)) return UnlockResult::Cancelled;
-        decrypt(password, &r);
-        if (parent && !alive) {
-            crypto::wipe(password);
-            return UnlockResult::WindowGone;
-        }
-        if (r == office::CryptResult::Ok) {
-            *bytes = zip;
-            *kept = password;
-            *wasProtected = true;
-            return UnlockResult::Opened;
-        }
-        crypto::wipe(password);
-        if (r == office::CryptResult::Cancelled) return UnlockResult::Cancelled;
-        if (r == office::CryptResult::WrongPassword) {
-            wrong = true;
-            continue;
-        }
-        *error = r == office::CryptResult::Unsupported ? QCoreApplication::translate("jp::WriteWindow", "This file is protected in a way this program doesn't read.")
-               : r == office::CryptResult::TooLarge    ? QCoreApplication::translate("jp::WriteWindow", "The file is too large to open.")
-               : r == office::CryptResult::TooCostly   ? QCoreApplication::translate("jp::WriteWindow", "The password protection of this file asks for more work than this program allows.")
-                                                       : QCoreApplication::translate("jp::WriteWindow", "The file is damaged.");
-        return UnlockResult::Failed;
-    }
-}
-
-
 // The endings JeffWrite writes. A file with another (an old binary document) is read, never written over: it is saved under a new name.
 bool isWrittenEnding(const QString &path)
 {
@@ -238,18 +181,18 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
         // A file protected with a password is opened with it: asked for, as often as it takes.
         if (!repairing) {
             QApplication::restoreOverrideCursor();
-            const UnlockResult unlocked = unlockProtected(this, QFileInfo(path).fileName(), &bytes, &openedWith, &wasProtected, &err);
+            const PackageUnlock unlocked = unlockProtectedPackage(this, QFileInfo(path).fileName(), &bytes, &openedWith, &wasProtected, &err);
             QApplication::setOverrideCursor(Qt::WaitCursor);
-            if (unlocked == UnlockResult::WindowGone) {
+            if (unlocked == PackageUnlock::WindowGone) {
                 // (this window is deleted: nothing of it is touched from here)
                 QApplication::restoreOverrideCursor();
                 crypto::wipe(openedWith);
                 return false;
             }
-            if (unlocked == UnlockResult::Cancelled) {
+            if (unlocked == PackageUnlock::Cancelled) {
                 cancelledAsking = true;
                 bytes.clear();
-            } else if (unlocked == UnlockResult::Failed) {
+            } else if (unlocked == PackageUnlock::Failed) {
                 bytes.clear();
             }
         }
@@ -380,7 +323,9 @@ bool WriteWindow::saveAsTemplate()
     const QString path = askMyTemplatePath(this, displayName(), QStringLiteral(".dotx"));
     if (path.isEmpty()) return false;
     QString err;
-    const QByteArray bytes = m_doc->toDocx(&err, true);
+    QByteArray bytes = m_doc->toDocx(&err, true);
+    // (a template of a document that asks for a password asks for it too)
+    if (m_fileProtected && !bytes.isEmpty()) bytes = office::encryptPackage(bytes, m_filePassword);
     bool ok = !bytes.isEmpty();
     if (ok) {
         QSaveFile out(path);
