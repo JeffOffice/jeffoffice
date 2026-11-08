@@ -236,7 +236,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "cdf4074295c1a1e45fa8dfe40a3c6e867fc4cca6223142e568cf6ff51ea8bb7f"
+         "text": "70f280f4b4901922c9dc19d127fb88e7c2d6b100609387b191c2633e1330c66a"
         },
         {
          "status": "partly",
@@ -2476,7 +2476,7 @@
         },
         {
          "status": "partly",
-         "text": "aa14e4030f255c666e1fc77f5a4fcf279deccf35cddd932187852eb8773f8c97"
+         "text": "b7b8a422c2fc9bd92bc4fe08b3f9389b42ec2b60f22a7274d6e53d17920d866b"
         },
         {
          "status": "todo",
@@ -2487,8 +2487,9 @@
          "text": "26301432deeb30cd0aa6c964849497a18114d4f513129a7f9e671b94d7aaf5fb"
         },
         {
-         "status": "todo",
-         "text": "5950899705e528ab6b79a9aea523cae6af20a29e8b8011f63ad487552d233ab6"
+         "hide_soon": true,
+         "status": "done",
+         "text": "f141c64447032f554488043886709ce156cfc8dcedf4ae388b694a14654ba4f4"
         }
        ]
       },
@@ -4271,7 +4272,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "7e8163241135db798e77010519e49b5957cbf422962963f65af6569f121d2a0f"
+         "text": "b69f742330b854087b7fcc866a32a8c45b076cd0179abfbee3fe90245f4ae20d"
         },
         {
          "hide_soon": true,
@@ -5544,7 +5545,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "8e67bec5a304c507d0b4f30c4d61a7a84bbc6bd122bf9a23427f6e53f248e4a5"
+         "text": "8ac9786864861a19e301589c89cd265ff64e6818e7169546a1eb878c0c5ec044"
         },
         {
          "status": "partly",
@@ -13796,18 +13797,6 @@
     "fr": ""
    }
   },
-  "5950899705e528ab6b79a9aea523cae6af20a29e8b8011f63ad487552d233ab6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Manual duplex printing: print the odd pages, then the even ones, with a prompt to turn the stack over",
-    "es": "Impresión a doble cara manual: imprimir las páginas impares y luego las pares, con un aviso para voltear la pila",
-    "fr": "Impression recto verso manuelle : imprimer les pages impaires, puis les paires, avec une invite pour retourner la pile"
-   }
-  },
   "595de30e35522b97687b2c0a50ea38c1d05a33307bcd34365708ee6a142ecaad": {
    "drop": false,
    "en": "With facing pages and mirrored margins, even-numbered pages swap the inside and outside sides in the text, headers and footers, and page borders. A section that starts on an odd or even page gets the blank page it needs.",
@@ -15632,6 +15621,18 @@
     "fr": ""
    }
   },
+  "70f280f4b4901922c9dc19d127fb88e7c2d6b100609387b191c2633e1330c66a": {
+   "drop": false,
+   "en": "Print with the system’s printers or save as PDF, with copies, collate, and a choice of this sheet, the whole workbook, or the selection. Set page ranges, orientation, paper, margins, and scaling for a single print, and use the system’s own dialog for other printer settings. A Sides choice offers one side, both sides flipped on the long or short edge, or both sides by hand, and is remembered. Several selected sheets print at once.",
+   "es": "Imprima con las impresoras del sistema o guarde como PDF, con copias, intercalado y la opción de imprimir esta hoja, todo el libro o la selección. Defina intervalos de páginas, orientación, papel, márgenes y escala para una sola impresión, y use el cuadro de diálogo del sistema para otros ajustes de la impresora. Una opción de caras ofrece una cara, ambas caras girando por el borde largo o el corto, o ambas caras a mano, y se recuerda. Varias hojas seleccionadas se imprimen a la vez.",
+   "fr": "Imprimez avec les imprimantes du système ou enregistrez en PDF, avec copies, assemblage et le choix de cette feuille, de tout le classeur ou de la sélection. Définissez les plages de pages, l’orientation, le papier, les marges et l’échelle pour une impression, et utilisez la boîte de dialogue du système pour les autres réglages de l’imprimante. Un choix de faces propose un côté, recto verso avec retournement sur le bord long ou court, ou recto verso manuel, et il est mémorisé. Plusieurs feuilles sélectionnées s’impriment en une fois.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "716409f30904946ca858107af8a333624c7037b645c93013609ad9d5ce28dcfd": {
    "drop": true,
    "en": "",
@@ -16592,18 +16593,6 @@
     "fr": ""
    }
   },
-  "7e8163241135db798e77010519e49b5957cbf422962963f65af6569f121d2a0f": {
-   "drop": false,
-   "en": "Choose the paper size, one-sided or two-sided printing (flip on the long or short edge), and color, grayscale, or composite output.",
-   "es": "Elija el tamaño del papel, la impresión a una cara o a doble cara (volteo por el borde largo o corto) y la salida en color, escala de grises o compuesta.",
-   "fr": "Choisissez le format du papier, l’impression recto ou recto verso (retournement sur le bord long ou court) et la sortie en couleur, en niveaux de gris ou composite.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "7eabb049a70ab299df1afe20f7a5502ac8ed4ab1a3d28d0f1c307be01db1c800": {
    "drop": false,
    "en": "Print what the page setup says: the print area, titles repeated on every page, page breaks, scaling to a number of pages wide and tall, headers and footers, gridlines, and headings.",
@@ -17360,6 +17349,18 @@
     "fr": "Historique des versions sans service en ligne : copies locales nommées, comparées et restaurées"
    }
   },
+  "8ac9786864861a19e301589c89cd265ff64e6818e7169546a1eb878c0c5ec044": {
+   "drop": false,
+   "en": "Print to a printer or a PDF file with copies, collate, and page ranges: all pages, the current page, the selection, or custom ranges such as 1-3, 5, 8-, and -2, plus a page of a section (`p2s3`) or a whole section (`s3`). Each page uses the paper and orientation its section sets. A Sides choice offers one side, both sides flipped on the long or short edge, or both sides by hand.",
+   "es": "Imprima en una impresora o en un archivo PDF con copias, intercalado e intervalos de páginas: todas las páginas, la página actual, la selección o intervalos personalizados como 1-3, 5, 8- y -2, además de una página de una sección (`p2s3`) o una sección completa (`s3`). Cada página usa el papel y la orientación que define su sección. Una opción de caras ofrece una cara, ambas caras girando por el borde largo o el corto, o ambas caras a mano.",
+   "fr": "Imprimez vers une imprimante ou un fichier PDF avec copies, assemblage et plages de pages : toutes les pages, la page active, la sélection ou des plages personnalisées comme 1-3, 5, 8- et -2, ainsi qu’une page d’une section (`p2s3`) ou une section entière (`s3`). Chaque page utilise le papier et l’orientation définis par sa section. Un choix de faces propose un côté, recto verso avec retournement sur le bord long ou court, ou recto verso manuel.",
+   "soon": {
+    "drop": false,
+    "en": "Margins and printer properties: set in print",
+    "es": "Márgenes y propiedades de la impresora: ajuste al imprimir",
+    "fr": "Marges et propriétés de l’imprimante : réglage à l’impression"
+   }
+  },
   "8aee56e199d3df9f2e99b359fa8ffc95b3a1f00fd0c0b8195c4c7d66b5696ebe": {
    "drop": false,
    "en": "File > Export > Make an Email creates a ready-to-send `.eml` message with the workbook attached as a file or as a PDF. A workbook with a password stays locked, and the password is never in the message.",
@@ -17562,18 +17563,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "8e67bec5a304c507d0b4f30c4d61a7a84bbc6bd122bf9a23427f6e53f248e4a5": {
-   "drop": false,
-   "en": "Print to a printer or a PDF file, with copies, collate, all pages, the current page, the selection, and custom ranges such as 1-3, 5, 8-, and -2, plus `p2s3` for a page of a section and `s3` for a whole section.",
-   "es": "Imprima en una impresora o en un archivo PDF, con copias, intercalado, todas las páginas, la página actual, la selección e intervalos personalizados como 1-3, 5, 8- y -2, además de `p2s3` para una página de una sección y `s3` para una sección completa.",
-   "fr": "Imprimez vers une imprimante ou un fichier PDF, avec copies, assemblage, toutes les pages, la page active, la sélection et des plages personnalisées comme 1-3, 5, 8- et -2, ainsi que `p2s3` pour une page d’une section et `s3` pour une section entière.",
-   "soon": {
-    "drop": false,
-    "en": "One- or two-sided printing, margins, and printer properties",
-    "es": "Impresión a una o dos caras, márgenes y propiedades de la impresora",
-    "fr": "Impression recto ou recto verso, marges et propriétés de l’imprimante"
    }
   },
   "8edbe68aca28694011611b29c58fcb967d41d67e03edd361f982370c6fcdbf22": {
@@ -19472,18 +19461,6 @@
     "fr": "Ajouter un élément de graphique (axes, titres d’axes, titre du graphique, étiquettes de données, tableau de données, barres d’erreur, quadrillage, légende, lignes et courbe de tendance) et disposition rapide"
    }
   },
-  "aa14e4030f255c666e1fc77f5a4fcf279deccf35cddd932187852eb8773f8c97": {
-   "drop": false,
-   "en": "Choose the printer and the number of copies, and print one- or two-sided, in the system’s print window.",
-   "es": "Elija la impresora y el número de copias, e imprima a una o a dos caras, en la ventana de impresión del sistema.",
-   "fr": "Choisissez l’imprimante et le nombre de copies, et imprimez en recto ou en recto verso, dans la fenêtre d’impression du système.",
-   "soon": {
-    "drop": false,
-    "en": "Collate and two-sided options on the Print page",
-    "es": "Intercalado y impresión a dos caras en la página Imprimir",
-    "fr": "Assemblage et recto verso dans la page Imprimer"
-   }
-  },
   "aa46f3974fc986549a454199be5b450e6a3af8e6b64591e7efbaf952c9da5894": {
    "drop": false,
    "en": "Use a light or dark interface that follows the system’s setting, and Windows high contrast.",
@@ -20156,6 +20133,18 @@
     "fr": "Suppression des noms dans les commentaires et les modifications suivies"
    }
   },
+  "b69f742330b854087b7fcc866a32a8c45b076cd0179abfbee3fe90245f4ae20d": {
+   "drop": false,
+   "en": "Print with a choice of paper size, one-sided or two-sided output (flipped on the long or short edge, or by hand with a message to turn the stack over), and color, grayscale, or composite output.",
+   "es": "Imprima eligiendo el tamaño de papel, la impresión por una cara o por ambas caras (girando por el borde largo o el corto, o a mano con un mensaje para dar la vuelta a la pila) y el color, la escala de grises o la salida compuesta.",
+   "fr": "Imprimez en choisissant le format de papier, l’impression recto seul ou recto verso (retournement sur le bord long ou court, ou manuel avec un message pour retourner la pile), ainsi que la couleur, les niveaux de gris ou la sortie composite.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b6a6bb433884dc129638aaedf7f32677d97bd8307f67071c6f7c74c869a45938": {
    "drop": false,
    "en": "Text",
@@ -20226,6 +20215,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "b7b8a422c2fc9bd92bc4fe08b3f9389b42ec2b60f22a7274d6e53d17920d866b": {
+   "drop": false,
+   "en": "Print with printer choice, copies, and one- or two-sided output. The Print page has a Sides choice: one side, both sides flipped on the long or short edge, or both sides by hand. The choice is remembered and turned off for a printer that can't print on both sides.",
+   "es": "Imprima eligiendo la impresora, las copias y la impresión por una o ambas caras. La página Imprimir tiene una opción de caras: una cara, ambas caras girando por el borde largo o el corto, o ambas caras a mano. La opción se recuerda y se desactiva para una impresora que no puede imprimir por ambas caras.",
+   "fr": "Imprimez en choisissant l’imprimante, le nombre de copies et le recto seul ou recto verso. La page Imprimer propose un choix de faces : un côté, recto verso avec retournement sur le bord long ou court, ou recto verso manuel. Le choix est mémorisé et désactivé pour une imprimante qui ne peut pas imprimer en recto verso.",
+   "soon": {
+    "drop": false,
+    "en": "Collate option on the Print page",
+    "es": "Opción de intercalar en la página Imprimir",
+    "fr": "Option d’assemblage sur la page Imprimer"
    }
   },
   "b83dfac65289657bc80e028c18136238e082dc8cf72f57381a9174c28b290ba7": {
@@ -21829,18 +21830,6 @@
    "en": "Add borders from the Borders menu (bottom, top, left, right, none, all, outside, thick outside, double bottom, and more) with line style and color, and set diagonal borders in Format Cells. Draw Border, Draw Border Grid, and Erase Border let you drag over cells to draw the outside lines, all the lines, or erase them, one step per drag, until `Esc`.",
    "es": "Agregue bordes desde el menú Bordes (inferior, superior, izquierdo, derecho, ninguno, todos, exterior, exterior grueso, inferior doble y más) con estilo y color de línea, y defina bordes diagonales en Formato de celdas. Dibujar borde, Dibujar cuadrícula de borde y Borrar borde permiten arrastrar sobre las celdas para dibujar las líneas exteriores, todas las líneas o borrarlas, un paso por arrastre, hasta pulsar `Esc`.",
    "fr": "Ajoutez des bordures depuis le menu Bordures (bas, haut, gauche, droite, aucune, toutes, extérieures, extérieures épaisses, double bas, et d’autres) avec style et couleur de ligne, et définissez des bordures diagonales dans Format de cellule. Dessiner une bordure, Dessiner une grille de bordures et Effacer la bordure permettent de faire glisser sur les cellules pour tracer les lignes extérieures, toutes les lignes ou les effacer, une étape par glissement, jusqu’à `Échap`.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "cdf4074295c1a1e45fa8dfe40a3c6e867fc4cca6223142e568cf6ff51ea8bb7f": {
-   "drop": false,
-   "en": "File > Print offers the system's printers and Save as PDF, copies, collate, this sheet, the whole workbook, or the selection, page ranges, orientation, paper, margins, and scaling for the one print. The system's own dialog covers two-sided printing and other printer settings. Several selected sheets print or export together.",
-   "es": "Archivo > Imprimir ofrece las impresoras del sistema y Guardar como PDF, copias, intercalar, esta hoja, todo el libro o la selección, intervalos de páginas, orientación, papel, márgenes y escala para esa impresión. El cuadro de diálogo del propio sistema cubre la impresión a doble cara y otros ajustes de la impresora. Varias hojas seleccionadas se imprimen o exportan juntas.",
-   "fr": "Fichier > Imprimer propose les imprimantes du système et Enregistrer au format PDF, les copies, l’assemblage, cette feuille, tout le classeur ou la sélection, les plages de pages, l’orientation, le papier, les marges et la mise à l’échelle pour cette impression. La boîte de dialogue du système couvre le recto verso et les autres réglages de l’imprimante. Plusieurs feuilles sélectionnées s’impriment ou s’exportent ensemble.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24234,6 +24223,18 @@
     "en": "Font list: theme fonts first, recent fonts, and a preview",
     "es": "Lista de fuentes: fuentes del tema primero, fuentes recientes y vista previa",
     "fr": "Liste de polices : polices du thème en premier, polices récentes et aperçu"
+   }
+  },
+  "f141c64447032f554488043886709ce156cfc8dcedf4ae388b694a14654ba4f4": {
+   "drop": false,
+   "en": "Print on both sides by hand: the app prints the odd pages, shows a message to turn the stack over, then prints the even pages in reverse order. A blank sheet goes first when the last page has no back. Not available for PDF files.",
+   "es": "Imprima por ambas caras a mano: la aplicación imprime las páginas impares, muestra un mensaje para dar la vuelta a la pila y luego imprime las páginas pares en orden inverso. Se coloca primero una hoja en blanco cuando la última página no tiene reverso. No está disponible para archivos PDF.",
+   "fr": "Imprimez recto verso manuellement : l’application imprime les pages impaires, affiche un message pour retourner la pile, puis imprime les pages paires en ordre inverse. Une feuille blanche passe en premier quand la dernière page n’a pas de verso. Non disponible pour les fichiers PDF.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "f186fa249fd5b20dd08c63286cf54d7e3955971078845320edf3438c3bfe6cc2": {
