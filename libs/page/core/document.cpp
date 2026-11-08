@@ -1400,13 +1400,34 @@ ItemPtr Document::itemPtr(const QString &itemId) const
     return l.list ? (*l.list)[l.index] : nullptr;
 }
 
+void Document::dropChainIndex() const
+{
+    QMutexLocker lock(&m_prevLock);
+    m_prevBuilt = false;
+    m_prevOf.clear();
+}
+
 TextItem *Document::prevFrame(const QString &frameId) const
 {
-    TextItem *found = nullptr;
-    forEachItem([&](Item *it, int, const QString &) {
-        if (it->type() == ItemType::Text && static_cast<TextItem *>(it)->nextId == frameId) found = static_cast<TextItem *>(it);
-    });
-    return found;
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        QString prevId;
+        {
+            QMutexLocker lock(&m_prevLock);
+            if (!m_prevBuilt) {
+                m_prevOf.clear();
+                forEachItem([&](Item *it, int, const QString &) {
+                    if (it->type() == ItemType::Text && !static_cast<TextItem *>(it)->nextId.isEmpty()) m_prevOf.insert(static_cast<TextItem *>(it)->nextId, it->id);
+                });
+                m_prevBuilt = true;
+            }
+            prevId = m_prevOf.value(frameId);
+        }
+        if (prevId.isEmpty()) return nullptr;
+        Item *it = item(prevId);
+        if (it && it->type() == ItemType::Text && static_cast<TextItem *>(it)->nextId == frameId) return static_cast<TextItem *>(it);
+        dropChainIndex();   // (the index was out of date: made again, once)
+    }
+    return nullptr;
 }
 
 QVector<TextItem *> Document::chainOf(const QString &frameId) const
@@ -1415,14 +1436,8 @@ QVector<TextItem *> Document::chainOf(const QString &frameId) const
     Item *it = item(frameId);
     if (!it || it->type() != ItemType::Text) return out;
     auto *head = static_cast<TextItem *>(it);
-    // Who links to whom, found in one walk of the publication (a walk for each step back is the square of the chain's length). The last box
-    // in the walk's order that links to a frame is its previous, as prevFrame says.
-    QHash<QString, TextItem *> previous;
-    forEachItem([&](Item *x, int, const QString &) {
-        if (x->type() == ItemType::Text && !static_cast<TextItem *>(x)->nextId.isEmpty()) previous.insert(static_cast<TextItem *>(x)->nextId, static_cast<TextItem *>(x));
-    });
     QSet<QString> seen{head->id};
-    while (TextItem *p = previous.value(head->id, nullptr)) {
+    while (TextItem *p = prevFrame(head->id)) {
         if (seen.contains(p->id)) break;
         seen.insert(p->id);
         head = p;
@@ -1714,6 +1729,7 @@ static bool namesMissingStory(const Document &d, const Item &it)
 
 void Document::fromJson(const QJsonObject &o)
 {
+    dropChainIndex();
     setup = PageSetup::fromJson(o["setup"].toObject());
     masters.clear();
     pages.clear();

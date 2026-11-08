@@ -472,6 +472,9 @@ public:
     ItemPtr itemPtr(const QString &itemId) const;
     QVector<TextItem *> chainOf(const QString &frameId) const;   // whole linked chain in order
     TextItem *prevFrame(const QString &frameId) const;
+    // prevFrame and chainOf use an index of who links to whom, made by one walk of the publication the first time it is asked and kept until this is
+    // called: by the editor when a change begins or ends, and by a paint. A box found by the index is checked to link where the index says.
+    void dropChainIndex() const;
     // Deep copy incl. stories. A copied connector comes loose from its
     // objects unless `ids` collects old -> new ids for remapGlue.
     ItemPtr cloneItem(const Item &it, QHash<QString, QString> *ids = nullptr);
@@ -535,6 +538,9 @@ private:
     mutable QHash<QString, ItemSpot> m_itemSpots;
     mutable qsizetype m_spotsMade = 0;          // how many it was made for
     mutable QMutex m_spotsLock;
+    mutable QMutex m_prevLock;
+    mutable bool m_prevBuilt = false;
+    mutable QHash<QString, QString> m_prevOf;   // a box's id -> the id of the box that links to it
     mutable int m_scans = 0, m_indexings = 0;
 };
 

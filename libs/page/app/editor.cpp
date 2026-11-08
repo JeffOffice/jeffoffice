@@ -81,6 +81,7 @@ void Editor::setDocument(std::unique_ptr<Document> d, const QString &path)
     m_cursor = QTextCursor();
     m_doc = std::move(d);
     if (m_doc->pages.isEmpty()) m_doc->addPage();
+    m_doc->dropChainIndex();
     m_cache.clear();
     m_path = path;
     if (!path.isEmpty()) m_doc->folder = QFileInfo(path).absolutePath();
@@ -546,6 +547,7 @@ void Editor::endCrop(bool keep)
 
 void Editor::beginChange(const QString &label)
 {
+    m_doc->dropChainIndex();
     // A crop in progress is one step of its own: any other change ends it first (its own drags begin theirs with beginCropChange).
     if (m_cropOpen && m_changeDepth == 1) endCrop(true);
     beginCropChange(label);
@@ -563,7 +565,7 @@ void Editor::beginCropChange(const QString &label)
     }
 }
 
-void Editor::endChange() { finishChange(m_page, m_sel); }
+void Editor::endChange() { m_doc->dropChainIndex(); finishChange(m_page, m_sel); }
 
 // The step that ends a change: undone, it goes back to what was selected and where before, and redone, to the page and the selection given
 // (a crop's own, which the page and the selection may have left by the time it ends).

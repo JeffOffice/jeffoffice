@@ -421,6 +421,7 @@ PaintContext Canvas::paintContext() const
 void Canvas::paintEvent(QPaintEvent *)
 {
     QPainter p(viewport());
+    LayoutCache::Pass pass(&m_ed->cache());   // (the page is not changed while it is painted: each chain is set up once)
     const bool dark = darkUi();
     p.fillRect(viewport()->rect(), uiHighContrast() ? palette().color(QPalette::Window) : dark ? QColor(0x2B, 0x30, 0x38) : QColor(0xC9, 0xCE, 0xD6));
     const QString master = m_ed->masterView();
@@ -1351,6 +1352,7 @@ QString Canvas::itemAt(const QPointF &page, bool enterGroups, int *row, int *col
 
 Canvas::Hit Canvas::hitTest(const QPointF &view) const
 {
+    LayoutCache::Pass pass(&m_ed->cache());   // (one set-up of each chain for this call)
     Hit h;
     const QPointF page = toPage(view);
     const auto sel = m_ed->selectedItems();
@@ -1493,6 +1495,7 @@ Canvas::Hit Canvas::hitTest(const QPointF &view) const
 
 int Canvas::textPosAt(const QString &itemId, const QPointF &page, int row, int col, int half) const
 {
+    LayoutCache::Pass pass(&m_ed->cache());   // (one set-up of each chain for this call)
     Item *it = m_ed->doc()->item(itemId);
     if (!it) return -1;
     PaintContext ctx = paintContext();
@@ -2776,6 +2779,7 @@ void Canvas::moveCaret(QTextCursor::MoveOperation op, bool select, int n)
 
 void Canvas::verticalCaret(int dir, bool select)
 {
+    LayoutCache::Pass pass(&m_ed->cache());   // (one set-up of each chain for this call)
     const auto &tt = m_ed->textTarget();
     Item *it = m_ed->doc()->item(tt.itemId);
     if (!it) return;

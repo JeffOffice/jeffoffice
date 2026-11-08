@@ -302,6 +302,62 @@ private Q_SLOTS:
         QVERIFY2(jp::Renderer::wrapWorkForTest() - wrap0 <= qint64(n) * 2048, qPrintable(QString::number(jp::Renderer::wrapWorkForTest() - wrap0)));
         QVERIFY2(jp::Document::itemsWalkedForTest() - walked0 <= qint64(8) * n * n, qPrintable(QString::number(jp::Document::itemsWalkedForTest() - walked0)));
     }
+
+    // Who links to whom is found by one walk of the publication, kept until the publication changes: asking for a box's previous or its chain
+    // costs no walk after that, however big the publication is, and a link made in a change is seen at once.
+    void thePreviousBoxIsFoundWithoutWalkingThePublication_data()
+    {
+        QTest::addColumn<int>("n");
+        QTest::newRow("200") << 200;
+        QTest::newRow("2000") << 2000;
+    }
+    void thePreviousBoxIsFoundWithoutWalkingThePublication()
+    {
+        QFETCH(int, n);
+        jp::Editor ed;
+        ed.doc()->pages[0]->items.clear();
+        QVector<std::shared_ptr<jp::TextItem>> boxes;
+        for (int i = 0; i < n; ++i) {
+            boxes << std::static_pointer_cast<jp::TextItem>(ed.newTextBox(QRectF(10 + i % 40, 10 + i / 40, 50, 20)));
+            ed.doc()->pages[0]->items.push_back(boxes.last());
+        }
+        for (int i = 0; i + 1 < 100; ++i) boxes[i]->nextId = boxes[i + 1]->id;
+        ed.doc()->dropChainIndex();
+        QVERIFY(ed.doc()->prevFrame(boxes[50]->id) == boxes[49].get());   // (made)
+        const qint64 walked0 = jp::Document::itemsWalkedForTest();
+        for (int k = 0; k < 100; ++k) {
+            QVERIFY(ed.doc()->prevFrame(boxes[1 + k % 98]->id));
+            QCOMPARE(int(ed.doc()->chainOf(boxes[k % 100]->id).size()), 100);
+        }
+        QCOMPARE(jp::Document::itemsWalkedForTest() - walked0, qint64(0));
+        // A link made in a change is seen.
+        ed.change(QStringLiteral("Link"), [&] { boxes[150 % n]->nextId = boxes[151 % n]->id; });
+        QVERIFY(ed.doc()->prevFrame(boxes[151 % n]->id) == boxes[150 % n].get());
+    }
+
+    // The editor's canvas sets up a chain once for the page it paints, not once for each of its boxes.
+    void theCanvasPaintsAChainInWorkThatGrowsWithItsBoxes()
+    {
+        const int n = 300;
+        jp::Editor ed;
+        ed.doc()->pages[0]->items.clear();
+        QVector<std::shared_ptr<jp::TextItem>> boxes;
+        for (int i = 0; i < n; ++i) {
+            auto b = std::static_pointer_cast<jp::TextItem>(ed.newTextBox(QRectF(10, 10, 50, 20), i ? QString() : QStringLiteral("text")));
+            b->wrap.mode = jp::Wrap::Through;
+            ed.doc()->pages[0]->items.push_back(b);
+            boxes << b;
+        }
+        for (int i = 0; i + 1 < n; ++i) boxes[i]->nextId = boxes[i + 1]->id;
+        for (int i = 1; i < n; ++i) boxes[i]->storyId = boxes[0]->storyId;
+        ed.doc()->dropChainIndex();
+        jp::Canvas canvas(&ed);
+        canvas.resize(900, 1000);
+        const qint64 walked0 = jp::Document::itemsWalkedForTest();
+        const QPixmap shot = canvas.grab();
+        QVERIFY(!shot.isNull());
+        QVERIFY2(jp::Document::itemsWalkedForTest() - walked0 <= qint64(40) * n, qPrintable(QString::number(jp::Document::itemsWalkedForTest() - walked0)));
+    }
 };
 
 JP_TEST_CLASS(PubInvariantTests)

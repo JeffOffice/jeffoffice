@@ -4,6 +4,7 @@
 //   JeffPub --template <id>             start from a built-in template
 //   JeffPub --backstage <page>          open on a File page (new, open, print, ...)
 //   JeffPub --screenshot <png> [--size WxH]
+//   JeffPub --screenshot <png> --dialog tabs   (the Tabs dialog, full)
 //                                         render the window to a PNG and quit
 //                                         (works with QT_QPA_PLATFORM=offscreen)
 //   JeffPub --export-help-wiki <folder> write Help's topics as GitHub wiki pages
@@ -15,6 +16,7 @@
 #include "app/crash.h"
 #include "app/editor.h"
 #include "app/mainwindow.h"
+#include "app/textdialogs.h"
 #include "app/pubinfo.h"
 #include "app/recovery.h"
 #include "app/theme.h"
@@ -34,6 +36,9 @@
 
 #include <QApplication>
 #include <QPointer>
+#include <QDialog>
+#include <QPushButton>
+#include <QTimer>
 #include <QStatusBar>
 #include <memory>
 #include <QCommandLineParser>
@@ -83,8 +88,9 @@ int main(int argc, char **argv)
     QCommandLineOption tabOpt(QStringLiteral("tab"), QCoreApplication::translate("Main", "Open on a ribbon tab (for screenshots)."), QStringLiteral("name"));
     QCommandLineOption stageOpt(QStringLiteral("backstage"), QCoreApplication::translate("Main", "Open on a File page."), QStringLiteral("page"));
     QCommandLineOption helpTopicOpt(QStringLiteral("help-topic"), QCoreApplication::translate("Main", "Open Help on a topic (for screenshots)."), QStringLiteral("id"));
+    QCommandLineOption dialogOpt(QStringLiteral("dialog"), QCoreApplication::translate("Main", "With --screenshot: open the Tabs dialog with its list full, and save a picture of it (for screenshots)."), QStringLiteral("name"));
     QCommandLineOption wikiOpt(QStringLiteral("export-help-wiki"), QCoreApplication::translate("Main", "Write Help's topics as GitHub wiki pages into a new folder and quit."), QStringLiteral("folder"));
-    cli.addOptions({shotOpt, sizeOpt, templOpt, stageOpt, pdfOpt, pdfaOpt, tabOpt, helpTopicOpt, wikiOpt});
+    cli.addOptions({shotOpt, sizeOpt, templOpt, stageOpt, pdfOpt, pdfaOpt, tabOpt, helpTopicOpt, dialogOpt, wikiOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Publications to open."), QStringLiteral("[files...]"));
     cli.process(app);
     const bool plain = !cli.isSet(shotOpt) && !cli.isSet(pdfOpt) && !cli.isSet(wikiOpt);   // (not a job that makes a file and quits)
@@ -159,6 +165,22 @@ int main(int argc, char **argv)
                 if (jp::RibbonTab *t = r->tab(cli.value(tabOpt))) r->showTab(t);
         if (cli.isSet(helpTopicOpt)) w->showHelp(cli.value(helpTopicOpt));
         const QString out = cli.value(shotOpt);
+        if (cli.isSet(dialogOpt)) {
+            // The Tabs dialog with Add pressed until the list holds the most it may: Add is dimmed. The picture is of the dialog.
+            QTimer::singleShot(600, w, [out] {
+                if (auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget())) {
+                    for (auto *b : dlg->findChildren<QPushButton *>())
+                        if (b->text() == QCoreApplication::translate("Dialogs", "Add"))
+                            for (int i = 0; i < 100 && b->isEnabled(); ++i) b->click();
+                    QTimer::singleShot(300, dlg, [dlg, out] { dlg->grab().save(out); dlg->reject(); });
+                }
+            });
+            QTimer::singleShot(4000, w, [] { QApplication::exit(0); });
+            auto *ed = w->editor();
+            ed->addItem(ed->newTextBox(QRectF(72, 72, 300, 100), QStringLiteral("Tabs")));
+            jp::paragraphDialog(w, ed, 2);
+            return 0;
+        }
         // Let layouts, fonts and the first paint settle before grabbing.
         QTimer::singleShot(600, w, [w, out] {
             w->screenshotTo(out);
