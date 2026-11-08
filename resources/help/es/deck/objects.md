@@ -1,168 +1,169 @@
 # Formas, imágenes, tablas y texto artístico
-<!-- keywords: formas, líneas, flechas, conectores, curvas, forma libre, garabato, mano alzada, imágenes, fotos, insertar imagen, imágenes en línea, openverse, wikimedia commons, crédito, licencia, texto alternativo, iconos, svg, tabla, cuadrícula, filas, columnas, texto artístico, gráfico, smartart, diagrama, ecuación, película, vídeo, sonido, audio, reproducir, reproducción, póster, altavoz, barra de controles, recortar, repetir, bucle, volumen, silencio, pantalla completa, agrupar, organizar, traer al frente, enviar al fondo, girar, voltear, relleno, contorno, seleccionar, mover, cambiar tamaño, arrastrar y colocar, colores de imagen, brillo, contraste, gris, escala de grises, blanco y negro, duotono, volver a colorear, color transparente, recortar a la forma, relación de aspecto, ajustar, quitar recorte, formato de imagen, controladores, diseño de tabla, disposición de tabla, combinar celdas, dividir celdas, bordes, sombreado, estilo de tabla, opciones de estilo, fila de encabezado, fila de totales, filas con bandas, primera columna, última columna, insertar fila, eliminar fila, insertar columna, eliminar columna, distribuir, alto de fila, ancho de columna, márgenes de celda, dirección del texto, alinear -->
 
-Además de texto, una diapositiva puede contener formas, imágenes y tablas. En este tema se explica cómo agregarlas y qué hace JeffDeck con otros tipos de objetos.
+<!-- keywords: formas, líneas, flechas, conectores, curvas, forma libre, garabato, imágenes, insertar imagen, imágenes en línea, openverse, wikimedia commons, crédito, licencia, texto alternativo, iconos, svg, tabla, cuadrícula, filas, columnas, texto artístico, gráfico, diagrama, ecuación, película, vídeo, sonido, audio, reproducir, reproducción, póster, altavoz, barra de control, recortar, bucle, volumen, silenciar, pantalla completa, agrupar, organizar, delante, detrás, girar, voltear, relleno, contorno, seleccionar, mover, cambiar tamaño, arrastrar y soltar, colores de imagen, brillo, contraste, gris, blanco y negro, duotono, volver a colorear, color transparente, recorte, recortar a forma, relación de aspecto, ajustar, quitar recorte, formato de imagen, controladores, diseño de tabla, disposición de tabla, combinar celdas, dividir celdas, bordes, sombreado, estilo de tabla, opciones de estilo, fila de encabezado, fila de totales, filas con bandas, primera columna, última columna, insertar fila, eliminar fila, insertar columna, eliminar columna, distribuir, alto de fila, ancho de columna, márgenes de celda, dirección del texto, alinear -->
+
+Además de texto, una diapositiva puede contener formas, imágenes y tablas. Este tema explica cómo agregarlas y qué hace JeffDeck con otros tipos de objetos.
 
 ## Dibujar una forma o una línea
 
-1. Haga clic en **Inicio > Dibujo > Formas** (o en **Insertar > Ilustraciones > Formas**). Se abre una galería. En la parte superior están las líneas, las flechas, los conectores angulares y curvados, las curvas y el dibujo a mano alzada. Debajo están las formas, ordenadas por tipo.
-2. Haga clic en una y arrastre en la diapositiva para dibujarla.
-3. Para escribir en una forma, selecciónela y presione Entrar, o empiece a escribir.
+1. Haga clic en **Inicio > Dibujo > Formas** (o en **Insertar > Ilustraciones > Formas**). Se abre una galería. En la parte superior están las líneas, las flechas, los conectores acodados y curvos, las curvas y el dibujo a mano alzada. Debajo están las formas, ordenadas por tipo.
+2. Haga clic en una y arrastre sobre la diapositiva para dibujarla.
+3. Para escribir dentro de una forma, selecciónela y presione Entrar, o empiece a escribir.
 
-Seleccione una forma o una línea y use **Relleno de forma** y **Contorno de forma** en la pestaña **Inicio** para colorear el interior y el borde. Cada uno abre los colores del tema de la presentación y tiene **Sin relleno** o **Sin contorno**. También aparece la pestaña **Formato de forma**, con más opciones: degradados, imágenes, grosores, guiones, flechas y efectos como sombras. Para ver todas las opciones, presione **Ctrl+1** y se abrirá el panel Formato de forma. Busque **Formato de forma** en la Ayuda para obtener más información. Para cambiar una forma por otra sin perder su texto ni su aspecto, use **Formato de forma > Formas > Cambiar forma**. La galería de **Estilos de forma** de la misma pestaña aplica a una forma un aspecto predefinido del tema, y **Estilos de texto artístico** hace lo mismo con sus letras. Busque **Formato de forma** en la Ayuda para obtener información sobre todos ellos.
+Seleccione una forma o una línea y use **Relleno de forma** y **Contorno de forma** en la pestaña **Inicio** para dar color al interior y al borde. Cada uno abre los colores del tema de la presentación y ofrece **Sin relleno** o **Sin contorno**. La pestaña **Formato de forma** también aparece, con más opciones: degradados, imágenes, grosores, guiones, flechas y efectos como sombras. Para cualquier ajuste, presione **Ctrl+1** para abrir el panel Formato de forma. Busque **Formato de forma** en la Ayuda para leer sobre él. Para cambiar una forma por otra sin perder su texto ni su aspecto, use **Formato de forma > Formas > Cambiar forma**. La galería de **Estilos de forma** de esa misma pestaña da a una forma un aspecto predefinido del tema, y **Estilos de texto artístico** hace lo mismo con sus letras. Busque **Formato de forma** en la Ayuda para leer sobre todos ellos.
 
 ## Agregar una imagen
 
-Haga clic en **Insertar > Imágenes > Imágenes**, elija uno o varios archivos y haga clic en **Abrir**. JeffDeck coloca cada imagen en el centro de la diapositiva, sin que ocupe más que la mayor parte de ella. Los datos de la imagen se guardan dentro de la presentación, de modo que el archivo está completo cuando lo comparte.
+Haga clic en **Insertar > Imágenes > Imágenes**, elija uno o varios archivos y haga clic en **Abrir**. JeffDeck coloca cada imagen en el centro de la diapositiva. No es más grande que la mayor parte de la diapositiva. Los datos de la imagen se guardan dentro de la presentación, así que el archivo está completo al compartirlo.
 
-También puede arrastrar archivos de imagen desde el administrador de archivos hasta una diapositiva. La imagen queda donde la suelte.
+También puede arrastrar archivos de imagen desde el administrador de archivos hasta una diapositiva. La imagen aparece donde la suelte.
 
 JeffDeck lee imágenes PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, WMF, EMF, ICO y PDF.
 
-## Agregar una imagen de la web
+## Agregar una imagen desde la web
 
 **Imágenes en línea** busca imágenes gratuitas. Proceden de dos bibliotecas abiertas: Openverse, que busca en muchas colecciones, y Wikimedia Commons, la biblioteca de imágenes de Wikipedia.
 
 1. Haga clic en la flecha situada debajo de **Insertar > Imágenes > Imágenes** y elija **Imágenes en línea…**. Se abre un panel a la derecha.
 2. Elija una biblioteca, escriba lo que busca y haga clic en **Buscar** (o presione Entrar).
-3. Haga clic en una imagen para ver quién la creó y qué licencia tiene. Una **licencia** indica cómo puede usar una imagen. Haga clic en el nombre de la licencia para leerla.
+3. Haga clic en una imagen para ver quién la realizó y qué licencia tiene. Una **licencia** indica cómo puede usar una imagen. Haga clic en el nombre de la licencia para leerla.
 4. Haga clic en **Insertar** (o haga doble clic en la imagen).
 
-**Qué envía JeffDeck.** Las palabras de búsqueda se envían a la biblioteca que elija, y solo cuando hace clic en **Buscar** o presiona Entrar. Después, JeffDeck pide a la biblioteca las vistas previas pequeñas de los resultados y la imagen que inserte. Como cualquier página web, la biblioteca puede ver la dirección de Internet de su equipo y sabe que la solicitud procede de JeffDeck. No se envía nada de la presentación.
+**Qué envía JeffDeck.** Las palabras de búsqueda se envían a la biblioteca que elija, y solo cuando hace clic en **Buscar** o presiona Entrar. Después, JeffDeck pide a la biblioteca las vistas previas pequeñas de lo encontrado y la única imagen que inserte. Como cualquier página web, la biblioteca puede ver la dirección de internet de su equipo, y se le informa de que JeffDeck hace la petición. No se envía nada de su presentación.
 
-La imagen se coloca en el centro de la diapositiva, sin que ocupe más que la mayor parte de ella. El título de la imagen se guarda como su **texto alternativo**, que son las palabras que un lector de pantalla lee en voz alta para las personas que no pueden verla. La mayoría de las licencias piden que se cite al autor. Si **Agregar un crédito debajo de la imagen** está activado, JeffDeck agrega una pequeña línea de texto debajo de la imagen con su título, su autor y su licencia. Es un cuadro de texto que puede mover o modificar. Compruebe que la licencia permite el uso que va a dar a la imagen.
+La imagen se coloca en el centro de la diapositiva. No es más grande que la mayor parte de la diapositiva. El título de la imagen se guarda como su **texto alternativo**, es decir, las palabras que un lector de pantalla lee en voz alta para las personas que no pueden ver la imagen. La mayoría de las licencias piden que se cite al autor. Cuando está marcada la opción **Agregar un crédito debajo de la imagen**, JeffDeck añade una línea breve de texto bajo la imagen con su título, su autor y su licencia. Es un cuadro de texto que puede mover o cambiar. Compruebe que la licencia se ajusta al uso que vaya a dar a la imagen.
 
 ## Recortar una imagen
 
-**Recortar** una imagen consiste en quitar los bordes que no desea mostrar. La parte recortada no se pierde: queda oculta dentro de la imagen, de modo que puede recuperarla.
+**Recortar** una imagen es cortar los bordes que no desea mostrar. La parte que se corta no se pierde. Queda oculta dentro de la imagen, de modo que puede recuperarla.
 
 Haga clic en una imagen. Aparece la pestaña **Formato de imagen**. Su grupo **Recortar** tiene estos botones:
 
-- **Recortar** coloca controladores negros en el marco de la imagen. Arrastre un controlador para desplazar ese borde hacia dentro. La parte oculta se muestra atenuada, fuera del marco, para que vea lo que está recortando. Arrastre dentro del marco para desplazar la imagen detrás de él. Cuando termine, presione **Entrar** o haga clic fuera de la imagen. Para deshacer el recorte, presione **Esc**. Todo lo que haga desde que elige **Recortar** cuenta como un solo paso, así que **Ctrl+Z** también lo deshace todo.
-- **Recortar a la forma** abre una galería de formas, como un círculo o una estrella. La imagen solo se muestra dentro de la forma en la que haga clic. Haga clic en el rectángulo simple para volver.
-- **Relación de aspecto** recorta el marco a una proporción de ancho por alto, como **Cuadrado 1:1** u **Horizontal 16:9**. El marco se reduce alrededor de su centro y la imagen no se mueve.
-- **Relleno** hace que la imagen cubra todo el marco y recorta lo que sobresale. **Ajustar** hace que la imagen completa quepa dentro del marco y, si es necesario, deja espacio vacío a los lados.
+- **Recortar** coloca controladores negros en el marco de la imagen. Arrastre un controlador para desplazar ese borde hacia dentro. La parte oculta se ve atenuada fuera del marco, para que vea lo que está cortando. Arrastre dentro del marco para deslizar la imagen detrás de él. Cuando termine, presione **Entrar** o haga clic fuera de la imagen. Para deshacer el recorte, presione **Esc**. Todo lo que haga desde que elige **Recortar** cuenta como un solo paso, así que **Ctrl+Z** también lo deshace todo.
+- **Recortar a forma** abre una galería de formas, como un círculo o una estrella. La imagen se muestra solo dentro de la forma que haga clic. Haga clic en el rectángulo sencillo para volver atrás.
+- **Relación de aspecto** ajusta el marco a una proporción, expresada como ancho y alto, como **Cuadrado 1:1** o **Horizontal 16:9**. El marco se reduce alrededor de su centro, y la imagen permanece en su sitio.
+- **Rellenar** hace que la imagen cubra todo el marco y corta lo que sobresalga. **Ajustar** hace que la imagen completa quepa dentro del marco y deja espacio vacío a los lados si es necesario.
 - **Quitar recorte** vuelve a mostrar la imagen completa.
 
-El recorte se guarda en el archivo junto con la parte oculta, y la forma también se guarda. En un archivo .odp, una imagen recortada a una forma se guarda tal como se ve. La parte oculta y la forma no se pueden cambiar después de volver a abrir ese archivo.
+El recorte se guarda en el archivo junto con la parte oculta, y la forma también se guarda. Una imagen recortada a una forma se guarda en un archivo .odp como la imagen que se ve. La parte oculta y la forma no se pueden cambiar después de volver a abrir ese archivo.
 
 ## Agregar un icono
 
-Un **icono** es una imagen sencilla, como un corazón, una flecha o un sobre. JeffDeck incluye más de 1500.
+Un **icono** es una imagen sencilla, como un corazón, una flecha o un sobre. JeffDeck tiene más de 1500.
 
 1. Haga clic en **Insertar > Ilustraciones > Iconos**.
-2. Escriba una palabra en el cuadro de búsqueda, como **flecha** o **correo**. Solo quedan los iconos que coinciden.
-3. Haga clic en un icono. Para elegir varios, mantenga presionada la tecla **Ctrl** o **Mayús** mientras hace clic.
+2. Escriba una palabra en el cuadro de búsqueda, como **flecha** o **correo**. Se mantienen los iconos que coinciden.
+3. Haga clic en un icono. Para elegir varios, mantenga presionada **Ctrl** o **Mayús** mientras hace clic.
 4. Haga clic en **Insertar** (o haga doble clic en un icono).
 
-Cada icono se coloca en el centro de la diapositiva como una imagen de 2,5 cm de lado. Si son varios, se colocan uno al lado del otro. Se dibujan con el color de texto del tema. Los iconos son imágenes SVG, lo que significa que siguen siendo nítidos al agrandarlos. Puede moverlos, cambiarles el tamaño y girarlos como cualquier imagen. Al guardar, cada icono se guarda como imagen y como SVG, de modo que otros programas que muestran SVG también lo conservan nítido.
+Cada icono se coloca en la diapositiva como una imagen de dos centímetros y medio de lado, en el centro. Si elige varios, se colocan uno al lado de otro. Se dibujan con el color de texto del tema. Los iconos son imágenes SVG, lo que significa que se ven nítidos al aumentar su tamaño. Puede mover, cambiar de tamaño y girar un icono como cualquier imagen. Al guardar, cada icono se guarda como imagen y como SVG, de modo que otros programas que dibujan SVG también lo mantienen nítido.
 
 ## Agregar texto artístico
 
-El **texto artístico** son palabras decorativas: letras con color, contorno, sombra o forma curvada.
+El **texto artístico** son palabras con adornos: letras con color, contorno, sombra o forma curva.
 
 1. Haga clic en **Insertar > Texto > Texto artístico**. Se abre una galería de estilos.
-2. Haga clic en un estilo. El texto artístico se coloca en el centro de la diapositiva y se abre un cuadro con todo su texto seleccionado.
-3. Escriba el texto, que reemplaza al anterior. Si lo desea, elija una fuente, un tamaño, **Negrita** o **Cursiva**. Haga clic en **Aceptar**.
+2. Haga clic en un estilo. El texto artístico se coloca en el centro de la diapositiva, y se abre un cuadro con todas sus palabras seleccionadas.
+3. Escriba sus palabras. Sustituyen a las anteriores. Elija una fuente, un tamaño, **Negrita** o **Cursiva**, si lo desea. Haga clic en **Aceptar**.
 
-El texto artístico conserva su sombra al guardar la presentación y volver a abrirla. Para cambiar el texto más adelante, haga doble clic en el texto artístico, o selecciónelo y presione Entrar. Puede moverlo, cambiarle el tamaño, girarlo y eliminarlo como cualquier objeto. Las letras se estiran para llenar el cuadro, así que arrastre sus controladores para hacerlo más ancho o más alto.
+El texto artístico conserva su sombra al guardar la presentación y volver a abrirla. Para cambiar las palabras más adelante, haga doble clic en el texto artístico, o selecciónelo y presione Entrar. Puede mover, cambiar de tamaño, girar y eliminar el texto artístico como cualquier objeto. Las letras se estiran para llenar el cuadro, así que arrastre sus controladores para hacerlo más ancho o más alto.
 
 ## Agregar una tabla
 
-Una **tabla** es una cuadrícula de filas y columnas. Cada casilla de la cuadrícula es una celda, y cada celda contiene su propio texto.
+Una **tabla** es una cuadrícula de filas y columnas. Cada recuadro de la cuadrícula es una celda, y cada celda contiene su propio texto.
 
-1. Haga clic en **Insertar > Tablas > Tabla**. Desplace el puntero por la cuadrícula para elegir el número de filas y columnas, y haga clic. También puede elegir **Insertar tabla…** y escribir el **Número de columnas** y el **Número de filas**.
-2. La tabla aparece en el centro de la diapositiva, con la primera celda lista para escribir. Escriba y presione Tab para pasar a la celda siguiente. Presione Mayús+Tab para volver. Si presiona Tab en la última celda, se agrega una fila.
+1. Haga clic en **Insertar > Tablas > Tabla**. Desplace el puntero por la cuadrícula para elegir el número de filas y columnas, y haga clic. O elija **Insertar tabla…** y escriba el **Número de columnas** y el **Número de filas**.
+2. La tabla aparece en el centro de la diapositiva, con su primera celda lista para escribir. Escriba, y presione Tab para pasar a la celda siguiente. Presione Mayús+Tab para volver atrás. Presione Tab en la última celda para agregar una fila.
 
-Mientras escribe en una celda, los botones de fuente, tamaño, color y alineación de la pestaña **Inicio** se aplican a su texto.
+Mientras escribe en una celda, los botones de fuente, tamaño, color y alineación de la pestaña **Inicio** actúan sobre su texto.
 
-### Modificar una tabla
+### Cambiar una tabla
 
-Haga clic en una tabla para seleccionarla, o en una celda para escribir en ella. Aparecen las pestañas **Diseño de tabla** y **Disposición de tabla**. Para elegir varias celdas, arrastre sobre ellas, o haga clic en una y después Mayús+clic en otra. La mayoría de los botones que se describen a continuación se aplican a las celdas elegidas, o a toda la tabla si no ha elegido ninguna. Cada cambio es un paso, así que **Ctrl+Z** lo deshace.
+Haga clic en una tabla para seleccionarla, o en una celda para escribir en ella. Aparecen las pestañas **Diseño de tabla** y **Disposición de tabla**. Para elegir varias celdas, arrastre sobre ellas, o haga clic en una y después Mayús+clic en otra. La mayoría de los botones siguientes actúan sobre las celdas elegidas, o sobre toda la tabla si no ha elegido ninguna. Cada cambio es un paso, así que **Ctrl+Z** lo deshace.
 
-**Disposición de tabla** sirve para la estructura de la tabla:
+**Disposición de tabla** sirve para la forma de la tabla:
 
-- **Seleccionar** selecciona la celda, la fila, la columna o la tabla completa en la que se encuentra.
-- **Eliminar** quita las filas o las columnas elegidas, o toda la tabla. Una tabla conserva al menos una fila y una columna.
-- **Insertar arriba**, **Insertar debajo**, **Insertar a la izquierda** e **Insertar a la derecha** agregan una fila o una columna junto a la actual. Una tabla puede tener como máximo 256 filas y 256 columnas.
-- **Combinar celdas** une las celdas elegidas en una sola celda que contiene todo su texto. **Dividir celdas** vuelve a separar una celda combinada.
-- **Alto** y **Ancho** establecen el alto de las filas elegidas y el ancho de las columnas elegidas. **Distribuir filas** y **Distribuir columnas** igualan el tamaño de todas las filas o de todas las columnas.
-- Los botones de **Alineación** colocan el texto a la izquierda, en el centro o a la derecha de la celda, y en su parte superior, en el medio o en la parte inferior. **Dirección del texto** gira el texto un cuarto de vuelta. **Márgenes de celda** indica cuánto espacio se deja entre el texto y los bordes de la celda.
+- **Seleccionar** elige la celda, la fila, la columna o la tabla completa en la que se encuentra.
+- **Eliminar** quita las filas o las columnas elegidas, o la tabla entera. Una tabla conserva al menos una fila y una columna.
+- **Insertar arriba**, **Insertar debajo**, **Insertar a la izquierda** e **Insertar a la derecha** agregan una fila o una columna junto a la que tiene seleccionada. Una tabla puede tener como máximo 256 filas y 256 columnas.
+- **Combinar celdas** une las celdas elegidas en una sola celda que contiene todo su texto. **Dividir celdas** convierte una celda combinada otra vez en celdas separadas.
+- **Alto** y **Ancho** establecen la altura de las filas elegidas y el ancho de las columnas elegidas. **Distribuir filas** y **Distribuir columnas** hacen que todas las filas, o todas las columnas, tengan el mismo tamaño.
+- Los botones de **Alineación** colocan el texto a la izquierda, al centro o a la derecha de una celda, y en su parte superior, media o inferior. **Dirección del texto** gira el texto un cuarto de vuelta. **Márgenes de celda** indica cuánto espacio queda entre el texto y los bordes de la celda.
 
 **Diseño de tabla** sirve para el aspecto de la tabla:
 
-- **Opciones de estilo de tabla** tiene seis casillas. **Fila de encabezado** y **Fila de totales** resaltan la primera y la última fila. **Primera columna** y **Última columna** hacen lo mismo con esas columnas. **Filas con bandas** y **Columnas con bandas** dan un sombreado distinto a filas o columnas alternas. Cada casilla activa o desactiva esa parte del estilo. El sombreado o las líneas que haya aplicado manualmente a una celda se conservan.
-- **Estilos de tabla** es una galería de aspectos, en grupos llamados Claro, Medio y Oscuro, con los colores del tema. Haga clic en uno para aplicar su aspecto a todas las celdas. Reemplaza el sombreado y las líneas aplicados manualmente. Una tabla nueva empieza con el estilo Medio 2 - Énfasis 1.
+- **Opciones de estilo de tabla** tiene seis casillas. **Fila de encabezado** y **Fila de totales** destacan la primera y la última fila. **Primera columna** y **Última columna** hacen lo mismo con esas columnas. **Filas con bandas** y **Columnas con bandas** dan a cada dos filas, o a cada dos columnas, un tono distinto. Cada casilla activa o desactiva esa parte del estilo. Un sombreado o una línea que haya dado a una celda a mano se mantiene.
+- **Estilos de tabla** es una galería de aspectos, en grupos llamados Claro, Medio y Oscuro, con los colores del tema. Haga clic en uno para dar a todas las celdas ese aspecto. Sustituye los sombreados y las líneas que haya dado a las celdas a mano. Una tabla nueva empieza con Estilo medio 2, Énfasis 1.
 - **Sombreado** colorea las celdas elegidas.
-- **Bordes** dibuja una línea en los bordes de las celdas elegidas: todos, los externos, los internos, solo las filas o las columnas internas, o solo el superior, el inferior, el izquierdo o el derecho. Elija **Sin borde** para quitar las líneas. **Estilo de la pluma**, **Grosor de la pluma** y **Color de la pluma**, en **Dibujar bordes**, determinan el aspecto de la línea.
+- **Bordes** dibuja una línea en los bordes de las celdas elegidas: todos, el exterior, el interior, solo las filas o las columnas interiores, o solo el borde superior, inferior, izquierdo o derecho. Elija **Sin borde** para quitar las líneas. **Estilo de la pluma**, **Grosor de la pluma** y **Color de la pluma**, en **Dibujar bordes**, indican cómo se ve la línea.
 
-Las filas y columnas nuevas conservan el estilo de la tabla. Las bandas se mantienen alternas y la primera fila sigue siendo la primera. Al guardar un archivo .pptx, la tabla conserva su estilo y las partes activadas. Un archivo .odp conserva el aspecto de cada celda, pero no el nombre del estilo ni las seis casillas. Las tablas creadas en otros programas se muestran tal como se crearon.
+Las filas y columnas nuevas conservan el estilo de la tabla. Las bandas se mantienen en su secuencia, y la primera fila sigue siendo la primera. Al guardar un archivo .pptx, la tabla conserva su estilo y qué partes están activadas. Un archivo .odp conserva el aspecto de cada celda, pero no el nombre del estilo ni las seis casillas. Las tablas hechas en otros programas se muestran tal como se crearon.
 
-## Agregar un vídeo o un sonido
+## Agregar una película o un sonido
 
-Un **vídeo** o un **sonido** se reproduce directamente en la diapositiva. JeffDeck guarda el archivo dentro de la presentación, de modo que el vídeo o el sonido viaja con ella.
+Una **película** o un **sonido** se reproducen directamente en la diapositiva. JeffDeck guarda el archivo dentro de la presentación, así que la película o el sonido viajan con ella.
 
-1. Haga clic en **Insertar > Multimedia > Vídeo** y elija **Vídeo en este dispositivo…**. O bien, haga clic en **Insertar > Multimedia > Audio** y elija **Audio en este dispositivo…**.
-2. Elija un archivo y haga clic en **Abrir**. JeffDeck tarda un momento en leer el archivo y, después, coloca el vídeo o el sonido en la diapositiva.
+1. Haga clic en **Insertar > Multimedia > Vídeo** y elija **Vídeo en este dispositivo…**. O haga clic en **Insertar > Multimedia > Audio** y elija **Audio en este dispositivo…**.
+2. Elija un archivo y haga clic en **Abrir**. JeffDeck lee el archivo durante un momento. Después coloca la película o el sonido en la diapositiva.
 
-Un vídeo muestra su **póster**, que es su primera imagen. Un sonido muestra la imagen de un altavoz. Puede moverlos, cambiarles el tamaño, girarlos y eliminarlos como cualquier imagen. Ambos se incluyen al principio en la **secuencia de clics**, que es la lista de pasos que la presentación reproduce, uno en cada clic. Por tanto, el vídeo o el sonido se reproduce con un clic durante la presentación.
+Una película muestra su **póster**, que es su primera imagen. Un sonido muestra la imagen de un altavoz. Puede mover, cambiar de tamaño, girar y eliminar estos objetos como cualquier imagen. Ambos empiezan en la **secuencia de clics**, es decir, la lista de pasos que reproduce la presentación, uno en cada clic. Así, la película o el sonido se reproduce con un clic durante la presentación.
 
-JeffDeck reproduce los tipos de archivo que el equipo sabe reproducir, como .mp4, .mov, .avi, .wmv, .mkv, .webm, .mp3, .wav, .m4a, .wma, .ogg y .flac. Si el equipo no puede reproducir un archivo, aparece un mensaje en su lugar, y el resto de JeffDeck sigue funcionando. Un vídeo al que el archivo solo esté vinculado, en la web o en un disco, no se reproduce: el archivo tiene que estar dentro de la presentación.
+JeffDeck reproduce los tipos de archivo que el equipo sabe reproducir, como .mp4, .mov, .avi, .wmv, .mkv, .webm, .mp3, .wav, .m4a, .wma, .ogg y .flac. Un archivo que el equipo no puede reproducir muestra un mensaje en el lugar donde debería reproducirse. El resto de JeffDeck sigue funcionando. Una película que un archivo solo enlaza, en la web o en un disco, no se reproduce. El archivo tiene que estar dentro de la presentación.
 
-JeffDeck nunca reproduce un archivo hasta que se lo pide. Al abrir, guardar e imprimir una presentación solo se usa el póster.
+JeffDeck nunca reproduce un archivo hasta que usted lo pide. Abrir, guardar e imprimir una presentación usa solo el póster.
 
-### Reproducir un vídeo o un sonido mientras edita
+### Reproducir una película o un sonido mientras edita
 
-Haga clic en el vídeo o el sonido, o señálelo con el puntero. Debajo aparece una **barra de controles**:
+Haga clic en la película o el sonido, o señálelo. Debajo aparece una **barra de control**:
 
-- El botón **Reproducir** lo inicia. Durante la reproducción, el mismo botón lo pausa.
-- La **barra de búsqueda** muestra cuánto se ha reproducido y el tiempo. Haga clic en ella para saltar a ese punto.
-- El botón del **altavoz** lo silencia, y el pequeño control deslizante que tiene al lado ajusta el volumen.
+- El botón **reproducir** lo inicia. Mientras se reproduce, el mismo botón lo pausa.
+- La **barra de progreso** muestra hasta dónde se ha reproducido y el tiempo. Haga clic en ella para saltar a ese punto.
+- El botón del **altavoz** lo silencia, y el pequeño control deslizante junto a él ajusta el volumen.
 
-El vídeo se reproduce directamente en la diapositiva y se agranda o se reduce al aplicar zoom. Solo se reproduce uno a la vez, y se detiene al ir a otra diapositiva.
+La película se reproduce en la diapositiva y crece o se reduce al cambiar el zoom. Solo se reproduce una a la vez. Se detiene al pasar a otra diapositiva.
 
 ### Configurar la reproducción
 
-Seleccione un vídeo o un sonido. Aparece la pestaña **Reproducción**, que determina cómo se reproduce durante la presentación: cuándo empieza, a qué volumen, dónde empieza y termina, y más. Presione **F1** en esa pestaña para ver su tema.
+Seleccione una película o un sonido. Aparece la pestaña **Reproducción**. En ella se establece cómo se reproduce la película o el sonido en la presentación: cuándo empieza, el volumen, dónde empieza y termina, y más. Presione **F1** en esa pestaña para ver su tema.
 
-### Vídeos y sonidos en la presentación con diapositivas
+### Películas y sonidos en la presentación
 
-Durante la presentación, un vídeo o un sonido se reproduce según lo que indique el archivo:
+En la presentación con diapositivas, una película o un sonido se reproduce cuando el archivo lo indica:
 
-- **En secuencia de clics**: se reproduce con un clic, junto con las animaciones de la diapositiva. El clic que lo reproduce no hace avanzar la presentación.
-- **Automáticamente**: se reproduce solo cuando le llega el turno. Si es el primero, empieza al aparecer la diapositiva.
+- **En secuencia de clics**: se reproduce con un clic, junto con las animaciones de la diapositiva. El clic que lo reproduce no avanza la presentación.
+- **Automáticamente**: se reproduce solo cuando le llega su turno. El primero empieza cuando aparece la diapositiva.
 - **Al hacer clic**: se reproduce cuando hace clic en él.
 
-Señale un vídeo para mostrar su barra de controles. Haga clic en el vídeo para reproducirlo o pausarlo. El vídeo se reproduce en su lugar en la diapositiva, o llena la pantalla si **Reproducir a pantalla completa** está activado. Se detiene al cambiar de diapositiva, salvo que se haya configurado para reproducirse en varias diapositivas.
+Señale una película para mostrar su barra de control. Haga clic en la película para reproducirla o pausarla. La película se reproduce en su lugar de la diapositiva, o llena la pantalla si está activada la opción **Reproducir a pantalla completa**. Se detiene al cambiar la diapositiva, salvo que se haya configurado para reproducirse entre diapositivas.
 
 ## Seleccionar, mover y organizar objetos
 
-- Haga clic en un objeto para seleccionarlo. Mantenga presionada la tecla **Mayús** y haga clic para agregar más. También puede arrastrar un recuadro alrededor de los objetos desde una parte vacía de la diapositiva. Presione **Tab** para pasar de un objeto al siguiente.
-- Arrastre un objeto para moverlo. Mantenga presionada la tecla **Mayús** para moverlo solo en horizontal o en vertical. Mantenga presionada la tecla **Ctrl** mientras arrastra para hacer una copia.
-- Si suelta una imagen sobre otra, las dos imágenes intercambian su posición. Mantenga presionada la tecla **Ctrl** mientras arrastra para hacer una copia en su lugar.
-- Presione las teclas de dirección para desplazar el objeto seleccionado. Mantenga presionada la tecla **Alt** para usar el paso más pequeño.
-- Arrastre un controlador para cambiar el tamaño. Las imágenes mantienen sus proporciones si arrastra una esquina; mantenga presionada la tecla Mayús para estirarlas libremente. En otros objetos, mantenga presionada la tecla Mayús para mantener las proporciones.
+- Haga clic en un objeto para seleccionarlo. Mantenga presionada **Mayús** y haga clic para agregar más. O arrastre un recuadro alrededor de los objetos sobre una parte vacía de la diapositiva. Presione **Tab** para pasar de un objeto al siguiente.
+- Arrastre un objeto para moverlo. Mantenga presionada **Mayús** para moverlo solo en línea recta, horizontal o verticalmente. Mantenga presionada **Ctrl** mientras arrastra para crear una copia.
+- Suelte una imagen sobre otra y las dos intercambiarán sus posiciones. Mantenga presionada **Ctrl** mientras arrastra para crear una copia en su lugar.
+- Presione las teclas de flecha para desplazar el objeto seleccionado un poco. Mantenga presionada **Alt** para el desplazamiento más pequeño.
+- Arrastre un controlador para cambiar el tamaño. Las imágenes mantienen sus proporciones desde una esquina. Mantenga presionada Mayús para estirarlas libremente. En los demás objetos, mantenga presionada Mayús para conservar las proporciones.
 - Arrastre el controlador redondo situado encima de un objeto para girarlo.
-- Presione **Supr** para quitar el objeto seleccionado.
-- Haga clic con el botón derecho en un objeto, o presione **Mayús+F10**, para abrir un menú con Cortar, Copiar, Pegar, Eliminar, Modificar texto, Agrupar, Orden, un vínculo y un comentario nuevo.
+- Presione **Supr** para eliminar el objeto seleccionado.
+- Haga clic con el botón derecho en un objeto, o presione **Mayús+F10**, para abrir un menú con Cortar, Copiar, Pegar, Eliminar, Editar texto, Agrupar, Orden, un vínculo y un nuevo comentario.
 
 **Inicio > Dibujo > Organizar** tiene **Traer al frente**, **Traer adelante**, **Enviar atrás** y **Enviar al fondo** para cambiar qué objeto queda encima. También tiene **Agrupar** (Ctrl+Mayús+G) y **Desagrupar**, que hacen que varios objetos se muevan y cambien de tamaño como uno solo, y **Girar 90° a la derecha**, **Girar 90° a la izquierda**, **Voltear horizontalmente** y **Voltear verticalmente**.
 
-Active **Vista > Mostrar > Regla**, **Líneas de cuadrícula** o **Guías** como ayuda para colocar objetos. **Archivo > Opciones > Vista** tiene **Ajustar objetos a otros objetos**. Vea [Pestaña Vista](tab-view) y [Cambiar la configuración de JeffDeck](options).
+Active **Vista > Mostrar > Regla**, **Líneas de cuadrícula** o **Guías** para ayudarse a colocar los objetos. **Archivo > Opciones > Vista** tiene **Ajustar objetos a otros objetos**. Vea [Pestaña Vista](tab-view) y [Cambiar la configuración de JeffDeck](options).
 
-## Objetos que JeffDeck muestra pero aún no puede crear
+## Objetos que JeffDeck muestra, pero que aún no puede crear
 
-Una presentación creada en otro programa puede contener elementos para los que JeffDeck aún no tiene herramientas. JeffDeck los muestra lo mejor que puede y los conserva al guardar.
+Una presentación hecha en otro programa puede contener elementos para los que JeffDeck todavía no tiene herramientas. Los muestra lo mejor que puede y los conserva al guardar.
 
-- El **texto artístico** de un archivo antiguo se muestra y se guarda, y puede cambiar su texto, igual que con el texto artístico que agregue. JeffDeck aún no tiene herramientas para cambiar su estilo o su forma una vez en la diapositiva. Para probar otro estilo, agregue texto artístico nuevo.
-- Los **gráficos** se dibujan a partir de los valores guardados en el archivo y se guardan completos. Aún no se pueden modificar.
-- Los **cambios en los colores de una imagen** se muestran y se conservan. Otro programa puede aclarar u oscurecer una imagen (**brillo**), o aumentar o reducir la diferencia entre las partes claras y oscuras (**contraste**). También puede convertirla a gris o solo a blanco y negro, o hacer transparente un color. Un **duotono** da a la imagen dos colores: uno para las partes más oscuras y otro para las más claras. JeffDeck dibuja la imagen con estos cambios, igual que el otro programa. Al guardar, los cambios vuelven al archivo tal como estaban. La imagen en sí nunca se modifica, así que no se pierde nada. Un archivo OpenDocument (.odp) solo puede conservar algunos de estos cambios, como el brillo y el contraste. Si guarda como .odp, JeffDeck incorpora los demás a la imagen. Puede aplicar brillo, contraste, gris, blanco y negro y transparencia en el panel Formato de forma. Los demás cambios aún no se pueden hacer en JeffDeck.
-- Los **diagramas SmartArt** se dibujan tal como se guardaron. Un diagrama SmartArt es un conjunto de formas que funcionan juntas, como una fila de cuadros o una cadena de pasos. JeffDeck trata todo el diagrama como un solo objeto. Puede seleccionarlo, moverlo, cambiarle el tamaño, copiarlo y eliminarlo. El dibujo se agranda y se reduce con él. Aún no puede cambiar su texto. Al guardar, el diagrama vuelve completo al archivo, de modo que el programa que lo creó puede seguir editándolo. Una copia pegada es solo una imagen del diagrama. Una diapositiva duplicada conserva el diagrama completo.
-- Las **ecuaciones** se muestran como la imagen que el archivo guarda de ellas. Una ecuación es una expresión matemática compuesta con tipografía especial, como una fracción o una raíz cuadrada. Puede mover, cambiar el tamaño, girar, copiar y eliminar la imagen, pero aún no puede cambiar la expresión. Al guardar, la expresión vuelve al archivo tal como estaba. Esto también funciona en un cuadro de texto que tenga otro texto alrededor de una ecuación.
+- El **texto artístico** de un archivo antiguo se muestra y se guarda, y puede cambiar sus palabras, como el texto artístico que agrega. JeffDeck todavía no tiene herramientas para cambiar su estilo o su forma una vez colocado en la diapositiva. Para probar otro estilo, agregue un texto artístico nuevo.
+- Los **gráficos** se dibujan a partir de los valores guardados en el archivo, y se guardan completos. Todavía no se pueden editar.
+- Los **cambios en los colores de una imagen** se muestran y se conservan. Otro programa puede hacer una imagen más clara u oscura (**brillo**), o hacer que las partes claras y oscuras se diferencien más o menos (**contraste**). Puede convertir una imagen en gris, o solo en blanco y negro, o hacer transparente un color. Un **duotono** da a una imagen dos colores: uno para sus partes más oscuras y otro para las más claras. JeffDeck dibuja la imagen con estos cambios, tal como lo hace el otro programa. Al guardar, los cambios vuelven al archivo tal como estaban. La imagen en sí nunca se modifica, así que no se pierde nada. Un archivo OpenDocument (.odp) solo puede conservar algunos de estos cambios, como el brillo y el contraste. Si guarda como .odp, JeffDeck incorpora los demás a la imagen. Puede aplicar brillo, contraste, gris, blanco y negro, y transparencia en el panel Formato de forma. Los demás cambios todavía no se pueden hacer en JeffDeck.
+- Los **diagramas** se dibujan tal como se guardaron. Un diagrama es un conjunto de formas que funcionan juntas, como una fila de cuadros o una cadena de pasos. JeffDeck trata el diagrama completo como un solo objeto. Puede seleccionarlo, moverlo, cambiarle el tamaño, copiarlo y eliminarlo. El dibujo crece y se reduce con él. Todavía no se pueden cambiar sus textos. Al guardar, el diagrama vuelve al archivo completo, de modo que el programa que lo creó todavía puede editarlo. Una copia que pegue es solo una imagen del diagrama. Una diapositiva duplicada conserva el diagrama completo.
+- Las **ecuaciones** se muestran como la imagen que el archivo guarda de ellas. Una ecuación son operaciones matemáticas con un formato especial, como una fracción o una raíz cuadrada. Puede mover, cambiar de tamaño, girar, copiar y eliminar la imagen, pero todavía no puede cambiar las matemáticas. Al guardar, las matemáticas vuelven al archivo tal como estaban. Esto funciona también para un cuadro de texto que tenga otras palabras alrededor de una ecuación.
 
 ## Temas relacionados
 
 - [Pestaña Inicio](tab-home)
 - [Pestaña Insertar](tab-insert)
-- [Escribir texto y darle formato](text)
-- [Tamaño de diapositiva, fondo y pies de página](design)
+- [Escribir y dar formato al texto](text)
+- [Tamaño de la diapositiva, fondo y pies de página](design)

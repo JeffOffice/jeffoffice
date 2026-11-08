@@ -1,7 +1,7 @@
 # Pivot-Tabellen
-<!-- keywords: Pivot-Tabelle, Liste, Formeln auflisten, berechnetes Feld, Berichtsfilterseiten, Detailebene anzeigen, Details einblenden, Details ausblenden, Pivot-Tabelle einfügen, erstellen, verschieben, GETPIVOTDATA, PIVOTDATENZUORDNEN, aktualisieren, alle aktualisieren, Datenquelle ändern, Feldliste, Felder, Zeilen, Spalten, Werte, Filter, Berichtsfilter, Gesamtergebnis, Teilergebnis, Layout, kompakt, Gliederung, tabellarisch, löschen, Wertfeldeinstellungen, Summe, Anzahl, Mittelwert, Werte anzeigen als, Prozent vom Gesamtergebnis, Differenz, laufende Summe, Zahlenformat, Feldeinstellungen, sortieren, filtern, Top, gruppieren, Gruppierung aufheben, Datum, Monate, Jahre, erweitern, reduzieren, Optionen, Formatvorlage, gebänderte Zeilen, leere Zeilen, Beschriftungen wiederholen, beim Öffnen aktualisieren, Pivot-Diagramm, Datenschnitt, Zeitachse, Details anzeigen, Zeilen hinter einem Wert -->
+<!-- keywords: Listenformeln, berechnetes Feld, berechnetes Element, Berechnungsreihenfolge, Formelfeld, Berichtsfilterseiten, Pivot-Tabelle, Details einblenden, Details ausblenden, Pivot-Tabelle einfügen, erstellen, machen, auswählen, Pivot-Tabelle verschieben, GETPIVOTDATA, GETPIVOTDATA generieren, aktualisieren, alles aktualisieren, Datenquelle ändern, Feldliste, Felder, Zeilen, Spalten, Werte, Filter, Berichtsfilter, Gesamtergebnis, Teilergebnis, Layout, kompakt, Gliederung, tabellarisch, löschen, Wertfeldeinstellungen, Summe, Anzahl, Mittelwert, Werte anzeigen als, Prozent der Gesamtsumme, Differenz, laufende Summe, Zahlenformat, Feldeinstellungen, sortieren, filtern, Top, gruppieren, Gruppierung aufheben, Datumswerte, Monate, Jahre, erweitern, reduzieren, Optionen, Formatvorlage, gebänderte Zeilen, leere Zeilen, Beschriftungen wiederholen, beim Öffnen der Datei aktualisieren, Pivot-Diagramm, Datenschnitt, Zeitachse, Details anzeigen, Details einblenden, Zeilen hinter einem Wert -->
 
-Eine Pivot-Tabelle ist ein kleiner Bericht, der aus einer langen Liste erstellt wird. Die Liste enthält beispielsweise für jeden Verkauf eine Zeile; der Bericht summiert die Umsätze nach Region und Monat. Sie schreiben keine Formeln. Sie legen fest, welche Spalten der Liste an der Seite stehen, welche oben und welche summiert wird, und der Bericht füllt sich von selbst.
+Eine Pivot-Tabelle ist ein kleiner Bericht, der aus einer langen Liste erstellt wird. Die Liste hat zum Beispiel für jeden Verkauf eine Zeile; der Bericht addiert die Verkäufe nach Region und Monat. Sie schreiben keine Formeln. Sie legen fest, welche Spalten der Liste links untereinander stehen, welche oben nebeneinander stehen und welche summiert wird, und der Bericht füllt sich selbst aus.
 
 ## Ein Beispiel
 
@@ -16,7 +16,7 @@ Hier ist eine Liste in den Zellen A1 bis C7. Jede Zeile ist ein Verkauf.
 | West | Feb | 3 |
 | West | Feb | 4 |
 
-Eine Pivot-Tabelle mit **Region** an der Seite, **Monat** oben und der Summe von **Betrag** in der Mitte sieht so aus.
+Eine Pivot-Tabelle mit **Region** links, **Monat** oben und der Summe von **Betrag** in der Mitte sieht so aus:
 
 | Summe von Betrag | Monat | | |
 |---|---|---|---|
@@ -25,182 +25,198 @@ Eine Pivot-Tabelle mit **Region** an der Seite, **Monat** oben und der Summe von
 | West | 7 | 7 | 14 |
 | Gesamtergebnis | 22 | 27 | 49 |
 
-Ost im Januar ergibt 15, weil die beiden Zeilen für Ost im Januar, 10 und 5, addiert werden. Die Spalte „Gesamtergebnis“ addiert jede Zeile, die Zeile „Gesamtergebnis“ jede Spalte, und die Zelle in der Ecke addiert alles.
+Ost im Januar ergibt 15, weil die beiden Zeilen Ost/Jan mit 10 und 5 addiert werden. Die Spalte „Gesamtergebnis“ addiert jede Zeile, die Zeile „Gesamtergebnis“ addiert jede Spalte, und die Zelle in der Ecke addiert alles.
 
 Die hier verwendeten Begriffe:
 
-- **Feld** ist eine Spalte der Liste. Region, Monat und Betrag sind die Felder.
-- **Zeilen**, **Spalten** und **Werte** sind die drei Bereiche, in die ein Feld gelegt werden kann. Ein Feld in „Zeilen“ ergibt eine Zeile für jeden seiner verschiedenen Einträge, ein Feld in „Spalten“ ergibt jeweils eine Spalte, und ein Feld in „Werte“ wird summiert. Ein vierter Bereich, **Filter**, enthält ein Feld, das die Zeilen ausblendet, die Sie nicht auswählen.
-- Ein **Cache** (der Pivot-Cache) ist eine Kopie Ihrer Liste, die die Pivot-Tabelle in der Datei speichert, damit sie Ergebnisse anzeigen kann, ohne die Zellen zu lesen. Der Bericht wird aus dem Cache berechnet, nicht aus den Zellen; er ändert sich also nicht, wenn sich die Zellen ändern. **Aktualisieren** kopiert die Zellen erneut in den Cache.
+- **Feld** ist eine Spalte der Liste. Region, Monat und Betrag sind Felder.
+- **Zeilen**, **Spalten** und **Werte** sind die drei Bereiche, in die ein Feld gesetzt werden kann. Ein Feld in „Zeilen“ ergibt für jeden seiner verschiedenen Einträge eine Zeile; ein Feld in „Spalten“ ergibt für jeden Eintrag eine Spalte; ein Feld in „Werte“ wird summiert. Ein vierter Bereich, **Filter**, enthält ein Feld, mit dem Sie die nicht gewählten Zeilen ausblenden.
+- Ein **Cache** (der Pivot-Cache) ist eine Kopie Ihrer Liste, die die Pivot-Tabelle in der Datei speichert, damit sie Summen anzeigen kann, ohne die Zellen zu lesen. Der Bericht wird aus dem Cache berechnet, nicht aus den Zellen, und ändert sich daher nicht, wenn sich die Zellen ändern. **Aktualisieren** kopiert die Zellen erneut in den Cache.
 
-## Pivot-Tabelle erstellen
+## Eine Pivot-Tabelle erstellen
 
-1. Klicken Sie auf eine Zelle in der Liste, oder markieren Sie die Zellen, die Sie verwenden möchten. Die Liste benötigt oberhalb der Daten eine Zeile mit Namen.
+1. Klicken Sie in eine Zelle der Liste, oder markieren Sie die Zellen, die Sie verwenden möchten. Die Liste benötigt oberhalb ihrer Daten eine Zeile mit Namen.
 2. Wählen Sie **Einfügen** und dann **Pivot-Tabelle**.
-3. Das Feld zeigt die Zellen, in denen die Daten stehen. Ändern Sie sie, falls sie nicht stimmen. Sie können auch den Namen einer Tabelle eingeben.
-4. Wählen Sie, wohin die Pivot-Tabelle kommt: **Neues Blatt** (Standard) oder eine Zelle auf diesem oder einem anderen Blatt. Wählen Sie eine Stelle, an der nichts anderes steht, denn die leere Tabelle belegt etwa achtzehn Zeilen und drei Spalten.
-5. Wählen Sie **OK**. Die Tabelle ist zunächst leer, und der Bereich **Pivot-Tabellen-Felder** wird geöffnet. Aktivieren Sie die gewünschten Felder: Ein Feld mit Zahlen wird summiert, jedes andere Feld wird zu einer Zeile. Verschieben Sie die Felder dann, wie in den nächsten Abschnitten beschrieben, in die Bereiche.
+3. Das Feld zeigt die Zellen, in denen die Daten stehen. Ändern Sie sie, wenn sie nicht stimmen. Sie können auch den Namen einer Tabelle eingeben.
+4. Legen Sie fest, wo die Pivot-Tabelle erscheint: **Neues Blatt** (Standard) oder eine Zelle auf diesem oder einem anderen Blatt. Wählen Sie eine Stelle, an der nichts anderes steht, denn die leere Tabelle belegt etwa achtzehn Zeilen und drei Spalten.
+5. Wählen Sie **OK**. Die Tabelle beginnt leer, und der Bereich **Pivot-Tabellenfelder** öffnet sich. Aktivieren Sie die gewünschten Felder: Ein Feld mit Zahlen wird summiert, jedes andere wird zu einer Zeile. Verschieben Sie die Felder danach in die Bereiche, wie in den folgenden Abschnitten beschrieben.
 
-Ein neues Blatt und die Tabelle sind jeweils ein eigener Schritt von „Rückgängig“. Beim Speichern als .xlsx wird die Tabelle so geschrieben wie vom ursprünglichen Programm, sodass sie dort als Pivot-Tabelle geöffnet wird. Eine als .xls oder .ods gespeicherte Kopie behält die Zahlen, die die Tabelle anzeigt, in ihren Zellen, aber nicht die Tabelle selbst; das Speichern weist Sie darauf hin.
+Ein neues Blatt ist ein eigener Schritt für „Rückgängig“, und die Tabelle ebenso. Beim Speichern als .xlsx wird die Tabelle so geschrieben, wie das ursprüngliche Programm sie schreibt, sodass sie dort als Pivot-Tabelle geöffnet wird. Eine als .xls oder .ods gespeicherte Kopie behält die Zahlen, die die Tabelle anzeigt, in ihren Zellen, nicht aber die Tabelle selbst; beim Speichern wird Sie darauf hingewiesen.
 
 ## GETPIVOTDATA: eine Zahl aus einer Pivot-Tabelle lesen
 
-`GETPIVOTDATA` gibt die Zahl zurück, die eine Pivot-Tabelle für den Wert und die von Ihnen genannten Zeilen und Spalten anzeigt. Für das obige Beispiel:
+`GETPIVOTDATA` liefert die Zahl, die eine Pivot-Tabelle für die angegebenen Werte sowie Zeilen- und Spaltenbezeichnungen anzeigt. Für das Beispiel oben:
 
-`=GETPIVOTDATA("Summe von Betrag", $E$3, "Region", "Ost", "Monat", "Jan")` ergibt 15.
+`=GETPIVOTDATA("Summe von Betrag"; $E$3; "Region"; "Ost"; "Monat"; "Jan")` ergibt 15.
 
-- Das erste Argument ist der Name des Werts, wie ihn die Tabelle anzeigt (zum Beispiel Summe von Betrag). Auch der Name des summierten Felds (Betrag) funktioniert.
+- Das erste Argument ist der Name des Werts, so wie die Tabelle ihn anzeigt (zum Beispiel Summe von Betrag). Auch der Name des Feldes, das summiert wird (Betrag), funktioniert.
 - Das zweite Argument ist eine beliebige Zelle der Pivot-Tabelle.
-- Danach folgen Paare aus einem Feld und einem seiner Elemente. Nennen Sie nur Region, Ost, erhalten Sie die Summe für Ost, 35. Nennen Sie nichts, erhalten Sie das Gesamtergebnis, 49. Die genannten Felder müssen die ersten Felder in den Zeilen oder die ersten Felder in den Spalten sein, in dieser Reihenfolge.
-- Wenn die Tabelle die Zahl nicht anzeigt, zeigt die Zelle `#REF!`.
+- Danach folgen Paare aus einem Feld und einem seiner Elemente. Wenn Sie nur Region und Ost angeben, erhalten Sie die Summe für Ost, 35. Wenn Sie nichts angeben, erhalten Sie das Gesamtergebnis, 49. Die angegebenen Felder müssen die ersten Felder der Zeilen oder die ersten Felder der Spalten sein, in dieser Reihenfolge.
+- Zeigt die Tabelle die Zahl nicht an, zeigt die Zelle `#BEZUG!`.
 
-Wenn Sie beim Eingeben einer Formel auf einen Wert einer Pivot-Tabelle klicken, schreibt JeffCrunch diese Formel für Sie, damit sie auch nach einer Umordnung der Tabelle die richtige Zahl liest. Zum Ausschalten wählen Sie auf der Registerkarte **Pivot-Tabelle** die Option **Optionen** und deaktivieren das Kontrollkästchen zu GETPIVOTDATA.
+Wenn Sie beim Eingeben einer Formel auf einen Wert einer Pivot-Tabelle klicken, schreibt JeffCrunch diese Formel für Sie, damit sie auch nach dem Umordnen der Tabelle die richtige Zahl liest. Zum Ausschalten wählen Sie auf der Registerkarte **Pivot-Tabellenanalyse** die Option **Optionen** und deaktivieren das Kontrollkästchen zu GETPIVOTDATA.
 
 ## Was JeffCrunch mit einer Pivot-Tabelle macht
 
-Eine Pivot-Tabelle in einer Arbeitsmappe wird so angezeigt, wie sie gespeichert wurde. Wenn Sie nichts daran ändern, wird die Datei mit der Pivot-Tabelle genau so gespeichert, wie sie war. Wenn Sie sie aktualisieren oder ändern, berechnet JeffCrunch den Bericht neu, schreibt die neuen Zahlen in die Zellen und schreibt die Pivot-Tabelle zurück, sodass das Programm, das sie erstellt hat, sie ohne Beanstandung öffnet.
+Eine Pivot-Tabelle in einer Arbeitsmappe wird so angezeigt, wie sie gespeichert wurde. Wenn Sie daran nichts ändern, wird die Datei mit der Pivot-Tabelle genau so gespeichert, wie sie war. Wenn Sie sie aktualisieren oder ändern, berechnet JeffCrunch den Bericht neu, schreibt die neuen Zahlen in die Zellen und speichert die Pivot-Tabelle so, dass das Programm, das sie erstellt hat, sie ohne Fehlermeldung öffnet.
 
-JeffCrunch berechnet Pivot-Tabellen, die summieren, zählen, Mittelwerte bilden usw., die Datums- und Zahlenwerte gruppieren und die Werte als Anteil, Differenz oder laufende Summe anzeigen. Eine Pivot-Tabelle mit einem berechneten Feld oder Element, mit einem Wert als Rang oder als Anteil eines übergeordneten Elements, mit von Hand erstellten Elementgruppen oder mit einem Datenmodell wird so angezeigt und beibehalten, wie sie gespeichert wurde, und die Befehle teilen Ihnen mit, dass sie sie nicht ändern können.
+JeffCrunch berechnet Pivot-Tabellen, die addieren, zählen, Mittelwerte bilden und so weiter, die Datums- und Zahlenwerte gruppieren und die Werte als Anteil, als Differenz oder als laufende Summe anzeigen. Eine Pivot-Tabelle, die einen Wert als Rang oder als Anteil eines übergeordneten Elements anzeigt, von Hand erstellte Gruppen von Elementen enthält oder ein Datenmodell verwendet, wird so angezeigt und beibehalten, wie sie gespeichert wurde; die Befehle weisen darauf hin, dass sie sie nicht ändern können.
 
-Klicken Sie auf eine beliebige Zelle einer Pivot-Tabelle. Die Registerkarte **Pivot-Tabelle** wird angezeigt.
+Klicken Sie auf eine beliebige Zelle einer Pivot-Tabelle. Die Registerkarte **Pivot-Tabellenanalyse** erscheint.
 
 ## Aktualisieren
 
-**Aktualisieren** liest die Zellen, aus denen die Pivot-Tabelle erstellt wurde, und berechnet den Bericht neu. Neue Einträge folgen auf die vorhandenen; Einträge, die es nicht mehr gibt, werden entfernt. Spaltenbreiten und das gewählte Layout bleiben erhalten. **Alle aktualisieren** auf der Registerkarte **Daten** und auf der Registerkarte **Pivot-Tabelle** führt dasselbe für alle Pivot-Tabellen der Arbeitsmappe aus.
+**Aktualisieren** liest die Zellen, aus denen die Pivot-Tabelle erstellt wurde, und berechnet den Bericht neu. Neue Einträge werden nach den bereits vorhandenen eingefügt; Einträge, die nicht mehr existieren, werden entfernt. Spaltenbreiten und das gewählte Layout bleiben erhalten. **Alle aktualisieren** auf der Registerkarte **Daten** und auf der Registerkarte **Pivot-Tabellenanalyse** tut dasselbe für alle Pivot-Tabellen der Arbeitsmappe.
 
-Wenn der Bericht über Zellen hinauswachsen würde, die Inhalt haben, aktualisiert JeffCrunch nicht. Es teilt Ihnen mit, welche Zellen im Weg sind. Leeren Sie sie oder verschieben Sie die Pivot-Tabelle, und aktualisieren Sie erneut.
+Wenn der Bericht über Zellen wachsen würde, in denen etwas steht, aktualisiert JeffCrunch nicht. Es teilt Ihnen mit, welche Zellen im Weg sind. Leeren Sie diese Zellen oder verschieben Sie die Pivot-Tabelle, und aktualisieren Sie dann erneut.
 
 **Rückgängig** macht eine Aktualisierung in einem Schritt rückgängig.
 
 ## Datenquelle ändern
 
-**Datenquelle ändern** fragt nach den Zellen, in denen die Liste steht, einschließlich der ersten Zeile mit Namen. Geben Sie sie wie `Sheet1!A1:D100` ein, oder geben Sie den Namen einer Tabelle oder eines von Ihnen erstellten Namens ein. JeffCrunch liest sie und berechnet den Bericht neu. Wenn ein Feld der Liste in den neuen Zellen denselben Namen hat, bleibt seine Position im Bericht erhalten.
+**Datenquelle ändern** fragt nach den Zellen, in denen die Liste steht, einschließlich ihrer ersten Zeile mit Namen. Geben Sie sie wie `Tabelle1!A1:D100` ein, oder geben Sie den Namen einer Tabelle oder eines selbst definierten Namens ein. JeffCrunch liest sie und berechnet den Bericht neu. Hat ein Feld der Liste in den neuen Zellen denselben Namen, bleibt seine Position im Bericht erhalten.
 
 ## Löschen
 
-**Löschen** bietet zwei Möglichkeiten. **Filter löschen** entfernt alle Filter und zeigt wieder alle Einträge an. **Alle löschen** entfernt alle Felder aus dem Bericht und lässt ihn leer, bereit für einen Neuaufbau.
+**Löschen** bietet zwei Möglichkeiten. **Filter löschen** entfernt alle Filter und zeigt wieder alle Einträge an. **Alles löschen** nimmt alle Felder aus dem Bericht heraus und lässt ihn leer, bereit für einen neuen Aufbau.
 
 ## Details einblenden und ausblenden
 
 ## Berichtsfilterseiten
 
-Ein Filter steht über einer Pivot-Tabelle und lässt Sie jeweils ein Element betrachten, zum Beispiel einen Monat. **Berichtsfilterseiten anzeigen** auf der Registerkarte **Pivot-Tabelle** erstellt auf einmal eine Seite für jedes Element. Jede Seite ist ein neues Blatt, nach dem Element benannt, mit einer eigenen Kopie der Tabelle. Der Filter jeder Kopie ist auf dieses Element eingestellt. Wenn die Tabelle mehr als einen Filter hat, wählen Sie den aus, der verwendet werden soll. Ein einziges **Rückgängig** entfernt alle Seiten.
+Ein Filter steht über einer Pivot-Tabelle und lässt Sie jeweils ein Element betrachten, etwa einen Monat. **Berichtsfilterseiten anzeigen** auf der Registerkarte **Pivot-Tabellenanalyse** erstellt für jedes Element gleichzeitig eine Seite. Jede Seite ist ein neues Blatt, das nach dem Element benannt ist und eine eigene Kopie der Tabelle enthält. Der Filter jeder Kopie ist auf dieses Element eingestellt. Hat die Tabelle mehr als einen Filter, wählen Sie den zu verwendenden aus. Ein einziges **Rückgängig** entfernt alle Seiten.
 
-Wenn ein Bericht mehr als ein Feld in den Zeilen hat, kann ein Element des ersten Felds geöffnet oder geschlossen werden. Klicken Sie auf die Zelle mit dem Namen des Elements, und wählen Sie **Details ausblenden**, um es zu schließen: Die Zeilen des nächsten Felds darunter werden ausgeblendet, und nur seine Summe bleibt. **Details einblenden** öffnet es wieder. Ein Element des letzten Felds hat nichts darunter. Jede Aktion ist ein Schritt von **Rückgängig**.
+Wenn ein Bericht mehr als ein Feld in den Zeilen hat, lässt sich ein Element des ersten Feldes öffnen und schließen. Klicken Sie auf die Zelle mit dem Namen des Elements und wählen Sie **Details ausblenden**, um es zu schließen: Die Zeilen des nächsten Feldes darunter werden ausgeblendet, und nur seine Summe bleibt sichtbar. **Details einblenden** öffnet es wieder. Ein Element des letzten Feldes hat nichts darunter. Jeder Schritt ist ein **Rückgängig**.
 
 ## Auswählen und verschieben
 
-**Auswählen** auf der Registerkarte **Pivot-Tabelle** markiert einen Teil des Berichts: **Gesamte Pivot-Tabelle**, **Werte** (die Zahlen) oder **Beschriftungen** (die Namen an der Seite; wenn der Bericht keine an der Seite hat, die Namen oben). **Pivot-Tabelle verschieben…** fragt nach einer Zelle auf demselben Blatt und zeichnet den Bericht neu, sodass seine erste Zelle dort liegt. Die verlassenen Zellen werden geleert. Formeln, die auf Zellen des Berichts verweisen, folgen diesen, wie beim Ausschneiden und Einfügen. Wenn am neuen Ort bereits etwas steht, verschiebt JeffCrunch den Bericht nicht und teilt Ihnen dies mit. Ein **Rückgängig** verschiebt ihn zurück.
+**Auswählen** auf der Registerkarte **Pivot-Tabellenanalyse** wählt einen Teil des Berichts aus: **Gesamte Pivot-Tabelle**, **Werte** (die Zahlen) oder **Beschriftungen** (die Namen links; hat der Bericht links keine Namen, die Namen oben). **Pivot-Tabelle verschieben…** fragt nach einer Zelle auf demselben Blatt und zeichnet den Bericht mit seiner ersten Zelle dort neu. Die Zellen, die er verlässt, werden geleert. Formeln, die auf die Zellen des Berichts zeigen, folgen ihnen, so wie beim Ausschneiden und Einfügen. Steht am neuen Ort etwas, verschiebt JeffCrunch den Bericht nicht und teilt Ihnen dies mit. Ein **Rückgängig** verschiebt ihn zurück.
 
-## Der Feldbereich
+## Der Bereich Felder
 
-**Feldliste** auf der Registerkarte **Pivot-Tabelle** öffnet den Bereich **Pivot-Tabellen-Felder**. Er listet die Felder der Liste mit je einem Kontrollkästchen auf, darunter die vier Bereiche: **Filter**, **Spalten**, **Zeilen** und **Werte**.
+**Feldliste** auf der Registerkarte **Pivot-Tabellenanalyse** öffnet den Bereich **Pivot-Tabellenfelder**. Er listet die Felder der Liste mit einem Kontrollkästchen daneben auf, darunter die vier Bereiche: **Filter**, **Spalten**, **Zeilen** und **Werte**.
 
-- Aktivieren Sie ein Feld, um es hinzuzufügen. Ein Feld, das nur Zahlen enthält, kommt in **Werte** und wird summiert; jedes andere kommt in **Zeilen**.
+- Aktivieren Sie ein Feld, um es hinzuzufügen. Ein Feld, das nur Zahlen enthält, wird in **Werte** gesetzt und summiert; jedes andere kommt in **Zeilen**.
 - Deaktivieren Sie ein Feld, um es überall zu entfernen.
-- Klicken Sie auf ein Feld in einem der vier Bereiche, und wählen Sie **Verschieben nach**, um es in einen anderen zu legen. **Nach oben** und **Nach unten** ändern seine Reihenfolge im Bereich, und **Feld entfernen** entfernt es.
-- Bei mehr als einem Wert erscheint in **Spalten** eine Zeile namens **Werte**. Verschieben Sie sie nach **Zeilen**, um die Werte an der Seite anzuzeigen.
-- **Wertfeldeinstellungen** (Doppelklick auf einen Wert oder die Schaltfläche) legt den Namen fest, den der Bericht für den Wert anzeigt, und wie er zusammengefasst wird: **Summe**, **Anzahl**, **Anzahl Zahlen**, **Mittelwert**, **Max**, **Min**, **Produkt**, **Standardabw.** und **Standardabw. (Grundgesamtheit)** (die Standardabweichung einer Stichprobe bzw. aller Werte) sowie **Varianz** und **Varianz (Grundgesamtheit)** (die Varianz derselben). Außerdem legt es fest, wie der Wert angezeigt wird, und sein Zahlenformat. Siehe nächster Abschnitt.
-- **Feldeinstellungen** (Doppelklick auf ein Feld in „Filter“, „Spalten“ oder „Zeilen“ oder die Schaltfläche) legt die Einstellungen eines Felds fest. Siehe „Feldeinstellungen“.
+- Klicken Sie auf ein Feld in einem der vier Bereiche und wählen Sie **Verschieben nach**, um es in einen anderen zu setzen. Die Befehle **Nach oben verschieben** und **Nach unten verschieben** ändern seine Reihenfolge innerhalb des Bereichs, und **Feld entfernen** nimmt es heraus.
+- Bei mehr als einem Wert erscheint in **Spalten** eine Zeile mit der Bezeichnung **Werte**. Verschieben Sie sie nach **Zeilen**, um die Werte links untereinander anzuordnen.
+- **Wertfeldeinstellungen** (ein Doppelklick auf einen Wert oder die Schaltfläche) legt den Namen fest, den der Bericht für den Wert anzeigt, und wie er berechnet wird: **Summe**, **Anzahl**, **Anzahl (Zahlen)**, **Mittelwert**, **Max**, **Min**, **Produkt**, **StdAbw** und **StdAbwN** (die Standardabweichung einer Stichprobe bzw. aller Werte) sowie **Varianz** und **VarianzN** (die Varianz derselben). Außerdem legt sie fest, wie der Wert angezeigt wird, und sein Zahlenformat. Siehe den nächsten Abschnitt.
+- **Feldeinstellungen** (ein Doppelklick auf ein Feld in Filter, Spalten oder Zeilen oder die Schaltfläche) legt ein einzelnes Feld fest. Siehe „Feldeinstellungen“.
 
 Jede Änderung ist ein Schritt von **Rückgängig**.
 
 ## Werte anzeigen als und das Zahlenformat eines Werts
 
-In den **Wertfeldeinstellungen** ändert **Werte anzeigen als**, was eine Zelle des Berichts anzeigt.
+In **Wertfeldeinstellungen** ändert **Werte anzeigen als**, was eine Zelle des Berichts anzeigt.
 
-- **% des Gesamtergebnisses**: die Zelle geteilt durch die Summe des gesamten Berichts. Im Beispiel sind Ost im Januar 15 von 49, das sind 30,6 %.
-- **% des Spaltenergebnisses** und **% des Zeilenergebnisses**: die Zelle geteilt durch die Summe ihrer Spalte bzw. ihrer Zeile.
-- **Index**: wie die Zelle im Vergleich zu dem steht, was ihre Zeile und Spalte bei gleichmäßiger Verteilung der Daten ergäben. Eine Zahl über 1 bedeutet mehr als den gleichmäßigen Anteil.
-- **Differenz von**, **% von** und **% Differenz von**: die Zelle im Vergleich zu einem anderen Element eines Felds. Wählen Sie das **Basisfeld** (ein Feld in Zeilen oder Spalten) und das **Basiselement** (eines seiner Elemente oder das vorherige bzw. nächste). Wenn zum Beispiel Monat das Basisfeld und Jan das Basiselement ist, zeigt Februar, um wie viel er über oder unter dem Januar liegt. Das Basiselement selbst bleibt bei einer Differenz leer und beträgt bei **% von** 100 %.
-- **Laufende Summe in**: Jede Zelle addiert die vorherigen Zellen entlang des Basisfelds.
-- **Rang vom Kleinsten zum Größten** und **Rang vom Größten zum Kleinsten**: Jede Zelle zeigt ihren Platz, 1, 2, 3 usw., unter den Zellen des Basisfelds in derselben Zeile oder Spalte. Rang 1 ist die kleinste bzw. die größte Zahl.
-- **% des übergeordneten Zeilenergebnisses** und **% des übergeordneten Spaltenergebnisses**: Jede Zelle zeigt, welchen Anteil sie an ihrem übergeordneten Element hat. Das übergeordnete Element eines Elements ist das Element eine Ebene höher, etwa das Jahr, das einen Monat enthält. Ein Element ohne übergeordnetes Element wird als Teil des Gesamtergebnisses angezeigt.
+- **% der Gesamtsumme**: die Zelle geteilt durch die Summe des gesamten Berichts. Im Beispiel ist Ost im Januar 15 von 49, also 30,6 %.
+- **% der Spaltensumme** und **% der Zeilensumme**: die Zelle geteilt durch die Summe ihrer Spalte bzw. ihrer Zeile.
+- **Index**: wie die Zelle im Vergleich zu dem Wert steht, den ihre Zeile und Spalte bei gleichmäßiger Verteilung der Daten ergeben würden. Eine Zahl über 1 bedeutet mehr als der gleichmäßige Anteil.
+- **Differenz von**, **% von** und **% Differenz von**: die Zelle im Vergleich zu einem anderen Element eines Feldes. Wählen Sie das **Basisfeld** (ein Feld in Zeilen oder Spalten) und das **Basiselement** (eines seiner Elemente oder das davor oder danach). Wenn Sie zum Beispiel Monat als Basisfeld und Jan als Basiselement wählen, zeigt Februar, um wie viel er höher oder niedriger als Januar ist. Das Basiselement selbst bleibt bei einer Differenz leer und ist bei **% von** 100 %.
+- **Laufende Summe in**: jede Zelle addiert die Zellen davor entlang des Basisfeldes.
+- **Rang vom Kleinsten zum Größten** und **Rang vom Größten zum Kleinsten**: jede Zelle zeigt ihren Platz, 1, 2, 3 und so weiter, unter den Zellen des Basisfeldes in derselben Zeile oder Spalte. Rang 1 ist die kleinste bzw. größte Zahl.
+- **% der übergeordneten Zeilensumme** und **% der übergeordneten Spaltensumme**: jede Zelle zeigt, welchen Anteil sie an ihrem übergeordneten Element hat. Das übergeordnete Element eines Elements ist das Element eine Ebene darüber, etwa das Jahr, das einen Monat enthält. Ein Element ohne übergeordnetes Element wird als Anteil am Gesamtergebnis angezeigt.
 
-**Zahlenformat** nimmt einen Formatcode wie `0.00`, `#,##0` oder `0.0%` entgegen. Lassen Sie das Feld leer, um das Format der Zellen beizubehalten. Ein als Anteil angezeigter Wert erhält `0.00%`, sofern Sie kein Format wählen. Die Zellen des Berichts übernehmen das Format sofort. **Rückgängig** macht es zusammen mit den Zahlen rückgängig.
+**Zahlenformat** nimmt einen Formatcode, etwa `0,00`, `#.##0` oder `0,0%`. Lassen Sie das Feld leer, um das Format der Zellen beizubehalten. Ein als Anteil angezeigter Wert erhält `0,00%`, wenn Sie kein Format wählen. Die Zellen des Berichts übernehmen das Format sofort. **Rückgängig** nimmt es zusammen mit den Zahlen zurück.
 
 ## Feldeinstellungen
 
-Wählen Sie ein Feld im Feld **Filter**, **Spalten** oder **Zeilen** aus, und wählen Sie auf der Registerkarte **Pivot-Tabelle** die Option **Feldeinstellungen** (oder doppelklicken Sie darauf).
+Markieren Sie ein Feld im Bereich **Filter**, **Spalten** oder **Zeilen** und wählen Sie auf der Registerkarte **Pivot-Tabellenanalyse** **Feldeinstellungen** (oder doppelklicken Sie darauf).
 
 - **Benutzerdefinierter Name** ändert den Namen, den der Bericht für das Feld anzeigt.
-- **Teilergebnisse**: **Automatisch** zeigt eine Summe für jede Gruppe des Felds, **Ohne** nicht.
-- **Elementbeschriftungen anzeigen in**: kompakte Form, Gliederungsform oder tabellarische Form, wie bei „Berichtslayout“.
-- **Nach jedem Element eine Leerzeile einfügen** fügt nach jeder Gruppe eine leere Zeile ein.
-- **Elementbeschriftungen wiederholen** zeigt den Namen eines äußeren Elements in jeder Zeile seiner Gruppe (Gliederungs- und tabellarische Form).
-- **Sortieren**: die Reihenfolge der Elemente beibehalten (manuell) oder nach den Beschriftungen von A bis Z bzw. Z bis A sortieren. **Kleinster bis größter nach einem Wert** und **Größter bis kleinster nach einem Wert** sortieren die Elemente nach den Zahlen eines Wertfelds. Der Bericht behält die Sortierung bei, wenn sich die Daten ändern.
-- **Filter** schließt Elemente nach ihren Beschriftungen aus (beginnt mit, endet mit, enthält, ist gleich) oder nach einem Wert (größer als, kleiner als, zwischen usw.) oder behält nur die obersten oder untersten Elemente nach einem Wert. Der Filter wird berechnet, wenn Sie auf „OK“ klicken. Er blendet die ausgeschlossenen Elemente aus; die Kontrollkästchen darunter zeigen, welche, und Sie können ein Element aktivieren, um es wieder anzuzeigen.
-- **Diese Elemente anzeigen** ist eine Liste der Elemente des Felds mit je einem Kontrollkästchen. Deaktivieren Sie ein Kontrollkästchen, um das Element auszublenden, und die Summen lassen es aus.
+- **Teilergebnisse**: **Automatisch** zeigt eine Summe für jede Gruppe des Feldes, **Keine** zeigt keine.
+- **Elementbeschriftungen anzeigen in**: kompakte, gegliederte oder tabellarische Form, wie unter Berichtslayout.
+- **Nach jedem Element eine Leerzeile einfügen** setzt nach jeder Gruppe eine leere Zeile.
+- **Elementbeschriftungen wiederholen** zeigt den Namen eines äußeren Elements in jeder Zeile seiner Gruppe (gegliederte und tabellarische Form).
+- **Sortieren**: die Reihenfolge der Elemente beibehalten (manuell) oder nach den Beschriftungen von A bis Z bzw. von Z bis A sortieren. **Vom kleinsten zum größten nach einem Wert** und **Vom größten zum kleinsten nach einem Wert** sortieren die Elemente nach den Zahlen eines Wertfeldes. Der Bericht behält die Sortierung bei, wenn sich die Daten ändern.
+- **Filter** blendet Elemente anhand ihrer Beschriftungen aus (beginnt mit, endet mit, enthält, ist gleich) oder anhand eines Wertes (größer als, kleiner als, zwischen und so weiter) oder zeigt nur die obersten oder untersten Elemente nach einem Wert an. Der Filter wird beim Klick auf OK berechnet. Er blendet die ausgelassenen Elemente aus; die Kontrollkästchen darunter zeigen, welche das sind, und Sie können ein Element durch Aktivieren wieder einblenden.
+- **Diese Elemente anzeigen** ist eine Liste der Elemente des Feldes mit je einem Kontrollkästchen. Deaktivieren Sie ein Kästchen, um das Element auszublenden; die Summen lassen es dann aus.
 
 ## Datums- und Zahlenwerte gruppieren
 
-Wählen Sie ein Feld mit Datums- oder Zahlenwerten in **Zeilen** oder **Spalten** aus, und wählen Sie auf der Registerkarte **Pivot-Tabelle** die Option **Feld gruppieren**. Gruppen werden aus den Daten gebildet; die Daten dürfen in dieser Spalte also nur Zahlen oder Datumswerte enthalten, keinen Text und keine leeren Zellen.
+Markieren Sie ein Feld mit Datums- oder Zahlenwerten in **Zeilen** oder **Spalten** und wählen Sie auf der Registerkarte **Pivot-Tabellenanalyse** die Option **Feld gruppieren**. Gruppen werden aus den Daten gebildet, daher dürfen in dieser Spalte nur Zahlen oder Datumswerte stehen, ohne Text und ohne leere Zellen.
 
-- **Datum**: Aktivieren Sie, wonach gruppiert werden soll: **Sekunden**, **Minuten**, **Stunden**, **Tage**, **Monate**, **Quartale** oder **Jahre**. Der feinste aktivierte Teil bleibt am Feld. Für jeden gröberen Teil fügt JeffCrunch ein nach ihm benanntes Feld hinzu (zum Beispiel **Jahre**) und setzt es im selben Bereich vor das Datumsfeld. **Beginnend bei** und **Endet bei** sind das erste und das letzte Datum; belassen Sie sie unverändert, um das kleinste und das größte Datum der Daten zu verwenden. Datumswerte vor dem Beginn oder nach dem Ende kommen in zwei zusätzliche Gruppen, die mit `<` und `>` beginnen.
-- **Zahlen**: **Beginnend bei**, **Endet bei** und **Nach** bilden Gruppen wie 1-10, 11-20 usw.
+- **Datumswerte**: Aktivieren Sie, wonach gruppiert werden soll: **Sekunden**, **Minuten**, **Stunden**, **Tage**, **Monate**, **Quartale** oder **Jahre**. Der feinste aktivierte Teil bleibt im Feld. Für jeden gröberen Teil fügt JeffCrunch ein nach ihm benanntes Feld hinzu (zum Beispiel **Jahre**) und setzt es vor das Datumsfeld an dieselbe Stelle. **Beginnt bei** und **Endet bei** sind das erste und das letzte Datum; lassen Sie sie unverändert, um das früheste und späteste Datum der Daten zu verwenden. Datumswerte vor dem Anfang oder nach dem Ende kommen in zwei zusätzliche Gruppen, die mit `<` bzw. `>` beginnen.
+- **Zahlen**: **Beginnt bei**, **Endet bei** und **Schrittweite** bilden Gruppen wie 1–10, 11–20 und so weiter.
 
-**Gruppierung aufheben** entfernt die Gruppen und die dafür hinzugefügten Felder. Beim Aktualisieren werden die Gruppen aus den neuen Daten erneut gebildet. Wenn zwei Pivot-Tabellen aus denselben Daten erstellt wurden, können keine Gruppen gebildet werden, da eine Gruppe ein Teil der gemeinsam genutzten Daten ist.
+**Gruppierung aufheben** entfernt die Gruppen und die Felder, die für sie hinzugefügt wurden. Beim Aktualisieren werden die Gruppen aus den neuen Daten neu gebildet. Werden zwei Pivot-Tabellen aus denselben Daten erstellt, können keine Gruppen gebildet werden, weil eine Gruppe ein Teil der gemeinsamen Daten ist.
 
 ## Berechnete Felder
 
-Ein berechnetes Feld ist ein Feld, das Sie aus einer Formel erstellen. Es verwendet andere Felder der Liste. Ein Bonus von einem Zehntel des Betrags ist zum Beispiel `=Betrag*0.1`.
+Ein berechnetes Feld ist ein Feld, das Sie aus einer Formel erstellen. Es verwendet andere Felder der Liste. Ein Bonus von einem Zehntel des Betrags ist zum Beispiel `=Betrag*0,1`.
 
-Wählen Sie auf der Registerkarte **Pivot-Tabelle** die Option **Berechnetes Feld**. Geben Sie einen Namen und eine Formel ein. Schreiben Sie den Namen eines Felds in die Formel, oder doppelklicken Sie in der Liste **Felder** darauf, um ihn dort einzufügen. Setzen Sie einen Namen mit Leerzeichen in einfache Anführungszeichen, wie in `='Stückpreis'*Menge`. Sie können Zahlen, `+ - * / ^ %`, Vergleiche und einige Funktionen wie `IF`, `ROUND`, `SUM`, `MIN`, `MAX`, `AVERAGE` und `ABS` verwenden.
+Wählen Sie auf der Registerkarte **Pivot-Tabellenanalyse** die Option **Berechnetes Feld**. Geben Sie einen Namen und eine Formel ein. Schreiben Sie den Namen eines Feldes in die Formel oder doppelklicken Sie ihn in der Liste **Felder**, um ihn dorthin zu setzen. Einen Namen mit Leerzeichen setzen Sie in einfache Anführungszeichen, wie in `='Stückpreis'*Menge`. Sie können Zahlen, `+ - * / ^ %`, Vergleiche und einige Funktionen wie `WENN`, `RUNDEN`, `SUMME`, `MIN`, `MAX`, `MITTELWERT` und `ABS` verwenden.
 
-Wählen Sie **Hinzufügen**. Das neue Feld wird in den Bereich **Werte** gelegt. Es erscheint auch in der Feldliste, wo Sie es wie jedes andere Feld aktivieren oder deaktivieren können. Es kann nicht in Zeilen, Spalten oder Filter gelegt werden.
+Wählen Sie **Hinzufügen**. Das neue Feld wird in den Bereich **Werte** gesetzt. Es erscheint auch in der Feldliste, wo Sie es wie jedes andere Feld aktivieren oder deaktivieren können. Es kann nicht in Zeilen, Spalten oder Filter gesetzt werden.
 
-Ein berechnetes Feld wird in jeder Zelle des Berichts berechnet. Der Name eines Felds steht für die Summe dieses Felds in der Zelle; `=Betrag*Betrag` quadriert also die Summe der Zelle. Es quadriert nicht jede Zeile und addiert sie dann. Ein Gesamtergebnis verwendet die Summen der gesamten Liste.
+Ein berechnetes Feld wird in jeder Zelle des Berichts berechnet. Der Name eines Feldes steht für die Summe dieses Feldes in der Zelle, daher quadriert `=Betrag*Betrag` die Summe der Zelle. Es quadriert nicht jede Zeile und addiert dann. Ein Gesamtergebnis verwendet die Summen der gesamten Liste.
 
-**Formeln auflisten** (neben **Berechnetes Feld**) erstellt ein neues Blatt, das jedes berechnete Feld und seine Formel nennt. **Rückgängig** entfernt die Zellen, und ein weiteres **Rückgängig** entfernt das Blatt.
+**Listenformeln** (neben **Berechnetes Feld**) erstellt ein neues Blatt, auf dem jedes berechnete Feld mit seiner Formel sowie jedes berechnete Element mit seiner Formel, seinem Feld und seiner Berechnungsreihenfolge aufgeführt wird. **Rückgängig** entfernt die Zellen, und ein weiteres **Rückgängig** entfernt das Blatt.
 
-Um ein Feld zu ändern, wählen Sie seinen Namen im Feld **Name** aus. Seine Formel wird angezeigt. Ändern Sie sie, und wählen Sie **Ändern**. **Löschen** entfernt das Feld und seinen Wert. Jede Aktion ist ein Schritt von **Rückgängig**. Ein berechnetes Feld wird mit der Datei gespeichert und beim Aktualisieren des Berichts beibehalten. Zwei aus denselben Daten erstellte Pivot-Tabellen können kein solches Feld haben, da ein berechnetes Feld ein Teil der gemeinsam genutzten Daten ist.
+Um ein Feld zu ändern, wählen Sie seinen Namen im Feld **Name**. Seine Formel wird angezeigt. Ändern Sie sie und wählen Sie **Ändern**. **Löschen** entfernt das Feld und seinen Wert. Jeder Schritt ist ein Schritt von **Rückgängig**. Ein berechnetes Feld wird mit der Datei gespeichert und bleibt bei einer Aktualisierung des Berichts erhalten. Zwei Pivot-Tabellen aus denselben Daten können keines haben, weil ein berechnetes Feld ein Teil der gemeinsamen Daten ist.
+
+## Berechnete Elemente
+
+Ein berechnetes Element ist ein Element, das Sie aus anderen Elementen desselben Feldes bilden. Das Feld Region hat zum Beispiel die Elemente Ost und West. Ein neues Element mit dem Namen Beide kann `=Ost+West` sein.
+
+Klicken Sie in der Pivot-Tabelle auf eine Zelle und wählen Sie auf der Registerkarte **Pivot-Tabellenanalyse** die Option **Berechnetes Element**. Wählen Sie das **Feld** aus. Es muss in den Zeilen oder Spalten stehen. Geben Sie einen **Namen** und eine **Formel** ein. Schreiben Sie den Namen eines Elements in die Formel oder doppelklicken Sie ihn in der Liste **Elemente**, um ihn dorthin zu setzen. Einen Namen mit Leerzeichen setzen Sie in einfache Anführungszeichen, wie in `='Großer Ost'+West`. Sie können Zahlen, `+ - * / ^ %` und Klammern verwenden.
+
+Das neue Element erhält eine Zeile im Bericht. In jeder Spalte zeigt es die Formel, berechnet aus den Zeilen der Elemente, die es nennt. Das neue Element zählt in die Summen mit. Eine Summe, etwa ein Gesamtergebnis oder ein Teilergebnis, addiert die Zeile des neuen Elements zu den Zeilen der anderen Elemente. Bei Ost mit 35, West mit 14 und Beide (Ost plus West) mit 49 ist das Gesamtergebnis also 98. Ist ein Element, das die Formel nennt, ausgeblendet, zeigt die Zelle **#BEZUG!**. Nennt die Formel ein Element, das nicht vorhanden ist, zeigt die Zelle **#NAME?**.
+
+Um ein Element zu ändern, wählen Sie seinen Namen im Feld **Name**. Seine Formel wird angezeigt. Ändern Sie sie und wählen Sie **Ändern**. **Löschen** entfernt das Element und seine Zeile. Jeder Schritt ist ein Schritt von **Rückgängig**. Ein berechnetes Element wird mit der Datei gespeichert und bleibt bei einer Aktualisierung des Berichts erhalten. Zwei Pivot-Tabellen aus denselben Daten können keines haben, weil ein berechnetes Element ein Teil der gemeinsamen Daten ist.
+
+### Berechnungsreihenfolge
+
+Manchmal hat eine Zelle zwei berechnete Elemente. Eines steht in ihrer Zeile, das andere in ihrer Spalte. Die Reihenfolge, in der sie berechnet werden, kann das Ergebnis verändern. Angenommen, das Zeilenelement ist `=Ost-West` und das Spaltenelement ist `=Jan+1`. Berechnet in einer Reihenfolge, ist die Zelle (Ost - West) + 1. In der anderen Reihenfolge ist sie (Ost + 1) - (West + 1), was eine andere Zahl ergibt.
+
+**Berechnungsreihenfolge** auf der Registerkarte **Pivot-Tabellenanalyse** listet die berechneten Elemente in der Reihenfolge auf, in der sie berechnet werden. Das weiter unten stehende Element wird zuletzt berechnet. Wählen Sie ein Element und klicken Sie auf **Nach oben verschieben** oder **Nach unten verschieben**. Die Reihenfolge wird als Reihenfolge der Elemente mit der Datei gespeichert, und andere Programme lesen sie genauso. **Listenformeln** zeigt die Stelle jedes Elements darin.
 
 ## Die Zeilen hinter einem Wert anzeigen
 
-Doppelklicken Sie auf einen Wert einer Pivot-Tabelle, oder wählen Sie auf der Registerkarte **Pivot-Tabelle** die Option **Details anzeigen**. JeffCrunch erstellt ein neues Blatt, benannt Detail 1, 2 usw., mit den Zeilen der Liste, aus denen sich die Zahl ergibt. Die Namen der Felder stehen in der ersten Zeile. Mit F2 bearbeiten Sie die Zelle weiterhin, sofern sie bearbeitet werden kann. **Rückgängig** entfernt die Zeilen, und ein weiteres **Rückgängig** entfernt das Blatt.
+Doppelklicken Sie auf einen Wert der Pivot-Tabelle oder wählen Sie auf der Registerkarte **Pivot-Tabellenanalyse** die Option **Details anzeigen**. JeffCrunch erstellt ein neues Blatt mit dem Namen Detail 1, Detail 2 und so weiter, mit den Zeilen der Liste, aus denen die Zahl besteht. Die Feldnamen stehen in der ersten Zeile. F2 bearbeitet die Zelle weiterhin, wenn sie bearbeitet werden kann. **Rückgängig** entfernt die Zeilen, und ein weiteres **Rückgängig** entfernt das Blatt.
 
 ## Erweitern und reduzieren
 
-Ein Feld, dessen Elemente weitere Elemente unter sich haben, kann die Zeilen unter seinen Elementen anzeigen oder ausblenden. **Gesamtes Feld erweitern** und **Gesamtes Feld reduzieren** wirken auf jedes Element des im Bereich ausgewählten Felds.
+Ein Feld, dessen Elemente weitere Elemente darunter haben, kann die Zeilen unter seinen Elementen ein- oder ausblenden. **Gesamtes Feld erweitern** und **Gesamtes Feld reduzieren** tun dies für jedes Element des Feldes, das Sie im Bereich ausgewählt haben.
 
 ## Pivot-Tabellen-Optionen
 
-**Optionen** auf der Registerkarte **Pivot-Tabelle** öffnet ein Feld mit den Einstellungen der Tabelle.
+**Optionen** auf der Registerkarte **Pivot-Tabellenanalyse** öffnet ein Feld mit den Einstellungen der Tabelle.
 
-- **Name** ist der Name der Pivot-Tabelle. Keine andere Pivot-Tabelle der Arbeitsmappe darf ihn haben.
+- **Name** ist der Name der Pivot-Tabelle. Keine andere Pivot-Tabelle der Arbeitsmappe darf ihn tragen.
 - **Für Fehlerwerte anzeigen** und **Für leere Zellen anzeigen** setzen einen eigenen Text in diese Zellen.
-- **Zellen mit Beschriftungen verbinden und zentrieren**, **Spaltenbreiten beim Aktualisieren der Tabelle anpassen** und **Zellenformatierung beim Aktualisieren der Tabelle beibehalten** werden mit der Tabelle gespeichert.
-- **Gesamtergebnisse für Zeilen anzeigen** und **für Spalten** entsprechen den Optionen unter „Gesamtergebnisse“.
-- **Daten beim Öffnen der Datei aktualisieren** liest die Zellen bei jedem Öffnen der Arbeitsmappe erneut. Wie jede Aktualisierung ist es ein Schritt von „Rückgängig“.
+- **Zellen mit Beschriftungen verbinden und zentrieren**, **Spaltenbreiten beim Aktualisieren der Tabelle anpassen** und **Formatierung der Zellen beim Aktualisieren der Tabelle beibehalten** werden mit der Tabelle gespeichert.
+- **Gesamtergebnisse für Zeilen anzeigen** und **für Spalten anzeigen** entsprechen den Optionen für Gesamtergebnisse.
+- **Daten beim Öffnen der Datei aktualisieren** liest die Zellen bei jedem Öffnen der Arbeitsmappe erneut. Es ist ein Schritt von „Rückgängig“, wie jede Aktualisierung.
 
-## Formatvorlage: Kopfzeilen, Bänder und der Katalog
+## Formatvorlagen: Kopfzeilen, Bänder und Katalog
 
-Die **Formatvorlagenoptionen** auf der Registerkarte **Pivot-Tabelle** schalten die Kopfzeile, die erste Spalte (Zeilenüberschriften) und die Bänder von Zeilen und Spalten ein oder aus. **Formatvorlagen** enthält einen Katalog mit Darstellungen, und **Format löschen** entfernt die Darstellung. Diese Darstellungen werden auf dieselbe Weise gezeichnet wie die von Tabellen. **Leere Zeilen** und **Beschriftungen wiederholen** legen die Leerzeile und die wiederholten Beschriftungen für alle Felder der Zeilen gleichzeitig fest.
+Die **Formatvorlagenoptionen** auf der Registerkarte **Pivot-Tabellenanalyse** schalten die Kopfzeile, die erste Spalte (Zeilenüberschriften) sowie die Bänder der Zeilen und Spalten ein oder aus. **Formatvorlagen** bietet einen Katalog mit Looks, und **Formatvorlage löschen** nimmt den Look weg. Diese Looks werden genauso gezeichnet wie die Looks von Tabellen. **Leere Zeilen** und **Beschriftungen wiederholen** legen die leere Zeile und die wiederholten Beschriftungen für alle Felder der Zeilen gleichzeitig fest.
 
-## Entwurf: Teilergebnisse, Gesamtergebnisse und Layout
+## Gestaltung: Teilergebnisse, Gesamtergebnisse und Layout
 
-- **Teilergebnisse** zeigt oder verbirgt die Summe jeder Gruppe, am Anfang oder am Ende der Gruppe. Wenn in „Zeilen“ mehr als ein Feld steht, ist die Summe jedes äußeren Felds ein Teilergebnis.
-- **Gesamtergebnisse** bietet vier Möglichkeiten: aus für Zeilen und Spalten, ein für beide, ein nur für Zeilen (eine Spalte mit Summen rechts, eine für jede Zeile) und ein nur für Spalten (eine Zeile mit Summen unten).
-- **Berichtslayout** ist die Form der Beschriftungen. In der **kompakten** Form teilen sich alle Felder der Zeilen eine Spalte, und eine neue Gruppe wird etwas nach rechts versetzt angezeigt. In der **Gliederungsform** hat jedes Feld eine eigene Spalte, und jede Gruppe hat über ihren Elementen eine eigene Zeile. In der **tabellarischen** Form hat jedes Feld eine eigene Spalte, der Name der Gruppe steht in ihrer ersten Zeile, und das Teilergebnis steht unter der Gruppe.
+- **Teilergebnisse** blendet die Summe jeder Gruppe ein oder aus, oben oder unten in der Gruppe. Hat Zeilen mehr als ein Feld, ist die Summe jedes äußeren Feldes ein Teilergebnis.
+- **Gesamtergebnisse** hat vier Möglichkeiten: aus für Zeilen und Spalten, ein für beide, nur für Zeilen (eine Spalte mit Summen rechts, eine für jede Zeile) und nur für Spalten (eine Zeile mit Summen unten).
+- **Berichtslayout** bestimmt die Form der Beschriftungen. In **kompakter** Form teilen sich alle Felder der Zeilen eine Spalte, und eine neue Gruppe wird etwas weiter rechts angezeigt. In **gegliederter** Form hat jedes Feld seine eigene Spalte, und jede Gruppe hat eine eigene Zeile über ihren Elementen. In **tabellarischer** Form hat jedes Feld seine eigene Spalte, und der Name der Gruppe steht in ihrer ersten Zeile, mit dem Teilergebnis unter der Gruppe.
 
 ## Dieselbe Liste, ein Filter
 
-Verschieben Sie **Monat** von **Spalten** nach **Filter**. Der Bericht verliert seine Spalten, und eine Zeile darüber zeigt **Monat** und **(Alle)**. Die Zahlen sind jetzt die Summe jeder Region über alle Monate.
+Verschieben Sie **Monat** aus **Spalten** nach **Filter**. Der Bericht verliert seine Spalten, und über ihm erscheint eine Zeile mit **Monat** und **(Alle)**. Die Zahlen sind nun die Summen jeder Region über alle Monate.
 
 ## Pivot-Diagramm
 
-Klicken Sie auf eine Zelle in einer Pivot-Tabelle, und wählen Sie **Einfügen** und dann **Pivot-Diagramm**. JeffCrunch erstellt ein Säulendiagramm der Werte der Tabelle. Die Gesamtergebnisse lässt es aus. Das Diagramm ist in der Datei als Diagramm der Pivot-Tabelle gekennzeichnet. Es liest die Zellen der Tabelle, seine Zahlen ändern sich also, wenn Sie die Tabelle aktualisieren oder ihr Layout ändern. Wenn die Tabelle mehr Zeilen oder Spalten erhält, erstellen Sie das Diagramm neu, da das Diagramm die Zellen beibehält, aus denen es erstellt wurde. Ein Pivot-Diagramm aus einer Datei wird so angezeigt, wie es gespeichert wurde.
+Klicken Sie in einer Pivot-Tabelle auf eine Zelle und wählen Sie **Einfügen** und dann **Pivot-Diagramm**. JeffCrunch erstellt ein Säulendiagramm aus den Werten der Tabelle. Es lässt die Gesamtergebnisse weg. Das Diagramm wird in der Datei als Diagramm der Pivot-Tabelle gekennzeichnet. Es liest die Zellen der Tabelle, daher ändern sich seine Zahlen, wenn Sie die Tabelle aktualisieren oder ihr Layout ändern. Wenn die Tabelle mehr Zeilen oder Spalten bekommt, erstellen Sie das Diagramm neu, da es die Zellen behält, aus denen es erstellt wurde. Ein Pivot-Diagramm aus einer Datei wird so angezeigt, wie es gespeichert wurde.
 
 ## Datenschnitte und Zeitachsen
 
 Ein Datenschnitt ist eine Gruppe von Schaltflächen, die eine Pivot-Tabelle filtert, und eine Zeitachse ist ein Schieberegler, der dasselbe für Datumswerte tut.
 
-Klicken Sie auf eine Zelle in einer Pivot-Tabelle, und klicken Sie dann auf der Registerkarte „Pivot-Tabelle“ auf **Datenschnitte**. Der Bereich „Datenschnitte“ wird geöffnet und listet die Datenschnitte und Zeitachsen der Arbeitsmappe auf. Ein Datenschnitt hat für jedes Element seines Felds eine Schaltfläche. Die blauen Schaltflächen sind die Elemente, die die Tabelle anzeigt.
+Klicken Sie in einer Pivot-Tabelle auf eine Zelle und dann auf der Registerkarte Pivot-Tabellenanalyse auf **Datenschnitte**. Der Bereich Datenschnitte öffnet sich und listet die Datenschnitte und Zeitachsen der Arbeitsmappe auf. Ein Datenschnitt hat eine Schaltfläche für jedes Element seines Feldes. Die blauen Schaltflächen sind die Elemente, die die Tabelle anzeigt.
 
-Klicken Sie auf eine Schaltfläche, um nur dieses Element anzuzeigen. Klicken Sie erneut darauf, um alle Elemente anzuzeigen. Halten Sie **Strg** gedrückt, und klicken Sie, um ein Element zu den angezeigten hinzuzufügen oder eines zu entfernen. Jeder Klick ist ein Schritt von „Rückgängig“, und „Rückgängig“ stellt die Tabelle wieder her. Beim Speichern behält die Datei die Auswahl des Datenschnitts bei.
+Klicken Sie auf eine Schaltfläche, um nur dieses Element anzuzeigen. Klicken Sie erneut darauf, um alle Elemente anzuzeigen. Halten Sie **Strg** gedrückt und klicken Sie, um ein Element zu den angezeigten hinzuzufügen oder eines zu entfernen. Jeder Klick ist ein Schritt von „Rückgängig“, und „Rückgängig“ stellt die Tabelle wieder her. Beim Speichern behält die Datei die Auswahl des Datenschnitts bei.
 
-**Berichtsverbindungen** gibt an, welche Pivot-Tabellen ein Datenschnitt filtert. Eine Zeitachse zeigt den von ihr gewählten Datumsbereich. JeffCrunch zeigt die Datenschnitte in diesem Bereich an, nicht über den Zellen, und ändert eine Zeitachse noch nicht. Beide werden in der Datei so beibehalten, wie sie gespeichert wurden.
+**Berichtsverbindungen** zeigt, welche Pivot-Tabellen ein Datenschnitt filtert. Eine Zeitachse zeigt den Zeitraum, den sie gewählt hat. JeffCrunch zeigt die Datenschnitte in diesem Bereich an, nicht über den Zellen, und ändert eine Zeitachse derzeit noch nicht. Beides wird so in der Datei behalten, wie es gespeichert wurde.
 
 ## Grenzen
 
-Eine Pivot-Tabelle kann bis zu 2.000 Felder haben, eine Liste bis zu fünf Millionen Zeilen und ein Bericht bis zu vier Millionen Zellen. Eine Datei, die darüber hinausgeht, wird so angezeigt, wie sie gespeichert wurde, und kann nicht geändert werden. Das erneute Lesen von hunderttausend Zeilen mit zwanzig Spalten und die Berechnung des Berichts dauerten auf dem Computer, auf dem dies gemessen wurde, etwa eine halbe Sekunde; ein langsamerer Computer benötigt länger.
+Eine Pivot-Tabelle kann bis zu 2.000 Felder haben, eine Liste mit bis zu fünf Millionen Zeilen und einen Bericht mit bis zu vier Millionen Zellen. Eine Datei, die diese Grenzen überschreitet, wird so angezeigt, wie sie gespeichert wurde, und kann nicht geändert werden. Das erneute Lesen von hunderttausend Zeilen mit zwanzig Spalten und das Berechnen des Berichts dauerten auf dem Computer, mit dem dies gemessen wurde, etwa eine halbe Sekunde; auf einem langsameren Computer dauert es länger.

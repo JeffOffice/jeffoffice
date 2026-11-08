@@ -15,7 +15,7 @@
 <context>
     <name>Dialogs</name>
     <message numerus="yes">
-        <location filename="../../apps/pub/app/dialogs.cpp" line="+1876"/>
+        <location filename="../../apps/pub/app/dialogs.cpp" line="+1878"/>
         <source>Added %n page(s) for the rest of the text.</source>
         <translation>
             <numerusform>Added %n page for the rest of the text.</numerusform>
@@ -26,7 +26,7 @@
 <context>
     <name>Export</name>
     <message numerus="yes">
-        <location filename="../../apps/pub/io/pubexport.cpp" line="+2337"/>
+        <location filename="../../apps/pub/io/pubexport.cpp" line="+2343"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation>
             <numerusform>%n object couldn&apos;t be saved to .pub</numerusform>
@@ -61,7 +61,7 @@
 <context>
     <name>Import</name>
     <message numerus="yes">
-        <location filename="../../apps/pub/io/importers.cpp" line="+494"/>
+        <location filename="../../apps/pub/io/importers.cpp" line="+510"/>
         <source>Created %n email file(s) in %1.</source>
         <translation>
             <numerusform>Created %n email file in %1.</numerusform>
@@ -102,8 +102,8 @@
 <context>
     <name>jp::CrunchWindow</name>
     <message numerus="yes">
-        <location filename="../../apps/crunch/app/crunchwindow_find.cpp" line="+318"/>
-        <location line="+185"/>
+        <location filename="../../apps/crunch/app/crunchwindow_find.cpp" line="+320"/>
+        <location line="+189"/>
         <source>%n cell(s)</source>
         <translation>
             <numerusform>%n cell</numerusform>
@@ -175,7 +175,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../apps/crunch/app/crunchwindow_audit.cpp" line="+101"/>
+        <location filename="../../apps/crunch/app/crunchwindow_audit.cpp" line="+104"/>
         <source>Only the first %n arrow(s) are drawn.</source>
         <translation>
             <numerusform>Only the first %n arrow is drawn.</numerusform>
@@ -185,7 +185,7 @@
     <message numerus="yes">
         <location line="+0"/>
         <location line="+47"/>
-        <location line="+62"/>
+        <location line="+74"/>
         <source>%n arrow(s) drawn.</source>
         <translation>
             <numerusform>%n arrow drawn.</numerusform>
@@ -193,7 +193,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="-62"/>
+        <location line="-74"/>
         <source>%n arrow(s) drawn. %1 more are not drawn: too many.</source>
         <translation>
             <numerusform>%n arrow drawn. %1 more are not drawn: too many.</numerusform>
@@ -201,7 +201,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../apps/crunch/app/crunchwindow_find.cpp" line="-185"/>
+        <location filename="../../apps/crunch/app/crunchwindow_find.cpp" line="-189"/>
         <source>%n place(s)</source>
         <translation>
             <numerusform>%n place</numerusform>
@@ -275,7 +275,7 @@
 <context>
     <name>jp::MainWindow</name>
     <message numerus="yes">
-        <location filename="../../apps/pub/app/mainwindow.cpp" line="+1226"/>
+        <location filename="../../apps/pub/app/mainwindow.cpp" line="+1250"/>
         <source>Saved %n drawing(s).</source>
         <translation>
             <numerusform>Saved %n drawing.</numerusform>
@@ -316,7 +316,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../../apps/write/app/writewindow.cpp" line="+698"/>
+        <location filename="../../apps/write/app/writewindow.cpp" line="+712"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
@@ -359,7 +359,7 @@
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../../apps/crunch/core/editsession.cpp" line="+1006"/>
+        <location filename="../../apps/crunch/core/editsession.cpp" line="+1023"/>
         <source>Clearing %n cell(s)</source>
         <translation>
             <numerusform>Clearing %n cell</numerusform>
@@ -367,7 +367,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../apps/crunch/core/editpivot.cpp" line="+1196"/>
+        <location filename="../../apps/crunch/core/editpivot.cpp" line="+1215"/>
         <source>%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.</source>
         <translation>
             <numerusform>%n pivot table was not read again when the file opened: there is too much data. Use Refresh All.</numerusform>
@@ -378,7 +378,7 @@
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message numerus="yes">
-        <location filename="../../apps/crunch/core/sheetobjects.cpp" line="+679"/>
+        <location filename="../../apps/crunch/core/sheetobjects.cpp" line="+760"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation>
             <numerusform>The file stores this object together with %n other object, so they can&apos;t be deleted one at a time.</numerusform>
@@ -386,7 +386,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1271"/>
+        <location line="+1326"/>
         <source>The file stores this chart together with %n other(s), so it can&apos;t be changed here.</source>
         <translation>
             <numerusform>The file stores this chart together with %n other chart, so it can&apos;t be changed here.</numerusform>
@@ -405,7 +405,7 @@
 <context>
     <name>jp::office::sheet::Ods</name>
     <message numerus="yes">
-        <location filename="../../libs/office/sheet/ods.cpp" line="+1779"/>
+        <location filename="../../libs/office/sheet/ods.cpp" line="+1791"/>
         <source>%n sheet name(s), made valid for an .xlsx file</source>
         <translation>
             <numerusform>%n sheet name, made valid for an .xlsx file</numerusform>
@@ -456,7 +456,7 @@
 <context>
     <name>jp::office::sheet::Tables</name>
     <message numerus="yes">
-        <location filename="../../libs/office/sheet/tables.cpp" line="+347"/>
+        <location filename="../../libs/office/sheet/tables.cpp" line="+372"/>
         <source>%n table(s) that have the name, the number, or the cells of another table were not read (the first is %1).</source>
         <translation>
             <numerusform>%n table that has the name, the number, or the cells of another table was not read (it is %1).</numerusform>
