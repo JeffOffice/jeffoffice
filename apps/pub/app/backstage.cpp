@@ -119,7 +119,7 @@ Backstage::Backstage(MainWindow *win) : FileScreen(win), m_win(win)
     addPage(QStringLiteral("print"), QStringLiteral("printer"), tr("Print"));
     addPage(QStringLiteral("export"), QStringLiteral("file-output"), tr("Export"));
     addPage(QStringLiteral("share"), QStringLiteral("share-2"), tr("Share"));
-    addPage(QStringLiteral("info"), QStringLiteral("file-text"), tr("Properties"));
+    addPage(QStringLiteral("info"), QStringLiteral("file-text"), tr("Info"));
     addCommand(QStringLiteral("close"), QStringLiteral("circle-x"), tr("Close"), [this] { m_win->act("file.close")->trigger(); Q_EMIT closeRequested(); });
     addSection(QStringLiteral("JeffPub"));
     addCommand(QStringLiteral("options"), QStringLiteral("settings"), tr("Options"), [this] { optionsDialog(this, m_win->editor()); });
@@ -142,111 +142,10 @@ QWidget *Backstage::buildPage(const QString &key)
 }
 
 // ---------------- Info ----------------
+// The Info page is the one every app has (libs/shell/app/infopage.h); the window gives it the publication's facts (mainwindow_info.cpp).
 QWidget *Backstage::buildInfo()
 {
-    Editor *ed = m_win->editor();
-    Document *d = ed->doc();
-    auto *w = new QWidget();
-    auto *v = new QVBoxLayout(w);
-    v->setContentsMargins(40, 30, 40, 30);
-    v->addWidget(heading(tr("Properties"), w));
-
-    // Where the publication lives.
-    auto *where = new QHBoxLayout();
-    where->setSpacing(10);
-    const QString path = ed->filePath();
-    auto *pathIcon = new QLabel(w);
-    pathIcon->setPixmap(icon(path.isEmpty() ? "file" : "folder").pixmap(QSize(16, 16), devicePixelRatioF()));
-    where->addWidget(pathIcon);
-    auto *pathLabel = mutedLabel(path.isEmpty() ? tr("This publication hasn't been saved yet.") : QDir::toNativeSeparators(path), w, 0.7);
-    pathLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    pathLabel->setWordWrap(true);
-    where->addWidget(pathLabel, 1);
-    if (!path.isEmpty()) {
-        auto *showBtn = new QPushButton(tr("Show in Folder"), w);
-        showBtn->setCursor(Qt::PointingHandCursor);
-        connect(showBtn, &QPushButton::clicked, this, [path] { QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(path).absolutePath())); });
-        where->addWidget(showBtn);
-    }
-    v->addLayout(where);
-    v->addSpacing(14);
-
-    auto *body = new QHBoxLayout();
-    body->setSpacing(20);
-    auto *left = new QVBoxLayout();
-    left->setSpacing(10);
-    auto card = [&](const QString &ic, const QString &title, const QString &text, const std::function<void()> &fn) {
-        auto *b = new ActionCard(ic, title, text, w);
-        connect(b, &QAbstractButton::clicked, this, [fn] { fn(); });
-        left->addWidget(b);
-    };
-    card("contact", tr("Business Information"), tr("Edit the contact details that templates and Business Information fields use."),
-         [this] { businessInfoDialog(this, m_win->editor()); });
-    card("printer", tr("Commercial Print Settings"), tr("Choose the color model (RGB, process CMYK, spot colors) and font embedding for a print shop."),
-         [this] { documentPropertiesDialog(this, m_win->editor(), 1); });
-    card("shield-check", tr("Run Design Checker"), tr("Find problems such as text that doesn't fit, empty frames and low-resolution pictures."),
-         [this] { m_win->showTaskPane("designchecker"); Q_EMIT closeRequested(); });
-    left->addStretch(1);
-    body->addLayout(left, 1);
-
-    // Details card: first-page preview and the publication's facts.
-    int pics = 0, words = 0;
-    d->forEachItem([&](Item *it, int, const QString &) {
-        if (it->type() == ItemType::Picture) ++pics;
-    });
-    for (auto it = d->stories.cbegin(); it != d->stories.cend(); ++it)
-        words += (*it)->doc->toPlainText().split(QRegularExpression("\\s+"), Qt::SkipEmptyParts).size();
-    auto *details = cardFrame(w);
-    details->setFixedWidth(340);
-    auto *dv = new QVBoxLayout(details);
-    dv->setContentsMargins(18, 18, 18, 18);
-    dv->setSpacing(10);
-    auto *thumb = plainLabel(new QLabel(details));
-    thumb->setFixedSize(304, 210);
-    thumb->setAlignment(Qt::AlignCenter);
-    {
-        const qreal dpr = devicePixelRatioF();
-        QImage img = m_win->pageThumbnail(std::clamp(ed->currentPage(), 0, int(d->pages.size()) - 1), int(200 * dpr));
-        img.setDevicePixelRatio(dpr);
-        thumb->setPixmap(paperPixmap(img.convertToFormat(QImage::Format_ARGB32_Premultiplied), thumb->size(), dpr));
-    }
-    dv->addWidget(thumb, 0, Qt::AlignHCenter);
-    auto *dh = new QLabel(tr("Details"), details);
-    QFont df = dh->font();
-    df.setWeight(QFont::DemiBold);
-    df.setPointSizeF(df.pointSizeF() * 1.1);
-    dh->setFont(df);
-    dv->addWidget(dh);
-    auto *grid = new QGridLayout();
-    grid->setHorizontalSpacing(16);
-    grid->setVerticalSpacing(7);
-    const QList<QPair<QString, QString>> facts = {
-        {tr("Pages"), QString::number(d->pages.size())},
-        {tr("Page size"), QStringLiteral("%1 × %2").arg(Settings::get().format(d->pageSize().width()), Settings::get().format(d->pageSize().height()))},
-        {tr("Pictures"), QString::number(pics)},
-        {tr("Words"), QLocale().toString(words)},
-        {tr("Author"), d->props.author.isEmpty() ? Settings::get().userName() : d->props.author},
-        {tr("Created"), QLocale().toString(d->props.created, QStringLiteral("MMM d, yyyy h:mm AP"))},
-        {tr("Modified"), QLocale().toString(d->props.modified, QStringLiteral("MMM d, yyyy h:mm AP"))},
-    };
-    for (int i = 0; i < facts.size(); ++i) {
-        grid->addWidget(mutedLabel(facts[i].first, details), i, 0, Qt::AlignLeft | Qt::AlignTop);
-        auto *val = plainLabel(new QLabel(facts[i].second, details));
-        val->setWordWrap(true);
-        val->setTextInteractionFlags(Qt::TextSelectableByMouse);
-        grid->addWidget(val, i, 1);
-    }
-    grid->setColumnStretch(1, 1);
-    dv->addLayout(grid);
-    dv->addSpacing(4);
-    auto *more = new QPushButton(tr("Edit Properties…"), details);
-    more->setCursor(Qt::PointingHandCursor);
-    more->setMinimumHeight(34);
-    connect(more, &QPushButton::clicked, this, [this] { documentPropertiesDialog(this, m_win->editor()); });
-    dv->addWidget(more);
-    body->addWidget(details, 0, Qt::AlignTop);
-    v->addLayout(body, 1);
-    return w;
+    return m_win->buildInfoPage(nullptr);
 }
 
 // ---------------- New ----------------

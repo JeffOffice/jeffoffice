@@ -153,6 +153,7 @@ qt_add_executable(jptests
   tests/pub/tst_pub_invariants.cpp
   tests/pub/tst_pub_file.cpp tests/pub/tst_pub_file_02.cpp
   tests/pub/tst_pub_find.cpp
+  tests/pub/tst_pub_info.cpp
   tests/pub/tst_pub_formatpane.cpp
   tests/pub/tst_pub_fonts.cpp
   tests/pub/tst_pub_objects.cpp

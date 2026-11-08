@@ -203,6 +203,7 @@ MainWindow::MainWindow(QWidget *parent) : AppWindow(parent)
         dropRecoveryCopy();
         m_recoveredFrom.clear();
         m_recovered = false;
+        m_personalInfoRemoved = false;
     });
     connect(m_ed, &Editor::modifiedChanged, this, [this](bool modified) {
         if (!modified) dropRecoveryCopy();
@@ -520,6 +521,11 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
     } else {
         m_ed->setDocument(std::move(doc), path);
         if (how == OpenHow::ReadOnly) setReadOnly(true);
+        // A publication marked as final opens for reading only (the Info page lets it be edited again).
+        else if (how == OpenHow::Normal && markedAsFinal()) {
+            setReadOnly(true);
+            statusBar()->showMessage(tr("Marked as final: this publication is open for reading only. Open File > Info and choose Marked as Final to edit it."), 12000);
+        }
     }
     Settings::get().addRecentFile(path);
     telemetry::count(fromPub ? QStringLiteral("file.open.pub") : QStringLiteral("file.open.jpub"));
@@ -561,6 +567,11 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
     QString err;
     const QImage thumb = pageThumbnail(0, 256);
     m_ed->endTextEdit();
+    // The mark that a publication is final is a property a .pub file does not keep: said, so that the window and the file do not disagree.
+    if (path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive) && markedAsFinal()) {
+        notice(tr("Save"), tr("This publication is marked as final, and a .pub file can't hold that mark. The file is saved without it."));
+        if (!asCopy) m_ed->doc()->props.custom = office::withMarkAsFinal(m_ed->doc()->props.custom, false);
+    }
     // Options > "Always create backup copy": the file as it was before this save is kept as "Backup of <name>".
     if (!backupBeforeSave(this, path)) return false;
     if (path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive)) {

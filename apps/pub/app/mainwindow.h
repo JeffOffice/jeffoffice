@@ -7,6 +7,9 @@
 #include "app/appwindow.h"
 #include "app/filetasks.h"
 #include "app/editor.h"
+#include "app/infopage.h"
+#include "app/versionstore.h"
+#include "office/packageprops.h"
 
 #include <QHash>
 #include <QMainWindow>
@@ -92,6 +95,20 @@ public:
     // `asCopy`: only writes the file; the publication keeps its name and stays as saved or unsaved as it was.
     bool saveTo(const QString &path, bool asCopy = false);
     bool maybeSave();
+    // The Info page of the File screen (mainwindow_info.cpp): the publication's properties, Mark as Final, Inspect Publication, and Version History. (A .jpub file has no form for a password,
+    // so the page has no card for one.) The properties are kept in the publication, and undone with it.
+    QWidget *buildInfoPage(QWidget *parent);
+    office::PackageProps properties() const;
+    void applyProperties(const office::PackageProps &edited);
+    bool markedAsFinal() const;
+    QString markFinalBlocked() const;
+    void setMarkedFinal(bool on);
+    QVector<InspectItem> inspectItems();
+    void inspectPublication();
+    QVector<write::DocVersion> versions() const;
+    bool saveVersion(const QString &name);
+    bool restoreVersion(const QString &file);
+    void versionHistory();
     // archival: PDF/A-1b (ISO 19005-1) for long-term storage.
     void exportPdf(const QString &path = QString(), bool merged = false, bool archival = false);
     // Create PDF with choices: quality preset, page range, document properties.
@@ -208,6 +225,8 @@ private:
     QString m_recoveredFrom;        // a recovered document's original file, for Save As
     std::function<void(const QString &, const QString &)> m_notifier;
     bool m_recovered = false;       // the document is recovered work, not yet saved
+    bool m_personalInfoRemoved = false;   // Inspect took the names out of the properties: they stay out until the publication is closed
+    void notice(const QString &title, const QString &text, bool warning = false);
     QPointer<QWidget> m_measurement;
 };
 

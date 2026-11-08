@@ -693,6 +693,8 @@ void PubFileTests::hostilePublicationTextIsShownAsText()
         QVERIFY2(!readsAPicture(l), qPrintable(l->text()));
         shown += l->text().contains(QStringLiteral("probe.invalid"));
     }
+    // (the Info page shows the author in a box to edit, which shows its text as text)
+    for (const QLineEdit *e : backstage->findChildren<QLineEdit *>()) shown += e->text().contains(QStringLiteral("probe.invalid"));
     QVERIFY(shown >= 1);   // the author is there
     w.hideBackstage();
     // The box that says a file can't be opened shows its text as text (it names the file).
