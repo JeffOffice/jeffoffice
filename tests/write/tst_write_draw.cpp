@@ -2521,7 +2521,7 @@ private Q_SLOTS:
         {
             // (a first box with far more words than sixty-four boxes hold, and three hundred members)
             QVector<LinkedBox> boxes = {{5, 0, 72, 100, 150, 60, 700}};
-            for (int i = 0; i < 300; ++i) boxes.push_back({5, 1 + i, 20.0 + i % 20 * 25, 200 + i / 20 * 20, 150, 60});
+            for (int i = 0; i < 300; ++i) boxes.push_back({5, 1 + i, 20.0 + i % 20 * 25, 200.0 + i / 20 * 20, 150, 60});
             auto doc = open(linkedBoxesDocx(boxes));
             QVERIFY(doc);
             std::shared_ptr<jp::flow::MaterializedPage> page;
