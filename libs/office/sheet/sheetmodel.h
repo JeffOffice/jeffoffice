@@ -1445,7 +1445,8 @@ struct AutoFilter {
 struct ImportedChart {
     QByteArray part;
     quint32 col1 = 0, row1 = 0, col2 = 0, row2 = 0;
-    qint64 colOff1 = 0, rowOff1 = 0, colOff2 = 0, rowOff2 = 0;   // EMU into the first and last cell
+    quint32 dx1 = 0, dy1 = 0, dx2 = 0, dy2 = 0;   // how far into the first and last cell, in 1024ths of its width and 256ths of its height (the writer knows the sizes)
+    bool absolute = false;                        // a chart sheet's chart: it fills a page, with no cells to hold it
 };
 
 struct Sheet {

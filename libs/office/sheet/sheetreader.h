@@ -271,6 +271,8 @@ public:
     // Whether it was read from a file that has no package of XML parts to put changes in, and so is saved as an .xlsx written from what was read: the older binary form, an
     // OpenDocument spreadsheet (.ods, .fods), or a file of delimited values (.csv). convertedKind() says which (".xls", ".ods", ".csv"); empty for any other.
     bool isConverted() const { return m_xls || m_foreign; }
+    // How many charts a sheet of a workbook of the older binary form has (0 for any other): known before the sheet is read, so that a file can be laid out first.
+    int importedChartCount(int sheet) const;
     QString convertedKind() const;
     // The reader of a file that is neither of the XML form nor the older binary form (an OpenDocument spreadsheet, a file of delimited values), or null.
     const ForeignBook *foreignBook() const { return m_foreign.get(); }

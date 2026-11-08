@@ -128,6 +128,7 @@ void Features::note(const Sheet &sheet)
     // (the old form writes the page setup; OpenDocument's page styles are written as far as margins, orientation, scale, and the texts of headers and footers)
     if (!sheet.page.headerFooter.pictures.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "pictures in headers and footers"));
     if (m_kind == CopyKind::Ods && (sheet.page.titles.hasRows || sheet.page.titles.hasCols || !sheet.page.colBreaks.isEmpty())) add(QT_TRANSLATE_NOOP("Sheet", "print titles and page breaks between columns"));
+    if (!sheet.importedCharts.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "charts"));   // (read from the older form, and written only to an .xlsx)
     for (const QString &s : sheet.notKept) m_found.insert(s);
     if (!sheet.richTexts.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "formatting inside a text"));
 }

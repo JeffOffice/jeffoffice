@@ -42,6 +42,8 @@ public:
     QStringList skipped() const { return m_skipped; }
     // 4 for BIFF3 and BIFF4 (one sheet to a workbook), 5 for BIFF5, 8 for BIFF8.
     int version() const { return m_biff; }
+    // The charts read from sheet `index` at the open (their number is known before the sheet is read).
+    int chartCount(int index) const { return index >= 0 && index < m_charts.size() ? int(m_charts[index].size()) : 0; }
 
 private:
     XlsBook() = default;

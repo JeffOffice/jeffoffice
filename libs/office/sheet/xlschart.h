@@ -26,10 +26,12 @@ struct XlsChartRead {
 // references in the chart's formulas need, and `ownSheet` is the name a reference with no sheet takes.
 XlsChartRead readXlsChart(const QByteArray &data, qsizetype from, qsizetype to, const XlsContext &cx, const QString &ownSheet);
 
-// Where a drawing record of a worksheet puts the object it is for: the columns and rows (from 0), and how far into the first and last cell, in EMU. False if the record holds no anchor.
+// Where a drawing record of a worksheet puts the object it is for: the columns and rows (from 0), and how far into the first and last cell, as the record has it (in 1024ths of a column and
+// 256ths of a row: the size of the cell is not known here). False if the record holds no anchor.
 struct XlsAnchor {
     quint32 col1 = 0, row1 = 0, col2 = 0, row2 = 0;
-    qint64 colOff1 = 0, rowOff1 = 0, colOff2 = 0, rowOff2 = 0;
+    quint32 dx1 = 0, dy1 = 0, dx2 = 0, dy2 = 0;
+    bool absolute = false;   // a chart sheet's chart: no cells, the size of a page
 };
 bool readXlsAnchor(const QByteArray &data, qsizetype from, qsizetype to, XlsAnchor *out);
 

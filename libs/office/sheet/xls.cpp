@@ -1010,7 +1010,7 @@ private:
                     if (chartType) nestedChart = true;
                     if (depth == 1 && chartType && m_biff >= 8) {
                         chartFrom = sc.offset();
-                        chartAnchor = haveAnchor ? lastAnchor : XlsAnchor{0, 0, 8, 15, 0, 0, 0, 0};
+                        chartAnchor = haveAnchor ? lastAnchor : XlsAnchor{0, 0, 8, 15, 0, 0, 0, 0, false};
                         haveAnchor = false;
                     }
                     continue;
@@ -1018,7 +1018,7 @@ private:
                 if (r.id == kEof) {
                     if (depth == 0) {
                         ended = true;
-                        if (p.type == 0x20 && m_biff >= 8) addChartSpan(i, bodyStart, r.pos - 4, XlsAnchor{0, 0, 10, 25, 0, 0, 0, 0});
+                        if (p.type == 0x20 && m_biff >= 8) addChartSpan(i, bodyStart, r.pos - 4, XlsAnchor{0, 0, 0, 0, 0, 0, 0, 0, true});
                         break;
                     }
                     --depth;
@@ -1161,22 +1161,27 @@ private:
                 m_charts = true;
                 continue;
             }
+            // (what the part will be is judged before it is made: a point costs about 40 bytes, and the total is bounded)
+            qint64 points = 0;
+            for (const office::ChartPlot &plot : cr.chart.plots)
+                for (const office::ChartSeries &cs : plot.series) points += cs.values.size() + cs.categories.size() + cs.xValues.size() + 1;
+            if (chartBytes + points * 40 > (qint64(64) << 20)) {
+                m_charts = true;
+                continue;
+            }
             ImportedChart ic;
             ic.part = office::writeChartPart(cr.chart);
             chartBytes += ic.part.size();
-            if (chartBytes > (qint64(64) << 20)) {
-                m_charts = true;
-                break;
-            }
             if (cr.lost) m_chartParts = true;
             ic.col1 = span.anchor.col1;
             ic.row1 = span.anchor.row1;
             ic.col2 = span.anchor.col2;
             ic.row2 = span.anchor.row2;
-            ic.colOff1 = span.anchor.colOff1;
-            ic.rowOff1 = span.anchor.rowOff1;
-            ic.colOff2 = span.anchor.colOff2;
-            ic.rowOff2 = span.anchor.rowOff2;
+            ic.dx1 = span.anchor.dx1;
+            ic.dy1 = span.anchor.dy1;
+            ic.dx2 = span.anchor.dx2;
+            ic.dy2 = span.anchor.dy2;
+            ic.absolute = span.anchor.absolute;
             book->m_charts[span.sheet].append(ic);
         }
         if (m_charts) book->m_skipped << QCoreApplication::translate("Sheet", "charts");

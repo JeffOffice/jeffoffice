@@ -2,6 +2,7 @@
 
 #include "office/chart_write.h"
 #include "office/theme.h"
+#include "sheet/cellref.h"
 #include "sheet/xlsbytes.h"
 
 #include <QColor>
@@ -16,7 +17,6 @@ namespace jp::office::sheet {
 
 namespace {
 
-constexpr qint64 kEmuPerDefaultColumn = 609600, kEmuPerDefaultRow = 190500;   // (64 and 20 pixels: the sizes the parts of cells in a drawing record are taken of)
 constexpr int kMaxBlockDepth = 64;
 constexpr int kMaxGroups = 64;
 
@@ -47,7 +47,7 @@ struct RawAxis {
     int majorTick = -1, minorTick = -1, labels = -1;
     bool majorGrid = false, minorGrid = false;
     bool between = true, reverse = false;
-    QString title;
+    QString title, titleRef;
     bool hasTitle = false;
 };
 
@@ -121,6 +121,7 @@ ChartAxis makeAxis(ChartAxis::Kind kind, qint64 id, qint64 cross, const QString 
     if (raw.hasTitle) {
         a.title.present = true;
         a.title.text = raw.title;
+        a.title.ref = raw.titleRef;
     }
     a.majorGridlines = raw.majorGrid;
     a.minorGridlines = raw.minorGrid;
@@ -177,10 +178,10 @@ bool readXlsAnchor(const QByteArray &data, qsizetype from, qsizetype to, XlsAnch
             a.row1 = row1;
             a.col2 = col2;
             a.row2 = row2;
-            a.colOff1 = qint64(std::min<quint32>(dx1, 1023)) * kEmuPerDefaultColumn / 1024;
-            a.rowOff1 = qint64(std::min<quint32>(dy1, 255)) * kEmuPerDefaultRow / 256;
-            a.colOff2 = qint64(std::min<quint32>(dx2, 1023)) * kEmuPerDefaultColumn / 1024;
-            a.rowOff2 = qint64(std::min<quint32>(dy2, 255)) * kEmuPerDefaultRow / 256;
+            a.dx1 = std::min<quint32>(dx1, 1023);
+            a.dy1 = std::min<quint32>(dy1, 255);
+            a.dx2 = std::min<quint32>(dx2, 1023);
+            a.dy2 = std::min<quint32>(dy2, 255);
             *out = a;
             found = true;
             b.skip(len - 18);
@@ -204,20 +205,25 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
     int curSeries = -1, curGroup = -1, curAxis = -1, curParent = 0;
     bool parentOpen = false, inFormat = false, inText = false, textDefault = false, textHas = false, seriesTooMany = false;
     int textLink = -1, lastAi = -1;
-    QString textString;
+    QString textString, textRef;
     bool legendShown = false;
     QString legendPosition = QStringLiteral("r");
     bool titleSet = false, titleAuto = false;
-    QString titleText;
+    QString titleText, titleRef;
 
     auto reference = [&](const QString &text) {
         if (text.contains(QLatin1String("#REF"))) return QString();
+        // (a single cell is stored as an area of one cell; a whole column or row, "A:A", is not one)
         const int colon = text.lastIndexOf(QLatin1Char(':'));
-        if (colon > 0 && text.left(colon).endsWith(text.mid(colon + 1)) && text.left(colon).size() > text.size() - colon - 1) {
-            // (a single cell is stored as an area of one cell)
-            const QString cell = text.left(colon);
-            const QString tail = cell.mid(cell.size() - (text.size() - colon - 1) - 1);
-            if (tail.startsWith(QLatin1Char('!')) || tail.startsWith(QLatin1Char(':'))) return cell.contains(QLatin1Char('!')) ? cell : xlsSheetPrefix(ownSheet) + QLatin1Char('!') + cell;
+        if (colon > 0) {
+            const QString cell = text.left(colon), second = text.mid(colon + 1);
+            const int bang = cell.lastIndexOf(QLatin1Char('!'));
+            QString first = bang >= 0 ? cell.mid(bang + 1) : cell;
+            QString again = second;
+            first.remove(QLatin1Char('$'));
+            again.remove(QLatin1Char('$'));
+            quint32 row, col;
+            if (first == again && parseCellRef(first, &row, &col)) return cell.contains(QLatin1Char('!')) ? cell : xlsSheetPrefix(ownSheet) + QLatin1Char('!') + cell;
         }
         return text.contains(QLatin1Char('!')) ? text : xlsSheetPrefix(ownSheet) + QLatin1Char('!') + text;
     };
@@ -227,19 +233,17 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
         switch (textLink) {
         case 1:
             titleSet = true;
-            titleAuto = !textHas;
+            titleAuto = !textHas && textRef.isEmpty();
             titleText = textString;
+            titleRef = textRef;
             break;
         case 2:
-            if (textHas) {
-                axes[p][1].hasTitle = true;
-                axes[p][1].title = textString;
-            }
-            break;
         case 3:
-            if (textHas) {
-                axes[p][0].hasTitle = true;
-                axes[p][0].title = textString;
+            if (textHas || !textRef.isEmpty()) {
+                RawAxis &a = axes[p][textLink == 2 ? 1 : 0];
+                a.hasTitle = true;
+                a.title = textString;
+                a.titleRef = textRef;
             }
             break;
         default: break;
@@ -314,6 +318,8 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
             const XlsFormulaResult text = xlsFormulaText(cx, rgce, extra, opts);
             if (!text.ok() || text.text.isEmpty()) break;
             if (inText) {
+                // a title that reads its words from a cell
+                if (what == 0 && !text.text.startsWith(QLatin1Char('{'))) textRef = reference(text.text);
                 break;
             }
             if (curSeries < 0) break;
@@ -327,6 +333,10 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
                     for (const QString &item : arrayItems(text.text)) {
                         bool ok = false;
                         const double v = item.trimmed().toDouble(&ok);
+                        if (s.values.size() >= kMaxXlsChartPoints) {
+                            res.lost = true;
+                            break;
+                        }
                         s.values << (ok ? v : std::numeric_limits<double>::quiet_NaN());
                     }
                 } else {
@@ -336,6 +346,7 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
                 if (literal) {
                     s.categoriesLiteral = true;
                     s.categories = arrayItems(text.text);
+                    if (s.categories.size() > kMaxXlsChartPoints) s.categories = s.categories.mid(0, kMaxXlsChartPoints);
                 } else {
                     s.categoryRef = reference(text.text);
                 }
@@ -360,6 +371,7 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
             textLink = -1;
             textHas = false;
             textString.clear();
+            textRef.clear();
             break;
         case 0x1027:   // ObjectLink: what a text is the title of
             if (inText) textLink = b.u16();
@@ -592,8 +604,8 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
     // the series, each in its group
     QVector<bool> markerSeen(c.plots.size(), false), markerOn(c.plots.size(), false), lineOn(c.plots.size(), false), smoothOn(c.plots.size(), false);
     for (const RawSeries &r : series) {
-        const int gi = r.group >= 0 && r.group < groups.size() ? r.group : 0;
-        const int pi = gi < planOf.size() ? planOf[gi] : -1;
+        const int gi = r.group;
+        const int pi = gi >= 0 && gi < planOf.size() ? planOf[gi] : -1;   // (a series of a group that is not there, or past the limit, is left out)
         if (pi < 0) {
             res.lost = true;
             continue;
@@ -685,6 +697,7 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
         c.title.present = true;
         c.title.automatic = titleAuto;
         c.title.text = titleAuto ? QString() : titleText;
+        c.title.ref = titleRef;
     }
     c.legend.shown = legendShown;
     c.legend.position = legendPosition;

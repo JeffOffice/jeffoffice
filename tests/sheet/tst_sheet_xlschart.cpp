@@ -6,7 +6,9 @@
 #include "office/package.h"
 #include "office/theme.h"
 #include "sheet/drawing.h"
+#include "sheet/oldsave.h"
 #include "sheet/xlsxsave.h"
+#include "io/zip.h"
 
 #include <QXmlStreamReader>
 
@@ -83,14 +85,15 @@ QByteArray anchorRecord(int col1, int dx1, int row1, int dy1, int col2, int dx2,
 QByteArray objRecord(int type) { return rec(0x005D, W().u16(0x15).u16(0x12).u16(type).u16(1).u16(0x6011).u32(0).u32(0).u32(0).u16(0).u16(0)); }
 
 // The sheet "Data": a header row, three categories, and two columns of numbers; the chart is under it. The list of sheets for the references is the one of the book.
-Book bookWith(const QByteArray &chartRecords, int sheetType = 0, bool embedded = true)
+Book bookWith(const QByteArray &chartRecords, int sheetType = 0, bool embedded = true, const QString &sheetName = QStringLiteral("Data"), const QByteArray &anchor = anchorRecord(3, 512, 1, 128, 9, 0, 16, 0),
+              const QByteArray &columns = QByteArray())
 {
     Book b;
     b.after(supbookInternal(1) + externSheet({{0, 0, 0}}));
-    QByteArray cells = dimensions(4, 3) + label(0, 1, QStringLiteral("Sales")) + label(0, 2, QStringLiteral("Costs"));
+    QByteArray cells = dimensions(4, 3) + columns + label(0, 1, QStringLiteral("Sales")) + label(0, 2, QStringLiteral("Costs"));
     for (int r = 1; r <= 3; ++r) cells += label(r, 0, QStringLiteral("c%1").arg(r)) + number(r, 1, r * 10) + number(r, 2, r * 3);
-    if (embedded) cells += anchorRecord(3, 512, 1, 128, 9, 0, 16, 0) + objRecord(5) + chartBof() + chartRecords + rec(0x000A);
-    b.sheet(QStringLiteral("Data"), cells);
+    if (embedded) cells += anchor + objRecord(5) + chartBof() + chartRecords + rec(0x000A);
+    b.sheet(sheetName, cells);
     if (!embedded) b.sheet(QStringLiteral("Chart1"), chartRecords, 0, sheetType);
     return b;
 }
@@ -157,8 +160,8 @@ private Q_SLOTS:
         QCOMPARE(int(sh.importedCharts[0].row1), 1);
         QCOMPARE(int(sh.importedCharts[0].col2), 9);
         QCOMPARE(int(sh.importedCharts[0].row2), 16);
-        QVERIFY(sh.importedCharts[0].colOff1 > 0);
-        QVERIFY(sh.importedCharts[0].rowOff1 > 0);
+        QCOMPARE(int(sh.importedCharts[0].dx1), 512);
+        QCOMPARE(int(sh.importedCharts[0].dy1), 128);
     }
 
     // The kinds: columns, bars, stacked and whole-stacked ones, lines, areas, pies, doughnuts, and scatters.
@@ -229,11 +232,10 @@ private Q_SLOTS:
         QCOMPARE(charts.size(), 1);
         QVERIFY(charts[0].type() == ChartType::Line);
         QCOMPARE(charts[0].plots[0].series[0].valueRef, QStringLiteral("Data!$B$2:$B$4"));
-        // a chart sheet's chart is in a place of its own on its sheet
+        // a chart sheet's chart fills a page of its sheet
         Sheet s;
         QVERIFY(wb.readSheet(1, &s));
-        QVERIFY(s.importedCharts[0].col2 > s.importedCharts[0].col1);
-        QVERIFY(s.importedCharts[0].row2 > s.importedCharts[0].row1);
+        QVERIFY(s.importedCharts[0].absolute);   // (no cells: it fills a page of its own)
     }
 
     // Values given in the chart itself (an array in the series' formula) are literal values.
@@ -325,75 +327,260 @@ private Q_SLOTS:
         QCOMPARE(chart.plots[0].series[1].valueRef, QStringLiteral("Data!$C$2:$C$4"));
         QCOMPARE(chart.title.text, QStringLiteral("Results"));
         QCOMPARE(chart.legend.position, QStringLiteral("r"));
-        // saved again, the chart stays
-        Package second;
+        // converted and saved again by the writer of the older form's file, the same parts come out
         QByteArray again;
-        QVERIFY2(saveXlsx(back, SaveChanges(), &again, &why), qPrintable(why));
-        QVERIFY2(second.readLazy(again, &why), qPrintable(why));
-        QVERIFY(second.hasPart(QStringLiteral("/xl/charts/chart1.xml")));
+        QVERIFY2(saveXlsx(wb, SaveChanges(), &again, &why), qPrintable(why));
+        QMap<QString, QByteArray> one, two;
+        QVERIFY(jp::readZip(bytes, one));
+        QVERIFY(jp::readZip(again, two));
+        QCOMPARE(one.value(QStringLiteral("xl/charts/chart1.xml")), two.value(QStringLiteral("xl/charts/chart1.xml")));
+        QVERIFY(!one.value(QStringLiteral("xl/charts/chart1.xml")).isEmpty());
+        QCOMPARE(one.value(QStringLiteral("xl/drawings/drawing1.xml")), two.value(QStringLiteral("xl/drawings/drawing1.xml")));
     }
 
-    // Files made to hurt: a chart cut short, counts that are far past the bytes there are, a record longer than the file, and more series than a chart may have.
-    void hostileChartsDoNotHurt()
+    // The content types stay the first entry of the file, and a workbook with no chart has the entries it always had.
+    void theEntriesOfTheFileKeepTheirOrder()
     {
-        auto readAll = [](const QByteArray &file, int *charts = nullptr) {
+        Book plain;
+        plain.sheet(QStringLiteral("S"), number(0, 0, 1));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(plain, &wb, &why), qPrintable(why));
+        QByteArray bytes;
+        QVERIFY2(saveXlsx(wb, SaveChanges(), &bytes, &why), qPrintable(why));
+        QStringList names;
+        for (const jp::ZipScanEntry &e : jp::scanZip(bytes)) names << e.name;
+        const QStringList expected = {QStringLiteral("[Content_Types].xml"), QStringLiteral("_rels/.rels"), QStringLiteral("xl/_rels/workbook.xml.rels"), QStringLiteral("xl/workbook.xml"),
+                                      QStringLiteral("xl/styles.xml"), QStringLiteral("xl/worksheets/sheet1.xml"), QStringLiteral("xl/sharedStrings.xml")};
+        QCOMPARE(names, expected);
+        // with a chart the first entry is the same, and the types name the chart and its drawing
+        Workbook withChart;
+        QVERIFY2(openBook(bookWith(chartBody(series(0, named(0, 1), 1), columnParents(group(bar())))), &withChart, &why), qPrintable(why));
+        QVERIFY2(saveXlsx(withChart, SaveChanges(), &bytes, &why), qPrintable(why));
+        const QVector<jp::ZipScanEntry> entries = jp::scanZip(bytes);
+        QCOMPARE(entries.first().name, QStringLiteral("[Content_Types].xml"));
+        QVERIFY(entries.first().data.contains("/xl/charts/chart1.xml"));
+        QVERIFY(entries.first().data.contains("/xl/drawings/drawing1.xml"));
+    }
+
+    // An anchor far off the grid, and one whose end is before its start, are written inside the grid and in order; the parts of cells use the sheet's own column widths.
+    void anchorsAreKeptToTheGrid()
+    {
+        const QByteArray body = chartBody(series(0, named(0, 1), 1), columnParents(group(bar())));
+        auto place = [&](const QByteArray &anchor, const QByteArray &columns = QByteArray()) {
             Workbook wb;
             QString why;
-            if (!wb.openBinary(file, &why)) return false;
+            SheetDrawing d;
+            Package pkg;
+            Workbook back;
+            QByteArray bytes;
+            if (!openBook(bookWith(body, 0, true, QStringLiteral("Data"), anchor, columns), &wb, &why) || !saveXlsx(wb, SaveChanges(), &bytes, &why) || !pkg.readLazy(bytes, &why) || !back.open(pkg, &why) ||
+                !readDrawing(pkg, drawingPartOf(pkg, back.info().sheets[0].part), &d, &why) || d.objects.size() != 1)
+                return DrawingAnchor();
+            return d.objects[0].anchor;
+        };
+        DrawingAnchor far = place(anchorRecord(60000, 100, 65000, 10, 100, 900, 5, 0));
+        QCOMPARE(far.from.col, quint32(16383));
+        QVERIFY(far.to.col >= far.from.col);
+        QVERIFY(far.to.row >= far.from.row);
+        DrawingAnchor backwards = place(anchorRecord(4, 800, 4, 200, 4, 100, 4, 50));
+        QCOMPARE(backwards.to.col, backwards.from.col);
+        QVERIFY(backwards.to.colOff >= backwards.from.colOff);
+        QVERIFY(backwards.to.rowOff >= backwards.from.rowOff);
+        // a wide column makes the same part of a cell a larger distance
+        const DrawingAnchor narrow = place(anchorRecord(1, 512, 1, 0, 3, 0, 5, 0));
+        const DrawingAnchor wide = place(anchorRecord(1, 512, 1, 0, 3, 0, 5, 0), colinfo(1, 1, 9000));
+        QVERIFY(narrow.from.colOff > 0);
+        QVERIFY(wide.from.colOff > narrow.from.colOff);
+    }
+
+    // A copy in an older form or in the other open format still says the charts are not kept.
+    void copiesSayChartsAreNotKept()
+    {
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(bookWith(chartBody(series(0, named(0, 1), 1), columnParents(group(bar())))), &wb, &why), qPrintable(why));
+        QVERIFY(featuresNotInCopy(wb, CopyKind::Xls).contains(QStringLiteral("charts")));
+        QVERIFY(featuresNotInCopy(wb, CopyKind::Ods).contains(QStringLiteral("charts")));
+        QByteArray out;
+        CopyReport report;
+        QVERIFY2(saveXls(wb, &out, &report, &why), qPrintable(why));
+        QVERIFY(report.notKept.contains(QStringLiteral("charts")));
+    }
+
+    // A whole column or row is not a single cell; a sheet's name with a space and an apostrophe is quoted as the XML form quotes it; a title or axis title read from a cell keeps the link.
+    void referencesAndLinkedTitles()
+    {
+        const QByteArray column = rec(0x1003, W().u16(1).u16(1).u16(3).u16(3).u16(0).u16(0)) + begin() + named(0, 1) + ai(1, 2, tArea3d(0, 0, 1, 65535, 1, false, false)) + ai(2, 1) + ai(3, 1) +
+                                  rec(0x1045, W().u16(0)) + end();
+        const QByteArray linked = rec(0x1025, zeros(32)) + begin() + ai(0, 2, tRef3d(0, 0, 0, false, false)) + rec(0x1027, W().u16(1).u16(0).u16(0)) + end() + rec(0x1025, zeros(32)) + begin() +
+                                  ai(0, 2, tRef3d(0, 0, 2, false, false)) + rec(0x1027, W().u16(3).u16(0).u16(0)) + end();
+        Workbook wb;
+        QString why;
+        QVector<Chart> charts;
+        QVERIFY2(readCharts(bookWith(chartBody(column, columnParents(group(bar())), linked), 0, true, QStringLiteral("O'Brien data")), &wb, 0, &charts, &why), qPrintable(why));
+        QCOMPARE(charts.size(), 1);
+        const jp::office::ChartSeries &cs = charts[0].plots[0].series[0];
+        QCOMPARE(cs.nameRef, QStringLiteral("'O''Brien data'!$B$1"));
+        QVERIFY(cs.valueRef.startsWith(QStringLiteral("'O''Brien data'!$B")));
+        QVERIFY(cs.valueRef.contains(QLatin1Char(':')));   // (not collapsed to the one cell $B)
+        QCOMPARE(charts[0].title.ref, QStringLiteral("'O''Brien data'!$A$1"));
+        QVERIFY(charts[0].title.present);
+        QVERIFY(!charts[0].title.automatic);
+        const jp::office::ChartAxis *cat = charts[0].axis(charts[0].plots[0].axisIds[0]);
+        QVERIFY(cat);
+        QCOMPARE(cat->title.ref, QStringLiteral("'O''Brien data'!$C$1"));
+    }
+
+    // A second group on the secondary axes keeps its own pair of axes.
+    void aSecondaryAxisIsRead()
+    {
+        const QByteArray s = series(0, named(0, 1), 1) + series(1, named(0, 2), 2);
+        const QByteArray parents = axisParent(0, axis(0) + axis(1) + group(bar(), false, 0)) + axisParent(1, axis(0) + axis(1) + group(lineKind(), false, 1));
+        Workbook wb;
+        QString why;
+        QVector<Chart> charts;
+        QVERIFY2(readCharts(bookWith(chartBody(s, parents)), &wb, 0, &charts, &why), qPrintable(why));
+        QCOMPARE(charts.size(), 1);
+        QCOMPARE(charts[0].plots.size(), 2);
+        QVERIFY(charts[0].plots[0].type == ChartType::Bar);
+        QVERIFY(charts[0].plots[1].type == ChartType::Line);
+        QCOMPARE(charts[0].axes.size(), 4);
+        QCOMPARE(charts[0].plots[1].axisIds[1], qint64(1004));
+        const jp::office::ChartAxis *cat2 = charts[0].axis(charts[0].plots[1].axisIds[0]), *val2 = charts[0].axis(charts[0].plots[1].axisIds[1]);
+        QVERIFY(cat2 && val2);
+        QVERIFY(cat2->deleted);
+        QCOMPARE(val2->position, QStringLiteral("r"));
+    }
+
+    // A series of a group that is not there is left out (not put in the first group), and the chart is said to be partly read; the points of a series are bounded over all its records.
+    void limitsHoldForSeriesAndPoints()
+    {
+        const QByteArray s = series(0, named(0, 1), 1) + series(70, named(0, 2), 2);
+        Workbook wb;
+        QString why;
+        QVector<Chart> charts;
+        QVERIFY2(readCharts(bookWith(chartBody(s, columnParents(group(bar())))), &wb, 0, &charts, &why), qPrintable(why));
+        QCOMPARE(charts.size(), 1);
+        QCOMPARE(charts[0].plots[0].series.size(), 1);
+        QVERIFY(wb.skippedFeatures().contains(QStringLiteral("parts of charts")));
+        // values in several records of one series
+        QByteArray rows;
+        QList<QVariantList> items;
+        QVariantList row;
+        for (int i = 0; i < 4000; ++i) row << double(i);
+        items << row;
+        QByteArray many = rec(0x1003, W().u16(1).u16(1).u16(3).u16(3).u16(0).u16(0)) + begin() + ai(0, 1);
+        for (int k = 0; k < 5; ++k) many += rec(0x1051, W().u8(1).u8(2).u16(0).u16(0).u16(tArray().size()).raw(tArray()).raw(arrayValues(items)));
+        many += ai(2, 1) + ai(3, 1) + rec(0x1045, W().u16(0)) + end();
+        Workbook wb2;
+        QVector<Chart> bounded;
+        QVERIFY2(readCharts(bookWith(chartBody(many, columnParents(group(bar())))), &wb2, 0, &bounded, &why), qPrintable(why));
+        QCOMPARE(bounded.size(), 1);
+        QVERIFY(bounded[0].plots[0].series[0].values.size() <= 10000);
+    }
+
+    // Files made to hurt: a chart cut short, counts that are far past the bytes there are, a record longer than the file, and more series than a chart may have. Each is refused with a reason
+    // or opened with its cells (when the damage is not to them), its charts and series within the limits, and a saved copy that opens again.
+    void hostileChartsDoNotHurt()
+    {
+        // the place of the first record with the number, found by walking the records
+        auto recordAt = [](const QByteArray &stream, quint16 id) -> qsizetype {
+            qsizetype pos = 0;
+            while (pos + 4 <= stream.size()) {
+                const quint16 here = quint16(uchar(stream[pos]) | (uchar(stream[pos + 1]) << 8));
+                const qsizetype len = uchar(stream[pos + 2]) | (uchar(stream[pos + 3]) << 8);
+                if (here == id) return pos;
+                pos += 4 + len;
+            }
+            return -1;
+        };
+        // empty if the file is handled as it should be, else what went wrong
+        auto check = [](const QByteArray &file, bool cellsIntact) -> QString {
+            Workbook wb;
+            QString why;
+            if (!wb.openBinary(file, &why)) return why.isEmpty() ? QStringLiteral("refused with no reason") : QString();
+            int charts = 0;
             for (int i = 0; i < wb.info().sheets.size(); ++i) {
                 Sheet s;
                 wb.readSheet(i, &s);
-                if (charts) *charts += int(s.importedCharts.size());
+                if (i == 0 && cellsIntact && shown(wb, s, QStringLiteral("B2")) != QStringLiteral("n:10")) return QStringLiteral("cells are not intact");
+                if (s.importedCharts.size() > 1000) return QStringLiteral("too many charts");
+                for (const auto &c : s.importedCharts) {
+                    Chart chart;
+                    QString error;
+                    if (!jp::office::readChart(c.part, jp::office::defaultTheme(), jp::office::ColorMap(), &chart, &error)) return QStringLiteral("a chart part that does not read: ") + error;
+                    int count = 0;
+                    for (const auto &p : chart.plots) count += int(p.series.size());
+                    if (count > 256) return QStringLiteral("more series than a chart may have");
+                    for (const auto &p : chart.plots)
+                        for (const auto &cs : p.series)
+                            if (cs.values.size() > 10000) return QStringLiteral("more points than a series may have");
+                }
+                charts += int(s.importedCharts.size());
             }
             QByteArray out;
-            saveXlsx(wb, SaveChanges(), &out, &why);
-            return true;
+            if (!saveXlsx(wb, SaveChanges(), &out, &why)) return why.isEmpty() ? QStringLiteral("a save that failed with no reason") : QString();
+            Package pkg;
+            Workbook back;
+            if (!pkg.readLazy(out, &why) || !back.open(pkg, &why)) return QStringLiteral("a saved file that does not open: ") + why;
+            if (back.info().sheets.size() != wb.info().sheets.size()) return QStringLiteral("a saved file with other sheets");
+            return QString();
         };
         const QByteArray s = series(0, named(0, 1), 1) + series(0, named(0, 2), 2);
         const QByteArray whole = bookWith(chartBody(s, columnParents(group(bar())), textBlock(1, QStringLiteral("T")), legend(0))).stream();
+        QVERIFY2(check(whole, true).isEmpty(), qPrintable(check(whole, true)));
         // cut at every length from where the chart begins: opens or is refused, never hangs or crashes
-        const qsizetype from = whole.indexOf(QByteArray("\x01\x10\x02\x00\x00\x00", 6)) - 40;
-        for (qsizetype n = std::max<qsizetype>(0, from); n < whole.size(); n += 3) {
-            Book cutBook;
-            Q_UNUSED(cutBook);
-            readAll(whole.left(n));
+        const qsizetype from = std::max<qsizetype>(0, recordAt(whole, 0x1002) - 40);
+        QVERIFY(recordAt(whole, 0x1002) > 0);
+        for (qsizetype n = from; n < whole.size(); n += 3) {
+            const QString problem = check(whole.left(n), false);
+            QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("cut at %1: %2").arg(n).arg(problem)));
         }
-        // a series list that claims 65,535 series in a few bytes, and a chart group over them
-        QByteArray listed = group(bar() + rec(0x1016, W().u16(0xFFFF).u16(1).u16(2)));
-        readAll(bookWith(chartBody(s, columnParents(listed))).file());
+        // a series list that claims 65,535 series in a few bytes
+        const QByteArray listed = group(bar() + rec(0x1016, W().u16(0xFFFF).u16(1).u16(2)));
+        QString problem = check(bookWith(chartBody(s, columnParents(listed))).file(), true);
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
         // a series that claims 65,535 points
-        QByteArray many = rec(0x1003, W().u16(1).u16(1).u16(0xFFFF).u16(0xFFFF).u16(0).u16(0)) + begin() + ai(1, 2, tArea3d(0, 0, 0, 65535, 255, false, false)) + end();
-        readAll(bookWith(chartBody(many, columnParents(group(bar())))).file());
+        const QByteArray claims = rec(0x1003, W().u16(1).u16(1).u16(0xFFFF).u16(0xFFFF).u16(0).u16(0)) + begin() + ai(1, 2, tArea3d(0, 0, 0, 65535, 255, false, false)) + end();
+        problem = check(bookWith(chartBody(claims, columnParents(group(bar())))).file(), true);
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
         // 65,535 series records: the chart keeps what a chart may hold
         QByteArray lots;
-        for (int i = 0; i < 3000; ++i) lots += series(0, named(0, 1), 1);
-        int charts = 0;
-        QVERIFY(readAll(bookWith(chartBody(lots, columnParents(group(bar())))).file(), &charts));
+        for (int i = 0; i < 65535; ++i) lots += series(0, named(0, 1), 1);
+        const Book lotsBook = bookWith(chartBody(lots, columnParents(group(bar()))));
+        problem = check(lotsBook.file(), true);
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
         {
             Workbook wb;
             QVector<Chart> read;
             QString why;
-            QVERIFY2(readCharts(bookWith(chartBody(lots, columnParents(group(bar())))), &wb, 0, &read, &why), qPrintable(why));
-            if (!read.isEmpty()) QVERIFY(read[0].plots[0].series.size() <= 256);
+            QVERIFY2(readCharts(lotsBook, &wb, 0, &read, &why), qPrintable(why));
+            QCOMPARE(read.size(), 1);
+            QCOMPARE(read[0].plots[0].series.size(), 256);
+            QVERIFY(wb.skippedFeatures().contains(QStringLiteral("parts of charts")));
         }
-        // a record whose length goes past the end of the file
-        QByteArray stream = bookWith(chartBody(s, columnParents(group(bar())))).stream();
-        const qsizetype at = stream.lastIndexOf(QByteArray("\x15\x10", 2));   // (the legend or a record of the chart)
-        if (at > 0) {
-            stream[at + 2] = char(0xFF);
-            stream[at + 3] = char(0xFF);
-        }
-        readAll(stream);
+        // a record whose length goes past the end of the file (the legend's)
+        QByteArray stream = bookWith(chartBody(s, columnParents(group(bar())), QByteArray(), legend(0))).stream();
+        const qsizetype at = recordAt(stream, 0x1015);
+        QVERIFY(at > 0);
+        stream[at + 2] = char(0xFF);
+        stream[at + 3] = char(0xFF);
+        problem = check(stream, false);
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
         // blocks that begin and never end, and end and never began
         QByteArray open = rec(0x1003, W().u16(1).u16(1).u16(1).u16(1).u16(0).u16(0));
         for (int i = 0; i < 500; ++i) open += begin();
-        readAll(bookWith(chartBody(open, columnParents(group(bar())))).file());
+        problem = check(bookWith(chartBody(open, columnParents(group(bar())))).file(), true);
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
         QByteArray closed;
         for (int i = 0; i < 500; ++i) closed += end();
-        readAll(bookWith(chartBody(closed, columnParents(group(bar())))).file());
+        problem = check(bookWith(chartBody(closed, columnParents(group(bar())))).file(), true);
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
         // a reference with a count of tokens past the record
         const QByteArray lie = rec(0x1051, W().u8(1).u8(2).u16(0).u16(0).u16(0xFFFF).raw(zeros(5)));
-        readAll(bookWith(chartBody(rec(0x1003, W().u16(1).u16(1).u16(1).u16(1).u16(0).u16(0)) + begin() + lie + end(), columnParents(group(bar())))).file());
+        problem = check(bookWith(chartBody(rec(0x1003, W().u16(1).u16(1).u16(1).u16(1).u16(0).u16(0)) + begin() + lie + end(), columnParents(group(bar())))).file(), true);
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
     }
 };
 

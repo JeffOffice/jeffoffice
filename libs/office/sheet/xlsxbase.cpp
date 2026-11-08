@@ -673,6 +673,75 @@ QByteArray sharedStringsPart(const SharedStrings &shared, qsizetype count, qint6
 
 } // namespace
 
+namespace {
+
+// Where the charts of a sheet of the older form lie: the record gives how far into a cell a corner is as a part of the cell, so the sizes of the sheet's own columns and rows turn that
+// into EMU. Every place is kept to the grid of the XML form, and an end is never before its start.
+class ChartGrid {
+public:
+    explicit ChartGrid(const Sheet &sheet) : m_sheet(sheet)
+    {
+        for (const RowSpec &r : sheet.rowSpecs) m_rows.insert(r.row, r);
+    }
+    DrawingAnchor anchorOf(const ImportedChart &c) const
+    {
+        DrawingAnchor a;
+        if (c.absolute) {
+            a.kind = AnchorKind::Absolute;
+            a.x = a.y = 0;
+            a.cx = 9144000;   // (a page: 10 by 7 inches)
+            a.cy = 6400800;
+            return a;
+        }
+        a.from.col = std::min<quint32>(c.col1, 16383);
+        a.from.row = std::min<quint32>(c.row1, 1048575);
+        a.to.col = std::min<quint32>(c.col2, 16383);
+        a.to.row = std::min<quint32>(c.row2, 1048575);
+        a.from.colOff = c.dx1 * columnEmu(a.from.col) / 1024;
+        a.from.rowOff = c.dy1 * rowEmu(a.from.row) / 256;
+        a.to.colOff = c.dx2 * columnEmu(a.to.col) / 1024;
+        a.to.rowOff = c.dy2 * rowEmu(a.to.row) / 256;
+        if (a.to.col < a.from.col) {
+            a.to.col = a.from.col;
+            a.to.colOff = a.from.colOff;
+        }
+        if (a.to.row < a.from.row) {
+            a.to.row = a.from.row;
+            a.to.rowOff = a.from.rowOff;
+        }
+        if (a.to.col == a.from.col && a.to.colOff < a.from.colOff) a.to.colOff = a.from.colOff;
+        if (a.to.row == a.from.row && a.to.rowOff < a.from.rowOff) a.to.rowOff = a.from.rowOff;
+        return a;
+    }
+
+private:
+    qint64 columnEmu(quint32 col) const
+    {
+        double width = m_sheet.format.defaultColWidth > 0 ? m_sheet.format.defaultColWidth : 9.140625;
+        for (const ColumnSpan &c : m_sheet.columns)
+            if (col >= c.first && col <= c.last) {
+                if (c.hidden) return 0;
+                if (c.width >= 0) width = c.width;
+                break;
+            }
+        return qint64(width * 7.0) * 9525;
+    }
+    qint64 rowEmu(quint32 row) const
+    {
+        double height = m_sheet.format.defaultRowHeight > 0 ? m_sheet.format.defaultRowHeight : 15;
+        const auto it = m_rows.constFind(row);
+        if (it != m_rows.constEnd()) {
+            if (it->hidden) return 0;
+            if (it->height >= 0) height = it->height;
+        }
+        return qint64(height * 12700.0);
+    }
+    const Sheet &m_sheet;
+    QHash<quint32, RowSpec> m_rows;
+};
+
+} // namespace
+
 bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const std::atomic<bool> *cancel)
 {
     auto fail = [&](const QString &why) {
@@ -694,9 +763,19 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         info.sheets = read;
     }
     ZipWriter zip;
-    QByteArray types = kXmlHead;
+    // The charts of the older form are counted first, so that the content types (the first entry of the file) can name them: the drawing of a sheet, and the parts of its charts.
+    std::vector<int> drawingOf(size_t(info.sheets.size()), 0), firstChart(size_t(info.sheets.size()), 0);
+    int drawings = 0, charts = 0;
+    for (int i = 0; i < info.sheets.size(); ++i) {
+        const int n = book.importedChartCount(i);
+        if (n <= 0) continue;
+        drawingOf[size_t(i)] = ++drawings;
+        firstChart[size_t(i)] = charts + 1;
+        charts += n;
+    }
     // [Content_Types].xml and the relationships
     {
+        QByteArray types = kXmlHead;
         types += "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
                  "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/>"
                  "<Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/>";
@@ -704,6 +783,10 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
             types += "<Override PartName=\"" + baseSheetPart(i).toLatin1() + "\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>";
         types += "<Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/>"
                  "<Override PartName=\"/xl/sharedStrings.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml\"/>";
+        for (int d = 1; d <= drawings; ++d) types += "<Override PartName=\"/xl/drawings/drawing" + num(d) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawing+xml\"/>";
+        for (int c = 1; c <= charts; ++c) types += "<Override PartName=\"/xl/charts/chart" + num(c) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/>";
+        types += "</Types>";
+        zip.add(QStringLiteral("[Content_Types].xml"), types, true);
         zip.add(QStringLiteral("_rels/.rels"),
                 QByteArray(kXmlHead) + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"" + kRelNs
                     + "/officeDocument\" Target=\"xl/workbook.xml\"/></Relationships>",
@@ -722,7 +805,6 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
     zip.add(QStringLiteral("xl/styles.xml"), stylesPart(book.styles(), qsizetype(book.cellFormatsInFile()), addedFormats), true);
     // the sheets, one at a time
     qint64 references = 0;
-    int drawings = 0, charts = 0;
     for (int i = 0; i < info.sheets.size(); ++i) {
         if (cancel && cancel->load(std::memory_order_relaxed)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
         Sheet sheet;
@@ -736,40 +818,29 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         if (!ok) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
         if (!sheet.importedCharts.isEmpty()) {
             // the charts of the older form: one drawing for the sheet, a part for each chart, and the relationships between them
-            ++drawings;
+            if (sheet.importedCharts.size() != book.importedChartCount(i)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A sheet's charts changed while the workbook was being saved."));
             QByteArray anchors;
             QByteArray drawingRels = kXmlHead;
             drawingRels += "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">";
             int k = 0;
+            const ChartGrid grid(sheet);
             for (const ImportedChart &chart : std::as_const(sheet.importedCharts)) {
                 ++k;
-                ++charts;
-                DrawingAnchor a;
-                a.from.col = chart.col1;
-                a.from.row = chart.row1;
-                a.from.colOff = chart.colOff1;
-                a.from.rowOff = chart.rowOff1;
-                a.to.col = std::max(chart.col2, chart.col1);
-                a.to.row = std::max(chart.row2, chart.row1);
-                a.to.colOff = chart.colOff2;
-                a.to.rowOff = chart.rowOff2;
-                anchors += chartAnchorXml(a, k + 1, QStringLiteral("Chart %1").arg(k), QStringLiteral("rId%1").arg(k));
-                zip.add(QStringLiteral("xl/charts/chart%1.xml").arg(charts), chart.part, true);
-                types += "<Override PartName=\"/xl/charts/chart" + num(charts) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/>";
-                drawingRels += "<Relationship Id=\"rId" + num(k) + "\" Type=\"" + kRelNs + "/chart\" Target=\"../charts/chart" + num(charts) + ".xml\"/>";
+                const int number = firstChart[size_t(i)] + k - 1;
+                anchors += chartAnchorXml(grid.anchorOf(chart), k + 1, QStringLiteral("Chart %1").arg(k), QStringLiteral("rId%1").arg(k));
+                zip.add(QStringLiteral("xl/charts/chart%1.xml").arg(number), chart.part, true);
+                drawingRels += "<Relationship Id=\"rId" + num(k) + "\" Type=\"" + kRelNs + "/chart\" Target=\"../charts/chart" + num(number) + ".xml\"/>";
             }
             drawingRels += "</Relationships>";
-            zip.add(QStringLiteral("xl/drawings/drawing%1.xml").arg(drawings), newDrawingXml(anchors), true);
-            zip.add(QStringLiteral("xl/drawings/_rels/drawing%1.xml.rels").arg(drawings), drawingRels, true);
-            types += "<Override PartName=\"/xl/drawings/drawing" + num(drawings) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawing+xml\"/>";
+            const int drawing = drawingOf[size_t(i)];
+            zip.add(QStringLiteral("xl/drawings/drawing%1.xml").arg(drawing), newDrawingXml(anchors), true);
+            zip.add(QStringLiteral("xl/drawings/_rels/drawing%1.xml.rels").arg(drawing), drawingRels, true);
             zip.add(QStringLiteral("xl/worksheets/_rels/sheet%1.xml.rels").arg(i + 1),
                     QByteArray(kXmlHead) + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"" + kRelNs + "/drawing\" Target=\"../drawings/drawing" +
-                        num(drawings) + ".xml\"/></Relationships>",
+                        num(drawing) + ".xml\"/></Relationships>",
                     true);
         }
     }
-    types += "</Types>";
-    zip.add(QStringLiteral("[Content_Types].xml"), types, true);
     zip.add(QStringLiteral("xl/sharedStrings.xml"), sharedStringsPart(book.sharedStrings(), qsizetype(book.sharedStringsInFile()), references), true);
     *out = zip.finish();
     return true;

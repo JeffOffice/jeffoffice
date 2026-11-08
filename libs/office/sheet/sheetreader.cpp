@@ -2927,6 +2927,8 @@ QStringList Workbook::skippedFeatures() const { return m_xls ? m_xls->skipped() 
 
 QStringList Workbook::changedFeatures() const { return m_foreign ? m_foreign->changed() : QStringList(); }
 
+int Workbook::importedChartCount(int sheet) const { return m_xls ? m_xls->chartCount(sheet) : 0; }
+
 QString Workbook::convertedKind() const { return m_xls ? QStringLiteral(".xls") : m_foreign ? m_foreign->kind() : QString(); }
 
 // ---- changes
