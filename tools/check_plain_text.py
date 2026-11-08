@@ -108,7 +108,7 @@ def parts(expr, ch):
     return out
 
 
-SAFE_CALL = re.compile(r'^(?:[\w:]*::)?(?:tr|translate|QStringLiteral|QLatin1String|QLatin1StringView|QString::number|plainToolTip|jp::plainToolTip|QObject::tr|QString::fromLatin1)\s*\(')
+SAFE_CALL = re.compile(r'^(?:[\w:]*::)?(?:tr|translate|QStringLiteral|QLatin1String|QLatin1StringView|QString::number|plainToolTip|jp::plainToolTip|QObject::tr|QString::fromLatin1|versionText|versionString)\s*\(')
 NUMBER = re.compile(r'^-?[\d.]+[a-zA-Z]*$')
 
 
