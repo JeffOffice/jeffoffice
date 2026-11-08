@@ -2,74 +2,74 @@
  {
   "app": "jeffpub",
   "source_startswith": "Runs on Linux as well as Windows",
-  "works": "JeffPub runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
+  "works": "Runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
   "soon": "drop"
  },
  {
   "app": "jeffpub",
   "source_startswith": "Builds and runs on Linux (x86_64)",
-  "works": "JeffPub runs on Linux (x86_64), Windows 10 and 11 (x86_64), and macOS (Apple silicon and Intel).",
+  "works": "Runs on Linux (x86_64), Windows 10 and 11 (x86_64), and macOS (Apple silicon and Intel).",
   "soon": "drop"
  },
  {
   "app": "jeffpub",
   "source_startswith": "macOS app (Apple silicon and Intel)",
-  "works": "JeffPub is available for macOS (Apple silicon and Intel). It isn't signed yet, so macOS asks before opening it the first time.",
+  "works": "Available for macOS (Apple silicon and Intel). It isn't signed yet, so macOS asks before opening it the first time.",
   "soon": "drop",
   "exact": true
  },
  {
   "app": "jeffpub",
   "source_startswith": "Open `.pub` files (every version since 1998)",
-  "works": "JeffPub opens `.pub` files from 1998 on, including linked text boxes, tables, pictures, and master pages.",
+  "works": "Opens `.pub` files from 1998 on, including linked text boxes, tables, pictures, and master pages.",
   "soon": "Fonts stored inside `.pub` files, and page numbering of sections after the first"
  },
  {
   "app": "jeffpub",
   "source_startswith": "Open `.pub` files from Publisher 98 on",
-  "works": "JeffPub opens `.pub` files from 1998 on: pages, master pages, text and its formatting, tables, pictures, and objects in text.",
+  "works": "Opens `.pub` files from 1998 on: pages, master pages, text and its formatting, tables, pictures, and objects in text.",
   "soon": "drop"
  },
  {
   "app": "jeffpub",
   "source_startswith": "Save `.pub` as a complete file",
-  "works": "JeffPub saves `.pub` files as complete files with all their pages in the 2003-and-later `.pub` layout.",
+  "works": "Saves `.pub` files as complete files with all their pages in the 2003-and-later `.pub` layout.",
   "soon": "drop"
  },
  {
   "app": "jeffpub",
   "source_startswith": "Every file reader is fuzzed",
-  "works": "JeffPub opens damaged `.pub` files as far as it can.",
+  "works": "Opens damaged `.pub` files as far as it can.",
   "soon": "drop"
  },
  {
   "app": "jeffpub",
   "source_startswith": "A damaged file opens as far as it can",
-  "works": "JeffPub opens a damaged file as far as it can and says what it left out.",
+  "works": "Opens a damaged file as far as it can and says what it left out.",
   "soon": "drop"
  },
  {
   "app": "jeffpub",
   "source_startswith": "In seven languages: English",
-  "works": "JeffPub's menus and Help are available in English, German, Spanish, French, Italian, Dutch, and Portuguese. The translations are machine-made and can be corrected by anyone.",
+  "works": "The menus and Help are available in English, German, Spanish, French, Italian, Dutch, and Portuguese. The translations are machine-made and can be corrected by anyone.",
   "soon": "drop"
  },
  {
   "app": "jeffdeck",
   "source_startswith": "Runs on Linux and Windows",
-  "works": "JeffDeck runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
+  "works": "Runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
   "soon": "drop"
  },
  {
   "app": "jeffdeck",
   "source_startswith": "Installs without administrator rights",
-  "works": "JeffDeck installs without administrator rights, or runs with no installation (a Windows `.zip` or a Linux AppImage).",
+  "works": "Installs without administrator rights, or runs with no installation (a Windows `.zip` or a Linux AppImage).",
   "soon": "drop"
  },
  {
   "app": "jeffdeck",
   "source_startswith": "Bundled open fonts, with stand-ins",
-  "works": "JeffDeck bundles open fonts, with stand-ins that keep the letter widths of common fonts, so text wraps the same way on a computer without those fonts.",
+  "works": "Bundles open fonts, with stand-ins that keep the letter widths of common fonts, so text wraps the same way on a computer without those fonts.",
   "soon": "drop"
  },
  {
@@ -117,7 +117,7 @@
  {
   "app": "jeffdeck",
   "source_startswith": "Insert Shapes and Change Shape",
-  "works": "JeffDeck inserts shapes from a gallery on the Home and Insert tabs.",
+  "works": "Inserts shapes from a gallery on the Home and Insert tabs.",
   "soon": "drop"
  },
  {
@@ -134,7 +134,7 @@
  {
   "app": "jeffdeck",
   "source_startswith": "Save `.pptx` as a complete package",
-  "works": "JeffDeck saves `.pptx` files as complete packages with their elements in the standard's own parts.",
+  "works": "Saves `.pptx` files as complete packages with their elements in the standard's own parts.",
   "soon": "drop"
  },
  {
@@ -176,7 +176,7 @@
  {
   "app": "jeffdeck",
   "source_startswith": "Every file reader is fuzzed",
-  "works": "JeffDeck opens damaged files as far as it can.",
+  "works": "Opens damaged files as far as it can.",
   "soon": "drop"
  },
  {
@@ -200,7 +200,7 @@
  {
   "app": "jeffwrite",
   "source_startswith": "Runs on Linux and Windows",
-  "works": "JeffWrite runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
+  "works": "Runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
   "soon": "drop"
  },
  {
@@ -218,13 +218,13 @@
  {
   "app": "jeffwrite",
   "source_startswith": "Open `.docx`, `.doc`, `.rtf`, and `.odt`",
-  "works": "JeffWrite opens `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt`, `.fodt`, and `.ott` files.",
+  "works": "Opens `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt`, `.fodt`, and `.ott` files.",
   "soon": "Comments and form-field state when opening `.doc` files"
  },
  {
   "app": "jeffwrite",
   "source_startswith": "Save as `.docx` by default",
-  "works": "JeffWrite saves `.docx`, `.dotx`, and `.odt` files.",
+  "works": "Saves `.docx`, `.dotx`, and `.odt` files.",
   "soon": "drop"
  },
  {
@@ -318,19 +318,19 @@
  {
   "app": "jeffwrite",
   "source_startswith": "Open and save macro-enabled files",
-  "works": "JeffWrite opens `.docm` and `.dotm` files and never runs their macros. Saving as `.docx` leaves them out and says so.",
+  "works": "Opens `.docm` and `.dotm` files and never runs their macros. Saving as `.docx` leaves them out and says so.",
   "soon": "Save as `.docm` and `.dotm` with macros kept"
  },
  {
   "app": "jeffwrite",
   "source_startswith": "Save `.docx` so that every file opens",
-  "works": "JeffWrite saves `.docx` files that keep the document's content and look.",
+  "works": "Saves `.docx` files that keep the document's content and look.",
   "soon": "drop"
  },
  {
   "app": "jeffwrite",
   "source_startswith": "File associations for `.docx`",
-  "works": "JeffWrite is associated with `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt`, and `.ott` files on Windows, macOS, and Linux.",
+  "works": "Registered to open `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt`, and `.ott` files on Windows, macOS, and Linux.",
   "soon": "drop"
  },
  {
@@ -341,7 +341,7 @@
  {
   "app": "jeffcrunch",
   "source_startswith": "Runs on Linux and Windows",
-  "works": "JeffCrunch runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
+  "works": "Runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
   "soon": "drop"
  },
  {
@@ -353,7 +353,7 @@
  {
   "app": "jeffcrunch",
   "source_startswith": "Every formula keeps its last result",
-  "works": "A formula whose function JeffCrunch doesn't have yet keeps the result the file stored and is written back as it was.",
+  "works": "A formula whose function the app doesn't have yet keeps the result the file stored and is written back as it was.",
   "soon": "More functions"
  },
  {
@@ -382,13 +382,13 @@
  {
   "app": "jeffcrunch",
   "source_startswith": "Open `.xlsx`, `.xls`, `.ods`, `.csv`, and `.txt`",
-  "works": "JeffCrunch opens `.xlsx`, `.xlsm`, `.xls`, `.ods`, `.fods`, `.csv`, `.tsv`, and `.txt` files, and templates.",
+  "works": "Opens `.xlsx`, `.xlsm`, `.xls`, `.ods`, `.fods`, `.csv`, `.tsv`, and `.txt` files, and templates.",
   "soon": "drop"
  },
  {
   "app": "jeffcrunch",
   "source_startswith": "Save as `.xlsx` by default",
-  "works": "JeffCrunch saves `.xlsx` by default, `.xls` and `.ods` copies, `.csv`, `.tsv`, and `.txt`.",
+  "works": "Saves `.xlsx` by default, `.xls` and `.ods` copies, `.csv`, `.tsv`, and `.txt`.",
   "soon": "drop"
  },
  {
@@ -543,7 +543,7 @@
  {
   "app": "jeffcrunch",
   "source_startswith": "Save `.xlsx` so that every file opens",
-  "works": "JeffCrunch saves `.xlsx` files that keep the workbook's values, formulas, and formatting.",
+  "works": "Saves `.xlsx` files that keep the workbook's values, formulas, and formatting.",
   "soon": "drop"
  },
  {
