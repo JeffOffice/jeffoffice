@@ -29,7 +29,7 @@ The **Layout** list sets how pages land on paper:
 ## More settings
 
 - **Paper**: Letter, Legal, Tabloid, A4, A3, or **Same as publication**.
-- **Sides**: **One-sided**, or two-sided with a flip on the long or the short edge. The preview then tells you which sheet and side each page is on.
+- **Sides**: **Print on one side**, or **Print on both sides** with a flip on the long edge or on the short edge. The preview then tells you which sheet and side each page is on.
 - **Color**: **Composite RGB** for full color, or **Composite grayscale** for shades of gray.
 - **Print all mail merge records**: available when your publication has a recipient list. See [mail merge](mail-merge).
 

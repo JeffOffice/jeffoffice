@@ -106,6 +106,23 @@ private Q_SLOTS:
         if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) w.grab().save(qEnvironmentVariable("JP_SHOT_DIR") + "/print-preview.png");
     }
 
+    // The Sides choice says what the other apps' Print pages say.
+    void printPageSidesWordsMatchTheOtherApps()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.editor()->setDocument(jp::Document::blank(QSizeF(396, 612)));
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.showBackstage(QStringLiteral("print"));
+        auto *sides = w.findChild<QComboBox *>(QStringLiteral("printSides"));
+        QVERIFY(sides);
+        QCOMPARE(sides->count(), 3);
+        QCOMPARE(sides->itemText(0), QStringLiteral("Print on one side"));
+        QCOMPARE(sides->itemText(1), QStringLiteral("Print on both sides, flip on long edge"));
+        QCOMPARE(sides->itemText(2), QStringLiteral("Print on both sides, flip on short edge"));
+    }
+
     // File > Export > PDF/A writes a file that identifies itself as PDF/A-1b
     // and carries the sRGB output intent the standard requires.
     void pdfaExport()

@@ -5,6 +5,7 @@
 #include "app/appfuncs.h"
 #include "app/dialogs.h"
 #include "app/filescreenparts.h"
+#include "app/printsides.h"
 #include "app/filetasks.h"
 #include "app/icons.h"
 #include "app/mainwindow.h"
@@ -781,7 +782,8 @@ QWidget *Backstage::buildPrint()
     auto *paper = new QComboBox(w);
     paper->addItems({"Letter", "Legal", "Tabloid", "A4", "A3", tr("Same as publication")});
     auto *sides = new QComboBox(w);
-    sides->addItems({tr("One-sided"), tr("Two-sided, flip on long edge"), tr("Two-sided, flip on short edge")});
+    sides->setObjectName(QStringLiteral("printSides"));
+    fillSidesBox(sides, false, int(SidesChoice::OneSide));   // (the words the other apps' Print pages use)
     auto *color = new QComboBox(w);
     color->addItems({tr("Composite RGB"), tr("Composite grayscale"), tr("Separations (CMYK plates)")});
     // Printer's marks: they print outside the page, so they need paper larger
