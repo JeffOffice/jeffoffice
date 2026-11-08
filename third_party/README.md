@@ -35,6 +35,7 @@ PDFium places PDF pages as pictures (`libs/base/render/pdfpage.cpp`). The build 
 | dragonbox | Apache-2.0 with LLVM Exceptions, or Boost Software License 1.0 | `dragonbox-Apache2-LLVM.txt`, `dragonbox-Boost.txt` |
 | fast_float | MIT | `fast_float.txt` |
 | simdutf | MIT | `simdutf.txt` |
+| Highway | Apache-2.0 | `highway.txt` |
 | LLVM libc | Apache-2.0 with LLVM Exceptions | `llvm-libc.txt` |
 
 ## JeffPub changes

@@ -394,6 +394,20 @@
    ]
   },
   {
+   "name": "Highway (in PDFium)",
+   "url": "https://github.com/google/highway",
+   "use": "Support code",
+   "license": "Apache-2.0",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/pdfium/licenses/highway.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
    "name": "LLVM libc (in PDFium)",
    "url": "https://libc.llvm.org/",
    "use": "Support code",

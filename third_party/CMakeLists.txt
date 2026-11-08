@@ -9,10 +9,10 @@ find_package(ZLIB QUIET)
 if(NOT ZLIB_FOUND)
   FetchContent_Declare(zlib
     # (each URL is tried in turn: GitHub's downloads sometimes answer 504 for an hour)
-    URL https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz
-        https://zlib.net/fossils/zlib-1.3.1.tar.gz
-        https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz
-    URL_HASH SHA256=9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23)
+    URL https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz
+        https://zlib.net/fossils/zlib-1.3.2.tar.gz
+        https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz
+    URL_HASH SHA256=bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16)
   set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
   set(SKIP_INSTALL_ALL ON CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(zlib)
@@ -62,10 +62,9 @@ endif()
 # Hunspell (MPL 1.1 / GPL 2 / LGPL 2.1 tri-license) for spell checking.
 FetchContent_Declare(hunspell
   # (each URL is tried in turn: GitHub's downloads sometimes answer 504 for an hour)
-  URL https://github.com/hunspell/hunspell/archive/refs/tags/v1.7.2.tar.gz
-      https://codeload.github.com/hunspell/hunspell/tar.gz/refs/tags/v1.7.2
-      https://github.com/hunspell/hunspell/archive/refs/tags/v1.7.2.tar.gz
-  URL_HASH SHA256=69fa312d3586c988789266eaf7ffc9861d9f6396c31fc930a014d551b59bbd6e)
+  URL https://github.com/hunspell/hunspell/releases/download/v1.7.6/hunspell-1.7.6.tar.gz
+      https://github.com/hunspell/hunspell/releases/download/v1.7.6/hunspell-1.7.6.tar.gz
+  URL_HASH SHA256=9c650ace31d4d8cc1da925a9507c3de1d50f1a54857af2f72429f517d5d53467)
 FetchContent_GetProperties(hunspell)
 if(NOT hunspell_POPULATED)
   FetchContent_Populate(hunspell)

@@ -3,16 +3,16 @@
 # the build tree and checked against its published SHA-256. Its license
 # texts (PDFium's and those of the libraries built into it) are in
 # _deps/pdfium/licenses and ship with every package.
-set(JP_PDFIUM_RELEASE "chromium/8086")
+set(JP_PDFIUM_RELEASE "chromium/8138")
 if(WIN32)
   set(_pdfium_asset pdfium-win-x64.tgz)
-  set(_pdfium_sha256 1fd8af952832dbb0eb16d9249f68fe09e5f5ebf7c3dd9f6066ea2720cc28487d)
+  set(_pdfium_sha256 8d48973e3eb472dda0f5f2435e595ac043f9f2219dd71883392f549445afa8a5)
 elseif(APPLE)
   set(_pdfium_asset pdfium-mac-univ.tgz)
-  set(_pdfium_sha256 ceb8dff448db2a2b15ac52e1360427edc3461f2b51cb4579b1462f1a931087d5)
+  set(_pdfium_sha256 bbc85a8306409267bcca6d961f0b416cde1fac2423411f5c14ab02b0b3e689fd)
 else()
   set(_pdfium_asset pdfium-linux-x64.tgz)
-  set(_pdfium_sha256 588577cf52dabc1a444988bac841920df54cc2f141801424de97ab04f4fbb935)
+  set(_pdfium_sha256 d6b1e28950a0392590d79bbdbb7eb19686872b688f8a36f170acb19e41473113)
 endif()
 
 set(JP_PDFIUM_DIR ${CMAKE_BINARY_DIR}/_deps/pdfium)

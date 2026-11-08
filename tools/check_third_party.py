@@ -29,7 +29,7 @@ PARTS = {
     "third_party/ffmpeg": "FFmpeg", "third_party/pdfium": "PDFium",
     "pdfium/abseil": "Abseil", "pdfium/agg23": "Anti-Grain Geometry", "pdfium/dragonbox-Apache2-LLVM": "dragonbox",
     "pdfium/dragonbox-Boost": "dragonbox", "pdfium/fast_float": "fast_float", "pdfium/freetype": "FreeType",
-    "pdfium/harfbuzz": "HarfBuzz", "pdfium/icu": "ICU", "pdfium/lcms": "Little CMS", "pdfium/libjpeg_turbo": "libjpeg-turbo",
+    "pdfium/harfbuzz": "HarfBuzz", "pdfium/highway": "Highway", "pdfium/icu": "ICU", "pdfium/lcms": "Little CMS", "pdfium/libjpeg_turbo": "libjpeg-turbo",
     "pdfium/libopenjpeg": "OpenJPEG", "pdfium/libpng": "libpng", "pdfium/llvm-libc": "LLVM libc",
     "pdfium/pdfium-binaries": "pdfium-binaries", "pdfium/pdfium": "PDFium", "pdfium/simdutf": "simdutf", "pdfium/zlib": "zlib",
     "dict/de": "German dictionary", "dict/en": "English dictionaries", "dict/es": "Spanish dictionaries",
