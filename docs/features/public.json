@@ -52,7 +52,7 @@
       },
       {
        "status": "partly",
-       "text": "3f5f4902ba6b5de784a3fcb26c27103b49def18cc381102a0ce052eac48ae918"
+       "text": "83fa0a49629f0bd9202d9ccadfe19a4ad9aff41cf723d0217dc7289963cfc39e"
       },
       {
        "hide_soon": true,
@@ -2309,7 +2309,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "91b144ffa7e137de42d59e3f854b09ea786a8a6d47afc3a621cab5b173883d73"
+       "text": "e3a8f87e8af740cdd21a2a86d75ae118f3c1c23850e1f3e8e19cf60e3493bcaa"
       },
       {
        "hide_soon": true,
@@ -3203,7 +3203,7 @@
       },
       {
        "status": "todo",
-       "text": "b0994552cd578213f0d07285b748690e64113aefb04e556bdc3409724750b331"
+       "text": "e303469a3c92c0c6b3a9e943c43ed9a9bfb1314dc7088a06b9a0d2e1419fe87c"
       },
       {
        "status": "todo",
@@ -4604,7 +4604,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "a5df6f2a9237e127bcf3ac0ab4de0ba69528a0b0091040131a25be6a5f4db2db"
+       "text": "5950a744c2ea33933b0f6626f276e74e197760548fa6875497f38e06939223ab"
       },
       {
        "hide_soon": true,
@@ -5167,7 +5167,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "17efeeb44e902205e5835fa2c30048d05db4b3fc0bdc6280bd2bb5422836cdb7"
+       "text": "5a9dce92eb2e0909128ab1c7ac1a0fd8102865008311b24c1e26d2663fa33630"
       },
       {
        "hide_soon": true,
@@ -5369,7 +5369,7 @@
       },
       {
        "status": "partly",
-       "text": "07e6654002be9cb2c4092806fb3fcbd2fc6aaaaa89a736b723da6b7a03aff544"
+       "text": "178115e2f8e652252a4cb1208ccb866422b40fcb35bc21377050563c0cc69b5b"
       },
       {
        "status": "todo",
@@ -6082,7 +6082,7 @@
         },
         {
          "status": "partly",
-         "text": "c7962d6340d42ecbbeae73bcf7e489a94b6b85a5e79d8ab7151f97a73d193066"
+         "text": "482dcaf1cef8030f994cc0ceddb00f4b1ad9b81face0a33a8399e656f28323ef"
         },
         {
          "status": "partly",
@@ -6298,7 +6298,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "e177edb4b1c9a45cb4a46392ee83bb29a251796dcaa19e3b21479aee3163e254"
+         "text": "aa937575f9cf06df63fce6f78af5343a42e1df67c449daacb67ffc7dfdf915bb"
         },
         {
          "status": "partly",
@@ -6958,7 +6958,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "8524b66c3aca59023920a4f013ba97daee2c7a2ee109dc14ef1832f60d5c73c5"
+         "text": "5315fe4efc3958ceb252e37a92264d5317bfec7398db84dd3a8a6a44e08f9361"
         },
         {
          "hide_soon": true,
@@ -7771,18 +7771,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "07e6654002be9cb2c4092806fb3fcbd2fc6aaaaa89a736b723da6b7a03aff544": {
-   "drop": false,
-   "en": "Spelling works offline, in 12 languages, as you type and in the Spelling pane. Hyphenation follows a file's settings.",
-   "es": "La revisión ortográfica funciona sin conexión, en 12 idiomas, mientras escribe y en el panel de ortografía. La separación en sílabas sigue la configuración del archivo.",
-   "fr": "La vérification orthographique fonctionne hors ligne, en 12 langues, pendant la saisie et dans le volet Orthographe. La césure suit les paramètres du fichier.",
-   "soon": {
-    "drop": false,
-    "en": "Hyphenation: set from a menu or dialog",
-    "es": "Separación en sílabas: configurar desde un menú o cuadro de diálogo",
-    "fr": "Césure : réglage depuis un menu ou une boîte de dialogue"
    }
   },
   "07f1c343881e580a51e16f936a6d68aa42aab4972765f189c08356eeaadd779b": {
@@ -8937,6 +8925,18 @@
     "fr": ""
    }
   },
+  "178115e2f8e652252a4cb1208ccb866422b40fcb35bc21377050563c0cc69b5b": {
+   "drop": false,
+   "en": "Spelling works offline, in 31 languages and regional forms, as you type and in the Spelling pane. Hyphenation follows a file's settings.",
+   "es": "La ortografía funciona sin conexión, en 31 idiomas y variantes regionales, mientras escribe y en el panel de ortografía. La separación silábica sigue la configuración del archivo.",
+   "fr": "L’orthographe fonctionne hors ligne, dans 31 langues et formes régionales, pendant la saisie et dans le volet Orthographe. La césure suit les réglages du fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Hyphenation: set from a menu or dialog",
+    "es": "Separación silábica: configurar desde un menú o cuadro de diálogo",
+    "fr": "Césure : réglage depuis un menu ou une boîte de dialogue"
+   }
+  },
   "17a53275e33109c410ee5b7acb6dddecff310380637803ec47669163e24314bd": {
    "drop": false,
    "en": "Keep a backup copy on every save.",
@@ -8971,18 +8971,6 @@
     "en": "Grammar and style checking that runs on your own computer",
     "es": "Revisión de gramática y estilo que se ejecuta en su propio equipo",
     "fr": "Vérification de la grammaire et du style exécutée sur votre propre ordinateur"
-   }
-  },
-  "17efeeb44e902205e5835fa2c30048d05db4b3fc0bdc6280bd2bb5422836cdb7": {
-   "drop": false,
-   "en": "The menus and Help are available in English, German, Spanish, French, Italian, Dutch, and Portuguese. The translations are machine-made and can be corrected by anyone.",
-   "es": "Los menús y la Ayuda están disponibles en inglés, alemán, español, francés, italiano, neerlandés y portugués. Las traducciones son automáticas y cualquier persona puede corregirlas.",
-   "fr": "Les menus et l’aide sont disponibles en anglais, allemand, espagnol, français, italien, néerlandais et portugais. Les traductions sont automatiques et chacun peut les corriger.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "17f55ba700e4e4072518ebb5f8e4f98fad069039f5fdaae428e99470b79f97eb": {
@@ -11865,18 +11853,6 @@
     "fr": ""
    }
   },
-  "3f5f4902ba6b5de784a3fcb26c27103b49def18cc381102a0ce052eac48ae918": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Spelling check (F7), offline, in 12 languages",
-    "es": "Revisión ortográfica (`F7`), sin conexión, en 12 idiomas",
-    "fr": "Vérification orthographique (`F7`), hors ligne, en 12 langues"
-   }
-  },
   "3f6d9d63250352303c99a64176da8e37490600a643b4d4b0eed82f6bc066629c": {
    "drop": false,
    "en": "Transitions tab",
@@ -12535,6 +12511,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "482dcaf1cef8030f994cc0ceddb00f4b1ad9b81face0a33a8399e656f28323ef": {
+   "drop": false,
+   "en": "Set hyphenation to none or automatic, turn hyphenating words in capitals on or off, and set the hyphenation zone and a limit on hyphens in a row, in 31 languages and regional forms. A file's per-paragraph \"don't hyphenate\" setting is respected.",
+   "es": "Establezca la separación silábica como ninguna o automática, active o desactive la separación de palabras en mayúsculas, y fije la zona de separación y un límite de guiones consecutivos, en 31 idiomas y variantes regionales. Se respeta el ajuste «no separar» por párrafo de un archivo.",
+   "fr": "Réglez la césure sur aucune ou automatique, activez ou désactivez la césure des mots en majuscules, et définissez la zone de césure et une limite de traits d’union consécutifs, dans 31 langues et formes régionales. Le réglage « ne pas couper les mots » par paragraphe d’un fichier est respecté.",
+   "soon": {
+    "drop": false,
+    "en": "Manual hyphenation",
+    "es": "Separación silábica manual",
+    "fr": "Césure manuelle"
    }
   },
   "48357db3355b5d549d7e0515a958e145d91968fb1c5bfdd687b2c524fb743a38": {
@@ -13329,6 +13317,18 @@
     "fr": ""
    }
   },
+  "5315fe4efc3958ceb252e37a92264d5317bfec7398db84dd3a8a6a44e08f9361": {
+   "drop": false,
+   "en": "The menus and Help are available in English, German, Spanish, French, Italian, Dutch, and Portuguese, with English also for the United Kingdom, Canada, and Australia and Spanish also for Spain. The language follows the system or the choice in Options.",
+   "es": "Los menús y la Ayuda están disponibles en inglés, alemán, español, francés, italiano, neerlandés y portugués, con inglés también para el Reino Unido, Canadá y Australia, y español también para España. El idioma sigue al del sistema o a la opción elegida en Opciones.",
+   "fr": "Les menus et l’aide sont disponibles en anglais, allemand, espagnol, français, italien, néerlandais et portugais, avec aussi l’anglais pour le Royaume-Uni, le Canada et l’Australie et l’espagnol pour l’Espagne. La langue suit celle du système ou le choix fait dans Options.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "532c8fa15b8e7a146a5578d14612c968d83c5c751fdf387f3291b8b68a9ad0e7": {
    "drop": false,
    "en": "Insert an equation typed in a line (`Alt+=`) with a preview, in one undoable step; names such as `\\alpha` turn into symbols. Insert one of twelve built-in equations, or open an equation next to the caret to change it.",
@@ -13797,6 +13797,18 @@
     "fr": ""
    }
   },
+  "5950a744c2ea33933b0f6626f276e74e197760548fa6875497f38e06939223ab": {
+   "drop": false,
+   "en": "Set the proofing language for selected text; spelling and automatic hyphenation follow it. Available: English (US, UK, Canada, and Australia), Spanish (21 regions, with other Spanish regions checked as Mexico's), French, German, Italian, Dutch, and Portuguese (Brazil and Portugal).",
+   "es": "Establezca el idioma de revisión del texto seleccionado; la ortografía y la separación silábica automática lo siguen. Disponibles: inglés (EE. UU., Reino Unido, Canadá y Australia), español (21 regiones, y las demás regiones del español se revisan como el de México), francés, alemán, italiano, neerlandés y portugués (Brasil y Portugal).",
+   "fr": "Définissez la langue de correction du texte sélectionné ; l’orthographe et la césure automatique la suivent. Langues disponibles : anglais (États-Unis, Royaume-Uni, Canada et Australie), espagnol (21 régions, les autres régions hispanophones étant vérifiées comme le Mexique), français, allemand, italien, néerlandais et portugais (Brésil et Portugal).",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "595de30e35522b97687b2c0a50ea38c1d05a33307bcd34365708ee6a142ecaad": {
    "drop": false,
    "en": "With facing pages and mirrored margins, even-numbered pages swap the inside and outside sides in the text, headers and footers, and page borders. A section that starts on an odd or even page gets the blank page it needs.",
@@ -13855,6 +13867,18 @@
     "en": "Other links and remote content: held back until allowed",
     "es": "Otros vínculos y contenido remoto: retenidos hasta que se permitan",
     "fr": "Autres liens et contenu distant : bloqués tant qu’ils ne sont pas autorisés"
+   }
+  },
+  "5a9dce92eb2e0909128ab1c7ac1a0fd8102865008311b24c1e26d2663fa33630": {
+   "drop": false,
+   "en": "The menus and Help are available in English, German, Spanish, French, Italian, Dutch, and Portuguese. The translations are machine-made and can be corrected by anyone.",
+   "es": "Los menús y la Ayuda están disponibles en inglés, alemán, español, francés, italiano, neerlandés y portugués. Las traducciones son automáticas y cualquier persona puede corregirlas.",
+   "fr": "Les menus et l’aide sont disponibles en anglais, allemand, espagnol, français, italien, néerlandais et portugais. Les traductions sont automatiques et chacun peut les corriger.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "5ad0db0bbc8e59144334752f140c842f2781e8acfa717026c7a7b6aa5b1db5ad": {
@@ -16965,6 +16989,18 @@
     "fr": "Poignée de déplacement du tableau dans le coin"
    }
   },
+  "83fa0a49629f0bd9202d9ccadfe19a4ad9aff41cf723d0217dc7289963cfc39e": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Spelling check (F7), offline, in 31 languages and regional forms",
+    "es": "Revisión ortográfica (F7), sin conexión, en 31 idiomas y variantes regionales",
+    "fr": "Vérification orthographique (F7), hors ligne, dans 31 langues et formes régionales"
+   }
+  },
   "844070ff3f18a60b9e50e79b9036f4bd880ecd6a2e8a15ea7d76c3bd92902b2e": {
    "drop": false,
    "en": "Media",
@@ -16994,18 +17030,6 @@
    "en": "Finish a merge by sending it to the printer, to a new publication, or to email as one `.eml` file per recipient, and export the recipient list.",
    "es": "Finalice una combinación enviándola a la impresora, a una nueva publicación o al correo electrónico como un archivo `.eml` por destinatario, y exporte la lista de destinatarios.",
    "fr": "Terminez une fusion en l’envoyant à l’imprimante, vers une nouvelle publication ou par e-mail sous forme d’un fichier `.eml` par destinataire, et exportez la liste de destinataires.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "8524b66c3aca59023920a4f013ba97daee2c7a2ee109dc14ef1832f60d5c73c5": {
-   "drop": false,
-   "en": "The app and its Help are available in seven languages (English, German, Spanish, French, Italian, Dutch, and Portuguese), following the system or the choice in Options.",
-   "es": "La aplicación y su Ayuda están disponibles en siete idiomas (inglés, alemán, español, francés, italiano, neerlandés y portugués), según el sistema o la opción elegida en Opciones.",
-   "fr": "L’application et son aide sont disponibles en sept langues (anglais, allemand, espagnol, français, italien, néerlandais et portugais), selon le système ou le choix fait dans Options.",
    "soon": {
     "drop": true,
     "en": "",
@@ -17791,18 +17815,6 @@
     "en": "Shrink-to-fit-one-page check in print preview",
     "es": "Comprobación de ajuste a una página en la vista previa de impresión",
     "fr": "Vérification de l’ajustement à une page dans l’aperçu avant impression"
-   }
-  },
-  "91b144ffa7e137de42d59e3f854b09ea786a8a6d47afc3a621cab5b173883d73": {
-   "drop": false,
-   "en": "Help and the interface work offline in English, German, Spanish, French, Italian, Dutch, and two forms of Portuguese. Usage statistics and crash reports are sent only for people who opted in, and commands are counted by id, never by name.",
-   "es": "La ayuda y la interfaz funcionan sin conexión en inglés, alemán, español, francés, italiano, neerlandés y dos variantes del portugués. Las estadísticas de uso y los informes de fallos se envían solo si usted lo ha aceptado, y los comandos se cuentan por identificador, nunca por nombre.",
-   "fr": "L’aide et l’interface fonctionnent hors ligne en anglais, allemand, espagnol, français, italien, néerlandais et deux variantes du portugais. Les statistiques d’utilisation et les rapports de plantage ne sont envoyés que si vous y avez consenti, et les commandes sont comptées par identifiant, jamais par nom.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "91e7a57a97b8d086a98e5df3af551a99bdb53d3ba5e1a5ad1aff6fda1ba7d3b9": {
@@ -19125,18 +19137,6 @@
     "fr": ""
    }
   },
-  "a5df6f2a9237e127bcf3ac0ab4de0ba69528a0b0091040131a25be6a5f4db2db": {
-   "drop": false,
-   "en": "Set the proofing language for selected text; spelling and automatic hyphenation follow it. Available: English (US, UK, Canada, Australia), Spanish (Spain, Mexico), French, German, Italian, Dutch, and Portuguese (Brazil, Portugal).",
-   "es": "Establezca el idioma de revisión del texto seleccionado; la ortografía y la separación automática de palabras lo siguen. Disponibles: inglés (EE. UU., Reino Unido, Canadá, Australia), español (España, México), francés, alemán, italiano, neerlandés y portugués (Brasil, Portugal).",
-   "fr": "Définissez la langue de correction du texte sélectionné ; l’orthographe et la césure automatique la suivent. Disponibles : anglais (États-Unis, Royaume-Uni, Canada, Australie), espagnol (Espagne, Mexique), français, allemand, italien, néerlandais et portugais (Brésil, Portugal).",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "a623cfdf2713065ededd839aa09b7f34be3ac460b6d96411c9f233af25047e60": {
    "drop": false,
    "en": "Print gridlines, row and column headings, notes (at the end of the sheet), errors as blank, black and white, and draft quality as chosen.",
@@ -19485,6 +19485,18 @@
     "fr": ""
    }
   },
+  "aa937575f9cf06df63fce6f78af5343a42e1df67c449daacb67ffc7dfdf915bb": {
+   "drop": false,
+   "en": "Check spelling as you type with red wavy underlines, suggestions on right-click, Ignore All, and Add to Dictionary. The Spelling pane (`F7`) offers Change, Change All, Ignore, Ignore All, and Add, and skips words in capitals and words with numbers.",
+   "es": "Revise la ortografía mientras escribe con subrayados ondulados rojos, sugerencias con el clic derecho, Omitir todo y Agregar al diccionario. El panel de ortografía (`F7`) ofrece Cambiar, Cambiar todo, Omitir, Omitir todo y Agregar, y omite las palabras en mayúsculas y con números.",
+   "fr": "Vérifiez l’orthographe pendant la saisie avec des soulignements ondulés rouges, des suggestions par clic droit, Ignorer tout et Ajouter au dictionnaire. Le volet Orthographe (`F7`) propose Modifier, Modifier tout, Ignorer, Ignorer tout et Ajouter, et ignore les mots en majuscules et ceux contenant des chiffres.",
+   "soon": {
+    "drop": false,
+    "en": "Autocorrect, exclusion dictionaries, editing the custom dictionary, and the Spelling pane in tables, headers, footers, and notes",
+    "es": "Autocorrección, diccionarios de exclusión, edición del diccionario personalizado y panel de ortografía en tablas, encabezados, pies de página y notas",
+    "fr": "Correction automatique, dictionnaires d’exclusion, modification du dictionnaire personnalisé et volet Orthographe dans les tableaux, en-têtes, pieds de page et notes"
+   }
+  },
   "aab8ccdd715e8e1fbb741a3cd4c8e4c593baa6359a1731d7b3cb24fe25bcfd7b": {
    "drop": true,
    "en": "",
@@ -19795,18 +19807,6 @@
     "en": "Pixels for web features and a list of layout quirks",
     "es": "Píxeles para funciones web y una lista de particularidades de diseño",
     "fr": "Pixels pour les fonctions web et liste des particularités de mise en page"
-   }
-  },
-  "b0994552cd578213f0d07285b748690e64113aefb04e556bdc3409724750b331": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Proofing language: set it for the selected text or the whole presentation, and language preferences",
-    "es": "Idioma de revisión: definirlo para el texto seleccionado o toda la presentación, y preferencias de idioma",
-    "fr": "Langue de vérification : la définir pour le texte sélectionné ou toute la présentation, et préférences de langue"
    }
   },
   "b0b2d2e904966e95e5ee26adeb650c3c8b519535c3cf4d8a1c4db77f62a45680": {
@@ -21295,18 +21295,6 @@
     "en": "Selection Pane",
     "es": "Panel de selección",
     "fr": "Volet de sélection"
-   }
-  },
-  "c7962d6340d42ecbbeae73bcf7e489a94b6b85a5e79d8ab7151f97a73d193066": {
-   "drop": false,
-   "en": "Hyphenation can be set to none or automatic for the document, with the hyphenation zone, a limit on hyphens in a row, and hyphenation of words in capitals. A file's automatic hyphenation and per-paragraph \"don't hyphenate\" settings are used, with the bundled dictionary of the text's language.",
-   "es": "La separación de palabras con guiones se puede establecer en ninguna o automática para el documento, con la zona de separación, un límite de guiones consecutivos y la separación de palabras en mayúsculas. Se respetan la separación automática de un archivo y el ajuste «no separar» por párrafo, con el diccionario incluido para el idioma del texto.",
-   "fr": "La césure peut être réglée sur aucune ou automatique pour le document, avec la zone de césure, une limite de traits d’union consécutifs et la césure des mots en majuscules. La césure automatique d’un fichier et le réglage « pas de césure » par paragraphe sont pris en compte, avec le dictionnaire inclus pour la langue du texte.",
-   "soon": {
-    "drop": false,
-    "en": "Manual hyphenation",
-    "es": "Separación manual de palabras con guiones",
-    "fr": "Césure manuelle"
    }
   },
   "c7cb70fdf0b130f39fa06bc1cb9f0fe48fc0368aaa61eeb4031507e5580674ba": {
@@ -23109,18 +23097,6 @@
     "fr": ""
    }
   },
-  "e177edb4b1c9a45cb4a46392ee83bb29a251796dcaa19e3b21479aee3163e254": {
-   "drop": false,
-   "en": "Check spelling as you type with red wavy underlines, suggestions on right-click, Ignore All, and Add to Dictionary. The Spelling pane (`F7`) offers Change, Change All, Ignore, Ignore All, and Add, and skips words in capitals or with numbers.",
-   "es": "Revise la ortografía mientras escribe con subrayados ondulados rojos, sugerencias con clic derecho, Omitir todo y Agregar al diccionario. El panel de ortografía (`F7`) ofrece Cambiar, Cambiar todo, Omitir, Omitir todo y Agregar, y omite palabras en mayúsculas o con números.",
-   "fr": "Vérifiez l’orthographe pendant la saisie avec des soulignements ondulés rouges, des suggestions par clic droit, Ignorer tout et Ajouter au dictionnaire. Le volet d’orthographe (`F7`) propose Modifier, Tout modifier, Ignorer, Tout ignorer et Ajouter, et ignore les mots en majuscules ou avec des chiffres.",
-   "soon": {
-    "drop": false,
-    "en": "Spelling: AutoCorrect, exclusion dictionaries, editing the custom dictionary, and the Spelling pane in tables, headers, footers, and notes",
-    "es": "Ortografía: autocorrección, diccionarios de exclusión, edición del diccionario personalizado y panel de ortografía en tablas, encabezados, pies de página y notas",
-    "fr": "Orthographe : correction automatique, dictionnaires d’exclusion, modification du dictionnaire personnel et volet d’orthographe dans les tableaux, en-têtes, pieds de page et notes"
-   }
-  },
   "e1919a88302c01c899a1a731f71c1bf0f53806e9461d5692880f8d04d706e617": {
    "drop": false,
    "en": "Open the Font window with `Ctrl+T` or the corner button to set superscript, subscript, small caps, all caps, and the other character choices in one place.",
@@ -23229,6 +23205,18 @@
     "fr": ""
    }
   },
+  "e303469a3c92c0c6b3a9e943c43ed9a9bfb1314dc7088a06b9a0d2e1419fe87c": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Proofing language: set for selected text or the whole presentation, and language preferences",
+    "es": "Idioma de revisión: establecer para el texto seleccionado o toda la presentación, y preferencias de idioma",
+    "fr": "Langue de correction : définir pour le texte sélectionné ou toute la présentation, et préférences de langue"
+   }
+  },
   "e3228dd740386e7e1bc1b44946efe97810d19163d18f4325efdfc08b87d0ec61": {
    "drop": false,
    "en": "Switch on iterative calculation so a circular reference repeats up to the chosen number of times until the change is under the chosen limit. The setting is saved.",
@@ -23270,6 +23258,18 @@
    "en": "Saving an old `.ppt`, `.pps`, or `.pot` file asks for a new name and saves a `.pptx` (a `.ppsx` for a `.pps`), never writing over the old file.",
    "es": "Al guardar un archivo antiguo `.ppt`, `.pps` o `.pot` se pide un nombre nuevo y se guarda un `.pptx` (un `.ppsx` para un `.pps`), sin sobrescribir nunca el archivo antiguo.",
    "fr": "L’enregistrement d’un ancien fichier `.ppt`, `.pps` ou `.pot` demande un nouveau nom et crée un `.pptx` (un `.ppsx` pour un `.pps`), sans jamais écraser l’ancien fichier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e3a8f87e8af740cdd21a2a86d75ae118f3c1c23850e1f3e8e19cf60e3493bcaa": {
+   "drop": false,
+   "en": "Help and the interface work offline in English, German, Spanish, French, Italian, Dutch, and two forms of Portuguese, plus English for the United Kingdom, Canada, and Australia and Spanish for Spain. Usage statistics and crash reports are sent only if you opt in, and commands are counted by id, never by name.",
+   "es": "La Ayuda y la interfaz funcionan sin conexión en inglés, alemán, español, francés, italiano, neerlandés y dos variantes del portugués, además de inglés para el Reino Unido, Canadá y Australia y español para España. Las estadísticas de uso y los informes de fallos se envían solo si usted lo acepta, y los comandos se cuentan por id, nunca por nombre.",
+   "fr": "L’aide et l’interface fonctionnent hors ligne en anglais, allemand, espagnol, français, italien, néerlandais et deux formes de portugais, ainsi qu’en anglais pour le Royaume-Uni, le Canada et l’Australie et en espagnol pour l’Espagne. Les statistiques d’utilisation et les rapports de plantage ne sont envoyés que si vous y consentez, et les commandes sont comptées par id, jamais par nom.",
    "soon": {
     "drop": true,
     "en": "",
