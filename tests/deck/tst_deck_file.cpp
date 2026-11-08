@@ -262,7 +262,14 @@ private Q_SLOTS:
             }
             return int(QDialog::Accepted);
         });
-        w.setPrinterPreparer([&](QPrinter &) { painted << requests.last(); });
+        int made = 0;
+        w.setPrinterPreparer([&](QPrinter &p) {
+            painted << requests.last();
+            // (the job goes to a file; the window's own printer is the computer's default one, which a test never sends pages to)
+            if (toPdf) return;   // (the window's dialog, stood in for, has named the file)
+            p.setOutputFormat(QPrinter::PdfFormat);
+            p.setOutputFileName(dir.filePath(QStringLiteral("sides%1.pdf").arg(++made)));
+        });
         auto open = [&] {
             w.showFileScreen(QStringLiteral("print"));
             auto *screen = w.findChild<FileScreen *>();

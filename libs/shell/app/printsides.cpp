@@ -2,6 +2,7 @@
 #include "app/plaintext.h"
 
 #include <QComboBox>
+#include <QGuiApplication>
 #include <QMessageBox>
 #include <algorithm>
 #include <QCoreApplication>
@@ -101,6 +102,8 @@ bool askToTurnStack(QWidget *parent, const std::function<bool()> &standIn)
 {
     if (standIn) return standIn();
     if (g_turnerStandIn) return g_turnerStandIn();
+    // (the offscreen display, which the tests use, has no person to answer: the job is given up, as with the print dialog)
+    if (QGuiApplication::platformName() == QLatin1String("offscreen")) return false;
     QMessageBox box(QMessageBox::Information, QCoreApplication::translate("PrintSides", "Print"),
                     QCoreApplication::translate("PrintSides", "The odd pages are printed. Turn the stack over and put it back in the printer, then choose OK to print the even pages."),
                     QMessageBox::Ok | QMessageBox::Cancel, parent);
