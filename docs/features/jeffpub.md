@@ -87,7 +87,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 ### Print
 - [x] **1.0** Print with printer selection, copies, page ranges (all, current, custom), and printer properties
 - [x] **1.0** Layouts: one page per sheet, multiple pages per sheet, multiple copies per sheet, booklet (side-fold and top-fold), and tiled printing for banners and posters
-- [x] **1.0** Paper size, one-sided or two-sided (flip on long or short edge), color, grayscale, or composite
+- [x] **1.0** Paper size, one-sided or two-sided (flip on long or short edge, or by hand with a message to turn the stack over), color, grayscale, or composite
 - [x] **1.0** Print preview with ruler, page navigation, front/back view, and "show numbers"
 - [x] **1.0** Crop marks, bleed marks, registration marks, density bars, color bars, job information, and "allow bleeds"
 - [x] **1.0** Separations (CMYK and spot plates): a plate per process ink and per spot color; tints of a spot color print as lighter ink on its plate, and spot colors are knocked out of the process plates

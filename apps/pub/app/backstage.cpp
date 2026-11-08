@@ -783,7 +783,7 @@ QWidget *Backstage::buildPrint()
     paper->addItems({"Letter", "Legal", "Tabloid", "A4", "A3", tr("Same as publication")});
     auto *sides = new QComboBox(w);
     sides->setObjectName(QStringLiteral("printSides"));
-    fillSidesBox(sides, false, int(SidesChoice::OneSide));   // (the words the other apps' Print pages use)
+    fillSidesBox(sides, true, int(SidesChoice::OneSide));   // (the words the other apps' Print pages use)
     auto *color = new QComboBox(w);
     color->addItems({tr("Composite RGB"), tr("Composite grayscale"), tr("Separations (CMYK plates)")});
     // Printer's marks: they print outside the page, so they need paper larger
@@ -914,7 +914,7 @@ QWidget *Backstage::buildPrint()
             img = Renderer::renderToImage(ctx, *state, scale);
             numbered << qMakePair(QRectF(QPointF(0, 0), ps * scale), *state + 1);
             // Two-sided printing: say which side of which sheet this page lands on.
-            if (sides->currentIndex() > 0 && layout->currentIndex() == 0)
+            if ((sides->currentIndex() == 1 || sides->currentIndex() == 2) && layout->currentIndex() == 0)
                 pageLabel->setText(tr("%1 of %2 (sheet %3, %4)").arg(*state + 1).arg(d->pages.size()).arg(*state / 2 + 1)
                                        .arg(*state % 2 ? tr("back") : tr("front")));
             else
@@ -987,6 +987,13 @@ QWidget *Backstage::buildPrint()
     connect(layout, &QComboBox::currentIndexChanged, w, [=] { *state = 0; render(); });
     connect(color, &QComboBox::currentIndexChanged, w, [=] { plates->setVisible(color->currentIndex() == 2); render(); });
     connect(sides, &QComboBox::currentIndexChanged, w, [=] { render(); });
+    // (a printer that can't print on both sides, and a PDF file that has no sides, turn the choice off)
+    auto fitSides = [=]() {
+        const bool toFile = printer->currentData().toString() == QLatin1String("pdf");
+        updateSidesBox(sides, toFile ? QString() : printer->currentText(), toFile);
+    };
+    fitSides();
+    connect(printer, &QComboBox::currentIndexChanged, w, [=] { fitSides(); });
     for (QCheckBox *b : plateBoxes) connect(b, &QCheckBox::toggled, w, [=] { render(); });
     QTimer::singleShot(0, w, render);
     auto setup = [=](QPrinter &p) {
@@ -1005,7 +1012,7 @@ QWidget *Backstage::buildPrint()
         const bool wide = d->pageSize().width() > d->pageSize().height();
         p.setPageOrientation(layout->currentIndex() == 3 ? QPageLayout::Landscape : layout->currentIndex() == 4 ? QPageLayout::Portrait
                              : wide ? QPageLayout::Landscape : QPageLayout::Portrait);
-        p.setDuplex(sides->currentIndex() == 0 ? QPrinter::DuplexNone : sides->currentIndex() == 1 ? QPrinter::DuplexLongSide : QPrinter::DuplexShortSide);
+        p.setDuplex(sidesDuplex(sides));
         p.setColorMode(color->currentIndex() == 1 ? QPrinter::GrayScale : QPrinter::Color);
         p.setFullPage(true);
         if (range->currentIndex() == 1) p.setPrintRange(QPrinter::CurrentPage);
@@ -1049,7 +1056,8 @@ QWidget *Backstage::buildPrint()
         opts["plates"] = want;
         opts["merged"] = merged->isChecked();
         QGuiApplication::setOverrideCursor(Qt::WaitCursor);
-        printDocument(m_win->editor(), &p, opts);
+        if (sidesByHand(sides)) printDocumentByHand(m_win->editor(), &p, opts, this);
+        else printDocument(m_win->editor(), &p, opts);
         QGuiApplication::restoreOverrideCursor();
         Q_EMIT closeRequested();
     });

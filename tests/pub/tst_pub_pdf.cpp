@@ -1,5 +1,11 @@
 // JeffPub's tests of PDF output, printing, and the print shop's files.
 #include "pubhelpers.h"
+#include "app/printsides.h"
+#include "io/importers.h"
+#include <QJsonObject>
+#include <QPrinter>
+#include <QScopeGuard>
+#include <QTemporaryDir>
 
 // A small CMYK printer profile (ICC version 2, 2-point lookup tables), as
 // a printer's own .icc file would be, made here so no real one is needed.
@@ -117,10 +123,69 @@ private Q_SLOTS:
         w.showBackstage(QStringLiteral("print"));
         auto *sides = w.findChild<QComboBox *>(QStringLiteral("printSides"));
         QVERIFY(sides);
-        QCOMPARE(sides->count(), 3);
+        QCOMPARE(sides->count(), 4);
+        QCOMPARE(sides->itemText(3), QStringLiteral("Print on both sides by hand"));
         QCOMPARE(sides->itemText(0), QStringLiteral("Print on one side"));
         QCOMPARE(sides->itemText(1), QStringLiteral("Print on both sides, flip on long edge"));
         QCOMPARE(sides->itemText(2), QStringLiteral("Print on both sides, flip on short edge"));
+    }
+
+    // Both sides by hand: the odd pages, a message to turn the stack over, then the even pages last first; a job of one page has no message, and declining it stops the job.
+    void printBothSidesByHand()
+    {
+        QTemporaryDir dir;
+        auto doc = jp::Document::blank(QSizeF(396, 612));
+        for (int i = 0; i < 4; ++i) doc->pages.push_back(std::make_shared<jp::Page>());   // (five pages)
+        jp::Editor ed;
+        ed.setDocument(std::move(doc));
+        auto pagesIn = [](const QString &path) {
+            QFile f(path);
+            if (!f.open(QIODevice::ReadOnly)) return -1;
+            const QByteArray pdf = f.readAll();
+            int pages = 0;
+            for (qsizetype at = pdf.indexOf("/Type /Page"); at >= 0; at = pdf.indexOf("/Type /Page", at + 1))
+                if (at + 11 >= pdf.size() || pdf[at + 11] != 's') ++pages;
+            return pages;
+        };
+        QPrinter printer;
+        printer.setOutputFormat(QPrinter::PdfFormat);
+        const QString file = dir.filePath(QStringLiteral("h.pdf"));
+        printer.setOutputFileName(file);
+        QStringList order;
+        QVector<int> firstRun;
+        bool turn = true;
+        jp::setStackTurnerStandIn([&] {
+            order << QStringLiteral("turn");
+            firstRun << pagesIn(file);
+            return turn;
+        });
+        const auto done = qScopeGuard([] { jp::setStackTurnerStandIn(nullptr); });
+        QVERIFY(jp::printDocumentByHand(&ed, &printer, QJsonObject(), nullptr));
+        QCOMPARE(order, (QStringList{QStringLiteral("turn")}));
+        QCOMPARE(firstRun, (QVector<int>{3}));          // (pages 1, 3, and 5)
+        QCOMPARE(pagesIn(file), 2);                      // (then 4 and 2)
+        // declined
+        order.clear();
+        turn = false;
+        QVERIFY(!jp::printDocumentByHand(&ed, &printer, QJsonObject(), nullptr));
+        QCOMPARE(order, (QStringList{QStringLiteral("turn")}));
+        // a booklet goes by sheets: the fronts, then the backs
+        order.clear();
+        turn = true;
+        QJsonObject booklet;
+        booklet["layout"] = "booklet";
+        firstRun.clear();
+        QVERIFY(jp::printDocumentByHand(&ed, &printer, booklet, nullptr));
+        QCOMPARE(order, (QStringList{QStringLiteral("turn")}));
+        QCOMPARE(firstRun.size(), 1);
+        QVERIFY(firstRun[0] >= 1 && pagesIn(file) >= 1);
+        // one page: nothing to turn over
+        order.clear();
+        QJsonObject one;
+        one["pages"] = "2";
+        QVERIFY(jp::printDocumentByHand(&ed, &printer, one, nullptr));
+        QVERIFY(order.isEmpty());
+        QCOMPARE(pagesIn(file), 1);
     }
 
     // File > Export > PDF/A writes a file that identifies itself as PDF/A-1b

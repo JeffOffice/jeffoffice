@@ -1,6 +1,7 @@
 #include "io/importers.h"
 
 #include "app/editor.h"
+#include "app/printsides.h"
 #include "io/jpubfile.h"
 #include "io/pubimport.h"
 #include "io/zip.h"
@@ -743,7 +744,7 @@ QVector<int> parsePageList(const QString &text, int pageCount)
     return out;
 }
 
-void printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts)
+int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, int *allSheets)
 {
     Document *d = ed->doc();
     // A catalog prints its merged pages: a record in each cell.
@@ -777,8 +778,24 @@ void printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts)
     QVector<int> list = parsePageList(opts.value("pages").toString(), int(d->pages.size()));
     if (list.isEmpty())
         for (int i = from; i <= to; ++i) list << i;
+    // Both sides by hand: a run of the pages, or of a booklet's sheet sides.
+    const QString handRun = opts.value("handRun").toString();
+    const bool booklet = layout == "booklet" || layout == "bookletTop";
+    QVector<QVector<int>> bookletSides;
+    if (booklet) bookletSides = bookletOrder(d->pages.size());
+    if (allSheets) *allSheets = booklet ? int(bookletSides.size()) : int(list.size());
+    if (!handRun.isEmpty()) {
+        if (booklet) {
+            const HandRuns<QVector<int>> runs = handRuns(bookletSides);
+            bookletSides = handRun == "first" ? runs.first : runs.second;
+        } else {
+            const HandRuns<int> runs = handRuns(list);
+            list = handRun == "first" ? runs.first : runs.second;
+        }
+    }
+    int sent = 0;
     QPainter p;
-    if (!p.begin(printer)) return;
+    if (!p.begin(printer)) return 0;
     const QRectF sheet = printer->pageRect(QPrinter::Point);
     const double dev = printer->resolution() / 72.0;
     PaintContext ctx;
@@ -795,6 +812,7 @@ void printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts)
     auto newSheet = [&] {
         if (!first) printer->newPage();
         first = false;
+        ++sent;
     };
     auto drawPage = [&](int page, const QRectF &target) {
         if (page < 0) return;
@@ -840,7 +858,7 @@ void printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts)
         ctx.opt.mergeRecord = rec;
         if (layout == "booklet" || layout == "bookletTop") {
             const bool top = layout == "bookletTop";
-            for (const auto &side : bookletOrder(d->pages.size()))
+            for (const auto &side : std::as_const(bookletSides))
                 for (int pl : plates) {
                     plate = pl;
                     newSheet();
@@ -913,6 +931,19 @@ void printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts)
         }
     }
     p.end();
+    return sent;
+}
+
+bool printDocumentByHand(Editor *ed, QPrinter *printer, const QJsonObject &opts, QWidget *parent)
+{
+    QJsonObject run = opts;
+    run["handRun"] = "first";
+    int all = 0;
+    if (printDocument(ed, printer, run, &all) <= 0) return false;
+    if (all < 2) return true;
+    if (!askToTurnStack(parent)) return false;
+    run["handRun"] = "second";
+    return printDocument(ed, printer, run) > 0;
 }
 
 void compressPicturesDialog(QWidget *parent, Editor *ed)

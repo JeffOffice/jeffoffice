@@ -35,7 +35,12 @@ std::unique_ptr<Document> loadAnyPublication(const QString &path, QString *error
 // and the printer's marks: cropMarks, bleedMarks, registration, densityBars,
 // colorBars, jobInfo, allowBleeds.
 // opts "pages": a list such as "1-3, 5" to print instead of the printer's range.
-void printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts);
+// opts "handRun": "first" or "second" prints only that run of both sides by hand (the pages, or for a booklet the sheet sides, one after the other, then the others last first).
+// Returns how many sheets it sent; `allSheets`, when given, is how many the whole job has before a run is picked.
+int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, int *allSheets = nullptr);
+// Both sides by hand: the first run, a message to turn the stack over (left out for a job of one sheet), then the second run. False when the person gives it up at the
+// message or nothing was sent.
+bool printDocumentByHand(Editor *ed, QPrinter *printer, const QJsonObject &opts, QWidget *parent);
 // The pages a list such as "1-3, 5" names, as indexes in the order given,
 // each once; a backward range ("5-3") counts up, and numbers past the end
 // are left out. Empty when it names none.
