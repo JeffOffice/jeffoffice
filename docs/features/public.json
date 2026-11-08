@@ -1523,7 +1523,7 @@
        ]
       },
       {
-       "heading": "afc43a4debc88c94f8ef08cfc5fc8269abca2a595e6d18a118c67c1aefc8a156",
+       "heading": "4093b92b4583c338604763e539a661037c4770c3577268c8d3c67315da78ff91",
        "items": [
         {
          "status": "todo",
@@ -1531,7 +1531,7 @@
         },
         {
          "status": "partly",
-         "text": "74efef1a816d1f42a84a2e639336291b8fc8e99e5587045022f096404d3976e9"
+         "text": "d9240daa1cb6517a4ce4c772fd5e6b30d5ccf0d03fd7017af4a60f8c1a88d15c"
         }
        ]
       }
@@ -2062,7 +2062,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "cd7bc1f968b84c9d8e4f326e1db02e9657ef7287da52cd3b571fd53b6956eab8"
+         "text": "e6131f56e80c65744b207dcef121f66da037f33c592efd2221ce1fc184618bb8"
         },
         {
          "hide_soon": true,
@@ -2250,7 +2250,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "04fb1637f1ac8b5fa1f155db067a5e35cca24d919fad9faea2cb77d8a3b1636e"
+       "text": "70a34c0acf6c9db683b9301b8e45758e01500668a5394afc943870301f3ac056"
       },
       {
        "hide_soon": true,
@@ -3461,12 +3461,12 @@
        ]
       },
       {
-       "heading": "64e5dfb873a5c6e3b83d90f4a197ac4498da1d1f7da8869325efb959a08b26f1",
+       "heading": "36bd39d8edfac9dc7473fa7be1270807ebe787033cfac82f5019725a250ccbdc",
        "items": [
         {
          "hide_soon": true,
          "status": "done",
-         "text": "aa8dde07590cffa8a6bc40538c44e980642619fda8efd2176536237eec5f29fb"
+         "text": "64844237ef1ec2240322d611b54fd5903ebc5031bd0753f286e468f26ebf323a"
         }
        ]
       },
@@ -3504,7 +3504,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "def9a35fc38b437b86274a7f48ee7894958ed70cfa5a949e5f2971ddd9b9c5cf"
+         "text": "230a6cc13b3adce8a770cb6fd4d21e0de0e35d8dc3e2ec9f6d10d7aaac40ba33"
         },
         {
          "status": "partly",
@@ -3617,7 +3617,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "4692718a9d35382a842890cd50dea9f35f63605487087d7a65b09fc44750275a"
+       "text": "7a4e071d4318430ea955c02387f26541346f3adefa53b9e7cbe9513880b5dd86"
       },
       {
        "hide_soon": true,
@@ -3821,7 +3821,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "cfd9dfc2bcfd1aee01a9d96432d0721c3f1fedba9084a19fad94c93316174a8d"
+         "text": "cb08555ced86ed2251f96d70a3030963bf5f4fe9094c15e70e995d8500daf808"
         },
         {
          "hide_soon": true,
@@ -3836,7 +3836,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "4b2b358d259b5f5f874d72bf2a57136d8519f3a470db52e11f55a46857abc819"
+         "text": "40d6d8067733a9e0fb4af9b52a7aae9ac73bed00aaec1e29204511f59e5da650"
         },
         {
          "status": "partly",
@@ -3908,7 +3908,7 @@
         },
         {
          "status": "partly",
-         "text": "41ba65eb69f770c223497a4bcba6c19fd288c3ba314784f1651ad5ecd5fb79a2"
+         "text": "6717cea7aba852fa14684c07cbf024acc2b2bb020ba359f7ad5492625c30ef33"
         }
        ]
       },
@@ -5219,7 +5219,7 @@
       },
       {
        "status": "partly",
-       "text": "64b0bd3161e0da88c7228a0577531aafda8bedbe64a5f82e36d6806fe9d0d526"
+       "text": "8cb0df6cd6f0225b96ad4989ef5f43f524ae1bcff45d1fdc83eb8e780f41b32c"
       },
       {
        "status": "partly",
@@ -6530,7 +6530,7 @@
        ]
       },
       {
-       "heading": "fe3b8622fcd06b4406ea17bb9896d55c238fd697ff26ae4e84f0104a82233412",
+       "heading": "a46007de7054da163783dcf395ed4386d40654ccb50cc092ffc5d427edfe7e8d",
        "items": [
         {
          "status": "partly",
@@ -6884,7 +6884,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "852493334555061571ed79ffd9b2fe8b198c4e54001facb770fe44aac92d9c28"
+         "text": "88cfde79a4dd6876cf3c102d59ec8277f3a1b88432e60b4c8c955396ebc8a61a"
         },
         {
          "hide_soon": true,
@@ -7405,18 +7405,6 @@
     "en": "Online pictures and keeping a picture as a metafile",
     "es": "Imágenes en línea y conservación de una imagen como metarchivo",
     "fr": "Images en ligne et conservation d’une image sous forme de métafichier"
-   }
-  },
-  "04fb1637f1ac8b5fa1f155db067a5e35cca24d919fad9faea2cb77d8a3b1636e": {
-   "drop": false,
-   "en": "Nothing in a file is lost: what the app can't edit yet (charts, diagrams, equations, and animation or transition effects it has no form for, plus parts it doesn't know) is kept with its slide and written back whole. A duplicated slide keeps them too.",
-   "es": "No se pierde nada de un archivo: lo que la aplicación aún no puede editar (gráficos, diagramas, ecuaciones y efectos de animación o de transición para los que no tiene formulario, además de partes desconocidas) se conserva con su diapositiva y se vuelve a escribir completo. Una diapositiva duplicada también los conserva.",
-   "fr": "Rien n’est perdu dans un fichier : ce que l’application ne peut pas encore modifier (graphiques, diagrammes, équations, effets d’animation ou de transition sans formulaire adapté, et parties inconnues) est conservé avec sa diapositive et réécrit intact. Une diapositive dupliquée les conserve aussi.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "051d1637380bd5582694abaa29b1c109f6dfc2b05606185e52ef41802eeeb42b": {
@@ -9627,6 +9615,18 @@
     "fr": ""
    }
   },
+  "230a6cc13b3adce8a770cb6fd4d21e0de0e35d8dc3e2ec9f6d10d7aaac40ba33": {
+   "drop": false,
+   "en": "Use Master Layout and Insert Placeholder to set which placeholders a layout has and where: title, text, content, picture, chart, table, media, online image, date, footer, and slide number. Title and Footers check boxes are available.",
+   "es": "Use Diseño de patrón e Insertar marcador de posición para definir qué marcadores tiene un diseño y dónde: título, texto, contenido, imagen, gráfico, tabla, multimedia, imagen en línea, fecha, pie de página y número de diapositiva. Hay casillas de Título y Pies de página.",
+   "fr": "Utilisez Disposition du masque et Insérer un espace réservé pour définir les espaces réservés d’une disposition et leur emplacement : titre, texte, contenu, image, graphique, tableau, média, image en ligne, date, pied de page et numéro de diapositive. Les cases Titre et Pieds de page sont disponibles.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "232243cf614798d24ce11f3e0aa17d5b66a73dd5813ecf73dd7b3ab5e6b2c511": {
    "drop": false,
    "en": "Large `.xlsx` sheets are read as a stream in pieces, so sheets of millions of cells open within the memory limit.",
@@ -11019,6 +11019,18 @@
     "fr": ""
    }
   },
+  "36bd39d8edfac9dc7473fa7be1270807ebe787033cfac82f5019725a250ccbdc": {
+   "drop": false,
+   "en": "Diagram Design and Format",
+   "es": "Diseño y formato de diagramas",
+   "fr": "Création et format des diagrammes",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "36d0248b594aa3563e0199235e628b76e0b080f580b7fb3de84a560c31ecdc1d": {
    "drop": false,
    "en": "Insert > Pictures > Online Pictures searches Openverse and Wikimedia Commons, keeps the title as alt text, and adds a credit line when asked. Nothing from the presentation is sent.",
@@ -11691,6 +11703,18 @@
     "fr": ""
    }
   },
+  "4093b92b4583c338604763e539a661037c4770c3577268c8d3c67315da78ff91": {
+   "drop": false,
+   "en": "Equation, Diagram, 3-D Model, and Ink tabs",
+   "es": "Pestañas de ecuación, diagrama, modelo 3D y entrada de lápiz",
+   "fr": "Onglets Équation, Diagramme, Modèle 3D et Encre",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "40a15f8709431a1713a0a7aeda094da7099b5183a09725289234fc54a0cba69b": {
    "drop": true,
    "en": "",
@@ -11701,6 +11725,18 @@
     "en": "Custom slide size: width, height, orientation including portrait, first slide number, and orientation of notes and handouts",
     "es": "Tamaño de diapositiva personalizado: ancho, alto, orientación incluida la vertical, número de la primera diapositiva y orientación de notas y documentos",
     "fr": "Taille de diapositive personnalisée : largeur, hauteur, orientation y compris portrait, numéro de la première diapositive et orientation des notes et documents"
+   }
+  },
+  "40d6d8067733a9e0fb4af9b52a7aae9ac73bed00aaec1e29204511f59e5da650": {
+   "drop": false,
+   "en": "Saving a `.pptx` keeps what the app can't edit: charts, diagrams, equations, some animation and transition effects, and compatibility markup. Links in diagrams keep working.",
+   "es": "Al guardar un `.pptx` se conserva lo que la aplicación no puede editar: gráficos, diagramas, ecuaciones, algunos efectos de animación y transición, y marcado de compatibilidad. Los vínculos de los diagramas siguen funcionando.",
+   "fr": "L’enregistrement d’un `.pptx` conserve ce que l’application ne peut pas modifier : graphiques, diagrammes, équations, certains effets d’animation et de transition, et balisage de compatibilité. Les liens des diagrammes continuent de fonctionner.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "40dff3a3f30448fcf26ca69da4d33c46af4dba5a44efd938db0ba5dca203a96c": {
@@ -11773,18 +11809,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "41ba65eb69f770c223497a4bcba6c19fd288c3ba314784f1651ad5ecd5fb79a2": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Charts, diagrams, equations, sections, and text and shape effects in `.odp` files: save as editable objects",
-    "es": "Gráficos, diagramas, ecuaciones, secciones y efectos de texto y de formas en archivos `.odp`: guardar como objetos editables",
-    "fr": "Graphiques, diagrammes, équations, sections et effets de texte et de formes dans les fichiers `.odp` : enregistrement en objets modifiables"
    }
   },
   "41f1adeb641eee0f913f6c8d822f2304729e280d7780da49dc25cbce24d057a0": {
@@ -12097,18 +12121,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "4692718a9d35382a842890cd50dea9f35f63605487087d7a65b09fc44750275a": {
-   "drop": false,
-   "en": "Diagrams in a file are drawn from the drawing the file keeps and are written back as they were.",
-   "es": "Los diagramas de un archivo se dibujan a partir del dibujo que conserva el archivo y se vuelven a escribir tal como estaban.",
-   "fr": "Les diagrammes d’un fichier sont dessinés à partir du dessin que conserve le fichier et sont réécrits tels quels.",
-   "soon": {
-    "drop": false,
-    "en": "Editing diagrams",
-    "es": "Edición de diagramas",
-    "fr": "Modification des diagrammes"
    }
   },
   "46c0512705b4215942d3c9f34286e39861a428e84cfb5ed6311c9aba10878630": {
@@ -12464,18 +12476,6 @@
    "en": "",
    "es": "",
    "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "4b2b358d259b5f5f874d72bf2a57136d8519f3a470db52e11f55a46857abc819": {
-   "drop": false,
-   "en": "Saving keeps what the app can’t edit: charts, diagrams, equations, animation and transition effects it has no form for, unread frames, and compatibility markup.",
-   "es": "Al guardar se conserva lo que la aplicación no puede editar: gráficos, diagramas, ecuaciones, efectos de animación y de transición sin forma propia, marcos no leídos y marcado de compatibilidad.",
-   "fr": "L’enregistrement conserve ce que l’application ne peut pas modifier : graphiques, diagrammes, équations, effets d’animation et de transition sans forme propre, cadres non lus et balisage de compatibilité.",
    "soon": {
     "drop": true,
     "en": "",
@@ -14295,35 +14295,23 @@
     "fr": "Remplissages de la zone du graphique et de traçage, bordures, ombre, lueur, bords adoucis, format et rotation 3D, et choix des parois et du sol"
    }
   },
+  "64844237ef1ec2240322d611b54fd5903ebc5031bd0753f286e468f26ebf323a": {
+   "drop": false,
+   "en": "A diagram in a file is drawn from the drawing it saved and treated as one object: select, move, resize, copy, and delete it as a whole. It prints as vectors and is saved whole with all its parts.",
+   "es": "Un diagrama de un archivo se dibuja a partir del dibujo guardado y se trata como un solo objeto: puede seleccionarlo, moverlo, cambiar su tamaño, copiarlo y eliminarlo como un todo. Se imprime como vectores y se guarda completo con todas sus partes.",
+   "fr": "Un diagramme d’un fichier est dessiné à partir du dessin enregistré et traité comme un seul objet : vous pouvez le sélectionner, le déplacer, le redimensionner, le copier et le supprimer en bloc. Il s’imprime en vectoriel et est enregistré en entier avec toutes ses parties.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "64acab44c1a97692fed5877a4eaf3da8b09c230f09d6a73a33b3042fb2a77a4a": {
    "drop": false,
    "en": "Draw text boxes and add tables, pictures, and shapes.",
    "es": "Dibuje cuadros de texto y agregue tablas, imágenes y formas.",
    "fr": "Dessinez des zones de texte et ajoutez des tableaux, des images et des formes.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "64b0bd3161e0da88c7228a0577531aafda8bedbe64a5f82e36d6806fe9d0d526": {
-   "drop": false,
-   "en": "Content the app can’t edit yet, such as diagrams, content-control bindings, custom XML, unknown elements, macros, and embedded objects, is kept with the document and written back as it was.",
-   "es": "El contenido que la aplicación aún no puede editar, como diagramas, vínculos de controles de contenido, XML personalizado, elementos desconocidos, macros y objetos incrustados, se conserva con el documento y se escribe de nuevo tal como estaba.",
-   "fr": "Le contenu que l’application ne peut pas encore modifier, comme les diagrammes, les liaisons de contrôles de contenu, le XML personnalisé, les éléments inconnus, les macros et les objets incorporés, est conservé avec le document et réécrit tel quel.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "64e5dfb873a5c6e3b83d90f4a197ac4498da1d1f7da8869325efb959a08b26f1": {
-   "drop": false,
-   "en": "Diagram Design and Format (diagrams)",
-   "es": "Diseño y formato de diagramas (diagramas)",
-   "fr": "Création et format de diagrammes (diagrammes)",
    "soon": {
     "drop": true,
     "en": "",
@@ -14509,6 +14497,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "6717cea7aba852fa14684c07cbf024acc2b2bb020ba359f7ad5492625c30ef33": {
+   "drop": false,
+   "en": "Saving to `.odp` stores charts, diagrams, and equations as pictures.",
+   "es": "Al guardar en `.odp`, los gráficos, diagramas y ecuaciones se guardan como imágenes.",
+   "fr": "L’enregistrement en `.odp` stocke les graphiques, diagrammes et équations sous forme d’images.",
+   "soon": {
+    "drop": false,
+    "en": "Sections, reflections, bevels, inner shadows, text glows, click-triggered effects, and color effects in `.odp`",
+    "es": "Secciones, reflejos, biseles, sombras internas, resplandores de texto, efectos activados por clic y efectos de color en `.odp`",
+    "fr": "Sections, reflets, biseaux, ombres internes, lueurs de texte, effets déclenchés par clic et effets de couleur dans `.odp`"
    }
   },
   "672cda7b148886bc365d67a00e46a53e19ffe8f5550f2dc45fedd697bad2180a": {
@@ -15267,6 +15267,18 @@
     "fr": ""
    }
   },
+  "70a34c0acf6c9db683b9301b8e45758e01500668a5394afc943870301f3ac056": {
+   "drop": false,
+   "en": "Parts of a file that the app can't edit yet, such as charts, diagrams, equations, and some animation and transition effects, are kept with their slide and written back whole. A duplicated slide keeps them too.",
+   "es": "Las partes de un archivo que la aplicación aún no puede editar, como gráficos, diagramas, ecuaciones y algunos efectos de animación y transición, se conservan con su diapositiva y se vuelven a escribir completas. Una diapositiva duplicada también las conserva.",
+   "fr": "Les éléments d’un fichier que l’application ne peut pas encore modifier, comme les graphiques, les diagrammes, les équations et certains effets d’animation et de transition, sont conservés avec leur diapositive et réécrits intégralement. Une diapositive dupliquée les conserve aussi.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "70ab4436dd82b2310bee017ba71a869e0a02df958149d523f9ab6f93cfb42343": {
    "drop": false,
    "en": "Colors are plain colors on the objects, as files hold them, and saving finds the theme’s colors in them again. A change of colors swaps each old color for the new scheme’s. Text and shapes on a dark background use the four dark and light colors, so they trade places when the background turns light or dark. Dark masters are saved with the dark color map.",
@@ -15541,18 +15553,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "74efef1a816d1f42a84a2e639336291b8fc8e99e5587045022f096404d3976e9": {
-   "drop": false,
-   "en": "Diagrams in a file are kept as saved.",
-   "es": "Los diagramas de un archivo se conservan tal como se guardaron.",
-   "fr": "Les diagrammes d’un fichier sont conservés tels qu’enregistrés.",
-   "soon": {
-    "drop": false,
-    "en": "Diagrams: choose layouts, change colors, and edit text",
-    "es": "Diagramas: elegir diseños, cambiar colores y editar texto",
-    "fr": "Diagrammes : choix de dispositions, changement de couleurs et modification du texte"
    }
   },
   "74f721ba960cff34907590e7550ccd8a97e58e04d3b7eb7ee028f9e1ca362158": {
@@ -15865,6 +15865,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "7a4e071d4318430ea955c02387f26541346f3adefa53b9e7cbe9513880b5dd86": {
+   "drop": false,
+   "en": "Diagrams in a file are drawn from the drawing the file keeps and are written back as they were.",
+   "es": "Los diagramas de un archivo se dibujan a partir del dibujo que el archivo conserva y se vuelven a escribir tal como estaban.",
+   "fr": "Les diagrammes d’un fichier sont dessinés à partir du dessin que le fichier conserve et réécrits tels quels.",
+   "soon": {
+    "drop": false,
+    "en": "Editing diagrams",
+    "es": "Edición de diagramas",
+    "fr": "Modification des diagrammes"
    }
   },
   "7a5170a518cedbfa510003597b3db868542406bcf3e443043ba7fa37538cf878": {
@@ -16611,18 +16623,6 @@
     "fr": ""
    }
   },
-  "852493334555061571ed79ffd9b2fe8b198c4e54001facb770fe44aac92d9c28": {
-   "drop": false,
-   "en": "Saving a `.docx` keeps what the app can't edit, such as diagrams, 3-D models, custom XML, document variables, building blocks, and extension elements, written back as they were.",
-   "es": "Al guardar un `.docx` se conserva lo que la aplicación no puede editar, como diagramas, modelos 3D, XML personalizado, variables de documento, bloques de creación y elementos de extensión, escrito tal como estaba.",
-   "fr": "L’enregistrement d’un `.docx` conserve ce que l’application ne peut pas modifier, comme les diagrammes, les modèles 3D, le XML personnalisé, les variables de document, les blocs de construction et les éléments d’extension, réécrits tels quels.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "8524b66c3aca59023920a4f013ba97daee2c7a2ee109dc14ef1832f60d5c73c5": {
    "drop": false,
    "en": "The app and its Help are available in seven languages (English, German, Spanish, French, Italian, Dutch, and Portuguese), following the system or the choice in Options.",
@@ -16760,6 +16760,18 @@
    "en": "Run a full-screen slide show that looks as the slide prints. After the last slide a black screen says the show is over, hidden slides are skipped, and the window returns to the last slide shown.",
    "es": "Ejecute una presentación a pantalla completa que se ve como la diapositiva impresa. Tras la última diapositiva, una pantalla negra indica que la presentación terminó, se omiten las diapositivas ocultas y la ventana vuelve a la última diapositiva mostrada.",
    "fr": "Lancez un diaporama plein écran qui a le même aspect que la diapositive imprimée. Après la dernière diapositive, un écran noir indique la fin du diaporama, les diapositives masquées sont ignorées et la fenêtre revient à la dernière diapositive affichée.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "88cfde79a4dd6876cf3c102d59ec8277f3a1b88432e60b4c8c955396ebc8a61a": {
+   "drop": false,
+   "en": "Saving a `.docx` keeps what the app can't edit: diagrams, 3-D models, custom XML, document variables, the building blocks glossary, people and comment extensions, alternate content choices, and extension elements from newer versions. They are written back as they were, and untouched parts are kept byte for byte.",
+   "es": "Al guardar un `.docx` se conserva lo que la aplicación no puede editar: diagramas, modelos 3D, XML personalizado, variables de documento, el glosario de bloques de creación, extensiones de personas y comentarios, opciones de contenido alternativo y elementos de extensión de versiones más recientes. Se vuelven a escribir tal como estaban y las partes sin cambios se conservan byte por byte.",
+   "fr": "L’enregistrement d’un `.docx` conserve ce que l’application ne peut pas modifier : diagrammes, modèles 3D, XML personnalisé, variables de document, glossaire des blocs de construction, extensions de personnes et de commentaires, choix de contenu alternatif et éléments d’extension de versions plus récentes. Ils sont réécrits tels quels et les parties inchangées sont conservées octet par octet.",
    "soon": {
     "drop": true,
     "en": "",
@@ -17029,6 +17041,18 @@
     "en": "Content controls: insert and edit, with title, tag, locking, and Design Mode; Group and Ungroup",
     "es": "Controles de contenido: insertar y editar, con título, etiqueta, bloqueo y Modo de diseño; Agrupar y Desagrupar",
     "fr": "Contrôles de contenu : insérer et modifier, avec titre, balise, verrouillage et mode Création ; Grouper et Dissocier"
+   }
+  },
+  "8cb0df6cd6f0225b96ad4989ef5f43f524ae1bcff45d1fdc83eb8e780f41b32c": {
+   "drop": false,
+   "en": "Parts of a document that the app can't edit yet, such as diagrams, content-control bindings, custom XML, unknown elements, macros, and embedded objects, are kept with the document and written back as they were.",
+   "es": "Las partes de un documento que la aplicación aún no puede editar, como diagramas, vínculos de controles de contenido, XML personalizado, elementos desconocidos, macros y objetos incrustados, se conservan con el documento y se vuelven a escribir tal como estaban.",
+   "fr": "Les éléments d’un document que l’application ne peut pas encore modifier, comme les diagrammes, les liaisons de contrôles de contenu, le XML personnalisé, les éléments inconnus, les macros et les objets incorporés, sont conservés avec le document et réécrits tels quels.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "8cd3f4e97d6e6f569e7dbc81be5fb9e7641ae25f2d9be524cc440d1710e96d14": {
@@ -18627,6 +18651,18 @@
     "fr": "Texte brut : sauts de ligne à chaque ligne mise en page"
    }
   },
+  "a46007de7054da163783dcf395ed4386d40654ccb50cc092ffc5d427edfe7e8d": {
+   "drop": false,
+   "en": "Chart, Diagram, and graphics tabs",
+   "es": "Pestañas de gráfico, diagrama y gráficos",
+   "fr": "Onglets Graphique, Diagramme et Graphiques",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "a4bf6e2bdcf37f71b6bdab8b5c093dc91b0b4abc185da91d7b5e1166d9299f72": {
    "drop": true,
    "en": "",
@@ -19023,18 +19059,6 @@
     "fr": ""
    }
   },
-  "aa8dde07590cffa8a6bc40538c44e980642619fda8efd2176536237eec5f29fb": {
-   "drop": false,
-   "en": "Diagrams in a file are shown from their saved drawing and handled as one object: select, move, resize, copy, and delete them as a whole. They print as vectors and are saved whole with all their parts.",
-   "es": "Los diagramas de un archivo se muestran a partir de su dibujo guardado y se tratan como un solo objeto: puede seleccionarlos, moverlos, cambiar su tamaño, copiarlos y eliminarlos como un todo. Se imprimen como vectores y se guardan completos con todas sus partes.",
-   "fr": "Les diagrammes d’un fichier s’affichent à partir de leur dessin enregistré et sont traités comme un seul objet : vous pouvez les sélectionner, les déplacer, les redimensionner, les copier et les supprimer en bloc. Ils s’impriment en vectoriel et sont enregistrés entiers, avec toutes leurs parties.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "aab8ccdd715e8e1fbb741a3cd4c8e4c593baa6359a1731d7b3cb24fe25bcfd7b": {
    "drop": true,
    "en": "",
@@ -19321,18 +19345,6 @@
     "en": "Default paste behavior for each way of pasting",
     "es": "Comportamiento de pegado predeterminado para cada forma de pegar",
     "fr": "Comportement de collage par défaut pour chaque manière de coller"
-   }
-  },
-  "afc43a4debc88c94f8ef08cfc5fc8269abca2a595e6d18a118c67c1aefc8a156": {
-   "drop": false,
-   "en": "Equation, diagram, 3-D model, and ink tabs",
-   "es": "Pestañas de ecuación, diagrama, modelo 3D y entrada de lápiz",
-   "fr": "Onglets Équation, diagramme, modèle 3D et encre",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "afec318fe73a98f377661aaf59c64ded830126561f21a3c45610b89f408ce360": {
@@ -21123,6 +21135,18 @@
     "fr": ""
    }
   },
+  "cb08555ced86ed2251f96d70a3030963bf5f4fe9094c15e70e995d8500daf808": {
+   "drop": false,
+   "en": "Open `.pptx` files with slide sizes, masters, layouts, slides, notes, themes, text and lists, tables, pictures, shapes, charts, diagram drawings, equations, comments, sections, transitions, animations, movies, sounds, and embedded fonts. Both Transitional and Strict forms open.",
+   "es": "Abra archivos `.pptx` con tamaños de diapositiva, patrones, diseños, diapositivas, notas, temas, texto y listas, tablas, imágenes, formas, gráficos, dibujos de diagramas, ecuaciones, comentarios, secciones, transiciones, animaciones, películas, sonidos y fuentes incrustadas. Se abren las formas Transitional y Strict.",
+   "fr": "Ouvrez des fichiers `.pptx` avec tailles de diapositive, masques, dispositions, diapositives, notes, thèmes, texte et listes, tableaux, images, formes, graphiques, dessins de diagrammes, équations, commentaires, sections, transitions, animations, vidéos, sons et polices intégrées. Les formes Transitional et Strict s’ouvrent.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "cb341234ab0740f9e6073cd0ef2d9b9d073b3e26dfa2bbca04318180110ff374": {
    "drop": false,
    "en": "Margins can be set in the Page Setup dialog, including a left gutter.",
@@ -21289,18 +21313,6 @@
     "en": "Compatibility check before saving, and for `.ppt` files",
     "es": "Comprobación de compatibilidad antes de guardar y para archivos `.ppt`",
     "fr": "Vérification de compatibilité avant l’enregistrement et pour les fichiers `.ppt`"
-   }
-  },
-  "cd7bc1f968b84c9d8e4f326e1db02e9657ef7287da52cd3b571fd53b6956eab8": {
-   "drop": false,
-   "en": "Open `.xlsx` files: sheets, cell values, formulas with their stored results, styles, merged cells, hyperlinks, comments, defined names, data validation, conditional formatting, tables, charts, pictures, shapes, page setup, and document properties.",
-   "es": "Abra archivos `.xlsx`: hojas, valores de celdas, fórmulas con sus resultados almacenados, estilos, celdas combinadas, hipervínculos, comentarios, nombres definidos, validación de datos, formato condicional, tablas, gráficos, imágenes, formas, configuración de página y propiedades del documento.",
-   "fr": "Ouvrez des fichiers `.xlsx` : feuilles, valeurs de cellules, formules avec leurs résultats stockés, styles, cellules fusionnées, liens hypertexte, commentaires, noms définis, validation des données, mise en forme conditionnelle, tableaux, graphiques, images, formes, mise en page et propriétés du document.",
-   "soon": {
-    "drop": false,
-    "en": "Pivot tables, slicers, sparklines, form controls, and custom views: show",
-    "es": "Tablas dinámicas, segmentaciones, minigráficos, controles de formulario y vistas personalizadas: visualización",
-    "fr": "Tableaux croisés dynamiques, segments, graphiques sparkline, contrôles de formulaire et vues personnalisées : affichage"
    }
   },
   "cd8607744af27f4fa7467afb10ba4be6c2e03e6cf0110b7a2fcb68705f8aaa8f": {
@@ -21512,18 +21524,6 @@
    "en": "The right-click menu on text offers Cut, Copy, Paste Options (paste, merge formatting, or keep text only), Font, Paragraph, Bullets and Numbering, Link, Select All, and New Comment.",
    "es": "El menú contextual sobre el texto ofrece Cortar, Copiar, Opciones de pegado (pegar, combinar formato o conservar solo el texto), Fuente, Párrafo, Viñetas y numeración, Vínculo, Seleccionar todo y Nuevo comentario.",
    "fr": "Le menu contextuel sur le texte propose Couper, Copier, Options de collage (coller, fusionner la mise en forme ou conserver le texte seulement), Police, Paragraphe, Puces et numérotation, Lien, Sélectionner tout et Nouveau commentaire.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "cfd9dfc2bcfd1aee01a9d96432d0721c3f1fedba9084a19fad94c93316174a8d": {
-   "drop": false,
-   "en": "Open `.pptx` files from recent versions of other office suites, in Transitional and Strict forms: slide sizes, masters, layouts, slides, notes, themes, text and lists, tables, pictures, shapes, charts, diagrams, equations, comments, sections, transitions, animations, movies and sounds, and embedded fonts, with limits on how much one file may ask for.",
-   "es": "Abra archivos `.pptx` de versiones recientes de otros paquetes ofimáticos, en formas Transitional y Strict: tamaños de diapositiva, patrones, diseños, diapositivas, notas, temas, texto y listas, tablas, imágenes, formas, gráficos, diagramas, ecuaciones, comentarios, secciones, transiciones, animaciones, películas y sonidos, y fuentes incrustadas, con límites sobre lo que un archivo puede solicitar.",
-   "fr": "Ouvrez des fichiers `.pptx` issus de versions récentes d’autres suites bureautiques, en formes Transitional et Strict : tailles de diapositive, masques, dispositions, diapositives, notes, thèmes, texte et listes, tableaux, images, formes, graphiques, diagrammes, équations, commentaires, sections, transitions, animations, vidéos et sons, et polices intégrées, avec des limites sur ce qu’un fichier peut demander.",
    "soon": {
     "drop": true,
     "en": "",
@@ -22167,6 +22167,18 @@
     "fr": ""
    }
   },
+  "d9240daa1cb6517a4ce4c772fd5e6b30d5ccf0d03fd7017af4a60f8c1a88d15c": {
+   "drop": false,
+   "en": "Diagrams in a file are kept as saved.",
+   "es": "Los diagramas de un archivo se conservan tal como se guardaron.",
+   "fr": "Les diagrammes d’un fichier sont conservés tels qu’enregistrés.",
+   "soon": {
+    "drop": false,
+    "en": "Diagrams: choose layouts, change colors, and edit text",
+    "es": "Diagramas: elegir diseños, cambiar colores y editar texto",
+    "fr": "Diagrammes : choisir des dispositions, changer les couleurs et modifier le texte"
+   }
+  },
   "d93710b87698f8403d1c1e2ce24701210eb1aa8532a47c7c14ae4938eb953ac8": {
    "drop": false,
    "en": "Install without administrator rights, or run with no installation at all using the Windows `.zip` or the Linux AppImage.",
@@ -22448,18 +22460,6 @@
    "en": "Pivot Table and Design tabs (while a pivot table is selected)",
    "es": "Pestañas Tabla dinámica y Diseño (con una tabla dinámica seleccionada)",
    "fr": "Onglets Tableau croisé dynamique et Création (tableau croisé sélectionné)",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "def9a35fc38b437b86274a7f48ee7894958ed70cfa5a949e5f2971ddd9b9c5cf": {
-   "drop": false,
-   "en": "Choose which placeholders a layout has and where they sit: title, text, content, picture, chart, table, media, online image, date, footer, and slide number. Title and Footers check boxes are available.",
-   "es": "Elija qué marcadores de posición tiene un diseño y dónde se ubican: título, texto, contenido, imagen, gráfico, tabla, multimedia, imagen en línea, fecha, pie de página y número de diapositiva. Se dispone de las casillas Título y Pies de página.",
-   "fr": "Choisissez les espaces réservés d’une disposition et leur emplacement : titre, texte, contenu, image, graphique, tableau, média, image en ligne, date, pied de page et numéro de diapositive. Les cases Titre et Pieds de page sont disponibles.",
    "soon": {
     "drop": true,
     "en": "",
@@ -22993,6 +22993,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e6131f56e80c65744b207dcef121f66da037f33c592efd2221ce1fc184618bb8": {
+   "drop": false,
+   "en": "Open `.xlsx` files with sheets, visibility, and tab colors; cell values of every type; formulas with stored results; styles, themes, and color palettes; row heights, column widths, groups, merged cells, hyperlinks, notes, and threaded comments; defined names; data validation; conditional formatting; filter and sort state; tables; drawings, pictures, and charts; external links; sheet and workbook protection; sheet views; page setup, headers and footers, page breaks, and print areas; and document properties.",
+   "es": "Abra archivos `.xlsx` con hojas, visibilidad y colores de pestaña; valores de celda de todo tipo; fórmulas con resultados guardados; estilos, temas y paletas de colores; alturas de fila, anchos de columna, grupos, celdas combinadas, hipervínculos, notas y comentarios encadenados; nombres definidos; validación de datos; formato condicional; estado de filtros y orden; tablas; dibujos, imágenes y gráficos; vínculos externos; protección de hojas y libros; vistas de hoja; configuración de página, encabezados y pies de página, saltos de página y áreas de impresión; y propiedades del documento.",
+   "fr": "Ouvrez des fichiers `.xlsx` avec feuilles, visibilité et couleurs d’onglet ; valeurs de cellule de tout type ; formules avec résultats enregistrés ; styles, thèmes et palettes de couleurs ; hauteurs de ligne, largeurs de colonne, groupes, cellules fusionnées, liens hypertexte, notes et commentaires en fil ; noms définis ; validation des données ; mise en forme conditionnelle ; état des filtres et du tri ; tableaux ; dessins, images et graphiques ; liens externes ; protection des feuilles et des classeurs ; affichages de feuille ; mise en page, en-têtes et pieds de page, sauts de page et zones d’impression ; et propriétés du document.",
+   "soon": {
+    "drop": false,
+    "en": "Pivot tables, slicers, sparklines, form controls, and custom views: show and edit",
+    "es": "Tablas dinámicas, segmentaciones, minigráficos, controles de formulario y vistas personalizadas: mostrar y editar",
+    "fr": "Tableaux croisés dynamiques, segments, graphiques sparkline, contrôles de formulaire et affichages personnalisés : afficher et modifier"
    }
   },
   "e62aaedcd8729e36ee2e7b9108efacf03bcedaa828d606f3c3f9a9c120e10e43": {
@@ -24596,18 +24608,6 @@
    "en": "Format shapes, text boxes, lines, and groups from the Shape Format tab and a Format Shape pane (`Ctrl+1`): solid, gradient, picture, texture, and pattern fills; line color, width, dash, and arrowheads; shadow, reflection, glow, and soft edges; and size, position, rotation, and text margins, wrap, and columns.",
    "es": "Dé formato a formas, cuadros de texto, líneas y grupos desde la pestaña Formato de forma y un panel Formato de forma (`Ctrl+1`): rellenos sólidos, degradados, de imagen, de textura y de trama; color, grosor, guiones y puntas de flecha de línea; sombra, reflexión, resplandor y bordes suaves; y tamaño, posición, rotación y márgenes, ajuste y columnas del texto.",
    "fr": "Mettez en forme les formes, zones de texte, lignes et groupes depuis l’onglet Format de la forme et un volet Format de la forme (`Ctrl+1`) : remplissages uni, dégradé, image, texture et motif ; couleur, épaisseur, tirets et pointes de flèche des lignes ; ombre, reflet, lueur et bords adoucis ; et taille, position, rotation, marges, habillage et colonnes du texte.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "fe3b8622fcd06b4406ea17bb9896d55c238fd697ff26ae4e84f0104a82233412": {
-   "drop": false,
-   "en": "Chart, diagram, and graphics tabs",
-   "es": "Pestañas de gráficos, diagramas e imágenes",
-   "fr": "Onglets des graphiques, diagrammes et illustrations",
    "soon": {
     "drop": true,
     "en": "",
