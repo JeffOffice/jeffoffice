@@ -6,6 +6,7 @@
 #include "app/pageoutput.h"
 #include "app/pagepaint.h"
 #include "app/pageview.h"
+#include "app/printsides.h"
 #include "app/settings.h"
 #include "app/writewindow.h"
 #include "core/appinfo.h"
@@ -365,6 +366,11 @@ QWidget *WriteFileScreen::buildPrint()
     collate->setChecked(true);
     collate->setToolTip(tr("Print each copy of the whole document in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
     form->addRow(QString(), collate);
+    // One side, or both sides by the printer or by hand (the odd pages, the stack turned over, then the even pages).
+    auto *duplex = new QComboBox(w);
+    duplex->setObjectName(QStringLiteral("printDuplex"));
+    fillSidesBox(duplex, true, Settings::get().value(QStringLiteral("print/sides"), int(SidesChoice::OneSide)).toInt());
+    form->addRow(tr("Sides:"), duplex);
     auto *paper = new QLabel(w);
     paper->setObjectName(QStringLiteral("printPaper"));
     paper->setWordWrap(true);
@@ -404,10 +410,6 @@ QWidget *WriteFileScreen::buildPrint()
     reverse->setObjectName(QStringLiteral("printReverse"));
     reverse->setToolTip(tr("Print the pages in reverse order, so the stack comes out in order."));
     left->addWidget(reverse);
-    auto *byHand = new QCheckBox(tr("Both sides by hand"), w);
-    byHand->setObjectName(QStringLiteral("printByHand"));
-    byHand->setToolTip(tr("For a printer that can't print on both sides: the odd pages first, then a message to turn the stack over, then the even pages."));
-    left->addWidget(byHand);
     // Several pages on a sheet, and each page scaled to a paper size.
     auto *perSheet = new QComboBox(w);
     perSheet->setObjectName(QStringLiteral("printPerSheet"));
@@ -500,7 +502,8 @@ QWidget *WriteFileScreen::buildPrint()
         o.collate = collate->isChecked();
         o.sides = static_cast<WriteOutputOptions::Sides>(sides->currentData().toInt());
         o.reverse = reverse->isChecked();
-        o.byHand = byHand->isChecked() && !choice.toFile;
+        o.duplex = sidesDuplex(duplex);
+        o.byHand = sidesByHand(duplex);
         o.perSheet = perSheet->currentData().toInt();
         o.scaleTo = scaleTo->currentData().toSizeF();
         return o;
@@ -528,9 +531,10 @@ QWidget *WriteFileScreen::buildPrint()
         printBtn->setEnabled(!pages.isEmpty());
         collate->setEnabled(copies->value() > 1);
         // (a file has no sides; by hand, the pages of each side are chosen by the program)
-        const bool toFile = write::printerChoice(printer).toFile;
-        const bool hand = byHand->isChecked() && !toFile;
-        byHand->setEnabled(!toFile);
+        const write::PrinterChoice chosen = write::printerChoice(printer);
+        const bool toFile = chosen.toFile;
+        updateSidesBox(duplex, chosen.printer, toFile);
+        const bool hand = sidesByHand(duplex);
         sides->setEnabled(!hand);
         reverse->setEnabled(!hand);
         // The paper of the page shown; where the sections of the document set others for the pages to print, that is said.
@@ -599,9 +603,13 @@ QWidget *WriteFileScreen::buildPrint()
         restart();
     });
     connect(copies, &QSpinBox::valueChanged, w, [=] { covered(); });
+    connect(printer, &QComboBox::currentIndexChanged, w, [=] { restart(); });
     connect(sides, &QComboBox::currentIndexChanged, w, [=] { restart(); });
     connect(reverse, &QCheckBox::toggled, w, [=] { restart(); });
-    connect(byHand, &QCheckBox::toggled, w, [=] { restart(); });
+    connect(duplex, &QComboBox::currentIndexChanged, w, [=] {
+        Settings::get().setValue(QStringLiteral("print/sides"), sidesWanted(duplex));
+        restart();
+    });
     connect(previous, &QToolButton::clicked, w, [=] { *page -= across->currentData().toInt(); paint(); });
     connect(next, &QToolButton::clicked, w, [=] { *page += across->currentData().toInt(); paint(); });
     connect(across, &QComboBox::currentIndexChanged, w, [=] { paint(); });

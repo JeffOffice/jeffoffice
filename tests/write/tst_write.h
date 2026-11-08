@@ -8,6 +8,7 @@
 #include "app/pagepaint.h"
 #include "app/pageview.h"
 #include "app/pageoutput.h"
+#include "app/printsides.h"
 #include "app/spellpane.h"
 #include "app/stylespane.h"
 #include "app/filescreen.h"
@@ -887,6 +888,9 @@ private Q_SLOTS:
     void copiesComeOutCollatedOrEachPageTogether();
     void thePaperIsDescribedAsTheSectionSetsIt();
     void thePrintScreenHasThePrinterCopiesCollateRangeAndPreview();
+    void thePrintPageSidesChoiceSetsTheDuplexModeOfTheJob();
+    void thePrintPageSidesChoiceByHandPrintsTwoRuns();
+    void thePrintPageSidesChoiceFollowsThePrinterAndTheFileTarget();
     void printingGoesThroughThePainterThePdfExportUses();
     void printingTakesThePagesOfTheRangeInTheOrderGiven();
     void severalPagesShareASheetAndAPageCanBeScaledToAPaperSize();

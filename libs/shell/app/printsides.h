@@ -1,0 +1,32 @@
+#pragma once
+// The Sides choice every Print page has: one side, both sides flipped on the long edge or on the short edge, and, where an app has it, both sides by hand
+// (printsides.cpp).
+
+#include <QList>
+#include <QPrinter>
+#include <QString>
+#include <functional>
+
+class QComboBox;
+
+namespace jp {
+
+enum class SidesChoice { OneSide, LongEdge, ShortEdge, ByHand };
+
+// Fills the box with the choices; `wanted` is the one to start on (a SidesChoice as a number, as it was remembered; anything else is one side).
+void fillSidesBox(QComboBox *box, bool withByHand, int wanted);
+// Brings the box up to date with the printer the job goes to (`printer` empty is the default one): a printer that can't print on both sides has the two automatic
+// choices turned off (the box shows one side then, and goes back to the person's choice when a printer that can is picked), and a PDF file has no sides, so the whole
+// box is turned off.
+void updateSidesBox(QComboBox *box, const QString &printer, bool toFile);
+// What the person chose, and not more than the box allows: the duplex mode for the printer (none for one side, by hand, a PDF file, or a choice that is turned off), and
+// whether the pages are printed in two runs by hand.
+QPrinter::DuplexMode sidesDuplex(const QComboBox *box);
+bool sidesByHand(const QComboBox *box);
+// The choice as a number to keep, whatever the printer allows now.
+int sidesWanted(const QComboBox *box);
+// The modes a printer can print in (what Qt reports); a test stands in for it (the program never does).
+QList<QPrinter::DuplexMode> supportedDuplexModes(const QString &printer);
+void setDuplexSupportStandIn(const std::function<QList<QPrinter::DuplexMode>(const QString &printer)> &standIn);
+
+} // namespace jp

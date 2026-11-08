@@ -45,6 +45,158 @@ void WriteTests::thePrintScreenHasThePrinterCopiesCollateRangeAndPreview()
 }
 
 
+namespace {
+// Printers that can and can't print on both sides, for a test: the names say which.
+struct DuplexStandIn {
+    DuplexStandIn()
+    {
+        setDuplexSupportStandIn([](const QString &name) {
+            if (name == QLatin1String("simplex printer")) return QList<QPrinter::DuplexMode>{QPrinter::DuplexNone};
+            return QList<QPrinter::DuplexMode>{QPrinter::DuplexNone, QPrinter::DuplexLongSide, QPrinter::DuplexShortSide};
+        });
+    }
+    ~DuplexStandIn() { setDuplexSupportStandIn(nullptr); }
+};
+
+// The Print page, with the two printers a test needs put in front of "Save as PDF" (once, however often the page is opened).
+QComboBox *openPrintPage(WriteWindow &w)
+{
+    w.show();
+    w.act("file.print")->trigger();
+    auto *printer = w.findChild<QComboBox *>(QStringLiteral("printPrinter"));
+    if (!printer) return nullptr;
+    if (printer->findText(QStringLiteral("duplex printer")) < 0) {
+        printer->insertItem(0, QStringLiteral("simplex printer"), QStringLiteral("simplex printer"));
+        printer->insertItem(0, QStringLiteral("duplex printer"), QStringLiteral("duplex printer"));
+        printer->setCurrentIndex(0);
+    }
+    return printer;
+}
+}
+
+
+void WriteTests::thePrintPageSidesChoiceSetsTheDuplexModeOfTheJob()
+{
+    const DuplexStandIn standIn;
+    WriteWindow w;
+    QComboBox *printer = openPrintPage(w);
+    QVERIFY(printer);
+    auto *sides = w.findChild<QComboBox *>(QStringLiteral("printDuplex"));
+    QVERIFY(sides);
+    QCOMPARE(sides->count(), 4);
+    QCOMPARE(sides->itemText(0), QStringLiteral("Print on one side"));
+    QCOMPARE(sides->itemText(1), QStringLiteral("Print on both sides, flip on long edge"));
+    QCOMPARE(sides->itemText(2), QStringLiteral("Print on both sides, flip on short edge"));
+    QCOMPARE(sides->itemText(3), QStringLiteral("Print on both sides by hand"));
+    QCOMPARE(sides->currentIndex(), 0);   // (one side is where it starts)
+    // the odd and even pages stay a choice of their own
+    QVERIFY(w.findChild<QComboBox *>(QStringLiteral("printSides")));
+    QTemporaryDir dir;
+    QVector<QPrinter::DuplexMode> seen;
+    w.setPrinterPreparer([&](QPrinter &p) {
+        seen << p.duplex();
+        p.setOutputFormat(QPrinter::PdfFormat);
+        p.setOutputFileName(dir.filePath(QStringLiteral("p%1.pdf").arg(seen.size())));
+    });
+    const QVector<QPrinter::DuplexMode> wanted = {QPrinter::DuplexNone, QPrinter::DuplexLongSide, QPrinter::DuplexShortSide};
+    for (int i = 0; i < 3; ++i) {
+        QVERIFY(openPrintPage(w));
+        sides = w.findChild<QComboBox *>(QStringLiteral("printDuplex"));
+        QVERIFY(sides);
+        sides->setCurrentIndex(i);
+        w.findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+        QCOMPARE(seen.size(), i + 1);
+        QCOMPARE(seen.last(), wanted[i]);
+    }
+    // what was chosen last is on the page when it is opened again
+    QVERIFY(openPrintPage(w));
+    QCOMPARE(w.findChild<QComboBox *>(QStringLiteral("printDuplex"))->currentIndex(), 2);
+    w.findChild<QComboBox *>(QStringLiteral("printDuplex"))->setCurrentIndex(0);
+}
+
+
+void WriteTests::thePrintPageSidesChoiceByHandPrintsTwoRuns()
+{
+    const DuplexStandIn standIn;
+    WriteWindow w;
+    w.setDocument(WriteDoc::blank(), QString());
+    for (int i = 0; i < 4; ++i) {
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("page text"));
+        insertPageBreak(*w.document(), w.view()->cursor());
+    }
+    QVERIFY(openPrintPage(w));
+    auto *sides = w.findChild<QComboBox *>(QStringLiteral("printDuplex"));
+    QVERIFY(sides);
+    sides->setCurrentIndex(3);
+    QTemporaryDir dir;
+    QStringList order;
+    QVector<QPrinter::DuplexMode> modes;
+    w.setPrinterPreparer([&](QPrinter &p) {
+        order << QStringLiteral("print");
+        modes << p.duplex();
+        p.setOutputFormat(QPrinter::PdfFormat);
+        p.setOutputFileName(dir.filePath(QStringLiteral("h%1.pdf").arg(order.size())));
+    });
+    w.setStackTurner([&] {
+        order << QStringLiteral("turn");
+        return true;
+    });
+    w.findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+    QCOMPARE(order, (QStringList{QStringLiteral("print"), QStringLiteral("turn"), QStringLiteral("print")}));
+    QCOMPARE(modes, (QVector<QPrinter::DuplexMode>{QPrinter::DuplexNone, QPrinter::DuplexNone}));
+    // the old check box is gone
+    QVERIFY(!w.findChild<QCheckBox *>(QStringLiteral("printByHand")));
+    QVERIFY(openPrintPage(w));
+    w.findChild<QComboBox *>(QStringLiteral("printDuplex"))->setCurrentIndex(0);
+}
+
+
+void WriteTests::thePrintPageSidesChoiceFollowsThePrinterAndTheFileTarget()
+{
+    const DuplexStandIn standIn;
+    WriteWindow w;
+    w.setDocument(WriteDoc::blank(), QString());
+    QComboBox *printer = openPrintPage(w);
+    QVERIFY(printer);
+    auto *sides = w.findChild<QComboBox *>(QStringLiteral("printDuplex"));
+    QVERIFY(sides);
+    auto enabled = [&](int i) { return sides->model()->flags(sides->model()->index(i, 0)).testFlag(Qt::ItemIsEnabled); };
+    // a printer that can print on both sides
+    QVERIFY(sides->isEnabled());
+    QVERIFY(enabled(0) && enabled(1) && enabled(2) && enabled(3));
+    sides->setCurrentIndex(1);
+    // one that can't: the two automatic choices are off, with a reason, and by hand is not
+    printer->setCurrentIndex(printer->findText(QStringLiteral("simplex printer")));
+    QVERIFY(sides->isEnabled());
+    QVERIFY(enabled(0) && !enabled(1) && !enabled(2) && enabled(3));
+    QVERIFY(!sides->itemData(1, Qt::ToolTipRole).toString().isEmpty());
+    QVERIFY(!sides->itemData(2, Qt::ToolTipRole).toString().isEmpty());
+    QCOMPARE(sides->currentIndex(), 0);
+    // back to the first, and the person's choice is back
+    printer->setCurrentIndex(printer->findText(QStringLiteral("duplex printer")));
+    QCOMPARE(sides->currentIndex(), 1);
+    // a PDF file has no sides: the choice is off, and the job goes out with none
+    sides->setCurrentIndex(2);
+    printer->setCurrentIndex(printer->count() - 1);
+    QVERIFY(!sides->isEnabled());
+    QTemporaryDir dir;
+    w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("file.pdf")); });
+    QVector<QPrinter::DuplexMode> seen;
+    w.setPrinterPreparer([&](QPrinter &p) { seen << p.duplex(); });
+    w.findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+    QCOMPARE(seen, (QVector<QPrinter::DuplexMode>{QPrinter::DuplexNone}));
+    QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("file.pdf"))));
+    // and it is back on with a printer
+    QVERIFY(openPrintPage(w));
+    printer = w.findChild<QComboBox *>(QStringLiteral("printPrinter"));
+    sides = w.findChild<QComboBox *>(QStringLiteral("printDuplex"));
+    printer->setCurrentIndex(0);
+    QVERIFY(sides->isEnabled());
+    QCOMPARE(sides->currentIndex(), 2);
+    sides->setCurrentIndex(0);
+}
+
+
 void WriteTests::printingGoesThroughThePainterThePdfExportUses()
 {
     QTemporaryDir dir;

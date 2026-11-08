@@ -18,6 +18,7 @@
 #include <QImage>
 #include <QSizeF>
 #include <QPointer>
+#include <QPrinter>
 #include <QKeySequence>
 #include <QSet>
 #include <QTimer>
@@ -29,7 +30,6 @@ class QDockWidget;
 class QFrame;
 class QLabel;
 class QMenu;
-class QPrinter;
 class QSlider;
 class QSplitter;
 class QToolButton;
@@ -75,6 +75,7 @@ struct WriteOutputOptions {
     enum class Sides { All, Odd, Even };
     Sides sides = Sides::All;   // only the pages whose numbers are odd or even, of the pages the range covers
     bool reverse = false;       // last page first
+    QPrinter::DuplexMode duplex = QPrinter::DuplexNone;   // the printer prints on both sides itself (never with a file)
     bool byHand = false;        // both sides of the paper with a printer that has no duplex: the odd pages, a prompt to turn the stack over, then the even pages last first
     bool pdfArchive = false;    // Export to PDF: a PDF/A-1b file, for keeping (fonts embedded, no transparency, and the standard's mark in its metadata)
     int perSheet = 1;           // pages on a sheet: 1, 2, 4, 6, 9, or 16 (each scaled to fit its place)
