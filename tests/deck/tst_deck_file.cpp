@@ -46,7 +46,7 @@ private Q_SLOTS:
         const QList<QAbstractButton *> buttons = side->findChildren<QAbstractButton *>(QString(), Qt::FindDirectChildrenOnly);
         QStringList entries;
         for (QAbstractButton *b : buttons) entries << b->text();
-        const QStringList want = {QStringLiteral("Back to presentation"), QStringLiteral("New"), QStringLiteral("Open"), QStringLiteral("Save"), QStringLiteral("Save As"),
+        const QStringList want = {QStringLiteral("Back to presentation"), QStringLiteral("New"), QStringLiteral("Open"), QStringLiteral("Info"), QStringLiteral("Save"), QStringLiteral("Save As"),
                                   QStringLiteral("Save a Copy"), QStringLiteral("Save as Template"), QStringLiteral("Print"), QStringLiteral("Export"), QStringLiteral("Close"), QStringLiteral("Options"), QStringLiteral("About")};
         QCOMPARE(entries, want);
         QTest::keyClick(&w, Qt::Key_Escape);

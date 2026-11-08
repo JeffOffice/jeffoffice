@@ -16,6 +16,7 @@
 #include "office/drawingml.h"
 #include "office/drawingml_table.h"
 #include "office/package.h"
+#include "office/packageprops.h"
 #include "office/theme.h"
 #include "office/xml.h"
 #include "render/renderer.h"
@@ -1838,6 +1839,7 @@ std::unique_ptr<Document> importPackage(const office::Package &pkg, QString *err
     // The presentation's own fonts are available for as long as it is open (see core/embeddedfonts.h).
     EmbeddedFonts::use(doc.get(), importer.takeFonts());
     doc->fromFile = true;   // what the file names outside itself is read only from beside it
+    doc->props.setFromPackageProps(office::readPackageProps(pkg));
     return doc;
 }
 
@@ -1846,7 +1848,7 @@ bool looksLikeCompoundFile(const QByteArray &bytes) { return bytes.startsWith(QB
 
 QString olderFormat()
 {
-    return QCoreApplication::translate("PptxImport", "This file is in an older format, or is protected with a password, which %1 can't open yet.").arg(appInfo().name);
+    return QCoreApplication::translate("PptxImport", "This file is in an older format, which %1 can't open yet.").arg(appInfo().name);
 }
 
 } // namespace

@@ -16,6 +16,7 @@
 #include "app/telemetry.h"
 #include "canvas/canvas.h"
 #include "core/appinfo.h"
+#include "io/crypto.h"
 #include "io/deckoutput.h"
 #include "io/pptxexport.h"
 #include "io/pptximport.h"
@@ -64,6 +65,10 @@ void DeckWindow::createSaveActions()
         dropRecoveryCopy();
         m_recoveredFrom.clear();
         m_templatePath.clear();
+        // (a presentation that takes the place of this one is not protected, nor its names kept out, unless the code that put it there says so)
+        crypto::wipe(m_filePassword);
+        m_fileProtected = false;
+        m_personalInfoRemoved = false;
     });
     connect(m_ed, &Editor::modifiedChanged, this, [this](bool modified) {
         if (!modified) dropRecoveryCopy();
@@ -172,12 +177,23 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
         else jp::plainWarning(this, tr("Save"), text);
         return false;
     }
+    // A password protects a .pptx file; an .odp file can't be protected yet, and is never written without the protection the person asked for.
+    const bool odf = deck::formatOfFileName(path) == deck::FileFormat::Odp;
+    if (m_fileProtected && odf) {
+        notice(tr("Save"), tr("This presentation is protected with a password, and a .odp file can't hold a password yet. Save it as a .pptx file, or remove the password first (File > Info)."));
+        return false;
+    }
     // What was typed in the notes or a slide's text goes into the file.
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     m_ed->endCrop(true);   // what is written is a step, and a crop still going on is not yet
     Document *doc = m_ed->doc();
+    // The mark that a presentation is final is a property a .odp file does not keep: said, so that the window and the file do not disagree.
+    if (odf && markedAsFinal()) {
+        notice(tr("Save"), tr("This presentation is marked as final, and a .odp file can't hold that mark. The file is saved without it."));
+        if (!asCopy) doc->props.custom = office::withMarkAsFinal(doc->props.custom, false);
+    }
     // (a copy has the time and the author a save gives, and the presentation open here keeps its own)
     const QDateTime modifiedBefore = doc->props.modified;
     const QString authorBefore = doc->props.author;
@@ -192,7 +208,7 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     QString err;
     QStringList skipped;
     if (!backupBeforeSave(this, path)) return false;
-    if (!deck::saveAnyPresentationFile(*doc, path, &err, &skipped, embedFontsOnSave())) {
+    if (!deck::saveAnyPresentationFile(*doc, path, &err, &skipped, embedFontsOnSave(), m_fileProtected ? m_filePassword : QString())) {
         jp::plainWarning(this, tr("Save"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
@@ -225,6 +241,16 @@ void DeckWindow::autoRecover()
     if (m_outline) m_outline->commit();
     m_ed->flushTyping();
     if (!m_ed->isModified()) return;
+    // A presentation protected with a password is never written out in the clear: no copy is kept for it, and the person is told.
+    if (m_fileProtected) {
+        // (a copy written before the presentation was protected holds its text in the clear: it goes)
+        dropRecoveryCopy();
+        if (!m_protectionNoted) {
+            m_protectionNoted = true;
+            statusBar()->showMessage(tr("This presentation is protected with a password, so no recovery copy is kept of it. Save it to keep your work."), 10000);
+        }
+        return;
+    }
     // Named for the presentation as it is now (Save As moves it).
     const QString copy = recovery::copyPath(m_ed->filePath(), m_ed->displayName(), m_serial);
     const QString older = m_recoveryCopy;   // (kept until the new copy is written)

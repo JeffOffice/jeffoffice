@@ -34,7 +34,8 @@ bool isWrittenEnding(const QString &path);
 // Writes the presentation at `path`, in the format its ending asks for
 // (formatOfFileName). The old file stays whole until the new one is complete.
 // `skipped` gets a line for each thing the format has no form for.
-bool saveAnyPresentationFile(const Document &doc, const QString &path, QString *error = nullptr, QStringList *skipped = nullptr, bool embedFonts = false);
+// With a `password` (not for the open document kind, which can't hold one: that is refused) the file is protected by it.
+bool saveAnyPresentationFile(const Document &doc, const QString &path, QString *error = nullptr, QStringList *skipped = nullptr, bool embedFonts = false, const QString &password = QString());
 
 // The notes that say what a reader left out of a file as unsafe or too
 // large: `pictures` (Document::imagesLeftOut), and `parts`, the parts and

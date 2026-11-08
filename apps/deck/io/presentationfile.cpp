@@ -37,9 +37,13 @@ bool isWrittenEnding(const QString &path)
     return suffix == QLatin1String("pptx") || suffix == QLatin1String("potx") || suffix == QLatin1String("ppsx") || suffix == QLatin1String("odp") || suffix == QLatin1String("otp");
 }
 
-bool saveAnyPresentationFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool embedFonts)
+bool saveAnyPresentationFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool embedFonts, const QString &password)
 {
-    return formatOfFileName(path) == FileFormat::Odp ? saveOdpFile(doc, path, error, skipped) : savePresentationFile(doc, path, error, skipped, embedFonts);
+    if (formatOfFileName(path) == FileFormat::Odp && !password.isEmpty()) {
+        if (error) *error = QCoreApplication::translate("PresentationFile", "An .odp file can't hold a password yet.");
+        return false;
+    }
+    return formatOfFileName(path) == FileFormat::Odp ? saveOdpFile(doc, path, error, skipped) : savePresentationFile(doc, path, error, skipped, embedFonts, password);
 }
 
 QStringList leftOutNotes(int pictures, int parts)

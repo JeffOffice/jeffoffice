@@ -123,6 +123,7 @@ DeckFileScreen::DeckFileScreen(DeckWindow *win) : FileScreen(win), m_win(win)
     addPage(QStringLiteral("new"), QStringLiteral("file-plus"), tr("New"));
     addPage(QStringLiteral("open"), QStringLiteral("folder-open"), tr("Open"));
     addSection(tr("This presentation"));
+    addPage(QStringLiteral("info"), QStringLiteral("file-text"), tr("Info"));
     addCommand(QStringLiteral("save"), QStringLiteral("save"), tr("Save"), [this] { if (m_win->save()) Q_EMIT closeRequested(); });
     addCommand(QStringLiteral("saveas"), QStringLiteral("copy"), tr("Save As"), [this] { if (m_win->saveAs()) Q_EMIT closeRequested(); });
     addCommand(QStringLiteral("savecopy"), QStringLiteral("files"), tr("Save a Copy"), [this] { if (m_win->saveCopy()) Q_EMIT closeRequested(); });
@@ -138,6 +139,7 @@ DeckFileScreen::DeckFileScreen(DeckWindow *win) : FileScreen(win), m_win(win)
 // The pages are built when they are shown, so they show what is now.
 QWidget *DeckFileScreen::buildPage(const QString &key)
 {
+    if (key == "info") return m_win->buildInfoPage(nullptr);
     if (key == "new") return buildNew();
     if (key == "open") return buildOpen();
     if (key == "print") return buildPrint();

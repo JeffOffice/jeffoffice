@@ -5,6 +5,9 @@
 #include "app/appwindow.h"
 #include "app/filetasks.h"
 #include "app/formatpane.h"
+#include "app/infopage.h"
+#include "app/versionstore.h"
+#include "office/packageprops.h"
 #include "app/slideshow.h"
 
 #include <QHash>
@@ -280,6 +283,24 @@ public:
     // in for it (tests). Given the name to suggest and the filter to start on;
     // returns the path chosen, empty for none.
     void setSavePathChooser(const std::function<QString(const QString &suggested, const QString &filter)> &chooser) { m_pathChooser = chooser; }
+    // The Info page of the File screen (deckwindow_info.cpp): the presentation's properties, Mark as Final, a password, Inspect Presentation, and Version History. The properties are kept
+    // with the presentation (and undone with it) and written to the file's properties when it is saved.
+    QWidget *buildInfoPage(QWidget *parent);
+    office::PackageProps properties() const;
+    void applyProperties(const office::PackageProps &edited);
+    bool markedAsFinal() const;
+    QString markFinalBlocked() const;
+    void setMarkedFinal(bool on);
+    // Whether the file asks for a password when it is opened (it was opened with one, or Encrypt with Password was used); the password is put on when the presentation is saved.
+    bool isPasswordProtected() const { return m_fileProtected; }
+    void encryptWithPassword();
+    QVector<InspectItem> inspectItems();
+    void inspectPresentation();
+    // Version History: copies of the presentation kept on this computer, for the file it has.
+    QVector<write::DocVersion> versions() const;
+    bool saveVersion(const QString &name);
+    bool restoreVersion(const QString &file);
+    void versionHistory();
     // Automatic recovery: writes a .pptx copy of unsaved work (the timer does, at the
     // interval Options sets), and offers the copies a run that crashed left.
     void autoRecover();
@@ -471,6 +492,11 @@ private:
     std::function<void(QPrinter &)> m_printerPreparer;
     std::function<bool(const QString &)> m_showQuestion;
     quint64 m_serial = 0;
+    bool m_fileProtected = false;         // the file is saved with a password
+    QString m_filePassword;
+    bool m_personalInfoRemoved = false;   // Inspect took the names out of the properties: they stay out until the presentation is closed
+    bool m_protectionNoted = false;       // a note was made that no recovery copy is kept
+    void notice(const QString &title, const QString &text, bool warning = false);
 };
 
 } // namespace jp

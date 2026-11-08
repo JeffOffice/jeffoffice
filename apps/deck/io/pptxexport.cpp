@@ -10,6 +10,8 @@
 #include "core/sections.h"
 #include "core/themes.h"
 #include "office/diagram.h"
+#include "office/officecrypt.h"
+#include "office/packageprops.h"
 #include "render/diagramdrawing.h"
 #include "io/pptxfonts.h"
 #include "io/pptxshow.h"
@@ -1358,10 +1360,10 @@ void Exporter::writeProperties()
     QString core = QStringLiteral("<cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" "
                                   "xmlns:dcterms=\"http://purl.org/dc/terms/\" xmlns:dcmitype=\"http://purl.org/dc/dcmitype/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">");
     core += element("dc:title", props.title) + element("dc:subject", props.subject) + element("dc:creator", props.author) + element("cp:keywords", props.keywords)
-            + element("dc:description", props.comments) + element("cp:lastModifiedBy", props.author) + QStringLiteral("<cp:revision>1</cp:revision>")
+            + element("dc:description", props.comments) + element("cp:lastModifiedBy", props.lastModifiedBy.isEmpty() ? props.author : props.lastModifiedBy) + QStringLiteral("<cp:revision>1</cp:revision>")
             + date("dcterms:created", props.created.isValid() ? props.created : QDateTime::currentDateTime())
             + date("dcterms:modified", props.modified.isValid() ? props.modified : QDateTime::currentDateTime()) + element("cp:category", props.category)
-            + QStringLiteral("</cp:coreProperties>");
+            + (props.printed.isValid() ? date("cp:lastPrinted", props.printed) : QString()) + QStringLiteral("</cp:coreProperties>");
     add(QStringLiteral("/docProps/core.xml"), QStringLiteral("application/vnd.openxmlformats-package.core-properties+xml"), core);
 
     // The program's own properties: what the presentation holds, counted and listed.
@@ -1400,6 +1402,8 @@ void Exporter::writeProperties()
     app += QStringLiteral("<LinksUpToDate>false</LinksUpToDate><SharedDoc>false</SharedDoc><HyperlinksChanged>false</HyperlinksChanged></Properties>");
     add(QStringLiteral("/docProps/app.xml"), QStringLiteral("application/vnd.openxmlformats-officedocument.extended-properties+xml"), app);
 
+    // The properties of a person's own (the mark of a file that is final is one).
+    if (!props.custom.isEmpty()) m_pkg.addPart(QStringLiteral("/docProps/custom.xml"), office::writeCustomProps(QByteArray(), props.toPackageProps()), QLatin1String(office::kCustomPartType));
     if (!m_thumbnail.isEmpty()) m_pkg.addPart(QStringLiteral("/docProps/thumbnail.jpeg"), m_thumbnail, QStringLiteral("image/jpeg"));
 }
 
@@ -1570,6 +1574,7 @@ QByteArray Exporter::run(QString *error)
     m_pkg.addRelationship(QStringLiteral("/"), kRelBase + QStringLiteral("officeDocument"), kPresentationPart);
     m_pkg.addRelationship(QStringLiteral("/"), kPackageRelBase + QStringLiteral("metadata/core-properties"), QStringLiteral("/docProps/core.xml"));
     m_pkg.addRelationship(QStringLiteral("/"), kRelBase + QStringLiteral("extended-properties"), QStringLiteral("/docProps/app.xml"));
+    if (!m_doc.props.custom.isEmpty()) m_pkg.addRelationship(QStringLiteral("/"), QLatin1String(office::kCustomRelationship), QStringLiteral("/docProps/custom.xml"));
     if (!m_thumbnail.isEmpty()) m_pkg.addRelationship(QStringLiteral("/"), kPackageRelBase + QStringLiteral("metadata/thumbnail"), QStringLiteral("/docProps/thumbnail.jpeg"));
 
     for (MasterOut &m : m_masters) m.rel = m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("slideMaster"), m.part);
@@ -1622,14 +1627,18 @@ QByteArray exportPresentation(const Document &doc, QString *error, QStringList *
     return Exporter(doc, kind, skipped, embedFonts).run(error);
 }
 
-bool savePresentationFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool embedFonts)
+bool savePresentationFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool embedFonts, const QString &password)
 {
     auto fail = [&](const QString &why) {
         if (error) *error = why;
         return false;
     };
-    const QByteArray bytes = exportPresentation(doc, error, skipped, kindOfFileName(path), embedFonts);
+    QByteArray bytes = exportPresentation(doc, error, skipped, kindOfFileName(path), embedFonts);
     if (bytes.isEmpty()) return false;
+    if (!password.isEmpty()) {
+        bytes = office::encryptPackage(bytes, password);
+        if (bytes.isEmpty()) return fail(QCoreApplication::translate("PptxExport", "The password couldn't be put on the file."));
+    }
     if (path.isEmpty()) return fail(QCoreApplication::translate("PptxExport", "There's no file name to save to."));
     // The old file stays whole until the new one is complete.
     QSaveFile file(path);

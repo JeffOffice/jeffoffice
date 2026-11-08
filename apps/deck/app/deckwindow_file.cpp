@@ -12,10 +12,14 @@
 #include "core/appinfo.h"
 #include "io/pptximport.h"
 #include "io/presentationfile.h"
+#include "app/passworddialogs.h"
+#include "io/crypto.h"
 #include "office/package.h"
 #include "office/repair.h"
 
 #include <QApplication>
+#include <QFile>
+#include <QStatusBar>
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QFileInfo>
@@ -61,6 +65,8 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
     office::RepairReport repair;
     const bool repairing = how == OpenHow::Repair;
     std::unique_ptr<Document> doc;
+    QString openedWith;   // the password a protected presentation was opened with
+    bool wasProtected = false, cancelledAsking = false;
     if (repairing) {
         // Open and Repair: what can be read of a damaged package is made into a package that opens, and what was left out is said.
         QByteArray bytes;
@@ -69,11 +75,43 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
             if (!fixed.isEmpty()) doc = deck::importPresentation(fixed, &notes);
         }
     } else {
-        doc = deck::importAnyPresentationFile(path, &notes);
+        // A presentation protected with a password is a compound file holding the package: it is opened with the password, asked for as often as it takes (an old binary presentation is
+        // a compound file too, and is read as one below).
+        bool handled = false;
+        QFile probe(path);
+        const bool compound = probe.open(QIODevice::ReadOnly) && probe.read(8) == QByteArray::fromHex("D0CF11E0A1B11AE1");
+        probe.close();
+        QByteArray bytes;
+        if (compound && office::readWholeFile(path, &bytes, &notes)) {
+            QApplication::restoreOverrideCursor();
+            const PackageUnlock unlocked = unlockProtectedPackage(this, QFileInfo(path).fileName(), &bytes, &openedWith, &wasProtected, &notes);
+            QApplication::setOverrideCursor(Qt::WaitCursor);
+            if (unlocked == PackageUnlock::WindowGone) {
+                // (this window is deleted: nothing of it is touched from here)
+                QApplication::restoreOverrideCursor();
+                crypto::wipe(openedWith);
+                return false;
+            }
+            if (unlocked == PackageUnlock::Cancelled) {
+                cancelledAsking = true;
+                handled = true;
+            } else if (unlocked == PackageUnlock::Failed) {
+                handled = true;
+            } else if (wasProtected) {
+                doc = deck::importPresentation(bytes, &notes);
+                handled = true;
+            }
+        }
+        if (!handled) {
+            notes.clear();
+            doc = deck::importAnyPresentationFile(path, &notes);
+        }
     }
     QApplication::restoreOverrideCursor();
     const QString name = QFileInfo(path).fileName();
     if (!doc) {
+        crypto::wipe(openedWith);
+        if (cancelledAsking) return false;
         const QString text = tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, notes);
         if (m_notifier) m_notifier(tr("Open"), text);   // (a run with nobody at the window, a screenshot, says it instead of waiting on a box)
         else jp::plainWarning(this, tr("Open"), text);
@@ -99,8 +137,16 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
         target->updateTitle();
     } else {
         target->m_ed->setDocument(std::move(doc), path);
+        target->m_fileProtected = wasProtected;
+        if (wasProtected) target->m_filePassword = openedWith;
         if (how == OpenHow::ReadOnly) target->setReadOnly(true);
+        // A presentation marked as final opens for reading only (the Info page lets it be edited again).
+        else if (how == OpenHow::Normal && target->markedAsFinal() && deck::presentationKindOf(path) != deck::PresentationKind::Template) {
+            target->setReadOnly(true);
+            target->statusBar()->showMessage(tr("Marked as final: this presentation is open for reading only. Open File > Info and choose Marked as Final to edit it."), 12000);
+        }
     }
+    crypto::wipe(openedWith);
     // The panes follow the new presentation (documentReplaced); its slides may be another size.
     target->m_canvas->zoomToFit(Canvas::Fit::WholePage);
     Settings::get().addRecentFile(path);
