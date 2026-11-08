@@ -13,6 +13,7 @@
 #include <QPageSize>
 #include <QPainter>
 #include <QPen>
+#include <QBuffer>
 #include <QPdfWriter>
 #include <QPrinter>
 #include <QRegularExpression>
@@ -773,7 +774,7 @@ void PrintJob::paintGroup(QPainter *painter, const QVector<int> &group, const QS
     }
 }
 
-bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString *error, const std::function<bool(int, int)> &progress, int perSheet)
+bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString *error, const std::function<bool(int, int)> &progress, int perSheet, const jp::PdfProtection *protect)
 {
     auto fail = [&](const QString &text) {
         if (error) *error = text;
@@ -783,15 +784,19 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
     perSheet = cleanPerSheet(perSheet);
     if (pages.isEmpty()) return fail(QCoreApplication::translate("jp::crunch::PrintJob", "There are no pages to put in the file."));
     const QVector<QVector<int>> groups = groupsOf(pages, perSheet);
+    const bool encrypted = protect && protect->isSet();
+    // With a password the PDF is made in memory, so the plain one is never on the disk.
     QSaveFile file(path);
-    if (!file.open(QIODevice::WriteOnly)) return fail(file.errorString());
+    QBuffer memory;
+    if (encrypted) memory.open(QIODevice::WriteOnly);
+    else if (!file.open(QIODevice::WriteOnly)) return fail(file.errorString());
     bool ok = true;
     {
-        QPdfWriter pdf(&file);
+        QPdfWriter pdf(encrypted ? static_cast<QIODevice *>(&memory) : static_cast<QIODevice *>(&file));
         pdf.setCreator(QStringLiteral("JeffCrunch"));
         pdf.setTitle(QFileInfo(m_options.fileName).completeBaseName());
         // PDF/A-1b: Qt puts every font in the file, writes the identification and an sRGB output intent, and leaves transparency out
-        if (m_options.archival) pdf.setPdfVersion(QPagedPaintDevice::PdfVersion_A1b);
+        if (m_options.archival && !encrypted) pdf.setPdfVersion(QPagedPaintDevice::PdfVersion_A1b);
         constexpr int kResolution = 1200;
         pdf.setResolution(kResolution);
         QPainter p;
@@ -830,6 +835,12 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
         file.cancelWriting();
         if (m_cancelled) return fail(QCoreApplication::translate("jp::crunch::PrintJob", "It was cancelled, and no file was made."));
         return fail(QCoreApplication::translate("jp::crunch::PrintJob", "The pages could not be put in the file."));
+    }
+    if (encrypted) {
+        QString why;
+        const QByteArray locked = jp::encryptPdf(memory.data(), *protect, &why);
+        if (locked.isEmpty()) return fail(why);
+        if (!file.open(QIODevice::WriteOnly) || file.write(locked) != locked.size()) return fail(file.errorString());
     }
     if (!file.commit()) return fail(file.errorString());
     return true;

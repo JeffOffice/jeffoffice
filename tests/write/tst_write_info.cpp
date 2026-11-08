@@ -23,6 +23,9 @@
 #include "office/package.h"
 #include "office/packageprops.h"
 #include "text/textprops.h"
+#include "app/pdfprotection.h"
+#include "io/pdfcrypt.h"
+#include "render/pdfpage.h"
 
 #include <QCheckBox>
 #include <QFile>
@@ -843,6 +846,82 @@ private Q_SLOTS:
         QVERIFY(!plain.contains("pdfaid:part"));
         QVERIFY2(kept.contains("pdfaid:part") || kept.contains("<pdfaid:part>1</pdfaid:part>"), "no PDF/A mark");
         QVERIFY(kept.contains("GTS_PDFA1") || kept.contains("OutputIntent"));
+    }
+
+    // A PDF can be protected with a password: the file is encrypted (AES-256), PDF/A is off with it, the PDF opens with the password and not without, and the plain PDF is not left beside it.
+    void aPdfCanBeProtectedWithAPassword()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("keep this"));
+        const QString target = dir.filePath(QStringLiteral("locked.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        WriteOutputOptions o;
+        o.pdfArchive = true;
+        o.pdfProtect.openPassword = QStringLiteral("pw");
+        o.pdfProtect.limited = true;
+        o.pdfProtect.ownerPassword = QStringLiteral("owner");
+        o.pdfProtect.allowPrint = true;
+        o.pdfProtect.allowCopy = false;
+        o.pdfProtect.allowChange = false;
+        QVERIFY(w.exportPdfPages(o));
+        const QByteArray made = fileBytes(target);
+        jp::PdfEncryptionInfo info;
+        QVERIFY(jp::readPdfEncryption(made, QStringLiteral("pw"), &info));
+        QCOMPARE(info.version, 5);
+        QCOMPARE(info.revision, 6);
+        QVERIFY(info.allowPrint && !info.allowCopy && !info.allowChange);
+        QVERIFY(!jp::PdfDocument(made).isValid());
+        const jp::PdfDocument opened(made, QStringLiteral("pw"));
+        QVERIFY(opened.isValid());
+        QVERIFY(opened.text(0).contains(QStringLiteral("keep this")));
+        QVERIFY(!jp::decryptPdf(made, QStringLiteral("pw")).contains("pdfaid:part"));
+        QCOMPARE(QDir(dir.path()).entryList(QDir::NoDotAndDotDot | QDir::AllEntries), QStringList{QStringLiteral("locked.pdf")});
+    }
+
+    // The Export to PDF box offers the password, and turns PDF/A off and out of reach while one is set.
+    void theExportBoxOffersAPasswordAndTurnsOffPdfA()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("boxed"));
+        const QString target = dir.filePath(QStringLiteral("boxed.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        setPdfProtectionStandIn([](bool, jp::PdfProtection *p) {
+            p->openPassword = QStringLiteral("pw");
+            return NewPasswordChoice::Set;
+        });
+        bool offered = false, archiveOff = false;
+        std::function<void(int)> answer = [&](int tries) {
+            QTimer::singleShot(10, [&, tries] {
+                auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!d || d->objectName() != QLatin1String("pdfDialog")) {
+                    if (tries > 0) answer(tries - 1);
+                    return;
+                }
+                auto *archive = d->findChild<QCheckBox *>(QStringLiteral("pdfArchive"));
+                auto *button = d->findChild<QPushButton *>(QStringLiteral("pdfEncryptButton"));
+                offered = archive && button;
+                if (offered) {
+                    archive->setChecked(true);
+                    button->click();
+                    archiveOff = !archive->isChecked() && !archive->isEnabled();
+                }
+                d->accept();
+            });
+        };
+        answer(200);
+        QVERIFY(w.exportPdfAsk());
+        setPdfProtectionStandIn(nullptr);
+        QVERIFY(offered);
+        QVERIFY(archiveOff);
+        const QByteArray made = fileBytes(target);
+        jp::PdfEncryptionInfo info;
+        QVERIFY(jp::readPdfEncryption(made, QStringLiteral("pw"), &info));
+        QVERIFY(info.encrypted);
+        QVERIFY(!jp::decryptPdf(made, QStringLiteral("pw")).contains("pdfaid:part"));
     }
 
     void textFilesAreReadAndWrittenInTheEncodingAndLineEndsChosen()

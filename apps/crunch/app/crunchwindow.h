@@ -8,6 +8,7 @@
 #include "app/recovery.h"
 #include "app/filetasks.h"
 #include "app/infopage.h"
+#include "io/pdfcrypt.h"
 
 #include <tuple>
 #include "app/anchordialogs.h"
@@ -522,12 +523,14 @@ public:
     // `why`, when there is nothing to print or the workbook is not open whole.
     std::unique_ptr<crunch::PrintJob> makePrintJob(crunch::PrintJobOptions options, QString *why = nullptr);
     // Puts the job's pages (all, or those of the range text) in a PDF file; the work is done here, with the wait cursor. False, with the reason, if it could not be done.
-    bool exportPdfTo(const QString &path, crunch::PrintJobOptions options, const QString &pageRange = QString(), QString *why = nullptr, bool *cancelled = nullptr);
+    bool exportPdfTo(const QString &path, crunch::PrintJobOptions options, const QString &pageRange = QString(), QString *why = nullptr, bool *cancelled = nullptr,
+                     const PdfProtection *protect = nullptr);
     // For tests: stands in for the progress bar of an export or a print (it is given the pages done and the total, and says false to cancel).
     void setProgressHook(const std::function<bool(int, int)> &hook) { m_progressHook = hook; }
     // File > Export: asks for a name and puts the sheet in view (or every sheet that is shown) in a PDF file. True when the file is made; false, with the reason shown, if it is not or the
     // person gives it up.
-    bool exportPdf(bool wholeWorkbook, bool archival = false);
+    // `protect`: a password to open the PDF with (PDF/A is then not made: that standard forbids one); the caller wipes it
+    bool exportPdf(bool wholeWorkbook, bool archival = false, const PdfProtection &protect = PdfProtection());
     // Email: makes a message as a .eml file (asking where to put it) with the workbook, or the workbook as a PDF; the person opens it in an email program. Nothing is sent.
     enum class EmailWhat { Workbook, Pdf };
     bool exportEmail(EmailWhat what);

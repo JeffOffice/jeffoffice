@@ -69,11 +69,12 @@ double amountOf(const Spot &s, double c, double m, double y, double k)
 
 } // namespace
 
-bool addPdfSpotColors(const QString &path, const QVector<QColor> &colors, const QStringList &names, QString *error)
+namespace {
+
+// Makes the changes in `pdf`; `needsSave` says whether there were any.
+bool spotsInto(QtPdf &pdf, const QVector<QColor> &colors, const QStringList &names, bool *needsSave)
 {
-    if (colors.isEmpty()) return true;
-    QtPdf pdf;
-    if (!pdf.load(path, error)) return false;
+    *needsSave = false;
 
     QVector<Spot> spots;
     for (int i = 0; i < colors.size(); ++i) {
@@ -119,6 +120,7 @@ bool addPdfSpotColors(const QString &path, const QVector<QColor> &colors, const 
         ++changed;
     }
     if (!changed) return true;
+    *needsSave = true;
 
     // Each resource dictionary with color spaces gets the spot inks:
     // Separation spaces with their process equivalents for proofing.
@@ -131,7 +133,29 @@ bool addPdfSpotColors(const QString &path, const QVector<QColor> &colors, const 
         if (cs < 0 || QtPdf::isStream(o.body)) continue;
         o.body.insert(cs + 14, spaces);
     }
-    return pdf.save(path, error);
+    return true;
+}
+
+} // namespace
+
+bool addPdfSpotColors(const QString &path, const QVector<QColor> &colors, const QStringList &names, QString *error)
+{
+    if (colors.isEmpty()) return true;
+    QtPdf pdf;
+    if (!pdf.load(path, error)) return false;
+    bool needsSave = false;
+    if (!spotsInto(pdf, colors, names, &needsSave)) return false;
+    return !needsSave || pdf.save(path, error);
+}
+
+QByteArray addPdfSpotColors(const QByteArray &bytes, const QVector<QColor> &colors, const QStringList &names, QString *error)
+{
+    if (colors.isEmpty()) return bytes;
+    QtPdf pdf;
+    if (!pdf.loadBytes(bytes, error)) return {};
+    bool needsSave = false;
+    if (!spotsInto(pdf, colors, names, &needsSave)) return {};
+    return needsSave ? pdf.toBytes() : bytes;
 }
 
 } // namespace jp

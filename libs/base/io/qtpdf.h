@@ -17,7 +17,9 @@ public:
     };
 
     bool load(const QString &path, QString *error = nullptr);
+    bool loadBytes(const QByteArray &pdf, QString *error = nullptr);
     bool save(const QString &path, QString *error = nullptr) const;
+    QByteArray toBytes() const;   // the file, as save() writes it
 
     QByteArray header;    // the version line and the binary marker line
     QVector<Obj> objects;

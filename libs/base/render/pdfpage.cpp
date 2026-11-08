@@ -1,5 +1,7 @@
 #include "render/pdfpage.h"
 
+#include "io/crypto.h"
+
 #include <fpdf_edit.h>
 #include <fpdf_ppo.h>
 #include <fpdf_save.h>
@@ -103,15 +105,19 @@ struct WriteToBytes : FPDF_FILEWRITE {
 struct PdfDocument::Impl {
     QByteArray bytes;
     FPDF_DOCUMENT doc = nullptr;
+    bool passwordWanted = false;
     QHash<int, Check> checks;
 };
 
-PdfDocument::PdfDocument(const QByteArray &bytes) : d(std::make_unique<Impl>())
+PdfDocument::PdfDocument(const QByteArray &bytes, const QString &password) : d(std::make_unique<Impl>())
 {
     QMutexLocker lock(&pdfiumLock());
     initPdfium();
     d->bytes = bytes;
-    d->doc = FPDF_LoadMemDocument64(d->bytes.constData(), size_t(d->bytes.size()), nullptr);
+    QByteArray word = password.toUtf8();
+    d->doc = FPDF_LoadMemDocument64(d->bytes.constData(), size_t(d->bytes.size()), word.isEmpty() ? nullptr : word.constData());
+    d->passwordWanted = !d->doc && FPDF_GetLastError() == FPDF_ERR_PASSWORD;
+    crypto::wipe(word);
 }
 
 PdfDocument::~PdfDocument()
@@ -121,6 +127,8 @@ PdfDocument::~PdfDocument()
 }
 
 bool PdfDocument::isValid() const { return d->doc != nullptr; }
+
+bool PdfDocument::needsPassword() const { return d->passwordWanted; }
 
 bool PdfDocument::looksLikePdf(const QByteArray &bytes) { return bytes.left(1024).contains("%PDF-"); }
 

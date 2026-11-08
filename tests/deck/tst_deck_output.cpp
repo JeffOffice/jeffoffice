@@ -1,6 +1,8 @@
 // JeffDeck's tests of PDF, pictures, handouts, and printed output.
 #include "deckhelpers.h"
 #include "../localepin.h"
+#include "app/passworddialogs.h"
+#include "io/pdfcrypt.h"
 
 class DeckOutputTests : public QObject {
     Q_OBJECT
@@ -1020,6 +1022,77 @@ private Q_SLOTS:
         });
         w.act("file.exportPicture")->trigger();
         QCOMPARE(label, QStringLiteral("OK"));
+    }
+    // Export to PDF can protect the file with a password: the file written is encrypted (AES-256), opens with the password and not without, and nothing else is left beside it.
+    void anExportWithAPasswordIsEncrypted()
+    {
+        QTemporaryDir dir;
+        DeckWindow w;
+        const QString path = dir.filePath(QStringLiteral("locked.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+        jp::setPdfProtectionStandIn([](bool, jp::PdfProtection *p) {
+            p->openPassword = QStringLiteral("pw");
+            return jp::NewPasswordChoice::Set;
+        });
+        const auto reset = qScopeGuard([] { jp::setPdfProtectionStandIn(nullptr); });
+        answerOutputDialog([](QDialog *d) {
+            auto *button = d->findChild<QPushButton *>(QStringLiteral("pdfEncryptButton"));
+            QVERIFY(button);
+            button->click();
+        });
+        QVERIFY(w.exportPdf());
+        const QByteArray made = fileBytes(path);
+        jp::PdfEncryptionInfo info;
+        QVERIFY(jp::readPdfEncryption(made, QStringLiteral("pw"), &info));
+        QCOMPARE(info.version, 5);
+        QCOMPARE(info.revision, 6);
+        QVERIFY(!jp::readPdfEncryption(made, QString(), &info));
+        QVERIFY(!PdfDocument(made).isValid());
+        const PdfDocument opened(made, QStringLiteral("pw"));
+        QVERIFY(opened.isValid());
+        QCOMPARE(opened.pageCount(), int(w.editor()->doc()->pages.size()));
+        QCOMPARE(QDir(dir.path()).entryList(QDir::NoDotAndDotDot | QDir::AllEntries), QStringList{QStringLiteral("locked.pdf")});
+        // The next export asks again: the password was for that one.
+        const QString second = dir.filePath(QStringLiteral("plain.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return second; });
+        answerOutputDialog();
+        QVERIFY(w.exportPdf());
+        QVERIFY(!jp::readPdfEncryption(fileBytes(second), QString(), &info) || !info.encrypted);
+        QVERIFY(PdfDocument(fileBytes(second)).isValid());
+    }
+
+    // A picture that is a PDF with a password asks for it: a wrong one asks again, and Cancel places nothing.
+    void insertingAPdfWithAPasswordAsksForIt()
+    {
+        QTemporaryDir dir;
+        DeckWindow w;
+        const QString path = dir.filePath(QStringLiteral("locked.pdf"));
+        {
+            jp::PdfProtection p;
+            p.openPassword = QStringLiteral("s3cret");
+            QString err;
+            QVERIFY2(deck::exportPdf(*w.editor()->doc(), path, deck::OutputOptions(), &err, &p), qPrintable(err));
+        }
+        const auto reset = qScopeGuard([] { jp::setOpenPasswordStandIn(nullptr); });
+        auto itemCount = [&] { return w.editor()->doc()->pages[w.editor()->currentPage()]->items.size(); };
+        const size_t before = itemCount();
+        QList<bool> wrongBefore;
+        jp::setOpenPasswordStandIn([&](const QString &, bool wrong, QString *password) {
+            wrongBefore << wrong;
+            *password = wrongBefore.size() == 1 ? QStringLiteral("nope") : QStringLiteral("s3cret");
+            return true;
+        });
+        QVERIFY(w.insertPicture(path));
+        QCOMPARE(wrongBefore, (QList<bool>{false, true}));
+        QCOMPARE(itemCount(), before + 1);
+        int asked = 0;
+        jp::setOpenPasswordStandIn([&](const QString &, bool, QString *password) {
+            *password = QStringLiteral("nope");
+            return ++asked < 2;
+        });
+        QVERIFY(!w.insertPicture(path));
+        QCOMPARE(asked, 2);
+        QCOMPARE(itemCount(), before + 1);
     }
 };
 

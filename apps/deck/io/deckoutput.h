@@ -12,6 +12,7 @@
 // on. Hidden slides are left out unless the options ask for them.
 
 #include "core/document.h"
+#include "io/pdfcrypt.h"
 #include "render/renderer.h"
 
 #include <QImage>
@@ -68,7 +69,8 @@ void paintOutputPage(QPainter *p, const Document &d, LayoutCache *cache, const O
 // Writes the PDF: vector text with its fonts embedded, the title from the
 // presentation's properties or the file's name. The old file stays whole
 // until the new one is complete; on failure says why in `error`.
-bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, QString *error = nullptr);
+// With `protect` (and its open password set), the file is written once, encrypted: the plain PDF stays in memory. The caller wipes `protect`.
+bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, QString *error = nullptr, const PdfProtection *protect = nullptr);
 
 // One slide as a picture `width` pixels across (the slide's shape), on white.
 QImage slideImage(const Document &d, LayoutCache *cache, int slide, int width = 1920);

@@ -5,6 +5,7 @@
 #include "app/infopage.h"
 #include "core/textexport.h"
 #include "app/filetasks.h"
+#include "io/pdfcrypt.h"
 #include "core/reviewops.h"
 #include "core/styleops.h"
 #include "core/tableops.h"
@@ -80,6 +81,7 @@ struct WriteOutputOptions {
     QVector<int> pageList;
     bool byHand = false;        // both sides of the paper with a printer that has no duplex: the odd pages, a prompt to turn the stack over, then the even pages last first
     bool pdfArchive = false;    // Export to PDF: a PDF/A-1b file, for keeping (fonts embedded, no transparency, and the standard's mark in its metadata)
+    jp::PdfProtection pdfProtect;   // Export to PDF: a password to open it with (never with pdfArchive); wiped after the export
     int perSheet = 1;           // pages on a sheet: 1, 2, 4, 6, 9, or 16 (each scaled to fit its place)
     QSizeF scaleTo;             // points, upright: each page is scaled to fit this paper (empty: the page's own)
 };

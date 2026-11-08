@@ -18,6 +18,9 @@
 
 #include "io/importers.h"
 #include "io/pdfspots.h"
+#include "app/pdfprotection.h"
+#include "io/crypto.h"
+#include "app/passworddialogs.h"
 #include "io/pdfx.h"
 #include "app/appfuncs.h"
 #include "app/backstage.h"
@@ -933,12 +936,16 @@ void MainWindow::exportPdfWithOptions()
     });
     pdfx->setChecked(Settings::get().value(QStringLiteral("pdf/pdfx"), false).toBool());
     // One or the other: PDF/A keeps screen (RGB) color, PDF/X prints in ink.
+    // Neither takes a password: a PDF with one is no PDF/A or PDF/X.
+    auto *protect = new jp::PdfProtectionRow(&dlg);
+    protect->forbiddenBy({pdfa, pdfx}, tr("PDF/A and PDF/X are turned off, because a PDF with a password can't follow those standards."));
     auto syncStandards = [=] {
-        condition->setEnabled(pdfx->isChecked());
-        pdfa->setEnabled(!pdfx->isChecked());
+        condition->setEnabled(pdfx->isChecked() && !protect->isProtected());
+        pdfa->setEnabled(!pdfx->isChecked() && !protect->isProtected());
         if (pdfx->isChecked()) pdfa->setChecked(false);
     };
     QObject::connect(pdfx, &QCheckBox::toggled, &dlg, syncStandards);
+    QObject::connect(protect, &jp::PdfProtectionRow::protectionChanged, &dlg, syncStandards);
     syncStandards();
     auto *openAfter = new QCheckBox(tr("Open the PDF after saving it"), &dlg);
     openAfter->setChecked(openPdfAfterSaving());
@@ -950,6 +957,7 @@ void MainWindow::exportPdfWithOptions()
     form->addRow(pdfa);
     form->addRow(pdfx);
     form->addRow(tr("Printing condition:"), condition);
+    form->addRow(protect);
     form->addRow(openAfter);
     v->addLayout(form);
     auto *bb = new QDialogButtonBox(QDialogButtonBox::Cancel, &dlg);
@@ -961,6 +969,7 @@ void MainWindow::exportPdfWithOptions()
     Settings::get().setValue(QStringLiteral("pdf/preset"), preset->currentIndex());
     setOpenPdfAfterSaving(openAfter->isChecked());
     PdfSettings s;
+    const auto wipePasswords = qScopeGuard([&s] { s.protect.wipe(); });
     s.preset = PdfSettings::Preset(preset->currentIndex());
     s.properties = props->isChecked();
     s.archival = pdfa->isChecked();
@@ -968,7 +977,9 @@ void MainWindow::exportPdfWithOptions()
     s.pdfxCondition = condition->currentIndex();
     s.pdfxProfile = ownProfile;
     s.booklet = booklet->isChecked();
-    Settings::get().setValue(QStringLiteral("pdf/pdfx"), s.pdfx);
+    s.protect = protect->protection();
+    // (a password turns PDF/X off for this PDF only: the choice kept is the one made before)
+    if (!s.protect.isSet()) Settings::get().setValue(QStringLiteral("pdf/pdfx"), s.pdfx);
     Settings::get().setValue(QStringLiteral("pdf/pdfxCondition"), s.pdfxCondition);
     if (range->currentIndex() == 1) s.from = s.to = m_ed->currentPage();
     else if (range->currentIndex() == 2) { s.from = fromBox->value() - 1; s.to = std::max(s.from, toBox->value() - 1); }
@@ -1083,6 +1094,10 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
     m_ed->endTextEdit();
     Document *d = m_ed->doc();
     PdfSettings s = sIn;
+    const auto wipePasswords = qScopeGuard([&s] { s.protect.wipe(); });
+    // A PDF with a password is made in memory, and the file is written once, encrypted: the plain PDF is never on the disk.
+    const bool encrypted = s.protect.isSet();
+    if (encrypted) s.archival = s.pdfx = false;
     // A catalog makes a PDF of its merged pages: a record in each cell.
     std::unique_ptr<Document> catalogPages;
     if (s.merged && d->catalog.isActive() && !d->merge.isEmpty()) {
@@ -1111,7 +1126,10 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
             return false;
         }
     }
-    QPdfWriter pdf(path);
+    QBuffer memory;
+    memory.open(QIODevice::WriteOnly);
+    const auto pdfOwner = encrypted ? std::make_unique<QPdfWriter>(&memory) : std::make_unique<QPdfWriter>(path);
+    QPdfWriter &pdf = *pdfOwner;
     pdf.setCreator(QStringLiteral("JeffPub"));
     const QString title = d->props.title.isEmpty() ? m_ed->displayName() : d->props.title;
     pdf.setTitle(title);
@@ -1212,7 +1230,13 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
         QStringList names;
         for (int k2 = 0; k2 < d->print.spotColors.size(); ++k2) names << d->print.spotName(k2);
         QString spotErr;
-        if (!addPdfSpotColors(path, d->print.spotColors, names, &spotErr))
+        if (encrypted) {
+            const QByteArray spotted = addPdfSpotColors(memory.data(), d->print.spotColors, names, &spotErr);
+            if (spotted.isEmpty())
+                jp::plainWarning(this, tr("Create PDF"), tr("The PDF was made, but its spot colors are process colors: %1").arg(spotErr));
+            else
+                memory.setData(spotted);
+        } else if (!addPdfSpotColors(path, d->print.spotColors, names, &spotErr))
             jp::plainWarning(this, tr("Create PDF"), tr("The PDF was made, but its spot colors are process colors: %1").arg(spotErr));
     }
     // PDF/X: pictures in CMYK, the page's trim and bleed, and (PDF/X-1a)
@@ -1230,6 +1254,21 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
         if (!(x4 ? makePdfX4(path, xo, &xErr) : makePdfX1a(path, xo, &xErr))) {
             QApplication::restoreOverrideCursor();
             jp::plainWarning(this, tr("Create PDF"), tr("The PDF was made, but it isn't PDF/X: %1.").arg(xErr));
+            return false;
+        }
+    }
+    if (encrypted) {
+        QString why;
+        const QByteArray locked = jp::encryptPdf(memory.data(), s.protect, &why);
+        if (!locked.isEmpty()) {
+            QSaveFile out(path);
+            if (!out.open(QIODevice::WriteOnly) || out.write(locked) != locked.size() || !out.commit()) why = out.errorString();
+            else why.clear();
+        } else if (why.isEmpty())
+            why = tr("The PDF can't be protected.");
+        if (!why.isEmpty()) {
+            QApplication::restoreOverrideCursor();
+            jp::plainWarning(this, tr("Create PDF"), tr("JeffPub couldn't write \"%1\".\n%2%3").arg(path, why, saveFailureHint(why)));
             return false;
         }
     }
@@ -1560,13 +1599,17 @@ static bool readPicture(QWidget *parent, const QString &path, QByteArray *bytes,
     *bytes = readPictureBytes(path);
     if (bytes->isEmpty()) return false;
     int pdfPage = 0;
+    QString pdfPassword;
+    const auto wipePassword = qScopeGuard([&pdfPassword] { jp::crypto::wipe(pdfPassword); });
     if (QFileInfo(path).suffix().compare(QLatin1String("pdf"), Qt::CaseInsensitive) == 0 || PdfDocument::looksLikePdf(*bytes)) {
-        const PdfDocument pdf(*bytes);
+        // A PDF with a password asks for it first (a wrong one asks again, and Cancel stops).
+        if (jp::unlockPdf(parent, QFileInfo(path).fileName(), *bytes, &pdfPassword) != jp::PdfUnlock::Opened) return false;
+        const PdfDocument pdf(*bytes, pdfPassword);
         pdfPage = pdf.isValid() ? choosePdfPage(parent, pdf, QFileInfo(path).fileName()) : -1;
         if (pdfPage < 0) return false;
     }
     if (page) *page = pdfPage;
-    return readPictureFile(path, pdfPage, bytes, fmt, px, hash);
+    return readPictureFile(path, pdfPage, bytes, fmt, px, hash, pdfPassword);
 }
 
 // A picture file as an image of the publication: copied in, linked to its

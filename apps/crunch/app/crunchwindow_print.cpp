@@ -54,7 +54,7 @@ std::function<bool(int, int)> CrunchWindow::progressFunction(const QString &titl
     };
 }
 
-bool CrunchWindow::exportPdfTo(const QString &path, crunch::PrintJobOptions options, const QString &pageRange, QString *why, bool *cancelled)
+bool CrunchWindow::exportPdfTo(const QString &path, crunch::PrintJobOptions options, const QString &pageRange, QString *why, bool *cancelled, const PdfProtection *protect)
 {
     if (cancelled) *cancelled = false;
     const std::unique_ptr<crunch::PrintJob> job = makePrintJob(options, why);
@@ -69,7 +69,7 @@ bool CrunchWindow::exportPdfTo(const QString &path, crunch::PrintJobOptions opti
             return false;
         }
     }
-    const bool ok = job->exportPdf(path, pages, why, progressFunction(tr("Export to PDF"), tr("Making the pages...")));
+    const bool ok = job->exportPdf(path, pages, why, progressFunction(tr("Export to PDF"), tr("Making the pages...")), 1, protect);
     if (!ok && cancelled) *cancelled = job->wasCancelled();
     return ok;
 }
@@ -80,7 +80,7 @@ QPrinter &CrunchWindow::printer()
     return *m_printer;
 }
 
-bool CrunchWindow::exportPdf(bool wholeWorkbook, bool archival)
+bool CrunchWindow::exportPdf(bool wholeWorkbook, bool archival, const PdfProtection &protect)
 {
     if (!m_loaded || !m_haveCalc) {
         notice(tr("Export to PDF"), tr("The workbook is still being opened. It can be exported when it is open."));
@@ -89,7 +89,7 @@ bool CrunchWindow::exportPdf(bool wholeWorkbook, bool archival)
     crunch::PrintJobOptions options = m_printChoices->job;
     options.what = wholeWorkbook ? crunch::PrintWhat::Workbook : crunch::PrintWhat::ActiveSheet;
     options.activeSheet = m_sheet;
-    options.archival = archival;
+    options.archival = archival && !protect.isSet();
     const QString dir = m_path.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(m_path).absolutePath();
     const QString start = QDir(dir).filePath(displayName() + QStringLiteral(".pdf"));
     QString path = askForSavePath(tr("Export to PDF"), start, tr("PDF (*.pdf)"));
@@ -97,7 +97,7 @@ bool CrunchWindow::exportPdf(bool wholeWorkbook, bool archival)
     if (QFileInfo(path).suffix().compare(QLatin1String("pdf"), Qt::CaseInsensitive) != 0) path += QStringLiteral(".pdf");
     QString why;
     bool cancelled = false;
-    if (!exportPdfTo(path, options, QString(), &why, &cancelled)) {
+    if (!exportPdfTo(path, options, QString(), &why, &cancelled, &protect)) {
         if (cancelled) {
             setStatus(tr("Export was cancelled"));
             return false;

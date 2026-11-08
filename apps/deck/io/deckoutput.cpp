@@ -14,6 +14,7 @@
 #include <QLocale>
 #include <QPageSize>
 #include <QPainter>
+#include <QBuffer>
 #include <QPdfWriter>
 #include <QPrinter>
 #include <QRegularExpression>
@@ -489,7 +490,7 @@ void paintOutputPage(QPainter *p, const Document &d, LayoutCache *cache, const O
     else paintPlain(p, d, cache, o, page, paper, textOutputOf(p));
 }
 
-bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, QString *error)
+bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, QString *error, const PdfProtection *protect)
 {
     auto fail = [&](const QString &why) {
         if (error) *error = why;
@@ -497,10 +498,14 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
     };
     const int pages = outputPageCount(d, o);
     if (pages <= 0) return fail(QCoreApplication::translate("DeckOutput", "There are no slides to print."));
+    const bool encrypted = protect && protect->isSet();
+    // With a password the PDF is made in memory, so the plain one is never on the disk.
     QSaveFile file(path);
-    if (!file.open(QIODevice::WriteOnly)) return fail(file.errorString());
+    QBuffer memory;
+    if (encrypted) memory.open(QIODevice::WriteOnly);
+    else if (!file.open(QIODevice::WriteOnly)) return fail(file.errorString());
     {
-        QPdfWriter pdf(&file);
+        QPdfWriter pdf(encrypted ? static_cast<QIODevice *>(&memory) : static_cast<QIODevice *>(&file));
         pdf.setCreator(appInfo().name);
         pdf.setTitle(d.props.title.isEmpty() ? QFileInfo(path).completeBaseName() : d.props.title);
         if (o.grayscale) pdf.setColorModel(QPdfWriter::ColorModel::Grayscale);
@@ -523,6 +528,12 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
             p.restore();
         }
         p.end();
+    }
+    if (encrypted) {
+        QString why;
+        const QByteArray locked = encryptPdf(memory.data(), *protect, &why);
+        if (locked.isEmpty()) return fail(why);
+        if (!file.open(QIODevice::WriteOnly) || file.write(locked) != locked.size()) return fail(file.errorString());
     }
     if (!file.commit()) return fail(file.errorString());
     return true;

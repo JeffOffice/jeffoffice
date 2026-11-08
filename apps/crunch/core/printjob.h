@@ -14,6 +14,7 @@
 #include "grid/printlayout.h"
 #include "grid/printpaint.h"
 #include "grid/valuestore.h"
+#include "io/pdfcrypt.h"
 
 #include <QDateTime>
 #include <QImage>
@@ -201,8 +202,9 @@ public:
     // The page as a picture of the width (its height follows), on white.
     QImage preview(int page, int widthPixels);
 
-    // The pages (indexes from 0, in the order given) as a PDF file, written at once; `progress` is told the pages done and the total, and says false to stop. The file is not there if it fails.
-    bool exportPdf(const QString &path, const QVector<int> &pages, QString *error = nullptr, const std::function<bool(int done, int total)> &progress = nullptr, int perSheet = 1);
+    // The pages (indexes from 0, in the order given) as a PDF file, written at once; `progress` is told the pages done and the total, and says false to stop. The file is not there if it fails. With `protect` (its open password set) the PDF is made in memory and the file written once, encrypted.
+    bool exportPdf(const QString &path, const QVector<int> &pages, QString *error = nullptr, const std::function<bool(int done, int total)> &progress = nullptr, int perSheet = 1,
+                   const jp::PdfProtection *protect = nullptr);
     // The pages to a printer (any QPrinter, a file among them), one sheet of paper each; the printer's own copies are not used here (the caller repeats the pages).
     // `copies` of the pages are sent, each set together (collated) or each page's copies together; never made into a list (the number sent is held to kMaxSentPages).
     bool printTo(QPrinter *printer, const QVector<int> &pages, QString *error = nullptr, const std::function<bool(int done, int total)> &progress = nullptr, int copies = 1,

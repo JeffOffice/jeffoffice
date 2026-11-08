@@ -4,6 +4,7 @@
 #include "io/crypto.h"
 #include "office/officecrypt.h"
 #include "office/package.h"
+#include "render/pdfpage.h"
 
 #include <QCoreApplication>
 #include <QEventLoop>
@@ -13,7 +14,9 @@
 #include <QTimer>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QCheckBox>
 #include <QFormLayout>
+#include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -25,6 +28,7 @@ namespace {
 
 std::function<NewPasswordChoice(bool, QString *)> g_newStandIn;
 std::function<bool(const QString &, bool, QString *)> g_openStandIn;
+std::function<NewPasswordChoice(bool, PdfProtection *)> g_pdfStandIn;
 
 
 class NewPasswordDialog : public QDialog {
@@ -98,6 +102,136 @@ private:
     bool m_removed = false;
 };
 
+class PdfProtectionDialog : public QDialog {
+    Q_DECLARE_TR_FUNCTIONS(PdfProtectionDialog)
+
+public:
+    PdfProtectionDialog(bool hasPassword, const PdfProtection &now, QWidget *parent) : QDialog(parent)
+    {
+        setObjectName(QStringLiteral("pdfProtectionDialog"));
+        setWindowTitle(tr("Encrypt with a Password"));
+        auto *layout = new QVBoxLayout(this);
+        auto *intro = new QLabel(tr("Anyone who opens this PDF will have to type the password. The password is used for this PDF only, and is not kept."), this);
+        intro->setWordWrap(true);
+        layout->addWidget(intro);
+        auto *form = new QFormLayout;
+        m_open = passwordBox(QStringLiteral("pdfPassword"), tr("Password"));
+        m_open->setText(now.openPassword);
+        form->addRow(tr("Password:"), m_open);
+        m_openAgain = passwordBox(QStringLiteral("pdfPasswordAgain"), tr("Confirm password"));
+        m_openAgain->setText(now.openPassword);
+        form->addRow(tr("Confirm:"), m_openAgain);
+        layout->addLayout(form);
+
+        m_restrict = new QGroupBox(tr("Restrict printing, copying, and editing"), this);
+        m_restrict->setObjectName(QStringLiteral("pdfRestrict"));
+        m_restrict->setCheckable(true);
+        m_restrict->setChecked(now.limited);
+        auto *inner = new QVBoxLayout(m_restrict);
+        auto *innerForm = new QFormLayout;
+        m_owner = passwordBox(QStringLiteral("pdfOwnerPassword"), tr("Password for the limits"));
+        m_owner->setText(now.ownerPassword);
+        innerForm->addRow(tr("Password for the limits:"), m_owner);
+        m_ownerAgain = passwordBox(QStringLiteral("pdfOwnerPasswordAgain"), tr("Confirm password for the limits"));
+        m_ownerAgain->setText(now.ownerPassword);
+        innerForm->addRow(tr("Confirm:"), m_ownerAgain);
+        inner->addLayout(innerForm);
+        m_print = new QCheckBox(tr("Allow printing"), m_restrict);
+        m_print->setObjectName(QStringLiteral("pdfAllowPrint"));
+        m_print->setChecked(now.limited ? now.allowPrint : true);
+        m_copy = new QCheckBox(tr("Allow copying text and pictures"), m_restrict);
+        m_copy->setObjectName(QStringLiteral("pdfAllowCopy"));
+        m_copy->setChecked(now.limited ? now.allowCopy : false);
+        m_change = new QCheckBox(tr("Allow changing the document"), m_restrict);
+        m_change->setObjectName(QStringLiteral("pdfAllowChange"));
+        m_change->setChecked(now.limited ? now.allowChange : false);
+        for (QCheckBox *box : {m_print, m_copy, m_change}) inner->addWidget(box);
+        auto *limitNote = new QLabel(tr("These limits are a request. Most PDF readers honor them, but they do not stop anyone who wants to get around them. Only the password that opens the PDF really protects it."), m_restrict);
+        limitNote->setWordWrap(true);
+        inner->addWidget(limitNote);
+        layout->addWidget(m_restrict);
+
+        auto *warn = new QLabel(tr("A password can't be found again if it is forgotten. Keep it somewhere safe."), this);
+        warn->setWordWrap(true);
+        layout->addWidget(warn);
+        m_problem = plainLabel(new QLabel(this));
+        m_problem->setObjectName(QStringLiteral("pdfProtectionProblem"));
+        m_problem->setWordWrap(true);
+        layout->addWidget(m_problem);
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+        buttons->button(QDialogButtonBox::Ok)->setText(tr("Encrypt"));
+        if (hasPassword) {
+            QPushButton *remove = buttons->addButton(tr("Remove Password"), QDialogButtonBox::DestructiveRole);
+            connect(remove, &QPushButton::clicked, this, [this] {
+                m_removed = true;
+                QDialog::accept();
+            });
+        }
+        connect(buttons, &QDialogButtonBox::accepted, this, &PdfProtectionDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+        layout->addWidget(buttons);
+    }
+    bool removed() const { return m_removed; }
+    PdfProtection protection() const
+    {
+        PdfProtection p;
+        p.openPassword = m_open->text();
+        p.limited = m_restrict->isChecked();
+        if (p.limited) {
+            p.ownerPassword = m_owner->text();
+            p.allowPrint = m_print->isChecked();
+            p.allowCopy = m_copy->isChecked();
+            p.allowChange = m_change->isChecked();
+        }
+        return p;
+    }
+    void clear()
+    {
+        for (QLineEdit *e : {m_open, m_openAgain, m_owner, m_ownerAgain}) e->clear();
+    }
+
+private:
+    QLineEdit *passwordBox(const QString &name, const QString &accessibleName)
+    {
+        auto *edit = new QLineEdit(this);
+        edit->setObjectName(name);
+        edit->setAccessibleName(accessibleName);
+        edit->setEchoMode(QLineEdit::Password);
+        return edit;
+    }
+    void accept() override
+    {
+        if (m_open->text().isEmpty()) {
+            m_problem->setText(tr("Type a password, or cancel."));
+            return;
+        }
+        if (m_open->text() != m_openAgain->text()) {
+            m_problem->setText(tr("The two passwords are not the same."));
+            return;
+        }
+        if (m_restrict->isChecked()) {
+            if (m_owner->text().isEmpty()) {
+                m_problem->setText(tr("Type a password for the limits, or turn the limits off."));
+                return;
+            }
+            if (m_owner->text() != m_ownerAgain->text()) {
+                m_problem->setText(tr("The two passwords for the limits are not the same."));
+                return;
+            }
+            if (m_owner->text() == m_open->text()) {
+                m_problem->setText(tr("The password for the limits must not be the one that opens the PDF."));
+                return;
+            }
+        }
+        QDialog::accept();
+    }
+    QLineEdit *m_open = nullptr, *m_openAgain = nullptr, *m_owner = nullptr, *m_ownerAgain = nullptr;
+    QGroupBox *m_restrict = nullptr;
+    QCheckBox *m_print = nullptr, *m_copy = nullptr, *m_change = nullptr;
+    QLabel *m_problem = nullptr;
+    bool m_removed = false;
+};
+
 } // namespace
 
 
@@ -137,6 +271,38 @@ bool askOpenFilePassword(QWidget *parent, const QString &fileName, bool wrongBef
     return true;
 }
 
+NewPasswordChoice askPdfProtection(QWidget *parent, bool hasPassword, PdfProtection *protection)
+{
+    if (g_pdfStandIn) return g_pdfStandIn(hasPassword, protection);
+    PdfProtectionDialog dialog(hasPassword, *protection, parent);
+    if (dialog.exec() != QDialog::Accepted) return NewPasswordChoice::Cancelled;
+    const bool removed = dialog.removed();
+    if (!removed) *protection = dialog.protection();
+    dialog.clear();
+    return removed ? NewPasswordChoice::Removed : NewPasswordChoice::Set;
+}
+
+PdfUnlock unlockPdf(QWidget *parent, const QString &fileName, const QByteArray &bytes, QString *password)
+{
+    password->clear();
+    bool wrongBefore = false;
+    while (true) {
+        const PdfDocument pdf(bytes, *password);
+        if (pdf.isValid()) return PdfUnlock::Opened;
+        if (!pdf.needsPassword()) {
+            crypto::wipe(*password);
+            return PdfUnlock::Unreadable;
+        }
+        // (a wrong password is asked after again, once for each answer the person gives)
+        if (!askOpenFilePassword(parent, fileName, wrongBefore, password)) {
+            crypto::wipe(*password);
+            return PdfUnlock::Cancelled;
+        }
+        wrongBefore = true;
+    }
+}
+
+void setPdfProtectionStandIn(const std::function<NewPasswordChoice(bool, PdfProtection *)> &standIn) { g_pdfStandIn = standIn; }
 void setNewPasswordStandIn(const std::function<NewPasswordChoice(bool, QString *)> &standIn) { g_newStandIn = standIn; }
 void setOpenPasswordStandIn(const std::function<bool(const QString &, bool, QString *)> &standIn) { g_openStandIn = standIn; }
 

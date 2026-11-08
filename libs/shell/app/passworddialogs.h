@@ -2,6 +2,8 @@
 // The two questions about a file's password that every app asks the same way: the password to protect a file with (typed twice, and removable), and the password a protected file
 // asks for when it is opened. A password is a string the caller wipes after use; a test stands in for each question with a function.
 
+#include "io/pdfcrypt.h"
+
 #include <QByteArray>
 #include <QString>
 #include <atomic>
@@ -18,8 +20,19 @@ NewPasswordChoice askNewFilePassword(QWidget *parent, bool hasPassword, QString 
 // Asks for the password to open `fileName`; `wrongBefore` says the last one tried was wrong. False if cancelled.
 bool askOpenFilePassword(QWidget *parent, const QString &fileName, bool wrongBefore, QString *password);
 
+// Asks how to protect a PDF that is being made: a password to open it, and, if wanted, a second to lift limits on printing, copying, and changing. `hasPassword` says one is set now (the box
+// then offers to remove it, and shows what is set). With `Set`, `protection` holds what was typed. The PDF is made once; nothing here is kept.
+NewPasswordChoice askPdfProtection(QWidget *parent, bool hasPassword, PdfProtection *protection);
+
+// How a PDF that may have a password was opened.
+enum class PdfUnlock { Opened, Cancelled, Unreadable };
+// Opens `bytes` for the file named `fileName`: with no password if it needs none, else asking (again, when the one typed was wrong) until it opens or the person cancels. `password` holds
+// the one that worked, for the caller to open the file again with, and to wipe.
+PdfUnlock unlockPdf(QWidget *parent, const QString &fileName, const QByteArray &bytes, QString *password);
+
 // A test's answers (set to an empty function: the questions are asked as usual).
 void setNewPasswordStandIn(const std::function<NewPasswordChoice(bool hasPassword, QString *password)> &standIn);
+void setPdfProtectionStandIn(const std::function<NewPasswordChoice(bool hasPassword, PdfProtection *protection)> &standIn);
 void setOpenPasswordStandIn(const std::function<bool(const QString &fileName, bool wrongBefore, QString *password)> &standIn);
 
 // Runs `work` on a thread of its own while the window goes on (its events are handled, its input is not), with a note and a Cancel button that show if it takes longer than a moment. `work` is

@@ -1,6 +1,13 @@
 #include "tst_crunch_print.h"
 #include "findbooks.h"
 
+#include "app/passworddialogs.h"
+#include "app/pdfprotection.h"
+#include "io/pdfcrypt.h"
+#include "render/pdfpage.h"
+
+#include <QPushButton>
+#include <QScopeGuard>
 #include <QScrollBar>
 
 void CrunchPrintTests::initTestCase()
@@ -1563,6 +1570,74 @@ void CrunchPrintTests::exportToPdfWritesTheSheetOrTheWorkbook()
     w.showFileScreen(QStringLiteral("export"));
     QVERIFY(w.findChild<QAbstractButton *>(QStringLiteral("exportSheetPdf")));
     QVERIFY(w.findChild<QAbstractButton *>(QStringLiteral("exportBookPdf")));
+}
+
+// A PDF can be protected with a password: the file is encrypted (AES-256), opens with the password and not without, is not PDF/A, and the plain PDF is not left beside it.
+void CrunchPrintTests::exportToPdfCanBeProtectedWithAPassword()
+{
+    EditWindow e;
+    QVERIFY(e.open(budgetWorkbook()));
+    CrunchWindow &w = e.win.w;
+    const QString path = e.folder.dir.filePath(QStringLiteral("locked.pdf"));
+    w.setSavePicker([&](const QString &, const QString &) { return path; });
+    const QStringList before = QDir(e.folder.dir.path()).entryList(QDir::Files);
+    jp::PdfProtection p;
+    p.openPassword = QStringLiteral("pw");
+    p.limited = true;
+    p.ownerPassword = QStringLiteral("owner");
+    p.allowPrint = false;
+    p.allowCopy = true;
+    p.allowChange = true;
+    QVERIFY(w.exportPdf(true, true, p));   // (PDF/A asked for, and not made)
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const QByteArray made = f.readAll();
+    jp::PdfEncryptionInfo info;
+    QVERIFY(jp::readPdfEncryption(made, QStringLiteral("pw"), &info));
+    QCOMPARE(info.version, 5);
+    QCOMPARE(info.revision, 6);
+    QVERIFY(!info.allowPrint && info.allowCopy && info.allowChange);
+    QVERIFY(!jp::PdfDocument(made).isValid());
+    QVERIFY(jp::PdfDocument(made, QStringLiteral("pw")).isValid());
+    QVERIFY(!jp::decryptPdf(made, QStringLiteral("pw")).contains("pdfaid:part"));
+    QStringList expected = before;
+    expected << QStringLiteral("locked.pdf");
+    expected.sort();
+    QStringList got = QDir(e.folder.dir.path()).entryList(QDir::Files);
+    got.sort();
+    QCOMPARE(got, expected);
+}
+
+// The Export page has "Encrypt with a password…"; with one set, the PDF/A command is out of reach, and the next export starts without it.
+void CrunchPrintTests::theExportPageOffersAPasswordAndTurnsOffPdfA()
+{
+    EditWindow e;
+    QVERIFY(e.open(budgetWorkbook()));
+    CrunchWindow &w = e.win.w;
+    const QString path = e.folder.dir.filePath(QStringLiteral("page.pdf"));
+    w.setSavePicker([&](const QString &, const QString &) { return path; });
+    w.showFileScreen(QStringLiteral("export"));
+    auto *button = w.findChild<QPushButton *>(QStringLiteral("pdfEncryptButton"));
+    auto *archive = w.findChild<QAbstractButton *>(QStringLiteral("exportBookPdfA"));
+    QVERIFY(button && archive);
+    QVERIFY(archive->isEnabled());
+    jp::setPdfProtectionStandIn([](bool, jp::PdfProtection *p) {
+        p->openPassword = QStringLiteral("pw");
+        return jp::NewPasswordChoice::Set;
+    });
+    const auto reset = qScopeGuard([] { jp::setPdfProtectionStandIn(nullptr); });
+    button->click();
+    QVERIFY(!archive->isEnabled());
+    w.findChild<QAbstractButton *>(QStringLiteral("exportBookPdf"))->click();
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    jp::PdfEncryptionInfo info;
+    QVERIFY(jp::readPdfEncryption(f.readAll(), QStringLiteral("pw"), &info));
+    QVERIFY(info.encrypted);
+    // (the password was for that export)
+    w.showFileScreen(QStringLiteral("export"));
+    archive = w.findChild<QAbstractButton *>(QStringLiteral("exportBookPdfA"));
+    QVERIFY(archive && archive->isEnabled());
 }
 
 

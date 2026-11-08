@@ -6,6 +6,7 @@
 #include "app/filedialogs.h"
 #include "app/pageoutput.h"
 #include "app/pagepaint.h"
+#include "app/pdfprotection.h"
 #include "core/editops.h"
 #include "app/pageview.h"
 #include "core/appinfo.h"
@@ -23,6 +24,7 @@
 #include <QPageLayout>
 #include <QPageSize>
 #include <QPdfWriter>
+#include <QScopeGuard>
 #include <QPainter>
 #include <QPrinter>
 #include <QSaveFile>
@@ -227,13 +229,18 @@ bool WriteWindow::exportPdfAsk()
     archive->setObjectName(QStringLiteral("pdfArchive"));
     archive->setToolTip(tr("Makes a PDF/A-1b file: every font is in the file, so it looks the same in years. It is not tagged for screen readers."));
     layout->addWidget(archive);
+    auto *protect = new jp::PdfProtectionRow(&dialog);
+    protect->forbiddenBy({archive}, tr("PDF/A is turned off, because a PDF with a password can't be a PDF/A file."));
+    layout->addWidget(protect);
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
     if (dialog.exec() != QDialog::Accepted) return false;
     WriteOutputOptions o;
-    o.pdfArchive = archive->isChecked();
+    const auto wipePasswords = qScopeGuard([&o] { o.pdfProtect.wipe(); });
+    o.pdfProtect = protect->protection();
+    o.pdfArchive = archive->isChecked() && !o.pdfProtect.isSet();
     o.range = static_cast<WriteOutputOptions::Range>(which->currentData().toInt());
     o.pages = text->text();
     if (o.range == WriteOutputOptions::Range::Pages && outputPages(o).isEmpty()) {
@@ -254,8 +261,13 @@ bool WriteWindow::exportPdfPages(const WriteOutputOptions &options)
     if (path.isEmpty()) return false;
     QString err;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    const QByteArray bytes = pdfBytes(pages, &err, options.pdfArchive);
+    QByteArray bytes = pdfBytes(pages, &err, options.pdfArchive && !options.pdfProtect.isSet());
     bool ok = !bytes.isEmpty();
+    // With a password, the file is written once, encrypted: the plain PDF stays in memory.
+    if (ok && options.pdfProtect.isSet()) {
+        bytes = jp::encryptPdf(bytes, options.pdfProtect, &err);
+        ok = !bytes.isEmpty();
+    }
     if (ok) {
         QSaveFile file(path);
         ok = file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();

@@ -239,7 +239,7 @@ QByteArray readPictureBytes(const QString &path)
 
 static QByteArray hashOf(const QByteArray &bytes) { return QCryptographicHash::hash(bytes, QCryptographicHash::Sha1).toHex(); }
 
-bool readPictureFile(const QString &path, int pdfPage, QByteArray *bytes, QString *format, QSize *pixels, QByteArray *fileHash)
+bool readPictureFile(const QString &path, int pdfPage, QByteArray *bytes, QString *format, QSize *pixels, QByteArray *fileHash, const QString &pdfPassword)
 {
     if (bytes->isEmpty()) {
         *bytes = readPictureBytes(path);
@@ -252,7 +252,7 @@ bool readPictureFile(const QString &path, int pdfPage, QByteArray *bytes, QStrin
     if (*format == "pdf" || PdfDocument::looksLikePdf(*bytes)) {
         // A PDF page is kept as a PDF of that page alone; its size in
         // points, given at 96 pixels an inch like other pictures.
-        const PdfDocument pdf(*bytes);
+        const PdfDocument pdf(*bytes, pdfPassword);
         if (!pdf.isValid() || pdfPage < 0 || pdfPage >= pdf.pageCount()) return false;
         *bytes = pdf.extractPage(pdfPage);
         *format = QStringLiteral("pdf");

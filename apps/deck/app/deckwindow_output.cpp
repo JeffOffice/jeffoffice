@@ -8,6 +8,7 @@
 #include "app/editor.h"
 #include "app/filedialogs.h"
 #include "app/notespane.h"
+#include "app/pdfprotection.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
 #include "io/deckoutput.h"
@@ -32,6 +33,7 @@
 #include <QPrinter>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QScopeGuard>
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QStatusBar>
@@ -106,6 +108,8 @@ public:
         form->addRow(QString(), m_hidden);
         form->addRow(QString(), m_frame);
         form->addRow(QString(), m_gray);
+        m_protect = new jp::PdfProtectionRow(this);
+        form->addRow(QString(), m_protect);
         m_summary = new QLabel(this);
         m_summary->setObjectName(QStringLiteral("outputSummary"));
         form->addRow(QString(), m_summary);
@@ -154,6 +158,8 @@ public:
         else if (m_some->isChecked()) o.slides = deck::parseSlideRange(m_text->text(), m_slides);
         return o;
     }
+    // The password to open the PDF with, if one was set here; the caller wipes it. It is never kept.
+    PdfProtection protection() const { return m_protect->protection(); }
     // Keeps the choices for next time.
     void remember() const
     {
@@ -189,6 +195,7 @@ private:
     QLineEdit *m_text = nullptr;
     QCheckBox *m_hidden = nullptr, *m_frame = nullptr, *m_gray = nullptr;
     QLabel *m_summary = nullptr;
+    jp::PdfProtectionRow *m_protect = nullptr;
     QDialogButtonBox *m_buttons = nullptr;
     QPushButton *m_ok = nullptr;
 };
@@ -201,12 +208,13 @@ void settle(DeckWindow *w)
 }
 
 // Asks what to print; false when cancelled.
-bool askWhatToPrint(DeckWindow *w, deck::OutputOptions *options)
+bool askWhatToPrint(DeckWindow *w, deck::OutputOptions *options, PdfProtection *protect)
 {
     OutputDialog dlg(w, *w->editor()->doc(), w->editor()->currentPage());
     if (dlg.exec() != QDialog::Accepted) return false;
     dlg.remember();
     *options = dlg.options();
+    *protect = dlg.protection();
     return true;
 }
 
@@ -223,7 +231,9 @@ bool exportPdfCommand(DeckWindow *w, const PathChooser &chooser)
 {
     settle(w);
     deck::OutputOptions options;
-    if (!askWhatToPrint(w, &options)) return false;
+    PdfProtection protect;
+    const auto wipePasswords = qScopeGuard([&protect] { protect.wipe(); });
+    if (!askWhatToPrint(w, &options, &protect)) return false;
     const QString filter = DeckWindow::tr("PDF (*.pdf)");
     const QString suggested = suggestedPath(w, w->editor()->displayName(), QStringLiteral(".pdf"));
     QString path = chooser ? chooser(suggested, filter) : askSavePath(w, DeckWindow::tr("Export to PDF"), suggested, filter);
@@ -231,7 +241,7 @@ bool exportPdfCommand(DeckWindow *w, const PathChooser &chooser)
     if (QFileInfo(path).suffix().compare(QLatin1String("pdf"), Qt::CaseInsensitive) != 0) path += QStringLiteral(".pdf");
     QString err;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    const bool ok = deck::exportPdf(*w->editor()->doc(), path, options, &err);
+    const bool ok = deck::exportPdf(*w->editor()->doc(), path, options, &err, &protect);
     QApplication::restoreOverrideCursor();
     if (!ok) {
         jp::plainWarning(w, DeckWindow::tr("Export to PDF"),

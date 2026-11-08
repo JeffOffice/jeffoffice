@@ -566,7 +566,8 @@ QByteArray readPictureBytes(const QString &path);
 // hold the file's bytes. False when it can't be read as a picture (readPictureBytes
 // says which files are not read at all).
 // `fileHash`, when given, gets the SHA-1 of the file's bytes in hex.
-bool readPictureFile(const QString &path, int pdfPage, QByteArray *bytes, QString *format, QSize *pixels, QByteArray *fileHash = nullptr);
+// `pdfPassword` opens a PDF that has one (the page kept is a copy that needs none); a PDF that needs a password it is not given can't be read.
+bool readPictureFile(const QString &path, int pdfPage, QByteArray *bytes, QString *format, QSize *pixels, QByteArray *fileHash = nullptr, const QString &pdfPassword = QString());
 
 QVector<TextStyle> defaultStyles();
 

@@ -222,6 +222,8 @@ private Q_SLOTS:
     void theSidesChoiceIsRememberedAcrossRestarts();
     void theHandRunsAreMadeOfPhysicalSheets();
     void exportToPdfWritesTheSheetOrTheWorkbook();
+    void exportToPdfCanBeProtectedWithAPassword();
+    void theExportPageOffersAPasswordAndTurnsOffPdfA();
     void thePageBreaksShowOnTheSheetAfterAPreview();
     void undoAndRedoOfTypingMoveThePagesAtOnce();
     void aDroppedLineJobNeverLandsItsLines();

@@ -1,4 +1,5 @@
 #include "app/formatpane.h"
+#include "app/pictureask.h"
 
 #include "app/editor.h"
 #include "app/filedialogs.h"
@@ -158,7 +159,7 @@ bool FormatPane::applyFillPicture(const QString &path)
     QByteArray bytes = readPictureBytes(path);
     QString kind;
     QSize pixels;
-    if (bytes.isEmpty() || !readPictureFile(path, 0, &bytes, &kind, &pixels)) {
+    if (bytes.isEmpty() || !readPictureFileAsking(this, path, 0, &bytes, &kind, &pixels)) {
         Q_EMIT m_ed->status(tr("%1 can't be read as a picture.").arg(QFileInfo(path).fileName()));
         return false;
     }

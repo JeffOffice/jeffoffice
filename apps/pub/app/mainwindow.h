@@ -10,6 +10,7 @@
 #include "app/infopage.h"
 #include "app/versionstore.h"
 #include "office/packageprops.h"
+#include "io/pdfcrypt.h"
 
 #include <QHash>
 #include <QMainWindow>
@@ -122,6 +123,8 @@ public:
         int pdfxCondition = 0;          // its version and printing condition (pdfXConditions())
         QString pdfxProfile;            // the printer's own profile (.icc), for a condition that takes one
         bool merged = false;
+        // A password to open the PDF with (the standards PDF/A and PDF/X forbid one, so they are off when it is set); wiped after the export.
+        PdfProtection protect;
         // A booklet's PDF holds its printed sheets: two pages to a side, in
         // folding order (as Publisher makes it). Off: one page per PDF page.
         bool booklet = true;

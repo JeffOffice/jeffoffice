@@ -45,7 +45,11 @@ bool QtPdf::load(const QString &path, QString *error)
         if (error) *error = f.errorString();
         return false;
     }
-    const QByteArray pdf = f.readAll();
+    return loadBytes(f.readAll(), error);
+}
+
+bool QtPdf::loadBytes(const QByteArray &pdf, QString *error)
+{
     objects.clear();
     qsizetype at = pdf.indexOf("\n1 0 obj\n");
     if (!pdf.startsWith("%PDF-") || at < 0) {
@@ -82,7 +86,7 @@ bool QtPdf::load(const QString &path, QString *error)
     return true;
 }
 
-bool QtPdf::save(const QString &path, QString *error) const
+QByteArray QtPdf::toBytes() const
 {
     QByteArray out = header;
     int maxId = 0;
@@ -102,6 +106,12 @@ bool QtPdf::save(const QString &path, QString *error) const
     static const QRegularExpression size(QStringLiteral("/Size \\d+"));
     out += QString::fromLatin1(trailer).replace(size, QStringLiteral("/Size %1").arg(maxId + 1)).toLatin1();
     out += "startxref\n" + QByteArray::number(xref) + "\n%%EOF\n";
+    return out;
+}
+
+bool QtPdf::save(const QString &path, QString *error) const
+{
+    const QByteArray out = toBytes();
     QSaveFile f(path);
     f.setDirectWriteFallback(true);
     if (!f.open(QIODevice::WriteOnly) || f.write(out) != out.size() || !f.commit()) {

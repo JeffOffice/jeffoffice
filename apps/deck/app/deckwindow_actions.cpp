@@ -6,6 +6,7 @@
 #include "app/deckcanvas.h"
 #include "app/deckdialogs.h"
 #include "app/editor.h"
+#include "app/pictureask.h"
 #include "app/filedialogs.h"
 #include "app/icons.h"
 #include "app/notespane.h"
@@ -344,7 +345,7 @@ bool DeckWindow::insertPicture(const QString &path, const QPointF &at, const QSt
     QByteArray bytes = readPictureBytes(path);
     QString format;
     QSize pixels;
-    if (bytes.isEmpty() || !readPictureFile(path, 0, &bytes, &format, &pixels)) return false;
+    if (bytes.isEmpty() || !readPictureFileAsking(this, path, 0, &bytes, &format, &pixels)) return false;
     Document *d = m_ed->doc();
     const QSizeF ps = d->pageSize();
     // Its pixels at 96 to the inch, no larger than most of the slide.

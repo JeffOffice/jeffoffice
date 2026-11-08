@@ -4,6 +4,7 @@
 #include "app/crunchfilescreen.h"
 
 #include "app/crunchwindow.h"
+#include "app/pdfprotection.h"
 #include "app/filescreenparts.h"
 #include "app/icons.h"
 #include "app/settings.h"
@@ -503,16 +504,27 @@ QWidget *CrunchFileScreen::buildExport()
     v->setContentsMargins(40, 30, 40, 30);
     v->addWidget(heading(tr("Export"), w));
     v->setSpacing(10);
+    // A password for the next PDF, the one export only; PDF/A is not offered with it (that standard forbids a password).
+    auto *protect = new PdfProtectionRow(w);
+    v->addWidget(protect);
     auto *sheet = new ActionCard(QStringLiteral("file-output"), tr("Export this sheet to PDF"), tr("The pages of the sheet you are on, as a PDF that looks the same everywhere."), w);
     sheet->setObjectName(QStringLiteral("exportSheetPdf"));
-    connect(sheet, &QAbstractButton::clicked, this, [this] {
-        if (m_win->exportPdf(false)) Q_EMIT closeRequested();
+    connect(sheet, &QAbstractButton::clicked, this, [this, protect] {
+        PdfProtection chosen = protect->protection();
+        const bool done = m_win->exportPdf(false, false, chosen);
+        chosen.wipe();
+        protect->clear();
+        if (done) Q_EMIT closeRequested();
     });
     v->addWidget(sheet);
     auto *book = new ActionCard(QStringLiteral("file-output"), tr("Export the whole workbook to PDF"), tr("Every sheet that is shown, one after the other, in one PDF."), w);
     book->setObjectName(QStringLiteral("exportBookPdf"));
-    connect(book, &QAbstractButton::clicked, this, [this] {
-        if (m_win->exportPdf(true)) Q_EMIT closeRequested();
+    connect(book, &QAbstractButton::clicked, this, [this, protect] {
+        PdfProtection chosen = protect->protection();
+        const bool done = m_win->exportPdf(true, false, chosen);
+        chosen.wipe();
+        protect->clear();
+        if (done) Q_EMIT closeRequested();
     });
     v->addWidget(book);
     auto *archive = new ActionCard(QStringLiteral("file-output"), tr("Export the whole workbook as PDF/A"), tr("A PDF in the form made for keeping for years, with every font inside the file."), w);
@@ -521,6 +533,7 @@ QWidget *CrunchFileScreen::buildExport()
         if (m_win->exportPdf(true, true)) Q_EMIT closeRequested();
     });
     v->addWidget(archive);
+    protect->forbiddenBy({archive}, tr("PDF/A is turned off, because a PDF with a password can't be a PDF/A file."));
     auto *mail = new ActionCard(QStringLiteral("mail"), tr("Make an Email"), tr("A message file with the workbook, or a PDF of it, in it. Open it in your email program, add who it is for, and send it."), w);
     mail->setObjectName(QStringLiteral("exportEmail"));
     connect(mail, &QAbstractButton::clicked, this, [this] {
