@@ -468,11 +468,18 @@ private Q_SLOTS:
             put("F2", QStringLiteral("before the copy"));
             QVERIFY(e.settle());
             Pause pause;
-            w.setRecoveryHook([&pause] { pause.hold(); });
+            const void *writtenFrom = nullptr;
+            w.setRecoveryHook([&pause, &writtenFrom](const void *book) {
+                writtenFrom = book;
+                pause.hold();
+            });
             QSignalSpy written(&w, &CrunchWindow::recoveryWritten);
             w.autoRecover();
             QVERIFY(w.isRecovering());
             QVERIFY(pause.entered.tryAcquire(1, 20000));
+            // the file is made from a workbook object of the thread's own, never the one the window edits
+            QVERIFY(writtenFrom != nullptr);
+            QVERIFY(writtenFrom != w.liveBookForTest());
             // ... the thread is held; the person goes on
             QVERIFY(w.session()->renameSheet(0, QStringLiteral("Renamed")).ok);
             for (int i = 0; i < 300; ++i) put("G2", QStringLiteral("later text %1").arg(i));   // (new shared strings, each)
@@ -485,6 +492,10 @@ private Q_SLOTS:
             name.name = QStringLiteral("LaterName");
             name.text = QStringLiteral("=Added!$A$1");
             QVERIFY(w.session()->defineName(name).ok);
+            // (a save of the new state, taken meanwhile, plans the parts of the new sheet in the workbook object: the copy that is held is not changed by it)
+            QByteArray otherBytes;
+            QString otherWhy;
+            QVERIFY2(w.snapshotBytesForTest(&otherBytes, &otherWhy), qPrintable(otherWhy));
             pause.proceed.release();
             QVERIFY(written.count() > 0 || written.wait(60000));
             QVERIFY(written.last().first().toBool());
@@ -533,7 +544,7 @@ private Q_SLOTS:
             e.enter("work");
             QVERIFY(e.settle());
             Pause pause;
-            w.setRecoveryHook([&pause] { pause.hold(); });
+            w.setRecoveryHook([&pause](const void *) { pause.hold(); });
             QSignalSpy written(&w, &CrunchWindow::recoveryWritten);
             w.autoRecover();
             QVERIFY(pause.entered.tryAcquire(1, 20000));
@@ -560,7 +571,7 @@ private Q_SLOTS:
             e.enter("work");
             QVERIFY(e.settle());
             Pause pause;
-            w.setRecoveryHook([&pause] { pause.hold(); });
+            w.setRecoveryHook([&pause](const void *) { pause.hold(); });
             QSignalSpy written(&w, &CrunchWindow::recoveryWritten);
             w.autoRecover();
             QVERIFY(pause.entered.tryAcquire(1, 20000));
@@ -598,7 +609,7 @@ private Q_SLOTS:
                 e.enter("work");
                 QVERIFY(e.settle());
                 Pause pause;
-                w.setRecoveryHook([&pause] { pause.hold(); });
+                w.setRecoveryHook([&pause](const void *) { pause.hold(); });
                 w.autoRecover();
                 QVERIFY(pause.entered.tryAcquire(1, 20000));
                 w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
@@ -706,7 +717,7 @@ private Q_SLOTS:
             CrunchWindow &w = win.w;
             QVERIFY(w.session()->type(0, 0, 3, QStringLiteral("before"), false).ok);
             Pause pause;
-            w.setRecoveryHook([&pause] { pause.hold(); });
+            w.setRecoveryHook([&pause](const void *) { pause.hold(); });
             QSignalSpy written(&w, &CrunchWindow::recoveryWritten);
             w.autoRecover();
             QVERIFY(w.isRecovering());

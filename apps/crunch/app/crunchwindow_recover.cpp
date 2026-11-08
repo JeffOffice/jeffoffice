@@ -96,18 +96,18 @@ void CrunchWindow::autoRecover()
     m_recoveryJobCopy = copy;
     m_recoveryCancel = std::make_shared<std::atomic<bool>>(false);
     const std::shared_ptr<std::atomic<bool>> cancel = m_recoveryCancel;
-    const std::function<void()> hook = m_recoveryHook;
+    const std::function<void(const void *)> hook = m_recoveryHook;
     auto make = [snapshot, copy, source, title, cancel, hook, copyOfBook](const office::sheet::Workbook &from, const QByteArray &fileBytes, const office::sheet::WorkbookInfo *info, QString *error) {
         return recovery::write(
             [&](const QString &file, QString *err) {
                 QByteArray bytes;
                 office::sheet::SaveReport report;
                 if (copyOfBook) {
-                    if (hook) hook();
+                    if (hook) hook(copyOfBook.get());
                     return office::sheet::saveXlsx(*copyOfBook, snapshot->changes, &bytes, err, &report, cancel.get()) && office::sheet::writeFileAtomically(file, bytes, err);
                 }
                 if (!info) {
-                    if (hook) hook();
+                    if (hook) hook(&from);
                 }
                 if (!info) return office::sheet::saveXlsx(from, snapshot->changes, &bytes, err, &report, cancel.get()) && office::sheet::writeFileAtomically(file, bytes, err);
                 office::Package package;
@@ -120,7 +120,7 @@ void CrunchWindow::autoRecover()
                     return false;
                 }
                 mine.setInfo(*info);
-                if (hook) hook();   // (a test holds the thread here, while the window goes on)
+                if (hook) hook(&mine);   // (a test holds the thread here, while the window goes on)
                 return office::sheet::saveXlsx(mine, snapshot->changes, &bytes, err, &report, cancel.get()) && office::sheet::writeFileAtomically(file, bytes, err);
             },
             copy, source, title, error);

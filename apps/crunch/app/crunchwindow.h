@@ -410,7 +410,9 @@ public:
     void cancelRecovery();
     static void finishRecoveries();
     // For tests: called on the thread that makes the copy, after it has read the file and before it writes.
-    void setRecoveryHook(const std::function<void()> &hook) { m_recoveryHook = hook; }
+    // (it is given the workbook object the thread is about to write the file from)
+    void setRecoveryHook(const std::function<void(const void *)> &hook) { m_recoveryHook = hook; }
+    const void *liveBookForTest() const { return m_loaded ? m_loaded->book.get() : nullptr; }
     void offerRecovery(bool askIfNone = false);
     // Opens a recovered copy as unsaved work, in this window while it has no workbook of its own, else in a new one; false, with the reason, if it can't be read at all.
     CrunchWindow *openRecovered(const jp::recovery::Recovered &r, QString *error = nullptr);
@@ -1520,7 +1522,7 @@ private:
     QString m_recoveryJobCopy;                              // the file the copy being made is written to
     QPointer<QThread> m_recoveryThread;
     std::shared_ptr<std::atomic<bool>> m_recoveryCancel;
-    std::function<void()> m_recoveryHook;
+    std::function<void(const void *)> m_recoveryHook;
     std::optional<jp::recovery::Recovered> m_recoveredCopy;   // the copy this window was opened from, discarded once its own copy is written
     void dropRecoveryCopy();
     void recoveryFinished(bool ok, const QString &copy, quint64 generation, const QString &error);
