@@ -1316,14 +1316,20 @@ void CrunchPrintTests::pagesGoToAPrinterObject()
 namespace {
 // Printers that can and can't print on both sides, for a test: the names say which.
 struct DuplexStandIn {
+    QVector<QPrinter::DuplexMode> asked;   // what the jobs asked the printer for, in order (a machine with no printers has a printer that keeps nothing, so this is where to look)
     DuplexStandIn()
     {
+        setDuplexRecorder([this](QPrinter::DuplexMode mode) { asked << mode; });
         setDuplexSupportStandIn([](const QString &name) {
             if (name == QLatin1String("simplex printer")) return QList<QPrinter::DuplexMode>{QPrinter::DuplexNone};
             return QList<QPrinter::DuplexMode>{QPrinter::DuplexNone, QPrinter::DuplexLongSide, QPrinter::DuplexShortSide};
         });
     }
-    ~DuplexStandIn() { setDuplexSupportStandIn(nullptr); }
+    ~DuplexStandIn()
+    {
+        setDuplexSupportStandIn(nullptr);
+        setDuplexRecorder(nullptr);
+    }
 };
 
 // The Print page, with the two printers a test needs put in front of "Save as PDF" (once, however often the page is opened).
@@ -1368,7 +1374,7 @@ void CrunchPrintTests::theSidesChoiceSetsTheDuplexModeOfThePrinter()
         }
         QVector<QPrinter::DuplexMode> seen;
         w.setPrinterPreparer([&](QPrinter &p) {
-            seen << p.duplex();
+            seen << (standIn.asked.isEmpty() ? QPrinter::DuplexNone : standIn.asked.last());
             p.setOutputFormat(QPrinter::PdfFormat);
             p.setOutputFileName(e.folder.dir.filePath(QStringLiteral("d.pdf")));
         });
@@ -1408,7 +1414,7 @@ void CrunchPrintTests::theSidesChoiceByHandPrintsTheOddPagesThenTheEvenPages()
     QVector<QPrinter::DuplexMode> modes;
     w.setPrinterPreparer([&](QPrinter &p) {
         order << QStringLiteral("print");
-        modes << p.duplex();
+        modes << (standIn.asked.isEmpty() ? QPrinter::DuplexNone : standIn.asked.last());
         p.setOutputFormat(QPrinter::PdfFormat);
         p.setOutputFileName(e.folder.dir.filePath(QStringLiteral("h%1.pdf").arg(order.size())));
     });

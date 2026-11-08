@@ -570,7 +570,7 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     } else if (!options.printer.isEmpty()) {
         printer.setPrinterName(options.printer);
     }
-    if (!options.toFile) printer.setDuplex(options.duplex);
+    if (!options.toFile) setPrinterDuplex(&printer, options.duplex);
     printer.setCopyCount(std::max(1, options.copies));
     printer.setCollateCopies(options.collate);
     if (options.grayscale) printer.setColorMode(QPrinter::GrayScale);

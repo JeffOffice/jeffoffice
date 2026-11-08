@@ -324,13 +324,13 @@ bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::Duple
     QPrinter printer(QPrinter::HighResolution);
     printer.setDocName(m_ed->displayName());
     setUpPrinter(&printer, doc, options);
-    printer.setDuplex(duplex);
+    setPrinterDuplex(&printer, duplex);
     QPrintDialog dlg(&printer, this);
     dlg.setWindowTitle(tr("Print"));
     if (execPrintDialog(dlg) != QDialog::Accepted) return false;
     // (a PDF file, which the window can print to, has no sides)
-    if (printer.outputFormat() == QPrinter::PdfFormat) printer.setDuplex(QPrinter::DuplexNone);
-    const bool byHandRuns = byHand && printer.outputFormat() != QPrinter::PdfFormat;
+    if (printsToFile(printer)) setPrinterDuplex(&printer, QPrinter::DuplexNone);
+    const bool byHandRuns = byHand && !printsToFile(printer);
     if (m_printerPreparer) m_printerPreparer(printer);
     // Both sides by hand (a file has no sides): the first, third, ... pages, the stack turned over, then the others last first.
     if (byHandRuns) {

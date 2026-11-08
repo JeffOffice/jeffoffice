@@ -13,6 +13,8 @@ namespace jp {
 namespace {
 std::function<QList<QPrinter::DuplexMode>(const QString &)> g_duplexStandIn;
 std::function<bool()> g_turnerStandIn;
+std::function<bool(const QPrinter &)> g_toFileStandIn;
+std::function<void(QPrinter::DuplexMode)> g_duplexRecorder;
 const char *kWanted = "sidesWanted";
 const char *kSettling = "sidesSettling";
 
@@ -80,6 +82,18 @@ QPrinter::DuplexMode sidesDuplex(const QComboBox *box)
 }
 
 bool sidesByHand(const QComboBox *box) { return box->isEnabled() && SidesChoice(box->currentData().toInt()) == SidesChoice::ByHand; }
+
+void setDuplexRecorder(const std::function<void(QPrinter::DuplexMode)> &recorder) { g_duplexRecorder = recorder; }
+
+void setPrinterDuplex(QPrinter *printer, QPrinter::DuplexMode mode)
+{
+    if (g_duplexRecorder) g_duplexRecorder(mode);
+    printer->setDuplex(mode);
+}
+
+void setPrintsToFileStandIn(const std::function<bool(const QPrinter &)> &standIn) { g_toFileStandIn = standIn; }
+
+bool printsToFile(const QPrinter &printer) { return g_toFileStandIn ? g_toFileStandIn(printer) : printer.outputFormat() == QPrinter::PdfFormat; }
 
 void setStackTurnerStandIn(const std::function<bool()> &standIn) { g_turnerStandIn = standIn; }
 

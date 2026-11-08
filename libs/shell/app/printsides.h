@@ -30,6 +30,13 @@ bool sidesByHand(const QComboBox *box);
 int sidesWanted(const QComboBox *box);
 // The modes a printer can print in (what Qt reports); a test stands in for it (the program never does).
 QList<QPrinter::DuplexMode> supportedDuplexModes(const QString &printer);
+// Sets the duplex mode a job asks the printer for. (A printer engine that writes a file, which is what a machine with no printers has, keeps no mode, so a test listens here
+// for what was asked, with setDuplexRecorder, and not to the printer.)
+void setPrinterDuplex(QPrinter *printer, QPrinter::DuplexMode mode);
+void setDuplexRecorder(const std::function<void(QPrinter::DuplexMode)> &recorder);
+// Whether the job goes to a file (a PDF) and not to paper, which has no sides. A machine with no printers can't tell a test's printer from a file, so a test stands in.
+bool printsToFile(const QPrinter &printer);
+void setPrintsToFileStandIn(const std::function<bool(const QPrinter &)> &standIn);
 void setDuplexSupportStandIn(const std::function<QList<QPrinter::DuplexMode>(const QString &printer)> &standIn);
 
 // Both sides by hand: the two runs of a job. `inOrder` is what the job prints, a page or a sheet each, in the order it prints them. The first run is the first, third, and

@@ -48,14 +48,20 @@ void WriteTests::thePrintScreenHasThePrinterCopiesCollateRangeAndPreview()
 namespace {
 // Printers that can and can't print on both sides, for a test: the names say which.
 struct DuplexStandIn {
+    QVector<QPrinter::DuplexMode> asked;   // what the jobs asked the printer for, in order (a machine with no printers has a printer that keeps nothing, so this is where to look)
     DuplexStandIn()
     {
+        setDuplexRecorder([this](QPrinter::DuplexMode mode) { asked << mode; });
         setDuplexSupportStandIn([](const QString &name) {
             if (name == QLatin1String("simplex printer")) return QList<QPrinter::DuplexMode>{QPrinter::DuplexNone};
             return QList<QPrinter::DuplexMode>{QPrinter::DuplexNone, QPrinter::DuplexLongSide, QPrinter::DuplexShortSide};
         });
     }
-    ~DuplexStandIn() { setDuplexSupportStandIn(nullptr); }
+    ~DuplexStandIn()
+    {
+        setDuplexSupportStandIn(nullptr);
+        setDuplexRecorder(nullptr);
+    }
 };
 
 // The Print page, with the two printers a test needs put in front of "Save as PDF" (once, however often the page is opened).
@@ -94,7 +100,7 @@ void WriteTests::thePrintPageSidesChoiceSetsTheDuplexModeOfTheJob()
     QTemporaryDir dir;
     QVector<QPrinter::DuplexMode> seen;
     w.setPrinterPreparer([&](QPrinter &p) {
-        seen << p.duplex();
+        seen << (standIn.asked.isEmpty() ? QPrinter::DuplexNone : standIn.asked.last());
         p.setOutputFormat(QPrinter::PdfFormat);
         p.setOutputFileName(dir.filePath(QStringLiteral("p%1.pdf").arg(seen.size())));
     });
@@ -133,7 +139,7 @@ void WriteTests::thePrintPageSidesChoiceByHandPrintsTwoRuns()
     QVector<QPrinter::DuplexMode> modes;
     w.setPrinterPreparer([&](QPrinter &p) {
         order << QStringLiteral("print");
-        modes << p.duplex();
+        modes << (standIn.asked.isEmpty() ? QPrinter::DuplexNone : standIn.asked.last());
         p.setOutputFormat(QPrinter::PdfFormat);
         p.setOutputFileName(dir.filePath(QStringLiteral("h%1.pdf").arg(order.size())));
     });
@@ -193,10 +199,12 @@ void WriteTests::thePrintPageSidesChoiceFollowsThePrinterAndTheFileTarget()
     QVERIFY(!sides->isEnabled());
     QTemporaryDir dir;
     w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("file.pdf")); });
-    QVector<QPrinter::DuplexMode> seen;
-    w.setPrinterPreparer([&](QPrinter &p) { seen << p.duplex(); });
+    int prepared = 0;
+    const int askedBefore = standIn.asked.size();
+    w.setPrinterPreparer([&](QPrinter &) { ++prepared; });
     w.findChild<QPushButton *>(QStringLiteral("printButton"))->click();
-    QCOMPARE(seen, (QVector<QPrinter::DuplexMode>{QPrinter::DuplexNone}));
+    QCOMPARE(prepared, 1);
+    QCOMPARE(standIn.asked.size(), askedBefore);   // (a file is never asked for sides)
     QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("file.pdf"))));
     // and it is back on with a printer
     QVERIFY(openPrintPage(w));

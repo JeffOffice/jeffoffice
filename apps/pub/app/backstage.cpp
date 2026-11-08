@@ -914,7 +914,7 @@ QWidget *Backstage::buildPrint()
         const bool wide = d->pageSize().width() > d->pageSize().height();
         p.setPageOrientation(layout->currentIndex() == 3 ? QPageLayout::Landscape : layout->currentIndex() == 4 ? QPageLayout::Portrait
                              : wide ? QPageLayout::Landscape : QPageLayout::Portrait);
-        p.setDuplex(sidesDuplex(sides));
+        setPrinterDuplex(&p, sidesDuplex(sides));
         p.setColorMode(color->currentIndex() == 1 ? QPrinter::GrayScale : QPrinter::Color);
         p.setFullPage(true);
         if (range->currentIndex() == 1) p.setPrintRange(QPrinter::CurrentPage);

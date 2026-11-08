@@ -249,10 +249,12 @@ private Q_SLOTS:
         w.resize(1300, 850);
         w.show();
         w.editor()->setDocument(showDeck(3));
-        QVector<QPrinter::DuplexMode> asked, painted;
+        QVector<QPrinter::DuplexMode> asked, painted, requests;   // (what the job asked the printer for is listened to; a machine with no printers has a printer that keeps nothing)
+        setDuplexRecorder([&](QPrinter::DuplexMode mode) { requests << mode; });
         bool toPdf = false;
+        setPrintsToFileStandIn([&](const QPrinter &) { return toPdf; });   // (the window's printer is a file on a machine with no printers; here it is paper unless the test says)
         setPrintDialogStandIn([&](QPrintDialog &dialog) {
-            asked << dialog.printer()->duplex();
+            asked << requests.last();
             if (toPdf) {
                 dialog.printer()->setOutputFormat(QPrinter::PdfFormat);
                 dialog.printer()->setOutputFileName(dir.filePath(QStringLiteral("out.pdf")));
@@ -260,7 +262,7 @@ private Q_SLOTS:
             }
             return int(QDialog::Accepted);
         });
-        w.setPrinterPreparer([&](QPrinter &p) { painted << p.duplex(); });
+        w.setPrinterPreparer([&](QPrinter &) { painted << requests.last(); });
         auto open = [&] {
             w.showFileScreen(QStringLiteral("print"));
             auto *screen = w.findChild<FileScreen *>();
@@ -305,6 +307,8 @@ private Q_SLOTS:
         }
         QCOMPARE(sides->currentIndex(), 0);
         setDuplexSupportStandIn(nullptr);
+        setDuplexRecorder(nullptr);
+        setPrintsToFileStandIn(nullptr);
         setPrintDialogStandIn(nullptr);
         sides->setCurrentIndex(0);
         updateSidesBox(sides, QString(), false);
@@ -329,6 +333,7 @@ private Q_SLOTS:
                 if (at + 11 >= pdf.size() || pdf[at + 11] != 's') ++pages;
             return pages;
         };
+        setPrintsToFileStandIn([](const QPrinter &) { return false; });   // (the person chose a printer in the window; a machine with no printers has none to choose)
         setPrintDialogStandIn([&](QPrintDialog &) { return int(QDialog::Accepted); });
         QStringList order;
         QVector<int> turnedAfter;
@@ -364,6 +369,7 @@ private Q_SLOTS:
         QVERIFY(w.printOutput(one, QPrinter::DuplexNone, true));
         QCOMPARE(order, (QStringList{QStringLiteral("print")}));
         setStackTurnerStandIn(nullptr);
+        setPrintsToFileStandIn(nullptr);
         setPrintDialogStandIn(nullptr);
         setDuplexSupportStandIn(nullptr);
         sides->setCurrentIndex(0);
