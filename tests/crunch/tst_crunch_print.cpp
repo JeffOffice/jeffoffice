@@ -1325,6 +1325,18 @@ void CrunchPrintTests::pagesGoToAPrinterObject()
 
 
 namespace {
+// Runs act on the modal box once one is up: it looks every 20 ms for half a minute (a slow machine shows the box late, and a single look
+// at 50 ms left it open for good on Windows CI), and act says whether the box was the one it wanted. The looks stop with the window.
+void whenModal(QObject *window, std::function<bool(QWidget *)> act, int tries = 1500)
+{
+    QTimer::singleShot(20, window, [window, act, tries] {
+        QWidget *box = QApplication::activeModalWidget();
+        if (box && act(box)) return;
+        if (tries > 0) whenModal(window, act, tries - 1);
+        else if (auto *d = qobject_cast<QDialog *>(box)) d->reject();   // (the test fails instead of waiting for ever)
+    });
+}
+
 // Printers that can and can't print on both sides, for a test: the names say which.
 struct DuplexStandIn {
     QVector<QPrinter::DuplexMode> asked;   // what the jobs asked the printer for, in order (a machine with no printers has a printer that keeps nothing, so this is where to look)
@@ -1659,15 +1671,16 @@ void CrunchPrintTests::anEmailedPdfCanHaveAPassword()
     });
     const auto reset = qScopeGuard([] { jp::setPdfProtectionStandIn(nullptr); });
     bool offered = false;
-    QTimer::singleShot(50, [&] {
-        auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
-        if (!d) return;
-        auto *button = d->findChild<QPushButton *>(QStringLiteral("pdfEncryptButton"));
-        auto *what = d->findChild<QComboBox *>(QStringLiteral("emailWhat"));
-        offered = button && what;
+    whenModal(&w, [&](QWidget *box) {
+        auto *d = qobject_cast<QDialog *>(box);
+        auto *button = d ? d->findChild<QPushButton *>(QStringLiteral("pdfEncryptButton")) : nullptr;
+        auto *what = d ? d->findChild<QComboBox *>(QStringLiteral("emailWhat")) : nullptr;
+        if (!button || !what) return false;
+        offered = true;
         what->setCurrentIndex(what->findData(int(CrunchWindow::EmailWhat::Pdf)));
         button->click();
         d->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+        return true;
     });
     QVERIFY(w.exportEmailAsk());
     QVERIFY(offered);
@@ -1699,8 +1712,10 @@ void CrunchPrintTests::aCancelledExportKeepsThePasswordOnThePage()
     QVERIFY(w.findChild<QLabel *>(QStringLiteral("pdfEncryptNote"))->isVisible() || !w.findChild<QLabel *>(QStringLiteral("pdfEncryptNote"))->text().isEmpty());
     // The same for a place that can't be written.
     answer = e.folder.dir.filePath(QStringLiteral("missing/folder/out.pdf"));
-    QTimer::singleShot(50, [] {
-        if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) box->accept();
+    whenModal(&w, [](QWidget *box) {
+        auto *message = qobject_cast<QMessageBox *>(box);
+        if (message) message->accept();
+        return message != nullptr;
     });
     w.findChild<QAbstractButton *>(QStringLiteral("exportBookPdf"))->click();
     QVERIFY(!archive->isEnabled());
