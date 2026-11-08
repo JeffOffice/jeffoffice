@@ -185,7 +185,7 @@ def respell_plain(text, region, changed=None):
         nxt = text[end] if end < len(text) else ""
         after2 = text[end:end + 2]
         # File names, extensions, identifiers, and paths stay: gray.png, .color, color_scheme, a/color.
-        skip = prev in "._/\\@#$" or nxt == "_" or (nxt == "." and after2[1:2].isalnum())
+        skip = (prev and prev in "._/\\@#$") or nxt == "_" or (nxt == "." and after2[1:2].isalnum())
         new = tok if skip else respell(tok, region, before)
         if new != tok and changed is not None:
             changed.setdefault((tok.replace("&", ""), new.replace("&", "")), 0)

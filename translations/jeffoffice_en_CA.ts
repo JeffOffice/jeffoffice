@@ -13,6 +13,31 @@
     </message>
 </context>
 <context>
+    <name>BuildingBlocks</name>
+    <message>
+        <source>Centered Rule Heading</source>
+        <translation>Centred Rule Heading</translation>
+    </message>
+</context>
+<context>
+    <name>Canvas</name>
+    <message>
+        <source>Catalog area: %1 per page</source>
+        <translation>Catalogue area: %1 per page</translation>
+    </message>
+</context>
+<context>
+    <name>Chart</name>
+    <message>
+        <source>Colorful</source>
+        <translation>Colourful</translation>
+    </message>
+    <message>
+        <source>Grays</source>
+        <translation>Greys</translation>
+    </message>
+</context>
+<context>
     <name>Core</name>
     <message>
         <source>No Color</source>
@@ -30,6 +55,14 @@
         <translation>Add centre guide between columns and rows</translation>
     </message>
     <message>
+        <source>Color:</source>
+        <translation>Colour:</translation>
+    </message>
+    <message>
+        <source>Center</source>
+        <translation>Centre</translation>
+    </message>
+    <message>
         <source>Fill color:</source>
         <translation>Fill colour:</translation>
     </message>
@@ -38,8 +71,24 @@
         <translation>Line colour:</translation>
     </message>
     <message>
+        <source>Colors and Lines</source>
+        <translation>Colours and Lines</translation>
+    </message>
+    <message>
+        <source>Grayscale</source>
+        <translation>Greyscale</translation>
+    </message>
+    <message>
         <source>Create New Color Scheme</source>
         <translation>Create New Colour Scheme</translation>
+    </message>
+    <message>
+        <source>Color scheme name:</source>
+        <translation>Colour scheme name:</translation>
+    </message>
+    <message>
+        <source>Color Scheme</source>
+        <translation>Colour Scheme</translation>
     </message>
     <message>
         <source>Two colors</source>
@@ -50,8 +99,28 @@
         <translation>From centre</translation>
     </message>
     <message>
+        <source>Colors:</source>
+        <translation>Colours:</translation>
+    </message>
+    <message>
+        <source>Color 1:</source>
+        <translation>Colour 1:</translation>
+    </message>
+    <message>
+        <source>Color 2:</source>
+        <translation>Colour 2:</translation>
+    </message>
+    <message>
         <source>Base color:</source>
         <translation>Base colour:</translation>
+    </message>
+    <message>
+        <source>Centimeters</source>
+        <translation>Centimetres</translation>
+    </message>
+    <message>
+        <source>Millimeters</source>
+        <translation>Millimetres</translation>
     </message>
     <message>
         <source>Top center</source>
@@ -76,6 +145,10 @@
     <message>
         <source>Process plus spot colors</source>
         <translation>Process plus spot colours</translation>
+    </message>
+    <message>
+        <source>Color model:</source>
+        <translation>Colour model:</translation>
     </message>
     <message>
         <source>Spot colors:</source>
@@ -160,6 +233,18 @@ Download it from %2 now? (%3, once.)</translation>
 <context>
     <name>Ribbon</name>
     <message>
+        <source>Catalog Pages</source>
+        <translation>Catalogue Pages</translation>
+    </message>
+    <message>
+        <source>Colors</source>
+        <translation>Colours</translation>
+    </message>
+    <message>
+        <source>Color</source>
+        <translation>Colour</translation>
+    </message>
+    <message>
         <source>Page Color:</source>
         <translation>Page Colour:</translation>
     </message>
@@ -189,6 +274,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>gradient fills (they are shown as one color)</source>
         <translation>gradient fills (they are shown as one colour)</translation>
+    </message>
+    <message>
+        <source>colors past the 56 the format holds (each is the nearest of the first 56)</source>
+        <translation>colours past the 56 the format holds (each is the nearest of the first 56)</translation>
     </message>
 </context>
 <context>
@@ -226,8 +315,28 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Full-colour sale sign with a percentage burst.</translation>
     </message>
     <message>
+        <source>Color band with your logo spot.</source>
+        <translation>Colour band with your logo spot.</translation>
+    </message>
+    <message>
+        <source>Centered, framed and elegant.</source>
+        <translation>Centred, framed and elegant.</translation>
+    </message>
+    <message>
         <source>Warm colors and rounded type.</source>
         <translation>Warm colours and rounded type.</translation>
+    </message>
+    <message>
+        <source>Catalogs</source>
+        <translation>Catalogues</translation>
+    </message>
+    <message>
+        <source>Colored sidebar with photo, contact and skills.</source>
+        <translation>Coloured sidebar with photo, contact and skills.</translation>
+    </message>
+    <message>
+        <source>Centered address and a heart.</source>
+        <translation>Centred address and a heart.</translation>
     </message>
     <message>
         <source>Merged Product Catalog</source>
@@ -250,6 +359,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>Widgets</name>
+    <message>
+        <source>Color model:</source>
+        <translation>Colour model:</translation>
+    </message>
+</context>
+<context>
     <name>jp::BackgroundDialog</name>
     <message>
         <source>Background Color</source>
@@ -267,8 +383,20 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Choose the colour model (RGB, process CMYK, spot colours) and font embedding for a print shop.</translation>
     </message>
     <message>
+        <source>Color scheme:</source>
+        <translation>Colour scheme:</translation>
+    </message>
+    <message>
         <source>Composite grayscale</source>
         <translation>Composite greyscale</translation>
+    </message>
+    <message>
+        <source>Color bars</source>
+        <translation>Colour bars</translation>
+    </message>
+    <message>
+        <source>Color:</source>
+        <translation>Colour:</translation>
     </message>
     <message>
         <source>An ISO 19005 (PDF/A-1b) file for long-term storage and court or records filing: every font embedded, standard sRGB color, no transparency.</source>
@@ -279,8 +407,16 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>An ISO 15930 file (PDF/X-1a or PDF/X-4), the kind printers and print-on-demand services ask for: every colour in ink, fonts embedded, trim and bleed marked. PDF/X-4 keeps transparency and carries the printing condition's colour profile.</translation>
     </message>
     <message>
+        <source>License and notices</source>
+        <translation>Licence and notices</translation>
+    </message>
+    <message>
         <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;JeffPub is free software under the &lt;a href="%1"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%2"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;JeffPub is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
         <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;JeffPub is free software under the &lt;a href="%1"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%2"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;JeffPub is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
+    </message>
+    <message>
+        <source>Color in PDF pages</source>
+        <translation>Colour in PDF pages</translation>
     </message>
     <message>
         <source>PDF/X-4 (downloaded from the European Color Initiative)</source>
@@ -296,6 +432,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Remove Catalog Area</source>
         <translation>Remove Catalogue Area</translation>
+    </message>
+    <message>
+        <source>Catalog Area</source>
+        <translation>Catalogue Area</translation>
     </message>
 </context>
 <context>
@@ -339,6 +479,10 @@ Download it from %2 now? (%3, once.)</translation>
 <context>
     <name>jp::CrunchFileScreen</name>
     <message>
+        <source>License and notices</source>
+        <translation>Licence and notices</translation>
+    </message>
+    <message>
         <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%3"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
         <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%3"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
     </message>
@@ -352,6 +496,14 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Gridline color:</source>
         <translation>Gridline colour:</translation>
+    </message>
+    <message>
+        <source>Colors</source>
+        <translation>Colours</translation>
+    </message>
+    <message>
+        <source>Center</source>
+        <translation>Centre</translation>
     </message>
     <message>
         <source>Chart Colors and Styles</source>
@@ -386,6 +538,10 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>No Colour</translation>
     </message>
     <message>
+        <source>Gray</source>
+        <translation>Grey</translation>
+    </message>
+    <message>
         <source>Dark Gray</source>
         <translation>Dark Grey</translation>
     </message>
@@ -405,12 +561,24 @@ Download it from %2 now? (%3, once.)</translation>
 <context>
     <name>jp::DeckFileScreen</name>
     <message>
+        <source>Grayscale</source>
+        <translation>Greyscale</translation>
+    </message>
+    <message>
+        <source>License and notices</source>
+        <translation>Licence and notices</translation>
+    </message>
+    <message>
         <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%3"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
         <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%3"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
     </message>
 </context>
 <context>
     <name>jp::DeckWindow</name>
+    <message>
+        <source>Center</source>
+        <translation>Centre</translation>
+    </message>
     <message>
         <source>&amp;Grayscale</source>
         <translation>&amp;Greyscale</translation>
@@ -432,6 +600,14 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Theme Colours</translation>
     </message>
     <message>
+        <source>Colors</source>
+        <translation>Colours</translation>
+    </message>
+    <message>
+        <source>Center Vertically</source>
+        <translation>Centre Vertically</translation>
+    </message>
+    <message>
         <source>Pen Color</source>
         <translation>Pen Colour</translation>
     </message>
@@ -448,6 +624,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Fill color</source>
         <translation>Fill colour</translation>
+    </message>
+    <message>
+        <source>Color</source>
+        <translation>Colour</translation>
     </message>
     <message>
         <source>Foreground color</source>
@@ -487,6 +667,14 @@ Download it from %2 now? (%3, once.)</translation>
 </context>
 <context>
     <name>jp::FormatCellsDialog</name>
+    <message>
+        <source>Center</source>
+        <translation>Centre</translation>
+    </message>
+    <message>
+        <source>Center over the selected cells</source>
+        <translation>Centre over the selected cells</translation>
+    </message>
     <message>
         <source>Font Color</source>
         <translation>Font Colour</translation>
@@ -551,12 +739,20 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Shadow colour</translation>
     </message>
     <message>
+        <source>Color</source>
+        <translation>Colour</translation>
+    </message>
+    <message>
         <source>Glow color</source>
         <translation>Glow colour</translation>
     </message>
     <message>
         <source>Picture Color</source>
         <translation>Picture Colour</translation>
+    </message>
+    <message>
+        <source>Grayscale</source>
+        <translation>Greyscale</translation>
     </message>
     <message>
         <source>Top Centered</source>
@@ -572,10 +768,21 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::GradientEditor</name>
+    <message>
+        <source>Color</source>
+        <translation>Colour</translation>
+    </message>
+</context>
+<context>
     <name>jp::LineEditor</name>
     <message>
         <source>Line color</source>
         <translation>Line colour</translation>
+    </message>
+    <message>
+        <source>Color</source>
+        <translation>Colour</translation>
     </message>
 </context>
 <context>
@@ -587,6 +794,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Your Printer's Color Profile</source>
         <translation>Your Printer's Colour Profile</translation>
+    </message>
+    <message>
+        <source>Color profiles (*.icc *.icm)</source>
+        <translation>Colour profiles (*.icc *.icm)</translation>
     </message>
     <message>
         <source>"%1" isn't a color profile for printing in CMYK.</source>
@@ -601,12 +812,20 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>The PDF was made, but its spot colours are process colours: %1</translation>
     </message>
     <message>
+        <source>Center</source>
+        <translation>Centre</translation>
+    </message>
+    <message>
         <source>Align Center</source>
         <translation>Align Centre</translation>
     </message>
     <message>
         <source>Create New Color Scheme…</source>
         <translation>Create New Colour Scheme…</translation>
+    </message>
+    <message>
+        <source>Grayscale</source>
+        <translation>Greyscale</translation>
     </message>
     <message>
         <source>Set Transparent Color</source>
@@ -619,6 +838,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Line Color</source>
         <translation>Line Colour</translation>
+    </message>
+    <message>
+        <source>Color Scheme</source>
+        <translation>Colour Scheme</translation>
     </message>
 </context>
 <context>
@@ -637,6 +860,13 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Inserted. Check that its license fits how you'll use it.</source>
         <translation>Inserted. Check that its licence fits how you'll use it.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::PageSetupDialog</name>
+    <message>
+        <source>Colors and fills are left out; text and lines are black.</source>
+        <translation>Colours and fills are left out; text and lines are black.</translation>
     </message>
 </context>
 <context>
@@ -697,6 +927,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::TaskPane</name>
+    <message>
+        <source>Catalog Merge</source>
+        <translation>Catalogue Merge</translation>
+    </message>
+</context>
+<context>
     <name>jp::ThemeColors</name>
     <message>
         <source>Theme colors</source>
@@ -708,7 +945,18 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::VariantGallery</name>
+    <message>
+        <source>Colors, fonts, and background styles</source>
+        <translation>Colours, fonts, and background styles</translation>
+    </message>
+</context>
+<context>
     <name>jp::WriteFileScreen</name>
+    <message>
+        <source>License and notices</source>
+        <translation>Licence and notices</translation>
+    </message>
     <message>
         <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%3"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
         <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%3"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
@@ -716,6 +964,10 @@ Download it from %2 now? (%3, once.)</translation>
 </context>
 <context>
     <name>jp::WriteWindow</name>
+    <message>
+        <source>Center</source>
+        <translation>Centre</translation>
+    </message>
     <message>
         <source>No Color</source>
         <translation>No Colour</translation>
@@ -741,8 +993,16 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Align Centre Left</translation>
     </message>
     <message>
+        <source>Gray Frame</source>
+        <translation>Grey Frame</translation>
+    </message>
+    <message>
         <source>Align Center</source>
         <translation>Align Centre</translation>
+    </message>
+    <message>
+        <source>Grayscale</source>
+        <translation>Greyscale</translation>
     </message>
     <message>
         <source>Align Center Right</source>
@@ -772,6 +1032,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::office::TableStyles</name>
+    <message>
+        <source>Gray</source>
+        <translation>Grey</translation>
+    </message>
+</context>
+<context>
     <name>jp::write::Access</name>
     <message>
         <source>Some text is hard to read: its color is too close to the color behind it.</source>
@@ -788,12 +1055,50 @@ Download it from %2 now? (%3, once.)</translation>
         <source>Underline color:</source>
         <translation>Underline colour:</translation>
     </message>
+    <message>
+        <source>Center</source>
+        <translation>Centre</translation>
+    </message>
+    <message>
+        <source>center</source>
+        <translation>centre</translation>
+    </message>
+    <message>
+        <source>Centered</source>
+        <translation>Centred</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::Inspector</name>
+    <message>
+        <source>Color</source>
+        <translation>Colour</translation>
+    </message>
+    <message>
+        <source>Centered</source>
+        <translation>Centred</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::LayoutDialogs</name>
+    <message>
+        <source>Center</source>
+        <translation>Centre</translation>
+    </message>
+    <message>
+        <source>Color:</source>
+        <translation>Colour:</translation>
+    </message>
 </context>
 <context>
     <name>jp::write::StyleDialog</name>
     <message>
         <source>Font Color</source>
         <translation>Font Colour</translation>
+    </message>
+    <message>
+        <source>Centered</source>
+        <translation>Centred</translation>
     </message>
 </context>
 <context>

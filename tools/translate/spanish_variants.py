@@ -250,6 +250,30 @@ def help_files(changed=None, left=None):
     return out
 
 
+SHORTCUT = re.compile(r"(?<!&)&([^\s&])")
+
+
+def shortcut_clashes():
+    """Shortcut letters two texts of one context (a menu, dialog, or ribbon) share in Spain's Spanish and did not in the neutral one."""
+    base = {}
+    for ctx, source, comment, numerus, kind, forms in read_es(os.path.join(ROOT, "translations", "jeffoffice_es.ts")):
+        base[(ctx, source, comment)] = forms[0]
+    over = {}
+    for ctx, source, comment, numerus, kind, forms in read_es(os.path.join(ROOT, "translations", "jeffoffice_%s.ts" % LANG)):
+        over[(ctx, source, comment)] = forms[0]
+
+    def clashes(texts):
+        seen = collections.defaultdict(lambda: collections.defaultdict(list))
+        for (ctx, source, comment), t in texts.items():
+            m = SHORTCUT.search(t)
+            if m:
+                seen[ctx][m.group(1).lower()].append(t)
+        return {(ctx, letter): tuple(sorted(ts)) for ctx, d in seen.items() for letter, ts in d.items() if len(ts) > 1}
+    before = clashes(base)
+    after = clashes({k: over.get(k, t) for k, t in base.items()})
+    return [(k, v) for k, v in sorted(after.items()) if k not in before]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--check", action="store_true", help="change nothing; exit 1 if a file is out of date")
@@ -296,7 +320,12 @@ def main():
             print("%5d UI %5d Help  %s -> %s" % (n["UI"], n["Help"], old, new))
         for kind, context in left:
             print("left alone (agreement), %s: ...%s..." % (kind, context))
+    clashes = shortcut_clashes() if not args.help_only else []
     if args.check:
+        for (ctx, letter), texts in clashes:
+            print("shortcut clash in %s: &%s in %s" % (ctx, letter, " and ".join(texts)))
+        if clashes:
+            return 1
         if stale:
             print("out of date (run tools/translate/spanish_variants.py):\n  " + "\n  ".join(stale))
             return 1

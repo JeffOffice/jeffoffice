@@ -24,6 +24,8 @@ struct Entry {
     const char *code, *name;
     const char *spelling;      // .aff/.dic without the extension, under root()
     const char *hyphenation;   // under root()
+    const char *common = nullptr;   // the words every region shares (Spanish), loaded first, with `spelling`'s .dic added on top
+    const char *affix = nullptr;    // the .aff, when it is another entry's (several regions share one)
 };
 
 const Entry kEntries[] = {
@@ -31,27 +33,27 @@ const Entry kEntries[] = {
     {"en-GB", QT_TRANSLATE_NOOP("Text", "English (United Kingdom)"), "en/en_GB", "en/hyph_en_GB.dic"},
     {"en-CA", QT_TRANSLATE_NOOP("Text", "English (Canada)"), "en/en_CA", "en/hyph_en_US.dic"},
     {"en-AU", QT_TRANSLATE_NOOP("Text", "English (Australia)"), "en/en_AU", "en/hyph_en_GB.dic"},
-    {"es-MX", QT_TRANSLATE_NOOP("Text", "Spanish (Mexico)"), "es/es_MX", "es/hyph_es.dic"},
-    {"es-ES", QT_TRANSLATE_NOOP("Text", "Spanish (Spain)"), "es/es_ES", "es/hyph_es.dic"},
-    {"es-AR", QT_TRANSLATE_NOOP("Text", "Spanish (Argentina)"), "es/es_AR", "es/hyph_es.dic"},
-    {"es-BO", QT_TRANSLATE_NOOP("Text", "Spanish (Bolivia)"), "es/es_BO", "es/hyph_es.dic"},
-    {"es-CL", QT_TRANSLATE_NOOP("Text", "Spanish (Chile)"), "es/es_CL", "es/hyph_es.dic"},
-    {"es-CO", QT_TRANSLATE_NOOP("Text", "Spanish (Colombia)"), "es/es_CO", "es/hyph_es.dic"},
-    {"es-CR", QT_TRANSLATE_NOOP("Text", "Spanish (Costa Rica)"), "es/es_CR", "es/hyph_es.dic"},
-    {"es-CU", QT_TRANSLATE_NOOP("Text", "Spanish (Cuba)"), "es/es_CU", "es/hyph_es.dic"},
-    {"es-DO", QT_TRANSLATE_NOOP("Text", "Spanish (Dominican Republic)"), "es/es_DO", "es/hyph_es.dic"},
-    {"es-EC", QT_TRANSLATE_NOOP("Text", "Spanish (Ecuador)"), "es/es_EC", "es/hyph_es.dic"},
-    {"es-SV", QT_TRANSLATE_NOOP("Text", "Spanish (El Salvador)"), "es/es_SV", "es/hyph_es.dic"},
-    {"es-GT", QT_TRANSLATE_NOOP("Text", "Spanish (Guatemala)"), "es/es_GT", "es/hyph_es.dic"},
-    {"es-HN", QT_TRANSLATE_NOOP("Text", "Spanish (Honduras)"), "es/es_HN", "es/hyph_es.dic"},
-    {"es-NI", QT_TRANSLATE_NOOP("Text", "Spanish (Nicaragua)"), "es/es_NI", "es/hyph_es.dic"},
-    {"es-PA", QT_TRANSLATE_NOOP("Text", "Spanish (Panama)"), "es/es_PA", "es/hyph_es.dic"},
-    {"es-PY", QT_TRANSLATE_NOOP("Text", "Spanish (Paraguay)"), "es/es_PY", "es/hyph_es.dic"},
-    {"es-PE", QT_TRANSLATE_NOOP("Text", "Spanish (Peru)"), "es/es_PE", "es/hyph_es.dic"},
-    {"es-PR", QT_TRANSLATE_NOOP("Text", "Spanish (Puerto Rico)"), "es/es_PR", "es/hyph_es.dic"},
-    {"es-US", QT_TRANSLATE_NOOP("Text", "Spanish (United States)"), "es/es_US", "es/hyph_es.dic"},
-    {"es-UY", QT_TRANSLATE_NOOP("Text", "Spanish (Uruguay)"), "es/es_UY", "es/hyph_es.dic"},
-    {"es-VE", QT_TRANSLATE_NOOP("Text", "Spanish (Venezuela)"), "es/es_VE", "es/hyph_es.dic"},
+    {"es-MX", QT_TRANSLATE_NOOP("Text", "Spanish (Mexico)"), "es/es_MX", "es/hyph_es.dic", "es/es_common", "es/es_MX"},
+    {"es-ES", QT_TRANSLATE_NOOP("Text", "Spanish (Spain)"), "es/es_ES", "es/hyph_es.dic", "es/es_common", "es/es_ES"},
+    {"es-AR", QT_TRANSLATE_NOOP("Text", "Spanish (Argentina)"), "es/es_AR", "es/hyph_es.dic", "es/es_common", "es/es_AR"},
+    {"es-BO", QT_TRANSLATE_NOOP("Text", "Spanish (Bolivia)"), "es/es_BO", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
+    {"es-CL", QT_TRANSLATE_NOOP("Text", "Spanish (Chile)"), "es/es_CL", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
+    {"es-CO", QT_TRANSLATE_NOOP("Text", "Spanish (Colombia)"), "es/es_CO", "es/hyph_es.dic", "es/es_common", "es/es_CO"},
+    {"es-CR", QT_TRANSLATE_NOOP("Text", "Spanish (Costa Rica)"), "es/es_CR", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
+    {"es-CU", QT_TRANSLATE_NOOP("Text", "Spanish (Cuba)"), "es/es_CU", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
+    {"es-DO", QT_TRANSLATE_NOOP("Text", "Spanish (Dominican Republic)"), "es/es_DO", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
+    {"es-EC", QT_TRANSLATE_NOOP("Text", "Spanish (Ecuador)"), "es/es_EC", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
+    {"es-SV", QT_TRANSLATE_NOOP("Text", "Spanish (El Salvador)"), "es/es_SV", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
+    {"es-GT", QT_TRANSLATE_NOOP("Text", "Spanish (Guatemala)"), "es/es_GT", "es/hyph_es.dic", "es/es_common", "es/es_GT"},
+    {"es-HN", QT_TRANSLATE_NOOP("Text", "Spanish (Honduras)"), "es/es_HN", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
+    {"es-NI", QT_TRANSLATE_NOOP("Text", "Spanish (Nicaragua)"), "es/es_NI", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
+    {"es-PA", QT_TRANSLATE_NOOP("Text", "Spanish (Panama)"), "es/es_PA", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
+    {"es-PY", QT_TRANSLATE_NOOP("Text", "Spanish (Paraguay)"), "es/es_PY", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
+    {"es-PE", QT_TRANSLATE_NOOP("Text", "Spanish (Peru)"), "es/es_PE", "es/hyph_es.dic", "es/es_common", "es/es_MX"},
+    {"es-PR", QT_TRANSLATE_NOOP("Text", "Spanish (Puerto Rico)"), "es/es_PR", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
+    {"es-US", QT_TRANSLATE_NOOP("Text", "Spanish (United States)"), "es/es_US", "es/hyph_es.dic", "es/es_common", "es/es_US"},
+    {"es-UY", QT_TRANSLATE_NOOP("Text", "Spanish (Uruguay)"), "es/es_UY", "es/hyph_es.dic", "es/es_common", "es/es_UY"},
+    {"es-VE", QT_TRANSLATE_NOOP("Text", "Spanish (Venezuela)"), "es/es_VE", "es/hyph_es.dic", "es/es_common", "es/es_MX"},
     {"fr-FR", QT_TRANSLATE_NOOP("Text", "French"), "fr_FR/fr", "fr_FR/hyph_fr.dic"},
     {"de-DE", QT_TRANSLATE_NOOP("Text", "German"), "de/de_DE_frami", "de/hyph_de_DE.dic"},
     {"it-IT", QT_TRANSLATE_NOOP("Text", "Italian"), "it_IT/it_IT", "it_IT/hyph_it_IT.dic"},
@@ -99,9 +101,13 @@ Checker *checker(const QString &code)
     std::shared_ptr<Checker> c;
     const Entry *e = entry(code);
     const QString base = e && !root().isEmpty() ? root() + '/' + QLatin1String(e->spelling) : QString();
-    if (!base.isEmpty() && QFile::exists(base + ".dic") && QFile::exists(base + ".aff")) {
+    const QString affix = e && e->affix ? root() + '/' + QLatin1String(e->affix) : base;
+    const QString common = e && e->common ? root() + '/' + QLatin1String(e->common) : QString();
+    if (!base.isEmpty() && QFile::exists(base + ".dic") && QFile::exists(affix + ".aff") && (common.isEmpty() || QFile::exists(common + ".dic"))) {
         c = std::make_shared<Checker>();
-        c->h = std::make_unique<Hunspell>(hunspellFileName(base + ".aff").constData(), hunspellFileName(base + ".dic").constData());
+        // (a region's own words are added to the common ones: the same words as one file of both)
+        c->h = std::make_unique<Hunspell>(hunspellFileName(affix + ".aff").constData(), hunspellFileName((common.isEmpty() ? base : common) + ".dic").constData());
+        if (!common.isEmpty()) c->h->add_dic(hunspellFileName(base + ".dic").constData());
         c->utf8 = QString::fromStdString(c->h->get_dict_encoding()).compare(QLatin1String("UTF-8"), Qt::CaseInsensitive) == 0;
     }
     loaded.insert(code, c);

@@ -87,6 +87,9 @@ class Files(unittest.TestCase):
                     stale.append(rel)
         self.assertEqual(stale, [])
 
+    def test_no_shortcut_letter_is_shared_by_the_swap(self):
+        self.assertEqual(v.shortcut_clashes(), [])
+
     def test_the_word_list_is_in_use(self):
         changed = collections.Counter()
         v.ui_file(changed)
