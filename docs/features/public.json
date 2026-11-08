@@ -77,7 +77,7 @@
        "text": "d686598cff635077c8f7cec2d837688b3bb918640540ba67b8114f357e368c93"
       },
       {
-       "status": "partly",
+       "status": "todo",
        "text": "71b4fbb1cae3651f63bc1d7d6b08f0997c47bd9e9c73fd78da94aaec040f4c72"
       },
       {
@@ -1124,9 +1124,30 @@
          "text": "69b666e8becbc4fed0c3450210a99626d4118c5ee049f1e7585a6fb6ec00eecb"
         },
         {
+         "status": "todo",
+         "text": "6893fa082561550b4bddaad0db965fe5714ea5be91255f61fca938dd20abfa80"
+        },
+        {
+         "status": "todo",
+         "text": "c6436d2b064160018d6e2343a1760e3023719a1f9e001d8c877c5e6b358bffbe"
+        },
+        {
          "hide_soon": true,
          "status": "done",
          "text": "dbc394cfdc1fcc92783ead152d21a9aa0791d40f76af9ee229446fde3b81a8e6"
+        }
+       ]
+      },
+      {
+       "heading": "a0536e19b51c21040c12a916fe9ded6da8c9387e23f17edb12fca2db8287eb5c",
+       "items": [
+        {
+         "status": "todo",
+         "text": "1bbc9f18759e7ffe73d2ba2bc7e60ec0b0bd30e7fc5f8aeeb5e03642bef4768e"
+        },
+        {
+         "status": "todo",
+         "text": "9666706d8fbe9332c7d8f8f5f40994f29e3720a508ecf5f6bd2d2468e17174ad"
         }
        ]
       },
@@ -2301,7 +2322,7 @@
       },
       {
        "status": "partly",
-       "text": "c79196319e3db485e59e05955f8c6ba8903ae1978c9f40726cacac260de85733"
+       "text": "26f6db7ddad8d94ac901873cc4661eaf2b1ae1c7523c9d74a8b9b4786665e8ff"
       },
       {
        "status": "partly",
@@ -2464,6 +2485,10 @@
         {
          "status": "todo",
          "text": "26301432deeb30cd0aa6c964849497a18114d4f513129a7f9e671b94d7aaf5fb"
+        },
+        {
+         "status": "todo",
+         "text": "5950899705e528ab6b79a9aea523cae6af20a29e8b8011f63ad487552d233ab6"
         }
        ]
       },
@@ -2490,12 +2515,20 @@
         {
          "status": "todo",
          "text": "5ad0db0bbc8e59144334752f140c842f2781e8acfa717026c7a7b6aa5b1db5ad"
+        },
+        {
+         "status": "todo",
+         "text": "1e7517414a01f457359fc3907d4ddbf9b339b1f05eea2d4fd67adfa1e4a6189d"
         }
        ]
       },
       {
        "heading": "11e2ff6ba02981cde8bbb20edc03a42f58ffe69bdbb731410928f10cc7d83764",
        "items": [
+        {
+         "status": "todo",
+         "text": "e06d93347aabdf1ee20d4f3a5e2d777eeb0effe0865254681b8735439e5e0b83"
+        },
         {
          "hide_soon": true,
          "status": "done",
@@ -2535,6 +2568,10 @@
         {
          "status": "todo",
          "text": "e40ae9fdef2bab9a2dd6a0379d458d15d475259203f78876729b99a8afe342af"
+        },
+        {
+         "status": "todo",
+         "text": "61cf72b899df7ffb066d68a8d58b0dcb56964b2c6776ea3ff8598eb8595241db"
         },
         {
          "status": "partly",
@@ -2754,6 +2791,10 @@
          "hide_soon": true,
          "status": "done",
          "text": "4d21c1ff74b215434c66edaa7af8224c6270542c41a514193d35b7dd1ad533e1"
+        },
+        {
+         "status": "todo",
+         "text": "33e2075780a33b79ccc485f22570228457413b05c0dc59438fd984401f391a4a"
         },
         {
          "hide_soon": true,
@@ -3164,6 +3205,18 @@
        "text": "b0994552cd578213f0d07285b748690e64113aefb04e556bdc3409724750b331"
       },
       {
+       "status": "todo",
+       "text": "74867764b6f3f9377e6b1da32c21561a0c0f77c9ec2bdc361c63c132e015845e"
+      },
+      {
+       "status": "todo",
+       "text": "d337b73f000e076e52dd335f570d565a5766e044281cd024adf334dabd07a521"
+      },
+      {
+       "status": "todo",
+       "text": "7c72a218d8831a4ecdb894e41b1a9507db9246b11ccb2354d2ec5769fd8739e0"
+      },
+      {
        "hide_soon": true,
        "status": "done",
        "text": "1fc313795adcf02fabaa0f7571fdb9f27c1ebe232d13f7432bf6b46f0099d20b"
@@ -3241,6 +3294,10 @@
       {
        "status": "todo",
        "text": "2b37c7dc5f89533ea13a17188915d83aaa8029a595f568978b9c4230f2f5ca23"
+      },
+      {
+       "status": "todo",
+       "text": "0fd22f04dc8ab33ea13875b7da7217a3688f7f109d27e1d22e40734f0ad9dc76"
       }
      ]
     },
@@ -3384,6 +3441,10 @@
         {
          "status": "partly",
          "text": "ce736d347e379cca637bdf68435273aafc0feb7bc77d6fb2624f8a3c7f9fda01"
+        },
+        {
+         "status": "todo",
+         "text": "13e8ce171926e635898a582e4790e8b8a9adfe87e36db0900987dca29707b078"
         },
         {
          "hide_soon": true,
@@ -3925,7 +3986,7 @@
         },
         {
          "status": "todo",
-         "text": "e9ffc178542493e8fe85d5f6ee6c1cf3e226cec8cc2389e484397004dcb3a6e3"
+         "text": "7b7ef973c3e54021acc5b6d6170ece9913edd58606e0b3cf9e26f54dd01aa66e"
         },
         {
          "hide_soon": true,
@@ -4069,6 +4130,30 @@
       {
        "heading": "122725696a78e7591e2d4e2356992cf3dfb74122fdcda571a8f242ec2b42876f",
        "items": [
+        {
+         "status": "todo",
+         "text": "fa9a6f61b0344abf0e00da1b075c25e5b29619160c6e09aa6ee14ae799309be8"
+        },
+        {
+         "status": "todo",
+         "text": "b598c0676544a3119315d5f762c2b9c90b65502a9dcb17fce578a1e77899c7f7"
+        },
+        {
+         "status": "todo",
+         "text": "71ab6d22b292061b0b36c82a5e08a993a06bbd36c6736c18bf11986b21631473"
+        },
+        {
+         "status": "todo",
+         "text": "6bafbadbcd7bce2e0954b9326c428123205e422f86672d4fe669312a8a3247c6"
+        },
+        {
+         "status": "todo",
+         "text": "2b4fe91e55398163d6e4393a9a57513f16dc93acf6a2e5cdecc2bbad3e1e15c8"
+        },
+        {
+         "status": "todo",
+         "text": "d63e771442f77df3cd9682ef6b4944f7b0fd5662dc51bd0928016447f6c4a8fd"
+        },
         {
          "hide_soon": true,
          "status": "done",
@@ -4246,12 +4331,32 @@
         {
          "status": "todo",
          "text": "d3acf8d85665b652e8ae826a25664eb0808ddac59d44a331aed6f1465186fbab"
+        },
+        {
+         "status": "todo",
+         "text": "d0b41dbdd5a6097dbe7bf8849a041b2b4489c248c5b351db24c5cfdc663891b0"
+        },
+        {
+         "status": "todo",
+         "text": "987f1a546563f40bd90603a107bab684207a3aa369628881903e5532a466af9f"
         }
        ]
       },
       {
        "heading": "03d1bb5003296abf5258d328f3b6a1df908a7ea3ff6f539ee57d276cc6f47a0f",
        "items": [
+        {
+         "status": "todo",
+         "text": "24cd5ea25414c2a62cd3c42c367620b08135e4316f9ce826f7bf0242fea63921"
+        },
+        {
+         "status": "todo",
+         "text": "b2ddc20805b4f790ec97d46c77067d009f485376a5219d0e6d2adfcd6551afab"
+        },
+        {
+         "status": "todo",
+         "text": "ba8f7a97a722df7f562ca20f6058704a55a81fe568a396eacc3836443a0e2d5a"
+        },
         {
          "hide_soon": true,
          "status": "done",
@@ -4261,6 +4366,10 @@
          "hide_soon": true,
          "status": "done",
          "text": "f70fba0d817fa209d8fd86b3452e58c91b917b7dcc40f4cb8e6e7e4d4cffb429"
+        },
+        {
+         "status": "todo",
+         "text": "9d2afb202040c5b7422a16b020b06c6dc98788bb5d53ef1bddac0140ea2a513d"
         }
        ]
       }
@@ -4347,6 +4456,14 @@
        "hide_soon": true,
        "status": "done",
        "text": "7c611972899c7b5cf05def3eddfe9e2c32aed8881f6f50a985358c79a912efad"
+      },
+      {
+       "status": "todo",
+       "text": "c9b16f2fd099eb4d05a5da210d62c22cb97aedf9bc329a9b392e03e55e682b9e"
+      },
+      {
+       "status": "todo",
+       "text": "740738b7372e00cc6c42aadf2d3e0bdf8863cd30c52a3dc07bb7dbde57346099"
       },
       {
        "hide_soon": true,
@@ -4472,6 +4589,18 @@
        "text": "b1f0815eefc2906cc83b26a6e9b7fa1a9f90d83017eb81e1253b2d1de545102b"
       },
       {
+       "status": "todo",
+       "text": "a8658b1846c2def25baaee85abd4392c70b5e0cb6825c7a10093a6d3901f39fd"
+      },
+      {
+       "status": "todo",
+       "text": "dc3eb290b4508cd84dc0fa08c7baa2e0318d6b4f29c46895455f3e3f6d8a7cee"
+      },
+      {
+       "status": "todo",
+       "text": "11bedd169165b5d06627faa92dd5f60fbb4aaab5673d69ce3567db9492a252f1"
+      },
+      {
        "hide_soon": true,
        "status": "done",
        "text": "a5df6f2a9237e127bcf3ac0ab4de0ba69528a0b0091040131a25be6a5f4db2db"
@@ -4542,6 +4671,10 @@
        "hide_soon": true,
        "status": "done",
        "text": "568fd18bf27ed741676599a9a17168b826588d93ca5a11bda547ecf415b8ff16"
+      },
+      {
+       "status": "todo",
+       "text": "159fa175f23d9400c0d7f41c5363a5af2d303b4c6f49f012217624a0063bfe8a"
       }
      ]
     },
@@ -5255,7 +5388,7 @@
       },
       {
        "status": "todo",
-       "text": "ab75ddade82ceda496ef797b2f9285ac596bf80c43ed64feaa7b1d4d4e3ba424"
+       "text": "5774c236f33fc1f18bffa3e2761cef9274202067d5f8632e538bbab155f2847b"
       },
       {
        "status": "todo",
@@ -5471,6 +5604,10 @@
       {
        "heading": "fa357a48a90057cdd87ffeca7f3ff8467a9a4a8e255c91b81fae06c0bcc85e7d",
        "items": [
+        {
+         "status": "todo",
+         "text": "0e0fc072ce3755363cec5bcdb5075f68ffda6d67cd452f07d7fcda684e131a62"
+        },
         {
          "status": "partly",
          "text": "c5cacad83e3520c8ce1d02dbe3c1e961d045f6ccaf861de085e9a4437d3149f7"
@@ -5788,10 +5925,6 @@
         {
          "status": "partly",
          "text": "ecf899a7023677392ecaefef8a5e696b2eed55ed3acce23b9d2e87b7eb309d55"
-        },
-        {
-         "status": "todo",
-         "text": "28db8643754f713ade8ffe55182b912e6e60be6a22a85c5e2e550306169b22d4"
         },
         {
          "status": "partly",
@@ -8179,6 +8312,18 @@
     "fr": ""
    }
   },
+  "0e0fc072ce3755363cec5bcdb5075f68ffda6d67cd452f07d7fcda684e131a62": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Security settings for linked files, linked media, and macros (kept, never run)",
+    "es": "Ajustes de seguridad para archivos vinculados, medios vinculados y macros (se conservan, nunca se ejecutan)",
+    "fr": "Paramètres de sécurité pour les fichiers liés, les médias liés et les macros (conservés, jamais exécutés)"
+   }
+  },
   "0e4424f3649c3d89259bbe1c73fa4504500c1cc1dc0b84b0d636fa6295274b4f": {
    "drop": false,
    "en": "Insert one or more pictures from this device, placed in the middle of the slide and kept inside the presentation. Drop picture files on a slide to place each where it lands; PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, WMF, EMF, ICO, and PDF files are read.",
@@ -8249,6 +8394,18 @@
     "en": "More functions",
     "es": "Más funciones",
     "fr": "Davantage de fonctions"
+   }
+  },
+  "0fd22f04dc8ab33ea13875b7da7217a3688f7f109d27e1d22e40734f0ad9dc76": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Help tab: What’s New, a link to a community page, and Report a Problem",
+    "es": "Pestaña Ayuda: Novedades, un enlace a una página de la comunidad e Informar de un problema",
+    "fr": "Onglet Aide : Nouveautés, un lien vers une page communautaire et Signaler un problème"
    }
   },
   "102b122b81a9e221543c19ee46aeefba41193f35385d0688eb372b1559900811": {
@@ -8357,6 +8514,18 @@
     "en": "Headings: drag to reorder",
     "es": "Encabezados: arrastre para reordenar",
     "fr": "Titres : réorganisation par glisser-déposer"
+   }
+  },
+  "11bedd169165b5d06627faa92dd5f60fbb4aaab5673d69ce3567db9492a252f1": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Grammar and style checking that runs on your own computer, English first",
+    "es": "Revisión de gramática y estilo que se ejecuta en su propio equipo, primero en inglés",
+    "fr": "Vérification de la grammaire et du style exécutée sur votre propre ordinateur, d’abord en anglais"
    }
   },
   "11c37f0657022925677a61d7c156ebd98890dd8c678f666e4c796f7512961737": {
@@ -8563,6 +8732,18 @@
     "fr": ""
    }
   },
+  "13e8ce171926e635898a582e4790e8b8a9adfe87e36db0900987dca29707b078": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Compress Pictures: a resolution for screen, print, or email, and delete cropped areas",
+    "es": "Comprimir imágenes: una resolución para pantalla, impresión o correo, y eliminar las áreas recortadas",
+    "fr": "Compresser les images : une résolution pour l’écran, l’impression ou l’e-mail, et suppression des zones rognées"
+   }
+  },
   "13f4c3af8731ce94dbee36b839c628d8c50321fb2a820b251bb12d15fb8d3953": {
    "drop": false,
    "en": "Set nine-way cell alignment, cell margins, text direction, and hyphenation for table cells.",
@@ -8645,6 +8826,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "159fa175f23d9400c0d7f41c5363a5af2d303b4c6f49f012217624a0063bfe8a": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Command search: a box on the ribbon that finds a command by what it does and runs it",
+    "es": "Búsqueda de comandos: un cuadro en la cinta de opciones que encuentra un comando según lo que hace y lo ejecuta",
+    "fr": "Recherche de commandes : une zone dans le ruban qui trouve une commande selon sa fonction et l’exécute"
    }
   },
   "15d3ebd2474eaa13d4b72804fd81f0a1553298ba707601709ccad9f8a669aace": {
@@ -8983,6 +9176,18 @@
     "fr": "Tableaux flottants : modification ; bordures diagonales dans une cellule"
    }
   },
+  "1bbc9f18759e7ffe73d2ba2bc7e60ec0b0bd30e7fc5f8aeeb5e03642bef4768e": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Translate: the selected cells or the whole workbook in an open translation service with a server address you can change",
+    "es": "Traducir: las celdas seleccionadas o todo el libro en un servicio de traducción abierto con una dirección de servidor que se puede cambiar",
+    "fr": "Traduire : les cellules sélectionnées ou tout le classeur dans un service de traduction ouvert avec une adresse de serveur modifiable"
+   }
+  },
   "1be568c161a3c35590cec71871949b56da7013ea8ab81729ca9a7a3894ca9cf8": {
    "drop": false,
    "en": "A typed entry becomes a number, percent (`5%`), currency (`$5`), date (`3/4`, `4-Mar`, `March 2026`), time, fraction (`1 1/2`), scientific number (`1E5`), formula, or text, and the cell takes the matching number format. Text that only looks like a number or a date can be kept as text.",
@@ -9173,6 +9378,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "1e7517414a01f457359fc3907d4ddbf9b339b1f05eea2d4fd67adfa1e4a6189d": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Email: a ready-to-send `.eml` with the presentation or a PDF attached",
+    "es": "Correo electrónico: un `.eml` listo para enviar con la presentación o un PDF adjunto",
+    "fr": "E-mail : un fichier `.eml` prêt à envoyer avec la présentation ou un PDF en pièce jointe"
    }
   },
   "1e987b7140aa9156f4c443080aba94d1a7a6d7404e5da9cb0591611177233fa0": {
@@ -9799,6 +10016,18 @@
     "fr": ""
    }
   },
+  "24cd5ea25414c2a62cd3c42c367620b08135e4316f9ce826f7bf0242fea63921": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Privacy options: remove personal information on save and choose what is sent anywhere (statistics, crash reports)",
+    "es": "Opciones de privacidad: quitar la información personal al guardar y elegir qué se envía (estadísticas, informes de fallos)",
+    "fr": "Options de confidentialité : supprimer les informations personnelles à l’enregistrement et choisir ce qui est envoyé (statistiques, rapports de plantage)"
+   }
+  },
   "24cd5f514f30aa0470cbc9b484afbdcae6a0f132e2d2b71136552fe2a851020f": {
    "drop": true,
    "en": "",
@@ -9991,6 +10220,18 @@
     "fr": ""
    }
   },
+  "26f6db7ddad8d94ac901873cc4661eaf2b1ae1c7523c9d74a8b9b4786665e8ff": {
+   "drop": false,
+   "en": "PDF export keeps real text and embeds fonts.",
+   "es": "La exportación a PDF conserva el texto real e incrusta las fuentes.",
+   "fr": "L’export PDF conserve le texte réel et incorpore les polices.",
+   "soon": {
+    "drop": false,
+    "en": "PDF export: bookmarks for each slide title, tags for screen readers, PDF/A, and password protection",
+    "es": "Exportación a PDF: marcadores para cada título de diapositiva, etiquetas para lectores de pantalla, PDF/A y protección con contraseña",
+    "fr": "Export PDF : signets pour chaque titre de diapositive, balises pour les lecteurs d’écran, PDF/A et protection par mot de passe"
+   }
+  },
   "270b34f111dd5a25b10a3627e7caa37426d0b0a3dd3481e8a2fa0860c2eeac90": {
    "drop": false,
    "en": "Close a publication, with a prompt to save changes.",
@@ -10109,18 +10350,6 @@
     "en": "Separate text styles per level in a new master",
     "es": "Estilos de texto separados por nivel en un patrón nuevo",
     "fr": "Styles de texte distincts par niveau dans un nouveau masque"
-   }
-  },
-  "28db8643754f713ade8ffe55182b912e6e60be6a22a85c5e2e550306169b22d4": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Online pictures and stock images, with license and credit kept as a caption",
-    "es": "Imágenes en línea e imágenes de archivo, con licencia y crédito conservados como leyenda",
-    "fr": "Images en ligne et banques d’images, avec licence et crédit conservés en légende"
    }
   },
   "28e0be1e1b73aef16167c0f668651694bb5c5f8b890ba00c47eed3bfd297d164": {
@@ -10337,6 +10566,18 @@
     "en": "Command search: a ribbon box that finds a command and runs it",
     "es": "Búsqueda de comandos: un cuadro en la cinta de opciones que encuentra un comando y lo ejecuta",
     "fr": "Recherche de commandes : une zone du ruban qui trouve une commande et l’exécute"
+   }
+  },
+  "2b4fe91e55398163d6e4393a9a57513f16dc93acf6a2e5cdecc2bbad3e1e15c8": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Version history: named local copies of a publication, compared and restored from Info",
+    "es": "Historial de versiones: copias locales con nombre de una publicación, comparadas y restauradas desde Información",
+    "fr": "Historique des versions : copies locales nommées d’une publication, comparées et restaurées depuis Informations"
    }
   },
   "2b7836952e6d98cbc6951596ca1e0a7620ec6fbe8a9f78b2b82e2184de86c9c6": {
@@ -10889,6 +11130,18 @@
     "en": "Default tab stop distance and bar tab stops in the Tabs dialog",
     "es": "Distancia de las tabulaciones predeterminadas y tabulaciones de barra en el cuadro Tabulaciones",
     "fr": "Distance des taquets par défaut et taquets de barre dans la boîte Tabulations"
+   }
+  },
+  "33e2075780a33b79ccc485f22570228457413b05c0dc59438fd984401f391a4a": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Go To: slide, section, comment, and object",
+    "es": "Ir a: diapositiva, sección, comentario y objeto",
+    "fr": "Atteindre : diapositive, section, commentaire et objet"
    }
   },
   "341f21fb161bb64cafb25f95362749082a81e6ab998805cb8711b39c1fbcde0a": {
@@ -13423,6 +13676,18 @@
     "fr": ""
    }
   },
+  "5774c236f33fc1f18bffa3e2761cef9274202067d5f8632e538bbab155f2847b": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Online Pictures and Stock Images search Openverse and Wikimedia Commons, with the license and credit kept as a caption",
+    "es": "Imágenes en línea e imágenes de archivo con búsqueda en Openverse y Wikimedia Commons, con la licencia y el crédito conservados como pie de imagen",
+    "fr": "Images en ligne et images d’archives avec recherche dans Openverse et Wikimedia Commons, la licence et le crédit étant conservés comme légende"
+   }
+  },
   "57a97100cd61826e7a17a18d6c3b64d697e478e2840d91322683fc40ca4cab51": {
    "drop": false,
    "en": "Other formats and parts",
@@ -13529,6 +13794,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "5950899705e528ab6b79a9aea523cae6af20a29e8b8011f63ad487552d233ab6": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Manual duplex printing: print the odd pages, then the even ones, with a prompt to turn the stack over",
+    "es": "Impresión a doble cara manual: imprimir las páginas impares y luego las pares, con un aviso para voltear la pila",
+    "fr": "Impression recto verso manuelle : imprimer les pages impaires, puis les paires, avec une invite pour retourner la pile"
    }
   },
   "595de30e35522b97687b2c0a50ea38c1d05a33307bcd34365708ee6a142ecaad": {
@@ -14131,6 +14408,18 @@
     "fr": ""
    }
   },
+  "61cf72b899df7ffb066d68a8d58b0dcb56964b2c6776ea3ff8598eb8595241db": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Keyboard customization: assign keys to commands, starting from common shortcuts",
+    "es": "Personalización del teclado: asignar teclas a comandos, partiendo de los atajos habituales",
+    "fr": "Personnalisation du clavier : attribuer des touches aux commandes, à partir des raccourcis courants"
+   }
+  },
   "61e4cb690ea92585dcb39082b68bff9ee7f3edb0b2e7088827a43922ac7ff856": {
    "drop": true,
    "en": "",
@@ -14623,6 +14912,18 @@
     "fr": "Styles de texte sur du texte ordinaire"
    }
   },
+  "6893fa082561550b4bddaad0db965fe5714ea5be91255f61fca938dd20abfa80": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Read Aloud with the system’s voices: from the cursor, with the current word highlighted, and a choice of speed and voice",
+    "es": "Lectura en voz alta con las voces del sistema: desde el cursor, con la palabra actual resaltada y a elegir velocidad y voz",
+    "fr": "Lecture à voix haute avec les voix du système : depuis le curseur, avec le mot courant en surbrillance, et choix de la vitesse et de la voix"
+   }
+  },
   "68b2647cd070870f7d502842bc1af1f9f156a2ceabb9cae691bd87b19e567fe9": {
    "drop": true,
    "en": "",
@@ -14885,6 +15186,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "6bafbadbcd7bce2e0954b9326c428123205e422f86672d4fe669312a8a3247c6": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Check Compatibility: lists what an older or other format cannot hold before saving",
+    "es": "Comprobar compatibilidad: indica lo que un formato anterior u otro no puede contener antes de guardar",
+    "fr": "Vérifier la compatibilité : indique ce qu’un format plus ancien ou autre ne peut pas contenir avant l’enregistrement"
    }
   },
   "6bcfa3b05a9333f6c9ddfbd47c3d55766822df971eab35eb39db34bb09019e52": {
@@ -15355,6 +15668,18 @@
     "fr": ""
    }
   },
+  "71ab6d22b292061b0b36c82a5e08a993a06bbd36c6736c18bf11986b21631473": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Inspect Publication: find and remove personal information and off-page content before sharing",
+    "es": "Inspeccionar la publicación: buscar y quitar información personal y contenido fuera de la página antes de compartir",
+    "fr": "Inspecter la publication : trouver et supprimer les informations personnelles et le contenu hors page avant le partage"
+   }
+  },
   "71b4fbb1cae3651f63bc1d7d6b08f0997c47bd9e9c73fd78da94aaec040f4c72": {
    "drop": true,
    "en": "",
@@ -15535,6 +15860,18 @@
     "fr": ""
    }
   },
+  "740738b7372e00cc6c42aadf2d3e0bdf8863cd30c52a3dc07bb7dbde57346099": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Equation editor",
+    "es": "Editor de ecuaciones",
+    "fr": "Éditeur d’équations"
+   }
+  },
   "747f04533a17f0892ba282f42021c623f6cd2ceedcd8c792c04abdb841a87dba": {
    "drop": true,
    "en": "",
@@ -15545,6 +15882,18 @@
     "en": "Shape text that shows a cell’s value: type `=A1` in the formula bar with a shape or text box selected",
     "es": "Texto de forma que muestra el valor de una celda: escriba `=A1` en la barra de fórmulas con una forma o un cuadro de texto seleccionado",
     "fr": "Texte de forme affichant la valeur d’une cellule : saisissez `=A1` dans la barre de formule avec une forme ou une zone de texte sélectionnée"
+   }
+  },
+  "74867764b6f3f9377e6b1da32c21561a0c0f77c9ec2bdc361c63c132e015845e": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Translate: the selected text, a slide, or the whole presentation in an open translation service with a server address you can change",
+    "es": "Traducir: el texto seleccionado, una diapositiva o toda la presentación en un servicio de traducción abierto con una dirección de servidor que se puede cambiar",
+    "fr": "Traduire : le texte sélectionné, une diapositive ou toute la présentation dans un service de traduction ouvert avec une adresse de serveur modifiable"
    }
   },
   "74a08bf8159ca58ac4cdb6091a432da0529d5768c58ffe509d0348a064b2a892": {
@@ -15979,6 +16328,18 @@
     "fr": "Noms de fonctions dans la langue de l’interface, avec séparateurs d’arguments selon la langue"
    }
   },
+  "7b7ef973c3e54021acc5b6d6170ece9913edd58606e0b3cf9e26f54dd01aa66e": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Links in a PDF",
+    "es": "Vínculos en un PDF",
+    "fr": "Liens dans un PDF"
+   }
+  },
   "7bc9c63477a68415f084fa48769930fb919027b5dddda90484230652e1ea26ff": {
    "drop": false,
    "en": "Set margin guide presets or custom margins, orientation, and page size (presets, your saved custom sizes, Create New Page Size, and editing or deleting saved sizes). The Page Setup dialog sets the layout type (one page per sheet, booklet, envelope, folded card, multiple pages per sheet, labels); for several pages per sheet it sets the sheet’s side and top margins and the gaps between pages, kept apart from the margin guides, with how many fit. A new page size scales nothing: every object moves by half the change so it keeps its distance from the page center, ruler guides keep their share of the page, objects left wholly off a smaller page go to the scratch area, and Undo restores it all.",
@@ -16061,6 +16422,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "7c72a218d8831a4ecdb894e41b1a9507db9246b11ccb2354d2ec5769fd8739e0": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Grammar and style checking that runs on your own computer, English first",
+    "es": "Revisión de gramática y estilo que se ejecuta en su propio equipo, primero en inglés",
+    "fr": "Vérification de la grammaire et du style exécutée sur votre propre ordinateur, d’abord en anglais"
    }
   },
   "7c789c2f6f405e3a3b9657c544effb535a85a2aadae5a92d405f828be43427db": {
@@ -17791,6 +18164,18 @@
     "fr": ""
    }
   },
+  "9666706d8fbe9332c7d8f8f5f40994f29e3720a508ecf5f6bd2d2468e17174ad": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Proofing language for the selected cells and the whole workbook, with spelling following it",
+    "es": "Idioma de revisión para las celdas seleccionadas y todo el libro, con la ortografía según ese idioma",
+    "fr": "Langue de vérification pour les cellules sélectionnées et tout le classeur, l’orthographe la suivant"
+   }
+  },
   "968d6177a5075fe4c7133c8d5e015ed7d8f8ad561c77a755e458823ab9a7894b": {
    "drop": false,
    "en": "Paragraph shading and borders from a file are drawn.",
@@ -17909,6 +18294,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "987f1a546563f40bd90603a107bab684207a3aa369628881903e5532a466af9f": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Tagged PDF for screen readers (headings, reading order, and alt text) and password-protected PDF",
+    "es": "PDF etiquetado para lectores de pantalla (títulos, orden de lectura y texto alternativo) y PDF con contraseña",
+    "fr": "PDF balisé pour les lecteurs d’écran (titres, ordre de lecture et texte de remplacement) et PDF protégé par mot de passe"
    }
   },
   "989808c9b1f952cc20b9f733ffd9a3496fb5723fd9938e02ca7a5dc48c239e3e": {
@@ -18295,6 +18692,18 @@
     "fr": ""
    }
   },
+  "9d2afb202040c5b7422a16b020b06c6dc98788bb5d53ef1bddac0140ea2a513d": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Ribbon and quick toolbar customization",
+    "es": "Personalización de la cinta de opciones y de la barra de herramientas rápida",
+    "fr": "Personnalisation du ruban et de la barre d’outils rapide"
+   }
+  },
   "9d416e99195406ba2533427775b4cea62de2a00ac4d2b704af0dbdb013df7b65": {
    "drop": true,
    "en": "",
@@ -18497,6 +18906,18 @@
     "en": "Get data from text, CSV, workbook, JSON, XML, web page, folder, SQLite, ODBC, PostgreSQL, and MySQL sources as visible, editable, refreshable steps",
     "es": "Obtención de datos desde texto, CSV, libros, JSON, XML, páginas web, carpetas, SQLite, ODBC, PostgreSQL y MySQL como pasos visibles, editables y actualizables",
     "fr": "Obtention de données depuis du texte, CSV, classeurs, JSON, XML, pages web, dossiers, SQLite, ODBC, PostgreSQL et MySQL sous forme d’étapes visibles, modifiables et actualisables"
+   }
+  },
+  "a0536e19b51c21040c12a916fe9ded6da8c9387e23f17edb12fca2db8287eb5c": {
+   "drop": false,
+   "en": "Language",
+   "es": "Idioma",
+   "fr": "Langue",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "a061f70eac04a257b91af05bc1173784bfd50bba035da90fa09a08229cb9d9dd": {
@@ -18895,6 +19316,18 @@
     "fr": ""
    }
   },
+  "a8658b1846c2def25baaee85abd4392c70b5e0cb6825c7a10093a6d3901f39fd": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Comments: new, replies, resolve, delete, previous and next, and show comments",
+    "es": "Comentarios: nuevo, respuestas, resolver, eliminar, anterior y siguiente, y mostrar comentarios",
+    "fr": "Commentaires : nouveau, réponses, résoudre, supprimer, précédent et suivant, et afficher les commentaires"
+   }
+  },
   "a888720261fbafaa95105469f72db62a657333a6d7427f7496e5f732a25dcafb": {
    "drop": false,
    "en": "Copy Formatting paints character looks once with a click, or stays on with a double-click until `Esc`. With a paragraph mark selected, it also copies alignment, indents, spacing, and style. `Ctrl+Shift+C` and `Ctrl+Shift+V` copy and paste a look by key.",
@@ -19109,18 +19542,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ab75ddade82ceda496ef797b2f9285ac596bf80c43ed64feaa7b1d4d4e3ba424": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Online pictures search that keeps the license and credit",
-    "es": "Búsqueda de imágenes en línea que conserva la licencia y el crédito",
-    "fr": "Recherche d’images en ligne qui conserve la licence et le crédit"
    }
   },
   "aba6e455c555b74ca53291d9b199ed569f3315bb279c75657fcebe8e1531979f": {
@@ -19531,6 +19952,18 @@
     "fr": ""
    }
   },
+  "b2ddc20805b4f790ec97d46c77067d009f485376a5219d0e6d2adfcd6551afab": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Security settings for linked files, linked media, and macros (kept, never run)",
+    "es": "Ajustes de seguridad para archivos vinculados, medios vinculados y macros (se conservan, nunca se ejecutan)",
+    "fr": "Paramètres de sécurité pour les fichiers liés, les médias liés et les macros (conservés, jamais exécutés)"
+   }
+  },
   "b40da7575dc84295b5430a0e2039746f2a4dc0a27d95b8117f6d60deae26e65e": {
    "drop": false,
    "en": "External links do not update, data connections do not run, and macros are kept but never run when a file opens. In an opened `.csv`, a field that starts with `=` is kept as text unless \"Read formulas\" is ticked in the text import window; plain numbers such as -5 or +3 stay numbers.",
@@ -19661,6 +20094,18 @@
     "en": "Slide pictures: all slides at once, other sizes, and GIF, TIFF, BMP, and SVG",
     "es": "Imágenes de diapositivas: todas a la vez, otros tamaños, y GIF, TIFF, BMP y SVG",
     "fr": "Images de diapositives : toutes à la fois, autres tailles, et GIF, TIFF, BMP et SVG"
+   }
+  },
+  "b598c0676544a3119315d5f762c2b9c90b65502a9dcb17fce578a1e77899c7f7": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Password encryption: open and save a password-protected `.jpub` publication",
+    "es": "Cifrado con contraseña: abrir y guardar una publicación `.jpub` protegida con contraseña",
+    "fr": "Chiffrement par mot de passe : ouvrir et enregistrer une publication `.jpub` protégée par mot de passe"
    }
   },
   "b59d2e4ed03d7021b2a853348fa513dd8e8babbe651e73ffd4810f9e53f6e7a8": {
@@ -19925,6 +20370,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "ba8f7a97a722df7f562ca20f6058704a55a81fe568a396eacc3836443a0e2d5a": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Keyboard customization: assign keys to commands, starting from common shortcuts",
+    "es": "Personalización del teclado: asignar teclas a comandos, partiendo de los atajos habituales",
+    "fr": "Personnalisation du clavier : attribuer des touches aux commandes, à partir des raccourcis courants"
    }
   },
   "bae15634168309e8350b3b0309ee8f64a4a836c66faa2138c5210aac3aed4b8d": {
@@ -20767,6 +21224,18 @@
     "fr": "Plus de modèles inclus sous licence ouverte : cours, rapport, présentation commerciale, album photo et formation"
    }
   },
+  "c6436d2b064160018d6e2343a1760e3023719a1f9e001d8c877c5e6b358bffbe": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Grammar and style checking that runs on your own computer, English first",
+    "es": "Revisión de gramática y estilo que se ejecuta en su propio equipo, primero en inglés",
+    "fr": "Vérification de la grammaire et du style exécutée sur votre propre ordinateur, d’abord en anglais"
+   }
+  },
   "c65bd5950db6c1212f881caf2abfeb1713d45489da3f484dc69e3f81ed109100": {
    "drop": false,
    "en": "Inserts shapes from a gallery on the Home and Insert tabs.",
@@ -20825,18 +21294,6 @@
     "en": "Selection Pane",
     "es": "Panel de selección",
     "fr": "Volet de sélection"
-   }
-  },
-  "c79196319e3db485e59e05955f8c6ba8903ae1978c9f40726cacac260de85733": {
-   "drop": false,
-   "en": "PDF export keeps real text and embeds fonts.",
-   "es": "La exportación a PDF conserva el texto real e incrusta las fuentes.",
-   "fr": "L’export PDF conserve le texte réel et incorpore les polices.",
-   "soon": {
-    "drop": false,
-    "en": "PDF export: bookmarks for each slide title, tags for screen readers, PDF/A, and password protection",
-    "es": "Exportación a PDF: marcadores para cada título de diapositiva, etiquetas para lectores de pantalla, PDF/A y protección con contraseña",
-    "fr": "Export PDF : signets pour chaque titre de diapositive, balises pour les lecteurs d’écran, PDF/A et protection par mot de passe"
    }
   },
   "c7962d6340d42ecbbeae73bcf7e489a94b6b85a5e79d8ab7151f97a73d193066": {
@@ -21053,6 +21510,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "c9b16f2fd099eb4d05a5da210d62c22cb97aedf9bc329a9b392e03e55e682b9e": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Charts: insert, edit data in a grid, and change the type (column, bar, line, pie, area, scatter, and more)",
+    "es": "Gráficos: insertar, editar los datos en una cuadrícula y cambiar el tipo (columnas, barras, líneas, circular, áreas, dispersión y más)",
+    "fr": "Graphiques : insérer, modifier les données dans une grille et changer le type (colonnes, barres, courbes, secteurs, aires, nuage de points, et plus)"
    }
   },
   "c9b719002ea0e9d663cc5ac4bc923e34082302c175b51f34df8fc1acc93ef69a": {
@@ -21631,6 +22100,18 @@
     "fr": "Fichiers et médias liés : paramètres de confiance dans les Options"
    }
   },
+  "d0b41dbdd5a6097dbe7bf8849a041b2b4489c248c5b351db24c5cfdc663891b0": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "PDF bookmarks from page names or Heading 1-3",
+    "es": "Marcadores en PDF a partir de nombres de página o Título 1-3",
+    "fr": "Signets PDF à partir des noms de page ou des Titres 1 à 3"
+   }
+  },
   "d0e1710182d7000598379c7dd09232487304b881cb99169600c879627243eb27": {
    "drop": false,
    "en": "Picture color changes are drawn in the order a file lists them: brightness and contrast, gray, black and white from a threshold, a color made clear or changed, one color for all, a duotone, a turned hue, and a tint. They apply to pictures, picture fills, and backgrounds.",
@@ -21785,6 +22266,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "d337b73f000e076e52dd335f570d565a5766e044281cd024adf334dabd07a521": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Read Aloud with the system’s voices: from the cursor, with the current word highlighted, and a choice of speed and voice",
+    "es": "Lectura en voz alta con las voces del sistema: desde el cursor, con la palabra actual resaltada y a elegir velocidad y voz",
+    "fr": "Lecture à voix haute avec les voix du système : depuis le curseur, avec le mot courant en surbrillance, et choix de la vitesse et de la voix"
    }
   },
   "d34412e942b4f7e8a796dab2f8c6a62a91194243aba5dbca5e818ad00058b786": {
@@ -22013,6 +22506,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "d63e771442f77df3cd9682ef6b4944f7b0fd5662dc51bd0928016447f6c4a8fd": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Show a publication’s folder and copy its path",
+    "es": "Mostrar la carpeta de una publicación y copiar su ruta",
+    "fr": "Afficher le dossier d’une publication et copier son chemin"
    }
   },
   "d67e127bef83e8477e4d9a25af9f8ef67292c3e6f291b15e983374a6237d3add": {
@@ -22327,6 +22832,18 @@
     "fr": ""
    }
   },
+  "dc3eb290b4508cd84dc0fa08c7baa2e0318d6b4f29c46895455f3e3f6d8a7cee": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Read Aloud with the system’s voices: from the cursor, with the current word highlighted, and a choice of speed and voice",
+    "es": "Lectura en voz alta con las voces del sistema: desde el cursor, con la palabra actual resaltada y a elegir velocidad y voz",
+    "fr": "Lecture à voix haute avec les voix du système : depuis le curseur, avec le mot courant en surbrillance, et choix de la vitesse et de la voix"
+   }
+  },
   "dc8252d172270cfa120debbb76a111c84164d64384fd71998fbd4483a4920790": {
    "drop": false,
    "en": "Opens `.pub` files from 1998 on, including linked text boxes, tables, pictures, and master pages.",
@@ -22541,6 +23058,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e06d93347aabdf1ee20d4f3a5e2d777eeb0effe0865254681b8735439e5e0b83": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Privacy options: remove personal information on save and choose what is sent anywhere (statistics, crash reports)",
+    "es": "Opciones de privacidad: quitar la información personal al guardar y elegir qué se envía (estadísticas, informes de fallos)",
+    "fr": "Options de confidentialité : supprimer les informations personnelles à l’enregistrement et choisir ce qui est envoyé (statistiques, rapports de plantage)"
    }
   },
   "e093a72f831d17f44e0b19e01a8108484f23b5a1e59deefaa416de294508337f": {
@@ -23297,18 +23826,6 @@
     "en": "Read Mode: column width, page color, and layout choices",
     "es": "Modo de lectura: ancho de columna, color de página y opciones de diseño",
     "fr": "Mode lecture : largeur de colonne, couleur de page et choix de mise en page"
-   }
-  },
-  "e9ffc178542493e8fe85d5f6ee6c1cf3e226cec8cc2389e484397004dcb3a6e3": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "ea11678afdeadf04c4c85805338215a1a913b61b836059cc69deede07c2e6ab2": {
@@ -24317,6 +24834,18 @@
     "en": "Equation editor: built-in equations, writing by typing, and ink",
     "es": "Editor de ecuaciones: ecuaciones integradas, escritura con el teclado y escritura a mano",
     "fr": "Éditeur d’équations : équations intégrées, saisie au clavier et écriture manuscrite"
+   }
+  },
+  "fa9a6f61b0344abf0e00da1b075c25e5b29619160c6e09aa6ee14ae799309be8": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Mark as Final: open a `.jpub` publication read-only with a note",
+    "es": "Marcar como final: abrir una publicación `.jpub` en solo lectura con una nota",
+    "fr": "Marquer comme final : ouvrir une publication `.jpub` en lecture seule avec une note"
    }
   },
   "faad69f7eca43f2c8a2c25d207e03d69b2486b8a088453f8d2d3c1575c0426a8": {
