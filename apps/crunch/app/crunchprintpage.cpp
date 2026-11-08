@@ -6,6 +6,7 @@
 #include "app/crunchwindow.h"
 #include "app/filescreenparts.h"
 #include "app/icons.h"
+#include "app/settings.h"
 #include "app/printsides.h"
 #include "core/printjob.h"
 #include "sheet/pagesetup.h"
@@ -135,7 +136,7 @@ QWidget *CrunchFileScreen::buildPrint()
     form->addRow(tr("Which pages:"), sides);
     auto *duplex = new QComboBox(w);
     duplex->setObjectName(QStringLiteral("printDuplex"));
-    fillSidesBox(duplex, false, choices.duplexChoice);
+    fillSidesBox(duplex, true, Settings::get().value(QStringLiteral("print/sides"), int(SidesChoice::OneSide)).toInt());
     form->addRow(tr("Sides:"), duplex);
     auto *perSheet = new QComboBox(w);
     perSheet->setObjectName(QStringLiteral("printPerSheet"));
@@ -298,6 +299,7 @@ QWidget *CrunchFileScreen::buildPrint()
         c.printer = c.toFile ? QString() : printer->currentData().toString();
         c.duplexChoice = sidesWanted(duplex);
         c.duplex = c.toFile ? QPrinter::DuplexNone : sidesDuplex(duplex);
+        c.byHand = !c.toFile && sidesByHand(duplex);
         return c;
     };
     auto pagesToPrint = [=]() {
@@ -434,7 +436,10 @@ QWidget *CrunchFileScreen::buildPrint()
         fitSides();
         win->printChoices() = read();
     });
-    connect(duplex, &QComboBox::currentIndexChanged, w, [=] { win->printChoices() = read(); });
+    connect(duplex, &QComboBox::currentIndexChanged, w, [=] {
+        Settings::get().setValue(QStringLiteral("print/sides"), sidesWanted(duplex));
+        win->printChoices() = read();
+    });
     connect(previous, &QToolButton::clicked, w, [=] {
         --state->page;
         words();

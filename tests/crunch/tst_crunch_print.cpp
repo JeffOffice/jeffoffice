@@ -1352,11 +1352,13 @@ void CrunchPrintTests::theSidesChoiceSetsTheDuplexModeOfThePrinter()
         EditWindow e;
         QVERIFY(e.open(rowsWithFormulas(100, {})));
         CrunchWindow &w = e.win.w;
+        Settings::get().setValue(QStringLiteral("print/sides"), 0);
         QVERIFY(openPrintPage(w));
         auto *duplex = w.findChild<QComboBox *>(QStringLiteral("printDuplex"));
         QVERIFY(duplex);
         if (i == 0) {
-            QCOMPARE(duplex->count(), 3);
+            QCOMPARE(duplex->count(), 4);
+            QCOMPARE(duplex->itemText(3), QStringLiteral("Print on both sides by hand"));
             QCOMPARE(duplex->itemText(0), QStringLiteral("Print on one side"));
             QCOMPARE(duplex->itemText(1), QStringLiteral("Print on both sides, flip on long edge"));
             QCOMPARE(duplex->itemText(2), QStringLiteral("Print on both sides, flip on short edge"));
@@ -1377,6 +1379,85 @@ void CrunchPrintTests::theSidesChoiceSetsTheDuplexModeOfThePrinter()
         QVERIFY(openPrintPage(w));
         QCOMPARE(w.findChild<QComboBox *>(QStringLiteral("printDuplex"))->currentIndex(), i);
     }
+}
+
+
+// Both sides by hand: the odd pages, a message to turn the stack over, then the even pages (last first); the message is left out for a job of one page, and declining it stops the job.
+void CrunchPrintTests::theSidesChoiceByHandPrintsTheOddPagesThenTheEvenPages()
+{
+    const DuplexStandIn standIn;
+    auto pagesIn = [](const QString &path) {
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly)) return -1;
+        const QByteArray pdf = f.readAll();
+        int pages = 0;
+        for (qsizetype at = pdf.indexOf("/Type /Page"); at >= 0; at = pdf.indexOf("/Type /Page", at + 1))
+            if (at + 11 >= pdf.size() || pdf[at + 11] != 's') ++pages;
+        return pages;
+    };
+    EditWindow e;
+    QVERIFY(e.open(rowsWithFormulas(100, {})));
+    CrunchWindow &w = e.win.w;
+    QComboBox *printer = openPrintPage(w);
+    QVERIFY(printer);
+    auto *duplex = w.findChild<QComboBox *>(QStringLiteral("printDuplex"));
+    QVERIFY(duplex);
+    duplex->setCurrentIndex(3);
+    QStringList order;
+    QVector<int> counts;
+    QVector<QPrinter::DuplexMode> modes;
+    w.setPrinterPreparer([&](QPrinter &p) {
+        order << QStringLiteral("print");
+        modes << p.duplex();
+        p.setOutputFormat(QPrinter::PdfFormat);
+        p.setOutputFileName(e.folder.dir.filePath(QStringLiteral("h%1.pdf").arg(order.size())));
+    });
+    bool turn = true;
+    setStackTurnerStandIn([&] {
+        order << QStringLiteral("turn");
+        counts << pagesIn(e.folder.dir.filePath(QStringLiteral("h1.pdf")));
+        return turn;
+    });
+    const auto done = qScopeGuard([] { setStackTurnerStandIn(nullptr); });
+    w.findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+    QCOMPARE(order, (QStringList{QStringLiteral("print"), QStringLiteral("turn"), QStringLiteral("print")}));
+    QCOMPARE(modes, (QVector<QPrinter::DuplexMode>{QPrinter::DuplexNone, QPrinter::DuplexNone}));
+    QCOMPARE(counts, (QVector<int>{2}));   // (pages 1 and 3 first)
+    QCOMPARE(pagesIn(e.folder.dir.filePath(QStringLiteral("h3.pdf"))), 1);   // (then page 2)
+    // declined: nothing more is sent
+    order.clear();
+    QVERIFY(openPrintPage(w));
+    w.findChild<QComboBox *>(QStringLiteral("printDuplex"))->setCurrentIndex(3);
+    turn = false;
+    crunch::PrintChoices c = w.printChoices();
+    QVERIFY(c.byHand);
+    QVERIFY(!w.printWith(c));
+    QCOMPARE(order, (QStringList{QStringLiteral("print"), QStringLiteral("turn")}));
+    // one page: it is printed, and there is nothing to turn over
+    order.clear();
+    c.pageRange = QStringLiteral("2");
+    QVERIFY(w.printWith(c));
+    QCOMPARE(order, (QStringList{QStringLiteral("print")}));
+}
+
+
+// The Sides choice is kept for the next time, in the settings every app shares for it.
+void CrunchPrintTests::theSidesChoiceIsRememberedAcrossRestarts()
+{
+    const DuplexStandIn standIn;
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        Settings::get().setValue(QStringLiteral("print/sides"), 0);
+        QVERIFY(openPrintPage(e.win.w));
+        e.win.w.findChild<QComboBox *>(QStringLiteral("printDuplex"))->setCurrentIndex(2);
+        QCOMPARE(Settings::get().value(QStringLiteral("print/sides")).toInt(), 2);
+    }
+    EditWindow later;   // (a window that has never seen the choice)
+    QVERIFY(later.open(rowsWithFormulas(100, {})));
+    QVERIFY(openPrintPage(later.win.w));
+    QCOMPARE(later.win.w.findChild<QComboBox *>(QStringLiteral("printDuplex"))->currentIndex(), 2);
+    later.win.w.findChild<QComboBox *>(QStringLiteral("printDuplex"))->setCurrentIndex(0);
 }
 
 

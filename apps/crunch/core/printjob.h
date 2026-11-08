@@ -76,6 +76,7 @@ struct PrintChoices {
     bool collate = true;
     QString printer;            // the printer's name; empty for the default
     bool toFile = false;        // a PDF file, not a printer
+    bool byHand = false;        // both sides by hand: the first, third, ... pages, a message to turn the stack over, then the others last first (never with a file)
     int duplexChoice = 0;       // the Sides choice as it was made (a jp::SidesChoice), kept for the next time the page is opened
     QPrinter::DuplexMode duplex = QPrinter::DuplexNone;   // what the printer is set to: both sides on the long or the short edge (never with a file, and never where the printer can't)
 };

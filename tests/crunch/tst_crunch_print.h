@@ -38,6 +38,7 @@
 #include <QScrollArea>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QScopeGuard>
 #include <QSpinBox>
 #include <QTabWidget>
 #include <QSettings>
@@ -217,6 +218,8 @@ private Q_SLOTS:
     void pagesGoToAPrinterObject();
     void theSidesChoiceSetsTheDuplexModeOfThePrinter();
     void theSidesChoiceFollowsThePrinterAndTheFileTarget();
+    void theSidesChoiceByHandPrintsTheOddPagesThenTheEvenPages();
+    void theSidesChoiceIsRememberedAcrossRestarts();
     void exportToPdfWritesTheSheetOrTheWorkbook();
     void thePageBreaksShowOnTheSheetAfterAPreview();
     void undoAndRedoOfTypingMoveThePagesAtOnce();

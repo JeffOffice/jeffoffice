@@ -2,6 +2,7 @@
 // Setup dialog is in their own files.
 
 #include "app/crunchwindow.h"
+#include "app/printsides.h"
 
 #include <QSet>
 
@@ -142,23 +143,44 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
         if (!ok) notice(tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3").arg(appInfo().name, QFileInfo(path).fileName(), why));
         else setStatus(tr("Saved %1").arg(QFileInfo(path).fileName()));
     } else {
-        QPrinter &p = printer();
-        p.setDocName(displayName());
-        if (!c.printer.isEmpty() && p.printerName() != c.printer) p.setPrinterName(c.printer);
-        p.setDuplex(c.duplex);
-        p.setCopyCount(std::max(1, c.copies));
-        p.setCollateCopies(c.collate);
-        if (m_printerPreparer) m_printerPreparer(p);
-        // a printer that can't make copies is sent the pages again, in the order the copies are to come out
-        const bool again = p.outputFormat() == QPrinter::NativeFormat && !p.supportsMultipleCopies();
-        ok = job->printTo(&p, pages, &why, progressFunction(tr("Printing"), tr("Sending the pages...")), again ? c.copies : 1, c.collate, c.pagesPerSheet);
-        if (!ok && job->wasCancelled()) {
-            setStatus(tr("Printing was cancelled"));
-            return false;
+        // Both sides by hand: the sheets are shared out, the first, third, ... then the others last first (a sheet holds the pages that share it).
+        QVector<QVector<int>> runs;
+        if (c.byHand) {
+            QVector<QVector<int>> sheets;
+            const int per = std::max(1, c.pagesPerSheet);
+            for (int i = 0; i < pages.size(); i += per) sheets.push_back(pages.mid(i, per));
+            const HandRuns<QVector<int>> shared = handRuns(sheets);
+            for (const QVector<QVector<int>> &part : {shared.first, shared.second}) {
+                QVector<int> run;
+                for (const QVector<int> &sheet : part) run += sheet;
+                if (!run.isEmpty()) runs.push_back(run);
+            }
+        } else {
+            runs.push_back(pages);
         }
-        if (!ok) notice(tr("Print"), tr("%1 couldn't send \"%2\" to the printer.\n%3").arg(appInfo().name, displayName(), why));
-        else setStatus(tr("Sent %1 to the printer").arg(displayName()));
-        // (printing on both sides by hand: the person is told what to do with the stack before the other pages are printed)
+        for (int k = 0; k < runs.size(); ++k) {
+            if (k > 0 && !askToTurnStack(this)) return false;
+            QPrinter &p = printer();
+            p.setDocName(displayName());
+            if (!c.printer.isEmpty() && p.printerName() != c.printer) p.setPrinterName(c.printer);
+            p.setDuplex(c.duplex);
+            p.setCopyCount(std::max(1, c.copies));
+            p.setCollateCopies(c.collate);
+            if (m_printerPreparer) m_printerPreparer(p);
+            // a printer that can't make copies is sent the pages again, in the order the copies are to come out
+            const bool again = p.outputFormat() == QPrinter::NativeFormat && !p.supportsMultipleCopies();
+            ok = job->printTo(&p, runs[k], &why, progressFunction(tr("Printing"), tr("Sending the pages...")), again ? c.copies : 1, c.collate, c.pagesPerSheet);
+            if (!ok && job->wasCancelled()) {
+                setStatus(tr("Printing was cancelled"));
+                return false;
+            }
+            if (!ok) {
+                notice(tr("Print"), tr("%1 couldn't send \"%2\" to the printer.\n%3").arg(appInfo().name, displayName(), why));
+                break;
+            }
+            setStatus(tr("Sent %1 to the printer").arg(displayName()));
+        }
+        // (printing on both sides by hand with the pages chosen: the person is told what to do with the stack before the other pages are printed)
         if (ok && c.sides == crunch::PrintSides::Odd)
             notice(tr("Print"), tr("The odd pages were sent to the printer. When they are printed, turn the stack over, put it back in the paper tray, and print again with \"Even pages only\"."));
     }
