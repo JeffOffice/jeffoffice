@@ -1,5 +1,6 @@
 #include <QScopeGuard>
 #include "app/mainwindow.h"
+#include "core/version.h"
 #include "core/startuptrace.h"
 #include "templates/changetemplate.h"
 #include "app/help.h"
@@ -1020,7 +1021,7 @@ static QByteArray pdfX4Profile(QWidget *parent, const PdfXCondition &c, const QS
     }
     QNetworkAccessManager net;
     QNetworkRequest req(url);
-    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("JeffPub/%1").arg(QStringLiteral(JP_VERSION)));
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("JeffPub/%1").arg(jp::versionText()));
     QNetworkReply *r = net.get(req);
     QProgressDialog progress(QCoreApplication::translate("MainWindow", "Downloading %1…").arg(c.info), QCoreApplication::translate("MainWindow", "Cancel"), 0, 0, parent);
     progress.setWindowModality(Qt::WindowModal);

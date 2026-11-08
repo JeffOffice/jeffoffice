@@ -1,4 +1,5 @@
 #include "app/help.h"
+#include "core/version.h"
 
 #include "app/i18n.h"
 #include "core/appinfo.h"
@@ -343,12 +344,12 @@ QUrl feedbackUrl()
     q.addQueryItem(QStringLiteral("body"), QStringLiteral("**What would you like to tell us?** (a problem, or an idea)\n\n\n"
                                                           "**For a problem: what did you do just before it happened?**\n\n\n"
                                                           "%1 %2 on %3 (%4)\n")
-                                               .arg(appInfo().name, QStringLiteral(JP_VERSION), QSysInfo::prettyProductName(), QSysInfo::currentCpuArchitecture()));
+                                               .arg(appInfo().name, jp::versionText(), QSysInfo::prettyProductName(), QSysInfo::currentCpuArchitecture()));
     u.setQuery(q);
     return u;
 }
 
-QUrl whatsNewUrl() { return QUrl(QStringLiteral("https://github.com/") + appInfo().repository + QStringLiteral("/releases/tag/v" JP_VERSION)); }
+QUrl whatsNewUrl() { return QUrl(QStringLiteral("https://github.com/") + appInfo().repository + QStringLiteral("/releases/tag/v") + jp::versionText()); }
 
 } // namespace help
 

@@ -1,5 +1,6 @@
 // JeffDeck's tests of open document presentations: reading, writing, and saving from the window.
 #include "deckhelpers.h"
+#include "core/version.h"
 
 namespace odptest {
 
@@ -987,7 +988,7 @@ private Q_SLOTS:
         QCOMPARE(listed.value(QStringLiteral("meta.xml")), QStringLiteral("text/xml"));
         // The metadata names the program and its version, and holds what the presentation says of itself.
         const QString metaText = QString::fromUtf8(zip.value(QStringLiteral("meta.xml")));
-        QVERIFY2(metaText.contains(QStringLiteral("<meta:generator>JeffDeck/") + QStringLiteral(JP_VERSION) + QStringLiteral("</meta:generator>")), qPrintable(metaText));
+        QVERIFY2(metaText.contains(QStringLiteral("<meta:generator>JeffDeck/") + jp::versionText() + QStringLiteral("</meta:generator>")), qPrintable(metaText));
         QVERIFY(metaText.contains(QStringLiteral("<dc:title>Quarterly &lt;results&gt; &amp; plans</dc:title>")));
         QVERIFY(metaText.contains(QStringLiteral("<meta:initial-creator>Pat Doe</meta:initial-creator>")));
         QCOMPARE(int(odptest::byName(meta, "meta:keyword").size()), 2);

@@ -1,5 +1,6 @@
 // JeffDeck's tests of spelling, comments, the options, and telemetry.
 #include "../plainprobe.h"
+#include "core/version.h"
 #include "deckhelpers.h"
 
 #include <QToolTip>
@@ -1157,7 +1158,7 @@ private Q_SLOTS:
         keys.sort();
         QCOMPARE(keys, (QStringList{"app", "counts", "install", "lang", "launches", "os", "osVersion", "version"}));
         QJsonObject report;
-        report[QStringLiteral("version")] = QStringLiteral(JP_VERSION);
+        report[QStringLiteral("version")] = jp::versionText();
         report[QStringLiteral("when")] = QDateTime::currentDateTimeUtc().date().toString(Qt::ISODate);
         report[QStringLiteral("kind")] = QStringLiteral("signal");
         report[QStringLiteral("code")] = 11;

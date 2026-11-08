@@ -1,4 +1,5 @@
 #include "app/crash.h"
+#include "core/version.h"
 
 #include <QDate>
 #include <QDir>
@@ -64,7 +65,9 @@ struct Report {
     void begin(const char *kind, long long code)
     {
         put(kHeader);
-        put("\nversion " JP_VERSION "\nwhen ");
+        put("\nversion ");
+        put(jp::versionString());
+        put("\nwhen ");
         // The day in UTC, worked out from the clock (gmtime() may lock).
         long long z = static_cast<long long>(std::time(nullptr)) / 86400 + 719468;
         const long long era = (z >= 0 ? z : z - 146096) / 146097;

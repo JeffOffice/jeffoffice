@@ -8,6 +8,7 @@
 //   JeffWrite --tab <name>               open with this ribbon tab showing (Home, Insert, References, ...)
 
 #include "app/crash.h"
+#include "core/version.h"
 #include "app/focusring.h"
 #include "app/i18n.h"
 #include "app/icons.h"
@@ -77,7 +78,7 @@ int main(int argc, char **argv)
     jp::setAppInfo(jp::writeAppInfo());
     QApplication::setApplicationName(QStringLiteral("JeffWrite"));
     QApplication::setOrganizationName(QStringLiteral("JeffOffice"));
-    QApplication::setApplicationVersion(QStringLiteral(JP_VERSION));
+    QApplication::setApplicationVersion(jp::versionText());
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
     jp::startupMark("QApplication built");

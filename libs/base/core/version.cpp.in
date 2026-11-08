@@ -1,0 +1,8 @@
+#include "core/version.h"
+
+namespace jp {
+
+const char *versionString() { return "@PROJECT_VERSION@"; }
+QString versionText() { return QString::fromLatin1(versionString()); }
+
+} // namespace jp

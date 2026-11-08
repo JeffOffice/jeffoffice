@@ -1,5 +1,6 @@
 // JeffDeck's tests of the file screen, saving from the window, and reusing slides.
 #include "../settingguard.h"
+#include "core/version.h"
 #include "deckhelpers.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
@@ -608,7 +609,7 @@ private Q_SLOTS:
             if (rows.contains(c->accessibleName())) named << c->accessibleName();
             if (auto *l = qobject_cast<QLabel *>(c)) {
                 if (l->text() == QLatin1String("Coming soon")) ++comingSoon;
-                if (l->text().startsWith(QLatin1String("Version ")) && l->text().contains(QLatin1String(JP_VERSION)) && l->text().contains(QLatin1String("Qt"))) version = true;
+                if (l->text().startsWith(QLatin1String("Version ")) && l->text().contains(jp::versionText()) && l->text().contains(QLatin1String("Qt"))) version = true;
                 if (l->text().contains(QLatin1String("github.com/JeffOffice/jeffoffice/releases"))) links = true;
                 if (l->text().contains(QLatin1String("GNU General Public License"))) license = true;
             }

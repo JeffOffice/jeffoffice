@@ -7,6 +7,7 @@
 //   JeffCrunch --backstage <page>        open on a File page (open, about)
 
 #include "app/ribbonbuilder.h"
+#include "core/version.h"
 #include "app/crash.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
@@ -79,7 +80,7 @@ int main(int argc, char **argv)
     jp::setAppInfo(jp::crunchAppInfo());
     QApplication::setApplicationName(QStringLiteral("JeffCrunch"));
     QApplication::setOrganizationName(QStringLiteral("JeffOffice"));
-    QApplication::setApplicationVersion(QStringLiteral(JP_VERSION));
+    QApplication::setApplicationVersion(jp::versionText());
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
     jp::startupMark("QApplication built");

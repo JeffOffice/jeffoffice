@@ -12,6 +12,7 @@
 //                                         with QT_QPA_PLATFORM=offscreen)
 
 #include "app/ribbonbuilder.h"
+#include "core/version.h"
 #include "app/telemetry.h"
 #include "app/crash.h"
 #include "app/editor.h"
@@ -62,7 +63,7 @@ int main(int argc, char **argv)
     jp::setAppInfo(jp::pubAppInfo());   // who the shared libraries say is running
     QApplication::setApplicationName(QStringLiteral("JeffPub"));
     QApplication::setOrganizationName(QStringLiteral("JeffOffice"));
-    QApplication::setApplicationVersion(QStringLiteral(JP_VERSION));
+    QApplication::setApplicationVersion(jp::versionText());
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
     jp::startupMark("QApplication built");

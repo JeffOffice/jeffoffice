@@ -1,5 +1,6 @@
 // JeffPub's tests of the window: ribbon, help, keyboard, accessibility, themes, and translations.
 #include "grid/gridview.h"
+#include "core/version.h"
 #include "pubhelpers.h"
 #include "app/optionsdialog.h"
 #include "app/firstwindow.h"
@@ -848,8 +849,8 @@ private Q_SLOTS:
         jp::help::openUrl = keep;
         QCOMPARE(opened.size(), 3);
         QCOMPARE(opened[1].toString(QUrl::RemoveQuery), QStringLiteral("https://github.com/JeffOffice/jeffoffice/issues/new"));
-        QVERIFY(QUrlQuery(opened[1]).queryItemValue(QStringLiteral("body"), QUrl::FullyDecoded).contains(QStringLiteral("JeffPub " JP_VERSION " on ")));
-        QCOMPARE(opened[2].toString(), QStringLiteral("https://github.com/JeffOffice/jeffoffice/releases/tag/v" JP_VERSION));
+        QVERIFY(QUrlQuery(opened[1]).queryItemValue(QStringLiteral("body"), QUrl::FullyDecoded).contains(QStringLiteral("JeffPub ") + jp::versionText() + QStringLiteral(" on ")));
+        QCOMPARE(opened[2].toString(), QStringLiteral("https://github.com/JeffOffice/jeffoffice/releases/tag/v") + jp::versionText());
         // Ctrl+F1 collapses the ribbon and brings it back, as there.
         QVERIFY(!w.ribbon()->isMinimized());
         QTest::keyClick(&w, Qt::Key_F1, Qt::ControlModifier);

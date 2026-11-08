@@ -1,4 +1,5 @@
 #include "app/filescreen.h"
+#include "core/version.h"
 #include "app/filescreenparts.h"
 #include "app/theme.h"
 
@@ -60,7 +61,7 @@ FileScreen::FileScreen(QWidget *parent) : QWidget(parent)
     m_navGroup = new QButtonGroup(this);
     m_navGroup->setExclusive(true);
     sv->addStretch(1);
-    m_version = new QLabel(tr("Version %1").arg(QStringLiteral(JP_VERSION)), side);
+    m_version = new QLabel(tr("Version %1").arg(jp::versionText()), side);
     m_version->setContentsMargins(24, 0, 12, 0);
     sv->addWidget(m_version);
     h->addWidget(side);

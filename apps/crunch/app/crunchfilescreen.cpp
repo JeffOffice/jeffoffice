@@ -1,4 +1,5 @@
 #include "app/crunchfilescreen.h"
+#include "core/version.h"
 
 #include "app/crunchwindow.h"
 #include "app/filescreenparts.h"
@@ -320,7 +321,7 @@ QWidget *CrunchFileScreen::buildAbout()
     nf.setPointSizeF(nf.pointSizeF() * 1.35);
     name->setFont(nf);
     iv->addWidget(name);
-    iv->addWidget(mutedLabel(tr("Version %1 · Built with Qt %2").arg(QStringLiteral(JP_VERSION), QString::fromLatin1(qVersion())), id));
+    iv->addWidget(mutedLabel(tr("Version %1 · Built with Qt %2").arg(jp::versionText(), QString::fromLatin1(qVersion())), id));
     auto *tag = new QLabel(tr("Free, open-source spreadsheets for Windows, macOS, and Linux. This is a Preview."), id);
     tag->setWordWrap(true);
     fitHeight(tag);

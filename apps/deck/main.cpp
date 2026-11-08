@@ -8,6 +8,7 @@
 //   JeffDeck --backstage <page>         open on a File page (new, open, print, ...)
 
 #include "app/ribbonbuilder.h"
+#include "core/version.h"
 #include "app/crash.h"
 #include "app/deckinfo.h"
 #include "app/deckwindow.h"
@@ -75,7 +76,7 @@ int main(int argc, char **argv)
     jp::setAppInfo(jp::deckAppInfo());
     QApplication::setApplicationName(QStringLiteral("JeffDeck"));
     QApplication::setOrganizationName(QStringLiteral("JeffOffice"));
-    QApplication::setApplicationVersion(QStringLiteral(JP_VERSION));
+    QApplication::setApplicationVersion(jp::versionText());
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
     jp::startupMark("QApplication built");

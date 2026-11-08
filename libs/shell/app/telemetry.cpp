@@ -1,4 +1,5 @@
 #include "app/telemetry.h"
+#include "core/version.h"
 
 #include "app/crash.h"
 #include "app/settings.h"
@@ -94,7 +95,7 @@ QNetworkRequest request(const char *url)
 {
     QNetworkRequest req{QUrl(QString::fromLatin1(url))};
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
-    req.setHeader(QNetworkRequest::UserAgentHeader, appInfo().name + QStringLiteral("/") + QStringLiteral(JP_VERSION));
+    req.setHeader(QNetworkRequest::UserAgentHeader, appInfo().name + QStringLiteral("/") + jp::versionText());
     req.setTransferTimeout(15000);
     return req;
 }
@@ -122,7 +123,7 @@ void send(QNetworkAccessManager *net)
         Settings::get().setValue(kCounts, counts);
         Settings::get().setValue(kLaunches, std::max(0, Settings::get().value(kLaunches).toInt() - sent.value(QStringLiteral("launches")).toInt()));
         Settings::get().setValue(kLastSent, today);
-        Settings::get().setValue(kLastVersion, QStringLiteral(JP_VERSION));
+        Settings::get().setValue(kLastVersion, jp::versionText());
     });
 }
 
@@ -252,7 +253,7 @@ bool due()
     // (the collector adds it to the day's), so an update shows up the day
     // it's installed.
     return Settings::get().value(kLastSent).toDate() != QDate::currentDate() ||
-           Settings::get().value(kLastVersion).toString() != QStringLiteral(JP_VERSION);
+           Settings::get().value(kLastVersion).toString() != jp::versionText();
 }
 
 void count(const QString &feature)
@@ -295,7 +296,7 @@ QJsonObject payload()
         if (it.value().toInt() > 0) counts.insert(it.key(), std::min(it.value().toInt(), 100000));
     return QJsonObject{{QStringLiteral("app"), appName()},
                        {QStringLiteral("install"), installId()},
-                       {QStringLiteral("version"), clean(QStringLiteral(JP_VERSION), QStringLiteral("[^0-9A-Za-z.+-]"), 20)},
+                       {QStringLiteral("version"), clean(jp::versionText(), QStringLiteral("[^0-9A-Za-z.+-]"), 20)},
                        {QStringLiteral("os"), osName()},
                        {QStringLiteral("osVersion"), clean(osVersion, QStringLiteral("[^0-9A-Za-z .()_+-]"), 40)},
                        {QStringLiteral("lang"), clean(QLocale::system().name(), QStringLiteral("[^A-Za-z_-]"), 20)},

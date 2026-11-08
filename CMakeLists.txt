@@ -42,8 +42,11 @@ jo_library(jo_base libs/base)
 # Help, the ribbon) sit at the bottom, where every layer can read them;
 # each app gets its own when a second app needs different ones.
 target_sources(jo_base PRIVATE resources/resources.qrc)
+# The version is a function in one generated file, not a definition on every compile command: a bump recompiles that file alone.
+configure_file(libs/base/core/version.cpp.in ${CMAKE_BINARY_DIR}/generated/version.cpp @ONLY)
+target_sources(jo_base PRIVATE ${CMAKE_BINARY_DIR}/generated/version.cpp)
 target_link_libraries(jo_base PUBLIC Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport Qt6::Network PRIVATE jp_hunspell jp_zlib pdfium)
-target_compile_definitions(jo_base PUBLIC JP_VERSION="${PROJECT_VERSION}" QT_NO_KEYWORDS PRIVATE JP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_compile_definitions(jo_base PUBLIC QT_NO_KEYWORDS PRIVATE JP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_compile_options(jo_base PUBLIC -Wall -Wextra -Wno-unused-parameter)
 jo_library(jo_draw libs/draw)
 target_link_libraries(jo_draw PUBLIC jo_base)

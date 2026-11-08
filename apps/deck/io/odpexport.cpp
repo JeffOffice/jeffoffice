@@ -1,4 +1,5 @@
 #include "io/odpexport.h"
+#include "core/version.h"
 
 #include "io/odpexport_p.h"
 
@@ -918,7 +919,7 @@ void Exporter::writeMeta()
     x.attr("xmlns:dc", "http://purl.org/dc/elements/1.1/").attr("xmlns:meta", "urn:oasis:names:tc:opendocument:xmlns:meta:1.0").attr("xmlns:ooo", "http://openoffice.org/2004/office");
     x.attr("office:version", "1.3");
     x.open("office:meta");
-    x.open("meta:generator").text(QStringLiteral("JeffDeck/") + QStringLiteral(JP_VERSION)).close();
+    x.open("meta:generator").text(QStringLiteral("JeffDeck/") + jp::versionText()).close();
     if (!p.title.isEmpty()) x.open("dc:title").text(p.title).close();
     if (!p.comments.isEmpty()) x.open("dc:description").text(p.comments).close();
     if (!p.subject.isEmpty()) x.open("dc:subject").text(p.subject).close();

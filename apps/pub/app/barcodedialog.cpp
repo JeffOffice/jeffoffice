@@ -3,6 +3,7 @@
 // on a white quiet zone, grouped.
 
 #include "app/dialogs.h"
+#include "core/version.h"
 #include "app/editor.h"
 #include "app/settings.h"
 #include "core/barcode.h"
@@ -84,7 +85,7 @@ void useIsbnRanges(QObject *receiver, const std::function<void()> &arrived)
     asked = true;
     static auto *net = new QNetworkAccessManager(qApp);
     QNetworkRequest req{QUrl(QString::fromLatin1(kIsbnRangesUrl))};
-    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("JeffPub/%1").arg(QStringLiteral(JP_VERSION)));
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("JeffPub/%1").arg(jp::versionText()));
     QNetworkReply *r = net->get(req);
     QPointer<QObject> open(receiver);
     QObject::connect(r, &QNetworkReply::finished, net, [r, open, arrived] {

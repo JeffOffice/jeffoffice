@@ -1,5 +1,6 @@
 // JeffPub's tests of pictures: linked, online, dropped, and the building blocks.
 #include "pubhelpers.h"
+#include "core/version.h"
 #include "../isolatesettings.h"
 
 class PubPictureTests : public QObject {
@@ -796,9 +797,9 @@ private Q_SLOTS:
                 if (line.toLower().startsWith("user-agent:")) return QString::fromLatin1(line.mid(11)).trimmed();
             return QString();
         };
-        QCOMPARE(agent(), QStringLiteral("JeffPub/" JP_VERSION " (https://github.com/JeffOffice/jeffoffice)"));
+        QCOMPARE(agent(), QStringLiteral("JeffPub/") + jp::versionText() + QStringLiteral(" (https://github.com/JeffOffice/jeffoffice)"));
         jp::setAppInfo({QStringLiteral("JeffDeck"), QStringLiteral("jeffdeck"), QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice/jeffoffice")});
-        QCOMPARE(agent(), QStringLiteral("JeffDeck/" JP_VERSION " (https://github.com/JeffOffice/jeffoffice)"));
+        QCOMPARE(agent(), QStringLiteral("JeffDeck/") + jp::versionText() + QStringLiteral(" (https://github.com/JeffOffice/jeffoffice)"));
     }
 
     // An icon as an SVG picture (what JeffDeck inserts): the bundled icon's own file, drawn in the color asked for instead of the

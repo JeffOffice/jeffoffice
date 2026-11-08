@@ -1,4 +1,5 @@
 #include "app/updater.h"
+#include "core/version.h"
 
 #include "app/appwindow.h"
 
@@ -146,7 +147,7 @@ void Updater::check(bool interactive)
     }
     m_busy = true;
     QNetworkRequest req{QUrl(releasesUrl())};
-    req.setHeader(QNetworkRequest::UserAgentHeader, appInfo().name + QStringLiteral("/") + QStringLiteral(JP_VERSION));
+    req.setHeader(QNetworkRequest::UserAgentHeader, appInfo().name + QStringLiteral("/") + jp::versionText());
     req.setRawHeader("Accept", "application/vnd.github+json");
     req.setTransferTimeout(15000);
     QNetworkReply *r = m_net.get(req);
@@ -163,7 +164,7 @@ void Updater::check(bool interactive)
         const QJsonArray releases = QJsonDocument::fromJson(r->readAll()).array();
         // The newest release is offered, with the notes of every release
         // since the one running (newest first).
-        const QVector<QJsonObject> newer = newerReleases(releases, QStringLiteral(JP_VERSION), betaChannel());
+        const QVector<QJsonObject> newer = newerReleases(releases, jp::versionText(), betaChannel());
         const QJsonObject newest = newer.value(0);
         if (!newest.isEmpty() && !interactive && Settings::get().value(QStringLiteral("updates/skip")).toString() == newest.value("tag_name").toString())
             return;
@@ -187,7 +188,7 @@ void Updater::check(bool interactive)
         }
         if (interactive)
             jp::plainInformation(m_win, tr("Check for Updates"),
-                                     tr("You have the latest version of %1 (%2).").arg(appInfo().name, QStringLiteral(JP_VERSION)));
+                                     tr("You have the latest version of %1 (%2).").arg(appInfo().name, jp::versionText()));
     });
 }
 
@@ -237,8 +238,8 @@ QDialog *Updater::offerDialog(QWidget *parent, const QString &version, const QSt
     tf.setPointSizeF(tf.pointSizeF() * 1.4);
     tf.setBold(true);
     title->setFont(tf);
-    auto *sub = new QLabel(canInstall ? tr("You have version %1. Update Now downloads the installer and asks you to save your work first.").arg(QStringLiteral(JP_VERSION))
-                                      : tr("You have version %1. The new version can be downloaded from its release page.").arg(QStringLiteral(JP_VERSION)),
+    auto *sub = new QLabel(canInstall ? tr("You have version %1. Update Now downloads the installer and asks you to save your work first.").arg(jp::versionText())
+                                      : tr("You have version %1. The new version can be downloaded from its release page.").arg(jp::versionText()),
                            d);
     sub->setWordWrap(true);
     QPalette dim = sub->palette();
@@ -317,7 +318,7 @@ void Updater::downloadAndRun(const QString &url, const QString &tag, const QStri
     if (!trustedInstaller(url, tag, digest)) return;
     const QString dest = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation)).filePath(appInfo().name + QStringLiteral("-Setup-") + tag + QStringLiteral(".exe"));
     QNetworkRequest req{QUrl(url)};
-    req.setHeader(QNetworkRequest::UserAgentHeader, appInfo().name + QStringLiteral("/") + QStringLiteral(JP_VERSION));
+    req.setHeader(QNetworkRequest::UserAgentHeader, appInfo().name + QStringLiteral("/") + jp::versionText());
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
     QNetworkReply *r = m_net.get(req);
     auto *progress = new QProgressDialog(tr("Downloading %1 %2…").arg(appInfo().name, tag), tr("Cancel"), 0, 100, m_win);
