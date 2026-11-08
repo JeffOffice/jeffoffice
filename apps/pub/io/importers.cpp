@@ -778,17 +778,33 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
     QVector<int> list = parsePageList(opts.value("pages").toString(), int(d->pages.size()));
     if (list.isEmpty())
         for (int i = from; i <= to; ++i) list << i;
-    // Both sides by hand: a run of the physical sheets (the first, third, ... or the others last first, with -1 for a blank one); each layout counts its own sheets.
+    // Both sides by hand: a run of the physical sheets of the whole job, every record's sheets one after another (the first, third, ... or the others last first, with -1 for a
+    // blank one). With several records a record of an odd number of sheets gets a blank back, so that the next record starts on a new sheet.
     const QString handRun = opts.value("handRun").toString();
     const bool booklet = layout == "booklet" || layout == "bookletTop";
     const QVector<QVector<int>> bookletSides = booklet ? bookletOrder(d->pages.size()) : QVector<QVector<int>>();
+    QVector<int> records{catalogPages ? -1 : ed->mergeRecord()};
+    if (merged) records = d->merge.includedRows();
+    struct Send {
+        int record, sheet, id;   // the record (an index in `records`), its sheet (-1: blank), and the sheet's number in the whole job (-1: blank)
+    };
     auto sheetsToSend = [&](int count) {
-        QVector<int> all;
-        for (int i = 0; i < count; ++i) all << i;
-        if (report) report->all = count;
-        if (handRun.isEmpty()) return all;
-        const HandRuns<int> runs = handRuns(all, -1);
-        return handRun == "first" ? runs.first : runs.second;
+        QVector<Send> out;
+        const int each = handRun.isEmpty() || records.size() < 2 ? count : count + count % 2;
+        if (report) report->all = int(records.size()) * each;
+        if (handRun.isEmpty()) {
+            for (int r = 0; r < records.size(); ++r)
+                for (int i = 0; i < count; ++i) out.push_back({r, i, r * count + i});
+            return out;
+        }
+        QVector<int> everything;
+        for (int g = 0; g < records.size() * each; ++g) everything << g;
+        const HandRuns<int> runs = handRuns(everything, -1);
+        for (int g : handRun == "first" ? runs.first : runs.second) {
+            if (g < 0 || g % each >= count) out.push_back({0, -1, -1});
+            else out.push_back({g / each, g % each, g});
+        }
+        return out;
     };
     int sent = 0;
     QPainter p;
@@ -850,17 +866,16 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
             p.restore();
         }
     };
-    QVector<int> records{catalogPages ? -1 : ed->mergeRecord()};
-    if (merged) records = d->merge.includedRows();
-    for (int rec : records) {
-        ctx.opt.mergeRecord = rec;
+    {
         if (booklet) {
             const bool top = layout == "bookletTop";
-            for (int si : sheetsToSend(int(bookletSides.size()))) {
+            for (const Send &send : sheetsToSend(int(bookletSides.size()))) {
+                const int si = send.sheet;
                 const QVector<int> side = si < 0 ? QVector<int>{-1, -1} : bookletSides[si];
+                if (si >= 0) ctx.opt.mergeRecord = records[send.record];
                 for (int pl : plates) {
                     plate = pl;
-                    newSheet(si);
+                    newSheet(send.id);
                     if (si < 0) continue;
                     if (!top) {
                         const double half = sheet.width() / 2;
@@ -894,11 +909,13 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
             // (a sheet is one page, copied across it, or the next rows * cols pages)
             const int perSheetPages = copies ? 1 : rows * cols;
             const int sheetCount = int((list.size() + perSheetPages - 1) / perSheetPages);
-            for (int si : sheetsToSend(sheetCount)) {
+            for (const Send &send : sheetsToSend(sheetCount)) {
+                const int si = send.sheet;
                 const int at = si * perSheetPages;
+                if (si >= 0) ctx.opt.mergeRecord = records[send.record];
                 for (int pl : plates) {
                     plate = pl;
-                    newSheet(si);
+                    newSheet(send.id);
                     if (si < 0) continue;
                     for (int rr = 0; rr < rows; ++rr)
                         for (int cc = 0; cc < cols; ++cc) {
@@ -919,9 +936,11 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
             for (int page : std::as_const(list))
                 for (double y = 0; y < ps.height() - 0.5; y += sheet.height() - overlap)
                     for (double x = 0; x < ps.width() - 0.5; x += sheet.width() - overlap) tiles.push_back({page, x, y});
-            for (int si : sheetsToSend(int(tiles.size()))) {
-                newSheet(si);
+            for (const Send &send : sheetsToSend(int(tiles.size()))) {
+                const int si = send.sheet;
+                newSheet(send.id);
                 if (si < 0) continue;
+                ctx.opt.mergeRecord = records[send.record];
                 const Tile &t = tiles[si];
                 p.save();
                 p.scale(dev, dev);
@@ -931,10 +950,12 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
                 p.restore();
             }
         } else {
-            for (int si : sheetsToSend(int(list.size()))) {
+            for (const Send &send : sheetsToSend(int(list.size()))) {
+                const int si = send.sheet;
+                if (si >= 0) ctx.opt.mergeRecord = records[send.record];
                 for (int pl : plates) {
                     plate = pl;
-                    newSheet(si);
+                    newSheet(send.id);
                     if (si < 0) continue;
                     const QSizeF fit = ps.scaled(sheet.size(), Qt::KeepAspectRatio);
                     const QSizeF sz = (ps.width() <= sheet.width() && ps.height() <= sheet.height()) ? ps : fit;

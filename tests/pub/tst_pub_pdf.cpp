@@ -269,6 +269,49 @@ private Q_SLOTS:
         }
     }
 
+    // Mail merge by hand: every record's fronts are one run and every back the other, so the stack is turned over once; a record with an odd number of sheets gets a blank back, and
+    // the next record starts on a new sheet.
+    void handRunsWithMailMergePrintAllFrontsThenAllBacks()
+    {
+        QTemporaryDir dir;
+        for (int pagesInRecord : {2, 3}) {
+            jp::Editor ed;
+            auto doc = jp::Document::blank(QSizeF(396, 612));
+            for (int i = 1; i < pagesInRecord; ++i) doc->pages.push_back(std::make_shared<jp::Page>());
+            doc->merge.fields = {QStringLiteral("Name")};
+            doc->merge.rows = {{QStringLiteral("Ann")}, {QStringLiteral("Bo")}, {QStringLiteral("Cy")}};
+            ed.setDocument(std::move(doc));
+            QPrinter printer;
+            printer.setOutputFormat(QPrinter::PdfFormat);
+            printer.setOutputFileName(dir.filePath(QStringLiteral("m.pdf")));
+            QJsonObject opts;
+            opts["merged"] = true;
+            const int records = 3, padded = pagesInRecord + pagesInRecord % 2;
+            QVector<int> wantedFirst, wantedSecond;   // (a sheet is its number in the whole job, records one after another; -1 is a blank)
+            for (int g = 0; g < records * padded; g += 2) wantedFirst << g;
+            for (int g = records * padded - 1; g >= 1; g -= 2) wantedSecond << (g % padded < pagesInRecord ? g : -1);
+            jp::PrintReport report;
+            opts["handRun"] = "first";
+            jp::printDocument(&ed, &printer, opts, &report);
+            QCOMPARE(report.all, records * padded);
+            QCOMPARE(report.sheets, wantedFirst);
+            report = jp::PrintReport();
+            opts["handRun"] = "second";
+            jp::printDocument(&ed, &printer, opts, &report);
+            QCOMPARE(report.sheets, wantedSecond);
+            // and the whole job asks for the stack to be turned over once
+            int turns = 0;
+            jp::setStackTurnerStandIn([&] {
+                ++turns;
+                return true;
+            });
+            const auto done = qScopeGuard([] { jp::setStackTurnerStandIn(nullptr); });
+            opts.remove("handRun");
+            QVERIFY(jp::printDocumentByHand(&ed, &printer, opts, nullptr));
+            QCOMPARE(turns, 1);
+        }
+    }
+
     // The Sides choice is kept for the next time, as print/sides, the same as in the other apps.
     void printPageSidesChoiceIsRemembered()
     {

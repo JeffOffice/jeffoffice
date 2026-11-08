@@ -75,6 +75,7 @@ struct EditedStoryHeld {
 QVector<int> WriteWindow::outputPages(const WriteOutputOptions &options)
 {
     QVector<int> out;
+    if (options.pagesGiven) return options.pageList;
     if (!m_doc) return out;
     m_view->paginateAll();
     const int count = m_view->pageCount();
@@ -503,15 +504,34 @@ bool WriteWindow::exportTextAsk()
     return exportText(path, form.encoding, form.ends, form.codePage);
 }
 
-QVector<WriteOutputOptions> WriteWindow::handDuplexRuns(const WriteOutputOptions &options) const
+QVector<WriteOutputOptions> WriteWindow::handDuplexRuns(const WriteOutputOptions &options)
 {
-    WriteOutputOptions odd = options, even = options;
-    odd.byHand = even.byHand = false;
-    odd.sides = WriteOutputOptions::Sides::Odd;
-    odd.reverse = false;
-    even.sides = WriteOutputOptions::Sides::Even;
-    even.reverse = true;
-    return {odd, even};
+    // The pages the job prints, in order, are cut into the physical sheets (a sheet holds `perSheet` pages; the last may be short and is padded with -1). The first run is the
+    // first, third, ... sheets; the second is the others last first, with a blank sheet first when the last front has no back, so each back lands behind its front.
+    WriteOutputOptions all = options;
+    all.byHand = false;
+    all.sides = WriteOutputOptions::Sides::All;
+    all.reverse = false;
+    all.pagesGiven = false;
+    const QVector<int> pages = outputPages(all);
+    const QSize grid = write::sheetGrid(options.perSheet);
+    const int per = grid.width() * grid.height();
+    QVector<QVector<int>> sheets;
+    for (qsizetype i = 0; i < pages.size(); i += per) {
+        QVector<int> sheet = pages.mid(i, per);
+        while (sheet.size() < per) sheet << -1;
+        sheets.push_back(sheet);
+    }
+    const HandRuns<QVector<int>> shared = handRuns(sheets, QVector<int>(per, -1));
+    QVector<WriteOutputOptions> runs;
+    for (const QVector<QVector<int>> &part : {shared.first, shared.second}) {
+        WriteOutputOptions run = all;
+        run.pagesGiven = true;
+        run.pageList.clear();
+        for (const QVector<int> &sheet : part) run.pageList += sheet;
+        runs.push_back(run);
+    }
+    return runs;
 }
 
 bool WriteWindow::printOutput(const WriteOutputOptions &options)

@@ -144,6 +144,18 @@ void WriteTests::thePrintPageSidesChoiceByHandPrintsTwoRuns()
     w.findChild<QPushButton *>(QStringLiteral("printButton"))->click();
     QCOMPARE(order, (QStringList{QStringLiteral("print"), QStringLiteral("turn"), QStringLiteral("print")}));
     QCOMPARE(modes, (QVector<QPrinter::DuplexMode>{QPrinter::DuplexNone, QPrinter::DuplexNone}));
+    // five pages: three sheets first, then a blank sheet (the back of the fifth page), then pages 4 and 2
+    auto pagesIn = [](const QString &path) {
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly)) return -1;
+        const QByteArray pdf = f.readAll();
+        int pages = 0;
+        for (qsizetype at = pdf.indexOf("/Type /Page"); at >= 0; at = pdf.indexOf("/Type /Page", at + 1))
+            if (at + 11 >= pdf.size() || pdf[at + 11] != 's') ++pages;
+        return pages;
+    };
+    QCOMPARE(pagesIn(dir.filePath(QStringLiteral("h1.pdf"))), 3);
+    QCOMPARE(pagesIn(dir.filePath(QStringLiteral("h3.pdf"))), 3);
     // the old check box is gone
     QVERIFY(!w.findChild<QCheckBox *>(QStringLiteral("printByHand")));
     QVERIFY(openPrintPage(w));

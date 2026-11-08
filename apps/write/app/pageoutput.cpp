@@ -76,7 +76,7 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
         // The sheet is the size of the first page on it (or the paper asked for, turned to the first page's way up), turned on its side for a grid that is wider than tall.
         QVector<std::shared_ptr<flow::MaterializedPage>> group;
         for (qsizetype i = first; i < pages.size() && i < first + perSheet; ++i) {
-            std::shared_ptr<flow::MaterializedPage> page = doc.pager().materialize(pages[i]);
+            std::shared_ptr<flow::MaterializedPage> page = pages[i] < 0 ? nullptr : doc.pager().materialize(pages[i]);
             if (!page) continue;
             // The page's color is in a PDF (a reference PDF of such a file has it), and is not sent to a printer: paper is left white unless it is asked for.
             if (printer) {
@@ -85,7 +85,28 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
             }
             group.push_back(page);
         }
-        if (group.isEmpty()) continue;
+        // A chunk of only -1s is a blank sheet (both sides by hand, a front with no back), the size of the sheets around it.
+        bool blank = group.isEmpty();
+        for (qsizetype i = first; blank && i < pages.size() && i < first + perSheet; ++i) blank = pages[i] < 0;
+        if (group.isEmpty() && !blank) continue;
+        if (blank) {
+            QSizeF size;
+            for (int page : pages) {
+                std::shared_ptr<flow::MaterializedPage> other = page >= 0 ? doc.pager().materialize(page) : nullptr;
+                if (other) {
+                    size = other->size;
+                    break;
+                }
+            }
+            if (size.isEmpty()) continue;
+            if (shared) {
+                if (layout.paper.width() > 0 && layout.paper.height() > 0) size = size.width() > size.height() ? QSizeF(layout.paper.height(), layout.paper.width()) : layout.paper;
+                if (grid.width() > grid.height() && size.width() < size.height()) size.transpose();
+            }
+            setSheet(device, size);
+            if (!begin()) return false;
+            continue;
+        }
         QSizeF sheet = group[0]->size;
         if (shared) {
             const bool wide = sheet.width() > sheet.height();

@@ -482,11 +482,14 @@ private Q_SLOTS:
         QVERIFY(all.size() >= 5);
         const QVector<WriteOutputOptions> runs = w.handDuplexRuns(o);
         QCOMPARE(runs.size(), 2);
+        // the sheets, one page each: the first, third, ... then the others last first; a last front with no back leaves a blank sheet (-1) first, so every back is behind its front
         QVector<int> odd, even;
-        for (int i : all) ((i + 1) % 2 ? odd : even) << i;
+        for (int i = 0; i < all.size(); ++i) (i % 2 ? even : odd) << all[i];
         std::reverse(even.begin(), even.end());
+        if (all.size() % 2) even.prepend(-1);
         QCOMPARE(w.outputPages(runs[0]), odd);
         QCOMPARE(w.outputPages(runs[1]), even);
+        QCOMPARE(runs[1].sides, WriteOutputOptions::Sides::All);
         // the printing: two runs with one prompt between them, and nothing more when the prompt is declined
         QStringList order;
         w.setPrinterPreparer([&](QPrinter &printer) {
@@ -511,6 +514,36 @@ private Q_SLOTS:
         o.pages = QStringLiteral("1");
         QVERIFY(w.printOutput(o));
         QCOMPARE(order, (QStringList{QStringLiteral("print")}));
+    }
+
+    // Two pages on a sheet: the runs are made of physical sheets, a short last sheet keeps its page, and a front with no back leaves a blank sheet.
+    void bothSidesByHandWithSeveralPagesOnASheetGoesBySheets()
+    {
+        WriteWindow w;
+        w.show();
+        for (int i = 0; i < 4; ++i) {
+            typeText(*w.document(), w.view()->cursor(), QStringLiteral("page text"));
+            insertPageBreak(*w.document(), w.view()->cursor());
+        }
+        const QVector<int> all = w.outputPages(WriteOutputOptions());
+        QCOMPARE(all.size(), 5);
+        WriteOutputOptions o;
+        o.byHand = true;
+        o.perSheet = 2;   // (three sheets: pages 1 and 2, 3 and 4, and 5 alone)
+        const QVector<WriteOutputOptions> runs = w.handDuplexRuns(o);
+        QCOMPARE(w.outputPages(runs[0]), (QVector<int>{all[0], all[1], all[4], -1}));
+        QCOMPARE(w.outputPages(runs[1]), (QVector<int>{-1, -1, all[2], all[3]}));
+        QCOMPARE(runs[1].perSheet, 2);
+        // four on a sheet: two sheets, the first front and the second its back
+        o.perSheet = 4;
+        const QVector<WriteOutputOptions> four = w.handDuplexRuns(o);
+        QCOMPARE(w.outputPages(four[0]), (QVector<int>{all[0], all[1], all[2], all[3]}));
+        QCOMPARE(w.outputPages(four[1]), (QVector<int>{all[4], -1, -1, -1}));
+        // one sheet: nothing to turn over
+        o.perSheet = 6;
+        const QVector<WriteOutputOptions> one = w.handDuplexRuns(o);
+        QCOMPARE(w.outputPages(one[0]).size(), 6);
+        QVERIFY(w.outputPages(one[1]).isEmpty());
     }
 
     void anEmailMessageHoldsItsAttachmentsAndPictures()

@@ -76,6 +76,8 @@ struct WriteOutputOptions {
     Sides sides = Sides::All;   // only the pages whose numbers are odd or even, of the pages the range covers
     bool reverse = false;       // last page first
     QPrinter::DuplexMode duplex = QPrinter::DuplexNone;   // the printer prints on both sides itself (never with a file)
+    bool pagesGiven = false;    // both sides by hand: the pages of the run are `pageList` (the pages of its sheets one after another, a short sheet padded with -1, -1 for a blank page), not the range
+    QVector<int> pageList;
     bool byHand = false;        // both sides of the paper with a printer that has no duplex: the odd pages, a prompt to turn the stack over, then the even pages last first
     bool pdfArchive = false;    // Export to PDF: a PDF/A-1b file, for keeping (fonts embedded, no transparency, and the standard's mark in its metadata)
     int perSheet = 1;           // pages on a sheet: 1, 2, 4, 6, 9, or 16 (each scaled to fit its place)
@@ -166,7 +168,7 @@ public:
     // else in a window of its own. False for an id that names none.
     bool newFromBuiltInTemplate(const QString &id);
     // The two runs a print on both sides by hand is made of: the odd pages of the range, then the even ones, last first.
-    QVector<WriteOutputOptions> handDuplexRuns(const WriteOutputOptions &options) const;
+    QVector<WriteOutputOptions> handDuplexRuns(const WriteOutputOptions &options);
     // What asks the person to turn the stack over between the two runs: a message box, unless this stands in for it (tests); false to stop there.
     void setStackTurner(const std::function<bool()> &turner) { m_stackTurner = turner; }
     // Email: makes a message as a .eml file (asking where to put it) with the document, the document as a PDF, or its pages as pictures; the person opens it in an email program.
