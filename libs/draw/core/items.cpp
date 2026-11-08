@@ -51,7 +51,10 @@ static QJsonArray marginsJson(const QMarginsF &m) { return {m.left(), m.top(), m
 static QMarginsF marginsFrom(const QJsonValue &v, const QMarginsF &def)
 {
     const auto a = v.toArray();
-    return a.size() == 4 ? QMarginsF(a[0].toDouble(), a[1].toDouble(), a[2].toDouble(), a[3].toDouble()) : def;
+    if (a.size() != 4) return def;
+    // (a finite length the file can hold, as every other length is)
+    auto len = [](double v) { return std::isfinite(v) ? std::clamp(v, -20000.0, 20000.0) : 0.0; };
+    return QMarginsF(len(a[0].toDouble()), len(a[1].toDouble()), len(a[2].toDouble()), len(a[3].toDouble()));
 }
 
 // ---------- Item ----------
@@ -234,18 +237,18 @@ void TextItem::fromJson(const QJsonObject &o)
     nextId = o["next"].toString();
     insets = marginsFrom(o["insets"], insets);
     columns = std::clamp(o["columns"].toInt(1), 1, 99);   // (no more than the 99 a text box's dialog has)
-    columnGap = o["columnGap"].toDouble(9);
-    valign = VAlign(o["valign"].toInt());
-    autofit = Autofit(o["autofit"].toInt());
+    columnGap = std::clamp(o["columnGap"].toDouble(9), 0.0, 1000.0);
+    valign = VAlign(std::clamp(o["valign"].toInt(), 0, int(VAlign::Bottom)));
+    autofit = Autofit(std::clamp(o["autofit"].toInt(), int(NoAutofit), int(GrowBox)));
     vertical = o["vertical"].toBool();
     noWrap = o["noWrap"].toBool();
     centerBlock = o["ctrBlock"].toBool();
     continuedOn = o["contOn"].toBool();
     hyphenate = o["hyph"].toBool(true);
-    hyphenZone = o["hyphZone"].toDouble(18);
+    hyphenZone = std::clamp(o["hyphZone"].toDouble(18), 0.0, 1000.0);
     continuedFrom = o["contFrom"].toBool();
     prompt = o["prompt"].toString();
-    fitScale = o["fitScale"].toDouble(1.0);
+    fitScale = std::clamp(o["fitScale"].toDouble(1.0), 0.01, 1.0);
     fitLineCut = o["fitLineCut"].toDouble();
     fitAsStored = o["fitStored"].toBool();
 }
@@ -506,7 +509,7 @@ void ShapeItem::fromJson(const QJsonObject &o)
     if (o["winding"].toBool()) customPath.setFillRule(Qt::WindingFill);
     storyId = o["story"].toString();
     insets = marginsFrom(o["insets"], insets);
-    valign = VAlign(o["valign"].toInt(int(VAlign::Middle)));
+    valign = VAlign(std::clamp(o["valign"].toInt(int(VAlign::Middle)), 0, int(VAlign::Bottom)));
     noWrap = o["noWrap"].toBool();
     centerBlock = o["ctrBlock"].toBool();
     columns = std::clamp(o["columns"].toInt(1), 1, 16);

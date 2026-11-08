@@ -3,6 +3,7 @@
 #include "pubhelpers.h"
 #include <zlib.h>
 #include <QTableWidget>
+#include "app/filescreen.h"
 
 namespace {
 
@@ -274,6 +275,55 @@ private Q_SLOTS:
         const QByteArray bytes = f.readAll();
         const QByteArray raw("o\0n\0e\0\x0b\0t\0w\0o\0", 14);
         QVERIFY(!bytes.contains(raw));
+    }
+
+    // The values of a text box and of the page setup that a file can set are kept within what the program's dialogs allow.
+    void textBoxAndPageSetupValuesFromAFileAreKeptInRange()
+    {
+        jp::TextItem t;
+        QJsonObject to = t.toJson();
+        to["columnGap"] = 1e12;
+        to["hyphZone"] = -5;
+        to["fitScale"] = 1e9;
+        to["valign"] = 99;
+        to["autofit"] = -4;
+        to["insets"] = QJsonArray{1e12, -1e12, 5, 5};
+        jp::TextItem u;
+        u.fromJson(to);
+        QVERIFY(u.columnGap <= 1000);
+        QVERIFY(u.hyphenZone >= 0);
+        QVERIFY(u.fitScale > 0 && u.fitScale <= 1);
+        QVERIFY(int(u.valign) >= 0 && int(u.valign) <= int(jp::VAlign::Bottom));
+        QVERIFY(int(u.autofit) >= 0 && int(u.autofit) <= int(jp::TextItem::GrowBox));
+        QVERIFY(std::abs(u.insets.left()) <= 20000 && std::abs(u.insets.top()) <= 20000);
+
+        QJsonObject so = jp::PageSetup().toJson();
+        so["margins"] = QJsonArray{1e12, -50, 1e12, 3};
+        so["gridRows"] = 1000000;
+        so["gridCols"] = -3;
+        so["gapH"] = 1e12;
+        so["layout"] = 77;
+        so["fold"] = -1;
+        const jp::PageSetup s = jp::PageSetup::fromJson(so);
+        QVERIFY(s.margins.left() >= 0 && s.margins.left() <= 20000 && s.margins.top() >= 0);
+        QVERIFY(s.gridRows >= 1 && s.gridRows <= 1000 && s.gridCols >= 1);
+        QVERIFY(s.gapH <= 20000);
+        QVERIFY(int(s.layout) >= 0 && int(s.layout) <= int(jp::PageSetup::Labels));
+        QVERIFY(int(s.fold) >= 0 && int(s.fold) <= int(jp::PageSetup::TopFoldHalf));
+    }
+
+    // A page the screen has no place for is not made, and the widget its builder returned is not left behind.
+    void theFileScreenDoesNotLeakAPageItHasNoPlaceFor()
+    {
+        jp::FileScreen screen;
+        QPointer<QWidget> made;
+        screen.setPageBuilder([&](const QString &) {
+            auto *w = new QWidget;
+            made = w;
+            return w;
+        });
+        screen.showPage(QStringLiteral("nowhere"));
+        QVERIFY(!made);
     }
 
     // A chain of linked boxes that overlap and wrap around each other is laid out in work that grows by a bounded step per box: each box looks

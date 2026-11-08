@@ -75,7 +75,9 @@ static QJsonArray margJ(const QMarginsF &m) { return {m.left(), m.top(), m.right
 static QMarginsF margF(const QJsonValue &v, QMarginsF d)
 {
     const auto a = v.toArray();
-    return a.size() == 4 ? QMarginsF(a[0].toDouble(), a[1].toDouble(), a[2].toDouble(), a[3].toDouble()) : d;
+    if (a.size() != 4) return d;
+    auto len = [](double v) { return std::isfinite(v) ? std::clamp(v, 0.0, 20000.0) : 0.0; };
+    return QMarginsF(len(a[0].toDouble()), len(a[1].toDouble()), len(a[2].toDouble()), len(a[3].toDouble()));
 }
 static QJsonArray dblJ(const QVector<double> &v)
 {
@@ -450,13 +452,14 @@ PageSetup PageSetup::fromJson(const QJsonObject &o)
     s.size = QSizeF(side(s.size.width(), 612), side(s.size.height(), 792));
     s.margins = margF(o["margins"], s.margins);
     s.sizeName = o["sizeName"].toString(s.sizeName);
-    s.layout = Layout(o["layout"].toInt());
-    s.fold = Fold(o["fold"].toInt(SideFoldHalf));
+    s.layout = Layout(std::clamp(o["layout"].toInt(), int(OnePerSheet), int(Labels)));
+    s.fold = Fold(std::clamp(o["fold"].toInt(SideFoldHalf), int(SideFoldQuarter), int(TopFoldHalf)));
     s.sheet = sizeF(o["sheet"], s.size);
-    s.gridRows = o["gridRows"].toInt(1);
-    s.gridCols = o["gridCols"].toInt(1);
-    s.gapH = o["gapH"].toDouble();
-    s.gapV = o["gapV"].toDouble();
+    s.gridRows = std::clamp(o["gridRows"].toInt(1), 1, 1000);
+    s.gridCols = std::clamp(o["gridCols"].toInt(1), 1, 1000);
+    auto gap = [](double v) { return std::isfinite(v) ? std::clamp(v, 0.0, 20000.0) : 0.0; };
+    s.gapH = gap(o["gapH"].toDouble());
+    s.gapV = gap(o["gapV"].toDouble());
     s.firstPageNumber = std::clamp(o["firstPageNumber"].toInt(1), 1, 1000);   // as far as .pub files and the dialog go
     s.pageNumberFormat = o["pageNumberFormat"].toString();
     s.sideMargin = o["sideMargin"].toDouble();
