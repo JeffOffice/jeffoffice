@@ -6601,8 +6601,9 @@
          "text": "0de0572ff197c1801be799be11c76b0df03799c8f9f164be52ab14e0276f285a"
         },
         {
-         "status": "todo",
-         "text": "d460f99a978a981188bf5f46d8317b75f6cdddb2fdd69fc94d44d75cb38ebf5a"
+         "hide_soon": true,
+         "status": "done",
+         "text": "70a91e155dd0a344f2d41ecd7e4737767c4deec785a0dd67e9100e3e1547e63c"
         },
         {
          "status": "todo",
@@ -15306,6 +15307,18 @@
     "fr": ""
    }
   },
+  "70a91e155dd0a344f2d41ecd7e4737767c4deec785a0dd67e9100e3e1547e63c": {
+   "drop": false,
+   "en": "Type and the app fixes text as you go: smart quotes, lists started by typing `1.` or `*`, borders from a row of dashes, ordinals, fractions, dashes, web addresses turned into links, and `*bold*` and `_underline_` marks turned into formatting. Three check boxes in Options > Proofing turn AutoCorrect, smart quotes, and AutoFormat on and off, and one Undo takes back just the last fix.",
+   "es": "Escriba y la aplicación corrige el texto sobre la marcha: comillas tipográficas, listas que comienzan al escribir `1.` o `*`, bordes a partir de una fila de guiones, ordinales, fracciones, guiones largos, direcciones web convertidas en vínculos y marcas `*negrita*` y `_subrayado_` convertidas en formato. Tres casillas en Opciones > Revisión activan y desactivan la autocorrección, las comillas tipográficas y el formato automático, y un solo Deshacer revierte únicamente la última corrección.",
+   "fr": "Saisissez du texte et l’application le corrige au fil de la frappe : guillemets typographiques, listes créées en tapant `1.` ou `*`, bordures à partir d’une rangée de tirets, ordinaux, fractions, tirets, adresses web converties en liens, et marques `*gras*` et `_souligné_` converties en mise en forme. Trois cases à cocher dans Options > Vérification activent et désactivent la correction automatique, les guillemets typographiques et la mise en forme automatique, et une seule action Annuler reprend uniquement la dernière correction.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "70ab4436dd82b2310bee017ba71a869e0a02df958149d523f9ab6f93cfb42343": {
    "drop": false,
    "en": "Colors are plain colors on the objects, as files hold them, and saving finds the theme’s colors in them again. A change of colors swaps each old color for the new scheme’s. Text and shapes on a dark background use the four dark and light colors, so they trade places when the background turns light or dark. Dark masters are saved with the dark color map.",
@@ -21856,18 +21869,6 @@
     "en": "Reading View: the show in a window with a bar, for reading a presentation",
     "es": "Vista de lectura: la presentación en una ventana con una barra, para leer una presentación",
     "fr": "Mode lecture : le diaporama dans une fenêtre avec une barre, pour lire une présentation"
-   }
-  },
-  "d460f99a978a981188bf5f46d8317b75f6cdddb2fdd69fc94d44d75cb38ebf5a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "AutoCorrect and AutoFormat as you type: smart quotes, automatic lists, borders, ordinals, fractions, dashes, links, and formatting marks",
-    "es": "Autocorrección y autoformato al escribir: comillas tipográficas, listas automáticas, bordes, ordinales, fracciones, guiones, vínculos y marcas de formato",
-    "fr": "Correction automatique et mise en forme automatique à la frappe : guillemets typographiques, listes automatiques, bordures, ordinaux, fractions, tirets, liens et marques de mise en forme"
    }
   },
   "d471723dfae2576cd2a0841baa81a3fb1884608c5e51a2b1efdc0fd4764fd904": {
