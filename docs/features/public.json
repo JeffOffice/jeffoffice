@@ -280,7 +280,12 @@
         },
         {
          "status": "partly",
-         "text": "395113a075f5242948e7c34d0abf18750f70f4177877413786fa71184c122961"
+         "text": "236dda2a67e1ccf07f32f27c6d1140a2914819aa0834366c955a405745e4e573"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "9ddf1cf8ddb37c6c6b29963ebd6f92252d987e5594a1a1e39364c3be1f1984b7"
         },
         {
          "status": "partly",
@@ -2524,7 +2529,12 @@
         },
         {
          "status": "todo",
-         "text": "5ad0db0bbc8e59144334752f140c842f2781e8acfa717026c7a7b6aa5b1db5ad"
+         "text": "62d4a48e34785398f20926e077660f4ec100348569a4eb8b230caf123a390c83"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "ecad628805827790f8a23a98c6d06982e2b2dc989f2eea516b369d9d70b5ebf6"
         },
         {
          "status": "todo",
@@ -2864,6 +2874,11 @@
          "hide_soon": true,
          "status": "done",
          "text": "0e4424f3649c3d89259bbe1c73fa4504500c1cc1dc0b84b0d636fa6295274b4f"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "0719196408bf4b0f8fa9b1cb7cc42507fc16bb7a2e5deb68cb5015b2270089b8"
         },
         {
          "hide_soon": true,
@@ -4087,6 +4102,11 @@
       {
        "hide_soon": true,
        "status": "done",
+       "text": "b7c61535b551f3803637ec91c775268abb99e840b91e075b7bbb5b588199a786"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
        "text": "1727286bee4d27e0d98fda069f6e5ebcb5d494be2119b673ecbbddc40c15a1f5"
       },
       {
@@ -4364,7 +4384,12 @@
         },
         {
          "status": "todo",
-         "text": "987f1a546563f40bd90603a107bab684207a3aa369628881903e5532a466af9f"
+         "text": "04d6b76ccb6c1e76fd029a070ae33edfb692c22cf11096a35699489cb7148caf"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "f22257931b26b16267c72887e4fad2737b83cee31da7c1e9139dd38bc68f25e5"
         }
        ]
       },
@@ -5605,7 +5630,12 @@
         },
         {
          "status": "partly",
-         "text": "90422f0483c83f5b633ee66dbb25c8597a3a7ea4cbf3eb259c6f0172161511fe"
+         "text": "a414653d433d227aacf8fe94ba92c9bd86a2f28f6fa60f548a4631ceb72f7cba"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "d166d35f76de1de806adde2de52fd43cb9a728d6cc7c5dbe062c32d5e23d6377"
         },
         {
          "status": "partly",
@@ -7558,6 +7588,18 @@
     "fr": ""
    }
   },
+  "04d6b76ccb6c1e76fd029a070ae33edfb692c22cf11096a35699489cb7148caf": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Tagged PDF for screen readers: headings, reading order, and alt text",
+    "es": "PDF etiquetado para lectores de pantalla: encabezados, orden de lectura y texto alternativo",
+    "fr": "PDF balisé pour lecteurs d’écran : titres, ordre de lecture et texte alternatif"
+   }
+  },
   "04e76b65044a502d215b4681ead533847d7e5ba385a4e3d0f0d1ab40493b8f55": {
    "drop": false,
    "en": "Insert a picture on the sheet from a PNG, JPEG, GIF, BMP, TIFF, or SVG file, or a WMF or EMF file drawn as a PNG, scaled to at most 480 wide, as one step of Undo.",
@@ -7755,6 +7797,18 @@
    "en": "Insert a symbol, a character that is not on the keyboard.",
    "es": "Inserte un símbolo, un carácter que no está en el teclado.",
    "fr": "Insérez un symbole, un caractère absent du clavier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "0719196408bf4b0f8fa9b1cb7cc42507fc16bb7a2e5deb68cb5015b2270089b8": {
+   "drop": false,
+   "en": "Insert a password-protected PDF as a picture: the app asks for the password, asks again if it is wrong, and stops if you cancel.",
+   "es": "Inserte como imagen un PDF protegido con contraseña: la aplicación solicita la contraseña, la vuelve a solicitar si es incorrecta y se detiene si usted cancela.",
+   "fr": "Insérez comme image un PDF protégé par mot de passe : l’application demande le mot de passe, le redemande s’il est incorrect et s’arrête si vous annulez.",
    "soon": {
     "drop": true,
     "en": "",
@@ -9910,6 +9964,18 @@
     "fr": ""
    }
   },
+  "236dda2a67e1ccf07f32f27c6d1140a2914819aa0834366c955a405745e4e573": {
+   "drop": false,
+   "en": "Export the whole workbook as PDF/A-1b, with the fonts, the identification, and the color output intent written into the file.",
+   "es": "Exporte todo el libro como PDF/A-1b, con las fuentes, la identificación y la intención de salida de color escritas en el archivo.",
+   "fr": "Exportez tout le classeur en PDF/A-1b, avec les polices, l’identification et l’intention de rendu des couleurs écrites dans le fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Tagged PDF export",
+    "es": "Exportación a PDF etiquetado",
+    "fr": "Export en PDF balisé"
+   }
+  },
   "2371218a9357a2d5cf30f0897e64f2b4e13239de9d6d10db3260e2bb76812928": {
    "drop": true,
    "en": "",
@@ -11420,18 +11486,6 @@
     "en": "Grouping: text items in named groups, groups of several days, and groups when two tables share data",
     "es": "Agrupación: elementos de texto en grupos con nombre, grupos de varios días y grupos cuando dos tablas comparten datos",
     "fr": "Regroupement : éléments de texte en groupes nommés, groupes de plusieurs jours et groupes lorsque deux tableaux partagent des données"
-   }
-  },
-  "395113a075f5242948e7c34d0abf18750f70f4177877413786fa71184c122961": {
-   "drop": false,
-   "en": "File > Export can export the whole workbook as PDF/A-1b, with fonts, identification, and color output intent included.",
-   "es": "Archivo > Exportar puede exportar todo el libro como PDF/A-1b, con las fuentes, la identificación y la intención de salida de color incluidas.",
-   "fr": "Fichier > Exporter permet d’exporter tout le classeur au format PDF/A-1b, avec les polices, l’identification et l’intention de rendu des couleurs incluses.",
-   "soon": {
-    "drop": false,
-    "en": "Tagged PDF and PDF with a password",
-    "es": "PDF etiquetado y PDF con contraseña",
-    "fr": "PDF balisé et PDF avec mot de passe"
    }
   },
   "39ac727bf5666ce3a985550487a5f33f32f551c95fab69063b0f53590b7f6a51": {
@@ -13870,18 +13924,6 @@
     "fr": ""
    }
   },
-  "5ad0db0bbc8e59144334752f140c842f2781e8acfa717026c7a7b6aa5b1db5ad": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "5ad92e0cb0846a0077b6036caca12b6fbfcf8b3f76887a278a18d160c68c4e0d": {
    "drop": false,
    "en": "View and edit the presentation title, author, subject, keywords, category, comments, company, and manager on the Info page, with the dates created, modified, and printed. The properties are saved in the file, and `Ctrl+Z` undoes an edit.",
@@ -14499,6 +14541,18 @@
    "en": "Use the Number tab of Format Cells: twelve categories with their options and a live sample in the person’s language, including decimal places, thousands separator, negative number styles, and Custom formats.",
    "es": "Use la pestaña Número de Formato de celdas: doce categorías con sus opciones y una muestra en vivo en el idioma de la persona, con decimales, separador de miles, estilos de números negativos y formatos personalizados.",
    "fr": "Utilisez l’onglet Nombre de Format de cellule : douze catégories avec leurs options et un échantillon en direct dans la langue de la personne, avec décimales, séparateur de milliers, styles de nombres négatifs et formats personnalisés.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "62d4a48e34785398f20926e077660f4ec100348569a4eb8b230caf123a390c83": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
@@ -17698,18 +17752,6 @@
     "fr": ""
    }
   },
-  "90422f0483c83f5b633ee66dbb25c8597a3a7ea4cbf3eb259c6f0172161511fe": {
-   "drop": false,
-   "en": "Export a document to PDF/A, which produces a PDF/A-1b file with its mark stored in the metadata.",
-   "es": "Exporte un documento a PDF/A, que genera un archivo PDF/A-1b con su marca almacenada en los metadatos.",
-   "fr": "Exportez un document en PDF/A, ce qui produit un fichier PDF/A-1b dont la marque est enregistrée dans les métadonnées.",
-   "soon": {
-    "drop": false,
-    "en": "Tagged PDF, PDF with a password, and PDF/X-1a and PDF/X-4 for printers",
-    "es": "PDF etiquetado, PDF con contraseña y PDF/X-1a y PDF/X-4 para imprentas",
-    "fr": "PDF balisé, PDF avec mot de passe, et PDF/X-1a et PDF/X-4 pour les imprimeurs"
-   }
-  },
   "90428f654407f1bf0a051a49d4a8d919f7d860f9e7bebc2116fa524352503c5c": {
    "drop": false,
    "en": "Find and remove personal information in the properties, business information, mail merge data, and objects on the scratch area.",
@@ -18322,18 +18364,6 @@
     "fr": ""
    }
   },
-  "987f1a546563f40bd90603a107bab684207a3aa369628881903e5532a466af9f": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Tagged PDF for screen readers (headings, reading order, and alt text) and password-protected PDF",
-    "es": "PDF etiquetado para lectores de pantalla (títulos, orden de lectura y texto alternativo) y PDF con contraseña",
-    "fr": "PDF balisé pour les lecteurs d’écran (titres, ordre de lecture et texte de remplacement) et PDF protégé par mot de passe"
-   }
-  },
   "989808c9b1f952cc20b9f733ffd9a3496fb5723fd9938e02ca7a5dc48c239e3e": {
    "drop": false,
    "en": "A file that can't be read gives a clear message and never crashes the app or affects the other open workbooks.",
@@ -18790,6 +18820,18 @@
     "fr": ""
    }
   },
+  "9ddf1cf8ddb37c6c6b29963ebd6f92252d987e5594a1a1e39364c3be1f1984b7": {
+   "drop": false,
+   "en": "Encrypt a sheet or workbook PDF export with a password to open it and, if wanted, a second password to limit printing, copying, and changing. The PDF uses AES-256 encryption, and the unprotected PDF is never written to disk. The PDF/A command is unavailable with a password, as that standard forbids one.",
+   "es": "Cifre la exportación a PDF de una hoja o de un libro con una contraseña para abrirlo y, si lo desea, una segunda contraseña para limitar la impresión, la copia y los cambios. El PDF usa cifrado AES-256 y el PDF sin protección nunca se escribe en el disco. El comando PDF/A no está disponible con una contraseña, ya que esa norma no la permite.",
+   "fr": "Chiffrez l’export PDF d’une feuille ou d’un classeur avec un mot de passe d’ouverture et, si vous le souhaitez, un second mot de passe pour limiter l’impression, la copie et les modifications. Le PDF utilise le chiffrement AES-256, et le PDF non protégé n’est jamais écrit sur le disque. La commande PDF/A n’est pas disponible avec un mot de passe, car cette norme l’interdit.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "9deb3758823f0642aa092f40799f5da953a3e9f087ea20c7bc7b253f9a795be5": {
    "drop": false,
    "en": "Export EPUB as reflowable (chapters at Heading 1, contents from Heading 1-3) or page for page (fixed layout).",
@@ -19088,6 +19130,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "a414653d433d227aacf8fe94ba92c9bd86a2f28f6fa60f548a4631ceb72f7cba": {
+   "drop": false,
+   "en": "Export to PDF/A, which makes a PDF/A-1b file with its mark in the metadata.",
+   "es": "Exporte a PDF/A, que genera un archivo PDF/A-1b con su marca en los metadatos.",
+   "fr": "Exportez en PDF/A, ce qui produit un fichier PDF/A-1b avec sa marque dans les métadonnées.",
+   "soon": {
+    "drop": false,
+    "en": "Tagged PDF and PDF/X-1a and PDF/X-4 export",
+    "es": "Exportación a PDF etiquetado y a PDF/X-1a y PDF/X-4",
+    "fr": "Export en PDF balisé et en PDF/X-1a et PDF/X-4"
    }
   },
   "a41c89bcdb7c3412708f72de750b5363ea9fac186359da26e61b2e419e24eebc": {
@@ -20228,6 +20282,18 @@
     "en": "Collate option on the Print page",
     "es": "Opción de intercalar en la página Imprimir",
     "fr": "Option d’assemblage sur la page Imprimer"
+   }
+  },
+  "b7c61535b551f3803637ec91c775268abb99e840b91e075b7bbb5b588199a786": {
+   "drop": false,
+   "en": "Place a password-protected PDF as a picture: the app asks for the password, asks again if it is wrong, and stops if you cancel.",
+   "es": "Coloque como imagen un PDF protegido con contraseña: la aplicación solicita la contraseña, la vuelve a solicitar si es incorrecta y se detiene si usted cancela.",
+   "fr": "Placez comme image un PDF protégé par mot de passe : l’application demande le mot de passe, le redemande s’il est incorrect et s’arrête si vous annulez.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "b83dfac65289657bc80e028c18136238e082dc8cf72f57381a9174c28b290ba7": {
@@ -22138,6 +22204,18 @@
     "fr": ""
    }
   },
+  "d166d35f76de1de806adde2de52fd43cb9a728d6cc7c5dbe062c32d5e23d6377": {
+   "drop": false,
+   "en": "Export to PDF with a password to open it and, if wanted, a second password to limit printing, copying, and changing. The PDF uses AES-256 encryption, and the unprotected PDF is never written to disk. PDF/A is turned off with a password, as that standard forbids one.",
+   "es": "Exporte a PDF con una contraseña para abrirlo y, si lo desea, una segunda contraseña para limitar la impresión, la copia y los cambios. El PDF usa cifrado AES-256 y el PDF sin protección nunca se escribe en el disco. PDF/A se desactiva con una contraseña, ya que esa norma no la permite.",
+   "fr": "Exportez en PDF avec un mot de passe d’ouverture et, si vous le souhaitez, un second mot de passe pour limiter l’impression, la copie et les modifications. Le PDF utilise le chiffrement AES-256, et le PDF non protégé n’est jamais écrit sur le disque. PDF/A est désactivé avec un mot de passe, car cette norme l’interdit.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "d18a513608a155b3abe7f1d2ce4d598d7e68b93ceae8d7434b35571c5348a7de": {
    "drop": false,
    "en": "Tables across pages: rows split across pages or stay whole as the file says, and header rows repeat. Nested tables and tables in a column, a text box, or a header are laid out, and a table set at a place is laid out there.",
@@ -23998,6 +24076,18 @@
     "fr": ""
    }
   },
+  "ecad628805827790f8a23a98c6d06982e2b2dc989f2eea516b369d9d70b5ebf6": {
+   "drop": false,
+   "en": "Export to PDF with a password to open it and, if wanted, a second password to limit printing, copying, and changing. The PDF uses AES-256 encryption, and the unprotected PDF is never written to disk.",
+   "es": "Exporte a PDF con una contraseña para abrirlo y, si lo desea, una segunda contraseña para limitar la impresión, la copia y los cambios. El PDF usa cifrado AES-256 y el PDF sin protección nunca se escribe en el disco.",
+   "fr": "Exportez en PDF avec un mot de passe d’ouverture et, si vous le souhaitez, un second mot de passe pour limiter l’impression, la copie et les modifications. Le PDF utilise le chiffrement AES-256, et le PDF non protégé n’est jamais écrit sur le disque.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "ece30f70a6ef83487777630a58e5511827b59dd46567a8404af210ebed184418": {
    "drop": true,
    "en": "",
@@ -24327,6 +24417,18 @@
    "en": "Opens damaged files as far as it can.",
    "es": "Abre archivos dañados hasta donde sea posible.",
    "fr": "Ouvre les fichiers endommagés autant que possible.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "f22257931b26b16267c72887e4fad2737b83cee31da7c1e9139dd38bc68f25e5": {
+   "drop": false,
+   "en": "Protect a PDF with a password to open it and, if wanted, a second password to limit printing, copying, and changing. The PDF uses AES-256 encryption, and the unprotected PDF is never written to disk. PDF/A and PDF/X are turned off when a password is used, as those standards forbid one.",
+   "es": "Proteja un PDF con una contraseña para abrirlo y, si lo desea, con una segunda contraseña para limitar la impresión, la copia y los cambios. El PDF usa cifrado AES-256 y el PDF sin protección nunca se escribe en el disco. PDF/A y PDF/X se desactivan al usar una contraseña, ya que esas normas no la permiten.",
+   "fr": "Protégez un PDF avec un mot de passe d’ouverture et, si vous le souhaitez, un second mot de passe pour limiter l’impression, la copie et les modifications. Le PDF utilise le chiffrement AES-256, et le PDF non protégé n’est jamais écrit sur le disque. PDF/A et PDF/X sont désactivés avec un mot de passe, car ces normes l’interdisent.",
    "soon": {
     "drop": true,
     "en": "",
