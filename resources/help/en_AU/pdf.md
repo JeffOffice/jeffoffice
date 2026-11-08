@@ -1,5 +1,5 @@
 # PDF files and print shops
-<!-- keywords: pdf, create pdf, save as pdf, export pdf, pdf/x, pdf/a, archive, print shop, commercial printer, cmyk, bleed, crop marks, color profile, spot color, overprint, colour profile, spot colour -->
+<!-- keywords: pdf, create pdf, save as pdf, export pdf, pdf/x, pdf/a, archive, print shop, commercial printer, cmyk, bleed, crop marks, color profile, spot color, overprint, colour profile, spot colour, password, encrypt, protect with a password -->
 
 A **PDF** is a file that looks the same on every computer. Use one to email a publication, post it online, or send it to a print shop.
 
@@ -44,6 +44,16 @@ The conditions are:
 The PSO Coated v3 colour profile does not come with JeffPub. The first time you use it, JeffPub asks before it downloads the profile, once, from the European Colour Initiative.
 
 Before it makes the file, JeffPub checks for pictures under 150 ppi (pixels per inch) at their printed size and for fonts missing from this computer. Click **Create PDF Anyway**, **Open Design Checker**, or **Cancel**.
+
+## Protect a PDF with a password
+
+In the **Create PDF** window, click **Encrypt with a password…**. Type the password twice. Anyone who opens the PDF then has to type it. The password really protects the file: the pages are scrambled with strong encryption (AES-256), and nobody can read them without it.
+
+You can also check **Restrict printing, copying, and editing**, give a second password, and choose what is allowed. Those limits are only a request. Most PDF readers honor them, but they don't stop anyone who wants to get around them, so don't count on them to keep a file private.
+
+A forgotten password can't be recovered, so keep it somewhere safe. The password is used for that one PDF and is never saved. A PDF with a password can't be PDF/A or PDF/X, so those two are turned off while a password is set.
+
+When you place a PDF that has a password as a picture, JeffPub asks for the password. If it is wrong, JeffPub asks again; click **Cancel** to stop. The page in your publication is a copy and needs no password.
 
 ## Set up colours for a print shop
 

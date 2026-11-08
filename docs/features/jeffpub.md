@@ -33,6 +33,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Barcodes: book ISBNs with or without a price add-on (hyphenated as the ISBN agency assigns them, for every country), EAN-13, UPC-A and EAN-8 with add-ons, and Code 128 and Code 39, drawn as vector bars and editable after placing
 - [x] **1.0** WebP and SVG pictures
 - [x] **1.0** **(alt)** PDF pages as pictures: Insert Picture takes a PDF (choose the page from pictures of them all); it shows as PDFium draws it, and prints and exports to PDF and SVG as sharp vectors, its text as letter outlines *(each page's vector drawing is checked against PDFium's own, and wherever they differ (hidden layers, blending, a letter whose outline can't be found) that part comes from a 300 dpi picture instead; saved to `.pub` as a picture, since Publisher takes no PDFs)*
+- [x] **1.0** Open a PDF that has a password when placing it as a picture: the password is asked for, a wrong one asks again, and Cancel stops *(shared: the password box of the File screen; the page kept in the publication needs no password)*
 - [x] **1.0** macOS app (Apple silicon and Intel) *(not yet signed, so macOS asks before opening it the first time; see the open questions)*
 - [x] **1.0** PDF/X export for commercial printers, with a print check before export *(PDF/X-1a:2001 for U.S. web coated (SWOP) or European coated (FOGRA39) printing, and PDF/X-4 (transparency kept) for premium coated paper (FOGRA51, with ECI's PSO Coated v3 profile, downloaded from the European Color Initiative the first time, after asking, since its terms don't allow passing it on) or with your printer's own color profile; checked for low-resolution pictures and missing fonts first; black overprinting as the publication's Commercial Print settings say: black text below a size, lines, fills, from a darkness you choose (Publisher's defaults: text below 24 pt and lines))*
 - [x] **1.0** Automatic table of contents from the Heading 1-3 styles, with page numbers taken from the layout and dot leaders, updated with one click (Insert > References)
@@ -106,7 +107,8 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** **(alt)** Email: send the current page as a picture, or the publication as an attachment. JeffPub creates a ready-to-send `.eml`, PDF, or HTML file instead of sending through a mail program.
 - [ ] **1.0** Links in a PDF: a hyperlink in the publication is a link you can click in the PDF *(no link is written today; the PDF/X path also removes any annotations)*
 - [ ] **1.0** Bookmarks in a PDF, from page names or Heading 1-3 *(the e-book export already builds its contents from the headings)*
-- [ ] **1.0** A tagged PDF for screen readers (headings, reading order, and alt text), and a PDF with a password
+- [ ] **1.0** A tagged PDF for screen readers (headings, reading order, and alt text)
+- [x] **1.0** A PDF with a password *(shared: libs/base/io/pdfcrypt.h; Create PDF > Encrypt with a password… asks for a password to open the PDF and, if wanted, a second to limit printing, copying, and changing; AES-256, and the plain PDF is never written to disk; PDF/A and PDF/X are turned off with a password, as those standards forbid one)*
 
 ### Options
 - [ ] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports)
@@ -377,7 +379,7 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 - [x] **1.0** Place a page of a PDF as a picture, shown as PDFium draws it and printed and exported as vectors
 - [ ] **later** Open a PDF as a publication, each page rebuilt as text boxes and pictures *(not a Publisher feature; a PDF is read as a picture today)*
 
-The gaps in an exported PDF (links, bookmarks, tags, and a password) are listed under Share and Export.
+The gaps in an exported PDF (links, bookmarks, and tags) are listed under Share and Export.
 
 ### E-books, web pages, and pictures out
 - [x] **1.0** Export EPUB: reflowable (chapters at Heading 1, contents from Heading 1-3) or page for page (fixed layout)

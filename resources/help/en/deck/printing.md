@@ -1,5 +1,5 @@
 # Print, PDF, and slide pictures
-<!-- keywords: print, printer, printing, copies, slides, notes pages, handouts, outline, pdf, export, picture, png, jpeg, jpg, image, range, hidden slides, frame, grayscale, black and white, print preview, paper, letter, a4 -->
+<!-- keywords: print, printer, printing, copies, slides, notes pages, handouts, outline, pdf, export, picture, png, jpeg, jpg, image, range, hidden slides, frame, grayscale, black and white, print preview, paper, letter, a4, password, encrypt, protect with a password -->
 
 You can print your presentation, save it as a PDF, or save a slide as a picture. All three are on the File screen.
 
@@ -29,6 +29,16 @@ Notes pages, handouts, and the outline print on upright letter or A4 paper, whic
 Click **File > Export > Export to PDF**. A window asks what to include: the same **Print what**, **Order**, and **Range** choices as printing, and the same three check boxes. It shows how many pages the file will have. Click **Export…**, then choose a name and a place.
 
 The PDF has real text, with the fonts inside it, so it looks the same on every computer. Its title is the presentation's title, or the file's name.
+
+## Protect a PDF with a password
+
+In the **Export to PDF** window, click **Encrypt with a password…**. Type the password twice. Anyone who opens the PDF then has to type it. The password really protects the file: the pages are scrambled with strong encryption (AES-256), and nobody can read them without it.
+
+You can also check **Restrict printing, copying, and editing**, give a second password, and choose what is allowed. Those limits are only a request. Most PDF readers honor them, but they don't stop anyone who wants to get around them, so don't count on them to keep a file private.
+
+A forgotten password can't be recovered, so keep it somewhere safe. The password is used for that one PDF and is never saved.
+
+When you insert a PDF that has a password as a picture, JeffDeck asks for the password. If it is wrong, it asks again; click **Cancel** to stop. The slide gets a copy of the page that needs no password.
 
 ## Save a slide as a picture
 

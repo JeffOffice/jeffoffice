@@ -1,5 +1,5 @@
 # Open, save, print, and export
-<!-- keywords: web page, html, save as web page, filtered web page, email, eml, bookmarks, pdf bookmarks, shift+f5, last edit, where you stopped, built-in templates, gallery, letter, report, brief, manuscript, newsletter, open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ott, repair, open and repair, damaged -->
+<!-- keywords: web page, html, save as web page, filtered web page, email, eml, bookmarks, pdf bookmarks, shift+f5, last edit, where you stopped, built-in templates, gallery, letter, report, brief, manuscript, newsletter, open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ott, repair, open and repair, damaged, password, encrypt, protect with a password -->
 
 Click **File** at the top left to see the File screen. It has pages for New, Open, Print, and Export, and commands for Save and Save As. Press **Esc** to go back to your document.
 
@@ -88,9 +88,17 @@ Click **File > Export** and choose one of two kinds of web page. A **web page** 
 
 Both keep headings, bulleted and numbered lists, tables with joined cells, links, and pictures. Hidden text, the words that a tracked change deleted, comments, headers, footers, and notes are left out. A link that would start a program or run a script is saved as plain words.
 
+## Protect a PDF with a password
+
+In the **Export to PDF** box, click **Encrypt with a password…**. Type the password twice. Anyone who opens the PDF then has to type it. The password really protects the file: the pages are scrambled with strong encryption (AES-256), and nobody can read them without it.
+
+You can also check **Restrict printing, copying, and editing**, give a second password, and choose what is allowed. Those limits are only a request. Most PDF readers honor them, but they don't stop anyone who wants to get around them, so don't count on them to keep a file private.
+
+A forgotten password can't be recovered, so keep it somewhere safe. The password is used for that one PDF and is never saved. The box turns off **PDF/A** while a password is set, because a PDF/A file can't have one.
+
 ## Make a PDF/A
 
-In the **Export to PDF** box, tick **PDF/A, for keeping for a long time**. A PDF/A file holds every font it uses and follows a standard made for keeping files for many years. It is not tagged for screen readers yet, and it does not have a password.
+In the **Export to PDF** box, tick **PDF/A, for keeping for a long time**. A PDF/A file holds every font it uses and follows a standard made for keeping files for many years. It is not tagged for screen readers yet, and it can't have a password.
 
 ## Make an email
 

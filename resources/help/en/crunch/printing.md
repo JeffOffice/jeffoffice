@@ -1,5 +1,5 @@
 # Print and make a PDF
-<!-- keywords: pages on a sheet, several pages per sheet, n-up, odd pages, even pages, both sides, duplex, print, printer, preview, pdf, export, copies, collate, pages, page range, selection, entire workbook, scaling, fit, email, page breaks, dashed lines, save as pdf, scale to paper, paper size, sheet preview -->
+<!-- keywords: pages on a sheet, several pages per sheet, n-up, odd pages, even pages, both sides, duplex, print, printer, preview, pdf, export, copies, collate, pages, page range, selection, entire workbook, scaling, fit, email, page breaks, dashed lines, save as pdf, scale to paper, paper size, sheet preview, password, encrypt, protect with a password -->
 
 Choose **File > Print** (or press **Ctrl+P**). The page opens with a preview of the pages that will come out, one at a time. Use the arrows under it to go from page to page, and **Fit page** or the zoom buttons to see more or less of a page. The preview is drawn the way the printer and the PDF are, so what you see is what you get.
 
@@ -37,6 +37,14 @@ Pick a printer from the list, or **Save as PDF**. **Printer settings** opens you
 **Export the whole workbook as PDF/A** makes a PDF in the form made for keeping for years. Every font is put inside the file, so it reads the same long from now. Programs that archive documents ask for this form.
 
 **Make an Email** makes a message file with your workbook in it, or a PDF of it. Nothing is sent. Open the file in your email program, add who it is for, and send it. A workbook that has a password stays locked in the message: whoever gets it needs the password to open it. The password itself is never put in the message. A PDF of the workbook has no password.
+
+## Protect a PDF with a password
+
+On **File > Export**, click **Encrypt with a password…** before you choose a PDF command. It is used for the next PDF only. Type the password twice. Anyone who opens the PDF then has to type it. The password really protects the file: the pages are scrambled with strong encryption (AES-256), and nobody can read them without it.
+
+You can also check **Restrict printing, copying, and editing**, give a second password, and choose what is allowed. Those limits are only a request. Most PDF readers honor them, but they don't stop anyone who wants to get around them, so don't count on them to keep a file private.
+
+A forgotten password can't be recovered, so keep it somewhere safe. The password is used for that one PDF and is never saved. The **Export the whole workbook as PDF/A** command is dimmed while a password is set, because a PDF/A file can't have one.
 
 ## Page breaks on the screen
 
