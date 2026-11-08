@@ -5175,12 +5175,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     }
     m_noteReserves = QVector<double>(nF, 0.0);
     for (auto it = reserve.cbegin(); it != reserve.cend(); ++it)
-        if (it.key() % 64 == 0 && it.key() / 64 >= 0 && it.key() / 64 < nF) m_noteReserves[it.key() / 64] = it.value();
+        if (quint32(it.key()) == 0 && (it.key() >> 32) >= 0 && (it.key() >> 32) < nF) m_noteReserves[int(it.key() >> 32)] = it.value();
     // Footnotes: stacked at the bottom of their column, under a short rule,
     // or, when one goes on from the column before, as wide as the column.
     QHash<qint64, double> bodyEnds;   // the bottom of the lowest line of each column, by rkey (when a column's notes hang)
     for (auto it = reserve.cbegin(); it != reserve.cend(); ++it) {
-        const int fi = it.key() / 64, ci = it.key() % 64;
+        const int fi = int(it.key() >> 32), ci = int(quint32(it.key()));
         if (fi < 0 || fi >= nF) continue;
         const QRectF col = colRect(fi, ci);
         double areaTop = col.bottom() - it.value();
