@@ -11,7 +11,8 @@ namespace jp {
 // The languages the apps have a translation for (BCP 47 names, "de", "pt_BR"),
 // besides American English, which its text is written in. The English variants
 // ("en_GB", "en_CA", "en_AU") are in it: they hold only the texts they spell
-// differently, and show the American ones for the rest.
+// differently, and show the American ones for the rest. So does Spanish for
+// Spain ("es_ES") over the neutral Spanish ("es").
 QStringList availableUiLanguages();
 
 // A language's name as its speakers write it, with the country when the

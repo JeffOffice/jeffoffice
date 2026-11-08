@@ -649,10 +649,11 @@ if(Qt6LinguistTools_FOUND)
   file(GLOB JP_TRANSLATIONS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/translations/jeffoffice_*.ts)
   list(REMOVE_ITEM JP_TRANSLATIONS ${CMAKE_SOURCE_DIR}/translations/jeffoffice_en.ts)
   # The English variants (en_GB, en_CA, en_AU) hold only the texts they spell differently; tools/translate/english_variants.py
-  # makes them from the list lupdate writes, so lupdate leaves them be.
+  # makes them from the list lupdate writes, so lupdate leaves them be. So is Spanish for Spain (es_ES), made by
+  # tools/translate/spanish_variants.py from the neutral Spanish.
   set(JP_ENGLISH_VARIANTS ${JP_TRANSLATIONS})
-  list(FILTER JP_ENGLISH_VARIANTS INCLUDE REGEX "jeffoffice_en_[A-Z][A-Z]\\.ts$")
-  list(FILTER JP_TRANSLATIONS EXCLUDE REGEX "jeffoffice_en_[A-Z][A-Z]\\.ts$")
+  list(FILTER JP_ENGLISH_VARIANTS INCLUDE REGEX "jeffoffice_(en|es)_[A-Z][A-Z]\\.ts$")
+  list(FILTER JP_TRANSLATIONS EXCLUDE REGEX "jeffoffice_(en|es)_[A-Z][A-Z]\\.ts$")
   qt_add_lupdate(TS_FILES ${CMAKE_SOURCE_DIR}/translations/jeffoffice.ts ${JP_TRANSLATIONS}
                  PLURALS_TS_FILE ${CMAKE_SOURCE_DIR}/translations/jeffoffice_en.ts
                  SOURCE_TARGETS ${JP_LUPDATE_TARGETS}

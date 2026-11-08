@@ -1817,6 +1817,60 @@ private Q_SLOTS:
         }
     }
 
+    // Spanish (Spain) is a language of its own in Options, and the system's Spain locale picks it; every other Spanish locale keeps the neutral Spanish.
+    void spanishVariantIsListed()
+    {
+        QVERIFY(jp::availableUiLanguages().contains(QStringLiteral("es_ES")));
+        QVERIFY(jp::availableUiLanguages().contains(QStringLiteral("es")));
+        QCOMPARE(jp::uiLanguageName(QStringLiteral("es_ES")), QStringLiteral("Español (España)"));
+        QCOMPARE(jp::uiLanguageName(QStringLiteral("es")), QStringLiteral("Español"));
+        const QStringList all{QStringLiteral("es"), QStringLiteral("es_ES"), QStringLiteral("en_GB"), QStringLiteral("de")};
+        QCOMPARE(jp::pickUiLanguage({QStringLiteral("es_ES")}, all), QStringLiteral("es_ES"));
+        QCOMPARE(jp::pickUiLanguage({QStringLiteral("es_MX")}, all), QStringLiteral("es"));
+        QCOMPARE(jp::pickUiLanguage({QStringLiteral("es_419")}, all), QStringLiteral("es"));
+        QCOMPARE(jp::pickUiLanguage({QStringLiteral("es")}, all), QStringLiteral("es"));
+    }
+
+    // Spain's Spanish says fichero where the neutral Spanish says archivo, keeps Archivo as the File tab, and falls back to the neutral Spanish text by text and page by page.
+    void spanishVariantShowsItsWords()
+    {
+        struct Restore {
+            QVariant before = jp::Settings::get().value(QStringLiteral("ui/language"));
+            ~Restore()
+            {
+                jp::Settings::get().setValue(QStringLiteral("ui/language"), before);
+                jp::installTranslations();
+            }
+        } restore;
+        auto say = [](const char *lang) {
+            jp::Settings::get().setValue(QStringLiteral("ui/language"), QLatin1String(lang));
+            return jp::installTranslations();
+        };
+        const auto recent = [] { return QCoreApplication::translate("jp::LinkDialog", "Recent files"); };
+        const auto fileTab = [] { return QCoreApplication::translate("Ribbon", "File"); };
+        const auto initials = [] { return QCoreApplication::translate("Dialogs", "Initials:"); };   // (the same in both)
+        const auto openSave = [] { return jp::help::topic(QStringLiteral("open-save")).markdown; };
+        QCOMPARE(say("es"), QStringLiteral("es"));
+        QCOMPARE(recent(), QStringLiteral("Archivos recientes"));
+        QVERIFY(openSave().contains(QLatin1String("archivos .jpub")) && !openSave().contains(QLatin1String("ficheros")));
+        QCOMPARE(say("es_ES"), QStringLiteral("es_ES"));
+        QCOMPARE(jp::currentUiLanguage(), QStringLiteral("es_ES"));
+        QCOMPARE(recent(), QStringLiteral("Ficheros recientes"));
+        QCOMPARE(fileTab(), QStringLiteral("Archivo"));
+        QCOMPARE(initials(), QStringLiteral("Iniciales:"));
+        const QString md = openSave();
+        QVERIFY(md.contains(QLatin1String("ficheros .jpub")) && !md.contains(QLatin1String("archivos .jpub")));
+        QVERIFY(md.contains(QLatin1String("**Archivo > Guardar**")));
+        // A page the variant doesn't list is the neutral Spanish one; plurals still work; a text nobody lists is the English one.
+        QVERIFY(!jp::help::topic(QStringLiteral("recover")).markdown.isEmpty());
+        QCOMPARE(QCoreApplication::translate("Nowhere", "Spelled the same"), QStringLiteral("Spelled the same"));
+        // Other Spanish stays neutral, and the other languages are not stacked on the variant.
+        QCOMPARE(say("es"), QStringLiteral("es"));
+        QCOMPARE(recent(), QStringLiteral("Archivos recientes"));
+        QCOMPARE(say("de"), QStringLiteral("de"));
+        QVERIFY(recent() != QStringLiteral("Ficheros recientes") && recent() != QStringLiteral("Archivos recientes"));
+    }
+
     // Every translation keeps what the program fills in or acts on: its
     // placeholders (%1, %n; a singular may spell the number out), HTML
     // tags, line breaks, & shortcut markers, and both plural forms. A
@@ -1905,7 +1959,7 @@ private Q_SLOTS:
         for (const QString &lang : help.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
             if (lang == QLatin1String("en")) continue;
             if (!jp::availableUiLanguages().contains(lang)) problems << lang + QStringLiteral(": Help without the program's text");
-            if (!lang.startsWith(QLatin1String("en_")) && !QFile::exists(QStringLiteral(":/i18n/qtbase_%1.qm").arg(lang))) problems << lang + QStringLiteral(": Qt's own text not built in");
+            if (!lang.startsWith(QLatin1String("en_")) && lang != QLatin1String("es_ES") && !QFile::exists(QStringLiteral(":/i18n/qtbase_%1.qm").arg(lang))) problems << lang + QStringLiteral(": Qt's own text not built in");
             for (const QString &file : QDir(help.filePath(lang)).entryList({QStringLiteral("*.md")}, QDir::Files)) {
                 const QString en = read(help.filePath(QStringLiteral("en/") + file)), md = read(help.filePath(lang + QLatin1Char('/') + file));
                 const QString where = lang + QLatin1Char('/') + file;

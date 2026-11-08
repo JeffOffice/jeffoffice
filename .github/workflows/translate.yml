@@ -4,7 +4,7 @@ name: Translate
 # (lupdate), translate what is new or changed into every language with
 # Claude (tools/translate/translate.py), and commit the result as
 # JeffOffice LLC. Without the ANTHROPIC_API_KEY secret it does nothing, except
-# the English variants job below, which needs no key.
+# the variants job below (English and Spanish for Spain), which needs no key.
 
 on:
   schedule:
@@ -96,7 +96,12 @@ jobs:
   # text by a word list (tools/translate/english_variants.py): no API key, no
   # network, so it runs whether or not the secret is set. It reads the committed
   # translations/jeffoffice.ts and resources/help/en.
+  # Spanish for Spain (es_ES) is made the same way from the neutral Spanish
+  # (tools/translate/spanish_variants.py), so this job runs after the translation
+  # job has committed any new Spanish text, and the translator never touches es_ES.
   english-variants:
+    needs: translate
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -108,17 +113,23 @@ jobs:
       - name: Make the English variants
         run: python3 tools/translate/english_variants.py
 
+      - name: Make the Spanish (Spain) variant
+        run: |
+          python3 tools/translate/spanish_variants.py
+          python3 tools/translate/spanish_variants.py --check
+          python3 -I tools/test_spanish_variants.py
+
       - name: Commit
         run: |
           git add translations resources/help resources/resources.qrc
-          if git diff --cached --quiet; then echo "English variants are current."; exit 0; fi
+          if git diff --cached --quiet; then echo "The variants are current."; exit 0; fi
           git config user.name "JeffOffice LLC"
           git config user.email "info@jeffoffice.com"
-          git commit -q -m "English variants of new and changed text"
+          git commit -q -m "English and Spanish variants of new and changed text"
           for i in 1 2 3 4 5; do
             git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main && exit 0
             git rebase --abort 2>/dev/null || true
             sleep 20
           done
-          echo "::error::Could not push the English variants."
+          echo "::error::Could not push the variants."
           exit 1

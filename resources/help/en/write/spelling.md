@@ -1,7 +1,7 @@
 # Check your spelling
 <!-- keywords: spelling, spell check, spell checker, misspelled, red line, wavy line, squiggle, suggestions, ignore, ignore all, add to dictionary, custom dictionary, dictionary, language, proofing, f7, review, check spelling as you type, uppercase, numbers, grammar -->
 
-JeffWrite checks your spelling as you type. A word that is not in the dictionary gets a red wavy line under it. The check runs on your own computer, with no internet connection, and it knows 12 languages.
+JeffWrite checks your spelling as you type. A word that is not in the dictionary gets a red wavy line under it. The check runs on your own computer, with no internet connection, and it knows 31 languages and regional forms.
 
 ## While you type
 
@@ -38,7 +38,7 @@ JeffWrite checks each piece of text in its own language. A file can say what lan
 
 Text in a language that JeffWrite has no dictionary for is not checked. Neither is text that a file marks "do not check spelling". You can't change the language of text in JeffWrite yet, but it keeps what the file says.
 
-The 12 dictionaries are English (American, British, Canadian, and Australian), Spanish (Mexico and Spain), French, German, Italian, Dutch, and Portuguese (Brazil and Portugal).
+The 31 dictionaries are English (American, British, Canadian, and Australian), Spanish (21 regions, including Mexico and Spain), French, German, Italian, Dutch, and Portuguese (Brazil and Portugal).
 
 ## What is not checked yet
 

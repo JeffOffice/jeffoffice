@@ -20,7 +20,7 @@ JeffPub checks every text box, shape, and table, starting on the first page. It 
 
 ## Set the language
 
-Spelling and automatic hyphenation follow the language of the text. Text with no language set is checked as English (United States). JeffPub has dictionaries for English (United States, United Kingdom, Canada, and Australia), Spanish (Spain and Mexico), French, German, Italian, Dutch, and Portuguese (Brazil and Portugal).
+Spelling and automatic hyphenation follow the language of the text. Text with no language set is checked as English (United States). JeffPub has dictionaries for English (United States, United Kingdom, Canada, and Australia), Spanish (21 regions, from Argentina to Venezuela, including Mexico and Spain), French, German, Italian, Dutch, and Portuguese (Brazil and Portugal).
 
 1. Select the text.
 2. Click **Review > Language > Set Proofing Language…**

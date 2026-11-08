@@ -112,7 +112,7 @@ Help is built into each app (press F1). JeffPub's is also published to the proje
 
 ## Languages
 
-All four apps, and their Help, are in American English, German, Spanish, French, Italian, Dutch, and Portuguese (Brazil and Portugal). They follow your computer's language, or the one chosen in File > Options > General. The translations are in [translations](translations/README.md).
+All four apps, and their Help, are in American English (also United Kingdom, Canada, and Australia), German, Spanish (also Spain), French, Italian, Dutch, and Portuguese (Brazil and Portugal). They follow your computer's language, or the one chosen in File > Options > General. The translations are in [translations](translations/README.md).
 
 ## Building and testing
 
@@ -165,7 +165,7 @@ JeffOffice includes or downloads these components, each under its own license:
 | English dictionaries: US, Canada, and Australia ([SCOWL](http://wordlist.aspell.net/)), United Kingdom | Spelling | SCOWL license; LGPL (United Kingdom) |
 | English hyphenation patterns (American and British) | Hyphenation | BSD-style |
 | [WordNet](https://wordnet.princeton.edu/) thesaurus | Synonyms | WordNet license |
-| Spanish dictionaries (Spain, Mexico) and hyphenation patterns | Spelling, hyphenation | GPL-3.0+, LGPL-3.0+, or MPL-1.1+ |
+| Spanish dictionaries (21 regions) and hyphenation patterns | Spelling, hyphenation | GPL-3.0+, LGPL-3.0+, or MPL-1.1+ |
 | French dictionary ([Grammalecte](https://grammalecte.net/)) and hyphenation patterns | Spelling, hyphenation | MPL-2.0; patterns LGPL |
 | German dictionary ([igerman98](https://www.j3e.de/ispell/igerman98/)) and hyphenation patterns | Spelling, hyphenation | GPL-2.0 or GPL-3.0; patterns LGPL-2.0+ |
 | Italian dictionary and hyphenation patterns | Spelling, hyphenation | GPL-3.0; patterns LGPL |

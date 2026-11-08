@@ -206,7 +206,7 @@
  {
   "app": "jeffwrite",
   "source_startswith": "Spelling and hyphenation work offline",
-  "works": "Spelling works offline, in 12 languages, as you type and in the Spelling pane. Hyphenation follows a file's settings.",
+  "works": "Spelling works offline, in 31 languages and regional forms, as you type and in the Spelling pane. Hyphenation follows a file's settings.",
   "soon": "Hyphenation: set from a menu or dialog"
  },
  {
@@ -348,7 +348,7 @@
   "app": "jeffcrunch",
   "source_startswith": "Spelling works offline",
   "works": "drop",
-  "soon": "Spelling check (F7), offline, in 12 languages"
+  "soon": "Spelling check (F7), offline, in 31 languages and regional forms"
  },
  {
   "app": "jeffcrunch",

@@ -34,6 +34,7 @@ QString uiLanguageName(const QString &language)
     // then the country.
     QString name = QLocale(language.section(QLatin1Char('_'), 0, 0)).nativeLanguageName();
     if (name.startsWith(QLatin1String("American English"), Qt::CaseInsensitive)) name = QStringLiteral("English");   // ("en" alone is the United States', and the country follows)
+    if (name.startsWith(QStringLiteral("español de "), Qt::CaseInsensitive)) name = QStringLiteral("español");   // ("es" alone is the neutral Spanish, not Spain's)
     if (language.contains(QLatin1Char('_'))) name += QStringLiteral(" (%1)").arg(QLocale(language).nativeTerritoryName());
     if (!name.isEmpty()) name[0] = name[0].toUpper();
     return name;
@@ -112,6 +113,8 @@ QString installTranslationsFor()
     // only the texts they spell differently; any other text is the American English one.
     if (lang.isEmpty() || lang.startsWith(QLatin1String("en_"))) installFile(QStringLiteral(":/i18n/%1_en.qm").arg(kSuiteFiles));
     if (lang.isEmpty()) return QStringLiteral("en");
+    // Spanish (Spain) goes on top of the neutral Spanish in the same way: it holds only the texts that say fichero, ratón, and the like.
+    if (lang == QLatin1String("es_ES")) installFile(QStringLiteral(":/i18n/%1_es.qm").arg(kSuiteFiles));
     installFile(QStringLiteral(":/i18n/%1_%2.qm").arg(kSuiteFiles, lang));
     if (lang.startsWith(QLatin1String("en_"))) return lang;   // (Qt's own text is English already)
     // Qt's own text (standard buttons such as Cancel, file dialogs): built
