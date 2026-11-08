@@ -18,12 +18,22 @@ endif()
 set(JP_PDFIUM_DIR ${CMAKE_BINARY_DIR}/_deps/pdfium)
 set(_pdfium_archive ${CMAKE_BINARY_DIR}/_deps/${_pdfium_asset})
 if(NOT EXISTS ${JP_PDFIUM_DIR}/include/fpdfview.h)
-  file(DOWNLOAD https://github.com/bblanchon/pdfium-binaries/releases/download/${JP_PDFIUM_RELEASE}/${_pdfium_asset}
-       ${_pdfium_archive}
-       EXPECTED_HASH SHA256=${_pdfium_sha256}
-       TLS_VERIFY ON
-       STATUS _pdfium_status)
-  list(GET _pdfium_status 0 _pdfium_code)
+  # (GitHub's release downloads answer 504 now and then: a few tries, a minute apart, before giving up)
+  foreach(_pdfium_try RANGE 1 4)
+    file(DOWNLOAD https://github.com/bblanchon/pdfium-binaries/releases/download/${JP_PDFIUM_RELEASE}/${_pdfium_asset}
+         ${_pdfium_archive}
+         EXPECTED_HASH SHA256=${_pdfium_sha256}
+         TLS_VERIFY ON
+         STATUS _pdfium_status)
+    list(GET _pdfium_status 0 _pdfium_code)
+    if(_pdfium_code EQUAL 0)
+      break()
+    endif()
+    message(STATUS "Downloading PDFium (${_pdfium_asset}), try ${_pdfium_try} of 4, failed: ${_pdfium_status}")
+    if(_pdfium_try LESS 4)
+      execute_process(COMMAND ${CMAKE_COMMAND} -E sleep 60)
+    endif()
+  endforeach()
   if(NOT _pdfium_code EQUAL 0)
     message(FATAL_ERROR "Downloading PDFium (${_pdfium_asset}) failed: ${_pdfium_status}")
   endif()
