@@ -47,7 +47,7 @@ Before it makes the file, JeffPub checks for pictures under 150 ppi (pixels per 
 
 ## Set up colors for a print shop
 
-Click **File > Properties**, then the **Commercial Print Settings** card:
+Click **File > Info**, then the **Commercial Print Settings** card:
 
 - **Color model** is **RGB**, **Single color (spot)**, **Spot colors**, **Process colors (CMYK)**, or **Process plus spot colors**. Process colors are cyan, magenta, yellow, and black ink. A spot color is a special ink the shop mixes. Add each one under **Spot colors**.
 - **Overprint black in files for a printer (PDF/X)** makes black print over the colors beneath it, so a shifted plate leaves no white edge. You choose what it covers: text below a size, lines, or fills.

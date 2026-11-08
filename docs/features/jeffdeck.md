@@ -54,13 +54,13 @@ What JeffDeck offers that the original doesn't, then the plans that go past Powe
 JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Options, and About. It has no Info, Share, or Publish page yet.
 
 ### Info
-- [~] **1.0** Presentation properties: title, author, subject, keywords, category, comments, company, and manager, with the dates created, modified, and printed *(the title is read and used for the PDF; no window shows or edits any of them)*
-- [ ] **1.0** Custom properties, kept as saved *(ours 2 of 19)*
-- [ ] **1.0** Protect Presentation: Mark as Final (opens read-only with a note), Encrypt with Password (open and save a password-protected `.pptx` with the standard's strong encryption), and Always Open Read-Only
-- [ ] **1.0** Inspect Presentation: find and remove comments, notes, personal information, hidden slides, content off the slide, and custom XML before sharing *(hidden slides: ours 0 of 54; notes: ours 12 of 19)*
+- [x] **1.0** Presentation properties: title, author, subject, keywords, category, comments, company, and manager, with the dates created, modified, and printed *(read from and saved to the file's properties; shown and edited on File > Info, and Ctrl+Z takes an edit back)*
+- [x] **1.0** Custom properties, kept as saved *(the Custom Properties box on File > Info adds, changes, and removes them; a kind JeffDeck does not model is kept as the file had it)*
+- [~] **1.0** Protect Presentation: Mark as Final (opens read-only with a note), Encrypt with Password (open and save a password-protected `.pptx` with the standard's strong encryption), and Always Open Read-Only *(Mark as Final and Encrypt with Password are on File > Info; Always Open Read-Only is not; an `.odp` file can't hold the mark or a password, and a save to one says so; no recovery copy is kept of a protected presentation)*
+- [~] **1.0** Inspect Presentation: find and remove comments, notes, personal information, hidden slides, content off the slide, and custom XML before sharing *(all but custom XML, on File > Info; each removal is a step that undoes)*
 - [ ] **1.0** Check Accessibility (see Review)
 - [~] **1.0** Check Compatibility: names what an older or other format can't hold before saving *(after saving an `.odp`, a message lists what was left out; nothing is checked ahead of time, and nothing for `.ppt`)*
-- [ ] **1.0** **(alt)** Version history without a cloud service: named local copies of a presentation, compared and restored from Info
+- [~] **1.0** **(alt)** Version history without a cloud service: named local copies of a presentation, compared and restored from Info *(kept, opened as a copy, restored, and deleted from File > Info; no compare; a version of a protected presentation is protected too)*
 - [ ] **1.0** Show a presentation's folder and copy its path
 - [ ] **later** Compress Media and Optimize Media Compatibility
 - [ ] **later** Add a digital signature with a certificate on your computer
@@ -81,7 +81,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [~] **1.0** Open and Repair: recover what can be read from a damaged file *(a damaged `.pptx` or `.odp` opens with what can be read, as above; Open > More Ways to Open > Open and Repair also finds the parts of a `.pptx` cut short or with its directory gone by their own headers, keeps what broke part way, and opens the result as a copy with a note of what was left out; a badly damaged `.ppt` is refused; shared: libs/office repair)*
 - [x] **1.0** Save a Copy (keeps working in the original) and Save as Template from the File screen *(Save as Template puts a `.potx` in My Templates)*
 - [x] **1.0** Open read-only, open as a copy, and open in a new window *(More Ways to Open on the Open page, and the right-click menu of the Recent list)*
-- [ ] **1.0** Open an encrypted presentation by asking for its password
+- [x] **1.0** Open an encrypted presentation by asking for its password *(the shared password box; a wrong password asks again, Cancel opens nothing, and a damaged file says so)*
 - [ ] **1.0** Open and save the macro-enabled kinds (`.pptm`, `.ppsm`, `.potm`), keeping the macro project untouched and never running it *(macro projects: ours 0 of 19)*
 - [ ] **1.0** Save As lists `.ppt`, `.pps`, and `.pot`, with a warning of what they can't hold; until then Save on an old file asks for a new name (see File formats)
 - [ ] **1.0** A warning before saving to a kind that can't hold something in the presentation, naming what would change, with the choice to save a `.pptx` as well
@@ -605,7 +605,7 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 - [~] **1.0** Round trip keeps custom XML, tags, drawing and control parts, the VBA project, and printer settings *(could not be confirmed one by one; custom XML in files: ours 1 of 19, drawing parts 1, tags 0, VBA 0)*
 - [x] **1.0** Fonts in saved files: the bundled fonts the text uses, all characters, as an uncompressed Embedded OpenType part, on by default; fonts drawn in place of common ones are written as the common name; a font a file carries that JeffDeck doesn't have is written back while the slides still use it
 - [ ] **1.0** Open and save `.pptm`, `.ppsm`, and `.potm`, keeping the macro project untouched and never running it *(ours 0 of 19)*
-- [ ] **1.0** Open encrypted files and save with a password
+- [x] **1.0** Open encrypted files and save with a password *(`.pptx`, `.potx`, and `.ppsx`: agile encryption with AES-256 on save)*
 - [ ] **1.0** A round-trip check on a large collection, as JeffPub's `.pub` files had: every saved file opens with no repair message, and the slides come back unchanged *(64 files so far; the Govdocs1 files and newer `.pptx` should join)*
 - [ ] **later** Save the Strict variant, and Flat OPC (`.xml`) files
 - [ ] **later** Open and save `.thmx` theme files (see Design)
@@ -679,7 +679,7 @@ What JeffDeck builds on, and the pieces to build once so that JeffWrite, JeffCru
 - [ ] **1.0** A field engine for slide numbers, dates, and document properties *(needed by: all)*
 - [ ] **1.0** Themes, table styles, and cell styles in one format and gallery, so a JeffDeck theme can color a JeffCrunch workbook and a JeffWrite document *(needed by: all)*
 - [ ] **1.0** An accessibility checker (alt text, titles and headings, reading order, tables, and contrast) with a task pane *(needed by: all)*
-- [ ] **1.0** Properties, Inspect, Mark as Final, and Encrypt with Password on the file screen, and the Open XML encryption (open and save) *(needed by: JeffWrite, JeffCrunch, JeffDeck)*
+- [x] **1.0** Properties, Inspect, Mark as Final, and Encrypt with Password on the file screen, and the Open XML encryption (open and save) *(needed by: JeffWrite, JeffCrunch, JeffDeck)*
 - [ ] **1.0** Keeping a macro project untouched in the macro-enabled kinds, never running it *(needed by: JeffWrite, JeffCrunch, JeffDeck)*
 - [ ] **later** An equation editor and layout for Office Math and MathML *(needed by: JeffWrite, JeffDeck, JeffCrunch)*
 - [ ] **later** Embedded worksheets: Insert > Object in JeffDeck shows the saved picture and opens in JeffCrunch's grid in place *(needed by: JeffCrunch, JeffWrite, JeffDeck)*

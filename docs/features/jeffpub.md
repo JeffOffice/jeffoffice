@@ -62,7 +62,11 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Business Information: create, edit, and switch between named sets (name, tagline, contact person, title, address, phone/fax/email, logo)
 - [x] **1.0** Commercial Print Information: color model (RGB, process CMYK, spot colors, process + spot) and embedded-font management *(spot colors are named inks: they print on their own separation plates and are Separation colors in PDFs; a process-color publication makes a CMYK PDF, with colors entered as CMYK kept exactly)*
 - [x] **1.0** Run Design Checker from Info
-- [x] **1.0** Publication properties (title, author, subject, keywords, comments)
+- [x] **1.0** Publication properties (title, author, subject, keywords, comments) *(File > Info: the shared Info page, with categories, company, manager, and custom properties besides; kept in the `.jpub` file, and Ctrl+Z takes an edit back)*
+- [x] **1.0** Mark as Final on File > Info: the publication is saved, then opens read-only with a note *(a `.pub` file can't hold the mark)*
+- [x] **1.0** Inspect Publication: find and remove personal information in the properties, business information, mail merge data, and objects on the scratch area
+- [x] **1.0** Version History without a cloud service: named local copies of a publication, opened as a copy or gone back to from File > Info
+- [ ] **later** A password for a publication *(a `.jpub` file has no form for one, so File > Info has no password card)*
 
 ### New
 - [x] **1.0** Template gallery with live previews and categories: Award Certificates, Banners, Brochures, Business Cards, Business Forms, Calendars, Catalogs, Email, Envelopes, Flyers, Gift Certificates, Greeting Cards, Invitation Cards, Labels, Letterhead, Menus, Newsletters, Paper Folding Projects, Postcards, Programs, Resumes, Signs, With Compliments Cards *(48 designs, at least two in every category)*
@@ -185,7 +189,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [ ] **later** **(alt)** Dictate: speech to text by an open model on your own computer, instead of online dictation
 - [x] **1.0** Language: set the proofing language for selected text; spelling and automatic hyphenation follow it (English for the US, UK, Canada, and Australia; Spanish for 21 regions, from Mexico and Spain to Venezuela, with other Spanish regions checked as Mexico's; French; German; Italian; Dutch; Portuguese for Brazil and Portugal)
 - [x] **1.0** Word Count: pages, words, characters, paragraphs, text boxes, and pictures
-- [x] **1.0** Check group: Run Design Checker (also under File > Properties) and Hyphenation (automatic hyphenation, Insert Optional Hyphen, Add Optional Hyphens) beside Word Count
+- [x] **1.0** Check group: Run Design Checker (also under File > Info) and Hyphenation (automatic hyphenation, Insert Optional Hyphen, Add Optional Hyphens) beside Word Count
 - [ ] **later** Accessibility checks beside the Design Checker: missing alt text, reading order, and low contrast *(needs the suite's accessibility checker; see Shared)*
 - [ ] **later** Chinese conversion (Simplified and Traditional), Hangul and Hanja conversion, and an IME dictionary update
 

@@ -5,7 +5,7 @@ The **Design Checker** looks through your publication for things that often go w
 
 ## Run the Design Checker
 
-Click **Review > Check > Run Design Checker**. The **Design Checker** pane opens on the right. You can also click **File > Properties**, then **Run Design Checker**.
+Click **Review > Check > Run Design Checker**. The **Design Checker** pane opens on the right. You can also click **File > Info**, then **Run Design Checker**.
 
 The pane has two check boxes, both on at first:
 
