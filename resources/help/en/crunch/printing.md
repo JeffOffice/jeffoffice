@@ -7,7 +7,8 @@ Choose **File > Print** (or press **Ctrl+P**). The page opens with a preview of 
 
 - **What**: the sheet you are on (or all the sheets whose tabs you picked with Ctrl or Shift, one after the other), the whole workbook (every sheet that is shown), or the selection. Hidden sheets are left out. A chart sheet is one page, with its chart as large as the page's room inside the margins.
 - **Pages**: all of them, or some, such as **1-3, 5**.
-- **Sides**: **All the pages**, **Odd pages only**, or **Even pages only**. Use this to print on both sides of the paper by hand when your printer can't do it. First print the odd pages. When they are done, turn the stack over, put it back in the paper tray, and print again with **Even pages only**.
+- **Which pages**: **All the pages**, **Odd pages only**, or **Even pages only**. Use this to print on both sides of the paper by hand when your printer can't do it. First print the odd pages. When they are done, turn the stack over, put it back in the paper tray, and print again with **Even pages only**.
+- **Sides**: **Print on one side**, **Print on both sides, flip on long edge**, or **Print on both sides, flip on short edge**. The long edge is for pages that turn like a book. The short edge is for pages that turn like a notepad. A printer that can't print on both sides has the last two dimmed. Point at one to see why. They are dimmed too when you save a PDF, because a file has no sides. JeffCrunch keeps your choice while the window is open.
 - **Pages on a sheet**: print 1, 2, 4, 6, 9, or 16 pages, made smaller, on each sheet of paper. Each page gets a thin frame. The preview still shows one page at full size.
 - **Copies** and **Collated** (a whole set at a time, 1 2 3 1 2 3, instead of each page's copies together).
 - **Orientation**, **Paper**, and **Margins**, to use for this print instead of what each sheet says.
@@ -27,7 +28,7 @@ Under the preview, JeffCrunch says when something needs your attention: a sheet 
 
 ## The printer
 
-Pick a printer from the list, or **Save as PDF**. **Printer settings** opens your system's own dialog for the printer's choices, such as two-sided printing and paper trays. **Print** sends the pages.
+Pick a printer from the list, or **Save as PDF**. **Printer settings** opens your system's own dialog for the printer's other choices, such as paper trays. **Print** sends the pages.
 
 ## Export to PDF
 

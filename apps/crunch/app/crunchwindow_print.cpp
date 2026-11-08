@@ -145,6 +145,7 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
         QPrinter &p = printer();
         p.setDocName(displayName());
         if (!c.printer.isEmpty() && p.printerName() != c.printer) p.setPrinterName(c.printer);
+        p.setDuplex(c.duplex);
         p.setCopyCount(std::max(1, c.copies));
         p.setCollateCopies(c.collate);
         if (m_printerPreparer) m_printerPreparer(p);

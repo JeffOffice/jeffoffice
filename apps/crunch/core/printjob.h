@@ -16,6 +16,7 @@
 
 #include <QDateTime>
 #include <QImage>
+#include <QPrinter>
 #include <QStringList>
 
 #include <functional>
@@ -75,6 +76,8 @@ struct PrintChoices {
     bool collate = true;
     QString printer;            // the printer's name; empty for the default
     bool toFile = false;        // a PDF file, not a printer
+    int duplexChoice = 0;       // the Sides choice as it was made (a jp::SidesChoice), kept for the next time the page is opened
+    QPrinter::DuplexMode duplex = QPrinter::DuplexNone;   // what the printer is set to: both sides on the long or the short edge (never with a file, and never where the printer can't)
 };
 
 // A note on a cell, for the pages of notes that print at the end of a sheet.

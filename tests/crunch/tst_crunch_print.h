@@ -10,6 +10,7 @@
 #include "app/pagesetupdialog.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/printsides.h"
 #include "app/sheettabs.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
@@ -214,6 +215,8 @@ private Q_SLOTS:
     void printToAFileMakesThePdfAndClosesTheScreen();
     void severalPagesCanShareASheet();
     void pagesGoToAPrinterObject();
+    void theSidesChoiceSetsTheDuplexModeOfThePrinter();
+    void theSidesChoiceFollowsThePrinterAndTheFileTarget();
     void exportToPdfWritesTheSheetOrTheWorkbook();
     void thePageBreaksShowOnTheSheetAfterAPreview();
     void undoAndRedoOfTypingMoveThePagesAtOnce();

@@ -1313,6 +1313,106 @@ void CrunchPrintTests::pagesGoToAPrinterObject()
 }
 
 
+namespace {
+// Printers that can and can't print on both sides, for a test: the names say which.
+struct DuplexStandIn {
+    DuplexStandIn()
+    {
+        setDuplexSupportStandIn([](const QString &name) {
+            if (name == QLatin1String("simplex printer")) return QList<QPrinter::DuplexMode>{QPrinter::DuplexNone};
+            return QList<QPrinter::DuplexMode>{QPrinter::DuplexNone, QPrinter::DuplexLongSide, QPrinter::DuplexShortSide};
+        });
+    }
+    ~DuplexStandIn() { setDuplexSupportStandIn(nullptr); }
+};
+
+// The Print page, with the two printers a test needs put in front of "Save as PDF" (once, however often the page is opened).
+QComboBox *openPrintPage(CrunchWindow &w)
+{
+    w.act(QStringLiteral("file.print"))->trigger();
+    auto *printer = w.findChild<QComboBox *>(QStringLiteral("printPrinter"));
+    if (!printer) return nullptr;
+    if (printer->findText(QStringLiteral("duplex printer")) < 0) {
+        printer->insertItem(0, QStringLiteral("simplex printer"), QStringLiteral("simplex printer"));
+        printer->insertItem(0, QStringLiteral("duplex printer"), QStringLiteral("duplex printer"));
+        printer->setCurrentIndex(0);
+    }
+    return printer;
+}
+}
+
+
+// The Sides choice: one side, or both sides flipped on the long or the short edge; the printer that gets the pages is set to it, and the choice is there again when the page is opened again.
+void CrunchPrintTests::theSidesChoiceSetsTheDuplexModeOfThePrinter()
+{
+    const DuplexStandIn standIn;
+    const QVector<QPrinter::DuplexMode> wanted = {QPrinter::DuplexNone, QPrinter::DuplexLongSide, QPrinter::DuplexShortSide};
+    for (int i = 0; i < 3; ++i) {
+        // (a window each: the printer a window keeps stays a PDF writer once a test has made it one, and a PDF writer keeps no duplex mode)
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(openPrintPage(w));
+        auto *duplex = w.findChild<QComboBox *>(QStringLiteral("printDuplex"));
+        QVERIFY(duplex);
+        if (i == 0) {
+            QCOMPARE(duplex->count(), 3);
+            QCOMPARE(duplex->itemText(0), QStringLiteral("Print on one side"));
+            QCOMPARE(duplex->itemText(1), QStringLiteral("Print on both sides, flip on long edge"));
+            QCOMPARE(duplex->itemText(2), QStringLiteral("Print on both sides, flip on short edge"));
+            QCOMPARE(duplex->currentIndex(), 0);   // (one side is where it starts)
+            // the odd and even pages stay a choice of their own
+            QVERIFY(w.findChild<QComboBox *>(QStringLiteral("printSides")));
+        }
+        QVector<QPrinter::DuplexMode> seen;
+        w.setPrinterPreparer([&](QPrinter &p) {
+            seen << p.duplex();
+            p.setOutputFormat(QPrinter::PdfFormat);
+            p.setOutputFileName(e.folder.dir.filePath(QStringLiteral("d.pdf")));
+        });
+        duplex->setCurrentIndex(i);
+        w.findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+        QCOMPARE(seen, (QVector<QPrinter::DuplexMode>{wanted[i]}));
+        // what was chosen is on the page when it is opened again
+        QVERIFY(openPrintPage(w));
+        QCOMPARE(w.findChild<QComboBox *>(QStringLiteral("printDuplex"))->currentIndex(), i);
+    }
+}
+
+
+void CrunchPrintTests::theSidesChoiceFollowsThePrinterAndTheFileTarget()
+{
+    const DuplexStandIn standIn;
+    EditWindow e;
+    QVERIFY(e.open(rowsWithFormulas(100, {})));
+    CrunchWindow &w = e.win.w;
+    QComboBox *printer = openPrintPage(w);
+    QVERIFY(printer);
+    auto *duplex = w.findChild<QComboBox *>(QStringLiteral("printDuplex"));
+    QVERIFY(duplex);
+    auto enabled = [&](int i) { return duplex->model()->flags(duplex->model()->index(i, 0)).testFlag(Qt::ItemIsEnabled); };
+    QVERIFY(duplex->isEnabled() && enabled(0) && enabled(1) && enabled(2));
+    duplex->setCurrentIndex(1);
+    // a printer that can't print on both sides: the automatic choices are off, with a reason
+    printer->setCurrentIndex(printer->findText(QStringLiteral("simplex printer")));
+    QVERIFY(duplex->isEnabled() && enabled(0) && !enabled(1) && !enabled(2));
+    QVERIFY(!duplex->itemData(1, Qt::ToolTipRole).toString().isEmpty());
+    QVERIFY(!duplex->itemData(2, Qt::ToolTipRole).toString().isEmpty());
+    QCOMPARE(duplex->currentIndex(), 0);
+    printer->setCurrentIndex(printer->findText(QStringLiteral("duplex printer")));
+    QCOMPARE(duplex->currentIndex(), 1);
+    // a PDF file has no sides: the choice is off, and the file is made as it is
+    printer->setCurrentIndex(printer->count() - 1);
+    QVERIFY(!duplex->isEnabled());
+    const QString target = e.folder.dir.filePath(QStringLiteral("nosides.pdf"));
+    w.setSavePicker([&](const QString &, const QString &) { return target; });
+    w.findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+    QVERIFY(QFileInfo::exists(target));
+    QCOMPARE(w.printChoices().duplex, QPrinter::DuplexNone);
+    QVERIFY(w.printChoices().toFile);
+}
+
+
 // Export to PDF asks for a name and writes the sheet in view, or every sheet that is shown.
 void CrunchPrintTests::exportToPdfWritesTheSheetOrTheWorkbook()
 {

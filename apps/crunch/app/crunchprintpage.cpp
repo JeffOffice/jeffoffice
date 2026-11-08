@@ -6,6 +6,7 @@
 #include "app/crunchwindow.h"
 #include "app/filescreenparts.h"
 #include "app/icons.h"
+#include "app/printsides.h"
 #include "core/printjob.h"
 #include "sheet/pagesetup.h"
 
@@ -131,7 +132,11 @@ QWidget *CrunchFileScreen::buildPrint()
     sides->addItem(tr("Even pages only (2, 4, 6, ...)"), int(crunch::PrintSides::Even));
     sides->setCurrentIndex(std::max(0, sides->findData(int(choices.sides))));
     sides->setToolTip(tr("To print on both sides by hand, print the odd pages, turn the stack over, put it back in the printer, and then print the even pages."));
-    form->addRow(tr("Sides:"), sides);
+    form->addRow(tr("Which pages:"), sides);
+    auto *duplex = new QComboBox(w);
+    duplex->setObjectName(QStringLiteral("printDuplex"));
+    fillSidesBox(duplex, false, choices.duplexChoice);
+    form->addRow(tr("Sides:"), duplex);
     auto *perSheet = new QComboBox(w);
     perSheet->setObjectName(QStringLiteral("printPerSheet"));
     perSheet->setAccessibleName(tr("Pages on each sheet of paper"));
@@ -291,6 +296,8 @@ QWidget *CrunchFileScreen::buildPrint()
         c.collate = collate->isChecked();
         c.toFile = printer->currentData(Qt::UserRole + 1).toBool();
         c.printer = c.toFile ? QString() : printer->currentData().toString();
+        c.duplexChoice = sidesWanted(duplex);
+        c.duplex = c.toFile ? QPrinter::DuplexNone : sidesDuplex(duplex);
         return c;
     };
     auto pagesToPrint = [=]() {
@@ -417,7 +424,17 @@ QWidget *CrunchFileScreen::buildPrint()
         words();
         paint();
     });
-    connect(printer, &QComboBox::currentIndexChanged, w, [=] { win->printChoices() = read(); });
+    // (a printer that can't print on both sides, and a PDF file that has no sides, turn the choice off)
+    auto fitSides = [=]() {
+        const bool toFile = printer->currentData(Qt::UserRole + 1).toBool();
+        updateSidesBox(duplex, toFile ? QString() : printer->currentData().toString(), toFile);
+    };
+    fitSides();
+    connect(printer, &QComboBox::currentIndexChanged, w, [=] {
+        fitSides();
+        win->printChoices() = read();
+    });
+    connect(duplex, &QComboBox::currentIndexChanged, w, [=] { win->printChoices() = read(); });
     connect(previous, &QToolButton::clicked, w, [=] {
         --state->page;
         words();
