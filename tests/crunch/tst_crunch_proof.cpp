@@ -664,6 +664,70 @@ private Q_SLOTS:
         recovery::setRoot(QString());
     }
 
+
+    // A copy made for recovery keeps what it takes out of a sheet's conditional formats to itself: the window's own map of them (told by a real save) is not written by the thread.
+    void aRecoveryCopyDoesNotWriteTheWindowsConditionalFormatMap()
+    {
+        QTemporaryDir root;
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".xlsx"));
+        {
+            const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>5</v></c></row><row r=\"2\"><c r=\"A2\"><v>7</v></c></row>");
+            const QString cf = QStringLiteral("<conditionalFormatting sqref=\"A1:A2\"><cfRule type=\"cellIs\" operator=\"greaterThan\" priority=\"1\"><formula>6</formula></cfRule></conditionalFormatting>");
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(rows, cf)})));
+            CrunchWindow &w = e.win.w;
+            QVERIFY(w.session()->clearCondRules(0, jp::office::sheet::CellRange{0, 0, 1, 0, true}).ok);
+            QVERIFY(recoverNow(w));
+            QCOMPARE(w.session()->condRawKept(0), qint64(0));
+            // (the copy took the rule out)
+            QMap<QString, QByteArray> parts;
+            QFile f(w.recoveryCopy());
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            QVERIFY(readZip(f.readAll(), parts));
+            QVERIFY(!parts.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("cfRule"));
+            // and a real save tells the session, as it always did
+            QVERIFY(saveAndWait(w, e.path));
+            w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
+        }
+        recovery::setRoot(QString());
+    }
+
+    // A workbook read from a text file is copied for the thread: the copy is the workbook as it was when the copy was begun.
+    void aTextFileCopyIsTheWorkbookAsItWasWhenTheCopyWasBegun()
+    {
+        QTemporaryDir root;
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".xlsx"));
+        {
+            Folder folder;
+            Window win;
+            QVERIFY(win.open(folder.write(QStringLiteral("values.csv"), "a,b\n1,2\n3,4\n")));
+            CrunchWindow &w = win.w;
+            QVERIFY(w.session()->type(0, 0, 3, QStringLiteral("before"), false).ok);
+            Pause pause;
+            w.setRecoveryHook([&pause] { pause.hold(); });
+            QSignalSpy written(&w, &CrunchWindow::recoveryWritten);
+            w.autoRecover();
+            QVERIFY(w.isRecovering());
+            QVERIFY(pause.entered.tryAcquire(1, 20000));
+            QVERIFY(w.session()->renameSheet(0, QStringLiteral("Renamed")).ok);
+            for (int i = 0; i < 100; ++i) QVERIFY(w.session()->type(0, 5, 5, QStringLiteral("later %1").arg(i), false).ok);
+            pause.proceed.release();
+            QVERIFY(written.count() > 0 || written.wait(60000));
+            QVERIFY(written.last().first().toBool());
+            QMap<QString, QByteArray> parts;
+            QFile f(w.recoveryCopy());
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            QVERIFY(readZip(f.readAll(), parts));
+            QVERIFY(!parts.value(QStringLiteral("xl/workbook.xml")).contains("Renamed"));
+            QVERIFY(parts.value(QStringLiteral("xl/sharedStrings.xml")).contains("before"));
+            QVERIFY(!parts.value(QStringLiteral("xl/sharedStrings.xml")).contains("later"));
+            w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
+        }
+        recovery::setRoot(QString());
+    }
+
     // A new blank workbook, and a workbook read from a text file (which is written on the window's thread), are recovered too.
     void aBlankWorkbookAndATextFileAreRecovered()
     {
@@ -735,6 +799,41 @@ private Q_SLOTS:
         QCOMPARE(int(w.session()->richOf(0, 0, 0)->runs.size()), 3);
     }
 
+
+
+    // Options > Proofing > Check spelling as you type: off, the cell editor computes and paints nothing and offers nothing on right-click, at once in an editor that is open; F7 still works; on, it is back.
+    void spellingAsYouTypeCanBeTurnedOff()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(CellEditor::spellingOn());   // (on unless turned off)
+        e.select("E5");
+        e.type("see speling here ");
+        CellEditor *editor = w.cellEditor();
+        QTRY_COMPARE(editor->misspellings().size(), 1);
+        w.setSpellAsYouType(false);
+        QVERIFY(editor->misspellings().isEmpty());   // (at once)
+        const int checked = editor->checkCount();
+        QTest::keyClicks(editor, "and mistaek ");
+        QTest::qWait(300);
+        QVERIFY(editor->misspellings().isEmpty());
+        QCOMPARE(editor->checkCount(), checked);   // (nothing looked at, at a key or on the timer)
+        QMenu menu;
+        QVERIFY(!editor->addSpellingSuggestions(menu, 6));
+        // F7 is asked for, and goes on working
+        quint32 r = 0, c = 0;
+        parseCellRef(QStringLiteral("A5"), &r, &c);
+        QVERIFY(w.session()->type(0, r, c, QStringLiteral("a zzqxwrd"), false).ok);
+        SpellingDialog d(&w, 0, jp::office::sheet::CellRange{0, 0, 20, 10, true});
+        QVERIFY(d.start(true));
+        QCOMPARE(d.current()->word, QStringLiteral("zzqxwrd"));
+        w.setSpellAsYouType(true);
+        QVERIFY(!editor->misspellings().isEmpty());   // (back at once)
+        QMenu again;
+        QVERIFY(editor->addSpellingSuggestions(again, 6));
+        e.key(Qt::Key_Escape);
+    }
 
     // ---- AutoCorrect in a cell: what is a formula, and what is prose
 
@@ -847,6 +946,17 @@ private Q_SLOTS:
         QCOMPARE(w.session()->valueAt(0, 4, 1).text(), QStringLiteral("word"));
         QCOMPARE(w.session()->valueAt(0, 7, 0).text(), QStringLiteral("word"));
         w.session()->undoStack()->undo();
+        QCOMPARE(w.session()->valueAt(0, 4, 1).text(), QStringLiteral("zzqxwrd"));
+        QCOMPARE(w.session()->valueAt(0, 7, 0).text(), QStringLiteral("zzqxwrd"));
+        // and all or none: one cell would be longer than a cell may be, so no cell is changed
+        put("C5", QStringLiteral("'zzqxwrd ") + QString(32755, QLatin1Char('x')));
+        QVERIFY(e.settle());
+        const int before = w.session()->undoStack()->index();
+        SpellingDialog tooLong(&w, 0, jp::office::sheet::CellRange{0, 0, 20, 10, true});
+        QVERIFY(tooLong.start(true));
+        tooLong.setReplacement(QStringLiteral("abcdefghijklmnop"));
+        tooLong.changeAll();
+        QCOMPARE(w.session()->undoStack()->index(), before);
         QCOMPARE(w.session()->valueAt(0, 4, 1).text(), QStringLiteral("zzqxwrd"));
         QCOMPARE(w.session()->valueAt(0, 7, 0).text(), QStringLiteral("zzqxwrd"));
     }
@@ -1001,12 +1111,15 @@ private Q_SLOTS:
             Window win;
             QVERIFY(win.open(big));
             QVERIFY(win.w.session()->type(0, 0, 5, QStringLiteral("changed"), false).ok);
-            QElapsedTimer held;
+            QSignalSpy written(&win.w, &CrunchWindow::recoveryWritten);
+            QElapsedTimer held, total;
             held.start();
+            total.start();
             win.w.autoRecover();
             const double ms = held.nsecsElapsed() / 1e6;
-            QSignalSpy written(&win.w, &CrunchWindow::recoveryWritten);
-            qInfo("RECOVERY text file %.1f MB: the window was held %.0f ms by the tick", QFileInfo(big).size() / 1048576.0, ms);
+            QVERIFY(written.count() > 0 || written.wait(600000));
+            qInfo("RECOVERY text file %.1f MB: the window was held %.1f ms by the tick (%.1f ms of it copying the workbook object); the copy took %lld ms in all", QFileInfo(big).size() / 1048576.0, ms,
+                  win.w.lastRecoveryCopyMs(), total.elapsed());
             win.w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
         }
         recovery::setRoot(QString());

@@ -33,9 +33,12 @@ CellEditor::CellEditor(QWidget *parent) : QLineEdit(parent)
     m_spellTimer.setSingleShot(true);
     m_spellTimer.setInterval(120);
     connect(&m_spellTimer, &QTimer::timeout, this, &CellEditor::checkSpelling);
-    connect(this, &QLineEdit::textChanged, &m_spellTimer, qOverload<>(&QTimer::start));
-    connect(this, &QLineEdit::cursorPositionChanged, &m_spellTimer, qOverload<>(&QTimer::start));
+    // (with "Check spelling as you type" off, nothing is started at a key or a move of the caret)
+    connect(this, &QLineEdit::textChanged, this, [this] { if (spellingOn()) m_spellTimer.start(); });
+    connect(this, &QLineEdit::cursorPositionChanged, this, [this] { if (spellingOn()) m_spellTimer.start(); });
 }
+
+bool CellEditor::spellingOn() { return Settings::get().value(QStringLiteral("proof/spellAsYouType"), true).toBool(); }
 
 bool CellEditor::isFormulaEntry(const QString &text) { return jp::office::sheet::isFormulaEntry(text); }
 
@@ -45,7 +48,8 @@ void CellEditor::checkSpelling()
     QVector<QPair<int, int>> wrong;
     const QString entry = text();
     // (a text of many thousands of characters is not looked at as it is typed)
-    if (entry.size() <= kSpellLimit && !isFormulaEntry(entry) && isVisible()) {
+    if (spellingOn() && entry.size() <= kSpellLimit && !isFormulaEntry(entry) && isVisible()) {
+        ++m_checkCount;
         wrong = crunch::misspelledRanges(entry);
         // (the word that is still being typed is not told of: the caret is at its end)
         const int caret = cursorPosition();
@@ -94,7 +98,7 @@ void CellEditor::paintEvent(QPaintEvent *e)
 
 bool CellEditor::addSpellingSuggestions(QMenu &menu, int position)
 {
-    if (isFormulaEntry(text())) return false;
+    if (!spellingOn() || isFormulaEntry(text())) return false;
     for (const auto &w : crunch::misspelledRanges(text())) {
         if (position < w.first || position > w.second) continue;
         const QString word = text().mid(w.first, w.second - w.first);

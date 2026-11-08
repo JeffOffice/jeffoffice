@@ -405,6 +405,7 @@ public:
     int autoRecoverInterval() const { return m_recoverTimer.interval(); }   // ms
     QString recoveryCopy() const { return m_recoveryCopy; }
     bool isRecovering() const { return m_recovering; }
+    double lastRecoveryCopyMs() const { return m_recoveryCopyMs; }
     // Gives up the copy being made and waits for its thread (a window going, the program quitting: before the recovery folder is removed).
     void cancelRecovery();
     static void finishRecoveries();
@@ -553,6 +554,8 @@ public:
     void setEnterMove(EnterMove move);
     // AutoComplete (Options > Editing): the rest of an entry above or below in the column is offered, selected, while a text is typed; on by default, kept in the person's settings.
     bool autoComplete() const { return m_autoComplete; }
+    // Options > Proofing > Check spelling as you type: kept, and an open cell editor follows at once.
+    void setSpellAsYouType(bool on);
     void setAutoComplete(bool on);
     // The fill handle and the drag of cells (Options > Editing); on by default, kept in the person's settings.
     void setDragEditing(bool on);
@@ -1513,6 +1516,7 @@ private:
     bool m_recoveryNoted = false, m_recovering = false, m_recoveryFailNoted = false;
     quint64 m_recoveryGeneration = 0;                       // raised when a copy being made stops being the workbook's (a save, a close, a new workbook, a password)
     std::array<qint64, 4> m_recoveryStamp{-1, -1, -1, -1};  // what the workbook was when the last copy was begun (changes sent, undo index and count, protection)
+    double m_recoveryCopyMs = 0;                            // what the last copy of the workbook object took on the window's thread, in milliseconds (for tests)
     QString m_recoveryJobCopy;                              // the file the copy being made is written to
     QPointer<QThread> m_recoveryThread;
     std::shared_ptr<std::atomic<bool>> m_recoveryCancel;

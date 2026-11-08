@@ -258,6 +258,12 @@ void CrunchWindow::placeEditor()
     m_cellEditor->show();
 }
 
+void CrunchWindow::setSpellAsYouType(bool on)
+{
+    Settings::get().setValue(QStringLiteral("proof/spellAsYouType"), on);
+    m_cellEditor->checkSpelling();
+}
+
 void CrunchWindow::setAutoComplete(bool on)
 {
     m_autoComplete = on;

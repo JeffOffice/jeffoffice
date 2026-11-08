@@ -15,6 +15,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QLabel>
 #include <QListWidget>
 #include <QLocale>
@@ -80,21 +81,34 @@ void CrunchWindow::autoRecover()
     const QString title = displayName();
     const std::shared_ptr<office::sheet::Workbook> book = m_loaded->book;
     const quint64 generation = m_recoveryGeneration;
-    // What the file is made from must not be what the window goes on editing: the workbook object grows (strings, formats) and changes (sheet names) with every edit. The thread reads the file
-    // again for itself and takes the list of sheets as it is now; the rest of what is saved is in the snapshot, a copy. A snapshot that holds a function that reads the window's models (a pivot
-    // table made in this run, or a chart part made from a model), and a workbook read from another form, are written here, where nothing can change meanwhile.
-    const bool apart = !book->isConverted() && snapshot->changes.addedPivots.empty() && snapshot->changes.producedParts.empty();
+    // What the file is made from must not be what the window goes on editing: the workbook object grows (strings, formats) and changes (sheet names) with every edit. A workbook read from a file
+    // is read again by the thread for itself, with the list of sheets as it is now; a workbook read from another form (an older file, a text file) has no file to read again, and the thread
+    // is given a copy of the object (its large parts are shared, not copied). The rest of what is saved is in the snapshot, a copy. A snapshot that holds a function that reads the window's
+    // models (a pivot table made in this run, or a chart part made from a model) is written here, where nothing can change meanwhile.
+    const bool apart = snapshot->changes.addedPivots.empty() && snapshot->changes.producedParts.empty();
+    const bool converted = book->isConverted();
+    QElapsedTimer copying;
+    copying.start();
+    const std::shared_ptr<office::sheet::Workbook> copyOfBook = apart && converted ? std::make_shared<office::sheet::Workbook>(*book) : nullptr;
+    m_recoveryCopyMs = copying.nsecsElapsed() / 1e6;
     m_recovering = true;
     m_recoveryStamp = stamp;
     m_recoveryJobCopy = copy;
     m_recoveryCancel = std::make_shared<std::atomic<bool>>(false);
     const std::shared_ptr<std::atomic<bool>> cancel = m_recoveryCancel;
     const std::function<void()> hook = m_recoveryHook;
-    auto make = [snapshot, copy, source, title, cancel, hook](const office::sheet::Workbook &from, const QByteArray &fileBytes, const office::sheet::WorkbookInfo *info, QString *error) {
+    auto make = [snapshot, copy, source, title, cancel, hook, copyOfBook](const office::sheet::Workbook &from, const QByteArray &fileBytes, const office::sheet::WorkbookInfo *info, QString *error) {
         return recovery::write(
             [&](const QString &file, QString *err) {
                 QByteArray bytes;
                 office::sheet::SaveReport report;
+                if (copyOfBook) {
+                    if (hook) hook();
+                    return office::sheet::saveXlsx(*copyOfBook, snapshot->changes, &bytes, err, &report, cancel.get()) && office::sheet::writeFileAtomically(file, bytes, err);
+                }
+                if (!info) {
+                    if (hook) hook();
+                }
                 if (!info) return office::sheet::saveXlsx(from, snapshot->changes, &bytes, err, &report, cancel.get()) && office::sheet::writeFileAtomically(file, bytes, err);
                 office::Package package;
                 office::sheet::Workbook mine;
@@ -117,7 +131,7 @@ void CrunchWindow::autoRecover()
         recoveryFinished(ok, copy, generation, error);
         return;
     }
-    const QByteArray fileBytes = book->package().fileBytes();   // (shared, not copied)
+    const QByteArray fileBytes = converted ? QByteArray() : book->package().fileBytes();   // (shared, not copied)
     const auto info = std::make_shared<office::sheet::WorkbookInfo>(book->info());
     QThread *thread = QThread::create([this, make, fileBytes, info, copy, generation] {
         office::sheet::Workbook none;

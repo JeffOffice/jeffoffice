@@ -33,6 +33,10 @@ public:
     QVector<QPair<int, int>> misspellings() const { return m_wrong; }
     // How many times the characters of an entry were measured for the underlines (once for a text and a font, not at every paint; for tests).
     int measureCount() const { return m_measureCount; }
+    // How many times the entry was looked at for misspelled words (for tests: none while "Check spelling as you type" is off).
+    int checkCount() const { return m_checkCount; }
+    // Whether Options > Proofing has "Check spelling as you type" on (it is, unless turned off).
+    static bool spellingOn();
     void checkSpelling();
     // Puts the dictionary's words for the misspelled word at `position`, Ignore All, and Add to Dictionary in the menu, and a separator after them. False, with nothing put in, if the
     // word there is spelled right (or the entry is a formula).
@@ -63,7 +67,7 @@ private:
     QString m_measuredText;       // the text whose characters are measured in m_advances (how far along the line each starts), with the font they were measured in
     QFont m_measuredFont;
     QVector<int> m_advances;
-    int m_measureCount = 0;
+    int m_measureCount = 0, m_checkCount = 0;
 };
 
 } // namespace jp

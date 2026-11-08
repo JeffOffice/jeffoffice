@@ -1047,6 +1047,12 @@ public:
     // ---- saving
     // Whether there is anything the file lacks: the undo stack is not at the state that was last saved.
     bool isModified() const { return !m_undo.isClean(); }
+    // How many taken-away conditional-format rules of the sheet the last snapshot's save has told the session of (for tests: a copy made for recovery tells nobody).
+    qint64 condRawKept(int sheet) const
+    {
+        const auto it = m_condSnap.find(sheet);
+        return it == m_condSnap.end() || !it->second.raw ? 0 : qint64(it->second.raw->size());
+    }
     // What the file needs to be made, taken now (nothing is held on to): false, with a message, if it can't be made.
     struct Snapshot {
         jp::office::sheet::SaveChanges changes;
