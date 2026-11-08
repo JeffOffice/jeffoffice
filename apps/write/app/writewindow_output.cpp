@@ -1,6 +1,7 @@
 // Printing and exporting from JeffWrite's window: Export to PDF, and the printing the File screen's Print page asks for.
 
 #include "app/writewindow.h"
+#include "app/printsides.h"
 
 #include "app/filedialogs.h"
 #include "app/pageoutput.h"
@@ -521,15 +522,7 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
         const QVector<WriteOutputOptions> runs = handDuplexRuns(options);
         if (!printOutput(runs[0])) return false;
         if (outputPages(runs[1]).isEmpty()) return true;
-        const QString ask = tr("The odd pages are printed. Turn the stack over and put it back in the printer, then choose OK to print the even pages.");
-        bool go = true;
-        if (m_stackTurner) go = m_stackTurner();
-        else {
-            QMessageBox box(QMessageBox::Information, tr("Print"), ask, QMessageBox::Ok | QMessageBox::Cancel, this);
-            box.setTextFormat(Qt::PlainText);
-            go = box.exec() == QMessageBox::Ok;
-        }
-        return go && printOutput(runs[1]);
+        return askToTurnStack(this, m_stackTurner) && printOutput(runs[1]);
     }
     HiddenTextOff noHidden(m_doc.get());
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);

@@ -3,11 +3,14 @@
 // (printsides.cpp).
 
 #include <QList>
+#include <QVector>
 #include <QPrinter>
 #include <QString>
+#include <algorithm>
 #include <functional>
 
 class QComboBox;
+class QWidget;
 
 namespace jp {
 
@@ -28,5 +31,25 @@ int sidesWanted(const QComboBox *box);
 // The modes a printer can print in (what Qt reports); a test stands in for it (the program never does).
 QList<QPrinter::DuplexMode> supportedDuplexModes(const QString &printer);
 void setDuplexSupportStandIn(const std::function<QList<QPrinter::DuplexMode>(const QString &printer)> &standIn);
+
+// Both sides by hand: the two runs of a job. `inOrder` is what the job prints, a page or a sheet each, in the order it prints them. The first run is the first, third, and
+// so on, in order; the second run is the others, last first, so that they land on the backs of the first run's sheets when the stack is turned over. A job of one has
+// no second run.
+template <class T>
+struct HandRuns {
+    QVector<T> first, second;
+};
+template <class T>
+HandRuns<T> handRuns(const QVector<T> &inOrder)
+{
+    HandRuns<T> runs;
+    for (qsizetype i = 0; i < inOrder.size(); ++i) (i % 2 ? runs.second : runs.first).push_back(inOrder[i]);
+    std::reverse(runs.second.begin(), runs.second.end());
+    return runs;
+}
+// Tells the person to turn the stack over and put it back, after the first run; false when they give the job up. `standIn` answers in place of the message when it is
+// not empty (a test's way); a test can also stand in for every message (setStackTurnerStandIn; the program never does).
+bool askToTurnStack(QWidget *parent, const std::function<bool()> &standIn = nullptr);
+void setStackTurnerStandIn(const std::function<bool()> &standIn);
 
 } // namespace jp

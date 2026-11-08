@@ -2,6 +2,7 @@
 #include "app/plaintext.h"
 
 #include <QComboBox>
+#include <QMessageBox>
 #include <algorithm>
 #include <QCoreApplication>
 #include <QPrinterInfo>
@@ -11,6 +12,7 @@ namespace jp {
 
 namespace {
 std::function<QList<QPrinter::DuplexMode>(const QString &)> g_duplexStandIn;
+std::function<bool()> g_turnerStandIn;
 const char *kWanted = "sidesWanted";
 const char *kSettling = "sidesSettling";
 
@@ -78,5 +80,18 @@ QPrinter::DuplexMode sidesDuplex(const QComboBox *box)
 }
 
 bool sidesByHand(const QComboBox *box) { return box->isEnabled() && SidesChoice(box->currentData().toInt()) == SidesChoice::ByHand; }
+
+void setStackTurnerStandIn(const std::function<bool()> &standIn) { g_turnerStandIn = standIn; }
+
+bool askToTurnStack(QWidget *parent, const std::function<bool()> &standIn)
+{
+    if (standIn) return standIn();
+    if (g_turnerStandIn) return g_turnerStandIn();
+    QMessageBox box(QMessageBox::Information, QCoreApplication::translate("PrintSides", "Print"),
+                    QCoreApplication::translate("PrintSides", "The odd pages are printed. Turn the stack over and put it back in the printer, then choose OK to print the even pages."),
+                    QMessageBox::Ok | QMessageBox::Cancel, parent);
+    box.setTextFormat(Qt::PlainText);
+    return box.exec() == QMessageBox::Ok;
+}
 
 } // namespace jp
