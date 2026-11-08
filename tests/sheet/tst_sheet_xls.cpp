@@ -9,6 +9,7 @@
 #include "io/zip.h"
 #include "sheet/oldsave.h"
 #include "sheet/xlsxbase.h"
+#include "sheet/xlsxsave.h"
 #include "sheet/xlscodepage.h"
 
 #include <QFile>
@@ -209,6 +210,47 @@ private Q_SLOTS:
         QVERIFY(back.readSheet(0, &a) && back.readSheet(1, &c));
         QVERIFY(a.transitionEvaluation && a.transitionEntry);
         QVERIFY(!c.transitionEvaluation && !c.transitionEntry);
+    }
+
+    // The old macro-sheet calls CALL and REGISTER.ID keep their text as written and show the result the file stored, through a calculation, a save, and a reopen.
+    void oldMacroSheetCallsKeepTheirTextAndStoredResult()
+    {
+        const QByteArray call = tStr(QStringLiteral("mylib")) + tStr(QStringLiteral("Proc")) + tStr(QStringLiteral("BB")) + tRef(0, 0) + tFuncVar(150, 4);
+        const QByteArray registered = tStr(QStringLiteral("mylib")) + tStr(QStringLiteral("Proc")) + tFuncVar(267, 2);
+        Book b;
+        b.sheet(QStringLiteral("S"), number(0, 0, 5) + formulaNumber(1, 0, call, 123) + formulaNumber(2, 0, registered, 456) + formulaNumber(3, 0, tRef(1, 0) + tInt(1) + tOp(0x03), 0));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        auto check = [&](const Workbook &book, const char *when) {
+            Sheet s;
+            QVERIFY2(book.readSheet(0, &s), when);
+            auto formula = [&](const char *ref) {
+                const Cell *c = sheettest::at(s, QLatin1String(ref));
+                return c && c->hasFormula() ? s.formulaText(*c) : QStringLiteral("none");
+            };
+            QCOMPARE(formula("A2"), QStringLiteral("CALL(\"mylib\",\"Proc\",\"BB\",A1)"));
+            QCOMPARE(formula("A3"), QStringLiteral("REGISTER.ID(\"mylib\",\"Proc\")"));
+            jp::office::sheet::CalcOptions options;
+            options.keepApart = true;
+            jp::office::sheet::Calculation calc(book, options);
+            QVERIFY2(calc.load(), when);
+            calc.recalculate();
+            QCOMPARE(calc.cell(0, 1, 0).debug(), QStringLiteral("n:123"));
+            QCOMPARE(calc.cell(0, 2, 0).debug(), QStringLiteral("n:456"));
+            QCOMPARE(calc.cell(0, 3, 0).debug(), QStringLiteral("n:124"));   // (what reads a stored result works from it)
+            // an edit of what the call reads does not make the call give another result
+            calc.recalculate();
+            QCOMPARE(calc.cell(0, 1, 0).debug(), QStringLiteral("n:123"));
+        };
+        check(wb, "first read");
+        QByteArray bytes;
+        QVERIFY2(saveXlsx(wb, SaveChanges(), &bytes, &why), qPrintable(why));
+        Package pkg;
+        QVERIFY2(pkg.readLazy(bytes, &why), qPrintable(why));
+        Workbook back;
+        QVERIFY2(back.open(pkg, &why), qPrintable(why));
+        check(back, "reopened");
     }
 
     // The cell records: numbers, the packed numbers (whole, hundredths, and floating) singly and in runs, strings of the table and in the cell, true and false, errors,

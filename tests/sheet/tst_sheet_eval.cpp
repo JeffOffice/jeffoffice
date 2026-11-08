@@ -232,6 +232,15 @@ private Q_SLOTS:
         QCOMPARE(ev("(0.5-0.4-0.1)"), num(-2.7755575615628914e-17));
         QCOMPARE(ev("1E-20+0"), num(1e-20));
         QCOMPARE(ev("1E-20"), num(1e-20));
+        // the cases of the rule in the order the original gives them: the last operation is a subtraction or addition of two numbers of opposite effect ...
+        QCOMPARE(ev("1.1-1.0-0.1"), num(0));
+        QCOMPARE(ev("-1.1+1.0+0.1"), num(0));
+        // ... not when the result is not within the limit of the larger term, when the operands differ in size, or when another operator comes last
+        QCOMPARE(ev("1.1-1.0"), num(1.1 - 1.0));
+        QCOMPARE(ev("0.5-0.4999"), num(0.5 - 0.4999));
+        QCOMPARE(ev("(1.1-1.0-0.1)*1"), num((1.1 - 1.0) - 0.1));
+        QCOMPARE(ev("(1.1-1.0-0.1)+0"), num((1.1 - 1.0) - 0.1));
+        QCOMPARE(ev("1E+300+1E+300"), num(2e300));
         // differences of a few units of the last place are zero in the last operation (what the files show: the limit is 2^-49 of the larger term) ...
         QCOMPARE(ev("9450-9449.999999999989"), num(0));
         QCOMPARE(ev("3535803.000000004-3535803.000000001"), num(0));
