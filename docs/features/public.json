@@ -2116,8 +2116,8 @@
          "text": "2bc50053304d1effdc99cf4a9df252d6efd8c0b12d7957a91a8097a6f8deafa7"
         },
         {
-         "status": "todo",
-         "text": "3576cbc1ef54218e81d16d720d48ec8f4a2ae30d8943434f8f1c1b7487d3d84e"
+         "status": "partly",
+         "text": "c12ef23fe42152df88a7921c3f6267f98299d5a169e3e0386bf5eb3aa5758294"
         },
         {
          "status": "partly",
@@ -10973,18 +10973,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "3576cbc1ef54218e81d16d720d48ec8f4a2ae30d8943434f8f1c1b7487d3d84e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Charts in `.xls`: read, and write to `.xlsx` as charts",
-    "es": "Gráficos en `.xls`: lectura y escritura en `.xlsx` como gráficos",
-    "fr": "Graphiques dans `.xls` : lecture et écriture dans `.xlsx` comme graphiques"
    }
   },
   "3595dd737a0f17bc1dd5c72fa87ea8a86b6c14573b3ca9000edb30ff1f215630": {
@@ -20357,6 +20345,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "c12ef23fe42152df88a7921c3f6267f98299d5a169e3e0386bf5eb3aa5758294": {
+   "drop": false,
+   "en": "Open charts from binary `.xls` spreadsheet files from older programs, including chart sheets and embedded charts, and save them as real charts in `.xlsx`. Column, bar (clustered, stacked, and whole-stacked), line, area, pie, doughnut, and scatter charts keep their series, titles, axis titles and scales, gridlines, legend, data labels, series colors, and position on the sheet.",
+   "es": "Abra gráficos de archivos binarios `.xls` de programas anteriores, incluidas las hojas de gráfico y los gráficos incrustados, y guárdelos como gráficos reales en `.xlsx`. Los gráficos de columnas, barras (agrupadas, apiladas y apiladas al 100 %), líneas, áreas, circulares, de anillos y de dispersión conservan sus series, títulos, títulos y escalas de los ejes, líneas de cuadrícula, leyenda, etiquetas de datos, colores de series y posición en la hoja.",
+   "fr": "Ouvrez les graphiques des fichiers binaires `.xls` de programmes plus anciens, y compris les feuilles de graphique et les graphiques incorporés, et enregistrez-les comme de vrais graphiques dans `.xlsx`. Les graphiques en colonnes, en barres (groupées, empilées et empilées à 100 %), en courbes, en aires, en secteurs, en anneau et en nuage de points conservent leurs séries, titres, titres et échelles d’axes, quadrillages, légende, étiquettes de données, couleurs de séries et position sur la feuille.",
+   "soon": {
+    "drop": false,
+    "en": "Other chart types and chart styling from `.xls`: 3-D looks, radar, surface, bubble, and stock charts, fonts and fills, axis number formats, and points of other colors",
+    "es": "Otros tipos y estilos de gráfico desde `.xls`: aspectos 3D, gráficos de radar, de superficie, de burbujas y de cotizaciones, fuentes y rellenos, formatos numéricos de los ejes y puntos de otros colores",
+    "fr": "Autres types et styles de graphique depuis `.xls` : aspects 3D, graphiques radar, de surface, à bulles et boursiers, polices et remplissages, formats numériques des axes et points d’autres couleurs"
    }
   },
   "c1385eff263b71d5bf4c43563cb48d761cf5da35ad0b84a7a18fdbb01004e3e0": {
