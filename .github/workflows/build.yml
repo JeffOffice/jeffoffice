@@ -51,7 +51,7 @@ jobs:
       - name: Which FFmpeg
         id: version
         shell: bash
-        run: echo "version=$(sed -n 's/^VERSION=//p' ffmpeg-src/tools/build_ffmpeg.sh)" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(sed -n 's/^VERSION=\${FFMPEG_VERSION:-\(.*\)}$/\1/p' ffmpeg-src/tools/build_ffmpeg.sh)" >> "$GITHUB_OUTPUT"
 
       - name: Our FFmpeg (cache)
         id: cache
@@ -232,7 +232,7 @@ jobs:
       - name: Which FFmpeg
         id: ffmpeg
         shell: bash
-        run: echo "version=$(sed -n 's/^VERSION=//p' tools/build_ffmpeg.sh)" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(sed -n 's/^VERSION=\${FFMPEG_VERSION:-\(.*\)}$/\1/p' tools/build_ffmpeg.sh)" >> "$GITHUB_OUTPUT"
 
       - name: Our FFmpeg (restore)
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0

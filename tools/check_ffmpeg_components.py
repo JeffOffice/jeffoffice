@@ -103,6 +103,7 @@ def check(script_path, list_path, built=None, write=False):
         problems.append("%s no longer checks that the build is LGPL 2.1 or later" % script_path)
     # The committed list.
     if built:
+        built = os.path.abspath(built)
         built_text = read(os.path.join(built, "share/ffmpeg-components.txt"))
         if write:
             with open(os.path.join(ROOT, list_path), "w", encoding="utf-8") as f:
