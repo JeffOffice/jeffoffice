@@ -2,10 +2,12 @@
 # Made by that script from the lists the libraries are built from; tools/check_ffmpeg_components.py reads it.
 bsf vp9_superframe_split
 decoder aac
+decoder ac3
 decoder adpcm_ima_qt
 decoder adpcm_ima_wav
 decoder adpcm_ms
 decoder alac
+decoder eac3
 decoder flac
 decoder h263
 decoder h264
@@ -58,6 +60,7 @@ demuxer mpegvideo
 demuxer ogg
 demuxer wav
 parser aac
+parser ac3
 parser flac
 parser h263
 parser h264

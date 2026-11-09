@@ -107,18 +107,19 @@ parts:
       - patchelf
       - libgl-dev
       - libxkbcommon-dev
+      # (our own FFmpeg: tools/build_ffmpeg.sh)
+      - nasm
+      - make
+      - curl
+      - xz-utils
+      - python3
     stage-packages:
-      # Printing, JeffDeck's sound and video (Qt Multimedia's FFmpeg backend),
-      # and the X11 platform plugin's cursor library. The Qt content snap may
+      # Printing, JeffDeck's sound and video (Qt Multimedia's FFmpeg backend:
+      # its FFmpeg is built below, not the distribution's), and the X11 platform plugin's cursor library. The Qt content snap may
       # carry some of these already; a second copy costs a little space only.
       - libcups2t64
       - libpulse0
       - libxcb-cursor0
-      - libavcodec60
-      - libavformat60
-      - libavutil58
-      - libswscale7
-      - libswresample4
     build-environment:
       # What ships, as in .github/workflows/build.yml. The apps below need both "true";
       # turning one off means dropping its app entry as well.
@@ -146,6 +147,14 @@ parts:
       here=$CRAFT_PART_SRC/packaging/linux
       d=$CRAFT_PART_INSTALL
       mkdir -p "$d/usr/lib/jeffoffice" "$d/usr/share/doc/jeffoffice/pdfium" "$d/usr/share/doc/jeffoffice/ffmpeg"
+      # JeffDeck's FFmpeg: our minimal build of 6.1.6 (libavcodec 60, libavutil 58, and kin: the versions the Qt of the KDE content snap binds to),
+      # not Ubuntu's full 6.1.1 that the archive carries without its security fixes. The same source, script, and component check as the other
+      # packages (FFMPEG_VERSION picks the release); the libraries go where the staged ones did, so the plugin finds them as before.
+      FFMPEG_VERSION=6.1.6 sh "$CRAFT_PART_SRC/tools/build_ffmpeg.sh" "$CRAFT_PART_BUILD/ffmpeg" "$CRAFT_PART_BUILD/ffmpeg-work"
+      python3 "$CRAFT_PART_SRC/tools/check_ffmpeg_components.py" --built "$CRAFT_PART_BUILD/ffmpeg" --components third_party/ffmpeg-components-6.1.6.txt
+      mkdir -p "$d/usr/lib/x86_64-linux-gnu"
+      cp -a "$CRAFT_PART_BUILD/ffmpeg/lib/"lib*.so.* "$d/usr/lib/x86_64-linux-gnu/"
+      sh "$CRAFT_PART_SRC/tools/use_ffmpeg.sh" check "$d/usr/lib/x86_64-linux-gnu"
       install -Dm644 "$CRAFT_PART_BUILD/_deps/pdfium/lib/libpdfium.so" "$d/usr/lib/jeffoffice/libpdfium.so"
       mkdir -p "$d/usr/share/jeffoffice"
       cp -r "$CRAFT_PART_SRC/resources/fonts" "$CRAFT_PART_SRC/resources/dict" "$d/usr/share/jeffoffice/"

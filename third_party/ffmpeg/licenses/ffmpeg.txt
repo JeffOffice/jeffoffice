@@ -11,7 +11,7 @@ libraries, which come with the program:
   (on Windows avcodec-*.dll and its kin; on macOS and Linux libavcodec and its
   kin, with Qt's FFmpeg plugin, plugins/multimedia/ffmpegmediaplugin)
 
-They are FFmpeg 7.1.5, built by JeffOffice from the official source release
+They are FFmpeg 7.1.5 (6.1.6 in the snap), built by JeffOffice from the official source release
 with only the parts that a movie or sound in a presentation needs (see "What
 is in the build," below): a build under the GNU Lesser General Public
 License, version 2.1 or later (the libraries say so themselves: "libavcodec
@@ -25,7 +25,7 @@ Of FFmpeg's hundreds of file readers and decoders, the build has the ones for
 the movies and sounds a presentation holds: the MP4, QuickTime, 3GP, Matroska,
 WebM, AVI, ASF (Windows Media), MPEG program and transport stream, WAV, MP3,
 AAC, FLAC, Ogg, and AIFF containers, and H.264, HEVC, MPEG-4, H.263, MPEG-1,
-MPEG-2, Windows Media video, VC-1, VP8, VP9, Motion JPEG, raw video, AAC, MP3,
+MPEG-2, Windows Media video, VC-1, VP8, VP9, Motion JPEG, raw video, AAC, AC-3, MP3,
 MP2, Windows Media audio, FLAC, Vorbis, Opus, ALAC, PCM, and ADPCM decoders.
 It has no encoders, no muxers, no network or playlist readers, no devices, no
 hardware decoders, and no other libraries (not zlib, not OpenSSL). The
@@ -47,7 +47,7 @@ and JeffDeck will use them. tools/build_ffmpeg.sh in the source makes ours.
 
 Where the source is
 -------------------
-- FFmpeg 7.1.5, the file ffmpeg-7.1.5.tar.xz: https://ffmpeg.org/releases/ and
+- FFmpeg 7.1.5 (6.1.6 in the snap), the file ffmpeg-7.1.5.tar.xz: https://ffmpeg.org/releases/ and
   https://git.ffmpeg.org/ffmpeg.git (the release tag n7.1.5). tools/build_ffmpeg.sh
   in the JeffOffice source downloads it, checks its SHA-256, and builds it.
 - Qt Multimedia's FFmpeg backend, which loads the libraries: its source is at

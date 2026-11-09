@@ -8,7 +8,8 @@ This check fails when:
   - a banned component (the ones named in the flaws that affect Qt's full build: the VobSub demuxer, NVDEC, the
     S/PDIF muxer, the RTP, RTSP, and SDP demuxers, and the ADX decoder, and kin) is in third_party/ffmpeg-components.txt;
   - that file does not list exactly the components the script enables (and the few bitstream filters a decoder pulls in).
-    python3 tools/check_ffmpeg_components.py --built PREFIX         also compares PREFIX/share/ffmpeg-components.txt
+    python3 tools/check_ffmpeg_components.py                        checks every third_party/ffmpeg-components*.txt
+    python3 tools/check_ffmpeg_components.py --built PREFIX [--components FILE]   also compares PREFIX/share/ffmpeg-components.txt
                                                                     (what a build really compiled in) with the file
     python3 tools/check_ffmpeg_components.py --built PREFIX --write  replaces the file with it
 """
@@ -145,7 +146,14 @@ def main(argv):
         else:
             print("usage: check_ffmpeg_components.py [--built PREFIX [--write]]", file=sys.stderr)
             return 2
-    problems = check(script, lst, built, write)
+    problems = []
+    if lst == LIST and not built:
+        # (one list for each release the script builds: ffmpeg-components.txt for 7.1.5, ffmpeg-components-6.1.6.txt for the snap's)
+        import glob
+        for path in sorted(glob.glob(os.path.join(ROOT, "third_party/ffmpeg-components*.txt"))):
+            problems += check(script, os.path.relpath(path, ROOT), None, False)
+    else:
+        problems = check(script, lst, built, write)
     for p in problems:
         print("FFmpeg components: " + p)
     if problems:

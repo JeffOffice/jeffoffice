@@ -11,7 +11,7 @@
 # so that a second run is quick, and is safe to delete.
 #
 # The library versions are Qt's (libavcodec 61, libavformat 61, libavutil 59, libswresample 5, libswscale 8): Qt's
-# plugin binds to them, so this stays on the 7.1 source. LGPL 2.1 or later only: nothing GPL, nothing nonfree.
+# plugin binds to them, so this stays on the 7.1 source (the snap's Qt binds to 60, 60, 58, 4, 7: FFMPEG_VERSION=6.1.6). LGPL 2.1 or later only: nothing GPL, nothing nonfree.
 #
 # Needs, on every system: a C compiler, make, tar with xz, curl (unless FFMPEG_TARBALL is given), and sha256sum or shasum.
 #   Linux:    gcc or clang, make, nasm (x86_64; FFMPEG_NO_ASM=1 builds without assembly, several times slower to decode)
@@ -20,14 +20,20 @@
 #   macOS:    Xcode's clang, make, and nasm (x86_64 only: brew install nasm). FFMPEG_ARCH=arm64 or x86_64 (default: this Mac's);
 #             the other one is cross-compiled. Libraries for both are joined with lipo by tools/use_ffmpeg.sh.
 # Environment: FFMPEG_ARCH (macOS), FFMPEG_NO_ASM=1, FFMPEG_TARBALL=path of an already downloaded tarball (still checked),
-# FFMPEG_JOBS (default 4).
+# FFMPEG_JOBS (default 4), FFMPEG_VERSION (7.1.5 or 6.1.6).
 set -eu
 
-VERSION=7.1.5
-SHA256=de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f
+# The release to build (FFMPEG_VERSION): 7.1.5 for the libraries Qt 6.11's own packages bind to (libavcodec 61, libavutil 59), and 6.1.6 for the snap,
+# whose Qt binds to libavcodec 60 and libavutil 58. Each has the SHA-256 of its official tarball here; any other release is refused.
+VERSION=${FFMPEG_VERSION:-7.1.5}
+case "$VERSION" in
+    7.1.5) SHA256=de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f; AVCODEC_MAJOR=61 ;;
+    6.1.6) SHA256=d4fcb164028dd3beee5d92c0ac72e46aac6973c75ea12dc14de07bf8f407370a; AVCODEC_MAJOR=60 ;;
+    *) echo "build_ffmpeg: FFMPEG_VERSION $VERSION has no SHA-256 in this script" >&2; exit 1 ;;
+esac
 URL="https://ffmpeg.org/releases/ffmpeg-$VERSION.tar.xz"
 
-# What a presentation's movies and sounds are: see third_party/ffmpeg.txt for the evidence. Containers (the matroska
+# What a presentation's movies and sounds are: see third_party/README.md for the evidence. Containers (the matroska
 # demuxer reads WebM too, mov reads mp4, m4a, and 3gp), what is in them, and the parsers those need to find frames.
 DEMUXERS="
 mov
@@ -63,6 +69,8 @@ vp9
 mjpeg
 rawvideo
 aac
+ac3
+eac3
 mp2float
 mp3float
 wmav1
@@ -100,6 +108,7 @@ vp8
 vp9
 mjpeg
 aac
+ac3
 mpegaudio
 flac
 vorbis
@@ -139,6 +148,8 @@ if [ ! -f "$SRC/configure" ]; then
     mkdir -p "$WORK/src"
     tar -xJf "$TARBALL" -C "$WORK/src"
 fi
+
+grep -q "LIBAVCODEC_VERSION_MAJOR  $AVCODEC_MAJOR\$" "$SRC/libavcodec/version_major.h" || die "FFmpeg $VERSION does not have libavcodec $AVCODEC_MAJOR"
 
 # ---- the system ----
 OS=$(uname -s)
