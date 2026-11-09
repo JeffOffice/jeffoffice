@@ -140,7 +140,7 @@ TARBALL=${FFMPEG_TARBALL:-}
 if [ -z "$TARBALL" ]; then
     mkdir -p "$WORK/download"
     TARBALL="$WORK/download/ffmpeg-$VERSION.tar.xz"
-    [ -f "$TARBALL" ] || curl -fsSL --retry 3 -o "$TARBALL" "$URL"
+    [ -f "$TARBALL" ] || curl -fsSL --retry 5 --retry-all-errors -o "$TARBALL" "$URL"
 fi
 [ "$(sha256_of "$TARBALL")" = "$SHA256" ] || die "$TARBALL is not FFmpeg $VERSION (its SHA-256 differs from the one in this script)"
 SRC="$WORK/src/ffmpeg-$VERSION"

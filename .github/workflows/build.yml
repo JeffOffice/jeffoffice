@@ -41,24 +41,24 @@ jobs:
     runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || matrix.os }}
     timeout-minutes: 45
     steps:
-      # (a whole checkout: our own Linux machine keeps its workspace between jobs, and a sparse one left the build job there without tools/use_ffmpeg.sh)
+      # Our own Linux machines keep their workspace between jobs, and a job's checkout changes the repository there for the next job (a sparse one did, on Nov 9,
+      # and broke the next job's checkout on every branch). This job's tree is its own folder, a separate repository the next job's checkout cleans away; nothing
+      # here touches the workspace's own checkout, and the cache and the build are outside it too.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - name: Whole tree
-        shell: bash
-        run: git sparse-checkout disable || true
+        with:
+          path: ffmpeg-src
 
       - name: Which FFmpeg
         id: version
         shell: bash
-        run: echo "version=$(sed -n 's/^VERSION=//p' tools/build_ffmpeg.sh)" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(sed -n 's/^VERSION=//p' ffmpeg-src/tools/build_ffmpeg.sh)" >> "$GITHUB_OUTPUT"
 
       - name: Our FFmpeg (cache)
         id: cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ffmpeg-out/${{ matrix.name }}
-          key: ffmpeg-${{ steps.version.outputs.version }}-${{ matrix.name }}-${{ hashFiles('tools/build_ffmpeg.sh') }}
+          key: ffmpeg-${{ steps.version.outputs.version }}-${{ matrix.name }}-${{ hashFiles('ffmpeg-src/tools/build_ffmpeg.sh') }}
 
       - name: Build tools (Linux)
         if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
@@ -74,7 +74,7 @@ jobs:
         env:
           FFMPEG_ARCH: ${{ runner.os == 'macOS' && matrix.name || '' }}
           FFMPEG_JOBS: '4'
-        run: sh tools/build_ffmpeg.sh "$PWD/ffmpeg-out/${{ matrix.name }}" "$RUNNER_TEMP/ffmpeg-build"
+        run: sh ffmpeg-src/tools/build_ffmpeg.sh "$PWD/ffmpeg-out/${{ matrix.name }}" "$RUNNER_TEMP/ffmpeg-build"
 
       # MSYS2 is on the runner image; its MinGW-w64 compiler, make, and nasm are installed into it.
       - name: Build FFmpeg (Windows)
@@ -86,14 +86,14 @@ jobs:
           FFMPEG_JOBS: '4'
         run: |
           pacman -Sy --noconfirm --needed make diffutils xz mingw-w64-x86_64-gcc mingw-w64-x86_64-nasm
-          sh tools/build_ffmpeg.sh "$PWD/ffmpeg-out/windows" "$PWD/ffmpeg-build"
+          sh ffmpeg-src/tools/build_ffmpeg.sh "$PWD/ffmpeg-out/windows" "$PWD/ffmpeg-build"
 
       # (every run, a cache hit too: what is kept must be what the committed list says, with none of the banned components)
       - name: Check what was compiled in
         shell: bash
         run: |
           PY=python3; command -v python3 >/dev/null 2>&1 || PY=python
-          "$PY" tools/check_ffmpeg_components.py --built "ffmpeg-out/${{ matrix.name }}"
+          "$PY" ffmpeg-src/tools/check_ffmpeg_components.py --built "ffmpeg-out/${{ matrix.name }}"
           ls -la ffmpeg-out/${{ matrix.name }}/lib ffmpeg-out/${{ matrix.name }}/bin 2>/dev/null || true
 
   build:
