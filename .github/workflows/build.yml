@@ -277,6 +277,8 @@ jobs:
           nm -u "$P" | awk '{print $NF}' | grep -E '^_(av|sw)' | sed 's/^_//' | sort -u > /tmp/need.txt
           for f in "$L"/libav*.61.dylib "$L"/libavutil.59.dylib "$L"/libsw*.dylib; do [ -L "$f" ] || continue; nm -gU "$f" | awk '{print $3}' | sed 's/^_//'; done | sort -u > /tmp/have.txt
           wc -l /tmp/need.txt /tmp/have.txt; comm -23 /tmp/need.txt /tmp/have.txt | head -20 || true
+          echo "== which library the plugin expects the names in"; nm -m "$P" | grep -E "_av_dict_get_string|_av_malloc|_avformat_open_input|_sws_scale|_swr_init" | head -10 || true
+          echo "== who defines av_dict_get_string"; for f in "$L"/libav*.61.dylib "$L"/libavutil.59.dylib "$L"/libsw*.dylib; do nm -gU "$f" 2>/dev/null | grep -H --label="$(basename "$f")" "_av_dict_get_string" || true; done
           for f in "$L"/libavcodec.61.dylib "$L"/libavformat.61.dylib "$L"/libavutil.59.dylib "$L"/libswresample.5.dylib "$L"/libswscale.8.dylib; do
             echo "$(basename "$f"): $(lipo -archs "$f"), signature: $(codesign -v "$f" 2>&1 | head -1 | sed 's/^$/valid/')"
           done
@@ -382,7 +384,7 @@ jobs:
         shell: bash
         run: |
           if [ -x build/jdtests ]; then
-            QT_DEBUG_PLUGINS=1 QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 build/jdtests --class DeckMediaTests mediaPlaybackPlaysASoundOrSaysWhy 2>&1 | grep -i -E "multimedia|ffmpeg|dlopen|dyld|not loaded|signature|Totals|FAIL" | head -60 || true
+            DYLD_PRINT_LIBRARIES=1 QT_DEBUG_PLUGINS=1 QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 build/jdtests --class DeckMediaTests mediaPlaybackPlaysASoundOrSaysWhy 2>&1 | grep -i -E "multimedia|ffmpeg|dlopen|dyld|not loaded|signature|Totals|FAIL|libav|libsw|Expected in" | head -80 || true
           fi
           exit 0
 
