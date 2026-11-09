@@ -1263,12 +1263,19 @@ void CrunchWindow::showPivotFields(bool show)
     }
 }
 
+// The commands updatePivotFieldActions alone turns on and off (updateEditActions leaves them: it would turn them on, and that one off again, at every edit).
+const std::vector<const char *> &CrunchWindow::pivotSelectionActions()
+{
+    static const std::vector<const char *> ids = {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.calculatedField", "pivot.listFormulas", "pivot.calculatedItem", "pivot.solveOrder", "pivot.showDetail", "pivot.selectAll", "pivot.selectValues", "pivot.selectLabels", "pivot.move", "pivot.drillDown", "pivot.drillUp"};
+    return ids;
+}
+
 void CrunchWindow::updatePivotFieldActions()
 {
     // (a command that works on a pivot table's cell is dimmed away from one, not left to say so when it is used)
     const bool open = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;
     const bool inTable = selectedPivot() >= 0;
-    for (const char *id : {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.calculatedField", "pivot.listFormulas", "pivot.calculatedItem", "pivot.solveOrder", "pivot.showDetail", "pivot.selectAll", "pivot.selectValues", "pivot.selectLabels", "pivot.move", "pivot.drillDown", "pivot.drillUp"})
+    for (const char *id : pivotSelectionActions())
         if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(open && inTable);
     {
         bool filtered = false;

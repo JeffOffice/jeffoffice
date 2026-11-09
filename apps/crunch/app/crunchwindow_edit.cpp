@@ -16,6 +16,8 @@
 #include "grid/gridview.h"
 #include "sheet/cellref.h"
 
+#include <algorithm>
+#include <vector>
 #include <QAction>
 #include <QFontMetrics>
 #include <QKeyEvent>
@@ -118,8 +120,15 @@ void CrunchWindow::updateEditActions()
     act("edit.undo")->setToolTip(jp::plainToolTip(u && m_session->canUndo() ? tr("Undo %1 (%2)").arg(u->undoText(), QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)) : tr("Undo")));
     act("edit.redo")->setToolTip(jp::plainToolTip(u && u->canRedo() ? tr("Redo %1 (%2)").arg(u->redoText(), QKeySequence(QKeySequence::Redo).toString(QKeySequence::NativeText)) : tr("Redo")));
     // (a chart sheet has no cells to work on: none of the commands that do is on while one is in view, and they are back on a sheet of cells)
-    for (const QString &id : m_opsActions)
-        if (QAction *a = act(id)) a->setEnabled((open || (m_session && !m_saving && isReadOnly() && commandAllowedReadOnly(id))) && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown);   // (Find and Go To work in a workbook open for reading only; Replace and the rest do not)
+    const std::vector<const char *> &pivotOwned = pivotSelectionActions();
+    for (const QString &id : m_opsActions) {
+        QAction *a = act(id);
+        if (!a) continue;
+        const bool allowed = (open || (m_session && !m_saving && isReadOnly() && commandAllowedReadOnly(id))) && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;   // (Find and Go To work in a workbook open for reading only; Replace and the rest do not)
+        // (Commands another update turns on from what it knows are only turned off here: turning them on, and that update off again, at every edit made Qt 6.11 slow in proportion to the edits so far.)
+        const bool owned = id == QLatin1String("pivot.reportPages") || id == QLatin1String("printarea.clear") || std::any_of(pivotOwned.begin(), pivotOwned.end(), [&](const char *own) { return id == QLatin1String(own); });
+        if (!owned || !allowed) a->setEnabled(allowed);
+    }
     for (const char *id : {"edit.copy", "edit.selectAll", "view.formulas", "view.gridlines", "view.headings", "view.freeze", "view.freezeRow", "view.freezeCol", "view.unfreeze", "view.split"})
         if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(!m_chartSheetShown);
     const bool canSave = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty();
