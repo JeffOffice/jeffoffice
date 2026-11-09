@@ -24,12 +24,14 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-      - name: Only from main
+      # (Any branch may build the snap to test it; only main may upload it, which the upload job checks too.)
+      - name: Upload only from main
         env:
           REF: ${{ github.ref }}
+          UPLOAD: ${{ inputs.upload_to_edge }}
         run: |
-          if [ "$REF" != refs/heads/main ]; then
-            echo "::error::The snap is built and uploaded only from main, not from $REF."
+          if [ "$UPLOAD" = true ] && [ "$REF" != refs/heads/main ]; then
+            echo "::error::The snap is uploaded only from main, not from $REF."
             exit 1
           fi
 
