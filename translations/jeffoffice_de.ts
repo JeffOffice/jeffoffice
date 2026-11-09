@@ -18428,7 +18428,7 @@ Quelle: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+329"/>
         <location line="+53"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+116"/>
-        <location line="+208"/>
+        <location line="+212"/>
         <location line="+65"/>
         <location line="+164"/>
         <location line="+15"/>
@@ -18464,8 +18464,8 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-461"/>
-        <location line="+98"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-465"/>
+        <location line="+102"/>
         <location line="+76"/>
         <location line="+64"/>
         <location line="+3"/>
@@ -18627,7 +18627,7 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="-633"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-263"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-267"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Alle Dateien (*)</translation>
     </message>
@@ -19717,7 +19717,7 @@ Quelle: %3</translation>
     <message>
         <location line="+7"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+100"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+259"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+263"/>
         <source>Calculating…</source>
         <translation type="unfinished">Berechnung läuft…</translation>
     </message>
@@ -22180,14 +22180,14 @@ Quelle: %3</translation>
         <translation type="unfinished">Rückgängig gemacht: %1</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-455"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-459"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 The file isn&apos;t there.</source>
         <translation type="unfinished">%1 kann „%2“ nicht öffnen.
 Die Datei ist nicht vorhanden.</translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="+56"/>
         <location line="+190"/>
         <source>Open and Repair</source>
         <translation type="unfinished">Öffnen und reparieren</translation>
