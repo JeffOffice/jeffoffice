@@ -753,8 +753,16 @@ bool looksLikeMediaFile(const QByteArray &bytes)
 QStringList mediaExtensions(const QString &kind)
 {
     QStringList out;
-    for (const FileKind &f : kFiles)
-        if (kind == QLatin1String(f.kind)) out << QLatin1String(f.extension);
+    // (Not offered: the FFmpeg that is packaged, tools/build_ffmpeg.sh, has no reader for Ogg video, and none ever played MIDI. A deck's
+    // own part with one of these names is still known for what it is, above.)
+    static const char *const notOffered[] = {"ogv", "mid", "midi"};
+    for (const FileKind &f : kFiles) {
+        if (kind != QLatin1String(f.kind)) continue;
+        bool offered = true;
+        for (const char *no : notOffered)
+            if (QLatin1String(f.extension) == QLatin1String(no)) offered = false;
+        if (offered) out << QLatin1String(f.extension);
+    }
     return out;
 }
 

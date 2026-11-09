@@ -826,6 +826,45 @@ private Q_SLOTS:
         closer.stop();
     }
 
+    // A movie whose sound is in a format the build leaves out (the folder "audio_dropped"): it plays its picture without the sound, or says it
+    // can't be played; it does not hang, and a probe of it comes back.
+    void movieWithASoundTheBuildLeavesOutPlaysPictureOrSaysSo()
+    {
+        const QFileInfoList files = sampleFiles("audio_dropped");
+        if (files.isEmpty()) QSKIP("JO_MEDIA_SAMPLES has no audio_dropped folder");
+        for (const QFileInfo &info : files) {
+            QFile f(info.filePath());
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray bytes = f.readAll();
+            const MediaProbe probe = probeMedia(bytes, info.suffix(), true, 15000);
+            QVERIFY2(!probe.frame.isNull() || !probe.error.isEmpty(), qPrintable(info.fileName()));
+            MediaPlayback pb;
+            pb.setFile(bytes, info.suffix());
+            deck::MediaPlay play;
+            play.video = true;
+            pb.setPlay(play);
+            pb.play();
+            QTRY_VERIFY2_WITH_TIMEOUT(pb.failed() || !pb.frame().isNull(), qPrintable(info.fileName() + QStringLiteral(" neither plays nor says why")), 15000);
+            if (pb.failed()) QVERIFY2(pb.error().contains(QStringLiteral("movie")), qPrintable(pb.error()));
+            else QVERIFY2(pb.state() == MediaPlayback::State::Playing, qPrintable(info.fileName()));
+            qInfo("%s: %s", qPrintable(info.fileName()), pb.failed() ? "says it can't be played" : "plays its picture");
+            pb.stop();
+        }
+    }
+
+    // What the Insert dialogs offer is what plays: no Ogg video (the build has no reader for it) and no MIDI (FFmpeg never played it).
+    void insertDialogsOfferOnlyWhatPlays()
+    {
+        const QStringList video = deck::mediaExtensions(QStringLiteral("video")), audio = deck::mediaExtensions(QStringLiteral("audio"));
+        for (const char *ext : {"mp4", "mov", "mkv", "webm", "avi", "wmv", "mpg", "3gp"}) QVERIFY2(video.contains(QLatin1String(ext)), ext);
+        for (const char *ext : {"mp3", "wav", "m4a", "wma", "aac", "ogg", "flac", "aif", "opus"}) QVERIFY2(audio.contains(QLatin1String(ext)), ext);
+        QVERIFY(!video.contains(QStringLiteral("ogv")));
+        QVERIFY(!audio.contains(QStringLiteral("mid")) && !audio.contains(QStringLiteral("midi")));
+        // A deck's own part with one of these names is still known for what it is.
+        QCOMPARE(deck::mediaKindOfFile(QStringLiteral("a.ogv")), QStringLiteral("video"));
+        QCOMPARE(deck::mediaKindOfFile(QStringLiteral("a.mid")), QStringLiteral("audio"));
+    }
+
     // The control bar: its parts are where they are drawn, a click on the seek bar means a moment, and it stays on the
     // screen when the picture is at the bottom.
     void mediaBarLaysOutItsPartsAndStaysOnTheScreen()
