@@ -51,7 +51,10 @@ jobs:
       - name: Which FFmpeg
         id: version
         shell: bash
-        run: echo "version=$(sed -n 's/^VERSION=\${FFMPEG_VERSION:-\(.*\)}$/\1/p' ffmpeg-src/tools/build_ffmpeg.sh)" >> "$GITHUB_OUTPUT"
+        run: |
+          v=$(sed -n 's/^VERSION=\${FFMPEG_VERSION:-\(.*\)}$/\1/p' ffmpeg-src/tools/build_ffmpeg.sh)
+          [ -n "$v" ] || { echo "::error::no FFmpeg version found in tools/build_ffmpeg.sh"; exit 1; }
+          echo "version=$v" >> "$GITHUB_OUTPUT"
 
       - name: Our FFmpeg (cache)
         id: cache
@@ -62,7 +65,7 @@ jobs:
 
       - name: Build tools (Linux)
         if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
-        run: sudo apt-get update && sudo apt-get install -y nasm xz-utils
+        run: sudo apt-get update && sudo apt-get install -y nasm xz-utils zlib1g-dev
 
       - name: Build tools (macOS)
         if: runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true'
@@ -85,7 +88,7 @@ jobs:
           CHERE_INVOKING: '1'
           FFMPEG_JOBS: '4'
         run: |
-          pacman -Sy --noconfirm --needed make diffutils xz mingw-w64-x86_64-gcc mingw-w64-x86_64-nasm
+          pacman -Sy --noconfirm --needed make diffutils xz mingw-w64-x86_64-gcc mingw-w64-x86_64-nasm mingw-w64-x86_64-zlib
           sh ffmpeg-src/tools/build_ffmpeg.sh "$PWD/ffmpeg-out/windows" "$PWD/ffmpeg-build"
 
       # (every run, a cache hit too: what is kept must be what the committed list says, with none of the banned components)
@@ -95,6 +98,43 @@ jobs:
           PY=python3; command -v python3 >/dev/null 2>&1 || PY=python
           "$PY" ffmpeg-src/tools/check_ffmpeg_components.py --built "ffmpeg-out/${{ matrix.name }}"
           ls -la ffmpeg-out/${{ matrix.name }}/lib ffmpeg-out/${{ matrix.name }}/bin 2>/dev/null || true
+
+      # What the built libraries really hold, found by loading them (tools/ffmpeg_probe.c): every demuxer, muxer, decoder, encoder, protocol, parser, bitstream
+      # filter, and hardware device type, compared with what the script allows and the list a good build reports. Run on every build, a cache hit too. The Intel
+      # Mac's libraries run under Rosetta where the runner has it.
+      - name: Probe the built libraries (Linux, macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            export PROBE_ARCH=${{ matrix.name }}; ALLOW="--allow-hwdevice videotoolbox"
+            if [ "$PROBE_ARCH" = x86_64 ]; then export PROBE_RUN="arch -x86_64"; fi
+            L=ffmpeg-out/${{ matrix.name }}/lib
+          else
+            ALLOW=""; L=ffmpeg-out/${{ matrix.name }}/lib
+          fi
+          rc=0; sh ffmpeg-src/tools/ffmpeg_probe.sh "$L" probe.txt || rc=$?
+          if [ "$rc" = 4 ]; then echo "::warning::this runner cannot run Intel programs (no Rosetta): the Intel Mac's libraries were not probed"; exit 0; fi
+          [ "$rc" = 0 ] || exit "$rc"
+          cat probe.txt | awk '{print $1}' | sort | uniq -c
+          python3 ffmpeg-src/tools/check_ffmpeg_components.py --probe probe.txt $ALLOW
+
+      - name: Probe the built libraries (Windows)
+        if: runner.os == 'Windows'
+        shell: 'C:\msys64\usr\bin\bash.exe -l -e -o pipefail {0}'
+        env:
+          MSYSTEM: MINGW64
+          CHERE_INVOKING: '1'
+        run: |
+          pacman -Sy --noconfirm --needed mingw-w64-x86_64-gcc
+          sh ffmpeg-src/tools/ffmpeg_probe.sh "$PWD/ffmpeg-out/windows/bin" probe.txt
+          # (zlib is linked in, not carried as a DLL of its own)
+          for f in ffmpeg-out/windows/bin/*.dll; do objdump -p "$f" | grep -i "DLL Name" | grep -i -E "zlib|libz" && { echo "$f needs a zlib DLL"; exit 1; }; done || true
+
+      - name: Compare the Windows probe
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: python ffmpeg-src/tools/check_ffmpeg_components.py --probe probe.txt
 
   build:
     needs: ffmpeg
@@ -232,7 +272,10 @@ jobs:
       - name: Which FFmpeg
         id: ffmpeg
         shell: bash
-        run: echo "version=$(sed -n 's/^VERSION=\${FFMPEG_VERSION:-\(.*\)}$/\1/p' tools/build_ffmpeg.sh)" >> "$GITHUB_OUTPUT"
+        run: |
+          v=$(sed -n 's/^VERSION=\${FFMPEG_VERSION:-\(.*\)}$/\1/p' tools/build_ffmpeg.sh)
+          [ -n "$v" ] || { echo "::error::no FFmpeg version found in tools/build_ffmpeg.sh"; exit 1; }
+          echo "version=$v" >> "$GITHUB_OUTPUT"
 
       - name: Our FFmpeg (restore)
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -412,6 +455,8 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
           JP_TEST_TRACE: '1'
+          # (the FFmpeg in Qt's folder is ours, so JeffDeck's tests of the formats it leaves out run: tests/data/media)
+          JO_MINIMAL_FFMPEG: '1'
           # (our own Linux machine has the processors to run the biggest programs in parts; GitHub's have two to four)
           CI_SPLIT: ${{ runner.environment == 'self-hosted' && '4' || '1' }}
 

@@ -24,15 +24,20 @@ What is in the build
 Of FFmpeg's hundreds of file readers and decoders, the build has the ones for
 the movies and sounds a presentation holds: the MP4, QuickTime, 3GP, Matroska,
 WebM, AVI, ASF (Windows Media), MPEG program and transport stream, WAV, MP3,
-AAC, FLAC, Ogg, and AIFF containers, and H.264, HEVC, MPEG-4, H.263, MPEG-1,
-MPEG-2, Windows Media video, VC-1, VP8, VP9, Motion JPEG, raw video, AAC, AC-3, MP3,
-MP2, Windows Media audio, FLAC, Vorbis, Opus, ALAC, PCM, and ADPCM decoders.
-It has no encoders, no muxers, no network or playlist readers, no devices, no
-hardware decoders, and no other libraries (not zlib, not OpenSSL). The
-complete list is in third_party/ffmpeg-components.txt in the source, and
+AAC, FLAC, Ogg, and AIFF containers, and decoders for H.264, HEVC, MPEG-4,
+H.263, MPEG-1, MPEG-2, Windows Media video, VC-1, VP8, VP9, Motion JPEG, raw
+video, Cinepak and other older AVI video, AAC, AC-3, MP3, MP2, Windows Media
+audio (also Pro and lossless), FLAC, Vorbis, Opus, ALAC, PCM, and ADPCM.
+It has no encoders, no muxers, no network or playlist readers, no devices, and
+no hardware decoders. The only other library is zlib (the system's, or on
+Windows a static copy), by Jean-loup Gailly and Mark Adler under the zlib
+License, which opens compressed movie headers and compressed Matroska tracks.
+On a Mac the build also uses the system's VideoToolbox framework (only its
+device type, not its hardware decoders), which comes with macOS.
+The complete list is in third_party/ffmpeg-components.txt in the source, and
 tools/check_ffmpeg_components.py fails the build if a component outside the
-list is added. A file in another format is not played: JeffDeck says that it
-can't be played.
+list is added, also from a probe of the built libraries themselves. A file in
+another format is not played: JeffDeck says that it can't be played.
 
 FFmpeg is a trademark of Fabrice Bellard, originator of the FFmpeg project.
 JeffOffice is not connected to the FFmpeg project.

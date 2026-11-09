@@ -9,6 +9,8 @@ This check fails when:
     S/PDIF muxer, the RTP, RTSP, and SDP demuxers, and the ADX decoder, and kin) is in third_party/ffmpeg-components.txt;
   - that file does not list exactly the components the script enables (and the few bitstream filters a decoder pulls in).
     python3 tools/check_ffmpeg_components.py                        checks every third_party/ffmpeg-components*.txt
+    python3 tools/check_ffmpeg_components.py --probe FILE [--allow-hwdevice NAME] [--write]   FILE is what tools/ffmpeg_probe.sh found in the built libraries
+                                                                    (run by CI on every system's build): fails on anything the script does not allow
     python3 tools/check_ffmpeg_components.py --built PREFIX [--components FILE]   also compares PREFIX/share/ffmpeg-components.txt
                                                                     (what a build really compiled in) with the file
     python3 tools/check_ffmpeg_components.py --built PREFIX --write  replaces the file with it
@@ -35,7 +37,7 @@ BANNED_FLAGS = [r"--enable-gpl", r"--enable-nonfree", r"--enable-version3", r"--
                 r"--enable-vaapi", r"--enable-vdpau", r"--enable-libx26", r"--enable-libdav1d", r"--enable-openssl",
                 r"--enable-gnutls", r"--enable-muxer", r"--enable-encoder", r"--enable-indev", r"--enable-outdev",
                 r"--enable-avdevice", r"--enable-avfilter", r"--enable-filter", r"--enable-bsf", r"--enable-static",
-                r"--enable-zlib", r"--enable-bzlib", r"--enable-lzma", r"--enable-iconv", r"--enable-libx", r"--enable-lib[a-z0-9]+"]
+                r"--enable-bzlib", r"--enable-lzma", r"--enable-iconv", r"--enable-libx", r"--enable-lib[a-z0-9]+"]
 # What it must contain.
 REQUIRED_FLAGS = ["--disable-everything", "--disable-autodetect", "--disable-network", "--disable-programs", "--disable-doc",
                   "--disable-avdevice", "--disable-hwaccels", "--enable-shared", "--disable-static"]
@@ -130,8 +132,81 @@ def check(script_path, list_path, built=None, write=False):
     return problems
 
 
+def golden_of(probe_text):
+    """What the libraries report, as the file third_party/ffmpeg-runtime-VERSION.txt keeps it: sorted, without the version line or the hardware devices."""
+    lines = [l.strip() for l in probe_text.splitlines() if l.strip() and not l.startswith(("version", "hwdevice"))]
+    return "\n".join(sorted(lines)) + "\n"
+
+
+def probe_version(probe_text):
+    m = re.match(r"version (\S+)", probe_text)
+    return m.group(1) if m else None
+
+
+def tokens(name):
+    return set(name.split(","))
+
+
+def check_probe(probe_text, golden_text, script_path, allow_hw=()):
+    """Compares what tools/ffmpeg_probe.c found in the built libraries with what the script allows. The runtime names are not the configure names (the
+    demuxer "mov" says "mov,mp4,m4a,3gp,3g2,mj2", the decoder msmpeg4v3 says "msmpeg4"), so the comparison is with the file that keeps what a good build
+    reports (the same on every system), and the file is held to the script: as many demuxers, decoders, parsers as it enables, no muxer, no encoder, only the
+    file protocol, no hardware device but those the system gives (allow_hw), no bitstream filter but the allowed, and nothing banned."""
+    lists = script_lists(read(script_path))
+    found = {}
+    parsers = []
+    for line in probe_text.splitlines():
+        parts = line.split()
+        if not parts or parts[0] in ("version", "decoder-codec"):
+            continue
+        if parts[0] == "parser":
+            parsers.append(" ".join(parts[1:]))
+        elif len(parts) == 2:
+            found.setdefault(parts[0], set()).add(parts[1])
+        else:
+            return ["not a line of the probe's list: " + line]
+    if not found.get("demuxer"):
+        return ["the probe found no demuxers: the libraries did not load, or the probe did not run"]
+    problems = []
+    if golden_of(probe_text) != golden_text:
+        have = set(golden_of(probe_text).splitlines())
+        keep = set(golden_text.splitlines())
+        for l in sorted(have - keep):
+            problems.append("the built libraries have '%s', which the good list does not" % l)
+        for l in sorted(keep - have):
+            problems.append("the built libraries lack '%s', which the good list has" % l)
+    for kind in ("demuxer", "decoder"):
+        if len(found.get(kind, set())) != len(lists[kind]):
+            problems.append("the built libraries have %d %ss; %s enables %d" % (len(found.get(kind, set())), kind, script_path, len(lists[kind])))
+    if len(parsers) != len(lists["parser"]):
+        problems.append("the built libraries have %d parsers; %s enables %d" % (len(parsers), script_path, len(lists["parser"])))
+    for kind in ("muxer", "encoder"):
+        for name in sorted(found.get(kind, set())):
+            problems.append("the built libraries have the %s %s: none are built" % (kind, name))
+    for kind in ("protocol-in", "protocol-out"):
+        for name in sorted(found.get(kind, set()) - lists["protocol"]):
+            problems.append("the built libraries have the protocol %s (%s)" % (name, kind))
+    if found.get("protocol-in", set()) != lists["protocol"]:
+        problems.append("the built libraries' input protocols are %s, not %s" % (sorted(found.get("protocol-in", set())), sorted(lists["protocol"])))
+    for name in sorted(found.get("bsf", set()) - ALLOWED_BSF):
+        problems.append("the built libraries have the bitstream filter %s" % name)
+    for name in sorted(found.get("hwdevice", set()) - set(allow_hw)):
+        problems.append("the built libraries have the hardware device type %s" % name)
+    for kind, banned in BANNED.items():
+        for name in sorted(found.get(kind, set())):
+            if tokens(name) & banned:
+                problems.append("the built libraries have the banned %s %s" % (kind, name))
+    for name in sorted(found.get("protocol-in", set()) | found.get("protocol-out", set())):
+        if name in BANNED["protocol"]:
+            problems.append("the built libraries have the banned protocol %s" % name)
+    for name in sorted(found.get("muxer", set()) | found.get("encoder", set())):
+        if name in ("spdif", "adx", "libx264"):
+            problems.append("the built libraries have the banned %s" % name)
+    return problems
+
+
 def main(argv):
-    built, write = None, False
+    built, write, probe, allow_hw = None, False, None, []
     script, lst = SCRIPT, LIST
     args = list(argv)
     while args:
@@ -140,6 +215,10 @@ def main(argv):
             built = args.pop(0)
         elif a == "--write":
             write = True
+        elif a == "--probe":
+            probe = args.pop(0)
+        elif a == "--allow-hwdevice":
+            allow_hw.append(args.pop(0))
         elif a == "--script":
             script = args.pop(0)
         elif a == "--components":
@@ -148,6 +227,25 @@ def main(argv):
             print("usage: check_ffmpeg_components.py [--built PREFIX [--write]]", file=sys.stderr)
             return 2
     problems = []
+    if probe:
+        with open(probe, encoding="utf-8") as f:
+            text = f.read()
+        version = probe_version(text)
+        golden_path = os.path.join(ROOT, "third_party/ffmpeg-runtime-%s.txt" % version)
+        if write:
+            with open(golden_path, "w", encoding="utf-8") as f:
+                f.write(golden_of(text))
+        if not os.path.exists(golden_path):
+            print("FFmpeg libraries: there is no %s for FFmpeg %s" % (os.path.relpath(golden_path, ROOT), version))
+            return 1
+        with open(golden_path, encoding="utf-8") as f:
+            problems = check_probe(text, f.read(), script, allow_hw)
+        for p in problems:
+            print("FFmpeg libraries: " + p)
+        if problems:
+            return 1
+        print("FFmpeg libraries OK: what the built libraries hold is what the script allows")
+        return 0
     if lst == LIST and not built:
         # (one list for each release the script builds: ffmpeg-components.txt for 7.1.5, ffmpeg-components-6.1.6.txt for the snap's)
         import glob

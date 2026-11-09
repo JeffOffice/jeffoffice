@@ -603,7 +603,7 @@ private Q_SLOTS:
     {
         MediaPlayback pb;
         deck::MediaPlay play;
-        pb.setFile(testWav(1500), QStringLiteral("wav"));
+        pb.setFile(testWav(20000), QStringLiteral("wav"));   // (long enough that it cannot end before it is paused)
         pb.setPlay(play);
         const int before = MediaPlayback::decoders();
         pb.play();
@@ -615,9 +615,9 @@ private Q_SLOTS:
             return;
         }
         QTRY_VERIFY_WITH_TIMEOUT(pb.length() > 0, 5000);
-        QVERIFY(std::abs(pb.length() - 1500) < 100);
-        // (with no audio output a sound has no clock to keep time by and can run out at once: over before it is paused, it is Stopped, and rightly)
-        if (QMediaDevices::audioOutputs().isEmpty() && pb.state() == MediaPlayback::State::Stopped) return;
+        QVERIFY(std::abs(pb.length() - 20000) < 100);
+        if (QMediaDevices::audioOutputs().isEmpty() && pb.state() == MediaPlayback::State::Stopped)
+            QSKIP("this machine has no audio output, and its player does not run a sound without one");
         pb.pause();
         QTRY_COMPARE_WITH_TIMEOUT(int(pb.state()), int(MediaPlayback::State::Paused), 5000);
         pb.resume();
@@ -732,21 +732,22 @@ private Q_SLOTS:
         QVERIFY(!probe.error.isEmpty() || probe.duration == 0);
     }
 
-    // Real movies and sounds, made with other software (the build of FFmpeg that is packaged keeps only the formats a presentation
-    // has: tools/build_ffmpeg.sh). JO_MEDIA_SAMPLES holds a folder "kept" of files that must play and a folder "dropped" of files in
-    // formats the build leaves out; there are no such files in the repository, so without it these tests are skipped.
+    // Movies and sounds in tests/data/media (made from nothing by make_samples.sh with a full FFmpeg: a gradient that moves, and sine tones): the folder "kept"
+    // holds every format the packaged build of FFmpeg (tools/build_ffmpeg.sh) reads, "dropped" movies in formats it leaves out, and "audio_dropped" a movie whose
+    // sound it can't decode. JO_MEDIA_SAMPLES names another folder of the same three. A machine whose Qt has the full FFmpeg plays the "dropped" ones too, so those
+    // tests run only where JO_MINIMAL_FFMPEG is set (CI, which puts ours in Qt's folder, and a run with ours in the library path).
     static QFileInfoList sampleFiles(const char *folder)
     {
         const QByteArray root = qgetenv("JO_MEDIA_SAMPLES");
-        if (root.isEmpty()) return {};
-        return QDir(QString::fromLocal8Bit(root) + QLatin1Char('/') + QLatin1String(folder)).entryInfoList(QDir::Files, QDir::Name);
+        const QString base = root.isEmpty() ? QStringLiteral(JD_SOURCE_DIR "/tests/data/media") : QString::fromLocal8Bit(root);
+        return QDir(base + QLatin1Char('/') + QLatin1String(folder)).entryInfoList(QDir::Files, QDir::Name);
     }
 
     // Every format the build keeps plays: it reaches the playing state, its position moves, and a movie gives pictures.
     void mediaPlaysEveryFormatTheBuildKeeps()
     {
         const QFileInfoList files = sampleFiles("kept");
-        if (files.isEmpty()) QSKIP("JO_MEDIA_SAMPLES has no kept folder");
+        if (files.isEmpty()) QSKIP("there is no kept folder of sample files");
         for (const QFileInfo &info : files) {
             QFile f(info.filePath());
             QVERIFY(f.open(QIODevice::ReadOnly));
@@ -778,7 +779,8 @@ private Q_SLOTS:
     void mediaInAFormatTheBuildLeavesOutSaysSo()
     {
         const QFileInfoList files = sampleFiles("dropped");
-        if (files.isEmpty()) QSKIP("JO_MEDIA_SAMPLES has no dropped folder");
+        if (qgetenv("JO_MINIMAL_FFMPEG").isEmpty()) QSKIP("this Qt's FFmpeg may be the full one, which plays these (set JO_MINIMAL_FFMPEG where it is ours)");
+        if (files.isEmpty()) QSKIP("there is no dropped folder of sample files");
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
         DeckWindow w;
@@ -828,28 +830,27 @@ private Q_SLOTS:
         closer.stop();
     }
 
-    // A movie whose sound is in a format the build leaves out (the folder "audio_dropped"): it plays its picture without the sound, or says it
-    // can't be played; it does not hang, and a probe of it comes back.
-    void movieWithASoundTheBuildLeavesOutPlaysPictureOrSaysSo()
+    // A movie whose sound is in a format the build leaves out (the folder "audio_dropped"): the player does not play its picture without the sound; it says the movie
+    // can't be played, as for any file it can't read, and nothing hangs. (Insert puts the movie on the slide as a dark frame, as for a movie in a format left out.)
+    void movieWithASoundTheBuildLeavesOutCantBePlayed()
     {
         const QFileInfoList files = sampleFiles("audio_dropped");
-        if (files.isEmpty()) QSKIP("JO_MEDIA_SAMPLES has no audio_dropped folder");
+        if (qgetenv("JO_MINIMAL_FFMPEG").isEmpty()) QSKIP("this Qt's FFmpeg may be the full one, which plays these (set JO_MINIMAL_FFMPEG where it is ours)");
+        if (files.isEmpty()) QSKIP("there is no audio_dropped folder of sample files");
         for (const QFileInfo &info : files) {
             QFile f(info.filePath());
             QVERIFY(f.open(QIODevice::ReadOnly));
             const QByteArray bytes = f.readAll();
-            const MediaProbe probe = probeMedia(bytes, info.suffix(), true, 15000);
-            QVERIFY2(!probe.frame.isNull() || !probe.error.isEmpty(), qPrintable(info.fileName()));
             MediaPlayback pb;
             pb.setFile(bytes, info.suffix());
             deck::MediaPlay play;
             play.video = true;
             pb.setPlay(play);
             pb.play();
-            QTRY_VERIFY2_WITH_TIMEOUT(pb.failed() || !pb.frame().isNull(), qPrintable(info.fileName() + QStringLiteral(" neither plays nor says why")), 15000);
-            if (pb.failed()) QVERIFY2(pb.error().contains(QStringLiteral("movie")), qPrintable(pb.error()));
-            else QVERIFY2(pb.state() == MediaPlayback::State::Playing, qPrintable(info.fileName()));
-            qInfo("%s: %s", qPrintable(info.fileName()), pb.failed() ? "says it can't be played" : "plays its picture");
+            QTRY_VERIFY2_WITH_TIMEOUT(pb.failed(), qPrintable(info.fileName() + QStringLiteral(" was not refused")), 15000);
+            QVERIFY2(pb.error().contains(QStringLiteral("movie")), qPrintable(pb.error()));
+            QVERIFY(pb.frame().isNull());
+            QCOMPARE(int(pb.state()), int(MediaPlayback::State::Stopped));
             pb.stop();
         }
     }

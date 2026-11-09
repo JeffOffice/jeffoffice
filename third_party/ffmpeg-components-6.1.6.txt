@@ -7,6 +7,7 @@ decoder adpcm_ima_qt
 decoder adpcm_ima_wav
 decoder adpcm_ms
 decoder alac
+decoder cinepak
 decoder eac3
 decoder flac
 decoder h263
@@ -21,6 +22,7 @@ decoder mpeg4
 decoder msmpeg4v1
 decoder msmpeg4v2
 decoder msmpeg4v3
+decoder msvideo1
 decoder opus
 decoder pcm_alaw
 decoder pcm_f32be
@@ -41,6 +43,8 @@ decoder vc1
 decoder vorbis
 decoder vp8
 decoder vp9
+decoder wmalossless
+decoder wmapro
 decoder wmav1
 decoder wmav2
 decoder wmv1

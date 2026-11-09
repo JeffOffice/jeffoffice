@@ -13,7 +13,8 @@
 # The library versions are Qt's (libavcodec 61, libavformat 61, libavutil 59, libswresample 5, libswscale 8): Qt's
 # plugin binds to them, so this stays on the 7.1 source (the snap's Qt binds to 60, 60, 58, 4, 7: FFMPEG_VERSION=6.1.6). LGPL 2.1 or later only: nothing GPL, nothing nonfree.
 #
-# Needs, on every system: a C compiler, make, tar with xz, curl (unless FFMPEG_TARBALL is given), and sha256sum or shasum.
+# Needs, on every system: a C compiler, make, tar with xz, curl (unless FFMPEG_TARBALL is given), sha256sum or shasum, and zlib (the system's
+# headers and library; on Windows MSYS2's mingw-w64-x86_64-zlib, linked statically; it opens a movie's compressed header and compressed Matroska tracks).
 #   Linux:    gcc or clang, make, nasm (x86_64; FFMPEG_NO_ASM=1 builds without assembly, several times slower to decode)
 #   Windows:  MinGW-w64 gcc (the one Qt for Windows uses) on PATH, with MSYS's make, sh, and coreutils (Git for Windows's bash
 #             or MSYS2's), and nasm; run it from that sh
@@ -68,6 +69,8 @@ vp8
 vp9
 mjpeg
 rawvideo
+cinepak
+msvideo1
 aac
 ac3
 eac3
@@ -75,6 +78,8 @@ mp2float
 mp3float
 wmav1
 wmav2
+wmapro
+wmalossless
 flac
 vorbis
 opus
@@ -137,12 +142,22 @@ sha256_of() {
 
 # ---- the source: its own folder, checked before it is unpacked ----
 TARBALL=${FFMPEG_TARBALL:-}
+OURS=""
 if [ -z "$TARBALL" ]; then
     mkdir -p "$WORK/download"
     TARBALL="$WORK/download/ffmpeg-$VERSION.tar.xz"
-    [ -f "$TARBALL" ] || curl -fsSL --retry 5 --retry-all-errors -o "$TARBALL" "$URL"
+    OURS=1
+    if [ ! -f "$TARBALL" ]; then
+        # (a partial download never has the final name, and a file that fails its check is deleted, so that a rerun fetches it again)
+        rm -f "$TARBALL.part"
+        curl -fsSL --retry 5 --retry-all-errors -o "$TARBALL.part" "$URL" || { rm -f "$TARBALL.part"; die "could not download $URL"; }
+        mv "$TARBALL.part" "$TARBALL"
+    fi
 fi
-[ "$(sha256_of "$TARBALL")" = "$SHA256" ] || die "$TARBALL is not FFmpeg $VERSION (its SHA-256 differs from the one in this script)"
+if [ "$(sha256_of "$TARBALL")" != "$SHA256" ]; then
+    [ -n "$OURS" ] && rm -f "$TARBALL"
+    die "$TARBALL is not FFmpeg $VERSION (its SHA-256 differs from the one in this script)"
+fi
 SRC="$WORK/src/ffmpeg-$VERSION"
 if [ ! -f "$SRC/configure" ]; then
     rm -rf "${WORK:?}/src"
@@ -211,12 +226,16 @@ cd "$BUILD"
 "$SRC/configure" --prefix="$PREFIX" \
     --disable-everything --disable-autodetect --disable-network --disable-programs --disable-doc --disable-debug \
     --disable-avdevice --disable-avfilter --disable-postproc \
-    --disable-hwaccels --disable-iconv --disable-zlib --disable-bzlib --disable-lzma \
+    --disable-hwaccels --disable-iconv --enable-zlib --disable-bzlib --disable-lzma \
     --enable-shared --disable-static --enable-pic \
     --enable-avcodec --enable-avformat --enable-avutil --enable-swresample --enable-swscale \
     $SYSFLAGS $ASM $ENABLES \
     --extra-cflags="$CFLAGS_EXTRA" --extra-ldflags="$LDFLAGS_EXTRA" >configure.log 2>&1 || { tail -30 configure.log >&2; die "configure failed (see $BUILD/configure.log)"; }
 
+# Windows: zlib is MSYS2's static copy, so that the DLLs need no zlib DLL (its linker would take the import library, and a DLL, first).
+if [ "$OS" != Linux ] && [ "$OS" != Darwin ]; then
+    sed 's/ -lz\([ $]\)/ -Wl,-Bstatic -lz -Wl,-Bdynamic\1/g;s/ -lz$/ -Wl,-Bstatic -lz -Wl,-Bdynamic/' ffbuild/config.mak >ffbuild/config.mak.new && mv ffbuild/config.mak.new ffbuild/config.mak
+fi
 # (configure would expand the dollar sign itself, and the makefiles expand it twice: the libraries' run path is "$ORIGIN", written so the shell sees it quoted)
 sed "s/@@ORIGIN@@/'\$\$\$\$ORIGIN'/" ffbuild/config.mak >ffbuild/config.mak.new && mv ffbuild/config.mak.new ffbuild/config.mak
 

@@ -43,6 +43,16 @@ jobs:
         id: build
         uses: snapcore/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79 # v1.3.0
 
+      # Every FFmpeg library in the snap and in the KDE content snap it runs on, and the runtime probe (tools/ffmpeg_probe.c) on the copy the multimedia plugin
+      # loads first in the snap's library path order: it must be our minimal build, not a distribution's or the content snap's full one.
+      - name: FFmpeg inside the snap
+        env:
+          SNAP_FILE: ${{ steps.build.outputs.snap }}
+        run: |
+          sudo apt-get install -y squashfs-tools
+          snap download kf6-core24 --channel=latest/stable --basename=kf6-core24
+          python3 tools/snap_ffmpeg_audit.py "$SNAP_FILE" kf6-core24.snap
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: JeffOffice-snap

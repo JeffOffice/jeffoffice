@@ -6,7 +6,7 @@
 # version stops here.
 #
 #   tools/use_ffmpeg.sh install QT_ROOT PREFIX [PREFIX_OF_THE_OTHER_PROCESSOR]   (two prefixes, on a Mac: joined with lipo)
-#   tools/use_ffmpeg.sh check   DIR...      each of the FFmpeg libraries found under DIR is ours (it carries our configuration)
+#   tools/use_ffmpeg.sh check   DIR...      all five FFmpeg libraries are found under the folders, and each is ours (it carries our configuration)
 set -eu
 
 die() { echo "use_ffmpeg: $*" >&2; exit 1; }
@@ -82,16 +82,21 @@ install)
     ;;
 check)
     [ $# -ge 1 ] || die "usage: check DIR..."
-    found=0
+    # Every one of the five libraries found must be ours (each carries the configuration it was built with), and every one must be found.
+    seen=""
     for dir in "$@"; do
-        for f in $(find "$dir" \( -name 'libavcodec*' -o -name 'libavformat*' -o -name 'avcodec-*.dll' -o -name 'avformat-*.dll' \) -type f 2>/dev/null); do
-            found=$((found + 1))
-            grep -q -a -e '--disable-everything' "$f" || die "$f is not the FFmpeg this project builds (it has no minimal configuration)"
-            grep -q -a -e 'enable-demuxer=mov' "$f" || die "$f is not the FFmpeg this project builds"
+        for name in $FAMILIES; do
+            for f in $(find "$dir" \( -name "lib$name*" -o -name "$name-*.dll" \) -type f 2>/dev/null); do
+                seen="$seen $name"
+                grep -q -a -e '--disable-everything' "$f" || die "$f is not the FFmpeg this project builds (it has no minimal configuration)"
+                grep -q -a -e 'enable-demuxer=mov' "$f" || die "$f is not the FFmpeg this project builds"
+            done
         done
     done
-    [ "$found" -gt 0 ] || die "no FFmpeg libraries found under $*"
-    echo "use_ffmpeg: $found FFmpeg libraries checked, all ours"
+    for name in $FAMILIES; do
+        case " $seen " in *" $name "*) ;; *) die "no $name library found under $*" ;; esac
+    done
+    echo "use_ffmpeg: all five FFmpeg libraries found under $* are ours"
     ;;
 *) die "unknown mode $mode" ;;
 esac
