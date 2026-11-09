@@ -1,5 +1,5 @@
 # PDF files and print shops
-<!-- keywords: pdf, create pdf, save as pdf, export pdf, pdf/x, pdf/a, archive, print shop, commercial printer, cmyk, bleed, crop marks, color profile, spot color, overprint, colour profile, spot colour, password, encrypt, protect with a password -->
+<!-- keywords: pdf, create pdf, save as pdf, export pdf, pdf/x, pdf/a, archive, print shop, commercial printer, cmyk, bleed, crop marks, color profile, spot color, overprint, password, encrypt, protect with a password, colour profile, spot colour -->
 
 A **PDF** is a file that looks the same on every computer. Use one to email a publication, post it online, or send it to a print shop.
 
@@ -49,7 +49,7 @@ Before it makes the file, JeffPub checks for pictures under 150 ppi (pixels per 
 
 In the **Create PDF** window, click **Encrypt with a password…**. Type the password twice. Anyone who opens the PDF then has to type it. The password really protects the file: the pages are scrambled with strong encryption (AES-256), and nobody can read them without it.
 
-You can also check **Restrict printing, copying, and editing**, give a second password, and choose what is allowed. Those limits are only a request. Most PDF readers honor them, but they don't stop anyone who wants to get around them, so don't count on them to keep a file private.
+You can also check **Restrict printing, copying, and editing**, give a second password, and choose what is allowed. Those limits are only a request. Most PDF readers honour them, but they don't stop anyone who wants to get around them, so don't count on them to keep a file private.
 
 A forgotten password can't be recovered, so keep it somewhere safe. The password is used for that one PDF and is never saved. A PDF with a password can't be PDF/A or PDF/X, so those two are turned off while a password is set. On **File > Share**, **Encrypt with a password…** above **Send as PDF** puts a password on the PDF in an email.
 
@@ -59,7 +59,7 @@ A picture linked to a PDF with a password shows as **Not updated** when you open
 
 ## Set up colours for a print shop
 
-Click **File > Properties**, then the **Commercial Print Settings** card:
+Click **File > Info**, then the **Commercial Print Settings** card:
 
 - **Colour model** is **RGB**, **Single colour (spot)**, **Spot colours**, **Process colours (CMYK)**, or **Process plus spot colours**. Process colours are cyan, magenta, yellow, and black ink. A spot colour is a special ink the shop mixes. Add each one under **Spot colours**.
 - **Overprint black in files for a printer (PDF/X)** makes black print over the colours beneath it, so a shifted plate leaves no white edge. You choose what it covers: text below a size, lines, or fills.

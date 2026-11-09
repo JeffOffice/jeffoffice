@@ -242,6 +242,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>PdfProtectionDialog</name>
+    <message>
+        <source>These limits are a request. Most PDF readers honor them, but they do not stop anyone who wants to get around them. Only the password that opens the PDF really protects it.</source>
+        <translation>These limits are a request. Most PDF readers honour them, but they do not stop anyone who wants to get around them. Only the password that opens the PDF really protects it.</translation>
+    </message>
+</context>
+<context>
     <name>PivotOptionsDialog</name>
     <message>
         <source>Merge and center cells with labels</source>
@@ -430,10 +437,6 @@ Download it from %2 now? (%3, once.)</translation>
 </context>
 <context>
     <name>jp::Backstage</name>
-    <message>
-        <source>Choose the color model (RGB, process CMYK, spot colors) and font embedding for a print shop.</source>
-        <translation>Choose the colour model (RGB, process CMYK, spot colours) and font embedding for a print shop.</translation>
-    </message>
     <message>
         <source>Color scheme:</source>
         <translation>Colour scheme:</translation>
@@ -910,6 +913,14 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Color Scheme</source>
         <translation>Colour Scheme</translation>
+    </message>
+    <message>
+        <source>Choose the color model (RGB, process CMYK, spot colors) and font embedding for a print shop.</source>
+        <translation>Choose the colour model (RGB, process CMYK, spot colours) and font embedding for a print shop.</translation>
+    </message>
+    <message>
+        <source>The list of names and details that a mail or catalog merge reads from, and the file it came from.</source>
+        <translation>The list of names and details that a mail or catalogue merge reads from, and the file it came from.</translation>
     </message>
 </context>
 <context>

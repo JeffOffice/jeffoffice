@@ -1,5 +1,5 @@
 # Notes, comments, and links
-<!-- keywords: comments pane, new comment, reply, resolve, reopen, thread, previous comment, next comment, show comments, convert notes to comments, convert comments to notes, thesaurus, synonyms, word list, note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells, recent files -->
+<!-- keywords: comments pane, new comment, reply, resolve, reopen, thread, previous comment, next comment, show comments, convert notes to comments, convert comments to notes, spelling, spell check, misspelled, F7, ignore all, change all, add to dictionary, thesaurus, synonyms, word list, note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells, recent files -->
 
 ## Notes
 
@@ -53,6 +53,21 @@ A link goes with its cell when rows or columns are inserted or deleted, and when
 ## Workbook Statistics
 
 **Workbook Statistics** (**Review** tab) counts what the workbook holds: how many **Sheets** it has, how many **Cells with data** (cells that hold a number, text, or a formula), how many **Formulas**, how many **Charts**, and how many **Pivot tables**. Sheets you deleted are not counted. The same numbers are on the **Info** page of the File tab.
+
+## Spelling
+
+**Spelling** (**Review** tab, or **F7**) checks the words in your text cells, one wrong word at a time. If you have selected more than one cell, it checks only those cells. Otherwise it checks the whole sheet. It does not look at formulas, numbers, or dates.
+
+The window shows the word that is not in the dictionary, a box named **Change to** with the best guess, and a list of other suggestions. Pick a suggestion or type your own, and then choose:
+
+- **Change** puts the new word in place of the wrong one in that cell. Each change is one step you can undo.
+- **Change All** puts it in place of the same word in every cell being checked, as one step you can undo.
+- **Ignore** leaves the word as it is this time. **Ignore All** leaves it as it is everywhere until you close JeffCrunch.
+- **Add** puts the word in your own dictionary, so it is never marked again. Your dictionary is shared with the other JeffOffice apps.
+
+**File > Options > Proofing** decides whether words in capital letters and words with numbers in them are checked. JeffCrunch checks in the language it is shown in, if it has a dictionary for it, and in American English if not.
+
+While you type in a cell, a word that is not in the dictionary gets a red wavy line under it. Right-click the word to pick a correction, or to choose **Ignore All** or **Add to Dictionary**. The cells in the grid are not underlined, and an entry that starts with an equals sign is never checked.
 
 ## Thesaurus
 

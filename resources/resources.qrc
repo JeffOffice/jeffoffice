@@ -1904,6 +1904,7 @@
     <file alias="en_AU/crunch/options.md">help/en_AU/crunch/options.md</file>
     <file alias="en_AU/crunch/page-setup.md">help/en_AU/crunch/page-setup.md</file>
     <file alias="en_AU/crunch/pivot-tables.md">help/en_AU/crunch/pivot-tables.md</file>
+    <file alias="en_AU/crunch/printing.md">help/en_AU/crunch/printing.md</file>
     <file alias="en_AU/crunch/sheets.md">help/en_AU/crunch/sheets.md</file>
     <file alias="en_AU/crunch/sort-filter.md">help/en_AU/crunch/sort-filter.md</file>
     <file alias="en_AU/crunch/start.md">help/en_AU/crunch/start.md</file>
@@ -1998,6 +1999,7 @@
     <file alias="en_CA/crunch/options.md">help/en_CA/crunch/options.md</file>
     <file alias="en_CA/crunch/page-setup.md">help/en_CA/crunch/page-setup.md</file>
     <file alias="en_CA/crunch/pivot-tables.md">help/en_CA/crunch/pivot-tables.md</file>
+    <file alias="en_CA/crunch/printing.md">help/en_CA/crunch/printing.md</file>
     <file alias="en_CA/crunch/sheets.md">help/en_CA/crunch/sheets.md</file>
     <file alias="en_CA/crunch/sort-filter.md">help/en_CA/crunch/sort-filter.md</file>
     <file alias="en_CA/crunch/start.md">help/en_CA/crunch/start.md</file>
@@ -2091,6 +2093,7 @@
     <file alias="en_GB/crunch/options.md">help/en_GB/crunch/options.md</file>
     <file alias="en_GB/crunch/page-setup.md">help/en_GB/crunch/page-setup.md</file>
     <file alias="en_GB/crunch/pivot-tables.md">help/en_GB/crunch/pivot-tables.md</file>
+    <file alias="en_GB/crunch/printing.md">help/en_GB/crunch/printing.md</file>
     <file alias="en_GB/crunch/sheets.md">help/en_GB/crunch/sheets.md</file>
     <file alias="en_GB/crunch/sort-filter.md">help/en_GB/crunch/sort-filter.md</file>
     <file alias="en_GB/crunch/start.md">help/en_GB/crunch/start.md</file>

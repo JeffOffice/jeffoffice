@@ -1,5 +1,5 @@
 # Type in cells
-<!-- keywords: bold word, part of a cell, rich text, format part of text, color a word, runs, type, typing, enter, edit, change, cell, entry, formula bar, F2, double click, Tab, Escape, give up, undo, redo, delete, clear, percent, currency, money, date, time, number, text, apostrophe, formula, equals, replace, limit, characters, colour a word -->
+<!-- keywords: autocorrect, smart quotes, dash, fraction, link, address, bold word, part of a cell, rich text, format part of text, color a word, runs, type, typing, enter, edit, change, cell, entry, formula bar, F2, double click, Tab, Escape, give up, undo, redo, delete, clear, percent, currency, money, date, time, number, text, apostrophe, formula, equals, replace, limit, characters, colour a word -->
 
 To put something in a cell, select the cell and start typing. What you type replaces what the cell held. Press **Enter** to keep it, or **Esc** to give it up and leave the cell as it was.
 
@@ -34,6 +34,14 @@ When you type over a cell, an arrow key finishes the entry and moves the selecti
 In **File > Options > Editing**, choose whether **Enter** moves down, right, up, or left, or does not move.
 
 If you type in several cells along a row with **Tab**, then press **Enter**, the selection goes down to the next row, in the column where you started. If you select a block of cells first, **Enter** and **Tab** move through the block.
+
+## AutoCorrect while you type
+
+When you type a space or a mark such as a period after a word, JeffCrunch can fix the word, as you finish it. It fixes common typing slips (such as "teh" for "the"), two capital letters at the start of a word, a small letter that starts a sentence or a day of the week, and a straight quote mark (it becomes a curly one). It also changes two hyphens between words to a long dash, and 1/2, 1/4, and 3/4 to ½, ¼, and ¾ when the entry has words in it. A number such as 1/2 typed alone stays a date or a fraction, as always.
+
+Each fix is a step of its own. Press **{key:Undo}** right after a fix to take just that fix back and keep what you typed. Nothing is changed in a formula: an entry that starts with an equals sign, or with a plus or minus sign and then a formula, stays as you typed it. An address on the web (such as https://example.org) or an email address that is the whole entry becomes a link in its cell when you finish the entry, if **Turn web addresses into links as you type** is on.
+
+Turn these on or off in **File > Options > Proofing**. A misspelled word is marked while you type: see [Spelling](notes-links).
 
 ## Format part of the text
 

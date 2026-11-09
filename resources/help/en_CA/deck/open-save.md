@@ -58,6 +58,10 @@ On the **Open** page, click **More Ways to Open**. You can also right-click a na
 - **Open in New Window** opens the file in a window of its own, even when the window you are in is empty.
 - **Open and Repair** is for a .pptx file that is damaged, for example one that was cut short when it was copied. JeffDeck reads every part that it can, keeps a part that stopped in the middle up to the place where it stopped, and leaves out a part it can't read. The repaired slides open as a copy called "Repaired" plus the name, and a message tells you what was left out. The damaged file is not changed.
 
+## Files with a password
+
+A **.pptx** file that asks for a password opens as usual: JeffDeck asks for the password, and you can try again if it is not right, or click **Cancel**. The file stays protected when you save it. To change or take off the password, use **File > Info > Encrypt with Password** (see The File screen). An **.odp** file can't hold a password yet.
+
 ## Fonts in the file
 
 A font is the shape of the letters. Not every computer has every font. If a computer is missing a font your slides use, it draws the letters in another font. Then the slides can look different.

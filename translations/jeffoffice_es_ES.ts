@@ -321,6 +321,13 @@ Download it from %2 now? (%3, once.)</source>
     </message>
 </context>
 <context>
+    <name>PdfCrypt</name>
+    <message>
+        <source>The password for the limits must not be the one that opens the file.</source>
+        <translation type="unfinished">La contraseña para los límites no debe ser la que abre el fichero.</translation>
+    </message>
+</context>
+<context>
     <name>PivotOptionsDialog</name>
     <message>
         <source>Refresh the data when the file is opened</source>
@@ -367,6 +374,10 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>The presentation file could not be put together.</source>
         <translation type="unfinished">No se pudo componer el fichero de presentación.</translation>
+    </message>
+    <message>
+        <source>The password couldn't be put on the file.</source>
+        <translation type="unfinished">No se pudo poner la contraseña en el fichero.</translation>
     </message>
     <message>
         <source>There's no file name to save to.</source>
@@ -454,8 +465,8 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Se ha omitido la diapositiva %1: el fichero no indica ninguna parte para ella.</translation>
     </message>
     <message>
-        <source>This file is in an older format, or is protected with a password, which %1 can't open yet.</source>
-        <translation type="unfinished">Este fichero tiene un formato antiguo o está protegido con contraseña, y %1 aún no puede abrirlo.</translation>
+        <source>This file is in an older format, which %1 can't open yet.</source>
+        <translation type="unfinished">Este fichero está en un formato anterior, que %1 todavía no puede abrir.</translation>
     </message>
     <message>
         <source>The slide show was set to play a custom slide show that is not in the file, so it plays every slide.</source>
@@ -464,6 +475,10 @@ Download it from %2 now? (%3, once.)</source>
 </context>
 <context>
     <name>PresentationFile</name>
+    <message>
+        <source>An .odp file can't hold a password yet.</source>
+        <translation type="unfinished">Un fichero .odp todavía no puede tener contraseña.</translation>
+    </message>
     <message>
         <source>A picture was left out: it is too large or too complex to show, or it would draw from outside the file.</source>
         <translation type="unfinished">Se ha omitido una imagen: es demasiado grande o compleja para mostrarla, o se generaría a partir de contenido externo al fichero.</translation>
@@ -483,6 +498,13 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>The file can't be opened: %1</source>
         <translation type="unfinished">No se puede abrir el fichero: %1</translation>
+    </message>
+</context>
+<context>
+    <name>PrintSides</name>
+    <message>
+        <source>A PDF file has no sides.</source>
+        <translation type="unfinished">Un fichero PDF no tiene caras.</translation>
     </message>
 </context>
 <context>
@@ -851,6 +873,14 @@ Download it from %2 now? (%3, once.)</source>
         <source>Reading .pub files</source>
         <translation type="unfinished">Lectura de ficheros .pub</translation>
     </message>
+    <message>
+        <source>Passwords in PDF files</source>
+        <translation type="unfinished">Contraseñas en ficheros PDF</translation>
+    </message>
+    <message>
+        <source>JPEG pictures in PDF files</source>
+        <translation type="unfinished">Imágenes JPEG en ficheros PDF</translation>
+    </message>
 </context>
 <context>
     <name>jp::CatalogPane</name>
@@ -872,6 +902,10 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>A PDF in the form made for keeping for years, with every font inside the file.</source>
         <translation type="unfinished">Un PDF en el formato diseñado para conservarse durante años, con todas las fuentes incrustadas en el fichero.</translation>
+    </message>
+    <message>
+        <source>PDF/A is turned off, because a PDF with a password can't be a PDF/A file.</source>
+        <translation type="unfinished">PDF/A está desactivado, porque un PDF con contraseña no puede ser un fichero PDF/A.</translation>
     </message>
     <message>
         <source>A message file with the workbook, or a PDF of it, in it. Open it in your email program, add who it is for, and send it.</source>
@@ -1064,6 +1098,14 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Guarda en el fichero las fuentes que incluye el programa y que usan las diapositivas, para que se vean igual en un equipo que no las tenga. El fichero será más grande. Las fuentes que tienen todos los equipos, como Calibri y Arial, nunca se insertan.</translation>
     </message>
     <message>
+        <source>This presentation is protected with a password, and a .%1 file can't hold a password yet. Save it as a .pptx file, or remove the password first (File &gt; Info).</source>
+        <translation type="unfinished">Esta presentación está protegida con contraseña, y un fichero .%1 todavía no puede contenerla. Guárdela como fichero .pptx o quite antes la contraseña (Archivo &gt; Información).</translation>
+    </message>
+    <message>
+        <source>This presentation is marked as final, and a .odp file can't hold that mark. The file is saved without it.</source>
+        <translation type="unfinished">Esta presentación está marcada como final, y un fichero .odp no puede conservar esa marca. El fichero se guarda sin ella.</translation>
+    </message>
+    <message>
         <source>Saved %1. Left out, as this kind of file can't hold it: %2</source>
         <translation type="unfinished">Se guardó %1. Se omitió lo siguiente, porque este tipo de fichero no lo admite: %2</translation>
     </message>
@@ -1101,6 +1143,30 @@ No se puede leer el fichero.</translation>
     <message>
         <source>%1 is too large to put in this presentation: with it, the file could not be opened again. All its pictures, movies, and sounds together may come to %2 GB.</source>
         <translation type="unfinished">%1 es demasiado grande para incluirlo en esta presentación: con él, el fichero no se podría volver a abrir. Todas sus imágenes, vídeos y sonidos juntos pueden ocupar hasta %2 GB.</translation>
+    </message>
+    <message>
+        <source>This file has more properties than %1 reads, so the mark can't be added.</source>
+        <translation type="unfinished">Este fichero tiene más propiedades de las que %1 puede leer, así que no se puede añadir la marca.</translation>
+    </message>
+    <message>
+        <source>An .odp file can't hold the mark. Save the presentation as a .pptx file first.</source>
+        <translation type="unfinished">Un fichero .odp no puede contener la marca. Guarde antes la presentación como fichero .pptx.</translation>
+    </message>
+    <message>
+        <source>The file that was saved can't hold the mark, so the presentation is not marked as final.</source>
+        <translation type="unfinished">El fichero guardado no puede contener la marca, así que la presentación no está marcada como final.</translation>
+    </message>
+    <message>
+        <source>The notes you wrote for the person who gives the talk. They are in the file, and anyone who gets it can read them.</source>
+        <translation type="unfinished">Las notas que escribió para la persona que hace la presentación. Están en el fichero, y cualquiera que lo reciba puede leerlas.</translation>
+    </message>
+    <message>
+        <source>Slides that are set to be hidden: the slide show skips them, but they are in the file. Show them to see what they hold.</source>
+        <translation type="unfinished">Diapositivas configuradas como ocultas: la presentación con diapositivas las omite, pero están en el fichero. Muéstrelas para ver su contenido.</translation>
+    </message>
+    <message>
+        <source>Text, pictures, and shapes that lie outside a slide: they do not show in the slide show or on paper, but they are in the file.</source>
+        <translation type="unfinished">Texto, imágenes y formas situados fuera de una diapositiva: no se muestran en la presentación con diapositivas ni en el papel, pero están en el fichero.</translation>
     </message>
 </context>
 <context>
@@ -1240,6 +1306,10 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Ficheros de publicación .pub (*.pub)</translation>
     </message>
     <message>
+        <source>This publication is marked as final, and a .pub file can't hold that mark. The file is saved without it.</source>
+        <translation type="unfinished">Esta publicación está marcada como final, y un fichero .pub no puede guardar esa marca. El fichero se guarda sin ella.</translation>
+    </message>
+    <message>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos los ficheros (*)</translation>
     </message>
@@ -1266,6 +1336,26 @@ No se puede leer el fichero.</translation>
     <message>
         <source>Keyboard Shortcuts: every command's keys, and how to use JeffPub without a mouse.</source>
         <translation type="unfinished">Métodos abreviados de teclado: las teclas de cada comando y cómo usar JeffPub sin ratón.</translation>
+    </message>
+    <message>
+        <source>This file has more properties than %1 reads, so the mark can't be added.</source>
+        <translation type="unfinished">Este fichero tiene más propiedades de las que %1 puede leer, así que no se puede añadir la marca.</translation>
+    </message>
+    <message>
+        <source>A .pub file can't hold the mark. Save the publication as a .jpub file first.</source>
+        <translation type="unfinished">Un fichero .pub no puede guardar la marca. Guarde primero la publicación como fichero .jpub.</translation>
+    </message>
+    <message>
+        <source>The file that was saved can't hold the mark, so the publication is not marked as final.</source>
+        <translation type="unfinished">El fichero guardado no puede contener la marca, así que la publicación no está marcada como final.</translation>
+    </message>
+    <message>
+        <source>The list of names and details that a mail or catalog merge reads from, and the file it came from.</source>
+        <translation type="unfinished">La lista de nombres y datos que lee una combinación de correspondencia o de catálogo, y el fichero de origen.</translation>
+    </message>
+    <message>
+        <source>Text, pictures, and shapes parked beside the pages: they do not print or export, but they are in the file.</source>
+        <translation type="unfinished">Texto, imágenes y formas colocados junto a las páginas: no se imprimen ni se exportan, pero están en el fichero.</translation>
     </message>
 </context>
 <context>
@@ -1306,6 +1396,22 @@ No se puede leer el fichero.</translation>
     <message>
         <source>"%1" is protected with a password. Type it to open the file.</source>
         <translation type="unfinished">"%1" está protegido con una contraseña. Escríbala para abrir el fichero.</translation>
+    </message>
+    <message>
+        <source>This file is protected in a way this program doesn't read.</source>
+        <translation type="unfinished">Este fichero está protegido de una forma que este programa no puede leer.</translation>
+    </message>
+    <message>
+        <source>The file is too large to open.</source>
+        <translation type="unfinished">El fichero es demasiado grande para abrirlo.</translation>
+    </message>
+    <message>
+        <source>The password protection of this file asks for more work than this program allows.</source>
+        <translation type="unfinished">La protección con contraseña de este fichero requiere más trabajo del que permite este programa.</translation>
+    </message>
+    <message>
+        <source>The file is damaged.</source>
+        <translation type="unfinished">El fichero está dañado.</translation>
     </message>
 </context>
 <context>
@@ -1353,6 +1459,25 @@ No se puede leer el fichero.</translation>
     </message>
 </context>
 <context>
+    <name>jp::VersionHistory</name>
+    <message>
+        <source>Save the document first. A version is kept for a file, under the file's name.</source>
+        <translation type="unfinished">Guarde primero el documento. Una versión se guarda para un fichero, con el nombre del fichero.</translation>
+    </message>
+    <message>
+        <source>Save the workbook first. A version is kept for a file, under the file's name.</source>
+        <translation type="unfinished">Guarde primero el libro. Una versión se guarda para un fichero, con el nombre del fichero.</translation>
+    </message>
+    <message>
+        <source>Save the publication first. A version is kept for a file, under the file's name.</source>
+        <translation type="unfinished">Guarde primero la publicación. Una versión se guarda para un fichero, con el nombre del fichero.</translation>
+    </message>
+    <message>
+        <source>Save the presentation first. A version is kept for a file, under the file's name.</source>
+        <translation type="unfinished">Guarde primero la presentación. Una versión se guarda para un fichero, con el nombre del fichero.</translation>
+    </message>
+</context>
+<context>
     <name>jp::WriteFileScreen</name>
     <message>
         <source>Only the words, in a .txt file. You choose how the characters and line ends are written.</source>
@@ -1397,22 +1522,6 @@ No se puede leer el fichero.</translation>
     <message>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos los ficheros (*)</translation>
-    </message>
-    <message>
-        <source>This file is protected in a way this program doesn't read.</source>
-        <translation type="unfinished">Este fichero está protegido de una forma que este programa no puede leer.</translation>
-    </message>
-    <message>
-        <source>The file is too large to open.</source>
-        <translation type="unfinished">El fichero es demasiado grande para abrirlo.</translation>
-    </message>
-    <message>
-        <source>The password protection of this file asks for more work than this program allows.</source>
-        <translation type="unfinished">La protección con contraseña de este fichero requiere más trabajo del que permite este programa.</translation>
-    </message>
-    <message>
-        <source>The file is damaged.</source>
-        <translation type="unfinished">El fichero está dañado.</translation>
     </message>
     <message>
         <source>"%1" is a plain text file. It is not Unicode, so choose the encoding that shows its characters right; the first lines are shown below.</source>
@@ -1491,6 +1600,10 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Crea un fichero PDF/A-1b: todas las fuentes se incluyen en el fichero, así que tendrá el mismo aspecto dentro de años. No está etiquetado para lectores de pantalla.</translation>
     </message>
     <message>
+        <source>PDF/A is turned off, because a PDF with a password can't be a PDF/A file.</source>
+        <translation type="unfinished">PDF/A está desactivado, porque un PDF con contraseña no puede ser un fichero PDF/A.</translation>
+    </message>
+    <message>
         <source>This makes a message file. Nothing is sent. Open the file in your email program, add who it is for, and send it.</source>
         <translation type="unfinished">Esto crea un fichero de mensaje. No se envía nada. Abra el fichero en su programa de correo electrónico, añada los destinatarios y envíelo.</translation>
     </message>
@@ -1509,6 +1622,10 @@ No se puede leer el fichero.</translation>
     <message>
         <source>A .odt file can't hold the mark. Save the document as a .docx file first.</source>
         <translation type="unfinished">Un fichero .odt no puede guardar la marca. Guarde antes el documento como fichero .docx.</translation>
+    </message>
+    <message>
+        <source>The file that was saved can't hold the mark, so the document is not marked as final.</source>
+        <translation type="unfinished">El fichero guardado no puede contener la marca, por lo que el documento no se ha marcado como final.</translation>
     </message>
     <message>
         <source>Text that is set to be hidden: it does not show or print, but it is in the file.</source>

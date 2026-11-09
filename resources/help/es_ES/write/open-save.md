@@ -1,45 +1,45 @@
 # Abrir, guardar, imprimir y exportar
 
-<!-- keywords: página web, html, guardar como página web, página web filtrada, correo electrónico, eml, marcadores, marcadores de PDF, mayús+f5, última edición, donde lo dejó, plantillas integradas, galería, carta, informe, memorando, manuscrito, boletín, abrir, guardar, guardar como, docx, doc, dot, odt, opendocument, rtf, archivos antiguos, plantilla, dotx, recientes, anclar, nuevo, cerrar, imprimir, pdf, exportar, recuperar, recuperación automática, sin guardar, bloqueo, cierre inesperado, pantalla Archivo, formatos de archivo, guardar una copia, solo lectura, abrir como copia, nueva ventana, copia de seguridad, mis plantillas, guardar como plantilla, ott, reparar, abrir y reparar, dañado, ficheros antiguos, formatos de fichero -->
+<!-- keywords: página web, html, guardar como página web, página web filtrada, correo electrónico, eml, marcadores, marcadores de PDF, mayús+f5, última edición, donde se quedó, plantillas integradas, galería, carta, informe, memorando, manuscrito, boletín, abrir, guardar, guardar como, docx, doc, dot, odt, opendocument, rtf, archivos antiguos, plantilla, dotx, recientes, anclar, nuevo, cerrar, imprimir, pdf, exportar, recuperar, recuperación automática, sin guardar, bloqueo, cierre inesperado, pantalla de archivo, formatos de archivo, guardar una copia, solo lectura, abrir como copia, nueva ventana, copia de seguridad, mis plantillas, guardar como plantilla, ott, reparar, abrir y reparar, dañado, contraseña, cifrar, proteger con contraseña, ficheros antiguos, pantalla de fichero, formatos de fichero -->
 
-Haga clic en **Archivo**, arriba a la izquierda, para ver la pantalla Archivo. Tiene las páginas Nuevo, Abrir, Imprimir y Exportar, y los comandos Guardar y Guardar como. Pulse **Esc** para volver al documento.
+Haga clic en **Archivo**, arriba a la izquierda, para ver la pantalla Archivo. Tiene páginas para Nuevo, Abrir, Imprimir y Exportar, y comandos para Guardar y Guardar como. Pulse **Esc** para volver al documento.
 
-## Crear un documento nuevo
+## Iniciar un documento nuevo
 
-Pulse **Ctrl+N** o haga clic en **Archivo > Nuevo** y luego en **Documento en blanco**. El documento nuevo se abre en su propia ventana. Si la ventana en la que se encuentra está vacía y nunca se ha guardado, el documento nuevo ocupa su lugar.
+Pulse **Ctrl+N**, o haga clic en **Archivo > Nuevo** y luego en **Documento en blanco**. Se abre un documento nuevo en su propia ventana. Si la ventana en la que está está vacía y nunca se ha guardado, el documento nuevo ocupa su lugar.
 
 ## Abrir un documento
 
-Pulse **Ctrl+O** o haga clic en **Archivo > Abrir**. Haga clic en **Examinar** para elegir un fichero. JeffWrite abre estos tipos de fichero:
+Pulse **Ctrl+O**, o haga clic en **Archivo > Abrir**. Haga clic en **Examinar** para elegir un fichero. JeffWrite abre estos tipos de fichero:
 
 - **.docx** es un documento.
-- **.dotx** es una plantilla. Una plantilla se abre como un documento nuevo creado a partir de ella, de modo que la plantilla no cambia.
-- **.docm** y **.dotm** son un documento y una plantilla que pueden contener **macros**, pequeños programas que acompañan a un fichero. JeffWrite nunca las ejecuta y las conserva tal como estaban cuando guarda como .docm o .dotm. Si guarda como .docx o .odt, las macros se omiten y JeffWrite se lo indica.
-- **.txt** es texto sin formato, solo las palabras. Al abrirlo, JeffWrite lo lee de inmediato si es ASCII o Unicode simple. Si no lo es, JeffWrite le pregunta en qué codificación leerlo y muestra las primeras líneas para que compruebe que las letras se ven bien. Una **codificación** es la forma en que un fichero guarda las letras, como UTF-8 o Windows 1252. Al guardar como .txt, usted elige la codificación y los finales de línea, y el fichero conserva solo las palabras: sin fuentes, imágenes ni líneas de tabla.
-- **.html** y **.htm** son páginas web. JeffWrite lee las palabras, los encabezados, la negrita, la cursiva, el subrayado, los colores, las listas y las tablas. Las viñetas y los números de las listas se importan como marcas escritas, y las imágenes y los vínculos se omiten. Nunca descarga nada de internet e ignora los scripts. Una página web nunca se sobrescribe: **Guardar** pide un nombre nuevo y guarda un fichero .docx. Para crear una página web, vea **Guardar como página web** más abajo.
+- **.dotx** es una plantilla. Se abre como un documento nuevo creado a partir de ella, de modo que la plantilla se mantiene como está.
+- **.docm** y **.dotm** son un documento y una plantilla que pueden contener **macros**, pequeños programas que vienen con un fichero. JeffWrite nunca las ejecuta, y las conserva tal como estaban cuando guarda como .docm o .dotm. Si guarda como .docx o .odt, las macros se omiten y JeffWrite se lo indica.
+- **.txt** es texto sin formato, solo las palabras. Al abrirlo, JeffWrite lo lee de inmediato si es ASCII o Unicode simple. Si no lo es, JeffWrite le pregunta en qué codificación leerlo y muestra las primeras líneas, para que compruebe que las letras se ven bien. Una **codificación** es la forma en que un fichero guarda las letras, como UTF-8 o Windows 1252. Al guardar como .txt, usted elige la codificación y los finales de línea, y el fichero conserva solo las palabras: sin fuentes, imágenes ni líneas de tabla.
+- **.html** y **.htm** son páginas web. JeffWrite lee las palabras, los encabezados, la negrita, la cursiva, el subrayado, los colores, las listas y las tablas. Las viñetas y los números de las listas llegan como marcas escritas, y las imágenes y los vínculos se omiten. Nunca descarga nada de internet, e ignora los scripts. Una página web nunca se sobrescribe: **Guardar** pide un nombre nuevo y guarda un fichero .docx. Para crear una página web, consulte **Guardar como página web** más abajo.
 - **.doc** y **.dot** son los tipos antiguos de documento y plantilla. JeffWrite los lee y guarda lo que haga con ellos como un fichero .docx nuevo.
-- **.odt**, **.ott** y **.fodt** son ficheros OpenDocument. JeffWrite los lee todos. Guarda ficheros .odt y guarda lo que haga con un fichero .ott o .fodt como un fichero .odt nuevo. Vea [Abrir y guardar ficheros OpenDocument](open-odt).
-- **.rtf** es formato de texto enriquecido. JeffWrite lo lee y lo guarda. Vea [Abrir ficheros RTF](open-rtf).
+- **.odt**, **.ott** y **.fodt** son ficheros OpenDocument. JeffWrite los lee todos. Guarda ficheros .odt, y guarda lo que haga con un fichero .ott o .fodt como un fichero .odt nuevo. Consulte [Abrir y guardar ficheros OpenDocument](open-odt).
+- **.rtf** es Formato de texto enriquecido. JeffWrite lo lee y lo guarda. Consulte [Abrir ficheros RTF](open-rtf).
 
 La página **Abrir** también muestra los documentos que abrió o guardó recientemente. Haga clic en uno para abrirlo. Haga clic con el botón derecho en uno para anclarlo al principio de la lista o quitarlo de ella.
 
-Si un fichero tiene partes que JeffWrite todavía no puede editar, como el diseño de una tabla o un encabezado, las conserva. Vea [Bienvenido a JeffWrite](start). Si una parte del fichero no se puede leer en absoluto, JeffWrite le indica qué ha omitido. Entonces no sobrescribe ese fichero: Guardar pide un nombre nuevo, para que el original conserve lo que la copia perdió.
+Si un fichero tiene partes que JeffWrite todavía no puede editar, como el diseño de una tabla o un encabezado, las conserva. Consulte [Bienvenido a JeffWrite](start). Si una parte del fichero no se puede leer en absoluto, JeffWrite le indica lo que omitió. Entonces no guarda sobre ese fichero: Guardar pide un nombre nuevo, para que el original conserve lo que la copia perdió.
 
 ## Guardar un documento
 
-Pulse **Ctrl+S** para guardar. La primera vez, JeffWrite pide un nombre. **Guardar como** (F12) guarda una copia con un nombre nuevo. Elija **Plantilla (*.dotx)** para guardar una plantilla, **Documento habilitado para macros (*.docm)** para conservar las macros, **Texto sin formato (*.txt)** para guardar solo las palabras, o **Formato de texto enriquecido (*.rtf)** para un fichero que otros programas puedan leer. Un fichero procedente de un tipo antiguo siempre se guarda con un nombre nuevo, de modo que el fichero antiguo nunca se sobrescribe.
+Pulse **Ctrl+S** para guardar. La primera vez, JeffWrite pide un nombre. **Guardar como** (F12) guarda una copia con un nombre nuevo. Elija **Plantilla (*.dotx)** para guardar una plantilla, **Documento habilitado para macros (*.docm)** para conservar las macros, **Texto sin formato (*.txt)** para guardar solo las palabras, o **Formato de texto enriquecido (*.rtf)** para un fichero que otros programas puedan leer. Un fichero que proviene de un tipo antiguo siempre se guarda con un nombre nuevo, para que el fichero antiguo nunca se sobrescriba.
 
 ## Guardar una copia
 
-Haga clic en **Archivo > Guardar una copia**. Elija un nombre. JeffWrite escribe el documento en ese fichero y usted sigue trabajando en el documento que tenía. Su nombre y sus cambios sin guardar permanecen como estaban. Resulta útil cuando quiere enviar una versión a alguien y seguir escribiendo.
+Haga clic en **Archivo > Guardar una copia**. Elija un nombre. JeffWrite escribe el documento en ese fichero, y usted sigue trabajando en el documento que tenía. Su nombre y sus cambios sin guardar se mantienen como estaban. Es útil cuando quiere enviar una versión a alguien y seguir escribiendo.
 
 ## Conservar una copia de seguridad
 
-Haga clic en **Archivo > Opciones** y, en la página **General**, active **Crear siempre una copia de seguridad**. Cada vez que guarde, JeffWrite copia primero el fichero antiguo en otro llamado "Copia de" seguido de su nombre, en la misma carpeta. Si no se puede hacer la copia, JeffWrite pregunta si desea guardar sin ella. La respuesta es No, salvo que diga Sí, y el fichero sigue como estaba. Así puede volver a la última versión guardada.
+Haga clic en **Archivo > Opciones** y, en la página **General**, active **Crear siempre una copia de seguridad**. Cada vez que guarde, JeffWrite primero copia el fichero anterior en otro llamado "Copia de" seguido de su nombre, en la misma carpeta. Si no se puede crear la copia, JeffWrite pregunta si desea guardar sin ella. La respuesta es No, salvo que diga Sí, y el fichero se mantiene como estaba. Así puede volver a la última versión guardada.
 
 ## Guardar como plantilla
 
-Una plantilla es un documento que usa como punto de partida. Haga clic en **Archivo > Guardar como plantilla** y escriba un nombre. La plantilla se guarda en **Mis plantillas** y el documento en el que escribe no cambia. En **Guardar como** también puede elegir **Plantilla (*.dotx)** o **Plantilla de texto de OpenDocument (*.ott)** para guardar un fichero de plantilla donde prefiera.
+Una plantilla es un documento que usa como punto de partida. Haga clic en **Archivo > Guardar como plantilla** y escriba un nombre. La plantilla se guarda en **Mis plantillas**, y el documento que está escribiendo no cambia. En **Guardar como** también puede elegir **Plantilla (*.dotx)** o **Plantilla de texto de OpenDocument (*.ott)** para guardar un fichero de plantilla donde prefiera.
 
 Para empezar un documento nuevo a partir de su plantilla, haga clic en **Archivo > Nuevo**. Sus plantillas aparecen en **Mis plantillas**. Haga clic en una. Se abre un documento nuevo con el texto y los estilos de la plantilla. Para quitar una plantilla de la lista, haga clic con el botón derecho en ella y elija **Quitar de Mis plantillas**.
 
@@ -47,40 +47,40 @@ Para empezar un documento nuevo a partir de su plantilla, haga clic en **Archivo
 
 En la página **Abrir**, haga clic en **Más formas de abrir**. También puede hacer clic con el botón derecho en un nombre de la lista de recientes. Cada forma pide un fichero o usa el que haya elegido:
 
-- **Abrir como solo lectura** abre el fichero solo para leerlo. Puede mirar, desplazarse, buscar y copiar, pero no cambiar nada. La barra de título dice "Solo lectura". Si pulsa **Guardar**, JeffWrite pide un nombre nuevo, de modo que el fichero abierto no se modifica.
-- **Abrir como copia** abre un documento nuevo con el texto del fichero. No tiene fichero propio, de modo que **Guardar** pregunta dónde colocarlo. El fichero abierto nunca se modifica.
-- **Abrir en una nueva ventana** abre el fichero en una ventana propia, incluso cuando la ventana en la que se encuentra está vacía.
-- **Abrir y reparar** sirve para un fichero .docx dañado, por ejemplo uno que se cortó al copiarlo. Vea más abajo.
+- **Abrir como solo lectura** abre el fichero solo para leerlo. Puede ver, desplazarse, buscar y copiar, pero no cambiar nada. La barra de título dice "Solo lectura". Si pulsa **Guardar**, JeffWrite pide un nombre nuevo, así que el fichero que abrió no se cambia.
+- **Abrir como copia** abre un documento nuevo con el texto del fichero. No tiene fichero propio, así que **Guardar** pregunta dónde colocarlo. El fichero que abrió nunca se cambia.
+- **Abrir en una nueva ventana** abre el fichero en una ventana propia, aunque la ventana en la que está esté vacía.
+- **Abrir y reparar** sirve para un fichero .docx dañado, por ejemplo uno que se cortó al copiarlo. Consulte más abajo.
 
 ## Abrir y reparar
 
-A veces un fichero .docx está dañado. Una copia se interrumpió a medias o un disco cometió errores. Un fichero .docx es un conjunto de partes más pequeñas, como el texto, los estilos y las imágenes. **Abrir y reparar** lee todas las partes que puede. Una parte que se cortó a mitad se conserva hasta el punto en que se interrumpió. Una parte que no se puede leer se omite. Si la lista de partes o los vínculos entre ellas han desaparecido, JeffWrite los vuelve a crear.
+A veces un fichero .docx se daña. Una copia se interrumpió a mitad, o un disco cometió errores. Un fichero .docx es un conjunto de partes más pequeñas, como el texto, los estilos y las imágenes. **Abrir y reparar** lee cada parte que puede. Una parte que se interrumpió a mitad se conserva hasta el punto donde se cortó. Una parte que no se puede leer se omite. Si se han perdido la lista de partes o los vínculos entre ellas, JeffWrite los vuelve a crear.
 
-El documento reparado se abre como copia con un nombre como "Carta reparada". Un mensaje le indica qué se conservó hasta un corte y qué se omitió. El fichero dañado no se modifica. Guarde la copia reparada con un nombre propio y revísela antes de fiarse de ella.
+El documento reparado se abre como una copia con un nombre como "Carta reparada". Un mensaje le indica qué se conservó hasta una interrupción y qué se omitió. El fichero dañado no se cambia. Guarde la copia reparada con un nombre propio y revísela antes de confiar en ella.
 
 ## Recuperar trabajo sin guardar
 
-JeffWrite guarda una copia de respaldo del trabajo sin guardar cada pocos minutos, como fichero en su propia carpeta. Si el programa se cierra inesperadamente, se las ofrece la próxima vez que lo inicie. Haga clic en **Archivo > Abrir > Recuperar trabajo sin guardar** para verlas más tarde. Puede elegir cuál abrir y guardar cada una donde prefiera.
+JeffWrite guarda una copia de respaldo del trabajo sin guardar cada pocos minutos, como un fichero en su propia carpeta. Si el programa se cierra inesperadamente, las ofrece la próxima vez que lo inicie. Haga clic en **Archivo > Abrir > Recuperar trabajo sin guardar** para verlas más adelante. Puede elegir cuáles abrir, y guardar cada una donde prefiera.
 
 ## Empezar desde una plantilla
 
-**Archivo > Nuevo** muestra el **Documento en blanco** y un conjunto de plantillas que vienen con JeffWrite, agrupadas por tipo: carta, informe, memorando, manuscrito y boletín. Cada imagen es la primera página del documento que obtendrá. Una **plantilla** es un documento ya preparado, con sus estilos, márgenes y texto de muestra. Haga clic en una y sustituya el texto de muestra por el suyo. Las plantillas que guardó usted mismo aparecen en **Mis plantillas**.
+**Archivo > Nuevo** muestra **Documento en blanco** y un conjunto de plantillas que vienen con JeffWrite, agrupadas por tipo: carta, informe, memorando, manuscrito y boletín. Cada imagen es la primera página del documento que obtendrá. Una **plantilla** es un documento ya preparado, con sus estilos, márgenes y textos de muestra. Haga clic en una y reemplace los textos de muestra por los suyos. Las plantillas que usted mismo guardó aparecen en **Mis plantillas**.
 
-## Continuar donde lo dejó
+## Retomar donde se quedó
 
-JeffWrite recuerda dónde estaba el cursor cuando guardó o cerró un fichero. La próxima vez que lo abra, el cursor estará allí. Pulse **Mayús+F5** para ir a los lugares que editó por última vez. Cada pulsación lleva al anterior: los últimos tres lugares y, después, vuelve al primero.
+JeffWrite recuerda dónde estaba el cursor al guardar o cerrar un fichero. La próxima vez que lo abra, el cursor estará allí. Pulse **Mayús+F5** para ir a los lugares que editó por última vez. Cada pulsación lleva al anterior: los últimos tres lugares y, luego, de nuevo al primero.
 
 ## Guardar como .odt
 
-Un fichero .odt no puede contener todo lo que puede contener un fichero .docx. Al guardar como .odt, JeffWrite primero enumera lo que se perdería y le permite guardar un fichero .docx en su lugar. Vea [Información](info).
+Un fichero .odt no puede contener todo lo que puede contener un fichero .docx. Al guardar como .odt, JeffWrite primero muestra lo que se perdería y le permite guardar un fichero .docx en su lugar. Consulte [Información](info).
 
 ## Imprimir
 
-Pulse **Ctrl+P** o haga clic en **Archivo > Imprimir**. Elija una impresora, las copias y las páginas, revise cada página en la vista previa y haga clic en **Imprimir**. Vea [Imprimir](print).
+Pulse **Ctrl+P**, o haga clic en **Archivo > Imprimir**. Elija una impresora, las copias y las páginas, revise cada página en la vista previa y haga clic en **Imprimir**. Consulte [Imprimir](print).
 
 ## Crear un PDF
 
-Haga clic en **Archivo > Exportar > Exportar a PDF**. Elija qué páginas incluir: todas, la página actual o un intervalo como 1-3, 5 (p2s3 y s3 también funcionan aquí). Después elija un nombre. El PDF se ve igual en cualquier equipo, porque las fuentes van incluidas en él. El título, el autor, el asunto y las palabras clave del documento pasan al PDF. Cada encabezado se convierte en un **marcador**, una entrada de la lista que un lector de PDF muestra junto a las páginas. Haga clic en un marcador para ir a su página.
+Haga clic en **Archivo > Exportar > Exportar a PDF**. Elija qué páginas incluir: todas, la página actual o un intervalo como 1-3, 5 (p2s3 y s3 también funcionan aquí). Después, elija un nombre. El PDF se ve igual en cualquier equipo, porque las fuentes se incluyen dentro de él. El título, el autor, el asunto y las palabras clave del documento pasan al PDF. Cada encabezado se convierte en un **marcador**, una entrada de la lista que un lector de PDF muestra junto a las páginas. Haga clic en un marcador para ir a su página.
 
 ## Guardar como página web
 
@@ -91,15 +91,23 @@ Haga clic en **Archivo > Exportar** y elija uno de los dos tipos de página web.
 
 Ambos conservan los encabezados, las listas con viñetas y numeradas, las tablas con celdas combinadas, los vínculos y las imágenes. El texto oculto, las palabras que un cambio registrado eliminó, los comentarios, los encabezados, los pies de página y las notas se omiten. Un vínculo que iniciaría un programa o ejecutaría un script se guarda como texto sin formato.
 
+## Proteger un PDF con contraseña
+
+En el cuadro **Exportar a PDF**, haga clic en **Cifrar con contraseña…**. Escriba la contraseña dos veces. Quien abra el PDF tendrá que escribirla. La contraseña protege de verdad el fichero: las páginas se cifran con un cifrado robusto (AES-256), y nadie puede leerlas sin ella.
+
+También puede marcar **Restringir la impresión, la copia y la edición**, indicar una segunda contraseña y elegir qué se permite. Esas restricciones son solo una petición. La mayoría de los lectores de PDF las respetan, pero no impiden a quien quiera saltárselas, así que no confíe en ellas para mantener un fichero en privado.
+
+Una contraseña olvidada no se puede recuperar, así que guárdela en un lugar seguro. La contraseña se usa solo para ese PDF y nunca se guarda. El cuadro desactiva **PDF/A** mientras hay una contraseña establecida, porque un fichero PDF/A no puede tenerla.
+
 ## Crear un PDF/A
 
-En el cuadro **Exportar a PDF**, marque **PDF/A, para conservar durante mucho tiempo**. Un fichero PDF/A incluye todas las fuentes que utiliza y sigue una norma pensada para conservar ficheros durante muchos años. Todavía no está etiquetado para lectores de pantalla y no tiene contraseña.
+En el cuadro **Exportar a PDF**, marque **PDF/A, para conservar durante mucho tiempo**. Un fichero PDF/A incluye todas las fuentes que utiliza y sigue una norma pensada para conservar ficheros durante muchos años. Todavía no está etiquetado para lectores de pantalla, y no puede tener contraseña.
 
 ## Crear un correo electrónico
 
-Haga clic en **Archivo > Exportar > Crear un correo electrónico** para crear un fichero de mensaje (.eml). No se envía nada. Elija qué incluir en el mensaje: el documento, el documento como PDF o las páginas mostradas como imágenes dentro del mensaje (las primeras 30 páginas). Abra el fichero en su programa de correo, añada a quién va dirigido y envíelo.
+Haga clic en **Archivo > Exportar > Crear un correo electrónico** para crear un fichero de mensaje (.eml). No se envía nada. Elija qué incluir en el mensaje: el documento, el documento como PDF o las páginas mostradas como imágenes en el mensaje (las primeras 30 páginas). Abra el fichero en su programa de correo, añada a quién va dirigido y envíelo. Para un PDF, puede hacer clic en **Cifrar con contraseña…** en el cuadro; comunique la contraseña a la persona por otro medio que no sea el propio mensaje.
 
-## Temas relacionados
+## Relacionados
 
 - [Bienvenido a JeffWrite](start)
 - [Imprimir](print)

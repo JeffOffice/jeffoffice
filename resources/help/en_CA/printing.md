@@ -29,7 +29,7 @@ The **Layout** list sets how pages land on paper:
 ## More settings
 
 - **Paper**: Letter, Legal, Tabloid, A4, A3, or **Same as publication**.
-- **Sides**: **One-sided**, or two-sided with a flip on the long or the short edge. The preview then tells you which sheet and side each page is on.
+- **Sides**: **Print on one side**, or **Print on both sides** with a flip on the long edge or on the short edge. **Print on both sides by hand** is for a printer that can't print on both sides. JeffPub prints the first, third, fifth, and so on of the pages (for a booklet, of the sheet sides), then a message asks you to turn the stack over and put it back in the printer. When you click **OK**, it prints the others, last first. A job of one page has nothing to turn over. Saving a PDF dims the choice, because a file has no sides. The preview then tells you which sheet and side each page is on.
 - **Colour**: **Composite RGB** for full colour, or **Composite greyscale** for shades of grey.
 - **Print all mail merge records**: available when your publication has a recipient list. See [mail merge](mail-merge).
 
