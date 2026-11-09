@@ -1,5 +1,10 @@
 // JeffPub's tests of SVG, ebook, and other output, barcodes, and metafiles.
 #include "pubhelpers.h"
+#include "core/svg.h"
+#include <QPaintEngine>
+#include <QPdfWriter>
+#include <QPrinter>
+#include <QSvgRenderer>
 #include "app/filedialogs.h"
 #include "app/filetasks.h"
 #include "../settingguard.h"
@@ -835,6 +840,82 @@ private Q_SLOTS:
         QCOMPARE(parts->children.size(), size_t(3));
         const QRectF cut = parts->children[1]->rect;
         QVERIFY2(std::abs(cut.width() - 80) < 1 && std::abs(cut.height() - 80) < 1, qPrintable(QStringLiteral("%1 x %2").arg(cut.width()).arg(cut.height())));
+    }
+
+    // An SVG drawn into a PDF or a print goes through a device that makes its letters outlines (svg::paint): the painter's own clip is still cut across (the clip of the picture is
+    // intersected with it), the painter keeps its clip and its drawing after it, and what is drawn with no clip after it is not cut.
+    void svgInAPdfOrAPrintKeepsThePaintersClip()
+    {
+        using namespace jp;
+        const QByteArray svg =
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 50\">"
+            "<defs><clipPath id=\"c\"><circle cx=\"50\" cy=\"25\" r=\"20\"/></clipPath></defs>"
+            "<rect x=\"60\" y=\"20\" width=\"20\" height=\"10\" fill=\"#ffff00\"/>"
+            "<rect width=\"100\" height=\"50\" fill=\"#ff0000\" clip-path=\"url(#c)\"/>"
+            "<rect width=\"10\" height=\"10\" fill=\"#0000ff\"/>"
+            "<text x=\"2\" y=\"48\" font-size=\"8\" fill=\"#00aa00\">letters</text></svg>";
+        QSvgRenderer renderer(svg);
+        QVERIFY(renderer.isValid());
+        auto draw = [&](QPainter &p) {
+            QPainterPath before = p.clipPath();
+            p.setClipRect(QRectF(0, 0, 120, 100));   // (the left 60 units of the picture)
+            const QPainterPath held = p.clipPath();
+            svg::paint(renderer, svg, &p, QRectF(0, 0, 200, 100));
+            QVERIFY2(p.clipPath() == held, "the painter's clip after the picture");
+            p.fillRect(QRectF(150, 0, 30, 20), Qt::magenta);          // (still outside the clip: not seen)
+            p.setClipping(false);
+            p.fillRect(QRectF(150, 80, 30, 20), Qt::darkCyan);        // (no clip: seen)
+        };
+        auto check = [&](const QImage &page, const QString &how) {
+            const QByteArray msg = how.toUtf8();
+            auto px = [&](double x, double y) { return page.pixel(int(2 * x), int(2 * y)); };
+            auto is = [](QRgb c, QColor want) { return std::abs(qRed(c) - want.red()) < 14 && std::abs(qGreen(c) - want.green()) < 14 && std::abs(qBlue(c) - want.blue()) < 14; };
+            auto empty = [](QRgb c) { return qAlpha(c) < 10 || (qRed(c) > 245 && qGreen(c) > 245 && qBlue(c) > 245); };
+            QVERIFY2(is(px(50, 25), Qt::red), msg.constData());        // in the circle and the clip
+            QVERIFY2(empty(px(65, 25)), qPrintable(how + QStringLiteral(" %1 / yellow %2 / 55,25 %3").arg(QColor(px(65, 25)).name(), QColor(px(70, 25)).name(), QColor(px(55, 25)).name())));              // the yellow and the circle's right side: outside the painter's clip
+            QVERIFY2(empty(px(30, 5)), msg.constData());               // the square's corner: outside the circle
+            QVERIFY2(is(px(5, 5), Qt::blue), msg.constData());         // drawn after, inside the painter's clip
+            QVERIFY2(empty(px(80, 5)), msg.constData());               // the magenta rectangle was clipped
+            QVERIFY2(is(px(80, 45), QColor(Qt::darkCyan)), msg.constData());   // and the one with no clip is whole
+        };
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        {
+            const QString path = dir.filePath(QStringLiteral("writer.pdf"));
+            QPdfWriter writer(path);
+            writer.setResolution(72);
+            writer.setPageSize(QPageSize(QSizeF(612, 792), QPageSize::Point));
+            writer.setPageMargins(QMarginsF(0, 0, 0, 0));
+            QPainter p(&writer);
+            draw(p);
+            p.end();
+            if (QTest::currentTestFailed()) return;
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const PdfDocument pdf(f.readAll());
+            QVERIFY(pdf.isValid());
+            check(pdf.render(0, QSize(612, 792)), QStringLiteral("PDF writer"));
+            if (QTest::currentTestFailed()) return;
+        }
+        {
+            const QString path = dir.filePath(QStringLiteral("printer.pdf"));
+            QPrinter printer(QPrinter::ScreenResolution);
+            printer.setOutputFormat(QPrinter::PdfFormat);
+            printer.setOutputFileName(path);
+            printer.setResolution(72);
+            printer.setPageSize(QPageSize(QSizeF(612, 792), QPageSize::Point));
+            printer.setFullPage(true);
+            QPainter p(&printer);
+            QVERIFY(p.paintEngine() && p.paintEngine()->type() == QPaintEngine::Pdf);
+            draw(p);
+            p.end();
+            if (QTest::currentTestFailed()) return;
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const PdfDocument pdf(f.readAll());
+            QVERIFY(pdf.isValid());
+            check(pdf.render(0, QSize(612, 792)), QStringLiteral("print"));
+        }
     }
 
     // Save as Picture > SVG: each page as a vector drawing with letters as

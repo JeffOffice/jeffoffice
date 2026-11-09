@@ -137,6 +137,7 @@ void applyUiTheme(int choice)
             app->setStyleSheet(modernStyleSheet());
         }
     }
+    updateNumberBoxInsets();
     g_applying = false;
     Q_EMIT UiTheme::instance()->changed();
 }

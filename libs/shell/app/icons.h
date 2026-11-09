@@ -36,6 +36,8 @@ QColor uiCardPressed();
 QColor uiLine();           // borders of cards and panels
 // App-wide widget tweaks the style sheet can't express (tab bars that never scroll).
 void installUiPolish();
+// The number boxes take their text margins from the style sheet there is: set in from each side with one, flush without (a theme that clears the sheet calls this).
+void updateNumberBoxInsets();
 // Application-wide style sheet: rounded fields and buttons, accent focus
 // rings, an accent "primary" button (property primary=true) and slim scroll bars.
 QString modernStyleSheet();

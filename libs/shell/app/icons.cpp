@@ -365,6 +365,21 @@ public:
 };
 } // namespace
 
+void updateNumberBoxInsets()
+{
+    if (!qApp) return;
+    const int inset = qApp->styleSheet().isEmpty() ? 0 : 8;
+    for (QWidget *w : QApplication::allWidgets())
+        if (auto *sb = qobject_cast<QAbstractSpinBox *>(w))
+            if (QLineEdit *le = sb->findChild<QLineEdit *>()) {
+                if (inset && !sb->property("spinEditFix").toBool()) {
+                    sb->setProperty("spinEditFix", true);
+                    new SpinEditFix(sb, le);
+                }
+                le->setTextMargins(inset, 0, inset, 0);
+            }
+}
+
 void installUiPolish()
 {
     static bool done = false;

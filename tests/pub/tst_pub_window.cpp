@@ -2,6 +2,7 @@
 #include "grid/gridview.h"
 #include "core/version.h"
 #include "pubhelpers.h"
+#include "app/icons.h"
 #include "app/optionsdialog.h"
 #include "app/firstwindow.h"
 #include "app/filescreen.h"
@@ -553,6 +554,28 @@ private Q_SLOTS:
     // Every ribbon control has a name screen readers read, and the keyboard
     // reaches it (the ribbon's buttons, galleries and color buttons refused
     // the focus; its tabs and File button were only drawn).
+    // A number box put in a ribbon row before anything has polished it is as wide as its text, its margins, and the style's room need (the margins are set as it is polished, which the
+    // measuring does first); and the margins go with the style sheet: none without one, back with one.
+    void numberBoxesFitTheirTextMarginsAndFollowTheStyleSheet()
+    {
+        jp::applyUiTheme(1);
+        QVERIFY(!qApp->styleSheet().isEmpty());
+        auto *group = new jp::RibbonGroup(QStringLiteral("Test"));
+        auto *spin = new jp::MeasureSpin();   // (not polished: nothing has shown it)
+        group->addRow({spin});
+        QLineEdit *le = spin->findChild<QLineEdit *>();
+        QVERIFY(le);
+        QCOMPARE(le->textMargins().left(), 8);
+        const QFontMetricsF fm(spin->font());
+        QVERIFY2(spin->minimumWidth() >= fm.horizontalAdvance(QStringLiteral("0.000\"")) + 16, qPrintable(QString::number(spin->minimumWidth())));
+        qApp->setStyleSheet(QString());
+        jp::updateNumberBoxInsets();
+        QCOMPARE(le->textMargins().left(), 0);
+        jp::applyUiTheme(1);
+        QCOMPARE(le->textMargins().left(), 8);
+        delete group;
+    }
+
     void ribbonControlsAreNamedAndReachable()
     {
         jp::MainWindow w;
