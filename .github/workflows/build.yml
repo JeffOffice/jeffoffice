@@ -278,6 +278,13 @@ jobs:
           for f in "$L"/libav*.61.dylib "$L"/libavutil.59.dylib "$L"/libsw*.dylib; do [ -L "$f" ] || continue; nm -gU "$f" | awk '{print $3}' | sed 's/^_//'; done | sort -u > /tmp/have.txt
           wc -l /tmp/need.txt /tmp/have.txt; comm -23 /tmp/need.txt /tmp/have.txt | head -20 || true
           echo "== which library the plugin expects the names in"; nm -m "$P" | grep -E "_av_dict_get_string|_av_malloc|_avformat_open_input|_sws_scale|_swr_init" | head -10 || true
+          echo "== each library: slices, its own name, and the symbol in each slice"
+          for f in "$L"/libavcodec.61.dylib "$L"/libavformat.61.dylib "$L"/libavutil.59.dylib "$L"/libswresample.5.dylib "$L"/libswscale.8.dylib; do
+            echo "$(basename "$f"): $(lipo -info "$f" 2>&1 | sed 's/.*are: //;s/.*is architecture: //')"
+            otool -l "$f" | grep -A2 LC_ID_DYLIB | grep name || true
+            for a in arm64 x86_64; do echo "  $a: $(nm -gU -arch $a "$f" 2>&1 | grep -c ' _av_dict_get_string$') definitions of _av_dict_get_string, $(nm -gU -arch $a "$f" 2>&1 | grep -c ' _av') _av names"; done
+          done
+          echo "== the plugin's binds"; dyld_info -bind "$P" 2>/dev/null | grep -E "av_dict_get_string|av_malloc " | head -6 || true
           echo "== who defines av_dict_get_string"; for f in "$L"/libav*.61.dylib "$L"/libavutil.59.dylib "$L"/libsw*.dylib; do nm -gU "$f" 2>/dev/null | grep -H --label="$(basename "$f")" "_av_dict_get_string" || true; done
           for f in "$L"/libavcodec.61.dylib "$L"/libavformat.61.dylib "$L"/libavutil.59.dylib "$L"/libswresample.5.dylib "$L"/libswscale.8.dylib; do
             echo "$(basename "$f"): $(lipo -archs "$f"), signature: $(codesign -v "$f" 2>&1 | head -1 | sed 's/^$/valid/')"
