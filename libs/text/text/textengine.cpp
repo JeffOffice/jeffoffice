@@ -442,6 +442,7 @@ static QCache<QString, ShrunkParagraph> &shrinkMemory()
 }
 // Layout only: an underline's style while JeffPub draws it (drawUnderline).
 constexpr int kOwnUnderline = QTextFormat::UserProperty + 90;
+std::atomic<qint64> g_ownUnderlines{0};   // (see StoryLayout::ownUnderlinesDrawnForTest)
 // Layout only: a missing stock font measured letter by letter, "family|bold|italic"
 // (applyLetterWidths gives each letter the original's width).
 constexpr int kLetterWidths = QTextFormat::UserProperty + 91;
@@ -583,10 +584,11 @@ QTextCharFormat fineFormat(QTextCharFormat cf)
         pen.setWidthF(pen.widthF() * kFine);
         cf.setTextOutline(pen);
     }
-    // Underlines are drawn here (drawUnderline): Qt is told of none, and kOwnUnderline keeps the style. (Qt 6.8 put its line, in the layout's units, at the
-    // baseline plus the ceiling of the font's underline position, plus a half; Qt 6.11 puts it half its thickness lower, which moves the one-pixel lines of the
-    // pages half a pixel and blurs them over two rows.)
-    if (cf.underlineStyle() != QTextCharFormat::NoUnderline) {
+    // Underlines Qt can't draw (double, words only, thick) are drawn here (drawUnderline): Qt is told of none, and kOwnUnderline keeps the style. So is the
+    // plain single one: Qt 6.8 put its line, in the layout's units, at the baseline plus the ceiling of the font's underline position, plus a half; Qt 6.11 puts
+    // it half its thickness lower, which moves the one-pixel lines of the pages half a pixel and blurs them over two rows. The wave, dotted, dashed, and
+    // spelling underlines are Qt's.
+    if (cf.underlineStyle() != QTextCharFormat::NoUnderline && (cf.intProperty(tp::UnderlineKind) || cf.underlineStyle() == QTextCharFormat::SingleUnderline)) {
         cf.setProperty(kOwnUnderline, int(cf.underlineStyle()));
         cf.setUnderlineStyle(QTextCharFormat::NoUnderline);
     }
@@ -616,8 +618,16 @@ void drawUnderline(QPainter *p, const QTextLine &line, int s, int e, const QText
     auto span = [&](int from, int to) {
         const double a = line.cursorToX(from);
         double b = line.cursorToX(to);
-        // (Qt drew a line under the spaces that end a line too; the cursor stops short of them.)
-        if (kind == 0 && to == line.textStart() + line.textLength() && b >= a) b = std::max(b, line.x() + line.horizontalAdvance());
+        // Qt drew its line under the spaces that end a line too, and under those that hang past its width: the cursor stops short of them (at the line's
+        // width), and the line's natural extent, which counts them, says where they end: its right end for a line that reads left to right, its left end for
+        // one that reads right to left.
+        if (kind == 0 && to == line.textStart() + line.textLength()) {
+            const QRectF natural = line.naturalTextRect();
+            // (From the line's start the whole line is under it: the cursor's two ends are not its two sides where a line mixes directions.)
+            if (from == line.textStart()) return QPair<double, double>(natural.left(), natural.right());
+            if (b >= a) b = std::max(b, natural.right());
+            else b = std::min(b, natural.left());
+        }
         return QPair<double, double>(std::min(a, b), std::max(a, b));
     };
     if (kind & 2) {
@@ -631,6 +641,7 @@ void drawUnderline(QPainter *p, const QTextLine &line, int s, int e, const QText
     } else spans.append(span(s, e));
     // (A line Qt drew itself, in a layout it drew, is where Qt 6.8 drew it; the others are where they always were.)
     const double y = line.y() + line.ascent() + (qtPlace ? std::ceil(fm.underlinePos()) + 0.5 : fm.underlinePos()), gap = up.widthF() * 2;
+    if (qtPlace) g_ownUnderlines += spans.size();
     p->save();
     p->setPen(up);
     p->setBrush(Qt::NoBrush);
@@ -1585,6 +1596,7 @@ int StoryLayout::Block::docFromDisp(int d) const
 namespace { std::atomic<qint64> g_lineHeightsMeasured{0}; }   // (see StoryLayout::lineHeightsMeasuredForTest)
 
 qint64 StoryLayout::lineHeightsMeasuredForTest() { return g_lineHeightsMeasured.load(); }
+qint64 StoryLayout::ownUnderlinesDrawnForTest() { return g_ownUnderlines.load(); }
 qint64 StoryLayout::longestJoinedStretchForTest() { return g_longestJoinedStretch.load(); }
 qint64 StoryLayout::paragraphCharsReadForTest() { return g_paragraphCharsRead.load(); }
 qint64 StoryLayout::formatRangesMadeForTest() { return g_formatRangesMade.load(); }
@@ -6202,14 +6214,23 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                     if (s < e) drawHandBold(p, line, s, e, r.format, o.output);
                 }
             }
-            for (int n = 0; n < fmts.size(); ++n) {
-                const auto &r = fmts[n];
-                if (!r.format.hasProperty(kOwnUnderline)) continue;
-                const QBrush br = r.format.hasProperty(QTextFormat::ForegroundBrush) ? r.format.foreground() : QBrush(Qt::black);
-                for (int i = 0; i < B->lines.size(); ++i) {
-                    if (B->lines[i].frame != frame) continue;
-                    const QTextLine line = B->tl->lineAt(i);
-                    const auto [s, e] = underlineSpan(fmts, n, line.textStart(), line.textStart() + line.textLength());
+            // (Each line looks at the ranges that touch it: the ranges that draw an underline of their own, in order of where they start, and the lines in the order of the
+            // text, so that the ranges a line has passed are not looked at again. Looking at every range from every line cost lines times ranges.)
+            QVector<int> own;
+            for (int n = 0; n < fmts.size(); ++n)
+                if (fmts[n].format.hasProperty(kOwnUnderline)) own << n;
+            std::stable_sort(own.begin(), own.end(), [&](int a, int b) { return fmts[a].start < fmts[b].start; });
+            int first = 0;
+            for (int i = 0; i < B->lines.size() && !own.isEmpty(); ++i) {
+                if (B->lines[i].frame != frame) continue;
+                const QTextLine line = B->tl->lineAt(i);
+                const int ls = line.textStart(), le = ls + line.textLength();
+                while (first < own.size() && fmts[own[first]].start + fmts[own[first]].length <= ls) ++first;
+                for (int k = first; k < own.size() && fmts[own[k]].start < le; ++k) {
+                    const int n = own[k];
+                    const auto &r = fmts[n];
+                    const QBrush br = r.format.hasProperty(QTextFormat::ForegroundBrush) ? r.format.foreground() : QBrush(Qt::black);   // (as the letters are)
+                    const auto [s, e] = underlineSpan(fmts, n, ls, le);
                     if (s < e) drawUnderline(p, line, s, e, r.format, B->tl->font(), br, B->disp, !r.format.intProperty(tp::UnderlineKind));
                 }
             }

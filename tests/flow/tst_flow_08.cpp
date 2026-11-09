@@ -451,3 +451,141 @@ void FlowTests::deletingACharacterCostsLikeTypingOne()
     QVERIFY2(cheaper(perDelete[1], perDelete[0]) && cheaper(perType[1], perType[0]), qPrintable(QStringLiteral("deleting at 8000 paragraphs: %1; at 32000: %2").arg(perDelete[0].text(), perDelete[1].text())));
     QCOMPARE(perDelete[1].indexed, qint64(0));
 }
+
+
+// ---- Underlines drawn by drawUnderline (Qt 6.11 moved the ones it draws itself) ----
+namespace {
+QImage paintedStory(QTextDocument &doc, double frameWidth, const QColor &pen = Qt::black)
+{
+    LayoutEnv env;
+    StoryLayout lay;
+    lay.build(&doc, {plainFrame(frameWidth, 600)}, env);
+    QImage img(2000, 400, QImage::Format_RGB32);
+    img.fill(Qt::white);
+    QPainter p(&img);
+    p.translate(600, 10);   // (room to the left, for a right to left line)
+    p.setPen(pen);
+    lay.paint(&p, 0, PaintOptions());
+    p.end();
+    return img;
+}
+QRect inkBox(const QImage &img)
+{
+    int x0 = img.width(), x1 = -1, y0 = img.height(), y1 = -1;
+    for (int y = 0; y < img.height(); ++y)
+        for (int x = 0; x < img.width(); ++x)
+            if (qGray(img.pixel(x, y)) < 200) {
+                x0 = std::min(x0, x); x1 = std::max(x1, x); y0 = std::min(y0, y); y1 = std::max(y1, y);
+            }
+    return x1 < 0 ? QRect() : QRect(QPoint(x0, y0), QPoint(x1, y1));
+}
+} // namespace
+
+// Spaces that end an underlined line hang past its width and are underlined as far as they go (Qt's own line was drawn under them): the same words and spaces make a line as long in
+// a frame too narrow for them as in one wide enough, left to right or right to left, after a tab, and with letters spaced.
+void FlowTests::underlinedSpacesPastTheLineEndAreUnderlinedToo()
+{
+    struct Case { QString text; bool rtl; double spacing; };
+    const QString spaces(40, QLatin1Char(' '));
+    const Case cases[] = {{QStringLiteral("hello world") + spaces, false, 0}, {QStringLiteral("hello world") + spaces, true, 0},
+                          {QStringLiteral("a\tb") + spaces, false, 0}, {QStringLiteral("hello world") + spaces, false, 2.0}};
+    for (const Case &k : cases) {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextBlockFormat bf;
+        if (k.rtl) bf.setLayoutDirection(Qt::RightToLeft);
+        c.setBlockFormat(bf);
+        QTextCharFormat f;
+        f.setFontPointSize(12);
+        f.setFontUnderline(true);
+        if (k.spacing) {
+            f.setFontLetterSpacingType(QFont::AbsoluteSpacing);
+            f.setFontLetterSpacing(k.spacing);
+        }
+        c.insertText(k.text, f);
+        QTextDocument bareDoc;
+        QTextCursor bc(&bareDoc);
+        bc.setBlockFormat(bf);
+        bc.insertText(k.text.trimmed(), f);
+        const QRect bare = inkBox(paintedStory(bareDoc, 1000));
+        const QRect wide = inkBox(paintedStory(doc, 1000)), narrow = inkBox(paintedStory(doc, 100));
+        const QString what = QStringLiteral("rtl %1, spacing %2: %3 wide in a wide frame, %4 in a narrow one").arg(k.rtl).arg(k.spacing).arg(wide.width()).arg(narrow.width());
+        QVERIFY2(wide.width() > bare.width() + 40, qPrintable(what + QStringLiteral(" (%1 without the spaces)").arg(bare.width())));
+        QVERIFY2(std::abs(wide.width() - narrow.width()) <= 3, qPrintable(what));
+    }
+}
+
+// The underline is in the color of the letters: black where a run sets none (the engine draws such letters black whatever the painter's pen is), the run's own where it sets one.
+void FlowTests::underlinesTakeTheTextsColorFromThePenWhenItSetsNone()
+{
+    for (const bool colored : {false, true}) {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat f;
+        f.setFontPointSize(24);
+        f.setFontUnderline(true);
+        if (colored) f.setForeground(QColor(200, 0, 0));
+        c.insertText(QStringLiteral("HHHH"), f);
+        const QImage img = paintedStory(doc, 400, QColor(0, 160, 0));   // (a pen that is neither)
+        const QRect box = inkBox(img);
+        QVERIFY(!box.isNull());
+        // the letters' darkest pixel and the underline's
+        QColor glyph = Qt::white, line = Qt::white;
+        for (int x = box.left(); x <= box.right(); ++x) {
+            for (int y = box.top(); y < box.bottom() - 2; ++y)
+                if (qGray(img.pixel(x, y)) < qGray(glyph.rgb())) glyph = img.pixelColor(x, y);
+            for (int y = box.bottom() - 1; y <= box.bottom(); ++y)
+                if (qGray(img.pixel(x, y)) < qGray(line.rgb())) line = img.pixelColor(x, y);
+        }
+        QCOMPARE(line.name(), glyph.name());
+        QCOMPARE(line.red() > 150 && line.green() < 60, colored);
+    }
+}
+
+// Only the plain single underline is drawn by the engine; wave, dotted, dashed, and the spelling underlines are Qt's, as they were.
+void FlowTests::onlyPlainSingleUnderlinesAreDrawnHere()
+{
+    auto drawn = [&](QTextCharFormat::UnderlineStyle style, bool plainSingle) {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat f;
+        f.setFontPointSize(14);
+        if (plainSingle) f.setFontUnderline(true);
+        else f.setUnderlineStyle(style);
+        c.insertText(QStringLiteral("some underlined words"), f);
+        const qint64 before = StoryLayout::ownUnderlinesDrawnForTest();
+        paintedStory(doc, 400);
+        return StoryLayout::ownUnderlinesDrawnForTest() - before;
+    };
+    QVERIFY(drawn(QTextCharFormat::SingleUnderline, true) > 0);
+    for (const auto style : {QTextCharFormat::WaveUnderline, QTextCharFormat::DotLine, QTextCharFormat::DashUnderline, QTextCharFormat::DashDotLine, QTextCharFormat::SpellCheckUnderline})
+        QCOMPARE(drawn(style, false), qint64(0));
+}
+
+// Drawing the underlines of a paragraph of many runs and lines costs in proportion to them (each line looks at the runs that touch it, not at all of them).
+void FlowTests::underlinesCostInProportionToTheirRunsAndLines()
+{
+    auto seconds = [&](int runs) {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat a, b;
+        a.setFontPointSize(10);
+        a.setFontUnderline(true);
+        b = a;
+        b.setForeground(QColor(60, 60, 200));
+        for (int i = 0; i < runs; ++i) c.insertText(QStringLiteral("word%1 ").arg(i % 10), i % 2 ? b : a);
+        LayoutEnv env;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(300, 1e6)}, env);
+        QImage img(400, 60, QImage::Format_RGB32);
+        QPainter p(&img);
+        QElapsedTimer t;
+        t.start();
+        lay.paint(&p, 0, PaintOptions());
+        qInfo("%d runs: painted in %lld ms", runs, t.elapsed());
+        return double(t.elapsed()) + 1;
+    };
+    const int base = qEnvironmentVariableIntValue("JO_UL_RUNS") ? qEnvironmentVariableIntValue("JO_UL_RUNS") : 10000;
+    const double small = seconds(base), large = seconds(base * 2);
+    QVERIFY2(large < 2.5 * small, qPrintable(QStringLiteral("%1 ms for %2 runs, %3 ms for %4").arg(small).arg(base).arg(large).arg(base * 2)));
+}

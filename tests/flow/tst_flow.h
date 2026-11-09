@@ -1408,6 +1408,10 @@ private Q_SLOTS:
     void theCourierStrokeLeavesTheLettersWhereTheyAre();
     void theCourierStrokeIsWorkedOutOncePerLetterAndRun();
     void wordLettersShareTheirWidthsEvenly();
+    void underlinedSpacesPastTheLineEndAreUnderlinedToo();
+    void underlinesTakeTheTextsColorFromThePenWhenItSetsNone();
+    void onlyPlainSingleUnderlinesAreDrawnHere();
+    void underlinesCostInProportionToTheirRunsAndLines();
     void wordLettersKeepTheOriginalsPlaceAtEveryBreakInsideTheWord();
     void wordLettersKeepTheOriginalsPlaceAtASoftHyphenAndAHyphenationPoint();
     void aLineOfChineseTextIsSetAsItWas();

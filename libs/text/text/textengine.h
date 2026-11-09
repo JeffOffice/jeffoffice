@@ -415,6 +415,8 @@ public:
     // How many times a line's own height was measured for the objects it is checked against, since the program began (what a line beside an object costs, for tests: a line that goes
     // down by steps is measured once, not at each step).
     static qint64 lineHeightsMeasuredForTest();
+    // How many underlines drawUnderline has drawn in layouts Qt draws (the plain single ones: the others are Qt's).
+    static qint64 ownUnderlinesDrawnForTest();
     // The longest stretch of text, in letters, that a word processor's rules against a break after a question mark or between brackets have kept whole (a cost test: it is bounded).
     static qint64 longestJoinedStretchForTest();
     // How many characters of paragraphs' text were copied or looked through beyond what the lines of a page are made of (the whole of a paragraph for a question that is asked of it
