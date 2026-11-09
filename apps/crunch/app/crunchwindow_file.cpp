@@ -159,6 +159,7 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         have->raise();
         have->activateWindow();
         Q_EMIT have->broughtForward();
+        hideFileScreen();
         return true;
     }
     // A new workbook nobody has changed gives way to the file (and comes back if the file can't be read).
@@ -174,7 +175,10 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         w->m_anchorHooks = m_anchorHooks;
         m_forceTextPrompt = false;
         w->show();
-        if (w->openFile(path, how == OpenHow::NewWindow ? OpenHow::Normal : how)) return true;
+        if (w->openFile(path, how == OpenHow::NewWindow ? OpenHow::Normal : how)) {
+            hideFileScreen();   // (the Open page is done with, as when the file opens in this window)
+            return true;
+        }
         w->close();   // (it was made for this file: a window with nothing in it is not left)
         return false;
     }

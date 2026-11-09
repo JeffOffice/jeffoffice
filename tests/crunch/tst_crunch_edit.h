@@ -141,6 +141,7 @@ private Q_SLOTS:
     void closingAChangedNewWorkbookThroughSave();
     void theNewShortcutMakesAWindow();
     void theFileScreensNewPageMakesABlankWorkbook();
+    void aFileThatOpensElsewhereClosesTheFileScreen();
     void escCancelsASaveThatWaitsForTheCalculation();
     void aSharedFormulaSurvivesItsFirstCellBeingTypedOver();
     void onlyTheResultsTheEditChangedAreWritten();

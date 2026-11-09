@@ -813,6 +813,39 @@ void CrunchEditTests::theNewShortcutMakesAWindow()
 }
 
 
+// Picking a file from the Open page closes that page, wherever the file ends up: in a window of its own, or in the window that already shows it.
+// A file that can't be opened leaves the page up, to pick another.
+void CrunchEditTests::aFileThatOpensElsewhereClosesTheFileScreen()
+{
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    auto *screen = e.win.w.findChild<CrunchFileScreen *>();
+    QVERIFY(screen);
+    const QString other = e.folder.write(QStringLiteral("other.xlsx"), editBook());
+    // Nothing there: the page stays.
+    e.win.w.showFileScreen(QStringLiteral("open"));
+    QVERIFY(!e.win.w.openFile(e.folder.dir.filePath(QStringLiteral("missing.xlsx"))));
+    QVERIFY(screen->isVisible());
+    // A window of its own.
+    const QList<QWidget *> before = QApplication::topLevelWidgets();
+    const int windows = crunchWindows().size();
+    QVERIFY(e.win.w.openFile(other));
+    QVERIFY(!screen->isVisible());
+    CrunchWindow *second = nullptr;
+    for (QWidget *top : QApplication::topLevelWidgets())
+        if (auto *c = qobject_cast<CrunchWindow *>(top); c && c != &e.win.w && !before.contains(top)) second = c;
+    QVERIFY(second);
+    QPointer<CrunchWindow> guard(second);
+    const auto closeSecond = qScopeGuard([&] { if (guard) { guard->setAttribute(Qt::WA_DeleteOnClose, false); delete guard.data(); } });
+    second->setNotifier([](const QString &, const QString &) {});
+    QVERIFY(QTest::qWaitFor([&] { return second->session() != nullptr && !second->isCalculating(); }, 20000));
+    // The window that already shows it comes forward.
+    e.win.w.showFileScreen(QStringLiteral("open"));
+    QVERIFY(e.win.w.openFile(other));
+    QVERIFY(!screen->isVisible());
+    QCOMPARE(crunchWindows().size(), windows + 1);
+}
+
 // The New page of the File screen: its card leaves a new workbook nobody changed as it is (and closes the screen), and makes a window of its own when the workbook has been changed.
 void CrunchEditTests::theFileScreensNewPageMakesABlankWorkbook()
 {
