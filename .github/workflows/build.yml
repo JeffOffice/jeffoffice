@@ -260,6 +260,14 @@ jobs:
           else
             P=ffmpeg-out/${{ matrix.name }}
           fi
+          if [ "$RUNNER_OS" = macOS ]; then
+            # (Qt's own libraries, before they are replaced: what they re-export, and which library the plugin's imports are bound to)
+            for f in libavcodec.61 libavformat.61 libavutil.59 libswresample.5 libswscale.8; do
+              echo "== Qt's $f.dylib re-exports:"; otool -l "$QT/lib/$f.dylib" | grep -A2 LC_REEXPORT_DYLIB | grep name || echo "  (nothing)"
+            done
+            echo "== the plugin's imports, by the library they are bound to:"
+            nm -m "$QT/plugins/multimedia/libffmpegmediaplugin.dylib" | grep -o "(from [^)]*)" | sort | uniq -c
+          fi
           bash tools/use_ffmpeg.sh install "$QT" $P
           bash tools/use_ffmpeg.sh check "$QT"
 
@@ -273,10 +281,7 @@ jobs:
           echo "== plugin"; otool -L "$P" | head -30 || true; otool -l "$P" | grep -A2 LC_RPATH | grep path || true
           echo "== libavcodec"; otool -D "$L/libavcodec.61.dylib" || true; otool -L "$L/libavcodec.61.dylib" | head -8 || true
           otool -l "$L/libavcodec.61.dylib" | grep -A2 LC_RPATH | grep path || true
-          echo "== names the plugin imports that ours lacks"
-          nm -u "$P" | awk '{print $NF}' | grep -E '^_(av|sw)' | sed 's/^_//' | sort -u > /tmp/need.txt
-          for f in "$L"/libav*.61.dylib "$L"/libavutil.59.dylib "$L"/libsw*.dylib; do [ -L "$f" ] || continue; nm -gU "$f" | awk '{print $3}' | sed 's/^_//'; done | sort -u > /tmp/have.txt
-          wc -l /tmp/need.txt /tmp/have.txt; comm -23 /tmp/need.txt /tmp/have.txt | head -20 || true
+          echo "== every import of the plugin, where it is bound"; python3 tools/check_macho_binds.py "$P" "$L" || true
           echo "== which library the plugin expects the names in"; nm -m "$P" | grep -E "_av_dict_get_string|_av_malloc|_avformat_open_input|_sws_scale|_swr_init" | head -10 || true
           echo "== each library: slices, its own name, and the symbol in each slice"
           for f in "$L"/libavcodec.61.dylib "$L"/libavformat.61.dylib "$L"/libavutil.59.dylib "$L"/libswresample.5.dylib "$L"/libswscale.8.dylib; do

@@ -75,6 +75,10 @@ install)
         fi
         echo "use_ffmpeg: $name ($had) is ours in $DEST"
     done
+    if [ "$KIND" = dylib ] && [ -f "$QT/plugins/multimedia/libffmpegmediaplugin.dylib" ]; then
+        # (every FFmpeg name the plugin imports must be found where the plugin looks: in the library it is bound to, or what that re-exports)
+        python3 "$(dirname "$0")/check_macho_binds.py" "$QT/plugins/multimedia/libffmpegmediaplugin.dylib" "$DEST" || die "the plugin would not load with these libraries"
+    fi
     ;;
 check)
     [ $# -ge 1 ] || die "usage: check DIR..."

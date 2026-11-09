@@ -173,7 +173,10 @@ case "$OS" in
         ;;
     Darwin)
         TARGET=${FFMPEG_ARCH:-$ARCH}
-        SYSFLAGS="--enable-pthreads --install-name-dir=@rpath"
+        # VideoToolbox: only its device type and pixel-format helpers (no hardware decoders, no encoders): Qt's plugin for a Mac imports
+        # av_map_videotoolbox_format_to_pixfmt, and dyld binds every import when it loads the plugin, so without it the plugin does not load.
+        # (It is none of the banned components: NVDEC is another thing, and the hardware decoder count stays 0.)
+        SYSFLAGS="--enable-pthreads --enable-videotoolbox --install-name-dir=@rpath"
         CFLAGS_EXTRA="$CFLAGS_EXTRA -mmacosx-version-min=12.0 -arch $TARGET"
         # (the libraries find each other beside themselves, as Qt's do)
         LDFLAGS_EXTRA="-mmacosx-version-min=12.0 -arch $TARGET -Wl,-rpath,@loader_path"
@@ -216,6 +219,13 @@ cd "$BUILD"
 
 # (configure would expand the dollar sign itself, and the makefiles expand it twice: the libraries' run path is "$ORIGIN", written so the shell sees it quoted)
 sed "s/@@ORIGIN@@/'\$\$\$\$ORIGIN'/" ffbuild/config.mak >ffbuild/config.mak.new && mv ffbuild/config.mak.new ffbuild/config.mak
+
+# On a Mac, Qt's libavformat re-exports libavcodec and libavutil, and its plugin's imports are bound "from libavformat" for names that libavutil defines
+# (two-level namespace: dyld looks only in the library the plugin recorded, and what that library re-exports). Ours re-export the same, so that
+# the plugin finds them (tools/check_macho_binds.py checks every import).
+if [ "$OS" = Darwin ]; then
+    printf 'EXTRALIBS-avformat+=-Wl,-reexport-lavcodec -Wl,-reexport-lavutil\nEXTRALIBS-avcodec+=-Wl,-reexport-lavutil\n' >>ffbuild/config.mak
+fi
 
 # The license must come out LGPL: a GPL or nonfree component would say so here.
 grep -q '^#define FFMPEG_LICENSE "LGPL version 2.1 or later"' config.h || die "the build is not LGPL 2.1 or later"
