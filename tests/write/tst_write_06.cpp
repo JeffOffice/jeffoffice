@@ -1381,20 +1381,20 @@ void WriteTests::trailingTabsThatAreUnderlinedAreDrawn()
         QByteArray tabs;
         for (int i = 0; i < 6; ++i) tabs += "<w:r>" + tabRunProps + "<w:tab/></w:r>";
         auto doc = open(makeDocxWithParts("<w:p>" + stops + "<w:r><w:t>Signature:</w:t></w:r>" + tabs + "</w:p>", sect, {}));
-        if (!doc) return -1;
+        if (!doc) return -1.0;
         PageView view;
         view.resize(1000, 700);
         view.setDocument(doc.get());
         const QImage img = view.pageImage(0, 816);
         const double perPoint = img.width() / 612.0;
-        int dark = 0;   // (in the lines of the paragraph, right of where its words end)
+        double dark = 0;   // (the ink in the lines of the paragraph, right of where its words end: darkness summed, so that a line of a pixel or so lying between two rows counts as it would in one)
         for (int y = int(72 * perPoint); y < int(100 * perPoint); ++y)
-            for (int x = int(200 * perPoint); x < int(460 * perPoint); ++x) dark += qGray(img.pixel(x, y)) < 128;
+            for (int x = int(200 * perPoint); x < int(460 * perPoint); ++x) dark += (255 - qGray(img.pixel(x, y))) / 255.0;
         return dark;
     };
-    const int underlined = inkBeyondTheWords("<w:rPr><w:u w:val=\"single\"/></w:rPr>"), plain = inkBeyondTheWords(QByteArray());
-    QCOMPARE(plain, 0);
-    QVERIFY2(underlined > 100, qPrintable(QStringLiteral("%1 dark points of the underline of the tabs").arg(underlined)));
+    const double underlined = inkBeyondTheWords("<w:rPr><w:u w:val=\"single\"/></w:rPr>"), plain = inkBeyondTheWords(QByteArray());
+    QVERIFY2(plain < 0.5, qPrintable(QString::number(plain)));
+    QVERIFY2(underlined > 100, qPrintable(QStringLiteral("%1 of ink in the underline of the tabs").arg(underlined)));
 }
 
 

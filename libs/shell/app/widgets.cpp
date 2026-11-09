@@ -513,7 +513,7 @@ Gallery::Gallery(const QSize &itemSize, int visibleColumns, QWidget *parent) : Q
     m_list->setFocusPolicy(Qt::TabFocus);   // the keyboard reaches it; a click leaves the focus in the text
     m_list->setAccessibleName(tr("Gallery"));
     m_list->setAccessibleDescription(tr("Choose from the gallery: the arrow keys move in it, and Enter chooses."));
-    m_list->setWhatsThis(m_list->accessibleDescription());
+    m_list->setWhatsThis(tr("Choose from the gallery: the arrow keys move in it, and Enter chooses."));
     m_list->installEventFilter(this);
     m_list->setMouseTracking(true);
     m_list->setStyleSheet(QStringLiteral("QListWidget{background:transparent; border:none;}"));
