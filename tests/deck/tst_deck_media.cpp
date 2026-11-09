@@ -627,6 +627,28 @@ private Q_SLOTS:
         QVERIFY(pb.muted());
     }
 
+    // Both reach the playing state and the position moves on while they play: no sound device or backend to excuse it (the tests above let a failure pass; this one does not).
+    void mediaPlaybackAdvancesItsPositionWhilePlaying()
+    {
+        const QByteArray wav = testWav(3000), avi = testAvi(30, QSize(64, 48), 10);
+        for (const bool movie : {false, true}) {
+            MediaPlayback pb;
+            pb.setFile(movie ? avi : wav, movie ? QStringLiteral("avi") : QStringLiteral("wav"));
+            deck::MediaPlay play;
+            play.video = movie;
+            pb.setPlay(play);
+            pb.play();
+            QTRY_VERIFY_WITH_TIMEOUT(playerSettled(pb, false), 15000);
+            QVERIFY2(!pb.failed(), qPrintable(pb.error()));
+            QCOMPARE(int(pb.state()), int(MediaPlayback::State::Playing));
+            const qint64 first = pb.played();
+            QTRY_VERIFY_WITH_TIMEOUT(pb.played() > first + 300, 10000);
+            QVERIFY(pb.played() <= pb.length() + 100);
+            if (movie) QVERIFY(!pb.frame().isNull());
+            pb.stop();
+        }
+    }
+
     // A movie gives its pictures to paint in place; its first picture and its length can be had for the poster.
     void mediaPlaybackGivesTheFramesOfAMovie()
     {
