@@ -442,7 +442,7 @@ static QCache<QString, ShrunkParagraph> &shrinkMemory()
 }
 // Layout only: an underline's style while JeffPub draws it (drawUnderline).
 constexpr int kOwnUnderline = QTextFormat::UserProperty + 90;
-std::atomic<qint64> g_ownUnderlines{0};   // (see StoryLayout::ownUnderlinesDrawnForTest)
+std::atomic<qint64> g_ownUnderlines{0}, g_underlineVisits{0};   // (see StoryLayout::ownUnderlinesDrawnForTest)
 // Layout only: a missing stock font measured letter by letter, "family|bold|italic"
 // (applyLetterWidths gives each letter the original's width).
 constexpr int kLetterWidths = QTextFormat::UserProperty + 91;
@@ -623,8 +623,9 @@ void drawUnderline(QPainter *p, const QTextLine &line, int s, int e, const QText
         // one that reads right to left.
         if (kind == 0 && to == line.textStart() + line.textLength()) {
             const QRectF natural = line.naturalTextRect();
-            // (From the line's start the whole line is under it: the cursor's two ends are not its two sides where a line mixes directions.)
-            if (from == line.textStart()) return QPair<double, double>(natural.left(), natural.right());
+            // (From the line's start the whole line is under it: the cursor's two ends are not its two sides where a line mixes directions. A tab that ends the line
+            // is wider than the natural extent says: the cursor stops where the tab does, so the line is under the wider of the two.)
+            if (from == line.textStart()) return QPair<double, double>(std::min({natural.left(), a, b}), std::max({natural.right(), a, b}));
             if (b >= a) b = std::max(b, natural.right());
             else b = std::min(b, natural.left());
         }
@@ -1596,6 +1597,7 @@ int StoryLayout::Block::docFromDisp(int d) const
 namespace { std::atomic<qint64> g_lineHeightsMeasured{0}; }   // (see StoryLayout::lineHeightsMeasuredForTest)
 
 qint64 StoryLayout::lineHeightsMeasuredForTest() { return g_lineHeightsMeasured.load(); }
+qint64 StoryLayout::underlineVisitsForTest() { return g_underlineVisits.load(); }
 qint64 StoryLayout::ownUnderlinesDrawnForTest() { return g_ownUnderlines.load(); }
 qint64 StoryLayout::longestJoinedStretchForTest() { return g_longestJoinedStretch.load(); }
 qint64 StoryLayout::paragraphCharsReadForTest() { return g_paragraphCharsRead.load(); }
@@ -6225,8 +6227,10 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                 if (B->lines[i].frame != frame) continue;
                 const QTextLine line = B->tl->lineAt(i);
                 const int ls = line.textStart(), le = ls + line.textLength();
-                while (first < own.size() && fmts[own[first]].start + fmts[own[first]].length <= ls) ++first;
+                ++g_underlineVisits;
+                while (first < own.size() && fmts[own[first]].start + fmts[own[first]].length <= ls) { ++first; ++g_underlineVisits; }
                 for (int k = first; k < own.size() && fmts[own[k]].start < le; ++k) {
+                    ++g_underlineVisits;
                     const int n = own[k];
                     const auto &r = fmts[n];
                     const QBrush br = r.format.hasProperty(QTextFormat::ForegroundBrush) ? r.format.foreground() : QBrush(Qt::black);   // (as the letters are)

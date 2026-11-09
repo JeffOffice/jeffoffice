@@ -1409,6 +1409,7 @@ private Q_SLOTS:
     void theCourierStrokeIsWorkedOutOncePerLetterAndRun();
     void wordLettersShareTheirWidthsEvenly();
     void underlinedSpacesPastTheLineEndAreUnderlinedToo();
+    void anUnderlinedTabThatEndsALineIsUnderlinedAsFarAsItGoes();
     void underlinesTakeTheTextsColorFromThePenWhenItSetsNone();
     void onlyPlainSingleUnderlinesAreDrawnHere();
     void underlinesCostInProportionToTheirRunsAndLines();

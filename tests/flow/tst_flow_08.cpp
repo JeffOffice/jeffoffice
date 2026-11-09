@@ -455,9 +455,10 @@ void FlowTests::deletingACharacterCostsLikeTypingOne()
 
 // ---- Underlines drawn by drawUnderline (Qt 6.11 moved the ones it draws itself) ----
 namespace {
-QImage paintedStory(QTextDocument &doc, double frameWidth, const QColor &pen = Qt::black)
+QImage paintedStory(QTextDocument &doc, double frameWidth, const QColor &pen = Qt::black, bool wordLines = false)
 {
     LayoutEnv env;
+    env.wordLines = wordLines;
     StoryLayout lay;
     lay.build(&doc, {plainFrame(frameWidth, 600)}, env);
     QImage img(2000, 400, QImage::Format_RGB32);
@@ -515,6 +516,24 @@ void FlowTests::underlinedSpacesPastTheLineEndAreUnderlinedToo()
     }
 }
 
+// A tab that ends an underlined line is underlined to the stop it goes to, however far that is past the text.
+void FlowTests::anUnderlinedTabThatEndsALineIsUnderlinedAsFarAsItGoes()
+{
+    for (const bool wordLines : {false, true}) {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextBlockFormat bf;
+        bf.setTabPositions({QTextOption::Tab(300, QTextOption::LeftTab)});
+        c.setBlockFormat(bf);
+        QTextCharFormat f;
+        f.setFontPointSize(12);
+        f.setFontUnderline(true);
+        c.insertText(QStringLiteral("Signature:\t"), f);
+        const QRect box = inkBox(paintedStory(doc, 468, Qt::black, wordLines));
+        QVERIFY2(box.width() >= 295, qPrintable(QStringLiteral("the line is %1 wide, the tab goes to 300").arg(box.width())));
+    }
+}
+
 // The underline is in the color of the letters: black where a run sets none (the engine draws such letters black whatever the painter's pen is), the run's own where it sets one.
 void FlowTests::underlinesTakeTheTextsColorFromThePenWhenItSetsNone()
 {
@@ -562,10 +581,11 @@ void FlowTests::onlyPlainSingleUnderlinesAreDrawnHere()
         QCOMPARE(drawn(style, false), qint64(0));
 }
 
-// Drawing the underlines of a paragraph of many runs and lines costs in proportion to them (each line looks at the runs that touch it, not at all of them).
+// Painting the underlines of a paragraph of many runs and lines visits each line and each run a few times, not each run from every line: counted, not timed (the visits are
+// in proportion to the runs plus the lines, whatever the machine).
 void FlowTests::underlinesCostInProportionToTheirRunsAndLines()
 {
-    auto seconds = [&](int runs) {
+    auto visits = [&](int runs, int *lines) {
         QTextDocument doc;
         QTextCursor c(&doc);
         QTextCharFormat a, b;
@@ -577,15 +597,17 @@ void FlowTests::underlinesCostInProportionToTheirRunsAndLines()
         LayoutEnv env;
         StoryLayout lay;
         lay.build(&doc, {plainFrame(300, 1e6)}, env);
+        *lines = int(lay.lineInfo(0).size());
         QImage img(400, 60, QImage::Format_RGB32);
         QPainter p(&img);
-        QElapsedTimer t;
-        t.start();
+        const qint64 before = StoryLayout::underlineVisitsForTest();
         lay.paint(&p, 0, PaintOptions());
-        qInfo("%d runs: painted in %lld ms", runs, t.elapsed());
-        return double(t.elapsed()) + 1;
+        return StoryLayout::underlineVisitsForTest() - before;
     };
-    const int base = qEnvironmentVariableIntValue("JO_UL_RUNS") ? qEnvironmentVariableIntValue("JO_UL_RUNS") : 10000;
-    const double small = seconds(base), large = seconds(base * 2);
-    QVERIFY2(large < 2.5 * small, qPrintable(QStringLiteral("%1 ms for %2 runs, %3 ms for %4").arg(small).arg(base).arg(large).arg(base * 2)));
+    for (const int runs : {2000, 8000}) {
+        int lines = 0;
+        const qint64 n = visits(runs, &lines);
+        QVERIFY2(lines > 50, qPrintable(QString::number(lines)));
+        QVERIFY2(n > 0 && n <= 4 * (qint64(runs) + lines), qPrintable(QStringLiteral("%1 visits for %2 runs and %3 lines").arg(n).arg(runs).arg(lines)));
+    }
 }
