@@ -44,6 +44,10 @@ jobs:
       # (a whole checkout: our own Linux machine keeps its workspace between jobs, and a sparse one left the build job there without tools/use_ffmpeg.sh)
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
+      - name: Whole tree
+        shell: bash
+        run: git sparse-checkout disable || true
+
       - name: Which FFmpeg
         id: version
         shell: bash
@@ -138,6 +142,11 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # (our own Linux machine keeps its workspace between runs, and an earlier run left it with a sparse checkout: files are missing until this)
+      - name: Whole tree
+        shell: bash
+        run: git sparse-checkout disable || true
 
       - uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
         if: runner.os == 'Linux'
@@ -264,6 +273,10 @@ jobs:
           echo "== plugin"; otool -L "$P" | head -30 || true; otool -l "$P" | grep -A2 LC_RPATH | grep path || true
           echo "== libavcodec"; otool -D "$L/libavcodec.61.dylib" || true; otool -L "$L/libavcodec.61.dylib" | head -8 || true
           otool -l "$L/libavcodec.61.dylib" | grep -A2 LC_RPATH | grep path || true
+          echo "== names the plugin imports that ours lacks"
+          nm -u "$P" | awk '{print $NF}' | grep -E '^_(av|sw)' | sed 's/^_//' | sort -u > /tmp/need.txt
+          for f in "$L"/libav*.61.dylib "$L"/libavutil.59.dylib "$L"/libsw*.dylib; do [ -L "$f" ] || continue; nm -gU "$f" | awk '{print $3}' | sed 's/^_//'; done | sort -u > /tmp/have.txt
+          wc -l /tmp/need.txt /tmp/have.txt; comm -23 /tmp/need.txt /tmp/have.txt | head -20 || true
           for f in "$L"/libavcodec.61.dylib "$L"/libavformat.61.dylib "$L"/libavutil.59.dylib "$L"/libswresample.5.dylib "$L"/libswscale.8.dylib; do
             echo "$(basename "$f"): $(lipo -archs "$f"), signature: $(codesign -v "$f" 2>&1 | head -1 | sed 's/^$/valid/')"
           done

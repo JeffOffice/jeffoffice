@@ -229,6 +229,25 @@ if [ "$OS" = Darwin ]; then
     for f in "$PREFIX"/lib/*.dylib; do [ -L "$f" ] || codesign --force --sign - "$f"; done
 fi
 
+# Qt's plugin (7.1 libraries) imports these functions by name; a library that lacks one does not load (on a Mac: "Symbol not found", and no media
+# backend). Their names (tools/ffmpeg-plugin-symbols.txt) are looked up in what was built, so that a build that leaves one out fails here, listed.
+SYMS="$(cd "$(dirname "$0")" && pwd)/ffmpeg-plugin-symbols.txt"
+case "$OS" in
+    Linux | Darwin)
+        if [ "$AVCODEC_MAJOR" = 61 ] && [ -f "$SYMS" ]; then
+            : >"$WORK/exports.txt"
+            for f in "$PREFIX"/lib/lib*; do
+                [ -L "$f" ] && continue
+                if [ "$OS" = Darwin ]; then nm -gU "$f" | awk '{print $3}' | sed 's/^_//' >>"$WORK/exports.txt"
+                else nm -D --defined-only "$f" | awk '{print $3}' | sed 's/@.*//' >>"$WORK/exports.txt"; fi
+            done
+            sort -u "$WORK/exports.txt" >"$WORK/exports.sorted"
+            echo "build_ffmpeg: $(grep -c . "$WORK/exports.sorted") exported names; Qt's plugin imports $(grep -c . "$SYMS")"
+            missing=$(sort -u "$SYMS" | comm -13 "$WORK/exports.sorted" -)
+            [ -z "$missing" ] || die "the libraries do not export what Qt's plugin imports: $(echo $missing)"
+        fi ;;
+esac
+
 # ---- what was compiled in: the lists the libraries themselves are made from ----
 mkdir -p "$PREFIX/share"
 LIST="$PREFIX/share/ffmpeg-components.txt"
