@@ -133,6 +133,7 @@ void applyUiTheme(int choice)
             const bool dark = choice == 2 || (choice == 0 && hints->colorScheme() == Qt::ColorScheme::Dark);
             setUiDark(dark);   // not every platform honors setColorScheme, so record the choice
             app->setPalette(dark ? darkPalette() : app->style()->standardPalette());
+            installUiPolish();   // (the number boxes' text margins go with the style sheet)
             app->setStyleSheet(modernStyleSheet());
         }
     }

@@ -7,6 +7,7 @@
 
 #include <QAction>
 #include <QAbstractSpinBox>
+#include <QLineEdit>
 #include <QComboBox>
 #include <QGridLayout>
 #include <QGuiApplication>
@@ -359,7 +360,7 @@ static void fitNumberBox(QWidget *w)
     opt.subControls = QStyle::SC_All;
     const int around = 400 - sb->style()->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxEditField, sb).width();
     const QFontMetrics fm(sb->font());
-    const int need = std::max(fm.horizontalAdvance(sb->text() + QStringLiteral("000")), fm.horizontalAdvance(QStringLiteral("0.000\""))) + around;
+    const int need = std::max(fm.horizontalAdvance(sb->text() + QStringLiteral("000")), fm.horizontalAdvance(QStringLiteral("0.000\""))) + around + (sb->findChild<QLineEdit *>() ? sb->findChild<QLineEdit *>()->textMargins().left() + sb->findChild<QLineEdit *>()->textMargins().right() : 0);
     if (sb->minimumWidth() == sb->maximumWidth() && sb->minimumWidth() > 0) {
         sb->setFixedWidth(need);
     } else {

@@ -1387,9 +1387,9 @@ void WriteTests::trailingTabsThatAreUnderlinedAreDrawn()
         view.setDocument(doc.get());
         const QImage img = view.pageImage(0, 816);
         const double perPoint = img.width() / 612.0;
-        int dark = 0;   // (in the lines of the paragraph, right of where its words end)
+        int dark = 0;   // (in the lines of the paragraph, right of where its words end; any ink counts: a one-pixel line that falls between two rows is gray in both)
         for (int y = int(72 * perPoint); y < int(100 * perPoint); ++y)
-            for (int x = int(200 * perPoint); x < int(460 * perPoint); ++x) dark += qGray(img.pixel(x, y)) < 128;
+            for (int x = int(200 * perPoint); x < int(460 * perPoint); ++x) dark += qGray(img.pixel(x, y)) < 224;
         return dark;
     };
     const int underlined = inkBeyondTheWords("<w:rPr><w:u w:val=\"single\"/></w:rPr>"), plain = inkBeyondTheWords(QByteArray());

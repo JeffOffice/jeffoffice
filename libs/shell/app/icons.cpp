@@ -5,14 +5,18 @@
 #include "core/appinfo.h"
 #include "render/shapes.h"
 
+#include <QAbstractSpinBox>
 #include <QDir>
 #include <QFile>
 #include <QGuiApplication>
 #include <QHash>
 #include <QIconEngine>
+#include <QLineEdit>
 #include <QPainter>
 #include <QPalette>
+#include <QStyle>
 #include <QStyleHints>
+#include <QStyleOptionSpinBox>
 #include <QSvgRenderer>
 
 namespace jp {
@@ -91,6 +95,8 @@ QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QDateTimeEdit, Q
 }
 QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover, QComboBox:hover { border-color: %3; }
 QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus { border: 1px solid %5; }
+/* a number box's text is set in from its edges by the line edit's own margins (installUiPolish): its padding is not taken off the text area */
+QSpinBox, QDoubleSpinBox, QDateTimeEdit { padding-left: 0px; padding-right: 0px; }
 QComboBox { padding-right: 22px; min-height: 20px; }
 /* the fields of a ribbon row are as tall as the row (22), whatever the padding and the font */
 QComboBox[ribbonRow="true"], QAbstractSpinBox[ribbonRow="true"], QLineEdit[ribbonRow="true"] { padding-top: 0px; padding-bottom: 0px; min-height: 18px; }
@@ -303,8 +309,41 @@ QIcon lineToolIcon(const QString &kind)
 }
 
 namespace {
+// Laid out right to left, a number box under a style sheet gets a text area too narrow by the width of its buttons (Qt 6.11 takes them off the far side
+// too): the area is put where the style puts it left to right, mirrored.
+class SpinEditFix : public QObject {
+public:
+    SpinEditFix(QAbstractSpinBox *box, QLineEdit *edit) : QObject(box), m_box(box), m_edit(edit) { edit->installEventFilter(this); }
+    bool eventFilter(QObject *o, QEvent *e) override
+    {
+        if ((e->type() == QEvent::Resize || e->type() == QEvent::Move) && !m_busy && m_box->layoutDirection() == Qt::RightToLeft) {
+            QStyleOptionSpinBox opt;
+            opt.initFrom(m_box);
+            opt.direction = Qt::LeftToRight;
+            opt.rect = m_box->rect();
+            opt.frame = true;
+            opt.buttonSymbols = m_box->buttonSymbols();
+            opt.subControls = QStyle::SC_All;
+            const QRect want = QStyle::visualRect(Qt::RightToLeft, m_box->rect(), m_box->style()->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxEditField, m_box));
+            if (m_edit->geometry() != want) {
+                m_busy = true;
+                m_edit->setGeometry(want);
+                m_busy = false;
+            }
+        }
+        return QObject::eventFilter(o, e);
+    }
+
+private:
+    QAbstractSpinBox *m_box;
+    QLineEdit *m_edit;
+    bool m_busy = false;
+};
+
 // Dialog tabs never scroll: a tab bar asks for room for every tab, so the
 // dialog opens wide enough to show them all instead of adding side arrows.
+// A number box's text is set in 8 pixels from each side, as its style sheet's
+// padding once did (the box's own padding no longer moves its text area).
 class TabBarPolish : public QObject {
 public:
     using QObject::QObject;
@@ -315,6 +354,12 @@ public:
                 tb->setUsesScrollButtons(false);
                 tb->setElideMode(Qt::ElideNone);
             }
+            else if (auto *sb = qobject_cast<QAbstractSpinBox *>(o))
+                if (QLineEdit *le = sb->findChild<QLineEdit *>(); le && !qApp->styleSheet().isEmpty() && !sb->property("spinEditFix").toBool()) {
+                    sb->setProperty("spinEditFix", true);
+                    le->setTextMargins(8, 0, 8, 0);
+                    new SpinEditFix(sb, le);
+                }
         return QObject::eventFilter(o, e);
     }
 };
