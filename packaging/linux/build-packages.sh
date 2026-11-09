@@ -20,7 +20,7 @@ trap 'rm -rf "$work"' EXIT
 ld=${LINUXDEPLOY:-linuxdeploy}
 export EXTRA_QT_MODULES="svg"
 # Wayland desktops, and offscreen for command-line export without a display.
-export EXTRA_PLATFORM_PLUGINS="libqoffscreen.so;libqwayland-egl.so;libqwayland-generic.so"
+export EXTRA_PLATFORM_PLUGINS="libqoffscreen.so;libqwayland.so"
 
 # The apps in the suite's package: JeffWrite too when SHIP_WRITE is "true", and JeffCrunch when SHIP_CRUNCH is (the owner decides when each ships).
 suite=(JeffPub JeffDeck)
