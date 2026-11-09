@@ -5,7 +5,7 @@
 | `libmspub/` | [libmspub](https://wiki.documentfoundation.org/DLP/Libraries/libmspub), the `.pub` file parser | MPL-2.0 | see `libmspub/VERSION` |
 | `librevenge/` | [librevenge](https://sourceforge.net/p/libwpd/librevenge/), document interfaces and OLE2 streams | MPL-2.0 or LGPL-2.1+ | 0.0.5 |
 | `compat/` | JeffPub's minimal stand-ins for the Boost headers these libraries use | GPL-3.0 (this project) | — |
-| `ffmpeg/licenses/` | The notice and license text of the [FFmpeg](https://ffmpeg.org/) libraries that come with JeffDeck (for its movies and sounds, through Qt Multimedia), shipped with JeffDeck's packages | LGPL-2.1+ | 7.1 (the build Qt 6.11 ships) |
+| `ffmpeg/licenses/` | The notice and license text of the [FFmpeg](https://ffmpeg.org/) libraries that come with JeffDeck (for its movies and sounds, through Qt Multimedia), shipped with JeffDeck's packages. `ffmpeg-components.txt` lists what is compiled into them | LGPL-2.1+ | 7.1.5 (built here, `tools/build_ffmpeg.sh`) |
 | `qpdf/licenses/` | The license text of [qpdf](https://qpdf.org/) (Apache-2.0; it is also offered under the Artistic License 2.0) and its notice, shipped with every package. qpdf 12.4.2 is built from its release tarball (`cmake/qpdf.cmake`, checked against its SHA-256), as a static library with its own crypto code, to write PDFs with a password | Apache-2.0 | 12.4.2 |
 | `libjpeg_turbo/licenses/` | The license texts of [libjpeg-turbo](https://libjpeg-turbo.org/), which qpdf reads JPEG streams with; built from its release tarball without SIMD (`cmake/qpdf.cmake`) | IJG and BSD-3-Clause | 3.2.1 |
 | `qpdfwrap/` | The one file that includes qpdf's C++20 headers, behind an interface of standard types | GPL-3.0 (this project) | — |
@@ -15,7 +15,18 @@ zlib is downloaded at build time when the system has none. qpdf and libjpeg-turb
 
 ## FFmpeg
 
-JeffDeck links Qt Multimedia, whose FFmpeg backend decodes the movies and sounds it plays. FFmpeg's libraries are the ones Qt ships (FFmpeg 7.1, built under the LGPL 2.1 or later), deployed beside the program by `windeployqt`, `linuxdeploy`, and `macdeployqt`; they are not built here and not changed. `ffmpeg/licenses/ffmpeg.txt` says what they are and where the source is; `LGPL-2.1.txt` is the license. Only JeffDeck's packages carry them.
+JeffDeck links Qt Multimedia, whose FFmpeg backend decodes the movies and sounds it plays. Qt ships a full FFmpeg (7.1.5: about 350 file readers, 500 decoders, and 180 writers, and every one is a way in for a file from a stranger), so JeffOffice builds its own from the official source release instead: `tools/build_ffmpeg.sh` downloads `ffmpeg-7.1.5.tar.xz` from ffmpeg.org, checks its SHA-256 (pinned in the script) before unpacking, and builds shared libraries with the same major versions as Qt's (libavcodec 61, libavformat 61, libavutil 59, libswresample 5, libswscale 8), so Qt's plugin loads them unchanged. The build is LGPL 2.1 or later only (a GPL, version 3, or nonfree option fails the script), with no network, no programs, no devices, no hardware decoders, no encoders, no muxers, no filters library, and no other libraries (`--disable-everything --disable-autodetect`).
+
+What a presentation holds decides what is kept (the evidence is below). Only these are compiled in:
+
+- Readers: mov (MP4, M4A, 3GP, QuickTime), matroska (MKV, WebM), avi, asf (WMV, WMA), mpegps, mpegts, mpegvideo, wav, mp3, aac, flac, ogg, aiff.
+- Video: h264, hevc, mpeg4, h263, mpeg1video, mpeg2video, msmpeg4v1/v2/v3, wmv1/2/3, vc1, vp8, vp9, mjpeg, rawvideo.
+- Audio: aac, mp2, mp3, wmav1/2, flac, vorbis, opus, alac, the PCM variants (8, 16, 24, and 32 bit; float; A-law and mu-law), adpcm_ms, adpcm_ima_wav, adpcm_ima_qt.
+- Their parsers, and the file protocol alone (JeffDeck hands the player its bytes from memory and restricts protocols besides).
+
+`ffmpeg-components.txt` is the list of what a build compiled in, written by the script; `tools/check_ffmpeg_components.py` (run by CI) fails if the script or that file has a banned component or a flag it must not have (the VobSub, RTP, RTSP, and SDP readers, the NVDEC accelerator, the S/PDIF writer, and the ADX decoder among them: they are the parts of the full build named in the 2026 flaws CVE-2026-64830, -64832, -64833, -64834, and -64835), or the two differ. `tools/use_ffmpeg.sh` puts the build in a CI runner's own copy of Qt, so the tests run on it and the deployment tools copy it into the packages, and checks that the packages hold it. They are not changed beyond their configuration.
+
+Evidence for the list: the public test collections (`tests/` does not carry them) hold 103 `.pptx` and `.odp` decks and 1,083 `.ppt` decks; the media in them are 1 MP4 (H.264 and AAC), 1 MP3, and, in the `.ppt` decks, 71 with WAV sounds, almost all PCM and some ADPCM of the Windows kind. The rest of the list is the formats JeffDeck's Insert Video and Insert Audio dialogs offer (`apps/deck/core/media.cpp`, `kFiles`) and those their codecs need. Left out: Ogg Theora, FLV and Flash video, AV1 (FFmpeg's own decoder needs a graphics card, and the software decoders are separate libraries), AC-3 and DTS audio, AMR, subtitles, and MIDI (FFmpeg never played it). A deck that holds one of them says that the movie or sound can't be played.
 
 ## PDFium
 
