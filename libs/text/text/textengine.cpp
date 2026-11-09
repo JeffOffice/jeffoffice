@@ -583,9 +583,10 @@ QTextCharFormat fineFormat(QTextCharFormat cf)
         pen.setWidthF(pen.widthF() * kFine);
         cf.setTextOutline(pen);
     }
-    // Underlines Qt can't draw (double, words only, thick) are drawn here
-    // (drawUnderline): Qt is told of none, and kOwnUnderline keeps the style.
-    if (cf.intProperty(tp::UnderlineKind) && cf.underlineStyle() != QTextCharFormat::NoUnderline) {
+    // Underlines are drawn here (drawUnderline): Qt is told of none, and kOwnUnderline keeps the style. (Qt 6.8 put its line, in the layout's units, at the
+    // baseline plus the ceiling of the font's underline position, plus a half; Qt 6.11 puts it half its thickness lower, which moves the one-pixel lines of the
+    // pages half a pixel and blurs them over two rows.)
+    if (cf.underlineStyle() != QTextCharFormat::NoUnderline) {
         cf.setProperty(kOwnUnderline, int(cf.underlineStyle()));
         cf.setUnderlineStyle(QTextCharFormat::NoUnderline);
     }
@@ -594,12 +595,12 @@ QTextCharFormat fineFormat(QTextCharFormat cf)
 
 // An underline under [s, e) of a fine layout's line, in its units: the
 // format's own style, or the one fineFormat set aside, with its kind.
-void drawUnderline(QPainter *p, const QTextLine &line, int s, int e, const QTextCharFormat &cf, const QBrush &br, const QString &text)
+void drawUnderline(QPainter *p, const QTextLine &line, int s, int e, const QTextCharFormat &cf, const QFont &layoutFont, const QBrush &br, const QString &text, bool qtPlace = false)
 {
     const auto style = cf.hasProperty(kOwnUnderline) ? QTextCharFormat::UnderlineStyle(cf.intProperty(kOwnUnderline)) : cf.underlineStyle();
     if (style == QTextCharFormat::NoUnderline) return;
     const int kind = cf.intProperty(tp::UnderlineKind);
-    const QFontMetricsF fm(cf.font());
+    const QFontMetricsF fm(cf.font().resolve(layoutFont));   // (a format that sets no font is in the layout's)
     QPen up(cf.underlineColor().isValid() ? QBrush(cf.underlineColor()) : br, std::max(1.0, fm.lineWidth()) * ((kind & 4) ? 2 : 1));
     up.setCapStyle(Qt::FlatCap);
     switch (style) {
@@ -613,7 +614,10 @@ void drawUnderline(QPainter *p, const QTextLine &line, int s, int e, const QText
     // runs from its left end to its right, whichever way the text reads.
     QVector<QPair<double, double>> spans;
     auto span = [&](int from, int to) {
-        const double a = line.cursorToX(from), b = line.cursorToX(to);
+        const double a = line.cursorToX(from);
+        double b = line.cursorToX(to);
+        // (Qt drew a line under the spaces that end a line too; the cursor stops short of them.)
+        if (kind == 0 && to == line.textStart() + line.textLength() && b >= a) b = std::max(b, line.x() + line.horizontalAdvance());
         return QPair<double, double>(std::min(a, b), std::max(a, b));
     };
     if (kind & 2) {
@@ -625,7 +629,8 @@ void drawUnderline(QPainter *p, const QTextLine &line, int s, int e, const QText
             if (k > w0) spans.append(span(w0, k));
         }
     } else spans.append(span(s, e));
-    const double y = line.y() + line.ascent() + fm.underlinePos(), gap = up.widthF() * 2;
+    // (A line Qt drew itself, in a layout it drew, is where Qt 6.8 drew it; the others are where they always were.)
+    const double y = line.y() + line.ascent() + (qtPlace ? std::ceil(fm.underlinePos()) + 0.5 : fm.underlinePos()), gap = up.widthF() * 2;
     p->save();
     p->setPen(up);
     p->setBrush(Qt::NoBrush);
@@ -1528,7 +1533,7 @@ QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
     // (A word processor's run says its own stretch where its stand-in is narrowed or widened to the original's: the first run's is not the paragraph's, which the
     // runs that say none would take from here.)
     if (env.wordLines) f.setStretch(QFont::AnyStretch);
-    // Paragraph-level OpenType features (Qt 6.8 applies features per layout font).
+    // Paragraph-level OpenType features (Qt applies features per layout font).
     const int num = cf.intProperty(tp::NumberStyle), sp = cf.intProperty(tp::NumberSpacing), lig = cf.intProperty(tp::Ligatures);
     if (num == 1) f.setFeature(QFont::Tag("lnum"), 1);
     if (num == 2) f.setFeature(QFont::Tag("onum"), 1);
@@ -6205,7 +6210,7 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                     if (B->lines[i].frame != frame) continue;
                     const QTextLine line = B->tl->lineAt(i);
                     const auto [s, e] = underlineSpan(fmts, n, line.textStart(), line.textStart() + line.textLength());
-                    if (s < e) drawUnderline(p, line, s, e, r.format, br, B->disp);
+                    if (s < e) drawUnderline(p, line, s, e, r.format, B->tl->font(), br, B->disp, !r.format.intProperty(tp::UnderlineKind));
                 }
             }
         } else {
@@ -6262,7 +6267,7 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                         pen.setCapStyle(Qt::FlatCap);
                         p->save();
                         if (under)
-                            if (const auto [us, ue] = underlineSpan(fmts, n, ls, le); us < ue) drawUnderline(p, line, us, ue, cf, br, B->disp);
+                            if (const auto [us, ue] = underlineSpan(fmts, n, ls, le); us < ue) drawUnderline(p, line, us, ue, cf, B->tl->font(), br, B->disp);
                         p->setPen(pen);
                         if (through) p->drawLine(QLineF(x1, base - fm.strikeOutPos(), x2, base - fm.strikeOutPos()));
                         if (over) p->drawLine(QLineF(x1, base - fm.overlinePos(), x2, base - fm.overlinePos()));
