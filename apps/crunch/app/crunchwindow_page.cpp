@@ -235,6 +235,16 @@ void CrunchWindow::connectPageSetup()
     updatePageActions();
 }
 
+// Clear Print Area is on with a print area to clear and a sheet that can be changed (updateEditActions turns it off with the others while a file is being written, and calls this to
+// turn it on again: it is the one that knows whether there is an area).
+void CrunchWindow::updatePrintAreaAction()
+{
+    QAction *a = act(QStringLiteral("printarea.clear"));
+    if (!a) return;
+    const bool ready = m_session && m_loaded && m_sheet >= 0 && m_sheet < m_session->pages().sheetCount();
+    a->setEnabled(ready && m_session->canEdit() && !m_chartSheetShown && m_session->pages().sheet(m_sheet).hasPrintArea());
+}
+
 void CrunchWindow::updatePageActions()
 {
     if (m_updatingPage) return;
@@ -253,7 +263,7 @@ void CrunchWindow::updatePageActions()
     for (const int id : jp::office::sheet::commonPaperSizes()) check(QStringLiteral("size.%1").arg(id), s.paperSize == id);
     check(QStringLiteral("sheetopt.gridPrint"), s.gridLines);
     check(QStringLiteral("sheetopt.headPrint"), s.headings);
-    if (QAction *a = act(QStringLiteral("printarea.clear"))) a->setEnabled(open && s.hasPrintArea());
+    updatePrintAreaAction();
     const bool fit = s.fitToPage && (s.fitToWidth > 0 || s.fitToHeight > 0);
     auto setFit = [&](QComboBox *box, int pages) {
         if (!box) return;

@@ -426,6 +426,77 @@ private Q_SLOTS:
         QVERIFY(thin("B2", false, false, false, false) && thin("C3", false, false, false, false));
     }
 
+    // The font's single underline lies where Qt 6.8 drew it, not half its thickness lower (Qt 6.11's own): its middle is the baseline plus the ceiling of the font's underline position plus a
+    // half. Large, where the difference is whole pixels.
+    void aSingleUnderlineLiesWhereQt68DrewIt()
+    {
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        e.view()->setZoom(4.0);
+        selectRange(e, QStringLiteral("B2:B2"));
+        run(e, "fmt.underline");
+        const grid::CellLook &look = lookAt(e, QStringLiteral("B2"));
+        QCOMPARE(int(look.underline), int(Underline::Single));
+        QFont f(look.family.isEmpty() ? QFont().family() : look.family);
+        f.setPixelSize(std::max(1, int(std::lround(look.pointSize * 96.0 / 72.0 * 4.0))));
+        f.setKerning(false);
+        f.setBold(look.bold);
+        f.setItalic(look.italic);
+        const QFontMetricsF fm(f);
+        quint32 r = 0, c = 0;
+        parseCellRef(QStringLiteral("B2"), &r, &c);
+        QTRY_VERIFY(e.view()->cellRect(r, c).width() > 20);
+        const QImage img = e.view()->viewport()->grab().toImage();
+        const QRect cell = e.view()->cellRect(r, c);
+        // the rows of the cell: the longest dark run across is the underline; the baseline is the bottom of the digits above it
+        int lineRow = -1, longest = 0, digitsBottom = -1;
+        std::vector<int> rowsBest;
+        for (int y = cell.top() + 3; y <= cell.bottom() - 3; ++y) {   // (not the edges: the gridlines)
+            int run = 0, best = 0, dark = 0;
+            for (int x = cell.left() + 2; x < cell.right() - 1; ++x) {
+                const bool d = qGray(img.pixel(x, y)) < 110;
+                dark += d;
+                run = d ? run + 1 : 0;
+                best = std::max(best, run);
+            }
+            if (best > longest) { longest = best; lineRow = y; }
+            rowsBest.push_back(best);
+        }
+        for (int y = cell.top() + 3; y < lineRow - 2; ++y)
+            if (rowsBest[size_t(y - cell.top() - 3)] > 0 && rowsBest[size_t(y - cell.top() - 3)] < longest * 0.7) digitsBottom = y;
+        QVERIFY2(lineRow > 0 && longest > 12, qPrintable(QStringLiteral("no underline found (%1 long)").arg(longest)));
+        // (the digits have no descender: their bottom row, +1, is the baseline)
+        double sum = 0, weighted = 0;
+        for (int y = lineRow - 3; y <= lineRow + 3; ++y)
+            for (int x = cell.left() + 2; x < cell.right() - 1; ++x) {
+                const double d = (255 - qGray(img.pixel(x, y))) / 255.0;
+                if (y > digitsBottom) { sum += d; weighted += d * (y + 0.5); }
+            }
+        QVERIFY(sum > 0);
+        const double centre = weighted / sum, baseline = digitsBottom + 1.0;
+        const double expected = std::ceil(fm.underlinePos()) + 0.5;
+        QVERIFY2(std::abs((centre - baseline) - expected) < 0.45, qPrintable(QStringLiteral("the line is %1 under the baseline, 6.8 put it %2 (thickness %3; line row %4, digits end %5, cell %6,%7 %8x%9)").arg(centre - baseline).arg(expected).arg(fm.lineWidth()).arg(lineRow).arg(digitsBottom).arg(cell.x()).arg(cell.y()).arg(cell.width()).arg(cell.height())));
+    }
+
+    // Clear Print Area is on while the sheet has a print area, is off while a file is being written (with the other commands that change the sheet), and is on again after it: a save
+    // leaves it as it was.
+    void clearPrintAreaIsOnAgainAfterASave()
+    {
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        selectRange(e, QStringLiteral("B2:C3"));
+        run(e, "printarea.set");
+        QAction *clear = e.win.w.act(QStringLiteral("printarea.clear"));
+        QVERIFY(clear);
+        QVERIFY(clear->isEnabled());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(!clear->isEnabled());   // (while it is written)
+        QTRY_VERIFY_WITH_TIMEOUT(!saved.isEmpty(), 30000);
+        QVERIFY(saved.last().value(1).toBool());
+        QTRY_VERIFY_WITH_TIMEOUT(clear->isEnabled(), 5000);
+    }
+
     // The Borders menu: each command puts its lines on the edges of the block (in one step), the line style chosen is used, and No Border takes them all away.
     void theBordersMenu()
     {

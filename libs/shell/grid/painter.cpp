@@ -560,6 +560,19 @@ void GridPainter::drawIcon(QPainter *p, const QRect &cell, const QString &set, i
     p->restore();
 }
 
+// The font's own single underline, drawn here: where Qt 6.8 drew it (at the baseline plus the ceiling of the font's underline position, plus a half, stroked as wide as the font says),
+// not half its thickness lower, as Qt 6.11 does (which at the sizes of large print and zoom is a visible pixel or two).
+static void drawSingleUnderline(QPainter *p, double x, double width, double baseline, double lineWidth, double position, const QColor &ink)
+{
+    QPen pen(ink, lineWidth);
+    pen.setCapStyle(Qt::FlatCap);
+    const double y = baseline + std::ceil(position) + 0.5;
+    p->save();
+    p->setPen(pen);
+    p->drawLine(QLineF(x, y, x + width, y));
+    p->restore();
+}
+
 // The lines of an underline that is not the font's own: double, and the accounting kinds (which run the width of the cell). `x` and `width` are where the text is, `baseline` its baseline,
 // and `lineWidth` and `position` the font's; the lines are kept inside the cell's bottom.
 static void drawUnderlineLines(QPainter *p, Underline kind, const QRect &cell, const QRect &r, double x, double width, double baseline, double lineWidth, double position, bool gridlines, const QColor &ink)
@@ -718,11 +731,16 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
             run.setRawFont(face.raw());
             run.setGlyphIndexes(glyphs);
             run.setPositions(positions);
-            run.setUnderline(look.underline == Underline::Single);
+            run.setUnderline(false);
             run.setStrikeOut(look.strike);
             if (clip) p->setClipRect(box & area);
             p->setPen(QColor::fromRgba(ink));
             p->drawGlyphRun(QPointF(std::round(x), std::round(y)), run);
+            if (look.underline == Underline::Single) {
+                if (!clip) p->setClipRect(box & area);
+                drawSingleUnderline(p, std::round(x), w, std::round(y), face.lineWidth(), face.underlinePos(), QColor::fromRgba(ink));
+                if (!clip) p->setClipRect(area);
+            }
             if (otherUnderline) {
                 p->setClipRect(box & area);
                 drawUnderlineLines(p, look.underline, cell, r, std::round(x), w, std::round(y), face.lineWidth(), face.underlinePos(), o.gridlines, QColor::fromRgba(ink));
@@ -774,7 +792,20 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
         underlined.setUnderline(true);   // (a wrapped text with one of the other underlines has the font's: its lines are not each measured)
         p->setFont(underlined);
     }
+    const bool ownSingle = look.underline == Underline::Single && !look.wrap;   // (one line of text: the line under it is drawn here, as the glyph runs' is)
+    if (ownSingle) {
+        QFont plain = font;
+        plain.setUnderline(false);
+        p->setFont(plain);
+    }
     p->drawText(r, flags | (clip ? 0 : Qt::TextDontClip), text);
+    if (ownSingle) {
+        const double w = fm.horizontalAdvance(text), h = fm.height();
+        const double x = left ? r.left() : right ? r.right() + 1 - w : r.left() + (r.width() - w) / 2;
+        const double top = (flags & Qt::AlignTop) ? r.top() : (flags & Qt::AlignVCenter) ? r.top() + (r.height() - h) / 2 : r.bottom() + 1 - h;
+        p->setClipRect(box & area);
+        drawSingleUnderline(p, x, w, top + fm.ascent(), fm.lineWidth(), fm.underlinePos(), QColor::fromRgba(ink));
+    }
     if (otherUnderline && !look.wrap) {
         const double w = fm.horizontalAdvance(text), h = fm.height();
         const double x = left ? r.left() : right ? r.right() + 1 - w : r.left() + (r.width() - w) / 2;
@@ -782,7 +813,7 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
         p->setClipRect(box & area);
         drawUnderlineLines(p, look.underline, cell, r, x, w, top + fm.ascent(), fm.lineWidth(), fm.underlinePos(), o.gridlines, QColor::fromRgba(ink));
     }
-    if (clip || otherUnderline) p->setClipRect(area);
+    if (clip || otherUnderline || ownSingle) p->setClipRect(area);
 }
 
 // ---- the parts of the grid

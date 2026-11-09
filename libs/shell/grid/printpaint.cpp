@@ -268,6 +268,7 @@ void PagePainter::paintHeaderFooterText(QPainter *p, const QString &code, const 
         QFont font;
         QColor color;
         double width, shift;
+        bool underline = false;   // (drawn here, where Qt 6.8 drew the font's: Qt 6.11 draws it lower)
         QImage picture;          // a picture (`&G`): drawn in place of the text, its height above the line's baseline
         double pictureHeight = 0;
     };
@@ -306,7 +307,7 @@ void PagePainter::paintHeaderFooterText(QPainter *p, const QString &code, const 
                 piece.font.setBold(run.bold);
                 piece.font.setItalic(run.italic);
                 piece.font.setStrikeOut(run.strike);
-                piece.font.setUnderline(run.underline != HfUnderline::None);
+                piece.underline = run.underline != HfUnderline::None;
                 piece.color = (run.hasColor && !setup.blackAndWhite) ? run.color : QColor(Qt::black);
                 const QFontMetricsF fm(piece.font);
                 piece.width = fm.horizontalAdvance(piece.text);
@@ -347,6 +348,16 @@ void PagePainter::paintHeaderFooterText(QPainter *p, const QString &code, const 
                 p->setFont(piece.font);
                 p->setPen(piece.color);
                 p->drawText(QPointF(x, y + l.ascent + piece.shift), piece.text);
+                if (piece.underline) {
+                    const QFontMetricsF fm(piece.font);
+                    QPen pen(piece.color, fm.lineWidth());
+                    pen.setCapStyle(Qt::FlatCap);
+                    const double at = y + l.ascent + piece.shift + std::ceil(fm.underlinePos()) + 0.5;
+                    p->save();
+                    p->setPen(pen);
+                    p->drawLine(QLineF(x, at, x + piece.width, at));
+                    p->restore();
+                }
                 x += piece.width;
             }
             y += l.height;

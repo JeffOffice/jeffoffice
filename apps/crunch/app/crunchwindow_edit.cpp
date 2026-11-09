@@ -137,6 +137,7 @@ void CrunchWindow::updateEditActions()
     act("file.saveCopy")->setEnabled(canSave);
     act("file.saveTemplate")->setEnabled(canSave);
     updatePivotFieldActions();
+    updatePrintAreaAction();
     updateSparklineTab();
     updateFormatState(false);
 }
