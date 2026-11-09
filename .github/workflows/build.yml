@@ -259,6 +259,21 @@ jobs:
           bash tools/use_ffmpeg.sh install "$QT" $P
           bash tools/use_ffmpeg.sh check "$QT"
 
+      # (what a Mac's plugin loads, printed so that a plugin that does not load can be told from one that does: names, signatures, processors)
+      - name: Our FFmpeg on a Mac, as the plugin sees it
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          L="$QT_ROOT_DIR/lib"; P="$QT_ROOT_DIR/plugins/multimedia/libffmpegmediaplugin.dylib"
+          ls -la "$L"/libav*.dylib "$L"/libsw*.dylib || true
+          echo "== plugin"; otool -L "$P" | head -30 || true; otool -l "$P" | grep -A2 LC_RPATH | grep path || true
+          echo "== libavcodec"; otool -D "$L/libavcodec.61.dylib" || true; otool -L "$L/libavcodec.61.dylib" | head -8 || true
+          otool -l "$L/libavcodec.61.dylib" | grep -A2 LC_RPATH | grep path || true
+          for f in "$L"/libavcodec.61.dylib "$L"/libavformat.61.dylib "$L"/libavutil.59.dylib "$L"/libswresample.5.dylib "$L"/libswscale.8.dylib; do
+            echo "$(basename "$f"): $(lipo -archs "$f"), signature: $(codesign -v "$f" 2>&1 | head -1 | sed 's/^$/valid/')"
+          done
+          exit 0
+
       # One cache for each job (system, part, half), so that each has its own objects: ccache-<system>-<processors>-<part><half>-<commit>. A job restores
       # the newest of its own, else the newest of any of its system (the first run after a change of the halves, or a half that has none yet), and saves a
       # new one only when it compiled something, after the build (the Save step below). An entry holds one job's objects, and the Build step caps its size:
@@ -352,6 +367,16 @@ jobs:
         run: |
           echo "GCC runtimes on PATH:"; which -a libstdc++-6.dll || true
           cp "$(cygpath -u "$IQTA_TOOLS")/mingw1310_64/bin/"{libgcc_s_seh-1,libstdc++-6,libwinpthread-1}.dll build/
+
+      # (a Mac whose media tests fail: the plugin loader's own account of the multimedia plugin, for the first media test)
+      - name: Media plugin diagnostics (macOS)
+        if: runner.os == 'macOS' && matrix.part == 'tests'
+        shell: bash
+        run: |
+          if [ -x build/jdtests ]; then
+            QT_DEBUG_PLUGINS=1 QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 build/jdtests --class DeckMediaTests mediaPlaybackPlaysASoundOrSaysWhy 2>&1 | grep -i -E "multimedia|ffmpeg|dlopen|dyld|not loaded|signature|Totals|FAIL" | head -60
+          fi
+          exit 0
 
       - name: Test
         if: matrix.part == 'tests'

@@ -223,6 +223,12 @@ make -j"$JOBS" >make.log 2>&1 || { tail -30 make.log >&2; die "make failed (see 
 rm -rf "${PREFIX:?}/lib" "${PREFIX:?}/include" "${PREFIX:?}/bin"
 make install >install.log 2>&1 || die "make install failed (see $BUILD/install.log)"
 
+# On a Mac, make install strips the libraries, which voids the signature the linker gave them; an arm64 Mac refuses to load a library whose
+# signature does not match (the plugin then does not load at all). Each is signed again, ad hoc, as Qt's own are.
+if [ "$OS" = Darwin ]; then
+    for f in "$PREFIX"/lib/*.dylib; do [ -L "$f" ] || codesign --force --sign - "$f"; done
+fi
+
 # ---- what was compiled in: the lists the libraries themselves are made from ----
 mkdir -p "$PREFIX/share"
 LIST="$PREFIX/share/ffmpeg-components.txt"

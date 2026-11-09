@@ -69,6 +69,10 @@ install)
                 else lipo -create "$f" "$src2/$b" -output "$DEST/$b"; fi
             done
         fi
+        if [ "$KIND" = dylib ]; then
+            # (a library joined with lipo or copied is signed again, ad hoc: an arm64 Mac does not load one whose signature does not match)
+            for f in $(family_files "$DEST" $name); do [ -L "$f" ] || codesign --force --sign - "$f"; done
+        fi
         echo "use_ffmpeg: $name ($had) is ours in $DEST"
     done
     ;;
