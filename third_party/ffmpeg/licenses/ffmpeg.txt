@@ -11,7 +11,7 @@ libraries, which come with the program:
   (on Windows avcodec-*.dll and its kin; on macOS and Linux libavcodec and its
   kin, with Qt's FFmpeg plugin, plugins/multimedia/ffmpegmediaplugin)
 
-They are FFmpeg 7.1, as built for Qt 6.8 by The Qt Company: a build under the
+They are FFmpeg 7.1, as built for Qt 6.11 by The Qt Company: a build under the
 GNU Lesser General Public License, version 2.1 or later (the libraries say so
 themselves: "libavcodec license: LGPL version 2.1 or later"). It holds no GPL
 or non-free parts. JeffDeck links to them as shared libraries, and has not

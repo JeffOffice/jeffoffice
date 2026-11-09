@@ -41,7 +41,7 @@ jobs:
         if: steps.key.outputs.have == 'yes'
         with:
           aqtversion: '==3.3.0'
-          version: '6.8.3'
+          version: '6.11.3'
           modules: 'qtimageformats qtmultimedia'
           cache: true
 
