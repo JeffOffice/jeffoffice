@@ -368,6 +368,64 @@ private Q_SLOTS:
         QVERIFY(e.win.w.calculation()->mergesOf(0).isEmpty());
     }
 
+    // Draw Border, Draw Border Grid, and Erase Border are tools: each is picked up, and a drag over cells makes (or takes off) the borders of the block it crosses, one step each, until Esc.
+    void theBorderToolsWorkOnADragOverCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        auto point = [&](const char *ref) {
+            quint32 r = 0, c = 0;
+            parseCellRef(QString::fromLatin1(ref), &r, &c);
+            return e.view()->cellRect(r, c).center();
+        };
+        auto drag = [&](const char *from, const char *to) {
+            QWidget *vp = e.view()->viewport();
+            QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, point(from));
+            QTest::mouseMove(vp, point(to));
+            QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, point(to));
+        };
+        auto thin = [&](const char *ref, bool left, bool right, bool top, bool bottom) {
+            const grid::CellLook &l = lookAt(e, QString::fromLatin1(ref));
+            return (l.left.style == BorderStyle::Thin) == left && (l.right.style == BorderStyle::Thin) == right && (l.top.style == BorderStyle::Thin) == top && (l.bottom.style == BorderStyle::Thin) == bottom;
+        };
+        const int steps = e.win.w.undoStack()->count();
+        // Draw Border: the outside of the block dragged over
+        run(e, "fmt.border.draw");
+        drag("B2", "C3");
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QVERIFY(thin("B2", true, false, true, false));
+        QVERIFY(thin("C3", false, true, false, true));
+        QVERIFY(thin("B3", true, false, false, true));
+        // (the tool stays picked up: a second drag draws a second block, and Esc puts it down)
+        drag("A1", "A1");
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 2);
+        QVERIFY(thin("A1", true, true, true, true));
+        QTest::keyClick(e.view()->viewport(), Qt::Key_Escape);
+        drag("A3", "A3");
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 2);
+        QVERIFY(thin("A3", false, true, false, false));   // (Esc put the tool down: the drag drew nothing; the right edge is B3's left)
+        // Erase Border takes the lines off the cells dragged over, the inside ones too
+        run(e, "fmt.border.erase");
+        drag("B2", "C3");
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 3);
+        QVERIFY(thin("B2", false, false, false, false));
+        QVERIFY(thin("C3", false, false, false, false));
+        QVERIFY(thin("B3", false, false, false, false));
+        QTest::keyClick(e.view()->viewport(), Qt::Key_Escape);
+        // Draw Border Grid: the outside and every line inside
+        run(e, "fmt.border.drawGrid");
+        drag("B2", "C3");
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 4);
+        QVERIFY(thin("B2", true, true, true, true));
+        QVERIFY(thin("C3", true, true, true, true));
+        QVERIFY(thin("B3", true, true, true, true));
+        QVERIFY(thin("C2", true, true, true, true));
+        QTest::keyClick(e.view()->viewport(), Qt::Key_Escape);
+        // one Undo takes the grid back
+        e.win.w.undoStack()->undo();
+        QVERIFY(thin("B2", false, false, false, false) && thin("C3", false, false, false, false));
+    }
+
     // The Borders menu: each command puts its lines on the edges of the block (in one step), the line style chosen is used, and No Border takes them all away.
     void theBordersMenu()
     {
