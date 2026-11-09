@@ -730,6 +730,102 @@ private Q_SLOTS:
         QVERIFY(!probe.error.isEmpty() || probe.duration == 0);
     }
 
+    // Real movies and sounds, made with other software (the build of FFmpeg that is packaged keeps only the formats a presentation
+    // has: tools/build_ffmpeg.sh). JO_MEDIA_SAMPLES holds a folder "kept" of files that must play and a folder "dropped" of files in
+    // formats the build leaves out; there are no such files in the repository, so without it these tests are skipped.
+    static QFileInfoList sampleFiles(const char *folder)
+    {
+        const QByteArray root = qgetenv("JO_MEDIA_SAMPLES");
+        if (root.isEmpty()) return {};
+        return QDir(QString::fromLocal8Bit(root) + QLatin1Char('/') + QLatin1String(folder)).entryInfoList(QDir::Files, QDir::Name);
+    }
+
+    // Every format the build keeps plays: it reaches the playing state, its position moves, and a movie gives pictures.
+    void mediaPlaysEveryFormatTheBuildKeeps()
+    {
+        const QFileInfoList files = sampleFiles("kept");
+        if (files.isEmpty()) QSKIP("JO_MEDIA_SAMPLES has no kept folder");
+        for (const QFileInfo &info : files) {
+            QFile f(info.filePath());
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray bytes = f.readAll();
+            const QString ext = info.suffix();
+            const bool movie = deck::mediaKindOfFile(info.fileName()) == QLatin1String("video");
+            const MediaProbe probe = probeMedia(bytes, ext, movie, 15000);
+            QVERIFY2(probe.error.isEmpty() && probe.duration > 0 && (!movie || !probe.frame.isNull()), qPrintable(info.fileName() + QStringLiteral(": ") + probe.error));
+            MediaPlayback pb;
+            pb.setFile(bytes, ext);
+            deck::MediaPlay play;
+            play.video = movie;
+            pb.setPlay(play);
+            pb.play();
+            QTRY_VERIFY2_WITH_TIMEOUT(pb.failed() || (pb.state() == MediaPlayback::State::Playing && pb.played() > 0), qPrintable(info.fileName()), 15000);
+            QVERIFY2(!pb.failed(), qPrintable(info.fileName() + QStringLiteral(": ") + pb.error()));
+            QVERIFY2(pb.state() == MediaPlayback::State::Playing, qPrintable(info.fileName()));
+            const qint64 first = pb.played();
+            QTRY_VERIFY2_WITH_TIMEOUT(pb.played() > first, qPrintable(info.fileName() + QStringLiteral(" does not advance")), 15000);
+            if (movie) {
+                QTRY_VERIFY2_WITH_TIMEOUT(!pb.frame().isNull(), qPrintable(info.fileName() + QStringLiteral(" gives no picture")), 15000);
+            }
+            pb.stop();
+        }
+    }
+
+    // A format the build leaves out is not played, says so, and nothing hangs or closes: in the player, in the probe that reads a file
+    // put on a slide (the message names the file), and when the same file is asked to play again.
+    void mediaInAFormatTheBuildLeavesOutSaysSo()
+    {
+        const QFileInfoList files = sampleFiles("dropped");
+        if (files.isEmpty()) QSKIP("JO_MEDIA_SAMPLES has no dropped folder");
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.show();
+        QString shown;
+        QTimer closer;
+        closer.setInterval(10);
+        connect(&closer, &QTimer::timeout, &closer, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                shown = box->text();
+                box->close();
+            }
+        });
+        closer.start();
+        const int before = int(w.editor()->doc()->pages[0]->items.size());
+        for (const QFileInfo &info : files) {
+            QFile f(info.filePath());
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray bytes = f.readAll();
+            const QString ext = info.suffix();
+            const bool movie = deck::mediaKindOfFile(info.fileName()) != QLatin1String("audio");
+            // What a deck that holds the file does when it is played.
+            MediaPlayback pb;
+            pb.setFile(bytes, ext);
+            deck::MediaPlay play;
+            play.video = movie;
+            pb.setPlay(play);
+            pb.play();
+            QTRY_VERIFY2_WITH_TIMEOUT(pb.failed(), qPrintable(info.fileName() + QStringLiteral(" was not refused")), 15000);
+            QVERIFY2(pb.error().contains(movie ? QStringLiteral("movie") : QStringLiteral("sound")), qPrintable(pb.error()));
+            pb.play();
+            pb.seek(500);
+            pb.stop();
+            QCOMPARE(int(pb.state()), int(MediaPlayback::State::Stopped));
+            QVERIFY2(!probeMedia(bytes, ext, movie, 15000).error.isEmpty() || probeMedia(bytes, ext, movie, 15000).duration == 0, qPrintable(info.fileName()));
+            // What Insert does with it: a container the build can't read at all is refused with a message that names the file; one it can
+            // read (its movie in a format it leaves out) goes on the slide as a dark frame, and playing it says it can't (above).
+            shown.clear();
+            if (w.insertMedia(writeTestFile(dir, info.fileName(), bytes), QString())) {
+                QCOMPARE(int(w.editor()->doc()->pages[0]->items.size()), before + 1);
+                w.editor()->undo();
+            } else {
+                QVERIFY2(shown.contains(info.fileName()), qPrintable(info.fileName() + QStringLiteral(": ") + shown));
+            }
+            QCOMPARE(int(w.editor()->doc()->pages[0]->items.size()), before);
+        }
+        closer.stop();
+    }
+
     // The control bar: its parts are where they are drawn, a click on the seek bar means a moment, and it stays on the
     // screen when the picture is at the bottom.
     void mediaBarLaysOutItsPartsAndStaysOnTheScreen()
