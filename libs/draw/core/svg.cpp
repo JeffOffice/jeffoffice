@@ -3,6 +3,8 @@
 #include "core/drawnwords.h"
 
 #include <QHash>
+#include <QPaintDevice>
+#include <QPaintEngine>
 #include <QPainter>
 #include <QPainterPathStroker>
 #include <QRegularExpression>
@@ -871,7 +873,136 @@ static QByteArray without(const QByteArray &svg, const std::vector<char> &drop)
     return r.hasError() ? QByteArray() : out;
 }
 
+namespace {
+
+// What a drawing is drawn on when it goes to a PDF: it hands every stroke and fill to the painter it stands in for, with the text as outlines. (Qt's renderer
+// says text as text, which a PDF then holds twice with paintText's, with the letters of a joining font lost, hidden text, and no bound: outlines are what
+// the renderer drew before, and what paintText's words are meant to go with.)
+class OutlineTextDevice : public QPaintDevice
+{
+public:
+    explicit OutlineTextDevice(QPainter *to) : m_to(to), m_engine(to) {}
+    QPaintEngine *paintEngine() const override { return &const_cast<OutlineTextDevice *>(this)->m_engine; }
+
+protected:
+    int metric(PaintDeviceMetric m) const override
+    {
+        const QPaintDevice *d = m_to->device();
+        switch (m) {
+        case PdmWidth: return d->width();
+        case PdmHeight: return d->height();
+        case PdmWidthMM: return d->widthMM();
+        case PdmHeightMM: return d->heightMM();
+        case PdmNumColors: return d->colorCount();
+        case PdmDepth: return d->depth();
+        case PdmDpiX: return d->logicalDpiX();
+        case PdmDpiY: return d->logicalDpiY();
+        case PdmPhysicalDpiX: return d->physicalDpiX();
+        case PdmPhysicalDpiY: return d->physicalDpiY();
+        default: return QPaintDevice::metric(m);
+        }
+    }
+
+private:
+    class Engine : public QPaintEngine
+    {
+    public:
+        explicit Engine(QPainter *to) : QPaintEngine(AllFeatures), m_to(to) {}
+        bool begin(QPaintDevice *) override
+        {
+            m_base = m_to->worldTransform();
+            m_opacity = m_to->opacity();
+            m_hasClip = m_to->hasClipping();
+            if (m_hasClip) m_clip = m_to->clipPath();
+            m_to->save();
+            return true;
+        }
+        bool end() override
+        {
+            m_to->restore();
+            return true;
+        }
+        Type type() const override { return User; }
+        void updateState(const QPaintEngineState &s) override
+        {
+            const DirtyFlags f = s.state();
+            if (f & DirtyPen) m_to->setPen(s.pen());
+            if (f & DirtyBrush) m_to->setBrush(s.brush());
+            if (f & DirtyBrushOrigin) m_to->setBrushOrigin(s.brushOrigin());
+            if (f & DirtyFont) m_to->setFont(s.font());
+            if (f & DirtyBackground) m_to->setBackground(s.backgroundBrush());
+            if (f & DirtyBackgroundMode) m_to->setBackgroundMode(s.backgroundMode());
+            if (f & DirtyCompositionMode) m_to->setCompositionMode(s.compositionMode());
+            if (f & DirtyOpacity) m_to->setOpacity(m_opacity * s.opacity());
+            if (f & DirtyHints) {
+                for (QPainter::RenderHint h : {QPainter::Antialiasing, QPainter::TextAntialiasing, QPainter::SmoothPixmapTransform, QPainter::LosslessImageRendering, QPainter::VerticalSubpixelPositioning})
+                    m_to->setRenderHint(h, s.renderHints().testFlag(h));
+            }
+            if (f & (DirtyClipPath | DirtyClipRegion | DirtyClipEnabled)) {
+                // (a clip comes in device coordinates, which are the painter's own before its transform)
+                m_to->setWorldTransform(m_base);
+                const Qt::ClipOperation op = s.clipOperation();
+                if (op == Qt::ReplaceClip || op == Qt::NoClip || !s.isClipEnabled()) {
+                    if (m_hasClip) m_to->setClipPath(m_clip, Qt::ReplaceClip);
+                    else m_to->setClipping(false);
+                }
+                if (s.isClipEnabled() && op != Qt::NoClip) {
+                    if (f & DirtyClipPath) m_to->setClipPath(s.clipPath(), Qt::IntersectClip);
+                    else m_to->setClipRegion(s.clipRegion(), Qt::IntersectClip);
+                }
+                m_transform = true;
+            }
+            if (f & DirtyTransform) {
+                m_world = s.transform();
+                m_transform = true;
+            }
+            if (m_transform) {
+                m_to->setWorldTransform(m_world * m_base);
+                m_transform = false;
+            }
+        }
+        void drawPath(const QPainterPath &path) override { m_to->drawPath(path); }
+        void drawPolygon(const QPointF *points, int count, PolygonDrawMode mode) override
+        {
+            switch (mode) {
+            case OddEvenMode: m_to->drawPolygon(points, count, Qt::OddEvenFill); break;
+            case WindingMode: m_to->drawPolygon(points, count, Qt::WindingFill); break;
+            case ConvexMode: m_to->drawConvexPolygon(points, count); break;
+            case PolylineMode: m_to->drawPolyline(points, count); break;
+            }
+        }
+        void drawPixmap(const QRectF &r, const QPixmap &pm, const QRectF &sr) override { m_to->drawPixmap(r, pm, sr); }
+        void drawImage(const QRectF &r, const QImage &im, const QRectF &sr, Qt::ImageConversionFlags flags) override { m_to->drawImage(r, im, sr, flags); }
+        void drawTiledPixmap(const QRectF &r, const QPixmap &pm, const QPointF &at) override { m_to->drawTiledPixmap(r, pm, at); }
+
+    private:
+        QPainter *m_to;
+        QTransform m_base, m_world;
+        QPainterPath m_clip;
+        qreal m_opacity = 1;
+        bool m_hasClip = false, m_transform = false;
+    };
+
+    QPainter *m_to;
+    Engine m_engine;
+};
+
+} // namespace
+
+static void paintOn(QSvgRenderer &renderer, const QByteArray &svg, QPainter *p, const QRectF &bounds);
+
 void paint(QSvgRenderer &renderer, const QByteArray &svg, QPainter *p, const QRectF &bounds)
+{
+    if (!p->paintEngine() || p->paintEngine()->type() != QPaintEngine::Pdf) {
+        paintOn(renderer, svg, p, bounds);
+        return;
+    }
+    OutlineTextDevice device(p);
+    QPainter outline(&device);
+    paintOn(renderer, svg, &outline, bounds);
+}
+
+static void paintOn(QSvgRenderer &renderer, const QByteArray &svg, QPainter *p, const QRectF &bounds)
 {
     std::vector<Leaf> leaves;
     if (svg.size() <= (8 << 20) && svg.contains("clip-path")) readParts(svg, Qt::black, &leaves);
