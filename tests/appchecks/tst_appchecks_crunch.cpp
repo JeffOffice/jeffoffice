@@ -549,6 +549,7 @@ private Q_SLOTS:
             {QStringLiteral("formulas.options"), menu},
             {QStringLiteral("sheet.tabColor"), menu},
             {QStringLiteral("sheet.unhide"), menu},
+            {QStringLiteral("fmt.border.draw"), QStringLiteral("it picks up the pen: the pointer and a line in the status bar change, and the borders are made by a mouse drag over the grid")},
             {QStringLiteral("formulas.errorChecking"), QStringLiteral("it tells in a message that no cell is wrong (the workbooks here have none), and shows its dialog only when one is")},
             {QStringLiteral("formulas.evaluate"), QStringLiteral("it tells in a message to select a cell with a formula (none is selected here), and shows its dialog only for one")},
             {QStringLiteral("data.circleInvalid"), QStringLiteral("it tells in a message that every cell follows its rule (no rule is set here), and draws ovals only when one does not")},
