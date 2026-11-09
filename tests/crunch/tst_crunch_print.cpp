@@ -1655,9 +1655,13 @@ void CrunchPrintTests::anEmailedPdfCanHaveAPassword()
     QVERIFY(w.exportEmail(CrunchWindow::EmailWhat::Pdf, p));
     watch.dirs.clear();
     QVERIFY2(watch.plain.isEmpty(), qPrintable(watch.plain.join(QLatin1Char(' '))));
-    QFile f(eml);
-    QVERIFY(f.open(QIODevice::ReadOnly));
-    const QByteArray attached = pdfAttachmentOf(f.readAll());
+    QByteArray attached;
+    {
+        // (closed again before the next message is saved over it: Windows replaces no file that is open)
+        QFile f(eml);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        attached = pdfAttachmentOf(f.readAll());
+    }
     jp::PdfEncryptionInfo info;
     QVERIFY(jp::readPdfEncryption(attached, QStringLiteral("pw"), &info));
     QCOMPARE(info.version, 5);
