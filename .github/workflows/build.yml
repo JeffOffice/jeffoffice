@@ -41,13 +41,8 @@ jobs:
     runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || matrix.os }}
     timeout-minutes: 45
     steps:
+      # (a whole checkout: our own Linux machine keeps its workspace between jobs, and a sparse one left the build job there without tools/use_ffmpeg.sh)
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          sparse-checkout: |
-            tools/build_ffmpeg.sh
-            tools/check_ffmpeg_components.py
-            third_party/ffmpeg-components.txt
-          sparse-checkout-cone-mode: false
 
       - name: Which FFmpeg
         id: version
@@ -374,7 +369,7 @@ jobs:
         shell: bash
         run: |
           if [ -x build/jdtests ]; then
-            QT_DEBUG_PLUGINS=1 QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 build/jdtests --class DeckMediaTests mediaPlaybackPlaysASoundOrSaysWhy 2>&1 | grep -i -E "multimedia|ffmpeg|dlopen|dyld|not loaded|signature|Totals|FAIL" | head -60
+            QT_DEBUG_PLUGINS=1 QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 build/jdtests --class DeckMediaTests mediaPlaybackPlaysASoundOrSaysWhy 2>&1 | grep -i -E "multimedia|ffmpeg|dlopen|dyld|not loaded|signature|Totals|FAIL" | head -60 || true
           fi
           exit 0
 
