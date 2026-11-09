@@ -46,8 +46,9 @@
 
 namespace jp::crunch {
 
-// (No enum above the class has its own underlying type, such as "enum class Kind : quint8": Qt 6.8's lupdate misreads one and files every tr() of
-// EditSession under "EditSession", not "jp::crunch::EditSession", where the program looks for it; tools/check_translate_calls.py checks this.)
+// (No enum above the class has its own underlying type, such as "enum class Kind : quint8": Qt 6.8's lupdate misread one and filed every tr() of
+// EditSession under "EditSession", not "jp::crunch::EditSession", where the program looks for it. Qt 6.11.3's does not (tried on this header), but
+// tools/check_translate_calls.py still checks this, for any older lupdate.)
 
 // The most cells a Delete (or any one edit) changes: past it the edit is refused, with a message, so that it never holds the worker, or the window, for long.
 constexpr qint64 kMaxCellsPerEdit = 100000;

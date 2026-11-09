@@ -13,7 +13,7 @@ Four things are reported, and the exit status is 1 if there is any:
     whose callers' texts lupdate never sees (or sees under another context). Call
     QCoreApplication::translate("Ctx", "text") with the text in the call, or mark the text where it is written with QT_TRANSLATE_NOOP("Ctx", "text").
   * in a header, an enum with its own underlying type (enum class Kind : quint8 { ... }) above a class with Q_OBJECT. Qt 6.8's lupdate
-    misreads it and files the class's tr() texts under its bare name ("EditSession", not "jp::crunch::EditSession"), where the program
+    misread it (6.11.3's does not; the rule stays for older ones) and filed the class's tr() texts under its bare name ("EditSession", not "jp::crunch::EditSession"), where the program
     never looks: they show in English in every language. Drop the underlying type, or move the enum into the class.
   * a QT_TR_NOOP outside a member function, such as in a table of names at the top of a file. lupdate files it under the namespace
     ("jp"), not the class whose tr() reads it. Write QT_TRANSLATE_NOOP("jp::CrunchWindow", "text") with the context the reader uses.
