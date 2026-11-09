@@ -61,7 +61,7 @@
 <context>
     <name>Import</name>
     <message numerus="yes">
-        <location filename="../../apps/pub/io/importers.cpp" line="+510"/>
+        <location filename="../../apps/pub/io/importers.cpp" line="+511"/>
         <source>Created %n email file(s) in %1.</source>
         <translation>
             <numerusform>Created %n email file in %1.</numerusform>
@@ -83,7 +83,7 @@
 <context>
     <name>Sharing</name>
     <message numerus="yes">
-        <location filename="../../apps/pub/app/sharing.cpp" line="+190"/>
+        <location filename="../../apps/pub/app/sharing.cpp" line="+194"/>
         <source>Saved %1 with the publication and %n font file(s).</source>
         <translation>
             <numerusform>Saved %1 with the publication and %n font file.</numerusform>
@@ -212,7 +212,7 @@
 <context>
     <name>jp::DeckWindow</name>
     <message numerus="yes">
-        <location filename="../../apps/deck/app/deckwindow_output.cpp" line="+180"/>
+        <location filename="../../apps/deck/app/deckwindow_output.cpp" line="+187"/>
         <source>%n page(s)</source>
         <translation>
             <numerusform>%n page</numerusform>
@@ -220,7 +220,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../apps/deck/app/deckwindow_save.cpp" line="+215"/>
+        <location filename="../../apps/deck/app/deckwindow_save.cpp" line="+232"/>
         <source>Saved %1, but %n object(s) can&apos;t be saved in this kind of file yet.</source>
         <translation>
             <numerusform>Saved %1, but %n object can&apos;t be saved in this kind of file yet.</numerusform>
@@ -275,7 +275,7 @@
 <context>
     <name>jp::MainWindow</name>
     <message numerus="yes">
-        <location filename="../../apps/pub/app/mainwindow.cpp" line="+1250"/>
+        <location filename="../../apps/pub/app/mainwindow.cpp" line="+1301"/>
         <source>Saved %n drawing(s).</source>
         <translation>
             <numerusform>Saved %n drawing.</numerusform>
@@ -305,7 +305,7 @@
 <context>
     <name>jp::OnlinePicturesPane</name>
     <message numerus="yes">
-        <location filename="../../libs/page/app/onlinepictures.cpp" line="+282"/>
+        <location filename="../../libs/page/app/onlinepictures.cpp" line="+283"/>
         <source>%n picture(s) found. Choose one to see its license.</source>
         <translation>
             <numerusform>%n picture found. Choose it to see its license.</numerusform>
@@ -467,7 +467,7 @@
 <context>
     <name>jp::office::wml</name>
     <message numerus="yes">
-        <location filename="../../libs/office/wml/wmlread.cpp" line="+1551"/>
+        <location filename="../../libs/office/wml/wmlread.cpp" line="+1555"/>
         <source>%n part or link of the file had a name that could not be used, and was left out.</source>
         <translation>
             <numerusform>%n part or link of the file had a name that could not be used, and was left out.</numerusform>

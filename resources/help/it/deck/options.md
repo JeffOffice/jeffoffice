@@ -1,26 +1,26 @@
-# Modificare le impostazioni di JeffDeck
-<!-- keywords: opzioni, impostazioni, preferenze, tema, modalità scura, tema scuro, lingua, nome utente, iniziali, righello, blocca, allinea, controllo ortografia, correzione automatica, virgolette, aggiornamenti, beta, statistiche di utilizzo, informazioni, salvataggio, incorpora tipi di carattere, tipi di carattere, font -->
+# Modifica le impostazioni di JeffDeck
+<!-- keywords: opzioni, impostazioni, preferenze, tema, modalità scura, lingua, nome utente, iniziali, righello, scatto, ortografia, correzione automatica, virgolette, aggiornamenti, beta, statistiche di utilizzo, informazioni, salva, incorpora tipi di carattere, caratteri -->
 
-Le impostazioni si trovano nella finestra **Opzioni di JeffDeck**. Per aprirla, fare clic su **File > Opzioni**. La finestra contiene quattro schede. Fare clic su **OK** per mantenere le modifiche oppure su **Annulla** per scartarle.
+Le impostazioni si trovano nella finestra **Opzioni di JeffDeck**. Per aprirla, fai clic su **File > Opzioni**. La finestra ha quattro schede. Fai clic su **OK** per mantenere le modifiche oppure su **Annulla** per scartarle.
 
 ## Generale
 
-- **Nome utente** e **Iniziali** vengono visualizzati nei commenti che si scrivono. Vedere [Commenti](comments).
-- **Tema** può essere **Usa impostazione di sistema**, **Chiaro** o **Scuro**. La modifica è immediata.
-- **Lingua di visualizzazione** è la lingua dei testi di JeffDeck. **Usa lingua di sistema** segue l'impostazione del computer. Le altre lingue compaiono nell'elenco quando sono disponibili le traduzioni. Una nuova lingua viene applicata alla successiva apertura di JeffDeck.
-- **Controlla aggiornamenti all'avvio di JeffDeck** fa sì che JeffDeck cerchi una versione più recente a ogni avvio. Se ne esiste una, la finestra **Aggiornamento disponibile** mostra le novità. Scegliere **Aggiorna ora**, **Più tardi** o **Ignora questa versione**. In Windows, **Aggiorna ora** scarica il programma di installazione, che installa la nuova versione di tutte le app di JeffOffice e chiede di chiudere quelle aperte. Negli altri computer il pulsante è **Apri pagina di download** e apre la pagina da cui scaricare la nuova versione. Se è aperto anche JeffPub, solo uno dei due segnala la nuova versione ogni giorno.
-- **Ricevi le versioni beta (build preliminari per i test)** fa sì che JeffDeck proponga anche le versioni beta. Queste escono prima delle versioni normali e potrebbero non essere del tutto rifinite.
-- **Invia statistiche di utilizzo anonime** consente di condividere informazioni sull'uso di JeffDeck. Anonime significa che le informazioni non dicono nulla sulla propria identità. Quando l'opzione è attiva, JeffDeck invia queste informazioni una volta al giorno e il giorno dell'aggiornamento: che si tratta di JeffDeck, la versione, il sistema operativo e la lingua, quante volte è stato avviato, con quale frequenza viene usato ogni comando e il tipo di file aperto o salvato (ad esempio .pptx). Se JeffDeck si chiude in modo imprevisto, al successivo avvio invia anche un rapporto sull'arresto anomalo, che indica il punto del programma in cui si è interrotto, così che il problema possa essere individuato e risolto. JeffDeck non invia mai i file, i loro nomi o il loro contenuto, né il testo digitato. Se l'opzione è disattivata, non viene inviato neanche il rapporto sugli arresti anomali. JeffDeck lo chiede al primo avvio, in una finestra denominata **Contribuisci a migliorare JeffDeck**. Non lo chiede se la scelta è già stata fatta in JeffPub o durante l'installazione.
-- **Informativa sulla privacy**, accanto a questa casella di controllo, apre la nostra informativa sulla privacy all'indirizzo jeffoffice.com/privacy, che spiega cosa viene inviato, dove va e per quanto tempo lo conserviamo. Le statistiche vengono conservate per 24 mesi.
-- **Numero di installazione** è visualizzato sotto la casella di controllo. È un numero casuale generato per la propria copia di JeffOffice, uguale in tutte le app di JeffOffice, e non dice nulla sull'utente. Fare clic su **Copia** per copiarlo. Se le statistiche sono disattivate o il numero non è ancora stato generato, viene visualizzato **nessuno**.
-- Per far eliminare le statistiche già in nostro possesso, inviare il numero di installazione a info@jeffoffice.com **prima** di disattivare le statistiche. La disattivazione cancella il numero dal computer e senza di esso non è possibile sapere quali dati sono i propri.
-- Per disattivare le statistiche senza aprire JeffDeck, impostare la variabile di ambiente `JP_NO_TELEMETRY` su un valore qualsiasi prima dell'avvio. In questo caso nulla viene conteggiato o inviato e JeffDeck non pone la domanda del primo avvio.
+- **Nome utente** e **Iniziali** vengono mostrati nei commenti che scrivi. Vedi [Commenti](comments).
+- **Tema** è impostato su **Usa impostazione di sistema**, **Chiaro** oppure **Scuro**. La modifica viene applicata subito.
+- **Lingua di visualizzazione** è la lingua delle scritte di JeffDeck. **Usa lingua di sistema** segue la lingua del computer. Nell'elenco compaiono le altre lingue quando sono disponibili le traduzioni. Una nuova lingua viene applicata alla successiva apertura di JeffDeck.
+- **Controlla aggiornamenti all'avvio di JeffDeck** fa sì che JeffDeck cerchi una versione più recente ogni volta che viene avviato. Se ne esiste una, la finestra **Aggiornamento disponibile** mostra le novità. Scegli **Aggiorna ora**, **Più tardi** oppure **Ignora questa versione**. In Windows, **Aggiorna ora** scarica il programma di installazione. Esso installa la nuova versione di tutte le app di JeffOffice e chiede di chiudere quelle eventualmente aperte. Sugli altri computer, il pulsante è **Apri pagina di download**. Apre la pagina da cui puoi ottenere la nuova versione. Se anche JeffPub è aperto, solo uno dei due ti segnala una nuova versione ogni giorno.
+- **Ricevi le versioni beta (build preliminari per i test)** fa sì che JeffDeck proponga anche le versioni beta. Queste escono prima di quelle ordinarie e possono presentare qualche imperfezione.
+- **Invia statistiche di utilizzo anonime** ti permette di condividere dati sull'uso di JeffDeck. Anonimi significa che i dati non dicono nulla su chi sei. Quando l'opzione è attiva, JeffDeck invia questi dati una volta al giorno e nel giorno in cui aggiorni: che si tratta di JeffDeck, la sua versione, il sistema operativo e la lingua, quante volte è stato avviato, con quale frequenza viene usato ciascun comando e che tipo di file hai aperto o salvato (ad esempio .pptx). Se JeffDeck si chiude improvvisamente, invia anche un rapporto di arresto alla successiva apertura. Il rapporto indica in quale punto del programma si è interrotto, così il problema può essere individuato e risolto. JeffDeck non invia mai i tuoi file, i loro nomi o il loro contenuto, né quanto digiti. Se l'opzione è disattivata, non viene inviato nemmeno alcun rapporto di arresto. Alla prima apertura, JeffDeck chiede informazioni in proposito, nella finestra **Aiutaci a migliorare JeffDeck**. Non lo chiede se hai già fatto una scelta in JeffPub o durante l'installazione.
+- **Informativa sulla privacy**, accanto a questa casella di controllo, apre la nostra informativa all'indirizzo jeffoffice.com/privacy. Vi si spiega quali dati vengono inviati, dove vanno e per quanto tempo li conserviamo. Le statistiche vengono conservate per 24 mesi.
+- **Numero di installazione** è mostrato sotto la casella di controllo. È un numero casuale generato per la tua copia di JeffOffice, uguale in tutte le app di JeffOffice. Non dice nulla su di te. Fai clic su **Copia** per copiarlo. Se le statistiche sono disattivate, oppure se non è ancora stato generato alcun numero, viene mostrato **nessuno**.
+- Per far cancellare le statistiche che già conserviamo, invia il tuo numero di installazione a info@jeffoffice.com **prima** di disattivare le statistiche. Disattivandole, il numero viene cancellato dal computer e, senza di esso, non possiamo stabilire quali registrazioni sono tue.
+- Per disattivare le statistiche senza aprire JeffDeck, imposta la variabile d'ambiente `JP_NO_TELEMETRY` su un valore qualsiasi prima di avviarlo. Non viene allora conteggiato né inviato nulla, e JeffDeck non pone la domanda del primo avvio.
 
-**Nome utente**, **Iniziali**, **Tema**, **Lingua di visualizzazione** e le scelte relative ad aggiornamenti e statistiche sono comuni a tutte le app di JeffOffice: se si modifica un'impostazione qui, cambia in tutte le app.
+**Nome utente**, **Iniziali**, **Tema** e **Lingua di visualizzazione**, nonché le scelte su aggiornamenti e statistiche, valgono per tutte le app di JeffOffice: se le modifichi qui, il cambiamento si applica a ciascuna di esse.
 
 ## Strumenti di correzione
 
-Queste caselle di controllo gestiscono il controllo ortografia e l'assistenza alla digitazione. Vedere [Digitare e formattare il testo](text).
+Queste caselle di controllo gestiscono il controllo ortografico e l'aiuto nella digitazione. Vedi [Digitare e formattare il testo](text).
 
 - **Controlla ortografia durante la digitazione**
 - **Ignora parole in MAIUSCOLO**
@@ -28,15 +28,16 @@ Queste caselle di controllo gestiscono il controllo ortografia e l'assistenza al
 - **Sostituisci testo durante la digitazione (Correzione automatica)** corregge gli errori di digitazione più comuni.
 - **Sostituisci virgolette dritte con virgolette curve** trasforma " e ' in virgolette curve.
 - **Formattazione automatica durante la digitazione (trattini, frazioni, ordinali, elenchi automatici)**
+- **Trasforma gli indirizzi web in collegamenti ipertestuali durante la digitazione** trasforma un indirizzo web o di posta elettronica in un collegamento quando premi la barra spaziatrice dopo averlo digitato. Annulla ripristina soltanto la conversione automatica in collegamento.
 
 ## Visualizza
 
-- **Mostra il righello** visualizza i righelli lungo i bordi della diapositiva. Equivale a **Visualizza > Mostra > Righello** e si applica a tutte le finestre, sia quelle aperte sia quelle che si apriranno.
-- **Blocca gli oggetti sugli altri oggetti** allinea l'oggetto trascinato agli altri oggetti della diapositiva.
+- **Mostra righelli** visualizza i righelli lungo i bordi della diapositiva. Equivale a **Visualizza > Mostra > Righello** e si applica a tutte le finestre, sia quelle aperte sia quelle che aprirai in seguito.
+- **Blocca gli oggetti sugli altri oggetti** fa sì che un oggetto trascinato si allinei agli altri oggetti della diapositiva.
 
 ## Salvataggio
 
-- **Incorpora tipi di carattere nel file** inserisce nel file, al salvataggio, i tipi di carattere usati nelle diapositive, in modo che abbiano lo stesso aspetto anche in un computer in cui tali tipi di carattere non sono installati. L'opzione è attiva finché non la si deseleziona. Incorpora solo i tipi di carattere forniti con JeffDeck e aumenta le dimensioni del file. Per i dettagli, vedere l'argomento Aprire e salvare presentazioni, nella sezione "Tipi di carattere nel file".
+- **Incorpora tipi di carattere nel file** inserisce nel file, al salvataggio, i tipi di carattere usati nelle diapositive, così che le diapositive abbiano lo stesso aspetto anche su un computer che non dispone di quei tipi di carattere. L'opzione è attiva finché non la disattivi. Vengono incorporati solo i tipi di carattere forniti con JeffDeck, e il file diventa più grande. L'argomento Aprire e salvare presentazioni contiene i dettagli, alla voce "Caratteri nel file".
 
 ## Argomenti correlati
 

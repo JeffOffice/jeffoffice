@@ -1,58 +1,70 @@
 # PDF-bestanden en drukkerijen
-<!-- keywords: pdf, pdf maken, opslaan als pdf, pdf exporteren, pdf/x, pdf/a, archiveren, archief, drukkerij, commerciële drukkerij, cmyk, afloop, snijtekens, snijlijnen, kleurprofiel, steunkleur, overdrukken -->
+<!-- keywords: pdf, pdf maken, opslaan als pdf, pdf exporteren, pdf/x, pdf/a, archiveren, drukkerij, commerciële drukker, cmyk, afloop, snijtekens, kleurprofiel, steunkleur, overdrukken, wachtwoord, versleutelen, beveiligen met een wachtwoord -->
 
-Een **PDF** is een bestand dat er op elke computer hetzelfde uitziet. Gebruik een PDF om een publicatie te e-mailen, online te zetten of naar een drukkerij te sturen.
+Een **PDF** is een bestand dat op elke computer hetzelfde eruitziet. Gebruik het om een publicatie per e-mail te versturen, online te plaatsen of naar een drukkerij te sturen.
 
 ## Een PDF maken
 
 1. Klik op **Bestand > Exporteren** en vervolgens op **PDF maken**.
-2. Kies bij **Optimaliseren voor** een kwaliteit. **dpi** staat voor dots per inch (punten per inch). Meer punten geven scherpere afbeeldingen en grotere bestanden.
-3. Kies bij **Pagina's** voor **Alle pagina's**, **Huidige pagina** of **Pagina's van** de ene pagina **tot** een andere.
+2. Kies onder **Optimaliseren voor** een kwaliteit. **dpi** betekent dots per inch (stippen per inch). Meer stippen geven scherpere afbeeldingen en grotere bestanden.
+3. Kies onder **Pagina's** de optie **Alle pagina's**, **Huidige pagina** of **Pagina's van** de ene pagina **tot** de andere.
 4. Klik op **PDF opslaan…**, typ een naam en klik op **Opslaan**.
 
-| Keuze | Afbeeldingen | Het meest geschikt voor |
+| Keuze | Afbeeldingen | Geschikt voor |
 |---|---|---|
 | Minimale grootte | 96 dpi | Weergave op het scherm |
 | Standaard | 150 dpi | Online delen |
-| Afdrukken in hoge kwaliteit | 300 dpi | Bureauprinters |
-| Commerciële drukpers | Volledige resolutie | Een drukkerij. Voegt snijtekens, afloopmarkeringen, pasmerken, kleurbalken en taakgegevens toe. |
+| Hoge kwaliteit afdrukken | 300 dpi | Bureauprinters |
+| Commerciële drukpers | Volledige resolutie | Een drukkerij. Voegt snijtekens, afloopmarkeringen, pasmerken, kleurbalken en opdrachtgegevens toe. |
 
-Andere keuzes:
+Andere opties:
 
-- **Documenteigenschappen opnemen** zet de titel, auteur, het onderwerp en de trefwoorden in de PDF.
-- **PDF openen na opslaan** toont de PDF meteen in uw PDF-viewer.
-- **Vellen voor boekje** wordt weergegeven bij boekjes. Hiermee komen twee pagina's op elke zijde, in vouwvolgorde. Schakel deze optie uit voor één pagina per PDF-pagina.
+- **Documenteigenschappen opnemen** zet de titel, auteur, onderwerp en trefwoorden in de pdf.
+- **PDF openen na opslaan** toont de pdf meteen in uw viewer.
+- **Boekjesvellen** verschijnt bij boekjes. Hiermee komen twee pagina's per zijde in vouwvolgorde. Schakel dit uit voor één pagina per pdf-pagina.
 
-## PDF/A voor archivering
+## PDF/A voor het bewaren van gegevens
 
-**PDF/A** is een PDF die jarenlang leesbaar moet blijven. Alle lettertypen zitten erin, er worden standaardkleuren gebruikt en er zijn geen doorzichtige effecten. Schakel **PDF/A voor langdurige archivering** in, of klik op **Bestand > Exporteren** en vervolgens op **PDF/A maken voor archivering**.
+**PDF/A** is een pdf die jaren meegaat. Alle lettertypen zijn ingesloten en er worden standaardkleuren gebruikt, zonder doorzichtige effecten. Vink **PDF/A voor langdurige archivering** aan, of klik op **Bestand > Exporteren** en vervolgens op **PDF/A maken voor archivering**.
 
 ## PDF/X voor een drukkerij
 
-**PDF/X** is een strengere PDF waar drukkerijen om vragen. Kleuren worden opgegeven als hoeveelheden inkt, lettertypen zitten in het bestand en de snijlijn en de afloop zijn gemarkeerd. De **afloop** is extra afbeelding of kleur die over de rand van de pagina doorloopt, zodat er na het afsnijden geen witte rand overblijft.
+**PDF/X** is een strengere pdf die drukkerijen vragen. Kleuren worden opgegeven als inkthoeveelheden, lettertypen zijn ingesloten en het formaat en de afloop zijn aangegeven. De **afloop** is extra afbeelding of kleur die over de paginarand heen loopt, zodat er na het bijsnijden geen witte rand overblijft.
 
-1. Klik op **Bestand > Exporteren** en vervolgens op **PDF/X maken voor een commerciële drukkerij**. U kunt ook **PDF/X voor een commerciële drukkerij** inschakelen in het venster **PDF maken**. Dit kan niet samen met PDF/A.
-2. Kies bij **Afdrukconditie** de conditie die uw drukkerij opgeeft.
-3. Wil de drukkerij snijtekens en afloop, kies dan bij **Optimaliseren voor** ook **Commerciële drukpers**.
+1. Klik op **Bestand > Exporteren** en vervolgens op **PDF/X maken voor een commerciële drukkerij**. Of vink **PDF/X voor een commerciële drukkerij** aan in het venster **PDF maken**. U kunt dit niet gebruiken met PDF/A.
+2. Kies onder **Afdrukconditie** de conditie die uw drukkerij noemt.
+3. Wil de drukkerij snijtekens en afloop, kies dan ook **Commerciële drukpers** onder **Optimaliseren voor**.
 4. Klik op **PDF opslaan…**.
 
 De condities zijn:
 
 - **PDF/X-1a** voor Amerikaans rotatieoffset (SWOP) of Europees offset (FOGRA39). Doorzichtige effecten worden afgevlakt.
-- **PDF/X-4** voor premium gestreken papier (FOGRA51, PSO Coated v3), of met het eigen kleurprofiel van uw drukkerij (een .icc-bestand dat u kiest). Doorzichtige effecten blijven behouden.
+- **PDF/X-4** voor premium gestreken papier (FOGRA51, PSO Coated v3), of met het kleurprofiel van uw eigen drukker (een .icc-bestand dat u kiest). Doorzichtige effecten blijven behouden.
 
-Het kleurprofiel PSO Coated v3 wordt niet met JeffPub meegeleverd. De eerste keer dat u het gebruikt, vraagt JeffPub toestemming en downloadt het het profiel eenmalig van het European Color Initiative.
+Het kleurprofiel PSO Coated v3 wordt niet met JeffPub meegeleverd. De eerste keer dat u het gebruikt, vraagt JeffPub toestemming voor het downloaden van het profiel, eenmalig, van het European Color Initiative.
 
-Voordat JeffPub het bestand maakt, controleert het programma op afbeeldingen met minder dan 150 ppi (pixels per inch) op het afgedrukte formaat en op lettertypen die niet op deze computer staan. Klik op **Toch PDF maken**, **Ontwerpcontrole openen** of **Annuleren**.
+Voordat het bestand wordt gemaakt, controleert JeffPub afbeeldingen die op hun afdrukformaat minder dan 150 ppi (pixels per inch) hebben en lettertypen die op deze computer ontbreken. Klik op **Toch PDF maken**, **Ontwerpcontrole openen** of **Annuleren**.
+
+## Een pdf met een wachtwoord beveiligen
+
+Klik in het venster **PDF maken** op **Versleutelen met een wachtwoord…**. Typ het wachtwoord twee keer. Wie de pdf opent, moet dan het wachtwoord invoeren. Het wachtwoord beschermt het bestand echt: de pagina's worden met sterke versleuteling (AES-256) door elkaar gehaald en niemand kan ze zonder wachtwoord lezen.
+
+U kunt ook **Afdrukken, kopiëren en bewerken beperken** aanvinken, een tweede wachtwoord opgeven en kiezen wat is toegestaan. Deze beperkingen zijn alleen een verzoek. De meeste pdf-lezers houden zich eraan, maar wie ze wil omzeilen, wordt er niet door tegengehouden. Reken er dus niet op om een bestand privé te houden.
+
+Een vergeten wachtwoord kan niet worden hersteld, dus bewaar het op een veilige plek. Het wachtwoord geldt voor die ene pdf en wordt nooit opgeslagen. Een pdf met wachtwoord kan geen PDF/A of PDF/X zijn, dus die twee opties worden uitgeschakeld zolang er een wachtwoord is ingesteld. Op **Bestand > Delen** staat **Versleutelen met een wachtwoord…** boven **Verzenden als PDF**; daarmee krijgt de pdf in een e-mail een wachtwoord.
+
+Wanneer u een pdf met wachtwoord als afbeelding plaatst, vraagt JeffPub om het wachtwoord. Is het onjuist, dan vraagt JeffPub opnieuw; klik op **Annuleren** om te stoppen. De pagina in uw publicatie is een kopie en heeft geen wachtwoord nodig. Vraagt de eigenaar van de pdf dat er niet van wordt gekopieerd, dan plaatst JeffPub hem toch en toont een melding daarover; dat verzoek is geen slot.
+
+Een afbeelding die is gekoppeld aan een pdf met wachtwoord, wordt bij het openen van de publicatie als **Niet bijgewerkt** getoond, en JeffPub vraagt nooit zelf om het wachtwoord. Klik op **Koppeling bijwerken** om er wel om gevraagd te worden.
 
 ## Kleuren instellen voor een drukkerij
 
-Klik op **Bestand > Eigenschappen** en vervolgens op de kaart **Instellingen voor commercieel drukken**:
+Klik op **Bestand > Info** en vervolgens op de kaart **Instellingen commercieel drukken**:
 
-- **Kleurmodel** is **RGB**, **Eén kleur (steunkleur)**, **Steunkleuren**, **Proceskleuren (CMYK)** of **Proceskleuren plus steunkleuren**. Proceskleuren zijn cyaan, magenta, gele en zwarte inkt. Een steunkleur is een speciale inkt die de drukkerij mengt. Voeg elke steunkleur toe onder **Steunkleuren**.
-- **Zwart overdrukken in bestanden voor een drukkerij (PDF/X)** zorgt ervoor dat zwart over de kleuren eronder wordt gedrukt, zodat een verschoven drukplaat geen witte rand achterlaat. U kiest waarop dit van toepassing is: tekst onder een bepaalde grootte, lijnen of opvullingen.
+- **Kleurmodel** is **RGB**, **Eén kleur (steunkleur)**, **Steunkleuren**, **Proceskleuren (CMYK)** of **Proceskleuren plus steunkleuren**. Proceskleuren zijn cyaan-, magenta-, gele en zwarte inkt. Een steunkleur is een speciale inkt die de drukkerij mengt. Voeg elke steunkleur toe onder **Steunkleuren**.
+- **Zwart overdrukken in bestanden voor een drukkerij (PDF/X)** laat zwart over de kleuren eronder drukken, zodat een verschoven plaat geen witte rand oplevert. U kiest wat het omvat: tekst kleiner dan een bepaald formaat, lijnen of vullingen.
 
-## Verwante onderwerpen
+## Zie ook
 
 - [Een publicatie afdrukken](printing)
 - [Opslaan als afbeelding, webpagina of e-book](export)

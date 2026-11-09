@@ -1,40 +1,51 @@
-# Imprimer, créer un PDF et enregistrer des diapositives en tant qu'images
-<!-- keywords: imprimer, imprimante, impression, copies, exemplaires, diapositives, pages de commentaires, documents, plan, pdf, exporter, exportation, image, png, jpeg, jpg, photo, étendue, plage, diapositives masquées, encadrer, cadre, nuances de gris, niveaux de gris, noir et blanc, aperçu avant impression, papier, a4, lettre -->
+# Impression, PDF et images des diapositives
+<!-- keywords: imprimer, imprimante, impression, copies, diapositives, pages de commentaires, documents, plan, pdf, exporter, image, png, jpeg, jpg, image, plage, diapositives masquées, cadre, nuances de gris, noir et blanc, aperçu avant impression, papier, a4, lettre, mot de passe, chiffrer, protéger par un mot de passe -->
 
-Vous pouvez imprimer votre présentation, l'enregistrer au format PDF ou enregistrer une diapositive en tant qu'image. Ces trois opérations se trouvent dans l'écran Fichier.
+Vous pouvez imprimer votre présentation, l'enregistrer au format PDF ou enregistrer une diapositive sous forme d'image. Les trois options se trouvent dans l'écran Fichier.
 
 ## Imprimer
 
-1. Appuyez sur Ctrl+P ou cliquez sur **Fichier > Imprimer**.
+1. Appuyez sur Ctrl+P, ou cliquez sur **Fichier > Imprimer**.
 2. Sous **Imprimer**, choisissez ce qui doit être imprimé : **Diapositives**, **Pages de commentaires**, **Plan** ou **Documents** avec 1, 2, 3, 4, 6 ou 9 diapositives par page.
-3. Pour les documents de 4 diapositives ou plus par page, **Ordre** indique si les diapositives se suivent d'abord en largeur puis vers le bas (**Horizontal**), ou d'abord vers le bas puis en largeur (**Vertical**).
-4. Sous **Étendue**, choisissez **Toutes les diapositives** ou **Diapositive active**, ou choisissez **Diapositives** et tapez les numéros dans la zone : des numéros et des plages de diapositives séparés par des virgules, par exemple 1-3, 5.
-5. Cochez les options souhaitées : **Imprimer les diapositives masquées**, **Encadrer les diapositives** (un trait fin autour de chaque diapositive) et **Nuances de gris**.
-6. Cliquez sur **Imprimer**. JeffDeck ouvre la fenêtre d'impression de votre système, dans laquelle vous choisissez l'imprimante et le nombre de copies.
+3. Pour les documents de 4 diapositives ou plus, **Ordre** indique si les diapositives se suivent en largeur puis en hauteur (**Horizontal**) ou en hauteur puis en largeur (**Vertical**).
+4. Sous **Plage**, choisissez **Toutes les diapositives** ou **Diapositive actuelle**, ou choisissez **Diapositives** et saisissez les numéros dans la zone : numéros de diapositives et plages séparés par des virgules, par exemple 1-3, 5.
+5. Cochez ce dont vous avez besoin : **Imprimer les diapositives masquées**, **Encadrer les diapositives** (un filet fin autour de chaque diapositive) et **Nuances de gris**.
+6. Sous **Faces**, choisissez **Imprimer en recto**, **Imprimer recto verso, retournement sur le grand côté** (pages qui se tournent comme un livre), **Imprimer recto verso, retournement sur le petit côté** (pages qui se tournent comme un bloc-notes) ou **Imprimer recto verso manuellement**. Les deux premières options sont grisées si votre imprimante ne peut pas imprimer recto verso. Pointez-en une pour voir la raison. **Manuellement** convient à une telle imprimante : JeffDeck imprime la première, la troisième, la cinquième page, etc., puis un message vous demande de retourner la pile et de la replacer dans l'imprimante. Lorsque vous cliquez sur **OK**, il imprime les autres pages, en commençant par la dernière. S'il n'y a qu'une page, il n'y a rien à retourner. JeffDeck mémorise votre choix.
+7. Cliquez sur **Imprimer**. JeffDeck ouvre la fenêtre d'impression de votre système, dans laquelle vous choisissez l'imprimante et le nombre de copies. Cette fenêtre reprend le choix des faces que vous avez fait. Un fichier PDF créé depuis cette fenêtre n'a pas de faces.
 
-L'aperçu à droite montre chaque page qui sera imprimée, avec des flèches pour passer d'une page à l'autre. Il est dessiné exactement comme la page sera imprimée. JeffDeck mémorise vos choix pour la prochaine fois.
+L'aperçu à droite montre chaque page qui sera imprimée, avec des flèches pour passer d'une page à l'autre. Il est dessiné de la même façon que la page sera imprimée. JeffDeck mémorise vos choix pour la prochaine fois.
 
-## Ce que chaque option imprime
+## Ce que chaque choix imprime
 
-- **Diapositives** imprime une diapositive par page, dans les proportions de la diapositive. Le papier passe en orientation paysage pour une diapositive large.
-- **Pages de commentaires** place une diapositive en haut de la page, avec ses commentaires du présentateur en dessous.
-- **Documents** place une grille de diapositives sur chaque page, avec un en-tête et un pied de page contenant le titre, la date et le numéro de page. Avec 3 diapositives par page, des lignes sont prévues à côté de chaque diapositive pour prendre des notes.
-- **Plan** imprime le numéro et le titre de chaque diapositive, puis son corps de texte, en retrait selon le niveau.
+- **Diapositives** imprime une diapositive par page, dans sa forme d'origine. La page est mise à l'horizontale pour une diapositive large.
+- **Pages de commentaires** place une diapositive en haut de la page, avec ses notes de l'orateur en dessous.
+- **Documents** placent une grille de diapositives sur chaque page, avec un en-tête et un pied de page qui contiennent le titre, la date et le numéro de page. Avec 3 par page, des lignes à côté de chaque diapositive permettent d'écrire.
+- **Plan** imprime le numéro et le titre de chaque diapositive, puis son texte, avec un retrait selon le niveau.
 
-Les pages de commentaires, les documents et le plan s'impriment en orientation portrait, sur du papier A4 ou Lettre, selon votre région. Les diapositives masquées ne sont pas imprimées, sauf si vous cochez **Imprimer les diapositives masquées**.
+Les pages de commentaires, les documents et le plan s'impriment sur du papier A4 ou Lettre en orientation portrait, selon le format utilisé dans votre région. Les diapositives masquées ne sont pas imprimées, sauf si vous cochez **Imprimer les diapositives masquées**.
 
 ## Enregistrer au format PDF
 
-Cliquez sur **Fichier > Exporter > Exporter au format PDF**. Une fenêtre vous demande ce qu'il faut inclure : les mêmes choix **Imprimer**, **Ordre** et **Étendue** que pour l'impression, ainsi que les trois mêmes cases à cocher. Elle indique le nombre de pages du fichier. Cliquez sur **Exporter…**, puis choisissez un nom et un emplacement.
+Cliquez sur **Fichier > Exporter > Exporter au format PDF**. Une fenêtre vous demande ce qu'il faut inclure : les mêmes choix **Imprimer**, **Ordre** et **Plage** que pour l'impression, ainsi que les trois mêmes cases à cocher. Elle indique le nombre de pages du fichier. Cliquez sur **Exporter…**, puis choisissez un nom et un emplacement.
 
-Le PDF contient du vrai texte, avec les polices incorporées, de sorte qu'il s'affiche de la même façon sur tous les ordinateurs. Son titre est celui de la présentation ou, à défaut, le nom du fichier.
+Le PDF contient du texte réel, avec les polices incorporées, de sorte qu'il s'affiche de la même façon sur tous les ordinateurs. Son titre est celui de la présentation, ou le nom du fichier.
 
-## Enregistrer une diapositive en tant qu'image
+## Protéger un PDF par un mot de passe
 
-Cliquez sur **Fichier > Exporter > Exporter la diapositive en tant qu'image**. JeffDeck enregistre la diapositive affichée en tant qu'image PNG ou JPEG de 1920 pixels de large, sur un arrière-plan blanc. Il propose comme nom de fichier le nom de la présentation suivi du numéro de la diapositive.
+Dans la fenêtre **Exporter au format PDF**, cliquez sur **Chiffrer avec un mot de passe…**. Saisissez le mot de passe deux fois. Toute personne qui ouvre le PDF doit alors le saisir. Le mot de passe protège réellement le fichier : les pages sont brouillées par un chiffrement fort (AES-256), et personne ne peut les lire sans lui.
+
+Vous pouvez aussi cocher **Restreindre l'impression, la copie et la modification**, saisir un second mot de passe et choisir ce qui est autorisé. Ces restrictions ne constituent qu'une demande. La plupart des lecteurs PDF les respectent, mais elles n'empêchent pas une personne déterminée de les contourner ; ne comptez donc pas sur elles pour garder un fichier privé.
+
+Un mot de passe oublié ne peut pas être récupéré : conservez-le en lieu sûr. Le mot de passe ne sert que pour ce PDF et n'est jamais enregistré.
+
+Lorsque vous insérez comme image un PDF protégé par un mot de passe, JeffDeck vous le demande. Si le mot de passe est incorrect, il le redemande ; cliquez sur **Annuler** pour arrêter. La diapositive reçoit une copie de la page, qui ne nécessite pas de mot de passe. Si le propriétaire du PDF a demandé qu'il ne soit pas copié, JeffDeck l'insère tout de même et affiche une note qui l'indique ; cette demande n'est pas un verrou.
+
+## Enregistrer une diapositive comme image
+
+Cliquez sur **Fichier > Exporter > Exporter la diapositive en tant qu'image**. JeffDeck enregistre la diapositive affichée sous forme d'image PNG ou JPEG, de 1920 pixels de large, sur fond blanc. Il propose comme nom de fichier le nom de la présentation et le numéro de la diapositive.
 
 ## Voir aussi
 
 - [L'écran Fichier](file-screen)
-- [Commentaires du présentateur](notes)
+- [Notes de l'orateur](notes)
 - [Ajouter, modifier et supprimer des diapositives](slides)

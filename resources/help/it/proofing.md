@@ -1,55 +1,55 @@
-# Controllo ortografia, thesaurus, ricerche e sillabazione
-<!-- keywords: controllo ortografico, ortografia, correttore ortografico, thesaurus, sinonimi, ricerche, dizionario, lingua di correzione, sillabazione, sillabare, tradurre, traduzione, correzione automatica, errori di ortografia, parole errate, sottolineatura rossa, lingua -->
+# Controllo ortografico, sinonimi, ricerca e sillabazione
+<!-- keywords: controllo ortografia, ortografia, correzione ortografica, sinonimi, thesaurus, ricerca, dizionario, lingua di correzione, sillabazione, sillabare, traduci, correzione automatica, parola errata, sottolineatura rossa, lingua -->
 
-La scheda **Revisione** contiene strumenti che aiutano a scrivere correttamente.
+La scheda **Revisione** contiene gli strumenti che ti aiutano a scrivere le parole nel modo corretto.
 
 ## Controllare l'ortografia durante la digitazione
 
-JeffPub sottolinea con una linea ondulata rossa le parole che non riconosce. Fare clic con il pulsante destro del mouse sulla parola per scegliere un suggerimento, scegliere **Ignora tutto** (per la sessione corrente) oppure scegliere **Aggiungi al dizionario**.
+JeffPub mette una sottolineatura rossa ondulata sotto una parola che non conosce. Fai clic con il pulsante destro del mouse sulla parola per scegliere un suggerimento, selezionare **Ignora tutto** (per questa sessione) oppure selezionare **Aggiungi al dizionario**.
 
-Per disattivare questa funzione, fare clic sulla freccia accanto a **Revisione > Strumenti di correzione > Controllo ortografia** e fare clic su **Controlla ortografia durante la digitazione**.
+Per disattivare questa funzione, fai clic sulla freccia accanto a **Revisione > Strumenti di correzione > Controllo ortografia** e fai clic su **Controlla ortografia durante la digitazione**.
 
 ## Controllare l'intera pubblicazione
 
-1. Fare clic su **Revisione > Strumenti di correzione > Controllo ortografia** oppure premere F7.
-2. La finestra di dialogo **Controllo ortografia** mostra la prima parola con problemi in **Non presente nel dizionario**, con i **Suggerimenti** sotto.
-3. Scegliere un suggerimento oppure digitarne uno in **Cambia in**.
-4. Fare clic su **Cambia** per questa parola o su **Cambia tutto** per tutte le occorrenze. Fare clic su **Ignora** per saltarla, su **Ignora tutto** per saltarla per la sessione corrente o su **Aggiungi** per salvarla nel proprio elenco di parole.
+1. Fai clic su **Revisione > Strumenti di correzione > Controllo ortografia** oppure premi F7.
+2. La finestra **Controllo ortografia** mostra per prima la parola problematica in **Non presente nel dizionario**, con i **Suggerimenti** sotto.
+3. Scegli un suggerimento oppure digita la tua correzione in **Cambia in**.
+4. Fai clic su **Cambia** per questa parola oppure su **Cambia tutto** per ogni corrispondenza. Fai clic su **Ignora** per saltarla, su **Ignora tutto** per saltarla per questa sessione oppure su **Aggiungi** per salvarla nel tuo elenco personale di parole.
 
-JeffPub controlla tutte le caselle di testo, le forme e le tabelle, iniziando dalla prima pagina, e segnala quando ha finito. Salta le parole in MAIUSCOLO e quelle che contengono numeri. È possibile modificare questa impostazione nella scheda **Strumenti di correzione** di **File > Opzioni** (la finestra **Opzioni di JeffPub**).
+JeffPub controlla ogni casella di testo, forma e tabella, a partire dalla prima pagina. Al termine lo comunica. Salta le parole in MAIUSCOLO e le parole che contengono numeri. Puoi modificare questo comportamento nella scheda **Strumenti di correzione** di **File > Opzioni** (la finestra **Opzioni di JeffPub**).
 
 ## Impostare la lingua
 
-Il controllo ortografia e la sillabazione automatica seguono la lingua del testo. Il testo senza una lingua impostata viene controllato come Inglese (Stati Uniti). JeffPub include dizionari per inglese (Stati Uniti, Regno Unito, Canada e Australia), spagnolo (Spagna e Messico), francese, tedesco, italiano, olandese e portoghese (Brasile e Portogallo).
+Il controllo ortografico e la sillabazione automatica seguono la lingua del testo. Il testo senza lingua impostata viene controllato come inglese (Stati Uniti). JeffPub dispone di dizionari per l'inglese (Stati Uniti, Regno Unito, Canada e Australia), lo spagnolo (21 varianti, dall'Argentina al Venezuela, compresi Messico e Spagna), il francese, il tedesco, l'italiano, l'olandese e il portoghese (Brasile e Portogallo).
 
-1. Selezionare il testo.
-2. Fare clic su **Revisione > Lingua > Imposta lingua di correzione…**
-3. Scegliere una lingua. Scegliere **Non eseguire il controllo ortografia** per testi come nomi o codici.
+1. Seleziona il testo.
+2. Fai clic su **Revisione > Lingua > Imposta lingua di correzione…**
+3. Scegli una lingua. Scegli **Non controllare ortografia** per testi come nomi o codici.
 
 ## Trovare una parola migliore
 
-- **Thesaurus:** fare clic in una parola e fare clic su **Revisione > Strumenti di correzione > Thesaurus** (MAIUSC+F7). Scegliere un sinonimo, cioè una parola con significato simile. Fare clic su **Inserisci** per sostituire la parola. **Cerca** esegue la ricerca del sinonimo scelto.
-- **Ricerche:** fare clic su **Revisione > Strumenti di correzione > Ricerche** (ALT+F7) per aprire il riquadro **Ricerche**. Digitare una parola in **Cerca** e fare clic su **Cerca**.
+- **Thesaurus:** fai clic in una parola, poi fai clic su **Revisione > Strumenti di correzione > Thesaurus** (MAIUSC+F7). Scegli un sinonimo, cioè una parola di significato simile. Fai clic su **Inserisci** per sostituire la tua parola. **Cerca** cerca il sinonimo che hai scelto.
+- **Ricerca:** fai clic su **Revisione > Strumenti di correzione > Ricerca** (ALT+F7) per aprire il riquadro **Ricerca**. Digita una parola in **Cerca:** e fai clic su **Cerca**.
 
-Entrambi usano un thesaurus integrato in JeffPub, disponibile solo in inglese. Nessun testo digitato viene inviato online.
+Entrambi usano un thesaurus integrato in JeffPub, solo in inglese. Quello che digiti non viene inviato online.
 
 ## Sillabazione
 
-La sillabazione divide le parole lunghe con un trattino alla fine della riga, in modo che le righe risultino uniformi. Le nuove caselle di testo usano la sillabazione per impostazione predefinita. Per modificare questa impostazione per le nuove caselle, vedere **Sillabazione automatica nelle nuove caselle di testo** nella scheda **Avanzate** di **File > Opzioni** (la finestra **Opzioni di JeffPub**).
+La sillabazione divide le parole lunghe con un trattino alla fine di una riga, in modo che le righe risultino uniformi. Le nuove caselle di testo usano la sillabazione per impostazione predefinita. Per modificare questa impostazione per le nuove caselle, vedi **Sillabazione automatica nelle nuove caselle di testo** nella scheda **Avanzate** di **File > Opzioni** (la finestra **Opzioni di JeffPub**).
 
-Per modificare un singolo testo, fare clic nella relativa casella di testo e fare clic su **Revisione > Verifica > Sillabazione…** (CTRL+MAIUSC+H). È anche possibile usare **Casella di testo > Testo > Sillabazione**. Nella finestra di dialogo **Sillabazione**:
+Per modificare un singolo articolo, fai clic nella sua casella di testo e fai clic su **Revisione > Verifica > Sillabazione…** (CTRL+MAIUSC+H). Puoi anche usare **Casella di testo > Testo > Sillabazione**. Nella finestra **Sillabazione**:
 
 - **Sillaba automaticamente questo testo** attiva o disattiva la sillabazione.
-- **Area di sillabazione** imposta quanto spazio vuoto può rimanere alla fine di una riga prima che JeffPub divida una parola.
-- **Inserisci trattino facoltativo** aggiunge un trattino nella posizione del cursore. Il trattino viene visualizzato solo se la parola va a capo in quel punto.
-- **Aggiungi trattini facoltativi** ne aggiunge uno in ogni punto in cui una parola lunga può essere divisa.
+- **Area di sillabazione** stabilisce quanto spazio vuoto può restare alla fine di una riga prima che JeffPub spezzi una parola.
+- **Inserisci trattino di sillabazione facoltativo** aggiunge un trattino nel punto del cursore. Compare solo se la parola si spezza in quel punto.
+- **Aggiungi trattini facoltativi** aggiunge un trattino in ogni punto in cui una parola lunga può spezzarsi.
 
 ## Tradurre il testo
 
-Selezionare del testo e fare clic su **Revisione > Lingua > Traduci**. Scegliere una lingua e fare clic su **OK**. JeffPub apre il browser Web su LibreTranslate, un sito di traduzione gratuito e open source, con il testo selezionato. Poiché il testo viene inviato a quel sito, non usare questa funzione per contenuti riservati.
+Seleziona del testo e fai clic su **Revisione > Lingua > Traduci**. Scegli una lingua e fai clic su **OK**. JeffPub apre quindi il browser web su LibreTranslate, un sito di traduzione gratuito e open source, con il tuo testo. Poiché il testo viene inviato a quel sito, non usare questa funzione per parole private.
 
-## Argomenti correlati
+## Vedi anche
 
-- [Trovare e sostituire testo](find-replace)
+- [Trova e sostituisci testo](find-replace)
 - [La scheda Revisione](tab-review)
 - [Aggiungere e formattare caselle di testo](text-boxes)
