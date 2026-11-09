@@ -1318,7 +1318,7 @@ void Renderer::paintItem(QPainter *p, const PaintContext &ctx, const Item &it)
             }
         }
         if (fx.reflection.on) {
-            QImage rimg = img.mirrored(false, true);
+            QImage rimg = img.flipped(Qt::Vertical);
             if (fx.reflection.blur > 0) boxBlur(rimg, int(fx.reflection.blur * sc));
             QImage mask(rimg.size(), QImage::Format_ARGB32_Premultiplied);
             mask.fill(Qt::transparent);

@@ -911,8 +911,8 @@ void SlideSorter::contextMenuEvent(QContextMenuEvent *e)
     const int i = slideAt(e->pos());
     if (i >= 0 && !m_sel.contains(i)) selectOnly(i);
     menu.addAction(tr("New Slide"), this, &SlideSorter::newSlideAfterSelection);
-    menu.addAction(tr("Duplicate Slide"), this, &SlideSorter::duplicateSelected, QKeySequence(Qt::CTRL | Qt::Key_D));
-    menu.addAction(tr("Delete Slide"), this, &SlideSorter::deleteSelected, QKeySequence(Qt::Key_Delete));
+    menu.addAction(tr("Duplicate Slide"), QKeySequence(Qt::CTRL | Qt::Key_D), this, &SlideSorter::duplicateSelected);
+    menu.addAction(tr("Delete Slide"), QKeySequence(Qt::Key_Delete), this, &SlideSorter::deleteSelected);
     menu.addSeparator();
     menu.addAction(tr("Hide Slide"), this, &SlideSorter::toggleHiddenSelected);
     menu.addSeparator();

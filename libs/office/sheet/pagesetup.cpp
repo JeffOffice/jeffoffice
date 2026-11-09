@@ -92,7 +92,7 @@ void setMargin(const QXmlStreamAttributes &a, const char *name, double *into)
 bool lengthPoints(QStringView text, double *points)
 {
     static const QRegularExpression pattern(QStringLiteral("^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(mm|cm|in|pt|pc|pi)\\s*$"));
-    const QRegularExpressionMatch m = pattern.match(text);
+    const QRegularExpressionMatch m = pattern.matchView(text);
     if (!m.hasMatch()) return false;
     const double v = m.captured(1).toDouble();
     const QString unit = m.captured(2);

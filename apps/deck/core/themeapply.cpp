@@ -349,7 +349,7 @@ QString themeKeyOf(const Document &source, const MasterPage &src, const DeckThem
     QCryptographicHash h(QCryptographicHash::Sha1);
     auto add = [&h](const QString &text) {
         h.addData(text.toUtf8());
-        h.addData("|", 1);
+        h.addData(QByteArrayView("|"));
     };
     add(theme.name);
     for (const QColor &c : theme.colors) add(c.name(QColor::HexArgb));

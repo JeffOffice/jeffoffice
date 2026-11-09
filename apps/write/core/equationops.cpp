@@ -467,7 +467,7 @@ private:
 
 QString equationSymbol(const QString &name)
 {
-    static const QHash<QString, uint> symbols = {
+    static const QHash<QString, char32_t> symbols = {
         {QStringLiteral("alpha"), 0x3B1}, {QStringLiteral("beta"), 0x3B2}, {QStringLiteral("gamma"), 0x3B3}, {QStringLiteral("delta"), 0x3B4}, {QStringLiteral("epsilon"), 0x3B5},
         {QStringLiteral("zeta"), 0x3B6}, {QStringLiteral("eta"), 0x3B7}, {QStringLiteral("theta"), 0x3B8}, {QStringLiteral("iota"), 0x3B9}, {QStringLiteral("kappa"), 0x3BA},
         {QStringLiteral("lambda"), 0x3BB}, {QStringLiteral("mu"), 0x3BC}, {QStringLiteral("nu"), 0x3BD}, {QStringLiteral("xi"), 0x3BE}, {QStringLiteral("pi"), 0x3C0},

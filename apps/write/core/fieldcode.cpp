@@ -726,7 +726,7 @@ struct Parser {
             if (cells && *cells) {
                 skip();
                 static const QRegularExpression cellName(QStringLiteral("^(?:ABOVE|BELOW|LEFT|RIGHT|[A-Za-z]{1,3}[0-9]{1,5}(?::[A-Za-z]{1,3}[0-9]{1,5})?)"), QRegularExpression::CaseInsensitiveOption);
-                const QRegularExpressionMatch m = cellName.match(QStringView(text).mid(at));
+                const QRegularExpressionMatch m = cellName.matchView(QStringView(text).mid(at));
                 if (m.hasMatch()) {
                     const int save = at;
                     at += int(m.capturedLength());

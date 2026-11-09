@@ -12,6 +12,7 @@
 
 #include <QMap>
 #include <QTextDocument>
+#include <QTimeZone>
 #include <algorithm>
 #include <atomic>
 
@@ -75,7 +76,7 @@ QDateTime parseDate(const QString &s)
 {
     if (s.isEmpty()) return QDateTime();
     QDateTime d = QDateTime::fromString(s, Qt::ISODate);
-    if (d.isValid() && d.timeSpec() == Qt::LocalTime) d.setTimeSpec(Qt::UTC);
+    if (d.isValid() && d.timeSpec() == Qt::LocalTime) d.setTimeZone(QTimeZone::UTC);
     return d;
 }
 

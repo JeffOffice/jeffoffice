@@ -158,7 +158,7 @@ private Q_SLOTS:
         c.plots[1].series[0].filtered = true;
         const QByteArray xml = writeChartPart(c);
         QDomDocument doc;
-        QVERIFY(doc.setContent(xml, true));
+        QVERIFY(doc.setContent(xml, QDomDocument::ParseOption::UseNamespaceProcessing));
         const QString c15 = QStringLiteral("http://schemas.microsoft.com/office/drawing/2012/chart");
         const QString cns = QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/chart");
         QCOMPARE(doc.elementsByTagNameNS(c15, QStringLiteral("filteredBarSeries")).size(), 1);
@@ -196,7 +196,7 @@ private Q_SLOTS:
         s.labelCellsText = QStringList{QStringLiteral("alpha"), QString(), QStringLiteral("gamma & co")};
         const QByteArray xml = writeChartPart(c);
         QDomDocument doc;
-        QVERIFY(doc.setContent(xml, true));
+        QVERIFY(doc.setContent(xml, QDomDocument::ParseOption::UseNamespaceProcessing));
         const QString c15 = QStringLiteral("http://schemas.microsoft.com/office/drawing/2012/chart");
         QCOMPARE(doc.elementsByTagNameNS(c15, QStringLiteral("showDataLabelsRange")).size(), 1);
         QCOMPARE(doc.elementsByTagNameNS(c15, QStringLiteral("datalabelsRange")).size(), 1);
@@ -226,7 +226,7 @@ private Q_SLOTS:
         QCOMPARE(axisOf(c, 222)->dispUnitFactor(), 1000.0);
         const QByteArray xml = writeChartPart(c);
         QDomDocument doc;
-        QVERIFY(doc.setContent(xml, true));
+        QVERIFY(doc.setContent(xml, QDomDocument::ParseOption::UseNamespaceProcessing));
         const QDomNodeList units = doc.elementsByTagNameNS(QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/chart"), QStringLiteral("dispUnits"));
         QCOMPARE(units.size(), 1);
         QCOMPARE(units.at(0).toElement().firstChildElement().localName(), QStringLiteral("builtInUnit"));
@@ -273,7 +273,7 @@ private Q_SLOTS:
         line.upBarFill = QColor("#00FF00");
         const QByteArray xml = writeChartPart(c);
         QDomDocument doc;
-        QVERIFY(doc.setContent(xml, true));
+        QVERIFY(doc.setContent(xml, QDomDocument::ParseOption::UseNamespaceProcessing));
         const QString cns = QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/chart");
         const QDomElement lineChart = doc.elementsByTagNameNS(cns, QStringLiteral("lineChart")).at(0).toElement();
         QStringList order;
@@ -354,7 +354,7 @@ private Q_SLOTS:
         c.plots[0].series[1].errorBars << custom;
         const QByteArray xml = writeChartPart(c);
         QDomDocument doc;
-        QVERIFY(doc.setContent(xml, true));
+        QVERIFY(doc.setContent(xml, QDomDocument::ParseOption::UseNamespaceProcessing));
         const QDomNodeList bars = doc.elementsByTagNameNS(QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/chart"), QStringLiteral("errBars"));
         QCOMPARE(bars.size(), 2);
         QStringList order;

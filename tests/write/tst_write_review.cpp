@@ -25,6 +25,7 @@
 #include <QFile>
 #include <QImage>
 #include <QLabel>
+#include <QTimeZone>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QToolButton>
@@ -219,7 +220,7 @@ private Q_SLOTS:
         QCOMPARE(all.size(), 2);
         QCOMPARE(all[0].kind, Revision::Insertion);
         QCOMPARE(all[0].author, QStringLiteral("Ann"));
-        QCOMPARE(all[0].date, QDateTime(QDate(2020, 1, 1), QTime(0, 0), Qt::UTC));
+        QCOMPARE(all[0].date, QDateTime(QDate(2020, 1, 1), QTime(0, 0), QTimeZone::UTC));
         QCOMPARE(revisionText(doc->story(), all[0]), QStringLiteral("two "));
         QCOMPARE(all[1].kind, Revision::Deletion);
         QCOMPARE(all[1].author, QStringLiteral("Bob"));
@@ -484,7 +485,7 @@ private Q_SLOTS:
         QVERIFY2(m.hasMatch(), x.constData());
         QCOMPARE(m.captured(2), QStringLiteral("Zed &quot;Z&quot; &lt;&amp;&gt;"));
         QDateTime when = QDateTime::fromString(m.captured(3), Qt::ISODate);
-        when.setTimeSpec(Qt::UTC);
+        when.setTimeZone(QTimeZone::UTC);
         QVERIFY2(when.toSecsSinceEpoch() >= before && when.toSecsSinceEpoch() <= after, qPrintable(m.captured(3)));
         QVERIFY2(x.contains("</w:ins>") && x.indexOf("abc") > x.indexOf("<w:ins ") && x.indexOf("abc") < x.indexOf("</w:ins>"), x.constData());
         // The document says it tracks, and the one who opens it again finds the change with its author.
@@ -912,7 +913,7 @@ private Q_SLOTS:
         QCOMPARE(all[0].author, QStringLiteral("Ann"));
         QCOMPARE(all[0].initials, QStringLiteral("AB"));
         QCOMPARE(all[0].text, QStringLiteral("First"));
-        QCOMPARE(all[0].date, QDateTime(QDate(2020, 2, 2), QTime(10, 0), Qt::UTC));
+        QCOMPARE(all[0].date, QDateTime(QDate(2020, 2, 2), QTime(10, 0), QTimeZone::UTC));
         QVERIFY(all[0].done);
         QCOMPARE(all[0].parent, -1);
         QCOMPARE(all[1].parent, 1);

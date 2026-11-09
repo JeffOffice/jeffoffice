@@ -16,6 +16,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QTimeZone>
 #include <algorithm>
 #include <atomic>
 
@@ -145,7 +146,7 @@ QDateTime parseDate(const QString &s)
 {
     if (s.isEmpty()) return QDateTime();
     QDateTime d = QDateTime::fromString(s, Qt::ISODate);
-    if (d.isValid() && d.timeSpec() == Qt::LocalTime) d.setTimeSpec(Qt::UTC);
+    if (d.isValid() && d.timeSpec() == Qt::LocalTime) d.setTimeZone(QTimeZone::UTC);
     return d;
 }
 
@@ -324,7 +325,7 @@ bool unpackComment(const QByteArray &packed, Comment *c)
     qint32 parent = -1;
     s >> version >> c->author >> c->initials >> when >> c->text >> c->paraId >> parent >> c->done;
     if (s.status() != QDataStream::Ok || version != 1) return false;
-    c->date = when < 0 ? QDateTime() : QDateTime::fromMSecsSinceEpoch(when, Qt::UTC);
+    c->date = when < 0 ? QDateTime() : QDateTime::fromMSecsSinceEpoch(when, QTimeZone::UTC);
     c->parent = parent;
     c->changed = true;
     return true;
@@ -610,7 +611,7 @@ Comment newComment(WriteDoc &doc, const QString &text, int parent)
         for (const QString &w : words) c.initials += w.at(0).toUpper();
         c.initials = c.initials.left(4);
     }
-    c.date = QDateTime::fromSecsSinceEpoch(QDateTime::currentSecsSinceEpoch(), Qt::UTC);
+    c.date = QDateTime::fromSecsSinceEpoch(QDateTime::currentSecsSinceEpoch(), QTimeZone::UTC);
     c.text = xmlSafe(text);
     c.parent = parent;
     c.changed = true;

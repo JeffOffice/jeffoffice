@@ -33,7 +33,7 @@ bool readsAnotherWorkbook(const QString &formula, int only = 0)
             quoted = true;
             quote = c;
         } else if (c == QLatin1Char('[')) {
-            const QRegularExpressionMatch m = link.matchView(QStringView(formula).mid(i), 0, QRegularExpression::NormalMatch, QRegularExpression::AnchoredMatchOption);
+            const QRegularExpressionMatch m = link.matchView(QStringView(formula).mid(i), 0, QRegularExpression::NormalMatch, QRegularExpression::AnchorAtOffsetMatchOption);
             if (m.hasMatch() && (only == 0 || m.captured(1).toInt() == only)) return true;
         }
     }
