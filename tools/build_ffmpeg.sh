@@ -121,6 +121,7 @@ file
 
 die() { echo "build_ffmpeg: $*" >&2; exit 1; }
 
+HERE=$(cd "$(dirname "$0")" && pwd)
 [ $# -ge 1 ] || die "usage: tools/build_ffmpeg.sh PREFIX [WORKDIR]"
 mkdir -p "$1"
 PREFIX=$(cd "$1" && pwd)
@@ -231,7 +232,7 @@ fi
 
 # Qt's plugin (7.1 libraries) imports these functions by name; a library that lacks one does not load (on a Mac: "Symbol not found", and no media
 # backend). Their names (tools/ffmpeg-plugin-symbols.txt) are looked up in what was built, so that a build that leaves one out fails here, listed.
-SYMS="$(cd "$(dirname "$0")" && pwd)/ffmpeg-plugin-symbols.txt"
+SYMS="$HERE/ffmpeg-plugin-symbols.txt"
 case "$OS" in
     Linux | Darwin)
         if [ "$AVCODEC_MAJOR" = 61 ] && [ -f "$SYMS" ]; then
