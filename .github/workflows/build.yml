@@ -19,7 +19,86 @@ on:
         default: true
 
 jobs:
+  # JeffDeck plays movies and sounds through Qt Multimedia's FFmpeg plugin. Qt ships the full FFmpeg (hundreds of demuxers and decoders, each one a way
+  # in for a file from a stranger); ours has only what a presentation holds, built from the official source by tools/build_ffmpeg.sh. Built once for each
+  # system (both processors on the Mac) and kept in GitHub's cache, under a key made of the FFmpeg version and the hash of the script; the build jobs
+  # below restore it and put it in their copy of Qt (tools/use_ffmpeg.sh). Windows builds it with MSYS2's MinGW-w64, the Mac with Xcode's compiler.
+  ffmpeg:
+    name: ffmpeg (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-24.04
+          - name: windows
+            os: windows-2022
+          - name: arm64
+            os: macos-15
+          - name: x86_64
+            os: macos-15
+    # (the same machines as the build jobs below: the Linux build runs on our own, whose C library is the one ours must run on)
+    runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          sparse-checkout: |
+            tools/build_ffmpeg.sh
+            tools/check_ffmpeg_components.py
+            third_party/ffmpeg-components.txt
+          sparse-checkout-cone-mode: false
+
+      - name: Which FFmpeg
+        id: version
+        shell: bash
+        run: echo "version=$(sed -n 's/^VERSION=//p' tools/build_ffmpeg.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Our FFmpeg (cache)
+        id: cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ffmpeg-out/${{ matrix.name }}
+          key: ffmpeg-${{ steps.version.outputs.version }}-${{ matrix.name }}-${{ hashFiles('tools/build_ffmpeg.sh') }}
+
+      - name: Build tools (Linux)
+        if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+        run: sudo apt-get update && sudo apt-get install -y nasm xz-utils
+
+      - name: Build tools (macOS)
+        if: runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true'
+        run: brew list nasm >/dev/null 2>&1 || brew install nasm
+
+      - name: Build FFmpeg (Linux, macOS)
+        if: runner.os != 'Windows' && steps.cache.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          FFMPEG_ARCH: ${{ runner.os == 'macOS' && matrix.name || '' }}
+          FFMPEG_JOBS: '4'
+        run: sh tools/build_ffmpeg.sh "$PWD/ffmpeg-out/${{ matrix.name }}" "$RUNNER_TEMP/ffmpeg-build"
+
+      # MSYS2 is on the runner image; its MinGW-w64 compiler, make, and nasm are installed into it.
+      - name: Build FFmpeg (Windows)
+        if: runner.os == 'Windows' && steps.cache.outputs.cache-hit != 'true'
+        shell: 'C:\msys64\usr\bin\bash.exe -l -e -o pipefail {0}'
+        env:
+          MSYSTEM: MINGW64
+          CHERE_INVOKING: '1'
+          FFMPEG_JOBS: '4'
+        run: |
+          pacman -Sy --noconfirm --needed make diffutils xz mingw-w64-x86_64-gcc mingw-w64-x86_64-nasm
+          sh tools/build_ffmpeg.sh "$PWD/ffmpeg-out/windows" "$PWD/ffmpeg-build"
+
+      # (every run, a cache hit too: what is kept must be what the committed list says, with none of the banned components)
+      - name: Check what was compiled in
+        shell: bash
+        run: |
+          PY=python3; command -v python3 >/dev/null 2>&1 || PY=python
+          "$PY" tools/check_ffmpeg_components.py --built "ffmpeg-out/${{ matrix.name }}"
+          ls -la ffmpeg-out/${{ matrix.name }}/lib ffmpeg-out/${{ matrix.name }}/bin 2>/dev/null || true
+
   build:
+    needs: ffmpeg
     # (Windows and macOS: "build (windows, tests, 1/2)"; Linux runs each part in one job: "build (linux, tests)")
     name: build (${{ matrix.name }}, ${{ matrix.part }}${{ matrix.name != 'linux' && format(', {0}/2', matrix.shard) || '' }})
     env:
@@ -144,6 +223,42 @@ jobs:
           foreach ($try in 1..2) { choco install ccache -y --no-progress; if (Get-Command ccache -ErrorAction SilentlyContinue) { break }; Start-Sleep -Seconds 20 }
           exit 0
 
+      # JeffDeck's FFmpeg is ours (the ffmpeg job above), not the full one Qt ships. It goes into this job's copy of Qt before anything is built, so that the tests
+      # load it and windeployqt, macdeployqt, and linuxdeploy copy it into the packages. The cache is restored by its key; a missing one fails here.
+      - name: Which FFmpeg
+        id: ffmpeg
+        shell: bash
+        run: echo "version=$(sed -n 's/^VERSION=//p' tools/build_ffmpeg.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Our FFmpeg (restore)
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ffmpeg-out/${{ matrix.name == 'macos' && 'arm64' || matrix.name }}
+          key: ffmpeg-${{ steps.ffmpeg.outputs.version }}-${{ matrix.name == 'macos' && 'arm64' || matrix.name }}-${{ hashFiles('tools/build_ffmpeg.sh') }}
+          fail-on-cache-miss: true
+
+      - name: Our FFmpeg for Intel Macs (restore)
+        if: runner.os == 'macOS' && contains(env.MAC_ARCHS, ';')
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ffmpeg-out/x86_64
+          key: ffmpeg-${{ steps.ffmpeg.outputs.version }}-x86_64-${{ hashFiles('tools/build_ffmpeg.sh') }}
+          fail-on-cache-miss: true
+
+      - name: Our FFmpeg in Qt's folder
+        shell: bash
+        run: |
+          QT=$QT_ROOT_DIR
+          if [ "$RUNNER_OS" = Windows ]; then QT=$(cygpath -u "$QT_ROOT_DIR"); fi
+          if [ "$RUNNER_OS" = macOS ]; then
+            P=ffmpeg-out/arm64
+            case "$MAC_ARCHS" in *x86_64*) P="$P ffmpeg-out/x86_64" ;; esac
+          else
+            P=ffmpeg-out/${{ matrix.name }}
+          fi
+          bash tools/use_ffmpeg.sh install "$QT" $P
+          bash tools/use_ffmpeg.sh check "$QT"
+
       # One cache for each job (system, part, half), so that each has its own objects: ccache-<system>-<processors>-<part><half>-<commit>. A job restores
       # the newest of its own, else the newest of any of its system (the first run after a change of the halves, or a half that has none yet), and saves a
       # new one only when it compiled something, after the build (the Save step below). An entry holds one job's objects, and the Build step caps its size:
@@ -180,6 +295,11 @@ jobs:
       - name: Third-party list check
         if: runner.os == 'Linux' && matrix.part == 'checks'
         run: python3 tools/check_third_party.py
+
+      # The FFmpeg JeffDeck ships has only the components a presentation needs: nothing banned in the build script or the committed list of what is compiled in.
+      - name: FFmpeg component check
+        if: runner.os == 'Linux' && matrix.part == 'checks'
+        run: python3 tools/check_ffmpeg_components.py
 
       # The Done, Partly, and Not yet counts in docs/features/README.md match the feature lists they count.
       - name: Feature count check
@@ -318,14 +438,17 @@ jobs:
           windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/JeffOffice/JeffPub.exe
           windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/JeffOffice/JeffDeck.exe
           # JeffDeck plays movies and sounds through Qt Multimedia's FFmpeg
-          # plugin, which needs FFmpeg's DLLs beside it. windeployqt brings
-          # them with the plugin; if a version of it doesn't, they come from
-          # Qt's folder. JeffPub doesn't link Qt Multimedia and gets neither.
+          # plugin, which needs FFmpeg's DLLs beside it: ours (the ffmpeg job),
+          # which are in Qt's folder, so windeployqt brings them with the
+          # plugin; if a version of it doesn't, they come from ours, never from
+          # Qt's. JeffPub doesn't link Qt Multimedia and gets neither.
           foreach ($name in 'avcodec', 'avformat', 'avutil', 'swresample', 'swscale') {
-            if (-not (Test-Path "dist/JeffOffice/$name-*.dll")) { Copy-Item "$env:QT_ROOT_DIR/bin/$name-*.dll" dist/JeffOffice/ }
+            if (-not (Test-Path "dist/JeffOffice/$name-*.dll")) { Copy-Item "ffmpeg-out/windows/bin/$name-*.dll" dist/JeffOffice/ }
           }
           if (-not (Test-Path dist/JeffOffice/multimedia/ffmpegmediaplugin.dll)) { throw "the FFmpeg multimedia plugin was not deployed" }
           if (-not (Test-Path dist/JeffOffice/avcodec-*.dll)) { throw "FFmpeg's DLLs were not deployed" }
+          bash tools/use_ffmpeg.sh check dist/JeffOffice
+          if ($LASTEXITCODE -ne 0) { throw "the FFmpeg DLLs are not ours" }
           Get-ChildItem dist/JeffOffice/*.dll | Select-Object -ExpandProperty Name
           Copy-Item LICENSE, ADDITIONAL-TERMS.md, README.md dist/JeffOffice/
           Copy-Item -Recurse resources/fonts dist/JeffOffice/fonts
@@ -414,6 +537,8 @@ jobs:
           # JeffDeck plays movies and sounds: Qt Multimedia's FFmpeg plugin and FFmpeg's libraries are in the package.
           test -f deb-check/opt/jeffoffice/plugins/multimedia/libffmpegmediaplugin.so
           ls deb-check/opt/jeffoffice/lib/libavcodec.so.*
+          # ... and they are ours (the minimal build), not Qt's full one.
+          sh tools/use_ffmpeg.sh check deb-check/opt/jeffoffice/lib
           # Everything the plugin links is in the package or on the system.
           if LD_LIBRARY_PATH=deb-check/opt/jeffoffice/lib ldd deb-check/opt/jeffoffice/plugins/multimedia/libffmpegmediaplugin.so | grep 'not found'; then exit 1; fi
           test -f deb-check/usr/share/doc/jeffoffice/pdfium/pdfium.txt
@@ -467,6 +592,9 @@ jobs:
           # FFmpeg's libraries with it. JeffPub doesn't link Qt Multimedia and gets neither.
           test -f dist/JeffDeck.app/Contents/PlugIns/multimedia/libffmpegmediaplugin.dylib
           ls dist/JeffDeck.app/Contents/Frameworks | grep -q '^libavcodec'
+          # ... and they are ours (the minimal build, for both processors when the disk image is for both), not Qt's full one.
+          sh tools/use_ffmpeg.sh check dist/JeffDeck.app
+          for arch in $(echo "$MAC_ARCHS" | tr ';' ' '); do lipo -archs dist/JeffDeck.app/Contents/Frameworks/libavcodec.61.dylib | grep -q "$arch"; done
           test ! -d dist/JeffPub.app/Contents/Frameworks/QtMultimedia.framework
           test -f dist/JeffDeck.app/Contents/Resources/licenses/ffmpeg/ffmpeg.txt
           for app in $apps; do for f in LICENSE ADDITIONAL-TERMS.md licenses/LGPL-3.0.txt licenses/QT-NOTICE.txt licenses/LUCIDE-ISC.txt licenses/MPL-2.0.txt; do test -f dist/$app.app/Contents/Resources/$f; done; done

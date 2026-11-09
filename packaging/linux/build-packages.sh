@@ -85,7 +85,7 @@ deploy() {
     exes+=(--executable "$dir/usr/bin/$name")
     # JeffDeck plays movies and sounds through Qt Multimedia's FFmpeg
     # plugin: the plugin goes in before linuxdeploy runs, which then brings
-    # the libraries it needs (FFmpeg's among them). JeffPub alone gets none.
+    # the libraries it needs (FFmpeg's among them: ours, in Qt's folder). JeffPub alone gets none.
     if [ "$name" = JeffDeck ]; then
       modules="svg;multimedia"
       mkdir -p "$dir/usr/plugins"
@@ -99,6 +99,9 @@ deploy() {
       --desktop-file "$dir/usr/share/applications/$lower.desktop" \
       --icon-file "$dir/usr/share/icons/hicolor/256x256/apps/$lower.png" \
       --plugin qt ${output:+--output "$output"} )
+  # JeffDeck's FFmpeg is the minimal build of tools/build_ffmpeg.sh (put in Qt's folder by tools/use_ffmpeg.sh before this runs), not
+  # the full one Qt ships: a package with another one stops here.
+  case " $* " in *" JeffDeck "*) sh "$src/tools/use_ffmpeg.sh" check "$dir" ;; esac
 }
 
 # 1. An AppImage of each app.

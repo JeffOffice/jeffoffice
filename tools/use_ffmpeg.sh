@@ -1,0 +1,89 @@
+#!/bin/sh
+# Puts the FFmpeg libraries tools/build_ffmpeg.sh made in place of the full ones Qt ships, in a Qt installation (on a CI
+# runner, where the Qt folder is a throwaway copy: never on a machine's own Qt), so that what CI's tests load and what
+# windeployqt, macdeployqt, and linuxdeploy copy into the packages are ours. Qt's FFmpeg plugin binds to the library
+# versions by name (libavcodec 61, libavformat 61, libavutil 59, libswresample 5, libswscale 8): a missing or different
+# version stops here.
+#
+#   tools/use_ffmpeg.sh install QT_ROOT PREFIX [PREFIX_OF_THE_OTHER_PROCESSOR]   (two prefixes, on a Mac: joined with lipo)
+#   tools/use_ffmpeg.sh check   DIR...      each of the FFmpeg libraries found under DIR is ours (it carries our configuration)
+set -eu
+
+die() { echo "use_ffmpeg: $*" >&2; exit 1; }
+FAMILIES="avcodec avformat avutil swresample swscale"
+case "$(uname -s)" in
+    Linux) KIND=so ;;
+    Darwin) KIND=dylib ;;
+    MINGW* | MSYS* | CYGWIN*) KIND=dll ;;
+    *) die "not a system this script knows: $(uname -s)" ;;
+esac
+
+# The folder of a Qt installation that holds the libraries, and the files of a family in it (and the same in a build's prefix).
+qt_libdir() { if [ "$KIND" = dll ]; then echo "$1/bin"; else echo "$1/lib"; fi; }
+family_files() { # DIR NAME -> every file (and link) of the library
+    case "$KIND" in
+        so) ls "$1"/lib"$2".so "$1"/lib"$2".so.* 2>/dev/null ;;
+        dylib) ls "$1"/lib"$2".dylib "$1"/lib"$2".*.dylib 2>/dev/null ;;
+        dll) ls "$1/$2"-*.dll 2>/dev/null ;;
+    esac
+}
+# The name of a library's own file by its major version: libavcodec.so.61, libavcodec.61.dylib, avcodec-61.dll.
+major_name() { # FILE-NAME -> NAME.MAJOR as ours and Qt's both have it
+    case "$KIND" in
+        so) echo "$1" | sed -n 's/^\(lib[a-z]*\.so\.[0-9]*\)$/\1/p' ;;
+        dylib) echo "$1" | sed -n 's/^\(lib[a-z]*\.[0-9]*\.dylib\)$/\1/p' ;;
+        dll) echo "$1" | sed -n 's/^\([a-z]*-[0-9]*\.dll\)$/\1/p' ;;
+    esac
+}
+
+mode=${1:-}
+[ -n "$mode" ] || die "usage: install QT_ROOT PREFIX [PREFIX2] | check DIR..."
+shift
+case "$mode" in
+install)
+    [ $# -ge 2 ] || die "usage: install QT_ROOT PREFIX [PREFIX2]"
+    QT=$1; shift
+    DEST=$(qt_libdir "$QT")
+    [ -d "$DEST" ] || die "no $DEST"
+    for name in $FAMILIES; do
+        # Qt's library of this family, by the name its plugin binds to.
+        had=""
+        for f in $(family_files "$DEST" $name); do
+            m=$(major_name "$(basename "$f")")
+            [ -n "$m" ] && had=$m
+        done
+        [ -n "$had" ] || die "Qt has no $name library in $DEST"
+        for p in "$@"; do
+            src=$(qt_libdir "$p")
+            [ -e "$src/$had" ] || die "this build's $name has no $had, the version Qt's plugin binds to (Qt's: $had; ours: $(for f in $(family_files "$src" $name); do basename "$f"; done | tr '\n' ' '))"
+        done
+        for f in $(family_files "$DEST" $name); do rm -f "$f"; done
+        if [ $# -eq 1 ] || [ "$KIND" != dylib ]; then
+            for f in $(family_files "$(qt_libdir "$1")" $name); do cp -a "$f" "$DEST/"; done
+        else
+            # Two processors: each real file is the two builds joined; the links are copied from the first.
+            src1=$(qt_libdir "$1"); src2=$(qt_libdir "$2")
+            for f in $(family_files "$src1" $name); do
+                b=$(basename "$f")
+                if [ -L "$f" ]; then cp -a "$f" "$DEST/"
+                else lipo -create "$f" "$src2/$b" -output "$DEST/$b"; fi
+            done
+        fi
+        echo "use_ffmpeg: $name ($had) is ours in $DEST"
+    done
+    ;;
+check)
+    [ $# -ge 1 ] || die "usage: check DIR..."
+    found=0
+    for dir in "$@"; do
+        for f in $(find "$dir" \( -name 'libavcodec*' -o -name 'libavformat*' -o -name 'avcodec-*.dll' -o -name 'avformat-*.dll' \) -type f 2>/dev/null); do
+            found=$((found + 1))
+            grep -q -a -e '--disable-everything' "$f" || die "$f is not the FFmpeg this project builds (it has no minimal configuration)"
+            grep -q -a -e 'enable-demuxer=mov' "$f" || die "$f is not the FFmpeg this project builds"
+        done
+    done
+    [ "$found" -gt 0 ] || die "no FFmpeg libraries found under $*"
+    echo "use_ffmpeg: $found FFmpeg libraries checked, all ours"
+    ;;
+*) die "unknown mode $mode" ;;
+esac
