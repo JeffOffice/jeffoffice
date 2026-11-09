@@ -203,7 +203,9 @@ QString Reader::drawChart(const QString &part, const QSizeF &size)
         const Attrs a(axis);
         const Bag b = styles.resolve(QStringLiteral("chart"), a.get("chart:style-name"));
         office::ChartAxis &target = a.get("chart:dimension") == QLatin1String("y") ? valueAxis : categoryAxis;
-        target.majorGridlines = !kids(axis, "chart:grid").isEmpty() && std::any_of(kids(axis, "chart:grid").cbegin(), kids(axis, "chart:grid").cend(), [](const QDomElement &g) { return at(g, "chart:class") == QLatin1String("major"); });
+        // (One list: the two ends of a range must come from the same one, not from two temporaries.)
+        const QVector<QDomElement> grids = kids(axis, "chart:grid");
+        target.majorGridlines = std::any_of(grids.cbegin(), grids.cend(), [](const QDomElement &g) { return at(g, "chart:class") == QLatin1String("major"); });
         if (const QColor line = parseColor(b.get(Graphic, "svg:stroke-color")); line.isValid()) {
             target.line.set = true;
             target.line.color = line;

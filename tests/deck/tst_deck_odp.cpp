@@ -554,6 +554,26 @@ private Q_SLOTS:
         QVERIFY2(chartPictures(*d).value(0).count('<') < 700, qPrintable(QString::number(chartPictures(*d).value(0).count('<'))));
     }
 
+    // A value axis has major gridlines when one of its grids is the major one, each time the file is read, and not when its only grid is minor.
+    void odpChartMajorGridlinesAreReadTheSameEveryTime()
+    {
+        const auto picture = [](const QString &grids) {
+            const QByteArray chart = odptest::chartContent(QStringLiteral("chart:bar"), {QStringLiteral("North")}, {{4, 8}}, QString(), QString(), QString(), QString(), QString(),
+                                                           QStringLiteral("<chart:axis chart:dimension=\"x\" chart:name=\"primary-x\"/><chart:axis chart:dimension=\"y\" chart:name=\"primary-y\">") + grids + QStringLiteral("</chart:axis>"));
+            QString err;
+            const auto d = deck::importOdp(odptest::chartDeck(chart, {QSizeF(300, 200)}), &err);
+            return d ? chartPictures(*d).value(0) : QByteArray();
+        };
+        const QString minor = QStringLiteral("<chart:grid chart:class=\"minor\"/>"), major = QStringLiteral("<chart:grid chart:class=\"major\"/>");
+        const QByteArray withMajor = picture(major), without = picture(minor);
+        QVERIFY(!withMajor.isEmpty());
+        QVERIFY(withMajor != without);
+        for (int i = 0; i < 40; ++i) {
+            QCOMPARE(picture(minor + major), withMajor);
+            QCOMPARE(picture(minor), without);
+        }
+    }
+
     // A scatter chart's points stand at the x values of the series' domain, not at 1, 2, 3.
     void odpChartScatterUsesItsDomain()
     {
