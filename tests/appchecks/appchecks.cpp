@@ -233,8 +233,6 @@ QString fingerprint(jp::AppWindow *w, const QAction *skip)
         // (the status bar says what a command made of itself: its words and counts follow the change and are not one)
         if (status && (c == status || status->isAncestorOf(c))) continue;
         out += QString::number(c->isVisibleTo(w)) + QString::number(c->isEnabled());
-        // (the pointer over a widget is seen: a drawing tool shows its crosshair)
-        if (c->testAttribute(Qt::WA_SetCursor)) out += QLatin1Char('@') + QString::number(int(c->cursor().shape()));
         if (const auto *label = qobject_cast<const QLabel *>(c)) out += label->text();
         else if (const auto *button = qobject_cast<const QAbstractButton *>(c)) out += button->text();
         else if (const auto *edit = qobject_cast<const QLineEdit *>(c)) out += edit->text();
