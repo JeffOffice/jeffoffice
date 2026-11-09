@@ -558,8 +558,9 @@ private Q_SLOTS:
     // measuring does first); and the margins go with the style sheet: none without one, back with one.
     void numberBoxesFitTheirTextMarginsAndFollowTheStyleSheet()
     {
-        jp::applyUiTheme(1);
-        QVERIFY(!qApp->styleSheet().isEmpty());
+        const QString before = qApp->styleSheet();   // (the sheet is put back at the end: other tests run without one)
+        jp::installUiPolish();
+        qApp->setStyleSheet(jp::modernStyleSheet());
         auto *group = new jp::RibbonGroup(QStringLiteral("Test"));
         auto *spin = new jp::MeasureSpin();   // (not polished: nothing has shown it)
         group->addRow({spin});
@@ -571,9 +572,12 @@ private Q_SLOTS:
         qApp->setStyleSheet(QString());
         jp::updateNumberBoxInsets();
         QCOMPARE(le->textMargins().left(), 0);
-        jp::applyUiTheme(1);
+        qApp->setStyleSheet(jp::modernStyleSheet());
+        jp::updateNumberBoxInsets();
         QCOMPARE(le->textMargins().left(), 8);
         delete group;
+        qApp->setStyleSheet(before);
+        jp::updateNumberBoxInsets();
     }
 
     void ribbonControlsAreNamedAndReachable()
