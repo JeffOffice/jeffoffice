@@ -126,6 +126,10 @@ file
 
 die() { echo "build_ffmpeg: $*" >&2; exit 1; }
 
+# This build has flags and paths of its own. A build system's (snapcraft, for one, sets CFLAGS, LDFLAGS, and the library paths to its stage folders) would
+# be added to configure's test compiles and links and can break them ("gcc is unable to create an executable file").
+unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS LIBRARY_PATH CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH PKG_CONFIG_PATH PKG_CONFIG_LIBDIR LD_LIBRARY_PATH LD_RUN_PATH CC CXX
+
 HERE=$(cd "$(dirname "$0")" && pwd)
 [ $# -ge 1 ] || die "usage: tools/build_ffmpeg.sh PREFIX [WORKDIR]"
 mkdir -p "$1"
@@ -230,7 +234,7 @@ cd "$BUILD"
     --enable-shared --disable-static --enable-pic \
     --enable-avcodec --enable-avformat --enable-avutil --enable-swresample --enable-swscale \
     $SYSFLAGS $ASM $ENABLES \
-    --extra-cflags="$CFLAGS_EXTRA" --extra-ldflags="$LDFLAGS_EXTRA" >configure.log 2>&1 || { tail -30 configure.log >&2; die "configure failed (see $BUILD/configure.log)"; }
+    --extra-cflags="$CFLAGS_EXTRA" --extra-ldflags="$LDFLAGS_EXTRA" >configure.log 2>&1 || { tail -30 configure.log >&2; echo "---- the last of ffbuild/config.log:" >&2; tail -40 ffbuild/config.log >&2 2>/dev/null; env | grep -E '^(CC|CFLAGS|LDFLAGS|CPPFLAGS|LD_LIBRARY_PATH|PATH)=' >&2; die "configure failed (see $BUILD/ffbuild/config.log)"; }
 
 # Windows: zlib is MSYS2's static copy, so that the DLLs need no zlib DLL (its linker would take the import library, and a DLL, first).
 if [ "$OS" != Linux ] && [ "$OS" != Darwin ]; then
