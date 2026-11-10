@@ -21,6 +21,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSettings>
+#include <QTabBar>
 #include <QToolButton>
 #include <QTreeWidget>
 #include <QUndoStack>
@@ -768,6 +769,21 @@ private Q_SLOTS:
         QVERIFY2(boxes.contains(QStringLiteral("Match case")), qPrintable(boxes.join(QLatin1Char('|'))));
         QVERIFY2(!boxes.contains(QStringLiteral("Same capitals only")), qPrintable(boxes.join(QLatin1Char('|'))));
         QVERIFY2(boxes.contains(QStringLiteral("Whole cell only")), qPrintable(boxes.join(QLatin1Char('|'))));
+        // the labels, tabs, buttons, and spoken names are the ones the other apps' Find and Replace use
+        QStringList words;
+        for (QLabel *l : d.findChildren<QLabel *>()) words << l->text();
+        for (QPushButton *b : d.findChildren<QPushButton *>()) words << b->text();
+        auto *tabs = d.findChild<QTabBar *>(QStringLiteral("findTabs"));
+        QVERIFY(tabs);
+        QCOMPARE(tabs->tabText(0), QStringLiteral("Find"));
+        QCOMPARE(tabs->tabText(1), QStringLiteral("Replace"));
+        QCOMPARE(tabs->accessibleName(), QStringLiteral("Find or replace"));
+        QCOMPARE(d.findChild<QLineEdit *>(QStringLiteral("findText"))->accessibleName(), QStringLiteral("Find what"));
+        QCOMPARE(d.findChild<QLineEdit *>(QStringLiteral("replaceText"))->accessibleName(), QStringLiteral("Replace with"));
+        for (const char *want : {"Find what:", "Replace with:", "Find Next", "Replace", "Replace All"})
+            QVERIFY2(words.contains(QString::fromLatin1(want)), want);
+        for (const char *gone : {"Look for:", "Change to:", "Next", "Change", "Change All"})
+            QVERIFY2(!words.contains(QString::fromLatin1(gone)), gone);
     }
 
     void findNextAndFindAllWorkFromTheDialog()

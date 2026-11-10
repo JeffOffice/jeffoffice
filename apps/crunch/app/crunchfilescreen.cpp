@@ -303,7 +303,7 @@ QWidget *CrunchFileScreen::buildAbout()
 {
     AboutHost host;
     host.tagline = tr("Free, open-source spreadsheets for Windows, macOS, and Linux. This is a Preview.");
-    host.nameNote = tr("Saved as the author of new workbooks and shown in comments.");
+    host.nameNote = tr("Saved as who last changed a workbook.");
     return buildAboutPage(nullptr, this, host);
 }
 
