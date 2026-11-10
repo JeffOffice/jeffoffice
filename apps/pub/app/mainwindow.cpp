@@ -698,7 +698,8 @@ bool MainWindow::saveAs(const QString &format)
         const QString tdir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/Templates";
         QDir().mkpath(tdir);
         QString err;
-        if (!savePublication(*m_ed->doc(), tdir + "/" + QFileInfo(path).completeBaseName() + ".jpub", pageThumbnail(0, 256), &err, true, QString(), m_fileProtected ? m_filePassword : QString()))
+        // (a template is never protected: the password stays with this publication)
+        if (!savePublication(*m_ed->doc(), tdir + "/" + QFileInfo(path).completeBaseName() + ".jpub", pageThumbnail(0, 256), &err, true))
             jp::plainWarning(this, tr("Save as Template"), err);
         else statusBar()->showMessage(tr("Saved to My Templates."), 4000);
         return true;

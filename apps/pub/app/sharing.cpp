@@ -7,6 +7,7 @@
 #include "app/mainwindow.h"
 #include "io/jpubfile.h"
 #include "io/zip.h"
+#include "office/officecrypt.h"
 #include "render/renderer.h"
 
 #include <QBuffer>
@@ -93,6 +94,9 @@ bool emailAsAttachment(QWidget *parent, Editor *ed, const QString &format, const
         mime = "application/pdf";
     } else {
         data = publicationBytes(*ed->doc(), QImage(), QString(), true);
+        // (a protected publication is attached protected)
+        const auto *win = qobject_cast<MainWindow *>(parent->window());
+        if (win && !win->filePassword().isEmpty()) data = office::encryptPackage(data, win->filePassword());
         fileName = ed->displayName() + ".jpub";
         mime = "application/x-jeffpub";
     }
@@ -117,7 +121,7 @@ bool packForPrinter(MainWindow *win, const QString &dir, QString *error)
         return false;
     }
     QString err;
-    if (!savePublication(*ed->doc(), base + ".jpub", win->pageThumbnail(0, 256), &err, true)) {
+    if (!savePublication(*ed->doc(), base + ".jpub", win->pageThumbnail(0, 256), &err, true, QString(), win->filePassword())) {
         if (error) *error = QCoreApplication::translate("Sharing", "JeffPub couldn't save the publication in %1.\n%2").arg(QDir::toNativeSeparators(dir), err);
         return false;
     }
@@ -137,7 +141,10 @@ bool packToZip(MainWindow *win, const QString &path, int *fontCount, QString *er
 {
     Editor *ed = win->editor();
     ZipWriter z;
-    z.add(ed->displayName() + ".jpub", publicationBytes(*ed->doc(), win->pageThumbnail(0, 256), QString(), true));
+    QByteArray jpub = publicationBytes(*ed->doc(), win->pageThumbnail(0, 256), QString(), true);
+    // (a protected publication is packed protected)
+    if (!win->filePassword().isEmpty()) jpub = office::encryptPackage(jpub, win->filePassword());
+    z.add(ed->displayName() + ".jpub", jpub);
     // Include the font files the publication uses, when they are bundled or installed as files.
     QSet<QString> families;
     for (auto it = ed->doc()->stories.cbegin(); it != ed->doc()->stories.cend(); ++it)

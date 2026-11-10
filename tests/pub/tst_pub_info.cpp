@@ -12,6 +12,7 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QtEndian>
@@ -76,7 +77,10 @@ struct BoxAnswer {
         QObject::connect(t, &QTimer::timeout, t, [t, yes, said] {
             if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
                 if (said) *said = box->text();
-                box->button(yes ? QMessageBox::Yes : QMessageBox::No)->click();
+                QAbstractButton *b = box->button(yes ? QMessageBox::Yes : QMessageBox::No);
+                if (!b) b = box->button(QMessageBox::Ok);
+                if (b) b->click();
+                else box->accept();
                 t->deleteLater();
             }
         });
@@ -478,6 +482,83 @@ private Q_SLOTS:
         QVERIFY(b.isPasswordProtected());
         b.setMarkedFinal(false);
         QVERIFY(!b.isReadOnly());
+    }
+
+    // The password of a file does not go into a template: a protected publication becomes an unprotected template, and a new publication from it asks for nothing.
+    void aTemplateMadeFromAProtectedPublicationHasNoPassword()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow w;
+        Quiet quiet(w);
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("t.jpub"))));
+        choosePassword(w, QStringLiteral("hunter2"));
+        const QString tdir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/Templates");
+        const QString tpl = tdir + QStringLiteral("/pwtemplate-test.jpub");
+        QFile::remove(tpl);
+        jp::setSavePathStandIn([&](const QString &, const QString &, const QString &, QString *selected) {
+            *selected = QCoreApplication::translate("jp::MainWindow", "JeffPub Template (*.jpub)");
+            return dir.filePath(QStringLiteral("pwtemplate-test.jpub"));
+        });
+        const auto reset = qScopeGuard([&] { jp::setSavePathStandIn({}); QFile::remove(tpl); });
+        QVERIFY(w.saveAs());
+        QVERIFY(w.isPasswordProtected());   // (the window is as it was)
+        QVERIFY(QFileInfo::exists(tpl));
+        QVERIFY(fileBytes(tpl).startsWith("PK"));
+        int asked = 0;
+        answerWith({}, &asked);
+        jp::MainWindow n;
+        Quiet quietN(n);
+        QVERIFY(n.openFile(tpl, jp::OpenHow::Copy));
+        QCOMPARE(asked, 0);
+        QVERIFY(!n.isPasswordProtected());
+    }
+
+    // Pack and Go (to a printer's folder, and to a ZIP) and an email with the publication attached keep the password on the .jpub they write.
+    void packAndGoAndEmailKeepThePassword()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow w;
+        Quiet quiet(w);
+        w.editor()->doc()->props.title = QStringLiteral("Shared flyer");
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("share.jpub"))));
+        choosePassword(w, QStringLiteral("hunter2"));
+        const QString name = w.editor()->displayName();
+        auto opensWith = [&](const QByteArray &bytes, const char *what) {
+            QVERIFY2(bytes.startsWith(kCompound), what);
+            QVERIFY2(!bytes.contains("document.json"), what);
+            const QString file = dir.filePath(QStringLiteral("check.jpub"));
+            QFile f(file);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(bytes);
+            f.close();
+            answerWith({QStringLiteral("hunter2")});
+            jp::MainWindow o;
+            Quiet quietO(o);
+            QVERIFY2(o.openFile(file), what);
+            QVERIFY2(o.isPasswordProtected(), what);
+        };
+        // Pack and Go to a printer
+        QTemporaryDir out;
+        QString err;
+        QVERIFY(jp::packForPrinter(&w, out.path(), &err));
+        opensWith(fileBytes(QDir(out.path()).filePath(name + QStringLiteral(".jpub"))), "printer folder");
+        // Pack and Go to a ZIP
+        const QString zip = dir.filePath(QStringLiteral("pack.zip"));
+        int fonts = 0;
+        QVERIFY(jp::packToZip(&w, zip, &fonts, &err));
+        opensWith(jp::readZipEntry(zip, name + QStringLiteral(".jpub")), "zip");
+        // an email
+        const QString eml = dir.filePath(QStringLiteral("mail.eml"));
+        jp::setSavePathStandIn([&](const QString &, const QString &, const QString &, QString *) { return eml; });
+        const auto reset = qScopeGuard([] { jp::setSavePathStandIn({}); });
+        BoxAnswer ok(true, nullptr);
+        QVERIFY(jp::emailAsAttachment(&w, w.editor(), QStringLiteral("jpub")));
+        const QByteArray mail = fileBytes(eml);
+        const qsizetype from = mail.indexOf("base64\r\n\r\n");
+        QVERIFY(from > 0);
+        const qsizetype to = mail.indexOf("--jp79--", from);
+        opensWith(QByteArray::fromBase64(mail.mid(from + 10, to - from - 10)), "email");
+        w.editor()->markSaved();
     }
 
     // A .jpub file can't make the program hold an endless list of custom properties, nor one with a huge value.

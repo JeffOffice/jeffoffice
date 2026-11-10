@@ -107,6 +107,7 @@ public:
     // can have one.
     bool isPasswordProtected() const { return m_fileProtected; }
     void encryptWithPassword();
+    QString filePassword() const { return m_fileProtected ? m_filePassword : QString(); }   // what a copy written for sharing is protected with ("": none)
     QString encryptBlocked() const;   // why the file can't have a password ("" when it can)
     void setMarkedFinal(bool on);
     QVector<InspectItem> inspectItems();
