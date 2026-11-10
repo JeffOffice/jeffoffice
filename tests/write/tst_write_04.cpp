@@ -676,7 +676,7 @@ void WriteTests::aCursorInTheTextGivenToTheViewLeavesTheHeader()
 // The Spelling pane, when it goes on to the next word with a header open, leaves the header: the word is shown in the text.
 void WriteTests::theSpellingPaneWithAHeaderOpenLeavesTheHeader()
 {
-    const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);
+    const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);
     WriteWindow w;
     w.setDocument(open(makeDocxWithParts("<w:p><w:r><w:t>Zzalpha is first.</w:t></w:r></w:p><w:p><w:r><w:t>Then zzbeta follows.</w:t></w:r></w:p>", sectionNaming({{"default", "rIdheader1"}}),
                                          {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>HEAD</w:t></w:r>"})}})), QString());

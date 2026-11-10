@@ -3,6 +3,8 @@
 #include "core/version.h"
 #include "deckhelpers.h"
 
+#include "../settingguard.h"
+
 #include <QToolTip>
 
 class DeckReviewTests : public QObject {
@@ -34,6 +36,47 @@ private Q_SLOTS:
         QVERIFY2(shown.contains(QStringLiteral("mispelled")), qPrintable(shown));
         QCOMPARE(selected, QStringLiteral("mispelled"));
         QVERIFY(ed->isEditingText());
+    }
+
+    // Check spelling as you type is the suite's one choice: Options has the box, and turning it off there takes the red lines from every open window, and the next window opens without them.
+    void spellingAsYouTypeIsOneChoiceInOptions()
+    {
+        const jptest::SettingGuard keep(QStringLiteral("proof/checkAsYouType"), true, true);
+        auto addText = [](DeckWindow &w) {
+            auto *title = static_cast<TextItem *>(w.editor()->doc()->pages[0]->items[0].get());
+            QTextCursor(w.editor()->doc()->storyDoc(title->storyId)).insertText(QStringLiteral("A mispelled word"));
+            return title->storyId;
+        };
+        DeckWindow first, second;
+        const QString a = addText(first), b = addText(second);
+        QVERIFY(first.editor()->renderOptions().misspelled.contains(a));
+        QVERIFY(second.editor()->renderOptions().misspelled.contains(b));
+        // Options: the box is found (by its words), looked at, set, and the dialog accepted; the timer keeps looking until the dialog is up.
+        QString boxText;
+        bool boxWas = false;
+        QTimer watch;
+        watch.setInterval(20);
+        QObject::connect(&watch, &QTimer::timeout, &watch, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            watch.stop();
+            for (QCheckBox *box : d->findChildren<QCheckBox *>())
+                if (box->text().contains(QLatin1String("spelling as you type"), Qt::CaseInsensitive)) {
+                    boxText = box->text();
+                    boxWas = box->isChecked();
+                    box->setChecked(false);
+                }
+            d->accept();
+        });
+        watch.start();
+        first.act(QStringLiteral("file.options"))->trigger();
+        QCOMPARE(boxText, QStringLiteral("Check spelling as you type"));
+        QVERIFY(boxWas);
+        QVERIFY(!first.editor()->renderOptions().misspelled.contains(a));
+        QVERIFY(!second.editor()->renderOptions().misspelled.contains(b));
+        QVERIFY(!Settings::get().value(QStringLiteral("proof/checkAsYouType"), true).toBool());
+        DeckWindow later;
+        QVERIFY(!later.editor()->view.spelling);
     }
 
     // Word Count counts the words on the slides, not the prompts of the layouts.

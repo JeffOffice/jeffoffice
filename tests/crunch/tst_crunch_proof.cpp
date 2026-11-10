@@ -15,6 +15,7 @@
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
 #include "../localepin.h"
+#include "../settingguard.h"
 #include "../sheet/sheethelpers.h"
 #include "io/zip.h"
 #include "office/package.h"
@@ -844,6 +845,73 @@ private Q_SLOTS:
         QMenu again;
         QVERIFY(editor->addSpellingSuggestions(again, 6));
         e.key(Qt::Key_Escape);
+    }
+
+    // The one shared choice: Options has the box, off there stops the checking in an editor that is open, and the old key of JeffCrunch (and of JeffWrite) moves over once.
+    void spellingAsYouTypeIsOneChoiceInOptions()
+    {
+        const jptest::SettingGuard keep(QStringLiteral("proof/checkAsYouType"), true, true);
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        e.select("E5");
+        e.type("see speling here ");
+        CellEditor *editor = w.cellEditor();
+        QTRY_COMPARE(editor->misspellings().size(), 1);
+        // Options: the box is found (by its words), looked at, set, and the dialog accepted; the timer keeps looking until the dialog is up.
+        QString boxText;
+        bool boxWas = false;
+        QTimer watch;
+        watch.setInterval(20);
+        QObject::connect(&watch, &QTimer::timeout, &watch, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            watch.stop();
+            for (QCheckBox *box : d->findChildren<QCheckBox *>())
+                if (box->text().contains(QLatin1String("spelling as you type"), Qt::CaseInsensitive)) {
+                    boxText = box->text();
+                    boxWas = box->isChecked();
+                    box->setChecked(false);
+                }
+            d->accept();
+        });
+        watch.start();
+        w.act(QStringLiteral("file.options"))->trigger();
+        QCOMPARE(boxText, QStringLiteral("Check spelling as you type"));
+        QVERIFY(boxWas);
+        QVERIFY(editor->misspellings().isEmpty());   // (at once, in the open editor)
+        QVERIFY(!CellEditor::spellingOn());
+        QVERIFY(!jp::Settings::get().value(QStringLiteral("proof/checkAsYouType"), true).toBool());
+        e.key(Qt::Key_Escape);
+    }
+
+    void theOldCrunchKeyMovesToTheSharedChoice()
+    {
+        QTemporaryDir dir;
+        const QString key = QStringLiteral("proof/checkAsYouType");
+        {   // JeffCrunch's old key, off: the shared choice starts off, read once
+            QSettings app(dir.filePath(QStringLiteral("a.ini")), QSettings::IniFormat), suite(dir.filePath(QStringLiteral("s.ini")), QSettings::IniFormat);
+            app.setValue(QStringLiteral("proof/spellAsYouType"), false);
+            jp::migrateSpellSetting(app, suite);
+            QVERIFY(suite.contains(key));
+            QVERIFY(!suite.value(key).toBool());
+            suite.setValue(key, true);   // (the person turns it on again; the old key is not read a second time)
+            jp::migrateSpellSetting(app, suite);
+            QVERIFY(suite.value(key).toBool());
+        }
+        {   // JeffWrite's old key, off, likewise
+            QSettings app(dir.filePath(QStringLiteral("b.ini")), QSettings::IniFormat), suite(dir.filePath(QStringLiteral("t.ini")), QSettings::IniFormat);
+            app.setValue(QStringLiteral("proof/asYouType"), false);
+            jp::migrateSpellSetting(app, suite);
+            QVERIFY(!suite.value(key, true).toBool());
+        }
+        {   // on, or never set: nothing is written, and it stays on
+            QSettings app(dir.filePath(QStringLiteral("c.ini")), QSettings::IniFormat), suite(dir.filePath(QStringLiteral("u.ini")), QSettings::IniFormat);
+            app.setValue(QStringLiteral("proof/spellAsYouType"), true);
+            jp::migrateSpellSetting(app, suite);
+            QVERIFY(!suite.contains(key));
+        }
+        QVERIFY(jp::suiteWide(key));
     }
 
     // ---- AutoCorrect in a cell: what is a formula, and what is prose

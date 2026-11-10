@@ -1,5 +1,6 @@
 // JeffPub's tests of find, replace, spelling, and hyphenation.
 #include "pubhelpers.h"
+#include "../settingguard.h"
 
 class PubFindTests : public QObject {
     Q_OBJECT
@@ -211,6 +212,52 @@ private Q_SLOTS:
         QCOMPARE(ranges.first(), qMakePair(8, 11));
         QVERIFY(jp::spellingSuggestions(QStringLiteral("teh")).contains(QStringLiteral("the")));
         QVERIFY(w.editor()->renderOptions().misspelled.contains(t->storyId));
+    }
+
+    // Check spelling as you type is the suite's one choice: Options has the box, turning it off there takes the red lines from every open window and is remembered by the next.
+    void spellingAsYouTypeIsOneChoiceInOptions()
+    {
+        const jptest::SettingGuard keep(QStringLiteral("proof/checkAsYouType"), true, true);
+        auto addText = [](jp::MainWindow &w) {
+            auto doc = jp::Document::blank(QSizeF(612, 792));
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(72, 72, 300, 100);
+            t->storyId = doc->createStory(QStringLiteral("This is teh test."));
+            doc->pages[0]->items.push_back(t);
+            w.editor()->setDocument(std::move(doc));
+            return t->storyId;
+        };
+        jp::MainWindow first, second;
+        const QString a = addText(first), b = addText(second);
+        QVERIFY(first.editor()->renderOptions().misspelled.contains(a));
+        QVERIFY(second.editor()->renderOptions().misspelled.contains(b));
+        // Options: the box is found (by its words), looked at, set, and the dialog accepted; the timer keeps looking until the dialog is up.
+        QString boxText;
+        bool boxWas = false;
+        QTimer watch;
+        watch.setInterval(20);
+        QObject::connect(&watch, &QTimer::timeout, &watch, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            watch.stop();
+            for (QCheckBox *box : d->findChildren<QCheckBox *>())
+                if (box->text().contains(QLatin1String("spelling as you type"), Qt::CaseInsensitive)) {
+                    boxText = box->text();
+                    boxWas = box->isChecked();
+                    box->setChecked(false);
+                }
+            d->accept();
+        });
+        watch.start();
+        first.act(QStringLiteral("file.options"))->trigger();
+        QCOMPARE(boxText, QStringLiteral("Check spelling as you type"));
+        QVERIFY(boxWas);
+        QVERIFY(!first.editor()->renderOptions().misspelled.contains(a));
+        QVERIFY(!second.editor()->renderOptions().misspelled.contains(b));   // (the other window, at once)
+        QTRY_VERIFY(!second.act(QStringLiteral("rev.checkAsType"))->isChecked());
+        QVERIFY(!jp::Settings::get().value(QStringLiteral("proof/checkAsYouType"), true).toBool());
+        jp::MainWindow later;
+        QVERIFY(!later.editor()->view.spelling);   // (remembered)
     }
 
     // The Find and Replace pane: Find Next walks the pages and shows each match

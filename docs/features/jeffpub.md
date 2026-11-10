@@ -180,7 +180,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [ ] **later** Catalog merge: choose across or down for the order items fill the cells, pick a catalog page layout, and use a Catalog Merge tab of its own *(a pane does it today: Rows and Columns, product fields, picture fields, and preview)*
 
 ## Review tab
-- [x] **1.0** Spelling (check as you type, dialog with suggestions, ignore, add to dictionary; check as you type is switched on and off from the ribbon)
+- [x] **1.0** Spelling (check as you type, dialog with suggestions, ignore, add to dictionary; check as you type is switched on and off from the ribbon, and is one choice for every app and window)
 - [x] **1.0** Thesaurus
 - [x] **1.0** Research **(alt: an offline thesaurus: synonyms and related words, without going online)**
 - [x] **1.0** Translate **(alt: opens the selected text in LibreTranslate, an open-source translation service)**

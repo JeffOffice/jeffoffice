@@ -951,6 +951,7 @@ private Q_SLOTS:
     void theSpellingPaneNeverHoldsTheWindowForAWholeDocument();
     void changeAllGoesOnFromTheWordWhateverTheEarlierOnesChangedBy();
     void checkingSpellingAsYouTypeCanBeTurnedOffInTheReviewTab();
+    void checkingSpellingAsYouTypeIsOneChoiceInOptions();
     void aStyleThatSetsALanguageGivesItToTheTextAndTakesItAway();
     void searchingForMisspellingsGoesInSlicesOfBoundedWork();
     void aLongParagraphIsCheckedInPiecesOfBoundedWork();

@@ -7,7 +7,7 @@ The **Review** tab has tools that help you get your words right.
 
 JeffPub puts a red wavy line under a word it does not know. Right-click the word to pick a suggestion, choose **Ignore All** (for this session), or choose **Add to Dictionary**.
 
-To turn this off, click the arrow beside **Review > Proofing > Spelling** and click **Check Spelling as You Type**.
+To turn this off, click the arrow beside **Review > Proofing > Spelling** and click **Check Spelling as You Type**. The same choice is in **File > Options > Proofing**. It is one choice for all the JeffOffice apps and every window, and JeffPub remembers it for the next time you start.
 
 ## Check the whole publication
 

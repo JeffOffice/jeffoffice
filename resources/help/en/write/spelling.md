@@ -30,7 +30,7 @@ The pane goes to the end of the document, then continues from the top, up to the
 
 ## Turn the red lines off or on
 
-Click **Review > Check Spelling as You Type**. The same choice is in **File > Options > Proofing**. There you can also choose to skip words in UPPERCASE and words with numbers in them, such as 3rd. Both are skipped at first.
+Click **Review > Check Spelling as You Type**. The same choice is in **File > Options > Proofing**, and it is the one choice all the JeffOffice apps use. There you can also choose to skip words in UPPERCASE and words with numbers in them, such as 3rd. Both are skipped at first.
 
 ## Languages
 

@@ -1733,7 +1733,7 @@ void WriteTests::theSpellingMenuOffersSuggestionsIgnoreAllAndAddToDictionary()
 
 void WriteTests::rightClickingAMisspelledWordInTheWindowShowsItsSuggestions()
 {
-    const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);
+    const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);
     WriteWindow w;
     w.setDocument(textDoc({"A word that is wrongg here."}), QString());
     w.show();
@@ -1756,7 +1756,7 @@ void WriteTests::rightClickingAMisspelledWordInTheWindowShowsItsSuggestions()
 
 void WriteTests::reviewSpellingStepsThroughTheMisspellingsFromTheCaret()
 {
-    const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);
+    const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);
     WriteWindow w;
     w.setDocument(textDoc({"First wrongg word, and wrongg again.", "And a secnd one, plus fourh and then bluh."}), QString());
     w.show();
@@ -1806,7 +1806,7 @@ void WriteTests::reviewSpellingStepsThroughTheMisspellingsFromTheCaret()
 
 void WriteTests::reviewSpellingBeginsAtTheCaretAndComesBackToWhereItBegan()
 {
-    const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);
+    const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);
     WriteWindow w;
     w.setDocument(textDoc({"Zzalpha is first.", "Then zzbeta follows.", "And zzgamma last."}), QString());
     w.show();
@@ -1842,7 +1842,7 @@ void WriteTests::hostileDocumentTextIsShownAsText()
 {
     using plainprobe::readsAPicture;
     QVERIFY(plainprobe::probeSeesTheTrap());
-    const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);
+    const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);
     WriteWindow w;
     w.setDocument(textDoc({QStringLiteral("zzlonely ") + plainprobe::hostile().toHtmlEscaped()}), QString());
     w.show();
@@ -1885,7 +1885,7 @@ void WriteTests::hostileDocumentTextIsShownAsText()
 
 void WriteTests::theSpellingPaneNeverHoldsTheWindowForAWholeDocument()
 {
-    const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);
+    const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);
     WriteWindow w;
     w.setDocument(open(makeDocx(paragraphs(1500) + "<w:p><w:r><w:t>and one recieve at the very end</w:t></w:r></w:p>", kStyles)), QString());
     w.show();
@@ -1906,7 +1906,7 @@ void WriteTests::theSpellingPaneNeverHoldsTheWindowForAWholeDocument()
 
 void WriteTests::changeAllGoesOnFromTheWordWhateverTheEarlierOnesChangedBy()
 {
-    const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);
+    const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);
     WriteWindow w;
     w.setDocument(textDoc({"wrongg wrongg wrongg", "zztwo wrongg zzthree"}), QString());
     w.show();
@@ -1934,7 +1934,7 @@ void WriteTests::changeAllGoesOnFromTheWordWhateverTheEarlierOnesChangedBy()
 
 void WriteTests::checkingSpellingAsYouTypeCanBeTurnedOffInTheReviewTab()
 {
-    const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);   // (what the test begins with, and what the person had comes back)
+    const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);   // (what the test begins with, and what the person had comes back)
     WriteWindow w;
     w.setDocument(textDoc({"A recieve here."}), QString());
     w.show();
@@ -1954,6 +1954,49 @@ void WriteTests::checkingSpellingAsYouTypeCanBeTurnedOffInTheReviewTab()
     QVERIFY(w.view()->spellingEnabled());
     WriteWindow third;
     QVERIFY(third.view()->spellingEnabled());
+}
+
+void WriteTests::checkingSpellingAsYouTypeIsOneChoiceInOptions()
+{
+    const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);
+    WriteWindow w, other;
+    for (WriteWindow *x : {&w, &other}) {
+        x->setDocument(textDoc({"A recieve here."}), QString());
+        x->show();
+    }
+    int count = 0;
+    redBounds(w.view()->grab().toImage(), w.view()->pageRect(0), &count);
+    QVERIFY(count > 0);
+    // Options: the box is found (by its words), looked at, set, and the dialog accepted; the timer keeps looking until the dialog is up.
+    QString boxText;
+    bool boxWas = false;
+    QTimer watch;
+    watch.setInterval(20);
+    QObject::connect(&watch, &QTimer::timeout, &watch, [&] {
+        auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (!d) return;
+        watch.stop();
+        for (QCheckBox *box : d->findChildren<QCheckBox *>())
+        if (box->text().contains(QLatin1String("spelling as you type"), Qt::CaseInsensitive)) {
+            boxText = box->text();
+            boxWas = box->isChecked();
+            box->setChecked(false);
+        }
+        d->accept();
+    });
+    watch.start();
+    w.act("file.options")->trigger();
+    QCOMPARE(boxText, QStringLiteral("Check spelling as you type"));
+    QVERIFY(boxWas);
+    QVERIFY(!w.view()->spellingEnabled());
+    QVERIFY(!other.view()->spellingEnabled());   // (the other window, at once)
+    QVERIFY(!other.act("review.checkAsType")->isChecked());
+    count = -1;
+    redBounds(w.view()->grab().toImage(), w.view()->pageRect(0), &count);
+    QCOMPARE(count, 0);
+    QVERIFY(!Settings::get().value(QStringLiteral("proof/checkAsYouType"), true).toBool());
+    WriteWindow later;
+    QVERIFY(!later.view()->spellingEnabled());   // (remembered)
 }
 
 
