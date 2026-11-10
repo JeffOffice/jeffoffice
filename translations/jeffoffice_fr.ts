@@ -198,12 +198,15 @@
     </message>
     <message>
         <location line="+19"/>
+        <location line="+0"/>
         <source>Appear</source>
         <translation type="unfinished">Apparaître</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+0"/>
         <location line="+15"/>
+        <location line="+0"/>
         <source>Fade</source>
         <translation type="unfinished">Estomper</translation>
     </message>
@@ -231,6 +234,7 @@
     </message>
     <message>
         <location line="-14"/>
+        <location line="+0"/>
         <source>Grow &amp; Turn</source>
         <translation type="unfinished">Agrandir et tourner</translation>
     </message>
@@ -253,11 +257,13 @@
     </message>
     <message>
         <location line="+2"/>
+        <location line="+0"/>
         <source>Pulse</source>
         <translation type="unfinished">Impulsion</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+0"/>
         <source>Teeter</source>
         <translation type="unfinished">Bascule</translation>
     </message>
@@ -298,6 +304,7 @@
     </message>
     <message>
         <location line="+2"/>
+        <location line="+0"/>
         <source>Disappear</source>
         <translation type="unfinished">Disparaître</translation>
     </message>
@@ -313,6 +320,7 @@
     </message>
     <message>
         <location line="+3"/>
+        <location line="+0"/>
         <source>Shrink &amp; Turn</source>
         <translation type="unfinished">Rétrécir et tourner</translation>
     </message>
@@ -1098,134 +1106,6 @@ Article de dernière page	4</translation>
         <location line="+0"/>
         <source>Next Month</source>
         <translation type="unfinished">Le mois prochain</translation>
-    </message>
-</context>
-<context>
-    <name>CalculatedFieldDialog</name>
-    <message>
-        <location filename="../apps/crunch/app/pivotpane.cpp" line="+475"/>
-        <source>Insert Calculated Field</source>
-        <translation type="unfinished">Insérer un champ calculé</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>Name</source>
-        <translation type="unfinished">Nom</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Name:</source>
-        <translation type="unfinished">Nom :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Formula</source>
-        <translation type="unfinished">Formule</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Formula:</source>
-        <translation type="unfinished">Formule :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Fields</source>
-        <translation type="unfinished">Champs</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Fields:</source>
-        <translation type="unfinished">Champs :</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Double-click a field to put its name in the formula. A field&apos;s name stands for its total in each cell.</source>
-        <translation type="unfinished">Double-cliquez sur un champ pour insérer son nom dans la formule. Le nom d&apos;un champ représente son total dans chaque cellule.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <location line="+29"/>
-        <source>Add</source>
-        <translation type="unfinished">Ajouter</translation>
-    </message>
-    <message>
-        <location line="-27"/>
-        <source>Delete</source>
-        <translation type="unfinished">Supprimer</translation>
-    </message>
-    <message>
-        <location line="+27"/>
-        <source>Modify</source>
-        <translation type="unfinished">Modifier</translation>
-    </message>
-</context>
-<context>
-    <name>CalculatedItemDialog</name>
-    <message>
-        <location line="+16"/>
-        <source>Insert Calculated Item</source>
-        <translation type="unfinished">Insérer un élément calculé</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Field</source>
-        <translation type="unfinished">Champ</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Field:</source>
-        <translation type="unfinished">Champ :</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Name</source>
-        <translation type="unfinished">Nom</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Name:</source>
-        <translation type="unfinished">Nom :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Formula</source>
-        <translation type="unfinished">Formule</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Formula:</source>
-        <translation type="unfinished">Formule :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Items</source>
-        <translation type="unfinished">Éléments</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Items:</source>
-        <translation type="unfinished">Éléments :</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Double-click an item to put its name in the formula. An item&apos;s name stands for its value in each cell.</source>
-        <translation type="unfinished">Double-cliquez sur un élément pour placer son nom dans la formule. Le nom d&apos;un élément représente sa valeur dans chaque cellule.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <location line="+46"/>
-        <source>Add</source>
-        <translation type="unfinished">Ajouter</translation>
-    </message>
-    <message>
-        <location line="-44"/>
-        <source>Delete</source>
-        <translation type="unfinished">Supprimer</translation>
-    </message>
-    <message>
-        <location line="+44"/>
-        <source>Modify</source>
-        <translation type="unfinished">Modifier</translation>
     </message>
 </context>
 <context>
@@ -5383,260 +5263,6 @@ Article de dernière page	4</translation>
     </message>
 </context>
 <context>
-    <name>FieldSettingsDialog</name>
-    <message>
-        <location filename="../apps/crunch/app/pivotpane.cpp" line="+131"/>
-        <source>Field Settings</source>
-        <translation type="unfinished">Paramètres du champ</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Source name:</source>
-        <translation type="unfinished">Nom de la source :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Custom name</source>
-        <translation type="unfinished">Nom personnalisé</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Custom name:</source>
-        <translation type="unfinished">Nom personnalisé :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Subtotals</source>
-        <translation type="unfinished">Sous-totaux</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Automatic</source>
-        <translation type="unfinished">Automatique</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>None</source>
-        <translation type="unfinished">Aucun</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Subtotals:</source>
-        <translation type="unfinished">Sous-totaux :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Layout</source>
-        <translation type="unfinished">Disposition</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Compact form</source>
-        <translation type="unfinished">Forme compacte</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Outline form</source>
-        <translation type="unfinished">Forme plan</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Tabular form</source>
-        <translation type="unfinished">Forme tabulaire</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Show item labels in:</source>
-        <translation type="unfinished">Afficher les étiquettes d&apos;éléments dans :</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Insert a blank line after each item</source>
-        <translation type="unfinished">Insérer une ligne vide après chaque élément</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Repeat item labels (outline and tabular forms)</source>
-        <translation type="unfinished">Répéter les étiquettes d&apos;éléments (formes plan et tabulaire)</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>Sort</source>
-        <translation type="unfinished">Trier</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Manual (keep the order of the items)</source>
-        <translation type="unfinished">Manuel (conserver l&apos;ordre des éléments)</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A to Z by the labels</source>
-        <translation type="unfinished">De A à Z selon les étiquettes</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Z to A by the labels</source>
-        <translation type="unfinished">De Z à A selon les étiquettes</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Smallest to largest by a value</source>
-        <translation type="unfinished">Du plus petit au plus grand selon une valeur</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Largest to smallest by a value</source>
-        <translation type="unfinished">Du plus grand au plus petit selon une valeur</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Sort:</source>
-        <translation type="unfinished">Trier :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Sort by this value</source>
-        <translation type="unfinished">Trier selon cette valeur</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <location line="+19"/>
-        <source>by the value:</source>
-        <translation type="unfinished">selon la valeur :</translation>
-    </message>
-    <message>
-        <location line="-15"/>
-        <source>Filter</source>
-        <translation type="unfinished">Filtre</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>No filter</source>
-        <translation type="unfinished">Aucun filtre</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Label begins with</source>
-        <translation type="unfinished">L&apos;étiquette commence par</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Label ends with</source>
-        <translation type="unfinished">L&apos;étiquette se termine par</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Label contains</source>
-        <translation type="unfinished">L&apos;étiquette contient</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Label does not contain</source>
-        <translation type="unfinished">L&apos;étiquette ne contient pas</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Label equals</source>
-        <translation type="unfinished">L&apos;étiquette est égale à</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Label does not equal</source>
-        <translation type="unfinished">L&apos;étiquette n&apos;est pas égale à</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Value is greater than</source>
-        <translation type="unfinished">La valeur est supérieure à</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Value is greater than or equal to</source>
-        <translation type="unfinished">La valeur est supérieure ou égale à</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Value is less than</source>
-        <translation type="unfinished">La valeur est inférieure à</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Value is less than or equal to</source>
-        <translation type="unfinished">La valeur est inférieure ou égale à</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Value equals</source>
-        <translation type="unfinished">La valeur est égale à</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Value does not equal</source>
-        <translation type="unfinished">La valeur n&apos;est pas égale à</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Value is between</source>
-        <translation type="unfinished">La valeur est comprise entre</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Value is not between</source>
-        <translation type="unfinished">La valeur n&apos;est pas comprise entre</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Top items (by a value)</source>
-        <translation type="unfinished">Éléments supérieurs (selon une valeur)</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Bottom items (by a value)</source>
-        <translation type="unfinished">Éléments inférieurs (selon une valeur)</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Filter:</source>
-        <translation type="unfinished">Filtre :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Filter by this value</source>
-        <translation type="unfinished">Filtrer selon cette valeur</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Filter text or number</source>
-        <translation type="unfinished">Filtrer le texte ou le nombre</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Text or number:</source>
-        <translation type="unfinished">Texte ou nombre :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Filter second number</source>
-        <translation type="unfinished">Filtrer le second nombre</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>and:</source>
-        <translation type="unfinished">et :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Items to show</source>
-        <translation type="unfinished">Éléments à afficher</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>Show these items:</source>
-        <translation type="unfinished">Afficher ces éléments :</translation>
-    </message>
-</context>
-<context>
     <name>FileDialogs</name>
     <message>
         <location filename="../libs/shell/app/filedialogs.cpp" line="+228"/>
@@ -7269,7 +6895,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Seuls les %1 premiers graphiques sont dessinés ; les autres sont omis.</translation>
     </message>
     <message>
-        <location line="+215"/>
+        <location line="+217"/>
         <source>A chart has more points than a picture of it can show, so its picture is drawn from some of them.</source>
         <translation type="unfinished">Un graphique contient plus de points que son image ne peut en afficher ; son image est donc dessinée à partir d&apos;une partie d&apos;entre eux.</translation>
     </message>
@@ -7828,84 +7454,6 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <location line="+4"/>
         <source>The password for the limits must not be the one that opens the PDF.</source>
         <translation type="unfinished">Le mot de passe des restrictions ne doit pas être celui qui ouvre le PDF.</translation>
-    </message>
-</context>
-<context>
-    <name>PivotOptionsDialog</name>
-    <message>
-        <location filename="../apps/crunch/app/pivotpane.cpp" line="-152"/>
-        <source>Pivot Table Options</source>
-        <translation type="unfinished">Options du tableau croisé dynamique</translation>
-    </message>
-    <message>
-        <location line="+14"/>
-        <source>Pivot table name</source>
-        <translation type="unfinished">Nom du tableau croisé dynamique</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Name:</source>
-        <translation type="unfinished">Nom :</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Merge and center cells with labels</source>
-        <translation type="unfinished">Fusionner et centrer les cellules avec étiquettes</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>For error values show:</source>
-        <translation type="unfinished">Pour les valeurs d&apos;erreur, afficher :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Text for error values</source>
-        <translation type="unfinished">Texte pour les valeurs d&apos;erreur</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>For empty cells show:</source>
-        <translation type="unfinished">Pour les cellules vides, afficher :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Text for empty cells</source>
-        <translation type="unfinished">Texte pour les cellules vides</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Fit column widths when the table is updated</source>
-        <translation type="unfinished">Ajuster la largeur des colonnes lors de la mise à jour du tableau</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Keep the formatting of cells when the table is updated</source>
-        <translation type="unfinished">Conserver la mise en forme des cellules lors de la mise à jour du tableau</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Show grand totals for rows</source>
-        <translation type="unfinished">Afficher les totaux généraux pour les lignes</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Show grand totals for columns</source>
-        <translation type="unfinished">Afficher les totaux généraux pour les colonnes</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Show field headers</source>
-        <translation type="unfinished">Afficher les en-têtes de champ</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Refresh the data when the file is opened</source>
-        <translation type="unfinished">Actualiser les données à l&apos;ouverture du fichier</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Write GETPIVOTDATA when I click a value of a pivot table while typing a formula</source>
-        <translation type="unfinished">Écrire GETPIVOTDATA lorsque je clique sur une valeur d&apos;un tableau croisé dynamique pendant la saisie d&apos;une formule</translation>
     </message>
 </context>
 <context>
@@ -10775,7 +10323,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Zoom</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/ribbon.cpp" line="+684"/>
+        <location filename="../libs/shell/app/ribbon.cpp" line="+685"/>
         <source>File</source>
         <translation type="unfinished">Fichier</translation>
     </message>
@@ -12950,39 +12498,6 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     </message>
 </context>
 <context>
-    <name>SolveOrderDialog</name>
-    <message>
-        <location filename="../apps/crunch/app/pivotpane.cpp" line="-82"/>
-        <source>Solve Order</source>
-        <translation type="unfinished">Ordre de calcul</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>When a cell has two calculated items, the one lower in the list is worked out last. Choose an item and move it up or down.</source>
-        <translation type="unfinished">Lorsqu&apos;une cellule contient deux éléments calculés, celui situé plus bas dans la liste est calculé en dernier. Choisissez un élément, puis déplacez-le vers le haut ou vers le bas.</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>Calculated items</source>
-        <translation type="unfinished">Éléments calculés</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Move Up</source>
-        <translation type="unfinished">Monter</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Move Down</source>
-        <translation type="unfinished">Descendre</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <source>%1. %2: %3</source>
-        <translation type="unfinished">%1. %2 : %3</translation>
-    </message>
-</context>
-<context>
     <name>Splash</name>
     <message>
         <location filename="../libs/shell/app/firstwindow.cpp" line="+47"/>
@@ -14711,6 +14226,7 @@ Publication assistée par ordinateur</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+0"/>
         <location line="+36"/>
         <source>Letterhead</source>
         <translation type="unfinished">Papier à en-tête</translation>
@@ -15579,7 +15095,7 @@ Publication assistée par ordinateur</translation>
         <translation type="unfinished">(Suite de la page %1)</translation>
     </message>
     <message>
-        <location line="+6217"/>
+        <location line="+6247"/>
         <source>Notes</source>
         <translation type="unfinished">Notes</translation>
     </message>
@@ -15598,154 +15114,6 @@ Publication assistée par ordinateur</translation>
     </message>
 </context>
 <context>
-    <name>ValueFieldDialog</name>
-    <message>
-        <location filename="../apps/crunch/app/pivotpane.cpp" line="+232"/>
-        <source>Value Field Settings</source>
-        <translation type="unfinished">Paramètres du champ de valeur</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Source name:</source>
-        <translation type="unfinished">Nom de la source :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Custom name</source>
-        <translation type="unfinished">Nom personnalisé</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Custom name:</source>
-        <translation type="unfinished">Nom personnalisé :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Summarize value field by</source>
-        <translation type="unfinished">Synthétiser le champ de valeur par</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>Summarize value field by:</source>
-        <translation type="unfinished">Synthétiser le champ de valeur par :</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Show values as</source>
-        <translation type="unfinished">Afficher les valeurs sous forme de</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>No Calculation</source>
-        <translation type="unfinished">Aucun calcul</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>% of Grand Total</source>
-        <translation type="unfinished">% du total général</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>% of Column Total</source>
-        <translation type="unfinished">% du total de colonne</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>% of Row Total</source>
-        <translation type="unfinished">% du total de ligne</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Index</source>
-        <translation type="unfinished">Index</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Difference From</source>
-        <translation type="unfinished">Différence avec</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>% Of</source>
-        <translation type="unfinished">% de</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>% Difference From</source>
-        <translation type="unfinished">% de différence avec</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Running Total In</source>
-        <translation type="unfinished">Total cumulé dans</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>% of Parent Row Total</source>
-        <translation type="unfinished">% du total de la ligne parente</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>% of Parent Column Total</source>
-        <translation type="unfinished">% du total de la colonne parente</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Rank Smallest to Largest</source>
-        <translation type="unfinished">Classement du plus petit au plus grand</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Rank Largest to Smallest</source>
-        <translation type="unfinished">Classement du plus grand au plus petit</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Show values as:</source>
-        <translation type="unfinished">Afficher les valeurs sous forme de :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Base field</source>
-        <translation type="unfinished">Champ de base</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Base field:</source>
-        <translation type="unfinished">Champ de base :</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Base item</source>
-        <translation type="unfinished">Élément de base</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Base item:</source>
-        <translation type="unfinished">Élément de base :</translation>
-    </message>
-    <message>
-        <location line="+13"/>
-        <source>Number format</source>
-        <translation type="unfinished">Format de nombre</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Number format (a code; empty keeps the cells&apos; own):</source>
-        <translation type="unfinished">Format de nombre (un code ; vide conserve celui des cellules) :</translation>
-    </message>
-    <message>
-        <location line="+14"/>
-        <source>(previous)</source>
-        <translation type="unfinished">(précédent)</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>(next)</source>
-        <translation type="unfinished">(suivant)</translation>
-    </message>
-</context>
-<context>
     <name>VersionStore</name>
     <message>
         <location filename="../libs/shell/app/versionstore.cpp" line="+83"/>
@@ -15761,7 +15129,7 @@ Publication assistée par ordinateur</translation>
 <context>
     <name>Widgets</name>
     <message>
-        <location filename="../libs/shell/app/widgets.cpp" line="+1184"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="+1186"/>
         <source>Standard</source>
         <translation type="unfinished">Standard</translation>
     </message>
@@ -17164,6 +16532,134 @@ Publication assistée par ordinateur</translation>
     </message>
 </context>
 <context>
+    <name>jp::CalculatedFieldDialog</name>
+    <message>
+        <location filename="../apps/crunch/app/pivotpane.cpp" line="+475"/>
+        <source>Insert Calculated Field</source>
+        <translation type="unfinished">Insérer un champ calculé</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Name</source>
+        <translation type="unfinished">Nom</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Name:</source>
+        <translation type="unfinished">Nom :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Formula</source>
+        <translation type="unfinished">Formule</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Formula:</source>
+        <translation type="unfinished">Formule :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Fields</source>
+        <translation type="unfinished">Champs</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Fields:</source>
+        <translation type="unfinished">Champs :</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Double-click a field to put its name in the formula. A field&apos;s name stands for its total in each cell.</source>
+        <translation type="unfinished">Double-cliquez sur un champ pour placer son nom dans la formule. Le nom d&apos;un champ représente son total dans chaque cellule.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+29"/>
+        <source>Add</source>
+        <translation type="unfinished">Ajouter</translation>
+    </message>
+    <message>
+        <location line="-27"/>
+        <source>Delete</source>
+        <translation type="unfinished">Supprimer</translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>Modify</source>
+        <translation type="unfinished">Modifier</translation>
+    </message>
+</context>
+<context>
+    <name>jp::CalculatedItemDialog</name>
+    <message>
+        <location line="+16"/>
+        <source>Insert Calculated Item</source>
+        <translation type="unfinished">Insérer un élément calculé</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Field</source>
+        <translation type="unfinished">Champ</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Field:</source>
+        <translation type="unfinished">Champ :</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Name</source>
+        <translation type="unfinished">Nom</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Name:</source>
+        <translation type="unfinished">Nom :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Formula</source>
+        <translation type="unfinished">Formule</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Formula:</source>
+        <translation type="unfinished">Formule :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Items</source>
+        <translation type="unfinished">Éléments</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Items:</source>
+        <translation type="unfinished">Éléments :</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Double-click an item to put its name in the formula. An item&apos;s name stands for its value in each cell.</source>
+        <translation type="unfinished">Double-cliquez sur un élément pour placer son nom dans la formule. Le nom d&apos;un élément représente sa valeur dans chaque cellule.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+46"/>
+        <source>Add</source>
+        <translation type="unfinished">Ajouter</translation>
+    </message>
+    <message>
+        <location line="-44"/>
+        <source>Delete</source>
+        <translation type="unfinished">Supprimer</translation>
+    </message>
+    <message>
+        <location line="+44"/>
+        <source>Modify</source>
+        <translation type="unfinished">Modifier</translation>
+    </message>
+</context>
+<context>
     <name>jp::CatalogPane</name>
     <message>
         <location filename="../apps/pub/app/taskpane.cpp" line="+610"/>
@@ -17404,7 +16900,7 @@ Source : %3</translation>
 <context>
     <name>jp::ColorButton</name>
     <message>
-        <location filename="../libs/shell/app/widgets.cpp" line="-1011"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="-1013"/>
         <source>Applies the color shown; Down arrow or F4 opens more colors.</source>
         <translation type="unfinished">Applique la couleur affichée ; Flèche bas ou F4 ouvre d&apos;autres couleurs.</translation>
     </message>
@@ -18349,7 +17845,7 @@ Source : %3</translation>
     </message>
     <message>
         <location line="-127"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+144"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+154"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Le nouveau classeur est en cours de préparation. Il pourra être modifié dans un instant.</translation>
     </message>
@@ -18708,7 +18204,7 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-447"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-455"/>
         <location line="+39"/>
         <source>Undo</source>
         <translation type="unfinished">Annuler</translation>
@@ -19985,7 +19481,7 @@ Source : %3</translation>
         <translation type="unfinished">Ce classeur ne contient qu&apos;une seule feuille ; il n&apos;y a donc aucune autre feuille à remplir.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+438"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+446"/>
         <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="-176"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-680"/>
         <location line="+553"/>
@@ -22116,7 +21612,7 @@ Source : %3</translation>
         <translation type="unfinished">Calcul interrompu</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-344"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-352"/>
         <source>Undo %1 (%2)</source>
         <translation type="unfinished">Annuler %1 (%2)</translation>
     </message>
@@ -22126,7 +21622,7 @@ Source : %3</translation>
         <translation type="unfinished">Rétablir %1 (%2)</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+29"/>
         <source>This workbook is open for reading only. Use Save a Copy to make a copy you can change.</source>
         <translation type="unfinished">Ce classeur est ouvert en lecture seule. Utilisez Enregistrer une copie pour créer une copie modifiable.</translation>
     </message>
@@ -22815,18 +22311,18 @@ Le fichier existant n&apos;a pas été modifié.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+90"/>
+        <location line="+100"/>
         <source>1 page</source>
         <translation type="unfinished">1 page</translation>
     </message>
     <message>
-        <location line="-90"/>
-        <location line="+90"/>
+        <location line="-100"/>
+        <location line="+100"/>
         <source>%1 pages</source>
         <translation type="unfinished">%1 pages</translation>
     </message>
     <message>
-        <location line="-84"/>
+        <location line="-94"/>
         <source>Scale to fit</source>
         <translation type="unfinished">Ajuster à la page</translation>
     </message>
@@ -22846,7 +22342,7 @@ Le fichier existant n&apos;a pas été modifié.</translation>
         <translation type="unfinished">Échelle</translation>
     </message>
     <message>
-        <location line="+79"/>
+        <location line="+89"/>
         <location line="+10"/>
         <location line="+17"/>
         <source>Page Setup</source>
@@ -24287,21 +23783,25 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+7"/>
+        <location line="+0"/>
         <source>Row Headers</source>
         <translation type="unfinished">En-têtes de ligne</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+0"/>
         <source>Column Headers</source>
         <translation type="unfinished">En-têtes de colonne</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+0"/>
         <source>Banded Rows</source>
         <translation type="unfinished">Lignes à bandes</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+0"/>
         <source>Banded Columns</source>
         <translation type="unfinished">Colonnes à bandes</translation>
     </message>
@@ -31466,6 +30966,260 @@ Le fichier est illisible.</translation>
     </message>
 </context>
 <context>
+    <name>jp::FieldSettingsDialog</name>
+    <message>
+        <location filename="../apps/crunch/app/pivotpane.cpp" line="+131"/>
+        <source>Field Settings</source>
+        <translation type="unfinished">Paramètres du champ</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Source name:</source>
+        <translation type="unfinished">Nom de la source :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Custom name</source>
+        <translation type="unfinished">Nom personnalisé</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Custom name:</source>
+        <translation type="unfinished">Nom personnalisé :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Subtotals</source>
+        <translation type="unfinished">Sous-totaux</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Automatic</source>
+        <translation type="unfinished">Automatique</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>None</source>
+        <translation type="unfinished">Aucun</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Subtotals:</source>
+        <translation type="unfinished">Sous-totaux :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Layout</source>
+        <translation type="unfinished">Disposition</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Compact form</source>
+        <translation type="unfinished">Forme compacte</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Outline form</source>
+        <translation type="unfinished">Forme plan</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tabular form</source>
+        <translation type="unfinished">Forme tabulaire</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Show item labels in:</source>
+        <translation type="unfinished">Afficher les étiquettes d&apos;éléments dans :</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Insert a blank line after each item</source>
+        <translation type="unfinished">Insérer une ligne vide après chaque élément</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Repeat item labels (outline and tabular forms)</source>
+        <translation type="unfinished">Répéter les étiquettes d&apos;éléments (formes plan et tabulaire)</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Sort</source>
+        <translation type="unfinished">Trier</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Manual (keep the order of the items)</source>
+        <translation type="unfinished">Manuel (conserver l&apos;ordre des éléments)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A to Z by the labels</source>
+        <translation type="unfinished">De A à Z selon les étiquettes</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Z to A by the labels</source>
+        <translation type="unfinished">De Z à A selon les étiquettes</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Smallest to largest by a value</source>
+        <translation type="unfinished">Du plus petit au plus grand selon une valeur</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Largest to smallest by a value</source>
+        <translation type="unfinished">Du plus grand au plus petit selon une valeur</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Sort:</source>
+        <translation type="unfinished">Trier :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Sort by this value</source>
+        <translation type="unfinished">Trier selon cette valeur</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+19"/>
+        <source>by the value:</source>
+        <translation type="unfinished">selon la valeur :</translation>
+    </message>
+    <message>
+        <location line="-15"/>
+        <source>Filter</source>
+        <translation type="unfinished">Filtre</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No filter</source>
+        <translation type="unfinished">Aucun filtre</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Label begins with</source>
+        <translation type="unfinished">L&apos;étiquette commence par</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Label ends with</source>
+        <translation type="unfinished">L&apos;étiquette se termine par</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Label contains</source>
+        <translation type="unfinished">L&apos;étiquette contient</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Label does not contain</source>
+        <translation type="unfinished">L&apos;étiquette ne contient pas</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Label equals</source>
+        <translation type="unfinished">L&apos;étiquette est égale à</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Label does not equal</source>
+        <translation type="unfinished">L&apos;étiquette n&apos;est pas égale à</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Value is greater than</source>
+        <translation type="unfinished">La valeur est supérieure à</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Value is greater than or equal to</source>
+        <translation type="unfinished">La valeur est supérieure ou égale à</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Value is less than</source>
+        <translation type="unfinished">La valeur est inférieure à</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Value is less than or equal to</source>
+        <translation type="unfinished">La valeur est inférieure ou égale à</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Value equals</source>
+        <translation type="unfinished">La valeur est égale à</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Value does not equal</source>
+        <translation type="unfinished">La valeur n&apos;est pas égale à</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Value is between</source>
+        <translation type="unfinished">La valeur est comprise entre</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Value is not between</source>
+        <translation type="unfinished">La valeur n&apos;est pas comprise entre</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Top items (by a value)</source>
+        <translation type="unfinished">Éléments supérieurs (selon une valeur)</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Bottom items (by a value)</source>
+        <translation type="unfinished">Éléments inférieurs (selon une valeur)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Filter:</source>
+        <translation type="unfinished">Filtre :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Filter by this value</source>
+        <translation type="unfinished">Filtrer selon cette valeur</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Filter text or number</source>
+        <translation type="unfinished">Filtrer le texte ou le nombre</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text or number:</source>
+        <translation type="unfinished">Texte ou nombre :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Filter second number</source>
+        <translation type="unfinished">Filtrer le second nombre</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>and:</source>
+        <translation type="unfinished">et :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Items to show</source>
+        <translation type="unfinished">Éléments à afficher</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Show these items:</source>
+        <translation type="unfinished">Afficher ces éléments :</translation>
+    </message>
+</context>
+<context>
     <name>jp::FileScreen</name>
     <message>
         <location filename="../libs/shell/app/filescreen.cpp" line="+64"/>
@@ -32234,7 +31988,7 @@ Le fichier est illisible.</translation>
 <context>
     <name>jp::FontCombo</name>
     <message>
-        <location filename="../libs/shell/app/widgets.cpp" line="+705"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="+707"/>
         <source>Font</source>
         <translation type="unfinished">Police</translation>
     </message>
@@ -33658,9 +33412,15 @@ Le fichier est illisible.</translation>
 <context>
     <name>jp::Gallery</name>
     <message>
-        <location filename="../libs/shell/app/widgets.cpp" line="-451"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="-453"/>
         <source>Gallery</source>
         <translation type="unfinished">Galerie</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+1"/>
+        <source>Choose from the gallery: the arrow keys move in it, and Enter chooses.</source>
+        <translation type="unfinished">Choisissez dans la galerie : les touches fléchées déplacent la sélection, et Entrée valide le choix.</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -33963,7 +33723,7 @@ Résolution effective : %3 ppp</translation>
 <context>
     <name>jp::GroupDialog</name>
     <message>
-        <location filename="../apps/crunch/app/pivotpane.cpp" line="-549"/>
+        <location filename="../apps/crunch/app/pivotpane.cpp" line="-414"/>
         <source>Grouping</source>
         <translation type="unfinished">Regroupement</translation>
     </message>
@@ -37062,6 +36822,7 @@ Ils sont conservés si vous enregistrez en tant que composition JeffPub (.jpub).
     <message>
         <location line="+4"/>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-465"/>
+        <location line="+0"/>
         <source>No Background</source>
         <translation type="unfinished">Aucun arrière-plan</translation>
     </message>
@@ -38033,11 +37794,13 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+2"/>
+        <location line="+0"/>
         <source>Emboss</source>
         <translation type="unfinished">Relief</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+0"/>
         <source>Engrave</source>
         <translation type="unfinished">Empreinte</translation>
     </message>
@@ -38048,11 +37811,13 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+1"/>
+        <location line="+0"/>
         <source>Swash</source>
         <translation type="unfinished">Lettres ornées</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+0"/>
         <source>Stylistic Alternates</source>
         <translation type="unfinished">Variantes stylistiques</translation>
     </message>
@@ -40681,6 +40446,84 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
 </context>
 <context>
+    <name>jp::PivotOptionsDialog</name>
+    <message>
+        <location line="+269"/>
+        <source>Pivot Table Options</source>
+        <translation type="unfinished">Options du tableau croisé dynamique</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Pivot table name</source>
+        <translation type="unfinished">Nom du tableau croisé dynamique</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Name:</source>
+        <translation type="unfinished">Nom :</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Merge and center cells with labels</source>
+        <translation type="unfinished">Fusionner et centrer les cellules avec étiquettes</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>For error values show:</source>
+        <translation type="unfinished">Pour les valeurs d&apos;erreur, afficher :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Text for error values</source>
+        <translation type="unfinished">Texte pour les valeurs d&apos;erreur</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>For empty cells show:</source>
+        <translation type="unfinished">Pour les cellules vides, afficher :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Text for empty cells</source>
+        <translation type="unfinished">Texte pour les cellules vides</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Fit column widths when the table is updated</source>
+        <translation type="unfinished">Ajuster la largeur des colonnes lors de la mise à jour du tableau</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Keep the formatting of cells when the table is updated</source>
+        <translation type="unfinished">Conserver la mise en forme des cellules lors de la mise à jour du tableau</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Show grand totals for rows</source>
+        <translation type="unfinished">Afficher les totaux généraux pour les lignes</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Show grand totals for columns</source>
+        <translation type="unfinished">Afficher les totaux généraux pour les colonnes</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Show field headers</source>
+        <translation type="unfinished">Afficher les en-têtes de champ</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Refresh the data when the file is opened</source>
+        <translation type="unfinished">Actualiser les données à l&apos;ouverture du fichier</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Write GETPIVOTDATA when I click a value of a pivot table while typing a formula</source>
+        <translation type="unfinished">Écrire GETPIVOTDATA lorsque je clique sur une valeur d&apos;un tableau croisé dynamique pendant la saisie d&apos;une formule</translation>
+    </message>
+</context>
+<context>
     <name>jp::PresenterView</name>
     <message>
         <location filename="../apps/deck/app/presenterview.cpp" line="+109"/>
@@ -42148,6 +41991,39 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
 </context>
 <context>
+    <name>jp::SolveOrderDialog</name>
+    <message>
+        <location filename="../apps/crunch/app/pivotpane.cpp" line="-82"/>
+        <source>Solve Order</source>
+        <translation type="unfinished">Ordre de résolution</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>When a cell has two calculated items, the one lower in the list is worked out last. Choose an item and move it up or down.</source>
+        <translation type="unfinished">Lorsqu&apos;une cellule contient deux éléments calculés, celui situé plus bas dans la liste est calculé en dernier. Choisissez un élément et déplacez-le vers le haut ou vers le bas.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Calculated items</source>
+        <translation type="unfinished">Éléments calculés</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Move Up</source>
+        <translation type="unfinished">Monter</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Move Down</source>
+        <translation type="unfinished">Descendre</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>%1. %2: %3</source>
+        <translation type="unfinished">%1. %2 : %3</translation>
+    </message>
+</context>
+<context>
     <name>jp::SortDialog</name>
     <message>
         <location filename="../apps/crunch/app/sortdialog.cpp" line="+45"/>
@@ -43566,6 +43442,154 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
 </context>
 <context>
+    <name>jp::ValueFieldDialog</name>
+    <message>
+        <location filename="../apps/crunch/app/pivotpane.cpp" line="+232"/>
+        <source>Value Field Settings</source>
+        <translation type="unfinished">Paramètres du champ de valeur</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Source name:</source>
+        <translation type="unfinished">Nom de la source :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Custom name</source>
+        <translation type="unfinished">Nom personnalisé</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Custom name:</source>
+        <translation type="unfinished">Nom personnalisé :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Summarize value field by</source>
+        <translation type="unfinished">Synthétiser le champ de valeur par</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Summarize value field by:</source>
+        <translation type="unfinished">Synthétiser le champ de valeur par :</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Show values as</source>
+        <translation type="unfinished">Afficher les valeurs sous forme de</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No Calculation</source>
+        <translation type="unfinished">Aucun calcul</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>% of Grand Total</source>
+        <translation type="unfinished">% du total général</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>% of Column Total</source>
+        <translation type="unfinished">% du total de colonne</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>% of Row Total</source>
+        <translation type="unfinished">% du total de ligne</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Index</source>
+        <translation type="unfinished">Index</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Difference From</source>
+        <translation type="unfinished">Différence avec</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>% Of</source>
+        <translation type="unfinished">% de</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>% Difference From</source>
+        <translation type="unfinished">% de différence avec</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Running Total In</source>
+        <translation type="unfinished">Total cumulé dans</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>% of Parent Row Total</source>
+        <translation type="unfinished">% du total de la ligne parente</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>% of Parent Column Total</source>
+        <translation type="unfinished">% du total de la colonne parente</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Rank Smallest to Largest</source>
+        <translation type="unfinished">Classement du plus petit au plus grand</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rank Largest to Smallest</source>
+        <translation type="unfinished">Classement du plus grand au plus petit</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Show values as:</source>
+        <translation type="unfinished">Afficher les valeurs sous forme de :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Base field</source>
+        <translation type="unfinished">Champ de base</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Base field:</source>
+        <translation type="unfinished">Champ de base :</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Base item</source>
+        <translation type="unfinished">Élément de base</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Base item:</source>
+        <translation type="unfinished">Élément de base :</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Number format</source>
+        <translation type="unfinished">Format du nombre</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Number format (a code; empty keeps the cells&apos; own):</source>
+        <translation type="unfinished">Format de nombre (un code ; vide conserve celui des cellules) :</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>(previous)</source>
+        <translation type="unfinished">(précédent)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>(next)</source>
+        <translation type="unfinished">(suivant)</translation>
+    </message>
+</context>
+<context>
     <name>jp::VariantGallery</name>
     <message>
         <location filename="../apps/deck/app/themegallery.cpp" line="+34"/>
@@ -44933,6 +44957,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+11"/>
+        <location line="+0"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
@@ -50644,12 +50669,15 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+28"/>
+        <location line="+0"/>
         <source>pictures and charts</source>
         <translation type="unfinished">images et graphiques</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location line="+0"/>
         <location line="+1"/>
+        <location line="+0"/>
         <source>notes</source>
         <translation type="unfinished">notes</translation>
     </message>
@@ -50666,16 +50694,19 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="-5"/>
+        <location line="+0"/>
         <source>form controls</source>
         <translation type="unfinished">contrôles de formulaire</translation>
     </message>
     <message>
+        <location line="+0"/>
         <location line="+0"/>
         <source>embedded objects</source>
         <translation type="unfinished">objets incorporés</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+0"/>
         <source>slicers</source>
         <translation type="unfinished">segments</translation>
     </message>
@@ -56327,17 +56358,20 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+6"/>
+        <location line="+0"/>
         <source>pictures and charts</source>
         <translation type="unfinished">les images et graphiques</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+0"/>
         <source>notes</source>
         <translation type="unfinished">les notes</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+24"/>
+        <location line="+0"/>
         <source>pivot tables</source>
         <translation type="unfinished">tableaux croisés dynamiques</translation>
     </message>
@@ -56348,16 +56382,19 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+1"/>
+        <location line="+0"/>
         <source>form controls</source>
         <translation type="unfinished">les contrôles de formulaire</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+0"/>
         <source>embedded objects</source>
         <translation type="unfinished">les objets incorporés</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+0"/>
         <source>slicers</source>
         <translation type="unfinished">les segments</translation>
     </message>
@@ -60252,6 +60289,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+0"/>
+        <location line="+0"/>
         <source>Then by</source>
         <translation type="unfinished">Puis par</translation>
     </message>
@@ -62404,6 +62442,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Trier par</translation>
     </message>
     <message>
+        <location line="+0"/>
         <location line="+0"/>
         <source>Then by</source>
         <translation type="unfinished">Puis par</translation>
