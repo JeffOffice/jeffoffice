@@ -4627,7 +4627,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "321e0f48441bf4237413f4f6969f69009666a2152336b3e1d890d15ddcb3e468"
+       "text": "24c67186cb987ab217c5a8d2eda2b3881351facf3bc734775a5bb4d2c11251c0"
       },
       {
        "hide_soon": true,
@@ -10101,6 +10101,18 @@
     "fr": ""
    }
   },
+  "24c67186cb987ab217c5a8d2eda2b3881351facf3bc734775a5bb4d2c11251c0": {
+   "drop": false,
+   "en": "Check spelling as you type, or open a dialog with suggestions where you can ignore a word or add it to the dictionary. Switch checking as you type on or off from the ribbon.",
+   "es": "Revise la ortografía mientras escribe, o abra un cuadro de diálogo con sugerencias donde puede omitir una palabra o agregarla al diccionario. Active o desactive la revisión mientras escribe desde la cinta de opciones.",
+   "fr": "Vérifiez l’orthographe pendant la saisie, ou ouvrez une boîte de dialogue de suggestions où vous pouvez ignorer un mot ou l’ajouter au dictionnaire. Activez ou désactivez la vérification pendant la saisie depuis le ruban.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "24cd5ea25414c2a62cd3c42c367620b08135e4316f9ce826f7bf0242fea63921": {
    "drop": true,
    "en": "",
@@ -11018,18 +11030,6 @@
    "en": "Draw text boxes, add business information fields and Text Art, and insert text, RTF, HTML, and `.docx` files into a text box. Insert symbols (recently used symbols are kept between sessions, in the Symbol drop-down and the dialog, plus the full character map) and the date and time (formats, update automatically). Insert an object: a PDF page, an SVG drawing, or a picture; documents from other programs can’t be embedded.",
    "es": "Dibuje cuadros de texto, agregue campos de información de empresa y Text Art, e inserte archivos de texto, RTF, HTML y `.docx` en un cuadro de texto. Inserte símbolos (los símbolos usados recientemente se conservan entre sesiones, en la lista desplegable Símbolo y en el cuadro de diálogo, además del mapa de caracteres completo) y la fecha y la hora (formatos, actualización automática). Inserte un objeto: una página PDF, un dibujo SVG o una imagen; no se pueden incrustar documentos de otros programas.",
    "fr": "Dessinez des zones de texte, ajoutez des champs d’informations professionnelles et du Text Art, et insérez des fichiers texte, RTF, HTML et `.docx` dans une zone de texte. Insérez des symboles (les symboles récemment utilisés sont conservés entre les sessions, dans la liste déroulante Symbole et dans la boîte de dialogue, avec la table complète des caractères) et la date et l’heure (formats, mise à jour automatique). Insérez un objet : une page PDF, un dessin SVG ou une image ; les documents d’autres programmes ne peuvent pas être incorporés.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "321e0f48441bf4237413f4f6969f69009666a2152336b3e1d890d15ddcb3e468": {
-   "drop": false,
-   "en": "Check spelling as you type or in a dialog with suggestions, ignore words, and add words to the dictionary. Turn check as you type on and off from the ribbon.",
-   "es": "Revise la ortografía mientras escribe o en un cuadro de diálogo con sugerencias, omita palabras y agréguelas al diccionario. Active y desactive la revisión mientras escribe desde la cinta de opciones.",
-   "fr": "Vérifiez l’orthographe pendant la saisie ou dans une boîte de dialogue avec suggestions, ignorez des mots et ajoutez-les au dictionnaire. Activez et désactivez la vérification pendant la saisie depuis le ruban.",
    "soon": {
     "drop": true,
     "en": "",
