@@ -35,6 +35,8 @@ public:
     int measureCount() const { return m_measureCount; }
     // How many times the entry was looked at for misspelled words (for tests: none while "Check spelling as you type" is off).
     int checkCount() const { return m_checkCount; }
+    // The language the entry is checked in (a tag such as "fr-FR"; empty for Options > Proofing's), and whether it is not checked at all: what the format of the cell being edited says.
+    void setProofing(const QString &language, bool noProof) { m_language = language; m_noProof = noProof; }
     // Whether Options > Proofing has "Check spelling as you type" on (it is, unless turned off).
     static bool spellingOn();
     void checkSpelling();
@@ -62,6 +64,8 @@ private:
     void replaceRange(int from, int to, const QString &with);
     static std::optional<jp::autotext::Fix> proseFix(const QString &before, QChar typed, bool smartQuotes);
     Mode m_mode = Mode::Typing;
+    QString m_language;
+    bool m_noProof = false;
     QVector<QPair<int, int>> m_wrong;
     QTimer m_spellTimer;
     QString m_measuredText;       // the text whose characters are measured in m_advances (how far along the line each starts), with the font they were measured in

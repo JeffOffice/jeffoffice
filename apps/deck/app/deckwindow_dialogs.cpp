@@ -96,7 +96,7 @@ void DeckWindow::createDialogActions()
             else if (auto *sh = dynamic_cast<ShapeItem *>(it)) storyId = sh->storyId;
             if (QTextDocument *doc = ed->doc()->storyDoc(storyId)) text = doc->toPlainText();
         }
-        jp::translateText(this, statusBar(), text, false, m_urlOpener);
+        jp::translateText(this, [this](const QString &message, int ms) { statusBar()->showMessage(message, ms); }, text, false, m_urlOpener);
     });
     mk("review.language", tr("Set Proofing Language…"), "languages", QKeySequence(), [this, ed] {
         if (!ed->isEditingText() && !(ed->single() && ed->single()->hasText()) && ed->selectionKind() != QLatin1String("multi")) return;

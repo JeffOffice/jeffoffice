@@ -1,4 +1,5 @@
 #include "office/freeid.h"
+#include "sheet/proofingext.h"
 #include "sheet/htmlbook.h"
 #include "wml/wmlhtmlread.h"
 #include "sheet/sheetreader.h"
@@ -494,6 +495,12 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                 const QStringView locked = attribute(r, "locked");
                 f.locked = locked.isEmpty() ? true : parseBool(locked.toString());
                 f.formulaHidden = parseBool(attribute(r, "hidden").toString());
+            } else if (depth == 6 && (where == Where::CellXfs || where == Where::StyleXfs) && isElement(r, "proofing") && r.namespaceUri() == QLatin1String(proofingExtensionNamespace())
+                       && !(where == Where::CellXfs ? out->formats.isEmpty() : out->styleXfs.isEmpty())) {
+                // (this program's extension of a cell format: the language of the text and "do not check spelling")
+                CellFormat &f = where == Where::CellXfs ? out->formats.last() : out->styleXfs.last();
+                f.language = attribute(r, "lang").left(35).toString();
+                f.noProof = parseBool(attribute(r, "noProof").toString());
             } else if (depth == 3 && where == Where::CellStyles && isElement(r, "cellStyle")) {
                 if (out->cellStyles.size() < 100000) {
                     CellStyleName n;
@@ -2976,6 +2983,7 @@ quint64 hashOf(const CellFormat &f)
     mix(f.xfId);
     mix(f.parent);
     mix(f.isStyle);
+    mix(quint64(qHash(f.language)) | quint64(f.noProof) << 32);
     return h;
 }
 
@@ -3352,6 +3360,8 @@ quint32 Workbook::formatWith(quint32 base, const FormatChange &c)
     if (c.readingOrder) f.readingOrder = quint8(std::max(0, std::min(2, *c.readingOrder)));
     if (c.locked) f.locked = *c.locked;
     if (c.formulaHidden) f.formulaHidden = *c.formulaHidden;
+    if (c.language) f.language = *c.language;
+    if (c.noProof) f.noProof = *c.noProof;
     if (f == m_styles.formats[int(base)]) return base;
     return findOrAddFormat(base, f);
 }

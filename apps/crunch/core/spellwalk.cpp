@@ -36,13 +36,19 @@ QVector<QPair<int, int>> misspelledRanges(const QString &text, const QString &la
     return out;
 }
 
-bool spellableText(const EditSession &session, int sheet, quint32 row, quint32 col, QString *text)
+bool spellableText(const EditSession &session, int sheet, quint32 row, quint32 col, QString *text, QString *language, bool *noProof)
 {
     const jp::office::sheet::Calculation *calc = session.calculation();
     if (!calc || sheet < 0 || sheet >= calc->sheetCount()) return false;
     const jp::office::sheet::Calculation::CellContent c = calc->content(sheet, row, col);
     if (!c.exists || c.isFormula || !c.value.isText() || c.value.text().isEmpty()) return false;
     if (text) *text = c.value.text();
+    if (language || noProof) {
+        bool none = false;
+        const QString tag = session.proofingLanguageOfStyle(c.style, &none);
+        if (language) *language = tag;
+        if (noProof) *noProof = none;
+    }
     return true;
 }
 
@@ -61,16 +67,17 @@ SpellWalk::SpellWalk(const EditSession *session, int sheet, const jp::office::sh
     std::sort(m_cells.begin(), m_cells.end());
 }
 
-const QVector<QPair<int, int>> &SpellWalk::rangesOf(const QString &text)
+const QVector<QPair<int, int>> &SpellWalk::rangesOf(const QString &text, const QString &language)
 {
     if (m_cacheRevision != spellingRevision()) {
         m_cache.clear();
         m_cacheRevision = spellingRevision();
     }
-    auto it = m_cache.constFind(text);
+    const QString key = language.isEmpty() ? text : language + QLatin1Char('\n') + text;
+    auto it = m_cache.constFind(key);
     if (it == m_cache.constEnd()) {
         if (m_cache.size() > 4000) m_cache.clear();
-        it = m_cache.insert(text, misspelledRanges(text));
+        it = m_cache.insert(key, misspelledRanges(text, language));
     }
     return *it;
 }
@@ -83,9 +90,10 @@ SpellWalk::Result SpellWalk::step(qint64 budgetMs, SpellHit *hit)
     for (; m_at < m_cells.size(); ++m_at, m_offset = 0) {
         // (the clock is read now and then, not at every cell)
         if (budgetMs > 0 && (++looked & 31) == 0 && clock.elapsed() >= budgetMs) return Result::More;
-        QString text;
-        if (!spellableText(*m_session, m_sheet, m_cells[m_at].first, m_cells[m_at].second, &text)) continue;
-        for (const auto &range : rangesOf(text)) {
+        QString text, language;
+        bool noProof = false;
+        if (!spellableText(*m_session, m_sheet, m_cells[m_at].first, m_cells[m_at].second, &text, &language, &noProof) || noProof) continue;
+        for (const auto &range : rangesOf(text, language)) {
             if (range.first < m_offset) continue;
             hit->row = m_cells[m_at].first;
             hit->col = m_cells[m_at].second;
@@ -93,6 +101,7 @@ SpellWalk::Result SpellWalk::step(qint64 budgetMs, SpellHit *hit)
             hit->to = range.second;
             hit->word = text.mid(range.first, range.second - range.first);
             hit->text = text;
+            hit->language = language;
             m_offset = range.second;
             return Result::Found;
         }

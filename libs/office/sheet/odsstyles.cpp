@@ -482,7 +482,7 @@ struct Builder {
     quint32 formatIndex(const CellFormat &f)
     {
         const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7%8|%9|%10|%11").arg(f.numFmtId).arg(f.font).arg(f.fill).arg(f.border).arg(int(f.horizontal)).arg(int(f.vertical))
-                                .arg(int(f.wrap)).arg(int(f.shrink)).arg(f.indent).arg(f.rotation).arg(int(f.locked));
+                                .arg(int(f.wrap)).arg(int(f.shrink)).arg(f.indent).arg(f.rotation).arg(int(f.locked)) + (f.noProof ? QStringLiteral("|zxx") : QStringLiteral("|") + f.language);
         const auto it = formats.constFind(key);
         if (it != formats.constEnd()) return it.value();
         styles->formats.append(f);
@@ -565,6 +565,17 @@ bool StyleStore::buildCellFormats(const Limits &limits, Styles *styles, QHash<QS
         else if (ok && angle > 0 && angle <= 90) f.rotation = quint8(angle);
         else if (ok && angle >= 270 && angle < 360) f.rotation = quint8(90 + (360 - angle));
         f.locked = !p.contains(QStringLiteral("cell:style:cell-protect")) || p.value(QStringLiteral("cell:style:cell-protect")).contains(QLatin1String("protected"));
+        // the language of the text, when it is not the document's default (which is the program's own): "zxx" is text that is not checked
+        auto languageOf = [](const Props &props) {
+            QString lang = props.value(QStringLiteral("text:fo:language"));
+            const QString country = props.value(QStringLiteral("text:fo:country"));
+            if (lang.isEmpty() || lang == QLatin1String("none") || lang == QLatin1String("zxx")) return lang == QLatin1String("zxx") ? lang : QString();
+            if (!country.isEmpty() && country != QLatin1String("none")) lang += QLatin1Char('-') + country;
+            return lang;
+        };
+        const QString language = languageOf(p);
+        if (language == QLatin1String("zxx")) f.noProof = true;
+        else if (language != languageOf(m_defaults.value(QStringLiteral("table-cell")))) f.language = language;
         return b.formatIndex(f);
     };
     // the default look first: the document's default style, or the style named Default that cells with no style of their own follow

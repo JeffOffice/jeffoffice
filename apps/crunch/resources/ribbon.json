@@ -431,6 +431,15 @@
           ]
         },
         {
+          "name": "Language",
+          "keytip": "ZL",
+          "items": [
+            {"large": "review.translate", "keytip": "TR"},
+            {"large": "review.language", "keytip": "LA"},
+            {"small": "review.noProof", "keytip": "NP"}
+          ]
+        },
+        {
           "name": "Notes",
           "keytip": "ZN",
           "items": [

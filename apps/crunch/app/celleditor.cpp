@@ -50,9 +50,9 @@ void CellEditor::checkSpelling()
     QVector<QPair<int, int>> wrong;
     const QString entry = text();
     // (a text of many thousands of characters is not looked at as it is typed)
-    if (spellingOn() && entry.size() <= kSpellLimit && !isFormulaEntry(entry) && isVisible()) {
+    if (spellingOn() && !m_noProof && entry.size() <= kSpellLimit && !isFormulaEntry(entry) && isVisible()) {
         ++m_checkCount;
-        wrong = crunch::misspelledRanges(entry);
+        wrong = crunch::misspelledRanges(entry, m_language);
         // (the word that is still being typed is not told of: the caret is at its end)
         const int caret = cursorPosition();
         if (hasFocus())
@@ -100,11 +100,11 @@ void CellEditor::paintEvent(QPaintEvent *e)
 
 bool CellEditor::addSpellingSuggestions(QMenu &menu, int position)
 {
-    if (!spellingOn() || isFormulaEntry(text())) return false;
-    for (const auto &w : crunch::misspelledRanges(text())) {
+    if (!spellingOn() || m_noProof || isFormulaEntry(text())) return false;
+    for (const auto &w : crunch::misspelledRanges(text(), m_language)) {
         if (position < w.first || position > w.second) continue;
         const QString word = text().mid(w.first, w.second - w.first);
-        const QStringList suggestions = spellingSuggestions(word, crunch::proofingLanguage()).mid(0, 6);
+        const QStringList suggestions = spellingSuggestions(word, m_language.isEmpty() ? crunch::proofingLanguage() : m_language).mid(0, 6);
         QFont bold = menu.font();
         bold.setBold(true);
         for (const QString &s : suggestions) {

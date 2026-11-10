@@ -59,6 +59,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Home"),
     QT_TRANSLATE_NOOP("Ribbon", "Illustrations"),
     QT_TRANSLATE_NOOP("Ribbon", "Insert"),
+    QT_TRANSLATE_NOOP("Ribbon", "Language"),
     QT_TRANSLATE_NOOP("Ribbon", "Layout"),
     QT_TRANSLATE_NOOP("Ribbon", "Layouts"),
     QT_TRANSLATE_NOOP("Ribbon", "Line Style"),

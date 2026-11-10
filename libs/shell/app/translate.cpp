@@ -13,7 +13,6 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
-#include <QStatusBar>
 #include <QUrlQuery>
 #include <QVBoxLayout>
 
@@ -144,27 +143,27 @@ QString translateReady(QString text)
     return text.trimmed();
 }
 
-bool openTranslation(QStatusBar *bar, const QString &text, const QString &target, const QString &server, const std::function<bool(const QUrl &)> &opener)
+bool openTranslation(const TranslateSay &say, const QString &text, const QString &target, const QString &server, const std::function<bool(const QUrl &)> &opener)
 {
     const TranslateRequest req = translateRequest(server, target, text);
     if (req.url.isEmpty()) {
-        if (bar) bar->showMessage(QCoreApplication::translate("jp::WriteWindow", "The translation service needs a secure web address (https). An http address is only used for this computer."), 8000);
+        if (say) say(QCoreApplication::translate("jp::WriteWindow", "The translation service needs a secure web address (https). An http address is only used for this computer."), 8000);
         return false;
     }
     const bool opened = opener ? opener(QUrl(req.url)) : QDesktopServices::openUrl(QUrl(req.url));
     if (!opened) {
-        if (bar) bar->showMessage(QCoreApplication::translate("jp::WriteWindow", "The web browser could not be opened. Nothing was sent."), 8000);
+        if (say) say(QCoreApplication::translate("jp::WriteWindow", "The web browser could not be opened. Nothing was sent."), 8000);
         return false;
     }
-    if (req.cut && bar) bar->showMessage(QCoreApplication::translate("jp::WriteWindow", "Only the first %n letter(s) of the text were sent to be translated.", nullptr, int(req.sentText.size())), 8000);
+    if (req.cut && say) say(QCoreApplication::translate("jp::WriteWindow", "Only the first %n letter(s) of the text were sent to be translated.", nullptr, int(req.sentText.size())), 8000);
     return true;
 }
 
-bool translateText(QWidget *parent, QStatusBar *bar, const QString &text, bool whole, const std::function<bool(const QUrl &)> &opener)
+bool translateText(QWidget *parent, const TranslateSay &say, const QString &text, bool whole, const std::function<bool(const QUrl &)> &opener)
 {
     const QString ready = translateReady(text);
     if (ready.isEmpty()) {
-        if (bar) bar->showMessage(QCoreApplication::translate("jp::WriteWindow", "There is no text to translate."), 5000);
+        if (say) say(QCoreApplication::translate("jp::WriteWindow", "There is no text to translate."), 5000);
         return false;
     }
     QString target = Settings::get().value(QStringLiteral("translate/targetCode"), QStringLiteral("es")).toString();
@@ -172,7 +171,7 @@ bool translateText(QWidget *parent, QStatusBar *bar, const QString &text, bool w
     if (!translateDialog(parent, whole, &target, &server, int(ready.size()))) return false;
     Settings::get().setValue(QStringLiteral("translate/targetCode"), target);
     Settings::get().setValue(QStringLiteral("translate/server"), server);
-    return openTranslation(bar, ready, target, server, opener);
+    return openTranslation(say, ready, target, server, opener);
 }
 
 } // namespace jp

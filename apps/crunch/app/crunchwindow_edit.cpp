@@ -216,6 +216,13 @@ void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool
     m_view->ensureVisible(row, col);
     m_syncingEditors = true;
     m_cellEditor->setMode(mode);
+    {
+        // (the entry is checked in the language of the cell's format, and not at all when the format says so)
+        const grid::GridSheet &gs = m_view->sheet();
+        bool noProof = false;
+        const QString language = m_session->proofingLanguageOfStyle(gs.styleOf(row, col, gs.cellAt(row, col)), &noProof);
+        m_cellEditor->setProofing(language, noProof);
+    }
     m_cellEditor->setText(initial);
     if (!fromBar || forcedToBar) m_formulaBar->setText(initial);
     m_syncingEditors = false;

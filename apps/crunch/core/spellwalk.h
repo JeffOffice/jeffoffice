@@ -20,14 +20,16 @@ QString proofingLanguage();
 // The [start, end) places of the misspelled words in a text. Empty when the text is a formula, or the dictionaries are not there.
 QVector<QPair<int, int>> misspelledRanges(const QString &text, const QString &language = QString());
 
-// The text a cell holds when it is a text that was typed or read (not the result of a formula, a number, a date, a truth value, or an error).
-bool spellableText(const EditSession &session, int sheet, quint32 row, quint32 col, QString *text);
+// The text a cell holds when it is a text that was typed or read (not the result of a formula, a number, a date, a truth value, or an error). `language` and `noProof`, when given, are
+// what the cell's format says: the language its text is checked in (empty for the program's own), and whether it is not checked at all.
+bool spellableText(const EditSession &session, int sheet, quint32 row, quint32 col, QString *text, QString *language = nullptr, bool *noProof = nullptr);
 
 struct SpellHit {
     quint32 row = 0, col = 0;
     int from = 0, to = 0;   // the word's places in the cell's text
     QString word;
     QString text;           // the cell's whole text
+    QString language;       // the language the cell's text is checked in (empty: the program's own)
 };
 
 // The walk of the Spelling command: the text cells of a range in reading order (row by row), one misspelled word at a time. The workbook must not change between two calls except by the
@@ -57,7 +59,7 @@ private:
     // The misspelled places of the texts looked at lately, by text (many cells hold the same words); forgotten when the user's dictionary or ignored words change.
     QHash<QString, QVector<QPair<int, int>>> m_cache;
     int m_cacheRevision = -1;
-    const QVector<QPair<int, int>> &rangesOf(const QString &text);
+    const QVector<QPair<int, int>> &rangesOf(const QString &text, const QString &language);
 };
 
 } // namespace jp::crunch

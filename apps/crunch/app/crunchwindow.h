@@ -487,6 +487,8 @@ public:
     void setPickedFilter(const QString &filter) { m_pickedFilter = filter; }
     // What a short message to the person is shown with: a message box, unless this stands in for it (tests): the title and the sentence.
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
+    // Review > Translate opens the web page of the translation service through this (the browser's own when none is set); a test sets its own.
+    void setUrlOpener(const std::function<bool(const QUrl &)> &opener) { m_urlOpener = opener; }
 
     // ---- the sheets
     // The sheets shown as tabs, by their place in the workbook (hidden ones are not here), and the one in view.
@@ -683,6 +685,8 @@ protected:
     void dropEvent(QDropEvent *e) override;
 
 private:
+    // The text Review > Translate sends: the selected words of the entry being typed, else the whole entry, else the text of the selected cells (row by row, a line for each row).
+    QString textToTranslate() const;
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn, bool checkable = false, bool enabled = true);
     void createActions();
     void buildRibbon();
@@ -1574,6 +1578,7 @@ private:
     jp::grid::ValueStore m_values;
     qint64 m_longestBatchMicros = 0, m_batches = 0, m_longestBatchItems = 0, m_workerCpuMicros = 0;
     std::function<void(const QString &, const QString &)> m_notifier;
+    std::function<bool(const QUrl &)> m_urlOpener;
     QString m_loadProblem;
     // editing
     std::unique_ptr<crunch::EditSession> m_session;

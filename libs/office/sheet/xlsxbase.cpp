@@ -2,6 +2,7 @@
 
 #include "sheet/xlsxbase.h"
 #include "sheet/pagesetupxml.h"
+#include "sheet/proofingext.h"
 #include "sheet/drawingadd.h"
 
 #include "io/zip.h"
@@ -196,6 +197,7 @@ QByteArray xfElement(const CellFormat &f, int xfId, bool cellFormat)
         inner += "/>";
     }
     if (!f.locked || f.formulaHidden) inner += QByteArray("<protection") + (f.locked ? "" : " locked=\"0\"") + (f.formulaHidden ? " hidden=\"1\"" : "") + "/>";
+    inner += proofingExtensionXml(f);
     return inner.isEmpty() ? e + "/>" : e + ">" + inner + "</xf>";
 }
 

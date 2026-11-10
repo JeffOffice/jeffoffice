@@ -6,10 +6,12 @@
 #include <QUrl>
 #include <functional>
 
-class QStatusBar;
 class QWidget;
 
 namespace jp {
+
+// What a command tells the person (the status bar's message for so many milliseconds).
+using TranslateSay = std::function<void(const QString &text, int milliseconds)>;
 
 constexpr int kMostTranslateLetters = 5000;   // the service's limit for one request (UTF-16 letters)
 constexpr int kMostTranslateAddress = 8000;   // the longest address (once written out) that is opened
@@ -35,10 +37,10 @@ bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, Q
 // The text of a Translate command made ready for the service: paragraph and line breaks as line feeds, no object marks, and no space around it.
 QString translateReady(QString text);
 // Opens the translation service in the web browser with the text through `opener` (the browser's own when empty); whether it was opened. What is cut off, a refused address, and a browser
-// that does not open are told in `bar`.
-bool openTranslation(QStatusBar *bar, const QString &text, const QString &target, const QString &server, const std::function<bool(const QUrl &)> &opener = {});
+// that does not open are told through `say`.
+bool openTranslation(const TranslateSay &say, const QString &text, const QString &target, const QString &server, const std::function<bool(const QUrl &)> &opener = {});
 // The whole Translate command: `text` (as it is in the program; `whole` when no part was selected) made ready, the dialog (the target and the address are kept in the settings), and the
 // browser. False when there was no text, the dialog was canceled, or nothing was opened.
-bool translateText(QWidget *parent, QStatusBar *bar, const QString &text, bool whole, const std::function<bool(const QUrl &)> &opener = {});
+bool translateText(QWidget *parent, const TranslateSay &say, const QString &text, bool whole, const std::function<bool(const QUrl &)> &opener = {});
 
 } // namespace jp

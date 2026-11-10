@@ -669,6 +669,8 @@ public:
     QString shownText(int sheet, quint32 row, quint32 col, bool neutral) const;
     // The number format of a cell format, made once for each (not for each cell that has it).
     const jp::calc::NumberFormat &formatOfStyle(quint32 style) const;
+    // The language the text of cells of the format `style` is checked in (a tag such as "fr-FR"; empty for the program's own), and whether it is not checked at all.
+    QString proofingLanguageOfStyle(quint32 style, bool *noProof = nullptr) const;
     // The color as the number it comes to (0xRRGGBB), or -1 for none: a theme color and an RGB that look alike are the same.
     qint64 colorKey(const jp::office::sheet::ColorSpec &color) const;
     struct CellSpot {

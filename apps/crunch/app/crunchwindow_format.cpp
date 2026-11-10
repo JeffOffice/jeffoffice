@@ -212,6 +212,7 @@ void CrunchWindow::updateFormatState(bool force)
     check("fmt.alignBottom", v.vertical == VAlign::Bottom);
     check("fmt.wrap", v.wrap);
     check("fmt.merge", v.merged);
+    check("review.noProof", v.noProof);
     for (const auto &c : m_fontCombos)
         if (c) c->setCurrentFamily(v.fontName);
     for (const auto &c : m_sizeCombos)
@@ -301,6 +302,8 @@ FormatView CrunchWindow::viewOfActiveCell() const
     const quint32 xf = gs.styleOf(row, col, gs.cellAt(row, col));
     const CellFormat f = xf < quint32(st.formats.size()) ? st.formats[int(xf)] : CellFormat();
     const FontSpec &font = st.font(f.font);
+    v.language = f.language;
+    v.noProof = f.noProof;
     v.fontName = st.fontNameOf(font);
     if (v.fontName.isEmpty()) v.fontName = QFontDatabase::systemFont(QFontDatabase::GeneralFont).family();   // (a workbook with no usual font: this computer's)
     v.fontSize = font.size;

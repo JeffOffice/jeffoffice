@@ -335,7 +335,7 @@ private:
     {
         const Styles &st = m_book.styles();
         return f.font == 0 && st.fill(f.fill).pattern == PatternKind::None && st.border(f.border) == BorderSpec() && f.horizontal == HAlign::General && f.vertical == VAlign::Bottom && !f.wrap && !f.shrink
-               && f.indent == 0 && f.rotation == 0 && f.locked && !f.formulaHidden && (f.numFmtId == 0 || st.formatCode(quint32(&f - st.formats.constData()), QLocale::c()) == QLatin1String("General"));
+               && f.indent == 0 && f.rotation == 0 && f.locked && !f.formulaHidden && f.language.isEmpty() && !f.noProof && (f.numFmtId == 0 || st.formatCode(quint32(&f - st.formats.constData()), QLocale::c()) == QLatin1String("General"));
     }
 
     // The automatic style for a cell format, made once (empty for the plain look).
@@ -413,6 +413,12 @@ private:
         else if (font.vertAlign == 2) text += QStringLiteral(" style:text-position=\"sub 58%\"");
         const quint32 fc = st.resolve(font.color, 0xFFFFFFFFu);
         if (fc != 0xFFFFFFFFu) text += QStringLiteral(" fo:color=\"%1\"").arg(rgbText(fc));
+        // the language of the text, and "zxx" (with no country) for text that is not checked
+        if (f.noProof) text += QStringLiteral(" fo:language=\"zxx\" fo:country=\"none\"");
+        else if (!f.language.isEmpty()) {
+            text += QStringLiteral(" fo:language=\"%1\"").arg(esc(f.language.section(QLatin1Char('-'), 0, 0)));
+            if (f.language.contains(QLatin1Char('-'))) text += QStringLiteral(" fo:country=\"%1\"").arg(esc(f.language.section(QLatin1Char('-'), 1, 1)));
+        }
         x += QStringLiteral("<style:text-properties%1/>").arg(text);
         x += QStringLiteral("</style:style>");
         m_cellStyleOf.insert(xf, name);

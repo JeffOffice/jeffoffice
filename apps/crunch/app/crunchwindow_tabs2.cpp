@@ -1,6 +1,7 @@
 // Tools of the Review, Data, and Formulas tabs that are not part of an older group: Workbook Statistics, Goal Seek, Subtotal, and Advanced Filter.
 #include "app/crunchwindow.h"
 #include "app/spellingdialog.h"
+#include "app/translate.h"
 #include "core/richadjust.h"
 
 #include "app/advancedfilterdialog.h"
@@ -20,11 +21,13 @@
 #include "core/goalseek.h"
 #include "core/loader.h"
 #include "core/sheetobjects.h"
+#include "core/spellwalk.h"
 #include "core/subtotal.h"
 #include "core/validationedit.h"
 #include "core/workbookstats.h"
 #include "sheet/calculation.h"
 #include "sheet/cellref.h"
+#include "text/dictionaries.h"
 
 #include <QAction>
 #include <QDialog>
@@ -64,9 +67,28 @@ void CrunchWindow::createTabs2Actions()
     mk("review.spelling", tr("Spelling"), "spell-check", QKeySequence(Qt::Key_F7), [this] { spelling(); });
     mk("review.thesaurus", tr("Thesaurus"), "book-a", QKeySequence(Qt::SHIFT | Qt::Key_F7), [this] { thesaurus(); });
     mk("review.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] { showAccessibilityPane(); });
+    mk("review.translate", tr("Translate"), "languages", QKeySequence(), [this] {
+        jp::translateText(this, [this](const QString &message, int) { setStatus(message); }, textToTranslate(), false, m_urlOpener);
+    });
+    mk("review.language", tr("Set Proofing Language…"), "languages", QKeySequence(), [this] {
+        if (!m_session || m_sheet < 0) return;
+        const FormatView v = viewOfActiveCell();
+        QString tag;
+        bool noProof = false;
+        if (!jp::languageDialog(this, v.language.isEmpty() ? crunch::proofingLanguage() : dict::match(v.language), v.noProof, &tag, &noProof)) return;
+        jp::office::sheet::FormatChange change;
+        change.language = tag;
+        change.noProof = noProof;
+        formatSelection(change, tr("Language"));
+    });
+    mk("review.noProof", tr("Do Not Check Spelling"), "spell-check-2", QKeySequence(), [this] {
+        jp::office::sheet::FormatChange change;
+        change.noProof = act(QStringLiteral("review.noProof"))->isChecked();
+        formatSelection(change, tr("Do Not Check Spelling"));
+    }, true);
     mk("data.consolidate", tr("Consolidate"), "combine", QKeySequence(), [this] { consolidateDialog(); });
     mk("data.subtotal", tr("Subtotal"), "sigma", QKeySequence(), [this] { subtotalDialog(); });
-    for (const char *id : {"review.statistics", "data.goalSeek", "data.scenarioManager", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "review.accessibility", "review.thesaurus", "review.spelling"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"review.statistics", "data.goalSeek", "data.scenarioManager", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "review.accessibility", "review.thesaurus", "review.spelling", "review.translate", "review.language", "review.noProof"}) m_opsActions << QString::fromLatin1(id);
     connect(this, &CrunchWindow::calculationFinished, this, [this] {
         refreshInvalidCircles();
         refreshCellFlags(true);
@@ -944,6 +966,41 @@ bool CrunchWindow::replaceCellTexts(const std::vector<CellText> &changes, const 
     if (!ok && stack->index() > index) stack->undo();   // (not one of them is kept)
     if (m_loader.changesMade() != before) m_calculating = true;
     return ok;
+}
+
+QString CrunchWindow::textToTranslate() const
+{
+    if (m_edit.active) {
+        QLineEdit *line = m_point.line ? m_point.line.data() : static_cast<QLineEdit *>(m_cellEditor);
+        return line->hasSelectedText() ? line->selectedText() : line->text();
+    }
+    const jp::office::sheet::Calculation *calc = m_session ? m_session->calculation() : nullptr;
+    if (!calc || m_sheet < 0 || m_sheet >= calc->sheetCount()) return QString();
+    const auto &s = calc->sheet(m_sheet);
+    if (s.extentRows == 0 || s.extentCols == 0) return QString();
+    const jp::office::sheet::CellRange range = selectedRange();
+    const quint32 r2 = std::min(range.row2, s.extentRows - 1), c2 = std::min(range.col2, s.extentCols - 1);
+    if (range.row1 > r2 || range.col1 > c2) return QString();
+    // (the texts in reading order; more than the service takes are not collected)
+    std::vector<std::pair<quint32, quint32>> cells;
+    s.cells.forEachInRange(range.row1, range.col1, r2, c2, [&](quint32 row, quint32 col, const jp::office::sheet::Cell &) {
+        cells.emplace_back(row, col);
+        return cells.size() < 20000;
+    });
+    std::sort(cells.begin(), cells.end());
+    QString text;
+    quint32 lastRow = 0;
+    bool first = true;
+    for (const auto &rc : cells) {
+        const jp::office::sheet::Calculation::CellContent c = calc->content(m_sheet, rc.first, rc.second);
+        if (!c.exists || !c.value.isText() || c.value.text().isEmpty()) continue;
+        text += first ? QString() : (rc.first != lastRow ? QStringLiteral("\n") : QStringLiteral(" "));
+        text += c.value.text();
+        first = false;
+        lastRow = rc.first;
+        if (text.size() > jp::kMostTranslateLetters) break;
+    }
+    return text;
 }
 
 void CrunchWindow::spelling()

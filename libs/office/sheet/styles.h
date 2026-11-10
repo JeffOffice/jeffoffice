@@ -129,6 +129,10 @@ struct CellFormat {
     bool formulaHidden = false;      // the cell's formula is not shown on a protected sheet
     quint8 readingOrder = 0;         // the direction of the text: 0 by what the text is, 1 left to right, 2 right to left
     bool quotePrefix = false;        // the cell holds a text that looks like something else (typed with a leading apostrophe)
+    // The language the cell's text is checked in ("fr-FR"; empty: the program's), and whether it is not checked at all. A workbook of the OpenDocument form keeps them (fo:language and
+    // fo:country of the cell's text); the XML form of the other program has no place for them, so they last until the workbook is closed.
+    QString language;
+    bool noProof = false;
     quint32 xfId = 0;                // the named style the format follows (its place among the style formats, for a workbook of the XML form)
     // For a workbook of the old binary form, which keeps the formats of its named styles among the cell formats: the style format this one follows (its place in `formats`), and
     // whether this is the format of a named style (and not of cells).
@@ -139,7 +143,7 @@ struct CellFormat {
     {
         return numFmtId == o.numFmtId && font == o.font && fill == o.fill && border == o.border && horizontal == o.horizontal && vertical == o.vertical && wrap == o.wrap && shrink == o.shrink
                && indent == o.indent && rotation == o.rotation && locked == o.locked && formulaHidden == o.formulaHidden && readingOrder == o.readingOrder && quotePrefix == o.quotePrefix
-               && xfId == o.xfId && parent == o.parent && isStyle == o.isStyle;
+               && xfId == o.xfId && parent == o.parent && isStyle == o.isStyle && language == o.language && noProof == o.noProof;
     }
     bool operator!=(const CellFormat &o) const { return !(*this == o); }
 };
@@ -186,6 +190,9 @@ struct FormatChange {
     std::optional<int> readingOrder;
     // protection
     std::optional<bool> locked, formulaHidden;
+    // the language of the text (a tag such as "fr-FR"; empty for the program's own) and "do not check spelling"
+    std::optional<QString> language;
+    std::optional<bool> noProof;
     // a named style (its place among `Styles::styleXfs`): the format takes the style's look and follows it
     std::optional<quint32> namedStyle;
     bool touchesFont() const { return fontName || fontSize || bold || italic || strike || underline || vertAlign || fontColor; }

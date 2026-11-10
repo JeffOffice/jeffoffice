@@ -125,7 +125,7 @@ bool SpellingDialog::advance()
     m_win->showCell(m_sheet, m_hit->row, m_hit->col);
     m_notIn->setText(QStringLiteral("<b>%1</b>").arg(m_hit->word.toHtmlEscaped()));
     m_suggestions->clear();
-    m_suggestions->addItems(spellingSuggestions(m_hit->word, crunch::proofingLanguage()));
+    m_suggestions->addItems(spellingSuggestions(m_hit->word, m_hit->language.isEmpty() ? crunch::proofingLanguage() : m_hit->language));
     m_change->setText(m_suggestions->count() ? m_suggestions->item(0)->text() : m_hit->word);
     return true;
 }

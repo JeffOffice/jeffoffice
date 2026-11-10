@@ -1,5 +1,6 @@
 // Saving a workbook as the old file with only what changed put in anew: see xlsxsave.h.
 
+#include "sheet/proofingext.h"
 #include "sheet/xlsxsave.h"
 #include "office/freeid.h"
 
@@ -410,7 +411,7 @@ bool xfMadeInto(const QByteArray &raw, const CellFormat &f, const QByteArray &pr
         setOrRemove(&prOpen, "hidden", f.formulaHidden ? "1" : "");
         protectionNow = prTag.selfClosing ? prOpen : prOpen + pr.mid(prTag.end);
     }
-    const QByteArray inner = alignmentNow + protectionNow + others;
+    const QByteArray inner = alignmentNow + protectionNow + withProofingExtension(others, proofingExtensionXml(f, prefix), prefix);
     if (inner.isEmpty()) {
         tag.chop(1);
         *out = tag + "/>";

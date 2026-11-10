@@ -597,6 +597,15 @@ QString EditSession::editText(int sheet, quint32 row, quint32 col) const
     return editTextOfValue(c.value, code, entryOptions(sheet, code == QLatin1String("@")));
 }
 
+QString EditSession::proofingLanguageOfStyle(quint32 style, bool *noProof) const
+{
+    if (noProof) *noProof = false;
+    if (!m_book || !m_book->book) return {};
+    const jp::office::sheet::CellFormat &f = m_book->book->styles().format(style);
+    if (noProof) *noProof = f.noProof;
+    return f.language;
+}
+
 // Whether the formula of a cell of that format is not shown: the sheet is protected and the cell's format hides its formula.
 bool EditSession::formulaHidden(int sheet, quint32 style) const
 {

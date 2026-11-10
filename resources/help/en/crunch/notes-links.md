@@ -1,5 +1,5 @@
 # Notes, comments, and links
-<!-- keywords: comments pane, new comment, reply, resolve, reopen, thread, previous comment, next comment, show comments, convert notes to comments, convert comments to notes, spelling, spell check, misspelled, F7, ignore all, change all, add to dictionary, thesaurus, synonyms, word list, note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells, recent files -->
+<!-- keywords: language, proofing language, set language, do not check spelling, translate, translation, libretranslate, comments pane, new comment, reply, resolve, reopen, thread, previous comment, next comment, show comments, convert notes to comments, convert comments to notes, spelling, spell check, misspelled, F7, ignore all, change all, add to dictionary, thesaurus, synonyms, word list, note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells, recent files -->
 
 ## Notes
 
@@ -68,6 +68,23 @@ The window shows the word that is not in the dictionary, a box named **Change to
 **File > Options > Proofing** decides whether words in capital letters and words with numbers in them are checked. JeffCrunch checks in the language it is shown in, if it has a dictionary for it, and in American English if not.
 
 While you type in a cell, a word that is not in the dictionary gets a red wavy line under it. Right-click the word to pick a correction, or to choose **Ignore All** or **Add to Dictionary**. The cells in the grid are not underlined, and an entry that starts with an equals sign is never checked.
+
+## Set the language of some cells
+
+Spelling checks each cell in its own language. To change it, select the cells and click **Set Proofing Language** in the **Language** group of the **Review** tab. Pick the language in the list, then click **OK**. A cell you have not marked is checked in the language set in **File > Options**. An OpenDocument spreadsheet (.ods) keeps the language of each cell. A .xlsx workbook has no place for it, so the language is kept only while the workbook is open.
+
+## Do not check some cells
+
+Some text is not meant to be checked: a code, a name, or a line in a made-up language. Select the cells and click **Do Not Check Spelling** in the **Language** group. **Spelling** and the red wavy lines in the cell skip them. Click it again to check the cells once more. An .ods file keeps this mark, and a .xlsx workbook keeps it only while the workbook is open.
+
+## Translate text
+
+1. Select the cells, or select some of the words you are typing in a cell. The text of the selected cells is sent one row to a line.
+2. Click **Translate** in the **Language** group.
+3. Choose the language to translate into.
+4. Click **OK**.
+
+Your web browser then opens a translation service called LibreTranslate, with your text in it. Nothing is sent until you click **OK**. You can change the address of the service in the box, for example to one that you run yourself. Only secure web addresses (https) are used, and http addresses for this computer. At most 5,000 letters are sent.
 
 ## Thesaurus
 

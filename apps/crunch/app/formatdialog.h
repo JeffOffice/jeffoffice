@@ -49,6 +49,8 @@ struct FormatView {
     int rotation = 0;                 // as the file has it: 0 to 90 up, 91 to 180 down, 255 one letter under another
     int readingOrder = 0;
     bool locked = true, formulaHidden = false;
+    QString language;                 // the language the text is checked in (empty: the program's), and whether it is not checked
+    bool noProof = false;
     bool merged = false;              // the cell with the cursor is in a merged range
 };
 

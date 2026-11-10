@@ -106,7 +106,7 @@ public:
     // Review > Compare: this document and the file at `revisedPath` made into a new document of tracked changes (this one is the original), shown in a window of its own. How many changes it
     // holds; -1 when a file can't be read or compared (the reason is told).
     void setUrlOpener(const std::function<bool(const QUrl &)> &opener) { m_urlOpener = opener; }
-    bool openTranslation(const QString &text, const QString &target, const QString &server) { return jp::openTranslation(statusBar(), text, target, server, m_urlOpener); }
+    bool openTranslation(const QString &text, const QString &target, const QString &server) { return jp::openTranslation([this](const QString &message, int ms) { statusBar()->showMessage(message, ms); }, text, target, server, m_urlOpener); }
     int sortSelection(const write::SortOptions &options);
     int compareWith(const QString &revisedPath, const write::CompareOptions &options);
     QString ribbonErrors() const { return m_ribbonErrors; }
