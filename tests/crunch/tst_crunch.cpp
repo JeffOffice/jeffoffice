@@ -69,7 +69,7 @@ private Q_SLOTS:
         QCOMPARE(w.ribbonErrors(), QString());
         QStringList tabs;
         for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
-        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Page Layout", "Formulas", "Data", "Review", "View", "Header and Footer", "Chart", "Picture Format", "Shape Format", "Table", "Sparkline", "Pivot Table"}));
+        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Page Layout", "Formulas", "Data", "Review", "View", "Help", "Header and Footer", "Chart", "Picture Format", "Shape Format", "Table", "Sparkline", "Pivot Table"}));
         QCOMPARE(w.ribbon()->fileKeytip(), QStringLiteral("F"));
         QVERIFY(w.windowTitle().contains(QLatin1String("JeffCrunch")));
         QCOMPARE(w.windowTitle(), QStringLiteral("JeffCrunch"));   // (no workbook yet: a name is taken when a new workbook is made)

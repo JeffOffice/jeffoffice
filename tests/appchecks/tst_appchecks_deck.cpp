@@ -337,7 +337,7 @@ private Q_SLOTS:
         };
         m_app.prepare = [](AppWindow *w, const QString &id, bool) {
             asDeck(w)->showFormatPane(false);   // (the pane is open or shut as the person left it, in the next window too)
-            if (id == QLatin1String("edit.paste")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
+            if (id == QLatin1String("edit.paste") || id == QLatin1String("edit.pasteText") || id == QLatin1String("edit.pasteSpecial")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
         };
         m_app.skipped = {};
         m_app.quiet = {

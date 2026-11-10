@@ -3,6 +3,7 @@
   "tab:Insert": "charts",
   "tab:Formulas": "formulas",
   "tab:View": "view",
+  "tab:Help": "index",
   "pane:help": "index",
   "file:info": "info",
   "file:open": "open-save",

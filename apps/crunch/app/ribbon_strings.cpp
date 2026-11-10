@@ -4,6 +4,7 @@
 #include <QtGlobal>
 
 [[maybe_unused]] static const char *const kRibbonStrings[] = {
+    QT_TRANSLATE_NOOP("Ribbon", "About"),
     QT_TRANSLATE_NOOP("Ribbon", "Accounting Number Format"),
     QT_TRANSLATE_NOOP("Ribbon", "Actions"),
     QT_TRANSLATE_NOOP("Ribbon", "Align"),
@@ -53,6 +54,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Header and Footer"),
     QT_TRANSLATE_NOOP("Ribbon", "Headings"),
     QT_TRANSLATE_NOOP("Ribbon", "Height"),
+    QT_TRANSLATE_NOOP("Ribbon", "Help"),
     QT_TRANSLATE_NOOP("Ribbon", "Highlight Cells Rules"),
     QT_TRANSLATE_NOOP("Ribbon", "Home"),
     QT_TRANSLATE_NOOP("Ribbon", "Illustrations"),
@@ -113,6 +115,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Styles"),
     QT_TRANSLATE_NOOP("Ribbon", "Subtotals"),
     QT_TRANSLATE_NOOP("Ribbon", "Switch Windows"),
+    QT_TRANSLATE_NOOP("Ribbon", "Symbols"),
     QT_TRANSLATE_NOOP("Ribbon", "Tab Color"),
     QT_TRANSLATE_NOOP("Ribbon", "Table"),
     QT_TRANSLATE_NOOP("Ribbon", "Table Choices"),

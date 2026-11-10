@@ -4,6 +4,7 @@
 #include <QtGlobal>
 
 [[maybe_unused]] static const char *const kRibbonStrings[] = {
+    QT_TRANSLATE_NOOP("Ribbon", "About"),
     QT_TRANSLATE_NOOP("Ribbon", "Accessibility"),
     QT_TRANSLATE_NOOP("Ribbon", "Advanced Animation"),
     QT_TRANSLATE_NOOP("Ribbon", "Align Text"),
@@ -44,6 +45,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Format"),
     QT_TRANSLATE_NOOP("Ribbon", "Format Shape"),
     QT_TRANSLATE_NOOP("Ribbon", "Height:"),
+    QT_TRANSLATE_NOOP("Ribbon", "Help"),
     QT_TRANSLATE_NOOP("Ribbon", "Home"),
     QT_TRANSLATE_NOOP("Ribbon", "Illustrations"),
     QT_TRANSLATE_NOOP("Ribbon", "Images"),
@@ -90,6 +92,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Square"),
     QT_TRANSLATE_NOOP("Ribbon", "Start Slide Show"),
     QT_TRANSLATE_NOOP("Ribbon", "Start:"),
+    QT_TRANSLATE_NOOP("Ribbon", "Switch Windows"),
     QT_TRANSLATE_NOOP("Ribbon", "Symbols"),
     QT_TRANSLATE_NOOP("Ribbon", "Table"),
     QT_TRANSLATE_NOOP("Ribbon", "Table Design"),
@@ -113,5 +116,6 @@
     QT_TRANSLATE_NOOP("Ribbon", "View"),
     QT_TRANSLATE_NOOP("Ribbon", "Volume:"),
     QT_TRANSLATE_NOOP("Ribbon", "Width:"),
+    QT_TRANSLATE_NOOP("Ribbon", "Window"),
     QT_TRANSLATE_NOOP("Ribbon", "Zoom"),
 };
