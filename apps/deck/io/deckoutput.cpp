@@ -248,6 +248,8 @@ TextOutput textOutputOf(const QPainter *p)
 // gray color model), so they can be painted as they are.
 bool deviceMakesGray(const QPainter *p)
 {
+    // (a printer that makes a PDF file does so too: the text stays text)
+    if (const auto *printer = dynamic_cast<const QPrinter *>(p->device())) return printer->outputFormat() == QPrinter::PdfFormat && printer->colorMode() == QPrinter::GrayScale;
     const auto *pdf = dynamic_cast<const QPdfWriter *>(p->device());
     return pdf && pdf->colorModel() == QPdfWriter::ColorModel::Grayscale;
 }
@@ -463,7 +465,14 @@ QSizeF localePaper()
 QSizeF outputPageSize(const Document &d, const OutputOptions &o, const QSizeF &paper)
 {
     if (o.layout == PrintLayout::Slides) return d.pageSize();
-    return paper.isEmpty() ? localePaper() : paper;
+    return paper.isEmpty() ? (o.paper.isEmpty() ? localePaper() : o.paper) : paper;
+}
+
+QSizeF printSheetSize(const Document &d, const OutputOptions &o)
+{
+    if (o.paper.isEmpty()) return outputPageSize(d, o);
+    const QSizeF slide = d.pageSize();
+    return o.layout == PrintLayout::Slides && slide.width() > slide.height() ? o.paper.transposed() : o.paper;
 }
 
 int outputPageCount(const Document &d, const OutputOptions &o, const QSizeF &paper)

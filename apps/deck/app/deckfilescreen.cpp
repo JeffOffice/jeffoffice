@@ -10,6 +10,7 @@
 #include "app/icons.h"
 #include "app/notespane.h"
 #include "app/printpage.h"
+#include "app/filedialogs.h"
 #include "app/printsides.h"
 #include "app/settings.h"
 #include "canvas/canvas.h"
@@ -31,6 +32,8 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
+#include <QPrintDialog>
+#include <QPrinter>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
@@ -304,7 +307,12 @@ QWidget *DeckFileScreen::buildPrint()
 
     auto *form = new QFormLayout();
     QComboBox *printer = makePrinterBox(w);
-    form->addRow(tr("Printer:"), printer);
+    auto *properties = new QPushButton(tr("Printer Properties…"), w);
+    properties->setObjectName(QStringLiteral("printPrinterSettings"));
+    auto *printerRow = new QHBoxLayout();
+    printerRow->addWidget(printer, 1);
+    printerRow->addWidget(properties);
+    form->addRow(tr("Printer:"), printerRow);
     QCheckBox *collate = makeCollateBox(w, tr("Print each copy of all the pages in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
     form->addRow(QString(), collate);
     auto *what = new QComboBox(w);
@@ -360,6 +368,8 @@ QWidget *DeckFileScreen::buildPrint()
     sides->setObjectName(QStringLiteral("printDuplex"));
     fillSidesBox(sides, true, wantedSides);
     form->addRow(tr("Sides:"), sides);
+    QComboBox *paper = makePaperBox(w, tr("As the slides say"));
+    form->addRow(tr("Paper:"), paper);
 
     auto *hidden = new QCheckBox(tr("Print hidden slides"), w);
     hidden->setObjectName(QStringLiteral("printHidden"));
@@ -439,6 +449,7 @@ QWidget *DeckFileScreen::buildPrint()
         o.printer = choice.printer;
         o.copies = copies->value();
         o.collate = collate->isChecked();
+        o.paper = paperChoiceSize(paper);
         o.reverse = reverse->isChecked() && !sidesByHand(sides);   // (both sides by hand sets the order itself)
         return o;
     };
@@ -478,24 +489,28 @@ QWidget *DeckFileScreen::buildPrint()
             return;
         }
         // The page that fits the window, or larger (the preview scrolls then).
-        const QSizeF paper = deck::outputPageSize(*ed->doc(), o);
+        const QSizeF sheet = deck::printSheetSize(*ed->doc(), o);
         const qreal dpr = preview->devicePixelRatioF();
         const double zoomBy = zoomFactor(zoom);
         // (what fits is worked out from the scroll area's window, which the picture never changes)
         const int availWidth = std::max(280, scroll->viewport()->width() - 4);
         const int availHeight = std::max(280, scroll->viewport()->height() - 4);
-        const double scale = std::min((availWidth - 16) / paper.width(), (availHeight - 18) / paper.height()) * zoomBy;
+        const double scale = std::min((availWidth - 16) / sheet.width(), (availHeight - 18) / sheet.height()) * zoomBy;
         if (scale <= 0) return;
-        const QSize box(int(std::ceil(paper.width() * scale)) + 16, int(std::ceil(paper.height() * scale)) + 18);
-        QImage img((paper * scale * dpr).toSize(), QImage::Format_ARGB32_Premultiplied);
+        const QSize box(int(std::ceil(sheet.width() * scale)) + 16, int(std::ceil(sheet.height() * scale)) + 18);
+        // (no picture of more than kMaxPreviewSide pixels on a side: a large zoom of a large page is drawn from fewer, which the box then stretches)
+        constexpr double kMaxPreviewSide = 4096;
+        const double side = std::max(sheet.width(), sheet.height()) * scale * dpr;
+        const double drawn = side > kMaxPreviewSide ? scale * kMaxPreviewSide / side : scale;
+        QImage img((sheet * drawn * dpr).toSize().expandedTo(QSize(1, 1)), QImage::Format_ARGB32_Premultiplied);
         img.setDevicePixelRatio(dpr);
         img.fill(Qt::white);
         QPainter p(&img);
         p.setRenderHint(QPainter::Antialiasing);
         p.setRenderHint(QPainter::TextAntialiasing);
         p.setRenderHint(QPainter::SmoothPixmapTransform);
-        p.scale(scale, scale);
-        deck::paintOutputPage(&p, *ed->doc(), &ed->cache(), o, o.reverse ? count - 1 - *page : *page, paper);
+        p.scale(drawn, drawn);
+        deck::paintOutputPage(&p, *ed->doc(), &ed->cache(), o, o.reverse ? count - 1 - *page : *page, sheet);
         p.end();
         preview->setPixmap(paperPixmap(img, box, dpr));
     };
@@ -520,6 +535,28 @@ QWidget *DeckFileScreen::buildPrint()
         restart();
     });
     connect(printer, &QComboBox::currentIndexChanged, w, [=] { restart(); });
+    connect(paper, &QComboBox::currentIndexChanged, w, [=] { restart(); });
+    // The system's print window, on the printer the job is printed on, so that what is chosen there (paper, tray, quality) is kept; what the page also has comes back to it.
+    connect(properties, &QPushButton::clicked, this, [=] {
+        QPrinter &p = m_win->printer();
+        const PrinterChoice choice = printerChoice(printer);
+        if (!choice.toFile && !choice.printer.isEmpty()) {
+            p.setOutputFormat(QPrinter::NativeFormat);
+            p.setPrinterName(choice.printer);
+        }
+        p.setCopyCount(copies->value());
+        p.setCollateCopies(collate->isChecked());
+        p.setColorMode(gray->isChecked() ? QPrinter::GrayScale : QPrinter::Color);
+        QPrintDialog dialog(&p, this);
+        if (execPrintDialog(dialog) != QDialog::Accepted) return;
+        const int at = printer->findData(p.printerName(), Qt::UserRole);
+        if (at >= 0 && !p.printerName().isEmpty()) printer->setCurrentIndex(at);
+        copies->setValue(std::max(1, p.copyCount()));
+        collate->setChecked(p.collateCopies());
+        gray->setChecked(p.colorMode() == QPrinter::GrayScale);
+        const int sized = paper->findData(int(p.pageLayout().pageSize().id()));
+        if (sized >= 0) paper->setCurrentIndex(sized);
+    });
     connect(copies, &QSpinBox::valueChanged, w, [=] { refresh(); });
     connect(collate, &QCheckBox::toggled, w, [=] { refresh(); });
     connect(reverse, &QCheckBox::toggled, w, [=] { restart(); });

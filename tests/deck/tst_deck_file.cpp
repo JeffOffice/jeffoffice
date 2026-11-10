@@ -454,6 +454,277 @@ private Q_SLOTS:
         w.editor()->markSaved();
     }
 
+    // Printer Properties opens the system's print window on the printer that prints the job: what is chosen there (paper, copies, collate) comes back to the page, and the
+    // job is printed on that same printer, with the paper chosen.
+    void printPagePropertiesConfigureThePrinterThatPrints()
+    {
+        QTemporaryDir dir;
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        w.editor()->setDocument(showDeck(2));
+        const QPrinter *configured = nullptr, *printed = nullptr;
+        QPageSize::PageSizeId paperSeen = QPageSize::Letter;
+        setPrintDialogStandIn([&](QPrintDialog &dialog) {
+            configured = dialog.printer();
+            dialog.printer()->setCopyCount(4);
+            dialog.printer()->setCollateCopies(false);
+            dialog.printer()->setPageSize(QPageSize(QPageSize::A4));
+            return int(QDialog::Accepted);
+        });
+        const auto done = qScopeGuard([] { setPrintDialogStandIn(nullptr); });
+        w.setPrinterPreparer([&](QPrinter &p) {
+            printed = &p;
+            paperSeen = p.pageLayout().pageSize().id();
+            p.setOutputFormat(QPrinter::PdfFormat);
+            p.setOutputFileName(dir.filePath(QStringLiteral("p.pdf")));
+        });
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        auto *screen = w.findChild<FileScreen *>();
+        auto *printer = screen->findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        printer->insertItem(0, QStringLiteral("a printer"), QStringLiteral("a printer"));
+        printer->setCurrentIndex(0);
+        auto *button = screen->findChild<QPushButton *>(QStringLiteral("printPrinterSettings"));
+        auto *paper = screen->findChild<QComboBox *>(QStringLiteral("printPaper"));
+        QVERIFY(button && paper);
+        QCOMPARE(button->text(), QStringLiteral("Printer Properties…"));
+        QCOMPARE(paper->itemText(0), QStringLiteral("As the slides say"));
+        button->click();
+        QVERIFY(configured);
+        QCOMPARE(screen->findChild<QSpinBox *>(QStringLiteral("printCopies"))->value(), 4);
+        QVERIFY(!screen->findChild<QCheckBox *>(QStringLiteral("printCollate"))->isChecked());
+        QCOMPARE(paper->currentData().toInt(), int(QPageSize::A4));
+        screen->findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+        QVERIFY(printed);
+        QCOMPARE(printed, configured);   // (the very printer the window configured)
+        QCOMPARE(int(paperSeen), int(QPageSize::A4));
+        // the printer is the same for the next job too
+        w.editor()->markSaved();
+    }
+
+    // Paper: a PDF file made from the Print page is on the paper chosen (a notes page on Legal paper is 612 by 1008 points).
+    void printPagePaperSetsTheSheet()
+    {
+        QTemporaryDir dir;
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        w.editor()->setDocument(showDeck(1));
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("legal.pdf")); });
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        auto *screen = w.findChild<FileScreen *>();
+        auto *printer = screen->findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        printer->setCurrentIndex(printer->count() - 1);
+        auto *what = screen->findChild<QComboBox *>(QStringLiteral("printWhat"));
+        what->setCurrentIndex(what->findData(int(deck::PrintLayout::NotesPages)));
+        auto *paper = screen->findChild<QComboBox *>(QStringLiteral("printPaper"));
+        paper->setCurrentIndex(paper->findData(int(QPageSize::Legal)));
+        screen->findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+        QFile f(dir.filePath(QStringLiteral("legal.pdf")));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const jp::PdfDocument doc(f.readAll());
+        QVERIFY(doc.isValid());
+        QVERIFY2(qAbs(doc.pageSize(0).width() - 612) < 2 && qAbs(doc.pageSize(0).height() - 1008) < 2, qPrintable(QStringLiteral("%1x%2").arg(doc.pageSize(0).width()).arg(doc.pageSize(0).height())));
+        what->setCurrentIndex(0);
+        w.editor()->markSaved();
+    }
+
+    // The words of each page (the slide numbers it says, joined; a blank page is "-").
+    static QString slidesPrinted(DeckWindow &w, const deck::OutputOptions &options, QPrinter::DuplexMode duplex, const QString &file)
+    {
+        w.setPrinterPreparer([&](QPrinter &p) {
+            p.setOutputFormat(QPrinter::PdfFormat);
+            p.setOutputFileName(file);
+        });
+        QFile::remove(file);
+        if (!w.printOutput(options, duplex)) return QStringLiteral("(not printed)");
+        QStringList out;
+        for (const QString &text : pagesOfPdf(file)) {
+            static const QRegularExpression number(QStringLiteral("Slide (\\d+) title"));
+            const auto m = number.match(text);
+            out << (m.hasMatch() ? m.captured(1) : QStringLiteral("-"));
+        }
+        return out.join(QLatin1Char(' '));
+    }
+
+    // Last page first with both sides of the paper: each front stays with its back (slides 1-4 come out as 3 4, then 1 2); an odd last slide has a blank back; collated copies
+    // sent again each begin on a new sheet.
+    void printReverseAndCopiesKeepFrontsWithBacksOnBothSides()
+    {
+        QTemporaryDir dir;
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        w.editor()->setDocument(showDeck(4));
+        const QString file = dir.filePath(QStringLiteral("d.pdf"));
+        deck::OutputOptions o;
+        o.printer = QStringLiteral("a printer");
+        o.reverse = true;
+        QCOMPARE(slidesPrinted(w, o, QPrinter::DuplexLongSide, file), QStringLiteral("3 4 1 2"));
+        QCOMPARE(slidesPrinted(w, o, QPrinter::DuplexNone, file), QStringLiteral("4 3 2 1"));
+        o.slides = {0, 1, 2};
+        QCOMPARE(slidesPrinted(w, o, QPrinter::DuplexLongSide, file), QStringLiteral("3 - 1 2"));
+        {
+            QPrinter probe;
+            probe.setOutputFormat(QPrinter::PdfFormat);
+            if (probe.supportsMultipleCopies()) return;   // (the printer engine makes copies itself, so the pages are not sent again)
+        }
+        o.reverse = false;
+        o.copies = 2;
+        o.collate = true;
+        QCOMPARE(slidesPrinted(w, o, QPrinter::DuplexLongSide, file), QStringLiteral("1 2 3 - 1 2 3 -"));
+        QCOMPARE(slidesPrinted(w, o, QPrinter::DuplexNone, file), QStringLiteral("1 2 3 1 2 3"));
+        w.editor()->markSaved();
+    }
+
+    // A printer that is not there any more, or cannot be used, is said in plain words, with nothing said to be sent; a PDF file that is there is not replaced by an empty one.
+    void printThatCannotBeDoneIsSaidAndNothingIsSent()
+    {
+        QTemporaryDir dir;
+        QStringList said;
+        setPrintNoticeStandIn([&](const QString &, const QString &text) { said << text; });
+        setPrinterNamesStandIn([] { return QStringList{QStringLiteral("Front Desk")}; });
+        const auto done = qScopeGuard([] {
+            setPrintNoticeStandIn(nullptr);
+            setPrinterNamesStandIn(nullptr);
+        });
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        w.editor()->setDocument(showDeck(2));
+        w.statusBar()->clearMessage();
+        deck::OutputOptions o;
+        o.printer = QStringLiteral("No Such Printer");
+        QVERIFY(!w.printOutput(o));
+        QCOMPARE(said.size(), 1);
+        QVERIFY2(said[0].contains(QStringLiteral("No Such Printer")), qPrintable(said[0]));
+        QVERIFY(!w.statusBar()->currentMessage().contains(QStringLiteral("Sent")));
+        said.clear();
+        w.setPrinterPreparer([&](QPrinter &p) {
+            p.setOutputFormat(QPrinter::PdfFormat);
+            p.setOutputFileName(dir.filePath(QStringLiteral("no/such/folder/x.pdf")));
+        });
+        o.printer = QStringLiteral("Front Desk");
+        QVERIFY(!w.printOutput(o));
+        QCOMPARE(said.size(), 1);
+        QVERIFY(!w.statusBar()->currentMessage().contains(QStringLiteral("Sent")));
+        // Save as PDF over a file that is there
+        const QString target = dir.filePath(QStringLiteral("keep.pdf"));
+        QFile keep(target);
+        QVERIFY(keep.open(QIODevice::WriteOnly));
+        keep.write("OLD");
+        keep.close();
+        said.clear();
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        o.printer.clear();
+        o.toFile = true;
+        QVERIFY(!w.printOutput(o));
+        QVERIFY(keep.open(QIODevice::ReadOnly));
+        QCOMPARE(keep.readAll(), QByteArray("OLD"));
+        QCOMPARE(said.size(), 1);
+        QVERIFY(!w.statusBar()->currentMessage().contains(QStringLiteral("Saved")));
+        // more than a job may send
+        said.clear();
+        w.setPrinterPreparer([&](QPrinter &p) {
+            p.setOutputFormat(QPrinter::PdfFormat);
+            p.setOutputFileName(dir.filePath(QStringLiteral("many.pdf")));
+        });
+        w.editor()->setDocument(showDeck(2100));
+        o.toFile = false;
+        o.printer = QStringLiteral("Front Desk");
+        o.copies = 999;
+        {
+            QPrinter probe;
+            probe.setOutputFormat(QPrinter::PdfFormat);
+            if (!probe.supportsMultipleCopies()) {
+                QVERIFY(!w.printOutput(o));
+                QCOMPARE(said.size(), 1);
+                QVERIFY2(said[0].contains(QStringLiteral("more pages than one job can send")), qPrintable(said[0]));
+            }
+        }
+        w.editor()->markSaved();
+    }
+
+    // The printers are asked for when the Print page is opened, every time, and not when the window is made.
+    void printPageAsksForThePrintersWhenOpened()
+    {
+        int asked = 0;
+        setPrinterNamesStandIn([&] {
+            ++asked;
+            return QStringList{QStringLiteral("Front Desk")};
+        });
+        const auto done = qScopeGuard([] { setPrinterNamesStandIn(nullptr); });
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        w.editor()->setDocument(showDeck(1));
+        QCOMPARE(asked, 0);
+        w.showFileScreen(QStringLiteral("print"));
+        QCOMPARE(asked, 1);
+        w.showFileScreen(QStringLiteral("print"));
+        QCOMPARE(asked, 2);
+        w.editor()->markSaved();
+    }
+
+    // Grayscale in a PDF file made from the Print page keeps the words as text (the way Export to PDF makes gray), and the colors come out gray.
+    void printGrayToPdfKeepsTextAsText()
+    {
+        const jptest::SettingGuard remembered(QStringLiteral("output/grayscale"), false, false);   // (the page keeps what is chosen)
+        QTemporaryDir dir;
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        auto deck = showDeck(1);
+        auto box = std::make_shared<ShapeItem>();
+        box->rect = QRectF(40, 300, 400, 120);
+        box->fill = Fill::solid(ColorRef::rgb(QColor(200, 30, 30)));
+        deck->pages[0]->items.push_back(box);
+        w.editor()->setDocument(std::move(deck));
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("g.pdf")); });
+        auto inkColored = [](const QImage &img) {
+            int colored = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) {
+                    const QColor c = img.pixelColor(x, y);
+                    colored += std::max({c.red(), c.green(), c.blue()}) - std::min({c.red(), c.green(), c.blue()}) > 60;
+                }
+            return colored;
+        };
+        for (bool gray : {false, true}) {
+            w.showFileScreen(QStringLiteral("print"));
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+            auto *screen = w.findChild<FileScreen *>();
+            auto *printer = screen->findChild<QComboBox *>(QStringLiteral("printPrinter"));
+            printer->setCurrentIndex(printer->count() - 1);
+            screen->findChild<QCheckBox *>(QStringLiteral("printGray"))->setChecked(gray);
+            screen->findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+            QFile f(dir.filePath(QStringLiteral("g.pdf")));
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const jp::PdfDocument doc(f.readAll());
+            QVERIFY(doc.isValid());
+            QVERIFY2(doc.text(0).contains(QStringLiteral("Slide 1 title")), qPrintable(doc.text(0)));   // (text stays text, in color or in gray)
+            const int colored = inkColored(doc.render(0, QSize(960, 540)));
+            if (gray) QCOMPARE(colored, 0);
+            else QVERIFY(colored > 100);
+        }
+        w.editor()->markSaved();
+    }
+
+    // A stand-in for "prints to a file" is taken away when its scope ends, however the test does.
+    void aPrintsToFileStandInIsPutBackWhenItsScopeEnds()
+    {
+        QPrinter p;
+        p.setOutputFormat(QPrinter::PdfFormat);
+        const bool before = printsToFile(p);
+        {
+            const PrintsToFileGuard guard([before](const QPrinter &) { return !before; });
+            QCOMPARE(printsToFile(p), !before);
+        }
+        QCOMPARE(printsToFile(p), before);
+    }
+
     // The Sides choice: one side, or both sides flipped on the long or the short edge; the printer the system's window starts with is set to it, a PDF file is made with none,
     // and the choice is on the page again when it is opened again.
     void printPageSidesChoiceSetsTheDuplexModeOfThePrinter()
@@ -467,7 +738,7 @@ private Q_SLOTS:
         QVector<QPrinter::DuplexMode> painted, requests;   // (what the job asked the printer for is listened to; a machine with no printers has a printer that keeps nothing)
         setDuplexRecorder([&](QPrinter::DuplexMode mode) { requests << mode; });
         bool toPdf = false;
-        setPrintsToFileStandIn([&](const QPrinter &) { return toPdf; });   // (the window's printer is a file on a machine with no printers; here it is paper unless the test says)
+        const PrintsToFileGuard toFileStandIn([&](const QPrinter &) { return toPdf; });   // (the window's printer is a file on a machine with no printers; here it is paper unless the test says)
         w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("out.pdf")); });
         int made = 0;
         w.setPrinterPreparer([&](QPrinter &p) {
@@ -529,7 +800,6 @@ private Q_SLOTS:
         QCOMPARE(sides->currentIndex(), 0);
         setDuplexSupportStandIn(nullptr);
         setDuplexRecorder(nullptr);
-        setPrintsToFileStandIn(nullptr);
         sides->setCurrentIndex(0);
         updateSidesBox(sides, QString(), false);
         w.editor()->markSaved();
@@ -553,7 +823,7 @@ private Q_SLOTS:
                 if (at + 11 >= pdf.size() || pdf[at + 11] != 's') ++pages;
             return pages;
         };
-        setPrintsToFileStandIn([](const QPrinter &) { return false; });   // (the person chose a printer in the window; a machine with no printers has none to choose)
+        const PrintsToFileGuard toFileStandIn([](const QPrinter &) { return false; });   // (the person chose a printer in the window; a machine with no printers has none to choose)
         QStringList order;
         QVector<int> turnedAfter;
         w.setPrinterPreparer([&](QPrinter &p) {
@@ -591,7 +861,6 @@ private Q_SLOTS:
         QVERIFY(w.printOutput(one, QPrinter::DuplexNone, true));
         QCOMPARE(order, (QStringList{QStringLiteral("print")}));
         setStackTurnerStandIn(nullptr);
-        setPrintsToFileStandIn(nullptr);
         setDuplexSupportStandIn(nullptr);
         sides->setCurrentIndex(0);
         w.editor()->markSaved();

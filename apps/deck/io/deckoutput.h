@@ -34,6 +34,7 @@ struct OutputOptions {
     QVector<int> slides;          // 0-based slides to print, in this order; empty: all
     bool horizontalOrder = true;  // handouts of 4 or more: across, then down (else down, then across)
     // For printing (the File screen's Print page): where the pages go, and how they come out.
+    QSizeF paper;                 // printing: the paper the sheets are, in points and upright (empty: the locale's for notes pages and the rest, the slide's own shape for slides)
     QString printer;              // the printer's name; empty is the default one
     bool toFile = false;          // a PDF file, asked for where it is printed, in place of a printer
     int copies = 1;
@@ -59,6 +60,8 @@ QSizeF localePaper();
 // The size of a page of the output in points: the slide's for printed slides,
 // else `paper` (the locale's when empty).
 QSizeF outputPageSize(const Document &d, const OutputOptions &o, const QSizeF &paper = QSizeF());
+// The size of a sheet that printing makes: what the output's own size is, or the paper chosen (a slide's sheet turned to its shape).
+QSizeF printSheetSize(const Document &d, const OutputOptions &o);
 // Pages of the output. The outline's depends on the paper (the locale's when empty).
 int outputPageCount(const Document &d, const OutputOptions &o, const QSizeF &paper = QSizeF());
 // The outline as text: each slide's number and title, then its body text, two

@@ -336,6 +336,8 @@ public:
     bool printOutput(const deck::OutputOptions &options, QPrinter::DuplexMode duplex = QPrinter::DuplexNone, bool byHand = false);
     // A test sets it to see the printer as the pages are about to go to it (the program never does).
     void setPrinterPreparer(const std::function<void(QPrinter &)> &preparer) { m_printerPreparer = preparer; }
+    // The printer the Print page's Printer Properties button configures and the job is then printed on, so that what is chosen there (paper, tray, quality) is kept.
+    QPrinter &printer();
     bool exportPdf();
     bool exportPicture();
     // Make an Email: a message as a .eml file (asking where to put it) with the presentation, or the presentation as a PDF; the person opens it in an email program. Nothing is sent.
@@ -516,6 +518,7 @@ private:
     QString m_templatePath;      // a template this window wrote: saving again writes over it
     std::function<QString(const QString &, const QString &)> m_pathChooser;
     std::function<void(QPrinter &)> m_printerPreparer;
+    std::unique_ptr<QPrinter> m_printer;
     std::function<bool(const QString &)> m_showQuestion;
     quint64 m_serial = 0;
     bool m_fileProtected = false;         // the file is saved with a password

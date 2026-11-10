@@ -291,40 +291,46 @@ bool exportPictureCommand(DeckWindow *w, const PathChooser &chooser)
     return true;
 }
 
-// Sets the printer up for the output: the locale's paper upright, or, for
-// printed slides, the sheet turned the way the slides are shaped.
+// Sets the printer up for the output: the paper chosen, else the locale's paper upright, or, for printed slides, the sheet turned the way the slides are shaped.
 void setUpPrinter(QPrinter *printer, const Document &doc, const deck::OutputOptions &options)
 {
-    printer->setPageSize(QPageSize(deck::localePaper(), QPageSize::Point, QString(), QPageSize::FuzzyMatch));
     const QSizeF slide = doc.pageSize();
-    printer->setPageOrientation(options.layout == deck::PrintLayout::Slides && slide.width() > slide.height() ? QPageLayout::Landscape : QPageLayout::Portrait);
-    if (options.grayscale) printer->setColorMode(QPrinter::GrayScale);
+    const bool wide = options.layout == deck::PrintLayout::Slides && slide.width() > slide.height();
+    printer->setPageSize(QPageSize(options.paper.isEmpty() ? deck::localePaper() : options.paper, QPageSize::Point, QString(), QPageSize::FuzzyMatch));
+    printer->setPageOrientation(wide ? QPageLayout::Landscape : QPageLayout::Portrait);
+    printer->setColorMode(options.grayscale ? QPrinter::GrayScale : QPrinter::Color);
 }
 
 // Paints the output on a printer (the real one, or the preview's), a page on
 // each sheet, inside the margins it can print within. `only` is the pages to
-// paint (-1 is a blank sheet), else all of them, last first when asked for.
+// paint (-1 is a blank sheet), else all of them, last sheet first when asked
+// (a front stays with its back where `duplex` says both sides are used).
 // `repeat` sends the pages again for the copies, in the order they come out:
-// for a printer that can't make copies itself.
-void paintOnPrinter(QPrinter *printer, const Document &doc, LayoutCache *cache, const deck::OutputOptions &optionsIn, const QVector<int> *only, bool repeat)
+// for a printer that can't make copies itself. False, with `why`, when the
+// pages could not be sent.
+bool paintOnPrinter(QPrinter *printer, const Document &doc, LayoutCache *cache, const deck::OutputOptions &optionsIn, const QVector<int> *only, bool repeat, bool duplex, QString *why)
 {
     deck::OutputOptions options = optionsIn;
     if (printer->colorMode() == QPrinter::GrayScale) options.grayscale = true;
-    QPainter p;
-    if (!p.begin(printer)) return;
-    p.setRenderHint(QPainter::Antialiasing);
-    p.setRenderHint(QPainter::TextAntialiasing);
-    p.setRenderHint(QPainter::SmoothPixmapTransform);
     const QSizeF sheet = printer->pageRect(QPrinter::Point).size();
-    const double scale = printer->resolution() / 72.0;
     QVector<int> pages;
     if (only) {
         pages = *only;
     } else {
         for (int i = 0, n = deck::outputPageCount(doc, options, sheet); i < n; ++i) pages << i;
-        pages = inPrintOrder(pages, options.reverse);
     }
-    if (repeat) pages = sheetOrder(pages, options.copies, options.collate);
+    const int sent = repeat ? std::max(1, options.copies) : 1;
+    if (tooManyToSend(pages.size(), sent)) {
+        if (why) *why = DeckWindow::tr("That is more pages than one job can send. Print fewer slides or fewer copies.");
+        return false;
+    }
+    pages = sheetSequence(pages, -1, !only && options.reverse, duplex && !only, sent, options.collate);
+    QPainter p;
+    if (!p.begin(printer)) return false;
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setRenderHint(QPainter::TextAntialiasing);
+    p.setRenderHint(QPainter::SmoothPixmapTransform);
+    const double scale = printer->resolution() / 72.0;
     bool first = true;
     for (int i : std::as_const(pages)) {
         if (!first) printer->newPage();
@@ -336,17 +342,27 @@ void paintOnPrinter(QPrinter *printer, const Document &doc, LayoutCache *cache, 
         p.restore();
     }
     p.end();
+    return true;
 }
 
 } // namespace
+
+QPrinter &DeckWindow::printer()
+{
+    if (!m_printer) m_printer = std::make_unique<QPrinter>(QPrinter::HighResolution);
+    return *m_printer;
+}
 
 bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::DuplexMode duplex, bool byHand)
 {
     settle(this);
     const Document &doc = *m_ed->doc();
-    QPrinter printer(QPrinter::HighResolution);
+    if (!options.toFile && !options.printer.isEmpty() && !m_printerPreparer && !printerExists(options.printer)) {
+        printNotice(this, tr("Print"), tr("The printer \"%1\" is not there any more. Choose another printer.").arg(options.printer));
+        return false;
+    }
+    QPrinter &printer = this->printer();
     printer.setDocName(m_ed->displayName());
-    setUpPrinter(&printer, doc, options);
     // A PDF file is made in a temporary file and put in place when it is whole, so that a file that is there is not lost to one that fails.
     QString path;
     std::unique_ptr<QTemporaryFile> made;
@@ -363,37 +379,47 @@ bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::Duple
         made->close();
         printer.setOutputFormat(QPrinter::PdfFormat);
         printer.setOutputFileName(made->fileName());
-    } else if (!options.printer.isEmpty()) {
-        printer.setPrinterName(options.printer);
+    } else {
+        printer.setOutputFormat(QPrinter::NativeFormat);
+        if (!options.printer.isEmpty() && printer.printerName() != options.printer) printer.setPrinterName(options.printer);
     }
+    setUpPrinter(&printer, doc, options);
     // (a PDF file has no sides)
     setPrinterDuplex(&printer, options.toFile ? QPrinter::DuplexNone : duplex);
     printer.setCopyCount(std::max(1, options.copies));
     printer.setCollateCopies(options.collate);
     const bool byHandRuns = byHand && !options.toFile && !printsToFile(printer);
     if (m_printerPreparer) m_printerPreparer(printer);
+    const QString target = options.toFile ? QFileInfo(path).fileName() : options.printer.isEmpty() ? printer.printerName() : options.printer;
+    auto failed = [&](const QString &why) {
+        QApplication::restoreOverrideCursor();
+        printNotice(this, tr("Print"), why.isEmpty() ? (options.toFile ? tr("%1 couldn't make the PDF file \"%2\".").arg(appInfo().name, target) : tr("Couldn't print to %1.").arg(target)) : why);
+        return false;
+    };
     // A printer that can't make copies is sent the pages again, in the order the copies are to come out (a PDF file is made once).
     auto again = [&] { return !options.toFile && !printer.supportsMultipleCopies(); };
+    const bool bothSides = !options.toFile && duplex != QPrinter::DuplexNone;
+    QString why;
     // Both sides by hand (a file has no sides): the first, third, ... pages, the stack turned over, then the others last first.
     if (byHandRuns) {
         QVector<int> all;
         for (int i = 0, n = deck::outputPageCount(doc, options, printer.pageRect(QPrinter::Point).size()); i < n; ++i) all << i;
         const HandRuns<int> runs = handRuns(all, -1);   // (a front with no back leaves a blank sheet, -1)
         QApplication::setOverrideCursor(Qt::WaitCursor);
-        paintOnPrinter(&printer, doc, &m_ed->cache(), options, &runs.first, again());
+        if (!paintOnPrinter(&printer, doc, &m_ed->cache(), options, &runs.first, again(), false, &why)) return failed(why);
         QApplication::restoreOverrideCursor();
         if (!runs.second.isEmpty()) {
             if (!askToTurnStack(this)) return false;
             if (m_printerPreparer) m_printerPreparer(printer);
             QApplication::setOverrideCursor(Qt::WaitCursor);
-            paintOnPrinter(&printer, doc, &m_ed->cache(), options, &runs.second, again());
+            if (!paintOnPrinter(&printer, doc, &m_ed->cache(), options, &runs.second, again(), false, &why)) return failed(why);
             QApplication::restoreOverrideCursor();
         }
         statusBar()->showMessage(tr("Sent %1 to the printer").arg(m_ed->displayName()), 5000);
         return true;
     }
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    paintOnPrinter(&printer, doc, &m_ed->cache(), options, nullptr, again());
+    if (!paintOnPrinter(&printer, doc, &m_ed->cache(), options, nullptr, again(), bothSides, &why)) return failed(why);
     QApplication::restoreOverrideCursor();
     if (made) {
         QString err;
