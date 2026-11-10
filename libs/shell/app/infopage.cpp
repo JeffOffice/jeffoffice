@@ -409,7 +409,7 @@ QWidget *buildInfoPage(QWidget *parent, const InfoHost &h)
         const QString why = h.encryptBlocked();
         auto *b = new ActionCard(QStringLiteral("lock"), QCoreApplication::translate("jp::InfoPage", "Encrypt with Password"), why, page);
         b->setObjectName(QStringLiteral("infoEncrypt"));
-        b->setToolTip(why);
+        b->setToolTip(jp::plainToolTip(why));
         b->setEnabled(false);
         left->addWidget(b);
     } else if (h.encrypt) {
