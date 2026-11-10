@@ -2,6 +2,7 @@
 // Setup dialog is in their own files.
 
 #include "app/crunchwindow.h"
+#include "app/printpage.h"
 #include "app/printsides.h"
 
 #include <QSet>
@@ -124,7 +125,7 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
     } else {
         pages = crunch::parsePageRange(c.pageRange, job->pageCount());
     }
-    pages = crunch::pagesOfSide(pages, c.sides);
+    pages = inPrintOrder(crunch::pagesOfSide(pages, c.sides), c.reverse && !c.byHand);
     if (pages.isEmpty()) {
         notice(tr("Print"), tr("Those page numbers are not pages of this job. The job has %1 pages.").arg(job->pageCount()));
         return false;
@@ -158,6 +159,7 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
             setPrinterDuplex(&p, c.duplex);
             p.setCopyCount(std::max(1, c.copies));
             p.setCollateCopies(c.collate);
+            p.setColorMode(c.job.grayscale ? QPrinter::GrayScale : QPrinter::Color);
             if (m_printerPreparer) m_printerPreparer(p);
             // a printer that can't make copies is sent the pages again, in the order the copies are to come out
             const bool again = p.outputFormat() == QPrinter::NativeFormat && !p.supportsMultipleCopies();

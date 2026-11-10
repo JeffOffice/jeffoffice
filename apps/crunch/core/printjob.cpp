@@ -484,6 +484,34 @@ PrintJob::Context &PrintJob::contextFor(int infoIndex)
 
 bool PrintJob::paint(QPainter *painter, int page)
 {
+    if (!m_options.grayscale || m_inGray) return paintColors(painter, page);
+    if (page < 0 || page >= pageCount()) return false;
+    // Gray: the page is painted in color into pixels (as many to the point as the device has, up to 300 to the inch), and drawn from there as gray ones.
+    const QSizeF paper = pageSize(page);
+    const QTransform toDevice = painter->deviceTransform();
+    const double k = std::clamp(std::hypot(toDevice.m11(), toDevice.m12()), 0.05, 300.0 / 72);
+    QImage img((paper * k).toSize().expandedTo(QSize(1, 1)), QImage::Format_RGB32);
+    img.fill(Qt::white);
+    bool ok = false;
+    {
+        QPainter ip(&img);
+        ip.setRenderHint(QPainter::Antialiasing);
+        ip.setRenderHint(QPainter::TextAntialiasing);
+        ip.setRenderHint(QPainter::SmoothPixmapTransform);
+        ip.scale(img.width() / paper.width(), img.height() / paper.height());
+        m_inGray = true;
+        ok = paintColors(&ip, page);
+        m_inGray = false;
+    }
+    painter->save();
+    painter->setRenderHint(QPainter::SmoothPixmapTransform);
+    painter->drawImage(QRectF(QPointF(0, 0), paper), img.convertToFormat(QImage::Format_Grayscale8));
+    painter->restore();
+    return ok;
+}
+
+bool PrintJob::paintColors(QPainter *painter, int page)
+{
     if (page < 0 || page >= pageCount()) return false;
     const Page &pg = m_pages[size_t(page)];
     const SheetInfo &info = m_sheets[size_t(pg.info)];

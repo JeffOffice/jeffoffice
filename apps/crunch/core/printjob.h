@@ -49,6 +49,7 @@ struct PrintJobOptions {
     QVector<int> sheets;                        // for ActiveSheet, when more than one sheet tab is picked: all of them print, in order
     jp::office::sheet::CellRange selection;     // for Selection, on the active sheet
     bool ignorePrintArea = false;
+    bool grayscale = false;                     // every page is painted in shades of gray, in the preview, on paper, and in a PDF
     bool archival = false;                      // for a PDF: PDF/A-1b, the form for keeping (every font inside, no transparency)
     // what the person chose for this job, over what the sheets say
     bool setOrientation = false;
@@ -76,6 +77,7 @@ struct PrintChoices {
     PrintSides sides = PrintSides::All;   // all the pages, or only the odd ones or the even ones (by page number)
     int copies = 1;
     bool collate = true;
+    bool reverse = false;       // the last page first
     QString printer;            // the printer's name; empty for the default
     bool toFile = false;        // a PDF file, not a printer
     bool byHand = false;        // both sides by hand: the first, third, ... pages, a message to turn the stack over, then the others last first (never with a file)
@@ -194,6 +196,7 @@ public:
 
     // Draws a page in points on the painter (its origin the paper's corner). Gives false if the page is not one.
     bool paint(QPainter *painter, int page);
+    bool paintColors(QPainter *painter, int page);   // (the page as the sheet colors it; paint() makes it gray when the job is)
     // The paper size and the painting of a group of pages that share a sheet (see `perSheet` below).
     QSizeF sheetFor(const QVector<int> &group, int perSheet) const;
     void paintGroup(QPainter *painter, const QVector<int> &group, const QSizeF &sheet, int perSheet);
@@ -258,6 +261,7 @@ private:
     bool m_lastMissed = false;
     quint64 m_tick = 0;
     bool m_cancelled = false;
+    bool m_inGray = false;     // a page is being painted in color into the pixels that will be made gray
     QDateTime m_now;
     int m_totalNumbers = 0;
     std::unique_ptr<Build> m_build;

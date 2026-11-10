@@ -8,6 +8,7 @@
 #include "app/filescreenparts.h"
 #include "app/icons.h"
 #include "app/settings.h"
+#include "app/printpage.h"
 #include "app/printsides.h"
 #include "core/printjob.h"
 #include "sheet/pagesetup.h"
@@ -82,11 +83,8 @@ QWidget *CrunchFileScreen::buildPrint()
     printBtn->setMinimumHeight(40);
     printBtn->setMinimumWidth(120);
     printBtn->setCursor(Qt::PointingHandCursor);
-    auto *copies = new QSpinBox(w);
-    copies->setObjectName(QStringLiteral("printCopies"));
-    copies->setRange(1, 999);
+    QSpinBox *copies = makeCopiesBox(w);
     copies->setValue(std::max(1, choices.copies));
-    copies->setAccessibleName(tr("Copies"));
     auto *top = new QHBoxLayout();
     top->addWidget(printBtn);
     top->addSpacing(12);
@@ -146,17 +144,13 @@ QWidget *CrunchFileScreen::buildPrint()
     perSheet->setCurrentIndex(std::max(0, perSheet->findData(choices.pagesPerSheet)));
     perSheet->setToolTip(tr("Print several pages, made smaller, on each sheet of paper. The preview shows the sheet of paper."));
     form->addRow(tr("Pages on a sheet:"), perSheet);
-    auto *collate = new QCheckBox(tr("Collated"), w);
-    collate->setObjectName(QStringLiteral("printCollate"));
+    QCheckBox *collate = makeCollateBox(w, tr("Print each copy of all the pages in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
     collate->setChecked(choices.collate);
-    collate->setToolTip(tr("Print each copy of all the pages in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
     form->addRow(QString(), collate);
-    auto *orientation = new QComboBox(w);
-    orientation->setObjectName(QStringLiteral("printOrientation"));
-    orientation->setAccessibleName(tr("Which way the paper turns"));
-    orientation->addItem(tr("As each sheet says"), -1);
-    orientation->addItem(tr("Tall"), int(jp::office::sheet::PageOrientation::Portrait));
-    orientation->addItem(tr("Wide"), int(jp::office::sheet::PageOrientation::Landscape));
+    QCheckBox *reverse = makeReverseBox(w);
+    reverse->setChecked(choices.reverse);
+    form->addRow(QString(), reverse);
+    QComboBox *orientation = makeOrientationBox(w, tr("As each sheet says"));
     orientation->setCurrentIndex(choices.job.setOrientation ? std::max(0, orientation->findData(int(choices.job.orientation))) : 0);
     form->addRow(tr("Paper turned:"), orientation);
     auto *paper = new QComboBox(w);
@@ -203,6 +197,9 @@ QWidget *CrunchFileScreen::buildPrint()
     ignore->setChecked(choices.job.ignorePrintArea);
     ignore->setToolTip(tr("Print everything that has something in it, not just the print areas the sheets have."));
     form->addRow(QString(), ignore);
+    QCheckBox *gray = makeGrayscaleBox(w);
+    gray->setChecked(choices.job.grayscale);
+    form->addRow(QString(), gray);
     left->addLayout(form);
     auto *setupButton = new QPushButton(tr("Page Setup…"), w);
     setupButton->setObjectName(QStringLiteral("printPageSetup"));
@@ -275,6 +272,7 @@ QWidget *CrunchFileScreen::buildPrint()
         crunch::PrintChoices c;
         c.job.what = crunch::PrintWhat(what->currentData().toInt());
         c.job.ignorePrintArea = ignore->isChecked();
+        c.job.grayscale = gray->isChecked();
         if (orientation->currentData().toInt() >= 0) {
             c.job.setOrientation = true;
             c.job.orientation = jp::office::sheet::PageOrientation(orientation->currentData().toInt());
@@ -296,6 +294,7 @@ QWidget *CrunchFileScreen::buildPrint()
         c.pagesPerSheet = perSheet->currentData().toInt();
         c.copies = copies->value();
         c.collate = collate->isChecked();
+        c.reverse = reverse->isChecked();
         c.toFile = printer->currentData(Qt::UserRole + 1).toBool();
         c.printer = c.toFile ? QString() : printer->currentData().toString();
         c.duplexChoice = sidesWanted(duplex);
@@ -307,11 +306,13 @@ QWidget *CrunchFileScreen::buildPrint()
         QVector<int> pages;
         if (!state->job) return pages;
         const crunch::PrintSides side = crunch::PrintSides(sides->currentData().toInt());
+        // (the last page first, except where the pages are printed on both sides by hand, which sets the order itself)
+        const bool backwards = reverse->isChecked() && !sidesByHand(duplex);
         if (range->text().trimmed().isEmpty()) {
             for (int i = 0; i < state->job->pageCount(); ++i) pages << i;
-            return crunch::pagesOfSide(pages, side);
+            return inPrintOrder(crunch::pagesOfSide(pages, side), backwards);
         }
-        return crunch::pagesOfSide(crunch::parsePageRange(range->text(), state->job->pageCount()), side);
+        return inPrintOrder(crunch::pagesOfSide(crunch::parsePageRange(range->text(), state->job->pageCount()), side), backwards);
     };
     // The preview shows a sheet of paper (a group of pages) when several pages share one or the pages are scaled to another paper; else a page.
     auto sheetMode = [=]() { return perSheet->currentData().toInt() > 1 || scaleToPaper->currentData().toInt() > 0; };
@@ -404,6 +405,13 @@ QWidget *CrunchFileScreen::buildPrint()
     };
     for (QComboBox *box : {what, orientation, paper, margins, scaling, scaleToPaper}) connect(box, &QComboBox::currentIndexChanged, w, [=] { choose(); });
     connect(ignore, &QCheckBox::toggled, w, [=] { choose(); });
+    connect(gray, &QCheckBox::toggled, w, [=] { choose(); });
+    connect(reverse, &QCheckBox::toggled, w, [=] {
+        win->printChoices() = read();
+        state->page = 0;
+        words();
+        paint();
+    });
     connect(range, &QLineEdit::textChanged, w, [=] {
         win->printChoices() = read();
         state->page = 0;
@@ -439,7 +447,11 @@ QWidget *CrunchFileScreen::buildPrint()
     });
     connect(duplex, &QComboBox::currentIndexChanged, w, [=] {
         Settings::get().setValue(QStringLiteral("print/sides"), sidesWanted(duplex));
+        reverse->setEnabled(!sidesByHand(duplex));
         win->printChoices() = read();
+        state->page = 0;
+        words();
+        paint();
     });
     connect(previous, &QToolButton::clicked, w, [=] {
         --state->page;

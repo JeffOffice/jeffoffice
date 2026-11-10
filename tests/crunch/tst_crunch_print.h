@@ -214,6 +214,8 @@ private Q_SLOTS:
     void thePrintScreenShowsThePagesAndFollowsTheChoices();
     void theOddOrTheEvenPagesCanBePrintedAlone();
     void printToAFileMakesThePdfAndClosesTheScreen();
+    void theLastPageFirstChoiceReversesThePreviewAndThePrintedFile();
+    void theGrayscaleChoiceMakesThePreviewAndThePrintedFileGray();
     void severalPagesCanShareASheet();
     void pagesGoToAPrinterObject();
     void theSidesChoiceSetsTheDuplexModeOfThePrinter();

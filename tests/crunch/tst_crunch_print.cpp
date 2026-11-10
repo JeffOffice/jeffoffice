@@ -3,6 +3,7 @@
 
 #include "../plainpdfwatch.h"
 #include "../emlpdf.h"
+#include "render/pdfpage.h"
 #include "app/passworddialogs.h"
 #include "app/pdfprotection.h"
 #include "io/pdfcrypt.h"
@@ -1265,6 +1266,128 @@ void CrunchPrintTests::printToAFileMakesThePdfAndClosesTheScreen()
         if (at + 11 >= pdf.size() || pdf[at + 11] != 's') ++pages;
     QCOMPARE(pages, 2);
     QVERIFY(!w.findChild<QPushButton *>(QStringLiteral("printButton"))->isVisible());   // (the screen is closed)
+}
+
+
+namespace {
+// The pages of a PDF, each as the words on it.
+QStringList pdfPageTexts(const QString &path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) return {};
+    const jp::PdfDocument doc(f.readAll());
+    QStringList out;
+    for (int i = 0; doc.isValid() && i < doc.pageCount(); ++i) out << doc.text(i);
+    return out;
+}
+// How many of the picture's pixels have a color (their red, green, and blue are far apart), and how many are dark.
+struct Ink {
+    int colored = 0, dark = 0;
+};
+Ink inkOf(const QImage &image)
+{
+    Ink ink;
+    for (int y = 0; y < image.height(); ++y)
+        for (int x = 0; x < image.width(); ++x) {
+            const QColor c = image.pixelColor(x, y);
+            if (std::max({c.red(), c.green(), c.blue()}) - std::min({c.red(), c.green(), c.blue()}) > 60) ++ink.colored;
+            if (qGray(c.rgb()) < 128) ++ink.dark;
+        }
+    return ink;
+}
+} // namespace
+
+
+// Last page first: the preview starts on the last page and the file's pages come out in reverse; by hand the order is the program's, so the choice is off.
+void CrunchPrintTests::theLastPageFirstChoiceReversesThePreviewAndThePrintedFile()
+{
+    const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Alphaword</t></is></c></row><row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>Bravoword</t></is></c></row>"
+                                       "<row r=\"3\"><c r=\"A3\" t=\"inlineStr\"><is><t>Charlieword</t></is></c></row>");
+    const QByteArray book = buildXlsx({worksheet(rows, QStringLiteral("<rowBreaks count=\"2\" manualBreakCount=\"2\"><brk id=\"1\" max=\"16383\" man=\"1\"/><brk id=\"2\" max=\"16383\" man=\"1\"/></rowBreaks>"))});
+    EditWindow e;
+    QVERIFY(e.open(book));
+    CrunchWindow &w = e.win.w;
+    const QString target = e.folder.dir.filePath(QStringLiteral("order.pdf"));
+    w.setSavePicker([&](const QString &, const QString &) { return target; });
+    auto printed = [&](bool reversed) {
+        w.act(QStringLiteral("file.print"))->trigger();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);   // (the page that was there is gone, so what is found is the new one)
+        QComboBox *printer = w.findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        printer->setCurrentIndex(printer->count() - 1);
+        QCheckBox *reverse = w.findChild<QCheckBox *>(QStringLiteral("printReverse"));
+        QVERIFY(reverse);
+        QCOMPARE(reverse->text(), QStringLiteral("Last page first"));
+        reverse->setChecked(reversed);
+        QLabel *page = w.findChild<QLabel *>(QStringLiteral("printPage"));
+        QTRY_COMPARE(page->text(), reversed ? QStringLiteral("Page 3 of 3") : QStringLiteral("Page 1 of 3"));
+        w.findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+    };
+    printed(false);
+    QStringList texts = pdfPageTexts(target);
+    QCOMPARE(texts.size(), 3);
+    QVERIFY(texts[0].contains(QStringLiteral("Alphaword")) && texts[1].contains(QStringLiteral("Bravoword")) && texts[2].contains(QStringLiteral("Charlieword")));
+    printed(true);
+    texts = pdfPageTexts(target);
+    QCOMPARE(texts.size(), 3);
+    QVERIFY2(texts[0].contains(QStringLiteral("Charlieword")) && texts[1].contains(QStringLiteral("Bravoword")) && texts[2].contains(QStringLiteral("Alphaword")), qPrintable(texts.join('|')));
+    // (the order is chosen again on the page, and both sides by hand turns it off, which a printer that has no sides of its own is for)
+    setDuplexSupportStandIn([](const QString &) { return QList<QPrinter::DuplexMode>{QPrinter::DuplexNone, QPrinter::DuplexLongSide, QPrinter::DuplexShortSide}; });
+    const auto done = qScopeGuard([] { setDuplexSupportStandIn(nullptr); });
+    w.act(QStringLiteral("file.print"))->trigger();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);   // (the page that was there is gone, so what is found is the new one)
+    QComboBox *printer = w.findChild<QComboBox *>(QStringLiteral("printPrinter"));
+    printer->insertItem(0, QStringLiteral("a printer"), QStringLiteral("a printer"));
+    printer->setCurrentIndex(0);
+    QCheckBox *reverse = w.findChild<QCheckBox *>(QStringLiteral("printReverse"));
+    QVERIFY(reverse->isEnabled());
+    QComboBox *duplex = w.findChild<QComboBox *>(QStringLiteral("printDuplex"));
+    QVERIFY(duplex);
+    duplex->setCurrentIndex(duplex->findData(int(SidesChoice::ByHand)));
+    QVERIFY(!reverse->isEnabled());
+    duplex->setCurrentIndex(0);
+}
+
+
+// Grayscale: a cell filled with a color comes out gray in the preview and in the PDF; without the choice it keeps its color.
+void CrunchPrintTests::theGrayscaleChoiceMakesThePreviewAndThePrintedFileGray()
+{
+    const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" s=\"3\" t=\"inlineStr\"><is><t>Redcell</t></is></c><c r=\"B1\" s=\"3\"/><c r=\"C1\" s=\"3\"/></row>");
+    const QByteArray book = buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), findStyles());
+    EditWindow e;
+    QVERIFY(e.open(book));
+    CrunchWindow &w = e.win.w;
+    const QString target = e.folder.dir.filePath(QStringLiteral("gray.pdf"));
+    w.setSavePicker([&](const QString &, const QString &) { return target; });
+    auto printed = [&](bool gray, Ink *shown, Ink *made) {
+        w.act(QStringLiteral("file.print"))->trigger();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);   // (the page that was there is gone, so what is found is the new one)
+        QComboBox *printer = w.findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        printer->setCurrentIndex(printer->count() - 1);
+        QCheckBox *check = w.findChild<QCheckBox *>(QStringLiteral("printGray"));
+        QVERIFY(check);
+        QCOMPARE(check->text(), QStringLiteral("Grayscale"));
+        check->setChecked(gray);
+        QLabel *preview = w.findChild<QLabel *>(QStringLiteral("printPreview"));
+        QTRY_VERIFY(!preview->pixmap().isNull());
+        // (the picture is drawn again with the choice: wait for the one that has it)
+        if (gray) QTRY_COMPARE(inkOf(preview->pixmap().toImage()).colored, 0);
+        else QTRY_VERIFY(inkOf(preview->pixmap().toImage()).colored > 20);
+        *shown = inkOf(preview->pixmap().toImage());
+        w.findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+        QFile f(target);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const jp::PdfDocument doc(f.readAll());
+        QVERIFY(doc.isValid());
+        *made = inkOf(doc.render(0, QSize(612, 792)));
+    };
+    Ink shown, color, gray;
+    printed(false, &shown, &color);
+    QVERIFY2(color.colored > 20, qPrintable(QString::number(color.colored)));
+    printed(true, &shown, &gray);
+    QCOMPARE(gray.colored, 0);
+    QVERIFY(gray.dark > 5);   // (the words, and the fill, are there)
+    QVERIFY(shown.dark > 5);
+    w.printChoices() = crunch::PrintChoices();
 }
 
 
