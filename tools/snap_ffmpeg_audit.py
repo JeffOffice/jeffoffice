@@ -20,6 +20,8 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = re.compile(r"/lib(avcodec|avformat|avutil|swresample|swscale)\.so\.\d+(\.\d+)*$")
 FFNAME = re.compile(r"^lib(avcodec|avformat|avutil|swresample|swscale)\.so\.\d+$")
+# A file in our folder: the soname link or the versioned file it points to.
+FFFILE = re.compile(r"^lib(avcodec|avformat|avutil|swresample|swscale)\.so\.\d+(\.\d+)*$")
 OURS = "usr/lib/jeffoffice-ffmpeg"
 PLUGIN = "libffmpegmediaplugin.so"
 ARCH = "x86_64-linux-gnu"
@@ -99,7 +101,7 @@ def resolution_problems(snap_root, content_root, needed, values, our_files):
     """For each app: every needed library must resolve to our folder. our_files: the paths in our folder of the snap (it holds only FFmpeg's libraries)."""
     problems = []
     ours = os.path.realpath(os.path.join(snap_root, OURS))
-    stray = [p for p in our_files if not FFNAME.match(os.path.basename(p))]
+    stray = [p for p in our_files if not FFFILE.match(os.path.basename(p))]
     if stray:
         problems.append("%s holds more than FFmpeg's libraries: %s" % (OURS, ", ".join(stray)))
     for name in needed:
