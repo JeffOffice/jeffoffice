@@ -747,10 +747,11 @@ jobs:
             test -s dist/crunch.png && rm dist/crunch.png
           fi
           mkdir dmg-root && cp -R dist/*.app LICENSE README.md dmg-root/ && ln -s /Applications dmg-root/Applications
+          # ULMO is LZMA compression (the disk image needs macOS 10.15 or later; the apps need 12.0).
           # hdiutil now and then fails with "Resource busy" on the hosted
           # runners; a few tries a little apart get past it.
           for try in 1 2 3 4 5; do
-            hdiutil create -volname "JeffOffice" -srcfolder dmg-root -ov -format UDZO macos-dmg/JeffOffice-$ver.dmg && break
+            hdiutil create -volname "JeffOffice" -srcfolder dmg-root -ov -format ULMO macos-dmg/JeffOffice-$ver.dmg && break
             if [ "$try" = 5 ]; then exit 1; fi
             sleep 10
           done
