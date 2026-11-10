@@ -2556,10 +2556,10 @@ private Q_SLOTS:
             ed->doc()->pages[0]->items.push_back(s);
         }
         QElapsedTimer clock;
-        auto within = [&](const char *what) {
+        auto within = [&](const char *what, qint64 limit = 3000) {
             const qint64 ms = clock.elapsed();
             clock.restart();
-            QVERIFY2(ms < 3000, qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
+            QVERIFY2(ms < limit, qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
         };
         clock.start();
         w.act(QStringLiteral("arr.selectionPane"))->trigger();
@@ -2571,7 +2571,7 @@ private Q_SLOTS:
         QCOMPARE(int(ed->selection().size()), 20000);
         w.findChild<jp::SelectionPane *>(QStringLiteral("selectionPane"))->refresh();   // (the pane follows the selection)
         QCOMPARE(list->currentRow(), 0);
-        within("Select All");
+        within("Select All", 1500);
         ed->moveSelectionBy(3, 3);
         within("a nudge");
         const QString moved = ed->surfaceItems()[19999]->id;
