@@ -542,7 +542,7 @@ QWidget *DeckFileScreen::buildAbout()
 {
     AboutHost host;
     host.tagline = tr("Free, open-source presentations for Windows, macOS, and Linux.");
-    host.nameNote = tr("Saved as the author of new presentations and shown in comments.");
+    host.nameNote = tr("Saved as the author of a presentation that has none, as who last changed it, and as the name on your comments.");
     // FFmpeg, which plays the movies and sounds (third_party/ffmpeg).
     host.extras = {{QStringLiteral("FFmpeg"), QStringLiteral("https://ffmpeg.org/"), tr("Playing movies and sounds"), QStringLiteral("LGPL-2.1+"),
                     QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/third_party/ffmpeg/licenses/ffmpeg.txt")}};

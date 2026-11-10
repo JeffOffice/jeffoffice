@@ -121,12 +121,12 @@ bool AppWindow::commandAllowedReadOnly(const QString &id)
 {
     // The commands that only look, find, copy, open, save elsewhere, or leave: each named, so a command that is added later is refused until it is put here. (Save and Save As are here
     // because each of them handles a document open for reading only itself: a new name, never the file's own.) The commands a person can reach in a read-only document and that
-    // change it are not here: Replace, the slide show's set-up, its timings, its custom shows, the file's properties, freezing panes.
+    // change it are not here: Replace, the slide show's set-up, its timings, its custom shows, freezing panes. (Pub's Info command only opens the Info page, which shows a read-only file's facts.)
     static const QSet<QString> allowed = [] {
         QSet<QString> ids;
         for (const char *id : {
                  "file.blank", "file.close", "file.exportHtml", "file.exportImages", "file.exportPdf", "file.exportPicture", "file.new", "file.open", "file.open.jpub", "file.open.pub",
-                 "file.openDialog", "file.openText", "file.options", "file.print", "file.printNow", "file.save", "file.save.jpub", "file.save.pub", "file.saveAs", "file.saveAsPub",
+                 "file.openDialog", "file.openText", "file.options", "file.properties", "file.print", "file.printNow", "file.save", "file.save.jpub", "file.save.pub", "file.saveAs", "file.saveAsPub",
                  "file.saveCopy", "file.saveTemplate",
                  "find.find", "find.goto", "find.gotoSpecial", "find.next",
                  "help.feedback", "help.shortcuts", "help.show", "help.whatsNew", "view.pageMovement.sideToSide", "view.pageMovement.vertical", "view.readMode", "view.draft", "view.webLayout", "view.split",

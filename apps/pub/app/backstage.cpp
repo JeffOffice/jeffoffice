@@ -1068,7 +1068,7 @@ QWidget *Backstage::buildAbout()
 {
     AboutHost host;
     host.tagline = tr("Free, open-source desktop publishing for Windows, macOS, and Linux.");
-    host.nameNote = tr("Saved as the author of new publications and shown in comments.");
+    host.nameNote = tr("Saved as the author of a publication that has none, and as who last changed it.");
     // JeffPub's own parts.
     host.extras = {
         {QStringLiteral("libmspub (modified)"), QStringLiteral("https://git.libreoffice.org/libmspub"), tr("Reading .pub files"), QStringLiteral("MPL-2.0"),

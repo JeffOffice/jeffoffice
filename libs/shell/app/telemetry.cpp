@@ -2,6 +2,7 @@
 #include "core/version.h"
 
 #include "app/crash.h"
+#include "app/netspy.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
 
@@ -107,6 +108,7 @@ void send(QNetworkAccessManager *net)
     const QDate today = QDate::currentDate();
     QNetworkRequest req = request(kUrl);
     const QJsonObject sent = payload();
+    if (networkSpied(req)) return;
     QNetworkReply *r = net->post(req, QJsonDocument(sent).toJson(QJsonDocument::Compact));
     QObject::connect(r, &QNetworkReply::finished, r, [r, sent, today] {
         r->deleteLater();
@@ -140,6 +142,7 @@ void sendCrash(QNetworkAccessManager *net)
         QFile::remove(path);
         return;
     }
+    if (networkSpied(request(kCrashUrl))) return;
     QNetworkReply *r = net->post(request(kCrashUrl), QJsonDocument(report).toJson(QJsonDocument::Compact));
     QObject::connect(r, &QNetworkReply::finished, r, [r, path] {
         r->deleteLater();

@@ -14,17 +14,26 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 
 namespace jp {
 
 namespace {
 
-std::function<void(QWidget *)> &updateCheck()
-{
-    static std::function<void(QWidget *)> f;
-    return f;
-}
+// The page: its two choices are read again each time it is shown, so one made in another app is what it shows.
+class AboutPageWidget : public QWidget {
+public:
+    using QWidget::QWidget;
+    std::function<void()> refresh;
+
+protected:
+    void showEvent(QShowEvent *e) override
+    {
+        QWidget::showEvent(e);
+        if (refresh) refresh();
+    }
+};
 
 struct AboutPageText {
     Q_DECLARE_TR_FUNCTIONS(jp::AboutPage)
@@ -34,7 +43,7 @@ struct AboutPageText {
 
 QWidget *buildAboutPage(QWidget *parent, const QWidget *screen, const AboutHost &host)
 {
-    auto *w = new QWidget(parent);
+    auto *w = new AboutPageWidget(parent);
     w->setObjectName(QStringLiteral("aboutPage"));
     auto *v = new QVBoxLayout(w);
     v->setContentsMargins(40, 30, 40, 30);
@@ -51,7 +60,7 @@ QWidget *buildAboutPage(QWidget *parent, const QWidget *screen, const AboutHost 
     ih->setContentsMargins(20, 18, 20, 18);
     ih->setSpacing(16);
     auto *badge = new QLabel(id);
-    badge->setPixmap(appBadge(w, 56, 24, 14));
+    badge->setPixmap(appBadge(screen, 56, 24, 14));
     ih->addWidget(badge, 0, Qt::AlignTop);
     auto *iv = new QVBoxLayout();
     iv->setSpacing(3);
@@ -79,10 +88,6 @@ QWidget *buildAboutPage(QWidget *parent, const QWidget *screen, const AboutHost 
     auto *checkBtn = new QPushButton(AboutPageText::tr("Check for Updates"), id);
     checkBtn->setCursor(Qt::PointingHandCursor);
     QObject::connect(checkBtn, &QPushButton::clicked, w, [w] {
-        if (updateCheck()) {
-            updateCheck()(w->window());
-            return;
-        }
         if (!updater()) setUpdater(new Updater(w->window()));
         updater()->check(true);
     });
@@ -100,7 +105,9 @@ QWidget *buildAboutPage(QWidget *parent, const QWidget *screen, const AboutHost 
                             "Never your files, their names, or anything in them.")
                              .arg(appInfo().name)));
     statsBox->setChecked(telemetry::enabled());
-    QObject::connect(statsBox, &QCheckBox::toggled, w, [](bool on) { telemetry::setEnabled(on); });
+    QObject::connect(statsBox, &QCheckBox::toggled, w, [](bool on) {
+        if (on != telemetry::enabled()) telemetry::setEnabled(on);   // (showing the page again sets the box to what is chosen: nothing to write)
+    });
     auto *statsLink = new QLabel(QStringLiteral("<a href=\"https://telemetry-production-9964.up.railway.app/\">%1</a>").arg(AboutPageText::tr("What's sent")), id);
     statsLink->setOpenExternalLinks(true);
     auto *sh = new QHBoxLayout();
@@ -113,6 +120,13 @@ QWidget *buildAboutPage(QWidget *parent, const QWidget *screen, const AboutHost 
     iv->addWidget(telemetry::installNumberLine(id, statsBox));
     ih->addLayout(iv, 1);
     v->addWidget(id);
+
+    w->refresh = [autoBox, statsBox] {
+        Settings::get().sync();   // a choice made meanwhile in another app counts
+        const QSignalBlocker a(autoBox);
+        autoBox->setChecked(Settings::get().value(QStringLiteral("updates/auto"), true).toBool());
+        statsBox->setChecked(telemetry::enabled());
+    };
 
     // Your name, used as the author.
     auto *you = cardFrame(w);
@@ -163,7 +177,5 @@ QWidget *buildAboutPage(QWidget *parent, const QWidget *screen, const AboutHost 
     v->addStretch(1);
     return w;
 }
-
-void setUpdateCheckForTests(const std::function<void(QWidget *)> &check) { updateCheck() = check; }
 
 } // namespace jp

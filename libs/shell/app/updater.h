@@ -22,6 +22,8 @@ public:
     explicit Updater(QWidget *window);
     // interactive: also report "up to date" and errors (Check for Updates button).
     void check(bool interactive);
+    // For tests: how many times check() got as far as asking the update server (not counting a snap or apt copy, which never asks).
+    static int checkCalls();
     // Check each time JeffPub starts, if automatic checks are on.
     void checkOnStartup();
     static bool checksOnStartup();

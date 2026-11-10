@@ -1,5 +1,6 @@
 // JeffPub's tests of SVG, ebook, and other output, barcodes, and metafiles.
 #include "pubhelpers.h"
+#include "app/backstage.h"
 #include "core/svg.h"
 #include "app/emailops.h"
 #include <QPaintEngine>
@@ -392,9 +393,13 @@ private Q_SLOTS:
             QCOMPARE(w.editor()->doc()->props.title, QStringLiteral("original"));
             QCOMPARE(snapshot(), before);
             QVERIFY(!w.editor()->isModified());
-            // The file's properties and every other changing command are off or refused.
-            QVERIFY(!jp::AppWindow::commandAllowedReadOnly(QStringLiteral("file.properties")));
-            QVERIFY(!w.act(QStringLiteral("file.properties"))->isEnabled());
+            // Info only shows the file's facts, so it is on in a read-only publication (and changes nothing); every other changing command is off or refused.
+            QVERIFY(jp::AppWindow::commandAllowedReadOnly(QStringLiteral("file.properties")));
+            QVERIFY(w.act(QStringLiteral("file.properties"))->isEnabled());
+            w.act(QStringLiteral("file.properties"))->trigger();
+            QVERIFY(w.findChild<jp::Backstage *>() && w.findChild<jp::Backstage *>()->currentPage() == QStringLiteral("info"));
+            w.hideBackstage();
+            QCOMPARE(snapshot(), before);
             for (const QString &id : w.actionIds())
                 if (!jp::AppWindow::commandAllowedReadOnly(id)) w.act(id)->trigger();
             QCOMPARE(snapshot(), before);

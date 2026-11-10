@@ -676,7 +676,7 @@ QWidget *WriteFileScreen::buildAbout()
 {
     AboutHost host;
     host.tagline = tr("Free, open-source documents for Windows, macOS, and Linux. This is a Preview.");
-    host.nameNote = tr("Saved as the author of new documents and shown in comments.");
+    host.nameNote = tr("Saved as the name on your comments and tracked changes, and as who last changed a document.");
     // The translation service JeffWrite's Translate opens.
     host.extras = {{QStringLiteral("LibreTranslate"), QStringLiteral("https://libretranslate.com/"),
                     QCoreApplication::translate("jp::Backstage", "Translate (opens in your browser)"), QStringLiteral("AGPL-3.0"),

@@ -23,8 +23,4 @@ struct AboutHost {
 // The page for the app (its name, version, repository, and badge come from appInfo()). `screen` is the File screen.
 QWidget *buildAboutPage(QWidget *parent, const QWidget *screen, const AboutHost &host);
 
-// What the Check for Updates button does: the application's updater, made on first use. Tests set another, so that
-// none of them reaches the update server; an empty function puts the real one back.
-void setUpdateCheckForTests(const std::function<void(QWidget *window)> &check);
-
 } // namespace jp

@@ -1,4 +1,5 @@
 #include "app/updater.h"
+#include "app/netspy.h"
 #include "core/version.h"
 
 #include "app/appwindow.h"
@@ -44,6 +45,7 @@ namespace jp {
 namespace {
 QString releasesUrl() { return QStringLiteral("https://api.github.com/repos/%1/releases?per_page=30").arg(appInfo().repository); }
 Updater *g_updater = nullptr;
+int g_checkCalls = 0;
 
 // (major, minor, patch, preview); a final release sorts after its previews.
 QVector<int> versionKey(QString v)
@@ -60,6 +62,7 @@ QVector<int> versionKey(QString v)
 }
 } // namespace
 
+int Updater::checkCalls() { return g_checkCalls; }
 Updater *updater() { return g_updater; }
 void setUpdater(Updater *u) { g_updater = u; }
 
@@ -145,11 +148,16 @@ void Updater::check(bool interactive)
                                                                  : tr("This copy of %1 was installed with apt. It is updated with your system's software updates, so there is nothing to download here.").arg(appInfo().name));
         return;
     }
+    ++g_checkCalls;
     m_busy = true;
     QNetworkRequest req{QUrl(releasesUrl())};
     req.setHeader(QNetworkRequest::UserAgentHeader, appInfo().name + QStringLiteral("/") + jp::versionText());
     req.setRawHeader("Accept", "application/vnd.github+json");
     req.setTransferTimeout(15000);
+    if (networkSpied(req)) {
+        m_busy = false;
+        return;
+    }
     QNetworkReply *r = m_net.get(req);
     connect(r, &QNetworkReply::finished, this, [this, r, interactive] {
         r->deleteLater();
@@ -320,6 +328,7 @@ void Updater::downloadAndRun(const QString &url, const QString &tag, const QStri
     QNetworkRequest req{QUrl(url)};
     req.setHeader(QNetworkRequest::UserAgentHeader, appInfo().name + QStringLiteral("/") + jp::versionText());
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    if (networkSpied(req)) return;
     QNetworkReply *r = m_net.get(req);
     auto *progress = new QProgressDialog(tr("Downloading %1 %2…").arg(appInfo().name, tag), tr("Cancel"), 0, 100, m_win);
     progress->setWindowTitle(tr("Update"));
