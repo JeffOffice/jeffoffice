@@ -20,6 +20,7 @@
 #include "io/pdfspots.h"
 #include "app/pdfprotection.h"
 #include "io/crypto.h"
+#include "office/officecrypt.h"
 #include "app/passworddialogs.h"
 #include "io/pdfx.h"
 #include "app/appfuncs.h"
@@ -422,6 +423,7 @@ void MainWindow::newPublication(std::unique_ptr<Document> doc)
 {
     crypto::wipe(m_filePassword);
     m_fileProtected = false;
+    m_versions.reset();
     m_ed->setDocument(std::move(doc));
     hideBackstage();
 }
@@ -433,6 +435,9 @@ MainWindow *MainWindow::changeTemplate(std::unique_ptr<Document> design, bool to
     if (toNewWindow) {
         target = new MainWindow();
         target->setAttribute(Qt::WA_DeleteOnClose);
+        // (the content of a protected publication goes into the new window protected: its saves and recovery copies follow the password)
+        target->m_fileProtected = m_fileProtected;
+        target->m_filePassword = m_filePassword;
         target->m_ed->setDocument(applyDesign(*m_ed->doc(), std::move(design), &report));
         target->m_ed->markUnsaved();
         target->show();
@@ -512,6 +517,13 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
     office::RepairReport repair;
     const bool repairing = how == OpenHow::Repair;
     if (repairing) {
+        if (bytes.startsWith(QByteArray::fromHex("D0CF11E0A1B11AE1"))) {
+            QByteArray info, package;
+            if (office::splitProtectedPackage(bytes, &info, &package)) {
+                notice(tr("Open and Repair"), tr("\"%1\" has a password, and a file with a password can't be repaired. Open it with its password instead.").arg(QFileInfo(path).fileName()), true);
+                return false;
+            }
+        }
         bytes = office::repairZip(bytes, &err, &repair);
         if (bytes.isEmpty()) {
             jp::plainWarning(this, tr("Open and Repair"), tr("JeffPub can't repair \"%1\".\n%2").arg(QFileInfo(path).fileName(), err));
@@ -538,6 +550,7 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
     crypto::wipe(m_filePassword);
     m_fileProtected = wasProtected;
     if (wasProtected) m_filePassword = openedWith;
+    m_versions.reset(wasProtected ? openedWith : QString());
     crypto::wipe(openedWith);
     if (how == OpenHow::Copy || repairing) {
         // The file's contents as a new publication that has no file yet (Save asks where); the file is never written.
@@ -645,6 +658,9 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
         m_ed->setFilePath(path);
         m_ed->markSaved();
         if (isReadOnly()) setReadOnly(false);
+        // (the versions kept follow the password the file has now)
+        if (m_versions.follow(path, QStringLiteral(".jpub"), password) > 0)
+            notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
     }
     Settings::get().addRecentFile(path);
     telemetry::count(path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive) ? QStringLiteral("file.save.pub") : QStringLiteral("file.save.jpub"));

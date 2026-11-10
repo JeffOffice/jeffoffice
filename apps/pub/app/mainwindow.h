@@ -235,6 +235,7 @@ private:
     std::function<void(const QString &, const QString &)> m_notifier;
     bool m_fileProtected = false;   // the file is saved with a password (a .jpub file's package inside the encrypted container)
     QString m_filePassword;
+    write::VersionKey m_versions;   // what the versions kept for the file are protected with (they follow a new password when the file is saved)
     bool m_protectionNoted = false;
     bool m_recovered = false;       // the document is recovered work, not yet saved
     bool m_personalInfoRemoved = false;   // Inspect took the names out of the properties: they stay out until the publication is closed

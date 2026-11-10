@@ -544,7 +544,11 @@ QWidget *Backstage::buildNew(bool change)
             }
         }
         auto doc = build(key);
-        if (!doc) return;
+        if (!doc) {
+            if (key.startsWith("file:"))
+                jp::plainInformation(this, change ? tr("Change Template") : tr("New Publication"), tr("JeffPub can't use this template. If it asks for a password, make a publication from it with New instead of changing to it."));
+            return;
+        }
         if (key.startsWith("tpl:")) doc->templateId = key.mid(4);
         if (!change) {
             m_win->newPublication(std::move(doc));

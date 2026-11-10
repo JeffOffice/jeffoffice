@@ -97,6 +97,10 @@ bool emailAsAttachment(QWidget *parent, Editor *ed, const QString &format, const
         // (a protected publication is attached protected)
         const auto *win = qobject_cast<MainWindow *>(parent->window());
         if (win && !win->filePassword().isEmpty()) data = office::encryptPackage(data, win->filePassword());
+        if (data.isEmpty()) {
+            jp::plainWarning(parent, QCoreApplication::translate("Sharing", "Email"), QCoreApplication::translate("Sharing", "The publication couldn't be protected with its password, so nothing was attached."));
+            return false;
+        }
         fileName = ed->displayName() + ".jpub";
         mime = "application/x-jeffpub";
     }
@@ -144,6 +148,10 @@ bool packToZip(MainWindow *win, const QString &path, int *fontCount, QString *er
     QByteArray jpub = publicationBytes(*ed->doc(), win->pageThumbnail(0, 256), QString(), true);
     // (a protected publication is packed protected)
     if (!win->filePassword().isEmpty()) jpub = office::encryptPackage(jpub, win->filePassword());
+    if (jpub.isEmpty()) {
+        if (error) *error = QCoreApplication::translate("Sharing", "The publication couldn't be protected with its password.");
+        return false;
+    }
     z.add(ed->displayName() + ".jpub", jpub);
     // Include the font files the publication uses, when they are bundled or installed as files.
     QSet<QString> families;

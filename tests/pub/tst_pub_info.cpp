@@ -370,6 +370,7 @@ private Q_SLOTS:
         const QString path = dir.filePath(QStringLiteral("v.jpub"));
         jp::MainWindow w;
         Quiet quiet(w);
+        w.editor()->doc()->props.title = QStringLiteral("Version one");
         QVERIFY(w.saveTo(path));   // (a plain file)
         choosePassword(w, QStringLiteral("hunter2"));
         QVERIFY(w.saveVersion(QStringLiteral("One")));
@@ -380,13 +381,32 @@ private Q_SLOTS:
             jptest::SettingGuard keep(QStringLiteral("save/backup"), true, false);
             QVERIFY(w.saveTo(path));
         }
-        QVERIFY(fileBytes(dir.filePath(QStringLiteral("Backup of v.jpub"))).startsWith(kCompound));
+        // (the plain file on disk was backed up protected; the file is protected now, and the next backup of it keeps its password)
+        const QString backup = dir.filePath(QStringLiteral("Backup of v.jpub"));
+        QVERIFY(fileBytes(backup).startsWith(kCompound));
+        QVERIFY(fileBytes(path).startsWith(kCompound));
+        QFile::remove(backup);
+        {
+            jptest::SettingGuard keep(QStringLiteral("save/backup"), true, false);
+            QVERIFY(w.saveTo(path));
+        }
+        QVERIFY(fileBytes(backup).startsWith(kCompound));
+        answerWith({QStringLiteral("hunter2")});
+        {
+            jp::MainWindow b;
+            Quiet quietB(b);
+            QVERIFY(b.openFile(backup));
+            QCOMPARE(b.editor()->doc()->props.title, QStringLiteral("Version one"));
+        }
+        jp::setOpenPasswordStandIn(nullptr);
         const QString copy = dir.filePath(QStringLiteral("c.jpub"));
         QVERIFY(w.saveTo(copy, true));
         QVERIFY(fileBytes(copy).startsWith(kCompound));
         // going back to the version opens it with the password
+        w.editor()->doc()->props.title = QStringLiteral("Changed since");
         QVERIFY(w.restoreVersion(list.first().file));
         QVERIFY(w.isPasswordProtected());
+        QCOMPARE(w.editor()->doc()->props.title, QStringLiteral("Version one"));
         // a recovery copy would hold the text in the clear: none is written
         w.editor()->markUnsaved();
         w.autoRecover();
@@ -458,6 +478,90 @@ private Q_SLOTS:
             QVERIFY(w.editor()->filePath().isEmpty());
             QVERIFY(!quiet.said.isEmpty());
         }
+    }
+
+    // A protected container whose package is not a ZIP (the password is right) fails with the reason, once, and makes nothing.
+    void aProtectedFileHoldingNoZipSaysSo()
+    {
+        QTemporaryDir dir;
+        office::EncryptOptions quick;
+        quick.spinCount = 50;
+        const QString path = dir.filePath(QStringLiteral("nozip.jpub"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(office::encryptPackage(QByteArray("this is not a zip file at all"), QStringLiteral("pw"), quick));
+        f.close();
+        int asked = 0;
+        answerWith({QStringLiteral("pw")}, &asked);
+        jp::MainWindow w;
+        Quiet quiet(w);
+        QVERIFY(!w.openFile(path));
+        QCOMPARE(asked, 1);
+        QCOMPARE(quiet.said.size(), 1);
+        QVERIFY2(quiet.said.first().contains(QLatin1String("can't open \"nozip.jpub\"")), qPrintable(quiet.said.first()));
+        QVERIFY2(quiet.said.first().contains(QLatin1String("ZIP"), Qt::CaseInsensitive) || quiet.said.first().contains(QLatin1String("zip")), qPrintable(quiet.said.first()));
+        QVERIFY(w.editor()->filePath().isEmpty());
+    }
+
+    // The content of a protected publication that goes into a window of its own (Change Template, in a new window) is protected there too: its saves and recovery copies follow.
+    void aNewWindowMadeFromAProtectedPublicationIsProtected()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow w;
+        Quiet quiet(w);
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("o.jpub"))));
+        choosePassword(w, QStringLiteral("hunter2"));
+        QPointer<jp::MainWindow> target = w.changeTemplate(jp::Document::blank(QSizeF(612, 792)), true);
+        QVERIFY(target);
+        QVERIFY(target->isPasswordProtected());
+        target->autoRecover();
+        QVERIFY(target->recoveryCopy().isEmpty());
+        const QString saved = dir.filePath(QStringLiteral("n.jpub"));
+        QVERIFY(target->saveTo(saved));
+        QVERIFY(fileBytes(saved).startsWith(kCompound));
+        target->editor()->markSaved();
+        delete target.data();
+        w.editor()->markSaved();
+    }
+
+    // A recovery copy written before the password was set is in the clear: it goes when the password is put on.
+    void aPasswordRemovesTheRecoveryCopyWrittenBefore()
+    {
+        TestModeGuard testMode;
+        jp::MainWindow w;
+        Quiet quiet(w);
+        w.editor()->change(QStringLiteral("x"), [&] { w.editor()->doc()->props.title = QStringLiteral("Draft"); });
+        w.autoRecover();
+        const QString copy = w.recoveryCopy();
+        QVERIFY(!copy.isEmpty());
+        QVERIFY(QFileInfo::exists(copy));
+        choosePassword(w, QStringLiteral("hunter2"));
+        QVERIFY(w.isPasswordProtected());
+        QVERIFY(!QFileInfo::exists(copy));
+        QVERIFY(w.recoveryCopy().isEmpty());
+        w.editor()->markSaved();
+    }
+
+    // Open and Repair of a file with a password says so, and asks nothing.
+    void aFileWithAPasswordCannotBeRepairedAndSaysSo()
+    {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("r.jpub"));
+        {
+            jp::MainWindow a;
+            Quiet quiet(a);
+            choosePassword(a, QStringLiteral("hunter2"));
+            QVERIFY(a.saveTo(path));
+        }
+        int asked = 0;
+        answerWith({QStringLiteral("hunter2")}, &asked);
+        jp::MainWindow w;
+        Quiet quiet(w);
+        QVERIFY(!w.openFile(path, jp::OpenHow::Repair));
+        QCOMPARE(asked, 0);
+        QCOMPARE(quiet.said.size(), 1);
+        QVERIFY2(quiet.said.first().contains(QLatin1String("password")), qPrintable(quiet.said.first()));
+        QVERIFY2(quiet.said.first().contains(QLatin1String("can't be repaired")), qPrintable(quiet.said.first()));
     }
 
     // Mark as Final is kept in a .jpub file, protected or not: saved, reopened read-only with the note, and the mark can be taken off.

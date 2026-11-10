@@ -124,8 +124,6 @@ void MainWindow::encryptWithPassword()
     QString password;
     const NewPasswordChoice choice = askNewFilePassword(this, m_fileProtected, &password);
     if (choice == NewPasswordChoice::Cancelled) return;
-    // (the versions kept follow the password: none is left in the clear, and Go Back opens them with the new one)
-    const QString before = m_fileProtected ? m_filePassword : QString();
     crypto::wipe(m_filePassword);
     if (choice == NewPasswordChoice::Removed) {
         m_fileProtected = false;
@@ -136,12 +134,8 @@ void MainWindow::encryptWithPassword()
         m_protectionNoted = false;
         statusBar()->showMessage(tr("The publication is protected with a password when you save."), 8000);
     }
-    if (!m_ed->filePath().isEmpty()) {
-        QApplication::setOverrideCursor(Qt::WaitCursor);
-        const int failed = write::reprotectVersions(m_ed->filePath(), QStringLiteral(".jpub"), before, m_fileProtected ? m_filePassword : QString());
-        QApplication::restoreOverrideCursor();
-        if (failed > 0) notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
-    }
+    // (the versions kept follow the password when the file is saved; a recovery copy written before is in the clear, and goes now)
+    if (m_fileProtected) dropRecoveryCopy();
     crypto::wipe(password);
     // (a password is a change to save, as the properties are)
     m_ed->markUnsaved();
@@ -301,7 +295,8 @@ bool MainWindow::saveVersion(const QString &name)
     QString err;
     QByteArray bytes = publicationBytes(*d, pageThumbnail(0, 256), QFileInfo(path).absolutePath());
     // (a version of a publication that asks for a password asks for it too)
-    if (!bytes.isEmpty() && m_fileProtected) bytes = office::encryptPackage(bytes, m_filePassword);
+    const QString kept = m_versions.forNew(m_fileProtected ? m_filePassword : QString());
+    if (!bytes.isEmpty() && !kept.isEmpty()) bytes = office::encryptPackage(bytes, kept);
     write::VersionStore store(path, QStringLiteral(".jpub"));
     if (bytes.isEmpty() || !store.add(name.trimmed().isEmpty() ? tr("Version %1").arg(store.list().size() + 1) : name, bytes, &err)) {
         notice(tr("Version History"), tr("The version couldn't be kept.\n%1").arg(err), true);
@@ -319,7 +314,7 @@ bool MainWindow::restoreVersion(const QString &file)
     QString err;
     QByteArray bytes;
     std::unique_ptr<Document> doc;
-    if (write::versionPackage(store.read(file), m_filePassword, &bytes) && !bytes.isEmpty()) doc = publicationFromBytes(bytes, &err, QFileInfo(path).absolutePath());
+    if (m_versions.open(store.read(file), m_fileProtected ? m_filePassword : QString(), &bytes) && !bytes.isEmpty()) doc = publicationFromBytes(bytes, &err, QFileInfo(path).absolutePath());
     if (!doc) {
         notice(tr("Version History"), tr("That version can't be opened.\n%1").arg(err), true);
         return false;
