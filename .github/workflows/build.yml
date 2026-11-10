@@ -748,6 +748,9 @@ jobs:
           fi
           mkdir dmg-root && cp -R dist/*.app LICENSE README.md dmg-root/ && ln -s /Applications dmg-root/Applications
           # ULMO is LZMA compression (the disk image needs macOS 10.15 or later; the apps need 12.0).
+          # The same bytes in several apps (the dictionaries, the fonts, and the Qt files they share) are stored once in the image: each
+          # duplicate becomes a hard link to the first copy. Every app still holds every file, so one dragged out alone is complete.
+          python3 tools/link_duplicates.py dmg-root/*.app
           # hdiutil now and then fails with "Resource busy" on the hosted
           # runners; a few tries a little apart get past it.
           for try in 1 2 3 4 5; do
@@ -756,6 +759,40 @@ jobs:
             sleep 10
           done
           ls -la macos-dmg
+          # Mount it and check that the links survived, or build the image again by copying with ditto (which keeps hard links).
+          f=$(cd dmg-root && find JeffWrite.app/Contents/Resources/dict -type f | head -1)
+          mnt=$RUNNER_TEMP/dmgmnt; mkdir -p "$mnt"
+          hdiutil attach -readonly -nobrowse -mountpoint "$mnt" macos-dmg/JeffOffice-$ver.dmg
+          links=$(stat -f %l "$mnt/$f"); hdiutil detach "$mnt"
+          echo "dictionary file link count in the image: $links"
+          if [ "$links" -lt 2 ]; then
+            echo "hdiutil create dropped the hard links; building through a read-write image and ditto"
+            rm -f macos-dmg/JeffOffice-$ver.dmg rw.dmg
+            hdiutil create -size 1500m -fs HFS+ -volname "JeffOffice" -ov rw.dmg
+            hdiutil attach -nobrowse -mountpoint "$mnt" rw.dmg
+            ditto dmg-root "$mnt"
+            hdiutil detach "$mnt"
+            hdiutil convert rw.dmg -format ULMO -o macos-dmg/JeffOffice-$ver.dmg
+            rm -f rw.dmg
+            ls -la macos-dmg
+            hdiutil attach -readonly -nobrowse -mountpoint "$mnt" macos-dmg/JeffOffice-$ver.dmg
+            links=$(stat -f %l "$mnt/$f"); hdiutil detach "$mnt"
+            echo "dictionary file link count after ditto: $links"
+            test "$links" -ge 2
+          fi
+          # One app copied out alone is whole: it verifies, and its dictionaries and fonts are all there at full size.
+          hdiutil attach -readonly -nobrowse -mountpoint "$mnt" macos-dmg/JeffOffice-$ver.dmg
+          alone=$RUNNER_TEMP/alone; rm -rf "$alone"; mkdir "$alone"
+          ditto "$mnt/JeffWrite.app" "$alone/JeffWrite.app"
+          hdiutil detach "$mnt"
+          codesign --verify --deep --strict "$alone/JeffWrite.app"
+          for sub in dict fonts; do
+            (cd dist/JeffWrite.app/Contents/Resources/$sub && find . -type f -exec stat -f '%z %N' {} + | sort) > want.txt
+            (cd "$alone/JeffWrite.app/Contents/Resources/$sub" && find . -type f -exec stat -f '%z %N' {} + | sort) > got.txt
+            test -s want.txt && cmp want.txt got.txt
+          done
+          lipo -archs "$alone/JeffWrite.app/Contents/MacOS/JeffWrite"
+          rm -rf "$alone" want.txt got.txt
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: runner.os == 'macOS' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
