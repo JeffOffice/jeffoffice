@@ -4,6 +4,7 @@
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QPrinterInfo>
+#include "app/plaintext.h"
 #include <QSpinBox>
 #include <algorithm>
 
@@ -11,6 +12,34 @@ namespace jp {
 
 namespace {
 constexpr int kIsFileRole = Qt::UserRole + 1;   // set on the entry that makes a PDF file
+std::function<void(const QString &, const QString &)> g_noticeStandIn;
+std::function<QStringList()> g_printersStandIn;
+}
+
+bool tooManyToSend(qint64 sheets, qint64 copies) { return sheets * std::max<qint64>(1, copies) > kMaxSentSheets; }
+
+void setPrintNoticeStandIn(const std::function<void(const QString &, const QString &)> &standIn) { g_noticeStandIn = standIn; }
+
+void printNotice(QWidget *parent, const QString &title, const QString &text)
+{
+    if (g_noticeStandIn) g_noticeStandIn(title, text);
+    else plainWarning(parent, title, text);
+}
+
+void setPrinterNamesStandIn(const std::function<QStringList()> &standIn) { g_printersStandIn = standIn; }
+
+QStringList printerNames()
+{
+    if (g_printersStandIn) return g_printersStandIn();
+    QStringList names;
+    for (const QPrinterInfo &info : QPrinterInfo::availablePrinters()) names << info.printerName();
+    return names;
+}
+
+bool printerExists(const QString &name)
+{
+    if (name.isEmpty()) return true;
+    return printerNames().contains(name);
 }
 
 QVector<int> sheetOrder(const QVector<int> &pages, int copies, bool collate)
@@ -57,8 +86,7 @@ QComboBox *makePrinterBox(QWidget *parent)
     auto *printer = new QComboBox(parent);
     printer->setObjectName(QStringLiteral("printPrinter"));
     printer->setAccessibleName(QCoreApplication::translate("Print", "Printer"));
-    QStringList names;
-    for (const QPrinterInfo &info : QPrinterInfo::availablePrinters()) names << info.printerName();
+    const QStringList names = printerNames();
     fillPrinterBox(printer, names, QPrinterInfo::defaultPrinter().isNull() ? QString() : QPrinterInfo::defaultPrinter().printerName());
     return printer;
 }
@@ -114,6 +142,22 @@ QSizeF turnedSheet(const QSizeF &size, PrintTurn turn)
     if (turn == PrintTurn::Tall && size.width() > size.height()) return size.transposed();
     if (turn == PrintTurn::Wide && size.width() < size.height()) return size.transposed();
     return size;
+}
+
+QComboBox *makePaperBox(QWidget *parent, const QString &asSet)
+{
+    auto *paper = new QComboBox(parent);
+    paper->setObjectName(QStringLiteral("printPaper"));
+    paper->setAccessibleName(QCoreApplication::translate("Print", "Paper size"));
+    paper->addItem(asSet, -1);
+    for (QPageSize::PageSizeId id : {QPageSize::Letter, QPageSize::Legal, QPageSize::Tabloid, QPageSize::A3, QPageSize::A4, QPageSize::A5}) paper->addItem(QPageSize::name(id), int(id));
+    return paper;
+}
+
+QSizeF paperChoiceSize(const QComboBox *box)
+{
+    const int id = box->currentData().toInt();
+    return id < 0 ? QSizeF() : QPageSize(QPageSize::PageSizeId(id)).size(QPageSize::Point);
 }
 
 QComboBox *makeZoomBox(QWidget *parent)

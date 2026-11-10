@@ -596,8 +596,15 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     }
     HiddenTextOff noHidden(m_doc.get());
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
-    const QVector<int> pages = outputPages(options);
+    // (the pages in their own order: the sheets are put in order below, last sheet first when asked, so that a sheet of several pages, or a front and its back, stays whole)
+    WriteOutputOptions forward = options;
+    forward.reverse = false;
+    const QVector<int> pages = outputPages(forward);
     if (pages.isEmpty()) return false;
+    if (!options.toFile && !options.printer.isEmpty() && !m_printerPreparer && !printerExists(options.printer)) {
+        printNotice(this, tr("Print"), tr("The printer \"%1\" is not there any more. Choose another printer.").arg(options.printer));
+        return false;
+    }
     // (the selection prints from the copy that holds it alone)
     write::WriteDoc *source = options.range == WriteOutputOptions::Range::Selection ? m_selectionDoc.get() : m_doc.get();
     const int sourcePages = options.range == WriteOutputOptions::Range::Selection ? m_selectionDoc->pager().pageCount() : m_view->pageCount();
@@ -627,7 +634,21 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     if (m_printerPreparer) m_printerPreparer(printer);
     // A printer that can't make copies is sent the pages again, in the order the copies are to come out.
     const bool again = !options.toFile && !printer.supportsMultipleCopies();
-    const QVector<int> sheets = again ? sheetOrder(pages, options.copies, options.collate) : pages;
+    const int sent = again ? std::max(1, options.copies) : 1;
+    const QSize grid = write::sheetGrid(options.perSheet);
+    const int per = grid.width() * grid.height();
+    QVector<QVector<int>> logical;
+    for (qsizetype i = 0; i < pages.size(); i += per) {
+        QVector<int> sheet = pages.mid(i, per);
+        while (sheet.size() < per) sheet << -1;
+        logical.push_back(sheet);
+    }
+    if (tooManyToSend(logical.size(), sent)) {
+        printNotice(this, tr("Print"), tr("That is more pages than one job can send. Print fewer pages or fewer copies."));
+        return false;
+    }
+    QVector<int> sheets;
+    for (const QVector<int> &sheet : sheetSequence(logical, QVector<int>(per, -1), options.reverse, !options.toFile && options.duplex != QPrinter::DuplexNone, sent, options.collate)) sheets += sheet;
     QApplication::setOverrideCursor(Qt::WaitCursor);
     write::SheetLayout layout;
     layout.perSheet = options.perSheet;
@@ -646,8 +667,8 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     }
     QApplication::restoreOverrideCursor();
     if (!ok) {
-        if (made && !err.isEmpty()) jp::plainWarning(this, tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
-        else jp::plainWarning(this, tr("Print"), tr("%1 couldn't send \"%2\" to the printer.").arg(appInfo().name, displayName()));
+        if (made && !err.isEmpty()) printNotice(this, tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
+        else printNotice(this, tr("Print"), tr("Couldn't print \"%1\" to %2.").arg(displayName(), options.toFile ? QFileInfo(path).fileName() : options.printer.isEmpty() ? printer.printerName() : options.printer));
         return false;
     }
     statusBar()->showMessage(options.toFile ? tr("Saved %1").arg(QFileInfo(path).fileName()) : tr("Sent %1 to the printer").arg(displayName()), 5000);

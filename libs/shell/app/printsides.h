@@ -37,6 +37,13 @@ void setDuplexRecorder(const std::function<void(QPrinter::DuplexMode)> &recorder
 // Whether the job goes to a file (a PDF) and not to paper, which has no sides. A machine with no printers can't tell a test's printer from a file, so a test stands in.
 bool printsToFile(const QPrinter &printer);
 void setPrintsToFileStandIn(const std::function<bool(const QPrinter &)> &standIn);
+// A stand-in for printsToFile that is put back when the scope ends, however a test ends.
+struct PrintsToFileGuard {
+    explicit PrintsToFileGuard(const std::function<bool(const QPrinter &)> &standIn) { setPrintsToFileStandIn(standIn); }
+    ~PrintsToFileGuard() { setPrintsToFileStandIn(nullptr); }
+    PrintsToFileGuard(const PrintsToFileGuard &) = delete;
+    PrintsToFileGuard &operator=(const PrintsToFileGuard &) = delete;
+};
 void setDuplexSupportStandIn(const std::function<QList<QPrinter::DuplexMode>(const QString &printer)> &standIn);
 
 // Both sides by hand: the two runs of a job. `inOrder` is what the job prints, a page or a sheet each, in the order it prints them. The first run is the first, third, and

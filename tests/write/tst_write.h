@@ -874,6 +874,11 @@ private Q_SLOTS:
     void copiesAndCollateReachAPrinterThatCannotMakeThem();
     void theGrayscaleChoiceMakesThePrintedPagesAndThePreviewGray();
     void thePaperTurnedChoiceTurnsThePrintedSheetsAndThePreview();
+    void reverseKeepsEachFrontWithItsBackWhenPrintingOnBothSides();
+    void reverseGroupsTheSheetsFirstWhenSeveralPagesShareOne();
+    void collatedCopiesOnBothSidesEachBeginOnANewSheet();
+    void aPrinterThatIsGoneOrCannotBeUsedIsSaidAndNothingIsSaved();
+    void theSheetSequenceAndTheSendLimit();
     void helpTopicsAreComplete();
     void f1OpensHelpOnWhatIsBeingDone();
     void theViewShowsTheFirstPageAtOnceAndLaysOutTheRestInTheBackground();

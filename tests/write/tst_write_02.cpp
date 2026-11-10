@@ -615,6 +615,188 @@ void WriteTests::thePaperTurnedChoiceTurnsThePrintedSheetsAndThePreview()
 }
 
 
+namespace {
+// A document of one page for each word, each page saying its word.
+QByteArray wordPages(const QStringList &words)
+{
+    QByteArray body;
+    for (int i = 0; i < words.size(); ++i) {
+        if (i) body += "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>";
+        body += "<w:p><w:r><w:t>" + words[i].toUtf8() + "</w:t></w:r></w:p>";
+    }
+    return makeDocx(body, kStyles);
+}
+// What each page of the PDF says, from printing `o` on a printer that writes a file (the way a test stands in for a real one).
+QStringList printedPages(WriteWindow &w, const WriteOutputOptions &o, const QString &file)
+{
+    w.setPrinterPreparer([&](QPrinter &p) {
+        p.setOutputFormat(QPrinter::PdfFormat);
+        p.setOutputFileName(file);
+    });
+    QFile::remove(file);
+    if (!w.printOutput(o)) return {QStringLiteral("(not printed)")};
+    QFile f(file);
+    if (!f.open(QIODevice::ReadOnly)) return {QStringLiteral("(no file)")};
+    const jp::PdfDocument doc(f.readAll());
+    QStringList out;
+    for (int i = 0; doc.isValid() && i < doc.pageCount(); ++i) out << doc.text(i).trimmed();
+    return out;
+}
+// Of what each printed page says, the words it has (Alpha, Bravo, ...) or "" for a blank one, joined.
+QString printedWords(const QStringList &pages)
+{
+    QStringList out;
+    for (const QString &p : pages) {
+        QStringList has;
+        for (const QString &word : {QStringLiteral("Alpha"), QStringLiteral("Bravo"), QStringLiteral("Charlie"), QStringLiteral("Delta")})
+            if (p.contains(word)) has << word.left(1);
+        out << has.join(QLatin1Char('+'));
+    }
+    return out.join(QLatin1Char(' '));
+}
+} // namespace
+
+
+// Last page first with both sides of the paper: each front stays with its back, so the sheets come out last first (pages 1-4 as 3 4, then 1 2); an odd last page has a blank back.
+void WriteTests::reverseKeepsEachFrontWithItsBackWhenPrintingOnBothSides()
+{
+    QTemporaryDir dir;
+    WriteWindow w;
+    w.setDocument(open(wordPages({QStringLiteral("Alpha"), QStringLiteral("Bravo"), QStringLiteral("Charlie"), QStringLiteral("Delta")})), QString());
+    WriteOutputOptions o;
+    o.printer = QStringLiteral("a printer");
+    o.duplex = QPrinter::DuplexLongSide;
+    o.reverse = true;
+    QCOMPARE(printedWords(printedPages(w, o, dir.filePath(QStringLiteral("d.pdf")))), QStringLiteral("C D A B"));
+    // one side: simply last first
+    o.duplex = QPrinter::DuplexNone;
+    QCOMPARE(printedWords(printedPages(w, o, dir.filePath(QStringLiteral("d.pdf")))), QStringLiteral("D C B A"));
+    // an odd number: the last front is on a sheet of its own, with a blank back
+    WriteWindow odd;
+    odd.setDocument(open(wordPages({QStringLiteral("Alpha"), QStringLiteral("Bravo"), QStringLiteral("Charlie")})), QString());
+    o.duplex = QPrinter::DuplexLongSide;
+    QCOMPARE(printedWords(printedPages(odd, o, dir.filePath(QStringLiteral("o.pdf")))), QStringLiteral("C  A B"));
+}
+
+
+// Last page first with several pages on a sheet: the pages are put in sheets first, and the sheets are put last first (4 pages 2 on a sheet: 3 4, then 1 2; 3 pages: 3, then 1 2).
+void WriteTests::reverseGroupsTheSheetsFirstWhenSeveralPagesShareOne()
+{
+    QTemporaryDir dir;
+    WriteWindow w;
+    w.setDocument(open(wordPages({QStringLiteral("Alpha"), QStringLiteral("Bravo"), QStringLiteral("Charlie"), QStringLiteral("Delta")})), QString());
+    WriteOutputOptions o;
+    o.printer = QStringLiteral("a printer");
+    o.perSheet = 2;
+    o.reverse = true;
+    QCOMPARE(printedWords(printedPages(w, o, dir.filePath(QStringLiteral("n.pdf")))), QStringLiteral("C+D A+B"));
+    o.pages = QStringLiteral("1-3");
+    o.range = WriteOutputOptions::Range::Pages;
+    QCOMPARE(printedWords(printedPages(w, o, dir.filePath(QStringLiteral("n.pdf")))), QStringLiteral("C A+B"));
+    // a PDF file is put in order the same way
+    o.range = WriteOutputOptions::Range::All;
+    o.printer.clear();
+    o.toFile = true;
+    w.setPrinterPreparer(nullptr);
+    const QString target = dir.filePath(QStringLiteral("file.pdf"));
+    w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+    QVERIFY(w.printOutput(o));
+    QFile f(target);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const jp::PdfDocument doc(f.readAll());
+    QStringList pages;
+    for (int i = 0; i < doc.pageCount(); ++i) pages << doc.text(i);
+    QCOMPARE(printedWords(pages), QStringLiteral("C+D A+B"));
+}
+
+
+// Copies the program sends again, collated, on both sides of the paper: each copy begins on a new sheet, so an odd number of pages ends with a blank back.
+void WriteTests::collatedCopiesOnBothSidesEachBeginOnANewSheet()
+{
+    {
+        QPrinter probe;
+        probe.setOutputFormat(QPrinter::PdfFormat);
+        if (probe.supportsMultipleCopies()) QSKIP("this printer engine makes copies itself, so the pages are not sent again");
+    }
+    QTemporaryDir dir;
+    WriteWindow w;
+    w.setDocument(open(wordPages({QStringLiteral("Alpha"), QStringLiteral("Bravo"), QStringLiteral("Charlie")})), QString());
+    WriteOutputOptions o;
+    o.printer = QStringLiteral("a printer");
+    o.duplex = QPrinter::DuplexLongSide;
+    o.copies = 2;
+    o.collate = true;
+    QCOMPARE(printedWords(printedPages(w, o, dir.filePath(QStringLiteral("c.pdf")))), QStringLiteral("A B C  A B C "));
+    // one side: no blank
+    o.duplex = QPrinter::DuplexNone;
+    QCOMPARE(printedWords(printedPages(w, o, dir.filePath(QStringLiteral("c.pdf")))), QStringLiteral("A B C A B C"));
+}
+
+
+// A printer that is not there any more, or cannot be used, is said in plain words; "Sent" is not, and a PDF file that is there is not replaced by an empty one.
+void WriteTests::aPrinterThatIsGoneOrCannotBeUsedIsSaidAndNothingIsSaved()
+{
+    QTemporaryDir dir;
+    QStringList said;
+    setPrintNoticeStandIn([&](const QString &, const QString &text) { said << text; });
+    setPrinterNamesStandIn([] { return QStringList{QStringLiteral("Front Desk")}; });
+    const auto done = qScopeGuard([] {
+        setPrintNoticeStandIn(nullptr);
+        setPrinterNamesStandIn(nullptr);
+    });
+    WriteWindow w;
+    w.setDocument(open(wordPages({QStringLiteral("Alpha")})), QString());
+    w.statusBar()->clearMessage();
+    WriteOutputOptions o;
+    o.printer = QStringLiteral("No Such Printer");
+    QVERIFY(!w.printOutput(o));
+    QCOMPARE(said.size(), 1);
+    QVERIFY2(said[0].contains(QStringLiteral("No Such Printer")), qPrintable(said[0]));
+    QVERIFY(!w.statusBar()->currentMessage().contains(QStringLiteral("Sent")));
+    // a printer that is there but cannot be started (here, a file in a folder that is not there)
+    said.clear();
+    w.setPrinterPreparer([&](QPrinter &p) {
+        p.setOutputFormat(QPrinter::PdfFormat);
+        p.setOutputFileName(dir.filePath(QStringLiteral("no/such/folder/x.pdf")));
+    });
+    o.printer = QStringLiteral("Front Desk");
+    QVERIFY(!w.printOutput(o));
+    QCOMPARE(said.size(), 1);
+    QVERIFY(!w.statusBar()->currentMessage().contains(QStringLiteral("Sent")));
+    // Save as PDF over a file that is there: it stays as it was when the pages could not be made
+    const QString target = dir.filePath(QStringLiteral("keep.pdf"));
+    QFile keep(target);
+    QVERIFY(keep.open(QIODevice::WriteOnly));
+    keep.write("OLD");
+    keep.close();
+    said.clear();
+    w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+    o.printer.clear();
+    o.toFile = true;
+    QVERIFY(!w.printOutput(o));   // (the preparer, which stands in for the printer, sends the file somewhere that is not there)
+    QVERIFY(keep.open(QIODevice::ReadOnly));
+    QCOMPARE(keep.readAll(), QByteArray("OLD"));
+    QCOMPARE(said.size(), 1);
+}
+
+
+// The order of sheets for copies and both sides, and the most a job may send.
+void WriteTests::theSheetSequenceAndTheSendLimit()
+{
+    const QVector<int> four{1, 2, 3, 4}, three{1, 2, 3};
+    QCOMPARE(sheetSequence(four, 0, true, true, 1, true), (QVector<int>{3, 4, 1, 2}));
+    QCOMPARE(sheetSequence(three, 0, true, true, 1, true), (QVector<int>{3, 0, 1, 2}));
+    QCOMPARE(sheetSequence(three, 0, true, false, 1, true), (QVector<int>{3, 2, 1}));
+    QCOMPARE(sheetSequence(three, 0, false, true, 2, true), (QVector<int>{1, 2, 3, 0, 1, 2, 3, 0}));
+    QCOMPARE(sheetSequence(three, 0, false, true, 2, false), (QVector<int>{1, 2, 1, 2, 3, 0, 3, 0}));
+    QCOMPARE(sheetSequence(three, 0, false, true, 1, true), (QVector<int>{1, 2, 3}));   // (one copy, in order: nothing is added)
+    QVERIFY(!tooManyToSend(1000, 999));
+    QVERIFY(tooManyToSend(2003, 999));
+    QVERIFY(!tooManyToSend(kMaxSentSheets, 1));
+    QVERIFY(tooManyToSend(kMaxSentSheets + 1, 1));
+}
+
+
 // ---------------------------------------------------------------- help
 void WriteTests::helpTopicsAreComplete()
 {
