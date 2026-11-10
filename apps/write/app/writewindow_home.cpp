@@ -153,19 +153,7 @@ void WriteWindow::createHomeActions()
         if (!m_doc) return;
         const QTextCursor sel = m_view->cursor();
         const bool whole = !sel.hasSelection();
-        QString text = whole ? m_doc->story()->toPlainText() : sel.selectedText();
-        text.replace(QChar::ParagraphSeparator, QLatin1Char('\n')).replace(QChar::LineSeparator, QLatin1Char('\n')).remove(QChar::ObjectReplacementCharacter);
-        text = text.trimmed();
-        if (text.isEmpty()) {
-            statusBar()->showMessage(tr("There is no text to translate."), 5000);
-            return;
-        }
-        QString target = Settings::get().value(QStringLiteral("translate/targetCode"), QStringLiteral("es")).toString();
-        QString server = Settings::get().value(QStringLiteral("translate/server"), QStringLiteral("https://libretranslate.com/")).toString();
-        if (!write::translateDialog(this, whole, &target, &server, int(text.size()))) return;
-        Settings::get().setValue(QStringLiteral("translate/targetCode"), target);
-        Settings::get().setValue(QStringLiteral("translate/server"), server);
-        openTranslation(text, target, server);
+        jp::translateText(this, statusBar(), whole ? m_doc->story()->toPlainText() : sel.selectedText(), whole, m_urlOpener);
     });
     mk("review.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] {
         if (!m_doc) return;
@@ -191,23 +179,6 @@ void WriteWindow::createHomeActions()
         write::wordCountDialog(this, m_view->pageCount(), sel.hasSelection(), [this, sel](bool notes) { return write::countWords(*m_doc, sel, notes); });
         m_view->setFocus(Qt::OtherFocusReason);
     });
-}
-
-// Opens the translation service in the web browser with the text; whether it was opened. What is cut off, a refused address, and a browser that does not open are told.
-bool WriteWindow::openTranslation(const QString &text, const QString &target, const QString &server)
-{
-    const write::TranslateRequest req = write::translateRequest(server, target, text);
-    if (req.url.isEmpty()) {
-        statusBar()->showMessage(tr("The translation service needs a secure web address (https). An http address is only used for this computer."), 8000);
-        return false;
-    }
-    const bool opened = m_urlOpener ? m_urlOpener(QUrl(req.url)) : QDesktopServices::openUrl(QUrl(req.url));
-    if (!opened) {
-        statusBar()->showMessage(tr("The web browser could not be opened. Nothing was sent."), 8000);
-        return false;
-    }
-    if (req.cut) statusBar()->showMessage(tr("Only the first %n letter(s) of the text were sent to be translated.", nullptr, int(req.sentText.size())), 8000);
-    return true;
 }
 
 // Sorts the paragraphs selected, or the rows of the table the caret is in; how many were sorted.

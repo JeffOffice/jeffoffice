@@ -3,6 +3,7 @@
 
 #include "core/compareops.h"
 #include "core/homeops.h"
+#include "app/translate.h"
 #include "core/proofops.h"
 
 #include <QStringList>
@@ -25,13 +26,11 @@ void wordCountDialog(QWidget *parent, int pages, bool selection, const std::func
 // Paste Special: the ways the clipboard can be pasted now (each a line), and which the person picks; -1 if canceled.
 int pasteSpecialDialog(QWidget *parent, const QStringList &choices);
 
-// Language: the languages that can be checked, with the one the text is in chosen, and "Do not check spelling". False if canceled; else `tag` and `noProof` are the choice.
-bool languageDialog(QWidget *parent, const QString &current, bool noProof, QString *tag, bool *noProofOut);
+using jp::languageDialog;   // (libs/shell/app/translate.h)
 
 // Thesaurus: synonyms of `word` (from the dictionary on this computer), a box to look up another word, and Replace. Returns the word chosen to replace `word`, or empty.
 QString thesaurusDialog(QWidget *parent, const QString &word);
-// Translate: (it says when the text, `textLength` letters, is longer than what is sent) the language to translate into (its LibreTranslate code, remembered) and the address of the service (changeable, remembered). False if canceled.
-bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, QString *server, int textLength = 0);
+using jp::translateDialog;
 
 // Restrict Editing. With none enforced: the kind of editing to allow (readOnly, comments, trackedChanges, or forms) and a password (twice), and Start Enforcing; `lockTracking` offers only tracked changes. With
 // one enforced: its kind, and Stop Protection (the password asked for in the box when the protection has one). Returns 0 for canceled, 1 for start (`edit` and `password` set), 2 for stop (`password` set).

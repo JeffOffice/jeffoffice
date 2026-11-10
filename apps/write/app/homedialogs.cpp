@@ -177,38 +177,6 @@ int pasteSpecialDialog(QWidget *parent, const QStringList &choices)
     return dlg.exec() == QDialog::Accepted ? list->currentRow() : -1;
 }
 
-bool languageDialog(QWidget *parent, const QString &current, bool noProof, QString *tag, bool *noProofOut)
-{
-    QDialog dlg(parent);
-    dlg.setObjectName(QStringLiteral("languageDialog"));
-    dlg.setWindowTitle(QCoreApplication::translate("jp::write::HomeDialogs", "Language"));
-    auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Mark the selected text as:"), &dlg)));
-    auto *list = new QListWidget(&dlg);
-    list->setObjectName(QStringLiteral("languages"));
-    int row = 0;
-    for (const dict::Language &l : dict::languages()) {
-        auto *item = new QListWidgetItem(l.name, list);
-        item->setData(Qt::UserRole, l.code);
-        if (l.code == current) row = list->count() - 1;
-    }
-    list->setCurrentRow(row);
-    v->addWidget(list);
-    auto *skip = new QCheckBox(QCoreApplication::translate("jp::write::HomeDialogs", "Do not check spelling"), &dlg);
-    skip->setObjectName(QStringLiteral("doNotCheck"));
-    skip->setChecked(noProof);
-    v->addWidget(skip);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
-    QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
-    QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-    QObject::connect(list, &QListWidget::itemDoubleClicked, &dlg, &QDialog::accept);
-    v->addWidget(bb);
-    if (dlg.exec() != QDialog::Accepted || !list->currentItem()) return false;
-    *tag = list->currentItem()->data(Qt::UserRole).toString();
-    *noProofOut = skip->isChecked();
-    return true;
-}
-
 QString thesaurusDialog(QWidget *parent, const QString &word)
 {
     QDialog dlg(parent);
@@ -257,52 +225,6 @@ QString thesaurusDialog(QWidget *parent, const QString &word)
     v->addWidget(buttons);
     if (dlg.exec() != QDialog::Accepted || !list->currentItem()) return QString();
     return list->currentItem()->data(Qt::UserRole).toString();
-}
-
-bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, QString *server, int textLength)
-{
-    struct Target { const char *name; const char *code; };
-    static const Target kTargets[] = {{QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "English"), "en"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Spanish"), "es"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "French"), "fr"},
-                                      {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "German"), "de"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Italian"), "it"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Portuguese"), "pt"},
-                                      {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Dutch"), "nl"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Polish"), "pl"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Russian"), "ru"},
-                                      {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Ukrainian"), "uk"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Arabic"), "ar"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Hindi"), "hi"},
-                                      {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Chinese (Simplified)"), "zh-Hans"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Japanese"), "ja"},
-                                      {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Korean"), "ko"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Vietnamese"), "vi"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Turkish"), "tr"},
-                                      {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Greek"), "el"}};
-    QDialog dlg(parent);
-    dlg.setObjectName(QStringLiteral("translateDialog"));
-    dlg.setWindowTitle(QCoreApplication::translate("jp::write::HomeDialogs", "Translate"));
-    auto *v = new QVBoxLayout(&dlg);
-    auto *about = plainLabel(new QLabel(wholeDocument ? QCoreApplication::translate("jp::write::HomeDialogs", "Translate the whole document into:") : QCoreApplication::translate("jp::write::HomeDialogs", "Translate the selected text into:"), &dlg));
-    v->addWidget(about);
-    auto *target = new QComboBox(&dlg);
-    target->setObjectName(QStringLiteral("translateTarget"));
-    for (const Target &t : kTargets) {
-        target->addItem(QCoreApplication::translate("jp::write::HomeDialogs", t.name), QString::fromLatin1(t.code));
-        if (*targetCode == QLatin1String(t.code)) target->setCurrentIndex(target->count() - 1);
-    }
-    v->addWidget(target);
-    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Translation service (a LibreTranslate address):"), &dlg)));
-    auto *address = new QLineEdit(*server, &dlg);
-    address->setObjectName(QStringLiteral("translateServer"));
-    v->addWidget(address);
-    auto *note = plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Your web browser will open that address with the text. Nothing is sent until you click OK. Only secure (https) addresses are used, and http ones for this computer."), &dlg));
-    note->setWordWrap(true);
-    v->addWidget(note);
-    if (textLength > kMostTranslateLetters) {
-        auto *cut = plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "The text has %1 letters. Only the first %2 will be sent to be translated.").arg(textLength).arg(kMostTranslateLetters), &dlg));
-        cut->setObjectName(QStringLiteral("translateCutNote"));
-        cut->setWordWrap(true);
-        v->addWidget(cut);
-    }
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
-    QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
-    QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-    v->addWidget(bb);
-    if (dlg.exec() != QDialog::Accepted) return false;
-    *targetCode = target->currentData().toString();
-    *server = address->text().trimmed();
-    return true;
 }
 
 int restrictEditingDialog(QWidget *parent, bool enforced, const QString &currentEdit, bool hasPassword, bool lockTracking, QString *edit, QString *password)
