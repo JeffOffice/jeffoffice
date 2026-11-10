@@ -1245,7 +1245,7 @@ static QImage colorize(QImage img, const QColor &c)
 
 void Renderer::paintItem(QPainter *p, const PaintContext &ctx, const Item &it)
 {
-    if (ctx.opt.hidden.contains(it.id)) return;
+    if (it.hidden || ctx.opt.hidden.contains(it.id)) return;
     if (it.type() == ItemType::Group) {
         for (const auto &c : static_cast<const GroupItem &>(it).children) paintItem(p, ctx, *c);
         return;
@@ -1522,7 +1522,7 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
     const double scale = ctx.opt.flattenDpi / 72.0;
     for (size_t k = 0; k < pg.items.size(); ++k) {
         const Item &it = *pg.items[k];
-        if (ctx.opt.hidden.contains(it.id)) continue;
+        if (it.hidden || ctx.opt.hidden.contains(it.id)) continue;
         if (!usesTransparency(doc, it)) {
             paintItem(p, c, it);
             continue;

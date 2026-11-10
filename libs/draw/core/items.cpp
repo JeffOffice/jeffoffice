@@ -109,7 +109,7 @@ void Item::copyBase(const Item &o)
 {
     id = newId();
     sourceId = 0;
-    name = o.name; role = o.role; altText = o.altText; altTitle = o.altTitle; decorative = o.decorative; hyperlink = o.hyperlink;
+    name = o.name; role = o.role; altText = o.altText; altTitle = o.altTitle; decorative = o.decorative; hidden = o.hidden; hyperlink = o.hyperlink;
     rect = o.rect; rotation = o.rotation; flipH = o.flipH; flipV = o.flipV; locked = o.locked; lockAspect = o.lockAspect;
     fill = o.fill; stroke = o.stroke; fx = o.fx; styleRef = o.styleRef; wrap = o.wrap;
 }
@@ -125,6 +125,7 @@ QJsonObject Item::toJson() const
     if (!altText.isEmpty()) o["alt"] = altText;
     if (!altTitle.isEmpty()) o["altTitle"] = altTitle;
     if (decorative) o["decorative"] = true;
+    if (hidden) o["hidden"] = true;
     if (!hyperlink.isEmpty()) o["link"] = hyperlink;
     o["rect"] = rectJson(rect);
     if (rotation) o["rot"] = rotation;
@@ -149,6 +150,7 @@ void Item::fromJson(const QJsonObject &o)
     altText = o["alt"].toString();
     altTitle = o["altTitle"].toString();
     decorative = o["decorative"].toBool();
+    hidden = o["hidden"].toBool();
     hyperlink = o["link"].toString();
     rect = rectFrom(o["rect"]);
     rotation = o["rot"].toDouble();

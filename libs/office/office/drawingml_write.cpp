@@ -489,6 +489,7 @@ void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &f
     attribute(w, "name", it.name.isEmpty() ? QStringLiteral("%1 %2").arg(fallbackName).arg(id - 1) : clean(it.name));
     if (!it.altText.isEmpty()) attribute(w, "descr", clean(it.altText));
     if (!it.altTitle.isEmpty()) attribute(w, "title", clean(it.altTitle));
+    if (it.hidden) attribute(w, "hidden", QStringLiteral("1"));
     const QString rId = it.hyperlink.isEmpty() ? QString() : relateAddress(ctx, it.hyperlink);
     if (!rId.isEmpty()) {
         begin(w, "a:hlinkClick");

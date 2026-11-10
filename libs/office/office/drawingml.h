@@ -61,6 +61,8 @@ struct DrawingBudget {
 // What reading a drawing needs from around it.
 struct DrawingContext {
     const Package *package = nullptr;
+    // A shape the file marks hidden is read as a hidden object (Item::hidden) instead of being left out.
+    bool keepHidden = false;
     QString part;                 // the part the drawing is in: its relationships name the pictures
     // The theme's part: the pictures of its fill styles (a background
     // referring to a picture style) are named by its relationships.

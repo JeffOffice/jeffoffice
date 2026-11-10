@@ -270,7 +270,7 @@ ItemPtr readTable(const QDomElement &frame, const DrawingContext &ctx, const Tex
     const int cols = int(gridCols.size()), rows = int(trs.size());
     if (tbl.isNull() || cols == 0 || rows == 0 || cols > kMaxRowsOrColumns || rows > kMaxRowsOrColumns || cols * rows > kMaxCells) return nullptr;
     const QDomElement cNvPr = childNamed(childNamed(frame, "nvGraphicFramePr"), "cNvPr");
-    if (parseBool(attr(cNvPr, QStringLiteral("hidden")))) return nullptr;
+    if (parseBool(attr(cNvPr, QStringLiteral("hidden"))) && !ctx.keepHidden) return nullptr;
     // Each cell is a story of the import's budget, and a table is as heavy as two more cells (as much to read and to keep); one that would pass the
     // budget is left to the caller, as one that can't be read.
     if (ctx.newStory && ctx.budget && !ctx.budget->take(DrawingBudget::Cells, qint64(rows) * cols + kTableCells)) return nullptr;
@@ -282,6 +282,7 @@ ItemPtr readTable(const QDomElement &frame, const DrawingContext &ctx, const Tex
     t->altText = attr(cNvPr, QStringLiteral("descr"));
     t->altTitle = attr(cNvPr, QStringLiteral("title"));
     t->decorative = decorativeOf(cNvPr);
+    t->hidden = parseBool(attr(cNvPr, QStringLiteral("hidden")));
     t->wrap.mode = Wrap::None;
     for (const QDomElement &g : gridCols) t->colW.append(std::clamp(parseLength(attr(g, QStringLiteral("w")), 0), 0.0, kMaxPoint));
     for (const QDomElement &r : trs) t->rowH.append(std::clamp(parseLength(attr(r, QStringLiteral("h")), 0), 0.0, kMaxPoint));
@@ -537,6 +538,7 @@ void writeTable(QXmlStreamWriter &w, const TableItem &t, DrawingWriteContext &ct
     w.writeAttribute(QStringLiteral("name"), t.name.isEmpty() ? QStringLiteral("Table %1").arg(id - 1) : t.name);
     if (!t.altText.isEmpty()) w.writeAttribute(QStringLiteral("descr"), t.altText);
     if (!t.altTitle.isEmpty()) w.writeAttribute(QStringLiteral("title"), t.altTitle);
+    if (t.hidden) w.writeAttribute(QStringLiteral("hidden"), QStringLiteral("1"));
     if (t.decorative) dmlwrite::writeDecorative(w);
     w.writeEndElement();
     w.writeStartElement(QStringLiteral("p:cNvGraphicFramePr"));

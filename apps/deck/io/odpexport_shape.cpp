@@ -128,6 +128,7 @@ QString Exporter::idAttr(const Item &it) const
 void Exporter::writeCommon(X &x, const Item &it)
 {
     if (!it.name.isEmpty()) x.attr("draw:name", it.name);
+    if (it.hidden) x.attr("draw:display", "none");
     // What this kind of file has no place for is kept in attributes of our own (other programs leave them alone).
     if (it.lockAspect != Item::lockAspectByDefault(it.type())) x.attr("jo:lock-aspect", it.lockAspect ? "true" : "false");
     if (it.decorative) x.attr("jo:decorative", "true");

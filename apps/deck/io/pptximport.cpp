@@ -814,6 +814,7 @@ office::ColorMap Importer::colorsOf(const QDomElement &clrMapOvr, const office::
 office::DrawingContext Importer::contextFor(const MasterCtx &master, const office::ColorMap &colors, const QString &part)
 {
     office::DrawingContext ctx;
+    ctx.keepHidden = true;
     ctx.package = &m_pkg;
     ctx.part = part;
     ctx.theme = master.theme;

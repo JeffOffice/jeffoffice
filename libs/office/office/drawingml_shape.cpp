@@ -449,6 +449,7 @@ void Reader::decorate(Item &it, const QDomElement &cNvPr, const Frame &frame, co
     it.altText = attr(cNvPr, QStringLiteral("descr"));
     it.altTitle = attr(cNvPr, QStringLiteral("title"));
     it.decorative = decorativeOf(cNvPr);
+    it.hidden = parseBool(attr(cNvPr, QStringLiteral("hidden")));
     if (const std::optional<bool> lock = aspectLockOf(cNvPr)) it.lockAspect = *lock;
     it.hyperlink = hyperlinkOf(cNvPr);
     it.wrap.mode = Wrap::None;
@@ -473,7 +474,8 @@ ItemPtr Reader::group(const QDomElement &e)
 {
     const QDomElement nv = childNamed(e, "nvGrpSpPr");
     const QDomElement cNvPr = childNamed(nv.isNull() ? e : nv, "cNvPr");
-    if (parseBool(attr(cNvPr, QStringLiteral("hidden"))) || m_depth >= kMaxGroupDepth) return nullptr;
+    const bool hiddenGroup = parseBool(attr(cNvPr, QStringLiteral("hidden")));
+    if ((hiddenGroup && !m_ctx.keepHidden) || m_depth >= kMaxGroupDepth) return nullptr;
     const QDomElement props = childNamed(e, "grpSpPr");
     // What its children's a:grpFill is: its own fill, if it has one, else that of the group around it.
     const Fill *outerFill = m_groupFill;
@@ -496,6 +498,7 @@ ItemPtr Reader::group(const QDomElement &e)
     g->altText = attr(cNvPr, QStringLiteral("descr"));
     g->altTitle = attr(cNvPr, QStringLiteral("title"));
     g->decorative = decorativeOf(cNvPr);
+    g->hidden = hiddenGroup;
     g->hyperlink = hyperlinkOf(cNvPr);
     g->wrap.mode = Wrap::None;
     g->syncRect();
@@ -506,7 +509,7 @@ ItemPtr Reader::group(const QDomElement &e)
 ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector<QDomElement> &inheritsFrom, bool connector)
 {
     const QDomElement cNvPr = childNamed(nv, "cNvPr");
-    if (parseBool(attr(cNvPr, QStringLiteral("hidden")))) return nullptr;
+    if (parseBool(attr(cNvPr, QStringLiteral("hidden"))) && !m_ctx.keepHidden) return nullptr;
     const QVector<QDomElement> properties = propertiesOf(e, inheritsFrom);
     const QDomElement body = m_noText ? QDomElement() : childNamed(e, "txBody");
     const QDomElement ph = childNamed(childNamed(nv, "nvPr"), "ph");
@@ -905,7 +908,7 @@ ItemPtr Reader::line(const Frame &frame, const QString &prst, const QHash<QStrin
 ItemPtr Reader::pic(const QDomElement &e, const QVector<QDomElement> &inheritsFrom)
 {
     const QDomElement cNvPr = childNamed(childNamed(e, "nvPicPr"), "cNvPr");
-    if (parseBool(attr(cNvPr, QStringLiteral("hidden")))) return nullptr;
+    if (parseBool(attr(cNvPr, QStringLiteral("hidden"))) && !m_ctx.keepHidden) return nullptr;
     const QVector<QDomElement> properties = propertiesOf(e, inheritsFrom);
     const QDomElement style = firstWith(QVector<QDomElement>{e} + inheritsFrom, "style");
     const Frame frame = readFrame(firstWith(properties, "xfrm"));

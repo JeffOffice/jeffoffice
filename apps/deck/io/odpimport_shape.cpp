@@ -154,7 +154,7 @@ ItemPtr Reader::readShape(const QDomElement &e, Scope &sc, const QTransform &t)
     const Attrs a(e);
     // Hidden on the screen, and the layer for controls.
     const QString display = a.get("drawooo:display", a.get("draw:display"));
-    if (display == QLatin1String("none") || display == QLatin1String("printer")) return nullptr;
+    if (display == QLatin1String("printer")) return nullptr;
     if (a.get("draw:layer") == QLatin1String("controls") || a.get("draw:layer") == QLatin1String("measurelines")) return nullptr;
     ++sc.shapes;
     ItemPtr it;
@@ -180,6 +180,7 @@ ItemPtr Reader::readShape(const QDomElement &e, Scope &sc, const QTransform &t)
         if (it->altTitle.isEmpty()) it->altTitle = kid(e, "svg:title").text().trimmed();
         // What we keep in attributes of our own.
         if (a.get("jo:decorative") == QLatin1String("true")) it->decorative = true;
+        if (display == QLatin1String("none")) it->hidden = true;
         if (const QString lock = a.get("jo:lock-aspect"); !lock.isEmpty()) it->lockAspect = lock == QLatin1String("true");
         if (const QByteArray ref = a.get("jo:style-ref").toUtf8(); !ref.isEmpty()) it->styleRef = StyleRef::fromJson(QJsonDocument::fromJson(ref).object());
         if (it->hyperlink.isEmpty())

@@ -47,6 +47,8 @@ public:
     // The name for screen readers that goes with the description (altText); and an object that is only decoration, which they pass over.
     QString altTitle;
     bool decorative = false;
+    // Not drawn, printed, or picked on the page (Selection Pane's eye); the object stays, with its place and its name.
+    bool hidden = false;
     QString hyperlink;
     QRectF rect{72, 72, 144, 72};
     double rotation = 0;     // degrees clockwise

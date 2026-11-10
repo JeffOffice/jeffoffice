@@ -1283,6 +1283,7 @@ QString Canvas::itemAt(const QPointF &page, bool enterGroups, int *row, int *col
     const double tol = 4.0 / ppp();
     const Document *d = m_ed->doc();
     std::function<bool(const Item *)> hits = [&](const Item *it) -> bool {
+        if (it->hidden) return false;
         if (it->type() == ItemType::Group) {
             for (auto c = static_cast<const GroupItem *>(it)->children.rbegin(); c != static_cast<const GroupItem *>(it)->children.rend(); ++c)
                 if (hits(c->get())) return true;

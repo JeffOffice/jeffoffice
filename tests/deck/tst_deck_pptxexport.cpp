@@ -876,6 +876,42 @@ private Q_SLOTS:
         QCOMPARE(theme.majorLatin, QStringLiteral("Georgia"));
         QVERIFY2(packageProblem(fresh).isEmpty(), qPrintable(packageProblem(fresh)));
     }
+
+    // An object's name and its hidden mark are kept in the file, and a hidden object stays in it (it was left out when the file was opened).
+    void pptxKeepsObjectNamesAndHiddenMarks()
+    {
+        auto d = deck::newPresentation();
+        auto shape = [&](const QString &name, double x, bool hidden) {
+            auto s = std::make_shared<jp::ShapeItem>();
+            s->name = name;
+            s->hidden = hidden;
+            s->rect = QRectF(x, 200, 80, 60);
+            s->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(0x20, 0x40, 0x80)));
+            d->pages[0]->items.push_back(s);
+        };
+        shape(QStringLiteral("Seen box"), 20, false);
+        shape(QStringLiteral("Secret <box> & more"), 140, true);
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::Item *seen = nullptr, *secret = nullptr;
+        for (const jp::ItemPtr &it : back->pages[0]->items) {
+            if (it->name == QLatin1String("Seen box")) seen = it.get();
+            if (it->name == QLatin1String("Secret <box> & more")) secret = it.get();
+        }
+        QVERIFY(seen);
+        QVERIFY(secret);
+        QVERIFY(!seen->hidden);
+        QVERIFY(secret->hidden);
+        // (Saved again, the same.)
+        auto third = deck::importPresentation(deck::exportPresentation(*back, &err), &err);
+        QVERIFY2(third, qPrintable(err));
+        int hiddenCount = 0;
+        for (const jp::ItemPtr &it : third->pages[0]->items) hiddenCount += it->hidden;
+        QCOMPARE(hiddenCount, 1);
+    }
 };
 
 JP_TEST_CLASS(DeckPptxExportTests)

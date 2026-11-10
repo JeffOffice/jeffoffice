@@ -458,16 +458,17 @@ QString withFramePlace(const QString &frame, const QRectF &rect)
 }
 
 // A frame's name and alternative text (on its p:cNvPr) set to those of the item that stands for it.
-QString withFrameNames(const QString &frame, const QString &name, const QString &descr)
+QString withFrameNames(const QString &frame, const QString &name, const QString &descr, bool hidden = false)
 {
     static const QRegularExpression tag(QStringLiteral("<(\\w+):cNvPr\\b([^>]*?)(/?>)"));
     const QRegularExpressionMatch m = tag.match(frame);
     if (!m.hasMatch()) return frame;
-    static const QRegularExpression named(QStringLiteral("\\s(?:name|descr)=\"[^\"]*\""));
+    static const QRegularExpression named(QStringLiteral("\\s(?:name|descr|hidden)=\"[^\"]*\""));
     QString attrs = m.captured(2);
     attrs.remove(named);
     attrs += QStringLiteral(" name=\"%1\"").arg(esc(name));
     if (!descr.isEmpty()) attrs += QStringLiteral(" descr=\"%1\"").arg(esc(descr));
+    if (hidden) attrs += QStringLiteral(" hidden=\"1\"");
     return frame.left(m.capturedStart()) + QStringLiteral("<%1:cNvPr%2%3").arg(m.captured(1), attrs, m.captured(3)) + frame.mid(m.capturedEnd());
 }
 
@@ -924,7 +925,7 @@ QString Exporter::chartFrame(const QJsonObject &kept, const Item &item, const QS
     static const QRegularExpression chartTag(QStringLiteral("(<(\\w+):chart\\b[^>]*?\\b\\w+:id=\")[^\"]*(\")"));
     frame.replace(chartTag, QStringLiteral("\\1") + id + QStringLiteral("\\3"));
     frame = withFramePlace(frame, item.rect);
-    return withFrameNames(frame, item.name, item.altText);
+    return withFrameNames(frame, item.name, item.altText, item.hidden);
 }
 
 // The frame for a picture that stands for a diagram, and the diagram's parts in the package: what the reader kept, under their own names where they
@@ -974,7 +975,7 @@ QString Exporter::diagramFrame(const QJsonObject &kept, const Item &item, const 
     auto same = [](double a, double b) { return std::abs(a - b) < 1e-6; };
     const QRectF was(kept.value(QStringLiteral("x")).toDouble(), kept.value(QStringLiteral("y")).toDouble(), kept.value(QStringLiteral("w")).toDouble(), kept.value(QStringLiteral("h")).toDouble());
     if (!same(was.x(), item.rect.x()) || !same(was.y(), item.rect.y()) || !same(was.width(), item.rect.width()) || !same(was.height(), item.rect.height())) frame = withFramePlace(frame, item.rect);
-    if (item.name != kept.value(QStringLiteral("name")).toString() || item.altText != kept.value(QStringLiteral("descr")).toString()) frame = withFrameNames(frame, item.name, item.altText);
+    if (item.name != kept.value(QStringLiteral("name")).toString() || item.altText != kept.value(QStringLiteral("descr")).toString() || item.hidden) frame = withFrameNames(frame, item.name, item.altText, item.hidden);
     return frame;
 }
 
