@@ -139,7 +139,10 @@ jobs:
       - name: Compare the Windows probe
         if: runner.os == 'Windows'
         shell: pwsh
-        run: python ffmpeg-src/tools/check_ffmpeg_components.py --probe probe.txt
+        run: |
+          python ffmpeg-src/tools/check_ffmpeg_components.py --probe probe.txt
+          # (each DLL imports only system DLLs and the other FFmpeg DLLs: the GCC and winpthread runtime of this toolchain are not the ones beside Qt's, and the loader takes those)
+          python ffmpeg-src/tools/check_bundle_deps.py windows-self-contained ffmpeg-out/windows/bin
 
   build:
     needs: ffmpeg

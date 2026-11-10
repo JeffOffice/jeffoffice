@@ -191,6 +191,10 @@ case "$OS" in
         # (the DLLs need no GCC runtime of their own; MinGW's stack protector needs a library of its own, so none here)
         CFLAGS_EXTRA=""
         LDFLAGS_EXTRA="-static-libgcc -Wl,--nxcompat -Wl,--dynamicbase"
+        # (winpthread's clock_gettime and nanosleep come in statically: MSYS2's libwinpthread-1.dll has names (clock_gettime64) that the older one beside Qt's
+        # MinGW lacks, and the loader takes that one: "The specified procedure could not be found", and Qt's plugin does not load. Each DLL imports only
+        # system DLLs and the other FFmpeg DLLs: tools/check_bundle_deps.py windows-self-contained)
+        WINEXTRA="--extra-libs=-Wl,-Bstatic -lwinpthread -Wl,-Bdynamic"
         ;;
     Darwin)
         TARGET=${FFMPEG_ARCH:-$ARCH}
@@ -235,7 +239,7 @@ cd "$BUILD"
     --disable-hwaccels --disable-iconv --enable-zlib --disable-bzlib --disable-lzma \
     --enable-shared --disable-static --enable-pic \
     --enable-avcodec --enable-avformat --enable-avutil --enable-swresample --enable-swscale \
-    $SYSFLAGS $ASM $ENABLES \
+    $SYSFLAGS $ASM $ENABLES ${WINEXTRA:+"$WINEXTRA"} \
     --extra-cflags="$CFLAGS_EXTRA" --extra-ldflags="$LDFLAGS_EXTRA" >configure.log 2>&1 || { tail -30 configure.log >&2; echo "---- the last of ffbuild/config.log:" >&2; tail -40 ffbuild/config.log >&2 2>/dev/null; env | grep -E '^(CC|CFLAGS|LDFLAGS|CPPFLAGS|LD_LIBRARY_PATH|PATH)=' >&2; die "configure failed (see $BUILD/ffbuild/config.log)"; }
 
 # Windows: zlib is MSYS2's static copy, so that the DLLs need no zlib DLL (its linker would take the import library, and a DLL, first).

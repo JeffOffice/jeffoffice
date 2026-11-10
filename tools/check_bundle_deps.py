@@ -7,6 +7,7 @@ For the multimedia plugin and each FFmpeg library of the package, lists the libr
     python3 tools/check_bundle_deps.py mac APP_BUNDLE         (JeffDeck.app: the plugin in Contents/PlugIns/multimedia, libraries in Contents/Frameworks; reads them with otool)
     python3 tools/check_bundle_deps.py windows-imports PLUGIN.dll DLLDIR   every function the plugin imports from an FFmpeg DLL is exported by that DLL in DLLDIR
                                                               (Windows binds an import to a DLL by name; one missing, and the plugin does not load, and Qt 6.11 goes on to another backend)
+    python3 tools/check_bundle_deps.py windows-self-contained DLLDIR   each FFmpeg DLL imports only system DLLs and the other FFmpeg DLLs (no GCC or winpthread runtime, no zlib)
     python3 tools/check_bundle_deps.py windows-closure PLUGIN.dll DIR...  every DLL the plugin needs, and those need, in turn, is in one of the folders or is the system's
 
 (Linux packages are checked with ldd where they are made, .github/workflows/build.yml.)
@@ -111,6 +112,23 @@ def windows_imports(plugin, dlldir):
     return problems, total
 
 
+def windows_self_contained(dlldir):
+    system = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
+    files = sorted(glob.glob(os.path.join(dlldir, "av*-*.dll")) + glob.glob(os.path.join(dlldir, "sw*-*.dll")))
+    ours = {os.path.basename(f).lower() for f in files}
+    problems, seen = [], 0
+    if not files:
+        return ["no FFmpeg DLLs in %s" % dlldir], 0
+    for f in files:
+        for name in pe_imports(f):
+            low = name.lower()
+            seen += 1
+            if low in ours or low.startswith(("api-ms-win-", "ext-ms-win-")) or os.path.exists(os.path.join(system, name)):
+                continue
+            problems.append("%s imports %s, which is neither a system DLL nor another FFmpeg DLL" % (os.path.basename(f), name))
+    return problems, seen
+
+
 def windows_closure(plugin, dirs):
     system = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
     problems, seen, todo, done, exports_of = [], 0, [plugin], set(), {}
@@ -147,7 +165,9 @@ def windows_closure(plugin, dirs):
 
 
 def main(argv):
-    if argv and argv[0] == "windows-closure" and len(argv) >= 3:
+    if argv and argv[0] == "windows-self-contained" and len(argv) == 2:
+        problems, seen = windows_self_contained(argv[1])
+    elif argv and argv[0] == "windows-closure" and len(argv) >= 3:
         problems, seen = windows_closure(argv[1], argv[2:])
     elif argv and argv[0] == "windows-imports" and len(argv) == 3:
         problems, seen = windows_imports(argv[1], argv[2])
