@@ -4170,8 +4170,9 @@
          "text": "fa9a6f61b0344abf0e00da1b075c25e5b29619160c6e09aa6ee14ae799309be8"
         },
         {
-         "status": "todo",
-         "text": "b598c0676544a3119315d5f762c2b9c90b65502a9dcb17fce578a1e77899c7f7"
+         "hide_soon": true,
+         "status": "done",
+         "text": "1a9028c5532632d9e5f89d31f2a3721dcc8d5029467f42d6e6ede936532b12a2"
         },
         {
          "status": "todo",
@@ -9181,6 +9182,18 @@
    "en": "",
    "es": "",
    "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "1a9028c5532632d9e5f89d31f2a3721dcc8d5029467f42d6e6ede936532b12a2": {
+   "drop": false,
+   "en": "Protect a `.jpub` publication with a password. The app asks for the password when you open the file and asks again if it is wrong, and saved versions, backup copies, and copies made with Save a Copy stay protected.",
+   "es": "Proteja una publicación `.jpub` con una contraseña. La aplicación solicita la contraseña al abrir el documento y vuelve a solicitarla si es incorrecta, y las versiones guardadas, las copias de seguridad y las copias creadas con Guardar una copia siguen protegidas.",
+   "fr": "Protégez une publication `.jpub` avec un mot de passe. L’application demande le mot de passe à l’ouverture du fichier et le redemande s’il est incorrect, et les versions enregistrées, les copies de sauvegarde et les copies créées avec Enregistrer une copie restent protégées.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20130,18 +20143,6 @@
     "en": "Slide pictures: all slides at once, other sizes, and GIF, TIFF, BMP, and SVG",
     "es": "Imágenes de diapositivas: todas a la vez, otros tamaños, y GIF, TIFF, BMP y SVG",
     "fr": "Images de diapositives : toutes à la fois, autres tailles, et GIF, TIFF, BMP et SVG"
-   }
-  },
-  "b598c0676544a3119315d5f762c2b9c90b65502a9dcb17fce578a1e77899c7f7": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Password encryption: open and save a password-protected `.jpub` publication",
-    "es": "Cifrado con contraseña: abrir y guardar una publicación `.jpub` protegida con contraseña",
-    "fr": "Chiffrement par mot de passe : ouvrir et enregistrer une publication `.jpub` protégée par mot de passe"
    }
   },
   "b59d2e4ed03d7021b2a853348fa513dd8e8babbe651e73ffd4810f9e53f6e7a8": {
