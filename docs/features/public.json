@@ -1152,12 +1152,12 @@
        "heading": "a0536e19b51c21040c12a916fe9ded6da8c9387e23f17edb12fca2db8287eb5c",
        "items": [
         {
-         "status": "todo",
-         "text": "1bbc9f18759e7ffe73d2ba2bc7e60ec0b0bd30e7fc5f8aeeb5e03642bef4768e"
+         "status": "partly",
+         "text": "f9efb6791d284c23001791de81a6a453fd43f39ead059420c1ec321b430b4499"
         },
         {
-         "status": "todo",
-         "text": "9666706d8fbe9332c7d8f8f5f40994f29e3720a508ecf5f6bd2d2468e17174ad"
+         "status": "partly",
+         "text": "77bdd17125770ccb126ddd4d1d8cee1131785992650ab6eb317345800cfb8508"
         }
        ]
       },
@@ -3228,12 +3228,14 @@
        "text": "b1eb53328f5b69583260edb8aea62dd137e61beb4df3bc6fff0adf76380fd903"
       },
       {
-       "status": "todo",
-       "text": "e303469a3c92c0c6b3a9e943c43ed9a9bfb1314dc7088a06b9a0d2e1419fe87c"
+       "hide_soon": true,
+       "status": "done",
+       "text": "25335500987afa4994d9e34566ff758f4d4561973630b91542933d3fcee9c819"
       },
       {
-       "status": "todo",
-       "text": "74867764b6f3f9377e6b1da32c21561a0c0f77c9ec2bdc361c63c132e015845e"
+       "hide_soon": true,
+       "status": "done",
+       "text": "cbad8ae5e04fb2f1a436d4046836e6a714e8ae4b7d8a83e939e3197db69e337a"
       },
       {
        "status": "todo",
@@ -9268,18 +9270,6 @@
     "fr": "Tableaux flottants : modification ; bordures diagonales dans une cellule"
    }
   },
-  "1bbc9f18759e7ffe73d2ba2bc7e60ec0b0bd30e7fc5f8aeeb5e03642bef4768e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Translate: the selected cells or the whole workbook in an open translation service with a server address you can change",
-    "es": "Traducir: las celdas seleccionadas o todo el libro en un servicio de traducción abierto con una dirección de servidor que se puede cambiar",
-    "fr": "Traduire : les cellules sélectionnées ou tout le classeur dans un service de traduction ouvert avec une adresse de serveur modifiable"
-   }
-  },
   "1be568c161a3c35590cec71871949b56da7013ea8ab81729ca9a7a3894ca9cf8": {
    "drop": false,
    "en": "A typed entry becomes a number, percent (`5%`), currency (`$5`), date (`3/4`, `4-Mar`, `March 2026`), time, fraction (`1 1/2`), scientific number (`1E5`), formula, or text, and the cell takes the matching number format. Text that only looks like a number or a date can be kept as text.",
@@ -10130,6 +10120,18 @@
     "en": "AutoCorrect Options window: replacement list, exceptions, capitalization rules, and math symbols",
     "es": "Ventana de opciones de autocorrección: lista de reemplazos, excepciones, reglas de mayúsculas y símbolos matemáticos",
     "fr": "Fenêtre des options de correction automatique : liste de remplacements, exceptions, règles de majuscules et symboles mathématiques"
+   }
+  },
+  "25335500987afa4994d9e34566ff758f4d4561973630b91542933d3fcee9c819": {
+   "drop": false,
+   "en": "Set the proofing language for the selected text or all the text in the selected box, and mark text as not to be spell-checked. Dictionaries are included for English, German, Spanish, French, Italian, Dutch, and Portuguese.",
+   "es": "Establezca el idioma de corrección para el texto seleccionado o para todo el texto del cuadro seleccionado, y marque texto para que no se revise su ortografía. Se incluyen diccionarios de inglés, alemán, español, francés, italiano, neerlandés y portugués.",
+   "fr": "Définissez la langue de correction pour le texte sélectionné ou pour tout le texte de la zone sélectionnée, et marquez du texte pour qu’il ne soit pas vérifié. Des dictionnaires sont inclus pour l’anglais, l’allemand, l’espagnol, le français, l’italien, le néerlandais et le portugais.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "253e0726467be3f8910baa7f2212a2c3788592e89cf484b0028556047ce7bcea": {
@@ -16012,18 +16014,6 @@
     "fr": "Texte de forme affichant la valeur d’une cellule : saisissez `=A1` dans la barre de formule avec une forme ou une zone de texte sélectionnée"
    }
   },
-  "74867764b6f3f9377e6b1da32c21561a0c0f77c9ec2bdc361c63c132e015845e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Translate: the selected text, a slide, or the whole presentation in an open translation service with a server address you can change",
-    "es": "Traducir: el texto seleccionado, una diapositiva o toda la presentación en un servicio de traducción abierto con una dirección de servidor que se puede cambiar",
-    "fr": "Traduire : le texte sélectionné, une diapositive ou toute la présentation dans un service de traduction ouvert avec une adresse de serveur modifiable"
-   }
-  },
   "74a08bf8159ca58ac4cdb6091a432da0529d5768c58ffe509d0348a064b2a892": {
    "drop": false,
    "en": "Every formula keeps its last result and its type (number, text, true or false, or error). A function the app doesn’t have, a link to a closed workbook, or a query still shows the value the file held, and a saved file carries each formula’s current result.",
@@ -16202,6 +16192,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "77bdd17125770ccb126ddd4d1d8cee1131785992650ab6eb317345800cfb8508": {
+   "drop": false,
+   "en": "Set the proofing language for the selected cells, or mark them as not to be spell-checked. The Spelling command and the cell editor follow the setting. It is saved in `.ods` and `.xlsx` files.",
+   "es": "Establezca el idioma de corrección para las celdas seleccionadas, o márquelas para que no se revise su ortografía. El comando de ortografía y el editor de celdas siguen esta configuración. Se guarda en archivos `.ods` y `.xlsx`.",
+   "fr": "Définissez la langue de correction pour les cellules sélectionnées, ou marquez-les pour qu’elles ne soient pas vérifiées. La commande d’orthographe et l’éditeur de cellule suivent ce réglage. Il est enregistré dans les fichiers `.ods` et `.xlsx`.",
+   "soon": {
+    "drop": false,
+    "en": "Proofing language: set for the whole workbook at once",
+    "es": "Idioma de corrección: establecer para todo el libro a la vez",
+    "fr": "Langue de correction : définir pour tout le classeur en une seule fois"
    }
   },
   "77c56c28460ae0aa3e00639b099ac92fb18cfb93ed7b25ee7a7e6bdc63c131ee": {
@@ -18266,18 +18268,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "9666706d8fbe9332c7d8f8f5f40994f29e3720a508ecf5f6bd2d2468e17174ad": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Proofing language for the selected cells and the whole workbook, with spelling following it",
-    "es": "Idioma de revisión para las celdas seleccionadas y todo el libro, con la ortografía según ese idioma",
-    "fr": "Langue de vérification pour les cellules sélectionnées et tout le classeur, l’orthographe la suivant"
    }
   },
   "968d6177a5075fe4c7133c8d5e015ed7d8f8ad561c77a755e458823ab9a7894b": {
@@ -21796,6 +21786,18 @@
     "fr": ""
    }
   },
+  "cbad8ae5e04fb2f1a436d4046836e6a714e8ae4b7d8a83e939e3197db69e337a": {
+   "drop": false,
+   "en": "Open the selected text, or all the text of the selected box, in an open translation service (LibreTranslate) with a server address you can change, up to 5,000 letters. Nothing is sent before you click `OK`.",
+   "es": "Abra el texto seleccionado, o todo el texto del cuadro seleccionado, en un servicio de traducción abierto (LibreTranslate) con una dirección de servidor que usted puede cambiar, hasta 5.000 letras. No se envía nada antes de hacer clic en `OK`.",
+   "fr": "Ouvrez le texte sélectionné, ou tout le texte de la zone sélectionnée, dans un service de traduction ouvert (LibreTranslate) avec une adresse de serveur modifiable, jusqu’à 5 000 lettres. Rien n’est envoyé avant que vous cliquiez sur `OK`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "cbb95cf98c41a825670b3384c5c1737059346c19a976bb4b77384c1752536cf4": {
    "drop": false,
    "en": "Insert pictures in PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, and EMF/WMF formats. EMF and WMF look the same on every system, except that text in some symbol fonts shows only some of its symbols on a computer without those fonts, and EMF drawing that exists only as EMF+ records, gradient fills, and see-through bitmaps are not drawn.",
@@ -23354,18 +23356,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "e303469a3c92c0c6b3a9e943c43ed9a9bfb1314dc7088a06b9a0d2e1419fe87c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Proofing language: set for selected text or the whole presentation, and language preferences",
-    "es": "Idioma de revisión: establecer para el texto seleccionado o toda la presentación, y preferencias de idioma",
-    "fr": "Langue de correction : définir pour le texte sélectionné ou toute la présentation, et préférences de langue"
    }
   },
   "e3228dd740386e7e1bc1b44946efe97810d19163d18f4325efdfc08b87d0ec61": {
@@ -24938,6 +24928,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "f9efb6791d284c23001791de81a6a453fd43f39ead059420c1ec321b430b4499": {
+   "drop": false,
+   "en": "Open the text of the selected cells, one line per row, or the words selected in a cell being edited, in an open translation service (LibreTranslate) with a server address you can change, up to 5,000 letters. Nothing is sent before you click `OK`.",
+   "es": "Abra el texto de las celdas seleccionadas, una línea por fila, o las palabras seleccionadas en una celda que se está editando, en un servicio de traducción abierto (LibreTranslate) con una dirección de servidor que usted puede cambiar, hasta 5.000 letras. No se envía nada antes de hacer clic en `OK`.",
+   "fr": "Ouvrez le texte des cellules sélectionnées, une ligne par ligne de cellules, ou les mots sélectionnés dans une cellule en cours de modification, dans un service de traduction ouvert (LibreTranslate) avec une adresse de serveur modifiable, jusqu’à 5 000 lettres. Rien n’est envoyé avant que vous cliquiez sur `OK`.",
+   "soon": {
+    "drop": false,
+    "en": "Translate: a whole workbook at once",
+    "es": "Traducir: todo el libro a la vez",
+    "fr": "Traduire : tout le classeur en une seule fois"
    }
   },
   "f9fee748ef0982d92b57afe3098aa17dc1b1c7b0fe237caab6caa569e9b95b87": {
