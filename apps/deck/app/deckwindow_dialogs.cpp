@@ -12,6 +12,7 @@
 #include "app/notespane.h"
 #include "app/textdialogs.h"
 #include "app/translate.h"
+#include <QStatusBar>
 #include "text/dictionaries.h"
 #include "text/textprops.h"
 

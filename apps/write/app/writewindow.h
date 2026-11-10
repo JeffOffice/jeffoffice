@@ -5,6 +5,7 @@
 #include "app/infopage.h"
 #include "app/recovery.h"
 #include "app/translate.h"
+#include <QStatusBar>
 #include "core/textexport.h"
 #include "app/filetasks.h"
 #include "io/pdfcrypt.h"
