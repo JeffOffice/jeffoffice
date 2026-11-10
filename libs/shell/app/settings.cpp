@@ -44,7 +44,8 @@ bool moveDataFolder(const QString &from, const QString &to)
 bool suiteWide(const QString &key)
 {
     static const QStringList keys = {QStringLiteral("ui/theme"), QStringLiteral("ui/language"), QStringLiteral("user/name"),
-                                     QStringLiteral("user/initials"), QStringLiteral("telemetry/enabled"), QStringLiteral("telemetry/install")};
+                                     QStringLiteral("user/initials"), QStringLiteral("telemetry/enabled"), QStringLiteral("telemetry/install"),
+                                     QStringLiteral("proof/checkAsYouType")};
     return key.startsWith(QLatin1String("updates/")) || keys.contains(key);
 }
 
@@ -68,6 +69,32 @@ void moveToSuite(QSettings &app, QSettings &suite)
     app.setValue(idMarker, true);
 }
 
+void migrateSpellSetting(QSettings &app, QSettings &suite)
+{
+    const QString marker = QStringLiteral("migration/spellSetting"), key = QStringLiteral("proof/checkAsYouType");
+    if (app.value(marker).toBool()) return;
+    // Off in the old key of JeffCrunch or JeffWrite: off in the shared one, unless a choice was made there already.
+    if (!suite.contains(key))
+        for (const char *old : {"proof/spellAsYouType", "proof/asYouType"})
+            if (app.contains(QLatin1String(old)) && !app.value(QLatin1String(old)).toBool()) suite.setValue(key, false);
+    app.setValue(marker, true);
+}
+
+SpellSettingNotifier &SpellSettingNotifier::get()
+{
+    static SpellSettingNotifier n;
+    return n;
+}
+
+bool spellAsYouType() { return Settings::get().value(QStringLiteral("proof/checkAsYouType"), true).toBool(); }
+
+void setSpellAsYouType(bool on)
+{
+    if (spellAsYouType() == on) return;
+    Settings::get().setValue(QStringLiteral("proof/checkAsYouType"), on);
+    Q_EMIT SpellSettingNotifier::get().changed(on);
+}
+
 Unit defaultUnit(const QLocale &region)
 {
     return region.measurementSystem() == QLocale::ImperialUSSystem ? Unit::Inch : Unit::Centimeter;
@@ -86,6 +113,7 @@ Settings::Settings()
     : m_s(QSettings::defaultFormat(), QSettings::UserScope, appInfo().organization, appInfo().name), m_suite(QSettings::defaultFormat(), QSettings::UserScope, appInfo().organization, QStringLiteral("JeffOffice"))
 {
     moveToSuite(m_s, m_suite);
+    migrateSpellSetting(m_s, m_suite);
     m_unit = Unit(m_s.value("units", int(defaultUnit(QLocale::system()))).toInt());
 }
 

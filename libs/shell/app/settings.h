@@ -3,6 +3,7 @@
 
 #include <QJsonArray>
 #include <QLocale>
+#include <QObject>
 #include <QSettings>
 #include <QString>
 #include <QStringList>
@@ -36,6 +37,20 @@ bool suiteWide(const QString &key);
 // written the statistics choice there), the first time. The app's copies
 // stay, for an older version that reads them.
 void moveToSuite(QSettings &app, QSettings &suite);
+
+// "Check spelling as you type", one choice for every app and window. Kept in the suite's store;
+// the old per-app keys (JeffWrite's and JeffCrunch's) are read once, so a choice of "off" stays off.
+bool spellAsYouType();
+void setSpellAsYouType(bool on);
+void migrateSpellSetting(QSettings &app, QSettings &suite);
+// Tells every open window of this app, at once, when the choice changes.
+class SpellSettingNotifier : public QObject {
+    Q_OBJECT
+public:
+    static SpellSettingNotifier &get();
+Q_SIGNALS:
+    void changed(bool on);
+};
 
 class Settings {
 public:

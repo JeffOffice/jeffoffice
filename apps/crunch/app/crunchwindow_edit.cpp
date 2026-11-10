@@ -270,8 +270,7 @@ void CrunchWindow::placeEditor()
 
 void CrunchWindow::setSpellAsYouType(bool on)
 {
-    Settings::get().setValue(QStringLiteral("proof/spellAsYouType"), on);
-    m_cellEditor->checkSpelling();
+    jp::setSpellAsYouType(on);   // (the suite's one choice; every open editor follows)
 }
 
 void CrunchWindow::setAutoComplete(bool on)

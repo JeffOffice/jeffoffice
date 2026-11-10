@@ -29,11 +29,16 @@ void WriteWindow::createReviewActions()
     QAction *asType = mk("review.checkAsType", tr("Check Spelling as You Type"), "spell-check-2", QKeySequence(), [this] {
         const bool on = act("review.checkAsType")->isChecked();
         m_view->setSpellingEnabled(on);
-        Settings::get().setValue(QStringLiteral("proof/asYouType"), on);
+        setSpellAsYouType(on);
     }, true);
-    const bool on = Settings::get().value(QStringLiteral("proof/asYouType"), true).toBool();
+    const bool on = spellAsYouType();
     asType->setChecked(on);
     m_view->setSpellingEnabled(on);
+    // (Options, or another window, changes the one shared choice)
+    connect(&SpellSettingNotifier::get(), &SpellSettingNotifier::changed, this, [this, asType](bool now) {
+        asType->setChecked(now);
+        m_view->setSpellingEnabled(now);
+    });
 
     // ---- tracking
     mk("review.trackChanges", tr("Track Changes"), "pencil-line", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_E), [this] {

@@ -54,6 +54,12 @@ private:
 Editor::Editor(QObject *parent) : QObject(parent)
 {
     m_doc = Document::blank(QSizeF(612, 792));
+    // "Check spelling as you type" is the suite's one choice, not the document's.
+    view.spelling = spellAsYouType();
+    connect(&SpellSettingNotifier::get(), &SpellSettingNotifier::changed, this, [this](bool on) {
+        view.spelling = on;
+        Q_EMIT viewChanged();
+    });
     m_undo.setUndoLimit(kUndoSteps);
     m_typingTimer.setSingleShot(true);
     m_typingTimer.setInterval(1200);

@@ -50,7 +50,7 @@ struct Dlg {
 
 } // namespace
 
-bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
+bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages)
 {
     Settings &st = Settings::get();
     Dlg dlg(p, forThisApp(QCoreApplication::translate("Dialogs", "JeffPub Options")));
@@ -124,7 +124,7 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
     auto *proof = new QWidget();
     auto *pf = new QFormLayout(proof);
     auto *asType = new QCheckBox(QCoreApplication::translate("Dialogs", "Check spelling as you type"), proof);
-    asType->setChecked(ed->view.spelling);
+    asType->setChecked(spellAsYouType());
     auto *ignoreUpper = new QCheckBox(QCoreApplication::translate("Dialogs", "Ignore words in UPPERCASE"), proof);
     ignoreUpper->setChecked(st.value("proof/ignoreUpper", true).toBool());
     auto *ignoreNum = new QCheckBox(QCoreApplication::translate("Dialogs", "Ignore words that contain numbers"), proof);
@@ -170,7 +170,7 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
         st.setValue("updates/auto", updates->isChecked());
         Updater::setBetaChannel(beta->isChecked());
     }
-    ed->setView([&](ViewOptions &v) { v.spelling = asType->isChecked(); });
+    setSpellAsYouType(asType->isChecked());
     return true;
 }
 

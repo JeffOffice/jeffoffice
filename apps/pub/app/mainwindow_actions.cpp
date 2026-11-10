@@ -705,7 +705,7 @@ void MainWindow::createActions()
 
     // ---------------- Review ----------------
     mk("rev.spelling", tr("Spelling"), "spell-check", QKeySequence(Qt::Key_F7), [this] { spellingDialog(this, m_ed); });
-    mk("rev.checkAsType", tr("Check Spelling as You Type"), "spell-check-2", QKeySequence(), [ed] { ed->setView([](ViewOptions &v) { v.spelling = !v.spelling; }); }, true);
+    mk("rev.checkAsType", tr("Check Spelling as You Type"), "spell-check-2", QKeySequence(), [ed] { setSpellAsYouType(!ed->view.spelling); }, true);
     mk("rev.thesaurus", tr("Thesaurus"), "book-a", QKeySequence(Qt::SHIFT | Qt::Key_F7), [this] { thesaurusDialog(this, m_ed); });
     mk("rev.research", tr("Research"), "book-open-text", QKeySequence(Qt::ALT | Qt::Key_F7), [this] { showTaskPane("research"); });
     mk("rev.translate", tr("Translate"), "languages", QKeySequence(), [this] {

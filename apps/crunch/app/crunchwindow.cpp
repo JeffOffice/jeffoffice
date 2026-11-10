@@ -688,8 +688,7 @@ void CrunchWindow::createActions()
         }, [this, lists] {
             if (*lists) setCustomListLines((*lists)->toPlainText().split(QLatin1Char('\n')));
         }};
-        stand.setView([](ViewOptions &v) { v.spelling = CellEditor::spellingOn(); });   // (the shared Proofing page shows the choice, and gives it back)
-        if (optionsDialog(this, &stand, pages)) setSpellAsYouType(stand.view.spelling);
+        optionsDialog(this, &stand, pages);   // (the shared Proofing page shows the suite's choice, and sets it)
     });
     mk("edit.selectAll", tr("Select All"), "", QKeySequence(), [this] { m_view->selectAll(); });
     mk("edit.insertDate", tr("Today's Date"), "calendar", QKeySequence(Qt::CTRL | Qt::Key_Semicolon), [this] { insertNow(false); }, false, false);

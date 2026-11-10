@@ -33,12 +33,14 @@ CellEditor::CellEditor(QWidget *parent) : QLineEdit(parent)
     m_spellTimer.setSingleShot(true);
     m_spellTimer.setInterval(120);
     connect(&m_spellTimer, &QTimer::timeout, this, &CellEditor::checkSpelling);
+    // (the choice is the suite's, and a change shows in an open editor at once)
+    connect(&jp::SpellSettingNotifier::get(), &jp::SpellSettingNotifier::changed, this, [this] { checkSpelling(); });
     // (with "Check spelling as you type" off, nothing is started at a key or a move of the caret)
     connect(this, &QLineEdit::textChanged, this, [this] { if (spellingOn()) m_spellTimer.start(); });
     connect(this, &QLineEdit::cursorPositionChanged, this, [this] { if (spellingOn()) m_spellTimer.start(); });
 }
 
-bool CellEditor::spellingOn() { return Settings::get().value(QStringLiteral("proof/spellAsYouType"), true).toBool(); }
+bool CellEditor::spellingOn() { return jp::spellAsYouType(); }
 
 bool CellEditor::isFormulaEntry(const QString &text) { return jp::office::sheet::isFormulaEntry(text); }
 
