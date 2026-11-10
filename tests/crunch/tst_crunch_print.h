@@ -10,6 +10,7 @@
 #include "app/pagesetupdialog.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/printpage.h"
 #include "app/printsides.h"
 #include "app/sheettabs.h"
 #include "core/appinfo.h"
@@ -216,6 +217,11 @@ private Q_SLOTS:
     void printToAFileMakesThePdfAndClosesTheScreen();
     void theLastPageFirstChoiceReversesThePreviewAndThePrintedFile();
     void theGrayscaleChoiceMakesThePreviewAndThePrintedFileGray();
+    void reverseKeepsEachFrontWithItsBackWhenPrintingOnBothSides();
+    void reverseGroupsTheSheetsFirstWhenSeveralPagesShareOne();
+    void collatedCopiesOnBothSidesEachBeginOnANewSheet();
+    void aPrinterThatIsGoneIsSaidAndNothingIsSent();
+    void grayPagesThatCannotBeMadeStayInColorAndAreSaid();
     void severalPagesCanShareASheet();
     void pagesGoToAPrinterObject();
     void theSidesChoiceSetsTheDuplexModeOfThePrinter();

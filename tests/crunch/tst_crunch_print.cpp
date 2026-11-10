@@ -1391,6 +1391,169 @@ void CrunchPrintTests::theGrayscaleChoiceMakesThePreviewAndThePrintedFileGray()
 }
 
 
+namespace {
+// A workbook whose rows each print on a page of their own (a break after each), each saying its word.
+QByteArray wordPageBook(int pages)
+{
+    static const char *words[] = {"Alphaword", "Bravoword", "Charlieword", "Deltaword"};
+    QString rows, breaks;
+    for (int i = 0; i < pages; ++i) {
+        rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" t=\"inlineStr\"><is><t>%2</t></is></c></row>").arg(i + 1).arg(QLatin1String(words[i]));
+        if (i + 1 < pages) breaks += QStringLiteral("<brk id=\"%1\" max=\"16383\" man=\"1\"/>").arg(i + 1);
+    }
+    return buildXlsx({worksheet(rows, QStringLiteral("<rowBreaks count=\"%1\" manualBreakCount=\"%1\">%2</rowBreaks>").arg(pages - 1).arg(breaks))});
+}
+// What each page of the PDF has of the words (A for Alphaword, ...), "" for a blank page, joined.
+QString printedWords(const QString &path)
+{
+    QStringList out;
+    for (const QString &text : pdfPageTexts(path)) {
+        QStringList has;
+        for (const char *word : {"Alpha", "Bravo", "Charlie", "Delta"})
+            if (text.contains(QLatin1String(word))) has << QString(QLatin1Char(word[0]));
+        out << has.join(QLatin1Char('+'));
+    }
+    return out.join(QLatin1Char(' '));
+}
+// Prints with the choices on a printer that writes a file (the way a test stands in for a real one), and what came out.
+QString printedWith(CrunchWindow &w, crunch::PrintChoices c, const QString &file)
+{
+    c.printer = QStringLiteral("a printer");
+    w.setPrinterPreparer([&](QPrinter &p) {
+        p.setOutputFormat(QPrinter::PdfFormat);
+        p.setOutputFileName(file);
+    });
+    QFile::remove(file);
+    if (!w.printWith(c)) return QStringLiteral("(not printed)");
+    return printedWords(file);
+}
+} // namespace
+
+
+// Last page first with both sides of the paper: each front stays with its back (pages 1-4 come out as 3 4, then 1 2); an odd last page has a blank back.
+void CrunchPrintTests::reverseKeepsEachFrontWithItsBackWhenPrintingOnBothSides()
+{
+    EditWindow e;
+    QVERIFY(e.open(wordPageBook(4)));
+    CrunchWindow &w = e.win.w;
+    const QString file = e.folder.dir.filePath(QStringLiteral("d.pdf"));
+    crunch::PrintChoices c;
+    c.reverse = true;
+    c.duplex = QPrinter::DuplexLongSide;
+    QCOMPARE(printedWith(w, c, file), QStringLiteral("C D A B"));
+    c.duplex = QPrinter::DuplexNone;
+    QCOMPARE(printedWith(w, c, file), QStringLiteral("D C B A"));
+    c.pageRange = QStringLiteral("1-3");
+    c.duplex = QPrinter::DuplexLongSide;
+    QCOMPARE(printedWith(w, c, file), QStringLiteral("C  A B"));
+}
+
+
+// Last page first with several pages on a sheet: the pages are put in sheets first, and the sheets last first, in a printer and in a PDF file.
+void CrunchPrintTests::reverseGroupsTheSheetsFirstWhenSeveralPagesShareOne()
+{
+    EditWindow e;
+    QVERIFY(e.open(wordPageBook(4)));
+    CrunchWindow &w = e.win.w;
+    const QString file = e.folder.dir.filePath(QStringLiteral("n.pdf"));
+    crunch::PrintChoices c;
+    c.reverse = true;
+    c.pagesPerSheet = 2;
+    QCOMPARE(printedWith(w, c, file), QStringLiteral("C+D A+B"));
+    c.pageRange = QStringLiteral("1-3");
+    QCOMPARE(printedWith(w, c, file), QStringLiteral("C A+B"));
+    // a PDF file
+    c.pageRange.clear();
+    c.toFile = true;
+    c.printer.clear();
+    w.setPrinterPreparer(nullptr);
+    w.setSavePicker([&](const QString &, const QString &) { return file; });
+    QFile::remove(file);
+    QVERIFY(w.printWith(c));
+    QCOMPARE(printedWords(file), QStringLiteral("C+D A+B"));
+    // the preview follows: the first sheet shown is the last
+    w.act(QStringLiteral("file.print"))->trigger();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    w.findChild<QComboBox *>(QStringLiteral("printPerSheet"))->setCurrentIndex(w.findChild<QComboBox *>(QStringLiteral("printPerSheet"))->findData(2));
+    w.findChild<QCheckBox *>(QStringLiteral("printReverse"))->setChecked(true);
+    QTRY_COMPARE(w.findChild<QLabel *>(QStringLiteral("printPage"))->text(), QStringLiteral("Sheet 1 of 2"));
+    w.printChoices() = crunch::PrintChoices();
+}
+
+
+// Copies the program sends again, collated, on both sides of the paper: each copy begins on a new sheet (an odd number of pages ends with a blank back).
+void CrunchPrintTests::collatedCopiesOnBothSidesEachBeginOnANewSheet()
+{
+    {
+        QPrinter probe;
+        probe.setOutputFormat(QPrinter::PdfFormat);
+        if (probe.supportsMultipleCopies()) QSKIP("this printer engine makes copies itself, so the pages are not sent again");
+    }
+    EditWindow e;
+    QVERIFY(e.open(wordPageBook(3)));
+    CrunchWindow &w = e.win.w;
+    const QString file = e.folder.dir.filePath(QStringLiteral("c.pdf"));
+    crunch::PrintChoices c;
+    c.duplex = QPrinter::DuplexLongSide;
+    c.copies = 2;
+    c.collate = true;
+    QCOMPARE(printedWith(w, c, file), QStringLiteral("A B C  A B C "));
+    c.duplex = QPrinter::DuplexNone;
+    QCOMPARE(printedWith(w, c, file), QStringLiteral("A B C A B C"));
+}
+
+
+// A printer that is not there any more is said in plain words, and nothing is sent or said to be sent.
+void CrunchPrintTests::aPrinterThatIsGoneIsSaidAndNothingIsSent()
+{
+    EditWindow e;
+    QVERIFY(e.open(wordPageBook(2)));
+    CrunchWindow &w = e.win.w;
+    QStringList said;
+    w.setNotifier([&](const QString &, const QString &text) { said << text; });
+    setPrinterNamesStandIn([] { return QStringList{QStringLiteral("Front Desk")}; });
+    const auto done = qScopeGuard([] { setPrinterNamesStandIn(nullptr); });
+    w.statusBar()->clearMessage();
+    crunch::PrintChoices c;
+    c.printer = QStringLiteral("No Such Printer");
+    QVERIFY(!w.printWith(c));
+    QCOMPARE(said.size(), 1);
+    QVERIFY2(said[0].contains(QStringLiteral("No Such Printer")), qPrintable(said[0]));
+    QVERIFY(!w.statusBar()->currentMessage().contains(QStringLiteral("Sent")));
+    // the list is asked for when the Print page is opened, each time, and not before
+    int asked = 0;
+    setPrinterNamesStandIn([&] {
+        ++asked;
+        return QStringList{QStringLiteral("Front Desk")};
+    });
+    QCOMPARE(asked, 0);
+    w.act(QStringLiteral("file.print"))->trigger();
+    QCOMPARE(asked, 1);
+    w.act(QStringLiteral("file.print"))->trigger();
+    QVERIFY(asked >= 2);
+}
+
+
+// Gray pages that cannot be made (no room for the pixels) stay in color, and the page says so; the preview is never blank.
+void CrunchPrintTests::grayPagesThatCannotBeMadeStayInColorAndAreSaid()
+{
+    const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" s=\"3\" t=\"inlineStr\"><is><t>Redcell</t></is></c><c r=\"B1\" s=\"3\"/><c r=\"C1\" s=\"3\"/></row>");
+    EditWindow e;
+    QVERIFY(e.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), findStyles())));
+    CrunchWindow &w = e.win.w;
+    crunch::PrintJob::setGrayPixelLimitForTest(-1);
+    const auto done = qScopeGuard([] { crunch::PrintJob::setGrayPixelLimitForTest(16.0 * 1000 * 1000); });
+    w.act(QStringLiteral("file.print"))->trigger();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    w.findChild<QCheckBox *>(QStringLiteral("printGray"))->setChecked(true);
+    QLabel *preview = w.findChild<QLabel *>(QStringLiteral("printPreview"));
+    QTRY_VERIFY(!preview->pixmap().isNull());
+    QTRY_VERIFY(inkOf(preview->pixmap().toImage()).colored > 20);   // (in color, not blank)
+    QTRY_VERIFY(w.findChild<QLabel *>(QStringLiteral("printNotes"))->text().contains(QStringLiteral("not room")));
+    w.printChoices() = crunch::PrintChoices();
+}
+
+
 // Several pages on a sheet: the pages of the job are put 2, 4, and so on to a sheet of the file, so it has fewer sheets (3 pages: 2 sheets for 2 on a sheet, 1 for 4).
 void CrunchPrintTests::severalPagesCanShareASheet()
 {

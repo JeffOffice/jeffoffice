@@ -196,6 +196,8 @@ public:
 
     // Draws a page in points on the painter (its origin the paper's corner). Gives false if the page is not one.
     bool paint(QPainter *painter, int page);
+    // The test sets it to make the gray pictures fail (a machine with no room), which the program never does.
+    static void setGrayPixelLimitForTest(double pixels);
     bool paintColors(QPainter *painter, int page);   // (the page as the sheet colors it; paint() makes it gray when the job is)
     // The paper size and the painting of a group of pages that share a sheet (see `perSheet` below).
     QSizeF sheetFor(const QVector<int> &group, int perSheet) const;
@@ -207,7 +209,7 @@ public:
 
     // The pages (indexes from 0, in the order given) as a PDF file, written at once; `progress` is told the pages done and the total, and says false to stop. The file is not there if it fails. With `protect` (its open password set) the PDF is made in memory and the file written once, encrypted.
     bool exportPdf(const QString &path, const QVector<int> &pages, QString *error = nullptr, const std::function<bool(int done, int total)> &progress = nullptr, int perSheet = 1,
-                   const jp::PdfProtection *protect = nullptr);
+                   const jp::PdfProtection *protect = nullptr, const QVector<QVector<int>> *sheets = nullptr);
     // The pages to a printer (any QPrinter, a file among them), one sheet of paper each; the printer's own copies are not used here (the caller repeats the pages).
     // `copies` of the pages are sent, each set together (collated) or each page's copies together; never made into a list (the number sent is held to kMaxSentPages).
     bool printTo(QPrinter *printer, const QVector<int> &pages, QString *error = nullptr, const std::function<bool(int done, int total)> &progress = nullptr, int copies = 1,
@@ -274,6 +276,8 @@ QVector<int> pagesOfSide(const QVector<int> &pages, PrintSides sides);
 // Both sides by hand: the pages shared out over physical sheets (`perSheet` pages to a sheet, the last sheet possibly short), as the two runs of sheets. The first run is the
 // first, third, ... sheets; the second is the others last first, with an empty sheet (a blank one) first when the last front has no back.
 HandRuns<QVector<int>> handSheetRuns(const QVector<int> &pages, int perSheet);
+// The pages cut into the sheets of paper that carry them (`perSheet` pages to a sheet, the last perhaps short), in order.
+QVector<QVector<int>> sheetGroups(const QVector<int> &pages, int perSheet);
 // The pages in the order the sheets come out for `copies` of them: collated, the whole set again for each copy (1 2 3 1 2 3), else each page's copies together (1 1 2 2 3 3).
 QVector<int> sheetOrder(const QVector<int> &pages, int copies, bool collate);
 

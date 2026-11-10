@@ -482,6 +482,12 @@ PrintJob::Context &PrintJob::contextFor(int infoIndex)
     return c;
 }
 
+namespace {
+double kMaxGrayPixels = 16.0 * 1000 * 1000;   // (a picture of 64 MB)
+}
+
+void PrintJob::setGrayPixelLimitForTest(double pixels) { kMaxGrayPixels = pixels; }
+
 bool PrintJob::paint(QPainter *painter, int page)
 {
     if (!m_options.grayscale || m_inGray) return paintColors(painter, page);
@@ -489,8 +495,16 @@ bool PrintJob::paint(QPainter *painter, int page)
     // Gray: the page is painted in color into pixels (as many to the point as the device has, up to 300 to the inch), and drawn from there as gray ones.
     const QSizeF paper = pageSize(page);
     const QTransform toDevice = painter->deviceTransform();
-    const double k = std::clamp(std::hypot(toDevice.m11(), toDevice.m12()), 0.05, 300.0 / 72);
-    QImage img((paper * k).toSize().expandedTo(QSize(1, 1)), QImage::Format_RGB32);
+    double k = std::clamp(std::hypot(toDevice.m11(), toDevice.m12()), 0.05, 300.0 / 72);
+    // (no more than kMaxGrayPixels of pixels: a very large page is made gray from fewer)
+    if (kMaxGrayPixels > 0 && paper.width() * k * paper.height() * k > kMaxGrayPixels) k *= std::sqrt(kMaxGrayPixels / (paper.width() * k * paper.height() * k));
+    QImage img = kMaxGrayPixels < 0 ? QImage() : QImage((paper * k).toSize().expandedTo(QSize(1, 1)), QImage::Format_RGB32);   // (below nothing: a machine with no room, for a test)
+    if (img.isNull()) {
+        // (the pixels could not be had: the page is in color, and the person is told, never a blank page)
+        const QString said = QCoreApplication::translate("jp::crunch::PrintJob", "There was not room to make the pages gray, so some are in color.");
+        if (!m_messages.contains(said)) m_messages << said;
+        return paintColors(painter, page);
+    }
     img.fill(Qt::white);
     bool ok = false;
     {
@@ -802,7 +816,8 @@ void PrintJob::paintGroup(QPainter *painter, const QVector<int> &group, const QS
     }
 }
 
-bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString *error, const std::function<bool(int, int)> &progress, int perSheet, const jp::PdfProtection *protect)
+bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString *error, const std::function<bool(int, int)> &progress, int perSheet, const jp::PdfProtection *protect,
+                         const QVector<QVector<int>> *sheets)
 {
     auto fail = [&](const QString &text) {
         if (error) *error = text;
@@ -811,7 +826,7 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
     m_cancelled = false;
     perSheet = cleanPerSheet(perSheet);
     if (pages.isEmpty()) return fail(QCoreApplication::translate("jp::crunch::PrintJob", "There are no pages to put in the file."));
-    const QVector<QVector<int>> groups = groupsOf(pages, perSheet);
+    const QVector<QVector<int>> groups = sheets ? *sheets : groupsOf(pages, perSheet);
     const bool encrypted = protect && protect->isSet();
     // With a password the PDF is made in memory, so the plain one is never on the disk.
     QSaveFile file(path);
@@ -931,6 +946,8 @@ bool PrintJob::printTo(QPrinter *printer, const QVector<int> &pages, QString *er
 }
 
 // ---- ranges
+
+QVector<QVector<int>> sheetGroups(const QVector<int> &pages, int perSheet) { return groupsOf(pages, cleanPerSheet(perSheet)); }
 
 HandRuns<QVector<int>> handSheetRuns(const QVector<int> &pages, int perSheet)
 {

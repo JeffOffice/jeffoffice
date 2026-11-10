@@ -99,7 +99,7 @@ QWidget *CrunchFileScreen::buildPrint()
     auto *printer = new QComboBox(w);
     printer->setObjectName(QStringLiteral("printPrinter"));
     printer->setAccessibleName(tr("Printer"));
-    for (const QPrinterInfo &info : QPrinterInfo::availablePrinters()) printer->addItem(info.printerName(), info.printerName());
+    for (const QString &name : printerNames()) printer->addItem(name, name);
     printer->addItem(tr("Save as PDF"), QString());
     printer->setItemData(printer->count() - 1, true, Qt::UserRole + 1);
     const int wanted = choices.toFile ? printer->count() - 1 : printer->findData(choices.printer.isEmpty() ? QPrinterInfo::defaultPrinter().printerName() : choices.printer);
@@ -302,25 +302,29 @@ QWidget *CrunchFileScreen::buildPrint()
         c.byHand = !c.toFile && sidesByHand(duplex);
         return c;
     };
-    auto pagesToPrint = [=]() {
+    // the pages of the job in their own order
+    auto forwardPages = [=]() {
         QVector<int> pages;
         if (!state->job) return pages;
         const crunch::PrintSides side = crunch::PrintSides(sides->currentData().toInt());
-        // (the last page first, except where the pages are printed on both sides by hand, which sets the order itself)
-        const bool backwards = reverse->isChecked() && !sidesByHand(duplex);
         if (range->text().trimmed().isEmpty()) {
             for (int i = 0; i < state->job->pageCount(); ++i) pages << i;
-            return inPrintOrder(crunch::pagesOfSide(pages, side), backwards);
+            return crunch::pagesOfSide(pages, side);
         }
-        return inPrintOrder(crunch::pagesOfSide(crunch::parsePageRange(range->text(), state->job->pageCount()), side), backwards);
+        return crunch::pagesOfSide(crunch::parsePageRange(range->text(), state->job->pageCount()), side);
     };
+    // (the last page first, except where the pages are printed on both sides by hand, which sets the order itself)
+    auto backwards = [=]() { return reverse->isChecked() && !sidesByHand(duplex); };
+    auto pagesToPrint = [=]() { return inPrintOrder(forwardPages(), backwards()); };
     // The preview shows a sheet of paper (a group of pages) when several pages share one or the pages are scaled to another paper; else a page.
     auto sheetMode = [=]() { return perSheet->currentData().toInt() > 1 || scaleToPaper->currentData().toInt() > 0; };
     auto groupsToPrint = [=]() {
         QVector<QVector<int>> groups;
-        const QVector<int> pages = pagesToPrint();
+        const QVector<int> pages = forwardPages();
         const int per = std::max(1, perSheet->currentData().toInt());
         for (int i = 0; i < pages.size(); i += per) groups.push_back(pages.mid(i, per));
+        // (a sheet keeps its pages, and it is the sheets that are put last first)
+        if (backwards()) std::reverse(groups.begin(), groups.end());
         return groups;
     };
     // (pictures in the header are made on a worker: the page is drawn at once without them, and again when they are ready)
@@ -338,7 +342,7 @@ QWidget *CrunchFileScreen::buildPrint()
         const bool sheets = sheetMode();
         const QVector<QVector<int>> groups = sheets ? groupsToPrint() : QVector<QVector<int>>();
         state->page = std::clamp(state->page, 0, int(sheets ? groups.size() : pages.size()) - 1);
-        const int index = pages[sheets ? state->page * std::max(1, perSheet->currentData().toInt()) : state->page];
+        const int index = sheets ? groups[state->page].first() : pages[state->page];
         const QSizeF paperSize = sheets ? state->job->sheetFor(groups[state->page], std::max(1, perSheet->currentData().toInt())) : state->job->pageSize(index);
         const qreal dpr = preview->devicePixelRatioF();
         const QSize room = scroll->viewport()->size() - QSize(24, 24);
@@ -373,7 +377,7 @@ QWidget *CrunchFileScreen::buildPrint()
                 pageLabel->setText(tr("Page %1 of %2").arg(pages[state->page] + 1).arg(state->job->pageCount()));
             }
             lines << state->job->messages();
-            const int sheet = state->job->sheetOf(pages[sheetMode() ? std::min<int>(state->page * std::max(1, perSheet->currentData().toInt()), pages.size() - 1) : state->page]);
+            const int sheet = state->job->sheetOf(sheetMode() ? groupsToPrint().value(std::clamp(state->page, 0, int(groupsToPrint().size()) - 1)).value(0) : pages[state->page]);
             if (const jp::grid::SheetPrint *p = state->job->printOf(sheet)) {
                 if (p->scalePercent < 50) lines << tr("The cells are printed at %1% of full size, so the letters are small.").arg(p->scalePercent);
             }
@@ -398,6 +402,7 @@ QWidget *CrunchFileScreen::buildPrint()
         state->page = 0;
         words();
         paint();
+        words();   // (a job tells of what it could not do while it is drawn: gray pages with no room for them, say)
     };
     auto choose = [=]() {
         win->printChoices() = read();

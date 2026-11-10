@@ -125,7 +125,7 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
     } else {
         pages = crunch::parsePageRange(c.pageRange, job->pageCount());
     }
-    pages = inPrintOrder(crunch::pagesOfSide(pages, c.sides), c.reverse && !c.byHand);
+    pages = crunch::pagesOfSide(pages, c.sides);
     if (pages.isEmpty()) {
         notice(tr("Print"), tr("Those page numbers are not pages of this job. The job has %1 pages.").arg(job->pageCount()));
         return false;
@@ -136,7 +136,9 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
         QString path = askForSavePath(tr("Save as PDF"), QDir(dir).filePath(displayName() + QStringLiteral(".pdf")), tr("PDF (*.pdf)"));
         if (path.isEmpty()) return false;
         if (QFileInfo(path).suffix().compare(QLatin1String("pdf"), Qt::CaseInsensitive) != 0) path += QStringLiteral(".pdf");
-        ok = job->exportPdf(path, pages, &why, progressFunction(tr("Save as PDF"), tr("Making the pages...")), c.pagesPerSheet);
+        // (the pages are cut into sheets first, and it is the sheets that are put last first)
+        const QVector<QVector<int>> fileSheets = sheetSequence(crunch::sheetGroups(pages, c.pagesPerSheet), QVector<int>(), c.reverse, false, 1, true);
+        ok = job->exportPdf(path, pages, &why, progressFunction(tr("Save as PDF"), tr("Making the pages...")), c.pagesPerSheet, nullptr, &fileSheets);
         if (!ok && job->wasCancelled()) {
             setStatus(tr("Saving the PDF was cancelled"));
             return false;
@@ -155,6 +157,10 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
             if (k > 0 && !askToTurnStack(this)) return false;
             QPrinter &p = printer();
             p.setDocName(displayName());
+            if (!m_printerPreparer && !c.printer.isEmpty() && !printerExists(c.printer)) {
+                notice(tr("Print"), tr("The printer \"%1\" is not there any more. Choose another printer.").arg(c.printer));
+                return false;
+            }
             if (!c.printer.isEmpty() && p.printerName() != c.printer) p.setPrinterName(c.printer);
             setPrinterDuplex(&p, c.duplex);
             p.setCopyCount(std::max(1, c.copies));
@@ -162,9 +168,13 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
             p.setColorMode(c.job.grayscale ? QPrinter::GrayScale : QPrinter::Color);
             if (m_printerPreparer) m_printerPreparer(p);
             // a printer that can't make copies is sent the pages again, in the order the copies are to come out
-            const bool again = p.outputFormat() == QPrinter::NativeFormat && !p.supportsMultipleCopies();
-            ok = job->printTo(&p, pages, &why, progressFunction(tr("Printing"), tr("Sending the pages...")), again ? c.copies : 1, c.collate, c.pagesPerSheet,
-                              c.byHand ? &runs[k] : nullptr);
+            const bool again = !p.supportsMultipleCopies();
+            // (the pages are cut into sheets first, and it is the sheets that are put last first; with both sides of the paper, a front stays with its back, and each copy
+            // that is sent again begins on a new sheet)
+            QVector<QVector<int>> sequence;
+            if (!c.byHand) sequence = sheetSequence(crunch::sheetGroups(pages, c.pagesPerSheet), QVector<int>(), c.reverse, c.duplex != QPrinter::DuplexNone, again ? c.copies : 1, c.collate);
+            ok = job->printTo(&p, pages, &why, progressFunction(tr("Printing"), tr("Sending the pages...")), c.byHand ? (again ? c.copies : 1) : 1, c.collate, c.pagesPerSheet,
+                              c.byHand ? &runs[k] : &sequence);
             if (!ok && job->wasCancelled()) {
                 setStatus(tr("Printing was cancelled"));
                 return false;
