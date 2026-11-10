@@ -1,5 +1,7 @@
 // JeffDeck's tests of movies and sounds: timing, playback, and the show.
 #include "deckhelpers.h"
+
+#include <private/qplatformmediaintegration_p.h>
 #include <QAudioDevice>
 #include <QMediaDevices>
 
@@ -855,6 +857,19 @@ private Q_SLOTS:
         }
     }
 
+    // The backend that plays is the FFmpeg one, on every system. Qt 6.11 does not stop when the FFmpeg plugin can't be loaded (a library it needs is missing, say):
+    // it goes on to another backend, the system's own on Windows and macOS, which reads other formats, and the tests that follow pass or skip as if nothing were
+    // wrong. This is the one that says so.
+    void theFFmpegBackendIsTheOneThatPlays()
+    {
+        MediaPlayback pb;   // (the player is made, and with it the backend, as the program makes it)
+        pb.setFile(testWav(200), QStringLiteral("wav"));
+        pb.play();
+        QVERIFY(QPlatformMediaIntegration::instance());
+        QCOMPARE(QPlatformMediaIntegration::instance()->name(), QLatin1String("ffmpeg"));
+        pb.stop();
+    }
+
     // What the Insert dialogs offer is what plays: no Ogg video (the build has no reader for it) and no MIDI (FFmpeg never played it).
     void insertDialogsOfferOnlyWhatPlays()
     {
@@ -1568,9 +1583,6 @@ private Q_SLOTS:
         QTRY_VERIFY_WITH_TIMEOUT(playerSettled(ok, false), 15000);
         QVERIFY2(!ok.failed() || ok.error().contains(QStringLiteral("sound")), qPrintable(ok.error()));
         QCOMPARE(qgetenv("QT_FFMPEG_PROTOCOL_WHITELIST"), QByteArray("data"));
-        // The FFmpeg backend is the one that plays (the program's own FFmpeg is what is in the package; another backend, as Windows has, reads other formats
-        // and does not refuse what this one does): it is asked for before the first player is made, unless a person has named another.
-        QCOMPARE(qgetenv("QT_MEDIA_BACKEND"), QByteArray("ffmpeg"));
     }
 
     // The part's own name is not the player's: only a name a movie or sound file may have goes to the decoder, else "bin".

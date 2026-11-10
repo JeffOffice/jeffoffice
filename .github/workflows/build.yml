@@ -550,6 +550,9 @@ jobs:
           if (-not (Test-Path dist/JeffOffice/avcodec-*.dll)) { throw "FFmpeg's DLLs were not deployed" }
           bash tools/use_ffmpeg.sh check dist/JeffOffice
           if ($LASTEXITCODE -ne 0) { throw "the FFmpeg DLLs are not ours" }
+          # (and the plugin and the FFmpeg DLLs find every DLL they need in the package or the system)
+          python tools/check_bundle_deps.py windows dist/JeffOffice
+          if ($LASTEXITCODE -ne 0) { throw "the FFmpeg plugin's own libraries are not all in the package" }
           Get-ChildItem dist/JeffOffice/*.dll | Select-Object -ExpandProperty Name
           Copy-Item LICENSE, ADDITIONAL-TERMS.md, README.md dist/JeffOffice/
           Copy-Item -Recurse resources/fonts dist/JeffOffice/fonts
@@ -695,6 +698,7 @@ jobs:
           ls dist/JeffDeck.app/Contents/Frameworks | grep -q '^libavcodec'
           # ... and they are ours (the minimal build, for both processors when the disk image is for both), not Qt's full one.
           sh tools/use_ffmpeg.sh check dist/JeffDeck.app
+          python3 tools/check_bundle_deps.py mac dist/JeffDeck.app
           for arch in $(echo "$MAC_ARCHS" | tr ';' ' '); do lipo -archs dist/JeffDeck.app/Contents/Frameworks/libavcodec.61.dylib | grep -q "$arch"; done
           test ! -d dist/JeffPub.app/Contents/Frameworks/QtMultimedia.framework
           test -f dist/JeffDeck.app/Contents/Resources/licenses/ffmpeg/ffmpeg.txt

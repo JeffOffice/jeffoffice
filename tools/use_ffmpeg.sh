@@ -45,6 +45,11 @@ install)
     QT=$1; shift
     DEST=$(qt_libdir "$QT")
     [ -d "$DEST" ] || die "no $DEST"
+    if [ "$KIND" = dll ] && [ -f "$QT/plugins/multimedia/ffmpegmediaplugin.dll" ]; then
+        echo "use_ffmpeg: Qt's own libraries, before they are replaced:"
+        PY=python3; command -v python3 >/dev/null 2>&1 || PY=python
+        "$PY" "$(dirname "$0")/check_bundle_deps.py" windows-imports "$QT/plugins/multimedia/ffmpegmediaplugin.dll" "$DEST" || true
+    fi
     for name in $FAMILIES; do
         # Qt's library of this family, by the name its plugin binds to.
         had=""
@@ -75,6 +80,11 @@ install)
         fi
         echo "use_ffmpeg: $name ($had) is ours in $DEST"
     done
+    if [ "$KIND" = dll ] && [ -f "$QT/plugins/multimedia/ffmpegmediaplugin.dll" ]; then
+        # (the same for Windows: each import is bound to a DLL by name, and one missing there stops the plugin from loading)
+        PY=python3; command -v python3 >/dev/null 2>&1 || PY=python
+        "$PY" "$(dirname "$0")/check_bundle_deps.py" windows-imports "$QT/plugins/multimedia/ffmpegmediaplugin.dll" "$DEST" || die "the plugin would not load with these libraries"
+    fi
     if [ "$KIND" = dylib ] && [ -f "$QT/plugins/multimedia/libffmpegmediaplugin.dylib" ]; then
         # (every FFmpeg name the plugin imports must be found where the plugin looks: in the library it is bound to, or what that re-exports)
         python3 "$(dirname "$0")/check_macho_binds.py" "$QT/plugins/multimedia/libffmpegmediaplugin.dylib" "$DEST" || die "the plugin would not load with these libraries"
