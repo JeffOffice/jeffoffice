@@ -668,6 +668,132 @@ private Q_SLOTS:
         QCOMPARE(floatingObjects(*doc).value(1).position, 1);
     }
 
+    // A document of 2,000 floating objects: the pane lists them, and a drag of a row 1,000 places is one reorder (each under two seconds; a scan of the document for each row, or for
+    // each place moved, takes far longer).
+    void aDocumentOfTwoThousandFloatingObjectsHasItsPaneListedAndARowDraggedQuickly()
+    {
+        QByteArray runs;
+        for (int i = 0; i < 2000; ++i) {
+            QByteArray r = anchoredGraphic(i + 1, kShapeUri, plainShape(20, 20, "rect"), (i % 20) * 25, (i / 20) * 6, 20, 20);
+            r.replace("251659264", QByteArray::number(300000000 + i * 1000));
+            runs += r;
+        }
+        Win win("<w:p>" + runs + "</w:p>");
+        QElapsedTimer clock;
+        auto within = [&](const char *what) {
+            const qint64 ms = clock.elapsed();
+            clock.restart();
+            QVERIFY2(ms < 2000, qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
+        };
+        clock.start();
+        win.w.act(QStringLiteral("view.selectionPane"))->trigger();
+        auto *list = win.w.findChild<QListWidget *>(QStringLiteral("selectionList"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 2000);
+        within("opening the pane");
+        list->setCurrentRow(5);
+        within("picking a row");
+        const QVector<FloatingObject> before = floatingObjects(*win.w.document());
+        QVERIFY(list->model()->moveRow(QModelIndex(), 0, QModelIndex(), 1001));
+        within("a drag of 1,000 places");
+        const QVector<FloatingObject> after = floatingObjects(*win.w.document());
+        QCOMPARE(after.value(1000).position, before.value(0).position);
+        QCOMPARE(after.value(0).position, before.value(1).position);
+        QCOMPARE(int(after.size()), 2000);
+    }
+
+    // Objects in line with the text are in the pane too (a hidden one can be shown again, and any can be named), but have no layer to move in.
+    void theSelectionPaneListsObjectsInLineAndTheyCanBeHiddenAndShown()
+    {
+        Win win("<w:p>" + anchoredGraphic(1, kShapeUri, plainShape(40, 40, "rect"), 100, 100, 40, 40) + anchoredGraphic(2, kShapeUri, plainShape(40, 40, "rect"), 0, 0, 40, 40, true) + "</w:p>");
+        WriteDoc *doc = win.w.document();
+        const QVector<FloatingObject> listed = floatingObjects(*doc);
+        QCOMPARE(int(listed.size()), 2);
+        QVERIFY(listed[0].floating && !listed[1].floating);
+        const int inLine = listed[1].position;
+        win.w.act(QStringLiteral("view.selectionPane"))->trigger();
+        auto *list = win.w.findChild<QListWidget *>(QStringLiteral("selectionList"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 2);
+        list->item(1)->setCheckState(Qt::Unchecked);
+        QTRY_VERIFY(floatingObjects(*doc).value(1).hidden);
+        QTRY_COMPARE(list->item(1)->checkState(), Qt::Unchecked);   // (still listed: it can be shown again)
+        list->item(1)->setCheckState(Qt::Checked);
+        QTRY_VERIFY(!floatingObjects(*doc).value(1).hidden);
+        list->item(1)->setText(QStringLiteral("Inline one"));
+        QTRY_COMPARE(floatingObjects(*doc).value(1).name, QStringLiteral("Inline one"));
+        QVERIFY(!moveFloatingObject(*doc, inLine, -1));
+        QCOMPARE(floatingObjects(*doc).value(1).position, inLine);
+    }
+
+    // A hidden first box of a chain of linked boxes keeps the chain: the boxes after it show the same words as before, and the hidden one is not drawn.
+    void aHiddenHeadOfALinkedChainDoesNotBreakTheBoxesAfterIt()
+    {
+        auto doc = open(linkedBoxesDocx({{1, 0, 72, 100, 150, 60, 20}, {1, 1, 300, 100, 150, 400}}));
+        QVERIFY(doc);
+        QString shown;
+        {
+            std::shared_ptr<jp::flow::MaterializedPage> page;
+            const QVector<TextItem *> boxes = textBoxesOfPage(*doc, &page);
+            QCOMPARE(boxes.size(), 2);
+            shown = wordsOf(page, boxes[1]);
+            QVERIFY(!shown.isEmpty());
+        }
+        const QVector<FloatingObject> listed = floatingObjects(*doc);
+        QCOMPARE(int(listed.size()), 2);
+        const int head = std::min(listed[0].position, listed[1].position);
+        QVERIFY(setObjectHidden(*doc, head, true));
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        std::shared_ptr<jp::flow::MaterializedPage> page;
+        const QVector<TextItem *> boxes = textBoxesOfPage(*again, &page);
+        QCOMPARE(boxes.size(), 2);
+        int hiddenBoxes = 0;
+        for (TextItem *b : boxes) hiddenBoxes += b->hidden;
+        QCOMPARE(hiddenBoxes, 1);
+        for (TextItem *b : boxes)
+            if (!b->hidden) QCOMPARE(wordsOf(page, b), shown);
+    }
+
+    // The first Bring Forward in a layer of a picture, a shape, and a text box moves only that object: the others keep their order.
+    void movingOneObjectInALayerOfDifferentKindsLeavesTheOthersInOrder()
+    {
+        auto doc = WriteDoc::blank();
+        QImage image(10, 10, QImage::Format_RGB32);
+        image.fill(Qt::blue);
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        QTextCursor c(doc->story());
+        QCOMPARE(insertPicture(*doc, c, png, QStringLiteral("p"), PictureWrap::Square), PictureResult::Ok);
+        c.movePosition(QTextCursor::End);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.movePosition(QTextCursor::End);
+        QCOMPARE(insertTextBox(*doc, c, textBoxDesigns().first()), PictureResult::Ok);
+        c.movePosition(QTextCursor::End);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse")), PictureResult::Ok);
+        auto order = [&] {
+            QList<int> positions;
+            for (const FloatingObject &o : floatingObjects(*doc)) positions << o.position;
+            return positions;
+        };
+        const QList<int> start = order();
+        QCOMPARE(int(start.size()), 4);
+        // The one at the back comes forward one place: only it moves.
+        QVERIFY(moveFloatingObject(*doc, start[3], -1));
+        QCOMPARE(order(), (QList<int>{start[0], start[1], start[3], start[2]}));
+        // The one in front goes to the back: the rest keep their order.
+        const QList<int> mid = order();
+        QVERIFY(moveFloatingObject(*doc, mid[0], 3));
+        QCOMPARE(order(), (QList<int>{mid[1], mid[2], mid[3], mid[0]}));
+        QVERIFY(doc->undo());
+        QCOMPARE(order(), mid);
+        // And a text box (a different kind) at the front keeps the same rules.
+        QVERIFY(moveFloatingObject(*doc, mid[1], -1));
+        QCOMPARE(order(), (QList<int>{mid[1], mid[0], mid[2], mid[3]}));
+    }
+
     void ctrlClickSelectsSeveralObjectsGroupAndUngroupWorkFromTheWindowAndADragMovesThemAll()
     {
         Win win;

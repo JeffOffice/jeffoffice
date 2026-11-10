@@ -1193,51 +1193,71 @@ void WriteWindow::showSelectionPane()
 {
     if (!m_doc) return;
     if (m_selectionPane) {
+        m_paneStale = true;
         m_selectionPane->refresh();
         m_selectionPane->show();
         m_selectionPane->raise();
         return;
     }
     SelectionPane::Source src;
-    auto objects = [this] { return m_doc ? write::floatingObjects(*m_doc) : QVector<write::FloatingObject>(); };
+    // The list is read from the document once for each change of its content (a document of thousands of objects is not scanned for each row or each click); a pick only moves the mark.
+    auto objects = [this]() -> const QVector<write::FloatingObject> & {
+        if (m_paneStale || !m_doc) {
+            m_paneObjects = m_doc ? write::floatingObjects(*m_doc) : QVector<write::FloatingObject>();
+            m_paneStale = false;
+        }
+        return m_paneObjects;
+    };
+    m_paneStale = true;
     src.rows = [this, objects] {
         QVector<SelectionPane::Row> rows;
         const QVector<int> picked = m_view->selectedObjects();
-        const QVector<write::FloatingObject> list = objects();
+        const QSet<int> pickedSet(picked.cbegin(), picked.cend());
+        const QVector<write::FloatingObject> &list = objects();
+        rows.reserve(list.size());
         for (int i = 0; i < list.size(); ++i) {
             const QString name = list[i].name.isEmpty() ? tr("Object %1").arg(list.size() - i) : list[i].name;
-            rows.push_back({name, !list[i].hidden, picked.contains(list[i].position)});
+            rows.push_back({name, !list[i].hidden, pickedSet.contains(list[i].position)});
         }
         return rows;
     };
     src.pick = [this, objects](int row) {
-        const QVector<write::FloatingObject> list = objects();
+        const QVector<write::FloatingObject> &list = objects();
         if (row >= 0 && row < list.size()) m_view->selectPicture(list[row].position);
     };
     src.rename = [this, objects](int row, const QString &name) {
-        const QVector<write::FloatingObject> list = objects();
+        const QVector<write::FloatingObject> &list = objects();
         if (row < 0 || row >= list.size()) return;
         const int at = list[row].position;
         if (list[row].name.isEmpty() && (name.trimmed().isEmpty() || name == tr("Object %1").arg(list.size() - row))) return;
         m_view->changeObjects([&](write::WriteDoc &d) { return write::setObjectName(d, at, name); });
     };
     src.show = [this, objects](int row, bool shown) {
-        const QVector<write::FloatingObject> list = objects();
+        const QVector<write::FloatingObject> &list = objects();
         if (row < 0 || row >= list.size()) return;
         const int at = list[row].position;
         m_view->changeObjects([&](write::WriteDoc &d) { return write::setObjectHidden(d, at, !shown); });
     };
     src.showAll = [this](bool shown) { m_view->changeObjects([&](write::WriteDoc &d) { return write::setAllObjectsHidden(d, !shown); }); };
     src.move = [this, objects](int from, int to) {
-        const QVector<write::FloatingObject> list = objects();
+        const QVector<write::FloatingObject> &list = objects();
         if (from < 0 || from >= list.size()) return;
         const int at = list[from].position;
         m_view->changeObjects([&](write::WriteDoc &d) { return write::moveFloatingObject(d, at, to - from); });
     };
     auto *pane = new SelectionPane(this, src);
     m_selectionPane = pane;
-    connect(m_view, &write::PageView::contentChanged, pane, &SelectionPane::refresh);
-    connect(m_view, &write::PageView::caretChanged, pane, &SelectionPane::refresh);
+    // A change of the content makes the list be read again (once, when the pane is next drawn); a caret that moves without another object being picked does nothing.
+    connect(m_view, &write::PageView::contentChanged, pane, [this, pane] {
+        m_paneStale = true;
+        pane->requestRefresh();
+    });
+    connect(m_view, &write::PageView::caretChanged, pane, [this, pane] {
+        const QVector<int> now = m_view->selectedObjects();
+        if (now == m_paneSelection) return;
+        m_paneSelection = now;
+        pane->requestRefresh();
+    });
     pane->show();
     pane->raise();
 }

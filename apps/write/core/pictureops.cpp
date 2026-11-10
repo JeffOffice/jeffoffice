@@ -805,22 +805,55 @@ struct Layer {
     bool behind = false;
 };
 
-// The floating drawn objects of the story (pictures, shapes, text boxes, and the rest), the ones behind the text first, each layer from the lowest to the highest (pictures of the same height by their place in the text).
-QVector<Layer> floatingLayers(WriteDoc &doc)
+// Every drawing of the story that is one plain drawing, read once each: where it is, its layer and height, its name, and whether it is hidden. Only characters that are drawings are looked at.
+struct Drawn {
+    int position = 0;
+    qint64 z = 0;
+    bool behind = false, floating = false, hidden = false;
+    QString name;
+};
+
+// The text an XML attribute value holds (its five entities read).
+QString attributeText(const QByteArray &value)
 {
-    QVector<Layer> out;
+    QString s = QString::fromUtf8(value);
+    s.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'"));
+    s.replace(QLatin1String("&amp;"), QLatin1String("&"));
+    return s;
+}
+
+bool isTrueFlag(const QByteArray &v) { return v == "1" || v == "true"; }
+
+QVector<Drawn> scanDrawings(WriteDoc &doc, bool floatingOnly, bool withNames)
+{
+    QVector<Drawn> out;
     QTextDocument *story = doc.story();
-    for (int p = 0; p + 1 < story->characterCount(); ++p) {
-        if (!isDrawnObjectAt(story, p)) continue;
+    const int end = story->characterCount() - 1;
+    for (int p = 0; p < end; ++p) {
+        if (story->characterAt(p) != QChar::ObjectReplacementCharacter) continue;
         Inline atom;
         Model m;
-        if (!drawingAtomOf(formatAfter(story, p), &atom) || !parseDrawing(atom.raw, &m) || !m.floating) continue;
-        out.push_back({p, m.relativeHeight, m.wrap == PictureWrap::BehindText});
+        if (!drawingAtomOf(formatAfter(story, p), &atom) || !parseDrawing(atom.raw, &m) || (floatingOnly && !m.floating)) continue;
+        Drawn d;
+        d.position = p;
+        d.z = m.relativeHeight;
+        d.behind = m.floating && m.wrap == PictureWrap::BehindText;
+        d.floating = m.floating;
+        d.hidden = isTrueFlag(attributeValue(m.docPr, "hidden"));
+        if (withNames) d.name = attributeText(attributeValue(m.docPr, "name"));
+        out.push_back(d);
     }
-    std::stable_sort(out.begin(), out.end(), [](const Layer &a, const Layer &b) { return a.behind != b.behind ? a.behind : a.z < b.z; });
     return out;
 }
 
+// The floating drawn objects of the story (pictures, shapes, text boxes, and the rest), the ones behind the text first, each layer from the lowest to the highest (those of the same height by their place in the text).
+QVector<Layer> floatingLayers(WriteDoc &doc)
+{
+    QVector<Layer> out;
+    for (const Drawn &d : scanDrawings(doc, true, false)) out.push_back({d.position, d.z, d.behind});
+    std::stable_sort(out.begin(), out.end(), [](const Layer &a, const Layer &b) { return a.behind != b.behind ? a.behind : a.z < b.z; });
+    return out;
+}
 
 // What an order command changes: the new height of each picture that moves, and whether the one asked for ends up behind the text.
 struct OrderPlan {
@@ -828,6 +861,36 @@ struct OrderPlan {
     bool toBehind = false;
     QVector<std::pair<int, qint64>> heights;   // position, new height
 };
+
+// Where `mine` goes in the layer it is put into (`target`, from the lowest), and what heights that takes.
+OrderPlan planInsertion(QVector<Layer> &behind, QVector<Layer> &front, Layer mine, bool toBehind, int target)
+{
+    OrderPlan none;
+    constexpr qint64 kMostHeight = 4294967295LL;
+    QVector<Layer> &into = toBehind ? behind : front;
+    target = std::clamp(target, 0, int(into.size()));
+    mine.behind = toBehind;
+    into.insert(target, mine);
+    // Heights rise along the layer from the picture put in on: its own stays if it fits between its new neighbors, else it is the one above the lower; each one above it that is not
+    // higher than the one before is raised to the next height. Only a picture whose height changes is written again.
+    const qint64 prevZ = target > 0 ? into[target - 1].z : -1;
+    const qint64 nextZ = target + 1 < into.size() ? into[target + 1].z : kMostHeight + 1;
+    qint64 z = mine.z;
+    if (!(z > prevZ && z < nextZ)) z = prevZ >= 0 ? prevZ + 1 : std::max<qint64>(0, nextZ - 1);
+    QVector<std::pair<int, qint64>> heights;   // position, new height
+    heights.push_back({mine.position, z});
+    for (int i = target + 1; i < into.size(); ++i) {
+        const qint64 raised = std::max(into[i].z, z + 1);
+        if (raised > kMostHeight) return none;
+        if (raised != into[i].z) heights.push_back({into[i].position, raised});
+        z = raised;
+    }
+    OrderPlan plan;
+    plan.any = true;
+    plan.toBehind = toBehind;
+    plan.heights = heights;
+    return plan;
+}
 
 OrderPlan planPictureOrder(WriteDoc &doc, int position, PictureOrder order)
 {
@@ -883,38 +946,18 @@ OrderPlan planPictureOrder(WriteDoc &doc, int position, PictureOrder order)
         }
         break;
     }
-    QVector<Layer> &into = toBehind ? behind : front;
-    target = std::clamp(target, 0, int(into.size()));
-    mine.behind = toBehind;
-    into.insert(target, mine);
-    // Heights rise along the layer from the picture put in on: its own stays if it fits between its new neighbors, else it is the one above the lower; each one above it that is not
-    // higher than the one before is raised to the next height. Only a picture whose height changes is written again.
-    const qint64 prevZ = target > 0 ? into[target - 1].z : -1;
-    const qint64 nextZ = target + 1 < into.size() ? into[target + 1].z : kMostHeight + 1;
-    qint64 z = mine.z;
-    if (!(z > prevZ && z < nextZ)) z = prevZ >= 0 ? prevZ + 1 : std::max<qint64>(0, nextZ - 1);
-    QVector<std::pair<int, qint64>> heights;   // position, new height
-    heights.push_back({position, z});
-    for (int i = target + 1; i < into.size(); ++i) {
-        const qint64 raised = std::max(into[i].z, z + 1);
-        if (raised > kMostHeight) return none;
-        if (raised != into[i].z) heights.push_back({into[i].position, raised});
-        z = raised;
-    }
-    OrderPlan plan;
-    plan.any = true;
-    plan.toBehind = toBehind;
-    plan.heights = heights;
-    return plan;
+    return planInsertion(behind, front, mine, toBehind, target);
 }
 
 } // namespace
 
 bool canOrderPicture(WriteDoc &doc, int position, PictureOrder order) { return planPictureOrder(doc, position, order).any; }
 
-bool setPictureOrder(WriteDoc &doc, int position, PictureOrder order)
+namespace {
+
+// Writes an order plan: the new heights, and the layer of the object that moved.
+bool applyOrderPlan(WriteDoc &doc, int position, const OrderPlan &plan)
 {
-    const OrderPlan plan = planPictureOrder(doc, position, order);
     if (!plan.any) return false;
     const WriteDoc::StepGroup group(doc);
     bool changed = false;
@@ -931,6 +974,10 @@ bool setPictureOrder(WriteDoc &doc, int position, PictureOrder order)
     return changed;
 }
 
+} // namespace
+
+bool setPictureOrder(WriteDoc &doc, int position, PictureOrder order) { return applyOrderPlan(doc, position, planPictureOrder(doc, position, order)); }
+
 bool setPictureAltText(WriteDoc &doc, int position, const QString &alt)
 {
     const QByteArray text = attribute(alt, kMostAltTextLength);
@@ -942,38 +989,22 @@ bool setPictureAltText(WriteDoc &doc, int position, const QString &alt)
     }, true);
 }
 
-namespace {
-
-// The text an XML attribute value holds (its five entities read).
-QString attributeText(const QByteArray &value)
-{
-    QString s = QString::fromUtf8(value);
-    s.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'"));
-    s.replace(QLatin1String("&amp;"), QLatin1String("&"));
-    return s;
-}
-
-bool isTrueFlag(const QByteArray &v) { return v == "1" || v == "true"; }
-
-} // namespace
 
 QVector<FloatingObject> floatingObjects(WriteDoc &doc)
 {
+    QVector<Drawn> all = scanDrawings(doc, false, true);
+    // The floating ones in order, the one in front first (the layer behind the text sorts first, then each layer by height, so the list is that turned about); then those in line with the text, as they stand.
+    std::stable_sort(all.begin(), all.end(), [](const Drawn &a, const Drawn &b) {
+        if (a.floating != b.floating) return a.floating;
+        if (!a.floating) return false;
+        return a.behind != b.behind ? a.behind : a.z < b.z;
+    });
     QVector<FloatingObject> out;
-    QTextDocument *story = doc.story();
-    QVector<Layer> layers = floatingLayers(doc);
-    for (auto it = layers.crbegin(); it != layers.crend(); ++it) {
-        Inline atom;
-        Model m;
-        if (!drawingAtomOf(formatAfter(story, it->position), &atom) || !parseDrawing(atom.raw, &m)) continue;
-        FloatingObject o;
-        o.position = it->position;
-        o.name = attributeText(attributeValue(m.docPr, "name"));
-        o.hidden = isTrueFlag(attributeValue(m.docPr, "hidden"));
-        o.behind = it->behind;
-        o.kind = pictureAt(doc, story, it->position).kind;
-        out.push_back(o);
-    }
+    out.reserve(all.size());
+    qsizetype floating = 0;
+    while (floating < all.size() && all[floating].floating) ++floating;
+    for (qsizetype i = floating; i-- > 0;) out.push_back({all[i].position, all[i].name, all[i].hidden, all[i].behind, true});
+    for (qsizetype i = floating; i < all.size(); ++i) out.push_back({all[i].position, all[i].name, all[i].hidden, false, false});
     return out;
 }
 
@@ -1008,13 +1039,23 @@ bool setAllObjectsHidden(WriteDoc &doc, bool hidden)
 
 bool moveFloatingObject(WriteDoc &doc, int position, int by)
 {
-    const WriteDoc::StepGroup group(doc);
-    bool changed = false;
-    for (int step = std::abs(by); step > 0; --step) {
-        if (!setPictureOrder(doc, position, by < 0 ? PictureOrder::BringForward : PictureOrder::SendBackward)) break;
-        changed = true;
-    }
-    return changed;
+    // The layers from the back of the page to the front; the list the pane shows is that turned about, so the object at index i of `all` is in row n - 1 - i.
+    const QVector<Layer> all = floatingLayers(doc);
+    const int n = int(all.size());
+    int index = -1;
+    for (int i = 0; i < n; ++i)
+        if (all[i].position == position) index = i;
+    if (index < 0 || by == 0) return false;
+    const int row = n - 1 - index, to = std::clamp(row + by, 0, n - 1);
+    if (to == row) return false;
+    QVector<Layer> behind, front;
+    for (int i = 0; i < n; ++i)
+        if (i != index) (all[i].behind ? behind : front).push_back(all[i]);
+    // Row `to` in the list without this object: the front layer has rows 0 up to its size, and an object put at the end of it is its lowest; any row past that is behind the text.
+    const int inFront = int(front.size());
+    const bool toBehind = to > inFront;
+    const int target = toBehind ? int(behind.size()) - (to - inFront) : inFront - to;
+    return applyOrderPlan(doc, position, planInsertion(behind, front, all[index], toBehind, target));
 }
 
 bool setPictureDecorative(WriteDoc &doc, int position, bool decorative)

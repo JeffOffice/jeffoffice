@@ -13,6 +13,7 @@
 #include "core/styleops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
+#include "core/pictureops.h"
 #include "core/compareops.h"
 #include "core/homeops.h"
 #include "app/versionstore.h"
@@ -396,6 +397,9 @@ private:
     void fillSelectedShapeWithPicture();
     void showSelectionPane();
     QPointer<SelectionPane> m_selectionPane;
+    QVector<write::FloatingObject> m_paneObjects;   // what the pane lists, read when the content changes
+    QVector<int> m_paneSelection;
+    bool m_paneStale = true;
     void insertPictureFromClipboard();
     void insertIconsFromPicker();
     void showPageSetupDialog();

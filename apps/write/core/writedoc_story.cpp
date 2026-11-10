@@ -1730,7 +1730,8 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
     bool inlinePicture = false, sawHidden = false;
     for (const Shape &s : shapes) {
         // An object the file hides (wp:docPr's hidden) takes no room and is not drawn; it stays in the story's drawing element, which is what is saved.
-        if (s.hidden) {
+        // (A text box that is in a chain of linked boxes stays, so that the boxes after it keep the words that run on from it: it is set with no room and is not drawn.)
+        if (s.hidden && !(s.kind == Shape::TextBox && s.linkId >= 0)) {
             sawHidden = true;
             continue;
         }
@@ -1840,6 +1841,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         o.side = s.side == Shape::SideLeft ? flow::FloatingObject::Side::Left : s.side == Shape::SideRight ? flow::FloatingObject::Side::Right
                  : s.side == Shape::SideLargest ? flow::FloatingObject::Side::Largest : flow::FloatingObject::Side::Both;
         o.gap = QMarginsF(s.gapLeft, s.gapTop, s.gapRight, s.gapBottom);
+        if (s.hidden) o.wrap = flow::FloatingObject::Wrap::None;
         if (lettering) {
             if (!letteringFits(s)) continue;
             o.item = letteringItem(s);
@@ -1924,6 +1926,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             item->flipH = s.flipH;
             item->flipV = s.flipV;
             item->altText = s.alt;
+            item->hidden = s.hidden;
             // A shape of the drawing format's own has its look from the shared reader: its geometry, fill, line, effects, and turn.
             if (const ItemPtr ref = wspItem(s, theme())) {
                 item->fill = ref->fill;
