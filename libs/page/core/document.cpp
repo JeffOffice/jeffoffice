@@ -1787,8 +1787,14 @@ Document::Snapshot Document::snapshot() const
 {
     Snapshot s;
     s.json = toJson();
-    s.images = images;
-    s.media = media;
+    // (Pictures of its own: the decodes the window keeps and trims as it draws are not copied, and no node is shared with the window's maps.)
+    for (auto it = images.cbegin(); it != images.cend(); ++it) {
+        ImageData own = it.value();
+        own.cache = QImage();
+        own.used = 0;
+        s.images.insert(it.key(), own);
+    }
+    for (auto it = media.cbegin(); it != media.cend(); ++it) s.media.insert(it.key(), it.value());
     s.fontAliases = fontAliases;
     s.folder = folder;
     s.imagesLeftOut = imagesLeftOut;

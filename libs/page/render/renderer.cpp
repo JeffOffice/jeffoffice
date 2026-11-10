@@ -1,4 +1,5 @@
 #include "render/renderer.h"
+#include "core/threadcheck.h"
 #include <limits>
 
 #include "render/metafile.h"
@@ -567,6 +568,7 @@ qint64 Renderer::textArtPicturesMadeForTest() { return g_picturesMade; }
 QPainterPath Renderer::textArtOutline(const TextArtItem &w)
 {
     // (Kept by what they cost, in elements of the path: a few long texts, or many short ones.)
+    jp::threadcheck::guiOnlyCache();
     static QCache<QString, QPainterPath> cache(40000);
     const QString key = textArtKey(w);
     if (QPainterPath *p = cache.object(key)) return *p;
@@ -642,6 +644,7 @@ static bool pngHasProfile(const QByteArray &png)
 
 QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &exactSize)
 {
+    jp::threadcheck::guiOnlyCache();
     static QCache<QString, QImage> cache(256 * 1024);   // KB
     QImage src = doc.image(pic.imageId);
     if (src.isNull()) return src;
@@ -885,6 +888,7 @@ static QImage mergePicture(const Document &d, const QString &field, int record)
         QElapsedTimer checked;
     };
     static QMutex lock;
+    jp::threadcheck::guiOnlyCache();
     static QCache<QString, Entry> cache(256 * 1024 * 1024);   // bytes
     // (What the user allowed is part of the key: choosing the list again must show the pictures at once.)
     const QString key = QString::number(d.fromFile) + QLatin1Char('|') + d.folder + QLatin1Char('|') + d.allowedFolders.join(QLatin1Char('|')) + QLatin1Char('|') + path;
@@ -1163,6 +1167,7 @@ static bool paintTextArtKept(QPainter *p, const PaintContext &ctx, const TextArt
     const QString key = textArtKey(w) + QStringLiteral("|%1|%2|%3|%4|%5|%6|%7")
                                             .arg(t.m11(), 0, 'g', 8).arg(t.m22(), 0, 'g', 8).arg(qRound((dev.left() - origin.x()) * 8)).arg(qRound((dev.top() - origin.y()) * 8))
                                             .arg(w.fill.isNone() ? QString() : w.fill.color.resolve(cs).name(QColor::HexArgb), s.isNone() ? QString() : s.pen(cs).color().name(QColor::HexArgb)).arg(s.isNone() ? 0.0 : s.width);
+    jp::threadcheck::guiOnlyCache();
     static QCache<QString, QImage> kept(128 * 1024);   // (kilobytes)
     QImage *picture = kept.object(key);
     if (!picture) {
@@ -1564,6 +1569,7 @@ bool Renderer::usesTransparency(const Document &doc, const Item &it)
         if (pic.transparency > 0 || pic.hasTransparentColor || blipEffectsClear(pic.blipEffects)) return true;
         if (pic.imageId.isEmpty()) return false;
         // Cache per picture whether any pixel is see-through.
+        jp::threadcheck::guiOnlyCache();
         static QHash<QString, bool> seeThrough;
         const QString key = pic.imageId + QString::number(doc.images.value(pic.imageId).bytes.size());
         auto f = seeThrough.constFind(key);

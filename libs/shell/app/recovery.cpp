@@ -11,12 +11,13 @@
 #include <QStandardPaths>
 #include <QUuid>
 #include <algorithm>
+#include <QCoreApplication>
 #include <QMetaObject>
 #include <QObject>
 #include <QRunnable>
 #include <QThreadPool>
+#include <atomic>
 #include <memory>
-#include <mutex>
 
 namespace jp::recovery {
 
@@ -169,10 +170,13 @@ bool writeBytes(const QByteArray &bytes, const QString &copy, const QString &doc
 } // namespace
 
 struct AsyncWriter::Job {
-    std::mutex lock;
-    bool cancelled = false, wrote = false;
+    std::atomic<bool> cancelled{false}, wrote{false};
     QString copy;
 };
+
+namespace {
+std::atomic<bool> g_leaving{false};   // (the program is leaving: every job stops)
+}
 
 AsyncWriter::AsyncWriter(QObject *window) : m_window(window) {}
 
@@ -184,21 +188,24 @@ bool AsyncWriter::start(Make make, const QString &copy, const QString &docPath, 
     auto job = std::make_shared<Job>();
     job->copy = copy;
     m_job = job;
-    QObject *window = m_window;
+    QObject *window = m_window ? m_window : QCoreApplication::instance();
+    // (The result is posted to an object that outlives every window; the post itself finds out whether the window cancelled meanwhile.)
     workers().start(QRunnable::create([this, job, make = std::move(make), copy, docPath, title, finished = std::move(finished), window] {
+        auto cancelled = [&job] { return job->cancelled.load() || g_leaving.load(); };
+        if (cancelled()) return;
         QString error;
-        const QByteArray bytes = make(&error);
-        bool ok = false;
-        // (posted while the lock is held: a window that cancels is not gone before the post is made)
-        std::lock_guard<std::mutex> hold(job->lock);
-        if (job->cancelled) return;   // (nobody is waiting for it)
-        ok = !bytes.isEmpty() && writeBytes(bytes, copy, docPath, title, &error);
+        const QByteArray bytes = make(&error, cancelled);
+        if (cancelled()) return;   // (nobody is waiting for it)
+        const bool ok = !bytes.isEmpty() && writeBytes(bytes, copy, docPath, title, &error);
         job->wrote = ok;
+        // Cancelled while it was being written: the copy is taken away here (a cancel that comes after this check sees `wrote`, and does it).
+        if (ok && cancelled()) {
+            remove(copy);
+            return;
+        }
+        if (!window) return;
         QMetaObject::invokeMethod(window, [this, job, ok, copy, error, finished] {
-            {
-                std::lock_guard<std::mutex> again(job->lock);
-                if (job->cancelled) return;   // (the writer may be gone then)
-            }
+            if (job->cancelled) return;   // (the writer may be gone then)
             m_job.reset();
             finished(ok, copy, error);
         }, Qt::QueuedConnection);
@@ -209,22 +216,27 @@ bool AsyncWriter::start(Make make, const QString &copy, const QString &docPath, 
 bool AsyncWriter::writeNow(const Make &make, const QString &copy, const QString &docPath, const QString &title, QString *error)
 {
     cancel();
-    const QByteArray bytes = make(error);
+    const QByteArray bytes = make(error, [] { return false; });
     return !bytes.isEmpty() && writeBytes(bytes, copy, docPath, title, error);
 }
 
+// Never waits: the job is marked, and what it has written by now is removed (it removes what it writes after this itself).
 void AsyncWriter::cancel()
 {
     if (!m_job) return;
-    {
-        std::lock_guard<std::mutex> hold(m_job->lock);
-        m_job->cancelled = true;
-        if (m_job->wrote) remove(m_job->copy);
-    }
+    m_job->cancelled = true;
+    if (m_job->wrote) remove(m_job->copy);
     m_job.reset();
 }
 
 void AsyncWriter::waitForAll() { workers().waitForDone(); }
+
+void AsyncWriter::stopAll()
+{
+    g_leaving = true;   // (what is running stops at its next step, and what is waiting does not begin)
+    workers().waitForDone();
+    g_leaving = false;
+}
 
 namespace {
 
@@ -298,7 +310,7 @@ void discard(const Recovered &r)
 
 void endSession()
 {
-    AsyncWriter::waitForAll();
+    AsyncWriter::stopAll();
     if (g_session.isEmpty()) return;
     g_lock.reset();   // unlocks
     QDir(g_session).removeRecursively();

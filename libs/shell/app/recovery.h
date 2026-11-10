@@ -44,13 +44,14 @@ void remove(const QString &copy);
 
 // One copy at a time made off the window's thread: the caller takes what it needs from its document where nothing can change meanwhile and gives `make` that, `make` (on a worker thread) turns it into
 // the file's bytes, and the bytes are written to the copy (and the note beside it) there. The copy appears whole or not at all (written beside it and renamed). `finished` is called on the window's
-// thread. cancel() (a save, a close) is safe at any time: a copy not yet written is never written, and one that was is removed, so no copy is left behind by a job that was cancelled.
+// thread. cancel() (a save, a close) is safe at any time and never waits: a copy not yet written is never written, one being written or already written is removed (by the worker if it is the
+// later, by cancel if it is), so no copy is left behind by a job that was cancelled. `make` is given a function that says whether the job was cancelled: it stops between its steps when it is.
 class AsyncWriter {
 public:
-    using Make = std::function<QByteArray(QString *error)>;
+    using Make = std::function<QByteArray(QString *error, const std::function<bool()> &cancelled)>;
     using Finished = std::function<void(bool ok, const QString &copy, const QString &error)>;
     // `window` is the object `finished` is called through (its thread).
-    explicit AsyncWriter(QObject *window);
+    explicit AsyncWriter(QObject *window = nullptr);
     ~AsyncWriter();
     AsyncWriter(const AsyncWriter &) = delete;
     AsyncWriter &operator=(const AsyncWriter &) = delete;
@@ -62,8 +63,10 @@ public:
     // The same on this thread, done when it returns (a copy a caller needs at once).
     bool writeNow(const Make &make, const QString &copy, const QString &docPath, const QString &title, QString *error);
     void cancel();
-    // Waits for every worker to end (the program is leaving).
+    // Waits for every worker to end.
     static void waitForAll();
+    // Every job still running is told to stop and every one waiting is dropped, and the workers are waited for (the program is leaving, or the folder of copies is going).
+    static void stopAll();
 
 private:
     struct Job;

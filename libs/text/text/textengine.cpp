@@ -1,4 +1,5 @@
 #include "text/textengine.h"
+#include "core/threadcheck.h"
 
 #include "core/fonts.h"
 #include "core/texteffects.h"
@@ -39,6 +40,7 @@ namespace {
 // Whether the application's fonts have a family, remembered until fonts are added or taken away (asking costs a font match, and a word processor's layout asks for each run).
 bool hasFamilyCached(const QString &family)
 {
+    jp::threadcheck::guiOnlyCache();
     static QHash<QString, bool> known;
     static int generation = -1;
     if (generation != jp::fontGeneration()) {
@@ -414,6 +416,7 @@ QTextCharFormat withEastAsianFaces(const QTextCharFormat &format, const QString 
 
 HandBoldWork &handBoldWork()
 {
+    jp::threadcheck::guiOnlyCache();
     static HandBoldWork work;
     return work;
 }
@@ -437,6 +440,7 @@ static qint64 s_shrinkLooked = 0, s_shrinkPasses = 0, s_shrinkRelaid = 0, s_shri
 // What the shrinking made of paragraphs, kept for the layouts of the same paragraph that follow (the paginator's again, and the page's that draws it).
 static QCache<QString, ShrunkParagraph> &shrinkMemory()
 {
+    jp::threadcheck::guiOnlyCache();
     static QCache<QString, ShrunkParagraph> memory(3000);
     return memory;
 }
@@ -1050,6 +1054,7 @@ int fittedMarkerOutlinesBuiltForTest() { return s_fittedOutlinesBuilt; }
 // each font, text, and box: a page of bullets is painted again at every change.
 static QPainterPath fittedGlyphOutline(const QFont &font, const QString &text, const QSizeF &size)
 {
+    jp::threadcheck::guiOnlyCache();
     static QHash<QString, QPainterPath> cache;   // main thread only, like all layout
     QFont f = font;
     f.setPointSizeF(100);
@@ -1104,6 +1109,7 @@ namespace { static double trackingSpace(const QTextCharFormat &f, const QFont &r
 // or word spacing.
 static double standInSpaceEm(QFont f)
 {
+    jp::threadcheck::guiOnlyCache();
     static QHash<QString, double> cache;   // main thread only, like all layout
     f.setLetterSpacing(QFont::AbsoluteSpacing, 0);
     f.setWordSpacing(0);
@@ -1990,6 +1996,7 @@ static KnownMetrics knownMetricsOf(const QString &family, bool bold)
 // (Looked up by name for every line that is laid out, among the fifty or so fonts it knows: the answer for a font is kept.)
 static KnownMetrics knownMetrics(const QString &family, bool bold = false)
 {
+    jp::threadcheck::guiOnlyCache();
     static QHash<QString, KnownMetrics> cache;
     const QString key = family + (bold ? QStringLiteral("|b") : QStringLiteral("|r"));
     const auto it = cache.constFind(key);
@@ -2020,6 +2027,7 @@ static double averageCharEm(const QFont &f, const QString &requested)
     // than an extra-condensed original's).
     if (isSubstituted(requested))
         if (const double avg = originalAverageCharEm(requested, f.weight() >= QFont::DemiBold, f.italic()); avg > 0) return avg;
+    jp::threadcheck::guiOnlyCache();
     static QHash<QString, double> cache;
     const QString key = emKey(f);
     auto it = cache.constFind(key);
@@ -2054,6 +2062,7 @@ double lineEmOf(const QFont &f, const QString &requestedFamily)
     // give lines 8% tighter than Publisher's.
     const double known = knownMetrics(requestedFamily, f.weight() >= QFont::DemiBold).line;
     if (known > 0) return known;
+    jp::threadcheck::guiOnlyCache();
     static QHash<QString, double> cache;
     const bool typo = usesTypoMetrics(requestedFamily);
     const QString key = emKey(f) + (typo ? QStringLiteral("|t") : QStringLiteral("|h"));
@@ -2228,6 +2237,7 @@ static QString metricFamilyOf(const QFont &f)
 // measured from a font, so the run, the mark, the number of a list item, and the paragraph after one all keep the line of the family they were set as.
 static WordLine wordFaceOf(const QFont &f)
 {
+    jp::threadcheck::guiOnlyCache();
     static QHash<QString, WordLine> cache;   // main thread only, like all layout
     const QString key = emKey(f);
     auto it = cache.constFind(key);
@@ -2369,6 +2379,7 @@ double knownDescent(const QVector<QTextLayout::FormatRange> &ranges, int from, i
 // run as drawn or (fullSize) small capitals at the full size.
 double fontDescent(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, bool fullSize)
 {
+    jp::threadcheck::guiOnlyCache();
     static QHash<QString, double> emCache;   // main thread only, like all layout
     double d = 0;
     for (const auto &r : rangesNear(ranges, from, len))
@@ -2428,6 +2439,7 @@ static WinMetrics presentationMetrics(const QString &family, bool bold, bool ita
 
 static WinMetrics drawnMetrics(const QFont &f)
 {
+    jp::threadcheck::guiOnlyCache();
     static QHash<QString, WinMetrics> cache;   // main thread only, like all layout
     const QString key = emKey(f);
     auto it = cache.constFind(key);
@@ -2454,6 +2466,7 @@ static WinMetrics drawnMetrics(const QFont &f)
 // largest descent, below the baseline, among the line's text.
 double slideDescent(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback)
 {
+    jp::threadcheck::guiOnlyCache();
     static QHash<QString, WinMetrics> cache;   // main thread only, like all layout
     auto descentOf = [](const QFont &f, double size) {
         const QString family = requestedFamily(f);
@@ -2519,6 +2532,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
 {
     QVector<QTextLayout::FormatRange> out;
     out.reserve(in.size());
+    jp::threadcheck::guiOnlyCache();
     static QHash<QString, double> advCache;     // stand-in advance per em, by font and letter (main thread only, like all layout)
     static QHash<QString, bool> needed;         // whether a font pairing needs it (likewise)
     // What the letters of a word in one run can't take of its difference (more than a gap may), for the letters of the same word in the next run.
@@ -5683,6 +5697,7 @@ QMutex &effectCacheLock()
 
 QCache<QString, FxPicture> &effectCache()
 {
+    jp::threadcheck::guiOnlyCache();
     static QCache<QString, FxPicture> cache(static_cast<int>(kEffectCacheBytes));
     return cache;
 }
