@@ -2607,7 +2607,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "fc692a19d873e30c26e537b1678098607dc52d1406adedf160713d92cb9f36aa"
+         "text": "89a38b7b5a06748012473a95373196d27e272f22e09d5c7ea939ad9fd6b286e3"
         }
        ]
       }
@@ -17345,6 +17345,18 @@
     "fr": ""
    }
   },
+  "89a38b7b5a06748012473a95373196d27e272f22e09d5c7ea939ad9fd6b286e3": {
+   "drop": false,
+   "en": "See the app and Qt versions, links to the source, downloads, and problem reports, and the license and notices. Check for updates manually or automatically, choose whether to send anonymous usage statistics, and set the name used as author.",
+   "es": "Consulte las versiones de la aplicación y de Qt, los enlaces al código fuente, las descargas y los informes de problemas, así como la licencia y los avisos. Busque actualizaciones de forma manual o automática, elija si desea enviar estadísticas de uso anónimas y defina el nombre que se usa como autor.",
+   "fr": "Consultez les versions de l’application et de Qt, les liens vers le code source, les téléchargements et les signalements de problèmes, ainsi que la licence et les mentions légales. Recherchez les mises à jour manuellement ou automatiquement, choisissez d’envoyer ou non des statistiques d’utilisation anonymes et définissez le nom utilisé comme auteur.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "89b4ad4bc83ef8bf12adf13d95e11b9c9a304f5e4549d20760f76fbd3923ce3d": {
    "drop": false,
    "en": "A `.csv` file opened and saved without edits comes out as the same file, with the same separator, quotes, line ends, and encoding.",
@@ -25210,18 +25222,6 @@
    "en": "Use color schemes with 8 slots (Main, Accents 1–5, Hyperlink, Followed Hyperlink), plus tints and shades of every scheme color.",
    "es": "Use combinaciones de colores con 8 posiciones (Principal, Acentos 1–5, Hipervínculo, Hipervínculo visitado), además de tonos claros y oscuros de cada color de la combinación.",
    "fr": "Utilisez des jeux de couleurs à 8 emplacements (Principal, Accents 1 à 5, Lien hypertexte, Lien hypertexte suivi), avec nuances claires et foncées de chaque couleur du jeu.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "fc692a19d873e30c26e537b1678098607dc52d1406adedf160713d92cb9f36aa": {
-   "drop": false,
-   "en": "See the app’s and Qt’s versions, the other JeffOffice apps, links to the source, downloads, and problem reports, and the license and notices.",
-   "es": "Consulte las versiones de la aplicación y de Qt, las otras aplicaciones de JeffOffice, los enlaces al código fuente, las descargas y los informes de problemas, y la licencia y los avisos.",
-   "fr": "Consultez les versions de l’application et de Qt, les autres applications JeffOffice, les liens vers le code source, les téléchargements et les rapports de problèmes, ainsi que la licence et les mentions.",
    "soon": {
     "drop": true,
     "en": "",
