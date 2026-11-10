@@ -9,6 +9,7 @@
 #include "app/filetasks.h"
 #include "app/icons.h"
 #include "app/notespane.h"
+#include "app/printpage.h"
 #include "app/printsides.h"
 #include "app/settings.h"
 #include "canvas/canvas.h"
@@ -32,6 +33,8 @@
 #include <QMenu>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QScrollArea>
+#include <QSpinBox>
 #include <QStyleHints>
 #include <QTimer>
 #include <QToolButton>
@@ -98,20 +101,6 @@ protected:
 
 private:
     QPixmap m_picture;
-};
-
-// The page preview, which says when its size changed so the page is drawn again to fit.
-class PreviewLabel : public QLabel {
-public:
-    using QLabel::QLabel;
-    std::function<void()> resized;
-
-protected:
-    void resizeEvent(QResizeEvent *e) override
-    {
-        QLabel::resizeEvent(e);
-        if (resized) resized();
-    }
 };
 
 } // namespace
@@ -303,10 +292,21 @@ QWidget *DeckFileScreen::buildPrint()
     printBtn->setMinimumHeight(40);
     printBtn->setMinimumWidth(120);
     printBtn->setCursor(Qt::PointingHandCursor);
-    left->addWidget(printBtn, 0, Qt::AlignLeft);
+    QSpinBox *copies = makeCopiesBox(w);
+    auto *top = new QHBoxLayout();
+    top->addWidget(printBtn);
+    top->addSpacing(12);
+    top->addWidget(new QLabel(tr("Copies:"), w));
+    top->addWidget(copies);
+    top->addStretch(1);
+    left->addLayout(top);
     left->addSpacing(8);
 
     auto *form = new QFormLayout();
+    QComboBox *printer = makePrinterBox(w);
+    form->addRow(tr("Printer:"), printer);
+    QCheckBox *collate = makeCollateBox(w, tr("Print each copy of all the pages in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
+    form->addRow(QString(), collate);
     auto *what = new QComboBox(w);
     what->setObjectName(QStringLiteral("printWhat"));
     what->setAccessibleName(DeckWindow::tr("Print what"));
@@ -332,6 +332,9 @@ QWidget *DeckFileScreen::buildPrint()
     all->setObjectName(QStringLiteral("printRangeAll"));
     auto *currentOnly = new QRadioButton(DeckWindow::tr("Current slide"), w);
     currentOnly->setObjectName(QStringLiteral("printRangeCurrent"));
+    auto *selection = new QRadioButton(tr("Selection"), w);
+    selection->setObjectName(QStringLiteral("printRangeSelection"));
+    selection->setToolTip(tr("Print only the slides selected in the slide sorter, or the slide you are on."));
     auto *some = new QRadioButton(DeckWindow::tr("Slides:"), w);
     some->setObjectName(QStringLiteral("printRangeSlides"));
     auto *text = new QLineEdit(w);
@@ -340,12 +343,13 @@ QWidget *DeckFileScreen::buildPrint()
     text->setPlaceholderText(DeckWindow::tr("1-3, 5"));
     text->setToolTip(DeckWindow::tr("Slide numbers and ranges, separated by commas."));
     auto *group = new QButtonGroup(w);
-    for (QRadioButton *r : {all, currentOnly, some}) group->addButton(r);
+    for (QRadioButton *r : {all, currentOnly, selection, some}) group->addButton(r);
     auto *someRow = new QHBoxLayout();
     someRow->addWidget(some);
     someRow->addWidget(text);
     range->addWidget(all);
     range->addWidget(currentOnly);
+    range->addWidget(selection);
     range->addLayout(someRow);
     form->addRow(tr("Range:"), range);
 
@@ -355,15 +359,15 @@ QWidget *DeckFileScreen::buildPrint()
     auto *sides = new QComboBox(w);
     sides->setObjectName(QStringLiteral("printDuplex"));
     fillSidesBox(sides, true, wantedSides);
-    updateSidesBox(sides, QString(), false);
     form->addRow(tr("Sides:"), sides);
 
     auto *hidden = new QCheckBox(tr("Print hidden slides"), w);
     hidden->setObjectName(QStringLiteral("printHidden"));
     auto *frame = new QCheckBox(tr("Frame slides"), w);
     frame->setObjectName(QStringLiteral("printFrame"));
-    auto *gray = new QCheckBox(tr("Grayscale"), w);
-    gray->setObjectName(QStringLiteral("printGray"));
+    QCheckBox *gray = makeGrayscaleBox(w);
+    QCheckBox *reverse = makeReverseBox(w);
+    form->addRow(QString(), reverse);
     form->addRow(QString(), hidden);
     form->addRow(QString(), frame);
     form->addRow(QString(), gray);
@@ -371,12 +375,11 @@ QWidget *DeckFileScreen::buildPrint()
     left->addStretch(1);
     h->addLayout(left, 1);
 
-    // The pages, with arrows.
+    // The pages, with arrows, and how large they are shown.
     auto *right = new QVBoxLayout();
     auto *preview = new PreviewLabel(w);
     preview->setObjectName(QStringLiteral("printPreview"));
-    preview->setMinimumSize(420, 300);
-    preview->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    preview->setMinimumSize(280, 280);
     preview->setAlignment(Qt::AlignCenter);
     preview->setAccessibleName(tr("Preview of the printed page"));
     auto *nav = new QHBoxLayout();
@@ -397,9 +400,19 @@ QWidget *DeckFileScreen::buildPrint()
     nav->addWidget(pageLabel);
     nav->addWidget(next);
     nav->addStretch(1);
-    right->addWidget(preview);
+    QComboBox *zoom = makeZoomBox(w);
+    auto *look = new QHBoxLayout();
+    look->addStretch(1);
+    look->addWidget(new QLabel(tr("Zoom:"), w));
+    look->addWidget(zoom);
+    auto *scroll = new QScrollArea(w);
+    scroll->setObjectName(QStringLiteral("printPreviewScroll"));
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setWidgetResizable(true);
+    scroll->setWidget(preview);
+    right->addLayout(look);
+    right->addWidget(scroll, 1);
     right->addLayout(nav);
-    right->addStretch(1);
     h->addLayout(right, 2);
 
     // What was chosen last time.
@@ -419,7 +432,14 @@ QWidget *DeckFileScreen::buildPrint()
         o.grayscale = gray->isChecked();
         o.horizontalOrder = order->currentData().toBool();
         if (currentOnly->isChecked()) o.slides = {current};
+        else if (selection->isChecked()) o.slides = m_win->selectedSlides().toVector();
         else if (some->isChecked()) o.slides = deck::parseSlideRange(text->text(), slides);
+        const PrinterChoice choice = printerChoice(printer);
+        o.toFile = choice.toFile;
+        o.printer = choice.printer;
+        o.copies = copies->value();
+        o.collate = collate->isChecked();
+        o.reverse = reverse->isChecked() && !sidesByHand(sides);   // (both sides by hand sets the order itself)
         return o;
     };
     auto page = std::make_shared<int>(0);
@@ -435,28 +455,38 @@ QWidget *DeckFileScreen::buildPrint()
         text->setStyleSheet(badRange && !text->text().isEmpty() ? QStringLiteral("QLineEdit { border: 1px solid #c42b1c; }") : QString());
         const int count = badRange ? 0 : deck::outputPageCount(*ed->doc(), o);
         *page = std::clamp(*page, 0, std::max(0, count - 1));
+        // (the pages come out last first when asked, so the first one shown is the last page)
+        const int shown = o.reverse ? count - 1 - *page : *page;
         pageLabel->setText(badRange ? DeckWindow::tr("Enter slide numbers, such as 1-3, 5.")
-                           : count  ? tr("Page %1 of %2").arg(*page + 1).arg(count)
+                           : count  ? tr("Page %1 of %2").arg(shown + 1).arg(count)
                                     : DeckWindow::tr("There are no slides to print."));
         previous->setEnabled(*page > 0);
         next->setEnabled(*page + 1 < count);
         printBtn->setEnabled(count > 0);
+        collate->setEnabled(copies->value() > 1);
+        // (a file has no sides; by hand, the order of the pages is set by the program)
+        const PrinterChoice chosen = printerChoice(printer);
+        updateSidesBox(sides, chosen.printer, chosen.toFile);
+        reverse->setEnabled(!sidesByHand(sides));
         return count;
     };
     auto paint = [=]() {
         const deck::OutputOptions o = options();
-        if (refresh() == 0) {
+        const int count = refresh();
+        if (count == 0) {
             preview->clear();
             return;
         }
-        // As wide as the room, as tall as the page needs there, and no taller than the window leaves.
+        // The page that fits the window, or larger (the preview scrolls then).
         const QSizeF paper = deck::outputPageSize(*ed->doc(), o);
         const qreal dpr = preview->devicePixelRatioF();
-        const int room = std::max(preview->minimumHeight(), w->window()->height() - 200);
-        const double scale = std::min((preview->width() - 16) / paper.width(), (room - 18) / paper.height());
+        const double zoomBy = zoomFactor(zoom);
+        // (what fits is worked out from the scroll area's window, which the picture never changes)
+        const int availWidth = std::max(280, scroll->viewport()->width() - 4);
+        const int availHeight = std::max(280, scroll->viewport()->height() - 4);
+        const double scale = std::min((availWidth - 16) / paper.width(), (availHeight - 18) / paper.height()) * zoomBy;
         if (scale <= 0) return;
-        const QSize box(preview->width(), int(std::ceil(paper.height() * scale)) + 18);
-        if (box.height() != preview->height()) preview->setFixedHeight(box.height());
+        const QSize box(int(std::ceil(paper.width() * scale)) + 16, int(std::ceil(paper.height() * scale)) + 18);
         QImage img((paper * scale * dpr).toSize(), QImage::Format_ARGB32_Premultiplied);
         img.setDevicePixelRatio(dpr);
         img.fill(Qt::white);
@@ -465,7 +495,7 @@ QWidget *DeckFileScreen::buildPrint()
         p.setRenderHint(QPainter::TextAntialiasing);
         p.setRenderHint(QPainter::SmoothPixmapTransform);
         p.scale(scale, scale);
-        deck::paintOutputPage(&p, *ed->doc(), &ed->cache(), o, *page, paper);
+        deck::paintOutputPage(&p, *ed->doc(), &ed->cache(), o, o.reverse ? count - 1 - *page : *page, paper);
         p.end();
         preview->setPixmap(paperPixmap(img, box, dpr));
     };
@@ -485,7 +515,15 @@ QWidget *DeckFileScreen::buildPrint()
     };
     connect(what, &QComboBox::currentIndexChanged, w, [=] { remember(); restart(); });
     connect(order, &QComboBox::currentIndexChanged, w, [=] { remember(); paint(); });
-    connect(sides, &QComboBox::currentIndexChanged, w, [=] { Settings::get().setValue(QStringLiteral("print/sides"), sidesWanted(sides)); });
+    connect(sides, &QComboBox::currentIndexChanged, w, [=] {
+        Settings::get().setValue(QStringLiteral("print/sides"), sidesWanted(sides));
+        restart();
+    });
+    connect(printer, &QComboBox::currentIndexChanged, w, [=] { restart(); });
+    connect(copies, &QSpinBox::valueChanged, w, [=] { refresh(); });
+    connect(collate, &QCheckBox::toggled, w, [=] { refresh(); });
+    connect(reverse, &QCheckBox::toggled, w, [=] { restart(); });
+    connect(zoom, &QComboBox::currentIndexChanged, w, [=] { paint(); });
     connect(group, &QButtonGroup::buttonToggled, w, [=] { restart(); });
     connect(text, &QLineEdit::textChanged, w, [=] {
         // Typing a range is choosing one.

@@ -11,8 +11,18 @@
 #include "app/widgets.h"
 #include "app/filetasks.h"
 #include "app/filedialogs.h"
+#include "app/printpage.h"
 #include "app/printsides.h"
+#include "app/slidesorter.h"
+#include "render/pdfpage.h"
 #include <QComboBox>
+#include <QLabel>
+#include <QPushButton>
+#include <QRegularExpression>
+#include <QTemporaryDir>
+#include <QCheckBox>
+#include <QRadioButton>
+#include <QSpinBox>
 #include <QDirIterator>
 #include <QElapsedTimer>
 #include <QThread>
@@ -256,6 +266,194 @@ private Q_SLOTS:
         w.editor()->markSaved();
     }
 
+    // The words on each page of a PDF.
+    static QStringList pagesOfPdf(const QString &path)
+    {
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly)) return {};
+        const jp::PdfDocument doc(f.readAll());
+        QStringList out;
+        for (int i = 0; doc.isValid() && i < doc.pageCount(); ++i) out << doc.text(i);
+        return out;
+    }
+
+    // The slide numbers the pages of a PDF are of, in order ("Slide 2 title" is 2).
+    static QVector<int> slidesOfPdf(const QString &path)
+    {
+        QVector<int> out;
+        static const QRegularExpression number(QStringLiteral("Slide (\\d+) title"));
+        for (const QString &text : pagesOfPdf(path)) out << (number.match(text).hasMatch() ? number.match(text).captured(1).toInt() : -1);
+        return out;
+    }
+
+    // The printer, the copies, and whether they come out a set at a time are on the page, as the other apps have them; the copies reach a printer that can't make them in the order
+    // the choice says, and a PDF file is made once whatever the copies.
+    void printPageHasThePrinterCopiesAndCollate()
+    {
+        {
+            QPrinter probe;
+            probe.setOutputFormat(QPrinter::PdfFormat);
+            if (probe.supportsMultipleCopies()) QSKIP("this printer engine makes copies itself, so the pages are not sent again");
+        }
+        QTemporaryDir dir;
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        w.editor()->setDocument(showDeck(3));
+        int made = 0;
+        w.setPrinterPreparer([&](QPrinter &p) {   // (a printer that writes to a file stands in for the real one)
+            p.setOutputFormat(QPrinter::PdfFormat);
+            p.setOutputFileName(dir.filePath(QStringLiteral("copies%1.pdf").arg(++made)));
+        });
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("file.pdf")); });
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);   // (the page that was there is gone, so what is found is the new one)
+        auto *screen = w.findChild<FileScreen *>();
+        auto *printer = screen->findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        auto *copies = screen->findChild<QSpinBox *>(QStringLiteral("printCopies"));
+        auto *collate = screen->findChild<QCheckBox *>(QStringLiteral("printCollate"));
+        auto *print = screen->findChild<QPushButton *>(QStringLiteral("printButton"));
+        QVERIFY(printer && copies && collate && print);
+        QVERIFY(printer->findText(QStringLiteral("Save as PDF")) >= 0);
+        QCOMPARE(printer->itemText(printer->count() - 1), QStringLiteral("Save as PDF"));
+        QCOMPARE(copies->value(), 1);
+        QCOMPARE(collate->text(), QStringLiteral("Collated"));
+        QVERIFY(collate->isChecked() && !collate->isEnabled());   // (one copy has nothing to collate)
+        copies->setValue(2);
+        QVERIFY(collate->isEnabled());
+        printer->insertItem(0, QStringLiteral("a printer"), QStringLiteral("a printer"));
+        printer->setCurrentIndex(0);
+        print->click();
+        QCOMPARE(slidesOfPdf(dir.filePath(QStringLiteral("copies1.pdf"))), (QVector<int>{1, 2, 3, 1, 2, 3}));
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);   // (the page that was there is gone, so what is found is the new one)
+        screen = w.findChild<FileScreen *>();
+        printer = screen->findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        printer->insertItem(0, QStringLiteral("a printer"), QStringLiteral("a printer"));
+        printer->setCurrentIndex(0);
+        screen->findChild<QSpinBox *>(QStringLiteral("printCopies"))->setValue(2);
+        screen->findChild<QCheckBox *>(QStringLiteral("printCollate"))->setChecked(false);
+        screen->findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+        QCOMPARE(slidesOfPdf(dir.filePath(QStringLiteral("copies2.pdf"))), (QVector<int>{1, 1, 2, 2, 3, 3}));
+        // a PDF file is made once
+        w.setPrinterPreparer(nullptr);
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);   // (the page that was there is gone, so what is found is the new one)
+        screen = w.findChild<FileScreen *>();
+        printer = screen->findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        printer->setCurrentIndex(printer->count() - 1);
+        screen->findChild<QSpinBox *>(QStringLiteral("printCopies"))->setValue(3);
+        screen->findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+        QCOMPARE(slidesOfPdf(dir.filePath(QStringLiteral("file.pdf"))), (QVector<int>{1, 2, 3}));
+        w.editor()->markSaved();
+    }
+
+    // Last page first: the preview starts on the last page, and the pages come out in reverse (in a file, and to a printer that is sent them); both sides by hand turns it off.
+    void printPageLastPageFirstReversesThePages()
+    {
+        setDuplexSupportStandIn([](const QString &) { return QList<QPrinter::DuplexMode>{QPrinter::DuplexNone, QPrinter::DuplexLongSide, QPrinter::DuplexShortSide}; });
+        const auto standIn = qScopeGuard([] { setDuplexSupportStandIn(nullptr); });
+        QTemporaryDir dir;
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        w.editor()->setDocument(showDeck(3));
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("back.pdf")); });
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);   // (the page that was there is gone, so what is found is the new one)
+        auto *screen = w.findChild<FileScreen *>();
+        auto *reverse = screen->findChild<QCheckBox *>(QStringLiteral("printReverse"));
+        auto *page = screen->findChild<QLabel *>(QStringLiteral("printPage"));
+        auto *printer = screen->findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        QVERIFY(reverse && page && printer);
+        QCOMPARE(reverse->text(), QStringLiteral("Last page first"));
+        QVERIFY(!reverse->isChecked());
+        QCOMPARE(page->text(), QStringLiteral("Page 1 of 3"));
+        reverse->setChecked(true);
+        QCOMPARE(page->text(), QStringLiteral("Page 3 of 3"));
+        auto *next = screen->findChild<QAbstractButton *>(QStringLiteral("printNext"));
+        next->click();
+        QCOMPARE(page->text(), QStringLiteral("Page 2 of 3"));
+        printer->setCurrentIndex(printer->count() - 1);
+        screen->findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+        QCOMPARE(slidesOfPdf(dir.filePath(QStringLiteral("back.pdf"))), (QVector<int>{3, 2, 1}));
+        // both sides by hand sets the order itself
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);   // (the page that was there is gone, so what is found is the new one)
+        screen = w.findChild<FileScreen *>();
+        reverse = screen->findChild<QCheckBox *>(QStringLiteral("printReverse"));
+        auto *sides = screen->findChild<QComboBox *>(QStringLiteral("printDuplex"));
+        printer = screen->findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        printer->insertItem(0, QStringLiteral("a printer"), QStringLiteral("a printer"));
+        printer->setCurrentIndex(0);
+        QVERIFY(reverse->isEnabled());
+        sides->setCurrentIndex(3);
+        QVERIFY(!reverse->isEnabled());
+        sides->setCurrentIndex(0);
+        w.editor()->markSaved();
+    }
+
+    // Selection: the slides selected in the slide sorter (the slide being edited anywhere else) are the ones that print.
+    void printPageSelectionPrintsTheSelectedSlides()
+    {
+        QTemporaryDir dir;
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        w.editor()->setDocument(showDeck(5));
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("some.pdf")); });
+        w.setView(DeckWindow::View::Sorter);
+        w.slideSorter()->select({1, 3}, 3);
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);   // (the page that was there is gone, so what is found is the new one)
+        auto *screen = w.findChild<FileScreen *>();
+        auto *selection = screen->findChild<QRadioButton *>(QStringLiteral("printRangeSelection"));
+        auto *page = screen->findChild<QLabel *>(QStringLiteral("printPage"));
+        QVERIFY(selection && page);
+        QCOMPARE(selection->text(), QStringLiteral("Selection"));
+        QCOMPARE(page->text(), QStringLiteral("Page 1 of 5"));
+        selection->setChecked(true);
+        QCOMPARE(page->text(), QStringLiteral("Page 1 of 2"));
+        auto *printer = screen->findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        printer->setCurrentIndex(printer->count() - 1);
+        screen->findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+        QCOMPARE(slidesOfPdf(dir.filePath(QStringLiteral("some.pdf"))), (QVector<int>{2, 4}));
+        // outside the sorter it is the slide being edited
+        w.setView(DeckWindow::View::Normal);
+        w.editor()->setCurrentPage(2);
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);   // (the page that was there is gone, so what is found is the new one)
+        screen = w.findChild<FileScreen *>();
+        screen->findChild<QRadioButton *>(QStringLiteral("printRangeSelection"))->setChecked(true);
+        QCOMPARE(screen->findChild<QLabel *>(QStringLiteral("printPage"))->text(), QStringLiteral("Page 1 of 1"));
+        w.editor()->markSaved();
+    }
+
+    // Zoom: the preview shows the page at the size that fits, or larger (and scrolls).
+    void printPageZoomMakesThePreviewLarger()
+    {
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        w.editor()->setDocument(showDeck(2));
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);   // (the page that was there is gone, so what is found is the new one)
+        auto *screen = w.findChild<FileScreen *>();
+        auto *zoom = screen->findChild<QComboBox *>(QStringLiteral("printZoom"));
+        auto *preview = screen->findChild<QLabel *>(QStringLiteral("printPreview"));
+        QVERIFY(zoom && preview);
+        QCOMPARE(zoom->itemText(0), QStringLiteral("Fit"));
+        QCOMPARE(zoom->itemText(2), QStringLiteral("200%"));
+        QTRY_VERIFY(!preview->pixmap().isNull());
+        const double fit = preview->pixmap().deviceIndependentSize().width();
+        zoom->setCurrentIndex(zoom->findData(200));
+        QTRY_VERIFY(preview->pixmap().deviceIndependentSize().width() > fit * 1.9);
+        QVERIFY(preview->pixmap().deviceIndependentSize().width() < fit * 2.1);
+        zoom->setCurrentIndex(0);
+        QTRY_VERIFY(qAbs(preview->pixmap().deviceIndependentSize().width() - fit) < 2);
+        w.editor()->markSaved();
+    }
+
     // The Sides choice: one side, or both sides flipped on the long or the short edge; the printer the system's window starts with is set to it, a PDF file is made with none,
     // and the choice is on the page again when it is opened again.
     void printPageSidesChoiceSetsTheDuplexModeOfThePrinter()
@@ -266,30 +464,28 @@ private Q_SLOTS:
         w.resize(1300, 850);
         w.show();
         w.editor()->setDocument(showDeck(3));
-        QVector<QPrinter::DuplexMode> asked, painted, requests;   // (what the job asked the printer for is listened to; a machine with no printers has a printer that keeps nothing)
+        QVector<QPrinter::DuplexMode> painted, requests;   // (what the job asked the printer for is listened to; a machine with no printers has a printer that keeps nothing)
         setDuplexRecorder([&](QPrinter::DuplexMode mode) { requests << mode; });
         bool toPdf = false;
         setPrintsToFileStandIn([&](const QPrinter &) { return toPdf; });   // (the window's printer is a file on a machine with no printers; here it is paper unless the test says)
-        setPrintDialogStandIn([&](QPrintDialog &dialog) {
-            asked << requests.last();
-            if (toPdf) {
-                dialog.printer()->setOutputFormat(QPrinter::PdfFormat);
-                dialog.printer()->setOutputFileName(dir.filePath(QStringLiteral("out.pdf")));
-                dialog.printer()->setDuplex(QPrinter::DuplexLongSide);   // (what the window might have left)
-            }
-            return int(QDialog::Accepted);
-        });
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("out.pdf")); });
         int made = 0;
         w.setPrinterPreparer([&](QPrinter &p) {
             painted << requests.last();
             // (the job goes to a file; the window's own printer is the computer's default one, which a test never sends pages to)
-            if (toPdf) return;   // (the window's dialog, stood in for, has named the file)
+            if (toPdf) return;   // (the job names the file itself)
             p.setOutputFormat(QPrinter::PdfFormat);
             p.setOutputFileName(dir.filePath(QStringLiteral("sides%1.pdf").arg(++made)));
         });
         auto open = [&] {
             w.showFileScreen(QStringLiteral("print"));
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);   // (the page that was there is gone, so what is found is the new one)
             auto *screen = w.findChild<FileScreen *>();
+            // (a printer, for a machine that has none: a PDF file has no sides)
+            if (auto *printer = screen ? screen->findChild<QComboBox *>(QStringLiteral("printPrinter")) : nullptr) {
+                printer->insertItem(0, QStringLiteral("a printer"), QStringLiteral("a printer"));
+                printer->setCurrentIndex(0);
+            }
             return screen ? screen->findChild<QComboBox *>(QStringLiteral("printDuplex")) : nullptr;
         };
         QComboBox *sides = open();
@@ -306,14 +502,15 @@ private Q_SLOTS:
             QVERIFY(sides);
             sides->setCurrentIndex(i);
             QVERIFY(w.printOutput(deck::OutputOptions(), sidesDuplex(sides)));
-            QCOMPARE(asked.last(), wanted[i]);
             QCOMPARE(painted.last(), wanted[i]);
         }
         sides = open();
         QCOMPARE(sides->currentIndex(), 2);   // (as it was left)
         // a PDF file has no sides, whatever the choice
         toPdf = true;
-        QVERIFY(w.printOutput(deck::OutputOptions(), sidesDuplex(sides)));
+        deck::OutputOptions toFile;
+        toFile.toFile = true;
+        QVERIFY(w.printOutput(toFile, sidesDuplex(sides)));
         QCOMPARE(painted.last(), QPrinter::DuplexNone);
         QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("out.pdf"))));
         // and the choice is off while a file is the target
@@ -333,7 +530,6 @@ private Q_SLOTS:
         setDuplexSupportStandIn(nullptr);
         setDuplexRecorder(nullptr);
         setPrintsToFileStandIn(nullptr);
-        setPrintDialogStandIn(nullptr);
         sides->setCurrentIndex(0);
         updateSidesBox(sides, QString(), false);
         w.editor()->markSaved();
@@ -358,7 +554,6 @@ private Q_SLOTS:
             return pages;
         };
         setPrintsToFileStandIn([](const QPrinter &) { return false; });   // (the person chose a printer in the window; a machine with no printers has none to choose)
-        setPrintDialogStandIn([&](QPrintDialog &) { return int(QDialog::Accepted); });
         QStringList order;
         QVector<int> turnedAfter;
         w.setPrinterPreparer([&](QPrinter &p) {
@@ -373,6 +568,9 @@ private Q_SLOTS:
             return turn;
         });
         w.showFileScreen(QStringLiteral("print"));
+        auto *printer = w.findChild<FileScreen *>()->findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        printer->insertItem(0, QStringLiteral("a printer"), QStringLiteral("a printer"));   // (a machine with none has a PDF file only, which has no sides)
+        printer->setCurrentIndex(0);
         auto *sides = w.findChild<FileScreen *>()->findChild<QComboBox *>(QStringLiteral("printDuplex"));
         QVERIFY(sides);
         sides->setCurrentIndex(3);
@@ -394,7 +592,6 @@ private Q_SLOTS:
         QCOMPARE(order, (QStringList{QStringLiteral("print")}));
         setStackTurnerStandIn(nullptr);
         setPrintsToFileStandIn(nullptr);
-        setPrintDialogStandIn(nullptr);
         setDuplexSupportStandIn(nullptr);
         sides->setCurrentIndex(0);
         w.editor()->markSaved();

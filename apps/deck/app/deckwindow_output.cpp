@@ -3,6 +3,7 @@
 // screen's Print page asks for (it chooses what to print, and previews it).
 
 #include "app/deckwindow.h"
+#include "app/printpage.h"
 #include "app/printsides.h"
 
 #include "app/editor.h"
@@ -20,6 +21,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -29,16 +31,17 @@
 #include <QPageLayout>
 #include <QPageSize>
 #include <QPainter>
-#include <QPrintDialog>
 #include <QPrinter>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScopeGuard>
 #include <QSaveFile>
+#include <QTemporaryFile>
 #include <QStandardPaths>
 #include <QStatusBar>
 #include <QVBoxLayout>
 #include <functional>
+#include <memory>
 #include "app/plaintext.h"
 
 namespace jp {
@@ -299,8 +302,11 @@ void setUpPrinter(QPrinter *printer, const Document &doc, const deck::OutputOpti
 }
 
 // Paints the output on a printer (the real one, or the preview's), a page on
-// each sheet, inside the margins it can print within.
-void paintOnPrinter(QPrinter *printer, const Document &doc, LayoutCache *cache, const deck::OutputOptions &optionsIn, const QVector<int> *only = nullptr)
+// each sheet, inside the margins it can print within. `only` is the pages to
+// paint (-1 is a blank sheet), else all of them, last first when asked for.
+// `repeat` sends the pages again for the copies, in the order they come out:
+// for a printer that can't make copies itself.
+void paintOnPrinter(QPrinter *printer, const Document &doc, LayoutCache *cache, const deck::OutputOptions &optionsIn, const QVector<int> *only, bool repeat)
 {
     deck::OutputOptions options = optionsIn;
     if (printer->colorMode() == QPrinter::GrayScale) options.grayscale = true;
@@ -312,22 +318,23 @@ void paintOnPrinter(QPrinter *printer, const Document &doc, LayoutCache *cache, 
     const QSizeF sheet = printer->pageRect(QPrinter::Point).size();
     const double scale = printer->resolution() / 72.0;
     QVector<int> pages;
-    if (only) pages = *only;
-    else
-        for (int i = deck::outputPageCount(doc, options, sheet) - 1; i >= 0; --i) pages.prepend(i);
-    // A printer that can't make copies is sent the pages again.
-    const int copies = printer->supportsMultipleCopies() ? 1 : std::max(1, printer->copyCount());
+    if (only) {
+        pages = *only;
+    } else {
+        for (int i = 0, n = deck::outputPageCount(doc, options, sheet); i < n; ++i) pages << i;
+        pages = inPrintOrder(pages, options.reverse);
+    }
+    if (repeat) pages = sheetOrder(pages, options.copies, options.collate);
     bool first = true;
-    for (int c = 0; c < copies; ++c)
-        for (int i : std::as_const(pages)) {
-            if (!first) printer->newPage();
-            first = false;
-            if (i < 0) continue;   // (a blank sheet)
-            p.save();
-            p.scale(scale, scale);
-            deck::paintOutputPage(&p, doc, cache, options, i, sheet);
-            p.restore();
-        }
+    for (int i : std::as_const(pages)) {
+        if (!first) printer->newPage();
+        first = false;
+        if (i < 0) continue;   // (a blank sheet)
+        p.save();
+        p.scale(scale, scale);
+        deck::paintOutputPage(&p, doc, cache, options, i, sheet);
+        p.restore();
+    }
     p.end();
 }
 
@@ -340,35 +347,70 @@ bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::Duple
     QPrinter printer(QPrinter::HighResolution);
     printer.setDocName(m_ed->displayName());
     setUpPrinter(&printer, doc, options);
-    setPrinterDuplex(&printer, duplex);
-    QPrintDialog dlg(&printer, this);
-    dlg.setWindowTitle(tr("Print"));
-    if (execPrintDialog(dlg) != QDialog::Accepted) return false;
-    // (a PDF file, which the window can print to, has no sides)
-    if (printsToFile(printer)) setPrinterDuplex(&printer, QPrinter::DuplexNone);
-    const bool byHandRuns = byHand && !printsToFile(printer);
+    // A PDF file is made in a temporary file and put in place when it is whole, so that a file that is there is not lost to one that fails.
+    QString path;
+    std::unique_ptr<QTemporaryFile> made;
+    if (options.toFile) {
+        const QString suggested = suggestedPath(this, m_ed->displayName(), QStringLiteral(".pdf"));
+        path = m_pathChooser ? m_pathChooser(suggested, tr("PDF (*.pdf)")) : askSavePath(this, tr("Save as PDF"), suggested, tr("PDF (*.pdf)"));
+        if (path.isEmpty()) return false;
+        if (QFileInfo(path).suffix().compare(QLatin1String("pdf"), Qt::CaseInsensitive) != 0) path += QStringLiteral(".pdf");
+        made = std::make_unique<QTemporaryFile>(QDir::tempPath() + QStringLiteral("/jeffdeck-XXXXXX.pdf"));
+        if (!made->open()) {
+            jp::plainWarning(this, tr("Save as PDF"), tr("%1 couldn't make \"%2\".\n%3").arg(appInfo().name, QFileInfo(path).fileName(), made->errorString()));
+            return false;
+        }
+        made->close();
+        printer.setOutputFormat(QPrinter::PdfFormat);
+        printer.setOutputFileName(made->fileName());
+    } else if (!options.printer.isEmpty()) {
+        printer.setPrinterName(options.printer);
+    }
+    // (a PDF file has no sides)
+    setPrinterDuplex(&printer, options.toFile ? QPrinter::DuplexNone : duplex);
+    printer.setCopyCount(std::max(1, options.copies));
+    printer.setCollateCopies(options.collate);
+    const bool byHandRuns = byHand && !options.toFile && !printsToFile(printer);
     if (m_printerPreparer) m_printerPreparer(printer);
+    // A printer that can't make copies is sent the pages again, in the order the copies are to come out (a PDF file is made once).
+    auto again = [&] { return !options.toFile && !printer.supportsMultipleCopies(); };
     // Both sides by hand (a file has no sides): the first, third, ... pages, the stack turned over, then the others last first.
     if (byHandRuns) {
         QVector<int> all;
         for (int i = 0, n = deck::outputPageCount(doc, options, printer.pageRect(QPrinter::Point).size()); i < n; ++i) all << i;
         const HandRuns<int> runs = handRuns(all, -1);   // (a front with no back leaves a blank sheet, -1)
         QApplication::setOverrideCursor(Qt::WaitCursor);
-        paintOnPrinter(&printer, doc, &m_ed->cache(), options, &runs.first);
+        paintOnPrinter(&printer, doc, &m_ed->cache(), options, &runs.first, again());
         QApplication::restoreOverrideCursor();
         if (!runs.second.isEmpty()) {
             if (!askToTurnStack(this)) return false;
             if (m_printerPreparer) m_printerPreparer(printer);
             QApplication::setOverrideCursor(Qt::WaitCursor);
-            paintOnPrinter(&printer, doc, &m_ed->cache(), options, &runs.second);
+            paintOnPrinter(&printer, doc, &m_ed->cache(), options, &runs.second, again());
             QApplication::restoreOverrideCursor();
         }
         statusBar()->showMessage(tr("Sent %1 to the printer").arg(m_ed->displayName()), 5000);
         return true;
     }
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    paintOnPrinter(&printer, doc, &m_ed->cache(), options);
+    paintOnPrinter(&printer, doc, &m_ed->cache(), options, nullptr, again());
     QApplication::restoreOverrideCursor();
+    if (made) {
+        QString err;
+        QFile whole(made->fileName());
+        QSaveFile file(path);
+        bool ok = whole.open(QIODevice::ReadOnly) && file.open(QIODevice::WriteOnly);
+        while (ok && !whole.atEnd()) ok = file.write(whole.read(1 << 20)) >= 0;
+        if (ok) ok = file.commit();
+        else file.cancelWriting();
+        if (!ok) {
+            err = file.error() != QFileDevice::NoError ? file.errorString() : whole.errorString();
+            jp::plainWarning(this, tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
+            return false;
+        }
+        statusBar()->showMessage(tr("Saved %1").arg(QFileInfo(path).fileName()), 5000);
+        return true;
+    }
     statusBar()->showMessage(tr("Sent %1 to the printer").arg(m_ed->displayName()), 5000);
     return true;
 }

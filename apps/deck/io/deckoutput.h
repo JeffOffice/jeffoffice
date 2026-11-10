@@ -33,6 +33,12 @@ struct OutputOptions {
     bool grayscale = false;
     QVector<int> slides;          // 0-based slides to print, in this order; empty: all
     bool horizontalOrder = true;  // handouts of 4 or more: across, then down (else down, then across)
+    // For printing (the File screen's Print page): where the pages go, and how they come out.
+    QString printer;              // the printer's name; empty is the default one
+    bool toFile = false;          // a PDF file, asked for where it is printed, in place of a printer
+    int copies = 1;
+    bool collate = true;          // the whole set again for each copy, else each page's copies together
+    bool reverse = false;         // the last page first
     bool archive = false;         // for a PDF: PDF/A-1b, the form for keeping (every font inside, no transparency, the standard's mark in its metadata); never with a password
 };
 

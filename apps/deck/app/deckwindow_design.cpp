@@ -69,15 +69,21 @@ void DeckWindow::changeDesign(const QString &label, const std::function<void(Doc
     m_ed->endChange();
 }
 
+QList<int> DeckWindow::selectedSlides() const
+{
+    QList<int> slides;
+    if (m_view == View::Sorter) slides = m_sorter->selection();
+    if (slides.isEmpty()) slides << m_ed->currentPage();
+    return slides;
+}
+
 bool DeckWindow::applyThemeFrom(const Document &source, bool allSlides)
 {
     Document *d = m_ed->doc();
     if (!d) return false;
     QList<int> slides;
     if (!allSlides) {
-        // The slides selected in the Slide Sorter; anywhere else, the slide being edited.
-        if (m_view == View::Sorter) slides = m_sorter->selection();
-        if (slides.isEmpty()) slides << m_ed->currentPage();
+        slides = selectedSlides();
     }
     m_notes->commit();
     if (m_outline) m_outline->commit();

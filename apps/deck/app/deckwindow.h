@@ -90,6 +90,8 @@ public:
     CommentsPane *commentsPane() const { return m_comments; }
     SlideShow *slideShow() const { return m_show; }
     SlideSorter *slideSorter() const { return m_sorter; }
+    // The slides selected in the Slide Sorter; anywhere else, the slide being edited.
+    QList<int> selectedSlides() const;
     OutlineView *outlineView() const { return m_outline; }
     // The Reuse Slides pane on the right, once it has been opened (Reuse
     // Slides on the New Slide menu): a click on one of its slides puts a copy
@@ -329,9 +331,8 @@ public:
     void hideFileScreen();
     // What the File screen's Print and Export pages do: ask where, then write
     // or print. False when nothing was written or sent.
-    // `duplex` is what the printer starts as in the system's window (the Print page's Sides choice); a PDF file is made with none.
-    // With `byHand`, the pages go in two runs for both sides by hand: the first, third, ... pages, a message to turn the stack over, then the others last first (the
-    // system's window is shown once).
+    // `duplex` is what the printer is set to (the Print page's Sides choice); a PDF file is made with none. The printer, the copies, and the order are in `options`.
+    // With `byHand`, the pages go in two runs for both sides by hand: the first, third, ... pages, a message to turn the stack over, then the others last first.
     bool printOutput(const deck::OutputOptions &options, QPrinter::DuplexMode duplex = QPrinter::DuplexNone, bool byHand = false);
     // A test sets it to see the printer as the pages are about to go to it (the program never does).
     void setPrinterPreparer(const std::function<void(QPrinter &)> &preparer) { m_printerPreparer = preparer; }
