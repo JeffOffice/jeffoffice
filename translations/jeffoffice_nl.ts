@@ -15216,6 +15216,57 @@ Desktop publishing</translation>
     </message>
 </context>
 <context>
+    <name>jp::AboutPage</name>
+    <message>
+        <source>About</source>
+        <translation type="unfinished">Info</translation>
+    </message>
+    <message>
+        <source>Version %1 · Built with Qt %2</source>
+        <translation type="unfinished">Versie %1 · Gebouwd met Qt %2</translation>
+    </message>
+    <message>
+        <source>Source code</source>
+        <translation type="unfinished">Broncode</translation>
+    </message>
+    <message>
+        <source>Downloads</source>
+        <translation type="unfinished">Downloads</translation>
+    </message>
+    <message>
+        <source>Report a problem</source>
+        <translation type="unfinished">Een probleem melden</translation>
+    </message>
+    <message>
+        <source>Check for Updates</source>
+        <translation type="unfinished">Controleren op updates</translation>
+    </message>
+    <message>
+        <source>Check for updates automatically</source>
+        <translation type="unfinished">Automatisch controleren op updates</translation>
+    </message>
+    <message>
+        <source>Send anonymous usage statistics</source>
+        <translation type="unfinished">Anonieme gebruiksstatistieken verzenden</translation>
+    </message>
+    <message>
+        <source>What&apos;s sent</source>
+        <translation type="unfinished">Wat wordt verzonden</translation>
+    </message>
+    <message>
+        <source>Your name</source>
+        <translation type="unfinished">Uw naam</translation>
+    </message>
+    <message>
+        <source>License and notices</source>
+        <translation type="unfinished">Licentie en kennisgevingen</translation>
+    </message>
+    <message>
+        <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href=&quot;%2&quot;&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href=&quot;%3&quot;&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
+        <translation type="unfinished">Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is vrije software onder de &lt;a href=&quot;%2&quot;&gt;GNU General Public License v3.0&lt;/a&gt;. Er wordt ABSOLUUT GEEN GARANTIE gegeven; zie de licentie voor details. &lt;a href=&quot;%3&quot;&gt;Lees de licentie op gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is een onafhankelijk opensourceproject. Het is niet gelieerd aan, goedgekeurd door of ondersteund door een ander softwarebedrijf. Productnamen zijn handelsmerken van hun respectieve eigenaren.</translation>
+    </message>
+</context>
+<context>
     <name>jp::AccessibilityPane</name>
     <message>
         <location filename="../libs/shell/app/accessibilitypane.cpp" line="+14"/>
@@ -31922,11 +31973,6 @@ Het bestand kan niet worden gelezen.</translation>
 <context>
     <name>jp::FindDialog</name>
     <message>
-        <location filename="../apps/crunch/app/finddialog.cpp" line="+29"/>
-        <source>Look For and Change</source>
-        <translation type="unfinished">Zoeken en vervangen</translation>
-    </message>
-    <message>
         <location line="+5"/>
         <source>Find</source>
         <translation type="unfinished">Zoeken</translation>
@@ -32029,11 +32075,6 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Zoeken in:</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Same capitals only</source>
-        <translation type="unfinished">Hoofdlettergevoelig</translation>
-    </message>
-    <message>
         <location line="+2"/>
         <source>Whole cell only</source>
         <translation type="unfinished">Alleen hele cel</translation>
@@ -32111,6 +32152,14 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+13"/>
         <source>Cancel</source>
         <translation type="unfinished">Annuleren</translation>
+    </message>
+    <message>
+        <source>Find and Replace</source>
+        <translation type="unfinished">Zoeken en vervangen</translation>
+    </message>
+    <message>
+        <source>Match case</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -39143,6 +39192,10 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+7"/>
         <source>Went back to &quot;%1&quot;. Save the publication to keep it.</source>
         <translation type="unfinished">Teruggegaan naar &quot;%1&quot;. Sla de publicatie op om dit te bewaren.</translation>
+    </message>
+    <message>
+        <source>Info</source>
+        <translation type="unfinished">Info</translation>
     </message>
 </context>
 <context>
@@ -48805,11 +48858,6 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Toegankelijkheid</translation>
     </message>
     <message>
-        <location line="+12"/>
-        <source>Count Words</source>
-        <translation type="unfinished">Woorden tellen</translation>
-    </message>
-    <message>
         <location line="+13"/>
         <source>The translation service needs a secure web address (https). An http address is only used for this computer.</source>
         <translation type="unfinished">De vertaalservice heeft een beveiligd webadres (https) nodig. Een http-adres wordt alleen voor deze computer gebruikt.</translation>
@@ -49705,6 +49753,10 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+0"/>
         <source>URGENT</source>
         <translation type="unfinished">URGENT</translation>
+    </message>
+    <message>
+        <source>Word Count</source>
+        <translation type="unfinished">Aantal woorden</translation>
     </message>
 </context>
 <context>
@@ -60652,11 +60704,6 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Hoofdlettergevoelig</translation>
     </message>
     <message>
-        <location line="+32"/>
-        <source>Count Words</source>
-        <translation type="unfinished">Woorden tellen</translation>
-    </message>
-    <message>
         <location line="+2"/>
         <source>Selected text</source>
         <translation type="unfinished">Geselecteerde tekst</translation>
@@ -61058,6 +61105,10 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+7"/>
         <source>Reveal Formatting</source>
         <translation type="unfinished">Opmaak weergeven</translation>
+    </message>
+    <message>
+        <source>Word Count</source>
+        <translation type="unfinished">Aantal woorden</translation>
     </message>
 </context>
 <context>

@@ -15216,6 +15216,57 @@ Desktop publishing</translation>
     </message>
 </context>
 <context>
+    <name>jp::AboutPage</name>
+    <message>
+        <source>About</source>
+        <translation type="unfinished">Informazioni</translation>
+    </message>
+    <message>
+        <source>Version %1 · Built with Qt %2</source>
+        <translation type="unfinished">Versione %1 · Compilato con Qt %2</translation>
+    </message>
+    <message>
+        <source>Source code</source>
+        <translation type="unfinished">Codice sorgente</translation>
+    </message>
+    <message>
+        <source>Downloads</source>
+        <translation type="unfinished">Download</translation>
+    </message>
+    <message>
+        <source>Report a problem</source>
+        <translation type="unfinished">Segnala un problema</translation>
+    </message>
+    <message>
+        <source>Check for Updates</source>
+        <translation type="unfinished">Verifica aggiornamenti</translation>
+    </message>
+    <message>
+        <source>Check for updates automatically</source>
+        <translation type="unfinished">Verifica automaticamente la disponibilità di aggiornamenti</translation>
+    </message>
+    <message>
+        <source>Send anonymous usage statistics</source>
+        <translation type="unfinished">Invia statistiche di utilizzo anonime</translation>
+    </message>
+    <message>
+        <source>What&apos;s sent</source>
+        <translation type="unfinished">Dati inviati</translation>
+    </message>
+    <message>
+        <source>Your name</source>
+        <translation type="unfinished">Nome</translation>
+    </message>
+    <message>
+        <source>License and notices</source>
+        <translation type="unfinished">Licenza e avvisi</translation>
+    </message>
+    <message>
+        <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href=&quot;%2&quot;&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href=&quot;%3&quot;&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
+        <translation type="unfinished">Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 è software libero distribuito secondo i termini della &lt;a href=&quot;%2&quot;&gt;GNU General Public License v3.0&lt;/a&gt;. Viene fornito ASSOLUTAMENTE SENZA ALCUNA GARANZIA; per i dettagli consulta la licenza. &lt;a href=&quot;%3&quot;&gt;Leggi la licenza su gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 è un progetto open source indipendente. Non è affiliato, approvato o supportato da nessun&apos;altra azienda di software. I nomi dei prodotti sono marchi dei rispettivi proprietari.</translation>
+    </message>
+</context>
+<context>
     <name>jp::AccessibilityPane</name>
     <message>
         <location filename="../libs/shell/app/accessibilitypane.cpp" line="+14"/>
@@ -31922,11 +31973,6 @@ Impossibile leggere il file.</translation>
 <context>
     <name>jp::FindDialog</name>
     <message>
-        <location filename="../apps/crunch/app/finddialog.cpp" line="+29"/>
-        <source>Look For and Change</source>
-        <translation type="unfinished">Trova e sostituisci</translation>
-    </message>
-    <message>
         <location line="+5"/>
         <source>Find</source>
         <translation type="unfinished">Trova</translation>
@@ -32029,11 +32075,6 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Cerca in:</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Same capitals only</source>
-        <translation type="unfinished">Maiuscole/minuscole</translation>
-    </message>
-    <message>
         <location line="+2"/>
         <source>Whole cell only</source>
         <translation type="unfinished">Confronta intero contenuto cella</translation>
@@ -32111,6 +32152,14 @@ Impossibile leggere il file.</translation>
         <location line="+13"/>
         <source>Cancel</source>
         <translation type="unfinished">Annulla</translation>
+    </message>
+    <message>
+        <source>Find and Replace</source>
+        <translation type="unfinished">Trova e sostituisci</translation>
+    </message>
+    <message>
+        <source>Match case</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -39143,6 +39192,10 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+7"/>
         <source>Went back to &quot;%1&quot;. Save the publication to keep it.</source>
         <translation type="unfinished">Ripristinata &quot;%1&quot;. Salva la pubblicazione per mantenerla.</translation>
+    </message>
+    <message>
+        <source>Info</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -48805,11 +48858,6 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Accessibilità</translation>
     </message>
     <message>
-        <location line="+12"/>
-        <source>Count Words</source>
-        <translation type="unfinished">Conta parole</translation>
-    </message>
-    <message>
         <location line="+13"/>
         <source>The translation service needs a secure web address (https). An http address is only used for this computer.</source>
         <translation type="unfinished">Il servizio di traduzione richiede un indirizzo web sicuro (https). Un indirizzo http viene usato solo per questo computer.</translation>
@@ -49705,6 +49753,10 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+0"/>
         <source>URGENT</source>
         <translation type="unfinished">URGENTE</translation>
+    </message>
+    <message>
+        <source>Word Count</source>
+        <translation type="unfinished">Conteggio parole</translation>
     </message>
 </context>
 <context>
@@ -60652,11 +60704,6 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Maiuscole/minuscole</translation>
     </message>
     <message>
-        <location line="+32"/>
-        <source>Count Words</source>
-        <translation type="unfinished">Conta parole</translation>
-    </message>
-    <message>
         <location line="+2"/>
         <source>Selected text</source>
         <translation type="unfinished">Testo selezionato</translation>
@@ -61058,6 +61105,10 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+7"/>
         <source>Reveal Formatting</source>
         <translation type="unfinished">Mostra formattazione</translation>
+    </message>
+    <message>
+        <source>Word Count</source>
+        <translation type="unfinished">Conteggio parole</translation>
     </message>
 </context>
 <context>
