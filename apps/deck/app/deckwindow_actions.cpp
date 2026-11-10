@@ -225,6 +225,17 @@ void DeckWindow::createDesignActions()
 
 void DeckWindow::createViewActions()
 {
+    // View > Window: another window on the same file (as in JeffWrite: the file is opened again, so a change is seen in the other window once it is saved and the file opened there
+    // again); a new, empty presentation when this one has no file yet.
+    mk("win.new", tr("New Window"), "app-window", QKeySequence(), [this] {
+        if (m_ed->filePath().isEmpty()) {
+            auto *w = new DeckWindow();
+            w->setAttribute(Qt::WA_DeleteOnClose);
+            w->show();
+            return;
+        }
+        openFile(m_ed->filePath(), OpenHow::NewWindow);
+    });
     mk("view.slideShow", tr("Slide Show"), "presentation", QKeySequence(), [this] { startShow(m_ed->currentPage()); });
     mk("view.rulers", tr("Ruler"), "ruler", QKeySequence(), [this] {
         m_ed->view.rulers = !m_ed->view.rulers;

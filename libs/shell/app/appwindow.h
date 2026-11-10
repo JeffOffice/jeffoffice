@@ -6,6 +6,7 @@
 #include <QStringList>
 
 class QAction;
+class QMenu;
 
 namespace jp {
 
@@ -26,6 +27,9 @@ public:
     static void arrangeInColumns(const QList<AppWindow *> &wins);
     static void cascade(const QList<AppWindow *> &wins);
     static void placeSideBySide(AppWindow *left, AppWindow *right);
+    // The View > Window group's Switch Windows menu: a command for each open window of `kind` (an app's own window class, as T::staticMetaObject), named by its title, that brings the window forward.
+    // The list is made each time the menu is shown.
+    static QMenu *switchWindowsMenu(QWidget *owner, const QMetaObject &kind);
 
     // A file opened read-only: nothing in it can be changed here, and Save asks for a new name (which makes the window an ordinary one). The app's window overrides
     // setReadOnly to show it (the title, what it will not let be typed or dragged), and calls the base.

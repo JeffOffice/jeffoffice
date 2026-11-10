@@ -366,7 +366,7 @@ PowerPoint has a Record tab that records a show with the speaker's voice, ink, l
 - [~] **1.0** Grid and guide settings: spacing, snap to grid, drag guides, and add or remove a guide *(Guides can be shown and objects snap to others; whether a guide can be dragged out of the ruler could not be confirmed)*
 - [x] **1.0** Zoom: a menu from 400% to 10%, Fit to Window, a slider and buttons on the status bar, and Ctrl with the mouse wheel; in the Slide Sorter the same controls size the pictures
 - [ ] **1.0** Color, Grayscale, and Pure Black and White views, and the choice of how each object prints in them *(grayscale applies to printing and PDF only)*
-- [ ] **1.0** New Window (a second window of the same presentation), Arrange All, Cascade, Move Split, and Switch Windows *(each presentation opens in its own window; the system switches between them)*
+- [~] **1.0** New Window (a second window of the same presentation), Arrange All, Cascade, Move Split, and Switch Windows *(done: View > Window has New Window, which opens the saved file in a second window (a change made in one shows in the other after it is saved and the file is opened again), and Switch Windows, which lists the open windows; not yet: Arrange All, Cascade, and Move Split)*
 - [ ] **later** Right-to-left slide view direction
 - [ ] **later** Macros
 - [ ] **later** Outline view helpers: Expand Slide (each heading of a selected slide becomes its own slide) and Summary Slide (the titles of the selected slides on one new slide)
@@ -375,7 +375,7 @@ PowerPoint has a Record tab that records a show with the speaker's voice, ink, l
 
 - [x] **1.0** Help (F1, and the question-mark button): topics for each tab, pane, and dialog open on the page for what you are doing, offline, and translated
 - [ ] **1.0** Tell Me: a box on the ribbon that finds a command and runs it *(Help topics have keywords; there is no command search)*
-- [ ] **1.0** What's New, a link to a community page, and Report a Problem from the Help tab *(About has links to the source, downloads, and problem reports)*
+- [~] **1.0** What's New, a link to a community page, and Report a Problem from the Help tab *(done: the Help tab has Help, Keyboard Shortcuts, What's New, and Feedback; not yet: a link to a community page; About has links to the source, downloads, and problem reports)*
 
 ## The slide show and Presenter View
 

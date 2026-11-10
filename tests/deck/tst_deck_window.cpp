@@ -1350,6 +1350,85 @@ private Q_SLOTS:
         QCOMPARE(pictures(), 1);
     }
 
+    // View > Window has New Window and Switch Windows, as in the other programs. New Window opens the presentation's file in a second window (a new, empty presentation when there is
+    // no file yet), and Switch Windows lists the open windows.
+    void newWindowOpensTheFileAgainAndSwitchWindowsListsThem()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("talk.pptx"));
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QCOMPARE(w.act(QStringLiteral("win.new"))->text(), QStringLiteral("New Window"));
+        w.newSlide();
+        w.newSlide();
+        QVERIFY(w.saveTo(path));
+        auto deckWindows = [&w] {
+            QList<DeckWindow *> out;
+            for (AppWindow *a : AppWindow::windows())
+                if (auto *d = qobject_cast<DeckWindow *>(a); d && d != &w) out << d;
+            return out;
+        };
+        QVERIFY(deckWindows().isEmpty());
+        w.act(QStringLiteral("win.new"))->trigger();
+        QList<DeckWindow *> others = deckWindows();
+        QCOMPARE(others.size(), 1);
+        QPointer<DeckWindow> second = others.first();
+        QCOMPARE(second->editor()->filePath(), w.editor()->filePath());
+        QCOMPARE(second->editor()->doc()->pages.size(), 3);
+        // Switch Windows lists both, by their titles.
+        QMenu *menu = nullptr;
+        for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
+            if (b->text() == QLatin1String("Switch Windows") && b->menu()) menu = b->menu();
+        QVERIFY(menu);
+        Q_EMIT menu->aboutToShow();
+        QStringList titles;
+        for (QAction *a : menu->actions()) titles << a->text();
+        QVERIFY2(titles.contains(w.windowTitle()) && titles.contains(second->windowTitle()), qPrintable(titles.join(QLatin1Char('|'))));
+        QCOMPARE(titles.size(), 2);
+        second->close();
+        QTRY_VERIFY(second.isNull());
+        // With no file yet, a new window is a new presentation.
+        DeckWindow fresh;
+        fresh.show();
+        fresh.act(QStringLiteral("win.new"))->trigger();
+        QList<DeckWindow *> made;
+        for (DeckWindow *d : deckWindows())
+            if (d != &fresh) made << d;
+        QCOMPARE(made.size(), 1);
+        QVERIFY(made.first()->editor()->filePath().isEmpty());
+        made.first()->close();
+    }
+
+    // The Help tab has Help, Keyboard Shortcuts, What's New, and Feedback: the last two open their pages, and Keyboard Shortcuts opens the Help pane on the shortcuts topic.
+    void theHelpTabHasHelpShortcutsWhatsNewAndFeedback()
+    {
+        DeckWindow w;
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QVERIFY(w.ribbon()->tab(QStringLiteral("Help")));
+        QCOMPARE(w.act(QStringLiteral("help.shortcuts"))->text(), QStringLiteral("Keyboard Shortcuts"));
+        QCOMPARE(w.act(QStringLiteral("help.whatsNew"))->text(), QStringLiteral("What's New"));
+        QCOMPARE(w.act(QStringLiteral("help.feedback"))->text(), QStringLiteral("Feedback"));
+        const auto saved = help::openUrl;
+        QList<QUrl> opened;
+        help::openUrl = [&](const QUrl &u) {
+            opened << u;
+            return true;
+        };
+        w.act(QStringLiteral("help.feedback"))->trigger();
+        w.act(QStringLiteral("help.whatsNew"))->trigger();
+        help::openUrl = saved;
+        QCOMPARE(opened, (QList<QUrl>{help::feedbackUrl(), help::whatsNewUrl()}));
+        QDockWidget *dock = w.findChild<QDockWidget *>(QStringLiteral("helpDock"));
+        QVERIFY(!dock || !dock->isVisible());
+        w.act(QStringLiteral("help.shortcuts"))->trigger();
+        dock = w.findChild<QDockWidget *>(QStringLiteral("helpDock"));
+        QVERIFY(dock && dock->isVisible());
+    }
+
     // Go To (Ctrl+G) is in Home > Editing beside Find and Replace; it asks for a slide number and moves to that slide, out of any text being typed.
     void goToMovesToASlide()
     {

@@ -61,7 +61,7 @@ Click the pane, then:
 - **Ctrl+P** is the pen, **Ctrl+I** the highlighter, **Ctrl+L** the laser pointer, and **Ctrl+E** the eraser. **E** erases the ink on the slide. **Ctrl+A** brings the arrow back.
 - **Esc** brings the arrow back when the pen, highlighter, laser pointer, or eraser is chosen. Otherwise it ends the show.
 
-Press **F1** for Help about what you are doing.
+Press **F1** for Help about what you are doing. The **Help** tab has **Help**, **Keyboard Shortcuts**, which opens this page, **What's New**, and **Feedback**, which open their web pages.
 
 ## All shortcuts
 

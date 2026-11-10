@@ -239,6 +239,7 @@ void DeckWindow::ribbonMenuParts(RibbonParts &parts)
 {
     parts.menus[QStringLiteral("newSlideLayouts")] = [this](QWidget *owner) { return layoutMenu(owner, false); };
     parts.menus[QStringLiteral("changeLayout")] = [this](QWidget *owner) { return layoutMenu(owner, true); };
+    parts.menus[QStringLiteral("switchWindowsMenu")] = [](QWidget *owner) { return AppWindow::switchWindowsMenu(owner, DeckWindow::staticMetaObject); };
     // Slide Size: the two sizes, one checked.
     parts.menus[QStringLiteral("slideSizes")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);

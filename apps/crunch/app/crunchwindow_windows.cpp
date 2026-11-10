@@ -116,20 +116,7 @@ void CrunchWindow::setSideBySide(bool on)
 
 void CrunchWindow::windowRibbonParts(RibbonParts &parts)
 {
-    parts.menus[QStringLiteral("switchWindowsMenu")] = [](QWidget *owner) {
-        auto *switchMenu = new QMenu(owner);
-        QObject::connect(switchMenu, &QMenu::aboutToShow, switchMenu, [switchMenu] {
-            switchMenu->clear();
-            for (CrunchWindow *w : CrunchWindow::crunchWindows()) {
-                QAction *a = switchMenu->addAction(w->windowTitle());
-                QObject::connect(a, &QAction::triggered, w, [w] {
-                    w->raise();
-                    w->activateWindow();
-                });
-            }
-        });
-        return switchMenu;
-    };
+    parts.menus[QStringLiteral("switchWindowsMenu")] = [](QWidget *owner) { return AppWindow::switchWindowsMenu(owner, CrunchWindow::staticMetaObject); };
 }
 
 } // namespace jp

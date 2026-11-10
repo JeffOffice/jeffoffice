@@ -7,6 +7,7 @@ The **View** tab changes how the slides look on screen while you work. These cho
 - **Master Views** has **Slide Master**, which opens Slide Master view to edit the slide masters and layouts.
 - **Show** has check boxes for the **Ruler**, **Gridlines**, and **Guides** on the slide, and the **Notes** button, which shows or hides the notes box. See [Speaker notes](notes).
 - **Zoom** has a **Zoom** menu, from 400% down to 10%, and **Fit to Window**, which sizes the slide to fill the window. See [Find your way around the window](window).
+- **Window** has **New Window**, which opens the presentation's file again in a second window (a presentation with no file yet opens a new, empty one), and **Switch Windows**, which lists the open windows so you can bring one forward. Example: a change made in one window shows in the other after you save it and open the file there again.
 
 ## Related
 

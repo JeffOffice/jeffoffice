@@ -19,6 +19,23 @@ QList<AppWindow *> AppWindow::windows()
     return out;
 }
 
+QMenu *AppWindow::switchWindowsMenu(QWidget *owner, const QMetaObject &kind)
+{
+    auto *switchMenu = new QMenu(owner);
+    QObject::connect(switchMenu, &QMenu::aboutToShow, switchMenu, [switchMenu, &kind] {
+        switchMenu->clear();
+        for (AppWindow *w : AppWindow::windows()) {
+            if (!w->isVisible() || !kind.cast(w)) continue;
+            QAction *a = switchMenu->addAction(w->windowTitle());
+            QObject::connect(a, &QAction::triggered, w, [w] {
+                w->raise();
+                w->activateWindow();
+            });
+        }
+    });
+    return switchMenu;
+}
+
 void AppWindow::arrangeInColumns(const QList<AppWindow *> &wins)
 {
     if (wins.isEmpty()) return;
