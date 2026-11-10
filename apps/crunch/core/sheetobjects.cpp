@@ -1974,7 +1974,7 @@ int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, con
     if (el.isNull()) return refuse(tr("The object on the clipboard can't be read."));
     // its numbers in the drawing: each shape in it a new one
     qint64 nextId = s.nextShapeId;
-    QString name;
+    QString name, description;
     qint64 firstId = 0;
     int count = 0;
     std::function<bool(QDomElement &, int)> number = [&](QDomElement &e, int depth) {
@@ -1982,6 +1982,7 @@ int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, con
         if (e.localName() == QLatin1String("cNvPr")) {
             ++count;
             if (name.isEmpty()) name = e.attribute(QStringLiteral("name"));
+            if (count == 1) description = e.attribute(QStringLiteral("descr"));
             if (!firstId) firstId = nextId;
             e.setAttribute(QStringLiteral("id"), QString::number(nextId++));
         }
@@ -2031,6 +2032,7 @@ int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, con
     const QString kind = el.localName();
     o->meta.kind = kind == QLatin1String("pic") ? ObjectKind::Picture : kind == QLatin1String("grpSp") ? ObjectKind::Group : kind == QLatin1String("cxnSp") ? ObjectKind::Connector : ObjectKind::Shape;
     o->meta.name = name.isEmpty() ? newName(sheet, o->meta.kind) : name;
+    o->meta.description = description;   // (its alternative text: that of the object it was made from, or of the picture put in)
     o->meta.id = firstId;
     o->meta.anchor = anchor;
     o->meta.element = el;

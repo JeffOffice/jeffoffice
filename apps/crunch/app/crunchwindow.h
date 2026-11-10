@@ -86,6 +86,8 @@ namespace jp {
 class SlicerPane;
 class CommentThreadsPane;
 class OutlineGutter;
+class TextArtItem;
+class OnlinePicturesPane;
 }
 class QUrl;
 
@@ -1400,9 +1402,23 @@ public:
     // cell the cursor is in, picked, as one step.
     void setPicturePicker(const std::function<QString()> &picker) { m_picturePicker = picker; }
     bool insertPictureFile(const QString &path);
-    bool insertPictureData(QByteArray bytes, const QString &name, int rasterSide = 0, double sheetSide = 0);
+    bool insertPictureData(QByteArray bytes, const QString &name, int rasterSide = 0, double sheetSide = 0, const QString &alt = QString());
+    bool pictureClip(QByteArray bytes, const QString &name, int rasterSide, double sheetSide, const QString &alt, crunch::ObjectClip *made);
+    // Insert > Online Pictures: the pane (null until it was first asked for); a picture downloaded to `path` put on the sheet with its title as alt text and, when `credit` is not empty, a
+    // credit line under it, as one step.
+    OnlinePicturesPane *onlinePictures() const { return m_online; }
+    void showOnlinePictures();
+    bool insertOnlinePicture(const QString &path, const QString &title, const QString &credit);
     bool insertShape(const QString &preset);
     bool insertTextBox();
+    // Insert > Text Art: the words "Your Text Here" in a style of the shared gallery, bent into the style's warp, as a shape of the drawing; the picked one's words (the box that asks stands in
+    // for the dialog: tests), style, and warp are changed, each as one step.
+    bool insertTextArt(const QString &styleId);
+    bool pickedIsTextArt();
+    bool editTextArtText();
+    bool setTextArtStyle(const QString &styleId);
+    bool setTextArtWarp(const QString &transform);
+    void setTextArtAsker(const std::function<bool(jp::TextArtItem *)> &asker) { m_textArtAsker = asker; }
     // Format of the picked picture, shape, or text box (each is one step: the object is made again with the change). The words in a shape: the box that asks stands in for the dialog (tests).
     struct ShapeTextChoices {
         QString text;
@@ -1488,8 +1504,11 @@ private:
     void showSelectionPane();
     QPointer<SelectionPane> m_selectionPane;
     void createObjectFormatActions();
+    void createTextArtActions();
+    void textArtRibbonParts(RibbonParts &parts);
     void objectFormatRibbonParts(RibbonParts &parts);
     std::function<bool(ShapeTextChoices *)> m_shapeTextAsker;
+    std::function<bool(jp::TextArtItem *)> m_textArtAsker;
     void chartRibbonParts(RibbonParts &parts);
     void functionRibbonParts(RibbonParts &parts);
     void fillFunctionMenu(QMenu *menu, const QList<crunch::FunctionCategory> &kinds);
@@ -1517,6 +1536,8 @@ private:
     CrunchFileScreen *m_fileScreen = nullptr;
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
+    QDockWidget *m_onlineDock = nullptr;
+    OnlinePicturesPane *m_online = nullptr;
     QLineEdit *m_nameBox = nullptr, *m_formulaBar = nullptr;
     QWidget *m_formulaRow = nullptr;
     crunch::SheetTabBar *m_tabs = nullptr;

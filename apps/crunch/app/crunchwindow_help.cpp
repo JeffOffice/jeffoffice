@@ -5,6 +5,7 @@
 
 #include "app/crunchfilescreen.h"
 #include "app/help.h"
+#include "app/onlinepictures.h"
 #include "app/ribbon.h"
 
 #include <QAction>
@@ -57,6 +58,8 @@ QString CrunchWindow::helpContext() const
     QString key;
     if (m_fileScreen->isVisible()) {
         key = QStringLiteral("file:") + m_fileScreen->currentPage();
+    } else if (m_online && inside(m_online)) {
+        key = QStringLiteral("pane:online");
     } else if (inside(m_ribbon)) {
         for (int i = 0; i < m_ribbon->tabCount(); ++i)
             if (m_ribbon->tabPage(i) == m_ribbon->current()) key = QStringLiteral("tab:") + m_ribbon->tabName(i);

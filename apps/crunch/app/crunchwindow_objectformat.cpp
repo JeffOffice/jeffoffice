@@ -34,6 +34,7 @@ namespace {
 
 const QString kA = QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/main");
 const QString kXdr = QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing");
+const QString kR = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships");
 
 QDomElement childNamed(const QDomElement &e, const QString &local)
 {
@@ -405,6 +406,8 @@ qint64 CrunchWindow::compressPictures(double ppi, bool all, bool deleteCropped)
     const std::vector<int> ids = all ? m_objects->idsOf(m_sheet) : pickedObjects();
     std::vector<crunch::ObjectEdit> edits;
     std::vector<int> made;
+    std::vector<std::pair<int, int>> replaced;   // (the picture taken away, the one made in its place)
+    const int picked = pickedObject();
     qint64 saved = 0;
     for (const int id : ids) {
         if (m_objects->kindOf(m_sheet, id) != ObjectKind::Picture || !m_objects->canDelete(m_sheet, id)) continue;
@@ -418,7 +421,7 @@ qint64 CrunchWindow::compressPictures(double ppi, bool all, bool deleteCropped)
         const QDomElement blipFill = el.isNull() ? QDomElement() : childNamed(el, QStringLiteral("blipFill"));
         const QDomElement blip = blipFill.isNull() ? QDomElement() : childNamed(blipFill, QStringLiteral("blip"));
         // (A picture with a second picture in it, or one that is only linked, is left as it is.)
-        if (blip.isNull() || !childNamed(blip, QStringLiteral("extLst")).isNull() || blip.hasAttribute(QStringLiteral("r:link")) || blip.attribute(QStringLiteral("r:embed")) != clip.media[0].token) continue;
+        if (blip.isNull() || !childNamed(blip, QStringLiteral("extLst")).isNull() || blip.hasAttributeNS(kR, QStringLiteral("link")) || blip.attributeNS(kR, QStringLiteral("embed")) != clip.media[0].token) continue;
         const QDomElement src = childNamed(blipFill, QStringLiteral("srcRect"));
         auto share = [&](const char *name) { return src.isNull() ? 0.0 : src.attribute(QLatin1String(name), QStringLiteral("0")).toDouble() / 100000.0; };
         const double l = share("l"), t = share("t"), r = share("r"), b = share("b");
@@ -457,6 +460,7 @@ qint64 CrunchWindow::compressPictures(double ppi, bool all, bool deleteCropped)
         const int fresh = m_objects->makeElement(m_sheet, clip, was, &why);
         if (fresh < 0) continue;
         made.push_back(fresh);
+        replaced.push_back({id, fresh});
         // The old one is taken away (with what writes it back if Undo is used after a save), and the new one is there in its place.
         crunch::ObjectEdit gone;
         gone.sheet = m_sheet;
@@ -484,7 +488,9 @@ qint64 CrunchWindow::compressPictures(double ppi, bool all, bool deleteCropped)
         notice(stepText, o.problem);
         return 0;
     }
-    if (!all && made.size() == 1) m_objects->layer()->select(made.front());
+    // (the picture that was picked is the new one in its place)
+    for (const auto &r : replaced)
+        if (r.first == picked) m_objects->layer()->select(r.second);
     return saved;
 }
 
@@ -511,6 +517,7 @@ void CrunchWindow::editObjectText()
         notice(tr("Edit Text"), tr("Text goes in a shape or a text box. Pick one first."));
         return;
     }
+    if (editTextArtText()) return;
     ShapeTextChoices c;
     crunch::ObjectClip clip;
     if (m_objects->copyElement(m_sheet, id, &clip, nullptr)) {
@@ -690,6 +697,7 @@ void CrunchWindow::createObjectFormatActions()
     mkObject("object.crop169", tr("Wide 16:9"), "crop", [this] { cropObject(16, 9); });
     mkObject("object.crop916", tr("Tall 9:16"), "crop", [this] { cropObject(9, 16); });
     mkObject("object.cropReset", tr("Show the Whole Picture"), "crop", [this] { cropObject(0, 0); });
+    createTextArtActions();
 }
 
 void CrunchWindow::objectFormatRibbonParts(RibbonParts &parts)
@@ -729,6 +737,7 @@ void CrunchWindow::objectFormatRibbonParts(RibbonParts &parts)
         }
         return menu;
     };
+    textArtRibbonParts(parts);
     parts.colors[QStringLiteral("pictureFormat")] = QColor(0x8A, 0x4B, 0x08);
     parts.colors[QStringLiteral("shapeFormat")] = QColor(0x6B, 0x2D, 0x8E);
 }

@@ -5,16 +5,20 @@
 #include "core/objectclip.h"
 #include "core/sheetobjects.h"
 #include "app/iconpicker.h"
+#include "app/onlinepictures.h"
 #include "app/textdialogs.h"
 #include "render/metafile.h"
 
 #include <QAction>
+#include <QDockWidget>
 #include <QBuffer>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QImage>
 #include <QImageReader>
+#include <QUndoStack>
+#include <QVBoxLayout>
 
 #include <algorithm>
 
@@ -54,7 +58,7 @@ constexpr double kEmuPerUnit = 9525;   // the grid's unit is a pixel at 100%
 
 const char kFill[] = "BDD7EE", kLine[] = "2E75B6";
 
-QByteArray shapeXml(const QString &preset, double w, double h, bool textBox)
+QByteArray shapeXml(const QString &preset, double w, double h, bool textBox, const QString &words = QString())
 {
     const qint64 cx = qint64(w * kEmuPerUnit), cy = qint64(h * kEmuPerUnit);
     const QByteArray xfrm = "<a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + QByteArray::number(cx) + "\" cy=\"" + QByteArray::number(cy) + "\"/></a:xfrm>";
@@ -66,7 +70,8 @@ QByteArray shapeXml(const QString &preset, double w, double h, bool textBox)
                                      : "<a:solidFill><a:srgbClr val=\"" + QByteArray(kFill) + "\"/></a:solidFill><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"" + kLine + "\"/></a:solidFill></a:ln>";
     return QByteArray("<xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"0\" name=\"\"/><xdr:cNvSpPr") + (textBox ? " txBox=\"1\"" : "") + "/></xdr:nvSpPr><xdr:spPr>" + xfrm + geometry + paint
            + "</xdr:spPr><xdr:txBody><a:bodyPr vertOverflow=\"clip\" horzOverflow=\"clip\" wrap=\"square\" rtlCol=\"0\" anchor=\"" + (textBox ? "t" : "ctr") + "\"/><a:lstStyle/><a:p><a:pPr algn=\""
-           + (textBox ? "l" : "ctr") + "\"/><a:endParaRPr lang=\"en-US\" sz=\"1100\"/></a:p></xdr:txBody></xdr:sp>";
+           + (textBox ? "l" : "ctr") + "\"/>"
+           + (words.isEmpty() ? QByteArray() : "<a:r><a:rPr lang=\"en-US\" sz=\"900\" i=\"1\"/><a:t>" + words.toHtmlEscaped().toUtf8() + "</a:t></a:r>") + "<a:endParaRPr lang=\"en-US\" sz=\"1100\"/></a:p></xdr:txBody></xdr:sp>";
 }
 
 } // namespace
@@ -75,7 +80,8 @@ void CrunchWindow::createInsertObjectActions()
 {
     mk("insert.picture", tr("Picture…"), "image", QKeySequence(), [this] { insertPicture(); });
     mk("insert.icons", tr("Icons…"), "smile-plus", QKeySequence(), [this] { insertIcons(); });
-    m_opsActions << QStringLiteral("insert.picture") << QStringLiteral("insert.icons");
+    mk("insert.onlinePicture", tr("Online Pictures…"), "globe", QKeySequence(), [this] { showOnlinePictures(); });
+    m_opsActions << QStringLiteral("insert.picture") << QStringLiteral("insert.icons") << QStringLiteral("insert.onlinePicture");
     for (const ShapeKind &k : kShapes) {
         const QString preset = QString::fromLatin1(k.preset);
         mk(QString::fromLatin1(k.id), QCoreApplication::translate("jp::CrunchWindow", k.text), k.icon, QKeySequence(), [this, preset] { insertShape(preset); });
@@ -170,7 +176,17 @@ bool CrunchWindow::insertPictureFile(const QString &path)
 
 // The bytes of a picture, as insertPictureFile keeps them. A metafile (WMF or EMF) is drawn and kept as a PNG of it; `rasterSide` (not 0) is the side a vector picture is drawn at, in pixels,
 // and `sheetSide` the side it has on the sheet.
-bool CrunchWindow::insertPictureData(QByteArray bytes, const QString &name, int rasterSide, double sheetSide)
+bool CrunchWindow::insertPictureData(QByteArray bytes, const QString &name, int rasterSide, double sheetSide, const QString &alt)
+{
+    crunch::ObjectClip clip;
+    if (!pictureClip(bytes, name, rasterSide, sheetSide, alt, &clip)) return false;
+    if (!placeObjectClip(clip, tr("Insert Picture"))) return false;
+    setStatus(tr("Picture inserted"));
+    return true;
+}
+
+// The picture of these bytes as an object to put on a sheet (see insertPictureData); false, with the reason told, for bytes that are not a picture JeffCrunch keeps.
+bool CrunchWindow::pictureClip(QByteArray bytes, const QString &name, int rasterSide, double sheetSide, const QString &alt, crunch::ObjectClip *made)
 {
     const QString title = tr("Insert Picture");
     if (jp::Metafile::looksLikeMetafile(bytes)) {
@@ -238,12 +254,82 @@ bool CrunchWindow::insertPictureData(QByteArray bytes, const QString &name, int 
     clip.width = w;
     clip.height = h;
     clip.media.append(media);
-    const QByteArray base = "<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"0\" name=\"\"/><xdr:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed=\"";
+    const QByteArray description = alt.isEmpty() ? QByteArray() : " descr=\"" + alt.toHtmlEscaped().toUtf8().replace("\"", "&quot;") + "\"";
+    const QByteArray base = "<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"0\" name=\"\"" + description + "/><xdr:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed=\"";
     clip.elementXml = base + media.token.toUtf8() + "\"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + QByteArray::number(qint64(w * kEmuPerUnit))
                      + "\" cy=\"" + QByteArray::number(qint64(h * kEmuPerUnit)) + "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>";
-    if (!placeObjectClip(clip, title)) return false;
-    setStatus(tr("Picture inserted"));
+    *made = clip;
     return true;
+}
+
+// Insert > Pictures > Online Pictures: the shared pane on the right searches the two open libraries; the picture chosen goes on the sheet as a picture of a file does, with its title as alt text
+// and, as asked, a credit line in a small text box under it; the picture and its credit are one step of Undo.
+void CrunchWindow::showOnlinePictures()
+{
+    if (!m_session) return;
+    if (!m_online) {
+        m_onlineDock = new QDockWidget(tr("Online Pictures"), this);
+        m_onlineDock->setObjectName(QStringLiteral("onlinePicturesDock"));
+        m_onlineDock->setFeatures(QDockWidget::DockWidgetClosable);
+        m_online = new OnlinePicturesPane([this](const QString &path, const online::Picture &picture, bool withCredit) {
+            return insertOnlinePicture(path, picture.title, withCredit ? online::credit(picture) : QString());
+        });
+        // With the margins the window's other panes have.
+        auto *frame = new QWidget(m_onlineDock);
+        auto *column = new QVBoxLayout(frame);
+        column->setContentsMargins(8, 8, 8, 8);
+        column->addWidget(m_online);
+        m_onlineDock->setWidget(frame);
+        addDockWidget(Qt::RightDockWidgetArea, m_onlineDock);
+        resizeDocks({m_onlineDock}, {300}, Qt::Horizontal);
+    }
+    m_onlineDock->show();
+    m_onlineDock->raise();
+}
+
+bool CrunchWindow::insertOnlinePicture(const QString &path, const QString &title, const QString &credit)
+{
+    if (!m_session || !m_objects || m_chartSheetShown) return false;
+    const QString stepText = tr("Insert Picture");
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) {
+        notice(stepText, tr("The picture \"%1\" can't be opened.").arg(QFileInfo(path).fileName()));
+        return false;
+    }
+    if (f.size() > crunch::kMaxClipMediaBytes) {
+        notice(stepText, tr("That picture is larger than %1 MB, which is as much as JeffCrunch keeps in a workbook.").arg(crunch::kMaxClipMediaBytes >> 20));
+        return false;
+    }
+    crunch::ObjectClip clip;
+    if (!pictureClip(f.readAll(), QFileInfo(path).fileName(), 0, 0, title, &clip)) return false;
+    QUndoStack *u = undoStack();
+    u->beginMacro(stepText);
+    bool done = placeObjectClip(clip, stepText);
+    if (done && !credit.isEmpty()) {
+        // The credit under the picture, as wide as the picture (at least 160), in a text box of its own.
+        const int picture = m_objects->layer()->selectedId();
+        const grid::ObjectBox box = m_objects->layer()->boxNow(picture);
+        const DrawingAnchor was = m_objects->anchorOf(m_sheet, picture);
+        crunch::ObjectClip words;
+        words.kind = QStringLiteral("shape");
+        words.width = std::max(160.0, box.w);
+        words.height = 36;
+        words.elementXml = shapeXml(QStringLiteral("rect"), words.width, words.height, true, credit);
+        grid::ObjectBox under = box;
+        under.y = box.y + box.h + 4;
+        under.w = words.width;
+        under.h = words.height;
+        DrawingAnchor anchor = was;
+        m_objects->layer()->attach(&m_view->sheet().layout());
+        if (m_objects->layer()->anchorAtBox(under, was.kind, &anchor)) {
+            anchor.editAs = was.editAs;
+            placeObjectClip(words, stepText, &anchor);
+        }
+        m_objects->layer()->select(picture);
+    }
+    u->endMacro();
+    if (done) setStatus(tr("Picture inserted"));
+    return done;
 }
 
 // Insert > Icons: the picker of the shared icons (the ones JeffPub and JeffDeck have) asks which, and each is put on the sheet as a picture, drawn at 256 pixels and 48 points square on the sheet.

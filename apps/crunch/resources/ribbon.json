@@ -173,6 +173,7 @@
           "keytip": "ZI",
           "items": [
             {"large": "insert.picture", "keytip": "P"},
+            {"large": "insert.onlinePicture", "keytip": "OP"},
             {"large": "insert.icons", "keytip": "IC"},
             {"large": {"id": "ribbon.shapes", "text": "Shapes", "icon": "shapes"}, "keytip": "SH", "menu": ["insert.shape.rect", "insert.shape.roundRect", "insert.shape.ellipse", "insert.shape.triangle", "insert.shape.diamond", "insert.shape.pentagon", "insert.shape.hexagon", "insert.shape.rightArrow", "insert.shape.leftArrow", "insert.shape.upArrow", "insert.shape.downArrow", "insert.shape.star", "insert.shape.heart", "insert.shape.cloud", "insert.shape.callout", "insert.shape.line"]}
           ]
@@ -215,6 +216,7 @@
           "keytip": "ZX",
           "items": [
             {"large": "insert.textBox", "keytip": "X"},
+            {"widget": "textArtButton", "keytip": "WA"},
             {"large": "insert.headerFooter", "keytip": "H"}
           ]
         },
@@ -678,6 +680,13 @@
       "color": "pictureFormat",
       "groups": [
         {
+          "name": "Adjust",
+          "keytip": "ZA",
+          "items": [
+            {"large": "object.compress", "keytip": "CM"}
+          ]
+        },
+        {
           "name": "Arrange",
           "keytip": "ZR",
           "items": [
@@ -726,6 +735,14 @@
           "keytip": "ZX",
           "items": [
             {"large": "object.editText", "keytip": "ET"}
+          ]
+        },
+        {
+          "name": "Text Art",
+          "keytip": "ZW",
+          "items": [
+            {"widget": "textArtStyles", "keytip": "TY"},
+            {"large": {"id": "ribbon.textArtWarp", "text": "Text Warp", "icon": "waves"}, "keytip": "TW", "menu": "@textArtWarp"}
           ]
         },
         {

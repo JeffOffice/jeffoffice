@@ -5,6 +5,9 @@
 #include "savedok.h"
 
 #include "app/chartdialogs.h"
+#include "app/crunchinfo.h"
+#include "app/help.h"
+#include "app/onlinepictures.h"
 #include "app/ribbon.h"
 #include "core/fonts.h"
 #include "core/objectclip.h"
@@ -13,11 +16,18 @@
 #include "office/chart.h"
 #include "office/chart_write.h"
 #include "office/xml.h"
+#include "render/textart.h"
 #include "sheet/chartedit.h"
 #include "sheet/drawing.h"
 #include "sheet/xlsxsave.h"
 
+#include <QBuffer>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QLabel>
 #include <QCheckBox>
+#include <QRandomGenerator>
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QClipboard>
@@ -57,6 +67,48 @@ QMap<QString, QByteArray> partsOf(const QString &path)
     QFile f(path);
     if (f.open(QIODevice::ReadOnly)) jp::readZip(f.readAll(), parts);
     return parts;
+}
+
+// A picture file of noise (a PNG that compresses badly): the left half tinted red and the right half blue, so that a cut shows.
+QByteArray noisyPng(int w, int h)
+{
+    QRandomGenerator rng(11);
+    QImage image(w, h, QImage::Format_RGB32);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) image.setPixel(x, y, qRgb(x < w / 2 ? 200 + int(rng.bounded(56)) : int(rng.bounded(60)), int(rng.bounded(256)), x < w / 2 ? int(rng.bounded(60)) : 200 + int(rng.bounded(56))));
+    QByteArray bytes;
+    QBuffer buffer(&bytes);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    return bytes;
+}
+
+// The online libraries answered from here (nothing goes online): a search finds one picture, "Red barn" by Pat Lee, whose file is `picture`. The real fetch comes back when this goes.
+struct CannedLibraries {
+    QStringList asked;
+    std::function<void(const QUrl &, QObject *, const online::Done &, qint64)> kept = online::fetch;
+    explicit CannedLibraries(const QByteArray &picture)
+    {
+        const QByteArray openverse = QJsonDocument(QJsonObject{{"results", QJsonArray{QJsonObject{
+            {"id", "a1"}, {"title", "Red barn"}, {"creator", "Pat Lee"}, {"license", "by"}, {"license_version", "2.0"},
+            {"license_url", "https://creativecommons.org/licenses/by/2.0/"}, {"foreign_landing_url", "https://example.org/page/a1"},
+            {"url", "https://example.org/barn.png"}, {"thumbnail", "https://example.org/barn.thumb"}}}}}).toJson();
+        online::fetch = [this, openverse, picture](const QUrl &u, QObject *, const online::Done &done, qint64) {
+            asked << u.toString();
+            done(u.host() == QLatin1String("api.openverse.org") ? openverse : picture, QString());
+        };
+    }
+    ~CannedLibraries() { online::fetch = kept; }
+};
+
+// The picture files of a saved workbook, by part name.
+QMap<QString, QByteArray> mediaOf(const QString &path)
+{
+    QMap<QString, QByteArray> out;
+    const QMap<QString, QByteArray> parts = partsOf(path);
+    for (auto it = parts.begin(); it != parts.end(); ++it)
+        if (it.key().startsWith(QLatin1String("xl/media/"))) out.insert(it.key(), it.value());
+    return out;
 }
 
 // The charts a saved file has on its sheet (by the sheet's place): each chart part read.
@@ -138,7 +190,11 @@ class CrunchChartTests : public QObject {
     }
 
 private Q_SLOTS:
-    void initTestCase() { jp::initCore(); }
+    void initTestCase()
+    {
+        setAppInfo(crunchAppInfo());
+        jp::initCore();
+    }
 
     // A chart reads the values its cells hold now, wherever rows and columns put them: after a row is put in the middle of what it reads, a number is typed in it, a row is taken out, and all of it is undone.
     void aChartHasTheValuesOfItsCellsAfterEditsAndUndo()
@@ -2899,6 +2955,288 @@ private Q_SLOTS:
         for (auto it = parts.begin(); it != parts.end(); ++it)
             if (it.key().startsWith(QLatin1String("xl/media/"))) ++media;
         QCOMPARE(media, 1);
+    }
+
+    // Compress Pictures: the picture is made again with its file smaller (as large as the target asks for the size it is shown at), in one step; the saved workbook has only the smaller
+    // file, its size on the sheet and its name are as they were, and Undo gives the first file back, byte for byte.
+    void compressingAPictureMakesItsSavedFileSmallerAndUndoes()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        const QByteArray original = noisyPng(960, 480);
+        QVERIFY(e.win.w.insertPictureFile(e.folder.write(QStringLiteral("noise.png"), original)));
+        const int id = o->layer()->selectedId();
+        e.win.w.setPropertiesAsker([&](const ObjectProperties &now, ObjectProperties *out) {
+            *out = now;
+            out->description = QStringLiteral("A field of noise");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("object.properties"))->trigger();
+        QCOMPARE(o->descriptionOf(0, id), QStringLiteral("A field of noise"));
+        const QString name = o->nameOf(0, id);
+        QVERIFY2(save(e), qPrintable(e.win.told.join(QStringLiteral(" | "))));
+        QCOMPARE(mediaOf(e.path).size(), 1);
+        QCOMPARE(mediaOf(e.path).first(), original);
+        const int steps = e.win.w.undoStack()->count();
+        const qint64 gained = e.win.w.compressPictures(96, true, true);
+        QVERIFY2(gained > 100000, qPrintable(QString::number(gained)));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(int(o->idsOf(0).size()), 1);
+        const int now = o->idsOf(0).front();
+        QCOMPARE(o->nameOf(0, now), name);
+        QCOMPARE(o->descriptionOf(0, now), QStringLiteral("A field of noise"));
+        const grid::ObjectBox box = o->layer()->boxNow(now);
+        QCOMPARE(box.w, 480.0);
+        QCOMPARE(box.h, 240.0);
+        QVERIFY2(save(e), qPrintable(e.win.told.join(QStringLiteral(" | "))));
+        const QMap<QString, QByteArray> media = mediaOf(e.path);
+        QCOMPARE(media.size(), 1);   // (the first picture's file is not in the saved workbook)
+        QCOMPARE(qint64(original.size() - media.first().size()), gained);
+        const QImage made = QImage::fromData(media.first());
+        // 480 units across are 360 points, which is 480 pixels at 96 to the inch.
+        QVERIFY2(std::abs(made.width() - 480) <= 2, qPrintable(QString::number(made.width())));
+        QVERIFY(std::abs(made.width() - 2 * made.height()) <= 2);
+        // Undo brings the first picture back (and a save after it has that file), and Redo does it again.
+        pressUndo(&e.win.w);
+        QCOMPARE(int(o->idsOf(0).size()), 1);
+        QVERIFY2(save(e), qPrintable(e.win.told.join(QStringLiteral(" | "))));
+        QCOMPARE(mediaOf(e.path).size(), 1);
+        QCOMPARE(mediaOf(e.path).first(), original);
+        pressRedo(&e.win.w);
+        QVERIFY2(save(e), qPrintable(e.win.told.join(QStringLiteral(" | "))));
+        QCOMPARE(mediaOf(e.path).first(), media.first());
+        // The saved workbook is read again with the one picture in it.
+        Window again;
+        QVERIFY(again.open(e.copyOfFile()));
+        QTRY_VERIFY(again.w.objects()->shownSheet() == 0 && again.w.objects()->layer()->count() == 1);
+        // A picture that would not get smaller is left alone, and no step is made.
+        e.select(QStringLiteral("F12"));
+        QVERIFY(e.win.w.insertPictureFile(e.folder.write(QStringLiteral("tiny.png"), pngBytes(40, 20, Qt::blue))));
+        const int after = e.win.w.undoStack()->count();
+        QCOMPARE(e.win.w.compressPictures(96, false, true), qint64(0));
+        QCOMPARE(e.win.w.undoStack()->count(), after);
+    }
+
+    // "Delete cropped areas": what a crop cuts away leaves the file's picture and the crop is gone, the picture showing as it did; without it the crop stays. "Apply to all pictures" off
+    // makes only the picked picture smaller.
+    void compressingCanTakeCroppedAreasOutAndTouchesOnlyThePickedPicture()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        const QByteArray first = noisyPng(960, 480), second = noisyPng(800, 400);
+        QVERIFY(e.win.w.insertPictureFile(e.folder.write(QStringLiteral("a.png"), first)));
+        e.win.w.act(QStringLiteral("object.cropSquare"))->trigger();   // (the middle half: 240 units square)
+        const int one = o->layer()->selectedId();
+        e.select(QStringLiteral("F10"));
+        QVERIFY(e.win.w.insertPictureFile(e.folder.write(QStringLiteral("b.png"), second)));
+        const int two = o->layer()->selectedId();
+        QVERIFY(one != two);
+        // Only the picked one (the second), and a crop kept (it has none).
+        QVERIFY(e.win.w.compressPictures(96, false, true) > 0);
+        QVERIFY(save(e));
+        QMap<QString, QByteArray> media = mediaOf(e.path);
+        QCOMPARE(media.size(), 2);
+        int untouched = 0;
+        for (const QByteArray &m : media) untouched += m == first;
+        QCOMPARE(untouched, 1);   // (the cropped picture's file is the first one, as it was)
+        QVERIFY(partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml")).contains("srcRect"));
+        // Every picture, keeping crops: the cropped picture's file is the whole picture, scaled; the crop is still there.
+        QVERIFY(e.win.w.compressPictures(96, true, false) > 0);
+        QVERIFY(save(e));
+        media = mediaOf(e.path);
+        QCOMPARE(media.size(), 2);
+        for (const QByteArray &m : media) QVERIFY(m != first);
+        QVERIFY(partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml")).contains("srcRect"));
+        pressUndo(&e.win.w);
+        // Every picture, taking the crop out: the cropped picture's file is only the middle half, as high as it is wide, with no crop left, and it shows where and how large it did.
+        o->layer()->select(o->idsOf(0).front());
+        const grid::ObjectBox before = o->layer()->boxNow(o->idsOf(0).front());
+        QVERIFY(e.win.w.compressPictures(96, true, true) > 0);
+        QVERIFY(save(e));
+        const QByteArray drawing = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY(!drawing.contains("srcRect"));
+        media = mediaOf(e.path);
+        QCOMPARE(media.size(), 2);
+        int square = 0;
+        for (const QByteArray &m : media) {
+            const QImage image = QImage::fromData(m);
+            square += std::abs(image.width() - image.height()) <= 2;
+        }
+        QCOMPARE(square, 1);
+        const grid::ObjectBox after = o->layer()->boxNow(o->idsOf(0).front());
+        QCOMPARE(after.w, before.w);
+        QCOMPARE(after.h, before.h);
+        pressUndo(&e.win.w);
+        QVERIFY(save(e));
+        QVERIFY(partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml")).contains("srcRect"));
+    }
+
+    // Insert > Online Pictures opens the shared pane on the right (it says what it sends); a search shows what the libraries have (canned here: nothing goes online), and Insert puts the picture
+    // on the sheet as a picture of a file is, with its title as alt text and, as asked, a credit line in a text box under it; the picture and its credit are one step of Undo. The workbook
+    // saved and opened again has both. F1 in the pane opens its topic.
+    void theOnlinePicturesPaneInsertsAPictureWithItsCreditInOneStep()
+    {
+        const QByteArray png = pngBytes(480, 320, Qt::red);
+        CannedLibraries libraries(png);
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(!e.win.w.onlinePictures());
+        QVERIFY(e.win.w.act(QStringLiteral("insert.onlinePicture")));
+        e.win.w.act(QStringLiteral("insert.onlinePicture"))->trigger();
+        OnlinePicturesPane *pane = e.win.w.onlinePictures();
+        QVERIFY(pane);
+        QVERIFY(pane->isVisible());
+        QVERIFY(pane->window() == &e.win.w);
+        QStringList words;
+        for (const QLabel *l : pane->findChildren<QLabel *>()) words << l->text();
+        QVERIFY2(words.join(' ').contains(QStringLiteral("Your search words go to the library you choose.")), qPrintable(words.join('\n')));
+        e.win.w.act(QStringLiteral("insert.onlinePicture"))->trigger();
+        QCOMPARE(e.win.w.onlinePictures(), pane);
+        pane->search(QStringLiteral("barn"));
+        QCOMPARE(pane->results()->count(), 1);
+        QVERIFY(pane->creditBox()->isChecked());
+        const int steps = e.win.w.undoStack()->count();
+        pane->insertButton()->click();
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(int(o->idsOf(0).size()), 2);
+        const int picture = o->idsOf(0).front(), credit = o->idsOf(0).back();
+        QCOMPARE(o->kindOf(0, picture), jp::office::sheet::ObjectKind::Picture);
+        QCOMPARE(o->kindOf(0, credit), jp::office::sheet::ObjectKind::Shape);
+        QCOMPARE(o->descriptionOf(0, picture), QStringLiteral("Red barn"));
+        QCOMPARE(o->layer()->selectedId(), picture);
+        // The credit is under the picture, and as wide.
+        const grid::ObjectBox pic = o->layer()->boxNow(picture), under = o->layer()->boxNow(credit);
+        QVERIFY(under.y >= pic.y + pic.h);
+        QVERIFY(under.w >= pic.w - 1);
+        QVERIFY2(save(e), qPrintable(e.win.told.join(QStringLiteral(" | "))));
+        QCOMPARE(mediaOf(e.path).size(), 1);
+        QCOMPARE(mediaOf(e.path).first(), png);
+        const QByteArray drawing = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY2(drawing.contains("descr=\"Red barn\""), drawing.constData());
+        QVERIFY(drawing.contains("Pat Lee, CC BY 2.0"));
+        const QString copy = e.copyOfFile();
+        // One Undo takes both, and Redo puts both back.
+        pressUndo(&e.win.w);
+        QCOMPARE(int(o->idsOf(0).size()), 0);
+        pressRedo(&e.win.w);
+        QCOMPARE(int(o->idsOf(0).size()), 2);
+        // Without the credit asked, only the picture.
+        pane->creditBox()->setChecked(false);
+        pane->insertButton()->click();
+        QCOMPARE(int(o->idsOf(0).size()), 3);
+        // F1 in the pane opens the topic for pictures.
+        e.win.w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&e.win.w));
+        pane->findChild<QLineEdit *>()->setFocus();
+        QTRY_VERIFY(QApplication::focusWidget() == pane->findChild<QLineEdit *>());
+        e.win.w.act(QStringLiteral("help.show"))->trigger();
+        QVERIFY(e.win.w.helpView());
+        QCOMPARE(e.win.w.helpView()->currentTopic(), QStringLiteral("charts"));
+        // The workbook as it was saved, opened again, has the picture and its credit.
+        Window again;
+        QVERIFY(again.open(copy));
+        QTRY_VERIFY(again.w.objects()->shownSheet() == 0 && again.w.objects()->layer()->count() == 2);
+    }
+
+    // Insert > Text Art puts words in a style of the shared gallery on the sheet as a shape of the drawing (a text body made as Text Art, with the warp named), which is saved so, read
+    // again as Text Art, and changed after that: its words, its style, and its warp, each one step of Undo.
+    void textArtIsInsertedEditedRestyledWarpedAndSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        const QString style = textArtStyles()[2].id;
+        const int steps = e.win.w.undoStack()->count();
+        QVERIFY(e.win.w.insertTextArt(style));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(int(o->idsOf(0).size()), 1);
+        const int id = o->idsOf(0).front();
+        QCOMPARE(o->kindOf(0, id), jp::office::sheet::ObjectKind::Shape);
+        QVERIFY(o->nameOf(0, id).startsWith(QStringLiteral("Text Art")));
+        QCOMPARE(o->layer()->selectedId(), id);
+        QVERIFY(e.win.w.pickedIsTextArt());
+        grid::ObjectBox box = o->layer()->boxNow(id);
+        QCOMPARE(box.w, 320.0);
+        QCOMPARE(box.h, 80.0);
+        QVERIFY2(save(e), qPrintable(e.win.told.join(QStringLiteral(" | "))));
+        QByteArray drawing = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY2(drawing.contains("fromWordArt=\"1\"") && drawing.contains("prstTxWarp") && drawing.contains("Your Text Here"), drawing.constData());
+        QVERIFY(!drawing.contains("<p:") && !drawing.contains("xdr:nvPr"));
+        // Opened again, it is Text Art still.
+        const QString copy = e.copyOfFile();
+        // Other words, a bigger size (the box grows with it), and the letters keep their look.
+        const int look = drawing.count("<a:ln");
+        e.win.w.setTextArtAsker([](TextArtItem *art) {
+            art->text = QStringLiteral("Fresh words\nin two lines");
+            art->size = 80;
+            return true;
+        });
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        e.win.w.act(QStringLiteral("object.editText"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 2);
+        QVERIFY2(save(e), qPrintable(e.win.told.join(QStringLiteral(" | "))));
+        drawing = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY(drawing.contains("Fresh words") && drawing.contains("in two lines") && drawing.contains("sz=\"8000\"") && !drawing.contains("Your Text Here"));
+        QVERIFY(drawing.count("<a:ln") >= look);
+        QVERIFY(drawing.contains("fromWordArt=\"1\""));
+        const int now = o->idsOf(0).front();
+        box = o->layer()->boxNow(now);
+        QVERIFY2(box.w > 320.0 * 1.5, qPrintable(QString::number(box.w)));
+        QVERIFY(e.win.w.pickedIsTextArt());
+        // Another style: its fill and outline, the words and the warp staying.
+        QString other;
+        for (const TextArtStyle &st : textArtStyles())
+            if (st.id != style && st.font != textArtStyles()[2].font && other.isEmpty()) other = st.id;
+        QVERIFY(!other.isEmpty());
+        QVERIFY(e.win.w.setTextArtStyle(other));
+        QVERIFY2(save(e), qPrintable(e.win.told.join(QStringLiteral(" | "))));
+        const QByteArray restyled = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY(restyled != drawing);
+        QVERIFY(restyled.contains("Fresh words") && restyled.contains("sz=\"8000\"") && restyled.contains("fromWordArt=\"1\""));
+        QVERIFY(!e.win.w.setTextArtStyle(QStringLiteral("no such style")));
+        // Another warp, and the same one is no change.
+        QString wave;
+        for (const TextArtTransform &t : textArtTransforms())
+            if (t.id.contains(QStringLiteral("wave"), Qt::CaseInsensitive) && wave.isEmpty()) wave = t.id;
+        QVERIFY(!wave.isEmpty());
+        QVERIFY(e.win.w.setTextArtWarp(wave));
+        QVERIFY(!e.win.w.setTextArtWarp(wave));
+        QVERIFY2(save(e), qPrintable(e.win.told.join(QStringLiteral(" | "))));
+        const QByteArray warped = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY2(warped.contains("prst=\"textWave"), warped.constData());
+        // Undo takes the changes back one at a time.
+        pressUndo(&e.win.w);
+        QVERIFY2(save(e), qPrintable(e.win.told.join(QStringLiteral(" | "))));
+        QVERIFY(!partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml")).contains("prst=\"textWave"));
+        pressUndo(&e.win.w);
+        QVERIFY2(save(e), qPrintable(e.win.told.join(QStringLiteral(" | "))));
+        QCOMPARE(partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml")), drawing);
+        pressUndo(&e.win.w);
+        QVERIFY2(save(e), qPrintable(e.win.told.join(QStringLiteral(" | "))));
+        QVERIFY(partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml")).contains("Your Text Here"));
+        // A shape that is not Text Art is told so.
+        QVERIFY(e.win.w.insertShape(QStringLiteral("rect")));
+        QVERIFY(!e.win.w.pickedIsTextArt());
+        e.win.told.clear();
+        QVERIFY(!e.win.w.setTextArtWarp(wave));
+        QVERIFY(!e.win.told.isEmpty());
+        // The workbook as it was first saved, opened again, shows Text Art still.
+        Window again;
+        QVERIFY(again.open(copy));
+        QTRY_VERIFY(again.w.objects()->shownSheet() == 0 && again.w.objects()->layer()->count() == 1);
+        again.w.objects()->layer()->select(again.w.objects()->idsOf(0).front());
+        QVERIFY(again.w.pickedIsTextArt());
     }
 
     // The Selection Pane lists the sheet's objects, front first; choosing a row picks the object, and its buttons bring it forward or send it back.

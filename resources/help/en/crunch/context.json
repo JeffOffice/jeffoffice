@@ -5,6 +5,7 @@
   "tab:View": "view",
   "tab:Help": "index",
   "pane:help": "index",
+  "pane:online": "charts",
   "file:info": "info",
   "file:open": "open-save",
   "file:about": "start",
