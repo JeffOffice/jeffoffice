@@ -15,6 +15,8 @@
 #include "app/updater.h"
 #include "io/importers.h"
 #include "io/jpubfile.h"
+#include "office/officecrypt.h"
+#include "office/package.h"
 #include "render/renderer.h"
 #include "templates/changetemplate.h"
 #include "templates/templates.h"
@@ -498,7 +500,10 @@ QWidget *Backstage::buildNew(bool change)
         optAddr->setVisible(t && t->optionKeys.contains(QStringLiteral("address")));
         if (key == "custom") { preview->clear(); return; }
         auto doc = build(key);
-        if (!doc) return;
+        if (!doc) {
+            preview->clear();   // (a protected template shows no preview: it is opened when it is used)
+            return;
+        }
         LayoutCache cache;
         PaintContext ctx;
         ctx.doc = doc.get();
@@ -529,6 +534,15 @@ QWidget *Backstage::buildNew(bool change)
             return;
         }
         if (!change && !m_win->maybeSave()) return;
+        // A protected template is made into a publication as it is opened: asking for the password (the same question as Open), and a copy of it is protected too.
+        if (!change && key.startsWith("file:")) {
+            QByteArray bytes, info, package;
+            if (office::readWholeFile(key.mid(5), &bytes) && office::splitProtectedPackage(bytes, &info, &package)) {
+                bytes.clear();
+                m_win->openFile(key.mid(5), OpenHow::Copy);
+                return;
+            }
+        }
         auto doc = build(key);
         if (!doc) return;
         if (key.startsWith("tpl:")) doc->templateId = key.mid(4);

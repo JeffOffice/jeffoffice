@@ -20,6 +20,8 @@
 
 namespace {
 
+using jptest::TestModeGuard;
+
 // A window that says what it would have shown in a box.
 struct Quiet {
     explicit Quiet(jp::MainWindow &w) { w.setNotifier([this](const QString &, const QString &text) { said << text; }); }
@@ -484,33 +486,66 @@ private Q_SLOTS:
         QVERIFY(!b.isReadOnly());
     }
 
-    // The password of a file does not go into a template: a protected publication becomes an unprotected template, and a new publication from it asks for nothing.
-    void aTemplateMadeFromAProtectedPublicationHasNoPassword()
+    // A template made from a protected publication is protected too (a template is a file somebody can read). It shows in the New page's My Templates; making a publication from it asks for the
+    // password as Open does: a wrong one asks again, and Cancel makes nothing. The new publication is protected, as a copy of a protected file is.
+    void aTemplateOfAProtectedPublicationAsksForThePasswordWhenUsed()
     {
-        QTemporaryDir dir;
-        jp::MainWindow w;
-        Quiet quiet(w);
-        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("t.jpub"))));
-        choosePassword(w, QStringLiteral("hunter2"));
+        TestModeGuard testMode;
         const QString tdir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/Templates");
+        QDir(tdir).removeRecursively();
+        const auto cleanTemplates = qScopeGuard([&] { QDir(tdir).removeRecursively(); });
+        QTemporaryDir dir;
+        {
+            jp::MainWindow w;
+            Quiet quiet(w);
+            w.editor()->doc()->props.title = QStringLiteral("Club flyer");
+            QVERIFY(w.saveTo(dir.filePath(QStringLiteral("t.jpub"))));
+            choosePassword(w, QStringLiteral("hunter2"));
+            jp::setSavePathStandIn([&](const QString &, const QString &, const QString &, QString *selected) {
+                *selected = QCoreApplication::translate("jp::MainWindow", "JeffPub Template (*.jpub)");
+                return dir.filePath(QStringLiteral("pwtemplate-test.jpub"));
+            });
+            const auto reset = qScopeGuard([] { jp::setSavePathStandIn({}); });
+            QVERIFY(w.saveAs());
+            QVERIFY(w.isPasswordProtected());
+            w.editor()->markSaved();
+        }
         const QString tpl = tdir + QStringLiteral("/pwtemplate-test.jpub");
-        QFile::remove(tpl);
-        jp::setSavePathStandIn([&](const QString &, const QString &, const QString &, QString *selected) {
-            *selected = QCoreApplication::translate("jp::MainWindow", "JeffPub Template (*.jpub)");
-            return dir.filePath(QStringLiteral("pwtemplate-test.jpub"));
-        });
-        const auto reset = qScopeGuard([&] { jp::setSavePathStandIn({}); QFile::remove(tpl); });
-        QVERIFY(w.saveAs());
-        QVERIFY(w.isPasswordProtected());   // (the window is as it was)
         QVERIFY(QFileInfo::exists(tpl));
-        QVERIFY(fileBytes(tpl).startsWith("PK"));
-        int asked = 0;
-        answerWith({}, &asked);
+        QVERIFY(fileBytes(tpl).startsWith(kCompound));
         jp::MainWindow n;
         Quiet quietN(n);
-        QVERIFY(n.openFile(tpl, jp::OpenHow::Copy));
-        QCOMPARE(asked, 0);
+        n.resize(1400, 900);
+        n.show();
+        n.showBackstage(QStringLiteral("new"));
+        QApplication::processEvents();
+        QListWidget *cats = nullptr, *grid = nullptr;
+        for (QListWidget *l : n.findChildren<QListWidget *>())
+            if (l->count() > 3 && l->item(0)->data(Qt::UserRole).toString() == QLatin1String("Featured")) cats = l;
+        QVERIFY(cats);
+        for (QListWidget *l : cats->parentWidget()->findChildren<QListWidget *>())
+            if (l != cats && l->viewMode() == QListView::IconMode) grid = l;
+        QVERIFY(grid);
+        cats->setCurrentRow(cats->count() - 1);
+        QApplication::processEvents();
+        QCOMPARE(grid->count(), 1);   // (listed, with no question asked)
+        grid->setCurrentRow(0);
+        // Cancel: nothing is made
+        int asked = 0;
+        answerWith({}, &asked);
+        Q_EMIT grid->itemDoubleClicked(grid->item(0));
+        QCOMPARE(asked, 1);
+        QVERIFY(n.editor()->doc()->props.title != QStringLiteral("Club flyer"));
         QVERIFY(!n.isPasswordProtected());
+        // a wrong password asks again; the right one makes the publication
+        asked = 0;
+        answerWith({QStringLiteral("nope"), QStringLiteral("hunter2")}, &asked);
+        Q_EMIT grid->itemDoubleClicked(grid->item(0));
+        QCOMPARE(asked, 2);
+        QCOMPARE(n.editor()->doc()->props.title, QStringLiteral("Club flyer"));
+        QVERIFY(n.editor()->filePath().isEmpty());
+        QVERIFY(n.isPasswordProtected());
+        n.editor()->markSaved();
     }
 
     // Pack and Go (to a printer's folder, and to a ZIP) and an email with the publication attached keep the password on the .jpub they write.

@@ -227,7 +227,7 @@ void saveAsTemplate(QWidget *parent, MainWindow *win)
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/Templates";
     QDir().mkpath(dir);
     QString err;
-    if (savePublication(*win->editor()->doc(), dir + "/" + name.trimmed() + ".jpub", win->pageThumbnail(0, 256), &err, true))
+    if (savePublication(*win->editor()->doc(), dir + "/" + name.trimmed() + ".jpub", win->pageThumbnail(0, 256), &err, true, QString(), win->filePassword()))
         jp::plainInformation(parent, QCoreApplication::translate("Sharing", "Save as Template"), QCoreApplication::translate("Sharing", "\"%1\" is now in File > New > My Templates.").arg(name.trimmed()));
     else jp::plainWarning(parent, QCoreApplication::translate("Sharing", "Save as Template"), err);
 }
