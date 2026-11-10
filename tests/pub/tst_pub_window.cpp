@@ -2619,7 +2619,8 @@ private Q_SLOTS:
         // Esc, with nothing selected, leaves it.
         fs->trigger();
         QTRY_VERIFY(w.isFullScreen());
-        QTest::keyClick(&w, Qt::Key_Escape);
+        w.canvas()->setFocus();
+        QTest::keyClick(w.canvas(), Qt::Key_Escape);
         QTRY_VERIFY(!w.isFullScreen());
         QTRY_VERIFY(!fs->isChecked());
         // With an object selected, the canvas has it to put away first: the first Esc lets it go, the second leaves.
@@ -2629,11 +2630,91 @@ private Q_SLOTS:
         ed->select(box->id);
         fs->trigger();
         QTRY_VERIFY(w.isFullScreen());
+        w.canvas()->setFocus();
+        QTest::keyClick(w.canvas(), Qt::Key_Escape);
+        QVERIFY(w.isFullScreen());
+        QVERIFY(ed->selection().isEmpty());   // (the canvas let the object go)
+        QTest::keyClick(w.canvas(), Qt::Key_Escape);
+        QTRY_VERIFY(!w.isFullScreen());
+    }
+
+    // Esc is left to what wants it: text being typed, the KeyTips letters, the ribbon with the focus, a dialog, and the File screen; the window is left only by the Esc that nothing else wanted.
+    // Leaving puts back a window that was maximized, and a second command before the window system answers goes back, not on.
+    void escLeavesFullScreenOnlyWhenNothingElseWantsIt()
+    {
+        jp::MainWindow w;
+        w.resize(1000, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        QAction *fs = w.act(QStringLiteral("view.fullScreen"));
+        jp::Editor *ed = w.editor();
+        auto enter = [&] {
+            if (!w.isFullScreen()) fs->trigger();
+            QTRY_VERIFY(w.isFullScreen());
+            w.canvas()->setFocus();
+        };
+        // Typing in a box: the first Esc stops the typing.
+        auto box = ed->newTextBox(QRectF(72, 72, 200, 60), QStringLiteral("Words"));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id, 0);
+        enter();
+        QTest::keyClick(w.canvas(), Qt::Key_Escape);
+        QVERIFY(w.isFullScreen());
+        QVERIFY(!ed->isEditingText());
+        ed->clearSelection();
+        // The KeyTips letters: Esc puts them away.
+        w.keyTips()->showTop();
+        QVERIFY(w.keyTips()->level() != jp::KeyTips::Off);
+        QTest::keyClick(w.canvas(), Qt::Key_Escape);
+        QVERIFY(w.isFullScreen());
+        QCOMPARE(int(w.keyTips()->level()), int(jp::KeyTips::Off));
+        // The ribbon with the focus: Esc goes back to the page.
+        w.ribbon()->focusCurrentTab();
+        QTRY_VERIFY(QApplication::focusWidget() && w.ribbon()->isAncestorOf(QApplication::focusWidget()));
+        QTest::keyClick(QApplication::focusWidget(), Qt::Key_Escape);
+        QVERIFY(w.isFullScreen());
+        w.canvas()->setFocus();
+        // A dialog that is open takes its own Esc.
+        QDialog dialog(&w);
+        QTimer::singleShot(100, &dialog, [&] { QTest::keyClick(&dialog, Qt::Key_Escape); });
+        dialog.exec();
+        QVERIFY(w.isFullScreen());
+        // The File screen: Esc closes it and the window stays.
+        w.showBackstage();
         QTest::keyClick(&w, Qt::Key_Escape);
         QVERIFY(w.isFullScreen());
-        ed->clearSelection();
-        QTest::keyClick(&w, Qt::Key_Escape);
+        w.canvas()->setFocus();
+        // Then nothing wants it, and it leaves.
+        QTest::keyClick(w.canvas(), Qt::Key_Escape);
         QTRY_VERIFY(!w.isFullScreen());
+    }
+
+    void leavingFullScreenPutsBackAMaximizedWindowAndAQuickSecondCommandGoesBack()
+    {
+        jp::MainWindow w;
+        w.resize(900, 600);
+        w.showMaximized();
+        QTRY_VERIFY(w.isMaximized());
+        QAction *fs = w.act(QStringLiteral("view.fullScreen"));
+        fs->trigger();
+        QTRY_VERIFY(w.isFullScreen());
+        QVERIFY(w.fullScreenRequested());
+        fs->trigger();
+        QVERIFY(!w.fullScreenRequested());   // (asked at once, before the window has answered)
+        QTRY_VERIFY(!w.isFullScreen());
+        QTRY_VERIFY(w.isMaximized());
+        // A window that was not maximized comes back as it was.
+        w.showNormal();
+        QTRY_VERIFY(!w.isMaximized());
+        fs->trigger();
+        QTRY_VERIFY(w.isFullScreen());
+        fs->trigger();
+        fs->trigger();
+        QVERIFY(w.fullScreenRequested());
+        QTRY_VERIFY(w.isFullScreen());
+        fs->trigger();
+        QTRY_VERIFY(!w.isFullScreen());
+        QVERIFY(!w.isMaximized());
     }
 };
 

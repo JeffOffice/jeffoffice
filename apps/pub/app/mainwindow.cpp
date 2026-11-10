@@ -299,7 +299,7 @@ bool MainWindow::eventFilter(QObject *o, QEvent *e)
     // Escape leaves Full Screen, unless the canvas has something to put away first.
     if (e->type() == QEvent::KeyPress && isFullScreen()) {
         const bool canvasWants = m_ed->isEditingText() || !m_ed->selection().isEmpty() || m_ed->tool() != Tool::Select || !m_ed->cropItem.isEmpty() || !m_ed->pointsItem.isEmpty() || !m_ed->wrapItem.isEmpty()
-                                 || m_ed->hasCellBlock();
+                                 || m_ed->hasCellBlock() || (m_keyTips && m_keyTips->level() != KeyTips::Off);
         if (escapeLeavesFullScreen(o, e, canvasWants)) return true;
     }
     // F1 in one of this window's dialogs: help on that dialog. (The window's
@@ -624,6 +624,15 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
         && jp::plainQuestion(this, tr("Save"), tr("This publication is protected with a password, and a .pub file can't keep a password. Save it as a .pub file without one?"), QMessageBox::Yes | QMessageBox::No,
                              QMessageBox::No) != QMessageBox::Yes)
         return false;
+    // Nor can a .pub file keep an object hidden: the person is asked before it is written with every object showing.
+    if (toPub) {
+        bool anyHidden = false;
+        m_ed->doc()->forEachItem([&](Item *it, int, const QString &) { anyHidden = anyHidden || it->hidden; });
+        if (anyHidden
+            && jp::plainQuestion(this, tr("Save"), tr("This publication has hidden objects. The .pub format can't keep them hidden, so they will be visible the next time it opens. Save it as a .pub file anyway?"),
+                                 QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+            return false;
+    }
     const QString password = m_fileProtected && !toPub ? m_filePassword : QString();
     QString err;
     const QImage thumb = pageThumbnail(0, 256);

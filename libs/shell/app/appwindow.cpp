@@ -8,6 +8,7 @@
 #include <QAbstractSpinBox>
 #include <QComboBox>
 #include <QKeyEvent>
+#include <QWindowStateChangeEvent>
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QTextEdit>
@@ -29,16 +30,28 @@ QList<AppWindow *> AppWindow::windows()
 
 void AppWindow::toggleFullScreen()
 {
-    if (isFullScreen()) showNormal();
-    else showFullScreen();
-    if (QAction *a = act(QStringLiteral("view.fullScreen"))) a->setChecked(isFullScreen());
+    m_fullScreenWanted = !m_fullScreenWanted;
+    if (m_fullScreenWanted) {
+        if (!isFullScreen()) m_wasMaximized = isMaximized();   // (kept to put it back as it was)
+        showFullScreen();
+    } else if (m_wasMaximized) {
+        showMaximized();
+    } else {
+        showNormal();
+    }
+    if (QAction *a = act(QStringLiteral("view.fullScreen"))) a->setChecked(m_fullScreenWanted);
 }
 
 void AppWindow::changeEvent(QEvent *e)
 {
     QMainWindow::changeEvent(e);
-    if (e->type() == QEvent::WindowStateChange)
-        if (QAction *a = act(QStringLiteral("view.fullScreen"))) a->setChecked(isFullScreen());
+    if (e->type() != QEvent::WindowStateChange) return;
+    // (The window system's own button or key can change it too.)
+    if (isFullScreen() != m_fullScreenWanted) {
+        if (isFullScreen()) m_wasMaximized = static_cast<QWindowStateChangeEvent *>(e)->oldState().testFlag(Qt::WindowMaximized);
+        m_fullScreenWanted = isFullScreen();
+    }
+    if (QAction *a = act(QStringLiteral("view.fullScreen"))) a->setChecked(m_fullScreenWanted);
 }
 
 bool AppWindow::escapeLeavesFullScreen(QObject *target, QEvent *event, bool otherWantsIt)
@@ -49,7 +62,7 @@ bool AppWindow::escapeLeavesFullScreen(QObject *target, QEvent *event, bool othe
     if (!w || w->window() != this) return false;
     // (Esc in a box that is being typed in, or a list that is open, is that box's.)
     for (const QWidget *p = w; p && p != this; p = p->parentWidget())
-        if (qobject_cast<const QLineEdit *>(p) || qobject_cast<const QTextEdit *>(p) || qobject_cast<const QPlainTextEdit *>(p) || qobject_cast<const QAbstractSpinBox *>(p)
+        if (qobject_cast<const Ribbon *>(p) || qobject_cast<const QLineEdit *>(p) || qobject_cast<const QTextEdit *>(p) || qobject_cast<const QPlainTextEdit *>(p) || qobject_cast<const QAbstractSpinBox *>(p)
             || qobject_cast<const QComboBox *>(p))
             return false;
     toggleFullScreen();

@@ -53,6 +53,8 @@ public:
     // Full Screen (View > Full Screen, the command "view.fullScreen"): the window fills the screen, and the same command puts it back. The command's check follows the window, which the
     // window system's own button or key can also change.
     void toggleFullScreen();
+    // Whether the window is, or has been asked to be, full screen (a window system that is slow to say so, as a Mac is while it animates, does not make a second toggle repeat the first).
+    bool fullScreenRequested() const { return m_fullScreenWanted; }
     // Esc leaves Full Screen where nothing else in the window wants the key (`otherWantsIt`: a selection to drop, text being typed, a tool to put down). Called from the window's event
     // filter with each event; true when it took the key.
     bool escapeLeavesFullScreen(QObject *target, QEvent *event, bool otherWantsIt);
@@ -64,6 +66,7 @@ protected:
     // After the window brought the controls of tabs made late up to date (which can turn a control on that read-only turned off): turned off again.
     void keepRibbonReadOnly();
     bool m_readOnly = false;
+    bool m_fullScreenWanted = false, m_wasMaximized = false;
 };
 
 } // namespace jp
