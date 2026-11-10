@@ -3,6 +3,7 @@
 // that these commands do not touch stays in the copy as it was.
 #include "app/crunchwindow.h"
 
+#include "app/compresspictures.h"
 #include "app/icons.h"
 #include "app/plaintext.h"
 #include "app/ribbonbuilder.h"
@@ -392,6 +393,109 @@ bool CrunchWindow::cropObject(int width, int height)
     }, true);
 }
 
+// Compress Pictures: each picture of the sheet (or the picked ones) is made again, as the Crop commands make one, with its file made smaller as the target asks for the size it is shown at
+// (and, as asked, with what its crop cuts away taken out of the file and the crop gone). The pictures taken away and the pictures made in their place are one step of Undo, each new one with
+// the old one's name, alternative text, place, and order. The bytes saved. (A picture is only on the sheet shown: the sheets are measured when they are shown.)
+qint64 CrunchWindow::compressPictures(double ppi, bool all, bool deleteCropped)
+{
+    if (!m_session || !m_objects || m_chartSheetShown) return 0;
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed()) return 0;
+    const QString stepText = tr("Compress Pictures");
+    const std::vector<int> ids = all ? m_objects->idsOf(m_sheet) : pickedObjects();
+    std::vector<crunch::ObjectEdit> edits;
+    std::vector<int> made;
+    qint64 saved = 0;
+    for (const int id : ids) {
+        if (m_objects->kindOf(m_sheet, id) != ObjectKind::Picture || !m_objects->canDelete(m_sheet, id)) continue;
+        crunch::ObjectClip clip;
+        if (!m_objects->copyElement(m_sheet, id, &clip, nullptr) || clip.media.size() != 1) continue;
+        const QByteArray wrapped = "<w xmlns:xdr=\"" + kXdr.toUtf8() + "\" xmlns:a=\"" + kA.toUtf8() + "\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"" + clip.namespaces
+                                   + ">" + clip.elementXml + "</w>";
+        QDomDocument doc;
+        if (!doc.setContent(wrapped, QDomDocument::ParseOption::UseNamespaceProcessing)) continue;
+        QDomElement el = doc.documentElement().firstChildElement();
+        const QDomElement blipFill = el.isNull() ? QDomElement() : childNamed(el, QStringLiteral("blipFill"));
+        const QDomElement blip = blipFill.isNull() ? QDomElement() : childNamed(blipFill, QStringLiteral("blip"));
+        // (A picture with a second picture in it, or one that is only linked, is left as it is.)
+        if (blip.isNull() || !childNamed(blip, QStringLiteral("extLst")).isNull() || blip.hasAttribute(QStringLiteral("r:link")) || blip.attribute(QStringLiteral("r:embed")) != clip.media[0].token) continue;
+        const QDomElement src = childNamed(blipFill, QStringLiteral("srcRect"));
+        auto share = [&](const char *name) { return src.isNull() ? 0.0 : src.attribute(QLatin1String(name), QStringLiteral("0")).toDouble() / 100000.0; };
+        const double l = share("l"), t = share("t"), r = share("r"), b = share("b");
+        const bool cut = l + t + r + b > 0.000005;
+        const bool drop = deleteCropped && cut && l >= 0 && t >= 0 && r >= 0 && b >= 0;
+        const double wholeShare = 1.0 - l - r;
+        if (wholeShare < 0.02 || clip.width <= 0) continue;
+        // (The grid's unit is a pixel at 100%: three quarters of a point.)
+        const double shown = clip.width * 0.75 / wholeShare;
+        const QRectF keep = drop ? QRectF(l, t, 1.0 - l - r, 1.0 - t - b) : QRectF(0, 0, 1, 1);
+        QByteArray bytes, format;
+        if (!compressedPictureFile(clip.media[0].bytes, shown, ppi, keep, &bytes, &format)) continue;
+        const qint64 gain = clip.media[0].bytes.size() - bytes.size();
+        clip.media[0].bytes = bytes;
+        clip.media[0].extension = format == "jpg" ? QStringLiteral("jpeg") : QStringLiteral("png");
+        clip.media[0].contentType = format == "jpg" ? QStringLiteral("image/jpeg") : QStringLiteral("image/png");
+        if (drop) {
+            Crop none;
+            setCrop(el, none);
+        }
+        QDomElement props = firstNamed(el, QStringLiteral("cNvPr"));
+        if (!props.isNull()) {
+            props.setAttribute(QStringLiteral("name"), m_objects->nameOf(m_sheet, id));
+            const QString d = m_objects->descriptionOf(m_sheet, id);
+            if (d.isEmpty()) props.removeAttribute(QStringLiteral("descr"));
+            else props.setAttribute(QStringLiteral("descr"), d);
+        }
+        QString text;
+        {
+            QTextStream ts(&text);
+            el.save(ts, -1);
+        }
+        clip.elementXml = text.toUtf8();
+        const DrawingAnchor was = m_objects->anchorOf(m_sheet, id);
+        QString why;
+        const int fresh = m_objects->makeElement(m_sheet, clip, was, &why);
+        if (fresh < 0) continue;
+        made.push_back(fresh);
+        // The old one is taken away (with what writes it back if Undo is used after a save), and the new one is there in its place.
+        crunch::ObjectEdit gone;
+        gone.sheet = m_sheet;
+        gone.id = id;
+        gone.before = m_objects->stateOf(m_sheet, id);
+        gone.after = gone.before;
+        gone.after.deleted = true;
+        gone.after.revive = m_objects->captureRevive(m_sheet, id);
+        gone.before.revive = gone.after.revive;
+        crunch::ObjectEdit put;
+        put.sheet = m_sheet;
+        put.id = fresh;
+        put.before = m_objects->stateOf(m_sheet, fresh);
+        put.after = put.before;
+        put.after.deleted = false;
+        put.after.order = gone.before.order;
+        edits.push_back(gone);
+        edits.push_back(put);
+        saved += gain;
+    }
+    if (edits.empty()) return 0;
+    const crunch::EditSession::Outcome o = m_session->changeObjects(edits, stepText);
+    if (!o.ok) {
+        for (const int id : made) m_objects->discardMade(m_sheet, id);
+        notice(stepText, o.problem);
+        return 0;
+    }
+    if (!all && made.size() == 1) m_objects->layer()->select(made.front());
+    return saved;
+}
+
+void CrunchWindow::compressPicturesDialog()
+{
+    if (!m_session || !m_objects || m_chartSheetShown) return;
+    CompressChoices choices;
+    if (!askCompressPictures(this, tr("Apply to all pictures on this sheet"), &choices)) return;
+    tellCompressSaved(this, compressPictures(choices.ppi, choices.all, choices.deleteCropped));
+}
+
 bool CrunchWindow::setObjectText(const ShapeTextChoices &choices)
 {
     return restyleObject(tr("Edit Text"), [&](QDomElement &el, grid::ObjectBox *) { return setText(el, choices); });
@@ -574,6 +678,7 @@ void CrunchWindow::createObjectFormatActions()
     mk("object.selectionPane", tr("Selection Pane"), "layers", QKeySequence(), [this] { showSelectionPane(); });
     m_opsActions << QStringLiteral("object.selectionPane");
     auto mkObject = [this](const char *id, const QString &text, const char *icon, const std::function<void()> &fn) { mk(QString::fromLatin1(id), text, icon, QKeySequence(), fn, false, false); };
+    mkObject("object.compress", tr("Compress Pictures…"), "minimize-2", [this] { compressPicturesDialog(); });
     mkObject("object.editText", tr("Edit Text…"), "text-cursor-input", [this] { editObjectText(); });
     mkObject("object.rotateRight", tr("Rotate Right 90°"), "rotate-cw", [this] { rotateObject(1, false, false); });
     mkObject("object.rotateLeft", tr("Rotate Left 90°"), "rotate-ccw", [this] { rotateObject(-1, false, false); });

@@ -1419,6 +1419,8 @@ public:
     bool setObjectOutlineStyle(double weightPoints, const QString &dash);
     bool rotateObject(int quarterTurns, bool flipH, bool flipV);
     bool cropObject(int width, int height);
+    // Compress Pictures with the choices made (no box): the pictures of the sheet, or the picked ones, made smaller for `ppi` pixels to the inch, as one step of Undo; the bytes saved.
+    qint64 compressPictures(double ppi, bool all, bool deleteCropped);
     bool setObjectText(const ShapeTextChoices &choices);
     void insertChartDialog();
     void recommendedChartsDialog();
@@ -1482,6 +1484,7 @@ private:
     bool placeObjectClip(const crunch::ObjectClip &clip, const QString &stepText, const jp::office::sheet::DrawingAnchor *at = nullptr, int order = -1);
     bool restyleObject(const QString &stepText, const std::function<bool(QDomElement &, jp::grid::ObjectBox *)> &edit, bool pictureOnly = false);
     void editObjectText();
+    void compressPicturesDialog();
     void showSelectionPane();
     QPointer<SelectionPane> m_selectionPane;
     void createObjectFormatActions();

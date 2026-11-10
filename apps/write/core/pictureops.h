@@ -159,6 +159,12 @@ bool setPictureRecolor(WriteDoc &doc, int position, PictureRecolor recolor);
 bool resetPicture(WriteDoc &doc, int position);
 // Another picture in the place of this one, in the same frame width, with the same place, wrap, and alt text; its cuts and colors are not kept. The result is as insertPicture's.
 PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &bytes);
+// The places of the body text's pictures (a picture that is a picture of the file: not a shape, a text box, a chart, or a group), in the order of the text.
+QVector<int> picturePositions(const WriteDoc &doc);
+// Compress Pictures: each picture at `positions` is made no more detailed than `ppi` pixels to the inch of the size it is shown at, and kept only when that makes it smaller; with
+// `deleteCropped`, the parts a picture is cut away from are taken out of the file's picture and the cut is gone, the frame and what shows staying as they were. All is one step that
+// undoes. The picture's own file part is let go of at save when nothing else names it. Returns the bytes saved (0 when nothing was smaller; no step is made then).
+qint64 compressPictures(WriteDoc &doc, double ppi, const QVector<int> &positions, bool deleteCropped);
 
 // ---- Shapes and text boxes
 

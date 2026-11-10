@@ -40,6 +40,7 @@
 #include <QJsonDocument>
 #include <QTextBlock>
 #include <QLineEdit>
+#include <QRandomGenerator>
 #include <QStatusBar>
 #include <QAbstractButton>
 #include <QAbstractItemModel>
@@ -159,6 +160,31 @@ QByteArray pngOf(int w, int h, QColor color = QColor(200, 30, 30))
     buffer.open(QIODevice::WriteOnly);
     image.save(&buffer, "PNG");
     return bytes;
+}
+
+// A picture file of noise (a PNG that compresses badly), this many pixels across and down: the left half is red-tinted and the right half blue-tinted, so a cut shows.
+QByteArray noisyPng(int w, int h)
+{
+    QRandomGenerator rng(7);
+    QImage image(w, h, QImage::Format_RGB32);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) image.setPixel(x, y, qRgb(x < w / 2 ? 200 + int(rng.bounded(56)) : int(rng.bounded(60)), int(rng.bounded(256)), x < w / 2 ? int(rng.bounded(60)) : 200 + int(rng.bounded(56))));
+    QByteArray bytes;
+    QBuffer buffer(&bytes);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    return bytes;
+}
+
+// The picture files of a saved document, by part name.
+QMap<QString, QByteArray> mediaOf(const QByteArray &zip)
+{
+    office::Package p;
+    p.read(zip);
+    QMap<QString, QByteArray> out;
+    for (const QString &name : p.partNames())
+        if (name.startsWith(QLatin1String("/word/media/"))) out.insert(name, p.part(name));
+    return out;
 }
 
 // The first picture of the text as the pages draw it: an object set in the line, or one set at a place on the first page.
@@ -1733,6 +1759,132 @@ private Q_SLOTS:
         // Not a picture; and not where there is none.
         QCOMPARE(changePictureFile(*doc, 7, QByteArray("not a picture")), PictureResult::Unreadable);
         QCOMPARE(changePictureFile(*doc, 2, pngOf(10, 10)), PictureResult::Refused);
+    }
+
+    // Compress Pictures: a picture is made no more detailed than the target asks for the size it is shown at, in the saved file's own picture part, with its frame and place as they were.
+    // The step undoes (the file has the first picture again, byte for byte) and does again, and a picture that would not get smaller is left alone.
+    void compressingAPictureMakesItsSavedPartSmallerAndUndoes()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        const QByteArray original = noisyPng(800, 400);
+        QCOMPARE(insertPicture(*doc, c, original, QStringLiteral("noise"), PictureWrap::Square, QStringLiteral("Some noise")), PictureResult::Ok);
+        QVERIFY(setPictureSize(*doc, 7, 200, 100));
+        QVERIFY(setPicturePlace(*doc, 7, 100, 200));
+        // (The file as saved and opened again: the picture is the file's own part, not one the program made.)
+        auto saved = open(doc->toDocx());
+        QVERIFY(saved);
+        QCOMPARE(picturePositions(*saved), QVector<int>({7}));
+        const QMap<QString, QByteArray> before = mediaOf(saved->toDocx());
+        QCOMPARE(before.size(), 1);
+        QCOMPARE(before.first(), original);
+        const PictureInfo was = pictureAt(*saved, saved->story(), 7);
+        const qint64 gained = compressPictures(*saved, 96, picturePositions(*saved), true);
+        QVERIFY2(gained > 100000, qPrintable(QString::number(gained)));
+        const QByteArray after = saved->toDocx();
+        const QMap<QString, QByteArray> media = mediaOf(after);
+        QCOMPARE(media.size(), 1);   // (the first picture's part is not written when nothing names it)
+        QCOMPARE(qint64(before.first().size() - media.first().size()), gained);
+        const QImage made = QImage::fromData(media.first());
+        QVERIFY(!made.isNull());
+        // 200 points shown at 96 pixels to the inch is 267 pixels, and the picture keeps its proportions.
+        QVERIFY2(std::abs(made.width() - 266) <= 2, qPrintable(QString::number(made.width())));
+        QVERIFY(std::abs(made.width() - 2 * made.height()) <= 2);
+        const PictureInfo now = pictureAt(*saved, saved->story(), 7);
+        QCOMPARE(now.width, was.width);
+        QCOMPARE(now.height, was.height);
+        QCOMPARE(now.left, was.left);
+        QCOMPARE(now.alt, QStringLiteral("Some noise"));
+        // Saved and opened again, it is the same picture.
+        auto reopened = open(after);
+        QVERIFY(reopened);
+        QCOMPARE(pictureAt(*reopened, reopened->story(), 7).width, was.width);
+        QCOMPARE(mediaOf(reopened->toDocx()).first(), media.first());
+        // Undo is one step and brings the first picture back; Redo does it again.
+        QVERIFY(saved->undo());
+        QCOMPARE(mediaOf(saved->toDocx()).first(), original);
+        QVERIFY(saved->redo());
+        QCOMPARE(mediaOf(saved->toDocx()).first(), media.first());
+        // Nothing smaller to make (a picture of one color that is small already) is no step and no change.
+        auto plain = textDoc({"Before after"});
+        QTextCursor pc(plain->story());
+        pc.setPosition(7);
+        QCOMPARE(insertPicture(*plain, pc, pngOf(40, 40)), PictureResult::Ok);
+        QCOMPARE(compressPictures(*plain, 96, picturePositions(*plain), true), qint64(0));
+        QVERIFY(plain->undo());   // (that was the insertion: Compress made no step)
+        QVERIFY(picturePositions(*plain).isEmpty());
+    }
+
+    // With "delete cropped areas" the parts a picture is cut away from leave the file's picture and the cut is gone, with what shows, and its frame, as they were; without it the cut stays.
+    void compressingCanTakeTheCroppedAreasOutOfThePicture()
+    {
+        auto make = [] {
+            auto doc = textDoc({"Before after"});
+            QTextCursor c(doc->story());
+            c.setPosition(7);
+            insertPicture(*doc, c, noisyPng(800, 400));
+            setPictureSize(*doc, 7, 400, 200);
+            setPictureCrop(*doc, 7, 0.25, 0, 0.25, 0);   // (the middle half: 200 points across, and the red half and the blue half cut away)
+            return open(doc->toDocx());
+        };
+        auto keep = make();
+        QVERIFY(keep);
+        const PictureInfo was = pictureAt(*keep, keep->story(), 7);
+        QVERIFY(std::abs(was.cropLeft - 0.25) < 0.001);
+        QVERIFY(compressPictures(*keep, 96, picturePositions(*keep), false) > 0);
+        QImage image = QImage::fromData(mediaOf(keep->toDocx()).first());
+        QVERIFY(std::abs(image.width() - 2 * image.height()) <= 2);   // (the whole picture, scaled)
+        QVERIFY(std::abs(pictureAt(*keep, keep->story(), 7).cropLeft - 0.25) < 0.001);
+        auto cut = make();
+        QVERIFY(compressPictures(*cut, 96, picturePositions(*cut), true) > 0);
+        const QMap<QString, QByteArray> media = mediaOf(cut->toDocx());
+        QCOMPARE(media.size(), 1);
+        image = QImage::fromData(media.first());
+        // The middle half only: as high as it is wide, and neither tinted half of the picture is in it.
+        QVERIFY2(std::abs(image.width() - image.height()) <= 2, qPrintable(QString::number(image.width()) + "x" + QString::number(image.height())));
+        const PictureInfo now = pictureAt(*cut, cut->story(), 7);
+        QCOMPARE(now.cropLeft, 0.0);
+        QCOMPARE(now.cropRight, 0.0);
+        QCOMPARE(now.width, was.width);
+        QCOMPARE(now.height, was.height);
+        QVERIFY(cut->undo());
+        QVERIFY(pictureAt(*cut, cut->story(), 7).cropLeft > 0.24);
+    }
+
+    // The Picture Format tab's Compress Pictures: the box's choices, every picture or the selected one, one step.
+    void theWindowCompressesEveryPictureOrTheSelectedOne()
+    {
+        Win win;
+        const QByteArray first = noisyPng(800, 400), second = noisyPng(640, 640);
+        QVERIFY(win.w.view()->insertPictureBytes(first, QStringLiteral("a")));
+        QTextCursor end(win.w.document()->story());
+        end.movePosition(QTextCursor::End);
+        win.w.view()->setCursor(end);
+        QVERIFY(win.w.view()->insertPictureBytes(second, QStringLiteral("b")));
+        const QVector<int> at = picturePositions(*win.w.document());
+        QCOMPARE(at.size(), 2);
+        QVERIFY(win.w.act(QStringLiteral("picture.compress")));
+        win.w.view()->selectPicture(at[0]);
+        QTRY_VERIFY(win.w.act(QStringLiteral("picture.compress"))->isEnabled());
+        for (const int p : at) QVERIFY(setPictureSize(*win.w.document(), p, 100, 100));
+        win.w.view()->selectPicture(at[0]);
+        // The selected one only.
+        QVERIFY(win.w.compressPictures(96, false, true) > 0);
+        QCOMPARE(mediaOf(win.w.document()->toDocx()).size(), 2);
+        int small = 0;
+        for (const QByteArray &m : mediaOf(win.w.document()->toDocx())) small += m.size() < 100000;
+        QCOMPARE(small, 1);
+        // Every one, then Undo twice puts both first pictures back.
+        QVERIFY(win.w.compressPictures(96, true, true) > 0);
+        small = 0;
+        for (const QByteArray &m : mediaOf(win.w.document()->toDocx())) small += m.size() < 100000;
+        QCOMPARE(small, 2);
+        QVERIFY(win.w.document()->undo());
+        QVERIFY(win.w.document()->undo());
+        const QMap<QString, QByteArray> back = mediaOf(win.w.document()->toDocx());
+        QCOMPARE(back.size(), 2);
+        for (const QByteArray &m : back) QVERIFY(m == first || m == second);
     }
 
     void thePictureFormatTabCorrectsRecolorsFramesAndResetsInOneStepEach()

@@ -596,6 +596,12 @@ QString WriteDoc::addMedia(const QByteArray &bytes, const QString &extension, co
     return r.id;
 }
 
+void WriteDoc::letGoOfMediaIfUnused(const QString &id)
+{
+    for (const Relationship &r : m_wml.mainRelationships)
+        if (r.id == id && !r.external && r.type.endsWith(QLatin1String("/image"))) m_madeMedia.insert(id, r.target);
+}
+
 QByteArray WriteDoc::relatedPartData(const QString &id) const
 {
     for (const Relationship &r : m_wml.mainRelationships)

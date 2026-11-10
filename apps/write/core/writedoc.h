@@ -606,6 +606,9 @@ public:
     QString addMedia(const QByteArray &bytes, const QString &extension, const QString &contentType, bool *added = nullptr);
     // Takes back a relationship of the main part that addMedia made, and its part if no other relationship names it (for a picture that could not be put in the text).
     void removeMedia(const QString &id);
+    // A picture's part (the relationship `id` of the main part) that a change has put another in the place of: the file leaves it out when nothing names it any more, and the document
+    // keeps it for the steps of the history that bring the picture back.
+    void letGoOfMediaIfUnused(const QString &id);
 
     // The bytes of the part that a relationship of the main part names (a chart), or none for an Id that names no part. And a new part with a relationship to it of this kind, named
     // folder/base1.ext and on (it has the relationships of `likePart`, a part it takes the place of); the Id of the relationship. Like a picture's, it is left out of the file when nothing names it (a chart taken back by Undo).

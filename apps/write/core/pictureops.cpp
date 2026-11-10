@@ -5,6 +5,7 @@
 #include "core/boxlinks.h"
 #include "core/drawnitems.h"
 #include "core/editops.h"
+#include "app/compresspictures.h"
 #include "office/chart.h"
 #include "office/chart_write.h"
 #include "office/drawingml_color.h"
@@ -2935,6 +2936,82 @@ PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &b
         return PictureResult::Refused;
     }
     return PictureResult::Ok;
+}
+
+QVector<int> picturePositions(const WriteDoc &doc)
+{
+    QVector<int> out;
+    const QTextDocument *story = doc.story();
+    if (!story) return out;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            if (!f.charFormat().hasProperty(prop::Atom)) continue;
+            for (int i = 0; i < f.length(); ++i)
+                if (isPictureAt(story, f.position() + i)) out.push_back(f.position() + i);
+        }
+    return out;
+}
+
+qint64 compressPictures(WriteDoc &doc, double ppi, const QVector<int> &positions, bool deleteCropped)
+{
+    qint64 saved = 0;
+    const WriteDoc::StepGroup group(doc);
+    for (const int position : positions) {
+        if (!isPictureAt(doc.story(), position)) continue;
+        QString oldId;
+        qint64 oldSize = 0, newSize = 0;
+        const bool changed = changePicture(doc, position, [&](Model &m) {
+            BlipSpot b;
+            // (A picture with a second picture inside it, a vector one for the programs that draw those, or one that is only linked is left as it is.)
+            if (!findBlip(m.graphic, &b) || b.inner.contains("r:embed") || b.inner.contains("r:link") || b.startTag.contains("r:link")) return false;
+            Attributes attrs = attributesOf(b.startTag);
+            const QByteArray embed = attributeValue(attrs, "r:embed");
+            if (embed.isEmpty()) return false;
+            const QString id = QString::fromLatin1(embed);
+            const QByteArray bytes = doc.relatedPartData(id);
+            if (bytes.isEmpty()) return false;
+            double cut[4];
+            cutOf(m.graphic, cut);
+            // A picture with room round it (a negative cut) keeps its cut: only a cut that takes something away is taken out of the file's picture.
+            const bool drop = deleteCropped && cut[0] >= 0 && cut[1] >= 0 && cut[2] >= 0 && cut[3] >= 0 && (cut[0] + cut[1] + cut[2] + cut[3]) > 0.000005;
+            const double wholeShare = 1 - cut[0] - cut[2];
+            if (wholeShare < 0.02) return false;
+            const double shown = double(m.cx) / kEmuPerPoint / wholeShare;
+            const QRectF keep = drop ? QRectF(cut[0], cut[1], 1 - cut[0] - cut[2], 1 - cut[1] - cut[3]) : QRectF(0, 0, 1, 1);
+            QByteArray made, format;
+            if (!compressedPictureFile(bytes, shown, ppi, keep, &made, &format)) return false;
+            bool added = false;
+            const bool jpeg = format == "jpg";
+            const QString rid = doc.addMedia(made, jpeg ? QStringLiteral("jpeg") : QStringLiteral("png"), jpeg ? QStringLiteral("image/jpeg") : QStringLiteral("image/png"), &added);
+            if (rid == id) return false;
+            setAttribute(&attrs, "r:embed", quote(rid.toUtf8()));
+            const qsizetype nameEnd = b.startTag.indexOf(' ') > 0 ? b.startTag.indexOf(' ') : b.startTag.size() - 1;
+            QByteArray start = b.startTag.left(nameEnd);
+            Attributes declared;
+            attributesOf(b.startTag, &declared);
+            for (const auto &d : declared) start += " " + d.first + "=" + d.second;
+            b.startTag = start + written(attrs) + (b.selfClosing ? "/>" : ">");
+            m.graphic = withBlip(m.graphic, b);
+            if (drop) {
+                static const QRegularExpression existing(QStringLiteral("<a:srcRect\\b[^>]*/>|<a:srcRect\\b[^>]*></a:srcRect>"));
+                QString text = QString::fromUtf8(m.graphic);
+                const QRegularExpressionMatch found = existing.match(text);
+                if (found.hasMatch()) {
+                    text.remove(found.capturedStart(), found.capturedLength());
+                    m.graphic = text.toUtf8();
+                }
+            }
+            oldId = id;
+            oldSize = bytes.size();
+            newSize = made.size();
+            return true;
+        });
+        if (!changed) continue;
+        doc.letGoOfMediaIfUnused(oldId);
+        saved += oldSize - newSize;
+    }
+    return saved;
 }
 
 // ---- Charts

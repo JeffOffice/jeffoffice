@@ -1,5 +1,9 @@
 #include "app/compresspictures.h"
 
+#include "app/plaintext.h"
+
+#include <algorithm>
+
 #include <QBuffer>
 #include <QCheckBox>
 #include <QComboBox>
@@ -7,6 +11,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QImageReader>
 
 namespace jp {
 
@@ -58,6 +63,32 @@ bool encodedIfSmaller(const QImage &image, qint64 originalBytes, QByteArray *byt
     *bytes = made;
     *format = alpha ? "png" : "jpg";
     return true;
+}
+
+bool compressedPictureFile(const QByteArray &bytes, double shownWidth, double ppi, const QRectF &keep, QByteArray *out, QByteArray *format)
+{
+    QByteArray copy = bytes;
+    QBuffer in(&copy);
+    in.open(QIODevice::ReadOnly);
+    QImageReader reader(&in);
+    const QByteArray kind = reader.format().toLower();
+    if (kind.isEmpty() || kind.startsWith("svg") || reader.imageCount() > 1) return false;
+    const QImage image = reader.read();
+    if (image.isNull() || shownWidth <= 0) return false;
+    QImage made = scaledForPpi(image, shownWidth, ppi);
+    const QRectF whole(0, 0, 1, 1);
+    const QRectF part = keep.intersected(whole);
+    if (part.width() <= 0 || part.height() <= 0) return false;
+    if (part != whole) {
+        const QRect px(int(part.x() * made.width()), int(part.y() * made.height()), std::max(1, int(part.width() * made.width() + 0.5)), std::max(1, int(part.height() * made.height() + 0.5)));
+        made = made.copy(px.intersected(made.rect()));
+    }
+    return !made.isNull() && encodedIfSmaller(made, bytes.size(), out, format);
+}
+
+void tellCompressSaved(QWidget *parent, qint64 saved)
+{
+    jp::plainInformation(parent, QCoreApplication::translate("jp::PictureCompress", "Compress Pictures"), QCoreApplication::translate("jp::PictureCompress", "Saved %1 KB.").arg(saved / 1024));
 }
 
 } // namespace jp

@@ -15,6 +15,7 @@
 #include "office/drawingml.h"
 #include "office/drawingml_geometry.h"
 #include "render/shapes.h"
+#include "app/compresspictures.h"
 #include "render/textart.h"
 
 #include <QAction>
@@ -672,6 +673,7 @@ void WriteWindow::createPictureAdjustActions()
         m_view->setFocus(Qt::OtherFocusReason);
     });
     mk("picture.change", tr("Change Picture…"), "replace", QKeySequence(), [this] { changeSelectedPicture(); });
+    mk("picture.compress", tr("Compress Pictures…"), "minimize-2", QKeySequence(), [this] { compressPicturesDialog(); });
     static const int steps[] = {-40, -20, 20, 40};
     for (const int v : steps) {
         mk(QStringLiteral("picture.correct.brightness.%1").arg(v), v < 0 ? tr("Brightness: %1%").arg(v) : tr("Brightness: +%1%").arg(v), "sun", QKeySequence(), [this, v] {
@@ -780,6 +782,37 @@ void WriteWindow::changeSelectedPicture()
     const bool changed = m_view->changeSelectedPicture([bytes](write::WriteDoc &d, int position) { return write::changePictureFile(d, position, bytes) == write::PictureResult::Ok; });
     if (!changed && m_doc->pictureNotice.isEmpty()) statusBar()->showMessage(tr("%1 can't be opened as a picture.").arg(QFileInfo(path).fileName()), 8000);
     m_view->setFocus(Qt::OtherFocusReason);
+}
+
+// Picture Format > Compress Pictures: asks for the target, then makes the pictures smaller as one step; tells how much was saved.
+void WriteWindow::compressPicturesDialog()
+{
+    if (!m_doc) return;
+    CompressChoices choices;
+    if (!askCompressPictures(this, tr("Apply to all pictures in the document"), &choices)) return;
+    const qint64 saved = compressPictures(choices.ppi, choices.all, choices.deleteCropped);
+    tellCompressSaved(this, saved);
+}
+
+// The pictures of the document (or the selected ones) made smaller for `ppi` pixels to the inch, as one step that undoes; the bytes saved.
+qint64 WriteWindow::compressPictures(double ppi, bool all, bool deleteCropped)
+{
+    if (!m_doc || refuseIfReadOnly()) return 0;
+    QVector<int> at;
+    if (all) {
+        at = write::picturePositions(*m_doc);
+    } else {
+        for (const int p : m_view->selectedObjects())
+            if (write::isPictureAt(m_doc->story(), p)) at << p;
+        if (at.isEmpty() && m_view->selectedPicture() >= 0) at << m_view->selectedPicture();
+    }
+    qint64 saved = 0;
+    m_view->changeObjects([&](write::WriteDoc &d) {
+        saved = write::compressPictures(d, ppi, at, deleteCropped);
+        return saved > 0;
+    });
+    m_view->setFocus(Qt::OtherFocusReason);
+    return saved;
 }
 
 // Shape Format > Picture Fill: a picture chosen from a file is stretched over the shape or text box.
@@ -1071,7 +1104,7 @@ void WriteWindow::refreshShapeUi()
         // (A picture takes a border: the line commands are for it too.)
         if (name.startsWith(QLatin1String("shape.weight.")) || name.startsWith(QLatin1String("shape.dash.")) || name.startsWith(QLatin1String("shape.rotate."))) a->setEnabled(drawn && info.kind != write::DrawnKind::Chart);
         if (name.startsWith(QLatin1String("arrange."))) a->setEnabled(drawn);
-        if (name == QLatin1String("picture.crop") || name == QLatin1String("picture.reset") || name == QLatin1String("picture.change") || name.startsWith(QLatin1String("picture.correct.")) ||
+        if (name == QLatin1String("picture.crop") || name == QLatin1String("picture.reset") || name == QLatin1String("picture.change") || name == QLatin1String("picture.compress") || name.startsWith(QLatin1String("picture.correct.")) ||
             name.startsWith(QLatin1String("picture.recolor.")))
             a->setEnabled(picture);
     }

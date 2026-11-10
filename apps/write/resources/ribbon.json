@@ -2042,6 +2042,10 @@
             {
               "large": "picture.reset",
               "keytip": "RP"
+            },
+            {
+              "large": "picture.compress",
+              "keytip": "CM"
             }
           ]
         },

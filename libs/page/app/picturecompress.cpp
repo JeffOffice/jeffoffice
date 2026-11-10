@@ -47,7 +47,7 @@ void compressPicturesDialog(QWidget *parent, Editor *ed, const QString &allText)
     CompressChoices choices;
     if (!askCompressPictures(parent, allText, &choices)) return;
     const qint64 saved = compressPictures(ed, choices.ppi, choices.all, choices.deleteCropped);
-    jp::plainInformation(parent, QCoreApplication::translate("jp::PictureCompress", "Compress Pictures"), QCoreApplication::translate("jp::PictureCompress", "Saved %1 KB.").arg(saved / 1024));
+    tellCompressSaved(parent, saved);
 }
 
 } // namespace jp

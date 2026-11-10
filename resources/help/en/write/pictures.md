@@ -1,5 +1,5 @@
 # Add and change pictures
-<!-- keywords: picture, pictures, image, insert picture, photo, clipboard, paste a picture, screenshot, wrap text, text wrapping, in line with text, square, tight, top and bottom, behind text, in front of text, alt text, description, resize, size, handles, move a picture, drag a picture, drop, picture format, lock aspect ratio, crop, cut, brightness, contrast, corrections, recolor, grayscale, black and white, washout, border, frame, picture styles, change picture, reset picture, bring forward, send backward, bring to front, send to back, layers, arrange pictures, crop to shape, rotate, align, icons, insert icon -->
+<!-- keywords: picture, pictures, image, insert picture, photo, clipboard, paste a picture, screenshot, wrap text, text wrapping, in line with text, square, tight, top and bottom, behind text, in front of text, alt text, description, resize, size, handles, move a picture, drag a picture, drop, picture format, lock aspect ratio, crop, cut, brightness, contrast, corrections, recolor, grayscale, black and white, washout, border, frame, picture styles, change picture, reset picture, compress pictures, make pictures smaller, file size, ppi, resolution, delete cropped areas, bring forward, send backward, bring to front, send to back, layers, arrange pictures, crop to shape, rotate, align, icons, insert icon -->
 
 A **picture** can sit in a line of text, like a letter, or float on the page with the words going round it. This topic shows how to put a picture in a document, how to change its size, its place, and how the text goes round it, and how to describe it for people who can't see it.
 
@@ -51,6 +51,12 @@ These commands are on the **Picture Format** tab. Each one is a single step to u
 - **Picture Styles** and **Picture Border** put a frame round the picture. Pick a style, or pick a color, then a **Weight** (how thick the line is) and **Dashes** (a solid, dotted, or dashed line). Choose **No Border** to take the frame off.
 - **Change Picture** puts a different picture in the same place. The new picture keeps the width of the old one, its place on the page, how the text goes round it, and its alt text. Its height follows its own shape.
 - **Reset Picture** takes off the crop, the corrections, the color change, and the border. The picture comes back to the scale it has now.
+
+## Make pictures smaller
+
+A picture from a camera can be much larger than it shows on a page, and it makes the file large. Click a picture, then click **Compress Pictures…** in the **Adjust** group of the **Picture Format** tab. Choose where the document will be used: **Commercial printing (300 ppi)**, **Desktop printing (220 ppi)**, or **Web (96 ppi)**. Leave **Apply to all pictures in the document** checked to make every picture smaller, or clear it to make only the selected picture smaller. **Delete cropped areas of pictures** also takes away the hidden parts you cropped, and the crop is gone. A picture is only replaced when the new one is smaller. Its size, place, wrap, and alt text stay as they were. Undo (Ctrl+Z) gives the pictures back, and the file holds only the smaller ones when you save.
+
+Only pictures in the body of the document are made smaller. Pictures in a header, a footer, a text box, or a shape stay as they are, and so does a picture that is a drawing (SVG, EMF, or WMF) or an animation.
 
 ## Wrap text round a picture
 
