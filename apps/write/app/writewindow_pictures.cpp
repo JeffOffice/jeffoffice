@@ -5,6 +5,7 @@
 
 #include "app/filedialogs.h"
 #include "app/iconpicker.h"
+#include "app/onlinepictures.h"
 #include "app/icons.h"
 #include "app/pageview.h"
 #include "app/ribbon.h"
@@ -18,6 +19,7 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
+#include <QDockWidget>
 #include <QClipboard>
 #include <QFile>
 #include <QFileInfo>
@@ -26,6 +28,7 @@
 #include <QMimeData>
 #include <QStandardPaths>
 #include <QStatusBar>
+#include <QVBoxLayout>
 
 namespace jp {
 
@@ -33,6 +36,7 @@ void WriteWindow::createPictureActions()
 {
     mk("insert.picture", tr("Picture…"), "image-plus", QKeySequence(), [this] { insertPictureFromFile(); });
     mk("insert.icons", tr("Icons…"), "smile-plus", QKeySequence(), [this] { insertIconsFromPicker(); });
+    mk("insert.onlinePicture", tr("Online Pictures…"), "globe", QKeySequence(), [this] { showOnlinePictures(); });
     mk("insert.pictureClipboard", tr("Picture from Clipboard"), "clipboard-paste", QKeySequence(), [this] { insertPictureFromClipboard(); });
     struct Wrap {
         const char *id;
@@ -140,6 +144,35 @@ void WriteWindow::pictureRibbonParts(RibbonParts &parts)
     }
 }
 
+// Insert > Pictures > Online Pictures: the shared pane on the right searches the two open libraries and puts the picture chosen in at the caret, its title its alt text and, as asked, its credit under it.
+void WriteWindow::showOnlinePictures()
+{
+    if (!m_doc) return;
+    if (!m_online) {
+        m_onlineDock = new QDockWidget(tr("Online Pictures"), this);
+        m_onlineDock->setObjectName(QStringLiteral("onlinePicturesDock"));
+        m_onlineDock->setFeatures(QDockWidget::DockWidgetClosable);
+        m_online = new OnlinePicturesPane([this](const QString &path, const online::Picture &picture, bool withCredit) {
+            if (!m_doc || refuseIfReadOnly()) return false;
+            QByteArray bytes;
+            if (write::readPictureFile(path, &bytes) != write::PictureResult::Ok) return false;
+            const bool done = m_view->insertOnlinePictureBytes(bytes, picture.title, withCredit ? online::credit(picture) : QString());
+            m_view->setFocus(Qt::OtherFocusReason);
+            return done;
+        });
+        // With the margins the window's other panes have.
+        auto *frame = new QWidget(m_onlineDock);
+        auto *column = new QVBoxLayout(frame);
+        column->setContentsMargins(8, 8, 8, 8);
+        column->addWidget(m_online);
+        m_onlineDock->setWidget(frame);
+        addDockWidget(Qt::RightDockWidgetArea, m_onlineDock);
+        resizeDocks({m_onlineDock}, {300}, Qt::Horizontal);
+    }
+    m_onlineDock->show();
+    m_onlineDock->raise();
+}
+
 void WriteWindow::insertPictureFromFile()
 {
     if (!m_doc) return;
@@ -211,6 +244,7 @@ void WriteWindow::refreshPictureUi()
     const bool body = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
     act("insert.picture")->setEnabled(body);
     act("insert.pictureClipboard")->setEnabled(body);
+    act("insert.onlinePicture")->setEnabled(body);
     act("insert.icons")->setEnabled(body);
     const int at = m_doc ? m_view->selectedPicture() : -1;
     const write::PictureInfo info = at >= 0 ? write::pictureAt(*m_doc, m_doc->story(), at) : write::PictureInfo();

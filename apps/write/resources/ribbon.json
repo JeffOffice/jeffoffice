@@ -296,6 +296,7 @@
               "keytip": "P",
               "menu": [
                 "insert.picture",
+                "insert.onlinePicture",
                 "insert.pictureClipboard"
               ]
             },

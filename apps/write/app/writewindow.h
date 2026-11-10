@@ -60,6 +60,7 @@ class WriteFileScreen;
 class WriteFindPane;
 struct MailUi;
 class ReviewPane;
+class OnlinePicturesPane;
 namespace write {
 class PageView;
 class Ruler;
@@ -157,6 +158,9 @@ public:
     void setPictureChooser(const std::function<QString()> &chooser) { m_pictureChooser = chooser; }
     // Compress Pictures with the choices made (no box): every picture of the document or the selected ones, as one step that undoes; the bytes saved.
     qint64 compressPictures(double ppi, bool all, bool deleteCropped);
+    // Insert > Pictures > Online Pictures: the pane (null until it was first asked for).
+    OnlinePicturesPane *onlinePictures() const { return m_online; }
+    void showOnlinePictures();
     write::Ruler *ruler() const { return m_ruler; }
     // Shows the vertical ruler when View > Vertical Ruler is on and the pages are on show (not in Outline view or Focus).
     void syncVerticalRuler();
@@ -465,6 +469,8 @@ private:
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
     QDockWidget *m_spellDock = nullptr;
+    QDockWidget *m_onlineDock = nullptr;
+    OnlinePicturesPane *m_online = nullptr;
     QDockWidget *m_accessDock = nullptr;
     write::AccessPane *m_accessPane = nullptr;
     write::SpellPane *m_spellPane = nullptr;

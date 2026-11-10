@@ -237,6 +237,8 @@ public:
     int pictureAtPoint(const QPoint &viewportPos);
     // A picture from the bytes of a file, or an image (the clipboard's), at the caret in place of a selection; the picture is then the selection. The reason is told (notice) when it fails.
     bool insertPictureBytes(const QByteArray &bytes, const QString &name, PictureWrap wrap = PictureWrap::Inline);
+    // An online picture with its title (its alt text) and, when `credit` is not empty, its credit line under it: one step.
+    bool insertOnlinePictureBytes(const QByteArray &bytes, const QString &title, const QString &credit);
     bool insertPictureImage(const QImage &image, PictureWrap wrap = PictureWrap::Inline);
     // A shape of the gallery, or a text box of a design, at the cursor; it is selected when it is in.
     bool insertShapeObject(const QString &preset);

@@ -733,6 +733,22 @@ PictureResult insertPicture(WriteDoc &doc, QTextCursor &c, const QByteArray &byt
     return insertPrepared(doc, c, p, name, wrap, alt);
 }
 
+PictureResult insertOnlinePicture(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, const QString &title, const QString &credit)
+{
+    const WriteDoc::StepGroup group(doc);
+    const PictureResult result = insertPicture(doc, c, bytes, title, PictureWrap::Inline, title);
+    if (result != PictureResult::Ok || credit.trimmed().isEmpty()) return result;
+    insertParagraph(doc, c);
+    const int from = c.position();
+    insertText(doc, c, credit);
+    QTextCursor words(doc.story());
+    words.setPosition(from);
+    words.setPosition(c.position(), QTextCursor::KeepAnchor);
+    toggleItalic(doc, words);
+    setFontSize(doc, words, 9);
+    return result;
+}
+
 PictureResult insertPictureImage(WriteDoc &doc, QTextCursor &c, const QImage &image, PictureWrap wrap)
 {
     Prepared p;

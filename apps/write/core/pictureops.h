@@ -104,6 +104,9 @@ bool isDrawnObjectAt(const QTextDocument *story, int position);
 // selection, as one step that undoes. It is made as large as the picture asks (96 pixels to the inch) but no wider than the column or taller than the page's text. `name` is the file's
 // name (the picture's name in the file); `alt` its alt text.
 PictureResult insertPicture(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, const QString &name = QString(), PictureWrap wrap = PictureWrap::Inline, const QString &alt = QString());
+// An online picture (Insert > Online Pictures): in line at the cursor like a picture of a file, with `title` as its alt text and, when `credit` is not empty, a paragraph under it with the
+// credit line, in small italic letters; one step that undoes. The caret is left after the credit, and the picture is at the place the cursor was.
+PictureResult insertOnlinePicture(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, const QString &title, const QString &credit);
 // The same for an image (from the clipboard), kept as PNG.
 PictureResult insertPictureImage(WriteDoc &doc, QTextCursor &c, const QImage &image, PictureWrap wrap = PictureWrap::Inline);
 

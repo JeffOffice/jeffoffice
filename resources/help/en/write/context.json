@@ -22,5 +22,6 @@
   "file:print": "print",
   "file:export": "open-save",
   "file:about": "start",
-  "pane:spelling": "spelling"
+  "pane:spelling": "spelling",
+  "pane:online": "pictures"
 }

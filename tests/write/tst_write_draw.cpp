@@ -4,6 +4,8 @@
 #include "../isolatesettings.h"
 #include "../office/diagramsample.h"
 #include "rtcheck.h"
+#include "app/help.h"
+#include "app/onlinepictures.h"
 #include "app/pageview.h"
 #include "app/ribbon.h"
 #include "app/writewindow.h"
@@ -37,7 +39,9 @@
 #include <QDir>
 #include <QFile>
 #include <QImage>
+#include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QTextBlock>
 #include <QLineEdit>
 #include <QRandomGenerator>
@@ -186,6 +190,24 @@ QMap<QString, QByteArray> mediaOf(const QByteArray &zip)
         if (name.startsWith(QLatin1String("/word/media/"))) out.insert(name, p.part(name));
     return out;
 }
+
+// The online libraries answered from here (nothing goes online): a search finds one picture, "Red barn" by Pat Lee, whose file is `picture`. The real fetch comes back when this goes.
+struct CannedLibraries {
+    QStringList asked;
+    std::function<void(const QUrl &, QObject *, const online::Done &, qint64)> kept = online::fetch;
+    explicit CannedLibraries(const QByteArray &picture)
+    {
+        const QByteArray openverse = QJsonDocument(QJsonObject{{"results", QJsonArray{QJsonObject{
+            {"id", "a1"}, {"title", "Red barn"}, {"creator", "Pat Lee"}, {"license", "by"}, {"license_version", "2.0"},
+            {"license_url", "https://creativecommons.org/licenses/by/2.0/"}, {"foreign_landing_url", "https://example.org/page/a1"},
+            {"url", "https://example.org/barn.png"}, {"thumbnail", "https://example.org/barn.thumb"}}}}}).toJson();
+        online::fetch = [this, openverse, picture](const QUrl &u, QObject *, const online::Done &done, qint64) {
+            asked << u.toString();
+            done(u.host() == QLatin1String("api.openverse.org") ? openverse : picture, QString());
+        };
+    }
+    ~CannedLibraries() { online::fetch = kept; }
+};
 
 // The first picture of the text as the pages draw it: an object set in the line, or one set at a place on the first page.
 std::shared_ptr<PictureItem> pictureOfPage(WriteDoc &doc)
@@ -1885,6 +1907,93 @@ private Q_SLOTS:
         const QMap<QString, QByteArray> back = mediaOf(win.w.document()->toDocx());
         QCOMPARE(back.size(), 2);
         for (const QByteArray &m : back) QVERIFY(m == first || m == second);
+    }
+
+    // An online picture goes in at the caret in line, with its title as its alt text and, as asked, a credit line under it, as one step that undoes; it is saved and read again.
+    void anOnlinePictureIsPutInWithItsAltTextAndCreditInOneStep()
+    {
+        auto doc = textDoc({"Before after"});
+        const QString plain = doc->story()->toPlainText();
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        const QByteArray png = pngOf(120, 60);
+        QCOMPARE(insertOnlinePicture(*doc, c, png, QStringLiteral("Red barn"), QStringLiteral("\"Red barn\" by Pat Lee, CC BY 2.0")), PictureResult::Ok);
+        QCOMPARE(picturePositions(*doc), QVector<int>({7}));
+        QCOMPARE(pictureAt(*doc, doc->story(), 7).alt, QStringLiteral("Red barn"));
+        QVERIFY(!pictureAt(*doc, doc->story(), 7).floating);
+        QVERIFY2(doc->story()->toPlainText().contains(QStringLiteral("\"Red barn\" by Pat Lee, CC BY 2.0")), qPrintable(doc->story()->toPlainText()));
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QCOMPARE(picturePositions(*back), QVector<int>({7}));
+        QCOMPARE(pictureAt(*back, back->story(), 7).alt, QStringLiteral("Red barn"));
+        QVERIFY(back->story()->toPlainText().contains(QStringLiteral("Pat Lee, CC BY 2.0")));
+        QCOMPARE(mediaOf(back->toDocx()).first(), png);
+        // One Undo takes the picture and its credit, and Redo puts them back.
+        QVERIFY(doc->undo());
+        QCOMPARE(doc->story()->toPlainText(), plain);
+        QVERIFY(picturePositions(*doc).isEmpty());
+        QVERIFY(doc->redo());
+        QCOMPARE(picturePositions(*doc), QVector<int>({7}));
+        // With no credit asked there is none, and a file that is not a picture puts nothing in.
+        auto bare = textDoc({"Before after"});
+        QTextCursor bc(bare->story());
+        bc.setPosition(7);
+        QCOMPARE(insertOnlinePicture(*bare, bc, png, QStringLiteral("Red barn"), QString()), PictureResult::Ok);
+        QCOMPARE(bare->story()->toPlainText(), plain.left(7) + QString(QChar(0xFFFC)) + plain.mid(7));
+        QCOMPARE(insertOnlinePicture(*bare, bc, QByteArray("no"), QStringLiteral("x"), QString()), PictureResult::Unreadable);
+    }
+
+    // Insert > Pictures > Online Pictures opens the shared pane on the right (it says what it sends), a search shows what the libraries have (canned here), and Insert puts the picture
+    // in the text with its credit; F1 in the pane opens the pictures topic.
+    void theOnlinePicturesPaneInsertsAPictureInTheText()
+    {
+        CannedLibraries libraries(pngOf(480, 320));
+        Win win;
+        win.w.show();
+        QVERIFY(!win.w.onlinePictures());
+        QVERIFY(win.w.act(QStringLiteral("insert.onlinePicture")));
+        QTRY_VERIFY(win.w.act(QStringLiteral("insert.onlinePicture"))->isEnabled());
+        const QString plain = win.w.document()->story()->toPlainText();
+        win.w.act(QStringLiteral("insert.onlinePicture"))->trigger();
+        OnlinePicturesPane *pane = win.w.onlinePictures();
+        QVERIFY(pane);
+        QVERIFY(pane->isVisible());
+        QVERIFY(pane->window() == &win.w);
+        QStringList words;
+        for (const QLabel *l : pane->findChildren<QLabel *>()) words << l->text();
+        QVERIFY2(words.join(' ').contains(QStringLiteral("Your search words go to the library you choose.")), qPrintable(words.join('\n')));
+        win.w.act(QStringLiteral("insert.onlinePicture"))->trigger();
+        QCOMPARE(win.w.onlinePictures(), pane);
+        pane->search(QStringLiteral("barn"));
+        QCOMPARE(pane->results()->count(), 1);
+        QVERIFY(pane->creditBox()->isChecked());
+        pane->insertButton()->click();
+        const QVector<int> at = picturePositions(*win.w.document());
+        QCOMPARE(at.size(), 1);
+        QCOMPARE(win.w.view()->selectedPicture(), at[0]);
+        QCOMPARE(pictureAt(*win.w.document(), win.w.document()->story(), at[0]).alt, QStringLiteral("Red barn"));
+        QVERIFY(win.w.document()->story()->toPlainText().contains(QStringLiteral("“Red barn” by Pat Lee, CC BY 2.0")));
+        QCOMPARE(mediaOf(win.w.document()->toDocx()).size(), 1);
+        // Without the credit, only the picture; one step each.
+        pane->creditBox()->setChecked(false);
+        QTextCursor end(win.w.document()->story());
+        end.movePosition(QTextCursor::End);
+        win.w.view()->setCursor(end);
+        pane->insertButton()->click();
+        QCOMPARE(picturePositions(*win.w.document()).size(), 2);
+        QCOMPARE(win.w.document()->story()->toPlainText().count(QStringLiteral("Pat Lee")), 1);
+        QVERIFY(win.w.document()->undo());
+        QCOMPARE(picturePositions(*win.w.document()).size(), 1);
+        QVERIFY(win.w.document()->undo());
+        QCOMPARE(win.w.document()->story()->toPlainText(), plain);
+        // F1 in the pane is the pictures topic.
+        win.w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&win.w));
+        pane->findChild<QLineEdit *>()->setFocus();
+        QTRY_VERIFY(QApplication::focusWidget() == pane->findChild<QLineEdit *>());
+        win.w.act(QStringLiteral("help.show"))->trigger();
+        QVERIFY(win.w.helpView());
+        QCOMPARE(win.w.helpView()->currentTopic(), QStringLiteral("pictures"));
     }
 
     void thePictureFormatTabCorrectsRecolorsFramesAndResetsInOneStepEach()

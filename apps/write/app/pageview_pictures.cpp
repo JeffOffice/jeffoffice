@@ -503,6 +503,25 @@ bool PageView::insertPictureBytes(const QByteArray &bytes, const QString &name, 
     return false;
 }
 
+bool PageView::insertOnlinePictureBytes(const QByteArray &bytes, const QString &title, const QString &credit)
+{
+    if (!m_doc || m_readOnly) return false;
+    m_doc->pictureNotice.clear();
+    QTextCursor c = m_cursor;
+    const int at = c.hasSelection() ? c.selectionStart() : c.position();
+    const PictureResult result = insertOnlinePicture(*m_doc, c, bytes, title, credit);
+    if (result == PictureResult::Ok) {
+        m_cursor = c;
+        selectPicture(at);
+        Q_EMIT contentChanged();
+        return true;
+    }
+    Q_EMIT notice(result == PictureResult::Unreadable ? QCoreApplication::translate("jp::write::Pictures", "That is not a picture JeffWrite can read.")
+                  : result == PictureResult::TooLarge ? (m_doc->pictureNotice.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "That picture is too large to put in a document.") : m_doc->pictureNotice)
+                                                      : m_doc->pictureNotice);
+    return false;
+}
+
 bool PageView::insertPictureImage(const QImage &image, PictureWrap wrap)
 {
     if (!m_doc) return false;

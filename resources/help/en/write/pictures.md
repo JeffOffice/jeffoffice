@@ -1,5 +1,5 @@
 # Add and change pictures
-<!-- keywords: picture, pictures, image, insert picture, photo, clipboard, paste a picture, screenshot, wrap text, text wrapping, in line with text, square, tight, top and bottom, behind text, in front of text, alt text, description, resize, size, handles, move a picture, drag a picture, drop, picture format, lock aspect ratio, crop, cut, brightness, contrast, corrections, recolor, grayscale, black and white, washout, border, frame, picture styles, change picture, reset picture, compress pictures, make pictures smaller, file size, ppi, resolution, delete cropped areas, bring forward, send backward, bring to front, send to back, layers, arrange pictures, crop to shape, rotate, align, icons, insert icon -->
+<!-- keywords: picture, pictures, image, insert picture, photo, clipboard, paste a picture, screenshot, wrap text, text wrapping, in line with text, square, tight, top and bottom, behind text, in front of text, alt text, description, resize, size, handles, move a picture, drag a picture, drop, picture format, lock aspect ratio, crop, cut, brightness, contrast, corrections, recolor, grayscale, black and white, washout, border, frame, picture styles, change picture, reset picture, compress pictures, make pictures smaller, file size, ppi, resolution, delete cropped areas, bring forward, send backward, bring to front, send to back, layers, arrange pictures, crop to shape, rotate, align, icons, insert icon, online pictures, free pictures, openverse, wikimedia commons, license, credit -->
 
 A **picture** can sit in a line of text, like a letter, or float on the page with the words going round it. This topic shows how to put a picture in a document, how to change its size, its place, and how the text goes round it, and how to describe it for people who can't see it.
 
@@ -13,6 +13,19 @@ A **picture** can sit in a line of text, like a letter, or float on the page wit
 The picture goes where the caret is, in place of anything you selected. It is made as large as it asks to be, but no wider than the column and no taller than the page's text, with its proportions kept. The picture is selected afterward, and the **Picture Format** tab appears at the right of the ribbon.
 
 A picture that is too large (more than 40 million pixels, a side longer than 30,000 pixels, or a file of more than 48 MB) is not put in, and the status bar says so. So is a file that is not a picture.
+
+## Find free pictures online
+
+**Online Pictures** finds free pictures. They come from two open libraries: Openverse, which searches many collections, and Wikimedia Commons, the library of Wikipedia's pictures.
+
+1. Click **Insert > Pictures**, then **Online Pictures…**. A pane opens on the right.
+2. Choose a library, type what you are looking for, and click **Search** (or press Enter).
+3. Click a picture to see who made it and what license it has. A **license** says how you may use a picture. Click the license's name to read it.
+4. Click **Insert** (or double-click the picture).
+
+**What JeffWrite sends.** Your search words go to the library you choose, and only when you click **Search** or press Enter. JeffWrite then asks the library for the small previews of what it found, and for the one picture you insert. Like any web page, the library can see your computer's internet address, and it is told that JeffWrite is asking. Nothing from your document is sent.
+
+The picture goes in at the caret, in line with the text, and is kept in the document. Its title is saved as its **alt text**. Most licenses ask you to name the author. When **Add a credit under the picture** is checked, JeffWrite adds a small line of text under the picture with its title, its author, and its license. It is a paragraph you can change or delete. Inserting is one step, and **Undo** takes back the picture and its credit together. Check that the license fits how you will use the picture.
 
 ## Change the size
 
