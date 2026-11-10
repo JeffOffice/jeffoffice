@@ -7,6 +7,7 @@
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/pictureedit.h"
+#include "app/picturecompress.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/widgets.h"
@@ -64,6 +65,10 @@ void DeckWindow::createCropActions()
         ed->forEachSelected(tr("Clear Crop"), [](Item *it) {
             if (auto *p = dynamic_cast<PictureItem *>(it)) clearPictureCrop(p);
         });
+    });
+
+    mk("pic.compress", tr("Compress Pictures…"), "minimize-2", QKeySequence(), [this] {
+        compressPicturesDialog(this, m_ed, tr("Apply to all pictures in the presentation"));
     });
 
     // Aspect Ratio: the shapes slides and screens come in, wide ones and tall ones.

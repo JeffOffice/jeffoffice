@@ -1292,6 +1292,16 @@
       "color": "pictureFormat",
       "groups": [
         {
+          "name": "Adjust",
+          "keytip": "ZA",
+          "items": [
+            {
+              "large": "pic.compress",
+              "keytip": "CM"
+            }
+          ]
+        },
+        {
           "name": "Crop",
           "keytip": "ZC",
           "items": [

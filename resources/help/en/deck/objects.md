@@ -46,6 +46,10 @@ Click a picture. The **Picture Format** tab shows. Its **Crop** group has these 
 
 A crop is saved in the file with the part you hid, and a shape is saved too. A picture cropped to a shape is saved in an .odp file as the picture you see. The hidden part and the shape can't be changed after you open that file again.
 
+## Make pictures smaller
+
+A picture from a camera can be much larger than it shows on a slide, and it makes the file large. Click a picture, then click **Compress Pictures…** in the **Adjust** group of the **Picture Format** tab. Choose where the presentation will be used: **Commercial printing (300 ppi)**, **Desktop printing (220 ppi)**, or **Web (96 ppi)**. Leave **Apply to all pictures in the presentation** checked to make every picture smaller, or clear it to make only the selected pictures smaller. **Delete cropped areas of pictures** also takes away the hidden parts you cropped. A picture is only replaced when the new one is smaller. Undo (Ctrl+Z) gives the pictures back.
+
 ## Add an icon
 
 An **icon** is a simple picture, like a heart, an arrow, or an envelope. JeffDeck has more than 1,500.

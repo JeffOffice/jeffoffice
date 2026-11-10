@@ -1,4 +1,7 @@
 // JeffDeck's tests of tables and picture cropping.
+#include <QRandomGenerator>
+#include <QMessageBox>
+#include <QBuffer>
 #include "deckhelpers.h"
 
 class DeckTableTests : public QObject {
@@ -1183,6 +1186,55 @@ private Q_SLOTS:
         QCOMPARE(thePicture(ed)->maskShape, QStringLiteral("rect"));
         w.cropPictureToShape(QStringLiteral("ellipse"));
         QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Crop to Shape"));
+    }
+
+    // Compress Pictures (as in JeffPub): the box asks for a target; a large picture shown small is made smaller, in the picture and in the file saved, and Undo gives it back.
+    void compressPicturesMakesALargePictureSmallerInTheSavedFile()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        QImage noise(600, 600, QImage::Format_RGB32);
+        QRandomGenerator rng(7);
+        for (int y = 0; y < noise.height(); ++y)
+            for (int x = 0; x < noise.width(); ++x) noise.setPixel(x, y, rng.generate() | 0xFF000000u);
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        noise.save(&buf, "PNG");
+        auto pic = std::make_shared<PictureItem>();
+        pic->imageId = ed->doc()->addImage(png, "png");
+        pic->rect = QRectF(100, 100, 100, 100);
+        pic->imgRect = QRectF(0, 0, 100, 100);
+        ed->addItem(pic, true);
+        const QString original = pic->imageId;
+        const qsizetype before = deck::exportPresentation(*ed->doc()).size();
+        // The box is answered as it appears (Web), and the note of how much was saved is closed.
+        bool boxSeen = false;
+        auto answer = std::make_shared<std::function<void(int)>>();
+        *answer = [&boxSeen, answer](int tries) {
+            QTimer::singleShot(20, [&boxSeen, answer, tries] {
+                QWidget *top = QApplication::activeModalWidget();
+                if (top && top->objectName() == QLatin1String("compressPicturesDialog")) {
+                    boxSeen = true;
+                    top->findChild<QComboBox *>(QStringLiteral("compressTarget"))->setCurrentIndex(2);
+                    static_cast<QDialog *>(top)->accept();
+                } else if (auto *note = qobject_cast<QMessageBox *>(top)) {
+                    note->accept();
+                    return;
+                }
+                if (tries > 0) (*answer)(tries - 1);
+            });
+        };
+        (*answer)(500);
+        QVERIFY(command(w, "pic.compress"));
+        QVERIFY(boxSeen);
+        QVERIFY(ed->doc()->item(pic->id) != nullptr);
+        QVERIFY(static_cast<PictureItem *>(ed->doc()->item(pic->id))->imageId != original);
+        QVERIFY(ed->doc()->image(static_cast<PictureItem *>(ed->doc()->item(pic->id))->imageId).width() <= 140);
+        const qsizetype after = deck::exportPresentation(*ed->doc()).size();
+        QVERIFY2(after < before / 4, qPrintable(QStringLiteral("%1 bytes before, %2 after").arg(before).arg(after)));
+        ed->undo();
+        QCOMPARE(static_cast<PictureItem *>(ed->doc()->item(pic->id))->imageId, original);
     }
 
     // A crop is saved as the formats have it and read back the same: a:srcRect on the picture's blip and the shape's geometry in a .pptx,

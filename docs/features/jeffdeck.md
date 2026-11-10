@@ -420,7 +420,7 @@ These tabs are shown while something is selected. JeffDeck has Playback (while a
 - [ ] **1.0** Picture Styles (frames, shadow, reflection, and rounded corners), Picture Border, and Picture Effects
 - [~] **1.0** Alt Text, Arrange, and Size (see Shape Format) *(Arrange is on the Home tab; alt text and size are in the pane's Size & Properties page; the Picture Format tab has no groups of its own for them)*
 - [ ] **later** Artistic Effects (blur, pencil sketch, paint, and the rest) *(a picture's blur and fill overlay are neither drawn nor saved yet)*
-- [ ] **1.0** Compress Pictures: a resolution for screen, print, or email, and delete the cropped areas
+- [x] **1.0** Compress Pictures: a resolution for screen, print, or email, and delete the cropped areas
 - [ ] **later** Remove Background: mark areas to keep and remove
 - [ ] **later** Picture Layout: turn pictures into a diagram
 - [ ] **later** Graphics Format for icons and SVG pictures: Graphics Fill, Outline, and Effects, Change Graphic, and Convert to Shape *(an icon takes the theme's text color today)*

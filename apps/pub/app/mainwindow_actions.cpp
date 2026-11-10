@@ -11,6 +11,7 @@
 #include "render/renderer.h"
 #include "app/pagespane.h"
 #include "app/pictureedit.h"
+#include "app/picturecompress.h"
 #include "app/tableedit.h"
 #include "app/notes.h"
 #include "app/iconpicker.h"
@@ -788,8 +789,8 @@ void MainWindow::createActions()
         m_ed->mergeCharFormat(f, tr("Language"));
     });
     mk("rev.designChecker", tr("Run Design Checker"), "shield-check", QKeySequence(), [this] { showTaskPane("designchecker"); });
-    mk("rev.wordCount", tr("Word Count"), "whole-word", QKeySequence(), [this] { wordCountDialog(this, m_ed); });
     mk("rev.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] { showAccessibilityPane(); });
+    mk("rev.wordCount", tr("Word Count"), "whole-word", QKeySequence(), [this] { wordCountDialog(this, m_ed); });
     mk("rev.hyphenation", tr("Hyphenation…"), "hyphenation", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_H), [this] { hyphenationDialog(this, m_ed); });
 
     // ---------------- View ----------------
@@ -1115,7 +1116,7 @@ void MainWindow::createActions()
         m_ed->change(tr("Set Transparent Color"), [p, c] { p->hasTransparentColor = true; p->transparentColor = c; });
     });
     mk("pic.compress", tr("Compress Pictures…"), "minimize-2", QKeySequence(), [this] {
-        compressPicturesDialog(this, m_ed);
+        compressPicturesDialog(this, m_ed, tr("Apply to all pictures in the publication"));
     });
     mk("pic.reset", tr("Reset Picture"), "rotate-ccw", QKeySequence(), [ed] {
         ed->forEachSelected(tr("Reset Picture"), [ed](Item *it) {

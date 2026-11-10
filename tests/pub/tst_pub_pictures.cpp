@@ -2,6 +2,10 @@
 #include "pubhelpers.h"
 #include "core/version.h"
 #include "../isolatesettings.h"
+#include "io/jpubfile.h"
+#include <QBuffer>
+#include <QMessageBox>
+#include <QRandomGenerator>
 
 class PubPictureTests : public QObject {
     Q_OBJECT
@@ -51,6 +55,56 @@ private Q_SLOTS:
         QCOMPARE(blue->imageId, redImage);
         ed->undo();   // undo makes the objects afresh
         QCOMPARE(static_cast<jp::PictureItem *>(ed->doc()->item(red->id))->imageId, redImage);
+    }
+
+    // Compress Pictures: the box asks for a target; a large picture shown small is made smaller, in the picture and in the file saved, and Undo gives it back.
+    void compressPicturesMakesALargePictureSmallerInTheSavedFile()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        QImage noise(600, 600, QImage::Format_RGB32);
+        QRandomGenerator rng(7);
+        for (int y = 0; y < noise.height(); ++y)
+            for (int x = 0; x < noise.width(); ++x) noise.setPixel(x, y, rng.generate() | 0xFF000000u);
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        noise.save(&buf, "PNG");
+        auto pic = std::make_shared<jp::PictureItem>();
+        pic->imageId = ed->doc()->addImage(png, "png");
+        pic->rect = QRectF(100, 100, 100, 100);
+        pic->imgRect = QRectF(0, 0, 100, 100);
+        ed->addItem(pic, true);
+        const QString original = pic->imageId;
+        const qsizetype before = jp::publicationBytes(*ed->doc(), QImage()).size();
+        bool boxSeen = false;
+        auto answer = std::make_shared<std::function<void(int)>>();
+        *answer = [&boxSeen, answer](int tries) {
+            QTimer::singleShot(20, [&boxSeen, answer, tries] {
+                QWidget *top = QApplication::activeModalWidget();
+                if (top && top->objectName() == QLatin1String("compressPicturesDialog")) {
+                    boxSeen = true;
+                    top->findChild<QComboBox *>(QStringLiteral("compressTarget"))->setCurrentIndex(2);
+                    static_cast<QDialog *>(top)->accept();
+                } else if (auto *note = qobject_cast<QMessageBox *>(top)) {
+                    note->accept();
+                    return;
+                }
+                if (tries > 0) (*answer)(tries - 1);
+            });
+        };
+        (*answer)(500);
+        w.act(QStringLiteral("pic.compress"))->trigger();
+        QVERIFY(boxSeen);
+        auto *now = static_cast<jp::PictureItem *>(ed->doc()->item(pic->id));
+        QVERIFY(now->imageId != original);
+        QVERIFY(ed->doc()->image(now->imageId).width() <= 140);
+        const qsizetype after = jp::publicationBytes(*ed->doc(), QImage()).size();
+        QVERIFY2(after < before / 4, qPrintable(QStringLiteral("%1 bytes before, %2 after").arg(before).arg(after)));
+        ed->undo();
+        QCOMPARE(static_cast<jp::PictureItem *>(ed->doc()->item(pic->id))->imageId, original);
     }
 
     // Ctrl+drag copies a picture, and a copy let go over another picture stays

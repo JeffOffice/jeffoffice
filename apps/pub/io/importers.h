@@ -84,6 +84,5 @@ bool exportPublisher(const Document &doc, const QString &path, QString *error, c
 // A process color's inks as a .pub file keeps them: the values of drawing
 // properties 0x019F and 0x01A6 (0 when not needed).
 QPair<quint32, quint32> packPubInks(const QColor &cmyk);
-void compressPicturesDialog(QWidget *parent, Editor *ed);
 
 } // namespace jp
