@@ -25,7 +25,13 @@
           "items": [
             {
               "large": "edit.paste",
-              "keytip": "V"
+              "keytip": "V",
+              "split": true,
+              "menu": [
+                "edit.paste",
+                "edit.pasteText",
+                "edit.pasteSpecial"
+              ]
             },
             {
               "small": "edit.cut",

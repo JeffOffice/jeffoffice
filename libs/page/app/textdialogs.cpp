@@ -15,7 +15,10 @@
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QApplication>
+#include <QClipboard>
 #include <QCoreApplication>
+#include <QMimeData>
 #include <QDateTime>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -582,6 +585,31 @@ bool insertSymbol(QWidget *p, Editor *ed, const QString &ch, const QString &font
     }
     rememberSymbol(ch, font);
     return true;
+}
+
+void pasteSpecialDialog(QWidget *p, Editor *ed)
+{
+    Dlg dlg(p, QCoreApplication::translate("Dialogs", "Paste Special"));
+    dlg.d.setObjectName(QStringLiteral("pasteSpecialDialog"));
+    auto *list = new QListWidget(&dlg.d);
+    list->setObjectName(QStringLiteral("pasteSpecialList"));
+    list->addItems({QCoreApplication::translate("Dialogs", "Keep source formatting"), QCoreApplication::translate("Dialogs", "Keep text only (unformatted text)"), QCoreApplication::translate("Dialogs", "Picture (PNG)")});
+    list->setCurrentRow(0);
+    dlg.v->addWidget(list);
+    if (!dlg.exec()) return;
+    const int i = list->currentRow();
+    if (i == 1) { ed->paste(true); return; }
+    if (i == 2) {
+        const QMimeData *md = QApplication::clipboard()->mimeData();
+        if (md && md->hasImage()) {
+            const bool wasEditing = ed->isEditingText();
+            ed->endTextEdit();
+            ed->paste();
+            Q_UNUSED(wasEditing);
+        }
+        return;
+    }
+    ed->paste(false);
 }
 
 void symbolDialog(QWidget *p, Editor *ed)

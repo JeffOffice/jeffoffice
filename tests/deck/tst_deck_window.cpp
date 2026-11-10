@@ -1290,6 +1290,66 @@ private Q_SLOTS:
         QCOMPARE(ed->tool(), Tool::Select);
     }
 
+    // The Paste button has a menu with Keep Text Only and Paste Special (Ctrl+Alt+V), as in the other programs; Paste Special lists the forms the clipboard can go in as,
+    // and pastes the one chosen: source formatting, text only, or a picture.
+    void pasteSpecialPastesTheFormChosen()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QCOMPARE(w.act(QStringLiteral("edit.pasteSpecial"))->text(), QStringLiteral("Paste Special…"));
+        QCOMPARE(w.act(QStringLiteral("edit.pasteSpecial"))->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V).toString(QKeySequence::NativeText));
+        QCOMPARE(w.act(QStringLiteral("edit.pasteText"))->text(), QStringLiteral("Keep Text Only"));
+        bool inMenu = false;
+        for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
+            if (b->defaultAction() == w.act(QStringLiteral("edit.paste")) && b->menu())
+                inMenu = b->menu()->actions().contains(w.act(QStringLiteral("edit.pasteSpecial"))) && b->menu()->actions().contains(w.act(QStringLiteral("edit.pasteText")));
+        QVERIFY(inMenu);
+        Editor *ed = w.editor();
+        auto *mime = new QMimeData;
+        mime->setHtml(QStringLiteral("<i>Slanted</i>"));
+        mime->setText(QStringLiteral("Slanted"));
+        QApplication::clipboard()->setMimeData(mime);
+        auto *title = placeholderOfSlide(*ed->doc(), 0, 0);
+        QTextDocument *story = ed->doc()->storyDoc(title->storyId);
+        story->clear();
+        ed->beginTextEdit(title->id);
+        auto choose = [&](int row) {
+            withDialog([&w] { w.act(QStringLiteral("edit.pasteSpecial"))->trigger(); }, QStringLiteral("pasteSpecialDialog"), [row](QDialog *d) {
+                auto *list = d->findChild<QListWidget *>(QStringLiteral("pasteSpecialList"));
+                QVERIFY(list);
+                QCOMPARE(list->count(), 3);
+                list->setCurrentRow(row);
+            });
+        };
+        auto slanted = [&](int at) {
+            QTextCursor c(story);
+            c.setPosition(at);
+            return c.charFormat().fontItalic();
+        };
+        choose(1);
+        QCOMPARE(story->toPlainText(), QStringLiteral("Slanted"));
+        QVERIFY(!slanted(3));
+        choose(0);
+        QCOMPARE(story->toPlainText(), QStringLiteral("SlantedSlanted"));
+        QVERIFY(!slanted(3));
+        QVERIFY(slanted(11));
+        // A picture on the clipboard goes on the slide as a picture.
+        QImage img(40, 30, QImage::Format_ARGB32);
+        img.fill(Qt::red);
+        auto *pictureMime = new QMimeData;
+        pictureMime->setImageData(img);
+        QApplication::clipboard()->setMimeData(pictureMime);
+        auto pictures = [&] {
+            int n = 0;
+            for (const auto &it : ed->doc()->pages[0]->items)
+                if (it->type() == ItemType::Picture) ++n;
+            return n;
+        };
+        QCOMPARE(pictures(), 0);
+        choose(2);
+        QCOMPARE(pictures(), 1);
+    }
+
     // Go To (Ctrl+G) is in Home > Editing beside Find and Replace; it asks for a slide number and moves to that slide, out of any text being typed.
     void goToMovesToASlide()
     {

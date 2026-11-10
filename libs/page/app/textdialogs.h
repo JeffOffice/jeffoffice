@@ -28,6 +28,8 @@ void symbolDialog(QWidget *p, Editor *ed);
 // The same dialog for a program whose text is not an Editor's: `insertOne` puts the symbol in (true when it did), and calls rememberSymbol.
 void rememberSymbol(const QString &ch, const QString &font);
 void symbolDialog(QWidget *p, const std::function<bool(QWidget *, const QString &, const QString &)> &insertOne);
+// Paste Special: a list of the forms the clipboard can go in as (source formatting, text only, picture); pastes the one chosen.
+void pasteSpecialDialog(QWidget *p, Editor *ed);
 void dateTimeDialog(QWidget *p, Editor *ed);
 void hyperlinkDialog(QWidget *p, Editor *ed);
 QImage proceduralTexture(const QString &name, int size);   // built-in texture fills

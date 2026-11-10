@@ -1794,30 +1794,6 @@ void hyphenationDialog(QWidget *p, Editor *ed)
     });
 }
 
-void pasteSpecialDialog(QWidget *p, Editor *ed)
-{
-    Dlg dlg(p, QCoreApplication::translate("Dialogs", "Paste Special"));
-    auto *list = new QListWidget(&dlg.d);
-    list->addItems({QCoreApplication::translate("Dialogs", "Keep source formatting"), QCoreApplication::translate("Dialogs", "Keep text only (unformatted text)"), QCoreApplication::translate("Dialogs", "Picture (PNG)")});
-    list->setCurrentRow(0);
-    dlg.v->addWidget(list);
-    if (!dlg.exec()) return;
-    const int i = list->currentRow();
-    if (i == 1) { ed->paste(true); return; }
-    if (i == 2) {
-        const QMimeData *md = QApplication::clipboard()->mimeData();
-        if (md && md->hasImage()) {
-            const bool wasEditing = ed->isEditingText();
-            ed->endTextEdit();
-            ed->paste();
-            Q_UNUSED(wasEditing);
-        }
-        return;
-    }
-    ed->paste(false);
-}
-
-
 // Autoflow: while a story doesn't fit, it continues on a new page after
 // the last box's page, in a linked text box placed like that box.
 int autoflowText(Editor *ed, const QString &boxId)

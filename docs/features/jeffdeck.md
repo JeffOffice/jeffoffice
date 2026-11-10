@@ -133,7 +133,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 
 ### Clipboard
 - [x] **1.0** Paste, Cut, and Copy of text and objects, inside JeffDeck and to and from other programs (text, formatted text, and pictures), by the usual keys
-- [~] **1.0** Paste options: keep source formatting, use the destination theme, paste as a picture, and keep text only, with Paste Special for the list of forms *(the editor can paste text only, but no command or key reaches it; formatted text from a web page keeps its formatting)*
+- [~] **1.0** Paste options: keep source formatting, use the destination theme, paste as a picture, and keep text only, with Paste Special for the list of forms *(the Paste button has a menu with Keep Text Only and Paste Special (Ctrl+Alt+V), which lists source formatting, text only, and a picture; formatted text from a web page keeps its formatting; not yet: use the destination theme)*
 - [x] **1.0** Copy Formatting for text and objects, once or, with Shift on the button, many times
 - [ ] **1.0** Cut, copy, and paste whole slides in the slides pane and the Slide Sorter, with the choice to keep the source formatting or use the destination theme *(Duplicate Slide and Ctrl+D in the sorter exist; no slide clipboard was found)*
 - [ ] **later** The Clipboard pane that keeps the last 24 items

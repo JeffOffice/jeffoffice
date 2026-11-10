@@ -5,6 +5,7 @@
 #include "app/deckdialogs.h"
 #include "app/deckfilescreen.h"
 #include "app/editor.h"
+#include "app/textdialogs.h"
 #include "app/icons.h"
 #include "app/keytips.h"
 #include "app/notespane.h"
@@ -239,6 +240,8 @@ void DeckWindow::createActions()
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [ed] { ed->cut(); });
     mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [ed] { ed->copy(); });
     mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [ed] { ed->paste(); });
+    mk("edit.pasteText", tr("Keep Text Only"), "clipboard-type", QKeySequence(), [ed] { ed->paste(true); });
+    mk("edit.pasteSpecial", tr("Paste Special…"), "clipboard-list", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V), [this, ed] { pasteSpecialDialog(this, ed); });
     mk("edit.delete", tr("Delete"), "trash-2", QKeySequence(), [ed] { ed->deleteSelection(); });
 
     mk("slide.new", tr("New Slide"), "copy-plus", QKeySequence(Qt::CTRL | Qt::Key_M), [this] { newSlide(); });

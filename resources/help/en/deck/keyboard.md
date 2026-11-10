@@ -28,7 +28,7 @@ Click the slide. Then:
 - **Delete** removes the selected object.
 - **Ctrl+1** opens the Format Shape pane for the selected object.
 - **Shift+F10** or the **Menu** key opens the right-click menu at the selected object or the text cursor.
-- **Ctrl+F** finds words on the slides and in the notes. **Ctrl+H** replaces them.
+- **Ctrl+F** finds words on the slides and in the notes. **Ctrl+H** replaces them. **Ctrl+G** goes to a slide by its number.
 - **Esc** stops editing text. The box stays selected. Press Esc again to clear the selection.
 
 While you type in a table, **Tab** moves to the next cell. Tab in the last cell adds a row.

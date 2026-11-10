@@ -62,7 +62,6 @@ void pageNumberFormatDialog(QWidget *p, Editor *ed);
 void documentPropertiesDialog(QWidget *p, Editor *ed, int tab = 0);   // 1 = Commercial Print
 void measurementWindow(QWidget *p, Editor *ed);
 void hyphenationDialog(QWidget *p, Editor *ed);
-void pasteSpecialDialog(QWidget *p, Editor *ed);
 void insertFileDialog(QWidget *p, Editor *ed);
 int autoflowText(Editor *ed, const QString &boxId);   // new pages and linked boxes until the story fits; returns pages added
 void recipientsDialog(QWidget *p, Editor *ed, bool typeNew);
