@@ -65,14 +65,32 @@ ROW = re.compile(r'\{QStringLiteral\(' + STRING + r'\),\s*QStringLiteral\(' + ST
                  + STRING + r'\),\s*QStringLiteral\(' + STRING + r'\),\s*QStringLiteral\(' + STRING + r'\)\}')
 
 
+def statement(text, start):
+    """The C++ statement that starts at `start`: up to the first ';' that is not inside a string or character literal."""
+    i, quote = start, None
+    while i < len(text):
+        c = text[i]
+        if quote:
+            if c == "\\":
+                i += 1
+            elif c == quote:
+                quote = None
+        elif c in "\"'":
+            quote = c
+        elif c == ";":
+            return text[start:i + 1]
+        i += 1
+    return text[start:]
+
+
 def rows(path, windows_only_too=True):
     with open(os.path.join(ROOT, path), encoding="utf-8") as f:
         text = f.read()
     if path == SHARED:
         text = text[text.index("void addThirdPartyList"):]
     else:
-        m = re.search(r"(?:addThirdPartyList\(|host\.extras\s*=)[^;]*;", text, re.S)
-        text = m.group(0) if m else ""
+        m = re.search(r"addThirdPartyList\(|host\.extras\s*=", text)
+        text = statement(text, m.start()) if m else ""
     out = []
     for m in ROW.finditer(text):
         windows = "#ifdef Q_OS_WIN" in text[:m.start()] and "#endif" not in text[text.rindex("#ifdef Q_OS_WIN", 0, m.start()):m.start()] \
