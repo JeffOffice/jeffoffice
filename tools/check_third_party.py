@@ -3,7 +3,7 @@
 
 Every part made by others that the repository carries (third_party/*, PDFium's license texts, the dictionaries, the
 fonts and icons, and the license files in packaging/licenses) must name a row of the list: the rows all four apps
-share (libs/shell/app/filescreenparts.cpp, addThirdPartyList) or an app's own (the extras its About page passes).
+share (libs/shell/app/filescreenparts.cpp, addThirdPartyList) or an app's own (the extras its About page passes, as `host.extras` of the AboutHost).
 A part this script doesn't know fails the check, so a new library can't ship without its row: add the row, then
 add the part to PARTS below.
 
@@ -71,7 +71,7 @@ def rows(path, windows_only_too=True):
     if path == SHARED:
         text = text[text.index("void addThirdPartyList"):]
     else:
-        m = re.search(r"addThirdPartyList\([^;]*;", text, re.S)
+        m = re.search(r"(?:addThirdPartyList\(|host\.extras\s*=)[^;]*;", text, re.S)
         text = m.group(0) if m else ""
     out = []
     for m in ROW.finditer(text):
