@@ -1702,6 +1702,7 @@ private:
     std::optional<office::PackageProps> m_editedProps;   // properties a person edited, written at the next save
     OpenHow m_openHow = OpenHow::Normal;                 // how the file being read was asked for
     QString m_filePassword, m_pendingPassword;
+    write::VersionKey m_versions;   // what the versions kept for the file are protected with (they follow a new password when the file is saved)
     bool m_fileProtected = false;      // the workbook is written protected with a password (m_filePassword; empty: the password every program knows)
     bool m_diskProtected = false;      // the file on disk is protected: what it holds is not what the package's bytes are
     QByteArray m_diskDigest;           // the digest of the protected file's bytes as this program last read or wrote them

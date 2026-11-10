@@ -110,8 +110,6 @@ void CrunchWindow::protectWithPassword()
         req.password = dialog.password();
         dialog.clearPasswords();
     }
-    // (the versions kept follow the password: none is left in the clear, and Go Back opens them with the new one)
-    const QString before = hasUserPassword() ? m_filePassword : QString();
     jp::crypto::wipe(m_filePassword);
     if (req.remove) {
         m_fileProtected = false;
@@ -120,12 +118,6 @@ void CrunchWindow::protectWithPassword()
         m_fileProtected = true;
         m_filePassword = req.password;
         setStatus(tr("The workbook is protected with a password when you save."));
-    }
-    if (!m_path.isEmpty()) {
-        QApplication::setOverrideCursor(Qt::WaitCursor);
-        const int failed = write::reprotectVersions(m_path, QStringLiteral(".xlsx"), before, hasUserPassword() ? m_filePassword : QString());
-        QApplication::restoreOverrideCursor();
-        if (failed > 0) notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
     }
     jp::crypto::wipe(req.password);
     m_protectionChanged = true; invalidateRecovery();

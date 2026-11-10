@@ -145,8 +145,6 @@ void WriteWindow::encryptWithPassword()
     QString password;
     const NewPasswordChoice choice = askNewFilePassword(this, m_fileProtected, &password);
     if (choice == NewPasswordChoice::Cancelled) return;
-    // (the versions kept follow the password: none is left in the clear, and Go Back opens them with the new one)
-    const QString before = m_fileProtected ? m_filePassword : QString();
     crypto::wipe(m_filePassword);
     if (choice == NewPasswordChoice::Removed) {
         m_fileProtected = false;
@@ -156,12 +154,6 @@ void WriteWindow::encryptWithPassword()
         m_filePassword = password;
         dropRecoveryCopy();   // (a copy being made, or made, holds the text in the clear)
         statusBar()->showMessage(tr("The document is protected with a password when you save."), 8000);
-    }
-    if (!m_path.isEmpty()) {
-        QApplication::setOverrideCursor(Qt::WaitCursor);
-        const int failed = write::reprotectVersions(m_path, QStringLiteral(".docx"), before, m_fileProtected ? m_filePassword : QString());
-        QApplication::restoreOverrideCursor();
-        if (failed > 0) notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
     }
     crypto::wipe(password);
     m_doc->setModified(true);

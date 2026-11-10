@@ -52,4 +52,18 @@ bool versionPackage(const QByteArray &stored, const QString &password, QByteArra
 // (empty: not protected). The number of versions that could not be changed (the old password is not theirs) is returned.
 int reprotectVersions(const QString &documentPath, const QString &extension, const QString &oldPassword, const QString &newPassword);
 
+// What the versions kept for a file are protected with. A password put on, changed, or taken off in the window is not the file's until the file is saved: until then the versions stay as the file
+// on disk has them (so a change that is discarded leaves them matching the file), and they follow when the file is saved (follow). A version is never kept in the clear for a window that has a password.
+struct VersionKey {
+    QString kept;   // what the versions on disk are protected with ("": not protected)
+    // What a version kept now is protected with, given the password the window has now ("": none).
+    QString forNew(const QString &filePassword) const { return kept.isEmpty() ? filePassword : kept; }
+    // The package of a kept version: opened with what the versions have, or else with the window's password.
+    bool open(const QByteArray &stored, const QString &filePassword, QByteArray *package) const;
+    // After the file is saved with `filePassword` ("": none): every version is given it. Returns the number that could not be changed.
+    int follow(const QString &documentPath, const QString &extension, const QString &filePassword);
+    // The file was opened with `password` ("": none), or is a new one.
+    void reset(const QString &password = QString());
+};
+
 } // namespace jp::write

@@ -296,7 +296,7 @@ private Q_SLOTS:
         verifyProtected(path, QStringLiteral("hunter2"));
     }
 
-    // A password put on, changed, or taken off is put on every kept version, so none is left in the clear and Go Back still works.
+    // A password put on, changed, or taken off is put on every kept version when the file is saved with it, so none is left in the clear and Go Back still works.
     void versionsFollowThePassword()
     {
         QTemporaryDir dir;
@@ -310,14 +310,52 @@ private Q_SLOTS:
         auto versionFile = [&] { return store.folder() + QLatin1Char('/') + w.versions().first().file; };
         QVERIFY(fileBytes(versionFile()).startsWith("PK"));
         protect(w, QStringLiteral("one"));
+        QVERIFY(fileBytes(versionFile()).startsWith("PK"));   // (the file is not saved with it yet)
+        QVERIFY(w.saveTo(path));
         QVERIFY(fileBytes(versionFile()).startsWith(kCompound));
         protect(w, QStringLiteral("two"));
+        QVERIFY(w.saveTo(path));
         QVERIFY(w.restoreVersion(w.versions().first().file));   // (opened with the new password)
         QCOMPARE(w.editor()->doc()->props.title, QStringLiteral("Sample"));
         QVERIFY(w.isPasswordProtected());
         setNewPasswordStandIn([](bool has, QString *) { return has ? NewPasswordChoice::Removed : NewPasswordChoice::Cancelled; });
         w.encryptWithPassword();
+        QVERIFY(w.saveTo(path));
         for (const write::DocVersion &v : w.versions()) QVERIFY2(fileBytes(store.folder() + QLatin1Char('/') + v.file).startsWith("PK"), qPrintable(v.name));
+        w.editor()->markSaved();
+    }
+
+    // A password taken off or changed and then not saved leaves the versions as the file on disk has them: protected, and opening with the file's password.
+    void aPasswordChangeThatIsNotSavedLeavesTheVersionsAlone()
+    {
+        QTemporaryDir dir;
+        DeckWindow w;
+        Quiet quiet(w);
+        w.editor()->setDocument(sample());
+        const QString path = dir.filePath(QStringLiteral("g.pptx"));
+        protect(w, QStringLiteral("one"));
+        QVERIFY(w.saveTo(path));
+        QVERIFY(w.saveVersion(QStringLiteral("V")));
+        const write::VersionStore store(path, QStringLiteral(".pptx"));
+        auto versionFile = [&] { return store.folder() + QLatin1Char('/') + w.versions().first().file; };
+        auto opensWith = [&](const QString &password) {
+            QByteArray package;
+            return write::versionPackage(fileBytes(versionFile()), password, &package);
+        };
+        QVERIFY(fileBytes(versionFile()).startsWith(kCompound));
+        // taken off, not saved: a version kept now, and the old one, are still protected with "one"
+        setNewPasswordStandIn([](bool has, QString *) { return has ? NewPasswordChoice::Removed : NewPasswordChoice::Cancelled; });
+        w.encryptWithPassword();
+        QVERIFY(w.saveVersion(QStringLiteral("W")));
+        for (const write::DocVersion &v : w.versions()) QVERIFY2(fileBytes(store.folder() + QLatin1Char('/') + v.file).startsWith(kCompound), qPrintable(v.name));
+        // changed, not saved: they open with the file's password, not the new one
+        protect(w, QStringLiteral("two"));
+        QVERIFY(opensWith(QStringLiteral("one")));
+        QVERIFY(!opensWith(QStringLiteral("two")));
+        // saved: now they follow
+        QVERIFY(w.saveTo(path));
+        QVERIFY(opensWith(QStringLiteral("two")));
+        QVERIFY(!opensWith(QStringLiteral("one")));
         w.editor()->markSaved();
     }
 

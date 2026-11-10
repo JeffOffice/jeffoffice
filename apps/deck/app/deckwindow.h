@@ -501,6 +501,7 @@ private:
     quint64 m_serial = 0;
     bool m_fileProtected = false;         // the file is saved with a password
     QString m_filePassword;
+    write::VersionKey m_versions;   // what the versions kept for the file are protected with (they follow a new password when the file is saved)
     bool m_personalInfoRemoved = false;   // Inspect took the names out of the properties: they stay out until the presentation is closed
     bool m_protectionNoted = false;       // a note was made that no recovery copy is kept
     void notice(const QString &title, const QString &text, bool warning = false);

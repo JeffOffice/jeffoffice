@@ -539,6 +539,7 @@ private:
     bool m_textFormKnown = false;   // (it was chosen: Save writes the same form without asking again)
     bool m_textNoted = false;       // (the person was told that a text file holds only the words)
     bool m_macrosNoted = false;     // (the person was told that the macros are not saved)
+    write::VersionKey m_versions;   // what the versions kept for the file are protected with (they follow a new password when the file is saved)
     QString m_filePassword;         // the password the file opened with or was given: the file is written protected with it (never shown, wiped when the window goes)
     bool m_fileProtected = false;
     bool m_recoveryNoted = false;       // (the person was told that no recovery copy is kept of a protected document)

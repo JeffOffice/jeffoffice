@@ -158,8 +158,6 @@ void DeckWindow::encryptWithPassword()
     QString password;
     const NewPasswordChoice choice = askNewFilePassword(this, m_fileProtected, &password);
     if (choice == NewPasswordChoice::Cancelled) return;
-    // (the versions kept follow the password: none is left in the clear, and Go Back opens them with the new one)
-    const QString before = m_fileProtected ? m_filePassword : QString();
     crypto::wipe(m_filePassword);
     if (choice == NewPasswordChoice::Removed) {
         m_fileProtected = false;
@@ -169,12 +167,6 @@ void DeckWindow::encryptWithPassword()
         m_filePassword = password;
         dropRecoveryCopy();   // (a copy being made, or made, holds the text in the clear)
         statusBar()->showMessage(tr("The presentation is protected with a password when you save."), 8000);
-    }
-    if (!m_ed->filePath().isEmpty()) {
-        QApplication::setOverrideCursor(Qt::WaitCursor);
-        const int failed = write::reprotectVersions(m_ed->filePath(), QStringLiteral(".pptx"), before, m_fileProtected ? m_filePassword : QString());
-        QApplication::restoreOverrideCursor();
-        if (failed > 0) notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
     }
     crypto::wipe(password);
     // (a password is a change to save, as the properties are)
@@ -315,7 +307,8 @@ bool DeckWindow::saveVersion(const QString &name)
     QString err;
     QByteArray bytes = deck::exportPresentation(*d, &err);
     // (a version of a presentation that asks for a password asks for it too)
-    if (!bytes.isEmpty() && m_fileProtected) bytes = office::encryptPackage(bytes, m_filePassword);
+    const QString kept = m_versions.forNew(m_fileProtected ? m_filePassword : QString());
+    if (!bytes.isEmpty() && !kept.isEmpty()) bytes = office::encryptPackage(bytes, kept);
     if (bytes.isEmpty()) {
         notice(tr("Version History"), tr("The version couldn't be kept.\n%1").arg(err), true);
         return false;
@@ -337,7 +330,7 @@ bool DeckWindow::restoreVersion(const QString &file)
     QByteArray zip;
     QString err;
     std::unique_ptr<Document> doc;
-    if (write::versionPackage(store.read(file), m_filePassword, &zip) && !zip.isEmpty()) doc = deck::importPresentation(zip, &err);
+    if (m_versions.open(store.read(file), m_fileProtected ? m_filePassword : QString(), &zip) && !zip.isEmpty()) doc = deck::importPresentation(zip, &err);
     if (!doc) {
         notice(tr("Version History"), tr("That version can't be opened.\n%1").arg(err), true);
         return false;
@@ -350,11 +343,13 @@ bool DeckWindow::restoreVersion(const QString &file)
     // (a new presentation in the window clears the password and the names kept out: neither is lost by going back)
     const bool protectedNow = m_fileProtected;
     QString password = m_filePassword;
+    const QString keptWith = m_versions.kept;
     const bool namesOut = m_personalInfoRemoved;
     m_ed->endTextEdit();
     m_ed->setDocument(std::move(doc), path);
     m_fileProtected = protectedNow;
     m_filePassword = password;
+    m_versions.reset(keptWith);
     crypto::wipe(password);
     m_personalInfoRemoved = namesOut;
     m_ed->markUnsaved();

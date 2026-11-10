@@ -48,7 +48,8 @@ bool WriteWindow::saveVersion(const QString &name)
         return false;
     }
     // (a version of a document that asks for a password asks for it too)
-    if (m_fileProtected) bytes = office::encryptPackage(bytes, m_filePassword);
+    const QString kept = m_versions.forNew(m_fileProtected ? m_filePassword : QString());
+    if (!kept.isEmpty()) bytes = office::encryptPackage(bytes, kept);
     write::VersionStore store(m_path);
     if (!store.add(name.trimmed().isEmpty() ? tr("Version %1").arg(store.list().size() + 1) : name, bytes, &err)) {
         notice(tr("Version History"), tr("The version couldn't be kept.\n%1").arg(err), true);
@@ -65,7 +66,7 @@ bool WriteWindow::restoreVersion(const QString &file)
     QByteArray bytes;
     QString err;
     std::unique_ptr<write::WriteDoc> doc;
-    if (write::versionPackage(store.read(file), m_filePassword, &bytes)) doc = write::WriteDoc::fromDocx(bytes, &err, nullptr);
+    if (m_versions.open(store.read(file), m_fileProtected ? m_filePassword : QString(), &bytes)) doc = write::WriteDoc::fromDocx(bytes, &err, nullptr);
     if (!doc) {
         notice(tr("Version History"), tr("That version can't be opened.\n%1").arg(err), true);
         return false;
@@ -85,7 +86,7 @@ int WriteWindow::compareWithVersion(const QString &file)
 {
     if (!m_doc || m_path.isEmpty()) return -1;
     QByteArray bytes;
-    if (!write::versionPackage(write::VersionStore(m_path).read(file), m_filePassword, &bytes)) return -1;
+    if (!m_versions.open(write::VersionStore(m_path).read(file), m_fileProtected ? m_filePassword : QString(), &bytes)) return -1;
     // (the compare reads a file: the version is put in a folder that goes with this call)
     QTemporaryDir dir;
     if (!dir.isValid()) return -1;

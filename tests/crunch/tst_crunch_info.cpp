@@ -127,13 +127,57 @@ private Q_SLOTS:
             e.win.w.act(QStringLiteral("protect.password"))->trigger();
         };
         setPassword(QStringLiteral("one"), false);
+        QVERIFY(firstVersion().startsWith("PK"));   // (the file is not saved with it yet)
+        QVERIFY(saveAndWaitHere(e.win.w));
         QVERIFY(firstVersion().startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)));
         kept.clear();
         QVERIFY(e.win.w.saveVersion(QStringLiteral("Protected")));
         QVERIFY(kept.count() > 0 || kept.wait(20000));
         QVERIFY(firstVersion().startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)));
         setPassword(QString(), true);
+        QVERIFY(saveAndWaitHere(e.win.w));
         for (const write::DocVersion &v : e.win.w.versions()) QVERIFY2(store.read(v.file).startsWith("PK"), qPrintable(v.name));
+        e.win.w.setWindowModified(false);
+        store.removeAll();
+    }
+
+    // A password taken off or changed and then not saved leaves the versions as the file on disk has them: protected, and opening with the file's password.
+    void aPasswordChangeThatIsNotSavedLeavesTheVersionsAlone()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        write::VersionStore store(e.path, QStringLiteral(".xlsx"));
+        store.removeAll();
+        auto setPassword = [&](const QString &password, bool remove) {
+            e.win.w.anchorHooks().setFilePasswordAsker = [=](SetFilePasswordRequest *r) {
+                r->password = password;
+                r->remove = remove;
+                return true;
+            };
+            e.win.w.act(QStringLiteral("protect.password"))->trigger();
+        };
+        QSignalSpy kept(&e.win.w, &CrunchWindow::versionKept);
+        auto keep = [&](const char *name) {
+            kept.clear();
+            return e.win.w.saveVersion(QString::fromLatin1(name)) && (kept.count() > 0 || kept.wait(20000));
+        };
+        setPassword(QStringLiteral("one"), false);
+        QVERIFY(saveAndWaitHere(e.win.w));
+        QVERIFY(keep("V"));
+        auto opensWith = [&](const QString &password) {
+            QByteArray package;
+            return write::versionPackage(store.read(e.win.w.versions().first().file), password, &package);
+        };
+        QVERIFY(store.read(e.win.w.versions().first().file).startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)));
+        setPassword(QString(), true);
+        QVERIFY(keep("W"));
+        for (const write::DocVersion &v : e.win.w.versions()) QVERIFY2(store.read(v.file).startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)), qPrintable(v.name));
+        setPassword(QStringLiteral("two"), false);
+        QVERIFY(opensWith(QStringLiteral("one")));
+        QVERIFY(!opensWith(QStringLiteral("two")));
+        QVERIFY(saveAndWaitHere(e.win.w));
+        QVERIFY(opensWith(QStringLiteral("two")));
+        QVERIFY(!opensWith(QStringLiteral("one")));
         e.win.w.setWindowModified(false);
         store.removeAll();
     }

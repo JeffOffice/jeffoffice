@@ -404,13 +404,47 @@ private Q_SLOTS:
         auto versionFile = [&] { return store.folder() + QLatin1Char('/') + w.versions().first().file; };
         QVERIFY(fileBytes(versionFile()).startsWith("PK"));
         protect(w, QStringLiteral("one"));
+        QVERIFY(fileBytes(versionFile()).startsWith("PK"));   // (the file is not saved with it yet)
+        QVERIFY(saveInto(w, dir, QStringLiteral("f.docx")));
         QVERIFY(fileBytes(versionFile()).startsWith(kCompound));
         protect(w, QStringLiteral("two"));
+        QVERIFY(saveInto(w, dir, QStringLiteral("f.docx")));
         QVERIFY(w.restoreVersion(w.versions().first().file));
         QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("Plans"));
         setNewPasswordStandIn([](bool has, QString *) { return has ? NewPasswordChoice::Removed : NewPasswordChoice::Cancelled; });
         w.encryptWithPassword();
+        QVERIFY(saveInto(w, dir, QStringLiteral("f.docx")));
         for (const write::DocVersion &v : w.versions()) QVERIFY2(fileBytes(store.folder() + QLatin1Char('/') + v.file).startsWith("PK"), qPrintable(v.name));
+    }
+
+    // A password taken off or changed and then not saved leaves the versions as the file on disk has them: protected, and opening with the file's password.
+    void aPasswordChangeThatIsNotSavedLeavesTheVersionsAlone()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Plans"));
+        protect(w, QStringLiteral("one"));
+        QVERIFY(saveInto(w, dir, QStringLiteral("g.docx")));
+        const QString path = dir.filePath(QStringLiteral("g.docx"));
+        QVERIFY(w.saveVersion(QStringLiteral("V")));
+        const write::VersionStore store(path);
+        auto versionFile = [&] { return store.folder() + QLatin1Char('/') + w.versions().first().file; };
+        auto opensWith = [&](const QString &password) {
+            QByteArray package;
+            return write::versionPackage(fileBytes(versionFile()), password, &package);
+        };
+        QVERIFY(fileBytes(versionFile()).startsWith(kCompound));
+        setNewPasswordStandIn([](bool has, QString *) { return has ? NewPasswordChoice::Removed : NewPasswordChoice::Cancelled; });
+        w.encryptWithPassword();
+        QVERIFY(w.saveVersion(QStringLiteral("W")));
+        for (const write::DocVersion &v : w.versions()) QVERIFY2(fileBytes(store.folder() + QLatin1Char('/') + v.file).startsWith(kCompound), qPrintable(v.name));
+        protect(w, QStringLiteral("two"));
+        QVERIFY(opensWith(QStringLiteral("one")));
+        QVERIFY(!opensWith(QStringLiteral("two")));
+        QVERIFY(saveInto(w, dir, QStringLiteral("g.docx")));
+        QVERIFY(opensWith(QStringLiteral("two")));
+        QVERIFY(!opensWith(QStringLiteral("one")));
     }
 
     // A copy of a protected file is protected too: it keeps the password.

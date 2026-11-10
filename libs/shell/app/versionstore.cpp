@@ -1,5 +1,6 @@
 #include "app/versionstore.h"
 
+#include "io/crypto.h"
 #include "office/officecrypt.h"
 #include "office/package.h"
 
@@ -174,6 +175,36 @@ int reprotectVersions(const QString &documentPath, const QString &extension, con
         if (!store.replace(v.file, now)) ++failed;
     }
     return failed;
+}
+
+bool VersionKey::open(const QByteArray &stored, const QString &filePassword, QByteArray *package) const
+{
+    return versionPackage(stored, kept, package) || versionPackage(stored, filePassword, package);
+}
+
+int VersionKey::follow(const QString &documentPath, const QString &extension, const QString &filePassword)
+{
+    int failed = 0;
+    if (kept != filePassword) {
+        VersionStore store(documentPath, extension);
+        for (const DocVersion &v : store.list()) {
+            QByteArray package;
+            if (!open(store.read(v.file), filePassword, &package)) {
+                ++failed;
+                continue;
+            }
+            const QByteArray now = filePassword.isEmpty() ? package : office::encryptPackage(package, filePassword);
+            if (now.isEmpty() || !store.replace(v.file, now)) ++failed;
+        }
+    }
+    reset(filePassword);
+    return failed;
+}
+
+void VersionKey::reset(const QString &password)
+{
+    crypto::wipe(kept);
+    kept = password;
 }
 
 } // namespace jp::write

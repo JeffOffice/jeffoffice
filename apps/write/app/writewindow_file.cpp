@@ -232,6 +232,7 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
     target->m_fileProtected = wasProtected && !tmpl;   // (a copy of a protected file is protected too)
     crypto::wipe(target->m_filePassword);
     if (target->m_fileProtected) target->m_filePassword = openedWith;
+    target->m_versions.reset(target->m_fileProtected ? openedWith : QString());
     crypto::wipe(openedWith);
     // A document marked as final opens for reading only (the Info page lets it be edited again).
     if (how == OpenHow::Normal && !tmpl && target->m_doc->markedAsFinal()) {
@@ -489,6 +490,9 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     m_path = path;
     rememberPlace();
     m_doc->filePath = path;
+    // (the versions kept follow the password the file has now)
+    if (m_versions.follow(path, QStringLiteral(".docx"), m_fileProtected ? m_filePassword : QString()) > 0)
+        notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
     if (isReadOnly() && !m_readOnlyByProtection) setReadOnly(false);   // (a protected document is saved as it is: the protection stays)
     m_recoveredFrom.clear();
     dropRecoveryCopy();

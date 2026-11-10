@@ -138,11 +138,13 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
         // (a copy of a protected presentation is protected too)
         target->m_fileProtected = wasProtected;
         if (wasProtected) target->m_filePassword = openedWith;
+        target->m_versions.reset(wasProtected ? openedWith : QString());
         target->updateTitle();
     } else {
         target->m_ed->setDocument(std::move(doc), path);
         target->m_fileProtected = wasProtected;
         if (wasProtected) target->m_filePassword = openedWith;
+        target->m_versions.reset(wasProtected ? openedWith : QString());
         if (how == OpenHow::ReadOnly) target->setReadOnly(true);
         // A presentation marked as final opens for reading only (the Info page lets it be edited again).
         else if (how == OpenHow::Normal && target->markedAsFinal() && deck::presentationKindOf(path) != deck::PresentationKind::Template) {

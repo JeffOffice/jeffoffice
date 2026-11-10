@@ -317,6 +317,9 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
         m_diskProtected = m_fileProtected;
         m_diskDigest = m_fileProtected && m_savedDigest ? *m_savedDigest : QByteArray();
         m_protectionChanged = false;
+        // (the versions kept follow the password the file has now)
+        if (m_versions.follow(path, QStringLiteral(".xlsx"), hasUserPassword() ? m_filePassword : QString()) > 0)
+            notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
         invalidateRecovery();   // (the work is saved: it needs no copy, and a copy being made is of what was)
         m_recoveredFrom.clear();
         if (m_recoveredCopy) recovery::discard(*std::exchange(m_recoveredCopy, std::nullopt));

@@ -68,8 +68,10 @@ bool CrunchWindow::saveVersion(const QString &name)
     const std::shared_ptr<office::sheet::Workbook> book = m_loaded->book;
     const QPointer<CrunchWindow> self(this);
     // (a version of a workbook that asks for a password asks for it too)
-    const bool protect = m_fileProtected;
-    const auto secret = std::make_shared<QString>(m_filePassword.isEmpty() ? office::defaultPassword() : m_filePassword);
+    // (what the versions on disk have, until the file is saved with a new password: none is kept in the clear for a window that has one)
+    const QString keptWith = m_versions.forNew(hasUserPassword() ? m_filePassword : QString());
+    const bool protect = m_fileProtected || !keptWith.isEmpty();
+    const auto secret = std::make_shared<QString>(keptWith.isEmpty() ? office::defaultPassword() : keptWith);
     QThread *thread = QThread::create([self, book, snapshot, path, label, protect, secret] {
         QByteArray bytes;
         QString message;

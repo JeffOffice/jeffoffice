@@ -271,6 +271,7 @@ void CrunchWindow::forgetFilePassword()
     jp::crypto::wipe(m_filePassword);
     jp::crypto::wipe(m_pendingPassword);
     m_fileProtected = m_diskProtected = m_protectionChanged = false;
+    m_versions.reset();
     m_diskDigest.clear();
 }
 
@@ -338,6 +339,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     jp::crypto::wipe(m_filePassword);
     m_fileProtected = m_diskProtected = m_loaded->protectedFile;
     m_filePassword = m_fileProtected && !m_loaded->defaultPasswordOnly ? m_pendingPassword : QString();
+    m_versions.reset(hasUserPassword() ? m_filePassword : QString());
     m_diskDigest = m_loaded->diskDigest;
     jp::crypto::wipe(m_pendingPassword);
     m_protectionChanged = false;

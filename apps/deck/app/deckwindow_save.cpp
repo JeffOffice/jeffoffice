@@ -68,6 +68,7 @@ void DeckWindow::createSaveActions()
         // (a presentation that takes the place of this one is not protected, nor its names kept out, unless the code that put it there says so)
         crypto::wipe(m_filePassword);
         m_fileProtected = false;
+        m_versions.reset();
         m_personalInfoRemoved = false;
     });
     connect(m_ed, &Editor::modifiedChanged, this, [this](bool modified) {
@@ -222,6 +223,9 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     m_ed->setFilePath(path);
     m_ed->markSaved();
     if (isReadOnly()) setReadOnly(false);
+    // (the versions kept follow the password the file has now)
+    if (m_versions.follow(path, QStringLiteral(".pptx"), m_fileProtected ? m_filePassword : QString()) > 0)
+        notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
     m_recoveredFrom.clear();
     m_templatePath = deck::presentationKindOf(path) == deck::PresentationKind::Template ? path : QString();
     Settings::get().addRecentFile(path);
