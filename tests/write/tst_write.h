@@ -4,6 +4,7 @@
 #include "../isolatesettings.h"
 #include "core/fonts.h"
 #include "../plainprobe.h"
+#include "../recoverygate.h"
 #include "../stablesaves.h"
 #include "app/pagepaint.h"
 #include "app/pageview.h"
@@ -19,7 +20,7 @@
 #include "app/filetasks.h"
 #include <QDirIterator>
 #include <QListWidget>
-#include <QSemaphore>
+#include <QElapsedTimer>
 #include <QThread>
 #include <atomic>
 #include <QStandardPaths>
@@ -864,6 +865,7 @@ private Q_SLOTS:
     void unsavedWorkIsKeptAndComesBack();
     void aRecoveryCopyIsMadeOffTheWindowsThread();
     void aSaveWhileACopyIsBeingMadeLeavesNoCopy();
+    void aSaveAfterACopyIsWrittenRemovesItBeforeItIsReported();
     void theParagraphDialogChangesWhatWasChanged();
     void homeTabHasFindAndReplace();
     void findNextSelectsTheMatchAndScrollsToIt();

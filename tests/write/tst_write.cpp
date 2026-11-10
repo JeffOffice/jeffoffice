@@ -974,25 +974,20 @@ void WriteTests::aRecoveryCopyIsMadeOffTheWindowsThread()
     recovery::setRoot(dir.path());
     recovery::setCopySuffix(QStringLiteral(".docx"));
     {
+        auto gate = std::make_shared<RecoveryGate>();
+        const auto letGo = qScopeGuard([gate] { gate->open(); });
         WriteWindow w;
         typeText(*w.document(), w.view()->cursor(), QStringLiteral("Kept in the background"));
-        std::atomic<QThread *> madeOn{nullptr};
-        std::atomic<int> made{0};
-        QSemaphore release;
-        w.setRecoveryHook([&] {
-            madeOn = QThread::currentThread();
-            ++made;
-            release.tryAcquire(1, 5000);   // (the test lets it go)
-        });
+        w.setRecoveryHook(RecoveryGate::hook(gate));
         w.autoRecover();
         QVERIFY(w.recoveryBusy());   // (the window is free while the copy is made)
         QVERIFY(w.recoveryCopy().isEmpty());
         w.autoRecover();   // (skipped: one is being made)
-        release.release();
+        gate->open();
         QTRY_VERIFY(!w.recoveryBusy());
-        QCOMPARE(int(made), 1);
-        QVERIFY(madeOn != nullptr);
-        QVERIFY(madeOn != QThread::currentThread());
+        QCOMPARE(int(gate->made), 1);
+        QVERIFY(gate->madeOn != nullptr);
+        QVERIFY(gate->madeOn != QThread::currentThread());
         QFile f(w.recoveryCopy());
         QVERIFY(f.open(QIODevice::ReadOnly));
         const QByteArray kept = f.readAll();
@@ -1005,48 +1000,82 @@ void WriteTests::aRecoveryCopyIsMadeOffTheWindowsThread()
     recovery::setRoot(QString());
 }
 
-// A save while a copy is being made leaves no copy: the one being made is never written.
+// A save while a copy is being made leaves no copy: the one being made is never written. The same when the window is closed (deleted) meanwhile.
 void WriteTests::aSaveWhileACopyIsBeingMadeLeavesNoCopy()
 {
     QTemporaryDir dir;
     QTemporaryDir root;
     recovery::setRoot(root.path());
     recovery::setCopySuffix(QStringLiteral(".docx"));
+    auto none = [&] {
+        QDirIterator left(root.path(), {QStringLiteral("*.docx"), QStringLiteral("*.json")}, QDir::Files, QDirIterator::Subdirectories);
+        return !left.hasNext();
+    };
     {
+        auto gate = std::make_shared<RecoveryGate>();
+        const auto letGo = qScopeGuard([gate] { gate->open(); });
         WriteWindow w;
         typeText(*w.document(), w.view()->cursor(), QStringLiteral("Saved meanwhile"));
-        QSemaphore release;
-        w.setRecoveryHook([&] { release.tryAcquire(1, 5000); });
+        w.setRecoveryHook(RecoveryGate::hook(gate));
         w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("a.docx")); });
         w.autoRecover();
         QVERIFY(w.recoveryBusy());
         QVERIFY(w.save());
         QVERIFY(!w.recoveryBusy());
-        release.release();
+        gate->open();
         recovery::AsyncWriter::waitForAll();
         QCoreApplication::processEvents();
         QVERIFY(w.recoveryCopy().isEmpty());
-        QDirIterator left(root.path(), {QStringLiteral("*.docx")}, QDir::Files, QDirIterator::Subdirectories);
-        QVERIFY(!left.hasNext());
+        QVERIFY(none());
     }
-    // The same when the window is closed (deleted) while one is being made.
     {
+        auto gate = std::make_shared<RecoveryGate>();
+        const auto letGo = qScopeGuard([gate] { gate->open(); });
         auto *w = new WriteWindow;
         typeText(*w->document(), w->view()->cursor(), QStringLiteral("Closed meanwhile"));
-        QSemaphore release;
-        w->setRecoveryHook([&] { release.tryAcquire(1, 5000); });
+        w->setRecoveryHook(RecoveryGate::hook(gate));
         w->autoRecover();
         QVERIFY(w->recoveryBusy());
         delete w;
-        release.release();
+        gate->open();
         recovery::AsyncWriter::waitForAll();
         QCoreApplication::processEvents();
-        QDirIterator left(root.path(), {QStringLiteral("*.docx")}, QDir::Files, QDirIterator::Subdirectories);
-        QVERIFY(!left.hasNext());
+        QVERIFY(none());
     }
     recovery::setRoot(QString());
 }
 
+// The other order: the copy is written, and the window has not yet heard of it when the work is saved. The written copy goes.
+void WriteTests::aSaveAfterACopyIsWrittenRemovesItBeforeItIsReported()
+{
+    QTemporaryDir dir, root;
+    recovery::setRoot(root.path());
+    recovery::setCopySuffix(QStringLiteral(".docx"));
+    {
+        WriteWindow w;
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Saved after"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("a.docx")); });
+        w.autoRecover();
+        // (waiting without running the event loop: the window is not told)
+        QElapsedTimer waited;
+        waited.start();
+        bool written = false;
+        while (!written && waited.elapsed() < 60000) {
+            QDirIterator it(root.path(), {QStringLiteral("*.docx")}, QDir::Files, QDirIterator::Subdirectories);
+            written = it.hasNext();
+            if (!written) QThread::msleep(2);
+        }
+        QVERIFY(written);
+        QVERIFY(w.recoveryBusy());
+        QVERIFY(w.save());
+        recovery::AsyncWriter::waitForAll();
+        QCoreApplication::processEvents();
+        QDirIterator left(root.path(), {QStringLiteral("*.docx"), QStringLiteral("*.json")}, QDir::Files, QDirIterator::Subdirectories);
+        QVERIFY(!left.hasNext());
+        QVERIFY(w.recoveryCopy().isEmpty());
+    }
+    recovery::setRoot(QString());
+}
 
 void WriteTests::theParagraphDialogChangesWhatWasChanged()
 {

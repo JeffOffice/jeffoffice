@@ -1,7 +1,9 @@
 // Tests of JeffWrite's Info page: the properties a .docx keeps, Mark as Final, a password, Inspect Document, and Check Compatibility. Every file is made here in code.
 
 #include "../isolatesettings.h"
+#include "../recoverygate.h"
 #include "../settingguard.h"
+#include "app/recovery.h"
 #include "app/filetasks.h"
 #include "app/filescreen.h"
 #include "app/infopage.h"
@@ -30,6 +32,7 @@
 #include "render/pdfpage.h"
 
 #include <QCheckBox>
+#include <QDirIterator>
 #include <QFile>
 #include <QLineEdit>
 #include <QPushButton>
@@ -1298,6 +1301,38 @@ private Q_SLOTS:
         QVERIFY(saveInto(v, dir, QStringLiteral("c.odt")));
         QVERIFY(!v.isReadOnly());
         QVERIFY(!v.document()->markedAsFinal());
+    }
+
+    // A password set while a copy is being made: the copy is not kept (it would hold the text in the clear).
+    void aPasswordSetWhileACopyIsBeingMadeLeavesNoCopy()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".docx"));
+        {
+            auto gate = std::make_shared<RecoveryGate>();
+            const auto letGo = qScopeGuard([gate] { gate->open(); });
+            WriteWindow w;
+            Quiet quiet(w);
+            typeText(*w.document(), w.view()->cursor(), QStringLiteral("secret words"));
+            w.setRecoveryHook(RecoveryGate::hook(gate));
+            w.autoRecover();
+            QVERIFY(w.recoveryBusy());
+            setNewPasswordStandIn([](bool, QString *password) {
+                *password = QStringLiteral("pw");
+                return NewPasswordChoice::Set;
+            });
+            w.encryptWithPassword();
+            gate->open();
+            recovery::AsyncWriter::waitForAll();
+            QCoreApplication::processEvents();
+            QVERIFY(w.recoveryCopy().isEmpty());
+            QDirIterator left(root.path(), {QStringLiteral("*.docx"), QStringLiteral("*.json")}, QDir::Files, QDirIterator::Subdirectories);
+            QVERIFY(!left.hasNext());
+            w.document()->setModified(false);
+        }
+        recovery::setRoot(QString());
     }
 
     void aProtectedDocumentIsNeverRecoveredAsPlainText()

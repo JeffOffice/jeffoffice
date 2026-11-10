@@ -610,8 +610,9 @@ void WriteWindow::makeRecoveryCopy(bool now)
     auto snapshot = std::make_shared<office::wml::Document>();
     if (!m_doc->docxSnapshot(snapshot.get())) return;
     const std::function<void()> hook = m_recoveryHook;
-    auto make = [snapshot, hook](QString *error) {
+    auto make = [snapshot, hook](QString *error, const std::function<bool()> &cancelled) {
         if (hook) hook();
+        if (cancelled()) return QByteArray();
         return office::wml::writeDocx(*snapshot, error);
     };
     if (now) {
