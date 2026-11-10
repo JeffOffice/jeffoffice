@@ -151,12 +151,6 @@
  },
  {
   "app": "jeffdeck",
-  "source_startswith": "PDF/A, tagged PDF, bookmarks",
-  "works": "drop",
-  "soon": "drop"
- },
- {
-  "app": "jeffdeck",
   "source_startswith": "Export a slide as a picture",
   "works": "The current slide can be exported to PNG or JPEG.",
   "soon": "Slide pictures: all slides at once, other sizes, and GIF, TIFF, BMP, and SVG"
@@ -551,5 +545,11 @@
   "source_startswith": "Save `.xls` so Excel opens it",
   "works": "drop",
   "soon": "drop"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Print preview with page navigation, zoom, one or many pages",
+  "works": "Print preview shows each page as it prints, with page arrows, one, two, or four pages at once, gray for grayscale printing, the turned sheet when the paper is turned, and zoom to 150, 200, or 300 percent.",
+  "soon": "A check that shrinks a document to fit on one page"
  }
 ]
