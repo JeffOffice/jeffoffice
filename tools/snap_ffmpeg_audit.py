@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-LIB = re.compile(r"/lib(avcodec|avformat|avutil|swresample|swscale)\.so\.(\d+)$")
+LIB = re.compile(r"/lib(avcodec|avformat|avutil|swresample|swscale)\.so\.\d+(\.\d+)*$")
 
 
 def listing(snap_file):
