@@ -4,6 +4,7 @@
 #include "app/appwindow.h"
 #include "app/infopage.h"
 #include "app/recovery.h"
+#include "app/printpage.h"
 #include "app/translate.h"
 #include <QStatusBar>
 #include "core/textexport.h"
@@ -89,6 +90,7 @@ struct WriteOutputOptions {
     jp::PdfProtection pdfProtect;   // Export to PDF: a password to open it with (never with pdfArchive); wiped after the export
     int perSheet = 1;           // pages on a sheet: 1, 2, 4, 6, 9, or 16 (each scaled to fit its place)
     QSizeF scaleTo;             // points, upright: each page is scaled to fit this paper (empty: the page's own)
+    jp::PrintTurn turn = jp::PrintTurn::AsSet;   // the paper turned tall or wide, whichever way each page is (its page is scaled to fit); as set: each page's own way
 };
 
 class WriteWindow : public AppWindow {

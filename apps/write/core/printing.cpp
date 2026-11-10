@@ -91,19 +91,6 @@ QVector<int> parsePageRange(const QString &text, int pageCount, const QVector<in
     return out;
 }
 
-QVector<int> sheetOrder(const QVector<int> &pages, int copies, bool collate)
-{
-    copies = std::max(1, copies);
-    QVector<int> out;
-    if (collate) {
-        for (int c = 0; c < copies; ++c) out += pages;
-    } else {
-        for (int page : pages)
-            for (int c = 0; c < copies; ++c) out << page;
-    }
-    return out;
-}
-
 QString paperDescription(const QSizeF &points)
 {
     const bool wide = points.width() > points.height();

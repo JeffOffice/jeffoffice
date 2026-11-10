@@ -1,4 +1,5 @@
 #include "tst_write.h"
+#include "render/pdfpage.h"
 
 
 void WriteTests::thePaperIsDescribedAsTheSectionSetsIt()
@@ -483,6 +484,134 @@ void WriteTests::copiesAndCollateReachAPrinterThatCannotMakeThem()
     o.copies = 3;
     QVERIFY(w.printOutput(o));
     QCOMPARE(numbers, (QVector<int>{1, 2, 3}));
+}
+
+
+namespace {
+// How many pixels of the picture have a color (their red, green, and blue are far apart), and how many are dark.
+struct Ink {
+    int colored = 0, dark = 0;
+};
+Ink inkOf(const QImage &image)
+{
+    Ink ink;
+    for (int y = 0; y < image.height(); ++y)
+        for (int x = 0; x < image.width(); ++x) {
+            const QColor c = image.pixelColor(x, y);
+            if (std::max({c.red(), c.green(), c.blue()}) - std::min({c.red(), c.green(), c.blue()}) > 60) ++ink.colored;
+            if (qGray(c.rgb()) < 128) ++ink.dark;
+        }
+    return ink;
+}
+// Opens the Print page, picks "Save as PDF", lets `choose` set the rest, and prints to `path`; the PDF that was made.
+QByteArray printToPdf(WriteWindow &w, const QString &path, const std::function<void(QWidget *page)> &choose)
+{
+    w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+    w.show();
+    w.act("file.print")->trigger();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);   // (the page that was there is gone, so what is found is the new one)
+    auto *printer = w.findChild<QComboBox *>(QStringLiteral("printPrinter"));
+    if (!printer) return {};
+    printer->setCurrentIndex(printer->count() - 1);   // (Save as PDF is the last)
+    choose(printer->window());
+    w.findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+    QFile f(path);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+} // namespace
+
+
+// Grayscale: the pages come out in shades of gray, in the PDF that Print to PDF makes and in the preview beside the choices.
+void WriteTests::theGrayscaleChoiceMakesThePrintedPagesAndThePreviewGray()
+{
+    QTemporaryDir dir;
+    const QByteArray body = "<w:p><w:r><w:rPr><w:color w:val=\"FF0000\"/><w:sz w:val=\"200\"/></w:rPr><w:t>Red words</w:t></w:r></w:p>";
+    WriteWindow w;
+    w.setDocument(open(makeDocx(body, kStyles)), QString());
+    auto render = [](const QByteArray &pdf) {
+        const jp::PdfDocument doc(pdf);
+        return doc.isValid() ? doc.render(0, QSize(612, 792)) : QImage();
+    };
+    // in color, as it is
+    QImage preview;
+    const QByteArray color = printToPdf(w, dir.filePath(QStringLiteral("color.pdf")), [&](QWidget *page) {
+        auto *gray = page->findChild<QCheckBox *>(QStringLiteral("printGray"));
+        QVERIFY(gray);
+        QCOMPARE(gray->text(), QStringLiteral("Grayscale"));
+        QVERIFY(!gray->isChecked());
+        auto *shown = page->findChild<QLabel *>(QStringLiteral("printPreview"));
+        QTRY_VERIFY(!shown->pixmap().isNull());
+        preview = shown->pixmap().toImage();
+    });
+    QVERIFY(!color.isEmpty());
+    QVERIFY2(inkOf(preview).colored > 50, qPrintable(QString::number(inkOf(preview).colored)));
+    QVERIFY2(inkOf(render(color)).colored > 50, qPrintable(QString::number(inkOf(render(color)).colored)));
+    // in gray
+    const QByteArray gray = printToPdf(w, dir.filePath(QStringLiteral("gray.pdf")), [&](QWidget *page) {
+        auto *check = page->findChild<QCheckBox *>(QStringLiteral("printGray"));
+        QVERIFY(check);
+        check->setChecked(true);
+        auto *shown = page->findChild<QLabel *>(QStringLiteral("printPreview"));
+        QTRY_VERIFY(!shown->pixmap().isNull());
+        QTRY_COMPARE(inkOf(shown->pixmap().toImage()).colored, 0);
+        QVERIFY(inkOf(shown->pixmap().toImage()).dark > 50);   // (the words are there)
+    });
+    QVERIFY(!gray.isEmpty());
+    const Ink printed = inkOf(render(gray));
+    QCOMPARE(printed.colored, 0);
+    QVERIFY2(printed.dark > 50, qPrintable(QString::number(printed.dark)));
+}
+
+
+// The way the paper turns: each sheet is made tall or wide whichever way its page is, and the page is scaled to fit it; as the section says is the page's own way.
+void WriteTests::thePaperTurnedChoiceTurnsThePrintedSheetsAndThePreview()
+{
+    QTemporaryDir dir;
+    const QByteArray body = "<w:p><w:r><w:t>Turned words</w:t></w:r></w:p>";
+    WriteWindow w;
+    w.setDocument(open(makeDocx(body, kStyles)), QString());   // (a tall page)
+    auto sheetOf = [&](int turn) {
+        QString paperSaid;
+        const QByteArray pdf = printToPdf(w, dir.filePath(QStringLiteral("turn%1.pdf").arg(turn)), [&](QWidget *page) {
+            auto *box = page->findChild<QComboBox *>(QStringLiteral("printOrientation"));
+            QVERIFY(box);
+            QCOMPARE(box->count(), 3);
+            QCOMPARE(box->itemText(0), QStringLiteral("As each section says"));
+            QCOMPARE(box->itemText(1), QStringLiteral("Tall"));
+            QCOMPARE(box->itemText(2), QStringLiteral("Wide"));
+            box->setCurrentIndex(box->findData(turn));
+            paperSaid = page->findChild<QLabel *>(QStringLiteral("printPaper"))->text();
+            // (the preview shows the sheet: a wide one is wider than tall)
+            auto *shown = page->findChild<QLabel *>(QStringLiteral("printPreview"));
+            QTRY_VERIFY(!shown->pixmap().isNull());
+        });
+        const jp::PdfDocument doc(pdf);
+        return QPair<QSizeF, QString>(doc.isValid() ? doc.pageSize(0) : QSizeF(), paperSaid);
+    };
+    const auto asSet = sheetOf(int(PrintTurn::AsSet));
+    QVERIFY(asSet.first.height() > asSet.first.width());
+    QVERIFY(asSet.second.endsWith(QStringLiteral("portrait")));
+    const auto wide = sheetOf(int(PrintTurn::Wide));
+    QVERIFY2(wide.first.width() > wide.first.height(), qPrintable(QStringLiteral("%1x%2").arg(wide.first.width()).arg(wide.first.height())));
+    QVERIFY(wide.second.endsWith(QStringLiteral("landscape")));
+    QVERIFY(qAbs(wide.first.width() - asSet.first.height()) < 2 && qAbs(wide.first.height() - asSet.first.width()) < 2);   // (the same paper, on its side)
+    const auto tall = sheetOf(int(PrintTurn::Tall));
+    QVERIFY(tall.first.height() > tall.first.width());
+    // a wide section turned tall
+    WriteWindow landscape;
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"15840\" w:h=\"12240\" w:orient=\"landscape\"/></w:sectPr>";
+    landscape.setDocument(open(makeDocx(body, kStyles, QByteArray(), sect)), QString());
+    QSizeF made;
+    const QByteArray pdf = printToPdf(landscape, dir.filePath(QStringLiteral("land.pdf")), [&](QWidget *page) {
+        auto *box = page->findChild<QComboBox *>(QStringLiteral("printOrientation"));
+        QVERIFY(box);
+        box->setCurrentIndex(box->findData(int(PrintTurn::Tall)));
+    });
+    const jp::PdfDocument doc(pdf);
+    QVERIFY(doc.isValid());
+    made = doc.pageSize(0);
+    QVERIFY(made.height() > made.width());
+    QVERIFY(doc.text(0).contains(QStringLiteral("Turned")));   // (its page is scaled onto the sheet, not cut off)
 }
 
 

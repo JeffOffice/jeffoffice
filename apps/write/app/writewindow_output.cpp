@@ -2,6 +2,7 @@
 
 #include "app/writewindow.h"
 #include "app/printsides.h"
+#include "app/printpage.h"
 
 #include "app/filedialogs.h"
 #include "app/pageoutput.h"
@@ -135,23 +136,46 @@ std::unique_ptr<write::WriteDoc> WriteWindow::selectionDocument()
 
 QSizeF WriteWindow::outputPageSize(const WriteOutputOptions &options, int index)
 {
-    if (options.range == WriteOutputOptions::Range::Selection && m_selectionDoc) return m_selectionDoc->pager().page(index).size;
-    return m_doc ? m_doc->pager().page(index).size : QSizeF();
+    QSizeF size;
+    if (options.range == WriteOutputOptions::Range::Selection && m_selectionDoc) size = m_selectionDoc->pager().page(index).size;
+    else if (m_doc) size = m_doc->pager().page(index).size;
+    return turnedSheet(size, options.turn);   // (the sheet: the page's own size unless the paper is turned)
 }
 
 QImage WriteWindow::outputPageImage(const WriteOutputOptions &options, int index, int width)
 {
-    if (options.range != WriteOutputOptions::Range::Selection) return m_view->pageImage(index, width);
-    if (!m_selectionDoc) return {};
-    const auto page = m_selectionDoc->pager().materialize(index);
-    if (!page || page->size.width() <= 0) return {};
-    QImage image(width, std::max(1, int(std::lround(width * page->size.height() / page->size.width()))), QImage::Format_RGB32);
-    image.fill(Qt::white);
-    QPainter p(&image);
-    p.setRenderHint(QPainter::Antialiasing);
-    p.scale(width / page->size.width(), width / page->size.width());
-    LayoutCache cache;
-    write::paintPage(&p, *page, &cache, write::PageDrawing());
+    // The page as it comes out: on a sheet that is turned (the page scaled to fit it), and gray when that is asked for.
+    const QSizeF page = options.range == WriteOutputOptions::Range::Selection && m_selectionDoc ? m_selectionDoc->pager().page(index).size
+                        : m_doc ? m_doc->pager().page(index).size : QSizeF();
+    const QSizeF sheet = turnedSheet(page, options.turn);
+    const bool turned = sheet != page;
+    double fit = 1;
+    if (turned && page.width() > 0 && page.height() > 0) fit = std::min(sheet.width() / page.width(), sheet.height() / page.height());
+    const int pageWidth = turned && sheet.width() > 0 ? std::max(1, int(std::lround(width * fit * page.width() / sheet.width()))) : width;
+    QImage image;
+    if (options.range != WriteOutputOptions::Range::Selection) {
+        image = m_view->pageImage(index, pageWidth);
+    } else if (m_selectionDoc) {
+        const auto materialized = m_selectionDoc->pager().materialize(index);
+        if (materialized && materialized->size.width() > 0) {
+            image = QImage(pageWidth, std::max(1, int(std::lround(pageWidth * materialized->size.height() / materialized->size.width()))), QImage::Format_RGB32);
+            image.fill(Qt::white);
+            QPainter p(&image);
+            p.setRenderHint(QPainter::Antialiasing);
+            p.scale(pageWidth / materialized->size.width(), pageWidth / materialized->size.width());
+            LayoutCache cache;
+            write::paintPage(&p, *materialized, &cache, write::PageDrawing());
+        }
+    }
+    if (image.isNull()) return image;
+    if (turned) {
+        QImage onSheet(width, std::max(1, int(std::lround(width * sheet.height() / sheet.width()))), QImage::Format_RGB32);
+        onSheet.fill(Qt::white);
+        QPainter p(&onSheet);
+        p.drawImage((onSheet.width() - image.width()) / 2, (onSheet.height() - image.height()) / 2, image);
+        image = onSheet;
+    }
+    if (options.grayscale) image = image.convertToFormat(QImage::Format_Grayscale8).convertToFormat(QImage::Format_RGB32);
     return image;
 }
 
@@ -603,11 +627,12 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     if (m_printerPreparer) m_printerPreparer(printer);
     // A printer that can't make copies is sent the pages again, in the order the copies are to come out.
     const bool again = !options.toFile && !printer.supportsMultipleCopies();
-    const QVector<int> sheets = again ? write::sheetOrder(pages, options.copies, options.collate) : pages;
+    const QVector<int> sheets = again ? sheetOrder(pages, options.copies, options.collate) : pages;
     QApplication::setOverrideCursor(Qt::WaitCursor);
     write::SheetLayout layout;
     layout.perSheet = options.perSheet;
     layout.paper = options.scaleTo;
+    layout.turn = options.turn;
     bool ok = write::paintSheets(*source, &printer, sheets, sourcePages, printer.colorMode() == QPrinter::GrayScale, layout);
     QString err;
     if (ok && made) {

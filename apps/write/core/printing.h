@@ -1,5 +1,5 @@
 #pragma once
-// What printing is told by the person, made ready: the pages a range names, the order the sheets come out for the copies, and how the paper is described.
+// What printing is told by the person, made ready: the pages a range names, and how the paper is described.
 
 #include <QSizeF>
 #include <QString>
@@ -13,10 +13,6 @@ QVector<int> parsePageRange(const QString &text, int pageCount);
 // The same, where the document's sections are known (`sectionOfPage` holds each page's section, one entry for each page): "p2s3" is the second page of the third section, and "s3" is the
 // whole third section, each of them also an end of a range ("p1s2-p1s3"). Sections count in the order they have pages; the page of a section counts its pages, not the numbers they show.
 QVector<int> parsePageRange(const QString &text, int pageCount, const QVector<int> &sectionOfPage);
-
-// The pages in the order the sheets come out for `copies` of them: collated, the whole set again for each copy (1 2 3 1 2 3), else each page's copies
-// together (1 1 2 2 3 3). Never fewer than one copy.
-QVector<int> sheetOrder(const QVector<int> &pages, int copies, bool collate);
 
 // The paper a page is set on, in words: "Letter, portrait", or "A4, landscape"; a size with no name is given in inches or centimeters (as the region measures).
 QString paperDescription(const QSizeF &points);

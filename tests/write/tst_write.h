@@ -872,6 +872,8 @@ private Q_SLOTS:
     void aPrinterNamedPdfIsAPrinterAndTheFileEntryIsFoundByItsRole();
     void savingAsPdfThroughPrintLeavesAnExistingFileWholeUntilTheNewOneIsDone();
     void copiesAndCollateReachAPrinterThatCannotMakeThem();
+    void theGrayscaleChoiceMakesThePrintedPagesAndThePreviewGray();
+    void thePaperTurnedChoiceTurnsThePrintedSheetsAndThePreview();
     void helpTopicsAreComplete();
     void f1OpensHelpOnWhatIsBeingDone();
     void theViewShowsTheFirstPageAtOnceAndLaysOutTheRestInTheBackground();

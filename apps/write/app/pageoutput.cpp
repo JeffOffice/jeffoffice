@@ -50,7 +50,7 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
     bool started = false;
     const QSize grid = sheetGrid(layout.perSheet);
     const int perSheet = grid.width() * grid.height();
-    const bool shared = perSheet > 1 || (layout.paper.width() > 0 && layout.paper.height() > 0);
+    const bool shared = perSheet > 1 || (layout.paper.width() > 0 && layout.paper.height() > 0) || layout.turn != PrintTurn::AsSet;
     auto draw = [&](flow::MaterializedPage &page) {
         const double scale = double(device->logicalDpiX()) / 72.0;
         p.save();
@@ -102,6 +102,7 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
             if (shared) {
                 if (layout.paper.width() > 0 && layout.paper.height() > 0) size = size.width() > size.height() ? QSizeF(layout.paper.height(), layout.paper.width()) : layout.paper;
                 if (grid.width() > grid.height() && size.width() < size.height()) size.transpose();
+                size = turnedSheet(size, layout.turn);
             }
             setSheet(device, size);
             if (!begin()) return false;
@@ -112,6 +113,7 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
             const bool wide = sheet.width() > sheet.height();
             if (layout.paper.width() > 0 && layout.paper.height() > 0) sheet = wide ? QSizeF(layout.paper.height(), layout.paper.width()) : layout.paper;
             if (grid.width() > grid.height() && sheet.width() < sheet.height()) sheet.transpose();
+            sheet = turnedSheet(sheet, layout.turn);
         }
         setSheet(device, sheet);
         if (!begin()) return false;
@@ -150,30 +152,6 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
     }
     if (started) p.end();
     return started;
-}
-
-namespace {
-constexpr int kIsFileRole = Qt::UserRole + 1;   // set on the entry that makes a PDF file
-}
-
-void fillPrinterBox(QComboBox *box, const QStringList &printers, const QString &current)
-{
-    box->clear();
-    for (const QString &name : printers) box->addItem(name, name);
-    box->addItem(QCoreApplication::translate("Print", "Save as PDF"), QString());
-    box->setItemData(box->count() - 1, true, kIsFileRole);
-    const int at = printers.indexOf(current);
-    if (at >= 0) box->setCurrentIndex(at);
-    else if (printers.isEmpty()) box->setCurrentIndex(0);
-}
-
-PrinterChoice printerChoice(const QComboBox *box)
-{
-    PrinterChoice choice;
-    if (box->currentIndex() < 0) return choice;
-    choice.toFile = box->currentData(kIsFileRole).toBool();
-    if (!choice.toFile) choice.printer = box->currentData(Qt::UserRole).toString();
-    return choice;
 }
 
 } // namespace jp::write

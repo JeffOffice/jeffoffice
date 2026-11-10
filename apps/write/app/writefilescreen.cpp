@@ -6,6 +6,7 @@
 #include "app/icons.h"
 #include "app/pageoutput.h"
 #include "app/pagepaint.h"
+#include "app/printpage.h"
 #include "app/pageview.h"
 #include "app/printsides.h"
 #include "app/settings.h"
@@ -98,20 +99,6 @@ protected:
 
 private:
     QPixmap m_picture;
-};
-
-// The page preview, which says when its size changed so the page is drawn again to fit.
-class PreviewLabel : public QLabel {
-public:
-    using QLabel::QLabel;
-    std::function<void()> resized;
-
-protected:
-    void resizeEvent(QResizeEvent *e) override
-    {
-        QLabel::resizeEvent(e);
-        if (resized) resized();
-    }
 };
 
 } // namespace
@@ -341,10 +328,7 @@ QWidget *WriteFileScreen::buildPrint()
     printBtn->setMinimumHeight(40);
     printBtn->setMinimumWidth(120);
     printBtn->setCursor(Qt::PointingHandCursor);
-    auto *copies = new QSpinBox(w);
-    copies->setObjectName(QStringLiteral("printCopies"));
-    copies->setRange(1, 999);
-    copies->setAccessibleName(tr("Copies"));
+    QSpinBox *copies = makeCopiesBox(w);
     auto *top = new QHBoxLayout();
     top->addWidget(printBtn);
     top->addSpacing(12);
@@ -355,27 +339,23 @@ QWidget *WriteFileScreen::buildPrint()
     left->addSpacing(8);
     // The printer (a PDF file is one more), whether the copies come out a set at a time, and the paper the document's sections set.
     auto *form = new QFormLayout();
-    auto *printer = new QComboBox(w);
-    printer->setObjectName(QStringLiteral("printPrinter"));
-    printer->setAccessibleName(tr("Printer"));
-    QStringList names;
-    for (const QPrinterInfo &info : QPrinterInfo::availablePrinters()) names << info.printerName();
-    write::fillPrinterBox(printer, names, QPrinterInfo::defaultPrinter().isNull() ? QString() : QPrinterInfo::defaultPrinter().printerName());
+    QComboBox *printer = makePrinterBox(w);
     form->addRow(tr("Printer:"), printer);
-    auto *collate = new QCheckBox(tr("Collated"), w);
-    collate->setObjectName(QStringLiteral("printCollate"));
-    collate->setChecked(true);
-    collate->setToolTip(tr("Print each copy of the whole document in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
+    QCheckBox *collate = makeCollateBox(w, tr("Print each copy of the whole document in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
     form->addRow(QString(), collate);
     // One side, or both sides by the printer or by hand (the odd pages, the stack turned over, then the even pages).
     auto *duplex = new QComboBox(w);
     duplex->setObjectName(QStringLiteral("printDuplex"));
     fillSidesBox(duplex, true, Settings::get().value(QStringLiteral("print/sides"), int(SidesChoice::OneSide)).toInt());
     form->addRow(tr("Sides:"), duplex);
+    QComboBox *orientation = makeOrientationBox(w, tr("As each section says"));
+    form->addRow(tr("Paper turned:"), orientation);
     auto *paper = new QLabel(w);
     paper->setObjectName(QStringLiteral("printPaper"));
     paper->setWordWrap(true);
     form->addRow(tr("Paper:"), paper);
+    QCheckBox *gray = makeGrayscaleBox(w);
+    form->addRow(QString(), gray);
     left->addLayout(form);
     left->addSpacing(8);
     auto *all = new QRadioButton(tr("All pages"), w);
@@ -407,9 +387,7 @@ QWidget *WriteFileScreen::buildPrint()
     sides->addItem(tr("Only even pages"), int(WriteOutputOptions::Sides::Even));
     left->addSpacing(6);
     left->addWidget(sides);
-    auto *reverse = new QCheckBox(tr("Last page first"), w);
-    reverse->setObjectName(QStringLiteral("printReverse"));
-    reverse->setToolTip(tr("Print the pages in reverse order, so the stack comes out in order."));
+    QCheckBox *reverse = makeReverseBox(w);
     left->addWidget(reverse);
     // Several pages on a sheet, and each page scaled to a paper size.
     auto *perSheet = new QComboBox(w);
@@ -464,13 +442,7 @@ QWidget *WriteFileScreen::buildPrint()
     across->addItem(tr("One page"), 1);
     across->addItem(tr("Two pages"), 2);
     across->addItem(tr("Four pages"), 4);
-    auto *zoom = new QComboBox(w);
-    zoom->setObjectName(QStringLiteral("printZoom"));
-    zoom->setAccessibleName(tr("Zoom"));
-    zoom->addItem(tr("Fit"), 100);
-    zoom->addItem(tr("150%"), 150);
-    zoom->addItem(tr("200%"), 200);
-    zoom->addItem(tr("300%"), 300);
+    QComboBox *zoom = makeZoomBox(w);
     auto *look = new QHBoxLayout();
     look->addStretch(1);
     look->addWidget(new QLabel(tr("Show:"), w));
@@ -496,7 +468,7 @@ QWidget *WriteFileScreen::buildPrint()
             o.range = WriteOutputOptions::Range::Pages;
             o.pages = text->text();
         }
-        const write::PrinterChoice choice = write::printerChoice(printer);
+        const PrinterChoice choice = printerChoice(printer);
         o.toFile = choice.toFile;
         o.printer = choice.printer;
         o.copies = copies->value();
@@ -507,6 +479,8 @@ QWidget *WriteFileScreen::buildPrint()
         o.byHand = sidesByHand(duplex);
         o.perSheet = perSheet->currentData().toInt();
         o.scaleTo = scaleTo->currentData().toSizeF();
+        o.grayscale = gray->isChecked();
+        o.turn = PrintTurn(orientation->currentData().toInt());
         return o;
     };
     auto page = std::make_shared<int>(0);
@@ -532,7 +506,7 @@ QWidget *WriteFileScreen::buildPrint()
         printBtn->setEnabled(!pages.isEmpty());
         collate->setEnabled(copies->value() > 1);
         // (a file has no sides; by hand, the pages of each side are chosen by the program)
-        const write::PrinterChoice chosen = write::printerChoice(printer);
+        const PrinterChoice chosen = printerChoice(printer);
         const bool toFile = chosen.toFile;
         updateSidesBox(duplex, chosen.printer, toFile);
         const bool hand = sidesByHand(duplex);
@@ -561,7 +535,7 @@ QWidget *WriteFileScreen::buildPrint()
         const qreal dpr = preview->devicePixelRatioF();
         const int shownAtOnce = across->currentData().toInt();
         const int cols = shownAtOnce == 1 ? 1 : 2, rows = shownAtOnce == 4 ? 2 : 1;
-        const double zoomBy = zoom->currentData().toInt() / 100.0;
+        const double zoomBy = zoomFactor(zoom);
         // (what fits is worked out from the scroll area's window, which the picture never changes)
         const int availWidth = std::max(280, scroll->viewport()->width() - 4);
         const int availHeight = std::max(280, scroll->viewport()->height() - 4);
@@ -607,6 +581,8 @@ QWidget *WriteFileScreen::buildPrint()
     connect(printer, &QComboBox::currentIndexChanged, w, [=] { restart(); });
     connect(sides, &QComboBox::currentIndexChanged, w, [=] { restart(); });
     connect(reverse, &QCheckBox::toggled, w, [=] { restart(); });
+    connect(gray, &QCheckBox::toggled, w, [=] { paint(); });
+    connect(orientation, &QComboBox::currentIndexChanged, w, [=] { paint(); });
     connect(duplex, &QComboBox::currentIndexChanged, w, [=] {
         Settings::get().setValue(QStringLiteral("print/sides"), sidesWanted(duplex));
         restart();
