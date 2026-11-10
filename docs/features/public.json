@@ -3865,12 +3865,16 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "2253e4a6457d8c587f59875d6d9baafbe78738357c1b777d2a987db0288eafa5"
+       "text": "c1411da6e4f59e800db39cc6050d867c8dca28991dded0740f74955b79c416b0"
+      },
+      {
+       "status": "todo",
+       "text": "4168bea328468edd3d5779a3820179d544cb4c0a5a4b7f9eef2d73198df71ab5"
       },
       {
        "hide_soon": true,
        "status": "done",
-       "text": "96e8e83316c6be10e38d69836fb05bc641c919f081f6ce58751f703c7eca709f"
+       "text": "405325ecbf469ccd80eeb328953f55f7e82a21feeca1dc8eba64d715089bfa8d"
       },
       {
        "hide_soon": true,
@@ -9868,18 +9872,6 @@
     "fr": "Tableau des raccourcis clavier généré à partir des commandes elles-mêmes"
    }
   },
-  "2253e4a6457d8c587f59875d6d9baafbe78738357c1b777d2a987db0288eafa5": {
-   "drop": false,
-   "en": "Play movies and sounds in place while editing and in the show: `.mp4`, `.mov`, `.avi`, `.wmv`, `.mkv`, `.webm`, `.mp3`, `.wav`, `.m4a`, `.wma`, `.ogg`, and `.flac`.",
-   "es": "Reproduzca películas y sonidos en su lugar durante la edición y en la presentación: `.mp4`, `.mov`, `.avi`, `.wmv`, `.mkv`, `.webm`, `.mp3`, `.wav`, `.m4a`, `.wma`, `.ogg` y `.flac`.",
-   "fr": "Lisez des vidéos et des sons sur place pendant la modification et dans le diaporama : `.mp4`, `.mov`, `.avi`, `.wmv`, `.mkv`, `.webm`, `.mp3`, `.wav`, `.m4a`, `.wma`, `.ogg` et `.flac`.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "228866671ffd3ba78890aac32980e7f442469fcfb811ee699d992d4eea3514cb": {
    "drop": false,
    "en": "Review tab",
@@ -11944,6 +11936,18 @@
     "fr": ""
    }
   },
+  "405325ecbf469ccd80eeb328953f55f7e82a21feeca1dc8eba64d715089bfa8d": {
+   "drop": false,
+   "en": "A media file is not decoded until you play it: opening, saving, and printing use only the poster image. If a file can't be played, the app says why and keeps working.",
+   "es": "Un archivo multimedia no se decodifica hasta que usted lo reproduce: al abrir, guardar e imprimir solo se usa la imagen de póster. Si un archivo no se puede reproducir, la aplicación indica el motivo y sigue funcionando.",
+   "fr": "Un fichier multimédia n’est pas décodé tant que vous ne le lisez pas : l’ouverture, l’enregistrement et l’impression n’utilisent que l’image d’affiche. Si un fichier ne peut pas être lu, l’application en indique la raison et continue de fonctionner.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "40690d887edd13cbd2912f95fba0acd983661e5117d2a4512582faafc2111c91": {
    "drop": false,
    "en": "Page Setup",
@@ -12050,6 +12054,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "4168bea328468edd3d5779a3820179d544cb4c0a5a4b7f9eef2d73198df71ab5": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Playback of some older web video formats, AV1, some surround-sound formats, AMR, and MIDI",
+    "es": "Reproducción de algunos formatos de video web antiguos, AV1, algunos formatos de sonido envolvente, AMR y MIDI",
+    "fr": "Lecture de certains anciens formats vidéo web, d’AV1, de certains formats son surround, d’AMR et de MIDI"
    }
   },
   "416a4a53251fbed9ea706084b80c6f78ade54f855e1a4682435e52e195915c47": {
@@ -18256,18 +18272,6 @@
     "fr": "Application de trames et de bordures de paragraphe"
    }
   },
-  "96e8e83316c6be10e38d69836fb05bc641c919f081f6ce58751f703c7eca709f": {
-   "drop": false,
-   "en": "A media file is not decoded until you ask: opening, saving, and printing use only the poster image. If the computer can’t play a file, the app says why and carries on.",
-   "es": "Un archivo multimedia no se decodifica hasta que usted lo solicita: abrir, guardar e imprimir solo usan la imagen de póster. Si el equipo no puede reproducir un archivo, la aplicación indica el motivo y continúa.",
-   "fr": "Un fichier multimédia n’est pas décodé tant que vous ne le demandez pas : l’ouverture, l’enregistrement et l’impression n’utilisent que l’image d’affiche. Si l’ordinateur ne peut pas lire un fichier, l’application en indique la raison et continue.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "973a16406b9b58a415423aee42652b2b72521493185af842c0265a1ff375bc8e": {
    "drop": false,
    "en": "Save the active sheet as `.csv`, `.tsv`, or Unicode text. Choose the separator, encoding, line ends, and whether cells are written as shown or as stored. A warning names the sheets that are not saved, and formula cells are written as their results.",
@@ -20889,6 +20893,18 @@
    "en": "Calculated Field adds, changes, and deletes a field defined by a formula over other fields. Calculated Item does the same for an item in a row or column field, such as `=East+West`. Solve Order sets the order of items, and List Formulas lists each formula on a sheet.",
    "es": "Campo calculado agrega, cambia y elimina un campo definido por una fórmula sobre otros campos. Elemento calculado hace lo mismo con un elemento de un campo de filas o columnas, como `=East+West`. Orden de resolución define el orden de los elementos, y Enumerar fórmulas muestra cada fórmula en una hoja.",
    "fr": "Champ calculé ajoute, modifie et supprime un champ défini par une formule sur d’autres champs. Élément calculé fait de même pour un élément d’un champ de lignes ou de colonnes, par exemple `=East+West`. Ordre de résolution définit l’ordre des éléments, et Lister les formules affiche chaque formule sur une feuille.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "c1411da6e4f59e800db39cc6050d867c8dca28991dded0740f74955b79c416b0": {
+   "drop": false,
+   "en": "Play movies and sounds in place while editing and in the show. Movies: `.mp4`, `.m4v`, `.mov`, `.3gp`, `.mkv`, `.webm`, `.avi`, `.wmv`, `.asf`, `.mpg`, and `.mpeg`; sounds: `.mp3`, `.wav`, `.m4a`, `.aac`, `.flac`, `.ogg`, `.opus`, `.aif`, `.aiff`, and `.wma`.",
+   "es": "Reproduzca películas y sonidos en su lugar durante la edición y en la presentación. Películas: `.mp4`, `.m4v`, `.mov`, `.3gp`, `.mkv`, `.webm`, `.avi`, `.wmv`, `.asf`, `.mpg` y `.mpeg`; sonidos: `.mp3`, `.wav`, `.m4a`, `.aac`, `.flac`, `.ogg`, `.opus`, `.aif`, `.aiff` y `.wma`.",
+   "fr": "Lisez des vidéos et des sons sur place pendant la modification et dans le diaporama. Vidéos : `.mp4`, `.m4v`, `.mov`, `.3gp`, `.mkv`, `.webm`, `.avi`, `.wmv`, `.asf`, `.mpg` et `.mpeg` ; sons : `.mp3`, `.wav`, `.m4a`, `.aac`, `.flac`, `.ogg`, `.opus`, `.aif`, `.aiff` et `.wma`.",
    "soon": {
     "drop": true,
     "en": "",
