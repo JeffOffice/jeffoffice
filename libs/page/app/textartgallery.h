@@ -16,6 +16,8 @@ class Editor;
 // The gallery's items, one for each style: "Aa" drawn in it, in the colors of
 // the editor's document.
 QVector<GalleryItem> textArtGalleryItems(Editor *ed);
+// The same for an app that has no page editor: the "Aa" drawn in the colors of `colors`.
+QVector<GalleryItem> textArtGalleryItems(const ColorScheme &colors);
 // A new Text Art in the style the item `styleId` names (the plain style when no
 // style has that name), with the program's words to start from.
 std::shared_ptr<TextArtItem> newTextArt(const QString &styleId);

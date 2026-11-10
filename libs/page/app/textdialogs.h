@@ -14,6 +14,7 @@ class QWidget;
 namespace jp {
 
 class Editor;
+class TextArtItem;
 
 void fontDialog(QWidget *p, Editor *ed);
 void paragraphDialog(QWidget *p, Editor *ed, int tab = 0);
@@ -37,5 +38,7 @@ bool fillEffectsDialog(QWidget *p, Editor *ed, Fill &fill, const QString &title 
 void wordCountDialog(QWidget *p, Editor *ed);
 void tintsDialog(QWidget *p, Editor *ed, const std::function<void(const ColorRef &)> &apply);
 void textArtTextDialog(QWidget *p, Editor *ed, const QString &itemId);
+// The same box for a Text Art that is not a page's item: asks for the words, font, size, bold, and italic of `art` and sets them in it when the box is taken (false if cancelled).
+bool askTextArtText(QWidget *p, TextArtItem *art);
 
 } // namespace jp

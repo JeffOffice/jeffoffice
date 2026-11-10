@@ -1104,10 +1104,8 @@ void tintsDialog(QWidget *p, Editor *ed, const std::function<void(const ColorRef
 }
 
 // ---------------- TextArt ----------------
-void textArtTextDialog(QWidget *p, Editor *ed, const QString &itemId)
+bool askTextArtText(QWidget *p, TextArtItem *w)
 {
-    auto *w = dynamic_cast<TextArtItem *>(ed->doc()->item(itemId));
-    if (!w) return;
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Edit Text Art Text"));
     auto *row = new QHBoxLayout();
     auto *font = new QComboBox(&dlg.d);
@@ -1135,14 +1133,28 @@ void textArtTextDialog(QWidget *p, Editor *ed, const QString &itemId)
     QObject::connect(font, &QComboBox::currentTextChanged, text, [text](const QString &f) { QFont x(f); x.setPointSize(16); text->setFont(x); });
     dlg.v->addWidget(text);
     text->selectAll();
-    if (!dlg.exec()) return;
+    if (!dlg.exec()) return false;
+    w->text = text->toPlainText().isEmpty() ? QStringLiteral(" ") : text->toPlainText();
+    w->font = font->currentText();
+    w->bold = bold->isChecked();
+    w->italic = italic->isChecked();
+    w->size = size->value();
+    return true;
+}
+
+void textArtTextDialog(QWidget *p, Editor *ed, const QString &itemId)
+{
+    auto *w = dynamic_cast<TextArtItem *>(ed->doc()->item(itemId));
+    if (!w) return;
+    TextArtItem asked = *w;
+    if (!askTextArtText(p, &asked)) return;
     ed->change(QCoreApplication::translate("Dialogs", "Edit Text Art Text"), [&] {
         const double oldSize = w->size;
-        w->text = text->toPlainText().isEmpty() ? QStringLiteral(" ") : text->toPlainText();
-        w->font = font->currentText();
-        w->bold = bold->isChecked();
-        w->italic = italic->isChecked();
-        w->size = size->value();
+        w->text = asked.text;
+        w->font = asked.font;
+        w->bold = asked.bold;
+        w->italic = asked.italic;
+        w->size = asked.size;
         // A new size scales the frame.
         if (std::abs(oldSize - w->size) > 0.1 && oldSize > 0) {
             const double k = w->size / oldSize;
