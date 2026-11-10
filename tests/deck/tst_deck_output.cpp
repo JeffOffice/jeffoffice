@@ -886,7 +886,7 @@ private Q_SLOTS:
             static const QRegularExpression rgb(QStringLiteral("[0-9.]+ [0-9.]+ [0-9.]+ scn"));
             const QString content = QString::fromLatin1(pdfContent(pdf));
             QCOMPARE(content.contains(rgb), !gray);
-            QCOMPARE(pdf.contains("/Subtype /Image"), gray);
+            QVERIFY(!pdf.contains("/Subtype /Image"));   // (a printer that makes a PDF makes it gray itself, as the PDF export does: the page stays vector, and its text stays text)
         }
     }
 
