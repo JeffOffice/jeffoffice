@@ -1,6 +1,8 @@
 // Tests of JeffDeck's Info page: the properties a .pptx keeps, Mark as Final, a password, Version History, and Inspect Document. Every file is made here, in a temporary folder.
 #include "../isolatesettings.h"
+#include "../recoverygate.h"
 #include "../settingguard.h"
+#include "app/recovery.h"
 #include "app/filetasks.h"
 #include "app/infopage.h"
 #include "app/passworddialogs.h"
@@ -8,6 +10,7 @@
 #include "office/officecrypt.h"
 #include "office/packageprops.h"
 
+#include <QDirIterator>
 #include <QTemporaryDir>
 
 namespace {
@@ -155,6 +158,39 @@ private Q_SLOTS:
         QVERIFY(!w.openFile(path));
         QCOMPARE(quiet.said.size(), 1);
         QVERIFY2(quiet.said.first().contains(QLatin1String("The file is damaged.")), qPrintable(quiet.said.first()));
+    }
+
+    // A password set while a copy is being made: the copy is not kept (it would hold the text in the clear).
+    void aPasswordSetWhileACopyIsBeingMadeLeavesNoCopy()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".pptx"));
+        {
+            auto gate = std::make_shared<RecoveryGate>();
+            const auto letGo = qScopeGuard([gate] { gate->open(); });
+            DeckWindow w;
+            Quiet quiet(w);
+            w.newSlide();
+            w.setRecoveryHook(RecoveryGate::hook(gate));
+            w.autoRecover();
+            QVERIFY(w.recoveryBusy());
+            setNewPasswordStandIn([](bool, QString *password) {
+                *password = QStringLiteral("hunter2");
+                return NewPasswordChoice::Set;
+            });
+            w.encryptWithPassword();
+            QVERIFY(w.isPasswordProtected());
+            gate->open();
+            recovery::AsyncWriter::waitForAll();
+            QCoreApplication::processEvents();
+            QVERIFY(w.recoveryCopy().isEmpty());
+            QDirIterator left(root.path(), {QStringLiteral("*.pptx"), QStringLiteral("*.json")}, QDir::Files, QDirIterator::Subdirectories);
+            QVERIFY(!left.hasNext());
+            w.editor()->markSaved();
+        }
+        recovery::setRoot(QString());
     }
 
     void aPasswordProtectsTheFileOnSaveAndOpensItAgain()

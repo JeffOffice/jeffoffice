@@ -262,13 +262,13 @@ void DeckWindow::makeRecoveryCopy(bool now)
     const QString source = m_ed->filePath().isEmpty() ? m_recoveredFrom : m_ed->filePath();
     const QString title = m_ed->displayName();
     // What the file is made from is taken here, where nothing can change meanwhile; the thread makes the presentation of it again, and writes it.
-    const auto snapshot = std::make_shared<Document::Snapshot>(m_ed->doc()->snapshot());
+    const auto snapshot = std::make_shared<deck::ExportSnapshot>(deck::snapshotForExport(*m_ed->doc()));
     const bool embedFonts = embedFontsOnSave();
     const std::function<void()> hook = m_recoveryHook;
-    auto make = [snapshot, copy, embedFonts, hook](QString *error) {
+    auto make = [snapshot, copy, embedFonts, hook](QString *error, const std::function<bool()> &cancelled) {
         if (hook) hook();
-        const std::unique_ptr<Document> doc = Document::fromSnapshot(*snapshot);
-        return deck::exportPresentation(*doc, error, nullptr, deck::kindOfFileName(copy), embedFonts);
+        if (cancelled()) return QByteArray();
+        return deck::exportSnapshot(*snapshot, error, deck::kindOfFileName(copy), embedFonts);
     };
     if (now) {
         QString error;

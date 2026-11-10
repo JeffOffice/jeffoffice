@@ -145,6 +145,42 @@ private Q_SLOTS:
         QVERIFY(!fonts.contains(QStringLiteral("Calibri")));
     }
 
+    // A copy made in the background carries the fonts the file came with, as the window's own save does, even where "embed fonts" is off: they are not the program's to write again.
+    void aBackgroundRecoveryCopyKeepsTheEmbeddedFontsTheFileCarried()
+    {
+        const QByteArray font = renamedFont(fontFileOf(QStringLiteral("Lobster"), false, false), QStringLiteral("Lobster"), QStringLiteral("Zobster"));
+        QVERIFY(!font.isEmpty());
+        QString err;
+        auto doc = deck::importPresentation(pack(withEmbeddedFonts(sampleWithRunIn(QStringLiteral("Zobster")), {{QStringLiteral("Zobster"), {{0, office::makeEot(font)}}}})), &err);
+        QVERIFY2(doc, qPrintable(err));
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".pptx"));
+        {
+            const QVariant embedWas = Settings::get().value(QStringLiteral("save/embedFonts"), true);
+            Settings::get().setValue(QStringLiteral("save/embedFonts"), false);
+            const auto restore = qScopeGuard([&] { Settings::get().setValue(QStringLiteral("save/embedFonts"), embedWas); });
+            // (what the window itself writes carries them)
+            const QByteArray direct = deck::exportPresentation(*doc, &err, nullptr, deck::PresentationKind::Presentation, false);
+            Exported own;
+            QVERIFY2(unpack(direct, &own, &err), qPrintable(err));
+            QVERIFY(embeddedFontsOf(own).contains(QStringLiteral("Zobster")));
+            DeckWindow w;
+            w.editor()->setDocument(std::move(doc));
+            w.editor()->markUnsaved();
+            w.autoRecover();
+            QTRY_VERIFY(!w.recoveryCopy().isEmpty());
+            QFile f(w.recoveryCopy());
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            Exported kept;
+            QVERIFY2(unpack(f.readAll(), &kept, &err), qPrintable(err));
+            QVERIFY(embeddedFontsOf(kept).contains(QStringLiteral("Zobster")));
+            w.editor()->markSaved();
+        }
+        recovery::setRoot(QString());
+    }
+
     // A font whose license says it may not travel, or that is not one the program ships, is never embedded.
     void fontsThatMayNotTravelOrAreNotTheProgramsAreLeftOut()
     {

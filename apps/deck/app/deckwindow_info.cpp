@@ -167,6 +167,7 @@ void DeckWindow::encryptWithPassword()
     } else {
         m_fileProtected = true;
         m_filePassword = password;
+        dropRecoveryCopy();   // (a copy being made, or made, holds the text in the clear)
         statusBar()->showMessage(tr("The presentation is protected with a password when you save."), 8000);
     }
     if (!m_ed->filePath().isEmpty()) {

@@ -471,10 +471,32 @@ QString withFrameNames(const QString &frame, const QString &name, const QString 
     return frame.left(m.capturedStart()) + QStringLiteral("<%1:cNvPr%2%3").arg(m.captured(1), attrs, m.captured(3)) + frame.mid(m.capturedEnd());
 }
 
+// The first slide, 256 pixels across, as the file's picture of itself (it draws with the text layout and the renderer, which only the window's thread may use).
+QByteArray renderThumbnail(const Document &doc)
+{
+    const double width = doc.pageSize().width();
+    if (doc.pages.isEmpty() || width <= 0) return QByteArray();
+    LayoutCache cache;
+    PaintContext ctx;
+    ctx.doc = &doc;
+    ctx.cache = &cache;
+    ctx.opt.output = true;
+    const QImage image = Renderer::renderToImage(ctx, 0, 256.0 / width);
+    if (image.isNull()) return QByteArray();
+    QByteArray bytes;
+    QBuffer buffer(&bytes);
+    buffer.open(QIODevice::WriteOnly);
+    if (!image.convertToFormat(QImage::Format_RGB32).save(&buffer, "JPEG", 85)) return QByteArray();
+    return bytes;
+}
+
 class Exporter {
 public:
     Exporter(const Document &doc, PresentationKind kind, QStringList *skipped, bool embedFonts)
         : m_doc(doc), m_kind(kind), m_callerSkipped(skipped), m_embedFonts(embedFonts), m_keptFonts(EmbeddedFonts::facesOf(&doc)) {}
+    // For a presentation made again from a snapshot (exportSnapshot): the fonts its file carried and the picture of its first slide are what the window had when the snapshot was taken.
+    Exporter(const Document &doc, PresentationKind kind, bool embedFonts, const QVector<EmbeddedFace> &keptFonts, const QByteArray &thumbnail)
+        : m_doc(doc), m_kind(kind), m_callerSkipped(nullptr), m_embedFonts(embedFonts), m_keptFonts(keptFonts), m_thumbnail(thumbnail), m_thumbnailGiven(true) {}
     QByteArray run(QString *error);
 
 private:
@@ -551,6 +573,7 @@ private:
     QString m_notesThemePart;
     QSet<QString> m_keptNames;                   // the names of kept chart parts written so far, lower-cased
     QByteArray m_thumbnail;
+    bool m_thumbnailGiven = false;
     // The comments, as the file numbers them: authors by first appearance, and an index counting up for each author.
     struct CommentOut {
         int author = 0;
@@ -1148,24 +1171,7 @@ QString Exporter::titleOf(const Page &slide, int number) const
     return slide.title.isEmpty() ? QStringLiteral("Slide %1").arg(number) : slide.title;
 }
 
-// The first slide, 256 pixels across, as the file's picture of itself.
-QByteArray Exporter::thumbnail() const
-{
-    const double width = m_doc.pageSize().width();
-    if (m_doc.pages.isEmpty() || width <= 0) return QByteArray();
-    LayoutCache cache;
-    PaintContext ctx;
-    ctx.doc = &m_doc;
-    ctx.cache = &cache;
-    ctx.opt.output = true;
-    const QImage image = Renderer::renderToImage(ctx, 0, 256.0 / width);
-    if (image.isNull()) return QByteArray();
-    QByteArray bytes;
-    QBuffer buffer(&bytes);
-    buffer.open(QIODevice::WriteOnly);
-    if (!image.convertToFormat(QImage::Format_RGB32).save(&buffer, "JPEG", 85)) return QByteArray();
-    return bytes;
-}
+QByteArray Exporter::thumbnail() const { return renderThumbnail(m_doc); }
 
 void Exporter::add(const QString &part, const QString &type, const QString &xml)
 {
@@ -1555,7 +1561,7 @@ QByteArray Exporter::run(QString *error)
     plan();
     planComments();
     prepareThemes();
-    m_thumbnail = thumbnail();
+    if (!m_thumbnailGiven) m_thumbnail = thumbnail();
 
     // The presentation part leads the file; its text is written last, when the links it names are known.
     m_pkg.addPart(kPresentationPart, QByteArray(), kTypeBase + QStringLiteral("presentation.main+xml"));
@@ -1625,6 +1631,21 @@ PresentationKind kindOfFileName(const QString &path)
 QByteArray exportPresentation(const Document &doc, QString *error, QStringList *skipped, PresentationKind kind, bool embedFonts)
 {
     return Exporter(doc, kind, skipped, embedFonts).run(error);
+}
+
+ExportSnapshot snapshotForExport(const Document &doc)
+{
+    ExportSnapshot s;
+    s.doc = doc.snapshot();
+    s.thumbnail = renderThumbnail(doc);
+    s.keptFonts = EmbeddedFonts::facesOf(&doc);
+    return s;
+}
+
+QByteArray exportSnapshot(const ExportSnapshot &snapshot, QString *error, PresentationKind kind, bool embedFonts)
+{
+    const std::unique_ptr<Document> doc = Document::fromSnapshot(snapshot.doc);
+    return Exporter(*doc, kind, embedFonts, snapshot.keptFonts, snapshot.thumbnail).run(error);
 }
 
 bool savePresentationFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool embedFonts, const QString &password)

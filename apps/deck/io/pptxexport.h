@@ -17,6 +17,7 @@
 // the page's objects, as the reader does not keep where among them they stood.
 
 #include "core/document.h"
+#include "core/embeddedfonts.h"
 
 #include <QByteArray>
 #include <QString>
@@ -42,6 +43,17 @@ PresentationKind kindOfFileName(const QString &path);
 // are written back whatever it is, while the presentation uses them.
 QByteArray exportPresentation(const Document &doc, QString *error = nullptr, QStringList *skipped = nullptr,
                               PresentationKind kind = PresentationKind::Presentation, bool embedFonts = false);
+// What a copy of the presentation needs to be made on another thread while the window goes on being edited: taken (snapshotForExport) on the thread that owns the presentation, made into
+// the file's bytes (exportSnapshot) anywhere. The same bytes exportPresentation gives for the presentation as it was when the snapshot was taken.
+// Everything that the text layout or the renderer must do (the picture of the first slide) is done when the snapshot is taken: neither may be used from another thread.
+struct ExportSnapshot {
+    Document::Snapshot doc;
+    QByteArray thumbnail;                  // the first slide's picture, as the file carries it
+    QVector<EmbeddedFace> keptFonts;       // the fonts the file this came from carried
+};
+ExportSnapshot snapshotForExport(const Document &doc);
+QByteArray exportSnapshot(const ExportSnapshot &snapshot, QString *error = nullptr, PresentationKind kind = PresentationKind::Presentation, bool embedFonts = false);
+
 // Writes the file at `path`, as its ending asks (kindOfFileName). The old
 // file stays whole until the new one is complete: a full disk, a folder that
 // can't be written, or a path that isn't one leave it as it was.

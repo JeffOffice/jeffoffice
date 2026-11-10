@@ -1,5 +1,7 @@
 // JeffDeck's tests of the file screen, saving from the window, and reusing slides.
+#include "../recoverygate.h"
 #include "../settingguard.h"
+#include "core/threadcheck.h"
 #include "core/version.h"
 #include "deckhelpers.h"
 #include "app/notespane.h"
@@ -11,7 +13,7 @@
 #include "app/printsides.h"
 #include <QComboBox>
 #include <QDirIterator>
-#include <QSemaphore>
+#include <QElapsedTimer>
 #include <QThread>
 #include <atomic>
 #include <QPrintDialog>
@@ -1488,26 +1490,21 @@ private Q_SLOTS:
         recovery::setRoot(root.path());
         recovery::setCopySuffix(QStringLiteral(".pptx"));
         {
+            auto gate = std::make_shared<RecoveryGate>();
+            const auto letGo = qScopeGuard([gate] { gate->open(); });
             DeckWindow w;
             w.newSlide();
             w.editor()->change(QStringLiteral("title"), [&] { w.editor()->doc()->props.title = QStringLiteral("Kept in the background"); });
-            std::atomic<QThread *> madeOn{nullptr};
-            std::atomic<int> made{0};
-            QSemaphore release;
-            w.setRecoveryHook([&] {
-                madeOn = QThread::currentThread();
-                ++made;
-                release.tryAcquire(1, 5000);   // (the test lets it go)
-            });
+            w.setRecoveryHook(RecoveryGate::hook(gate));
             w.autoRecover();
             QVERIFY(w.recoveryBusy());   // (the window is free while the copy is made)
             QVERIFY(w.recoveryCopy().isEmpty());
             w.autoRecover();   // (skipped: one is being made)
-            release.release();
+            gate->open();
             QTRY_VERIFY(!w.recoveryBusy());
-            QCOMPARE(int(made), 1);
-            QVERIFY(madeOn != nullptr);
-            QVERIFY(madeOn != QThread::currentThread());
+            QCOMPARE(int(gate->made), 1);
+            QVERIFY(gate->madeOn != nullptr);
+            QVERIFY(gate->madeOn != QThread::currentThread());
             const QString copy = w.recoveryCopy();
             QVERIFY(QFileInfo::exists(copy));
             QString err;
@@ -1520,8 +1517,52 @@ private Q_SLOTS:
         recovery::setRoot(QString());
     }
 
-    // A save while a copy is being made leaves no copy: the one being made is never written.
+    // A save while a copy is being made leaves no copy: the one being made is never written. The same when the window is closed (deleted) meanwhile.
     void aSaveWhileACopyIsBeingMadeLeavesNoCopy()
+    {
+        QTemporaryDir root, dir;
+        QVERIFY(root.isValid() && dir.isValid());
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".pptx"));
+        auto none = [&] {
+            QDirIterator left(root.path(), {QStringLiteral("*.pptx"), QStringLiteral("*.json")}, QDir::Files, QDirIterator::Subdirectories);
+            return !left.hasNext();
+        };
+        {
+            auto gate = std::make_shared<RecoveryGate>();
+            const auto letGo = qScopeGuard([gate] { gate->open(); });
+            DeckWindow w;
+            w.newSlide();
+            w.setRecoveryHook(RecoveryGate::hook(gate));
+            w.autoRecover();
+            QVERIFY(w.recoveryBusy());
+            QVERIFY(w.saveTo(dir.filePath(QStringLiteral("a.pptx"))));
+            QVERIFY(!w.recoveryBusy());
+            gate->open();
+            recovery::AsyncWriter::waitForAll();
+            QCoreApplication::processEvents();
+            QVERIFY(w.recoveryCopy().isEmpty());
+            QVERIFY(none());
+        }
+        {
+            auto gate = std::make_shared<RecoveryGate>();
+            const auto letGo = qScopeGuard([gate] { gate->open(); });
+            auto *w = new DeckWindow;
+            w->newSlide();
+            w->setRecoveryHook(RecoveryGate::hook(gate));
+            w->autoRecover();
+            QVERIFY(w->recoveryBusy());
+            delete w;
+            gate->open();
+            recovery::AsyncWriter::waitForAll();
+            QCoreApplication::processEvents();
+            QVERIFY(none());
+        }
+        recovery::setRoot(QString());
+    }
+
+    // The other order: the copy is written, and the window has not yet heard of it when the work is saved. The written copy goes.
+    void aSaveAfterACopyIsWrittenRemovesItBeforeItIsReported()
     {
         QTemporaryDir root, dir;
         QVERIFY(root.isValid() && dir.isValid());
@@ -1530,33 +1571,24 @@ private Q_SLOTS:
         {
             DeckWindow w;
             w.newSlide();
-            QSemaphore release;
-            w.setRecoveryHook([&] { release.tryAcquire(1, 5000); });
             w.autoRecover();
+            // (waiting without running the event loop: the window is not told)
+            QElapsedTimer waited;
+            waited.start();
+            bool written = false;
+            while (!written && waited.elapsed() < 60000) {
+                QDirIterator it(root.path(), {QStringLiteral("*.pptx")}, QDir::Files, QDirIterator::Subdirectories);
+                written = it.hasNext();
+                if (!written) QThread::msleep(2);
+            }
+            QVERIFY(written);
             QVERIFY(w.recoveryBusy());
             QVERIFY(w.saveTo(dir.filePath(QStringLiteral("a.pptx"))));
-            QVERIFY(!w.recoveryBusy());
-            release.release();
             recovery::AsyncWriter::waitForAll();
             QCoreApplication::processEvents();
+            QDirIterator left(root.path(), {QStringLiteral("*.pptx"), QStringLiteral("*.json")}, QDir::Files, QDirIterator::Subdirectories);
+            QVERIFY(!left.hasNext());
             QVERIFY(w.recoveryCopy().isEmpty());
-            QDirIterator left(root.path(), {QStringLiteral("*.pptx")}, QDir::Files, QDirIterator::Subdirectories);
-            QVERIFY(!left.hasNext());
-        }
-        // The same when the window is closed (deleted) while one is being made.
-        {
-            auto *w = new DeckWindow;
-            w->newSlide();
-            QSemaphore release;
-            w->setRecoveryHook([&] { release.tryAcquire(1, 5000); });
-            w->autoRecover();
-            QVERIFY(w->recoveryBusy());
-            delete w;
-            release.release();
-            recovery::AsyncWriter::waitForAll();
-            QCoreApplication::processEvents();
-            QDirIterator left(root.path(), {QStringLiteral("*.pptx")}, QDir::Files, QDirIterator::Subdirectories);
-            QVERIFY(!left.hasNext());
         }
         recovery::setRoot(QString());
     }
@@ -1575,17 +1607,94 @@ private Q_SLOTS:
             d->pages[1]->items.push_back(picture);
             d->props.title = QStringLiteral("Snapshot");
         });
-        const Document::Snapshot snap = d->snapshot();
+        const deck::ExportSnapshot snap = deck::snapshotForExport(*d);
         const QByteArray expected = deck::exportPresentation(*d);
         QVERIFY(!expected.isEmpty());
         // The window goes on being edited while the thread works from the snapshot.
         w.editor()->change(QStringLiteral("later"), [&] { d->props.title = QStringLiteral("Edited after"); });
         QByteArray made;
-        QThread *thread = QThread::create([&] { made = deck::exportPresentation(*Document::fromSnapshot(snap)); });
+        QThread *thread = QThread::create([&] { made = deck::exportSnapshot(snap); });
         thread->start();
         QVERIFY(thread->wait(60000));
         delete thread;
         QVERIFY(made == expected);
+    }
+
+    // The snapshot has pictures of its own: the decoded picture the window keeps (written to as it draws) is not shared with the thread.
+    void aSnapshotHoldsItsOwnPictureCaches()
+    {
+        auto d = deck::newPresentation();
+        const QString id = d->addImage(tinyPng(), QStringLiteral("png"));
+        QVERIFY(!d->image(id).isNull());   // (decoded: the window's copy holds it now)
+        const Document::Snapshot snap = d->snapshot();
+        QVERIFY(snap.images.contains(id));
+        QVERIFY(snap.images.value(id).cache.isNull());
+        QCOMPARE(snap.images.value(id).bytes, d->images.value(id).bytes);
+        QVERIFY(!d->images.value(id).cache.isNull());
+    }
+
+    // A copy made in the background never runs the text layout's or the renderer's caches (nothing locks them) off the window's thread: the little picture of the first slide is
+    // drawn where the snapshot is taken. A deck with text, a picture, Text Art, and a chart.
+    void aBackgroundCopyStaysOutOfTheGuiOnlyCaches()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".pptx"));
+        {
+            QString err;
+            auto doc = deck::importPresentation(pack(chartPptx()), &err);
+            QVERIFY2(doc, qPrintable(err));
+            auto art = std::make_shared<TextArtItem>();
+            art->text = QStringLiteral("Art");
+            art->rect = QRectF(300, 200, 240, 60);
+            doc->pages[0]->items.push_back(art);
+            DeckWindow w;
+            w.editor()->setDocument(std::move(doc));
+            w.editor()->markUnsaved();
+            w.show();
+            jp::threadcheck::reset();
+            jp::threadcheck::watch(true);
+            const auto unwatch = qScopeGuard([] { jp::threadcheck::watch(false); });
+            w.autoRecover();
+            QTRY_VERIFY(!w.recoveryCopy().isEmpty());
+            QVERIFY(!w.recoveryBusy());
+            QCOMPARE(jp::threadcheck::offThreadCalls(), 0);
+            w.editor()->markSaved();
+        }
+        recovery::setRoot(QString());
+    }
+
+    // A copy that was cancelled is told so between its steps (the thread stops early), and nothing is written.
+    void aCancelledCopyIsToldToStop()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".pptx"));
+        {
+            auto gate = std::make_shared<RecoveryGate>();
+            const auto letGo = qScopeGuard([gate] { gate->open(); });
+            auto toldToStop = std::make_shared<std::atomic<bool>>(false);
+            recovery::AsyncWriter writer;
+            const QString copy = recovery::copyPath(QString(), QStringLiteral("T"), 1);
+            QVERIFY(writer.start(
+                [gate, toldToStop](QString *, const std::function<bool()> &cancelled) {
+                    RecoveryGate::hook(gate)();
+                    *toldToStop = cancelled();
+                    return QByteArray("bytes");
+                },
+                copy, QString(), QStringLiteral("T"), [](bool, const QString &, const QString &) {}));
+            QVERIFY(writer.busy());
+            QTRY_COMPARE(int(gate->made), 1);   // (the thread is in its work)
+            writer.cancel();
+            QVERIFY(!writer.busy());
+            gate->open();
+            recovery::AsyncWriter::waitForAll();
+            QVERIFY(*toldToStop);
+            QVERIFY(!QFileInfo::exists(copy));
+        }
+        recovery::setRoot(QString());
     }
 };
 
