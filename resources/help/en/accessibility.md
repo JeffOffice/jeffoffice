@@ -34,6 +34,13 @@ You can reach the ribbon, the Pages list, and the objects on the page with the k
 
 Say what the picture shows, in a few words, such as "Two children planting a tree". Icons and barcodes you insert get alt text by themselves.
 
+## Check the page
+
+Click **Review > Check Accessibility** to list what may be hard for some people to use. Besides pictures and shapes with no alt text, it finds two more things.
+
+- **Text that is hard to read.** Text needs enough *contrast* with what is behind it: the fill of its box, or the page color where the box has none. The checker works out the contrast as a ratio. A ratio of 4.5 to 1 is enough for ordinary text, and 3 to 1 is enough for large text (18 points or more, or 14 points or more in bold). For example, gray #777777 on white is 4.48 to 1, just short, and #767676 is 4.54 to 1. Choose a darker text color or a lighter background. Where text is over a picture, the checker can't tell, so it adds a tip to check the contrast by eye.
+- **Objects read in a different order.** A screen reader and a tagged PDF read a page's objects from the back of the stack to the front. If that order is not top to bottom, then left to right, the checker lists the objects that are out of place as tips. Click **Reading Order** to see the objects in the order they are read. Select one and click **Read Earlier** or **Read Later**, or drag it. Each move is one step of Undo, and it also changes which object is in front.
+
 ## Make the page bigger
 
 Zoom in to read small text. Use the **Zoom** controls in the status bar, hold Ctrl and turn the mouse wheel, or pick a size in the **Zoom** box on the **View** tab. The zoom slider goes from about 10% to 1600%.

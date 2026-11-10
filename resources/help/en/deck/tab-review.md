@@ -26,7 +26,7 @@ Your web browser then opens a translation service called LibreTranslate, with yo
 
 ## Check accessibility
 
-**Check Accessibility** opens a small window that lists what may be hard for some people to use: a picture or a shape with no alt text, and a slide with no title. Click a problem to go to its slide and select the object. Give a picture alt text in the **Format Picture** pane, or mark it as decoration, then click **Check Again**. You can also start the check from **File > Info**.
+**Check Accessibility** opens a small window that lists what may be hard for some people to use: a picture or a shape with no alt text, a slide with no title, text that is hard to read against its background, and objects that a screen reader reads in a different order than their places suggest. Text needs a contrast of 4.5 to 1 with its background (3 to 1 for text of 18 points or more, or 14 points or more in bold); where text is over a picture, a tip asks you to check the contrast by eye. A screen reader reads a slide's objects from the back of the stack to the front. Click **Reading Order** to see them in that order, and use **Read Earlier** and **Read Later** (or drag) to change it; each move is one step of Undo. Click a problem to go to its slide and select the object. Give a picture alt text in the **Format Picture** pane, or mark it as decoration, then click **Check Again**. You can also start the check from **File > Info**.
 
 ## Related
 

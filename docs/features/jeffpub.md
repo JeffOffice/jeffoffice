@@ -105,8 +105,8 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Save for a Photo Printer
 - [x] **1.0** **(alt)** Email: send the current page as a picture, or the publication as an attachment. JeffPub creates a ready-to-send `.eml`, PDF, or HTML file instead of sending through a mail program.
 - [ ] **1.0** Links in a PDF: a hyperlink in the publication is a link you can click in the PDF *(no link is written today; the PDF/X path also removes any annotations)*
-- [ ] **1.0** Bookmarks in a PDF, from page names or Heading 1-3 *(the e-book export already builds its contents from the headings)*
-- [ ] **1.0** A tagged PDF for screen readers (headings, reading order, and alt text)
+- [x] **1.0** Bookmarks in a PDF, from page names or Heading 1-3 *(done November 10, 2026: Create PDF > Create bookmarks, on by default, puts one for each page, named for the page or "Page N"; the e-book export builds its contents from the headings, and a PDF has no bookmarks from headings yet)*
+- [x] **1.0** A tagged PDF for screen readers (headings, reading order, and alt text) *(done November 10, 2026: Create PDF > Document structure tags for accessibility, on by default: a section for each page, a title as a heading, a text box as a paragraph, a picture as a figure with its alt text, a table as rows and cells, in the order of the page's objects; left out of PDF/X, kept in PDF/A)*
 - [x] **1.0** A PDF with a password *(shared: libs/base/io/pdfcrypt.h; Create PDF > Encrypt with a password… asks for a password to open the PDF and, if wanted, a second to limit printing, copying, and changing; AES-256, and the plain PDF is never written to disk; PDF/A and PDF/X are turned off with a password, as those standards forbid one)*
 
 ### Options
@@ -191,7 +191,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Language: set the proofing language for selected text; spelling and automatic hyphenation follow it (English for the US, UK, Canada, and Australia; Spanish for 21 regions, from Mexico and Spain to Venezuela, with other Spanish regions checked as Mexico's; French; German; Italian; Dutch; Portuguese for Brazil and Portugal)
 - [x] **1.0** Word Count: pages, words, characters, paragraphs, text boxes, and pictures
 - [x] **1.0** Check group: Run Design Checker (also under File > Info) and Hyphenation (automatic hyphenation, Insert Optional Hyphen, Add Optional Hyphens) beside Word Count
-- [~] **later** Accessibility checks beside the Design Checker: missing alt text, reading order, and low contrast *(Check Accessibility lists a picture or shape with no alt text and goes to it when it is clicked; reading order and contrast are not yet)*
+- [x] **later** Accessibility checks beside the Design Checker: missing alt text, reading order, and low contrast *(done November 10, 2026: Check Accessibility also lists text whose contrast with its background is under 4.5 to 1 (3 to 1 for large text), with a tip to check by eye over a picture, and the objects read out of top-to-bottom, left-to-right order, with a Reading Order list that moves them; each goes to its object when it is clicked)*
 - [ ] **later** Chinese conversion (Simplified and Traditional), Hangul and Hanja conversion, and an IME dictionary update
 
 ## View tab

@@ -31,7 +31,9 @@ Click **File > Export > Export to PDF**. A window asks what to include: the same
 
 The PDF has real text, with the fonts inside it, so it looks the same on every computer. Its title is the presentation's title, or the file's name.
 
-Check **PDF/A, for keeping for a long time** to make a PDF/A-1b file. Every font is inside the file, and transparent effects are flattened, so the slides look the same in years. It is not tagged for screen readers. A PDF with a password can't be a PDF/A file, so choosing a password turns PDF/A off.
+**Document structure tags for accessibility** (on by default) makes a *tagged* PDF: each slide's title is a heading, its objects are in the order a screen reader reads them (the slide's reading order), pictures and shapes have their alt text, and a table is a table. **Create bookmarks** (on by default) puts a bookmark in the PDF for each slide, with the slide's title, or "Slide 3" for a slide with none. The outline layout has neither.
+
+Check **PDF/A, for keeping for a long time** to make a PDF/A-1b file. Every font is inside the file, and transparent effects are flattened, so the slides look the same in years. The tags and bookmarks stay in it. A PDF with a password can't be a PDF/A file, so choosing a password turns PDF/A off.
 
 ## Send a presentation by email
 
