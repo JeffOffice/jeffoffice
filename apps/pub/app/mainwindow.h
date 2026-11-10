@@ -131,6 +131,8 @@ public:
         int pdfxCondition = 0;          // its version and printing condition (pdfXConditions())
         QString pdfxProfile;            // the printer's own profile (.icc), for a condition that takes one
         bool merged = false;
+        bool bookmarks = true;          // a bookmark for each page (its name, or its number)
+        bool tags = true;               // the document's structure for screen readers (tagged PDF); left out of PDF/X
         // A password to open the PDF with (the standards PDF/A and PDF/X forbid one, so they are off when it is set); wiped after the export.
         PdfProtection protect;
         // A booklet's PDF holds its printed sheets: two pages to a side, in

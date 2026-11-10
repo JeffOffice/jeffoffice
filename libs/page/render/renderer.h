@@ -104,6 +104,10 @@ struct PaintContext {
     // Likewise for the text of a text box or a shape: `paintText` paints the
     // lines of `layout`'s `frame`, with the painter placed as they are placed.
     std::function<void(QPainter *, const Item &, const StoryLayout &layout, int frame, const std::function<void(QPainter *)> &paintText)> aroundText;
+    // For a caller that tags the output (a PDF's structure, see render/pagetags.h): called just before and just after each of the page's own objects is painted (`opens`
+    // says which; not for a hidden one), and around the text of each cell of a table. Unset, nothing is called.
+    std::function<void(QPainter *, const Item &, bool opens)> mark;
+    std::function<void(QPainter *, const TableItem &, int row, int col, bool opens)> markCell;
 };
 
 class Renderer {

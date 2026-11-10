@@ -982,6 +982,115 @@ private Q_SLOTS:
         QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("missing"))));
     }
 
+    // The PDF has a bookmark for each slide (its title, or "Slide N" for an untitled one) and is tagged: a section for each slide, its title a heading, its objects in the order the slide
+    // lists them, a picture with its alt text. PDF/A keeps both and still opens.
+    void pdfHasBookmarksAndTagsForEachSlide()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto d = showDeck(3);
+        d->storyDoc(static_cast<TextItem *>(d->pages[1]->items[0].get())->storyId)->setPlainText(QString());
+        // listed last, so read last, though it is above the title
+        auto extra = std::make_shared<TextItem>();
+        extra->rect = QRectF(10, 0, 200, 20);
+        extra->storyId = d->createStory(QStringLiteral("Extra words"));
+        d->pages[0]->items.push_back(extra);
+        QImage img(8, 8, QImage::Format_RGB32);
+        img.fill(Qt::red);
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        img.save(&buf, "PNG");
+        auto pic = std::make_shared<PictureItem>();
+        pic->imageId = d->addImage(png, "png");
+        pic->rect = QRectF(100, 300, 120, 120);
+        pic->imgRect = QRectF(QPointF(0, 0), pic->rect.size());
+        pic->altText = QStringLiteral("A red square");
+        d->pages[0]->items.push_back(pic);
+        auto write = [&](const QString &name, const deck::OutputOptions &o) {
+            QString err;
+            const QString path = dir.filePath(name);
+            if (!deck::exportPdf(*d, path, o, &err)) return QByteArray();
+            return fileBytes(path);
+        };
+        const QByteArray bytes = write(QStringLiteral("a.pdf"), deck::OutputOptions());
+        PdfDocument pdf(bytes);
+        QVERIFY(pdf.isValid());
+        QCOMPARE(pdf.pageCount(), 3);
+        const auto outline = pdf.outline();
+        QCOMPARE(outline.size(), 3);
+        QCOMPARE(outline[0].title, QStringLiteral("Slide 1 title"));
+        QCOMPARE(outline[1].title, QStringLiteral("Slide 2"));
+        QCOMPARE(outline[2].title, QStringLiteral("Slide 3 title"));
+        for (int i = 0; i < 3; ++i) QCOMPARE(outline[i].page, i);
+        QVERIFY2(pdf.isTagged(), "not tagged");
+        const auto tree = pdf.structure(0);
+        QStringList kinds, read;
+        QString alt;
+        for (const auto &e : tree) {
+            kinds << e.type;
+            if (!e.text.isEmpty()) read << e.text;
+            if (e.type == QLatin1String("Figure")) alt = e.alt;
+        }
+        QCOMPARE(kinds.value(0), QStringLiteral("Document"));
+        QCOMPARE(kinds.value(1), QStringLiteral("Sect"));
+        QCOMPARE(kinds.value(2), QStringLiteral("H1"));
+        QCOMPARE(read, (QStringList{QStringLiteral("Slide 1 title"), QStringLiteral("Extra words")}));
+        QCOMPARE(alt, QStringLiteral("A red square"));
+        // left out when not asked for
+        deck::OutputOptions bare;
+        bare.tags = bare.bookmarks = false;
+        PdfDocument plain(write(QStringLiteral("b.pdf"), bare));
+        QVERIFY(plain.isValid());
+        QVERIFY(plain.outline().isEmpty());
+        QVERIFY(!plain.isTagged());
+        // PDF/A keeps both
+        deck::OutputOptions archive;
+        archive.archive = true;
+        const QByteArray kept = write(QStringLiteral("c.pdf"), archive);
+        PdfDocument keptDoc(kept);
+        QVERIFY(keptDoc.isValid());
+        QVERIFY(keptDoc.isTagged());
+        QCOMPARE(keptDoc.outline().size(), 3);
+        QVERIFY2(kept.contains("pdfaid:part"), "no PDF/A mark");
+        QVERIFY(kept.contains("GTS_PDFA1"));
+        // handouts: a bookmark for each slide, to the page it is on
+        deck::OutputOptions handout;
+        handout.layout = deck::PrintLayout::Handout2;
+        PdfDocument handDoc(write(QStringLiteral("d.pdf"), handout));
+        QCOMPARE(handDoc.outline().size(), 3);
+        QCOMPARE(handDoc.outline()[2].page, 1);
+    }
+
+    // The Export to PDF box offers the tags and the bookmarks, with the words JeffWrite's PDF options use, both on as it starts; turned off, the file has neither.
+    void exportBoxOffersTagsAndBookmarks()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.editor()->setDocument(showDeck(2));
+        const QString path = dir.filePath(QStringLiteral("t.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+        answerOutputDialog([&](QDialog *dialog) {
+            auto *tags = dialog->findChild<QCheckBox *>(QStringLiteral("pdfTags"));
+            auto *marks = dialog->findChild<QCheckBox *>(QStringLiteral("pdfBookmarks"));
+            QVERIFY(tags && marks);
+            QCOMPARE(tags->text(), QStringLiteral("Document structure tags for accessibility"));
+            QCOMPARE(marks->text(), QStringLiteral("Create bookmarks"));
+            QVERIFY(tags->isChecked() && marks->isChecked());
+        });
+        w.act("file.exportPdf")->trigger();
+        QVERIFY(PdfDocument(fileBytes(path)).isTagged());
+        QVERIFY(!PdfDocument(fileBytes(path)).outline().isEmpty());
+        answerOutputDialog([&](QDialog *dialog) {
+            dialog->findChild<QCheckBox *>(QStringLiteral("pdfTags"))->setChecked(false);
+            dialog->findChild<QCheckBox *>(QStringLiteral("pdfBookmarks"))->setChecked(false);
+        });
+        w.act("file.exportPdf")->trigger();
+        QVERIFY(!PdfDocument(fileBytes(path)).isTagged());
+        QVERIFY(PdfDocument(fileBytes(path)).outline().isEmpty());
+    }
+
     // The Export to PDF box offers PDF/A (as JeffWrite's does): checked, the file has the standard's mark and an output intent, and an ordinary export has neither; with a password, it is off.
     void windowExportsPdfA()
     {

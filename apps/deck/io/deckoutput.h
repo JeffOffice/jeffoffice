@@ -13,6 +13,7 @@
 
 #include "core/document.h"
 #include "io/pdfcrypt.h"
+#include "io/pdftags.h"
 #include "render/renderer.h"
 
 #include <QImage>
@@ -40,6 +41,8 @@ struct OutputOptions {
     int copies = 1;
     bool collate = true;          // the whole set again for each copy, else each page's copies together
     bool reverse = false;         // the last page first
+    bool bookmarks = true;        // for a PDF: a bookmark for each slide (its title, or "Slide N")
+    bool tags = true;             // for a PDF: the structure for screen readers (tagged PDF): reading order, headings, alt text, tables
     bool archive = false;         // for a PDF: PDF/A-1b, the form for keeping (every font inside, no transparency, the standard's mark in its metadata); never with a password
 };
 
@@ -74,7 +77,7 @@ QString outputOutlineText(const Document &d, const OutputOptions &o);
 // page is painted as the painter's device wants it: the text as a PDF or the
 // printer draws it, and, when grayscale is asked for, in gray (a PDF or printer
 // set to gray converts the colors itself, anything else is painted as gray pixels).
-void paintOutputPage(QPainter *p, const Document &d, LayoutCache *cache, const OutputOptions &o, int page, const QSizeF &paper);
+void paintOutputPage(QPainter *p, const Document &d, LayoutCache *cache, const OutputOptions &o, int page, const QSizeF &paper, PdfTagger *tags = nullptr);
 
 // Writes the PDF: vector text with its fonts embedded, the title from the
 // presentation's properties or the file's name. The old file stays whole

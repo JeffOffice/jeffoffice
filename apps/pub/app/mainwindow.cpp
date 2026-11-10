@@ -72,6 +72,9 @@
 #include <QDialog>
 #include <QPainter>
 #include <QPdfWriter>
+#include "io/pdfbookmarks.h"
+#include "io/pdftags.h"
+#include "render/pagetags.h"
 #include <QPrintDialog>
 #include "app/filedialogs.h"
 #include "app/filetasks.h"
@@ -959,6 +962,7 @@ void MainWindow::exportPdfWithOptions()
     const Document *d = m_ed->doc();
     QDialog dlg(this);
     dlg.setWindowTitle(tr("Create PDF"));
+    dlg.setObjectName(QStringLiteral("pdfDialog"));
     auto *v = new QVBoxLayout(&dlg);
     auto *form = new QFormLayout();
     auto *preset = new QComboBox(&dlg);
@@ -983,6 +987,12 @@ void MainWindow::exportPdfWithOptions()
     form->addRow(tr("Pages:"), rh);
     auto *props = new QCheckBox(tr("Include document properties (title, author, subject, keywords)"), &dlg);
     props->setChecked(true);
+    auto *tagsBox = new QCheckBox(tr("Document structure tags for accessibility"), &dlg);
+    tagsBox->setObjectName(QStringLiteral("pdfTags"));
+    tagsBox->setChecked(true);
+    auto *bookmarksBox = new QCheckBox(tr("Create bookmarks"), &dlg);
+    bookmarksBox->setObjectName(QStringLiteral("pdfBookmarks"));
+    bookmarksBox->setChecked(true);
     auto *pdfa = new QCheckBox(tr("PDF/A for long-term archiving"), &dlg);
     auto *pdfx = new QCheckBox(tr("PDF/X for a commercial printer"), &dlg);
     auto *condition = new QComboBox(&dlg);
@@ -1028,6 +1038,7 @@ void MainWindow::exportPdfWithOptions()
     auto syncStandards = [=] {
         condition->setEnabled(pdfx->isChecked() && !protect->isProtected());
         pdfa->setEnabled(!pdfx->isChecked() && !protect->isProtected());
+        tagsBox->setEnabled(!pdfx->isChecked());
         if (pdfx->isChecked()) pdfa->setChecked(false);
     };
     QObject::connect(pdfx, &QCheckBox::toggled, &dlg, syncStandards);
@@ -1040,6 +1051,8 @@ void MainWindow::exportPdfWithOptions()
     booklet->setVisible(d->setup.layout == PageSetup::Booklet);
     form->addRow(booklet);
     form->addRow(props);
+    form->addRow(tagsBox);
+    form->addRow(bookmarksBox);
     form->addRow(pdfa);
     form->addRow(pdfx);
     form->addRow(tr("Printing condition:"), condition);
@@ -1058,6 +1071,8 @@ void MainWindow::exportPdfWithOptions()
     const auto wipePasswords = qScopeGuard([&s] { s.protect.wipe(); });
     s.preset = PdfSettings::Preset(preset->currentIndex());
     s.properties = props->isChecked();
+    s.tags = tagsBox->isChecked();
+    s.bookmarks = bookmarksBox->isChecked();
     s.archival = pdfa->isChecked();
     s.pdfx = pdfx->isChecked();
     s.pdfxCondition = condition->currentIndex();
@@ -1194,6 +1209,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
         s.to = -1;
     }
     const bool press = s.preset == PdfSettings::CommercialPress;
+    const bool tagging = s.tags && !s.pdfx;
     const double margin = press ? kMarksMargin : 0;
     // PDF/X-4 needs its printing condition's color profile before anything.
     const PdfXCondition &xcond = pdfXConditions().value(s.pdfxCondition, pdfXConditions().first());
@@ -1266,6 +1282,15 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
     ctx.opt.textOutput = TextOutput::Pdf;
     ctx.opt.flattenTransparency = s.archival || (s.pdfx && !x4);   // PDF/A-1 and PDF/X-1a allow no transparency
     ctx.opt.maxImageDpi = s.preset == PdfSettings::Minimum ? 96 : s.preset == PdfSettings::Standard ? 150 : s.preset == PdfSettings::HighQuality ? 300 : 0;
+    PdfTagger tagger;
+    PageTagger pageTags(&tagger, [](const Item &it) { return it.role == role::Title; });
+    if (tagging) pageTags.install(&ctx);
+    QVector<PdfBookmark> bookmarks;   // a page's, by the number of the PDF page it is on
+    int pdfPage = -1;
+    auto bookmarkPage = [&](int page) {
+        const QString name = d->pages[page]->title.trimmed();
+        bookmarks.push_back({name.isEmpty() ? tr("Page %1").arg(page + 1) : name, 0, pdfPage});
+    };
     PrinterMarks marks;
     marks.crop = marks.bleed = marks.registration = marks.colorBars = marks.jobInfo = press;
     const QString stamp = QLocale().toString(QDateTime::currentDateTime(), QLocale::ShortFormat);
@@ -1280,8 +1305,10 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
             for (const QVector<int> &side : bookletOrder(int(d->pages.size()))) {
                 if (!first) pdf.newPage();
                 first = false;
+                ++pdfPage;
                 for (int k = 0; k < 2; ++k) {
                     if (side[k] < 0) continue;
+                    bookmarkPage(side[k]);
                     p.save();
                     p.scale(scale, scale);
                     p.translate(topFold ? 0 : k * ps.width(), topFold ? k * ps.height() : 0);
@@ -1295,6 +1322,8 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
         for (int i = from; i <= to; ++i) {
             if (!first) pdf.newPage();
             first = false;
+            ++pdfPage;
+            bookmarkPage(i);
             p.save();
             p.scale(scale, scale);
             p.translate(margin, margin);
@@ -1341,6 +1370,24 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
             QApplication::restoreOverrideCursor();
             jp::plainWarning(this, tr("Create PDF"), tr("The PDF was made, but it isn't PDF/X: %1.").arg(xErr));
             return false;
+        }
+    }
+    // The bookmarks and the tags are added to the finished file (as Qt's writer makes neither).
+    if (!s.pdfx && ((s.bookmarks && !bookmarks.isEmpty()) || tagging)) {
+        QByteArray bytes = encrypted ? memory.data() : QByteArray();
+        if (!encrypted) {
+            QFile in(path);
+            if (in.open(QIODevice::ReadOnly)) bytes = in.readAll();
+        }
+        if (!bytes.isEmpty()) {
+            if (tagging) bytes = tagPdf(bytes, tagger, {QLocale().bcp47Name(), title});
+            if (s.bookmarks) bytes = addPdfBookmarks(bytes, bookmarks);
+            if (encrypted) memory.setData(bytes);
+            else {
+                QSaveFile out(path);
+                if (!out.open(QIODevice::WriteOnly) || out.write(bytes) != bytes.size() || !out.commit())
+                    qWarning("Create PDF: the bookmarks and tags could not be added: %s", qPrintable(out.errorString()));
+            }
         }
     }
     if (encrypted) {

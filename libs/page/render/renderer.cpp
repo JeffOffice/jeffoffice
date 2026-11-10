@@ -24,6 +24,7 @@
 #include <QPainter>
 #include <QSvgRenderer>
 #include <QPainterPathStroker>
+#include <QScopeGuard>
 #include <QtEndian>
 #include <QTextDocument>
 #include <QtMath>
@@ -1114,6 +1115,7 @@ static void paintTable(QPainter *p, const PaintContext &ctx, const TableItem &t)
                 po.showSpecial = ctx.opt.showSpecial;
                 po.output = ctx.opt.textOutput;
                 if (ctx.opt.editStory == c.halfStory(half)) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
+                if (ctx.markCell) ctx.markCell(p, t, row, col, true);
                 p->save();
                 p->translate(cr.topLeft());
                 p->setClipRect(QRectF(QPointF(0, 0), cr.size()), Qt::IntersectClip);
@@ -1124,6 +1126,7 @@ static void paintTable(QPainter *p, const PaintContext &ctx, const TableItem &t)
                 lay->paint(p, 0, po);
                 paintInlineObjects(p, ctx, *lay, 0);
                 p->restore();
+                if (ctx.markCell) ctx.markCell(p, t, row, col, false);
             }
         }
     // Borders and diagonals on top.
@@ -1509,8 +1512,14 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
         paintMastersUnder(p, c, pg, chain, m->twoPage && right ? -doc.pageSize().width() : 0);
     }
     if (!ctx.opt.flattenTransparency) {
-        if (ctx.around) {
-            for (const auto &it : pg.items) ctx.around(p, *it, [&](QPainter *pp) { paintItem(pp, c, *it); });
+        if (ctx.around || ctx.mark) {
+            for (const auto &it : pg.items) {
+                const bool marked = ctx.mark && !it->hidden && !ctx.opt.hidden.contains(it->id);
+                if (marked) ctx.mark(p, *it, true);
+                if (ctx.around) ctx.around(p, *it, [&](QPainter *pp) { paintItem(pp, c, *it); });
+                else paintItem(p, c, *it);
+                if (marked) ctx.mark(p, *it, false);
+            }
         } else {
             paintItems(p, c, pg.items);
         }
@@ -1523,6 +1532,8 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
     for (size_t k = 0; k < pg.items.size(); ++k) {
         const Item &it = *pg.items[k];
         if (it.hidden || ctx.opt.hidden.contains(it.id)) continue;
+        if (ctx.mark) ctx.mark(p, it, true);
+        const auto closed = qScopeGuard([&] { if (ctx.mark) ctx.mark(p, it, false); });
         if (!usesTransparency(doc, it)) {
             paintItem(p, c, it);
             continue;
