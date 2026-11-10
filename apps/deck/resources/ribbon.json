@@ -339,6 +339,8 @@
                 "arr.backward",
                 "arr.back",
                 "-",
+                "arr.selectionPane",
+                "-",
                 "arr.group",
                 "arr.ungroup",
                 "-",
@@ -1003,6 +1005,10 @@
             {
               "large": "win.new",
               "keytip": "NW"
+            },
+            {
+              "large": "view.fullScreen",
+              "keytip": "FU"
             },
             {
               "small": {

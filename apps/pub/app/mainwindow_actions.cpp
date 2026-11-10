@@ -425,6 +425,7 @@ void MainWindow::createActions()
     mk("arr.forward", tr("Bring Forward"), "arrow-up-from-line", QKeySequence(), [ed] { ed->arrange(Editor::Order::Forward); });
     mk("arr.backward", tr("Send Backward"), "arrow-down-to-line", QKeySequence(), [ed] { ed->arrange(Editor::Order::Backward); });
     mk("arr.back", tr("Send to Back"), "send-to-back", QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_F6), [ed] { ed->arrange(Editor::Order::Back); });
+    mk("arr.selectionPane", tr("Selection Pane"), "layers", QKeySequence(), [this] { showPageSelectionPane(this, m_ed, &m_selectionPane); });
     mk("arr.group", tr("Group"), "group", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G), [ed] {
         if (ed->selectionKind() == "group") ed->ungroupSelection(); else ed->groupSelection();
     });
@@ -814,6 +815,7 @@ void MainWindow::createActions()
     mk("view.graphics", tr("Graphics Manager"), "images", QKeySequence(), [this] {
         if (currentTaskPane() == "graphics") hideTaskPane(); else showTaskPane("graphics");
     }, true);
+    mk("view.fullScreen", tr("Full Screen"), "maximize", QKeySequence(Qt::Key_F11), [this] { toggleFullScreen(); }, true);
     mk("view.measurement", tr("Measurement"), "ruler-dimension-line", QKeySequence(), [this] { measurementWindow(this, m_ed); });
     mk("zoom.100", QStringLiteral("100%"), "scan", QKeySequence(Qt::Key_F9), [this] {
         if (std::abs(m_canvas->zoom() - 1.0) < 0.01) m_canvas->zoomToFit(Canvas::Fit::WholePage);

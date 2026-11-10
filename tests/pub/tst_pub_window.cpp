@@ -9,6 +9,10 @@
 #include "core/appinfo.h"
 #include "canvas/canvasaccessible.h"
 #include <QDoubleSpinBox>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QListWidget>
 #include <QElapsedTimer>
 #include <QSignalSpy>
@@ -2584,6 +2588,52 @@ private Q_SLOTS:
         });
         jp::fillEffectsDialog(&w, w.editor(), fill, QStringLiteral("Format Background"));
         QVERIFY(checked);
+    }
+
+    // Full Screen is a switch on the View tab (F11): the window fills the screen, the command's check follows the window, and the same command leaves it. Esc leaves it too, but only
+    // when the canvas has nothing of its own to put away (a selected object is let go first).
+    void fullScreenIsOnTheViewTabAndEscLeavesIt()
+    {
+        QFile file(QStringLiteral(":/ribbon.json"));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QJsonArray tabs = QJsonDocument::fromJson(file.readAll()).object().value(QStringLiteral("tabs")).toArray();
+        bool onViewTab = false;
+        for (const QJsonValue &t : tabs)
+            if (t.toObject().value(QStringLiteral("name")).toString() == QLatin1String("View"))
+                onViewTab = QJsonDocument(t.toObject()).toJson().contains("view.fullScreen");
+        QVERIFY(onViewTab);
+        jp::MainWindow w;
+        w.resize(1000, 700);
+        w.show();
+        QAction *fs = w.act(QStringLiteral("view.fullScreen"));
+        QVERIFY(fs);
+        QVERIFY(fs->isCheckable() && fs->isEnabled());
+        QCOMPARE(fs->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::Key_F11).toString(QKeySequence::NativeText));
+        QVERIFY(!w.isFullScreen() && !fs->isChecked());
+        fs->trigger();
+        QTRY_VERIFY(w.isFullScreen());
+        QTRY_VERIFY(fs->isChecked());
+        fs->trigger();
+        QTRY_VERIFY(!w.isFullScreen());
+        QTRY_VERIFY(!fs->isChecked());
+        // Esc, with nothing selected, leaves it.
+        fs->trigger();
+        QTRY_VERIFY(w.isFullScreen());
+        QTest::keyClick(&w, Qt::Key_Escape);
+        QTRY_VERIFY(!w.isFullScreen());
+        QTRY_VERIFY(!fs->isChecked());
+        // With an object selected, the canvas has it to put away first: the first Esc lets it go, the second leaves.
+        jp::Editor *ed = w.editor();
+        auto box = ed->newTextBox(QRectF(72, 72, 200, 60), QStringLiteral("Selected"));
+        ed->addItem(box);
+        ed->select(box->id);
+        fs->trigger();
+        QTRY_VERIFY(w.isFullScreen());
+        QTest::keyClick(&w, Qt::Key_Escape);
+        QVERIFY(w.isFullScreen());
+        ed->clearSelection();
+        QTest::keyClick(&w, Qt::Key_Escape);
+        QTRY_VERIFY(!w.isFullScreen());
     }
 };
 

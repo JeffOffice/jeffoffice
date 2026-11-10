@@ -9,6 +9,7 @@
 #include "app/editor.h"
 #include "app/infopage.h"
 #include "app/pageaccesspane.h"
+#include "app/pageselectionpane.h"
 #include "app/versionstore.h"
 #include "office/packageprops.h"
 #include "io/pdfcrypt.h"
@@ -210,6 +211,7 @@ private:
 
     Editor *m_ed;
     QPointer<PageAccessibilityPane> m_accessPane;
+    QPointer<SelectionPane> m_selectionPane;
     Canvas *m_canvas;
     Ribbon *m_ribbon;
     KeyTips *m_keyTips = nullptr;

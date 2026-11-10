@@ -402,9 +402,18 @@ void DeckWindow::showFileScreen(const QString &page)
 void DeckWindow::hideFileScreen()
 {
     if (!m_fileScreen->isVisible()) return;
-    qApp->removeEventFilter(this);
+    if (!isFullScreen()) qApp->removeEventFilter(this);   // (Full Screen keeps it: Esc leaves that)
     m_fileScreen->hide();
     m_canvas->setFocus();
+}
+
+// While the window is full screen it watches the keys, so that Esc can leave it (the File screen watches them too, and shares the filter).
+void DeckWindow::changeEvent(QEvent *e)
+{
+    AppWindow::changeEvent(e);
+    if (e->type() != QEvent::WindowStateChange) return;
+    if (isFullScreen()) qApp->installEventFilter(this);
+    else if (m_fileScreen && !m_fileScreen->isVisible()) qApp->removeEventFilter(this);
 }
 
 void DeckWindow::resizeEvent(QResizeEvent *e)
@@ -422,6 +431,12 @@ bool DeckWindow::eventFilter(QObject *o, QEvent *e)
             hideFileScreen();
             return true;
         }
+    }
+    // Escape leaves Full Screen, unless the slide has something to put away first.
+    if (e->type() == QEvent::KeyPress && isFullScreen()) {
+        const bool slideWants = m_ed->isEditingText() || !m_ed->selection().isEmpty() || m_ed->tool() != Tool::Select || !m_ed->cropItem.isEmpty() || !m_ed->pointsItem.isEmpty()
+                                || !m_ed->wrapItem.isEmpty() || m_ed->hasCellBlock();
+        if (escapeLeavesFullScreen(o, e, slideWants)) return true;
     }
     return AppWindow::eventFilter(o, e);
 }

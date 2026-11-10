@@ -180,6 +180,7 @@ void DeckWindow::createFormatActions()
     mk("arr.forward", tr("Bring Forward"), "arrow-up-from-line", QKeySequence(), [ed] { ed->arrange(Editor::Order::Forward); });
     mk("arr.backward", tr("Send Backward"), "arrow-down-to-line", QKeySequence(), [ed] { ed->arrange(Editor::Order::Backward); });
     mk("arr.back", tr("Send to Back"), "send-to-back", QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_F6), [ed] { ed->arrange(Editor::Order::Back); });
+    mk("arr.selectionPane", tr("Selection Pane"), "layers", QKeySequence(), [this] { showPageSelectionPane(this, m_ed, &m_selectionPane); });
     mk("arr.group", tr("Group"), "group", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G), [ed] { ed->groupSelection(); });
     mk("arr.ungroup", tr("Ungroup"), "ungroup", QKeySequence(), [ed] { ed->ungroupSelection(); });
     mk("arr.rotR", tr("Rotate Right 90°"), "rotate-cw", QKeySequence(), [ed] { ed->rotateSelection(90); });
@@ -254,6 +255,7 @@ void DeckWindow::createViewActions()
         m_canvas->zoomToFit(Canvas::Fit::None);
         m_canvas->setZoom(m_canvas->zoom() * 1.2);
     });
+    mk("view.fullScreen", tr("Full Screen"), "maximize", QKeySequence(Qt::Key_F11), [this] { toggleFullScreen(); }, true);
     mk("view.collapseRibbon", tr("Collapse the Ribbon"), "chevron-up", QKeySequence(Qt::CTRL | Qt::Key_F1), [this] { m_ribbon->setMinimized(!m_ribbon->isMinimized()); });
     mk("zoom.out", tr("Zoom Out"), "zoom-out", QKeySequence::ZoomOut, [this] {
         m_canvas->zoomToFit(Canvas::Fit::None);

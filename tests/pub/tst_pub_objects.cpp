@@ -1,5 +1,8 @@
 // JeffPub's tests of objects on the page: wrapping, inline objects, shapes, connectors, footnotes, and editing text.
 #include "pubhelpers.h"
+#include <QAbstractItemModel>
+#include <QAbstractButton>
+#include <QListWidget>
 
 class PubObjectsTests : public QObject {
     Q_OBJECT
@@ -2323,6 +2326,111 @@ private Q_SLOTS:
         const QStringList a = lines(unsaid), b = lines(said);
         QVERIFY(b.size() >= 3);
         QCOMPARE(a, b);
+    }
+
+    // The Selection Pane lists the page's objects by name, the one in front first. A row picks the object; a name typed in a row names it; a box hides or shows it (a hidden object is not
+    // drawn, and Show All and Hide All set every box); the buttons and a drag move it in the order. Each change is one step of Undo, and the names and the hidden marks are kept in a
+    // saved .jpub file.
+    void selectionPaneListsNamesHidesAndOrdersObjects()
+    {
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        auto add = [&](const QString &name, const QColor &color, double x) {
+            auto s = std::make_shared<jp::ShapeItem>();
+            s->name = name;
+            s->rect = QRectF(x, 100, 100, 100);
+            s->fill = jp::Fill::solid(jp::ColorRef::rgb(color));
+            s->stroke = jp::Stroke::none();
+            ed->doc()->pages[0]->items.push_back(s);
+            return s->id;
+        };
+        const QString back = add(QStringLiteral("Back"), Qt::red, 50), middle = add(QString(), Qt::blue, 150), front = add(QStringLiteral("Front"), Qt::green, 250);
+        auto item = [&](const QString &id) { return ed->doc()->item(id); };
+        auto order = [&] {
+            QStringList ids;
+            for (const auto &it : ed->surfaceItems()) ids << it->id;
+            return ids;
+        };
+        auto greenShown = [&] {
+            jp::PaintContext ctx;
+            ctx.doc = ed->doc();
+            ctx.cache = &ed->cache();
+            return jp::Renderer::renderToImage(ctx, 0, 1.0).pixelColor(300, 150) == QColor(Qt::green);
+        };
+        QAction *open = w.act(QStringLiteral("arr.selectionPane"));
+        QVERIFY(open);
+        QVERIFY(open->isEnabled());
+        open->trigger();
+        auto *list = w.findChild<QListWidget *>(QStringLiteral("selectionList"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 3);
+        QCOMPARE(list->item(0)->text(), QStringLiteral("Front"));
+        QCOMPARE(list->item(2)->text(), QStringLiteral("Back"));
+        QVERIFY(!list->item(1)->text().isEmpty());   // (an object with no name of its own shows its kind and its number)
+        QCOMPARE(list->item(0)->checkState(), Qt::Checked);
+        // A row picks the object.
+        list->setCurrentRow(2);
+        QCOMPARE(ed->selection(), QStringList{back});
+        // A name typed in a row names the object, as one step of Undo.
+        list->item(2)->setText(QStringLiteral("Logo"));
+        QTRY_COMPARE(item(back)->name, QStringLiteral("Logo"));
+        ed->undo();
+        QCOMPARE(item(back)->name, QStringLiteral("Back"));
+        ed->redo();
+        QCOMPARE(item(back)->name, QStringLiteral("Logo"));
+        // A box hides the object: it is not drawn, and Undo shows it again.
+        QVERIFY(greenShown());
+        QTRY_COMPARE(list->item(0)->text(), QStringLiteral("Front"));
+        list->item(0)->setCheckState(Qt::Unchecked);
+        QTRY_VERIFY(item(front)->hidden);
+        QVERIFY(!greenShown());
+        QTRY_COMPARE(list->item(0)->checkState(), Qt::Unchecked);
+        ed->undo();
+        QVERIFY(!item(front)->hidden);
+        QVERIFY(greenShown());
+        // Hide All and Show All.
+        auto *hideAll = w.findChild<QAbstractButton *>(QStringLiteral("selectionHideAll"));
+        auto *showAll = w.findChild<QAbstractButton *>(QStringLiteral("selectionShowAll"));
+        QVERIFY(hideAll && showAll);
+        hideAll->click();
+        QTRY_VERIFY(item(back)->hidden && item(middle)->hidden && item(front)->hidden);
+        showAll->click();
+        QTRY_VERIFY(!item(back)->hidden && !item(middle)->hidden && !item(front)->hidden);
+        // The buttons and a drag move the object in the order (the list is front first).
+        QCOMPARE(order(), (QStringList{back, middle, front}));
+        QTRY_COMPARE(list->count(), 3);
+        list->setCurrentRow(0);
+        auto *backward = w.findChild<QAbstractButton *>(QStringLiteral("selectionBackward"));
+        QVERIFY(backward);
+        backward->click();
+        QCOMPARE(order(), (QStringList{back, front, middle}));
+        ed->undo();
+        QCOMPARE(order(), (QStringList{back, middle, front}));
+        QTRY_COMPARE(list->count(), 3);
+        QVERIFY(list->model()->moveRow(QModelIndex(), 0, QModelIndex(), 3));
+        QTRY_COMPARE(order(), (QStringList{front, back, middle}));
+        ed->undo();
+        QCOMPARE(order(), (QStringList{back, middle, front}));
+        // Names and hidden marks are kept in the saved file.
+        QTRY_COMPARE(list->count(), 3);
+        list->item(1)->setText(QStringLiteral("Photo"));
+        QTRY_COMPARE(item(middle)->name, QStringLiteral("Photo"));
+        QTRY_COMPARE(list->item(2)->checkState(), Qt::Checked);
+        list->item(2)->setCheckState(Qt::Unchecked);
+        QTRY_VERIFY(item(back)->hidden);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QString err;
+        QVERIFY2(jp::savePublication(*ed->doc(), dir.filePath(QStringLiteral("a.jpub")), QImage(), &err), qPrintable(err));
+        auto again = jp::loadPublication(dir.filePath(QStringLiteral("a.jpub")), &err);
+        QVERIFY2(again, qPrintable(err));
+        QCOMPARE(again->item(middle)->name, QStringLiteral("Photo"));
+        QCOMPARE(again->item(front)->name, QStringLiteral("Front"));
+        QVERIFY(again->item(back)->hidden);
+        QVERIFY(!again->item(front)->hidden);
     }
 };
 

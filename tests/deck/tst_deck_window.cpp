@@ -1924,6 +1924,135 @@ private Q_SLOTS:
         QVERIFY2(pane->status().size() < 200, qPrintable(QString::number(pane->status().size())));
         QVERIFY2(status->minimumSizeHint().width() < 300, qPrintable(QString::number(status->minimumSizeHint().width())));
     }
+
+    // The Selection Pane lists the slide's objects by name, the one in front first. A row picks the object; a name typed in a row names it; a box hides or shows it (a hidden object is not
+    // drawn on the slide, and Show All and Hide All set every box); the buttons and a drag move it in the order. Each change is one step of Undo.
+    void selectionPaneListsNamesHidesAndOrdersObjects()
+    {
+        DeckWindow w;
+        w.resize(1400, 900);
+        w.show();
+        Editor *ed = w.editor();
+        auto d = deck::newPresentation();
+        d->pages[0]->items.clear();
+        auto add = [&](const QString &name, const QColor &color, double x) {
+            auto s = std::make_shared<jp::ShapeItem>();
+            s->name = name;
+            s->rect = QRectF(x, 100, 100, 100);
+            s->fill = jp::Fill::solid(jp::ColorRef::rgb(color));
+            s->stroke = jp::Stroke::none();
+            d->pages[0]->items.push_back(s);
+            return s->id;
+        };
+        const QString back = add(QStringLiteral("Back"), Qt::red, 50), middle = add(QString(), Qt::blue, 150), front = add(QStringLiteral("Front"), Qt::green, 250);
+        ed->setDocument(std::move(d));
+        auto item = [&](const QString &id) { return ed->doc()->item(id); };
+        auto order = [&] {
+            QStringList ids;
+            for (const auto &it : ed->surfaceItems()) ids << it->id;
+            return ids;
+        };
+        auto greenShown = [&] {
+            PaintContext ctx;
+            ctx.doc = ed->doc();
+            ctx.cache = &ed->cache();
+            return Renderer::renderToImage(ctx, 0, 1.0).pixelColor(300, 150) == QColor(Qt::green);
+        };
+        QAction *open = w.act(QStringLiteral("arr.selectionPane"));
+        QVERIFY(open);
+        QVERIFY(open->isEnabled());
+        open->trigger();
+        auto *list = w.findChild<QListWidget *>(QStringLiteral("selectionList"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 3);
+        QCOMPARE(list->item(0)->text(), QStringLiteral("Front"));
+        QCOMPARE(list->item(2)->text(), QStringLiteral("Back"));
+        QVERIFY(!list->item(1)->text().isEmpty());
+        QCOMPARE(list->item(0)->checkState(), Qt::Checked);
+        list->setCurrentRow(2);
+        QCOMPARE(ed->selection(), QStringList{back});
+        list->item(2)->setText(QStringLiteral("Logo"));
+        QTRY_COMPARE(item(back)->name, QStringLiteral("Logo"));
+        ed->undo();
+        QCOMPARE(item(back)->name, QStringLiteral("Back"));
+        ed->redo();
+        QCOMPARE(item(back)->name, QStringLiteral("Logo"));
+        QVERIFY(greenShown());
+        QTRY_COMPARE(list->item(0)->text(), QStringLiteral("Front"));
+        list->item(0)->setCheckState(Qt::Unchecked);
+        QTRY_VERIFY(item(front)->hidden);
+        QVERIFY(!greenShown());
+        ed->undo();
+        QVERIFY(!item(front)->hidden);
+        QVERIFY(greenShown());
+        auto *hideAll = w.findChild<QAbstractButton *>(QStringLiteral("selectionHideAll"));
+        auto *showAll = w.findChild<QAbstractButton *>(QStringLiteral("selectionShowAll"));
+        QVERIFY(hideAll && showAll);
+        hideAll->click();
+        QTRY_VERIFY(item(back)->hidden && item(middle)->hidden && item(front)->hidden);
+        showAll->click();
+        QTRY_VERIFY(!item(back)->hidden && !item(middle)->hidden && !item(front)->hidden);
+        QCOMPARE(order(), (QStringList{back, middle, front}));
+        QTRY_COMPARE(list->count(), 3);
+        list->setCurrentRow(0);
+        auto *backward = w.findChild<QAbstractButton *>(QStringLiteral("selectionBackward"));
+        QVERIFY(backward);
+        backward->click();
+        QCOMPARE(order(), (QStringList{back, front, middle}));
+        ed->undo();
+        QCOMPARE(order(), (QStringList{back, middle, front}));
+        QTRY_COMPARE(list->count(), 3);
+        QVERIFY(list->model()->moveRow(QModelIndex(), 0, QModelIndex(), 3));
+        QTRY_COMPARE(order(), (QStringList{front, back, middle}));
+        ed->undo();
+        QCOMPARE(order(), (QStringList{back, middle, front}));
+        // Another slide has its own objects.
+        ed->setCurrentPage(0);
+        QTRY_COMPARE(list->count(), 3);
+    }
+
+    // Full Screen is a switch on the View tab (F11): the window fills the screen, the command's check follows the window, and the same command leaves it. Esc leaves it too, when the slide
+    // has nothing of its own to put away.
+    void fullScreenIsOnTheViewTabAndEscLeavesIt()
+    {
+        QFile file(QStringLiteral(":/ribbon.json"));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QJsonArray tabs = QJsonDocument::fromJson(file.readAll()).object().value(QStringLiteral("tabs")).toArray();
+        bool onViewTab = false;
+        for (const QJsonValue &t : tabs)
+            if (t.toObject().value(QStringLiteral("name")).toString() == QLatin1String("View"))
+                onViewTab = QJsonDocument(t.toObject()).toJson().contains("view.fullScreen");
+        QVERIFY(onViewTab);
+        DeckWindow w;
+        w.resize(1100, 750);
+        w.show();
+        QAction *fs = w.act(QStringLiteral("view.fullScreen"));
+        QVERIFY(fs);
+        QVERIFY(fs->isCheckable() && fs->isEnabled());
+        QCOMPARE(fs->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::Key_F11).toString(QKeySequence::NativeText));
+        QVERIFY(!w.isFullScreen() && !fs->isChecked());
+        fs->trigger();
+        QTRY_VERIFY(w.isFullScreen());
+        QTRY_VERIFY(fs->isChecked());
+        fs->trigger();
+        QTRY_VERIFY(!w.isFullScreen());
+        QTRY_VERIFY(!fs->isChecked());
+        fs->trigger();
+        QTRY_VERIFY(w.isFullScreen());
+        w.editor()->clearSelection();
+        QTest::keyClick(&w, Qt::Key_Escape);
+        QTRY_VERIFY(!w.isFullScreen());
+        QTRY_VERIFY(!fs->isChecked());
+        // With an object selected the slide has it to put away first.
+        w.editor()->select(w.editor()->surfaceItems().front()->id);
+        fs->trigger();
+        QTRY_VERIFY(w.isFullScreen());
+        QTest::keyClick(&w, Qt::Key_Escape);
+        QVERIFY(w.isFullScreen());
+        w.editor()->clearSelection();
+        QTest::keyClick(&w, Qt::Key_Escape);
+        QTRY_VERIFY(!w.isFullScreen());
+    }
 };
 
 JP_TEST_CLASS(DeckWindowTests)

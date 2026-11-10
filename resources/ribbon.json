@@ -13,6 +13,7 @@
       {"small": "arr.forward", "keytip": "AF", "split": true, "menu": ["arr.forward", "arr.front"]},
       {"small": "arr.backward", "keytip": "AB", "split": true, "menu": ["arr.backward", "arr.back"]},
       {"small": "arr.group", "keytip": "GG"},
+      {"small": "arr.selectionPane", "keytip": "SP"},
       {"small": {"id": "ribbon.align", "text": "Align", "icon": "align-horizontal-justify-center"}, "keytip": "AA", "menu": [
         "arr.alignLeft", "arr.alignCenter", "arr.alignRight", "-", "arr.alignTop", "arr.alignMiddle", "arr.alignBottom", "-",
         "arr.distH", "arr.distV", "-", "arr.relMargins"]},
@@ -242,7 +243,8 @@
         {"small": "view.scratch", "keytip": "SA"},
         {"small": "view.baselines", "keytip": "SL"},
         {"small": "view.graphics", "keytip": "SM"},
-        {"small": "para.special", "keytip": "SC"}
+        {"small": "para.special", "keytip": "SC"},
+        {"small": "view.fullScreen", "keytip": "SU"}
       ]},
       {"name": "Zoom", "keytip": "ZM", "items": [
         {"row": [{"label": "Zoom"}, {"widget": "zoomBox", "keytip": "Q"}]},

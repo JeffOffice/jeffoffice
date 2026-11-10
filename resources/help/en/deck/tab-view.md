@@ -1,5 +1,5 @@
 # View tab
-<!-- keywords: view tab, ribbon, slide master, master views, normal, outline view, slide sorter, notes page, reading view, ruler, gridlines, guides, notes, zoom, fit to window, presentation views -->
+<!-- keywords: full screen, f11, view tab, ribbon, slide master, master views, normal, outline view, slide sorter, notes page, reading view, ruler, gridlines, guides, notes, zoom, fit to window, presentation views -->
 
 The **View** tab changes how the slides look on screen while you work. These choices do not change the slides themselves.
 
@@ -7,7 +7,7 @@ The **View** tab changes how the slides look on screen while you work. These cho
 - **Master Views** has **Slide Master**, which opens Slide Master view to edit the slide masters and layouts.
 - **Show** has check boxes for the **Ruler**, **Gridlines**, and **Guides** on the slide, and the **Notes** button, which shows or hides the notes box. See [Speaker notes](notes).
 - **Zoom** has a **Zoom** menu, from 400% down to 10%, and **Fit to Window**, which sizes the slide to fill the window. See [Find your way around the window](window).
-- **Window** has **New Window**, which opens the presentation's file again in a second window (a presentation with no file yet opens a new, empty one), and **Switch Windows**, which lists the open windows so you can bring one forward. Example: a change made in one window shows in the other after you save it and open the file there again.
+- **Window** has **Full Screen** (F11), which fills the whole screen with the window; press **F11** or **Esc** to come back (**Esc** first puts away a selected object or text you are typing). It also has **New Window**, which opens the presentation's file again in a second window (a presentation with no file yet opens a new, empty one), and **Switch Windows**, which lists the open windows so you can bring one forward. Example: a change made in one window shows in the other after you save it and open the file there again.
 
 ## Related
 

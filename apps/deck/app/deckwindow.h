@@ -8,6 +8,7 @@
 #include "app/recovery.h"
 #include "app/infopage.h"
 #include "app/pageaccesspane.h"
+#include "app/pageselectionpane.h"
 #include "app/pdfprotection.h"
 #include "app/versionstore.h"
 #include "office/packageprops.h"
@@ -351,6 +352,7 @@ public:
 
 protected:
     void closeEvent(QCloseEvent *e) override;
+    void changeEvent(QEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
     bool eventFilter(QObject *o, QEvent *e) override;
 
@@ -444,6 +446,7 @@ private:
 
     Editor *m_ed = nullptr;
     QPointer<PageAccessibilityPane> m_accessPane;
+    QPointer<SelectionPane> m_selectionPane;
     DeckCanvas *m_canvas = nullptr;
     Ribbon *m_ribbon = nullptr;
     SlidesPane *m_slides = nullptr;

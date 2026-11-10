@@ -296,6 +296,12 @@ bool MainWindow::eventFilter(QObject *o, QEvent *e)
         auto *ke = static_cast<QKeyEvent *>(e);
         if (ke->key() == Qt::Key_Escape) { hideBackstage(); return true; }
     }
+    // Escape leaves Full Screen, unless the canvas has something to put away first.
+    if (e->type() == QEvent::KeyPress && isFullScreen()) {
+        const bool canvasWants = m_ed->isEditingText() || !m_ed->selection().isEmpty() || m_ed->tool() != Tool::Select || !m_ed->cropItem.isEmpty() || !m_ed->pointsItem.isEmpty() || !m_ed->wrapItem.isEmpty()
+                                 || m_ed->hasCellBlock();
+        if (escapeLeavesFullScreen(o, e, canvasWants)) return true;
+    }
     // F1 in one of this window's dialogs: help on that dialog. (The window's
     // own F1 is a command, which a dialog holding the window keeps from it.)
     if (e->type() == QEvent::KeyPress && static_cast<QKeyEvent *>(e)->matches(QKeySequence::HelpContents)) {
