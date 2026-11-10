@@ -13,7 +13,7 @@
       {"small": "arr.forward", "keytip": "AF", "split": true, "menu": ["arr.forward", "arr.front"]},
       {"small": "arr.backward", "keytip": "AB", "split": true, "menu": ["arr.backward", "arr.back"]},
       {"small": "arr.group", "keytip": "GG"},
-      {"small": "arr.selectionPane", "keytip": "SP"},
+      {"small": "arr.selectionPane", "keytip": "OS"},
       {"small": {"id": "ribbon.align", "text": "Align", "icon": "align-horizontal-justify-center"}, "keytip": "AA", "menu": [
         "arr.alignLeft", "arr.alignCenter", "arr.alignRight", "-", "arr.alignTop", "arr.alignMiddle", "arr.alignBottom", "-",
         "arr.distH", "arr.distV", "-", "arr.relMargins"]},
