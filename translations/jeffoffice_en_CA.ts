@@ -220,13 +220,6 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
-    <name>PivotOptionsDialog</name>
-    <message>
-        <source>Merge and center cells with labels</source>
-        <translation>Merge and centre cells with labels</translation>
-    </message>
-</context>
-<context>
     <name>PptxImport</name>
     <message>
         <source>The slide master %1 has no theme, so JeffDeck's colors and fonts stand in.</source>
@@ -878,6 +871,13 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Colors and fills are left out; text and lines are black.</source>
         <translation>Colours and fills are left out; text and lines are black.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::PivotOptionsDialog</name>
+    <message>
+        <source>Merge and center cells with labels</source>
+        <translation>Merge and centre cells with labels</translation>
     </message>
 </context>
 <context>

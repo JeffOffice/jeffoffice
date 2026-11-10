@@ -110,6 +110,10 @@ When you change a cell, JeffCrunch works out the formulas that depend on it in t
 - A function JeffCrunch does not have yet leaves a new formula without a value in the cell; the workbook asks the program that opens it next to work the formula out.
 - Formatting, sorting, and find and replace come in a later version. Inserting and deleting, cut and paste, fill, and the sizes of rows and columns are in [Insert and delete rows, columns, and cells](insert-delete), [Cut, copy, and paste](clipboard), [Fill cells and add them up](fill-sum), and [Change the width of columns and the height of rows](sizes).
 
+## Put in a symbol
+
+Click **Insert > Symbols > Symbol** to open the Symbol box. Pick a character and click **Insert**, or double-click it. It goes in at the cursor of the entry you are typing. If you are not typing, the cell's own entry opens with the symbol added at its end, and **Enter** puts it in the cell. Example: with a cell holding the word *Total*, choosing the euro sign makes the entry *Total€*. The symbols you used last are listed first. The cell's font draws the symbol, so a symbol the font lacks shows as a box.
+
 ## New workbooks
 
 In **File > Options > New Workbooks**, choose the font, the font size, and the number of sheets that every new workbook starts with. Workbooks you already have are not changed.

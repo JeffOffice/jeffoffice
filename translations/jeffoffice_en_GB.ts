@@ -249,13 +249,6 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
-    <name>PivotOptionsDialog</name>
-    <message>
-        <source>Merge and center cells with labels</source>
-        <translation>Merge and centre cells with labels</translation>
-    </message>
-</context>
-<context>
     <name>PptxImport</name>
     <message>
         <source>The slide master %1 has no theme, so JeffDeck's colors and fonts stand in.</source>
@@ -404,17 +397,6 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>The theme has no colors.</source>
         <translation>The theme has no colours.</translation>
-    </message>
-</context>
-<context>
-    <name>ValueFieldDialog</name>
-    <message>
-        <source>Summarize value field by</source>
-        <translation>Summarise value field by</translation>
-    </message>
-    <message>
-        <source>Summarize value field by:</source>
-        <translation>Summarise value field by:</translation>
     </message>
 </context>
 <context>
@@ -949,6 +931,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::PivotOptionsDialog</name>
+    <message>
+        <source>Merge and center cells with labels</source>
+        <translation>Merge and centre cells with labels</translation>
+    </message>
+</context>
+<context>
     <name>jp::SetUpShowDialog</name>
     <message>
         <source>Pen color</source>
@@ -1021,6 +1010,17 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>The twelve colors of this presentation's theme.</source>
         <translation>The twelve colours of this presentation's theme.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::ValueFieldDialog</name>
+    <message>
+        <source>Summarize value field by</source>
+        <translation>Summarise value field by</translation>
+    </message>
+    <message>
+        <source>Summarize value field by:</source>
+        <translation>Summarise value field by:</translation>
     </message>
 </context>
 <context>

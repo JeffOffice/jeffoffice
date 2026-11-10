@@ -328,13 +328,6 @@ Download it from %2 now? (%3, once.)</source>
     </message>
 </context>
 <context>
-    <name>PivotOptionsDialog</name>
-    <message>
-        <source>Refresh the data when the file is opened</source>
-        <translation type="unfinished">Actualizar los datos al abrir el fichero</translation>
-    </message>
-</context>
-<context>
     <name>PptImport</name>
     <message>
         <source>This file holds no presentation.</source>
@@ -1412,6 +1405,13 @@ No se puede leer el fichero.</translation>
     <message>
         <source>The file is damaged.</source>
         <translation type="unfinished">El fichero está dañado.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::PivotOptionsDialog</name>
+    <message>
+        <source>Refresh the data when the file is opened</source>
+        <translation type="unfinished">Actualizar los datos al abrir el fichero</translation>
     </message>
 </context>
 <context>

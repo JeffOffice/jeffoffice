@@ -46,6 +46,10 @@ Click a picture. The **Picture Format** tab shows. Its **Crop** group has these 
 
 A crop is saved in the file with the part you hid, and a shape is saved too. A picture cropped to a shape is saved in an .odp file as the picture you see. The hidden part and the shape can't be changed after you open that file again.
 
+## Make pictures smaller
+
+A picture from a camera can be much larger than it shows on a slide, and it makes the file large. Click a picture, then click **Compress Pictures…** in the **Adjust** group of the **Picture Format** tab. Choose where the presentation will be used: **Commercial printing (300 ppi)**, **Desktop printing (220 ppi)**, or **Web (96 ppi)**. Leave **Apply to all pictures in the presentation** checked to make every picture smaller, or clear it to make only the selected pictures smaller. **Delete cropped areas of pictures** also takes away the hidden parts you cropped. A picture is only replaced when the new one is smaller. Undo (Ctrl+Z) gives the pictures back.
+
 ## Add an icon
 
 An **icon** is a simple picture, like a heart, an arrow, or an envelope. JeffDeck has more than 1,500.
@@ -107,7 +111,7 @@ A **movie** or a **sound** plays right on the slide. JeffDeck keeps the file ins
 
 A movie shows its **poster**. That is its first picture. A sound shows a picture of a speaker. You can move, resize, turn, and delete them like any picture. Both start in the **click sequence**. That is the list of steps the slide show plays, one at each click. So the movie or sound plays at a click in the slide show.
 
-JeffDeck plays the kinds of files the computer knows how to play, such as .mp4, .mov, .avi, .wmv, .mkv, .webm, .mp3, .wav, .m4a, .wma, .ogg, and .flac. A file the computer can't play shows a message where it should play. The rest of JeffDeck goes on working. A movie that a file only links to, on the web or on a disk, isn't played. The file has to be inside the presentation.
+JeffDeck plays movies in .mp4, .m4v, .mov, .3gp, .mkv, .webm, .avi, .wmv, .asf, .mpg, and .mpeg files, and sounds in .mp3, .wav, .m4a, .aac, .flac, .ogg, .opus, .aif, .aiff, and .wma files. Inside them it plays the usual formats, such as H.264, HEVC, MPEG-4, VP8, VP9, AAC, MP3, AC-3, Vorbis, Opus, FLAC, and uncompressed sound. It does not play some older web video formats, AV1, MIDI, or some surround-sound formats, and a movie with sound in a format it does not play can't be played at all. A file JeffDeck can't play shows a message where it should play. The rest of JeffDeck goes on working. A movie that a file only links to, on the web or on a disk, isn't played. The file has to be inside the presentation.
 
 JeffDeck never plays a file until you ask. Opening, saving, and printing a presentation use only the poster.
 
