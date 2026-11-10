@@ -509,6 +509,21 @@ public:
     void fromJson(const QJsonObject &o);
     void resetDefaults();
 
+    // A copy of the whole document that another thread can make a Document of (fromSnapshot) while this one goes on being edited: what toJson holds, and what it leaves out (the pictures' and
+    // movies' bytes, shared not copied, and the settings the app that made the document gave it). Taken on the thread that owns the document; the Document made from it belongs to the thread that made it.
+    struct Snapshot {
+        QJsonObject json;
+        QMap<QString, ImageData> images;
+        QMap<QString, MediaData> media;
+        QHash<QString, QString> fontAliases;
+        QString folder;
+        int imagesLeftOut = 0;
+        qint64 imageCacheBudget = kImageCacheBudget;
+        bool slideText = false, wordText = false, slidePictures = false;
+    };
+    Snapshot snapshot() const;
+    static std::unique_ptr<Document> fromSnapshot(const Snapshot &s);
+
     static std::unique_ptr<Document> blank(const QSizeF &size, const QString &sizeName = QStringLiteral("Letter"), int pageCount = 1);
 
 private:

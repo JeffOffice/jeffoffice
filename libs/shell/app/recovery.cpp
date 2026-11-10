@@ -11,7 +11,12 @@
 #include <QStandardPaths>
 #include <QUuid>
 #include <algorithm>
+#include <QMetaObject>
+#include <QObject>
+#include <QRunnable>
+#include <QThreadPool>
 #include <memory>
+#include <mutex>
 
 namespace jp::recovery {
 
@@ -138,6 +143,90 @@ void remove(const QString &copy)
 }
 
 namespace {
+QThreadPool &workers()
+{
+    static QThreadPool *pool = [] {
+        auto *p = new QThreadPool;   // (one worker: copies of several windows are made one after another)
+        p->setMaxThreadCount(1);
+        return p;
+    }();
+    return *pool;
+}
+
+bool writeBytes(const QByteArray &bytes, const QString &copy, const QString &docPath, const QString &title, QString *error)
+{
+    return write(
+        [&](const QString &file, QString *err) {
+            QSaveFile out(file);
+            if (!out.open(QIODevice::WriteOnly) || out.write(bytes) != bytes.size() || !out.commit()) {
+                if (err) *err = out.errorString();
+                return false;
+            }
+            return true;
+        },
+        copy, docPath, title, error);
+}
+} // namespace
+
+struct AsyncWriter::Job {
+    std::mutex lock;
+    bool cancelled = false, wrote = false;
+    QString copy;
+};
+
+AsyncWriter::AsyncWriter(QObject *window) : m_window(window) {}
+
+AsyncWriter::~AsyncWriter() { cancel(); }
+
+bool AsyncWriter::start(Make make, const QString &copy, const QString &docPath, const QString &title, Finished finished)
+{
+    if (m_job || copy.isEmpty()) return false;
+    auto job = std::make_shared<Job>();
+    job->copy = copy;
+    m_job = job;
+    QObject *window = m_window;
+    workers().start(QRunnable::create([this, job, make = std::move(make), copy, docPath, title, finished = std::move(finished), window] {
+        QString error;
+        const QByteArray bytes = make(&error);
+        bool ok = false;
+        // (posted while the lock is held: a window that cancels is not gone before the post is made)
+        std::lock_guard<std::mutex> hold(job->lock);
+        if (job->cancelled) return;   // (nobody is waiting for it)
+        ok = !bytes.isEmpty() && writeBytes(bytes, copy, docPath, title, &error);
+        job->wrote = ok;
+        QMetaObject::invokeMethod(window, [this, job, ok, copy, error, finished] {
+            {
+                std::lock_guard<std::mutex> again(job->lock);
+                if (job->cancelled) return;   // (the writer may be gone then)
+            }
+            m_job.reset();
+            finished(ok, copy, error);
+        }, Qt::QueuedConnection);
+    }));
+    return true;
+}
+
+bool AsyncWriter::writeNow(const Make &make, const QString &copy, const QString &docPath, const QString &title, QString *error)
+{
+    cancel();
+    const QByteArray bytes = make(error);
+    return !bytes.isEmpty() && writeBytes(bytes, copy, docPath, title, error);
+}
+
+void AsyncWriter::cancel()
+{
+    if (!m_job) return;
+    {
+        std::lock_guard<std::mutex> hold(m_job->lock);
+        m_job->cancelled = true;
+        if (m_job->wrote) remove(m_job->copy);
+    }
+    m_job.reset();
+}
+
+void AsyncWriter::waitForAll() { workers().waitForDone(); }
+
+namespace {
 
 // Moves what an older version kept in its folder into the root: loose copies, and the folders of runs that have ended (a run still going keeps its own). What cannot be moved stays,
 // and is still read where it is.
@@ -209,6 +298,7 @@ void discard(const Recovered &r)
 
 void endSession()
 {
+    AsyncWriter::waitForAll();
     if (g_session.isEmpty()) return;
     g_lock.reset();   // unlocks
     QDir(g_session).removeRecursively();

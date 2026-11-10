@@ -1783,6 +1783,38 @@ QJsonObject Document::toJson() const
     return o;
 }
 
+Document::Snapshot Document::snapshot() const
+{
+    Snapshot s;
+    s.json = toJson();
+    s.images = images;
+    s.media = media;
+    s.fontAliases = fontAliases;
+    s.folder = folder;
+    s.imagesLeftOut = imagesLeftOut;
+    s.imageCacheBudget = imageCacheBudget;
+    s.slideText = slideText;
+    s.wordText = wordText;
+    s.slidePictures = slidePictures;
+    return s;
+}
+
+std::unique_ptr<Document> Document::fromSnapshot(const Snapshot &s)
+{
+    auto d = std::make_unique<Document>();
+    d->images = s.images;
+    d->media = s.media;
+    d->fontAliases = s.fontAliases;
+    d->folder = s.folder;
+    d->imagesLeftOut = s.imagesLeftOut;
+    d->imageCacheBudget = s.imageCacheBudget;
+    d->slideText = s.slideText;
+    d->wordText = s.wordText;
+    d->slidePictures = s.slidePictures;
+    d->fromJson(s.json);
+    return d;
+}
+
 // Whether an object, or one inside it, needs a story the publication doesn't have.
 static bool namesMissingStory(const Document &d, const Item &it)
 {
