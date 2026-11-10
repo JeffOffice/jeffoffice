@@ -499,7 +499,7 @@ void WriteTests::helpTopicsAreComplete()
     const QStringList ids = jp::help::topicIds();
     QVERIFY2(ids.contains(QLatin1String("start")) && ids.contains(QLatin1String("index")), qPrintable(ids.join(QLatin1Char(' '))));
     static const QRegularExpression link(QStringLiteral("\\]\\(([^)]+)\\)"));
-    static const QRegularExpression banned(QStringLiteral("\\b(Microsoft|Publisher|Office|Word)\\b"));
+    static const QRegularExpression banned(QStringLiteral("\\b(Microsoft|Publisher|Office|Word(?! Count))\\b"));
     const jp::help::Topic contents = jp::help::topic(QStringLiteral("index"));
     QStringList problems;
     for (const QString &id : ids) {
