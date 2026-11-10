@@ -9,7 +9,11 @@
 #include "app/optionsdialog.h"
 #include "app/proofingdialogs.h"
 #include "app/settings.h"
+#include "app/notespane.h"
 #include "app/textdialogs.h"
+#include "app/translate.h"
+#include "text/dictionaries.h"
+#include "text/textprops.h"
 
 #include <QAction>
 #include <QCheckBox>
@@ -77,6 +81,42 @@ void DeckWindow::createDialogActions()
     mk("review.thesaurus", tr("Thesaurus"), "book-a", QKeySequence(Qt::SHIFT | Qt::Key_F7), [this, ed] { thesaurusDialog(this, ed); });
     mk("review.wordCount", tr("Word Count"), "whole-word", QKeySequence(), [this, ed] { slideWordCount(this, ed); });
     mk("review.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] { showAccessibilityPane(); });
+    mk("review.translate", tr("Translate"), "languages", QKeySequence(), [this, ed] {
+        // The selected text of the box being typed in, else the selected text of the notes, else all the text of the selected box.
+        QString text;
+        if (ed->isEditingText() && ed->cursor().hasSelection()) {
+            text = ed->cursor().selectedText();
+        } else if (m_notes && m_notes->textCursor().hasSelection() && (m_notes->hasFocus() || !ed->single())) {
+            text = m_notes->textCursor().selectedText();
+        } else if (ed->isEditingText()) {
+            if (ed->editDoc()) text = ed->editDoc()->toPlainText();
+        } else if (Item *it = ed->single()) {
+            QString storyId;
+            if (auto *t = dynamic_cast<TextItem *>(it)) storyId = t->storyId;
+            else if (auto *sh = dynamic_cast<ShapeItem *>(it)) storyId = sh->storyId;
+            if (QTextDocument *doc = ed->doc()->storyDoc(storyId)) text = doc->toPlainText();
+        }
+        jp::translateText(this, statusBar(), text, false, m_urlOpener);
+    });
+    mk("review.language", tr("Set Proofing Language…"), "languages", QKeySequence(), [this, ed] {
+        if (!ed->isEditingText() && !(ed->single() && ed->single()->hasText()) && ed->selectionKind() != QLatin1String("multi")) return;
+        const QTextCharFormat now = ed->currentCharFormat();
+        const QString own = now.stringProperty(tp::Language);
+        QString tag;
+        bool noProof = false;
+        if (!jp::languageDialog(this, own.isEmpty() ? QStringLiteral("en-US") : dict::match(own), now.boolProperty(tp::NoProof), &tag, &noProof)) return;
+        QTextCharFormat f;
+        f.setProperty(tp::Language, tag);
+        f.setProperty(tp::NoProof, noProof);
+        ed->mergeCharFormat(f, tr("Language"));
+        refreshUi();
+    });
+    mk("review.noProof", tr("Do Not Check Spelling"), "spell-check-2", QKeySequence(), [this, ed] {
+        QTextCharFormat f;
+        f.setProperty(tp::NoProof, act("review.noProof")->isChecked());
+        ed->mergeCharFormat(f, tr("Do Not Check Spelling"));
+        refreshUi();
+    }, true);
 
     // Options: the shared General and Proofing pages, then the View page, which
     // sets how every window opens (and the open ones, now).

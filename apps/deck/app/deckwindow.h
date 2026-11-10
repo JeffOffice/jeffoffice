@@ -269,6 +269,8 @@ public:
     void setReadOnly(bool on) override;
     // What a sentence for the person (what Open and Repair left out) is shown with: a message box, unless this stands in for it (tests).
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
+    // Review > Translate opens the web page of the translation service through this (the browser's own when none is set); a test sets its own.
+    void setUrlOpener(const std::function<bool(const QUrl &)> &opener) { m_urlOpener = opener; }
     // Saves to the file the presentation came from, else asks where (Save As).
     // A presentation opened from a template always asks, so the template is
     // not written over. False if nothing was written.
@@ -506,6 +508,7 @@ private:
     recovery::AsyncWriter m_recoveryWriter{this};   // makes the copy on a worker thread
     QString m_recoveredFrom;     // a recovered presentation's original file, for Save As
     std::function<void(const QString &, const QString &)> m_notifier;
+    std::function<bool(const QUrl &)> m_urlOpener;
     QString m_templatePath;      // a template this window wrote: saving again writes over it
     std::function<QString(const QString &, const QString &)> m_pathChooser;
     std::function<void(QPrinter &)> m_printerPreparer;

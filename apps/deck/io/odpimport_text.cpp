@@ -228,7 +228,8 @@ public:
         double spacing = 0;
         if (parseLength(b.get(Text, "fo:letter-spacing"), &spacing) && std::fabs(spacing) > 0.001) a += QStringLiteral(" spc=\"%1\"").arg(hundredths(std::clamp(spacing, -1584.0, 1584.0)));
         const QString lang = b.get(Text, "fo:language");
-        if (!lang.isEmpty() && lang != QLatin1String("none")) {
+        if (lang == QLatin1String("zxx")) a += QLatin1String(" noProof=\"1\"");   // (the language "none": text that is not checked)
+        else if (!lang.isEmpty() && lang != QLatin1String("none")) {
             const QString country = b.get(Text, "fo:country");
             a += QStringLiteral(" lang=\"%1\"").arg(escaped(country.isEmpty() || country == QLatin1String("none") ? lang : lang + QLatin1Char('-') + country));
         }

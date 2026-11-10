@@ -323,6 +323,8 @@ void DeckWindow::refreshUi()
     act("fmt.underline")->setChecked(cf.underlineStyle() != QTextCharFormat::NoUnderline);
     act("fmt.strike")->setChecked(cf.fontStrikeOut());
     act("fmt.shadow")->setChecked(Editor::hasTextShadow(cf));
+    for (const char *id : {"review.language", "review.noProof"}) act(id)->setEnabled(textish);
+    act("review.noProof")->setChecked(textish && cf.boolProperty(tp::NoProof));
     const Qt::Alignment al = bf.alignment() & Qt::AlignHorizontal_Mask;
     act("fmt.alignLeft")->setChecked(textish && (al == Qt::AlignLeft || al == 0 || al == Qt::AlignLeading));
     act("fmt.alignCenter")->setChecked(al == Qt::AlignHCenter);

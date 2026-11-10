@@ -1,10 +1,28 @@
 # Review tab
-<!-- keywords: review tab, ribbon, proofing, spelling, thesaurus, word count, comments, new comment, delete comment, previous, next, show comments -->
+<!-- keywords: review tab, ribbon, proofing, spelling, thesaurus, word count, comments, new comment, delete comment, previous, next, show comments, language, proofing language, set language, do not check spelling, translate, translation, libretranslate -->
 
-The **Review** tab checks your words and handles comments.
+The **Review** tab checks your words, translates them, and handles comments.
 
 - **Proofing** has **Spelling** (F7), **Thesaurus** (Shift+F7), **Word Count**, and **Check Accessibility**. See [Type and format text](text).
+- **Language** has **Translate**, **Set Proofing Language**, and **Do Not Check Spelling**. See below.
 - **Comments** has **New Comment** (Ctrl+Alt+M), **Delete** with its menu, **Previous**, **Next**, and **Show Comments**. See [Comments](comments).
+
+## Set the language of some text
+
+Spelling checks each piece of text in its own language. To change the language of some words, select them, or select a whole text box or placeholder, and click **Set Proofing Language** in the **Language** group. Pick the language in the list, then click **OK**. Words in that language are checked with that language's dictionary, and the file keeps the choice when you save it as a presentation or an OpenDocument presentation. Text that you have not marked is checked in American English.
+
+## Do not check some text
+
+Some text is not meant to be checked: a code, a name, or a line in a made-up language. Select it and click **Do Not Check Spelling** in the **Language** group. The red wavy lines go away. Click it again to check the text once more. The notes box holds plain text only, so it has no language of its own.
+
+## Translate text
+
+1. Select the words in a text box, or in the notes. To translate everything in a text box, select the box.
+2. Click **Translate** in the **Language** group.
+3. Choose the language to translate into.
+4. Click **OK**.
+
+Your web browser then opens a translation service called LibreTranslate, with your text in it. Nothing is sent until you click **OK**. You can change the address of the service in the box, for example to one that you run yourself. Only secure web addresses (https) are used, and http addresses for this computer. At most 5,000 letters are sent.
 
 ## Check accessibility
 

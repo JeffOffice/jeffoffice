@@ -53,6 +53,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Insert"),
     QT_TRANSLATE_NOOP("Ribbon", "Insert Placeholder"),
     QT_TRANSLATE_NOOP("Ribbon", "Landscape"),
+    QT_TRANSLATE_NOOP("Ribbon", "Language"),
     QT_TRANSLATE_NOOP("Ribbon", "Layout"),
     QT_TRANSLATE_NOOP("Ribbon", "Line Spacing"),
     QT_TRANSLATE_NOOP("Ribbon", "Links"),

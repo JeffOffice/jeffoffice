@@ -848,6 +848,24 @@
           ]
         },
         {
+          "name": "Language",
+          "keytip": "ZL",
+          "items": [
+            {
+              "large": "review.translate",
+              "keytip": "TR"
+            },
+            {
+              "large": "review.language",
+              "keytip": "LA"
+            },
+            {
+              "small": "review.noProof",
+              "keytip": "NP"
+            }
+          ]
+        },
+        {
           "name": "Comments",
           "keytip": "ZO",
           "items": [
