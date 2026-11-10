@@ -126,7 +126,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [~] **later** Accessibility options: high contrast, sound and animation feedback, and keyboard focus *(follows the system theme; the ribbon has KeyTips)*
 
 ### About
-- [x] **1.0** About: JeffDeck's and Qt's versions, the other JeffOffice apps, links to the source, downloads, and problem reports, and the license and notices
+- [x] **1.0** About: JeffDeck's and Qt's versions, the other JeffOffice apps, links to the source, downloads, and problem reports, Check for Updates (and a box for checking automatically), the choice about sending anonymous usage statistics, the name used as author, and the license and notices *(shared: libs/shell, the same page in all four apps)*
 - [ ] **later** Minimize Presentation: remove unused masters and layouts, shrink pictures, and drop what hidden slides hold, and show the size saved before applying it
 
 ## Home tab

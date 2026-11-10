@@ -145,6 +145,21 @@ private Q_SLOTS:
         QVERIFY(q.modified.isValid());
     }
 
+    // The command that was Properties is Info, as in the other apps, and opens the Info page.
+    void thePropertiesCommandIsInfo()
+    {
+        jp::MainWindow w;
+        Quiet quiet(w);
+        w.resize(1400, 900);
+        w.show();
+        QCOMPARE(w.act(QStringLiteral("file.properties"))->text(), QStringLiteral("Info"));
+        w.act(QStringLiteral("file.properties"))->trigger();
+        jp::Backstage *backstage = w.findChild<jp::Backstage *>();
+        QVERIFY(backstage && backstage->isVisible());
+        QCOMPARE(backstage->currentPage(), QStringLiteral("info"));
+        w.hideBackstage();
+    }
+
     void theInfoPageHasItsCardsAndTheFactsThePropertiesPageHad()
     {
         jp::MainWindow w;

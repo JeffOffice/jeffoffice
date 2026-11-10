@@ -76,7 +76,7 @@ void MainWindow::createActions()
         if (maybeSave()) newPublication(Document::blank(QSizeF(612, 792)));
     });
     act("file.close")->setShortcuts({QKeySequence(Qt::CTRL | Qt::Key_F4), QKeySequence(Qt::CTRL | Qt::Key_W)});   // (Ctrl+W is Close in other programs on every desktop)
-    mk("file.properties", tr("Properties"), "info", QKeySequence(), [this] { documentPropertiesDialog(this, m_ed); });
+    mk("file.properties", tr("Info"), "info", QKeySequence(), [this] { showBackstage("info"); });
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] { optionsDialog(this, m_ed); });
     mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [ed] { ed->undo(); });
     // Ctrl+Y is Publisher's, and the system's own key (Cmd+Shift+Z on a Mac) works as well.
