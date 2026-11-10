@@ -1,4 +1,5 @@
 // JeffDeck's tests of the file screen, saving from the window, and reusing slides.
+#include "../aboutchecks.h"
 #include "../recoverygate.h"
 #include "../settingguard.h"
 #include "core/threadcheck.h"
@@ -62,6 +63,16 @@ private Q_SLOTS:
         QCOMPARE(screen->currentPage(), QStringLiteral("about"));
         buttons.constFirst()->click();   // back
         QVERIFY(!screen->isVisible());
+    }
+
+    // About is the page all four apps share: Check for Updates (a fake here), the automatic check, and the statistics choice.
+    void aboutIsTheSharedPageWithJeffDecksFacts()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        w.showFileScreen(QStringLiteral("about"));
+        jptest::checkAboutPage(w.findChild<FileScreen *>(), {QStringLiteral("presentations"), QStringLiteral("FFmpeg"), QStringLiteral("libmspub")});
     }
 
     // Alt and F, the KeyTips' File letter, open it too.

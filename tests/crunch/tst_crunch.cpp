@@ -1,6 +1,7 @@
 // Tests of JeffCrunch's window (apps/crunch): opening a workbook on a worker with the first rows on the screen early, the calculation after the load, the sheet tabs, the name box and
 // the formula bar, the commands that work and those that are dimmed, copying, the view commands, the File screen, Help, and a screenshot of a workbook that looks like a real one. Every
 // workbook is built here, in a temporary folder.
+#include "../aboutchecks.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/filescreen.h"
@@ -458,6 +459,16 @@ private Q_SLOTS:
         QCOMPARE(win.w.helpView()->currentTopic(), QStringLiteral("view"));
         win.w.act("help.show")->trigger();
         QVERIFY(win.w.helpView()->isVisible());
+    }
+
+    // About is the page all four apps share: Check for Updates (a fake here), the automatic check, and the statistics choice.
+    void aboutIsTheSharedPageWithJeffCrunchsFacts()
+    {
+        Window win;
+        win.w.resize(1200, 800);
+        win.w.show();
+        win.w.showFileScreen(QStringLiteral("about"));
+        jptest::checkAboutPage(win.w.findChild<FileScreen *>(), {QStringLiteral("spreadsheets"), QString(), QStringLiteral("LibreTranslate")});
     }
 
     // About lists the third-party software in the app, with each project's license (the list all four apps share).

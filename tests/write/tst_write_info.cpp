@@ -1,6 +1,7 @@
 // Tests of JeffWrite's Info page: the properties a .docx keeps, Mark as Final, a password, Inspect Document, and Check Compatibility. Every file is made here in code.
 
 #include "../isolatesettings.h"
+#include "../aboutchecks.h"
 #include "../recoverygate.h"
 #include "../settingguard.h"
 #include "app/recovery.h"
@@ -180,6 +181,16 @@ private Q_SLOTS:
     {
         setNewPasswordStandIn(nullptr);
         setOpenPasswordStandIn(nullptr);
+    }
+
+    // About is the page all four apps share: Check for Updates (a fake here), the automatic check, and the statistics choice.
+    void aboutIsTheSharedPageWithJeffWritesFacts()
+    {
+        WriteWindow w;
+        w.resize(1200, 800);
+        w.show();
+        w.showFileScreen(QStringLiteral("about"));
+        jptest::checkAboutPage(w.findChild<FileScreen *>(), {QStringLiteral("documents"), QStringLiteral("LibreTranslate"), QStringLiteral("libmspub")});
     }
 
     // Options > Save > "Remove personal information from the file's properties when saving": the names are in the window's properties until a file is written, and not in it.

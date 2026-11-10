@@ -1,6 +1,8 @@
 // JeffPub's tests of telemetry, crash reports, updates, and shared settings.
 #include "pubhelpers.h"
 #include "core/version.h"
+#include "../aboutchecks.h"
+#include "app/backstage.h"
 #include <QScopeGuard>
 
 class PubUpdateTests : public QObject {
@@ -14,6 +16,17 @@ private Q_SLOTS:
         // About boxes, --version, user agents, and crash reports all read this one function.
         QVERIFY2(QRegularExpression(QStringLiteral("^\\d+\\.\\d+\\.\\d+$")).match(jp::versionText()).hasMatch(), qPrintable(jp::versionText()));
         QCOMPARE(QString::fromLatin1(jp::versionString()), jp::versionText());
+    }
+
+    // About has Check for Updates, the automatic check, and the statistics choice, the page all four apps share.
+    void aboutIsTheSharedPageWithJeffPubsFacts()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        w.showBackstage(QStringLiteral("about"));
+        jptest::checkAboutPage(w.findChild<jp::Backstage *>(), {QStringLiteral("desktop publishing"), QStringLiteral("libmspub"), QStringLiteral("FFmpeg")});
+        w.hideBackstage();
     }
 
     void telemetryCountsOnlyWhenOn()
