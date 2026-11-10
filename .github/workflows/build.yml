@@ -316,6 +316,7 @@ jobs:
             echo "== the plugin's imports, by the library they are bound to:"
             nm -m "$QT/plugins/multimedia/libffmpegmediaplugin.dylib" | grep -o "(from [^)]*)" | sort | uniq -c
           fi
+          if [ "$RUNNER_OS" = Windows ]; then export FFMPEG_BACKUP_DIR="$RUNNER_TEMP/qt-ffmpeg-original"; fi
           bash tools/use_ffmpeg.sh install "$QT" $P
           bash tools/use_ffmpeg.sh check "$QT"
 
@@ -446,6 +447,14 @@ jobs:
           # (Windows: every DLL the plugin needs, and those need in turn, found in Qt's folder or the system's, as the programs in build/ find them)
           if [ "$RUNNER_OS" = Windows ]; then
             python tools/check_bundle_deps.py windows-closure "$(cygpath -m "$QT_ROOT_DIR")/plugins/multimedia/ffmpegmediaplugin.dll" "$(cygpath -m "$QT_ROOT_DIR")/bin" "$PWD/build" || true
+          fi
+          # (Windows: what the plugin loader says, with our FFmpeg DLLs and then with Qt's own, kept aside by the step above; the test results go to a file, as the console's are dropped)
+          if [ "$RUNNER_OS" = Windows ] && [ -f build/jdtests.exe ]; then
+            for which in ours qt; do
+              if [ "$which" = qt ]; then export PATH="$(cygpath -u "$RUNNER_TEMP")/qt-ffmpeg-original:$PATH"; fi
+              QT_DEBUG_PLUGINS=1 QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 build/jdtests.exe --class DeckMediaTests theFFmpegBackendIsTheOneThatPlays -o "diag-$which.txt,txt" > /dev/null 2>&1 || true
+              echo "== plugin loader, $which"; grep -i -E "ffmpeg|windowsmedia|loadPlugin|cannot load|Loading media|Loading alternative|Using Qt multimedia|Actual|Totals" "diag-$which.txt" | head -25 | cut -c1-400 || true
+            done
           fi
           # (Windows: which backend plays, the FFmpeg one or the system's own)
           if [ "$RUNNER_OS" = Windows ] && [ -f build/jdtests.exe ]; then

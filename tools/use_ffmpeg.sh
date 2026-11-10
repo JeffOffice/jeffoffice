@@ -62,6 +62,8 @@ install)
             src=$(qt_libdir "$p")
             [ -e "$src/$had" ] || die "this build's $name has no $had, the version Qt's plugin binds to (Qt's: $had; ours: $(for f in $(family_files "$src" $name); do basename "$f"; done | tr '\n' ' '))"
         done
+        # (Qt's own, kept aside when FFMPEG_BACKUP_DIR names a folder: CI runs a diagnostic with them, to tell a plugin that does not load from ours)
+        if [ -n "${FFMPEG_BACKUP_DIR:-}" ]; then mkdir -p "$FFMPEG_BACKUP_DIR"; for f in $(family_files "$DEST" $name); do cp -a "$f" "$FFMPEG_BACKUP_DIR/"; done; fi
         for f in $(family_files "$DEST" $name); do rm -f "$f"; done
         if [ $# -eq 1 ] || [ "$KIND" != dylib ]; then
             for f in $(family_files "$(qt_libdir "$1")" $name); do cp -a "$f" "$DEST/"; done
