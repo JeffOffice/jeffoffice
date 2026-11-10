@@ -4,6 +4,7 @@
 // cell, in it with F2 or a double click, or in the formula bar), clears them with Delete, undoes and redoes, and saves the workbook as it was read with only what changed put in.
 
 #include "app/appwindow.h"
+#include "app/selectionpane.h"
 #include "app/versionstore.h"
 #include "app/recovery.h"
 #include "app/filetasks.h"
@@ -677,7 +678,6 @@ Q_SIGNALS:
 
 protected:
     void closeEvent(QCloseEvent *e) override;
-    void changeEvent(QEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
     bool eventFilter(QObject *o, QEvent *e) override;
@@ -1483,9 +1483,7 @@ private:
     bool restyleObject(const QString &stepText, const std::function<bool(QDomElement &, jp::grid::ObjectBox *)> &edit, bool pictureOnly = false);
     void editObjectText();
     void showSelectionPane();
-    void refreshSelectionPane();
-    QPointer<QDialog> m_selectionPane;
-    bool m_selectionFilling = false;
+    QPointer<SelectionPane> m_selectionPane;
     void createObjectFormatActions();
     void objectFormatRibbonParts(RibbonParts &parts);
     std::function<bool(ShapeTextChoices *)> m_shapeTextAsker;

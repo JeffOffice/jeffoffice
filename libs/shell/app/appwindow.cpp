@@ -2,7 +2,15 @@
 
 #include "app/ribbon.h"
 
+#include <QAction>
 #include <QApplication>
+#include <QEvent>
+#include <QAbstractSpinBox>
+#include <QComboBox>
+#include <QKeyEvent>
+#include <QLineEdit>
+#include <QPlainTextEdit>
+#include <QTextEdit>
 #include <QScreen>
 #include <QSet>
 #include <QMenu>
@@ -17,6 +25,35 @@ QList<AppWindow *> AppWindow::windows()
     for (QWidget *w : QApplication::topLevelWidgets())
         if (auto *a = qobject_cast<AppWindow *>(w)) out << a;
     return out;
+}
+
+void AppWindow::toggleFullScreen()
+{
+    if (isFullScreen()) showNormal();
+    else showFullScreen();
+    if (QAction *a = act(QStringLiteral("view.fullScreen"))) a->setChecked(isFullScreen());
+}
+
+void AppWindow::changeEvent(QEvent *e)
+{
+    QMainWindow::changeEvent(e);
+    if (e->type() == QEvent::WindowStateChange)
+        if (QAction *a = act(QStringLiteral("view.fullScreen"))) a->setChecked(isFullScreen());
+}
+
+bool AppWindow::escapeLeavesFullScreen(QObject *target, QEvent *event, bool otherWantsIt)
+{
+    if (event->type() != QEvent::KeyPress || static_cast<QKeyEvent *>(event)->key() != Qt::Key_Escape || !isFullScreen() || otherWantsIt) return false;
+    if (QApplication::activePopupWidget() || QApplication::activeModalWidget()) return false;
+    auto *w = qobject_cast<QWidget *>(target);
+    if (!w || w->window() != this) return false;
+    // (Esc in a box that is being typed in, or a list that is open, is that box's.)
+    for (const QWidget *p = w; p && p != this; p = p->parentWidget())
+        if (qobject_cast<const QLineEdit *>(p) || qobject_cast<const QTextEdit *>(p) || qobject_cast<const QPlainTextEdit *>(p) || qobject_cast<const QAbstractSpinBox *>(p)
+            || qobject_cast<const QComboBox *>(p))
+            return false;
+    toggleFullScreen();
+    return true;
 }
 
 QMenu *AppWindow::switchWindowsMenu(QWidget *owner, const QMetaObject &kind)
@@ -81,7 +118,7 @@ bool AppWindow::commandAllowedReadOnly(const QString &id)
                  "find.find", "find.goto", "find.gotoSpecial", "find.next",
                  "help.feedback", "help.shortcuts", "help.show", "help.whatsNew", "view.pageMovement.sideToSide", "view.pageMovement.vertical", "view.readMode", "view.draft", "view.webLayout", "view.split",
                  "show.fromCurrent", "show.fromStart", "show.presenterView",
-                 "view.baselines", "view.boundaries", "view.collapseRibbon", "view.fields", "view.fit", "view.formulaBar", "view.formulas", "view.graphics", "view.gridlines", "view.guides",
+                 "view.baselines", "view.boundaries", "view.collapseRibbon", "view.fullScreen", "view.fields", "view.fit", "view.formulaBar", "view.formulas", "view.graphics", "view.gridlines", "view.guides",
                  "view.headings", "view.marks", "view.master", "view.measurement", "view.normal", "view.notes", "view.outline", "view.pageBreakView", "view.pageBreaks", "view.pageLayout",
                  "view.navigationPane", "view.focus", "view.pageNav", "view.printLayout", "view.ruler", "view.rulers", "view.scratch", "view.single", "view.slideShow", "view.sorter", "view.spread",
                  "win.arrange", "win.cascade", "win.new",

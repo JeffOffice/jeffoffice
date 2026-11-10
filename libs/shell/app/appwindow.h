@@ -3,6 +3,7 @@
 // the updater): its commands by id, its ribbon, and the list of open windows.
 
 #include <QMainWindow>
+#include <QObject>
 #include <QStringList>
 
 class QAction;
@@ -49,7 +50,15 @@ public:
         return true;
     }
 
+    // Full Screen (View > Full Screen, the command "view.fullScreen"): the window fills the screen, and the same command puts it back. The command's check follows the window, which the
+    // window system's own button or key can also change.
+    void toggleFullScreen();
+    // Esc leaves Full Screen where nothing else in the window wants the key (`otherWantsIt`: a selection to drop, text being typed, a tool to put down). Called from the window's event
+    // filter with each event; true when it took the key.
+    bool escapeLeavesFullScreen(QObject *target, QEvent *event, bool otherWantsIt);
+
 protected:
+    void changeEvent(QEvent *e) override;
     // A ribbon tab made when first shown is turned off, as the others are, if the document is read-only (the windows call this from the ribbon's tabBuilt).
     void ribbonTabMade(RibbonTab *tab);
     // After the window brought the controls of tabs made late up to date (which can turn a control on that read-only turned off): turned off again.

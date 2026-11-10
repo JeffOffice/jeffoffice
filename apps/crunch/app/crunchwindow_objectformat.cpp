@@ -15,9 +15,6 @@
 #include <QDialogButtonBox>
 #include <QDomDocument>
 #include <QDoubleSpinBox>
-#include <QHBoxLayout>
-#include <QListWidget>
-#include <QPushButton>
 #include <QFormLayout>
 #include <QMenu>
 #include <QPlainTextEdit>
@@ -497,64 +494,39 @@ void CrunchWindow::editObjectText()
     setObjectText(c);
 }
 
-// The Selection Pane: the sheet's objects by name, the one in front first. Choosing a row picks the object; the buttons move it in front of or behind its neighbor.
+// The Selection Pane: the sheet's objects by name, the one in front first. Choosing a row picks the object; the buttons move it in front of or behind its neighbor (the shared pane, selectionpane.h;
+// a sheet's objects have no hiding or renaming here, so the pane shows neither).
 void CrunchWindow::showSelectionPane()
 {
     if (!m_objects || !m_session) return;
     if (!m_selectionPane) {
-        auto *dialog = new QDialog(this);
-        dialog->setObjectName(QStringLiteral("selectionPane"));
-        dialog->setWindowTitle(tr("Selection Pane"));
-        dialog->setAttribute(Qt::WA_DeleteOnClose);
-        auto *layout = new QVBoxLayout(dialog);
-        auto *list = new QListWidget(dialog);
-        list->setObjectName(QStringLiteral("selectionList"));
-        list->setAccessibleName(tr("Objects on the sheet"));
-        layout->addWidget(list);
-        auto *row = new QHBoxLayout;
-        auto *forward = new QPushButton(tr("Bring Forward"), dialog);
-        forward->setObjectName(QStringLiteral("selectionForward"));
-        auto *backward = new QPushButton(tr("Send Backward"), dialog);
-        backward->setObjectName(QStringLiteral("selectionBackward"));
-        row->addWidget(forward);
-        row->addWidget(backward);
-        layout->addLayout(row);
-        m_selectionPane = dialog;
-        connect(list, &QListWidget::currentRowChanged, dialog, [this](int r) {
-            if (m_selectionFilling || r < 0 || !m_objects) return;
+        SelectionPane::Source src;
+        src.rows = [this] {
+            QVector<SelectionPane::Row> rows;
+            if (!m_objects) return rows;
+            const std::vector<int> ids = m_objects->idsOf(m_sheet);
+            const int picked = pickedObject();
+            for (int i = int(ids.size()) - 1; i >= 0; --i) rows.push_back({m_objects->nameOf(m_sheet, ids[size_t(i)]), true, ids[size_t(i)] == picked});
+            return rows;
+        };
+        auto pickRow = [this](int r) {
+            if (!m_objects) return;
             const std::vector<int> ids = m_objects->idsOf(m_sheet);
             const int at = int(ids.size()) - 1 - r;
             if (at >= 0 && at < int(ids.size())) m_objects->layer()->select(ids[size_t(at)]);
-        });
-        connect(m_objects->layer(), &jp::grid::ObjectLayer::selectionChanged, dialog, [this](int) { refreshSelectionPane(); });
-        connect(forward, &QPushButton::clicked, dialog, [this] {
-            reorderObject(1);
-            refreshSelectionPane();
-        });
-        connect(backward, &QPushButton::clicked, dialog, [this] {
-            reorderObject(-1);
-            refreshSelectionPane();
-        });
+        };
+        src.pick = pickRow;
+        src.move = [this, pickRow](int from, int to) {
+            pickRow(from);
+            for (int step = std::abs(from - to); step > 0; --step) reorderObject(to < from ? 1 : -1);
+        };
+        auto *pane = new SelectionPane(this, src);
+        m_selectionPane = pane;
+        connect(m_objects->layer(), &jp::grid::ObjectLayer::selectionChanged, pane, [pane](int) { pane->refresh(); });
     }
-    refreshSelectionPane();
+    m_selectionPane->refresh();
     m_selectionPane->show();
     m_selectionPane->raise();
-}
-
-void CrunchWindow::refreshSelectionPane()
-{
-    if (!m_selectionPane || !m_objects) return;
-    auto *list = m_selectionPane->findChild<QListWidget *>(QStringLiteral("selectionList"));
-    if (!list) return;
-    m_selectionFilling = true;
-    list->clear();
-    const std::vector<int> ids = m_objects->idsOf(m_sheet);
-    const int picked = pickedObject();
-    for (int i = int(ids.size()) - 1; i >= 0; --i) {
-        list->addItem(m_objects->nameOf(m_sheet, ids[size_t(i)]));
-        if (ids[size_t(i)] == picked) list->setCurrentRow(list->count() - 1);
-    }
-    m_selectionFilling = false;
 }
 
 namespace {
