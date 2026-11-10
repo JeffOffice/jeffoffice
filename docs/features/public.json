@@ -772,7 +772,7 @@
         },
         {
          "status": "partly",
-         "text": "ce2f24dd4a6529bd82233c03a63c1a8f644767298c083c9fdeff9e7fd87a4ae8"
+         "text": "55922e34d70e38b922867b0d577c7684400058ece9203f3b26b4a408bd783743"
         }
        ]
       }
@@ -1276,7 +1276,7 @@
       },
       {
        "status": "partly",
-       "text": "d482c15d8bd5674609818b549a32fb78cf82e2deb0a5824046bebee206a61796"
+       "text": "950a86a4afbdfe3faeec4b88007f5d07383f489ba25faf1d5adb546d89a72a00"
       },
       {
        "status": "partly",
@@ -2625,7 +2625,7 @@
         },
         {
          "status": "partly",
-         "text": "f4540af5664fb7ad0f687057aead8c674fa7feb8e7b707e0f790d40e2b18a35c"
+         "text": "06b18008b607877dbe3cf932fda6e8e0a537fa8c17e056631a467e5adb4a88ba"
         },
         {
          "hide_soon": true,
@@ -2813,8 +2813,8 @@
          "text": "4d21c1ff74b215434c66edaa7af8224c6270542c41a514193d35b7dd1ad533e1"
         },
         {
-         "status": "todo",
-         "text": "33e2075780a33b79ccc485f22570228457413b05c0dc59438fd984401f391a4a"
+         "status": "partly",
+         "text": "837e87fe4c67c1bd8e87221dba4845f7f4f1ebc701be3cd4d4212ea101635c00"
         },
         {
          "hide_soon": true,
@@ -3302,8 +3302,8 @@
        "text": "e5d24a5e8361e7f8c4d30b543af41732acc1899efb872cde2d53f6e99bb7bc53"
       },
       {
-       "status": "todo",
-       "text": "1da698850105b64c7a690fa5fcbf579c829010ae8f41a240c775e34c73a41179"
+       "status": "partly",
+       "text": "5fb38a796cb86f719294854646bbf6b970734bd7da1da09ed75b3f5ce7981cee"
       }
      ]
     },
@@ -3321,8 +3321,8 @@
        "text": "2b37c7dc5f89533ea13a17188915d83aaa8029a595f568978b9c4230f2f5ca23"
       },
       {
-       "status": "todo",
-       "text": "0fd22f04dc8ab33ea13875b7da7217a3688f7f109d27e1d22e40734f0ad9dc76"
+       "status": "partly",
+       "text": "ae174e601fc90766748f92b1b6ff576c14f0d330b38b0f0494911b54d896792a"
       }
      ]
     },
@@ -4470,7 +4470,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "943adcd05f5fa93bee4711304a6a19da05d72af37e8a9e743ab8b326e8bc278c"
+       "text": "4ea4e24192892db8c8a17eb3ddcf062dfb4d293541403def63e34d4357c71fef"
       },
       {
        "hide_soon": true,
@@ -7761,6 +7761,18 @@
     "fr": "Valeur d’erreur `#UNKNOWN!` : lecture, affichage et transmission"
    }
   },
+  "06b18008b607877dbe3cf932fda6e8e0a537fa8c17e056631a467e5adb4a88ba": {
+   "drop": false,
+   "en": "The Paste button has a menu with Keep Text Only and Paste Special (`Ctrl+Alt+V`), which lists source formatting, text only, and a picture. Formatted text from a web page keeps its formatting.",
+   "es": "El botón Pegar tiene un menú con Conservar solo texto y Pegado especial (`Ctrl+Alt+V`), que muestra formato de origen, solo texto e imagen. El texto con formato de una página web conserva su formato.",
+   "fr": "Le bouton Coller propose un menu avec Conserver le texte uniquement et Collage spécial (`Ctrl+Alt+V`), qui liste la mise en forme source, le texte seul et une image. Le texte mis en forme provenant d’une page web conserve sa mise en forme.",
+   "soon": {
+    "drop": false,
+    "en": "Paste with the destination theme",
+    "es": "Pegar con el tema de destino",
+    "fr": "Collage avec le thème de destination"
+   }
+  },
   "06b2f098a5c34e77f4c49f26793f0ca5e519b0d471e5b725a9a22db7a1dddfda": {
    "drop": false,
    "en": "Add text inside shapes.",
@@ -8455,18 +8467,6 @@
     "en": "More functions",
     "es": "Más funciones",
     "fr": "Davantage de fonctions"
-   }
-  },
-  "0fd22f04dc8ab33ea13875b7da7217a3688f7f109d27e1d22e40734f0ad9dc76": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Help tab: What’s New, a link to a community page, and Report a Problem",
-    "es": "Pestaña Ayuda: Novedades, un enlace a una página de la comunidad e Informar de un problema",
-    "fr": "Onglet Aide : Nouveautés, un lien vers une page communautaire et Signaler un problème"
    }
   },
   "102b122b81a9e221543c19ee46aeefba41193f35385d0688eb372b1559900811": {
@@ -9367,18 +9367,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "1da698850105b64c7a690fa5fcbf579c829010ae8f41a240c775e34c73a41179": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "New Window, Arrange All, Cascade, Move Split, and Switch Windows",
-    "es": "Nueva ventana, Organizar todo, Cascada, Mover división y Cambiar ventanas",
-    "fr": "Nouvelle fenêtre, Réorganiser tout, Cascade, Déplacer le fractionnement et Changer de fenêtre"
    }
   },
   "1db56d1b1eb814a1a09d3d5482f651440495744fcc565b924dc338b3ed06f150": {
@@ -11169,18 +11157,6 @@
     "fr": "Distance des taquets par défaut et taquets de barre dans la boîte Tabulations"
    }
   },
-  "33e2075780a33b79ccc485f22570228457413b05c0dc59438fd984401f391a4a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Go To: slide, section, comment, and object",
-    "es": "Ir a: diapositiva, sección, comentario y objeto",
-    "fr": "Atteindre : diapositive, section, commentaire et objet"
-   }
-  },
   "341f21fb161bb64cafb25f95362749082a81e6ab998805cb8711b39c1fbcde0a": {
    "drop": false,
    "en": "Numbers are shown with the marks of the system’s language, and Format Cells lists ready-made dates, times, and currencies. The file keeps the neutral form.",
@@ -12933,6 +12909,18 @@
     "fr": "Blocs de construction : texte automatique, propriétés du document, champs et enregistrement d’une sélection dans une galerie"
    }
   },
+  "4ea4e24192892db8c8a17eb3ddcf062dfb4d293541403def63e34d4357c71fef": {
+   "drop": false,
+   "en": "Find and replace text with options for match case, whole word, and search direction. Go to a page by its number with `Ctrl+G`. Select all text in a text box, select all, select objects, or select objects by type.",
+   "es": "Busque y reemplace texto con opciones para distinguir mayúsculas y minúsculas, palabra completa y dirección de búsqueda. Vaya a una página por su número con `Ctrl+G`. Seleccione todo el texto de un cuadro de texto, seleccione todo, seleccione objetos o seleccione objetos por tipo.",
+   "fr": "Recherchez et remplacez du texte avec des options de casse, de mot entier et de sens de recherche. Accédez à une page par son numéro avec `Ctrl+G`. Sélectionnez tout le texte d’une zone de texte, sélectionnez tout, sélectionnez des objets ou sélectionnez des objets par type.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "4eb96e4971089c81c91cfbe218121363e76134bcba89210451f8b1ad5452eb59": {
    "drop": false,
    "en": "Changing the slide size scales text, line weights, layouts, and placeholders to the new shape, while other objects keep their own shape and stay centered.",
@@ -13629,6 +13617,18 @@
     "fr": ""
    }
   },
+  "55922e34d70e38b922867b0d577c7684400058ece9203f3b26b4a408bd783743": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Symbol: any character from any font, and recent symbols",
+    "es": "Símbolo: cualquier carácter de cualquier fuente y símbolos recientes",
+    "fr": "Symbole : n’importe quel caractère de n’importe quelle police, et symboles récents"
+   }
+  },
   "559c90b2c884e44bd0b485325d4e50ee3344aa7af2c41cb1bda07336ac9847cd": {
    "drop": false,
    "en": "Insert > Text Box puts an empty box on the sheet, and Edit Text sets its words, alignment, size, bold, and color.",
@@ -14311,6 +14311,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "5fb38a796cb86f719294854646bbf6b970734bd7da1da09ed75b3f5ce7981cee": {
+   "drop": false,
+   "en": "New Window opens the saved file in a second window. Switch Windows lists the open windows. A change made in one window shows in the other after it is saved and the file is opened again.",
+   "es": "Nueva ventana abre el archivo guardado en una segunda ventana. Cambiar ventanas muestra la lista de ventanas abiertas. Un cambio hecho en una ventana aparece en la otra después de guardarlo y volver a abrir el archivo.",
+   "fr": "Nouvelle fenêtre ouvre le fichier enregistré dans une seconde fenêtre. Changer de fenêtre liste les fenêtres ouvertes. Une modification faite dans une fenêtre apparaît dans l’autre après l’enregistrement et la réouverture du fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Arrange All, Cascade, and Move Split",
+    "es": "Organizar todo, Cascada y Mover división",
+    "fr": "Réorganiser tout, Cascade et Déplacer le fractionnement"
    }
   },
   "5fe4ece1736245f8188f6aa518d6e94a20482b6113fb8645325ef6eeb5bddfd3": {
@@ -17049,6 +17061,18 @@
     "fr": ""
    }
   },
+  "837e87fe4c67c1bd8e87221dba4845f7f4f1ebc701be3cd4d4212ea101635c00": {
+   "drop": false,
+   "en": "Go To (`Ctrl+G`) asks for a slide number and moves to that slide.",
+   "es": "Ir a (`Ctrl+G`) solicita un número de diapositiva y se desplaza a ella.",
+   "fr": "Atteindre (`Ctrl+G`) demande un numéro de diapositive et affiche cette diapositive.",
+   "soon": {
+    "drop": false,
+    "en": "Go To: section, comment, and object",
+    "es": "Ir a: sección, comentario y objeto",
+    "fr": "Atteindre : section, commentaire et objet"
+   }
+  },
   "839dcb2592ecc34c9aa5c9d67bbf3ac3d7dab632d5901335af1629b71dc62e80": {
    "drop": true,
    "en": "",
@@ -18093,18 +18117,6 @@
     "fr": ""
    }
   },
-  "943adcd05f5fa93bee4711304a6a19da05d72af37e8a9e743ab8b326e8bc278c": {
-   "drop": false,
-   "en": "Find and replace text (match case, whole word, search direction), and select all text in a text box, all objects, or objects by type.",
-   "es": "Busque y reemplace texto (coincidir mayúsculas y minúsculas, palabra completa, dirección de búsqueda) y seleccione todo el texto de un cuadro de texto, todos los objetos u objetos por tipo.",
-   "fr": "Recherchez et remplacez du texte (respect de la casse, mot entier, sens de recherche) et sélectionnez tout le texte d’une zone de texte, tous les objets ou les objets par type.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "948f34b7944bc49330477bbb8310d632f03243b295a241c16bc2fbfa9b48df2d": {
    "drop": false,
    "en": "`.pub` files",
@@ -18163,6 +18175,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "950a86a4afbdfe3faeec4b88007f5d07383f489ba25faf1d5adb546d89a72a00": {
+   "drop": false,
+   "en": "The Help tab has Help, Keyboard Shortcuts (opens the shortcuts page), What's New, and Feedback.",
+   "es": "La pestaña Ayuda incluye Ayuda, Métodos abreviados de teclado (abre la página de métodos abreviados), Novedades y Comentarios.",
+   "fr": "L’onglet Aide propose Aide, Raccourcis clavier (ouvre la page des raccourcis), Nouveautés et Commentaires.",
+   "soon": {
+    "drop": false,
+    "en": "Keyboard Shortcuts table made from the commands, and About with Check for Updates",
+    "es": "Tabla de métodos abreviados generada a partir de los comandos, y Acerca de con Buscar actualizaciones",
+    "fr": "Tableau des raccourcis clavier généré à partir des commandes, et À propos avec Rechercher des mises à jour"
    }
   },
   "9595adef49329bdeec3a26ac85fe9a9ed92f0c4175037f2897e69b462aa51490": {
@@ -19783,6 +19807,18 @@
     "en": "Keyboard customization: assign keys to commands, styles, symbols, and building blocks, and reset them",
     "es": "Personalización del teclado: asignar teclas a comandos, estilos, símbolos y bloques de creación, y restablecerlas",
     "fr": "Personnalisation du clavier : attribuer des touches aux commandes, styles, symboles et blocs de construction, et les réinitialiser"
+   }
+  },
+  "ae174e601fc90766748f92b1b6ff576c14f0d330b38b0f0494911b54d896792a": {
+   "drop": false,
+   "en": "The Help tab has Help, Keyboard Shortcuts, What's New, and Feedback. About has links to the source, downloads, and problem reports.",
+   "es": "La pestaña Ayuda incluye Ayuda, Métodos abreviados de teclado, Novedades y Comentarios. Acerca de tiene enlaces al código fuente, a las descargas y a los informes de problemas.",
+   "fr": "L’onglet Aide propose Aide, Raccourcis clavier, Nouveautés et Commentaires. À propos contient des liens vers le code source, les téléchargements et les signalements de problèmes.",
+   "soon": {
+    "drop": false,
+    "en": "Link to a community page",
+    "es": "Enlace a una página de la comunidad",
+    "fr": "Lien vers une page de la communauté"
    }
   },
   "ae8afc8bc67a22e40dae8e62664e39c3d89a8f3550009d89ee26d940fcb10ee6": {
@@ -21933,18 +21969,6 @@
     "fr": "Plus de modèles intégrés : CV, lettres de motivation, factures, flyers, brochures, notes de réunion, actes de procédure et intérieurs de livres"
    }
   },
-  "ce2f24dd4a6529bd82233c03a63c1a8f644767298c083c9fdeff9e7fd87a4ae8": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Symbol: any character from any font, and recent symbols",
-    "es": "Símbolo: cualquier carácter de cualquier fuente y símbolos recientes",
-    "fr": "Symbole : n’importe quel caractère de n’importe quelle police, et symboles récents"
-   }
-  },
   "ce30db5db371901c1dbbcd571377340dd7bd78a0e16307ee20e97fbdaaa9d7f7": {
    "drop": false,
    "en": "Protect Sheet with an optional password, choosing what stays allowed: selecting cells, formatting, inserting or deleting rows and columns, sorting, filters, pivot tables, and editing objects and scenarios. Unprotect Sheet removes the protection.",
@@ -22471,18 +22495,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d482c15d8bd5674609818b549a32fb78cf82e2deb0a5824046bebee206a61796": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Keyboard Shortcuts, What's New, Feedback, and About with Check for Updates",
-    "es": "Métodos abreviados de teclado, Novedades, Comentarios y Acerca de con búsqueda de actualizaciones",
-    "fr": "Raccourcis clavier, Nouveautés, Commentaires et À propos avec recherche de mises à jour"
    }
   },
   "d4942d9af695c3c5a148bf0aae38bd8e6f7056aa475b92793169f1b3c17cbb97": {
@@ -24547,18 +24559,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "f4540af5664fb7ad0f687057aead8c674fa7feb8e7b707e0f790d40e2b18a35c": {
-   "drop": false,
-   "en": "Formatted text pasted from a web page keeps its formatting.",
-   "es": "El texto con formato pegado desde una página web conserva su formato.",
-   "fr": "Le texte mis en forme collé depuis une page web conserve sa mise en forme.",
-   "soon": {
-    "drop": false,
-    "en": "Paste options: keep source formatting, use destination theme, paste as picture, keep text only, and Paste Special",
-    "es": "Opciones de pegado: mantener el formato de origen, usar el tema de destino, pegar como imagen, conservar solo el texto y Pegado especial",
-    "fr": "Options de collage : conserver la mise en forme source, utiliser le thème de destination, coller comme image, conserver le texte seul et Collage spécial"
    }
   },
   "f47d9eaa5acbff4f3a7463f96841367c4c9c426e6bd4331997c9fb093e957001": {
