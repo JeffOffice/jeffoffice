@@ -16,8 +16,8 @@ namespace jp {
 
 SelectionPane::SelectionPane(QWidget *parent, const Source &source) : QDialog(parent), m_source(source)
 {
-    setObjectName(QStringLiteral("selectionPane"));
-    setWindowTitle(tr("Selection Pane"));
+    setObjectName(m_source.title.isEmpty() ? QStringLiteral("selectionPane") : QStringLiteral("readingOrderPane"));
+    setWindowTitle(m_source.title.isEmpty() ? tr("Selection Pane") : m_source.title);
     setAttribute(Qt::WA_DeleteOnClose);
     auto *layout = new QVBoxLayout(this);
     if (m_source.show) {
@@ -42,15 +42,15 @@ SelectionPane::SelectionPane(QWidget *parent, const Source &source) : QDialog(pa
     }
     m_list = new QListWidget(this);
     m_list->setObjectName(QStringLiteral("selectionList"));
-    m_list->setAccessibleName(tr("Objects on the page"));
+    m_list->setAccessibleName(m_source.listName.isEmpty() ? tr("Objects on the page") : m_source.listName);
     // (A list that can't be reordered is not dragged.)
     m_list->setDragDropMode(m_source.move ? QAbstractItemView::InternalMove : QAbstractItemView::NoDragDrop);
     m_list->setDefaultDropAction(Qt::MoveAction);
     layout->addWidget(m_list);
     auto *buttons = new QHBoxLayout;
-    auto *forward = new QPushButton(tr("Bring Forward"), this);
+    auto *forward = new QPushButton(m_source.forwardText.isEmpty() ? tr("Bring Forward") : m_source.forwardText, this);
     forward->setObjectName(QStringLiteral("selectionForward"));
-    auto *backward = new QPushButton(tr("Send Backward"), this);
+    auto *backward = new QPushButton(m_source.backwardText.isEmpty() ? tr("Send Backward") : m_source.backwardText, this);
     backward->setObjectName(QStringLiteral("selectionBackward"));
     buttons->addWidget(forward);
     buttons->addWidget(backward);

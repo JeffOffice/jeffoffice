@@ -1,6 +1,9 @@
 #include "app/pageaccesspane.h"
 
 #include "app/editor.h"
+#include "app/pageselectionpane.h"
+
+#include <QPushButton>
 
 namespace jp {
 
@@ -8,6 +11,11 @@ PageAccessibilityPane::PageAccessibilityPane(Editor *editor, bool slides, const 
     : AccessibilityPane(parent), m_ed(editor), m_slides(slides), m_titleOf(titleOf)
 {
     connect(this, &AccessibilityPane::recheckRequested, this, [this] { recheck(); });
+    connect(addButton(tr("Reading Order"), QStringLiteral("accessReadingOrder")), &QPushButton::clicked, this, [this] { showReadingOrder(); });
+    // What the list says of the order follows a change made in the Reading Order list.
+    connect(m_ed, &Editor::changed, this, [this] {
+        if (m_reading && m_reading->isVisible()) recheck();
+    });
     connect(this, &AccessibilityPane::goToRequested, this, [this](const QVariantList &where) {
         if (where.size() != 2) return;
         m_ed->setCurrentPage(where[0].toInt());
@@ -20,6 +28,8 @@ QVector<PageAccessIssue> PageAccessibilityPane::issues() const
 {
     return m_ed->doc() ? checkPageAccessibility(*m_ed->doc(), m_slides, m_titleOf) : QVector<PageAccessIssue>();
 }
+
+void PageAccessibilityPane::showReadingOrder() { showPageReadingOrderPane(this, m_ed, &m_reading); }
 
 void PageAccessibilityPane::recheck()
 {

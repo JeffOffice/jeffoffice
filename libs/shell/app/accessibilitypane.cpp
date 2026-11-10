@@ -1,6 +1,7 @@
 #include "app/accessibilitypane.h"
 
 #include <QCoreApplication>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
@@ -25,11 +26,22 @@ AccessibilityPane::AccessibilityPane(QWidget *parent) : QDialog(parent, Qt::Tool
     layout->addWidget(m_list, 1);
     auto *again = new QPushButton(tr("Check Again"), this);
     again->setObjectName(QStringLiteral("accessAgain"));
-    layout->addWidget(again, 0, Qt::AlignRight);
+    m_buttons = new QHBoxLayout;
+    m_buttons->addStretch(1);
+    m_buttons->addWidget(again);
+    layout->addLayout(m_buttons);
     resize(420, 340);
     connect(again, &QPushButton::clicked, this, &AccessibilityPane::recheckRequested);
     connect(m_list, &QListWidget::itemActivated, this, [this](QListWidgetItem *item) { Q_EMIT goToRequested(item->data(Qt::UserRole).toList()); });
     connect(m_list, &QListWidget::itemClicked, m_list, [this](QListWidgetItem *item) { Q_EMIT m_list->itemActivated(item); });
+}
+
+QPushButton *AccessibilityPane::addButton(const QString &text, const QString &objectName)
+{
+    auto *button = new QPushButton(text, this);
+    button->setObjectName(objectName);
+    m_buttons->insertWidget(1, button);
+    return button;
 }
 
 void AccessibilityPane::setFindings(const QVector<AccessFinding> &findings)

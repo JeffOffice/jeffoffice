@@ -17,4 +17,8 @@ QString defaultObjectName(const Item &item, int numberFromBack);
 // The pane for `editor`, made once per window (`slot` holds it: a pane still open is raised) and shown.
 SelectionPane *showPageSelectionPane(QWidget *parent, Editor *editor, QPointer<SelectionPane> *slot);
 
+// The Reading Order pane for `editor`: the same objects, but the one read first at the top (the back of the page's stack), moved earlier or later to change what a screen reader and a
+// tagged PDF read first. `slot` holds it, as above.
+SelectionPane *showPageReadingOrderPane(QWidget *parent, Editor *editor, QPointer<SelectionPane> *slot);
+
 } // namespace jp

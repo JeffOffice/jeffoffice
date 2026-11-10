@@ -28,6 +28,8 @@ public:
         std::function<void(int row, bool shown)> show;              // unset: no boxes
         std::function<void(bool shown)> showAll;                    // unset: no Show All and Hide All
         std::function<void(int from, int to)> move;                 // a row to another place in the list
+        // The words of a pane that is not the Selection Pane itself (the Reading Order list is the same list read from the back); empty: the Selection Pane's own.
+        QString title, listName, forwardText, backwardText;
     };
     SelectionPane(QWidget *parent, const Source &source);
     // The list again from the Source (the app calls it when its objects or its pick change).

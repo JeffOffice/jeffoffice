@@ -237,6 +237,143 @@ private Q_SLOTS:
         QCOMPARE(pane->issueCount(), 0);
     }
 
+    // Text is checked against its background: the contrast of the two colors must be 4.5 to 1 (3 to 1 for text of 18 points, or 14 and bold); the fill of its box, else the page's, is the
+    // background, and a picture under it is for the person to look at.
+    void textContrastIsCheckedAgainstItsBackground()
+    {
+        QVERIFY(std::abs(jp::contrastRatio(QColor(QStringLiteral("#777777")), Qt::white) - 4.478) < 0.01);
+        QVERIFY(jp::contrastRatio(QColor(QStringLiteral("#777777")), Qt::white) < 4.5);
+        QVERIFY(std::abs(jp::contrastRatio(QColor(QStringLiteral("#767676")), Qt::white) - 4.542) < 0.01);
+        QVERIFY(jp::contrastRatio(QColor(QStringLiteral("#767676")), Qt::white) >= 4.5);
+        QVERIFY(std::abs(jp::contrastRatio(Qt::black, Qt::white) - 21) < 0.001);
+        QCOMPARE(jp::neededContrast(17.9, false), 4.5);
+        QCOMPARE(jp::neededContrast(18, false), 3.0);
+        QCOMPARE(jp::neededContrast(14, true), 3.0);
+        QCOMPARE(jp::neededContrast(13.9, true), 4.5);
+        QCOMPARE(jp::neededContrast(14, false), 4.5);
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        doc->pages.clear();
+        // one case to a page: the text's color, its size, bold, and the fill of its box (none: the page's white)
+        struct Case { const char *color; double points; bool bold; const char *fill; bool flagged; };
+        const QVector<Case> cases{{"#777777", 12, false, nullptr, true}, {"#767676", 12, false, nullptr, false}, {"#777777", 18, false, nullptr, false},
+                                  {"#999999", 18, false, nullptr, true}, {"#888888", 14, true, nullptr, false}, {"#888888", 13, true, nullptr, true},
+                                  {"#444444", 12, false, "#333333", true}, {"#FFFFFF", 12, false, "#333333", false}};
+        for (const Case &c : cases) {
+            doc->pages.push_back(std::make_shared<jp::Page>());
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(50, 100, 300, 60);
+            t->storyId = doc->createStory(QStringLiteral("Some words to read"));
+            QTextCursor cur(doc->storyDoc(t->storyId));
+            cur.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setProperty(jp::tp::ColorRefP, QString::fromLatin1(c.color));
+            f.setFontPointSize(c.points);
+            f.setFontWeight(c.bold ? QFont::Bold : QFont::Normal);
+            cur.mergeCharFormat(f);
+            if (c.fill) t->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(QString::fromLatin1(c.fill))));
+            doc->pages.back()->items.push_back(t);
+        }
+        // a picture under text that has no fill of its own
+        doc->pages.push_back(std::make_shared<jp::Page>());
+        auto pic = std::make_shared<jp::PictureItem>();
+        pic->rect = QRectF(40, 90, 400, 200);
+        pic->imgRect = QRectF(QPointF(0, 0), pic->rect.size());
+        pic->altText = QStringLiteral("A photo");
+        doc->pages.back()->items.push_back(pic);
+        auto over = std::make_shared<jp::TextItem>();
+        over->rect = QRectF(60, 110, 300, 60);
+        over->storyId = doc->createStory(QStringLiteral("Words over a picture"));
+        doc->pages.back()->items.push_back(over);
+        const QVector<jp::PageAccessIssue> found = jp::checkPageAccessibility(*doc);
+        for (int i = 0; i < cases.size(); ++i) {
+            int n = 0;
+            for (const auto &issue : found)
+                if (issue.page == i && issue.kind == jp::PageAccessIssue::LowContrast) {
+                    ++n;
+                    QCOMPARE(int(issue.level), int(jp::PageAccessIssue::Warning));
+                    QVERIFY(issue.message.contains(QLatin1String("contrast")));
+                }
+            QVERIFY2(n == (cases[i].flagged ? 1 : 0), qPrintable(QStringLiteral("case %1 (%2): %3 found").arg(i).arg(QString::fromLatin1(cases[i].color)).arg(n)));
+        }
+        int tips = 0;
+        for (const auto &issue : found)
+            if (issue.page == cases.size() && issue.kind == jp::PageAccessIssue::LowContrast) {
+                ++tips;
+                QCOMPARE(int(issue.level), int(jp::PageAccessIssue::Tip));
+                QVERIFY(issue.message.contains(QLatin1String("Check contrast by eye")));
+            }
+        QCOMPARE(tips, 1);
+    }
+
+    // Objects read in another order than top to bottom, left to right are listed as tips, and the Reading Order list of the checker moves them.
+    void objectsReadOutOfPlaceAreListedAndReorderedInTheReadingOrderView()
+    {
+        jp::MainWindow w;
+        Quiet quiet(w);
+        w.show();
+        jp::Editor *ed = w.editor();
+        {
+            auto d = jp::Document::blank(QSizeF(612, 792));
+            d->pages.push_back(std::make_shared<jp::Page>());
+            ed->setDocument(std::move(d));
+        }
+        auto page = ed->doc()->pages[0];
+        page->items.clear();
+        auto box = [&](const QString &words, const QRectF &r) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = r;
+            t->storyId = ed->doc()->createStory(words);
+            page->items.push_back(t);
+            return t;
+        };
+        auto right = box(QStringLiteral("Right"), QRectF(300, 100, 200, 40));   // read first, though it is the second by place
+        auto left = box(QStringLiteral("Left"), QRectF(50, 100, 200, 40));
+        auto below = box(QStringLiteral("Below"), QRectF(50, 300, 200, 40));
+        ed->setCurrentPage(0);
+        auto orderTips = [&]() {
+            QStringList ids;
+            for (const auto &i : jp::checkPageAccessibility(*ed->doc()))
+                if (i.kind == jp::PageAccessIssue::ReadingOrder && i.level == jp::PageAccessIssue::Tip) ids << i.itemId;
+            return ids;
+        };
+        const QStringList tips = orderTips();
+        QCOMPARE(tips.size(), 1);
+        QVERIFY(tips == QStringList{right->id} || tips == QStringList{left->id});
+        // in order by place: none
+        {
+            auto saved = page->items;
+            page->items = {left, right, below};
+            QVERIFY(orderTips().isEmpty());
+            page->items = saved;
+        }
+        // the view of the checker lists them in reading order, and moving one changes the order
+        w.act(QStringLiteral("rev.accessibility"))->trigger();
+        jp::PageAccessibilityPane *pane = w.accessibilityPane();
+        QVERIFY(pane);
+        auto *button = pane->findChild<QPushButton *>(QStringLiteral("accessReadingOrder"));
+        QVERIFY(button);
+        QCOMPARE(button->text(), QStringLiteral("Reading Order"));
+        button->click();
+        jp::SelectionPane *view = pane->readingOrderPane();
+        QVERIFY(view);
+        QCOMPARE(view->windowTitle(), QStringLiteral("Reading Order"));
+        auto *list = view->findChild<QListWidget *>(QStringLiteral("selectionList"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 3);
+        list->setCurrentRow(0);   // Right
+        QCOMPARE(ed->selection(), QStringList{right->id});
+        auto *later = view->findChild<QPushButton *>(QStringLiteral("selectionBackward"));
+        QVERIFY(later);
+        QCOMPARE(later->text(), QStringLiteral("Read Later"));
+        later->click();
+        QCOMPARE(ed->doc()->pages[0]->items[0]->id, left->id);
+        QCOMPARE(ed->doc()->pages[0]->items[1]->id, right->id);
+        QVERIFY(orderTips().isEmpty());
+        // Undo puts the order back
+        ed->undo();
+        QCOMPARE(ed->doc()->pages[0]->items[0]->id, right->id);
+    }
+
     void markedAsFinalOpensForReadingOnly()
     {
         QTemporaryDir dir;

@@ -111,4 +111,58 @@ SelectionPane *showPageSelectionPane(QWidget *parent, Editor *ed, QPointer<Selec
     return pane;
 }
 
+SelectionPane *showPageReadingOrderPane(QWidget *parent, Editor *ed, QPointer<SelectionPane> *slot)
+{
+    if (*slot) {
+        (*slot)->refresh();
+        (*slot)->show();
+        (*slot)->raise();
+        return *slot;
+    }
+    // Row r is the object at r of the list (the back one is read first), read where it stands.
+    auto at = [ed](int row) -> Item * {
+        const ItemList &l = ed->surfaceItems();
+        return row >= 0 && row < int(l.size()) ? l[size_t(row)].get() : nullptr;
+    };
+    SelectionPane::Source src;
+    src.title = QCoreApplication::translate("PageSelectionPane", "Reading Order");
+    src.listName = QCoreApplication::translate("PageSelectionPane", "Objects in the order they are read");
+    src.forwardText = QCoreApplication::translate("PageSelectionPane", "Read Earlier");
+    src.backwardText = QCoreApplication::translate("PageSelectionPane", "Read Later");
+    src.rows = [ed] {
+        QVector<SelectionPane::Row> rows;
+        const ItemList &list = ed->surfaceItems();
+        const QStringList &sel = ed->selection();
+        const QSet<QString> picked(sel.cbegin(), sel.cend());
+        rows.reserve(int(list.size()));
+        for (int row = 0; row < int(list.size()); ++row) {
+            const Item &it = *list[size_t(row)];
+            rows.push_back({it.name.isEmpty() ? defaultObjectName(it, row + 1) : it.name, !it.hidden, picked.contains(it.id)});
+        }
+        return rows;
+    };
+    src.pick = [ed, at](int row) {
+        if (const Item *it = at(row)) ed->select(it->id);
+    };
+    src.move = [ed](int from, int to) {
+        const int n = int(ed->surfaceItems().size());
+        if (from < 0 || to < 0 || from >= n || to >= n || from == to) return;
+        ed->change(QCoreApplication::translate("PageSelectionPane", "Change Reading Order"), [&] {
+            ItemList &l = ed->surfaceItems();
+            ItemPtr it = l[size_t(from)];
+            l.erase(l.begin() + from);
+            l.insert(l.begin() + to, it);
+        });
+    };
+    auto *pane = new SelectionPane(parent, src);
+    *slot = pane;
+    QObject::connect(ed, &Editor::changed, pane, &SelectionPane::requestRefresh);
+    QObject::connect(ed, &Editor::selectionChanged, pane, &SelectionPane::requestRefresh);
+    QObject::connect(ed, &Editor::pageChanged, pane, &SelectionPane::requestRefresh);
+    QObject::connect(ed, &Editor::documentReplaced, pane, &SelectionPane::requestRefresh);
+    pane->show();
+    pane->raise();
+    return pane;
+}
+
 } // namespace jp

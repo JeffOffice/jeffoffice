@@ -6,7 +6,9 @@
 #include <QVariantList>
 #include <QVector>
 
+class QHBoxLayout;
 class QLabel;
+class QPushButton;
 class QListWidget;
 
 namespace jp {
@@ -26,6 +28,9 @@ public:
     int issueCount() const;
     QListWidget *list() const { return m_list; }
 
+    // A button beside Check Again, for an app with more to offer than the list (the pages' Reading Order).
+    QPushButton *addButton(const QString &text, const QString &objectName);
+
 Q_SIGNALS:
     void recheckRequested();
     void goToRequested(const QVariantList &where);
@@ -33,6 +38,7 @@ Q_SIGNALS:
 private:
     QLabel *m_summary;
     QListWidget *m_list;
+    QHBoxLayout *m_buttons;
 };
 
 } // namespace jp
