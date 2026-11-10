@@ -439,10 +439,14 @@ jobs:
           cp "$(cygpath -u "$IQTA_TOOLS")/mingw1310_64/bin/"{libgcc_s_seh-1,libstdc++-6,libwinpthread-1}.dll build/
 
       # (a Mac whose media tests fail: the plugin loader's own account of the multimedia plugin, for the first media test)
-      - name: Media plugin diagnostics (macOS)
-        if: runner.os == 'macOS' && matrix.part == 'tests'
+      - name: Media plugin diagnostics (macOS, Windows)
+        if: runner.os != 'Linux' && matrix.part == 'tests'
         shell: bash
         run: |
+          # (Windows: which backend plays, the FFmpeg one or the system's own)
+          if [ "$RUNNER_OS" = Windows ] && [ -f build/jdtests.exe ]; then
+            QT_DEBUG_PLUGINS=1 QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 build/jdtests.exe --class DeckMediaTests mediaPlaybackPlaysASoundOrSaysWhy 2>&1 | grep -i -E "multimedia|ffmpeg|windowsmedia|cannot load|not loaded|Totals|FAIL|Using Qt" | head -40 || true
+          fi
           if [ -x build/jdtests ]; then
             DYLD_PRINT_LIBRARIES=1 QT_DEBUG_PLUGINS=1 QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 build/jdtests --class DeckMediaTests mediaPlaybackPlaysASoundOrSaysWhy 2>&1 | grep -i -E "multimedia|ffmpeg|dlopen|dyld|not loaded|signature|Totals|FAIL|libav|libsw|Expected in" | head -80 || true
           fi

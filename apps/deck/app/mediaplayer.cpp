@@ -32,7 +32,13 @@ QUrl fileUrl(const QString &extension) { return QUrl::fromLocalFile(QStringLiter
 // What the decoder may open besides the bytes it is given: nothing that reaches an address or a file. A movie or sound that names
 // another place to read (a playlist, a movie's reference to a file) has it refused by the decoder itself. Qt's FFmpeg backend reads this
 // when it opens a source, so it is set before the first player is made.
-void restrictProtocols() { qputenv("QT_FFMPEG_PROTOCOL_WHITELIST", "data"); }
+void restrictProtocols()
+{
+    qputenv("QT_FFMPEG_PROTOCOL_WHITELIST", "data");
+    // The FFmpeg backend is the one the program's packages carry the libraries for (a minimal build, tools/build_ffmpeg.sh); another backend (Windows has one
+    // of its own) reads other formats by its own code. It is asked for before the first player is made, unless a person has named a backend.
+    if (qEnvironmentVariableIsEmpty("QT_MEDIA_BACKEND")) qputenv("QT_MEDIA_BACKEND", "ffmpeg");
+}
 
 } // namespace
 

@@ -830,14 +830,14 @@ private Q_SLOTS:
         closer.stop();
     }
 
-    // A movie whose sound is in a format the build leaves out (the folder "audio_dropped"). With an audio output the player opens the sound too, and it says the
-    // movie can't be played, as for any file it can't read; with none (a CI machine) it opens no sound at all, and plays the picture. Either way nothing hangs.
+    // A movie whose sound is in a format the build leaves out (the folder "audio_dropped"): the FFmpeg backend opens every stream of the file, a sound included, whether
+    // or not there is an audio output, so a sound it has no decoder for makes it refuse the movie as a whole: the player says the movie can't be played (it does
+    // not show the picture without the sound), as for any file it can't read. Nothing hangs.
     void movieWithASoundTheBuildLeavesOutCantBePlayed()
     {
         const QFileInfoList files = sampleFiles("audio_dropped");
         if (qgetenv("JO_MINIMAL_FFMPEG").isEmpty()) QSKIP("this Qt's FFmpeg may be the full one, which plays these (set JO_MINIMAL_FFMPEG where it is ours)");
         if (files.isEmpty()) QSKIP("there is no audio_dropped folder of sample files");
-        const bool withAudio = !QMediaDevices::audioOutputs().isEmpty();
         for (const QFileInfo &info : files) {
             QFile f(info.filePath());
             QVERIFY(f.open(QIODevice::ReadOnly));
@@ -848,14 +848,9 @@ private Q_SLOTS:
             play.video = true;
             pb.setPlay(play);
             pb.play();
-            if (withAudio) {
-                QTRY_VERIFY2_WITH_TIMEOUT(pb.failed(), qPrintable(info.fileName() + QStringLiteral(" was not refused")), 15000);
-                QVERIFY2(pb.error().contains(QStringLiteral("movie")), qPrintable(pb.error()));
-                QCOMPARE(int(pb.state()), int(MediaPlayback::State::Stopped));
-            } else {
-                QTRY_VERIFY2_WITH_TIMEOUT(pb.failed() || !pb.frame().isNull(), qPrintable(info.fileName() + QStringLiteral(" neither plays nor says why")), 15000);
-                QVERIFY2(!pb.failed(), qPrintable(info.fileName() + QStringLiteral(": ") + pb.error()));
-            }
+            QTRY_VERIFY2_WITH_TIMEOUT(pb.failed(), qPrintable(info.fileName() + QStringLiteral(" was not refused")), 15000);
+            QVERIFY2(pb.error().contains(QStringLiteral("movie")), qPrintable(pb.error()));
+            QCOMPARE(int(pb.state()), int(MediaPlayback::State::Stopped));
             pb.stop();
         }
     }
@@ -1573,6 +1568,9 @@ private Q_SLOTS:
         QTRY_VERIFY_WITH_TIMEOUT(playerSettled(ok, false), 15000);
         QVERIFY2(!ok.failed() || ok.error().contains(QStringLiteral("sound")), qPrintable(ok.error()));
         QCOMPARE(qgetenv("QT_FFMPEG_PROTOCOL_WHITELIST"), QByteArray("data"));
+        // The FFmpeg backend is the one that plays (the program's own FFmpeg is what is in the package; another backend, as Windows has, reads other formats
+        // and does not refuse what this one does): it is asked for before the first player is made, unless a person has named another.
+        QCOMPARE(qgetenv("QT_MEDIA_BACKEND"), QByteArray("ffmpeg"));
     }
 
     // The part's own name is not the player's: only a name a movie or sound file may have goes to the decoder, else "bin".
