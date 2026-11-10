@@ -7,6 +7,7 @@ For the multimedia plugin and each FFmpeg library of the package, lists the libr
     python3 tools/check_bundle_deps.py mac APP_BUNDLE         (JeffDeck.app: the plugin in Contents/PlugIns/multimedia, libraries in Contents/Frameworks; reads them with otool)
     python3 tools/check_bundle_deps.py windows-imports PLUGIN.dll DLLDIR   every function the plugin imports from an FFmpeg DLL is exported by that DLL in DLLDIR
                                                               (Windows binds an import to a DLL by name; one missing, and the plugin does not load, and Qt 6.11 goes on to another backend)
+    python3 tools/check_bundle_deps.py windows-closure PLUGIN.dll DIR...  every DLL the plugin needs, and those need, in turn, is in one of the folders or is the system's
 
 (Linux packages are checked with ldd where they are made, .github/workflows/build.yml.)
 """
@@ -110,8 +111,33 @@ def windows_imports(plugin, dlldir):
     return problems, total
 
 
+def windows_closure(plugin, dirs):
+    system = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
+    problems, seen, todo, done = [], 0, [plugin], set()
+    while todo:
+        f = todo.pop()
+        if f.lower() in done:
+            continue
+        done.add(f.lower())
+        for name in pe_imports(f):
+            low = name.lower()
+            if low.startswith(("api-ms-win-", "ext-ms-win-")):
+                continue
+            found = next((os.path.join(d, name) for d in dirs if os.path.exists(os.path.join(d, name))), None)
+            if found:
+                seen += 1
+                todo.append(found)
+            elif os.path.exists(os.path.join(system, name)):
+                seen += 1
+            else:
+                problems.append("%s needs %s, which is in none of %s and is not a system library" % (os.path.basename(f), name, ", ".join(dirs)))
+    return problems, seen
+
+
 def main(argv):
-    if argv and argv[0] == "windows-imports" and len(argv) == 3:
+    if argv and argv[0] == "windows-closure" and len(argv) >= 3:
+        problems, seen = windows_closure(argv[1], argv[2:])
+    elif argv and argv[0] == "windows-imports" and len(argv) == 3:
         problems, seen = windows_imports(argv[1], argv[2])
     elif len(argv) == 2 and argv[0] in ("windows", "mac"):
         problems, seen = (windows if argv[0] == "windows" else mac)(argv[1])

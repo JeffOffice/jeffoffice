@@ -443,6 +443,10 @@ jobs:
         if: runner.os != 'Linux' && matrix.part == 'tests'
         shell: bash
         run: |
+          # (Windows: every DLL the plugin needs, and those need in turn, found in Qt's folder or the system's, as the programs in build/ find them)
+          if [ "$RUNNER_OS" = Windows ]; then
+            python tools/check_bundle_deps.py windows-closure "$(cygpath -m "$QT_ROOT_DIR")/plugins/multimedia/ffmpegmediaplugin.dll" "$(cygpath -m "$QT_ROOT_DIR")/bin" "$PWD/build" || true
+          fi
           # (Windows: which backend plays, the FFmpeg one or the system's own)
           if [ "$RUNNER_OS" = Windows ] && [ -f build/jdtests.exe ]; then
             QT_DEBUG_PLUGINS=1 QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 build/jdtests.exe --class DeckMediaTests mediaPlaybackPlaysASoundOrSaysWhy 2>&1 | grep -i -E "multimedia|ffmpeg|windowsmedia|cannot load|not loaded|Totals|FAIL|Using Qt" | head -40 || true
