@@ -420,6 +420,8 @@ QString MainWindow::currentTaskPane() const { return m_task->isVisible() ? m_tas
 // ---------------- files ----------------
 void MainWindow::newPublication(std::unique_ptr<Document> doc)
 {
+    crypto::wipe(m_filePassword);
+    m_fileProtected = false;
     m_ed->setDocument(std::move(doc));
     hideBackstage();
 }
@@ -490,6 +492,22 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
     err.clear();
     std::unique_ptr<Document> doc;
     bool fromPub = false;
+    // A .jpub file protected with a password is a compound file holding the package: it is opened with the password, asked for until it opens or the person cancels. (A .pub file is a compound
+    // file too, and is left as it is.)
+    QString openedWith;
+    bool wasProtected = false;
+    if (how != OpenHow::Repair && bytes.startsWith(QByteArray::fromHex("D0CF11E0A1B11AE1"))) {
+        const PackageUnlock unlocked = unlockProtectedPackage(this, QFileInfo(path).fileName(), &bytes, &openedWith, &wasProtected, &err);
+        if (unlocked == PackageUnlock::WindowGone || unlocked == PackageUnlock::Cancelled) {
+            crypto::wipe(openedWith);
+            return false;
+        }
+        if (unlocked == PackageUnlock::Failed) {
+            crypto::wipe(openedWith);
+            notice(tr("Open"), tr("JeffPub can't open \"%1\".\n%2").arg(QFileInfo(path).fileName(), err), true);
+            return false;
+        }
+    }
     // Open and Repair: what can be read of a damaged .jpub (its entries that are whole) is made into a file that opens, and what was left out is said.
     office::RepairReport repair;
     const bool repairing = how == OpenHow::Repair;
@@ -510,11 +528,17 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
     }
     QApplication::restoreOverrideCursor();
     if (!doc) {
-        jp::plainWarning(this, tr("Open"), tr("JeffPub can't open \"%1\".\n%2").arg(QFileInfo(path).fileName(), err));
+        crypto::wipe(openedWith);
+        notice(tr("Open"), tr("JeffPub can't open \"%1\".\n%2").arg(QFileInfo(path).fileName(), err), true);
         return false;
     }
     if (doc->props.title.isEmpty()) doc->props.title = QFileInfo(path).completeBaseName();
     setReadOnly(false);
+    // (a copy of a protected publication is protected too)
+    crypto::wipe(m_filePassword);
+    m_fileProtected = wasProtected;
+    if (wasProtected) m_filePassword = openedWith;
+    crypto::wipe(openedWith);
     if (how == OpenHow::Copy || repairing) {
         // The file's contents as a new publication that has no file yet (Save asks where); the file is never written.
         m_ed->setDocument(std::move(doc));
@@ -567,6 +591,13 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
         else jp::plainWarning(this, tr("Save"), text);
         return false;
     }
+    // A .pub file can't keep a password: the person is asked before it is written without one.
+    const bool toPub = path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive);
+    if (toPub && m_fileProtected
+        && jp::plainQuestion(this, tr("Save"), tr("This publication is protected with a password, and a .pub file can't keep a password. Save it as a .pub file without one?"), QMessageBox::Yes | QMessageBox::No,
+                             QMessageBox::No) != QMessageBox::Yes)
+        return false;
+    const QString password = m_fileProtected && !toPub ? m_filePassword : QString();
     QString err;
     const QImage thumb = pageThumbnail(0, 256);
     m_ed->endTextEdit();
@@ -576,7 +607,7 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
         if (!asCopy) m_ed->doc()->props.custom = office::withMarkAsFinal(m_ed->doc()->props.custom, false);
     }
     // Options > "Always create backup copy": the file as it was before this save is kept as "Backup of <name>".
-    if (!backupBeforeSave(this, path)) return false;
+    if (!backupBeforeSave(this, path, password)) return false;
     if (path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive)) {
         if (!exportPublisher(*m_ed->doc(), path, &err, pageThumbnail(0, 160))) {
             jp::plainWarning(this, tr("Save"), err);
@@ -600,12 +631,17 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
         });
         m_ed->doc()->props.modified = QDateTime::currentDateTime();
         if (m_ed->doc()->props.author.isEmpty()) m_ed->doc()->props.author = Settings::get().userName();
-        if (!savePublication(*m_ed->doc(), path, thumb, &err)) {
+        if (!savePublication(*m_ed->doc(), path, thumb, &err, false, QString(), password)) {
             jp::plainWarning(this, tr("Save"), tr("JeffPub couldn't save \"%1\".\n%2%3").arg(QFileInfo(path).fileName(), err, saveFailureHint(err)));
             return false;
         }
     }
     if (!asCopy) {
+        if (toPub && m_fileProtected) {
+            // (saved without it: the window is no longer protected)
+            crypto::wipe(m_filePassword);
+            m_fileProtected = false;
+        }
         m_ed->setFilePath(path);
         m_ed->markSaved();
         if (isReadOnly()) setReadOnly(false);
@@ -662,7 +698,7 @@ bool MainWindow::saveAs(const QString &format)
         const QString tdir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/Templates";
         QDir().mkpath(tdir);
         QString err;
-        if (!savePublication(*m_ed->doc(), tdir + "/" + QFileInfo(path).completeBaseName() + ".jpub", pageThumbnail(0, 256), &err, true))
+        if (!savePublication(*m_ed->doc(), tdir + "/" + QFileInfo(path).completeBaseName() + ".jpub", pageThumbnail(0, 256), &err, true, QString(), m_fileProtected ? m_filePassword : QString()))
             jp::plainWarning(this, tr("Save as Template"), err);
         else statusBar()->showMessage(tr("Saved to My Templates."), 4000);
         return true;
@@ -696,6 +732,16 @@ void MainWindow::autoRecover()
 {
     m_ed->flushTyping();
     if (!m_ed->isModified()) return;
+    // A publication protected with a password is never written out in the clear: no copy is kept for it, and the person is told.
+    if (m_fileProtected) {
+        // (a copy written before the publication was protected holds its text in the clear: it goes)
+        dropRecoveryCopy();
+        if (!m_protectionNoted) {
+            m_protectionNoted = true;
+            statusBar()->showMessage(tr("This publication is protected with a password, so no recovery copy is kept of it. Save it to keep your work."), 10000);
+        }
+        return;
+    }
     // Named for the document as it is now (Save As moves it).
     const QString copy = recovery::copyPath(m_ed->filePath(), m_ed->displayName(), m_serial);
     const QString older = m_recoveryCopy;   // (kept until the new copy is written)

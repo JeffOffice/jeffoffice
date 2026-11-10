@@ -13,7 +13,8 @@ namespace jp {
 // publication that goes to another computer.
 // `folder`, when given, is where the publication will be read from, if that is not
 // where `path` is (the automatic recovery copy is read as if it were in the original's folder).
-bool savePublication(const Document &doc, const QString &path, const QImage &thumbnail, QString *error, bool embedLinks = false, const QString &folder = QString());
+// `password`, when given, protects the file: the ZIP is written inside the compound file that holds an encrypted package (docs/jpub-format.md).
+bool savePublication(const Document &doc, const QString &path, const QImage &thumbnail, QString *error, bool embedLinks = false, const QString &folder = QString(), const QString &password = QString());
 // An automatic recovery copy of a publication (recovery::write), its pictures' links
 // kept relative to the original's folder, where the copy is read as being
 // when it is recovered.

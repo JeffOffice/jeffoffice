@@ -4,6 +4,7 @@
 
 #include "io/cfb.h"
 #include "io/zip.h"
+#include "office/officecrypt.h"
 #include "render/metafile.h"
 
 #include <QBuffer>
@@ -91,7 +92,7 @@ bool saveRecoveryCopy(const Document &doc, const QString &copy, const QString &d
     return recovery::write(save, copy, docPath, title, error);
 }
 
-bool savePublication(const Document &doc, const QString &path, const QImage &thumbnail, QString *error, bool embedLinks, const QString &folder)
+bool savePublication(const Document &doc, const QString &path, const QImage &thumbnail, QString *error, bool embedLinks, const QString &folder, const QString &password)
 {
     QSaveFile f(path);
     // Some sync and security tools refuse the temporary file; write in place then.
@@ -100,7 +101,13 @@ bool savePublication(const Document &doc, const QString &path, const QImage &thu
         if (error) *error = f.errorString();
         return false;
     }
-    f.write(publicationBytes(doc, thumbnail, folder.isEmpty() ? QFileInfo(path).absolutePath() : folder, embedLinks));
+    QByteArray bytes = publicationBytes(doc, thumbnail, folder.isEmpty() ? QFileInfo(path).absolutePath() : folder, embedLinks);
+    if (!password.isEmpty()) bytes = office::encryptPackage(bytes, password);
+    if (bytes.isEmpty()) {
+        if (error) *error = QCoreApplication::translate("Import", "The file couldn't be protected with the password.");
+        return false;
+    }
+    f.write(bytes);
     if (!f.commit()) {
         if (error) *error = f.errorString();
         return false;

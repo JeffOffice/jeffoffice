@@ -1,13 +1,16 @@
 // JeffPub's Info page: the publication's properties, Mark as Final, Inspect Publication, and Version History. The page itself is libs/shell/app/infopage.cpp; this gives it the publication's facts
-// and does what its cards ask. A .jpub file has no form for a password, so the page has no card for one. The properties are kept in the publication (so Undo covers them) and saved with it.
+// and does what its cards ask. A password is for .jpub files only: a .pub file must stay one the other publisher program opens. The properties are kept in the publication (so Undo covers them) and saved with it.
 #include "app/mainwindow.h"
 
 #include "app/backstage.h"
 #include "app/dialogs.h"
+#include "app/passworddialogs.h"
 #include "app/plaintext.h"
 #include "app/settings.h"
 #include "app/versionhistory.h"
+#include "io/crypto.h"
 #include "io/jpubfile.h"
+#include "office/officecrypt.h"
 
 #include <QDateTime>
 #include <QFileInfo>
@@ -82,6 +85,9 @@ QWidget *MainWindow::buildInfoPage(QWidget *parent)
     h.markFinalBlocked = [this] { return markFinalBlocked(); };
     h.markedFinal = [this] { return markedAsFinal(); };
     h.setMarkedFinal = [this](bool on) { setMarkedFinal(on); };
+    h.hasPassword = [this] { return m_fileProtected; };
+    h.encrypt = [this] { encryptWithPassword(); };
+    h.encryptBlocked = [this] { return encryptBlocked(); };
     h.inspect = [this] { inspectPublication(); };
     h.versionHistory = [this] { versionHistory(); };
     h.thumbnail = [this] {
@@ -99,6 +105,48 @@ QWidget *MainWindow::buildInfoPage(QWidget *parent)
                                 hideBackstage();
                             }});
     return jp::buildInfoPage(parent, h);
+}
+
+QString MainWindow::encryptBlocked() const
+{
+    if (m_ed->filePath().endsWith(QLatin1String(".pub"), Qt::CaseInsensitive)) return tr("Passwords are for .jpub files. A .pub file can't keep one; save the publication as a .jpub file first.");
+    return {};
+}
+
+void MainWindow::encryptWithPassword()
+{
+    if (!m_ed->doc()) return;
+    const QString why = encryptBlocked();
+    if (!why.isEmpty()) {
+        notice(tr("Encrypt with Password"), why);
+        return;
+    }
+    QString password;
+    const NewPasswordChoice choice = askNewFilePassword(this, m_fileProtected, &password);
+    if (choice == NewPasswordChoice::Cancelled) return;
+    // (the versions kept follow the password: none is left in the clear, and Go Back opens them with the new one)
+    const QString before = m_fileProtected ? m_filePassword : QString();
+    crypto::wipe(m_filePassword);
+    if (choice == NewPasswordChoice::Removed) {
+        m_fileProtected = false;
+        statusBar()->showMessage(tr("The password is taken off when you save."), 8000);
+    } else {
+        m_fileProtected = true;
+        m_filePassword = password;
+        m_protectionNoted = false;
+        statusBar()->showMessage(tr("The publication is protected with a password when you save."), 8000);
+    }
+    if (!m_ed->filePath().isEmpty()) {
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+        const int failed = write::reprotectVersions(m_ed->filePath(), QStringLiteral(".jpub"), before, m_fileProtected ? m_filePassword : QString());
+        QApplication::restoreOverrideCursor();
+        if (failed > 0) notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
+    }
+    crypto::wipe(password);
+    // (a password is a change to save, as the properties are)
+    m_ed->markUnsaved();
+    updateTitle();
+    if (m_backstage && m_backstage->isVisible()) showBackstage(QStringLiteral("info"));
 }
 
 QString MainWindow::markFinalBlocked() const
@@ -251,7 +299,9 @@ bool MainWindow::saveVersion(const QString &name)
     }
     m_ed->endTextEdit();
     QString err;
-    const QByteArray bytes = publicationBytes(*d, pageThumbnail(0, 256), QFileInfo(path).absolutePath());
+    QByteArray bytes = publicationBytes(*d, pageThumbnail(0, 256), QFileInfo(path).absolutePath());
+    // (a version of a publication that asks for a password asks for it too)
+    if (!bytes.isEmpty() && m_fileProtected) bytes = office::encryptPackage(bytes, m_filePassword);
     write::VersionStore store(path, QStringLiteral(".jpub"));
     if (bytes.isEmpty() || !store.add(name.trimmed().isEmpty() ? tr("Version %1").arg(store.list().size() + 1) : name, bytes, &err)) {
         notice(tr("Version History"), tr("The version couldn't be kept.\n%1").arg(err), true);
@@ -267,9 +317,9 @@ bool MainWindow::restoreVersion(const QString &file)
     const QString path = m_ed->filePath();
     write::VersionStore store(path, QStringLiteral(".jpub"));
     QString err;
-    const QByteArray bytes = store.read(file);
+    QByteArray bytes;
     std::unique_ptr<Document> doc;
-    if (!bytes.isEmpty()) doc = publicationFromBytes(bytes, &err, QFileInfo(path).absolutePath());
+    if (write::versionPackage(store.read(file), m_filePassword, &bytes) && !bytes.isEmpty()) doc = publicationFromBytes(bytes, &err, QFileInfo(path).absolutePath());
     if (!doc) {
         notice(tr("Version History"), tr("That version can't be opened.\n%1").arg(err), true);
         return false;

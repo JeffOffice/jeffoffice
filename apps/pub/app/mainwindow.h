@@ -96,13 +96,18 @@ public:
     // `asCopy`: only writes the file; the publication keeps its name and stays as saved or unsaved as it was.
     bool saveTo(const QString &path, bool asCopy = false);
     bool maybeSave();
-    // The Info page of the File screen (mainwindow_info.cpp): the publication's properties, Mark as Final, Inspect Publication, and Version History. (A .jpub file has no form for a password,
-    // so the page has no card for one.) The properties are kept in the publication, and undone with it.
+    // The Info page of the File screen (mainwindow_info.cpp): the publication's properties, Mark as Final, a password (for a .jpub file only), Inspect Publication, and Version History.
+    // The properties are kept in the publication, and undone with it.
     QWidget *buildInfoPage(QWidget *parent);
     office::PackageProps properties() const;
     void applyProperties(const office::PackageProps &edited);
     bool markedAsFinal() const;
     QString markFinalBlocked() const;
+    // Whether the file asks for a password when it is opened (it was opened with one, or Encrypt with Password was used); the password is put on when the publication is saved. Only a .jpub file
+    // can have one.
+    bool isPasswordProtected() const { return m_fileProtected; }
+    void encryptWithPassword();
+    QString encryptBlocked() const;   // why the file can't have a password ("" when it can)
     void setMarkedFinal(bool on);
     QVector<InspectItem> inspectItems();
     void inspectPublication();
@@ -227,6 +232,9 @@ private:
     QString m_recoveryCopy;         // this window's automatic recovery copy, if written
     QString m_recoveredFrom;        // a recovered document's original file, for Save As
     std::function<void(const QString &, const QString &)> m_notifier;
+    bool m_fileProtected = false;   // the file is saved with a password (a .jpub file's package inside the encrypted container)
+    QString m_filePassword;
+    bool m_protectionNoted = false;
     bool m_recovered = false;       // the document is recovered work, not yet saved
     bool m_personalInfoRemoved = false;   // Inspect took the names out of the properties: they stay out until the publication is closed
     void notice(const QString &title, const QString &text, bool warning = false);
