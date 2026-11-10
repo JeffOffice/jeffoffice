@@ -571,11 +571,11 @@ bool StyleStore::buildCellFormats(const Limits &limits, Styles *styles, QHash<QS
             const QString country = props.value(QStringLiteral("text:fo:country"));
             if (lang.isEmpty() || lang == QLatin1String("none") || lang == QLatin1String("zxx")) return lang == QLatin1String("zxx") ? lang : QString();
             if (!country.isEmpty() && country != QLatin1String("none")) lang += QLatin1Char('-') + country;
-            return lang;
+            return lang.left(35);   // (as many as a tag may have in the XML form)
         };
         const QString language = languageOf(p);
         if (language == QLatin1String("zxx")) f.noProof = true;
-        else if (language != languageOf(m_defaults.value(QStringLiteral("table-cell")))) f.language = language;
+        else if (language != QLatin1String("en-US")) f.language = language;   // (a cell that states none follows the document's default; US English, which this program writes as the default, is the program's own)
         return b.formatIndex(f);
     };
     // the default look first: the document's default style, or the style named Default that cells with no style of their own follow

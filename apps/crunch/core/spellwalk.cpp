@@ -73,7 +73,7 @@ const QVector<QPair<int, int>> &SpellWalk::rangesOf(const QString &text, const Q
         m_cache.clear();
         m_cacheRevision = spellingRevision();
     }
-    const QString key = language.isEmpty() ? text : language + QLatin1Char('\n') + text;
+    const QString key = QString::number(language.size()) + QLatin1Char('|') + language + text;   // (the length first: no language and text can be taken for a language and the text after it)
     auto it = m_cache.constFind(key);
     if (it == m_cache.constEnd()) {
         if (m_cache.size() > 4000) m_cache.clear();

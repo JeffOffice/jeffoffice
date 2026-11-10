@@ -26,6 +26,8 @@ QString match(const QString &tag);
 
 // The folder holding the language folders, or empty when it's missing.
 QString root();
+// How many languages have their checker kept (at most the languages of the list, whatever tags files carry; for tests).
+int loadedCount();
 
 // Spelling, by a code from match(). A language whose dictionary is missing
 // accepts every word; hasSpelling() says whether it's there.

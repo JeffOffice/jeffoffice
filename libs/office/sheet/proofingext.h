@@ -26,18 +26,27 @@ inline QByteArray proofingExtensionXml(const CellFormat &f, const QByteArray &pr
 // `extLst` the file already has, else as one of its own at the end.
 inline QByteArray withProofingExtension(QByteArray inner, const QByteArray &extension, const QByteArray &prefix = QByteArray())
 {
-    const QByteArray uri = QByteArray("uri=\"") + proofingExtensionUri() + "\"";
-    const qsizetype at = inner.indexOf(uri);
-    if (at >= 0) {
-        const qsizetype start = inner.lastIndexOf("<" + prefix + "ext ", at);
-        const QByteArray closeExt = "</" + prefix + "ext>";
-        const qsizetype end = inner.indexOf(closeExt, at);
-        if (start >= 0 && end >= 0) inner.remove(start, end + closeExt.size() - start);
-        // (an extension list with nothing left in it is left out)
-        const QByteArray emptyList = "<" + prefix + "extLst></" + prefix + "extLst>";
-        const qsizetype empty = inner.indexOf(emptyList);
-        if (empty >= 0) inner.remove(empty, emptyList.size());
+    // (our extension is found by reading the tags: whatever space follows `<ext`, the attributes in any order, either quote)
+    const QByteArray open = "<" + prefix + "ext";
+    const QByteArray closeExt = "</" + prefix + "ext>";
+    for (qsizetype from = 0;;) {
+        qsizetype start = inner.indexOf(open, from);
+        if (start < 0) break;
+        const qsizetype after = start + open.size();
+        from = after;
+        if (after >= inner.size() || !(inner[after] == ' ' || inner[after] == '\n' || inner[after] == '\t' || inner[after] == '\r')) continue;
+        const qsizetype tagEnd = inner.indexOf('>', after);
+        if (tagEnd < 0) break;
+        const QByteArray tag = inner.mid(after, tagEnd - after);
+        if (!tag.contains(QByteArray("\"") + proofingExtensionUri() + "\"") && !tag.contains(QByteArray("'") + proofingExtensionUri() + "'")) continue;
+        const qsizetype end = inner.indexOf(closeExt, tagEnd);
+        if (end < 0) break;
+        inner.remove(start, end + closeExt.size() - start);
+        from = start;
     }
+    // (an extension list with nothing left in it is left out)
+    const QByteArray emptyList = "<" + prefix + "extLst></" + prefix + "extLst>";
+    if (const qsizetype empty = inner.indexOf(emptyList); empty >= 0) inner.remove(empty, emptyList.size());
     if (extension.isEmpty()) return inner;
     const QByteArray closeList = "</" + prefix + "extLst>";
     const qsizetype list = inner.lastIndexOf(closeList);

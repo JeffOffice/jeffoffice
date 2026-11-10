@@ -75,7 +75,7 @@ void CrunchWindow::createTabs2Actions()
         const FormatView v = viewOfActiveCell();
         QString tag;
         bool noProof = false;
-        if (!jp::languageDialog(this, v.language.isEmpty() ? crunch::proofingLanguage() : dict::match(v.language), v.noProof, &tag, &noProof)) return;
+        if (!jp::languageDialog(this, v.language.isEmpty() ? crunch::proofingLanguage() : v.language, v.noProof, &tag, &noProof)) return;
         jp::office::sheet::FormatChange change;
         change.language = tag;
         change.noProof = noProof;

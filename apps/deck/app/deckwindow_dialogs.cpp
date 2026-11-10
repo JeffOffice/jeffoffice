@@ -83,12 +83,12 @@ void DeckWindow::createDialogActions()
     mk("review.wordCount", tr("Word Count"), "whole-word", QKeySequence(), [this, ed] { slideWordCount(this, ed); });
     mk("review.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] { showAccessibilityPane(); });
     mk("review.translate", tr("Translate"), "languages", QKeySequence(), [this, ed] {
-        // The selected text of the box being typed in, else the selected text of the notes, else all the text of the selected box.
+        // The editor that has the focus: the notes (the words selected there, else all of them), else the box being typed in (the words selected, else all of its text), else the selected box.
         QString text;
-        if (ed->isEditingText() && ed->cursor().hasSelection()) {
+        if (m_notes && m_notes->hasFocus()) {
+            text = m_notes->textCursor().hasSelection() ? m_notes->textCursor().selectedText() : m_notes->toPlainText();
+        } else if (ed->isEditingText() && ed->cursor().hasSelection()) {
             text = ed->cursor().selectedText();
-        } else if (m_notes && m_notes->textCursor().hasSelection() && (m_notes->hasFocus() || !ed->single())) {
-            text = m_notes->textCursor().selectedText();
         } else if (ed->isEditingText()) {
             if (ed->editDoc()) text = ed->editDoc()->toPlainText();
         } else if (Item *it = ed->single()) {
@@ -105,7 +105,7 @@ void DeckWindow::createDialogActions()
         const QString own = now.stringProperty(tp::Language);
         QString tag;
         bool noProof = false;
-        if (!jp::languageDialog(this, own.isEmpty() ? QStringLiteral("en-US") : dict::match(own), now.boolProperty(tp::NoProof), &tag, &noProof)) return;
+        if (!jp::languageDialog(this, own.isEmpty() ? QStringLiteral("en-US") : own, now.boolProperty(tp::NoProof), &tag, &noProof)) return;
         QTextCharFormat f;
         f.setProperty(tp::Language, tag);
         f.setProperty(tp::NoProof, noProof);

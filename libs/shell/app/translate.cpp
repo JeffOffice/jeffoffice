@@ -68,12 +68,15 @@ bool languageDialog(QWidget *parent, const QString &current, bool noProof, QStri
     v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Mark the selected text as:"), &dlg)));
     auto *list = new QListWidget(&dlg);
     list->setObjectName(QStringLiteral("languages"));
-    int row = 0;
+    int row = 0, near = -1;
+    const QString nearCode = current.isEmpty() ? QString() : dict::match(current);   // (a tag that is not quite a language of the list, "fr" or "fr_CA", chooses the nearest)
     for (const dict::Language &l : dict::languages()) {
         auto *item = new QListWidgetItem(l.name, list);
         item->setData(Qt::UserRole, l.code);
         if (l.code == current) row = list->count() - 1;
+        if (l.code == nearCode) near = int(list->count()) - 1;
     }
+    if (near >= 0 && !dict::languages().isEmpty() && dict::languages().at(row).code != current) row = near;
     list->setCurrentRow(row);
     v->addWidget(list);
     auto *skip = new QCheckBox(QCoreApplication::translate("jp::write::HomeDialogs", "Do not check spelling"), &dlg);

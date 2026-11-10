@@ -129,8 +129,10 @@ struct CellFormat {
     bool formulaHidden = false;      // the cell's formula is not shown on a protected sheet
     quint8 readingOrder = 0;         // the direction of the text: 0 by what the text is, 1 left to right, 2 right to left
     bool quotePrefix = false;        // the cell holds a text that looks like something else (typed with a leading apostrophe)
-    // The language the cell's text is checked in ("fr-FR"; empty: the program's), and whether it is not checked at all. A workbook of the OpenDocument form keeps them (fo:language and
-    // fo:country of the cell's text); the XML form of the other program has no place for them, so they last until the workbook is closed.
+    // The language the cell's text is checked in ("fr-FR", as the file wrote it; empty: the program's own, or the document's default where a file names one), and whether it is not checked at
+    // all. A workbook of the OpenDocument form keeps them in the cell's style (fo:language and fo:country); one of the XML form keeps them in an extension of the format (see proofingext.h).
+    // The old binary forms (.xls and .xlsb) have no place for either, so a copy in them leaves them out. Only a tag that names a language of the dictionaries is looked up (dict::match
+    // reads "fr", "FR-fr", and "fr_FR" alike); the string itself is kept as it was written.
     QString language;
     bool noProof = false;
     quint32 xfId = 0;                // the named style the format follows (its place among the style formats, for a workbook of the XML form)

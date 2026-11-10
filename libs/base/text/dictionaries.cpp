@@ -93,9 +93,16 @@ QMutex &mutex()
 }
 
 // Loaded on first use: the big dictionaries take a moment.
-Checker *checker(const QString &code)
+QHash<QString, std::shared_ptr<Checker>> &loadedTable()
 {
     static QHash<QString, std::shared_ptr<Checker>> loaded;
+    return loaded;
+}
+
+Checker *checker(const QString &code)
+{
+    QHash<QString, std::shared_ptr<Checker>> &loaded = loadedTable();
+    if (!entry(code)) return nullptr;   // (only a language of the list is kept: a file's odd tags cannot grow the table)
     auto it = loaded.constFind(code);
     if (it != loaded.constEnd()) return it->get();
     std::shared_ptr<Checker> c;
@@ -149,6 +156,8 @@ QString match(const QString &tag)
         if (QLatin1String(e.code).startsWith(lang + '-')) return QLatin1String(e.code);
     return {};
 }
+
+int loadedCount() { return int(loadedTable().size()); }
 
 QString root()
 {

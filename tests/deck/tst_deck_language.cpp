@@ -13,6 +13,8 @@
 #include <QTemporaryDir>
 #include <QUrlQuery>
 
+#include "app/spelling.h"
+
 namespace {
 
 QJsonObject groupNamed(const QString &tab, const QString &group)
@@ -160,6 +162,12 @@ private Q_SLOTS:
         c.setPosition(4);
         c.setPosition(8, QTextCursor::KeepAnchor);
         w.notesPane()->setTextCursor(c);
+        if (w.notesPane()->isHidden()) w.act(QStringLiteral("view.notes"))->trigger();
+        w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        QVERIFY2(w.notesPane()->isVisible() && w.notesPane()->isEnabled(), "the notes are shown");
+        w.notesPane()->setFocus();
+        QTRY_VERIFY(w.notesPane()->hasFocus());
         withDialog([&] { w.act(QStringLiteral("review.translate"))->trigger(); }, QStringLiteral("translateDialog"), [](QDialog *) {});
         QCOMPARE(opened.size(), 2);
         QCOMPARE(QUrlQuery(opened[1]).queryItemValue(QStringLiteral("q")), QStringLiteral("this"));
@@ -253,6 +261,102 @@ private Q_SLOTS:
             QVERIFY2(!hello.noProof, name);
             QVERIFY2(hello.language != QLatin1String("fr-FR"), name);
         }
+    }
+    // The box offers the language the text has (a bare tag such as "fr" chooses the nearest language of the list), and US English where the text states none: as JeffWrite's does.
+    void theLanguageBoxPreselectsAsJeffWriteDoes()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        editTitle(w, QStringLiteral("Hello Bonjour"), 0, 5);
+        QTRY_VERIFY(w.act(QStringLiteral("review.language"))->isEnabled());
+        auto chosen = [&] {
+            QString code;
+            withDialog([&] { w.act(QStringLiteral("review.language"))->trigger(); }, QStringLiteral("languageDialog"), [&](QDialog *d) {
+                code = d->findChild<QListWidget *>(QStringLiteral("languages"))->currentItem()->data(Qt::UserRole).toString();
+            }, false);
+            return code;
+        };
+        QCOMPARE(chosen(), QStringLiteral("en-US"));
+        for (const QString &tag : {QStringLiteral("fr-FR"), QStringLiteral("fr"), QStringLiteral("FR-fr"), QStringLiteral("fr_FR")}) {
+            QTextCharFormat f;
+            f.setProperty(tp::Language, tag);
+            ed->mergeCharFormat(f, QStringLiteral("test"));
+            QCOMPARE(chosen(), QStringLiteral("fr-FR"));
+        }
+    }
+
+    // Text marked with a bare or oddly written tag is checked in that language, here and after a save in each file kind, which keep the tag as it was written.
+    void bareLanguageTagsAreCheckedInTheLanguageAndKept()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        for (const QString &tag : {QStringLiteral("fr"), QStringLiteral("FR-fr"), QStringLiteral("fr_FR")}) {
+            DeckWindow w;
+            w.show();
+            Editor *ed = w.editor();
+            QTextDocument *doc = editTitle(w, QStringLiteral("Bonjour monde"), 0, 13);
+            QTextCharFormat f;
+            f.setProperty(tp::Language, tag);
+            ed->mergeCharFormat(f, QStringLiteral("test"));
+            QVERIFY2(misspellings(doc).isEmpty(), qPrintable(tag));
+            for (const char *name : {"tag.pptx", "tag.odp"}) {
+                const auto back = savedAndOpened(*ed->doc(), dir, QString::fromLatin1(name));
+                QVERIFY2(back, name);
+                auto *title = static_cast<TextItem *>(back->pages[0]->items[0].get());
+                QTextDocument *again = back->storyDoc(title->storyId);
+                QVERIFY2(again && !again->toPlainText().isEmpty(), name);
+                QVERIFY2(misspellings(again).isEmpty(), name);
+                QVERIFY2(marksOf(*back, QStringLiteral("Bonjour")).language.startsWith(QLatin1String("fr"), Qt::CaseInsensitive), name);
+            }
+        }
+    }
+
+    // Translate follows the editor that has the focus: the notes (their selected words) or the slide's box; not whichever has a selection or none selected.
+    void translateFollowsTheFocusedEditor()
+    {
+        const jptest::SettingGuard server(QStringLiteral("translate/server"), QStringLiteral("https://translate.example/"), QStringLiteral("https://libretranslate.com/"));
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        QList<QUrl> opened;
+        w.setUrlOpener([&](const QUrl &u) {
+            opened << u;
+            return true;
+        });
+        Editor *ed = w.editor();
+        auto *title = static_cast<TextItem *>(ed->doc()->pages[0]->items[0].get());
+        QTextCursor(ed->doc()->storyDoc(title->storyId)).insertText(QStringLiteral("Box words"));
+        w.notesPane()->setPlainText(QStringLiteral("Say this slowly"));
+        QTextCursor c = w.notesPane()->textCursor();
+        c.setPosition(4);
+        c.setPosition(8, QTextCursor::KeepAnchor);
+        w.notesPane()->setTextCursor(c);
+        if (w.notesPane()->isHidden()) w.act(QStringLiteral("view.notes"))->trigger();
+        ed->select(title->id);   // (a box is selected, and the notes still have their selection)
+        w.canvas()->setFocus();
+        QTRY_VERIFY(!w.notesPane()->hasFocus());
+        auto sent = [&](int index) {
+            withDialog([&] { w.act(QStringLiteral("review.translate"))->trigger(); }, QStringLiteral("translateDialog"), [](QDialog *) {});
+            return QUrlQuery(opened.value(index)).queryItemValue(QStringLiteral("q"), QUrl::FullyDecoded);
+        };
+        QCOMPARE(sent(0), QStringLiteral("Box words"));
+        w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        QVERIFY2(w.notesPane()->isVisible() && w.notesPane()->isEnabled(), "the notes are shown");
+        w.notesPane()->setFocus();
+        QTRY_VERIFY(w.notesPane()->hasFocus());
+        QCOMPARE(sent(1), QStringLiteral("this"));
+        // nothing is selected on the slide and the notes keep a selection, but the slide has the focus: there is no text to send (not the notes')
+        ed->select(QString());
+        w.canvas()->setFocus();
+        QTRY_VERIFY(!w.notesPane()->hasFocus());
+        QTimer::singleShot(300, [] {   // (a box that opens is answered OK, so that a command that sends something is seen to)
+            if (auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget())) d->accept();
+        });
+        w.act(QStringLiteral("review.translate"))->trigger();
+        QCOMPARE(opened.size(), 2);
+        QVERIFY(w.statusBar()->currentMessage().contains(QLatin1String("no text")));
     }
 };
 
