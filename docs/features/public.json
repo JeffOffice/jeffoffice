@@ -2781,8 +2781,8 @@
          "text": "e9e23fac479951e13c372fa45cba38fe0077dd0b4a77cca5dbae069b446f568e"
         },
         {
-         "status": "todo",
-         "text": "c05eb58ff52440a04316196f8788913877c78829146aa885e211dba872f7855b"
+         "status": "partly",
+         "text": "d442a5df2650482970bdcd8526909691beca9e550eefe203bca70c0f5f7477e2"
         },
         {
          "hide_soon": true,
@@ -2834,7 +2834,7 @@
         },
         {
          "status": "partly",
-         "text": "c7437921dbdc40420c31baa74b990e0b5a9b32eda5943bb892cfae3bf08ced7d"
+         "text": "db8c21f3b471d0cf685f7c48bf0023792bbf58b0cbf68698d9d9dd919fca099e"
         },
         {
          "hide_soon": true,
@@ -3076,8 +3076,9 @@
        "text": "d223ba3fbc1c3f2015acff65f59c7283a79742206f3944ffe293d1e0160aaa4e"
       },
       {
-       "status": "todo",
-       "text": "2e4eb77ee5ce97eb5a9bb86aca03329ddd049016871aff2f8b889190d42f82a4"
+       "hide_soon": true,
+       "status": "done",
+       "text": "ad95eea1ae576c1378193722d8a3ce83817db13c12ab8128c8131d14df2e4a1f"
       },
       {
        "hide_soon": true,
@@ -3300,6 +3301,11 @@
        "hide_soon": true,
        "status": "done",
        "text": "098e9476ae23f7a76107523af9d69ef3fdafd6ba40d2c4eed8da5e2ccc16781f"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "d961f7821ca5107172c55685c9ccc7cd8c1f7b5b3cb6f81b3caa79ef47f5aa13"
       },
       {
        "status": "todo",
@@ -4715,6 +4721,11 @@
        "hide_soon": true,
        "status": "done",
        "text": "50b09db06e3a3753417bceab8bbcf6f4d93d04012e81633a7ebd8be836e0a28e"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "767cb9c958af615bdb4d75516c98809202ac02d84e0722378cc685d7fb0874cb"
       }
      ]
     },
@@ -5940,8 +5951,8 @@
          "text": "a77d1267dc8984acde4d2c5f67b57802afd0e7a79d36b5fabd8048da7e037d03"
         },
         {
-         "status": "todo",
-         "text": "fa75e61eba9031c944b454a9edf27a132b52d6c0b152ab15eb611fe085015b7d"
+         "status": "partly",
+         "text": "bcf6480fc11192a7b5ed5a9a11347d185a141489d44578675637ee8bd079bc6a"
         }
        ]
       }
@@ -10816,18 +10827,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "2e4eb77ee5ce97eb5a9bb86aca03329ddd049016871aff2f8b889190d42f82a4": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Object naming for Morph: name an object so that two objects pair",
-    "es": "Nombres de objetos para Morph: nombrar un objeto para emparejar dos objetos",
-    "fr": "Nom d’objet pour Morph : nommer un objet pour associer deux objets"
    }
   },
   "2e5b01edd90187e2f85a67c67d03c4989d934bc057cbedc61b095d98ac407d8d": {
@@ -16122,6 +16121,18 @@
     "fr": ""
    }
   },
+  "767cb9c958af615bdb4d75516c98809202ac02d84e0722378cc685d7fb0874cb": {
+   "drop": false,
+   "en": "Fill the screen with the window using Full Screen (`F11`, View > Show). The same command restores the window, and so does `Esc` when nothing is selected or being typed in.",
+   "es": "Haga que la ventana ocupe toda la pantalla con Pantalla completa (`F11`, Vista > Mostrar). El mismo comando restaura la ventana, y también lo hace `Esc` cuando no hay nada seleccionado ni se está escribiendo.",
+   "fr": "Faites occuper tout l’écran à la fenêtre avec Plein écran (`F11`, Affichage > Afficher). La même commande rétablit la fenêtre, tout comme `Esc` quand rien n’est sélectionné ni en cours de saisie.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "76a705448deafcc524d420f1f10f8a537aed6b35f8218c244cef86818c37f21c": {
    "drop": false,
    "en": "Tables from a file show and save as made.",
@@ -19746,6 +19757,18 @@
     "fr": ""
    }
   },
+  "ad95eea1ae576c1378193722d8a3ce83817db13c12ab8128c8131d14df2e4a1f": {
+   "drop": false,
+   "en": "Name an object in the Selection Pane; a name that starts with `!!` pairs two objects for Morph, just as a name from a file does.",
+   "es": "Nombre un objeto en el panel de selección; un nombre que empiece por `!!` empareja dos objetos para Morph, igual que un nombre procedente de un archivo.",
+   "fr": "Nommez un objet dans le volet Sélection ; un nom commençant par `!!` associe deux objets pour Morph, comme un nom provenant d’un fichier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "ade972496fa63926f3b3f29511adfd6bded3848194146a0d8ee1cfa3658277cc": {
    "drop": true,
    "en": "",
@@ -20598,6 +20621,18 @@
     "fr": ""
    }
   },
+  "bcf6480fc11192a7b5ed5a9a11347d185a141489d44578675637ee8bd079bc6a": {
+   "drop": false,
+   "en": "Select All works. The Selection Pane (View > Selection Pane, also in Arrange) lists the floating objects of the document, the front one first. Pick an object from a row, type a name in a row to name it, and hide or show it with its box; names and hidden marks are kept for other programs. Show All and Hide All set every box. Move objects through the layers with the buttons or a drag, each as one Undo step.",
+   "es": "Seleccionar todo funciona. El panel de selección (Vista > Panel de selección, también en Organizar) enumera los objetos flotantes del documento, con el de delante primero. Elija un objeto desde una fila, escriba un nombre en una fila para nombrarlo y ocúltelo o muéstrelo con su casilla; los nombres y las marcas de ocultación se conservan para otros programas. Mostrar todo y Ocultar todo establecen todas las casillas. Mueva los objetos entre las capas con los botones o arrastrando, cada uno como un paso de Deshacer.",
+   "fr": "Tout sélectionner fonctionne. Le volet Sélection (Affichage > Volet Sélection, aussi dans Organiser) liste les objets flottants du document, celui de devant en premier. Choisissez un objet depuis une ligne, saisissez un nom dans une ligne pour le nommer, et masquez-le ou affichez-le avec sa case ; les noms et les marques de masquage sont conservés pour les autres programmes. Tout afficher et Tout masquer règlent toutes les cases. Déplacez les objets entre les calques avec les boutons ou par glisser-déposer, chacun comme une étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Select Objects and selection of objects in line with the text",
+    "es": "Seleccionar objetos y selección de objetos en línea con el texto",
+    "fr": "Sélection des objets et sélection des objets en ligne avec le texte"
+   }
+  },
   "bd74e5a049cba5d0b6d088a61826976d6ab8332348844efc8e7109ad744b0c5d": {
    "drop": false,
    "en": "Add barcodes: book ISBNs with or without a price add-on, EAN-13, UPC-A and EAN-8 with add-ons, Code 128, and Code 39. They are drawn as vector bars and stay editable after placing.",
@@ -20872,18 +20907,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c05eb58ff52440a04316196f8788913877c78829146aa885e211dba872f7855b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Regroup, Selection Pane, and More Rotation Options",
-    "es": "Reagrupar, panel de selección y más opciones de rotación",
-    "fr": "Regrouper, volet Sélection et autres options de rotation"
    }
   },
   "c084b0f75e2fd74db72e2cfa1ec51d98bff1576c26c428f93c5afb89411aa087": {
@@ -21400,18 +21423,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c7437921dbdc40420c31baa74b990e0b5a9b32eda5943bb892cfae3bf08ced7d": {
-   "drop": false,
-   "en": "Select objects, or select all, from Select in the Editing group.",
-   "es": "Seleccione objetos, o seleccione todo, desde Seleccionar en el grupo Edición.",
-   "fr": "Sélectionnez des objets, ou tout sélectionner, depuis Sélectionner dans le groupe Édition.",
-   "soon": {
-    "drop": false,
-    "en": "Selection Pane",
-    "es": "Panel de selección",
-    "fr": "Volet de sélection"
    }
   },
   "c7cb70fdf0b130f39fa06bc1cb9f0fe48fc0368aaa61eeb4031507e5580674ba": {
@@ -22482,6 +22493,18 @@
     "fr": "Mode lecture : le diaporama dans une fenêtre avec une barre, pour lire une présentation"
    }
   },
+  "d442a5df2650482970bdcd8526909691beca9e550eefe203bca70c0f5f7477e2": {
+   "drop": false,
+   "en": "The Selection Pane (Arrange > Selection Pane) lists the objects on the slide, the front one first. Pick an object from a row, type a name in a row to name it, and hide or show it with its box. Show All and Hide All set every box. Move objects in the order with the buttons or a drag, each as one Undo step. Names and hidden marks are kept in `.pptx` and `.odp` files.",
+   "es": "El panel de selección (Organizar > Panel de selección) enumera los objetos de la diapositiva, con el de delante primero. Elija un objeto desde una fila, escriba un nombre en una fila para nombrarlo y ocúltelo o muéstrelo con su casilla. Mostrar todo y Ocultar todo establecen todas las casillas. Mueva los objetos en el orden con los botones o arrastrando, cada uno como un paso de Deshacer. Los nombres y las marcas de ocultación se conservan en archivos `.pptx` y `.odp`.",
+   "fr": "Le volet Sélection (Organiser > Volet Sélection) liste les objets de la diapositive, celui de devant en premier. Choisissez un objet depuis une ligne, saisissez un nom dans une ligne pour le nommer, et masquez-le ou affichez-le avec sa case. Tout afficher et Tout masquer règlent toutes les cases. Déplacez les objets dans l’ordre avec les boutons ou par glisser-déposer, chacun comme une étape d’annulation. Les noms et les marques de masquage sont conservés dans les fichiers `.pptx` et `.odp`.",
+   "soon": {
+    "drop": false,
+    "en": "Regroup and More Rotation Options",
+    "es": "Reagrupar y más opciones de rotación",
+    "fr": "Regrouper et plus d’options de rotation"
+   }
+  },
   "d471723dfae2576cd2a0841baa81a3fb1884608c5e51a2b1efdc0fd4764fd904": {
    "drop": false,
    "en": "Set line numbers to None, Continuous, Restart Each Page, or Restart Each Section, with options for count by, start at, and distance from text, for the section or the whole document.",
@@ -22830,6 +22853,18 @@
     "fr": ""
    }
   },
+  "d961f7821ca5107172c55685c9ccc7cd8c1f7b5b3cb6f81b3caa79ef47f5aa13": {
+   "drop": false,
+   "en": "Fill the screen with the window using Full Screen (`F11`, View > Window). The same command restores the window, and so does `Esc` when nothing is selected or being typed in.",
+   "es": "Haga que la ventana ocupe toda la pantalla con Pantalla completa (`F11`, Vista > Ventana). El mismo comando restaura la ventana, y también lo hace `Esc` cuando no hay nada seleccionado ni se está escribiendo.",
+   "fr": "Faites occuper tout l’écran à la fenêtre avec Plein écran (`F11`, Affichage > Fenêtre). La même commande rétablit la fenêtre, tout comme `Esc` quand rien n’est sélectionné ni en cours de saisie.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "d98841ccbf1a94f4f3c5f999d91656b57f3308ba6fd736862afaa3caf648c4fa": {
    "drop": false,
    "en": "A picture of each slide appears in the slides pane, the sorter, and the animation pane, and is redrawn as the slide changes.",
@@ -22907,6 +22942,18 @@
    "en": "Choose an animation from a gallery: None; Entrance effects (Appear, Fade, Fly In, Float In, Split, Wipe, Grow & Turn, and Zoom); Emphasis effects (Pulse, Teeter, Spin, and Grow/Shrink); Exit effects (Disappear, Fade, Fly Out, Float Out, Split, Wipe, Shrink & Turn, and Zoom); and 64 motion paths in six groups (Lines, Arcs, Turns, Shapes, Loops, and Curves).",
    "es": "Elija una animación de una galería: Ninguna; efectos de entrada (Aparecer, Desvanecer, Entrada volando, Entrada flotante, Dividir, Barrido, Crecer y girar, y Zoom); efectos de énfasis (Pulso, Balanceo, Girar y Crecer/Encoger); efectos de salida (Desaparecer, Desvanecer, Salida volando, Salida flotante, Dividir, Barrido, Encoger y girar, y Zoom); y 64 trayectorias de movimiento en seis grupos (Líneas, Arcos, Giros, Formas, Bucles y Curvas).",
    "fr": "Choisissez une animation dans une galerie : Aucune ; effets d’entrée (Apparition, Fondu, Entrée en vol, Entrée flottante, Division, Balayage, Agrandir et pivoter, et Zoom) ; effets d’accentuation (Pulsation, Bascule, Rotation et Agrandir/Réduire) ; effets de sortie (Disparition, Fondu, Sortie en vol, Sortie flottante, Division, Balayage, Réduire et pivoter, et Zoom) ; et 64 trajectoires de déplacement en six groupes (Lignes, Arcs, Virages, Formes, Boucles et Courbes).",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "db8c21f3b471d0cf685f7c48bf0023792bbf58b0cbf68698d9d9dd919fca099e": {
+   "drop": false,
+   "en": "Select Objects and Select All are in Home > Editing > Select. The Selection Pane in Home > Drawing > Arrange shows the objects on the slide by name.",
+   "es": "Seleccionar objetos y Seleccionar todo están en Inicio > Edición > Seleccionar. El panel de selección en Inicio > Dibujo > Organizar muestra los objetos de la diapositiva por nombre.",
+   "fr": "Sélectionner les objets et Tout sélectionner se trouvent dans Accueil > Édition > Sélectionner. Le volet Sélection dans Accueil > Dessin > Organiser affiche les objets de la diapositive par nom.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24988,18 +25035,6 @@
     "en": "Video export (MP4) with the show’s timings and narration",
     "es": "Exportación de video (MP4) con los tiempos y la narración de la presentación",
     "fr": "Export vidéo (MP4) avec les minutages et la narration du diaporama"
-   }
-  },
-  "fa75e61eba9031c944b454a9edf27a132b52d6c0b152ab15eb611fe085015b7d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Select All, Select Objects, and the Selection Pane",
-    "es": "Seleccionar todo, Seleccionar objetos y el panel de selección",
-    "fr": "Tout sélectionner, Sélectionner des objets et le volet de sélection"
    }
   },
   "fa93bc038329df48970e775c13a92c93cc8ba0bb095fc6df65b739f2a0cbf6a1": {
