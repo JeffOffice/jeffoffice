@@ -1,8 +1,9 @@
-// Home > Editing: Find and Replace (the pane on the right) and Select Objects.
+// Home > Editing: Find and Replace (the pane on the right), Go To, and Select Objects.
 
 #include "app/deckwindow.h"
 
 #include "app/editor.h"
+#include "app/gotonumber.h"
 #include "app/deckfindpane.h"
 
 #include <QAction>
@@ -15,6 +16,12 @@ void DeckWindow::createEditingActions()
     Editor *ed = m_ed;
     mk("edit.find", tr("Find"), "search", QKeySequence::Find, [this] { showFindPane(false); });
     mk("edit.replace", tr("Replace"), "replace", QKeySequence(Qt::CTRL | Qt::Key_H), [this] { showFindPane(true); });
+    mk("edit.goTo", tr("Go To…"), "locate-fixed", QKeySequence(Qt::CTRL | Qt::Key_G), [this, ed] {
+        const int slide = goToNumberDialog(this, tr("Slide number:"), ed->doc()->pages.size(), ed->currentPage());
+        if (slide < 0) return;
+        ed->endTextEdit();
+        ed->setCurrentPage(slide);
+    });
     mk("edit.selectObjects", tr("Select Objects"), "mouse-pointer-2", QKeySequence(), [ed] {
         ed->setTool(Tool::Select);
         ed->endTextEdit();

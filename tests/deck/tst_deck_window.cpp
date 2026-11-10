@@ -1,5 +1,6 @@
 // JeffDeck's tests of the window: ribbon, help, status bar, headers and footers, backgrounds, the slide menu, and find.
 #include "deckhelpers.h"
+#include "../withdialog.h"
 
 class DeckWindowTests : public QObject {
     Q_OBJECT
@@ -1287,6 +1288,34 @@ private Q_SLOTS:
         w.act(QStringLiteral("edit.selectObjects"))->trigger();
         QVERIFY(!ed->isEditingText());
         QCOMPARE(ed->tool(), Tool::Select);
+    }
+
+    // Go To (Ctrl+G) is in Home > Editing beside Find and Replace; it asks for a slide number and moves to that slide, out of any text being typed.
+    void goToMovesToASlide()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        for (int i = 0; i < 4; ++i) w.newSlide();
+        Editor *ed = w.editor();
+        QCOMPARE(w.act(QStringLiteral("edit.goTo"))->text(), QStringLiteral("Go To…"));
+        QCOMPARE(w.act(QStringLiteral("edit.goTo"))->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::CTRL | Qt::Key_G).toString(QKeySequence::NativeText));
+        int inEditing = 0;
+        for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
+            if (b->defaultAction() == w.act(QStringLiteral("edit.goTo"))) ++inEditing;
+        QCOMPARE(inEditing, 1);
+        ed->setCurrentPage(4);
+        ed->beginTextEdit(placeholderOfSlide(*ed->doc(), 4, 0)->id);
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            auto *n = d->findChild<QSpinBox *>(QStringLiteral("goToNumber"));
+            QVERIFY(n);
+            QCOMPARE(n->value(), 5);
+            QCOMPARE(n->maximum(), 5);
+            n->setValue(2);
+        });
+        QCOMPARE(ed->currentPage(), 1);
+        QVERIFY(!ed->isEditingText());
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) { d->findChild<QSpinBox *>(QStringLiteral("goToNumber"))->setValue(4); }, false);
+        QCOMPARE(ed->currentPage(), 1);
     }
 
     // Find Next goes through the text of every slide in order from the current one (titles, bodies, shapes, tables, and the notes) and round

@@ -1,6 +1,7 @@
 // JeffPub's tests of rulers, page sizes, and new pages.
 #include "pubhelpers.h"
 #include <QScopeGuard>
+#include "../withdialog.h"
 
 class PubPageTests : public QObject {
     Q_OBJECT
@@ -96,6 +97,33 @@ private Q_SLOTS:
         ed->addItem(box);
         ed->select(QStringList{box->id});
         QCOMPARE(shown(), onThePage + QStringList{"Text Box"});
+    }
+
+    // Go To (Ctrl+G) is in Home > Editing beside Find and Replace, as in the other programs; it asks for a page number and moves to that page (and F5
+    // asks the same question).
+    void goToMovesToAPage()
+    {
+        jp::MainWindow w;
+        while (w.editor()->doc()->pages.size() < 5) w.editor()->doc()->addPage();
+        QCOMPARE(w.act(QStringLiteral("edit.goTo"))->text(), QStringLiteral("Go To…"));
+        QCOMPARE(w.act(QStringLiteral("edit.goTo"))->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::CTRL | Qt::Key_G).toString(QKeySequence::NativeText));
+        int inEditing = 0;
+        for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
+            if (b->defaultAction() == w.act(QStringLiteral("edit.goTo"))) ++inEditing;
+        QCOMPARE(inEditing, 1);
+        QCOMPARE(w.editor()->currentPage(), 0);
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            auto *n = d->findChild<QSpinBox *>(QStringLiteral("goToNumber"));
+            QVERIFY(n);
+            QCOMPARE(n->maximum(), 5);
+            n->setValue(4);
+        });
+        QCOMPARE(w.editor()->currentPage(), 3);
+        withDialog([&w] { w.act(QStringLiteral("page.goto"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) { d->findChild<QSpinBox *>(QStringLiteral("goToNumber"))->setValue(2); });
+        QCOMPARE(w.editor()->currentPage(), 1);
+        // Closing the box goes nowhere.
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) { d->findChild<QSpinBox *>(QStringLiteral("goToNumber"))->setValue(5); }, false);
+        QCOMPARE(w.editor()->currentPage(), 1);
     }
 
     // Page Setup's layout type is the DOCUMENT chunk's field 11 (1 booklet,

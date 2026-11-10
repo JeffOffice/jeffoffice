@@ -373,6 +373,10 @@
               "keytip": "RP"
             },
             {
+              "small": "edit.goTo",
+              "keytip": "GT"
+            },
+            {
               "small": {
                 "id": "ribbon.select",
                 "text": "Select",

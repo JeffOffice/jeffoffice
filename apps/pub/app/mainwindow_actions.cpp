@@ -6,6 +6,7 @@
 
 #include "io/importers.h"
 #include "app/appfuncs.h"
+#include "app/gotonumber.h"
 #include "app/mainwindow.h"
 #include "render/renderer.h"
 #include "app/pagespane.h"
@@ -412,11 +413,11 @@ void MainWindow::createActions()
     });
     mk("page.next", tr("Next Page"), "chevron-right", QKeySequence(Qt::CTRL | Qt::Key_PageDown), [ed] { ed->setCurrentPage(ed->currentPage() + 1); });
     mk("page.prev", tr("Previous Page"), "chevron-left", QKeySequence(Qt::CTRL | Qt::Key_PageUp), [ed] { ed->setCurrentPage(ed->currentPage() - 1); });
-    mk("page.goto", tr("Go to Page…"), "", QKeySequence(Qt::Key_F5), [this] {
-        bool ok = false;
-        const int p = QInputDialog::getInt(this, tr("Go to Page"), tr("Page:"), m_ed->currentPage() + 1, 1, m_ed->doc()->pages.size(), 1, &ok);
-        if (ok) m_ed->setCurrentPage(p - 1);
+    mk("edit.goTo", tr("Go To…"), "locate-fixed", QKeySequence(Qt::CTRL | Qt::Key_G), [this] {
+        const int p = goToNumberDialog(this, tr("Page number:"), m_ed->doc()->pages.size(), m_ed->currentPage());
+        if (p >= 0) m_ed->setCurrentPage(p);
     });
+    mk("page.goto", tr("Go to Page…"), "", QKeySequence(Qt::Key_F5), [this] { act("edit.goTo")->trigger(); });
 
     // ---------------- Arrange ----------------
     mk("arr.front", tr("Bring to Front"), "bring-to-front", QKeySequence(Qt::ALT | Qt::Key_F6), [ed] { ed->arrange(Editor::Order::Front); });

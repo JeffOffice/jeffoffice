@@ -93,6 +93,7 @@
       {"name": "Editing", "keytip": "ZE", "items": [
         {"small": "edit.find", "keytip": "FD"},
         {"small": "edit.replace", "keytip": "R"},
+        {"small": "edit.goTo", "keytip": "GT"},
         {"small": {"id": "ribbon.select", "text": "Select", "icon": "mouse-pointer-2"}, "keytip": "SL", "menu": [
           "edit.selectText", "edit.selectAll", "edit.selectObjects", "-", "sel.text", "sel.pictures", "sel.shapes", "sel.tables",
           "sel.textart"]}

@@ -124,7 +124,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Styles: gallery, New Style, Modify Style, Import Styles (from a publication), and Styles by example
 - [x] **1.0** Objects: Draw Text Box, Table, Pictures, Shapes
 - [x] **1.0** Arrange: Wrap Text, Bring Forward or to Front, Send Backward or to Back, Group, Ungroup, Regroup, Align and Distribute (relative to margin guides or objects), Rotate and Flip
-- [x] **1.0** Editing: Find, Replace (match case, whole word, search direction), Select (Select All Text in Text Box, Select All, Select Objects, Select Object by Type)
+- [x] **1.0** Editing: Find, Replace (match case, whole word, search direction), Go To (Ctrl+G, a page by its number), Select (Select All Text in Text Box, Select All, Select Objects, Select Object by Type)
 - [x] **1.0** Go to Page (F5), a page number typed into a window *(a key and a command, not a ribbon button)*
 - [ ] **later** Show Clipboard: a pane that lists what was copied lately, to paste any of it
 - [ ] **later** East Asian text layout: phonetic guides above characters, enclosed characters, horizontal text inside a vertical line, East Asian justification, and editing marks
