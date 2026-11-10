@@ -1906,6 +1906,33 @@ private Q_SLOTS:
         }
     }
 
+    // A PDF with a password still has its spot colors (they are added to the PDF in memory before it is locked).
+    void aPasswordPdfKeepsItsSpotColors()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        doc->print.model = jp::PrintInfo::ProcessPlusSpot;
+        doc->print.spotColors = {QColor(0, 90, 170)};
+        doc->print.spotNames = {QStringLiteral("Harbor Blue")};
+        auto s = std::make_shared<jp::ShapeItem>();
+        s->rect = QRectF(72, 72, 100, 100);
+        s->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(0, 90, 170)));
+        s->stroke = jp::Stroke::none();
+        doc->pages[0]->items.push_back(s);
+        jp::MainWindow w;
+        w.editor()->setDocument(std::move(doc));
+        QTemporaryDir dir;
+        jp::MainWindow::PdfSettings settings;
+        const auto wipe = qScopeGuard([&settings] { settings.protect.wipe(); });
+        settings.protect.openPassword = QStringLiteral("pw");
+        const QString path = dir.filePath(QStringLiteral("locked.pdf"));
+        QVERIFY(w.exportPdfTo(path, settings));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray plain = jp::decryptPdf(f.readAll(), QStringLiteral("pw"));
+        QVERIFY(!plain.isEmpty());
+        QVERIFY2(plain.contains("/Separation /Harbor#20Blue /DeviceCMYK"), "the locked PDF lost its spot colors");
+    }
+
     // Spot colors: saved with their names, offered in the color drop-downs,
     // and printed on plates of their own (tints as lighter ink), knocked out
     // of the process plates.

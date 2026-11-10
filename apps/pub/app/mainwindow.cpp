@@ -1353,7 +1353,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
             if (spotted.isEmpty())
                 jp::plainWarning(this, tr("Create PDF"), tr("The PDF was made, but its spot colors are process colors: %1").arg(spotErr));
             else
-                memory.setData(spotted);
+                memory.buffer() = spotted;
         } else if (!addPdfSpotColors(path, d->print.spotColors, names, &spotErr))
             jp::plainWarning(this, tr("Create PDF"), tr("The PDF was made, but its spot colors are process colors: %1").arg(spotErr));
     }
