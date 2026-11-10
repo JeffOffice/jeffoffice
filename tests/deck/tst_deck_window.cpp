@@ -10,6 +10,16 @@ class DeckWindowTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    // The quick access toolbar starts with Save, as in the other apps.
+    void theQuickAccessToolbarStartsWithSave()
+    {
+        DeckWindow w;
+        const QList<QToolButton *> buttons = w.ribbon()->quickAccessButtons();
+        QVERIFY(!buttons.isEmpty());
+        QVERIFY(buttons.first()->defaultAction());
+        QCOMPARE(buttons.first()->defaultAction(), w.act(QStringLiteral("file.save")));
+    }
+
     void initTestCase() { initDeckTestCase(); }
 
     // A new layout moves the placeholders to its places, by kind, and keeps

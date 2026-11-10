@@ -2,16 +2,20 @@
   "fileKeytip": "F",
   "quickAccess": [
     {
-      "cmd": "edit.undo",
+      "cmd": "file.save",
       "keytip": "1"
     },
     {
-      "cmd": "edit.redo",
+      "cmd": "edit.undo",
       "keytip": "2"
     },
     {
-      "cmd": "show.fromStart",
+      "cmd": "edit.redo",
       "keytip": "3"
+    },
+    {
+      "cmd": "show.fromStart",
+      "keytip": "4"
     }
   ],
   "tabs": [
