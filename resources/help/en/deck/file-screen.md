@@ -64,7 +64,7 @@ Click **Version History** to keep named copies of the presentation on your compu
 
 ### Check Accessibility
 
-Click **Check Accessibility** to open the list of things that may be hard for some people to read or use. It is the same check as **Review > Proofing > Check Accessibility**. See [Review tab](tab-review).
+Click **Check Accessibility** to open the list of things that may be hard for some people to read or use. It is the same check as **Review > Proofing > Check Accessibility**.
 
 ## JeffDeck
 

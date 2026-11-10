@@ -3,7 +3,7 @@
 
 The **Review** tab checks your words and handles comments.
 
-- **Proofing** has **Spelling** (F7), **Thesaurus** (Shift+F7), **Word Count**, and **Check Accessibility**. See [Type and format text](text) and [Check accessibility](#check-accessibility).
+- **Proofing** has **Spelling** (F7), **Thesaurus** (Shift+F7), **Word Count**, and **Check Accessibility**. See [Type and format text](text).
 - **Comments** has **New Comment** (Ctrl+Alt+M), **Delete** with its menu, **Previous**, **Next**, and **Show Comments**. See [Comments](comments).
 
 ## Check accessibility

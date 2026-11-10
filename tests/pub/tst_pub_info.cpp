@@ -737,7 +737,7 @@ private Q_SLOTS:
         BoxAnswer ok(true, nullptr);
         QVERIFY(jp::emailAsAttachment(&w, w.editor(), QStringLiteral("jpub")));
         const QByteArray mail = fileBytes(eml);
-        const qsizetype from = mail.indexOf("base64\r\n\r\n");
+        const qsizetype from = mail.indexOf("base64\r\n\r\n", mail.indexOf("application/x-jeffpub"));
         QVERIFY(from > 0);
         const qsizetype to = mail.indexOf("\r\n--jo-", from);
         opensWith(QByteArray::fromBase64(mail.mid(from + 10, to - from - 10)), "email");
