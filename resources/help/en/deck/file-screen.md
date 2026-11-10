@@ -15,7 +15,7 @@ On the left is a list. Some entries open a page, and some do their job at once.
 - **Info** shows the facts about the presentation and protects it before you share it. See the Info section below.
 - **Save** and **Save As** save the file, and the screen closes when they are done. See [Open and save presentations](open-save).
 - **Print** is the Print page, with a preview. See [Print, PDF, and slide pictures](printing).
-- **Export** has **Export to PDF** and **Export Slide as Picture**. See [Print, PDF, and slide pictures](printing).
+- **Export** has **Export to PDF**, **Export Slide as Picture**, and **Make an Email**. See [Print, PDF, and slide pictures](printing).
 - **Close** closes the presentation's window. JeffDeck asks first whether to save changes.
 
 ## Info

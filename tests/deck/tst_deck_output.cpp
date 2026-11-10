@@ -1010,6 +1010,64 @@ private Q_SLOTS:
         QVERIFY(kept.contains("GTS_PDFA1") || kept.contains("OutputIntent"));
     }
 
+    // Make an Email puts the presentation in a message file (.eml) as a .pptx attachment, or a PDF of it; a presentation with a password is attached with the password on it.
+    void anEmailHasThePresentationAttached()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString eml = dir.filePath(QStringLiteral("mail.eml"));
+        auto attachmentOf = [&](const char *type) {
+            const QByteArray mail = fileBytes(eml);
+            const qsizetype at = mail.indexOf(type);
+            if (at < 0) return QByteArray();
+            const qsizetype body = mail.indexOf("\r\n\r\n", at);
+            qsizetype end = mail.indexOf("\r\n--", body + 4);
+            if (end < 0) end = mail.size();
+            return QByteArray::fromBase64(mail.mid(body + 4, end - body - 4), QByteArray::Base64Encoding | QByteArray::IgnoreBase64DecodingErrors);
+        };
+        {
+            DeckWindow w;
+            w.newSlide();
+            w.setSavePathChooser([&](const QString &, const QString &) { return eml; });
+            QVERIFY(w.exportEmail(DeckWindow::EmailWhat::Presentation));
+            QVERIFY(fileBytes(eml).contains("filename=\"Presentation1.pptx\""));
+            QString err;
+            auto back = deck::importPresentation(attachmentOf("presentationml.presentation"), &err);
+            QVERIFY2(back, qPrintable(err));
+            QCOMPARE(int(back->pages.size()), 2);
+            QVERIFY(w.exportEmail(DeckWindow::EmailWhat::Pdf));
+            QVERIFY(attachmentOf("application/pdf").startsWith("%PDF"));
+        }
+        // A presentation with a password is attached with the password on it: the attachment is the protected package, and opens with the password only.
+        {
+            auto d = deck::newPresentation();
+            office::EncryptOptions quick;
+            quick.spinCount = 50;
+            const QString protectedPath = dir.filePath(QStringLiteral("locked.pptx"));
+            {
+                QFile f(protectedPath);
+                QVERIFY(f.open(QIODevice::WriteOnly));
+                f.write(office::encryptPackage(deck::exportPresentation(*d), QStringLiteral("hunter2"), quick));
+            }
+            setOpenPasswordStandIn([](const QString &, bool, QString *given) {
+                *given = QStringLiteral("hunter2");
+                return true;
+            });
+            const auto reset = qScopeGuard([] { setOpenPasswordStandIn(nullptr); });
+            DeckWindow w;
+            QVERIFY(w.openFile(protectedPath));
+            QVERIFY(w.isPasswordProtected());
+            w.setSavePathChooser([&](const QString &, const QString &) { return eml; });
+            QVERIFY(w.exportEmail(DeckWindow::EmailWhat::Presentation));
+            const QByteArray attached = attachmentOf("presentationml.presentation");
+            QByteArray info, package, zip;
+            QVERIFY2(office::splitProtectedPackage(attached, &info, &package), "the attachment is not protected");
+            QVERIFY(office::decryptPackage(info, package, QStringLiteral("wrong"), 1 << 28, false, &zip) != office::CryptResult::Ok);
+            QVERIFY(office::decryptPackage(info, package, QStringLiteral("hunter2"), 1 << 28, false, &zip) == office::CryptResult::Ok);
+            QVERIFY(deck::importPresentation(zip) != nullptr);
+        }
+    }
+
     // Export slide as picture saves the slide being edited, 1920 pixels across,
     // as the kind of picture the name asks for.
     void windowExportsSlidePicture()

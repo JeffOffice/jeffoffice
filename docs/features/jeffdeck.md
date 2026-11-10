@@ -107,7 +107,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [~] **1.0** PDF extras: bookmarks for each slide title, tags for screen readers, and PDF/A *(PDF/A-1b is in the Export to PDF box; bookmarks and tags are not yet)* *(shared: JeffPub's PDF export)*
 - [x] **1.0** PDF with a password *(Export to PDF > Encrypt with a password… asks for a password to open the PDF and, if wanted, a second to limit printing, copying, and changing; AES-256, and the plain PDF is never written to disk; shared: libs/base/io/pdfcrypt.h)*
 - [ ] **later** Package the presentation: copy it with its linked movies and sounds and its fonts to a folder or `.zip` (the original packs a CD)
-- [ ] **1.0** **(alt)** Email: a ready-to-send `.eml` with the presentation, or a PDF, attached, instead of sending through an online account *(shared: JeffPub's .eml export)*
+- [x] **1.0** **(alt)** Email: a ready-to-send `.eml` with the presentation, or a PDF, attached, instead of sending through an online account *(shared: JeffPub's .eml export)*
 - [ ] **later** Create handouts in a word processor file (`.docx`, `.odt`) once JeffWrite exists
 - [ ] **later** Save as a single-file web page, and an outline as `.rtf` or Markdown
 

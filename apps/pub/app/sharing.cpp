@@ -2,6 +2,7 @@
 // and templates.
 
 #include "core/fonts.h"
+#include "app/emailops.h"
 #include "app/appfuncs.h"
 #include "app/editor.h"
 #include "app/mainwindow.h"
@@ -27,32 +28,12 @@
 
 namespace jp {
 
-// A mail header value: one line (a line break would start a header of its
-// own), with anything beyond ASCII encoded as mail headers require (RFC 2047).
-QString emlHeaderText(const QString &s)
-{
-    QString one = s;
-    one.replace(QLatin1Char('\r'), QLatin1Char(' ')).replace(QLatin1Char('\n'), QLatin1Char(' ')).replace(QLatin1Char('"'), QLatin1Char('\''));
-    for (QChar c : one)
-        if (c.unicode() >= 0x80 || c.unicode() < 0x20)
-            return QStringLiteral("=?UTF-8?B?") + QString::fromLatin1(one.toUtf8().toBase64()) + QStringLiteral("?=");
-    return one;
-}
-
-static QString emlEncode(const QByteArray &data)
-{
-    QString out;
-    const QByteArray b64 = data.toBase64();
-    for (int i = 0; i < b64.size(); i += 76) out += QString::fromLatin1(b64.mid(i, 76)) + "\r\n";
-    return out;
-}
-
-static bool saveEml(QWidget *parent, const QString &name, const QString &body)
+static bool saveEml(QWidget *parent, const QString &name, const QByteArray &message)
 {
     const QString path = askSavePath(parent, QCoreApplication::translate("Sharing", "Save Email"), name + ".eml", QCoreApplication::translate("Sharing", "Email Message (*.eml)"));
     if (path.isEmpty()) return false;
     QFile f(path);
-    if (f.open(QIODevice::WriteOnly)) f.write(body.toUtf8());
+    if (f.open(QIODevice::WriteOnly)) f.write(message);
     jp::plainInformation(parent, QCoreApplication::translate("Sharing", "Email"), QCoreApplication::translate("Sharing", "Saved %1.\nOpen it in your email program, add recipients and send.").arg(QFileInfo(path).fileName()));
     return true;
 }
@@ -68,9 +49,8 @@ void emailCurrentPage(QWidget *parent, Editor *ed)
     QBuffer b(&png);
     b.open(QIODevice::WriteOnly);
     img.save(&b, "PNG");
-    QString eml = QStringLiteral("Subject: %1\r\nX-Unsent: 1\r\nMIME-Version: 1.0\r\nContent-Type: multipart/related; boundary=\"jp79\"\r\n\r\n").arg(emlHeaderText(ed->displayName()));
-    eml += "--jp79\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><body><img src=\"cid:page\" alt=\"\"></body></html>\r\n";
-    eml += "--jp79\r\nContent-Type: image/png\r\nContent-Transfer-Encoding: base64\r\nContent-ID: <page>\r\n\r\n" + emlEncode(png) + "--jp79--\r\n";
+    const QByteArray eml = write::emailMessage(ed->displayName(), QString(), {}, QStringLiteral("<html><body><img src=\"cid:page\" alt=\"\"></body></html>"),
+                                               {{QStringLiteral("page.png"), QStringLiteral("image/png"), png, QStringLiteral("page")}});
     saveEml(parent, ed->displayName(), eml);
 }
 
@@ -104,10 +84,7 @@ bool emailAsAttachment(QWidget *parent, Editor *ed, const QString &format, const
         fileName = ed->displayName() + ".jpub";
         mime = "application/x-jeffpub";
     }
-    QString eml = QStringLiteral("Subject: %1\r\nX-Unsent: 1\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"jp79\"\r\n\r\n").arg(emlHeaderText(ed->displayName()));
-    eml += "--jp79\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n" + QStringLiteral("Attached: %1").arg(fileName) + "\r\n";
-    eml += QStringLiteral("--jp79\r\nContent-Type: %1; name=\"%2\"\r\nContent-Disposition: attachment; filename=\"%2\"\r\nContent-Transfer-Encoding: base64\r\n\r\n").arg(mime, emlHeaderText(fileName));
-    eml += emlEncode(data) + "--jp79--\r\n";
+    const QByteArray eml = write::emailMessage(ed->displayName(), QStringLiteral("Attached: %1").arg(fileName), {{fileName, mime, data, QString()}});
     return saveEml(parent, ed->displayName(), eml);
 }
 

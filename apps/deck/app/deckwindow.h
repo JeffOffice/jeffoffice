@@ -334,6 +334,12 @@ public:
     void setPrinterPreparer(const std::function<void(QPrinter &)> &preparer) { m_printerPreparer = preparer; }
     bool exportPdf();
     bool exportPicture();
+    // Make an Email: a message as a .eml file (asking where to put it) with the presentation, or the presentation as a PDF; the person opens it in an email program. Nothing is sent.
+    enum class EmailWhat { Presentation, Pdf };
+    // `protect`: a password for the PDF of the Pdf form (the presentation as a file keeps the password the presentation has)
+    bool exportEmail(EmailWhat what, const PdfProtection &protect = PdfProtection());
+    // Asks which of the two, then makes the message as exportEmail does.
+    bool exportEmailAsk(const PdfProtection &fromPage = PdfProtection());
 
     // JeffDeck's Help (F1 and the ribbon's "?"): the Help pane on the right,
     // on `topic` ("" for the topic of what is being done, else the contents);
@@ -435,13 +441,13 @@ private:
     HelpWindow *showHelpOver(const QString &topic);
 
     Editor *m_ed = nullptr;
+    QPointer<PageAccessibilityPane> m_accessPane;
     DeckCanvas *m_canvas = nullptr;
     Ribbon *m_ribbon = nullptr;
     SlidesPane *m_slides = nullptr;
     NotesPane *m_notes = nullptr;
     CommentsPane *m_comments = nullptr;
     DeckFileScreen *m_fileScreen = nullptr;
-    QPointer<PageAccessibilityPane> m_accessPane;
     QSplitter *m_split = nullptr, *m_rightSplit = nullptr, *m_commentSplit = nullptr;   // the last: the slide and the Comments pane
     QStackedWidget *m_views = nullptr;   // the split, and the Slide Sorter
     SlideSorter *m_sorter = nullptr;

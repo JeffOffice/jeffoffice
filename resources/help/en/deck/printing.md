@@ -32,6 +32,10 @@ The PDF has real text, with the fonts inside it, so it looks the same on every c
 
 Check **PDF/A, for keeping for a long time** to make a PDF/A-1b file. Every font is inside the file, and transparent effects are flattened, so the slides look the same in years. It is not tagged for screen readers. A PDF with a password can't be a PDF/A file, so choosing a password turns PDF/A off.
 
+## Send a presentation by email
+
+Click **File > Export > Make an Email**. Choose the presentation as a file, or as a PDF. JeffDeck makes a message file (.eml) with it attached and asks where to save it. Nothing is sent. Open the file in your email program, add who it is for, and send it. A presentation that has a password is attached with the password still on it. A PDF can have a password of its own.
+
 ## Protect a PDF with a password
 
 In the **Export to PDF** window, click **Encrypt with a password…**. Type the password twice. Anyone who opens the PDF then has to type it. The password really protects the file: the pages are scrambled with strong encryption (AES-256), and nobody can read them without it.

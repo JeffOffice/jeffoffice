@@ -1,6 +1,7 @@
 // JeffPub's tests of SVG, ebook, and other output, barcodes, and metafiles.
 #include "pubhelpers.h"
 #include "core/svg.h"
+#include "app/emailops.h"
 #include <QPaintEngine>
 #include <QPdfWriter>
 #include <QPrinter>
@@ -159,15 +160,24 @@ private Q_SLOTS:
         QVERIFY(QString::fromUtf8(zip.value(QStringLiteral("OEBPS/content.opf"))).contains(QStringLiteral("<dc:title>Growth 100%3 of %4 plans</dc:title>")));
     }
 
-    // A publication's name goes into an email's headers: a line break must
+    // A publication's name goes into an email's headers (the shared message maker writes them): a line break must
     // not start a header of its own, and accented names are encoded.
     void emailHeaderNames()
     {
-        QCOMPARE(jp::emlHeaderText(QStringLiteral("Spring Flyer")), QStringLiteral("Spring Flyer"));
-        const QString forged = jp::emlHeaderText(QStringLiteral("Flyer\r\nBcc: someone@example.com"));
-        QVERIFY(!forged.contains(QLatin1Char('\n')) && !forged.contains(QLatin1Char('\r')));
-        QVERIFY(!jp::emlHeaderText(QStringLiteral("say \"hi\"")).contains(QLatin1Char('"')));
-        const QString accented = jp::emlHeaderText(QStringLiteral("Café menu"));
+        auto subjectOf = [](const QString &name) {
+            const QByteArray mail = jp::write::emailMessage(name, QStringLiteral("Attached"), {});
+            const QByteArray head = mail.left(mail.indexOf("\r\n\r\n"));
+            QStringList subjects;
+            for (const QByteArray &line : head.split('\n'))
+                if (line.startsWith("Subject: ")) subjects << QString::fromLatin1(line.mid(9)).trimmed();
+            return QPair<QStringList, QByteArray>(subjects, head);
+        };
+        QCOMPARE(subjectOf(QStringLiteral("Spring Flyer")).first, QStringList{QStringLiteral("Spring Flyer")});
+        const auto forged = subjectOf(QStringLiteral("Flyer\r\nBcc: someone@example.com"));
+        QCOMPARE(forged.first.size(), 1);
+        QVERIFY(!forged.second.contains("\nBcc:"));
+        QVERIFY(!subjectOf(QStringLiteral("say \"hi\"")).first.value(0).contains(QLatin1Char('"')));
+        const QString accented = subjectOf(QStringLiteral("Café menu")).first.value(0);
         QVERIFY(accented.startsWith(QLatin1String("=?UTF-8?B?")));
         QCOMPARE(QString::fromUtf8(QByteArray::fromBase64(accented.mid(10).chopped(2).toLatin1())), QStringLiteral("Café menu"));
     }

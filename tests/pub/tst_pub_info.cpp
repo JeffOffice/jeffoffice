@@ -739,7 +739,7 @@ private Q_SLOTS:
         const QByteArray mail = fileBytes(eml);
         const qsizetype from = mail.indexOf("base64\r\n\r\n");
         QVERIFY(from > 0);
-        const qsizetype to = mail.indexOf("--jp79--", from);
+        const qsizetype to = mail.indexOf("\r\n--jo-", from);
         opensWith(QByteArray::fromBase64(mail.mid(from + 10, to - from - 10)), "email");
         w.editor()->markSaved();
     }
