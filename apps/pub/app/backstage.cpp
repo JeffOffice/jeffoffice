@@ -7,6 +7,7 @@
 #include "app/dialogs.h"
 #include "app/aboutpage.h"
 #include "app/filescreenparts.h"
+#include "app/printpage.h"
 #include "app/printsides.h"
 #include "app/filetasks.h"
 #include "app/icons.h"
@@ -33,6 +34,7 @@
 #include <QAbstractButton>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QTimer>
 #include <QCryptographicHash>
@@ -54,6 +56,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSpinBox>
+#include <QStandardItemModel>
 #include <QStandardPaths>
 #include <QStyleHints>
 #include <QToolButton>
@@ -671,8 +674,7 @@ QWidget *Backstage::buildPrint()
     h->setContentsMargins(40, 30, 40, 30);
     auto *left = new QVBoxLayout();
     left->addWidget(heading(tr("Print"), w));
-    auto *copies = new QSpinBox(w);
-    copies->setRange(1, 999);
+    QSpinBox *copies = makeCopiesBox(w);
     auto *printBtn = new QPushButton(tr("Print"), w);
     printBtn->setProperty("primary", true);
     printBtn->setMinimumHeight(40);
@@ -680,17 +682,19 @@ QWidget *Backstage::buildPrint()
     printBtn->setCursor(Qt::PointingHandCursor);
     auto *top = new QHBoxLayout();
     top->addWidget(printBtn);
+    top->addSpacing(12);
     top->addWidget(new QLabel(tr("Copies:"), w));
     top->addWidget(copies);
     left->addLayout(top);
     auto *form = new QFormLayout();
-    auto *printer = new QComboBox(w);
-    for (const QPrinterInfo &pi : QPrinterInfo::availablePrinters()) printer->addItem(pi.printerName());
-    printer->addItem(tr("Save as PDF"), QStringLiteral("pdf"));
-    if (!QPrinterInfo::defaultPrinter().isNull()) printer->setCurrentText(QPrinterInfo::defaultPrinter().printerName());
+    QComboBox *printer = makePrinterBox(w);
+    QCheckBox *collate = makeCollateBox(w, tr("Print each copy of all the pages in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
     auto *range = new QComboBox(w);
-    range->addItems({tr("Print All Pages"), tr("Print Current Page"), tr("Custom Print")});
+    range->setObjectName(QStringLiteral("printRange"));
+    range->addItems({tr("Print All Pages"), tr("Print Current Page"), tr("Print Selection"), tr("Custom Print")});
+    range->setItemData(2, tr("Print only the objects that are selected, in their places on the current page."), Qt::ToolTipRole);
     auto *pages = new QLineEdit(w);
+    pages->setObjectName(QStringLiteral("printPages"));
     pages->setPlaceholderText(tr("e.g. 1-3, 5"));
     auto *layout = new QComboBox(w);
     layout->addItems({tr("One page per sheet"), tr("Multiple pages per sheet"), tr("Multiple copies per sheet"), tr("Booklet, side-fold"), tr("Booklet, top-fold"),
@@ -703,7 +707,9 @@ QWidget *Backstage::buildPrint()
     auto *sides = new QComboBox(w);
     sides->setObjectName(QStringLiteral("printSides"));
     fillSidesBox(sides, true, Settings::get().value(QStringLiteral("print/sides"), int(SidesChoice::OneSide)).toInt());   // (the words the other apps' Print pages use)
+    QCheckBox *reverse = makeReverseBox(w);
     auto *color = new QComboBox(w);
+    color->setObjectName(QStringLiteral("printColor"));
     color->addItems({tr("Composite RGB"), tr("Composite grayscale"), tr("Separations (CMYK plates)")});
     // Printer's marks: they print outside the page, so they need paper larger
     // than the publication.
@@ -749,11 +755,13 @@ QWidget *Backstage::buildPrint()
     auto *merged = new QCheckBox(tr("Print all mail merge records"), w);
     merged->setEnabled(!d->merge.isEmpty());
     form->addRow(tr("Printer:"), printer);
+    form->addRow(QString(), collate);
     form->addRow(tr("Settings:"), range);
     form->addRow(tr("Pages:"), pages);
     form->addRow(tr("Layout:"), layout);
     form->addRow(tr("Paper:"), paper);
     form->addRow(tr("Sides:"), sides);
+    form->addRow(QString(), reverse);
     form->addRow(tr("Color:"), color);
     form->addRow(tr("Plates:"), plates);
     form->addRow(tr("Marks:"), marksBox);
@@ -766,7 +774,7 @@ QWidget *Backstage::buildPrint()
 
     // Preview with page navigation.
     auto *right = new QVBoxLayout();
-    auto *preview = new QLabel(w);
+    auto *preview = new PreviewLabel(w);
     preview->setObjectName(QStringLiteral("printPreview"));
     preview->setMinimumSize(420, 520);
     preview->setAlignment(Qt::AlignCenter);
@@ -781,7 +789,18 @@ QWidget *Backstage::buildPrint()
     nav->addWidget(pageLabel);
     nav->addWidget(next);
     nav->addStretch(1);
-    right->addWidget(preview, 1);
+    QComboBox *zoom = makeZoomBox(w);
+    auto *look = new QHBoxLayout();
+    look->addStretch(1);
+    look->addWidget(new QLabel(tr("Zoom:"), w));
+    look->addWidget(zoom);
+    auto *scroll = new QScrollArea(w);
+    scroll->setObjectName(QStringLiteral("printPreviewScroll"));
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setWidgetResizable(true);
+    scroll->setWidget(preview);
+    right->addLayout(look);
+    right->addWidget(scroll, 1);
     right->addLayout(nav);
     auto *showRulers = new QCheckBox(tr("Show rulers"), w);
     auto *showNumbers = new QCheckBox(tr("Show page numbers"), w);
@@ -804,13 +823,14 @@ QWidget *Backstage::buildPrint()
         ctx.opt.output = true;
         ctx.opt.mergeRecord = ed->mergeRecord();
         const QSizeF ps = d->pageSize();
+        const double zoomBy = zoomFactor(zoom);
         double scale = 1;                        // preview pixels per point
         QVector<QPair<QRectF, int>> numbered;    // page areas on the preview and their numbers
         if (booklet) {
             const auto order = bookletOrder(d->pages.size());
             *state = std::clamp(*state, 0, int(order.size()) - 1);
             const auto side = order[*state];
-            const double s = 240.0 / std::max(ps.width(), ps.height());
+            const double s = 240.0 * zoomBy / std::max(ps.width(), ps.height());
             const QSizeF sheetSz = topFold ? QSizeF(ps.width(), ps.height() * 2) : QSizeF(ps.width() * 2, ps.height());
             img = QImage((sheetSz * s).toSize(), QImage::Format_ARGB32_Premultiplied);
             img.fill(Qt::white);
@@ -829,7 +849,7 @@ QWidget *Backstage::buildPrint()
             pageLabel->setText(tr("Sheet %1 %2 of %3").arg(*state / 2 + 1).arg(*state % 2 ? tr("(back)") : tr("(front)")).arg(order.size() / 2));
         } else {
             *state = std::clamp(*state, 0, int(d->pages.size()) - 1);
-            scale = 500.0 / std::max(ps.width(), ps.height());
+            scale = 500.0 * zoomBy / std::max(ps.width(), ps.height());
             img = Renderer::renderToImage(ctx, *state, scale);
             numbered << qMakePair(QRectF(QPointF(0, 0), ps * scale), *state + 1);
             // Two-sided printing: say which side of which sheet this page lands on.
@@ -898,9 +918,14 @@ QWidget *Backstage::buildPrint()
             p.end();
             img = framed;
         }
-        preview->setPixmap(paperPixmap(img, preview->size(), preview->devicePixelRatioF()));
+        // The page that fits the window, or larger (the preview scrolls then).
+        const QSize room = scroll->viewport()->size() - QSize(4, 4);
+        const QSize box(std::max(280, int(room.width() * zoomBy)), std::max(280, int(room.height() * zoomBy)));
+        preview->setPixmap(paperPixmap(img, box, preview->devicePixelRatioF()));
     };
     for (QCheckBox *b : {showRulers, showNumbers}) connect(b, &QCheckBox::toggled, w, [=] { render(); });
+    connect(zoom, &QComboBox::currentIndexChanged, w, [=] { render(); });
+    connect(reverse, &QCheckBox::toggled, w, [=] { render(); });
     connect(prev, &QToolButton::clicked, w, [=] { --*state; render(); });
     connect(next, &QToolButton::clicked, w, [=] { ++*state; render(); });
     connect(layout, &QComboBox::currentIndexChanged, w, [=] { *state = 0; render(); });
@@ -911,23 +936,39 @@ QWidget *Backstage::buildPrint()
     });
     // (a printer that can't print on both sides, and a PDF file that has no sides, turn the choice off)
     auto fitSides = [=]() {
-        const bool toFile = printer->currentData().toString() == QLatin1String("pdf");
-        updateSidesBox(sides, toFile ? QString() : printer->currentText(), toFile);
+        const PrinterChoice chosen = printerChoice(printer);
+        updateSidesBox(sides, chosen.printer, chosen.toFile);
+        // (by hand, the order of the pages is set by the program)
+        reverse->setEnabled(!sidesByHand(sides));
     };
     fitSides();
     connect(printer, &QComboBox::currentIndexChanged, w, [=] { fitSides(); });
+    connect(sides, &QComboBox::currentIndexChanged, w, [=] { fitSides(); });
+    // Copies come out a set at a time or a page at a time only when there are copies; a selection can be printed only while there is one.
+    auto fitCopies = [=]() {
+        collate->setEnabled(copies->value() > 1);
+        const bool hasSelection = !ed->selection().isEmpty();
+        if (auto *model = qobject_cast<QStandardItemModel *>(range->model())) model->item(2)->setEnabled(hasSelection);
+        if (!hasSelection && range->currentIndex() == 2) range->setCurrentIndex(0);
+    };
+    fitCopies();
+    connect(copies, &QSpinBox::valueChanged, w, [=] { fitCopies(); });
+    connect(range, &QComboBox::currentIndexChanged, w, [=] { fitCopies(); });
+    preview->resized = [=] { QTimer::singleShot(30, w, render); };
     for (QCheckBox *b : plateBoxes) connect(b, &QCheckBox::toggled, w, [=] { render(); });
     QTimer::singleShot(0, w, render);
     auto setup = [=](QPrinter &p) {
-        if (printer->currentData().toString() == QLatin1String("pdf")) {
+        const PrinterChoice chosen = printerChoice(printer);
+        if (chosen.toFile) {
             const QString f = askSavePath(this, tr("Save as PDF"), m_win->editor()->displayName() + ".pdf", tr("PDF (*.pdf)"));
             if (f.isEmpty()) return false;
             p.setOutputFormat(QPrinter::PdfFormat);
             p.setOutputFileName(f);
         } else {
-            p.setPrinterName(printer->currentText());
+            p.setPrinterName(chosen.printer);
         }
         p.setCopyCount(copies->value());
+        p.setCollateCopies(collate->isChecked());
         const int pp = paper->currentIndex();   // Letter, Legal, Tabloid, A4, A3, Same as publication
         if (pp == 5) p.setPageSize(QPageSize(d->pageSize(), QPageSize::Point));
         else p.setPageSize(QPageSize(pp == 0 ? QPageSize::Letter : pp == 1 ? QPageSize::Legal : pp == 2 ? QPageSize::Tabloid : pp == 3 ? QPageSize::A4 : QPageSize::A3));
@@ -937,8 +978,8 @@ QWidget *Backstage::buildPrint()
         setPrinterDuplex(&p, sidesDuplex(sides));
         p.setColorMode(color->currentIndex() == 1 ? QPrinter::GrayScale : QPrinter::Color);
         p.setFullPage(true);
-        if (range->currentIndex() == 1) p.setPrintRange(QPrinter::CurrentPage);
-        else if (range->currentIndex() == 2) {
+        if (range->currentIndex() == 1 || range->currentIndex() == 2) p.setPrintRange(QPrinter::CurrentPage);
+        else if (range->currentIndex() == 3) {
             // The printer keeps the span from the first to the last page named
             // (for its own dialog); printing takes the list itself ("pages").
             const QVector<int> list = parsePageList(pages->text(), int(d->pages.size()));
@@ -961,7 +1002,12 @@ QWidget *Backstage::buildPrint()
         QJsonObject opts;
         const int li = layout->currentIndex();
         opts["layout"] = li == 0 ? "one" : li == 1 ? "multiple" : li == 2 ? "multiple" : li == 3 ? "booklet" : li == 4 ? "bookletTop" : "tiled";
-        if (range->currentIndex() == 2) opts["pages"] = pages->text();
+        if (range->currentIndex() == 3) opts["pages"] = pages->text();
+        if (range->currentIndex() == 2) opts["selection"] = QJsonArray::fromStringList(ed->selection());
+        // A printer that can't make copies is sent the sheets again (the copies of a PDF file are not made).
+        opts["copies"] = !printerChoice(printer).toFile && !p.supportsMultipleCopies() ? copies->value() : 1;
+        opts["collate"] = collate->isChecked();
+        opts["reverse"] = reverse->isChecked() && !sidesByHand(sides);
         opts["copiesPerSheet"] = li == 2;
         opts["cropMarks"] = marks->isChecked();
         opts["bleedMarks"] = bleedMarks->isChecked();

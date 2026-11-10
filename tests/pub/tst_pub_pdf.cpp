@@ -1,7 +1,12 @@
 // JeffPub's tests of PDF output, printing, and the print shop's files.
 #include "pubhelpers.h"
+#include "app/filedialogs.h"
 #include "app/printsides.h"
+#include "render/pdfpage.h"
+#include <QScrollArea>
+#include <QSpinBox>
 #include "io/importers.h"
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QPrinter>
 #include <QScopeGuard>
@@ -186,6 +191,225 @@ private Q_SLOTS:
         QVERIFY(jp::printDocumentByHand(&ed, &printer, one, nullptr));
         QVERIFY(order.isEmpty());
         QCOMPARE(pagesIn(file), 1);
+    }
+
+    // A publication of `pages` pages, each with a text box that says its number ("Pageword1"), and a second box ("Sideword1") on the first page.
+    static std::unique_ptr<jp::Document> numberedPages(int pages, QStringList *firstPageIds = nullptr)
+    {
+        auto doc = jp::Document::blank(QSizeF(396, 612));
+        while (int(doc->pages.size()) < pages) doc->pages.push_back(std::make_shared<jp::Page>());
+        for (int i = 0; i < pages; ++i) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(36, 36, 300, 60);
+            t->storyId = doc->createStory(QStringLiteral("Pageword%1").arg(i + 1));
+            doc->pages[i]->items.push_back(t);
+            if (i == 0) {
+                if (firstPageIds) *firstPageIds << t->id;
+                auto side = std::make_shared<jp::TextItem>();
+                side->rect = QRectF(36, 200, 300, 60);
+                side->storyId = doc->createStory(QStringLiteral("Sideword1"));
+                doc->pages[i]->items.push_back(side);
+                if (firstPageIds) *firstPageIds << side->id;
+            }
+        }
+        return doc;
+    }
+
+    static QStringList textsOfPdf(const QByteArray &bytes)
+    {
+        const PdfDocument pdf(bytes);
+        QStringList out;
+        for (int i = 0; pdf.isValid() && i < pdf.pageCount(); ++i) out << pdf.text(i);
+        return out;
+    }
+
+    static QByteArray bytesOf(const QString &path)
+    {
+        QFile f(path);
+        return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+    }
+
+    // Copies: the job is sent again for each copy, a set at a time (collated: 1 2 3 1 2 3) or a page at a time (1 1 2 2 3 3); no copies asked for is one.
+    void printCopiesComeOutCollatedOrNot()
+    {
+        QTemporaryDir dir;
+        jp::Editor ed;
+        ed.setDocument(numberedPages(3));
+        auto run = [&](QJsonObject opts, QVector<int> *pages) {
+            QPrinter printer;
+            printer.setOutputFormat(QPrinter::PdfFormat);
+            const QString file = dir.filePath(QStringLiteral("c.pdf"));
+            printer.setOutputFileName(file);
+            jp::PrintReport report;
+            jp::printDocument(&ed, &printer, opts, &report);
+            *pages = report.pages;
+            return textsOfPdf(bytesOf(file));
+        };
+        QVector<int> pages;
+        QCOMPARE(run(QJsonObject(), &pages).size(), 3);
+        QCOMPARE(pages, (QVector<int>{0, 1, 2}));
+        QJsonObject twice;
+        twice["copies"] = 2;
+        twice["collate"] = true;
+        QStringList texts = run(twice, &pages);
+        QCOMPARE(pages, (QVector<int>{0, 1, 2, 0, 1, 2}));
+        QCOMPARE(texts.size(), 6);
+        QVERIFY(texts[3].contains(QStringLiteral("Pageword1")) && texts[4].contains(QStringLiteral("Pageword2")));
+        twice["collate"] = false;
+        texts = run(twice, &pages);
+        QCOMPARE(pages, (QVector<int>{0, 0, 1, 1, 2, 2}));
+        QCOMPARE(texts.size(), 6);
+        QVERIFY(texts[1].contains(QStringLiteral("Pageword1")) && texts[2].contains(QStringLiteral("Pageword2")));
+    }
+
+    // Last page first: the sheets come out in reverse (a page to a sheet, the sheets of a booklet, and the copies of the job each so).
+    void printLastPageFirstReversesTheSheets()
+    {
+        QTemporaryDir dir;
+        jp::Editor ed;
+        ed.setDocument(numberedPages(4));
+        auto run = [&](QJsonObject opts, jp::PrintReport *report) {
+            QPrinter printer;
+            printer.setOutputFormat(QPrinter::PdfFormat);
+            const QString file = dir.filePath(QStringLiteral("r.pdf"));
+            printer.setOutputFileName(file);
+            jp::printDocument(&ed, &printer, opts, report);
+            return textsOfPdf(bytesOf(file));
+        };
+        jp::PrintReport report;
+        QJsonObject opts;
+        opts["reverse"] = true;
+        QStringList texts = run(opts, &report);
+        QCOMPARE(report.pages, (QVector<int>{3, 2, 1, 0}));
+        QCOMPARE(texts.size(), 4);
+        QVERIFY(texts[0].contains(QStringLiteral("Pageword4")) && texts[3].contains(QStringLiteral("Pageword1")));
+        opts["pages"] = "2-3";
+        report = jp::PrintReport();
+        run(opts, &report);
+        QCOMPARE(report.pages, (QVector<int>{2, 1}));
+        opts["copies"] = 2;
+        report = jp::PrintReport();
+        run(opts, &report);
+        QCOMPARE(report.pages, (QVector<int>{2, 1, 2, 1}));
+        // a booklet: the same sheets, last first
+        QJsonObject booklet;
+        booklet["layout"] = "booklet";
+        jp::PrintReport forward;
+        run(booklet, &forward);
+        booklet["reverse"] = true;
+        jp::PrintReport backward;
+        run(booklet, &backward);
+        QVERIFY(forward.sheets.size() > 1);
+        QVector<int> turned = forward.sheets;
+        std::reverse(turned.begin(), turned.end());
+        QCOMPARE(backward.sheets, turned);
+    }
+
+    // The selection alone: of the page's objects, only the selected ones are drawn, in their places.
+    void printSelectionDrawsOnlyTheSelectedObjects()
+    {
+        QTemporaryDir dir;
+        QStringList ids;
+        jp::Editor ed;
+        ed.setDocument(numberedPages(2, &ids));
+        QPrinter printer;
+        printer.setOutputFormat(QPrinter::PdfFormat);
+        const QString file = dir.filePath(QStringLiteral("s.pdf"));
+        printer.setOutputFileName(file);
+        QJsonObject opts;
+        opts["pages"] = "1";
+        opts["selection"] = QJsonArray::fromStringList({ids[1]});   // (the second box on the page)
+        QVERIFY(jp::printDocument(&ed, &printer, opts) > 0);
+        const QStringList texts = textsOfPdf(bytesOf(file));
+        QCOMPARE(texts.size(), 1);
+        QVERIFY2(texts[0].contains(QStringLiteral("Sideword1")) && !texts[0].contains(QStringLiteral("Pageword1")), qPrintable(texts[0]));
+        // without the selection both are there
+        opts.remove("selection");
+        QVERIFY(jp::printDocument(&ed, &printer, opts) > 0);
+        const QStringList both = textsOfPdf(bytesOf(file));
+        QVERIFY(both[0].contains(QStringLiteral("Sideword1")) && both[0].contains(QStringLiteral("Pageword1")));
+    }
+
+    // The Print page: the printer, copies, collate, the range with its selection, last page first, and the zoom of the preview are there with the other apps' words, and what is
+    // chosen reaches the job.
+    void printPageOffersTheSameChoicesAsTheOtherApps()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        QStringList ids;
+        w.editor()->setDocument(numberedPages(3, &ids));
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        const QString target = dir.filePath(QStringLiteral("page.pdf"));
+        jp::setSavePathStandIn([&](const QString &, const QString &, const QString &, QString *) { return target; });
+        QJsonObject seen;
+        jp::PrintReport sent;
+        jp::setPrintObserver([&](const QJsonObject &opts, const jp::PrintReport &report) {
+            seen = opts;
+            sent = report;
+        });
+        const auto done = qScopeGuard([] {
+            jp::setSavePathStandIn(nullptr);
+            jp::setPrintObserver(nullptr);
+        });
+        auto openPrint = [&] {
+            w.showBackstage(QStringLiteral("print"));
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);   // (the page that was there is gone, so what is found is the new one)
+            auto *printer = w.findChild<QComboBox *>(QStringLiteral("printPrinter"));
+            if (printer) printer->setCurrentIndex(printer->count() - 1);   // (Save as PDF is the last)
+            return printer;
+        };
+        QComboBox *printer = openPrint();
+        QVERIFY(printer);
+        QCOMPARE(printer->itemText(printer->count() - 1), QStringLiteral("Save as PDF"));
+        auto *copies = w.findChild<QSpinBox *>(QStringLiteral("printCopies"));
+        auto *collate = w.findChild<QCheckBox *>(QStringLiteral("printCollate"));
+        auto *reverse = w.findChild<QCheckBox *>(QStringLiteral("printReverse"));
+        auto *range = w.findChild<QComboBox *>(QStringLiteral("printRange"));
+        auto *zoom = w.findChild<QComboBox *>(QStringLiteral("printZoom"));
+        QVERIFY(copies && collate && reverse && range && zoom);
+        QCOMPARE(collate->text(), QStringLiteral("Collated"));
+        QCOMPARE(reverse->text(), QStringLiteral("Last page first"));
+        QVERIFY(collate->isChecked() && !collate->isEnabled());   // (one copy has nothing to collate)
+        copies->setValue(2);
+        QVERIFY(collate->isEnabled());
+        // the selection can be printed only while there is one
+        QCOMPARE(range->itemText(2), QStringLiteral("Print Selection"));
+        QVERIFY(!range->model()->flags(range->model()->index(2, 0)).testFlag(Qt::ItemIsEnabled));
+        w.editor()->select(ids[1]);
+        w.hideBackstage();
+        QVERIFY(openPrint());
+        range = w.findChild<QComboBox *>(QStringLiteral("printRange"));
+        QVERIFY(range->model()->flags(range->model()->index(2, 0)).testFlag(Qt::ItemIsEnabled));
+        range->setCurrentIndex(2);
+        w.findChild<QCheckBox *>(QStringLiteral("printReverse"))->setChecked(true);
+        w.findChild<QSpinBox *>(QStringLiteral("printCopies"))->setValue(3);
+        w.findChild<QCheckBox *>(QStringLiteral("printCollate"))->setChecked(false);
+        // the preview's zoom: the page is shown larger, and scrolls
+        auto *preview = w.findChild<QLabel *>(QStringLiteral("printPreview"));
+        QTRY_VERIFY(!preview->pixmap().isNull());
+        const double fit = preview->pixmap().deviceIndependentSize().width();
+        auto *big = w.findChild<QComboBox *>(QStringLiteral("printZoom"));
+        big->setCurrentIndex(big->findData(200));
+        QTRY_VERIFY(preview->pixmap().deviceIndependentSize().width() > fit * 1.9);
+        big->setCurrentIndex(0);
+        QTRY_VERIFY(qAbs(preview->pixmap().deviceIndependentSize().width() - fit) < 2);
+        QPushButton *print = nullptr;
+        for (QPushButton *b : w.findChildren<QPushButton *>())
+            if (b->text() == QStringLiteral("Print") && b->property("primary").toBool()) print = b;
+        QVERIFY(print);
+        print->click();
+        // (a file is made once, whatever the copies; the rest is as it was chosen)
+        QCOMPARE(seen.value("copies").toInt(), 1);
+        QCOMPARE(seen.value("collate").toBool(), false);
+        QCOMPARE(seen.value("reverse").toBool(), true);
+        QCOMPARE(seen.value("selection").toArray().size(), 1);
+        QCOMPARE(seen.value("selection").toArray().at(0).toString(), ids[1]);
+        QCOMPARE(sent.pages, (QVector<int>{0}));
+        const QStringList texts = textsOfPdf(bytesOf(target));
+        QCOMPARE(texts.size(), 1);
+        QVERIFY(texts[0].contains(QStringLiteral("Sideword1")) && !texts[0].contains(QStringLiteral("Pageword1")));
     }
 
     // Both sides by hand goes by physical sheets in every layout: the first, third, ... sheets, then the others last first, and a front with no back gets a blank sheet.

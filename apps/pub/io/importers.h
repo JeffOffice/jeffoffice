@@ -9,6 +9,7 @@
 #include <QImage>
 #include <QPair>
 #include <QRectF>
+#include <functional>
 
 class QPainter;
 
@@ -41,7 +42,10 @@ std::unique_ptr<Document> loadAnyPublication(const QString &path, QString *error
 struct PrintReport {
     int all = 0;
     QVector<int> sheets;
+    QVector<int> pages;   // the pages drawn, in the order they were (a page that is on several sheets, or in several copies, is there each time)
 };
+// A test is told of every job (the options it was given, and what it sent) to see what the Print page asked of it; the program never sets it.
+void setPrintObserver(const std::function<void(const QJsonObject &, const PrintReport &)> &observer);
 int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintReport *report = nullptr);
 // Both sides by hand: the first run, a message to turn the stack over (left out for a job of one sheet), then the second run. False when the person gives it up at the
 // message or nothing was sent.

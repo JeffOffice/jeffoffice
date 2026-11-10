@@ -20,6 +20,7 @@
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QImageWriter>
+#include <QJsonArray>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -744,8 +745,24 @@ QVector<int> parsePageList(const QString &text, int pageCount)
     return out;
 }
 
+namespace {
+std::function<void(const QJsonObject &, const PrintReport &)> g_printObserver;
+}
+
+void setPrintObserver(const std::function<void(const QJsonObject &, const PrintReport &)> &observer) { g_printObserver = observer; }
+
 int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintReport *report)
 {
+    PrintReport own;
+    if (!report && g_printObserver) report = &own;
+    struct Told {
+        const QJsonObject &opts;
+        const PrintReport *report;
+        ~Told()
+        {
+            if (g_printObserver && report) g_printObserver(opts, *report);
+        }
+    } told{opts, report};
     Document *d = ed->doc();
     // A catalog prints its merged pages: a record in each cell.
     std::unique_ptr<Document> catalogPages;
@@ -788,6 +805,20 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
     struct Send {
         int record, sheet, id;   // the record (an index in `records`), its sheet (-1: blank), and the sheet's number in the whole job (-1: blank)
     };
+    // The last sheet first when asked for, and `copies` of the job sent, each set together (collated) or each sheet's copies together.
+    const bool reverse = opts.value("reverse").toBool();
+    const int copies = std::max(1, opts.value("copies").toInt(1));
+    const bool collate = opts.value("collate").toBool(true);
+    auto repeated = [&](const QVector<Send> &sends) {
+        QVector<Send> out;
+        if (collate) {
+            for (int c = 0; c < copies; ++c) out += sends;
+        } else {
+            for (const Send &send : sends)
+                for (int c = 0; c < copies; ++c) out.push_back(send);
+        }
+        return out;
+    };
     auto sheetsToSend = [&](int count) {
         QVector<Send> out;
         const int each = handRun.isEmpty() || records.size() < 2 ? count : count + count % 2;
@@ -795,7 +826,8 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
         if (handRun.isEmpty()) {
             for (int r = 0; r < records.size(); ++r)
                 for (int i = 0; i < count; ++i) out.push_back({r, i, r * count + i});
-            return out;
+            if (reverse) std::reverse(out.begin(), out.end());
+            return repeated(out);
         }
         QVector<int> everything;
         for (int g = 0; g < records.size() * each; ++g) everything << g;
@@ -804,7 +836,7 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
             if (g < 0 || g % each >= count) out.push_back({0, -1, -1});
             else out.push_back({g / each, g % each, g});
         }
-        return out;
+        return repeated(out);
     };
     int sent = 0;
     QPainter p;
@@ -817,6 +849,14 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
     ctx.opt.output = true;
     ctx.opt.textOutput = TextOutput::Print;
     ctx.opt.grayscale = opts.value("grayscale").toBool();
+    // The selection alone: only the objects named are drawn, in their places (the page's own objects; the master pages' stay).
+    if (opts.contains("selection")) {
+        QSet<QString> chosen;
+        for (const QJsonValue &id : opts.value("selection").toArray()) chosen.insert(id.toString());
+        ctx.around = [chosen](QPainter *painter, const Item &item, const std::function<void(QPainter *)> &draw) {
+            if (chosen.contains(item.id)) draw(painter);
+        };
+    }
     const QSizeF ps = d->pageSize();
     const QString title = ed->displayName();
     const QString stamp = QLocale().toString(QDateTime::currentDateTime(), QLocale::ShortFormat);
@@ -830,6 +870,7 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
     };
     auto drawPage = [&](int page, const QRectF &target) {
         if (page < 0) return;
+        if (report) report->pages << page;
         const double s = std::min(target.width() / ps.width(), target.height() / ps.height());
         const double bl = allowBleeds ? marks.bleedSize : 0;
         p.save();
@@ -942,6 +983,7 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
                 if (si < 0) continue;
                 ctx.opt.mergeRecord = records[send.record];
                 const Tile &t = tiles[si];
+                if (report) report->pages << t.page;
                 p.save();
                 p.scale(dev, dev);
                 p.translate(-t.x, -t.y);
