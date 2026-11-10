@@ -33,6 +33,7 @@ struct InfoHost {
     std::function<void(bool)> setMarkedFinal;
     std::function<bool()> hasPassword;
     std::function<void()> encrypt;   // asks for the password (the app does what follows)
+    std::function<QString()> encryptBlocked;   // why the file can't have a password ("" when it can); none: always
     std::function<void()> inspect;
     std::function<void()> protectSheet;       // none: no card
     std::function<void()> protectStructure;   // none: no card

@@ -405,7 +405,14 @@ QWidget *buildInfoPage(QWidget *parent, const InfoHost &h)
                            : kind == InfoHost::Kind::Publication  ? QCoreApplication::translate("jp::InfoPage", "Tell readers this publication is finished. It opens for reading only, with a note.")
                                                                   : QCoreApplication::translate("jp::InfoPage", "Tell readers this document is finished. It opens for reading only, with a note.")),
              [h, final] { h.setMarkedFinal(!final); });
-    if (h.encrypt) {
+    if (h.encrypt && h.encryptBlocked && !h.encryptBlocked().isEmpty()) {
+        const QString why = h.encryptBlocked();
+        auto *b = new ActionCard(QStringLiteral("lock"), QCoreApplication::translate("jp::InfoPage", "Encrypt with Password"), why, page);
+        b->setObjectName(QStringLiteral("infoEncrypt"));
+        b->setToolTip(why);
+        b->setEnabled(false);
+        left->addWidget(b);
+    } else if (h.encrypt) {
         const bool locked = h.hasPassword && h.hasPassword();
         card(QStringLiteral("infoEncrypt"), QStringLiteral("lock"), locked ? QCoreApplication::translate("jp::InfoPage", "Change or Remove the Password") : QCoreApplication::translate("jp::InfoPage", "Encrypt with Password"),
              locked ? QCoreApplication::translate("jp::InfoPage", "This file is protected: it asks for a password when it is opened. Change the password or take it away.")
