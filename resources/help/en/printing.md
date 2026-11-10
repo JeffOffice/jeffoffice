@@ -8,11 +8,11 @@ Printing happens on the **Print** page. You pick your settings on the left and c
 1. Press Ctrl+P, or click **File > Print**. The **quick toolbar** has a **Print** button too.
 2. Next to the **Print** button, set **Copies**.
 3. Choose a **Printer**. The list ends with **Save as PDF**, which makes a PDF file instead of paper. With more than one copy, **Collated** prints the whole set again for each copy (1, 2, 3, then 1, 2, 3), and with it off each page's copies come out together (1, 1, 2, 2, 3, 3). A PDF file is made once, whatever the number of copies.
-4. Under **Settings**, choose **Print All Pages**, **Print Current Page**, **Print Selection** (only the objects you selected, in their places on the current page; it is dimmed when nothing is selected), or **Custom Print**. For a custom print, type the pages in the **Pages** box: page numbers and ranges, with commas between them, such as 1-3, 5.
+4. Under **Settings**, choose **Print All Pages**, **Print Current Page**, **Print Selection** (only the objects you selected, in their places on the current page; an object in a group prints with its whole group, the master page's objects are left out, and the preview shows just what will print; it is dimmed when nothing is selected), or **Custom Print**. For a custom print, type the pages in the **Pages** box: page numbers and ranges, with commas between them, such as 1-3, 5.
 5. Choose the other settings you need. They are listed below.
 6. Click **Print**.
 
-Click **Printer Properties…** to open the system's print window, with your printer's own options.
+Click **Printer Properties…** to open the system's print window, with your printer's own options. What you choose there is kept for the job, and the copies, collating, and paper come back to this page. On both sides of the paper, **Last page first** keeps each front with its back.
 
 The preview on the right has arrows to move from page to page. Check **Show rulers** or **Show page numbers** to see those on the preview.
 
