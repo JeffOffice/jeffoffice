@@ -201,6 +201,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Zoom: zoom box, 100%, Whole Page, Page Width, Selected Objects, and Ctrl+mouse-wheel
 - [x] **1.0** Window: New Window, Arrange All, Cascade, Switch Windows
 - [x] **1.0** Collapse the Ribbon with Ctrl+F1, as well as with its chevron or a double-click on a tab
+- [x] **1.0** Full Screen (F11, View > Show): the window fills the screen; the same command puts it back, and so does Esc when nothing is selected or being typed in
 
 ## Help tab
 - [x] **1.0** Help (F1, or the "?" beside the ribbon's collapse button) **(alt: built in and working offline, instead of web pages)**: a Help pane of 51 topics in plain language, with a contents page, links between topics, Back and Forward, and a search that finds topics and also commands, which it runs; F1 opens the topic for what you're doing (the ribbon tab, the task pane, the File page, the dialog, or the selected object), over a dialog in a window of its own; the same topics are published to the project's GitHub wiki with every push to main (`JeffPub --export-help-wiki`, see docs/help-wiki.md)
@@ -419,7 +420,7 @@ What JeffPub is built on, what its work gave the other apps, and the pieces to b
 
 ### To build once, for several apps
 - [ ] **later** Move the rest of JeffPub's finished tools into libs/page and libs/shell: Find and Replace (a pane in apps/pub today), the crop tool's ribbon controls, and the paste choices *(needed by: JeffDeck, JeffPub, JeffWrite)*
-- [ ] **1.0** A Format pane and a Selection Pane, built once *(needed by: JeffDeck, JeffPub, JeffWrite; Publisher itself has the Format Object window and no Selection Pane)*
+- [~] **1.0** A Format pane and a Selection Pane, built once *(needed by: JeffDeck, JeffPub, JeffWrite; Publisher itself has the Format Object window and no Selection Pane; done November 10, 2026: the Selection Pane, in Arrange: the page's objects by name, the front one first, with a row to pick, a name typed in place, a box to hide or show, Show All and Hide All, and the buttons or a drag to reorder, each one step of Undo; names and hidden marks are kept in .jpub files, and a .pub file has no place for either. Not done: the Format pane as a shared pane)*
 - [ ] **later** Shape styles, picture styles, and text effects menus on the effects the engine already draws, which would give letters Reflection and Bevel *(needed by: JeffDeck, JeffPub, JeffWrite)*
 - [ ] **later** A table engine for every app, starting from JeffPub's tables (merged cells, borders, diagonals, sizes, and the Table Design and Table Layout tabs) *(needed by: JeffWrite, JeffMail, JeffCrunch, JeffDeck)*
 - [ ] **later** A merge-source library (CSV, tab-delimited, `.xlsx`, `.ods`, vCard, and later JeffBase tables and JeffCrunch ranges) with filter, sort, duplicate, and address checks, moved out of libs/page/core and apps/pub *(needed by: JeffPub, JeffWrite, JeffMail, JeffBase)*

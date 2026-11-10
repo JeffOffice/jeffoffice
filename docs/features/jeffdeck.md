@@ -178,7 +178,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** Connectors that stay attached: an end snaps to a connection site on a shape and follows it
 - [x] **1.0** Arrange: Bring to Front, Bring Forward, Send Backward, Send to Back, Group (Ctrl+Shift+G), Ungroup, Rotate Right 90, Rotate Left 90, Flip Horizontal, and Flip Vertical *(groups: ours 3 of 19)*
 - [~] **1.0** Align objects (left, center, right, top, middle, bottom, and distribute) *(the shared editor has align and distribute; JeffDeck's Arrange menu doesn't offer them)*
-- [ ] **1.0** Regroup, the Selection Pane (names, order, and hide, with a place to name an object so a Morph can pair it), and More Rotation Options
+- [~] **1.0** Regroup, the Selection Pane (names, order, and hide, with a place to name an object so a Morph can pair it), and More Rotation Options *(done November 10, 2026: Arrange > Selection Pane lists the slide's objects, the front one first; a row picks an object, a name typed in a row names it, its box hides or shows it, Show All and Hide All set every box, and the buttons or a drag move it in the order, each as one step of Undo; names and hidden marks are kept in .pptx and .odp files. Not done: Regroup and More Rotation Options)*
 - [x] **1.0** Shape Fill: theme colors, more colors, the eyedropper, and No Fill *(a solid color only: no gradient, picture, texture, or pattern fill, which the engine draws; gradients: ours 3 of 19, a picture fill 1, patterns 0)*
 - [x] **1.0** Shape Outline: color and No Outline *(no weight, dashes, or arrowheads, which are drawn; dashes: ours 2 of 19, arrowheads 3)*
 - [x] **1.0** Quick Styles for shapes and text boxes, drawn from the theme
@@ -191,7 +191,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** (needed to drop Preview) Replace (Ctrl+H), one match at a time or Replace All as one undo step that says how many it changed
 - [ ] **1.0** Replace Fonts
 - [x] **1.0** Select All (Ctrl+A) in an object, on a slide, and in the Slide Sorter
-- [~] **1.0** Select Objects and the Selection Pane (see Drawing) *(Select Objects is in Home > Editing > Select, with Select All; there is no Selection Pane yet)*
+- [~] **1.0** Select Objects and the Selection Pane (see Drawing) *(Select Objects is in Home > Editing > Select, with Select All; the Selection Pane is in Home > Drawing > Arrange and shows the slide's objects by name)*
 - [x] **1.0** Undo and Redo: every change is one step that restores the whole presentation
 - [ ] **later** Dictate
 
@@ -284,7 +284,7 @@ PowerPoint's Draw tab is for ink on slides while editing. JeffDeck has ink only 
 - [x] **1.0** The gallery: None, Morph, Fade, Push, Wipe, Split, Reveal, Cover, Uncover, Zoom, and Cut (a cut goes through black), shown on the slide in the pane with a star *(transitions: ours 3 of 19, 67 in all; where an effect is named it is fade, wipe, dissolve, or cut)*
 - [x] **1.0** Effect Options: the direction (from right, left, bottom, or top) for Push, Wipe, Reveal, Cover, and Uncover; Out or In for Split and Zoom; Objects, Words, or Characters for Morph
 - [x] **1.0** Morph as the file stores it, with a fade for older readers: pairs the objects of two slides (a name starting with `!!`, the same name, the same text, the same picture, the same kind of shape, the nearest first), moves each pair's place, size, turn, fill, and line, fades what has no pair, and moves the words or the characters two texts share; a text over 16,000 characters, a turned or flipped box, and a slide of more than 1,000 objects play as Objects or a fade; a group and a table move whole and dissolve rather than change shape
-- [ ] **1.0** Name an object (the Selection Pane) so that a `!!` name pairs two objects for Morph *(a `!!` name only comes from a file today)*
+- [x] **1.0** Name an object (the Selection Pane) so that a `!!` name pairs two objects for Morph *(a name typed in the Selection Pane is the object's name, so one that starts with `!!` pairs as one from a file does)*
 - [x] **1.0** Timing: Duration (0.01 to 59 seconds; 0.7 by default, 2 for Morph), On Mouse Click, After (seconds, and both together moves on at whichever comes first), and Apply To All
 - [x] **1.0** A transition JeffDeck has no form for plays as a fade and is saved as it was *(an unnamed type in a file is kept)*
 - [ ] **1.0** The rest of the Subtle set, the common ones from the 2007 program: Dissolve, Blinds, Checkerboard, Comb, Random Bars, Circle, Diamond, Plus, Wedge, Wheel, Newsflash, Strips, and the Shape and Uncover variants *(Dissolve is in 1 of 19 decks, 5 uses)*
@@ -365,6 +365,7 @@ PowerPoint has a Record tab that records a show with the speaker's voice, ink, l
 - [x] **1.0** Show: Ruler, Gridlines, and Guides check boxes; Notes shows or hides the notes box under the slide
 - [~] **1.0** Grid and guide settings: spacing, snap to grid, drag guides, and add or remove a guide *(Guides can be shown and objects snap to others; whether a guide can be dragged out of the ruler could not be confirmed)*
 - [x] **1.0** Zoom: a menu from 400% to 10%, Fit to Window, a slider and buttons on the status bar, and Ctrl with the mouse wheel; in the Slide Sorter the same controls size the pictures
+- [x] **1.0** Full Screen (F11, View > Window): the window fills the screen; the same command puts it back, and so does Esc when nothing is selected or being typed in
 - [ ] **1.0** Color, Grayscale, and Pure Black and White views, and the choice of how each object prints in them *(grayscale applies to printing and PDF only)*
 - [~] **1.0** New Window (a second window of the same presentation), Arrange All, Cascade, Move Split, and Switch Windows *(done: View > Window has New Window, which opens the saved file in a second window (a change made in one shows in the other after it is saved and the file is opened again), and Switch Windows, which lists the open windows; not yet: Arrange All, Cascade, and Move Split)*
 - [ ] **later** Right-to-left slide view direction
@@ -674,7 +675,7 @@ What JeffDeck builds on, and the pieces to build once so that JeffWrite, JeffCru
 
 ### To build once, for several apps
 - [~] **1.0** Move JeffPub's finished tools into libs/page and libs/shell so JeffDeck gets them: Find and Replace, the crop tool, and the paste choices (Keep Text Only) *(needed by: JeffDeck, JeffPub, JeffWrite; Find and Replace's search is shared in libs/page/app/findreplace, and each app has its own pane; the crop tool and the paste choices are not moved)*
-- [~] **1.0** A Format pane (fill, line, effects, size and position, and text options) and the Selection Pane, built once *(needed by: JeffDeck, JeffPub, JeffWrite; the Format pane is built: its frame and property editors are in libs/shell, its pages in libs/page, and nothing in it is JeffDeck's, so JeffWrite adopts it by making a pane over its editor; the Selection Pane is not)*
+- [~] **1.0** A Format pane (fill, line, effects, size and position, and text options) and the Selection Pane, built once *(needed by: JeffDeck, JeffPub, JeffWrite; the Format pane is built: its frame and property editors are in libs/shell, its pages in libs/page, and nothing in it is JeffDeck's, so JeffWrite adopts it by making a pane over its editor; the Selection Pane is too: its list is libs/shell/app/selectionpane, and libs/page/app/pageselectionpane makes it over an editor)*
 - [ ] **1.0** Shape styles, picture styles, and text effects menus on the effects the engine already draws *(needed by: JeffDeck, JeffPub, JeffWrite)*
 - [~] **1.0** A table engine with merged cells, styles, borders, and sizes, and its Table Design and Table Layout tabs *(libs/page has the table commands (app/tableedit.h) that JeffPub and JeffDeck both use, and libs/office the table styles by id and the reading and writing of tables; each app has its own tabs; needed by: JeffWrite, JeffMail, JeffCrunch, JeffDeck)*
 - [ ] **1.0** Chart editing on top of libs/office chart: the data grid, the element menus, types, and styles; a chart in JeffDeck keeps its data in a small embedded sheet edited with JeffCrunch's grid *(needed by: JeffCrunch, JeffWrite, JeffDeck)*
