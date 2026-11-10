@@ -1,16 +1,17 @@
-# Usar o JeffCrunch com o teclado
+# Use JeffCrunch with the keyboard
+<!-- keywords: teclado, atalhos, teclas, atalhos de teclado, seta, ctrl, shift, home, end, page up, page down, tab, enter, selecionar tudo, copiar, F9, F1, zoom, teclas de acesso, dicas de tecla -->
 
-<!-- keywords: teclado, atalhos, teclas, teclas de atalho, seta, ctrl, shift, home, end, page up, page down, tab, enter, selecionar tudo, copiar, F9, F1, zoom, teclas de acesso, dicas de tecla -->
+A guia **Ajuda** tem **Ajuda** (F1), **Atalhos de Teclado**, que abre esta página, **Novidades** e **Feedback**, que abrem as respectivas páginas na web.
 
-No Mac, a tecla **Command** (⌘) faz o que o **Ctrl** faz nas tabelas abaixo, exceto quando uma tabela indicar o contrário.
+No Mac, a tecla **Command** (⌘) faz o que **Ctrl** faz nas tabelas abaixo, exceto quando uma tabela indicar o contrário.
 
-## Movimentar e selecionar
+## Movendo e selecionando
 
 | Teclas | O que fazem |
 | --- | --- |
 | Teclas de seta | Movem a célula ativa uma célula, pulando linhas e colunas ocultas |
 | Shift+seta | Estendem a seleção em uma célula |
-| Ctrl+seta | Vão até a borda dos dados (Esc interrompe uma busca longa) |
+| Ctrl+seta | Vão até a borda dos dados (Esc interrompe uma pesquisa demorada) |
 | Ctrl+Shift+seta | Estendem a seleção até a borda dos dados |
 | Home | Vai para a primeira coluna da linha |
 | Ctrl+Home | Vai para a primeira célula (A1, ou a primeira célula que rola quando linhas ou colunas estão congeladas) |
@@ -20,9 +21,9 @@ No Mac, a tecla **Command** (⌘) faz o que o **Ctrl** faz nas tabelas abaixo, e
 | Enter, Shift+Enter | Descem ou sobem (pelas células selecionadas, se houver várias) |
 | Ctrl+Espaço | Seleciona a coluna inteira |
 | Shift+Espaço | Seleciona a linha inteira |
-| {key:SelectAll} | Seleciona tudo |
+| Ctrl+A | Seleciona tudo |
 
-## Alterar células
+## Alterando células
 
 | Teclas | O que fazem |
 | --- | --- |
@@ -34,24 +35,24 @@ No Mac, a tecla **Command** (⌘) faz o que o **Ctrl** faz nas tabelas abaixo, e
 | Esc | Cancela a entrada |
 | Alt+Enter | Inicia uma nova linha na célula |
 | Delete | Limpa as células selecionadas |
-| {key:Undo}, {key:Redo} | Desfazer, refazer |
-| {key:Save} | Salvar |
-| {key:Cut}, {key:Copy}, {key:Paste} | Recortar, copiar, colar (Esc remove a borda das células copiadas) |
-| Ctrl+Alt+V | Colar especial |
-| Ctrl e a tecla de mais, Ctrl e a tecla de menos | Inserem e excluem (linhas ou colunas, se forem selecionadas inteiras) |
+| Ctrl+Z, Ctrl+Y | Desfazer, refazer |
+| Ctrl+S | Salvar |
+| Ctrl+X, Ctrl+C, Ctrl+V | Recortar, copiar, colar (Esc remove a borda das células copiadas) |
+| Ctrl+Alt+V | Colar Especial |
+| Ctrl e o sinal de mais, Ctrl e o sinal de menos | Inserem e excluem (linhas ou colunas, se forem selecionadas inteiras) |
 | Ctrl+D, Ctrl+R | Preencher para baixo, preencher para a direita |
-| Ctrl+E | Preenchimento relâmpago |
-| Alt e a tecla de igual | Soma |
+| Ctrl+E | Preenchimento Relâmpago |
+| Alt e o sinal de igual | Soma |
 | Ctrl+0, Ctrl+9 | Ocultam as colunas, ocultam as linhas |
 | Alt+Seta para baixo | Abre a lista de uma célula que tenha uma |
-| {key:Find} | Localizar |
-| Ctrl+H (no Mac, Option+Command+F) | Localizar e alterar |
-| F5, Ctrl+G | Ir para uma célula, um intervalo ou um nome |
+| Ctrl+L | Localizar |
+| Ctrl+H (no Mac, Option+Command+F) | Localizar e Alterar |
+| F5, Ctrl+G | Vai para uma célula, um intervalo ou um nome |
 | Ctrl+Shift+L | Ativa ou desativa o filtro |
-| Shift+F3 | Escolher uma função |
+| Shift+F3 | Escolhe uma função |
 | Ctrl+F3 | A lista de nomes |
-| F9, Shift+F9 | Recalcular tudo, recalcular esta planilha |
-| Tab, Enter | Ao digitar uma fórmula: escolhem a função ou o nome marcado na lista |
+| F9, Shift+F9 | Recalcula tudo, recalcula esta planilha |
+| Tab, Enter | Enquanto uma fórmula é digitada: escolhe a função ou o nome marcado na lista |
 | Esc | Interrompe uma pesquisa, uma classificação ou um filtro em andamento |
 
 ## Comandos
@@ -60,4 +61,4 @@ No Mac, a tecla **Command** (⌘) faz o que o **Ctrl** faz nas tabelas abaixo, e
 
 ## Teclas de acesso
 
-Pressione **Alt** para ver uma letra em cada guia da faixa de opções e em cada comando, depois pressione as letras. Pressione **Alt** e depois **F** para abrir a tela Arquivo. Pressione **Esc** para voltar.
+Pressione **Alt** para ver uma letra em cada guia da faixa de opções e em cada comando e, em seguida, pressione as letras. Pressione **Alt** e depois **F** para abrir a tela Arquivo. Pressione **Esc** para voltar.

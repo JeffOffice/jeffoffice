@@ -1,14 +1,14 @@
 # Scheda Revisione
-<!-- keywords: scheda revisione, barra multifunzione, strumenti di correzione, correzione, controllo ortografia, ortografia, thesaurus, sinonimi, ricerche, traduci, traduzione, lingua, conteggio parole, verifica struttura, sillabazione -->
+<!-- keywords: scheda revisione, barra multifunzione, revisione, correzione bozze, ortografia, thesaurus, ricerche, traduci, lingua, conteggio parole, verifica struttura, sillabazione -->
 
-La scheda **Revisione** è sempre presente sulla barra multifunzione. Contiene gli strumenti per controllare il testo e la struttura prima di condividere o stampare la pubblicazione.
+La scheda **Revisione** è sempre presente nella barra multifunzione. Contiene gli strumenti che verificano le parole e la struttura prima di condividere o stampare.
 
-- **Strumenti di correzione** contiene **Controllo ortografia**, **Ricerche** e **Thesaurus**. Vedere [Controllo ortografia, thesaurus, ricerche e sillabazione](proofing).
-- **Lingua** contiene **Traduci**, che apre il testo selezionato in un sito di traduzione gratuito, e **Imposta lingua di correzione…**, che indica al controllo ortografia e alla sillabazione la lingua del testo. Vedere [Controllo ortografia, thesaurus, ricerche e sillabazione](proofing).
-- **Verifica** contiene **Esegui verifica struttura**, che elenca problemi come le pagine vuote. Contiene inoltre **Conteggio parole**, che mostra il numero di pagine, parole, caratteri, paragrafi, caselle di testo e immagini, e **Sillabazione…**, che stabilisce come vengono divise le parole a fine riga. Vedere [Verificare la struttura](design-checker).
+- **Strumenti di correzione** include **Controllo ortografia**, **Ricerche** e **Thesaurus**. Vedi [Controllo ortografia, thesaurus, ricerche e sillabazione](proofing).
+- **Lingua** include **Traduci**, che apre il testo selezionato in un sito di traduzione gratuito, e **Imposta lingua di correzione…**, che indica a controllo ortografia e sillabazione in quale lingua è scritto il testo. Vedi [Controllo ortografia, thesaurus, ricerche e sillabazione](proofing).
+- **Verifica** include **Esegui verifica struttura**, che elenca problemi come le pagine vuote. Include anche **Conteggio parole**, che mostra quante pagine, parole, caratteri, paragrafi, caselle di testo e immagini hai, e **Sillabazione…**, che stabilisce come le parole vengono divise a fine riga. Vedi [Verifica la struttura](design-checker). **Verifica accessibilità** elenca le immagini e le forme senza testo alternativo e seleziona quella su cui fai clic. Puoi avviarla anche da **File > Informazioni**.
 
-## Argomenti correlati
+## Collegamenti correlati
 
 - [Controllo ortografia, thesaurus, ricerche e sillabazione](proofing)
-- [Verificare la struttura](design-checker)
-- [Trovare e sostituire il testo](find-replace)
+- [Verifica la struttura](design-checker)
+- [Trova e sostituisci testo](find-replace)

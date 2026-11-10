@@ -1,12 +1,17 @@
 # Onglet Révision
-<!-- keywords: onglet révision, ruban, vérification, orthographe, correcteur, dictionnaire des synonymes, synonymes, statistiques, nombre de mots, commentaires, nouveau commentaire, supprimer un commentaire, précédent, suivant, afficher les commentaires -->
 
-L'onglet **Révision** vérifie vos textes et gère les commentaires.
+<!-- keywords: onglet révision, ruban, vérification, orthographe, dictionnaire des synonymes, synonymes, nombre de mots, statistiques, commentaires, nouveau commentaire, supprimer commentaire, précédent, suivant, afficher les commentaires, révision, correction -->
 
-- Le groupe **Vérification** contient **Orthographe** (F7), **Dictionnaire des synonymes** (Maj+F7) et **Statistiques**. Voir [Taper et mettre en forme du texte](text).
-- Le groupe **Commentaires** contient **Nouveau commentaire** (Ctrl+Alt+M), **Supprimer** et son menu, **Précédent**, **Suivant** et **Afficher les commentaires**. Voir [Commentaires](comments).
+L'onglet **Révision** vérifie vos mots et gère les commentaires.
 
-## Rubriques connexes
+- **Vérification** comporte **Orthographe** (F7), **Dictionnaire des synonymes** (Maj+F7), **Statistiques** et **Vérifier l'accessibilité**. Voir [Mettre en forme le texte](text).
+- **Commentaires** comporte **Nouveau commentaire** (Ctrl+Alt+M), **Supprimer** avec son menu, **Précédent**, **Suivant** et **Afficher les commentaires**. Voir [Commentaires](comments).
+
+## Vérifier l'accessibilité
+
+**Vérifier l'accessibilité** ouvre une petite fenêtre qui liste les éléments susceptibles d'être difficiles à utiliser pour certaines personnes : une image ou une forme sans texte de remplacement, et une diapositive sans titre. Cliquez sur un problème pour accéder à sa diapositive et sélectionner l'objet. Donnez à une image un texte de remplacement dans le volet **Format de l'image**, ou marquez-la comme décorative, puis cliquez sur **Vérifier à nouveau**. Vous pouvez aussi lancer la vérification depuis **Fichier > Informations**.
+
+## Voir aussi
 
 - [Commentaires](comments)
-- [Taper et mettre en forme du texte](text)
+- [Mettre en forme le texte](text)

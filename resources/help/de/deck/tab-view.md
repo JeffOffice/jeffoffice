@@ -1,15 +1,16 @@
-# Registerkarte „Ansicht“
-<!-- keywords: Registerkarte Ansicht, Menüband, Folienmaster, Masteransichten, Normalansicht, Normal, Gliederungsansicht, Foliensortierung, Notizenseite, Leseansicht, Lineal, Gitternetzlinien, Führungslinien, Notizen, Zoom, Vergrößern, Verkleinern, An Fenster anpassen, Präsentationsansichten -->
+# Registerkarte Ansicht
+<!-- keywords: Ansicht Registerkarte, Menüband, Folienmaster, Masteransichten, Normal, Gliederungsansicht, Foliensortierung, Notizenseite, Lesemodus, Lineal, Gitternetzlinien, Führungslinien, Notizen, Zoom, An Fenster anpassen, Präsentationsansichten, Hilfslinien, Ansichten wechseln -->
 
-Auf der Registerkarte **Ansicht** legen Sie fest, wie die Folien während der Arbeit auf dem Bildschirm angezeigt werden. Diese Einstellungen ändern die Folien selbst nicht.
+Die Registerkarte **Ansicht** ändert, wie die Folien während der Arbeit auf dem Bildschirm dargestellt werden. Diese Einstellungen verändern die Folien selbst nicht.
 
-- Mit **Präsentationsansichten** wechseln Sie zwischen **Normal**, **Gliederungsansicht** und **Foliensortierung**. Siehe [Gliederungsansicht, Foliensortierung und Folienmasteransicht](views).
-- **Masteransichten** enthält **Folienmaster**. Damit öffnen Sie die Folienmasteransicht, in der Sie die Folienmaster und Layouts bearbeiten.
-- **Anzeigen** enthält Kontrollkästchen für **Lineal**, **Gitternetzlinien** und **Führungslinien** auf der Folie sowie die Schaltfläche **Notizen**, mit der Sie den Notizenbereich ein- oder ausblenden. Siehe [Sprechernotizen](notes).
-- **Zoom** enthält das Menü **Zoom** mit Stufen von 400 % bis 10 % sowie **An Fenster anpassen**, womit die Folie so skaliert wird, dass sie das Fenster ausfüllt. Siehe [Im Fenster zurechtfinden](window).
+- **Präsentationsansichten** wechselt zwischen **Normal**, **Gliederungsansicht** und **Foliensortierung**. Siehe [Gliederungsansicht, Foliensortierung und Folienmasteransicht](views).
+- **Masteransichten** enthält **Folienmaster**, der die Folienmasteransicht öffnet, in der Sie die Folienmaster und Layouts bearbeiten.
+- **Anzeigen** enthält Kontrollkästchen für das **Lineal**, die **Gitternetzlinien** und die **Führungslinien** auf der Folie sowie die Schaltfläche **Notizen**, die das Notizenfeld ein- und ausblendet. Siehe [Sprechernotizen](notes).
+- **Zoom** enthält ein Zoom-Menü von 400 % bis 10 % und **An Fenster anpassen**, wodurch die Folie so groß dargestellt wird, dass sie das Fenster ausfüllt. Siehe [Orientierung im Fenster](window).
+- **Fenster** enthält **Neues Fenster**, das die Datei der Präsentation in einem zweiten Fenster erneut öffnet (eine Präsentation ohne Datei öffnet ein neues, leeres Fenster), und **Fenster wechseln**, das alle geöffneten Fenster auflistet, damit Sie eines nach vorne holen können. Beispiel: Eine Änderung in einem Fenster wird im anderen angezeigt, nachdem Sie speichern und die Datei dort erneut öffnen.
 
-## Verwandte Themen
+## Siehe auch
 
-- [Im Fenster zurechtfinden](window)
+- [Orientierung im Fenster](window)
 - [Gliederungsansicht, Foliensortierung und Folienmasteransicht](views)
 - [Sprechernotizen](notes)

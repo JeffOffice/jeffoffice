@@ -1,17 +1,17 @@
 # Tabblad Start
-<!-- keywords: tabblad Start, lint, klembord, groep Lettertype, groep Alinea, stijlgalerie, objecten, groep Bewerken, opmaakhulpmiddelen -->
+<!-- keywords: startblad, lint, klembord, lettertypegroep, alineagroep, stijlengalerie, objecten, bewerkengroep, opmaakhulpmiddelen -->
 
-Het tabblad **Start** staat altijd op het lint. Hierop vindt u de hulpmiddelen die u het meest gebruikt bij het schrijven en opmaken van een pagina.
+Het tabblad **Start** staat altijd op het lint. Het bevat de hulpmiddelen die u het meest gebruikt bij het schrijven en opmaken van een pagina.
 
-- **Klembord** bevat **Plakken**, **Knippen**, **Kopiëren** en **Opmaak kopiëren**, waarmee u het uiterlijk van tekst naar een ander vak kopieert. Zie [Tekst opmaken](formatting-text).
-- Met **Lettertype** wijzigt u het lettertype, de grootte, de kleur en de stijl van letters. Zie [Tekst opmaken](formatting-text).
+- **Klembord** bevat **Plakken**, **Knippen**, **Kopiëren** en **Opmaak kopiëren**, waarmee u de opmaak van tekst kopieert naar een ander vak. Zie [Tekst opmaken](formatting-text).
+- **Lettertype** wijzigt het lettertype, de grootte, de kleur en de stijl van letters. Zie [Tekst opmaken](formatting-text).
 - **Alinea** bevat opsommingstekens, nummering, inspringingen, uitlijning en afstand voor hele alinea's. Zie [Opsommingstekens, nummering en tabs](lists-tabs).
-- **Stijlen** is een galerie met benoemde opmaak die u met één klik kunt toepassen, en waarmee u ook uw eigen stijlen kunt maken. Zie [Stijlen gebruiken](styles).
-- Met **Objecten** tekent u een tekstvak, voegt u een tabel in, voegt u afbeeldingen toe en tekent u vormen. Zie [Tekstvakken toevoegen en opmaken](text-boxes).
-- Met **Schikken** bepaalt u hoe tekst rond objecten loopt en hoe objecten worden gestapeld, gegroepeerd, uitgelijnd en gedraaid. Zie [Objecten verplaatsen, uitlijnen, groeperen en stapelen](arrange).
-- **Bewerken** bevat **Zoeken**, **Vervangen** en **Selecteren**, waarmee u alle tekst in een vak, alle objecten of alle objecten van één soort selecteert. Zie [Tekst zoeken en vervangen](find-replace).
+- **Stijlen** is een galerie met benoemde uitstralingen die u met één klik toepast, en een manier om uw eigen stijlen te maken. Zie [Stijlen gebruiken](styles).
+- **Objecten** tekent een tekstvak, voegt een tabel in, voegt afbeeldingen toe en tekent vormen. Zie [Tekstvakken toevoegen en opmaken](text-boxes).
+- **Schikken** bepaalt hoe objecten tekst laten teruglopen, stapelen, groeperen, uitlijnen en draaien. Zie [Objecten verplaatsen, uitlijnen, groeperen en lagen](arrange).
+- **Bewerken** bevat **Zoeken**, **Vervangen**, **Ga naar** en **Selecteren**, waarmee u alle tekst in een vak, alle objecten of alle objecten van één soort selecteert. **Ga naar** (Ctrl+G) vraagt om een paginanummer en gaat naar die pagina. Zie [Tekst zoeken en vervangen](find-replace).
 
-## Verwant
+## Gerelateerd
 
 - [Tekst opmaken](formatting-text)
 - [Tabellen maken en bewerken](tables)

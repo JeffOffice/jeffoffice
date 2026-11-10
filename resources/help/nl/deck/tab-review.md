@@ -1,12 +1,16 @@
-# Tabblad Controleren
-<!-- keywords: tabblad controleren, lint, controle, spelling, spellingcontrole, synoniemenlijst, synoniemen, aantal woorden, woorden tellen, opmerkingen, nieuwe opmerking, opmerking verwijderen, vorige, volgende, opmerkingen weergeven -->
+# Tabblad Beoordelen
+<!-- keywords: beoordelen, tabblad beoordelen, lint, controle, spelling, synoniemenlijst, woorden tellen, opmerkingen, nieuwe opmerking, opmerking verwijderen, vorige, volgende, opmerkingen weergeven, toegankelijkheid, spellingcontrole, aantal woorden -->
 
-Op het tabblad **Controleren** controleert u uw tekst en werkt u met opmerkingen.
+Het tabblad **Beoordelen** controleert uw woorden en beheert opmerkingen.
 
-- **Controle** bevat **Spelling** (F7), **Synoniemenlijst** (Shift+F7) en **Aantal woorden**. Zie [Tekst typen en opmaken](text).
+- **Controle** bevat **Spelling** (F7), **Synoniemenlijst** (Shift+F7), **Woorden tellen** en **Toegankelijkheid controleren**. Zie [Tekst opmaken en typen](text).
 - **Opmerkingen** bevat **Nieuwe opmerking** (Ctrl+Alt+M), **Verwijderen** met het bijbehorende menu, **Vorige**, **Volgende** en **Opmerkingen weergeven**. Zie [Opmerkingen](comments).
 
-## Verwante onderwerpen
+## Toegankelijkheid controleren
+
+Met **Toegankelijkheid controleren** opent u een klein venster met een lijst van zaken die voor sommige mensen moeilijk te gebruiken kunnen zijn: een afbeelding of vorm zonder alternatieve tekst, en een dia zonder titel. Klik op een probleem om naar de dia te gaan en het object te selecteren. Geef een afbeelding alternatieve tekst in het taakvenster **Afbeeldingsopmaak**, of markeer de afbeelding als decoratief, en klik daarna op **Opnieuw controleren**. U kunt de controle ook starten via **Bestand > Info**.
+
+## Zie ook
 
 - [Opmerkingen](comments)
-- [Tekst typen en opmaken](text)
+- [Tekst opmaken en typen](text)
