@@ -3,6 +3,7 @@
 
 #include "app/appwindow.h"
 #include "app/infopage.h"
+#include "app/recovery.h"
 #include "core/textexport.h"
 #include "app/filetasks.h"
 #include "io/pdfcrypt.h"
@@ -208,6 +209,9 @@ public:
     // Automatic recovery: a copy of unsaved work (the timer writes it at the interval Options sets), and the copies a run that crashed left.
     void autoRecover();
     QString recoveryCopy() const { return m_recoveryCopy; }
+    // A copy is being made on a worker thread (the timer skips its turn meanwhile). `hook` is called on that thread before the copy is made: a test holds the thread there while the window goes on.
+    bool recoveryBusy() const { return m_recoveryWriter.busy(); }
+    void setRecoveryHook(std::function<void()> hook) { m_recoveryHook = std::move(hook); }
     void offerRecovery(bool askIfNone = false);
     WriteWindow *openRecovered(const recovery::Recovered &r, QString *error = nullptr);
 
@@ -411,6 +415,7 @@ private:
     bool maybeSave();
     void notice(const QString &title, const QString &text, bool warning = false);
     void dropRecoveryCopy();
+    void makeRecoveryCopy(bool now);
     void changeSection(const std::function<void(flow::Section &)> &change);
     void applyIndentFields();
     void showFontDialog();
@@ -502,6 +507,8 @@ private:
     QString m_path;
     QString m_untitled;
     QString m_recoveryCopy, m_recoveredFrom;
+    std::function<void()> m_recoveryHook;
+    recovery::AsyncWriter m_recoveryWriter{this};   // makes the copy on a worker thread
     write::SortOptions m_sortOptions;
     QString m_protectKind;   // what the enforced protection of the document allows (readOnly, comments, trackedChanges, or forms), else empty
     bool m_readOnlyByProtection = false;

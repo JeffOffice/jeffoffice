@@ -581,7 +581,10 @@ void WriteWindow::goToLastPlace()
 
 // ---- Automatic recovery
 
-void WriteWindow::autoRecover()
+void WriteWindow::autoRecover() { makeRecoveryCopy(false); }
+
+// With `now` the copy is made and written before this returns (a recovered document, whose old copy goes once this window has one of its own).
+void WriteWindow::makeRecoveryCopy(bool now)
 {
     // Options may have changed the interval since the timer started.
     const int ms = std::max(1, Settings::get().autoRecoverMinutes()) * 60 * 1000;
@@ -597,30 +600,40 @@ void WriteWindow::autoRecover()
         }
         return;
     }
+    // One copy at a time: a tick that comes while one is being made is skipped.
+    if (m_recoveryWriter.busy()) return;
     // Named for the document as it is now (Save As moves it).
     const QString copy = recovery::copyPath(m_path, displayName(), m_serial);
-    const QString older = m_recoveryCopy;   // (kept until the new copy is written)
     const QString source = m_path.isEmpty() ? m_recoveredFrom : m_path;
-    const bool written = recovery::write(
-        [this](const QString &file, QString *error) {
-            const QByteArray bytes = m_doc->toDocx(error);
-            if (bytes.isEmpty()) return false;
-            QSaveFile out(file);
-            if (!out.open(QIODevice::WriteOnly) || out.write(bytes) != bytes.size() || !out.commit()) {
-                if (error) *error = out.errorString();
-                return false;
-            }
-            return true;
-        },
-        copy, source, displayName());
-    if (written) {
-        m_recoveryCopy = copy;
-        if (!older.isEmpty() && older != copy) recovery::remove(older);
+    const QString title = displayName();
+    // What the file is made from is taken here, where nothing can change meanwhile; the thread packs it and writes it.
+    auto snapshot = std::make_shared<office::wml::Document>();
+    if (!m_doc->docxSnapshot(snapshot.get())) return;
+    const std::function<void()> hook = m_recoveryHook;
+    auto make = [snapshot, hook](QString *error) {
+        if (hook) hook();
+        return office::wml::writeDocx(*snapshot, error);
+    };
+    if (now) {
+        QString error;
+        if (m_recoveryWriter.writeNow(make, copy, source, title, &error)) {
+            const QString older = m_recoveryCopy;
+            m_recoveryCopy = copy;
+            if (!older.isEmpty() && older != copy) recovery::remove(older);
+        }
+        return;
     }
+    m_recoveryWriter.start(make, copy, source, title, [this](bool ok, const QString &made, const QString &) {
+        if (!ok) return;
+        const QString older = m_recoveryCopy;   // (kept until the new copy is written)
+        m_recoveryCopy = made;
+        if (!older.isEmpty() && older != made) recovery::remove(older);
+    });
 }
 
 void WriteWindow::dropRecoveryCopy()
 {
+    m_recoveryWriter.cancel();   // (a copy being made is not written, and one that was is removed)
     recovery::remove(m_recoveryCopy);
     m_recoveryCopy.clear();
 }
@@ -696,7 +709,7 @@ WriteWindow *WriteWindow::openRecovered(const recovery::Recovered &r, QString *e
     target->m_doc->setModified(true);
     target->updateTitle();
     // This run keeps its own copy before the old one goes.
-    target->autoRecover();
+    target->makeRecoveryCopy(true);
     if (!target->m_recoveryCopy.isEmpty()) recovery::discard(r);
     return target;
 }

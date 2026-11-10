@@ -17,7 +17,11 @@
 #include "app/recovery.h"
 #include "app/settings.h"
 #include "app/filetasks.h"
+#include <QDirIterator>
 #include <QListWidget>
+#include <QSemaphore>
+#include <QThread>
+#include <atomic>
 #include <QStandardPaths>
 #include "app/ribbon.h"
 #include "app/widgets.h"
@@ -858,6 +862,8 @@ private Q_SLOTS:
     void aFieldThatNamesAPictureOrAnAddressIsNeverFollowed();
     void anRtfFileWithPartsTheLimitsCutSaysSoAndKeepsTheRest();
     void unsavedWorkIsKeptAndComesBack();
+    void aRecoveryCopyIsMadeOffTheWindowsThread();
+    void aSaveWhileACopyIsBeingMadeLeavesNoCopy();
     void theParagraphDialogChangesWhatWasChanged();
     void homeTabHasFindAndReplace();
     void findNextSelectsTheMatchAndScrollsToIt();

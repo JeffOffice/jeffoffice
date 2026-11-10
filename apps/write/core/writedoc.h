@@ -175,6 +175,9 @@ private:
     // The document as the file would hold it, before it is written as a package.
     bool exportDocument(office::wml::Document *out, bool template_, bool macros);
 public:
+    // What toDocx writes the package from, taken now (the shared sections are copied, so nothing in it is touched by the document's later edits): another thread then writes the package
+    // from it with office::wml::writeDocx, and gets what toDocx would have. False where toDocx would give nothing.
+    bool docxSnapshot(office::wml::Document *out);
 
     flow::FlowDocument &flow() { return *m_flow; }
     QTextDocument *story() const { return m_flow->story(); }

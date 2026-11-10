@@ -422,6 +422,14 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_, bool macros)
     return writeDocx(out, error);
 }
 
+bool WriteDoc::docxSnapshot(office::wml::Document *out)
+{
+    if (!exportDocument(out, false, false)) return false;
+    for (office::wml::Block &b : out->body)
+        if (b.para.props.section) b.para.props.section = std::make_shared<office::wml::SectionProps>(*b.para.props.section);
+    return true;
+}
+
 QByteArray WriteDoc::toRtf(QString *error, QStringList *notes)
 {
     office::wml::Document out;

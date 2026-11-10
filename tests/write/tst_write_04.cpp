@@ -311,7 +311,7 @@ void WriteTests::anEditedHeaderIsInTheRecoveryCopy()
     typeText(*w.document(), w.view()->cursor(), QStringLiteral("Only in the header"));
     QVERIFY(w.isModified());
     w.autoRecover();
-    QVERIFY(!w.recoveryCopy().isEmpty());
+    QTRY_VERIFY(!w.recoveryCopy().isEmpty());
     QFile f(w.recoveryCopy());
     QVERIFY(f.open(QIODevice::ReadOnly));
     auto back = WriteDoc::fromDocx(f.readAll());

@@ -944,7 +944,7 @@ void WriteTests::unsavedWorkIsKeptAndComesBack()
     QVERIFY(a.recoveryCopy().isEmpty());
     typeText(*a.document(), a.view()->cursor(), QStringLiteral("Work that is not saved"));
     a.autoRecover();
-    QVERIFY(!a.recoveryCopy().isEmpty());
+    QTRY_VERIFY(!a.recoveryCopy().isEmpty());   // (made on a worker thread)
     QVERIFY(QFileInfo::exists(a.recoveryCopy()));
     const QString copy = a.recoveryCopy();
     // A run that crashed leaves its copy: it opens as unsaved work, and the old copy goes once this run has one of its own.
@@ -965,6 +965,86 @@ void WriteTests::unsavedWorkIsKeptAndComesBack()
     QVERIFY(opened->save());
     QVERIFY(!QFileInfo::exists(second));
     QVERIFY(opened->recoveryCopy().isEmpty());
+}
+
+// The copy is made on a worker thread: the window's thread only takes what is written, a second tick while one is being made is skipped, and what is written opens and matches the document.
+void WriteTests::aRecoveryCopyIsMadeOffTheWindowsThread()
+{
+    QTemporaryDir dir;
+    recovery::setRoot(dir.path());
+    recovery::setCopySuffix(QStringLiteral(".docx"));
+    {
+        WriteWindow w;
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Kept in the background"));
+        std::atomic<QThread *> madeOn{nullptr};
+        std::atomic<int> made{0};
+        QSemaphore release;
+        w.setRecoveryHook([&] {
+            madeOn = QThread::currentThread();
+            ++made;
+            release.tryAcquire(1, 5000);   // (the test lets it go)
+        });
+        w.autoRecover();
+        QVERIFY(w.recoveryBusy());   // (the window is free while the copy is made)
+        QVERIFY(w.recoveryCopy().isEmpty());
+        w.autoRecover();   // (skipped: one is being made)
+        release.release();
+        QTRY_VERIFY(!w.recoveryBusy());
+        QCOMPARE(int(made), 1);
+        QVERIFY(madeOn != nullptr);
+        QVERIFY(madeOn != QThread::currentThread());
+        QFile f(w.recoveryCopy());
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray kept = f.readAll();
+        auto back = WriteDoc::fromDocx(kept);
+        QVERIFY(back);
+        QCOMPARE(back->story()->toPlainText(), QStringLiteral("Kept in the background"));
+        QVERIFY(kept == w.document()->toDocx());   // (the bytes the window itself would save)
+        w.document()->setModified(false);
+    }
+    recovery::setRoot(QString());
+}
+
+// A save while a copy is being made leaves no copy: the one being made is never written.
+void WriteTests::aSaveWhileACopyIsBeingMadeLeavesNoCopy()
+{
+    QTemporaryDir dir;
+    QTemporaryDir root;
+    recovery::setRoot(root.path());
+    recovery::setCopySuffix(QStringLiteral(".docx"));
+    {
+        WriteWindow w;
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Saved meanwhile"));
+        QSemaphore release;
+        w.setRecoveryHook([&] { release.tryAcquire(1, 5000); });
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("a.docx")); });
+        w.autoRecover();
+        QVERIFY(w.recoveryBusy());
+        QVERIFY(w.save());
+        QVERIFY(!w.recoveryBusy());
+        release.release();
+        recovery::AsyncWriter::waitForAll();
+        QCoreApplication::processEvents();
+        QVERIFY(w.recoveryCopy().isEmpty());
+        QDirIterator left(root.path(), {QStringLiteral("*.docx")}, QDir::Files, QDirIterator::Subdirectories);
+        QVERIFY(!left.hasNext());
+    }
+    // The same when the window is closed (deleted) while one is being made.
+    {
+        auto *w = new WriteWindow;
+        typeText(*w->document(), w->view()->cursor(), QStringLiteral("Closed meanwhile"));
+        QSemaphore release;
+        w->setRecoveryHook([&] { release.tryAcquire(1, 5000); });
+        w->autoRecover();
+        QVERIFY(w->recoveryBusy());
+        delete w;
+        release.release();
+        recovery::AsyncWriter::waitForAll();
+        QCoreApplication::processEvents();
+        QDirIterator left(root.path(), {QStringLiteral("*.docx")}, QDir::Files, QDirIterator::Subdirectories);
+        QVERIFY(!left.hasNext());
+    }
+    recovery::setRoot(QString());
 }
 
 
