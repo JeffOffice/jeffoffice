@@ -62,7 +62,9 @@ Click **Remove All** next to a kind to take it out. You can undo it with **Ctrl+
 
 Click **Version History** to keep named copies of the presentation on your computer. Nothing is sent anywhere. Save the presentation first, because a version belongs to a file. Click **Keep a Version…**, and give it a name. Later, choose a version and click **Open a Copy** to look at it, **Go Back to It** to put it in the window (the presentation as it is now is kept as a version first), or **Delete**. JeffDeck keeps the last 50.
 
-JeffDeck has no accessibility check yet, so the page has no card for one.
+### Check Accessibility
+
+Click **Check Accessibility** to open the list of things that may be hard for some people to read or use. It is the same check as **Review > Proofing > Check Accessibility**. See [Review tab](tab-review).
 
 ## JeffDeck
 

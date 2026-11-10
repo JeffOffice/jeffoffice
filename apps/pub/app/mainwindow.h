@@ -8,6 +8,7 @@
 #include "app/filetasks.h"
 #include "app/editor.h"
 #include "app/infopage.h"
+#include "app/pageaccesspane.h"
 #include "app/versionstore.h"
 #include "office/packageprops.h"
 #include "io/pdfcrypt.h"
@@ -165,6 +166,9 @@ public:
     int backstageHeldThumbnailTicks() const;
     void hideBackstage();
     void showTaskPane(const QString &name);
+    // Review > Check Accessibility: the list of what is hard for some readers to use, which goes to a problem when it is clicked.
+    void showAccessibilityPane();
+    PageAccessibilityPane *accessibilityPane() const { return m_accessPane; }
     void hideTaskPane();
     // Help on a topic ("index", the contents, when empty): in the Help pane,
     // or in a window of its own over the File page, which covers the pane.
@@ -205,6 +209,7 @@ private:
                 bool checkable = false);
 
     Editor *m_ed;
+    QPointer<PageAccessibilityPane> m_accessPane;
     Canvas *m_canvas;
     Ribbon *m_ribbon;
     KeyTips *m_keyTips = nullptr;

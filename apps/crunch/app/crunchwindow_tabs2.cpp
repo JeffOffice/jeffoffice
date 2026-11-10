@@ -840,7 +840,12 @@ std::vector<crunch::AccessIssue> CrunchWindow::accessibilityIssues()
 
 void CrunchWindow::checkAccessibilityNow()
 {
-    if (m_accessPane) m_accessPane->setIssues(accessibilityIssues());
+    if (!m_accessPane) return;
+    QVector<AccessFinding> findings;
+    for (const crunch::AccessIssue &i : accessibilityIssues())
+        findings.push_back({i.level == crunch::AccessIssue::Error ? AccessFinding::Error : i.level == crunch::AccessIssue::Warning ? AccessFinding::Warning : AccessFinding::Tip, i.message,
+                            {i.sheet, i.row, i.col}});
+    m_accessPane->setFindings(findings);
 }
 
 void CrunchWindow::showAccessibilityPane()
@@ -849,7 +854,10 @@ void CrunchWindow::showAccessibilityPane()
     if (!m_accessPane) {
         m_accessPane = new AccessibilityPane(this);
         connect(m_accessPane, &AccessibilityPane::recheckRequested, this, [this] { checkAccessibilityNow(); });
-        connect(m_accessPane, &AccessibilityPane::goToRequested, this, [this](int sheet, quint32 row, quint32 col) {
+        connect(m_accessPane, &AccessibilityPane::goToRequested, this, [this](const QVariantList &where) {
+            if (where.size() != 3) return;
+            const int sheet = where[0].toInt();
+            const quint32 row = where[1].toUInt(), col = where[2].toUInt();
             if (sheet != m_sheet) setActiveSheet(sheet);
             if (sheet != m_sheet) return;
             m_view->selectCell(row, col);

@@ -415,6 +415,14 @@ void MainWindow::showTaskPane(const QString &name)
     }
 }
 
+void MainWindow::showAccessibilityPane()
+{
+    if (!m_accessPane) m_accessPane = new PageAccessibilityPane(m_ed, false, {}, this);
+    m_accessPane->recheck();
+    m_accessPane->show();
+    m_accessPane->raise();
+}
+
 void MainWindow::hideTaskPane() { m_task->hide(); }
 QString MainWindow::currentTaskPane() const { return m_task->isVisible() ? m_task->current() : QString(); }
 

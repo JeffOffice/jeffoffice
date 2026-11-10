@@ -90,6 +90,10 @@ QWidget *MainWindow::buildInfoPage(QWidget *parent)
     h.encryptBlocked = [this] { return encryptBlocked(); };
     h.inspect = [this] { inspectPublication(); };
     h.versionHistory = [this] { versionHistory(); };
+    h.checkAccessibility = [this] {
+        hideBackstage();
+        act(QStringLiteral("rev.accessibility"))->trigger();
+    };
     h.thumbnail = [this] {
         const Document *d = m_ed->doc();
         return d && !d->pages.isEmpty() ? pageThumbnail(std::clamp(m_ed->currentPage(), 0, int(d->pages.size()) - 1), 400) : QImage();

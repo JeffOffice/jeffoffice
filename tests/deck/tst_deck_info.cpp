@@ -10,7 +10,9 @@
 #include "office/officecrypt.h"
 #include "office/packageprops.h"
 
+#include <QBuffer>
 #include <QDirIterator>
+#include <QListWidget>
 #include <QTemporaryDir>
 
 namespace {
@@ -571,6 +573,49 @@ private Q_SLOTS:
         QVERIFY(w.versions().first().name.startsWith(QLatin1String("Before restoring")));
     }
 
+    // Check Accessibility lists a picture with no alt text and a slide with no title, and goes to the picture (its slide, selected) when it is clicked.
+    void checkAccessibilityListsAPictureWithNoAltTextAndASlideWithNoTitle()
+    {
+        DeckWindow w;
+        Quiet quiet(w);
+        w.show();
+        Editor *ed = w.editor();
+        ed->setDocument(sample());
+        QImage img(40, 40, QImage::Format_RGB32);
+        img.fill(Qt::red);
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        img.save(&buf, "PNG");
+        auto pic = std::make_shared<PictureItem>();
+        pic->imageId = ed->doc()->addImage(png, "png");
+        pic->rect = QRectF(100, 100, 120, 120);
+        pic->imgRect = QRectF(QPointF(0, 0), pic->rect.size());
+        ed->setCurrentPage(1);
+        ed->addItem(pic, false);
+        ed->setCurrentPage(0);
+        ed->clearSelection();
+        w.act(QStringLiteral("review.accessibility"))->trigger();
+        PageAccessibilityPane *pane = w.accessibilityPane();
+        QVERIFY(pane);
+        QStringList lines;
+        for (int i = 0; i < pane->list()->count(); ++i) lines << pane->list()->item(i)->text();
+        int picRow = -1, titleRows = 0;
+        for (int i = 0; i < lines.size(); ++i) {
+            if (lines[i].contains(QLatin1String("alt text"))) picRow = i;
+            if (lines[i].contains(QLatin1String("no title"))) ++titleRows;
+        }
+        QVERIFY2(picRow >= 0, qPrintable(lines.join(QLatin1Char('|'))));
+        QVERIFY(titleRows >= 1);
+        Q_EMIT pane->list()->itemActivated(pane->list()->item(picRow));
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(ed->selection(), QStringList{pic->id});
+        // alt text given: no picture problem is left
+        ed->change(QStringLiteral("alt"), [&] { ed->doc()->item(pic->id)->altText = QStringLiteral("A red square"); });
+        pane->recheck();
+        for (int i = 0; i < pane->list()->count(); ++i) QVERIFY(!pane->list()->item(i)->text().contains(QLatin1String("alt text")));
+    }
+
     void theInfoPageHasItsCardsAndEditsProperties()
     {
         DeckWindow w;
@@ -584,8 +629,7 @@ private Q_SLOTS:
         QVERIFY(page);
         for (const char *name : {"infoMarkFinal", "infoEncrypt", "infoInspect", "infoVersions", "infoCustom", "infoShowFolder", "infoCopyPath"})
             QVERIFY2(page->findChild<QWidget *>(QString::fromLatin1(name)), name);
-        // JeffDeck has no accessibility check yet, so the page has no card for one
-        QVERIFY(!page->findChild<QWidget *>(QStringLiteral("infoAccessibility")));
+        QVERIFY(page->findChild<QWidget *>(QStringLiteral("infoAccessibility")));
         QVERIFY(!page->findChild<QPushButton *>(QStringLiteral("infoCopyPath"))->isEnabled());   // (nothing saved yet)
         auto *title = page->findChild<QLineEdit *>(QStringLiteral("infoTitle"));
         QVERIFY(title);

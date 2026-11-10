@@ -191,7 +191,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Language: set the proofing language for selected text; spelling and automatic hyphenation follow it (English for the US, UK, Canada, and Australia; Spanish for 21 regions, from Mexico and Spain to Venezuela, with other Spanish regions checked as Mexico's; French; German; Italian; Dutch; Portuguese for Brazil and Portugal)
 - [x] **1.0** Word Count: pages, words, characters, paragraphs, text boxes, and pictures
 - [x] **1.0** Check group: Run Design Checker (also under File > Info) and Hyphenation (automatic hyphenation, Insert Optional Hyphen, Add Optional Hyphens) beside Word Count
-- [ ] **later** Accessibility checks beside the Design Checker: missing alt text, reading order, and low contrast *(needs the suite's accessibility checker; see Shared)*
+- [~] **later** Accessibility checks beside the Design Checker: missing alt text, reading order, and low contrast *(Check Accessibility lists a picture or shape with no alt text and goes to it when it is clicked; reading order and contrast are not yet)*
 - [ ] **later** Chinese conversion (Simplified and Traditional), Hangul and Hanja conversion, and an IME dictionary update
 
 ## View tab
@@ -429,7 +429,7 @@ What JeffPub is built on, what its work gave the other apps, and the pieces to b
 - [ ] **later** A field engine on the field model of libs/text for page numbers, dates, document properties, and merge fields *(needed by: all)*
 - [ ] **later** Building blocks and templates in one format and gallery, with JeffPub's Page Parts, Calendars, Borders & Accents, Advertisements, and templates as the model *(needed by: all)*
 - [ ] **later** Themes, table styles, and cell styles in one format and gallery, so JeffPub's color and font schemes and a JeffDeck theme can color each other's files *(needed by: all)*
-- [ ] **later** An accessibility checker (alt text, titles and headings, reading order, tables, and contrast) with a task pane, beside the Design Checker *(needed by: all)*
+- [~] **later** An accessibility checker (alt text, titles and headings, reading order, tables, and contrast) with a task pane, beside the Design Checker *(needed by: all)*
 - [ ] **later** Keeping a macro project untouched in the kinds that can hold one, never running it *(needed by: JeffWrite, JeffCrunch, JeffDeck, JeffPub)*
 - [ ] **later** Embedded worksheets: Insert > Object in JeffPub shows the saved picture and opens in JeffCrunch's grid in place *(needed by: JeffCrunch, JeffWrite, JeffDeck, JeffPub)*
 

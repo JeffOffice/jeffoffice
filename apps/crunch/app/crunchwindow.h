@@ -18,6 +18,7 @@
 #include "app/finddialog.h"
 #include "app/slicetuner.h"
 #include "app/accessibilitypane.h"
+#include "core/accesscheck.h"
 #include "app/watchwindow.h"
 #include "app/sortdialog.h"
 #include "core/csvexport.h"

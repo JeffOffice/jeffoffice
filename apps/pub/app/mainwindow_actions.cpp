@@ -789,6 +789,7 @@ void MainWindow::createActions()
     });
     mk("rev.designChecker", tr("Run Design Checker"), "shield-check", QKeySequence(), [this] { showTaskPane("designchecker"); });
     mk("rev.wordCount", tr("Word Count"), "whole-word", QKeySequence(), [this] { wordCountDialog(this, m_ed); });
+    mk("rev.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] { showAccessibilityPane(); });
     mk("rev.hyphenation", tr("Hyphenation…"), "hyphenation", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_H), [this] { hyphenationDialog(this, m_ed); });
 
     // ---------------- View ----------------

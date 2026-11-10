@@ -58,7 +58,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** Custom properties, kept as saved *(the Custom Properties box on File > Info adds, changes, and removes them; a kind JeffDeck does not model is kept as the file had it)*
 - [~] **1.0** Protect Presentation: Mark as Final (opens read-only with a note), Encrypt with Password (open and save a password-protected `.pptx` with the standard's strong encryption), and Always Open Read-Only *(Mark as Final and Encrypt with Password are on File > Info; Always Open Read-Only is not; an `.odp` file can't hold the mark or a password, and a save to one says so; no recovery copy is kept of a protected presentation)*
 - [~] **1.0** Inspect Presentation: find and remove comments, notes, personal information, hidden slides, content off the slide, and custom XML before sharing *(all but custom XML, on File > Info; each removal is a step that undoes)*
-- [ ] **1.0** Check Accessibility (see Review)
+- [x] **1.0** Check Accessibility (see Review; also under File > Info)
 - [~] **1.0** Check Compatibility: names what an older or other format can't hold before saving *(after saving an `.odp`, a message lists what was left out; nothing is checked ahead of time, and nothing for `.ppt`)*
 - [~] **1.0** **(alt)** Version history without a cloud service: named local copies of a presentation, compared and restored from Info *(kept, opened as a copy, restored, and deleted from File > Info; no compare; a version of a protected presentation is protected too)*
 - [ ] **1.0** Show a presentation's folder and copy its path
@@ -343,7 +343,7 @@ PowerPoint has a Record tab that records a show with the speaker's voice, ink, l
 - [x] **1.0** Right-click a word marked as misspelled for suggestions, Ignore All, and Add to Dictionary *(shared: libs/page proofing dialogs; see Shortcut menus)*
 - [x] **1.0** Thesaurus (Shift+F7)
 - [x] **1.0** Word Count: words on the slides, and in the selection when typing
-- [ ] **1.0** Check Accessibility: a list of what a screen reader or a low-vision reader can't use (a missing alt text, a missing slide title, reading order, a table without a header row, low contrast, a movie without captions), with a task pane, and fixes by one click *(alt text exists in 14 of 19 decks; the canvas exposes its objects to screen readers)*
+- [~] **1.0** Check Accessibility: a list of what a screen reader or a low-vision reader can't use (a missing alt text, a missing slide title, reading order, a table without a header row, low contrast, a movie without captions), with a task pane, and fixes by one click *(done: a picture or shape with no alt text, and a slide with no title, in a window that goes to each problem when it is clicked; the rest is not yet)* *(alt text exists in 14 of 19 decks; the canvas exposes its objects to screen readers)*
 - [ ] **1.0** Set Proofing Language for the selected text or the whole presentation, and Language preferences *(the dictionaries are bundled for English, German, Spanish (21 regions), French, Italian, Dutch, and Portuguese; it could not be confirmed how a text gets its language)*
 - [ ] **1.0** **(alt)** Translate: the selected text, a slide, or the whole presentation opened in an open translation service (LibreTranslate, with a server address you can change), instead of an online translation program *(shared: JeffPub's Translate)*
 - [ ] **1.0** Read Aloud with the system's voices: from the cursor, with the current word highlighted, and a speed and voice choice

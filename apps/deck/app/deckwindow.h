@@ -7,6 +7,8 @@
 #include "app/formatpane.h"
 #include "app/recovery.h"
 #include "app/infopage.h"
+#include "app/pageaccesspane.h"
+#include "app/pdfprotection.h"
 #include "app/versionstore.h"
 #include "office/packageprops.h"
 #include "app/slideshow.h"
@@ -287,6 +289,9 @@ public:
     // The Info page of the File screen (deckwindow_info.cpp): the presentation's properties, Mark as Final, a password, Inspect Presentation, and Version History. The properties are kept
     // with the presentation (and undone with it) and written to the file's properties when it is saved.
     QWidget *buildInfoPage(QWidget *parent);
+    // Review > Check Accessibility: the list of what is hard for some readers to use (a picture or shape with no alt text, a slide with no title), which goes to a problem when it is clicked.
+    void showAccessibilityPane();
+    PageAccessibilityPane *accessibilityPane() const { return m_accessPane; }
     office::PackageProps properties() const;
     void applyProperties(const office::PackageProps &edited);
     bool markedAsFinal() const;
@@ -436,6 +441,7 @@ private:
     NotesPane *m_notes = nullptr;
     CommentsPane *m_comments = nullptr;
     DeckFileScreen *m_fileScreen = nullptr;
+    QPointer<PageAccessibilityPane> m_accessPane;
     QSplitter *m_split = nullptr, *m_rightSplit = nullptr, *m_commentSplit = nullptr;   // the last: the slide and the Comments pane
     QStackedWidget *m_views = nullptr;   // the split, and the Slide Sorter
     SlideSorter *m_sorter = nullptr;

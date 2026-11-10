@@ -9,7 +9,9 @@
 #include "office/packageprops.h"
 #include "../settingguard.h"
 
+#include <QBuffer>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QStandardPaths>
@@ -163,9 +165,9 @@ private Q_SLOTS:
         QVERIFY(page);
         for (const char *name : {"infoMarkFinal", "infoInspect", "infoVersions", "infoCustom", "infoShowFolder", "infoCopyPath", "infoBusiness", "infoPrintSettings", "infoDesignChecker"})
             QVERIFY2(page->findChild<QWidget *>(QString::fromLatin1(name)), name);
-        // a password is for .jpub files; JeffPub has no accessibility check: no card for it
+        // a password is for .jpub files; the accessibility check has its card, as in the other apps
         QVERIFY(page->findChild<QWidget *>(QStringLiteral("infoEncrypt")));
-        QVERIFY(!page->findChild<QWidget *>(QStringLiteral("infoAccessibility")));
+        QVERIFY(page->findChild<QWidget *>(QStringLiteral("infoAccessibility")));
         const QStringList texts = labelTexts(page);
         for (const QString &want : {QStringLiteral("Pages"), QStringLiteral("Page size"), QStringLiteral("Pictures"), QStringLiteral("Words"), QStringLiteral("Created"), QStringLiteral("Last modified")})
             QVERIFY2(texts.contains(want), qPrintable(want));
@@ -176,6 +178,48 @@ private Q_SLOTS:
         QCOMPARE(w.editor()->doc()->props.title, QStringLiteral("From the page"));
         QVERIFY(w.editor()->isModified());
         w.hideBackstage();
+    }
+
+    // Check Accessibility lists a picture with no alt text and goes to it when it is clicked; a picture given alt text, or marked as decoration, is not listed.
+    void checkAccessibilityListsAPictureWithNoAltTextAndSelectsIt()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        QImage img(40, 40, QImage::Format_RGB32);
+        img.fill(Qt::red);
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        img.save(&buf, "PNG");
+        const QString imageId = ed->doc()->addImage(png, "png");
+        auto picture = [&](const QRectF &r) {
+            auto p = std::make_shared<jp::PictureItem>();
+            p->imageId = imageId;
+            p->rect = r;
+            p->imgRect = QRectF(QPointF(0, 0), r.size());
+            ed->addItem(p, false);
+            return p;
+        };
+        auto bare = picture(QRectF(72, 72, 100, 100));
+        auto described = picture(QRectF(200, 72, 100, 100));
+        described->altText = QStringLiteral("A red square");
+        auto decoration = picture(QRectF(330, 72, 100, 100));
+        decoration->decorative = true;
+        ed->clearSelection();
+        w.act(QStringLiteral("rev.accessibility"))->trigger();
+        jp::PageAccessibilityPane *pane = w.accessibilityPane();
+        QVERIFY(pane);
+        QCOMPARE(pane->issueCount(), 1);
+        QVERIFY(pane->list()->item(0)->text().startsWith(QLatin1String("Error: ")));
+        QVERIFY(ed->selection().isEmpty());
+        Q_EMIT pane->list()->itemActivated(pane->list()->item(0));
+        QCOMPARE(ed->selection(), QStringList{bare->id});
+        // alt text given: the list is empty after Check Again
+        ed->change(QStringLiteral("alt"), [&] { ed->doc()->item(bare->id)->altText = QStringLiteral("A red square"); });
+        pane->recheck();
+        QCOMPARE(pane->issueCount(), 0);
     }
 
     void markedAsFinalOpensForReadingOnly()

@@ -219,6 +219,7 @@
       ]},
       {"name": "Check", "keytip": "ZC", "items": [
         {"large": "rev.designChecker", "keytip": "DC"},
+        {"large": "rev.accessibility", "keytip": "AC"},
         {"large": "rev.wordCount", "keytip": "WC"},
         {"large": "rev.hyphenation", "keytip": "HY"}
       ]}

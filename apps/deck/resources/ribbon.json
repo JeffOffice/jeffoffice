@@ -840,6 +840,10 @@
             {
               "large": "review.wordCount",
               "keytip": "WC"
+            },
+            {
+              "large": "review.accessibility",
+              "keytip": "AC"
             }
           ]
         },
