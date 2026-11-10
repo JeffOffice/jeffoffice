@@ -46,12 +46,16 @@ jobs:
       # Every FFmpeg library in the snap and in the KDE content snap it runs on, and the runtime probe (tools/ffmpeg_probe.c) on the copy the multimedia plugin
       # loads first in the snap's library path order: it must be our minimal build, not a distribution's or the content snap's full one.
       - name: FFmpeg inside the snap
+        timeout-minutes: 20
         env:
           SNAP_FILE: ${{ steps.build.outputs.snap }}
         run: |
+          set -x
           sudo apt-get install -y squashfs-tools
-          snap download kf6-core24 --channel=latest/stable --basename=kf6-core24
-          python3 tools/snap_ffmpeg_audit.py "$SNAP_FILE" kf6-core24.snap
+          # (a hang here fails in minutes, with the step's own message, instead of holding the run)
+          timeout 600 snap download kf6-core24 --channel=latest/stable --basename=kf6-core24 || { echo "::error::could not download the kf6-core24 content snap (exit $?)"; exit 1; }
+          ls -la kf6-core24.snap "$SNAP_FILE"
+          timeout 900 python3 -u tools/snap_ffmpeg_audit.py "$SNAP_FILE" kf6-core24.snap || { echo "::error::the FFmpeg audit of the snap failed or took over 15 minutes (exit $?)"; exit 1; }
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

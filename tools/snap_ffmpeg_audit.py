@@ -19,6 +19,24 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = re.compile(r"/lib(avcodec|avformat|avutil|swresample|swscale)\.so\.(\d+)$")
 
 
+def listing(snap_file):
+    """Every path inside a snap, from unsquashfs's listing (no unpacking): the files that are FFmpeg libraries, and the whole list."""
+    out = subprocess.run(["timeout", "300", "unsquashfs", "-q", "-ll", snap_file], capture_output=True, text=True, check=True).stdout
+    paths = []
+    for line in out.splitlines():
+        m = re.search(r"\s(squashfs-root/\S+)", line)
+        if m:
+            paths.append(m.group(1)[len("squashfs-root/"):])
+    return paths
+
+
+def extract(snap_file, dest, wanted):
+    """Unpacks only the named paths (and the folders above them)."""
+    if not wanted:
+        return
+    subprocess.run(["timeout", "600", "unsquashfs", "-q", "-f", "-d", dest, snap_file] + sorted(set(wanted)), check=True)
+
+
 def libs(root):
     found = []
     for path in glob.glob(os.path.join(root, "**", "lib*.so.*"), recursive=True):
@@ -66,8 +84,15 @@ def main(argv):
     snap_file, content_file = argv
     work = tempfile.mkdtemp()
     snap_root, content_root = os.path.join(work, "snap"), os.path.join(work, "content")
-    for src, dst in ((snap_file, snap_root), (content_file, content_root)):
-        subprocess.run(["unsquashfs", "-q", "-d", dst, src], check=True)
+    # (only what is needed is unpacked: the FFmpeg libraries, the snap's metadata, and its launcher scripts; the content snap is a gigabyte)
+    for label, src, dst, extra in (("snap", snap_file, snap_root, True), ("content snap", content_file, content_root, False)):
+        print("listing the %s ..." % label, flush=True)
+        paths = listing(src)
+        wanted = [p for p in paths if LIB.search("/" + p)]
+        if extra:
+            wanted += [p for p in paths if p == "meta/snap.yaml" or p.startswith("snap/command-chain/") or "launch" in p.split("/")[-1]]
+        print("  %d paths, %d to unpack" % (len(paths), len(wanted)), flush=True)
+        extract(src, dst, wanted)
     problems = []
     print("FFmpeg libraries in the snap:")
     for p in libs(snap_root):
