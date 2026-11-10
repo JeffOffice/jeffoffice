@@ -89,10 +89,10 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Save a Copy (keeps working in the original), and the other ways to open: read-only, as a copy, in a new window, and Open and Repair for a damaged `.jpub` *(from More Ways to Open on the Open page and the Recent list; the backup copy option is shared by every app and is in Options > General)*
 
 ### Print
-- [x] **1.0** Print with printer selection, copies, page ranges (all, current, custom), and printer properties
+- [x] **1.0** Print with printer selection, copies (collated or not, sent again to a printer that can't make them, and made once in a PDF file), page ranges (all, current, the selected objects, custom), last page first, and printer properties
 - [x] **1.0** Layouts: one page per sheet, multiple pages per sheet, multiple copies per sheet, booklet (side-fold and top-fold), and tiled printing for banners and posters
 - [x] **1.0** Paper size, one-sided or two-sided (flip on long or short edge, or by hand with a message to turn the stack over), color, grayscale, or composite
-- [x] **1.0** Print preview with ruler, page navigation, front/back view, and "show numbers"
+- [x] **1.0** Print preview with ruler, page navigation, zoom to 150, 200, or 300 percent with scrolling, front/back view, and "show numbers"
 - [x] **1.0** Crop marks, bleed marks, registration marks, density bars, color bars, job information, and "allow bleeds"
 - [x] **1.0** Separations (CMYK and spot plates): a plate per process ink and per spot color; tints of a spot color print as lighter ink on its plate, and spot colors are knocked out of the process plates
 - [x] **1.0** Mail merge and catalog merge printing

@@ -77,6 +77,7 @@ QCheckBox *makeCollateBox(QWidget *parent, const QString &tip)
     auto *collate = new QCheckBox(QCoreApplication::translate("Print", "Collated"), parent);
     collate->setObjectName(QStringLiteral("printCollate"));
     collate->setChecked(true);
+    // plain: reviewed, the callers give their own tr() text
     collate->setToolTip(tip);
     return collate;
 }

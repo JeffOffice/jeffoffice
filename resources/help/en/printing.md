@@ -1,14 +1,14 @@
 # Print a publication
-<!-- keywords: print, printer, printing, copies, page range, booklet, poster, banner, tiled, crop marks, bleed, separations, two-sided, print preview, grayscale -->
+<!-- keywords: print, printer, printing, copies, page range, booklet, poster, banner, tiled, crop marks, bleed, separations, two-sided, print preview, grayscale, collate, collated, selection, last page first, reverse, zoom -->
 
-Printing happens on the **Print** page. You pick your settings on the left and check a preview of each page on the right.
+Printing happens on the **Print** page. You pick your settings on the left and check a preview of each page on the right. **Zoom** above the preview makes the page larger than the size that fits; scroll to see the rest.
 
 ## Print a publication
 
 1. Press Ctrl+P, or click **File > Print**. The **quick toolbar** has a **Print** button too.
 2. Next to the **Print** button, set **Copies**.
-3. Choose a **Printer**. The list ends with **Save as PDF**, which makes a PDF file instead of paper.
-4. Under **Settings**, choose **Print All Pages**, **Print Current Page**, or **Custom Print**. For a custom print, type the pages in the **Pages** box: page numbers and ranges, with commas between them, such as 1-3, 5.
+3. Choose a **Printer**. The list ends with **Save as PDF**, which makes a PDF file instead of paper. With more than one copy, **Collated** prints the whole set again for each copy (1, 2, 3, then 1, 2, 3), and with it off each page's copies come out together (1, 1, 2, 2, 3, 3). A PDF file is made once, whatever the number of copies.
+4. Under **Settings**, choose **Print All Pages**, **Print Current Page**, **Print Selection** (only the objects you selected, in their places on the current page; it is dimmed when nothing is selected), or **Custom Print**. For a custom print, type the pages in the **Pages** box: page numbers and ranges, with commas between them, such as 1-3, 5.
 5. Choose the other settings you need. They are listed below.
 6. Click **Print**.
 
@@ -29,6 +29,7 @@ The **Layout** list sets how pages land on paper:
 ## More settings
 
 - **Paper**: Letter, Legal, Tabloid, A4, A3, or **Same as publication**.
+- **Last page first** prints the sheets in reverse order, so a stack comes out in order. It is dimmed when you print on both sides by hand, because JeffPub then sets the order itself.
 - **Sides**: **Print on one side**, or **Print on both sides** with a flip on the long edge or on the short edge. **Print on both sides by hand** is for a printer that can't print on both sides. JeffPub prints the first, third, fifth, and so on of the pages (for a booklet, of the sheet sides), then a message asks you to turn the stack over and put it back in the printer. When you click **OK**, it prints the others, last first. A job of one page has nothing to turn over. Saving a PDF dims the choice, because a file has no sides. The preview then tells you which sheet and side each page is on.
 - **Color**: **Composite RGB** for full color, or **Composite grayscale** for shades of gray.
 - **Print all mail merge records**: available when your publication has a recipient list. See [mail merge](mail-merge).

@@ -90,10 +90,10 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [ ] **later** Open from a web address and save back
 
 ### Print
-- [x] **1.0** Print page with a preview drawn the way the page is printed, and with page navigation; choices are remembered; Ctrl+P opens it
+- [x] **1.0** Print page with a preview drawn the way the page is printed, and with page navigation and a zoom to 150, 200, or 300 percent with scrolling; choices are remembered; Ctrl+P opens it
 - [x] **1.0** Print what: Slides (one per page, in the slide's shape), Notes Pages, Outline, and Handouts with 1, 2, 3, 4, 6, or 9 slides per page (lines beside each slide for 3), with the order across or down for 4 or more
-- [x] **1.0** Range: all, the current slide, or slide numbers and ranges such as 1-3, 5; hidden slides only when asked; a thin frame around each slide; grayscale
-- [~] **1.0** Printer, copies, collate, and one- or two-sided *(done in the system's print window, which JeffDeck opens; November 8, 2026: a Sides choice on the Print page, one side, both sides flipped on the long or the short edge (the system's window starts with it), or both sides by hand, remembered, turned off for a printer that can't, and a PDF file made from that window has none; collate is not on the Print page)*
+- [x] **1.0** Range: all, the current slide, the selection (the slides selected in the slide sorter), or slide numbers and ranges such as 1-3, 5; last page first; hidden slides only when asked; a thin frame around each slide; grayscale
+- [x] **1.0** Printer, copies, collate, and one- or two-sided *(done November 10, 2026: the printer, with Save as PDF, the copies, and Collated are on the Print page, as in the other apps, and the system's print window is no longer opened; a printer that can't make copies is sent the pages again in the order the copies come out, and a PDF file is made once; a Sides choice of one side, both sides flipped on the long or the short edge, or both sides by hand, remembered, turned off for a printer that can't and for a PDF file)*
 - [ ] **1.0** Pure black and white, scale to fit paper, high quality, and printing comments and ink
 - [ ] **1.0** Edit the header and footer of notes pages and handouts from the Print page *(the handout's header and footer hold the title, the date, and the page number, and can't be changed)*
 - [ ] **later** Print several slides in a custom grid, and 4 slides per page with an Outline beside them

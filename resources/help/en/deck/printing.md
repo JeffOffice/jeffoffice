@@ -1,19 +1,20 @@
 # Print, PDF, and slide pictures
-<!-- keywords: print, printer, printing, copies, slides, notes pages, handouts, outline, pdf, export, picture, png, jpeg, jpg, image, range, hidden slides, frame, grayscale, black and white, print preview, paper, letter, a4, password, encrypt, protect with a password -->
+<!-- keywords: print, printer, printing, copies, collate, collated, selection, last page first, reverse, zoom, slides, notes pages, handouts, outline, pdf, export, picture, png, jpeg, jpg, image, range, hidden slides, frame, grayscale, black and white, print preview, paper, letter, a4, password, encrypt, protect with a password -->
 
 You can print your presentation, save it as a PDF, or save a slide as a picture. All three are on the File screen.
 
 ## Print
 
 1. Press Ctrl+P, or click **File > Print**.
-2. Under **Print what**, choose what comes out: **Slides**, **Notes Pages**, **Outline**, or **Handouts** with 1, 2, 3, 4, 6, or 9 slides per page.
-3. For handouts of 4 or more, **Order** says whether the slides run across the page and then down (**Horizontal**) or down and then across (**Vertical**).
-4. Under **Range**, choose **All slides** or **Current slide**, or choose **Slides** and type the numbers in the box: slide numbers and ranges with commas between them, such as 1-3, 5.
-5. Check what you need: **Print hidden slides**, **Frame slides** (a thin line around each slide), and **Grayscale**.
-6. Under **Sides**, choose **Print on one side**, **Print on both sides, flip on long edge** (pages that turn like a book), or **Print on both sides, flip on short edge** (pages that turn like a notepad), or **Print on both sides by hand**. The first two are dimmed when your printer can't print on both sides. Point at one to see why. **By hand** is for such a printer: JeffDeck prints the first, third, fifth, and so on of the pages, then a message asks you to turn the stack over and put it back in the printer. When you click **OK**, it prints the others, last page first. With one page there is nothing to turn over. JeffDeck remembers your choice.
-7. Click **Print**. JeffDeck opens your system's print window, where you choose the printer and the number of copies. The window starts with your choice of sides. A PDF file made from that window has no sides.
+2. Next to the **Print** button, set **Copies**. Choose a **Printer**: the list ends with **Save as PDF**, which makes a PDF file in place of paper. With more than one copy, **Collated** prints the whole set again for each copy (1, 2, 3, then 1, 2, 3), and with it off each page's copies come out together (1, 1, 2, 2, 3, 3). A PDF file is made once, whatever the number of copies.
+3. Under **Print what**, choose what comes out: **Slides**, **Notes Pages**, **Outline**, or **Handouts** with 1, 2, 3, 4, 6, or 9 slides per page.
+4. For handouts of 4 or more, **Order** says whether the slides run across the page and then down (**Horizontal**) or down and then across (**Vertical**).
+5. Under **Range**, choose **All slides**, **Current slide**, or **Selection** (the slides selected in the slide sorter, or the slide you are on when you are not in the sorter), or choose **Slides** and type the numbers in the box: slide numbers and ranges with commas between them, such as 1-3, 5.
+6. Check what you need: **Last page first** (the pages come out in reverse order, so a stack comes out in order; it is dimmed when you print on both sides by hand), **Print hidden slides**, **Frame slides** (a thin line around each slide), and **Grayscale**.
+7. Under **Sides**, choose **Print on one side**, **Print on both sides, flip on long edge** (pages that turn like a book), or **Print on both sides, flip on short edge** (pages that turn like a notepad), or **Print on both sides by hand**. The first two are dimmed when your printer can't print on both sides. Point at one to see why. **By hand** is for such a printer: JeffDeck prints the first, third, fifth, and so on of the pages, then a message asks you to turn the stack over and put it back in the printer. When you click **OK**, it prints the others, last page first. With one page there is nothing to turn over. JeffDeck remembers your choice.
+8. Click **Print**. For a PDF file, JeffDeck asks for a name. A PDF file has no sides.
 
-The preview on the right shows each page that will come out, with arrows to move from page to page. It is drawn the same way the page is printed. JeffDeck remembers your choices for next time.
+The preview on the right shows each page that will come out, with arrows to move from page to page. **Zoom** above it makes the page larger than the size that fits; scroll to see the rest. It is drawn the same way the page is printed. JeffDeck remembers your choices for next time.
 
 ## What each choice prints
 
