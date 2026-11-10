@@ -113,13 +113,14 @@ def windows_imports(plugin, dlldir):
 
 def windows_closure(plugin, dirs):
     system = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
-    problems, seen, todo, done = [], 0, [plugin], set()
+    problems, seen, todo, done, exports_of = [], 0, [plugin], set(), {}
     while todo:
         f = todo.pop()
         if f.lower() in done:
             continue
         done.add(f.lower())
-        for name in pe_imports(f):
+        imports = pe_imports(f)
+        for name in imports:
             low = name.lower()
             if low.startswith(("api-ms-win-", "ext-ms-win-")):
                 continue
@@ -129,8 +130,19 @@ def windows_closure(plugin, dirs):
                 todo.append(found)
             elif os.path.exists(os.path.join(system, name)):
                 seen += 1
-            else:
-                problems.append("%s needs %s, which is in none of %s and is not a system library" % (os.path.basename(f), name, ", ".join(dirs)))
+                found = os.path.join(system, name)
+            if found:
+                # (and every function this one imports from that DLL is one it exports: "The specified procedure could not be found" is this)
+                key = found.lower()
+                if key not in exports_of:
+                    exports_of[key] = pe_exports(found)
+                have = exports_of[key]
+                if have:
+                    gone = [n for n in imports[name] if n not in have]
+                    if gone:
+                        problems.append("%s imports %d names that %s does not export: %s" % (os.path.basename(f), len(gone), name, " ".join(gone[:10])))
+                continue
+            problems.append("%s needs %s, which is in none of %s and is not a system library" % (os.path.basename(f), name, ", ".join(dirs)))
     return problems, seen
 
 
