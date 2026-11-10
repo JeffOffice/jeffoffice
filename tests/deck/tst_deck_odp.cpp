@@ -2627,6 +2627,52 @@ private Q_SLOTS:
         for (const jp::ItemPtr &it : third->pages[0]->items) hiddenCount += it->hidden;
         QCOMPARE(hiddenCount, 1);
     }
+
+    // A hidden group and a hidden text frame are kept hidden through a save and open, and their parts are not hidden.
+    void odpKeepsHiddenGroupsAndFrames()
+    {
+        auto d = deck::newPresentation();
+        d->pages[0]->items.clear();
+        auto shape = [&](const QString &name, double x) {
+            auto s = std::make_shared<jp::ShapeItem>();
+            s->name = name;
+            s->rect = QRectF(x, 100, 60, 40);
+            s->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(0x20, 0x40, 0x80)));
+            return s;
+        };
+        auto group = std::make_shared<jp::GroupItem>();
+        group->name = QStringLiteral("Hidden group");
+        group->hidden = true;
+        group->children = {shape(QStringLiteral("Part one"), 20), shape(QStringLiteral("Part two"), 100)};
+        group->syncRect();
+        d->pages[0]->items.push_back(group);
+        auto frame = std::make_shared<jp::TextItem>();
+        frame->name = QStringLiteral("Hidden frame");
+        frame->hidden = true;
+        frame->rect = QRectF(20, 300, 200, 60);
+        frame->storyId = d->createStory();
+        d->storyDoc(frame->storyId)->setPlainText(QStringLiteral("Words"));
+        d->pages[0]->items.push_back(frame);
+        d->pages[0]->items.push_back(shape(QStringLiteral("Plain"), 300));
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::GroupItem *g = nullptr;
+        const jp::Item *f = nullptr, *plain = nullptr;
+        for (const jp::ItemPtr &it : back->pages[0]->items) {
+            if (it->name == QLatin1String("Hidden group")) g = static_cast<const jp::GroupItem *>(it.get());
+            if (it->name == QLatin1String("Hidden frame")) f = it.get();
+            if (it->name == QLatin1String("Plain")) plain = it.get();
+        }
+        QVERIFY(g && f && plain);
+        QVERIFY(g->hidden);
+        QVERIFY(f->hidden);
+        QVERIFY(!plain->hidden);
+        QCOMPARE(int(g->children.size()), 2);
+        for (const jp::ItemPtr &c : g->children) QVERIFY(!c->hidden);
+    }
 };
 
 JP_TEST_CLASS(DeckOdpTests)

@@ -2932,6 +2932,36 @@ private Q_SLOTS:
         QCOMPARE(list->currentRow(), 0);
     }
 
+    // A row of the Selection Pane dragged to another place moves the object exactly that far (the buttons do it a step at a time, so a drag is the same steps), and the pane offers no boxes
+    // or names it cannot keep.
+    void aDragInTheSelectionPaneMovesTheObjectExactly()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        std::vector<int> made;
+        for (const char *shape : {"rect", "ellipse", "triangle", "rect"}) {
+            QVERIFY(e.win.w.insertShape(QString::fromLatin1(shape)));
+            made.push_back(o->layer()->selectedId());
+        }
+        e.win.w.act(QStringLiteral("object.selectionPane"))->trigger();
+        auto *list = e.win.w.findChild<QListWidget *>(QStringLiteral("selectionList"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 4);
+        QVERIFY(!(list->item(0)->flags() & Qt::ItemIsUserCheckable));
+        QVERIFY(!(list->item(0)->flags() & Qt::ItemIsEditable));
+        QCOMPARE(int(list->dragDropMode()), int(QAbstractItemView::InternalMove));
+        // The front one (the last made) dragged to the third place from the top: from the back the order is then 0, front, 1, 2.
+        QVERIFY(list->model()->moveRow(QModelIndex(), 0, QModelIndex(), 3));
+        QCOMPARE(o->idsOf(0), (std::vector<int>{made[0], made[3], made[1], made[2]}));
+        // A row dragged to the front.
+        QTRY_COMPARE(list->count(), 4);
+        QVERIFY(list->model()->moveRow(QModelIndex(), 3, QModelIndex(), 0));
+        QCOMPARE(o->idsOf(0), (std::vector<int>{made[3], made[1], made[2], made[0]}));
+    }
+
     // Pictures and shapes move and size too: the anchor of the file is kept in the form it keeps what the object does when cells change (a picture of a one-cell anchor moves with the cells and
     // keeps its size; a shape set not to move or size stays where it is).
     void picturesAndShapesAreMovedAndSaved()

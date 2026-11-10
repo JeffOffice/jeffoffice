@@ -3,6 +3,11 @@
 #include <QAbstractItemModel>
 #include <QAbstractButton>
 #include <QListWidget>
+#include <QElapsedTimer>
+#include <QMessageBox>
+#include <QTimer>
+#include "canvas/canvasaccessible.h"
+#include "app/findreplace.h"
 
 class PubObjectsTests : public QObject {
     Q_OBJECT
@@ -2431,6 +2436,148 @@ private Q_SLOTS:
         QCOMPARE(again->item(front)->name, QStringLiteral("Front"));
         QVERIFY(again->item(back)->hidden);
         QVERIFY(!again->item(front)->hidden);
+    }
+
+    // A hidden object is left out of Select All, Tab, Find, and what a screen reader is told; the Selection Pane can still pick it, and then it can be moved and deleted; a copy of it is hidden too.
+    void hiddenObjectsAreLeftOutOfSelectAllTabFindAndTheObjectList()
+    {
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        auto a = ed->newTextBox(QRectF(50, 50, 100, 40), QStringLiteral("alpha"));
+        auto h = ed->newTextBox(QRectF(50, 150, 100, 40), QStringLiteral("needle"));
+        auto b = ed->newTextBox(QRectF(50, 250, 100, 40), QStringLiteral("beta"));
+        for (const auto &it : {a, h, b}) ed->addItem(it);
+        const QString ida = a->id, idh = h->id, idb = b->id;
+        ed->doc()->item(idh)->hidden = true;
+        w.act(QStringLiteral("edit.selectAll"))->trigger();
+        QCOMPARE(ed->selection(), (QStringList{ida, idb}));
+        ed->clearSelection();
+        w.canvas()->setFocus();
+        QTest::keyClick(w.canvas(), Qt::Key_Tab);
+        QCOMPARE(ed->selection(), QStringList{ida});
+        QTest::keyClick(w.canvas(), Qt::Key_Tab);
+        QCOMPARE(ed->selection(), QStringList{idb});
+        QTest::keyClick(w.canvas(), Qt::Key_Tab, Qt::ShiftModifier);
+        QCOMPARE(ed->selection(), QStringList{ida});
+        bool found = false;
+        for (const jp::FindStory &s : jp::findStories(*ed->doc())) found = found || s.itemId == idh;
+        QVERIFY(!found);
+        auto *access = static_cast<jp::CanvasAccessible *>(QAccessible::queryAccessibleInterface(w.canvas()));
+        QVERIFY(access);
+        QStringList told;
+        for (int i = 0; i < access->childCount(); ++i)
+            if (QAccessibleInterface *child = access->child(i)) told << child->text(QAccessible::Name);
+        QVERIFY2(told.join(QLatin1Char('|')).contains(QStringLiteral("alpha")), qPrintable(told.join(QLatin1Char('|'))));
+        QVERIFY2(!told.join(QLatin1Char('|')).contains(QStringLiteral("needle")), qPrintable(told.join(QLatin1Char('|'))));
+        // The Selection Pane picks it; it moves, and a copy of it is hidden too.
+        ed->select(idh);
+        const QRectF was = ed->doc()->item(idh)->rect;
+        ed->moveSelectionBy(10, 0);
+        QCOMPARE(ed->doc()->item(idh)->rect.x(), was.x() + 10);
+        ed->duplicateSelection();
+        QCOMPARE(int(ed->selection().size()), 1);
+        QVERIFY(ed->selection().first() != idh);
+        QVERIFY(ed->doc()->item(ed->selection().first())->hidden);
+        ed->deleteSelection();
+        ed->select(idh);
+        ed->deleteSelection();
+        QVERIFY(!ed->doc()->item(idh));
+    }
+
+    // A name given in the Selection Pane holds no control character and is at most 255 characters.
+    void selectionPaneNamesAreCleaned()
+    {
+        jp::MainWindow w;
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        auto s = std::make_shared<jp::ShapeItem>();
+        ed->addItem(s);
+        const QString id = s->id;
+        w.act(QStringLiteral("arr.selectionPane"))->trigger();
+        auto *list = w.findChild<QListWidget *>(QStringLiteral("selectionList"));
+        QVERIFY(list && list->count() == 1);
+        list->item(0)->setText(QStringLiteral("A\x01" "B\x0b") + QString(400, QLatin1Char('x')));
+        QTRY_VERIFY(ed->doc()->item(id)->name.startsWith(QStringLiteral("ABxx")));
+        QCOMPARE(ed->doc()->item(id)->name.size(), 255);
+        QVERIFY(!ed->doc()->item(id)->name.contains(QChar(1)));
+    }
+
+    // A .pub file can't keep an object hidden: the person is asked before it is written, and a No leaves nothing written.
+    void savingAsPubAsksAboutHiddenObjects()
+    {
+        jp::MainWindow w;
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        auto s = std::make_shared<jp::ShapeItem>();
+        s->hidden = true;
+        ed->addItem(s);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QString said;
+        QMessageBox::StandardButton answer = QMessageBox::No;
+        QTimer timer;
+        QObject::connect(&timer, &QTimer::timeout, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                said = box->text();
+                box->button(answer)->click();
+            }
+        });
+        timer.start(20);
+        const QString path = dir.filePath(QStringLiteral("a.pub"));
+        QVERIFY(!w.saveTo(path));
+        QVERIFY(said.contains(QStringLiteral("This publication has hidden objects. The .pub format can't keep them hidden, so they will be visible the next time it opens.")));
+        QVERIFY(!QFileInfo::exists(path));
+        // A .jpub keeps it hidden, so nothing is asked.
+        said.clear();
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("a.jpub"))));
+        QVERIFY(said.isEmpty());
+        answer = QMessageBox::Yes;
+        QVERIFY(w.saveTo(path));
+        QVERIFY(QFileInfo::exists(path));
+    }
+
+    // A page of 20,000 objects: the pane lists them, Select All, a nudge, and a drag of a row 1,000 places each take about a second at most (the bound is three) (a list copied for each row, a search of the
+    // selection for each id, or a list built again for each change takes minutes).
+    void aPageOfTwentyThousandObjectsIsHandledQuickly()
+    {
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        for (int i = 0; i < 20000; ++i) {
+            auto s = std::make_shared<jp::ShapeItem>();
+            s->rect = QRectF(i % 500, i / 500, 5, 5);
+            ed->doc()->pages[0]->items.push_back(s);
+        }
+        QElapsedTimer clock;
+        auto within = [&](const char *what) {
+            const qint64 ms = clock.elapsed();
+            clock.restart();
+            QVERIFY2(ms < 3000, qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
+        };
+        clock.start();
+        w.act(QStringLiteral("arr.selectionPane"))->trigger();
+        auto *list = w.findChild<QListWidget *>(QStringLiteral("selectionList"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 20000);
+        within("opening the pane");
+        w.act(QStringLiteral("edit.selectAll"))->trigger();
+        QCOMPARE(int(ed->selection().size()), 20000);
+        w.findChild<jp::SelectionPane *>(QStringLiteral("selectionPane"))->refresh();   // (the pane follows the selection)
+        QCOMPARE(list->currentRow(), 0);
+        within("Select All");
+        ed->moveSelectionBy(3, 3);
+        within("a nudge");
+        const QString moved = ed->surfaceItems()[19999]->id;
+        QVERIFY(list->model()->moveRow(QModelIndex(), 0, QModelIndex(), 1000));
+        QCOMPARE(ed->surfaceItems()[19999 - 999]->id, moved);
+        within("a drag of 1,000 places");
     }
 };
 

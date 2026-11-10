@@ -1290,7 +1290,6 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     const office::Relationship rel = m_pkg.relationship(sc.ctx.part, office::chartFrameRelId(frame));
     if (rel.id.isEmpty() || rel.external || !m_pkg.hasPart(rel.target)) return false;
     const QDomElement cNvPr = pChild(pChild(frame, "nvGraphicFramePr"), "cNvPr");
-    if (office::parseBool(office::attr(cNvPr, QStringLiteral("hidden")))) return false;
     const QDomElement xfrm = pChild(frame, "xfrm"), off = aChild(xfrm, "off"), ext = aChild(xfrm, "ext");
     auto points = [](const QDomElement &e, const char *name) { return office::emuToPoints(office::parseInt(office::attr(e, QLatin1String(name)))); };
     // A frame is no larger than a slide can be (a chart is drawn that large, not as large as a file says it is).
@@ -1342,6 +1341,7 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     auto pic = std::make_shared<PictureItem>();
     pic->name = office::attr(cNvPr, QStringLiteral("name"));
     pic->altText = office::attr(cNvPr, QStringLiteral("descr"));
+    pic->hidden = office::parseBool(office::attr(cNvPr, QStringLiteral("hidden")));
     pic->rect = rect;
     pic->imgRect = QRectF(QPointF(0, 0), rect.size());
     pic->wrap.mode = Wrap::None;
@@ -1377,7 +1377,6 @@ bool Importer::readFrameDiagram(const QDomElement &frame, Scope &sc)
 {
     if (!isDiagramFrame(frame)) return false;
     const QDomElement cNvPr = pChild(pChild(frame, "nvGraphicFramePr"), "cNvPr");
-    if (office::parseBool(office::attr(cNvPr, QStringLiteral("hidden")))) return false;
     const DiagramLinks ids = diagramFrameLinks(frame);
     if (!ids.complete()) return false;
     // The four parts the frame names, which the file has, and the drawing the data part names.
@@ -1438,6 +1437,7 @@ bool Importer::readFrameDiagram(const QDomElement &frame, Scope &sc)
     auto pic = std::make_shared<PictureItem>();
     pic->name = office::attr(cNvPr, QStringLiteral("name"));
     pic->altText = office::attr(cNvPr, QStringLiteral("descr"));
+    pic->hidden = office::parseBool(office::attr(cNvPr, QStringLiteral("hidden")));
     pic->rect = rect;
     pic->imgRect = QRectF(QPointF(0, 0), rect.size());
     pic->wrap.mode = Wrap::None;

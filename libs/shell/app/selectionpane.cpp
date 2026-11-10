@@ -7,6 +7,7 @@
 #include <QListWidget>
 #include <QPointer>
 #include <QPushButton>
+#include <QShowEvent>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <algorithm>
@@ -42,7 +43,8 @@ SelectionPane::SelectionPane(QWidget *parent, const Source &source) : QDialog(pa
     m_list = new QListWidget(this);
     m_list->setObjectName(QStringLiteral("selectionList"));
     m_list->setAccessibleName(tr("Objects on the page"));
-    m_list->setDragDropMode(QAbstractItemView::InternalMove);
+    // (A list that can't be reordered is not dragged.)
+    m_list->setDragDropMode(m_source.move ? QAbstractItemView::InternalMove : QAbstractItemView::NoDragDrop);
     m_list->setDefaultDropAction(Qt::MoveAction);
     layout->addWidget(m_list);
     auto *buttons = new QHBoxLayout;
@@ -53,6 +55,8 @@ SelectionPane::SelectionPane(QWidget *parent, const Source &source) : QDialog(pa
     buttons->addWidget(forward);
     buttons->addWidget(backward);
     layout->addLayout(buttons);
+    forward->setVisible(bool(m_source.move));
+    backward->setVisible(bool(m_source.move));
 
     // (A signal of the list is answered inside a Busy: see m_busy.)
     struct Busy {
@@ -103,6 +107,27 @@ void SelectionPane::moveCurrent(int by)
     refresh();
 }
 
+void SelectionPane::requestRefresh()
+{
+    if (!isVisible()) {
+        m_stale = true;
+        return;
+    }
+    if (m_queued) return;
+    m_queued = true;
+    QTimer::singleShot(0, this, [this] {
+        m_queued = false;
+        refresh();
+    });
+}
+
+void SelectionPane::showEvent(QShowEvent *e)
+{
+    QDialog::showEvent(e);
+    if (m_stale) refresh();
+}
+
+// The list from the Source. With as many rows as before, the rows are updated where they stand (a name, a box, the pick), which keeps a long list from being built again for each change.
 void SelectionPane::refresh()
 {
     if (!m_source.rows) return;
@@ -111,24 +136,41 @@ void SelectionPane::refresh()
         return;
     }
     m_again = false;
+    m_stale = false;
     const QVector<Row> rows = m_source.rows();
     m_filling = true;
-    m_list->clear();
     int picked = -1;
-    for (int i = 0; i < rows.size(); ++i) {
-        auto *item = new QListWidgetItem(rows[i].name);
-        Qt::ItemFlags flags = item->flags() | Qt::ItemIsDragEnabled;
-        flags &= ~Qt::ItemIsDropEnabled;
-        if (m_source.rename) flags |= Qt::ItemIsEditable;
-        if (m_source.show) {
-            flags |= Qt::ItemIsUserCheckable;
-            item->setCheckState(rows[i].shown ? Qt::Checked : Qt::Unchecked);
+    for (int i = 0; i < rows.size(); ++i)
+        if (rows[i].picked) {
+            picked = i;
+            break;
         }
-        item->setFlags(flags);
-        m_list->addItem(item);
-        if (rows[i].picked && picked < 0) picked = i;
+    if (m_list->count() == rows.size()) {
+        for (int i = 0; i < rows.size(); ++i) {
+            QListWidgetItem *item = m_list->item(i);
+            if (item->text() != rows[i].name) item->setText(rows[i].name);
+            if (m_source.show) {
+                const Qt::CheckState want = rows[i].shown ? Qt::Checked : Qt::Unchecked;
+                if (item->checkState() != want) item->setCheckState(want);
+            }
+        }
+    } else {
+        m_list->clear();
+        for (int i = 0; i < rows.size(); ++i) {
+            auto *item = new QListWidgetItem(rows[i].name);
+            Qt::ItemFlags flags = item->flags() | Qt::ItemIsDragEnabled;
+            flags &= ~Qt::ItemIsDropEnabled;
+            if (m_source.rename) flags |= Qt::ItemIsEditable;
+            if (!m_source.show) flags &= ~Qt::ItemIsUserCheckable;   // (an item is checkable unless it is told it is not)
+            if (m_source.show) {
+                flags |= Qt::ItemIsUserCheckable;
+                item->setCheckState(rows[i].shown ? Qt::Checked : Qt::Unchecked);
+            }
+            item->setFlags(flags);
+            m_list->addItem(item);
+        }
     }
-    if (picked >= 0) m_list->setCurrentRow(picked);
+    if (picked != m_list->currentRow() && picked >= 0) m_list->setCurrentRow(picked);
     m_filling = false;
 }
 

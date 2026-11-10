@@ -752,7 +752,7 @@ void applyLayout(Document &d, Page &slide, const MasterPage &layout)
     const bool chosen = d.appData.contains(QStringLiteral("footerOptions"));
     for (const auto &l : layout.items) {
         const QString type = placeholderType(*l);
-        if (type.isEmpty() || taken.contains(l.get()) || (isFooterType(type) && !footers.shows(type, layoutType(layout)))) continue;
+        if (type.isEmpty() || l->hidden || taken.contains(l.get()) || (isFooterType(type) && !footers.shows(type, layoutType(layout)))) continue;
         slide.items.push_back(slidePlaceholder(d, *l));
         if (chosen && isFooterType(type)) fillFooter(d, *slide.items.back(), type, filled);
     }

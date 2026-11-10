@@ -36,6 +36,7 @@ QVector<FindStory> findStories(const Document &doc, const FindScope &scope)
     };
     auto visit = [&](const ItemList &items, int page, const QString &master) {
         walkItems(items, [&](const ItemPtr &it) {
+            if (it->hidden) return;   // (Find passes over a hidden object)
             if (it->type() == ItemType::Text) {
                 auto *t = static_cast<TextItem *>(it.get());
                 if (!seen.contains(t->storyId)) { seen.insert(t->storyId); out << FindStory{firstFrame(t)->id, t->storyId, -1, -1, page, master}; }

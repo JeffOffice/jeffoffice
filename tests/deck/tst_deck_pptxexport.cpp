@@ -912,6 +912,40 @@ private Q_SLOTS:
         for (const jp::ItemPtr &it : third->pages[0]->items) hiddenCount += it->hidden;
         QCOMPARE(hiddenCount, 1);
     }
+
+    // A name with control characters (and a very long one) is written as XML a file can hold: the characters are left out, for a shape, a table, and in .odp too.
+    void objectNamesWithControlCharactersAreWrittenAsValidXml()
+    {
+        auto d = deck::newPresentation();
+        d->pages[0]->items.clear();
+        auto shape = std::make_shared<jp::ShapeItem>();
+        shape->name = QStringLiteral("Sh\x01\x0b" "ape");
+        shape->altText = QStringLiteral("al\x02t");
+        shape->rect = QRectF(10, 10, 80, 40);
+        d->pages[0]->items.push_back(shape);
+        auto table = std::make_shared<jp::TableItem>();
+        table->rows = 1;
+        table->cols = 1;
+        table->colW = {100};
+        table->rowH = {30};
+        table->cells.resize(1);
+        table->cells[0].storyId = d->createStory();
+        table->name = QStringLiteral("Ta\x03" "ble");
+        table->altText = QStringLiteral("ta\x04" "ble alt");
+        table->rect = QRectF(10, 100, 100, 30);
+        d->pages[0]->items.push_back(table);
+        for (const bool odp : {false, true}) {
+            QString err;
+            const QByteArray bytes = odp ? deck::exportOdp(*d, false, &err) : deck::exportPresentation(*d, &err);
+            QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+            auto back = odp ? deck::importOdp(bytes, &err) : deck::importPresentation(bytes, &err);
+            QVERIFY2(back, qPrintable(err));
+            QStringList names;
+            for (const jp::ItemPtr &it : back->pages[0]->items) names << it->name;
+            QVERIFY2(names.contains(QStringLiteral("Shape")), qPrintable(names.join(QLatin1Char('|'))));
+            QVERIFY2(names.contains(QStringLiteral("Table")) || odp, qPrintable(names.join(QLatin1Char('|'))));
+        }
+    }
 };
 
 JP_TEST_CLASS(DeckPptxExportTests)

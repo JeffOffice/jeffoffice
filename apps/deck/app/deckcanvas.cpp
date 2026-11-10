@@ -219,7 +219,7 @@ void DeckCanvas::paintEvent(QPaintEvent *e)
     p.setBrush(Qt::NoBrush);
     const QStringList selected = editor()->selection();
     for (const auto &it : d->pages[page]->items) {
-        if (it->type() != ItemType::Text) continue;
+        if (it->type() != ItemType::Text || it->hidden) continue;   // (a hidden placeholder has no dotted outline)
         const auto *t = static_cast<const TextItem *>(it.get());
         const QTextDocument *story = d->storyDoc(t->storyId);
         const bool typing = editor()->isEditingText() && editor()->textTarget().itemId == t->id;

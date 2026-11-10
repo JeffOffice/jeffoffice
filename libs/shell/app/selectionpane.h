@@ -32,6 +32,12 @@ public:
     SelectionPane(QWidget *parent, const Source &source);
     // The list again from the Source (the app calls it when its objects or its pick change).
     void refresh();
+    // The list again, but not at once and not while the pane is hidden: one refresh, at the end of the event-loop turn, however many changes asked for it (a page of thousands of objects
+    // changes in thousands of ways in a turn); a hidden pane is made current when it is shown.
+    void requestRefresh();
+
+protected:
+    void showEvent(QShowEvent *e) override;
 
 private:
     void moveCurrent(int by);
@@ -39,7 +45,7 @@ private:
     QListWidget *m_list = nullptr;
     QPushButton *m_showAll = nullptr, *m_hideAll = nullptr;
     // Set while the list is giving a signal out (a pick, a box, a name, a drag): a refresh asked for then waits until the signal is done, so that no row is taken away under it.
-    bool m_busy = false, m_again = false;
+    bool m_busy = false, m_again = false, m_queued = false, m_stale = false;
     bool m_filling = false;
 };
 

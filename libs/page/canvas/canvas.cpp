@@ -469,7 +469,7 @@ void Canvas::paintPrompts(QPainter &p, const Slot &s)
     const MasterPage *m = s.page < 0 ? d->master(m_ed->masterView()) : nullptr;
     const ItemList &items = s.page < 0 ? (m ? m->items : ItemList()) : d->pages[s.page]->items;
     for (const auto &it : items) {
-        if (it->type() != ItemType::Text) continue;
+        if (it->type() != ItemType::Text || it->hidden) continue;   // (a hidden placeholder shows no prompt)
         const auto *t = static_cast<const TextItem *>(it.get());
         if (t->prompt.isEmpty() || (m_ed->isEditingText() && m_ed->textTarget().itemId == t->id)) continue;
         const QTextDocument *story = d->storyDoc(t->storyId);
@@ -1083,7 +1083,7 @@ void Canvas::paintOverlay(QPainter &p)
         p.setBrush(Qt::NoBrush);
         auto outline = [&](const ItemList &l) {
             walkItems(l, [&](const ItemPtr &it) {
-                if (it->type() == ItemType::Group || it->type() == ItemType::Line) return;
+                if (it->hidden || it->type() == ItemType::Group || it->type() == ItemType::Line) return;
                 QPolygonF poly;
                 for (const QPointF &pt : it->outline()) poly << pageToView(pt);
                 p.drawPolygon(poly);
@@ -1557,7 +1557,7 @@ void Canvas::collectSnapTargets(QVector<double> &xs, QVector<double> &ys, const 
     }
     if (m_ed->view.snapObjects) {
         for (const auto &it : m_ed->surfaceItems()) {
-            if (exclude.contains(it->id)) continue;
+            if (it->hidden || exclude.contains(it->id)) continue;   // (an object that is not shown is nothing to snap to)
             const QRectF b = it->bounds();
             xs << b.left() << b.center().x() << b.right();
             ys << b.top() << b.center().y() << b.bottom();
@@ -2453,7 +2453,7 @@ void Canvas::mouseReleaseEvent(QMouseEvent *e)
             QStringList ids;
             auto take = [&](const ItemList &l) {
                 for (const auto &it : l)
-                    if (r.contains(it->bounds())) ids << it->id;
+                    if (!it->hidden && r.contains(it->bounds())) ids << it->id;
             };
             take(m_ed->surfaceItems());
             if (m_ed->view.scratch && m_ed->masterView().isEmpty()) take(d->scratch);
@@ -3036,8 +3036,15 @@ void Canvas::keyPressEvent(QKeyEvent *e)
         if (!m_ed->selection().isEmpty())
             for (int i = 0; i < int(l.size()); ++i)
                 if (l[i]->id == m_ed->selection().first()) idx = i;
-        idx = (e->key() == Qt::Key_Backtab || shift) ? (idx <= 0 ? int(l.size()) - 1 : idx - 1) : (idx + 1) % int(l.size());
-        m_ed->select(l[idx]->id);
+        // (Tab steps over the objects that are hidden.)
+        const int n = int(l.size());
+        for (int tried = 0; tried < n; ++tried) {
+            idx = (e->key() == Qt::Key_Backtab || shift) ? (idx <= 0 ? n - 1 : idx - 1) : (idx + 1) % n;
+            if (!l[idx]->hidden) {
+                m_ed->select(l[idx]->id);
+                break;
+            }
+        }
         return;
     }
     case Qt::Key_Return:

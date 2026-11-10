@@ -195,7 +195,8 @@ void DeckWindow::createFormatActions()
             return;
         }
         QStringList ids;
-        for (const auto &it : ed->surfaceItems()) ids << it->id;
+        for (const auto &it : ed->surfaceItems())
+            if (!it->hidden) ids << it->id;   // (a hidden object is reached through the Selection Pane)
         ed->select(ids);
     });
 

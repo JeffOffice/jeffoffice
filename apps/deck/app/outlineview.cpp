@@ -51,7 +51,7 @@ int storyLevel(const QTextBlock &b)
 TextItem *placeholderIn(Page &page, std::initializer_list<const char *> types)
 {
     for (const auto &it : page.items) {
-        if (it->type() != ItemType::Text) continue;
+        if (it->type() != ItemType::Text || it->hidden) continue;
         const QString type = deck::placeholderType(*it);
         for (const char *t : types)
             if (type == QLatin1String(t)) return static_cast<TextItem *>(it.get());

@@ -1,4 +1,6 @@
 #include "app/editor.h"
+
+#include <QSet>
 #include "app/pictureask.h"
 #include "app/settings.h"
 #include "app/spelling.h"
@@ -247,8 +249,12 @@ QVector<QPair<int, int>> Editor::misspelledIn(const QString &storyId) const
 void Editor::select(const QStringList &ids, bool add)
 {
     QStringList next = add ? m_sel : QStringList();
+    QSet<QString> have(next.cbegin(), next.cend());   // (a list of thousands is not searched for each id)
     for (const auto &id : ids)
-        if (!next.contains(id) && m_doc->item(id)) next << id;
+        if (!have.contains(id) && m_doc->item(id)) {
+            have.insert(id);
+            next << id;
+        }
     const bool hadBlock = hasCellBlock();   // choosing a selection puts the block away
     m_block = CellBlock();
     if (next == m_sel) {

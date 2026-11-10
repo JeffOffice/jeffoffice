@@ -182,6 +182,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
 
 DeckWindow::~DeckWindow()
 {
+    qApp->removeEventFilter(this);   // (the filter of Full Screen and of the File screen)
     if (m_show) m_show->close();
     deck::EmbeddedFonts::release(m_fontsOf);
 }
@@ -434,8 +435,11 @@ bool DeckWindow::eventFilter(QObject *o, QEvent *e)
     }
     // Escape leaves Full Screen, unless the slide has something to put away first.
     if (e->type() == QEvent::KeyPress && isFullScreen()) {
+        const KeyTips *keyTips = nullptr;
+        for (QObject *child : children())
+            if ((keyTips = dynamic_cast<const KeyTips *>(child))) break;
         const bool slideWants = m_ed->isEditingText() || !m_ed->selection().isEmpty() || m_ed->tool() != Tool::Select || !m_ed->cropItem.isEmpty() || !m_ed->pointsItem.isEmpty()
-                                || !m_ed->wrapItem.isEmpty() || m_ed->hasCellBlock();
+                                || !m_ed->wrapItem.isEmpty() || m_ed->hasCellBlock() || (keyTips && keyTips->level() != KeyTips::Off);
         if (escapeLeavesFullScreen(o, e, slideWants)) return true;
     }
     return AppWindow::eventFilter(o, e);

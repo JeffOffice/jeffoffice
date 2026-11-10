@@ -129,7 +129,7 @@ QVector<OutlineEntry> outlineOf(const Document &d, const QVector<int> &slides)
         OutlineEntry e;
         e.slide = index;
         for (const auto &it : slide.items) {
-            if (it->type() != ItemType::Text) continue;
+            if (it->type() != ItemType::Text || it->hidden) continue;   // (a hidden object is not in the outline)
             const QString type = placeholderType(*it);
             const bool title = isTitle(type);
             if (!title && !isBody(type)) continue;

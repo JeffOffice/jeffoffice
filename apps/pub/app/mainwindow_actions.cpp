@@ -113,7 +113,8 @@ void MainWindow::createActions()
             return;
         }
         QStringList ids;
-        for (const auto &it : ed->surfaceItems()) ids << it->id;
+        for (const auto &it : ed->surfaceItems())
+            if (!it->hidden) ids << it->id;   // (a hidden object is reached through the Selection Pane)
         ed->select(ids);
     });
     mk("edit.selectText", tr("Select All Text in Text Box"), "text-select", QKeySequence(), [ed] {
@@ -131,7 +132,7 @@ void MainWindow::createActions()
         mk(id, tr("Select All %1").arg(name), "", QKeySequence(), [ed, t] {
             QStringList ids;
             for (const auto &it : ed->surfaceItems())
-                if (it->type() == t) ids << it->id;
+                if (it->type() == t && !it->hidden) ids << it->id;
             ed->select(ids);
         });
     }

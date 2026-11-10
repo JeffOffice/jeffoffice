@@ -5,16 +5,24 @@
 #include "app/editor.h"
 
 #include <QCoreApplication>
+#include <QSet>
 
 namespace jp {
 
 namespace {
 
-// The surface's objects, the one in front first.
-ItemList frontFirst(Editor *ed)
+// A name as an object keeps it: no control characters, and at most 255 characters (a whole pair of surrogates is not cut).
+QString cleanObjectName(const QString &text)
 {
-    const ItemList &list = ed->surfaceItems();
-    return ItemList(list.rbegin(), list.rend());
+    QString out;
+    out.reserve(std::min<qsizetype>(text.size(), 255));
+    for (const QChar c : text) {
+        if (c.unicode() < 0x20 || c.unicode() == 0x7F) continue;
+        if (out.size() >= 255) break;
+        out += c;
+    }
+    if (!out.isEmpty() && out.back().isHighSurrogate()) out.chop(1);
+    return out.trimmed();
 }
 
 } // namespace
@@ -32,43 +40,51 @@ SelectionPane *showPageSelectionPane(QWidget *parent, Editor *ed, QPointer<Selec
         (*slot)->raise();
         return *slot;
     }
+    // The rows are the surface's objects, the one in front first: row r is the object at n - 1 - r of the list, which is read where it stands, never copied.
+    auto at = [ed](int row) -> Item * {
+        const ItemList &l = ed->surfaceItems();
+        const int n = int(l.size());
+        return row >= 0 && row < n ? l[size_t(n - 1 - row)].get() : nullptr;
+    };
     SelectionPane::Source src;
     src.rows = [ed] {
         QVector<SelectionPane::Row> rows;
-        const ItemList list = frontFirst(ed);
-        for (size_t i = 0; i < list.size(); ++i) {
-            const Item &it = *list[i];
-            rows.push_back({it.name.isEmpty() ? defaultObjectName(it, int(list.size() - i)) : it.name, !it.hidden, ed->selection().contains(it.id)});
+        const ItemList &list = ed->surfaceItems();
+        const QStringList &sel = ed->selection();
+        const QSet<QString> picked(sel.cbegin(), sel.cend());
+        const int n = int(list.size());
+        rows.reserve(n);
+        for (int row = 0; row < n; ++row) {
+            const Item &it = *list[size_t(n - 1 - row)];
+            rows.push_back({it.name.isEmpty() ? defaultObjectName(it, n - row) : it.name, !it.hidden, picked.contains(it.id)});
         }
         return rows;
     };
-    src.pick = [ed](int row) {
-        const ItemList list = frontFirst(ed);
-        if (row >= 0 && row < int(list.size())) ed->select(list[size_t(row)]->id);
+    src.pick = [ed, at](int row) {
+        if (const Item *it = at(row)) ed->select(it->id);
     };
-    src.rename = [ed](int row, const QString &name) {
-        const ItemList list = frontFirst(ed);
-        if (row < 0 || row >= int(list.size())) return;
-        const QString id = list[size_t(row)]->id;
-        const QString text = name.trimmed();
+    src.rename = [ed, at](int row, const QString &name) {
+        const Item *it = at(row);
+        if (!it) return;
+        const QString id = it->id, text = cleanObjectName(name);
         // (The name shown for an object with none is not a name until it is changed.)
-        if (list[size_t(row)]->name.isEmpty() && (text.isEmpty() || text == defaultObjectName(*list[size_t(row)], int(list.size()) - row))) return;
+        if (it->name.isEmpty() && (text.isEmpty() || text == defaultObjectName(*it, int(ed->surfaceItems().size()) - row))) return;
+        if (text == it->name) return;
         ed->change(QCoreApplication::translate("PageSelectionPane", "Rename Object"), [&] {
-            if (Item *it = ed->doc()->item(id)) it->name = text;
+            if (Item *target = ed->doc()->item(id)) target->name = text;
         });
     };
-    src.show = [ed](int row, bool shown) {
-        const ItemList list = frontFirst(ed);
-        if (row < 0 || row >= int(list.size())) return;
-        const QString id = list[size_t(row)]->id;
+    src.show = [ed, at](int row, bool shown) {
+        const Item *it = at(row);
+        if (!it) return;
+        const QString id = it->id;
         ed->change(shown ? QCoreApplication::translate("PageSelectionPane", "Show Object") : QCoreApplication::translate("PageSelectionPane", "Hide Object"), [&] {
-            if (Item *it = ed->doc()->item(id)) it->hidden = !shown;
+            if (Item *target = ed->doc()->item(id)) target->hidden = !shown;
         });
     };
     src.showAll = [ed](bool shown) {
-        const ItemList list = frontFirst(ed);
         bool any = false;
-        for (const ItemPtr &it : list) any = any || it->hidden == shown;
+        for (const ItemPtr &it : ed->surfaceItems()) any = any || it->hidden == shown;
         if (!any) return;
         ed->change(shown ? QCoreApplication::translate("PageSelectionPane", "Show All Objects") : QCoreApplication::translate("PageSelectionPane", "Hide All Objects"), [&] {
             for (const ItemPtr &it : ed->surfaceItems()) it->hidden = !shown;
@@ -86,10 +102,10 @@ SelectionPane *showPageSelectionPane(QWidget *parent, Editor *ed, QPointer<Selec
     };
     auto *pane = new SelectionPane(parent, src);
     *slot = pane;
-    QObject::connect(ed, &Editor::changed, pane, &SelectionPane::refresh);
-    QObject::connect(ed, &Editor::selectionChanged, pane, &SelectionPane::refresh);
-    QObject::connect(ed, &Editor::pageChanged, pane, &SelectionPane::refresh);
-    QObject::connect(ed, &Editor::documentReplaced, pane, &SelectionPane::refresh);
+    QObject::connect(ed, &Editor::changed, pane, &SelectionPane::requestRefresh);
+    QObject::connect(ed, &Editor::selectionChanged, pane, &SelectionPane::requestRefresh);
+    QObject::connect(ed, &Editor::pageChanged, pane, &SelectionPane::requestRefresh);
+    QObject::connect(ed, &Editor::documentReplaced, pane, &SelectionPane::requestRefresh);
     pane->show();
     pane->raise();
     return pane;

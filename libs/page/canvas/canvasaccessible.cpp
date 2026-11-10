@@ -277,7 +277,8 @@ QStringList CanvasAccessible::objectIds() const
     if (!m_stale && m_listOf == &items && m_listSize == qsizetype(items.size())) return m_list;
     m_list.clear();
     g_idsListed += qint64(items.size());
-    for (const ItemPtr &it : items) m_list << it->id;
+    for (const ItemPtr &it : items)
+        if (!it->hidden) m_list << it->id;   // (a screen reader passes over a hidden object)
     // Objects gone from the document let their interfaces go.
     const QSet<QString> onPage(m_list.cbegin(), m_list.cend());
     for (auto it = m_ids.begin(); it != m_ids.end();) {

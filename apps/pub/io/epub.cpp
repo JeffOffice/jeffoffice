@@ -139,6 +139,7 @@ void Book::items(const ItemList &list)
     QVector<const Item *> flat;
     std::function<void(const ItemList &)> add = [&](const ItemList &l) {
         for (const auto &it : l) {
+            if (it->hidden) continue;   // (a hidden object is left out of the book)
             if (it->type() == ItemType::Group) add(static_cast<const GroupItem &>(*it).children);
             else flat << it.get();
         }

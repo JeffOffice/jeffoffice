@@ -123,12 +123,17 @@ struct Anims {
     QVector<int> selectedShapes(Page &p, bool create) const
     {
         QVector<int> out;
-        for (const QString &id : ed->selection()) {
-            for (const ItemPtr &it : p.items) {
-                if (it->id != id) continue;
-                const int n = create ? deck::shapeNumber(p, id) : it->sourceId;
-                if (n > 0) out << n;
-            }
+        // (The slide's objects are looked at once, not once for each selected one: a slide of thousands, all selected, would be the square of that.)
+        const QStringList &selection = ed->selection();
+        const QSet<QString> wanted(selection.cbegin(), selection.cend());
+        QHash<QString, const Item *> byId;
+        for (const ItemPtr &it : p.items)
+            if (wanted.contains(it->id)) byId.insert(it->id, it.get());
+        for (const QString &id : selection) {
+            const auto at = byId.constFind(id);
+            if (at == byId.cend()) continue;
+            const int n = create ? deck::shapeNumber(p, id) : (*at)->sourceId;
+            if (n > 0) out << n;
         }
         return out;
     }

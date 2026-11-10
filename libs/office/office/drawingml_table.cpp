@@ -535,9 +535,9 @@ void writeTable(QXmlStreamWriter &w, const TableItem &t, DrawingWriteContext &ct
     w.writeStartElement(QStringLiteral("p:nvGraphicFramePr"));
     w.writeStartElement(QStringLiteral("p:cNvPr"));
     w.writeAttribute(QStringLiteral("id"), QString::number(id));
-    w.writeAttribute(QStringLiteral("name"), t.name.isEmpty() ? QStringLiteral("Table %1").arg(id - 1) : t.name);
-    if (!t.altText.isEmpty()) w.writeAttribute(QStringLiteral("descr"), t.altText);
-    if (!t.altTitle.isEmpty()) w.writeAttribute(QStringLiteral("title"), t.altTitle);
+    w.writeAttribute(QStringLiteral("name"), t.name.isEmpty() ? QStringLiteral("Table %1").arg(id - 1) : dmlwrite::clean(t.name));
+    if (!t.altText.isEmpty()) w.writeAttribute(QStringLiteral("descr"), dmlwrite::clean(t.altText));
+    if (!t.altTitle.isEmpty()) w.writeAttribute(QStringLiteral("title"), dmlwrite::clean(t.altTitle));
     if (t.hidden) w.writeAttribute(QStringLiteral("hidden"), QStringLiteral("1"));
     if (t.decorative) dmlwrite::writeDecorative(w);
     w.writeEndElement();

@@ -1,6 +1,10 @@
 // JeffDeck's tests of the window: ribbon, help, status bar, headers and footers, backgrounds, the slide menu, and find.
 #include "deckhelpers.h"
 #include "../withdialog.h"
+#include "app/findreplace.h"
+#include "app/deckfilescreen.h"
+#include "app/keytips.h"
+#include "io/deckoutput.h"
 
 class DeckWindowTests : public QObject {
     Q_OBJECT
@@ -2040,18 +2044,189 @@ private Q_SLOTS:
         fs->trigger();
         QTRY_VERIFY(w.isFullScreen());
         w.editor()->clearSelection();
-        QTest::keyClick(&w, Qt::Key_Escape);
+        w.canvas()->setFocus();
+        QTest::keyClick(w.canvas(), Qt::Key_Escape);
         QTRY_VERIFY(!w.isFullScreen());
         QTRY_VERIFY(!fs->isChecked());
         // With an object selected the slide has it to put away first.
         w.editor()->select(w.editor()->surfaceItems().front()->id);
         fs->trigger();
         QTRY_VERIFY(w.isFullScreen());
-        QTest::keyClick(&w, Qt::Key_Escape);
+        w.canvas()->setFocus();
+        QTest::keyClick(w.canvas(), Qt::Key_Escape);
         QVERIFY(w.isFullScreen());
-        w.editor()->clearSelection();
-        QTest::keyClick(&w, Qt::Key_Escape);
+        QVERIFY(w.editor()->selection().isEmpty());
+        QTest::keyClick(w.canvas(), Qt::Key_Escape);
         QTRY_VERIFY(!w.isFullScreen());
+    }
+
+    // A hidden object is left out of the outline, Find, Select All, and the empty-placeholder prompts; the slide, its thumbnail, and a layout draw without it.
+    void hiddenObjectsAreLeftOutOfTheOutlineFindThePromptsAndThePictures()
+    {
+        auto d = deck::newPresentation();
+        auto *title = static_cast<TextItem *>(d->pages[0]->items[0].get());
+        d->storyDoc(title->storyId)->setPlainText(QStringLiteral("Needle title"));
+        auto outline = [&](const Document &doc) { return deck::outputOutlineText(doc, deck::OutputOptions()); };
+        QVERIFY(outline(*d).contains(QStringLiteral("Needle title")));
+        auto found = [&](const Document &doc) {
+            for (const FindStory &st : findStories(doc))
+                if (doc.storyDoc(st.storyId) && doc.storyDoc(st.storyId)->toPlainText().contains(QStringLiteral("Needle"))) return true;
+            return false;
+        };
+        QVERIFY(found(*d));
+        title->hidden = true;
+        QVERIFY(!outline(*d).contains(QStringLiteral("Needle title")));
+        QVERIFY(!found(*d));
+        // The window: Select All, and the prompts of the empty placeholders (a hidden one shows none).
+        DeckWindow w;
+        w.resize(1400, 900);
+        w.show();
+        Editor *ed = w.editor();
+        auto bare = deck::newPresentation();
+        for (const ItemPtr &it : bare->pages[0]->items) it->hidden = true;
+        ed->setDocument(std::move(bare));
+        w.act(QStringLiteral("edit.selectAll"))->trigger();
+        QVERIFY(ed->selection().isEmpty());
+        QTRY_VERIFY(!w.canvas()->grab().isNull());
+        const QImage hiddenPrompts = w.canvas()->grab().toImage();
+        auto empty = deck::newPresentation();
+        empty->pages[0]->items.clear();
+        ed->setDocument(std::move(empty));
+        QTRY_VERIFY(!w.canvas()->grab().isNull());
+        {
+            const QImage other = w.canvas()->grab().toImage();
+            QRect box;
+            for (int y = 0; y < std::min(other.height(), hiddenPrompts.height()); ++y)
+                for (int x = 0; x < std::min(other.width(), hiddenPrompts.width()); ++x)
+                    if (other.pixel(x, y) != hiddenPrompts.pixel(x, y)) box = box.united(QRect(x, y, 1, 1));
+            QVERIFY2(box.isNull() && other.size() == hiddenPrompts.size(), qPrintable(QStringLiteral("differ in %1,%2 %3x%4 sizes %5 %6").arg(box.x()).arg(box.y()).arg(box.width()).arg(box.height()).arg(other.width()).arg(hiddenPrompts.width())));
+        }
+        ed->setDocument(deck::newPresentation());
+        QTRY_VERIFY(!w.canvas()->grab().isNull());
+        QVERIFY(w.canvas()->grab().toImage() != hiddenPrompts);   // (the same prompts, shown, are on the screen)
+        // A shape on the slide and one on its layout, hidden: the thumbnail is what the slide is without them, and shown they change it.
+        auto picture = [&](bool onLayout, bool hidden) {
+            auto doc = deck::newPresentation();
+            auto red = std::make_shared<jp::ShapeItem>();
+            red->rect = QRectF(0, 0, 900, 500);
+            red->fill = jp::Fill::solid(jp::ColorRef::rgb(Qt::red));
+            red->hidden = hidden;
+            (onLayout ? doc->master(doc->pages[0]->masterId)->items : doc->pages[0]->items).insert((onLayout ? doc->master(doc->pages[0]->masterId)->items : doc->pages[0]->items).begin(), red);
+            LayoutCache cache;
+            return deck::slideImage(*doc, &cache, 0, 480);
+        };
+        const QImage plain = [&] {
+            auto doc = deck::newPresentation();
+            LayoutCache cache;
+            return deck::slideImage(*doc, &cache, 0, 480);
+        }();
+        for (const bool onLayout : {false, true}) {
+            QVERIFY(picture(onLayout, false) != plain);
+            QCOMPARE(picture(onLayout, true), plain);
+        }
+    }
+
+    // A slide of 20,000 objects: the pane lists them, Select All, a nudge, and a drag of a row 1,000 places each take about a second at most (the bound is three).
+    void aSlideOfTwentyThousandObjectsIsHandledQuickly()
+    {
+        DeckWindow w;
+        w.resize(1400, 900);
+        w.show();
+        Editor *ed = w.editor();
+        auto d = deck::newPresentation();
+        d->pages[0]->items.clear();
+        for (int i = 0; i < 20000; ++i) {
+            auto s = std::make_shared<jp::ShapeItem>();
+            s->rect = QRectF(i % 500, i / 500, 5, 5);
+            d->pages[0]->items.push_back(s);
+        }
+        ed->setDocument(std::move(d));
+        QElapsedTimer clock;
+        auto within = [&](const char *what) {
+            const qint64 ms = clock.elapsed();
+            clock.restart();
+            QVERIFY2(ms < 3000, qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
+        };
+        clock.start();
+        w.act(QStringLiteral("arr.selectionPane"))->trigger();
+        auto *list = w.findChild<QListWidget *>(QStringLiteral("selectionList"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 20000);
+        within("opening the pane");
+        clock.restart();
+        w.act(QStringLiteral("edit.selectAll"))->trigger();
+        QCOMPARE(int(ed->selection().size()), 20000);
+        w.findChild<SelectionPane *>(QStringLiteral("selectionPane"))->refresh();   // (the pane follows the selection)
+        QCOMPARE(list->currentRow(), 0);
+        within("Select All");
+        ed->moveSelectionBy(3, 3);
+        within("a nudge");
+        const QString moved = ed->surfaceItems()[19999]->id;
+        QVERIFY(list->model()->moveRow(QModelIndex(), 0, QModelIndex(), 1000));
+        QCOMPARE(ed->surfaceItems()[19999 - 999]->id, moved);
+        within("a drag of 1,000 places");
+    }
+
+    // Esc is left to what wants it (text being typed, KeyTips, the ribbon, a dialog, the File screen); a maximized window comes back maximized; and a window closed while full screen with the File
+    // screen open leaves no filter behind.
+    void escLeavesFullScreenOnlyWhenNothingElseWantsIt()
+    {
+        auto w = std::make_unique<DeckWindow>();
+        w->resize(1100, 750);
+        w->showMaximized();
+        QVERIFY(QTest::qWaitForWindowActive(w.get()));
+        QTRY_VERIFY(w->isMaximized());
+        QAction *fs = w->act(QStringLiteral("view.fullScreen"));
+        Editor *ed = w->editor();
+        auto enter = [&] {
+            if (!w->isFullScreen()) fs->trigger();
+            QTRY_VERIFY(w->isFullScreen());
+            w->canvas()->setFocus();
+        };
+        ed->select(ed->surfaceItems().front()->id);
+        ed->beginTextEdit(ed->surfaceItems().front()->id, 0);
+        enter();
+        QTest::keyClick(w->canvas(), Qt::Key_Escape);
+        QVERIFY(w->isFullScreen());
+        QVERIFY(!ed->isEditingText());
+        ed->clearSelection();
+        KeyTips *tips = nullptr;
+        for (QObject *child : w->children())
+            if ((tips = dynamic_cast<KeyTips *>(child))) break;
+        QVERIFY(tips);
+        tips->showTop();
+        QVERIFY(tips->level() != KeyTips::Off);
+        QTest::keyClick(w->canvas(), Qt::Key_Escape);
+        QVERIFY(w->isFullScreen());
+        QCOMPARE(int(tips->level()), int(KeyTips::Off));
+        w->ribbon()->focusCurrentTab();
+        QTRY_VERIFY(QApplication::focusWidget() && w->ribbon()->isAncestorOf(QApplication::focusWidget()));
+        QTest::keyClick(QApplication::focusWidget(), Qt::Key_Escape);
+        QVERIFY(w->isFullScreen());
+        w->canvas()->setFocus();
+        {
+            QDialog dialog(w.get());
+            QTimer::singleShot(100, &dialog, [&] { QTest::keyClick(&dialog, Qt::Key_Escape); });
+            dialog.exec();
+        }
+        QVERIFY(w->isFullScreen());
+        w->showFileScreen();
+        QTest::keyClick(w.get(), Qt::Key_Escape);
+        QVERIFY(w->isFullScreen());
+        w->canvas()->setFocus();
+        QTest::keyClick(w->canvas(), Qt::Key_Escape);
+        QTRY_VERIFY(!w->isFullScreen());
+        QTRY_VERIFY(w->isMaximized());   // (as it was before)
+        // Closed while full screen with the File screen open.
+        fs->trigger();
+        QTRY_VERIFY(w->isFullScreen());
+        QVERIFY(w->fullScreenRequested());
+        w->showFileScreen();
+        w.reset();
+        QWidget probe;
+        probe.show();
+        QTest::keyClick(&probe, Qt::Key_Escape);   // (the keys of the program go through the filters of the program, and the closed window's is not among them)
+        QCoreApplication::processEvents();
     }
 };
 

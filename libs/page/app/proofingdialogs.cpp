@@ -52,6 +52,7 @@ void spellingDialog(QWidget *p, Editor *ed)
     Document *d = ed->doc();
     for (int pg = 0; pg < d->pages.size(); ++pg)
         walkItems(d->pages[pg]->items, [&](const ItemPtr &it) {
+            if (it->hidden) return;   // (the check passes over a hidden object)
             if (it->type() == ItemType::Text) {
                 auto *t = static_cast<TextItem *>(it.get());
                 if (!seen.contains(t->storyId)) { seen.insert(t->storyId); stories << S{d->chainOf(t->id).value(0, t)->id, t->storyId, pg}; }
