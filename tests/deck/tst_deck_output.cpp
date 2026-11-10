@@ -3,6 +3,7 @@
 #include "../localepin.h"
 #include "../plainpdfwatch.h"
 #include "app/passworddialogs.h"
+#include "office/officecrypt.h"
 #include "io/pdfcrypt.h"
 
 class DeckOutputTests : public QObject {
@@ -979,6 +980,34 @@ private Q_SLOTS:
         w.act("file.exportPdf")->trigger();
         QCOMPARE(label, QStringLiteral("OK"));
         QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("missing"))));
+    }
+
+    // The Export to PDF box offers PDF/A (as JeffWrite's does): checked, the file has the standard's mark and an output intent, and an ordinary export has neither; with a password, it is off.
+    void windowExportsPdfA()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.newSlide();
+        QString target;
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        target = dir.filePath(QStringLiteral("plain.pdf"));
+        answerOutputDialog();
+        w.act("file.exportPdf")->trigger();
+        target = dir.filePath(QStringLiteral("archive.pdf"));
+        bool offered = false;
+        answerOutputDialog([&](QDialog *dialog) {
+            auto *archive = dialog->findChild<QCheckBox *>(QStringLiteral("pdfArchive"));
+            offered = archive != nullptr;
+            if (archive) archive->setChecked(true);
+        });
+        w.act("file.exportPdf")->trigger();
+        QVERIFY(offered);
+        const QByteArray plain = fileBytes(dir.filePath(QStringLiteral("plain.pdf"))), kept = fileBytes(target);
+        QVERIFY(plain.startsWith("%PDF") && kept.startsWith("%PDF"));
+        QVERIFY(!plain.contains("pdfaid:part"));
+        QVERIFY2(kept.contains("pdfaid:part"), "no PDF/A mark");
+        QVERIFY(kept.contains("GTS_PDFA1") || kept.contains("OutputIntent"));
     }
 
     // Export slide as picture saves the slide being edited, 1920 pixels across,

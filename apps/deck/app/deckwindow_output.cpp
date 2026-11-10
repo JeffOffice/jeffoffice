@@ -108,7 +108,12 @@ public:
         form->addRow(QString(), m_hidden);
         form->addRow(QString(), m_frame);
         form->addRow(QString(), m_gray);
+        m_archive = new QCheckBox(DeckWindow::tr("PDF/A, for keeping for a long time"), this);
+        m_archive->setObjectName(QStringLiteral("pdfArchive"));
+        m_archive->setToolTip(DeckWindow::tr("Makes a PDF/A-1b file: every font is in the file, so it looks the same in years. It is not tagged for screen readers."));
+        form->addRow(QString(), m_archive);
         m_protect = new jp::PdfProtectionRow(this);
+        m_protect->forbiddenBy({m_archive}, DeckWindow::tr("PDF/A is turned off, because a PDF with a password can't be a PDF/A file."));
         form->addRow(QString(), m_protect);
         m_summary = new QLabel(this);
         m_summary->setObjectName(QStringLiteral("outputSummary"));
@@ -154,6 +159,7 @@ public:
         o.frameSlides = m_frame->isChecked();
         o.grayscale = m_gray->isChecked();
         o.horizontalOrder = m_order->currentData().toBool();
+        o.archive = m_archive->isChecked();
         if (m_currentOnly->isChecked()) o.slides = {m_current};
         else if (m_some->isChecked()) o.slides = deck::parseSlideRange(m_text->text(), m_slides);
         return o;
@@ -193,7 +199,7 @@ private:
     QComboBox *m_what = nullptr, *m_order = nullptr;
     QRadioButton *m_all = nullptr, *m_currentOnly = nullptr, *m_some = nullptr;
     QLineEdit *m_text = nullptr;
-    QCheckBox *m_hidden = nullptr, *m_frame = nullptr, *m_gray = nullptr;
+    QCheckBox *m_hidden = nullptr, *m_frame = nullptr, *m_gray = nullptr, *m_archive = nullptr;
     QLabel *m_summary = nullptr;
     jp::PdfProtectionRow *m_protect = nullptr;
     QDialogButtonBox *m_buttons = nullptr;

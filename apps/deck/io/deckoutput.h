@@ -33,6 +33,7 @@ struct OutputOptions {
     bool grayscale = false;
     QVector<int> slides;          // 0-based slides to print, in this order; empty: all
     bool horizontalOrder = true;  // handouts of 4 or more: across, then down (else down, then across)
+    bool archive = false;         // for a PDF: PDF/A-1b, the form for keeping (every font inside, no transparency, the standard's mark in its metadata); never with a password
 };
 
 // The slides the options print, 0-based and in order: the ones asked for (all

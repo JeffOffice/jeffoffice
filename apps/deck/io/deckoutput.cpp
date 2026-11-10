@@ -365,6 +365,7 @@ void paintPlain(QPainter *p, const Document &d, LayoutCache *cache, const Output
     s.ctx.cache = cache ? cache : &own;
     s.ctx.opt.output = true;
     s.ctx.opt.textOutput = output;
+    s.ctx.opt.flattenTransparency = o.archive;   // (PDF/A-1 allows no transparency)
     const QVector<int> slides = outputSlides(d, o);
     p->save();
     switch (o.layout) {
@@ -508,6 +509,7 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
         QPdfWriter pdf(encrypted ? static_cast<QIODevice *>(&memory) : static_cast<QIODevice *>(&file));
         pdf.setCreator(appInfo().name);
         pdf.setTitle(d.props.title.isEmpty() ? QFileInfo(path).completeBaseName() : d.props.title);
+        if (o.archive && !encrypted) pdf.setPdfVersion(QPdfWriter::PdfVersion_A1b);
         if (o.grayscale) pdf.setColorModel(QPdfWriter::ColorModel::Grayscale);
         const QSizeF size = outputPageSize(d, o);
         pdf.setPageSize(QPageSize(size, QPageSize::Point, QString(), QPageSize::ExactMatch));

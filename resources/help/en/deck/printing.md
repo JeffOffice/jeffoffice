@@ -30,6 +30,8 @@ Click **File > Export > Export to PDF**. A window asks what to include: the same
 
 The PDF has real text, with the fonts inside it, so it looks the same on every computer. Its title is the presentation's title, or the file's name.
 
+Check **PDF/A, for keeping for a long time** to make a PDF/A-1b file. Every font is inside the file, and transparent effects are flattened, so the slides look the same in years. It is not tagged for screen readers. A PDF with a password can't be a PDF/A file, so choosing a password turns PDF/A off.
+
 ## Protect a PDF with a password
 
 In the **Export to PDF** window, click **Encrypt with a password…**. Type the password twice. Anyone who opens the PDF then has to type it. The password really protects the file: the pages are scrambled with strong encryption (AES-256), and nobody can read them without it.

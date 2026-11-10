@@ -104,7 +104,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [~] **1.0** Export a slide as a picture: the current slide to PNG or JPEG, 1920 pixels across, on white *(not all slides at once, not other sizes, not GIF, TIFF, BMP, or SVG)*
 - [ ] **1.0** Export all slides as pictures into a folder, and as a presentation of pictures
 - [ ] **1.0** Create a Video: MP4 of the show with transitions, animations, rehearsed timings, and narration, in a size chosen *(the design notes put it after the first release; it is the one big output the preview lacks)*
-- [ ] **1.0** PDF extras: bookmarks for each slide title, tags for screen readers, and PDF/A *(shared: JeffPub's PDF export)*
+- [~] **1.0** PDF extras: bookmarks for each slide title, tags for screen readers, and PDF/A *(PDF/A-1b is in the Export to PDF box; bookmarks and tags are not yet)* *(shared: JeffPub's PDF export)*
 - [x] **1.0** PDF with a password *(Export to PDF > Encrypt with a password… asks for a password to open the PDF and, if wanted, a second to limit printing, copying, and changing; AES-256, and the plain PDF is never written to disk; shared: libs/base/io/pdfcrypt.h)*
 - [ ] **later** Package the presentation: copy it with its linked movies and sounds and its fonts to a folder or `.zip` (the original packs a CD)
 - [ ] **1.0** **(alt)** Email: a ready-to-send `.eml` with the presentation, or a PDF, attached, instead of sending through an online account *(shared: JeffPub's .eml export)*
