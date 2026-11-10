@@ -12,6 +12,8 @@ class DeckReviewTests : public QObject {
 
 private Q_SLOTS:
     void initTestCase() { initDeckTestCase(); }
+    // (spelling as you type is one choice for the suite, kept in the settings: a test elsewhere in this program may have left it off, and these tests need it on)
+    void init() { jp::setSpellAsYouType(true); }
 
     // Review > Spelling (F7) goes through the slides to a misspelled word and
     // selects it; Thesaurus is Shift+F7.

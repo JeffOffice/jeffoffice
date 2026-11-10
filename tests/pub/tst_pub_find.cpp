@@ -7,6 +7,8 @@ class PubFindTests : public QObject {
 
 private Q_SLOTS:
     void initTestCase() { initPubTestCase(); }
+    // (spelling as you type is one choice for the suite, kept in the settings: a test elsewhere in this program may have left it off, and these tests need it on)
+    void init() { jp::setSpellAsYouType(true); }
 
     // Hyphenation in each bundled language matches LibreOffice's (libhyphen
     // 2.8 with the same pattern files, at least two letters each side),
