@@ -814,6 +814,7 @@ QWidget *Backstage::buildPrint()
     auto *state = new int(0);
     connect(w, &QObject::destroyed, [state] { delete state; });
     auto render = [=]() {
+        Document *d = ed->doc();   // (the publication as it is now: a window can take another while the page waits to be drawn again)
         const bool booklet = layout->currentIndex() == 3 || layout->currentIndex() == 4;
         const bool topFold = layout->currentIndex() == 4;
         QImage img;
@@ -954,7 +955,12 @@ QWidget *Backstage::buildPrint()
     fitCopies();
     connect(copies, &QSpinBox::valueChanged, w, [=] { fitCopies(); });
     connect(range, &QComboBox::currentIndexChanged, w, [=] { fitCopies(); });
-    preview->resized = [=] { QTimer::singleShot(30, w, render); };
+    // The page is drawn again to fit when the preview's box changes size.
+    auto *redraw = new QTimer(w);
+    redraw->setSingleShot(true);
+    redraw->setInterval(30);
+    connect(redraw, &QTimer::timeout, w, render);
+    preview->resized = [redraw] { redraw->start(); };
     for (QCheckBox *b : plateBoxes) connect(b, &QCheckBox::toggled, w, [=] { render(); });
     QTimer::singleShot(0, w, render);
     auto setup = [=](QPrinter &p) {
