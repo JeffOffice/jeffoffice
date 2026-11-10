@@ -653,6 +653,7 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                 if (t.has(k, "distB")) s.gapBottom = emu(t.attr(k, "distB"));
             } else if (tag == "docPr") {
                 s.alt = t.attr(k, "descr");
+                s.hidden = t.attr(k, "hidden") == QLatin1String("1") || t.attr(k, "hidden") == QLatin1String("true");
             }
         }
         if (!s.floating) s.wrap = Shape::WrapNone;

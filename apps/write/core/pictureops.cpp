@@ -805,13 +805,13 @@ struct Layer {
     bool behind = false;
 };
 
-// The floating pictures of the story, the ones behind the text first, each layer from the lowest to the highest (pictures of the same height by their place in the text).
+// The floating drawn objects of the story (pictures, shapes, text boxes, and the rest), the ones behind the text first, each layer from the lowest to the highest (pictures of the same height by their place in the text).
 QVector<Layer> floatingLayers(WriteDoc &doc)
 {
     QVector<Layer> out;
     QTextDocument *story = doc.story();
     for (int p = 0; p + 1 < story->characterCount(); ++p) {
-        if (!isPictureAt(story, p)) continue;
+        if (!isDrawnObjectAt(story, p)) continue;
         Inline atom;
         Model m;
         if (!drawingAtomOf(formatAfter(story, p), &atom) || !parseDrawing(atom.raw, &m) || !m.floating) continue;
@@ -940,6 +940,81 @@ bool setPictureAltText(WriteDoc &doc, int position, const QString &alt)
         else setAttribute(&m.docPr, "descr", quote(text));
         return true;
     }, true);
+}
+
+namespace {
+
+// The text an XML attribute value holds (its five entities read).
+QString attributeText(const QByteArray &value)
+{
+    QString s = QString::fromUtf8(value);
+    s.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'"));
+    s.replace(QLatin1String("&amp;"), QLatin1String("&"));
+    return s;
+}
+
+bool isTrueFlag(const QByteArray &v) { return v == "1" || v == "true"; }
+
+} // namespace
+
+QVector<FloatingObject> floatingObjects(WriteDoc &doc)
+{
+    QVector<FloatingObject> out;
+    QTextDocument *story = doc.story();
+    QVector<Layer> layers = floatingLayers(doc);
+    for (auto it = layers.crbegin(); it != layers.crend(); ++it) {
+        Inline atom;
+        Model m;
+        if (!drawingAtomOf(formatAfter(story, it->position), &atom) || !parseDrawing(atom.raw, &m)) continue;
+        FloatingObject o;
+        o.position = it->position;
+        o.name = attributeText(attributeValue(m.docPr, "name"));
+        o.hidden = isTrueFlag(attributeValue(m.docPr, "hidden"));
+        o.behind = it->behind;
+        o.kind = pictureAt(doc, story, it->position).kind;
+        out.push_back(o);
+    }
+    return out;
+}
+
+bool setObjectName(WriteDoc &doc, int position, const QString &name)
+{
+    const QByteArray text = attribute(name.trimmed(), 255);
+    return changePicture(doc, position, [&](Model &m) {
+        if (attributeValue(m.docPr, "name") == text) return false;
+        setAttribute(&m.docPr, "name", quote(text));
+        return true;
+    }, true);
+}
+
+bool setObjectHidden(WriteDoc &doc, int position, bool hidden)
+{
+    return changePicture(doc, position, [&](Model &m) {
+        if (isTrueFlag(attributeValue(m.docPr, "hidden")) == hidden) return false;
+        if (hidden) setAttribute(&m.docPr, "hidden", quote("1"));
+        else removeAttribute(&m.docPr, "hidden");
+        return true;
+    }, true);
+}
+
+bool setAllObjectsHidden(WriteDoc &doc, bool hidden)
+{
+    const QVector<FloatingObject> all = floatingObjects(doc);
+    const WriteDoc::StepGroup group(doc);
+    bool changed = false;
+    for (const FloatingObject &o : all) changed |= setObjectHidden(doc, o.position, hidden);
+    return changed;
+}
+
+bool moveFloatingObject(WriteDoc &doc, int position, int by)
+{
+    const WriteDoc::StepGroup group(doc);
+    bool changed = false;
+    for (int step = std::abs(by); step > 0; --step) {
+        if (!setPictureOrder(doc, position, by < 0 ? PictureOrder::BringForward : PictureOrder::SendBackward)) break;
+        changed = true;
+    }
+    return changed;
 }
 
 bool setPictureDecorative(WriteDoc &doc, int position, bool decorative)

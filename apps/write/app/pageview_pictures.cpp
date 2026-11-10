@@ -633,6 +633,18 @@ bool PageView::changeSelectedPicture(const std::function<bool(WriteDoc &, int)> 
     return changed;
 }
 
+bool PageView::changeObjects(const std::function<bool(WriteDoc &)> &change)
+{
+    if (!m_doc || m_readOnly) return false;
+    m_doc->pictureNotice.clear();
+    const bool changed = change(*m_doc);
+    if (!changed && !m_doc->pictureNotice.isEmpty()) Q_EMIT notice(m_doc->pictureNotice);
+    if (changed) Q_EMIT contentChanged();
+    viewport()->update();
+    Q_EMIT caretChanged();
+    return changed;
+}
+
 // ---- dropping picture files
 
 namespace {

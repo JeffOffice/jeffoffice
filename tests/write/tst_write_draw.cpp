@@ -41,7 +41,10 @@
 #include <QTextBlock>
 #include <QLineEdit>
 #include <QStatusBar>
+#include <QAbstractButton>
+#include <QAbstractItemModel>
 #include <QApplication>
+#include <QListWidget>
 #include <QDialog>
 #include <QLabel>
 #include <QTableWidget>
@@ -571,6 +574,98 @@ private Q_SLOTS:
         c.setPosition(1);
         win.w.view()->setCursor(c);
         QTRY_VERIFY(!win.tabShown(QStringLiteral("Shape Format")));
+    }
+
+    // The Selection Pane lists the floating objects of the document by name, the one in front first. A row picks the object; a name typed in a row names it (wp:docPr's name); a box hides
+    // or shows it (wp:docPr's hidden: a hidden object is not drawn and takes no room, and stays in the file); Show All and Hide All set every box; the buttons and a drag move it
+    // through the layers. Each change is one step of Undo, and the names and marks are in the saved file.
+    void theSelectionPaneListsNamesHidesAndReordersTheObjects()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(1);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse")), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 100, 150));
+        QVERIFY(setPicturePlace(*doc, 1, 300, 250));
+        win.w.view()->refresh();
+        QCOMPARE(int(floatingObjects(*doc).size()), 2);
+        QAction *paneCommand = win.w.act(QStringLiteral("view.selectionPane"));
+        QVERIFY(paneCommand);
+        QVERIFY(paneCommand->isEnabled());
+        paneCommand->trigger();
+        auto *list = win.w.findChild<QListWidget *>(QStringLiteral("selectionList"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 2);
+        // The one in front first: the second shape was made after the first, so it is above it.
+        QCOMPARE(floatingObjects(*doc).value(0).position, 1);
+        QCOMPARE(floatingObjects(*doc).value(1).position, 0);
+        QCOMPARE(list->item(0)->checkState(), Qt::Checked);
+        // A row picks the object.
+        list->setCurrentRow(1);
+        QCOMPARE(win.w.view()->selectedPicture(), 0);
+        // A name typed in a row names it, and the file keeps it.
+        list->item(0)->setText(QStringLiteral("Logo <1> & 2"));
+        QTRY_COMPARE(floatingObjects(*doc).value(0).name, QStringLiteral("Logo <1> & 2"));
+        QVERIFY(documentXml(doc->toDocx()).contains("name=\"Logo &lt;1&gt; &amp; 2\""));
+        {
+            auto back = open(doc->toDocx());
+            QVERIFY(back);
+            QCOMPARE(floatingObjects(*back).value(0).name, QStringLiteral("Logo <1> & 2"));
+        }
+        QVERIFY(doc->undo());
+        QVERIFY(floatingObjects(*doc).value(0).name != QStringLiteral("Logo <1> & 2"));
+        QVERIFY(doc->redo());
+        QCOMPARE(floatingObjects(*doc).value(0).name, QStringLiteral("Logo <1> & 2"));
+        // A box hides the object: it is not drawn and takes no room, the file says it is hidden, and Undo shows it.
+        QCOMPARE(int(objectsOfPage(*doc).size()), 2);
+        QTRY_COMPARE(list->item(0)->text(), QStringLiteral("Logo <1> & 2"));
+        list->item(0)->setCheckState(Qt::Unchecked);
+        QTRY_VERIFY(floatingObjects(*doc).value(0).hidden);
+        QCOMPARE(int(objectsOfPage(*doc).size()), 1);
+        QVERIFY(documentXml(doc->toDocx()).contains("hidden=\"1\""));
+        {
+            auto back = open(doc->toDocx());
+            QVERIFY(back);
+            QCOMPARE(int(floatingObjects(*back).size()), 2);
+            QVERIFY(floatingObjects(*back).value(0).hidden);
+            QVERIFY(!floatingObjects(*back).value(1).hidden);
+            QCOMPARE(int(objectsOfPage(*back).size()), 1);
+        }
+        QVERIFY(doc->undo());
+        QVERIFY(!floatingObjects(*doc).value(0).hidden);
+        QCOMPARE(int(objectsOfPage(*doc).size()), 2);
+        // Hide All and Show All.
+        auto *hideAll = win.w.findChild<QAbstractButton *>(QStringLiteral("selectionHideAll"));
+        auto *showAll = win.w.findChild<QAbstractButton *>(QStringLiteral("selectionShowAll"));
+        QVERIFY(hideAll && showAll);
+        hideAll->click();
+        QTRY_VERIFY(floatingObjects(*doc).value(0).hidden && floatingObjects(*doc).value(1).hidden);
+        QCOMPARE(int(objectsOfPage(*doc).size()), 0);
+        QVERIFY(doc->undo());
+        QVERIFY(!floatingObjects(*doc).value(0).hidden && !floatingObjects(*doc).value(1).hidden);
+        QCOMPARE(int(objectsOfPage(*doc).size()), 2);
+        hideAll->click();
+        QTRY_VERIFY(floatingObjects(*doc).value(0).hidden);
+        showAll->click();
+        QTRY_VERIFY(!floatingObjects(*doc).value(0).hidden && !floatingObjects(*doc).value(1).hidden);
+        // The buttons and a drag move an object in the order.
+        QTRY_COMPARE(list->count(), 2);
+        list->setCurrentRow(0);
+        QCOMPARE(floatingObjects(*doc).value(0).position, 1);
+        auto *backward = win.w.findChild<QAbstractButton *>(QStringLiteral("selectionBackward"));
+        QVERIFY(backward);
+        backward->click();
+        QCOMPARE(floatingObjects(*doc).value(0).position, 0);
+        QCOMPARE(floatingObjects(*doc).value(1).position, 1);
+        QVERIFY(doc->undo());
+        QCOMPARE(floatingObjects(*doc).value(0).position, 1);
+        QTRY_COMPARE(list->count(), 2);
+        QVERIFY(list->model()->moveRow(QModelIndex(), 0, QModelIndex(), 2));
+        QTRY_COMPARE(floatingObjects(*doc).value(0).position, 0);
+        QCOMPARE(floatingObjects(*doc).value(1).position, 1);
     }
 
     void ctrlClickSelectsSeveralObjectsGroupAndUngroupWorkFromTheWindowAndADragMovesThemAll()

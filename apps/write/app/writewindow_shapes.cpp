@@ -231,6 +231,7 @@ void WriteWindow::createShapeActions()
         m_view->setFocus(Qt::OtherFocusReason);
     });
     mk("shape.pictureFill", tr("Picture Fill…"), "image", QKeySequence(), [this] { fillSelectedShapeWithPicture(); });
+    mk("view.selectionPane", tr("Selection Pane"), "layers", QKeySequence(), [this] { showSelectionPane(); });
     mk("arrange.group", tr("Group"), "group", QKeySequence(QStringLiteral("Ctrl+Alt+G")), [this] {
         m_view->groupSelectedObjects();
         m_view->setFocus(Qt::OtherFocusReason);
@@ -1184,6 +1185,61 @@ void WriteWindow::turnSelectedShape(double degrees, bool relative)
     const double to = relative ? now + degrees : degrees;
     m_view->changeSelectedPicture([to](write::WriteDoc &d, int position) { return write::setShapeRotation(d, position, to); });
     m_view->setFocus(Qt::OtherFocusReason);
+}
+
+// The Selection Pane: the floating objects of the document by name, the one in front first (the shared pane, selectionpane.h). A row picks the object; its box hides or shows it (the file
+// format's own hidden mark); its name is typed in place; the buttons and a drag move it through the layers. Each change is a step of Undo.
+void WriteWindow::showSelectionPane()
+{
+    if (!m_doc) return;
+    if (m_selectionPane) {
+        m_selectionPane->refresh();
+        m_selectionPane->show();
+        m_selectionPane->raise();
+        return;
+    }
+    SelectionPane::Source src;
+    auto objects = [this] { return m_doc ? write::floatingObjects(*m_doc) : QVector<write::FloatingObject>(); };
+    src.rows = [this, objects] {
+        QVector<SelectionPane::Row> rows;
+        const QVector<int> picked = m_view->selectedObjects();
+        const QVector<write::FloatingObject> list = objects();
+        for (int i = 0; i < list.size(); ++i) {
+            const QString name = list[i].name.isEmpty() ? tr("Object %1").arg(list.size() - i) : list[i].name;
+            rows.push_back({name, !list[i].hidden, picked.contains(list[i].position)});
+        }
+        return rows;
+    };
+    src.pick = [this, objects](int row) {
+        const QVector<write::FloatingObject> list = objects();
+        if (row >= 0 && row < list.size()) m_view->selectPicture(list[row].position);
+    };
+    src.rename = [this, objects](int row, const QString &name) {
+        const QVector<write::FloatingObject> list = objects();
+        if (row < 0 || row >= list.size()) return;
+        const int at = list[row].position;
+        if (list[row].name.isEmpty() && (name.trimmed().isEmpty() || name == tr("Object %1").arg(list.size() - row))) return;
+        m_view->changeObjects([&](write::WriteDoc &d) { return write::setObjectName(d, at, name); });
+    };
+    src.show = [this, objects](int row, bool shown) {
+        const QVector<write::FloatingObject> list = objects();
+        if (row < 0 || row >= list.size()) return;
+        const int at = list[row].position;
+        m_view->changeObjects([&](write::WriteDoc &d) { return write::setObjectHidden(d, at, !shown); });
+    };
+    src.showAll = [this](bool shown) { m_view->changeObjects([&](write::WriteDoc &d) { return write::setAllObjectsHidden(d, !shown); }); };
+    src.move = [this, objects](int from, int to) {
+        const QVector<write::FloatingObject> list = objects();
+        if (from < 0 || from >= list.size()) return;
+        const int at = list[from].position;
+        m_view->changeObjects([&](write::WriteDoc &d) { return write::moveFloatingObject(d, at, to - from); });
+    };
+    auto *pane = new SelectionPane(this, src);
+    m_selectionPane = pane;
+    connect(m_view, &write::PageView::contentChanged, pane, &SelectionPane::refresh);
+    connect(m_view, &write::PageView::caretChanged, pane, &SelectionPane::refresh);
+    pane->show();
+    pane->raise();
 }
 
 } // namespace jp

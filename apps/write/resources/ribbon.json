@@ -1338,6 +1338,10 @@
             {
               "large": "view.navigationPane",
               "keytip": "SN"
+            },
+            {
+              "large": "view.selectionPane",
+              "keytip": "SE"
             }
           ]
         },
@@ -2122,6 +2126,10 @@
               "keytip": "UP"
             },
             {
+              "large": "view.selectionPane",
+              "keytip": "SP"
+            },
+            {
               "large": {
                 "id": "ribbon.connectShapes",
                 "text": "Connect",
@@ -2335,6 +2343,10 @@
             {
               "large": "arrange.ungroup",
               "keytip": "UP"
+            },
+            {
+              "large": "view.selectionPane",
+              "keytip": "SP"
             },
             {
               "large": {

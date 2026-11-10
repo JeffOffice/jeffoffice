@@ -17,6 +17,7 @@
 #include "core/homeops.h"
 #include "app/versionstore.h"
 #include "app/optionsdialog.h"
+#include "app/selectionpane.h"
 
 #include <QHash>
 #include <QImage>
@@ -393,6 +394,8 @@ private:
     void removeEdited(bool footer);
     void insertPictureFromFile();
     void fillSelectedShapeWithPicture();
+    void showSelectionPane();
+    QPointer<SelectionPane> m_selectionPane;
     void insertPictureFromClipboard();
     void insertIconsFromPicker();
     void showPageSetupDialog();

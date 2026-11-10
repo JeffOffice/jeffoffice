@@ -1727,8 +1727,13 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
     };
     auto colorOf = [](const QString &rgb) { return ColorRef::rgb(QColor(QLatin1Char('#') + rgb)); };
     int firstObject = 0, lastObject = 0;
-    bool inlinePicture = false;
+    bool inlinePicture = false, sawHidden = false;
     for (const Shape &s : shapes) {
+        // An object the file hides (wp:docPr's hidden) takes no room and is not drawn; it stays in the story's drawing element, which is what is saved.
+        if (s.hidden) {
+            sawHidden = true;
+            continue;
+        }
         // Lettering on a path and a horizontal rule that are not set at a place are set in the line, as a picture is.
         const bool lettering = !s.rule && !s.pathText.isEmpty() && s.kind != Shape::Picture;
         if (!s.floating && !inlinePicture && (s.rule || lettering)) {
@@ -1956,8 +1961,8 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             }
     }
     if (firstObject > 0) format->setProperty(flow::fp::AnchorId, firstObject);
-    if (firstObject > 0 || inlinePicture) format->setProperty(tp::Field, QStringLiteral("raw:"));   // (the anchor shows nothing of its own)
-    return firstObject > 0 || inlinePicture;
+    if (firstObject > 0 || inlinePicture || sawHidden) format->setProperty(tp::Field, QStringLiteral("raw:"));   // (the anchor shows nothing of its own)
+    return firstObject > 0 || inlinePicture || sawHidden;
 }
 
 } // namespace jp::write

@@ -253,6 +253,8 @@ public:
     bool insertDrawingCanvasObject();
     // The picture's size, wrap, and alt text, with the notice told when the change cannot be made.
     bool changeSelectedPicture(const std::function<bool(WriteDoc &, int)> &change);
+    // A change to the document's drawn objects that is not made on the selected one (the Selection Pane's names, hiding, and order): made, and the pages drawn again.
+    bool changeObjects(const std::function<bool(WriteDoc &)> &change);
 
     // ---- dragging text
     // The selected text as a drag carries it: its words, and a mark that it is this view's own; a drop of it on the view moves it (copies it, with the Ctrl key) as one step of the

@@ -118,6 +118,26 @@ bool setPictureWrap(WriteDoc &doc, int position, PictureWrap wrap);
 bool setPictureOrder(WriteDoc &doc, int position, PictureOrder order);
 bool canOrderPicture(WriteDoc &doc, int position, PictureOrder order);
 bool setPictureAltText(WriteDoc &doc, int position, const QString &alt);
+
+// ---- The Selection Pane's objects
+
+// A floating drawn object of the body text (a picture, shape, text box, line, chart, or diagram that is set at a place), as the Selection Pane lists it.
+struct FloatingObject {
+    int position = 0;
+    QString name;              // its own name (wp:docPr's name), empty when it has none
+    bool hidden = false;       // wp:docPr's hidden: the object stays in the document and is not drawn
+    bool behind = false;       // in the layer behind the text
+    DrawnKind kind = DrawnKind::Picture;
+};
+// The floating objects in order, the one in front first: the layer in front of the text from its highest to its lowest, then the layer behind it.
+QVector<FloatingObject> floatingObjects(WriteDoc &doc);
+// Names the object (empty takes its name away) and hides or shows it, each one step; false where nothing changes. Hiding is saved as the file format's own mark, so other programs keep it.
+bool setObjectName(WriteDoc &doc, int position, const QString &name);
+bool setObjectHidden(WriteDoc &doc, int position, bool hidden);
+// Hides or shows every floating object, as one step.
+bool setAllObjectsHidden(WriteDoc &doc, bool hidden);
+// Moves the object `by` places in the list floatingObjects gives (negative: toward the front), as one step; crossing from one layer to the other goes through the text, as Bring Forward does.
+bool moveFloatingObject(WriteDoc &doc, int position, int by);
 // Mark as Decorative: the picture is marked as adding nothing to the page's meaning, and its description is taken off; off, the mark goes.
 bool setPictureDecorative(WriteDoc &doc, int position, bool decorative);
 // Sets a picture at a place on the page, measured from its top left corner (points): it becomes one that is set at a place (square, if it was in line).

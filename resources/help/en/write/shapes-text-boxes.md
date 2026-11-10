@@ -1,5 +1,5 @@
 # Shapes and text boxes
-<!-- keywords: shape, shapes, text box, textbox, rectangle, arrow, star, callout, line, draw, insert shape, shape format, fill, outline, weight, dashes, rotate, change shape, edit text, sidebar, pull quote, banner, shape styles, gradient, align, gradient fill, group, ungroup, select several, picture fill, text art, warp, drawing canvas, connector, connect shapes, glue, link text boxes, create link, break link, linked text boxes, chain, diagram, diagrams -->
+<!-- keywords: selection pane, hide object, rename object, object name, shape, shapes, text box, textbox, rectangle, arrow, star, callout, line, draw, insert shape, shape format, fill, outline, weight, dashes, rotate, change shape, edit text, sidebar, pull quote, banner, shape styles, gradient, align, gradient fill, group, ungroup, select several, picture fill, text art, warp, drawing canvas, connector, connect shapes, glue, link text boxes, create link, break link, linked text boxes, chain, diagram, diagrams -->
 
 A **shape** is a drawn figure, such as a rectangle, an arrow, a star, or a speech bubble. A **text box** is a shape that holds words. Both float on the page, and the words of the document go round them. This topic shows how to put them in and change them.
 
@@ -88,6 +88,17 @@ When several objects are selected together, you can drag one of them, and all of
 To take a group apart, select it and click **Ungroup**. Each part goes back to its own place on the page and stays selected. A group that is turned can't be taken apart.
 
 You can move a group, change its size, change its layer (**Bring Forward**, **Send Backward**), and give it alt text. To change the fill or the words of one part, take the group apart first. All of this is one step to undo.
+
+## The Selection Pane
+
+**View > Selection Pane**, or **Arrange > Selection Pane** on the Picture Format and Shape Format tabs, lists the floating objects of the document by name, the one in front first. Objects that sit in line with the text are not in the list, because they have no layer.
+
+- Click a name to select that object.
+- Double-click a name, or press **F2**, to type a new name for the object.
+- Clear the box beside a name to hide the object. A hidden object is not drawn, and the text does not make room for it. It stays in the document, and other programs that open the file keep it hidden too. Check the box to show it again. **Show All** and **Hide All** set every box.
+- Select a name and click **Bring Forward** or **Send Backward** to move the object one place, or drag the name. An object can pass from in front of the text to behind it.
+
+Each of these is one step to undo.
 
 ## Shapes in other documents
 

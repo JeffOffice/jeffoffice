@@ -595,6 +595,7 @@ struct Shape {
     QString fillEmbed;                    // the Id of a picture that fills the shape, stretched over it (VML's v:fill of type frame)
     QString pictEmbed;                    // the Id of the picture's other form (VML's r:pict: a compressed picture the program keeps beside it)
     QString alt;                          // its description
+    bool hidden = false;                  // the file hides it (wp:docPr's hidden): it is kept, and neither drawn nor given room
     QByteArray textBox;                   // the w:txbxContent element of a text box, as written (insets: below)
     // A text box in a chain of linked boxes (wps:txbx's id, and wps:linkedTxbx's id and seq): the chain's number (0 is a number like any other; -1 for a box of its own) and the box's place in it, 0 for the first, which
     // holds the words, then 1, 2, and on. A box that is linked to the first has no words of its own: `textBox` is empty.
