@@ -2,9 +2,12 @@
 
 #include "io/crypto.h"
 
+#include <fpdf_catalog.h>
+#include <fpdf_doc.h>
 #include <fpdf_edit.h>
 #include <fpdf_ppo.h>
 #include <fpdf_save.h>
+#include <fpdf_structtree.h>
 #include <fpdf_text.h>
 #include <fpdf_transformpage.h>
 #include <fpdfview.h>
@@ -201,6 +204,88 @@ QString PdfDocument::text(int page) const
             out = QString::fromUtf16(reinterpret_cast<const char16_t *>(chars.constData()), std::max(0, got - 1));
         }
         FPDFText_ClosePage(tp);
+    }
+    FPDF_ClosePage(pg);
+    return out;
+}
+
+namespace {
+
+// A UTF-16 string PDFium fills in through a two-call function: first the size in bytes, then the text.
+template <class Get>
+QString utf16Of(Get get)
+{
+    const unsigned long n = get(nullptr, 0);
+    if (n < 2) return {};
+    QByteArray buf(qsizetype(n), '\0');
+    get(buf.data(), n);
+    return QString::fromUtf16(reinterpret_cast<const char16_t *>(buf.constData()), qsizetype(n / 2) - 1);
+}
+
+void readOutline(FPDF_DOCUMENT doc, FPDF_BOOKMARK first, int level, QVector<PdfDocument::OutlineEntry> *out, int *budget)
+{
+    for (FPDF_BOOKMARK b = first; b && (*budget)-- > 0; b = FPDFBookmark_GetNextSibling(doc, b)) {
+        PdfDocument::OutlineEntry e;
+        e.level = level;
+        e.title = utf16Of([&](void *buf, unsigned long n) { return FPDFBookmark_GetTitle(b, buf, n); });
+        if (FPDF_DEST dest = FPDFBookmark_GetDest(doc, b)) e.page = FPDFDest_GetDestPageIndex(doc, dest);
+        *out << e;
+        if (level < 16) readOutline(doc, FPDFBookmark_GetFirstChild(doc, b), level + 1, out, budget);
+    }
+}
+
+void readStruct(FPDF_STRUCTELEMENT el, int depth, const QHash<int, QString> &words, QVector<PdfDocument::StructElement> *out, int *budget)
+{
+    if (!el || (*budget)-- <= 0 || depth > 32) return;
+    PdfDocument::StructElement e;
+    e.depth = depth;
+    e.type = utf16Of([&](void *buf, unsigned long n) { return FPDF_StructElement_GetType(el, buf, n); });
+    e.alt = utf16Of([&](void *buf, unsigned long n) { return FPDF_StructElement_GetAltText(el, buf, n); });
+    e.mcid = FPDF_StructElement_GetMarkedContentID(el);
+    e.text = words.value(e.mcid);
+    *out << e;
+    for (int i = 0, n = FPDF_StructElement_CountChildren(el); i < n; ++i) readStruct(FPDF_StructElement_GetChildAtIndex(el, i), depth + 1, words, out, budget);
+}
+
+} // namespace
+
+QVector<PdfDocument::OutlineEntry> PdfDocument::outline() const
+{
+    QMutexLocker lock(&pdfiumLock());
+    QVector<OutlineEntry> out;
+    int budget = 100000;
+    if (d->doc) readOutline(d->doc, FPDFBookmark_GetFirstChild(d->doc, nullptr), 0, &out, &budget);
+    return out;
+}
+
+bool PdfDocument::isTagged() const
+{
+    QMutexLocker lock(&pdfiumLock());
+    return d->doc && FPDFCatalog_IsTagged(d->doc);
+}
+
+QVector<PdfDocument::StructElement> PdfDocument::structure(int page) const
+{
+    QMutexLocker lock(&pdfiumLock());
+    QVector<StructElement> out;
+    if (!d->doc || page < 0 || page >= FPDF_GetPageCount(d->doc)) return out;
+    FPDF_PAGE pg = FPDF_LoadPage(d->doc, page);
+    if (!pg) return out;
+    // The words each marked content draws.
+    QHash<int, QString> words;
+    if (FPDF_TEXTPAGE tp = FPDFText_LoadPage(pg)) {
+        for (int i = 0, n = FPDFPage_CountObjects(pg); i < n; ++i) {
+            FPDF_PAGEOBJECT obj = FPDFPage_GetObject(pg, i);
+            const int id = FPDFPageObj_GetMarkedContentID(obj);
+            if (id < 0 || FPDFPageObj_GetType(obj) != FPDF_PAGEOBJ_TEXT) continue;
+            words[id] += utf16Of([&](void *buf, unsigned long len) { return FPDFTextObj_GetText(obj, tp, reinterpret_cast<FPDF_WCHAR *>(buf), len); });
+        }
+        FPDFText_ClosePage(tp);
+    }
+    if (FPDF_STRUCTTREE tree = FPDF_StructTree_GetForPage(pg)) {
+        int budget = 100000;
+        for (int i = 0, n = FPDF_StructTree_CountChildren(tree); i < n; ++i) readStruct(FPDF_StructTree_GetChildAtIndex(tree, i), 0, words, &out, &budget);
+        FPDF_StructTree_Close(tree);
     }
     FPDF_ClosePage(pg);
     return out;

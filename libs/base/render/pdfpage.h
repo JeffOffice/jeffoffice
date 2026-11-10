@@ -11,6 +11,7 @@
 #include <QSizeF>
 #include <QString>
 #include <QStringList>
+#include <QVector>
 
 #include <memory>
 
@@ -48,6 +49,25 @@ public:
     // The same by lines: the letters on one baseline, in the order the page draws them (what a reader that copies them gets as a line, where a
     // text's lines are not told apart by its own line breaks).
     QStringList lines(int page) const;
+
+    // The bookmarks the reader shows (depth first, `level` 0 for a top one) and the page each goes to (from 0, -1 for none).
+    struct OutlineEntry {
+        QString title;
+        int level = 0;
+        int page = -1;
+    };
+    QVector<OutlineEntry> outline() const;
+    // Whether the file says it is tagged (its catalog's mark info), and the tags of a page: its structure elements in the order a screen reader reads them (depth first), each
+    // with the words the page draws in its marked content.
+    struct StructElement {
+        QString type;     // the structure type: P, H1, Figure, Table...
+        QString alt;      // its alternative text
+        QString text;     // the text drawn in it
+        int depth = 0;
+        int mcid = -1;    // its marked content on the page, or -1
+    };
+    bool isTagged() const;
+    QVector<StructElement> structure(int page) const;
 
     static bool looksLikePdf(const QByteArray &bytes);
     // The document for these bytes, kept for the next ask (a few at a time)
