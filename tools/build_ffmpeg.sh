@@ -11,7 +11,8 @@
 # so that a second run is quick, and is safe to delete.
 #
 # The library versions are Qt's (libavcodec 61, libavformat 61, libavutil 59, libswresample 5, libswscale 8): Qt's
-# plugin binds to them, so this stays on the 7.1 source (the snap's Qt binds to 60, 60, 58, 4, 7: FFMPEG_VERSION=6.1.6). LGPL 2.1 or later only: nothing GPL, nothing nonfree.
+# plugin binds to them, so this stays on the 7.1 source (a Qt that binds to 60, 60, 58, 4, 7 gets FFMPEG_VERSION=6.1.6; the snap
+# reads which from the KDE SDK's plugin with tools/ffmpeg_for_plugin.sh). LGPL 2.1 or later only: nothing GPL, nothing nonfree.
 #
 # Needs, on every system: a C compiler, make, tar with xz, curl (unless FFMPEG_TARBALL is given), sha256sum or shasum, and zlib (the system's
 # headers and library; on Windows MSYS2's mingw-w64-x86_64-zlib, linked statically; it opens a movie's compressed header and compressed Matroska tracks).
@@ -21,11 +22,12 @@
 #   macOS:    Xcode's clang, make, and nasm (x86_64 only: brew install nasm). FFMPEG_ARCH=arm64 or x86_64 (default: this Mac's);
 #             the other one is cross-compiled. Libraries for both are joined with lipo by tools/use_ffmpeg.sh.
 # Environment: FFMPEG_ARCH (macOS), FFMPEG_NO_ASM=1, FFMPEG_TARBALL=path of an already downloaded tarball (still checked),
-# FFMPEG_JOBS (default 4), FFMPEG_VERSION (7.1.5 or 6.1.6).
+# FFMPEG_JOBS (default 4), FFMPEG_VERSION (7.1.5 or 6.1.6),
+# FFMPEG_PLUGIN (Linux: Qt's FFmpeg plugin; the build fails unless its libraries export every function that plugin imports).
 set -eu
 
-# The release to build (FFMPEG_VERSION): 7.1.5 for the libraries Qt 6.11's own packages bind to (libavcodec 61, libavutil 59), and 6.1.6 for the snap,
-# whose Qt binds to libavcodec 60 and libavutil 58. Each has the SHA-256 of its official tarball here; any other release is refused.
+# The release to build (FFMPEG_VERSION): 7.1.5 for the libraries Qt 6.11's own packages bind to (libavcodec 61, libavutil 59), and 6.1.6 for a Qt (the snap's, once) that
+# binds to libavcodec 60 and libavutil 58. Each has the SHA-256 of its official tarball here; any other release is refused.
 VERSION=${FFMPEG_VERSION:-7.1.5}
 case "$VERSION" in
     7.1.5) SHA256=de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f; AVCODEC_MAJOR=61 ;;
@@ -269,12 +271,23 @@ if [ "$OS" = Darwin ]; then
     for f in "$PREFIX"/lib/*.dylib; do [ -L "$f" ] || codesign --force --sign - "$f"; done
 fi
 
-# Qt's plugin (7.1 libraries) imports these functions by name; a library that lacks one does not load (on a Mac: "Symbol not found", and no media
-# backend). Their names (tools/ffmpeg-plugin-symbols.txt) are looked up in what was built, so that a build that leaves one out fails here, listed.
+# Qt's plugin imports these functions by name; a library that lacks one does not load (on a Mac: "Symbol not found", and no media
+# backend). Their names are looked up in what was built, so that a build that leaves one out fails here, listed. The names are the undefined
+# av, swr, and sws symbols of FFMPEG_PLUGIN (a Linux build: the plugin of the Qt that will load these libraries; the snap gives the KDE SDK's),
+# or else tools/ffmpeg-plugin-symbols.txt (the 7.1 plugin's, for the builds that have no plugin at hand).
 SYMS="$HERE/ffmpeg-plugin-symbols.txt"
+PLUGIN=${FFMPEG_PLUGIN:-}
+if [ -n "$PLUGIN" ]; then
+    [ -f "$PLUGIN" ] || die "FFMPEG_PLUGIN $PLUGIN does not exist"
+    nm -D --undefined-only "$PLUGIN" | awk '$1 == "U" { print $2 }' | sed 's/@.*//' | grep -E '^(av|swr|sws)' | LC_ALL=C sort -u >"$WORK/plugin-symbols.txt" || true
+    [ -s "$WORK/plugin-symbols.txt" ] || die "$PLUGIN imports no FFmpeg functions: not Qt's FFmpeg plugin"
+    SYMS="$WORK/plugin-symbols.txt"
+elif [ "$AVCODEC_MAJOR" != 61 ]; then
+    SYMS=""
+fi
 case "$OS" in
     Linux | Darwin)
-        if [ "$AVCODEC_MAJOR" = 61 ] && [ -f "$SYMS" ]; then
+        if [ -n "$SYMS" ] && [ -f "$SYMS" ]; then
             : >"$WORK/exports.txt"
             for f in "$PREFIX"/lib/lib*; do
                 [ -L "$f" ] && continue
@@ -282,7 +295,7 @@ case "$OS" in
                 else nm -D --defined-only "$f" | awk '{print $3}' | sed 's/@.*//' >>"$WORK/exports.txt"; fi
             done
             sort -u "$WORK/exports.txt" >"$WORK/exports.sorted"
-            echo "build_ffmpeg: $(grep -c . "$WORK/exports.sorted") exported names; Qt's plugin imports $(grep -c . "$SYMS")"
+            echo "build_ffmpeg: $(grep -c . "$WORK/exports.sorted") exported names; Qt's plugin imports $(sort -u "$SYMS" | grep -c .)"
             missing=$(sort -u "$SYMS" | comm -13 "$WORK/exports.sorted" -)
             [ -z "$missing" ] || die "the libraries do not export what Qt's plugin imports: $(echo $missing)"
         fi ;;

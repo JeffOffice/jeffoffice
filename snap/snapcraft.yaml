@@ -54,6 +54,11 @@ apps:
   jeffpub:
     command: usr/bin/JeffPub
     extensions: [kde-neon-6]
+    # Our FFmpeg first: Qt's media plugin (in the KDE content snap) must load our minimal build, not a full copy of the same soname that the
+    # content snap may carry. The rest is snapcraft's own default value, written out so that ours can come before it. Nothing but
+    # FFmpeg's libraries is in that folder. tools/snap_ffmpeg_audit.py checks the order in the built snap.
+    environment: &environment
+      LD_LIBRARY_PATH: "$SNAP/usr/lib/jeffoffice-ffmpeg:${SNAP_LIBRARY_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}:$SNAP/usr/lib:$SNAP/usr/lib/x86_64-linux-gnu"
     desktop: usr/share/applications/jeffpub.desktop
     common-id: com.jeffoffice.JeffPub
     plugs: &plugs
@@ -69,6 +74,7 @@ apps:
   jeffdeck:
     command: usr/bin/JeffDeck
     extensions: [kde-neon-6]
+    environment: *environment
     desktop: usr/share/applications/jeffdeck.desktop
     common-id: com.jeffoffice.JeffDeck
     plugs:
@@ -85,12 +91,14 @@ apps:
   jeffwrite:
     command: usr/bin/JeffWrite
     extensions: [kde-neon-6]
+    environment: *environment
     desktop: usr/share/applications/jeffwrite.desktop
     common-id: com.jeffoffice.JeffWrite
     plugs: *plugs
   jeffcrunch:
     command: usr/bin/JeffCrunch
     extensions: [kde-neon-6]
+    environment: *environment
     desktop: usr/share/applications/jeffcrunch.desktop
     common-id: com.jeffoffice.JeffCrunch
     plugs: *plugs
@@ -115,7 +123,7 @@ parts:
       - python3
     stage-packages:
       # Printing, JeffDeck's sound and video (Qt Multimedia's FFmpeg backend:
-      # its FFmpeg is built below, not the distribution's), and the X11 platform plugin's cursor library. The Qt content snap may
+      # its FFmpeg is built below, not the distribution's or the content snap's), and the X11 platform plugin's cursor library. The Qt content snap may
       # carry some of these already; a second copy costs a little space only.
       - libcups2t64
       - libpulse0
@@ -147,14 +155,23 @@ parts:
       here=$CRAFT_PART_SRC/packaging/linux
       d=$CRAFT_PART_INSTALL
       mkdir -p "$d/usr/lib/jeffoffice" "$d/usr/share/doc/jeffoffice/pdfium" "$d/usr/share/doc/jeffoffice/ffmpeg"
-      # JeffDeck's FFmpeg: our minimal build of 6.1.6 (libavcodec 60, libavutil 58, and kin: the versions the Qt of the KDE content snap binds to),
-      # not Ubuntu's full 6.1.1 that the archive carries without its security fixes. The same source, script, and component check as the other
-      # packages (FFMPEG_VERSION picks the release); the libraries go where the staged ones did, so the plugin finds them as before.
-      FFMPEG_VERSION=6.1.6 sh "$CRAFT_PART_SRC/tools/build_ffmpeg.sh" "$CRAFT_PART_BUILD/ffmpeg" "$CRAFT_PART_BUILD/ffmpeg-work"
-      python3 "$CRAFT_PART_SRC/tools/check_ffmpeg_components.py" --built "$CRAFT_PART_BUILD/ffmpeg" --components third_party/ffmpeg-components-6.1.6.txt
-      mkdir -p "$d/usr/lib/x86_64-linux-gnu"
-      cp -a "$CRAFT_PART_BUILD/ffmpeg/lib/"lib*.so.* "$d/usr/lib/x86_64-linux-gnu/"
-      sh "$CRAFT_PART_SRC/tools/use_ffmpeg.sh" check "$d/usr/lib/x86_64-linux-gnu"
+      # JeffDeck's FFmpeg: our minimal build, not Ubuntu's full one (the archive carries it without the security fixes), and not the KDE content snap's.
+      # Qt's FFmpeg plugin (in the SDK this builds against, in the content snap at run time) binds to one FFmpeg major by name, and the content snap's
+      # Qt has moved between majors before: so the release is read from the plugin's NEEDED entries (7.1.5 for libavcodec 61, 6.1.6 for 60; any
+      # other set stops the build). The same source, script, and component check as the other packages. The libraries go in a folder of their own,
+      # which every app puts first in its LD_LIBRARY_PATH (environment above), so that they win over a full copy of the same soname in the content snap.
+      plugin=$(find /snap/kde-qt6-core24-sdk/current/ -name libffmpegmediaplugin.so | head -n 1)
+      [ -n "$plugin" ] || { echo "snapcraft: the KDE SDK has no libffmpegmediaplugin.so: cannot tell which FFmpeg the snap's Qt binds to" >&2; exit 1; }
+      ffmpeg_version=$(sh "$CRAFT_PART_SRC/tools/ffmpeg_for_plugin.sh" "$plugin")
+      echo "snapcraft: $plugin binds to FFmpeg $ffmpeg_version's libraries"
+      FFMPEG_VERSION=$ffmpeg_version FFMPEG_PLUGIN=$plugin sh "$CRAFT_PART_SRC/tools/build_ffmpeg.sh" "$CRAFT_PART_BUILD/ffmpeg" "$CRAFT_PART_BUILD/ffmpeg-work"
+      components=third_party/ffmpeg-components.txt
+      [ "$ffmpeg_version" = 7.1.5 ] || components=third_party/ffmpeg-components-$ffmpeg_version.txt
+      python3 "$CRAFT_PART_SRC/tools/check_ffmpeg_components.py" --built "$CRAFT_PART_BUILD/ffmpeg" --components "$components"
+      ffdir="$d/usr/lib/jeffoffice-ffmpeg"
+      mkdir -p "$ffdir"
+      cp -a "$CRAFT_PART_BUILD/ffmpeg/lib/"lib*.so.* "$ffdir/"
+      sh "$CRAFT_PART_SRC/tools/use_ffmpeg.sh" check "$ffdir"
       install -Dm644 "$CRAFT_PART_BUILD/_deps/pdfium/lib/libpdfium.so" "$d/usr/lib/jeffoffice/libpdfium.so"
       mkdir -p "$d/usr/share/jeffoffice"
       cp -r "$CRAFT_PART_SRC/resources/fonts" "$CRAFT_PART_SRC/resources/dict" "$d/usr/share/jeffoffice/"

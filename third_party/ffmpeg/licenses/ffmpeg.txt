@@ -11,7 +11,7 @@ libraries, which come with the program:
   (on Windows avcodec-*.dll and its kin; on macOS and Linux libavcodec and its
   kin, with Qt's FFmpeg plugin, plugins/multimedia/ffmpegmediaplugin)
 
-They are FFmpeg 7.1.5 (6.1.6 in the snap), built by JeffOffice from the official source release
+They are FFmpeg 7.1.5 (the snap builds 6.1.6 instead if its Qt binds to that), built by JeffOffice from the official source release
 with only the parts that a movie or sound in a presentation needs (see "What
 is in the build," below): a build under the GNU Lesser General Public
 License, version 2.1 or later (the libraries say so themselves: "libavcodec
@@ -52,7 +52,7 @@ and JeffDeck will use them. tools/build_ffmpeg.sh in the source makes ours.
 
 Where the source is
 -------------------
-- FFmpeg 7.1.5 (6.1.6 in the snap), the file ffmpeg-7.1.5.tar.xz: https://ffmpeg.org/releases/ and
+- FFmpeg 7.1.5 (the snap may build 6.1.6 instead, as above), the file ffmpeg-7.1.5.tar.xz: https://ffmpeg.org/releases/ and
   https://git.ffmpeg.org/ffmpeg.git (the release tag n7.1.5). tools/build_ffmpeg.sh
   in the JeffOffice source downloads it, checks its SHA-256, and builds it.
 - Qt Multimedia's FFmpeg backend, which loads the libraries: its source is at
