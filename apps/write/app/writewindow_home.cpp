@@ -173,7 +173,7 @@ void WriteWindow::createHomeActions()
         m_accessDock->raise();
         m_accessPane->check();
     });
-    mk("review.wordCount", tr("Count Words"), "hash", QKeySequence(), [this] {
+    mk("review.wordCount", tr("Word Count"), "hash", QKeySequence(), [this] {
         if (!m_doc) return;
         const QTextCursor sel = m_view->cursor();
         write::wordCountDialog(this, m_view->pageCount(), sel.hasSelection(), [this, sel](bool notes) { return write::countWords(*m_doc, sel, notes); });

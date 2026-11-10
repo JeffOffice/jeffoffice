@@ -406,6 +406,19 @@ private Q_SLOTS:
         QCOMPARE(part.charactersNoSpaces, 3);
     }
 
+    // The command and its box are called Word Count, as in the other apps.
+    void wordCountIsCalledWordCountLikeTheOtherApps()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1000, 700);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("Two words")))), QString());
+        QCOMPARE(w.act(QStringLiteral("review.wordCount"))->text(), QStringLiteral("Word Count"));
+        withDialog([&] { w.act(QStringLiteral("review.wordCount"))->trigger(); }, QStringLiteral("wordCountDialog"),
+                   [&](QDialog *d) { QCOMPARE(d->windowTitle(), QStringLiteral("Word Count")); }, false);
+    }
+
     void wordCountIncludesFootnotesOnlyWhenAsked()
     {
         QByteArray body = para(run("Body text") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>");
