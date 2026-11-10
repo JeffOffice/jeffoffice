@@ -127,6 +127,7 @@ SelectionPane *showPageReadingOrderPane(QWidget *parent, Editor *ed, QPointer<Se
     SelectionPane::Source src;
     src.title = QCoreApplication::translate("PageSelectionPane", "Reading Order");
     src.listName = QCoreApplication::translate("PageSelectionPane", "Objects in the order they are read");
+    src.note = QCoreApplication::translate("PageSelectionPane", "Changing the reading order also changes which object is in front.");
     src.forwardText = QCoreApplication::translate("PageSelectionPane", "Read Earlier");
     src.backwardText = QCoreApplication::translate("PageSelectionPane", "Read Later");
     src.rows = [ed] {

@@ -10,6 +10,7 @@
 #include "io/importers.h"
 #include <QJsonArray>
 #include "io/pdftags.h"
+#include "../pdfmarkcheck.h"
 #include "../withdialog.h"
 #include <QPdfWriter>
 #include <QJsonObject>
@@ -807,8 +808,6 @@ private Q_SLOTS:
         again->setCurrentIndex(0);
     }
 
-    // File > Export > PDF/A writes a file that identifies itself as PDF/A-1b
-    // and carries the sRGB output intent the standard requires.
     // Tagged PDF: marks drawn as the content is painted become marked content and a structure tree, in the order the tags were added; a tag that drew nothing is left out.
     void taggedPdfHasItsStructureInReadingOrder()
     {
@@ -837,7 +836,9 @@ private Q_SLOTS:
             pdf.newPage();
             text(QStringLiteral("P"), QStringLiteral("Second page"), 40);
         }
-        const QByteArray out = jp::tagPdf(buf.data(), tagger, {QStringLiteral("en-US"), QStringLiteral("T")});
+        const jp::PdfTagResult made = jp::tagPdf(buf.data(), tagger, {QStringLiteral("en-US"), QStringLiteral("T")});
+        QVERIFY2(made.tagged, qPrintable(made.why));
+        const QByteArray out = made.pdf;
         jp::PdfDocument doc(out);
         QVERIFY(doc.isValid());
         QCOMPARE(doc.pageCount(), 2);
@@ -851,8 +852,10 @@ private Q_SLOTS:
         QCOMPARE(first[2].text, QStringLiteral("Nothing"));
         QCOMPARE(first[3].alt, QStringLiteral("A red box"));
         QCOMPARE(doc.structure(1).last().text, QStringLiteral("Second page"));
-        // a file with no mark is left as it was
-        QCOMPARE(jp::tagPdf(buf.data(), jp::PdfTagger()), buf.data());
+        // a file with no mark has none taken out, and is not tagged
+        const jp::PdfTagResult none = jp::tagPdf(buf.data(), jp::PdfTagger());
+        QVERIFY(!none.tagged);
+        QVERIFY(!none.why.isEmpty());
     }
 
     void exportedPdfHasBookmarksAndTagsFromThePages()
@@ -933,9 +936,240 @@ private Q_SLOTS:
         jp::PdfDocument keptDoc(kept);
         QVERIFY(keptDoc.isValid());
         QVERIFY(keptDoc.isTagged());
+        QVERIFY2(keptDoc.structure(0).size() > 2, "the PDF/A has a tag tree with nothing in it");
         QCOMPARE(keptDoc.outline().size(), 2);
         QVERIFY2(kept.contains("pdfaid:part"), "no PDF/A identification");
         QVERIFY2(kept.contains("GTS_PDFA1"), "no PDF/A output intent");
+    }
+
+    // A publication for the tag tests: two pages with words, the second with a page title, a master page with a shape, a page color, and a table.
+    static std::unique_ptr<jp::Document> taggedSample()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        doc->pages.clear();
+        for (int i = 0; i < 2; ++i) doc->pages.push_back(std::make_shared<jp::Page>());
+        doc->pages[0]->background = jp::Fill::solid(jp::ColorRef::rgb(QColor(QStringLiteral("#EEEEFF"))));
+        if (jp::MasterPage *m = doc->masterFor(*doc->pages[0])) {
+            auto band = std::make_shared<jp::ShapeItem>();
+            band->rect = QRectF(0, 0, 612, 40);
+            band->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(Qt::blue)));
+            m->items.push_back(band);
+        }
+        auto text = [&](int page, const QString &words, const QRectF &r) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = r;
+            t->storyId = doc->createStory(words);
+            doc->pages[page]->items.push_back(t);
+            return t;
+        };
+        text(0, QStringLiteral("Gamma words"), QRectF(50, 100, 200, 40));
+        text(1, QStringLiteral("Delta words"), QRectF(50, 100, 200, 40));
+        auto t = std::make_shared<jp::TableItem>();
+        t->rows = 2;
+        t->cols = 2;
+        t->colW = {100, 100};
+        t->rowH = {30, 30};
+        t->rect = QRectF(50, 300, 0, 0);
+        t->syncRect();
+        t->cells.resize(4);
+        const QStringList words{QStringLiteral("Head"), QStringLiteral("Tail"), QStringLiteral("Cell"), QStringLiteral("Mark")};
+        for (int i = 0; i < 4; ++i) {
+            t->cells[i].storyId = doc->createStory(words[i]);
+            t->cells[i].fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(QStringLiteral("#DDFFDD"))));
+        }
+        t->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(QStringLiteral("#FFFFDD"))));
+        doc->pages[0]->items.push_back(t);
+        return doc;
+    }
+    static QByteArray exportBytes(jp::MainWindow &w, const QString &path, const jp::MainWindow::PdfSettings &s)
+    {
+        w.exportPdfTo(path, s);
+        QFile f(path);
+        f.open(QIODevice::ReadOnly);
+        return f.readAll();
+    }
+
+    // No mark of the tagging is left in the PDF of a shape a person drew where a mark goes: the shape stays, and the tags are as they should be.
+    void aShapeDrawnWhereAMarkGoesIsNotTakenForOne()
+    {
+        QBuffer buf;
+        buf.open(QIODevice::WriteOnly);
+        jp::PdfTagger tagger;
+        {
+            QPdfWriter pdf(&buf);
+            pdf.setResolution(1200);
+            pdf.setPageSize(QPageSize(QSizeF(300, 300), QPageSize::Point));
+            QPainter p(&pdf);
+            const int a = tagger.add({QStringLiteral("P")});
+            tagger.begin(&p, a);
+            p.save();
+            p.setWorldTransform(QTransform());
+            p.setPen(Qt::NoPen);
+            p.setBrush(Qt::black);
+            p.drawRect(QRectF(-4000, -4000, 4, 4));   // (the shape of a mark when marks were all one size, where the first goes)
+            p.restore();
+            p.setFont(QFont(QStringLiteral("Arial"), 12));
+            p.drawText(QPointF(20, 40), QStringLiteral("Alpha words"));
+            tagger.end(&p, a);
+        }
+        const jp::PdfTagResult made = jp::tagPdf(buf.data(), tagger, {QStringLiteral("en-US"), QString()});
+        QVERIFY2(made.tagged, qPrintable(made.why));
+        jp::PdfDocument doc(made.pdf);
+        const auto tree = doc.structure(0);
+        QCOMPARE(tree.size(), 2);
+        QCOMPARE(tree[1].type, QStringLiteral("P"));
+        QVERIFY2(tree[1].text.contains(QLatin1String("Alpha")), qPrintable(tree[1].text));
+        QVERIFY2(pdfcheck::pageContents(made.pdf).value(0).contains("-4000 -4000 4 4 re"), "the shape was taken for a mark");
+    }
+
+    // Where the tags can't be made, whatever the reason, the PDF has none of the marks, shows what an untagged one shows, and says it is not tagged.
+    void aPdfThatCantBeTaggedHasNoMarksAndSaysSo()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow w;
+        w.editor()->setDocument(taggedSample());
+        jp::MainWindow::PdfSettings off;
+        off.tags = false;
+        const QByteArray plain = exportBytes(w, dir.filePath(QStringLiteral("plain.pdf")), off);
+        jp::PdfDocument plainDoc(plain);
+        QVERIFY(plainDoc.isValid());
+        const QImage reference = plainDoc.render(0, QSize(300, 400));
+        for (int failure = 1; failure <= 4; ++failure) {
+            const auto reset = qScopeGuard([] { jp::pdfTagTestFailure() = 0; });
+            jp::pdfTagTestFailure() = failure;
+            const QByteArray bytes = exportBytes(w, dir.filePath(QStringLiteral("f%1.pdf").arg(failure)), jp::MainWindow::PdfSettings());
+            const QString note = QStringLiteral("failure %1").arg(failure);
+            jp::PdfDocument doc(bytes);
+            QVERIFY2(doc.isValid(), qPrintable(note));
+            QVERIFY2(pdfcheck::marksLeft(bytes) == 0, qPrintable(note + QStringLiteral(": a mark is left")));
+            QVERIFY2(!doc.isTagged(), qPrintable(note));
+            QVERIFY2(doc.render(0, QSize(300, 400)) == reference, qPrintable(note + QStringLiteral(": it does not look like an untagged one")));
+            QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("not tagged")), qPrintable(note + QStringLiteral(": ") + w.statusBar()->currentMessage()));
+        }
+    }
+
+    // A section for each page; a table is a table of rows and cells; a master page's shape, a page's color, and a table's fills are decoration, as is a picture marked so; a hidden
+    // object is not there; and every mark of drawing is in a tag or in decoration.
+    void tagsHaveASectionForEachPageAndAllDrawingIsTaggedOrDecoration()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow w;
+        auto doc = taggedSample();
+        QImage img(8, 8, QImage::Format_RGB32);
+        img.fill(Qt::red);
+        QByteArray png;
+        QBuffer pngBuffer(&png);
+        pngBuffer.open(QIODevice::WriteOnly);
+        img.save(&pngBuffer, "PNG");
+        auto pic = std::make_shared<jp::PictureItem>();
+        pic->imageId = doc->addImage(png, "png");
+        pic->rect = QRectF(300, 100, 80, 80);
+        pic->imgRect = QRectF(0, 0, 80, 80);
+        pic->decorative = true;
+        doc->pages[0]->items.push_back(pic);
+        auto hidden = std::make_shared<jp::TextItem>();
+        hidden->rect = QRectF(300, 400, 100, 30);
+        hidden->storyId = doc->createStory(QStringLiteral("Hidden words"));
+        hidden->hidden = true;
+        doc->pages[0]->items.push_back(hidden);
+        w.editor()->setDocument(std::move(doc));
+        for (bool archival : {false, true}) {
+            jp::MainWindow::PdfSettings s;
+            s.archival = archival;
+            const QByteArray bytes = exportBytes(w, dir.filePath(QStringLiteral("t%1.pdf").arg(archival)), s);
+            jp::PdfDocument pdf(bytes);
+            QVERIFY(pdf.isValid());
+            QVERIFY(pdf.isTagged());
+            if (archival) {
+                QVERIFY(bytes.contains("pdfaid:part"));
+                QVERIFY(bytes.contains("GTS_PDFA1"));
+            }
+            const QVector<QByteArray> contents = pdfcheck::pageContents(bytes);
+            QVERIFY(contents.value(0).contains("/Artifact BMC"));
+            for (int page = 0; page < 2; ++page)
+                QVERIFY2(pdfcheck::drawnOutsideMarkedContent(contents.value(page)) == 0, qPrintable(QStringLiteral("page %1 (archival %2) draws outside the tags").arg(page).arg(archival)));
+            for (int page = 0; page < 2; ++page) {
+                const auto tree = pdf.structure(page);
+                QStringList kinds;
+                for (const auto &e : tree) kinds << e.type;
+                QCOMPARE(kinds.value(0), QStringLiteral("Document"));
+                QCOMPARE(kinds.value(1), QStringLiteral("Sect"));
+                QCOMPARE(kinds.count(QStringLiteral("Sect")), 1);
+            }
+            const auto tree = pdf.structure(0);
+            QStringList kinds, texts;
+            for (const auto &e : tree) {
+                kinds << e.type;
+                if (!e.text.trimmed().isEmpty()) texts << e.text.trimmed();
+            }
+            QCOMPARE(kinds.count(QStringLiteral("Table")), 1);
+            QCOMPARE(kinds.count(QStringLiteral("TR")), 2);
+            QCOMPARE(kinds.count(QStringLiteral("TH")) + kinds.count(QStringLiteral("TD")), 4);
+            QVERIFY(texts.contains(QLatin1String("Gamma words")));
+            QVERIFY(texts.contains(QLatin1String("Head")));
+            QVERIFY(texts.contains(QLatin1String("Mark")));
+            QVERIFY(!texts.join(QLatin1Char(' ')).contains(QLatin1String("Hidden")));
+            QVERIFY2(!kinds.contains(QLatin1String("Figure")), "a picture marked as decoration is a figure");
+        }
+    }
+
+    // /Lang is the main language of the text, not the language of the program's windows.
+    void langIsTheLanguageOfTheText()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow w;
+        auto doc = taggedSample();
+        // all of the letters are German
+        for (auto &story : doc->stories) {
+            QTextCursor cur(story->doc.get());
+            cur.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setProperty(jp::tp::Language, QStringLiteral("de-DE"));
+            cur.mergeCharFormat(f);
+        }
+        w.editor()->setDocument(std::move(doc));
+        QVERIFY(exportBytes(w, dir.filePath(QStringLiteral("l.pdf")), jp::MainWindow::PdfSettings()).contains("/Lang (de-DE)"));
+        w.editor()->setDocument(taggedSample());
+        QVERIFY(exportBytes(w, dir.filePath(QStringLiteral("m.pdf")), jp::MainWindow::PdfSettings()).contains("/Lang (en-US)"));
+    }
+
+    // The two halves of a divided table cell are both in its tag; a PDF with a password and tags opens with the password and is tagged.
+    void aDividedCellListsBothPartsAndAPasswordKeepsTheTags()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow w;
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        doc->pages.clear();
+        doc->pages.push_back(std::make_shared<jp::Page>());
+        auto t = std::make_shared<jp::TableItem>();
+        t->rows = 1;
+        t->cols = 1;
+        t->colW = {200};
+        t->rowH = {120};
+        t->rect = QRectF(50, 100, 0, 0);
+        t->syncRect();
+        t->cells.resize(1);
+        t->cells[0].diagonal = 1;
+        t->cells[0].storyId = doc->createStory(QStringLiteral("Upper words"));
+        t->cells[0].storyId2 = doc->createStory(QStringLiteral("Lower words"));
+        doc->pages[0]->items.push_back(t);
+        w.editor()->setDocument(std::move(doc));
+        jp::MainWindow::PdfSettings s;
+        const QByteArray bytes = exportBytes(w, dir.filePath(QStringLiteral("d.pdf")), s);
+        QStringList cellText;
+        for (const auto &e : jp::PdfDocument(bytes).structure(0))
+            if (e.type == QLatin1String("TD") || e.type == QLatin1String("TH")) cellText << e.text;
+        QCOMPARE(cellText.size(), 1);
+        QVERIFY2(cellText[0].contains(QLatin1String("Upper")) && cellText[0].contains(QLatin1String("Lower")), qPrintable(cellText.join(QLatin1Char('|'))));
+        // with a password
+        const auto wipe = qScopeGuard([&s] { s.protect.wipe(); });
+        s.protect.openPassword = QStringLiteral("pw");
+        const QByteArray locked = exportBytes(w, dir.filePath(QStringLiteral("e.pdf")), s);
+        QVERIFY(!jp::PdfDocument(locked).isValid());
+        jp::PdfDocument opened(locked, QStringLiteral("pw"));
+        QVERIFY(opened.isValid());
+        QVERIFY2(opened.isTagged(), qPrintable(w.statusBar()->currentMessage()));
+        QVERIFY(!opened.structure(0).isEmpty());
     }
 
     void createPdfBoxOffersTagsAndBookmarksChecked()
@@ -955,6 +1189,8 @@ private Q_SLOTS:
         QVERIFY(bookmarks);
     }
 
+    // File > Export > PDF/A writes a file that identifies itself as PDF/A-1b
+    // and carries the sRGB output intent the standard requires.
     void pdfaExport()
     {
         QTemporaryDir dir;

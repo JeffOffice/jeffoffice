@@ -1309,6 +1309,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
                 for (int k = 0; k < 2; ++k) {
                     if (side[k] < 0) continue;
                     bookmarkPage(side[k]);
+                    if (tagging) pageTags.beginSection();
                     p.save();
                     p.scale(scale, scale);
                     p.translate(topFold ? 0 : k * ps.width(), topFold ? k * ps.height() : 0);
@@ -1324,6 +1325,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
             first = false;
             ++pdfPage;
             bookmarkPage(i);
+            if (tagging) pageTags.beginSection();
             p.save();
             p.scale(scale, scale);
             p.translate(margin, margin);
@@ -1333,6 +1335,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
             if (press) {
                 p.save();
                 p.scale(scale, scale);
+                ArtifactSpan decoration(tagging ? &pageTags : nullptr, &p);
                 drawPrinterMarks(&p, QRectF(QPointF(margin, margin), ps), marks,
                                  QStringLiteral("%1  ·  Page %2 of %3  ·  %4").arg(m_ed->displayName()).arg(i + 1).arg(d->pages.size()).arg(stamp));
                 p.restore();
@@ -1372,6 +1375,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
             return false;
         }
     }
+    QString notTagged;   // why a PDF that was to be tagged is not
     // The bookmarks and the tags are added to the finished file (as Qt's writer makes neither).
     if (!s.pdfx && ((s.bookmarks && !bookmarks.isEmpty()) || tagging)) {
         QByteArray bytes = encrypted ? memory.data() : QByteArray();
@@ -1380,9 +1384,22 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
             if (in.open(QIODevice::ReadOnly)) bytes = in.readAll();
         }
         if (!bytes.isEmpty()) {
-            if (tagging) bytes = tagPdf(bytes, tagger, {QLocale().bcp47Name(), title});
+            if (tagging) {
+                PdfTagResult made = tagPdf(bytes, tagger, {documentLanguage(*d), title});
+                if (made.pdf.isEmpty()) {
+                    // The marks could not be taken out: the pages are made again, without them.
+                    QApplication::restoreOverrideCursor();
+                    PdfSettings again = sIn;
+                    again.tags = false;
+                    const bool ok = exportPdfTo(path, again);
+                    if (ok) statusBar()->showMessage(tr("Exported %1 (not tagged for screen readers: %2)").arg(QFileInfo(path).fileName(), made.why), 8000);
+                    return ok;
+                }
+                bytes = made.pdf;
+                if (!made.tagged) notTagged = made.why;
+            }
             if (s.bookmarks) bytes = addPdfBookmarks(bytes, bookmarks);
-            if (encrypted) memory.setData(bytes);
+            if (encrypted) memory.buffer() = bytes;
             else {
                 QSaveFile out(path);
                 if (!out.open(QIODevice::WriteOnly) || out.write(bytes) != bytes.size() || !out.commit())
@@ -1406,7 +1423,8 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
         }
     }
     QApplication::restoreOverrideCursor();
-    statusBar()->showMessage(tr("Exported %1%2").arg(QFileInfo(path).fileName(), s.pdfx ? (x4 ? QStringLiteral(" (PDF/X-4)") : QStringLiteral(" (PDF/X-1a)")) : s.archival ? QStringLiteral(" (PDF/A)") : QString()), 5000);
+    statusBar()->showMessage(tr("Exported %1%2").arg(QFileInfo(path).fileName(), s.pdfx ? (x4 ? QStringLiteral(" (PDF/X-4)") : QStringLiteral(" (PDF/X-1a)")) : s.archival ? QStringLiteral(" (PDF/A)") : QString()) +
+                             (notTagged.isEmpty() ? QString() : QLatin1Char(' ') + tr("(not tagged for screen readers: %1)").arg(notTagged)), notTagged.isEmpty() ? 5000 : 8000);
     // Not for exports from the command line, which show no window.
     if (openPdfAfterSaving() && isVisible() && openFileHook) openFileHook(path);
     return true;

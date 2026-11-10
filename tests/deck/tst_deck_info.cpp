@@ -1,4 +1,5 @@
 // Tests of JeffDeck's Info page: the properties a .pptx keeps, Mark as Final, a password, Version History, and Inspect Document. Every file is made here, in a temporary folder.
+#include <QElapsedTimer>
 #include "../isolatesettings.h"
 #include "../recoverygate.h"
 #include "../settingguard.h"
@@ -739,6 +740,9 @@ private Q_SLOTS:
         SelectionPane *view = pane->readingOrderPane();
         QVERIFY(view);
         QCOMPARE(view->windowTitle(), QStringLiteral("Reading Order"));
+        auto *note = view->findChild<QLabel *>(QStringLiteral("selectionNote"));
+        QVERIFY2(note, "no note in the Reading Order list");
+        QCOMPARE(note->text(), QStringLiteral("Changing the reading order also changes which object is in front."));
         auto *list = view->findChild<QListWidget *>(QStringLiteral("selectionList"));
         QVERIFY(list);
         QCOMPARE(list->count(), 3);
@@ -754,6 +758,137 @@ private Q_SLOTS:
         // Undo puts the order back
         ed->undo();
         QCOMPARE(ed->doc()->pages[0]->items[0]->id, right->id);
+    }
+
+    // Text is judged where it is: over the fill of a master page's shape, over a shape under only part of it, with its own see-through color and its drawn size, and in a group; the
+    // contrast is shown cut, not rounded; and stacks of objects cost no more than their number.
+    void textContrastLooksAtMastersPlacesAlphaSizeAndGroups()
+    {
+        auto doc = deck::newPresentation();
+        doc->pages.clear();
+        auto master = std::make_shared<MasterPage>();
+        master->id = QStringLiteral("tm");
+        auto band = std::make_shared<ShapeItem>();
+        band->rect = QRectF(0, 0, 612, 200);
+        band->fill = Fill::solid(ColorRef::rgb(QColor(QStringLiteral("#222222"))));
+        master->items.push_back(band);
+        doc->masters.push_back(master);
+        auto story = [&](const QString &color, double points) {
+            const QString id = doc->createStory(QStringLiteral("Some words to read"));
+            QTextCursor cur(doc->storyDoc(id));
+            cur.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setProperty(tp::ColorRefP, color);
+            f.setFontPointSize(points);
+            cur.mergeCharFormat(f);
+            return id;
+        };
+        auto page = [&](const QString &masterId = QString()) {
+            auto pg = std::make_shared<Page>();
+            pg->masterId = masterId;
+            doc->pages.push_back(pg);
+            return pg;
+        };
+        auto box = [&](const QString &color, double points, const QRectF &r = QRectF(50, 50, 300, 60)) {
+            auto t = std::make_shared<TextItem>();
+            t->rect = r;
+            t->storyId = story(color, points);
+            return t;
+        };
+        page(QStringLiteral("tm"))->items.push_back(box(QStringLiteral("#FFFFFF"), 12));   // 0: white on the master's dark band: fine
+        page(QStringLiteral("tm"))->items.push_back(box(QStringLiteral("#000000"), 12));   // 1: black on it: not
+        {
+            auto pg = page(QStringLiteral("tm"));   // 2: the page hides the master's objects: black on white
+            pg->showMasterItems = false;
+            pg->items.push_back(box(QStringLiteral("#000000"), 12));
+        }
+        {
+            auto pg = page();   // 3: a dark shape under the left part of a wide box
+            auto dark = std::make_shared<ShapeItem>();
+            dark->rect = QRectF(50, 50, 100, 60);
+            dark->fill = Fill::solid(ColorRef::rgb(QColor(QStringLiteral("#111111"))));
+            pg->items.push_back(dark);
+            pg->items.push_back(box(QStringLiteral("#000000"), 12, QRectF(50, 50, 400, 60)));
+        }
+        page()->items.push_back(box(QStringLiteral("#66000000"), 12));   // 4: black at 40% opacity on white
+        {
+            auto t = box(QStringLiteral("#888888"), 18);   // 5: large, but drawn at half size
+            t->autofit = TextItem::ShrinkOnOverflow;
+            t->fitScale = 0.5;
+            page()->items.push_back(t);
+        }
+        page()->items.push_back(box(QStringLiteral("#888888"), 18));   // 6: the same, drawn at its size
+        {
+            auto g = std::make_shared<GroupItem>();   // 7: in a group
+            g->children.push_back(box(QStringLiteral("#999999"), 12));
+            g->rect = g->children.front()->rect;
+            page()->items.push_back(g);
+        }
+        page()->items.push_back(box(QStringLiteral("#77767C"), 12));   // 8: 4.4998 to 1
+        {
+            auto pg = page();   // 9: thirty layers with no fill under the words
+            for (int i = 0; i < 30; ++i) {
+                auto layer = std::make_shared<ShapeItem>();
+                layer->rect = QRectF(40 + i, 40 + i, 400, 100);
+                layer->altText = QStringLiteral("layer");
+                pg->items.push_back(layer);
+            }
+            pg->items.push_back(box(QStringLiteral("#999999"), 12, QRectF(80, 80, 300, 60)));
+        }
+        QElapsedTimer clock;
+        clock.start();
+        const QVector<PageAccessIssue> found = checkPageAccessibility(*doc);
+        QVERIFY2(clock.elapsed() < 3000, qPrintable(QStringLiteral("%1 ms").arg(clock.elapsed())));
+        auto count = [&](int pageNumber) {
+            int n = 0;
+            for (const auto &i : found)
+                if (i.page == pageNumber && i.kind == PageAccessIssue::LowContrast && i.level == PageAccessIssue::Warning) ++n;
+            return n;
+        };
+        const QVector<int> flagged{0, 1, 0, 1, 1, 1, 0, 1, 1, 1};
+        for (int i = 0; i < flagged.size(); ++i) QVERIFY2(count(i) == flagged[i], qPrintable(QStringLiteral("page %1: %2 found, %3 wanted").arg(i).arg(count(i)).arg(flagged[i])));
+        for (const auto &i : found)
+            if (i.page == 8 && i.kind == PageAccessIssue::LowContrast) {
+                QVERIFY2(i.message.contains(QLatin1String("4.49 to 1")), qPrintable(i.message));
+                QVERIFY(!i.message.contains(QLatin1String("4.50")));
+            }
+    }
+
+    // Reading order: a picture over most of the page is a backdrop and is left out; objects whose spans overlap by half are a row, however their tops differ; and a real swap is
+    // a tip on the object that is read too early.
+    void readingOrderTipsAreNotNoisyAndPinTheRightObject()
+    {
+        auto doc = deck::newPresentation();
+        doc->pages.clear();
+        auto text = [&](const QRectF &r) {
+            auto t = std::make_shared<TextItem>();
+            t->rect = r;
+            t->storyId = doc->createStory(QStringLiteral("Words"));
+            return t;
+        };
+        auto tipsOn = [&](int pageNumber) {
+            QStringList ids;
+            for (const auto &i : checkPageAccessibility(*doc))
+                if (i.page == pageNumber && i.kind == PageAccessIssue::ReadingOrder && i.level == PageAccessIssue::Tip) ids << i.itemId;
+            return ids;
+        };
+        // 0: words over a backdrop picture that is listed after them
+        auto backdrop = std::make_shared<PictureItem>();
+        backdrop->rect = QRectF(0, 0, 612, 792);
+        backdrop->imgRect = QRectF(0, 0, 612, 792);
+        backdrop->altText = QStringLiteral("A background");
+        doc->pages.push_back(std::make_shared<Page>());
+        doc->pages[0]->items = {text(QRectF(50, 300, 200, 40)), backdrop};
+        QVERIFY(tipsOn(0).isEmpty());
+        // 1: two columns, the left one read first and 20 points lower
+        doc->pages.push_back(std::make_shared<Page>());
+        doc->pages[1]->items = {text(QRectF(50, 120, 200, 100)), text(QRectF(300, 100, 200, 100))};
+        QVERIFY(tipsOn(1).isEmpty());
+        // 2: right read first, then left, then the one below: the right one is the one out of place
+        doc->pages.push_back(std::make_shared<Page>());
+        auto right = text(QRectF(300, 100, 200, 40)), left = text(QRectF(50, 100, 200, 40)), below = text(QRectF(50, 300, 200, 40));
+        doc->pages[2]->items = {right, left, below};
+        QCOMPARE(tipsOn(2), QStringList{right->id});
     }
 
     void theInfoPageHasItsCardsAndEditsProperties()

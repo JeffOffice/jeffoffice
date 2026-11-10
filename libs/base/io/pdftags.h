@@ -20,15 +20,21 @@ struct PdfTag {
 
 class PdfTagger {
 public:
+    // Every export gets marks of its own: their size carries two numbers drawn at random, so that a shape a person draws can't be taken for one.
+    PdfTagger();
     // Adds a tag (after the ones before it in reading order) and returns its number. A tag with content is given it by begin and end.
     int add(const PdfTag &tag);
     // The mark that opens the marked content of tag `id` is drawn in `p`, and the one that closes it.
     void begin(QPainter *p, int id);
     void end(QPainter *p, int id);
     const QVector<PdfTag> &tags() const { return m_tags; }
+    // The size of the squares this export's marks are (device units), as tagPdf looks for them.
+    double markWidth() const { return m_w; }
+    double markHeight() const { return m_h; }
 
 private:
     QVector<PdfTag> m_tags;
+    double m_w = 4, m_h = 4;
 };
 
 struct PdfTagOptions {
@@ -36,8 +42,17 @@ struct PdfTagOptions {
     QString title;        // shown by a reader in its title bar, instead of the file name
 };
 
-// The PDF with the marks turned into marked content and the structure tree added. The PDF as it was if it holds no mark, or is made in a way this doesn't know (nothing is guessed);
-// marks of a PDF that is tagged without them (none were drawn) are not looked for.
-QByteArray tagPdf(const QByteArray &pdf, const PdfTagger &tagger, const PdfTagOptions &options = {});
+struct PdfTagResult {
+    QByteArray pdf;       // the PDF with its marks taken out, tagged when `tagged`; empty when the marks could not be taken out (the pages must be made again without them)
+    bool tagged = false;
+    QString why;          // when it is not tagged: the reason, in words for a person
+};
+
+// The PDF with the marks turned into marked content and the structure tree added. It never hands back a PDF that still has marks: where it can't tag (a PDF it doesn't know the
+// form of, one tagged already, nothing to tag) it takes the marks out and says why in `why`; where it can't even do that, `pdf` is empty.
+PdfTagResult tagPdf(const QByteArray &pdf, const PdfTagger &tagger, const PdfTagOptions &options = {});
+
+// For tests: a way tagPdf is made to fail, 0 for none: 1 the PDF can't be read, 2 it is tagged already, 3 a page's content can't be read, 4 there is nothing to tag.
+int &pdfTagTestFailure();
 
 } // namespace jp

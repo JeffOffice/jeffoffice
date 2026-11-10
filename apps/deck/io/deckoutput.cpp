@@ -275,18 +275,17 @@ void drawSlide(const Sheet &s, int slide, const QRectF &target, bool frame)
     const double k = target.width() / size.width();
     p->scale(k, k);
     p->setClipRect(QRectF(QPointF(0, 0), size));
-    p->fillRect(QRectF(QPointF(0, 0), size), Qt::white);
-    // The slide's objects belong to one section of the tags, in the order the slide reads them.
-    if (s.tagger) {
-        PdfTag sect;
-        sect.type = QStringLiteral("Sect");
-        sect.content = false;
-        s.tagger->setParent(s.tagger->tags()->add(sect));
+    {
+        ArtifactSpan paper(s.tagger, p);
+        p->fillRect(QRectF(QPointF(0, 0), size), Qt::white);
     }
+    // The slide's objects belong to one section of the tags, in the order the slide reads them.
+    if (s.tagger) s.tagger->beginSection();
     Renderer::paintPage(p, s.ctx, slide);
     p->restore();
     if (!frame) return;
     // Inside the slide's edge, so a slide that fills the page is framed whole.
+    ArtifactSpan edge(s.tagger, p);
     p->save();
     QPen pen(kFrame, kFrameWidth);
     pen.setJoinStyle(Qt::MiterJoin);
@@ -320,9 +319,13 @@ void paintNotesPage(const Sheet &s, int slide)
         box->autofit = TextItem::ShrinkOnOverflow;
         s.p->save();
         s.p->setClipRect(box->rect);
+        // (the notes are the page's text: a paragraph of its own)
+        if (s.ctx.mark) s.ctx.mark(s.p, *box, true);
         Renderer::paintItems(s.p, s.ctx, ItemList{box});
+        if (s.ctx.mark) s.ctx.mark(s.p, *box, false);
         s.p->restore();
     }
+    ArtifactSpan number(s.tagger, s.p);
     const Face label(s.d.fonts.body, 10);
     label.draw(s.p, QRectF(kEdge, s.paper.height() - kEdge - 12, s.paper.width() - 2 * kEdge, 12), Qt::AlignRight, QString::number(slide + 1));
 }
@@ -331,11 +334,16 @@ void paintHandoutPage(const Sheet &s, const QVector<int> &slides, int page)
 {
     const Grid grid = gridOf(s.o.layout);
     const int per = grid.columns * grid.rows;
+    // (a handout's header, footer, and lines to write on are decoration, drawn between its slides)
+    PageTagger *tagger = s.tagger;
     const Face label(s.d.fonts.body, 10);
     const QRectF header(kEdge, kEdge - 6, s.paper.width() - 2 * kEdge, 12), footer(kEdge, s.paper.height() - kEdge - 6, s.paper.width() - 2 * kEdge, 12);
-    if (!s.d.props.title.isEmpty()) label.draw(s.p, header, Qt::AlignLeft, plain(s.d.props.title));
-    label.draw(s.p, header, Qt::AlignRight, QLocale().toString(QDate::currentDate(), QLocale::ShortFormat));
-    label.draw(s.p, footer, Qt::AlignRight, QString::number(page + 1));
+    {
+        ArtifactSpan lines(tagger, s.p);
+        if (!s.d.props.title.isEmpty()) label.draw(s.p, header, Qt::AlignLeft, plain(s.d.props.title));
+        label.draw(s.p, header, Qt::AlignRight, QLocale().toString(QDate::currentDate(), QLocale::ShortFormat));
+        label.draw(s.p, footer, Qt::AlignRight, QString::number(page + 1));
+    }
     const QRectF area(kEdge, 60, s.paper.width() - 2 * kEdge, s.paper.height() - 120);
     const double cellW = area.width() / grid.columns, cellH = area.height() / grid.rows;
     constexpr double gap = 10;
@@ -350,6 +358,7 @@ void paintHandoutPage(const Sheet &s, const QVector<int> &slides, int page)
         drawSlide(s, slides[at], target, true);
         if (!grid.lines) continue;
         // Lines to write on, down the slide's height.
+        ArtifactSpan writing(tagger, s.p);
         s.p->save();
         s.p->setPen(QPen(kRule, 0.75));
         const double from = cell.left() + cell.width() * 0.52, to = cell.right() - gap;
@@ -519,7 +528,7 @@ void paintOutputPage(QPainter *p, const Document &d, LayoutCache *cache, const O
     else paintPlain(p, d, cache, o, page, paper, textOutputOf(p), tags);
 }
 
-bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, QString *error, const PdfProtection *protect)
+bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, QString *error, const PdfProtection *protect, QString *notTagged)
 {
     auto fail = [&](const QString &why) {
         if (error) *error = why;
@@ -528,16 +537,26 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
     const int pages = outputPageCount(d, o);
     if (pages <= 0) return fail(QCoreApplication::translate("DeckOutput", "There are no slides to print."));
     const bool encrypted = protect && protect->isSet();
-    // The PDF is made in memory: the bookmarks and the tags are added to the finished file, and with a password the plain PDF is never on the disk.
-    QBuffer memory;
-    memory.open(QIODevice::WriteOnly);
-    PdfTagger tagger;
+    // The place is checked before any slide is made.
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly)) return fail(file.errorString());
     const bool tagging = o.tags && o.layout != PrintLayout::Outline && !o.grayscale;
-    const QVector<int> slides = outputSlides(d, o);
-    {
-        QPdfWriter pdf(&memory);
+    const bool bookmarking = o.bookmarks && o.layout != PrintLayout::Outline;
+    const QString title = d.props.title.isEmpty() ? QFileInfo(path).completeBaseName() : d.props.title;
+    // The PDF is made in memory when it has a password (the plain PDF is never on the disk) or the bookmarks and the tags are to be added to the finished file; otherwise it goes
+    // straight to the file.
+    const bool inMemory = encrypted || tagging || bookmarking;
+    QBuffer memory;
+    if (inMemory) memory.open(QIODevice::WriteOnly);
+    auto make = [&](PdfTagger *tagger) {
+        if (inMemory) {
+            memory.close();
+            memory.setData(QByteArray());
+            memory.open(QIODevice::WriteOnly);
+        }
+        QPdfWriter pdf(inMemory ? static_cast<QIODevice *>(&memory) : static_cast<QIODevice *>(&file));
         pdf.setCreator(appInfo().name);
-        pdf.setTitle(d.props.title.isEmpty() ? QFileInfo(path).completeBaseName() : d.props.title);
+        pdf.setTitle(title);
         if (o.archive && !encrypted) pdf.setPdfVersion(QPdfWriter::PdfVersion_A1b);
         if (o.grayscale) pdf.setColorModel(QPdfWriter::ColorModel::Grayscale);
         const QSizeF size = outputPageSize(d, o);
@@ -545,27 +564,48 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
         pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
         pdf.setResolution(1200);
         QPainter p;
-        if (!p.begin(&pdf)) return fail(QCoreApplication::translate("DeckOutput", "The PDF can't be started."));
+        if (!p.begin(&pdf)) return false;
         const double scale = 1200.0 / 72.0;
         LayoutCache cache;
         for (int i = 0; i < pages; ++i) {
             if (i) pdf.newPage();
             p.save();
             p.scale(scale, scale);
-            paintOutputPage(&p, d, &cache, o, i, size, tagging ? &tagger : nullptr);
+            paintOutputPage(&p, d, &cache, o, i, size, tagger);
             p.restore();
         }
         p.end();
+        return true;
+    };
+    PdfTagger tagger;
+    if (!make(tagging ? &tagger : nullptr)) {
+        file.cancelWriting();
+        return fail(QCoreApplication::translate("DeckOutput", "The PDF can't be started."));
     }
-    QByteArray bytes = memory.data();
-    if (tagging) bytes = tagPdf(bytes, tagger, {QLocale().bcp47Name(), d.props.title.isEmpty() ? QFileInfo(path).completeBaseName() : d.props.title});
-    if (o.bookmarks && o.layout != PrintLayout::Outline) {
+    QByteArray bytes = inMemory ? memory.data() : QByteArray();
+    if (tagging) {
+        PdfTagResult made = tagPdf(bytes, tagger, {documentLanguage(d), title});
+        if (made.pdf.isEmpty()) {
+            // The marks could not be taken out: the slides are made again, without them.
+            if (!make(nullptr)) {
+                file.cancelWriting();
+                return fail(QCoreApplication::translate("DeckOutput", "The PDF can't be started."));
+            }
+            bytes = memory.data();
+            if (notTagged) *notTagged = made.why;
+        } else {
+            bytes = made.pdf;
+            if (!made.tagged && notTagged) *notTagged = made.why;
+        }
+    }
+    if (bookmarking) {
         // One for each slide: its title, or its number, going to the page it is on.
+        const QVector<int> slides = outputSlides(d, o);
         const int per = std::max(1, slidesPerPage(o.layout));
         QVector<PdfBookmark> marks;
         for (int k = 0; k < slides.size(); ++k) {
-            const QString title = slideTitle(d, slides[k]).trimmed();
-            marks.push_back({title.isEmpty() ? QCoreApplication::translate("DeckOutput", "Slide %1").arg(slides[k] + 1) : title, 0, k / per});
+            const QString slideName = slideTitle(d, slides[k]).trimmed();
+            marks.push_back({slideName.isEmpty() ? QCoreApplication::translate("DeckOutput", "Slide %1").arg(slides[k] + 1) : slideName, 0, k / per});
         }
         bytes = addPdfBookmarks(bytes, marks);
     }
@@ -574,8 +614,7 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
         bytes = encryptPdf(bytes, *protect, &why);
         if (bytes.isEmpty()) return fail(why);
     }
-    QSaveFile file(path);
-    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size()) return fail(file.errorString());
+    if (inMemory && file.write(bytes) != bytes.size()) return fail(file.errorString());
     if (!file.commit()) return fail(file.errorString());
     return true;
 }

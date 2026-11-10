@@ -1506,11 +1506,13 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
     MasterPage *m = doc.masterFor(pg);
     const QVector<MasterPage *> chain = doc.masterChain(m);
     const Fill bg = backgroundOf(pg, chain);
+    if (ctx.markArtifact) ctx.markArtifact(p, true);
     paintBackground(p, c, bg, pr);
     if (m && !ctx.opt.noMaster) {
         const bool right = (pageIndex + 1) % 2 == 1;
         paintMastersUnder(p, c, pg, chain, m->twoPage && right ? -doc.pageSize().width() : 0);
     }
+    if (ctx.markArtifact) ctx.markArtifact(p, false);
     if (!ctx.opt.flattenTransparency) {
         if (ctx.around || ctx.mark) {
             for (const auto &it : pg.items) {
@@ -1523,7 +1525,9 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
         } else {
             paintItems(p, c, pg.items);
         }
+        if (ctx.markArtifact) ctx.markArtifact(p, true);
         paintCatalogCells(p, c, pg);
+        if (ctx.markArtifact) ctx.markArtifact(p, false);
         return;
     }
     // Flattened output: transparent items become opaque patches holding the

@@ -4,6 +4,7 @@
 // updates), their stream data, and a fresh cross-reference table on saving.
 
 #include <QByteArray>
+#include <QHash>
 #include <QString>
 #include <QVector>
 
@@ -41,6 +42,12 @@ public:
 
     static QByteArray inflate(const QByteArray &in, bool *ok);
     static QByteArray deflate(const QByteArray &in);
+
+private:
+    // Where each object is in `objects`, found once (so that looking one up, or adding one, costs the same however many there are); made again when `objects` was changed by hand.
+    void index();
+    QHash<int, int> m_at;
+    int m_indexed = -1, m_maxId = 0;
 };
 
 } // namespace jp

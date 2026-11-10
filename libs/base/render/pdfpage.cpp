@@ -242,9 +242,16 @@ void readStruct(FPDF_STRUCTELEMENT el, int depth, const QHash<int, QString> &wor
     e.type = utf16Of([&](void *buf, unsigned long n) { return FPDF_StructElement_GetType(el, buf, n); });
     e.alt = utf16Of([&](void *buf, unsigned long n) { return FPDF_StructElement_GetAltText(el, buf, n); });
     e.mcid = FPDF_StructElement_GetMarkedContentID(el);
-    e.text = words.value(e.mcid);
+    const int kids = FPDF_StructElement_CountChildren(el);
+    // (an element drawn in more than one piece lists the marked content of each)
+    QVector<int> ids;
+    for (int i = 0; i < kids; ++i)
+        if (const int id = FPDF_StructElement_GetChildMarkedContentID(el, i); id >= 0) ids << id;
+    if (ids.isEmpty() && e.mcid >= 0) ids << e.mcid;
+    if (e.mcid < 0 && !ids.isEmpty()) e.mcid = ids.first();
+    for (int id : std::as_const(ids)) e.text += (e.text.isEmpty() ? QString() : QStringLiteral(" ")) + words.value(id);
     *out << e;
-    for (int i = 0, n = FPDF_StructElement_CountChildren(el); i < n; ++i) readStruct(FPDF_StructElement_GetChildAtIndex(el, i), depth + 1, words, out, budget);
+    for (int i = 0; i < kids; ++i) readStruct(FPDF_StructElement_GetChildAtIndex(el, i), depth + 1, words, out, budget);
 }
 
 } // namespace

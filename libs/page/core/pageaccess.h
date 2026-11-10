@@ -31,8 +31,9 @@ double contrastRatio(const QColor &a, const QColor &b);
 // The contrast text needs: 3 for large text (18 points or more, or 14 points or more in bold), else 4.5.
 double neededContrast(double points, bool bold);
 // Which of a page's objects are read in another place than their positions give: the ones left over when the longest run that is already in order (top to bottom, then left to right,
-// objects whose tops are within a few points being a row) is taken out. Their numbers in `items`, in order; hidden objects, decoration, and lines are not read, so are not counted.
-QVector<int> outOfReadingOrder(const ItemList &items);
+// objects whose vertical spans overlap by half being a row) is taken out. Their numbers in `items`, in order; hidden objects, decoration, lines, and a picture covering most of the
+// page (a backdrop) are not read, so are not counted. `pageSize` is the page's, for the backdrop (empty: no backdrop).
+QVector<int> outOfReadingOrder(const ItemList &items, const QSizeF &pageSize = QSizeF());
 
 // The problems found, page by page (at most `most`). A picture with no alt text is an error, and so is a shape with no words in it (an object marked as decoration is left alone).
 // `titleOf` (may be empty) gives the title of a page; with it, a page with an empty title is a warning. `slides` says "slide" where the messages say "page".

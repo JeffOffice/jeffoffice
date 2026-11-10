@@ -51,6 +51,7 @@ bool QtPdf::load(const QString &path, QString *error)
 bool QtPdf::loadBytes(const QByteArray &pdf, QString *error)
 {
     objects.clear();
+    m_indexed = -1;
     qsizetype at = pdf.indexOf("\n1 0 obj\n");
     if (!pdf.startsWith("%PDF-") || at < 0) {
         if (error) *error = QCoreApplication::translate("Export", "not a PDF this program wrote");
@@ -121,19 +122,34 @@ bool QtPdf::save(const QString &path, QString *error) const
     return true;
 }
 
+void QtPdf::index()
+{
+    if (m_indexed == int(objects.size())) return;
+    m_at.clear();
+    m_maxId = 0;
+    for (int i = 0; i < objects.size(); ++i) {
+        m_at.insert(objects[i].id, i);
+        m_maxId = std::max(m_maxId, objects[i].id);
+    }
+    m_indexed = int(objects.size());
+}
+
 QtPdf::Obj *QtPdf::object(int id)
 {
-    for (Obj &o : objects)
-        if (o.id == id) return &o;
-    return nullptr;
+    index();
+    const auto at = m_at.constFind(id);
+    return at == m_at.cend() ? nullptr : &objects[at.value()];
 }
 
 int QtPdf::addObject(const QByteArray &body)
 {
-    int maxId = 0;
-    for (const Obj &o : objects) maxId = std::max(maxId, o.id);
-    objects << Obj{maxId + 1, body.endsWith('\n') ? body : body + '\n'};
-    return maxId + 1;
+    index();
+    const int id = m_maxId + 1;
+    objects << Obj{id, body.endsWith('\n') ? body : body + '\n'};
+    m_at.insert(id, int(objects.size()) - 1);
+    m_maxId = id;
+    m_indexed = int(objects.size());
+    return id;
 }
 
 bool QtPdf::isStream(const QByteArray &body) { return body.contains(">>\nstream\n"); }

@@ -171,8 +171,8 @@ public:
         o.grayscale = m_gray->isChecked();
         o.horizontalOrder = m_order->currentData().toBool();
         o.archive = m_archive->isChecked();
-        o.tags = m_tags->isChecked();
-        o.bookmarks = m_bookmarks->isChecked();
+        o.tags = m_tags->isChecked() && !(o.layout == deck::PrintLayout::Outline || o.grayscale);
+        o.bookmarks = m_bookmarks->isChecked() && o.layout != deck::PrintLayout::Outline;
         if (m_currentOnly->isChecked()) o.slides = {m_current};
         else if (m_some->isChecked()) o.slides = deck::parseSlideRange(m_text->text(), m_slides);
         return o;
@@ -205,6 +205,13 @@ private:
         const int pages = deck::outputPageCount(m_doc, o);
         m_summary->setText(badRange ? DeckWindow::tr("Enter slide numbers, such as 1-3, 5.") : pages ? DeckWindow::tr("%n page(s)", nullptr, pages) : DeckWindow::tr("There are no slides to print."));
         m_ok->setEnabled(pages > 0 && !badRange);
+        // An outline has no objects to tag or slides to bookmark, and a grayscale PDF is made of pictures: the boxes are turned off, with the reason.
+        const bool outline = o.layout == deck::PrintLayout::Outline;
+        const bool taggable = !outline && !o.grayscale;
+        m_tags->setEnabled(taggable);
+        m_tags->setToolTip(taggable ? QString() : DeckWindow::tr("An outline or a grayscale PDF can't be tagged: it has no objects to tag, or is made of pictures."));
+        m_bookmarks->setEnabled(!outline);
+        m_bookmarks->setToolTip(outline ? DeckWindow::tr("An outline has no slides to bookmark.") : QString());
     }
 
     const Document &m_doc;
@@ -260,14 +267,17 @@ bool exportPdfCommand(DeckWindow *w, const PathChooser &chooser)
     if (QFileInfo(path).suffix().compare(QLatin1String("pdf"), Qt::CaseInsensitive) != 0) path += QStringLiteral(".pdf");
     QString err;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    const bool ok = deck::exportPdf(*w->editor()->doc(), path, options, &err, &protect);
+    QString notTagged;
+    const bool ok = deck::exportPdf(*w->editor()->doc(), path, options, &err, &protect, &notTagged);
     QApplication::restoreOverrideCursor();
     if (!ok) {
         jp::plainWarning(w, DeckWindow::tr("Export to PDF"),
                              DeckWindow::tr("%1 couldn't export \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
-    w->statusBar()->showMessage(DeckWindow::tr("Exported %1").arg(QFileInfo(path).fileName()), 5000);
+    w->statusBar()->showMessage(DeckWindow::tr("Exported %1").arg(QFileInfo(path).fileName()) +
+                                    (notTagged.isEmpty() ? QString() : QLatin1Char(' ') + DeckWindow::tr("(not tagged for screen readers: %1)").arg(notTagged)),
+                                notTagged.isEmpty() ? 5000 : 8000);
     return true;
 }
 

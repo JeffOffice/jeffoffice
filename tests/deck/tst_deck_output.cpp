@@ -1,6 +1,7 @@
 // JeffDeck's tests of PDF, pictures, handouts, and printed output.
 #include "deckhelpers.h"
 #include "../localepin.h"
+#include "../pdfmarkcheck.h"
 #include "../plainpdfwatch.h"
 #include "app/passworddialogs.h"
 #include "office/officecrypt.h"
@@ -1051,6 +1052,7 @@ private Q_SLOTS:
         PdfDocument keptDoc(kept);
         QVERIFY(keptDoc.isValid());
         QVERIFY(keptDoc.isTagged());
+        QVERIFY2(keptDoc.structure(0).size() > 2, "the PDF/A has a tag tree with nothing in it");
         QCOMPARE(keptDoc.outline().size(), 3);
         QVERIFY2(kept.contains("pdfaid:part"), "no PDF/A mark");
         QVERIFY(kept.contains("GTS_PDFA1"));
@@ -1060,6 +1062,162 @@ private Q_SLOTS:
         PdfDocument handDoc(write(QStringLiteral("d.pdf"), handout));
         QCOMPARE(handDoc.outline().size(), 3);
         QCOMPARE(handDoc.outline()[2].page, 1);
+    }
+
+    // Where the tags can't be made, whatever the reason, the PDF has none of the marks, shows what an untagged one shows, and the caller is told it is not tagged.
+    void aPdfThatCantBeTaggedHasNoMarksAndSaysSo()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto d = showDeck(2);
+        deck::OutputOptions off;
+        off.tags = false;
+        QString err;
+        const QString plainPath = dir.filePath(QStringLiteral("plain.pdf"));
+        QVERIFY(deck::exportPdf(*d, plainPath, off, &err));
+        PdfDocument plain(fileBytes(plainPath));
+        const QImage reference = plain.render(0, QSize(480, 270));
+        for (int failure = 1; failure <= 4; ++failure) {
+            const auto reset = qScopeGuard([] { pdfTagTestFailure() = 0; });
+            pdfTagTestFailure() = failure;
+            const QString path = dir.filePath(QStringLiteral("f%1.pdf").arg(failure));
+            QString notTagged;
+            QVERIFY(deck::exportPdf(*d, path, deck::OutputOptions(), &err, nullptr, &notTagged));
+            const QByteArray bytes = fileBytes(path);
+            const QByteArray note = QByteArray("failure ") + QByteArray::number(failure);
+            PdfDocument doc(bytes);
+            QVERIFY2(doc.isValid(), note.constData());
+            QVERIFY2(pdfcheck::marksLeft(bytes) == 0, note.constData());
+            QVERIFY2(!doc.isTagged(), note.constData());
+            QVERIFY2(doc.render(0, QSize(480, 270)) == reference, note.constData());
+            QVERIFY2(!notTagged.isEmpty(), note.constData());
+        }
+    }
+
+    // /Lang is the language of the slides' text; a divided table cell lists both its parts; a password keeps the tags; and every
+    // mark of drawing is in a tag or in decoration, on slides, notes pages, and handouts.
+    void slideTagsHaveTheTextsLanguageBothPartsOfACellAndAllDrawingIsTaggedOrDecoration()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto d = showDeck(2);
+        // a band on the master, a page color, and a table with a divided cell
+        d->pages[0]->background = Fill::solid(ColorRef::rgb(QColor(QStringLiteral("#EEEEFF"))));
+        if (MasterPage *m = d->masterFor(*d->pages[0])) {
+            auto band = std::make_shared<ShapeItem>();
+            band->rect = QRectF(0, 0, 960, 20);
+            band->fill = Fill::solid(ColorRef::rgb(QColor(Qt::blue)));
+            m->items.push_back(band);
+        }
+        auto table = std::make_shared<TableItem>();
+        table->rows = 1;
+        table->cols = 1;
+        table->colW = {300};
+        table->rowH = {120};
+        table->rect = QRectF(100, 300, 0, 0);
+        table->syncRect();
+        table->cells.resize(1);
+        table->cells[0].diagonal = 1;
+        table->cells[0].fill = Fill::solid(ColorRef::rgb(QColor(QStringLiteral("#DDFFDD"))));
+        table->cells[0].storyId = d->createStory(QStringLiteral("Upper words"));
+        table->cells[0].storyId2 = d->createStory(QStringLiteral("Lower words"));
+        d->pages[0]->items.push_back(table);
+        // all of the letters are French
+        for (auto &story : d->stories) {
+            QTextCursor cur(story->doc.get());
+            cur.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setProperty(tp::Language, QStringLiteral("fr-FR"));
+            cur.mergeCharFormat(f);
+        }
+        QString err;
+        for (auto layout : {deck::PrintLayout::Slides, deck::PrintLayout::NotesPages, deck::PrintLayout::Handout2}) {
+            deck::OutputOptions o;
+            o.layout = layout;
+            o.frameSlides = true;
+            const QString path = dir.filePath(QStringLiteral("a%1.pdf").arg(int(layout)));
+            QVERIFY2(deck::exportPdf(*d, path, o, &err), qPrintable(err));
+            const QByteArray bytes = fileBytes(path);
+            PdfDocument pdf(bytes);
+            QVERIFY(pdf.isValid());
+            QVERIFY(pdf.isTagged());
+            for (const QByteArray &page : pdfcheck::pageContents(bytes))
+                QVERIFY2(pdfcheck::drawnOutsideMarkedContent(page) == 0, qPrintable(QStringLiteral("layout %1 draws outside the tags").arg(int(layout))));
+            QVERIFY2(bytes.contains("/Lang (fr-FR)"), "/Lang is not the text's");
+            if (layout != deck::PrintLayout::Slides) continue;
+            // the divided cell has both of its parts
+            QStringList cells;
+            for (const auto &e : pdf.structure(0))
+                if (e.type == QLatin1String("TD") || e.type == QLatin1String("TH")) cells << e.text;
+            QCOMPARE(cells.size(), 1);
+            QVERIFY2(cells[0].contains(QLatin1String("Upper")) && cells[0].contains(QLatin1String("Lower")), qPrintable(cells.join(QLatin1Char('|'))));
+        }
+        // English by default
+        auto plainDeck = showDeck(1);
+        QVERIFY(deck::exportPdf(*plainDeck, dir.filePath(QStringLiteral("en.pdf")), deck::OutputOptions(), &err));
+        QVERIFY(fileBytes(dir.filePath(QStringLiteral("en.pdf"))).contains("/Lang (en-US)"));
+        // with a password
+        PdfProtection protect;
+        const auto wipe = qScopeGuard([&protect] { protect.wipe(); });
+        protect.openPassword = QStringLiteral("pw");
+        QVERIFY(deck::exportPdf(*plainDeck, dir.filePath(QStringLiteral("pw.pdf")), deck::OutputOptions(), &err, &protect));
+        const QByteArray locked = fileBytes(dir.filePath(QStringLiteral("pw.pdf")));
+        QVERIFY(!PdfDocument(locked).isValid());
+        PdfDocument opened(locked, QStringLiteral("pw"));
+        QVERIFY(opened.isValid());
+        QVERIFY(opened.isTagged());
+        // a picture marked as decoration and a hidden object are not tagged
+        auto deco = showDeck(1);
+        auto img = std::make_shared<PictureItem>();
+        QImage red(8, 8, QImage::Format_RGB32);
+        red.fill(Qt::red);
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        red.save(&buf, "PNG");
+        img->imageId = deco->addImage(png, "png");
+        img->rect = QRectF(100, 300, 100, 100);
+        img->imgRect = QRectF(QPointF(0, 0), img->rect.size());
+        img->decorative = true;
+        deco->pages[0]->items.push_back(img);
+        auto secret = std::make_shared<TextItem>();
+        secret->rect = QRectF(500, 300, 200, 40);
+        secret->storyId = deco->createStory(QStringLiteral("Hidden words"));
+        secret->hidden = true;
+        deco->pages[0]->items.push_back(secret);
+        QVERIFY(deck::exportPdf(*deco, dir.filePath(QStringLiteral("deco.pdf")), deck::OutputOptions(), &err));
+        PdfDocument decoPdf(fileBytes(dir.filePath(QStringLiteral("deco.pdf"))));
+        for (const auto &e : decoPdf.structure(0)) {
+            QVERIFY2(e.type != QLatin1String("Figure"), "a picture marked as decoration is a figure");
+            QVERIFY2(!e.text.contains(QLatin1String("Hidden")), "a hidden object is tagged");
+        }
+    }
+
+    // An outline and a grayscale PDF can't be tagged: the box says so, and is off.
+    void exportBoxTurnsTagsOffWhereTheyCantBeMade()
+    {
+        DeckWindow w;
+        w.editor()->setDocument(showDeck(2));
+        w.setSavePathChooser([](const QString &, const QString &) { return QString(); });
+        answerOutputDialog(
+            [&](QDialog *dialog) {
+                auto *tags = dialog->findChild<QCheckBox *>(QStringLiteral("pdfTags"));
+                auto *marks = dialog->findChild<QCheckBox *>(QStringLiteral("pdfBookmarks"));
+                QVERIFY(tags->isEnabled());
+                QVERIFY(tags->toolTip().isEmpty());
+                dialog->findChild<QCheckBox *>(QStringLiteral("outputGray"))->setChecked(true);
+                QVERIFY2(!tags->isEnabled(), "tags are offered for a grayscale PDF");
+                QVERIFY(!tags->toolTip().isEmpty());
+                QVERIFY(marks->isEnabled());
+                dialog->findChild<QCheckBox *>(QStringLiteral("outputGray"))->setChecked(false);
+                auto *what = dialog->findChild<QComboBox *>(QStringLiteral("outputWhat"));
+                what->setCurrentIndex(what->findData(int(deck::PrintLayout::Outline)));
+                QVERIFY2(!tags->isEnabled(), "tags are offered for an outline");
+                QVERIFY(!marks->isEnabled());
+                QVERIFY(!tags->toolTip().isEmpty());
+            },
+            QDialogButtonBox::Cancel);
+        w.act("file.exportPdf")->trigger();
     }
 
     // The Export to PDF box offers the tags and the bookmarks, with the words JeffWrite's PDF options use, both on as it starts; turned off, the file has neither.

@@ -83,7 +83,8 @@ void paintOutputPage(QPainter *p, const Document &d, LayoutCache *cache, const O
 // presentation's properties or the file's name. The old file stays whole
 // until the new one is complete; on failure says why in `error`.
 // With `protect` (and its open password set), the file is written once, encrypted: the plain PDF stays in memory. The caller wipes `protect`.
-bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, QString *error = nullptr, const PdfProtection *protect = nullptr);
+// `notTagged`, when given, is set to the reason where the PDF was to be tagged and is not (and left empty otherwise).
+bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, QString *error = nullptr, const PdfProtection *protect = nullptr, QString *notTagged = nullptr);
 
 // One slide as a picture `width` pixels across (the slide's shape), on white.
 QImage slideImage(const Document &d, LayoutCache *cache, int slide, int width = 1920);

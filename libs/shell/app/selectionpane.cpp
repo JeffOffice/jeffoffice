@@ -4,6 +4,7 @@
 
 #include <QAbstractItemModel>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QListWidget>
 #include <QPointer>
 #include <QPushButton>
@@ -39,6 +40,13 @@ SelectionPane::SelectionPane(QWidget *parent, const Source &source) : QDialog(pa
         });
         m_showAll->setVisible(bool(m_source.showAll));
         m_hideAll->setVisible(bool(m_source.showAll));
+    }
+    if (!m_source.note.isEmpty()) {
+        auto *note = new QLabel(m_source.note, this);
+        note->setObjectName(QStringLiteral("selectionNote"));
+        note->setWordWrap(true);
+        note->setTextFormat(Qt::PlainText);
+        layout->addWidget(note);
     }
     m_list = new QListWidget(this);
     m_list->setObjectName(QStringLiteral("selectionList"));
