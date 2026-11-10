@@ -43,8 +43,9 @@ jobs:
         id: build
         uses: snapcore/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79 # v1.3.0
 
-      # Every FFmpeg library in the snap and in the KDE content snap it runs on, and the runtime probe (tools/ffmpeg_probe.c) on the copy the multimedia plugin
-      # loads first in the snap's library path order: it must be our minimal build, not a distribution's or the content snap's full one.
+      # Qt's FFmpeg media plugin in the KDE content snap, and the FFmpeg libraries it needs: for each app, with the app's own library path order, every one
+      # must resolve to our minimal build in the snap's usr/lib/jeffoffice-ffmpeg (not to a full copy in the content snap, and not nowhere, which
+      # leaves Qt on its GStreamer fallback), and that build passes the runtime probe (tools/ffmpeg_probe.c).
       - name: FFmpeg inside the snap
         timeout-minutes: 20
         env:
