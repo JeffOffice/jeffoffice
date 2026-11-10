@@ -4,6 +4,7 @@
 
 #include "core/document.h"
 #include "core/mergesource.h"
+#include "render/renderer.h"
 
 #include <QJsonObject>
 #include <QImage>
@@ -42,10 +43,14 @@ std::unique_ptr<Document> loadAnyPublication(const QString &path, QString *error
 struct PrintReport {
     int all = 0;
     QVector<int> sheets;
+    bool tooMany = false;   // the job was more sheets than one job may send, and nothing was sent
     QVector<int> pages;   // the pages drawn, in the order they were (a page that is on several sheets, or in several copies, is there each time)
 };
 // A test is told of every job (the options it was given, and what it sent) to see what the Print page asked of it; the program never sets it.
-void setPrintObserver(const std::function<void(const QJsonObject &, const PrintReport &)> &observer);
+void setPrintObserver(const std::function<void(const QJsonObject &, const PrintReport &, const QPrinter *)> &observer);
+// Limits a painting to the objects selected (`ids`, which may be inside groups: the whole group of the page that holds each is drawn): the page's other objects and the master
+// pages' are left out. Used for the print preview and the job alike.
+void limitToSelection(PaintContext &ctx, const QStringList &ids);
 int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintReport *report = nullptr);
 // Both sides by hand: the first run, a message to turn the stack over (left out for a job of one sheet), then the second run. False when the person gives it up at the
 // message or nothing was sent.

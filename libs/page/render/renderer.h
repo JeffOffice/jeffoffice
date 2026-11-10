@@ -38,6 +38,7 @@ struct RenderOptions {
     double flattenDpi = 300;
     // Output only: pictures are downsampled to at most this resolution (0: keep).
     double maxImageDpi = 0;
+    bool noMaster = false;        // the master pages' objects are left out (printing a selection alone)
     bool skipPictures = false;    // spot color plates: pictures print on the process plates
 };
 

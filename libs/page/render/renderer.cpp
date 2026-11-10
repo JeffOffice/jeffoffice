@@ -1504,7 +1504,7 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
     const QVector<MasterPage *> chain = doc.masterChain(m);
     const Fill bg = backgroundOf(pg, chain);
     paintBackground(p, c, bg, pr);
-    if (m) {
+    if (m && !ctx.opt.noMaster) {
         const bool right = (pageIndex + 1) % 2 == 1;
         paintMastersUnder(p, c, pg, chain, m->twoPage && right ? -doc.pageSize().width() : 0);
     }

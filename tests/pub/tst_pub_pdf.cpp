@@ -1,8 +1,10 @@
 // JeffPub's tests of PDF output, printing, and the print shop's files.
 #include "pubhelpers.h"
 #include "app/filedialogs.h"
+#include "app/printpage.h"
 #include "app/printsides.h"
 #include "render/pdfpage.h"
+#include <QPrintDialog>
 #include <QScrollArea>
 #include <QSpinBox>
 #include "io/importers.h"
@@ -345,7 +347,7 @@ private Q_SLOTS:
         jp::setSavePathStandIn([&](const QString &, const QString &, const QString &, QString *) { return target; });
         QJsonObject seen;
         jp::PrintReport sent;
-        jp::setPrintObserver([&](const QJsonObject &opts, const jp::PrintReport &report) {
+        jp::setPrintObserver([&](const QJsonObject &opts, const jp::PrintReport &report, const QPrinter *) {
             seen = opts;
             sent = report;
         });
@@ -410,6 +412,243 @@ private Q_SLOTS:
         const QStringList texts = textsOfPdf(bytesOf(target));
         QCOMPARE(texts.size(), 1);
         QVERIFY(texts[0].contains(QStringLiteral("Sideword1")) && !texts[0].contains(QStringLiteral("Pageword1")));
+    }
+
+    // Last page first with both sides of the paper: each front stays with its back (pages 1-4 come out as 3 4, then 1 2); an odd last page has a blank back (-1); collated copies
+    // sent again each begin on a new sheet; one side is last first simply.
+    void printReverseAndCopiesKeepFrontsWithBacksOnBothSides()
+    {
+        QTemporaryDir dir;
+        auto sheetsOf = [&](int pages, bool duplex, bool reverse, int copies, bool collate) {
+            jp::Editor ed;
+            ed.setDocument(numberedPages(pages));
+            QPrinter printer;
+            printer.setOutputFormat(QPrinter::PdfFormat);
+            printer.setOutputFileName(dir.filePath(QStringLiteral("d.pdf")));
+            QJsonObject opts;
+            opts["duplex"] = duplex;
+            opts["reverse"] = reverse;
+            opts["copies"] = copies;
+            opts["collate"] = collate;
+            jp::PrintReport report;
+            jp::printDocument(&ed, &printer, opts, &report);
+            return report.sheets;
+        };
+        QCOMPARE(sheetsOf(4, true, true, 1, true), (QVector<int>{2, 3, 0, 1}));
+        QCOMPARE(sheetsOf(4, false, true, 1, true), (QVector<int>{3, 2, 1, 0}));
+        QCOMPARE(sheetsOf(3, true, true, 1, true), (QVector<int>{2, -1, 0, 1}));
+        QCOMPARE(sheetsOf(3, true, false, 2, true), (QVector<int>{0, 1, 2, -1, 0, 1, 2, -1}));
+        QCOMPARE(sheetsOf(3, false, false, 2, true), (QVector<int>{0, 1, 2, 0, 1, 2}));
+        QCOMPARE(sheetsOf(3, true, false, 1, true), (QVector<int>{0, 1, 2}));
+    }
+
+    // The selection alone: a selected object inside a group prints the whole group; the master pages' objects are not printed; a booklet or a sheet of copies adds no sheets.
+    void printSelectionTakesWholeGroupsLeavesTheMasterOutAndAddsNoSheets()
+    {
+        QTemporaryDir dir;
+        auto doc = jp::Document::blank(QSizeF(396, 612));
+        while (doc->pages.size() < 4) doc->pages.push_back(std::make_shared<jp::Page>());
+        auto text = [&](const QString &words, double y) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(36, y, 300, 40);
+            t->storyId = doc->createStory(words);
+            return t;
+        };
+        auto inA = text(QStringLiteral("Ingroupone"), 40), inB = text(QStringLiteral("Ingrouptwo"), 100), alone = text(QStringLiteral("Aloneword"), 300);
+        auto group = std::make_shared<jp::GroupItem>();
+        group->children = {inA, inB};
+        group->syncRect();
+        doc->pages[0]->items.push_back(group);
+        doc->pages[0]->items.push_back(alone);
+        auto master = std::make_shared<jp::MasterPage>();
+        master->id = QStringLiteral("M9");
+        master->items.push_back(text(QStringLiteral("Masterword"), 500));
+        doc->masters << master;
+        for (auto &page : doc->pages) page->masterId = QStringLiteral("M9");
+        const QString childId = inB->id;
+        jp::Editor ed;
+        ed.setDocument(std::move(doc));
+        auto run = [&](QJsonObject opts, jp::PrintReport *report) {
+            QPrinter printer;
+            printer.setOutputFormat(QPrinter::PdfFormat);
+            const QString file = dir.filePath(QStringLiteral("s.pdf"));
+            printer.setOutputFileName(file);
+            opts["pages"] = "1";
+            jp::printDocument(&ed, &printer, opts, report);
+            return textsOfPdf(bytesOf(file));
+        };
+        QJsonObject opts;
+        opts["selection"] = QJsonArray::fromStringList({childId});
+        jp::PrintReport report;
+        QStringList texts = run(opts, &report);
+        QCOMPARE(texts.size(), 1);
+        QVERIFY2(texts[0].contains(QStringLiteral("Ingroupone")) && texts[0].contains(QStringLiteral("Ingrouptwo")), qPrintable(texts[0]));   // (the whole group)
+        QVERIFY2(!texts[0].contains(QStringLiteral("Aloneword")) && !texts[0].contains(QStringLiteral("Masterword")), qPrintable(texts[0]));
+        QVERIFY(run(QJsonObject(), &report)[0].contains(QStringLiteral("Masterword")));   // (the master's words print without a selection)
+        // a booklet of a selection is the page alone, and so is a sheet of copies
+        for (const char *layout : {"booklet", "bookletTop", "multiple"}) {
+            QJsonObject laid = opts;
+            laid["layout"] = layout;
+            jp::PrintReport laidReport;
+            run(laid, &laidReport);
+            QCOMPARE(laidReport.sheets.size(), 1);
+        }
+    }
+
+    // A printer that cannot be started is said (Couldn't print), not hidden by closing the page; and a job of more sheets than one may send is said and not sent.
+    void printThatCannotBeDoneIsSaid()
+    {
+        QTemporaryDir dir;
+        {   // too many sheets
+            jp::Editor ed;
+            ed.setDocument(numberedPages(2100));
+            QPrinter printer;
+            printer.setOutputFormat(QPrinter::PdfFormat);
+            printer.setOutputFileName(dir.filePath(QStringLiteral("many.pdf")));
+            QJsonObject opts;
+            opts["copies"] = 999;
+            jp::PrintReport report;
+            QCOMPARE(jp::printDocument(&ed, &printer, opts, &report), 0);
+            QVERIFY(report.tooMany);
+            QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("many.pdf"))));
+        }
+        QStringList said;
+        jp::setPrintNoticeStandIn([&](const QString &, const QString &text) { said << text; });
+        jp::setPrinterNamesStandIn([] { return QStringList{QStringLiteral("Front Desk")}; });
+        int asked = 0;
+        jp::setPrintObserver([&](const QJsonObject &, const jp::PrintReport &, const QPrinter *) { ++asked; });
+        const auto done = qScopeGuard([] {
+            jp::setPrintNoticeStandIn(nullptr);
+            jp::setPrinterNamesStandIn(nullptr);
+            jp::setPrintObserver(nullptr);
+            jp::setSavePathStandIn(nullptr);
+        });
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.editor()->setDocument(numberedPages(2));
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        auto printButton = [&] {
+            for (QPushButton *b : w.findChildren<QPushButton *>())
+                if (b->text() == QStringLiteral("Print") && b->property("primary").toBool()) return b;
+            return static_cast<QPushButton *>(nullptr);
+        };
+        w.showBackstage(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        auto *printer = w.findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        printer->insertItem(0, QStringLiteral("No Such Printer"), QStringLiteral("No Such Printer"));
+        printer->setCurrentIndex(0);
+        QVERIFY(printButton());
+        printButton()->click();
+        QCOMPARE(said.size(), 1);
+        QVERIFY2(said[0].contains(QStringLiteral("No Such Printer")), qPrintable(said[0]));
+        QCOMPARE(asked, 0);   // (nothing was sent)
+        QVERIFY(w.findChild<QComboBox *>(QStringLiteral("printPrinter"))->isVisible());   // (the page stays)
+        // Save as PDF to a place that is not there: said, and the page stays
+        said.clear();
+        printer->setCurrentIndex(printer->count() - 1);
+        jp::setSavePathStandIn([&](const QString &, const QString &, const QString &, QString *) { return dir.filePath(QStringLiteral("no/such/folder/x.pdf")); });
+        printButton()->click();
+        QCOMPARE(said.size(), 1);
+        QVERIFY2(said[0].contains(QStringLiteral("Couldn't print")), qPrintable(said[0]));
+        QVERIFY(w.findChild<QComboBox *>(QStringLiteral("printPrinter"))->isVisible());
+        w.hideBackstage();
+    }
+
+    // Printer Properties opens the system's print window on the printer that prints the job: what is chosen there comes back to the page, and the job is printed on that very
+    // printer. Print Selection is offered again, or not, each time the page is opened.
+    void printPagePropertiesConfigureThePrinterThatPrints()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        QStringList ids;
+        w.editor()->setDocument(numberedPages(2, &ids));
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        const QPrinter *configured = nullptr, *printed = nullptr;
+        jp::setPrintDialogStandIn([&](QPrintDialog &dialog) {
+            configured = dialog.printer();
+            dialog.printer()->setCopyCount(3);
+            dialog.printer()->setCollateCopies(false);
+            dialog.printer()->setPageSize(QPageSize(QPageSize::A4));
+            return int(QDialog::Accepted);
+        });
+        jp::setSavePathStandIn([&](const QString &, const QString &, const QString &, QString *) { return dir.filePath(QStringLiteral("p.pdf")); });
+        QPageSize::PageSizeId paperSeen = QPageSize::Letter;
+        jp::setPrintObserver([&](const QJsonObject &, const jp::PrintReport &, const QPrinter *p) {
+            printed = p;
+            paperSeen = p->pageLayout().pageSize().id();
+        });
+        const auto done = qScopeGuard([] {
+            jp::setPrintDialogStandIn(nullptr);
+            jp::setSavePathStandIn(nullptr);
+            jp::setPrintObserver(nullptr);
+        });
+        auto open = [&] {
+            w.showBackstage(QStringLiteral("print"));
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+            auto *printer = w.findChild<QComboBox *>(QStringLiteral("printPrinter"));
+            printer->setCurrentIndex(printer->count() - 1);
+            return printer;
+        };
+        auto isOffered = [&] {
+            auto *range = w.findChild<QComboBox *>(QStringLiteral("printRange"));
+            return range->model()->flags(range->model()->index(2, 0)).testFlag(Qt::ItemIsEnabled);
+        };
+        open();
+        QVERIFY(!isOffered());   // (nothing is selected)
+        w.hideBackstage();
+        w.editor()->select(ids[0]);
+        open();
+        QVERIFY(isOffered());
+        w.hideBackstage();
+        w.editor()->clearSelection();
+        open();
+        QVERIFY(!isOffered());
+        w.findChild<QPushButton *>(QStringLiteral("printPrinterSettings"))->click();
+        QVERIFY(configured);
+        QCOMPARE(w.findChild<QSpinBox *>(QStringLiteral("printCopies"))->value(), 3);
+        QVERIFY(!w.findChild<QCheckBox *>(QStringLiteral("printCollate"))->isChecked());
+        QCOMPARE(w.findChild<QComboBox *>(QStringLiteral("printPaper"))->currentIndex(), 3);   // (A4)
+        QPushButton *print = nullptr;
+        for (QPushButton *b : w.findChildren<QPushButton *>())
+            if (b->text() == QStringLiteral("Print") && b->property("primary").toBool()) print = b;
+        QVERIFY(print);
+        print->click();
+        QVERIFY(printed);
+        QCOMPARE(printed, configured);   // (the very printer the window configured)
+        QCOMPARE(int(paperSeen), int(QPageSize::A4));
+    }
+
+    // The preview of Print Selection shows what will print: the selected object alone.
+    void printPreviewOfASelectionShowsOnlyTheSelection()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        QStringList ids;
+        w.editor()->setDocument(numberedPages(1, &ids));
+        w.editor()->select(ids[1]);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.showBackstage(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        auto *preview = w.findChild<QLabel *>(QStringLiteral("printPreview"));
+        auto darkPixels = [&] {
+            const QImage img = preview->pixmap().toImage();
+            int dark = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) dark += qGray(img.pixelColor(x, y).rgb()) < 100;
+            return dark;
+        };
+        QTRY_VERIFY(!preview->pixmap().isNull());
+        const int both = darkPixels();
+        QVERIFY(both > 50);
+        auto *range = w.findChild<QComboBox *>(QStringLiteral("printRange"));
+        range->setCurrentIndex(2);
+        QTRY_VERIFY(darkPixels() < both);   // (one of the two boxes of words is left out)
+        QVERIFY(darkPixels() > 20);
+        w.hideBackstage();
     }
 
     // Both sides by hand goes by physical sheets in every layout: the first, third, ... sheets, then the others last first, and a front with no back gets a blank sheet.

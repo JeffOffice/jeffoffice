@@ -1,4 +1,5 @@
 #include "io/importers.h"
+#include "app/printpage.h"
 
 #include "app/editor.h"
 #include "app/printsides.h"
@@ -746,10 +747,25 @@ QVector<int> parsePageList(const QString &text, int pageCount)
 }
 
 namespace {
-std::function<void(const QJsonObject &, const PrintReport &)> g_printObserver;
+std::function<void(const QJsonObject &, const PrintReport &, const QPrinter *)> g_printObserver;
 }
 
-void setPrintObserver(const std::function<void(const QJsonObject &, const PrintReport &)> &observer) { g_printObserver = observer; }
+void setPrintObserver(const std::function<void(const QJsonObject &, const PrintReport &, const QPrinter *)> &observer) { g_printObserver = observer; }
+
+void limitToSelection(PaintContext &ctx, const QStringList &ids)
+{
+    // (an object inside a group is the group's: the id of the group at the top of the page is the one that counts)
+    QSet<QString> chosen;
+    for (const QString &id : ids) {
+        Document::Loc at = ctx.doc->find(id);
+        for (int depth = 0; at.parent && depth < 64; ++depth) at = ctx.doc->find(at.parent->id);
+        chosen.insert(at.item ? at.item->id : id);
+    }
+    ctx.opt.noMaster = true;
+    ctx.around = [chosen](QPainter *painter, const Item &item, const std::function<void(QPainter *)> &draw) {
+        if (chosen.contains(item.id)) draw(painter);
+    };
+}
 
 int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintReport *report)
 {
@@ -758,11 +774,12 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
     struct Told {
         const QJsonObject &opts;
         const PrintReport *report;
+        const QPrinter *printer;
         ~Told()
         {
-            if (g_printObserver && report) g_printObserver(opts, *report);
+            if (g_printObserver && report) g_printObserver(opts, *report, printer);
         }
-    } told{opts, report};
+    } told{opts, report, printer};
     Document *d = ed->doc();
     // A catalog prints its merged pages: a record in each cell.
     std::unique_ptr<Document> catalogPages;
@@ -771,7 +788,10 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
         d = catalogPages.get();
     }
     const bool sheetLayout = d->setup.layout == PageSetup::MultiplePerSheet || d->setup.layout == PageSetup::Labels;
-    const QString layout = opts.value("layout").toString(d->setup.layout == PageSetup::Booklet ? "booklet" : sheetLayout ? "multiple" : "one");
+    const bool selection = opts.contains("selection");
+    QString layout = opts.value("layout").toString(d->setup.layout == PageSetup::Booklet ? "booklet" : sheetLayout ? "multiple" : "one");
+    // (a selection alone is of one page: a booklet would add the sheets of all the others, blank of it)
+    if (selection && (layout == "booklet" || layout == "bookletTop")) layout = QStringLiteral("one");
     const PrinterMarks marks = PrinterMarks::fromJson(opts);
     const bool allowBleeds = opts.value("allowBleeds").toBool();
     const bool merged = opts.value("merged").toBool() && !d->merge.isEmpty();
@@ -806,7 +826,7 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
         int record, sheet, id;   // the record (an index in `records`), its sheet (-1: blank), and the sheet's number in the whole job (-1: blank)
     };
     // The last sheet first when asked for, and `copies` of the job sent, each set together (collated) or each sheet's copies together.
-    const bool reverse = opts.value("reverse").toBool();
+    const bool reverse = opts.value("reverse").toBool(), duplex = opts.value("duplex").toBool();
     const int copies = std::max(1, opts.value("copies").toInt(1));
     const bool collate = opts.value("collate").toBool(true);
     auto repeated = [&](const QVector<Send> &sends) {
@@ -826,8 +846,8 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
         if (handRun.isEmpty()) {
             for (int r = 0; r < records.size(); ++r)
                 for (int i = 0; i < count; ++i) out.push_back({r, i, r * count + i});
-            if (reverse) std::reverse(out.begin(), out.end());
-            return repeated(out);
+            // (a front stays with its back where both sides of the paper are used, and each copy begins on a new sheet)
+            return sheetSequence(out, Send{0, -1, -1}, reverse, duplex, copies, collate);
         }
         QVector<int> everything;
         for (int g = 0; g < records.size() * each; ++g) everything << g;
@@ -840,6 +860,10 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
     };
     int sent = 0;
     QPainter p;
+    if (tooManyToSend(qint64(std::max<qsizetype>(list.size(), booklet ? bookletSides.size() : 0)) * records.size() * plates.size(), copies)) {
+        if (report) report->tooMany = true;
+        return 0;
+    }
     if (!p.begin(printer)) return 0;
     const QRectF sheet = printer->pageRect(QPrinter::Point);
     const double dev = printer->resolution() / 72.0;
@@ -849,13 +873,11 @@ int printDocument(Editor *ed, QPrinter *printer, const QJsonObject &opts, PrintR
     ctx.opt.output = true;
     ctx.opt.textOutput = TextOutput::Print;
     ctx.opt.grayscale = opts.value("grayscale").toBool();
-    // The selection alone: only the objects named are drawn, in their places (the page's own objects; the master pages' stay).
-    if (opts.contains("selection")) {
-        QSet<QString> chosen;
-        for (const QJsonValue &id : opts.value("selection").toArray()) chosen.insert(id.toString());
-        ctx.around = [chosen](QPainter *painter, const Item &item, const std::function<void(QPainter *)> &draw) {
-            if (chosen.contains(item.id)) draw(painter);
-        };
+    // The selection alone: only the objects named (or the groups that hold them) are drawn, in their places.
+    if (selection) {
+        QStringList ids;
+        for (const QJsonValue &id : opts.value("selection").toArray()) ids << id.toString();
+        limitToSelection(ctx, ids);
     }
     const QSizeF ps = d->pageSize();
     const QString title = ed->displayName();

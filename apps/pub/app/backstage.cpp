@@ -703,6 +703,7 @@ QWidget *Backstage::buildPrint()
     // Business cards and labels: copies of the page across the sheet.
     else if (d->setup.layout == PageSetup::MultiplePerSheet || d->setup.layout == PageSetup::Labels) layout->setCurrentIndex(2);
     auto *paper = new QComboBox(w);
+    paper->setObjectName(QStringLiteral("printPaper"));
     paper->addItems({"Letter", "Legal", "Tabloid", "A4", "A3", tr("Same as publication")});
     auto *sides = new QComboBox(w);
     sides->setObjectName(QStringLiteral("printSides"));
@@ -768,6 +769,7 @@ QWidget *Backstage::buildPrint()
     form->addRow(merged);
     left->addLayout(form);
     auto *props = new QPushButton(tr("Printer Properties…"), w);
+    props->setObjectName(QStringLiteral("printPrinterSettings"));
     left->addWidget(props, 0, Qt::AlignLeft);
     left->addStretch(1);
     h->addLayout(left, 1);
@@ -815,7 +817,9 @@ QWidget *Backstage::buildPrint()
     connect(w, &QObject::destroyed, [state] { delete state; });
     auto render = [=]() {
         Document *d = ed->doc();   // (the publication as it is now: a window can take another while the page waits to be drawn again)
-        const bool booklet = layout->currentIndex() == 3 || layout->currentIndex() == 4;
+        // What is printed with Print Selection is the selected objects alone, on the page that is current (a booklet of it would be the sheets of every page).
+        const bool onlySelection = range->currentIndex() == 2 && !ed->selection().isEmpty();
+        const bool booklet = (layout->currentIndex() == 3 || layout->currentIndex() == 4) && !onlySelection;
         const bool topFold = layout->currentIndex() == 4;
         QImage img;
         PaintContext ctx;
@@ -823,16 +827,29 @@ QWidget *Backstage::buildPrint()
         ctx.cache = &ed->cache();
         ctx.opt.output = true;
         ctx.opt.mergeRecord = ed->mergeRecord();
+        if (onlySelection) {
+            limitToSelection(ctx, ed->selection());
+            *state = ed->currentPage();
+        }
         const QSizeF ps = d->pageSize();
         const double zoomBy = zoomFactor(zoom);
+        // The page that fits the window, or larger (the preview scrolls then); drawn with the pixels it is shown with, up to 4096 on a side, so a zoom is sharper and not stretched.
+        const qreal dpr = preview->devicePixelRatioF();
+        const QSize room = scroll->viewport()->size() - QSize(4, 4);
+        const QSize box(std::max(280, int(room.width() * zoomBy)), std::max(280, int(room.height() * zoomBy)));
+        auto fitScale = [&](const QSizeF &sheet) {
+            double s = std::min((box.width() - 16) / sheet.width(), (box.height() - 18) / sheet.height()) * dpr;
+            const double side = std::max(sheet.width(), sheet.height()) * s;
+            return side > 4096 ? s * 4096 / side : s;
+        };
         double scale = 1;                        // preview pixels per point
         QVector<QPair<QRectF, int>> numbered;    // page areas on the preview and their numbers
         if (booklet) {
             const auto order = bookletOrder(d->pages.size());
             *state = std::clamp(*state, 0, int(order.size()) - 1);
             const auto side = order[*state];
-            const double s = 240.0 * zoomBy / std::max(ps.width(), ps.height());
             const QSizeF sheetSz = topFold ? QSizeF(ps.width(), ps.height() * 2) : QSizeF(ps.width() * 2, ps.height());
+            const double s = fitScale(sheetSz);
             img = QImage((sheetSz * s).toSize(), QImage::Format_ARGB32_Premultiplied);
             img.fill(Qt::white);
             QPainter p(&img);
@@ -850,7 +867,7 @@ QWidget *Backstage::buildPrint()
             pageLabel->setText(tr("Sheet %1 %2 of %3").arg(*state / 2 + 1).arg(*state % 2 ? tr("(back)") : tr("(front)")).arg(order.size() / 2));
         } else {
             *state = std::clamp(*state, 0, int(d->pages.size()) - 1);
-            scale = 500.0 * zoomBy / std::max(ps.width(), ps.height());
+            scale = fitScale(ps);
             img = Renderer::renderToImage(ctx, *state, scale);
             numbered << qMakePair(QRectF(QPointF(0, 0), ps * scale), *state + 1);
             // Two-sided printing: say which side of which sheet this page lands on.
@@ -919,10 +936,7 @@ QWidget *Backstage::buildPrint()
             p.end();
             img = framed;
         }
-        // The page that fits the window, or larger (the preview scrolls then).
-        const QSize room = scroll->viewport()->size() - QSize(4, 4);
-        const QSize box(std::max(280, int(room.width() * zoomBy)), std::max(280, int(room.height() * zoomBy)));
-        preview->setPixmap(paperPixmap(img, box, preview->devicePixelRatioF()));
+        preview->setPixmap(paperPixmap(img, box, dpr));
     };
     for (QCheckBox *b : {showRulers, showNumbers}) connect(b, &QCheckBox::toggled, w, [=] { render(); });
     connect(zoom, &QComboBox::currentIndexChanged, w, [=] { render(); });
@@ -954,7 +968,7 @@ QWidget *Backstage::buildPrint()
     };
     fitCopies();
     connect(copies, &QSpinBox::valueChanged, w, [=] { fitCopies(); });
-    connect(range, &QComboBox::currentIndexChanged, w, [=] { fitCopies(); });
+    connect(range, &QComboBox::currentIndexChanged, w, [=] { fitCopies(); render(); });
     // The page is drawn again to fit when the preview's box changes size.
     auto *redraw = new QTimer(w);
     redraw->setSingleShot(true);
@@ -963,15 +977,21 @@ QWidget *Backstage::buildPrint()
     preview->resized = [redraw] { redraw->start(); };
     for (QCheckBox *b : plateBoxes) connect(b, &QCheckBox::toggled, w, [=] { render(); });
     QTimer::singleShot(0, w, render);
-    auto setup = [=](QPrinter &p) {
+    // The printer the job is printed on, which Printer Properties configures first, so that what is chosen there (the tray, the quality) is kept.
+    auto job = std::make_shared<QPrinter>(QPrinter::HighResolution);
+    auto setup = [=](QPrinter &p, bool askFile) {
         const PrinterChoice chosen = printerChoice(printer);
         if (chosen.toFile) {
-            const QString f = askSavePath(this, tr("Save as PDF"), m_win->editor()->displayName() + ".pdf", tr("PDF (*.pdf)"));
-            if (f.isEmpty()) return false;
-            p.setOutputFormat(QPrinter::PdfFormat);
-            p.setOutputFileName(f);
+            // (a PDF file is asked for where it is printed, not when the printer's settings are only looked at)
+            if (askFile) {
+                const QString f = askSavePath(this, tr("Save as PDF"), m_win->editor()->displayName() + ".pdf", tr("PDF (*.pdf)"));
+                if (f.isEmpty()) return false;
+                p.setOutputFormat(QPrinter::PdfFormat);
+                p.setOutputFileName(f);
+            }
         } else {
-            p.setPrinterName(chosen.printer);
+            p.setOutputFormat(QPrinter::NativeFormat);
+            if (!chosen.printer.isEmpty() && p.printerName() != chosen.printer) p.setPrinterName(chosen.printer);
         }
         p.setCopyCount(copies->value());
         p.setCollateCopies(collate->isChecked());
@@ -997,14 +1017,28 @@ QWidget *Backstage::buildPrint()
         return true;
     };
     connect(props, &QPushButton::clicked, this, [=] {
-        QPrinter p(QPrinter::HighResolution);
-        if (!setup(p)) return;
+        QPrinter &p = *job;
+        if (!setup(p, false)) return;
         QPrintDialog dlg(&p, this);
-        execPrintDialog(dlg);
+        if (execPrintDialog(dlg) != QDialog::Accepted) return;
+        // what the window changed that the page also has comes back to it
+        const int at = printer->findData(p.printerName(), Qt::UserRole);
+        if (at >= 0 && !p.printerName().isEmpty()) printer->setCurrentIndex(at);
+        copies->setValue(std::max(1, p.copyCount()));
+        collate->setChecked(p.collateCopies());
+        const QPageSize::PageSizeId id = p.pageLayout().pageSize().id();
+        const int sized = id == QPageSize::Letter ? 0 : id == QPageSize::Legal ? 1 : id == QPageSize::Tabloid ? 2 : id == QPageSize::A4 ? 3 : id == QPageSize::A3 ? 4 : -1;
+        if (sized >= 0) paper->setCurrentIndex(sized);
+        color->setCurrentIndex(p.colorMode() == QPrinter::GrayScale ? 1 : (color->currentIndex() == 1 ? 0 : color->currentIndex()));
     });
     connect(printBtn, &QPushButton::clicked, this, [=] {
-        QPrinter p(QPrinter::HighResolution);
-        if (!setup(p)) return;
+        QPrinter &p = *job;
+        const PrinterChoice chosenPrinter = printerChoice(printer);
+        if (!chosenPrinter.toFile && !chosenPrinter.printer.isEmpty() && !printerExists(chosenPrinter.printer)) {
+            printNotice(this, tr("Print"), tr("The printer \"%1\" is not there any more. Choose another printer.").arg(chosenPrinter.printer));
+            return;
+        }
+        if (!setup(p, true)) return;
         QJsonObject opts;
         const int li = layout->currentIndex();
         opts["layout"] = li == 0 ? "one" : li == 1 ? "multiple" : li == 2 ? "multiple" : li == 3 ? "booklet" : li == 4 ? "bookletTop" : "tiled";
@@ -1013,6 +1047,7 @@ QWidget *Backstage::buildPrint()
         // A printer that can't make copies is sent the sheets again (the copies of a PDF file are not made).
         opts["copies"] = !printerChoice(printer).toFile && !p.supportsMultipleCopies() ? copies->value() : 1;
         opts["collate"] = collate->isChecked();
+        opts["duplex"] = !printerChoice(printer).toFile && sidesDuplex(sides) != QPrinter::DuplexNone;
         opts["reverse"] = reverse->isChecked() && !sidesByHand(sides);
         opts["copiesPerSheet"] = li == 2;
         opts["cropMarks"] = marks->isChecked();
@@ -1030,9 +1065,16 @@ QWidget *Backstage::buildPrint()
         opts["plates"] = want;
         opts["merged"] = merged->isChecked();
         QGuiApplication::setOverrideCursor(Qt::WaitCursor);
-        if (sidesByHand(sides)) printDocumentByHand(m_win->editor(), &p, opts, this);
-        else printDocument(m_win->editor(), &p, opts);
+        PrintReport report;
+        const bool byHand = sidesByHand(sides);
+        const int sent = byHand ? (printDocumentByHand(m_win->editor(), &p, opts, this) ? 1 : 0) : printDocument(m_win->editor(), &p, opts, &report);
         QGuiApplication::restoreOverrideCursor();
+        // Nothing sent is said, not hidden by closing the page; (by hand, nothing sent can be the person's own stop at the message)
+        if (sent <= 0 && !byHand) {
+            const QString where = printerChoice(printer).toFile ? tr("the PDF file") : (printerChoice(printer).printer.isEmpty() ? p.printerName() : printerChoice(printer).printer);
+            printNotice(this, tr("Print"), report.tooMany ? tr("That is more pages than one job can send. Print fewer pages or fewer copies.") : tr("Couldn't print to %1.").arg(where));
+            return;
+        }
         Q_EMIT closeRequested();
     });
     return w;
