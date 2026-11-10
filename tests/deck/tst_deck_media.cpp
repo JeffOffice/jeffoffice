@@ -830,13 +830,14 @@ private Q_SLOTS:
         closer.stop();
     }
 
-    // A movie whose sound is in a format the build leaves out (the folder "audio_dropped"): the player does not play its picture without the sound; it says the movie
-    // can't be played, as for any file it can't read, and nothing hangs. (Insert puts the movie on the slide as a dark frame, as for a movie in a format left out.)
+    // A movie whose sound is in a format the build leaves out (the folder "audio_dropped"). With an audio output the player opens the sound too, and it says the
+    // movie can't be played, as for any file it can't read; with none (a CI machine) it opens no sound at all, and plays the picture. Either way nothing hangs.
     void movieWithASoundTheBuildLeavesOutCantBePlayed()
     {
         const QFileInfoList files = sampleFiles("audio_dropped");
         if (qgetenv("JO_MINIMAL_FFMPEG").isEmpty()) QSKIP("this Qt's FFmpeg may be the full one, which plays these (set JO_MINIMAL_FFMPEG where it is ours)");
         if (files.isEmpty()) QSKIP("there is no audio_dropped folder of sample files");
+        const bool withAudio = !QMediaDevices::audioOutputs().isEmpty();
         for (const QFileInfo &info : files) {
             QFile f(info.filePath());
             QVERIFY(f.open(QIODevice::ReadOnly));
@@ -847,10 +848,14 @@ private Q_SLOTS:
             play.video = true;
             pb.setPlay(play);
             pb.play();
-            QTRY_VERIFY2_WITH_TIMEOUT(pb.failed(), qPrintable(info.fileName() + QStringLiteral(" was not refused")), 15000);
-            QVERIFY2(pb.error().contains(QStringLiteral("movie")), qPrintable(pb.error()));
-            QVERIFY(pb.frame().isNull());
-            QCOMPARE(int(pb.state()), int(MediaPlayback::State::Stopped));
+            if (withAudio) {
+                QTRY_VERIFY2_WITH_TIMEOUT(pb.failed(), qPrintable(info.fileName() + QStringLiteral(" was not refused")), 15000);
+                QVERIFY2(pb.error().contains(QStringLiteral("movie")), qPrintable(pb.error()));
+                QCOMPARE(int(pb.state()), int(MediaPlayback::State::Stopped));
+            } else {
+                QTRY_VERIFY2_WITH_TIMEOUT(pb.failed() || !pb.frame().isNull(), qPrintable(info.fileName() + QStringLiteral(" neither plays nor says why")), 15000);
+                QVERIFY2(!pb.failed(), qPrintable(info.fileName() + QStringLiteral(": ") + pb.error()));
+            }
             pb.stop();
         }
     }

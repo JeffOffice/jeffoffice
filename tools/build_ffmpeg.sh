@@ -128,6 +128,8 @@ die() { echo "build_ffmpeg: $*" >&2; exit 1; }
 
 # This build has flags and paths of its own. A build system's (snapcraft, for one, sets CFLAGS, LDFLAGS, and the library paths to its stage folders) would
 # be added to configure's test compiles and links and can break them ("gcc is unable to create an executable file").
+# (and a Linux build's PATH is the system's: snapcraft puts the KDE SDK's bin folder first, whose ld looks for the compiler's files in its own prefix and finds none)
+case "$(uname -s)" in Linux) PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; export PATH ;; esac
 unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS LIBRARY_PATH CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH PKG_CONFIG_PATH PKG_CONFIG_LIBDIR LD_LIBRARY_PATH LD_RUN_PATH CC CXX
 
 HERE=$(cd "$(dirname "$0")" && pwd)

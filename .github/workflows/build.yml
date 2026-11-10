@@ -118,6 +118,9 @@ jobs:
           [ "$rc" = 0 ] || exit "$rc"
           cat probe.txt | awk '{print $1}' | sort | uniq -c
           python3 ffmpeg-src/tools/check_ffmpeg_components.py --probe probe.txt $ALLOW
+          # (and the libraries decode every sample of tests/data/media/kept, apart from any player)
+          sh ffmpeg-src/tools/ffmpeg_decode_check.sh "ffmpeg-out/${{ matrix.name }}" | grep -E "^(ok|FAIL)" | sort | uniq -c | sort -rn | head -60 || true
+          sh ffmpeg-src/tools/ffmpeg_decode_check.sh "ffmpeg-out/${{ matrix.name }}" > /dev/null
 
       - name: Probe the built libraries (Windows)
         if: runner.os == 'Windows'
@@ -128,6 +131,8 @@ jobs:
         run: |
           pacman -Sy --noconfirm --needed mingw-w64-x86_64-gcc
           sh ffmpeg-src/tools/ffmpeg_probe.sh "$PWD/ffmpeg-out/windows/bin" probe.txt
+          # (the libraries decode every sample of tests/data/media/kept, apart from any player; the files and what comes of each are printed)
+          sh ffmpeg-src/tools/ffmpeg_decode_check.sh "$PWD/ffmpeg-out/windows" | tee decode.txt | grep -E "^(ok|FAIL)" | head -60
           # (zlib is linked in, not carried as a DLL of its own)
           for f in ffmpeg-out/windows/bin/*.dll; do objdump -p "$f" | grep -i "DLL Name" | grep -i -E "zlib|libz" && { echo "$f needs a zlib DLL"; exit 1; }; done || true
 
