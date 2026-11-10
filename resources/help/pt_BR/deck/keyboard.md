@@ -7,7 +7,7 @@ Você pode fazer a maior parte das coisas no JeffDeck sem usar o mouse. Há tecl
 
 As Dicas de Tecla são pequenas letras que aparecem na faixa de opções. Elas permitem chegar a qualquer botão sem o mouse.
 
-1. Pressione e solte **Alt**. Letras aparecem no botão **Arquivo**, em cada guia e na barra de ferramentas rápida. Os botões da barra de ferramentas rápida usam os números de 1 a 3.
+1. Pressione e solte **Alt**. Letras aparecem no botão **Arquivo**, em cada guia e na barra de ferramentas rápida. Os botões da barra de ferramentas rápida usam os números de 1 a 4.
 2. Pressione a letra da guia que você quer. As guias usam **P** para **Página Inicial**, **N** para **Inserir**, **G** para **Design**, **K** para **Transições**, **S** para **Apresentação de Slides**, **R** para **Revisão** e **W** para **Exibir**. Aparecem as letras dos botões dessa guia.
 3. Digite as letras do botão que você quer. Por exemplo, pressione **Alt**, depois **S**, depois **B** para iniciar a apresentação de slides **Do Começo**.
 

@@ -46,7 +46,7 @@ No Mac, a tecla **Command** (⌘) faz o que **Ctrl** faz nas tabelas abaixo, exc
 | Ctrl+0, Ctrl+9 | Ocultam as colunas, ocultam as linhas |
 | Alt+Seta para baixo | Abre a lista de uma célula que tenha uma |
 | Ctrl+L | Localizar |
-| Ctrl+H (no Mac, Option+Command+F) | Localizar e Alterar |
+| Ctrl+H (no Mac, Option+Command+F) | Localizar e substituir |
 | F5, Ctrl+G | Vai para uma célula, um intervalo ou um nome |
 | Ctrl+Shift+L | Ativa ou desativa o filtro |
 | Shift+F3 | Escolhe uma função |

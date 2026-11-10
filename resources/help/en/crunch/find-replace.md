@@ -1,19 +1,19 @@
 # Find, replace, and go to
-<!-- keywords: find, replace, change, search, wildcard, star, question mark, tilde, match case, whole cell, go to, reference, name, select by kind, blanks, constants, formulas, errors, current region, current array, row differences, column differences, last cell, visible cells, conditional formats, validation, Ctrl+F, Ctrl+H, F5, notes -->
+<!-- keywords: find, replace, change, search, find what, replace with, replace all, find next, look for, change to, change all, same capitals, wildcard, star, question mark, tilde, match case, whole cell, go to, reference, name, select by kind, blanks, constants, formulas, errors, current region, current array, row differences, column differences, last cell, visible cells, conditional formats, validation, Ctrl+F, Ctrl+H, F5, notes -->
 
 ## Find
 
-Press **Ctrl+F** (or choose **Find** on the Home tab, then **Find** again). Type the text and press **Enter** for the next cell that has it, or choose **List All** to get a list of every cell that matches. Click a line of the list to go to that cell.
+Press **Ctrl+F** (or choose **Find** on the Home tab, then **Find** again). Type the text in **Find what** and press **Enter** for the next cell that has it, or choose **List All** to get a list of every cell that matches. Click a line of the list to go to that cell.
 
 | Option | What it does |
 | --- | --- |
 | **Where** | Search this sheet, or every sheet that shows. With more than one cell selected, a search of one sheet looks only in them. |
-| **Order** | Visit the cells along rows (left to right, then down) or down columns (top to bottom, then right). **Next** stops at the first match in that order. |
+| **Order** | Visit the cells along rows (left to right, then down) or down columns (top to bottom, then right). **Find Next** stops at the first match in that order. |
 | **Search in** | **Formulas** looks in what is typed in each cell, **Values** in what it shows, and **Notes** in the notes on cells. |
 | **Match case** | Capital and small letters must be the same. |
 | **Whole cell only** | The whole cell must be the text, not just a part of it. |
 
-In the text you look for, **?** stands for any one character and **\*** for any stretch of characters (including none). Type **~** in front of ?, \*, or ~ to look for the mark itself: **a~\*b** matches a\*b.
+In the text you type in **Find what**, **?** stands for any one character and **\*** for any stretch of characters (including none). Type **~** in front of ?, \*, or ~ to look for the mark itself: **a~\*b** matches a\*b.
 
 A search runs a little at a time, so you can keep working. **Esc** (or **Cancel**) stops it, and so does changing a cell. A very long text costs more of each little step than a short one, so a sheet of long texts still leaves the window free.
 
@@ -21,7 +21,7 @@ Notes on cells follow the cells: after a sort, or after rows or columns are inse
 
 ## Replace
 
-Press **Ctrl+H**. **Change** puts the new text in the cell with the cursor if it has the text, and goes on to the next one. **Change All** does it in every cell that has it, as one step you can undo; a large change is put in a little at a time. The new text is entered as if you typed it: a number becomes a number, and a formula that is changed stays a formula.
+Press **Ctrl+H**, type the new text in **Replace with**, and choose a button. **Replace** puts the new text in the cell with the cursor if it has the text, and goes on to the next one. **Replace All** does it in every cell that has it, as one step you can undo; a large change is put in a little at a time. The new text is entered as if you typed it: a number becomes a number, and a formula that is changed stays a formula.
 
 Nothing is changed, and you are told why, if a cell that would be changed is locked on a protected sheet, is part of an array or a data table, is in the first row of a table, or would not be a formula any more.
 

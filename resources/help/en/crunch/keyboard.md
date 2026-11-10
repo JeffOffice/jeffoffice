@@ -46,7 +46,7 @@ On a Mac, the **Command** key (⌘) does what **Ctrl** does in the tables below,
 | Ctrl+0, Ctrl+9 | Hide the columns, hide the rows |
 | Alt+Down | Open the list of a cell that has one |
 | {key:Find} | Find |
-| Ctrl+H (on a Mac, Option+Command+F) | Look for and change |
+| Ctrl+H (on a Mac, Option+Command+F) | Find and Replace |
 | F5, Ctrl+G | Go to a cell, a range, or a name |
 | Ctrl+Shift+L | Turn the filter on or off |
 | Shift+F3 | Pick a function |

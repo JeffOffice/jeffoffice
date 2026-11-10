@@ -7,7 +7,7 @@ Puede hacer casi todo en JeffDeck sin ratón. Hay métodos abreviados de teclado
 
 Los KeyTips son pequeñas letras que aparecen en la cinta de opciones. Permiten llegar a cualquier botón sin el ratón.
 
-1. Pulse y suelte **Alt**. Aparecen letras en el botón **Archivo**, en cada pestaña y en la barra de herramientas rápida. Los botones de la barra de herramientas rápida usan los números del 1 al 3.
+1. Pulse y suelte **Alt**. Aparecen letras en el botón **Archivo**, en cada pestaña y en la barra de herramientas rápida. Los botones de la barra de herramientas rápida usan los números del 1 al 4.
 2. Pulse la letra de la pestaña que desee. Las pestañas usan **H** para **Inicio**, **N** para **Insertar**, **G** para **Diseño**, **K** para **Transiciones**, **S** para **Presentación con diapositivas**, **R** para **Revisar** y **W** para **Vista**. Aparecen las letras de los botones de esa pestaña.
 3. Escriba las letras del botón que desee. Por ejemplo, pulse **Alt**, luego **S** y luego **B** para reproducir la presentación **Desde el principio**.
 
