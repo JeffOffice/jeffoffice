@@ -10,6 +10,10 @@
 #include "app/filedialogs.h"
 #include "app/printsides.h"
 #include <QComboBox>
+#include <QDirIterator>
+#include <QSemaphore>
+#include <QThread>
+#include <atomic>
 #include <QPrintDialog>
 #include <QListWidget>
 #include <QStandardPaths>
@@ -1429,6 +1433,7 @@ private Q_SLOTS:
             QVERIFY(w.recoveryCopy().isEmpty());
             w.newSlide();
             w.autoRecover();
+            QTRY_VERIFY(!w.recoveryCopy().isEmpty());   // (made on a worker thread)
             const QString copy = w.recoveryCopy();
             QVERIFY(copy.endsWith(QLatin1String(".pptx")));
             QVERIFY(QFileInfo::exists(copy));
@@ -1447,6 +1452,7 @@ private Q_SLOTS:
             lost.newSlide();
             lost.newSlide();
             lost.autoRecover();
+            QTRY_VERIFY(!lost.recoveryCopy().isEmpty());
             const QString lostCopy = lost.recoveryCopy();
             QVERIFY(QFileInfo::exists(lostCopy));
             recovery::Recovered r;
@@ -1472,6 +1478,114 @@ private Q_SLOTS:
             asker.offerRecovery(true);
         }
         recovery::setRoot(QString());
+    }
+
+    // The copy is made on a worker thread: the window's thread only takes the snapshot, a second tick while one is being made is skipped, and what is written opens and matches the presentation.
+    void aRecoveryCopyIsMadeOffTheWindowsThread()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".pptx"));
+        {
+            DeckWindow w;
+            w.newSlide();
+            w.editor()->change(QStringLiteral("title"), [&] { w.editor()->doc()->props.title = QStringLiteral("Kept in the background"); });
+            std::atomic<QThread *> madeOn{nullptr};
+            std::atomic<int> made{0};
+            QSemaphore release;
+            w.setRecoveryHook([&] {
+                madeOn = QThread::currentThread();
+                ++made;
+                release.tryAcquire(1, 5000);   // (the test lets it go)
+            });
+            w.autoRecover();
+            QVERIFY(w.recoveryBusy());   // (the window is free while the copy is made)
+            QVERIFY(w.recoveryCopy().isEmpty());
+            w.autoRecover();   // (skipped: one is being made)
+            release.release();
+            QTRY_VERIFY(!w.recoveryBusy());
+            QCOMPARE(int(made), 1);
+            QVERIFY(madeOn != nullptr);
+            QVERIFY(madeOn != QThread::currentThread());
+            const QString copy = w.recoveryCopy();
+            QVERIFY(QFileInfo::exists(copy));
+            QString err;
+            auto kept = deck::importPresentationFile(copy, &err);
+            QVERIFY2(kept, qPrintable(err));
+            QCOMPARE(int(kept->pages.size()), int(w.editor()->doc()->pages.size()));
+            QCOMPARE(kept->props.title, QStringLiteral("Kept in the background"));
+            w.editor()->markSaved();
+        }
+        recovery::setRoot(QString());
+    }
+
+    // A save while a copy is being made leaves no copy: the one being made is never written.
+    void aSaveWhileACopyIsBeingMadeLeavesNoCopy()
+    {
+        QTemporaryDir root, dir;
+        QVERIFY(root.isValid() && dir.isValid());
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".pptx"));
+        {
+            DeckWindow w;
+            w.newSlide();
+            QSemaphore release;
+            w.setRecoveryHook([&] { release.tryAcquire(1, 5000); });
+            w.autoRecover();
+            QVERIFY(w.recoveryBusy());
+            QVERIFY(w.saveTo(dir.filePath(QStringLiteral("a.pptx"))));
+            QVERIFY(!w.recoveryBusy());
+            release.release();
+            recovery::AsyncWriter::waitForAll();
+            QCoreApplication::processEvents();
+            QVERIFY(w.recoveryCopy().isEmpty());
+            QDirIterator left(root.path(), {QStringLiteral("*.pptx")}, QDir::Files, QDirIterator::Subdirectories);
+            QVERIFY(!left.hasNext());
+        }
+        // The same when the window is closed (deleted) while one is being made.
+        {
+            auto *w = new DeckWindow;
+            w->newSlide();
+            QSemaphore release;
+            w->setRecoveryHook([&] { release.tryAcquire(1, 5000); });
+            w->autoRecover();
+            QVERIFY(w->recoveryBusy());
+            delete w;
+            release.release();
+            recovery::AsyncWriter::waitForAll();
+            QCoreApplication::processEvents();
+            QDirIterator left(root.path(), {QStringLiteral("*.pptx")}, QDir::Files, QDirIterator::Subdirectories);
+            QVERIFY(!left.hasNext());
+        }
+        recovery::setRoot(QString());
+    }
+
+    // What another thread makes the file from is the presentation as it was when the snapshot was taken, pictures and all: the same bytes the window itself would save.
+    void aSnapshotSavesAsTheSameBytesOnAnotherThread()
+    {
+        DeckWindow w;
+        w.newSlide();
+        Document *d = w.editor()->doc();
+        w.editor()->change(QStringLiteral("picture"), [&] {
+            auto picture = std::make_shared<PictureItem>();
+            picture->imageId = d->addImage(tinyPng(), QStringLiteral("png"));
+            picture->rect = QRectF(10, 10, 100, 100);
+            picture->imgRect = QRectF(0, 0, 100, 100);
+            d->pages[1]->items.push_back(picture);
+            d->props.title = QStringLiteral("Snapshot");
+        });
+        const Document::Snapshot snap = d->snapshot();
+        const QByteArray expected = deck::exportPresentation(*d);
+        QVERIFY(!expected.isEmpty());
+        // The window goes on being edited while the thread works from the snapshot.
+        w.editor()->change(QStringLiteral("later"), [&] { d->props.title = QStringLiteral("Edited after"); });
+        QByteArray made;
+        QThread *thread = QThread::create([&] { made = deck::exportPresentation(*Document::fromSnapshot(snap)); });
+        thread->start();
+        QVERIFY(thread->wait(60000));
+        delete thread;
+        QVERIFY(made == expected);
     }
 };
 

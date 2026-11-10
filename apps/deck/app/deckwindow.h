@@ -5,6 +5,7 @@
 #include "app/appwindow.h"
 #include "app/filetasks.h"
 #include "app/formatpane.h"
+#include "app/recovery.h"
 #include "app/infopage.h"
 #include "app/versionstore.h"
 #include "office/packageprops.h"
@@ -306,6 +307,9 @@ public:
     void autoRecover();
     int autoRecoverInterval() const { return m_recoverTimer.interval(); }   // ms
     QString recoveryCopy() const { return m_recoveryCopy; }
+    // A copy is being made on a worker thread (the timer skips its turn meanwhile). `hook` is called on that thread before the copy is made: a test holds the thread there while the window goes on.
+    bool recoveryBusy() const { return m_recoveryWriter.busy(); }
+    void setRecoveryHook(std::function<void()> hook) { m_recoveryHook = std::move(hook); }
     void offerRecovery(bool askIfNone = false);
     // Opens a recovered copy as unsaved work, in this window while it holds
     // nothing, else in a window of its own. Null, with the reason, if it can't be read.
@@ -393,6 +397,7 @@ private:
     void updateTitle();
     bool maybeSave();
     void dropRecoveryCopy();      // deckwindow_save.cpp
+    void makeRecoveryCopy(bool now);
     void createEditingActions();  // deckwindow_find.cpp: Find, Replace, Select Objects
     QMenu *layoutMenu(QWidget *owner, bool change);
     void createHelpActions();     // deckwindow_help.cpp
@@ -485,6 +490,8 @@ private:
     QTimer m_refreshTimer, m_recoverTimer;
     QPair<QString, int> m_fitWatch;   // the text box being edited, and its story's revision when that began
     QString m_recoveryCopy;      // this window's automatic recovery copy, if written
+    std::function<void()> m_recoveryHook;
+    recovery::AsyncWriter m_recoveryWriter{this};   // makes the copy on a worker thread
     QString m_recoveredFrom;     // a recovered presentation's original file, for Save As
     std::function<void(const QString &, const QString &)> m_notifier;
     QString m_templatePath;      // a template this window wrote: saving again writes over it

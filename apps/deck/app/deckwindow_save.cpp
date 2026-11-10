@@ -233,7 +233,10 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     return true;
 }
 
-void DeckWindow::autoRecover()
+void DeckWindow::autoRecover() { makeRecoveryCopy(false); }
+
+// With `now` the copy is made and written before this returns (a recovered presentation, whose old copy goes once this window has one of its own).
+void DeckWindow::makeRecoveryCopy(bool now)
 {
     // Options may have changed the interval since the timer started.
     const int ms = std::max(1, Settings::get().autoRecoverMinutes()) * 60 * 1000;
@@ -252,20 +255,41 @@ void DeckWindow::autoRecover()
         }
         return;
     }
+    // One copy at a time: a tick that comes while one is being made is skipped.
+    if (m_recoveryWriter.busy()) return;
     // Named for the presentation as it is now (Save As moves it).
     const QString copy = recovery::copyPath(m_ed->filePath(), m_ed->displayName(), m_serial);
-    const QString older = m_recoveryCopy;   // (kept until the new copy is written)
     const QString source = m_ed->filePath().isEmpty() ? m_recoveredFrom : m_ed->filePath();
-    const bool written = recovery::write([this](const QString &file, QString *error) { return deck::savePresentationFile(*m_ed->doc(), file, error, nullptr, embedFontsOnSave()); },
-                                         copy, source, m_ed->displayName());
-    if (written) {
-        m_recoveryCopy = copy;
-        if (!older.isEmpty() && older != copy) recovery::remove(older);
+    const QString title = m_ed->displayName();
+    // What the file is made from is taken here, where nothing can change meanwhile; the thread makes the presentation of it again, and writes it.
+    const auto snapshot = std::make_shared<Document::Snapshot>(m_ed->doc()->snapshot());
+    const bool embedFonts = embedFontsOnSave();
+    const std::function<void()> hook = m_recoveryHook;
+    auto make = [snapshot, copy, embedFonts, hook](QString *error) {
+        if (hook) hook();
+        const std::unique_ptr<Document> doc = Document::fromSnapshot(*snapshot);
+        return deck::exportPresentation(*doc, error, nullptr, deck::kindOfFileName(copy), embedFonts);
+    };
+    if (now) {
+        QString error;
+        if (m_recoveryWriter.writeNow(make, copy, source, title, &error)) {
+            const QString older = m_recoveryCopy;
+            m_recoveryCopy = copy;
+            if (!older.isEmpty() && older != copy) recovery::remove(older);
+        }
+        return;
     }
+    m_recoveryWriter.start(make, copy, source, title, [this](bool ok, const QString &made, const QString &) {
+        if (!ok) return;
+        const QString older = m_recoveryCopy;   // (kept until the new copy is written)
+        m_recoveryCopy = made;
+        if (!older.isEmpty() && older != made) recovery::remove(older);
+    });
 }
 
 void DeckWindow::dropRecoveryCopy()
 {
+    m_recoveryWriter.cancel();   // (a copy being made is not written, and one that was is removed)
     recovery::remove(m_recoveryCopy);
     m_recoveryCopy.clear();
 }
@@ -352,7 +376,7 @@ DeckWindow *DeckWindow::openRecovered(const recovery::Recovered &r, QString *err
     target->m_canvas->zoomToFit(Canvas::Fit::WholePage);
     target->updateTitle();
     // This run keeps its own copy before the old one goes.
-    target->autoRecover();
+    target->makeRecoveryCopy(true);
     if (!target->m_recoveryCopy.isEmpty()) recovery::discard(r);
     return target;
 }
