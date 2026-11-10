@@ -26,7 +26,7 @@ constexpr int kSheetRole = Qt::UserRole, kRowRole = Qt::UserRole + 1, kColRole =
 FindDialog::FindDialog(QWidget *parent) : QDialog(parent)
 {
     setObjectName(QStringLiteral("findDialog"));
-    setWindowTitle(tr("Look For and Change"));
+    setWindowTitle(tr("Find and Replace"));
     setModal(false);
     auto *layout = new QVBoxLayout(this);
     m_tabs = new QTabBar;
@@ -72,7 +72,7 @@ FindDialog::FindDialog(QWidget *parent) : QDialog(parent)
     addPair(0, 0, tr("Where:"), m_within);
     addPair(0, 2, tr("Order:"), m_search);
     addPair(1, 0, tr("Search in:"), m_lookIn);
-    m_case = new QCheckBox(tr("Same capitals only"));
+    m_case = new QCheckBox(tr("Match case"));
     m_case->setObjectName(QStringLiteral("findCase"));
     m_whole = new QCheckBox(tr("Whole cell only"));
     m_whole->setObjectName(QStringLiteral("findWhole"));

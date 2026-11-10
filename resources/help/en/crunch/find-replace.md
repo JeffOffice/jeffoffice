@@ -1,5 +1,5 @@
 # Find, replace, and go to
-<!-- keywords: find, replace, change, search, wildcard, star, question mark, tilde, same capitals, whole cell, go to, reference, name, select by kind, blanks, constants, formulas, errors, current region, current array, row differences, column differences, last cell, visible cells, conditional formats, validation, Ctrl+F, Ctrl+H, F5, notes -->
+<!-- keywords: find, replace, change, search, wildcard, star, question mark, tilde, match case, whole cell, go to, reference, name, select by kind, blanks, constants, formulas, errors, current region, current array, row differences, column differences, last cell, visible cells, conditional formats, validation, Ctrl+F, Ctrl+H, F5, notes -->
 
 ## Find
 
@@ -10,7 +10,7 @@ Press **Ctrl+F** (or choose **Find** on the Home tab, then **Find** again). Type
 | **Where** | Search this sheet, or every sheet that shows. With more than one cell selected, a search of one sheet looks only in them. |
 | **Order** | Visit the cells along rows (left to right, then down) or down columns (top to bottom, then right). **Next** stops at the first match in that order. |
 | **Search in** | **Formulas** looks in what is typed in each cell, **Values** in what it shows, and **Notes** in the notes on cells. |
-| **Same capitals only** | Capital and small letters must be the same. |
+| **Match case** | Capital and small letters must be the same. |
 | **Whole cell only** | The whole cell must be the text, not just a part of it. |
 
 In the text you look for, **?** stands for any one character and **\*** for any stretch of characters (including none). Type **~** in front of ?, \*, or ~ to look for the mark itself: **a~\*b** matches a\*b.

@@ -13,6 +13,7 @@
 #include "editwindow.h"
 #include "findbooks.h"
 
+#include <QCheckBox>
 #include <QAction>
 #include <QElapsedTimer>
 #include <QComboBox>
@@ -757,6 +758,18 @@ private Q_SLOTS:
     }
 
     // ---- the dialog and the window
+    // The Find box is called Find and Replace and words its options as the other apps do (Whole cell only is a different option, and stays).
+    void theFindDialogUsesTheSuitesWords()
+    {
+        FindDialog d;
+        QCOMPARE(d.windowTitle(), QStringLiteral("Find and Replace"));
+        QStringList boxes;
+        for (QCheckBox *c : d.findChildren<QCheckBox *>()) boxes << c->text();
+        QVERIFY2(boxes.contains(QStringLiteral("Match case")), qPrintable(boxes.join(QLatin1Char('|'))));
+        QVERIFY2(!boxes.contains(QStringLiteral("Same capitals only")), qPrintable(boxes.join(QLatin1Char('|'))));
+        QVERIFY2(boxes.contains(QStringLiteral("Whole cell only")), qPrintable(boxes.join(QLatin1Char('|'))));
+    }
+
     void findNextAndFindAllWorkFromTheDialog()
     {
         EditWindow e;
