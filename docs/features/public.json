@@ -2365,8 +2365,9 @@
          "text": "5552c0066505bd5bff6e675fb58ca1c3358b8a9c95da92b58f02837ba79657a5"
         },
         {
-         "status": "todo",
-         "text": "1cb5e521125b1efa2fbe34e71e55d2371ef8beebcb522b2633ff24fee07e2752"
+         "hide_soon": true,
+         "status": "done",
+         "text": "aa5320d71351453141433579aef3a218ac83dcb132fa38ce05a3654fc5eda08f"
         },
         {
          "status": "partly",
@@ -2528,8 +2529,8 @@
          "text": "fd4f5d4321ed4ca4455b44d2dc6f7e9080989152695afdd4fa782ba751a764c7"
         },
         {
-         "status": "todo",
-         "text": "62d4a48e34785398f20926e077660f4ec100348569a4eb8b230caf123a390c83"
+         "status": "partly",
+         "text": "e0502fa71ff93c3e71afa0ffc32a645d34458af2971c3d3dd9d87d3669ae2468"
         },
         {
          "hide_soon": true,
@@ -2537,7 +2538,8 @@
          "text": "ecad628805827790f8a23a98c6d06982e2b2dc989f2eea516b369d9d70b5ebf6"
         },
         {
-         "status": "todo",
+         "hide_soon": true,
+         "status": "done",
          "text": "1e7517414a01f457359fc3907d4ddbf9b339b1f05eea2d4fd67adfa1e4a6189d"
         }
        ]
@@ -3222,8 +3224,8 @@
        "text": "403efff0240b74ca0b3865418f04d2d132ca397e64817c044b5d77d0fd164542"
       },
       {
-       "status": "todo",
-       "text": "5469da16f7d175ce6e9ab80fffb5f763dd2ac6067c30e2addc7aa70794e93d2a"
+       "status": "partly",
+       "text": "b1eb53328f5b69583260edb8aea62dd137e61beb4df3bc6fff0adf76380fd903"
       },
       {
        "status": "todo",
@@ -3468,7 +3470,8 @@
          "text": "ce736d347e379cca637bdf68435273aafc0feb7bc77d6fb2624f8a3c7f9fda01"
         },
         {
-         "status": "todo",
+         "hide_soon": true,
+         "status": "done",
          "text": "13e8ce171926e635898a582e4790e8b8a9adfe87e36db0900987dca29707b078"
         },
         {
@@ -4670,6 +4673,10 @@
        "hide_soon": true,
        "status": "done",
        "text": "d3dad535f086d11de90ebc213eb818f9e8a270329fb411ebd8781696b43a3437"
+      },
+      {
+       "status": "partly",
+       "text": "19147dc17d7713b3dd943e5e7ce22ba58e8f9247477eca6380c6ab1147f6002c"
       }
      ]
     },
@@ -9153,6 +9160,18 @@
     "fr": ""
    }
   },
+  "19147dc17d7713b3dd943e5e7ce22ba58e8f9247477eca6380c6ab1147f6002c": {
+   "drop": false,
+   "en": "List pictures and shapes that have no alt text, and go to each one by clicking it.",
+   "es": "Muestre la lista de imágenes y formas que no tienen texto alternativo y vaya a cada una haciendo clic en ella.",
+   "fr": "Affichez la liste des images et des formes sans texte de remplacement, puis accédez à chacune en cliquant dessus.",
+   "soon": {
+    "drop": false,
+    "en": "Accessibility checks for reading order and low contrast",
+    "es": "Comprobaciones de accesibilidad para el orden de lectura y el contraste bajo",
+    "fr": "Vérifications d’accessibilité de l’ordre de lecture et du faible contraste"
+   }
+  },
   "19171f665a1c01ed6057548c1b0c4203d4fc81724be9b0c95eec9730e7f9588a": {
    "drop": false,
    "en": "Normal view, Page Break Preview with draggable page lines, and Page Layout with pages, rulers, and header and footer typed in place. Dashed lines show where pages begin in Normal view, and they can be turned off.",
@@ -9271,18 +9290,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "1cb5e521125b1efa2fbe34e71e55d2371ef8beebcb522b2633ff24fee07e2752": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Check Accessibility",
-    "es": "Comprobar accesibilidad",
-    "fr": "Vérification de l’accessibilité"
    }
   },
   "1cd87d37f62bc26ea44e8392bd6425e5bf379a53fd43ed44028f284cb6d18702": {
@@ -13449,18 +13456,6 @@
     "fr": "Légendes : légendes automatiques"
    }
   },
-  "5469da16f7d175ce6e9ab80fffb5f763dd2ac6067c30e2addc7aa70794e93d2a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "547456a22dbe31bc34e42d7abf751684315e4d66479425fd766e1bc5f81f3ae8": {
    "drop": false,
    "en": "Advanced editing options: Ctrl+click to follow a link, drag-and-drop text, typing that replaces the selection, and overtype mode with the `Insert` key.",
@@ -14582,18 +14577,6 @@
    "en": "Use the Number tab of Format Cells: twelve categories with their options and a live sample in the person’s language, including decimal places, thousands separator, negative number styles, and Custom formats.",
    "es": "Use la pestaña Número de Formato de celdas: doce categorías con sus opciones y una muestra en vivo en el idioma de la persona, con decimales, separador de miles, estilos de números negativos y formatos personalizados.",
    "fr": "Utilisez l’onglet Nombre de Format de cellule : douze catégories avec leurs options et un échantillon en direct dans la langue de la personne, avec décimales, séparateur de milliers, styles de nombres négatifs et formats personnalisés.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "62d4a48e34785398f20926e077660f4ec100348569a4eb8b230caf123a390c83": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
@@ -19569,6 +19552,18 @@
     "fr": ""
    }
   },
+  "aa5320d71351453141433579aef3a218ac83dcb132fa38ce05a3654fc5eda08f": {
+   "drop": false,
+   "en": "Check the presentation for accessibility problems from File > Info.",
+   "es": "Compruebe la accesibilidad de la presentación desde Archivo > Información.",
+   "fr": "Vérifiez l’accessibilité de la présentation depuis Fichier > Informations.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "aa6b7b652f7468c67f63bf027ae803464a45286d94a0e555dfe9ea221a99ca19": {
    "drop": false,
    "en": "Built-in Help that works offline: a Help pane with 51 topics in plain language, a contents page, links between topics, Back and Forward, and a search that finds topics and commands and runs the commands. Press `F1` to open the topic for what you are doing: the ribbon tab, task pane, File page, dialog, or selected object.",
@@ -19987,6 +19982,18 @@
     "en": "Security settings for external links, data connections, macros, and files from outside",
     "es": "Ajustes de seguridad para vínculos externos, conexiones de datos, macros y archivos externos",
     "fr": "Paramètres de sécurité pour les liaisons externes, les connexions de données, les macros et les fichiers externes"
+   }
+  },
+  "b1eb53328f5b69583260edb8aea62dd137e61beb4df3bc6fff0adf76380fd903": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "b1f0815eefc2906cc83b26a6e9b7fa1a9f90d83017eb81e1253b2d1de545102b": {
@@ -23150,6 +23157,18 @@
    "en": "Press `Tab` to move between cells; pressing `Tab` in the last cell adds a row.",
    "es": "Pulse `Tab` para moverse entre celdas; al pulsar `Tab` en la última celda se agrega una fila.",
    "fr": "Appuyez sur `Tab` pour passer d’une cellule à l’autre ; appuyer sur `Tab` dans la dernière cellule ajoute une ligne.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e0502fa71ff93c3e71afa0ffc32a645d34458af2971c3d3dd9d87d3669ae2468": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
