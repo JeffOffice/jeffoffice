@@ -54,7 +54,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 
 ### Info
 - [ ] **1.0** Mark as Final for `.jpub` publications (opens read-only with a note)
-- [ ] **1.0** Encrypt with a password: open and save a password-protected `.jpub` publication (`.pub` files can't hold a password)
+- [x] **1.0** Encrypt with a password: open and save a password-protected `.jpub` publication *(File > Info; AES-256 around the whole `.jpub`; the password is asked for on open, a wrong one asks again, and Cancel stops; versions, backup copies, and Save a Copy stay protected, and no recovery copy of it is written; a `.pub` file can't hold a password, so the card is off for one, and saving a protected publication as `.pub` asks first)*
 - [ ] **1.0** Inspect Publication: find and remove personal information and content off the page before sharing
 - [ ] **1.0** Check Compatibility: names what an older or other format can't hold before saving
 - [ ] **1.0** **(alt)** Version history without a cloud service: named local copies of a publication, compared and restored from Info
@@ -67,7 +67,6 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Mark as Final on File > Info: the publication is saved, then opens read-only with a note *(a `.pub` file can't hold the mark)*
 - [x] **1.0** Inspect Publication: find and remove personal information in the properties, business information, mail merge data, and objects on the scratch area
 - [x] **1.0** Version History without a cloud service: named local copies of a publication, opened as a copy or gone back to from File > Info
-- [ ] **later** A password for a publication *(a `.jpub` file has no form for one, so File > Info has no password card)*
 
 ### New
 - [x] **1.0** Template gallery with live previews and categories: Award Certificates, Banners, Brochures, Business Cards, Business Forms, Calendars, Catalogs, Email, Envelopes, Flyers, Gift Certificates, Greeting Cards, Invitation Cards, Labels, Letterhead, Menus, Newsletters, Paper Folding Projects, Postcards, Programs, Resumes, Signs, With Compliments Cards *(48 designs, at least two in every category)*

@@ -489,6 +489,12 @@ across and down).
 process plus spot colors. `spots`: each spot ink's `name` and `color`.
 `embedFonts`: embed fonts in PDFs and `.pub` files.
 
+## Password protection
+
+A `.jpub` file may ask for a password. The file is then not a ZIP: it is the ZIP (everything above, unchanged) inside the standard encrypted-package container, a compound file with two streams. `EncryptionInfo` says how the key is made from the password, and `EncryptedPackage` holds the ZIP's size (8 bytes, little-endian) followed by the ZIP enciphered in 4096-byte segments. JeffPub writes the agile form: AES-256 in CBC mode, SHA-512, a salt of 16 random bytes, and 100,000 rounds of hashing to make the key, with a keyed hash over the package so that a changed file is found. A reader recognizes a protected file by its first eight bytes (the compound file signature `D0 CF 11 E0 A1 B1 1A E1`, where an unprotected file starts with `PK`), asks for the password, and reads the ZIP it decrypts to. A wrong password is told from a damaged file by the check of the key.
+
+A reader must not trust the container's numbers: a declared size larger than it will read, or a count of hashing rounds beyond what it allows (JeffPub allows 2,000,000), is refused before any memory is set aside for it. Versions kept for a protected file, its backup copies, and copies saved from it are protected the same way, and no automatic recovery copy is written for it. A `.pub` file cannot hold a password; JeffPub asks before saving a protected publication as one, and writes it without.
+
 ## An example
 
 The smallest useful publication: one Letter page with one text box.
