@@ -22,7 +22,7 @@ jobs:
   # JeffDeck plays movies and sounds through Qt Multimedia's FFmpeg plugin. Qt ships the full FFmpeg (hundreds of demuxers and decoders, each one a way
   # in for a file from a stranger); ours has only what a presentation holds, built from the official source by tools/build_ffmpeg.sh. Built once for each
   # system (both processors on the Mac) and kept in GitHub's cache, under a key made of the FFmpeg version and the hash of the script; the build jobs
-  # below restore it and put it in their copy of Qt (tools/use_ffmpeg.sh). Windows builds it with MSYS2's MinGW-w64, the Mac with Xcode's compiler.
+  # below take it from this job (an artifact of the run) and put it in their copy of Qt (tools/use_ffmpeg.sh). Windows builds it with MSYS2's MinGW-w64, the Mac with Xcode's compiler.
   ffmpeg:
     name: ffmpeg (${{ matrix.name }})
     strategy:
@@ -144,8 +144,25 @@ jobs:
           # (each DLL imports only system DLLs and the other FFmpeg DLLs: the GCC and winpthread runtime of this toolchain are not the ones beside Qt's, and the loader takes those)
           python ffmpeg-src/tools/check_bundle_deps.py windows-self-contained ffmpeg-out/windows/bin
 
+      # The build jobs take it from this run, not from the cache: GitHub's cache drops entries when it passes 10 GB, and on Nov 10 it dropped
+      # these between this job's look and the build jobs' restore (each push saves its compiler caches before the last push's go).
+      # (in a tar, which keeps the libraries' links: an artifact keeps none, and copies each linked library again)
+      - name: Our FFmpeg, packed
+        shell: bash
+        run: tar -cf ffmpeg-${{ matrix.name }}.tar -C ffmpeg-out ${{ matrix.name }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ffmpeg-${{ matrix.name }}
+          path: ffmpeg-${{ matrix.name }}.tar
+          retention-days: 3
+          if-no-files-found: error
+
   build:
     needs: ffmpeg
+    # (actions: write, to delete this job's older compiler caches once it has saved a new one)
+    permissions:
+      contents: read
+      actions: write
     # (Windows and macOS: "build (windows, tests, 1/2)"; Linux runs each part in one job: "build (linux, tests)")
     name: build (${{ matrix.name }}, ${{ matrix.part }}${{ matrix.name != 'linux' && format(', {0}/2', matrix.shard) || '' }})
     env:
@@ -276,29 +293,26 @@ jobs:
           exit 0
 
       # JeffDeck's FFmpeg is ours (the ffmpeg job above), not the full one Qt ships. It goes into this job's copy of Qt before anything is built, so that the tests
-      # load it and windeployqt, macdeployqt, and linuxdeploy copy it into the packages. The cache is restored by its key; a missing one fails here.
-      - name: Which FFmpeg
-        id: ffmpeg
+      # load it and windeployqt, macdeployqt, and linuxdeploy copy it into the packages. It comes from this run's ffmpeg job; a missing one fails here.
+      - name: Our FFmpeg (from the ffmpeg job)
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ffmpeg-${{ matrix.name == 'macos' && 'arm64' || matrix.name }}
+          path: ffmpeg-in
+
+      - name: Our FFmpeg for Intel Macs (from the ffmpeg job)
+        if: runner.os == 'macOS' && contains(env.MAC_ARCHS, ';')
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ffmpeg-x86_64
+          path: ffmpeg-in
+
+      - name: Our FFmpeg, unpacked
         shell: bash
         run: |
-          v=$(sed -n 's/^VERSION=\${FFMPEG_VERSION:-\(.*\)}$/\1/p' tools/build_ffmpeg.sh)
-          [ -n "$v" ] || { echo "::error::no FFmpeg version found in tools/build_ffmpeg.sh"; exit 1; }
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-
-      - name: Our FFmpeg (restore)
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ffmpeg-out/${{ matrix.name == 'macos' && 'arm64' || matrix.name }}
-          key: ffmpeg-${{ steps.ffmpeg.outputs.version }}-${{ matrix.name == 'macos' && 'arm64' || matrix.name }}-${{ hashFiles('tools/build_ffmpeg.sh') }}
-          fail-on-cache-miss: true
-
-      - name: Our FFmpeg for Intel Macs (restore)
-        if: runner.os == 'macOS' && contains(env.MAC_ARCHS, ';')
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ffmpeg-out/x86_64
-          key: ffmpeg-${{ steps.ffmpeg.outputs.version }}-x86_64-${{ hashFiles('tools/build_ffmpeg.sh') }}
-          fail-on-cache-miss: true
+          rm -rf ffmpeg-out; mkdir ffmpeg-out
+          for t in ffmpeg-in/*.tar; do tar -xf "$t" -C ffmpeg-out; done
+          ls ffmpeg-out
 
       - name: Our FFmpeg in Qt's folder
         shell: bash
@@ -758,11 +772,25 @@ jobs:
       # keeps it from being evicted), even when a later step failed. Only main's runs and Linux's save: a branch or pull request on Windows or macOS
       # restores main's, and keeps its own out of the 10 GB.
       - name: Save the compiler cache
+        id: save-ccache
         if: ${{ !cancelled() && runner.environment != 'self-hosted' && (github.ref == 'refs/heads/main' || matrix.name == 'linux') && steps.build.outputs.misses != '' && steps.build.outputs.misses != '0' }}
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .ccache
           key: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ matrix.part }}${{ matrix.shard }}-${{ github.sha }}
+
+      # The new entry replaces this job's older ones on this branch, so a push does not hold two sets in the 10 GB until GitHub drops some (it drops
+      # whichever it likes, our FFmpeg among them). A failure here only leaves them for GitHub to drop.
+      - name: Delete the older compiler caches
+        if: ${{ steps.save-ccache.outcome == 'success' }}
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREFIX: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ matrix.part }}${{ matrix.shard }}-
+        run: |
+          gh cache list -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" -k "$PREFIX" -L 100 --json id,key -q ".[] | select(.key != \"$PREFIX$GITHUB_SHA\") | .id" |
+            while read -r id; do echo "deleting cache $id"; gh cache delete -R "$GITHUB_REPOSITORY" "$id"; done
 
   # A quick check of the Windows installer's script (a minute, not an hour): it is built here from stand-in files, by
   # hand-started runs only. The real installer is made by the Windows "checks" job above, from the real programs.
