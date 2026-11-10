@@ -862,6 +862,7 @@ private:
     const crunch::CompletionIndex &completionIndex();
     QString completionDetail(const crunch::Completion &c) const;
     bool insertTextInFormula(const QString &text, bool asFunction);
+    bool insertSymbolInCell(const QString &ch);
     void followCalcBatch(const crunch::CalcBatch &batch);
     void updateCalcStatus();
     void sendCalcSettings();

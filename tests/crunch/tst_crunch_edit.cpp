@@ -32,6 +32,34 @@ void CrunchEditTests::helpShowsThePlatformsKeysAndSaysWhatTypingDoes()
     for (const char *phrase : {"Save a Copy", "Overwrite", "already open", "Esc"}) QVERIFY2(saving.contains(QLatin1String(phrase)), phrase);
 }
 
+// The Help tab, as JeffWrite's: What's New and Feedback open their pages; Keyboard Shortcuts opens the Help pane on the shortcuts topic.
+void CrunchEditTests::theHelpTabHasHelpShortcutsWhatsNewAndFeedback()
+{
+    Window win;
+    win.w.show();
+    QVERIFY2(win.w.ribbonErrors().isEmpty(), qPrintable(win.w.ribbonErrors()));
+    QVERIFY(win.w.ribbon()->tab(QStringLiteral("Help")));
+    for (const char *id : {"help.shortcuts", "help.whatsNew", "help.feedback"}) QVERIFY2(win.w.act(QString::fromLatin1(id)), id);
+    QCOMPARE(win.w.act(QStringLiteral("help.shortcuts"))->text(), QStringLiteral("Keyboard Shortcuts"));
+    QCOMPARE(win.w.act(QStringLiteral("help.whatsNew"))->text(), QStringLiteral("What's New"));
+    QCOMPARE(win.w.act(QStringLiteral("help.feedback"))->text(), QStringLiteral("Feedback"));
+    const auto saved = help::openUrl;
+    QList<QUrl> opened;
+    help::openUrl = [&](const QUrl &u) {
+        opened << u;
+        return true;
+    };
+    win.w.act(QStringLiteral("help.feedback"))->trigger();
+    win.w.act(QStringLiteral("help.whatsNew"))->trigger();
+    help::openUrl = saved;
+    QCOMPARE(opened, (QList<QUrl>{help::feedbackUrl(), help::whatsNewUrl()}));
+    QDockWidget *dock = win.w.findChild<QDockWidget *>(QStringLiteral("helpDock"));
+    QVERIFY(!dock || !dock->isVisible());
+    win.w.act(QStringLiteral("help.shortcuts"))->trigger();
+    dock = win.w.findChild<QDockWidget *>(QStringLiteral("helpDock"));
+    QVERIFY(dock && dock->isVisible());
+}
+
 
 // ---- typing
 
@@ -75,6 +103,44 @@ void CrunchEditTests::typingOverACellPutsWhatWasTypedInIt()
     QCOMPARE(e.valueAt(QStringLiteral("A2")), QStringLiteral("-"));
 }
 
+
+// Insert > Symbols > Symbol opens the Symbol dialog; the character chosen goes at the end of the cell's own entry when none is open (the entry is opened), and at the cursor of
+// an entry that is open; the entry is then finished as any other.
+void CrunchEditTests::theSymbolDialogPutsACharacterInTheEntry()
+{
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    QAction *symbol = e.win.w.act(QStringLiteral("insert.symbol"));
+    QVERIFY(symbol);
+    QCOMPARE(symbol->text(), QStringLiteral("Symbol"));
+    auto insertI = [&] {
+        withDialog([&] { symbol->trigger(); }, QStringLiteral("symbolDialog"), [](QDialog *dlg) {
+            auto grids = dlg->findChildren<QTableWidget *>();
+            QVERIFY(grids.size() >= 2);
+            QTableWidgetItem *it = grids.first()->item(2, 9);   // (Basic Latin: row 2 starts at 0x40; column 9 is "I")
+            QVERIFY(it);
+            Q_EMIT grids.first()->itemDoubleClicked(it);
+        });
+    };
+    e.select(QStringLiteral("C1"));
+    QVERIFY(!e.win.w.isEditing());
+    insertI();
+    QVERIFY(e.win.w.isEditing());
+    QCOMPARE(e.win.w.cellEditor()->text(), QStringLiteral("helloI"));
+    QCOMPARE(e.win.w.formulaBar()->text(), QStringLiteral("helloI"));
+    e.key(Qt::Key_Return);
+    QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("s:helloI"));
+    // An entry already open takes it at its cursor.
+    e.select(QStringLiteral("C2"));
+    QTest::keyClick(e.view(), Qt::Key_A);
+    QTest::keyClick(e.win.w.cellEditor(), Qt::Key_B);
+    e.win.w.cellEditor()->setCursorPosition(1);
+    insertI();
+    QVERIFY(e.win.w.isEditing());
+    QCOMPARE(e.win.w.cellEditor()->text(), QStringLiteral("aIb"));
+    e.key(Qt::Key_Return);
+    QCOMPARE(e.valueAt(QStringLiteral("C2")), QStringLiteral("s:aIb"));
+}
 
 // Enter and Shift+Enter finish and go down and up; Tab and Shift+Tab right and left; arrows, while typing over a cell, finish and move on; Escape gives the entry up and the cell is as
 // it was; Tab, Tab, Enter goes down to the column the Tabs began in.

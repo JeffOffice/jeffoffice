@@ -240,7 +240,7 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 
 ### Symbols
 - [ ] **1.0** Equation: the Office Math editor, with the built-in equations, writing by typing, and ink; shown as saved in first release *(equations: ours 0%, public 0%; shared: the equation engine to build for JeffWrite and JeffDeck)*
-- [~] **first release** Symbol: any character from any font, recent symbols, and special characters, with shortcut keys *(shared: JeffPub's Symbol dialog)*
+- [~] **first release** Symbol: any character from any font, recent symbols, and special characters, with shortcut keys *(shared: JeffPub's Symbol dialog)* *(Insert > Symbols > Symbol opens the dialog; the character goes at the cursor of the entry being typed, or at the end of the cell's own entry, which is opened; not yet: a character in a font of its own, special characters, and shortcut keys)*
 
 ## Draw tab
 
@@ -406,7 +406,7 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 ## Help tab
 
 - [~] **first release** Help (F1): a built-in, offline pane of plain-language topics with a contents page, links, Back and Forward, and a search that finds topics, commands, and functions *(shared: libs/shell help)*
-- [~] **first release** Keyboard Shortcuts (a table made from the commands themselves), What's New, Feedback (a GitHub page with the version filled in), and About with Check for Updates *(shared: libs/shell)*
+- [~] **first release** Keyboard Shortcuts (a table made from the commands themselves), What's New, Feedback (a GitHub page with the version filled in), and About with Check for Updates *(shared: libs/shell)* *(the Help tab has Help, Keyboard Shortcuts (opens the shortcuts page), What's New, and Feedback; not yet: a table made from the commands, and About with Check for Updates)*
 - [~] **1.0** A search box on the ribbon that finds a command by what it does and runs it *(shared: the help search)*
 - [ ] **1.0** Function help from the formula bar: the function you are typing opens its page (the same pages as the Insert Function dialog)
 

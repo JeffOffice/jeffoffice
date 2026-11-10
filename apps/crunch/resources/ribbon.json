@@ -217,6 +217,13 @@
             {"large": "insert.textBox", "keytip": "X"},
             {"large": "insert.headerFooter", "keytip": "H"}
           ]
+        },
+        {
+          "name": "Symbols",
+          "keytip": "ZS",
+          "items": [
+            {"large": "insert.symbol", "keytip": "U"}
+          ]
         }
       ]
     },
@@ -521,6 +528,28 @@
               "keytip": "SW",
               "menu": "@switchWindowsMenu"
             }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Help",
+      "keytip": "Y",
+      "groups": [
+        {
+          "name": "Help",
+          "keytip": "ZH",
+          "items": [
+            {"large": "help.show", "keytip": "H"},
+            {"large": "help.shortcuts", "keytip": "K"}
+          ]
+        },
+        {
+          "name": "About",
+          "keytip": "ZA",
+          "items": [
+            {"large": "help.whatsNew", "keytip": "N"},
+            {"large": "help.feedback", "keytip": "F"}
           ]
         }
       ]

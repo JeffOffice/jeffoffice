@@ -1,6 +1,8 @@
 # Use JeffCrunch with the keyboard
 <!-- keywords: keyboard, shortcuts, keys, hotkeys, arrow, ctrl, shift, home, end, page up, page down, tab, enter, select all, copy, F9, F1, zoom, access keys, key tips -->
 
+The **Help** tab has **Help** (F1), **Keyboard Shortcuts**, which opens this page, **What's New**, and **Feedback**, which open their web pages.
+
 On a Mac, the **Command** key (⌘) does what **Ctrl** does in the tables below, except where a table says otherwise.
 
 ## Moving and selecting

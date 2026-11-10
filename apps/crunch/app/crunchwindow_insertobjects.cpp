@@ -5,6 +5,7 @@
 #include "core/objectclip.h"
 #include "core/sheetobjects.h"
 #include "app/iconpicker.h"
+#include "app/textdialogs.h"
 #include "render/metafile.h"
 
 #include <QAction>
@@ -82,6 +83,31 @@ void CrunchWindow::createInsertObjectActions()
     }
     mk("insert.textBox", tr("Text Box"), "type", QKeySequence(), [this] { insertTextBox(); });
     m_opsActions << QStringLiteral("insert.textBox");
+    mk("insert.symbol", tr("Symbol"), "omega", QKeySequence(), [this] {
+        symbolDialog(this, [this](QWidget *, const QString &ch, const QString &font) {
+            if (!insertSymbolInCell(ch)) return false;
+            rememberSymbol(ch, font);
+            return true;
+        });
+    });
+    m_opsActions << QStringLiteral("insert.symbol");
+}
+
+// Puts the character at the cursor of the entry being typed (in the formula bar when that has the cursor); with no entry open, the cell's own entry is opened first, with the
+// character at its end.
+bool CrunchWindow::insertSymbolInCell(const QString &ch)
+{
+    if (!m_edit.active) {
+        if (!editingAllowed()) return false;
+        const grid::Selection &sel = m_view->selection();
+        beginEdit(m_session->editText(m_sheet, quint32(std::max<qint64>(0, sel.activeRow)), quint32(std::max<qint64>(0, sel.activeCol))), CellEditor::Mode::Editing, false);
+        if (!m_edit.active) return false;
+        m_cellEditor->setCursorPosition(m_cellEditor->text().size());
+    }
+    QLineEdit *line = editingInFormulaBar() ? m_formulaBar : m_cellEditor;
+    line->insert(ch);
+    Q_EMIT line->textEdited(line->text());   // (the other line shows it too)
+    return true;
 }
 
 // Puts the element on the sheet at the cell the cursor is in, as one step of Undo, picked. `why` is the problem if it is not.

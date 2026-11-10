@@ -4,12 +4,14 @@
 // (Save, Save As, a save that fails, the question when a window with changes is closed). Every workbook is built here, in a temporary folder.
 #include "../localepin.h"
 #include "../settingguard.h"
+#include "../withdialog.h"
 #include "app/crunchinfo.h"
 #include "app/crunchfilescreen.h"
 #include "app/crunchwindow.h"
 #include "app/filescreenparts.h"
 #include "savedok.h"
 #include "app/help.h"
+#include "app/ribbon.h"
 #include "app/settings.h"
 #include "app/filetasks.h"
 #include "app/finddialog.h"
@@ -35,6 +37,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QDir>
+#include <QDockWidget>
 #include <QFileInfo>
 #include <QLineEdit>
 #include <QMenu>
@@ -42,6 +45,7 @@
 #include <QRegularExpression>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QTableWidget>
 #include <QThread>
 #include <QUndoStack>
 
@@ -55,7 +59,9 @@ class CrunchEditTests : public QObject {
 private Q_SLOTS:
     void initTestCase();
     void helpShowsThePlatformsKeysAndSaysWhatTypingDoes();
+    void theHelpTabHasHelpShortcutsWhatsNewAndFeedback();
     void typingOverACellPutsWhatWasTypedInIt();
+    void theSymbolDialogPutsACharacterInTheEntry();
     void theKeysThatFinishAnEntry();
     void enterGoesWhereTheOptionSays();
     void autoCompleteOffersTheRestOfAnEntryInTheColumn();
