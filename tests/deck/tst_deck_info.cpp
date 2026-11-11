@@ -795,6 +795,147 @@ private Q_SLOTS:
         for (int i = 0; i < pane->list()->count(); ++i) QVERIFY(!pane->list()->item(i)->text().contains(QLatin1String("alt text")));
     }
 
+    // A table whose first row is not marked as a header row is a warning (a screen reader finds the column names in the header row); one with a header row is not listed.
+    void aTableWithNoHeaderRowIsReported()
+    {
+        auto doc = deck::newPresentation();
+        doc->pages.clear();
+        doc->pages.push_back(std::make_shared<Page>());
+        auto table = [&](double top) {
+            auto t = std::make_shared<TableItem>();
+            t->rows = t->cols = 2;
+            t->colW = {100, 100};
+            t->rowH = {30, 30};
+            t->cells.resize(4);
+            t->rect = QRectF(40, top, 200, 60);
+            return t;
+        };
+        auto bare = table(40);
+        auto marked = table(200);
+        bare->header = false;
+        doc->pages[0]->items.push_back(bare);
+        doc->pages[0]->items.push_back(marked);
+        QVector<PageAccessIssue> found;
+        for (const auto &i : checkPageAccessibility(*doc, true))
+            if (i.kind == PageAccessIssue::NoTableHeader) found << i;
+        QCOMPARE(int(found.size()), 1);
+        QCOMPARE(found[0].itemId, bare->id);
+        QCOMPARE(found[0].page, 0);
+        QCOMPARE(int(found[0].level), int(PageAccessIssue::Warning));
+        QVERIFY2(found[0].message.contains(QLatin1String("header row")), qPrintable(found[0].message));
+    }
+
+    // The pane lists it with a fix, "Use the first row as a header", which turns the header row on in one step that undoes; the list is empty after it.
+    void theFixTurnsTheHeaderRowOnAndUndoes()
+    {
+        DeckWindow w;
+        Quiet quiet(w);
+        w.resize(1400, 900);
+        w.show();
+        Editor *ed = w.editor();
+        ed->setDocument(sample());
+        ed->setCurrentPage(0);
+        auto table = ed->newTable(QRectF(72, 72, 200, 60), 2, 2);
+        auto *t = static_cast<TableItem *>(table.get());
+        t->header = false;
+        ed->addItem(table, false);
+        ed->clearSelection();
+        w.act(QStringLiteral("review.accessibility"))->trigger();
+        PageAccessibilityPane *pane = w.accessibilityPane();
+        QVERIFY(pane);
+        int row = -1;
+        for (int i = 0; i < pane->list()->count(); ++i)
+            if (pane->list()->item(i)->text().contains(QLatin1String("header row"))) row = i;
+        QVERIFY(row >= 0);
+        auto *fix = pane->findChild<QPushButton *>(QStringLiteral("accessFix"));
+        QVERIFY(fix);
+        QVERIFY(!fix->isEnabled());
+        pane->list()->setCurrentRow(row);
+        QVERIFY(fix->isEnabled());
+        QCOMPARE(fix->text(), QStringLiteral("Use the first row as a header"));
+        const int before = ed->undoStack()->index();
+        fix->click();
+        QVERIFY(static_cast<TableItem *>(ed->doc()->item(table->id))->header);
+        QCOMPARE(ed->undoStack()->index(), before + 1);
+        for (int i = 0; i < pane->list()->count(); ++i) QVERIFY(!pane->list()->item(i)->text().contains(QLatin1String("header row")));
+        ed->undoStack()->undo();
+        QVERIFY(!static_cast<TableItem *>(ed->doc()->item(table->id))->header);
+        QCOMPARE(ed->undoStack()->index(), before);
+        pane->recheck();
+        bool listed = false;
+        for (int i = 0; i < pane->list()->count(); ++i) listed = listed || pane->list()->item(i)->text().contains(QLatin1String("header row"));
+        QVERIFY(listed);
+    }
+
+    // Many problems are cut at the cap, and at the number asked for.
+    void theTableCheckKeepsToTheCap()
+    {
+        auto doc = deck::newPresentation();
+        doc->pages.clear();
+        doc->pages.push_back(std::make_shared<Page>());
+        for (int n = 0; n < kMaxPageAccessIssues + 20; ++n) {
+            auto t = std::make_shared<TableItem>();
+            t->rows = t->cols = 1;
+            t->colW = {50};
+            t->rowH = {20};
+            t->cells.resize(1);
+            t->rect = QRectF(10, 10 + n * 2, 50, 20);
+            t->header = false;
+            t->altText = QStringLiteral("x");
+            doc->pages[0]->items.push_back(t);
+        }
+        QCOMPARE(int(checkPageAccessibility(*doc, true).size()), kMaxPageAccessIssues);
+        QCOMPARE(int(checkPageAccessibility(*doc, true, {}, 7).size()), 7);
+    }
+
+    // JeffDeck has no captions for a video, so each video on a slide is a tip, with no fix; a sound, and a video marked as decoration, are not.
+    void aVideoIsATipBecauseItNeedsCaptions()
+    {
+        auto doc = deck::newPresentation();
+        doc->pages.clear();
+        doc->pages.push_back(std::make_shared<Page>());
+        auto media = [&](const char *kind, double left) {
+            auto p = std::make_shared<PictureItem>();
+            p->rect = QRectF(left, 40, 100, 60);
+            p->imgRect = QRectF(QPointF(0, 0), p->rect.size());
+            p->altText = QStringLiteral("A clip");
+            p->mediaKind = QString::fromLatin1(kind);
+            p->mediaId = QStringLiteral("m1");
+            doc->pages[0]->items.push_back(p);
+            return p;
+        };
+        auto video = media("video", 40);
+        media("audio", 200);
+        media("video", 360)->decorative = true;
+        QVector<PageAccessIssue> found;
+        for (const auto &i : checkPageAccessibility(*doc, true))
+            if (i.kind == PageAccessIssue::NoCaptions) found << i;
+        QCOMPARE(int(found.size()), 1);
+        QCOMPARE(found[0].itemId, video->id);
+        QCOMPARE(int(found[0].level), int(PageAccessIssue::Tip));
+        QVERIFY2(found[0].message.contains(QLatin1String("Videos need captions for people who can't hear them")), qPrintable(found[0].message));
+        // the pane lists it, goes to it, and offers no fix
+        DeckWindow w;
+        Quiet quiet(w);
+        w.resize(1400, 900);
+        w.show();
+        Editor *ed = w.editor();
+        ed->setDocument(std::move(doc));
+        ed->setCurrentPage(0);
+        w.act(QStringLiteral("review.accessibility"))->trigger();
+        PageAccessibilityPane *pane = w.accessibilityPane();
+        QVERIFY(pane);
+        int row = -1;
+        for (int i = 0; i < pane->list()->count(); ++i)
+            if (pane->list()->item(i)->text().contains(QLatin1String("need captions"))) row = i;
+        QVERIFY(row >= 0);
+        QVERIFY(pane->list()->item(row)->text().startsWith(QLatin1String("Tip: ")));
+        Q_EMIT pane->list()->itemActivated(pane->list()->item(row));
+        QCOMPARE(ed->selection(), QStringList{video->id});
+        pane->list()->setCurrentRow(row);
+        QVERIFY(!pane->findChild<QPushButton *>(QStringLiteral("accessFix"))->isEnabled());
+    }
+
     // Text is checked against its background: the contrast of the two colors must be 4.5 to 1 (3 to 1 for text of 18 points, or 14 and bold); the fill of its box, else the page's, is the
     // background, and a picture under it is for the person to look at.
     void textContrastIsCheckedAgainstItsBackground()

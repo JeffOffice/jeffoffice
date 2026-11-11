@@ -48,6 +48,7 @@ struct GalleryItem;
 class HelpView;
 class MeasureSpin;
 class TableItem;
+struct TableStyles;
 class HelpWindow;
 class MasterPane;
 class NotesPane;
@@ -220,6 +221,7 @@ public:
     // its id: the selected table takes its look, whatever it was shaded or lined with before. Shading colors the selected cells (or the
     // cell the cursor is in, or with the table selected every cell).
     void applyTableStyle(const QString &styleId);
+    TableStyles tableStylesNow() const;   // the theme's colors and the file's table styles, for the Accessibility Checker's fix
     void setCellShading(const ColorRef &color);
     // The Picture Format tab's Crop to Shape (deckwindow_picture.cpp), for the selected pictures: a shape's id, as the Shapes gallery has it.
     void cropPictureToShape(const QString &shape);

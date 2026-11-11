@@ -18,6 +18,7 @@ struct AccessFinding {
     Level level = Warning;
     QString message;
     QVariantList where;
+    QString fix;   // what the fix for it is called ("Use the first row as a header"); empty: it has none
 };
 
 class AccessibilityPane : public QDialog {
@@ -34,11 +35,14 @@ public:
 Q_SIGNALS:
     void recheckRequested();
     void goToRequested(const QVariantList &where);
+    // The Fix button, with the `where` of the problem that is selected.
+    void fixRequested(const QVariantList &where);
 
 private:
     QLabel *m_summary;
     QListWidget *m_list;
     QHBoxLayout *m_buttons;
+    QPushButton *m_fix;
 };
 
 } // namespace jp

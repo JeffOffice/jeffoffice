@@ -4,6 +4,7 @@
 
 #include "app/accessibilitypane.h"
 #include "app/selectionpane.h"
+#include "app/tableedit.h"
 #include "core/pageaccess.h"
 
 #include <QPointer>
@@ -24,11 +25,14 @@ public:
     // The Reading Order list (for tests, and to know it is open): null until it has been shown.
     SelectionPane *readingOrderPane() const { return m_reading; }
     void showReadingOrder();
+    // Where the table styles come from, for the fix that turns a table's header row on (an app with its own styles, JeffDeck, gives them; none: JeffPub's formats).
+    void setTableStyles(const std::function<TableStyles()> &styles) { m_styles = styles; }
 
 private:
     Editor *m_ed;
     bool m_slides;
     std::function<QString(int)> m_titleOf;
+    std::function<TableStyles()> m_styles;
     QPointer<SelectionPane> m_reading;
 };
 

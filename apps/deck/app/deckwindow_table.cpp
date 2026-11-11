@@ -164,6 +164,8 @@ void DeckWindow::styleNewTable(TableItem *table)
     giveTableStyle(m_ed, table, office::defaultTableStyleId(), TableStyleParts(), tableStyles(*m_ed->doc()), true);
 }
 
+TableStyles DeckWindow::tableStylesNow() const { return tableStyles(*m_ed->doc()); }
+
 void DeckWindow::applyTableStyle(const QString &styleId)
 {
     TableItem *t = selectedTable(m_ed);

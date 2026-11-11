@@ -22,6 +22,18 @@ PageAccessibilityPane::PageAccessibilityPane(Editor *editor, bool slides, const 
         const QString id = where[1].toString();
         if (!id.isEmpty() && m_ed->doc()->item(id)) m_ed->select(id);
     });
+    // The fix for a table with no header row: its Header Row on, as the Table Design tab does it (one step that undoes).
+    connect(this, &AccessibilityPane::fixRequested, this, [this](const QVariantList &where) {
+        if (where.size() != 2) return;
+        Item *item = m_ed->doc()->item(where[1].toString());
+        if (!item || item->type() != ItemType::Table) return;
+        auto *table = static_cast<TableItem *>(item);
+        m_ed->setCurrentPage(where[0].toInt());
+        TableStyleParts parts = TableStyleParts::of(*table);
+        parts.header = true;
+        setTableStyle(m_ed, table, table->format, parts, m_styles ? m_styles() : TableStyles(), false);
+        recheck();
+    });
 }
 
 QVector<PageAccessIssue> PageAccessibilityPane::issues() const
@@ -35,7 +47,8 @@ void PageAccessibilityPane::recheck()
 {
     QVector<AccessFinding> findings;
     for (const PageAccessIssue &i : issues())
-        findings.push_back({i.level == PageAccessIssue::Error ? AccessFinding::Error : i.level == PageAccessIssue::Warning ? AccessFinding::Warning : AccessFinding::Tip, i.message, {i.page, i.itemId}});
+        findings.push_back({i.level == PageAccessIssue::Error ? AccessFinding::Error : i.level == PageAccessIssue::Warning ? AccessFinding::Warning : AccessFinding::Tip, i.message, {i.page, i.itemId},
+                        i.kind == PageAccessIssue::NoTableHeader ? tr("Use the first row as a header") : QString()});
     setFindings(findings);
 }
 

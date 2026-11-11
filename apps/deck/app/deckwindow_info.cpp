@@ -122,6 +122,7 @@ QWidget *DeckWindow::buildInfoPage(QWidget *parent)
 void DeckWindow::showAccessibilityPane()
 {
     if (!m_accessPane) m_accessPane = new PageAccessibilityPane(m_ed, true, [this](int slide) { return deck::slideTitle(*m_ed->doc(), slide); }, this);
+    m_accessPane->setTableStyles([this] { return tableStylesNow(); });
     m_accessPane->recheck();
     m_accessPane->show();
     m_accessPane->raise();
