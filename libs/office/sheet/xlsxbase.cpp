@@ -752,7 +752,8 @@ std::shared_ptr<const Package> makeObjectPackage(const Workbook &book)
     if (!foreign) return nullptr;
     const QString drawingType = QString(kRelNs) + QStringLiteral("/drawing"), imageType = QString(kRelNs) + QStringLiteral("/image");
     PackageWriter writer;
-    int drawings = 0, mediaFiles = 0;
+    int drawings = 0, mediaFiles = 0, chartFiles = 0;
+    const QString chartType = QString(kRelNs) + QStringLiteral("/chart");
     for (int i = 0; i < book.info().sheets.size(); ++i) {
         if (!foreign->mayHaveDrawings(i)) continue;
         Sheet sheet;
@@ -772,8 +773,16 @@ std::shared_ptr<const Package> makeObjectPackage(const Workbook &book)
             writer.addPart(part, m.bytes, type ? QString::fromLatin1(type) : QStringLiteral("application/octet-stream"));
             partOfMedia.append(part);
         }
-        for (const ImportedRel &r : d.rels)
+        QVector<QString> partOfChart;
+        for (const QByteArray &c : d.charts) {
+            const QString part = QStringLiteral("/xl/charts/chart%1.xml").arg(++chartFiles);
+            writer.addPart(part, c, QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"));
+            partOfChart.append(part);
+        }
+        for (const ImportedRel &r : d.rels) {
             if (r.media >= 0 && r.media < partOfMedia.size()) writer.addRelationshipWithId(drawingPart, r.id, imageType, partOfMedia[r.media]);
+            else if (r.chart >= 0 && r.chart < partOfChart.size()) writer.addRelationshipWithId(drawingPart, r.id, chartType, partOfChart[r.chart]);
+        }
     }
     if (drawings == 0) return nullptr;
     auto package = std::make_shared<Package>();
@@ -816,6 +825,7 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
     // The drawing objects of a workbook read from an OpenDocument spreadsheet: a sheet that may have some is read to find them (and what they come to is kept, so that what is written is what was
     // counted), and the pictures are named by the extension they will have.
     std::vector<ImportedDrawing> importedOf(size_t(info.sheets.size()));
+    std::vector<int> firstImportedChart(size_t(info.sheets.size()), 0);   // the number of the first chart part of a sheet's imported drawing
     std::vector<std::unique_ptr<Sheet>> readFirst(size_t(info.sheets.size()));   // (a sheet read to find its objects is kept to be written: it is read once)
     QSet<QString> mediaExtensions;
     if (const ForeignBook *foreign = book.foreignBook()) {
@@ -828,6 +838,8 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
             readFirst[size_t(i)] = std::make_unique<Sheet>(std::move(look));
             drawingOf[size_t(i)] = ++drawings;
             for (const ImportedMedia &m : std::as_const(importedOf[size_t(i)].media)) mediaExtensions.insert(m.name.mid(m.name.lastIndexOf(QLatin1Char('.')) + 1).toLower());
+            firstImportedChart[size_t(i)] = charts + 1;
+            charts += int(importedOf[size_t(i)].charts.size());
         }
     }
     // [Content_Types].xml and the relationships
@@ -917,7 +929,15 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
                 fileOfMedia[m] = ++mediaFiles;
                 zip.add(QStringLiteral("xl/media/image%1.%2").arg(mediaFiles).arg(extension), media.bytes, extension != QLatin1String("png") && extension != QLatin1String("jpg") && extension != QLatin1String("jpeg"));
             }
+            for (int c = 0; c < sheet.importedDrawing.charts.size(); ++c) {
+                const int number = firstImportedChart[size_t(i)] + c;
+                zip.add(QStringLiteral("xl/charts/chart%1.xml").arg(number), sheet.importedDrawing.charts[c], true);
+            }
             for (const ImportedRel &rel : std::as_const(sheet.importedDrawing.rels)) {
+                if (rel.chart >= 0 && rel.chart < sheet.importedDrawing.charts.size()) {
+                    drawingRels += "<Relationship Id=\"" + rel.id.toUtf8() + "\" Type=\"" + kRelNs + "/chart\" Target=\"../charts/chart" + num(firstImportedChart[size_t(i)] + rel.chart) + ".xml\"/>";
+                    continue;
+                }
                 if (rel.media < 0 || rel.media >= sheet.importedDrawing.media.size()) continue;
                 const QString name = sheet.importedDrawing.media[rel.media].name;
                 const QString extension = name.mid(name.lastIndexOf(QLatin1Char('.')) + 1).toLower();

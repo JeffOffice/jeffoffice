@@ -122,10 +122,13 @@ struct SheetShape {
 // The properties of a graphic or text or paragraph style by name, keyed as the styles are ("graphic:draw:fill", "text:fo:font-weight", "para:fo:text-align").
 using StyleLookup = std::function<QHash<QString, QString>(const QString &family, const QString &name)>;
 
+// Makes a chart part (c:chartSpace) from the bytes of an OpenDocument chart's document (odschart.h); false, with a message, if it can't be. `notes` gets what was left out.
+using ChartMaker = std::function<bool(const QByteArray &content, QByteArray *chartPart, QString *error, QStringList *notes)>;
+
 // Makes the drawing of the sheet from its shapes. `parts` gives the bytes of a part of the package by its name ("Pictures/a.png"; empty for one that is not there). The drawing is empty,
 // and `notRead` says what was left out, if nothing can be made.
-void shapesToDrawing(const QVector<SheetShape> &shapes, const Counters &counters, const Grid &grid, const StyleLookup &styles, const std::function<QByteArray(const QString &)> &parts, Budget *budget,
-                     ImportedDrawing *out);
+void shapesToDrawing(const QVector<SheetShape> &shapes, const Counters &counters, const Grid &grid, const StyleLookup &styles, const std::function<QByteArray(const QString &)> &parts,
+                     const ChartMaker &charts, Budget *budget, ImportedDrawing *out);
 
 // ---- writing
 // What a sheet's drawing is as the standard's elements.
@@ -134,6 +137,7 @@ struct Written {
     QString styles;                                  // the automatic styles they use (for content.xml)
     QString commonStyles;                            // the styles they use that go in styles.xml (dashes)
     QVector<QPair<QString, QByteArray>> pictures;    // the file's name in the package ("Pictures/a.png") and its bytes
+    QVector<QPair<QString, QByteArray>> objects;     // the documents of the charts ("Object 1/content.xml") and their bytes
     int count = 0;
     quint32 lastRow = 0;                             // the last row any object reaches (the rows down to it are written, so that a reader finds their height)
     QStringList notWritten;                          // what was left out, in words
@@ -142,7 +146,7 @@ struct Written {
 // workbook's earlier sheets have taken of the room for pictures.
 // `sheetRef` is the sheet's name as an address in the file writes it (quoted if it needs); `objects` counts the objects the workbook's earlier sheets have written.
 void drawingToShapes(const Package &package, const QString &mainPart, const QString &drawingPart, const Grid &grid, const QString &sheetRef, int sheetNumber, Written *out, qint64 *pictureBytes,
-                     qint64 *objects);
+                     qint64 *objects, int *chartNumber);
 
 // Lengths: a length in EMU as the standard writes it ("1.2345678in"), and one read (false if it is none); a number that is too large is kept to the most a position may be.
 QString lengthText(qint64 emu);

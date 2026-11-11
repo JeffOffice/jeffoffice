@@ -105,7 +105,7 @@ The picture lands on the sheet like a picture from a file, and the workbook keep
 3. To change the words, pick the Text Art and click **Edit Text…** on the **Shape Format** tab. A box asks for the words, the font, the size, bold, and italic. A bigger size makes the Text Art bigger.
 4. On the **Shape Format** tab, **Text Art Styles** gives the letters another style, and **Text Warp** bends the words into a shape, such as a wave or an arch. "Plain" keeps them straight.
 
-Text Art is a shape in the sheet's drawing, with its warp, fill, and outline, so it keeps its look when you save the workbook as an .xlsx file and open it again, in JeffCrunch or in another program. Each change is one step you can undo. A workbook saved as an .ods file keeps its pictures, shapes, text boxes, groups, lines, and Text Art too. Text Art is saved as the fontwork shape that OpenDocument has, with its words, font, fill, outline, and warp, and comes back as Text Art when you open the .ods file again. A few warps that OpenDocument has no shape for (Wave 2, Wave 4, and the bottom and top forms of Inflate and Deflate) are saved as straight words with the same letters and style. Charts are the exception: an .ods file does not keep them.
+Text Art is a shape in the sheet's drawing, with its warp, fill, and outline, so it keeps its look when you save the workbook as an .xlsx file and open it again, in JeffCrunch or in another program. Each change is one step you can undo. A workbook saved as an .ods file keeps its pictures, shapes, text boxes, groups, lines, and Text Art too. Text Art is saved as the fontwork shape that OpenDocument has, with its words, font, fill, outline, and warp, and comes back as Text Art when you open the .ods file again. A few warps that OpenDocument has no shape for (Wave 2, Wave 4, and the bottom and top forms of Inflate and Deflate) are saved as straight words with the same letters and style. Charts are kept in an .ods file too: see below.
 
 ## Make pictures smaller
 
@@ -160,3 +160,7 @@ Everything above is saved in the file in the form other spreadsheet programs rea
 A **diagram** is a picture of boxes and arrows, such as a process, that another program made. JeffCrunch shows a diagram from the picture of it that the file keeps beside it. Click it to pick it, and drag it to move it. When you save the file, the diagram is written back just as it was, so the program that made it can still change it.
 
 JeffCrunch cannot change what is inside a diagram yet, and a diagram can't be copied or put in a group. If the file keeps no picture of a diagram, JeffCrunch shows a plain gray box that says it is a diagram.
+
+## Charts in .ods files
+
+A workbook saved as an .ods file keeps its charts: columns, bars, lines, areas, pies, doughnuts, and scatter charts, each with its series and the cells they read (on this sheet or another), categories, title, legend, axes (titles, least and greatest value, number format), data labels, colors, and place. An .ods file made by another program opens with its charts, drawn from the cells they read. What an .ods chart has no place for is left out and named when you save: trendlines, error bars, secondary axes, and the extra looks of a single point. Charts of kinds JeffCrunch does not draw (stock and radar charts) open as columns of their values.

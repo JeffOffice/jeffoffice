@@ -1,6 +1,7 @@
 // An OpenDocument spreadsheet's shapes into the drawing the XML form keeps (see odsdraw.h): each shape is read into the drawing code's own objects (core/items.h: a picture, a shape, a text
 // box, Text Art, a line, a group), and those are written by the shared writer (office/drawingml_write.h) as the elements of a drawing part, each in the anchor its place in the sheet says.
 
+#include "sheet/odschart.h"
 #include "sheet/odsdraw.h"
 #include "sheet/odsdraw_p.h"
 
@@ -32,6 +33,8 @@ using Props = QHash<QString, QString>;
 
 struct Placed {
     ItemPtr item;
+    QByteArray chartPart;                  // for a chart: its part (no item)
+    QString name, description, title;      // for a chart: what it is called
     qint64 x = 0, y = 0, cx = 0, cy = 0;   // EMU, from the sheet's top left
     bool hasZ = false;
     double z = 0;
@@ -46,8 +49,8 @@ struct Placed {
 
 class Converter {
 public:
-    Converter(const Grid &grid, const StyleLookup &styles, const std::function<QByteArray(const QString &)> &parts, Budget *budget, ImportedDrawing *out)
-        : m_grid(grid), m_styles(styles), m_parts(parts), m_budget(budget), m_out(out)
+    Converter(const Grid &grid, const StyleLookup &styles, const std::function<QByteArray(const QString &)> &parts, const ChartMaker &charts, Budget *budget, ImportedDrawing *out)
+        : m_grid(grid), m_styles(styles), m_parts(parts), m_charts(charts), m_budget(budget), m_out(out)
     {
         m_scheme = builtinColorSchemes().value(0);
     }
@@ -79,6 +82,8 @@ private:
     const Grid &m_grid;
     const StyleLookup &m_styles;
     const std::function<QByteArray(const QString &)> &m_parts;
+    const ChartMaker &m_charts;
+    int m_chartCount = 0;
     Budget *m_budget;
     ImportedDrawing *m_out;
     ColorScheme m_scheme;
@@ -486,6 +491,44 @@ private:
         return true;
     }
 
+    // A frame that holds a chart: its document is read into a chart part (the shared chart model), and the frame says where it is.
+    bool chart(const NodePtr &frame, const NodePtr &object, qint64 ox, qint64 oy, Placed *p)
+    {
+        ShapeItem box;
+        double turn = 0;
+        if (!placeBox(frame, ox, oy, p, &box, &turn)) return false;
+        if (m_chartCount >= odschart::kMaxChartsPerSheet) {
+            m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "charts past the %1 a sheet may have").arg(odschart::kMaxChartsPerSheet));
+            return false;
+        }
+        QString path = object->attrs.value(QStringLiteral("xlink:href"));
+        if (path.startsWith(QLatin1String("./"))) path.remove(0, 2);
+        while (path.endsWith(QLatin1Char('/'))) path.chop(1);
+        if (path.isEmpty() || path.contains(QLatin1String("..")) || path.contains(QLatin1Char(':')) || path.startsWith(QLatin1Char('/')) || path.startsWith(QLatin1Char('#'))) {
+            m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "charts the file does not hold"));
+            return false;
+        }
+        const QByteArray content = m_parts(path + QStringLiteral("/content.xml"));
+        if (content.isEmpty()) {
+            m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "charts the file does not hold"));
+            return false;
+        }
+        ++m_chartCount;
+        QByteArray part;
+        QString why;
+        QStringList notes;
+        if (!m_charts || !m_charts(content, &part, &why, &notes)) {
+            m_notRead.insert(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Ods", "charts that could not be read") : QCoreApplication::translate("jp::office::sheet::Ods", "charts that could not be read (%1)").arg(why));
+            return false;
+        }
+        for (const QString &n : std::as_const(notes)) m_notRead.insert(n);
+        p->chartPart = part;
+        p->name = frame->attrs.value(QStringLiteral("draw:name")).left(255);
+        if (const NodePtr t = childOf(frame, "svg:title")) p->title = t->texts.value(0).left(1000);
+        if (const NodePtr d = childOf(frame, "svg:desc")) p->description = d->texts.value(0).left(5000);
+        return true;
+    }
+
     bool textBox(const NodePtr &frame, const NodePtr &box, qint64 ox, qint64 oy, Placed *p)
     {
         auto item = std::make_shared<TextItem>();
@@ -643,6 +686,10 @@ private:
         for (const NodePtr &c : n->children) {
             Placed q;
             if (!shape(c, depth + 1, ox, oy, &q)) continue;
+            if (!q.item) {
+                m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "charts inside groups"));
+                continue;
+            }
             item->children.push_back(q.item);
             x0 = std::min(x0, q.x);
             y0 = std::min(y0, q.y);
@@ -668,7 +715,8 @@ private:
         if (name == QLatin1String("draw:frame")) {
             if (const NodePtr image = childOf(n, "draw:image")) ok = picture(n, image, ox, oy, p);
             else if (const NodePtr box = childOf(n, "draw:text-box")) ok = textBox(n, box, ox, oy, p);
-            else if (childOf(n, "draw:object") || childOf(n, "draw:object-ole")) return false;   // (a chart: said by the reader of the document)
+            else if (const NodePtr object = childOf(n, "draw:object")) ok = chart(n, object, ox, oy, p);
+            else if (childOf(n, "draw:object-ole")) return false;   // (an object of another program: said by the reader of the document)
             else m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "frames of a kind this program does not read"));
         } else if (name == QLatin1String("draw:custom-shape")) {
             ok = customShape(n, ox, oy, p);
@@ -801,7 +849,20 @@ private:
             return it == m_stories.end() ? nullptr : it->second.get();
         };
         ctx.nextShapeId = 2;
+        int chartNumber = 0;
         for (const Placed &p : placed) {
+            if (!p.chartPart.isEmpty()) {
+                const QString id = QStringLiteral("rIdC%1").arg(chartNumber + 1);
+                const QByteArray frame = QByteArray("<xdr:graphicFrame macro=\"\"><xdr:nvGraphicFramePr><xdr:cNvPr id=\"") + QByteArray::number(100000 + chartNumber) + "\" name=\"" + xmlText(p.name).toUtf8()
+                                         + "\" descr=\"" + xmlText(p.description).toUtf8() + "\" title=\"" + xmlText(p.title).toUtf8()
+                                         + "\"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></xdr:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">"
+                                           "<c:chart xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" r:id=\"" + id.toUtf8() + "\"/></a:graphicData></a:graphic></xdr:graphicFrame>";
+                m_out->anchors.push_back(anchorXml(anchorOf(p), frame));
+                m_out->rels.push_back({id, -1, int(m_out->charts.size())});
+                m_out->charts.push_back(p.chartPart);
+                ++chartNumber;
+                continue;
+            }
             QByteArray element;
             QBuffer buffer(&element);
             buffer.open(QIODevice::WriteOnly);
@@ -840,11 +901,11 @@ private:
 
 } // namespace
 
-void shapesToDrawing(const QVector<SheetShape> &shapes, const Counters &counters, const Grid &grid, const StyleLookup &styles, const std::function<QByteArray(const QString &)> &parts, Budget *budget,
-                     ImportedDrawing *out)
+void shapesToDrawing(const QVector<SheetShape> &shapes, const Counters &counters, const Grid &grid, const StyleLookup &styles, const std::function<QByteArray(const QString &)> &parts,
+                     const ChartMaker &charts, Budget *budget, ImportedDrawing *out)
 {
     *out = ImportedDrawing();
-    Converter c(grid, styles, parts, budget, out);
+    Converter c(grid, styles, parts, charts, budget, out);
     c.run(shapes, counters);
 }
 

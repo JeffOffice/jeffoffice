@@ -195,6 +195,38 @@ private Q_SLOTS:
         QTRY_COMPARE(objects->layer()->count(), 3);
     }
 
+    // An .ods with two charts shows them on the sheet as it opens, drawn from the cells they read.
+    void anOdsShowsItsChartsAtOnce()
+    {
+        auto chartDoc = [](const char *cls, const QString &title, const QString &values) {
+            return QStringLiteral("<office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" "
+                                  "xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" xmlns:draw=\"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0\" xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\" "
+                                  "xmlns:chart=\"urn:oasis:names:tc:opendocument:xmlns:chart:1.0\"><office:automatic-styles><style:style style:name=\"s1\" style:family=\"chart\"><style:graphic-properties draw:fill-color=\"#cc4400\"/></style:style>"
+                                  "</office:automatic-styles><office:body><office:chart><chart:chart chart:class=\"%1\" svg:width=\"5in\" svg:height=\"3in\"><chart:title><text:p>%2</text:p></chart:title><chart:legend chart:legend-position=\"end\"/>"
+                                  "<chart:plot-area><chart:axis chart:dimension=\"x\" chart:name=\"primary-x\"><chart:categories table:cell-range-address=\"S.A2:S.A5\"/></chart:axis><chart:axis chart:dimension=\"y\" chart:name=\"primary-y\"/>"
+                                  "<chart:series chart:values-cell-range-address=\"%3\" chart:label-cell-address=\"S.%4\" chart:class=\"%1\" chart:style-name=\"s1\"/></chart:plot-area></chart:chart></office:chart></office:body></office:document-content>")
+                .arg(QLatin1String(cls), title, values, values.mid(values.indexOf(QLatin1Char('.')) + 1, 1) + QStringLiteral("1"));
+        };
+        const QString shapes = QStringLiteral("<draw:frame draw:name=\"Bars\" svg:width=\"4in\" svg:height=\"2.5in\" svg:x=\"3in\" svg:y=\"0.3in\"><draw:object xlink:href=\"./Object 1\"/></draw:frame>"
+                                              "<draw:frame draw:name=\"Line\" svg:width=\"4in\" svg:height=\"2.5in\" svg:x=\"3in\" svg:y=\"3in\"><draw:object xlink:href=\"./Object 2\"/></draw:frame>");
+        QString rows = row(stringCell(QStringLiteral("Quarter")) + stringCell(QStringLiteral("Sales")) + stringCell(QStringLiteral("Costs")));
+        for (int i = 0; i < 4; ++i) rows += row(stringCell(QStringLiteral("Q%1").arg(i + 1)) + floatCell(10 + 7 * i) + floatCell(30 - 5 * i));
+        const QByteArray ods = buildOds(contentXml(QStringLiteral("<table:table table:name=\"S\"><table:shapes>") + shapes + QStringLiteral("</table:shapes>") + columns(3) + rows + QStringLiteral("</table:table>")),
+                                        QString(), QByteArray(), {{QStringLiteral("Object 1/content.xml"), chartDoc("chart:bar", QStringLiteral("Sales"), QStringLiteral("S.B2:S.B5")).toUtf8()},
+                                                                  {QStringLiteral("Object 2/content.xml"), chartDoc("chart:line", QStringLiteral("Costs"), QStringLiteral("S.C2:S.C5")).toUtf8()}});
+        Win o;
+        QVERIFY(o.open(ods, QStringLiteral("charts.ods")));
+        QVERIFY2(o.told.isEmpty(), qPrintable(o.told.join(QLatin1Char('\n'))));
+        crunch::SheetObjects *objects = o.w.objects();
+        QVERIFY(objects);
+        QTRY_COMPARE(int(objects->describe(0).size()), 2);
+        const auto described = objects->describe(0);
+        QCOMPARE(described[0].name, QStringLiteral("Bars"));
+        QCOMPARE(int(described[0].kind), int(office::sheet::ObjectKind::Chart));
+        QCOMPARE(int(described[1].kind), int(office::sheet::ObjectKind::Chart));
+        QTRY_COMPARE(objects->layer()->count(), 2);
+    }
+
     // What the document has that is not read is said once, in plain words, as it opens.
     void whatIsNotReadIsSaid()
     {

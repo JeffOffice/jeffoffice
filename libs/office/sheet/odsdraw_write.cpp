@@ -1,6 +1,7 @@
 // The drawing of a sheet (a part of the XML form, read by the shared drawing code into its own objects: core/items.h) as the elements of an OpenDocument spreadsheet's `table:shapes` (see
 // odsdraw.h): a picture is a frame with an image, a shape a custom shape, a text box a frame with a text box, Text Art a fontwork custom shape, a line a line, a group a group.
 
+#include "sheet/odschart.h"
 #include "sheet/odsdraw.h"
 #include "sheet/odsdraw_p.h"
 
@@ -8,6 +9,7 @@
 #include "office/drawingml.h"
 #include "office/drawingml_write.h"
 #include "office/package.h"
+#include "office/chart.h"
 #include "office/theme.h"
 #include "office/xml.h"
 
@@ -34,8 +36,9 @@ QString decimal(double v) { return QString::number(v, 'g', 10); }
 
 class Writer {
 public:
-    Writer(const Package &package, const QString &mainPart, const QString &drawingPart, const Grid &grid, const QString &sheetRef, int sheetNumber, Written *out, qint64 *pictureBytes, qint64 *objects)
-        : m_package(package), m_drawingPart(drawingPart), m_grid(grid), m_sheetRef(sheetRef), m_number(sheetNumber), m_out(out), m_pictureBytes(pictureBytes), m_objects(objects)
+    Writer(const Package &package, const QString &mainPart, const QString &drawingPart, const Grid &grid, const QString &sheetRef, int sheetNumber, Written *out, qint64 *pictureBytes, qint64 *objects,
+           int *chartNumber)
+        : m_package(package), m_drawingPart(drawingPart), m_grid(grid), m_sheetRef(sheetRef), m_number(sheetNumber), m_out(out), m_pictureBytes(pictureBytes), m_objects(objects), m_chartNumber(chartNumber)
     {
         m_scheme = builtinColorSchemes().value(0);
         m_theme = defaultTheme();
@@ -95,7 +98,17 @@ public:
         int z = 0;
         for (const DrawingObject &o : std::as_const(drawing.objects)) {
             if (o.kind == ObjectKind::Chart) {
-                note(QCoreApplication::translate("Sheet", "charts"));
+                const QString xml = chartFrame(o, z);
+                if (xml.isEmpty()) continue;
+                ++z;
+                ++*m_objects;
+                ++m_out->count;
+                m_out->shapes += xml;
+                quint32 bottom = 0;
+                qint64 inRow = 0, x = 0, y = 0, cx = 0, cy = 0;
+                m_grid.boxOf(o.anchor, &x, &y, &cx, &cy);
+                m_grid.rowAt(y + cy, &bottom, &inRow);
+                m_out->lastRow = std::max(m_out->lastRow, bottom);
                 continue;
             }
             if (o.kind == ObjectKind::Diagram || o.kind == ObjectKind::Other) {
@@ -142,6 +155,8 @@ private:
     Written *m_out;
     qint64 *m_pictureBytes;
     qint64 *m_objects;
+    int *m_chartNumber;
+    int m_charts = 0;   // the charts of this sheet
     ColorScheme m_scheme;
     Theme m_theme;
     QDomDocument m_themeDoc;
@@ -386,6 +401,41 @@ private:
         return file;
     }
 
+    // A chart: its part is read into the chart model and written as the chart document of the frame's object (`Object N`).
+    QString chartFrame(const DrawingObject &o, int z)
+    {
+        if (*m_objects >= kMaxWorkbookObjects) {
+            note(QCoreApplication::translate("Sheet", "drawing objects past the %1 a workbook may have").arg(kMaxWorkbookObjects));
+            return QString();
+        }
+        if (m_charts >= odschart::kMaxChartsPerSheet) {
+            note(QCoreApplication::translate("Sheet", "charts past the %1 a sheet may have").arg(odschart::kMaxChartsPerSheet));
+            return QString();
+        }
+        if (o.chartPart.isEmpty() || m_package.partSize(o.chartPart) > odschart::kMaxPartBytes) {
+            note(QCoreApplication::translate("Sheet", "charts the file does not hold, or larger than a chart may be"));
+            return QString();
+        }
+        jp::office::Chart chart;
+        QString why;
+        if (!jp::office::readChart(m_package.part(o.chartPart), m_theme, ColorMap(), &chart, &why)) {
+            note(QCoreApplication::translate("Sheet", "charts that could not be read"));
+            return QString();
+        }
+        qint64 x = 0, y = 0, cx = 0, cy = 0;
+        m_grid.boxOf(o.anchor, &x, &y, &cx, &cy);
+        QStringList notes;
+        const QByteArray content = odschart::chartToOdf(chart, std::max<qint64>(cx, 1), std::max<qint64>(cy, 1), &notes);
+        for (const QString &n : std::as_const(notes)) note(n);
+        ++m_charts;
+        const QString name = QStringLiteral("Object %1").arg(++*m_chartNumber);
+        m_out->objects.push_back({name + QStringLiteral("/content.xml"), content});
+        QString titles;
+        if (!o.description.isEmpty()) titles += QStringLiteral("<svg:desc>%1</svg:desc>").arg(xmlText(o.description));
+        return QStringLiteral("<draw:frame draw:name=\"%1\" draw:z-index=\"%2\"%3%4><draw:object xlink:href=\"./%5\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>%6</draw:frame>")
+            .arg(xmlText(o.name), QString::number(z), geometry(double(x), double(y), double(std::max<qint64>(cx, 1)), double(std::max<qint64>(cy, 1)), 0), anchoring(&o.anchor), name, titles);
+    }
+
     // ---- the kinds
     QString emit(const Item &item, double x, double y, double w, double h, int depth, const DrawingAnchor *anchor, int z)
     {
@@ -533,9 +583,10 @@ private:
 
 } // namespace
 
-void drawingToShapes(const Package &package, const QString &mainPart, const QString &drawingPart, const Grid &grid, const QString &sheetRef, int sheetNumber, Written *out, qint64 *pictureBytes, qint64 *objects)
+void drawingToShapes(const Package &package, const QString &mainPart, const QString &drawingPart, const Grid &grid, const QString &sheetRef, int sheetNumber, Written *out, qint64 *pictureBytes, qint64 *objects,
+                     int *chartNumber)
 {
-    Writer w(package, mainPart, drawingPart, grid, sheetRef, sheetNumber, out, pictureBytes, objects);
+    Writer w(package, mainPart, drawingPart, grid, sheetRef, sheetNumber, out, pictureBytes, objects, chartNumber);
     w.run();
 }
 

@@ -52,6 +52,7 @@ QString canonicalName(const QString &uri, const QString &local)
         {QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:text:1.0"), QStringLiteral("text")},
         {QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:office:1.0"), QStringLiteral("office")},
         {QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"), QStringLiteral("draw")},
+        {QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:chart:1.0"), QStringLiteral("chart")},
         {QStringLiteral("urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0"), QStringLiteral("calcext")},
         {QStringLiteral("http://openoffice.org/2009/table"), QStringLiteral("tableooo")},
         {QStringLiteral("urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"), QStringLiteral("loext")},

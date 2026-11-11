@@ -7,6 +7,8 @@
 #include "office/package.h"
 #include "office/xmlstream.h"
 #include "sheet/cellref.h"
+#include "office/chart_write.h"
+#include "sheet/odschart.h"
 #include "sheet/odsdraw.h"
 #include "sheet/odsformula.h"
 #include "sheet/odsstyles.h"
@@ -83,7 +85,7 @@ struct Found {
     QVector<NamedItem> names;
     QHash<QString, QHash<QString, QString>> sheetViews;   // by sheet name: the items of its view settings
     QHash<QString, QString> viewItems;                    // the view's own (ActiveTable, ShowGrid)
-    bool charts = false, drawings = false, comments = false, pivots = false, macros = false, conditional = false, validation = false, hyperlinks = false;
+    bool charts = false, oleObjects = false, drawings = false, comments = false, pivots = false, macros = false, conditional = false, validation = false, hyperlinks = false;
     QString nullDate = QStringLiteral("1899-12-30");
     bool iterate = false;
     // What a style may have of one thing at the most (4,000 settings; 1,000 parts of a number format) and the document had more of: said in the notice, not dropped without a word.
@@ -157,7 +159,8 @@ private:
             return true;
         }
         if (ns == NS_DRAW) {
-            if (name == QLatin1String("object") || name == QLatin1String("object-ole")) m_f.charts = true;
+            if (name == QLatin1String("object")) m_f.charts = true;
+            else if (name == QLatin1String("object-ole")) m_f.oleObjects = true;
             else if (m_spreadsheetDepth > 0 && !isReadDrawingElement(name))
                 m_f.drawings = true;   // (a drawing element that is not read: a form control, a freehand shape, a callout)
             return true;
@@ -226,6 +229,7 @@ private:
         if (name == QLatin1String("paragraph-properties")) return QStringLiteral("para");
         if (name == QLatin1String("table-column-properties")) return QStringLiteral("col");
         if (name == QLatin1String("table-row-properties")) return QStringLiteral("row");
+        if (name == QLatin1String("chart-properties")) return QStringLiteral("chart");
         if (name == QLatin1String("graphic-properties")) return QStringLiteral("graphic");
         if (name == QLatin1String("table-properties")) return QStringLiteral("table");
         return QString();
@@ -762,6 +766,7 @@ struct OdsBook::Impl {
     mutable QVector<qint64> mergesLeftOut;     // by sheet: the merged ranges past the most a sheet keeps, when the sheet has been read whole (else 0)
     mutable QVector<qint64> drawnObjects, drawnBytes;   // by sheet: the drawing objects and the picture bytes it holds, when it has been read whole (a sheet read again is counted once)
     std::shared_ptr<Package> package;          // (the pictures of the sheets' drawings are in it)
+    bool chartDocuments = false;               // the package has documents of embedded objects (the charts)
     int maxDigitWidth = 7;
     Limits limits;
 };
@@ -874,7 +879,7 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
                 }
         }
         for (const QString &p : package.partNames()) {
-            if (p.endsWith(QLatin1String("/content.xml")) && p != QLatin1String("/content.xml")) m.found.charts = true;
+            if (p.endsWith(QLatin1String("/content.xml")) && p != QLatin1String("/content.xml")) m.chartDocuments = true;
         }
     }
     if (!flat) m.package = std::make_shared<Package>(package);
@@ -1016,7 +1021,8 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
         if (m.shapes[i].name == active) info->activeTab = i;
     if (info->activeTab < info->sheets.size() && info->sheets[info->activeTab].state != SheetState::Visible) info->activeTab = 0;
     // what is not read
-    if (m.found.charts) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "charts");
+    // (a chart is read when the file holds its document; a chart object with none, and an object of another kind, is said not to be)
+    if ((m.found.charts && !m.chartDocuments) || m.found.oleObjects) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "charts");
     if (m.found.drawings) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "form controls, freehand shapes, and callouts");
     if (m.found.pivots) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "pivot tables");
     if (m.found.comments) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "comments");
@@ -1783,7 +1789,16 @@ private:
             ++odsdraw::testHooks().pictureReads;
             return m_m.package->part(part);
         };
-        odsdraw::shapesToDrawing(m_shapes, m_drawCounters, grid, styles, parts, &budget, &m_s.importedDrawing);
+        // (a chart's document: its styles are read as the spreadsheet's are, and it is made into a chart part)
+        const odsdraw::ChartMaker charts = [this](const QByteArray &content, QByteArray *part, QString *error, QStringList *notes) {
+            ods::StyleStore store;
+            if (!odschart::parseStyles(content, m_limits, &store, error)) return false;
+            jp::office::Chart chart;
+            if (!odschart::chartFromOdf(content, store, &m_m.renames, &chart, error, notes)) return false;
+            *part = jp::office::writeChartPart(chart);
+            return !part->isEmpty();
+        };
+        odsdraw::shapesToDrawing(m_shapes, m_drawCounters, grid, styles, parts, charts, &budget, &m_s.importedDrawing);
         if (m_shapesOver) m_s.importedDrawing.notRead << QCoreApplication::translate("jp::office::sheet::Ods", "drawing objects past the %1 a sheet may have").arg(kMaxDrawingAnchors);
         {
             QMutexLocker locker(&m_m.lock);
@@ -1909,6 +1924,18 @@ bool OdsBook::readSheet(int index, const Limits &limits, const std::function<boo
         if (index < m->mergesLeftOut.size()) m->mergesLeftOut[index] = std::max<qint64>(0, out->mergeCount - qint64(out->merges.size()));
     }
     return done;
+}
+
+bool odschart::parseStyles(const QByteArray &content, const Limits &limits, ods::StyleStore *store, QString *error)
+{
+    Found found;
+    DocumentParser parser(&found, limits);
+    QBuffer buffer;
+    buffer.setData(content);
+    buffer.open(QIODevice::ReadOnly);
+    if (!parser.parse(&buffer, error)) return false;
+    *store = found.store;
+    return true;
 }
 
 bool OdsBook::mayHaveDrawings(int index) const

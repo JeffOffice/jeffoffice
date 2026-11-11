@@ -152,7 +152,7 @@ QStringList Features::result() const
             else if (l.contains(QLatin1String("slicer")) || l.contains(QLatin1String("timeline"))) slicers = true;
             else if (l.contains(QLatin1String("ctrlprop"))) controls = true;
         }
-        if (charts) add(QT_TRANSLATE_NOOP("Sheet", "charts"));
+        if (charts && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "charts"));   // (an .ods copy writes them: odschart.h)
         if ((drawings || media) && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "pictures and other drawing objects"));   // (an .ods copy writes them: odsdraw.h)
         if (pivots) add(QT_TRANSLATE_NOOP("Sheet", "pivot tables"));
         if (notes && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "notes"));

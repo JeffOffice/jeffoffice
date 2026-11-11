@@ -204,6 +204,7 @@ public:
         zip.write(tail.constData(), tail.size());
         zip.endStream();
         for (const auto &picture : std::as_const(m_pictures)) zip.add(picture.first, picture.second, false);
+        for (const auto &object : std::as_const(m_objectFiles)) zip.add(object.first, object.second, true);
         zip.add(QStringLiteral("styles.xml"), stylesXml().toUtf8(), true);
         zip.add(QStringLiteral("settings.xml"), settingsXml().toUtf8(), true);
         zip.add(QStringLiteral("meta.xml"), (QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document-meta") + QLatin1String(kNamespaces)
@@ -257,6 +258,8 @@ private:
     QSet<QString> m_pictureNames;
     QString m_commonStyles;
     qint64 m_pictureBytes = 0, m_objects = 0;
+    int m_chartNumber = 0;
+    QVector<QPair<QString, QByteArray>> m_objectFiles;   // the documents of the charts (Object N/content.xml)
     quint32 m_lastObjectRow = 0;   // the last row an object of the sheet being written reaches
     QStringList m_drawingNotes;
     std::vector<oldsave::Written> m_written;
@@ -308,6 +311,12 @@ private:
     QByteArray pictureEntries() const
     {
         QByteArray x;
+        for (const auto &object : m_objectFiles) {
+            const QString dir = object.first.left(object.first.indexOf(QLatin1Char('/')) + 1);
+            if (object.first.endsWith(QLatin1String("/content.xml")))
+                x += "<manifest:file-entry manifest:full-path=\"" + esc(dir).toUtf8() + "\" manifest:media-type=\"application/vnd.oasis.opendocument.chart\"/>";
+            x += "<manifest:file-entry manifest:full-path=\"" + esc(object.first).toUtf8() + "\" manifest:media-type=\"text/xml\"/>";
+        }
         for (const auto &picture : m_pictures) {
             const QString ext = picture.first.mid(picture.first.lastIndexOf(QLatin1Char('.')) + 1);
             const char *known = odt::contentTypeOf(ext);
@@ -341,7 +350,8 @@ private:
         const QString part = drawingPartOf(m_book.package(), m_book.info().sheets.value(place).part);
         if (part.isEmpty()) return QString();
         odsdraw::Written drawn;
-        odsdraw::drawingToShapes(m_book.package(), m_book.mainPart(), part, gridOf(sheet), quoteSheet(w.name), index + 1, &drawn, &m_pictureBytes, &m_objects);
+        odsdraw::drawingToShapes(m_book.package(), m_book.mainPart(), part, gridOf(sheet), quoteSheet(w.name), index + 1, &drawn, &m_pictureBytes, &m_objects, &m_chartNumber);
+        for (const auto &object : drawn.objects) m_objectFiles.push_back(object);
         m_styleXml += drawn.styles;
         m_commonStyles += drawn.commonStyles;
         for (const auto &picture : drawn.pictures)
