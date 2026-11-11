@@ -324,6 +324,11 @@ public:
     // Not saved: how many charts the last JSON read kept only as the pictures they are drawn as (a file holds so many charts, of so many bytes: core/chartobject.h).
     int chartsKeptAsPictures = 0;
     int imagesLeftOut = 0;
+    // A publication holds at most kMaxEquations equations (objects of ItemType::Equation, groups' too) and kMaxEquationMarkupBytes of their markup in all; fromJson leaves the ones past
+    // either out, and counts them here (the window says so when it opens the file).
+    static constexpr int kMaxEquations = 2000;
+    static constexpr qint64 kMaxEquationMarkupBytes = qint64(16) << 20;
+    int equationsLeftOut = 0;
     // The most bytes the pictures' decodes kept in `images` come to. Past it,
     // the decodes of the pictures used longest ago are dropped (to three
     // quarters of it), and made again when drawn.

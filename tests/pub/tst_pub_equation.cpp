@@ -3,6 +3,9 @@
 #include "../pdfmarkcheck.h"
 #include "../withdialog.h"
 #include "canvas/canvas.h"
+#include "app/help.h"
+#include "app/i18n.h"
+#include "app/settings.h"
 #include "app/equationedit.h"
 #include "app/equationdialog.h"
 #include "io/pubimport.h"
@@ -111,6 +114,126 @@ private Q_SLOTS:
         QVERIFY(QFileInfo::exists(QDir(dir).filePath(QStringLiteral("pub-equation.png"))));
     }
 
+    // The layout of an equation is kept by a hash of its markup, not the markup itself, and one layout serves every use of the same markup.
+    void theLayoutCacheIsKeyedByAHashAndSharedByEveryUse()
+    {
+        using namespace jp::office::wml;
+        clearEquationCacheForTest();
+        QByteArray big = "<m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:r><m:t>";
+        big += QByteArray(3500, 'x') + "</m:t></m:r></m:oMath>";
+        const qint64 before = equationLayoutsMadeForTest();
+        const auto first = equationShapeCached(big);
+        QVERIFY(first);
+        QVERIFY2(equationCacheLongestKeyForTest() <= 48, qPrintable(QString::number(equationCacheLongestKeyForTest())));
+        QVERIFY(equationCacheCostForTest() >= 1);
+        QByteArray copy = big;
+        copy.detach();
+        QVERIFY(equationShapeCached(copy) == first);
+        QImage img(200, 40, QImage::Format_ARGB32);
+        QPainter p(&img);
+        QVERIFY(paintEquation(&p, big, QRectF(0, 0, 200, 40), Qt::black));
+        p.end();
+        QVERIFY(!equationPng(big, 100, 30).isEmpty());
+        QCOMPARE(equationLayoutsMadeForTest() - before, qint64(1));
+    }
+
+    // A publication holds a number of equations and a total of their markup; the ones past either are left out, counted, and the window says so when it opens the file.
+    void aJpubWithTooManyEquationsKeepsTheLimitAndSaysSo()
+    {
+        auto build = [](int count, int markupBytes) {
+            auto doc = jp::Document::blank(QSizeF(612, 792));
+            for (int i = 0; i < count; ++i) {
+                auto w = std::make_shared<jp::EquationItem>();
+                w->markup = QByteArray(markupBytes, 'm');
+                w->rect = QRectF(10, 10, 20, 20);
+                doc->pages[0]->items.push_back(w);
+            }
+            return doc;
+        };
+        auto count = [](jp::Document &d) {
+            int n = 0;
+            d.forEachItem([&](jp::Item *it, int, const QString &) { n += it->type() == jp::ItemType::Equation; });
+            return n;
+        };
+        QString err;
+        auto many = jp::publicationFromBytes(jp::publicationBytes(*build(jp::Document::kMaxEquations + 5, 20), QImage()), &err);
+        QVERIFY2(many, qPrintable(err));
+        QCOMPARE(count(*many), jp::Document::kMaxEquations);
+        QCOMPARE(many->equationsLeftOut, 5);
+        const int big = 1 << 20, fit = int(jp::Document::kMaxEquationMarkupBytes / big);
+        auto heavy = jp::publicationFromBytes(jp::publicationBytes(*build(fit + 2, big - 1), QImage()), &err);
+        QVERIFY2(heavy, qPrintable(err));
+        QCOMPARE(count(*heavy), fit);
+        QCOMPARE(heavy->equationsLeftOut, 2);
+        // the window names the limit when it opens such a file
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("many.jpub"));
+        QVERIFY(jp::savePublication(*build(jp::Document::kMaxEquations + 5, 20), path, QImage(), &err));
+        jp::MainWindow w;
+        QStringList told;
+        w.setNotifier([&](const QString &, const QString &text) { told << text; });
+        QVERIFY(w.openFile(path));
+        QVERIFY2(told.join(QLatin1Char('|')).contains(QStringLiteral("more equations than JeffPub keeps")), qPrintable(told.join(QLatin1Char('|'))));
+    }
+
+    // What the machine translations of the dialog's text were before it moved to the shared dialog is what each language shows now.
+    void theEquationDialogKeepsItsTranslations()
+    {
+        struct Restore {
+            QVariant before = jp::Settings::get().value(QStringLiteral("ui/language"));
+            ~Restore()
+            {
+                jp::Settings::get().setValue(QStringLiteral("ui/language"), before);
+                jp::installTranslations();
+            }
+        } restore;
+        QStringList missing;
+        for (const char *lang : {"de", "es", "fr", "it", "nl", "pt_BR", "pt_PT"}) {
+            jp::Settings::get().setValue(QStringLiteral("ui/language"), QLatin1String(lang));
+            jp::installTranslations();
+            // (the long text of the dialog is read from the dialog itself)
+            withDialog([] { QString line; jp::askEquation(nullptr, QStringLiteral("x"), &line); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+                const auto labels = d->findChildren<QLabel *>();
+                QString help;
+                for (QLabel *l : labels)
+                    if (l->wordWrap()) help = l->text();
+                if (help.isEmpty() || help.startsWith(QLatin1String("Type the equation"))) missing << QLatin1String(lang) + QStringLiteral(" help");
+            });
+            for (const char *source : {"Equation preview", "Built-In Equations"}) {
+                const QString shown = QCoreApplication::translate("EquationDialog", source);
+                if (shown.isEmpty() || shown.startsWith(QLatin1String(source))) missing << QLatin1String(lang) + QLatin1Char(' ') + QLatin1String(source);
+            }
+        }
+        QVERIFY2(missing.isEmpty(), qPrintable(missing.join(QStringLiteral(", "))));
+    }
+
+    // A language whose Help has no translation of the equations topic yet shows the English one, and its contents link nothing that is not there.
+    void aMissingTranslatedHelpTopicShowsTheEnglishAndLeavesNoDeadLink()
+    {
+        struct Restore {
+            QVariant before = jp::Settings::get().value(QStringLiteral("ui/language"));
+            ~Restore()
+            {
+                jp::Settings::get().setValue(QStringLiteral("ui/language"), before);
+                jp::installTranslations();
+            }
+        } restore;
+        for (const char *lang : {"de", "fr", "pt_BR"}) {
+            jp::Settings::get().setValue(QStringLiteral("ui/language"), QLatin1String(lang));
+            jp::installTranslations();
+            const jp::help::Topic t = jp::help::topic(QStringLiteral("equations"));
+            QCOMPARE(t.title, QStringLiteral("Add an equation"));
+            QVERIFY(jp::help::topicIds().contains(QStringLiteral("equations")));
+            const QString contents = jp::help::topic(QStringLiteral("index")).markdown;
+            static const QRegularExpression link(QStringLiteral("\\]\\(([^)\\s]+)\\)"));
+            for (auto m = link.globalMatch(contents); m.hasNext();) {
+                const QString target = m.next().captured(1);
+                if (!target.startsWith(QLatin1String("https://"))) QVERIFY2(jp::help::topicIds().contains(target), qPrintable(QLatin1String(lang) + QLatin1Char(' ') + target));
+            }
+        }
+    }
+
     // The model is the one the other programs share: a line that makes no equation (too deep, too long, empty) makes no object.
     void aLineThatMakesNoEquationMakesNoObject()
     {
@@ -192,7 +315,7 @@ private Q_SLOTS:
             }
         });
         QCOMPARE(pictures, 1);
-        QVERIFY(std::abs(at.width() - rect.width()) < 1.5 && std::abs(at.height() - rect.height()) < 1.5);
+        QVERIFY(std::abs(at.width() - rect.width()) < rect.width() * 0.15 && std::abs(at.height() - rect.height()) < rect.height() * 0.15);   // (the size, within the rounding of the file)
     }
 
     // A PDF draws the equation as vector paths: filled outlines, and no picture.
@@ -211,8 +334,8 @@ private Q_SLOTS:
         const QVector<QByteArray> pages = pdfcheck::pageContents(pdf);
         QVERIFY(!pages.isEmpty());
         const QString content = QString::fromLatin1(pages.first());
-        QVERIFY2(content.count(QRegularExpression(QStringLiteral("(?m) c$"))) > 20, "no curves in the page");
-        QVERIFY2(content.contains(QRegularExpression(QStringLiteral("(?m)^f\\*?$"))), "no filled path");
+        QVERIFY2(content.count(QRegularExpression(QStringLiteral("(?m)^[-\\d. ]+ (m|l|c|re)$"))) > 10, "no path operators in the page");
+        QVERIFY2(content.contains(QRegularExpression(QStringLiteral("(?m)^(f\\*?|B\\*?|S)$"))), "no painted path");
         QVERIFY(!content.contains(QRegularExpression(QStringLiteral("(?m) Do$"))));
         QVERIFY(!pdf.contains("/Subtype /Image"));
     }

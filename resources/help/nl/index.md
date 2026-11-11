@@ -20,7 +20,6 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht om uit 
 - [Opsommingstekens, nummering en tabs](lists-tabs)
 - [Stijlen gebruiken](styles)
 - [Tekstopmaak toevoegen](text-art)
-- [Een vergelijking toevoegen](equations)
 - [Tabellen maken en bewerken](tables)
 - [Inhoudsopgave, voetnoten en eindnoten](references)
 - [Spelling, synoniemenlijst, onderzoek en woordafbreking](proofing)

@@ -46498,16 +46498,6 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Editar Equação</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Type the equation in a line. Use a/b for a fraction, x^2 for a power, x_i for a subscript, sqrt(x) for a root, and a backslash and a name for a symbol, such as \alpha, \pi, \infty, \leq, or \times. Write \sum_(i=1)^n, \int_0^1, or \prod for a sum, an integral, or a product with limits. Use \hat{x}, \vec{v}, or \bar{x} for an accent, \overline{x} for a bar, \left( ... \right) for brackets that grow, and \pmatrix{a &amp; b \\ c &amp; d} for a matrix.</source>
-        <translation type="unfinished">Digite a equação em uma linha. Use a/b para fração, x^2 para potência, x_i para subscrito, sqrt(x) para raiz, e uma barra invertida e um nome para um símbolo, como \alpha, \pi, \infty, \leq ou \times. Escreva \sum_(i=1)^n, \int_0^1 ou \prod para uma soma, uma integral ou um produto com limites. Use \hat{x}, \vec{v} ou \bar{x} para um acento, \overline{x} para uma barra, \left( ... \right) para colchetes que crescem, e \pmatrix{a &amp; b \\ c &amp; d} para uma matriz.</translation>
-    </message>
-    <message>
-        <location line="+14"/>
-        <source>Equation preview</source>
-        <translation type="unfinished">Pré-visualização da equação</translation>
-    </message>
-    <message>
         <location line="+16"/>
         <source>This equation can&apos;t be changed.</source>
         <translation type="unfinished">Esta equação não pode ser alterada.</translation>
@@ -63275,6 +63265,29 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <source>Legend at Bottom</source>
         <translation type="unfinished">Legenda na Parte Inferior</translation>
+    </message>
+</context>
+<context>
+    <name>EquationDialog</name>
+    <message>
+        <location filename="../libs/shell/app/equationdialog.cpp" line="43"/>
+        <source>Type the equation in a line. Use a/b for a fraction, x^2 for a power, x_i for a subscript, sqrt(x) for a root, and a backslash and a name for a symbol, such as \alpha, \pi, \infty, \leq, or \times. Write \sum_(i=1)^n, \int_0^1, or \prod for a sum, an integral, or a product with limits. Use \hat{x}, \vec{v}, or \bar{x} for an accent, \overline{x} for a bar, \left( ... \right) for brackets that grow, and \pmatrix{a &amp; b \\ c &amp; d} for a matrix.</source>
+        <translation type="unfinished">Digite a equação em uma linha. Use a/b para fração, x^2 para potência, x_i para subscrito, sqrt(x) para raiz, e uma barra invertida e um nome para um símbolo, como \alpha, \pi, \infty, \leq ou \times. Escreva \sum_(i=1)^n, \int_0^1 ou \prod para uma soma, uma integral ou um produto com limites. Use \hat{x}, \vec{v} ou \bar{x} para um acento, \overline{x} para uma barra, \left( ... \right) para colchetes que crescem, e \pmatrix{a &amp; b \\ c &amp; d} para uma matriz.</translation>
+    </message>
+    <message>
+        <location filename="../libs/shell/app/equationdialog.cpp" line="52"/>
+        <source>Built-In Equations</source>
+        <translation type="unfinished">Equações Predefinidas</translation>
+    </message>
+    <message>
+        <location filename="../libs/shell/app/equationdialog.cpp" line="62"/>
+        <source>Equation as drawn</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../libs/shell/app/equationdialog.cpp" line="69"/>
+        <source>Equation preview</source>
+        <translation type="unfinished">Pré-visualização da equação</translation>
     </message>
 </context>
 </TS>

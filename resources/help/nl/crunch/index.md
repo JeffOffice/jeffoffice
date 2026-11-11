@@ -38,7 +38,6 @@ Typ in het zoekvak hierboven om een onderwerp te vinden, of een opdracht die u w
 - [Een functie invoegen](insert-function)
 - [Een functie invoeren met het dialoogvenster Functieargumenten](function-arguments)
 - [Grafieken, afbeeldingen en vormen](charts)
-- [Vergelijkingen](equations)
 - [Notities en koppelingen](notes-links)
 - [Een blad of de werkmap beveiligen](protect)
 

@@ -20,7 +20,6 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 - [Elenchi puntati, numerati e tabulazioni](lists-tabs)
 - [Usare gli stili](styles)
 - [Aggiungere testo artistico](text-art)
-- [Aggiungere un'equazione](equations)
 - [Creare e modificare le tabelle](tables)
 - [Sommario, note a piè di pagina e note di chiusura](references)
 - [Controllo ortografia, thesaurus, ricerche e sillabazione](proofing)

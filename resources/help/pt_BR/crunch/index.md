@@ -38,7 +38,6 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Inserir uma função](insert-function)
 - [Inserir uma função com a caixa de diálogo Argumentos da Função](function-arguments)
 - [Gráficos, imagens e formas](charts)
-- [Equações](equations)
 - [Anotações e links](notes-links)
 - [Proteger uma planilha ou a pasta de trabalho](protect)
 

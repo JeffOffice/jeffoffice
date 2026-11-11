@@ -7,6 +7,10 @@
 #include "wml/xmltree.h"
 
 #include <QBuffer>
+#include <QCache>
+#include <QCryptographicHash>
+#include <QMutex>
+#include <atomic>
 #include <QFont>
 #include <QImage>
 #include <QPainter>
@@ -832,10 +836,57 @@ EquationShape equationShape(const QByteArray &markup, double emSize, const QStri
     return out;
 }
 
+namespace {
+std::atomic<qint64> s_layouts{0};
+QMutex s_cacheLock;
+QCache<QByteArray, std::shared_ptr<const EquationShape>> &cache()
+{
+    static QCache<QByteArray, std::shared_ptr<const EquationShape>> c(int(kEquationCacheBytes >> 10));   // (kilobytes)
+    return c;
+}
+} // namespace
+
+std::shared_ptr<const EquationShape> equationShapeCached(const QByteArray &markup, double emSize)
+{
+    const QByteArray key = QCryptographicHash::hash(markup, QCryptographicHash::Sha1) + QByteArray::number(emSize, 'g', 8);
+    {
+        QMutexLocker lock(&s_cacheLock);
+        if (auto *hit = cache().object(key)) return *hit;
+    }
+    ++s_layouts;
+    auto made = std::make_shared<const EquationShape>(equationShape(markup, emSize));
+    if (!made->valid()) made = nullptr;
+    QMutexLocker lock(&s_cacheLock);
+    // (the cost is the key, the path's elements, and what the shape itself takes; at least a kilobyte)
+    const qint64 cost = qint64(key.size()) + (made ? qint64(made->path.elementCount()) * 24 + qint64(sizeof(EquationShape)) : 64);
+    cache().insert(key, new std::shared_ptr<const EquationShape>(made), int(cost / 1024) + 1);
+    return made;
+}
+
+qint64 equationLayoutsMadeForTest() { return s_layouts.load(); }
+qint64 equationCacheLongestKeyForTest()
+{
+    QMutexLocker lock(&s_cacheLock);
+    qint64 longest = 0;
+    for (const QByteArray &k : cache().keys()) longest = std::max<qint64>(longest, k.size());
+    return longest;
+}
+qint64 equationCacheCostForTest()
+{
+    QMutexLocker lock(&s_cacheLock);
+    return cache().totalCost();
+}
+void clearEquationCacheForTest()
+{
+    QMutexLocker lock(&s_cacheLock);
+    cache().clear();
+}
+
 bool paintEquation(QPainter *painter, const QByteArray &markup, const QRectF &box, const QColor &color)
 {
-    const EquationShape shape = equationShape(markup, 24);
-    if (!shape.valid() || box.isEmpty()) return false;
+    const auto cached = equationShapeCached(markup);
+    if (!cached || box.isEmpty()) return false;
+    const EquationShape &shape = *cached;
     const double k = std::min(box.width() / shape.box.width(), box.height() / shape.box.height());
     painter->save();
     painter->setRenderHint(QPainter::Antialiasing);

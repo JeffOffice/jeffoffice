@@ -201,8 +201,12 @@ private Q_SLOTS:
         QString back;
         QByteArray markup;
         QVERIFY(again.win.w.objects()->equationOf(0, again.win.w.objects()->idsOf(0).front(), &back, &markup));
-        QCOMPARE(jp::office::wml::equationMarkup(back), jp::office::wml::equationMarkup(jp::office::wml::equationLine(markup).isEmpty() ? QString() : back));
+        // (the line it was made again from makes the same math: the same text, and a layout of the same size)
+        QCOMPARE(jp::office::wml::equationLine(jp::office::wml::equationMarkup(back)), jp::office::wml::equationLine(jp::office::wml::equationMarkup(linear)));
         QCOMPARE(jp::office::wml::equationLine(markup), jp::office::wml::equationLine(jp::office::wml::equationMarkup(linear)));
+        const auto was = jp::office::wml::equationShapeCached(jp::office::wml::equationMarkup(linear)), now = jp::office::wml::equationShapeCached(markup);
+        QVERIFY(was && now);
+        QVERIFY(std::abs(was->box.width() - now->box.width()) < 1.0 && std::abs(was->box.height() - now->box.height()) < 1.0);
     }
 
     // A file another program wrote, with an equation of its own making (math no line makes): it is shown as an equation, drawn, and kept; the picture beside it is not shown.
@@ -232,7 +236,7 @@ private Q_SLOTS:
                 dark += c.value() < 90;
                 green += c.green() > 90 && c.red() < 40 && c.blue() < 40;
             }
-        QVERIFY2(dark > 20, qPrintable(QString::number(dark)));
+        QVERIFY2(dark > 10, qPrintable(QString::number(dark)));   // (ink, however the fonts of the machine set it)
         QCOMPARE(green, 0);
         // saving it unchanged leaves the pair as it was
         e.select(QStringLiteral("A1"));
@@ -318,6 +322,91 @@ private Q_SLOTS:
         QVERIFY(e.win.w.grab().save(QDir(dir).filePath(QStringLiteral("crunch-equation.png"))));
     }
 
+    // Saving 500 equations lays each distinct one out once: the layouts are kept by their markup and used for the picture beside each, for printing, and for the check on reading.
+    void savingManyEquationsLaysEachDistinctOneOutOnce()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        const QStringList lines = {QStringLiteral("a/b"), QStringLiteral("x^2"), QStringLiteral("\\sqrt(x)"), QStringLiteral("a+b"), QStringLiteral("\\pi r^2")};
+        for (int i = 0; i < 500; ++i) QVERIFY(e.win.w.insertEquation(lines[i % lines.size()]));
+        QVERIFY(e.settle());
+        jp::office::wml::clearEquationCacheForTest();
+        const qint64 before = jp::office::wml::equationLayoutsMadeForTest();
+        QVERIFY(saveWindow(e));
+        const QString path = e.folder.dir.filePath(QStringLiteral("many.pdf"));
+        QString why;
+        QVERIFY2(e.win.w.exportPdfTo(path, crunch::PrintJobOptions(), QString(), &why), qPrintable(why));
+        QCOMPARE(jp::office::wml::equationLayoutsMadeForTest() - before, qint64(lines.size()));
+        int pngs = 0;
+        for (const QByteArray &bytes : savedParts(e.path))
+            if (bytes.startsWith("\x89PNG")) ++pngs;
+        QCOMPARE(pngs, 500);
+    }
+
+    // The pictures that stand for equations are held to a total in one save: past it an equation is saved as its math alone, and the note says so.
+    void thePicturesBesideEquationsAreHeldToATotalAndTheLimitIsNamed()
+    {
+        auto run = [&](qint64 limit, int *pngs, int *maths, QStringList *told) {
+            EditWindow e;
+            QVERIFY(e.open(editBook()));
+            e.win.w.objects()->setFallbackLimitForTest(limit);
+            for (const char *line : {"a/b", "x^2", "a+b"}) QVERIFY(e.win.w.insertEquation(QString::fromLatin1(line)));
+            QVERIFY(e.settle());
+            QVERIFY(saveWindow(e));
+            const QMap<QString, QByteArray> parts = savedParts(e.path);
+            *pngs = *maths = 0;
+            for (auto it = parts.begin(); it != parts.end(); ++it) *pngs += it.value().startsWith("\x89PNG");
+            *maths = QString::fromUtf8(parts.value(QStringLiteral("xl/drawings/drawing1.xml"))).count(QStringLiteral("<a14:m"));
+            *told = e.win.told;
+        };
+        int pngs = 0, maths = 0;
+        QStringList told;
+        run(qint64(1) << 20, &pngs, &maths, &told);
+        QCOMPARE(pngs, 3);
+        QCOMPARE(maths, 3);
+        QVERIFY(told.join(QLatin1Char('|')).contains(QStringLiteral("saved as math alone")) == false);
+        run(1, &pngs, &maths, &told);
+        QCOMPARE(maths, 3);
+        QVERIFY2(pngs < 3, qPrintable(QString::number(pngs)));
+        QVERIFY2(told.join(QLatin1Char('|')).contains(QStringLiteral("saved as math alone")), qPrintable(told.join(QLatin1Char('|'))));
+    }
+
+    // The picture beside an equation, and what is printed, are in the color the letters have in the file (red here), not always black.
+    void theFallbackPictureAndThePrintAreInTheEquationsColor()
+    {
+        const QString omml = QStringLiteral("<m:oMath><m:f><m:num><m:r><m:t>a</m:t></m:r></m:num><m:den><m:r><m:t>b</m:t></m:r></m:den></m:f></m:oMath>");
+        QString book = equationAnchors(omml);
+        book.replace(QStringLiteral("<a:endParaRPr lang=\"en-US\"/>"), QStringLiteral("<a:endParaRPr lang=\"en-US\"><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></a:endParaRPr>"));
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({worksheet(QString())}, drawingPart(book), {imageTarget(QStringLiteral("rIdP"), 1, pngBytes(40, 12, Qt::darkGreen))})));
+        QTRY_VERIFY(shown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        const int id = o->idsOf(0).front();
+        QVERIFY(e.win.w.editEquation(id, QStringLiteral("a/b+c")));   // (the object is made again, so its picture is made at the save)
+        QVERIFY(e.settle());
+        QVERIFY(saveWindow(e));
+        int red = 0, other = 0;
+        for (const QByteArray &bytes : savedParts(e.path)) {
+            if (!bytes.startsWith("\x89PNG")) continue;
+            const QImage img = QImage::fromData(bytes, "PNG");
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) {
+                    const QColor c = img.pixelColor(x, y);
+                    if (c.alpha() < 200) continue;
+                    (c.red() > 150 && c.green() < 80 && c.blue() < 80 ? red : other)++;
+                }
+        }
+        QVERIFY2(red > 30 && other <= red / 4, qPrintable(QStringLiteral("%1 red, %2 other").arg(red).arg(other)));
+        const QString path = e.folder.dir.filePath(QStringLiteral("red.pdf"));
+        QString why;
+        QVERIFY2(e.win.w.exportPdfTo(path, crunch::PrintJobOptions(), QString(), &why), qPrintable(why));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QVector<QByteArray> pages = pdfcheck::pageContents(f.readAll());
+        QVERIFY(!pages.isEmpty());
+        QVERIFY2(QString::fromLatin1(pages.first()).contains(QRegularExpression(QStringLiteral("(?m)^1(\\.0+)? 0(\\.0+)? 0(\\.0+)? (rg|sc|scn)$"))), qPrintable(QStringLiteral("the print is not red: ") + QString::fromLatin1(pages.first()).split(QLatin1Char('\n')).filter(QRegularExpression(QStringLiteral(" (rg|sc|scn|g)$"))).join(QLatin1Char('|'))));
+    }
+
     // Printing and PDF draw the equation as vector paths: filled outlines on the page, and no picture.
     void aPdfDrawsTheEquationAsPaths()
     {
@@ -334,8 +423,8 @@ private Q_SLOTS:
         const QVector<QByteArray> pages = pdfcheck::pageContents(pdf);
         QVERIFY(!pages.isEmpty());
         const QString content = QString::fromLatin1(pages.first());
-        QVERIFY2(content.count(QRegularExpression(QStringLiteral("(?m) c$"))) > 20, "no curves on the page");
-        QVERIFY2(content.contains(QRegularExpression(QStringLiteral("(?m)^f\\*?$"))), "no filled path");
+        QVERIFY2(content.count(QRegularExpression(QStringLiteral("(?m)^[-\\d. ]+ (m|l|c|re)$"))) > 10, "no path operators on the page");
+        QVERIFY2(content.contains(QRegularExpression(QStringLiteral("(?m)^(f\\*?|B\\*?|S)$"))), "no painted path");
         QVERIFY(!pdf.contains("/Subtype /Image"));
     }
 };

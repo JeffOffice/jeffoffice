@@ -38,7 +38,6 @@ Saisissez du texte dans la zone de recherche ci-dessus pour trouver une rubrique
 - [Insérer une fonction](insert-function)
 - [Saisir une fonction avec la boîte de dialogue Arguments de la fonction](function-arguments)
 - [Graphiques, images et formes](charts)
-- [Équations](equations)
 - [Notes et liens](notes-links)
 - [Protéger une feuille ou le classeur](protect)
 

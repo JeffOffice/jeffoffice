@@ -38,7 +38,6 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen Befehl zu finden, de
 - [Funktion einfügen](insert-function)
 - [Funktion mit dem Dialogfeld „Funktionsargumente“ eingeben](function-arguments)
 - [Diagramme, Bilder und Formen](charts)
-- [Formeln](equations)
 - [Notizen und Links](notes-links)
 - [Blatt oder Arbeitsmappe schützen](protect)
 

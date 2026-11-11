@@ -46498,16 +46498,6 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Vergelijking bewerken</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Type the equation in a line. Use a/b for a fraction, x^2 for a power, x_i for a subscript, sqrt(x) for a root, and a backslash and a name for a symbol, such as \alpha, \pi, \infty, \leq, or \times. Write \sum_(i=1)^n, \int_0^1, or \prod for a sum, an integral, or a product with limits. Use \hat{x}, \vec{v}, or \bar{x} for an accent, \overline{x} for a bar, \left( ... \right) for brackets that grow, and \pmatrix{a &amp; b \\ c &amp; d} for a matrix.</source>
-        <translation type="unfinished">Typ de vergelijking op één regel. Gebruik a/b voor een breuk, x^2 voor een macht, x_i voor een subscript, sqrt(x) voor een wortel, en een backslash en een naam voor een symbool, zoals \alpha, \pi, \infty, \leq of \times. Schrijf \sum_(i=1)^n, \int_0^1 of \prod voor een som, een integraal of een product met grenzen. Gebruik \hat{x}, \vec{v} of \bar{x} voor een accent, \overline{x} voor een streep, \left( ... \right) voor haakjes die meegroeien, en \pmatrix{a &amp; b \\ c &amp; d} voor een matrix.</translation>
-    </message>
-    <message>
-        <location line="+14"/>
-        <source>Equation preview</source>
-        <translation type="unfinished">Voorbeeld van vergelijking</translation>
-    </message>
-    <message>
         <location line="+16"/>
         <source>This equation can&apos;t be changed.</source>
         <translation type="unfinished">Deze vergelijking kan niet worden gewijzigd.</translation>
@@ -63275,6 +63265,29 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <source>Legend at Bottom</source>
         <translation type="unfinished">Legenda onder</translation>
+    </message>
+</context>
+<context>
+    <name>EquationDialog</name>
+    <message>
+        <location filename="../libs/shell/app/equationdialog.cpp" line="43"/>
+        <source>Type the equation in a line. Use a/b for a fraction, x^2 for a power, x_i for a subscript, sqrt(x) for a root, and a backslash and a name for a symbol, such as \alpha, \pi, \infty, \leq, or \times. Write \sum_(i=1)^n, \int_0^1, or \prod for a sum, an integral, or a product with limits. Use \hat{x}, \vec{v}, or \bar{x} for an accent, \overline{x} for a bar, \left( ... \right) for brackets that grow, and \pmatrix{a &amp; b \\ c &amp; d} for a matrix.</source>
+        <translation type="unfinished">Typ de vergelijking op één regel. Gebruik a/b voor een breuk, x^2 voor een macht, x_i voor een subscript, sqrt(x) voor een wortel, en een backslash en een naam voor een symbool, zoals \alpha, \pi, \infty, \leq of \times. Schrijf \sum_(i=1)^n, \int_0^1 of \prod voor een som, een integraal of een product met grenzen. Gebruik \hat{x}, \vec{v} of \bar{x} voor een accent, \overline{x} voor een streep, \left( ... \right) voor haakjes die meegroeien, en \pmatrix{a &amp; b \\ c &amp; d} voor een matrix.</translation>
+    </message>
+    <message>
+        <location filename="../libs/shell/app/equationdialog.cpp" line="52"/>
+        <source>Built-In Equations</source>
+        <translation type="unfinished">Ingebouwde vergelijkingen</translation>
+    </message>
+    <message>
+        <location filename="../libs/shell/app/equationdialog.cpp" line="62"/>
+        <source>Equation as drawn</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../libs/shell/app/equationdialog.cpp" line="69"/>
+        <source>Equation preview</source>
+        <translation type="unfinished">Voorbeeld van vergelijking</translation>
     </message>
 </context>
 </TS>

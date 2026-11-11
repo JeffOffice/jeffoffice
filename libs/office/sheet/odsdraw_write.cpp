@@ -12,6 +12,7 @@
 #include "office/chart.h"
 #include "office/theme.h"
 #include "office/xml.h"
+#include "wml/wmlmathpath.h"
 
 #include <QCryptographicHash>
 #include <QCoreApplication>
@@ -79,6 +80,7 @@ public:
         ctx.theme = m_theme;
         ctx.formats = m_formats;
         ctx.budget = &m_budget;
+        ctx.equations = true;   // (an equation is written as the picture of it: the standard has none here)
         ctx.images = &m_imageOfPart;   // (a picture that several objects use is handed over once)
         ctx.addImage = [this](const QByteArray &bytes, const QString &format) {
             const QString id = QStringLiteral("i%1").arg(m_images.size() + 1);
@@ -442,6 +444,23 @@ private:
         const QString order = anchor ? QStringLiteral(" draw:z-index=\"%1\"").arg(z) : QString();
         const QString common = QStringLiteral(" draw:name=\"%1\"").arg(xmlText(item.name)) + order;
         switch (item.type()) {
+        case ItemType::Equation: {
+            const auto &eq = static_cast<const EquationItem &>(item);
+            const QByteArray png = office::wml::equationPng(eq.markup, int(std::ceil(w * 4)), int(std::ceil(h * 4)), eq.fill.isNone() ? QColor(Qt::black) : eq.fill.color.resolve(m_scheme));
+            if (png.isEmpty()) {
+                note(QCoreApplication::translate("Sheet", "equations that could not be drawn"));
+                return QString();
+            }
+            PictureItem pic;
+            static_cast<Item &>(pic) = item;
+            pic.fill = Fill();
+            pic.stroke = Stroke::none();
+            pic.imageId = QStringLiteral("eq%1").arg(m_images.size() + 1);
+            m_images[pic.imageId] = png;
+            m_imageFormats[pic.imageId] = QStringLiteral("png");
+            pic.imgRect = QRectF(0, 0, pic.rect.width(), pic.rect.height());
+            return emit(pic, x, y, w, h, depth, anchor, z);
+        }
         case ItemType::Picture: {
             const auto &p = static_cast<const PictureItem &>(item);
             const QByteArray bytes = m_images.value(p.imageId);

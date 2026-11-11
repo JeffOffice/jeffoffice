@@ -94,6 +94,7 @@ void CrunchWindow::setupObjects()
         stack->endMacro();
     });
     m_objects->layer()->setDeleteHook([this](int id) { deleteObject(id); });
+    m_objects->setSaveNote([this](const QString &text) { notice(tr("Save"), text); });
     // the person moves or sizes an object, picks one, or asks for its menu
     connect(m_objects->layer(), &jp::grid::ObjectLayer::objectMoved, this, [this](int id, const jp::office::sheet::DrawingAnchor &anchor) { moveObject(id, anchor); });
     connect(m_objects->layer(), &jp::grid::ObjectLayer::contextMenuRequested, this, [this](int id, const QPoint &global) { objectContextMenu(id, global); });

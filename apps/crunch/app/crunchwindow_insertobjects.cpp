@@ -501,7 +501,10 @@ bool CrunchWindow::insertEquation(const QString &linear)
     const QString title = tr("Insert Equation");
     bool ok = false;
     const QByteArray markup = office::wml::equationMarkup(linear, &ok);
-    const office::wml::EquationShape shape = ok ? office::wml::equationShape(markup, 20) : office::wml::EquationShape();
+    const auto laid = ok ? office::wml::equationShapeCached(markup) : nullptr;
+    // (the size the sheet gives it is that of letters 20 points tall)
+    const office::wml::EquationShape shape = laid ? *laid : office::wml::EquationShape();
+    const double toSheet = 20.0 / office::wml::kEquationLayoutSize;
     if (!shape.valid()) {
         notice(title, tr("An equation can't be made from that."));
         return false;
@@ -510,8 +513,8 @@ bool CrunchWindow::insertEquation(const QString &linear)
     for (int n = 2; m_objects->nameTaken(m_sheet, -1, name); ++n) name = tr("Equation %1").arg(n);
     crunch::ObjectClip clip;
     clip.kind = QStringLiteral("shape");
-    clip.width = std::clamp(std::ceil(shape.box.width() * 96.0 / 72.0), 8.0, 4000.0);
-    clip.height = std::clamp(std::ceil(shape.box.height() * 96.0 / 72.0), 8.0, 2000.0);
+    clip.width = std::clamp(std::ceil(shape.box.width() * toSheet * 96.0 / 72.0), 8.0, 4000.0);
+    clip.height = std::clamp(std::ceil(shape.box.height() * toSheet * 96.0 / 72.0), 8.0, 2000.0);
     clip.elementXml = equationXml(markup, clip.width, clip.height, name);
     if (!placeObjectClip(clip, title)) return false;
     setStatus(tr("Equation inserted"));
@@ -526,7 +529,10 @@ bool CrunchWindow::editEquation(int id, const QString &linear)
     if (!m_objects->equationOf(m_sheet, id, &now, nullptr)) return false;
     bool ok = false;
     const QByteArray markup = office::wml::equationMarkup(linear, &ok);
-    const office::wml::EquationShape shape = ok ? office::wml::equationShape(markup, 20) : office::wml::EquationShape();
+    const auto laid = ok ? office::wml::equationShapeCached(markup) : nullptr;
+    // (the size the sheet gives it is that of letters 20 points tall)
+    const office::wml::EquationShape shape = laid ? *laid : office::wml::EquationShape();
+    const double toSheet = 20.0 / office::wml::kEquationLayoutSize;
     if (!shape.valid()) {
         notice(tr("Edit Equation"), tr("An equation can't be made from that."));
         return false;

@@ -543,6 +543,20 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
             eq->markup = markup;
             eq->linear = line;
             eq->fill = Fill::solid(ColorRef::scheme(Main));
+            // (the color of the letters: the first srgbClr in the properties of the paragraph's runs, as written for text)
+            for (QDomElement p = childNamed(body, "p"); !p.isNull(); p = p.nextSiblingElement())
+                if (p.localName() == QLatin1String("p")) {
+                    for (QDomElement r = p.firstChildElement(); !r.isNull(); r = r.nextSiblingElement()) {
+                        if (r.localName() != QLatin1String("endParaRPr") && r.localName() != QLatin1String("rPr")) continue;
+                        const QDomElement fillEl = childNamed(r, "solidFill"), rgb = childNamed(fillEl, "srgbClr");
+                        const QColor c(QStringLiteral("#") + rgb.attribute(QStringLiteral("val")));
+                        if (c.isValid()) {
+                            eq->fill = Fill::solid(ColorRef::rgb(c));
+                            break;
+                        }
+                    }
+                    break;
+                }
             eq->stroke = Stroke::none();
             eq->lockAspect = true;
             remember(cNvPr, eq);
@@ -1095,7 +1109,7 @@ QByteArray shapeMath(const QDomElement &shape, QString *linear)
     // (a DOM writes the namespace of the math on every element it prints: it is declared once, on the first)
     text.replace(QStringLiteral(" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\""), QString());
     const QByteArray markup = office::wml::equationMarkupDeclared(text.toUtf8());
-    if (!office::wml::equationShape(markup, 20).valid()) return QByteArray();
+    if (!office::wml::equationShapeCached(markup)) return QByteArray();
     if (linear) {
         // (the line, where the math is one that a line makes: an m:oMath alone, or the only one in an m:oMathPara)
         QDomElement one = math.localName() == QLatin1String("oMath") ? math : QDomElement();

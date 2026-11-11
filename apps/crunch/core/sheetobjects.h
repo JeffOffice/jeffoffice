@@ -182,6 +182,12 @@ public:
     bool canEditChart(int sheet, int id, QString *why = nullptr, bool onChartSheet = false);   // (onChartSheet: a chart on a chart sheet counts, as for Move Chart)
     // An object's place now, as the layer has it (the grid's units), and the sheet's object under that name; false if there is none.
     bool exists(int sheet, int id);
+    // The most bytes of the pictures that stand for equations (beside their math) one save writes. Past it, an equation is saved as its math alone, and `note` (if set) says so.
+    static constexpr qint64 kMaxFallbackBytes = qint64(64) << 20;
+    void setSaveNote(const std::function<void(const QString &)> &note) { m_saveNote = note; }
+    // For a test: how many bytes of such pictures the last save made.
+    qint64 fallbackBytesForTest() const { return m_fallbackBytes; }
+    void setFallbackLimitForTest(qint64 bytes) { m_fallbackLimit = bytes; }
     // Whether the object is an equation (a text box whose text is math markup), and if so the line it was typed as (empty for markup that no line makes) and the markup (m:oMath or m:oMathPara).
     bool equationOf(int sheet, int id, QString *linear, QByteArray *markup);
     jp::office::sheet::ObjectKind kindOf(int sheet, int id);
@@ -354,6 +360,8 @@ private:
     QHash<QString, DiagramPicture> m_diagramPictures;
     int m_diagramsDrawn = 0, m_diagramPartsRead = 0;
     qint64 m_diagramBytes = 0, m_diagramDataBytes = 0;
+    qint64 m_fallbackBytes = 0, m_fallbackLimit = kMaxFallbackBytes;   // the bytes of the pictures that stand for equations in the save being made
+    std::function<void(const QString &)> m_saveNote;
     jp::office::DrawingBudget m_budget;
     jp::office::Theme m_theme;
     QDomDocument m_themeDoc;

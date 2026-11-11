@@ -657,9 +657,11 @@ LayerObject SheetObjects::layerObject(int sheet, const std::shared_ptr<Object> &
         lo->margin = strokeReach(*o->item, 0);
         if (o->item->type() == jp::ItemType::Equation) {
             // printed and exported as outlines, not as a picture of them (the markup and the color are copied: it may be drawn on another thread)
-            const QByteArray markup = static_cast<const jp::EquationItem &>(*o->item).markup;
+            const auto &equation = static_cast<const jp::EquationItem &>(*o->item);
+            const QByteArray markup = equation.markup;
+            const QColor color = equation.fill.isNone() ? QColor(Qt::black) : equation.fill.color.resolve(m_doc->colors);
             lo->margin = 0;
-            lo->paintVector = [markup](QPainter *painter, const QRectF &box) { jp::office::wml::paintEquation(painter, markup, box, Qt::black); };
+            lo->paintVector = [markup, color](QPainter *painter, const QRectF &box) { jp::office::wml::paintEquation(painter, markup, box, color); };
         }
     };
     return l;
@@ -927,6 +929,8 @@ DrawingAnchor SheetObjects::twoCellFor(const Object &o, const jp::grid::Axis &ro
 void SheetObjects::addToSave(SaveChanges *changes)
 {
     if (!m_book) return;
+    m_fallbackBytes = 0;
+    bool fallbackNoted = false;
     const QStringList names = sheetNames();
     const std::vector<StructEdit> none;
     const std::vector<StructEdit> &edits = m_edits ? m_edits() : none;
@@ -1092,7 +1096,19 @@ void SheetObjects::addToSave(SaveChanges *changes)
                         const QString token = QStringLiteral("rIdEq%1Z").arg(add.objects.size());
                         const jp::grid::ObjectBox box = m_layer.boxNow(o->id);
                         const double w = box.w > 1 ? box.w : o->item->rect.width() * 96 / 72, h = box.h > 1 ? box.h : o->item->rect.height() * 96 / 72;
-                        const QByteArray png = jp::office::wml::equationPng(static_cast<const jp::EquationItem &>(*o->item).markup, int(std::ceil(w * 3)), int(std::ceil(h * 3)));
+                        const auto &equation = static_cast<const jp::EquationItem &>(*o->item);
+                        // (in the color the equation is drawn in; the pictures of one save are held to a total)
+                        QByteArray png;
+                        bool overBudget = m_fallbackBytes >= m_fallbackLimit;
+                        if (!overBudget) {
+                            png = jp::office::wml::equationPng(equation.markup, int(std::ceil(w * 3)), int(std::ceil(h * 3)), equation.fill.isNone() ? QColor(Qt::black) : equation.fill.color.resolve(m_doc->colors));
+                            if (m_fallbackBytes + png.size() > m_fallbackLimit) png.clear(), overBudget = true;
+                            else m_fallbackBytes += png.size();
+                        }
+                        if (overBudget && !fallbackNoted) {
+                            fallbackNoted = true;
+                            if (m_saveNote) m_saveNote(QCoreApplication::translate("jp::crunch::SheetObjects", "The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.").arg(QLocale().formattedDataSize(m_fallbackLimit)));
+                        }
                         if (!png.isEmpty()) {
                             const QByteArray pic = "<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"" + QByteArray::number(o->meta.id) + "\" name=\"" + o->meta.name.toHtmlEscaped().toUtf8() + "\"" + (o->meta.description.isEmpty() ? QByteArray() : " descr=\"" + o->meta.description.toHtmlEscaped().toUtf8() + "\"")
                                                    + "/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed=\"" + token.toUtf8() + "\"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\""

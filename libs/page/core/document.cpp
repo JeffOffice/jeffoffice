@@ -98,11 +98,29 @@ static QJsonArray itemsJ(const ItemList &l)
     for (const auto &it : l) a.append(it->toJson());
     return a;
 }
+// What the equations read so far by the document being read hold (fromJson begins it again).
+struct EquationBudget {
+    int count = 0, leftOut = 0;
+    qint64 bytes = 0;
+};
+static thread_local EquationBudget g_equations;
+
 static ItemList itemsF(const QJsonValue &v)
 {
     ItemList l;
     for (const auto &x : v.toArray())
-        if (auto it = Item::fromJsonAny(x.toObject())) l.push_back(it);
+        if (auto it = Item::fromJsonAny(x.toObject())) {
+            if (it->type() == ItemType::Equation) {
+                const qint64 size = static_cast<const EquationItem &>(*it).markup.size();
+                if (g_equations.count >= Document::kMaxEquations || g_equations.bytes + size > Document::kMaxEquationMarkupBytes) {
+                    ++g_equations.leftOut;
+                    continue;
+                }
+                ++g_equations.count;
+                g_equations.bytes += size;
+            }
+            l.push_back(it);
+        }
     return l;
 }
 
@@ -1843,6 +1861,7 @@ static bool namesMissingStory(const Document &d, const Item &it)
 
 void Document::fromJson(const QJsonObject &o)
 {
+    g_equations = EquationBudget();
     dropChainIndex();
     setup = PageSetup::fromJson(o["setup"].toObject());
     masters.clear();
@@ -1976,6 +1995,7 @@ void Document::fromJson(const QJsonObject &o)
     if (pages.isEmpty()) addPage();
     // Only so many charts, of so many bytes, stay charts; the rest are the pictures they are drawn as.
     chartsKeptAsPictures = limitChartsRead(*this);
+    equationsLeftOut = g_equations.leftOut;
 }
 
 } // namespace jp

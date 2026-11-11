@@ -582,27 +582,13 @@ QPainterPath Renderer::textArtOutline(const TextArtItem &w)
 
 QPainterPath Renderer::equationOutline(const EquationItem &w, QSizeF *natural)
 {
-    jp::threadcheck::guiOnlyCache();
-    struct Laid {
-        QPainterPath path;
-        QSizeF size;
-    };
-    static QCache<QString, Laid> cache(40000);
-    const QString key = QString::fromUtf8(w.markup) + QStringLiteral("|%1").arg(w.size);
-    Laid *laid = cache.object(key);
-    Laid held;
-    if (!laid) {
-        const office::wml::EquationShape shape = office::wml::equationShape(w.markup, w.size);
-        held = Laid{shape.path, shape.box.size()};
-        laid = &held;
-        cache.insert(key, new Laid(held), 1 + int(held.path.elementCount() / 8));
-    }
-    if (natural) *natural = laid->size;
-    if (laid->size.isEmpty() || w.rect.isEmpty()) return QPainterPath();
+    const auto laid = office::wml::equationShapeCached(w.markup, w.size);
+    if (natural) *natural = laid ? laid->box.size() : QSizeF();
+    if (!laid || w.rect.isEmpty()) return QPainterPath();
     // The equation keeps its proportions in a frame of any shape: as large as fits, in the middle.
-    const double k = std::min(w.rect.width() / laid->size.width(), w.rect.height() / laid->size.height());
+    const double k = std::min(w.rect.width() / laid->box.width(), w.rect.height() / laid->box.height());
     QTransform t;
-    t.translate((w.rect.width() - laid->size.width() * k) / 2, (w.rect.height() - laid->size.height() * k) / 2);
+    t.translate((w.rect.width() - laid->box.width() * k) / 2, (w.rect.height() - laid->box.height() * k) / 2);
     t.scale(k, k);
     return t.map(laid->path);
 }

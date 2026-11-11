@@ -569,6 +569,7 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
     }
     if (doc->props.title.isEmpty()) doc->props.title = QFileInfo(path).completeBaseName();
     const int chartsAsPictures = doc->chartsKeptAsPictures;
+    const int equationsLeftOut = doc->equationsLeftOut;
     setReadOnly(false);
     // (a copy of a protected publication is protected too)
     crypto::wipe(m_filePassword);
@@ -598,6 +599,11 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
         const QString text = tr("\"%1\" was opened as a repaired copy. Save it under a name of its own.\n\n%2").arg(QFileInfo(path).fileName(), office::repairSummary(repair));
         if (m_notifier) m_notifier(tr("Open and Repair"), text);
         else jp::plainInformation(this, tr("Open and Repair"), text);
+    }
+    if (equationsLeftOut > 0) {
+        const QString text = tr("\"%1\" has more equations than JeffPub keeps (%2, or %3 MB of them), so the equations past that were left out.").arg(QFileInfo(path).fileName()).arg(Document::kMaxEquations).arg(Document::kMaxEquationMarkupBytes >> 20);
+        if (m_notifier) m_notifier(tr("Open"), text);
+        else jp::plainInformation(this, tr("Open"), text);
     }
     if (fromPub && !rep.warnings.isEmpty())
         statusBar()->showMessage(tr("Opened .pub file. %1").arg(rep.warnings.first()), 8000);
