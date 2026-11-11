@@ -298,6 +298,10 @@ private Q_SLOTS:
                 w->insertShape(QStringLiteral("rect"));
                 waitFor([&] { return quiet(w); });
             }),
+            in(QStringLiteral("a Text Art selected"), [](CrunchWindow *w) {
+                w->insertTextArt(QStringLiteral("plain"));
+                waitFor([&] { return quiet(w); });
+            }),
             in(QStringLiteral("three shapes picked together"), [](CrunchWindow *w) {
                 for (const auto &at : {std::pair<int, int>{20, 20}, {300, 60}, {560, 260}}) {
                     w->insertShape(QStringLiteral("rect"));
@@ -517,6 +521,8 @@ private Q_SLOTS:
             {QStringLiteral("notes."), {QStringLiteral("a note in two cells, the later one selected"), QStringLiteral("a note in two cells, the earlier one selected"), QStringLiteral("a cell with a note")}},
             {QStringLiteral("object."), {QStringLiteral("two charts, the later one selected"), QStringLiteral("a shape selected"), QStringLiteral("a picture selected")}},
             {QStringLiteral("object.crop"), {QStringLiteral("a picture selected")}},
+            {QStringLiteral("object.compress"), {QStringLiteral("a picture selected")}},
+            {QStringLiteral("object.textArt"), {QStringLiteral("a Text Art selected")}},
             {QStringLiteral("object.align"), {QStringLiteral("three shapes picked together")}},
             {QStringLiteral("object.distribute"), {QStringLiteral("three shapes picked together")}},
             {QStringLiteral("object.group"), {QStringLiteral("three shapes picked together")}},

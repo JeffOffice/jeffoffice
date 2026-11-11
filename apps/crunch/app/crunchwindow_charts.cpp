@@ -10,6 +10,7 @@
 #include "app/ribbonbuilder.h"
 #include "core/objectclip.h"
 #include "core/sheetobjects.h"
+#include "render/textart.h"
 #include "office/chart_write.h"
 #include "sheet/cellref.h"
 
@@ -1266,6 +1267,12 @@ void CrunchWindow::updateChartState()
         for (const char *name : {"object.rotateRight", "object.rotateLeft", "object.flipH", "object.flipV"}) act(QString::fromLatin1(name))->setEnabled(picture || shape || line);
         for (const char *name : {"object.cropSquare", "object.crop43", "object.crop34", "object.crop169", "object.crop916", "object.cropReset"}) act(QString::fromLatin1(name))->setEnabled(picture);
         act(QStringLiteral("object.editText"))->setEnabled(shape);
+        act(QStringLiteral("object.compress"))->setEnabled(picture);
+        {
+            // (Text Warp bends the words of Text Art: no other shape has words that bend)
+            const bool art = shape && pickedIsTextArt();
+            for (const TextArtTransform &t : textArtTransforms()) act(QStringLiteral("object.textArt.warp.") + t.id)->setEnabled(art);
+        }
         enableShapeStyles(shape);
         if (m_ribbon) {
             m_ribbon->setContextVisible(QStringLiteral("Picture Format"), picture);
