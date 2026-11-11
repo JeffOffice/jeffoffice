@@ -1,4 +1,5 @@
 #include "office/diagram.h"
+#include "office/package.h"
 
 #include "office/xml.h"
 

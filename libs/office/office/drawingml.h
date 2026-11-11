@@ -7,7 +7,6 @@
 
 #include "core/items.h"
 #include "office/drawingml_color.h"
-#include "office/package.h"
 
 #include <QDomDocument>
 #include <QDomElement>
@@ -15,6 +14,8 @@
 #include <QVector>
 #include <algorithm>
 #include <functional>
+
+namespace jp::office { class Package; }
 
 class QTextDocument;
 

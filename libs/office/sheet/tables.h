@@ -4,7 +4,6 @@
 //
 // What is read of a table is its name, where it is, and the names of its columns; the rest of the part is kept as it is, and written back with only the names changed.
 
-#include "office/package.h"
 #include "sheet/refshift.h"
 #include "sheet/sheetmodel.h"
 
@@ -18,6 +17,8 @@
 #include <map>
 #include <memory>
 #include <vector>
+
+namespace jp::office { class Package; }
 
 namespace jp::office::sheet {
 

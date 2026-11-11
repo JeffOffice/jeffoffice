@@ -3,7 +3,6 @@
 // file are read here; writing them is notesave.h. A note that belongs to a thread of comments is given its text from the thread and marked, so that it can be shown and kept but not
 // changed. A damaged part gives what was read before the damage.
 
-#include "office/package.h"
 #include "sheet/sheetreader.h"
 #include "sheet/threads.h"
 
@@ -12,6 +11,8 @@
 #include <map>
 #include <set>
 #include <vector>
+
+namespace jp::office { class Package; }
 
 namespace jp::office::sheet {
 

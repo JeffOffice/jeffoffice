@@ -1,6 +1,7 @@
 // Reading a .docx: the package into a wml::Document. See wml.h for what is understood and what is kept as written.
 
 #include "wml/wml.h"
+#include "office/package.h"
 
 #include "wml/wmlmath.h"
 #include "wml/xmltree.h"

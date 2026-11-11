@@ -19,17 +19,11 @@
 
 #include <memory>
 
+#include "office/relationship.h"
+
 class QIODevice;
 
 namespace jp::office {
-
-// One link from a part (or from the package) to another part or to an
-// address outside. For an internal link `target` is the part name it was
-// resolved to; for an external one it is the address as written.
-struct Relationship {
-    QString id, type, target;
-    bool external = false;
-};
 
 // The most a file the apps open may be: each is read whole into memory before
 // it is read (a .docx, .pptx, or .odp is a ZIP read from memory, a .doc or

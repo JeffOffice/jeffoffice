@@ -7,7 +7,6 @@
 // The part comes from a stranger: it is parsed as every part is (xml.h's limits), the anchors read are at most kMaxDrawingAnchors, and the position numbers are kept to what a
 // sheet can hold, so that an anchor far outside the sheet is a place far outside it and nothing more.
 
-#include "office/package.h"
 #include "sheet/refshift.h"
 
 #include <QDomDocument>
@@ -17,6 +16,8 @@
 
 #include <memory>
 #include <vector>
+
+namespace jp::office { class Package; }
 
 namespace jp::office::sheet {
 

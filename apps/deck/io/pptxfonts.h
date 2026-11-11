@@ -18,7 +18,6 @@
 // embedded, nor is a font whose license doesn't allow it.
 
 #include "core/embeddedfonts.h"
-#include "office/package.h"
 
 #include <QByteArray>
 #include <QDomElement>
@@ -27,6 +26,8 @@
 #include <QString>
 #include <QStringList>
 #include <QVector>
+
+namespace jp::office { class Package; class PackageWriter; }
 
 namespace jp::deck {
 

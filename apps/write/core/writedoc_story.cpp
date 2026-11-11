@@ -5,6 +5,7 @@
 #include "office/barcodemarker.h"
 #include "core/fieldops.h"
 #include "core/writedoc.h"
+#include "office/package.h"
 
 #include "core/drawnitems.h"
 #include "office/chart.h"

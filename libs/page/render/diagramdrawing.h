@@ -5,13 +5,14 @@
 
 #include "core/document.h"
 #include "office/drawingml.h"
-#include "office/package.h"
 #include "office/theme.h"
 
 #include <QByteArray>
 #include <QDomElement>
 #include <QSizeF>
 #include <QString>
+
+namespace jp::office { class Package; }
 
 namespace jp {
 

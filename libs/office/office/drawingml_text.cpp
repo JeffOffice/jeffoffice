@@ -4,6 +4,7 @@
 // stack).
 
 #include "office/drawingml.h"
+#include "office/package.h"
 
 #include "core/color.h"
 #include "core/texteffects.h"

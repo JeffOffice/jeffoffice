@@ -1,6 +1,7 @@
 // Tests of libs/office/doc: reading an old binary word processing file into the document the .docx reader makes. Every file is built in
 // memory by dochelpers.h; the hostile ones are that file changed.
 #include "dochelpers.h"
+#include "office/package.h"
 
 #include "doc/doc.h"
 #include "io/cfb.h"

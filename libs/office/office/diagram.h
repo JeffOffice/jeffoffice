@@ -4,7 +4,8 @@
 // part the same part links to as well (the data part names that link, in dsp:dataModelExt's relId): shapes like a slide's, in the space of the frame, each with the rectangle
 // its text is set in (dsp:txXfrm). Showing the diagram is showing that drawing (libs/page/render/diagramdrawing.h draws it).
 
-#include "office/package.h"
+
+#include "office/relationship.h"
 
 #include <QByteArray>
 #include <QDomElement>
@@ -12,6 +13,8 @@
 #include <QVector>
 
 #include <functional>
+
+namespace jp::office { class Package; }
 
 namespace jp::office {
 

@@ -1,4 +1,5 @@
 #include "io/pptxfonts.h"
+#include "office/package.h"
 
 #include "core/fontfiles.h"
 #include "core/fonts.h"

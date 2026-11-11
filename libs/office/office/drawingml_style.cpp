@@ -1,4 +1,5 @@
 #include "office/drawingml_style.h"
+#include "office/package.h"
 
 #include "office/xml.h"
 

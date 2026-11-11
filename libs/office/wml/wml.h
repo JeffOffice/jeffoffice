@@ -12,7 +12,7 @@
 // Properties hold only what the paragraph, run, or style states (std::optional is "not stated"); the style that applies and the
 // document's defaults give the rest (StyleSheet::paragraph, StyleSheet::run).
 
-#include "office/package.h"
+#include "office/relationship.h"
 #include "office/theme.h"
 
 #include <QByteArray>

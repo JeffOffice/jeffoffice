@@ -3,7 +3,6 @@
 // A table or a cache is held in a shared pointer, so that a step of Undo holds what it was and what it is without a copy of the records; a part that was not changed is not written (the file's
 // part is kept to the byte), one that was is made from the file's own with the changes.
 
-#include "office/package.h"
 #include "sheet/cellref.h"
 #include "sheet/pivot.h"
 #include "sheet/refshift.h"
@@ -13,6 +12,8 @@
 #include <mutex>
 #include <memory>
 #include <vector>
+
+namespace jp::office { class Package; }
 
 namespace jp::office::sheet {
 

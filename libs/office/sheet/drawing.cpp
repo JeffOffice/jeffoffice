@@ -1,4 +1,5 @@
 #include "sheet/drawing.h"
+#include "office/package.h"
 
 #include "office/chart.h"
 #include "office/diagram.h"

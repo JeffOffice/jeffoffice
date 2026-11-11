@@ -8,7 +8,6 @@
 #include "core/color.h"
 #include "core/items.h"
 #include "office/drawingml_color.h"
-#include "office/package.h"
 #include "office/theme.h"
 
 #include <QHash>
@@ -18,11 +17,11 @@
 #include <functional>
 #include <memory>
 
+namespace jp::office { class PackageWriter; }
+
 class QTextDocument;
 
-namespace jp::office {
-class StyleResolver;
-}
+namespace jp::office { class StyleResolver; }
 
 namespace jp::office {
 
