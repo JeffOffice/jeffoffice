@@ -52,9 +52,9 @@ void MainWindow::createCommentActions()
     connect(m_comments, &CommentsPane::closeRequested, this, [this] { showComments(false); });
     // A marker that is clicked opens its comment in the pane.
     connect(m_canvas, &Canvas::commentClicked, this, [this](const QString &id) { m_comments->setCurrentComment(id); });
-    // A publication that comes with comments shows them.
+    // A publication that comes with comments shows them; one without leaves the pane closed.
     connect(m_ed, &Editor::documentReplaced, this, [this, update] {
-        if (!comments::allComments(*m_ed->doc()).isEmpty()) showComments(true);
+        showComments(!comments::allComments(*m_ed->doc()).isEmpty());
         update();
     });
     update();

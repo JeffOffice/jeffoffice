@@ -252,6 +252,20 @@ private Q_SLOTS:
         }
     }
 
+    // A publication without comments, put in a window that showed the Comments pane, does not keep the pane open.
+    void aPublicationWithoutCommentsClosesThePane()
+    {
+        jp::MainWindow w;
+        w.resize(1280, 820);
+        w.show();
+        w.showComments(true);
+        QVERIFY(w.commentsPane()->isVisible());
+        w.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        QVERIFY(!w.commentsPane()->isVisible());
+        QVERIFY(!w.act(QStringLiteral("comment.show"))->isChecked());
+        QVERIFY(!w.canvas()->commentsShown());
+    }
+
     // A language without its own Comments topic shows the English one.
     void commentsHelpFallsBackToEnglish()
     {
