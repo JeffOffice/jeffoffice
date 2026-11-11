@@ -1,6 +1,8 @@
 // Tests of libs/office: the properties of a package (core, extended, and custom parts).
 #include "officehelpers.h"
 #include "office/packageprops.h"
+#include "office/privacy.h"
+#include "io/zip.h"
 
 #include <QTimeZone>
 #include <QXmlStreamReader>
@@ -212,6 +214,63 @@ private Q_SLOTS:
         QCOMPARE(textOf(out, QStringLiteral("title")), QStringLiteral("T"));
         const QByteArray other = writeCoreProps("<other xmlns=\"urn:x\"><a/></other>", p);
         QVERIFY(other.contains("coreProperties"));
+    }
+
+    // The names, initials, and times of changes come out of the parts that hold them, in each kind of package; every other entry is copied as it is, and what is not a ZIP comes back as it was.
+    void removingPersonalInformationTakesNamesOutOfTheKnownPartsAndCopiesTheRest()
+    {
+        const QByteArray picture(5000, 'x');
+        jp::ZipWriter z;
+        z.add(QStringLiteral("mimetype"), "application/vnd.oasis.opendocument.text");
+        z.add(QStringLiteral("word/document.xml"), "<w:ins w:id=\"1\" w:author=\"Ann Lee\" w:date=\"2026-01-02T03:04:05Z\"><w:t>Ann Lee wrote this</w:t></w:ins>", true);
+        z.add(QStringLiteral("word/comments.xml"), "<w:comment w:id=\"0\" w:author=\"Ann Lee\" w:initials=\"AL\"><w:t>Hi</w:t></w:comment>", true);
+        z.add(QStringLiteral("word/people.xml"), "<w15:people><w15:person w15:author=\"Ann Lee\"><w15:presenceInfo w15:providerId=\"AD\" w15:userId=\"S-1\"/></w15:person></w15:people>");
+        z.add(QStringLiteral("ppt/commentAuthors.xml"), "<p:cmAuthorLst><p:cmAuthor id=\"0\" name=\"Ann Lee\" initials=\"AL\" lastIdx=\"1\" clrIdx=\"0\"/></p:cmAuthorLst>");
+        z.add(QStringLiteral("xl/comments1.xml"), "<comments><authors><author>Ann Lee</author></authors></comments>");
+        z.add(QStringLiteral("xl/persons/person.xml"), "<personList><person displayName=\"Ann Lee\" id=\"{1}\" userId=\"ann@example.com\" providerId=\"AD\"/></personList>");
+        z.add(QStringLiteral("xl/worksheets/sheet1.xml"), "<worksheet><scenarios><scenario name=\"Best\" locked=\"1\" user=\"Ann Lee\" count=\"1\"/></scenarios></worksheet>");
+        z.add(QStringLiteral("docProps/core.xml"), "<cp:coreProperties><dc:title>Kept</dc:title><dc:creator>Ann Lee</dc:creator><cp:lastModifiedBy>Ann Lee</cp:lastModifiedBy></cp:coreProperties>");
+        z.add(QStringLiteral("docProps/app.xml"), "<Properties><Company>Acme</Company><Manager>Bo Ray</Manager><Words>3</Words></Properties>");
+        z.add(QStringLiteral("meta.xml"), "<office:meta><meta:initial-creator>Ann Lee</meta:initial-creator><dc:creator>Ann Lee</dc:creator><dc:title>Kept</dc:title></office:meta>");
+        z.add(QStringLiteral("content.xml"), "<office:annotation><dc:creator>Ann Lee</dc:creator><meta:creator-initials>AL</meta:creator-initials><dc:date>2026-01-02</dc:date></office:annotation>");
+        z.add(QStringLiteral("word/media/image1.png"), picture, true);
+        const QByteArray zip = z.finish();
+        int parts = 0;
+        const QByteArray clean = removePersonalFromPackage(zip, &parts);
+        QCOMPARE(parts, 11);
+        QMap<QString, QByteArray> before, after;
+        QVERIFY(jp::readZip(zip, before));
+        QVERIFY(jp::readZip(clean, after));
+        QCOMPARE(after.keys(), before.keys());
+        for (auto it = after.cbegin(); it != after.cend(); ++it) {
+            QVERIFY2(!it.value().contains("Ann Lee") || it.key() == QLatin1String("word/document.xml"), qPrintable(it.key()));   // (the words a person typed are not names to take out)
+            QVERIFY2(!it.value().contains("Acme") && !it.value().contains("Bo Ray") && !it.value().contains("ann@example.com") && !it.value().contains("S-1"), qPrintable(it.key()));
+        }
+        QVERIFY(!after.value(QStringLiteral("word/document.xml")).contains("w:author=\"Ann Lee\"") && !after.value(QStringLiteral("word/document.xml")).contains("w:date="));
+        QVERIFY(after.value(QStringLiteral("word/document.xml")).contains("w:author=\"Author\""));
+        QVERIFY(after.value(QStringLiteral("word/document.xml")).contains("<w:t>Ann Lee wrote this</w:t>"));
+        QVERIFY(!after.value(QStringLiteral("word/comments.xml")).contains("w:initials"));
+        QVERIFY(!after.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("user=") && after.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("locked=\"1\" count=\"1\""));
+        QVERIFY(after.value(QStringLiteral("docProps/core.xml")).contains("<dc:title>Kept</dc:title>"));
+        QVERIFY(after.value(QStringLiteral("docProps/app.xml")).contains("<Words>3</Words>"));
+        QVERIFY(after.value(QStringLiteral("meta.xml")).contains("<dc:title>Kept</dc:title>"));
+        QVERIFY(after.value(QStringLiteral("content.xml")).contains("<dc:date>2026-01-02</dc:date>"));
+        QCOMPARE(after.value(QStringLiteral("word/media/image1.png")), picture);
+        QCOMPARE(after.value(QStringLiteral("mimetype")), before.value(QStringLiteral("mimetype")));
+        // A package with nothing to take out is given back as it was, and so is what is not a ZIP.
+        jp::ZipWriter plain;
+        plain.add(QStringLiteral("a.xml"), "<a/>", true);
+        const QByteArray plainZip = plain.finish();
+        QCOMPARE(removePersonalFromPackage(plainZip, &parts), plainZip);
+        QCOMPARE(parts, 0);
+        QCOMPARE(removePersonalFromPackage("not a zip", &parts), QByteArray("not a zip"));
+        PackageProps names;
+        names.creator = QStringLiteral("Ann");
+        names.company = QStringLiteral("Acme");
+        names.title = QStringLiteral("T");
+        QCOMPARE(removePersonalNames(names), 2);
+        QVERIFY(names.creator.isEmpty() && names.company.isEmpty());
+        QCOMPARE(names.title, QStringLiteral("T"));
     }
 };
 
