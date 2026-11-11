@@ -909,6 +909,17 @@ public:
         setKeytip(m_more, QStringLiteral("0"));
         connect(m_more->menu(), &QMenu::aboutToHide, this, [this] { QTimer::singleShot(0, this, [this] { layoutButtons(); }); });   // (a change that came while it was open)
         m_more->hide();
+        m_qatMore = new QToolButton(this);
+        m_qatMore->setObjectName(QStringLiteral("jpQuickMore"));
+        m_qatMore->setAutoRaise(true);
+        m_qatMore->setFocusPolicy(Qt::TabFocus);
+        m_qatMore->setText(QStringLiteral("\u00bb"));
+        m_qatMore->setPopupMode(QToolButton::InstantPopup);
+        m_qatMore->setStyleSheet(QStringLiteral("QToolButton::menu-indicator { image: none; width: 0px; }"));
+        m_qatMore->setMenu(new QMenu(m_qatMore));
+        m_qatMore->setToolTip(QCoreApplication::translate("Ribbon", "More quick toolbar commands"));
+        m_qatMore->setAccessibleName(QCoreApplication::translate("Ribbon", "More quick toolbar commands"));
+        m_qatMore->hide();
     }
     // Where the program's name and the four dots at the right of the top row go: as wide as the name needs at this font (the row's tabs leave this corner free).
     struct Brand {
@@ -933,25 +944,86 @@ public:
     int top() const { return std::max(19, QFontMetrics(brand().font).height() + 3); }
     void updateMetrics() { setFixedHeight(std::max(50, top() + pillHeight() + 5)); }
     QVector<QToolButton *> qatButtons;
+    QVector<QWidget *> qatItems;   // the buttons and the separators between them, in order
+    QToolButton *m_qatMore = nullptr;   // the quick toolbar's commands that don't fit (the » button)
+    QVector<QWidget *> m_qatMoreShown;
     QVector<HeaderButton *> tabButtons;
     HeaderButton *m_file, *m_collapse, *m_help;
     QToolButton *m_more = nullptr;   // the tabs that don't fit the row
     QStringList m_moreShown;         // the tabs its menu lists now (pages, as text)
 
-    int qatWidth() const
+    // A button is its icon (26 wide), or its text when the command has no icon; one that opens a menu has room for the arrow.
+    int qatItemWidth(const QWidget *w) const
     {
-        int w = 6;
-        for (auto *b : qatButtons) w += b->width() + 2;
-        return w + 8;
+        const auto *b = qobject_cast<const QToolButton *>(w);
+        if (!b) return 8;
+        int width = 26;
+        if (b->toolButtonStyle() == Qt::ToolButtonTextOnly) width = std::min(110, fontMetrics().horizontalAdvance(b->text()) + 14);
+        return width + (b->menu() ? 10 : 0);
     }
-    void layoutQat()
+    // Places the quick toolbar's buttons and separators in a third of the row at most (and not under 100); what does not fit goes into the » button's menu. Returns where the toolbar ends.
+    int placeQat()
     {
+        const int room = std::max(100, width() / 3), moreW = 22;
+        int total = 6;
+        for (QWidget *w : std::as_const(qatItems)) total += qatItemWidth(w) + 2;
+        const bool overflow = total > room;
+        QVector<QWidget *> shown;
         int x = 6;
-        for (auto *b : qatButtons) {
-            b->setGeometry(x, top() - 1, 26, 26);
-            x += 28;
+        for (QWidget *w : std::as_const(qatItems)) {
+            const int need = qatItemWidth(w) + 2;
+            if (overflow && x + need > room - moreW) break;
+            shown << w;
+            x += need;
         }
-        layoutButtons();
+        while (!shown.isEmpty() && !qobject_cast<QToolButton *>(shown.last())) {   // (a separator at the end separates nothing)
+            shown.removeLast();
+        }
+        QVector<QWidget *> more;
+        for (QWidget *w : std::as_const(qatItems))
+            if (!shown.contains(w) && qobject_cast<QToolButton *>(w)) more << w;
+        x = 6;
+        for (QWidget *w : std::as_const(qatItems)) {
+            const bool want = shown.contains(w);
+            if (want ? w->isHidden() : (!w->isHidden() || !w->testAttribute(Qt::WA_WState_ExplicitShowHide))) w->setVisible(want);
+            if (!want) continue;
+            const int ww = qatItemWidth(w);
+            const QRect g = qobject_cast<QToolButton *>(w) ? QRect(x, top() - 1, ww, 26) : QRect(x + 3, top() + 2, 2, 20);
+            if (w->geometry() != g) w->setGeometry(g);
+            x += ww + 2;
+        }
+        if (m_qatMore->isHidden() == !more.isEmpty()) m_qatMore->setVisible(!more.isEmpty());
+        if (!more.isEmpty()) {
+            m_qatMore->setGeometry(x, top() - 1, moreW, 26);
+            x += moreW + 2;
+        }
+        if (more != m_qatMoreShown && !m_qatMore->menu()->isVisible()) {
+            m_qatMoreShown = more;
+            QMenu *menu = m_qatMore->menu();
+            menu->clear();
+            for (QWidget *w : more) {
+                auto *b = static_cast<QToolButton *>(w);
+                QAction *a = b->defaultAction();
+                if (!a) continue;
+                if (b->menu()) {
+                    QAction *sub = menu->addAction(a->icon(), a->text());
+                    sub->setMenu(b->menu());   // (a command with a menu keeps it)
+                } else {
+                    menu->addAction(a);
+                }
+            }
+        }
+        return x + 8;
+    }
+    int qatWidth() { return placeQat(); }
+    void layoutQat() { layoutButtons(); }
+    void clearQat()
+    {
+        qDeleteAll(qatItems);
+        qatItems.clear();
+        qatButtons.clear();
+        m_qatMoreShown.clear();
+        m_qatMore->menu()->clear();
     }
     void addTabButton(int i)
     {
@@ -1414,19 +1486,75 @@ RibbonTab *Ribbon::tab(const QString &name) const
     return nullptr;
 }
 
-QToolButton *Ribbon::addQuickAccess(QAction *a)
+QToolButton *Ribbon::addQuickAccess(QAction *a, QMenu *menu, bool split)
 {
     auto *b = new QToolButton(m_header);
     b->setDefaultAction(a);
     b->setAutoRaise(true);
     b->setIconSize(QSize(16, 16));
-    b->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    b->setToolButtonStyle(a->icon().isNull() ? Qt::ToolButtonTextOnly : Qt::ToolButtonIconOnly);   // (a command with no icon shows its name)
     b->setFocusPolicy(Qt::TabFocus);   // the keyboard reaches it; a click leaves the focus in the text
+    if (menu) {
+        b->setMenu(menu);
+        b->setPopupMode(split ? QToolButton::MenuButtonPopup : QToolButton::InstantPopup);
+    }
     m_header->qatButtons << b;
+    m_header->qatItems << b;
     m_header->layoutQat();
     m_header->update();
     return b;
 }
+
+void Ribbon::addQuickAccessSeparator()
+{
+    auto *line = new QFrame(m_header);
+    line->setObjectName(QStringLiteral("jpQuickSeparator"));
+    line->setFrameShape(QFrame::VLine);
+    m_header->qatItems << line;
+    m_header->layoutQat();
+}
+
+void Ribbon::setQuickAccess(const QList<QuickEntry> &entries)
+{
+    if (!m_qatSnapshot) {
+        for (const QToolButton *b : std::as_const(m_header->qatButtons)) m_qatDefaults.append({b->defaultAction(), b->menu(), b->popupMode() == QToolButton::MenuButtonPopup, keytip(b)});
+        m_qatSnapshot = true;
+    }
+    m_header->clearQat();
+    for (const QuickEntry &e : entries) {
+        if (!e.action) {
+            addQuickAccessSeparator();
+            continue;
+        }
+        QToolButton *b = addQuickAccess(e.action, e.menu, e.split);
+        if (!e.keytip.isEmpty()) setKeytip(b, e.keytip);
+    }
+    m_header->layoutQat();
+    m_header->update();
+}
+
+QList<Ribbon::QuickEntry> Ribbon::defaultQuickAccess() const
+{
+    if (m_qatSnapshot) return m_qatDefaults;
+    QList<QuickEntry> out;
+    for (const QToolButton *b : std::as_const(m_header->qatButtons)) out.append({b->defaultAction(), b->menu(), b->popupMode() == QToolButton::MenuButtonPopup, keytip(b)});
+    return out;
+}
+
+void Ribbon::resetQuickAccess()
+{
+    if (m_qatSnapshot) setQuickAccess(m_qatDefaults);
+}
+
+QList<QToolButton *> Ribbon::quickAccessHidden() const
+{
+    QList<QToolButton *> out;
+    for (QToolButton *b : std::as_const(m_header->qatButtons))
+        if (b->isHidden()) out << b;
+    return out;
+}
+
+QToolButton *Ribbon::quickAccessMore() const { return m_header->m_qatMore; }
 
 QWidget *Ribbon::tabButton(int i) const
 {
@@ -1528,7 +1656,10 @@ QString Ribbon::describe(bool keytips) const
     QStringList out;
     if (keytips && !m_fileKeytip.isEmpty()) out << QStringLiteral("file keytip=") + m_fileKeytip;
     QStringList qat;
-    for (const QToolButton *b : m_header->qatButtons) qat << describeAction(b->defaultAction()) + keytipSuffix(b, keytips);
+    for (const QWidget *w : m_header->qatItems) {
+        if (const auto *b = qobject_cast<const QToolButton *>(w)) qat << describeAction(b->defaultAction()) + keytipSuffix(b, keytips);
+        else qat << QStringLiteral("|");
+    }
     out << QStringLiteral("quick access: ") + qat.join(QStringLiteral(", "));
     for (const Tab &t : m_tabs) {
         QString line = QStringLiteral("tab %1%2").arg(t.name, t.group.isEmpty() ? QString() : QStringLiteral(" (%1, %2)").arg(t.group, t.color.name()));

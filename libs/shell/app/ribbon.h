@@ -155,7 +155,21 @@ public:
     void showTab(RibbonTab *t);
     RibbonTab *current() const;
     RibbonTab *tab(const QString &name) const;
-    QToolButton *addQuickAccess(QAction *a);
+    QToolButton *addQuickAccess(QAction *a, QMenu *menu = nullptr, bool split = false);
+    void addQuickAccessSeparator();
+    // What one place of the quick toolbar holds: a command (with the menu it opens, if it has one) or, with no action, a separator.
+    struct QuickEntry {
+        QAction *action = nullptr;
+        QMenu *menu = nullptr;
+        bool split = false;
+        QString keytip;
+    };
+    // The quick toolbar as `entries` have it (the first call keeps what the ribbon file made, for defaultQuickAccess()).
+    void setQuickAccess(const QList<QuickEntry> &entries);
+    void resetQuickAccess();   // back to the ribbon file's
+    QList<QuickEntry> defaultQuickAccess() const;
+    QList<QToolButton *> quickAccessHidden() const;   // the buttons that don't fit the row: they are in the » menu
+    QToolButton *quickAccessMore() const;
     void setMinimized(bool m);
     bool isMinimized() const { return m_minimized; }
     // The tabs in order, for KeyTips and tests.
@@ -220,6 +234,8 @@ private:
     QWidget *m_pending = nullptr;   // hidden: the parent of the pages of tabs not yet made
     QVector<Tab> m_tabs;
     QHash<QString, QString> m_menuTabs;
+    QList<QuickEntry> m_qatDefaults;   // the quick toolbar as the ribbon file made it (once it has been replaced)
+    bool m_qatSnapshot = false;
     int m_current = 0;
     RibbonHeader *m_header;
     QStackedWidget *m_stack;

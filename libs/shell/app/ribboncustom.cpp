@@ -55,7 +55,7 @@ QByteArray savedText()
 
 bool RibbonCustom::isEmpty() const
 {
-    return hiddenTabs.isEmpty() && hiddenGroups.isEmpty() && tabOrder.isEmpty() && tabs.isEmpty() && groups.isEmpty();
+    return hiddenTabs.isEmpty() && hiddenGroups.isEmpty() && tabOrder.isEmpty() && tabs.isEmpty() && groups.isEmpty() && !quickSet;
 }
 
 bool RibbonCustom::operator==(const RibbonCustom &o) const
@@ -91,6 +91,11 @@ QByteArray RibbonCustom::toJson() const
             a << QJsonObject{{QStringLiteral("id"), g.id}, {QStringLiteral("tab"), g.tab}, {QStringLiteral("name"), g.name}, {QStringLiteral("items"), items}};
         }
         o.insert(QStringLiteral("groups"), a);
+    }
+    if (quickSet) {
+        QJsonArray a;
+        for (const QString &id : quick) a << (id.isEmpty() ? QJsonObject{{QStringLiteral("sep"), true}} : QJsonObject{{QStringLiteral("cmd"), id}});
+        o.insert(QStringLiteral("quick"), a);
     }
     return QJsonDocument(o).toJson(QJsonDocument::Compact);
 }
@@ -136,6 +141,19 @@ RibbonCustom RibbonCustom::fromJson(const QByteArray &json)
             ++allItems;
         }
         c.groups.append(out);
+    }
+    if (o.value(QLatin1String("quick")).isArray()) {
+        c.quickSet = true;
+        for (const QJsonValue &v : o.value(QLatin1String("quick")).toArray()) {
+            if (c.quick.size() >= kMaxQuick) break;
+            const QJsonObject q = v.toObject();
+            if (q.value(QLatin1String("sep")).toBool()) {
+                c.quick << QString();
+                continue;
+            }
+            const QString cmd = q.value(QLatin1String("cmd")).toString();
+            if (!cmd.isEmpty() && cmd.size() <= 200 && !c.quick.contains(cmd)) c.quick << cmd;
+        }
     }
     return c;
 }
@@ -390,6 +408,84 @@ void RibbonCustom::resetAll()
     *this = RibbonCustom();
 }
 
+QStringList RibbonCustom::effectiveQuick(const QStringList &defaults) const { return quickSet ? quick : defaults; }
+
+// The list the person has now is kept only when it is not the ribbon file's (an empty one is the person's).
+static void keepQuick(RibbonCustom &c, const QStringList &work, const QStringList &defaults)
+{
+    c.quickSet = work != defaults;
+    c.quick = c.quickSet ? work : QStringList();
+}
+
+bool RibbonCustom::addQuickCommand(const QString &cmd, const QStringList &defaults)
+{
+    QStringList work = effectiveQuick(defaults);
+    if (cmd.isEmpty() || work.size() >= kMaxQuick || work.contains(cmd)) return false;
+    work << cmd;
+    keepQuick(*this, work, defaults);
+    return true;
+}
+
+bool RibbonCustom::addQuickSeparator(const QStringList &defaults)
+{
+    QStringList work = effectiveQuick(defaults);
+    if (work.size() >= kMaxQuick) return false;
+    work << QString();
+    keepQuick(*this, work, defaults);
+    return true;
+}
+
+bool RibbonCustom::removeQuick(int index, const QStringList &defaults)
+{
+    QStringList work = effectiveQuick(defaults);
+    if (index < 0 || index >= work.size()) return false;
+    work.removeAt(index);
+    keepQuick(*this, work, defaults);
+    return true;
+}
+
+bool RibbonCustom::moveQuick(int index, int delta, const QStringList &defaults)
+{
+    QStringList work = effectiveQuick(defaults);
+    const int to = index + delta;
+    if (index < 0 || index >= work.size() || to < 0 || to >= work.size() || delta == 0) return false;
+    work.move(index, to);
+    keepQuick(*this, work, defaults);
+    return true;
+}
+
+// `work` with a command where the ribbon file has it: after the nearest command before it there that is still in the list, or first; away, when the file does not have it.
+static QStringList quickWithCommandReset(QStringList work, const QString &cmd, const QStringList &defaults)
+{
+    work.removeAll(cmd);
+    const int at = int(defaults.indexOf(cmd));
+    if (at < 0) return work;
+    int place = 0;
+    for (int i = at - 1; i >= 0 && !place; --i)
+        if (!defaults[i].isEmpty() && work.contains(defaults[i])) place = int(work.indexOf(defaults[i])) + 1;
+    work.insert(place, cmd);
+    return work;
+}
+
+bool RibbonCustom::quickCommandChanged(const QString &cmd, const QStringList &defaults) const
+{
+    const QStringList work = effectiveQuick(defaults);
+    return !cmd.isEmpty() && quickWithCommandReset(work, cmd, defaults) != work;
+}
+
+bool RibbonCustom::resetQuickCommand(const QString &cmd, const QStringList &defaults)
+{
+    if (!quickCommandChanged(cmd, defaults)) return false;
+    keepQuick(*this, quickWithCommandReset(effectiveQuick(defaults), cmd, defaults), defaults);
+    return true;
+}
+
+void RibbonCustom::resetQuick()
+{
+    quickSet = false;
+    quick.clear();
+}
+
 // ---- KeyTips
 
 QString RibbonCustom::freeKeytip(const QString &name, const QStringList &used, int length)
@@ -566,6 +662,49 @@ void RibbonCustom::applyAll()
     for (AppWindow *w : AppWindow::windows()) plan.applyTo(w);
 }
 
+// The quick toolbar as the person has it (or as the ribbon file has it again): a command that is not there is left out, and so is a separator with nothing to separate. The KeyTips are the places' numbers.
+void RibbonCustom::applyQuick(Ribbon *r, AppWindow *win) const
+{
+    if (!quickSet) {
+        r->resetQuickAccess();
+        return;
+    }
+    bool menuCommand = false;
+    for (const QString &id : quick)
+        if (!id.isEmpty())
+            if (RibbonTab *source = r->tab(r->menuCommandTab(id))) {
+                source->ensureBuilt();   // (only the tab a menu's button is on)
+                menuCommand = true;
+            }
+    const QHash<QAction *, QToolButton *> menus = menuCommand ? menuButtons(r) : QHash<QAction *, QToolButton *>();
+    QStringList used = {QStringLiteral("0")};
+    used << (r->fileKeytip().isEmpty() ? QStringLiteral("F") : r->fileKeytip());
+    for (int i = 0; i < r->tabCount(); ++i)
+        if (!r->tabName(i).startsWith(QLatin1String("user:"))) used << r->tabKeytip(i);
+    QList<Ribbon::QuickEntry> entries;
+    int n = 0;
+    for (const QString &id : quick) {
+        if (id.isEmpty()) {
+            if (!entries.isEmpty() && entries.last().action) entries.append(Ribbon::QuickEntry());
+            continue;
+        }
+        QAction *a = win->act(id);
+        if (!a) continue;
+        Ribbon::QuickEntry e;
+        e.action = a;
+        if (const QToolButton *src = menus.value(a)) {
+            e.menu = src->menu();
+            e.split = src->popupMode() == QToolButton::MenuButtonPopup;
+        }
+        ++n;
+        e.keytip = n <= 9 ? QString::number(n) : freeKeytip(QString(), used, 2);
+        used << e.keytip;
+        entries.append(e);
+    }
+    if (!entries.isEmpty() && !entries.last().action) entries.removeLast();
+    r->setQuickAccess(entries);
+}
+
 void RibbonCustom::applyTo(AppWindow *win) const
 {
     Ribbon *r = win ? win->ribbon() : nullptr;
@@ -588,6 +727,8 @@ void RibbonCustom::applyTo(AppWindow *win) const
             if (r->tabPage(i) == r->current()) return r->tabName(i);
         return QString();
     }() : QString();
+
+    applyQuick(r, win);
 
     // A command that opens a menu brings it from its button: the tab that button is on is made first (and no other).
     for (const Group &g : groups)

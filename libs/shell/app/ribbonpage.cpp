@@ -47,6 +47,7 @@ RibbonPage::RibbonPage(AppWindow *win, QWidget *parent) : QWidget(parent), m_win
     QStringList known;
     for (const BuiltTab &t : std::as_const(m_built)) known << t.name;
     m_plan.dropUnknownTabs(known);   // (what another version's tab left is not kept)
+    m_plan.resetQuick();   // (the quick toolbar is the Quick Toolbar page's)
     const KeyMap keys(win);
     for (const KeyCommand &c : keys.commands()) m_commands.append({c.id, c.text, c.group});
 
@@ -427,7 +428,11 @@ void RibbonPage::say(const QString &text)
 
 void RibbonPage::apply()
 {
-    m_plan.save();
+    RibbonCustom out = m_plan;
+    const RibbonCustom saved = RibbonCustom::load();
+    out.quickSet = saved.quickSet;
+    out.quick = saved.quick;
+    out.save();
     RibbonCustom::applyAll();
 }
 

@@ -39,6 +39,8 @@ public:
     QStringList tabOrder;       // the tabs that are always there, in the order the person wants (empty: as the ribbon file has them)
     QList<Tab> tabs;            // the person's own tabs
     QList<Group> groups;        // the person's own groups, on any tab
+    bool quickSet = false;      // the person changed the quick toolbar: `quick` is it (otherwise the ribbon file's is)
+    QStringList quick;          // a command's id, or an empty string for a separator
 
     bool isEmpty() const;
     bool operator==(const RibbonCustom &o) const;
@@ -85,6 +87,19 @@ public:
     const Group *group(const QString &id) const;
     QList<const Group *> groupsOf(const QString &tab) const;
 
+    // ---- the quick toolbar (`defaults`: the commands of the ribbon file's own, which is what it is until the person changes it). Each says whether it changed anything.
+    QStringList effectiveQuick(const QStringList &defaults) const;
+    // False at the cap of kMaxQuick, or for a command already there.
+    bool addQuickCommand(const QString &cmd, const QStringList &defaults);
+    bool addQuickSeparator(const QStringList &defaults);
+    bool removeQuick(int index, const QStringList &defaults);
+    bool moveQuick(int index, int delta, const QStringList &defaults);
+    // A command back where the ribbon file has it (taken away, when the file does not have it).
+    bool resetQuickCommand(const QString &cmd, const QStringList &defaults);
+    // Whether a command is not where the ribbon file has it.
+    bool quickCommandChanged(const QString &cmd, const QStringList &defaults) const;
+    void resetQuick();
+
     // ---- applying
     // The saved customizing, on a window's ribbon (a window calls this once its ribbon is built; nothing is done when there is none).
     static void apply(AppWindow *win);
@@ -104,9 +119,11 @@ public:
     static constexpr int kMaxAllItems = 600; // in all the groups together
     static constexpr int kMaxAllGroups = 1000;
     static constexpr int kMaxName = 60;
+    static constexpr int kMaxQuick = 100;    // commands and separators in the quick toolbar
     static constexpr int kMaxEntries = 2000; // hidden tabs, hidden groups, and the order, each
 
 private:
+    void applyQuick(Ribbon *r, AppWindow *win) const;
     QString nextId() const;
     Group *groupRef(const QString &id);
 };
