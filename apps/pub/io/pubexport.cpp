@@ -2343,7 +2343,7 @@ QByteArray PubWriter::write(QStringList *skipped)
         }
     }
     if (skipped && skippedCount) *skipped << QCoreApplication::translate("Export", "%n object(s) couldn't be saved to .pub", nullptr, skippedCount);
-    if (skipped && chartPictures) *skipped << QCoreApplication::translate("Export", "%n chart(s) were saved as pictures, so their data can't be edited in a .pub file", nullptr, chartPictures);
+    if (skipped && chartPictures) *skipped << QCoreApplication::translate("Export", "charts were saved as pictures, so their data can't be edited in a .pub file");
     if (skipped && droppedCells) *skipped << QCoreApplication::translate("Export", "%n table cell(s) couldn't be saved to .pub", nullptr, droppedCells);
     if (skipped && droppedHalves)
         *skipped << QCoreApplication::translate("Export", "the second half of %n divided table cell(s) couldn't be saved to .pub", nullptr, droppedHalves);

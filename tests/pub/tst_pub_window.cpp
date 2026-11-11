@@ -270,7 +270,7 @@ private Q_SLOTS:
         for (const QToolButton *b : r->quickAccessButtons()) top << jp::keytip(b);
         QCOMPARE(top.mid(1), (QStringList{"1", "2", "3", "4"}));
         // The tabs always there have one letter; the contextual ones are J and another.
-        const QStringList contextual{"Master Page", "Text Box", "Shape Format", "Picture Format", "Table Design", "Table Layout", "Text Art Format"};
+        const QStringList contextual{"Master Page", "Text Box", "Shape Format", "Picture Format", "Table Design", "Table Layout", "Text Art Format", "Chart Format"};
         for (int i = 0; i < r->tabCount(); ++i) {
             top << r->tabKeytip(i);
             if (contextual.contains(r->tabName(i))) QVERIFY2(r->tabKeytip(i).size() == 2 && r->tabKeytip(i)[0] == QLatin1Char('J'), qPrintable(r->tabName(i)));

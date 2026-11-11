@@ -2,6 +2,7 @@
 #include "appchecks.h"
 
 #include "app/animationpane.h"
+#include "app/chartedit.h"
 #include "app/deckcanvas.h"
 #include "app/deckinfo.h"
 #include "app/deckwindow.h"
@@ -193,6 +194,11 @@ private Q_SLOTS:
             {QStringLiteral("a shape selected"), [onSlide](AppWindow *w, bool f) { onSlide(w, f, ItemType::Shape); }, true},
             {QStringLiteral("a picture selected"), [onSlide](AppWindow *w, bool f) { onSlide(w, f, ItemType::Picture); }, true},
             {QStringLiteral("a table selected"), [onSlide](AppWindow *w, bool f) { onSlide(w, f, ItemType::Table); }, true},
+            {QStringLiteral("a chart selected"), [](AppWindow *aw, bool f) {
+                 Editor *ed = asDeck(aw)->editor();
+                 if (f) ed->setCurrentPage(1);
+                 insertChart(ed, office::sheet::ChartForm::Column);
+             }, false},
             {QStringLiteral("the cursor in a table cell"), [onSlide](AppWindow *aw, bool f) {
                  onSlide(aw, f, ItemType::Table);
                  Editor *ed = asDeck(aw)->editor();

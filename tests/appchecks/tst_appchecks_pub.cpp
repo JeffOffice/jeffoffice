@@ -2,6 +2,7 @@
 #include "appchecks.h"
 
 #include "app/backstage.h"
+#include "app/chartedit.h"
 #include "app/mainwindow.h"
 #include "app/pubinfo.h"
 #include "app/ribbon.h"
@@ -308,6 +309,7 @@ private Q_SLOTS:
                  auto *w = asPub(aw);
                  w->insertFiles({tempFile(QStringLiteral("red.png"))}, QPointF(300, 300));
              }, false},
+            {QStringLiteral("a chart selected"), [](AppWindow *aw, bool) { insertChart(asPub(aw)->editor(), office::sheet::ChartForm::Column); }, false},
             {QStringLiteral("a table selected"), [](AppWindow *aw, bool) {
                  Editor *ed = asPub(aw)->editor();
                  const QString id = ed->addItem(ed->newTable(QRectF(72, 300, 300, 90), 3, 3));
@@ -477,6 +479,7 @@ private Q_SLOTS:
         m_app.hints = {
             {QStringLiteral("wa"), {QStringLiteral("Text Art selected")}},
             {QStringLiteral("pic."), {QStringLiteral("a picture selected"), QStringLiteral("two pictures selected"), QStringLiteral("a cropped picture in a shape, with a tint"), QStringLiteral("pictures in the scratch area")}},
+            {QStringLiteral("chart."), {QStringLiteral("a chart selected")}},
             {QStringLiteral("corr"), {QStringLiteral("a cropped picture in a shape, with a tint")}},
             {QStringLiteral("recolor"), {QStringLiteral("a cropped picture in a shape, with a tint")}},
             {QStringLiteral("tbl."), {QStringLiteral("a table with uneven columns and rows"), QStringLiteral("a table selected")}},
