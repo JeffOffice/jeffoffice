@@ -381,8 +381,19 @@ QString MainWindow::helpContext() const
             if (m_ribbon->tabPage(i) == m_ribbon->current()) key = QStringLiteral("tab:") + m_ribbon->tabName(i);
     } else if (inside(m_task) && m_task->isVisible()) key = QStringLiteral("pane:") + m_task->current();
     else if (const Item *it = m_ed->single()) {
-        static const char *kinds[] = {"text", "picture", "shape", "line", "table", "textart", "group"};
-        key = QStringLiteral("item:") + QLatin1String(kinds[int(it->type())]);
+        // (a switch, not a list by number: a kind of object added later is a compiler warning here)
+        const char *kind = "";
+        switch (it->type()) {
+        case ItemType::Text: kind = "text"; break;
+        case ItemType::Picture: kind = "picture"; break;
+        case ItemType::Shape: kind = "shape"; break;
+        case ItemType::Line: kind = "line"; break;
+        case ItemType::Table: kind = "table"; break;
+        case ItemType::TextArt: kind = "textart"; break;
+        case ItemType::Group: kind = "group"; break;
+        case ItemType::Equation: kind = "equation"; break;
+        }
+        key = QStringLiteral("item:") + QLatin1String(kind);
     } else if (!m_ed->selection().isEmpty()) key = QStringLiteral("item:several");
     return key.isEmpty() ? QString() : help::contextTopic(key);
 }

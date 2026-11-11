@@ -55,6 +55,17 @@ private Q_SLOTS:
         QCOMPARE(equationsOn(ed).first()->linear, line);
     }
 
+    // Help with an equation selected opens the topic on equations (the last kind of object: its name was once read from past the end of the list).
+    void helpWithAnEquationSelectedOpensTheEquationsTopic()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        const QString id = jp::insertEquation(ed, QStringLiteral("a/b"));
+        QVERIFY(!id.isEmpty());
+        ed->select(id);
+        QCOMPARE(w.helpContext(), QStringLiteral("equations"));
+    }
+
     // The equation is an object: it moves and sizes like one, in steps that undo, and "Equation" with it selected opens the same editor on it.
     void anEquationMovesSizesAndIsEditedInTheDialog()
     {
