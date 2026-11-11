@@ -2137,7 +2137,7 @@ private Q_SLOTS:
         }
     }
 
-    // A slide of 20,000 objects: the pane lists them, Select All, a nudge, and a drag of a row 1,000 places each take about a second of the window thread's processor time at most (the bound is three). Processor time, not the wall clock: on a busy machine a nudge took over 6 s by the clock.
+    // A slide of 20,000 objects: the pane lists them, Select All, a nudge, and a drag of a row 1,000 places each take a few seconds of the window thread's processor time at most. Processor time, not the wall clock: on a busy machine a nudge took over 6 s by the clock. The bound is six: on CI sharing a busy machine a nudge used 3.3 s of processor time, and what this guards against, work that grows with the square of the count, takes minutes.
     void aSlideOfTwentyThousandObjectsIsHandledQuickly()
     {
         DeckWindow w;
@@ -2156,7 +2156,7 @@ private Q_SLOTS:
         auto within = [&](const char *what) {
             const qint64 ms = (jp::threadCpuMicros() - began) / 1000;
             began = jp::threadCpuMicros();
-            QVERIFY2(ms < 3000, qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
+            QVERIFY2(ms < 6000, qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
         };
         began = jp::threadCpuMicros();
         w.act(QStringLiteral("arr.selectionPane"))->trigger();
