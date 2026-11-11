@@ -348,8 +348,9 @@
          "text": "cc6c5a76fa021b8f9370a399d2613cd3fa01b453206808a9239cc7737a9c7393"
         },
         {
-         "status": "todo",
-         "text": "3595dd737a0f17bc1dd5c72fa87ea8a86b6c14573b3ca9000edb30ff1f215630"
+         "hide_soon": true,
+         "status": "done",
+         "text": "f903f431e4802d6db7bc2d5d54e8afe5b89b2c9aead34c595a178394ad05d003"
         },
         {
          "status": "todo",
@@ -2598,8 +2599,9 @@
          "text": "e40ae9fdef2bab9a2dd6a0379d458d15d475259203f78876729b99a8afe342af"
         },
         {
-         "status": "todo",
-         "text": "61cf72b899df7ffb066d68a8d58b0dcb56964b2c6776ea3ff8598eb8595241db"
+         "hide_soon": true,
+         "status": "done",
+         "text": "82dd04670351bee2b9d1af4d8b4401882faaa7c8335b7a2635f662732d06e36f"
         },
         {
          "status": "partly",
@@ -4430,8 +4432,9 @@
          "text": "b2ddc20805b4f790ec97d46c77067d009f485376a5219d0e6d2adfcd6551afab"
         },
         {
-         "status": "todo",
-         "text": "ba8f7a97a722df7f562ca20f6058704a55a81fe568a396eacc3836443a0e2d5a"
+         "hide_soon": true,
+         "status": "done",
+         "text": "ea0082d18c5e724606855f4fb0a475f0c94b98646c2573ac6acd7ff7e71adb0d"
         },
         {
          "hide_soon": true,
@@ -5748,8 +5751,8 @@
          "text": "305f04a0ab6f5dd54228a1475bdf44de3a860e30761b039566f8bf24024a7f63"
         },
         {
-         "status": "todo",
-         "text": "ae0206fe23b573c6d4e6b4b917850f4d3a433da1af85ac01b5a8d03c852e5031"
+         "status": "partly",
+         "text": "4c5da7ac18468dff16f7ed2b45b9771382312a06c2f0fbb9efc25609c9bc7f04"
         },
         {
          "hide_soon": true,
@@ -11324,18 +11327,6 @@
     "fr": ""
    }
   },
-  "3595dd737a0f17bc1dd5c72fa87ea8a86b6c14573b3ca9000edb30ff1f215630": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Keyboard customization: assign keys to commands",
-    "es": "Personalización del teclado: asignación de teclas a comandos",
-    "fr": "Personnalisation du clavier : attribution de touches aux commandes"
-   }
-  },
   "35d755aadb9a81fa2c77f8ab28ab243d0db5bcba6cbc250b00a1060507c93e50": {
    "drop": false,
    "en": "A transition the app has no form for plays as a fade and is saved as it was.",
@@ -12978,6 +12969,18 @@
     "en": "Text styles: update styled text when the base style changes",
     "es": "Estilos de texto: actualizar el texto con estilo cuando cambia el estilo base",
     "fr": "Styles de texte : mise à jour du texte stylé lorsque le style de base change"
+   }
+  },
+  "4c5da7ac18468dff16f7ed2b45b9771382312a06c2f0fbb9efc25609c9bc7f04": {
+   "drop": false,
+   "en": "Assign keys to every command in `Options > Customize > Keyboard`, with search, take-over of a key already in use, Reset One, and Reset All.",
+   "es": "Asigne teclas a cualquier comando en `Options > Customize > Keyboard`, con búsqueda, reasignación de una tecla ya en uso, Reset One y Reset All.",
+   "fr": "Attribuez des touches à n’importe quelle commande dans `Options > Customize > Keyboard`, avec recherche, reprise d’une touche déjà utilisée, Reset One et Reset All.",
+   "soon": {
+    "drop": false,
+    "en": "Keyboard keys for styles, symbols, and building blocks",
+    "es": "Teclas de teclado para estilos, símbolos y bloques de creación",
+    "fr": "Touches de clavier pour les styles, les symboles et les blocs de construction"
    }
   },
   "4c6e9f147aeb3f3e7bb9d4f808256a73bfadfc817b1c03f7fb019019fa52b36e": {
@@ -14634,18 +14637,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "61cf72b899df7ffb066d68a8d58b0dcb56964b2c6776ea3ff8598eb8595241db": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Keyboard customization: assign keys to commands, starting from common shortcuts",
-    "es": "Personalización del teclado: asignar teclas a comandos, partiendo de los atajos habituales",
-    "fr": "Personnalisation du clavier : attribuer des touches aux commandes, à partir des raccourcis courants"
    }
   },
   "61e4cb690ea92585dcb39082b68bff9ee7f3edb0b2e7088827a43922ac7ff856": {
@@ -17137,6 +17128,18 @@
    "en": "Table Design and Layout tabs",
    "es": "Pestañas Diseño de tabla y Disposición",
    "fr": "Onglets Création de tableau et Disposition",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "82dd04670351bee2b9d1af4d8b4401882faaa7c8335b7a2635f662732d06e36f": {
+   "drop": false,
+   "en": "Customize the keyboard in `Options > Customize > Keyboard`: search a list of every command by ribbon tab, add or remove keys, and see which command already uses a key and take it over. Reset One and Reset All restore the defaults, and the system's own keys stay reserved.",
+   "es": "Personalice el teclado en `Options > Customize > Keyboard`: busque en una lista de todos los comandos por pestaña de la cinta de opciones, agregue o quite teclas, y vea qué comando ya usa una tecla para reasignarla. Reset One y Reset All restablecen los valores predeterminados, y las teclas propias del sistema permanecen reservadas.",
+   "fr": "Personnalisez le clavier dans `Options > Customize > Keyboard` : recherchez dans une liste de toutes les commandes par onglet du ruban, ajoutez ou retirez des touches, et voyez quelle commande utilise déjà une touche pour la reprendre. Reset One et Reset All rétablissent les valeurs par défaut, et les touches propres au système restent réservées.",
    "soon": {
     "drop": true,
     "en": "",
@@ -19904,18 +19907,6 @@
     "fr": "Quadrillage, barre de formule et en-têtes : activation et désactivation pour chaque feuille"
    }
   },
-  "ae0206fe23b573c6d4e6b4b917850f4d3a433da1af85ac01b5a8d03c852e5031": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Keyboard customization: assign keys to commands, styles, symbols, and building blocks, and reset them",
-    "es": "Personalización del teclado: asignar teclas a comandos, estilos, símbolos y bloques de creación, y restablecerlas",
-    "fr": "Personnalisation du clavier : attribuer des touches aux commandes, styles, symboles et blocs de construction, et les réinitialiser"
-   }
-  },
   "ae174e601fc90766748f92b1b6ff576c14f0d330b38b0f0494911b54d896792a": {
    "drop": false,
    "en": "The Help tab has Help, Keyboard Shortcuts, What's New, and Feedback. About has links to the source, downloads, and problem reports.",
@@ -20562,18 +20553,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ba8f7a97a722df7f562ca20f6058704a55a81fe568a396eacc3836443a0e2d5a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Keyboard customization: assign keys to commands, starting from common shortcuts",
-    "es": "Personalización del teclado: asignar teclas a comandos, partiendo de los atajos habituales",
-    "fr": "Personnalisation du clavier : attribuer des touches aux commandes, à partir des raccourcis courants"
    }
   },
   "bae15634168309e8350b3b0309ee8f64a4a836c66faa2138c5210aac3aed4b8d": {
@@ -24020,6 +23999,18 @@
     "fr": "Mode lecture : largeur de colonne, couleur de page et choix de mise en page"
    }
   },
+  "ea0082d18c5e724606855f4fb0a475f0c94b98646c2573ac6acd7ff7e71adb0d": {
+   "drop": false,
+   "en": "Customize the keyboard in `Options > Customize > Keyboard`: search a list of every command by ribbon tab, add or remove keys, and see which command already uses a key and take it over. Reset One and Reset All restore the defaults, and the system's own keys (copy, paste, undo, select all, `Tab`, and others) stay reserved.",
+   "es": "Personalice el teclado en `Options > Customize > Keyboard`: busque en una lista de todos los comandos por pestaña de la cinta de opciones, agregue o quite teclas, y vea qué comando ya usa una tecla para reasignarla. Reset One y Reset All restablecen los valores predeterminados, y las teclas propias del sistema (copiar, pegar, deshacer, seleccionar todo, `Tab` y otras) permanecen reservadas.",
+   "fr": "Personnalisez le clavier dans `Options > Customize > Keyboard` : recherchez dans une liste de toutes les commandes par onglet du ruban, ajoutez ou retirez des touches, et voyez quelle commande utilise déjà une touche pour la reprendre. Reset One et Reset All rétablissent les valeurs par défaut, et les touches propres au système (copier, coller, annuler, tout sélectionner, `Tab` et autres) restent réservées.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "ea11678afdeadf04c4c85805338215a1a913b61b836059cc69deede07c2e6ab2": {
    "drop": false,
    "en": "Format page numbers as 1 2 3, a b c, A B C, i ii iii, I II III, or dashed, with the chapter number, and continue from the previous section or start at a chosen number. Page Number Format on the Header & Footer tab applies to a section or the whole document, in one undoable step.",
@@ -24913,6 +24904,18 @@
    "en": "Insert a PDF page as a picture, choosing the page from previews of all of them. It prints and exports to PDF and SVG as sharp vectors, with its text as letter outlines.",
    "es": "Inserte una página de un PDF como imagen, eligiendo la página entre vistas previas de todas. Se imprime y se exporta a PDF y SVG como vectores nítidos, con su texto como contornos de letras.",
    "fr": "Insérez une page de PDF comme image, en la choisissant parmi les aperçus de toutes les pages. Elle s’imprime et s’exporte en PDF et SVG sous forme de vecteurs nets, son texte en contours de lettres.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "f903f431e4802d6db7bc2d5d54e8afe5b89b2c9aead34c595a178394ad05d003": {
+   "drop": false,
+   "en": "Customize the keyboard in `Options > Customize > Keyboard`: search a list of every command by ribbon tab, add or remove keys, and see which command already uses a key and take it over. Reset One and Reset All restore the defaults, and the system's own keys stay reserved.",
+   "es": "Personalice el teclado en `Options > Customize > Keyboard`: busque en una lista de todos los comandos por pestaña de la cinta de opciones, agregue o quite teclas, y vea qué comando ya usa una tecla para reasignarla. Reset One y Reset All restablecen los valores predeterminados, y las teclas propias del sistema permanecen reservadas.",
+   "fr": "Personnalisez le clavier dans `Options > Customize > Keyboard` : recherchez dans une liste de toutes les commandes par onglet du ruban, ajoutez ou retirez des touches, et voyez quelle commande utilise déjà une touche pour la reprendre. Reset One et Reset All rétablissent les valeurs par défaut, et les touches propres au système restent réservées.",
    "soon": {
     "drop": true,
     "en": "",
