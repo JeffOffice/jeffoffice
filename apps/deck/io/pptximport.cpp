@@ -228,7 +228,8 @@ QString sizeNameOf(const QString &type, qint64 cx, qint64 cy)
 }
 
 // What a file may hold of comments: more is left unread, with a note.
-constexpr int kMaxComments = 1000, kMaxReplies = 1000, kMaxAllComments = 20000, kMaxCommentAuthors = 10000;
+// (the limits of comments in every file are those of core/comments.h, which a document is held to again once it is read)
+constexpr int kMaxComments = comments::kMaxComments, kMaxReplies = comments::kMaxReplies, kMaxAllComments = comments::kMaxComments + comments::kMaxTotalReplies, kMaxCommentAuthors = 10000;
 
 // Reads the comments of a slide into its props (core/comments.h). The file has
 // them in one of two forms, both read:
@@ -1862,6 +1863,7 @@ std::unique_ptr<Document> importPackage(const office::Package &pkg, QString *err
     EmbeddedFonts::use(doc.get(), importer.takeFonts());
     doc->fromFile = true;   // what the file names outside itself is read only from beside it
     doc->props.setFromPackageProps(office::readPackageProps(pkg));
+    comments::limitComments(*doc);
     return doc;
 }
 

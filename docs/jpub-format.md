@@ -142,9 +142,14 @@ out when the page has none. Each comment is an object:
 Comments are never printed or put in a PDF, and the `.pub` file has no place for
 them (JeffPub names them in the note after saving a `.pub` file). A reader holds
 a file from a stranger to limits: 2,000 comments in all (the first ones stay),
-200 replies to a comment, and 32,768 characters in a comment or a reply; a name
-is cut to 200 characters and initials to 8; an entry that is not an object is
-dropped.
+200 replies to a comment and 20,000 in all, 32,768 characters in a comment or a
+reply and 8 MB of text in all; a name is cut to 200 characters and initials to
+8; an entry that is not an object is dropped. A place is brought to the page
+and a margin of 100 points around it, an `id` that is empty or used twice is
+made anew, and an `item` that is not an object of that page is left out (the
+comment keeps its place). JeffDeck holds the comments of a `.pptx` to the same
+limits. With Remove personal information when saving on, `author` and
+`initials` are written empty.
 
 ### Objects
 

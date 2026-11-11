@@ -1,6 +1,7 @@
 // Share and export helpers: email files, Pack and Go, photo printer pictures,
 // and templates.
 
+#include "core/comments.h"
 #include "core/fonts.h"
 #include "app/emailops.h"
 #include "app/appfuncs.h"
@@ -104,6 +105,7 @@ bool packForPrinter(MainWindow *win, const QString &dir, QString *error)
     }
     QString err;
     NamesOutScope namesOut(ed->doc()->props, privacy::removeOnSave());
+    comments::NamesOutScope commentNamesOut(*ed->doc(), privacy::removeOnSave());
     if (!savePublication(*ed->doc(), base + ".jpub", win->pageThumbnail(0, 256), &err, true, QString(), win->filePassword())) {
         if (error) *error = QCoreApplication::translate("Sharing", "JeffPub couldn't save the publication in %1.\n%2").arg(QDir::toNativeSeparators(dir), err);
         return false;
@@ -215,6 +217,7 @@ void saveAsTemplate(QWidget *parent, MainWindow *win)
     QDir().mkpath(dir);
     QString err;
     NamesOutScope namesOut(win->editor()->doc()->props, privacy::removeOnSave());
+    comments::NamesOutScope commentNamesOut(*win->editor()->doc(), privacy::removeOnSave());
     if (savePublication(*win->editor()->doc(), dir + "/" + name.trimmed() + ".jpub", win->pageThumbnail(0, 256), &err, true, QString(), win->filePassword()))
         jp::plainInformation(parent, QCoreApplication::translate("Sharing", "Save as Template"), QCoreApplication::translate("Sharing", "\"%1\" is now in File > New > My Templates.").arg(name.trimmed()));
     else jp::plainWarning(parent, QCoreApplication::translate("Sharing", "Save as Template"), err);

@@ -370,6 +370,26 @@ private Q_SLOTS:
         QCOMPARE(int(comments::commentsOf(*d->pages[0])[0].replies.size()), 1);
     }
 
+    // A file's comments are held to the limits every app shares (core/comments.h), whatever the file says: a thread has at most kMaxReplies replies.
+    void importHoldsCommentsToTheSharedLimits()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        const comments::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")};
+        const QDateTime noon(QDate(2026, 10, 12), QTime(12, 0), QTimeZone::UTC);
+        const QString id = comments::addComment(*d->pages[0], pat, QStringLiteral("Thread"), QPointF(100, 100), noon);
+        for (int i = 0; i < comments::kMaxReplies + 50; ++i) comments::addReply(*d->pages[0], id, pat, QStringLiteral("Reply %1").arg(i), noon.addSecs(i));
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const QVector<comments::Comment> list = comments::commentsOf(*back->pages[0]);
+        QCOMPARE(int(list.size()), 1);
+        QCOMPARE(int(list[0].replies.size()), comments::kMaxReplies);
+        QCOMPARE(list[0].replies[0].text, QStringLiteral("Reply 0"));
+    }
+
     // The newer form: authors by GUID, comments that are threads with replies
     // inside, a status, and a place on the slide or the shape they stand on.
     void importReadsModernComments()
@@ -475,13 +495,13 @@ private Q_SLOTS:
         {
             Parts p = withLegacyComments();
             QString body;
-            for (int i = 0; i < 1100; ++i) body += legacyComment(0, i + 1, QStringLiteral("2026-10-12T10:00:00"), 80, 80, QStringLiteral("C%1").arg(i));
+            for (int i = 0; i < comments::kMaxComments + 100; ++i) body += legacyComment(0, i + 1, QStringLiteral("2026-10-12T10:00:00"), 80, 80, QStringLiteral("C%1").arg(i));
             p.data["/ppt/comments/comment1.xml"].xml = legacyCommentList(body).toUtf8();
             err.clear();
             auto d = deck::importPresentation(pack(p), &err);
             QVERIFY(d);
-            QCOMPARE(int(comments::commentsOf(*d->pages[0]).size()), 1000);
-            QVERIFY2(err.contains(QStringLiteral("1000")), qPrintable(err));
+            QCOMPARE(int(comments::commentsOf(*d->pages[0]).size()), comments::kMaxComments);
+            QVERIFY2(err.contains(QString::number(comments::kMaxComments)), qPrintable(err));
         }
         // Authors by the thousand are not all read either; the first ones are.
         {
@@ -515,8 +535,8 @@ private Q_SLOTS:
             QVERIFY(d);
             const QVector<comments::Comment> list = comments::commentsOf(*d->pages[1]);
             QCOMPARE(int(list.size()), 3);
-            QCOMPARE(int(list[0].replies.size()), 1000);
-            QVERIFY2(err.contains(QStringLiteral("1000")), qPrintable(err));
+            QCOMPARE(int(list[0].replies.size()), comments::kMaxReplies);
+            QVERIFY2(err.contains(QString::number(comments::kMaxReplies)), qPrintable(err));
         }
     }
 

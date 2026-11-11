@@ -215,6 +215,7 @@ private:
     void refreshChart();
     ChartActions *m_chartActions = nullptr;
     void createCommentActions();   // mainwindow_comments.cpp
+    void updateCommentActions();
     void buildRibbon();
     // The controls and menus ribbon.json names (mainwindow_ribbon.cpp).
     void ribbonControlParts(RibbonParts &parts);

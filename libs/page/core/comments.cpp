@@ -4,6 +4,10 @@
 
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QSet>
+#include <algorithm>
+#include <atomic>
+#include <cmath>
 
 namespace jp::comments {
 
@@ -145,14 +149,60 @@ QString addComment(Page &slide, const CommentAuthor &who, const QString &text, c
     return c.id;
 }
 
-QPointF commentPlace(const Document &d, const Comment &c)
+namespace {
+std::atomic<int> g_builds{0}, g_scans{0};
+
+// The objects of a page (those in groups too), by id.
+QHash<QString, const Item *> itemsOf(const Page &page)
 {
-    if (c.itemId.isEmpty()) return c.at;
-    const Item *it = d.item(c.itemId);
-    if (!it) return c.at;
-    const QRectF r = it->bounds();
+    ++g_scans;
+    QHash<QString, const Item *> out;
+    walkItems(page.items, [&](const ItemPtr &it) { out.insert(it->id, it.get()); });
+    return out;
+}
+
+QPointF cornerOf(const Item &it)
+{
+    const QRectF r = it.bounds();
     return QPointF(r.right(), r.top());
 }
+} // namespace
+
+QPointF commentPlace(const Page &page, const Comment &c)
+{
+    if (c.itemId.isEmpty()) return c.at;
+    const auto items = itemsOf(page);
+    const Item *it = items.value(c.itemId);
+    return it ? cornerOf(*it) : c.at;
+}
+
+QVector<CommentMark> commentMarks(const Page &page)
+{
+    ++g_builds;
+    const QVector<Comment> list = commentsOf(page);
+    QVector<CommentMark> out;
+    out.reserve(list.size());
+    QHash<QString, const Item *> items;
+    bool scanned = false;
+    for (const Comment &c : list) {
+        CommentMark m{c.id, c.author, c.initials, c.at, c.done, false};
+        if (!c.itemId.isEmpty()) {
+            if (!scanned) {
+                items = itemsOf(page);
+                scanned = true;
+            }
+            if (const Item *it = items.value(c.itemId)) {
+                m.place = cornerOf(*it);
+                m.attached = true;
+            }
+        }
+        out.append(m);
+    }
+    return out;
+}
+
+int commentMarkBuilds() { return g_builds; }
+int commentItemScans() { return g_scans; }
 
 QString addReply(Page &slide, const QString &commentId, const CommentAuthor &who, const QString &text, const QDateTime &when)
 {
@@ -258,42 +308,138 @@ QVector<CommentRef> allComments(const Document &d)
 
 int limitComments(Document &d)
 {
-    // (a name and its initials are a line, not a page)
-    auto tidy = [](QJsonObject &o) {
-        o[QStringLiteral("text")] = o.value(QStringLiteral("text")).toString().left(kMaxCommentText);
-        o[QStringLiteral("author")] = o.value(QStringLiteral("author")).toString().left(200);
-        o[QStringLiteral("initials")] = o.value(QStringLiteral("initials")).toString().left(8);
+    const QSizeF size = d.pageSize();
+    int cut = 0, comments = 0, replies = 0;
+    qint64 text = 0;
+    // A text, held to what one may hold and to what is left for the document.
+    auto fit = [&](const QJsonObject &o, QString *out) {
+        const qint64 room = kMaxTotalText - text;
+        if (room <= 0) return false;
+        *out = o.value(QStringLiteral("text")).toString().left(int(std::min<qint64>(kMaxCommentText, room)));
+        text += out->size();
+        return true;
     };
-    int cut = 0, total = 0;
     for (const auto &page : d.pages) {
         const QJsonValue v = page->props.value(kKey);
         if (v.isUndefined()) continue;
+        QSet<QString> used;
+        QSet<QString> onPage;
+        bool scanned = false;
+        auto freshId = [&](const QString &id, const char *prefix) {
+            const QString made = id.isEmpty() || used.contains(id) ? newId(prefix) : id;
+            used.insert(made);
+            return made;
+        };
+        // (a name and its initials are a line, not a page)
+        auto tidy = [&](QJsonObject &o, const char *prefix) {
+            o[QStringLiteral("id")] = freshId(o.value(QStringLiteral("id")).toString(), prefix);
+            o[QStringLiteral("author")] = o.value(QStringLiteral("author")).toString().left(200);
+            o[QStringLiteral("initials")] = o.value(QStringLiteral("initials")).toString().left(8);
+        };
         QJsonArray kept;
         for (const QJsonValue &entry : v.toArray()) {
-            if (!entry.isObject() || total >= kMaxComments) {
+            QString body;
+            if (!entry.isObject() || comments >= kMaxComments || !fit(entry.toObject(), &body)) {
                 ++cut;
                 continue;
             }
-            ++total;
+            ++comments;
             QJsonObject o = entry.toObject();
-            tidy(o);
-            QJsonArray replies;
+            tidy(o, "c");
+            o[QStringLiteral("text")] = body;
+            auto place = [&](const char *key, double limit) {
+                double x = o.value(QLatin1String(key)).toDouble(10);
+                if (!std::isfinite(x)) x = 10;
+                o[QLatin1String(key)] = std::clamp(x, -kPlaceMargin, limit + kPlaceMargin);
+            };
+            place("x", size.width());
+            place("y", size.height());
+            const QString item = o.value(QStringLiteral("item")).toString();
+            if (!item.isEmpty()) {
+                if (!scanned) {
+                    walkItems(page->items, [&](const ItemPtr &it) { onPage.insert(it->id); });
+                    scanned = true;
+                }
+                if (!onPage.contains(item)) o.remove(QStringLiteral("item"));
+            }
+            QJsonArray kept2;
             for (const QJsonValue &r : o.value(QStringLiteral("replies")).toArray()) {
-                if (!r.isObject() || replies.size() >= kMaxReplies) {
+                QString replyText;
+                if (!r.isObject() || kept2.size() >= kMaxReplies || replies >= kMaxTotalReplies || !fit(r.toObject(), &replyText)) {
                     ++cut;
                     continue;
                 }
+                ++replies;
                 QJsonObject ro = r.toObject();
-                tidy(ro);
-                replies.append(ro);
+                tidy(ro, "r");
+                ro[QStringLiteral("text")] = replyText;
+                kept2.append(ro);
             }
-            o[QStringLiteral("replies")] = replies;
+            o[QStringLiteral("replies")] = kept2;
             kept.append(o);
         }
         if (kept.isEmpty()) page->props.remove(kKey);
         else page->props[kKey] = kept;
     }
     return cut;
+}
+
+NamesOutScope::NamesOutScope(Document &d, bool on) : m_doc(d), m_on(on)
+{
+    if (!on) return;
+    for (const auto &page : d.pages) {
+        m_kept.append(page->props.value(kKey).toArray());
+        QVector<Comment> list = commentsOf(*page);
+        if (list.isEmpty()) continue;
+        QJsonArray blank;
+        for (const QJsonValue &v : page->props.value(kKey).toArray()) {
+            QJsonObject o = v.toObject();
+            o[QStringLiteral("author")] = QString();
+            o[QStringLiteral("initials")] = QString();
+            QJsonArray rs;
+            for (const QJsonValue &r : o.value(QStringLiteral("replies")).toArray()) {
+                QJsonObject ro = r.toObject();
+                ro[QStringLiteral("author")] = QString();
+                ro[QStringLiteral("initials")] = QString();
+                rs.append(ro);
+            }
+            o[QStringLiteral("replies")] = rs;
+            blank.append(o);
+        }
+        page->props[kKey] = blank;
+    }
+}
+
+NamesOutScope::~NamesOutScope()
+{
+    if (!m_on) return;
+    for (int i = 0; i < m_doc.pages.size() && i < m_kept.size(); ++i) {
+        if (m_kept[i].isEmpty()) m_doc.pages[i]->props.remove(kKey);
+        else m_doc.pages[i]->props[kKey] = m_kept[i];
+    }
+}
+
+void carryComments(const Document &from, Document &to)
+{
+    if (to.pages.isEmpty()) return;
+    QVector<QVector<Comment>> onPage(to.pages.size());
+    for (int i = 0; i < from.pages.size(); ++i) {
+        QVector<Comment> list = commentsOf(*from.pages[i]);
+        for (Comment &c : list) c.itemId.clear();
+        onPage[std::min<int>(i, to.pages.size() - 1)] += list;
+    }
+    for (int i = 0; i < to.pages.size(); ++i) setComments(*to.pages[i], onPage[i]);
+}
+
+void copyComments(const Page &from, Page &to, const QHash<QString, QString> &copies)
+{
+    QVector<Comment> list = commentsOf(from);
+    for (Comment &c : list) {
+        c.id = newId("c");
+        if (!c.itemId.isEmpty()) c.itemId = copies.value(c.itemId);
+        for (CommentReply &r : c.replies) r.id = newId("r");
+    }
+    setComments(to, list);
 }
 
 } // namespace jp::comments

@@ -10,6 +10,7 @@
 #include "core/chartobject.h"
 #include "core/presets.h"
 #include "text/storyio.h"
+#include "core/comments.h"
 #include "text/textprops.h"
 
 #include <QApplication>
@@ -1667,6 +1668,16 @@ int Editor::insertPages(int after, int count, bool duplicate, bool oneTextBox, c
             p->background = src->background;
             p->guides = src->guides;
             for (const auto &it : m_doc->cloneItems(src->items)) p->items.push_back(it);
+            // The page's comments are copied with it, each on the copy of its object.
+            QHash<QString, QString> copies;
+            std::vector<const Item *> originals;
+            walkItems(src->items, [&](const ItemPtr &it) { originals.push_back(it.get()); });
+            size_t k = 0;
+            walkItems(p->items, [&](const ItemPtr &it) {
+                if (k < originals.size()) copies.insert(originals[k]->id, it->id);
+                ++k;
+            });
+            comments::copyComments(*src, *p, copies);
         } else if (oneTextBox) {
             const QRectF r = QRectF(QPointF(0, 0), m_doc->pageSize()).marginsRemoved(m_doc->setup.margins);
             p->items.push_back(newTextBox(r));

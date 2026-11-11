@@ -3,6 +3,7 @@
 #include "app/editor.h"
 
 #include "text/storyio.h"
+#include "core/comments.h"
 #include "text/textprops.h"
 
 #include <QCoreApplication>
@@ -650,6 +651,7 @@ std::unique_ptr<Document> applyDesign(const Document &current, std::unique_ptr<D
     // The rest of the publication stays its own.
     for (const auto &it : r.cloneItems(current.scratch)) r.scratch.push_back(it);
     r.props = current.props;
+    comments::carryComments(current, r);
     r.print = current.print;
     r.styles = current.styles;
     r.pubFonts = current.pubFonts;

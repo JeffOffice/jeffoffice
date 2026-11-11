@@ -36,16 +36,7 @@ void MainWindow::createCommentActions()
     mk("comment.show", tr("Show Comments"), "messages-square", QKeySequence(), [this] { showComments(act("comment.show")->isChecked()); }, true);
 
     // What the commands can do follows the comments, whatever changed them.
-    auto update = [this] {
-        const Document *d = m_ed->doc();
-        const int i = m_ed->currentPage();
-        const bool any = d && !comments::allComments(*d).isEmpty();
-        act("comment.delete")->setEnabled(!m_comments->currentComment().isEmpty());
-        act("comment.deletePage")->setEnabled(d && i >= 0 && i < d->pages.size() && comments::commentCount(*d->pages[i]) > 0);
-        act("comment.deleteAll")->setEnabled(any);
-        act("comment.prev")->setEnabled(any);
-        act("comment.next")->setEnabled(any);
-    };
+    auto update = [this] { updateCommentActions(); };
     connect(m_ed, &Editor::changed, this, update);
     connect(m_ed, &Editor::pageChanged, this, update);
     connect(m_comments, &CommentsPane::currentCommentChanged, this, [this, update](const QString &id) {
@@ -55,7 +46,7 @@ void MainWindow::createCommentActions()
         const Document *d = m_ed->doc();
         const int i = m_ed->currentPage();
         if (!id.isEmpty() && d && i >= 0 && i < d->pages.size())
-            if (const auto c = comments::findComment(*d->pages[i], id)) m_canvas->ensureVisible(QRectF(comments::commentPlace(*d, *c), QSizeF(24, 24)));
+            if (const auto c = comments::findComment(*d->pages[i], id)) m_canvas->ensureVisible(QRectF(comments::commentPlace(*d->pages[i], *c), QSizeF(24, 24)));
         update();
     });
     connect(m_comments, &CommentsPane::closeRequested, this, [this] { showComments(false); });
@@ -67,6 +58,20 @@ void MainWindow::createCommentActions()
         update();
     });
     update();
+}
+
+// (a publication open for reading only keeps its comments: the commands that take them away stay off)
+void MainWindow::updateCommentActions()
+{
+    if (!m_comments) return;
+    const Document *d = m_ed->doc();
+    const int i = m_ed->currentPage();
+    const bool any = d && !comments::allComments(*d).isEmpty(), edit = !isReadOnly();
+    act("comment.delete")->setEnabled(edit && !m_comments->currentComment().isEmpty());
+    act("comment.deletePage")->setEnabled(edit && d && i >= 0 && i < d->pages.size() && comments::commentCount(*d->pages[i]) > 0);
+    act("comment.deleteAll")->setEnabled(edit && any);
+    act("comment.prev")->setEnabled(any);
+    act("comment.next")->setEnabled(any);
 }
 
 void MainWindow::showComments(bool on)

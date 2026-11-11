@@ -159,6 +159,7 @@ static QCursor painterCursor()
 Canvas::Canvas(Editor *ed, QWidget *parent) : QAbstractScrollArea(parent), m_ed(ed)
 {
     setFrameShape(QFrame::NoFrame);
+    for (auto signal : {&Editor::changed, &Editor::pageChanged, &Editor::documentReplaced}) connect(m_ed, signal, this, [this] { m_commentMarksValid = false; });
     // Scroll bars always show, so the page area's size doesn't depend on the
     // zoom: with bars that come and go, fitting the page near the size where
     // one is just needed brought the bar in, which shrank the area, refitted

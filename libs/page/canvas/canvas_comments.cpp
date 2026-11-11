@@ -4,6 +4,7 @@
 #include "canvas/canvas.h"
 #include "core/comments.h"
 
+#include <QCoreApplication>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
@@ -27,14 +28,29 @@ void Canvas::setActiveComment(const QString &id)
 // A speech bubble with its tail at the lower left, its corner at the comment's place.
 QRectF Canvas::commentMarker(const QPointF &page) const { return QRectF(pageToView(page), QSizeF(22, 21)); }
 
-QString Canvas::commentAt(const QPointF &view) const
+const QVector<comments::CommentMark> &Canvas::commentMarkList() const
 {
     const Document *d = m_ed->doc();
     const int page = m_ed->currentPage();
-    if (!m_comments || !d || !m_ed->masterView().isEmpty() || page < 0 || page >= d->pages.size()) return QString();
-    const QVector<comments::Comment> list = comments::commentsOf(*d->pages[page]);
+    if (!d || page < 0 || page >= d->pages.size() || !m_ed->masterView().isEmpty()) {
+        m_commentMarks.clear();
+        m_commentMarksValid = false;
+        return m_commentMarks;
+    }
+    if (!m_commentMarksValid || m_commentMarksPage != d->pages[page]->id) {
+        m_commentMarks = comments::commentMarks(*d->pages[page]);
+        m_commentMarksPage = d->pages[page]->id;
+        m_commentMarksValid = true;
+    }
+    return m_commentMarks;
+}
+
+QString Canvas::commentAt(const QPointF &view) const
+{
+    if (!m_comments) return QString();
+    const QVector<comments::CommentMark> &list = commentMarkList();
     for (int i = list.size() - 1; i >= 0; --i)   // the one drawn last is on top
-        if (commentMarker(list[i].id == m_commentDragId && m_commentDragMoved ? m_commentDragAt : comments::commentPlace(*d, list[i])).contains(view)) return list[i].id;
+        if (commentMarker(list[i].id == m_commentDragId && m_commentDragMoved && !list[i].attached ? m_commentDragAt : list[i].place).contains(view)) return list[i].id;
     return QString();
 }
 
@@ -46,7 +62,7 @@ bool Canvas::commentPress(QMouseEvent *e)
     m_commentDragId = id;
     m_commentDragMoved = false;
     m_commentDragFrom = e->position();
-    m_commentDragOffset = c ? toPage(e->position()) - comments::commentPlace(*m_ed->doc(), *c) : QPointF();
+    m_commentDragOffset = c ? toPage(e->position()) - comments::commentPlace(*m_ed->doc()->pages[m_ed->currentPage()], *c) : QPointF();
     m_activeComment = id;
     Q_EMIT commentClicked(id);
     viewport()->update();
@@ -76,9 +92,11 @@ bool Canvas::commentRelease(QMouseEvent *e)
     m_commentDragId.clear();
     m_commentDragMoved = false;
     // (a comment attached to an object goes where the object goes; it is not dragged off it, and none is moved in a publication open for reading only)
-    const std::optional<comments::Comment> c = comments::findComment(*m_ed->doc()->pages[m_ed->currentPage()], id);
-    if (moved && c && c->itemId.isEmpty() && !m_ed->readOnly()) {
-        m_ed->beginChange(tr("Move Comment"));
+    bool onAnObject = true;
+    for (const comments::CommentMark &m : commentMarkList())
+        if (m.id == id) onAnObject = m.attached;
+    if (moved && !onAnObject && !m_ed->readOnly()) {
+        m_ed->beginChange(QCoreApplication::translate("jp::DeckCanvas", "Move Comment"));   // (the context the translations of JeffDeck's string are kept under)
         comments::moveComment(*m_ed->doc()->pages[m_ed->currentPage()], id, m_commentDragAt);
         m_ed->endChange();
     }
@@ -97,9 +115,9 @@ void Canvas::paintComments(QPainter &p)
     QFont initials = p.font();
     initials.setPixelSize(8);
     initials.setBold(true);
-    for (const comments::Comment &c : comments::commentsOf(*d->pages[page])) {
-        const bool dragged = c.id == m_commentDragId && m_commentDragMoved && c.itemId.isEmpty();
-        const QRectF r = commentMarker(dragged ? m_commentDragAt : comments::commentPlace(*d, c));
+    for (const comments::CommentMark &c : commentMarkList()) {
+        const bool dragged = c.id == m_commentDragId && m_commentDragMoved && !c.attached;
+        const QRectF r = commentMarker(dragged ? m_commentDragAt : c.place);
         const QRectF bubble(r.topLeft(), QSizeF(22, 16));
         QPainterPath shape;
         shape.addRoundedRect(bubble, 4, 4);

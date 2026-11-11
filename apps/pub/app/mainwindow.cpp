@@ -2,6 +2,7 @@
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/mainwindow.h"
+#include "core/comments.h"
 #include "core/version.h"
 #include "core/startuptrace.h"
 #include "templates/changetemplate.h"
@@ -511,6 +512,7 @@ void MainWindow::setReadOnly(bool on)
     // The commands that change the document are turned off (and refused if something still runs one).
     for (const QString &id : actionIds())
         if (QAction *a = act(id); a && !commandAllowedReadOnly(id)) a->setEnabled(!on);
+    updateCommentActions();
     updateTitle();
 }
 
@@ -705,6 +707,8 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
         });
         m_ed->doc()->props.modified = QDateTime::currentDateTime();
         if (m_ed->doc()->props.author.isEmpty() && !m_personalInfoRemoved && !namesOut.active()) m_ed->doc()->props.author = Settings::get().userName();
+        // (Remove personal information when saving: the comments' authors are left out of the file, and stay in the window)
+        comments::NamesOutScope commentNamesOut(*m_ed->doc(), privacy::removeOnSave());
         if (!savePublication(*m_ed->doc(), path, thumb, &err, false, QString(), password)) {
             jp::plainWarning(this, tr("Save"), tr("JeffPub couldn't save \"%1\".\n%2%3").arg(QFileInfo(path).fileName(), err, saveFailureHint(err)));
             return false;
@@ -777,6 +781,7 @@ bool MainWindow::saveAs(const QString &format)
         QString err;
         // (a template of a protected publication is protected too: it is a file somebody can read)
         NamesOutScope templateNamesOut(m_ed->doc()->props, privacy::removeOnSave());
+        comments::NamesOutScope templateCommentNamesOut(*m_ed->doc(), privacy::removeOnSave());
         if (!savePublication(*m_ed->doc(), tdir + "/" + QFileInfo(path).completeBaseName() + ".jpub", pageThumbnail(0, 256), &err, true, QString(), m_fileProtected ? m_filePassword : QString()))
             jp::plainWarning(this, tr("Save as Template"), err);
         else statusBar()->showMessage(tr("Saved to My Templates."), 4000);

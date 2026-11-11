@@ -58,7 +58,6 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 - [JeffPub mit der Tastatur verwenden](keyboard)
 - [Bildschirmleseprogramme, hoher Kontrast und Alternativtext](accessibility)
 - [Entwurf prüfen](design-checker)
-- [Kommentare](comments)
 - [JeffPub-Einstellungen ändern](options)
 - [Sprache auswählen](language)
 - [Hilfe erhalten und Probleme melden](support)

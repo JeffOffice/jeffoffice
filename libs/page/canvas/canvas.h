@@ -3,6 +3,7 @@
 // rulers, guides, selection handles and all direct manipulation.
 
 #include "app/editor.h"
+#include "core/comments.h"
 
 #include <QAbstractScrollArea>
 #include <QPainterPath>
@@ -164,6 +165,11 @@ private:
     bool commentPress(QMouseEvent *e);
     bool commentMove(QMouseEvent *e);
     bool commentRelease(QMouseEvent *e);
+    // The markers of the page being edited, as drawing and clicking use them: made again only after the page's comments or objects (or the page) change.
+    const QVector<comments::CommentMark> &commentMarkList() const;
+    mutable QVector<comments::CommentMark> m_commentMarks;
+    mutable bool m_commentMarksValid = false;
+    mutable QString m_commentMarksPage;
     bool m_comments = false;
     QString m_activeComment;
     QString m_commentDragId;                  // the comment whose marker is being dragged

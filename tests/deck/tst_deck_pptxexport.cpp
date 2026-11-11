@@ -158,6 +158,39 @@ private Q_SLOTS:
         QVERIFY(std::abs(thumb.height() - 144) <= 1);
     }
 
+    // The comment parts a deck with comments saves are exactly what they were before the comments moved to the shared library: the same parts, byte for byte.
+    void commentPartsAreAsTheyWere()
+    {
+        auto d = deck::newPresentation();
+        const comments::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")}, lee{QStringLiteral("Lee Roy"), QStringLiteral("LR")};
+        const QDateTime noon(QDate(2026, 10, 12), QTime(12, 0, 5, 125), QTimeZone::UTC);
+        const QString first = comments::addComment(*d->pages[0], pat, QStringLiteral("Check the numbers"), QPointF(100.5, 40.25), noon);
+        comments::addReply(*d->pages[0], first, lee, QStringLiteral("Agreed"), noon.addSecs(90));
+        comments::resolveComment(*d->pages[0], first);
+        comments::addComment(*d->pages[0], lee, QStringLiteral("Second"), QPointF(300, 200), noon.addSecs(120));
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QString got;
+        for (auto it = e.zip.cbegin(); it != e.zip.cend(); ++it)
+            if (it.key().contains(QLatin1String("omment"))) got += it.key() + QLatin1Char('\n') + QString::fromUtf8(it.value()) + QLatin1Char('\n');
+        QVERIFY(!got.isEmpty());
+        // (the dates and the zone are the computer's: left out of the comparison)
+        got.replace(QRegularExpression(QStringLiteral(" dt=\"[^\"]*\"")), QStringLiteral(" dt=\"T\""));
+        got.replace(QRegularExpression(QStringLiteral("timeZoneBias=\"[^\"]*\"")), QStringLiteral("timeZoneBias=\"Z\""));
+        // As the parts were written before the comments moved to libs/page (captured then, with the same deck).
+        const QString before = QString::fromUtf8(
+            "ppt/commentAuthors.xml\n"
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
+            "<p:cmAuthorLst xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:cmAuthor id=\"0\" name=\"Pat Doe\" initials=\"PD\" lastIdx=\"1\" clrIdx=\"0\"/><p:cmAuthor id=\"1\" name=\"Lee Roy\" initials=\"LR\" lastIdx=\"2\" clrIdx=\"1\"/></p:cmAuthorLst>\n"
+            "ppt/comments/comment1.xml\n"
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
+            "<p:cmLst xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:cm authorId=\"0\" dt=\"T\" idx=\"1\"><p:pos x=\"804\" y=\"322\"/><p:text>Check the numbers</p:text><p:extLst><p:ext uri=\"{C676402C-5697-4E1C-873F-D02D1690AC5C}\"><p15:threadingInfo xmlns:p15=\"http://schemas.microsoft.com/office/powerpoint/2012/main\" timeZoneBias=\"Z\"/></p:ext><p:ext uri=\"{7C0E3E5B-5A0B-4B52-9D6E-2F1A8E4C9B21}\"><jo:done xmlns:jo=\"http://jeffoffice.com/ns/deck/comments\" val=\"1\"/></p:ext></p:extLst></p:cm><p:cm authorId=\"1\" dt=\"T\" idx=\"1\"><p:pos x=\"804\" y=\"322\"/><p:text>Agreed</p:text><p:extLst><p:ext uri=\"{C676402C-5697-4E1C-873F-D02D1690AC5C}\"><p15:threadingInfo xmlns:p15=\"http://schemas.microsoft.com/office/powerpoint/2012/main\" timeZoneBias=\"Z\"><p15:parentCm authorId=\"0\" idx=\"1\"/></p15:threadingInfo></p:ext></p:extLst></p:cm><p:cm authorId=\"1\" dt=\"T\" idx=\"2\"><p:pos x=\"2400\" y=\"1600\"/><p:text>Second</p:text><p:extLst><p:ext uri=\"{C676402C-5697-4E1C-873F-D02D1690AC5C}\"><p15:threadingInfo xmlns:p15=\"http://schemas.microsoft.com/office/powerpoint/2012/main\" timeZoneBias=\"Z\"/></p:ext></p:extLst></p:cm></p:cmLst>\n");
+        QCOMPARE(got, before);
+    }
+
     // Each part's elements follow the schema's sequence, the ids that must be
     // unique are, and the slide size says what it is.
     void exportWritesElementsInSchemaOrder()

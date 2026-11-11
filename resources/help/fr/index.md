@@ -58,7 +58,6 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 - [Utiliser JeffPub au clavier](keyboard)
 - [Lecteurs d'écran, contraste élevé et texte de remplacement](accessibility)
 - [Vérifier la conception](design-checker)
-- [Commentaires](comments)
 - [Modifier les paramètres de JeffPub](options)
 - [Choisir une langue](language)
 - [Obtenir de l'aide et signaler un problème](support)

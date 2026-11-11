@@ -309,6 +309,7 @@ bool MainWindow::saveVersion(const QString &name)
     }
     m_ed->endTextEdit();
     QString err;
+    comments::NamesOutScope commentNamesOut(*d, privacy::removeOnSave());
     QByteArray bytes = publicationBytes(*d, pageThumbnail(0, 256), QFileInfo(path).absolutePath());
     // (a version of a publication that asks for a password asks for it too)
     const QString kept = m_versions.forNew(m_fileProtected ? m_filePassword : QString());
