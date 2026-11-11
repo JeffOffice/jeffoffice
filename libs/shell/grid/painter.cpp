@@ -592,6 +592,12 @@ static void drawUnderlineLines(QPainter *p, Underline kind, const QRect &cell, c
 void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, const QRect &area, const CellLook &look, const Shown &sh, const PaintOptions &o)
 {
     const GridLayout &L = m_sheet->layout();
+    if (!m_drawingMirrored) {
+        m_buttonInset = 0;
+        if (sh.align == HAlign::Right)
+            for (const QRect &b : o.cellButtons)
+                if (cell.contains(b)) m_buttonInset = b.width() + 2;
+    }
     if (m_sheet->rightToLeft() && !m_drawingMirrored) {
         // (the grid is drawn mirrored for a sheet that reads right to left; the text is drawn as it reads, in the places the screen has: the rectangles are mirrored, and the left and the right
         // of its alignment, which the grid keeps in its own places, are the screen's again)
@@ -614,6 +620,11 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
     const bool left = sh.align != HAlign::Right && sh.align != HAlign::Center && sh.align != HAlign::CenterContinuous, right = sh.align == HAlign::Right;
     // (the icon is at the left edge of the grid's cell, so on the screen's right in a sheet that reads right to left)
     QRect r = box.adjusted(pad + (left ? indent + (m_drawingMirrored ? 0 : m_iconInset) : 0), 1, -(pad + (right ? indent + (m_drawingMirrored ? m_iconInset : 0) : (m_drawingMirrored ? m_iconInset : 0))), -1);
+    // (a button at the grid's right of the cell: that is the screen's left in a sheet that reads right to left, where the text it stops short of is aligned at the screen's left)
+    if (m_buttonInset > 0) {
+        if (m_drawingMirrored) r.setLeft(r.left() + m_buttonInset);
+        else r.setRight(r.right() - m_buttonInset);
+    }
     if (r.width() <= 0 || r.height() <= 0) return;
     int flags = left ? Qt::AlignLeft : right ? Qt::AlignRight : Qt::AlignHCenter;
     flags |= look.vertical == VAlign::Top || look.vertical == VAlign::Justify || look.vertical == VAlign::Distributed ? Qt::AlignTop : look.vertical == VAlign::Center ? Qt::AlignVCenter : Qt::AlignBottom;

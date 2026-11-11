@@ -45,6 +45,7 @@ struct PaintOptions {
     int copyPhase = 0;                                     // where the dashes of it are (its animation step)
     const std::vector<PointMark> *pointMarks = nullptr;    // the cells the formula being typed refers to, each with a colored border
     QRect dropDown;                                        // the button of a list on the cell with the cursor (empty for none)
+    std::vector<QRect> cellButtons;                        // the buttons put on cells (of a table's names and totals): a text at the right of such a cell stops short of its button
     int resizeGuide = -1;                                  // where the border of a row or column being dragged is now (a place in the window), or -1
     bool resizeGuideColumn = true;                         // a column's border (a vertical line), else a row's
     QColor gridColor = QColor(0xD4, 0xD4, 0xD4);
@@ -141,6 +142,7 @@ private:
     QHash<quint64, QBrush> m_patterns;
     std::vector<std::unique_ptr<GlyphFace>> m_faces;          // by font id, at the zoom of the last paint
     int m_iconInset = 0;              // the room the icon of the cell being drawn takes at its left (device pixels)
+    int m_buttonInset = 0;            // the room the button on the cell being drawn takes at its right, for a text that is aligned there (device pixels)
     bool m_drawingMirrored = false;   // drawText is drawing a text of a sheet that reads right to left, on the screen's places
     int m_lastFontId = -1;      // what the painter was last given, so a run in the same font and color sets neither again
     double m_lastFontZoom = 0;

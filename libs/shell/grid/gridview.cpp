@@ -883,6 +883,10 @@ PaintOptions GridView::paintOptions() const
     o.copyRange = hasCopyBorder() ? &m_copyBorder : nullptr;
     o.copyPhase = m_copyPhase;
     o.dropDown = dropDownRectInLayout();
+    for (const HeaderButton &b : m_headerButtons) {
+        const QRect r = headerButtonRectInLayout(b.row, b.col);
+        if (!r.isEmpty() && r.intersects(QRect(QPoint(0, 0), viewport()->size()))) o.cellButtons.push_back(r);
+    }
     if (m_drag == Drag::Resize) {
         o.resizeGuide = m_resizeEdge + int(std::lround((m_resizeSize - m_resizeSize0) * m_sheet.layout().zoom()));
         o.resizeGuideColumn = m_resizeColumn;

@@ -1414,6 +1414,37 @@ private Q_SLOTS:
         QCOMPARE(int(e.view()->headerButtonCount()), 3);
     }
 
+    // The button on a total sits at the right of its cell, and the total (a number, so at the right) stops short of it instead of going under it.
+    void aTotalIsNotCoveredByItsButton()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        CrunchWindow &w = e.win.w;
+        w.session()->setLocale(kUs);
+        QVERIFY(e.settle());
+        w.setTableMakeAsker([](QString *, bool *headers) {
+            *headers = true;
+            return true;
+        });
+        e.select(QStringLiteral("B3"));
+        w.act(QStringLiteral("insert.table"))->trigger();
+        w.act(QStringLiteral("table.totals"))->trigger();
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("A1"));
+        e.view()->show();
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("C5")), QStringLiteral("n:60"));   // (the total of the last column is the one that adds up)
+        const QRect button = e.view()->headerButtonRect(4, 2);
+        QVERIFY(!button.isEmpty());
+        const QImage img = e.view()->viewport()->grab().toImage();
+        int dark = 0;
+        for (int y = button.top(); y <= button.bottom(); ++y)
+            for (int x = button.left() - 3; x < button.left(); ++x)
+                if (qGray(img.pixel(x, y)) < 160) ++dark;
+        QVERIFY2(dark == 0, qPrintable(QStringLiteral("%1 dark pixels of the total are just left of its button: it goes under the button").arg(dark)));
+    }
+
+
     // What is typed inside the brackets of a table is helped: after the name and "[" the table's columns and the special items are listed, a few letters narrow the list, Tab puts the column
     // in with its closing bracket, and a name that needs the double brackets is given them; in a cell of the table, [@ lists the columns too.
     void theColumnsOfATableAreOfferedInsideItsBrackets()
