@@ -239,7 +239,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "70f280f4b4901922c9dc19d127fb88e7c2d6b100609387b191c2633e1330c66a"
+         "text": "352af623689b5cb2c2f8771b49600670bbb5ad10794a7d414b4926635ac6804a"
         },
         {
          "status": "partly",
@@ -2477,7 +2477,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "835866f1b97c520ee7ac7d57802c2f76b00ab011bca4d39b2424c909b334547b"
+         "text": "ca4d16c3e92a13094576cc288b8d8e62757ee72031cad4dce48b8aa82d2ab393"
         },
         {
          "hide_soon": true,
@@ -2487,11 +2487,12 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "01624bc3196129fdce10e7de6d6b828ee076a9c2a5d41f605cebc250eeb5d3c7"
+         "text": "3d852a7f8b0566860f570de2b00337ba96cadd04248facfc9628ec8c47c4aa14"
         },
         {
-         "status": "partly",
-         "text": "b7b8a422c2fc9bd92bc4fe08b3f9389b42ec2b60f22a7274d6e53d17920d866b"
+         "hide_soon": true,
+         "status": "done",
+         "text": "82108849b906771532159e5adbcb6aa06b52340d45a813775eb7bc15d84b8191"
         },
         {
          "status": "todo",
@@ -4323,7 +4324,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "a74ca51d9d761c058a960397daaf6b8fd9b107f599ad9f5d722df8862a57df98"
+         "text": "ebb60229c1bced492b8bfcb8248b0563fd8bb531fa36e6b467ff566f2f5bd4f6"
         },
         {
          "hide_soon": true,
@@ -4338,7 +4339,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "15efafc1efdcf31f4daeec59d4c23c4726303502446e46a2ea0c323ef481f588"
+         "text": "09f4f77306c8c245958d2d4eedea19c73d119dc5aab1d1474d2d00919bbeda49"
         },
         {
          "hide_soon": true,
@@ -5620,11 +5621,11 @@
        "items": [
         {
          "status": "partly",
-         "text": "8ac9786864861a19e301589c89cd265ff64e6818e7169546a1eb878c0c5ec044"
+         "text": "857057bb9e27a6ca5f3b390f72a7cf17db11e922a25f4cf248816716751a2345"
         },
         {
          "status": "partly",
-         "text": "91a0520c7c373226ee22dedb10ac04ebb7a553b6196150c3b23408137c644fb3"
+         "text": "483268cd5aea74760a119bb2448adf789c8c792421e826282313bf5f5a18a18d"
         },
         {
          "hide_soon": true,
@@ -7361,18 +7362,6 @@
     "fr": ""
    }
   },
-  "01624bc3196129fdce10e7de6d6b828ee076a9c2a5d41f605cebc250eeb5d3c7": {
-   "drop": false,
-   "en": "Print all slides, the current slide, or slide numbers and ranges such as 1-3, 5. Hidden slides print only when asked. Add a thin frame around each slide or print in grayscale.",
-   "es": "Imprima todas las diapositivas, la diapositiva actual o números e intervalos de diapositivas como 1-3, 5. Las diapositivas ocultas se imprimen solo si se solicita. Agregue un marco fino alrededor de cada diapositiva o imprima en escala de grises.",
-   "fr": "Imprimez toutes les diapositives, la diapositive actuelle, ou des numéros et plages de diapositives comme 1-3, 5. Les diapositives masquées ne sont imprimées que sur demande. Ajoutez un fin cadre autour de chaque diapositive ou imprimez en niveaux de gris.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "019b6b5ae5d1ba889f5411262e31bc998cff6a4b65c74d97a571029c57a94af6": {
    "drop": false,
    "en": "Windows high contrast mode: the system’s colors are used throughout, applied as it is turned on or off.",
@@ -8127,6 +8116,18 @@
     "en": "Display options: gridlines, formulas and zeros, headings, sheet tabs, scroll bars, outline symbols, page breaks, and comment display",
     "es": "Opciones de visualización: líneas de cuadrícula, fórmulas y ceros, encabezados, pestañas de hoja, barras de desplazamiento, símbolos de esquema, saltos de página y visualización de comentarios",
     "fr": "Options d’affichage : quadrillage, formules et zéros, en-têtes, onglets de feuille, barres de défilement, symboles du plan, sauts de page et affichage des commentaires"
+   }
+  },
+  "09f4f77306c8c245958d2d4eedea19c73d119dc5aab1d1474d2d00919bbeda49": {
+   "drop": false,
+   "en": "Preview a print with a ruler, page navigation, zoom to 150, 200, or 300 percent with scrolling, front and back view, and an option to show numbers.",
+   "es": "Vea una vista previa de impresión con regla, navegación de páginas, zoom al 150, 200 o 300 por ciento con desplazamiento, vista de anverso y reverso, y una opción para mostrar los números.",
+   "fr": "Affichez un aperçu avant impression avec règle, navigation entre les pages, zoom à 150, 200 ou 300 pour cent avec défilement, vue recto et verso, et une option pour afficher les numéros.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "0a133e34789eda8908467b1a9b46a6c3d06866579682cbc2af38ea8e1f57591d": {
@@ -8931,18 +8932,6 @@
     "en": "Chart Format tab: current selection, shape styles, text art styles, shapes, text boxes, pictures, size, and arrange",
     "es": "Pestaña Formato de gráfico: selección actual, estilos de forma, estilos de texto artístico, formas, cuadros de texto, imágenes, tamaño y organización",
     "fr": "Onglet Format du graphique : sélection active, styles de forme, styles de texte artistique, formes, zones de texte, images, taille et organisation"
-   }
-  },
-  "15efafc1efdcf31f4daeec59d4c23c4726303502446e46a2ea0c323ef481f588": {
-   "drop": false,
-   "en": "Preview a print job with a ruler, page navigation, front and back view, and an option to show numbers.",
-   "es": "Vea una vista previa de la impresión con regla, navegación por páginas, vista del anverso y el reverso, y una opción para mostrar los números.",
-   "fr": "Affichez un aperçu avant impression avec règle, navigation entre les pages, vue recto et verso, et une option pour afficher les numéros.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "15f1e745b938b247cbc52e36980c3768dc38f1c2e16c7d86ae3275cef8143569": {
@@ -11237,6 +11226,18 @@
     "fr": ""
    }
   },
+  "352af623689b5cb2c2f8771b49600670bbb5ad10794a7d414b4926635ac6804a": {
+   "drop": false,
+   "en": "Print to a system printer or a PDF file with copies, collate, this sheet, the whole workbook, or the selection, page ranges, orientation, paper, margins, and scaling. Print the last page first and in grayscale. Print on one side or both sides, including by hand, and the choice is kept. Several selected sheets print at once.",
+   "es": "Imprima en una impresora del sistema o en un archivo PDF con copias, intercalado, esta hoja, todo el libro o la selección, intervalos de páginas, orientación, papel, márgenes y escala. Imprima la última página primero y en escala de grises. Imprima por una cara o por ambas, incluso a mano, y la opción se conserva. Varias hojas seleccionadas se imprimen a la vez.",
+   "fr": "Imprimez sur une imprimante du système ou dans un fichier PDF avec copies, assemblage, cette feuille, tout le classeur ou la sélection, plages de pages, orientation, papier, marges et mise à l’échelle. Imprimez la dernière page en premier et en niveaux de gris. Imprimez sur un côté ou sur les deux, y compris manuellement, et le choix est conservé. Plusieurs feuilles sélectionnées s’impriment en une fois.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "35309cc50ff9383bf5ae51e1330ff665492d330f64832a5e3f07694c9f91b9de": {
    "drop": false,
    "en": "Runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
@@ -11722,6 +11723,18 @@
    "en": "Keep named local copies of a document, then open, compare, restore, or delete them from Info. Up to 50 versions are kept for each file.",
    "es": "Conserve copias locales con nombre de un documento, y ábralas, compárelas, restáurelas o elimínelas desde Información. Se conservan hasta 50 versiones por archivo.",
    "fr": "Conservez des copies locales nommées d’un document, puis ouvrez-les, comparez-les, restaurez-les ou supprimez-les depuis Informations. Jusqu’à 50 versions sont conservées par fichier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "3d852a7f8b0566860f570de2b00337ba96cadd04248facfc9628ec8c47c4aa14": {
+   "drop": false,
+   "en": "Print all slides, the current slide, the selected slides, or slide numbers and ranges such as 1-3, 5. Print the last page first, include hidden slides only when asked, add a thin frame around each slide, or print in grayscale.",
+   "es": "Imprima todas las diapositivas, la diapositiva actual, las diapositivas seleccionadas o números e intervalos de diapositivas como 1-3, 5. Imprima la última página primero, incluya las diapositivas ocultas solo cuando lo pida, añada un marco delgado alrededor de cada diapositiva o imprima en escala de grises.",
+   "fr": "Imprimez toutes les diapositives, la diapositive actuelle, les diapositives sélectionnées ou des numéros et plages de diapositives comme 1-3, 5. Imprimez la dernière page en premier, incluez les diapositives masquées seulement si vous le demandez, ajoutez un mince cadre autour de chaque diapositive ou imprimez en niveaux de gris.",
    "soon": {
     "drop": true,
     "en": "",
@@ -12567,6 +12580,18 @@
     "en": "Manual hyphenation",
     "es": "Separación silábica manual",
     "fr": "Césure manuelle"
+   }
+  },
+  "483268cd5aea74760a119bb2448adf789c8c792421e826282313bf5f5a18a18d": {
+   "drop": false,
+   "en": "Print preview shows each page as it prints, with page arrows, one, two, or four pages at once, gray for grayscale printing, the turned sheet when the paper is turned, and zoom to 150, 200, or 300 percent.",
+   "es": "La vista previa de impresión muestra cada página tal como se imprime, con flechas de página, una, dos o cuatro páginas a la vez, gris para la impresión en escala de grises, la hoja girada cuando se gira el papel y zoom al 150, 200 o 300 por ciento.",
+   "fr": "L’aperçu avant impression affiche chaque page telle qu’elle sera imprimée, avec des flèches de page, une, deux ou quatre pages à la fois, du gris pour l’impression en niveaux de gris, la feuille pivotée lorsque le papier est pivoté, et un zoom à 150, 200 ou 300 pour cent.",
+   "soon": {
+    "drop": false,
+    "en": "A check that shrinks a document to fit on one page",
+    "es": "Una comprobación que reduce un documento para que quepa en una página",
+    "fr": "Une vérification qui réduit un document pour qu’il tienne sur une page"
    }
   },
   "48357db3355b5d549d7e0515a958e145d91968fb1c5bfdd687b2c524fb743a38": {
@@ -15761,18 +15786,6 @@
     "fr": ""
    }
   },
-  "70f280f4b4901922c9dc19d127fb88e7c2d6b100609387b191c2633e1330c66a": {
-   "drop": false,
-   "en": "Print with the system’s printers or save as PDF, with copies, collate, and a choice of this sheet, the whole workbook, or the selection. Set page ranges, orientation, paper, margins, and scaling for a single print, and use the system’s own dialog for other printer settings. A Sides choice offers one side, both sides flipped on the long or short edge, or both sides by hand, and is remembered. Several selected sheets print at once.",
-   "es": "Imprima con las impresoras del sistema o guarde como PDF, con copias, intercalado y la opción de imprimir esta hoja, todo el libro o la selección. Defina intervalos de páginas, orientación, papel, márgenes y escala para una sola impresión, y use el cuadro de diálogo del sistema para otros ajustes de la impresora. Una opción de caras ofrece una cara, ambas caras girando por el borde largo o el corto, o ambas caras a mano, y se recuerda. Varias hojas seleccionadas se imprimen a la vez.",
-   "fr": "Imprimez avec les imprimantes du système ou enregistrez en PDF, avec copies, assemblage et le choix de cette feuille, de tout le classeur ou de la sélection. Définissez les plages de pages, l’orientation, le papier, les marges et l’échelle pour une impression, et utilisez la boîte de dialogue du système pour les autres réglages de l’imprimante. Un choix de faces propose un côté, recto verso avec retournement sur le bord long ou court, ou recto verso manuel, et il est mémorisé. Plusieurs feuilles sélectionnées s’impriment en une fois.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "716409f30904946ca858107af8a333624c7037b645c93013609ad9d5ce28dcfd": {
    "drop": true,
    "en": "",
@@ -16949,6 +16962,18 @@
     "fr": ""
    }
   },
+  "82108849b906771532159e5adbcb6aa06b52340d45a813775eb7bc15d84b8191": {
+   "drop": false,
+   "en": "Choose the printer or Save as PDF, set the number of copies, collate, and print on one side or both sides. Open printer properties and set the paper. A printer that can't make copies is sent the pages again, and a PDF file is made once. Your choices are remembered.",
+   "es": "Elija la impresora o Guardar como PDF, defina el número de copias, el intercalado e imprima por una cara o por ambas. Abra las propiedades de la impresora y defina el papel. A una impresora que no puede hacer copias se le envían las páginas de nuevo, y un archivo PDF se crea una sola vez. Sus opciones se recuerdan.",
+   "fr": "Choisissez l’imprimante ou Enregistrer au format PDF, définissez le nombre de copies, l’assemblage et imprimez sur un côté ou sur les deux. Ouvrez les propriétés de l’imprimante et réglez le papier. Une imprimante qui ne peut pas faire de copies reçoit les pages de nouveau, et un fichier PDF n’est créé qu’une fois. Vos choix sont mémorisés.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "824a6c6244a02f75b540ed28e995e97662cb86384740711a85d3b2a3c90244ab": {
    "drop": false,
    "en": "Right-click a theme to apply it to all slides or to selected slides, which get a slide master of their own that the same choice reuses later. Browse for themes to take the theme of a `.pptx`, `.potx`, `.ppsx`, `.ppt`, `.pps`, or `.pot` file.",
@@ -17038,18 +17063,6 @@
    "en": "Browse a template gallery with live previews in categories such as Brochures, Business Cards, Calendars, Flyers, Newsletters, and Postcards.",
    "es": "Explore una galería de plantillas con vistas previas en vivo y categorías como Folletos, Tarjetas de presentación, Calendarios, Volantes, Boletines y Postales.",
    "fr": "Parcourez une galerie de modèles avec aperçus en direct, classés en catégories comme Brochures, Cartes de visite, Calendriers, Flyers, Bulletins et Cartes postales.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "835866f1b97c520ee7ac7d57802c2f76b00ab011bca4d39b2424c909b334547b": {
-   "drop": false,
-   "en": "The Print page shows a preview drawn the way the page is printed, with page navigation. Choices are remembered, and `Ctrl+P` opens it.",
-   "es": "La página Imprimir muestra una vista previa dibujada tal como se imprimirá la página, con navegación por páginas. Las opciones se recuerdan y `Ctrl+P` la abre.",
-   "fr": "La page Imprimer affiche un aperçu dessiné comme la page sera imprimée, avec navigation entre les pages. Les choix sont mémorisés et `Ctrl+P` l’ouvre.",
    "soon": {
     "drop": true,
     "en": "",
@@ -17151,6 +17164,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "857057bb9e27a6ca5f3b390f72a7cf17db11e922a25f4cf248816716751a2345": {
+   "drop": false,
+   "en": "Print to a printer or a PDF file with copies, collate, and page ranges (all, current page, selection, or custom such as 1-3, 5, 8-, and -2, with section syntax such as `p2s3` and `s3`). Print on one side or both sides, in grayscale, with the paper turned and each page scaled to fit the sheet.",
+   "es": "Imprima en una impresora o en un archivo PDF con copias, intercalado e intervalos de páginas (todas, página actual, selección o personalizado como 1-3, 5, 8- y -2, con sintaxis de sección como `p2s3` y `s3`). Imprima por una cara o por ambas, en escala de grises, con el papel girado y cada página ajustada a la hoja.",
+   "fr": "Imprimez sur une imprimante ou dans un fichier PDF avec copies, assemblage et plages de pages (toutes, page actuelle, sélection ou personnalisée comme 1-3, 5, 8- et -2, avec une syntaxe de section comme `p2s3` et `s3`). Imprimez sur un côté ou sur les deux, en niveaux de gris, avec le papier pivoté et chaque page ajustée à la feuille.",
+   "soon": {
+    "drop": false,
+    "en": "Print margins and printer properties",
+    "es": "Márgenes de impresión y propiedades de la impresora",
+    "fr": "Marges d’impression et propriétés de l’imprimante"
    }
   },
   "8582a88993db5c74269927ee5f9f76b7d32c278cf48f64956db39966bf6a56fd": {
@@ -17487,18 +17512,6 @@
     "en": "Timeline: click to filter and choose a time level",
     "es": "Escala de tiempo: clic para filtrar y elección del nivel de tiempo",
     "fr": "Chronologie : clic pour filtrer et choix du niveau de temps"
-   }
-  },
-  "8ac9786864861a19e301589c89cd265ff64e6818e7169546a1eb878c0c5ec044": {
-   "drop": false,
-   "en": "Print to a printer or a PDF file with copies, collate, and page ranges: all pages, the current page, the selection, or custom ranges such as 1-3, 5, 8-, and -2, plus a page of a section (`p2s3`) or a whole section (`s3`). Each page uses the paper and orientation its section sets. A Sides choice offers one side, both sides flipped on the long or short edge, or both sides by hand.",
-   "es": "Imprima en una impresora o en un archivo PDF con copias, intercalado e intervalos de páginas: todas las páginas, la página actual, la selección o intervalos personalizados como 1-3, 5, 8- y -2, además de una página de una sección (`p2s3`) o una sección completa (`s3`). Cada página usa el papel y la orientación que define su sección. Una opción de caras ofrece una cara, ambas caras girando por el borde largo o el corto, o ambas caras a mano.",
-   "fr": "Imprimez vers une imprimante ou un fichier PDF avec copies, assemblage et plages de pages : toutes les pages, la page active, la sélection ou des plages personnalisées comme 1-3, 5, 8- et -2, ainsi qu’une page d’une section (`p2s3`) ou une section entière (`s3`). Chaque page utilise le papier et l’orientation définis par sa section. Un choix de faces propose un côté, recto verso avec retournement sur le bord long ou court, ou recto verso manuel.",
-   "soon": {
-    "drop": false,
-    "en": "Margins and printer properties: set in print",
-    "es": "Márgenes y propiedades de la impresora: ajuste al imprimir",
-    "fr": "Marges et propriétés de l’imprimante : réglage à l’impression"
    }
   },
   "8aee56e199d3df9f2e99b359fa8ffc95b3a1f00fd0c0b8195c4c7d66b5696ebe": {
@@ -17931,18 +17944,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "91a0520c7c373226ee22dedb10ac04ebb7a553b6196150c3b23408137c644fb3": {
-   "drop": false,
-   "en": "Print preview shows each page as it prints, with arrows to move between pages, one, two, or four pages at once, and zoom to 150, 200, or 300 percent with scrolling.",
-   "es": "La vista previa de impresión muestra cada página tal como se imprimirá, con flechas para cambiar de página, una, dos o cuatro páginas a la vez, y zoom al 150, 200 o 300 por ciento con desplazamiento.",
-   "fr": "L’aperçu avant impression montre chaque page telle qu’elle sera imprimée, avec des flèches pour changer de page, une, deux ou quatre pages à la fois, et un zoom à 150, 200 ou 300 pour cent avec défilement.",
-   "soon": {
-    "drop": false,
-    "en": "Shrink-to-fit-one-page check in print preview",
-    "es": "Comprobación de ajuste a una página en la vista previa de impresión",
-    "fr": "Vérification de l’ajustement à une page dans l’aperçu avant impression"
    }
   },
   "91e7a57a97b8d086a98e5df3af551a99bdb53d3ba5e1a5ad1aff6fda1ba7d3b9": {
@@ -19325,18 +19326,6 @@
     "fr": ""
    }
   },
-  "a74ca51d9d761c058a960397daaf6b8fd9b107f599ad9f5d722df8862a57df98": {
-   "drop": false,
-   "en": "Print with printer selection, copies, page ranges (all, current, or custom), and printer properties.",
-   "es": "Imprima con selección de impresora, copias, intervalos de páginas (todas, actual o personalizado) y propiedades de la impresora.",
-   "fr": "Imprimez avec choix de l’imprimante, nombre de copies, plages de pages (toutes, page active ou personnalisée) et propriétés de l’imprimante.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "a77d1267dc8984acde4d2c5f67b57802afd0e7a79d36b5fabd8048da7e037d03": {
    "drop": false,
    "en": "Advanced Find and Replace with wildcards and groups, sounds like, all word forms, ignoring punctuation and spaces, a Special menu for codes such as paragraph marks and section breaks, and find by format. Each Replace All is one step.",
@@ -20343,18 +20332,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b7b8a422c2fc9bd92bc4fe08b3f9389b42ec2b60f22a7274d6e53d17920d866b": {
-   "drop": false,
-   "en": "Print with printer choice, copies, and one- or two-sided output. The Print page has a Sides choice: one side, both sides flipped on the long or short edge, or both sides by hand. The choice is remembered and turned off for a printer that can't print on both sides.",
-   "es": "Imprima eligiendo la impresora, las copias y la impresión por una o ambas caras. La página Imprimir tiene una opción de caras: una cara, ambas caras girando por el borde largo o el corto, o ambas caras a mano. La opción se recuerda y se desactiva para una impresora que no puede imprimir por ambas caras.",
-   "fr": "Imprimez en choisissant l’imprimante, le nombre de copies et le recto seul ou recto verso. La page Imprimer propose un choix de faces : un côté, recto verso avec retournement sur le bord long ou court, ou recto verso manuel. Le choix est mémorisé et désactivé pour une imprimante qui ne peut pas imprimer en recto verso.",
-   "soon": {
-    "drop": false,
-    "en": "Collate option on the Print page",
-    "es": "Opción de intercalar en la página Imprimir",
-    "fr": "Option d’assemblage sur la page Imprimer"
    }
   },
   "b7c61535b551f3803637ec91c775268abb99e840b91e075b7bbb5b588199a786": {
@@ -21682,6 +21659,18 @@
    "en": "Number",
    "es": "Número",
    "fr": "Nombre",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "ca4d16c3e92a13094576cc288b8d8e62757ee72031cad4dce48b8aa82d2ab393": {
+   "drop": false,
+   "en": "The Print page shows a preview drawn the way the page prints, with page navigation and zoom to 150, 200, or 300 percent with scrolling. Your choices are remembered, and `Ctrl+P` opens the page.",
+   "es": "La página Imprimir muestra una vista previa dibujada tal como se imprime la página, con navegación de páginas y zoom al 150, 200 o 300 por ciento con desplazamiento. Sus opciones se recuerdan y `Ctrl+P` abre la página.",
+   "fr": "La page Imprimer affiche un aperçu dessiné comme la page sera imprimée, avec navigation entre les pages et zoom à 150, 200 ou 300 pour cent avec défilement. Vos choix sont mémorisés, et `Ctrl+P` ouvre la page.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24111,6 +24100,18 @@
     "en": "Table Size, Arrange, and Table Effects (shadow, reflection, cell bevel)",
     "es": "Tamaño de tabla, organizar y efectos de tabla (sombra, reflejo, bisel de celda)",
     "fr": "Taille du tableau, organisation et effets de tableau (ombre, reflet, biseau de cellule)"
+   }
+  },
+  "ebb60229c1bced492b8bfcb8248b0563fd8bb531fa36e6b467ff566f2f5bd4f6": {
+   "drop": false,
+   "en": "Print with a chosen printer, collated or uncollated copies, and page ranges (all, current, selected objects, or custom). Print the last page first and open printer properties.",
+   "es": "Imprima con la impresora que elija, con copias intercaladas o sin intercalar, e intervalos de páginas (todas, la actual, los objetos seleccionados o personalizado). Imprima la última página primero y abra las propiedades de la impresora.",
+   "fr": "Imprimez avec l’imprimante de votre choix, avec des copies assemblées ou non, et des plages de pages (toutes, la page actuelle, les objets sélectionnés ou personnalisée). Imprimez la dernière page en premier et ouvrez les propriétés de l’imprimante.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "ebe4f3edce8eb5ab501f0212342d58f019fce0e0a5db42a51fb18f2ba802b6ac": {
