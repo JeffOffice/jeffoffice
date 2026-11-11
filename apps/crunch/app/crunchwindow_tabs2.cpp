@@ -1083,7 +1083,7 @@ void CrunchWindow::translateWorkbook()
     progress.close();
     if (!problem.isEmpty() && opened < parts.size()) setStatus(problem);
     else if (opened < parts.size()) setStatus(tr("The translation was canceled after %1 of %2 parts.").arg(opened).arg(parts.size()));
-    else setStatus(tr("%1 text cells, in %n part(s), were opened in the translation service.", nullptr, int(parts.size())).arg(texts.size()));
+    else setStatus(tr("%1 text cells, in %2 parts, were opened in the translation service.").arg(texts.size()).arg(parts.size()));
 }
 
 void CrunchWindow::spelling()
