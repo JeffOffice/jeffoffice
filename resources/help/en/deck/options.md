@@ -42,7 +42,7 @@ These check boxes control spelling and typing help. See [Type and format text](t
 
 ## Customize
 
-The **Customize** tab has the **Keyboard** page, where you choose the shortcut keys for JeffDeck's commands. See [Choose your own shortcut keys](keyboard).
+The **Customize** tab has the **Keyboard** page, where you choose the shortcut keys for JeffDeck's commands. See "Choose your own shortcut keys" in the keyboard topic.
 
 ## Related
 

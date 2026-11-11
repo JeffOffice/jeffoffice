@@ -41,7 +41,7 @@ These check boxes control spelling and typing help. See [Check spelling and hyph
 
 ## Customize
 
-The **Customize** tab has the **Keyboard** page, where you choose the shortcut keys for JeffPub's commands. See [Choose your own shortcut keys](keyboard).
+The **Customize** tab has the **Keyboard** page, where you choose the shortcut keys for JeffPub's commands. See "Choose your own shortcut keys" in the keyboard topic.
 
 ## Updates, statistics, and your name
 

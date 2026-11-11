@@ -37,7 +37,7 @@ These choices apply to the window you are in at once, and to each window you ope
 
 ## Customize
 
-The **Customize** tab has the **Keyboard** page, where you choose the shortcut keys for JeffWrite's commands. See [Choose your own shortcut keys](keyboard).
+The **Customize** tab has the **Keyboard** page, where you choose the shortcut keys for JeffWrite's commands. See "Choose your own shortcut keys" in the keyboard topic.
 
 ## Usage statistics
 

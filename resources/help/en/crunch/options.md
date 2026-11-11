@@ -31,7 +31,7 @@ The **Proofing** page is shared by the JeffOffice apps. It decides whether spell
 
 ## Customize
 
-The **Customize** tab has the **Keyboard** page, where you choose the shortcut keys for JeffCrunch's commands. See [Choose your own shortcut keys](keyboard).
+The **Customize** tab has the **Keyboard** page, where you choose the shortcut keys for JeffCrunch's commands. See "Choose your own shortcut keys" in the keyboard topic.
 
 ## Privacy options
 
