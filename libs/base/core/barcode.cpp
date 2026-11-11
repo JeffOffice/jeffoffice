@@ -394,7 +394,295 @@ QVector<IsbnRanges::Rule> rulesFor(bool group, const QString &key)
     return (group ? builtInRanges().groups : builtInRanges().prefixes).value(key);
 }
 
+
+// ---- QR codes (ISO/IEC 18004, byte mode, versions 1 to 40)
+
+// Error correction codewords per block, and blocks, by level (L, M, Q, H) and version.
+const int kQrEccPerBlock[4][41] = {
+    {-1, 7, 10, 15, 20, 26, 18, 20, 24, 30, 18, 20, 24, 26, 30, 22, 24, 28, 30, 28, 28, 28, 28, 30, 30, 26, 28, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30},
+    {-1, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26, 30, 22, 22, 24, 24, 28, 28, 26, 26, 26, 26, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28},
+    {-1, 13, 22, 18, 26, 18, 24, 18, 22, 20, 24, 28, 26, 24, 20, 30, 24, 28, 28, 26, 30, 28, 30, 30, 30, 30, 28, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30},
+    {-1, 17, 28, 22, 16, 22, 28, 26, 26, 24, 28, 24, 28, 22, 24, 24, 30, 28, 28, 26, 28, 30, 24, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30}};
+const int kQrBlocks[4][41] = {
+    {-1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 4, 4, 4, 4, 4, 6, 6, 6, 6, 7, 8, 8, 9, 9, 10, 12, 12, 12, 13, 14, 15, 16, 17, 18, 19, 19, 20, 21, 22, 24, 25},
+    {-1, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5, 5, 8, 9, 9, 10, 10, 11, 13, 14, 16, 17, 17, 18, 20, 21, 23, 25, 26, 28, 29, 31, 33, 35, 37, 38, 40, 43, 45, 47, 49},
+    {-1, 1, 1, 2, 2, 4, 4, 6, 6, 8, 8, 8, 10, 12, 16, 12, 17, 16, 18, 21, 20, 23, 23, 25, 27, 29, 34, 34, 35, 38, 40, 43, 45, 48, 51, 53, 56, 59, 62, 65, 68},
+    {-1, 1, 1, 2, 4, 4, 4, 5, 6, 8, 8, 11, 11, 16, 16, 18, 16, 19, 21, 25, 25, 25, 34, 30, 32, 35, 37, 40, 42, 45, 48, 51, 54, 57, 60, 63, 66, 70, 74, 77, 81}};
+// The two bits that name a level in the format information (L, M, Q, H).
+const int kQrFormatBits[4] = {1, 0, 3, 2};
+
+int qrRawModules(int ver)
+{
+    int n = (16 * ver + 128) * ver + 64;
+    if (ver >= 2) {
+        const int align = ver / 7 + 2;
+        n -= (25 * align - 10) * align - 55;
+        if (ver >= 7) n -= 36;
+    }
+    return n;
+}
+
+int qrDataCodewords(int ver, int level) { return qrRawModules(ver) / 8 - kQrEccPerBlock[level][ver] * kQrBlocks[level][ver]; }
+
+int gfMultiply(int x, int y)
+{
+    int z = 0;
+    for (int i = 7; i >= 0; --i) {
+        z = (z << 1) ^ ((z >> 7) * 0x11D);
+        z ^= ((y >> i) & 1) * x;
+    }
+    return z;
+}
+
+QVector<quint8> reedSolomon(const QVector<quint8> &data, int degree)
+{
+    QVector<quint8> divisor(degree, 0);
+    divisor[degree - 1] = 1;
+    int root = 1;
+    for (int i = 0; i < degree; ++i) {
+        for (int j = 0; j < degree; ++j) {
+            divisor[j] = quint8(gfMultiply(divisor[j], root));
+            if (j + 1 < degree) divisor[j] ^= divisor[j + 1];
+        }
+        root = gfMultiply(root, 2);
+    }
+    QVector<quint8> result(degree, 0);
+    for (quint8 b : data) {
+        const int factor = b ^ result[0];
+        result.remove(0);
+        result.push_back(0);
+        for (int i = 0; i < degree; ++i) result[i] ^= quint8(gfMultiply(divisor[i], factor));
+    }
+    return result;
+}
+
+struct QrMatrix {
+    int size = 0;
+    QVector<char> dark, fixed;   // row by row; `fixed` marks the patterns the data goes around
+    bool get(int x, int y) const { return dark[y * size + x]; }
+    void set(int x, int y, bool v) { dark[y * size + x] = v; }
+    void setFixed(int x, int y, bool v)
+    {
+        dark[y * size + x] = v;
+        fixed[y * size + x] = true;
+    }
+};
+
+void qrFormatBits(QrMatrix &m, int level, int mask)
+{
+    const int data = kQrFormatBits[level] << 3 | mask;
+    int rem = data;
+    for (int i = 0; i < 10; ++i) rem = (rem << 1) ^ ((rem >> 9) * 0x537);
+    const int bits = (data << 10 | rem) ^ 0x5412;
+    auto bit = [&](int i) { return ((bits >> i) & 1) != 0; };
+    for (int i = 0; i <= 5; ++i) m.setFixed(8, i, bit(i));
+    m.setFixed(8, 7, bit(6));
+    m.setFixed(8, 8, bit(7));
+    m.setFixed(7, 8, bit(8));
+    for (int i = 9; i < 15; ++i) m.setFixed(14 - i, 8, bit(i));
+    for (int i = 0; i < 8; ++i) m.setFixed(m.size - 1 - i, 8, bit(i));
+    for (int i = 8; i < 15; ++i) m.setFixed(8, m.size - 15 + i, bit(i));
+    m.setFixed(8, m.size - 8, true);
+}
+
+QVector<int> qrAlignment(int ver)
+{
+    if (ver == 1) return {};
+    const int n = ver / 7 + 2;
+    const int step = ver == 32 ? 26 : (ver * 4 + n * 2 + 1) / (n * 2 - 2) * 2;
+    QVector<int> r(n);
+    r[0] = 6;
+    for (int i = n - 1, pos = ver * 4 + 10; i >= 1; --i, pos -= step) r[i] = pos;
+    return r;
+}
+
+bool qrMasked(int mask, int x, int y)
+{
+    switch (mask) {
+    case 0: return (x + y) % 2 == 0;
+    case 1: return y % 2 == 0;
+    case 2: return x % 3 == 0;
+    case 3: return (x + y) % 3 == 0;
+    case 4: return (x / 3 + y / 2) % 2 == 0;
+    case 5: return x * y % 2 + x * y % 3 == 0;
+    case 6: return (x * y % 2 + x * y % 3) % 2 == 0;
+    default: return ((x + y) % 2 + x * y % 3) % 2 == 0;
+    }
+}
+
+int qrPenalty(const QrMatrix &m)
+{
+    const int n = m.size;
+    int result = 0;
+    for (int pass = 0; pass < 2; ++pass) {
+        for (int a = 0; a < n; ++a) {
+            auto at = [&](int b) { return pass == 0 ? m.get(b, a) : m.get(a, b); };
+            int run = 1;
+            QString line;
+            for (int b = 0; b < n; ++b) {
+                line += at(b) ? QLatin1Char('1') : QLatin1Char('0');
+                if (b > 0 && at(b) == at(b - 1)) {
+                    ++run;
+                    if (run == 5) result += 3;
+                    else if (run > 5) ++result;
+                } else {
+                    run = 1;
+                }
+            }
+            // The finder-like pattern 1:1:3:1:1 with four light modules beside it.
+            for (const char *p : {"00001011101", "10111010000"}) result += 40 * int(line.count(QLatin1String(p)));
+        }
+    }
+    for (int y = 0; y + 1 < n; ++y)
+        for (int x = 0; x + 1 < n; ++x)
+            if (m.get(x, y) == m.get(x + 1, y) && m.get(x, y) == m.get(x, y + 1) && m.get(x, y) == m.get(x + 1, y + 1)) result += 3;
+    int dark = 0;
+    for (char c : m.dark) dark += c ? 1 : 0;
+    const int total = n * n;
+    result += ((std::abs(dark * 20 - total * 10) + total - 1) / total - 1) * 10;
+    return result;
+}
+
+Layout qr(const Options &o)
+{
+    Layout l;
+    const QByteArray bytes = o.data.toUtf8();
+    const int level = std::clamp(o.qrLevel, 0, 3);
+    if (bytes.isEmpty()) {
+        l.error = QCoreApplication::translate("Core", "Type the text the barcode holds.");
+        return l;
+    }
+    if (bytes.size() > qrMostBytes(level)) {
+        l.error = QCoreApplication::translate("Core", "A QR code at this error correction level holds at most %1 bytes of text (an accented letter or a symbol takes 2 or more).").arg(qrMostBytes(level));
+        return l;
+    }
+    int ver = 1;
+    auto countBits = [](int v) { return v <= 9 ? 8 : 16; };
+    while (4 + countBits(ver) + 8 * bytes.size() > qrDataCodewords(ver, level) * 8) ++ver;
+    // The data: mode, count, the bytes, the end, and the padding.
+    QVector<quint8> data;
+    int bitCount = 0;
+    auto put = [&](int value, int n) {
+        for (int i = n - 1; i >= 0; --i) {
+            if (bitCount % 8 == 0) data.push_back(0);
+            data.back() |= quint8(((value >> i) & 1) << (7 - bitCount % 8));
+            ++bitCount;
+        }
+    };
+    put(4, 4);
+    put(int(bytes.size()), countBits(ver));
+    for (char c : bytes) put(quint8(c), 8);
+    const int capacity = qrDataCodewords(ver, level) * 8;
+    put(0, std::min(4, capacity - bitCount));
+    put(0, (8 - bitCount % 8) % 8);
+    for (int pad = 0xEC; data.size() < capacity / 8; pad ^= 0xEC ^ 0x11) data.push_back(quint8(pad));
+    // Blocks with their correction codewords, taken a column at a time.
+    const int blocks = kQrBlocks[level][ver], eccLen = kQrEccPerBlock[level][ver], raw = qrRawModules(ver) / 8;
+    const int shortBlocks = blocks - raw % blocks, shortLen = raw / blocks;
+    QVector<QVector<quint8>> parts;
+    for (int i = 0, k = 0; i < blocks; ++i) {
+        QVector<quint8> dat = data.mid(k, shortLen - eccLen + (i < shortBlocks ? 0 : 1));
+        k += int(dat.size());
+        const QVector<quint8> ecc = reedSolomon(dat, eccLen);
+        if (i < shortBlocks) dat.push_back(0);
+        parts.push_back(dat + ecc);
+    }
+    QVector<quint8> all;
+    for (int i = 0; i < parts[0].size(); ++i)
+        for (int j = 0; j < blocks; ++j)
+            if (i != shortLen - eccLen || j >= shortBlocks) all.push_back(parts[j][i]);
+    // The patterns.
+    QrMatrix m;
+    m.size = ver * 4 + 17;
+    m.dark.fill(0, m.size * m.size);
+    m.fixed.fill(0, m.size * m.size);
+    for (int i = 0; i < m.size; ++i) {
+        m.setFixed(6, i, i % 2 == 0);
+        m.setFixed(i, 6, i % 2 == 0);
+    }
+    auto finder = [&](int cx, int cy) {
+        for (int dy = -4; dy <= 4; ++dy)
+            for (int dx = -4; dx <= 4; ++dx) {
+                const int dist = std::max(std::abs(dx), std::abs(dy)), x = cx + dx, y = cy + dy;
+                if (x >= 0 && x < m.size && y >= 0 && y < m.size) m.setFixed(x, y, dist != 2 && dist != 4);
+            }
+    };
+    finder(3, 3);
+    finder(m.size - 4, 3);
+    finder(3, m.size - 4);
+    const QVector<int> align = qrAlignment(ver);
+    for (int i = 0; i < align.size(); ++i)
+        for (int j = 0; j < align.size(); ++j) {
+            if ((i == 0 && j == 0) || (i == 0 && j == align.size() - 1) || (i == align.size() - 1 && j == 0)) continue;
+            for (int dy = -2; dy <= 2; ++dy)
+                for (int dx = -2; dx <= 2; ++dx) m.setFixed(align[i] + dx, align[j] + dy, std::max(std::abs(dx), std::abs(dy)) != 1);
+        }
+    qrFormatBits(m, level, 0);
+    if (ver >= 7) {
+        int rem = ver;
+        for (int i = 0; i < 12; ++i) rem = (rem << 1) ^ ((rem >> 11) * 0x1F25);
+        const int bits = ver << 12 | rem;
+        for (int i = 0; i < 18; ++i) {
+            const bool bit = ((bits >> i) & 1) != 0;
+            const int a = m.size - 11 + i % 3, b = i / 3;
+            m.setFixed(a, b, bit);
+            m.setFixed(b, a, bit);
+        }
+    }
+    // The codewords, in pairs of columns from the lower right, up and down.
+    int bit = 0;
+    const int totalBits = int(all.size()) * 8;
+    for (int right = m.size - 1; right >= 1; right -= 2) {
+        if (right == 6) right = 5;
+        for (int vert = 0; vert < m.size; ++vert)
+            for (int j = 0; j < 2; ++j) {
+                const int x = right - j, y = ((right + 1) & 2) == 0 ? m.size - 1 - vert : vert;
+                if (!m.fixed[y * m.size + x] && bit < totalBits) {
+                    m.set(x, y, ((all[bit >> 3] >> (7 - (bit & 7))) & 1) != 0);
+                    ++bit;
+                }
+            }
+    }
+    // The mask that leaves the least that looks like a pattern.
+    auto applyMask = [&](int mask) {
+        for (int y = 0; y < m.size; ++y)
+            for (int x = 0; x < m.size; ++x)
+                if (!m.fixed[y * m.size + x] && qrMasked(mask, x, y)) m.set(x, y, !m.get(x, y));
+    };
+    int best = 0, bestPenalty = -1;
+    for (int mask = 0; mask < 8; ++mask) {
+        applyMask(mask);
+        qrFormatBits(m, level, mask);
+        const int penalty = qrPenalty(m);
+        if (bestPenalty < 0 || penalty < bestPenalty) {
+            best = mask;
+            bestPenalty = penalty;
+        }
+        applyMask(mask);
+    }
+    applyMask(best);
+    qrFormatBits(m, level, best);
+    // The modules as bars: a row's run of dark ones is one, inside four modules of clear space.
+    const double u = 3.0 * o.magnification;
+    for (int y = 0; y < m.size; ++y)
+        for (int x = 0; x < m.size;) {
+            if (!m.get(x, y)) {
+                ++x;
+                continue;
+            }
+            int end = x;
+            while (end < m.size && m.get(end, y)) ++end;
+            l.bars << QRectF((x + 4) * u, (y + 4) * u, (end - x) * u, u);
+            x = end;
+        }
+    l.size = QSizeF((m.size + 8) * u, (m.size + 8) * u);
+    l.encoded = o.data;
+    return l;
+}
+
 } // namespace
+
+int qrMostBytes(int level) { return qrDataCodewords(40, std::clamp(level, 0, 3)) - 3; }
 
 bool loadIsbnRanges(const QByteArray &xml)
 {
@@ -489,6 +777,8 @@ Layout make(const Options &o)
         return code128(o);
     case Type::Code39:
         return code39(o);
+    case Type::Qr:
+        return qr(o);
     }
     return {};
 }

@@ -1339,6 +1339,74 @@ private Q_SLOTS:
         QVERIFY(bars(Type::Code39, QStringLiteral("a~b")).contains(QLatin1String("Code 39")));
     }
 
+    // QR codes: how much each error correction level holds, the finder, timing, and format patterns, and the format information read back (both copies
+    // agree, its error correction code holds, and it names the level asked for).
+    void qrCodes()
+    {
+        using namespace jp::barcode;
+        auto make = [](const QString &text, int level) {
+            Options o;
+            o.type = Type::Qr;
+            o.data = text;
+            o.qrLevel = level;
+            return jp::barcode::make(o);
+        };
+        // Nothing, and more than a level holds, is told, not drawn.
+        QVERIFY(!make(QString(), 1).error.isEmpty());
+        const int most[4] = {2953, 2331, 1663, 1273};
+        for (int level = 0; level < 4; ++level) {
+            QCOMPARE(qrMostBytes(level), most[level]);
+            QVERIFY(make(QString(most[level], QLatin1Char('a')), level).error.isEmpty());
+            QVERIFY(!make(QString(most[level] + 1, QLatin1Char('a')), level).error.isEmpty());
+        }
+        // The version grows with the text: 21 modules at version 1 (17 bytes at level L), 25 at version 2 (18 bytes), 177 at version 40; each is the
+        // modules and four of clear space on each side, 3 points a module.
+        auto modules = [&](const QString &text, int level) { return int(std::lround(make(text, level).size.width() / 3.0)) - 8; };
+        QCOMPARE(modules(QString(17, QLatin1Char('a')), 0), 21);
+        QCOMPARE(modules(QString(18, QLatin1Char('a')), 0), 25);
+        QCOMPARE(modules(QString(14, QLatin1Char('a')), 1), 21);
+        QCOMPARE(modules(QString(15, QLatin1Char('a')), 1), 25);
+        QCOMPARE(modules(QString(2953, QLatin1Char('a')), 0), 177);
+        // Accented letters take more than a byte each.
+        QCOMPARE(make(QStringLiteral("\u00e9\u20ac"), 1).encoded, QStringLiteral("\u00e9\u20ac"));
+        for (int level = 0; level < 4; ++level) {
+            const Layout l = make(QStringLiteral("https://jeffoffice.com/barcode"), level);
+            QVERIFY(l.error.isEmpty() && !l.bars.isEmpty() && l.labels.isEmpty());
+            const int n = int(std::lround(l.size.width() / 3.0)) - 8;
+            QVector<char> dark(n * n, 0);
+            for (const QRectF &r : l.bars)
+                for (int i = 0; i < int(std::lround(r.width() / 3.0)); ++i) dark[(int(std::lround(r.y() / 3.0)) - 4) * n + int(std::lround(r.x() / 3.0)) - 4 + i] = 1;
+            auto at = [&](int x, int y) { return dark[y * n + x] != 0; };
+            // The three finders: a dark ring, a light ring, and a dark 3 by 3 square.
+            for (const QPoint &o : {QPoint(0, 0), QPoint(n - 7, 0), QPoint(0, n - 7)})
+                for (int y = 0; y < 7; ++y)
+                    for (int x = 0; x < 7; ++x) {
+                        const int ring = std::max(std::abs(x - 3), std::abs(y - 3));
+                        QCOMPARE(at(o.x() + x, o.y() + y), ring != 2);
+                    }
+            // The timing patterns, and the one dark module beside the lower left finder.
+            for (int i = 8; i < n - 8; ++i) {
+                QCOMPARE(at(i, 6), i % 2 == 0);
+                QCOMPARE(at(6, i), i % 2 == 0);
+            }
+            QVERIFY(at(8, n - 8));
+            // The format information: 15 bits, in two places that agree.
+            int first = 0, second = 0;
+            const int firstAt[15][2] = {{8, 0}, {8, 1}, {8, 2}, {8, 3}, {8, 4}, {8, 5}, {8, 7}, {8, 8}, {7, 8}, {5, 8}, {4, 8}, {3, 8}, {2, 8}, {1, 8}, {0, 8}};
+            for (int i = 0; i < 15; ++i) {
+                first |= int(at(firstAt[i][0], firstAt[i][1])) << i;
+                second |= int(i < 8 ? at(n - 1 - i, 8) : at(8, n - 15 + i)) << i;
+            }
+            QCOMPARE(first, second);
+            const int info = first ^ 0x5412;
+            int rem = info >> 10;
+            for (int i = 0; i < 10; ++i) rem = (rem << 1) ^ ((rem >> 9) * 0x537);
+            QCOMPARE(rem & 0x3FF, info & 0x3FF);
+            static const int levelOfBits[4] = {1, 0, 3, 2};   // L, M, Q, H as the standard numbers them
+            QCOMPARE(info >> 13, levelOfBits[level]);
+        }
+    }
+
     // Insert > Barcode places one group: the white quiet zone and the bars
     // with their digits as a single vector outline.
     void barcodeInsert()

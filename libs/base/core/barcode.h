@@ -10,7 +10,7 @@
 
 namespace jp::barcode {
 
-enum class Type { Isbn, Ean13, UpcA, Ean8, Code128, Code39 };
+enum class Type { Isbn, Ean13, UpcA, Ean8, Code128, Code39, Qr };
 
 struct Options {
     Type type = Type::Isbn;
@@ -20,7 +20,11 @@ struct Options {
     double barHeight = 1;      // share of the standard bar height (books often print 0.8)
     bool text = true;          // the digits under (and the ISBN above) the bars
     bool code39Check = false;  // Code 39: add the mod-43 check character
+    int qrLevel = 1;           // QR: the error correction, 0 = L (7%), 1 = M (15%), 2 = Q (25%), 3 = H (30%)
 };
+
+// The most bytes (of the text as UTF-8) a QR code holds at an error correction level (0 to 3): version 40's.
+int qrMostBytes(int level);
 
 struct Label {
     QString text;
