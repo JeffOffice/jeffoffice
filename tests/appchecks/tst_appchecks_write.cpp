@@ -1,5 +1,6 @@
 // The checks every app's window must pass, for JeffWrite (see appchecks.h): its first five minutes, its standard commands, and every command it has.
 #include "appchecks.h"
+#include "core/pictureinsert.h"
 
 #include "app/filescreen.h"
 #include "app/pageview.h"

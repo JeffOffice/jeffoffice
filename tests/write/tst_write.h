@@ -2,6 +2,7 @@
 // Tests of JeffWrite (apps/write): the document, editing it, the .docx it reads and writes, the page view, and the window.
 
 #include "../isolatesettings.h"
+#include "core/pictureinsert.h"
 #include "core/fonts.h"
 #include "../plainprobe.h"
 #include "../recoverygate.h"

@@ -4,7 +4,6 @@
 // the mail-merge recipient list.
 
 #include "core/items.h"
-#include "core/pictureinsert.h"
 #include "office/packageprops.h"
 #include "text/textengine.h"
 

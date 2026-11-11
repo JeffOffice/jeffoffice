@@ -1,5 +1,6 @@
 // JeffPub's tests of pictures: linked, online, dropped, and the building blocks.
 #include "pubhelpers.h"
+#include "core/pictureinsert.h"
 #include "core/version.h"
 #include "../isolatesettings.h"
 #include "io/jpubfile.h"

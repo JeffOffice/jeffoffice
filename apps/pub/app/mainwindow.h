@@ -5,6 +5,7 @@
 // controls it names in mainwindow_ribbon.cpp.
 
 #include "app/appwindow.h"
+#include "core/pictureinsert.h"
 #include "app/filetasks.h"
 #include "app/editor.h"
 #include "app/infopage.h"
