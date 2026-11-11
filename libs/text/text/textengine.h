@@ -6,7 +6,7 @@
 // that a single paragraph can span frames while staying in one QTextLayout.
 
 #include "core/color.h"
-#include "core/items.h"
+#include "core/valign.h"
 #include "text/textprops.h"
 
 #include <QDateTime>

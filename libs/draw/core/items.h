@@ -3,6 +3,7 @@
 // coordinates. `rect` is the unrotated frame; rotation turns it about its center.
 
 #include "core/style.h"
+#include "core/valign.h"
 
 #include <QHash>
 #include <QJsonObject>
@@ -19,8 +20,6 @@ namespace jp {
 
 enum class ItemType { Text, Picture, Shape, Line, Table, TextArt, Group, Equation };
 QString itemTypeName(ItemType t);
-
-enum class VAlign { Top, Middle, Bottom };
 
 class Item;
 using ItemPtr = std::shared_ptr<Item>;

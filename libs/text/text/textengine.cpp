@@ -1,5 +1,6 @@
 #include "text/textengine.h"
 #include "core/threadcheck.h"
+#include "core/items.h"
 
 #include "core/fonts.h"
 #include "core/texteffects.h"
