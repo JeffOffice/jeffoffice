@@ -7,7 +7,7 @@ An **equation** is a line of math, such as a fraction or a square root. This top
 
 1. Put the caret where the equation should go.
 2. Click **Insert > Equation**, or press **Alt+=**.
-3. Type the equation in one line. Under the box you see what it will look like. Click **OK**.
+3. Type the equation in one line. Under the box you see the equation drawn as it will look, and the line of text the page will show. To start from a well-known equation, pick one from the **Built-In Equations** list in the box. Click **OK**.
 
 The equation is saved in the document in the standard form for math, so other programs can open it.
 

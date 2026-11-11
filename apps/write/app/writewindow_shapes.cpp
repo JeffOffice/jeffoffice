@@ -12,6 +12,7 @@
 #include "app/settings.h"
 #include "app/widgets.h"
 #include "core/equationops.h"
+#include "app/equationdialog.h"
 #include "core/pictureops.h"
 #include "office/drawingml.h"
 #include "office/drawingml_geometry.h"
@@ -535,46 +536,15 @@ void WriteWindow::insertEquationDialog()
             }
         }
     }
-    QDialog dlg(this);
-    dlg.setObjectName(QStringLiteral("equationDialog"));
-    dlg.setWindowTitle(editAt >= 0 ? tr("Edit Equation") : tr("Insert Equation"));
-    auto *layout = new QVBoxLayout(&dlg);
-    auto *help = new QLabel(tr("Type the equation in a line. Use a/b for a fraction, x^2 for a power, x_i for a subscript, sqrt(x) for a root, and a backslash and a name for a symbol, such as \\alpha, \\pi, \\infty, \\leq, or \\times. "
-                               "Write \\sum_(i=1)^n, \\int_0^1, or \\prod for a sum, an integral, or a product with limits. Use \\hat{x}, \\vec{v}, or \\bar{x} for an accent, \\overline{x} for a bar, "
-                               "\\left( ... \\right) for brackets that grow, and \\pmatrix{a & b \\\\ c & d} for a matrix."),
-                            &dlg);
-    help->setWordWrap(true);
-    help->setTextFormat(Qt::PlainText);
-    layout->addWidget(help);
-    auto *input = new QLineEdit(editText, &dlg);
-    input->setObjectName(QStringLiteral("equationInput"));
-    input->setMinimumWidth(420);
-    layout->addWidget(input);
-    auto *preview = new QLabel(&dlg);
-    preview->setObjectName(QStringLiteral("equationPreview"));
-    preview->setTextFormat(Qt::PlainText);
-    preview->setAccessibleName(tr("Equation preview"));
-    layout->addWidget(preview);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
-    connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-    layout->addWidget(buttons);
-    auto update = [input, preview, buttons] {
-        bool ok = false;
-        const QByteArray markup = write::equationMarkup(input->text(), &ok);
-        preview->setText(ok ? write::equationLine(markup) : QString());
-        buttons->button(QDialogButtonBox::Ok)->setEnabled(ok);
-    };
-    connect(input, &QLineEdit::textChanged, &dlg, update);
-    update();
-    if (dlg.exec() != QDialog::Accepted) return;
+    QString typed = editText;
+    if (!askEquation(this, editAt >= 0 ? tr("Edit Equation") : tr("Insert Equation"), &typed)) return;
     if (editAt >= 0) {
-        if (!write::replaceEquation(*m_doc, editAt, input->text()) && write::equationAt(*m_doc, editAt) != input->text()) statusBar()->showMessage(tr("This equation can't be changed."), 6000);
+        if (!write::replaceEquation(*m_doc, editAt, typed) && write::equationAt(*m_doc, editAt) != typed) statusBar()->showMessage(tr("This equation can't be changed."), 6000);
         m_view->setFocus(Qt::OtherFocusReason);
         return;
     }
     QTextCursor c = m_view->cursor();
-    if (write::insertEquation(*m_doc, c, input->text())) m_view->showCursor(c);
+    if (write::insertEquation(*m_doc, c, typed)) m_view->showCursor(c);
     else statusBar()->showMessage(tr("An equation can't be put here."), 6000);
     m_view->setFocus(Qt::OtherFocusReason);
 }
