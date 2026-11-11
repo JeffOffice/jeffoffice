@@ -465,6 +465,10 @@
               },
               "keytip": "CH",
               "menu": "@insertChart"
+            },
+            {
+              "large": "insert.barcode",
+              "keytip": "BC"
             }
           ]
         },

@@ -1,9 +1,10 @@
-// JeffDeck's Insert tab: Pictures from this device or online, Icons, and Text
+// JeffDeck's Insert tab: Pictures from this device or online, Icons, Barcodes, and Text
 // Art. Each puts its object in the middle of the slide, as one step that undoes.
 
 #include "app/deckwindow.h"
 
 #include "app/deckcanvas.h"
+#include "app/barcodeinsert.h"
 #include "app/editor.h"
 #include "app/iconpicker.h"
 #include "app/icons.h"
@@ -25,6 +26,9 @@ void DeckWindow::createPictureActions()
     mk("insert.pictureDevice", tr("This Device…"), "monitor", QKeySequence(), [this] { insertPictureFromFile(); });
     mk("insert.onlinePicture", tr("Online Pictures…"), "globe", QKeySequence(), [this] { showOnlinePictures(); });
     mk("insert.icons", tr("Icons"), "smile-plus", QKeySequence(), [this] { insertIcons(pickIcons(this)); });
+    // A barcode asks for its data again on a double click, or with it selected and Insert > Barcode.
+    mk("insert.barcode", tr("Barcode"), "barcode", QKeySequence(), [this] { barcodeDialog(this, m_ed); });
+    connect(m_canvas, &Canvas::editBarcodeWanted, this, [this] { barcodeDialog(this, m_ed); });
     // Text Art asks for its words again on a double click, or on Enter with it selected.
     connect(m_canvas, &Canvas::editTextArtWanted, this, [this](const QString &id) { textArtTextDialog(this, m_ed, id); });
 }

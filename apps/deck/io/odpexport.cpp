@@ -322,6 +322,16 @@ QString Exporter::addPicture(const QString &imageId)
     return name;
 }
 
+QString Exporter::addPictureBytes(const QString &key, const QByteArray &bytes)
+{
+    if (bytes.isEmpty()) return QString();
+    if (const auto it = m_pictureNames.constFind(key); it != m_pictureNames.cend()) return it.value();
+    const QString name = QStringLiteral("Pictures/image%1.png").arg(m_pictureNames.size() + 1);
+    addFile(name, bytes, QStringLiteral("image/png"), false);
+    m_pictureNames.insert(key, name);
+    return name;
+}
+
 QString Exporter::addPictureChanged(const QString &imageId, const QVector<BlipEffect> &effects)
 {
     if (imageId.isEmpty() || !blipEffectsChange(effects)) return addPicture(imageId);

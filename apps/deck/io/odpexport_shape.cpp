@@ -4,14 +4,17 @@
 
 #include "io/odpexport_p.h"
 
+#include "core/barcodeitem.h"
 #include "core/media.h"
 #include "core/shapetypes.h"
 #include "office/drawingml_geometry.h"
+#include "office/barcodemarker.h"
 #include "office/drawingml_write.h"
 #include "render/renderer.h"
 #include "render/shapes.h"
 
 #include <QBuffer>
+#include <QCryptographicHash>
 #include <QCoreApplication>
 #include <QImage>
 #include <QJsonDocument>
@@ -564,9 +567,41 @@ void Exporter::writeLine(X &x, Scope &sc, const LineItem &l)
 
 // ---- groups
 
+bool Exporter::writeBarcode(X &x, Scope &sc, const GroupItem &g)
+{
+    const QByteArray png = barcodePng(g);
+    const QRectF frame = g.bounds();
+    if (png.isEmpty() || frame.isEmpty()) return false;
+    const QString part = addPictureBytes(QStringLiteral("barcode:") + QString::fromLatin1(QCryptographicHash::hash(png, QCryptographicHash::Sha1).toHex()), png);
+    if (part.isEmpty()) return false;
+    PictureItem p;
+    p.id = g.id;
+    p.sourceId = g.sourceId;
+    p.name = g.name;
+    p.altText = g.altText;
+    p.altTitle = g.altTitle;
+    p.hidden = g.hidden;
+    p.hyperlink = g.hyperlink;
+    p.lockAspect = g.lockAspect;
+    p.rect = frame;
+    const QString style = frameStyle(sc, p, QString(), QString(), QString(), QString(), false);
+    x.open("draw:frame");
+    x.attr("draw:style-name", style);
+    writeCommon(x, p);
+    x.attr("draw:layer", sc.layer);
+    writePlace(x, p.rect, 0);
+    x.attr("jo:barcode", office::barcodeSettingsText(g.barcode));
+    x.open("draw:image").attr("xlink:href", part).attr("xlink:type", "simple").attr("xlink:show", "embed").attr("xlink:actuate", "onLoad").attr("loext:mime-type", "image/png");
+    x.leaf("text:p").close();
+    writeInside(x, p);
+    x.close();
+    return true;
+}
+
 void Exporter::writeGroup(X &x, Scope &sc, const GroupItem &g)
 {
     if (g.children.empty()) return;
+    if (isBarcodeItem(&g) && writeBarcode(x, sc, g)) return;
     if (sc.depth >= 64) return;
     x.open("draw:g");
     writeCommon(x, g);

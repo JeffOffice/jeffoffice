@@ -159,6 +159,8 @@ private:
     QString pageLayoutFor(const QSizeF &size);
     QByteArray thumbnail() const;
     QString addPicture(const QString &imageId);
+    // A picture of bytes the document doesn't hold (a barcode's PNG), kept in the package once for its key.
+    QString addPictureBytes(const QString &key, const QByteArray &bytes);
     // The same, with the changes of a picture fill's colors made in it (the other suite has no way to say them); the picture as it is if there are none.
     QString addPictureChanged(const QString &imageId, const QVector<BlipEffect> &effects);
     QString addMedia(const QString &mediaId, QString *mediaType, const QString &kind = QString());
@@ -211,6 +213,8 @@ private:
     void writePicture(X &x, Scope &sc, const PictureItem &p);
     void writeLine(X &x, Scope &sc, const LineItem &l);
     void writeGroup(X &x, Scope &sc, const GroupItem &g);
+    // A barcode as the picture other programs show, with the settings in the frame (office/barcodemarker.h); false when it can't be a picture.
+    bool writeBarcode(X &x, Scope &sc, const GroupItem &g);
     void writeTable(X &x, Scope &sc, const TableItem &t);
     void writeAsPicture(X &x, Scope &sc, const Item &it);
     void writePlace(X &x, const QRectF &rect, double rotation);

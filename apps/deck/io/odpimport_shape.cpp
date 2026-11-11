@@ -6,9 +6,11 @@
 #include "io/odpimport_p.h"
 #include "io/odpimport.h"
 
+#include "core/barcodeitem.h"
 #include "core/deck.h"
 #include "core/items.h"
 #include "core/svg.h"
+#include "office/barcodemarker.h"
 #include "office/drawingml_style.h"
 #include "render/shapes.h"
 #include "text/textengine.h"
@@ -158,7 +160,23 @@ ItemPtr Reader::readShape(const QDomElement &e, Scope &sc, const QTransform &t)
     if (a.get("draw:layer") == QLatin1String("controls") || a.get("draw:layer") == QLatin1String("measurelines")) return nullptr;
     ++sc.shapes;
     ItemPtr it;
-    if (tag == QLatin1String("draw:frame")) it = readFrame(e, sc, t);
+    if (tag == QLatin1String("draw:frame")) {
+        it = readFrame(e, sc, t);
+        // A picture with the marker of a barcode of ours is that barcode, in the frame the file gave it.
+        if (it && it->type() == ItemType::Picture)
+            if (const QJsonObject settings = office::barcodeOdfSettings(a.get("jo:barcode")); !settings.isEmpty())
+                if (const ItemPtr code = barcodeFromSettings(settings, QPointF()); code && !it->rect.isEmpty()) {
+                    code->scaleInto(code->rect, it->rect);
+                    code->name = it->name;
+                    code->altText = it->altText;
+                    code->altTitle = it->altTitle;
+                    code->hidden = it->hidden;
+                    code->hyperlink = it->hyperlink;
+                    code->lockAspect = it->lockAspect;
+                    code->wrap.mode = Wrap::None;
+                    it = code;
+                }
+    }
     else if (tag == QLatin1String("draw:custom-shape")) it = readCustomShape(e, sc, t);
     else if (tag == QLatin1String("draw:rect") || tag == QLatin1String("draw:ellipse") || tag == QLatin1String("draw:circle") || tag == QLatin1String("draw:caption")) it = readBasicShape(e, sc, t);
     else if (tag == QLatin1String("draw:line") || tag == QLatin1String("draw:connector")) it = readLine(e, sc, t);
