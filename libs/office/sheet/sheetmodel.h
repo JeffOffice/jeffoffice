@@ -1449,6 +1449,25 @@ struct ImportedChart {
     bool absolute = false;                        // a chart sheet's chart: it fills a page, with no cells to hold it
 };
 
+// The drawing objects of a sheet read from an OpenDocument spreadsheet (see sheet/odsdraw.h), as the drawing part of the XML form holds them: each anchor element whole (it declares the
+// namespaces it uses), in the order they are drawn, the relationships from the drawing to its pictures (by the id the anchors use), and the picture files. They are written into the .xlsx
+// that a save of such a workbook makes (xlsxbase.h).
+struct ImportedMedia {
+    QString name;          // the file's name in the drawing's folder of pictures ("image1.png")
+    QByteArray bytes;
+};
+struct ImportedRel {
+    QString id;            // the id the anchors name ("rId1")
+    int media = 0;         // the place of the picture among `media`
+};
+struct ImportedDrawing {
+    QVector<QByteArray> anchors;
+    QVector<ImportedRel> rels;
+    QVector<ImportedMedia> media;
+    QStringList notRead;   // what was left out, in words (objects past the limits, kinds that are not read)
+    bool isEmpty() const { return anchors.isEmpty(); }
+};
+
 struct Sheet {
     CellStore cells;
     QVector<QString> texts;           // inline strings and the texts of formula results
@@ -1486,6 +1505,7 @@ struct Sheet {
     bool isProtected = false;         // the sheet is protected (sheetProtection): its locked cells can't be changed
     SheetProtection protection;       // and what the protection says (isProtected is its `enabled`)
     QVector<LinkSpec> links;          // the links on cells, in the order of the file (an address outside the workbook is resolved by Workbook::readSheet; a sheet read alone has the relationship's id)
+    ImportedDrawing importedDrawing;         // the drawing objects of a sheet read from an OpenDocument spreadsheet (written to the XML form when the workbook is saved as one)
     QVector<ImportedChart> importedCharts;   // the charts of a sheet of the older binary form (see sheet/xlschart.h); they are written when the workbook is saved as the XML form
     QStringList notKept;              // what the sheet's file has that the program neither shows nor writes into a copy of the sheet, in words (sparklines, say)
     bool partial = false;             // the read was stopped at a row asked for (ReadOptions::stopAfterRow): the cells of the rows after it, and what follows the cells (the merged ranges), are not here
