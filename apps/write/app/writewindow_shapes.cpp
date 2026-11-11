@@ -2,6 +2,7 @@
 // core/pictureops.h and core/equationops.h).
 
 #include "app/writewindow.h"
+#include "app/chartedit.h"
 
 #include "app/icons.h"
 #include "app/pageview.h"
@@ -481,21 +482,8 @@ void WriteWindow::editChartAxisTitle(bool values)
     if (!m_doc || at < 0) return;
     const write::ChartInfo info = write::chartAt(*m_doc, at);
     if (!info.valid || !info.hasAxes) return;
-    QDialog dlg(this);
-    dlg.setObjectName(QStringLiteral("chartAxisTitleDialog"));
-    dlg.setWindowTitle(values ? tr("Title of the Axis of Values") : tr("Title of the Axis of Categories"));
-    auto *layout = new QVBoxLayout(&dlg);
-    layout->addWidget(new QLabel(tr("Words for the title of the axis (leave empty for none):"), &dlg));
-    auto *edit = new QLineEdit(values ? info.valueAxisTitle : info.categoryAxisTitle, &dlg);
-    edit->setObjectName(QStringLiteral("chartAxisTitleEdit"));
-    edit->setMinimumWidth(320);
-    layout->addWidget(edit);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
-    connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-    layout->addWidget(buttons);
-    if (dlg.exec() != QDialog::Accepted) return;
-    const QString text = edit->text();
+    QString text = values ? info.valueAxisTitle : info.categoryAxisTitle;
+    if (!askChartAxisTitle(this, values, &text)) return;
     const write::ChartAxisKind kind = values ? write::ChartAxisKind::Value : write::ChartAxisKind::Category;
     m_view->changeSelectedPicture([text, kind](write::WriteDoc &d, int position) { return write::setChartAxisTitle(d, position, kind, text); });
     m_view->setFocus(Qt::OtherFocusReason);
@@ -507,21 +495,8 @@ void WriteWindow::editChartTitle()
     if (!m_doc || at < 0) return;
     const write::ChartInfo info = write::chartAt(*m_doc, at);
     if (!info.valid) return;
-    QDialog dlg(this);
-    dlg.setObjectName(QStringLiteral("chartTitleDialog"));
-    dlg.setWindowTitle(tr("Chart Title"));
-    auto *layout = new QVBoxLayout(&dlg);
-    layout->addWidget(new QLabel(tr("Words for the title of the chart:"), &dlg));
-    auto *edit = new QLineEdit(info.title, &dlg);
-    edit->setObjectName(QStringLiteral("chartTitleEdit"));
-    edit->setMinimumWidth(320);
-    layout->addWidget(edit);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
-    connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-    layout->addWidget(buttons);
-    if (dlg.exec() != QDialog::Accepted) return;
-    const QString text = edit->text();
+    QString text = info.title;
+    if (!askChartTitle(this, &text)) return;
     m_view->changeSelectedPicture([text](write::WriteDoc &d, int position) { return write::setChartTitle(d, position, true, text); });
     m_view->setFocus(Qt::OtherFocusReason);
 }
@@ -532,62 +507,11 @@ void WriteWindow::editChartData()
     if (!m_doc || at < 0) return;
     const write::ChartInfo info = write::chartAt(*m_doc, at);
     if (!info.valid || !info.dataEditable) return;
-    QDialog dlg(this);
-    dlg.setObjectName(QStringLiteral("chartDataDialog"));
-    dlg.setWindowTitle(tr("Chart Data"));
-    auto *layout = new QVBoxLayout(&dlg);
-    auto *help = new QLabel(tr("The first column holds the words under the points. The first row holds the names of the series. The other cells are numbers."), &dlg);
-    help->setWordWrap(true);
-    layout->addWidget(help);
-    auto *table = new QTableWidget(info.data.categories.size() + 1, info.data.values.size() + 1, &dlg);
-    table->setObjectName(QStringLiteral("chartDataTable"));
-    table->horizontalHeader()->setVisible(false);
-    table->verticalHeader()->setVisible(false);
-    table->setMinimumSize(460, 220);
-    for (int s = 0; s < info.data.values.size(); ++s) table->setItem(0, s + 1, new QTableWidgetItem(info.data.seriesNames.value(s)));
-    for (int r = 0; r < info.data.categories.size(); ++r) {
-        table->setItem(r + 1, 0, new QTableWidgetItem(info.data.categories[r]));
-        for (int s = 0; s < info.data.values.size(); ++s) table->setItem(r + 1, s + 1, new QTableWidgetItem(QString::number(info.data.values[s].value(r), 'g', 15)));
-    }
-    layout->addWidget(table);
-    auto *row = new QHBoxLayout();
-    auto *addRow = new QPushButton(tr("Add Row"), &dlg);
-    auto *addColumn = new QPushButton(tr("Add Column"), &dlg);
-    auto *removeRow = new QPushButton(tr("Remove Last Row"), &dlg);
-    auto *removeColumn = new QPushButton(tr("Remove Last Column"), &dlg);
-    for (QPushButton *b : {addRow, addColumn, removeRow, removeColumn}) row->addWidget(b);
-    layout->addLayout(row);
-    connect(addRow, &QPushButton::clicked, table, [table] {
-        if (table->rowCount() <= write::kMostChartCategories) table->setRowCount(table->rowCount() + 1);
-    });
-    connect(addColumn, &QPushButton::clicked, table, [table] {
-        if (table->columnCount() <= write::kMostChartSeries) table->setColumnCount(table->columnCount() + 1);
-    });
-    connect(removeRow, &QPushButton::clicked, table, [table] {
-        if (table->rowCount() > 2) table->setRowCount(table->rowCount() - 1);
-    });
-    connect(removeColumn, &QPushButton::clicked, table, [table] {
-        if (table->columnCount() > 2) table->setColumnCount(table->columnCount() - 1);
-    });
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
-    connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-    layout->addWidget(buttons);
-    if (dlg.exec() != QDialog::Accepted) return;
-    write::ChartData data;
-    for (int c = 1; c < table->columnCount(); ++c) data.seriesNames << (table->item(0, c) ? table->item(0, c)->text() : QString());
-    data.values.resize(table->columnCount() - 1);
-    for (int r = 1; r < table->rowCount(); ++r) {
-        data.categories << (table->item(r, 0) ? table->item(r, 0)->text() : QString());
-        for (int c = 1; c < table->columnCount(); ++c) {
-            bool ok = false;
-            const double v = table->item(r, c) ? table->item(r, c)->text().toDouble(&ok) : 0.0;
-            if (!ok && table->item(r, c) && !table->item(r, c)->text().trimmed().isEmpty()) {
-                statusBar()->showMessage(tr("Row %1 has a cell that is not a number, so the data was not changed.").arg(r), 8000);
-                return;
-            }
-            data.values[c - 1] << (ok ? v : 0.0);
-        }
+    write::ChartData data = info.data;
+    QString notice;
+    if (!askChartData(this, &data, &notice)) {
+        if (!notice.isEmpty()) statusBar()->showMessage(notice, 8000);
+        return;
     }
     m_view->changeSelectedPicture([data](write::WriteDoc &d, int position) { return write::setChartData(d, position, data); });
     m_view->setFocus(Qt::OtherFocusReason);

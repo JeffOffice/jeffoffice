@@ -3035,114 +3035,14 @@ qint64 compressPictures(WriteDoc &doc, double ppi, const QVector<int> &positions
 namespace {
 
 using office::Chart;
-using office::ChartSeries;
 
 const char kChartContentType[] = "application/vnd.openxmlformats-officedocument.drawingml.chart+xml";
 const char kChartRelationship[] = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart";
-
-office::sheet::ChartKind kindOfForm(ChartForm form)
-{
-    using K = office::sheet::ChartKind;
-    switch (form) {
-    case ChartForm::Column: return K::Column;
-    case ChartForm::ColumnStacked: return K::ColumnStacked;
-    case ChartForm::ColumnPercent: return K::ColumnPercent;
-    case ChartForm::Bar: return K::Bar;
-    case ChartForm::BarStacked: return K::BarStacked;
-    case ChartForm::Line: return K::Line;
-    case ChartForm::LineMarkers: return K::LineMarkers;
-    case ChartForm::Pie: return K::Pie;
-    case ChartForm::Doughnut: return K::Doughnut;
-    case ChartForm::Area: return K::Area;
-    case ChartForm::AreaStacked: return K::AreaStacked;
-    case ChartForm::Scatter: return K::Scatter;
-    }
-    return K::Column;
-}
-
-ChartForm formOfKind(office::sheet::ChartKind kind)
-{
-    using K = office::sheet::ChartKind;
-    switch (kind) {
-    case K::ColumnStacked: return ChartForm::ColumnStacked;
-    case K::ColumnPercent: return ChartForm::ColumnPercent;
-    case K::Bar:
-    case K::BarPercent: return ChartForm::Bar;
-    case K::BarStacked: return ChartForm::BarStacked;
-    case K::Line:
-    case K::LineStacked: return ChartForm::Line;
-    case K::LineMarkers: return ChartForm::LineMarkers;
-    case K::Pie: return ChartForm::Pie;
-    case K::Doughnut: return ChartForm::Doughnut;
-    case K::Area: return ChartForm::Area;
-    case K::AreaStacked: return ChartForm::AreaStacked;
-    case K::Scatter:
-    case K::ScatterLines:
-    case K::ScatterSmooth: return ChartForm::Scatter;
-    default: return ChartForm::Column;
-    }
-}
-
-// The series of a chart from the data: each its name, the categories, and its numbers. A scatter's categories are its x numbers (or 1, 2, 3 for words).
-QVector<ChartSeries> seriesOfData(const ChartData &data, bool scatter)
-{
-    QVector<ChartSeries> out;
-    QVector<double> xs;
-    if (scatter) {
-        for (int i = 0; i < data.categories.size(); ++i) {
-            bool ok = false;
-            const double v = data.categories[i].toDouble(&ok);
-            xs << (ok && std::isfinite(v) ? v : double(i + 1));
-        }
-    }
-    for (int s = 0; s < data.values.size(); ++s) {
-        ChartSeries series;
-        series.name = data.seriesNames.value(s, QCoreApplication::translate("jp::write::Pictures", "Series %1").arg(s + 1));
-        series.categories = data.categories;
-        series.values = data.values[s];
-        series.xValues = xs;
-        out << series;
-    }
-    return out;
-}
-
-bool dataIsUsable(const ChartData &data)
-{
-    if (data.categories.isEmpty() || data.values.isEmpty() || data.categories.size() > kMostChartCategories || data.values.size() > kMostChartSeries) return false;
-    for (const QVector<double> &v : data.values) {
-        if (v.size() != data.categories.size()) return false;
-        for (double x : v)
-            if (!std::isfinite(x) || std::abs(x) > 1e15) return false;
-    }
-    return true;
-}
 
 const office::Theme &chartTheme(const WriteDoc &doc)
 {
     static const office::Theme standard = office::defaultTheme();
     return doc.theme() ? *doc.theme() : standard;
-}
-
-// Every series of the chart, plot by plot.
-QVector<ChartSeries> allSeries(const Chart &chart)
-{
-    QVector<ChartSeries> out;
-    for (const office::ChartPlot &p : chart.plots) out << p.series;
-    return out;
-}
-
-// The axis of the chart that is its category (or x) axis or its value axis, or null (a chart with no axes, a pie).
-office::ChartAxis *chartAxisOf(Chart &chart, ChartAxisKind which)
-{
-    office::ChartAxis *category = nullptr;
-    for (office::ChartAxis &a : chart.axes)
-        if (!category && (a.kind == office::ChartAxis::Category || a.kind == office::ChartAxis::Date)) category = &a;
-    for (office::ChartAxis &a : chart.axes)
-        if (!category && (a.position == QLatin1String("b") || a.position == QLatin1String("t"))) category = &a;   // (a scatter's x axis)
-    if (which == ChartAxisKind::Category) return category;
-    for (office::ChartAxis &a : chart.axes)
-        if (&a != category && a.kind == office::ChartAxis::Value) return &a;
-    return nullptr;
 }
 
 // The part a chart drawing names: the Id in its c:chart, and the bytes.
@@ -3185,74 +3085,20 @@ bool editChart(WriteDoc &doc, int position, const std::function<bool(Chart &)> &
 
 } // namespace
 
-const QVector<ChartForm> &chartForms()
-{
-    static const QVector<ChartForm> forms = {ChartForm::Column, ChartForm::ColumnStacked, ChartForm::ColumnPercent, ChartForm::Bar, ChartForm::BarStacked, ChartForm::Line, ChartForm::LineMarkers,
-                                             ChartForm::Pie, ChartForm::Doughnut, ChartForm::Area, ChartForm::AreaStacked, ChartForm::Scatter};
-    return forms;
-}
-
-ChartData sampleChartData()
-{
-    ChartData d;
-    d.categories = {QCoreApplication::translate("jp::write::Pictures", "Category 1"), QCoreApplication::translate("jp::write::Pictures", "Category 2"),
-                    QCoreApplication::translate("jp::write::Pictures", "Category 3")};
-    d.seriesNames = {QCoreApplication::translate("jp::write::Pictures", "Series 1"), QCoreApplication::translate("jp::write::Pictures", "Series 2")};
-    d.values = {{4.3, 2.5, 3.5}, {2.4, 4.4, 1.8}};
-    return d;
-}
-
 ChartInfo chartAt(const WriteDoc &doc, int position)
 {
-    ChartInfo info;
     const QTextDocument *story = doc.story();
-    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return info;
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return ChartInfo();
     Inline atom;
-    if (!drawingAtomOf(formatAfter(story, position), &atom)) return info;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return ChartInfo();
     Model m;
-    if (!parseDrawing(atom.raw, &m)) return info;
+    if (!parseDrawing(atom.raw, &m)) return ChartInfo();
     QString id;
     QByteArray bytes;
-    if (!chartPartOf(doc, m.graphic, &id, &bytes)) return info;
+    if (!chartPartOf(doc, m.graphic, &id, &bytes)) return ChartInfo();
     Chart chart;
-    if (!office::readChart(bytes, chartTheme(doc), office::ColorMap(), &chart)) return info;
-    info.valid = true;
-    info.form = formOfKind(office::sheet::kindOfChart(chart));
-    info.titleShown = chart.title.present;
-    info.title = chart.title.text;
-    info.legendShown = chart.legend.shown;
-    info.legendPosition = chart.legend.position;
-    info.style = chart.style;
-    if (office::ChartAxis *a = chartAxisOf(chart, ChartAxisKind::Category)) {
-        info.hasAxes = true;
-        info.categoryAxisShown = !a->deleted;
-        info.categoryGridlines = a->majorGridlines;
-        info.categoryAxisTitle = a->title.present ? a->title.text : QString();
-    }
-    if (office::ChartAxis *a = chartAxisOf(chart, ChartAxisKind::Value)) {
-        info.hasAxes = true;
-        info.valueAxisShown = !a->deleted;
-        info.valueGridlines = a->majorGridlines;
-        info.valueMinorGridlines = a->minorGridlines;
-        info.valueAxisTitle = a->title.present ? a->title.text : QString();
-    }
-    const QVector<ChartSeries> series = allSeries(chart);
-    info.dataEditable = !series.isEmpty() && office::chartIsFullyModeled(bytes);
-    for (const ChartSeries &s : series) {
-        info.dataLabels = info.dataLabels || s.labels.shown();
-        if (!s.valueRef.isEmpty() || !s.categoryRef.isEmpty() || !s.nameRef.isEmpty()) info.dataEditable = false;
-    }
-    if (!series.isEmpty()) {
-        info.data.categories = series.first().categories;
-        // (A scatter's x numbers are its categories.)
-        if (info.data.categories.isEmpty())
-            for (double x : series.first().xValues) info.data.categories << QString::number(x, 'g', 15);
-    }
-    for (const ChartSeries &s : series) {
-        info.data.seriesNames << s.name;
-        info.data.values << s.values;
-    }
-    return info;
+    if (!office::readChart(bytes, chartTheme(doc), office::ColorMap(), &chart)) return ChartInfo();
+    return office::sheet::chartInfoOf(chart, bytes);
 }
 
 PictureResult insertChart(WriteDoc &doc, QTextCursor &c, ChartForm form, const ChartData &data, const QSizeF &size)
@@ -3261,11 +3107,8 @@ PictureResult insertChart(WriteDoc &doc, QTextCursor &c, ChartForm form, const C
         doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put in a header, a footer, or a note yet.");
         return PictureResult::Refused;
     }
-    if (!dataIsUsable(data)) return PictureResult::Unreadable;
-    const office::sheet::ChartKind kind = kindOfForm(form);
-    const QVector<ChartSeries> series = seriesOfData(data, form == ChartForm::Scatter);
-    const QVector<office::sheet::SeriesKind> kinds(series.size(), office::sheet::SeriesKind{kind, false});
-    Chart chart = office::sheet::chartFromSeries(series, kinds, chartTheme(doc));
+    if (!office::sheet::chartDataIsUsable(data)) return PictureResult::Unreadable;
+    const Chart chart = office::sheet::chartOfData(form, data, chartTheme(doc));
     const QByteArray part = office::writeChartPart(chart);
     if (part.isEmpty()) return PictureResult::Refused;
     const QSizeF made = size.isEmpty() ? QSizeF(360, 216) : QSizeF(std::clamp(size.width(), kLeastPictureSize, kMostPictureSize), std::clamp(size.height(), kLeastPictureSize, kMostPictureSize));
@@ -3294,150 +3137,48 @@ PictureResult insertChart(WriteDoc &doc, QTextCursor &c, ChartForm form, const C
 
 bool setChartForm(WriteDoc &doc, int position, ChartForm form)
 {
-    return editChart(doc, position, [&](Chart &chart) {
-        if (formOfKind(office::sheet::kindOfChart(chart)) == form && chart.plots.size() == 1) return false;
-        QVector<ChartSeries> series = allSeries(chart);
-        if (series.isEmpty()) return false;
-        // (A scatter's x numbers are the categories of a chart of another kind.)
-        for (ChartSeries &s : series)
-            if (s.categories.isEmpty())
-                for (double x : s.xValues) s.categories << QString::number(x, 'g', 15);
-        // (A scatter's points are placed by x numbers: the categories, read as numbers, or 1, 2, 3.)
-        if (form == ChartForm::Scatter)
-            for (ChartSeries &s : series)
-                if (s.xValues.isEmpty())
-                    for (int i = 0; i < s.values.size(); ++i) {
-                        bool ok = false;
-                        const double v = s.categories.value(i).toDouble(&ok);
-                        s.xValues << (ok && std::isfinite(v) ? v : double(i + 1));
-                    }
-        const QVector<office::sheet::SeriesKind> kinds(series.size(), office::sheet::SeriesKind{kindOfForm(form), false});
-        const Chart like = chart;
-        chart = office::sheet::chartFromSeries(series, kinds, chartTheme(doc), &like);
-        return true;
-    });
+    return editChart(doc, position, [&](Chart &chart) { return office::sheet::chartSetForm(chart, form, chartTheme(doc)); });
 }
 
 bool setChartTitle(WriteDoc &doc, int position, bool shown, const QString &text)
 {
-    const QString clean = cleanText(text, 500);
-    return editChart(doc, position, [&](Chart &chart) {
-        const bool same = chart.title.present == shown && (!shown || (chart.title.text == clean && !chart.title.automatic));
-        if (same) return false;
-        chart.title.present = shown;
-        if (shown) {
-            chart.title.text = clean.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "Chart Title") : clean;
-            chart.title.automatic = false;
-            chart.title.ref.clear();
-        }
-        return true;
-    });
+    return editChart(doc, position, [&](Chart &chart) { return office::sheet::chartSetTitle(chart, shown, text); });
 }
 
 bool setChartLegend(WriteDoc &doc, int position, const QString &legendPosition)
 {
-    if (!legendPosition.isEmpty() && !QStringList{QStringLiteral("r"), QStringLiteral("l"), QStringLiteral("t"), QStringLiteral("b")}.contains(legendPosition)) return false;
-    return editChart(doc, position, [&](Chart &chart) {
-        const bool shown = !legendPosition.isEmpty();
-        if (chart.legend.shown == shown && (!shown || chart.legend.position == legendPosition)) return false;
-        chart.legend.shown = shown;
-        if (shown) {
-            chart.legend.position = legendPosition;
-            chart.legend.manual = false;
-        }
-        return true;
-    });
+    return editChart(doc, position, [&](Chart &chart) { return office::sheet::chartSetLegend(chart, legendPosition); });
 }
 
 bool setChartDataLabels(WriteDoc &doc, int position, bool shown)
 {
-    return editChart(doc, position, [&](Chart &chart) {
-        bool now = false;
-        for (const office::ChartPlot &p : chart.plots)
-            for (const ChartSeries &s : p.series) now = now || s.labels.shown();
-        if (now == shown) return false;
-        for (office::ChartPlot &p : chart.plots)
-            for (ChartSeries &s : p.series) {
-                s.labels.value = shown;
-                if (!shown) s.labels.category = s.labels.series = s.labels.percent = s.labels.legendKey = false;
-            }
-        return true;
-    });
+    return editChart(doc, position, [&](Chart &chart) { return office::sheet::chartSetDataLabels(chart, shown); });
 }
 
 bool setChartAxis(WriteDoc &doc, int position, ChartAxisKind which, bool shown)
 {
-    return editChart(doc, position, [&](Chart &chart) {
-        office::ChartAxis *a = chartAxisOf(chart, which);
-        if (!a || a->deleted == !shown) return false;
-        a->deleted = !shown;
-        return true;
-    });
+    return editChart(doc, position, [&](Chart &chart) { return office::sheet::chartSetAxis(chart, which, shown); });
 }
 
 bool setChartGridlines(WriteDoc &doc, int position, ChartAxisKind which, bool major, bool minor)
 {
-    return editChart(doc, position, [&](Chart &chart) {
-        office::ChartAxis *a = chartAxisOf(chart, which);
-        if (!a || (a->majorGridlines == major && a->minorGridlines == minor)) return false;
-        a->majorGridlines = major;
-        a->minorGridlines = minor;
-        return true;
-    });
+    return editChart(doc, position, [&](Chart &chart) { return office::sheet::chartSetGridlines(chart, which, major, minor); });
 }
 
 bool setChartAxisTitle(WriteDoc &doc, int position, ChartAxisKind which, const QString &text)
 {
-    const QString clean = cleanText(text, 500);
-    return editChart(doc, position, [&](Chart &chart) {
-        office::ChartAxis *a = chartAxisOf(chart, which);
-        if (!a || (a->title.present == !clean.isEmpty() && a->title.text == clean)) return false;
-        a->title.present = !clean.isEmpty();
-        a->title.text = clean;
-        return true;
-    });
+    return editChart(doc, position, [&](Chart &chart) { return office::sheet::chartSetAxisTitle(chart, which, text); });
 }
 
 bool setChartStyle(WriteDoc &doc, int position, int style)
 {
-    if (style < 1 || style > 48) return false;
-    return editChart(doc, position, [&](Chart &chart) {
-        if (chart.style == style) return false;
-        chart.style = style;
-        return true;
-    });
+    return editChart(doc, position, [&](Chart &chart) { return office::sheet::chartSetStyle(chart, style); });
 }
 
 bool setChartData(WriteDoc &doc, int position, const ChartData &data)
 {
-    if (!dataIsUsable(data)) return false;
-    return editChart(doc, position, [&](Chart &chart) {
-        const QVector<ChartSeries> old = allSeries(chart);
-        if (old.isEmpty()) return false;
-        for (const ChartSeries &s : old)
-            if (!s.valueRef.isEmpty() || !s.categoryRef.isEmpty() || !s.nameRef.isEmpty()) return false;
-        const office::sheet::ChartKind kind = office::sheet::kindOfChart(chart);
-        QVector<ChartSeries> series = seriesOfData(data, kind == office::sheet::ChartKind::Scatter || kind == office::sheet::ChartKind::ScatterLines || kind == office::sheet::ChartKind::ScatterSmooth);
-        // The look of the series that were there stays with them (their colors, lines, and markers).
-        for (int i = 0; i < series.size() && i < old.size(); ++i) {
-            ChartSeries made = old[i];
-            made.name = series[i].name;
-            made.categories = series[i].categories;
-            made.values = series[i].values;
-            made.xValues = series[i].xValues;
-            made.categoryNumbers.clear();
-            made.categoryRefNumeric = false;
-            series[i] = made;
-        }
-        QVector<office::sheet::SeriesKind> kinds;
-        for (const office::ChartPlot &p : chart.plots)
-            for (int i = 0; i < p.series.size(); ++i) kinds << office::sheet::SeriesKind{office::sheet::kindOfPlot(p), false};
-        while (kinds.size() < series.size()) kinds << office::sheet::SeriesKind{kinds.isEmpty() ? office::sheet::ChartKind::Column : kinds.last().kind, false};
-        kinds.resize(series.size());
-        const Chart like = chart;
-        chart = office::sheet::chartFromSeries(series, kinds, chartTheme(doc), &like);
-        return true;
-    });
+    if (!office::sheet::chartDataIsUsable(data)) return false;
+    return editChart(doc, position, [&](Chart &chart) { return office::sheet::chartSetData(chart, data, chartTheme(doc)); });
 }
 
 PictureResult readPictureFile(const QString &path, QByteArray *bytes)

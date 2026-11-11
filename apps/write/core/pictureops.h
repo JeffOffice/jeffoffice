@@ -6,6 +6,7 @@
 // (a picture of the older drawing format, a group) is kept as it is.
 
 #include "core/writedoc.h"
+#include "sheet/chartops.h"
 
 #include <QImage>
 #include <QMarginsF>
@@ -297,38 +298,15 @@ bool ungroupObject(WriteDoc &doc, int position, const QPointF &pageTopLeft, QVec
 
 // ---- Charts
 
-// The kinds of chart Insert offers (and a chart's kind, as nearly as these say it).
-enum class ChartForm { Column, ColumnStacked, ColumnPercent, Bar, BarStacked, Line, LineMarkers, Pie, Doughnut, Area, AreaStacked, Scatter };
-const QVector<ChartForm> &chartForms();
-// What a chart plots: the words under the points (or a scatter's x numbers), the name of each series, and the numbers (a list for each series, a number for each category).
-struct ChartData {
-    QStringList categories, seriesNames;
-    QVector<QVector<double>> values;
-};
-// The most categories and series a chart made here has.
-constexpr int kMostChartCategories = 200, kMostChartSeries = 24;
-// Three categories and two series, to begin with.
-ChartData sampleChartData();
-// What a chart of the text is: its kind, its title (its words; shown or not), its legend (shown, and where: "r", "l", "t", "b"), whether its points are labeled, and its data when the
-// chart holds the numbers itself (a chart that reads cells of a workbook it is kept with can be changed in all but its data).
-struct ChartInfo {
-    bool valid = false;
-    ChartForm form = ChartForm::Column;
-    bool titleShown = false;
-    QString title;
-    bool legendShown = false;
-    QString legendPosition;
-    bool dataLabels = false;
-    bool dataEditable = false;
-    ChartData data;
-    // The axes: whether each is shown (a pie has none), whether the value axis has major and minor gridlines and the category axis major ones, the words of each axis's title (empty for
-    // none), and the style number (1 to 48).
-    bool hasAxes = false, categoryAxisShown = false, valueAxisShown = false;
-    bool valueGridlines = false, valueMinorGridlines = false, categoryGridlines = false;
-    QString categoryAxisTitle, valueAxisTitle;
-    int style = 2;
-};
-enum class ChartAxisKind { Category, Value };
+// What a chart is made of and what Insert offers are the shared ones (sheet/chartops.h): the kinds, the data, and what a chart says of itself.
+using office::sheet::ChartAxisKind;
+using office::sheet::ChartData;
+using office::sheet::ChartForm;
+using office::sheet::ChartInfo;
+using office::sheet::chartForms;
+using office::sheet::kMostChartCategories;
+using office::sheet::kMostChartSeries;
+using office::sheet::sampleChartData;
 ChartInfo chartAt(const WriteDoc &doc, int position);
 // A chart of the kind at the cursor (in line with the text), in place of a selection, one step that undoes; `size` (points; empty for the usual 360 by 216) is held to the least and most
 // a picture's is. Unreadable for data that is empty, or has more than the most categories or series, or numbers that are not numbers.
