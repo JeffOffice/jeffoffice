@@ -1,4 +1,5 @@
 #include "app/keymap.h"
+#include "app/ribboncustom.h"
 #include "app/deckwindow.h"
 #include "core/startuptrace.h"
 
@@ -101,6 +102,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     buildRibbon();
     startupMark("win: ribbon built");
     KeyMap::apply(this);   // (the keys the person chose in Options > Customize)
+    RibbonCustom::apply(this);   // (and the tabs and groups the person shows, hides, and adds)
     buildStatusBar();
     describeForScreenReaders(m_split);
     describeForScreenReaders(statusBar());

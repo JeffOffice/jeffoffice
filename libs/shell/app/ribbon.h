@@ -39,6 +39,12 @@ public:
     void setLauncher(const std::function<void()> &fn, const QString &tip = QString());
     QToolButton *launcher() const { return m_launcher; }
     QString title() const { return m_title; }
+    // What the group is called in code and in the person's customizing (the ribbon file's name for it, not its translation); a group the person made has "user:" and a number.
+    void setId(const QString &id) { m_id = id; }
+    QString id() const { return m_id; }
+    // A group the person turned off (Options > Customize): it takes no room and shows nothing, and its commands still exist.
+    void setUserHidden(bool hidden);
+    bool userHidden() const { return m_userHidden; }
     // Every control the group lays out, in order (rows and columns
     // flattened; the launcher sits outside the layout and isn't one).
     QList<QWidget *> controls() const;
@@ -59,7 +65,8 @@ private:
     int m_rows = 0;
     QList<QToolButton *> m_colToggles;   // the small toggles of the current column
     QList<QLabel *> m_rowLabels;   // the labels that start the rows of the current column
-    QString m_title;
+    QString m_title, m_id;
+    bool m_userHidden = false;
     QToolButton *m_launcher = nullptr;
     QMetaObject::Connection m_launcherClicked;
 };
@@ -77,7 +84,9 @@ public:
         const_cast<RibbonTab *>(this)->ensureBuilt();
         return m_groups;
     }
-    void finish();
+    void finish();   // (again after groups were added to a finished tab)
+    // Takes a group away (one the person made), with its folded button.
+    void removeGroup(RibbonGroup *g);
     // A tab can be made empty and filled the first time it is shown (or asked for its groups): `fn` makes the groups, and `built()` follows.
     void setBuilder(std::function<void(RibbonTab *)> fn) { m_builder = std::move(fn); }
     bool isBuilt() const { return !m_builder && !m_attach; }
@@ -101,6 +110,7 @@ protected:
 private:
     void relayout();
     QHBoxLayout *m_layout;
+    bool m_finished = false;
     std::function<void(RibbonTab *)> m_builder;
     std::function<void()> m_attach;   // (a deferred tab's place in the ribbon, made with its controls)
     friend class Ribbon;
@@ -128,6 +138,16 @@ public:
     // appear (the Master Page tab does this).
     void setContextVisible(const QString &group, bool visible, bool first = false);
     void setTabVisible(const QString &name, bool visible);   // any tab, by name
+    // A tab the person turned off (Options > Customize), apart from the program's own showing and hiding of it; not for a contextual tab or Home (refused: false).
+    bool setTabUserHidden(const QString &name, bool hidden);
+    bool tabUserHidden(int i) const { return m_tabs.value(i).userHidden; }
+    int tabBase(int i) const { return m_tabs.value(i).base; }   // its place as the tabs were made
+    void setTabTitle(const QString &name, const QString &title);
+    // The tabs that are always there (not contextual) in the order `names` gives, the others keeping their places; a name not listed follows those that are, in its own order. An empty list is the order
+    // the tabs were made in.
+    void arrangeTabs(const QStringList &names);
+    // Takes a tab away (one the person made).
+    void removeTab(const QString &name);
     void showTab(RibbonTab *t);
     RibbonTab *current() const;
     RibbonTab *tab(const QString &name) const;
@@ -142,7 +162,7 @@ public:
     QString tabTitle(int i) const { return m_tabs.value(i).title; }
     QString tabContextGroup(int i) const { return m_tabs.value(i).group; }   // empty for a tab that is always there
     QString tabKeytip(int i) const { return m_tabs.value(i).keytip; }
-    bool tabVisible(int i) const { return m_tabs.value(i).visible; }
+    bool tabVisible(int i) const { return m_tabs.value(i).visible && !m_tabs.value(i).userHidden; }
     RibbonTab *tabPage(int i) const { return m_tabs.value(i).page; }
     QWidget *tabButton(int i) const;   // the tab's control in the top row
     QWidget *fileButton() const;
@@ -185,8 +205,10 @@ private:
         QScrollArea *scroll = nullptr;
         bool visible = true;
         QString title, keytip;
-        int home = 0;         // its place as built
+        int home = 0;         // its place as built, or as the person arranged it
         bool first = false;   // placed before the rest
+        bool userHidden = false;
+        int base = 0;         // its place as built
     };
     void sortTabs();
     QScrollArea *makeScroll(RibbonTab *page);

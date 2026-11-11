@@ -506,6 +506,9 @@ private Q_SLOTS:
     // Options > Customize > Keyboard lists this app's commands with their keys.
     void keyboardPageListsTheCommands() { checkKeyboardPage(m_app); }
 
+    // Options > Customize > Ribbon lists this app's tabs and groups, and makes a tab of one's own.
+    void ribbonPageListsTheTabs() { checkRibbonPage(m_app); }
+
     // ---- 2. the standard commands
     void standardCommands()
     {

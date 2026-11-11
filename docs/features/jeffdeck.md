@@ -120,7 +120,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** Save: embed the bundled fonts the slides use, on by default
 - [ ] **1.0** Save options: default format, automatic recovery interval, and default folder
 - [ ] **1.0** Advanced: undo steps, the default slide show choices, print choices, cut and paste choices, and picture quality
-- [ ] **1.0** Customize the quick toolbar *(fixed at Save, Undo, Redo, and From Beginning today)* and the ribbon
+- [~] **1.0** Customize the quick toolbar and the ribbon *(shared: libs/shell; done: Options > Customize > Ribbon shows or hides tabs and groups, adds your own tabs and groups with any command in them, renames and reorders what is yours and the tabs, and has Reset One and Reset All; not yet: the quick toolbar, which is fixed at Undo, Redo, and From Beginning)*
 - [ ] **1.0** Trust Center equivalents: what happens with linked files, linked media, and macros (kept, never run)
 - [x] **1.0** Customize the keyboard (Options > Customize > Keyboard): a searchable list of every command by ribbon tab with its keys, press keys to add them, take keys off, a key in use says which command has it and can be taken over, Reset One and Reset All, and the system's own keys stay reserved *(shared: libs/shell)*
 - [~] **later** Accessibility options: high contrast, sound and animation feedback, and keyboard focus *(follows the system theme; the ribbon has KeyTips)*

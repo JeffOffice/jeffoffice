@@ -3,6 +3,7 @@
 
 #include "app/filedialogs.h"
 #include "app/keymap.h"
+#include "app/ribboncustom.h"
 #include "app/help.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
@@ -1472,13 +1473,82 @@ void checkKeyboardPage(Adapter &app)
         QVERIFY2(message->text().contains(QLatin1String("reserved")), qPrintable(message->text()));
         QVERIFY(!page->findChild<QPushButton *>(QStringLiteral("keyAssign"))->isEnabled());
         if (!shotDir.isEmpty()) {
-            if (QTabWidget *tabs = dlg->findChild<QTabWidget *>()) tabs->setCurrentWidget(page->parentWidget() ? page->parentWidget()->parentWidget() : page);
+            for (QTabWidget *tabs : dlg->findChildren<QTabWidget *>())
+                for (int i = 0; i < tabs->count(); ++i)
+                    if (tabs->widget(i) == page || tabs->widget(i)->isAncestorOf(page)) tabs->setCurrentIndex(i);
             dlg->resize(720, 660);
             QApplication::processEvents();
             QDir().mkpath(shotDir);
             dlg->grab().save(shotDir + QLatin1Char('/') + app.name + QStringLiteral("-keyboard.png"));
         }
     }, false);
+}
+
+void checkRibbonPage(Adapter &app)
+{
+    std::unique_ptr<jp::AppWindow> w(app.launch());
+    QVERIFY2(w, "the app made no window");
+    if (app.settle) app.settle(w.get());
+    QAction *options = w->act(QStringLiteral("file.options"));
+    QVERIFY(options);
+    jp::Ribbon *ribbon = w->ribbon();
+    QVERIFY(ribbon);
+    ribbon->buildAllTabs();
+    QStringList titles, contextual;
+    for (int i = 0; i < ribbon->tabCount(); ++i) (ribbon->tabContextGroup(i).isEmpty() ? titles : contextual) << ribbon->tabTitle(i);
+    QVERIFY(titles.size() >= 5);
+    QCOMPARE(titles.first(), QStringLiteral("Home"));
+    const int tabsBefore = ribbon->tabCount();
+    withDialog([&] { options->trigger(); }, QStringLiteral("optionsDialog"), [&](QDialog *dlg) {
+        QWidget *page = dlg->findChild<QWidget *>(QStringLiteral("ribbonPage"));
+        QVERIFY2(page, "Options has no Ribbon page");
+        QVERIFY2(dlg->findChild<QWidget *>(QStringLiteral("keyboardPage")), "the Keyboard page is gone");
+        auto *tree = page->findChild<QTreeWidget *>(QStringLiteral("ribbonTree"));
+        auto *list = page->findChild<QListWidget *>(QStringLiteral("ribbonCommands"));
+        auto *search = page->findChild<QLineEdit *>(QStringLiteral("ribbonSearch"));
+        QVERIFY(tree && list && search);
+        // every tab, in the ribbon's order, with its groups; Home has no box to clear, and a tab that comes and goes has none either
+        QStringList listed;
+        for (int i = 0; i < tree->topLevelItemCount(); ++i) listed << tree->topLevelItem(i)->text(0);
+        QCOMPARE(listed.mid(0, titles.size()), titles);
+        QCOMPARE(listed.size(), titles.size() + contextual.size());
+        QVERIFY(!(tree->topLevelItem(0)->flags() & Qt::ItemIsUserCheckable));
+        QVERIFY(tree->topLevelItem(0)->childCount() >= 2);
+        QVERIFY(tree->topLevelItem(1)->flags() & Qt::ItemIsUserCheckable);
+        QVERIFY(tree->topLevelItem(1)->childCount() >= 1);
+        if (!contextual.isEmpty()) QVERIFY(!(tree->topLevelItem(tree->topLevelItemCount() - 1)->flags() & Qt::ItemIsUserCheckable));
+        // every command with a name is there to be put in a group, and the search narrows them
+        QVERIFY(list->count() > 20);
+        const QString first = list->item(0)->data(Qt::UserRole + 1).toString();
+        search->setText(first);
+        int shown = 0;
+        for (int i = 0; i < list->count(); ++i) shown += !list->item(i)->isHidden();
+        QVERIFY2(shown >= 1 && shown < list->count() / 2, qPrintable(QString::number(shown)));
+        search->clear();
+        // a tab of one's own can be made (Cancel throws it away)
+        auto *name = page->findChild<QLineEdit *>(QStringLiteral("ribbonName"));
+        auto *newTab = page->findChild<QPushButton *>(QStringLiteral("ribbonNewTab"));
+        QVERIFY(name && newTab);
+        name->setText(QStringLiteral("My Tab"));
+        newTab->click();
+        bool found = false;
+        for (int i = 0; i < tree->topLevelItemCount(); ++i) found = found || tree->topLevelItem(i)->text(0) == QLatin1String("My Tab");
+        QVERIFY(found);
+        // (JP_RIBBON_SHOT names a folder to keep a picture of the page in, for looking at)
+        const QString shotDir = qEnvironmentVariable("JP_RIBBON_SHOT");
+        if (!shotDir.isEmpty()) {
+            for (QTabWidget *tabs : dlg->findChildren<QTabWidget *>())
+                for (int i = 0; i < tabs->count(); ++i)
+                    if (tabs->widget(i) == page || tabs->widget(i)->isAncestorOf(page)) tabs->setCurrentIndex(i);
+            dlg->resize(760, 700);
+            QApplication::processEvents();
+            QDir().mkpath(shotDir);
+            dlg->grab().save(shotDir + QLatin1Char('/') + app.name + QStringLiteral("-ribbon.png"));
+        }
+    }, false);
+    // Cancel: the ribbon is as it was, and nothing is kept
+    QCOMPARE(ribbon->tabCount(), tabsBefore);
+    QVERIFY(jp::RibbonCustom::load().isEmpty());
 }
 
 } // namespace appchecks

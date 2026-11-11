@@ -1,4 +1,5 @@
 #include "app/keymap.h"
+#include "app/ribboncustom.h"
 #include "app/crunchwindow.h"
 #include "app/help.h"
 #include "core/startuptrace.h"
@@ -140,6 +141,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     buildRibbon();
     startupMark("win: ribbon built");
     KeyMap::apply(this);   // (the keys the person chose in Options > Customize)
+    RibbonCustom::apply(this);   // (and the tabs and groups the person shows, hides, and adds)
     buildStatusBar();
     describeForScreenReaders(m_view);
     describeForScreenReaders(statusBar());

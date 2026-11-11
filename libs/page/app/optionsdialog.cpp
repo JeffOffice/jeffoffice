@@ -8,6 +8,7 @@
 #include "app/appwindow.h"
 #include "app/filetasks.h"
 #include "app/keymappage.h"
+#include "app/ribbonpage.h"
 #include "app/i18n.h"
 #include "app/settings.h"
 #include "app/telemetry.h"
@@ -150,18 +151,22 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages)
     pf->addRow(autolink);
     tabs->addTab(proof, QCoreApplication::translate("Dialogs", "Proofing"));
     for (const OptionsPage &page : appPages) tabs->addTab(page.build(), page.title);
-    // Customize: the keyboard (the commands of the window this was opened from).
+    // Customize: the ribbon and the keyboard (the commands of the window this was opened from).
     KeyboardPage *keyboard = nullptr;
+    RibbonPage *ribbonPage = nullptr;
     if (auto *win = qobject_cast<AppWindow *>(p ? p->window() : nullptr)) {
         auto *custom = new QWidget();
         auto *cl = new QVBoxLayout(custom);
-        auto *box = new QGroupBox(QCoreApplication::translate("Dialogs", "Keyboard"), custom);
-        auto *bl = new QVBoxLayout(box);
-        keyboard = new KeyboardPage(win, box);
-        bl->addWidget(keyboard);
-        cl->addWidget(box);
+        cl->setContentsMargins(0, 0, 0, 0);
+        auto *parts = new QTabWidget(custom);
+        parts->setObjectName(QStringLiteral("customizeTabs"));
+        ribbonPage = new RibbonPage(win, parts);
+        parts->addTab(ribbonPage, QCoreApplication::translate("Dialogs", "Ribbon"));
+        keyboard = new KeyboardPage(win, parts);
+        parts->addTab(keyboard, QCoreApplication::translate("Dialogs", "Keyboard"));
+        cl->addWidget(parts);
         tabs->addTab(custom, QCoreApplication::translate("Dialogs", "Customize"));
-        dlg.d.setMinimumSize(640, 560);
+        dlg.d.setMinimumSize(700, 600);
     }
     dlg.v->addWidget(tabs);
     if (!dlg.exec()) return false;
@@ -189,6 +194,7 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages)
     }
     setSpellAsYouType(asType->isChecked());
     if (keyboard) keyboard->apply();   // (every open window of the app takes the keys now)
+    if (ribbonPage) ribbonPage->apply();   // (and the ribbon the person arranged)
     return true;
 }
 

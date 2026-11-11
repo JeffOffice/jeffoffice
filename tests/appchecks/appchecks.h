@@ -216,6 +216,11 @@ void typeInto(QWidget *target, const QString &text);
 // that cannot be given. A window as launched; failures are QVERIFY failures.
 void checkKeyboardPage(Adapter &app);
 
+// ---- Customize the ribbon
+// Options > Customize has a Ribbon page that lists every tab of the window's ribbon with its groups (Home with no box to clear, a contextual tab with none either), searches the commands,
+// and makes a tab of one's own; Cancel changes nothing. A window as launched; failures are QVERIFY failures.
+void checkRibbonPage(Adapter &app);
+
 // The files of the test's folder and the program's data folder, with their sizes.
 QStringList filesNow();
 

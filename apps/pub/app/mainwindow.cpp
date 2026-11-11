@@ -1,5 +1,6 @@
 #include <QScopeGuard>
 #include "app/keymap.h"
+#include "app/ribboncustom.h"
 #include "app/mainwindow.h"
 #include "core/version.h"
 #include "core/startuptrace.h"
@@ -148,6 +149,7 @@ MainWindow::MainWindow(QWidget *parent) : AppWindow(parent)
     buildRibbon();
     startupMark("win: ribbon built");
     KeyMap::apply(this);   // (the keys the person chose in Options > Customize)
+    RibbonCustom::apply(this);   // (and the tabs and groups the person shows, hides, and adds)
     buildStatusBar();
     describeForScreenReaders(m_split);   // the pages, the page, and the panes
     describeForScreenReaders(statusBar());

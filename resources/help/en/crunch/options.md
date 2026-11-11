@@ -1,5 +1,5 @@
 # Change JeffCrunch's settings
-<!-- keywords: recovery, recover unsaved work, automatic recovery, proofing, editing, autocomplete, fill handle, drag and drop, decimal places, options, settings, preferences, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about, edit in cell, gridline color, default zoom, standard width, privacy, personal information, customize keyboard, change shortcut keys, reassign keys, reset keys -->
+<!-- keywords: recovery, recover unsaved work, automatic recovery, proofing, editing, autocomplete, fill handle, drag and drop, decimal places, options, settings, preferences, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about, edit in cell, gridline color, default zoom, standard width, privacy, personal information, customize keyboard, customize the ribbon, hide a tab, hide a group, add a tab, add a group, rename a tab, reset the ribbon, change shortcut keys, reassign keys, reset keys -->
 
 Your settings are in the **JeffCrunch Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
@@ -31,7 +31,22 @@ The **Proofing** page is shared by the JeffOffice apps. It decides whether spell
 
 ## Customize
 
-The **Customize** tab has the **Keyboard** page, where you choose the shortcut keys for JeffCrunch's commands. See "Choose your own shortcut keys" in the keyboard topic.
+The **Customize** tab has two pages, **Ribbon** and **Keyboard**. The **Keyboard** page is where you choose the shortcut keys for JeffCrunch's commands. See "Choose your own shortcut keys" in the keyboard topic.
+
+### Customize the ribbon
+
+The **Ribbon** page lists the ribbon's tabs, each with its groups.
+
+- **Hide or show a tab or a group.** Clear the box beside it to hide it, and tick the box to show it again. A hidden group takes no room, and its commands still work from their shortcut keys. **Home** has no box, because it always stays, and so does the **File** button. A tab that appears only when something is selected, such as a picture or a table, is at the end of the list and has no box.
+- **Make your own tab or group.** Type a name in the **Name** box and click **New Tab**. To make a group, choose a tab and click **New Group**. A group of your own can go on any tab, including a tab that appears only when something is selected.
+- **Put commands in your group.** Choose your group, find a command in the **Commands** list (type in the **Search commands** box to narrow the list), and click **Add Command**. Any command that has a name can go in. A command can be in a group only once.
+- **Rename.** Choose a tab, group, or command of your own, type the new name, and click **Rename**. A command you rename does the same thing, and the new name is only what its button says. Rename a command with an empty name to give it its own name back.
+- **Reorder.** Choose a tab and click **Move Up** or **Move Down**. You can move the ribbon's own tabs as well as yours, but not the tabs that appear only when something is selected. Your groups and your commands move the same way within their tab or group. The ribbon's own groups stay in their order.
+- **Take away.** Choose a tab, group, or command of your own and click **Remove**.
+
+**Reset One** puts back the chosen tab: it is shown, its groups are shown, and the groups you added to it are gone. A tab of your own is taken away. **Reset All** puts back the whole ribbon, including the order of the tabs.
+
+Nothing changes until you click **OK**. Then every open JeffCrunch window shows your ribbon, and so does every window you open later. JeffCrunch keeps only what differs from the usual ribbon, so a tab or group a later version adds shows up on its own. Your tabs and groups get KeyTips (the letters shown when you press **Alt**) that do not clash with the others. You can have 20 tabs of your own, 30 groups of your own on a tab, and 60 commands in a group. The quick toolbar cannot be changed.
 
 ## Privacy options
 

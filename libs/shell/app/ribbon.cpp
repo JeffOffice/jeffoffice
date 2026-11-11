@@ -537,22 +537,45 @@ RibbonTab::RibbonTab(QWidget *parent) : QWidget(parent)
 RibbonGroup *RibbonTab::addGroup(const QString &title)
 {
     auto *g = new RibbonGroup(title, this);
-    m_layout->addWidget(g);
+    // (a group added to a finished tab goes before its closing stretch)
+    const int at = m_finished ? m_layout->count() - 1 : -1;
+    m_layout->insertWidget(at, g);
     // Its collapsed form: one large button with the group's name.
     auto *a = new QAction(title, this);
     auto *b = ribbonButton(a, true, this);
     b->setPopupMode(QToolButton::InstantPopup);
     b->setMenu(new QMenu(b));   // shows the chevron; the dropdown itself is our own popup
-    connect(b->menu(), &QMenu::aboutToShow, this, [this, idx = int(m_groups.size()), b] {
+    connect(b->menu(), &QMenu::aboutToShow, this, [this, g, b] {
         QTimer::singleShot(0, b->menu(), &QMenu::close);
-        QTimer::singleShot(0, this, [this, idx] { popUp(idx); });
+        QTimer::singleShot(0, this, [this, g] { popUp(int(m_groups.indexOf(g))); });
     });
     b->hide();
-    m_layout->addWidget(b);
+    m_layout->insertWidget(at < 0 ? -1 : at + 1, b);
     m_groups << g;
     m_buttons << b;
     m_collapsed << false;
     return g;
+}
+
+void RibbonTab::removeGroup(RibbonGroup *g)
+{
+    const int i = int(m_groups.indexOf(g));
+    if (i < 0 || m_popped >= 0) return;
+    QToolButton *b = m_buttons[i];
+    m_groups.remove(i);
+    m_buttons.remove(i);
+    m_collapsed.remove(i);
+    if (QAction *a = b->defaultAction()) a->deleteLater();
+    delete b;
+    delete g;
+    relayout();
+}
+
+void RibbonGroup::setUserHidden(bool hidden)
+{
+    if (m_userHidden == hidden) return;
+    m_userHidden = hidden;
+    if (hidden) setVisible(false);   // (its tab shows it again, or lays the others out, at its next layout)
 }
 
 void RibbonTab::ensureBuilt()
@@ -583,7 +606,8 @@ void RibbonTab::settle()
 
 void RibbonTab::finish()
 {
-    m_layout->addStretch(1);
+    if (!m_finished) m_layout->addStretch(1);
+    m_finished = true;
     // The collapsed button shows the group's first icon.
     for (int i = 0; i < m_groups.size(); ++i) {
         QIcon ic;
@@ -614,23 +638,28 @@ void RibbonTab::relayout()
     if (m_inRelayout || m_groups.isEmpty()) return;
     m_inRelayout = true;
     const QMargins mg = m_layout->contentsMargins();
-    const int avail = width() - mg.left() - mg.right() - m_layout->spacing() * int(std::max<qsizetype>(0, m_groups.size() - 1));   // (the gaps between the groups too)
+    int shown = 0;
+    for (const RibbonGroup *g : std::as_const(m_groups)) shown += !g->userHidden();
+    const int avail = width() - mg.left() - mg.right() - m_layout->spacing() * int(std::max(0, shown - 1));   // (the gaps between the groups too)
     QVector<int> full(m_groups.size()), small(m_groups.size());
     int total = 0;
     for (int i = 0; i < m_groups.size(); ++i) {
+        if (m_groups[i]->userHidden()) continue;   // (no room, and nothing to fold)
         full[i] = m_groups[i]->sizeHint().width();
         small[i] = m_buttons[i]->sizeHint().width() + 8;
         total += full[i];
     }
     QVector<bool> col(m_groups.size(), false);
     for (int i = int(m_groups.size()) - 1; i >= 0 && total > avail; --i) {
+        if (m_groups[i]->userHidden()) continue;
         total += small[i] - full[i];
         col[i] = true;
     }
     for (int i = 0; i < m_groups.size(); ++i) {
+        const bool gone = m_groups[i]->userHidden();
         m_collapsed[i] = col[i];
-        if (i != m_popped) m_groups[i]->setVisible(!col[i]);
-        m_buttons[i]->setVisible(col[i]);
+        if (i != m_popped) m_groups[i]->setVisible(!col[i] && !gone);
+        m_buttons[i]->setVisible(col[i] && !gone);
     }
     m_inRelayout = false;
 }
@@ -814,7 +843,7 @@ protected:
         case Qt::Key_Right: {
             const int dir = e->key() == Qt::Key_Right ? 1 : -1;
             for (int i = m_tab + dir; i >= 0 && i < m_r->m_tabs.size(); i += dir)
-                if (m_r->m_tabs[i].visible) {
+                if (m_r->m_tabs[i].visible && !m_r->m_tabs[i].userHidden) {
                     m_r->showTab(m_r->m_tabs[i].page);
                     if (QWidget *b = m_r->tabButton(i)) b->setFocus(Qt::TabFocusReason);
                     return;
@@ -942,7 +971,7 @@ public:
         menu->clear();
         for (HeaderButton *b : tabButtons) {
             const auto &t = m_r->m_tabs[b->tab()];
-            if (!t.visible || !m_moreShown.contains(QString::number(reinterpret_cast<quintptr>(t.page)))) continue;
+            if (!t.visible || t.userHidden || !m_moreShown.contains(QString::number(reinterpret_cast<quintptr>(t.page)))) continue;
             QString title = t.title;
             menu->addAction(title.replace(QLatin1Char('&'), QStringLiteral("&&")), m_r, [r = m_r, page = t.page] { r->showTab(page); });   // (no mnemonic: the & is the word's)
         }
@@ -974,7 +1003,7 @@ public:
                 b->setAccessibleName(t.title);
             }
             b->setFocusPolicy(b->tab() == m_r->m_current ? Qt::TabFocus : Qt::NoFocus);
-            if (!t.visible) continue;
+            if (!t.visible || t.userHidden) continue;
             shown << b;
             text += fm.horizontalAdvance(t.title) + (t.group.isEmpty() ? 0 : 12) + 4;
         }
@@ -1069,7 +1098,7 @@ protected:
         const int n = m_r->m_tabs.size();
         for (int k = 0; k < n; ++k) {
             i = (i + (e->angleDelta().y() < 0 ? 1 : n - 1)) % n;
-            if (m_r->m_tabs[i].visible) break;
+            if (m_r->m_tabs[i].visible && !m_r->m_tabs[i].userHidden) break;
         }
         m_r->showTab(m_r->m_tabs[i].page);
     }
@@ -1215,7 +1244,7 @@ RibbonTab *Ribbon::addTab(const QString &name, const QString &contextGroup, cons
             Q_EMIT tabsBuilt();
         }, Qt::QueuedConnection);
     });
-    m_tabs.push_back(Tab{name, contextGroup, color, page, scroll, contextGroup.isEmpty(), title.isEmpty() ? name : title, QString(), int(m_tabs.size()), false});
+    m_tabs.push_back(Tab{name, contextGroup, color, page, scroll, contextGroup.isEmpty(), title.isEmpty() ? name : title, QString(), int(m_tabs.size()), false, false, int(m_tabs.size())});
     m_header->addTabButton(int(m_tabs.size()) - 1);
     return page;
 }
@@ -1236,6 +1265,88 @@ void Ribbon::setTabVisible(const QString &name, bool visible)
                     if (m_tabs[k].name == QLatin1String("Home")) { showTab(m_tabs[k].page); break; }
             m_header->layoutButtons();
         }
+}
+
+bool Ribbon::setTabUserHidden(const QString &name, bool hidden)
+{
+    for (int i = 0; i < m_tabs.size(); ++i)
+        if (m_tabs[i].name == name) {
+            if (hidden && (name == QLatin1String("Home") || !m_tabs[i].group.isEmpty())) return false;
+            if (m_tabs[i].userHidden == hidden) return true;
+            m_tabs[i].userHidden = hidden;
+            if (hidden && i == m_current)
+                for (int k = 0; k < m_tabs.size(); ++k)
+                    if (m_tabs[k].name == QLatin1String("Home")) { showTab(m_tabs[k].page); break; }
+            m_header->layoutButtons();
+            return true;
+        }
+    return false;
+}
+
+void Ribbon::setTabTitle(const QString &name, const QString &title)
+{
+    for (Tab &t : m_tabs)
+        if (t.name == name && t.title != title) {
+            t.title = title;
+            m_header->layoutButtons();
+        }
+}
+
+void Ribbon::arrangeTabs(const QStringList &names)
+{
+    QList<const Tab *> plain;
+    for (const Tab &t : m_tabs)
+        if (t.group.isEmpty()) plain << &t;
+    QList<int> places;
+    for (const Tab *t : plain) places << t->home;
+    std::sort(places.begin(), places.end());
+    // The wanted order: the names given (each once, only tabs there are), then the rest as built.
+    QStringList order;
+    for (const QString &n : names)
+        for (const Tab *t : plain)
+            if (t->name == n && !order.contains(n)) order << n;
+    QList<const Tab *> rest = plain;
+    std::sort(rest.begin(), rest.end(), [](const Tab *a, const Tab *b) { return a->base < b->base; });
+    if (names.isEmpty()) order.clear();
+    for (const Tab *t : rest)
+        if (!order.contains(t->name)) order << t->name;
+    for (int k = 0; k < order.size(); ++k)
+        for (Tab &t : m_tabs)
+            if (t.group.isEmpty() && t.name == order[k]) t.home = places[k];
+    sortTabs();
+    m_header->layoutButtons();
+}
+
+void Ribbon::removeTab(const QString &name)
+{
+    for (int i = 0; i < m_tabs.size(); ++i) {
+        if (m_tabs[i].name != name) continue;
+        const bool wasCurrent = i == m_current;
+        for (int k = int(m_header->tabButtons.size()) - 1; k >= 0; --k) {
+            HeaderButton *b = m_header->tabButtons[k];
+            if (b->tab() == i) {
+                m_header->tabButtons.remove(k);
+                delete b;
+            } else if (b->tab() > i) {
+                b->setTab(b->tab() - 1);
+            }
+        }
+        QScrollArea *scroll = m_tabs[i].scroll;
+        RibbonTab *page = m_tabs[i].page;
+        m_tabs.remove(i);
+        if (scroll) delete scroll;   // (it owns the page)
+        else delete page;
+        if (m_current > i) --m_current;
+        if (wasCurrent) {
+            m_current = 0;
+            for (int k = 0; k < m_tabs.size(); ++k)
+                if (m_tabs[k].name == QLatin1String("Home")) m_current = k;
+            if (!m_tabs.isEmpty()) showTab(m_tabs[m_current].page);
+        } else {
+            m_header->layoutButtons();
+        }
+        return;
+    }
 }
 
 void Ribbon::setContextVisible(const QString &group, bool visible, bool first)

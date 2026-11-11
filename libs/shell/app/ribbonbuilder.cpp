@@ -326,6 +326,7 @@ private:
         const QString tabName = m_where.section(QLatin1String(" / "), 0, 0);
         m_where = tabName + QStringLiteral(" / ") + name;
         RibbonGroup *g = t->addGroup(tr(name));
+        g->setId(name);
         tagged(g, o);
         for (const QJsonValue &it : o.value(QLatin1String("items")).toArray()) item(g, it.toObject());
         if (o.contains(QLatin1String("launcher"))) {
