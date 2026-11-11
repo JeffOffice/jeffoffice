@@ -77,10 +77,23 @@ inline bool settingsStayInTheRunsFolder()
     return kept && !leaked;
 }
 
-// A test that saves to the program's own data folder (My Templates, the dictionary) puts it in Qt's test folder instead, and puts it back however the test ends.
+// A test that saves to the program's own data folder (My Templates, the dictionary) puts it in Qt's test folder instead, and puts it back however the test ends. The test folder is
+// named by the program, and the parts of one program run side by side (tools/ci_tests.sh) and would share it, one part's "start with no templates" taking another part's file away; so
+// while the guard is up the folder is this process's own (its process number is in the name), and it is taken away again with the guard.
 struct TestModeGuard {
-    TestModeGuard() { QStandardPaths::setTestModeEnabled(true); }
-    ~TestModeGuard() { QStandardPaths::setTestModeEnabled(false); }
+    QString nameBefore;
+    TestModeGuard()
+    {
+        nameBefore = QCoreApplication::applicationName();
+        QStandardPaths::setTestModeEnabled(true);
+        QCoreApplication::setApplicationName(nameBefore + QLatin1Char('-') + QString::number(QCoreApplication::applicationPid()));
+    }
+    ~TestModeGuard()
+    {
+        QDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)).removeRecursively();
+        QCoreApplication::setApplicationName(nameBefore);
+        QStandardPaths::setTestModeEnabled(false);
+    }
     TestModeGuard(const TestModeGuard &) = delete;
     TestModeGuard &operator=(const TestModeGuard &) = delete;
 };

@@ -278,6 +278,13 @@ private Q_SLOTS:
         w.editor()->markSaved();
     }
 
+    // The programs' parts run side by side on one machine: the data folder a test works in (My Templates) is this process's own, so no other part can take a file from it.
+    void theTestDataFolderBelongsToThisProcess()
+    {
+        jptest::TestModeGuard testMode;
+        QVERIFY2(myTemplatesFolder().contains(QLatin1Char('-') + QString::number(QCoreApplication::applicationPid()) + QLatin1Char('/')), qPrintable(myTemplatesFolder()));
+    }
+
     // Going back to a version keeps the password: the window and the next save are protected as before, and the version itself was kept protected.
     void goingBackToAVersionKeepsThePassword()
     {
