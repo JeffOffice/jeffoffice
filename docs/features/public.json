@@ -2903,8 +2903,8 @@
          "text": "b770959a1d49b6b4cc8263ad173f3f3d00753404ddf584df7d6e758b3a088a24"
         },
         {
-         "status": "todo",
-         "text": "8e670cea4878c8ec0e1a4bae77cd42863beefff50fc957a4db6fe29842b648f4"
+         "status": "partly",
+         "text": "2888dcdb79489fb65d491c893f36e94956edc3c90ae7a366e123b6a81fa847bb"
         }
        ]
       },
@@ -3548,16 +3548,16 @@
          "text": "fa93bc038329df48970e775c13a92c93cc8ba0bb095fc6df65b739f2a0cbf6a1"
         },
         {
-         "status": "todo",
-         "text": "0230f52409eee524a9af2526b43a7bd64813922aa19b31f5c74d0f7563a1f7d0"
+         "status": "partly",
+         "text": "d40f172d8b41a532b49a6800f000bd3ab8376046d49f3955992c0489cd102918"
         },
         {
-         "status": "todo",
-         "text": "a9ec59e7d4ff935da260a37c7338f1cd0ab6a28840a0efd303f549358fb24e5a"
+         "status": "partly",
+         "text": "5a912bbe95d2bbe5f06fedd3f95c9888c138aba4f36e2c39f34450a8b79ff65e"
         },
         {
-         "status": "todo",
-         "text": "bc0b94d1aa27281b181db57d0ea0767d2855fd17ad5588a2cc50e0460c6e8108"
+         "status": "partly",
+         "text": "f5d31a5d5762be83ac0734f0f3a6430bde3452d9b9317c14e03d7e0dc6c1bcbe"
         },
         {
          "status": "todo",
@@ -4533,8 +4533,8 @@
        "text": "7c611972899c7b5cf05def3eddfe9e2c32aed8881f6f50a985358c79a912efad"
       },
       {
-       "status": "todo",
-       "text": "c9b16f2fd099eb4d05a5da210d62c22cb97aedf9bc329a9b392e03e55e682b9e"
+       "status": "partly",
+       "text": "19046a1cd8998e5a2b24240e6fb7a444c49506e67cdf56b99299098f4329848e"
       },
       {
        "status": "todo",
@@ -7407,18 +7407,6 @@
     "fr": ""
    }
   },
-  "0230f52409eee524a9af2526b43a7bd64813922aa19b31f5c74d0f7563a1f7d0": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Edit Data and Select Data: a data grid for the chart’s numbers, opened in place, with Switch Row/Column",
-    "es": "Editar datos y seleccionar datos: una cuadrícula de datos para los números del gráfico, abierta en el lugar, con cambio de fila/columna",
-    "fr": "Modifier les données et sélectionner les données : une grille de données pour les chiffres du graphique, ouverte sur place, avec inversion lignes/colonnes"
-   }
-  },
   "025da5213017d5f3cdbb40b530a254abbd9a6887dc95c4c8191545066040a862": {
    "drop": false,
    "en": "Insert fields for page number, page count, date and time, business information, and mail merge.",
@@ -9171,6 +9159,18 @@
     "fr": ""
    }
   },
+  "19046a1cd8998e5a2b24240e6fb7a444c49506e67cdf56b99299098f4329848e": {
+   "drop": false,
+   "en": "Insert a chart in one of 12 types with sample numbers, placed in the middle of the page. Move, resize, rotate, and undo changes to the chart like other objects. Edit its data in a grid, change the chart type, and set the chart title, legend, axes and their titles, gridlines, chart styles, and data labels. A `.jpub` file keeps the chart as an editable chart, and PDF and print output draw it as vectors.",
+   "es": "Inserte un gráfico de uno de 12 tipos con números de muestra, colocado en el centro de la página. Mueva, cambie el tamaño, gire y deshaga cambios del gráfico como en otros objetos. Edite sus datos en una cuadrícula, cambie el tipo de gráfico y defina el título, la leyenda, los ejes y sus títulos, las líneas de cuadrícula, los estilos de gráfico y las etiquetas de datos. Un archivo `.jpub` conserva el gráfico como gráfico editable, y la salida a PDF y la impresión lo dibujan como vectores.",
+   "fr": "Insérez un graphique parmi 12 types avec des valeurs d’exemple, placé au centre de la page. Déplacez, redimensionnez, faites pivoter et annulez les modifications du graphique comme pour les autres objets. Modifiez ses données dans une grille, changez le type de graphique et définissez le titre, la légende, les axes et leurs titres, le quadrillage, les styles de graphique et les étiquettes de données. Un fichier `.jpub` conserve le graphique sous forme de graphique modifiable, et l’export PDF et l’impression le dessinent en vectoriel.",
+   "soon": {
+    "drop": false,
+    "en": "Chart colors, formatting of each chart part, trendlines, error bars, quick layouts, and an editable workbook for chart data",
+    "es": "Colores de gráfico, formato de cada parte del gráfico, líneas de tendencia, barras de error, diseños rápidos y un libro editable para los datos del gráfico",
+    "fr": "Couleurs de graphique, mise en forme de chaque élément du graphique, courbes de tendance, barres d’erreur, dispositions rapides et classeur modifiable pour les données du graphique"
+   }
+  },
   "1912357097ed7f1a8278807174840c14249d2d094f3e17f10ebeee1e8b16b710": {
    "drop": false,
    "en": "Text",
@@ -10405,6 +10405,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "2888dcdb79489fb65d491c893f36e94956edc3c90ae7a366e123b6a81fa847bb": {
+   "drop": false,
+   "en": "Insert a chart in one of 12 types with sample numbers, placed in the middle of the slide. Move, resize, rotate, and undo changes to the chart like other objects, and edit its data in a grid. A `.pptx` file keeps the chart as an editable chart, and a `.odp` file keeps it as a picture. Charts read from a `.pptx` file are editable within 255 series and 400,000 points.",
+   "es": "Inserte un gráfico de uno de 12 tipos con números de muestra, colocado en el centro de la diapositiva. Mueva, cambie el tamaño, gire y deshaga cambios del gráfico como en otros objetos, y edite sus datos en una cuadrícula. Un archivo `.pptx` conserva el gráfico como gráfico editable y un archivo `.odp` lo conserva como imagen. Los gráficos leídos de un archivo `.pptx` son editables hasta 255 series y 400 000 puntos.",
+   "fr": "Insérez un graphique parmi 12 types avec des valeurs d’exemple, placé au centre de la diapositive. Déplacez, redimensionnez, faites pivoter et annulez les modifications du graphique comme pour les autres objets, et modifiez ses données dans une grille. Un fichier `.pptx` conserve le graphique sous forme de graphique modifiable, et un fichier `.odp` le conserve sous forme d’image. Les graphiques lus depuis un fichier `.pptx` sont modifiables jusqu’à 255 séries et 400 000 points.",
+   "soon": {
+    "drop": false,
+    "en": "Embedded workbook in the chart for editing in other programs",
+    "es": "Libro incrustado en el gráfico para editarlo en otros programas",
+    "fr": "Classeur intégré au graphique pour le modifier dans d’autres programmes"
    }
   },
   "289878ae82d1fb6063d6d668bf5b96a1b3cad564b9c96e8a5597f330cda7a6bd": {
@@ -14005,6 +14017,18 @@
     "en": "Other links and remote content: held back until allowed",
     "es": "Otros vínculos y contenido remoto: retenidos hasta que se permitan",
     "fr": "Autres liens et contenu distant : bloqués tant qu’ils ne sont pas autorisés"
+   }
+  },
+  "5a912bbe95d2bbe5f06fedd3f95c9888c138aba4f36e2c39f34450a8b79ff65e": {
+   "drop": false,
+   "en": "Set the axes and their titles, the chart title, data labels, gridlines, and the legend.",
+   "es": "Defina los ejes y sus títulos, el título del gráfico, las etiquetas de datos, las líneas de cuadrícula y la leyenda.",
+   "fr": "Définissez les axes et leurs titres, le titre du graphique, les étiquettes de données, le quadrillage et la légende.",
+   "soon": {
+    "drop": false,
+    "en": "Data table, error bars, trendlines, and quick layouts for charts",
+    "es": "Tabla de datos, barras de error, líneas de tendencia y diseños rápidos para gráficos",
+    "fr": "Tableau de données, barres d’erreur, courbes de tendance et dispositions rapides pour les graphiques"
    }
   },
   "5a9dce92eb2e0909128ab1c7ac1a0fd8102865008311b24c1e26d2663fa33630": {
@@ -17751,18 +17775,6 @@
     "fr": "Options de collage pour les listes et les tableaux : poursuivre, redémarrer ou fusionner une liste ; coller des cellules de tableur comme tableau, tableau imbriqué, nouvelles lignes ou image ; définir le collage par défaut"
    }
   },
-  "8e670cea4878c8ec0e1a4bae77cd42863beefff50fc957a4db6fe29842b648f4": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Chart: gallery of types and a data grid to create and edit charts",
-    "es": "Gráfico: galería de tipos y cuadrícula de datos para crear y editar gráficos",
-    "fr": "Graphique : galerie de types et grille de données pour créer et modifier des graphiques"
-   }
-  },
   "8e6792a8544ba1291503f34da971418b79034d765d1cd01e92af12c8a4d4737d": {
    "drop": false,
    "en": "Use 60 math and trigonometry functions, including SUM, ROUND, SUBTOTAL, SUMIF, SUMIFS, SUMPRODUCT, MMULT, MINVERSE, RANDBETWEEN, and ROMAN.",
@@ -19587,18 +19599,6 @@
     "fr": "Retour d’une note à sa marque, et modification d’un champ contenant d’autres champs dans son code"
    }
   },
-  "a9ec59e7d4ff935da260a37c7338f1cd0ab6a28840a0efd303f549358fb24e5a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Add Chart Element (axes, axis titles, chart title, data labels, data table, error bars, gridlines, legend, lines, and trendline) and Quick Layout",
-    "es": "Agregar elemento de gráfico (ejes, títulos de ejes, título del gráfico, etiquetas de datos, tabla de datos, barras de error, líneas de cuadrícula, leyenda, líneas y línea de tendencia) y diseño rápido",
-    "fr": "Ajouter un élément de graphique (axes, titres d’axes, titre du graphique, étiquettes de données, tableau de données, barres d’erreur, quadrillage, légende, lignes et courbe de tendance) et disposition rapide"
-   }
-  },
   "aa46f3974fc986549a454199be5b450e6a3af8e6b64591e7efbaf952c9da5894": {
    "drop": false,
    "en": "Use a light or dark interface that follows the system’s setting, and Windows high contrast.",
@@ -20581,18 +20581,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "bc0b94d1aa27281b181db57d0ea0767d2855fd17ad5588a2cc50e0460c6e8108": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Change Colors, Chart Styles, and Change Chart Type (column, bar, line, pie, area, and scatter first)",
-    "es": "Cambiar colores, estilos de gráfico y cambiar tipo de gráfico (columnas, barras, líneas, circular, áreas y dispersión primero)",
-    "fr": "Modifier les couleurs, styles de graphique et modifier le type de graphique (colonnes, barres, courbes, secteurs, aires et nuage de points d’abord)"
    }
   },
   "bc264c3f0a9faef3743fd6c0ed58c34ee63964cdb78882495e452e82e2b5085f": {
@@ -21639,18 +21627,6 @@
     "fr": ""
    }
   },
-  "c9b16f2fd099eb4d05a5da210d62c22cb97aedf9bc329a9b392e03e55e682b9e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Charts: insert, edit data in a grid, and change the type (column, bar, line, pie, area, scatter, and more)",
-    "es": "Gráficos: insertar, editar los datos en una cuadrícula y cambiar el tipo (columnas, barras, líneas, circular, áreas, dispersión y más)",
-    "fr": "Graphiques : insérer, modifier les données dans une grille et changer le type (colonnes, barres, courbes, secteurs, aires, nuage de points, et plus)"
-   }
-  },
   "c9b719002ea0e9d663cc5ac4bc923e34082302c175b51f34df8fc1acc93ef69a": {
    "drop": false,
    "en": "Sort paragraphs, list items, or table rows on up to three keys, each with a field, a type (text, number, or date), and an order. The first paragraph can be a header, and in a table the keys are columns. Sorting is one step of Undo.",
@@ -22501,6 +22477,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "d40f172d8b41a532b49a6800f000bd3ab8376046d49f3955992c0489cd102918": {
+   "drop": false,
+   "en": "Edit Data opens a data grid for a chart that holds its own numbers.",
+   "es": "Edit Data abre una cuadrícula de datos para un gráfico que contiene sus propios números.",
+   "fr": "Edit Data ouvre une grille de données pour un graphique qui contient ses propres valeurs.",
+   "soon": {
+    "drop": false,
+    "en": "Chart data grid in place, Select Data, and Switch Row/Column",
+    "es": "Cuadrícula de datos del gráfico en el lugar, Select Data y Switch Row/Column",
+    "fr": "Grille de données du graphique sur place, Select Data et Switch Row/Column"
    }
   },
   "d421b6c65828b3d9f8bcc52f4a412e1183cc18472ada7534595a63f8b623a20e": {
@@ -24685,6 +24673,18 @@
     "en": "Version comparison",
     "es": "Comparación de versiones",
     "fr": "Comparaison de versions"
+   }
+  },
+  "f5d31a5d5762be83ac0734f0f3a6430bde3452d9b9317c14e03d7e0dc6c1bcbe": {
+   "drop": false,
+   "en": "Change the chart type among 12 kinds and apply one of eight chart styles.",
+   "es": "Cambie el tipo de gráfico entre 12 tipos y aplique uno de ocho estilos de gráfico.",
+   "fr": "Changez le type de graphique parmi 12 types et appliquez l’un des huit styles de graphique.",
+   "soon": {
+    "drop": false,
+    "en": "Change Colors for charts",
+    "es": "Cambio de colores de los gráficos",
+    "fr": "Changement des couleurs des graphiques"
    }
   },
   "f5db565cb2f968cc7e82188b07dfb112e0c4de1dbf5b318f84613b111dbba9bd": {
