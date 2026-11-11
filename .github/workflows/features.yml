@@ -1,6 +1,6 @@
 name: Public features
 
-# When the feature lists (docs/features/*.md) or this tool change, reword and translate what is new or changed into
+# When the feature lists (docs/features/*.md), their wording overrides (public-overrides.json), or this tool change, reword and translate what is new or changed into
 # the public text the website renders (tools/features/public_features.py writes docs/features/public.json), and commit it
 # as JeffOffice LLC. Without the ANTHROPIC_API_KEY secret it does nothing.
 
@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - 'docs/features/*.md'
+      - 'docs/features/public-overrides.json'
       - 'tools/features/**'
   workflow_dispatch:
 
