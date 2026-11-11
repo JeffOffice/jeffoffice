@@ -5,6 +5,7 @@
 #include "app/deckfilescreen.h"
 #include "app/keytips.h"
 #include "io/deckoutput.h"
+#include "core/threadtime.h"
 
 class DeckWindowTests : public QObject {
     Q_OBJECT
@@ -2136,7 +2137,7 @@ private Q_SLOTS:
         }
     }
 
-    // A slide of 20,000 objects: the pane lists them, Select All, a nudge, and a drag of a row 1,000 places each take about a second at most (the bound is three).
+    // A slide of 20,000 objects: the pane lists them, Select All, a nudge, and a drag of a row 1,000 places each take about a second of the window thread's processor time at most (the bound is three). Processor time, not the wall clock: on a busy machine a nudge took over 6 s by the clock.
     void aSlideOfTwentyThousandObjectsIsHandledQuickly()
     {
         DeckWindow w;
@@ -2151,19 +2152,19 @@ private Q_SLOTS:
             d->pages[0]->items.push_back(s);
         }
         ed->setDocument(std::move(d));
-        QElapsedTimer clock;
+        qint64 began = 0;
         auto within = [&](const char *what) {
-            const qint64 ms = clock.elapsed();
-            clock.restart();
+            const qint64 ms = (jp::threadCpuMicros() - began) / 1000;
+            began = jp::threadCpuMicros();
             QVERIFY2(ms < 3000, qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
         };
-        clock.start();
+        began = jp::threadCpuMicros();
         w.act(QStringLiteral("arr.selectionPane"))->trigger();
         auto *list = w.findChild<QListWidget *>(QStringLiteral("selectionList"));
         QVERIFY(list);
         QCOMPARE(list->count(), 20000);
         within("opening the pane");
-        clock.restart();
+        began = jp::threadCpuMicros();
         w.act(QStringLiteral("edit.selectAll"))->trigger();
         QCOMPARE(int(ed->selection().size()), 20000);
         w.findChild<SelectionPane *>(QStringLiteral("selectionPane"))->refresh();   // (the pane follows the selection)
