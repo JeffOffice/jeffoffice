@@ -7,11 +7,12 @@
 //                                                in three) the calculation loaded and worked out with the engine's own bounds. A copy that opened is also saved as an .xlsx
 //                                                (the way the program saves a workbook read from another form of file) and that .xlsx is opened and read again. Prints how many
 //                                                opened, how many were refused, how many sheets stopped short, how many were saved and read again (and how many saved ones
-//                                                could not be read again, which is a defect), and the longest time one copy took. It stops, with what it has counted, when
+//                                                could not be read again, which is a defect; the xlsx read again is written as an .ods too, with the drawing objects of its sheets, and that is read again, counted the same way), and the longest time one copy took. It stops, with what it has counted, when
 //                                                `seconds` have passed.
 
 #include "io/zip.h"
 #include "sheet/calculation.h"
+#include "sheet/oldsave.h"
 #include "sheet/sheetreader.h"
 #include "sheet/xlsxsave.h"
 
@@ -168,7 +169,7 @@ int odsFuzzMain(const QStringList &args)
     Rng rng(seed);
     QElapsedTimer total, each;
     total.start();
-    qint64 opened = 0, refused = 0, partial = 0, calculated = 0, ran = 0, longestMs = 0, saved = 0, notSaved = 0, readAgain = 0, lost = 0;
+    qint64 opened = 0, refused = 0, partial = 0, calculated = 0, ran = 0, longestMs = 0, saved = 0, notSaved = 0, readAgain = 0, lost = 0, odsSaved = 0, odsAgain = 0;
     for (int i = 0; i < count && total.elapsed() < qint64(seconds * 1000); ++i) {
         QByteArray bytes;
         if (zipped) {
@@ -249,6 +250,31 @@ int odsFuzzMain(const QStringList &args)
                             (void)back.readSheet(s, &sheet);
                         }
                         tick("read again");
+                        // (and written as an .ods, the drawing objects of the sheets among it, and that read again)
+                        QByteArray ods;
+                        CopyReport report;
+                        const bool wroteOds = saveOds(back, &ods, &report, &problem);
+                        tick("save as .ods");
+                        if (wroteOds) {
+                            ++odsSaved;
+                            QFile g(copy + QStringLiteral(".again.ods"));
+                            if (g.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+                                g.write(ods);
+                                g.close();
+                                Workbook odsBack;
+                                if (odsBack.openFile(g.fileName(), &problem)) {
+                                    ++odsAgain;
+                                    for (int s = 0; s < odsBack.info().sheets.size() && s < 40; ++s) {
+                                        Sheet sheet;
+                                        (void)odsBack.readSheet(s, &sheet);
+                                    }
+                                } else {
+                                    ++lost;
+                                    out() << "!saved as .ods, but not read again\t" << path << "\tcopy " << i << "\t" << problem << "\n";
+                                }
+                                tick("read the .ods again");
+                            }
+                        }
                     } else {
                         ++lost;
                         out() << "!saved, but not read again\t" << path << "\tcopy " << i << "\t" << problem << "\n";
@@ -269,7 +295,7 @@ int odsFuzzMain(const QStringList &args)
         }
         longestMs = std::max<qint64>(longestMs, each.elapsed());
     }
-    out() << "convert-fuzz\t" << path << '\t' << ran << " copies\t" << opened << " opened\t" << refused << " refused\t" << partial << " sheets stopped short\t" << calculated << " calculated\t" << saved << " saved\t" << notSaved << " not saved\t" << readAgain << " read again\t" << lost << " lost\t"
+    out() << "convert-fuzz\t" << path << '\t' << ran << " copies\t" << opened << " opened\t" << refused << " refused\t" << partial << " sheets stopped short\t" << calculated << " calculated\t" << saved << " saved\t" << notSaved << " not saved\t" << readAgain << " read again\t" << odsSaved << " saved as .ods\t" << odsAgain << " .ods read again\t" << lost << " lost\t"
           << longestMs << " ms longest\n";
     return 0;
 }
