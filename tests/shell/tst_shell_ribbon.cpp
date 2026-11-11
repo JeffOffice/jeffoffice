@@ -3,12 +3,14 @@
 #include "app/appwindow.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
+#include "app/quicktoolbarpage.h"
 #include "app/ribboncustom.h"
 #include "app/ribbonpage.h"
 #include "app/settings.h"
 #include "../testrunner.h"
 
 #include <QAction>
+#include <QFrame>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -119,6 +121,23 @@ QList<QToolButton *> buttonsOf(RibbonGroup *g)
 bool clash(const QString &a, const QString &b)
 {
     return !a.isEmpty() && !b.isEmpty() && (a.startsWith(b) || b.startsWith(a));
+}
+
+// The quick toolbar's commands, as the buttons have them (an empty string for a separator is not among them: the buttons only).
+QStringList quickIds(const Ribbon *r)
+{
+    QStringList out;
+    for (const QToolButton *b : r->quickAccessButtons()) out << (b->defaultAction() ? b->defaultAction()->objectName() : QString());
+    return out;
+}
+
+const QStringList kQuickDefaults = {QStringLiteral("file.save")};
+
+QByteArray quickJson(int commands)
+{
+    QJsonArray a;
+    for (int i = 0; i < commands; ++i) a << QJsonObject{{QStringLiteral("cmd"), QStringLiteral("test.cmd%1").arg(i)}};
+    return QJsonDocument(QJsonObject{{QStringLiteral("quick"), a}}).toJson(QJsonDocument::Compact);
 }
 
 struct LazyTabs {
@@ -734,6 +753,275 @@ private Q_SLOTS:
         QVERIFY(!r->tab(QStringLiteral("View"))->isBuilt());
         QVERIFY(!r->tab(QStringLiteral("Chart Format"))->isBuilt());
         QVERIFY(buttonsOf(groupNamed(r, QStringLiteral("Home"), QStringLiteral("Mine"))).value(2)->menu());
+    }
+
+    void addingRemovingAndMovingQuickCommands()
+    {
+        RibbonCustom c;
+        QVERIFY(c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults));
+        QVERIFY(c.addQuickCommand(QStringLiteral("edit.copy"), kQuickDefaults));
+        QVERIFY(!c.addQuickCommand(QStringLiteral("edit.copy"), kQuickDefaults));   // (already there)
+        QVERIFY(!c.addQuickCommand(QString(), kQuickDefaults));
+        QCOMPARE(c.effectiveQuick(kQuickDefaults), (QStringList{QStringLiteral("file.save"), QStringLiteral("format.bold"), QStringLiteral("edit.copy")}));
+        QVERIFY(!c.isEmpty());
+        QVERIFY(c.moveQuick(2, -1, kQuickDefaults));
+        QVERIFY(!c.moveQuick(0, -1, kQuickDefaults));
+        QVERIFY(!c.moveQuick(2, 1, kQuickDefaults));
+        QCOMPARE(c.quick, (QStringList{QStringLiteral("file.save"), QStringLiteral("edit.copy"), QStringLiteral("format.bold")}));
+        QVERIFY(c.removeQuick(0, kQuickDefaults));
+        QVERIFY(!c.removeQuick(5, kQuickDefaults));
+        QCOMPARE(c.quick, (QStringList{QStringLiteral("edit.copy"), QStringLiteral("format.bold")}));
+        // a window shows them, in order
+        c.save();
+        RibbonWindow w;
+        QCOMPARE(quickIds(w.ribbon()), (QStringList{QStringLiteral("edit.copy"), QStringLiteral("format.bold")}));
+        QCOMPARE(w.ribbon()->quickAccessButtons().value(0)->defaultAction(), w.act(QStringLiteral("edit.copy")));
+    }
+
+    void aQuickToolbarSeparator()
+    {
+        RibbonCustom c;
+        QVERIFY(c.addQuickSeparator(kQuickDefaults));
+        QVERIFY(c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults));
+        QCOMPARE(c.quick, (QStringList{QStringLiteral("file.save"), QString(), QStringLiteral("format.bold")}));
+        c.save();
+        RibbonWindow w;
+        QVERIFY(w.ribbon()->describe().contains(QLatin1String("quick access: ")));
+        QVERIFY2(w.ribbon()->describe().contains(QLatin1String(", |, ")), "the separator is not on the quick toolbar");
+        QCOMPARE(quickIds(w.ribbon()), (QStringList{QStringLiteral("file.save"), QStringLiteral("format.bold")}));
+        QCOMPARE(w.ribbon()->findChildren<QFrame *>(QStringLiteral("jpQuickSeparator")).size(), 1);
+    }
+
+    void resettingOneQuickCommandAndAll()
+    {
+        RibbonCustom c;
+        c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults);
+        c.addQuickCommand(QStringLiteral("edit.copy"), kQuickDefaults);
+        c.removeQuick(0, kQuickDefaults);   // Save is gone
+        QVERIFY(c.quickCommandChanged(QStringLiteral("file.save"), kQuickDefaults));
+        QVERIFY(c.quickCommandChanged(QStringLiteral("edit.copy"), kQuickDefaults));
+        QVERIFY(!c.quickCommandChanged(QStringLiteral("view.zoom"), kQuickDefaults));
+        QVERIFY(c.resetQuickCommand(QStringLiteral("file.save"), kQuickDefaults));   // back, where the file has it
+        QCOMPARE(c.quick.value(0), QStringLiteral("file.save"));
+        QVERIFY(c.resetQuickCommand(QStringLiteral("edit.copy"), kQuickDefaults));   // not in the file: gone
+        QCOMPARE(c.quick, (QStringList{QStringLiteral("file.save"), QStringLiteral("format.bold")}));
+        QVERIFY(c.resetQuickCommand(QStringLiteral("format.bold"), kQuickDefaults));
+        QVERIFY2(c.isEmpty(), "a quick toolbar that is the file's is not kept");
+        c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults);
+        c.resetQuick();
+        QVERIFY(c.isEmpty());
+        QCOMPARE(c.effectiveQuick(kQuickDefaults), kQuickDefaults);
+        // a window takes the file's back
+        c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults);
+        c.save();
+        RibbonWindow w;
+        QCOMPARE(quickIds(w.ribbon()), (QStringList{QStringLiteral("file.save"), QStringLiteral("format.bold")}));
+        clearSaved();
+        RibbonCustom::applyAll();
+        QCOMPARE(quickIds(w.ribbon()), kQuickDefaults);
+    }
+
+    void aSavedQuickToolbarIsThereInANewWindow()
+    {
+        RibbonCustom c;
+        c.removeQuick(0, kQuickDefaults);
+        c.addQuickCommand(QStringLiteral("view.zoom"), kQuickDefaults);
+        c.addQuickSeparator(kQuickDefaults);
+        c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults);
+        c.save();
+        const RibbonCustom back = RibbonCustom::load();
+        QVERIFY(back.quickSet);
+        QCOMPARE(back.quick, c.quick);
+        RibbonWindow later;
+        QCOMPARE(quickIds(later.ribbon()), (QStringList{QStringLiteral("view.zoom"), QStringLiteral("format.bold")}));
+        QCOMPARE(later.ribbon()->defaultQuickAccess().value(0).action, later.act(QStringLiteral("file.save")));   // (the ribbon file's is still known)
+        QCOMPARE(int(later.ribbon()->defaultQuickAccess().size()), 1);
+        QCOMPARE(RibbonCustom::appliedTo(&later).quick, c.quick);
+        // taking everything out is kept too
+        RibbonCustom none;
+        none.removeQuick(0, kQuickDefaults);
+        QVERIFY(none.quickSet);
+        QVERIFY(none.quick.isEmpty());
+        QVERIFY(!none.isEmpty());
+        none.save();
+        RibbonWindow empty;
+        QVERIFY(quickIds(empty.ribbon()).isEmpty());
+    }
+
+    void aCommandTheAppNoLongerHasIsKeptButNotShown()
+    {
+        setSaved(R"({"quick":[{"cmd":"file.save"},{"cmd":"gone.command"},{"sep":true},{"cmd":"format.bold"}]})");
+        RibbonWindow w;
+        QCOMPARE(quickIds(w.ribbon()), (QStringList{QStringLiteral("file.save"), QStringLiteral("format.bold")}));
+        const RibbonCustom c = RibbonCustom::load();
+        QCOMPARE(c.quick, (QStringList{QStringLiteral("file.save"), QStringLiteral("gone.command"), QString(), QStringLiteral("format.bold")}));
+        // the person changes something else: the command is still in the saved list
+        RibbonCustom edit = c;
+        edit.addQuickCommand(QStringLiteral("edit.copy"), kQuickDefaults);
+        edit.save();
+        QVERIFY(RibbonCustom::load().quick.contains(QStringLiteral("gone.command")));
+        // a separator left with nothing to separate is not drawn twice
+        setSaved(R"({"quick":[{"sep":true},{"cmd":"file.save"},{"cmd":"gone.command"},{"sep":true},{"sep":true},{"cmd":"format.bold"},{"sep":true}]})");
+        RibbonCustom::applyAll();
+        QCOMPARE(w.ribbon()->findChildren<QFrame *>(QStringLiteral("jpQuickSeparator")).size(), 1);
+        QVERIFY(!w.ribbon()->describe().contains(QLatin1String("|, |")));
+    }
+
+    void theQuickToolbarIsCappedOnLoadAndOnAdd()
+    {
+        const RibbonCustom big = RibbonCustom::fromJson(quickJson(250));
+        QCOMPARE(int(big.quick.size()), RibbonCustom::kMaxQuick);
+        QCOMPARE(big.quick.last(), QStringLiteral("test.cmd99"));
+        RibbonCustom c;
+        c.quickSet = true;
+        for (int i = 0; i < RibbonCustom::kMaxQuick; ++i) QVERIFY(c.addQuickCommand(QStringLiteral("test.cmd%1").arg(i), kQuickDefaults));
+        QVERIFY(!c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults));
+        QVERIFY(!c.addQuickSeparator(kQuickDefaults));
+        QCOMPARE(int(c.quick.size()), RibbonCustom::kMaxQuick);
+        QVERIFY(c.removeQuick(0, kQuickDefaults));
+        QVERIFY(c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults));
+        // a window with that many has them all (the ones it has commands for)
+        setSaved(quickJson(250));
+        RibbonWindow w;
+        QVERIFY(quickIds(w.ribbon()).isEmpty());   // (none of these commands is there)
+        // a file with doubles and bad entries
+        const RibbonCustom odd = RibbonCustom::fromJson(R"({"quick":[{"cmd":"a"},{"cmd":"a"},{"cmd":""},5,{"nothing":1},{"cmd":"b"}]})");
+        QCOMPARE(odd.quick, (QStringList{QStringLiteral("a"), QStringLiteral("b")}));
+    }
+
+    void noTabIsMadeAtStartupForAQuickToolbar()
+    {
+        LazyTabs lazy;
+        RibbonCustom c;
+        c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults);
+        c.addQuickCommand(QStringLiteral("view.zoom"), kQuickDefaults);
+        c.addQuickSeparator(kQuickDefaults);
+        c.save();
+        RibbonWindow w;
+        Ribbon *r = w.ribbon();
+        QCOMPARE(quickIds(r), (QStringList{QStringLiteral("file.save"), QStringLiteral("format.bold"), QStringLiteral("view.zoom")}));
+        for (const QString &name : {QStringLiteral("Insert"), QStringLiteral("View"), QStringLiteral("Chart Format")}) QVERIFY2(!r->tab(name)->isBuilt(), qPrintable(name + QLatin1String(" was made")));
+    }
+
+    void aQuickCommandWithAMenuKeepsItsMenu()
+    {
+        for (int lazy = 0; lazy < 2; ++lazy) {
+            std::unique_ptr<LazyTabs> late(lazy ? new LazyTabs : nullptr);
+            RibbonCustom c;
+            QVERIFY(c.addQuickCommand(QStringLiteral("insert.table"), kQuickDefaults));
+            c.save();
+            RibbonWindow w;
+            Ribbon *r = w.ribbon();
+            QToolButton *b = r->quickAccessButtons().value(1);
+            QVERIFY(b);
+            QCOMPARE(b->defaultAction(), w.act(QStringLiteral("insert.table")));
+            QVERIFY2(b->menu(), "the command's menu is not on its button");
+            QVERIFY(b->menu()->actions().contains(w.act(QStringLiteral("insert.picture"))));
+            QVERIFY(b->menu()->actions().contains(w.act(QStringLiteral("edit.copy"))));
+            if (lazy) {
+                QVERIFY(r->tab(QStringLiteral("Insert"))->isBuilt());   // (the tab the menu is on, and no other)
+                QVERIFY(!r->tab(QStringLiteral("View"))->isBuilt());
+                QVERIFY(!r->tab(QStringLiteral("Chart Format"))->isBuilt());
+            }
+            clearSaved();
+        }
+    }
+
+    void aLongQuickToolbarGoesIntoAnOverflowButton()
+    {
+        RibbonCustom c;
+        for (const QString &id : {QStringLiteral("edit.paste"), QStringLiteral("edit.copy"), QStringLiteral("format.bold"), QStringLiteral("insert.picture"), QStringLiteral("insert.table"), QStringLiteral("view.zoom"), QStringLiteral("chart.style"), QStringLiteral("test.extra")})
+            c.addQuickCommand(id, kQuickDefaults);
+        c.save();
+        RibbonWindow w;
+        w.resize(300, 200);   // (a third of it is all the quick toolbar may have)
+        w.show();
+        Ribbon *r = w.ribbon();
+        QTRY_VERIFY(!r->quickAccessHidden().isEmpty());
+        const int hidden = int(r->quickAccessHidden().size());
+        QVERIFY(hidden < int(r->quickAccessButtons().size()));
+        QToolButton *more = r->quickAccessMore();
+        QVERIFY(more);
+        QVERIFY(!more->isHidden());
+        QCOMPARE(int(more->menu()->actions().size()), hidden);
+        QVERIFY(more->geometry().right() < r->width() / 2);   // (the window's title and the tabs keep their room)
+        // a wide window shows them all
+        w.resize(1600, 300);
+        QTRY_VERIFY(r->quickAccessHidden().isEmpty());
+        QVERIFY(more->isHidden());
+    }
+
+    void theQuickToolbarPage()
+    {
+        RibbonWindow w;
+        Ribbon *r = w.ribbon();
+        QuickToolbarPage page(&w);
+        auto *toolbar = page.findChild<QListWidget *>(QStringLiteral("quickList"));
+        auto *search = page.findChild<QLineEdit *>(QStringLiteral("quickSearch"));
+        auto *list = page.findChild<QListWidget *>(QStringLiteral("quickCommands"));
+        QVERIFY(toolbar && search && list);
+        auto button = [&](const char *object) { return page.findChild<QPushButton *>(QString::fromLatin1(object)); };
+        QCOMPARE(toolbar->count(), 1);
+        QCOMPARE(list->count(), 9);
+        QVERIFY(!button("quickResetAll")->isEnabled());
+        // the command list searches
+        search->setText(QStringLiteral("zoom"));
+        int shown = 0;
+        for (int i = 0; i < list->count(); ++i) shown += !list->item(i)->isHidden();
+        QCOMPARE(shown, 1);
+        for (int i = 0; i < list->count(); ++i)
+            if (!list->item(i)->isHidden()) list->setCurrentRow(i);
+        button("quickAdd")->click();
+        QCOMPARE(page.plan().quick, (QStringList{QStringLiteral("file.save"), QStringLiteral("view.zoom")}));
+        QCOMPARE(toolbar->count(), 2);
+        button("quickSeparator")->click();
+        QCOMPARE(toolbar->count(), 3);
+        QVERIFY(button("quickResetAll")->isEnabled());
+        toolbar->setCurrentRow(1);
+        button("quickUp")->click();
+        QCOMPARE(page.plan().quick.value(0), QStringLiteral("view.zoom"));
+        button("quickDown")->click();
+        QCOMPARE(page.plan().quick.value(1), QStringLiteral("view.zoom"));
+        toolbar->setCurrentRow(2);
+        button("quickRemove")->click();
+        QCOMPARE(int(page.plan().quick.size()), 2);
+        // nothing has changed in the window until OK
+        QCOMPARE(quickIds(r), kQuickDefaults);
+        page.apply();
+        QCOMPARE(quickIds(r), (QStringList{QStringLiteral("file.save"), QStringLiteral("view.zoom")}));
+        QCOMPARE(RibbonCustom::load().quick, page.plan().quick);
+        // Reset One on a command of the file's, then Reset All
+        toolbar->setCurrentRow(0);
+        button("quickRemove")->click();
+        toolbar->setCurrentRow(-1);
+        QVERIFY(button("quickResetOne")->isEnabled() == false);   // (nothing chosen)
+        search->clear();
+        for (int i = 0; i < list->count(); ++i)
+            if (list->item(i)->data(Qt::UserRole).toString() == QLatin1String("file.save")) list->setCurrentRow(i);
+        QVERIFY(button("quickResetOne")->isEnabled());
+        button("quickResetOne")->click();
+        QCOMPARE(page.plan().quick.value(0), QStringLiteral("file.save"));
+        button("quickResetAll")->click();
+        QVERIFY(page.plan().isEmpty());
+        page.apply();
+        QCOMPARE(quickIds(r), kQuickDefaults);
+    }
+
+    void theQuickToolbarPageLeavesTheRibbonPagesWorkAlone()
+    {
+        RibbonCustom c;
+        c.setTabHidden(QStringLiteral("Insert"), true);
+        c.save();
+        RibbonWindow w;
+        QuickToolbarPage quickPage(&w);
+        RibbonPage ribbonPage(&w);
+        ribbonPage.plan().setTabHidden(QStringLiteral("View"), true);
+        quickPage.plan().addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults);
+        quickPage.apply();
+        ribbonPage.apply();   // (the order Options applies them in is not what decides)
+        const RibbonCustom saved = RibbonCustom::load();
+        QVERIFY(saved.hiddenTabs.contains(QStringLiteral("View")));
+        QCOMPARE(saved.quick, (QStringList{QStringLiteral("file.save"), QStringLiteral("format.bold")}));
     }
 
     void everyTabHasItsOwnPlace()

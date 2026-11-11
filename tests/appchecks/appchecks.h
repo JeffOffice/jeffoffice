@@ -221,6 +221,11 @@ void checkKeyboardPage(Adapter &app);
 // and makes a tab of one's own; Cancel changes nothing. A window as launched; failures are QVERIFY failures.
 void checkRibbonPage(Adapter &app);
 
+// Options > Customize has a Quick Toolbar page that lists the window's quick toolbar and every command the Keyboard page lists, searches them, adds commands (to the cap of
+// kMaxQuick) and separators; Cancel changes nothing, OK puts them on the toolbar (a command with a menu keeps it), and Reset All puts the app's own back. Counts come from the window's own
+// command list. A window as launched; failures are QVERIFY failures.
+void checkQuickToolbarPage(Adapter &app);
+
 // The files of the test's folder and the program's data folder, with their sizes.
 QStringList filesNow();
 

@@ -699,6 +699,9 @@ private Q_SLOTS:
     // Options > Customize > Ribbon lists this app's tabs and groups, and makes a tab of one's own.
     void ribbonPageListsTheTabs() { checkRibbonPage(m_app); }
 
+    // Options > Customize > Quick Toolbar lists this app's quick toolbar and every command, adds commands and separators, and resets.
+    void quickToolbarPageCustomizes() { checkQuickToolbarPage(m_app); }
+
     // ---- 2. the standard commands
     void standardCommands()
     {

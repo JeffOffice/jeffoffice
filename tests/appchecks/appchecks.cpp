@@ -1569,4 +1569,116 @@ void checkRibbonPage(Adapter &app)
     QVERIFY(jp::RibbonCustom::load().isEmpty());
 }
 
+void checkQuickToolbarPage(Adapter &app)
+{
+    std::unique_ptr<jp::AppWindow> w(app.launch());
+    QVERIFY2(w, "the app made no window");
+    if (app.settle) app.settle(w.get());
+    QAction *options = w->act(QStringLiteral("file.options"));
+    QVERIFY(options);
+    jp::Ribbon *ribbon = w->ribbon();
+    QVERIFY(ribbon);
+    QVERIFY(jp::RibbonCustom::load().isEmpty());
+    QStringList defaults;
+    for (const QToolButton *b : ribbon->quickAccessButtons()) defaults << b->defaultAction()->objectName();
+    QVERIFY2(!defaults.isEmpty(), "the app has no quick toolbar");
+    // the commands the page must list are the ones the Keyboard page lists (one function decides)
+    const jp::KeyMap keys(w.get());
+    QStringList ids;
+    for (const jp::KeyCommand &c : keys.commands()) ids << c.id;
+    int wanted = 0;
+    for (const QString &id : w->actionIds())
+        if (jp::KeyMap::listsCommand(w->act(id))) ++wanted;
+    QCOMPARE(int(ids.size()), wanted);
+    // what each button will be after OK: the app's own, then the first commands the person adds (to the cap)
+    QStringList added;
+    for (const QString &id : ids)
+        if (!defaults.contains(id) && int(defaults.size() + added.size()) < jp::RibbonCustom::kMaxQuick) added << id;
+    QVERIFY(!added.isEmpty());
+    // Cancel: nothing changes and nothing is kept
+    withDialog([&] { options->trigger(); }, QStringLiteral("optionsDialog"), [&](QDialog *dlg) {
+        QWidget *page = dlg->findChild<QWidget *>(QStringLiteral("quickToolbarPage"));
+        QVERIFY2(page, "Options has no Quick Toolbar page");
+        QVERIFY2(dlg->findChild<QWidget *>(QStringLiteral("ribbonPage")) && dlg->findChild<QWidget *>(QStringLiteral("keyboardPage")), "the Ribbon or Keyboard page is gone");
+        auto *toolbar = page->findChild<QListWidget *>(QStringLiteral("quickList"));
+        auto *list = page->findChild<QListWidget *>(QStringLiteral("quickCommands"));
+        auto *search = page->findChild<QLineEdit *>(QStringLiteral("quickSearch"));
+        auto *add = page->findChild<QPushButton *>(QStringLiteral("quickAdd"));
+        auto *separator = page->findChild<QPushButton *>(QStringLiteral("quickSeparator"));
+        QVERIFY(toolbar && list && search && add && separator);
+        QCOMPARE(int(toolbar->count()), int(defaults.size()));
+        QCOMPARE(int(list->count()), wanted);
+        // the search narrows the commands as the Ribbon page's does
+        const QString first = list->item(0)->text().section(QLatin1String(" ("), 0, 0);
+        search->setText(first);
+        int expected = 0;
+        for (const jp::KeyCommand &c : keys.commands()) {
+            const QString hay = (c.text + QStringLiteral(" (") + c.group + QLatin1Char(')')).toLower();
+            bool all = true;
+            for (const QString &word : first.simplified().toLower().split(QLatin1Char(' '), Qt::SkipEmptyParts)) all = all && hay.contains(word);
+            expected += all;
+        }
+        int shown = 0;
+        for (int i = 0; i < list->count(); ++i) shown += !list->item(i)->isHidden();
+        QCOMPARE(shown, expected);
+        QVERIFY(shown >= 1);
+        search->clear();
+        for (int i = 0; i < list->count(); ++i)
+            if (list->item(i)->data(Qt::UserRole).toString() == added.first()) list->setCurrentRow(i);
+        add->click();
+        QCOMPARE(int(toolbar->count()), int(defaults.size()) + 1);
+        separator->click();
+        QCOMPARE(int(toolbar->count()), int(defaults.size()) + 2);
+    }, false);
+    QCOMPARE(int(ribbon->quickAccessButtons().size()), int(defaults.size()));
+    QVERIFY(jp::RibbonCustom::load().isEmpty());
+    // OK: every command the person adds (to the cap) is on the quick toolbar, in order, with its menu when it has one; one more is refused
+    withDialog([&] { options->trigger(); }, QStringLiteral("optionsDialog"), [&](QDialog *dlg) {
+        QWidget *page = dlg->findChild<QWidget *>(QStringLiteral("quickToolbarPage"));
+        QVERIFY(page);
+        auto *toolbar = page->findChild<QListWidget *>(QStringLiteral("quickList"));
+        auto *list = page->findChild<QListWidget *>(QStringLiteral("quickCommands"));
+        auto *add = page->findChild<QPushButton *>(QStringLiteral("quickAdd"));
+        QVERIFY(toolbar && list && add);
+        for (const QString &id : added) {
+            for (int i = 0; i < list->count(); ++i)
+                if (list->item(i)->data(Qt::UserRole).toString() == id) list->setCurrentRow(i);
+            add->click();
+        }
+        QCOMPARE(int(toolbar->count()), int(defaults.size() + added.size()));
+        if (int(toolbar->count()) == jp::RibbonCustom::kMaxQuick) {
+            QStringList more;
+            for (const QString &id : ids)
+                if (!defaults.contains(id) && !added.contains(id)) more << id;
+            if (!more.isEmpty()) {
+                for (int i = 0; i < list->count(); ++i)
+                    if (list->item(i)->data(Qt::UserRole).toString() == more.first()) list->setCurrentRow(i);
+                add->click();
+                QCOMPARE(toolbar->count(), jp::RibbonCustom::kMaxQuick);
+            }
+        }
+    });
+    QStringList now;
+    int menus = 0;
+    for (const QToolButton *b : ribbon->quickAccessButtons()) {
+        now << b->defaultAction()->objectName();
+        if (!ribbon->menuCommandTab(b->defaultAction()->objectName()).isEmpty()) {
+            QVERIFY2(b->menu(), qPrintable(app.name + QStringLiteral(": ") + b->defaultAction()->objectName() + QStringLiteral(" lost its menu")));
+            ++menus;
+        }
+    }
+    QCOMPARE(now, defaults + added);
+    qInfo("quick toolbar: %s, %lld commands on it (%d with a menu)", qPrintable(app.name), qint64(now.size()), menus);
+    // Reset All puts the app's own back
+    jp::RibbonCustom saved = jp::RibbonCustom::load();
+    QCOMPARE(saved.quick, now);
+    saved.resetQuick();
+    saved.save();
+    jp::RibbonCustom::applyAll();
+    QStringList back;
+    for (const QToolButton *b : ribbon->quickAccessButtons()) back << b->defaultAction()->objectName();
+    QCOMPARE(back, defaults);
+    QVERIFY(jp::RibbonCustom::load().isEmpty());
+}
+
 } // namespace appchecks
