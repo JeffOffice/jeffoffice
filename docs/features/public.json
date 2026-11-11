@@ -4237,7 +4237,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "90428f654407f1bf0a051a49d4a8d919f7d860f9e7bebc2116fa524352503c5c"
+         "text": "faccc128e8dc664416161b74bb3bd0f079255d56c1ac018bc6b98a2ff213d69a"
         },
         {
          "hide_soon": true,
@@ -4672,8 +4672,19 @@
        "text": "b1f0815eefc2906cc83b26a6e9b7fa1a9f90d83017eb81e1253b2d1de545102b"
       },
       {
-       "status": "todo",
-       "text": "a8658b1846c2def25baaee85abd4392c70b5e0cb6825c7a10093a6d3901f39fd"
+       "hide_soon": true,
+       "status": "done",
+       "text": "a7079acfed29e6b5b7115962afb50f9dc6942d83e317298cc4565a952e975640"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "ded098512ef9e3563ce2ff704b5b6d66d6976705ba602365474394922ef74b2a"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "6609e3e53403cae622bcbc0a66361a657e71305d2b336cc0a0db57e05e4a7e0d"
       },
       {
        "status": "todo",
@@ -14975,6 +14986,18 @@
     "fr": ""
    }
   },
+  "6609e3e53403cae622bcbc0a66361a657e71305d2b336cc0a0db57e05e4a7e0d": {
+   "drop": false,
+   "en": "Saving as `.pub` leaves the comments out and says so in a note after the save; comments are kept only in `.jpub`. Opening a `.pub` file never creates comments.",
+   "es": "Al guardar como `.pub`, los comentarios se omiten y se avisa en una nota tras guardar; los comentarios solo se conservan en `.jpub`. Al abrir un archivo `.pub` nunca se crean comentarios.",
+   "fr": "L’enregistrement en `.pub` omet les commentaires et le signale dans une note après l’enregistrement ; les commentaires ne sont conservés que dans `.jpub`. L’ouverture d’un fichier `.pub` ne crée jamais de commentaires.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "663b74d3930ea49dcfa5c33bb2b554abb7be37fc0caa574084bace51f94a9165": {
    "drop": false,
    "en": "Fields PAGE, NUMPAGES, SECTIONPAGES, SECTION, STYLEREF, REF, PAGEREF, NOTEREF, TOC, and SEQ are worked out and updated, and CITATION and BIBLIOGRAPHY are worked out from the file’s sources. HYPERLINK keeps its result.",
@@ -17963,18 +17986,6 @@
     "fr": ""
    }
   },
-  "90428f654407f1bf0a051a49d4a8d919f7d860f9e7bebc2116fa524352503c5c": {
-   "drop": false,
-   "en": "Find and remove personal information in the properties, business information, mail merge data, and objects on the scratch area.",
-   "es": "Busque y elimine la información personal en las propiedades, la información de empresa, los datos de combinación de correspondencia y los objetos del área de trabajo externa.",
-   "fr": "Recherchez et supprimez les informations personnelles dans les propriétés, les informations d’entreprise, les données de publipostage et les objets de la zone de travail hors page.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "9069dd246c9d9f8b24504d8c007bb4ae6421a5a3ca2232db656ad6d45bdef606": {
    "drop": true,
    "en": "",
@@ -19427,6 +19438,18 @@
     "fr": ""
    }
   },
+  "a7079acfed29e6b5b7115962afb50f9dc6942d83e317298cc4565a952e975640": {
+   "drop": false,
+   "en": "Add a comment with `Ctrl+Alt+M` to the selected object or, with nothing selected, to a point on the page. A pane beside the page supports replies, editing, resolving and reopening, and deleting comments. Previous and Next go through every page, and Show Comments shows or hides the pane and the markers on the page.",
+   "es": "Agregue un comentario con `Ctrl+Alt+M` al objeto seleccionado o, si no hay nada seleccionado, a un punto de la página. Un panel junto a la página permite responder, editar, resolver y reabrir, y eliminar comentarios. Anterior y Siguiente recorren todas las páginas, y Mostrar comentarios muestra u oculta el panel y los marcadores de la página.",
+   "fr": "Ajoutez un commentaire avec `Ctrl+Alt+M` sur l’objet sélectionné ou, si rien n’est sélectionné, à un point de la page. Un volet à côté de la page permet de répondre, de modifier, de résoudre et de rouvrir, et de supprimer les commentaires. Précédent et Suivant parcourent toutes les pages, et Afficher les commentaires affiche ou masque le volet et les repères sur la page.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "a7491f408e93ea0a813a53673cab8f963e1de47a3ba4ae9a8603cda210b77329": {
    "drop": false,
    "en": "Set up a sparkline axis: space points by dates in cells you name, show the axis, plot data right to left, and choose the minimum and maximum (automatic, the same for all, or custom). Set how hidden and empty cells are handled, and group, ungroup, or clear sparklines.",
@@ -19509,18 +19532,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "a8658b1846c2def25baaee85abd4392c70b5e0cb6825c7a10093a6d3901f39fd": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Comments: new, replies, resolve, delete, previous and next, and show comments",
-    "es": "Comentarios: nuevo, respuestas, resolver, eliminar, anterior y siguiente, y mostrar comentarios",
-    "fr": "Commentaires : nouveau, réponses, résoudre, supprimer, précédent et suivant, et afficher les commentaires"
    }
   },
   "a888720261fbafaa95105469f72db62a657333a6d7427f7496e5f732a25dcafb": {
@@ -23183,6 +23194,18 @@
     "fr": ""
    }
   },
+  "ded098512ef9e3563ce2ff704b5b6d66d6976705ba602365474394922ef74b2a": {
+   "drop": false,
+   "en": "Comments are never printed or put in a PDF.",
+   "es": "Los comentarios nunca se imprimen ni se incluyen en un PDF.",
+   "fr": "Les commentaires ne sont jamais imprimés ni inclus dans un PDF.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "dee31959d5728cb7b1fe1fb0b7508aa30abc16607afd3a0e7f06952a6ca637b0": {
    "drop": false,
    "en": "Pivot Table and Design tabs (while a pivot table is selected)",
@@ -25149,6 +25172,18 @@
     "en": "Word count of text boxes",
     "es": "Recuento de palabras de los cuadros de texto",
     "fr": "Décompte des mots des zones de texte"
+   }
+  },
+  "faccc128e8dc664416161b74bb3bd0f079255d56c1ac018bc6b98a2ff213d69a": {
+   "drop": false,
+   "en": "Inspect the publication to find and remove comments (with their authors' names), personal information in the properties, business information, mail merge data, and objects on the scratch area.",
+   "es": "Inspeccione la publicación para encontrar y eliminar comentarios (con los nombres de sus autores), información personal en las propiedades, información de la empresa, datos de combinación de correspondencia y objetos del área de trabajo.",
+   "fr": "Inspectez la publication pour trouver et supprimer les commentaires (avec le nom de leurs auteurs), les informations personnelles dans les propriétés, les informations d’entreprise, les données de publipostage et les objets de la zone de travail.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "fafba3a4944c4710e9c884863fc446a664258f1f2116281ceaf1b4518d35e248": {
