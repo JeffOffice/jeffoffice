@@ -132,35 +132,6 @@ void Reader::addField(ParaCtx *pc, const QString &instr, const QString &result, 
 
 // ---- relationships of the parts that hold a link or a picture
 
-namespace {
-
-const char *contentTypeOf(const QString &ext)
-{
-    if (ext == QLatin1String("png")) return "image/png";
-    if (ext == QLatin1String("jpeg") || ext == QLatin1String("jpg")) return "image/jpeg";
-    if (ext == QLatin1String("gif")) return "image/gif";
-    if (ext == QLatin1String("bmp")) return "image/bmp";
-    if (ext == QLatin1String("tif") || ext == QLatin1String("tiff")) return "image/tiff";
-    if (ext == QLatin1String("svg")) return "image/svg+xml";
-    if (ext == QLatin1String("emf")) return "image/x-emf";
-    if (ext == QLatin1String("wmf")) return "image/x-wmf";
-    return nullptr;
-}
-
-QString sniffExtension(const QByteArray &b)
-{
-    if (b.startsWith("\x89PNG")) return QStringLiteral("png");
-    if (b.startsWith("\xFF\xD8\xFF")) return QStringLiteral("jpeg");
-    if (b.startsWith("GIF8")) return QStringLiteral("gif");
-    if (b.startsWith("BM")) return QStringLiteral("bmp");
-    if (b.startsWith("II*\0") || b.startsWith("MM\0*")) return QStringLiteral("tiff");
-    if (b.startsWith("\xD7\xCD\xC6\x9A")) return QStringLiteral("wmf");
-    if (b.size() > 44 && b.mid(40, 4) == " EMF") return QStringLiteral("emf");
-    if (b.left(512).contains("<svg")) return QStringLiteral("svg");
-    return QString();
-}
-
-} // namespace
 
 QString Reader::imageRelationship(const Odf &o, int image)
 {

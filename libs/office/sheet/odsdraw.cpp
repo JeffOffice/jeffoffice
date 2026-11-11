@@ -1,5 +1,6 @@
 #include "sheet/odsdraw.h"
 
+#include "odt/odtcommon.h"
 #include "sheet/odsdraw_p.h"
 #include "sheet/odsstyles.h"
 
@@ -280,32 +281,7 @@ QString warpOfFontwork(const QString &type)
     return QStringLiteral("textPlain");
 }
 
-QString imageFormatOf(const QByteArray &b)
-{
-    if (b.startsWith("\x89PNG\r\n\x1a\n")) return QStringLiteral("png");
-    if (b.startsWith("\xff\xd8\xff")) return QStringLiteral("jpeg");
-    if (b.startsWith("GIF8")) return QStringLiteral("gif");
-    if (b.startsWith("BM") && b.size() > 14) return QStringLiteral("bmp");
-    if (b.startsWith("II*\0") || b.startsWith("MM\0*")) return QStringLiteral("tiff");
-    if (b.size() > 44 && b.mid(40, 4) == " EMF") return QStringLiteral("emf");
-    if (b.startsWith("\xd7\xcd\xc6\x9a") || b.startsWith(QByteArray("\x01\x00\x09\x00", 4))) return QStringLiteral("wmf");
-    const QByteArray head = b.left(1024);
-    if (head.contains("<svg") && !head.contains("<!DOCTYPE") && !head.contains("<!ENTITY")) return QStringLiteral("svg");
-    return QString();
-}
-
-QString mediaTypeOfFormat(const QString &f)
-{
-    if (f == QLatin1String("png")) return QStringLiteral("image/png");
-    if (f == QLatin1String("jpeg")) return QStringLiteral("image/jpeg");
-    if (f == QLatin1String("gif")) return QStringLiteral("image/gif");
-    if (f == QLatin1String("bmp")) return QStringLiteral("image/bmp");
-    if (f == QLatin1String("tiff")) return QStringLiteral("image/tiff");
-    if (f == QLatin1String("svg")) return QStringLiteral("image/svg+xml");
-    if (f == QLatin1String("emf")) return QStringLiteral("image/x-emf");
-    if (f == QLatin1String("wmf")) return QStringLiteral("image/x-wmf");
-    return QStringLiteral("application/octet-stream");
-}
+QString imageFormatOf(const QByteArray &b) { return odt::sniffExtension(b); }
 
 QSizeF naturalSizePoints(const QByteArray &bytes)
 {
@@ -351,17 +327,6 @@ QSizeF naturalSizePoints(const QByteArray &bytes)
     return QSizeF(px.width() * 72.0 / dpiX, px.height() * 72.0 / dpiY);
 }
 
-QString xmlText(const QString &text)
-{
-    QString clean;
-    clean.reserve(text.size());
-    for (const QChar c : text) {
-        const ushort u = c.unicode();
-        if (u < 0x20 && u != 9 && u != 10 && u != 13) continue;
-        if (u == 0xFFFE || u == 0xFFFF) continue;
-        clean += c;
-    }
-    return clean.toHtmlEscaped();
-}
+QString xmlText(const QString &text) { return QString::fromUtf8(odt::esc(text)); }
 
 } // namespace jp::office::sheet::odsdraw

@@ -1,6 +1,7 @@
 // The file a workbook of the older binary form is saved as: see xlsxbase.h.
 
 #include "sheet/xlsxbase.h"
+#include "odt/odtcommon.h"
 #include "sheet/pagesetupxml.h"
 #include "sheet/proofingext.h"
 #include "sheet/drawingadd.h"
@@ -802,10 +803,8 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         types += "<Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/>"
                  "<Override PartName=\"/xl/sharedStrings.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml\"/>";
         for (int d = 1; d <= drawings; ++d) types += "<Override PartName=\"/xl/drawings/drawing" + num(d) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawing+xml\"/>";
-        static const QHash<QString, QByteArray> mediaTypes = {{"png", "image/png"}, {"jpg", "image/jpeg"}, {"jpeg", "image/jpeg"}, {"gif", "image/gif"}, {"bmp", "image/bmp"}, {"tif", "image/tiff"},
-                                                              {"tiff", "image/tiff"}, {"svg", "image/svg+xml"}, {"emf", "image/x-emf"}, {"wmf", "image/x-wmf"}};
         for (const QString &e : std::as_const(mediaExtensions))
-            if (mediaTypes.contains(e)) types += "<Default Extension=\"" + e.toLatin1() + "\" ContentType=\"" + mediaTypes.value(e) + "\"/>";
+            if (const char *type = odt::contentTypeOf(e)) types += "<Default Extension=\"" + e.toLatin1() + "\" ContentType=\"" + type + "\"/>";
         for (int c = 1; c <= charts; ++c) types += "<Override PartName=\"/xl/charts/chart" + num(c) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/>";
         types += "</Types>";
         zip.add(QStringLiteral("[Content_Types].xml"), types, true);

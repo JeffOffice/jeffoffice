@@ -8,6 +8,7 @@
 #include "calc/formula.h"
 #include "calc/numfmt.h"
 #include "io/zip.h"
+#include "odt/odtcommon.h"
 #include "sheet/drawing.h"
 #include "sheet/odsdraw.h"
 #include "sheet/odsformat.h"
@@ -308,9 +309,8 @@ private:
         QByteArray x;
         for (const auto &picture : m_pictures) {
             const QString ext = picture.first.mid(picture.first.lastIndexOf(QLatin1Char('.')) + 1);
-            const QString type = ext == QLatin1String("png") ? QStringLiteral("image/png") : ext == QLatin1String("jpg") ? QStringLiteral("image/jpeg") : ext == QLatin1String("gif") ? QStringLiteral("image/gif")
-                                 : ext == QLatin1String("bmp") ? QStringLiteral("image/bmp") : ext == QLatin1String("tif") ? QStringLiteral("image/tiff") : ext == QLatin1String("svg") ? QStringLiteral("image/svg+xml")
-                                 : ext == QLatin1String("emf") ? QStringLiteral("image/x-emf") : ext == QLatin1String("wmf") ? QStringLiteral("image/x-wmf") : QStringLiteral("application/octet-stream");
+            const char *known = odt::contentTypeOf(ext);
+            const QString type = known ? QString::fromLatin1(known) : QStringLiteral("application/octet-stream");
             x += "<manifest:file-entry manifest:full-path=\"" + esc(picture.first).toUtf8() + "\" manifest:media-type=\"" + type.toUtf8() + "\"/>";
         }
         return x;

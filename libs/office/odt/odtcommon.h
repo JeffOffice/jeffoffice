@@ -62,6 +62,11 @@ QString hexColorOrEmpty(const QString &text);
 // A name as an argument of a field's code: in quotes, with the quote and the backslash escaped, so it can't add a switch.
 QString quoteFieldArgument(const QString &name);
 
+// The content type of a picture file by its extension ("png", "jpg", ...), null if it is none of those a document holds; and the extension (the format's name) picture bytes show by their first bytes, empty if
+// they are none of these.
+const char *contentTypeOf(const QString &ext);
+QString sniffExtension(const QByteArray &bytes);
+
 // Text or an attribute value written into XML: what XML has no place for is left out, and & < > (and the quotes of an attribute) are escaped. For both directions.
 QByteArray esc(const QString &text, bool attribute = true);
 
