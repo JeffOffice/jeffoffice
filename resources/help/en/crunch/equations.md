@@ -1,11 +1,11 @@
 # Equations
-<!-- keywords: equation, equations, math, formula, fraction, square root, superscript, subscript, exponent, sum, integral, greek, symbol, insert equation, alt+=, accent, matrix, brackets, built-in equations, gallery, change an equation, edit an equation, ods, picture, pdf -->
+<!-- keywords: equation, equations, math, formula, fraction, square root, superscript, subscript, exponent, sum, integral, greek, symbol, insert equation, accent, matrix, brackets, built-in equations, gallery, change an equation, edit an equation, ods, picture, pdf -->
 
 An **equation** is a line of math, such as a fraction or a square root. In JeffCrunch an equation is an object over the cells, like a picture or a text box. It is not a cell: it does not change any number on the sheet.
 
 ## Put an equation on the sheet
 
-1. Click **Insert > Symbols > Equation**, or press **Alt+=**.
+1. Click **Insert > Symbols > Equation**.
 2. Type the equation in one line. Under the box you see how it will look. Click **OK**.
 
 The equation is put at the cell you are in, selected. To start from a well-known one, click **Built-In Equations** and pick one, such as the quadratic formula or the area of a circle.

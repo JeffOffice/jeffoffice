@@ -38,7 +38,6 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Insert a function](insert-function)
 - [Enter a function with the Function Arguments dialog](function-arguments)
 - [Charts, pictures, and shapes](charts)
-- [Equations](equations)
 - [Notes and links](notes-links)
 - [Protect a sheet or the workbook](protect)
 

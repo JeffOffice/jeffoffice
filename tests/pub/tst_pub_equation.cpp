@@ -178,7 +178,7 @@ private Q_SLOTS:
         const QString path = dir.filePath(QStringLiteral("eq.pub"));
         QString note;
         QVERIFY(jp::exportPublisher(*w.editor()->doc(), path, &note));
-        QVERIFY2(note.contains(QStringLiteral("equation")) && note.contains(QStringLiteral("picture")), qPrintable(note));
+        QVERIFY2(note.contains(QStringLiteral("equations were saved to .pub as pictures")), qPrintable(note));
         QVERIFY2(!note.contains(QStringLiteral("couldn't be saved")), qPrintable(note));
         QString err;
         auto back = jp::importPublisherFile(path, &err);
