@@ -2589,7 +2589,7 @@
         },
         {
          "status": "todo",
-         "text": "bdb6a661dab26648e4351560a4ec92faf84d48e6b8f9c9b1e69f01b9f4a7c6b6"
+         "text": "0b13c02b11458f3ab8a8a483e18cf0412b19428cdec2bb138f93c398d1e35aeb"
         },
         {
          "status": "todo",
@@ -6385,7 +6385,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "aa937575f9cf06df63fce6f78af5343a42e1df67c449daacb67ffc7dfdf915bb"
+         "text": "44344138c3d9753df3e6a4b18493fc9a37480f6bcdf9ecabfbc5d7a4a4463a80"
         },
         {
          "status": "partly",
@@ -8218,6 +8218,18 @@
     "en": "Table styles: borders, fonts, column stripes, corner cells, and changing or deleting a style",
     "es": "Estilos de tabla: bordes, fuentes, bandas de columnas, celdas de esquina, y cambiar o eliminar un estilo",
     "fr": "Styles de tableau : bordures, polices, bandes de colonnes, cellules d’angle, et modification ou suppression d’un style"
+   }
+  },
+  "0b13c02b11458f3ab8a8a483e18cf0412b19428cdec2bb138f93c398d1e35aeb": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Quick toolbar and ribbon customization",
+    "es": "Personalización de la barra de herramientas rápida y de la cinta de opciones",
+    "fr": "Personnalisation de la barre d’outils rapide et du ruban"
    }
   },
   "0b34cd64f82fde71f3a8b0ba442f605358125c966553788d079f42478c3b6ea5": {
@@ -12226,6 +12238,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "44344138c3d9753df3e6a4b18493fc9a37480f6bcdf9ecabfbc5d7a4a4463a80": {
+   "drop": false,
+   "en": "Red wavy underlines mark misspelled words, with suggestions on right-click, `Ignore All`, and `Add to Dictionary`. The Spelling pane (`F7` or Review > Spelling) offers `Change`, `Change All`, `Ignore`, `Ignore All`, and `Add`, and the check skips words in capitals and words with numbers.",
+   "es": "Las líneas onduladas rojas marcan las palabras mal escritas, con sugerencias al hacer clic con el botón derecho, `Ignore All` y `Add to Dictionary`. El panel de ortografía (`F7` o Revisar > Ortografía) ofrece `Change`, `Change All`, `Ignore`, `Ignore All` y `Add`, y la revisión omite las palabras en mayúsculas y las palabras con números.",
+   "fr": "Des lignes ondulées rouges signalent les mots mal orthographiés, avec des suggestions au clic droit, `Ignore All` et `Add to Dictionary`. Le volet d’orthographe (`F7` ou Révision > Orthographe) propose `Change`, `Change All`, `Ignore`, `Ignore All` et `Add`, et la vérification ignore les mots en majuscules et les mots contenant des chiffres.",
+   "soon": {
+    "drop": false,
+    "en": "AutoCorrect, exclusion dictionaries, custom dictionary editing, and the Spelling pane in tables, headers, footers, and notes",
+    "es": "Autocorrección, diccionarios de exclusión, edición del diccionario personalizado y el panel de ortografía en tablas, encabezados, pies de página y notas",
+    "fr": "Correction automatique, dictionnaires d’exclusion, modification du dictionnaire personnalisé et volet d’orthographe dans les tableaux, les en-têtes, les pieds de page et les notes"
    }
   },
   "4443f17f2801038a9bcf022623f5daec7db283e9a35c54cf9901f3d30b3429e0": {
@@ -19596,18 +19620,6 @@
     "fr": ""
    }
   },
-  "aa937575f9cf06df63fce6f78af5343a42e1df67c449daacb67ffc7dfdf915bb": {
-   "drop": false,
-   "en": "Check spelling as you type with red wavy underlines, suggestions on right-click, Ignore All, and Add to Dictionary. The Spelling pane (`F7`) offers Change, Change All, Ignore, Ignore All, and Add, and skips words in capitals and words with numbers.",
-   "es": "Revise la ortografía mientras escribe con subrayados ondulados rojos, sugerencias con el clic derecho, Omitir todo y Agregar al diccionario. El panel de ortografía (`F7`) ofrece Cambiar, Cambiar todo, Omitir, Omitir todo y Agregar, y omite las palabras en mayúsculas y con números.",
-   "fr": "Vérifiez l’orthographe pendant la saisie avec des soulignements ondulés rouges, des suggestions par clic droit, Ignorer tout et Ajouter au dictionnaire. Le volet Orthographe (`F7`) propose Modifier, Modifier tout, Ignorer, Ignorer tout et Ajouter, et ignore les mots en majuscules et ceux contenant des chiffres.",
-   "soon": {
-    "drop": false,
-    "en": "Autocorrect, exclusion dictionaries, editing the custom dictionary, and the Spelling pane in tables, headers, footers, and notes",
-    "es": "Autocorrección, diccionarios de exclusión, edición del diccionario personalizado y panel de ortografía en tablas, encabezados, pies de página y notas",
-    "fr": "Correction automatique, dictionnaires d’exclusion, modification du dictionnaire personnalisé et volet Orthographe dans les tableaux, en-têtes, pieds de page et notes"
-   }
-  },
   "aab8ccdd715e8e1fbb741a3cd4c8e4c593baa6359a1731d7b3cb24fe25bcfd7b": {
    "drop": true,
    "en": "",
@@ -20698,18 +20710,6 @@
     "en": "Password protection for `.odt` files",
     "es": "Protección con contraseña para archivos `.odt`",
     "fr": "Protection par mot de passe pour les fichiers `.odt`"
-   }
-  },
-  "bdb6a661dab26648e4351560a4ec92faf84d48e6b8f9c9b1e69f01b9f4a7c6b6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Quick toolbar and ribbon: customize",
-    "es": "Barra de herramientas rápida y cinta de opciones: personalización",
-    "fr": "Barre d’outils rapide et ruban : personnalisation"
    }
   },
   "bdf6e50f597cdda517d628acfdab82f657f5d21ebe908ca51862181e129c193c": {
