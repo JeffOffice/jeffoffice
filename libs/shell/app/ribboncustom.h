@@ -73,9 +73,13 @@ public:
     bool removeCommand(const QString &groupId, int index);
     // The order the tabs that are always there have: `tabOrder` over `builtin` (their names), then the person's tabs.
     QStringList effectiveOrder(const QStringList &builtin) const;
+    // Forgets an order that is the ribbon file's (what is listed that this window does not have stays).
+    void normalizeOrder(const QStringList &builtin);
     // A tab back as the ribbon file has it: shown, with its groups shown and the person's groups on it gone (one of the person's own is taken away).
     void resetTab(const QString &tab);
     void resetAll();
+    // Takes away the groups on a tab that is neither one of `known` (the ribbon's own tabs) nor one of the person's: what is left of a tab another version had.
+    void dropUnknownTabs(const QStringList &known);
 
     const Tab *tab(const QString &id) const;
     const Group *group(const QString &id) const;
@@ -95,6 +99,8 @@ public:
     static constexpr int kMaxTabs = 20;
     static constexpr int kMaxGroups = 30;    // on one tab
     static constexpr int kMaxItems = 60;     // in one group
+    static constexpr int kMaxAllItems = 600; // in all the groups together
+    static constexpr int kMaxAllGroups = 1000;
     static constexpr int kMaxName = 60;
     static constexpr int kMaxEntries = 2000; // hidden tabs, hidden groups, and the order, each
 

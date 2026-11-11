@@ -115,6 +115,7 @@ RibbonCustom RibbonCustom::fromJson(const QByteArray &json)
         c.tabs.append({id, name});
     }
     QHash<QString, int> perTab;
+    int allItems = 0;
     for (const QJsonValue &v : o.value(QLatin1String("groups")).toArray()) {
         const QJsonObject g = v.toObject();
         Group out;
@@ -123,15 +124,16 @@ RibbonCustom RibbonCustom::fromJson(const QByteArray &json)
         out.name = cleanName(g.value(QLatin1String("name")).toString());
         if (!isUserId(out.id) || ids.contains(out.id) || out.name.isEmpty() || out.tab.isEmpty() || out.tab.size() > 200) continue;
         if (out.tab.startsWith(QLatin1String("user:")) && !c.tab(out.tab)) continue;   // (a tab of the person's that is not there)
-        if (perTab[out.tab] >= kMaxGroups || c.groups.size() >= kMaxTabs * kMaxGroups) continue;
+        if (perTab[out.tab] >= kMaxGroups || c.groups.size() >= kMaxAllGroups) continue;
         ids.insert(out.id);
         ++perTab[out.tab];
         for (const QJsonValue &iv : g.value(QLatin1String("items")).toArray()) {
-            if (out.items.size() >= kMaxItems) break;
+            if (out.items.size() >= kMaxItems || allItems >= kMaxAllItems) break;
             const QJsonObject io = iv.toObject();
             const QString cmd = io.value(QLatin1String("cmd")).toString();
             if (cmd.isEmpty() || cmd.size() > 200) continue;
             out.items.append({cmd, cleanName(io.value(QLatin1String("name")).toString())});
+            ++allItems;
         }
         c.groups.append(out);
     }
@@ -179,11 +181,13 @@ QList<const RibbonCustom::Group *> RibbonCustom::groupsOf(const QString &tab) co
 
 QString RibbonCustom::nextId() const
 {
-    int n = 0;
-    auto note = [&n](const QString &id) { n = std::max(n, id.mid(5).toInt()); };
-    for (const Tab &t : tabs) note(t.id);
-    for (const Group &g : groups) note(g.id);
-    return QStringLiteral("user:%1").arg(n + 1);
+    // The lowest number not in use, so that an id is always one load accepts, however many are made and taken away.
+    QSet<int> used;
+    for (const Tab &t : tabs) used.insert(t.id.mid(5).toInt());
+    for (const Group &g : groups) used.insert(g.id.mid(5).toInt());
+    int n = 1;
+    while (used.contains(n)) ++n;
+    return QStringLiteral("user:%1").arg(n);
 }
 
 bool RibbonCustom::setTabHidden(const QString &tab, bool hidden)
@@ -226,7 +230,7 @@ QString RibbonCustom::addGroup(const QString &tab, const QString &name)
     const QString n = cleanName(name);
     if (n.isEmpty() || tab.isEmpty()) return QString();
     if (tab.startsWith(QLatin1String("user:")) && !this->tab(tab)) return QString();
-    if (groupsOf(tab).size() >= kMaxGroups) return QString();
+    if (groupsOf(tab).size() >= kMaxGroups || groups.size() >= kMaxAllGroups) return QString();
     const QString id = nextId();
     groups.append({id, tab, n, {}});
     return id;
@@ -236,6 +240,9 @@ bool RibbonCustom::addCommand(const QString &groupId, const QString &cmd)
 {
     Group *g = groupRef(groupId);
     if (!g || cmd.isEmpty() || g->items.size() >= kMaxItems) return false;
+    int all = 0;
+    for (const Group &other : std::as_const(groups)) all += int(other.items.size());
+    if (all >= kMaxAllItems) return false;
     for (const Item &it : std::as_const(g->items))
         if (it.cmd == cmd) return false;
     g->items.append({cmd, QString()});
@@ -266,16 +273,36 @@ bool RibbonCustom::renameCommand(const QString &groupId, int index, const QStrin
     return true;
 }
 
+// The tabs in `base` with those `listed` (the ones `base` has) in the order given, taking the places the unlisted ones do not keep: a tab that is not listed stays where it was made.
+static QStringList mergeOrder(const QStringList &base, const QStringList &listed)
+{
+    QStringList fill;
+    for (const QString &n : listed)
+        if (base.contains(n) && !fill.contains(n)) fill << n;
+    QStringList out;
+    for (const QString &n : base) out << (fill.contains(n) ? QString() : n);
+    int next = 0;
+    for (QString &n : out)
+        if (n.isEmpty()) n = fill.value(next++);
+    return out;
+}
+
 QStringList RibbonCustom::effectiveOrder(const QStringList &builtin) const
 {
-    QStringList out;
+    QStringList base = builtin;
+    for (const Tab &t : tabs) base << t.id;
+    return mergeOrder(base, tabOrder);
+}
+
+void RibbonCustom::normalizeOrder(const QStringList &builtin)
+{
+    QStringList base = builtin;
+    for (const Tab &t : tabs) base << t.id;
+    // (what is listed beyond this window's tabs is another version's, and stays)
+    QStringList unknown;
     for (const QString &n : tabOrder)
-        if ((builtin.contains(n) || tab(n)) && !out.contains(n)) out << n;
-    for (const QString &n : builtin)
-        if (!out.contains(n)) out << n;
-    for (const Tab &t : tabs)
-        if (!out.contains(t.id)) out << t.id;
-    return out;
+        if (!base.contains(n)) unknown << n;
+    tabOrder = mergeOrder(base, tabOrder) == base ? unknown : tabOrder;
 }
 
 bool RibbonCustom::moveTab(const QString &id, int delta, const QStringList &builtin)
@@ -284,9 +311,11 @@ bool RibbonCustom::moveTab(const QString &id, int delta, const QStringList &buil
     const int at = int(order.indexOf(id)), to = at + delta;
     if (at < 0 || to < 0 || to >= order.size() || delta == 0) return false;
     order.move(at, to);
-    QStringList plain = builtin;
-    for (const Tab &t : tabs) plain << t.id;
-    tabOrder = order == plain ? QStringList() : order;
+    QStringList unknown;
+    for (const QString &n : std::as_const(tabOrder))
+        if (!order.contains(n)) unknown << n;
+    tabOrder = order + unknown;
+    normalizeOrder(builtin);
     return true;
 }
 
@@ -346,8 +375,14 @@ void RibbonCustom::resetTab(const QString &tab)
         return;
     }
     hiddenTabs.removeAll(tab);
+    tabOrder.removeAll(tab);   // (it is back in the place the ribbon file gave it)
     hiddenGroups.removeIf([&](const QString &k) { return k.startsWith(tab + QLatin1Char('/')); });
     groups.removeIf([&](const Group &g) { return g.tab == tab; });
+}
+
+void RibbonCustom::dropUnknownTabs(const QStringList &known)
+{
+    groups.removeIf([&](const Group &g) { return !g.tab.startsWith(QLatin1String("user:")) && !known.contains(g.tab); });
 }
 
 void RibbonCustom::resetAll()
@@ -414,6 +449,9 @@ QAction *renamedCommand(QAction *orig, const QString &text, QObject *parent)
         p->setToolTip(orig->toolTip());
         // plain: reviewed: the command's own help text
         p->setWhatsThis(orig->whatsThis());
+        p->setStatusTip(orig->statusTip());
+        p->setIconText(orig->iconText() == orig->text() ? QString() : orig->iconText());   // (the text it has no other for is the new name)
+        p->setData(orig->data());
     };
     sync();
     QObject::connect(orig, &QAction::changed, p, sync);
@@ -421,15 +459,37 @@ QAction *renamedCommand(QAction *orig, const QString &text, QObject *parent)
     return p;
 }
 
-RibbonGroup *addUserGroup(RibbonTab *page, const RibbonCustom::Group &g, AppWindow *win)
+// The buttons of the ribbon file's own groups that open a menu, by command: a command that is there to open a menu has to bring its menu along.
+QHash<QAction *, QToolButton *> menuButtons(Ribbon *r)
+{
+    QHash<QAction *, QToolButton *> out;
+    for (int i = 0; i < r->tabCount(); ++i) {
+        RibbonTab *page = r->tabPage(i);
+        if (!page || !page->isBuilt()) continue;
+        for (RibbonGroup *g : page->groups()) {
+            if (g->property(kUserGroup).toBool()) continue;
+            for (QToolButton *b : g->findChildren<QToolButton *>())
+                if (b != g->launcher() && b->defaultAction() && b->menu() && !out.contains(b->defaultAction())) out.insert(b->defaultAction(), b);
+        }
+    }
+    return out;
+}
+
+RibbonGroup *addUserGroup(RibbonTab *page, const RibbonCustom::Group &g, AppWindow *win, const QHash<QAction *, QToolButton *> &menus)
 {
     RibbonGroup *rg = page->addGroup(g.name);
     rg->setId(g.id);
     rg->setProperty(kUserGroup, true);
     for (const RibbonCustom::Item &it : g.items) {
         QAction *a = win->act(it.cmd);
-        if (!a || a->menu()) continue;
-        rg->addSmall(it.name.isEmpty() ? a : renamedCommand(a, it.name, rg));
+        if (!a) continue;
+        QMenu *menu = nullptr;
+        bool split = false;
+        if (const QToolButton *src = menus.value(a)) {
+            menu = src->menu();
+            split = src->popupMode() == QToolButton::MenuButtonPopup;
+        }
+        rg->addSmall(it.name.isEmpty() ? a : renamedCommand(a, it.name, rg), menu, split);
     }
     describeForScreenReaders(rg);
     return rg;
@@ -447,8 +507,12 @@ QStringList keytipsIn(QWidget *root)
 void placeUserGroups(RibbonTab *page, const QString &tabKey, const RibbonCustom &plan, AppWindow *win)
 {
     QStringList used = keytipsIn(page);
-    for (const RibbonCustom::Group *g : plan.groupsOf(tabKey)) {
-        RibbonGroup *rg = addUserGroup(page, *g, win);
+    const auto mine = plan.groupsOf(tabKey);
+    bool anyItems = false;
+    for (const RibbonCustom::Group *g : mine) anyItems = anyItems || !g->items.isEmpty();
+    const QHash<QAction *, QToolButton *> menus = anyItems ? menuButtons(win->ribbon()) : QHash<QAction *, QToolButton *>();
+    for (const RibbonCustom::Group *g : mine) {
+        RibbonGroup *rg = addUserGroup(page, *g, win, menus);
         const QString k = RibbonCustom::freeKeytip(g->name, used, 2);
         if (!k.isEmpty()) {
             setKeytip(rg, k);
@@ -460,10 +524,19 @@ void placeUserGroups(RibbonTab *page, const QString &tabKey, const RibbonCustom 
 void customizeBuiltIn(RibbonTab *page, const QString &tabName, const RibbonCustom &plan, AppWindow *win)
 {
     QList<RibbonGroup *> mine;
+    bool touched = !plan.groupsOf(tabName).isEmpty();
     for (RibbonGroup *g : page->groups()) {
-        if (g->property(kUserGroup).toBool()) mine << g;
-        else g->setUserHidden(plan.hiddenGroups.contains(tabName + QLatin1Char('/') + g->id()));
+        if (g->property(kUserGroup).toBool()) {
+            mine << g;
+            continue;
+        }
+        const bool hide = plan.hiddenGroups.contains(tabName + QLatin1Char('/') + g->id());
+        if (g->userHidden() != hide) {
+            g->setUserHidden(hide);
+            touched = true;
+        }
     }
+    if (!touched && mine.isEmpty()) return;   // (a tab the person has not changed is left as it was made)
     for (RibbonGroup *g : mine) page->removeGroup(g);
     placeUserGroups(page, tabName, plan, win);
     page->finish();
@@ -501,6 +574,11 @@ void RibbonCustom::applyTo(AppWindow *win) const
             if (r->tabPage(i) == r->current()) return r->tabName(i);
         return QString();
     }() : QString();
+
+    // A command that opens a menu brings it from its button, so every tab is made when the groups of ours hold commands.
+    bool anyItems = false;
+    for (const Group &g : groups) anyItems = anyItems || !g.items.isEmpty();
+    if (anyItems) r->buildAllTabs();
 
     // The person's tabs are made again each time, in order.
     for (int i = r->tabCount() - 1; i >= 0; --i)
@@ -541,7 +619,13 @@ void RibbonCustom::applyTo(AppWindow *win) const
             });
         }
     }
-    r->arrangeTabs(tabOrder);
+    QList<int> at;
+    for (int i = 0; i < r->tabCount(); ++i)
+        if (r->tabContextGroup(i).isEmpty()) at << i;
+    std::stable_sort(at.begin(), at.end(), [r](int x, int y) { return r->tabBase(x) < r->tabBase(y); });
+    QStringList base;
+    for (int i : std::as_const(at)) base << r->tabName(i);
+    r->arrangeTabs(mergeOrder(base, tabOrder));
     if (!current.isEmpty() && r->tab(current) && r->current() != r->tab(current)) r->showTab(r->tab(current));
 }
 

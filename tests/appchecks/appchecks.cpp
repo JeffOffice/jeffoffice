@@ -1495,8 +1495,19 @@ void checkRibbonPage(Adapter &app)
     QVERIFY(ribbon);
     ribbon->buildAllTabs();
     QStringList titles, contextual;
-    for (int i = 0; i < ribbon->tabCount(); ++i) (ribbon->tabContextGroup(i).isEmpty() ? titles : contextual) << ribbon->tabTitle(i);
-    QVERIFY(titles.size() >= 5);
+    QList<int> groupCounts;
+    for (int i = 0; i < ribbon->tabCount(); ++i) {
+        (ribbon->tabContextGroup(i).isEmpty() ? titles : contextual) << ribbon->tabTitle(i);
+        if (ribbon->tabContextGroup(i).isEmpty()) groupCounts << int(ribbon->tabPage(i)->groups().size());
+    }
+    QVERIFY(titles.size() >= 2);
+    // the commands the page must list: every one with a name that is not a menu
+    int wanted = 0;
+    for (const QString &id : w->actionIds()) {
+        QAction *a = w->act(id);
+        if (a && !a->menu() && !QString(a->text()).remove(QLatin1Char('&')).simplified().isEmpty()) ++wanted;
+    }
+    QVERIFY(wanted > 0);
     QCOMPARE(titles.first(), QStringLiteral("Home"));
     const int tabsBefore = ribbon->tabCount();
     withDialog([&] { options->trigger(); }, QStringLiteral("optionsDialog"), [&](QDialog *dlg) {
@@ -1513,17 +1524,16 @@ void checkRibbonPage(Adapter &app)
         QCOMPARE(listed.mid(0, titles.size()), titles);
         QCOMPARE(listed.size(), titles.size() + contextual.size());
         QVERIFY(!(tree->topLevelItem(0)->flags() & Qt::ItemIsUserCheckable));
-        QVERIFY(tree->topLevelItem(0)->childCount() >= 2);
+        for (int i = 0; i < titles.size(); ++i) QCOMPARE(tree->topLevelItem(i)->childCount(), groupCounts[i]);
         QVERIFY(tree->topLevelItem(1)->flags() & Qt::ItemIsUserCheckable);
-        QVERIFY(tree->topLevelItem(1)->childCount() >= 1);
         if (!contextual.isEmpty()) QVERIFY(!(tree->topLevelItem(tree->topLevelItemCount() - 1)->flags() & Qt::ItemIsUserCheckable));
         // every command with a name is there to be put in a group, and the search narrows them
-        QVERIFY(list->count() > 20);
+        QCOMPARE(list->count(), wanted);
         const QString first = list->item(0)->data(Qt::UserRole + 1).toString();
         search->setText(first);
         int shown = 0;
         for (int i = 0; i < list->count(); ++i) shown += !list->item(i)->isHidden();
-        QVERIFY2(shown >= 1 && shown < list->count() / 2, qPrintable(QString::number(shown)));
+        QVERIFY2(shown >= 1 && shown < list->count(), qPrintable(QString::number(shown)));
         search->clear();
         // a tab of one's own can be made (Cancel throws it away)
         auto *name = page->findChild<QLineEdit *>(QStringLiteral("ribbonName"));

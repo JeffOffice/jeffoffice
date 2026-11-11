@@ -1244,7 +1244,9 @@ RibbonTab *Ribbon::addTab(const QString &name, const QString &contextGroup, cons
             Q_EMIT tabsBuilt();
         }, Qt::QueuedConnection);
     });
-    m_tabs.push_back(Tab{name, contextGroup, color, page, scroll, contextGroup.isEmpty(), title.isEmpty() ? name : title, QString(), int(m_tabs.size()), false, false, int(m_tabs.size())});
+    int place = 0;   // (after every place there is, so that a tab made after others were taken away never shares one)
+    for (const Tab &t : std::as_const(m_tabs)) place = std::max(place, std::max(t.base, t.home) + 1);
+    m_tabs.push_back(Tab{name, contextGroup, color, page, scroll, contextGroup.isEmpty(), title.isEmpty() ? name : title, QString(), place, false, false, place});
     m_header->addTabButton(int(m_tabs.size()) - 1);
     return page;
 }
@@ -1297,8 +1299,8 @@ void Ribbon::arrangeTabs(const QStringList &names)
     QList<const Tab *> plain;
     for (const Tab &t : m_tabs)
         if (t.group.isEmpty()) plain << &t;
-    QList<int> places;
-    for (const Tab *t : plain) places << t->home;
+    QList<int> places;   // (the places the tabs were made in: the same each time, whatever came and went)
+    for (const Tab *t : plain) places << t->base;
     std::sort(places.begin(), places.end());
     // The wanted order: the names given (each once, only tabs there are), then the rest as built.
     QStringList order;

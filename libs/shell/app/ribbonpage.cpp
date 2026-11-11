@@ -44,6 +44,9 @@ RibbonPage::RibbonPage(AppWindow *win, QWidget *parent) : QWidget(parent), m_win
             m_built << t;
         }
     }
+    QStringList known;
+    for (const BuiltTab &t : std::as_const(m_built)) known << t.name;
+    m_plan.dropUnknownTabs(known);   // (what another version's tab left is not kept)
     const KeyMap keys(win);
     for (const KeyCommand &c : keys.commands()) m_commands.append({c.id, c.text, c.group});
 
@@ -221,6 +224,7 @@ RibbonPage::RibbonPage(AppWindow *win, QWidget *parent) : QWidget(parent), m_win
         const Chosen c = chosen();
         if (c.tab.isEmpty()) return;
         m_plan.resetTab(c.tab);
+        m_plan.normalizeOrder(builtinOrder());
         changed();
         say(QString());
     });
@@ -398,7 +402,11 @@ void RibbonPage::showState()
     bool tabChanged = false;
     if (!tabName.isEmpty()) {
         const QString prefix = tabName + QLatin1Char('/');
-        tabChanged = m_plan.hiddenTabs.contains(tabName) || tabName.startsWith(QLatin1String("user:")) || !m_plan.groupsOf(tabName).isEmpty();
+        // (a tab that is not where the ribbon file has it has changed too)
+        QStringList base = builtinOrder();
+        for (const RibbonCustom::Tab &t : m_plan.tabs) base << t.id;
+        const QStringList now = m_plan.effectiveOrder(builtinOrder());
+        tabChanged = (base.contains(tabName) && base.indexOf(tabName) != now.indexOf(tabName)) || m_plan.hiddenTabs.contains(tabName) || tabName.startsWith(QLatin1String("user:")) || !m_plan.groupsOf(tabName).isEmpty();
         for (const QString &k : m_plan.hiddenGroups) tabChanged = tabChanged || k.startsWith(prefix);
     }
     m_newTab->setEnabled(m_plan.tabs.size() < RibbonCustom::kMaxTabs);

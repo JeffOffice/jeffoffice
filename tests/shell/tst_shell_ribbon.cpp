@@ -18,6 +18,7 @@
 #include <QToolButton>
 #include <QTreeWidget>
 #include <QtTest>
+#include <memory>
 
 using namespace jp;
 
@@ -31,7 +32,7 @@ const char *const kFile = R"({
       {"name": "Clipboard", "keytip": "ZC", "items": [ {"large": "edit.paste", "keytip": "V"}, {"small": "edit.copy", "keytip": "C"} ]},
       {"name": "Font", "keytip": "ZF", "items": [ {"small": "format.bold", "keytip": "B"} ]} ]},
     {"name": "Insert", "keytip": "N", "groups": [
-      {"name": "Pictures", "keytip": "ZP", "items": [ {"large": "insert.picture", "keytip": "P"} ]} ]},
+      {"name": "Pictures", "keytip": "ZP", "items": [ {"large": "insert.picture", "keytip": "P"}, {"large": "insert.table", "menu": ["insert.picture", "edit.copy"], "keytip": "T"} ]} ]},
     {"name": "View", "keytip": "W", "groups": [
       {"name": "Zoom", "keytip": "ZZ", "items": [ {"large": "view.zoom", "keytip": "Q"} ]} ]},
     {"name": "Chart Format", "keytip": "JC", "context": "Chart Tools", "color": "chart", "groups": [
@@ -42,7 +43,7 @@ class RibbonWindow : public AppWindow {
 public:
     RibbonWindow()
     {
-        for (const char *id : {"file.save", "edit.paste", "edit.copy", "format.bold", "insert.picture", "view.zoom", "chart.style", "test.extra"}) {
+        for (const char *id : {"file.save", "edit.paste", "edit.copy", "format.bold", "insert.picture", "insert.table", "view.zoom", "chart.style", "test.extra"}) {
             auto *a = new QAction(QString::fromLatin1(id).section(QLatin1Char('.'), 1).toUpper(), this);
             a->setObjectName(QString::fromLatin1(id));
             m_actions.insert(a->objectName(), a);
@@ -329,6 +330,9 @@ private Q_SLOTS:
         QCOMPARE(groupTitles(r->tab(QStringLiteral("Insert"))), QStringList{QStringLiteral("Pictures")});
         QVERIFY(groupNamed(r, QStringLiteral("Home"), QStringLiteral("Font"))->userHidden());
         QVERIFY(tabIndex(r, tab) >= 0);
+        // (and it is back in its place)
+        QCOMPARE(plainTabs(r), (QStringList{QStringLiteral("Home"), QStringLiteral("Insert"), QStringLiteral("View"), tab}));
+        QVERIFY(!c.tabOrder.contains(QStringLiteral("Insert")));
         // a tab of one's own is taken away by it
         c.resetTab(tab);
         c.save();
@@ -380,8 +384,7 @@ private Q_SLOTS:
         LazyTabs lazy;
         RibbonCustom c;
         c.setGroupHidden(QStringLiteral("Insert"), QStringLiteral("Pictures"), true);
-        const QString extra = c.addGroup(QStringLiteral("Insert"), QStringLiteral("Extra"));
-        c.addCommand(extra, QStringLiteral("format.bold"));
+        c.addGroup(QStringLiteral("Insert"), QStringLiteral("Extra"));   // (a group with a command makes every tab, to find the menus: see the test of menus)
         c.addGroup(QStringLiteral("Chart Format"), QStringLiteral("Chart extras"));
         c.save();
         RibbonWindow w;
@@ -390,7 +393,6 @@ private Q_SLOTS:
         QVERIFY(!insert->isBuilt());   // (not made yet: nothing was done to it)
         QCOMPARE(groupTitles(insert), (QStringList{QStringLiteral("Pictures"), QStringLiteral("Extra")}));
         QVERIFY(groupNamed(r, QStringLiteral("Insert"), QStringLiteral("Pictures"))->userHidden());
-        QCOMPARE(buttonsOf(groupNamed(r, QStringLiteral("Insert"), QStringLiteral("Extra"))).size(), 1);
         QCOMPARE(groupTitles(r->tab(QStringLiteral("Chart Format"))), (QStringList{QStringLiteral("Styles"), QStringLiteral("Chart extras")}));
         // a change after the tab was made is applied to it
         c.setGroupHidden(QStringLiteral("Insert"), QStringLiteral("Pictures"), false);
@@ -505,12 +507,208 @@ private Q_SLOTS:
         QCOMPARE(groupTitles(r->tab(QStringLiteral("user:2"))).size(), RibbonCustom::kMaxGroups);
         QCOMPARE(buttonsOf(r->tab(QStringLiteral("user:2"))->groups().first()).size(), RibbonCustom::kMaxItems);
         QCOMPARE(r->tabTitle(tabIndex(r, QStringLiteral("user:2"))), QStringLiteral("Tab 1"));
-        // the order lists what is there, once each; what it does not list follows
-        QCOMPARE(plainTabs(r).mid(0, 3), (QStringList{QStringLiteral("View"), QStringLiteral("Home"), QStringLiteral("Insert")}));
+        // the order lists what is there, once each; a tab it does not list stays where the file has it
+        QCOMPARE(plainTabs(r).mid(0, 3), (QStringList{QStringLiteral("View"), QStringLiteral("Insert"), QStringLiteral("Home")}));
         QCOMPARE(tabIndex(r, QStringLiteral("Chart Format")), 3);
         // saved again from the loaded copy, it is no larger
         QVERIFY(loaded.toJson().size() < QJsonDocument(o).toJson(QJsonDocument::Compact).size());
         QCOMPARE(RibbonCustom::fromJson(loaded.toJson()), loaded);
+    }
+
+    void aCommandThatOpensAMenuKeepsItsMenuInAGroupOfOurs()
+    {
+        for (int lazy = 0; lazy < 2; ++lazy) {
+            std::unique_ptr<LazyTabs> late(lazy ? new LazyTabs : nullptr);
+            RibbonCustom c;
+            const QString tab = c.addTab(QStringLiteral("Mine"));
+            const QString group = c.addGroup(tab, QStringLiteral("Menus"));
+            QVERIFY(c.addCommand(group, QStringLiteral("insert.table")));
+            c.save();
+            RibbonWindow w;
+            QToolButton *b = buttonsOf(groupNamed(w.ribbon(), tab, QStringLiteral("Menus"))).value(0);
+            QVERIFY(b);
+            QVERIFY2(b->menu(), "the command's menu is not on its button");
+            QVERIFY(b->menu()->actions().contains(w.act(QStringLiteral("insert.picture"))));
+            QVERIFY(b->menu()->actions().contains(w.act(QStringLiteral("edit.copy"))));
+            clearSaved();
+        }
+    }
+
+    void aRenamedToggleMirrorsTheCommand()
+    {
+        RibbonWindow w;
+        QAction *a = w.act(QStringLiteral("test.extra"));
+        a->setCheckable(true);
+        a->setChecked(true);
+        a->setIcon(QIcon(QPixmap(8, 8)));
+        a->setStatusTip(QStringLiteral("Status"));
+        a->setIconText(QStringLiteral("Icon text"));
+        a->setData(42);
+        RibbonCustom c;
+        const QString tab = c.addTab(QStringLiteral("Mine"));
+        const QString group = c.addGroup(tab, QStringLiteral("Stuff"));
+        c.addCommand(group, QStringLiteral("test.extra"));
+        c.renameCommand(group, 0, QStringLiteral("Mark"));
+        c.save();
+        RibbonCustom::applyAll();
+        QToolButton *b = buttonsOf(groupNamed(w.ribbon(), tab, QStringLiteral("Stuff"))).value(0);
+        QVERIFY(b);
+        QAction *p = b->defaultAction();
+        QVERIFY(p != a);
+        // as it is when made
+        QVERIFY(p->isCheckable() && p->isChecked());
+        QVERIFY(!p->icon().isNull());
+        QCOMPARE(p->statusTip(), QStringLiteral("Status"));
+        QCOMPARE(p->iconText(), QStringLiteral("Icon text"));
+        QCOMPARE(p->data().toInt(), 42);
+        // and as it changes
+        a->setChecked(false);
+        QVERIFY(!p->isChecked());
+        a->setIcon(QIcon());
+        QVERIFY(p->icon().isNull());
+        a->setVisible(false);
+        QVERIFY(!p->isVisible());
+        a->setStatusTip(QStringLiteral("Other"));
+        a->setIconText(QStringLiteral("Other text"));
+        a->setData(7);
+        QCOMPARE(p->statusTip(), QStringLiteral("Other"));
+        QCOMPARE(p->iconText(), QStringLiteral("Other text"));
+        QCOMPARE(p->data().toInt(), 7);
+        // a click on it toggles the command
+        a->setVisible(true);
+        b->click();
+        QVERIFY(a->isChecked());
+        QVERIFY(p->isChecked());
+    }
+
+    void movingATabKeepsTheOrderNamesThisWindowLacks()
+    {
+        RibbonCustom c;
+        c.tabOrder = {QStringLiteral("Ghost"), QStringLiteral("View"), QStringLiteral("Home")};
+        QVERIFY(c.moveTab(QStringLiteral("Insert"), -1, kBuiltin));
+        QVERIFY(c.tabOrder.contains(QStringLiteral("Ghost")));
+        QCOMPARE(c.effectiveOrder(kBuiltin), (QStringList{QStringLiteral("Insert"), QStringLiteral("View"), QStringLiteral("Home")}));
+        // back to the file's order: only what this window does not know stays
+        QVERIFY(c.moveTab(QStringLiteral("Insert"), 2, kBuiltin));
+        QVERIFY(c.moveTab(QStringLiteral("View"), 1, kBuiltin));
+        QVERIFY(c.moveTab(QStringLiteral("Insert"), -1, kBuiltin));
+        QCOMPARE(c.effectiveOrder(kBuiltin), kBuiltin);
+        QCOMPARE(c.tabOrder, QStringList{QStringLiteral("Ghost")});
+    }
+
+    void anIdIsAlwaysOneThatLoadAccepts()
+    {
+        RibbonCustom c;
+        for (int i = 0; i < RibbonCustom::kMaxTabs; ++i) c.addTab(QStringLiteral("T%1").arg(i));
+        for (int i = 0; i < 2000; ++i) {
+            const QString id = c.addGroup(c.tabs[i % c.tabs.size()].id, QStringLiteral("G"));
+            if (id.isEmpty()) {
+                // full: take one away and make another
+                QVERIFY(c.remove(c.groups[(i * 7) % c.groups.size()].id));
+                continue;
+            }
+            if (i % 3 == 0) c.remove(id);
+        }
+        for (const RibbonCustom::Group &g : std::as_const(c.groups)) QVERIFY2(g.id.mid(5).toInt() <= RibbonCustom::kMaxTabs + RibbonCustom::kMaxAllGroups, qPrintable(g.id));
+        // every id survives a save and a load
+        const RibbonCustom again = RibbonCustom::fromJson(c.toJson());
+        QCOMPARE(again.groups.size(), c.groups.size());
+        QCOMPARE(again.tabs.size(), c.tabs.size());
+        // removing and making tabs over and over
+        for (int i = 0; i < 3000; ++i) {
+            const QString t = c.tabs.first().id;
+            c.remove(t);
+            QVERIFY(!c.addTab(QStringLiteral("N")).isEmpty());
+        }
+        QCOMPARE(RibbonCustom::fromJson(c.toJson()).tabs.size(), c.tabs.size());
+        const RibbonCustom full = RibbonCustom::fromJson(c.toJson());
+        QCOMPARE(full.groups.size(), c.groups.size());
+    }
+
+    void theRibbonPageDropsGroupsOnTabsThereAreNone()
+    {
+        RibbonCustom c;
+        const QString onHome = c.addGroup(QStringLiteral("Home"), QStringLiteral("Mine"));
+        c.addGroup(QStringLiteral("Mystery"), QStringLiteral("On a tab that is not there"));
+        c.save();
+        RibbonWindow w;
+        RibbonPage page(&w);
+        QCOMPARE(page.plan().groups.size(), 1);
+        QCOMPARE(page.plan().groups.first().id, onHome);
+        page.apply();
+        QVERIFY(!Settings::get().value(QStringLiteral("ribbon/custom")).toString().contains(QLatin1String("Mystery")));
+    }
+
+    void theTotalOfCommandsIsCapped()
+    {
+        RibbonCustom c;
+        const QString tab = c.addTab(QStringLiteral("Mine"));
+        int made = 0;
+        for (int g = 0; g < RibbonCustom::kMaxGroups; ++g) {
+            const QString id = c.addGroup(tab, QStringLiteral("G%1").arg(g));
+            QVERIFY(!id.isEmpty());
+            for (int i = 0; i < RibbonCustom::kMaxItems; ++i)
+                if (c.addCommand(id, QStringLiteral("cmd.%1").arg(i))) ++made;
+        }
+        QCOMPARE(made, RibbonCustom::kMaxAllItems);
+        // the same from a file
+        int total = 0;
+        for (const RibbonCustom::Group &g : RibbonCustom::fromJson(c.toJson()).groups) total += int(g.items.size());
+        QCOMPARE(total, RibbonCustom::kMaxAllItems);
+        QJsonArray groups;
+        for (int g = 0; g < 30; ++g) {
+            QJsonArray items;
+            for (int i = 0; i < 100; ++i) items << QJsonObject{{QStringLiteral("cmd"), QStringLiteral("c%1").arg(i)}};
+            groups << QJsonObject{{QStringLiteral("id"), QStringLiteral("user:%1").arg(g + 1)}, {QStringLiteral("tab"), QStringLiteral("Home")}, {QStringLiteral("name"), QStringLiteral("G")}, {QStringLiteral("items"), items}};
+        }
+        total = 0;
+        for (const RibbonCustom::Group &g : RibbonCustom::fromJson(QJsonDocument(QJsonObject{{QStringLiteral("groups"), groups}}).toJson(QJsonDocument::Compact)).groups) total += int(g.items.size());
+        QCOMPARE(total, RibbonCustom::kMaxAllItems);
+    }
+
+    void applyingAgainWithATabThatComesAndGoesShown()
+    {
+        RibbonWindow w;
+        Ribbon *r = w.ribbon();
+        r->setContextVisible(QStringLiteral("Chart Tools"), true);
+        RibbonCustom c;
+        const QString a = c.addTab(QStringLiteral("Alpha"));
+        const QString b = c.addTab(QStringLiteral("Beta"));
+        c.moveTab(QStringLiteral("View"), -1, kBuiltin);
+        c.save();
+        for (int round = 0; round < 3; ++round) {
+            RibbonCustom::applyAll();
+            QCOMPARE(plainTabs(r), (QStringList{QStringLiteral("Home"), QStringLiteral("View"), QStringLiteral("Insert"), a, b}));
+            QCOMPARE(tabIndex(r, QStringLiteral("Chart Format")), 3);
+            QVERIFY(r->tabVisible(3));
+        }
+        c.remove(a);
+        c.save();
+        RibbonCustom::applyAll();
+        QCOMPARE(plainTabs(r), (QStringList{QStringLiteral("Home"), QStringLiteral("View"), QStringLiteral("Insert"), b}));
+        QCOMPARE(tabIndex(r, QStringLiteral("Chart Format")), 3);
+        const QString d = c.addTab(QStringLiteral("Delta"));
+        c.save();
+        RibbonCustom::applyAll();
+        QCOMPARE(plainTabs(r), (QStringList{QStringLiteral("Home"), QStringLiteral("View"), QStringLiteral("Insert"), b, d}));
+        QCOMPARE(tabIndex(r, QStringLiteral("Chart Format")), 3);
+        QVERIFY(r->tabVisible(3));
+    }
+
+    void theRibbonPageEnablesResetOneForATabThatMoved()
+    {
+        RibbonWindow w;
+        RibbonPage page(&w);
+        auto *tree = page.findChild<QTreeWidget *>(QStringLiteral("ribbonTree"));
+        auto button = [&](const char *object) { return page.findChild<QPushButton *>(QString::fromLatin1(object)); };
+        tree->setCurrentItem(tree->topLevelItem(1));   // Insert
+        QVERIFY(!button("ribbonResetOne")->isEnabled());
+        button("ribbonDown")->click();
+        QCOMPARE(tree->topLevelItem(2)->text(0), QStringLiteral("Insert"));
+        QVERIFY(button("ribbonResetOne")->isEnabled());
+        button("ribbonResetOne")->click();
+        QCOMPARE(tree->topLevelItem(1)->text(0), QStringLiteral("Insert"));
+        QVERIFY(!page.plan().tabOrder.contains(QStringLiteral("Insert")));
     }
 
     void theRibbonPage()
@@ -537,7 +735,7 @@ private Q_SLOTS:
         QVERIFY(insert->flags() & Qt::ItemIsUserCheckable);
         QVERIFY(!(tree->topLevelItem(tree->topLevelItemCount() - 1)->flags() & Qt::ItemIsUserCheckable));
         QCOMPARE(home->childCount(), 2);
-        QCOMPARE(list->count(), 8);
+        QCOMPARE(list->count(), 9);
         // the command list searches
         search->setText(QStringLiteral("zoom"));
         int shown = 0;
