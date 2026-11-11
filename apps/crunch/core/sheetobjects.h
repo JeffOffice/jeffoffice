@@ -185,6 +185,8 @@ public:
     jp::office::sheet::ObjectKind kindOf(int sheet, int id);
     QString nameOf(int sheet, int id);
     QString descriptionOf(int sheet, int id);
+    // The settings of an object that is a barcode of Insert > Barcode (a picture of the drawing that holds the marker, office/barcodemarker.h); empty for any other object.
+    QJsonObject barcodeOf(int sheet, int id);
     // The state of the object with a new name (empty: as it is) and alternative text.
     ObjectState stateWithNames(int sheet, int id, const QString &name, const QString &description);
     // Whether another object of the sheet has the name.

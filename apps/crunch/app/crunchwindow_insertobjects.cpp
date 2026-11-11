@@ -2,8 +2,10 @@
 // the element a drawing holds for them), one step of Undo, and is saved with the workbook's drawing.
 #include "app/crunchwindow.h"
 
+#include "core/barcodeclip.h"
 #include "core/objectclip.h"
 #include "core/sheetobjects.h"
+#include "app/barcodedialog.h"
 #include "app/iconpicker.h"
 #include "app/onlinepictures.h"
 #include "app/textdialogs.h"
@@ -81,7 +83,8 @@ void CrunchWindow::createInsertObjectActions()
     mk("insert.picture", tr("Picture…"), "image", QKeySequence(), [this] { insertPicture(); });
     mk("insert.icons", tr("Icons…"), "smile-plus", QKeySequence(), [this] { insertIcons(); });
     mk("insert.onlinePicture", tr("Online Pictures…"), "globe", QKeySequence(), [this] { showOnlinePictures(); });
-    m_opsActions << QStringLiteral("insert.picture") << QStringLiteral("insert.icons") << QStringLiteral("insert.onlinePicture");
+    mk("insert.barcode", tr("Barcode…"), "barcode", QKeySequence(), [this] { insertBarcode(); });
+    m_opsActions << QStringLiteral("insert.picture") << QStringLiteral("insert.icons") << QStringLiteral("insert.onlinePicture") << QStringLiteral("insert.barcode");
     for (const ShapeKind &k : kShapes) {
         const QString preset = QString::fromLatin1(k.preset);
         mk(QString::fromLatin1(k.id), QCoreApplication::translate("jp::CrunchWindow", k.text), k.icon, QKeySequence(), [this, preset] { insertShape(preset); });
@@ -376,6 +379,70 @@ bool CrunchWindow::insertIcons()
     }
     if (done == 0) return false;
     setStatus(tr("%n icon(s) inserted", nullptr, done));
+    return true;
+}
+
+// Insert > Barcode: the dialog of the other apps asks for the barcode, and it goes on the sheet as a picture, as one step of Undo. With a barcode selected, the dialog edits that one: the new barcode
+// is put where the old one was (as wide, and as tall as its proportions make it) and the old one is taken away, in the same step.
+bool CrunchWindow::insertBarcode()
+{
+    if (!m_session || !m_objects || m_chartSheetShown || !editingAllowed()) return false;
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active) return false;
+    const int picked = m_objects->layer()->selectedId();
+    const QJsonObject was = picked >= 0 ? m_objects->barcodeOf(m_sheet, picked) : QJsonObject();
+    QJsonObject settings;
+    if (!askBarcode(this, was, &settings)) return false;
+    const QString stepText = was.isEmpty() ? tr("Insert Barcode") : tr("Edit Barcode");
+    crunch::ObjectClip clip;
+    QString why;
+    if (!crunch::barcodeClip(settings, &clip, &why)) {
+        notice(stepText, why);
+        return false;
+    }
+    if (was.isEmpty()) {
+        if (!placeObjectClip(clip, stepText)) return false;
+        setStatus(tr("Barcode inserted"));
+        return true;
+    }
+    // The old barcode's place: its left and top, and its width (the new one's height follows its own proportions).
+    const grid::ObjectBox box = m_objects->layer()->boxNow(picked);
+    const DrawingAnchor oldAnchor = m_objects->anchorOf(m_sheet, picked);
+    DrawingAnchor anchor = oldAnchor;
+    grid::ObjectBox now = box;
+    now.h = box.w * clip.height / std::max(1.0, clip.width);
+    m_objects->layer()->attach(&m_view->sheet().layout());
+    if (!m_objects->layer()->anchorAtBox(now, oldAnchor.kind, &anchor)) anchor = oldAnchor;
+    anchor.editAs = oldAnchor.editAs;
+    const int fresh = m_objects->makeElement(m_sheet, clip, anchor, &why);
+    if (fresh < 0) {
+        notice(stepText, why);
+        return false;
+    }
+    crunch::ObjectEdit gone;
+    gone.sheet = m_sheet;
+    gone.id = picked;
+    gone.before = m_objects->stateOf(m_sheet, picked);
+    gone.after = gone.before;
+    gone.after.deleted = true;
+    gone.after.revive = m_objects->captureRevive(m_sheet, picked);
+    gone.before.revive = gone.after.revive;
+    crunch::ObjectEdit put;
+    put.sheet = m_sheet;
+    put.id = fresh;
+    put.before = m_objects->stateOf(m_sheet, fresh);
+    put.after = put.before;
+    put.after.deleted = false;
+    put.after.order = gone.before.order;
+    const crunch::EditSession::Outcome o = m_session->changeObjects({gone, put}, stepText);
+    if (!o.ok) {
+        m_objects->discardMade(m_sheet, fresh);
+        notice(stepText, o.problem);
+        return false;
+    }
+    m_objects->layer()->select(fresh);
+    m_view->setFocus(Qt::OtherFocusReason);
+    setStatus(tr("Barcode changed"));
     return true;
 }
 

@@ -15,6 +15,7 @@
 #include <QPainter>
 #include <QPointer>
 #include <QSvgRenderer>
+#include "core/barcodeitem.h"
 #include <QThreadPool>
 
 #include <algorithm>
@@ -457,6 +458,14 @@ ItemPtr SheetObjects::diagramItem(Sheet &s, Object &o)
     pic->wrap.mode = Wrap::None;
     o.diagramKey = pictureKey;
     return pic;
+}
+
+QJsonObject SheetObjects::barcodeOf(int sheet, int id)
+{
+    Object *o = find(sheet, id);
+    if (!o || o->deleted) return {};
+    ensureBuilt(sheet, *o);
+    return isBarcodeItem(o->item.get()) ? static_cast<const GroupItem *>(o->item.get())->barcode : QJsonObject();
 }
 
 QByteArray SheetObjects::diagramPicture(int sheet, int id)

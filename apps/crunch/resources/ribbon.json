@@ -175,6 +175,7 @@
             {"large": "insert.picture", "keytip": "P"},
             {"large": "insert.onlinePicture", "keytip": "OP"},
             {"large": "insert.icons", "keytip": "IC"},
+            {"large": "insert.barcode", "keytip": "BC"},
             {"large": {"id": "ribbon.shapes", "text": "Shapes", "icon": "shapes"}, "keytip": "SH", "menu": ["insert.shape.rect", "insert.shape.roundRect", "insert.shape.ellipse", "insert.shape.triangle", "insert.shape.diamond", "insert.shape.pentagon", "insert.shape.hexagon", "insert.shape.rightArrow", "insert.shape.leftArrow", "insert.shape.upArrow", "insert.shape.downArrow", "insert.shape.star", "insert.shape.heart", "insert.shape.cloud", "insert.shape.callout", "insert.shape.line"]}
           ]
         },

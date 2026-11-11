@@ -279,6 +279,8 @@ public:
     void setDefaultPasteAsker(const std::function<bool(int *)> &asker) { m_defaultPasteAsker = asker; }
     // Insert > Icons: the icons the picker gave, each put on the sheet as a picture.
     bool insertIcons();
+    // Insert > Barcode: the shared dialog asks for the barcode, which goes on the sheet as a picture; with a barcode selected it edits that one (the new barcode takes its place, one step).
+    bool insertBarcode();
     void setIconsPicker(const std::function<QStringList()> &picker) { m_iconsPicker = picker; }
     void setApplyNamesAsker(const std::function<bool(const QStringList &, QStringList *)> &asker) { m_applyNamesAsker = asker; }
     bool insertName(const QString &name);
