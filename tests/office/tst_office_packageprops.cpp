@@ -326,7 +326,8 @@ private Q_SLOTS:
         z.add(QStringLiteral("ppt/comments/modernComment_1.xml"), "<p188:cmLst><p188:cm id=\"{C}\" authorId=\"{A}\" created=\"2026-01-02T03:04:05.000\"><p188:txBody/></p188:cm></p188:cmLst>");
         z.add(QStringLiteral("ppt/authors.xml"), "<p188:authorLst><p188:author id=\"{A}\" name=\"Ann Lee\" initials=\"AL\" userId=\"ann@example.com\" providerId=\"AD\"/></p188:authorLst>");
         z.add(QStringLiteral("word/commentsExtensible.xml"), "<w16cex:commentsExtensible><w16cex:commentExtensible w16cex:paraId=\"1\" w16cex:dateUtc=\"2026-01-02T03:04:05Z\"/></w16cex:commentsExtensible>");
-        z.add(QStringLiteral("meta.xml"), "<office:meta><meta:printed-by>Ann Lee</meta:printed-by><dc:date>2027-05-06T07:08:09</dc:date></office:meta>");
+        z.add(QStringLiteral("meta.xml"), "<office:meta><meta:printed-by>Ann Lee</meta:printed-by><dc:date>2027-05-06T07:08:09</dc:date>"
+                                        "<meta:user-defined meta:name=\"Company\">Acme</meta:user-defined><meta:user-defined meta:name=\"Manager\">Bo Ray</meta:user-defined><meta:user-defined meta:name=\"Project\">Apollo</meta:user-defined></office:meta>");
         z.add(QStringLiteral("content.xml"), "<office:text><office:annotation><dc:creator>Ann Lee</dc:creator><dc:date>2026-01-02T03:04:05</dc:date><text:p>Hi</text:p></office:annotation>"
                                             "<text:changed-region><office:change-info><dc:creator>Ann Lee</dc:creator><dc:date>2026-01-02T03:04:05</dc:date></office:change-info></text:changed-region></office:text>");
         QMap<QString, QByteArray> after;
@@ -335,10 +336,11 @@ private Q_SLOTS:
         QCOMPARE(parts, 9);
         for (auto it = after.cbegin(); it != after.cend(); ++it) {
             const QByteArray &x = it.value();
-            QVERIFY2(!x.contains("Ann Lee") && !x.contains("ann@example.com") && !x.contains("2026-01-02T03:04:05"), qPrintable(it.key() + QStringLiteral(": ") + QString::fromUtf8(x)));
+            QVERIFY2(!x.contains("Ann Lee") && !x.contains("Acme") && !x.contains("Bo Ray") && !x.contains("ann@example.com") && !x.contains("2026-01-02T03:04:05"), qPrintable(it.key() + QStringLiteral(": ") + QString::fromUtf8(x)));
         }
         QVERIFY(!after.value(QStringLiteral("xl/threadedComments/threadedComment1.xml")).contains("dT="));
         QVERIFY(after.value(QStringLiteral("xl/threadedComments/threadedComment1.xml")).contains("personId=\"{P}\""));
+        QVERIFY(after.value(QStringLiteral("meta.xml")).contains("<meta:user-defined meta:name=\"Project\">Apollo</meta:user-defined>"));   // (custom properties are left)
         QVERIFY(after.value(QStringLiteral("meta.xml")).contains("<dc:date>2027-05-06T07:08:09</dc:date>"));   // (the date the file was changed is the file's own: kept)
     }
 

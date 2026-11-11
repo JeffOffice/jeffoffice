@@ -173,6 +173,8 @@ struct AttrRule {
 
 struct TextRule {
     QString element;   // local name
+    QString attr;      // when not empty, the rule is for the elements whose attribute `attr` is one of `attrValues`
+    QStringList attrValues;
     std::function<std::optional<QString>(const QString &)> change;   // the new text, or none to leave it
 };
 
@@ -188,7 +190,7 @@ AttrRule setTo(const QString &element, const QString &attr, const QString &with)
 AttrRule removed(const QString &element, const QString &attr) { return {element, attr, QString(), true}; }
 TextRule emptied(const QString &element)
 {
-    return {element, [](const QString &old) -> std::optional<QString> {
+    return {element, QString(), QStringList(), [](const QString &old) -> std::optional<QString> {
                 if (old.isEmpty()) return std::nullopt;
                 return QString();
             }};
@@ -196,7 +198,7 @@ TextRule emptied(const QString &element)
 TextRule anonymized(const QString &element, bool keepThreadLinks)
 {
     const QString anon = QString::fromLatin1(kAnonymousAuthor);
-    return {element, [anon, keepThreadLinks](const QString &old) -> std::optional<QString> {
+    return {element, QString(), QStringList(), [anon, keepThreadLinks](const QString &old) -> std::optional<QString> {
                 if (old == anon || old.isEmpty() || (keepThreadLinks && old.trimmed().startsWith(QLatin1String("tc=")))) return std::nullopt;
                 return anon;
             }};
@@ -251,8 +253,11 @@ bool hasRules(const QString &name, Rules *r)
         r->attrs = {removed(QStringLiteral("scenario"), QStringLiteral("user"))};
         r->needles = {"<scenario ", ":scenario "};
     } else if (n == QLatin1String("meta.xml")) {
-        r->texts = {emptied(QStringLiteral("initial-creator")), emptied(QStringLiteral("creator")), emptied(QStringLiteral("printed-by"))};
-        r->needles = {"creator", "printed-by"};
+        TextRule company = emptied(QStringLiteral("user-defined"));   // (an open document keeps the company and the manager as properties of this kind)
+        company.attr = QStringLiteral("meta:name");
+        company.attrValues = {QStringLiteral("Company"), QStringLiteral("Manager")};
+        r->texts = {emptied(QStringLiteral("initial-creator")), emptied(QStringLiteral("creator")), emptied(QStringLiteral("printed-by")), company};
+        r->needles = {"creator", "printed-by", "Company", "Manager"};
     } else if (n == QLatin1String("content.xml") || n == QLatin1String("styles.xml")) {
         r->texts = {anonymized(QStringLiteral("creator"), false), emptied(QStringLiteral("creator-initials"))};
         r->drops = {QStringLiteral("date")};
@@ -320,8 +325,6 @@ int endOf(const QVector<Seg> &segs, int start, const QString &qname)
 
 QString attrValue(const QString &tag, const QString &name)
 {
-    Rules probe;
-    probe.attrs = {};
     const QRegularExpression re(QStringLiteral("\\s%1\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')").arg(QRegularExpression::escape(name)));
     const QRegularExpressionMatch m = re.match(tag);
     return m.hasMatch() ? decode(m.captured(1).isEmpty() ? m.captured(2) : m.captured(1)) : QString();
@@ -391,6 +394,7 @@ bool rewrite(const QString &x, const Rules &rules, QString *result, bool *change
         if (s.kind != Seg::Start) continue;
         for (const TextRule &t : rules.texts) {
             if (t.element != local) continue;
+            if (!t.attr.isEmpty() && !t.attrValues.contains(attrValue(s.s, t.attr))) continue;
             const int j = endOf(segs, i, qname);
             if (j < 0) break;
             bool simple = true;
