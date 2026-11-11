@@ -4,7 +4,7 @@
 // the mail-merge recipient list.
 
 #include "core/items.h"
-#include "office/packageprops.h"
+#include "office/customprop.h"
 #include "text/textengine.h"
 
 #include <QByteArray>
@@ -21,6 +21,8 @@
 #include <memory>
 
 class QTextDocument;
+
+namespace jp::office { struct PackageProps; }
 
 namespace jp {
 

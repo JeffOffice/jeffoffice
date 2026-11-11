@@ -1,4 +1,5 @@
 #include "office/packageprops.h"
+#include "office/package.h"
 
 #include <QSet>
 #include <algorithm>

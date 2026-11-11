@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "core/svg.h"
+#include "office/packageprops.h"
 #include "render/metafile.h"
 #include "render/pdfpage.h"
 #include "text/storyio.h"
