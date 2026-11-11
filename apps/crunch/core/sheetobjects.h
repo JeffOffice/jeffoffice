@@ -182,6 +182,8 @@ public:
     bool canEditChart(int sheet, int id, QString *why = nullptr, bool onChartSheet = false);   // (onChartSheet: a chart on a chart sheet counts, as for Move Chart)
     // An object's place now, as the layer has it (the grid's units), and the sheet's object under that name; false if there is none.
     bool exists(int sheet, int id);
+    // Whether the object is an equation (a text box whose text is math markup), and if so the line it was typed as (empty for markup that no line makes) and the markup (m:oMath or m:oMathPara).
+    bool equationOf(int sheet, int id, QString *linear, QByteArray *markup);
     jp::office::sheet::ObjectKind kindOf(int sheet, int id);
     QString nameOf(int sheet, int id);
     QString descriptionOf(int sheet, int id);

@@ -1421,6 +1421,10 @@ public:
     bool setTextArtStyle(const QString &styleId);
     bool setTextArtWarp(const QString &transform);
     void setTextArtAsker(const std::function<bool(jp::TextArtItem *)> &asker) { m_textArtAsker = asker; }
+    // Insert > Equation: an equation typed in a line (the model and the editor the other programs have) goes on the sheet as an object, one step of Undo; the picked equation is changed to
+    // another line (also one step).
+    bool insertEquation(const QString &linear);
+    bool editEquation(int id, const QString &linear);
     // Format of the picked picture, shape, or text box (each is one step: the object is made again with the change). The words in a shape: the box that asks stands in for the dialog (tests).
     struct ShapeTextChoices {
         QString text;
@@ -1504,6 +1508,7 @@ private:
     bool restyleObject(const QString &stepText, const std::function<bool(QDomElement &, jp::grid::ObjectBox *)> &edit, bool pictureOnly = false);
     void editObjectText();
     void compressPicturesDialog();
+    void insertEquationDialog();
     void showSelectionPane();
     QPointer<SelectionPane> m_selectionPane;
     void createObjectFormatActions();

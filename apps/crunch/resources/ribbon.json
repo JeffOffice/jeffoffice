@@ -225,6 +225,8 @@
           "name": "Symbols",
           "keytip": "ZS",
           "items": [
+            {"large": "insert.equation", "keytip": "EQ"},
+            {"large": {"id": "ribbon.equationGallery", "text": "Built-In Equations", "icon": "square-pi"}, "keytip": "EG", "menu": "@equationGallery"},
             {"large": "insert.symbol", "keytip": "U"}
           ]
         }

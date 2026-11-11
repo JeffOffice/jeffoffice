@@ -77,6 +77,16 @@ struct SheetDrawing {
 // anchor moves; an absolute one stays.
 DrawingAnchor movedAnchor(const DrawingAnchor &anchor, int sheet, const std::vector<StructEdit> &edits);
 
+// An equation of a drawing: an object whose text is math that can be laid out (a text box with a14:m, the form a spreadsheet keeps equations in).
+struct SheetEquation {
+    DrawingAnchor anchor;
+    QString name, description;
+    QByteArray markup;   // m:oMathPara or m:oMath, declaring its namespace
+};
+// The equations of a drawing part, in the order they are drawn (at most kMaxDrawingEquations); `objects`, if given, is the number of objects the drawing holds in all.
+constexpr int kMaxDrawingEquations = 500;
+QVector<SheetEquation> readEquations(const Package &package, const QString &drawingPart, int *objects = nullptr);
+
 // The name of a sheet's drawing part, by the sheet part's relationships; empty if the sheet has none (or the part is not in the package).
 QString drawingPartOf(const Package &package, const QString &sheetPart);
 

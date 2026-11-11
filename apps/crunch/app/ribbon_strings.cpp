@@ -15,6 +15,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Blank Rows"),
     QT_TRANSLATE_NOOP("Ribbon", "Borders"),
     QT_TRANSLATE_NOOP("Ribbon", "Breaks"),
+    QT_TRANSLATE_NOOP("Ribbon", "Built-In Equations"),
     QT_TRANSLATE_NOOP("Ribbon", "Calculate"),
     QT_TRANSLATE_NOOP("Ribbon", "Calculations"),
     QT_TRANSLATE_NOOP("Ribbon", "Cell Styles"),

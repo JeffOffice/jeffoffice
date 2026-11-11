@@ -95,6 +95,16 @@ void PageObjectPainter::paint(QPainter *p, const PageCut &page, double zoom)
             if (item.object.settle) item.object.settle(&item.object);
         }
         if (!item.object.render && !item.object.prepare) continue;   // (it has nothing to draw)
+        if (item.object.paintVector) {
+            const double vm = std::max(0.0, item.object.margin);
+            if (item.box.x + item.box.w + vm <= double(bx) || item.box.x - vm >= double(bx + bw) || item.box.y + item.box.h + vm <= double(by) || item.box.y - vm >= double(by + bh)) continue;
+            const QRectF vbox((item.box.x - double(bx) + double(tw)) * zoom, (item.box.y - double(by) + double(th)) * zoom, std::max(1.0, item.box.w * zoom), std::max(1.0, item.box.h * zoom));
+            if (!vbox.intersects(body)) continue;
+            p->save();
+            item.object.paintVector(p, vbox);
+            p->restore();
+            continue;
+        }
         const double m = std::max(0.0, item.object.margin);
         // does it reach this page's cells?
         if (item.box.x + item.box.w + m <= double(bx) || item.box.x - m >= double(bx + bw) || item.box.y + item.box.h + m <= double(by) || item.box.y - m >= double(by + bh)) continue;

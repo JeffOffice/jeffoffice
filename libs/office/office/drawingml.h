@@ -64,6 +64,8 @@ struct DrawingContext {
     const Package *package = nullptr;
     // A shape the file marks hidden is read as a hidden object (Item::hidden) instead of being left out.
     bool keepHidden = false;
+    // A shape whose text is math (a14:m: an equation) is read as an equation item (ItemType::Equation) when its math can be laid out, and as the text box it also is when not.
+    bool equations = false;
     QString part;                 // the part the drawing is in: its relationships name the pictures
     // The theme's part: the pictures of its fill styles (a background
     // referring to a picture style) are named by its relationships.
@@ -114,6 +116,10 @@ using TextStyleStack = QVector<QDomElement>;
 // master's): position and size (a:xfrm), geometry, fill, line, and the text
 // body's a:bodyPr. The placeholder's role ("ph:<type>[:<idx>]") is the
 // caller's to set.
+// The math markup (an m:oMathPara or m:oMath, declaring its namespace) of the first equation in a shape's text (a14:m in a paragraph of its txBody), or empty for a shape with none, markup
+// that is too large, or math that can't be laid out (wml/wmlmathpath.h). `linear`, if given, is the line the markup was made from where one makes it (wml/wmlmathedit.h), else empty.
+QByteArray shapeMath(const QDomElement &shape, QString *linear = nullptr);
+
 ItemPtr readShape(const QDomElement &e, const DrawingContext &ctx, const TextStyleStack &styles = {},
                   const QVector<QDomElement> &inheritsFrom = {});
 // Every shape in a shape tree (p:spTree, or a group's children), in drawing

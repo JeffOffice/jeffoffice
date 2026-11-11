@@ -97,7 +97,11 @@ void CrunchWindow::setupObjects()
     // the person moves or sizes an object, picks one, or asks for its menu
     connect(m_objects->layer(), &jp::grid::ObjectLayer::objectMoved, this, [this](int id, const jp::office::sheet::DrawingAnchor &anchor) { moveObject(id, anchor); });
     connect(m_objects->layer(), &jp::grid::ObjectLayer::contextMenuRequested, this, [this](int id, const QPoint &global) { objectContextMenu(id, global); });
-    connect(m_objects->layer(), &jp::grid::ObjectLayer::objectActivated, this, [this](int) { propertiesDialog(); });
+    connect(m_objects->layer(), &jp::grid::ObjectLayer::objectActivated, this, [this](int id) {
+        QString line;
+        if (m_objects->equationOf(m_sheet, id, &line, nullptr)) insertEquationDialog();   // (an equation opens its editor)
+        else propertiesDialog();
+    });
     connect(m_objects->layer(), &jp::grid::ObjectLayer::selectionChanged, this, [this](int) { updateChartState(); });
     connect(m_view, &grid::GridView::viewChanged, this, [this] { m_chartButtonsTimer.start(); });
     connect(m_view, &grid::GridView::zoomChanged, this, [this] { m_chartButtonsTimer.start(); });

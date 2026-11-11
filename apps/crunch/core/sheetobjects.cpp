@@ -8,6 +8,7 @@
 #include "sheet/xmlscan.h"
 #include "office/theme.h"
 #include "office/xml.h"
+#include "wml/wmlmathpath.h"
 
 #include <QCoreApplication>
 #include <QMetaObject>
@@ -363,6 +364,7 @@ std::shared_ptr<DrawingContext> SheetObjects::baseContext()
     ctx.formats = m_formats;
     ctx.images = &m_images;
     ctx.budget = &m_budget;
+    ctx.equations = true;
     ctx.addImage = [this](const QByteArray &bytes, const QString &format) { return m_doc->addImage(bytes, format); };
     ctx.addMedia = [this](const QByteArray &bytes, const QString &type, const QString &extension) { return m_doc->addMedia(bytes, type, extension); };
     ctx.newStory = [this] { return m_doc->createStory(); };
@@ -609,13 +611,22 @@ QImage SheetObjects::renderItem(Object &o, const RenderRequest &q)
     p.setRenderHint(QPainter::SmoothPixmapTransform);
     p.setRenderHint(QPainter::TextAntialiasing);
     // the object's frame (as the file has it) is put in the box the anchor gives, whatever the two say; a line, with no width or no height, is put in the middle of the picture
-    p.translate(q.inner.center());
-    p.scale(sx, sy);
-    p.translate(-b.center());
     PaintContext ctx;
     ctx.doc = m_doc.get();
     ctx.cache = &m_layoutCache;
     ctx.opt.output = true;
+    if (o.item->type() == jp::ItemType::Equation) {
+        // an equation keeps its proportions in whatever box the anchor gives, as large as fits and in the middle
+        jp::EquationItem eq = static_cast<const jp::EquationItem &>(*o.item);
+        eq.rect = q.inner;
+        eq.rotation = 0;
+        eq.flipH = eq.flipV = false;
+        Renderer::paintItem(&p, ctx, eq);
+        return img;
+    }
+    p.translate(q.inner.center());
+    p.scale(sx, sy);
+    p.translate(-b.center());
     Renderer::paintItem(&p, ctx, *o.item);
     return img;
 }
@@ -644,6 +655,12 @@ LayerObject SheetObjects::layerObject(int sheet, const std::shared_ptr<Object> &
         if (chart) return;
         lo->thin = o->meta.kind == ObjectKind::Connector || hasLine(*o->item, 0);
         lo->margin = strokeReach(*o->item, 0);
+        if (o->item->type() == jp::ItemType::Equation) {
+            // printed and exported as outlines, not as a picture of them (the markup and the color are copied: it may be drawn on another thread)
+            const QByteArray markup = static_cast<const jp::EquationItem &>(*o->item).markup;
+            lo->margin = 0;
+            lo->paintVector = [markup](QPainter *painter, const QRectF &box) { jp::office::wml::paintEquation(painter, markup, box, Qt::black); };
+        }
     };
     return l;
 }
@@ -1067,8 +1084,33 @@ void SheetObjects::addToSave(SaveChanges *changes)
                     else want.editAs = o->anchor.editAs;
                     o->savedAnchor = want;
                     AddedObject obj;
-                    obj.xml = objectAnchorXml(want, o->pasteNamespaces, withFirstObjectDescription(withFirstObjectName(o->pasteXml, o->meta.name), o->meta.description));
+                    const QByteArray element = withFirstObjectDescription(withFirstObjectName(o->pasteXml, o->meta.name), o->meta.description);
+                    obj.xml = objectAnchorXml(want, o->pasteNamespaces, element);
                     if (!o->meta.prints) obj.xml = withFirstObjectPrints(obj.xml, false);
+                    if (o->item && o->item->type() == jp::ItemType::Equation) {
+                        // An equation is kept as math in a text box, with a picture of it beside it for the programs that don't read math: the pair of alternatives such programs write.
+                        const QString token = QStringLiteral("rIdEq%1Z").arg(add.objects.size());
+                        const jp::grid::ObjectBox box = m_layer.boxNow(o->id);
+                        const double w = box.w > 1 ? box.w : o->item->rect.width() * 96 / 72, h = box.h > 1 ? box.h : o->item->rect.height() * 96 / 72;
+                        const QByteArray png = jp::office::wml::equationPng(static_cast<const jp::EquationItem &>(*o->item).markup, int(std::ceil(w * 3)), int(std::ceil(h * 3)));
+                        if (!png.isEmpty()) {
+                            const QByteArray pic = "<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"" + QByteArray::number(o->meta.id) + "\" name=\"" + o->meta.name.toHtmlEscaped().toUtf8() + "\"" + (o->meta.description.isEmpty() ? QByteArray() : " descr=\"" + o->meta.description.toHtmlEscaped().toUtf8() + "\"")
+                                                   + "/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed=\"" + token.toUtf8() + "\"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\""
+                                                   + QByteArray::number(qint64(std::llround(w * 9525))) + "\" cy=\"" + QByteArray::number(qint64(std::llround(h * 9525))) + "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>";
+                            QByteArray fallback = objectAnchorXml(want, QByteArray(), pic);
+                            if (!o->meta.prints) fallback = withFirstObjectPrints(fallback, false);
+                            obj.xml = "<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" Requires=\"a14\">"
+                                      + obj.xml + "</mc:Choice><mc:Fallback>" + fallback + "</mc:Fallback></mc:AlternateContent>";
+                            AddedPart part;
+                            part.part = freePartName(QStringLiteral("/xl/media/image"), QStringLiteral(".png"), takenNames());
+                            takenNames().insert(part.part.toLower());
+                            part.relType = QStringLiteral("image");
+                            part.contentType = QStringLiteral("image/png");
+                            part.bytes = png;
+                            part.token = token;
+                            obj.parts.push_back(std::move(part));
+                        }
+                    }
                     o->savedName = o->meta.name;
                     o->savedDescription = o->meta.description;
                     o->savedPrints = o->meta.prints;
@@ -1365,6 +1407,18 @@ void SheetObjects::knowShapeIds(int sheet, Sheet &s)
 }
 
 bool SheetObjects::exists(int sheet, int id) { return find(sheet, id) != nullptr; }
+
+bool SheetObjects::equationOf(int sheet, int id, QString *linear, QByteArray *markup)
+{
+    Object *o = find(sheet, id);
+    if (!o) return false;
+    ensureBuilt(sheet, *o);
+    if (!o->made || !o->item || o->item->type() != jp::ItemType::Equation) return false;
+    const auto *e = static_cast<const jp::EquationItem *>(o->item.get());
+    if (linear) *linear = e->linear;
+    if (markup) *markup = e->markup;
+    return true;
+}
 
 ObjectKind SheetObjects::kindOf(int sheet, int id)
 {

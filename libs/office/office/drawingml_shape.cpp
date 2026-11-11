@@ -13,6 +13,8 @@
 #include "office/drawingml_styleref.h"
 #include "office/xml.h"
 #include "render/shapes.h"
+#include "wml/wmlmathedit.h"
+#include "wml/wmlmathpath.h"
 
 #include <QTextDocument>
 #include <QtMath>
@@ -531,6 +533,23 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     const QString prst = custom ? QString() : connector && geom.isNull() ? QStringLiteral("straightConnector1") : attr(geom, QStringLiteral("prst"));
     const Frame frame = readFrame(firstWith(properties, "xfrm"));
 
+    // An equation: a text box whose text is math, drawn as the math (the text box it also is has nothing to show).
+    if (m_ctx.equations && !connector && !m_noText && !body.isNull() && ph.isNull()) {
+        QString line;
+        const QByteArray markup = shapeMath(e, &line);
+        if (!markup.isEmpty()) {
+            auto eq = std::make_shared<EquationItem>();
+            decorate(*eq, cNvPr, frame, properties, style);
+            eq->markup = markup;
+            eq->linear = line;
+            eq->fill = Fill::solid(ColorRef::scheme(Main));
+            eq->stroke = Stroke::none();
+            eq->lockAspect = true;
+            remember(cNvPr, eq);
+            return eq;
+        }
+    }
+
     // A picture placeholder without its picture.
     if (!connector && attr(ph, QStringLiteral("type")) == QLatin1String("pic")) {
         auto p = std::make_shared<PictureItem>();
@@ -1043,6 +1062,64 @@ void Reader::media(const QDomElement &nvPr, PictureItem &p)
 }
 
 } // namespace
+
+// The first math element (m:oMathPara, or an m:oMath alone) under a text body's paragraphs, found by namespace, looking no deeper than a paragraph's runs.
+static QDomElement mathIn(const QDomElement &body)
+{
+    constexpr QLatin1String kMath("http://schemas.openxmlformats.org/officeDocument/2006/math");
+    constexpr QLatin1String kA14("http://schemas.microsoft.com/office/drawing/2010/main");
+    for (QDomElement p = body.firstChildElement(); !p.isNull(); p = p.nextSiblingElement()) {
+        if (p.localName() != QLatin1String("p")) continue;
+        for (QDomElement r = p.firstChildElement(); !r.isNull(); r = r.nextSiblingElement()) {
+            const bool wrapper = r.localName() == QLatin1String("m") && r.namespaceURI() == kA14;
+            if (!wrapper && r.namespaceURI() != kMath) continue;
+            const QDomElement m = wrapper ? r.firstChildElement() : r;
+            if (m.namespaceURI() == kMath && (m.localName() == QLatin1String("oMathPara") || m.localName() == QLatin1String("oMath"))) return m;
+        }
+    }
+    return QDomElement();
+}
+
+QByteArray shapeMath(const QDomElement &shape, QString *linear)
+{
+    if (linear) linear->clear();
+    const QDomElement body = childNamed(shape, "txBody");
+    const QDomElement math = body.isNull() ? QDomElement() : mathIn(body);
+    if (math.isNull()) return QByteArray();
+    QString text;
+    {
+        QTextStream ts(&text);
+        math.save(ts, -1);
+    }
+    if (text.size() > (1 << 20)) return QByteArray();
+    // (a DOM writes the namespace of the math on every element it prints: it is declared once, on the first)
+    text.replace(QStringLiteral(" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\""), QString());
+    const QByteArray markup = office::wml::equationMarkupDeclared(text.toUtf8());
+    if (!office::wml::equationShape(markup, 20).valid()) return QByteArray();
+    if (linear) {
+        // (the line, where the math is one that a line makes: an m:oMath alone, or the only one in an m:oMathPara)
+        QDomElement one = math.localName() == QLatin1String("oMath") ? math : QDomElement();
+        if (one.isNull())
+            for (QDomElement c = math.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+                if (c.localName() == QLatin1String("oMathPara") || c.localName() == QLatin1String("oMath")) {
+                    if (!one.isNull() || c.localName() != QLatin1String("oMath")) {
+                        one = QDomElement();
+                        break;
+                    }
+                    one = c;
+                }
+            }
+        if (!one.isNull()) {
+            QString inner;
+            {
+                QTextStream ts(&inner);
+                one.save(ts, -1);
+            }
+            *linear = office::wml::equationLinear(office::wml::equationMarkupDeclared(inner.toUtf8()));
+        }
+    }
+    return markup;
+}
 
 ItemPtr readShape(const QDomElement &e, const DrawingContext &ctx, const TextStyleStack &styles, const QVector<QDomElement> &inheritsFrom)
 {

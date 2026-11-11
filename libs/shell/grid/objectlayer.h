@@ -70,6 +70,9 @@ struct LayerObject {
     // Called once on the window's thread before the picture is first asked for: the object may settle what it knows (its margin, whether it is thin) and, if it has nothing to draw, say so
     // by clearing `render` and `prepare` (it is then drawn as nothing).
     std::function<void(LayerObject *)> settle;
+    // Draws the object straight into a painter, in the box (the grid's pixels at the painter's scale), as vector shapes. Printing and PDF use it where it is set, instead of the picture the
+    // object's `render` makes (the window still shows that picture). It may run on another thread than the window's: it must not touch the window's data.
+    std::function<void(QPainter *, const QRectF &)> paintVector;
 };
 
 class ObjectLayer : public QObject, public GridOverlay {

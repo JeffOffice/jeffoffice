@@ -2,6 +2,7 @@
 
 #include "office/chart.h"
 #include "office/diagram.h"
+#include "office/drawingml.h"
 #include "office/xml.h"
 #include "sheet/cellref.h"
 
@@ -99,6 +100,16 @@ bool readObject(const QDomElement &anchor, const Package &package, const QString
         o->prints = prints.isEmpty() || parseBool(prints);
         return true;
     }
+    return false;
+}
+
+// Whether a shape's text holds math (a14:m), which the shape's own text does not show: an equation.
+bool holdsMath(const QDomElement &shape)
+{
+    const QDomElement body = childByLocal(shape, "txBody");
+    for (QDomElement p = body.firstChildElement(); !p.isNull(); p = p.nextSiblingElement())
+        for (QDomElement r = p.firstChildElement(); !r.isNull(); r = r.nextSiblingElement())
+            if (r.localName() == QLatin1String("m") && r.namespaceURI().endsWith(QLatin1String("2010/main"))) return true;
     return false;
 }
 
@@ -228,7 +239,8 @@ bool readDrawing(const Package &package, const QString &drawingPart, SheetDrawin
                     DrawingObject probe;
                     bool any = false;
                     for (const QDomElement &a : std::as_const(anchors))
-                        if (readObject(a, package, drawingPart, &probe)) any = true;
+                        // (a text box that holds math the program can't lay out is not the object to show: the picture beside it, that stands for it, is)
+                        if (readObject(a, package, drawingPart, &probe) && !(probe.kind == ObjectKind::Shape && holdsMath(probe.element) && shapeMath(probe.element).isEmpty())) any = true;
                     if (any) break;
                     anchors.clear();
                 }
@@ -253,6 +265,21 @@ bool readDrawing(const Package &package, const QString &drawingPart, SheetDrawin
     }
     out->rootChildren = ordinal + 1;
     return true;
+}
+
+QVector<SheetEquation> readEquations(const Package &package, const QString &drawingPart, int *objects)
+{
+    QVector<SheetEquation> out;
+    SheetDrawing drawing;
+    if (!readDrawing(package, drawingPart, &drawing)) return out;
+    if (objects) *objects = int(drawing.objects.size());
+    for (const DrawingObject &o : std::as_const(drawing.objects)) {
+        if (o.kind != ObjectKind::Shape || o.element.isNull() || out.size() >= kMaxDrawingEquations) continue;
+        const QByteArray markup = shapeMath(o.element);
+        if (markup.isEmpty()) continue;
+        out.push_back(SheetEquation{o.anchor, o.name, o.description, markup});
+    }
+    return out;
 }
 
 } // namespace jp::office::sheet

@@ -1,5 +1,6 @@
 #include "sheet/oldsavecommon.h"
 
+#include "sheet/drawing.h"
 #include "sheet/tables.h"
 
 #include <QCoreApplication>
@@ -153,6 +154,20 @@ QStringList Features::result() const
             else if (l.contains(QLatin1String("externallink"))) links = true;
             else if (l.contains(QLatin1String("slicer")) || l.contains(QLatin1String("timeline"))) slicers = true;
             else if (l.contains(QLatin1String("ctrlprop"))) controls = true;
+        }
+        // (an .ods copy has each equation as a picture of it: they are named, and the rest of the drawings are what the copy has not)
+        int equations = 0, objects = 0;
+        if (m_kind == CopyKind::Ods && drawings)
+            for (const QString &part : p.partNames()) {
+                const QString l = part.toLower();
+                if (!l.contains(QLatin1String("/drawings/drawing")) || l.contains(QLatin1String("vmldrawing")) || l.endsWith(QLatin1String(".rels"))) continue;
+                int n = 0;
+                equations += int(readEquations(p, part, &n).size());
+                objects += n;
+            }
+        if (equations > 0) {
+            add(QT_TRANSLATE_NOOP("Sheet", "equations (each is saved as a picture of it)"));
+            if (equations >= objects) drawings = media = false;
         }
         if (charts && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "charts"));   // (an .ods copy writes them: odschart.h)
         if ((drawings || media) && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "pictures and other drawing objects"));   // (an .ods copy writes them: odsdraw.h)

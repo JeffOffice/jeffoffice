@@ -10,6 +10,9 @@
 #include "app/onlinepictures.h"
 #include "app/textdialogs.h"
 #include "render/metafile.h"
+#include "app/equationdialog.h"
+#include "wml/wmlmathedit.h"
+#include "wml/wmlmathpath.h"
 
 #include <QAction>
 #include <QDockWidget>
@@ -23,6 +26,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <cmath>
 
 namespace jp {
 
@@ -76,6 +80,18 @@ QByteArray shapeXml(const QString &preset, double w, double h, bool textBox, con
            + (words.isEmpty() ? QByteArray() : "<a:r><a:rPr lang=\"en-US\" sz=\"900\" i=\"1\"/><a:t>" + words.toHtmlEscaped().toUtf8() + "</a:t></a:r>") + "<a:endParaRPr lang=\"en-US\" sz=\"1100\"/></a:p></xdr:txBody></xdr:sp>";
 }
 
+// The element of a drawing for an equation: a text box with no fill or line whose text is the math (the markup in a14:m, as a spreadsheet's equations are kept). `name` is its name; the
+// size is in the grid's units.
+QByteArray equationXml(const QByteArray &markup, double w, double h, const QString &name)
+{
+    const qint64 cx = qint64(w * kEmuPerUnit), cy = qint64(h * kEmuPerUnit);
+    return "<xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"0\" name=\"" + name.toHtmlEscaped().toUtf8() + "\"/><xdr:cNvSpPr txBox=\"1\"/></xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\""
+           + QByteArray::number(cx) + "\" cy=\"" + QByteArray::number(cy)
+           + "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:noFill/></xdr:spPr><xdr:txBody><a:bodyPr wrap=\"none\" rtlCol=\"0\" anchor=\"ctr\"/><a:lstStyle/><a:p>"
+             "<a14:m xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\"><m:oMathPara xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:oMathParaPr><m:jc m:val=\"centerGroup\"/></m:oMathParaPr>"
+           + markup + "</m:oMathPara></a14:m><a:endParaRPr lang=\"en-US\"/></a:p></xdr:txBody></xdr:sp>";
+}
+
 } // namespace
 
 void CrunchWindow::createInsertObjectActions()
@@ -92,6 +108,13 @@ void CrunchWindow::createInsertObjectActions()
     }
     mk("insert.textBox", tr("Text Box"), "type", QKeySequence(), [this] { insertTextBox(); });
     m_opsActions << QStringLiteral("insert.textBox");
+    mk("insert.equation", tr("Equation…"), "square-pi", QKeySequence(QStringLiteral("Alt+=")), [this] { insertEquationDialog(); });
+    m_opsActions << QStringLiteral("insert.equation");
+    for (int i = 0; i < office::wml::equationGallery().size(); ++i) {
+        const QString id = QStringLiteral("insert.equation.design.%1").arg(i);
+        mk(id, office::wml::equationGallery().at(i).name, "square-pi", QKeySequence(), [this, i] { insertEquation(office::wml::equationGallery().at(i).linear); });
+        m_opsActions << id;
+    }
     mk("insert.symbol", tr("Symbol"), "omega", QKeySequence(), [this] {
         symbolDialog(this, [this](QWidget *, const QString &ch, const QString &font) {
             if (!insertSymbolInCell(ch)) return false;
@@ -469,6 +492,85 @@ bool CrunchWindow::insertTextBox()
     if (!placeObjectClip(clip, tr("Insert Text Box"))) return false;
     setStatus(tr("Text box inserted"));
     return true;
+}
+
+// Insert > Equation: the equation typed in a line is put on the sheet at the size its letters make (20 points tall), picked.
+bool CrunchWindow::insertEquation(const QString &linear)
+{
+    if (!m_session || !m_objects || m_chartSheetShown || !editingAllowed()) return false;
+    const QString title = tr("Insert Equation");
+    bool ok = false;
+    const QByteArray markup = office::wml::equationMarkup(linear, &ok);
+    const office::wml::EquationShape shape = ok ? office::wml::equationShape(markup, 20) : office::wml::EquationShape();
+    if (!shape.valid()) {
+        notice(title, tr("An equation can't be made from that."));
+        return false;
+    }
+    QString name = tr("Equation");
+    for (int n = 2; m_objects->nameTaken(m_sheet, -1, name); ++n) name = tr("Equation %1").arg(n);
+    crunch::ObjectClip clip;
+    clip.kind = QStringLiteral("shape");
+    clip.width = std::clamp(std::ceil(shape.box.width() * 96.0 / 72.0), 8.0, 4000.0);
+    clip.height = std::clamp(std::ceil(shape.box.height() * 96.0 / 72.0), 8.0, 2000.0);
+    clip.elementXml = equationXml(markup, clip.width, clip.height, name);
+    if (!placeObjectClip(clip, title)) return false;
+    setStatus(tr("Equation inserted"));
+    return true;
+}
+
+// Changes the line of the equation `id` (it is picked first): the object is made again with the new math, as the other changes of a shape are, one step of Undo; it keeps its height and its place.
+bool CrunchWindow::editEquation(int id, const QString &linear)
+{
+    if (!m_session || !m_objects || m_chartSheetShown) return false;
+    QString now;
+    if (!m_objects->equationOf(m_sheet, id, &now, nullptr)) return false;
+    bool ok = false;
+    const QByteArray markup = office::wml::equationMarkup(linear, &ok);
+    const office::wml::EquationShape shape = ok ? office::wml::equationShape(markup, 20) : office::wml::EquationShape();
+    if (!shape.valid()) {
+        notice(tr("Edit Equation"), tr("An equation can't be made from that."));
+        return false;
+    }
+    if (now == linear.trimmed()) return false;
+    m_objects->layer()->select(id);
+    return restyleObject(tr("Edit Equation"), [&](QDomElement &el, grid::ObjectBox *box) {
+        const QByteArray fresh = equationXml(markup, 1, 1, QString());
+        QDomDocument doc;
+        if (!doc.setContent(QByteArray("<w xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">") + fresh + "</w>",
+                            QDomDocument::ParseOption::UseNamespaceProcessing))
+            return false;
+        // (the new math in the place of the old: the first a14:m of the shape's text)
+        QDomElement oldMath, newMath;
+        std::function<QDomElement(const QDomElement &)> find = [&](const QDomElement &e) -> QDomElement {
+            if (e.localName() == QLatin1String("m") && e.namespaceURI().endsWith(QLatin1String("2010/main"))) return e;
+            for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+                if (const QDomElement f = find(c); !f.isNull()) return f;
+            return QDomElement();
+        };
+        oldMath = find(el);
+        newMath = find(doc.documentElement());
+        if (oldMath.isNull() || newMath.isNull()) return false;
+        oldMath.parentNode().replaceChild(el.ownerDocument().importNode(newMath, true), oldMath);
+        // The height stays, and the width is as the new equation's proportions make it.
+        box->w = std::clamp(std::round(box->h * shape.box.width() / std::max(1.0, shape.box.height())), 8.0, 4000.0);
+        return true;
+    });
+}
+
+// Insert > Equation: the editor the other programs have, with the picked equation's line when one is picked (changing it), else with none (putting a new one in).
+void CrunchWindow::insertEquationDialog()
+{
+    if (!m_session || !m_objects || m_chartSheetShown || !editingAllowed()) return;
+    const int id = pickedObject();
+    QString line;
+    const bool editing = id >= 0 && m_objects->equationOf(m_sheet, id, &line, nullptr);
+    if (editing && line.isEmpty()) {
+        notice(tr("Edit Equation"), tr("This equation can't be changed here."));
+        return;
+    }
+    if (!askEquation(this, editing ? tr("Edit Equation") : tr("Insert Equation"), &line)) return;
+    if (editing) editEquation(id, line);
+    else insertEquation(line);
 }
 
 } // namespace jp
