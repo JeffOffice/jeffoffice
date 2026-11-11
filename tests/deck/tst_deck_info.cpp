@@ -508,7 +508,7 @@ private Q_SLOTS:
         DeckWindow a;
         Quiet quiet(a);
         auto d = sample();
-        deck::addComment(*d->pages[1], deck::CommentAuthor{QStringLiteral("Cy Mox"), QStringLiteral("CM")}, QStringLiteral("Check this"), QPointF(10, 10));
+        comments::addComment(*d->pages[1], comments::CommentAuthor{QStringLiteral("Cy Mox"), QStringLiteral("CM")}, QStringLiteral("Check this"), QPointF(10, 10));
         a.editor()->setDocument(std::move(d));
         office::PackageProps p = a.properties();
         p.creator = QStringLiteral("Ann Lee");
@@ -533,7 +533,7 @@ private Q_SLOTS:
         QVERIFY(q.creator.isEmpty() && q.lastModifiedBy.isEmpty() && q.company.isEmpty() && q.manager.isEmpty());
         QCOMPARE(q.title, QStringLiteral("Sample"));
         QCOMPARE(int(b.editor()->doc()->pages.size()), slides);
-        const QVector<deck::Comment> comments = deck::commentsOf(*b.editor()->doc()->pages[1]);
+        const QVector<comments::Comment> comments = comments::commentsOf(*b.editor()->doc()->pages[1]);
         QCOMPARE(comments.size(), 1);
         QCOMPARE(comments[0].text, QStringLiteral("Check this"));
         QVERIFY(comments[0].author != QStringLiteral("Cy Mox"));
@@ -550,7 +550,7 @@ private Q_SLOTS:
         DeckWindow a;
         Quiet quiet(a);
         auto d = sample();
-        deck::addComment(*d->pages[1], deck::CommentAuthor{QStringLiteral("Cy Mox"), QStringLiteral("CM")}, QStringLiteral("Check this"), QPointF(10, 10));
+        comments::addComment(*d->pages[1], comments::CommentAuthor{QStringLiteral("Cy Mox"), QStringLiteral("CM")}, QStringLiteral("Check this"), QPointF(10, 10));
         a.editor()->setDocument(std::move(d));
         office::PackageProps p = a.properties();
         p.creator = QStringLiteral("Ann Lee");
@@ -562,7 +562,7 @@ private Q_SLOTS:
         auto unchanged = [&] {
             QCOMPARE(a.properties().creator, QStringLiteral("Ann Lee"));
             QCOMPARE(a.properties().company, QStringLiteral("Acme"));
-            QCOMPARE(deck::commentsOf(*a.editor()->doc()->pages[1]).value(0).author, QStringLiteral("Cy Mox"));
+            QCOMPARE(comments::commentsOf(*a.editor()->doc()->pages[1]).value(0).author, QStringLiteral("Cy Mox"));
             QCOMPARE(a.editor()->undoStack()->count(), steps);
             QVERIFY(!a.editor()->isModified());
         };
