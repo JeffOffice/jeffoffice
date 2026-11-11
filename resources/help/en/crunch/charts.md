@@ -105,7 +105,7 @@ The picture lands on the sheet like a picture from a file, and the workbook keep
 3. To change the words, pick the Text Art and click **Edit Text…** on the **Shape Format** tab. A box asks for the words, the font, the size, bold, and italic. A bigger size makes the Text Art bigger.
 4. On the **Shape Format** tab, **Text Art Styles** gives the letters another style, and **Text Warp** bends the words into a shape, such as a wave or an arch. "Plain" keeps them straight.
 
-Text Art is a shape in the sheet's drawing, with its warp, fill, and outline, so it keeps its look when you save the workbook as an .xlsx file and open it again, in JeffCrunch or in another program. Each change is one step you can undo. A workbook saved as an .ods file does not keep pictures or shapes of any kind, Text Art included.
+Text Art is a shape in the sheet's drawing, with its warp, fill, and outline, so it keeps its look when you save the workbook as an .xlsx file and open it again, in JeffCrunch or in another program. Each change is one step you can undo. A workbook saved as an .ods file keeps its pictures, shapes, text boxes, groups, lines, and Text Art too. Text Art is saved as the fontwork shape that OpenDocument has, with its words, font, fill, outline, and warp, and comes back as Text Art when you open the .ods file again. A few warps that OpenDocument has no shape for (Wave 2, Wave 4, and the bottom and top forms of Inflate and Deflate) are saved as straight words with the same letters and style. Charts are the exception: an .ods file does not keep them.
 
 ## Make pictures smaller
 
