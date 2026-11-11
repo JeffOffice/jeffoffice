@@ -47,7 +47,7 @@ Click **Inspect Document** before you send a document to someone. It lists what 
 
 Click **Remove All** next to a kind to take it out. You can undo what changes the text with **Ctrl+Z**. Save the document afterward to keep the clean copy.
 
-**Remove personal information from this file when saving**, under the cards, does it every time you save, for any file. It is the same box as in **Options**, and the same in every JeffOffice app.
+**Remove personal information from this file when saving**, under the cards, does it every time you save, for any file, without changing the document you have open. It is the same box as in **Options**, and the same in every JeffOffice app.
 
 ## Check Compatibility
 

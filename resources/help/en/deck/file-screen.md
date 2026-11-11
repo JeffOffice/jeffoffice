@@ -58,7 +58,7 @@ Click **Inspect Presentation** before you send a presentation to someone. It lis
 
 Click **Remove All** next to a kind to take it out. You can undo it with **Ctrl+Z**. Save the presentation afterward to keep the clean copy.
 
-**Remove personal information from this file when saving**, under the cards, does it every time you save, for any file. It is the same box as in **Options**, and the same in every JeffOffice app.
+**Remove personal information from this file when saving**, under the cards, does it every time you save, for any file, without changing the document you have open. It is the same box as in **Options**, and the same in every JeffOffice app.
 
 ### Version History
 
