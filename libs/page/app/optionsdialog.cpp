@@ -5,7 +5,9 @@
 
 #include "app/appwords.h"
 #include "app/editor.h"
+#include "app/appwindow.h"
 #include "app/filetasks.h"
+#include "app/keymappage.h"
 #include "app/i18n.h"
 #include "app/settings.h"
 #include "app/telemetry.h"
@@ -18,6 +20,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -54,6 +57,7 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages)
 {
     Settings &st = Settings::get();
     Dlg dlg(p, forThisApp(QCoreApplication::translate("Dialogs", "JeffPub Options")));
+    dlg.d.setObjectName(QStringLiteral("optionsDialog"));
     auto *tabs = new QTabWidget(&dlg.d);
     auto *gen = new QWidget();
     auto *gf = new QFormLayout(gen);
@@ -146,6 +150,19 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages)
     pf->addRow(autolink);
     tabs->addTab(proof, QCoreApplication::translate("Dialogs", "Proofing"));
     for (const OptionsPage &page : appPages) tabs->addTab(page.build(), page.title);
+    // Customize: the keyboard (the commands of the window this was opened from).
+    KeyboardPage *keyboard = nullptr;
+    if (auto *win = qobject_cast<AppWindow *>(p ? p->window() : nullptr)) {
+        auto *custom = new QWidget();
+        auto *cl = new QVBoxLayout(custom);
+        auto *box = new QGroupBox(QCoreApplication::translate("Dialogs", "Keyboard"), custom);
+        auto *bl = new QVBoxLayout(box);
+        keyboard = new KeyboardPage(win, box);
+        bl->addWidget(keyboard);
+        cl->addWidget(box);
+        tabs->addTab(custom, QCoreApplication::translate("Dialogs", "Customize"));
+        dlg.d.setMinimumSize(640, 560);
+    }
     dlg.v->addWidget(tabs);
     if (!dlg.exec()) return false;
     st.setValue("user/name", name->text());
@@ -171,6 +188,7 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages)
         Updater::setBetaChannel(beta->isChecked());
     }
     setSpellAsYouType(asType->isChecked());
+    if (keyboard) keyboard->apply();   // (every open window of the app takes the keys now)
     return true;
 }
 

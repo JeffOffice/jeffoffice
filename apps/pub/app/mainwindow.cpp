@@ -1,4 +1,5 @@
 #include <QScopeGuard>
+#include "app/keymap.h"
 #include "app/mainwindow.h"
 #include "core/version.h"
 #include "core/startuptrace.h"
@@ -146,6 +147,7 @@ MainWindow::MainWindow(QWidget *parent) : AppWindow(parent)
     startupMark("win: before ribbon");
     buildRibbon();
     startupMark("win: ribbon built");
+    KeyMap::apply(this);   // (the keys the person chose in Options > Customize)
     buildStatusBar();
     describeForScreenReaders(m_split);   // the pages, the page, and the panes
     describeForScreenReaders(statusBar());

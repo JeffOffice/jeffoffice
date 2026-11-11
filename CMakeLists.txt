@@ -168,7 +168,8 @@ qt_add_executable(jptests
   tests/pub/tst_pub_tables.cpp
   tests/pub/tst_pub_text.cpp
   tests/pub/tst_pub_update.cpp
-  tests/pub/tst_pub_window.cpp)
+  tests/pub/tst_pub_window.cpp
+  tests/shell/tst_shell_keymap.cpp)
 target_link_libraries(jptests PRIVATE jpcore jp_libmspub Qt6::Test)
 # QAbstractFileEngineHandler (a private Qt header, from CorePrivate) counts the files a test makes Qt open.
 target_link_libraries(jptests PRIVATE Qt6::CorePrivate)

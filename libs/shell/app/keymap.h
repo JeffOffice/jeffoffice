@@ -1,0 +1,80 @@
+#pragma once
+// Customize the keyboard: the keys of every command of an app's window, changed by the person and kept in the app's settings ("keys/custom", only what differs from the
+// commands' own keys). A KeyMap is a working copy, as the Options page edits it: nothing changes in the windows until save() and applyAll().
+
+#include <QHash>
+#include <QKeySequence>
+#include <QList>
+#include <QString>
+#include <QStringList>
+
+class QAction;
+
+namespace jp {
+
+class AppWindow;
+
+// One command as the keyboard page lists it.
+struct KeyCommand {
+    QString id;
+    QString text;   // the command's name, as the ribbon shows it
+    QString group;  // the ribbon tab it is on ("Other" for one that is on none)
+    QList<QKeySequence> keys;
+    QList<QKeySequence> defaults;
+    bool changed() const { return keys != defaults; }
+};
+
+class KeyMap {
+public:
+    // The commands of `win` (every one with a name), with the saved custom keys over their own. `win` must outlive the map. Where the commands are on the ribbon is read only
+    // when `withRibbon` (it makes every tab of the ribbon).
+    explicit KeyMap(AppWindow *win, bool withRibbon = true);
+
+    // In ribbon order, by tab; the ones on no tab last.
+    const QList<KeyCommand> &commands() const { return m_commands; }
+    const KeyCommand *command(const QString &id) const;
+    // The command that has `key` (another than `exceptId`), or an empty id.
+    QString owner(const QKeySequence &key, const QString &exceptId = QString()) const;
+
+    enum class Add { Added, Already, Reserved, Taken, Invalid };
+    struct Result {
+        Add status = Add::Invalid;
+        QString owner;       // for Taken: the id of the command that has the key
+        QString ownerText;   // and its name
+    };
+    // What add() would do, changing nothing.
+    Result check(const QString &id, const QKeySequence &key) const;
+    // Gives `id` the key. A key another command has is refused (Taken) unless `takeOver`, which removes it from that command. A reserved key is always refused.
+    Result add(const QString &id, const QKeySequence &key, bool takeOver = false);
+    // False for a key that is reserved (the command keeps it).
+    bool remove(const QString &id, const QKeySequence &key);
+    void resetOne(const QString &id);
+    void resetAll();
+    bool anyChanged() const;
+
+    // Writes the differences to the app's settings.
+    void save() const;
+    // Gives every open window of the same app (the same kind as `win`) the keys of this map.
+    void applyAll() const;
+
+    // The keys a person may not give to a command: the ones the system and text editing need (Copy, Cut, Paste, Undo, Select All, Tab, Enter, Escape, the arrow and
+    // editing keys, and a key that only types a character).
+    static bool isReserved(const QKeySequence &key);
+    static QStringList reservedList();   // for showing, in the native text
+    // A key typed or read from a file: one key, in the form `QKeySequence::PortableText` writes; empty when it is malformed.
+    static QKeySequence parseKey(const QString &text);
+
+    // Sets the keys of a window from the settings (a window calls this once its commands are made), the first time also noting each command's own keys. Unknown ids,
+    // malformed keys, reserved keys, and more than the cap of entries in the settings are ignored.
+    static void apply(AppWindow *win);
+
+    static constexpr int kMaxEntries = 2000;
+    static constexpr int kMaxKeysPerCommand = 4;
+
+private:
+    AppWindow *m_win;
+    QList<KeyCommand> m_commands;
+    QHash<QString, int> m_index;
+};
+
+} // namespace jp

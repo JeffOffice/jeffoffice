@@ -1,3 +1,4 @@
+#include "app/keymap.h"
 #include "app/writewindow.h"
 #include "core/startuptrace.h"
 
@@ -124,6 +125,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     startupMark("win: actions made");
     buildRibbon();
     startupMark("win: ribbon built");
+    KeyMap::apply(this);   // (the keys the person chose in Options > Customize)
     buildStatusBar();
     describeForScreenReaders(m_view);
     describeForScreenReaders(statusBar());
