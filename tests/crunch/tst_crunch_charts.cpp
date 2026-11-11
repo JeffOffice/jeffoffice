@@ -28,6 +28,8 @@
 #include <QLabel>
 #include <QCheckBox>
 #include <QRandomGenerator>
+#include <QRegularExpression>
+#include <QSvgRenderer>
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QClipboard>
@@ -389,6 +391,73 @@ private Q_SLOTS:
             e.win.w.act(QString::fromLatin1(c.id))->trigger();
             QCOMPARE(e.win.w.objects()->layer()->count(), 1);
             QCOMPARE(int(kindOfChart(chartOf(e))), int(c.kind));
+        }
+    }
+
+    // A chart of text beside text (names and the names turned around) draws no path with a number that is none: every kind, from the cells a person typed.
+    void everyKindOfChartOfTextCellsDrawsOnlyFinitePaths()
+    {
+        const char *ids[] = {"chart.column", "chart.bar.clustered", "chart.line.markers", "chart.pie.doughnut", "chart.area.stacked", "chart.scatter", "chart.scatter.joined", "chart.scatter.smooth", "chart.combo"};
+        for (const char *id : ids) {
+            EditWindow e;
+            QVERIFY(e.openBlank());
+            QVERIFY(e.settle());
+            const char *seed[][2] = {{"A1", "3"}, {"B1", "5"}, {"C1", "=A1+B1"}, {"A2", "1"}, {"B2", "2"}, {"C2", "=A2+B2"}, {"A3", "text"}};
+            for (const auto &c : seed) {
+                e.select(QString::fromLatin1(c[0]));
+                e.enter(QString::fromLatin1(c[1]));
+            }
+            QVERIFY(e.settle());
+            const char *names[] = {"Smith, Ann", "Jones, Bob", "Lee, Cy", "Park, Di"};
+            for (int r = 0; r < 4; ++r) {
+                e.select(QStringLiteral("A%1").arg(r + 1));
+                e.enter(QString::fromLatin1(names[r]));
+            }
+            e.select(QStringLiteral("B1"));
+            e.enter(QStringLiteral("Ann Smith"));
+            e.select(QStringLiteral("B2"));
+            e.enter(QStringLiteral("Bob Jones"));
+            e.select(QStringLiteral("B3"));
+            QVERIFY(e.settle());
+            QVERIFY2(e.win.w.act(QString::fromLatin1(id)) && e.win.w.act(QString::fromLatin1(id))->isEnabled(), id);
+            e.win.w.act(QString::fromLatin1(id))->trigger();
+            QVERIFY2(e.win.w.objects()->layer()->count() == 1, id);
+            const Chart typed = chartOf(e);
+            // the chart as the cells make it, with one series that has nothing to draw, with every value gone, and with values that are infinite
+            for (int variant = 0; variant < 4; ++variant) {
+                Chart c = typed;
+                for (ChartPlot &plot : c.plots)
+                    for (int k = 0; k < plot.series.size(); ++k) {
+                        ChartSeries &s = plot.series[k];
+                        const bool gone = variant == 2 || (variant == 1 && k == plot.series.size() - 1);
+                        for (double &v : s.values) v = gone ? qQNaN() : variant == 3 ? qInf() : v;
+                        for (double &v : s.xValues) v = gone ? qQNaN() : variant == 3 ? -qInf() : v;
+                    }
+                const QString what = QStringLiteral("%1 (variant %2)").arg(QString::fromLatin1(id)).arg(variant);
+                const QByteArray svg = chartSvg(c, QSizeF(480, 288));
+                // every path is one a reader accepts: it has a point, and no number that is none
+                const QRegularExpression paths(QStringLiteral("<path[^>]* d=\"([^\"]*)\""));
+                for (auto it = paths.globalMatch(QString::fromUtf8(svg)); it.hasNext();) {
+                    const QString d = it.next().captured(1);
+                    QVERIFY2(!d.trimmed().isEmpty(), qPrintable(what + QStringLiteral(": a path with no data")));
+                    QVERIFY2(!d.contains(QLatin1String("nan"), Qt::CaseInsensitive) && !d.contains(QLatin1String("inf"), Qt::CaseInsensitive), qPrintable(what + QStringLiteral(": ") + d));
+                }
+                QVERIFY2(!svg.contains("nan"), qPrintable(what));
+                // and the reader says nothing of it
+                static QStringList *heard = nullptr;
+                QStringList told;
+                heard = &told;
+                const QtMessageHandler before = qInstallMessageHandler([](QtMsgType, const QMessageLogContext &, const QString &m) { if (heard) heard->append(m); });
+                {
+                    QSvgRenderer reader(svg);
+                    QImage image(480, 288, QImage::Format_ARGB32);
+                    QPainter painter(&image);
+                    reader.render(&painter);
+                }
+                qInstallMessageHandler(before);
+                heard = nullptr;
+                QVERIFY2(told.isEmpty(), qPrintable(what + QStringLiteral(": Qt warned: ") + told.join(QLatin1Char('|'))));
+            }
         }
     }
 

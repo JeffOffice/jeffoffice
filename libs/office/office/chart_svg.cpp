@@ -251,6 +251,7 @@ private:
     // The markers of a series, one by one while the chart has few, else as one path: the same look, the markers over one another in the order of their points
     // as far as their fill and outline go.
     void drawMarkers(const QVector<QPointF> &at, const QVector<bool> &marked, ChartMarker::Symbol symbol, double size, const QColor &fill, const QColor &line, bool noFill, bool noLine);
+    void drawPathChecked(const QPainterPath &path);
     void strokeThrough(const QVector<QPointF> &pts, const QVector<bool> &present, bool smooth, const QString &blanks);
     // Whether `lines` marks of one kind (gridlines, the marks of an axis) are drawn one by one: so while the chart has few. If not, they are one path.
     bool drawSeparately(int lines);
@@ -541,7 +542,7 @@ void ChartPainter::drawMarkers(const QVector<QPointF> &at, const QVector<bool> &
         m_p->setPen(noLine ? QPen(Qt::NoPen) : QPen(line, 0.75, Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin));
         m_p->setBrush(noFill ? QBrush(Qt::NoBrush) : QBrush(fill));
     }
-    m_p->drawPath(path);
+    drawPathChecked(path);
     m_p->restore();
 }
 
@@ -797,7 +798,7 @@ void ChartPainter::paintPie(const QRectF &area)
             const QColor fill = pointColor(plot, s, i);
             m_p->setPen(s.outline.set ? penFor(s.outline, m_chart.backgroundColor, 0.75) : QPen(Qt::NoPen));
             m_p->setBrush(s.noFill ? QBrush(Qt::NoBrush) : QBrush(fill));
-            m_p->drawPath(path);
+            drawPathChecked(path);
             if (s.labels.shown()) {
                 const QString pos = s.labels.position;
                 const bool out = pos == QLatin1String("outEnd") || ((pos.isEmpty() || pos == QLatin1String("bestFit")) && sweep < 20);
@@ -954,7 +955,7 @@ static QVector<QVector<QPointF>> runsOf(const QVector<QPointF> &pts, const QVect
     QVector<QVector<QPointF>> runs;
     QVector<QPointF> run;
     for (int i = 0; i < pts.size(); ++i) {
-        if (present[i]) {
+        if (present[i] && std::isfinite(pts[i].x()) && std::isfinite(pts[i].y())) {
             run << pts[i];
         } else if (blanks != QLatin1String("span") && !run.isEmpty()) {
             runs << run;
@@ -983,6 +984,18 @@ static void addRun(QPainterPath *path, const QVector<QPointF> &run, bool smooth)
             }
         }
     }
+}
+
+// A path drawn only when it has a place to go and every point of it is a number: a path with none, or with a point that is none (nan or infinite), would be written to the
+// file as data a reader refuses ("Invalid path data"), so it is left out.
+void ChartPainter::drawPathChecked(const QPainterPath &path)
+{
+    if (path.isEmpty()) return;
+    for (int i = 0; i < path.elementCount(); ++i) {
+        const QPainterPath::Element e = path.elementAt(i);
+        if (!std::isfinite(e.x) || !std::isfinite(e.y)) return;
+    }
+    m_p->drawPath(path);
 }
 
 // A series' points in order as a line through them with the pen set: broken at blanks (or not, as the chart says), smoothed when it asks.
@@ -1018,10 +1031,10 @@ void ChartPainter::strokeThrough(const QVector<QPointF> &pts, const QVector<bool
             QPainterPath piece;
             piece.moveTo(run[from]);
             for (int i = from + 1; i <= std::min<int>(from + segments, int(run.size()) - 1); ++i) piece.lineTo(run[i]);
-            m_p->drawPath(piece);
+            drawPathChecked(piece);
         }
     }
-    if (!longRun || !whole.isEmpty()) m_p->drawPath(whole);
+    if (!longRun || !whole.isEmpty()) drawPathChecked(whole);
 }
 
 void ChartPainter::drawBetweenSeries(const View &v, const Scale &scale)
@@ -1644,7 +1657,7 @@ void ChartPainter::paintAxes(const QRectF &outer)
                 }
             }
             m_p->setBrush(Qt::NoBrush);
-            m_p->drawPath(lines);
+            drawPathChecked(lines);
         }
     };
     auto onPage = [&](const QVector<double> &ticks, const Scale &scale, bool horizontal) {
@@ -1708,7 +1721,7 @@ void ChartPainter::paintAxes(const QRectF &outer)
         }
         if (!separate) {
             m_p->setBrush(Qt::NoBrush);
-            m_p->drawPath(marks);
+            drawPathChecked(marks);
         }
     };
     if (scatter) {
