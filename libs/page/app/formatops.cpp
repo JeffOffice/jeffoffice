@@ -43,6 +43,7 @@ bool takesFill(const Item &it)
     case ItemType::Text:
     case ItemType::Picture:
     case ItemType::Shape:
+    case ItemType::Equation:
     case ItemType::TextArt: return true;
     default: return false;
     }

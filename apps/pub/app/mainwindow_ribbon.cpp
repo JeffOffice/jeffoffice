@@ -18,6 +18,9 @@
 #include "app/tableedit.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
+#include "app/equationdialog.h"
+#include "app/equationedit.h"
+#include "wml/wmlmathedit.h"
 #include "app/widgets.h"
 #include "canvas/canvas.h"
 #include "core/fonts.h"
@@ -801,6 +804,15 @@ void MainWindow::ribbonMenuParts(RibbonParts &parts)
         m->addAction(act("biz.logo"));
         m->addSeparator();
         m->addAction(act("ins.bizInfo"));
+        return m;
+    };
+
+    // Equation: the built-in equations, then the dialog.
+    parts.menus[QStringLiteral("equationMenu")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        for (int i = 0; i < office::wml::equationGallery().size(); ++i) m->addAction(act(QStringLiteral("ins.equation.design.%1").arg(i)));
+        m->addSeparator();
+        m->addAction(act("ins.equation"));
         return m;
     };
 

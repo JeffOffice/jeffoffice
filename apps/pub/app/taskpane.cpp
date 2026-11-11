@@ -930,6 +930,7 @@ public:
                 QString words;
                 switch (e->type()) {
                 case ItemType::TextArt: words = static_cast<const TextArtItem *>(e.get())->text; break;
+                case ItemType::Equation: words = static_cast<const EquationItem *>(e.get())->linear; break;
                 case ItemType::Text: words = storyWords(static_cast<const TextItem *>(e.get())->storyId); break;
                 case ItemType::Shape: words = storyWords(static_cast<const ShapeItem *>(e.get())->storyId); break;
                 case ItemType::Table:

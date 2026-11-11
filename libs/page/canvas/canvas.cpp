@@ -1308,7 +1308,7 @@ QString Canvas::itemAt(const QPointF &page, bool enterGroups, int *row, int *col
             st.setWidth(tol * 2 + s->stroke.width);
             return st.createStroke(path).contains(local) || (!s->storyId.isEmpty() && r.contains(local) && false);
         }
-        if (it->type() == ItemType::TextArt) {
+        if (it->type() == ItemType::TextArt || it->type() == ItemType::Equation) {
             // TextArt is easy to grab anywhere in its frame.
             return r.adjusted(-tol, -tol, tol, tol).contains(local);
         }
@@ -2685,6 +2685,7 @@ void Canvas::mouseDoubleClickEvent(QMouseEvent *e)
         else Q_EMIT pictureTabWanted();
         break;
     case ItemType::TextArt: Q_EMIT editTextArtWanted(it->id); break;
+    case ItemType::Equation: Q_EMIT editEquationWanted(it->id); break;
     case ItemType::Group: {
         if (isBarcode(it)) {
             m_ed->select(it->id);
@@ -3059,6 +3060,7 @@ void Canvas::keyPressEvent(QKeyEvent *e)
             return;
         }
         if (Item *it = m_ed->single(); it && it->type() == ItemType::TextArt) Q_EMIT editTextArtWanted(it->id);
+        if (Item *it = m_ed->single(); it && it->type() == ItemType::Equation) Q_EMIT editEquationWanted(it->id);
         return;
     case Qt::Key_PageDown:
         if (ctrl) { m_ed->setCurrentPage(m_ed->currentPage() + 1); return; }

@@ -129,6 +129,7 @@
         {"widget": "textArtButton", "keytip": "WA"},
         {"small": "ins.file", "keytip": "IF"},
         {"small": "ins.symbol", "keytip": "SY", "split": true, "menu": "@symbolMenu"},
+        {"small": "ins.equation", "keytip": "EQ", "split": true, "menu": "@equationMenu"},
         {"small": "ins.datetime", "keytip": "DT"},
         {"small": "ins.object", "keytip": "OB"}
       ]},

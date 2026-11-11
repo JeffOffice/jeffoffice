@@ -164,6 +164,11 @@ void Book::item(const Item &it)
         if (!text.isEmpty()) current().body += QStringLiteral("<p class=\"art\">%1</p>\n").arg(xml(text));
         break;
     }
+    case ItemType::Equation: {
+        const QString line = static_cast<const EquationItem &>(it).linear.trimmed();
+        if (!line.isEmpty()) current().body += QStringLiteral("<p class=\"equation\">%1</p>\n").arg(xml(line));
+        break;
+    }
     default: break;   // lines and plain shapes are decoration
     }
 }

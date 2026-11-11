@@ -67,6 +67,10 @@ PdfTag PageTagger::tagOf(const Item &it) const
         tag.type = QStringLiteral("Figure");
         tag.alt = it.altText.trimmed().isEmpty() ? static_cast<const TextArtItem &>(it).text : it.altText.trimmed();
         break;
+    case ItemType::Equation:
+        tag.type = QStringLiteral("Formula");
+        tag.alt = it.altText.trimmed().isEmpty() ? static_cast<const EquationItem &>(it).linear : it.altText.trimmed();
+        break;
     case ItemType::Group:
         tag.type = it.altText.trimmed().isEmpty() ? QStringLiteral("Div") : QStringLiteral("Figure");
         tag.alt = it.altText.trimmed();

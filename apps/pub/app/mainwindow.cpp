@@ -33,6 +33,9 @@
 #include "app/ribbonbuilder.h"
 #include "app/privacy.h"
 #include "app/settings.h"
+#include "app/equationdialog.h"
+#include "app/equationedit.h"
+#include "wml/wmlmathedit.h"
 #include "app/taskpane.h"
 #include "app/telemetry.h"
 #include "app/widgets.h"
@@ -187,6 +190,7 @@ MainWindow::MainWindow(QWidget *parent) : AppWindow(parent)
     connect(m_canvas, &Canvas::contextMenuWanted, this, &MainWindow::contextMenu);
     connect(m_canvas, &Canvas::insertPictureWanted, this, [this](const QString &id) { insertPictureFromFile(id); });
     connect(m_canvas, &Canvas::editTextArtWanted, this, &MainWindow::editTextArt);
+    connect(m_canvas, &Canvas::editEquationWanted, this, &MainWindow::editEquation);
     connect(m_canvas, &Canvas::editBarcodeWanted, this, [this] { barcodeDialog(this, m_ed); });
     connect(m_canvas, &Canvas::tabsDialogWanted, this, [this] { paragraphDialog(this, m_ed, 2); });
     connect(m_canvas, &Canvas::openFileWanted, this, [this](const QString &f) { if (maybeSave()) openFile(f); });
@@ -1890,6 +1894,33 @@ void MainWindow::insertFiles(const QStringList &paths, const QPointF &atIn, Pict
 }
 
 void MainWindow::editTextArt(const QString &id) { textArtTextDialog(this, m_ed, id); }
+
+// Insert > Equation: the line is typed in the dialog the other programs have, and the equation is put in the middle of the page.
+void MainWindow::insertEquationDialog()
+{
+    // (an equation that is selected by itself is changed)
+    if (Item *one = m_ed->single(); one && one->type() == ItemType::Equation) {
+        editEquation(one->id);
+        return;
+    }
+    QString line;
+    if (!askEquation(this, tr("Insert Equation"), &line)) return;
+    if (jp::insertEquation(m_ed, line).isEmpty()) statusBar()->showMessage(tr("An equation can't be put here."), 6000);
+}
+
+// An equation that was typed in a line is changed in the same dialog; one a file brought, which no line makes, is changed only by putting in another.
+void MainWindow::editEquation(const QString &id)
+{
+    auto *w = dynamic_cast<EquationItem *>(m_ed->doc()->item(id));
+    if (!w) return;
+    if (w->linear.isEmpty()) {
+        statusBar()->showMessage(tr("This equation can't be changed here."), 6000);
+        return;
+    }
+    QString line = w->linear;
+    if (!askEquation(this, tr("Edit Equation"), &line)) return;
+    if (!changeEquation(m_ed, id, line) && w->linear != line.trimmed()) statusBar()->showMessage(tr("This equation can't be changed."), 6000);
+}
 
 // ---------------- context menu ----------------
 void MainWindow::contextMenu(const QPoint &global)

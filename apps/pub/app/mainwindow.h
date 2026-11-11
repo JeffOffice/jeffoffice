@@ -191,6 +191,8 @@ public:
     void insertFiles(const QStringList &paths, const QPointF &at, PictureInsert how = PictureInsert::Embed);
     void changePictureLink(const QString &pictureId);
     void editTextArt(const QString &id);
+    void insertEquationDialog();
+    void editEquation(const QString &id);
     void refreshUi();
     void screenshotTo(const QString &path);
 

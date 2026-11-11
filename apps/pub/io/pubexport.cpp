@@ -1497,7 +1497,7 @@ QByteArray PubWriter::write(QStringList *skipped)
     int textId = 2;
     int spid = 0x401;
     QHash<QString, quint32> spidOf;   // item -> its drawing shape id, for connector rules
-    int skippedCount = 0, droppedFormats = 0, droppedCells = 0, droppedHalves = 0, chartPictures = 0;
+    int skippedCount = 0, equationsAsPictures = 0, droppedFormats = 0, droppedCells = 0, droppedHalves = 0, chartPictures = 0;
     const double cx = ps.width() / 2, cy = ps.height() / 2;
     auto anchor = [&](const QRectF &r) {
         return clientBlocks(0xf010, {u32(0x01, quint32(qint32(emu(r.left() - cx)))), u32(0x02, quint32(qint32(emu(r.top() - cy)))),
@@ -2185,6 +2185,37 @@ QByteArray PubWriter::write(QStringList *skipped)
                 finish(seq, sp);
                 return;
             }
+            if (it->type() == ItemType::Equation) {
+                // A .pub file has no equation: it is saved as a picture of it (300 dots to the inch at most), in its place and size.
+                auto *eq = static_cast<const EquationItem *>(it.get());
+                const QPainterPath outline = Renderer::equationOutline(*eq);
+                const double dpi = std::min(300.0, 4000.0 / std::max(1.0, std::max(eq->rect.width(), eq->rect.height())) * 72);
+                const QSize px = (eq->rect.size() * dpi / 72).toSize().expandedTo(QSize(1, 1));
+                if (outline.isEmpty() || eq->fill.isNone()) {
+                    ++skippedCount;
+                    return;
+                }
+                QImage img(px, QImage::Format_ARGB32);
+                img.fill(Qt::transparent);
+                QPainter ip(&img);
+                ip.setRenderHint(QPainter::Antialiasing);
+                ip.scale(px.width() / eq->rect.width(), px.height() / eq->rect.height());
+                ip.fillPath(outline, QBrush(eq->fill.color.resolve(m_doc.colors)));
+                ip.end();
+                QByteArray png;
+                QBuffer buf(&png);
+                buf.open(QIODevice::WriteOnly);
+                img.save(&buf, "PNG");
+                auto pic = std::make_shared<PictureItem>();
+                static_cast<Item &>(*pic) = static_cast<const Item &>(*eq);
+                pic->imageId = extraImage(png, 6);
+                pic->imgRect = QRectF(QPointF(0, 0), eq->rect.size());
+                pic->fill = Fill();
+                pic->stroke = Stroke::none();
+                ++equationsAsPictures;
+                visit(pic);
+                return;
+            }
             if (it->type() == ItemType::TextArt) {
                 // Publisher's Text Art: a shape whose number is the warp, with
                 // the words, font, size, spacing and alignment as properties.
@@ -2344,6 +2375,7 @@ QByteArray PubWriter::write(QStringList *skipped)
     }
     if (skipped && skippedCount) *skipped << QCoreApplication::translate("Export", "%n object(s) couldn't be saved to .pub", nullptr, skippedCount);
     if (skipped && chartPictures) *skipped << QCoreApplication::translate("Export", "charts were saved as pictures, so their data can't be edited in a .pub file");
+    if (skipped && equationsAsPictures) *skipped << QCoreApplication::translate("Export", "%n equation(s) saved to .pub as pictures", nullptr, equationsAsPictures);
     if (skipped && droppedCells) *skipped << QCoreApplication::translate("Export", "%n table cell(s) couldn't be saved to .pub", nullptr, droppedCells);
     if (skipped && droppedHalves)
         *skipped << QCoreApplication::translate("Export", "the second half of %n divided table cell(s) couldn't be saved to .pub", nullptr, droppedHalves);

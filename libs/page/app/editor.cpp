@@ -308,6 +308,7 @@ QString Editor::selectionKind() const
     case ItemType::Table: return QStringLiteral("table");
     case ItemType::TextArt: return QStringLiteral("textart");
     case ItemType::Group: return QStringLiteral("group");
+    case ItemType::Equation: return QStringLiteral("equation");
     }
     return {};
 }

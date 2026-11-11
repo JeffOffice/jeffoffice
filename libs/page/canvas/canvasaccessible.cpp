@@ -89,6 +89,10 @@ QString PageObjectAccessible::text(QAccessible::Text t) const
             const auto *tb = static_cast<const TableItem *>(it);
             return QCoreApplication::translate("Canvas", "Table, %1 rows by %2 columns").arg(tb->rows).arg(tb->cols);
         }
+        case ItemType::Equation: {
+            const QString line = static_cast<const EquationItem *>(it)->linear;
+            return line.isEmpty() ? QCoreApplication::translate("Canvas", "Equation") : QCoreApplication::translate("Canvas", "Equation: %1").arg(shortText(line));
+        }
         case ItemType::TextArt: return QCoreApplication::translate("Canvas", "Text art: %1").arg(shortText(static_cast<const TextArtItem *>(it)->text));
         case ItemType::Group: {
             // (Counted first: a cast inside the call makes lupdate loop forever.)

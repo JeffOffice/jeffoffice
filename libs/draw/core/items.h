@@ -17,7 +17,7 @@
 
 namespace jp {
 
-enum class ItemType { Text, Picture, Shape, Line, Table, TextArt, Group };
+enum class ItemType { Text, Picture, Shape, Line, Table, TextArt, Group, Equation };
 QString itemTypeName(ItemType t);
 
 enum class VAlign { Top, Middle, Bottom };
@@ -346,6 +346,22 @@ public:
     QString transform_ = QStringLiteral("plain");
     double transformAdj = 0.5;
     QString styleId;            // gallery style it came from
+
+    QJsonObject toJson() const override;
+    void fromJson(const QJsonObject &o) override;
+};
+
+// An equation: the math markup of an m:oMath (ECMA-376 part 1, chapter 22), drawn in two dimensions as outlines in the item's fill, stretched to the frame. `linear` is the line it was
+// typed as (what Insert > Equation edits), empty for markup that no line makes (an equation a file brought); the markup is what is kept. The layout is libs/office/wml/wmlmathpath.h.
+class EquationItem : public Item {
+public:
+    EquationItem();
+    ItemType type() const override { return ItemType::Equation; }
+    ItemPtr clone() const override;
+
+    QString linear;
+    QByteArray markup;
+    double size = 24;           // the height of the letters, in points, before the frame is sized
 
     QJsonObject toJson() const override;
     void fromJson(const QJsonObject &o) override;

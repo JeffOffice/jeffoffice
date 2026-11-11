@@ -136,6 +136,9 @@ public:
     // to a polygon of a few dozen points in frame-local coordinates.
     static QPolygonF defaultWrapPolygon(const Document &doc, const Item &it);
     static QPainterPath textArtOutline(const TextArtItem &w);
+    // An equation's outlines, in the frame's own coordinates: the layout of its markup (wml/wmlmathpath.h) stretched to the frame. The size the layout is at (its letters' height)
+    // is the item's `size`; the natural size of the equation at it, in points, is `natural` if given.
+    static QPainterPath equationOutline(const EquationItem &w, QSizeF *natural = nullptr);
     // How many Text Art outlines, and how many pictures of a long one, have been made on this thread since the program began (both are kept): counts for tests of cost.
     static qint64 textArtOutlinesMadeForTest();
     static qint64 textArtPicturesMadeForTest();

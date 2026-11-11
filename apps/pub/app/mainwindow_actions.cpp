@@ -23,6 +23,9 @@
 #include "app/ribbon.h"
 #include "app/icons.h"
 #include "app/settings.h"
+#include "app/equationdialog.h"
+#include "app/equationedit.h"
+#include "wml/wmlmathedit.h"
 #include "app/taskpane.h"
 #include "canvas/canvas.h"
 #include "render/shapes.h"
@@ -297,6 +300,11 @@ void MainWindow::createActions()
     mk("ins.bizInfo", tr("Edit Business Information…"), "contact", QKeySequence(), [this] { businessInfoDialog(this, m_ed); });
     mk("ins.file", tr("Insert File"), "file-input", QKeySequence(), [this] { insertFileDialog(this, m_ed); });
     mk("ins.symbol", tr("Symbol"), "omega", QKeySequence(), [this] { symbolDialog(this, m_ed); });
+    mk("ins.equation", tr("Equation…"), "square-pi", QKeySequence(QStringLiteral("Alt+=")), [this] { insertEquationDialog(); });
+    for (int i = 0; i < office::wml::equationGallery().size(); ++i)
+        mk(QStringLiteral("ins.equation.design.%1").arg(i), office::wml::equationGallery().at(i).name, "square-pi", QKeySequence(), [this, i] {
+            if (jp::insertEquation(m_ed, office::wml::equationGallery().at(i).linear).isEmpty()) statusBar()->showMessage(tr("An equation can't be put here."), 6000);
+        });
     mk("ins.barcode", tr("Barcode"), "barcode", QKeySequence(), [this] { barcodeDialog(this, m_ed); });
     mk("ins.icons", tr("Icons"), "smile-plus", QKeySequence(), [this] { insertIcons(m_ed, pickIcons(this)); });
     mk("ins.toc", tr("Table of Contents"), "table-of-contents", QKeySequence(), [this] { insertTableOfContents(m_ed); });

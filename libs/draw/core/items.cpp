@@ -31,11 +31,12 @@ QString itemTypeName(ItemType t)
     case ItemType::Table: return QCoreApplication::translate("Core", "Table");
     case ItemType::TextArt: return QCoreApplication::translate("Core", "Text Art");
     case ItemType::Group: return QCoreApplication::translate("Core", "Group");
+    case ItemType::Equation: return QCoreApplication::translate("Core", "Equation");
     }
     return {};
 }
 
-static const char *kTypeKeys[] = {"text", "picture", "shape", "line", "table", "textart", "group"};
+static const char *kTypeKeys[] = {"text", "picture", "shape", "line", "table", "textart", "group", "equation"};
 
 static QJsonArray rectJson(const QRectF &r) { return {r.x(), r.y(), r.width(), r.height()}; }
 // Geometry from a file is kept within 1,000,000 points (about 350 m) and
@@ -58,7 +59,7 @@ static QMarginsF marginsFrom(const QJsonValue &v, const QMarginsF &def)
 }
 
 // ---------- Item ----------
-bool Item::lockAspectByDefault(ItemType t) { return t == ItemType::Picture || t == ItemType::TextArt; }
+bool Item::lockAspectByDefault(ItemType t) { return t == ItemType::Picture || t == ItemType::TextArt || t == ItemType::Equation; }
 
 QTransform Item::transform() const
 {
@@ -175,6 +176,7 @@ ItemPtr Item::create(ItemType t)
     case ItemType::Table: return std::make_shared<TableItem>();
     case ItemType::TextArt: return std::make_shared<TextArtItem>();
     case ItemType::Group: return std::make_shared<GroupItem>();
+    case ItemType::Equation: return std::make_shared<EquationItem>();
     }
     return nullptr;
 }
@@ -182,7 +184,7 @@ ItemPtr Item::create(ItemType t)
 ItemPtr Item::fromJsonAny(const QJsonObject &o)
 {
     const QString t = o["type"].toString();
-    for (int i = 0; i < 7; ++i)
+    for (int i = 0; i < 8; ++i)
         if (t == QLatin1String(kTypeKeys[i])) {
             auto it = create(ItemType(i));
             it->fromJson(o);
@@ -910,6 +912,39 @@ void TextArtItem::fromJson(const QJsonObject &o)
     transform_ = o["transform"].toString(QStringLiteral("plain"));
     transformAdj = o["adj"].toDouble(0.5);
     styleId = o["style"].toString();
+}
+
+// ---------- EquationItem ----------
+EquationItem::EquationItem()
+{
+    fill = Fill::solid(ColorRef::scheme(Main));
+    stroke = Stroke::none();
+    wrap.mode = Wrap::Square;
+    lockAspect = true;
+}
+
+ItemPtr EquationItem::clone() const
+{
+    auto c = std::make_shared<EquationItem>(*this);
+    c->copyBase(*this);
+    return c;
+}
+
+QJsonObject EquationItem::toJson() const
+{
+    QJsonObject o = Item::toJson();
+    if (!linear.isEmpty()) o["linear"] = linear;
+    o["markup"] = QString::fromUtf8(markup);
+    o["size"] = size;
+    return o;
+}
+
+void EquationItem::fromJson(const QJsonObject &o)
+{
+    Item::fromJson(o);
+    linear = o["linear"].toString();
+    markup = o["markup"].toString().left(1 << 20).toUtf8();
+    size = std::clamp(o["size"].toDouble(24), 1.0, 1000.0);
 }
 
 // ---------- GroupItem ----------

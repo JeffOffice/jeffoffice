@@ -24,7 +24,7 @@ QSizeF nativeSize(FormatPane *pane, const PictureItem &p)
 
 bool takesRotation(const Item &it)
 {
-    return it.type() == ItemType::Text || it.type() == ItemType::Picture || it.type() == ItemType::Shape || it.type() == ItemType::TextArt;
+    return it.type() == ItemType::Text || it.type() == ItemType::Picture || it.type() == ItemType::Shape || it.type() == ItemType::TextArt || it.type() == ItemType::Equation;
 }
 
 // Objects with text of their own that the text options reach: text boxes and shapes.

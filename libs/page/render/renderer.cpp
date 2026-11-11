@@ -10,6 +10,7 @@
 #include "core/fonts.h"
 #include "core/svg.h"
 #include "core/texteffects.h"
+#include "wml/wmlmathpath.h"
 
 #include <QCache>
 #include <QColorSpace>
@@ -577,6 +578,33 @@ QPainterPath Renderer::textArtOutline(const TextArtItem &w)
     QPainterPath path = textArtPath(w, w.rect.size());
     cache.insert(key, new QPainterPath(path), 1 + int(path.elementCount() / 8));
     return path;
+}
+
+QPainterPath Renderer::equationOutline(const EquationItem &w, QSizeF *natural)
+{
+    jp::threadcheck::guiOnlyCache();
+    struct Laid {
+        QPainterPath path;
+        QSizeF size;
+    };
+    static QCache<QString, Laid> cache(40000);
+    const QString key = QString::fromUtf8(w.markup) + QStringLiteral("|%1").arg(w.size);
+    Laid *laid = cache.object(key);
+    Laid held;
+    if (!laid) {
+        const office::wml::EquationShape shape = office::wml::equationShape(w.markup, w.size);
+        held = Laid{shape.path, shape.box.size()};
+        laid = &held;
+        cache.insert(key, new Laid(held), 1 + int(held.path.elementCount() / 8));
+    }
+    if (natural) *natural = laid->size;
+    if (laid->size.isEmpty() || w.rect.isEmpty()) return QPainterPath();
+    // The equation keeps its proportions in a frame of any shape: as large as fits, in the middle.
+    const double k = std::min(w.rect.width() / laid->size.width(), w.rect.height() / laid->size.height());
+    QTransform t;
+    t.translate((w.rect.width() - laid->size.width() * k) / 2, (w.rect.height() - laid->size.height() * k) / 2);
+    t.scale(k, k);
+    return t.map(laid->path);
 }
 
 QPainterPath Renderer::silhouette(const Document &doc, const Item &it)
@@ -1207,6 +1235,14 @@ static void paintTextArt(QPainter *p, const PaintContext &ctx, const TextArtItem
     Renderer::strokePath(p, path, s, cs);
 }
 
+static void paintEquation(QPainter *p, const PaintContext &ctx, const EquationItem &w)
+{
+    const ColorScheme &cs = ctx.doc->colors;
+    const QPainterPath path = Renderer::equationOutline(w);
+    if (!w.fill.isNone()) p->fillPath(path, w.fill.brush(QRectF(QPointF(0, 0), w.rect.size()), cs, lookupFor(*ctx.doc)));
+    Renderer::strokePath(p, path, w.stroke, cs);
+}
+
 static void paintContent(QPainter *p, const PaintContext &ctx, const Item &it)
 {
     switch (it.type()) {
@@ -1215,6 +1251,7 @@ static void paintContent(QPainter *p, const PaintContext &ctx, const Item &it)
     case ItemType::Shape: paintShape(p, ctx, static_cast<const ShapeItem &>(it)); break;
     case ItemType::Table: paintTable(p, ctx, static_cast<const TableItem &>(it)); break;
     case ItemType::TextArt: paintTextArt(p, ctx, static_cast<const TextArtItem &>(it)); break;
+    case ItemType::Equation: paintEquation(p, ctx, static_cast<const EquationItem &>(it)); break;
     default: break;
     }
 }

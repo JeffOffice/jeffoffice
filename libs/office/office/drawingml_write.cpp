@@ -1362,6 +1362,8 @@ void writeShape(QXmlStreamWriter &w, const Item &item, DrawingWriteContext &ctx,
     case ItemType::TextArt:
         writeTextArt(w, static_cast<const TextArtItem &>(item), ctx);
         break;
+    case ItemType::Equation:   // (kept by JeffPub's own file and drawn by the programs that make one: no drawing is written for it here)
+        break;
     }
 }
 
