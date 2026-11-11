@@ -299,6 +299,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_ods.cpp
   tests/sheet/tst_sheet_odsformula.cpp
   tests/sheet/tst_sheet_odshostile.cpp
+  tests/sheet/tst_sheet_odsdraw.cpp
   tests/sheet/tst_sheet_csv.cpp
   tests/sheet/tst_sheet_csvchoices.cpp
   tests/sheet/tst_sheet_csvhostile.cpp
