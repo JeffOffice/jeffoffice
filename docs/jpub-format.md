@@ -124,7 +124,7 @@ abbreviation), `twoPage` (a two-page master), and `grid`, its layout guides:
 ### Objects
 
 Every object is a JSON object with a `type`: `text`, `picture`, `shape`,
-`line`, `table`, `textart`, or `group`. All of them have:
+`line`, `table`, `textart`, `equation`, or `group`. All of them have:
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
@@ -247,6 +247,18 @@ not 18), and `border`, with a [line](#lines) for each side present: `t`, `b`,
 | `style` | The Text Art style it was made with |
 
 Its fill, outline, and effects are the object's own `fill`, `stroke`, and `fx`.
+
+#### equation
+
+An equation made by Insert > Equation, drawn as outlines and stretched (keeping its proportions) into the frame.
+
+| Key | Meaning |
+|---|---|
+| `markup` | The equation as math markup: an `m:oMath` element (ECMA-376 part 1, chapter 22) as XML text, declaring its own `m` namespace. This is what is drawn. At most 1 MB; a longer one is cut when the file is read |
+| `linear` | The line it was typed as (`a/b`, `x^2`, `\sqrt(x)`, `\sum_(i=1)^n`), which Insert > Equation edits; left out for math that no line makes (an equation a file brought), which is changed only by typing a new one |
+| `size` | The height of its letters in points before the frame is sized (24 when absent; 1 to 1,000) |
+
+Its color is the object's `fill` (a solid fill, the text color of the color scheme when new). The drawing nests at most 24 deep, holds at most 4,000 characters of text and 50,000 elements, and leaves out what is past that. A reader that does not know `equation` leaves the object out. Saving as `.pub` writes a picture of the equation in its place, because that format has no equations.
 
 #### group
 

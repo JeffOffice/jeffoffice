@@ -20,6 +20,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Bullets, numbering, and tabs](lists-tabs)
 - [Use styles](styles)
 - [Add Text Art](text-art)
+- [Add an equation](equations)
 - [Make and edit tables](tables)
 - [Contents, footnotes, and endnotes](references)
 - [Spelling, thesaurus, research, and hyphenation](proofing)

@@ -1840,6 +1840,8 @@
     <file alias="en/tab-view.md">help/en/tab-view.md</file>
     <file alias="en/tables.md">help/en/tables.md</file>
     <file alias="en/text-art.md">help/en/text-art.md</file>
+    <file alias="en/equations.md">help/en/equations.md</file>
+    <file alias="en/crunch/equations.md">help/en/crunch/equations.md</file>
     <file alias="en/text-boxes.md">help/en/text-boxes.md</file>
     <file alias="en/window.md">help/en/window.md</file>
     <file alias="en/wrap.md">help/en/wrap.md</file>
