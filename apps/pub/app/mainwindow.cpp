@@ -564,6 +564,7 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
         return false;
     }
     if (doc->props.title.isEmpty()) doc->props.title = QFileInfo(path).completeBaseName();
+    const int chartsAsPictures = doc->chartsKeptAsPictures;
     setReadOnly(false);
     // (a copy of a protected publication is protected too)
     crypto::wipe(m_filePassword);
@@ -596,6 +597,8 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
     }
     if (fromPub && !rep.warnings.isEmpty())
         statusBar()->showMessage(tr("Opened .pub file. %1").arg(rep.warnings.first()), 8000);
+    if (chartsAsPictures > 0)
+        statusBar()->showMessage(tr("A file holds only so many charts that can be changed, so the charts past them (%1 in all) are kept as pictures only.").arg(chartsAsPictures), 12000);
     return true;
 }
 

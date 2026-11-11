@@ -22,6 +22,10 @@ constexpr qint64 kMostChartObjectPoints = 400000;
 
 // The theme a chart is colored by in this document: the document's colors in the slots they stand for.
 office::Theme chartThemeOf(const Document &doc);
+// The look a chart read from a file is read with (PictureItem::chartLook): the theme's colors and fonts and the color map of the master it is on.
+QJsonObject chartLookOf(const office::Theme &theme, const office::ColorMap &colors);
+// The theme a picture's chart is read and made with: its own look when a file gave one, else the document's colors.
+office::Theme chartThemeOfPicture(const Document &doc, const PictureItem &pic);
 // Whether the chart is within what a chart object is kept as (series and points).
 bool chartIsWithinLimits(const office::Chart &chart);
 // The chart a picture holds; false for a picture that is no chart or whose part can't be read or is past the limits.
@@ -32,11 +36,16 @@ bool setChartOf(Document &doc, PictureItem &pic, const office::Chart &chart, con
 std::shared_ptr<PictureItem> makeChartObject(Document &doc, office::sheet::ChartForm form, const office::sheet::ChartData &data, const QRectF &rect);
 // What the chart of a picture says of itself (not valid for no chart).
 office::sheet::ChartInfo chartInfoOfPicture(const Document &doc, const PictureItem &pic);
+// How many times a chart was read to say what it is (not found among the ones already said), on this thread since the program began: a count for tests of cost.
+qint64 chartInfosMadeForTest();
 // Changes the chart of the picture: `edit` changes the model and says whether it did; the picture is drawn again and keeps the new part. False if nothing changed.
 bool changeChartOf(Document &doc, PictureItem &pic, const std::function<bool(office::Chart &)> &edit);
 // Draws again the charts (on every page, master, and the scratch area) whose frames are another size than they were drawn at. True if any was.
 bool redrawResizedCharts(Document &doc);
 // Takes the chart part off every picture past what a file holds (the picture stays): the most charts, and the most bytes of one and of all. For a document just read.
-void limitChartsRead(Document &doc);
+// Returns how many were taken off.
+int limitChartsRead(Document &doc);
+// How many pictures of the document hold a chart.
+int chartObjectsIn(const Document &doc);
 
 } // namespace jp

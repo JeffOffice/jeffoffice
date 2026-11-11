@@ -707,6 +707,7 @@ private:
     QHash<QString, QVector<QPair<QSizeF, ChartDrawing>>> m_chartSizes;   // what was drawn of each, by size
     int m_chartsDrawn = 0;                        // the charts drawn so far, those that couldn't be too
     bool m_chartsRanOut = false;
+    int m_chartsPastLimit = 0;                    // charts kept as pictures only because the file holds more of them (or their parts) than a file keeps as charts
     int m_chartObjects = 0;                       // the charts kept as charts that can be changed, and the bytes of their parts
     qint64 m_chartObjectBytes = 0;
     qint64 m_keptNodes = 0, m_keptXmlBytes = 0;    // what the XML kept as written comes to, in all
@@ -781,6 +782,8 @@ void Importer::sayWhatRanOut()
     if (m_budget.longBody) note(QCoreApplication::translate("PptxImport", "Some text is longer than a text box is read to, so the rest of it is left out."));
     if (m_keptRanOut)
         note(QCoreApplication::translate("PptxImport", "The file holds more than %1 MB of animation, transition, and other settings in all; what is past that is left out.").arg(kMaxKeptXmlBytes >> 20));
+    if (m_chartsPastLimit > 0)
+        note(QCoreApplication::translate("PptxImport", "The file holds more charts than can be changed in one file (%1, or %2 MB of them), so the charts past them (%3 in all) are kept as pictures only.").arg(office::sheet::kMostChartsInFile).arg(office::sheet::kMostChartBytesInFile >> 20).arg(m_chartsPastLimit));
     if (m_chartsRanOut)
         note(QCoreApplication::translate("PptxImport", "The file holds more than %1 charts in all; the rest are kept as written, not shown.").arg(kMaxChartDrawings));
     if (m_diagramsRanOut)
@@ -1359,7 +1362,10 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
             m_chartObjectBytes += bytes.size();
             pic->chartXml = bytes;
             pic->chartSize = rect.size();
+            pic->chartLook = chartLookOf(sc.ctx.theme, sc.ctx.colors);
             pic->lockAspect = false;
+        } else {
+            ++m_chartsPastLimit;
         }
     }
     if (drawn->coarser) note(QCoreApplication::translate("PptxImport", "The chart \"%1\" has more points than a picture of it can show, so its picture is drawn from some of them.").arg(pic->name));

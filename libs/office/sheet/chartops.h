@@ -4,6 +4,7 @@
 // processor, the presentation program, and the publishing program all make and change their charts with these, so a chart means the same wherever it is; each keeps the chart part
 // (chart_write.h) its own way and draws it with chartSvg.
 
+#include "core/items.h"
 #include "office/chart.h"
 #include "office/theme.h"
 #include "sheet/chartmake.h"
@@ -28,7 +29,7 @@ constexpr int kMostChartCategories = 200, kMostChartSeries = 24;
 // The most charts one file holds as charts (a chart past it is kept as the picture it is drawn as: the same as the most charts a presentation is read with), the most bytes of a
 // chart part kept for one, and the most the parts of one file come to.
 constexpr int kMostChartsInFile = 300;
-constexpr qint64 kMostChartPartBytes = 2 << 20, kMostChartBytesInFile = 16 << 20;
+constexpr qint64 kMostChartPartBytes = jp::kMaxChartPartBytes, kMostChartBytesInFile = 16 << 20;
 // Three categories and two series, to begin with.
 ChartData sampleChartData();
 // Whether the data can be a chart: some of each, no more than the most, a number for each category of each series, and numbers that are numbers.

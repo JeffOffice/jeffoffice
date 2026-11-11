@@ -17,6 +17,10 @@ namespace jp {
 QString insertChart(Editor *ed, office::sheet::ChartForm form)
 {
     if (!ed || !ed->doc() || ed->readOnly()) return QString();
+    if (chartObjectsIn(*ed->doc()) >= office::sheet::kMostChartsInFile) {
+        Q_EMIT ed->status(QCoreApplication::translate("jp::ChartDialogs", "This file already holds the most charts it can (%1), so no chart was added.").arg(office::sheet::kMostChartsInFile));
+        return QString();
+    }
     ed->endTextEdit();
     const QSizeF page = ed->surfaceSize();
     const double w = std::min(360.0, page.width() * 0.8), h = std::min(216.0, page.height() * 0.8);

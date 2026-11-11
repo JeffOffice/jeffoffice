@@ -63107,4 +63107,174 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Initialen (die Buchstaben werden als normale Buchstaben gespeichert)</translation>
     </message>
 </context>
+<context>
+    <name>jp::ChartDialogs</name>
+    <message>
+        <source>Chart Title</source>
+        <translation type="unfinished">Diagrammtitel</translation>
+    </message>
+    <message>
+        <source>Words for the title of the chart:</source>
+        <translation type="unfinished">Wörter für den Titel des Diagramms:</translation>
+    </message>
+    <message>
+        <source>Title of the Axis of Values</source>
+        <translation type="unfinished">Titel der Werteachse</translation>
+    </message>
+    <message>
+        <source>Title of the Axis of Categories</source>
+        <translation type="unfinished">Titel der Kategorienachse</translation>
+    </message>
+    <message>
+        <source>Words for the title of the axis (leave empty for none):</source>
+        <translation type="unfinished">Text für den Achsentitel (leer lassen für keinen):</translation>
+    </message>
+    <message>
+        <source>Chart Data</source>
+        <translation type="unfinished">Diagrammdaten</translation>
+    </message>
+    <message>
+        <source>Add Row</source>
+        <translation type="unfinished">Zeile hinzufügen</translation>
+    </message>
+    <message>
+        <source>Add Column</source>
+        <translation type="unfinished">Spalte hinzufügen</translation>
+    </message>
+    <message>
+        <source>Remove Last Row</source>
+        <translation type="unfinished">Letzte Zeile entfernen</translation>
+    </message>
+    <message>
+        <source>Remove Last Column</source>
+        <translation type="unfinished">Letzte Spalte entfernen</translation>
+    </message>
+    <message>
+        <source>Row %1 has a cell that is not a number, so the data was not changed.</source>
+        <translation type="unfinished">Zeile %1 enthält eine Zelle, die keine Zahl ist, daher wurden die Daten nicht geändert.</translation>
+    </message>
+    <message>
+        <source>The first column holds the words under the points. The first row holds the names of the series. The other cells are numbers.</source>
+        <translation type="unfinished">Die erste Spalte enthält die Wörter unter den Punkten. Die erste Zeile enthält die Namen der Reihen. Die übrigen Zellen sind Zahlen.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::ChartActions</name>
+    <message>
+        <source>Column</source>
+        <translation type="unfinished">Spalte</translation>
+    </message>
+    <message>
+        <source>Stacked Column</source>
+        <translation type="unfinished">Gestapelte Säulen</translation>
+    </message>
+    <message>
+        <source>100% Stacked Column</source>
+        <translation type="unfinished">100%-Gestapelte Säulen</translation>
+    </message>
+    <message>
+        <source>Bar</source>
+        <translation type="unfinished">Balken</translation>
+    </message>
+    <message>
+        <source>Stacked Bar</source>
+        <translation type="unfinished">Gestapelte Balken</translation>
+    </message>
+    <message>
+        <source>Line</source>
+        <translation type="unfinished">Linie</translation>
+    </message>
+    <message>
+        <source>Line with Markers</source>
+        <translation type="unfinished">Linie mit Markierungen</translation>
+    </message>
+    <message>
+        <source>Pie</source>
+        <translation type="unfinished">Kreis</translation>
+    </message>
+    <message>
+        <source>Doughnut</source>
+        <translation type="unfinished">Ring</translation>
+    </message>
+    <message>
+        <source>Area</source>
+        <translation type="unfinished">Fläche</translation>
+    </message>
+    <message>
+        <source>Stacked Area</source>
+        <translation type="unfinished">Gestapelte Fläche</translation>
+    </message>
+    <message>
+        <source>Scatter</source>
+        <translation type="unfinished">Punkt</translation>
+    </message>
+    <message>
+        <source>Edit Data…</source>
+        <translation type="unfinished">Daten bearbeiten…</translation>
+    </message>
+    <message>
+        <source>Chart Title</source>
+        <translation type="unfinished">Diagrammtitel</translation>
+    </message>
+    <message>
+        <source>Edit Chart Title…</source>
+        <translation type="unfinished">Diagrammtitel bearbeiten…</translation>
+    </message>
+    <message>
+        <source>Axis of Values</source>
+        <translation type="unfinished">Werteachse</translation>
+    </message>
+    <message>
+        <source>Axis of Categories</source>
+        <translation type="unfinished">Kategorienachse</translation>
+    </message>
+    <message>
+        <source>Title of the Axis of Values…</source>
+        <translation type="unfinished">Titel der Werteachse…</translation>
+    </message>
+    <message>
+        <source>Title of the Axis of Categories…</source>
+        <translation type="unfinished">Titel der Kategorienachse…</translation>
+    </message>
+    <message>
+        <source>Major Gridlines of Values</source>
+        <translation type="unfinished">Hauptgitternetzlinien der Werte</translation>
+    </message>
+    <message>
+        <source>Minor Gridlines of Values</source>
+        <translation type="unfinished">Hilfsgitternetzlinien der Werte</translation>
+    </message>
+    <message>
+        <source>Major Gridlines of Categories</source>
+        <translation type="unfinished">Hauptgitternetzlinien der Kategorien</translation>
+    </message>
+    <message>
+        <source>Style %1</source>
+        <translation type="unfinished">Formatvorlage %1</translation>
+    </message>
+    <message>
+        <source>Data Labels</source>
+        <translation type="unfinished">Datenbeschriftungen</translation>
+    </message>
+    <message>
+        <source>No Legend</source>
+        <translation type="unfinished">Keine Legende</translation>
+    </message>
+    <message>
+        <source>Legend at Right</source>
+        <translation type="unfinished">Legende rechts</translation>
+    </message>
+    <message>
+        <source>Legend at Top</source>
+        <translation type="unfinished">Legende oben</translation>
+    </message>
+    <message>
+        <source>Legend at Left</source>
+        <translation type="unfinished">Legende links</translation>
+    </message>
+    <message>
+        <source>Legend at Bottom</source>
+        <translation type="unfinished">Legende unten</translation>
+    </message>
+</context>
 </TS>

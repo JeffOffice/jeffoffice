@@ -69,6 +69,9 @@ struct DrawingWriteContext {
     // The relationships made from the part so far, by type and target, so
     // that a picture or an address used twice has one.
     QHash<QString, QString> relations;
+    // Raw XML for an item that the caller writes itself: a complete element with its namespaces declared (a chart's graphic frame), written in the item's place wherever it is, in a
+    // group too. Empty (or unset) for an item the writer writes.
+    std::function<QString(const Item &)> rawFrame;
     // What the theme being written says its styles are, made when the first shape with a style reference asks (see writeLook).
     std::shared_ptr<StyleResolver> styles;
 };

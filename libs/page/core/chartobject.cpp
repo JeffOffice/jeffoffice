@@ -3,6 +3,8 @@
 #include "office/chart_write.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
+#include <QJsonArray>
 #include <algorithm>
 #include <cmath>
 
@@ -52,6 +54,43 @@ office::Theme chartThemeOf(const Document &doc)
     return t;
 }
 
+QJsonObject chartLookOf(const office::Theme &theme, const office::ColorMap &map)
+{
+    QJsonArray colors, slots;
+    for (const QColor &c : theme.colors) colors.append(c.name(QColor::HexArgb));
+    const office::Theme::Color all[12] = {map.bg1, map.tx1, map.bg2, map.tx2, map.accent[0], map.accent[1], map.accent[2], map.accent[3], map.accent[4], map.accent[5], map.hlink, map.folHlink};
+    for (const auto slot : all) slots.append(int(slot));
+    return QJsonObject{{"colors", colors}, {"map", slots}, {"major", theme.majorLatin}, {"minor", theme.minorLatin}};
+}
+
+namespace {
+// What a picture's chart is read with: its own look when a file gave one, else the document's colors.
+void lookOf(const Document &doc, const PictureItem &pic, office::Theme *theme, office::ColorMap *map)
+{
+    *theme = chartThemeOf(doc);
+    *map = office::ColorMap();
+    const QJsonArray colors = pic.chartLook.value(QStringLiteral("colors")).toArray(), slots = pic.chartLook.value(QStringLiteral("map")).toArray();
+    if (colors.size() != office::Theme::ColorCount || slots.size() != 12) return;
+    for (int i = 0; i < office::Theme::ColorCount; ++i)
+        if (const QColor c(colors[i].toString()); c.isValid()) theme->colors[i] = c;
+    theme->majorLatin = pic.chartLook.value(QStringLiteral("major")).toString();
+    theme->minorLatin = pic.chartLook.value(QStringLiteral("minor")).toString();
+    office::Theme::Color *to[12] = {&map->bg1, &map->tx1, &map->bg2, &map->tx2, &map->accent[0], &map->accent[1], &map->accent[2], &map->accent[3], &map->accent[4], &map->accent[5], &map->hlink, &map->folHlink};
+    for (int i = 0; i < 12; ++i) {
+        const int v = slots[i].toInt(-1);
+        if (v >= 0 && v < office::Theme::ColorCount) *to[i] = office::Theme::Color(v);
+    }
+}
+} // namespace
+
+office::Theme chartThemeOfPicture(const Document &doc, const PictureItem &pic)
+{
+    office::Theme theme;
+    office::ColorMap map;
+    lookOf(doc, pic, &theme, &map);
+    return theme;
+}
+
 bool chartIsWithinLimits(const office::Chart &chart)
 {
     int series = 0;
@@ -67,7 +106,10 @@ bool readChartOf(const Document &doc, const PictureItem &pic, office::Chart *cha
 {
     if (pic.chartXml.isEmpty() || pic.chartXml.size() > office::sheet::kMostChartPartBytes) return false;
     office::Chart read;
-    if (!office::readChart(pic.chartXml, chartThemeOf(doc), office::ColorMap(), &read) || !chartIsWithinLimits(read)) return false;
+    office::Theme theme;
+    office::ColorMap map;
+    lookOf(doc, pic, &theme, &map);
+    if (!office::readChart(pic.chartXml, theme, map, &read) || !chartIsWithinLimits(read)) return false;
     if (chart) *chart = read;
     return true;
 }
@@ -99,11 +141,40 @@ std::shared_ptr<PictureItem> makeChartObject(Document &doc, office::sheet::Chart
     return pic;
 }
 
+namespace {
+// What the last charts said of themselves, by their part: selecting a chart and showing its tab asks again and again, and a part is read and checked whole each time otherwise.
+struct Said {
+    office::sheet::ChartInfo info;
+    bool fullyModeled = false;
+};
+constexpr int kSaidKept = 16;
+thread_local QHash<QByteArray, Said> g_said;
+thread_local qint64 g_infosMade = 0;
+
+const Said *said(const Document &doc, const PictureItem &pic)
+{
+    if (pic.chartXml.isEmpty()) return nullptr;
+    // (What a chart says does not depend on the colors it is read with, but whether it reads does not either: the key is the part.)
+    const QByteArray key = QCryptographicHash::hash(pic.chartXml, QCryptographicHash::Sha1);
+    if (const auto it = g_said.constFind(key); it != g_said.cend()) return &*it;
+    office::Chart chart;
+    Said made;
+    if (readChartOf(doc, pic, &chart)) {
+        ++g_infosMade;
+        made.info = office::sheet::chartInfoOf(chart, pic.chartXml);
+        made.fullyModeled = office::chartIsFullyModeled(pic.chartXml);
+    }
+    if (g_said.size() >= kSaidKept) g_said.clear();
+    return &*g_said.insert(key, made);
+}
+} // namespace
+
+qint64 chartInfosMadeForTest() { return g_infosMade; }
+
 office::sheet::ChartInfo chartInfoOfPicture(const Document &doc, const PictureItem &pic)
 {
-    office::Chart chart;
-    if (!readChartOf(doc, pic, &chart)) return office::sheet::ChartInfo();
-    return office::sheet::chartInfoOf(chart, pic.chartXml);
+    const Said *s = said(doc, pic);
+    return s ? s->info : office::sheet::ChartInfo();
 }
 
 bool changeChartOf(Document &doc, PictureItem &pic, const std::function<bool(office::Chart &)> &edit)
@@ -111,7 +182,8 @@ bool changeChartOf(Document &doc, PictureItem &pic, const std::function<bool(off
     office::Chart chart;
     if (!readChartOf(doc, pic, &chart)) return false;
     // A chart with parts the model does not hold is changed in what it holds only when writing it back loses nothing.
-    if (!office::chartIsFullyModeled(pic.chartXml)) return false;
+    const Said *s = said(doc, pic);
+    if (!s || !s->fullyModeled) return false;
     if (!edit(chart)) return false;
     return setChartOf(doc, pic, chart, pic.rect.size());
 }
@@ -133,17 +205,27 @@ bool redrawResizedCharts(Document &doc)
     return any;
 }
 
-void limitChartsRead(Document &doc)
+int chartObjectsIn(const Document &doc)
 {
-    int seen = 0;
+    int n = 0;
+    eachChart(const_cast<Document &>(doc), [&](PictureItem &) { ++n; });
+    return n;
+}
+
+int limitChartsRead(Document &doc)
+{
+    int seen = 0, dropped = 0;
     qint64 bytes = 0;
     eachChart(doc, [&](PictureItem &pic) {
         bytes += pic.chartXml.size();
         if (++seen > office::sheet::kMostChartsInFile || pic.chartXml.size() > office::sheet::kMostChartPartBytes || bytes > office::sheet::kMostChartBytesInFile) {
             pic.chartXml.clear();
             pic.chartSize = QSizeF();
+            pic.chartLook = QJsonObject();
+            ++dropped;
         }
     });
+    return dropped;
 }
 
 } // namespace jp

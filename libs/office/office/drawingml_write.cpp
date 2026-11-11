@@ -12,6 +12,7 @@
 #include "render/shapes.h"
 
 #include <QCoreApplication>
+#include <QXmlStreamReader>
 #include <QTextDocument>
 #include <algorithm>
 #include <climits>
@@ -1287,6 +1288,16 @@ void writeShape(QXmlStreamWriter &w, const Item &item, DrawingWriteContext &ctx,
         remember(item);
         break;
     case ItemType::Picture:
+        if (ctx.rawFrame) {
+            const QString raw = ctx.rawFrame(item);
+            if (!raw.isEmpty()) {
+                QXmlStreamReader in(raw);
+                while (!in.atEnd())
+                    if (in.readNext() != QXmlStreamReader::StartDocument && in.tokenType() != QXmlStreamReader::EndDocument && in.tokenType() != QXmlStreamReader::Invalid) w.writeCurrentToken(in);
+                remember(item);
+                break;
+            }
+        }
         writePicture(w, static_cast<const PictureItem &>(item), ctx, skipped);
         remember(item);
         break;

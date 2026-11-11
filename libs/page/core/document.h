@@ -321,6 +321,8 @@ public:
     QMap<QString, ImageData> images;
     // How many pictures addImage has left out since the document was made:
     // those past a limit, and SVG it won't draw. An importer reads it for its notes.
+    // Not saved: how many charts the last JSON read kept only as the pictures they are drawn as (a file holds so many charts, of so many bytes: core/chartobject.h).
+    int chartsKeptAsPictures = 0;
     int imagesLeftOut = 0;
     // The most bytes the pictures' decodes kept in `images` come to. Past it,
     // the decodes of the pictures used longest ago are dropped (to three

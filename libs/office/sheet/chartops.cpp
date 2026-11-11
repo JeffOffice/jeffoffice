@@ -77,6 +77,14 @@ QVector<ChartSeries> seriesOfData(const ChartData &data, bool scatter)
     return out;
 }
 
+// A chart made again from its series keeps the links to the parts it came with (the workbook it was made from, the shapes over it), which the part's relationships name.
+void keepPartLinks(Chart &chart, const Chart &like)
+{
+    chart.userShapesId = like.userShapesId;
+    chart.externalDataId = like.externalDataId;
+    chart.externalAutoUpdate = like.externalAutoUpdate;
+}
+
 } // namespace
 
 const QVector<ChartForm> &chartForms()
@@ -221,6 +229,7 @@ bool chartSetForm(Chart &chart, ChartForm form, const Theme &theme)
     const QVector<SeriesKind> kinds(series.size(), SeriesKind{kindOfForm(form), false});
     const Chart like = chart;
     chart = chartFromSeries(series, kinds, theme, &like);
+    keepPartLinks(chart, like);
     return true;
 }
 
@@ -326,6 +335,7 @@ bool chartSetData(Chart &chart, const ChartData &data, const Theme &theme)
     kinds.resize(series.size());
     const Chart like = chart;
     chart = chartFromSeries(series, kinds, theme, &like);
+    keepPartLinks(chart, like);
     return true;
 }
 

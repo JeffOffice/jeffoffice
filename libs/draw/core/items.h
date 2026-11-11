@@ -129,6 +129,9 @@ public:
     void fromJson(const QJsonObject &o) override;
 };
 
+// The most bytes of a chart part a picture keeps (a chart is kept as a chart while its part is no larger).
+constexpr qint64 kMaxChartPartBytes = 2 << 20;
+
 class PictureItem : public Item {
 public:
     enum Recolor { NoRecolor, Grayscale, Sepia, Washout, BlackWhite, ColorTint };
@@ -170,6 +173,9 @@ public:
     // picture was drawn at, so that a frame sized anew has it drawn again. Empty for a picture that is no chart.
     QByteArray chartXml;
     QSizeF chartSize;
+    // What the chart was read with when a file gave it (the slide's theme: its twelve colors and two fonts, and the color map of its master); empty for a chart made here, which is read with
+    // the document's colors. See core/chartobject.h.
+    QJsonObject chartLook;
 
     void fitImage(const QSize &px, bool fill);  // fill: crop to cover, else fit inside
     void keepProportions(const QSize &px);      // the picture's height follows its width, around the same center

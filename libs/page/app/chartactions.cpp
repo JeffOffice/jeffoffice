@@ -70,7 +70,9 @@ void ChartActions::create()
             if (m_hooks.done) m_hooks.done();
         });
         mk(QStringLiteral("chart.type.") + QLatin1String(n.id), text, n.icon, [this, form, changeLabel] {
-            const office::Theme theme = chartThemeOf(*m_ed->doc());
+            const PictureItem *chart = selectedChart(m_ed);
+            if (!chart) return;
+            const office::Theme theme = chartThemeOfPicture(*m_ed->doc(), *chart);
             change(changeLabel, [form, theme](office::Chart &c) { return chartSetForm(c, form, theme); });
         }, true);
     }
@@ -127,7 +129,9 @@ void ChartActions::editData()
         if (!notice.isEmpty() && m_hooks.notice) m_hooks.notice(notice);
         return;
     }
-    const office::Theme theme = chartThemeOf(*m_ed->doc());
+    const PictureItem *chart = selectedChart(m_ed);
+    if (!chart) return;
+    const office::Theme theme = chartThemeOfPicture(*m_ed->doc(), *chart);
     change(QCoreApplication::translate("jp::ChartActions", "Change Chart Data"), [data, theme](office::Chart &c) { return office::sheet::chartSetData(c, data, theme); });
 }
 

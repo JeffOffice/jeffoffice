@@ -476,14 +476,15 @@ QString withFrameNames(const QString &frame, const QString &name, const QString 
 // A frame's turn (its xfrm's rot) set to `degrees`, when the picture is turned.
 QString withFrameTurn(const QString &frame, double degrees)
 {
-    if (std::abs(degrees) < 1e-6) return frame;
     static const QRegularExpression place(QStringLiteral("<(\\w+):xfrm\\b([^>]*)>"));
     const QRegularExpressionMatch m = place.match(frame);
     if (!m.hasMatch()) return frame;
     static const QRegularExpression turn(QStringLiteral("\\srot=\"[^\"]*\""));
     QString attrs = m.captured(2);
     attrs.remove(turn);
-    attrs += QStringLiteral(" rot=\"%1\"").arg(std::llround(std::fmod(degrees, 360.0) * 60000));
+    // (Sixty-thousandths of a degree, clockwise, from 0 up to a full turn; a frame that is not turned says nothing.)
+    const qint64 rot = std::llround(std::fmod(std::fmod(degrees, 360.0) + 360.0, 360.0) * 60000) % 21600000;
+    if (rot) attrs += QStringLiteral(" rot=\"%1\"").arg(rot);
     return frame.left(m.capturedStart()) + QStringLiteral("<%1:xfrm%2>").arg(m.captured(1), attrs) + frame.mid(m.capturedEnd());
 }
 
@@ -543,7 +544,7 @@ private:
     QString diagramFrame(const QJsonObject &kept, const Item &item, const QString &slidePart, const QString &where);
     QString equationBlock(const QJsonObject &kept, const Item &item, office::DrawingWriteContext &ctx, const QString &where);
     QHash<QString, QString> keptNames(const QJsonObject &parts, const QString &folder, bool keepMedia = false);
-    void writeKeptParts(const QJsonObject &parts, const QHash<QString, QString> &names, const std::function<QByteArray(const QString &, const QByteArray &)> &rewrite = nullptr);
+    void writeKeptParts(const QJsonObject &parts, const QHash<QString, QString> &names, const std::function<QByteArray(const QString &, const QByteArray &)> &rewrite = nullptr, const QString &asRead = QString());
     QString keptPartName(const QString &original, const QString &folder, bool keepMedia = false);
     QString keptSlideXml(const Page &slide, const char *key, const QString &what, const QString &where, const QSet<qint64> &frameIds,
                          const QSet<qint64> &mediaIds, const QString *xmlGiven = nullptr);
@@ -891,7 +892,7 @@ QHash<QString, QString> Exporter::keptNames(const QJsonObject &parts, const QStr
 
 // The kept parts, written under their new names and linked as they were: a part's links in the order of their ids so that they keep them (rId1,
 // rId2...); any that don't are changed in the part. `rewrite` may change a part's bytes before it is written.
-void Exporter::writeKeptParts(const QJsonObject &parts, const QHash<QString, QString> &names, const std::function<QByteArray(const QString &, const QByteArray &)> &rewrite)
+void Exporter::writeKeptParts(const QJsonObject &parts, const QHash<QString, QString> &names, const std::function<QByteArray(const QString &, const QByteArray &)> &rewrite, const QString &asRead)
 {
     for (const QString &key : parts.keys()) {
         const QJsonObject part = parts.value(key).toObject();
@@ -913,7 +914,7 @@ void Exporter::writeKeptParts(const QJsonObject &parts, const QHash<QString, QSt
         if (rewrite) data = rewrite(key, data);
         const QString type = part.value(QStringLiteral("type")).toString();
         if (type.endsWith(QLatin1String("xml"))) {
-            data = withStandardFontNames(data);
+            if (key != asRead) data = withStandardFontNames(data);   // (a part that was not changed is written as it was read)
             scanFonts(name, data);
         }
         m_pkg.addPart(name, data, type.isEmpty() ? QStringLiteral("application/octet-stream") : type);
@@ -934,7 +935,7 @@ QString Exporter::chartFrame(const QJsonObject &kept, const Item &item, const QS
         return QString();
     }
     const QHash<QString, QString> names = keptNames(parts, QStringLiteral("/ppt/charts/"));
-    writeKeptParts(parts, names);
+    writeKeptParts(parts, names, nullptr, kept.value(QStringLiteral("unchanged")).toBool() ? main : QString());
     // The slide's link to the chart, which the frame names, and the frame where the picture is.
     const QString id = m_pkg.addRelationship(slidePart, kRelBase + QStringLiteral("chart"), names.value(main));
     static const QRegularExpression chartTag(QStringLiteral("(<(\\w+):chart\\b[^>]*?\\b\\w+:id=\")[^\"]*(\")"));
@@ -1062,6 +1063,16 @@ QString newChartFrame(qint64 number)
 QJsonObject chartEntryOf(const PictureItem &pic, const QJsonObject &was, qint64 number)
 {
     QJsonObject kept = was;
+    // A chart with no kept parts of its own (a copy pasted from another slide, say) does not name the workbook and shapes of the chart it came from: nothing would be there.
+    QByteArray chartXml = pic.chartXml;
+    if (kept.isEmpty()) {
+        static const QRegularExpression external(QStringLiteral("<(\\w+:)?externalData\\b[^>]*?(/>|>.*?</(\\w+:)?externalData>)"), QRegularExpression::DotMatchesEverythingOption);
+        static const QRegularExpression shapes(QStringLiteral("<(\\w+:)?userShapes\\b[^>]*?(/>|>.*?</(\\w+:)?userShapes>)"), QRegularExpression::DotMatchesEverythingOption);
+        QString text = QString::fromUtf8(chartXml);
+        text.remove(external);
+        text.remove(shapes);
+        chartXml = text.toUtf8();
+    }
     const QString type = QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml");
     if (kept.isEmpty()) {
         const QString main = QStringLiteral("/ppt/charts/chart1.xml");
@@ -1070,12 +1081,14 @@ QJsonObject chartEntryOf(const PictureItem &pic, const QJsonObject &was, qint64 
     QJsonObject parts = kept.value(QStringLiteral("parts")).toObject();
     const QString main = kept.value(QStringLiteral("main")).toString();
     QJsonObject part = parts.value(main).toObject();
-    const QString now = QString::fromLatin1(pic.chartXml.toBase64());
+    const QString now = QString::fromLatin1(chartXml.toBase64());
     // (A chart the person did not change is written as it was read.)
     if (part.value(QStringLiteral("data")).toString() != now) {
         part[QStringLiteral("data")] = now;
         parts[main] = part;
         kept[QStringLiteral("parts")] = parts;
+    } else {
+        kept[QStringLiteral("unchanged")] = true;
     }
     return kept;
 }
@@ -1106,31 +1119,37 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
     office::DrawingWriteContext ctx = context(part);
     QHash<QString, QJsonObject> charts;
     for (const QJsonValue &v : page.props.value(QStringLiteral("charts")).toArray()) charts.insert(v.toObject().value(QStringLiteral("item")).toString(), v.toObject());
-    // A picture that holds a chart (one made here, or one the reader read as a chart) is written as a chart with the numbers it holds now.
+    // A picture that holds a chart (one made here, or one the reader read as a chart), at any depth, is written as a chart with the numbers it holds now.
+    QSet<QString> topLevel;
+    for (const ItemPtr &it : page.items) topLevel.insert(it->id);
     {
         qint64 number = highest;
         walkItems(page.items, [&](const ItemPtr &it) { number = std::max<qint64>(number, it->sourceId); });
-        for (const ItemPtr &it : page.items) {
-            if (it->type() != ItemType::Picture) continue;
+        walkItems(page.items, [&](const ItemPtr &it) {
+            if (it->type() != ItemType::Picture) return;
             const auto &pic = static_cast<const PictureItem &>(*it);
-            if (pic.chartXml.isEmpty()) continue;
+            if (pic.chartXml.isEmpty()) return;
             const QJsonObject was = charts.value(it->id);
-            if (!was.isEmpty() && !was.value(QStringLiteral("kind")).toString().isEmpty()) continue;
+            if (!was.isEmpty() && !was.value(QStringLiteral("kind")).toString().isEmpty()) return;
             charts.insert(it->id, chartEntryOf(pic, was, ++number));
-        }
+        });
     }
     QHash<QString, QString> chartFrames;
-    for (const ItemPtr &it : page.items) {
-        if (it->type() != ItemType::Picture || !charts.contains(it->id)) continue;
+    walkItems(page.items, [&](const ItemPtr &it) {
+        if (it->type() != ItemType::Picture || !charts.contains(it->id)) return;
         const QJsonObject kept = charts.value(it->id);
         const QString kind = kept.value(QStringLiteral("kind")).toString();
+        // (A diagram or an equation inside a group is written as the picture it shows; only a chart is a frame at any depth.)
+        if (!topLevel.contains(it->id) && !kind.isEmpty()) return;
         const QString xml = kind == QLatin1String("diagram") ? diagramFrame(kept, *it, part, where)
                           : kind == QLatin1String("equation") ? equationBlock(kept, *it, ctx, where)
                                                               : chartFrame(kept, *it, part, where);
-        if (xml.isEmpty()) continue;
+        if (xml.isEmpty()) return;
         chartFrames.insert(it->id, xml);
         take(xml);
-    }
+    });
+    // (The frames of the charts inside groups are written where the group writes the picture.)
+    ctx.rawFrame = [&](const Item &item) { return topLevel.contains(item.id) ? QString() : chartFrames.value(item.id); };
     ctx.emptyParagraphsInherit = frameIds != nullptr;   // a slide's (asked for the numbers of its frames), not a layout's or a master's
     ctx.nextShapeId = int(std::min<qint64>(highest + 1, 2000000000));
     // The tree's own number and the frames' are taken; the shapes read from a file keep theirs, which new ones leave alone.

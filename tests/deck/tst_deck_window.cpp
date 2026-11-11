@@ -280,7 +280,11 @@ private Q_SLOTS:
                 }
                 if (!md.startsWith(QStringLiteral("# "))) problems << where + QStringLiteral(": no title");
                 if (en.contains(QStringLiteral("<!-- keywords:")) && !md.contains(QStringLiteral("<!-- keywords:"))) problems << where + QStringLiteral(": no keywords");
-                if (links(md) != links(en)) problems << where + QStringLiteral(": links differ from the English");
+                // (A language whose contents were written before a topic was added has no link to it until the nightly translation makes the topic: the English links to topics it does not have yet are left out.)
+                QStringList wanted;
+                for (const QString &target : links(en))
+                    if (md.contains(QStringLiteral("](") + target + QLatin1Char(')')) || QFile::exists(folder.filePath(target + QStringLiteral(".md")))) wanted << target;
+                if (links(md) != wanted) problems << where + QStringLiteral(": links differ from the English");
                 if (const auto m = banned.match(md); m.hasMatch()) problems << where + QStringLiteral(": says ") + m.captured(0);
             }
         }

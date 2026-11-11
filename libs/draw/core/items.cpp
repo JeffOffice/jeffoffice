@@ -376,6 +376,7 @@ QJsonObject PictureItem::toJson() const
     if (!chartXml.isEmpty()) {
         o["chart"] = QString::fromLatin1(chartXml.toBase64());
         o["chartSize"] = QJsonArray{chartSize.width(), chartSize.height()};
+        if (!chartLook.isEmpty()) o["chartLook"] = chartLook;
     }
     if (!mediaKind.isEmpty()) {
         o["mediaKind"] = mediaKind;
@@ -404,7 +405,10 @@ void PictureItem::fromJson(const QJsonObject &o)
     blackWhiteLevel = o["bwLevel"].toDouble(0.5);
     blipEffects = blipEffectsFromJson(o["effects"].toArray());
     caption = o["caption"].toString();
-    chartXml = QByteArray::fromBase64(o["chart"].toString().toLatin1());
+    // (A part is the text's size less its coding: one past the most is not decoded.)
+    const QString coded = o["chart"].toString();
+    chartXml = coded.size() <= kMaxChartPartBytes / 3 * 4 + 8 ? QByteArray::fromBase64(coded.toLatin1()) : QByteArray();
+    chartLook = chartXml.isEmpty() ? QJsonObject() : o["chartLook"].toObject();
     chartSize = chartXml.isEmpty() ? QSizeF() : QSizeF(o["chartSize"].toArray().at(0).toDouble(), o["chartSize"].toArray().at(1).toDouble());
     mediaKind = o["mediaKind"].toString();
     mediaId = o["media"].toString();

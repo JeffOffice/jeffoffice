@@ -63107,4 +63107,174 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">initialen (de letters worden als gewone opgeslagen)</translation>
     </message>
 </context>
+<context>
+    <name>jp::ChartDialogs</name>
+    <message>
+        <source>Chart Title</source>
+        <translation type="unfinished">Grafiektitel</translation>
+    </message>
+    <message>
+        <source>Words for the title of the chart:</source>
+        <translation type="unfinished">Woorden voor de titel van de grafiek:</translation>
+    </message>
+    <message>
+        <source>Title of the Axis of Values</source>
+        <translation type="unfinished">Titel van de as van waarden</translation>
+    </message>
+    <message>
+        <source>Title of the Axis of Categories</source>
+        <translation type="unfinished">Titel van de as van categorieën</translation>
+    </message>
+    <message>
+        <source>Words for the title of the axis (leave empty for none):</source>
+        <translation type="unfinished">Tekst voor de titel van de as (laat leeg als er geen titel moet komen):</translation>
+    </message>
+    <message>
+        <source>Chart Data</source>
+        <translation type="unfinished">Grafiekgegevens</translation>
+    </message>
+    <message>
+        <source>Add Row</source>
+        <translation type="unfinished">Rij toevoegen</translation>
+    </message>
+    <message>
+        <source>Add Column</source>
+        <translation type="unfinished">Kolom toevoegen</translation>
+    </message>
+    <message>
+        <source>Remove Last Row</source>
+        <translation type="unfinished">Laatste rij verwijderen</translation>
+    </message>
+    <message>
+        <source>Remove Last Column</source>
+        <translation type="unfinished">Laatste kolom verwijderen</translation>
+    </message>
+    <message>
+        <source>Row %1 has a cell that is not a number, so the data was not changed.</source>
+        <translation type="unfinished">Rij %1 bevat een cel die geen getal is, dus de gegevens zijn niet gewijzigd.</translation>
+    </message>
+    <message>
+        <source>The first column holds the words under the points. The first row holds the names of the series. The other cells are numbers.</source>
+        <translation type="unfinished">De eerste kolom bevat de woorden onder de punten. De eerste rij bevat de namen van de reeksen. De overige cellen zijn getallen.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::ChartActions</name>
+    <message>
+        <source>Column</source>
+        <translation type="unfinished">Kolom</translation>
+    </message>
+    <message>
+        <source>Stacked Column</source>
+        <translation type="unfinished">Gestapelde kolom</translation>
+    </message>
+    <message>
+        <source>100% Stacked Column</source>
+        <translation type="unfinished">100% gestapelde kolom</translation>
+    </message>
+    <message>
+        <source>Bar</source>
+        <translation type="unfinished">Staaf</translation>
+    </message>
+    <message>
+        <source>Stacked Bar</source>
+        <translation type="unfinished">Gestapelde staaf</translation>
+    </message>
+    <message>
+        <source>Line</source>
+        <translation type="unfinished">Lijn</translation>
+    </message>
+    <message>
+        <source>Line with Markers</source>
+        <translation type="unfinished">Lijn met markeringen</translation>
+    </message>
+    <message>
+        <source>Pie</source>
+        <translation type="unfinished">Cirkel</translation>
+    </message>
+    <message>
+        <source>Doughnut</source>
+        <translation type="unfinished">Donut</translation>
+    </message>
+    <message>
+        <source>Area</source>
+        <translation type="unfinished">Vlak</translation>
+    </message>
+    <message>
+        <source>Stacked Area</source>
+        <translation type="unfinished">Gestapeld vlak</translation>
+    </message>
+    <message>
+        <source>Scatter</source>
+        <translation type="unfinished">Spreidingsdiagram</translation>
+    </message>
+    <message>
+        <source>Edit Data…</source>
+        <translation type="unfinished">Gegevens bewerken…</translation>
+    </message>
+    <message>
+        <source>Chart Title</source>
+        <translation type="unfinished">Grafiektitel</translation>
+    </message>
+    <message>
+        <source>Edit Chart Title…</source>
+        <translation type="unfinished">Grafiektitel bewerken…</translation>
+    </message>
+    <message>
+        <source>Axis of Values</source>
+        <translation type="unfinished">As van waarden</translation>
+    </message>
+    <message>
+        <source>Axis of Categories</source>
+        <translation type="unfinished">As van categorieën</translation>
+    </message>
+    <message>
+        <source>Title of the Axis of Values…</source>
+        <translation type="unfinished">Titel van de as van waarden…</translation>
+    </message>
+    <message>
+        <source>Title of the Axis of Categories…</source>
+        <translation type="unfinished">Titel van de as van categorieën…</translation>
+    </message>
+    <message>
+        <source>Major Gridlines of Values</source>
+        <translation type="unfinished">Hoofdrasterlijnen van waarden</translation>
+    </message>
+    <message>
+        <source>Minor Gridlines of Values</source>
+        <translation type="unfinished">Hulprasterlijnen van waarden</translation>
+    </message>
+    <message>
+        <source>Major Gridlines of Categories</source>
+        <translation type="unfinished">Hoofdrasterlijnen van categorieën</translation>
+    </message>
+    <message>
+        <source>Style %1</source>
+        <translation type="unfinished">Stijl %1</translation>
+    </message>
+    <message>
+        <source>Data Labels</source>
+        <translation type="unfinished">Gegevenslabels</translation>
+    </message>
+    <message>
+        <source>No Legend</source>
+        <translation type="unfinished">Geen legenda</translation>
+    </message>
+    <message>
+        <source>Legend at Right</source>
+        <translation type="unfinished">Legenda rechts</translation>
+    </message>
+    <message>
+        <source>Legend at Top</source>
+        <translation type="unfinished">Legenda boven</translation>
+    </message>
+    <message>
+        <source>Legend at Left</source>
+        <translation type="unfinished">Legenda links</translation>
+    </message>
+    <message>
+        <source>Legend at Bottom</source>
+        <translation type="unfinished">Legenda onder</translation>
+    </message>
+</context>
 </TS>
