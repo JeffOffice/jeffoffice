@@ -7,7 +7,7 @@ Vous pouvez effectuer la plupart des opérations dans JeffDeck sans souris. Des 
 
 Les info-touches sont de petites lettres qui apparaissent sur le ruban. Elles vous permettent d'atteindre n'importe quel bouton sans la souris.
 
-1. Appuyez sur **Alt** puis relâchez. Des lettres apparaissent sur le bouton **Fichier**, sur chaque onglet et sur la barre d'outils rapide. Les boutons de la barre d'outils rapide utilisent les chiffres 1 à 3.
+1. Appuyez sur **Alt** puis relâchez. Des lettres apparaissent sur le bouton **Fichier**, sur chaque onglet et sur la barre d'outils rapide. Les boutons de la barre d'outils rapide utilisent les chiffres 1 à 4.
 2. Appuyez sur la lettre de l'onglet souhaité. Les onglets utilisent **A** pour **Accueil**, **N** pour **Insertion**, **G** pour **Création**, **T** pour **Transitions**, **D** pour **Diaporama**, **R** pour **Révision** et **W** pour **Affichage**. Les lettres des boutons de cet onglet apparaissent.
 3. Tapez les lettres du bouton souhaité. Par exemple, appuyez sur **Alt**, puis sur **D**, puis sur **D** pour lancer le diaporama **Depuis le début**.
 

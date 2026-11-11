@@ -15,7 +15,7 @@ To make more room for the page, collapse the ribbon. Click the arrow at the far 
 
 The **File** button is left of the tabs. It opens the File page, where you start, open, save, print, and share. Press Esc or click **Back to publication** to return. See [File tab](tab-file).
 
-The quick toolbar is the row of three small buttons left of the **File** button. It holds **Save**, **Undo**, and **Redo**.
+The quick toolbar is the row of four small buttons left of the **File** button. It holds **Save**, **Undo**, **Redo**, and **Print**.
 
 ## The Pages list
 

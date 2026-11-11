@@ -13,7 +13,7 @@ Press **F1** for Help about what you are doing. Press **Ctrl+F1** to collapse or
 
 KeyTips are small letters that show up on the ribbon. They let you reach any button without the mouse.
 
-1. Press and release **Alt**. Letters appear on the **File** button, on each tab, and on the quick toolbar. The quick toolbar buttons use the numbers 1 to 3.
+1. Press and release **Alt**. Letters appear on the **File** button, on each tab, and on the quick toolbar. The quick toolbar buttons use the numbers 1 to 4.
 2. Press the letter of the tab you want, such as **H** for **Home**. The letters for that tab's buttons appear.
 3. Type the letters of the button you want. For example, **T** then **B** is **Draw Text Box**.
 

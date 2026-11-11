@@ -3,7 +3,9 @@
   "quickAccess": [
     {"cmd": "file.save", "keytip": "1"},
     {"cmd": "edit.undo", "keytip": "2"},
-    {"cmd": "edit.redo", "keytip": "3"}
+    {"cmd": "edit.redo", "keytip": "3"},
+    {"cmd": "file.open", "keytip": "4"},
+    {"cmd": "edit.copy", "keytip": "5"}
   ],
   "tabs": [
     {

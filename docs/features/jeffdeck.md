@@ -120,7 +120,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** Save: embed the bundled fonts the slides use, on by default
 - [ ] **1.0** Save options: default format, automatic recovery interval, and default folder
 - [ ] **1.0** Advanced: undo steps, the default slide show choices, print choices, cut and paste choices, and picture quality
-- [ ] **1.0** Customize the quick toolbar *(fixed at Save, Undo, and Redo today)* and the ribbon
+- [ ] **1.0** Customize the quick toolbar *(fixed at Save, Undo, Redo, and From Beginning today)* and the ribbon
 - [ ] **1.0** Trust Center equivalents: what happens with linked files, linked media, and macros (kept, never run)
 - [ ] **1.0** Customize the keyboard: assign keys to commands, with the original's shortcuts as the starting set
 - [~] **later** Accessibility options: high contrast, sound and animation feedback, and keyboard focus *(follows the system theme; the ribbon has KeyTips)*
@@ -313,7 +313,7 @@ PowerPoint's Draw tab is for ink on slides while editing. JeffDeck has ink only 
 
 ## Slide Show tab
 
-- [x] **1.0** From Beginning (F5) and From Current Slide (Shift+F5, and a button on the status bar)
+- [x] **1.0** From Beginning (F5, and a button on the quick toolbar) and From Current Slide (Shift+F5, and a button on the status bar)
 - [x] **1.0** Custom Slide Show: a list of your custom shows to play, and the Custom Shows window to make (New, with slides added, reordered, and removed), edit, copy, and delete them; a slide may be in a show twice; saved in the file *(custom shows: ours 0 of 19)*
 - [x] **1.0** Set Up Slide Show: Presented by a speaker (full screen), Browsed by an individual (window), and Browsed at a kiosk (full screen, always loops, moves on only by timings); loop until Esc; show without animation; pen color and laser color; all slides, a range, or a custom show; advance manually or by timings; saved in the file *(kiosk or loop: ours 0 of 19; slides that advance by a time: 0 of 19)*
 - [x] **1.0** Hide Slide, Rehearse Timings (a bar with Next, Pause, this slide's time, Repeat, and the total; offers to keep the times at the end), and Use Timings

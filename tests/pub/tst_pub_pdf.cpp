@@ -143,7 +143,7 @@ private Q_SLOTS:
         QCOMPARE(sides->itemText(2), QStringLiteral("Print on both sides, flip on short edge"));
     }
 
-    // The same command has the same name in all four apps: Spelling (there is no grammar check), Word Count, Info, a quick toolbar of Save, Undo, and Redo, and a Print range in the words of the others.
+    // The same command has the same name in all four apps: Spelling (there is no grammar check), Word Count, Info, a quick toolbar that starts with Save, Undo, and Redo, and a Print range in the words of the others.
     void commandsAndPrintRangeUseTheSuitesWords()
     {
         jp::MainWindow w;
@@ -156,7 +156,7 @@ private Q_SLOTS:
         QCOMPARE(w.act(QStringLiteral("file.properties"))->text(), QStringLiteral("Info"));
         QList<QAction *> quick;
         for (QToolButton *b : w.ribbon()->quickAccessButtons()) quick << b->defaultAction();
-        QCOMPARE(quick, (QList<QAction *>{w.act(QStringLiteral("file.save")), w.act(QStringLiteral("edit.undo")), w.act(QStringLiteral("edit.redo"))}));
+        QCOMPARE(quick.mid(0, 3), (QList<QAction *>{w.act(QStringLiteral("file.save")), w.act(QStringLiteral("edit.undo")), w.act(QStringLiteral("edit.redo"))}));
         w.showBackstage(QStringLiteral("print"));
         auto *range = w.findChild<QComboBox *>(QStringLiteral("printRange"));
         QVERIFY(range);

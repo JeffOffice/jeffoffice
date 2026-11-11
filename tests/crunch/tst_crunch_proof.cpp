@@ -222,7 +222,7 @@ private Q_SLOTS:
 
     // ---- Spelling (F7)
 
-    // The same command has the same name in all four apps: Spelling, and a quick toolbar of Save, Undo, and Redo. (Find's labels are checked with the dialog, and Print's with the Print page.)
+    // The same command has the same name in all four apps: Spelling, and a quick toolbar that starts with Save, Undo, and Redo. (Find's labels are checked with the dialog, and Print's with the Print page.)
     void commandsUseTheSuitesWords()
     {
         EditWindow e;
@@ -231,7 +231,7 @@ private Q_SLOTS:
         QCOMPARE(w.act(QStringLiteral("review.spelling"))->text(), QStringLiteral("Spelling"));
         QList<QAction *> quick;
         for (QToolButton *b : w.ribbon()->quickAccessButtons()) quick << b->defaultAction();
-        QCOMPARE(quick, (QList<QAction *>{w.act(QStringLiteral("file.save")), w.act(QStringLiteral("edit.undo")), w.act(QStringLiteral("edit.redo"))}));
+        QCOMPARE(quick.mid(0, 3), (QList<QAction *>{w.act(QStringLiteral("file.save")), w.act(QStringLiteral("edit.undo")), w.act(QStringLiteral("edit.redo"))}));
     }
 
     void theSpellingWalkFindsMisspelledTextCellsAndSkipsTheRest()

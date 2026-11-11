@@ -12,6 +12,10 @@
     {
       "cmd": "edit.redo",
       "keytip": "3"
+    },
+    {
+      "cmd": "show.fromStart",
+      "keytip": "4"
     }
   ],
   "tabs": [

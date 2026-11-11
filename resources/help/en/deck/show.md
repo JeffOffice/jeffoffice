@@ -5,7 +5,7 @@ The slide show plays your slides one at a time, full screen. Presenter View is a
 
 ## Start the show
 
-- Press **F5**, or click **Slide Show > Start Slide Show > From Beginning**.
+- Press **F5**, or click **Slide Show > Start Slide Show > From Beginning**. The **From Beginning** button is also in the quick toolbar at the top left.
 - Press **Shift+F5**, or click **From Current Slide**, to start at the slide you are on. The slide show button on the status bar does the same.
 - Click **Custom Slide Show** and choose a custom show to play just the slides in it. See "Make a custom show" below.
 

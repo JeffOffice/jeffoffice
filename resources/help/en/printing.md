@@ -5,7 +5,7 @@ Printing happens on the **Print** page. You pick your settings on the left and c
 
 ## Print a publication
 
-1. Press Ctrl+P, or click **File > Print**.
+1. Press Ctrl+P, or click **File > Print**. The **quick toolbar** has a **Print** button too.
 2. Next to the **Print** button, set **Copies**.
 3. Choose a **Printer**. The list ends with **Save as PDF**, which makes a PDF file instead of paper. With more than one copy, **Collated** prints the whole set again for each copy (1, 2, 3, then 1, 2, 3), and with it off each page's copies come out together (1, 1, 2, 2, 3, 3). A PDF file is made once, whatever the number of copies.
 4. Under **Range**, choose **All pages**, **Current page**, **Selection** (only the objects you selected, in their places on the current page; an object in a group prints with its whole group, the master page's objects are left out, and the preview shows just what will print; it is dimmed when nothing is selected), or **Pages**. For **Pages**, type the pages in the **Pages** box: page numbers and ranges, with commas between them, such as 1-3, 5.

@@ -5,7 +5,7 @@ Printing happens on the **Print** page. You pick your settings on the left and c
 
 ## Print a publication
 
-1. Press Ctrl+P, or click **File > Print**.
+1. Press Ctrl+P, or click **File > Print**. The **quick toolbar** has a **Print** button too.
 2. Next to the **Print** button, set **Copies**.
 3. Choose a **Printer**. The list ends with **Save as PDF**, which makes a PDF file instead of paper.
 4. Under **Range**, choose **All pages**, **Current page**, or **Pages**. For **Pages**, type the pages in the **Pages** box: page numbers and ranges, with commas between them, such as 1-3, 5.
