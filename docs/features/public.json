@@ -2530,8 +2530,9 @@
          "text": "fd4f5d4321ed4ca4455b44d2dc6f7e9080989152695afdd4fa782ba751a764c7"
         },
         {
-         "status": "partly",
-         "text": "e0502fa71ff93c3e71afa0ffc32a645d34458af2971c3d3dd9d87d3669ae2468"
+         "hide_soon": true,
+         "status": "done",
+         "text": "0db33aadbdc7b10a9acdae26e545377fdf2fc9ba94e7a0622d9dd0e6e9f4a6b5"
         },
         {
          "hide_soon": true,
@@ -3227,7 +3228,7 @@
       },
       {
        "status": "partly",
-       "text": "b1eb53328f5b69583260edb8aea62dd137e61beb4df3bc6fff0adf76380fd903"
+       "text": "f7ea5516630154b034966ad8a3407e2b71bb3a15174f8ad18fd9c26bb827b86b"
       },
       {
        "hide_soon": true,
@@ -4396,12 +4397,14 @@
          "text": "d3acf8d85665b652e8ae826a25664eb0808ddac59d44a331aed6f1465186fbab"
         },
         {
-         "status": "todo",
-         "text": "d0b41dbdd5a6097dbe7bf8849a041b2b4489c248c5b351db24c5cfdc663891b0"
+         "hide_soon": true,
+         "status": "done",
+         "text": "290132427cd62812233f5e3933e69fab65a46ebeb41acf69b7b0f788a5c14076"
         },
         {
-         "status": "todo",
-         "text": "04d6b76ccb6c1e76fd029a070ae33edfb692c22cf11096a35699489cb7148caf"
+         "hide_soon": true,
+         "status": "done",
+         "text": "1f6621d1c65ef7ca4bf1cdae0eadfcde755072917b38bbe052edccbdc76f4172"
         },
         {
          "hide_soon": true,
@@ -4684,8 +4687,9 @@
        "text": "d3dad535f086d11de90ebc213eb818f9e8a270329fb411ebd8781696b43a3437"
       },
       {
-       "status": "partly",
-       "text": "19147dc17d7713b3dd943e5e7ce22ba58e8f9247477eca6380c6ab1147f6002c"
+       "hide_soon": true,
+       "status": "done",
+       "text": "2a2236d778a09a114196c8e5a64ae1206d5feab81f8950aaeec797d8dbcc197a"
       }
      ]
     },
@@ -7602,18 +7606,6 @@
     "fr": ""
    }
   },
-  "04d6b76ccb6c1e76fd029a070ae33edfb692c22cf11096a35699489cb7148caf": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Tagged PDF for screen readers: headings, reading order, and alt text",
-    "es": "PDF etiquetado para lectores de pantalla: encabezados, orden de lectura y texto alternativo",
-    "fr": "PDF balisé pour lecteurs d’écran : titres, ordre de lecture et texte alternatif"
-   }
-  },
   "04e76b65044a502d215b4681ead533847d7e5ba385a4e3d0f0d1ab40493b8f55": {
    "drop": false,
    "en": "Insert a picture on the sheet from a PNG, JPEG, GIF, BMP, TIFF, or SVG file, or a WMF or EMF file drawn as a PNG, scaled to at most 480 wide, as one step of Undo.",
@@ -8394,6 +8386,18 @@
     "fr": ""
    }
   },
+  "0db33aadbdc7b10a9acdae26e545377fdf2fc9ba94e7a0622d9dd0e6e9f4a6b5": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "0de0572ff197c1801be799be11c76b0df03799c8f9f164be52ab14e0276f285a": {
    "drop": false,
    "en": "Drag selected text to move it, or hold `Ctrl` (`Option` on a Mac) to copy it, in one step. Text from another program is placed where it is dropped, and the window scrolls near its top and bottom edge.",
@@ -9162,18 +9166,6 @@
     "fr": ""
    }
   },
-  "19147dc17d7713b3dd943e5e7ce22ba58e8f9247477eca6380c6ab1147f6002c": {
-   "drop": false,
-   "en": "List pictures and shapes that have no alt text, and go to each one by clicking it.",
-   "es": "Muestre la lista de imágenes y formas que no tienen texto alternativo y vaya a cada una haciendo clic en ella.",
-   "fr": "Affichez la liste des images et des formes sans texte de remplacement, puis accédez à chacune en cliquant dessus.",
-   "soon": {
-    "drop": false,
-    "en": "Accessibility checks for reading order and low contrast",
-    "es": "Comprobaciones de accesibilidad para el orden de lectura y el contraste bajo",
-    "fr": "Vérifications d’accessibilité de l’ordre de lecture et du faible contraste"
-   }
-  },
   "19171f665a1c01ed6057548c1b0c4203d4fc81724be9b0c95eec9730e7f9588a": {
    "drop": false,
    "en": "Normal view, Page Break Preview with draggable page lines, and Page Layout with pages, rulers, and header and footer typed in place. Dashed lines show where pages begin in Normal view, and they can be turned off.",
@@ -9515,6 +9507,18 @@
    "en": "View diagrams on a sheet as they were saved. Pick and move a diagram over the cells, and save it back unchanged.",
    "es": "Vea los diagramas de una hoja tal como se guardaron. Seleccione y mueva un diagrama sobre las celdas, y guárdelo de nuevo sin cambios.",
    "fr": "Affichez les diagrammes d’une feuille tels qu’ils ont été enregistrés. Sélectionnez et déplacez un diagramme sur les cellules, puis réenregistrez-le sans modification.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "1f6621d1c65ef7ca4bf1cdae0eadfcde755072917b38bbe052edccbdc76f4172": {
+   "drop": false,
+   "en": "Create a tagged PDF for screen readers, with a section for each page, titles as headings, text boxes as paragraphs, pictures as figures with their alt text, and tables as rows and cells, in the order of the page's objects. The option is on by default, is left out of PDF/X, and is kept in PDF/A.",
+   "es": "Cree un PDF etiquetado para lectores de pantalla, con una sección por cada página, los títulos como encabezados, los cuadros de texto como párrafos, las imágenes como figuras con su texto alternativo y las tablas como filas y celdas, en el orden de los objetos de la página. La opción está activada de forma predeterminada, se omite en PDF/X y se conserva en PDF/A.",
+   "fr": "Créez un PDF balisé pour les lecteurs d’écran, avec une section par page, les titres comme en-têtes, les zones de texte comme paragraphes, les images comme figures avec leur texte de remplacement, et les tableaux comme lignes et cellules, dans l’ordre des objets de la page. L’option est activée par défaut, exclue de PDF/X et conservée dans PDF/A.",
    "soon": {
     "drop": true,
     "en": "",
@@ -10458,6 +10462,18 @@
     "fr": "Commande de définition de la langue"
    }
   },
+  "290132427cd62812233f5e3933e69fab65a46ebeb41acf69b7b0f788a5c14076": {
+   "drop": false,
+   "en": "Create a PDF with one bookmark for each page, named for the page or \"Page N\". The `Create bookmarks` option is on by default.",
+   "es": "Cree un PDF con un marcador por cada página, con el nombre de la página o \"Página N\". La opción `Create bookmarks` está activada de forma predeterminada.",
+   "fr": "Créez un PDF avec un signet pour chaque page, nommé d’après la page ou « Page N ». L’option `Create bookmarks` est activée par défaut.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "29154abc8da642e2016748d357de0ea4a14c6542708d65b8bc4a9d7f336d0404": {
    "drop": false,
    "en": "Open `.ods` and `.ots` files (ODF 1.1 to 1.3), including password-protected ones: cells of every value type, formulas with their stored results, repeated rows and columns, merged cells, number formats, cell styles, named ranges, database ranges, hyperlinks, print ranges, page styles with headers and footers, protection, and view settings.",
@@ -10547,6 +10563,18 @@
    "en": "Scaling stays with the sheet and is kept as saved, so the same pages come out on the same paper.",
    "es": "La escala permanece con la hoja y se conserva tal como se guardó, de modo que salen las mismas páginas en el mismo papel.",
    "fr": "L’échelle reste attachée à la feuille et est conservée telle qu’enregistrée, de sorte que les mêmes pages sortent sur le même papier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "2a2236d778a09a114196c8e5a64ae1206d5feab81f8950aaeec797d8dbcc197a": {
+   "drop": false,
+   "en": "Check accessibility to list text with contrast under 4.5 to 1 (3 to 1 for large text) and objects out of top-to-bottom, left-to-right reading order. A Reading Order list moves the objects, and clicking an item goes to its object.",
+   "es": "Revise la accesibilidad para ver una lista del texto con un contraste inferior a 4,5 a 1 (3 a 1 para texto grande) y de los objetos fuera del orden de lectura de arriba abajo y de izquierda a derecha. Una lista de orden de lectura permite mover los objetos, y al hacer clic en un elemento se va a su objeto.",
+   "fr": "Vérifiez l’accessibilité pour lister le texte dont le contraste est inférieur à 4,5 pour 1 (3 pour 1 pour le grand texte) et les objets hors de l’ordre de lecture de haut en bas et de gauche à droite. Une liste d’ordre de lecture permet de déplacer les objets, et un clic sur un élément mène à son objet.",
    "soon": {
     "drop": true,
     "en": "",
@@ -19998,18 +20026,6 @@
     "fr": "Paramètres de sécurité pour les liaisons externes, les connexions de données, les macros et les fichiers externes"
    }
   },
-  "b1eb53328f5b69583260edb8aea62dd137e61beb4df3bc6fff0adf76380fd903": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "b1f0815eefc2906cc83b26a6e9b7fa1a9f90d83017eb81e1253b2d1de545102b": {
    "drop": false,
    "en": "Open the selected text in LibreTranslate, an open-source translation service.",
@@ -22218,18 +22234,6 @@
     "fr": "Fichiers et médias liés : paramètres de confiance dans les Options"
    }
   },
-  "d0b41dbdd5a6097dbe7bf8849a041b2b4489c248c5b351db24c5cfdc663891b0": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "PDF bookmarks from page names or Heading 1-3",
-    "es": "Marcadores en PDF a partir de nombres de página o Título 1-3",
-    "fr": "Signets PDF à partir des noms de page ou des Titres 1 à 3"
-   }
-  },
   "d0e1710182d7000598379c7dd09232487304b881cb99169600c879627243eb27": {
    "drop": false,
    "en": "Picture color changes are drawn in the order a file lists them: brightness and contrast, gray, black and white from a threshold, a color made clear or changed, one color for all, a duotone, a turned hue, and a tint. They apply to pictures, picture fills, and backgrounds.",
@@ -23207,18 +23211,6 @@
    "en": "Press `Tab` to move between cells; pressing `Tab` in the last cell adds a row.",
    "es": "Pulse `Tab` para moverse entre celdas; al pulsar `Tab` en la última celda se agrega una fila.",
    "fr": "Appuyez sur `Tab` pour passer d’une cellule à l’autre ; appuyer sur `Tab` dans la dernière cellule ajoute une ligne.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "e0502fa71ff93c3e71afa0ffc32a645d34458af2971c3d3dd9d87d3669ae2468": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
@@ -24839,6 +24831,18 @@
    "en": "Start the show From Beginning (`F5`, or a button on the quick toolbar) or From Current Slide (`Shift+F5`, or a button on the status bar).",
    "es": "Inicie la presentación Desde el principio (`F5`, o un botón de la barra de herramientas rápida) o Desde la diapositiva actual (`Shift+F5`, o un botón de la barra de estado).",
    "fr": "Lancez le diaporama Depuis le début (`F5`, ou un bouton de la barre d’outils rapide) ou Depuis la diapositive actuelle (`Maj+F5`, ou un bouton de la barre d’état).",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "f7ea5516630154b034966ad8a3407e2b71bb3a15174f8ad18fd9c26bb827b86b": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
