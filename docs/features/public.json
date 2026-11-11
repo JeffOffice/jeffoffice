@@ -358,7 +358,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "e4948d88d3de2b56c3f03842fcdacb9f8230ddbe8c05e8e097be74328b0719a1"
+         "text": "31e4d6a779bfc10f1f5b18b63091fca13af48746927075c1de749d816d045f1b"
         },
         {
          "status": "todo",
@@ -2552,8 +2552,9 @@
        "heading": "11e2ff6ba02981cde8bbb20edc03a42f58ffe69bdbb731410928f10cc7d83764",
        "items": [
         {
-         "status": "todo",
-         "text": "e06d93347aabdf1ee20d4f3a5e2d777eeb0effe0865254681b8735439e5e0b83"
+         "hide_soon": true,
+         "status": "done",
+         "text": "fafba3a4944c4710e9c884863fc446a664258f1f2116281ceaf1b4518d35e248"
         },
         {
          "hide_soon": true,
@@ -4419,8 +4420,9 @@
        "heading": "03d1bb5003296abf5258d328f3b6a1df908a7ea3ff6f539ee57d276cc6f47a0f",
        "items": [
         {
-         "status": "todo",
-         "text": "24cd5ea25414c2a62cd3c42c367620b08135e4316f9ce826f7bf0242fea63921"
+         "hide_soon": true,
+         "status": "done",
+         "text": "cb0c4275143581137ce684697c4e92504edcc566d7fa60923422eff47790a9e7"
         },
         {
          "status": "todo",
@@ -5745,8 +5747,9 @@
          "text": "ae0206fe23b573c6d4e6b4b917850f4d3a433da1af85ac01b5a8d03c852e5031"
         },
         {
-         "status": "partly",
-         "text": "b6939f71ad74a0966bcf5114caad7791149a2057d22c4c5c9a55c1c44f96ece7"
+         "hide_soon": true,
+         "status": "done",
+         "text": "2a05ed38e2e5898d0e5942933a8a7e08c0ebfd34225585538776d3347ed41b0f"
         }
        ]
       }
@@ -10116,18 +10119,6 @@
     "fr": ""
    }
   },
-  "24cd5ea25414c2a62cd3c42c367620b08135e4316f9ce826f7bf0242fea63921": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Privacy options: remove personal information on save and choose what is sent anywhere (statistics, crash reports)",
-    "es": "Opciones de privacidad: quitar la información personal al guardar y elegir qué se envía (estadísticas, informes de fallos)",
-    "fr": "Options de confidentialité : supprimer les informations personnelles à l’enregistrement et choisir ce qui est envoyé (statistiques, rapports de plantage)"
-   }
-  },
   "24cd5f514f30aa0470cbc9b484afbdcae6a0f132e2d2b71136552fe2a851020f": {
    "drop": true,
    "en": "",
@@ -10546,6 +10537,18 @@
     "en": "Check Compatibility for `.doc` and `.rtf`",
     "es": "Comprobación de compatibilidad para `.doc` y `.rtf`",
     "fr": "Vérification de compatibilité pour `.doc` et `.rtf`"
+   }
+  },
+  "2a05ed38e2e5898d0e5942933a8a7e08c0ebfd34225585538776d3347ed41b0f": {
+   "drop": false,
+   "en": "Remove personal information from a file each time it is saved: the author, who saved last, the company, and the manager are taken out of the file properties, the names and initials out of the comments, and the names and times out of the tracked changes. The same option is in `Options` > `Save` and on `Info`.",
+   "es": "Elimine la información personal de un archivo cada vez que lo guarde: el autor, quién lo guardó por última vez, la empresa y el responsable se quitan de las propiedades del archivo, los nombres e iniciales de los comentarios, y los nombres y las horas de los cambios con control de cambios. La misma opción está en `Opciones` > `Guardar` y en `Información`.",
+   "fr": "Supprimez les informations personnelles d’un fichier à chaque enregistrement : l’auteur, la dernière personne ayant enregistré, la société et le responsable sont retirés des propriétés du fichier, les noms et initiales des commentaires, et les noms et heures des modifications suivies. La même option se trouve dans `Options` > `Enregistrer` et dans `Informations`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "2a097396755e8aae084fca274d81bda98dad9330c96f49672ba9a3d57815c46e": {
@@ -11033,6 +11036,18 @@
    "en": "Draw text boxes, add business information fields and Text Art, and insert text, RTF, HTML, and `.docx` files into a text box. Insert symbols (recently used symbols are kept between sessions, in the Symbol drop-down and the dialog, plus the full character map) and the date and time (formats, update automatically). Insert an object: a PDF page, an SVG drawing, or a picture; documents from other programs can’t be embedded.",
    "es": "Dibuje cuadros de texto, agregue campos de información de empresa y Text Art, e inserte archivos de texto, RTF, HTML y `.docx` en un cuadro de texto. Inserte símbolos (los símbolos usados recientemente se conservan entre sesiones, en la lista desplegable Símbolo y en el cuadro de diálogo, además del mapa de caracteres completo) y la fecha y la hora (formatos, actualización automática). Inserte un objeto: una página PDF, un dibujo SVG o una imagen; no se pueden incrustar documentos de otros programas.",
    "fr": "Dessinez des zones de texte, ajoutez des champs d’informations professionnelles et du Text Art, et insérez des fichiers texte, RTF, HTML et `.docx` dans une zone de texte. Insérez des symboles (les symboles récemment utilisés sont conservés entre les sessions, dans la liste déroulante Symbole et dans la boîte de dialogue, avec la table complète des caractères) et la date et l’heure (formats, mise à jour automatique). Insérez un objet : une page PDF, un dessin SVG ou une image ; les documents d’autres programmes ne peuvent pas être incorporés.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "31e4d6a779bfc10f1f5b18b63091fca13af48746927075c1de749d816d045f1b": {
+   "drop": false,
+   "en": "Remove personal information from a file each time it is saved: the author, who saved last, the company, and the manager are taken out of the file properties, and the names are taken out of the notes and the comment threads. The same option is in `Options` > `Save` and on `Info`.",
+   "es": "Elimine la información personal de un archivo cada vez que lo guarde: el autor, quién lo guardó por última vez, la empresa y el responsable se quitan de las propiedades del archivo, y los nombres se quitan de las notas y de los hilos de comentarios. La misma opción está en `Opciones` > `Guardar` y en `Información`.",
+   "fr": "Supprimez les informations personnelles d’un fichier à chaque enregistrement : l’auteur, la dernière personne ayant enregistré, la société et le responsable sont retirés des propriétés du fichier, et les noms sont retirés des notes et des fils de commentaires. La même option se trouve dans `Options` > `Enregistrer` et dans `Informations`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20280,18 +20295,6 @@
     "fr": ""
    }
   },
-  "b6939f71ad74a0966bcf5114caad7791149a2057d22c4c5c9a55c1c44f96ece7": {
-   "drop": false,
-   "en": "Remove personal information from file properties when saving: the author, who saved last, the company, and the manager. The choice about statistics is on the General page.",
-   "es": "Quitar la información personal de las propiedades del archivo al guardar: el autor, quién guardó por última vez, la empresa y el responsable. La opción sobre estadísticas está en la página General.",
-   "fr": "Supprimer les informations personnelles des propriétés du fichier à l’enregistrement : l’auteur, la dernière personne ayant enregistré, la société et le responsable. Le choix concernant les statistiques se trouve dans la page Général.",
-   "soon": {
-    "drop": false,
-    "en": "Removing names from comments and tracked changes",
-    "es": "Eliminación de nombres en comentarios y cambios con control",
-    "fr": "Suppression des noms dans les commentaires et les modifications suivies"
-   }
-  },
   "b69f742330b854087b7fcc866a32a8c45b076cd0179abfbee3fe90245f4ae20d": {
    "drop": false,
    "en": "Print with a choice of paper size, one-sided or two-sided output (flipped on the long or short edge, or by hand with a message to turn the stack over), and color, grayscale, or composite output.",
@@ -21780,6 +21783,18 @@
     "fr": ""
    }
   },
+  "cb0c4275143581137ce684697c4e92504edcc566d7fa60923422eff47790a9e7": {
+   "drop": false,
+   "en": "Remove personal information from a file each time it is saved: the author, who saved last, the company, and the manager are taken out of the file properties. The same option is in `Options` > `Save` and on `Info`.",
+   "es": "Elimine la información personal de un archivo cada vez que lo guarde: el autor, quién lo guardó por última vez, la empresa y el responsable se quitan de las propiedades del archivo. La misma opción está en `Opciones` > `Guardar` y en `Información`.",
+   "fr": "Supprimez les informations personnelles d’un fichier à chaque enregistrement : l’auteur, la dernière personne ayant enregistré, la société et le responsable sont retirés des propriétés du fichier. La même option se trouve dans `Options` > `Enregistrer` et dans `Informations`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "cb341234ab0740f9e6073cd0ef2d9b9d073b3e26dfa2bbca04318180110ff374": {
    "drop": false,
    "en": "Margins can be set in the Page Setup dialog, including a left gutter.",
@@ -23232,18 +23247,6 @@
     "fr": ""
    }
   },
-  "e06d93347aabdf1ee20d4f3a5e2d777eeb0effe0865254681b8735439e5e0b83": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Privacy options: remove personal information on save and choose what is sent anywhere (statistics, crash reports)",
-    "es": "Opciones de privacidad: quitar la información personal al guardar y elegir qué se envía (estadísticas, informes de fallos)",
-    "fr": "Options de confidentialité : supprimer les informations personnelles à l’enregistrement et choisir ce qui est envoyé (statistiques, rapports de plantage)"
-   }
-  },
   "e093a72f831d17f44e0b19e01a8108484f23b5a1e59deefaa416de294508337f": {
    "drop": false,
    "en": "Insert a link (`Ctrl+K`) to a web page or file address, a place in this workbook (a sheet and cells, or a name), or an email address, with a screen tip. `Ctrl`+click follows it, and a file or other kind of address asks first. Edit and remove links.",
@@ -23537,18 +23540,6 @@
    "en": "Layer, group, and lock objects, including locking position and size.",
    "es": "Organice en capas, agrupe y bloquee objetos, incluido el bloqueo de posición y tamaño.",
    "fr": "Superposez, groupez et verrouillez des objets, y compris le verrouillage de la position et de la taille.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "e4948d88d3de2b56c3f03842fcdacb9f8230ddbe8c05e8e097be74328b0719a1": {
-   "drop": false,
-   "en": "Remove personal information on save: Options > Privacy takes the author, who saved it last, the company, and the manager out of the properties each time a workbook is saved.",
-   "es": "Elimine la información personal al guardar: Opciones > Privacidad quita el autor, quién lo guardó por última vez, la empresa y el responsable de las propiedades cada vez que se guarda un libro.",
-   "fr": "Supprimez les informations personnelles à l’enregistrement : Options > Confidentialité retire l’auteur, la dernière personne ayant enregistré, la société et le responsable des propriétés à chaque enregistrement d’un classeur.",
    "soon": {
     "drop": true,
     "en": "",
@@ -25138,6 +25129,18 @@
     "en": "Word count of text boxes",
     "es": "Recuento de palabras de los cuadros de texto",
     "fr": "Décompte des mots des zones de texte"
+   }
+  },
+  "fafba3a4944c4710e9c884863fc446a664258f1f2116281ceaf1b4518d35e248": {
+   "drop": false,
+   "en": "Remove personal information from a file each time it is saved: the author, who saved last, the company, and the manager are taken out of the file properties, and the names and initials are taken out of the comments. The same option is in `Options` > `Save` and on `Info`.",
+   "es": "Elimine la información personal de un archivo cada vez que lo guarde: el autor, quién lo guardó por última vez, la empresa y el responsable se quitan de las propiedades del archivo, y los nombres e iniciales se quitan de los comentarios. La misma opción está en `Opciones` > `Guardar` y en `Información`.",
+   "fr": "Supprimez les informations personnelles d’un fichier à chaque enregistrement : l’auteur, la dernière personne ayant enregistré, la société et le responsable sont retirés des propriétés du fichier, et les noms et initiales sont retirés des commentaires. La même option se trouve dans `Options` > `Enregistrer` et dans `Informations`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "fb16d8f7026d9b2939ee0f8c0d56d67e74fd3110de1f0b2e630008222585027a": {
