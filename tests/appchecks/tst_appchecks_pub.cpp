@@ -194,6 +194,7 @@ private Q_SLOTS:
             w->editor()->setMasterView(QString());
             w->editor()->setTwoPageSpread(false);
             // (what the View commands switch, and where the window looks)
+            setSpellAsYouType(ViewOptions().spelling);   // (the setting is the program's, kept across windows: Check Spelling as You Type must start from what the view starts at)
             w->editor()->setView([](ViewOptions &v) { v = ViewOptions(); });
             w->canvas()->zoomToFit(Canvas::Fit::WholePage);
             if (RibbonTab *home = w->ribbon()->tab(QStringLiteral("Home"))) w->ribbon()->showTab(home);
