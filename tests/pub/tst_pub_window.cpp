@@ -1148,7 +1148,7 @@ private Q_SLOTS:
         // and the quick toolbar's buttons numbered.
         QStringList top = keys();
         top.sort();
-        QCOMPARE(top.join(QLatin1Char(' ')), QStringLiteral("1 2 3 4 F H M N P R W Y"));
+        QCOMPARE(top.join(QLatin1Char(' ')), QStringLiteral("1 2 3 F H M N P R W Y"));
         QTest::keyClick(&w, Qt::Key_H);
         QCOMPARE(kt->level(), jp::KeyTips::InTab);
         QCOMPARE(r->current(), r->tab(QStringLiteral("Home")));

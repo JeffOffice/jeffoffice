@@ -405,7 +405,7 @@ private Q_SLOTS:
         copies->setValue(2);
         QVERIFY(collate->isEnabled());
         // the selection can be printed only while there is one
-        QCOMPARE(range->itemText(2), QStringLiteral("Print Selection"));
+        QCOMPARE(range->itemText(2), QStringLiteral("Selection"));
         QVERIFY(!range->model()->flags(range->model()->index(2, 0)).testFlag(Qt::ItemIsEnabled));
         w.editor()->select(ids[1]);
         w.hideBackstage();
