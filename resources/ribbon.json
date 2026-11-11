@@ -3,8 +3,7 @@
   "quickAccess": [
     {"cmd": "file.save", "keytip": "1"},
     {"cmd": "edit.undo", "keytip": "2"},
-    {"cmd": "edit.redo", "keytip": "3"},
-    {"cmd": "file.print", "keytip": "4"}
+    {"cmd": "edit.redo", "keytip": "3"}
   ],
   "templates": {
     "Arrange": {"name": "Arrange", "keytip": "ZA", "items": [

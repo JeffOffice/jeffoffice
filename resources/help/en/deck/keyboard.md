@@ -7,7 +7,7 @@ You can do most things in JeffDeck without a mouse. There are shortcut keys for 
 
 KeyTips are small letters that show up on the ribbon. They let you reach any button without the mouse.
 
-1. Press and release **Alt**. Letters appear on the **File** button, on each tab, and on the quick toolbar. The quick toolbar buttons use the numbers 1 to 4.
+1. Press and release **Alt**. Letters appear on the **File** button, on each tab, and on the quick toolbar. The quick toolbar buttons use the numbers 1 to 3.
 2. Press the letter of the tab you want. The tabs use **H** for **Home**, **N** for **Insert**, **G** for **Design**, **K** for **Transitions**, **S** for **Slide Show**, **R** for **Review**, and **W** for **View**. The letters for that tab's buttons appear.
 3. Type the letters of the button you want. For example, press **Alt**, then **S**, then **B** to play the slide show **From Beginning**.
 
