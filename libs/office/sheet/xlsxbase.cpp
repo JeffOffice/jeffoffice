@@ -746,6 +746,42 @@ private:
 
 } // namespace
 
+std::shared_ptr<const Package> makeObjectPackage(const Workbook &book)
+{
+    const ForeignBook *foreign = book.foreignBook();
+    if (!foreign) return nullptr;
+    const QString drawingType = QString(kRelNs) + QStringLiteral("/drawing"), imageType = QString(kRelNs) + QStringLiteral("/image");
+    PackageWriter writer;
+    int drawings = 0, mediaFiles = 0;
+    for (int i = 0; i < book.info().sheets.size(); ++i) {
+        if (!foreign->mayHaveDrawings(i)) continue;
+        Sheet sheet;
+        if (!book.readSheet(i, &sheet) || sheet.importedDrawing.isEmpty()) continue;
+        const ImportedDrawing &d = sheet.importedDrawing;
+        const QString sheetPart = baseSheetPart(i), drawingPart = QStringLiteral("/xl/drawings/drawing%1.xml").arg(++drawings);
+        writer.addPart(sheetPart, QByteArray("<worksheet/>"), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
+        QByteArray anchors;
+        for (const QByteArray &a : d.anchors) anchors += a;
+        writer.addPart(drawingPart, newDrawingXml(anchors), QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml"));
+        writer.addRelationshipWithId(sheetPart, QStringLiteral("rId1"), drawingType, drawingPart);
+        QVector<QString> partOfMedia;
+        for (const ImportedMedia &m : d.media) {
+            const QString extension = m.name.mid(m.name.lastIndexOf(QLatin1Char('.')) + 1).toLower();
+            const char *type = odt::contentTypeOf(extension);
+            const QString part = QStringLiteral("/xl/media/image%1.%2").arg(++mediaFiles).arg(extension);
+            writer.addPart(part, m.bytes, type ? QString::fromLatin1(type) : QStringLiteral("application/octet-stream"));
+            partOfMedia.append(part);
+        }
+        for (const ImportedRel &r : d.rels)
+            if (r.media >= 0 && r.media < partOfMedia.size()) writer.addRelationshipWithId(drawingPart, r.id, imageType, partOfMedia[r.media]);
+    }
+    if (drawings == 0) return nullptr;
+    auto package = std::make_shared<Package>();
+    QString why;
+    if (!package->readLazy(writer.finish(), &why)) return nullptr;
+    return package;
+}
+
 bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const std::atomic<bool> *cancel)
 {
     auto fail = [&](const QString &why) {
@@ -780,6 +816,7 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
     // The drawing objects of a workbook read from an OpenDocument spreadsheet: a sheet that may have some is read to find them (and what they come to is kept, so that what is written is what was
     // counted), and the pictures are named by the extension they will have.
     std::vector<ImportedDrawing> importedOf(size_t(info.sheets.size()));
+    std::vector<std::unique_ptr<Sheet>> readFirst(size_t(info.sheets.size()));   // (a sheet read to find its objects is kept to be written: it is read once)
     QSet<QString> mediaExtensions;
     if (const ForeignBook *foreign = book.foreignBook()) {
         for (int i = 0; i < info.sheets.size(); ++i) {
@@ -788,6 +825,7 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
             Sheet look;
             if (!book.readSheet(i, &look) || look.importedDrawing.isEmpty()) continue;
             importedOf[size_t(i)] = std::move(look.importedDrawing);
+            readFirst[size_t(i)] = std::make_unique<Sheet>(std::move(look));
             drawingOf[size_t(i)] = ++drawings;
             for (const ImportedMedia &m : std::as_const(importedOf[size_t(i)].media)) mediaExtensions.insert(m.name.mid(m.name.lastIndexOf(QLatin1Char('.')) + 1).toLower());
         }
@@ -830,7 +868,10 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
     for (int i = 0; i < info.sheets.size(); ++i) {
         if (cancel && cancel->load(std::memory_order_relaxed)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
         Sheet sheet;
-        if (!book.readSheet(i, &sheet)) return fail(sheet.error.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "A sheet of the workbook could not be read to be saved.") : sheet.error);
+        if (readFirst[size_t(i)]) {
+            sheet = std::move(*readFirst[size_t(i)]);
+            readFirst[size_t(i)].reset();
+        } else if (!book.readSheet(i, &sheet)) return fail(sheet.error.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "A sheet of the workbook could not be read to be saved.") : sheet.error);
         if (!sheet.error.isEmpty()) return fail(sheet.error);
         sheet.importedDrawing = importedOf[size_t(i)];
         zip.beginStream(baseSheetPart(i).mid(1), true);

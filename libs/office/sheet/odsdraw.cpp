@@ -15,13 +15,19 @@ namespace jp::office::sheet::odsdraw {
 
 namespace {
 constexpr double kEmuPerPoint = 12700.0;
+// A size in EMU kept to what a column or row may be (kMaxSizePoints), so that no sum of them over a sheet's rows can pass what 64 bits hold, and a size that is not a number is nothing.
+qint64 emuOf(double points)
+{
+    if (!(points > 0)) return 0;
+    return qint64(std::llround(std::min(points, kMaxSizePoints) * kEmuPerPoint));
 }
+} // namespace
 
 // ---- the grid
 
 void Grid::Axis::build(QVector<Run> list, double defaultPt)
 {
-    defaultEmu = qint64(std::llround(std::max(0.0, defaultPt) * kEmuPerPoint));
+    defaultEmu = emuOf(defaultPt);
     std::stable_sort(list.begin(), list.end(), [](const Run &a, const Run &b) { return a.first < b.first; });
     runs.clear();
     sizeBefore.clear();
@@ -30,7 +36,7 @@ void Grid::Axis::build(QVector<Run> list, double defaultPt)
         if (r.last < r.first || (!runs.isEmpty() && r.first <= runs.last().last)) continue;
         runs.append(r);
         sizeBefore.append(extra);
-        const qint64 size = qint64(std::llround(std::max(0.0, r.points) * kEmuPerPoint));
+        const qint64 size = emuOf(r.points);
         extra += (size - defaultEmu) * qint64(r.last - r.first + 1);
     }
 }
@@ -48,7 +54,7 @@ qint64 Grid::Axis::size(quint32 index) const
         }
     }
     if (found < 0 || index > runs[found].last) return defaultEmu;
-    return qint64(std::llround(std::max(0.0, runs[found].points) * kEmuPerPoint));
+    return emuOf(runs[found].points);
 }
 
 qint64 Grid::Axis::start(quint32 index) const
@@ -66,7 +72,7 @@ qint64 Grid::Axis::start(quint32 index) const
     qint64 at = qint64(index) * defaultEmu;
     if (found >= 0) {
         const Run &r = runs[found];
-        const qint64 size = qint64(std::llround(std::max(0.0, r.points) * kEmuPerPoint));
+        const qint64 size = emuOf(r.points);
         at += sizeBefore[found] + (size - defaultEmu) * qint64(std::min(index, r.last + 1) - r.first);
     }
     return at;
@@ -112,6 +118,30 @@ void Grid::boxOf(const DrawingAnchor &a, qint64 *x, qint64 *y, qint64 *cx, qint6
     *cy = std::max<qint64>(0, rowStart(a.to.row) + a.to.rowOff - *y);
 }
 
+bool Budget::takeObject(qint64 limit)
+{
+    qint64 seen = objects.load();
+    do {
+        if (seen >= limit) return false;
+    } while (!objects.compare_exchange_weak(seen, seen + 1));
+    return true;
+}
+
+bool Budget::takeBytes(qint64 n, qint64 limit)
+{
+    qint64 seen = pictureBytes.load();
+    do {
+        if (n > limit - seen) return false;
+    } while (!pictureBytes.compare_exchange_weak(seen, seen + n));
+    return true;
+}
+
+TestHooks &testHooks()
+{
+    static TestHooks hooks;
+    return hooks;
+}
+
 // ---- lengths
 
 QString lengthText(qint64 emu) { return QString::number(double(emu) / 914400.0, 'f', 7) + QStringLiteral("in"); }
@@ -149,7 +179,15 @@ bool readNode(QXmlStreamReader &xml, int depthLeft, Counters *counters, NodePtr 
         n->name = nameOf(xml);
         for (const QXmlStreamAttribute &a : xml.attributes()) {
             const QString key = a.namespaceUri() == QLatin1String("http://www.w3.org/1999/xlink") ? QStringLiteral("xlink:") + a.name().toString() : ods::canonicalName(a.namespaceUri().toString(), a.name().toString());
-            if (n->attrs.size() < 200) n->attrs.insert(key, a.value().toString());
+            // (an attribute is charged to the budget of characters as a text is: its name and its value)
+            const qint64 cost = key.size() + a.value().size();
+            if (n->attrs.size() >= 200 || counters->chars + cost > testHooks().nodeCharLimit.load()) {
+                counters->over = true;
+                n->cut = true;
+                continue;
+            }
+            counters->chars += cost;
+            n->attrs.insert(key, a.value().toString());
         }
         n->texts << QString();
         return n;
@@ -188,8 +226,9 @@ bool readNode(QXmlStreamReader &xml, int depthLeft, Counters *counters, NodePtr 
         } else if (t == QXmlStreamReader::Characters) {
             if (!skipping && !stack.empty()) {
                 const QStringView text = xml.text();
-                if (counters->chars + text.size() > kMaxNodeChars) {
+                if (counters->chars + text.size() > testHooks().nodeCharLimit.load()) {
                     counters->over = true;
+                    stack.back()->cut = true;
                 } else {
                     counters->chars += text.size();
                     stack.back()->texts.last() += text;

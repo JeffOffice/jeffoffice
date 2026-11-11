@@ -12,6 +12,7 @@
 #include "sheet/xlsxsave.h"
 
 #include <QDomDocument>
+#include <QThread>
 
 namespace {
 
@@ -69,7 +70,7 @@ int rotationOf(const DrawingObject &o) { return child(child(spPr(o), "xfrm").isN
 
 QString pictureXml(int id, const QString &rId, const QString &name, const QString &descr, int rot = 0, const QString &crop = QString())
 {
-    return QStringLiteral("<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"%1\" name=\"%2\" descr=\"%3\"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed=\"%4\"/>%5<a:stretch><a:fillRect/></a:stretch></xdr:blipFill>"
+    return QStringLiteral("<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"%1\" name=\"%2\" descr=\"%3\" title=\"%2 title\"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed=\"%4\"/>%5<a:stretch><a:fillRect/></a:stretch></xdr:blipFill>"
                           "<xdr:spPr><a:xfrm%6><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1828800\" cy=\"914400\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>")
         .arg(id).arg(name, descr, rId, crop, rot ? QStringLiteral(" rot=\"%1\"").arg(rot) : QString());
 }
@@ -128,7 +129,8 @@ private Q_SLOTS:
         QVERIFY2(saveAsOds(xlsxWith(anchors, {imageTarget(QStringLiteral("rId1"), 1, png)}), &s, &why), qPrintable(why));
         const QByteArray content = s.parts.value(QStringLiteral("content.xml"));
         QVERIFY2(content.contains("<draw:image"), "no picture in content.xml");
-        QVERIFY(content.contains("<svg:title>Logo</svg:title>") || content.contains("<svg:desc>a red logo</svg:desc>"));
+        QVERIFY(content.contains("<svg:title>Logo title</svg:title>"));
+        QVERIFY(content.contains("<svg:desc>a red logo</svg:desc>"));
         QVERIFY(!s.report.notKept.contains(QStringLiteral("pictures and other drawing objects")));
         QString picture;
         for (auto it = s.parts.cbegin(); it != s.parts.cend(); ++it)
@@ -143,6 +145,7 @@ private Q_SLOTS:
         QCOMPARE(int(o.kind), int(ObjectKind::Picture));
         QCOMPARE(o.name, QStringLiteral("Logo"));
         QCOMPARE(o.description, QStringLiteral("a red logo"));
+        QCOMPARE(child(o.element, "nvPicPr").firstChildElement(QStringLiteral("cNvPr")).attribute(QStringLiteral("title")), QStringLiteral("Logo title"));
         QCOMPARE(int(o.anchor.kind), int(AnchorKind::TwoCell));
         QCOMPARE(int(o.anchor.from.col), 1);
         QCOMPARE(int(o.anchor.from.row), 2);
@@ -289,7 +292,6 @@ private Q_SLOTS:
         const QString rows = QStringLiteral("<table:table-row table:style-name=\"ro1\" table:number-rows-repeated=\"3\"><table:table-cell table:number-columns-repeated=\"10\"/></table:table-row>"
                                             "<table:table-row table:style-name=\"ro1\"><table:table-cell table:number-columns-repeated=\"2\"/><table:table-cell>")
                                 + inCell + QStringLiteral("</table:table-cell><table:table-cell table:number-columns-repeated=\"7\"/></table:table-row><table:table-row table:style-name=\"ro1\" table:number-rows-repeated=\"6\"><table:table-cell table:number-columns-repeated=\"10\"/></table:table-row>");
-        Workbook wb;
         QString why;
         Read r;
         QVERIFY2(readOds(handWritten(shapes + box, rows, {{QStringLiteral("Pictures/photo.png"), png}}, styles), &r, &why), qPrintable(why));
@@ -354,7 +356,8 @@ private Q_SLOTS:
         QCOMPARE(int(d.objects[0].kind), int(ObjectKind::Picture));
         QCOMPARE(d.objects[0].name, QStringLiteral("Pic"));
         QCOMPARE(int(d.objects[1].kind), int(ObjectKind::Shape));
-        QVERIFY(std::any_of(package.partNames().cbegin(), package.partNames().cend(), [&](const QString &n) { return n.contains(QLatin1String("/media/")) && package.part(n) == png; }));
+        const QStringList names = package.partNames();
+        QVERIFY(std::any_of(names.cbegin(), names.cend(), [&](const QString &n) { return n.contains(QLatin1String("/media/")) && package.part(n) == png; }));
     }
 
     // A chart in an .ods is still not read: the reader says so, and the writer says the copy has none.
@@ -384,22 +387,45 @@ private Q_SLOTS:
             QCOMPARE(r.sheet.importedDrawing.anchors.size(), kMaxDrawingAnchors);
             QVERIFY(!r.sheet.importedDrawing.notRead.isEmpty());
         }
-        QString deep;
-        for (int i = 0; i < 400; ++i) deep += QStringLiteral("<draw:g>");
-        deep += QStringLiteral("<draw:custom-shape svg:width=\"1in\" svg:height=\"1in\"><draw:enhanced-geometry draw:type=\"rectangle\"/></draw:custom-shape>");
-        for (int i = 0; i < 400; ++i) deep += QStringLiteral("</draw:g>");
         const QString broken = QStringLiteral("<draw:frame draw:name=\"NoPicture\" svg:width=\"1in\" svg:height=\"1in\"><draw:image xlink:href=\"Pictures/missing.png\"/></draw:frame>"
                                               "<draw:frame draw:name=\"Empty\" svg:width=\"1in\" svg:height=\"1in\"/>"
                                               "<draw:custom-shape draw:name=\"Bad\" svg:width=\"abc\" svg:height=\"-5in\" svg:x=\"1e99in\" svg:y=\"NaN\" draw:transform=\"rotate (zzz)\"><draw:enhanced-geometry/></draw:custom-shape>")
-                               + deep;
+                               ;
         {
-            Read r;
-            QString why;
             Workbook wb;
+            QString why;
             QVERIFY2(openBytes(handWritten(broken), QStringLiteral("b.ods"), &wb, &why), qPrintable(why));
             Sheet s;
-            wb.readSheet(0, &s);   // (a refusal in words is as good as what could be read: no crash)
+            QVERIFY2(wb.readSheet(0, &s), qPrintable(s.error));
             QVERIFY(s.importedDrawing.anchors.size() <= 4);
+        }
+        {
+            // groups nested past the most a group may be (16), and well inside what the document may nest: the cells are read, the shape is left out, and the notice says why
+            QString deep;
+            for (int i = 0; i < 40; ++i) deep += QStringLiteral("<draw:g>");
+            deep += QStringLiteral("<draw:custom-shape svg:width=\"1in\" svg:height=\"1in\"><draw:enhanced-geometry draw:type=\"rectangle\"/></draw:custom-shape>");
+            for (int i = 0; i < 40; ++i) deep += QStringLiteral("</draw:g>");
+            Workbook wb;
+            QString why;
+            const QString rows = QStringLiteral("<table:table-row><table:table-cell office:value-type=\"float\" office:value=\"42\"/></table:table-row>");
+            QVERIFY2(openBytes(handWritten(deep, rows), QStringLiteral("deep.ods"), &wb, &why), qPrintable(why));
+            Sheet s;
+            QVERIFY2(wb.readSheet(0, &s), qPrintable(s.error));
+            QCOMPARE(shown(wb, s, QStringLiteral("A1")), QStringLiteral("n:42"));
+            QCOMPARE(s.importedDrawing.anchors.size(), 0);
+            QVERIFY(s.importedDrawing.notRead.join(QLatin1Char('|')).contains(QLatin1String("nested deeper")));
+        }
+        {
+            // nesting past what a document may have is refused in words
+            QString deep;
+            for (int i = 0; i < 400; ++i) deep += QStringLiteral("<draw:g>");
+            for (int i = 0; i < 400; ++i) deep += QStringLiteral("</draw:g>");
+            Workbook wb;
+            QString why;
+            QVERIFY2(openBytes(handWritten(deep), QStringLiteral("deeper.ods"), &wb, &why), qPrintable(why));
+            Sheet s;
+            QVERIFY(!wb.readSheet(0, &s));
+            QVERIFY(!s.error.isEmpty());
         }
         {
             // a picture past the most a picture may be
@@ -424,18 +450,241 @@ private Q_SLOTS:
         }
     }
 
-    // A drawing a save would write too large is cut at the same limits: more objects than a sheet may have are not all written.
+    // A drawing a save would write too large is cut at the same limits: a picture past the most a picture may be is left out and named, and the objects around it are written.
     void aSaveWritesNoMoreThanTheLimits()
     {
-        QString anchors;
-        for (int i = 0; i < 30; ++i) anchors += twoCell(0, i, 2, i + 1, shapeElement(i + 2, QStringLiteral("S%1").arg(i)));
+        const QByteArray png = pngBytes(4, 4, QColor(9, 9, 9));
+        QByteArray huge = png;
+        huge += QByteArray(int(odsdraw::kMaxPictureBytes) + 1024, '\0');
+        QString anchors = twoCell(0, 0, 2, 1, pictureXml(2, QStringLiteral("rId1"), QStringLiteral("Big"), QStringLiteral("too big")));
+        for (int i = 0; i < 30; ++i) anchors += twoCell(0, i + 2, 2, i + 3, shapeElement(i + 3, QStringLiteral("S%1").arg(i)));
+        Saved s;
+        QString why;
+        QVERIFY2(saveAsOds(xlsxWith(anchors, {imageTarget(QStringLiteral("rId1"), 1, huge)}), &s, &why), qPrintable(why));
+        QVERIFY2(s.report.notKept.join(QLatin1Char('|')).contains(QLatin1String("pictures larger than 32 MB")), qPrintable(s.report.notKept.join(QLatin1Char('|'))));
+        for (auto it = s.parts.cbegin(); it != s.parts.cend(); ++it) QVERIFY(!it.key().startsWith(QLatin1String("Pictures/")));
+        Read r;
+        QVERIFY2(readOds(s.ods, &r, &why), qPrintable(why));
+        QCOMPARE(r.drawing.objects.size(), 30);
+        QCOMPARE(r.drawing.objects[29].name, QStringLiteral("S29"));
+    }
+
+    // Rotated objects keep where they are: the box's place and size come back from the turn the standard writes, in each kind of anchor.
+    void aTurnedObjectKeepsItsPlace()
+    {
+        QString shape = shapeElement(2, QStringLiteral("Tilted"));
+        shape.replace(QStringLiteral("<a:xfrm>"), QStringLiteral("<a:xfrm rot=\"2700000\">"));
+        const QString anchors = oneCell(3, 4, 1828800, 914400, shape, 12345, 6789) + twoCell(1, 1, 3, 3, shape.replace(QStringLiteral("Tilted"), QStringLiteral("Tilted2")), QString(), 1000, 2000, 3000, 4000);
         Saved s;
         QString why;
         QVERIFY2(saveAsOds(xlsxWith(anchors), &s, &why), qPrintable(why));
         Read r;
         QVERIFY2(readOds(s.ods, &r, &why), qPrintable(why));
-        QCOMPARE(r.drawing.objects.size(), 30);
-        QCOMPARE(r.drawing.objects[29].name, QStringLiteral("S29"));
+        QCOMPARE(r.drawing.objects.size(), 2);
+        const DrawingObject one = r.drawing.objects[0], two = r.drawing.objects[1];
+        QCOMPARE(int(one.anchor.from.col), 3);
+        QCOMPARE(int(one.anchor.from.row), 4);
+        QVERIFY(std::abs(one.anchor.from.colOff - 12345) <= 3);
+        QVERIFY(std::abs(one.anchor.from.rowOff - 6789) <= 3);
+        QVERIFY(std::abs(one.anchor.cx - 1828800) <= 3);
+        QVERIFY(std::abs(one.anchor.cy - 914400) <= 3);
+        QVERIFY(std::abs(rotationOf(one) - 2700000) <= 60);
+        QCOMPARE(int(two.anchor.from.col), 1);
+        QCOMPARE(int(two.anchor.from.row), 1);
+        QVERIFY(std::abs(two.anchor.from.colOff - 1000) <= 3);
+        QVERIFY(std::abs(two.anchor.from.rowOff - 2000) <= 3);
+        QCOMPARE(int(two.anchor.to.col), 3);
+        QCOMPARE(int(two.anchor.to.row), 3);
+        QVERIFY(std::abs(rotationOf(two) - 2700000) <= 60);
+    }
+
+    // The members of a group count against the limits on objects like any other object, at any depth.
+    void groupMembersCountAgainstTheLimits()
+    {
+        QString members;
+        for (int i = 0; i < kMaxDrawingAnchors + 100; ++i) members += QStringLiteral("<draw:frame svg:width=\"0.1in\" svg:height=\"0.1in\" svg:x=\"0in\" svg:y=\"0in\"><draw:text-box/></draw:frame>");
+        Read r;
+        QString why;
+        QVERIFY2(readOds(handWritten(QStringLiteral("<draw:g>") + members + QStringLiteral("</draw:g>")), &r, &why), qPrintable(why));
+        QCOMPARE(r.drawing.objects.size(), 1);
+        QVERIFY(r.drawing.objects[0].element.elementsByTagNameNS(kXdr, QStringLiteral("sp")).size() <= kMaxDrawingAnchors);
+        QVERIFY(r.sheet.importedDrawing.notRead.join(QLatin1Char('|')).contains(QLatin1String("past the")));
+        // (and one group in another: the inner members count too)
+        Read r2;
+        QVERIFY2(readOds(handWritten(QStringLiteral("<draw:g><draw:g>") + members + QStringLiteral("</draw:g></draw:g>")), &r2, &why), qPrintable(why));
+        QVERIFY(r2.drawing.objects.isEmpty() || r2.drawing.objects[0].element.elementsByTagNameNS(kXdr, QStringLiteral("sp")).size() <= kMaxDrawingAnchors);
+    }
+
+    // Letters outside the Basic Multilingual Plane (an emoji, a rare Chinese character) are kept in a shape, a text box, and Text Art.
+    void lettersOutsideTheBasicPlaneSurvive()
+    {
+        const QString words = QString::fromUtf8("a\xF0\x9F\x98\x80" "b\xF0\xA0\x80\x80" "c");
+        const QString anchors = twoCell(0, 0, 3, 3, shapeElement(2, QStringLiteral("Shape"), QStringLiteral("rect"), words)) + twoCell(0, 4, 3, 6, textBoxXml(3, QStringLiteral("Box"), words))
+                                + twoCell(4, 0, 8, 3, textArtXml(4, QStringLiteral("Art"), QStringLiteral("textPlain"), words));
+        Saved s;
+        QString why;
+        QVERIFY2(saveAsOds(xlsxWith(anchors), &s, &why), qPrintable(why));
+        QVERIFY(s.parts.value(QStringLiteral("content.xml")).contains(words.toUtf8()));
+        Read r;
+        QVERIFY2(readOds(s.ods, &r, &why), qPrintable(why));
+        QCOMPARE(r.drawing.objects.size(), 3);
+        for (const DrawingObject &o : std::as_const(r.drawing.objects)) QCOMPARE(textOf(child(o.element, "txBody")), words);
+    }
+
+    // A column of a size no sheet has (1e30 points) is kept to a sane one, and a shape still lands in a cell.
+    void anAbsurdColumnWidthIsKeptToWhatASheetHolds()
+    {
+        const QString styles = QStringLiteral("<style:style style:name=\"co9\" style:family=\"table-column\"><style:table-column-properties style:column-width=\"1e30pt\"/></style:style>"
+                                              "<style:style style:name=\"ro9\" style:family=\"table-row\"><style:table-row-properties style:row-height=\"1e30pt\"/></style:style>");
+        const QString shape = QStringLiteral("<draw:custom-shape draw:name=\"Far\" svg:width=\"1in\" svg:height=\"1in\" svg:x=\"3in\" svg:y=\"2in\" draw:anchor-type=\"cell\"><draw:enhanced-geometry draw:type=\"rectangle\"/></draw:custom-shape>");
+        const QString body = QStringLiteral("<table:table table:name=\"S\"><table:shapes>%1</table:shapes><table:table-column table:style-name=\"co9\"/><table:table-column table:number-columns-repeated=\"5\"/>"
+                                            "<table:table-row table:style-name=\"ro9\"><table:table-cell/></table:table-row><table:table-row><table:table-cell/></table:table-row></table:table>").arg(shape);
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBytes(buildOds(contentXml(body, styles)), QStringLiteral("wide.ods"), &wb, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY2(wb.readSheet(0, &s), qPrintable(s.error));
+        QCOMPARE(s.importedDrawing.anchors.size(), 1);
+        QByteArray xml;
+        for (const QByteArray &a : s.importedDrawing.anchors) xml += a;
+        const std::shared_ptr<QDomDocument> parsed = parseDrawing(newDrawingXml(xml), &why);
+        QVERIFY(parsed);
+        SheetDrawing d;
+        QVERIFY(readDrawing(Package(), QStringLiteral("/d.xml"), &d, &why, parsed));
+        QCOMPARE(d.objects.size(), 1);
+        QCOMPARE(int(d.objects[0].anchor.from.col), 0);   // (the first column is wider than 3 inches, whatever it was written as)
+        QCOMPARE(int(d.objects[0].anchor.from.row), 0);
+        QVERIFY(d.objects[0].anchor.from.colOff >= 0 && d.objects[0].anchor.from.colOff < (qint64(1) << 40));
+    }
+
+    // A picture whose Base 64 is cut short is refused, not decoded as far as it goes; one inside more characters than a sheet's shapes may hold is left out, and both are named.
+    void aTruncatedInlinePictureIsRefused()
+    {
+        const QByteArray png = pngBytes(20, 20, QColor(5, 6, 7));
+        const QByteArray whole = png.toBase64();
+        auto frame = [](const QByteArray &data) {
+            return QStringLiteral("<draw:frame svg:width=\"1in\" svg:height=\"1in\"><draw:image><office:binary-data>%1</office:binary-data></draw:image></draw:frame>").arg(QString::fromLatin1(data));
+        };
+        Read good;
+        QString why;
+        QVERIFY2(readOds(handWritten(frame(whole)), &good, &why), qPrintable(why));
+        QCOMPARE(good.sheet.importedDrawing.media.size(), 1);
+        Read cut;
+        QVERIFY2(readOds(handWritten(frame(whole.left(whole.size() - 3))), &cut, &why), qPrintable(why));
+        QCOMPARE(cut.sheet.importedDrawing.media.size(), 0);
+        QVERIFY(!cut.sheet.importedDrawing.notRead.isEmpty());
+        // (a sheet's shapes may hold only so many characters: the rest of an element is not kept, and a picture in it is left out)
+        const qint64 before = odsdraw::testHooks().nodeCharLimit.exchange(2000);
+        Read over;
+        const bool ok = readOds(handWritten(frame(whole.repeated(1) + QByteArray(3000, 'A'))), &over, &why);
+        odsdraw::testHooks().nodeCharLimit = before;
+        QVERIFY2(ok, qPrintable(why));
+        QCOMPARE(over.sheet.importedDrawing.media.size(), 0);
+        QVERIFY(over.sheet.importedDrawing.notRead.join(QLatin1Char('|')).contains(QLatin1String("past the limits")));
+    }
+
+    // The bytes of an element's attributes are charged to the budget of characters like its text is.
+    void attributesAreChargedToTheBudget()
+    {
+        const qint64 before = odsdraw::testHooks().nodeCharLimit.exchange(2000);
+        const QString shape = QStringLiteral("<draw:custom-shape draw:name=\"%1\" svg:width=\"1in\" svg:height=\"1in\"><draw:enhanced-geometry draw:type=\"rectangle\"/></draw:custom-shape>").arg(QString(5000, QLatin1Char('n')));
+        Read r;
+        QString why;
+        const bool ok = readOds(handWritten(shape), &r, &why);
+        odsdraw::testHooks().nodeCharLimit = before;
+        QVERIFY2(ok, qPrintable(why));
+        QVERIFY(r.sheet.importedDrawing.notRead.join(QLatin1Char('|')).contains(QLatin1String("past the limits")));
+    }
+
+    // A sheet with no default height of its rows has the standard's (0.178 inch), so a shape 17.8 inches down is in row 101.
+    void rowsWithNoHeightAreTheStandardsDefault()
+    {
+        const QString shape = QStringLiteral("<draw:custom-shape draw:name=\"Low\" svg:width=\"1in\" svg:height=\"1in\" svg:x=\"0in\" svg:y=\"17.8in\" draw:anchor-type=\"cell\"><draw:enhanced-geometry draw:type=\"rectangle\"/></draw:custom-shape>");
+        const QString rows = QStringLiteral("<table:table-row table:number-rows-repeated=\"200\"><table:table-cell table:number-columns-repeated=\"10\"/></table:table-row>");
+        Read r;
+        QString why;
+        QVERIFY2(readOds(handWritten(shape, rows), &r, &why), qPrintable(why));
+        QCOMPARE(r.drawing.objects.size(), 1);
+        QCOMPARE(int(r.drawing.objects[0].anchor.from.row), 100);
+    }
+
+    // A picture that many frames use is read from the package, and made, once.
+    void aPictureManyFramesUseIsReadOnce()
+    {
+        const QByteArray png = pngBytes(8, 8, QColor(7, 7, 7));
+        QString frames;
+        for (int i = 0; i < 5; ++i) frames += QStringLiteral("<draw:frame draw:name=\"F%1\" svg:width=\"1in\" svg:height=\"1in\" svg:x=\"%1in\" svg:y=\"0in\"><draw:image xlink:href=\"Pictures/same.png\"/></draw:frame>").arg(i);
+        const qint64 reads = odsdraw::testHooks().pictureReads.load();
+        Read r;
+        QString why;
+        QVERIFY2(readOds(handWritten(frames, QString(), {{QStringLiteral("Pictures/same.png"), png}}), &r, &why), qPrintable(why));
+        QCOMPARE(r.drawing.objects.size(), 5);
+        QCOMPARE(r.sheet.importedDrawing.media.size(), 1);
+        QCOMPARE(odsdraw::testHooks().pictureReads.load() - reads, qint64(1));
+        // (and the same on the way out: one picture a package holds that five objects use is hashed once)
+        QString anchors;
+        for (int i = 0; i < 5; ++i) anchors += twoCell(0, i * 2, 2, i * 2 + 1, pictureXml(i + 2, QStringLiteral("rId1"), QStringLiteral("P%1").arg(i), QStringLiteral("same")));
+        const qint64 hashes = odsdraw::testHooks().pictureHashes.load();
+        Saved s;
+        QVERIFY2(saveAsOds(xlsxWith(anchors, {imageTarget(QStringLiteral("rId1"), 1, png)}), &s, &why), qPrintable(why));
+        QCOMPARE(odsdraw::testHooks().pictureHashes.load() - hashes, qint64(1));
+        int pictures = 0;
+        for (auto it = s.parts.cbegin(); it != s.parts.cend(); ++it) pictures += it.key().startsWith(QLatin1String("Pictures/")) ? 1 : 0;
+        QCOMPARE(pictures, 1);
+    }
+
+    // Saving a workbook opened from an .ods reads each sheet once.
+    void aSaveReadsEachSheetOnce()
+    {
+        const QByteArray png = pngBytes(8, 8, QColor(3, 3, 3));
+        const QString shapes = QStringLiteral("<draw:frame draw:name=\"Pic\" svg:width=\"1in\" svg:height=\"1in\"><draw:image xlink:href=\"Pictures/p.png\"/></draw:frame>");
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBytes(handWritten(shapes, QString(), {{QStringLiteral("Pictures/p.png"), png}}), QStringLiteral("once.ods"), &wb, &why), qPrintable(why));
+        const qint64 reads = odsdraw::testHooks().sheetReads.load();
+        QByteArray xlsx;
+        QVERIFY2(saveXlsx(wb, SaveChanges(), &xlsx, &why), qPrintable(why));
+        QCOMPARE(odsdraw::testHooks().sheetReads.load() - reads, qint64(1));
+    }
+
+    // Sheets read on several threads can't take more than the workbook's limit between them.
+    void theBudgetIsTakenInOneStep()
+    {
+        odsdraw::Budget budget;
+        std::atomic<qint64> got{0};
+        QVector<QThread *> threads;
+        for (int t = 0; t < 8; ++t) {
+            QThread *th = QThread::create([&] {
+                for (int i = 0; i < 2000; ++i) {
+                    if (budget.takeObject(1000)) ++got;
+                    if (budget.takeBytes(1, 1000)) ++got;
+                }
+            });
+            threads << th;
+            th->start();
+        }
+        for (QThread *th : std::as_const(threads)) {
+            th->wait();
+            delete th;
+        }
+        QCOMPARE(got.load(), qint64(2000));
+        QCOMPARE(budget.objects.load(), qint64(1000));
+        QCOMPARE(budget.pictureBytes.load(), qint64(1000));
+    }
+
+    // A crop with room around the picture (negative insets), and a crop on a picture whose size isn't known, are named in the report and not dropped without a word.
+    void cropsThatAreNotKeptAreNamed()
+    {
+        const QByteArray png = pngBytes(8, 8, QColor(1, 1, 1));
+        Saved s;
+        QString why;
+        QVERIFY2(saveAsOds(xlsxWith(twoCell(0, 0, 2, 2, pictureXml(2, QStringLiteral("rId1"), QStringLiteral("Room"), QStringLiteral("room"), 0, QStringLiteral("<a:srcRect l=\"-10000\" t=\"-5000\"/>"))), {imageTarget(QStringLiteral("rId1"), 1, png)}), &s, &why), qPrintable(why));
+        QVERIFY2(s.report.notKept.join(QLatin1Char('|')).contains(QLatin1String("room around")), qPrintable(s.report.notKept.join(QLatin1Char('|'))));
+        const QByteArray svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"><rect width=\"10\" height=\"10\"/></svg>";
+        Saved t;
+        const DrawingTarget target{QStringLiteral("rId1"), QStringLiteral("xl/media/image1.svg"), svg, QStringLiteral("image/svg+xml"), QStringLiteral("image")};
+        QVERIFY2(saveAsOds(xlsxWith(twoCell(0, 0, 2, 2, pictureXml(2, QStringLiteral("rId1"), QStringLiteral("Vec"), QStringLiteral("vec"), 0, QStringLiteral("<a:srcRect l=\"10000\"/>"))), {target}), &t, &why), qPrintable(why));
+        QVERIFY2(t.report.notKept.join(QLatin1Char('|')).contains(QLatin1String("crop")), qPrintable(t.report.notKept.join(QLatin1Char('|'))));
     }
 };
 

@@ -76,6 +76,7 @@ public:
         ctx.theme = m_theme;
         ctx.formats = m_formats;
         ctx.budget = &m_budget;
+        ctx.images = &m_imageOfPart;   // (a picture that several objects use is handed over once)
         ctx.addImage = [this](const QByteArray &bytes, const QString &format) {
             const QString id = QStringLiteral("i%1").arg(m_images.size() + 1);
             m_images[id] = bytes;
@@ -119,6 +120,10 @@ public:
             const QString xml = emit(*item, double(x), double(y), double(std::max<qint64>(cx, 1)), double(std::max<qint64>(cy, 1)), 0, &o.anchor, z);
             if (xml.isEmpty()) continue;
             ++z;
+            quint32 bottom = 0;
+            qint64 inRow = 0;
+            m_grid.rowAt(qint64(y) + cy, &bottom, &inRow);
+            m_out->lastRow = std::max(m_out->lastRow, bottom);
             ++*m_objects;
             ++m_out->count;
             m_out->shapes += xml;
@@ -144,6 +149,9 @@ private:
     DrawingBudget m_budget;
     QHash<QString, QByteArray> m_images;
     QHash<QString, QString> m_imageFormats;
+    QHash<QString, QString> m_imageOfPart;    // the id kept for each picture of the package, by part and relationship
+    QHash<QString, QString> m_fileOfImage;    // the file a picture was put in, by its id: hashed once
+    QHash<QString, QSizeF> m_naturalOfFile;   // and measured once
     std::map<QString, std::unique_ptr<QTextDocument>> m_stories;
     QHash<QString, QString> m_styleOf;    // the XML of a style's properties, by the name it was given
     QHash<QString, QString> m_textStyleOf;
@@ -267,24 +275,38 @@ private:
     // ---- text
     static QString textXml(const QString &text)
     {
-        QString out;
+        // (runs of plain characters are escaped whole, so that a letter written as two UTF-16 units is never cut in the middle)
+        QString out, run;
         int spaces = 0;
-        auto flush = [&] {
+        auto flushRun = [&] {
+            if (!run.isEmpty()) out += xmlText(run);
+            run.clear();
+        };
+        auto flushSpaces = [&] {
             if (spaces > 1) out += QStringLiteral("<text:s text:c=\"%1\"/>").arg(spaces - 1);
             spaces = 0;
         };
-        for (qsizetype i = 0; i < text.size(); ++i) {
-            const QChar c = text[i];
+        for (const QChar c : text) {
             if (c == QLatin1Char(' ')) {
-                if (spaces++ == 0) out += QLatin1Char(' ');
+                if (spaces++ == 0) {
+                    flushRun();
+                    out += QLatin1Char(' ');
+                }
                 continue;
             }
-            flush();
-            if (c == QLatin1Char('\t')) out += QStringLiteral("<text:tab/>");
-            else if (c == QLatin1Char('\n') || c == QChar(QChar::LineSeparator)) out += QStringLiteral("<text:line-break/>");
-            else out += xmlText(QString(c));
+            flushSpaces();
+            if (c == QLatin1Char('\t')) {
+                flushRun();
+                out += QStringLiteral("<text:tab/>");
+            } else if (c == QLatin1Char('\n') || c == QChar(QChar::LineSeparator)) {
+                flushRun();
+                out += QStringLiteral("<text:line-break/>");
+            } else {
+                run += c;
+            }
         }
-        flush();
+        flushRun();
+        flushSpaces();
         return out;
     }
 
@@ -341,9 +363,19 @@ private:
         return t;
     }
 
-    QString pictureFile(const QByteArray &bytes, const QString &format)
+    QString pictureFile(const QString &imageId, const QByteArray &bytes, const QString &format)
+    {
+        const auto known = m_fileOfImage.constFind(imageId);
+        if (known != m_fileOfImage.constEnd()) return known.value();
+        const QString file = pictureFileOf(bytes, format);
+        m_fileOfImage.insert(imageId, file);
+        return file;
+    }
+
+    QString pictureFileOf(const QByteArray &bytes, const QString &format)
     {
         static const QHash<QString, QString> ext = {{"png", "png"}, {"jpeg", "jpg"}, {"gif", "gif"}, {"bmp", "bmp"}, {"tiff", "tif"}, {"svg", "svg"}, {"emf", "emf"}, {"wmf", "wmf"}};
+        ++testHooks().pictureHashes;
         const QString file = QStringLiteral("Pictures/") + QString::fromLatin1(QCryptographicHash::hash(bytes, QCryptographicHash::Sha1).toHex().left(24)) + QLatin1Char('.') + ext.value(format, QStringLiteral("bin"));
         if (!m_pictureNames.contains(file)) {
             if (*m_pictureBytes + bytes.size() > kMaxPictureTotal) return QString();
@@ -372,7 +404,7 @@ private:
                 note(QCoreApplication::translate("Sheet", "pictures larger than %1 MB").arg(kMaxPictureBytes >> 20));
                 return QString();
             }
-            const QString file = pictureFile(bytes, format);
+            const QString file = pictureFile(p.imageId, bytes, format);
             if (file.isEmpty()) {
                 note(QCoreApplication::translate("Sheet", "pictures past the %1 MB a workbook may keep").arg(kMaxPictureTotal >> 20));
                 return QString();
@@ -381,11 +413,13 @@ private:
             // the part that is cut off, in lengths of the picture's own size
             const QRectF whole = p.imgRect, frame(0, 0, p.rect.width(), p.rect.height());
             if (whole.width() > 0 && whole.height() > 0 && whole != frame) {
-                const QSizeF natural = naturalSizePoints(bytes);
+                if (!m_naturalOfFile.contains(file)) m_naturalOfFile.insert(file, naturalSizePoints(bytes));
+                const QSizeF natural = m_naturalOfFile.value(file);
                 if (natural.width() > 0) {
                     const double l = (frame.left() - whole.left()) / whole.width(), t = (frame.top() - whole.top()) / whole.height();
                     const double r = (whole.right() - frame.right()) / whole.width(), b = (whole.bottom() - frame.bottom()) / whole.height();
-                    if (l >= 0 && t >= 0 && r >= 0 && b >= 0 && (l || t || r || b)) {
+                    if (l < 0 || t < 0 || r < 0 || b < 0) note(QCoreApplication::translate("Sheet", "pictures with room around them instead of a crop (they are written whole)"));
+                    else if (l || t || r || b) {
                         auto len = [&](double v, double of) { return lengthText(qint64(std::llround(v * of * kEmuPerPoint))); };
                         props += QStringLiteral(" fo:clip=\"rect(%1, %2, %3, %4)\"").arg(len(t, natural.height()), len(r, natural.width()), len(b, natural.height()), len(l, natural.width()));
                     }

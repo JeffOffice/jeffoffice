@@ -682,6 +682,22 @@ bool PackageWriter::addRelationshipWithId(const QString &source, const QString &
     return true;
 }
 
+QByteArray PackageWriter::partData(const QString &name) const
+{
+    const auto it = m_partAt.constFind(name.toLower());
+    return it == m_partAt.constEnd() ? QByteArray() : m_parts[it.value()].data;
+}
+
+QVector<Relationship> PackageWriter::relationshipsFrom(const QString &source) const
+{
+    QVector<Relationship> out;
+    for (Relationship r : m_rels.value(source)) {
+        if (!r.external) r.target = resolvePartName(source, r.target);
+        out.append(r);
+    }
+    return out;
+}
+
 QByteArray PackageWriter::finish()
 {
     jp::ZipWriter zip;

@@ -1706,7 +1706,7 @@ private:
                     bestCount = it.value();
                     best = it.key();
                 }
-            const double defaultPt = best > 0 ? double(best) / 100 : 15;
+            const double defaultPt = best > 0 ? double(best) / 100 : 12.816;   // (the standard's own default: 0.178 inch)
             m_s.format.defaultRowHeight = defaultPt;
             for (const RowRun &r : m_rowRuns) {
                 const double h = heightOf(r);
@@ -1780,6 +1780,7 @@ private:
             QMutexLocker locker(&m_m.lock);
             const QString part = QLatin1Char('/') + name;
             if (!m_m.package->hasPart(part) || m_m.package->partSize(part) > odsdraw::kMaxPictureBytes) return QByteArray();
+            ++odsdraw::testHooks().pictureReads;
             return m_m.package->part(part);
         };
         odsdraw::shapesToDrawing(m_shapes, m_drawCounters, grid, styles, parts, &budget, &m_s.importedDrawing);
@@ -1800,7 +1801,7 @@ private:
     {
         double pt = -1;
         const ods::Props p = m_m.found.store.resolve(QStringLiteral("table-column"), r.style);
-        if (ods::lengthPoints(p.value(QStringLiteral("col:style:column-width")), &pt) && pt > 0) return pt;
+        if (ods::lengthPoints(p.value(QStringLiteral("col:style:column-width")), &pt) && pt > 0) return std::min(pt, odsdraw::kMaxSizePoints);
         return -1;
     }
 
@@ -1808,7 +1809,7 @@ private:
     {
         double pt = -1;
         const ods::Props p = m_m.found.store.resolve(QStringLiteral("table-row"), r.style);
-        if (ods::lengthPoints(p.value(QStringLiteral("row:style:row-height")), &pt) && pt > 0) return pt;
+        if (ods::lengthPoints(p.value(QStringLiteral("row:style:row-height")), &pt) && pt > 0) return std::min(pt, odsdraw::kMaxSizePoints);
         return -1;
     }
 
@@ -1898,6 +1899,7 @@ bool OdsBook::readSheet(int index, const Limits &limits, const std::function<boo
         return false;
     }
     out->format.defaultRowHeight = 15;
+    ++odsdraw::testHooks().sheetReads;
     SheetReader reader(*m, index, limits, progress, stopAfterRow, screenRows, out);
     const bool done = reader.run();
     // (the formulas that could not be converted are known for a sheet that was read whole; a sheet read again is counted once)

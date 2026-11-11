@@ -39,13 +39,25 @@ constexpr qint64 kMaxPictureTotal = kMaxAddedBytes;
 constexpr int kMaxTextChars = 100000;
 constexpr int kMaxParagraphs = 5000;
 constexpr int kMaxGroupDepth = 16;
+constexpr double kMaxSizePoints = 20000;     // the most a column's width or a row's height may be, in points (a larger one is kept to it)
 constexpr int kMaxNodes = 400000;            // the elements one sheet's shapes may be made of
 constexpr qint64 kMaxNodeChars = 90000000;   // and the characters in them (the text of the objects, and a picture given inside the document as base64)
 
 // What one workbook's reading has taken so far (the sheets are read apart, by any thread).
 struct Budget {
     std::atomic<qint64> objects{0}, pictureBytes{0};
+    // One more object, or `n` more bytes of pictures, if that stays within the limit (taken and counted in one step, so that sheets read on several threads can't pass it together).
+    bool takeObject(qint64 limit);
+    bool takeBytes(qint64 n, qint64 limit);
 };
+
+// What tests count: pictures read from the package, pictures hashed to be named, drawings sent through a package of their own, sheets of an .ods read; and the most characters the elements of
+// a sheet's shapes may hold (kMaxNodeChars unless a test makes it less).
+struct TestHooks {
+    std::atomic<qint64> pictureReads{0}, pictureHashes{0}, sheetReads{0};
+    std::atomic<qint64> nodeCharLimit{kMaxNodeChars};
+};
+TestHooks &testHooks();
 
 // ---- the grid: where cells are, in EMU from the sheet's top left
 class Grid {
@@ -86,6 +98,7 @@ struct Node {
     QVector<std::shared_ptr<Node>> children;
     // The characters that come before each child, and after the last (`texts.size() == children.size() + 1`).
     QStringList texts;
+    bool cut = false;   // something of it (its text, an attribute) was past the limits and is not here
 };
 using NodePtr = std::shared_ptr<Node>;
 
@@ -122,6 +135,7 @@ struct Written {
     QString commonStyles;                            // the styles they use that go in styles.xml (dashes)
     QVector<QPair<QString, QByteArray>> pictures;    // the file's name in the package ("Pictures/a.png") and its bytes
     int count = 0;
+    quint32 lastRow = 0;                             // the last row any object reaches (the rows down to it are written, so that a reader finds their height)
     QStringList notWritten;                          // what was left out, in words
 };
 // `package` holds the workbook whose sheet has the drawing part `drawingPart`; `sheetNumber` makes the names of the styles different from those of other sheets; `pictureBytes` is what the

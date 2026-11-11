@@ -13,7 +13,12 @@
 #include "core/fonts.h"
 #include "grid/gridview.h"
 
+#include "core/sheetobjects.h"
+#include "grid/objectlayer.h"
+
 #include <QApplication>
+#include <QBuffer>
+#include <QImage>
 #include <QComboBox>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -154,6 +159,40 @@ private Q_SLOTS:
         QCOMPARE(o.shown(2, 0), QStringLiteral("5"));
         QCOMPARE(o.shown(0, 1), QStringLiteral("hello"));
         QVERIFY2(o.told.isEmpty(), qPrintable(o.told.join(QLatin1Char('\n'))));
+    }
+
+    // An .ods with a picture, a shape, and Text Art shows them on the sheet as it opens, as an .xlsx would, and a save as .xlsx writes them.
+    void anOdsShowsItsDrawingObjectsAtOnce()
+    {
+        const QByteArray png = [] {
+            QImage img(40, 20, QImage::Format_ARGB32);
+            img.fill(QColor(200, 40, 40));
+            QByteArray b;
+            QBuffer buffer(&b);
+            buffer.open(QIODevice::WriteOnly);
+            img.save(&buffer, "PNG");
+            return b;
+        }();
+        const QString styles = QStringLiteral("<style:style style:name=\"gr1\" style:family=\"graphic\"><style:graphic-properties draw:fill=\"solid\" draw:fill-color=\"#3366cc\" draw:stroke=\"none\"/></style:style>"
+                                              "<style:style style:name=\"gr2\" style:family=\"graphic\"><style:graphic-properties draw:fill=\"solid\" draw:fill-color=\"#ff8800\" draw:stroke=\"none\"/></style:style>");
+        const QString shapes = QStringLiteral("<draw:frame draw:name=\"Photo\" svg:width=\"1.5in\" svg:height=\"0.75in\" svg:x=\"0.5in\" svg:y=\"0.5in\"><draw:image xlink:href=\"Pictures/p.png\"/></draw:frame>"
+                                              "<draw:custom-shape draw:name=\"Oval\" draw:style-name=\"gr1\" svg:width=\"1.5in\" svg:height=\"0.75in\" svg:x=\"2.5in\" svg:y=\"0.5in\"><text:p>hi</text:p><draw:enhanced-geometry draw:type=\"ellipse\"/></draw:custom-shape>"
+                                              "<draw:custom-shape draw:name=\"Art\" draw:style-name=\"gr2\" svg:width=\"2.5in\" svg:height=\"0.75in\" svg:x=\"0.5in\" svg:y=\"1.75in\"><text:p>Fancy</text:p>"
+                                              "<draw:enhanced-geometry draw:type=\"fontwork-arch-up-curve\" draw:text-path=\"true\"/></draw:custom-shape>");
+        const QByteArray ods = buildOds(contentXml(QStringLiteral("<table:table table:name=\"S\"><table:shapes>") + shapes + QStringLiteral("</table:shapes><table:table-column table:number-columns-repeated=\"3\"/>") + row(floatCell(1))
+                                                   + QStringLiteral("</table:table>"), styles),
+                                        QString(), QByteArray(), {{QStringLiteral("Pictures/p.png"), png}});
+        Win o;
+        QVERIFY(o.open(ods, QStringLiteral("drawn.ods")));
+        crunch::SheetObjects *objects = o.w.objects();
+        QVERIFY(objects);
+        QTRY_COMPARE(int(objects->describe(0).size()), 3);
+        const auto described = objects->describe(0);
+        QCOMPARE(described[0].name, QStringLiteral("Photo"));
+        QCOMPARE(int(described[0].kind), int(office::sheet::ObjectKind::Picture));
+        QCOMPARE(described[1].name, QStringLiteral("Oval"));
+        QCOMPARE(described[2].name, QStringLiteral("Art"));
+        QTRY_COMPARE(objects->layer()->count(), 3);
     }
 
     // What the document has that is not read is said once, in plain words, as it opens.

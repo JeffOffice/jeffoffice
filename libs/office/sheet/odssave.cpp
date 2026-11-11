@@ -257,6 +257,7 @@ private:
     QSet<QString> m_pictureNames;
     QString m_commonStyles;
     qint64 m_pictureBytes = 0, m_objects = 0;
+    quint32 m_lastObjectRow = 0;   // the last row an object of the sheet being written reaches
     QStringList m_drawingNotes;
     std::vector<oldsave::Written> m_written;
     QHash<int, int> m_placeToWritten;
@@ -335,6 +336,7 @@ private:
     // The sheet's drawing objects as the elements of its table:shapes (nothing for a workbook with no package of its own, or a sheet with no drawing).
     QString shapesOf(const Sheet &sheet, const oldsave::Written &w, int index, int place)
     {
+        m_lastObjectRow = 0;
         if (place < 0 || m_book.isConverted() || !m_book.package().isLazy()) return QString();
         const QString part = drawingPartOf(m_book.package(), m_book.info().sheets.value(place).part);
         if (part.isEmpty()) return QString();
@@ -348,6 +350,7 @@ private:
                 m_pictures.push_back(picture);
             }
         for (const QString &n : drawn.notWritten) m_drawingNotes << n;
+        m_lastObjectRow = drawn.lastRow;
         return drawn.shapes.isEmpty() ? QString() : QStringLiteral("<table:shapes>") + drawn.shapes + QStringLiteral("</table:shapes>");
     }
 
@@ -868,6 +871,7 @@ private:
             }
             m_features.note(sheet);
         }
+        const QString shapes = shapesOf(sheet, w, index, w.place);
         m_views.append({w.name, sheet.view, w.place});
         const SheetEntry entry = m_book.info().sheets.value(w.place);
         QString tableStyle = QStringLiteral("ta%1").arg(index + 1);
@@ -967,7 +971,7 @@ private:
             }
             if (!print.isEmpty()) head.insert(head.size() - 1, QStringLiteral(" table:print-ranges=\"%1\"").arg(esc(print)));
         }
-        spool->add(head.toUtf8() + shapesOf(sheet, w, index, w.place).toUtf8() + columns.toUtf8());
+        spool->add(head.toUtf8() + shapes.toUtf8() + columns.toUtf8());
         QMap<quint32, RowSpec> specs;
         for (const RowSpec &s : sheet.placedRowSpecs()) specs.insert(s.row, s);
         m_explicitDefault = false;
@@ -1037,6 +1041,11 @@ private:
                             rowList.append(b.before);
                         }
                     }
+                // (the rows down to the last an object reaches are there, with the sheet's height, so that a reader finds the heights the objects were placed by)
+                if (m_lastObjectRow > 0 && !seen.contains(m_lastObjectRow)) {
+                    seen.insert(m_lastObjectRow);
+                    rowList.append(m_lastObjectRow);
+                }
                 std::sort(rowList.begin(), rowList.end());
             }
             // the cells by row

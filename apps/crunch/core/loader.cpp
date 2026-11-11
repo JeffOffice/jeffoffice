@@ -1,4 +1,5 @@
 #include "core/loader.h"
+#include "sheet/xlsxbase.h"
 #include "io/crypto.h"
 
 #include "office/package.h"
@@ -269,6 +270,8 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     }
     book->pivots();   // (the same for the pivot tables: only where they are is read here; GETPIVOTDATA asks the book from the worker)
     book->tables();   // (read now: the worker looks at the tables as it works formulas out, and the window changes them, neither of which may be the first to read them)
+    // (an OpenDocument spreadsheet's drawing objects are shown from a package made of them: the window's objects are read from one)
+    if (book->foreignBook()) book->setObjectPackage(jp::office::sheet::makeObjectPackage(*book));
     out->book = book;
     out->protectedFile = book->wasProtected();
     out->defaultPasswordOnly = book->openedWithDefaultPassword();

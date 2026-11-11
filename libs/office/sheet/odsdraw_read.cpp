@@ -58,21 +58,13 @@ public:
         std::vector<Placed> placed;
         int order = 0;
         for (const SheetShape &s : shapes) {
-            if (int(placed.size()) >= kMaxDrawingAnchors) {
-                m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "drawing objects past the %1 a sheet may have").arg(kMaxDrawingAnchors));
-                break;
-            }
-            if (m_budget && m_budget->objects.load() >= kMaxWorkbookObjects) {
-                m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "drawing objects past the %1 a workbook may have").arg(kMaxWorkbookObjects));
-                break;
-            }
+            if (m_full) break;
             Placed p;
             p.order = order++;
             if (!shape(s.node, 0, s.inCell ? m_grid.columnStart(s.col) : 0, s.inCell ? m_grid.rowStart(s.row) : 0, &p)) continue;
             p.inCell = s.inCell;
             p.row = s.row;
             p.col = s.col;
-            if (m_budget) m_budget->objects.fetch_add(1);
             placed.push_back(std::move(p));
         }
         std::stable_sort(placed.begin(), placed.end(), [](const Placed &a, const Placed &b) {
@@ -97,6 +89,32 @@ private:
     QHash<QByteArray, QString> m_imageOfBytes;
     std::map<QString, std::unique_ptr<QTextDocument>> m_stories;
     qint64 m_pictureBytes = 0;
+    // the objects taken so far on this sheet, at any depth (a group's members count as the objects they are), and whether a limit was reached
+    int m_count = 0;
+    bool m_full = false;
+    // the pictures the frames name, by the file's name: made once however many frames use one
+    struct KnownPicture {
+        QString id;
+        QSizeF natural;
+    };
+    QHash<QString, KnownPicture> m_pictureOfHref;
+
+    // One more object, if the sheet's and the workbook's limits let it be.
+    bool take()
+    {
+        if (m_count >= kMaxDrawingAnchors) {
+            m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "drawing objects past the %1 a sheet may have").arg(kMaxDrawingAnchors));
+            m_full = true;
+            return false;
+        }
+        if (m_budget && !m_budget->takeObject(kMaxWorkbookObjects)) {
+            m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "drawing objects past the %1 a workbook may have").arg(kMaxWorkbookObjects));
+            m_full = true;
+            return false;
+        }
+        ++m_count;
+        return true;
+    }
 
     Props style(const QString &family, const QString &name) const { return name.isEmpty() ? Props() : m_styles(family, name); }
 
@@ -361,7 +379,19 @@ private:
                 m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "pictures larger than %1 MB").arg(kMaxPictureBytes >> 20));
                 return QByteArray();
             }
-            bytes = QByteArray::fromBase64(data->texts.join(QString()).toLatin1());
+            if (data->cut || image->cut) {
+                m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "pictures past the limits on drawings"));
+                return QByteArray();
+            }
+            // (Base 64 is whole or it is nothing: a text that stops short, or has what is not Base 64 in it, is not decoded as far as it goes)
+            QByteArray text = data->texts.join(QString()).toLatin1();
+            text.replace(' ', "").replace('\n', "").replace('\r', "").replace('\t', "");
+            const QByteArray::FromBase64Result decoded = QByteArray::fromBase64Encoding(text, QByteArray::AbortOnBase64DecodingErrors);
+            if (text.size() % 4 != 0 || !decoded) {
+                m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "pictures whose data is cut short or damaged"));
+                return QByteArray();
+            }
+            bytes = decoded.decoded;
         } else if (!href.isEmpty()) {
             QString path = href;
             if (path.startsWith(QLatin1String("./"))) path.remove(0, 2);
@@ -392,12 +422,11 @@ private:
         const auto known = m_imageOfBytes.constFind(bytes);
         if (known != m_imageOfBytes.constEnd()) return known.value();
         // (the room all the workbook's pictures may take, and this drawing's)
-        if (m_pictureBytes + bytes.size() > kMaxPictureTotal || (m_budget && m_budget->pictureBytes.load() + bytes.size() > kMaxPictureTotal)) {
+        if (m_pictureBytes + bytes.size() > kMaxPictureTotal || (m_budget && !m_budget->takeBytes(bytes.size(), kMaxPictureTotal))) {
             m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "pictures past the %1 MB a workbook may keep").arg(kMaxPictureTotal >> 20));
             return QString();
         }
         m_pictureBytes += bytes.size();
-        if (m_budget) m_budget->pictureBytes.fetch_add(bytes.size());
         const QString id = QStringLiteral("i%1").arg(m_images.size() + 1);
         m_images[id] = bytes;
         m_imageFormats[id] = format;
@@ -411,18 +440,30 @@ private:
         double turn = 0;
         if (!placeBox(frame, ox, oy, p, item.get(), &turn)) return false;
         names(frame, item.get());
-        QString format;
-        const QByteArray bytes = pictureOf(image, &format);
-        if (bytes.isEmpty()) return false;
-        const QString id = imageId(bytes, format);
-        if (id.isEmpty()) return false;
-        item->imageId = id;
+        // (a picture the file names is read, made, and measured once, for all the frames that show it)
+        const QString href = childOf(image, "office:binary-data") ? QString() : image->attrs.value(QStringLiteral("xlink:href"));
+        QByteArray bytes;
+        QSizeF natural;
+        const auto known = href.isEmpty() ? m_pictureOfHref.constEnd() : m_pictureOfHref.constFind(href);
+        if (known != m_pictureOfHref.constEnd()) {
+            if (known->id.isEmpty()) return false;
+            item->imageId = known->id;
+            natural = known->natural;
+        } else {
+            QString format;
+            bytes = pictureOf(image, &format);
+            QString id;
+            if (!bytes.isEmpty()) id = imageId(bytes, format);
+            if (!bytes.isEmpty()) natural = naturalSizePoints(bytes);
+            if (!href.isEmpty()) m_pictureOfHref.insert(href, {id, natural});
+            if (id.isEmpty()) return false;
+            item->imageId = id;
+        }
         const Props props = style(QStringLiteral("graphic"), frame->attrs.value(QStringLiteral("draw:style-name")));
         item->imgRect = QRectF(0, 0, item->rect.width(), item->rect.height());
         // the part of the picture that is cut off: fo:clip="rect(top, right, bottom, left)" in lengths of the picture's own size
         static const QRegularExpression clip(QStringLiteral("rect\\s*\\(\\s*([^,\\s)]+)[\\s,]+([^,\\s)]+)[\\s,]+([^,\\s)]+)[\\s,]+([^,\\s)]+)\\s*\\)"));
         const QRegularExpressionMatch m = clip.match(props.value(QStringLiteral("graphic:fo:clip")));
-        const QSizeF natural = naturalSizePoints(bytes);
         if (m.hasMatch() && natural.width() > 0 && natural.height() > 0) {
             double v[4] = {0, 0, 0, 0};
             for (int i = 0; i < 4; ++i) {
@@ -621,7 +662,7 @@ private:
 
     bool shape(const NodePtr &n, int depth, qint64 ox, qint64 oy, Placed *p)
     {
-        if (!n) return false;
+        if (!n || m_full || !take()) return false;
         bool ok = false;
         const QString &name = n->name;
         if (name == QLatin1String("draw:frame")) {
@@ -777,20 +818,18 @@ private:
             m_out->anchors.push_back(anchorXml(anchorOf(p), element));
         }
         if (m_out->anchors.isEmpty()) return;
-        // the pictures the elements name: the writer made the relationships and parts; they are taken out of its package
-        const QByteArray zip = writer.finish();
-        Package made;
-        QString why;
-        if (!made.readLazy(zip, &why)) return;
+        // the pictures the elements name: the writer made the relationships and parts, and they are taken from it as they are (no package is made of them and read again)
         QHash<QString, int> mediaOf;
-        for (const Relationship &rel : made.relationships(part)) {
-            if (rel.external || !made.hasPart(rel.target)) continue;
+        for (const Relationship &rel : writer.relationshipsFrom(part)) {
+            if (rel.external) continue;
+            const QByteArray bytes = writer.partData(rel.target);
+            if (bytes.isEmpty()) continue;
             int index = mediaOf.value(rel.target, -1);
             if (index < 0) {
                 index = int(m_out->media.size());
                 ImportedMedia m;
                 m.name = rel.target.mid(rel.target.lastIndexOf(QLatin1Char('/')) + 1);
-                m.bytes = made.part(rel.target);
+                m.bytes = bytes;
                 m_out->media.push_back(m);
                 mediaOf.insert(rel.target, index);
             }

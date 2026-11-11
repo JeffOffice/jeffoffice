@@ -291,6 +291,10 @@ public:
     // `screenRows` reads what the view shows, from where it begins (ReadOptions::screenRows).
     bool readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress = nullptr, qint64 stopAfterRow = -1, qint64 screenRows = 0) const;
     const Package &package() const { return m_package; }
+    // The package the window's objects are shown from: for a workbook read from an OpenDocument spreadsheet that has drawing objects, a package made of them (makeObjectPackage, set by whoever opens
+    // the file), named as the .xlsx a save writes names them, so that what the window says of an object is true of that file; for any other workbook, its own.
+    const Package &objectPackage() const { return m_objectPackage ? *m_objectPackage : m_package; }
+    void setObjectPackage(std::shared_ptr<const Package> package) { m_objectPackage = std::move(package); }
     // The pictures of a sheet's headers and footers, read from the legacy drawing its `legacyDrawingHF` names (readSheet does this for a sheet that has one). Bounded: the shapes looked at, the
     // pictures kept, the bytes of one and of all those a workbook reads (an image shared by several sheets is read once).
     void readHeaderPictures(const QString &sheetPart, HeaderFooter *out) const;
@@ -478,6 +482,7 @@ private:
     Package m_package;
     std::shared_ptr<const XlsBook> m_xls;
     std::shared_ptr<const ForeignBook> m_foreign;
+    std::shared_ptr<const Package> m_objectPackage;
     QString m_mainPart, m_sharedPart, m_stylesPart;
     qint64 m_sharedInFile = 0, m_formatsInFile = 0;
     QStringList m_sharedAdded;

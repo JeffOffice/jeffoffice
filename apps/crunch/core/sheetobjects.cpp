@@ -147,7 +147,7 @@ void SheetObjects::open(const std::shared_ptr<Workbook> &book)
     if (m_book) {
         m_sheets.resize(size_t(m_book->info().sheets.size()));
         // the sheet each chart is on, by the drawing of the sheet (its relationships only: no part is read)
-        const Package &package = m_book->package();
+        const Package &package = m_book->objectPackage();
         for (int sheet = 0; sheet < m_book->info().sheets.size(); ++sheet) {
             const QString drawing = drawingPartOf(package, m_book->info().sheets[sheet].part);
             if (drawing.isEmpty()) continue;
@@ -254,7 +254,7 @@ void SheetObjects::readContext()
     m_budget.left[B::Paragraphs] = kBudgetParagraphs;
     m_budget.left[B::Runs] = kBudgetRuns;
     m_budget.left[B::Letters] = kBudgetLetters;
-    const Package &package = m_book->package();
+    const Package &package = m_book->objectPackage();
     for (const Relationship &rel : package.relationshipsOfType(m_book->mainPart(), QStringLiteral("/theme"))) {
         if (rel.external || !package.hasPart(rel.target)) continue;
         const QByteArray xml = package.part(rel.target);
@@ -288,13 +288,13 @@ void SheetObjects::list(int sheet, Sheet &s)
     readContext();
     const SheetEntry &entry = m_book->info().sheets[sheet];
     s.chartSheet = entry.kind == SheetKind::Chartsheet;
-    s.drawingPart = drawingPartOf(m_book->package(), entry.part);
+    s.drawingPart = drawingPartOf(m_book->objectPackage(), entry.part);
     if (!s.drawingPart.isEmpty() && m_drawingOwner.value(s.drawingPart.toLower(), sheet) != sheet) s.drawingPart.clear();
     if (s.drawingPart.isEmpty()) return;
     QString why;
     const std::shared_ptr<QDomDocument> parsedApart = std::move(s.parsedDoc);   // (what a worker made, if one did)
     s.parsedDoc.reset();
-    if (!readDrawing(m_book->package(), s.drawingPart, &s.drawing, &why, parsedApart)) {
+    if (!readDrawing(m_book->objectPackage(), s.drawingPart, &s.drawing, &why, parsedApart)) {
         s.counts.why << tr("a drawing that could not be read (%1)").arg(why);
         return;
     }
@@ -304,7 +304,7 @@ void SheetObjects::list(int sheet, Sheet &s)
     c.truncated = s.drawing.truncated;
     if (s.drawing.truncated) c.why << tr("more than %1 objects in a drawing; the rest are left out").arg(kMaxDrawingAnchors);
     s.context = baseContext();
-    s.context->package = &m_book->package();
+    s.context->package = &m_book->objectPackage();
     s.context->part = s.drawingPart;
     s.nextId = int(s.drawing.objects.size());
     for (const DrawingObject &d : std::as_const(s.drawing.objects)) s.nextShapeId = std::max<qint64>(s.nextShapeId, d.id + 1);
@@ -417,7 +417,7 @@ void SheetObjects::applyEdit(int sheet, Object &o, const StructEdit &edit)
 ItemPtr SheetObjects::diagramItem(Sheet &s, Object &o)
 {
     readContext();
-    const Package &package = m_book->package();
+    const Package &package = m_book->objectPackage();
     // (The caps come first: past them no data part is inflated, and the diagram is a box.)
     const bool room = m_diagramsDrawn < kMaxDiagramsDrawn && m_diagramBytes < kMaxDiagramBytes && m_diagramPartsRead < kMaxDiagramsDrawn && m_diagramDataBytes < kMaxDiagramBytes;
     const QString key = s.drawingPart + QLatin1Char('|') + o.meta.diagramData;
@@ -490,13 +490,13 @@ void SheetObjects::ensureBuilt(int sheet, Object &o)
             }
             // (a part is read once, however many anchors name it)
             QString why;
-            if (m_book->package().partSize(part) > kMaxChartPartBytes) {
+            if (m_book->objectPackage().partSize(part) > kMaxChartPartBytes) {
                 why = tr("a chart part that is too large (%1)").arg(o.meta.name);
             } else {
                 auto parsed = std::make_shared<Chart>();
                 ++m_chartPartsRead;
                 QString error;
-                if (readChart(m_book->package().part(part), m_theme, ColorMap(), parsed.get(), &error)) {
+                if (readChart(m_book->objectPackage().part(part), m_theme, ColorMap(), parsed.get(), &error)) {
                     chart = parsed;
                     s.parsed.insert(part, chart);
                 } else {
@@ -643,10 +643,10 @@ bool SheetObjects::parseApart(int sheet, Sheet &s)
 {
     if (s.listed) return false;
     if (s.parsing) return true;
-    const QString part = drawingPartOf(m_book->package(), m_book->info().sheets[sheet].part);
-    if (part.isEmpty() || m_book->package().partSize(part) <= kParseApartBytes) return false;
+    const QString part = drawingPartOf(m_book->objectPackage(), m_book->info().sheets[sheet].part);
+    if (part.isEmpty() || m_book->objectPackage().partSize(part) <= kParseApartBytes) return false;
     s.parsing = true;
-    const QByteArray bytes = m_book->package().part(part);   // (inflated here, where the package is used; the parsing, which is most of the time, needs no package)
+    const QByteArray bytes = m_book->objectPackage().part(part);   // (inflated here, where the package is used; the parsing, which is most of the time, needs no package)
     const QPointer<SheetObjects> self(this);
     const quint64 generation = m_generation;
     QThreadPool::globalInstance()->start([self, sheet, generation, bytes] {
@@ -883,7 +883,7 @@ bool nearly(const AnchorPoint &a, const AnchorPoint &b)
 const QStringList &SheetObjects::partRefs(const QString &part)
 {
     auto it = m_partRefs.find(part);
-    if (it == m_partRefs.end()) it = m_partRefs.insert(part, chartPartRefs(m_book->package().part(part)));
+    if (it == m_partRefs.end()) it = m_partRefs.insert(part, chartPartRefs(m_book->objectPackage().part(part)));
     return it.value();
 }
 
@@ -910,7 +910,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
     auto takenNames = [&]() -> QSet<QString> & {
         if (!namesRead) {
             namesRead = true;
-            for (const QString &n : m_book->package().partNames()) taken.insert(n.toLower());
+            for (const QString &n : m_book->objectPackage().partNames()) taken.insert(n.toLower());
         }
         return taken;
     };
@@ -1158,7 +1158,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
     if (!m_cells) return;
     int partsLooked = 0;
     static const QRegularExpression chartPartRe(QStringLiteral("/charts/chart\\d*\\.xml$"), QRegularExpression::CaseInsensitiveOption);
-    for (const QString &part : m_book->package().partNames()) {
+    for (const QString &part : m_book->objectPackage().partNames()) {
         if (!chartPartRe.match(part).hasMatch() || ++partsLooked > kMaxChartParts) continue;
         const QString key = part.toLower();
         if (deletedParts.contains(key) && !aliveParts.contains(key)) continue;
@@ -1341,7 +1341,7 @@ void SheetObjects::knowShapeIds(int sheet, Sheet &s)
     Q_UNUSED(sheet);
     if (s.drawingPart.isEmpty()) return;
     // the largest number any shape of the part has, found by looking through the part (a drawing is read for at most kMaxDrawingAnchors, and the rest must not be given ids again)
-    const QByteArray xml = m_book->package().part(s.drawingPart);
+    const QByteArray xml = m_book->objectPackage().part(s.drawingPart);
     xmlscan::Tag t;
     qsizetype pos = 0;
     qint64 most = 1;
@@ -1609,7 +1609,7 @@ std::shared_ptr<const jp::crunch::ObjectRevive> SheetObjects::captureRevive(int 
         if (why) *why = tr("JeffCrunch keeps no more of the objects taken away for Undo after a save.");
         return nullptr;
     }
-    const Package &package = m_book->package();
+    const Package &package = m_book->objectPackage();
     const QByteArray drawing = package.part(s.drawingPart);
     QByteArray anchor = jp::office::sheet::drawingChildXml(drawing, o->meta.ordinal);
     if (anchor.isEmpty()) {
@@ -1910,7 +1910,7 @@ bool SheetObjects::copyElement(int sheet, int id, jp::crunch::ObjectClip *clip, 
             namespaces += " " + a.name().toUtf8() + "=\"" + xmlscan::escapeAttribute(a.value()) + "\"";
     }
     // the pictures it names
-    const Package &package = o->ownPackage ? *o->ownPackage : m_book->package();
+    const Package &package = o->ownPackage ? *o->ownPackage : m_book->objectPackage();
     const QString part = o->ownPackage ? QString::fromLatin1(kPastePart) : s.drawingPart;
     QHash<QString, QString> tokens;
     QList<jp::crunch::ClipMedia> media;
@@ -2086,7 +2086,7 @@ bool SheetObjects::canEditChart(int sheet, int id, QString *why, bool onChartShe
         if (same > 1) {
             o->editable = 0;
             o->editWhy = tr("The file stores this chart together with %n other(s), so it can't be changed here.", nullptr, same - 1);
-        } else if (!chartIsFullyModeled(m_book->package().part(o->meta.chartPart), &problem)) {
+        } else if (!chartIsFullyModeled(m_book->objectPackage().part(o->meta.chartPart), &problem)) {
             o->editable = 0;
             o->editWhy = tr("This chart has something JeffCrunch can't keep when it changes a chart (%1). It can be moved, sized, and deleted.").arg(problem);
         }

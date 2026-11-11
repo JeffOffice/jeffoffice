@@ -9,6 +9,7 @@
 #include <QString>
 
 #include <atomic>
+#include <memory>
 
 namespace jp::office::sheet {
 
@@ -22,6 +23,10 @@ QString baseSheetPart(int index);
 // The package, as the bytes of its ZIP, for a workbook that was read from the older binary form. Each sheet is read again from the workbook's records and written as it is read, one at
 // a time. False, with a message, if a sheet cannot be read whole or `cancel` is set (looked at as the cells are written).
 bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error = nullptr, const std::atomic<bool> *cancel = nullptr);
+
+// For a workbook read from an OpenDocument spreadsheet: a package with the drawing parts, relationships, and pictures of the sheets that have drawing objects (each sheet's part is a stand-in), named as
+// writeBaseXlsx names them. Null if the workbook has none. The sheets that may have objects are read whole to find them.
+std::shared_ptr<const Package> makeObjectPackage(const Workbook &book);
 
 // The XML of one font, fill, border, cell format (`xfId` is the style format it follows; `cellFormat` writes the apply attributes of a cell format) as the styles part has it, without a
 // prefix, for putting in a styles part that is changed (see xlsxsave.h); and the alignment element of a format, empty if it has none.
