@@ -112,6 +112,8 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     body->addWidget(m_vruler);
     body->addWidget(m_splitter, 1);
     column->addLayout(body, 1);
+    m_pagesColumn = column;
+    m_pagesBody = body;
     m_outline = new WriteOutlineView(central);
     m_outline->hide();
     column->addWidget(m_outline, 1);

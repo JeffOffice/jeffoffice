@@ -404,6 +404,27 @@ private Q_SLOTS:
         QCOMPARE(w.view()->cursor().position(), outlineRows(*w.document()).at(2).position);
     }
 
+    void theOutlineViewFillsTheWindowWhereThePagesWere()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(outlineDoc({{"One", 0}, {"text under one", kBodyLevel}, {"Two", 1}, {"Three", 0}}), QString());
+        w.act(QStringLiteral("view.outline"))->trigger();
+        QVERIFY(w.outlineMode());
+        QCoreApplication::processEvents();
+        // (The outline takes all the room below the ribbon, not half of it with an empty half above it.)
+        QWidget *central = w.centralWidget();
+        QVERIFY2(w.outlineView()->geometry().top() < 20, qPrintable(QStringLiteral("the outline starts %1 pixels down").arg(w.outlineView()->geometry().top())));
+        QVERIFY(w.outlineView()->geometry().height() > central->height() - 20);
+        // And back: the pages have all of it again.
+        w.act(QStringLiteral("view.printLayout"))->trigger();
+        QCoreApplication::processEvents();
+        QVERIFY(w.view()->height() > central->height() - w.view()->geometry().top() - 40);
+    }
+
+
     // ---------------------------------------------------------------- View
     void pagesCanBeSetSideToSideInOneRow()
     {

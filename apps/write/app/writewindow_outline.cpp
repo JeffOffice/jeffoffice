@@ -165,6 +165,7 @@ void WriteWindow::setOutlineMode(bool on)
     act("view.outline")->setChecked(on);
     act("view.printLayout")->setChecked(!on && !m_view->webLayout());
     m_ribbon->setContextVisible(QStringLiteral("Outlining"), on, true);
+    m_pagesColumn->setStretchFactor(m_pagesBody, on ? 0 : 1);
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("outline."))) a->setEnabled(on);
     if (on) {

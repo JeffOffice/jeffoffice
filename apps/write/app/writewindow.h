@@ -38,7 +38,9 @@ class QFrame;
 class QLabel;
 class QMenu;
 class QSlider;
+class QHBoxLayout;
 class QSplitter;
+class QVBoxLayout;
 class QToolButton;
 
 namespace jp {
@@ -486,6 +488,8 @@ private:
     QDockWidget *m_navDock = nullptr;
     bool m_focusMode = false;
     WriteOutlineView *m_outline = nullptr;
+    QVBoxLayout *m_pagesColumn = nullptr;   // the window's column, and the row of the pages in it (it gives its room to the outline while that shows)
+    QHBoxLayout *m_pagesBody = nullptr;
     QSplitter *m_splitter = nullptr;
     write::PageView *m_split = nullptr;
     bool m_outlineOn = false, m_outlineBusy = false;
