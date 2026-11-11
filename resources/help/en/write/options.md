@@ -1,5 +1,5 @@
 # Change JeffWrite's settings
-<!-- keywords: overtype, insert key, typing replaces selection, ctrl+click, follow link, drag and drop, personal information, remove personal information, advanced, units, measurements, inches, centimeters, options, settings, preferences, save, default format, default folder, default file location, recovery, formatting marks, gridlines, display, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about, customize keyboard, customize the ribbon, hide a tab, hide a group, add a tab, add a group, rename a tab, reset the ribbon, change shortcut keys, reassign keys, reset keys -->
+<!-- keywords: overtype, insert key, typing replaces selection, ctrl+click, follow link, drag and drop, personal information, remove personal information, advanced, units, measurements, inches, centimeters, options, settings, preferences, save, default format, default folder, default file location, recovery, formatting marks, gridlines, display, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about, customize keyboard, customize the ribbon, customize the quick toolbar, quick toolbar, add a command to the quick toolbar, hide a tab, hide a group, add a tab, add a group, rename a tab, reset the ribbon, change shortcut keys, reassign keys, reset keys -->
 
 Your settings are in the **JeffWrite Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
@@ -37,7 +37,7 @@ These choices apply to the window you are in at once, and to each window you ope
 
 ## Customize
 
-The **Customize** tab has two pages, **Ribbon** and **Keyboard**. The **Keyboard** page is where you choose the shortcut keys for JeffWrite's commands. See "Choose your own shortcut keys" in the keyboard topic.
+The **Customize** tab has three pages, **Ribbon**, **Quick Toolbar**, and **Keyboard**. The **Keyboard** page is where you choose the shortcut keys for JeffWrite's commands. See "Choose your own shortcut keys" in the keyboard topic.
 
 ### Customize the ribbon
 
@@ -52,7 +52,20 @@ The **Ribbon** page lists the ribbon's tabs, each with its groups.
 
 **Reset One** puts back the chosen tab: it is shown, its groups are shown, and the groups you added to it are gone. A tab of your own is taken away. **Reset All** puts back the whole ribbon, including the order of the tabs.
 
-Nothing changes until you click **OK**. Then every open JeffWrite window shows your ribbon, and so does every window you open later. JeffWrite keeps only what differs from the usual ribbon, so a tab or group a later version adds shows up on its own. Your tabs and groups get KeyTips (the letters shown when you press **Alt**) that do not clash with the others. You can have 20 tabs of your own, 30 groups of your own on a tab, and 60 commands in a group. The quick toolbar cannot be changed.
+Nothing changes until you click **OK**. Then every open JeffWrite window shows your ribbon, and so does every window you open later. JeffWrite keeps only what differs from the usual ribbon, so a tab or group a later version adds shows up on its own. Your tabs and groups get KeyTips (the letters shown when you press **Alt**) that do not clash with the others. You can have 20 tabs of your own, 30 groups of your own on a tab, and 60 commands in a group.
+
+### Customize the quick toolbar
+
+The **Quick Toolbar** page is for the small toolbar at the top left of the window. Its left list shows what is on the toolbar now, and the **Commands** list on the right has every command that has a name (type in the **Search commands** box to narrow it, the same as on the **Ribbon** page).
+
+- **Add a command.** Choose it in the **Commands** list and click **Add Command**. It goes at the end of the toolbar. A command that opens a menu keeps its menu on the toolbar. A command can be on the toolbar only once.
+- **Add a separator.** Click **Add Separator** to put a thin line at the end, then move it where you want it.
+- **Reorder.** Choose a command or a separator in the left list and click **Move Up** or **Move Down**.
+- **Take away.** Choose it and click **Remove**.
+
+**Reset One** puts back the chosen command: where JeffWrite usually has it, or off the toolbar when JeffWrite does not usually have it there. **Reset All** puts back the toolbar JeffWrite comes with. Reset All on this page does not change your ribbon, and Reset All on the **Ribbon** page does not change your toolbar.
+
+Nothing changes until you click **OK**. Then every open JeffWrite window shows your toolbar, and so does every window you open later. The toolbar can have 100 commands and separators in all. When there are more buttons than fit in a third of the window's width, the rest wait behind a **»** button at the end of the toolbar, so the title of the window is never pushed off the screen. JeffWrite keeps a command in your list when a later version no longer has it, and shows it again if the command comes back. The buttons get KeyTips, the numbers 1 to 9 and then two letters, in the order they are on the toolbar. The toolbar always sits at the top left, beside the **File** button.
 
 ## Usage statistics
 
