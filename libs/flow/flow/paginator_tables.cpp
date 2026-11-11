@@ -4,6 +4,7 @@
 // the place of the rows, one line as tall as they are.
 
 #include "flow/paginator.h"
+#include "render/renderer.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>

@@ -13,7 +13,6 @@
 #include "flow/tableflow.h"
 
 #include "core/document.h"
-#include "render/renderer.h"
 
 #include <QObject>
 #include <QTextBlock>
