@@ -344,8 +344,8 @@
          "text": "af32f09f238909307599da1fd224d3237eac620ab9f37fb954e2218b60590cca"
         },
         {
-         "status": "todo",
-         "text": "cc6c5a76fa021b8f9370a399d2613cd3fa01b453206808a9239cc7737a9c7393"
+         "status": "partly",
+         "text": "2044abcc0f3b4eb992d17d0110e6e883408f68b814e4e2df89903063f3492784"
         },
         {
          "hide_soon": true,
@@ -2591,8 +2591,8 @@
          "text": "09dc4c79f7e876bee19ecaceb5a7ab41d5703467b6b80a2dc768d98954971518"
         },
         {
-         "status": "todo",
-         "text": "0b13c02b11458f3ab8a8a483e18cf0412b19428cdec2bb138f93c398d1e35aeb"
+         "status": "partly",
+         "text": "5515ee5f995fad9404a07f47d8362e7a27ed6b96e8ef4668a322287dc2b43782"
         },
         {
          "status": "todo",
@@ -4447,8 +4447,8 @@
          "text": "f70fba0d817fa209d8fd86b3452e58c91b917b7dcc40f4cb8e6e7e4d4cffb429"
         },
         {
-         "status": "todo",
-         "text": "9d2afb202040c5b7422a16b020b06c6dc98788bb5d53ef1bddac0140ea2a513d"
+         "status": "partly",
+         "text": "4253248006e826328b4461e3d03aa8257ff57c2fa2aed6fb5da8aabf1200cb37"
         }
        ]
       }
@@ -5747,8 +5747,8 @@
          "text": "c1b6b71fa3221129120143b687a35c0b139ca29014ce77b84a8e6575250c2dc8"
         },
         {
-         "status": "todo",
-         "text": "305f04a0ab6f5dd54228a1475bdf44de3a860e30761b039566f8bf24024a7f63"
+         "status": "partly",
+         "text": "b7342448eaf4fdc28ea1e883f160126e7140259af9393b29f1b3933558232a6e"
         },
         {
          "status": "partly",
@@ -8231,18 +8231,6 @@
     "fr": "Styles de tableau : bordures, polices, bandes de colonnes, cellules d’angle, et modification ou suppression d’un style"
    }
   },
-  "0b13c02b11458f3ab8a8a483e18cf0412b19428cdec2bb138f93c398d1e35aeb": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Quick toolbar and ribbon customization",
-    "es": "Personalización de la barra de herramientas rápida y de la cinta de opciones",
-    "fr": "Personnalisation de la barre d’outils rapide et du ruban"
-   }
-  },
   "0b34cd64f82fde71f3a8b0ba442f605358125c966553788d079f42478c3b6ea5": {
    "drop": false,
    "en": "A file’s theme fonts and colors are read and used.",
@@ -9683,6 +9671,18 @@
     "fr": "Volets de format : orientation du texte de l’axe, et volets pour une série et un point"
    }
   },
+  "2044abcc0f3b4eb992d17d0110e6e883408f68b814e4e2df89903063f3492784": {
+   "drop": false,
+   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command in them, rename and reorder your own groups and the tabs, and reset one item or everything.",
+   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, cambie el nombre y el orden de sus grupos y de las pestañas, y restablezca un elemento o todo.",
+   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez et réorganisez vos groupes et les onglets, et réinitialisez un élément ou tout.",
+   "soon": {
+    "drop": false,
+    "en": "Quick toolbar: customize the commands",
+    "es": "Barra de herramientas rápida: personalizar los comandos",
+    "fr": "Barre d’outils rapide : personnaliser les commandes"
+   }
+  },
   "204ebea6183d0f25ba58448264e9988cd6e9410280b629a04f48fc71bc624a27": {
    "drop": false,
    "en": "Behind the scenes: the calculation engine",
@@ -10979,18 +10979,6 @@
     "fr": ""
    }
   },
-  "305f04a0ab6f5dd54228a1475bdf44de3a860e30761b039566f8bf24024a7f63": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Customize the ribbon: show, hide, rename, and reorder tabs and groups, plus the quick toolbar",
-    "es": "Personalización de la cinta de opciones: mostrar, ocultar, cambiar el nombre y reordenar pestañas y grupos, y la barra de herramientas rápida",
-    "fr": "Personnalisation du ruban : afficher, masquer, renommer et réorganiser les onglets et groupes, et la barre d’outils rapide"
-   }
-  },
   "30ad4c796c981186c3d2fd25c56b16202dbd0d6baa22b4195571f50dec5cffa4": {
    "drop": false,
    "en": "Insert, remove, and reset all page breaks, horizontal and vertical. Breaks are saved, move with edits, and automatic breaks show as dashed lines on the sheet.",
@@ -12189,6 +12177,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "4253248006e826328b4461e3d03aa8257ff57c2fa2aed6fb5da8aabf1200cb37": {
+   "drop": false,
+   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command in them, rename and reorder your own groups and the tabs, and reset one item or everything.",
+   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, cambie el nombre y el orden de sus grupos y de las pestañas, y restablezca un elemento o todo.",
+   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez et réorganisez vos groupes et les onglets, et réinitialisez un élément ou tout.",
+   "soon": {
+    "drop": false,
+    "en": "Quick toolbar: customize the commands",
+    "es": "Barra de herramientas rápida: personalizar los comandos",
+    "fr": "Barre d’outils rapide : personnaliser les commandes"
    }
   },
   "4290810191e6943292a7e61104923a29af6c9f9f7888c36d7f7515e7d90a94b3": {
@@ -13689,6 +13689,18 @@
     "en": "Formatted speaker notes: bold, italic, lists, links, and pictures",
     "es": "Notas del orador con formato: negrita, cursiva, listas, vínculos e imágenes",
     "fr": "Notes du présentateur mises en forme : gras, italique, listes, liens et images"
+   }
+  },
+  "5515ee5f995fad9404a07f47d8362e7a27ed6b96e8ef4668a322287dc2b43782": {
+   "drop": false,
+   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command in them, rename and reorder your own groups and the tabs, and reset one item or everything.",
+   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, cambie el nombre y el orden de sus grupos y de las pestañas, y restablezca un elemento o todo.",
+   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez et réorganisez vos groupes et les onglets, et réinitialisez un élément ou tout.",
+   "soon": {
+    "drop": false,
+    "en": "Quick toolbar: customize the commands",
+    "es": "Barra de herramientas rápida: personalizar los comandos",
+    "fr": "Barre d’outils rapide : personnaliser les commandes"
    }
   },
   "552e99313727bdc6b30f346137141bdedd3d06eac65141b9c95d5f7d0e4ec29d": {
@@ -18899,18 +18911,6 @@
     "fr": ""
    }
   },
-  "9d2afb202040c5b7422a16b020b06c6dc98788bb5d53ef1bddac0140ea2a513d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Ribbon and quick toolbar customization",
-    "es": "Personalización de la cinta de opciones y de la barra de herramientas rápida",
-    "fr": "Personnalisation du ruban et de la barre d’outils rapide"
-   }
-  },
   "9d4bb3cbc30d460e1cc6ebef10cf722e7e9d1a3dfb92c4762887fb1645721b23": {
    "drop": true,
    "en": "",
@@ -20349,6 +20349,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "b7342448eaf4fdc28ea1e883f160126e7140259af9393b29f1b3933558232a6e": {
+   "drop": false,
+   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command in them, rename and reorder your own groups and the tabs, and reset one item or everything.",
+   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, cambie el nombre y el orden de sus grupos y de las pestañas, y restablezca un elemento o todo.",
+   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez et réorganisez vos groupes et les onglets, et réinitialisez un élément ou tout.",
+   "soon": {
+    "drop": false,
+    "en": "Quick toolbar: customize the commands",
+    "es": "Barra de herramientas rápida: personalizar los comandos",
+    "fr": "Barre d’outils rapide : personnaliser les commandes"
    }
   },
   "b74269e812ac94829375d207541f5a441b22d5bcdaedba656efe8e0192ec1cad": {
@@ -21897,18 +21909,6 @@
     "en": "Data bars, color scales, and icon sets: create",
     "es": "Barras de datos, escalas de color y conjuntos de iconos: crear",
     "fr": "Barres de données, nuances de couleurs et jeux d’icônes : création"
-   }
-  },
-  "cc6c5a76fa021b8f9370a399d2613cd3fa01b453206808a9239cc7737a9c7393": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Ribbon and quick toolbar: customize",
-    "es": "Cinta de opciones y barra de herramientas rápida: personalización",
-    "fr": "Ruban et barre d’outils rapide : personnalisation"
    }
   },
   "cc98411f16b82071946349690f3623d494abac85c0159defb26bdcdab5504222": {
