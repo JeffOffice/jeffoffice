@@ -251,15 +251,19 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
 {
     if (m_madeMedia.isEmpty() && m_madeLinks.isEmpty()) return;
     QSet<QString> named;
-    // (Every quoted value is a candidate: a relationship's Id is whatever the file chose, "rId7" or "img1", and the attribute that names it is the format's, not ours to list.)
+    // (Every quoted value is a candidate, in either quote character, each closed by the same one: a relationship's Id is whatever the file chose, "rId7" or 'img1', and the attribute that
+    // names it is the format's, not ours to list.)
     auto collect = [&named](const QByteArray &bytes) {
-        for (qsizetype at = bytes.indexOf('"'); at >= 0;) {
-            const qsizetype end = bytes.indexOf('"', at + 1);
+        for (qsizetype at = 0; at < bytes.size(); ++at) {
+            const char quote = bytes[at];
+            if (quote != '"' && quote != '\'') continue;
+            const qsizetype end = bytes.indexOf(quote, at + 1);
             if (end < 0) break;
             if (end - at - 1 <= 64) named.insert(QString::fromLatin1(bytes.mid(at + 1, end - at - 1)));
-            at = bytes.indexOf('"', end + 1);
+            at = end;
         }
     };
+
 
     for (QTextBlock b = story()->begin(); b.isValid(); b = b.next()) {
         const QTextBlockFormat bf = b.blockFormat();

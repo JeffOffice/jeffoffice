@@ -1889,6 +1889,46 @@ private Q_SLOTS:
         QCOMPARE(whole, 1);   // (the other picture still has the file it named)
     }
 
+    // The same with the raw XML of the pictures naming the file in single quotes (r:embed='img1'), as another program may have written it: with one picture file used by two pictures: compressing one picture leaves the file the other still names, and the
+    // saved document, opened again, has both pictures with their bytes.
+    void compressingOneOfTwoPicturesThatNameAFileInSingleQuotesKeepsTheFileForTheOther()
+    {
+        const QByteArray original = noisyPng(800, 400);
+        auto made = textDoc({"Before after"});
+        QTextCursor c(made->story());
+        c.setPosition(7);
+        QCOMPARE(insertPicture(*made, c, original), PictureResult::Ok);
+        QCOMPARE(insertPicture(*made, c, original), PictureResult::Ok);
+        const QByteArray first = made->toDocx();
+        office::Package src;
+        QVERIFY(src.read(first));
+        QByteArray xml = src.part(QStringLiteral("/word/document.xml"));
+        static const QRegularExpression embed(QStringLiteral("r:embed=\"([^\"]+)\""));
+        const QString id = embed.match(QString::fromUtf8(xml)).captured(1);
+        QVERIFY(!id.isEmpty());
+        xml.replace(("r:embed=\"" + id + "\"").toUtf8(), "r:embed='img1'");
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"), xml, QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addPart(QStringLiteral("/word/media/image1.png"), original, QStringLiteral("image/png"));
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        QVERIFY(w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("img1"), rel + QStringLiteral("image"), QStringLiteral("media/image1.png")));
+        auto doc = open(w.finish());
+        QVERIFY(doc);
+        QCOMPARE(picturePositions(*doc).size(), 2);
+        const int one = picturePositions(*doc).first();
+        QVERIFY(setPictureSize(*doc, one, 100, 50));
+        QVERIFY(compressPictures(*doc, 96, QVector<int>({one}), false) > 0);
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QCOMPARE(picturePositions(*back).size(), 2);
+        const QMap<QString, QByteArray> media = mediaOf(back->toDocx());
+        QCOMPARE(media.size(), 2);
+        int whole = 0;
+        for (const QByteArray &m : media) whole += m == original;
+        QCOMPARE(whole, 1);   // (the other picture still has the file it named)
+    }
+
     // A picture whose file says it is enormous (a small PNG that declares a huge size) is not decoded: it is left as it is.
     void aPictureThatDeclaresAHugeSizeIsNotDecodedByCompress()
     {
