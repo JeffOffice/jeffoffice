@@ -556,6 +556,40 @@ private Q_SLOTS:
         for (auto it = parts.cbegin(); it != parts.cend(); ++it) QVERIFY2(!it.value().contains("Ann Lee"), qPrintable(it.key()));
     }
 
+    // A copy as .ods or .xls (and a template) has no names in it either: the writers of those forms put none of the workbook's properties or notes' authors in the file.
+    void thePrivacyOptionKeepsNamesOutOfOdsAndXlsCopies()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] { Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false); });
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(e.win.w.session()->setNote(0, 5, 0, QStringLiteral("Check this"), QStringLiteral("Ann Lee"), false, QStringLiteral("Add Note")).ok);
+        office::PackageProps p = e.win.w.properties();
+        p.creator = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        p.manager = QStringLiteral("Bo Ray");
+        e.win.w.applyProperties(p);
+        QVERIFY(saveAndWaitHere(e.win.w));   // (the workbook's own file has them taken out; a copy is made from what is open)
+        for (const char *name : {"copy.ods", "copy.xls", "copy.ots"}) {
+            const QString target = e.folder.dir.filePath(QString::fromLatin1(name));
+            QSignalSpy copied(&e.win.w, &CrunchWindow::copyExported);
+            QVERIFY(e.win.w.saveAs(target, true));
+            QVERIFY(copied.count() > 0 || copied.wait(20000));
+            QFile f(target);
+            QVERIFY2(f.open(QIODevice::ReadOnly), name);
+            const QByteArray bytes = f.readAll();
+            QVERIFY(bytes.size() > 0);
+            QMap<QString, QByteArray> parts;
+            if (!jp::readZip(bytes, parts)) parts.insert(QStringLiteral("whole"), bytes);
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+                for (const char *who : {"Ann Lee", "Acme", "Bo Ray", "Tester"}) {
+                    QVERIFY2(!it.value().contains(who), qPrintable(QString::fromLatin1(name) + QLatin1Char(' ') + it.key() + QStringLiteral(": ") + QString::fromLatin1(who)));
+                    const QString w = QString::fromLatin1(who);
+                    QVERIFY2(!it.value().contains(QByteArray(reinterpret_cast<const char *>(w.utf16()), qsizetype(w.size() * 2))), qPrintable(QString::fromLatin1(name) + QStringLiteral(" UTF-16 ") + w));
+                }
+        }
+    }
+
     void theInfoPageHasTheBoxForThePrivacyOption()
     {
         EditWindow e;

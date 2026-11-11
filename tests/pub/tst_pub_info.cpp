@@ -284,6 +284,36 @@ private Q_SLOTS:
         QCOMPARE(props(QStringLiteral("two.jpub")).value(QStringLiteral("lastModifiedBy")).toString(), QStringLiteral("Tester"));
     }
 
+    // Nothing but the properties holds a name in a .pub or a .jpub: the whole of each file is without them (a .pub's strings are in 8 bits, and also in 16).
+    void thePrivacyOptionKeepsNamesOutOfTheWholeOfAPubAndAJpubFile()
+    {
+        jp::Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] { jp::Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false); });
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::MainWindow a;
+        Quiet quiet(a);
+        office::PackageProps p = a.properties();
+        p.creator = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        p.manager = QStringLiteral("Bo Ray");
+        a.applyProperties(p);
+        for (const char *name : {"all.jpub", "all.pub"}) {
+            QVERIFY(a.saveTo(dir.filePath(QString::fromLatin1(name)), true));
+            QFile f(dir.filePath(QString::fromLatin1(name)));
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray bytes = f.readAll();
+            QMap<QString, QByteArray> parts;
+            if (!jp::readZip(bytes, parts)) parts.insert(QStringLiteral("whole"), bytes);
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+                for (const char *who : {"Ann Lee", "Acme", "Bo Ray", "Tester"}) {
+                    const QString w = QString::fromLatin1(who);
+                    QVERIFY2(!it.value().contains(who), qPrintable(QString::fromLatin1(name) + QLatin1Char(' ') + it.key() + QStringLiteral(": ") + w));
+                    QVERIFY2(!it.value().contains(QByteArray(reinterpret_cast<const char *>(w.utf16()), qsizetype(w.size() * 2))), qPrintable(QString::fromLatin1(name) + QStringLiteral(" UTF-16 ") + w));
+                }
+        }
+    }
+
     void theInfoPageHasTheBoxForThePrivacyOption()
     {
         jp::MainWindow w;

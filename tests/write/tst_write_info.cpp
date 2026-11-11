@@ -323,6 +323,42 @@ private Q_SLOTS:
         QVERIFY(!parts.value(QStringLiteral("docProps/core.xml")).contains("Ann Lee"));
     }
 
+    // Every kind of file a document can be saved as has no names in it: .rtf and .odt carry the properties, comments, and tracked changes of the document too.
+    void thePrivacyOptionKeepsNamesOutOfRtfAndOdtFiles()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] { Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false); });
+        QTemporaryDir dir;
+        WriteWindow a;
+        Quiet quiet(a);
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("first words here"));
+        a.document()->setReviewer(QStringLiteral("Ann Lee"), QStringLiteral("AL"));
+        QTextCursor c(a.document()->story());
+        c.setPosition(2);
+        c.setPosition(7, QTextCursor::KeepAnchor);
+        QVERIFY(addComment(*a.document(), c, QStringLiteral("Check this")) > 0);
+        a.document()->setTrackChanges(true);
+        QTextCursor at(a.document()->story());
+        at.setPosition(16);
+        insertText(*a.document(), at, QStringLiteral("!"));
+        office::PackageProps p = a.document()->packageProps();
+        p.creator = QStringLiteral("Ann Lee");
+        p.lastModifiedBy = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        p.manager = QStringLiteral("Bo Ray");
+        a.applyProperties(p);
+        for (const char *name : {"names.rtf", "names.odt"}) {
+            QVERIFY(saveInto(a, dir, QString::fromLatin1(name)));
+            const QByteArray bytes = fileBytes(dir.filePath(QString::fromLatin1(name)));
+            QVERIFY(bytes.size() > 0);
+            QMap<QString, QByteArray> parts;
+            if (!readZip(bytes, parts)) parts.insert(QStringLiteral("whole"), bytes);
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+                for (const char *who : {"Ann Lee", "Acme", "Bo Ray", "Ann\\'", "Tester"})
+                    QVERIFY2(!it.value().contains(who), qPrintable(QString::fromLatin1(name) + QLatin1Char(' ') + it.key() + QStringLiteral(": ") + QString::fromLatin1(who)));
+        }
+    }
+
     // When the names can't be taken out the file is still written, and the person is told, with the reason.
     void whenTheNamesCantBeTakenOutThePersonIsToldAndTheFileIsStillWritten()
     {
