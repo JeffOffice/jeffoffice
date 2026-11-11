@@ -257,6 +257,9 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
         for (qsizetype at = 0; at < bytes.size(); ++at) {
             const char quote = bytes[at];
             if (quote != '"' && quote != '\'') continue;
+            qsizetype before = at;
+            while (before > 0 && std::isspace(uchar(bytes[before - 1]))) --before;
+            if (before == 0 || bytes[before - 1] != '=') continue;   // (only a value: an apostrophe in a text is not the start of one)
             const qsizetype end = bytes.indexOf(quote, at + 1);
             if (end < 0) break;
             if (end - at - 1 <= 64) named.insert(QString::fromLatin1(bytes.mid(at + 1, end - at - 1)));
