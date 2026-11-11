@@ -212,6 +212,36 @@ struct DocProps {
     void setFromPackageProps(const office::PackageProps &p);
 };
 
+// While it lives, the properties name no one (when `on`): the author, who saved last, the company, and the manager are empty, and come back when it ends. It is for writing a file with no names in it
+// (Remove personal information): not a step of the history, and the document is not changed or marked as changed.
+class NamesOutScope {
+public:
+    NamesOutScope(DocProps &props, bool on) : m_props(props), m_on(on), m_author(props.author), m_lastModifiedBy(props.lastModifiedBy), m_company(props.company), m_manager(props.manager)
+    {
+        if (!on) return;
+        props.author.clear();
+        props.lastModifiedBy.clear();
+        props.company.clear();
+        props.manager.clear();
+    }
+    ~NamesOutScope()
+    {
+        if (!m_on) return;
+        m_props.author = m_author;
+        m_props.lastModifiedBy = m_lastModifiedBy;
+        m_props.company = m_company;
+        m_props.manager = m_manager;
+    }
+    NamesOutScope(const NamesOutScope &) = delete;
+    NamesOutScope &operator=(const NamesOutScope &) = delete;
+    bool active() const { return m_on; }
+
+private:
+    DocProps &m_props;
+    bool m_on;
+    QString m_author, m_lastModifiedBy, m_company, m_manager;
+};
+
 // Black overprinting in files for a printer (io/overprint applies it).
 struct OverprintSettings {
     bool text = true;          // black text below textBelow points

@@ -3,6 +3,7 @@
 #include "office/packageprops.h"
 #include "office/privacy.h"
 #include "io/zip.h"
+#include "io/zipindex.h"
 
 #include <QTimeZone>
 #include <QXmlStreamReader>
@@ -254,7 +255,7 @@ private Q_SLOTS:
         QVERIFY(after.value(QStringLiteral("docProps/core.xml")).contains("<dc:title>Kept</dc:title>"));
         QVERIFY(after.value(QStringLiteral("docProps/app.xml")).contains("<Words>3</Words>"));
         QVERIFY(after.value(QStringLiteral("meta.xml")).contains("<dc:title>Kept</dc:title>"));
-        QVERIFY(after.value(QStringLiteral("content.xml")).contains("<dc:date>2026-01-02</dc:date>"));
+        QVERIFY(!after.value(QStringLiteral("content.xml")).contains("dc:date"));   // (the time of a comment goes)
         QCOMPARE(after.value(QStringLiteral("word/media/image1.png")), picture);
         QCOMPARE(after.value(QStringLiteral("mimetype")), before.value(QStringLiteral("mimetype")));
         // A package with nothing to take out is given back as it was, and so is what is not a ZIP.
@@ -271,6 +272,156 @@ private Q_SLOTS:
         QCOMPARE(removePersonalNames(names), 2);
         QVERIFY(names.creator.isEmpty() && names.company.isEmpty());
         QCOMPARE(names.title, QStringLiteral("T"));
+    }
+
+    // Only real attributes and elements are changed: text that looks like an attribute, in the body or in another attribute's value, is the person's words and stays; a name in CDATA or with
+    // entities is found as the name it is.
+    void removingPersonalInformationNeverPatchesBodyText()
+    {
+        const QByteArray body = "<w:document><w:p><w:r><w:t> w:date=\"2020\" w:author=\"X\" w:initials=\"Q\"</w:t></w:r><w:r><w:t w:note=' w:author=\"Y\"'>kept</w:t></w:r>"
+                                "<w:ins w:id=\"1\" w:author=\"Ann Lee\" w:date=\"2026-01-02T03:04:05Z\"><w:r><w:t>new</w:t></w:r></w:ins></w:p></w:document>";
+        jp::ZipWriter z;
+        z.add(QStringLiteral("word/document.xml"), body, true);
+        z.add(QStringLiteral("docProps/app.xml"), "<Properties><Company><![CDATA[Acme & Co]]></Company><Manager>Bo &amp; Ray</Manager><Words>3</Words></Properties>");
+        z.add(QStringLiteral("docProps/core.xml"), "<cp:coreProperties><dc:creator>Ann &#x26; Bo</dc:creator><!-- <dc:creator>Secret</dc:creator> --></cp:coreProperties>");
+        QMap<QString, QByteArray> after;
+        QVERIFY(jp::readZip(removePersonalFromPackage(z.finish()), after));
+        const QByteArray doc = after.value(QStringLiteral("word/document.xml"));
+        QVERIFY2(doc.contains("<w:t> w:date=\"2020\" w:author=\"X\" w:initials=\"Q\"</w:t>"), doc.constData());
+        QVERIFY2(doc.contains("<w:t w:note=' w:author=\"Y\"'>kept</w:t>"), doc.constData());
+        QVERIFY2(doc.contains("<w:ins w:id=\"1\" w:author=\"Author\"><w:r>"), doc.constData());
+        const QByteArray app = after.value(QStringLiteral("docProps/app.xml"));
+        QVERIFY2(!app.contains("Acme") && !app.contains("Ray") && app.contains("<Words>3</Words>"), app.constData());
+        const QByteArray core = after.value(QStringLiteral("docProps/core.xml"));
+        QVERIFY2(!core.contains("Ann") && core.contains("<dc:creator></dc:creator>"), core.constData());
+    }
+
+    // A sheet's legacy note keeps the link to its thread (the author "tc={...}"), and its Excel-style name run goes with the name.
+    void removingPersonalInformationKeepsThreadLinksAndTakesTheNameRunOutOfNotes()
+    {
+        const QByteArray comments =
+            "<comments><authors><author>Ann &amp; Bo</author><author>tc={ABC-1}</author><author>Cy</author></authors><commentList>"
+            "<comment ref=\"A1\" authorId=\"0\"><text><r><rPr><b/></rPr><t>Ann &amp; Bo:</t></r><r><t xml:space=\"preserve\">\nCheck this</t></r></text></comment>"
+            "<comment ref=\"B1\" authorId=\"1\"><text><t>[Threaded comment]</t></text></comment>"
+            "<comment ref=\"C1\" authorId=\"2\"><text><r><t>Someone:</t></r><r><t>stays</t></r></text></comment></commentList></comments>";
+        jp::ZipWriter z;
+        z.add(QStringLiteral("xl/comments1.xml"), comments, true);
+        QMap<QString, QByteArray> after;
+        QVERIFY(jp::readZip(removePersonalFromPackage(z.finish()), after));
+        const QByteArray x = after.value(QStringLiteral("xl/comments1.xml"));
+        QVERIFY2(x.contains("<author>tc={ABC-1}</author>"), x.constData());
+        QVERIFY2(!x.contains("Ann &amp; Bo") && x.count("<author>Author</author>") == 2, x.constData());
+        QVERIFY2(!x.contains("Ann &amp; Bo:") && x.contains("<comment ref=\"A1\" authorId=\"0\"><text><r><t xml:space=\"preserve\">\nCheck this</t></r></text></comment>"), x.constData());
+        QVERIFY2(x.contains("<t>[Threaded comment]</t>") && x.contains("<r><t>Someone:</t></r><r><t>stays</t></r>"), x.constData());
+    }
+
+    // The same coverage in every kind of file: names out, and the times of comments and changes out.
+    void removingPersonalInformationTakesTimesAndNamesOutOfEveryKindOfFile()
+    {
+        jp::ZipWriter z;
+        z.add(QStringLiteral("xl/threadedComments/threadedComment1.xml"), "<ThreadedComments><threadedComment ref=\"A1\" dT=\"2026-01-02T03:04:05.00\" personId=\"{P}\" id=\"{I}\"><text>Hi</text></threadedComment></ThreadedComments>");
+        z.add(QStringLiteral("xl/revisions/revisionHeaders.xml"), "<headers><header guid=\"{G}\" dateTime=\"2026-01-02T03:04:05Z\" maxSheetId=\"1\" userName=\"Ann Lee\" minRId=\"1\"/></headers>");
+        z.add(QStringLiteral("xl/revisions/userNames.xml"), "<users count=\"1\"><userinfo guid=\"{G}\" name=\"Ann Lee\" id=\"1\" dateTime=\"2026-01-02T03:04:05Z\"/></users>");
+        z.add(QStringLiteral("ppt/comments/comment1.xml"), "<p:cmLst><p:cm authorId=\"0\" dt=\"2026-01-02T03:04:05.000\" idx=\"1\"><p:text>Hi</p:text></p:cm></p:cmLst>");
+        z.add(QStringLiteral("ppt/comments/modernComment_1.xml"), "<p188:cmLst><p188:cm id=\"{C}\" authorId=\"{A}\" created=\"2026-01-02T03:04:05.000\"><p188:txBody/></p188:cm></p188:cmLst>");
+        z.add(QStringLiteral("ppt/authors.xml"), "<p188:authorLst><p188:author id=\"{A}\" name=\"Ann Lee\" initials=\"AL\" userId=\"ann@example.com\" providerId=\"AD\"/></p188:authorLst>");
+        z.add(QStringLiteral("word/commentsExtensible.xml"), "<w16cex:commentsExtensible><w16cex:commentExtensible w16cex:paraId=\"1\" w16cex:dateUtc=\"2026-01-02T03:04:05Z\"/></w16cex:commentsExtensible>");
+        z.add(QStringLiteral("meta.xml"), "<office:meta><meta:printed-by>Ann Lee</meta:printed-by><dc:date>2027-05-06T07:08:09</dc:date></office:meta>");
+        z.add(QStringLiteral("content.xml"), "<office:text><office:annotation><dc:creator>Ann Lee</dc:creator><dc:date>2026-01-02T03:04:05</dc:date><text:p>Hi</text:p></office:annotation>"
+                                            "<text:changed-region><office:change-info><dc:creator>Ann Lee</dc:creator><dc:date>2026-01-02T03:04:05</dc:date></office:change-info></text:changed-region></office:text>");
+        QMap<QString, QByteArray> after;
+        int parts = 0;
+        QVERIFY(jp::readZip(removePersonalFromPackage(z.finish(), &parts), after));
+        QCOMPARE(parts, 9);
+        for (auto it = after.cbegin(); it != after.cend(); ++it) {
+            const QByteArray &x = it.value();
+            QVERIFY2(!x.contains("Ann Lee") && !x.contains("ann@example.com") && !x.contains("2026-01-02T03:04:05"), qPrintable(it.key() + QStringLiteral(": ") + QString::fromUtf8(x)));
+        }
+        QVERIFY(!after.value(QStringLiteral("xl/threadedComments/threadedComment1.xml")).contains("dT="));
+        QVERIFY(after.value(QStringLiteral("xl/threadedComments/threadedComment1.xml")).contains("personId=\"{P}\""));
+        QVERIFY(after.value(QStringLiteral("meta.xml")).contains("<dc:date>2027-05-06T07:08:09</dc:date>"));   // (the date the file was changed is the file's own: kept)
+    }
+
+    // What can't be done is said: a part that is not UTF-8 or can't be inflated, bytes that are not a package, and a hook that damages them. The file is still given back whole.
+    void removingPersonalInformationSaysWhatItCouldNotDo()
+    {
+        QStringList problems;
+        jp::ZipWriter z;
+        z.add(QStringLiteral("docProps/core.xml"), QByteArray("\xFF\xFE<\0c\0", 7));
+        const QByteArray utf16 = z.finish();
+        QCOMPARE(removePersonalFromPackage(utf16, nullptr, &problems), utf16);
+        QCOMPARE(problems.size(), 1);
+        QVERIFY(problems[0].contains(QLatin1String("docProps/core.xml")));
+        problems.clear();
+        QCOMPARE(removePersonalFromPackage("not a zip", nullptr, &problems), QByteArray("not a zip"));
+        QCOMPARE(problems.size(), 1);
+        problems.clear();
+        jp::ZipWriter y;
+        y.add(QStringLiteral("docProps/app.xml"), "<Properties><Company>Acme</Company></Properties>", true);
+        y.add(QStringLiteral("word/media/x.bin"), QByteArray(300, 'x'));
+        const QByteArray fine = y.finish();
+        setPackageScrubHookForTest([](const QByteArray &b) {
+            QByteArray damaged = b;
+            const qsizetype at = damaged.indexOf("docProps/app.xml") + 16;
+            damaged[at + 2] = char(damaged[at + 2] ^ 0x55);   // (a byte of the part's own bytes)
+            return damaged;
+        });
+        const QByteArray out = removePersonalFromPackage(fine, nullptr, &problems);
+        setPackageScrubHookForTest({});
+        QVERIFY(!problems.isEmpty());
+        QVERIFY(!out.isEmpty());
+        problems.clear();
+        QVERIFY(!removePersonalFromPackage(fine, nullptr, &problems).isEmpty());
+        QVERIFY(problems.isEmpty());
+    }
+
+    // The entries a scrub does not touch are copied bit for bit, in their order, with the first entry of an open document package stored.
+    void removingPersonalInformationCopiesTheOtherEntriesBitForBit()
+    {
+        const QByteArray picture = [] {
+            QByteArray b;
+            for (int i = 0; i < 4000; ++i) b += char((i * 7) % 251);
+            return b;
+        }();
+        jp::ZipWriter z;
+        z.add(QStringLiteral("mimetype"), "application/vnd.oasis.opendocument.text");
+        z.add(QStringLiteral("Pictures/a.png"), picture, true);
+        z.add(QStringLiteral("meta.xml"), "<office:meta><dc:creator>Ann Lee</dc:creator></office:meta>", true);
+        z.add(QStringLiteral("styles.xml"), "<office:styles/>", true);
+        const QByteArray zip = z.finish();
+        const QByteArray out = removePersonalFromPackage(zip);
+        QVector<jp::ZipEntry> a, b;
+        QVERIFY(jp::readZipDirectory(zip, &a));
+        QVERIFY(jp::readZipDirectory(out, &b));
+        QCOMPARE(b.size(), a.size());
+        QCOMPARE(b[0].name, QStringLiteral("mimetype"));
+        QCOMPARE(int(b[0].method), 0);
+        for (int i = 0; i < a.size(); ++i) {
+            QCOMPARE(b[i].name, a[i].name);
+            if (a[i].name == QLatin1String("meta.xml")) continue;
+            QCOMPARE(b[i].method, a[i].method);
+            QCOMPARE(b[i].crc, a[i].crc);
+            QCOMPARE(out.mid(int(b[i].dataAt), int(b[i].csize)), zip.mid(int(a[i].dataAt), int(a[i].csize)));
+        }
+    }
+
+    // The ZIP writer copies an entry as it is: the long form for sizes of 4 GiB and more (a test stands in with the long records), and the other ZIP's flag bits kept but the data-descriptor bit.
+    void aRawEntryKeepsItsFlagsAndCanBeInTheLongForm()
+    {
+        const QByteArray bytes("hello");
+        jp::ZipWriter z;
+        z.useLongRecords(true);
+        z.addRaw(QStringLiteral("a.txt"), 0, jp::crc32(bytes), 5, 5, bytes.constData(), 0x0001 | 0x0006 | 0x0008);
+        z.addRaw(QStringLiteral("b.txt"), 0, jp::crc32(bytes), 5, 5, bytes.constData());
+        const QByteArray zip = z.finish();
+        QVector<jp::ZipEntry> e;
+        QVERIFY(jp::readZipDirectory(zip, &e));
+        QCOMPARE(e.size(), 2);
+        QCOMPARE(e[0].csize, qint64(5));
+        QCOMPARE(e[0].usize, qint64(5));
+        QCOMPARE(int(e[0].flags), 0x0001 | 0x0006 | 0x0800);
+        QCOMPARE(int(e[1].flags), 0x0800);
+        QCOMPARE(zip.mid(int(e[0].dataAt), 5), bytes);
     }
 };
 
