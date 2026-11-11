@@ -752,7 +752,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "41b8e37b666ce0131141171a43b4024d1ddcf10e29b42501f3cfb23b95b3852e"
+         "text": "8dfb6c309e6b74619208989aeec3a0af335c1a4a99eb7c5be2c355ff7f08535d"
         },
         {
          "hide_soon": true,
@@ -2181,12 +2181,12 @@
        "items": [
         {
          "status": "partly",
-         "text": "29154abc8da642e2016748d357de0ea4a14c6542708d65b8bc4a9d7f336d0404"
+         "text": "956121b4db440231f094f168e8e07211a39fed2598676f9341911887e6ecb103"
         },
         {
          "hide_soon": true,
          "status": "done",
-         "text": "2b1b1f8bb976d5f4393cc6d70ddec8406c022c10a1e153e6aaf72e8be5f1d71e"
+         "text": "7557a18d5f22f5ea51b8ca7df43d5e812795dd0d1421d6ef599a9ddbca9c6b6d"
         },
         {
          "hide_soon": true,
@@ -10476,18 +10476,6 @@
     "fr": ""
    }
   },
-  "29154abc8da642e2016748d357de0ea4a14c6542708d65b8bc4a9d7f336d0404": {
-   "drop": false,
-   "en": "Open `.ods` and `.ots` files (ODF 1.1 to 1.3), including password-protected ones: cells of every value type, formulas with their stored results, repeated rows and columns, merged cells, number formats, cell styles, named ranges, database ranges, hyperlinks, print ranges, page styles with headers and footers, protection, and view settings.",
-   "es": "Abra archivos `.ods` y `.ots` (ODF 1.1 a 1.3), incluidos los protegidos con contraseña: celdas de todos los tipos de valor, fórmulas con sus resultados guardados, filas y columnas repetidas, celdas combinadas, formatos de número, estilos de celda, rangos con nombre, rangos de base de datos, hipervínculos, áreas de impresión, estilos de página con encabezados y pies de página, protección y ajustes de vista.",
-   "fr": "Ouvrez des fichiers `.ods` et `.ots` (ODF 1.1 à 1.3), y compris protégés par mot de passe : cellules de tous les types de valeur, formules avec leurs résultats enregistrés, lignes et colonnes répétées, cellules fusionnées, formats numériques, styles de cellule, plages nommées, plages de base de données, liens hypertexte, zones d’impression, styles de page avec en-têtes et pieds de page, protection et paramètres d’affichage.",
-   "soon": {
-    "drop": false,
-    "en": "Charts, pictures, comments, pivot tables, macros, conditional formats, and data validation in `.ods` files: read",
-    "es": "Gráficos, imágenes, comentarios, tablas dinámicas, macros, formatos condicionales y validación de datos en archivos `.ods`: lectura",
-    "fr": "Graphiques, images, commentaires, tableaux croisés dynamiques, macros, mises en forme conditionnelles et validation des données dans les fichiers `.ods` : lecture"
-   }
-  },
   "29484d236f66a10a66c57203781d56b7ec5dbfa244876a3e26ec35856eb3acb1": {
    "drop": false,
    "en": "Insert a table of contents from the gallery (Contents, Contents with Full Title, and Contents to Fill In) or the custom dialog. Build it from heading styles, outline levels, or table entry fields, with levels 1 to 9, page numbers, right-aligned tab leaders, and links.",
@@ -10642,18 +10630,6 @@
     "en": "macOS app signed and notarized so it opens without warnings",
     "es": "Aplicación para macOS firmada y notarizada para abrirse sin advertencias",
     "fr": "Application macOS signée et notariée pour s’ouvrir sans avertissement"
-   }
-  },
-  "2b1b1f8bb976d5f4393cc6d70ddec8406c022c10a1e153e6aaf72e8be5f1d71e": {
-   "drop": false,
-   "en": "Save `.ods` files with formulas in OpenFormula and their results stored, so other office suites open them as they look in the app.",
-   "es": "Guarde archivos `.ods` con fórmulas en OpenFormula y sus resultados almacenados, para que otras suites ofimáticas los abran tal como se ven en la aplicación.",
-   "fr": "Enregistrez des fichiers `.ods` avec des formules en OpenFormula et leurs résultats stockés, afin que d’autres suites bureautiques les ouvrent tels qu’ils apparaissent dans l’application.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "2b37c7dc5f89533ea13a17188915d83aaa8029a595f568978b9c4230f2f5ca23": {
@@ -12130,18 +12106,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "41b8e37b666ce0131141171a43b4024d1ddcf10e29b42501f3cfb23b95b3852e": {
-   "drop": false,
-   "en": "Insert a text box on a sheet and edit its words, alignment, size, bold, and color. Insert Text Art from a gallery of styles, edit its words, font, size, bold, and italic, and change its look and shape with Text Art Styles and Text Warp. Text Art is saved in and read from `.xlsx` files, and each change is one step of Undo.",
-   "es": "Inserte un cuadro de texto en una hoja y edite sus palabras, alineación, tamaño, negrita y color. Inserte Text Art desde una galería de estilos, edite sus palabras, fuente, tamaño, negrita y cursiva, y cambie su aspecto y forma con Estilos de Text Art y Deformación de texto. El Text Art se guarda y se lee en archivos `.xlsx`, y cada cambio es un paso de Deshacer.",
-   "fr": "Insérez une zone de texte sur une feuille et modifiez ses mots, son alignement, sa taille, le gras et la couleur. Insérez du Text Art depuis une galerie de styles, modifiez ses mots, sa police, sa taille, le gras et l’italique, et changez son aspect et sa forme avec Styles Text Art et Déformation du texte. Le Text Art est enregistré dans les fichiers `.xlsx` et relu depuis ceux-ci, et chaque modification correspond à une étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Text Art in `.ods` files: save",
-    "es": "Text Art en archivos `.ods`: guardar",
-    "fr": "Text Art dans les fichiers `.ods` : enregistrement"
    }
   },
   "41f1adeb641eee0f913f6c8d822f2304729e280d7780da49dc25cbce24d057a0": {
@@ -16116,6 +16080,18 @@
     "fr": "Aide sur les fonctions depuis la barre de formule : la fonction saisie ouvre sa page"
    }
   },
+  "7557a18d5f22f5ea51b8ca7df43d5e812795dd0d1421d6ef599a9ddbca9c6b6d": {
+   "drop": false,
+   "en": "Save `.ods` files with every property explicit, so other office suites open them as they look here, with formulas in OpenFormula and results stored. Pictures, shapes, text boxes, text styles, groups, and lines on each sheet are saved too.",
+   "es": "Guarde archivos `.ods` con cada propiedad explícita, de modo que otras suites ofimáticas los abran tal como se ven aquí, con fórmulas en OpenFormula y resultados almacenados. También se guardan las imágenes, formas, cuadros de texto, estilos de texto, grupos y líneas de cada hoja.",
+   "fr": "Enregistrez des fichiers `.ods` avec chaque propriété explicite, afin que d’autres suites bureautiques les ouvrent tels qu’ils apparaissent ici, avec des formules en OpenFormula et les résultats enregistrés. Les images, formes, zones de texte, styles de texte, groupes et lignes de chaque feuille sont aussi enregistrés.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "75ad438e0cd646d3b7397deca30db3e15efcd884f2636987f7a8b8735a8984ce": {
    "drop": false,
    "en": "Slide Master, Handout Master, and Notes Master views",
@@ -17700,6 +17676,18 @@
     "fr": ""
    }
   },
+  "8dfb6c309e6b74619208989aeec3a0af335c1a4a99eb7c5be2c355ff7f08535d": {
+   "drop": false,
+   "en": "Insert a text box or text styles on a sheet. Edit a text box's words, alignment, size, bold, and color. Edit text styles' words, font, size, bold, and italic, and change their look and warp shape, each as one Undo step. Both are saved in `.xlsx` and `.ods` files and read back.",
+   "es": "Inserte un cuadro de texto o estilos de texto en una hoja. Edite las palabras, la alineación, el tamaño, la negrita y el color de un cuadro de texto. Edite las palabras, la fuente, el tamaño, la negrita y la cursiva de los estilos de texto, y cambie su aspecto y su forma de deformación, cada cambio como un paso de Deshacer. Ambos se guardan en archivos `.xlsx` y `.ods` y se leen de nuevo.",
+   "fr": "Insérez une zone de texte ou des styles de texte dans une feuille. Modifiez les mots, l’alignement, la taille, le gras et la couleur d’une zone de texte. Modifiez les mots, la police, la taille, le gras et l’italique des styles de texte, et changez leur aspect et leur forme de déformation, chaque changement étant une étape d’annulation. Les deux sont enregistrés dans des fichiers `.xlsx` et `.ods` et relus.",
+   "soon": {
+    "drop": false,
+    "en": "Text Art warps Wave 2, Wave 4, and the bottom and top forms of Inflate and Deflate: saved in `.ods` files with their shape",
+    "es": "Deformaciones de estilos de texto Onda 2, Onda 4 y las formas inferior y superior de Inflar y Desinflar: guardado en archivos `.ods` con su forma",
+    "fr": "Déformations de styles de texte Vague 2, Vague 4 et formes basse et haute de Gonfler et Dégonfler : enregistrement dans des fichiers `.ods` avec leur forme"
+   }
+  },
   "8e376ec2dcfae855851b7015b5324bfba865d8c25fe9d806fc50303d71c9d24a": {
    "drop": true,
    "en": "",
@@ -18202,6 +18190,18 @@
     "en": "Keyboard Shortcuts table made from the commands, and About with Check for Updates",
     "es": "Tabla de métodos abreviados generada a partir de los comandos, y Acerca de con Buscar actualizaciones",
     "fr": "Tableau des raccourcis clavier généré à partir des commandes, et À propos avec Rechercher des mises à jour"
+   }
+  },
+  "956121b4db440231f094f168e8e07211a39fed2598676f9341911887e6ecb103": {
+   "drop": false,
+   "en": "Open `.ods` and `.ots` files (ODF 1.1 to 1.3), including cells of every value type, formulas with their stored results, repeated rows and columns, merged cells, number formats, cell styles, named ranges, database ranges with filters and sorts, hyperlinks, print ranges, page styles with headers and footers, protection, and view settings. Pictures, shapes, text boxes, text styles, groups, and lines on a sheet are drawn as the file opens and kept when saved as `.xlsx` or `.ods`. Password-protected `.ods` files open.",
+   "es": "Abra archivos `.ods` y `.ots` (ODF 1.1 a 1.3), con celdas de todos los tipos de valor, fórmulas con sus resultados almacenados, filas y columnas repetidas, celdas combinadas, formatos de número, estilos de celda, rangos con nombre, rangos de base de datos con filtros y ordenaciones, hipervínculos, áreas de impresión, estilos de página con encabezados y pies de página, protección y ajustes de vista. Las imágenes, formas, cuadros de texto, estilos de texto, grupos y líneas de una hoja se dibujan al abrir el archivo y se conservan al guardar como `.xlsx` o `.ods`. Se abren los archivos `.ods` protegidos con contraseña.",
+   "fr": "Ouvrez des fichiers `.ods` et `.ots` (ODF 1.1 à 1.3) avec des cellules de tous les types de valeur, des formules et leurs résultats enregistrés, des lignes et colonnes répétées, des cellules fusionnées, des formats de nombre, des styles de cellule, des plages nommées, des plages de base de données avec filtres et tris, des liens hypertexte, des zones d’impression, des styles de page avec en-têtes et pieds de page, la protection et les réglages d’affichage. Les images, formes, zones de texte, styles de texte, groupes et lignes d’une feuille sont dessinés à l’ouverture et conservés à l’enregistrement en `.xlsx` ou `.ods`. Les fichiers `.ods` protégés par mot de passe s’ouvrent.",
+   "soon": {
+    "drop": false,
+    "en": "Charts, form controls, freehand shapes, comments, pivot tables, macros, conditional formats, and data validation in `.ods` files: read",
+    "es": "Gráficos, controles de formulario, formas a mano alzada, comentarios, tablas dinámicas, macros, formatos condicionales y validación de datos en archivos `.ods`: lectura",
+    "fr": "Graphiques, contrôles de formulaire, formes à main levée, commentaires, tableaux croisés dynamiques, macros, mises en forme conditionnelles et validation des données dans les fichiers `.ods` : lecture"
    }
   },
   "9595adef49329bdeec3a26ac85fe9a9ed92f0c4175037f2897e69b462aa51490": {
