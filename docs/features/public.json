@@ -88,7 +88,7 @@
       },
       {
        "status": "partly",
-       "text": "ece30f70a6ef83487777630a58e5511827b59dd46567a8404af210ebed184418"
+       "text": "47ceb61ea5f657fdcba1198aef292b0828940c1300a5ff288e249ae2878170aa"
       }
      ]
     },
@@ -2338,8 +2338,9 @@
        "text": "26f6db7ddad8d94ac901873cc4661eaf2b1ae1c7523c9d74a8b9b4786665e8ff"
       },
       {
-       "status": "partly",
-       "text": "ac2501887ccfd0947fdfe885977c1c9e6818a286263423060bc9f325f7e9d699"
+       "hide_soon": true,
+       "status": "done",
+       "text": "2c44ed3950f92ebc0e3fbce6abb0383e965fd64e5f214aa05e484cae294ec50c"
       }
      ]
     },
@@ -4107,7 +4108,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "bd74e5a049cba5d0b6d088a61826976d6ab8332348844efc8e7109ad744b0c5d"
+       "text": "7a28addac10ce430d4244fb40e156d8e3eeb01a7985674621d98b2d465199b22"
       },
       {
        "hide_soon": true,
@@ -5468,8 +5469,8 @@
        "text": "8a4e7aa1784a0371da6106a832e9d0a6d7c4ff8e7dcfb6be33df6027eb4d3827"
       },
       {
-       "status": "todo",
-       "text": "9d416e99195406ba2533427775b4cea62de2a00ac4d2b704af0dbdb013df7b65"
+       "status": "partly",
+       "text": "db9c9da5b951ebd5a4f6cdfc5e99863a4bf4e42d2e90bb1f58d97b4bf614c2b1"
       },
       {
        "status": "partly",
@@ -10767,6 +10768,18 @@
     "fr": ""
    }
   },
+  "2c44ed3950f92ebc0e3fbce6abb0383e965fd64e5f214aa05e484cae294ec50c": {
+   "drop": false,
+   "en": "Put a QR code or barcode on a slide as a vector picture with `Insert > Illustrations > Barcode`. It is one object that moves, sizes, and undoes, and a double click edits its data. It is saved in `.pptx` and `.odp` files and reopens as the same barcode.",
+   "es": "Coloque un código QR o un código de barras en una diapositiva como imagen vectorial con `Insert > Illustrations > Barcode`. Es un solo objeto que se mueve, se redimensiona y se deshace, y un doble clic edita sus datos. Se guarda en archivos `.pptx` y `.odp` y se vuelve a abrir como el mismo código de barras.",
+   "fr": "Placez un code QR ou un code-barres sur une diapositive comme image vectorielle avec `Insert > Illustrations > Barcode`. C’est un seul objet que l’on déplace, redimensionne et annule, et un double-clic modifie ses données. Il est enregistré dans les fichiers `.pptx` et `.odp` et se rouvre comme le même code-barres.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "2c5520488100c2eabf8e01ffe42c2a4671fc7865f67ae73b12c6257b3bd9597b": {
    "drop": false,
    "en": "Beyond the usual desktop publisher",
@@ -12613,6 +12626,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "47ceb61ea5f657fdcba1198aef292b0828940c1300a5ff288e249ae2878170aa": {
+   "drop": false,
+   "en": "Add one barcode to a sheet with `Insert > Illustrations > Barcode`: EAN, UPC, Code 128, Code 39, and QR codes, drawn as vector bars. It is a picture that moves, sizes, and undoes like any picture, and choosing Barcode again with it selected edits its data. It is saved in `.xlsx` files and reopens as the same barcode.",
+   "es": "Agregue un código de barras a una hoja con `Insert > Illustrations > Barcode`: EAN, UPC, Code 128, Code 39 y códigos QR, dibujados como barras vectoriales. Es una imagen que se mueve, se redimensiona y se deshace como cualquier imagen, y al elegir Barcode de nuevo con ella seleccionada se editan sus datos. Se guarda en archivos `.xlsx` y se vuelve a abrir como el mismo código de barras.",
+   "fr": "Ajoutez un code-barres à une feuille avec `Insert > Illustrations > Barcode` : EAN, UPC, Code 128, Code 39 et codes QR, dessinés en barres vectorielles. C’est une image que l’on déplace, redimensionne et annule comme n’importe quelle image, et choisir de nouveau Barcode avec elle sélectionnée modifie ses données. Il est enregistré dans les fichiers `.xlsx` et se rouvre comme le même code-barres.",
+   "soon": {
+    "drop": false,
+    "en": "Barcodes for a whole column of codes at once",
+    "es": "Códigos de barras para una columna completa de códigos a la vez",
+    "fr": "Codes-barres pour toute une colonne de codes à la fois"
    }
   },
   "47e4fa93bdc466ef3104a6d3a1a89bd8cb3dd0c0b1ee43933e23eaef6f704cbb": {
@@ -16467,6 +16492,18 @@
     "fr": ""
    }
   },
+  "7a28addac10ce430d4244fb40e156d8e3eeb01a7985674621d98b2d465199b22": {
+   "drop": false,
+   "en": "Place barcodes as editable vector bars: book ISBNs with or without a price add-on, EAN-13, UPC-A and EAN-8 with add-ons, Code 128, Code 39, and QR codes. ISBNs are hyphenated as the ISBN agency assigns them, for every country.",
+   "es": "Coloque códigos de barras como barras vectoriales editables: ISBN de libros con o sin complemento de precio, EAN-13, UPC-A y EAN-8 con complementos, Code 128, Code 39 y códigos QR. Los ISBN se escriben con guiones tal como los asigna la agencia del ISBN, para todos los países.",
+   "fr": "Placez des codes-barres sous forme de barres vectorielles modifiables : ISBN de livres avec ou sans complément de prix, EAN-13, UPC-A et EAN-8 avec compléments, Code 128, Code 39 et codes QR. Les ISBN sont écrits avec des traits d’union comme l’attribue l’agence ISBN, pour tous les pays.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "7a44f213fa68b777fd8e42f3f9adf1533dbe6912b39d0390e947b6a40f8868a6": {
    "drop": false,
    "en": "Adjust spacing, even height, vertical text, and text alignment for text styles.",
@@ -18855,18 +18892,6 @@
     "fr": "Personnalisation du ruban et de la barre d’outils rapide"
    }
   },
-  "9d416e99195406ba2533427775b4cea62de2a00ac4d2b704af0dbdb013df7b65": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Barcodes in documents and mail-merge labels: ISBN with price add-on, EAN, UPC, Code 128, and Code 39",
-    "es": "Códigos de barras en documentos y etiquetas de combinación de correspondencia: ISBN con complemento de precio, EAN, UPC, Code 128 y Code 39",
-    "fr": "Codes-barres dans les documents et les étiquettes de publipostage : ISBN avec complément de prix, EAN, UPC, Code 128 et Code 39"
-   }
-  },
   "9d4bb3cbc30d460e1cc6ebef10cf722e7e9d1a3dfb92c4762887fb1645721b23": {
    "drop": true,
    "en": "",
@@ -19741,18 +19766,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ac2501887ccfd0947fdfe885977c1c9e6818a286263423060bc9f325f7e9d699": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "QR code or barcode on a slide as a vector picture",
-    "es": "Código QR o código de barras en una diapositiva como imagen vectorial",
-    "fr": "Code QR ou code-barres sur une diapositive en image vectorielle"
    }
   },
   "ac69bfac923d9c93ec5119a731c0a8d4761e2550491fab0d75244bfb9cab8ef4": {
@@ -20653,18 +20666,6 @@
     "en": "Select Objects and selection of objects in line with the text",
     "es": "Seleccionar objetos y selección de objetos en línea con el texto",
     "fr": "Sélection des objets et sélection des objets en ligne avec le texte"
-   }
-  },
-  "bd74e5a049cba5d0b6d088a61826976d6ab8332348844efc8e7109ad744b0c5d": {
-   "drop": false,
-   "en": "Add barcodes: book ISBNs with or without a price add-on, EAN-13, UPC-A and EAN-8 with add-ons, Code 128, and Code 39. They are drawn as vector bars and stay editable after placing.",
-   "es": "Agregue códigos de barras: ISBN de libros con o sin complemento de precio, EAN-13, UPC-A y EAN-8 con complementos, Code 128 y Code 39. Se dibujan como barras vectoriales y siguen siendo editables tras colocarlos.",
-   "fr": "Ajoutez des codes-barres : ISBN de livres avec ou sans complément de prix, EAN-13, UPC-A et EAN-8 avec compléments, Code 128 et Code 39. Ils sont dessinés en barres vectorielles et restent modifiables après leur placement.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "bd7c8f63f194ee7f68975b25186be431c31b6e0ccda2139153fcd4f540f4ce16": {
@@ -22971,6 +22972,18 @@
     "fr": ""
    }
   },
+  "db9c9da5b951ebd5a4f6cdfc5e99863a4bf4e42d2e90bb1f58d97b4bf614c2b1": {
+   "drop": false,
+   "en": "Insert a barcode in a document with `Insert > Barcode`: book ISBNs with a price add-on, EAN, UPC, Code 128, Code 39, and QR codes, drawn as vector bars. It is a floating picture that moves, sizes, wraps, and undoes like any picture, and a double click edits its data. It is saved in `.docx` and `.odt` files and reopens as the same barcode.",
+   "es": "Inserte un código de barras en un documento con `Insert > Barcode`: ISBN de libros con complemento de precio, EAN, UPC, Code 128, Code 39 y códigos QR, dibujados como barras vectoriales. Es una imagen flotante que se mueve, se redimensiona, se ajusta al texto y se deshace como cualquier imagen, y un doble clic edita sus datos. Se guarda en archivos `.docx` y `.odt` y se vuelve a abrir como el mismo código de barras.",
+   "fr": "Insérez un code-barres dans un document avec `Insert > Barcode` : ISBN de livres avec complément de prix, EAN, UPC, Code 128, Code 39 et codes QR, dessinés en barres vectorielles. C’est une image flottante que l’on déplace, redimensionne, habille de texte et annule comme n’importe quelle image, et un double-clic modifie ses données. Il est enregistré dans les fichiers `.docx` et `.odt` et se rouvre comme le même code-barres.",
+   "soon": {
+    "drop": false,
+    "en": "Barcodes from a mail-merge field on labels",
+    "es": "Códigos de barras desde un campo de combinación de correspondencia en etiquetas",
+    "fr": "Codes-barres à partir d’un champ de publipostage sur des étiquettes"
+   }
+  },
   "dbc394cfdc1fcc92783ead152d21a9aa0791d40f76af9ee229446fde3b81a8e6": {
    "drop": false,
    "en": "Check Accessibility finds missing alt text, merged cells, blank cells used for layout, default sheet names, tables with no header row, low color contrast, and problems with the reading order of objects.",
@@ -24157,18 +24170,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ece30f70a6ef83487777630a58e5511827b59dd46567a8404af210ebed184418": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Insert > Barcode: a column of codes as vector barcodes (EAN, UPC, Code 128, Code 39, QR)",
-    "es": "Insertar > Código de barras: una columna de códigos como códigos de barras vectoriales (EAN, UPC, Code 128, Code 39, QR)",
-    "fr": "Insertion > Code-barres : une colonne de codes en codes-barres vectoriels (EAN, UPC, Code 128, Code 39, QR)"
    }
   },
   "ece40f16626684f64082dd5efec8558d95a1cbfd4010af5a591580b8b56b0de5": {
