@@ -10,7 +10,7 @@
 
 namespace jp {
 
-void barcodeDialog(QWidget *p, Editor *ed)
+void barcodeDialog(QWidget *p, Editor *ed, bool findRoom)
 {
     // With a barcode selected, the dialog edits it: its own settings, and
     // the new one takes its place.
@@ -47,6 +47,22 @@ void barcodeDialog(QWidget *p, Editor *ed)
             if (auto *g = dynamic_cast<const GroupItem *>(it.get()); g && !g->barcode.isEmpty() && (g->rect.topLeft() - at).manhattanLength() < 2) {
                 at += QPointF(18, 18);
                 moved = true;
+            }
+    }
+    if (findRoom) {
+        // The lower right, the lower left, the upper right, and the upper left,  that touches nothing already on the page.
+        const QSizeF s = made->rect.size();
+        bool placed = false;
+        for (const double m : {36.0, 18.0, 6.0})
+            for (const QPointF &c : {QPointF(page.width() - s.width() - m, page.height() - s.height() - m), QPointF(m, page.height() - s.height() - m),
+                                     QPointF(page.width() - s.width() - m, m), QPointF(m, m)}) {
+                bool free = !placed && c.x() >= 0 && c.y() >= 0;
+                for (const ItemPtr &it : ed->surfaceItems())
+                    if (it->bounds().intersects(QRectF(c, s))) free = false;
+                if (free) {
+                    at = c;
+                    placed = true;
+                }
             }
     }
     made->moveBy(at.x() - made->rect.x(), at.y() - made->rect.y());

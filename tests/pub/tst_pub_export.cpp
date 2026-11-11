@@ -1407,6 +1407,61 @@ private Q_SLOTS:
         }
     }
 
+    // The capacity of each version, and (when JO_QR_SWEEP_DIR names a folder) the QR codes a real decoder is run on: every version at every level, at its capacity and at the shortest
+    // text that lands in it, UTF-8 text, and every mask pattern; list.tsv names each file and the text in it (tabs and line breaks in the text are written as \\t and \\n).
+    void qrSweep()
+    {
+        using namespace jp::barcode;
+        QCOMPARE(qrCapacity(1, 0), 17);
+        QCOMPARE(qrCapacity(9, 0), 230);
+        QCOMPARE(qrCapacity(10, 0), 271);
+        QCOMPARE(qrCapacity(40, 3), 1273);
+        const QString dir = qEnvironmentVariable("JO_QR_SWEEP_DIR");
+        if (dir.isEmpty()) return;
+        QDir().mkpath(dir);
+        QFile list(dir + QStringLiteral("/list.tsv"));
+        QVERIFY(list.open(QIODevice::WriteOnly));
+        auto write = [&](const QString &name, const QString &text, int level, int mask) {
+            Options o;
+            o.type = Type::Qr;
+            o.data = text;
+            o.qrLevel = level;
+            o.qrMask = mask;
+            const Layout l = make(o);
+            QVERIFY2(l.error.isEmpty(), qPrintable(name + l.error));
+            const int n = int(std::lround(l.size.width() / 3.0));   // the modules and the quiet zone
+            QImage image(n * 4, n * 4, QImage::Format_RGB32);
+            image.fill(Qt::white);
+            QPainter p(&image);
+            for (const QRectF &r : l.bars) p.fillRect(QRect(int(std::lround(r.x() / 3.0)) * 4, int(std::lround(r.y() / 3.0)) * 4, int(std::lround(r.width() / 3.0)) * 4, 4), Qt::black);
+            p.end();
+            QVERIFY(image.save(dir + QLatin1Char('/') + name));
+            QString shown = text;
+            shown.replace(QLatin1Char('\\'), QStringLiteral("\\\\")).replace(QLatin1Char('\t'), QStringLiteral("\\t")).replace(QLatin1Char('\n'), QStringLiteral("\\n"));
+            list.write((name + QLatin1Char('\t') + shown + QLatin1Char('\n')).toUtf8());
+        };
+        const QString alphabet = QStringLiteral("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -._~:/?#[]@!$&'()*+,;=");
+        auto text = [&](int length, int seed) {
+            QString t;
+            for (int i = 0; i < length; ++i) t += alphabet[(i * 7 + seed * 13 + i / 5) % alphabet.size()];
+            return t;
+        };
+        const char *const levels = "LMQH";
+        for (int level = 0; level < 4; ++level)
+            for (int version = 1; version <= 40; ++version) {
+                const int most = qrCapacity(version, level), least = version == 1 ? 1 : qrCapacity(version - 1, level) + 1;
+                write(QStringLiteral("v%1-%2-1.png").arg(version).arg(QLatin1Char(levels[level])), text(most, version), level, -1);
+                write(QStringLiteral("v%1-%2-2.png").arg(version).arg(QLatin1Char(levels[level])), text(least, version + 1), level, -1);
+            }
+        write(QStringLiteral("v2-M-3.png"), QStringLiteral("Caf\u00e9 cr\u00e8me br\u00fbl\u00e9e, na\u00efve fa\u00e7ade \u2014 \u00a1Ol\u00e9! \u20ac5"), 1, -1);
+        write(QStringLiteral("v3-Q-3.png"), QStringLiteral("Emoji: \U0001F600 \U0001F680 \U0001F4A1 and \u65e5\u672c\u8a9e"), 2, -1);
+        write(QStringLiteral("v1-L-3.png"), QStringLiteral("a\tb\nc"), 0, -1);
+        for (int mask = 0; mask < 8; ++mask) {
+            write(QStringLiteral("v3-M-mask%1.png").arg(mask), QStringLiteral("https://jeffoffice.com/mask/%1").arg(mask), 1, mask);
+            write(QStringLiteral("v8-H-mask%1.png").arg(mask), text(60, mask), 3, mask);
+        }
+    }
+
     // Insert > Barcode places one group: the white quiet zone and the bars
     // with their digits as a single vector outline.
     void barcodeInsert()

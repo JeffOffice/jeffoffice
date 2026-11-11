@@ -175,6 +175,7 @@ bool askBarcode(QWidget *p, const QJsonObject &was, QJsonObject *out)
     showText->setChecked(setting("text", true).toBool());
     auto *white = new QCheckBox(QCoreApplication::translate("BarcodeDialog", "White background (the clear space scanners need)"), &dlg);
     white->setChecked(setting("white", true).toBool());
+    white->setToolTip(QCoreApplication::translate("BarcodeDialog", "Without it, the clear space round the bars shows what is behind the barcode, so on a colored background a scanner may not read it."));
     auto *check39 = new QCheckBox(QCoreApplication::translate("BarcodeDialog", "Add a check character"), &dlg);
     check39->setChecked(setting("check39", false).toBool());
     addOn->setText(setting("addOn", QString()).toString());

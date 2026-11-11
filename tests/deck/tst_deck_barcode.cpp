@@ -17,6 +17,16 @@ void insertQr(DeckWindow &w, const QString &text)
     });
 }
 
+// Whether the first slide's thumbnail (drawn again a moment after a change) has dark bars in it.
+bool thumbnailHasBars(DeckWindow &w)
+{
+    const QImage thumb = w.slidesPane()->item(0)->icon().pixmap(w.slidesPane()->iconSize()).toImage();
+    int dark = 0;
+    for (int y = 0; y < thumb.height(); ++y)
+        for (int x = 0; x < thumb.width(); ++x) dark += qGray(thumb.pixel(x, y)) < 128 ? 1 : 0;
+    return dark > 10;
+}
+
 GroupItem *lastBarcode(Document &d)
 {
     for (auto it = d.pages[0]->items.rbegin(); it != d.pages[0]->items.rend(); ++it)
@@ -46,13 +56,31 @@ private Q_SLOTS:
         QCOMPARE(g->barcode.value(QLatin1String("type")).toInt(), int(barcode::Type::Qr));
         QVERIFY(g->altText.startsWith(QLatin1String("Barcode: QR code")));
         const QSizeF page = ed->doc()->pageSize();
-        QVERIFY(qAbs(g->rect.center().x() - page.width() / 2) < 1 && qAbs(g->rect.center().y() - page.height() / 2) < 1);
+        QVERIFY(QRectF(QPointF(0, 0), page).contains(g->rect));
         ed->undoStack()->undo();
         QCOMPARE(int(ed->doc()->pages[0]->items.size()), before);
         QVERIFY(!lastBarcode(*ed->doc()));
         ed->undoStack()->redo();
         QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 1);
         QVERIFY(lastBarcode(*ed->doc()));
+    }
+
+    // A new barcode lands where nothing else is (the lower right of the slide, not on the placeholders), and the slide's thumbnail shows it once the pane has
+    // drawn it again (it does that a moment after a change).
+    void aNewBarcodeLeavesThePlaceholdersAloneAndShowsInTheThumbnail()
+    {
+        DeckWindow w;
+        w.resize(1300, 820);
+        w.show();
+        Editor *ed = w.editor();
+        insertQr(w, QStringLiteral("https://jeffoffice.com/room"));
+        GroupItem *g = lastBarcode(*ed->doc());
+        QVERIFY(g);
+        for (const ItemPtr &it : ed->doc()->pages[0]->items)
+            if (it.get() != g) QVERIFY2(!it->bounds().intersects(g->rect), qPrintable(it->name));
+        const QSizeF page = ed->doc()->pageSize();
+        QVERIFY(g->rect.center().x() > page.width() / 2 && g->rect.center().y() > page.height() / 2);
+        QTRY_VERIFY(thumbnailHasBars(w));
     }
 
     // A picture of the window with a QR code on the slide, for the docs, when JP_SHOT_DIR names a folder.
@@ -63,6 +91,7 @@ private Q_SLOTS:
         w.resize(1300, 820);
         w.show();
         insertQr(w, QStringLiteral("https://jeffoffice.com"));
+        QTRY_VERIFY(thumbnailHasBars(w));
         QCoreApplication::processEvents();
         w.grab().save(qEnvironmentVariable("JP_SHOT_DIR") + QStringLiteral("/deck-qr.png"));
     }

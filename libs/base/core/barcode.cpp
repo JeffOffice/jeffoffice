@@ -651,6 +651,7 @@ Layout qr(const Options &o)
     };
     int best = 0, bestPenalty = -1;
     for (int mask = 0; mask < 8; ++mask) {
+        if (o.qrMask >= 0 && o.qrMask < 8 && mask != o.qrMask) continue;
         applyMask(mask);
         qrFormatBits(m, level, mask);
         const int penalty = qrPenalty(m);
@@ -682,7 +683,14 @@ Layout qr(const Options &o)
 
 } // namespace
 
-int qrMostBytes(int level) { return qrDataCodewords(40, std::clamp(level, 0, 3)) - 3; }
+int qrMostBytes(int level) { return qrCapacity(40, level); }
+
+int qrCapacity(int version, int level)
+{
+    version = std::clamp(version, 1, 40);
+    level = std::clamp(level, 0, 3);
+    return (qrDataCodewords(version, level) * 8 - 4 - (version <= 9 ? 8 : 16)) / 8;
+}
 
 bool loadIsbnRanges(const QByteArray &xml)
 {
