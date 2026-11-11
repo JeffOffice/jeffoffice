@@ -160,9 +160,9 @@ private Q_SLOTS:
     void whatIsNotReadIsSaid()
     {
         Win o;
-        QVERIFY(o.open(odsBook(QStringLiteral("<draw:frame><draw:image xlink:href=\"Pictures/a.png\"/></draw:frame><office:annotation><text:p>note</text:p></office:annotation>")), QStringLiteral("pictures.ods")));
+        QVERIFY(o.open(odsBook(QStringLiteral("<draw:control draw:control=\"c1\"/><office:annotation><text:p>note</text:p></office:annotation>")), QStringLiteral("pictures.ods")));
         QCOMPARE(o.told.size(), 1);
-        QVERIFY2(o.told.first().contains(QLatin1String("pictures and other drawing objects")) && o.told.first().contains(QLatin1String("comments")), qPrintable(o.told.first()));
+        QVERIFY2(o.told.first().contains(QLatin1String("form controls, freehand shapes, and callouts")) && o.told.first().contains(QLatin1String("comments")), qPrintable(o.told.first()));
     }
 
     // A text file of values opens: numbers in the person's locale, the percent shown as typed, the first screen on at once.
