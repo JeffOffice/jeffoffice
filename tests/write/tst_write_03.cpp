@@ -204,6 +204,25 @@ void WriteTests::aCommentAtTheEndOfAParagraphHasItsBalloonInTheMargin()
 }
 
 
+void WriteTests::theStyleGalleryListsTheHeadingsOfAFileThatGivesThemNoPriority()
+{
+    // (A file may leave the display priority out of its own headings; they still come before the built-in ones the document has not used yet, as Heading 1 comes before Heading 4.)
+    const QByteArray styles =
+        "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/><w:qFormat/></w:style>"
+        "<w:style w:type=\"paragraph\" w:styleId=\"Title\"><w:name w:val=\"Title\"/><w:basedOn w:val=\"Normal\"/><w:qFormat/><w:rPr><w:sz w:val=\"56\"/></w:rPr></w:style>"
+        "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:basedOn w:val=\"Normal\"/><w:qFormat/><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:rPr><w:sz w:val=\"36\"/></w:rPr></w:style>"
+        "<w:style w:type=\"paragraph\" w:styleId=\"Heading2\"><w:name w:val=\"heading 2\"/><w:basedOn w:val=\"Normal\"/><w:qFormat/><w:pPr><w:outlineLvl w:val=\"1\"/></w:pPr><w:rPr><w:sz w:val=\"28\"/></w:rPr></w:style>";
+    auto doc = open(makeDocx("<w:p><w:r><w:t>x</w:t></w:r></w:p>", styles));
+    QVERIFY(doc);
+    QStringList order;
+    for (const StyleEntry &e : doc->styleEntries())
+        if (e.quick && !e.character) order << e.id;
+    const qsizetype h1 = order.indexOf(QStringLiteral("Heading1")), h2 = order.indexOf(QStringLiteral("Heading2")), h4 = order.indexOf(QStringLiteral("Heading4"));
+    QVERIFY(h1 >= 0 && h2 >= 0 && h4 >= 0);
+    QVERIFY2(h1 < h4 && h2 < h4, qPrintable(order.join(QLatin1Char(' '))));
+}
+
+
 void WriteTests::theRibbonCommandsDoTheirWork()
 {
     WriteWindow w;

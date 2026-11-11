@@ -1003,6 +1003,16 @@ QString WriteDoc::defaultParagraphStyle() const
     return id.isEmpty() ? QStringLiteral("Normal") : id;
 }
 
+namespace {
+// Where a style that gives no display priority is listed: the headings and the title in their usual places, anything else last.
+int priorityWithNone(const QString &id)
+{
+    if (id == QLatin1String("Title")) return 10;
+    if (id.startsWith(QLatin1String("Heading")) && id.size() == 8 && id[7] >= QLatin1Char('1') && id[7] <= QLatin1Char('9')) return 9;
+    return 99;
+}
+} // namespace
+
 QVector<StyleEntry> WriteDoc::styleEntries() const
 {
     QVector<StyleEntry> out;
@@ -1014,7 +1024,7 @@ QVector<StyleEntry> WriteDoc::styleEntries() const
         // The built-in names are lower case in the file ("heading 1"); the person sees them capitalized.
         if (!e.name.isEmpty() && e.name[0].isLower()) e.name[0] = e.name[0].toUpper();
         e.character = s.type == QLatin1String("character");
-        e.priority = s.isDefault && !e.character ? -1 : s.uiPriority.value_or(99);
+        e.priority = s.isDefault && !e.character ? -1 : s.uiPriority.value_or(priorityWithNone(s.id));
         e.quick = s.qFormat && !s.semiHidden;
         out.push_back(e);
     }
@@ -1028,7 +1038,7 @@ QVector<StyleEntry> WriteDoc::styleEntries() const
         e.name = s.name;
         if (!e.name.isEmpty() && e.name[0].isLower()) e.name[0] = e.name[0].toUpper();
         e.character = s.type == QLatin1String("character");
-        e.priority = s.isDefault && !e.character ? -1 : s.uiPriority.value_or(99);
+        e.priority = s.isDefault && !e.character ? -1 : s.uiPriority.value_or(priorityWithNone(s.id));
         e.quick = true;
         out.push_back(e);
     }

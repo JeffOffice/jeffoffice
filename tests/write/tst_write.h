@@ -938,6 +938,7 @@ private Q_SLOTS:
     void rightClickingInsideASelectionOffersTheWordClickedNotTheCaret();
     void aMisspelledWordInATableCellIsUnderlinedLikeAnyOther();
     void aCommentAtTheEndOfAParagraphHasItsBalloonInTheMargin();
+    void theStyleGalleryListsTheHeadingsOfAFileThatGivesThemNoPriority();
     void theRibbonCommandsDoTheirWork();
     void developerRoundTripOfAFolder();
     void developerStrictRoundTrip();
