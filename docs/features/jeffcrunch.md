@@ -119,7 +119,7 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 - [ ] **1.0** Advanced calculation and compatibility: precision as displayed, update links to other workbooks on open, save external link values, ignore other programs that use DDE, and the use of system separators (decimal, thousands, and list separators)
 - [ ] **1.0** Language: editing languages and the display language; the list separator and decimal mark follow the system, with a choice
 - [ ] **1.0** Customize the Ribbon and the quick toolbar
-- [ ] **1.0** Customize the keyboard: assign keys to commands, with Excel's shortcuts the starting set
+- [x] **1.0** Customize the keyboard (Options > Customize > Keyboard): a searchable list of every command by ribbon tab with its keys, press keys to add them, take keys off, a key in use says which command has it and can be taken over, Reset One and Reset All, and the system's own keys stay reserved *(shared: libs/shell)*
 - [ ] **1.0** Trust Center equivalents: what happens with external links, data connections, macros (kept, never run), and files from outside; no add-ins from the Store
 - [x] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports) *(shared: libs/shell telemetry and libs/shell privacy; done November 10, 2026: Options > Save > Remove personal information from this file when saving, and the same box on Info, take the author, who saved last, the company, and the manager out of the properties each time a file is saved, and the names out of the notes and the threads of comments)*
 - [ ] **1.0** Accessibility options: sound and animation feedback, high contrast, and keyboard focus
