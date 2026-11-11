@@ -1580,7 +1580,11 @@ void checkQuickToolbarPage(Adapter &app)
     QVERIFY(ribbon);
     QVERIFY(jp::RibbonCustom::load().isEmpty());
     QStringList defaults;
-    for (const QToolButton *b : ribbon->quickAccessButtons()) defaults << b->defaultAction()->objectName();
+    for (const QToolButton *b : ribbon->quickAccessButtons()) {
+        QVERIFY(b->defaultAction());
+        QVERIFY2(!b->defaultAction()->objectName().isEmpty(), "a command of the quick toolbar has no id, so it cannot be kept in the list");
+        defaults << b->defaultAction()->objectName();
+    }
     QVERIFY2(!defaults.isEmpty(), "the app has no quick toolbar");
     // the commands the page must list are the ones the Keyboard page lists (one function decides)
     const jp::KeyMap keys(w.get());
@@ -1661,6 +1665,7 @@ void checkQuickToolbarPage(Adapter &app)
     QStringList now;
     int menus = 0;
     for (const QToolButton *b : ribbon->quickAccessButtons()) {
+        QVERIFY(b->defaultAction());
         now << b->defaultAction()->objectName();
         if (!ribbon->menuCommandTab(b->defaultAction()->objectName()).isEmpty()) {
             QVERIFY2(b->menu(), qPrintable(app.name + QStringLiteral(": ") + b->defaultAction()->objectName() + QStringLiteral(" lost its menu")));
@@ -1669,14 +1674,25 @@ void checkQuickToolbarPage(Adapter &app)
     }
     QCOMPARE(now, defaults + added);
     qInfo("quick toolbar: %s, %lld commands on it (%d with a menu)", qPrintable(app.name), qint64(now.size()), menus);
-    // Reset All puts the app's own back
-    jp::RibbonCustom saved = jp::RibbonCustom::load();
-    QCOMPARE(saved.quick, now);
-    saved.resetQuick();
-    saved.save();
-    jp::RibbonCustom::applyAll();
+    // reopened, the page has the same list; its Reset All button puts the app's own back
+    withDialog([&] { options->trigger(); }, QStringLiteral("optionsDialog"), [&](QDialog *dlg) {
+        QWidget *page = dlg->findChild<QWidget *>(QStringLiteral("quickToolbarPage"));
+        QVERIFY(page);
+        auto *toolbar = page->findChild<QListWidget *>(QStringLiteral("quickList"));
+        auto *reset = page->findChild<QPushButton *>(QStringLiteral("quickResetAll"));
+        QVERIFY(toolbar && reset);
+        QStringList listed;
+        for (int i = 0; i < toolbar->count(); ++i) listed << toolbar->item(i)->data(Qt::UserRole).toString();
+        QCOMPARE(listed, now);
+        QVERIFY(reset->isEnabled());
+        reset->click();
+        QCOMPARE(int(toolbar->count()), int(defaults.size()));
+    });
     QStringList back;
-    for (const QToolButton *b : ribbon->quickAccessButtons()) back << b->defaultAction()->objectName();
+    for (const QToolButton *b : ribbon->quickAccessButtons()) {
+        QVERIFY(b->defaultAction());
+        back << b->defaultAction()->objectName();
+    }
     QCOMPARE(back, defaults);
     QVERIFY(jp::RibbonCustom::load().isEmpty());
 }

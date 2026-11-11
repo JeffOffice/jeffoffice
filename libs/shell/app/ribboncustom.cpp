@@ -702,7 +702,8 @@ void RibbonCustom::applyQuick(Ribbon *r, AppWindow *win) const
         entries.append(e);
     }
     if (!entries.isEmpty() && !entries.last().action) entries.removeLast();
-    r->setQuickAccess(entries);
+    // The » button, where what does not fit goes, has letters of its own (from its name) that are free.
+    r->setQuickAccess(entries, entries.isEmpty() ? QString() : freeKeytip(QStringLiteral("More"), used, 2));
 }
 
 void RibbonCustom::applyTo(AppWindow *win) const
@@ -745,6 +746,7 @@ void RibbonCustom::applyTo(AppWindow *win) const
         ++n;
         used << (keytip(b).isEmpty() ? QString::number(n) : keytip(b));
     }
+    if (const QString k = keytip(r->quickAccessMore()); !k.isEmpty()) used << k;
     for (int i = 0; i < r->tabCount(); ++i) used << r->tabKeytip(i);
     for (const Tab &t : tabs) {
         RibbonTab *page = r->addTab(t.id, QString(), QColor(), t.name, false);

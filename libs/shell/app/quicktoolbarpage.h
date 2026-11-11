@@ -47,6 +47,7 @@ private:
     QLabel *m_message;
     bool m_fromCommands = false;
     bool m_filling = false;
+    bool m_locked = false;
 };
 
 } // namespace jp

@@ -162,13 +162,31 @@ void KeyTips::showTop()
     clear();
     m_level = Top;
     int i = 0;
+    QToolButton *quickMore = m_ribbon->quickAccessMore();
+    const QList<QToolButton *> overflow = m_ribbon->quickAccessHidden();
     for (QToolButton *b : m_ribbon->quickAccessButtons()) {
         ++i;
-        add(keytip(b).isEmpty() ? QString::number(i) : keytip(b), b, [this, b] {
+        const QString key = keytip(b).isEmpty() ? QString::number(i) : keytip(b);
+        if (overflow.contains(b)) {
+            // A command that went into the » menu has no button to show its letters on, but typing them runs it (or, for a command with a menu, opens that menu).
+            m_tips << Tip{key, nullptr, [this, b, quickMore] {
+                              hide();
+                              if (b->menu() && quickMore) quickMore->showMenu();
+                              else b->click();
+                          }, nullptr};
+            continue;
+        }
+        add(key, b, [this, b] {
             hide();
             b->click();
         });
     }
+    // The » button has letters of its own and opens its menu.
+    if (quickMore && quickMore->isVisible())
+        add(keytip(quickMore), quickMore, [this, quickMore] {
+            hide();
+            quickMore->showMenu();
+        });
     if (QWidget *f = m_ribbon->fileButton())
         add(m_ribbon->fileKeytip().isEmpty() ? QStringLiteral("F") : m_ribbon->fileKeytip(), f, [this] {
             hide();

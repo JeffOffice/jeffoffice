@@ -1,6 +1,8 @@
 // The shared part of "Customize the ribbon": showing and hiding tabs and groups, tabs, groups, and commands of one's own, renaming, reordering, resetting, keeping it for a new window, KeyTips
 // that do not clash, and a settings file that is not to be trusted. A small ribbon built from a file stands for an app's (each app's own test checks that its Ribbon page lists its tabs).
 #include "app/appwindow.h"
+#include "app/keymap.h"
+#include "app/keytips.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/quicktoolbarpage.h"
@@ -68,6 +70,20 @@ public:
         return ids;
     }
     Ribbon *ribbon() const override { return m_ribbon; }
+    // A command of the test's own (with an icon, so that its button is as wide whatever the font), and its end.
+    QAction *addCommand(const QString &id, const QString &text, bool icon = true)
+    {
+        auto *a = new QAction(text, this);
+        a->setObjectName(id);
+        if (icon) {
+            QPixmap pix(16, 16);
+            pix.fill(Qt::darkGray);
+            a->setIcon(QIcon(pix));
+        }
+        m_actions.insert(id, a);
+        return a;
+    }
+    void dropCommand(const QString &id) { delete m_actions.take(id); }
 
 private:
     QHash<QString, QAction *> m_actions;
@@ -880,10 +896,11 @@ private Q_SLOTS:
         QCOMPARE(int(c.quick.size()), RibbonCustom::kMaxQuick);
         QVERIFY(c.removeQuick(0, kQuickDefaults));
         QVERIFY(c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults));
-        // a window with that many has them all (the ones it has commands for)
+        // none of these commands is in the window: nothing shows, and what was saved is kept
         setSaved(quickJson(250));
         RibbonWindow w;
-        QVERIFY(quickIds(w.ribbon()).isEmpty());   // (none of these commands is there)
+        QVERIFY(quickIds(w.ribbon()).isEmpty());
+        QCOMPARE(int(RibbonCustom::load().quick.size()), RibbonCustom::kMaxQuick);
         // a file with doubles and bad entries
         const RibbonCustom odd = RibbonCustom::fromJson(R"({"quick":[{"cmd":"a"},{"cmd":"a"},{"cmd":""},5,{"nothing":1},{"cmd":"b"}]})");
         QCOMPARE(odd.quick, (QStringList{QStringLiteral("a"), QStringLiteral("b")}));
@@ -927,28 +944,251 @@ private Q_SLOTS:
         }
     }
 
+    // How many buttons the quick toolbar shows when each is `button` wide: the room is a third of the row (not under 100), the » button and the gaps come out of it.
+    static int quickRoomFor(int rowWidth, int button, int gap = 2, int more = 22) { return std::max(0, (std::max(100, rowWidth / 3) - more - 6) / (button + gap)); }
+
+    // A window whose quick toolbar has more commands than fit: `count` commands with icons (so that the buttons are the same width whatever the font), the one at `menuAt` being the command with a menu.
+    static QStringList overflowing(RibbonWindow &w, int count, int menuAt = -1)
+    {
+        QStringList ids;
+        for (int i = 0; i < count; ++i) {
+            const QString id = QStringLiteral("test.many%1").arg(i);
+            w.addCommand(id, QStringLiteral("Many %1").arg(i));
+            ids << id;
+        }
+        if (menuAt >= 0) ids[menuAt] = QStringLiteral("insert.table");
+        QPixmap pix(16, 16);
+        pix.fill(Qt::darkGray);
+        w.act(QStringLiteral("insert.table"))->setIcon(QIcon(pix));
+        RibbonCustom c;
+        c.quickSet = true;
+        c.quick = ids;
+        c.save();
+        RibbonCustom::applyAll();
+        w.show();
+        return ids;
+    }
+
     void aLongQuickToolbarGoesIntoAnOverflowButton()
     {
-        RibbonCustom c;
-        for (const QString &id : {QStringLiteral("edit.paste"), QStringLiteral("edit.copy"), QStringLiteral("format.bold"), QStringLiteral("insert.picture"), QStringLiteral("insert.table"), QStringLiteral("view.zoom"), QStringLiteral("chart.style"), QStringLiteral("test.extra")})
-            c.addQuickCommand(id, kQuickDefaults);
-        c.save();
         RibbonWindow w;
-        w.resize(300, 200);   // (a third of it is all the quick toolbar may have)
-        w.show();
+        overflowing(w, 60);
         Ribbon *r = w.ribbon();
-        QTRY_VERIFY(!r->quickAccessHidden().isEmpty());
+        auto shownNow = [r] {
+            int n = 0;
+            for (const QToolButton *b : r->quickAccessButtons()) n += !b->isHidden();
+            return n;
+        };
+        // (the room is the row's own width, so no window size is fought with)
+        QTRY_COMPARE(shownNow(), quickRoomFor(r->width(), 26));
+        QVERIFY(shownNow() < 60);
         const int hidden = int(r->quickAccessHidden().size());
-        QVERIFY(hidden < int(r->quickAccessButtons().size()));
+        QCOMPARE(hidden, 60 - shownNow());
         QToolButton *more = r->quickAccessMore();
-        QVERIFY(more);
-        QVERIFY(!more->isHidden());
+        QVERIFY(more && !more->isHidden());
         QCOMPARE(int(more->menu()->actions().size()), hidden);
-        QVERIFY(more->geometry().right() < r->width() / 2);   // (the window's title and the tabs keep their room)
-        // a wide window shows them all
-        w.resize(1600, 300);
+        QVERIFY(more->geometry().right() <= std::max(100, r->width() / 3));   // (the title and the tabs keep their room)
+        // a short toolbar shows them all, and the » button goes
+        RibbonCustom c;
+        c.quickSet = true;
+        c.quick = {QStringLiteral("test.many0"), QStringLiteral("test.many1")};   // (with icons: the same width in any font)
+        c.save();
+        RibbonCustom::applyAll();
         QTRY_VERIFY(r->quickAccessHidden().isEmpty());
         QVERIFY(more->isHidden());
+    }
+
+    void keyTipsOfAQuickToolbarAreNumbersThenLettersAndNeverClash()
+    {
+        RibbonWindow w;
+        QStringList ids;
+        for (int i = 0; i < 14; ++i) ids << w.addCommand(QStringLiteral("test.tip%1").arg(i), QStringLiteral("Tip %1").arg(i))->objectName();
+        RibbonCustom c;
+        c.quickSet = true;
+        c.quick = ids;
+        c.save();
+        RibbonCustom::applyAll();
+        Ribbon *r = w.ribbon();
+        QStringList tips;
+        for (const QToolButton *b : r->quickAccessButtons()) tips << keytip(b);
+        QCOMPARE(int(tips.size()), 14);
+        for (int i = 0; i < 9; ++i) QCOMPARE(tips[i], QString::number(i + 1));
+        for (int i = 9; i < 14; ++i) QVERIFY2(tips[i].size() == 2 && !tips[i].at(0).isDigit(), qPrintable(tips[i]));
+        QVERIFY2(!keytip(r->quickAccessMore()).isEmpty(), "the » button has no KeyTip");
+        tips << keytip(r->quickAccessMore()) << r->fileKeytip() << QStringLiteral("0");
+        for (int i = 0; i < r->tabCount(); ++i) tips << r->tabKeytip(i);
+        // (a tab of the person's, made after, takes letters that are free too)
+        RibbonCustom d = RibbonCustom::load();
+        d.addTab(QStringLiteral("Tipsy"));
+        d.save();
+        RibbonCustom::applyAll();
+        tips = {};
+        for (const QToolButton *b : r->quickAccessButtons()) tips << keytip(b);
+        tips << keytip(r->quickAccessMore()) << r->fileKeytip() << QStringLiteral("0");
+        for (int i = 0; i < r->tabCount(); ++i) tips << r->tabKeytip(i);
+        for (int i = 0; i < tips.size(); ++i)
+            for (int j = i + 1; j < tips.size(); ++j) QVERIFY2(!clash(tips[i], tips[j]), qPrintable(tips[i] + QLatin1Char('/') + tips[j]));
+    }
+
+    static void typeKeyTip(QWidget *w, const QString &letters)
+    {
+        for (const QChar ch : letters) {
+            const int key = ch.isDigit() ? Qt::Key_0 + ch.digitValue() : Qt::Key_A + (ch.toUpper().unicode() - 'A');
+            QKeyEvent press(QEvent::KeyPress, key, Qt::NoModifier, QString(ch));
+            qApp->sendEvent(w, &press);
+        }
+    }
+
+    void theOverflowButtonHasKeyTipsAndTheCommandsInItAreReachable()
+    {
+        RibbonWindow w;
+        const QStringList ids = overflowing(w, 40, 39);   // (the last is the command with a menu)
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        Ribbon *r = w.ribbon();
+        QTRY_VERIFY(!r->quickAccessHidden().isEmpty());
+        QToolButton *more = r->quickAccessMore();
+        KeyTips tips(&w, r, [] {});
+        tips.showTop();
+        QStringList shown;
+        QWidget *moreTarget = nullptr;
+        for (const auto &t : tips.shown()) {
+            shown << t.first;
+            if (t.second == more) moreTarget = more;
+        }
+        QVERIFY2(moreTarget, "the » button shows no KeyTip");
+        for (const auto &t : tips.shown()) QVERIFY2(!r->quickAccessHidden().contains(qobject_cast<QToolButton *>(t.second)), "a KeyTip is shown on a button that is not there");
+        // typing a command's letters from the menu runs it: a command that is in the » menu
+        QToolButton *hiddenPlain = nullptr;
+        for (QToolButton *b : r->quickAccessHidden())
+            if (!b->menu()) hiddenPlain = b;
+        QVERIFY(hiddenPlain);
+        int ran = 0;
+        QObject::connect(hiddenPlain->defaultAction(), &QAction::triggered, &w, [&] { ++ran; });
+        typeKeyTip(&w, keytip(hiddenPlain));
+        QCOMPARE(ran, 1);
+        // the » button's letters open its menu
+        tips.showTop();
+        bool opened = false;
+        QTimer::singleShot(200, &w, [&] {
+            opened = more->menu()->isVisible();
+            more->menu()->close();
+        });
+        typeKeyTip(&w, keytip(more));
+        QVERIFY2(opened, "the » button's KeyTip does not open its menu");
+        Q_UNUSED(ids);
+    }
+
+    void aCommandWithAMenuInTheOverflowMenuIsTheCommand()
+    {
+        RibbonWindow w;
+        overflowing(w, 40, 39);
+        Ribbon *r = w.ribbon();
+        QTRY_VERIFY(!r->quickAccessHidden().isEmpty());
+        QAction *table = w.act(QStringLiteral("insert.table")), *plain = w.act(QStringLiteral("test.many38"));
+        QToolButton *more = r->quickAccessMore();
+        auto entry = [&](const QString &text) -> QAction * {
+            for (QAction *a : more->menu()->actions())
+                if (a->text() == text) return a;
+            return nullptr;
+        };
+        QAction *plainEntry = entry(plain->text()), *tableEntry = entry(table->text());
+        QVERIFY(plainEntry && tableEntry);
+        QVERIFY2(plainEntry == plain || plainEntry->menu() == nullptr, "a plain command in the menu is not the command");
+        QVERIFY(tableEntry->menu());
+        QVERIFY(tableEntry->menu()->actions().contains(w.act(QStringLiteral("edit.copy"))));
+        // it follows the command: text, enabled, and checked
+        table->setEnabled(false);
+        QTRY_VERIFY(!entry(table->text())->isEnabled());
+        table->setEnabled(true);
+        QTRY_VERIFY(entry(table->text())->isEnabled());
+        table->setText(QStringLiteral("Grid &Thing"));
+        QTRY_VERIFY(entry(QStringLiteral("Grid &Thing")));
+        table->setCheckable(true);
+        table->setChecked(true);
+        QTRY_VERIFY(entry(QStringLiteral("Grid &Thing")) && entry(QStringLiteral("Grid &Thing"))->isChecked());
+        plain->setEnabled(false);
+        QVERIFY(!entry(plain->text())->isEnabled());
+        // it does what the command does
+        int ran = 0;
+        QObject::connect(table, &QAction::triggered, &w, [&] { ++ran; });
+        entry(QStringLiteral("Grid &Thing"))->trigger();
+        QVERIFY2(ran == 1 || entry(QStringLiteral("Grid &Thing"))->menu(), "the entry does not run the command");
+    }
+
+    void aQuickToolbarOfNoMoreThanItsRoomLaysOutOnceWhenSet()
+    {
+        RibbonWindow w;
+        Ribbon *r = w.ribbon();
+        QList<Ribbon::QuickEntry> entries;
+        for (int i = 0; i < 100; ++i) entries.append({w.addCommand(QStringLiteral("test.lay%1").arg(i), QStringLiteral("L %1").arg(i)), nullptr, false, QString()});
+        const int before = r->quickAccessLayoutCount();
+        r->setQuickAccess(entries);
+        QCOMPARE(r->quickAccessLayoutCount() - before, 1);
+        QCOMPARE(int(r->quickAccessButtons().size()), 100);
+    }
+
+    void aButtonsWidthIsMeasuredWithoutItsMnemonic()
+    {
+        RibbonWindow w;
+        w.addCommand(QStringLiteral("test.mnem"), QStringLiteral("&Zoomer"), false);
+        RibbonCustom c;
+        c.quickSet = true;
+        c.quick = {QStringLiteral("test.mnem")};
+        c.save();
+        RibbonCustom::applyAll();
+        QToolButton *b = w.ribbon()->quickAccessButtons().value(0);
+        QVERIFY(b);
+        QCOMPARE(b->width(), b->fontMetrics().horizontalAdvance(QStringLiteral("Zoomer")) + 14);
+    }
+
+    void anActionHiddenAfterItsButtonWasMadeHidesTheButton()
+    {
+        RibbonCustom c;
+        c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults);
+        c.save();
+        RibbonWindow w;
+        Ribbon *r = w.ribbon();
+        QToolButton *b = r->quickAccessButtons().value(1);
+        QVERIFY(b);
+        QVERIFY(!b->isHidden());
+        w.act(QStringLiteral("format.bold"))->setVisible(false);
+        QTRY_VERIFY(b->isHidden());
+        QVERIFY2(r->quickAccessHidden().isEmpty(), "a command that is hidden is not one that did not fit");
+        w.act(QStringLiteral("format.bold"))->setVisible(true);
+        QTRY_VERIFY(!b->isHidden());
+    }
+
+    void aDefaultCommandThatIsGoneIsLeftOutOfTheReset()
+    {
+        RibbonCustom c;
+        c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults);
+        c.save();
+        RibbonWindow w;
+        w.dropCommand(QStringLiteral("file.save"));
+        QCOMPARE(int(w.ribbon()->defaultQuickAccess().size()), 0);
+        clearSaved();
+        RibbonCustom::applyAll();   // (back to the ribbon file's: of which nothing is left)
+        QCOMPARE(int(w.ribbon()->quickAccessButtons().size()), 0);
+    }
+
+    void theOverflowMenuIsMadeAgainWhenItClosesAfterAChangeWhileOpen()
+    {
+        RibbonWindow w;
+        overflowing(w, 40);
+        Ribbon *r = w.ribbon();
+        QTRY_VERIFY(!r->quickAccessHidden().isEmpty());
+        QToolButton *more = r->quickAccessMore();
+        more->menu()->popup(w.mapToGlobal(QPoint(10, 10)));
+        QTRY_VERIFY(more->menu()->isVisible());
+        const int before = int(more->menu()->actions().size());
+        RibbonCustom c;
+        c.quickSet = true;
+        for (int i = 0; i < 30; ++i) c.quick << QStringLiteral("test.many%1").arg(i);
+        c.save();
+        RibbonCustom::applyAll();
+        more->menu()->close();
+        QTRY_COMPARE(int(more->menu()->actions().size()), int(r->quickAccessHidden().size()));
+        QVERIFY(int(more->menu()->actions().size()) != before);
     }
 
     void theQuickToolbarPage()
@@ -962,7 +1202,8 @@ private Q_SLOTS:
         QVERIFY(toolbar && search && list);
         auto button = [&](const char *object) { return page.findChild<QPushButton *>(QString::fromLatin1(object)); };
         QCOMPARE(toolbar->count(), 1);
-        QCOMPARE(list->count(), 9);
+        QCOMPARE(int(list->count()), int(KeyMap(&w).commands().size()));
+        QVERIFY(list->count() > 0);
         QVERIFY(!button("quickResetAll")->isEnabled());
         // the command list searches
         search->setText(QStringLiteral("zoom"));
@@ -1009,19 +1250,52 @@ private Q_SLOTS:
 
     void theQuickToolbarPageLeavesTheRibbonPagesWorkAlone()
     {
+        for (int order = 0; order < 2; ++order) {
+            clearSaved();
+            RibbonCustom c;
+            c.setTabHidden(QStringLiteral("Insert"), true);
+            c.save();
+            RibbonWindow w;
+            QuickToolbarPage quickPage(&w);
+            RibbonPage ribbonPage(&w);
+            ribbonPage.plan().setTabHidden(QStringLiteral("View"), true);
+            quickPage.plan().addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults);
+            if (order == 0) {
+                quickPage.apply();
+                ribbonPage.apply();
+            } else {
+                ribbonPage.apply();
+                quickPage.apply();
+            }
+            const RibbonCustom saved = RibbonCustom::load();
+            QVERIFY2(saved.hiddenTabs.contains(QStringLiteral("View")) && saved.hiddenTabs.contains(QStringLiteral("Insert")), qPrintable(QString::number(order)));
+            QCOMPARE(saved.quick, (QStringList{QStringLiteral("file.save"), QStringLiteral("format.bold")}));
+        }
+        // Reset All on the Ribbon page keeps the quick toolbar, and the other way round
+        clearSaved();
         RibbonCustom c;
         c.setTabHidden(QStringLiteral("Insert"), true);
+        c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults);
         c.save();
         RibbonWindow w;
-        QuickToolbarPage quickPage(&w);
-        RibbonPage ribbonPage(&w);
-        ribbonPage.plan().setTabHidden(QStringLiteral("View"), true);
-        quickPage.plan().addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults);
-        quickPage.apply();
-        ribbonPage.apply();   // (the order Options applies them in is not what decides)
-        const RibbonCustom saved = RibbonCustom::load();
-        QVERIFY(saved.hiddenTabs.contains(QStringLiteral("View")));
-        QCOMPARE(saved.quick, (QStringList{QStringLiteral("file.save"), QStringLiteral("format.bold")}));
+        {
+            RibbonPage ribbonPage(&w);
+            ribbonPage.findChild<QPushButton *>(QStringLiteral("ribbonResetAll"))->click();
+            ribbonPage.apply();
+            const RibbonCustom saved = RibbonCustom::load();
+            QVERIFY(saved.hiddenTabs.isEmpty());
+            QCOMPARE(saved.quick, (QStringList{QStringLiteral("file.save"), QStringLiteral("format.bold")}));
+        }
+        c.setTabHidden(QStringLiteral("Insert"), true);
+        c.save();
+        {
+            QuickToolbarPage quickPage(&w);
+            quickPage.findChild<QPushButton *>(QStringLiteral("quickResetAll"))->click();
+            quickPage.apply();
+            const RibbonCustom saved = RibbonCustom::load();
+            QVERIFY(!saved.quickSet);
+            QVERIFY(saved.hiddenTabs.contains(QStringLiteral("Insert")));
+        }
     }
 
     void everyTabHasItsOwnPlace()

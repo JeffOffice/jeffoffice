@@ -29,7 +29,10 @@ QuickToolbarPage::QuickToolbarPage(AppWindow *win, QWidget *parent) : QWidget(pa
     m_plan.quick = saved.quick;
     if (Ribbon *r = win->ribbon())
         for (const Ribbon::QuickEntry &e : r->defaultQuickAccess())
-            if (e.action) m_defaults << e.action->objectName();
+            if (e.action) {
+                m_defaults << e.action->objectName();
+                m_locked = m_locked || e.action->objectName().isEmpty();   // (a command with no id cannot be kept in the list: nothing is changed that would lose it)
+            }
     const KeyMap keys(win);
     for (const KeyCommand &c : keys.commands()) m_commands.append({c.id, c.text, c.group});
 
@@ -204,6 +207,11 @@ void QuickToolbarPage::filter(const QString &text)
 void QuickToolbarPage::showState()
 {
     const int row = m_toolbar->currentRow(), count = m_toolbar->count();
+    if (m_locked) {
+        for (QPushButton *b : {m_add, m_separator, m_up, m_down, m_remove, m_resetOne, m_resetAll}) b->setEnabled(false);
+        say(tr("This quick toolbar has a command that cannot be kept in a list, so it cannot be changed here."));
+        return;
+    }
     m_add->setEnabled(m_list->currentItem() != nullptr);
     m_separator->setEnabled(count < RibbonCustom::kMaxQuick);
     m_up->setEnabled(row > 0);

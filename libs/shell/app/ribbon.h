@@ -5,6 +5,7 @@
 #include <QFontMetrics>
 #include <QFrame>
 #include <QMap>
+#include <QPointer>
 #include <QToolButton>
 #include <functional>
 
@@ -165,11 +166,13 @@ public:
         QString keytip;
     };
     // The quick toolbar as `entries` have it (the first call keeps what the ribbon file made, for defaultQuickAccess()).
-    void setQuickAccess(const QList<QuickEntry> &entries);
+    // (`moreKeytip`: the letters of the » button that holds the commands that don't fit)
+    void setQuickAccess(const QList<QuickEntry> &entries, const QString &moreKeytip = QString());
     void resetQuickAccess();   // back to the ribbon file's
     QList<QuickEntry> defaultQuickAccess() const;
     QList<QToolButton *> quickAccessHidden() const;   // the buttons that don't fit the row: they are in the » menu
     QToolButton *quickAccessMore() const;
+    int quickAccessLayoutCount() const;   // how many times the quick toolbar was laid out (tests)
     void setMinimized(bool m);
     bool isMinimized() const { return m_minimized; }
     // The tabs in order, for KeyTips and tests.
@@ -234,7 +237,13 @@ private:
     QWidget *m_pending = nullptr;   // hidden: the parent of the pages of tabs not yet made
     QVector<Tab> m_tabs;
     QHash<QString, QString> m_menuTabs;
-    QList<QuickEntry> m_qatDefaults;   // the quick toolbar as the ribbon file made it (once it has been replaced)
+    struct QatDefault {
+        QPointer<QAction> action;
+        QPointer<QMenu> menu;
+        bool split = false;
+        QString keytip;
+    };
+    QList<QatDefault> m_qatDefaults;   // the quick toolbar as the ribbon file made it (once it has been replaced)
     bool m_qatSnapshot = false;
     int m_current = 0;
     RibbonHeader *m_header;
