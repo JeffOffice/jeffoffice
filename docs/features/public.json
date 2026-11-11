@@ -769,8 +769,8 @@
        "heading": "064cd5670d2807cbc8ac8069ca68d05ef4c687e3cce4ab536d2829ee12232555",
        "items": [
         {
-         "status": "todo",
-         "text": "fa955ca60336420b193ba1c0c86852d51d302ab8af84c7684a8a49e872975d6c"
+         "status": "partly",
+         "text": "03ee5385d1d76ef37d848a779a1f6e296924bc80a0686e7d44bb0c4c232e9313"
         },
         {
          "status": "partly",
@@ -4524,6 +4524,10 @@
        "text": "44d1081dbb68637ec86727e0b8d9fd52bf581b7acc0d5863db7b8b88e7649a4f"
       },
       {
+       "status": "partly",
+       "text": "ceb242ebdff551e9a7078d0afa1db7ec0ee8b4579c57313eb4852fbc8be7e65d"
+      },
+      {
        "hide_soon": true,
        "status": "done",
        "text": "31b784f2741398cd040598f1bc90551a849cb743ed60632203f3212acf444f88"
@@ -7526,6 +7530,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "03ee5385d1d76ef37d848a779a1f6e296924bc80a0686e7d44bb0c4c232e9313": {
+   "drop": false,
+   "en": "Insert an equation over the cells as an object, typed in a line, from the built-in equations gallery. Equations are drawn in two dimensions with stacked fractions, scripts, roots, sums and integrals with limits, growing brackets, accents, and matrices. They move and resize like any object, open the editor again on a double-click, and each change undoes in one step. An `.xlsx` file keeps the equation as math, and equations written by other programs show as math when the file opens. PDF and printing use vector outlines.",
+   "es": "Inserte una ecuación sobre las celdas como un objeto, escrita en una línea, desde la galería de ecuaciones integradas. Las ecuaciones se dibujan en dos dimensiones, con fracciones apiladas, superíndices y subíndices, raíces, sumas e integrales con límites, paréntesis que se ajustan, acentos y matrices. Se mueven y cambian de tamaño como cualquier objeto, vuelven a abrir el editor con un doble clic y cada cambio se deshace en un solo paso. Un archivo `.xlsx` conserva la ecuación como expresión matemática, y las ecuaciones escritas por otros programas se muestran como matemáticas al abrir el archivo. El PDF y la impresión usan contornos vectoriales.",
+   "fr": "Insérez une équation au-dessus des cellules comme un objet, saisie sur une ligne, depuis la galerie d’équations prédéfinies. Les équations sont dessinées en deux dimensions, avec fractions empilées, exposants et indices, racines, sommes et intégrales avec bornes, parenthèses extensibles, accents et matrices. Elles se déplacent et se redimensionnent comme n’importe quel objet, rouvrent l’éditeur par un double-clic, et chaque modification s’annule en une seule étape. Un fichier `.xlsx` conserve l’équation sous forme de formule mathématique, et les équations écrites par d’autres programmes s’affichent comme des formules à l’ouverture du fichier. Le PDF et l’impression utilisent des contours vectoriels.",
+   "soon": {
+    "drop": false,
+    "en": "Equation tab with structures and symbols, and ink equations",
+    "es": "Pestaña Ecuación con estructuras y símbolos, y ecuaciones a mano alzada",
+    "fr": "Onglet Équation avec structures et symboles, et équations manuscrites"
    }
   },
   "041ddf2e4b08901966fa1e8d37af6ef8446ee872582fb1af6ae3d65ec33a6e15": {
@@ -22084,6 +22100,18 @@
     "fr": ""
    }
   },
+  "ceb242ebdff551e9a7078d0afa1db7ec0ee8b4579c57313eb4852fbc8be7e65d": {
+   "drop": false,
+   "en": "Type an equation in a line and place it on the page as an object: fractions, powers and subscripts, roots, sums, integrals, brackets, accents, matrices, and symbols, with a gallery of built-in equations (`Alt+=`). Equations move, resize, rotate, and take a color like any object, and print as vector shapes.",
+   "es": "Escriba una ecuación en una línea y colóquela en la página como un objeto: fracciones, potencias y subíndices, raíces, sumas, integrales, paréntesis, acentos, matrices y símbolos, con una galería de ecuaciones integradas (`Alt+=`). Las ecuaciones se mueven, cambian de tamaño, giran y admiten color como cualquier objeto, y se imprimen como formas vectoriales.",
+   "fr": "Saisissez une équation sur une ligne et placez-la dans la page comme un objet : fractions, puissances et indices, racines, sommes, intégrales, parenthèses, accents, matrices et symboles, avec une galerie d’équations prédéfinies (`Alt+=`). Les équations se déplacent, se redimensionnent, pivotent et prennent une couleur comme n’importe quel objet, et s’impriment en formes vectorielles.",
+   "soon": {
+    "drop": false,
+    "en": "Equation tab with structures and symbols, ink equations, and equations in `.pub` files",
+    "es": "Pestaña Ecuación con estructuras y símbolos, ecuaciones a mano alzada y ecuaciones en archivos `.pub`",
+    "fr": "Onglet Équation avec structures et symboles, équations manuscrites et équations dans les fichiers `.pub`"
+   }
+  },
   "cee0c5273b9fe1c76cda9bd3506ce45ba14d918a32249e908d5f1b3231c64304": {
    "drop": false,
    "en": "Use 53 financial functions for loans and investments, depreciation, and bonds and Treasury bills, including NPV, PMT, IRR, XIRR, PV, FV, RATE, and PRICE.",
@@ -25058,18 +25086,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "fa955ca60336420b193ba1c0c86852d51d302ab8af84c7684a8a49e872975d6c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Equation editor: built-in equations, writing by typing, and ink",
-    "es": "Editor de ecuaciones: ecuaciones integradas, escritura con el teclado y escritura a mano",
-    "fr": "Éditeur d’équations : équations intégrées, saisie au clavier et écriture manuscrite"
    }
   },
   "fa9a6f61b0344abf0e00da1b075c25e5b29619160c6e09aa6ee14ae799309be8": {
