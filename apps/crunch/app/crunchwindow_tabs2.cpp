@@ -1,6 +1,7 @@
 // Tools of the Review, Data, and Formulas tabs that are not part of an older group: Workbook Statistics, Goal Seek, Subtotal, and Advanced Filter.
 #include "app/crunchwindow.h"
 #include "app/spellingdialog.h"
+#include "app/settings.h"
 #include "app/translate.h"
 #include "core/richadjust.h"
 
@@ -29,6 +30,9 @@
 #include "sheet/cellref.h"
 #include "text/dictionaries.h"
 
+#include <QEventLoop>
+#include <QProgressDialog>
+#include <QTimer>
 #include <QAction>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -70,6 +74,7 @@ void CrunchWindow::createTabs2Actions()
     mk("review.translate", tr("Translate"), "languages", QKeySequence(), [this] {
         jp::translateText(this, [this](const QString &message, int) { setStatus(message); }, textToTranslate(), false, m_urlOpener);
     });
+    mk("review.translateWorkbook", tr("Translate Workbook…"), "languages", QKeySequence(), [this] { translateWorkbook(); });
     mk("review.language", tr("Set Proofing Language…"), "languages", QKeySequence(), [this] {
         if (!m_session || m_sheet < 0) return;
         const FormatView v = viewOfActiveCell();
@@ -88,7 +93,7 @@ void CrunchWindow::createTabs2Actions()
     }, true);
     mk("data.consolidate", tr("Consolidate"), "combine", QKeySequence(), [this] { consolidateDialog(); });
     mk("data.subtotal", tr("Subtotal"), "sigma", QKeySequence(), [this] { subtotalDialog(); });
-    for (const char *id : {"review.statistics", "data.goalSeek", "data.scenarioManager", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "review.accessibility", "review.thesaurus", "review.spelling", "review.translate", "review.language", "review.noProof"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"review.statistics", "data.goalSeek", "data.scenarioManager", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "review.accessibility", "review.thesaurus", "review.spelling", "review.translate", "review.translateWorkbook", "review.language", "review.noProof"}) m_opsActions << QString::fromLatin1(id);
     connect(this, &CrunchWindow::calculationFinished, this, [this] {
         refreshInvalidCircles();
         refreshCellFlags(true);
@@ -1001,6 +1006,84 @@ QString CrunchWindow::textToTranslate() const
         if (text.size() > jp::kMostTranslateLetters) break;
     }
     return text;
+}
+
+// Review > Translate Workbook: every text cell of every sheet (not a formula, not a number), in the order of the sheets and then of the rows, packed into parts one request takes and opened
+// in the translation service one part after another, with a progress box that Cancel stops. Nothing is changed in the workbook (the service's page is where the translation is read). A workbook
+// with more text cells than m_translateMostCells, or needing more parts than m_translateMostParts (each opens a tab of the browser), is refused before anything is asked.
+void CrunchWindow::translateWorkbook()
+{
+    if (!m_session || m_sheet < 0 || !commitEdit()) return;
+    const jp::office::sheet::Calculation *calc = m_session->calculation();
+    if (!calc) return;
+    QStringList texts;
+    bool tooMany = false;
+    for (int sheet = 0; sheet < calc->sheetCount() && !tooMany; ++sheet) {
+        const auto &s = calc->sheet(sheet);
+        if (s.extentRows == 0 || s.extentCols == 0) continue;
+        std::vector<std::pair<quint32, quint32>> cells;
+        s.cells.forEachInRange(0, 0, s.extentRows - 1, s.extentCols - 1, [&](quint32 row, quint32 col, const jp::office::sheet::Cell &) {
+            cells.emplace_back(row, col);
+            return true;
+        });
+        std::sort(cells.begin(), cells.end());
+        for (const auto &rc : cells) {
+            const jp::office::sheet::Calculation::CellContent c = calc->content(sheet, rc.first, rc.second);
+            if (!c.exists || c.isFormula || !c.value.isText() || c.value.text().trimmed().isEmpty()) continue;
+            if (texts.size() >= m_translateMostCells) {
+                tooMany = true;
+                break;
+            }
+            texts << jp::translateReady(c.value.text());
+        }
+    }
+    const QString tooMuch = tr("This workbook has too much text to translate at once (the limit is %1 text cells, or %2 parts of %3 letters each). Select some of it and use Translate.").arg(m_translateMostCells).arg(m_translateMostParts).arg(jp::kMostTranslateLetters);
+    if (!tooMany && texts.isEmpty()) {
+        setStatus(tr("There is no text to translate."));
+        return;
+    }
+    QString target = jp::Settings::get().value(QStringLiteral("translate/targetCode"), QStringLiteral("es")).toString();
+    QString server = jp::Settings::get().value(QStringLiteral("translate/server"), QStringLiteral("https://libretranslate.com/")).toString();
+    QStringList parts = tooMany ? QStringList() : jp::translateParts(texts, server, target);
+    if (tooMany || parts.size() > m_translateMostParts) {
+        setStatus(tooMuch);
+        return;
+    }
+    if (!jp::translateDialog(this, true, &target, &server, 0, int(parts.size()))) return;
+    jp::Settings::get().setValue(QStringLiteral("translate/targetCode"), target);
+    jp::Settings::get().setValue(QStringLiteral("translate/server"), server);
+    parts = jp::translateParts(texts, server, target);   // (for the address the person chose)
+    if (parts.size() > m_translateMostParts) {
+        setStatus(tooMuch);
+        return;
+    }
+    QProgressDialog progress(tr("Opening the translation service…"), tr("Cancel"), 0, int(parts.size()), this);
+    progress.setObjectName(QStringLiteral("translateProgress"));
+    progress.setWindowTitle(tr("Translate Workbook"));
+    progress.setWindowModality(Qt::WindowModal);
+    progress.setMinimumDuration(0);
+    progress.setAutoClose(false);
+    progress.setAutoReset(false);
+    progress.setValue(0);
+    QString problem;
+    int opened = 0;
+    for (int i = 0; i < parts.size(); ++i) {
+        QCoreApplication::processEvents();
+        if (progress.wasCanceled()) break;
+        progress.setLabelText(tr("Opening part %1 of %2…").arg(i + 1).arg(parts.size()));
+        if (!jp::openTranslation([&](const QString &message, int) { problem = message; }, parts[i], target, server, m_urlOpener)) break;
+        ++opened;
+        progress.setValue(opened);
+        if (i + 1 < parts.size() && m_translatePause > 0) {
+            QEventLoop pause;
+            QTimer::singleShot(m_translatePause, &pause, &QEventLoop::quit);
+            pause.exec();
+        }
+    }
+    progress.close();
+    if (!problem.isEmpty() && opened < parts.size()) setStatus(problem);
+    else if (opened < parts.size()) setStatus(tr("The translation was canceled after %1 of %2 parts.").arg(opened).arg(parts.size()));
+    else setStatus(tr("%1 text cells, in %n part(s), were opened in the translation service.", nullptr, int(parts.size())).arg(texts.size()));
 }
 
 void CrunchWindow::spelling()

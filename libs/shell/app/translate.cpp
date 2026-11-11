@@ -94,7 +94,7 @@ bool languageDialog(QWidget *parent, const QString &current, bool noProof, QStri
     return true;
 }
 
-bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, QString *server, int textLength)
+bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, QString *server, int textLength, int parts)
 {
     struct Target { const char *name; const char *code; };
     static const Target kTargets[] = {{QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "English"), "en"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Spanish"), "es"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "French"), "fr"},
@@ -130,6 +130,12 @@ bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, Q
         cut->setWordWrap(true);
         v->addWidget(cut);
     }
+    if (parts > 1) {
+        auto *many = plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "The text is sent in %n part(s): a tab of your web browser opens for each.", nullptr, parts), &dlg));
+        many->setObjectName(QStringLiteral("translateBatchNote"));
+        many->setWordWrap(true);
+        v->addWidget(many);
+    }
     auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -138,6 +144,24 @@ bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, Q
     *targetCode = target->currentData().toString();
     *server = address->text().trimmed();
     return true;
+}
+
+QStringList translateParts(const QStringList &texts, const QString &server, const QString &target)
+{
+    QStringList parts;
+    QString part;
+    auto fits = [&](const QString &text) { return text.size() <= kMostTranslateLetters && !translateRequest(server, target, text).cut; };
+    for (const QString &text : texts) {
+        const QString joined = part.isEmpty() ? text : part + QLatin1Char('\n') + text;
+        if (fits(joined)) {
+            part = joined;
+            continue;
+        }
+        if (!part.isEmpty()) parts << part;
+        part = text;
+    }
+    if (!part.isEmpty()) parts << part;
+    return parts;
 }
 
 QString translateReady(QString text)

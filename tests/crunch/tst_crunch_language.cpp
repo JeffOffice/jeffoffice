@@ -6,6 +6,7 @@
 #include "../withdialog.h"
 #include "app/crunchwindow.h"
 #include "app/settings.h"
+#include "app/translate.h"
 #include "app/crunchinfo.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
@@ -22,7 +23,9 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLabel>
 #include <QLineEdit>
+#include <QProgressDialog>
 #include <QListWidget>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -180,13 +183,16 @@ private Q_SLOTS:
         const QJsonObject group = groupNamed(QStringLiteral("Review"), QStringLiteral("Language"));
         QVERIFY(!group.isEmpty());
         const QJsonArray items = group.value(QStringLiteral("items")).toArray();
-        QCOMPARE(items.size(), 3);
+        QCOMPARE(items.size(), 4);
         QCOMPARE(items[0].toObject().value(QStringLiteral("large")).toString(), QStringLiteral("review.translate"));
         QCOMPARE(items[0].toObject().value(QStringLiteral("keytip")).toString(), QStringLiteral("TR"));
         QCOMPARE(items[1].toObject().value(QStringLiteral("large")).toString(), QStringLiteral("review.language"));
         QCOMPARE(items[1].toObject().value(QStringLiteral("keytip")).toString(), QStringLiteral("LA"));
         QCOMPARE(items[2].toObject().value(QStringLiteral("small")).toString(), QStringLiteral("review.noProof"));
         QCOMPARE(items[2].toObject().value(QStringLiteral("keytip")).toString(), QStringLiteral("NP"));
+        QCOMPARE(items[3].toObject().value(QStringLiteral("small")).toString(), QStringLiteral("review.translateWorkbook"));
+        QCOMPARE(items[3].toObject().value(QStringLiteral("keytip")).toString(), QStringLiteral("TW"));
+        QCOMPARE(e.win.w.act(QStringLiteral("review.translateWorkbook"))->text(), QStringLiteral("Translate Workbook…"));
     }
 
     // The Help page of the Review tab names the commands.
@@ -264,6 +270,140 @@ private Q_SLOTS:
         QCOMPARE(opened.size(), 2);
         QCOMPARE(QUrlQuery(opened[1]).queryItemValue(QStringLiteral("q")), QStringLiteral("say this slowly"));
         e.key(Qt::Key_Escape);
+    }
+
+    // Translate Workbook sends every text cell of every sheet (not a formula, not a number), in the order of the sheets and then of the rows, in parts of at most 5,000 letters, one
+    // browser address each, only after OK; the workbook itself is not changed (nothing to undo).
+    void translateWorkbookSendsEveryTextCellAndNoFormulaOrNumber()
+    {
+        const jptest::SettingGuard target(QStringLiteral("translate/targetCode"), QStringLiteral("es"), QStringLiteral("es"));
+        const jptest::SettingGuard server(QStringLiteral("translate/server"), QStringLiteral("https://translate.example/"), QStringLiteral("https://libretranslate.com/"));
+        const QByteArray one = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>alpha</t></is></c><c r=\"B1\" t=\"str\"><f>A1&amp;\"x\"</f><v>alphax</v></c><c r=\"C1\"><v>5</v></c></row>"
+                                                           "<row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>beta</t></is></c></row>"));
+        const QByteArray two = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>gamma</t></is></c></row><row r=\"2\"><c r=\"A2\" t=\"str\"><f>\"delta\"</f><v>delta</v></c></row>"));
+        const QByteArray three = worksheet(QStringLiteral("<row r=\"4\"><c r=\"A4\" t=\"inlineStr\"><is><t>epsilon</t></is></c></row>"));
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({one, two, three}, QByteArray(), QString(), QString(), QByteArray(), QStringList({"One", "Two", "Three"}))));
+        QVERIFY(e.settle());
+        QList<QUrl> opened;
+        QVERIFY(e.win.w.act(QStringLiteral("review.translateWorkbook")));
+        e.win.w.setUrlOpener([&](const QUrl &u) {
+            opened << u;
+            return true;
+        });
+        e.win.w.setTranslatePause(0);
+        const int steps = e.win.w.session()->undoStack()->count();
+        withDialog([&] { e.win.w.act(QStringLiteral("review.translateWorkbook"))->trigger(); }, QStringLiteral("translateDialog"), [&](QDialog *d) {
+            QVERIFY(opened.isEmpty());   // (nothing is sent while the box is up)
+            auto *to = d->findChild<QComboBox *>(QStringLiteral("translateTarget"));
+            to->setCurrentIndex(to->findData(QStringLiteral("de")));
+        }, false);
+        QVERIFY(opened.isEmpty());
+        withDialog([&] { e.win.w.act(QStringLiteral("review.translateWorkbook"))->trigger(); }, QStringLiteral("translateDialog"), [&](QDialog *d) {
+            auto *to = d->findChild<QComboBox *>(QStringLiteral("translateTarget"));
+            to->setCurrentIndex(to->findData(QStringLiteral("de")));
+        });
+        QCOMPARE(opened.size(), 1);
+        QCOMPARE(opened[0].host(), QStringLiteral("translate.example"));
+        const QUrlQuery q(opened[0]);
+        QCOMPARE(q.queryItemValue(QStringLiteral("q"), QUrl::FullyDecoded), QStringLiteral("alpha\nbeta\ngamma\nepsilon"));
+        QCOMPARE(q.queryItemValue(QStringLiteral("target")), QStringLiteral("de"));
+        QCOMPARE(e.win.w.session()->undoStack()->count(), steps);
+        QVERIFY2(e.win.w.statusText().contains(QLatin1String("4")), qPrintable(e.win.w.statusText()));
+    }
+
+    // Many cells go in several parts, none over the 5,000 letters one request takes, and every cell goes whole in one of them; the box says how many parts there are.
+    void translateWorkbookSendsPartsUnderTheCap()
+    {
+        const jptest::SettingGuard server(QStringLiteral("translate/server"), QStringLiteral("https://translate.example/"), QStringLiteral("https://libretranslate.com/"));
+        QStringList texts;
+        QString rows;
+        for (int i = 0; i < 12; ++i) {
+            texts << QString(900, QChar('a' + i));
+            rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" t=\"inlineStr\"><is><t>%2</t></is></c></row>").arg(i + 1).arg(texts.last());
+        }
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(e.settle());
+        QList<QUrl> opened;
+        e.win.w.setUrlOpener([&](const QUrl &u) {
+            opened << u;
+            return true;
+        });
+        e.win.w.setTranslatePause(0);
+        withDialog([&] { e.win.w.act(QStringLiteral("review.translateWorkbook"))->trigger(); }, QStringLiteral("translateDialog"), [&](QDialog *d) {
+            auto *note = d->findChild<QLabel *>(QStringLiteral("translateBatchNote"));
+            QVERIFY(note);
+            QVERIFY2(note->text().contains(QLatin1String("3")), qPrintable(note->text()));
+        });
+        QCOMPARE(opened.size(), 3);
+        QStringList got;
+        for (const QUrl &u : opened) {
+            const QString part = QUrlQuery(u).queryItemValue(QStringLiteral("q"), QUrl::FullyDecoded);
+            QVERIFY(part.size() <= jp::kMostTranslateLetters);
+            got << part.split(QLatin1Char('\n'));
+        }
+        QCOMPARE(got, texts);
+    }
+
+    // A workbook with more cells or more parts than the limits is refused with a message, and nothing is opened (the box does not even come up); at the limit it goes.
+    void translateWorkbookRefusesWhatIsOverTheLimits()
+    {
+        const jptest::SettingGuard server(QStringLiteral("translate/server"), QStringLiteral("https://translate.example/"), QStringLiteral("https://libretranslate.com/"));
+        QString rows;
+        for (int i = 0; i < 12; ++i) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" t=\"inlineStr\"><is><t>%2</t></is></c></row>").arg(i + 1).arg(QString(900, QChar('a' + i)));
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(e.settle());
+        QList<QUrl> opened;
+        e.win.w.setUrlOpener([&](const QUrl &u) {
+            opened << u;
+            return true;
+        });
+        e.win.w.setTranslatePause(0);
+        e.win.w.setWorkbookTranslateLimits(11, 20);   // (12 text cells)
+        e.win.w.act(QStringLiteral("review.translateWorkbook"))->trigger();
+        QVERIFY(opened.isEmpty());
+        QVERIFY2(e.win.w.statusText().contains(QLatin1String("too much")), qPrintable(e.win.w.statusText()));
+        e.win.w.setWorkbookTranslateLimits(100, 2);   // (it takes 3 parts)
+        e.win.w.act(QStringLiteral("review.translateWorkbook"))->trigger();
+        QVERIFY(opened.isEmpty());
+        QVERIFY2(e.win.w.statusText().contains(QLatin1String("too much")), qPrintable(e.win.w.statusText()));
+        e.win.w.setWorkbookTranslateLimits(12, 3);
+        withDialog([&] { e.win.w.act(QStringLiteral("review.translateWorkbook"))->trigger(); }, QStringLiteral("translateDialog"), [](QDialog *) {});
+        QCOMPARE(opened.size(), 3);
+    }
+
+    // Cancel on the progress box stops the parts that are left (the one that was open stays open), and says how many went; a workbook with no text says so and opens no box.
+    void translateWorkbookCanBeCanceledAndSaysWhenThereIsNoText()
+    {
+        const jptest::SettingGuard server(QStringLiteral("translate/server"), QStringLiteral("https://translate.example/"), QStringLiteral("https://libretranslate.com/"));
+        QString rows;
+        for (int i = 0; i < 12; ++i) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" t=\"inlineStr\"><is><t>%2</t></is></c></row>").arg(i + 1).arg(QString(900, QChar('a' + i)));
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(e.settle());
+        QList<QUrl> opened;
+        e.win.w.setUrlOpener([&](const QUrl &u) {
+            opened << u;
+            for (QWidget *w : QApplication::topLevelWidgets())
+                if (auto *progress = qobject_cast<QProgressDialog *>(w)) progress->cancel();
+            return true;
+        });
+        e.win.w.setTranslatePause(0);
+        withDialog([&] { e.win.w.act(QStringLiteral("review.translateWorkbook"))->trigger(); }, QStringLiteral("translateDialog"), [](QDialog *) {});
+        QCOMPARE(opened.size(), 1);
+        QVERIFY2(e.win.w.statusText().contains(QLatin1String("canceled")), qPrintable(e.win.w.statusText()));
+        EditWindow none;
+        QVERIFY(none.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f>A1+1</f><v>2</v></c></row>"))})));
+        QVERIFY(none.settle());
+        none.win.w.setUrlOpener([&](const QUrl &u) {
+            opened << u;
+            return true;
+        });
+        none.win.w.act(QStringLiteral("review.translateWorkbook"))->trigger();   // (only a number and a formula: no box)
+        QCOMPARE(opened.size(), 1);
+        QVERIFY2(none.win.w.statusText().contains(QLatin1String("no text")), qPrintable(none.win.w.statusText()));
     }
 
     // The language of the selected cells is set (and only theirs), one Undo takes it back, and the spelling walk and the cell editor follow it.
