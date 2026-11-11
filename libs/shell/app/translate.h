@@ -32,11 +32,7 @@ QString cutAtLetters(const QString &text, int most);
 // Language: the languages that can be checked, with the one the text is in chosen, and "Do not check spelling". False if canceled; else `tag` and `noProof` are the choice.
 bool languageDialog(QWidget *parent, const QString &current, bool noProof, QString *tag, bool *noProofOut);
 // Translate: (it says when the text, `textLength` letters, is longer than what is sent) the language to translate into (its LibreTranslate code, remembered) and the address of the service (changeable, remembered). False if canceled.
-// For a text sent in `parts` (more than one) it says so: a browser tab opens for each.
-bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, QString *server, int textLength = 0, int parts = 0);
-// The texts (one for each cell, paragraph, or the like) packed in order into parts, the texts of a part one to a line, each part what one request takes (at most kMostTranslateLetters, and an
-// address no longer than the service's once written out, for `server` and `target`); a text too long for a part of its own is one part by itself, and what a request takes of it is cut.
-QStringList translateParts(const QStringList &texts, const QString &server, const QString &target);
+bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, QString *server, int textLength = 0);
 
 // The text of a Translate command made ready for the service: paragraph and line breaks as line feeds, no object marks, and no space around it.
 QString translateReady(QString text);

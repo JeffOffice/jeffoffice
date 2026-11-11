@@ -441,8 +441,7 @@
           "items": [
             {"large": "review.translate", "keytip": "TR"},
             {"large": "review.language", "keytip": "LA"},
-            {"small": "review.noProof", "keytip": "NP"},
-            {"small": "review.translateWorkbook", "keytip": "TW"}
+            {"small": "review.noProof", "keytip": "NP"}
           ]
         },
         {
