@@ -166,6 +166,10 @@ public:
     // How much is cut off the start of the file and off its end (p14:trim's st and end, in milliseconds; the movie or sound plays what is
     // left), and how long its volume rises and falls at the ends.
     int mediaTrimStart = 0, mediaTrimEnd = 0, mediaFadeIn = 0, mediaFadeOut = 0;
+    // A chart the picture is the drawing of: the chart part (c:chartSpace) it was made from, kept so that the chart can be changed and saved as a chart, and the size (points) the
+    // picture was drawn at, so that a frame sized anew has it drawn again. Empty for a picture that is no chart.
+    QByteArray chartXml;
+    QSizeF chartSize;
 
     void fitImage(const QSize &px, bool fill);  // fill: crop to cover, else fit inside
     void keepProportions(const QSize &px);      // the picture's height follows its width, around the same center

@@ -373,6 +373,10 @@ QJsonObject PictureItem::toJson() const
     if (blackWhiteLevel != 0.5) o["bwLevel"] = blackWhiteLevel;
     if (!blipEffects.isEmpty()) o["effects"] = blipEffectsToJson(blipEffects);
     if (!caption.isEmpty()) o["caption"] = caption;
+    if (!chartXml.isEmpty()) {
+        o["chart"] = QString::fromLatin1(chartXml.toBase64());
+        o["chartSize"] = QJsonArray{chartSize.width(), chartSize.height()};
+    }
     if (!mediaKind.isEmpty()) {
         o["mediaKind"] = mediaKind;
         if (!mediaId.isEmpty()) o["media"] = mediaId;
@@ -400,6 +404,8 @@ void PictureItem::fromJson(const QJsonObject &o)
     blackWhiteLevel = o["bwLevel"].toDouble(0.5);
     blipEffects = blipEffectsFromJson(o["effects"].toArray());
     caption = o["caption"].toString();
+    chartXml = QByteArray::fromBase64(o["chart"].toString().toLatin1());
+    chartSize = chartXml.isEmpty() ? QSizeF() : QSizeF(o["chartSize"].toArray().at(0).toDouble(), o["chartSize"].toArray().at(1).toDouble());
     mediaKind = o["mediaKind"].toString();
     mediaId = o["media"].toString();
     mediaLink = o["mediaLink"].toString();

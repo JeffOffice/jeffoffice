@@ -1,4 +1,5 @@
 #include "core/document.h"
+#include "core/chartobject.h"
 
 #include <cmath>
 
@@ -1973,6 +1974,8 @@ void Document::fromJson(const QJsonObject &o)
     }
     // A publication always has a page.
     if (pages.isEmpty()) addPage();
+    // Only so many charts, of so many bytes, stay charts; the rest are the pictures they are drawn as.
+    limitChartsRead(*this);
 }
 
 } // namespace jp

@@ -7,6 +7,7 @@
 
 #include <algorithm>
 
+#include "core/chartobject.h"
 #include "core/presets.h"
 #include "text/storyio.h"
 #include "text/textprops.h"
@@ -588,6 +589,8 @@ void Editor::finishChange(int page, const QStringList &selection)
     if (--m_changeDepth > 0) return;
     // Connectors follow the objects they're attached to.
     m_doc->routeConnectors();
+    // A chart whose frame was sized anew is drawn again at the new size.
+    redrawResizedCharts(*m_doc);
     // Keep the editing cursor valid if the story was replaced.
     QByteArray after = snapshot();
     if (after != m_before && masterEdited && !m_master.isEmpty()) {
