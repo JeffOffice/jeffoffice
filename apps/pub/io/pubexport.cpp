@@ -1497,7 +1497,7 @@ QByteArray PubWriter::write(QStringList *skipped)
     int textId = 2;
     int spid = 0x401;
     QHash<QString, quint32> spidOf;   // item -> its drawing shape id, for connector rules
-    int skippedCount = 0, droppedFormats = 0, droppedCells = 0, droppedHalves = 0;
+    int skippedCount = 0, droppedFormats = 0, droppedCells = 0, droppedHalves = 0, chartPictures = 0;
     const double cx = ps.width() / 2, cy = ps.height() / 2;
     auto anchor = [&](const QRectF &r) {
         return clientBlocks(0xf010, {u32(0x01, quint32(qint32(emu(r.left() - cx)))), u32(0x02, quint32(qint32(emu(r.top() - cy)))),
@@ -2253,6 +2253,8 @@ QByteArray PubWriter::write(QStringList *skipped)
                     return;
                 }
                 const quint32 seq = next++, nameSeq = next++;
+                // A chart is saved as the picture it is drawn as: this kind of file has no charts the other programs would open as charts.
+                if (!pic->chartXml.isEmpty()) ++chartPictures;
                 const QString file = m_blips[blip - 1].fileName;
                 QVector<B> picBody{flag(0x02), flag(0x03)};
                 wrapField(picBody, pic);
@@ -2341,6 +2343,7 @@ QByteArray PubWriter::write(QStringList *skipped)
         }
     }
     if (skipped && skippedCount) *skipped << QCoreApplication::translate("Export", "%n object(s) couldn't be saved to .pub", nullptr, skippedCount);
+    if (skipped && chartPictures) *skipped << QCoreApplication::translate("Export", "%n chart(s) were saved as pictures, so their data can't be edited in a .pub file", nullptr, chartPictures);
     if (skipped && droppedCells) *skipped << QCoreApplication::translate("Export", "%n table cell(s) couldn't be saved to .pub", nullptr, droppedCells);
     if (skipped && droppedHalves)
         *skipped << QCoreApplication::translate("Export", "the second half of %n divided table cell(s) couldn't be saved to .pub", nullptr, droppedHalves);

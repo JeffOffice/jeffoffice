@@ -46,6 +46,7 @@ class SizeCombo;
 class ColorButton;
 class MeasureSpin;
 class Gallery;
+class ChartActions;
 struct RibbonParts;
 
 class MainWindow : public AppWindow {
@@ -200,6 +201,10 @@ protected:
 
 private:
     void createActions();
+    void createChartActions();    // mainwindow_chart.cpp
+    void addChartParts(RibbonParts &parts);
+    void refreshChart();
+    ChartActions *m_chartActions = nullptr;
     void buildRibbon();
     // The controls and menus ribbon.json names (mainwindow_ribbon.cpp).
     void ribbonControlParts(RibbonParts &parts);

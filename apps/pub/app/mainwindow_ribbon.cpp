@@ -2,6 +2,7 @@
 // ribbonbuilder.cpp), the status bar, and keeping controls in sync with the
 // selection.
 
+#include "app/chartedit.h"
 #include "app/appfuncs.h"
 #include <QDir>
 #include <QFile>
@@ -104,6 +105,7 @@ void MainWindow::buildRibbon()
     ribbonControlParts(parts);
     ribbonGalleryParts(parts);
     ribbonMenuParts(parts);
+    addChartParts(parts);
 
     parts.launchers[QStringLiteral("font")] = [this] { fontDialog(this, m_ed); };
     parts.launchers[QStringLiteral("paragraph")] = [this] { paragraphDialog(this, m_ed, 0); };
@@ -1034,7 +1036,8 @@ void MainWindow::updateContextTabs()
     Item *it = m_ed->isEditingText() ? m_ed->doc()->item(m_ed->textTarget().itemId) : m_ed->single();
     const bool text = (it && (it->type() == ItemType::Text || (it->type() == ItemType::Shape && m_ed->isEditingText())));
     const bool shape = kind == "shape" || kind == "line" || kind == "multi" || kind == "group" || kind == "text" || kind == "textart";
-    const bool picture = kind == "picture";
+    const bool chart = kind == "picture" && selectedChart(m_ed);
+    const bool picture = kind == "picture" && !chart;
     const bool table = kind == "table" || (m_ed->isEditingText() && it && it->type() == ItemType::Table);
     const bool textart = kind == "textart";
     const QString before = m_ribbon->current() ? QString() : QString();

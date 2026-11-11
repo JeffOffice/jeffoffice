@@ -114,6 +114,7 @@
         {"widget": "shapesButton", "keytip": "SH"},
         {"large": "ins.icons", "keytip": "IC"},
         {"large": "ins.placeholder", "keytip": "PH"},
+        {"large": {"id": "ribbon.chart", "text": "Chart", "icon": "chart-column"}, "keytip": "CH", "menu": "@insertChart"},
         {"large": "ins.barcode", "keytip": "BC"}
       ]},
       {"name": "Building Blocks", "keytip": "ZB", "items": [
@@ -509,6 +510,23 @@
         {"small": "tbl.distributeCols", "keytip": "DC"}
       ]},
       {"use": "Arrange"}
+    ]},
+    {"name": "Chart Format", "keytip": "JC", "context": "Chart Tools", "color": "chart", "groups": [
+      {"name": "Data", "keytip": "CD", "items": [
+        {"large": "chart.editData", "keytip": "ED"},
+        {"large": {"id": "ribbon.chartType", "text": "Change Chart Type", "icon": "chart-column"}, "keytip": "CT", "menu": "@chartType"}
+      ]},
+      {"name": "Chart Layouts", "keytip": "CL", "items": [
+        {"large": "chart.title", "keytip": "TT"},
+        {"large": "chart.editTitle", "keytip": "ET"},
+        {"large": {"id": "ribbon.chartLegend", "text": "Legend", "icon": "list-checks"}, "keytip": "LG", "menu": "@chartLegend"},
+        {"large": {"id": "ribbon.chartAxes", "text": "Axes", "icon": "chart-line"}, "keytip": "AX", "menu": "@chartAxes"},
+        {"large": {"id": "ribbon.chartGridlines", "text": "Gridlines", "icon": "grid-2x2"}, "keytip": "GL", "menu": "@chartGridlines"},
+        {"large": {"id": "ribbon.chartStyles", "text": "Chart Styles", "icon": "palette"}, "keytip": "CS", "menu": "@chartStyles"},
+        {"large": "chart.dataLabels", "keytip": "DL"}
+      ]},
+      {"use": "Arrange"},
+      {"use": "Size"}
     ]},
     {"name": "Text Art Format", "keytip": "JA", "context": "Text Art Tools", "color": "textArt", "groups": [
       {"name": "Text Art Text", "keytip": "ZT", "items": [

@@ -13,6 +13,7 @@
   "tab:Table Design": "tab-table",
   "tab:Table Layout": "tab-table",
   "tab:Text Art Format": "tab-text-art",
+  "tab:Chart Format": "charts",
   "pane:designchecker": "design-checker",
   "pane:extra": "change-template",
   "pane:mailmerge": "mail-merge",

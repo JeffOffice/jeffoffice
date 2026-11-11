@@ -139,6 +139,7 @@ MainWindow::MainWindow(QWidget *parent) : AppWindow(parent)
     setCentralWidget(m_split);
 
     createActions();
+    createChartActions();
     startupMark("win: before ribbon");
     buildRibbon();
     startupMark("win: ribbon built");
