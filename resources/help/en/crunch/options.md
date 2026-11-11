@@ -1,5 +1,5 @@
 # Change JeffCrunch's settings
-<!-- keywords: recovery, recover unsaved work, automatic recovery, proofing, editing, autocomplete, fill handle, drag and drop, decimal places, options, settings, preferences, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about, edit in cell, gridline color, default zoom, standard width, privacy, personal information -->
+<!-- keywords: recovery, recover unsaved work, automatic recovery, proofing, editing, autocomplete, fill handle, drag and drop, decimal places, options, settings, preferences, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about, edit in cell, gridline color, default zoom, standard width, privacy, personal information, customize keyboard, change shortcut keys, reassign keys, reset keys -->
 
 Your settings are in the **JeffCrunch Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
@@ -28,6 +28,10 @@ The **Proofing** page is shared by the JeffOffice apps. It decides whether spell
 - **Gridline color** is the color of the lines between cells on your screen. It is a choice for your screen only, not saved in the workbook.
 - **Zoom of a new workbook** is how large the sheets of a new workbook look, from 10% to 400%.
 - **Standard column width (this sheet)** is the width of every column of this sheet that has no width of its own. It is the same as **Default Width** on the Home tab.
+
+## Customize
+
+The **Customize** tab has the **Keyboard** page, where you choose the shortcut keys for JeffCrunch's commands. See [Choose your own shortcut keys](keyboard).
 
 ## Privacy options
 

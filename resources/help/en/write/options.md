@@ -1,5 +1,5 @@
 # Change JeffWrite's settings
-<!-- keywords: overtype, insert key, typing replaces selection, ctrl+click, follow link, drag and drop, personal information, remove personal information, advanced, units, measurements, inches, centimeters, options, settings, preferences, save, default format, default folder, default file location, recovery, formatting marks, gridlines, display, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about -->
+<!-- keywords: overtype, insert key, typing replaces selection, ctrl+click, follow link, drag and drop, personal information, remove personal information, advanced, units, measurements, inches, centimeters, options, settings, preferences, save, default format, default folder, default file location, recovery, formatting marks, gridlines, display, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about, customize keyboard, change shortcut keys, reassign keys, reset keys -->
 
 Your settings are in the **JeffWrite Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
@@ -34,6 +34,10 @@ A change on this page applies to the window you are in at once, and to each wind
 **Use the Insert key to turn overtype mode on and off** is off at first. When it is on, the **Insert** key switches between two ways of typing. Normally each letter you type pushes the letters after it along. In **overtype** mode each letter you type replaces the letter after the cursor. Press **Insert** again to go back.
 
 These choices apply to the window you are in at once, and to each window you open after it.
+
+## Customize
+
+The **Customize** tab has the **Keyboard** page, where you choose the shortcut keys for JeffWrite's commands. See [Choose your own shortcut keys](keyboard).
 
 ## Usage statistics
 

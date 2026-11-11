@@ -1,7 +1,7 @@
 # Change JeffPub's settings
-<!-- keywords: options, settings, preferences, theme, dark mode, units, inches, automatic recovery, backup, language, user name, nudge, updates, beta, usage statistics, about -->
+<!-- keywords: options, settings, preferences, theme, dark mode, units, inches, automatic recovery, backup, language, user name, nudge, updates, beta, usage statistics, about, customize keyboard, change shortcut keys, reassign keys, reset keys -->
 
-Your settings are in the **JeffPub Options** window. Click **File > Options** to open it. It has four tabs. Click **OK** to keep your changes, or **Cancel** to throw them away.
+Your settings are in the **JeffPub Options** window. Click **File > Options** to open it. It has five tabs. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
 ## General
 
@@ -38,6 +38,10 @@ These check boxes control spelling and typing help. See [Check spelling and hyph
 - **When selecting, automatically select entire word** selects whole words as you drag across text.
 - **Allow text to be dragged and dropped** lets you move selected text by dragging it.
 - **Automatically hyphenate in new text boxes** turns on hyphenation, which breaks long words at the end of a line, in text boxes you add.
+
+## Customize
+
+The **Customize** tab has the **Keyboard** page, where you choose the shortcut keys for JeffPub's commands. See [Choose your own shortcut keys](keyboard).
 
 ## Updates, statistics, and your name
 

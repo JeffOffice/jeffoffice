@@ -1,5 +1,5 @@
 # Use JeffDeck with the keyboard
-<!-- keywords: keyboard, shortcuts, shortcut keys, hotkeys, key tips, keytips, alt key, tab key, arrow keys, without a mouse, navigate, access keys, slide show keys, f5, esc -->
+<!-- keywords: keyboard, shortcuts, shortcut keys, hotkeys, key tips, keytips, alt key, tab key, arrow keys, without a mouse, navigate, access keys, slide show keys, f5, esc, customize keyboard, change shortcut keys, reassign keys, reset keys -->
 
 You can do most things in JeffDeck without a mouse. There are shortcut keys for common commands, KeyTips for the ribbon, and keys that work on the slide, in the slides pane, in the Slide Sorter, in Outline view, and in the slide show.
 
@@ -62,6 +62,21 @@ Click the pane, then:
 - **Esc** brings the arrow back when the pen, highlighter, laser pointer, or eraser is chosen. Otherwise it ends the show.
 
 Press **F1** for Help about what you are doing. The **Help** tab has **Help**, **Keyboard Shortcuts**, which opens this page, **What's New**, and **Feedback**, which open their web pages.
+
+## Choose your own shortcut keys
+
+You can change the keys of any command, or give a key to a command that has none. Click **File > Options**, then the **Customize** tab.
+
+1. Type in the **Search** box to find a command by its name or by its keys. The list is grouped by the ribbon's tabs, and each command shows its keys. Commands that are not on the ribbon are listed under **Other**.
+2. Click the command. Its keys are listed under **Keys for this command**.
+3. Click the **Press the new keys** box and press the keys you want, such as **Ctrl+Shift+B**. Then click **Assign**. A command can have up to four keys.
+4. To take a key off, click it in the list and click **Remove**.
+
+If another command already has the keys you pressed, JeffDeck says which one. Click **Take Over** to give the keys to this command, and the other command loses them. Nothing changes until you click **OK**. Then every open JeffDeck window uses your keys, and so does every window you open later. Tooltips, menus, and the table of shortcuts below show your keys.
+
+**Reset One** puts back the usual keys of the chosen command. **Reset All** puts back the usual keys of every command. JeffDeck keeps only the commands whose keys you changed, so a command you never changed gets any better keys a later version gives it.
+
+Some keys cannot be given to a command, because the system or typing needs them. JeffDeck says **reserved** when you press one. The reserved keys are **Ctrl+C**, **Ctrl+X**, **Ctrl+V**, **Ctrl+Z**, **Ctrl+A**, **Tab**, **Shift+Tab**, **Enter**, **Esc**, **Backspace**, **Delete**, **Alt+F4**, the arrow, **Home**, **End**, **Page Up**, **Page Down**, and **Space** keys, and a letter, digit, or symbol key pressed alone or with **Shift**. On a Mac, **Ctrl** here means the **Command** key.
 
 ## All shortcuts
 
