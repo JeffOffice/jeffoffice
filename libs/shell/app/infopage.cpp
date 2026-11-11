@@ -3,8 +3,10 @@
 #include "app/filescreenparts.h"
 #include "app/icons.h"
 #include "app/plaintext.h"
+#include "app/privacy.h"
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
 #include <QCoreApplication>
@@ -431,6 +433,14 @@ QWidget *buildInfoPage(QWidget *parent, const InfoHost &h)
                                                                                                        : kind == InfoHost::Kind::Publication  ? QCoreApplication::translate("jp::InfoPage", "Inspect Publication")
                                                                                                                                               : QCoreApplication::translate("jp::InfoPage", "Inspect Document"),
              QCoreApplication::translate("jp::InfoPage", "Find what you may not want to share, such as comments and personal information, and remove it."), [h] { h.inspect(); });
+    // The choice that takes personal information out of the file each time it is saved: the same box in every app (and in Options), on the setting they share.
+    if (h.inspect) {
+        auto *remove = privacy::makeOption(page, QStringLiteral("infoRemovePersonal"));
+        remove->setToolTip(jp::plainToolTip(privacy::optionDetail()));
+        remove->setAccessibleDescription(privacy::optionDetail());
+        QObject::connect(remove, &QCheckBox::toggled, page, [](bool on) { privacy::setRemoveOnSave(on); });
+        left->addWidget(remove);
+    }
     if (h.checkCompatibility)
         card(QStringLiteral("infoCompatibility"), QStringLiteral("list-checks"), QCoreApplication::translate("jp::InfoPage", "Check Compatibility"), QCoreApplication::translate("jp::InfoPage", "See what an older kind of file can't hold, before you save to it."),
              [h] { h.checkCompatibility(); });
