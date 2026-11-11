@@ -1,4 +1,5 @@
 #include "tst_write.h"
+#include "core/commentops.h"
 
 
 // English gets "1 word" and "652 words" from the suite's own plural file, not the "(s)" of the source text.
@@ -169,6 +170,37 @@ void WriteTests::aMisspelledWordInATableCellIsUnderlinedLikeAnyOther()
     // As printed, no.
     redBounds(view.pageImage(0, 900), QRect(0, 0, 900, 1200), &count);
     QCOMPARE(count, 0);
+}
+
+
+void WriteTests::aCommentAtTheEndOfAParagraphHasItsBalloonInTheMargin()
+{
+    // (The comment's marks come after the paragraph's last word: no line of the page holds them, and the balloon still belongs by the paragraph's last line.)
+    auto doc = open(makeDocx("<w:p><w:r><w:t>Alpha beta gamma delta.</w:t></w:r></w:p><w:p><w:r><w:t>Second paragraph, with no comment on it.</w:t></w:r></w:p>", kStyles));
+    QVERIFY(doc);
+    doc->setReviewer(QStringLiteral("Ann Bee"), QStringLiteral("AB"));
+    QTextCursor c(doc->story());
+    c.setPosition(0);
+    c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+    QVERIFY(addComment(*doc, c, QStringLiteral("Please check")) >= 0);
+    PageView view;
+    view.resize(1000, 700);
+    view.setDocument(doc.get());
+    view.show();
+    view.paginateAll();
+    auto margin = [&](bool on) {
+        PageView::ReviewMarks marks;
+        marks.comments = on;
+        view.setReviewMarks(marks);
+        const QImage img = view.pageImage(0, 816);
+        int dark = 0;
+        for (int y = 90; y < 140; ++y)
+            for (int x = 730; x < 806; ++x)
+                if (qGray(img.pixel(x, y)) < 235) ++dark;
+        return dark;
+    };
+    QCOMPARE(margin(false), 0);
+    QVERIFY2(margin(true) > 40, "the balloon of a comment at the end of a paragraph is missing from the margin");
 }
 
 

@@ -937,6 +937,7 @@ private Q_SLOTS:
     void countedTextHasItsEnglishFormsAndNoneIsLeftAsPluralMarker();
     void rightClickingInsideASelectionOffersTheWordClickedNotTheCaret();
     void aMisspelledWordInATableCellIsUnderlinedLikeAnyOther();
+    void aCommentAtTheEndOfAParagraphHasItsBalloonInTheMargin();
     void theRibbonCommandsDoTheirWork();
     void developerRoundTripOfAFolder();
     void developerStrictRoundTrip();

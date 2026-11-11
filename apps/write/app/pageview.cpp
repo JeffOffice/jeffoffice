@@ -973,10 +973,12 @@ void PageView::paintReviewMarks(QPainter &p, Rendered &r)
     p.save();
     p.setRenderHint(QPainter::Antialiasing, true);
     double lastBottom = -1e9;
-    for (const Line &line : std::as_const(lines)) {
+    for (int lineAt = 0; lineAt < lines.size(); ++lineAt) {
+        const Line &line = lines[lineAt];
         const TextItem *box = line.box;
         const double marginRight = pageWidth - box->rect.right();
-        const int a = line.a, b = line.b;
+        // (The marks that end a paragraph, a comment's among them, are in no line: they belong to the line before them.)
+        const int a = line.a, b = lineAt + 1 < lines.size() ? std::max(line.b, lines[lineAt + 1].a) : line.b;
         const double top = box->rect.top() + line.rect.top(), height = std::max(1.0, line.rect.height());
         // The first span that ends after the line begins.
         auto bar = [&](const QVector<std::pair<int, int>> &spans) {
