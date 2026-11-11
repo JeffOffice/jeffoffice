@@ -512,11 +512,11 @@
       {"use": "Arrange"}
     ]},
     {"name": "Chart Format", "keytip": "JC", "context": "Chart Tools", "color": "chart", "groups": [
-      {"name": "Data", "keytip": "CD", "items": [
+      {"name": "Data", "keytip": "ZD", "items": [
         {"large": "chart.editData", "keytip": "ED"},
         {"large": {"id": "ribbon.chartType", "text": "Change Chart Type", "icon": "chart-column"}, "keytip": "CT", "menu": "@chartType"}
       ]},
-      {"name": "Chart Layouts", "keytip": "CL", "items": [
+      {"name": "Chart Layouts", "keytip": "ZL", "items": [
         {"large": "chart.title", "keytip": "TT"},
         {"large": "chart.editTitle", "keytip": "ET"},
         {"large": {"id": "ribbon.chartLegend", "text": "Legend", "icon": "list-checks"}, "keytip": "LG", "menu": "@chartLegend"},

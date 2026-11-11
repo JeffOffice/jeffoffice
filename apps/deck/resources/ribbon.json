@@ -1858,7 +1858,7 @@
       "groups": [
         {
           "name": "Data",
-          "keytip": "CD",
+          "keytip": "ZD",
           "items": [
             {
               "large": "chart.editData",
@@ -1877,7 +1877,7 @@
         },
         {
           "name": "Chart Layouts",
-          "keytip": "CL",
+          "keytip": "ZL",
           "items": [
             {
               "large": "chart.title",

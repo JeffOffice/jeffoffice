@@ -21,6 +21,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Escrever e formatar texto](text)
 - [Formas, imagens, tabelas e Texto Artístico](objects)
+- [Charts](charts)
 - [O painel Formatar Forma e o separador Formato da Forma](format-shape)
 - [Notas do orador](notes)
 - [Comentários](comments)

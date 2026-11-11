@@ -30,6 +30,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Agregar y ajustar imágenes](pictures)
 - [Administrador de gráficos](graphics-manager)
 - [Dibujar formas y líneas](shapes)
+- [Add charts](charts)
 - [Iconos, códigos de barras y otros objetos](insert-objects)
 - [Mover, alinear, agrupar y superponer objetos](arrange)
 - [Ajustar el texto alrededor de los objetos](wrap)
