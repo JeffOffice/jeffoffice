@@ -1,5 +1,6 @@
 #include "io/odpexport.h"
 #include "core/version.h"
+#include "core/blipeffects.h"
 
 #include "io/odpexport_p.h"
 

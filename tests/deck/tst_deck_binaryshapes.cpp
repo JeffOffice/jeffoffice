@@ -1,6 +1,7 @@
 // JeffDeck's tests of old binary presentations: shapes, text, footers, pictures, and metafiles as they are drawn.
 #include "deckhelpers.h"
 #include "render/metafile.h"
+#include "core/blipeffects.h"
 
 class DeckBinaryShapesTests : public QObject {
     Q_OBJECT

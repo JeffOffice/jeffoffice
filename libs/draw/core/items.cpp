@@ -1,4 +1,5 @@
 #include "core/items.h"
+#include "core/blipeffects.h"
 
 #include <algorithm>
 #include <cmath>

@@ -3,6 +3,8 @@
 // a:hsl, a:tint), and how they change its pixels, as the presentation program draws them. They are kept beside the picture, never in its
 // bytes: the picture is changed only where it is drawn, and written back as it was.
 
+#include "core/blipeffect.h"
+
 #include <QColor>
 #include <QImage>
 #include <QJsonArray>
@@ -11,27 +13,6 @@
 #include <QVector>
 
 namespace jp {
-
-struct BlipEffect {
-    enum Kind { Luminance, Grayscale, BiLevel, ColorChange, ColorReplace, Duotone, Hsl, Tint };
-    Kind kind = Luminance;
-    // Luminance: the brightness and contrast, each from -1 to 1 (a:lum's bright and contrast).
-    double brightness = 0, contrast = 0;
-    // BiLevel: the share of the range from which a pixel is white (a:biLevel's thresh).
-    double threshold = 0.5;
-    // Hsl: degrees the hue turns, and how much the saturation and the lightness move, from -1 to 1. Tint: the hue it moves toward (degrees) and
-    // how much, from -1 to 1 (a:tint's hue and amt).
-    double hue = 0, saturation = 0, lightness = 0, amount = 0;
-    // ColorChange: the color that changes (color) and what it becomes (color2, whose alpha 0 makes it clear), and whether the pixels' own clearness
-    // counts (a:clrChange's useA, kept as written, though a color is matched by its parts alone). ColorReplace: the color every pixel becomes
-    // (color). Duotone: the colors black and white become (color, color2).
-    QColor color, color2;
-    bool useAlpha = true;
-
-    bool operator==(const BlipEffect &o) const;
-    QJsonObject toJson() const;
-    static BlipEffect fromJson(const QJsonObject &o);
-};
 
 // The most effects one picture is given: real ones have at most three (a recolor, a brightness and contrast, a clear color), so a file that
 // lists more has the rest left out.

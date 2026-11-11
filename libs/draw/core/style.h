@@ -1,7 +1,7 @@
 #pragma once
 // Fill, outline, effects and text-wrap settings shared by all frame types.
 
-#include "core/blipeffects.h"
+#include "core/blipeffect.h"
 #include "core/color.h"
 
 #include <QBrush>

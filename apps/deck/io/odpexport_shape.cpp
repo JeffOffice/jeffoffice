@@ -3,6 +3,7 @@
 // and connectors, groups, and tables.
 
 #include "io/odpexport_p.h"
+#include "core/blipeffects.h"
 
 #include "core/barcodeitem.h"
 #include "core/media.h"

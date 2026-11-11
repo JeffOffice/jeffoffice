@@ -1,4 +1,5 @@
 #include "render/renderer.h"
+#include "core/blipeffects.h"
 #include "core/threadcheck.h"
 #include <limits>
 

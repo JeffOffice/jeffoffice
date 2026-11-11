@@ -1,4 +1,5 @@
 #include "core/style.h"
+#include "core/blipeffects.h"
 
 #include <QCoreApplication>
 #include <QImage>

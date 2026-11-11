@@ -1,6 +1,7 @@
 // Tests of libs/office: the binary drawing format: pictures, shapes, and properties.
 #include "officehelpers.h"
 #include "../timing.h"
+#include "core/blipeffects.h"
 #include "core/fonts.h"
 
 class OfficeOdrawTests : public QObject {

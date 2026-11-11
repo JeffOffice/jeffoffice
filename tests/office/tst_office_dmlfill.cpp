@@ -1,6 +1,7 @@
 // Tests of libs/office: DrawingML fills, picture effects, lines, and diagram drawings.
 #include "officehelpers.h"
 #include "../timing.h"
+#include "core/blipeffects.h"
 
 class OfficeDmlFillTests : public QObject {
     Q_OBJECT
