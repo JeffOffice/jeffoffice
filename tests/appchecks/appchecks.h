@@ -211,6 +211,11 @@ QString zipDigest(const QByteArray &zip);
 // Types the text into the widget key by key (a new line is the Return key).
 void typeInto(QWidget *target, const QString &text);
 
+// ---- Customize the keyboard
+// Options has a Keyboard page that lists every command of the window (by its name, under the ribbon's tab names) with its keys, searches them, and says "reserved" for a key
+// that cannot be given. A window as launched; failures are QVERIFY failures.
+void checkKeyboardPage(Adapter &app);
+
 // The files of the test's folder and the program's data folder, with their sizes.
 QStringList filesNow();
 

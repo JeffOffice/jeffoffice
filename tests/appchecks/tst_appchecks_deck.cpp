@@ -503,6 +503,9 @@ private Q_SLOTS:
         QVERIFY2(push->isChecked(), "choosing the transition the slide has turns its mark off");
     }
 
+    // Options > Customize > Keyboard lists this app's commands with their keys.
+    void keyboardPageListsTheCommands() { checkKeyboardPage(m_app); }
+
     // ---- 2. the standard commands
     void standardCommands()
     {

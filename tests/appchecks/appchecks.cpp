@@ -1,6 +1,8 @@
 #include "appchecks.h"
+#include "withdialog.h"
 
 #include "app/filedialogs.h"
+#include "app/keymap.h"
 #include "app/help.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
@@ -36,7 +38,11 @@
 #include <QMimeData>
 #include <QPrintDialog>
 #include <QScrollArea>
+#include <QKeySequenceEdit>
+#include <QPushButton>
 #include <QStyle>
+#include <QTabWidget>
+#include <QTreeWidget>
 #include <QStyleHints>
 #include <QStyleFactory>
 #include <QScrollBar>
@@ -1397,6 +1403,76 @@ QStringList checkRibbonLayout(Adapter &app)
     if (const QString report = qEnvironmentVariable("JP_RIBBON_REPORT"); !report.isEmpty())
         if (QFile f(report); f.open(QIODevice::WriteOnly | QIODevice::Truncate)) f.write(fails.join('\n').toUtf8());
     return fails;
+}
+
+void checkKeyboardPage(Adapter &app)
+{
+    std::unique_ptr<jp::AppWindow> w(app.launch());
+    QVERIFY2(w, "the app made no window");
+    if (app.settle) app.settle(w.get());
+    QAction *options = w->act(QStringLiteral("file.options"));
+    QVERIFY(options);
+    // The commands the page must list: every one with a name that is not a menu.
+    QStringList wanted;
+    QString keyed, keyedKeys;
+    for (const QString &id : w->actionIds()) {
+        QAction *a = w->act(id);
+        if (!a || a->menu() || QString(a->text()).remove(QLatin1Char('&')).simplified().isEmpty()) continue;
+        wanted << id;
+        if (keyed.isEmpty() && !a->shortcuts().isEmpty() && !QString(a->text()).contains(QLatin1Char('&'))) {
+            keyed = id;
+            QStringList s;
+            for (const QKeySequence &k : a->shortcuts()) s << k.toString(QKeySequence::NativeText);
+            keyedKeys = s.join(QStringLiteral(", "));
+        }
+    }
+    QVERIFY(wanted.size() > 20);
+    QVERIFY(!keyed.isEmpty());
+    const QString tab = w->ribbon() ? w->ribbon()->tabTitle(0) : QString();
+    withDialog([&] { options->trigger(); }, QStringLiteral("optionsDialog"), [&](QDialog *dlg) {
+        QWidget *page = dlg->findChild<QWidget *>(QStringLiteral("keyboardPage"));
+        QVERIFY2(page, "Options has no Keyboard page");
+        auto *tree = page->findChild<QTreeWidget *>(QStringLiteral("keyCommands"));
+        auto *search = page->findChild<QLineEdit *>(QStringLiteral("keySearch"));
+        QVERIFY(tree && search);
+        QHash<QString, QTreeWidgetItem *> items;
+        QStringList groups;
+        for (int i = 0; i < tree->topLevelItemCount(); ++i) {
+            groups << tree->topLevelItem(i)->text(0);
+            for (int j = 0; j < tree->topLevelItem(i)->childCount(); ++j) items.insert(tree->topLevelItem(i)->child(j)->data(0, Qt::UserRole).toString(), tree->topLevelItem(i)->child(j));
+        }
+        QStringList missing;
+        for (const QString &id : wanted)
+            if (!items.contains(id)) missing << id;
+        QVERIFY2(missing.isEmpty(), qPrintable(app.name + QStringLiteral(" commands missing from the Keyboard page: ") + missing.join(QLatin1Char(' '))));
+        // grouped by the ribbon's tabs, and each command shows its keys
+        if (!tab.isEmpty()) QVERIFY2(groups.contains(tab), qPrintable(groups.join(QLatin1Char('|'))));
+        QCOMPARE(items[keyed]->text(1), keyedKeys);
+        // the search finds a command by its name and hides the others
+        search->setText(items[keyed]->text(0));
+        QVERIFY(!items[keyed]->isHidden());
+        int shown = 0;
+        for (auto it = items.begin(); it != items.end(); ++it) shown += !it.value()->isHidden();
+        QVERIFY2(shown < items.size() / 2, qPrintable(QString::number(shown)));
+        search->clear();
+        // a reserved key is said to be reserved
+        tree->setCurrentItem(items[keyed]);
+        // (JP_KEYBOARD_SHOT names a folder to keep a picture of the page in, for looking at)
+        const QString shotDir = qEnvironmentVariable("JP_KEYBOARD_SHOT");
+        auto *press = page->findChild<QKeySequenceEdit *>(QStringLiteral("keyPress"));
+        auto *message = page->findChild<QLabel *>(QStringLiteral("keyMessage"));
+        QVERIFY(press && message);
+        press->setKeySequence(QKeySequence(Qt::CTRL | Qt::Key_C));
+        QVERIFY2(message->text().contains(QLatin1String("reserved")), qPrintable(message->text()));
+        QVERIFY(!page->findChild<QPushButton *>(QStringLiteral("keyAssign"))->isEnabled());
+        if (!shotDir.isEmpty()) {
+            if (QTabWidget *tabs = dlg->findChild<QTabWidget *>()) tabs->setCurrentWidget(page->parentWidget() ? page->parentWidget()->parentWidget() : page);
+            dlg->resize(720, 660);
+            QApplication::processEvents();
+            QDir().mkpath(shotDir);
+            dlg->grab().save(shotDir + QLatin1Char('/') + app.name + QStringLiteral("-keyboard.png"));
+        }
+    }, false);
 }
 
 } // namespace appchecks

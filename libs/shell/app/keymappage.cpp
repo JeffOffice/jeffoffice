@@ -157,7 +157,7 @@ void KeyboardPage::fillTree()
         }
         auto *item = new QTreeWidgetItem(g, QStringList{c.text, keysText(c.keys)});
         item->setData(0, Qt::UserRole, c.id);
-        item->setToolTip(0, c.text);
+        item->setToolTip(0, plainToolTip(c.text));
     }
 }
 

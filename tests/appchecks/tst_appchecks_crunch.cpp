@@ -716,6 +716,9 @@ private Q_SLOTS:
         QVERIFY2(stubs.isEmpty(), qPrintable(stubs.join(QLatin1Char(' '))));
     }
 
+    // Options > Customize > Keyboard lists this app's commands with their keys.
+    void keyboardPageListsTheCommands() { checkKeyboardPage(m_app); }
+
     // ---- 2. the standard commands
     void standardCommands()
     {

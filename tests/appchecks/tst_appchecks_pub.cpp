@@ -669,6 +669,9 @@ private Q_SLOTS:
         }
     }
 
+    // Options > Customize > Keyboard lists this app's commands with their keys.
+    void keyboardPageListsTheCommands() { checkKeyboardPage(m_app); }
+
     // ---- 2. the standard commands
     void standardCommands()
     {

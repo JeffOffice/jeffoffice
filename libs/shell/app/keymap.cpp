@@ -66,10 +66,12 @@ void showKeysInTooltip(QAction *a, const QList<QKeySequence> &keys)
 {
     const QString base = a->property(kTipBase).toString();
     if (keys == defaultsOf(a)) {
+        // plain: reviewed: the tooltip the window made, given back
         a->setToolTip(a->property(kTipOrig).toString());
         return;
     }
     if (keys.isEmpty()) {
+        // plain: reviewed: the tooltip the window made, without its key
         a->setToolTip(base);
         return;
     }
