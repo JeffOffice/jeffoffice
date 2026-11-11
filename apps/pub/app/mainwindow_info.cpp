@@ -6,6 +6,7 @@
 #include "app/dialogs.h"
 #include "app/passworddialogs.h"
 #include "app/plaintext.h"
+#include "app/privacy.h"
 #include "app/settings.h"
 #include "app/versionhistory.h"
 #include "core/comments.h"
