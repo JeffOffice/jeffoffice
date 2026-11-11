@@ -8,6 +8,8 @@
 #include "calc/formula.h"
 #include "calc/numfmt.h"
 #include "io/zip.h"
+#include "sheet/drawing.h"
+#include "sheet/odsdraw.h"
 #include "sheet/odsformat.h"
 #include "sheet/headerfooter.h"
 #include "sheet/odsformula.h"
@@ -200,6 +202,7 @@ public:
         m_body.writeTo(&zip);
         zip.write(tail.constData(), tail.size());
         zip.endStream();
+        for (const auto &picture : std::as_const(m_pictures)) zip.add(picture.first, picture.second, false);
         zip.add(QStringLiteral("styles.xml"), stylesXml().toUtf8(), true);
         zip.add(QStringLiteral("settings.xml"), settingsXml().toUtf8(), true);
         zip.add(QStringLiteral("meta.xml"), (QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document-meta") + QLatin1String(kNamespaces)
@@ -209,7 +212,7 @@ public:
                            "<manifest:file-entry manifest:full-path=\"/\" manifest:version=\"1.2\" manifest:media-type=\"application/vnd.oasis.opendocument.spreadsheet\"/>"
                            "<manifest:file-entry manifest:full-path=\"content.xml\" manifest:media-type=\"text/xml\"/><manifest:file-entry manifest:full-path=\"styles.xml\" manifest:media-type=\"text/xml\"/>"
                            "<manifest:file-entry manifest:full-path=\"settings.xml\" manifest:media-type=\"text/xml\"/><manifest:file-entry manifest:full-path=\"meta.xml\" manifest:media-type=\"text/xml\"/>"
-                           "</manifest:manifest>"),
+                           + pictureEntries() + "</manifest:manifest>"),
                 true);
         *out = zip.finish();
         if (m_report) {
@@ -222,6 +225,8 @@ public:
             m_report->sheets = qint64(m_written.size());
             m_report->trimmed << m_trimmed;
             m_report->formulaReasons = oldsave::topReasons(m_reasons);
+            m_report->notKept << m_drawingNotes;
+            m_report->notKept.removeDuplicates();
             std::sort(m_report->notKept.begin(), m_report->notKept.end());
         }
         return true;
@@ -246,6 +251,12 @@ private:
         return m_stopped;
     }
     oldsave::Features m_features;
+    // the drawing objects: the pictures (by their names in the package), the styles that go in styles.xml, and what could not be written
+    QVector<QPair<QString, QByteArray>> m_pictures;
+    QSet<QString> m_pictureNames;
+    QString m_commonStyles;
+    qint64 m_pictureBytes = 0, m_objects = 0;
+    QStringList m_drawingNotes;
     std::vector<oldsave::Written> m_written;
     QHash<int, int> m_placeToWritten;
     QStringList m_sheetNames;
@@ -289,6 +300,55 @@ private:
         QString x = QStringLiteral("<office:font-face-decls>");
         for (const QString &f : m_fonts) x += QStringLiteral("<style:font-face style:name=\"%1\" svg:font-family=\"%1\"/>").arg(esc(f));
         return x + QStringLiteral("</office:font-face-decls>");
+    }
+
+    // The manifest's entries for the pictures of the drawing objects.
+    QByteArray pictureEntries() const
+    {
+        QByteArray x;
+        for (const auto &picture : m_pictures) {
+            const QString ext = picture.first.mid(picture.first.lastIndexOf(QLatin1Char('.')) + 1);
+            const QString type = ext == QLatin1String("png") ? QStringLiteral("image/png") : ext == QLatin1String("jpg") ? QStringLiteral("image/jpeg") : ext == QLatin1String("gif") ? QStringLiteral("image/gif")
+                                 : ext == QLatin1String("bmp") ? QStringLiteral("image/bmp") : ext == QLatin1String("tif") ? QStringLiteral("image/tiff") : ext == QLatin1String("svg") ? QStringLiteral("image/svg+xml")
+                                 : ext == QLatin1String("emf") ? QStringLiteral("image/x-emf") : ext == QLatin1String("wmf") ? QStringLiteral("image/x-wmf") : QStringLiteral("application/octet-stream");
+            x += "<manifest:file-entry manifest:full-path=\"" + esc(picture.first).toUtf8() + "\" manifest:media-type=\"" + type.toUtf8() + "\"/>";
+        }
+        return x;
+    }
+
+    // The sizes of the sheet's columns and rows in points, as this file writes them (a column is as wide as its characters of the default font's digit).
+    odsdraw::Grid gridOf(const Sheet &sheet) const
+    {
+        const double defaultChars = sheet.format.defaultColWidth > 0 ? sheet.format.defaultColWidth : (sheet.format.baseColWidth > 0 ? sheet.format.baseColWidth + 0.71 : 8.43);
+        auto widthPt = [&](double chars) { return chars * m_digit * 72.0 / 96.0; };
+        QVector<odsdraw::Grid::Run> cols, rows;
+        for (const ColumnSpan &c : sheet.columns) {
+            if (c.first > 16383) continue;
+            cols.append({c.first, std::min<quint32>(c.last, 16383), c.hidden ? 0.0 : widthPt(c.width >= 0 ? c.width : defaultChars)});
+        }
+        const double defaultHeight = sheet.format.defaultRowHeight > 0 ? sheet.format.defaultRowHeight : 15;
+        for (const RowSpec &r : sheet.placedRowSpecs())
+            if (r.row < 1048576 && (r.hidden || (r.height >= 0 && r.height != defaultHeight))) rows.append({r.row, r.row, r.hidden ? 0.0 : r.height});
+        return odsdraw::Grid(cols, widthPt(defaultChars), rows, defaultHeight);
+    }
+
+    // The sheet's drawing objects as the elements of its table:shapes (nothing for a workbook with no package of its own, or a sheet with no drawing).
+    QString shapesOf(const Sheet &sheet, const oldsave::Written &w, int index, int place)
+    {
+        if (place < 0 || m_book.isConverted() || !m_book.package().isLazy()) return QString();
+        const QString part = drawingPartOf(m_book.package(), m_book.info().sheets.value(place).part);
+        if (part.isEmpty()) return QString();
+        odsdraw::Written drawn;
+        odsdraw::drawingToShapes(m_book.package(), m_book.mainPart(), part, gridOf(sheet), quoteSheet(w.name), index + 1, &drawn, &m_pictureBytes, &m_objects);
+        m_styleXml += drawn.styles;
+        m_commonStyles += drawn.commonStyles;
+        for (const auto &picture : drawn.pictures)
+            if (!m_pictureNames.contains(picture.first)) {
+                m_pictureNames.insert(picture.first);
+                m_pictures.push_back(picture);
+            }
+        for (const QString &n : drawn.notWritten) m_drawingNotes << n;
+        return drawn.shapes.isEmpty() ? QString() : QStringLiteral("<table:shapes>") + drawn.shapes + QStringLiteral("</table:shapes>");
     }
 
     QString dataStyleFor(const QString &code)
@@ -459,7 +519,7 @@ private:
         x += QStringLiteral("<office:font-face-decls><style:font-face style:name=\"%1\" svg:font-family=\"%1\"/></office:font-face-decls>").arg(esc(fn));
         x += QStringLiteral("<office:styles><style:default-style style:family=\"table-cell\"><style:table-cell-properties style:decimal-places=\"2\"/><style:paragraph-properties style:tab-stop-distance=\"36pt\"/>"
                             "<style:text-properties style:font-name=\"%1\" fo:font-size=\"%2pt\" fo:language=\"en\" fo:country=\"US\"/></style:default-style><style:style style:name=\"Default\" style:family=\"table-cell\"/>").arg(esc(fn)).arg(font.size);
-        x += QStringLiteral("</office:styles><office:automatic-styles>") + m_pageLayouts + QStringLiteral("</office:automatic-styles><office:master-styles>") + m_masterPages + QStringLiteral("</office:master-styles></office:document-styles>");
+        x += m_commonStyles + QStringLiteral("</office:styles><office:automatic-styles>") + m_pageLayouts + QStringLiteral("</office:automatic-styles><office:master-styles>") + m_masterPages + QStringLiteral("</office:master-styles></office:document-styles>");
         return x;
     }
 
@@ -907,7 +967,7 @@ private:
             }
             if (!print.isEmpty()) head.insert(head.size() - 1, QStringLiteral(" table:print-ranges=\"%1\"").arg(esc(print)));
         }
-        spool->add(head.toUtf8() + columns.toUtf8());
+        spool->add(head.toUtf8() + shapesOf(sheet, w, index, w.place).toUtf8() + columns.toUtf8());
         QMap<quint32, RowSpec> specs;
         for (const RowSpec &s : sheet.placedRowSpecs()) specs.insert(s.row, s);
         m_explicitDefault = false;

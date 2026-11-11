@@ -9,7 +9,8 @@
 // currency, dates, times, text, fractions, scientific, conditions and colors), cell styles with the named styles they follow (fonts, fills, borders, alignment, wrap, indent,
 // protection), merged cells, repeated rows, columns, and cells, column widths and row heights, hidden and filtered rows and columns, frozen panes, the cell the sheet was left
 // on, the zoom, the tab's color, and named ranges and expressions (the workbook's and a sheet's).
-// Not read, and said so by skipped(): charts, pictures and other drawing objects, hyperlinks, comments, pivot tables, macros, conditional formats, and data validation. Changed, and said
+// Drawing objects (pictures, shapes, text boxes, Text Art as fontwork, groups, and lines) are read into Sheet::importedDrawing (see sheet/odsdraw.h).
+// Not read, and said so by skipped(): charts, form controls and freehand shapes, hyperlinks, comments, pivot tables, macros, conditional formats, and data validation. Changed, and said
 // so by changed(): sheet names the .xlsx form does not allow (too long, a mark it does not allow, the same as another in capitals or small letters), which are made valid and unique with
 // the formulas and names that use them, and formulas that could not be converted, which keep the value the file stored. A document that is
 // encrypted is refused, as is one that is a text document or a presentation.
@@ -42,6 +43,7 @@ public:
     bool readSheet(int index, const Limits &limits, const std::function<bool(qint64)> &progress, qint64 stopAfterRow, qint64 screenRows, Sheet *out) const override;
     QStringList skipped() const override { return m_skipped; }
     QStringList changed() const override;
+    bool mayHaveDrawings(int index) const override;
     QString kind() const override { return m_flat ? QStringLiteral(".fods") : QStringLiteral(".ods"); }
     ~OdsBook() override;
 

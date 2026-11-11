@@ -219,23 +219,24 @@ private Q_SLOTS:
     // converted, with a count; every copy of a repeated row has its merged cells.
     void whatIsSkippedIsAlwaysSaid()
     {
-        const QString shapes[] = {QStringLiteral("<draw:line draw:z-index=\"0\"/>"), QStringLiteral("<draw:control draw:control=\"c1\"/>"), QStringLiteral("<draw:connector draw:z-index=\"0\"/>"),
-                                  QStringLiteral("<draw:g><draw:rect/></draw:g>"), QStringLiteral("<draw:frame/>"), QStringLiteral("<draw:ellipse/>")};
+        // (pictures, shapes, text boxes, lines, and groups are read now: odsdraw.h; what is not read is a form control, a freehand shape, or a callout)
+        const QString shapes[] = {QStringLiteral("<draw:polygon draw:z-index=\"0\"/>"), QStringLiteral("<draw:control draw:control=\"c1\"/>"), QStringLiteral("<draw:path draw:z-index=\"0\"/>"),
+                                  QStringLiteral("<draw:g><draw:caption/></draw:g>"), QStringLiteral("<draw:caption/>"), QStringLiteral("<draw:polyline/>")};
         for (const QString &shape : shapes) {
             Workbook wb;
             QString why;
             QVERIFY2(openIt(simple(table(QStringLiteral("S"), columns(1) + row(cell(QString(), shape)))), &wb, &why), qPrintable(why));
-            QVERIFY2(wb.skippedFeatures().contains(QStringLiteral("pictures and other drawing objects")), qPrintable(shape));
+            QVERIFY2(wb.skippedFeatures().contains(QStringLiteral("form controls, freehand shapes, and callouts")), qPrintable(shape));
         }
         // a document whose sheets are not written as the usual programs write them is found by the slow way, and says the same
         const QByteArray other =
             "<?xml version=\"1.0\"?><o:document-content xmlns:o=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:t=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" "
             "xmlns:x=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" xmlns:d=\"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0\"><o:body><o:spreadsheet><t:table t:name=\"P\"><t:table-row><t:table-cell>"
-            "<d:line/><x:p>hi</x:p></t:table-cell></t:table-row></t:table></o:spreadsheet></o:body></o:document-content>";
+            "<d:control/><x:p>hi</x:p></t:table-cell></t:table-row></t:table></o:spreadsheet></o:body></o:document-content>";
         Workbook wb;
         QString why;
         QVERIFY2(openIt(buildOds(other), &wb, &why), qPrintable(why));
-        QVERIFY(wb.skippedFeatures().contains(QStringLiteral("pictures and other drawing objects")));
+        QVERIFY(wb.skippedFeatures().contains(QStringLiteral("form controls, freehand shapes, and callouts")));
         // hyperlinks: the text is kept, the link is said to be lost
         Workbook links;
         QVERIFY2(openIt(simple(table(QStringLiteral("S"), columns(1) + row(cell(QStringLiteral("office:value-type=\"string\""),

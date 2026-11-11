@@ -4,6 +4,7 @@
 #include "sheet/pagesetupxml.h"
 #include "sheet/proofingext.h"
 #include "sheet/drawingadd.h"
+#include "sheet/foreignbook.h"
 
 #include "io/zip.h"
 #include "sheet/xmlscan.h"
@@ -505,7 +506,7 @@ public:
             m_out += merges + "</mergeCells>";
         }
         m_out += pageSetupElementsXml(m_sheet.page, QByteArray());
-        if (!m_sheet.importedCharts.isEmpty()) m_out += "<drawing r:id=\"rId1\"/>";   // (the drawing the charts of an older workbook are in: see writeBaseXlsx)
+        if (!m_sheet.importedCharts.isEmpty() || !m_sheet.importedDrawing.isEmpty()) m_out += "<drawing r:id=\"rId1\"/>";   // (the drawing the charts of an older workbook are in: see writeBaseXlsx)
         m_out += "</worksheet>";
         m_out.flush();
         return !m_stopped;
@@ -775,6 +776,21 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         firstChart[size_t(i)] = charts + 1;
         charts += n;
     }
+    // The drawing objects of a workbook read from an OpenDocument spreadsheet: a sheet that may have some is read to find them (and what they come to is kept, so that what is written is what was
+    // counted), and the pictures are named by the extension they will have.
+    std::vector<ImportedDrawing> importedOf(size_t(info.sheets.size()));
+    QSet<QString> mediaExtensions;
+    if (const ForeignBook *foreign = book.foreignBook()) {
+        for (int i = 0; i < info.sheets.size(); ++i) {
+            if (cancel && cancel->load(std::memory_order_relaxed)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
+            if (drawingOf[size_t(i)] != 0 || !foreign->mayHaveDrawings(i)) continue;
+            Sheet look;
+            if (!book.readSheet(i, &look) || look.importedDrawing.isEmpty()) continue;
+            importedOf[size_t(i)] = std::move(look.importedDrawing);
+            drawingOf[size_t(i)] = ++drawings;
+            for (const ImportedMedia &m : std::as_const(importedOf[size_t(i)].media)) mediaExtensions.insert(m.name.mid(m.name.lastIndexOf(QLatin1Char('.')) + 1).toLower());
+        }
+    }
     // [Content_Types].xml and the relationships
     {
         QByteArray types = kXmlHead;
@@ -786,6 +802,10 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         types += "<Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/>"
                  "<Override PartName=\"/xl/sharedStrings.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml\"/>";
         for (int d = 1; d <= drawings; ++d) types += "<Override PartName=\"/xl/drawings/drawing" + num(d) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawing+xml\"/>";
+        static const QHash<QString, QByteArray> mediaTypes = {{"png", "image/png"}, {"jpg", "image/jpeg"}, {"jpeg", "image/jpeg"}, {"gif", "image/gif"}, {"bmp", "image/bmp"}, {"tif", "image/tiff"},
+                                                              {"tiff", "image/tiff"}, {"svg", "image/svg+xml"}, {"emf", "image/x-emf"}, {"wmf", "image/x-wmf"}};
+        for (const QString &e : std::as_const(mediaExtensions))
+            if (mediaTypes.contains(e)) types += "<Default Extension=\"" + e.toLatin1() + "\" ContentType=\"" + mediaTypes.value(e) + "\"/>";
         for (int c = 1; c <= charts; ++c) types += "<Override PartName=\"/xl/charts/chart" + num(c) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/>";
         types += "</Types>";
         zip.add(QStringLiteral("[Content_Types].xml"), types, true);
@@ -807,11 +827,13 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
     zip.add(QStringLiteral("xl/styles.xml"), stylesPart(book.styles(), qsizetype(book.cellFormatsInFile()), addedFormats), true);
     // the sheets, one at a time
     qint64 references = 0;
+    int mediaFiles = 0;
     for (int i = 0; i < info.sheets.size(); ++i) {
         if (cancel && cancel->load(std::memory_order_relaxed)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
         Sheet sheet;
         if (!book.readSheet(i, &sheet)) return fail(sheet.error.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "A sheet of the workbook could not be read to be saved.") : sheet.error);
         if (!sheet.error.isEmpty()) return fail(sheet.error);
+        sheet.importedDrawing = importedOf[size_t(i)];
         zip.beginStream(baseSheetPart(i).mid(1), true);
         Out sink(&zip);
         SheetWriter writer(book, sheet, &sink, cancel, &references);
@@ -832,6 +854,34 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
                 anchors += chartAnchorXml(grid.anchorOf(chart), k + 1, QStringLiteral("Chart %1").arg(k), QStringLiteral("rId%1").arg(k));
                 zip.add(QStringLiteral("xl/charts/chart%1.xml").arg(number), chart.part, true);
                 drawingRels += "<Relationship Id=\"rId" + num(k) + "\" Type=\"" + kRelNs + "/chart\" Target=\"../charts/chart" + num(number) + ".xml\"/>";
+            }
+            drawingRels += "</Relationships>";
+            const int drawing = drawingOf[size_t(i)];
+            zip.add(QStringLiteral("xl/drawings/drawing%1.xml").arg(drawing), newDrawingXml(anchors), true);
+            zip.add(QStringLiteral("xl/drawings/_rels/drawing%1.xml.rels").arg(drawing), drawingRels, true);
+            zip.add(QStringLiteral("xl/worksheets/_rels/sheet%1.xml.rels").arg(i + 1),
+                    QByteArray(kXmlHead) + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"" + kRelNs + "/drawing\" Target=\"../drawings/drawing" +
+                        num(drawing) + ".xml\"/></Relationships>",
+                    true);
+        }
+        if (!sheet.importedDrawing.isEmpty()) {
+            // the drawing objects of an OpenDocument sheet: their anchors, and the relationships to the pictures (each picture a file of its own in the package's folder of media)
+            QByteArray anchors;
+            for (const QByteArray &a : std::as_const(sheet.importedDrawing.anchors)) anchors += a;
+            QByteArray drawingRels = kXmlHead;
+            drawingRels += "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">";
+            QVector<int> fileOfMedia(sheet.importedDrawing.media.size(), 0);
+            for (int m = 0; m < sheet.importedDrawing.media.size(); ++m) {
+                const ImportedMedia &media = sheet.importedDrawing.media[m];
+                const QString extension = media.name.mid(media.name.lastIndexOf(QLatin1Char('.')) + 1).toLower();
+                fileOfMedia[m] = ++mediaFiles;
+                zip.add(QStringLiteral("xl/media/image%1.%2").arg(mediaFiles).arg(extension), media.bytes, extension != QLatin1String("png") && extension != QLatin1String("jpg") && extension != QLatin1String("jpeg"));
+            }
+            for (const ImportedRel &rel : std::as_const(sheet.importedDrawing.rels)) {
+                if (rel.media < 0 || rel.media >= sheet.importedDrawing.media.size()) continue;
+                const QString name = sheet.importedDrawing.media[rel.media].name;
+                const QString extension = name.mid(name.lastIndexOf(QLatin1Char('.')) + 1).toLower();
+                drawingRels += "<Relationship Id=\"" + rel.id.toUtf8() + "\" Type=\"" + kRelNs + "/image\" Target=\"../media/image" + num(fileOfMedia[rel.media]) + "." + extension.toUtf8() + "\"/>";
             }
             drawingRels += "</Relationships>";
             const int drawing = drawingOf[size_t(i)];

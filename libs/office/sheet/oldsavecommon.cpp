@@ -153,7 +153,7 @@ QStringList Features::result() const
             else if (l.contains(QLatin1String("ctrlprop"))) controls = true;
         }
         if (charts) add(QT_TRANSLATE_NOOP("Sheet", "charts"));
-        if (drawings || media) add(QT_TRANSLATE_NOOP("Sheet", "pictures and other drawing objects"));
+        if ((drawings || media) && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "pictures and other drawing objects"));   // (an .ods copy writes them: odsdraw.h)
         if (pivots) add(QT_TRANSLATE_NOOP("Sheet", "pivot tables"));
         if (notes && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "notes"));
         if (macros) add(QT_TRANSLATE_NOOP("Sheet", "macros"));

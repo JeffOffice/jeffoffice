@@ -21,6 +21,12 @@ public:
     virtual QStringList skipped() const = 0;
     // What was changed to fit the model, in words with counts ("3 sheet names", "12 formulas"): known in full once the sheets are read.
     virtual QStringList changed() const { return QStringList(); }
+    // Whether sheet `index` may have drawing objects (a quick look; they are in Sheet::importedDrawing once the sheet is read, and written to the .xlsx a save makes).
+    virtual bool mayHaveDrawings(int index) const
+    {
+        Q_UNUSED(index);
+        return false;
+    }
     // The name of the kind of file, as the person is told it (".ods", ".csv").
     virtual QString kind() const = 0;
 };

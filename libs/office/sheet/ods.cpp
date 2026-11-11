@@ -7,6 +7,7 @@
 #include "office/package.h"
 #include "office/xmlstream.h"
 #include "sheet/cellref.h"
+#include "sheet/odsdraw.h"
 #include "sheet/odsformula.h"
 #include "sheet/odsstyles.h"
 #include "sheet/xmlscan.h"
@@ -157,8 +158,8 @@ private:
         }
         if (ns == NS_DRAW) {
             if (name == QLatin1String("object") || name == QLatin1String("object-ole")) m_f.charts = true;
-            else if (m_spreadsheetDepth > 0)
-                m_f.drawings = true;   // (any other drawing element inside the document: a line, a group, a form control, a connector, a shape)
+            else if (m_spreadsheetDepth > 0 && !isReadDrawingElement(name))
+                m_f.drawings = true;   // (a drawing element that is not read: a form control, a freehand shape, a callout)
             return true;
         }
         if (ns == NS_CONFIG) return startConfig(a, name);
@@ -206,6 +207,16 @@ private:
         return true;
     }
 
+    // The drawing elements that are read (odsdraw.h): the pictures, shapes, text boxes, Text Art, lines, and groups of a sheet, and what is inside them.
+    static bool isReadDrawingElement(QStringView name)
+    {
+        static const QSet<QString> read = {QStringLiteral("frame"), QStringLiteral("image"), QStringLiteral("text-box"), QStringLiteral("custom-shape"), QStringLiteral("enhanced-geometry"),
+                                           QStringLiteral("rect"), QStringLiteral("ellipse"), QStringLiteral("circle"), QStringLiteral("line"), QStringLiteral("g"), QStringLiteral("connector"),
+                                           QStringLiteral("equation"), QStringLiteral("handle"), QStringLiteral("glue-point"), QStringLiteral("a"), QStringLiteral("contour-polygon"), QStringLiteral("contour-path"),
+                                           QStringLiteral("image-map")};
+        return read.contains(name.toString());
+    }
+
     // ---- styles
 
     static QString propertyPrefix(QStringView name)
@@ -215,6 +226,7 @@ private:
         if (name == QLatin1String("paragraph-properties")) return QStringLiteral("para");
         if (name == QLatin1String("table-column-properties")) return QStringLiteral("col");
         if (name == QLatin1String("table-row-properties")) return QStringLiteral("row");
+        if (name == QLatin1String("graphic-properties")) return QStringLiteral("graphic");
         if (name == QLatin1String("table-properties")) return QStringLiteral("table");
         return QString();
     }
@@ -622,7 +634,18 @@ bool skeletonOf(const QByteArray &data, QByteArrayView rootTag, const QVector<Ra
         bool seen;
     };
     Mark marks[] = {{"<draw:object", "<draw:object/>", declares("draw", NS_DRAW), false},
-                    {"<draw:", "<draw:image/>", declares("draw", NS_DRAW), false},   // (any other drawing element: it is reported as the others are)
+                    {"<draw:control", "<draw:control/>", declares("draw", NS_DRAW), false},
+                    {"<draw:polygon", "<draw:control/>", declares("draw", NS_DRAW), false},
+                    {"<draw:polyline", "<draw:control/>", declares("draw", NS_DRAW), false},
+                    {"<draw:path", "<draw:control/>", declares("draw", NS_DRAW), false},
+                    {"<draw:caption", "<draw:control/>", declares("draw", NS_DRAW), false},
+                    {"<draw:measure", "<draw:control/>", declares("draw", NS_DRAW), false},
+                    {"<draw:regular-polygon", "<draw:control/>", declares("draw", NS_DRAW), false},
+                    {"<draw:plugin", "<draw:control/>", declares("draw", NS_DRAW), false},
+                    {"<draw:applet", "<draw:control/>", declares("draw", NS_DRAW), false},
+                    {"<draw:floating-frame", "<draw:control/>", declares("draw", NS_DRAW), false},
+                    {"<draw:page-thumbnail", "<draw:control/>", declares("draw", NS_DRAW), false},
+                    // (the drawing elements that are read are not marked: they are read with the sheet; the others are said to be left out, as the other things are)
                     {"<text:a ", "<text:a/>", declares("text", NS_TEXT), false},
                     {"<office:annotation", "<office:annotation/>", declares("office", NS_OFFICE), false},
                     {"<table:data-pilot-table", "<table:data-pilot-table/>", true, false},
@@ -737,6 +760,8 @@ struct OdsBook::Impl {
     mutable QMutex lock;                       // (the count below is set by whatever thread reads a sheet)
     mutable QVector<qint64> unconverted;       // by sheet: the formulas that could not be converted, when the sheet has been read whole (else -1)
     mutable QVector<qint64> mergesLeftOut;     // by sheet: the merged ranges past the most a sheet keeps, when the sheet has been read whole (else 0)
+    mutable QVector<qint64> drawnObjects, drawnBytes;   // by sheet: the drawing objects and the picture bytes it holds, when it has been read whole (a sheet read again is counted once)
+    std::shared_ptr<Package> package;          // (the pictures of the sheets' drawings are in it)
     int maxDigitWidth = 7;
     Limits limits;
 };
@@ -850,9 +875,9 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
         }
         for (const QString &p : package.partNames()) {
             if (p.endsWith(QLatin1String("/content.xml")) && p != QLatin1String("/content.xml")) m.found.charts = true;
-            if (p.startsWith(QLatin1String("/Pictures/")) && !p.endsWith(QLatin1Char('/'))) m.found.drawings = true;
         }
     }
+    if (!flat) m.package = std::make_shared<Package>(package);
     // ---- the first pass: styles, settings, and content (the sheets' names, the names, the notes of what is skipped)
     DocumentParser parser(&m.found, limits);
     if (!flat) {
@@ -954,6 +979,8 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
         e.sheetId = i + 1;
         m.unconverted.append(-1);
         m.mergesLeftOut.append(0);
+        m.drawnObjects.append(0);
+        m.drawnBytes.append(0);
         SheetShape shape;
         shape.name = original;   // (the settings of the sheet are kept by the name the document gave)
         shape.isProtected = t.isProtected;
@@ -990,7 +1017,7 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
     if (info->activeTab < info->sheets.size() && info->sheets[info->activeTab].state != SheetState::Visible) info->activeTab = 0;
     // what is not read
     if (m.found.charts) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "charts");
-    if (m.found.drawings) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "pictures and other drawing objects");
+    if (m.found.drawings) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "form controls, freehand shapes, and callouts");
     if (m.found.pivots) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "pivot tables");
     if (m.found.comments) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "comments");
     if (m.found.hyperlinks) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "hyperlinks");
@@ -1111,8 +1138,8 @@ private:
             }
             if (!inTable) continue;
             if (ns != NS_TABLE) {
-                // (drawings, forms, and notes of the sheet are not read)
-                if (!skipElementCounted()) return false;
+                // (a shape directly in the table is kept; forms and notes of the sheet are not read)
+                if (ns == NS_DRAW ? !captureShape(false, 0, 0) : !skipElementCounted()) return false;
                 continue;
             }
             if (name == QLatin1String("table-column")) {
@@ -1121,6 +1148,8 @@ private:
             } else if (name == QLatin1String("table-row")) {
                 if (!row()) return false;
                 if (m_stopped) return true;
+            } else if (name == QLatin1String("shapes")) {
+                if (!shapes()) return false;
             } else if (name == QLatin1String("table-columns") || name == QLatin1String("table-header-columns") || name == QLatin1String("table-column-group") || name == QLatin1String("table-header-rows")
                        || name == QLatin1String("table-rows") || name == QLatin1String("table-row-group")) {
                 continue;   // (a group: its columns and rows are the sheet's)
@@ -1128,6 +1157,42 @@ private:
                 if (!skipElementCounted()) return false;
             }
         }
+        return true;
+    }
+
+    // The shapes of the sheet (table:shapes): each is kept whole, to be read when the sheet's sizes are known.
+    bool shapes()
+    {
+        QXmlStreamReader &xml = *m_xml;
+        for (;;) {
+            if (xml.atEnd()) return damaged();
+            const QXmlStreamReader::TokenType t = xml.readNext();
+            if (t == QXmlStreamReader::EndElement) {
+                --m_depth;
+                return true;
+            }
+            if (t == QXmlStreamReader::DTD || t == QXmlStreamReader::EntityReference) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file begins with instructions that this program does not allow, so it can't be read."));
+            if (t != QXmlStreamReader::StartElement) continue;
+            if (++m_depth > kMaxOdsDepth) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file has items inside items more deeply than any real file has."));
+            if (xml.namespaceUri() == NS_DRAW) {
+                if (!captureShape(false, 0, 0)) return false;
+            } else if (!skipElementCounted()) {
+                return false;
+            }
+        }
+    }
+
+    // Keeps the shape just begun to its end (its start was counted in m_depth, and its end is counted here), and where it is; what is past the limits is read and left out.
+    bool captureShape(bool inCell, quint32 row, quint32 col)
+    {
+        if (m_shapes.size() >= 2 * kMaxDrawingAnchors) {
+            m_shapesOver = true;
+            return skipElementCounted();
+        }
+        odsdraw::NodePtr node;
+        if (!odsdraw::readNode(*m_xml, kMaxOdsDepth - m_depth + 1, &m_drawCounters, &node)) return damaged();
+        --m_depth;
+        if (node) m_shapes.push_back({node, inCell, row, col});
         return true;
     }
 
@@ -1200,6 +1265,8 @@ private:
             const QStringView ns = xml.namespaceUri(), name = xml.name();
             if (ns == NS_TABLE && (name == QLatin1String("table-cell") || name == QLatin1String("covered-table-cell"))) {
                 Proto p;
+                m_cellRow = quint32(std::min<qint64>(rowIndex, kMaxRows - 1));
+                m_cellCol = std::min<quint32>(col, kMaxColumns - 1);
                 if (!cell(name == QLatin1String("covered-table-cell"), col, &p)) return false;
                 const quint32 here = col;
                 col = quint32(std::min<quint64>(quint64(col) + p.repeat, quint64(kMaxColumns) + 1));   // (a row of more cells than a sheet has stops counting at its edge)
@@ -1349,8 +1416,12 @@ private:
                     } else if (name == QLatin1String("note") || name == QLatin1String("note-body")) {
                         skipDepth = depth;
                     }
+                } else if (ns == NS_DRAW) {
+                    // (a shape anchored to the cell: kept whole, and read with the sheet's other shapes)
+                    if (!captureShape(true, m_cellRow, m_cellCol)) return false;
+                    --depth;
                 } else {
-                    skipDepth = depth;   // (a note, a drawing, or anything else in the cell is not read)
+                    skipDepth = depth;   // (a note, or anything else in the cell is not read)
                 }
             } else if (t == QXmlStreamReader::EndElement) {
                 --m_depth;
@@ -1672,8 +1743,57 @@ private:
         m_s.tabColor = m_m.shapes[m_index].tabColor;
         m_s.view.rightToLeft = m_m.shapes[m_index].rightToLeft;
         view();
+        drawing();
         m_s.stats.heldBytes = m_held;
         m_s.stats.xmlBytes = 0;
+    }
+
+    // The drawing objects of the sheet, from the shapes kept, now that the sizes of its columns and rows are known (a sheet read only as far as a row has no drawing: its rows are not all read).
+    void drawing()
+    {
+        if (m_s.partial || (m_shapes.isEmpty() && !m_shapesOver)) return;
+        const double defaultCol = m_s.format.defaultColWidth > 0 ? m_s.format.defaultColWidth * m_m.maxDigitWidth * 72.0 / 96.0 : 64.0;
+        const double defaultRow = m_s.format.defaultRowHeight > 0 ? m_s.format.defaultRowHeight : 15.0;
+        QVector<odsdraw::Grid::Run> cols, rows;
+        for (const ColRun &r : m_colRuns) {
+            const double w = widthOf(r);
+            cols.append({r.first, r.first + r.count - 1, r.hidden ? 0.0 : (w > 0 ? w : defaultCol)});
+        }
+        for (const RowRun &r : m_rowRuns) {
+            const double h = heightOf(r);
+            rows.append({r.first, r.first + r.count - 1, r.hidden ? 0.0 : (h > 0 ? h : defaultRow)});
+        }
+        const odsdraw::Grid grid(cols, defaultCol, rows, defaultRow);
+        odsdraw::Budget budget;
+        {
+            QMutexLocker locker(&m_m.lock);
+            for (int i = 0; i < m_m.drawnObjects.size(); ++i)
+                if (i != m_index) {
+                    budget.objects += m_m.drawnObjects[i];
+                    budget.pictureBytes += m_m.drawnBytes[i];
+                }
+        }
+        const qint64 objectsBefore = budget.objects.load(), bytesBefore = budget.pictureBytes.load();
+        const odsdraw::StyleLookup styles = [this](const QString &family, const QString &name) { return m_m.found.store.resolve(family, name); };
+        const std::function<QByteArray(const QString &)> parts = [this](const QString &name) {
+            if (!m_m.package) return QByteArray();
+            QMutexLocker locker(&m_m.lock);
+            const QString part = QLatin1Char('/') + name;
+            if (!m_m.package->hasPart(part) || m_m.package->partSize(part) > odsdraw::kMaxPictureBytes) return QByteArray();
+            return m_m.package->part(part);
+        };
+        odsdraw::shapesToDrawing(m_shapes, m_drawCounters, grid, styles, parts, &budget, &m_s.importedDrawing);
+        if (m_shapesOver) m_s.importedDrawing.notRead << QCoreApplication::translate("jp::office::sheet::Ods", "drawing objects past the %1 a sheet may have").arg(kMaxDrawingAnchors);
+        {
+            QMutexLocker locker(&m_m.lock);
+            if (m_index < m_m.drawnObjects.size()) {
+                m_m.drawnObjects[m_index] = budget.objects.load() - objectsBefore;
+                m_m.drawnBytes[m_index] = budget.pictureBytes.load() - bytesBefore;
+            }
+        }
+        m_s.importedDrawing.notRead.removeDuplicates();
+        for (const QString &note : std::as_const(m_s.importedDrawing.notRead)) m_s.notKept << note;
+        m_shapes.clear();
     }
 
     double widthOf(const ColRun &r) const
@@ -1761,6 +1881,11 @@ private:
     std::vector<RowRun> m_rowRuns;
     QVector<quint32> m_colXf;
     std::vector<Proto> m_row;
+    // the drawing objects: the shapes of the sheet kept whole, and where the cell is that the one being read is in
+    QVector<odsdraw::SheetShape> m_shapes;
+    odsdraw::Counters m_drawCounters;
+    bool m_shapesOver = false;
+    quint32 m_cellRow = 0, m_cellCol = 0;
 };
 
 } // namespace
@@ -1782,6 +1907,13 @@ bool OdsBook::readSheet(int index, const Limits &limits, const std::function<boo
         if (index < m->mergesLeftOut.size()) m->mergesLeftOut[index] = std::max<qint64>(0, out->mergeCount - qint64(out->merges.size()));
     }
     return done;
+}
+
+bool OdsBook::mayHaveDrawings(int index) const
+{
+    if (index < 0 || index >= m->slices.size()) return false;
+    const Range r = m->slices[index];
+    return QByteArrayView(m->content).mid(r.from, r.to - r.from).indexOf(QByteArrayView("draw:")) >= 0;
 }
 
 QStringList OdsBook::changed() const
