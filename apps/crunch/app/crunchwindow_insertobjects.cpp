@@ -8,6 +8,8 @@
 #include "app/barcodedialog.h"
 #include "app/iconpicker.h"
 #include "app/onlinepictures.h"
+#include "app/keymap.h"
+#include "app/settings.h"
 #include "app/textdialogs.h"
 #include "render/metafile.h"
 #include "app/equationdialog.h"
@@ -116,18 +118,72 @@ void CrunchWindow::createInsertObjectActions()
         m_opsActions << id;
     }
     mk("insert.symbol", tr("Symbol"), "omega", QKeySequence(), [this] {
+        jp::SymbolExtras extras;
+        extras.specials = jp::specialCharacters();
+        extras.keyOf = [this](const QString &ch, const QString &font) {
+            const QAction *a = act(symbolKeyId(ch, font));
+            return a ? KeyMap::shownKey(a) : QString();
+        };
+        extras.assignKey = [this](const QString &ch, const QString &font, const QKeySequence &key, QString *problem) { return assignSymbolKey(ch, font, key, problem); };
         symbolDialog(this, [this](QWidget *, const QString &ch, const QString &font) {
-            if (!insertSymbolInCell(ch)) return false;
+            if (!insertSymbolInCell(ch, font)) return false;
             rememberSymbol(ch, font);
             return true;
-        });
+        }, extras);
     });
     m_opsActions << QStringLiteral("insert.symbol");
+    // The symbols that have a key (kept in the settings; the key itself is the command's, kept with the others by Options > Customize).
+    for (const QString &entry : jp::Settings::get().value(QStringLiteral("symbols/keys")).toStringList()) symbolKeyAction(entry.section(QLatin1Char('\t'), 0, 0), entry.section(QLatin1Char('\t'), 1));
+}
+
+QString CrunchWindow::symbolKeyId(const QString &ch, const QString &font)
+{
+    QStringList codes;
+    for (const char32_t c : ch.toUcs4()) codes << QString::number(c, 16);
+    return QStringLiteral("insert.symbolKey.") + codes.join(QLatin1Char('-')) + (font.isEmpty() ? QString() : QLatin1Char('.') + font);
+}
+
+QAction *CrunchWindow::symbolKeyAction(const QString &ch, const QString &font)
+{
+    if (ch.isEmpty() || ch.size() > 8) return nullptr;
+    const QString id = symbolKeyId(ch, font);
+    if (QAction *have = act(id)) return have;
+    QAction *a = mk(id, font.isEmpty() ? tr("Insert Symbol %1").arg(ch) : tr("Insert Symbol %1 (%2)").arg(ch, font), "omega", QKeySequence(), [this, ch, font] {
+        if (insertSymbolInCell(ch, font)) rememberSymbol(ch, font);
+    });
+    m_opsActions << id;
+    return a;
+}
+
+// Gives the symbol the key (an empty key takes its key off), as Options > Customize > Keyboard would: one key for it, a key another command has refused.
+bool CrunchWindow::assignSymbolKey(const QString &ch, const QString &font, const QKeySequence &key, QString *problem)
+{
+    QAction *a = symbolKeyAction(ch, font);
+    if (!a) return false;
+    const QString id = a->objectName();
+    KeyMap map(this, false);
+    if (const KeyCommand *now = map.command(id))
+        for (const QKeySequence &k : QList<QKeySequence>(now->keys)) map.remove(id, k);
+    if (!key.isEmpty()) {
+        const KeyMap::Result r = map.add(id, key);
+        if (r.status == KeyMap::Add::Taken || r.status == KeyMap::Add::Reserved || r.status == KeyMap::Add::Invalid) {
+            if (problem) *problem = r.status == KeyMap::Add::Taken ? tr("%1 is already the key of %2.").arg(key.toString(QKeySequence::NativeText), r.ownerText) : tr("That key is kept for the system and for typing.");
+            return false;
+        }
+    }
+    map.save();
+    map.applyAll();
+    QStringList kept = jp::Settings::get().value(QStringLiteral("symbols/keys")).toStringList();
+    const QString entry = font.isEmpty() ? ch : ch + QLatin1Char('\t') + font;
+    kept.removeAll(entry);
+    if (!key.isEmpty()) kept.prepend(entry);
+    jp::Settings::get().setValue(QStringLiteral("symbols/keys"), kept);
+    return true;
 }
 
 // Puts the character at the cursor of the entry being typed (in the formula bar when that has the cursor); with no entry open, the cell's own entry is opened first, with the
-// character at its end.
-bool CrunchWindow::insertSymbolInCell(const QString &ch)
+// character at its end. From a font, the character is a run of its own in that font (the cell's other text keeps its font); in a formula there are no runs, and it is the character alone.
+bool CrunchWindow::insertSymbolInCell(const QString &ch, const QString &font)
 {
     if (!m_edit.active) {
         if (!editingAllowed()) return false;
@@ -137,8 +193,18 @@ bool CrunchWindow::insertSymbolInCell(const QString &ch)
         m_cellEditor->setCursorPosition(m_cellEditor->text().size());
     }
     QLineEdit *line = editingInFormulaBar() ? m_formulaBar : m_cellEditor;
+    const int from = line->hasSelectedText() ? line->selectionStart() : line->cursorPosition();
     line->insert(ch);
     Q_EMIT line->textEdited(line->text());   // (the other line shows it too)
+    if (!font.isEmpty()) {
+        const int to = line->cursorPosition();
+        line->setSelection(from, to - from);
+        jp::office::sheet::FormatChange change;
+        change.fontName = font;
+        applyRunFormat(change, line);
+        line->deselect();
+        line->setCursorPosition(to);
+    }
     return true;
 }
 

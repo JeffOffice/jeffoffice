@@ -5,6 +5,8 @@
 #include "core/style.h"
 
 #include <QImage>
+#include <QKeySequence>
+#include <QList>
 #include <QString>
 #include <QStringList>
 #include <functional>
@@ -29,6 +31,21 @@ void symbolDialog(QWidget *p, Editor *ed);
 // The same dialog for a program whose text is not an Editor's: `insertOne` puts the symbol in (true when it did), and calls rememberSymbol.
 void rememberSymbol(const QString &ch, const QString &font);
 void symbolDialog(QWidget *p, const std::function<bool(QWidget *, const QString &, const QString &)> &insertOne);
+// A character the Special Characters tab lists: the characters for the dashes, spaces, hyphens, and quotation marks that text needs (named as the other programs name them).
+struct SpecialCharacter {
+    QString ch;
+    QString name;
+};
+QList<SpecialCharacter> specialCharacters();
+// What more the Symbol dialog can have, for a program that gives it: a Special Characters tab (`specials`, a character inserted as a symbol in no font), and a Shortcut Key button.
+// `keyOf` is the key a symbol has now (as text for the person; empty for none); `assignKey` gives the symbol a key (an empty key takes the symbol's key off) and is false, with the
+// reason in `problem`, when it can't.
+struct SymbolExtras {
+    QList<SpecialCharacter> specials;
+    std::function<QString(const QString &ch, const QString &font)> keyOf;
+    std::function<bool(const QString &ch, const QString &font, const QKeySequence &key, QString *problem)> assignKey;
+};
+void symbolDialog(QWidget *p, const std::function<bool(QWidget *, const QString &, const QString &)> &insertOne, const SymbolExtras &extras);
 // Paste Special: a list of the forms the clipboard can go in as (source formatting, text only, picture); pastes the one chosen.
 void pasteSpecialDialog(QWidget *p, Editor *ed);
 void dateTimeDialog(QWidget *p, Editor *ed);

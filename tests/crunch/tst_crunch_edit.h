@@ -35,6 +35,9 @@
 #include "io/zipindex.h"
 
 #include <QAction>
+#include <QComboBox>
+#include <QKeySequenceEdit>
+#include <QTimer>
 #include <QApplication>
 #include <QDir>
 #include <QDockWidget>
@@ -62,6 +65,9 @@ private Q_SLOTS:
     void theHelpTabHasHelpShortcutsWhatsNewAndFeedback();
     void typingOverACellPutsWhatWasTypedInIt();
     void theSymbolDialogPutsACharacterInTheEntry();
+    void aSymbolFromAChosenFontIsARunInThatFont();
+    void theSymbolDialogHasSpecialCharacters();
+    void aSymbolCanHaveAShortcutKey();
     void theKeysThatFinishAnEntry();
     void enterGoesWhereTheOptionSays();
     void autoCompleteOffersTheRestOfAnEntryInTheColumn();

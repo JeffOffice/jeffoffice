@@ -1003,14 +1003,14 @@ namespace jp {
 void CrunchWindow::adjustEditRuns(const QString &now) { crunch::adjustRuns(&m_editRich, now); }
 
 // Bold, italic, underline, strikethrough, a font, a size, or a color, on the text selected in the entry (the cell editor or the formula bar): that stretch gets runs of its own. False when no
-// text is selected, or when the change is of more than the font: the entry is then put in the cell as always.
-bool CrunchWindow::applyRunFormat(const FormatChange &c)
+// text is selected, or when the change is of more than the font: the entry is then put in the cell as always. (`into` is the line the text is selected in, when that is not the one with the focus.)
+bool CrunchWindow::applyRunFormat(const FormatChange &c, QLineEdit *into)
 {
     using jp::office::sheet::RichRun;
     if (!c.touchesFont() || c.fill || c.left || c.right || c.top || c.bottom || c.diagonal || c.diagonalUp || c.diagonalDown || c.numberFormat || c.horizontal || c.vertical || c.wrap || c.shrink
         || c.indent || c.rotation || c.readingOrder || c.locked || c.formulaHidden || c.namedStyle)
         return false;
-    QLineEdit *line = m_formulaBar->hasFocus() ? static_cast<QLineEdit *>(m_formulaBar) : static_cast<QLineEdit *>(m_cellEditor);
+    QLineEdit *line = into ? into : m_formulaBar->hasFocus() ? static_cast<QLineEdit *>(m_formulaBar) : static_cast<QLineEdit *>(m_cellEditor);
     if (!line->hasSelectedText() || line->text().startsWith(QLatin1Char('='))) return false;
     const QString text = line->text();
     const qsizetype from = line->selectionStart(), to = from + line->selectedText().size();

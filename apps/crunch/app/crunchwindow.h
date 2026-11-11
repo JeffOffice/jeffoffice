@@ -494,6 +494,9 @@ public:
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
     // Review > Translate opens the web page of the translation service through this (the browser's own when none is set); a test sets its own.
     void setUrlOpener(const std::function<bool(const QUrl &)> &opener) { m_urlOpener = opener; }
+    // Review > Translate Workbook opens one address for each part of the text, with this pause (milliseconds) after each, and refuses a workbook with more text cells or more parts than the limits; a test sets its own.
+    void setTranslatePause(int milliseconds) { m_translatePause = milliseconds; }
+    void setWorkbookTranslateLimits(int cells, int parts) { m_translateMostCells = cells, m_translateMostParts = parts; }
 
     // ---- the sheets
     // The sheets shown as tabs, by their place in the workbook (hidden ones are not here), and the one in view.
@@ -691,6 +694,8 @@ protected:
 private:
     // The text Review > Translate sends: the selected words of the entry being typed, else the whole entry, else the text of the selected cells (row by row, a line for each row).
     QString textToTranslate() const;
+    // Review > Translate Workbook: the text cells of every sheet (not formulas, not numbers) sent in parts, with progress and Cancel.
+    void translateWorkbook();
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn, bool checkable = false, bool enabled = true);
     void createActions();
     void buildRibbon();
@@ -871,7 +876,11 @@ private:
     const crunch::CompletionIndex &completionIndex();
     QString completionDetail(const crunch::Completion &c) const;
     bool insertTextInFormula(const QString &text, bool asFunction);
-    bool insertSymbolInCell(const QString &ch);
+    bool insertSymbolInCell(const QString &ch, const QString &font = QString());
+    // The command that inserts a symbol (in a font, or the cell's own when empty), made when it is first given a key or when the window starts for the symbols that have one.
+    static QString symbolKeyId(const QString &ch, const QString &font);
+    QAction *symbolKeyAction(const QString &ch, const QString &font);
+    bool assignSymbolKey(const QString &ch, const QString &font, const QKeySequence &key, QString *problem);
     void followCalcBatch(const crunch::CalcBatch &batch);
     void updateCalcStatus();
     void sendCalcSettings();
@@ -1373,7 +1382,7 @@ private:
     // The formatting inside the text of the entry being made, and as it was when the entry began (the entry's text is `m_editRich.text`).
     jp::office::sheet::RichText m_editRich, m_editRichFirst;
     void adjustEditRuns(const QString &now);
-    bool applyRunFormat(const jp::office::sheet::FormatChange &change);
+    bool applyRunFormat(const jp::office::sheet::FormatChange &change, QLineEdit *into = nullptr);
     quint64 m_objectsToken = 0;
     bool m_chartSheetShown = false;   // the sheet in view is a chart sheet: no command that works on cells is on
 
@@ -1609,6 +1618,9 @@ private:
     qint64 m_longestBatchMicros = 0, m_batches = 0, m_longestBatchItems = 0, m_workerCpuMicros = 0;
     std::function<void(const QString &, const QString &)> m_notifier;
     std::function<bool(const QUrl &)> m_urlOpener;
+    int m_translatePause = 1500;
+    int m_translateMostCells = 10000;
+    int m_translateMostParts = 20;
     QString m_loadProblem;
     // editing
     std::unique_ptr<crunch::EditSession> m_session;

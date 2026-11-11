@@ -31,6 +31,7 @@
 #include <QGroupBox>
 #include <QHeaderView>
 #include <QInputDialog>
+#include <QKeySequenceEdit>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -627,7 +628,22 @@ void rememberSymbol(const QString &ch, const QString &font)
     Settings::get().setValue(QStringLiteral("symbols/recent"), recents);
 }
 
+QList<SpecialCharacter> specialCharacters()
+{
+    return {{QString(QChar(0x00A0)), QCoreApplication::translate("Dialogs", "Nonbreaking Space")}, {QString(QChar(0x2011)), QCoreApplication::translate("Dialogs", "Nonbreaking Hyphen")},
+            {QString(QChar(0x00AD)), QCoreApplication::translate("Dialogs", "Optional Hyphen")}, {QString(QChar(0x2013)), QCoreApplication::translate("Dialogs", "En Dash")},
+            {QString(QChar(0x2014)), QCoreApplication::translate("Dialogs", "Em Dash")}, {QString(QChar(0x2002)), QCoreApplication::translate("Dialogs", "En Space")},
+            {QString(QChar(0x2003)), QCoreApplication::translate("Dialogs", "Em Space")}, {QString(QChar(0x201C)), QCoreApplication::translate("Dialogs", "Opening Double Quotation Mark")},
+            {QString(QChar(0x201D)), QCoreApplication::translate("Dialogs", "Closing Double Quotation Mark")}, {QString(QChar(0x2018)), QCoreApplication::translate("Dialogs", "Opening Single Quotation Mark")},
+            {QString(QChar(0x2019)), QCoreApplication::translate("Dialogs", "Closing Single Quotation Mark")}, {QString(QChar(0x200B)), QCoreApplication::translate("Dialogs", "No-Width Optional Break")}};
+}
+
 void symbolDialog(QWidget *p, const std::function<bool(QWidget *, const QString &, const QString &)> &insertOne)
+{
+    symbolDialog(p, insertOne, SymbolExtras());
+}
+
+void symbolDialog(QWidget *p, const std::function<bool(QWidget *, const QString &, const QString &)> &insertOne, const SymbolExtras &extras)
 {
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Symbol"), QDialogButtonBox::Close);
     dlg.d.setObjectName(QStringLiteral("symbolDialog"));
@@ -646,7 +662,17 @@ void symbolDialog(QWidget *p, const std::function<bool(QWidget *, const QString 
     top->addWidget(font, 1);
     top->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Subset:")));
     top->addWidget(subset, 1);
-    dlg.v->addLayout(top);
+    // (with Special Characters the symbols are the first tab; without, the box is what it was)
+    QVBoxLayout *host = dlg.v;
+    QTabWidget *tabs = nullptr;
+    if (!extras.specials.isEmpty()) {
+        tabs = new QTabWidget(&dlg.d);
+        auto *page = new QWidget(tabs);
+        host = new QVBoxLayout(page);
+        tabs->addTab(page, QCoreApplication::translate("Dialogs", "Symbols"));
+        dlg.v->addWidget(tabs);
+    }
+    host->addLayout(top);
     auto makeGrid = [&](int rows) {
         auto *g = new QTableWidget(rows, 16, &dlg.d);
         g->horizontalHeader()->hide();
@@ -703,23 +729,105 @@ void symbolDialog(QWidget *p, const std::function<bool(QWidget *, const QString 
     fill();
     fillRecent();
     QTableWidget *chosenFrom = grid;
+    QTableWidget *special = nullptr;
+    if (tabs) {
+        special = new QTableWidget(int(extras.specials.size()), 3, tabs);
+        special->setObjectName(QStringLiteral("specialTable"));
+        special->verticalHeader()->hide();
+        special->setHorizontalHeaderLabels({QCoreApplication::translate("Dialogs", "Character"), QCoreApplication::translate("Dialogs", "Name"), QCoreApplication::translate("Dialogs", "Shortcut key")});
+        special->horizontalHeader()->setStretchLastSection(true);
+        special->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        special->setSelectionBehavior(QAbstractItemView::SelectRows);
+        special->setColumnWidth(0, 80);
+        special->setColumnWidth(1, 300);
+        for (int r = 0; r < extras.specials.size(); ++r) {
+            auto *c = new QTableWidgetItem(extras.specials[r].ch);
+            c->setTextAlignment(Qt::AlignCenter);
+            special->setItem(r, 0, c);
+            special->setItem(r, 1, new QTableWidgetItem(extras.specials[r].name));
+            special->setItem(r, 2, new QTableWidgetItem(extras.keyOf ? extras.keyOf(extras.specials[r].ch, QString()) : QString()));
+        }
+        tabs->addTab(special, QCoreApplication::translate("Dialogs", "Special Characters"));
+    }
+    QLabel *keyLabel = nullptr;
+    if (extras.assignKey) {
+        keyLabel = plainLabel(new QLabel(&dlg.d));
+        keyLabel->setObjectName(QStringLiteral("symbolKeyLabel"));
+    }
+    // The symbol chosen now: in the grid or the recent ones with its font, or the special character.
+    auto choice = [&]() -> QPair<QString, QString> {
+        if (special && tabs->currentWidget() == special) {
+            const int row = special->currentRow();
+            return row < 0 ? QPair<QString, QString>() : QPair<QString, QString>(special->item(row, 0)->text(), QString());
+        }
+        QTableWidgetItem *it = chosenFrom->currentItem();
+        return it ? QPair<QString, QString>(it->text(), it->data(Qt::UserRole + 1).toString()) : QPair<QString, QString>();
+    };
+    auto showKey = [&] {
+        if (!keyLabel) return;
+        const auto c = choice();
+        const QString key = extras.keyOf && !c.first.isEmpty() ? extras.keyOf(c.first, c.second) : QString();
+        keyLabel->setText((key.isEmpty() ? QCoreApplication::translate("Dialogs", "Shortcut key: none") : QCoreApplication::translate("Dialogs", "Shortcut key: %1").arg(key)));
+    };
     auto showCode = [=](QTableWidgetItem *it) {
         if (it) code->setText(QCoreApplication::translate("Dialogs", "Character code: %1 (Unicode U+%2)").arg(it->data(Qt::UserRole).toInt()).arg(it->data(Qt::UserRole).toInt(), 4, 16, QChar('0')).toUpper());
     };
-    QObject::connect(grid, &QTableWidget::currentItemChanged, &dlg.d, [&, showCode](QTableWidgetItem *it) { chosenFrom = grid; showCode(it); });
-    QObject::connect(recent, &QTableWidget::currentItemChanged, &dlg.d, [&, showCode](QTableWidgetItem *it) { chosenFrom = recent; showCode(it); });
+    QObject::connect(grid, &QTableWidget::currentItemChanged, &dlg.d, [&, showCode, showKey](QTableWidgetItem *it) { chosenFrom = grid; showCode(it); showKey(); });
+    QObject::connect(recent, &QTableWidget::currentItemChanged, &dlg.d, [&, showCode, showKey](QTableWidgetItem *it) { chosenFrom = recent; showCode(it); showKey(); });
     auto insert = [&, fillRecent](QTableWidgetItem *it) {
         if (!it || it->text().isEmpty()) return;
         if (insertOne(&dlg.d, it->text(), it->data(Qt::UserRole + 1).toString())) fillRecent();
     };
     QObject::connect(grid, &QTableWidget::itemDoubleClicked, &dlg.d, insert);
     QObject::connect(recent, &QTableWidget::itemDoubleClicked, &dlg.d, insert);
+    if (special) {
+        QObject::connect(special, &QTableWidget::itemDoubleClicked, &dlg.d, [&, fillRecent](QTableWidgetItem *it) {
+            if (it && insertOne(&dlg.d, special->item(it->row(), 0)->text(), QString())) fillRecent();
+        });
+        QObject::connect(special, &QTableWidget::currentCellChanged, &dlg.d, [&, showKey] { showKey(); });
+        if (tabs) QObject::connect(tabs, &QTabWidget::currentChanged, &dlg.d, [&, showKey] { showKey(); });
+    }
     auto *ins = dlg.bb->addButton(QCoreApplication::translate("Dialogs", "Insert"), QDialogButtonBox::ActionRole);
-    QObject::connect(ins, &QPushButton::clicked, &dlg.d, [&] { insert(chosenFrom->currentItem()); });
-    dlg.v->addWidget(grid, 1);
-    dlg.v->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Recently used symbols:"), &dlg.d));
-    dlg.v->addWidget(recent);
-    dlg.v->addWidget(code);
+    QObject::connect(ins, &QPushButton::clicked, &dlg.d, [&, fillRecent] {
+        const auto c = choice();
+        if (!c.first.isEmpty() && insertOne(&dlg.d, c.first, c.second)) fillRecent();
+    });
+    if (extras.assignKey) {
+        auto *keyButton = dlg.bb->addButton(QCoreApplication::translate("Dialogs", "Shortcut Key…"), QDialogButtonBox::ActionRole);
+        keyButton->setObjectName(QStringLiteral("symbolKeyButton"));
+        QObject::connect(keyButton, &QPushButton::clicked, &dlg.d, [&, showKey] {
+            const auto c = choice();
+            if (c.first.isEmpty()) return;
+            QDialog ask(&dlg.d);
+            ask.setObjectName(QStringLiteral("symbolKeyDialog"));
+            ask.setWindowTitle(QCoreApplication::translate("Dialogs", "Shortcut Key"));
+            auto *v = new QVBoxLayout(&ask);
+            v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("Dialogs", "Press the keys for inserting %1 (leave it empty to take the key off):").arg(c.first), &ask)));
+            auto *edit = new QKeySequenceEdit(&ask);
+            edit->setObjectName(QStringLiteral("symbolKey"));
+            edit->setMaximumSequenceLength(1);
+            if (extras.keyOf) edit->setKeySequence(QKeySequence::fromString(extras.keyOf(c.first, c.second), QKeySequence::NativeText));
+            v->addWidget(edit);
+            auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &ask);
+            QObject::connect(bb, &QDialogButtonBox::accepted, &ask, &QDialog::accept);
+            QObject::connect(bb, &QDialogButtonBox::rejected, &ask, &QDialog::reject);
+            v->addWidget(bb);
+            if (ask.exec() != QDialog::Accepted) return;
+            QString problem;
+            if (!extras.assignKey(c.first, c.second, edit->keySequence(), &problem)) {
+                jp::plainInformation(&dlg.d, QCoreApplication::translate("Dialogs", "Shortcut Key"), problem);
+                return;
+            }
+            if (special)
+                for (int r = 0; r < special->rowCount(); ++r) special->item(r, 2)->setText(extras.keyOf ? extras.keyOf(special->item(r, 0)->text(), QString()) : QString());
+            showKey();
+        });
+    }
+    host->addWidget(grid, 1);
+    host->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Recently used symbols:"), &dlg.d));
+    host->addWidget(recent);
+    host->addWidget(code);
+    if (keyLabel) dlg.v->addWidget(keyLabel);
     dlg.exec();
 }
 

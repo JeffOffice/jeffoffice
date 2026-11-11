@@ -104,6 +104,16 @@ void CrunchEditTests::typingOverACellPutsWhatWasTypedInIt()
 }
 
 
+namespace {
+// The grid of the symbols of the subset chosen (16 characters to a row), not the table of special characters.
+QTableWidget *symbolGrid(QDialog *dlg)
+{
+    for (QTableWidget *g : dlg->findChildren<QTableWidget *>())
+        if (g->columnCount() == 16 && g->rowCount() > 1) return g;
+    return nullptr;
+}
+} // namespace
+
 // Insert > Symbols > Symbol opens the Symbol dialog; the character chosen goes at the end of the cell's own entry when none is open (the entry is opened), and at the cursor of
 // an entry that is open; the entry is then finished as any other.
 void CrunchEditTests::theSymbolDialogPutsACharacterInTheEntry()
@@ -115,11 +125,11 @@ void CrunchEditTests::theSymbolDialogPutsACharacterInTheEntry()
     QCOMPARE(symbol->text(), QStringLiteral("Symbol"));
     auto insertI = [&] {
         withDialog([&] { symbol->trigger(); }, QStringLiteral("symbolDialog"), [](QDialog *dlg) {
-            auto grids = dlg->findChildren<QTableWidget *>();
-            QVERIFY(grids.size() >= 2);
-            QTableWidgetItem *it = grids.first()->item(2, 9);   // (Basic Latin: row 2 starts at 0x40; column 9 is "I")
+            QTableWidget *grid = symbolGrid(dlg);
+            QVERIFY(grid);
+            QTableWidgetItem *it = grid->item(2, 9);   // (Basic Latin: row 2 starts at 0x40; column 9 is "I")
             QVERIFY(it);
-            Q_EMIT grids.first()->itemDoubleClicked(it);
+            Q_EMIT grid->itemDoubleClicked(it);
         });
     };
     e.select(QStringLiteral("C1"));
@@ -140,6 +150,125 @@ void CrunchEditTests::theSymbolDialogPutsACharacterInTheEntry()
     QCOMPARE(e.win.w.cellEditor()->text(), QStringLiteral("aIb"));
     e.key(Qt::Key_Return);
     QCOMPARE(e.valueAt(QStringLiteral("C2")), QStringLiteral("s:aIb"));
+}
+
+// The Symbol dialog takes the character from a font the person chooses: the character goes in a run of its own set in that font (the rest of the entry keeps the cell's font); with the
+// font left at "(normal text)" the entry has no runs.
+void CrunchEditTests::aSymbolFromAChosenFontIsARunInThatFont()
+{
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    QAction *symbol = e.win.w.act(QStringLiteral("insert.symbol"));
+    QVERIFY(symbol);
+    QString family;
+    auto insertI = [&](bool chooseFont) {
+        withDialog([&] { symbol->trigger(); }, QStringLiteral("symbolDialog"), [&](QDialog *dlg) {
+            auto *font = dlg->findChild<QComboBox *>();
+            QVERIFY(font && font->count() > 1);
+            if (chooseFont) {
+                int at = 1;
+                while (at + 1 < font->count() && (font->itemText(at) == QLatin1String("Calibri") || font->itemText(at) == QLatin1String("Arial") || font->itemText(at) == QLatin1String("Carlito"))) ++at;   // (not the cell's own)
+                font->setCurrentIndex(at);
+                family = font->currentText();
+            }
+            QTableWidget *grid = symbolGrid(dlg);
+            QVERIFY(grid);
+            QTableWidgetItem *it = grid->item(2, 9);
+            QVERIFY(it);
+            Q_EMIT grid->itemDoubleClicked(it);
+        });
+    };
+    e.select(QStringLiteral("C1"));
+    insertI(true);
+    e.key(Qt::Key_Return);
+    QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("s:helloI"));
+    const auto rich = e.win.w.session()->richOf(0, 0, 2);
+    QVERIFY(rich.has_value());
+    QCOMPARE(rich->text, QStringLiteral("helloI"));
+    QCOMPARE(rich->runs.size(), 2);
+    QCOMPARE(rich->runs[1].start, quint32(5));
+    QVERIFY(rich->runs[1].font < quint32(rich->fonts.size()));
+    QCOMPARE(rich->fonts[int(rich->runs[1].font)].name, family);
+    // (the first run is the cell's own font)
+    QCOMPARE(rich->runs[0].font, jp::office::sheet::RichRun::kCellFont);
+    e.select(QStringLiteral("C2"));
+    QTest::keyClick(e.view(), Qt::Key_A);
+    insertI(false);
+    e.key(Qt::Key_Return);
+    QCOMPARE(e.valueAt(QStringLiteral("C2")), QStringLiteral("s:aI"));
+    QVERIFY(!e.win.w.session()->richOf(0, 1, 2).has_value());
+}
+
+// The dialog has a Special Characters tab: the characters the other programs list (dashes, nonbreaking marks, quotation marks) with their names; one chosen goes into the entry.
+void CrunchEditTests::theSymbolDialogHasSpecialCharacters()
+{
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    QAction *symbol = e.win.w.act(QStringLiteral("insert.symbol"));
+    QVERIFY(symbol);
+    e.select(QStringLiteral("C1"));
+    withDialog([&] { symbol->trigger(); }, QStringLiteral("symbolDialog"), [&](QDialog *dlg) {
+        auto *table = dlg->findChild<QTableWidget *>(QStringLiteral("specialTable"));
+        QVERIFY(table);
+        QVERIFY(table->rowCount() >= 8);
+        int emDash = -1;
+        for (int r = 0; r < table->rowCount(); ++r)
+            if (table->item(r, 0)->text() == QString(QChar(0x2014))) emDash = r;
+        QVERIFY(emDash >= 0);
+        QVERIFY(!table->item(emDash, 1)->text().isEmpty());
+        Q_EMIT table->itemDoubleClicked(table->item(emDash, 0));
+    });
+    QVERIFY(e.win.w.isEditing());
+    QCOMPARE(e.win.w.cellEditor()->text(), QStringLiteral("hello") + QChar(0x2014));
+    e.key(Qt::Key_Return);
+}
+
+// A symbol can be given a shortcut key from the dialog; it is a command of the window with that key (so it shows on the Keyboard page, and Options can change it), it puts the symbol in the
+// cell as the dialog does, and a window opened later has it.
+void CrunchEditTests::aSymbolCanHaveAShortcutKey()
+{
+    const jptest::SettingGuard keys(QStringLiteral("keys/custom"), QString(), QString());
+    const jptest::SettingGuard kept(QStringLiteral("symbols/keys"), QStringList(), QStringList());
+    const QKeySequence key(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_J);
+    QString id;
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QAction *symbol = e.win.w.act(QStringLiteral("insert.symbol"));
+        QVERIFY(symbol);
+        withDialog([&] { symbol->trigger(); }, QStringLiteral("symbolDialog"), [&](QDialog *dlg) {
+            QTableWidget *grid = symbolGrid(dlg);
+            QVERIFY(grid);
+            grid->setCurrentItem(grid->item(2, 9));   // "I"
+            auto *button = dlg->findChild<QPushButton *>(QStringLiteral("symbolKeyButton"));
+            QVERIFY(button);
+            QTimer answer;
+            answer.setInterval(20);
+            QObject::connect(&answer, &QTimer::timeout, [&] {
+                auto *k = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!k || k->objectName() != QLatin1String("symbolKeyDialog")) return;
+                k->findChild<QKeySequenceEdit *>(QStringLiteral("symbolKey"))->setKeySequence(key);
+                k->accept();
+            });
+            answer.start();
+            button->click();
+        });
+        for (const QString &name : e.win.w.actionIds())
+            if (name.startsWith(QLatin1String("insert.symbolKey."))) id = name;
+        QVERIFY(!id.isEmpty());
+        QAction *a = e.win.w.act(id);
+        QCOMPARE(a->shortcut().toString(QKeySequence::NativeText), key.toString(QKeySequence::NativeText));
+        e.select(QStringLiteral("C1"));
+        a->trigger();
+        QVERIFY(e.win.w.isEditing());
+        QCOMPARE(e.win.w.cellEditor()->text(), QStringLiteral("helloI"));
+        e.key(Qt::Key_Escape);
+    }
+    EditWindow later;
+    QVERIFY(later.open(editBook()));
+    QAction *a = later.win.w.act(id);
+    QVERIFY(a);
+    QCOMPARE(a->shortcut().toString(QKeySequence::NativeText), key.toString(QKeySequence::NativeText));
 }
 
 // Enter and Shift+Enter finish and go down and up; Tab and Shift+Tab right and left; arrows, while typing over a cell, finish and move on; Escape gives the entry up and the cell is as
