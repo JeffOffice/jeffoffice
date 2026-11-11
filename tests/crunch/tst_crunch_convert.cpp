@@ -224,6 +224,14 @@ private Q_SLOTS:
         QCOMPARE(described[0].name, QStringLiteral("Bars"));
         QCOMPARE(int(described[0].kind), int(office::sheet::ObjectKind::Chart));
         QCOMPARE(int(described[1].kind), int(office::sheet::ObjectKind::Chart));
+        // (what each chart is, not only that there are two)
+        const auto bars = objects->stateOf(0, described[0].id), line = objects->stateOf(0, described[1].id);
+        QVERIFY(bars.chart && line.chart);
+        QCOMPARE(int(bars.chart->type()), int(office::ChartType::Bar));
+        QCOMPARE(int(line.chart->type()), int(office::ChartType::Line));
+        QCOMPARE(int(bars.chart->plots[0].series.size()), 1);
+        QCOMPARE(bars.chart->plots[0].series[0].valueRef, QStringLiteral("S!$B$2:$B$5"));
+        QCOMPARE(bars.chart->title.text, QStringLiteral("Sales"));
         QTRY_COMPARE(objects->layer()->count(), 2);
     }
 

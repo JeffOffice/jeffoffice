@@ -9,6 +9,7 @@
 #include "sheet/cellref.h"
 #include "sheet/odsformat.h"
 #include "sheet/odsformula.h"
+#include "sheet/xlsformula.h"
 #include "sheet/odsdraw_p.h"
 
 #include <QBuffer>
@@ -40,38 +41,73 @@ QString lengthPt(double pt) { return odsdraw::lengthText(qint64(std::llround(pt 
 
 // ---- addresses
 
-QString quoteSheet(const QString &name)
+QString quoteSheet(const QString &name) { return quoteSheetName(name); }
+
+QStringList splitOutsideQuotes(const QString &text, QChar separator)
 {
-    static const QRegularExpression plain(QStringLiteral("^[A-Za-z_][A-Za-z0-9_.]*$"));
-    if (plain.match(name).hasMatch() && !name.contains(QLatin1Char('.'))) return name;
-    QString q = name;
-    q.replace(QLatin1Char('\''), QStringLiteral("''"));
-    return QLatin1Char('\'') + q + QLatin1Char('\'');
+    QStringList parts;
+    QString part;
+    bool quoted = false;
+    for (const QChar c : text) {
+        if (c == QLatin1Char('\'')) quoted = !quoted;
+        if (c == separator && !quoted) {
+            parts << part;
+            part.clear();
+        } else {
+            part += c;
+        }
+    }
+    parts << part;
+    return parts;
 }
 
-// "Sheet1!$B$2:$B$4" or "'My Data'!B2" as the standard writes a range ("Sheet1.B2:Sheet1.B4"); empty if it is not one range of one sheet.
-QString odfRange(const QString &ref)
+// One area of the model's range ("Sheet1!$B$2:$B$4", "'My Data'!B2", "Sheet1!$B:$B", "Sheet1!3:3") as the standard writes it ("Sheet1.B2:Sheet1.B4"); empty if it is none. A whole column or row is the
+// cells of it that a sheet has.
+QString odfArea(const QString &ref)
 {
     const QString r = ref.trimmed();
-    if (r.isEmpty() || r.contains(QLatin1Char('(')) || r.contains(QLatin1Char(',')) || r.contains(QLatin1Char('['))) return QString();
     const int bang = int(r.lastIndexOf(QLatin1Char('!')));
     if (bang < 0) return QString();
     QString sheet = r.left(bang), area = r.mid(bang + 1);
+    // (only the area is looked at for what marks a formula or another book: a sheet's name may have a parenthesis in it)
+    if (area.contains(QLatin1Char('(')) || area.contains(QLatin1Char(',')) || area.contains(QLatin1Char('[')) || sheet.startsWith(QLatin1Char('[')) ) return QString();
     if (sheet.startsWith(QLatin1Char('\'')) && sheet.endsWith(QLatin1Char('\'')) && sheet.size() >= 2) sheet = sheet.mid(1, sheet.size() - 2).replace(QStringLiteral("''"), QStringLiteral("'"));
     area.remove(QLatin1Char('$'));
-    static const QRegularExpression cell(QStringLiteral("^[A-Za-z]{1,3}[0-9]+$"));
-    const QStringList ends = area.split(QLatin1Char(':'));
+    static const QRegularExpression cell(QStringLiteral("^[A-Za-z]{1,3}[0-9]+$")), column(QStringLiteral("^[A-Za-z]{1,3}$")), row(QStringLiteral("^[0-9]+$"));
+    QStringList ends = area.split(QLatin1Char(':'));
     if (ends.isEmpty() || ends.size() > 2) return QString();
+    if (ends.size() == 2 && column.match(ends[0]).hasMatch() && column.match(ends[1]).hasMatch()) {
+        ends[0] += QStringLiteral("1");
+        ends[1] += QString::number(kMaxRows);
+    } else if (ends.size() == 2 && row.match(ends[0]).hasMatch() && row.match(ends[1]).hasMatch()) {
+        ends[0] = QStringLiteral("A") + ends[0];
+        ends[1] = QStringLiteral("XFD") + ends[1];
+    }
     for (const QString &e : ends)
         if (!cell.match(e).hasMatch()) return QString();
     const QString q = quoteSheet(sheet);
     return ends.size() == 1 ? q + QLatin1Char('.') + ends[0].toUpper() : q + QLatin1Char('.') + ends[0].toUpper() + QLatin1Char(':') + q + QLatin1Char('.') + ends[1].toUpper();
 }
 
-// The model's range for the standard's ("Sheet1.B2:Sheet1.B4", "$'My Data'.$B$2:.$B$4", or "Sheet1.B2"), every cell absolute, the sheet by the name it has in the workbook; empty if it is none.
-QString xlsxRange(const QString &address, const QHash<QString, QString> *renames)
+// The model's range as the standard writes it: one area, or several ("(Sheet1!$B$2:$B$3,Sheet1!$B$4)") as areas with a space between; empty if any is none.
+QString odfRange(const QString &ref)
 {
-    const QString a = address.simplified().section(QLatin1Char(' '), 0, 0).isEmpty() ? QString() : address.trimmed();
+    QString r = ref.trimmed();
+    if (r.isEmpty()) return QString();
+    if (r.startsWith(QLatin1Char('(')) && r.endsWith(QLatin1Char(')'))) r = r.mid(1, r.size() - 2);
+    QStringList out;
+    for (const QString &part : splitOutsideQuotes(r, QLatin1Char(','))) {
+        const QString a = odfArea(part);
+        if (a.isEmpty()) return QString();
+        out << a;
+    }
+    return out.join(QLatin1Char(' '));
+}
+
+// The model's range for the standard's ("Sheet1.B2:Sheet1.B4", "$'My Data'.$B$2:.$B$4", or "Sheet1.B2"), every cell absolute, the sheet by the name it has in the workbook; empty if it is none.
+QString xlsxArea(const QString &address, const QHash<QString, QString> *renames)
+{
+    const QString a = address.trimmed();
     if (a.isEmpty() || a.startsWith(QLatin1String(kLocalTable))) return QString();
     // each end: an optional sheet (quoted or not, with an optional $), a dot, and a cell
     static const QRegularExpression end(QStringLiteral("^\\$?(?:'((?:[^']|'')+)'|([^.:'\\s]+))?\\.\\$?([A-Za-z]{1,3})\\$?([0-9]+)$"));
@@ -105,6 +141,20 @@ QString xlsxRange(const QString &address, const QHash<QString, QString> *renames
     if (sheet.isEmpty()) return QString();
     if (renames) sheet = renames->value(sheet, sheet);
     return quoteSheet(sheet) + QLatin1Char('!') + cells.join(QLatin1Char(':'));
+}
+
+// The same for the range of a series, which may be several areas with a space between.
+QString xlsxRange(const QString &address, const QHash<QString, QString> *renames)
+{
+    QStringList areas;
+    for (const QString &part : splitOutsideQuotes(address.simplified(), QLatin1Char(' '))) {
+        if (part.isEmpty()) continue;
+        const QString a = xlsxArea(part, renames);
+        if (a.isEmpty()) return QString();
+        areas << a;
+    }
+    if (areas.isEmpty()) return QString();
+    return areas.size() == 1 ? areas[0] : QLatin1Char('(') + areas.join(QLatin1Char(',')) + QLatin1Char(')');
 }
 
 // "local-table.B2:local-table.B4" as the column (from 0) and the rows (from 0, inclusive); false if it is not an address in the chart's own table.
@@ -148,10 +198,10 @@ public:
         // the plots and their series, within the limits
         struct Entry {
             const ChartPlot *plot;
-            const ChartSeries *series;
+            ChartSeries series;   // as much of it as a chart may hold
         };
         std::vector<Entry> all;
-        bool cutSeries = false, cutPoints = false;
+        bool cutSeries = false, cutSeriesPoints = false, cutChartPoints = false;
         qint64 total = 0;
         for (const ChartPlot &p : m_c.plots)
             for (const ChartSeries &s : p.series) {
@@ -159,13 +209,24 @@ public:
                     cutSeries = true;
                     continue;
                 }
-                const qint64 n = s.values.size();
-                if (n > kMaxPoints || total + std::min<qint64>(n, kMaxPoints) > kMaxPointsInChart) cutPoints = true;
-                total += std::min<qint64>(n, kMaxPoints);
-                all.push_back({&p, &s});
+                // (the points of every series count against the chart's: what is past either is not written)
+                const qint64 have = std::max<qint64>({s.values.size(), s.xValues.size(), s.categories.size()});
+                qint64 allowed = std::min<qint64>(have, kMaxPoints);
+                if (have > kMaxPoints) cutSeriesPoints = true;
+                if (total + allowed > kMaxPointsInChart) {
+                    allowed = std::max<qint64>(0, kMaxPointsInChart - total);
+                    cutChartPoints = true;
+                }
+                total += allowed;
+                ChartSeries kept = s;
+                kept.values = s.values.mid(0, int(allowed));
+                kept.xValues = s.xValues.mid(0, int(allowed));
+                kept.categories = s.categories.mid(0, int(allowed));
+                all.push_back({&p, kept});
             }
         if (cutSeries) note(QCoreApplication::translate("Sheet", "series past the %1 a chart may have").arg(kMaxSeries));
-        if (cutPoints) note(QCoreApplication::translate("Sheet", "points past the %1 a series may have").arg(kMaxPoints));
+        if (cutSeriesPoints) note(QCoreApplication::translate("Sheet", "points past the %1 a series may have").arg(kMaxPoints));
+        if (cutChartPoints) note(QCoreApplication::translate("Sheet", "points past the %1 a chart may have").arg(kMaxPointsInChart));
         const bool scatter = m_c.type() == ChartType::Scatter;
         noteWhatIsLost();
 
@@ -178,13 +239,13 @@ public:
         int col = 1;   // (column 0 holds the categories)
         QStringList categories;
         for (const Entry &e : all)
-            if (categories.isEmpty() && !e.series->categories.isEmpty()) categories = e.series->categories.mid(0, rows);
+            if (categories.isEmpty() && !e.series.categories.isEmpty()) categories = e.series.categories.mid(0, rows);
         QVector<QPair<QString, QVector<double>>> columns;   // header and numbers, from column 1
         QString firstCategoryRef;
         for (const Entry &e : all)
-            if (firstCategoryRef.isEmpty()) firstCategoryRef = odfRange(e.series->categoryRef);
+            if (firstCategoryRef.isEmpty()) firstCategoryRef = odfRange(e.series.categoryRef);
         for (const Entry &e : all) {
-            const ChartSeries &s = *e.series;
+            const ChartSeries &s = e.series;
             QString domain;
             if (scatter) {
                 QVector<double> xs = s.xValues.mid(0, rows);
@@ -258,6 +319,7 @@ private:
     QHash<QString, QString> m_named;
     QSet<QString> m_told;
     int m_count = 0, m_dataCount = 0;
+    QHash<QString, QString> m_dataOfCode;   // the data style made for each number format: made once
 
     void note(const QString &what)
     {
@@ -293,7 +355,7 @@ private:
     static qint64 longest(const T &all)
     {
         qint64 n = 0;
-        for (const auto &e : all) n = std::max<qint64>({n, e.series->values.size(), e.series->categories.size(), e.series->xValues.size()});
+        for (const auto &e : all) n = std::max<qint64>({n, e.series.values.size(), e.series.categories.size(), e.series.xValues.size()});
         return n;
     }
 
@@ -318,11 +380,19 @@ private:
     QString dataStyle(const QString &code)
     {
         if (code.isEmpty() || code == QLatin1String("General")) return QString();
+        const auto known = m_dataOfCode.constFind(code);
+        if (known != m_dataOfCode.cend()) return known.value();
         OdfDataStyles d;
-        if (m_dataCount > 200 || !odfDataStyles(code, QStringLiteral("NC%1").arg(m_dataCount + 1), &d)) return QString();
-        ++m_dataCount;
-        m_data += d.xml;
-        return d.mainName;
+        QString name;
+        if (m_dataCount >= 200) {
+            note(QCoreApplication::translate("Sheet", "number formats past the 200 a chart's document holds (they show as General)"));
+        } else if (odfDataStyles(code, QStringLiteral("NC%1").arg(m_dataCount + 1), &d)) {
+            ++m_dataCount;
+            m_data += d.xml;
+            name = d.mainName;
+        }
+        m_dataOfCode.insert(code, name);
+        return name;
     }
 
     static QString fillOf(const QColor &c, bool none)
@@ -386,7 +456,7 @@ private:
         if (p.grouping == jp::office::ChartGrouping::Stacked) s.chart += QStringLiteral(" chart:stacked=\"true\"");
         if (p.grouping == jp::office::ChartGrouping::PercentStacked) s.chart += QStringLiteral(" chart:percentage=\"true\"");
         if (p.type == ChartType::Bar) s.chart += QStringLiteral(" chart:gap-width=\"%1\" chart:overlap=\"%2\"").arg(p.gapWidth).arg(p.overlap);
-        if (p.type == ChartType::Pie || p.type == ChartType::Doughnut) s.chart += QStringLiteral(" chart:angle-offset=\"%1\"").arg(p.firstSliceAngle);
+        if (p.type == ChartType::Pie || p.type == ChartType::Doughnut) s.chart += QStringLiteral(" chart:angle-offset=\"%1\"").arg(((90 - p.firstSliceAngle) % 360 + 360) % 360);   // (counter-clockwise from three o'clock; the model counts clockwise from twelve)
         if (p.type == ChartType::Line || p.type == ChartType::Scatter) {
             s.chart += QStringLiteral(" chart:symbol-type=\"%1\"").arg(p.markers ? QStringLiteral("automatic") : QStringLiteral("none"));
             if (p.type == ChartType::Scatter) s.chart += QStringLiteral(" chart:lines=\"%1\"").arg(p.lines ? QStringLiteral("true") : QStringLiteral("false"));
@@ -538,12 +608,34 @@ private:
         for (const auto &c : columns) x += c.first.isEmpty() ? QStringLiteral("<table:table-cell/>") : QStringLiteral("<table:table-cell office:value-type=\"string\"><text:p>%1</text:p></table:table-cell>").arg(odsdraw::xmlText(c.first));
         x += QStringLiteral("</table:table-row></table:table-header-rows><table:table-rows>");
         for (int r = 0; r < rows; ++r) {
+            // (only the cells that are there: a column of a few numbers is not a column of empty cells all down the table)
+            int last = r < categories.size() && !categories[r].isEmpty() ? 0 : -1;
+            for (int c = 0; c < columns.size(); ++c)
+                if (r < columns[c].second.size() && std::isfinite(columns[c].second[r])) last = c + 1;
             x += QStringLiteral("<table:table-row>");
-            x += r < categories.size() && !categories[r].isEmpty() ? QStringLiteral("<table:table-cell office:value-type=\"string\"><text:p>%1</text:p></table:table-cell>").arg(odsdraw::xmlText(categories[r])) : QStringLiteral("<table:table-cell/>");
-            for (const auto &c : columns) {
-                if (r < c.second.size() && std::isfinite(c.second[r])) x += QStringLiteral("<table:table-cell office:value-type=\"float\" office:value=\"%1\"/>").arg(QString::number(c.second[r], 'g', 17));
-                else x += QStringLiteral("<table:table-cell/>");
+            int gap = 0;
+            auto flushGap = [&] {
+                if (gap > 0) x += gap == 1 ? QStringLiteral("<table:table-cell/>") : QStringLiteral("<table:table-cell table:number-columns-repeated=\"%1\"/>").arg(gap);
+                gap = 0;
+            };
+            for (int c = 0; c <= last; ++c) {
+                if (c == 0) {
+                    if (r < categories.size() && !categories[r].isEmpty()) {
+                        x += QStringLiteral("<table:table-cell office:value-type=\"string\"><text:p>%1</text:p></table:table-cell>").arg(odsdraw::xmlText(categories[r]));
+                    } else {
+                        ++gap;
+                    }
+                    continue;
+                }
+                const auto &col = columns[c - 1];
+                if (r < col.second.size() && std::isfinite(col.second[r])) {
+                    flushGap();
+                    x += QStringLiteral("<table:table-cell office:value-type=\"float\" office:value=\"%1\"/>").arg(QString::number(col.second[r], 'g', 17));
+                } else {
+                    ++gap;
+                }
             }
+            if (last < 0) x += QStringLiteral("<table:table-cell/>");
             x += QStringLiteral("</table:table-row>");
         }
         return x + QStringLiteral("</table:table-rows></table:table>");
@@ -680,7 +772,7 @@ public:
             const int overlap = plotProps.value(QStringLiteral("chart:chart:overlap")).toInt(&ok);
             if (ok) p.overlap = std::clamp(overlap, -100, 100);
             const int angle = plotProps.value(QStringLiteral("chart:chart:angle-offset")).toInt(&ok);
-            if (ok) p.firstSliceAngle = ((angle % 360) + 360) % 360;
+            if (ok) p.firstSliceAngle = ((90 - angle) % 360 + 360) % 360;
             p.markers = plotProps.value(QStringLiteral("chart:chart:symbol-type")) != QLatin1String("none");
             if (p.type == ChartType::Scatter) p.lines = plotProps.value(QStringLiteral("chart:chart:lines")) != QLatin1String("false");
         }
@@ -719,6 +811,7 @@ private:
         QString string;
     };
     QVector<QVector<Cell>> m_grid;
+    qint64 m_cells = 0;
     bool m_header = false;
 
     void note(const QString &what)
@@ -929,6 +1022,10 @@ private:
                 QVector<Cell> row;
                 for (const NodePtr &cell : c->children) {
                     if (cell->name != QLatin1String("table:table-cell") && cell->name != QLatin1String("table:covered-table-cell")) continue;
+                    if (row.size() >= 2 * kMaxSeries + 4) {
+                        note(QCoreApplication::translate("Sheet", "series past the %1 a chart may have").arg(kMaxSeries));
+                        break;
+                    }
                     int cols = cell->attrs.value(QStringLiteral("table:number-columns-repeated")).toInt(&ok);
                     if (!ok || cols < 1) cols = 1;
                     Cell v;
@@ -944,13 +1041,16 @@ private:
                         v.text = true;
                         v.string = textOfNode(cell).left(kChartMaxLabel * 4);
                     }
-                    for (int i = 0; i < std::min(cols, 8) && row.size() < 2 * kMaxSeries + 4; ++i) row.append(v);
+                    for (int i = 0; i < cols && row.size() < 2 * kMaxSeries + 4; ++i) row.append(v);
                 }
-                if (m_grid.size() > kMaxPoints + 1) {
-                    note(QCoreApplication::translate("Sheet", "points past the %1 a series may have").arg(kMaxPoints));
-                    return;
+                for (int i = 0; i < repeat; ++i) {
+                    if (m_grid.size() > kMaxPoints || m_cells + row.size() > kMaxPointsInChart * 2) {
+                        note(QCoreApplication::translate("Sheet", "points past the %1 a series may have").arg(kMaxPoints));
+                        return;
+                    }
+                    m_cells += row.size();
+                    m_grid.append(row);
                 }
-                for (int i = 0; i < std::min(repeat, 4) && m_grid.size() <= kMaxPoints + 1; ++i) m_grid.append(row);
                 if (inHeader) *headerRows += 1;
             }
         }
@@ -1099,7 +1199,7 @@ private:
                 const Props pp = props(sn);
                 QColor pc;
                 if (colorOf(pp.value(QStringLiteral("graphic:draw:fill-color")), &pc))
-                    for (int i = 0; i < std::min(repeat, 64) && at + i < kMaxPoints; ++i) s.pointColors.insert(at + i, pc);
+                    for (int i = 0; i < repeat && at + i < kMaxPoints; ++i) s.pointColors.insert(at + i, pc);
             }
             at += repeat;
             if (at >= kMaxPoints) break;
@@ -1130,6 +1230,7 @@ bool chartFromOdf(const QByteArray &content, const ods::StyleStore &store, const
     guard.open(QIODevice::ReadOnly);
     QXmlStreamReader xml(&guard);
     odsdraw::Counters counters;
+    counters.maxNodes = 1200000;   // (a cell for each of the points a chart may hold, and the rows they are in)
     odsdraw::NodePtr root;
     int depth = 0;
     while (!xml.atEnd()) {

@@ -18,6 +18,7 @@
 namespace jp::office::sheet::odschart {
 
 constexpr int kMaxChartsPerSheet = 200;
+constexpr int kMaxChartsPerWorkbook = 2000;
 constexpr int kMaxSeries = 255;
 constexpr int kMaxPoints = 100000;               // to a series
 constexpr qint64 kMaxPointsInChart = 400000;     // in all the series of a chart

@@ -76,6 +76,9 @@ struct Part {
 
 } // namespace
 
+QString quoteSheetName(const QString &name) { return maybeQuoted(name); }
+
+
 QString xlsErrorText(int code)
 {
     switch (code) {

@@ -15,6 +15,10 @@
 
 namespace jp::office::sheet {
 
+// A sheet's name as a formula writes it before "!": in quotes (the quote inside doubled) when it has a character a name may not, starts with a digit, is TRUE or FALSE, or looks like a cell (Q1, FY2024)
+// or a row and column in the other style (R1C1).
+QString quoteSheetName(const QString &name);
+
 // One entry of the list that formulas name sheets by (BIFF8): the supporting book and the first and last sheet of the span.
 struct XlsXti {
     int supbook = 0;

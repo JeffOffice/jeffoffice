@@ -7,6 +7,7 @@
 #include "io/zip.h"
 #include "office/chart.h"
 #include "office/chart_write.h"
+#include "office/package.h"
 #include "sheet/drawing.h"
 #include "sheet/odschart.h"
 #include "sheet/odsdraw.h"
@@ -137,6 +138,30 @@ void roundTrip(const QString &kind, const QString &title, QByteArray part = QByt
 }
 
 QString textOfTitle(const Chart &c) { return c.title.text; }
+
+// A chart document of the standard's own elements: `plot` inside the plot area, `styles` as automatic styles, of the class, and `table` after the plot area.
+QByteArray miniChart(const QString &cls, const QString &plot, const QString &styles = QString(), const QString &table = QString())
+{
+    return (QStringLiteral("<office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" "
+                           "xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" xmlns:draw=\"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0\" xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\" "
+                           "xmlns:chart=\"urn:oasis:names:tc:opendocument:xmlns:chart:1.0\"><office:automatic-styles>%3</office:automatic-styles><office:body><office:chart><chart:chart chart:class=\"%1\" svg:width=\"5cm\" svg:height=\"4cm\">"
+                           "<chart:plot-area chart:style-name=\"p1\">%2</chart:plot-area>%4</chart:chart></office:chart></office:body></office:document-content>")
+                .arg(cls, plot, styles, table)).toUtf8();
+}
+
+// An .ods with `frames` frames of charts that name Object 1, on sheets called `names`, and `inside` more shapes in each sheet.
+QByteArray odsWithObject(const QByteArray &object, int frames, const QStringList &names = {QStringLiteral("S")}, const QString &inside = QString())
+{
+    QString shape;
+    for (int i = 0; i < frames; ++i) shape += QStringLiteral("<draw:frame draw:name=\"C%1\" svg:width=\"1in\" svg:height=\"1in\" svg:x=\"0in\" svg:y=\"0in\"><draw:object xlink:href=\"./Object 1\"/></draw:frame>").arg(i);
+    QString tables;
+    for (const QString &n : names)
+        tables += QStringLiteral("<table:table table:name=\"%1\"><table:shapes>%2%3</table:shapes><table:table-column table:number-columns-repeated=\"3\"/>"
+                                 "<table:table-row><table:table-cell office:value-type=\"float\" office:value=\"7\"/></table:table-row></table:table>").arg(n, shape, inside);
+    return buildOds(contentXml(tables), QString(), QByteArray(), {{QStringLiteral("Object 1/content.xml"), object}});
+}
+
+QString allNotes(const Saved &s) { return s.report.notKept.join(QLatin1Char('|')) + QLatin1Char('|') + s.report.trimmed.join(QLatin1Char('|')); }
 
 } // namespace
 
@@ -407,20 +432,250 @@ private Q_SLOTS:
             }
         }
         {
-            // charts past the most a sheet may have
-            QString shapes;
+            // charts past the most a sheet may have: the frames count, and the Object they name is read, and kept, once
             const int count = jp::office::sheet::odschart::kMaxChartsPerSheet + 20;
-            for (int i = 0; i < count; ++i)
-                shapes += QStringLiteral("<draw:frame draw:name=\"C%1\" svg:width=\"1in\" svg:height=\"1in\" svg:x=\"0in\" svg:y=\"0in\"><draw:object xlink:href=\"./Object 1\"/></draw:frame>").arg(i);
-            const QString body = QStringLiteral("<table:table table:name=\"S\"><table:shapes>%1</table:shapes><table:table-column/><table:table-row><table:table-cell/></table:table-row></table:table>").arg(shapes);
-            const QByteArray ods = buildOds(contentXml(body), QString(), QByteArray(), {{QStringLiteral("Object 1/content.xml"), chartWith(QStringLiteral("<chart:series chart:values-cell-range-address=\"S.A1:S.A3\"/>"))}});
             Workbook wb;
             QString why;
-            QVERIFY2(openBytes(ods, QStringLiteral("many.ods"), &wb, &why), qPrintable(why));
+            const qint64 reads = odsdraw::testHooks().pictureReads.load();
+            QVERIFY2(openBytes(odsWithObject(chartWith(QStringLiteral("<chart:series chart:values-cell-range-address=\"S.A1:S.A3\"/>")), count), QStringLiteral("many.ods"), &wb, &why), qPrintable(why));
             Sheet s;
             QVERIFY2(wb.readSheet(0, &s), qPrintable(s.error));
-            QCOMPARE(int(s.importedDrawing.charts.size()), jp::office::sheet::odschart::kMaxChartsPerSheet);
+            QCOMPARE(int(s.importedDrawing.anchors.size()), jp::office::sheet::odschart::kMaxChartsPerSheet);
+            QCOMPARE(int(s.importedDrawing.charts.size()), 1);
+            QCOMPARE(odsdraw::testHooks().pictureReads.load() - reads, qint64(1));
             QVERIFY(s.importedDrawing.notRead.join(QLatin1Char('|')).contains(QLatin1String("charts")));
+        }
+    }
+
+    // The charts of a whole workbook are bounded too, whatever sheets they are on.
+    void chartsPastTheWorkbookLimitAreNamed()
+    {
+        QStringList names;
+        for (int i = 0; i < 12; ++i) names << QStringLiteral("S%1").arg(i);
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBytes(odsWithObject(miniChart(QStringLiteral("chart:bar"), QStringLiteral("<chart:series chart:values-cell-range-address=\"S0.A1:S0.A3\"/>")), 190, names), QStringLiteral("wide.ods"), &wb, &why), qPrintable(why));
+        int anchors = 0;
+        QString notes;
+        for (int i = 0; i < 12; ++i) {
+            Sheet s;
+            QVERIFY2(wb.readSheet(i, &s), qPrintable(s.error));
+            anchors += int(s.importedDrawing.anchors.size());
+            notes += s.importedDrawing.notRead.join(QLatin1Char('|'));
+        }
+        QVERIFY2(anchors <= jp::office::sheet::odschart::kMaxChartsPerWorkbook, qPrintable(QString::number(anchors)));
+        QVERIFY2(notes.contains(QStringLiteral("a workbook may have")), qPrintable(notes));
+    }
+
+    // A chart sheet has no counterpart in an .ods: the copy says so.
+    void aChartSheetIsNamedInTheCopyReport()
+    {
+        PackageWriter w;
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        w.addPart(QStringLiteral("/xl/workbook.xml"), QByteArray("<?xml version=\"1.0\"?><workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+                                                                  "<sheets><sheet name=\"Data\" sheetId=\"1\" r:id=\"rId1\"/><sheet name=\"Big chart\" sheetId=\"2\" r:id=\"rId2\"/></sheets></workbook>"),
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + "officeDocument", QStringLiteral("/xl/workbook.xml"));
+        w.addPart(QStringLiteral("/xl/worksheets/sheet1.xml"), dataSheet(), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
+        w.addRelationship(QStringLiteral("/xl/workbook.xml"), rel + "worksheet", QStringLiteral("/xl/worksheets/sheet1.xml"));
+        w.addPart(QStringLiteral("/xl/chartsheets/sheet1.xml"), QByteArray("<chartsheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><drawing r:id=\"rId1\"/></chartsheet>"),
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.chartsheet+xml"));
+        w.addRelationship(QStringLiteral("/xl/workbook.xml"), rel + "chartsheet", QStringLiteral("/xl/chartsheets/sheet1.xml"));
+        w.addPart(QStringLiteral("/xl/drawings/drawing1.xml"), drawingPart(absolute(0, 0, 9525 * 640, 9525 * 480, chartFrame(2, QStringLiteral("rId1")))), QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml"));
+        w.addRelationship(QStringLiteral("/xl/chartsheets/sheet1.xml"), rel + "drawing", QStringLiteral("/xl/drawings/drawing1.xml"));
+        w.addPart(QStringLiteral("/xl/charts/chart1.xml"), chartPart(QStringLiteral("barChart"), twoSeries()), QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"));
+        w.addRelationship(QStringLiteral("/xl/drawings/drawing1.xml"), rel + "chart", QStringLiteral("/xl/charts/chart1.xml"));
+        Saved s;
+        QString why;
+        QVERIFY2(saveAsOds(w.finish(), &s, &why), qPrintable(why));
+        QVERIFY2(allNotes(s).contains(QStringLiteral("chart sheet")), qPrintable(allNotes(s)));
+    }
+
+    // A chart in a place the reader does not look (inside a text box) is named, not hidden because the file holds chart documents.
+    void aChartInsideATextBoxIsNamed()
+    {
+        const QString box = QStringLiteral("<draw:frame draw:name=\"Box\" svg:width=\"3in\" svg:height=\"2in\" svg:x=\"0in\" svg:y=\"0in\"><draw:text-box><draw:frame svg:width=\"1in\" svg:height=\"1in\"><draw:object xlink:href=\"./Object 1\"/></draw:frame></draw:text-box></draw:frame>");
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBytes(odsWithObject(miniChart(QStringLiteral("chart:bar"), QString()), 0, {QStringLiteral("S")}, box), QStringLiteral("nested.ods"), &wb, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY2(wb.readSheet(0, &s), qPrintable(s.error));
+        QVERIFY2(s.importedDrawing.notRead.join(QLatin1Char('|')).contains(QLatin1String("inside other objects")), qPrintable(s.importedDrawing.notRead.join(QLatin1Char('|'))));
+    }
+
+    // An object that holds a formula (math) is named as one, not as a chart that could not be read.
+    void anEquationObjectIsNamedAsOne()
+    {
+        const QByteArray math = "<math:math xmlns:math=\"http://www.w3.org/1998/Math/MathML\"><math:mi>x</math:mi></math:math>";
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBytes(odsWithObject(math, 1), QStringLiteral("math.ods"), &wb, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY2(wb.readSheet(0, &s), qPrintable(s.error));
+        const QString notes = s.importedDrawing.notRead.join(QLatin1Char('|'));
+        QVERIFY2(notes.contains(QLatin1String("equations")), qPrintable(notes));
+        QVERIFY2(!notes.contains(QLatin1String("charts that could not")), qPrintable(notes));
+    }
+
+    // A sheet whose name looks like a cell (Q1) is quoted in the chart's references.
+    void sheetNamesThatLookLikeCellsAreQuoted()
+    {
+        Back b;
+        QString why;
+        const QString series = QStringLiteral("<chart:series chart:values-cell-range-address=\"Q1.B2:Q1.B4\" chart:class=\"chart:bar\"/>");
+        QVERIFY2(readBack(odsWithObject(miniChart(QStringLiteral("chart:bar"), series), 1, {QStringLiteral("Q1")}), &b, &why), qPrintable(why));
+        QCOMPARE(b.charts.size(), 1);
+        QCOMPARE(b.charts[0].plots[0].series[0].valueRef, QStringLiteral("'Q1'!$B$2:$B$4"));
+        const DrawingObject &o = b.drawing.objects[0];
+        QVERIFY(b.package.part(o.chartPart).contains("<c:f>'Q1'!$B$2:$B$4</c:f>"));
+    }
+
+    // A sheet called "Sheet1 (2)" (a copy of a sheet) keeps its link; whole columns and several ranges are written as the standard writes them.
+    void rangesWithParenthesesColumnsAndSeveralAreConverted()
+    {
+        QVector<SeriesSpec> list = {SeriesSpec{QString(), QString(), QStringLiteral("'Sheet1 (2)'!$B$2:$B$4"), QStringLiteral("Copy"), {"Q1", "Q2", "Q3"}, {1, 2, 3}, QString()},
+                                    SeriesSpec{QString(), QString(), QStringLiteral("Sheet1!$B:$B"), QStringLiteral("Column"), {"Q1", "Q2", "Q3"}, {1, 2, 3}, QString()},
+                                    SeriesSpec{QString(), QString(), QStringLiteral("(Sheet1!$B$2:$B$3,Sheet1!$B$4)"), QStringLiteral("Several"), {"Q1", "Q2", "Q3"}, {1, 2, 3}, QString()}};
+        Saved s;
+        QString why;
+        const QByteArray xlsx = bookWithDrawing({dataSheet(), dataSheet()}, drawingPart(twoCell(0, 6, 5, 20, chartFrame(2, QStringLiteral("rId1")))), {chartTarget(QStringLiteral("rId1"), 1, chartPart(QStringLiteral("barChart"), list))},
+                                                {QStringLiteral("Sheet1"), QStringLiteral("Sheet1 (2)")});
+        QVERIFY2(saveAsOds(xlsx, &s, &why), qPrintable(why));
+        const QByteArray object = s.parts.value(QStringLiteral("Object 1/content.xml"));
+        QVERIFY2(object.contains("chart:values-cell-range-address=\"'Sheet1 (2)'.B2:'Sheet1 (2)'.B4\""), object.left(3000).constData());
+        QVERIFY2(object.contains("chart:values-cell-range-address=\"Sheet1.B1:Sheet1.B1048576\""), "whole column");
+        QVERIFY2(object.contains("chart:values-cell-range-address=\"Sheet1.B2:Sheet1.B3 Sheet1.B4\""), "several ranges");
+        Back b;
+        QVERIFY2(readBack(s.ods, &b, &why), qPrintable(why));
+        QCOMPARE(b.charts.size(), 1);
+        QCOMPARE(b.charts[0].plots[0].series[0].valueRef, QStringLiteral("'Sheet1 (2)'!$B$2:$B$4"));
+        QCOMPARE(b.charts[0].plots[0].series[2].valueRef, QStringLiteral("(Sheet1!$B$2:$B$3,Sheet1!$B$4)"));
+    }
+
+    // The first slice of a pie starts where the standard says: its angle is counter-clockwise from three o'clock (90 is twelve o'clock); the model's is clockwise from twelve.
+    void aPieStartsWhereTheStandardSaysItDoes()
+    {
+        QByteArray part = chartPart(QStringLiteral("pieChart"), {twoSeries()[0]}, QStringLiteral("Slices"));
+        part.replace("</c:pieChart>", "<c:firstSliceAng val=\"30\"/></c:pieChart>");
+        Saved s;
+        QString why;
+        QVERIFY2(saveAsOds(sheetWithChart(twoCell(0, 6, 5, 20, chartFrame(2, QStringLiteral("rId1"))), part), &s, &why), qPrintable(why));
+        QVERIFY2(s.parts.value(QStringLiteral("Object 1/content.xml")).contains("chart:angle-offset=\"60\""), "30 clockwise from the top is 60 counter-clockwise from the right");
+        const QVector<QPair<QString, int>> cases = {{QStringLiteral("90"), 0}, {QStringLiteral("60"), 30}, {QStringLiteral("0"), 90}, {QStringLiteral("180"), 270}};
+        for (const auto &c : cases) {
+            Back b;
+            const QString series = QStringLiteral("<chart:series chart:values-cell-range-address=\"S.A1:S.A3\" chart:class=\"chart:circle\"/>");
+            const QString styles = QStringLiteral("<style:style style:name=\"p1\" style:family=\"chart\"><style:chart-properties chart:angle-offset=\"%1\"/></style:style>").arg(c.first);
+            QVERIFY2(readBack(odsWithObject(miniChart(QStringLiteral("chart:circle"), series, styles), 1), &b, &why), qPrintable(why));
+            QCOMPARE(b.charts.size(), 1);
+            QCOMPARE(b.charts[0].plots[0].firstSliceAngle, c.second);
+        }
+    }
+
+    // What the chart's own table repeats is kept, not cut to a few: a row repeated ten times is ten rows, a point color repeated a hundred times is a hundred points.
+    void repeatedRowsCellsAndPointsAreKept()
+    {
+        const QString table = QStringLiteral("<table:table table:name=\"local-table\"><table:table-rows><table:table-row table:number-rows-repeated=\"10\"><table:table-cell office:value-type=\"float\" office:value=\"3\" table:number-columns-repeated=\"12\"/></table:table-row></table:table-rows></table:table>");
+        const QString styles = QStringLiteral("<style:style style:name=\"d1\" style:family=\"chart\"><style:graphic-properties draw:fill-color=\"#123456\"/></style:style>");
+        const QString series = QStringLiteral("<chart:series chart:values-cell-range-address=\"local-table.A1:local-table.A10\" chart:class=\"chart:bar\"><chart:data-point chart:style-name=\"d1\" chart:repeated=\"100\"/></chart:series>");
+        Back b;
+        QString why;
+        QVERIFY2(readBack(odsWithObject(miniChart(QStringLiteral("chart:bar"), series, styles, table), 1), &b, &why), qPrintable(why));
+        QCOMPARE(b.charts.size(), 1);
+        const auto &sr = b.charts[0].plots[0].series[0];
+        QCOMPARE(int(sr.values.size()), 10);
+        QCOMPARE(int(sr.pointColors.size()), 100);
+        // (a count of a thousand million is read as far as a series may go, and the cut is named)
+        const QString huge = QStringLiteral("<table:table table:name=\"local-table\"><table:table-rows><table:table-row table:number-rows-repeated=\"1000000000\"><table:table-cell office:value-type=\"float\" office:value=\"3\"/></table:table-row></table:table-rows></table:table>");
+        Back c;
+        QVERIFY2(readBack(odsWithObject(miniChart(QStringLiteral("chart:bar"), QStringLiteral("<chart:series chart:values-cell-range-address=\"local-table.A1:local-table.A2000000\"/>"), QString(), huge), 1), &c, &why), qPrintable(why));
+        QCOMPARE(c.charts.size(), 1);
+        QVERIFY(c.charts[0].plots[0].series[0].values.size() <= jp::office::sheet::odschart::kMaxPoints);
+        QVERIFY(c.charts[0].plots[0].series[0].values.size() > 1000);
+        QVERIFY(c.sheet.importedDrawing.notRead.join(QLatin1Char('|')).contains(QLatin1String("points")));
+    }
+
+    // Series with the same number format share one data style; more different ones than a chart's document may hold are named.
+    void numberFormatsAreSharedAndCounted()
+    {
+        auto many = [](int n, const std::function<QString(int)> &format) {
+            QVector<SeriesSpec> v;
+            for (int i = 0; i < n; ++i) v << SeriesSpec{QString(), QString(), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("S%1").arg(i), {"Q1", "Q2", "Q3"}, {1, 2, 3}, QString()};
+            QByteArray part = chartPart(QStringLiteral("barChart"), v);
+            int at = 0, i = 0;
+            while ((at = int(part.indexOf("<c:cat>", at))) >= 0) {
+                const QByteArray labels = "<c:dLbls><c:numFmt formatCode=\"" + format(i++).toHtmlEscaped().toUtf8() + "\" sourceLinked=\"0\"/><c:showLegendKey val=\"0\"/><c:showVal val=\"1\"/><c:showCatName val=\"0\"/><c:showSerName val=\"0\"/><c:showPercent val=\"0\"/><c:showBubbleSize val=\"0\"/></c:dLbls>";
+                part.insert(at, labels);
+                at += int(labels.size()) + 7;
+            }
+            return part;
+        };
+        {
+            Saved s;
+            QString why;
+            QVERIFY2(saveAsOds(sheetWithChart(twoCell(0, 6, 5, 20, chartFrame(2, QStringLiteral("rId1"))), many(250, [](int) { return QStringLiteral("0.0%"); })), &s, &why), qPrintable(why));
+            const QByteArray object = s.parts.value(QStringLiteral("Object 1/content.xml"));
+            QCOMPARE(int(object.count("<number:percentage-style ")), 1);
+            QVERIFY2(!allNotes(s).contains(QStringLiteral("number formats")), qPrintable(allNotes(s)));
+        }
+        {
+            Saved s;
+            QString why;
+            QVERIFY2(saveAsOds(sheetWithChart(twoCell(0, 6, 5, 20, chartFrame(2, QStringLiteral("rId1"))), many(250, [](int i) { return QStringLiteral("0 \"n%1\"").arg(i); })), &s, &why), qPrintable(why));
+            QVERIFY2(allNotes(s).contains(QStringLiteral("number formats")), qPrintable(allNotes(s)));
+        }
+    }
+
+    // The points a chart holds are bounded in all: a chart of one long series and many short ones is written small, and one past the total for a chart is cut and named.
+    void aChartOfManyPointsWritesABoundedDocument()
+    {
+        auto series = [](int longOnes, int longLength, int shortOnes) {
+            QVector<SeriesSpec> v;
+            for (int i = 0; i < longOnes; ++i) {
+                SeriesSpec sp{QString(), QString(), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("Long%1").arg(i), {}, {}, QString()};
+                for (int k = 0; k < longLength; ++k) sp.values << double(k % 97);
+                v << sp;
+            }
+            for (int i = 0; i < shortOnes; ++i) v << SeriesSpec{QString(), QString(), QStringLiteral("Sheet1!$C$2:$C$4"), QStringLiteral("Short%1").arg(i), {}, {1, 2, 3}, QString()};
+            return v;
+        };
+        {
+            Saved s;
+            QString why;
+            QVERIFY2(saveAsOds(sheetWithChart(twoCell(0, 6, 5, 20, chartFrame(2, QStringLiteral("rId1"))), chartPart(QStringLiteral("lineChart"), series(1, jp::office::sheet::odschart::kMaxPoints, 254))), &s, &why), qPrintable(why));
+            const qint64 size = s.parts.value(QStringLiteral("Object 1/content.xml")).size();
+            QVERIFY2(size < (qint64(24) << 20), qPrintable(QString::number(size)));
+        }
+        {
+            // (a model of more points than a chart may hold, made here: the part a file can hold is smaller than that)
+            Chart model = jp::office::blankChart(jp::office::defaultTheme());
+            jp::office::ChartPlot plot;
+            plot.type = ChartType::Line;
+            for (int i = 0; i < 5; ++i) {
+                jp::office::ChartSeries sr;
+                sr.name = QStringLiteral("S%1").arg(i);
+                for (int k = 0; k < jp::office::sheet::odschart::kMaxPoints; ++k) sr.values << double(k % 97);
+                plot.series.append(sr);
+            }
+            model.plots.append(plot);
+            QStringList notes;
+            const QByteArray document = jp::office::sheet::odschart::chartToOdf(model, 4000000, 3000000, &notes);
+            QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("points past the 400000 a chart may have")), qPrintable(notes.join(QLatin1Char('|'))));
+            QVERIFY(document.size() < (qint64(60) << 20));
+            // (and what was written is read again as the points that were kept)
+            QHash<QString, QString> none;
+            jp::office::sheet::ods::StyleStore store;
+            QString why;
+            QVERIFY2(jp::office::sheet::odschart::parseStyles(document, Limits(), &store, &why), qPrintable(why));
+            Chart back;
+            QVERIFY2(jp::office::sheet::odschart::chartFromOdf(document, store, &none, &back, &why, nullptr), qPrintable(why));
+            qint64 total = 0;
+            QStringList sizes;
+            for (const auto &sr : back.plots[0].series) {
+                total += sr.values.size();
+                sizes << QString::number(sr.values.size());
+            }
+            QVERIFY2(total == jp::office::sheet::odschart::kMaxPointsInChart, qPrintable(sizes.join(QLatin1Char(' '))));
         }
     }
 

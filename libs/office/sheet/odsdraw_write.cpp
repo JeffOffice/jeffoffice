@@ -419,7 +419,7 @@ private:
         jp::office::Chart chart;
         QString why;
         if (!jp::office::readChart(m_package.part(o.chartPart), m_theme, ColorMap(), &chart, &why)) {
-            note(QCoreApplication::translate("Sheet", "charts that could not be read"));
+            note(why.isEmpty() ? QCoreApplication::translate("Sheet", "charts that could not be read") : QCoreApplication::translate("Sheet", "charts that could not be read (%1)").arg(why));
             return QString();
         }
         qint64 x = 0, y = 0, cx = 0, cy = 0;

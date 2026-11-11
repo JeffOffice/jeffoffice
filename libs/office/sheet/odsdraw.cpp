@@ -127,6 +127,15 @@ bool Budget::takeObject(qint64 limit)
     return true;
 }
 
+bool Budget::takeChart(qint64 limit)
+{
+    qint64 seen = charts.load();
+    do {
+        if (seen >= limit) return false;
+    } while (!charts.compare_exchange_weak(seen, seen + 1));
+    return true;
+}
+
 bool Budget::takeBytes(qint64 n, qint64 limit)
 {
     qint64 seen = pictureBytes.load();
@@ -195,7 +204,7 @@ bool readNode(QXmlStreamReader &xml, int depthLeft, Counters *counters, NodePtr 
     // `kept` is false for what is past a limit: it is read through and not made.
     int skipping = 0;
     {
-        const bool keep = counters->nodes < kMaxNodes;
+        const bool keep = counters->nodes < counters->maxNodes;
         if (keep) ++counters->nodes;
         else counters->over = true;
         if (!keep) ++skipping;
@@ -208,7 +217,7 @@ bool readNode(QXmlStreamReader &xml, int depthLeft, Counters *counters, NodePtr 
         const QXmlStreamReader::TokenType t = xml.readNext();
         if (t == QXmlStreamReader::StartElement) {
             if (++depth > depthLeft) return false;
-            const bool keep = !skipping && counters->nodes < kMaxNodes;
+            const bool keep = !skipping && counters->nodes < counters->maxNodes;
             if (keep) {
                 ++counters->nodes;
                 NodePtr n = begin(true);

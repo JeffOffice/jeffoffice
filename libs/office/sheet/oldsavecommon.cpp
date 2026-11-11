@@ -27,13 +27,14 @@ std::vector<Written> sheetsToWrite(const Workbook &book, int limit, int maxName,
     std::vector<Written> out;
     QSet<QString> used;
     const WorkbookInfo &info = book.info();
-    qint64 skippedKinds = 0, cut = 0, renamed = 0;
+    qint64 skippedKinds = 0, chartSheets = 0, cut = 0, renamed = 0;
     for (int place : info.order) {
         if (place < 0 || place >= info.sheets.size()) continue;
         const SheetEntry &e = info.sheets[place];
         if (e.deleted) continue;
         if (e.kind != SheetKind::Worksheet) {
-            ++skippedKinds;
+            if (e.kind == SheetKind::Chartsheet) ++chartSheets;
+            else ++skippedKinds;
             continue;
         }
         if (int(out.size()) >= limit) {
@@ -62,7 +63,8 @@ std::vector<Written> sheetsToWrite(const Workbook &book, int limit, int maxName,
         out.push_back(w);
     }
     if (report) {
-        if (skippedKinds > 0) report->notKept << QCoreApplication::translate("Sheet", "sheets that are charts, dialogs, or macros (%1)").arg(skippedKinds);
+        if (chartSheets > 0) report->notKept << QCoreApplication::translate("Sheet", "chart sheets (%1): this format has no sheet that is a chart, so the chart on each is left out; move it onto a worksheet to keep it").arg(chartSheets);
+        if (skippedKinds > 0) report->notKept << QCoreApplication::translate("Sheet", "sheets that are dialogs or macros (%1)").arg(skippedKinds);
         if (cut > 0) report->trimmed << QCoreApplication::translate("Sheet", "%1 sheets past the first %2 that the format holds").arg(cut).arg(limit);
         if (renamed > 0) report->trimmed << QCoreApplication::translate("Sheet", "%1 sheet names changed to names the format allows").arg(renamed);
     }

@@ -218,7 +218,7 @@ public:
                 true);
         *out = zip.finish();
         if (m_report) {
-            m_report->notKept = m_features.result();
+            m_report->notKept << m_features.result();   // (after what the choice of sheets said)
             if (m_formulasAsValues > 0) m_report->notKept << QCoreApplication::translate("Sheet", "%1 formulas the format cannot hold (they keep the value they came to)").arg(m_formulasAsValues);
             if (m_tablesAsValues > 0) m_report->notKept << QCoreApplication::translate("Sheet", "what-if data tables (their cells keep the numbers they hold)");
             m_report->formulas = m_formulas;

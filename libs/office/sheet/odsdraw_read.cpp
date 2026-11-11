@@ -33,7 +33,7 @@ using Props = QHash<QString, QString>;
 
 struct Placed {
     ItemPtr item;
-    QByteArray chartPart;                  // for a chart: its part (no item)
+    int chart = -1;                        // for a chart: the place of its part among those the drawing keeps (no item)
     QString name, description, title;      // for a chart: what it is called
     qint64 x = 0, y = 0, cx = 0, cy = 0;   // EMU, from the sheet's top left
     bool hasZ = false;
@@ -62,6 +62,7 @@ public:
         int order = 0;
         for (const SheetShape &s : shapes) {
             if (m_full) break;
+            m_objectsSeen += countObjects(s.node, 0);
             Placed p;
             p.order = order++;
             if (!shape(s.node, 0, s.inCell ? m_grid.columnStart(s.col) : 0, s.inCell ? m_grid.rowStart(s.row) : 0, &p)) continue;
@@ -75,6 +76,8 @@ public:
             return za < zb;
         });
         write(placed);
+        // (an embedded object in a place that is not looked in, such as a text box, is named, and is not hidden by the others that are read)
+        if (!m_full && m_objectsSeen > m_objectsHandled) m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "drawing objects inside other objects (charts among them), which are not read"));
         for (const QString &n : std::as_const(m_notRead)) m_out->notRead << n;
     }
 
@@ -84,6 +87,8 @@ private:
     const std::function<QByteArray(const QString &)> &m_parts;
     const ChartMaker &m_charts;
     int m_chartCount = 0;
+    int m_objectsSeen = 0, m_objectsHandled = 0;
+    QHash<QString, int> m_chartOfHref;   // the chart part made of each Object the frames name (-1 for one that could not be): read and kept once, whatever number of frames show it
     Budget *m_budget;
     ImportedDrawing *m_out;
     ColorScheme m_scheme;
@@ -491,9 +496,24 @@ private:
         return true;
     }
 
+    static bool isMath(const QByteArray &content)
+    {
+        const QByteArray head = content.left(4096);
+        return head.contains("math:math") || head.contains("<math ") || head.contains("MathML");
+    }
+
+    static int countObjects(const NodePtr &n, int depth)
+    {
+        if (!n || depth > 40) return 0;
+        int count = n->name == QLatin1String("draw:object") || n->name == QLatin1String("draw:object-ole") ? 1 : 0;
+        for (const NodePtr &c : n->children) count += countObjects(c, depth + 1);
+        return count;
+    }
+
     // A frame that holds a chart: its document is read into a chart part (the shared chart model), and the frame says where it is.
     bool chart(const NodePtr &frame, const NodePtr &object, qint64 ox, qint64 oy, Placed *p)
     {
+        ++m_objectsHandled;
         ShapeItem box;
         double turn = 0;
         if (!placeBox(frame, ox, oy, p, &box, &turn)) return false;
@@ -501,6 +521,11 @@ private:
             m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "charts past the %1 a sheet may have").arg(odschart::kMaxChartsPerSheet));
             return false;
         }
+        if (m_budget && !m_budget->takeChart(odschart::kMaxChartsPerWorkbook)) {
+            m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "charts past the %1 a workbook may have").arg(odschart::kMaxChartsPerWorkbook));
+            return false;
+        }
+        ++m_chartCount;
         QString path = object->attrs.value(QStringLiteral("xlink:href"));
         if (path.startsWith(QLatin1String("./"))) path.remove(0, 2);
         while (path.endsWith(QLatin1Char('/'))) path.chop(1);
@@ -508,21 +533,33 @@ private:
             m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "charts the file does not hold"));
             return false;
         }
-        const QByteArray content = m_parts(path + QStringLiteral("/content.xml"));
-        if (content.isEmpty()) {
-            m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "charts the file does not hold"));
-            return false;
+        int index = -1;
+        const auto known = m_chartOfHref.constFind(path);
+        if (known != m_chartOfHref.constEnd()) {
+            index = known.value();
+        } else {
+            // (the document is read from the package and made into a chart part once; frames that name it again share the part)
+            const QByteArray content = m_parts(path + QStringLiteral("/content.xml"));
+            if (content.isEmpty()) {
+                m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "charts the file does not hold"));
+            } else if (isMath(content)) {
+                m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "formula objects (equations), which are not read"));
+            } else {
+                QByteArray part;
+                QString why;
+                QStringList notes;
+                if (m_charts && m_charts(content, &part, &why, &notes)) {
+                    for (const QString &n : std::as_const(notes)) m_notRead.insert(n);
+                    index = int(m_out->charts.size());
+                    m_out->charts.push_back(part);
+                } else {
+                    m_notRead.insert(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Ods", "charts that could not be read") : QCoreApplication::translate("jp::office::sheet::Ods", "charts that could not be read (%1)").arg(why));
+                }
+            }
+            m_chartOfHref.insert(path, index);
         }
-        ++m_chartCount;
-        QByteArray part;
-        QString why;
-        QStringList notes;
-        if (!m_charts || !m_charts(content, &part, &why, &notes)) {
-            m_notRead.insert(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Ods", "charts that could not be read") : QCoreApplication::translate("jp::office::sheet::Ods", "charts that could not be read (%1)").arg(why));
-            return false;
-        }
-        for (const QString &n : std::as_const(notes)) m_notRead.insert(n);
-        p->chartPart = part;
+        if (index < 0) return false;
+        p->chart = index;
         p->name = frame->attrs.value(QStringLiteral("draw:name")).left(255);
         if (const NodePtr t = childOf(frame, "svg:title")) p->title = t->texts.value(0).left(1000);
         if (const NodePtr d = childOf(frame, "svg:desc")) p->description = d->texts.value(0).left(5000);
@@ -851,15 +888,14 @@ private:
         ctx.nextShapeId = 2;
         int chartNumber = 0;
         for (const Placed &p : placed) {
-            if (!p.chartPart.isEmpty()) {
+            if (p.chart >= 0) {
                 const QString id = QStringLiteral("rIdC%1").arg(chartNumber + 1);
                 const QByteArray frame = QByteArray("<xdr:graphicFrame macro=\"\"><xdr:nvGraphicFramePr><xdr:cNvPr id=\"") + QByteArray::number(100000 + chartNumber) + "\" name=\"" + xmlText(p.name).toUtf8()
                                          + "\" descr=\"" + xmlText(p.description).toUtf8() + "\" title=\"" + xmlText(p.title).toUtf8()
                                          + "\"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></xdr:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">"
                                            "<c:chart xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" r:id=\"" + id.toUtf8() + "\"/></a:graphicData></a:graphic></xdr:graphicFrame>";
                 m_out->anchors.push_back(anchorXml(anchorOf(p), frame));
-                m_out->rels.push_back({id, -1, int(m_out->charts.size())});
-                m_out->charts.push_back(p.chartPart);
+                m_out->rels.push_back({id, -1, p.chart});
                 ++chartNumber;
                 continue;
             }

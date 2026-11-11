@@ -8,7 +8,7 @@
 // at most kMaxPictureBytes and all of them kMaxPictureTotal, the text of an object at most kMaxTextChars, and the nesting of groups and of the elements read are bounded. What is past
 // a limit, and what is of a kind that is not read, is left out and named.
 //
-// Not here: charts (an embedded chart object is neither read nor written; the reader says so, as it did before).
+// Charts are the frames that hold an embedded chart object: the frame is made here, and the chart in it is read and written by odschart.h.
 
 #include "sheet/drawing.h"
 #include "sheet/cellref.h"
@@ -45,9 +45,10 @@ constexpr qint64 kMaxNodeChars = 90000000;   // and the characters in them (the 
 
 // What one workbook's reading has taken so far (the sheets are read apart, by any thread).
 struct Budget {
-    std::atomic<qint64> objects{0}, pictureBytes{0};
+    std::atomic<qint64> objects{0}, pictureBytes{0}, charts{0};
     // One more object, or `n` more bytes of pictures, if that stays within the limit (taken and counted in one step, so that sheets read on several threads can't pass it together).
     bool takeObject(qint64 limit);
+    bool takeChart(qint64 limit);
     bool takeBytes(qint64 n, qint64 limit);
 };
 
@@ -105,6 +106,7 @@ using NodePtr = std::shared_ptr<Node>;
 struct Counters {
     int nodes = 0;
     qint64 chars = 0;
+    int maxNodes = kMaxNodes;   // the most elements it keeps (a chart's table has a cell for each point)
     bool over = false;   // more was in the element than the limits let be kept
 };
 
