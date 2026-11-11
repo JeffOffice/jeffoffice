@@ -131,7 +131,7 @@ bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, Q
         v->addWidget(cut);
     }
     if (parts > 1) {
-        auto *many = plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "The text is sent in %1 parts: a tab of your web browser opens for each.").arg(parts), &dlg));
+        auto *many = plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "The text is sent in %n part(s): a tab of your web browser opens for each.", nullptr, parts), &dlg));
         many->setObjectName(QStringLiteral("translateBatchNote"));
         many->setWordWrap(true);
         v->addWidget(many);
