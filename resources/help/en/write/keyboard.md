@@ -37,7 +37,7 @@ If another command already has the keys you pressed, JeffWrite says which one. C
 
 **Reset One** puts back the usual keys of the chosen command. **Reset All** puts back the usual keys of every command. JeffWrite keeps only the commands whose keys you changed, so a command you never changed gets any better keys a later version gives it.
 
-Some keys cannot be given to a command, because the system or typing needs them. JeffWrite says **reserved** when you press one. The reserved keys are **Ctrl+C**, **Ctrl+X**, **Ctrl+V**, **Ctrl+Z**, **Ctrl+A**, **Tab**, **Shift+Tab**, **Enter**, **Esc**, **Backspace**, **Delete**, **Alt+F4**, the arrow, **Home**, **End**, **Page Up**, **Page Down**, and **Space** keys, and a letter, digit, or symbol key pressed alone or with **Shift**. On a Mac, **Ctrl** here means the **Command** key.
+Some keys cannot be given to a command, because the system or typing needs them. JeffWrite says **reserved** when you press one. The reserved keys are **Ctrl+C**, **Ctrl+X**, **Ctrl+V**, **Ctrl+Z**, **Ctrl+A**, **Tab**, **Shift+Tab**, **Enter**, **Esc**, **Backspace**, **Delete**, **Alt+F4**, the arrow, **Home**, **End**, **Page Up**, **Page Down**, and **Space** keys, **F1**, **F6**, **Shift+F6**, **Ctrl+Y**, **Ctrl+Shift+Z**, **Ctrl** with an arrow, **Home**, **End**, **Backspace**, or **Delete** (with or without **Shift**, where that makes sense in a text box), and a letter, digit, or symbol key pressed alone or with **Shift**. A key that another part of the window already uses is reserved too. **Save**, **Undo**, and **Redo** always keep at least one key. On a Mac, **Ctrl** here means the **Command** key.
 
 ## All the shortcuts
 

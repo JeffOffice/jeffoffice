@@ -4,6 +4,7 @@
 
 #include "app/chartedit.h"
 #include "app/appfuncs.h"
+#include "app/keymap.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -1085,8 +1086,9 @@ void MainWindow::refreshUi()
 
     act("edit.undo")->setEnabled(ed->undoStack()->canUndo() || editing);
     act("edit.redo")->setEnabled(ed->undoStack()->canRedo());
-    act("edit.undo")->setToolTip(jp::plainToolTip(tr("Undo %1 (Ctrl+Z)").arg(ed->undoStack()->undoText())));
-    act("edit.redo")->setToolTip(jp::plainToolTip(tr("Redo %1 (Ctrl+Y)").arg(ed->undoStack()->redoText())));
+    // (each shows the key the command has now, which Options > Customize can change)
+    act("edit.undo")->setToolTip(jp::plainToolTip(KeyMap::tipWithShownKey(tr("Undo %1 (Ctrl+Z)").arg(ed->undoStack()->undoText()), QStringLiteral("Ctrl+Z"), act("edit.undo"))));
+    act("edit.redo")->setToolTip(jp::plainToolTip(KeyMap::tipWithShownKey(tr("Redo %1 (Ctrl+Y)").arg(ed->undoStack()->redoText()), QStringLiteral("Ctrl+Y"), act("edit.redo"))));
     act("pd.extraContent")->setEnabled(!d->extra.empty());
     for (const char *id : {"edit.cut", "edit.copy", "edit.duplicate", "edit.delete"}) act(id)->setEnabled(sel || (editing && ed->cursor().hasSelection()));
     for (const char *id : {"arr.front", "arr.forward", "arr.backward", "arr.back", "arr.rotR", "arr.rotL", "arr.flipH", "arr.flipV", "obj.format", "obj.lock"})

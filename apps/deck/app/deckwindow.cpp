@@ -216,6 +216,7 @@ QAction *DeckWindow::mk(const QString &id, const QString &text, const QString &i
         fn();
     });
     m_actions.insert(id, a);
+    KeyMap::applyLater(this, a);
     return a;
 }
 
@@ -303,8 +304,9 @@ void DeckWindow::refreshUi()
     act("slide.hide")->setChecked(n && d->pages[std::clamp(ed->currentPage(), 0, n - 1)]->hidden);
     act("edit.undo")->setEnabled(ed->undoStack()->canUndo());
     act("edit.redo")->setEnabled(ed->undoStack()->canRedo());
-    act("edit.undo")->setToolTip(jp::plainToolTip(tr("Undo %1 (Ctrl+Z)").arg(ed->undoStack()->undoText())));
-    act("edit.redo")->setToolTip(jp::plainToolTip(tr("Redo %1 (Ctrl+Y)").arg(ed->undoStack()->redoText())));
+    // (each shows the key the command has now, which Options > Customize can change)
+    act("edit.undo")->setToolTip(jp::plainToolTip(KeyMap::tipWithShownKey(tr("Undo %1 (Ctrl+Z)").arg(ed->undoStack()->undoText()), QStringLiteral("Ctrl+Z"), act("edit.undo"))));
+    act("edit.redo")->setToolTip(jp::plainToolTip(KeyMap::tipWithShownKey(tr("Redo %1 (Ctrl+Y)").arg(ed->undoStack()->redoText()), QStringLiteral("Ctrl+Y"), act("edit.redo"))));
 
     // What the selection lets the text and drawing commands do.
     const QString kind = ed->selectionKind();

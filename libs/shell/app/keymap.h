@@ -68,6 +68,14 @@ public:
     // malformed keys, reserved keys, and more than the cap of entries in the settings are ignored.
     static void apply(AppWindow *win);
 
+    // A command made after the window was up (a part of the window built when first used): it takes its saved keys. Call it with each new command.
+    static void applyLater(AppWindow *win, QAction *a);
+
+    // The key a command shows now, as text (its first key; empty when it has none): for a tooltip a window writes at each change ("Undo typing (Ctrl+Z)").
+    static QString shownKey(const QAction *a);
+    // `tip` written for the command's own key `oldKey`, with the key it has now: the "(oldKey)" at the end of the tip is made that key's, or taken off when it has none.
+    static QString tipWithShownKey(const QString &tip, const QString &oldKey, const QAction *a);
+
     static constexpr int kMaxEntries = 2000;
     static constexpr int kMaxKeysPerCommand = 4;
 
@@ -75,6 +83,7 @@ private:
     AppWindow *m_win;
     QList<KeyCommand> m_commands;
     QHash<QString, int> m_index;
+    QList<QKeySequence> m_foreign;   // keys in use that the page does not list: the window's own shortcuts and commands with no name
 };
 
 } // namespace jp

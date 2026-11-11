@@ -1,3 +1,5 @@
+#include "app/keymap.h"
+#include <QScopeGuard>
 // JeffDeck's tests of the window: ribbon, help, status bar, headers and footers, backgrounds, the slide menu, and find.
 #include "deckhelpers.h"
 #include "../withdialog.h"
@@ -2258,6 +2260,28 @@ private Q_SLOTS:
         probe.show();
         QTest::keyClick(&probe, Qt::Key_Escape);   // (the keys of the program go through the filters of the program, and the closed window's is not among them)
         QCoreApplication::processEvents();
+    }
+    // Options > Customize > Keyboard: a custom key for Redo is what the Redo tooltip shows after the window rewrites it, and the tooltips it wrote are not undone by a change of another command's keys.
+    void aCustomRedoKeyShowsInTheTooltip()
+    {
+        using namespace jp;
+        const auto cleanup = qScopeGuard([] { Settings::get().setValue(QStringLiteral("keys/custom"), QString()); });
+        Settings::get().setValue(QStringLiteral("keys/custom"), QString());
+        DeckWindow w;
+        w.refreshNow();
+        QVERIFY(w.act(QStringLiteral("edit.redo"))->toolTip().endsWith(QStringLiteral("(%1)").arg(KeyMap::shownKey(w.act(QStringLiteral("edit.redo"))))));
+        const QString undoTip = w.act(QStringLiteral("edit.undo"))->toolTip();
+        const QKeySequence key(Qt::CTRL | Qt::ALT | Qt::Key_9);
+        KeyMap map(&w);
+        QCOMPARE(int(map.add(QStringLiteral("edit.redo"), key).status), int(KeyMap::Add::Added));
+        QCOMPARE(int(map.add(QStringLiteral("edit.selectAll"), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_8)).status), int(KeyMap::Add::Added));
+        map.save();
+        map.applyAll();
+        QCOMPARE(w.act(QStringLiteral("edit.undo"))->toolTip(), undoTip);   // (a tooltip the window wrote is left as it is)
+        w.refreshNow();   // (the window rewrites them at each change)
+        const QString shown = key.toString(QKeySequence::NativeText);
+        QVERIFY2(w.act(QStringLiteral("edit.redo"))->toolTip().endsWith(QStringLiteral("(%1)").arg(shown)), qPrintable(w.act(QStringLiteral("edit.redo"))->toolTip()));
+        QVERIFY(!w.act(QStringLiteral("edit.redo"))->toolTip().contains(QStringLiteral("Ctrl+Y")));
     }
 };
 

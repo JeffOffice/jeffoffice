@@ -8,7 +8,9 @@
 
 #include <QAction>
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QJsonObject>
+#include <QShortcut>
 #include <QtTest>
 
 using namespace jp;
@@ -25,7 +27,16 @@ public:
         mk(QStringLiteral("test.two"), QStringLiteral("Two Keys"), QKeySequence(Qt::CTRL | Qt::Key_2));
         act(QStringLiteral("test.two"))->setShortcuts({QKeySequence(Qt::CTRL | Qt::Key_2), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_2)});
         mk(QStringLiteral("edit.undo"), QStringLiteral("Undo"), QKeySequence(Qt::CTRL | Qt::Key_Z));
+        mk(QStringLiteral("file.save"), QStringLiteral("Save"), QKeySequence(Qt::CTRL | Qt::Key_S));
+        // a key with no name to list it by, and a key the window's own shortcut takes
+        mk(QStringLiteral("test.unnamed"), QString(), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_9));
+        new QShortcut(QKeySequence(Qt::Key_F6), this);
         KeyMap::apply(this);
+    }
+    // A command made after the window is up, as a lazily built part of an app does.
+    void addLater(const QString &id, const QString &text)
+    {
+        KeyMap::applyLater(this, mk(id, text, QKeySequence()));
     }
     QAction *act(const QString &id) const override { return m_actions.value(id); }
     QStringList actionIds() const override
@@ -38,7 +49,7 @@ public:
 
 private:
     // As the apps make a command: the key, and the tooltip that names it.
-    void mk(const QString &id, const QString &text, const QKeySequence &key)
+    QAction *mk(const QString &id, const QString &text, const QKeySequence &key)
     {
         auto *a = new QAction(text, this);
         a->setObjectName(id);
@@ -49,8 +60,28 @@ private:
             addAction(a);
         }
         m_actions.insert(id, a);
+        return a;
     }
     QHash<QString, QAction *> m_actions;
+};
+
+// A window of the same app that has only some of the commands.
+class SmallWindow : public AppWindow {
+public:
+    SmallWindow()
+    {
+        m_bold = new QAction(QStringLiteral("Bold"), this);
+        m_bold->setObjectName(QStringLiteral("test.bold"));
+        m_bold->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_B));
+        addAction(m_bold);
+        KeyMap::apply(this);
+    }
+    QAction *act(const QString &id) const override { return id == QLatin1String("test.bold") ? m_bold : nullptr; }
+    QStringList actionIds() const override { return {QStringLiteral("test.bold")}; }
+    Ribbon *ribbon() const override { return nullptr; }
+
+private:
+    QAction *m_bold;
 };
 
 QKeySequence k(const char *portable) { return QKeySequence::fromString(QString::fromLatin1(portable), QKeySequence::PortableText); }
@@ -86,7 +117,7 @@ private Q_SLOTS:
         QVERIFY(map.add(QStringLiteral("test.bold"), k("Ctrl+Shift+B")).status == KeyMap::Add::Added);
         map.save();
         map.applyAll();
-        QCOMPARE(keysOf(w.act(QStringLiteral("test.bold"))), (QStringList{QStringLiteral("Ctrl+B"), QStringLiteral("Ctrl+Shift+B")}));
+        QCOMPARE(keysOf(w.act(QStringLiteral("test.bold"))), (QStringList{QStringLiteral("Ctrl+Shift+B"), QStringLiteral("Ctrl+B")}));
         // a key it has already
         QCOMPARE(int(map.add(QStringLiteral("test.bold"), k("Ctrl+B")).status), int(KeyMap::Add::Already));
         // removing one
@@ -126,6 +157,8 @@ private Q_SLOTS:
         QVERIFY(map.anyChanged());
         map.resetOne(QStringLiteral("test.bold"));
         QCOMPARE(map.command(QStringLiteral("test.bold"))->keys, QList<QKeySequence>{k("Ctrl+B")});
+        // (the key it had taken from Italic goes back to Italic)
+        QCOMPARE(map.command(QStringLiteral("test.italic"))->keys, QList<QKeySequence>{k("Ctrl+I")});
         QCOMPARE(map.command(QStringLiteral("test.plain"))->keys, QList<QKeySequence>{k("Ctrl+Shift+P")});
         map.resetAll();
         QVERIFY(!map.anyChanged());
@@ -151,21 +184,21 @@ private Q_SLOTS:
         }
         KeyWindow second;   // (applies the saved keys as it starts)
         QCOMPARE(keysOf(second.act(QStringLiteral("test.plain"))), QStringList{QStringLiteral("Ctrl+Shift+P")});
-        QCOMPARE(keysOf(second.act(QStringLiteral("test.two"))), (QStringList{QStringLiteral("Ctrl+2"), QStringLiteral("Ctrl+Shift+2")}));
+        QCOMPARE(keysOf(second.act(QStringLiteral("test.two"))), (QStringList{QStringLiteral("Ctrl+Shift+2"), QStringLiteral("Ctrl+2")}));
         // an open window takes a later change too
         KeyMap map(&second);
         map.add(QStringLiteral("test.italic"), k("Ctrl+Shift+J"));
         map.save();
         map.applyAll();
-        QCOMPARE(keysOf(first.act(QStringLiteral("test.italic"))), (QStringList{QStringLiteral("Ctrl+I"), QStringLiteral("Ctrl+Shift+J")}));
-        QCOMPARE(keysOf(second.act(QStringLiteral("test.italic"))), (QStringList{QStringLiteral("Ctrl+I"), QStringLiteral("Ctrl+Shift+J")}));
+        QCOMPARE(keysOf(first.act(QStringLiteral("test.italic"))), (QStringList{QStringLiteral("Ctrl+Shift+J"), QStringLiteral("Ctrl+I")}));
+        QCOMPARE(keysOf(second.act(QStringLiteral("test.italic"))), (QStringList{QStringLiteral("Ctrl+Shift+J"), QStringLiteral("Ctrl+I")}));
     }
 
     void reservedKeysAreRefused()
     {
-        for (const char *key : {"Ctrl+C", "Ctrl+V", "Ctrl+X", "Ctrl+Z", "Ctrl+A", "Tab", "Shift+Tab", "Return", "Escape", "Backspace", "Delete", "Left", "Shift+End", "Space", "B", "Shift+7"})
+        for (const char *key : {"Ctrl+C", "Ctrl+V", "Ctrl+X", "Ctrl+Z", "Ctrl+A", "Tab", "Shift+Tab", "Return", "Escape", "Backspace", "Delete", "Left", "Shift+End", "Space", "B", "Shift+7", "Ctrl+Left", "Ctrl+Shift+Right", "Ctrl+Home", "Ctrl+Shift+End", "Ctrl+Backspace", "Ctrl+Delete", "Ctrl+Y", "Ctrl+Shift+Z", "F6", "Shift+F6", "F1"})
             QVERIFY2(KeyMap::isReserved(k(key)), key);
-        for (const char *key : {"Ctrl+B", "Ctrl+Shift+Z", "F5", "Alt+Left", "Ctrl+Left", "Ctrl+Alt+7", "Ctrl+Return"})
+        for (const char *key : {"Ctrl+B", "Ctrl+Shift+Y", "F5", "Alt+Left", "Ctrl+Up", "Ctrl+Alt+7", "Ctrl+Return"})
             QVERIFY2(!KeyMap::isReserved(k(key)), key);
         QVERIFY(!KeyMap::reservedList().isEmpty());
         KeyWindow w;
@@ -195,7 +228,6 @@ private Q_SLOTS:
             setSaved(json);
             KeyWindow w;   // (must not crash, warn, or take a hostile file's word)
             const QString what = QString::fromUtf8(json);
-            QCOMPARE_NE(keysOf(w.act(QStringLiteral("test.bold"))), QStringList{QStringLiteral("nonsense")});
             QVERIFY2(!keysOf(w.act(QStringLiteral("test.bold"))).contains(QStringLiteral("Ctrl+Nonsense+")), qPrintable(what));
             QVERIFY2(w.act(QStringLiteral("test.bold"))->shortcuts().size() <= KeyMap::kMaxKeysPerCommand, qPrintable(what));
             QVERIFY2(w.act(QStringLiteral("no.such")) == nullptr, qPrintable(what));
@@ -214,13 +246,20 @@ private Q_SLOTS:
             QCOMPARE(keysOf(w.act(QStringLiteral("test.bold"))), QStringList{QStringLiteral("Ctrl+B")});
             QCOMPARE(keysOf(w.act(QStringLiteral("test.italic"))), QStringList{QStringLiteral("Ctrl+I")});
         }
-        // too many entries: the extra are left, and the window still starts
+        // too many entries: the ones past the cap are left, and the window still starts
         QJsonObject many;
-        for (int i = 0; i < KeyMap::kMaxEntries + 500; ++i) many.insert(QStringLiteral("junk.%1").arg(i), QJsonArray{QStringLiteral("Ctrl+Shift+Q")});
-        many.insert(QStringLiteral("zzz.last"), QJsonArray{QStringLiteral("Ctrl+Shift+P")});
+        for (int i = 0; i < KeyMap::kMaxEntries; ++i) many.insert(QStringLiteral("a.junk.%1").arg(i, 5, 10, QLatin1Char('0')), QJsonArray{QStringLiteral("Ctrl+Shift+Q")});
+        many.insert(QStringLiteral("test.bold"), QJsonArray{QStringLiteral("Ctrl+Shift+B")});   // (the entry after the last that is counted)
         setSaved(QJsonDocument(many).toJson(QJsonDocument::Compact));
         KeyWindow w;
         QCOMPARE(keysOf(w.act(QStringLiteral("test.bold"))), QStringList{QStringLiteral("Ctrl+B")});
+        // (and one inside the cap is taken)
+        many = QJsonObject();
+        for (int i = 0; i < KeyMap::kMaxEntries - 1; ++i) many.insert(QStringLiteral("a.junk.%1").arg(i, 5, 10, QLatin1Char('0')), QJsonArray{QStringLiteral("Ctrl+Shift+Q")});
+        many.insert(QStringLiteral("test.bold"), QJsonArray{QStringLiteral("Ctrl+Shift+B")});
+        setSaved(QJsonDocument(many).toJson(QJsonDocument::Compact));
+        KeyWindow inside;
+        QCOMPARE(keysOf(inside.act(QStringLiteral("test.bold"))), QStringList{QStringLiteral("Ctrl+Shift+B")});
         // too many keys for one command
         setSaved(R"({"test.plain": ["Ctrl+Shift+1","Ctrl+Shift+2","Ctrl+Shift+3","Ctrl+Shift+4","Ctrl+Shift+5","Ctrl+Shift+6"]})");
         KeyWindow capped;
@@ -231,12 +270,95 @@ private Q_SLOTS:
         QCOMPARE(keysOf(mixed.act(QStringLiteral("test.plain"))), QStringList{QStringLiteral("Ctrl+Shift+P")});
     }
 
+    void saveKeepsTheKeysOfCommandsThisWindowLacks()
+    {
+        setSaved(R"({"other.command": ["Ctrl+Shift+Q"], "test.italic": ["Ctrl+Shift+J"]})");
+        KeyWindow w;
+        KeyMap map(&w);
+        map.add(QStringLiteral("test.plain"), k("Ctrl+Shift+P"));
+        map.resetOne(QStringLiteral("test.italic"));
+        map.save();
+        const QJsonObject saved = QJsonDocument::fromJson(Settings::get().value(QStringLiteral("keys/custom")).toString().toUtf8()).object();
+        QCOMPARE(saved.keys(), (QStringList{QStringLiteral("other.command"), QStringLiteral("test.plain")}));
+        QCOMPARE(saved[QStringLiteral("other.command")].toArray().at(0).toString(), QStringLiteral("Ctrl+Shift+Q"));
+    }
+
+    void everyWindowOfTheAppTakesTheKeysWhateverItsClass()
+    {
+        KeyWindow w;
+        SmallWindow small;   // (another kind of window, with one of the commands)
+        KeyMap map(&w);
+        map.remove(QStringLiteral("test.bold"), k("Ctrl+B"));
+        map.add(QStringLiteral("test.bold"), k("Ctrl+Shift+B"));
+        map.add(QStringLiteral("test.italic"), k("Ctrl+Shift+J"));
+        map.save();
+        map.applyAll();
+        QCOMPARE(keysOf(small.act(QStringLiteral("test.bold"))), QStringList{QStringLiteral("Ctrl+Shift+B")});
+        QCOMPARE(keysOf(w.act(QStringLiteral("test.bold"))), QStringList{QStringLiteral("Ctrl+Shift+B")});
+    }
+
+    void aTooltipTheWindowWritesItselfIsLeftAlone()
+    {
+        KeyWindow w;
+        QAction *undo = w.act(QStringLiteral("edit.undo"));
+        undo->setToolTip(QStringLiteral("Undo typing (Ctrl+Z)"));   // (what a window writes at each change)
+        KeyMap map(&w);
+        map.add(QStringLiteral("test.plain"), k("Ctrl+Shift+P"));
+        map.save();
+        map.applyAll();
+        QCOMPARE(undo->toolTip(), QStringLiteral("Undo typing (Ctrl+Z)"));
+        QCOMPARE(KeyMap::shownKey(w.act(QStringLiteral("test.bold"))), native(k("Ctrl+B")));
+        QCOMPARE(KeyMap::shownKey(w.act(QStringLiteral("test.plain"))), native(k("Ctrl+Shift+P")));
+        const QString old = QStringLiteral("Redo x (Ctrl+Y)");
+        QCOMPARE(KeyMap::tipWithShownKey(old, QStringLiteral("Ctrl+Y"), w.act(QStringLiteral("test.bold"))), QStringLiteral("Redo x (%1)").arg(native(k("Ctrl+B"))));
+        // (a command with no key shows none; a tip that does not end in the key is left as it is)
+        clearSaved();
+        KeyWindow bare;
+        QCOMPARE(KeyMap::tipWithShownKey(old, QStringLiteral("Ctrl+Y"), bare.act(QStringLiteral("test.plain"))), QStringLiteral("Redo x"));
+        QCOMPARE(KeyMap::tipWithShownKey(QStringLiteral("Redo x"), QStringLiteral("Ctrl+Y"), bare.act(QStringLiteral("test.bold"))), QStringLiteral("Redo x"));
+    }
+
+    void keysTheMapDoesNotKnowAreInUse()
+    {
+        KeyWindow w;
+        KeyMap map(&w);
+        // the window's own shortcut (F6), and a command with no name to list it by
+        QCOMPARE(int(map.add(QStringLiteral("test.plain"), k("F6"), true).status), int(KeyMap::Add::Reserved));
+        QCOMPARE(int(map.add(QStringLiteral("test.plain"), k("Ctrl+Shift+9"), true).status), int(KeyMap::Add::Reserved));
+        QVERIFY(map.command(QStringLiteral("test.plain"))->keys.isEmpty());
+        // and a settings file cannot give them away
+        setSaved(R"({"test.plain": ["F6", "Ctrl+Shift+9"]})");
+        KeyWindow other;
+        QVERIFY(other.act(QStringLiteral("test.plain"))->shortcuts().isEmpty());
+    }
+
+    void saveUndoAndRedoKeepAKey()
+    {
+        KeyWindow w;
+        KeyMap map(&w);
+        QVERIFY(map.add(QStringLiteral("file.save"), k("Ctrl+Shift+S")).status == KeyMap::Add::Added);
+        QVERIFY(map.remove(QStringLiteral("file.save"), k("Ctrl+S")));   // (another key is left)
+        QVERIFY(!map.remove(QStringLiteral("file.save"), k("Ctrl+Shift+S")));   // (the last is kept)
+        QCOMPARE(map.command(QStringLiteral("file.save"))->keys, QList<QKeySequence>{k("Ctrl+Shift+S")});
+        QVERIFY(!map.remove(QStringLiteral("edit.undo"), k("Ctrl+Z")));
+    }
+
+    void aCommandMadeLaterTakesTheSavedKeys()
+    {
+        setSaved(R"({"test.late": ["Ctrl+Shift+L"]})");
+        KeyWindow w;
+        QVERIFY(w.act(QStringLiteral("test.late")) == nullptr);
+        w.addLater(QStringLiteral("test.late"), QStringLiteral("Late"));
+        QCOMPARE(keysOf(w.act(QStringLiteral("test.late"))), QStringList{QStringLiteral("Ctrl+Shift+L")});
+        QCOMPARE(w.act(QStringLiteral("test.late"))->toolTip(), QStringLiteral("Late (%1)").arg(native(k("Ctrl+Shift+L"))));
+    }
+
     void tooltipsShowTheNewKey()
     {
         KeyWindow w;
         QAction *bold = w.act(QStringLiteral("test.bold")), *plain = w.act(QStringLiteral("test.plain"));
         QCOMPARE(bold->toolTip(), QStringLiteral("Bold (%1)").arg(native(k("Ctrl+B"))));
-        QVERIFY(plain->toolTip().isEmpty() || !plain->toolTip().contains(QLatin1Char('(')));
+        QCOMPARE(plain->toolTip(), QStringLiteral("Plain"));   // (no key: the name alone)
         KeyMap map(&w);
         map.add(QStringLiteral("test.plain"), k("Ctrl+Shift+P"));
         map.remove(QStringLiteral("test.bold"), k("Ctrl+B"));

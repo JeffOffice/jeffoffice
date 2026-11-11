@@ -283,6 +283,7 @@ QAction *MainWindow::mk(const QString &id, const QString &text, const QString &i
     });
     addAction(a);
     m_actions.insert(id, a);
+    KeyMap::applyLater(this, a);   // (a command made after the window is up takes its saved keys)
     return a;
 }
 

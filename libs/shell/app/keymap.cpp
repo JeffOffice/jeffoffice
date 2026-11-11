@@ -12,6 +12,7 @@
 #include <QJsonObject>
 #include <QMenu>
 #include <QSet>
+#include <QShortcut>
 #include <QToolButton>
 #include <algorithm>
 #include <functional>
@@ -24,6 +25,7 @@ namespace {
 const char *const kSetting = "keys/custom";
 const char *const kDefaultKeys = "jpDefaultKeys";   // the command's own keys, noted before any custom key changes them
 const char *const kTipOrig = "jpTipOrig";           // the tooltip as the window made it
+const char *const kApplied = "jpKeysApplied";         // set on a window once it has applied the saved keys
 const char *const kTipBase = "jpTipBase";           // the command's tooltip without the keys
 
 QString commandText(const QAction *a)
@@ -80,26 +82,43 @@ void showKeysInTooltip(QAction *a, const QList<QKeySequence> &keys)
     else a->setToolTip(plainToolTip(QCoreApplication::translate("KeyMap", "%1 (%2)").arg(QString(base).remove(QLatin1Char('&')), key)));
 }
 
-void setKeys(AppWindow *win, QAction *a, const QList<QKeySequence> &keys)
+void setKeys(AppWindow *win, QAction *a, const QList<QKeySequence> &keys, const QSet<QAction *> &inWindow)
 {
     capture(a);
     if (a->shortcuts() != keys) a->setShortcuts(keys);
     if (!keys.isEmpty()) {
         a->setShortcutContext(Qt::WindowShortcut);
-        if (!win->actions().contains(a)) win->addAction(a);   // (a command that had no key was not added to the window)
+        if (!inWindow.contains(a)) win->addAction(a);   // (a command that had no key was not added to the window)
     }
     showKeysInTooltip(a, keys);
+}
+
+QSet<QAction *> actionsOf(const AppWindow *win)
+{
+    const QList<QAction *> list = win->actions();
+    return QSet<QAction *>(list.begin(), list.end());
+}
+
+// The saved text as the object it holds (empty when it is not one).
+QJsonObject savedObject()
+{
+    const QByteArray json = Settings::get().value(QLatin1String(kSetting)).toString().left(1 << 20).toUtf8();
+    if (json.isEmpty()) return {};
+    const QJsonDocument doc = QJsonDocument::fromJson(json);
+    return doc.isObject() ? doc.object() : QJsonObject();
+}
+
+QSet<QString> idsOf(const AppWindow *win)
+{
+    const QStringList ids = win->actionIds();
+    return QSet<QString>(ids.begin(), ids.end());
 }
 
 // The saved differences: id -> keys, read with every check a file that is not to be trusted needs. `ids` are the commands the window has; entries beyond the cap are left.
 QHash<QString, QList<QKeySequence>> readSaved(const QSet<QString> &ids)
 {
     QHash<QString, QList<QKeySequence>> out;
-    const QByteArray json = Settings::get().value(QLatin1String(kSetting)).toString().left(1 << 20).toUtf8();
-    if (json.isEmpty()) return out;
-    const QJsonDocument doc = QJsonDocument::fromJson(json);
-    if (!doc.isObject()) return out;
-    const QJsonObject o = doc.object();
+    const QJsonObject o = savedObject();
     int seen = 0;
     for (auto it = o.begin(); it != o.end(); ++it) {
         if (++seen > KeyMap::kMaxEntries) break;
@@ -168,9 +187,13 @@ KeyMap::KeyMap(AppWindow *win, bool withRibbon) : m_win(win)
     QSet<QString> done;
     for (const QString &id : win->actionIds()) {
         QAction *a = win->act(id);
-        if (!a || a->menu() || done.contains(id)) continue;
+        if (!a || done.contains(id)) continue;
         const QString text = commandText(a);
-        if (text.isEmpty()) continue;
+        if (a->menu() || text.isEmpty()) {
+            // (a command the page does not list still has its keys in use)
+            for (const QKeySequence &k : a->shortcuts()) m_foreign << k;
+            continue;
+        }
         done.insert(id);
         capture(a);
         KeyCommand c;
@@ -181,8 +204,11 @@ KeyMap::KeyMap(AppWindow *win, bool withRibbon) : m_win(win)
         c.keys = c.defaults;
         m_commands << c;
     }
+    // The window's own shortcuts (F6 among the parts of the window).
+    for (const QShortcut *sc : win->findChildren<QShortcut *>())
+        if (!sc->key().isEmpty()) m_foreign << sc->key();
     // The ribbon's order; the commands on no tab last, by name.
-    std::stable_sort(m_commands.begin(), m_commands.end(), [&](const KeyCommand &a, const KeyCommand &b) {
+    if (withRibbon) std::stable_sort(m_commands.begin(), m_commands.end(), [&](const KeyCommand &a, const KeyCommand &b) {
         const int oa = order.value(a.id, INT_MAX), ob = order.value(b.id, INT_MAX);
         if (oa != ob) return oa < ob;
         return a.text.localeAwareCompare(b.text) < 0;
@@ -194,7 +220,9 @@ KeyMap::KeyMap(AppWindow *win, bool withRibbon) : m_win(win)
     ids.sort();
     for (const QString &id : ids) {
         KeyCommand &c = m_commands[m_index[id]];
-        const QList<QKeySequence> keys = saved[id];
+        QList<QKeySequence> keys;
+        for (const QKeySequence &k : saved[id])
+            if (!m_foreign.contains(k)) keys << k;   // (a key that is in use elsewhere in the window is not given away)
         // (a reserved key can be neither given nor taken away)
         if (reservedIn(keys) != reservedIn(c.defaults)) {
             QList<QKeySequence> fixed = reservedIn(c.defaults);
@@ -260,6 +288,10 @@ KeyMap::Result KeyMap::check(const QString &id, const QKeySequence &key) const
         return r;
     }
     if (c.keys.size() >= kMaxKeysPerCommand) return r;
+    if (m_foreign.contains(key)) {
+        r.status = Add::Reserved;
+        return r;
+    }
     const QString other = owner(key, id);
     if (!other.isEmpty()) {
         r.owner = other;
@@ -278,7 +310,7 @@ KeyMap::Result KeyMap::add(const QString &id, const QKeySequence &key, bool take
         m_commands[m_index[r.owner]].keys.removeAll(key);
         r.status = Add::Added;
     }
-    if (r.status == Add::Added) m_commands[m_index[id]].keys << key;
+    if (r.status == Add::Added) m_commands[m_index[id]].keys.prepend(key);   // (the new key comes first: it is the one tooltips and menus show)
     return r;
 }
 
@@ -286,7 +318,11 @@ bool KeyMap::remove(const QString &id, const QKeySequence &key)
 {
     const auto it = m_index.constFind(id);
     if (it == m_index.constEnd() || isReserved(key)) return false;
-    return m_commands[it.value()].keys.removeAll(key) > 0;
+    KeyCommand &c = m_commands[it.value()];
+    // (Save, Undo, and Redo keep at least one key)
+    static const QSet<QString> needKey = {QStringLiteral("file.save"), QStringLiteral("edit.undo"), QStringLiteral("edit.redo")};
+    if (needKey.contains(id) && c.keys.contains(key) && c.keys.size() == 1) return false;
+    return c.keys.removeAll(key) > 0;
 }
 
 void KeyMap::resetOne(const QString &id)
@@ -300,7 +336,17 @@ void KeyMap::resetOne(const QString &id)
         const QString other = owner(k, id);
         if (!other.isEmpty()) m_commands[m_index[other]].keys.removeAll(k);
     }
+    const QList<QKeySequence> had = c.keys;
     c.keys = c.defaults;
+    // (a key it had taken from another command, which is that command's own, goes back to it)
+    for (const QKeySequence &k : had) {
+        if (c.defaults.contains(k) || !owner(k).isEmpty()) continue;
+        for (KeyCommand &o : m_commands)
+            if (o.id != id && o.defaults.contains(k) && !o.keys.contains(k) && o.keys.size() < kMaxKeysPerCommand) {
+                o.keys << k;
+                break;
+            }
+    }
 }
 
 void KeyMap::resetAll()
@@ -315,7 +361,11 @@ bool KeyMap::anyChanged() const
 
 void KeyMap::save() const
 {
+    // What is saved for commands this window does not have (another kind of window of the app) stays.
     QJsonObject o;
+    const QJsonObject old = savedObject();
+    for (auto it = old.begin(); it != old.end() && o.size() < kMaxEntries; ++it)
+        if (!m_index.contains(it.key()) && it.value().isArray()) o.insert(it.key(), it.value());
     for (const KeyCommand &c : m_commands) {
         if (!c.changed()) continue;
         QJsonArray keys;
@@ -328,10 +378,14 @@ void KeyMap::save() const
 void KeyMap::applyAll() const
 {
     for (AppWindow *w : AppWindow::windows()) {
-        if (typeid(*w) != typeid(*m_win)) continue;
-        // (a window that is going to be closed still takes it: nothing to tell apart)
-        for (const KeyCommand &c : m_commands)
-            if (QAction *a = w->act(c.id)) setKeys(w, a, c.keys);
+        const QSet<QString> has = idsOf(w);
+        const QSet<QAction *> inWindow = actionsOf(w);
+        for (const KeyCommand &c : m_commands) {
+            if (!has.contains(c.id)) continue;
+            QAction *a = w->act(c.id);
+            // (only a command whose keys changed: the others keep what the window wrote in their tooltips)
+            if (a && a->shortcuts() != c.keys) setKeys(w, a, c.keys, inWindow);
+        }
     }
 }
 
@@ -349,6 +403,15 @@ bool KeyMap::isReserved(const QKeySequence &key)
     const QKeyCombination c = key[0];
     const Qt::KeyboardModifiers mods = c.keyboardModifiers() & ~Qt::KeypadModifier;
     const int k = c.key();
+    // The parts of the window (Help, the ribbon's collapse, F6 among the panes), Redo's two keys, and what a text box does with Ctrl (by word, to the ends, delete by word),
+    // with or without Shift.
+    if (mods == Qt::NoModifier && k == Qt::Key_F1) return true;
+    if (mods == Qt::ControlModifier && (k == Qt::Key_F1 || k == Qt::Key_Y)) return true;
+    if ((mods == Qt::NoModifier || mods == Qt::ShiftModifier) && k == Qt::Key_F6) return true;
+    if (mods == (Qt::ControlModifier | Qt::ShiftModifier) && k == Qt::Key_Z) return true;
+    if ((mods == Qt::ControlModifier || mods == (Qt::ControlModifier | Qt::ShiftModifier))
+        && (k == Qt::Key_Left || k == Qt::Key_Right || k == Qt::Key_Home || k == Qt::Key_End || (mods == Qt::ControlModifier && (k == Qt::Key_Backspace || k == Qt::Key_Delete))))
+        return true;
     // A key that only types a character (alone or with Shift).
     if (k > 0 && k < Qt::Key_Escape && !(mods & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) return true;
     // The keys that move the caret and edit, alone or with Shift, and the ones that confirm and leave.
@@ -389,16 +452,44 @@ QKeySequence KeyMap::parseKey(const QString &text)
 
 void KeyMap::apply(AppWindow *win)
 {
-    if (!win || Settings::get().value(QLatin1String(kSetting)).toString().isEmpty()) return;
+    if (!win) return;
+    win->setProperty(kApplied, true);
+    if (Settings::get().value(QLatin1String(kSetting)).toString().isEmpty()) return;
     KeyMap map(win, false);
+    const QSet<QAction *> inWindow = actionsOf(win);
     for (const KeyCommand &c : map.commands())
         if (QAction *a = win->act(c.id)) {
             if (c.keys == c.defaults) {
                 capture(a);
                 continue;
             }
-            setKeys(win, a, c.keys);
+            setKeys(win, a, c.keys, inWindow);
         }
+}
+
+void KeyMap::applyLater(AppWindow *win, QAction *a)
+{
+    // (before the window has applied the keys, its own apply() does it for every command)
+    if (!win || !a || !win->property(kApplied).toBool() || a->objectName().isEmpty()) return;
+    capture(a);
+    const QJsonObject o = savedObject();
+    const auto it = o.constFind(a->objectName());
+    if (it == o.constEnd() || !it->isArray()) return;
+    KeyMap map(win, false);
+    if (const KeyCommand *c = map.command(a->objectName()); c && c->keys != c->defaults) setKeys(win, a, c->keys, actionsOf(win));
+}
+
+QString KeyMap::shownKey(const QAction *a)
+{
+    return a && !a->shortcuts().isEmpty() ? a->shortcuts().first().toString(QKeySequence::NativeText) : QString();
+}
+
+QString KeyMap::tipWithShownKey(const QString &tip, const QString &oldKey, const QAction *a)
+{
+    const QString suffix = QStringLiteral(" (%1)").arg(oldKey);
+    if (!tip.endsWith(suffix)) return tip;
+    const QString key = shownKey(a);
+    return tip.left(tip.size() - suffix.size()) + (key.isEmpty() ? QString() : QStringLiteral(" (%1)").arg(key));
 }
 
 } // namespace jp

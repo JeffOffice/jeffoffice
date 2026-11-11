@@ -2,6 +2,7 @@
 // EditSession (core/editsession.h), which holds the worker back for the moment the cell is put in; the worker works out what depends on it and tells the window in batches.
 
 #include "app/crunchwindow.h"
+#include "app/keymap.h"
 
 #include "core/autocomplete.h"
 #include "text/autocorrect.h"
@@ -118,8 +119,8 @@ void CrunchWindow::updateEditActions()
     const bool stepping = m_applying || (m_session && m_session->isSlicing());   // (Undo and Redo wait while a large change is being put in)
     act("edit.undo")->setEnabled(open && !stepping && m_session->canUndo());
     act("edit.redo")->setEnabled(open && !stepping && u->canRedo());
-    act("edit.undo")->setToolTip(jp::plainToolTip(u && m_session->canUndo() ? tr("Undo %1 (%2)").arg(u->undoText(), QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)) : tr("Undo")));
-    act("edit.redo")->setToolTip(jp::plainToolTip(u && u->canRedo() ? tr("Redo %1 (%2)").arg(u->redoText(), QKeySequence(QKeySequence::Redo).toString(QKeySequence::NativeText)) : tr("Redo")));
+    act("edit.undo")->setToolTip(jp::plainToolTip(u && m_session->canUndo() ? (KeyMap::shownKey(act("edit.undo")).isEmpty() ? tr("Undo %1").arg(u->undoText()) : tr("Undo %1 (%2)").arg(u->undoText(), KeyMap::shownKey(act("edit.undo")))) : tr("Undo")));
+    act("edit.redo")->setToolTip(jp::plainToolTip(u && u->canRedo() ? (KeyMap::shownKey(act("edit.redo")).isEmpty() ? tr("Redo %1").arg(u->redoText()) : tr("Redo %1 (%2)").arg(u->redoText(), KeyMap::shownKey(act("edit.redo")))) : tr("Redo")));
     // (a chart sheet has no cells to work on: none of the commands that do is on while one is in view, and they are back on a sheet of cells)
     const std::vector<const char *> &pivotOwned = pivotSelectionActions();
     for (const QString &id : m_opsActions) {

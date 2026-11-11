@@ -306,6 +306,7 @@ QAction *CrunchWindow::mk(const QString &id, const QString &text, const QString 
         if (fn) fn();
     });
     m_actions.insert(id, a);
+    KeyMap::applyLater(this, a);
     return a;
 }
 

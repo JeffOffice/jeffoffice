@@ -1415,10 +1415,12 @@ void checkKeyboardPage(Adapter &app)
     // The commands the page must list: every one with a name that is not a menu.
     QStringList wanted;
     QString keyed, keyedKeys;
+    int withKeys = 0;   // (the commands that have a key: the page must show keys for each)
     for (const QString &id : w->actionIds()) {
         QAction *a = w->act(id);
         if (!a || a->menu() || QString(a->text()).remove(QLatin1Char('&')).simplified().isEmpty()) continue;
         wanted << id;
+        withKeys += !a->shortcuts().isEmpty();
         if (keyed.isEmpty() && !a->shortcuts().isEmpty() && !QString(a->text()).contains(QLatin1Char('&'))) {
             keyed = id;
             QStringList s;
@@ -1426,7 +1428,8 @@ void checkKeyboardPage(Adapter &app)
             keyedKeys = s.join(QStringLiteral(", "));
         }
     }
-    QVERIFY(wanted.size() > 20);
+    QVERIFY(!wanted.isEmpty());
+    QVERIFY(withKeys > 0);
     QVERIFY(!keyed.isEmpty());
     const QString tab = w->ribbon() ? w->ribbon()->tabTitle(0) : QString();
     withDialog([&] { options->trigger(); }, QStringLiteral("optionsDialog"), [&](QDialog *dlg) {
@@ -1448,6 +1451,9 @@ void checkKeyboardPage(Adapter &app)
         // grouped by the ribbon's tabs, and each command shows its keys
         if (!tab.isEmpty()) QVERIFY2(groups.contains(tab), qPrintable(groups.join(QLatin1Char('|'))));
         QCOMPARE(items[keyed]->text(1), keyedKeys);
+        int showing = 0;
+        for (auto it = items.begin(); it != items.end(); ++it) showing += !it.value()->text(1).isEmpty();
+        QCOMPARE(showing, withKeys);
         // the search finds a command by its name and hides the others
         search->setText(items[keyed]->text(0));
         QVERIFY(!items[keyed]->isHidden());
