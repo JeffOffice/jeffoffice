@@ -495,7 +495,7 @@ qint64 CrunchWindow::compressPictures(double ppi, bool all, bool deleteCropped, 
         edits.push_back(put);
         saved += gain;
     }
-    if (problems && skipped > 0) *problems = tr("%n picture(s) could not be made smaller: %1", nullptr, skipped).arg(skippedWhy);
+    if (problems && skipped > 0) *problems = skipped == 1 ? tr("1 picture could not be made smaller: %1").arg(skippedWhy) : tr("%1 pictures could not be made smaller: %2").arg(skipped).arg(skippedWhy);
     if (edits.empty()) return 0;
     const crunch::EditSession::Outcome o = m_session->changeObjects(edits, stepText);
     if (!o.ok) {
