@@ -655,7 +655,19 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
             } else if (tag == "docPr") {
                 s.alt = t.attr(k, "descr");
                 s.hidden = t.attr(k, "hidden") == QLatin1String("1") || t.attr(k, "hidden") == QLatin1String("true");
-                s.barcode = barcodeMarkerOfXml("<x " + declarations() + ">" + t.raw(k) + "</x>");
+                // The marker of a barcode of ours, found by the namespace it has (whatever prefix a file gives it).
+                if (const int marked = t.namespaceId(kBarcodeNamespace); marked >= 0) {
+                    QVector<int> inside{k};
+                    for (int guard = 0; !inside.isEmpty() && guard < 64 && s.barcode.isEmpty(); ++guard) {
+                        const int n = inside.takeLast();
+                        if (t.is(n, "barcode", marked)) {
+                            s.barcode = barcodeSettingsFromText(t.attr(n, "settings"));
+                            s.barcodePngHash = t.attr(n, "png-sha256");
+                            s.barcodeSvgHash = t.attr(n, "svg-sha256");
+                        }
+                        for (int c2 = t.firstChild(n); c2 >= 0; c2 = t.next(c2)) inside.push_back(c2);
+                    }
+                }
             }
         }
         if (!s.floating) s.wrap = Shape::WrapNone;
@@ -694,6 +706,10 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
             }
             if (t.localName(n) == "blip" && s.embed.isEmpty()) {
                 s.embed = t.attr(n, "embed", NsR);
+                for (int k = t.firstChild(n); k >= 0 && s.svgEmbed.isEmpty(); k = t.next(k))
+                    for (int ext = t.firstChild(k); ext >= 0 && s.svgEmbed.isEmpty(); ext = t.next(ext))
+                        for (int m = t.firstChild(ext); m >= 0; m = t.next(m))
+                            if (t.localName(m) == "svgBlip") s.svgEmbed = t.attr(m, "embed", NsR);
                 // The cut edges are beside the blip, in its fill (thousandths of a percent).
                 for (int k = t.firstChild(t.parent(n)); k >= 0; k = t.next(k))
                     if (t.localName(k) == "srcRect") {
@@ -861,5 +877,7 @@ QVector<Shape> readShapes(const QByteArray &xml)
     }
     return out;
 }
+
+QByteArray keptElementDeclarations() { return declarations(); }
 
 } // namespace jp::office::wml

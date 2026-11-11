@@ -570,7 +570,7 @@ void Exporter::writeLine(X &x, Scope &sc, const LineItem &l)
 bool Exporter::writeBarcode(X &x, Scope &sc, const GroupItem &g)
 {
     const QByteArray png = barcodePng(g);
-    const QRectF frame = g.bounds();
+    const QRectF frame = barcodeFrame(g);
     if (png.isEmpty() || frame.isEmpty()) return false;
     const QString part = addPictureBytes(QStringLiteral("barcode:") + QString::fromLatin1(QCryptographicHash::hash(png, QCryptographicHash::Sha1).toHex()), png);
     if (part.isEmpty()) return false;
@@ -581,16 +581,26 @@ bool Exporter::writeBarcode(X &x, Scope &sc, const GroupItem &g)
     p.altText = g.altText;
     p.altTitle = g.altTitle;
     p.hidden = g.hidden;
+    p.decorative = g.decorative;
     p.hyperlink = g.hyperlink;
     p.lockAspect = g.lockAspect;
     p.rect = frame;
-    const QString style = frameStyle(sc, p, QString(), QString(), QString(), QString(), false);
+    // The other suite mirrors a picture side to side and ignores a mirror from top to bottom: turned over is half a turn and a mirror side to side.
+    double turn = 0;
+    bool flipH = false, flipV = false;
+    barcodeTurn(g, &turn, &flipH, &flipV);
+    bool mirror = flipH;
+    if (flipV) {
+        mirror = !mirror;
+        turn += 180;
+    }
+    const QString style = frameStyle(sc, p, QString(), mirror ? attrOf("style:mirror", QStringLiteral("horizontal")) : QString(), QString(), QString(), false);
     x.open("draw:frame");
     x.attr("draw:style-name", style);
     writeCommon(x, p);
     x.attr("draw:layer", sc.layer);
-    writePlace(x, p.rect, 0);
-    x.attr("jo:barcode", office::barcodeSettingsText(g.barcode));
+    writePlace(x, p.rect, turn);
+    x.attr("jo:barcode", office::barcodeSettingsText(g.barcode)).attr("jo:barcode-sha256", office::barcodeHash(png));
     x.open("draw:image").attr("xlink:href", part).attr("xlink:type", "simple").attr("xlink:show", "embed").attr("xlink:actuate", "onLoad").attr("loext:mime-type", "image/png");
     x.leaf("text:p").close();
     writeInside(x, p);

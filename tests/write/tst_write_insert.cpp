@@ -31,6 +31,7 @@
 #include "office/package.h"
 #include "wml/wml.h"
 
+#include <QBuffer>
 #include <QFile>
 #include <QHelpEvent>
 #include <QToolTip>
@@ -209,6 +210,23 @@ void insertQrBarcode(WriteWindow &w, const QString &text)
         d->findChildren<QComboBox *>().first()->setCurrentIndex(int(barcode::Type::Qr));
         d->findChildren<QLineEdit *>().first()->setText(text);
     });
+}
+
+
+// A saved document with a part's bytes changed (`change` gets the parts by name).
+QByteArray repackedDocx(const QByteArray &saved, const std::function<void(const QString &name, QByteArray *bytes)> &change)
+{
+    office::Package pkg;
+    pkg.read(saved);
+    office::PackageWriter w;
+    for (const QString &name : pkg.partNames()) {
+        QByteArray bytes = pkg.part(name);
+        change(name, &bytes);
+        w.addPart(name, bytes, pkg.contentType(name));
+    }
+    for (const QString &source : QStringList{QStringLiteral("/"), QStringLiteral("/word/document.xml")})
+        for (const office::Relationship &r : pkg.relationships(source)) w.addRelationshipWithId(source, r.id, r.type, r.target, r.external);
+    return w.finish();
 }
 
 } // namespace
@@ -1370,6 +1388,67 @@ private Q_SLOTS:
         QVERIFY(doc.redo());
         QCOMPARE(firstPictureOf(doc), at);
         QVERIFY(!pictureAt(doc, doc.story(), at).barcode.isEmpty());
+    }
+
+    // A marker is honored only where the pictures in the file are the ones that were written: a photo in the barcode's place is a photo, though the marker is still valid.
+    void aPhotoWithAValidBarcodeMarkerIsAPhoto()
+    {
+        Win win({"Before after"});
+        insertQrBarcode(win.w, QStringLiteral("https://jeffoffice.com/photo"));
+        QString err;
+        const QByteArray saved = win.w.document()->toDocx(&err);
+        QImage red(60, 40, QImage::Format_RGB32);
+        red.fill(Qt::red);
+        QByteArray photo;
+        QBuffer buffer(&photo);
+        buffer.open(QIODevice::WriteOnly);
+        red.save(&buffer, "PNG");
+        auto swapped = WriteDoc::fromDocx(repackedDocx(saved, [&](const QString &name, QByteArray *bytes) {
+            if (name.endsWith(QLatin1String(".png"))) *bytes = photo;
+        }), &err);
+        QVERIFY2(swapped, qPrintable(err));
+        const int at = firstPictureOf(*swapped);
+        QVERIFY(at >= 0);
+        QVERIFY(pictureAt(*swapped, swapped->story(), at).barcode.isEmpty());
+        // It is drawn as the photo (a PNG), not as vectors.
+        const auto page = swapped->pager().materialize(0);
+        QVERIFY(page);
+        for (const auto &it : page->doc->pages[0]->items)
+            if (it->type() == ItemType::Picture) QVERIFY(page->doc->images.value(static_cast<const PictureItem *>(it.get())->imageId).format != QLatin1String("svg"));
+        // The pictures as they were: the barcode.
+        auto same = WriteDoc::fromDocx(repackedDocx(saved, [](const QString &, QByteArray *) {}), &err);
+        QVERIFY2(same, qPrintable(err));
+        QVERIFY(!pictureAt(*same, same->story(), firstPictureOf(*same)).barcode.isEmpty());
+    }
+
+    // A marker whose prefix is declared on the drawing's root, not on the marker, is read; and an edit keeps another program's extension and makes no second list.
+    void aMarkerWithItsPrefixDeclaredOnTheRootIsReadAndEditedInPlace()
+    {
+        Win win({"Before after"});
+        insertQrBarcode(win.w, QStringLiteral("first"));
+        QString err;
+        const QByteArray saved = win.w.document()->toDocx(&err);
+        auto moved = WriteDoc::fromDocx(repackedDocx(saved, [](const QString &name, QByteArray *bytes) {
+            if (name != QLatin1String("/word/document.xml")) return;
+            bytes->replace("<jo:barcode xmlns:jo=\"https://jeffoffice.com/ns/barcode\"", "<jo:barcode");
+            bytes->replace("<w:drawing", "<w:drawing xmlns:jo=\"https://jeffoffice.com/ns/barcode\"");
+            // Another program's extension, before ours.
+            bytes->replace("<a:extLst><a:ext uri=\"{5B6C1E0A", "<a:extLst><a:ext uri=\"{OTHER-PROGRAM}\"><x:keep xmlns:x=\"urn:x\"/></a:ext><a:ext uri=\"{5B6C1E0A");
+        }), &err);
+        QVERIFY2(moved, qPrintable(err));
+        const int at = firstPictureOf(*moved);
+        QVERIFY(at >= 0);
+        QCOMPARE(pictureAt(*moved, moved->story(), at).barcode.value(QLatin1String("data")).toString(), QStringLiteral("first"));
+        QJsonObject next = pictureAt(*moved, moved->story(), at).barcode;
+        next["data"] = QStringLiteral("second");
+        QVERIFY(changeBarcode(*moved, at, next));
+        office::Package pkg;
+        QVERIFY(pkg.read(moved->toDocx(&err)));
+        const QByteArray xml = pkg.part(QStringLiteral("/word/document.xml"));
+        QCOMPARE(xml.count("<a:extLst>"), 2);   // (the picture's own blip list, and the one in the properties)
+        QVERIFY(xml.contains("{OTHER-PROGRAM}"));
+        QCOMPARE(xml.count("{5B6C1E0A"), 1);
+        QCOMPARE(pictureAt(*moved, moved->story(), at).barcode.value(QLatin1String("data")).toString(), QStringLiteral("second"));
     }
 
     // A picture of the window with a QR code in the text, for the docs, when JP_SHOT_DIR names a folder.

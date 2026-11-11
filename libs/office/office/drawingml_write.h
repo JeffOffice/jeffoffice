@@ -77,6 +77,9 @@ struct DrawingWriteContext {
     std::shared_ptr<StyleResolver> styles;
     // The settings of the barcode being written as a picture: its identity gets the marker that keeps it a barcode (office/barcodemarker.h).
     QJsonObject barcode;
+    QString barcodePngHash, barcodeSvgHash;   // the fingerprints of the pictures written with it
+    // Draws a picture of SVG bytes as PNG (the barcode's own, whose bytes the marker holds the fingerprint of); unset, the usual raster is made.
+    std::function<QByteArray(const QByteArray &svg)> rasterizer;
 };
 
 // Gives each object of a shape tree its number before any is written, in the

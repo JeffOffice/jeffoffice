@@ -596,6 +596,8 @@ struct Shape {
     QString fillEmbed;                    // the Id of a picture that fills the shape, stretched over it (VML's v:fill of type frame)
     QString pictEmbed;                    // the Id of the picture's other form (VML's r:pict: a compressed picture the program keeps beside it)
     QString alt;                          // its description
+    QString barcodePngHash, barcodeSvgHash;   // the fingerprints of the pictures the marker was written with
+    QString svgEmbed;                     // the Id of the picture's SVG (the blip's svgBlip), where it has one
     QJsonObject barcode;                  // a barcode of ours: the settings its wp:docPr holds as the marker (office/barcodemarker.h); the picture beside it is what other programs show
     bool hidden = false;                  // the file hides it (wp:docPr's hidden): it is kept, and neither drawn nor given room
     QByteArray textBox;                   // the w:txbxContent element of a text box, as written (insets: below)
@@ -826,6 +828,9 @@ int sectionChildRank(const QByteArray &name);
 QByteArray runPropsXml(const RunProps &p, bool inParagraphMark = false);
 QByteArray paraPropsXml(const ParaProps &p);
 QByteArray sectionPropsXml(const SectionProps &s);
+
+// The namespace declarations an element kept as written is read under (a slice of a part is not given the prefixes the part declares on its root).
+QByteArray keptElementDeclarations();
 
 } // namespace jp::office::wml
 

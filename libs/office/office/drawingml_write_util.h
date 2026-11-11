@@ -28,7 +28,8 @@ qint64 angle(double degrees);
 qint64 percent(double fraction);
 
 // The extension that marks an object as only decoration, to go inside its p:cNvPr (programs that don't know it leave it alone).
-void writeDecorative(QXmlStreamWriter &w);
+// The mark for a picture that only decorates, in an extension list; `more` (if any) writes other extensions in the same list, before it closes.
+void writeDecorative(QXmlStreamWriter &w, const std::function<void()> &more = {});
 
 // The text of an element or an attribute: what XML 1.0 cannot hold (control
 // characters, lone surrogates, U+FFFE and U+FFFF) left out.

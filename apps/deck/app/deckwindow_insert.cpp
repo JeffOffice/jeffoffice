@@ -27,7 +27,7 @@ void DeckWindow::createPictureActions()
     mk("insert.onlinePicture", tr("Online Pictures…"), "globe", QKeySequence(), [this] { showOnlinePictures(); });
     mk("insert.icons", tr("Icons"), "smile-plus", QKeySequence(), [this] { insertIcons(pickIcons(this)); });
     // A barcode asks for its data again on a double click, or with it selected and Insert > Barcode.
-    mk("insert.barcode", tr("Barcode"), "barcode", QKeySequence(), [this] { barcodeDialog(this, m_ed); });
+    mk("insert.barcode", tr("Barcode"), "barcode", QKeySequence(), [this] { barcodeDialog(this, m_ed, true); });
     connect(m_canvas, &Canvas::editBarcodeWanted, this, [this] { barcodeDialog(this, m_ed); });
     // Text Art asks for its words again on a double click, or on Enter with it selected.
     connect(m_canvas, &Canvas::editTextArtWanted, this, [this](const QString &id) { textArtTextDialog(this, m_ed, id); });

@@ -505,8 +505,9 @@ void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &f
         attribute(w, "action", QStringLiteral("ppaction://media"));
         w.writeEndElement();
     }
-    if (it.decorative) writeDecorative(w);
-    else if (!ctx.barcode.isEmpty()) writeBarcodeMarker(w, ctx.barcode);
+    const bool marked = !ctx.barcode.isEmpty();
+    if (it.decorative) writeDecorative(w, marked ? std::function<void()>([&] { writeBarcodeMarkerExt(w, ctx.barcode, ctx.barcodePngHash, ctx.barcodeSvgHash); }) : std::function<void()>());
+    else if (marked) writeBarcodeMarker(w, ctx.barcode, ctx.barcodePngHash, ctx.barcodeSvgHash);
     w.writeEndElement();
 }
 
@@ -969,20 +970,23 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
 // False when there is no picture to write (the group is written as the shapes it is).
 bool writeBarcode(QXmlStreamWriter &w, const GroupItem &g, DrawingWriteContext &ctx, QStringList *skipped)
 {
-    const QByteArray svg = barcodeSvg(g);
-    const QRectF frame = g.bounds();
-    if (svg.isEmpty() || frame.isEmpty()) return false;
+    const QByteArray svg = barcodeSvg(g), png = barcodePng(g);
+    const QRectF frame = barcodeFrame(g);
+    if (svg.isEmpty() || png.isEmpty() || frame.isEmpty()) return false;
     PictureItem p;
     p.id = g.id;
     p.sourceId = g.sourceId;
     p.name = g.name;
     p.altText = g.altText;
     p.altTitle = g.altTitle;
+    p.decorative = g.decorative;
     p.hidden = g.hidden;
     p.hyperlink = g.hyperlink;
     p.rect = frame;
     p.imgRect = QRectF(QPointF(0, 0), frame.size());
     p.lockAspect = g.lockAspect;
+    // (The picture is the barcode unturned; the turn and the flips are the picture's own.)
+    barcodeTurn(g, &p.rotation, &p.flipH, &p.flipV);
     const QString image = QStringLiteral("barcode:") + QString::fromLatin1(QCryptographicHash::hash(svg, QCryptographicHash::Sha1).toHex());
     p.imageId = image;
     const auto bytes = ctx.imageBytes;
@@ -993,9 +997,14 @@ bool writeBarcode(QXmlStreamWriter &w, const GroupItem &g, DrawingWriteContext &
         }
         return bytes ? bytes(id, format) : QByteArray();
     };
+    ctx.rasterizer = [&](const QByteArray &) { return png; };
     ctx.barcode = g.barcode;
+    ctx.barcodePngHash = barcodeHash(png);
+    ctx.barcodeSvgHash = barcodeHash(svg);
     writePicture(w, p, ctx, skipped);
     ctx.barcode = QJsonObject();
+    ctx.barcodePngHash = ctx.barcodeSvgHash = QString();
+    ctx.rasterizer = nullptr;
     ctx.imageBytes = bytes;
     return true;
 }

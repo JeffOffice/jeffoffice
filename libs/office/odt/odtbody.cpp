@@ -196,7 +196,7 @@ QByteArray Reader::anchorXml(const Odf &o, int frame, const QString &styleName, 
     QByteArray marker;
     if (graphic.contains("<pic:pic>"))
         if (const int jo = o.tree().namespaceId("urn:jeffoffice:names:extension:1.0"); jo >= 0)
-            if (const QJsonObject settings = barcodeOdfSettings(o.tree().attr(frame, "barcode", jo)); !settings.isEmpty()) marker = barcodeMarkerXml(settings);
+            if (const BarcodeMarker found = barcodeOdfMarker(o.tree().attr(frame, "barcode", jo), o.tree().attr(frame, "barcode-sha256", jo)); !found.isEmpty()) marker = barcodeMarkerXml(found.settings, found.pngHash);
     QByteArray docPr = "<wp:docPr id=\"" + num(docPrId) + "\" name=\"" + esc(name.isEmpty() ? QStringLiteral("Object %1").arg(docPrId) : name) + "\"" + (desc.isEmpty() ? QByteArray() : " descr=\"" + esc(desc) + "\"") +
                        (marker.isEmpty() ? QByteArray("/>") : ">" + marker + "</wp:docPr>");
     const QString anchorType = o.at(frame, "text:anchor-type");

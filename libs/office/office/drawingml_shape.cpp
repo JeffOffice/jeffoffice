@@ -344,6 +344,7 @@ private:
     const TextStyleStack &m_styles;
     int m_count = 0;
     int m_depth = 0;
+    int m_barcodes = 0;   // barcodes honored when the context has no budget to count them in
     QDomElement m_ownStyle;   // the p:style the shape being read has itself (not one it inherits: that is the layout's), for decorate
     bool m_noText = false;   // reading a shape whose text is read apart (diagramShape)
     const Fill *m_groupFill = nullptr;
@@ -941,21 +942,35 @@ ItemPtr Reader::pic(const QDomElement &e, const QVector<QDomElement> &inheritsFr
     const QDomElement alpha = childNamed(blip, "alphaModFix");
     if (!alpha.isNull()) p->transparency = std::clamp(1.0 - parsePercent(attr(alpha, QStringLiteral("amt")), 1), 0.0, 1.0);
     p->takeEffects(readBlipEffects(blip, styleContext()));
-    // A barcode of ours: the picture others show, and the marker that holds its settings. It is the barcode again, in the frame the file gave it.
-    if (const QJsonObject settings = barcodeMarkerOf(cNvPr); !settings.isEmpty() && !frame.rect.isEmpty()) {
-        if (const ItemPtr code = barcodeFromSettings(settings, QPointF())) {
-            code->scaleInto(code->rect, frame.rect);
-            code->name = p->name;
-            code->altText = p->altText;
-            code->altTitle = p->altTitle;
-            code->decorative = p->decorative;
-            code->hidden = p->hidden;
-            code->hyperlink = p->hyperlink;
-            code->lockAspect = p->lockAspect;
-            code->sourceId = p->sourceId;
-            code->wrap.mode = Wrap::None;
-            remember(cNvPr, code);
-            return code;
+    // A barcode of ours: the picture others show, and the marker that holds its settings and the fingerprints of the pictures. It is the barcode again, in the frame the file gave it,
+    // when the pictures in the file are the ones the marker was written with (not a picture put in their place), and the document has not as many barcodes as are honored.
+    if (const BarcodeMarker marker = readBarcodeMarker(cNvPr); !marker.isEmpty() && !frame.rect.isEmpty() && m_ctx.package) {
+        auto bytesOf = [&](const QString &rId) {
+            const Relationship rel = rId.isEmpty() ? Relationship() : m_ctx.package->relationship(m_ctx.part, rId);
+            return !rel.id.isEmpty() && !rel.external ? m_ctx.package->part(rel.target) : QByteArray();
+        };
+        QString svgId;
+        for (QDomElement ext = childNamed(childNamed(blip, "extLst"), "ext"); !ext.isNull() && svgId.isEmpty(); ext = ext.nextSiblingElement())
+            svgId = attrNs(childNamed(ext, "svgBlip"), ns::R, QStringLiteral("embed"));
+        const QByteArray svg = bytesOf(svgId);
+        int &used = m_ctx.budget ? m_ctx.budget->barcodes : m_barcodes;
+        if (used < kMostBarcodesHonored && barcodePicturesMatch(marker, bytesOf(attrNs(blip, ns::R, QStringLiteral("embed"))), svgId.isEmpty() ? nullptr : &svg)) {
+            if (const ItemPtr code = barcodeFromSettings(marker.settings, QPointF())) {
+                ++used;
+                code->scaleInto(code->rect, frame.rect);
+                setBarcodeTurn(static_cast<GroupItem &>(*code), frame.rotation, frame.flipH, frame.flipV);
+                code->name = p->name;
+                code->altText = p->altText;
+                code->altTitle = p->altTitle;
+                code->decorative = p->decorative;
+                code->hidden = p->hidden;
+                code->hyperlink = p->hyperlink;
+                code->lockAspect = p->lockAspect;
+                code->sourceId = p->sourceId;
+                code->wrap.mode = Wrap::None;
+                remember(cNvPr, code);
+                return code;
+            }
         }
     }
     remember(cNvPr, p);

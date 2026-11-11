@@ -23,7 +23,7 @@ bool barcodeClip(const QJsonObject &settings, ObjectClip *out, QString *why)
     png.token = QStringLiteral("rIdBarcodePng");
     png.extension = QStringLiteral("png");
     png.contentType = QStringLiteral("image/png");
-    png.bytes = barcodePng(group, 1200);
+    png.bytes = barcodePng(group);
     svg.token = QStringLiteral("rIdBarcodeSvg");
     svg.extension = QStringLiteral("svg");
     svg.contentType = QStringLiteral("image/svg+xml");
@@ -42,7 +42,7 @@ bool barcodeClip(const QJsonObject &settings, ObjectClip *out, QString *why)
     clip.height = h;
     clip.media = {png, svg};
     clip.namespaces = " xmlns:asvg=\"http://schemas.microsoft.com/office/drawing/2016/SVG/main\"";
-    clip.elementXml = "<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"0\" name=\"\"" + description + ">" + office::barcodeMarkerXml(settings)
+    clip.elementXml = "<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"0\" name=\"\"" + description + ">" + office::barcodeMarkerXml(settings, office::barcodeHash(png.bytes), office::barcodeHash(svg.bytes))
                       + "</xdr:cNvPr><xdr:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed=\"" + png.token.toUtf8()
                       + "\"><a:extLst><a:ext uri=\"{96DAC541-7B7A-43D3-8B79-37D633B846F1}\"><asvg:svgBlip r:embed=\"" + svg.token.toUtf8()
                       + "\"/></a:ext></a:extLst></a:blip><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\""

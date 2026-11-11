@@ -92,7 +92,7 @@ qint64 percent(double fraction)
     return rounded(fraction * 100000.0);
 }
 
-void writeDecorative(QXmlStreamWriter &w)
+void writeDecorative(QXmlStreamWriter &w, const std::function<void()> &more)
 {
     w.writeStartElement(QStringLiteral("a:extLst"));
     w.writeStartElement(QStringLiteral("a:ext"));
@@ -102,6 +102,7 @@ void writeDecorative(QXmlStreamWriter &w)
     w.writeAttribute(QStringLiteral("val"), QStringLiteral("1"));
     w.writeEndElement();
     w.writeEndElement();
+    if (more) more();
     w.writeEndElement();
 }
 
@@ -249,7 +250,7 @@ QString relatePicture(DrawingWriteContext &ctx, const QString &imageId)
         const QString sniffed = imageFormat(bytes);
         format = sniffed.isEmpty() ? format.toLower() : sniffed;
         if (format == QLatin1String("svg")) {
-            bytes = rasterOf(bytes);
+            bytes = ctx.rasterizer ? ctx.rasterizer(bytes) : rasterOf(bytes);
             format = QStringLiteral("png");
         }
         const MediaKind kind = mediaKindOf(format);

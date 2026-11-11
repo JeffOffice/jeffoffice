@@ -36,6 +36,7 @@ struct DrawingBudget {
     };
     qint64 left[KindCount] = {};
     bool ranOut[KindCount] = {};
+    int barcodes = 0;        // barcodes honored as barcodes so far (office/barcodemarker.h: no more than kMostBarcodesHonored)
     bool longBody = false;   // a text body was longer than one may be, however much is left, and was cut
 
     // `n` of a kind, if that much is left; else nothing is taken, and the kind is marked as run out.

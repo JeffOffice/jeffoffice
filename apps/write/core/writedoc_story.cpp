@@ -2,6 +2,7 @@
 // as XML becomes the pieces of writeprops.h.
 
 #include "core/barcodeitem.h"
+#include "office/barcodemarker.h"
 #include "core/fieldops.h"
 #include "core/writedoc.h"
 
@@ -1655,18 +1656,31 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
     bool shownMissing = false;   // (the picture the last call made is the mark of a picture that cannot be shown)
     std::function<int(const Shape &)> pictureOf = [&](const Shape &s) -> int {
         shownMissing = false;
-        // A barcode of ours is drawn from the settings its marker holds (as vectors), not from the picture beside it that other programs show.
+        // A barcode of ours is drawn from the settings its marker holds (as vectors), not from the picture beside it that other programs show, when the pictures in the file are the ones
+        // the marker was written with (not another picture put in their place), and the document does not hold as many barcode pictures as are honored.
         if (!s.barcode.isEmpty() && f.images.size() < kMostImages) {
-            if (const ItemPtr code = barcodeFromSettings(s.barcode, QPointF()); code && code->type() == ItemType::Group) {
-                const QByteArray svg = barcodeSvg(static_cast<const GroupItem &>(*code));
-                if (!svg.isEmpty()) {
-                    for (int i = 0; i < f.images.size(); ++i)
-                        if (f.images[i].bytes == svg) return i;
-                    flow::FlowImage image;
-                    image.bytes = svg;
-                    image.format = QStringLiteral("svg");
-                    f.images.push_back(image);
-                    return int(f.images.size()) - 1;
+            const QVector<Relationship> &barcodeLinks = part.isEmpty() ? m_wml.mainRelationships : m_wml.partRelationships.value(part);
+            auto bytesOf = [&](const QString &rId) {
+                for (const Relationship &r : barcodeLinks)
+                    if (r.id == rId && !r.external && !rId.isEmpty()) return partData(r.target);
+                return QByteArray();
+            };
+            const QByteArray svgPart = bytesOf(s.svgEmbed);
+            if (barcodePicturesMatch(BarcodeMarker{s.barcode, s.barcodePngHash, s.barcodeSvgHash}, bytesOf(s.embed), s.svgEmbed.isEmpty() ? nullptr : &svgPart)) {
+                if (const ItemPtr code = barcodeFromSettings(s.barcode, QPointF()); code && code->type() == ItemType::Group) {
+                    const QByteArray svg = barcodeSvg(static_cast<const GroupItem &>(*code));
+                    if (!svg.isEmpty()) {
+                        for (int i = 0; i < f.images.size(); ++i)
+                            if (f.images[i].bytes == svg) return i;
+                        if (m_barcodePictures < kMostBarcodesHonored) {
+                            ++m_barcodePictures;
+                            flow::FlowImage image;
+                            image.bytes = svg;
+                            image.format = QStringLiteral("svg");
+                            f.images.push_back(image);
+                            return int(f.images.size()) - 1;
+                        }
+                    }
                 }
             }
         }

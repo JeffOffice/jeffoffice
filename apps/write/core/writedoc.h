@@ -949,6 +949,7 @@ private:
     QSet<QString> m_diagramsSeen;                             // the drawings drawn since the story was built (at most kMostDiagramsDrawn)
     QHash<QString, std::shared_ptr<office::Package>> m_diagramPackages;   // the pictures of each drawing, as the shapes' reader wants them
     QSet<QString> m_diagramImages;                            // the picture parts that went into those, each counted once
+    int m_barcodePictures = 0;   // the pictures of barcodes drawn from their markers so far (no more than kMostBarcodesHonored)
     qint64 m_diagramBytes = 0, m_diagramImageBytes = 0;       // what the pictures made, and the picture parts copied, come to
     int m_letteringShapes = 0, m_letteringLetters = 0;   // the lettering on a path the document has drawn so far, and its letters (each is outlined, and may be stroked: they are bounded)
     bool m_syncing = false;

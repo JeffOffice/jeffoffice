@@ -285,6 +285,7 @@ private:
 
     const office::Package &m_pkg;
     Document &m_doc;
+    int m_barcodes = 0;   // barcodes honored as barcodes so far (office/barcodemarker.h)
     QStringList *m_notes;
     std::deque<QDomDocument> m_doms;
     QDomDocument m_contentDom, m_stylesDom, m_metaDom;

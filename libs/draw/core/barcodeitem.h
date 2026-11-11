@@ -32,9 +32,21 @@ bool isBarcodeItem(const Item *it);
 // The most bytes of settings a file may hold for a barcode (more is no barcode of ours).
 constexpr int kMostBarcodeSettingsBytes = 16384;
 
-// A barcode as an SVG picture of its own size in points (the quiet zone, the bars and digits), at whatever size the group has now, and the same as PNG
-// (`pixels` on the longer side, at most 4000) for programs that don't draw SVG. Empty for an item that is no barcode.
+// The barcode the settings describe, laid out by the encoder, kept by a hash of the settings so that the same settings (a document of many copies, a selection that changes, a
+// marker read twice) are encoded once. barcodeEncodes() counts the times the encoder really ran (for tests).
+barcode::Layout barcodeLayout(const QJsonObject &settings);
+int barcodeEncodes();
+
+// A barcode as an SVG picture of its own size in points (the quiet zone, the bars and digits), at the size the group has now but not turned or flipped (see barcodeTurn), and the
+// same as PNG for programs that don't draw SVG. The PNG has `pixels` on its longer side; with 0 it has at least 3 pixels to a module (4 for a QR code), in whole pixels, and at most
+// kMostBarcodePngSide on a side (*capped says it was held to that: the SVG stays exact). Empty for an item that is no barcode.
+constexpr int kMostBarcodePngSide = 4000;
 QByteArray barcodeSvg(const GroupItem &g);
-QByteArray barcodePng(const GroupItem &g, int pixels = 1200);
+QByteArray barcodePng(const GroupItem &g, int pixels = 0, bool *capped = nullptr);
+
+// The frame of a barcode before it is turned (the union of its parts' own frames), how far it is turned and whether it is flipped, and the same set on a barcode.
+QRectF barcodeFrame(const GroupItem &g);
+void barcodeTurn(const GroupItem &g, double *rotation, bool *flipH, bool *flipV);
+void setBarcodeTurn(GroupItem &g, double rotation, bool flipH, bool flipV);
 
 } // namespace jp

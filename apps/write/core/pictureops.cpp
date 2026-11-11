@@ -645,6 +645,32 @@ bool isDecorativeInner(const QByteArray &inner) { return inner.contains(kDecorat
 
 } // namespace
 
+namespace {
+
+// What the children of a drawing's properties are read under: the declarations elements kept as written are given, and those the drawing declares itself.
+QByteArray declarationsOf(const Model &m)
+{
+    QByteArray d = office::wml::keptElementDeclarations();
+    for (const auto &a : m.declarations)
+        if (!d.contains(a.first + "=")) d += " " + a.first + "=" + a.second;
+    return d;
+}
+
+// The settings of the barcode a drawing is: its marker, when the pictures it names are the ones the marker was written with (not another picture put in their place).
+QJsonObject verifiedBarcode(const WriteDoc &doc, const QByteArray &raw, const QByteArray &graphic)
+{
+    const office::BarcodeMarker marker = office::readBarcodeMarkerXml(raw, office::wml::keptElementDeclarations());
+    if (marker.isEmpty()) return {};
+    const QString text = QString::fromUtf8(graphic);
+    static const QRegularExpression blip(QStringLiteral("<a:blip\\b[^>]*?\\br:embed=\"([^\"]+)\""));
+    static const QRegularExpression svgBlip(QStringLiteral("<asvg:svgBlip\\b[^>]*?\\br:embed=\"([^\"]+)\""));
+    const QRegularExpressionMatch png = blip.match(text), svg = svgBlip.match(text);
+    const QByteArray svgBytes = svg.hasMatch() ? doc.relatedPartData(svg.captured(1)) : QByteArray();
+    return office::barcodePicturesMatch(marker, png.hasMatch() ? doc.relatedPartData(png.captured(1)) : QByteArray(), svg.hasMatch() ? &svgBytes : nullptr) ? marker.settings : QJsonObject();
+}
+
+} // namespace
+
 PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int position)
 {
     PictureInfo info;
@@ -682,7 +708,7 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
     Model m;
     info.editable = parseDrawing(atom.raw, &m);
     info.decorative = isDecorativeInner(m.docPrInner);
-    info.barcode = office::barcodeMarkerOfXml(m.docPrInner);
+    info.barcode = verifiedBarcode(doc, atom.raw, m.graphic);
     if (info.kind == DrawnKind::Picture) {
         info.cropLeft = s.cropL;
         info.cropTop = s.cropT;
@@ -773,7 +799,7 @@ struct BarcodeMedia {
     QString png, svg;
     QSizeF size;
     QString alt;
-    QByteArray marker;
+    QByteArray marker;        // the marker's extension (office/barcodemarker.h), with the fingerprints of the two pictures
 };
 
 bool addBarcodeMedia(WriteDoc &doc, const QJsonObject &settings, BarcodeMedia *out)
@@ -781,7 +807,7 @@ bool addBarcodeMedia(WriteDoc &doc, const QJsonObject &settings, BarcodeMedia *o
     const ItemPtr code = barcodeFromSettings(settings, QPointF());
     if (!code || code->type() != ItemType::Group) return false;
     const auto &group = static_cast<const GroupItem &>(*code);
-    const QByteArray svg = barcodeSvg(group), png = barcodePng(group, 1200);
+    const QByteArray svg = barcodeSvg(group), png = barcodePng(group);
     if (svg.isEmpty() || png.isEmpty()) return false;
     bool pngAdded = false, svgAdded = false;
     out->png = doc.addMedia(png, QStringLiteral("png"), QStringLiteral("image/png"), &pngAdded);
@@ -795,7 +821,7 @@ bool addBarcodeMedia(WriteDoc &doc, const QJsonObject &settings, BarcodeMedia *o
     }
     out->size = QSizeF(std::clamp(group.bounds().width(), kLeastPictureSize, kMostPictureSize), std::clamp(group.bounds().height(), kLeastPictureSize, kMostPictureSize));
     out->alt = group.altText;
-    out->marker = office::barcodeMarkerXml(settings);
+    out->marker = office::barcodeMarkerExtXml(settings, office::barcodeHash(png), office::barcodeHash(svg));
     return true;
 }
 
@@ -819,7 +845,7 @@ PictureResult insertBarcode(WriteDoc &doc, QTextCursor &c, const QJsonObject &se
     const int id = doc.nextDrawingId(doc.story());
     const QByteArray pictureName = attribute(QStringLiteral("Barcode %1").arg(id), 255);
     m.docPr = {{"id", quote(QByteArray::number(id))}, {"name", quote(pictureName)}, {"descr", quote(attribute(media.alt, kMostAltTextLength))}};
-    m.docPrInner = media.marker;
+    m.docPrInner = office::withBarcodeMarker(QByteArray(), media.marker, office::wml::keptElementDeclarations());
     m.distL = m.distR = 114300;
     m.graphic = pictureGraphic(media.png, m.cx, m.cy, pictureName, id, media.svg);
     Inline atom;
@@ -839,7 +865,7 @@ bool changeBarcode(WriteDoc &doc, int position, const QJsonObject &settings)
 {
     if (settings.isEmpty() || office::barcodeSettingsFromText(office::barcodeSettingsText(settings)).isEmpty()) return false;
     return changePicture(doc, position, [&](Model &m) {
-        if (office::barcodeMarkerOfXml(m.docPrInner).isEmpty()) return false;
+        if (verifiedBarcode(doc, drawingXml(m), m.graphic).isEmpty()) return false;
         BarcodeMedia media;
         if (!addBarcodeMedia(doc, settings, &media)) return false;
         // The width stays; the height follows the new barcode's proportions.
@@ -848,10 +874,8 @@ bool changeBarcode(WriteDoc &doc, int position, const QJsonObject &settings)
         clampKeepingRatio(&w, &h);
         m.cx = emuOf(w);
         m.cy = emuOf(h);
-        static const QRegularExpression ours(QStringLiteral("<a:extLst>\\s*<a:ext uri=\"\\{5B6C1E0A-2F4D-4C7B-9A3E-8D1F6A2B7C40\\}\">.*?</a:ext>\\s*</a:extLst>"), QRegularExpression::DotMatchesEverythingOption);
-        QString inner = QString::fromUtf8(m.docPrInner);
-        inner.remove(ours);
-        m.docPrInner = inner.toUtf8() + media.marker;
+        // (Our extension is replaced inside the extension list the properties have, beside any others, which are kept; there is only one list.)
+        m.docPrInner = office::withBarcodeMarker(m.docPrInner, media.marker, declarationsOf(m));
         setAttribute(&m.docPr, "descr", quote(attribute(media.alt, kMostAltTextLength)));
         const int id = attributeValue(m.docPr, "id").toInt();
         const QByteArray name = attributeValue(m.docPr, "name");

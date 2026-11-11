@@ -3,6 +3,7 @@
 #include "deckhelpers.h"
 #include "../withdialog.h"
 #include "core/barcodeitem.h"
+#include "office/barcodemarker.h"
 
 namespace {
 
@@ -25,6 +26,16 @@ bool thumbnailHasBars(DeckWindow &w)
     for (int y = 0; y < thumb.height(); ++y)
         for (int x = 0; x < thumb.width(); ++x) dark += qGray(thumb.pixel(x, y)) < 128 ? 1 : 0;
     return dark > 10;
+}
+
+// The exported file with the entries `change` makes.
+QByteArray repacked(const Exported &e, const std::function<void(QMap<QString, QByteArray> &)> &change)
+{
+    QMap<QString, QByteArray> parts = e.zip;
+    change(parts);
+    ZipWriter zip;
+    for (auto it = parts.cbegin(); it != parts.cend(); ++it) zip.add(it.key(), it.value(), true);
+    return zip.finish();
 }
 
 GroupItem *lastBarcode(Document &d)
@@ -210,6 +221,134 @@ private Q_SLOTS:
         QVERIFY(again);
         QCOMPARE(again->barcode, settings);
         QVERIFY(qAbs(again->rect.x() - 40) < 0.5 && qAbs(again->rect.width() - 120) < 0.5);
+    }
+
+    // A marker is honored only where the picture in the file is the one that was written: a photo put in the barcode's place (by another program's Change Picture) is a photo,
+    // though the marker is still a valid one for a QR code; so is a changed SVG.
+    void aPhotoWithAValidMarkerIsAPhoto()
+    {
+        DeckWindow w;
+        insertQr(w, QStringLiteral("https://jeffoffice.com/photo"));
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*w.editor()->doc(), &err);
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QImage red(60, 40, QImage::Format_RGB32);
+        red.fill(Qt::red);
+        QByteArray photo;
+        QBuffer buffer(&photo);
+        buffer.open(QIODevice::WriteOnly);
+        red.save(&buffer, "PNG");
+        QString pngPart, svgPart;
+        for (const QString &target : relationshipTargets(e, QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/image"))) {
+            if (target.endsWith(QLatin1String(".png"))) pngPart = target;
+            if (target.endsWith(QLatin1String(".svg"))) svgPart = target;
+        }
+        QVERIFY(!pngPart.isEmpty() && !svgPart.isEmpty());
+        // The picture replaced, the marker as it was.
+        auto swapped = deck::importPresentation(repacked(e, [&](QMap<QString, QByteArray> &parts) { parts[pngPart.mid(1)] = photo; }), &err);
+        QVERIFY2(swapped, qPrintable(err));
+        QVERIFY(!lastBarcode(*swapped));
+        QVERIFY(firstPicture(*swapped));
+        // The SVG changed, the PNG as it was.
+        auto other = deck::importPresentation(repacked(e, [&](QMap<QString, QByteArray> &parts) { parts[svgPart.mid(1)] = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\"/>"; }), &err);
+        QVERIFY2(other, qPrintable(err));
+        QVERIFY(!lastBarcode(*other));
+        // And untouched, it is the barcode.
+        auto same = deck::importPresentation(repacked(e, [](QMap<QString, QByteArray> &) {}), &err);
+        QVERIFY2(same, qPrintable(err));
+        QVERIFY(lastBarcode(*same));
+    }
+
+    // A barcode turned a quarter, and one that is decorative, are the same barcodes when the file is opened again, in a .pptx and in an .odp.
+    void aTurnedAndADecorativeBarcodeSurviveBothFiles()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        insertQr(w, QStringLiteral("https://jeffoffice.com/turn"));
+        GroupItem *g = lastBarcode(*ed->doc());
+        QVERIFY(g);
+        g->scaleInto(g->rect, QRectF(100, 100, 120, 120));
+        g->rotateAround(90, g->rect.center());
+        g->decorative = true;
+        double turn = 0;
+        bool fh = true, fv = true;
+        barcodeTurn(*g, &turn, &fh, &fv);
+        QCOMPARE(turn, 90.0);
+        QString err;
+        const QByteArray pptx = deck::exportPresentation(*ed->doc(), &err);
+        QVERIFY2(!pptx.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(pptx, &e, &err), qPrintable(err));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("rot=\"5400000\"")));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("jeffoffice.com/ns/barcode")));
+        auto fromPptx = deck::importPresentation(pptx, &err);
+        QVERIFY2(fromPptx, qPrintable(err));
+        const QByteArray odp = deck::exportOdp(*ed->doc(), false, &err);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        auto fromOdp = deck::importOdp(odp, &err);
+        QVERIFY2(fromOdp, qPrintable(err));
+        for (Document *d : {fromPptx.get(), fromOdp.get()}) {
+            GroupItem *back = lastBarcode(*d);
+            QVERIFY(back);
+            barcodeTurn(*back, &turn, &fh, &fv);
+            QVERIFY2(qAbs(turn - 90) < 0.01 && !fh && !fv, qPrintable(QString::number(turn)));
+            QVERIFY2(qAbs(back->rect.width() - 120) < 0.5 && qAbs(back->rect.center().x() - 160) < 0.5, qPrintable(QString::number(back->rect.center().x())));
+        }
+        QVERIFY(lastBarcode(*fromPptx)->decorative);
+    }
+
+    // A slide of more barcodes than are honored has the rest as plain pictures, and many copies of one barcode are one picture in the file.
+    void aSlideOfManyBarcodesHonorsTheFirstOnes()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        insertQr(w, QStringLiteral("https://jeffoffice.com/many"));
+        GroupItem *g = lastBarcode(*ed->doc());
+        QVERIFY(g);
+        const int total = jp::office::kMostBarcodesHonored + 100;
+        for (int i = 1; i < total; ++i) {
+            ItemPtr copy = g->clone();
+            copy->id = newId();
+            copy->moveBy(i % 20, i % 20);
+            ed->doc()->pages[0]->items.push_back(copy);
+        }
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*ed->doc(), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        int pictures = 0;
+        for (auto it = e.zip.cbegin(); it != e.zip.cend(); ++it) pictures += it.key().startsWith(QLatin1String("ppt/media/")) ? 1 : 0;
+        QCOMPARE(pictures, 2);   // (one PNG and one SVG)
+        const int encodes = barcodeEncodes();
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        int barcodes = 0, plain = 0;
+        for (const ItemPtr &it : back->pages[0]->items) {
+            barcodes += isBarcodeItem(it.get()) ? 1 : 0;
+            plain += it->type() == ItemType::Picture ? 1 : 0;
+        }
+        QCOMPARE(barcodes, jp::office::kMostBarcodesHonored);
+        QCOMPARE(plain, 100);
+        QVERIFY(barcodeEncodes() <= encodes + 1);   // (all copies of the one barcode are laid out once)
+    }
+
+    // An EAN with a wrong check digit shows what is wrong, and puts nothing on the slide.
+    void anEanWithAWrongCheckDigitIsRefused()
+    {
+        DeckWindow w;
+        const int before = int(w.editor()->doc()->pages[0]->items.size());
+        QString shown;
+        withDialog([&] { w.act(QStringLiteral("insert.barcode"))->trigger(); }, QStringLiteral("barcodeDialog"), [&](QDialog *d) {
+            d->findChildren<QComboBox *>().first()->setCurrentIndex(int(barcode::Type::Ean13));
+            d->findChildren<QLineEdit *>().first()->setText(QStringLiteral("5901234123458"));
+            for (QLabel *l : d->findChildren<QLabel *>()) shown += l->text();
+            for (QPushButton *b : d->findChildren<QPushButton *>())
+                if (b->text() == QLatin1String("Insert")) QVERIFY(!b->isEnabled());
+        });
+        QVERIFY2(shown.contains(QStringLiteral("check digit should be 7")), qPrintable(shown));
+        QCOMPARE(int(w.editor()->doc()->pages[0]->items.size()), before);
     }
 
     // A marker that holds no barcode the encoder can draw (the data is gone) leaves the picture as an ordinary picture.

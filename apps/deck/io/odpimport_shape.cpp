@@ -164,18 +164,21 @@ ItemPtr Reader::readShape(const QDomElement &e, Scope &sc, const QTransform &t)
         it = readFrame(e, sc, t);
         // A picture with the marker of a barcode of ours is that barcode, in the frame the file gave it.
         if (it && it->type() == ItemType::Picture)
-            if (const QJsonObject settings = office::barcodeOdfSettings(a.get("jo:barcode")); !settings.isEmpty())
-                if (const ItemPtr code = barcodeFromSettings(settings, QPointF()); code && !it->rect.isEmpty()) {
-                    code->scaleInto(code->rect, it->rect);
-                    code->name = it->name;
-                    code->altText = it->altText;
-                    code->altTitle = it->altTitle;
-                    code->hidden = it->hidden;
-                    code->hyperlink = it->hyperlink;
-                    code->lockAspect = it->lockAspect;
-                    code->wrap.mode = Wrap::None;
-                    it = code;
-                }
+            if (const office::BarcodeMarker marker = office::barcodeOdfMarker(a.get("jo:barcode"), a.get("jo:barcode-sha256")); !marker.isEmpty() && !it->rect.isEmpty() && m_barcodes < office::kMostBarcodesHonored)
+                if (const QByteArray png = m_doc.images.value(static_cast<PictureItem *>(it.get())->imageId).bytes; office::barcodePicturesMatch(marker, png, nullptr))
+                    if (const ItemPtr code = barcodeFromSettings(marker.settings, QPointF())) {
+                        ++m_barcodes;
+                        code->scaleInto(code->rect, it->rect);
+                        setBarcodeTurn(static_cast<GroupItem &>(*code), it->rotation, it->flipH, it->flipV);
+                        code->name = it->name;
+                        code->altText = it->altText;
+                        code->altTitle = it->altTitle;
+                        code->hidden = it->hidden;
+                        code->hyperlink = it->hyperlink;
+                        code->lockAspect = it->lockAspect;
+                        code->wrap.mode = Wrap::None;
+                        it = code;
+                    }
     }
     else if (tag == QLatin1String("draw:custom-shape")) it = readCustomShape(e, sc, t);
     else if (tag == QLatin1String("draw:rect") || tag == QLatin1String("draw:ellipse") || tag == QLatin1String("draw:circle") || tag == QLatin1String("draw:caption")) it = readBasicShape(e, sc, t);

@@ -3,6 +3,10 @@
 #include "app/backstage.h"
 #include "core/svg.h"
 #include "app/emailops.h"
+#include "core/barcodeitem.h"
+#include "office/barcodemarker.h"
+#include "wml/wml.h"
+#include <QXmlStreamReader>
 #include <QPaintEngine>
 #include <QPdfWriter>
 #include <QPrinter>
@@ -12,6 +16,35 @@
 #include "../settingguard.h"
 #include "app/optionsdialog.h"
 #include <QCheckBox>
+
+namespace {
+static QJsonObject qrSettings(const QString &text)
+{
+    return QJsonObject{{"type", 6}, {"data", text}, {"magnification", 100}, {"height", 100}, {"text", true}, {"white", true}, {"qrLevel", 1}};
+}
+
+// How many a:extLst elements `inner` has at the top, and the uris of their extensions in order.
+static QStringList extensionsOf(const QByteArray &inner, int *lists)
+{
+    QXmlStreamReader x("<x xmlns:a=\"urn:a\" xmlns:b=\"urn:b\" xmlns:r=\"urn:r\">" + inner + "</x>");
+    QStringList uris;
+    *lists = 0;
+    int depth = 0;
+    while (!x.atEnd()) {
+        x.readNext();
+        if (x.isStartElement()) {
+            ++depth;
+            if (depth == 2 && x.name() == QLatin1String("extLst")) ++*lists;
+            if (depth == 3 && x.name() == QLatin1String("ext")) uris << x.attributes().value(QLatin1String("uri")).toString();
+        } else if (x.isEndElement()) {
+            --depth;
+        }
+    }
+    if (x.hasError()) uris << QStringLiteral("NOT WELL FORMED");
+    return uris;
+}
+
+} // namespace
 
 class PubExportTests : public QObject {
     Q_OBJECT
@@ -1460,6 +1493,117 @@ private Q_SLOTS:
             write(QStringLiteral("v3-M-mask%1.png").arg(mask), QStringLiteral("https://jeffoffice.com/mask/%1").arg(mask), 1, mask);
             write(QStringLiteral("v8-H-mask%1.png").arg(mask), text(60, mask), 3, mask);
         }
+    }
+
+    // ---- the marker (office/barcodemarker.h): one extension list, settings held to the dialog's ranges, one encoding for many copies, and the picture the PNG is
+
+    // Our extension goes inside the extension list the properties have: replaced where it is (the others kept as they were, in their places), added beside the others, or in a list of its own.
+    void theMarkerGoesInsideTheExtensionListThereIs()
+    {
+        using namespace jp::office;
+        const QString pngHash = barcodeHash("png"), svgHash = barcodeHash("svg");
+        const QByteArray mine = barcodeMarkerExtXml(qrSettings(QStringLiteral("new")), pngHash, svgHash);
+        const QByteArray other = "<a:ext uri=\"{OTHER-1}\"><b:thing xmlns:b=\"urn:b\" b:x=\"1\"><b:deep/></b:thing></a:ext>", other2 = "<a:ext uri=\"{OTHER-2}\"/>";
+        const QByteArray old = barcodeMarkerExtXml(qrSettings(QStringLiteral("old")), pngHash);
+        const QByteArray link = "<a:hlinkClick r:id=\"rId9\"/>";
+        const QByteArray decls = jp::office::wml::keptElementDeclarations();
+        struct Case {
+            QByteArray inner;
+            QStringList uris;
+        };
+        const QStringList mineUri{QString::fromLatin1(kBarcodeExtUri)};
+        const QList<Case> cases = {
+            {"<a:extLst>" + old + other + "</a:extLst>", mineUri + QStringList{QStringLiteral("{OTHER-1}")}},                       // ours first, another after
+            {"<a:extLst>" + other + old + other2 + "</a:extLst>", QStringList{QStringLiteral("{OTHER-1}")} + mineUri + QStringList{QStringLiteral("{OTHER-2}")}},
+            {link + "<a:extLst>" + other + "</a:extLst>", QStringList{QStringLiteral("{OTHER-1}")} + mineUri},                      // another only
+            {"<a:extLst>" + other + old + "</a:extLst>", QStringList{QStringLiteral("{OTHER-1}")} + mineUri},                       // another first, ours after
+            {"<a:extLst/>", mineUri},
+            {QByteArray(), mineUri},
+            {link, mineUri},
+        };
+        for (const Case &c : cases) {
+            const QByteArray result = withBarcodeMarker(c.inner, mine, decls);
+            int lists = 0;
+            const QStringList uris = extensionsOf(result, &lists);
+            QVERIFY2(lists == 1, result.constData());
+            QCOMPARE(uris, c.uris);
+            QCOMPARE(readBarcodeMarkerXml(result, decls).settings.value(QLatin1String("data")).toString(), QStringLiteral("new"));
+            if (c.inner.contains("<b:deep/>")) QVERIFY(result.contains(other));   // (the other extension is as it was)
+            if (c.inner.startsWith(link)) QVERIFY(result.startsWith(link));
+        }
+    }
+
+    // A file's numbers are held to what the dialog allows (50% to 300% of the size, 40% to 100% of the bar height, a price up to 99.99, the levels there are).
+    void theMarkersSettingsAreHeldToTheDialogsRanges()
+    {
+        for (const double wild : {0.0, -5.0, 2e9, 1e300}) {
+            QJsonObject s = qrSettings(QStringLiteral("x"));
+            s["magnification"] = wild;
+            s["height"] = wild;
+            s["qrLevel"] = wild;
+            s["price"] = wild;
+            s["priceMode"] = wild;
+            s["currency"] = wild;
+            const jp::barcode::Options o = jp::barcodeOptions(s);
+            QVERIFY2(o.magnification >= 0.5 && o.magnification <= 3.0, qPrintable(QString::number(o.magnification)));
+            QVERIFY2(o.barHeight >= 0.4 && o.barHeight <= 1.0, qPrintable(QString::number(o.barHeight)));
+            QVERIFY(o.qrLevel >= 0 && o.qrLevel <= 3);
+            // And a barcode is made from them, at a size that is no more than the range's.
+            const jp::barcode::Layout l = jp::barcodeLayout(s);
+            QVERIFY(l.error.isEmpty() && l.size.width() < 3 * (177 + 8) * 3.0 + 1);
+        }
+        QJsonObject book{{"type", 0}, {"data", "978-0-306-40615-7"}, {"priceMode", 1}, {"currency", 9}, {"price", 2e9}};
+        QVERIFY(jp::barcodeOptions(book).addOn.size() == 5);
+        QVERIFY(jp::barcodeOptions(QJsonObject{{"type", 2e9}, {"data", "x"}}).type == jp::barcode::Type::Qr);
+    }
+
+    // Many copies of one barcode are encoded once, a marker is checked without a second encoding, and settings longer than 16 KB are no barcode.
+    void manyCopiesOfAMarkerAreEncodedOnce()
+    {
+        using namespace jp::office;
+        const QJsonObject s = qrSettings(QStringLiteral("copies of one barcode ") + QString::number(QDateTime::currentMSecsSinceEpoch()));
+        const QString text = barcodeSettingsText(s);
+        const int before = jp::barcodeEncodes();
+        for (int i = 0; i < 1000; ++i) {
+            QVERIFY(!barcodeSettingsFromText(text).isEmpty());
+            QVERIFY(jp::barcodeFromSettings(s, QPointF()));
+        }
+        QCOMPARE(jp::barcodeEncodes(), before + 1);
+        // 16 KB of settings: up to it is read, past it is not (a long note in the settings, beside a barcode that is fine).
+        QJsonObject big = qrSettings(QStringLiteral("size limit"));
+        big["note"] = QString(jp::kMostBarcodeSettingsBytes - barcodeSettingsText(big).toUtf8().size() - 12, QLatin1Char('n'));
+        QVERIFY(barcodeSettingsText(big).toUtf8().size() <= jp::kMostBarcodeSettingsBytes);
+        QVERIFY(!barcodeSettingsFromText(barcodeSettingsText(big)).isEmpty());
+        big["note"] = QString(jp::kMostBarcodeSettingsBytes, QLatin1Char('n'));
+        QVERIFY(barcodeSettingsText(big).toUtf8().size() > jp::kMostBarcodeSettingsBytes);
+        QVERIFY(barcodeSettingsFromText(barcodeSettingsText(big)).isEmpty());
+    }
+
+    // The PNG has whole pixels to each module: 3 or more for a linear code, 4 or more for a QR code, at most 4000 across (then it says so, and the SVG is exact).
+    void theBarcodePngHasEnoughPixelsToEachModule()
+    {
+        auto modulesAndWidth = [](const QJsonObject &s, bool *capped, int *width) {
+            const jp::barcode::Layout l = jp::barcodeLayout(s);
+            double module = 1e9;
+            for (const QRectF &r : l.bars) module = std::min(module, r.width());
+            const auto group = std::dynamic_pointer_cast<jp::GroupItem>(jp::barcodeFromSettings(s, QPointF()));
+            const QImage png = QImage::fromData(jp::barcodePng(*group, 0, capped), "PNG");
+            *width = png.width();
+            return int(std::lround(l.size.width() / module));
+        };
+        bool capped = true;
+        int width = 0;
+        QJsonObject code128{{"type", 4}, {"data", QString(110, QLatin1Char('A'))}, {"magnification", 100}, {"height", 100}, {"text", true}, {"white", true}};
+        int modules = modulesAndWidth(code128, &capped, &width);
+        QVERIFY2(!capped && width >= 3 * modules, qPrintable(QStringLiteral("%1 px, %2 modules").arg(width).arg(modules)));
+        modules = modulesAndWidth(qrSettings(QString(300, QLatin1Char('q'))), &capped, &width);
+        QVERIFY2(!capped && width >= 4 * modules, qPrintable(QStringLiteral("%1 px, %2 modules").arg(width).arg(modules)));
+        code128["data"] = QString(400, QLatin1Char('A'));
+        modulesAndWidth(code128, &capped, &width);
+        QVERIFY(capped && width <= jp::kMostBarcodePngSide);
+        // The SVG is exact: its width is the barcode's, whatever the PNG's.
+        const auto group = std::dynamic_pointer_cast<jp::GroupItem>(jp::barcodeFromSettings(code128, QPointF()));
+        QVERIFY(jp::barcodeSvg(*group).contains(QStringLiteral("width=\"%1pt\"").arg(group->rect.width(), 0, 'f', 3).toUtf8()));
     }
 
     // Insert > Barcode places one group: the white quiet zone and the bars
