@@ -78,8 +78,9 @@
        "text": "d686598cff635077c8f7cec2d837688b3bb918640540ba67b8114f357e368c93"
       },
       {
-       "status": "todo",
-       "text": "71b4fbb1cae3651f63bc1d7d6b08f0997c47bd9e9c73fd78da94aaec040f4c72"
+       "hide_soon": true,
+       "status": "done",
+       "text": "abb3e6c948699f8a4baf19bb2d6cab45fa25131896ed1b65e342df2a09d1c98d"
       },
       {
        "status": "partly",
@@ -656,8 +657,9 @@
          "text": "f9518d58e1b54257163d384e7c3ba2a14d66663b89d4ecbdd7563548eb526376"
         },
         {
-         "status": "partly",
-         "text": "098a0573a1b6f4a940eec33b0df2604da8b874027c7d7329c19e92ea4d1eea8e"
+         "hide_soon": true,
+         "status": "done",
+         "text": "09f649116869178ca9a0defb14424d0cd5f840c87e26c820746f2a6adb1ec75b"
         },
         {
          "hide_soon": true,
@@ -750,7 +752,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "559c90b2c884e44bd0b485325d4e50ee3344aa7af2c41cb1bda07336ac9847cd"
+         "text": "41b8e37b666ce0131141171a43b4024d1ddcf10e29b42501f3cfb23b95b3852e"
         },
         {
          "hide_soon": true,
@@ -1497,7 +1499,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "d589d09ac1cbca5471146304bb403a7148c1bfc58f88b6dc4d9c16d30bfd7bae"
+         "text": "d21d114900a2241742f15cdfdbe481ccaa45513d1dfe6bc0c5bc7bb5f8ed175d"
         },
         {
          "status": "partly",
@@ -1522,7 +1524,7 @@
         },
         {
          "status": "partly",
-         "text": "bea493bf866b3409ca77922e7c6e2dc78de325ad0cca86ca8e7dee1e4a5be1c6"
+         "text": "ad28e8feaaf84e0baa0bc9d970f255eb2b73122594de220cc293c50f04bb4056"
         },
         {
          "status": "partly",
@@ -5468,8 +5470,8 @@
        "text": "9d416e99195406ba2533427775b4cea62de2a00ac4d2b704af0dbdb013df7b65"
       },
       {
-       "status": "todo",
-       "text": "5774c236f33fc1f18bffa3e2761cef9274202067d5f8632e538bbab155f2847b"
+       "status": "partly",
+       "text": "a4bd45dbb39d2c0392d81c81da0bd7d2fdd8dcbb2b59ecf91977b105d3569fcb"
       },
       {
        "status": "todo",
@@ -6658,7 +6660,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "91072661ea05ec66950fc2757bfb327cf62762f0640b221d7c0ddefb4a5545bc"
+         "text": "6baf46adc3c24734d03ff60ad5fe8019106eac09df8ea2a4aeaa1ef0f40e648c"
         },
         {
          "status": "partly",
@@ -8002,18 +8004,6 @@
     "fr": ""
    }
   },
-  "098a0573a1b6f4a940eec33b0df2604da8b874027c7d7329c19e92ea4d1eea8e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Icons, and online pictures from open image libraries",
-    "es": "Iconos e imágenes en línea de bibliotecas de imágenes abiertas",
-    "fr": "Icônes et images en ligne provenant de bibliothèques d’images libres"
-   }
-  },
   "098e9476ae23f7a76107523af9d69ef3fdafd6ba40d2c4eed8da5e2ccc16781f": {
    "drop": false,
    "en": "Zoom from 400% to 10% with a menu, Fit to Window, the status bar slider and buttons, or `Ctrl` with the mouse wheel; in Slide Sorter the same controls size the pictures.",
@@ -8120,6 +8110,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "09f649116869178ca9a0defb14424d0cd5f840c87e26c820746f2a6adb1ec75b": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Icons, and online pictures from open image libraries",
+    "es": "Iconos e imágenes en línea de bibliotecas de imágenes abiertas",
+    "fr": "Icônes et images en ligne issues de bibliothèques d’images libres"
    }
   },
   "0a133e34789eda8908467b1a9b46a6c3d06866579682cbc2af38ea8e1f57591d": {
@@ -12130,6 +12132,18 @@
     "fr": ""
    }
   },
+  "41b8e37b666ce0131141171a43b4024d1ddcf10e29b42501f3cfb23b95b3852e": {
+   "drop": false,
+   "en": "Insert a text box on a sheet and edit its words, alignment, size, bold, and color. Insert Text Art from a gallery of styles, edit its words, font, size, bold, and italic, and change its look and shape with Text Art Styles and Text Warp. Text Art is saved in and read from `.xlsx` files, and each change is one step of Undo.",
+   "es": "Inserte un cuadro de texto en una hoja y edite sus palabras, alineación, tamaño, negrita y color. Inserte Text Art desde una galería de estilos, edite sus palabras, fuente, tamaño, negrita y cursiva, y cambie su aspecto y forma con Estilos de Text Art y Deformación de texto. El Text Art se guarda y se lee en archivos `.xlsx`, y cada cambio es un paso de Deshacer.",
+   "fr": "Insérez une zone de texte sur une feuille et modifiez ses mots, son alignement, sa taille, le gras et la couleur. Insérez du Text Art depuis une galerie de styles, modifiez ses mots, sa police, sa taille, le gras et l’italique, et changez son aspect et sa forme avec Styles Text Art et Déformation du texte. Le Text Art est enregistré dans les fichiers `.xlsx` et relu depuis ceux-ci, et chaque modification correspond à une étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Text Art in `.ods` files: save",
+    "es": "Text Art en archivos `.ods`: guardar",
+    "fr": "Text Art dans les fichiers `.ods` : enregistrement"
+   }
+  },
   "41f1adeb641eee0f913f6c8d822f2304729e280d7780da49dc25cbce24d057a0": {
    "drop": true,
    "en": "",
@@ -13678,18 +13692,6 @@
     "fr": "Symbole : n’importe quel caractère de n’importe quelle police, et symboles récents"
    }
   },
-  "559c90b2c884e44bd0b485325d4e50ee3344aa7af2c41cb1bda07336ac9847cd": {
-   "drop": false,
-   "en": "Insert > Text Box puts an empty box on the sheet, and Edit Text sets its words, alignment, size, bold, and color.",
-   "es": "Insertar > Cuadro de texto coloca un cuadro vacío en la hoja, y Editar texto establece sus palabras, alineación, tamaño, negrita y color.",
-   "fr": "Insertion > Zone de texte place une zone vide sur la feuille, et Modifier le texte définit ses mots, son alignement, sa taille, le gras et la couleur.",
-   "soon": {
-    "drop": false,
-    "en": "Text styles",
-    "es": "Estilos de texto",
-    "fr": "Styles de texte"
-   }
-  },
   "55d9a3cec33ab867a4aa2d3671a86980bf199a8ae7e964f1480c773bb25333c2": {
    "drop": true,
    "en": "",
@@ -13796,18 +13798,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "5774c236f33fc1f18bffa3e2761cef9274202067d5f8632e538bbab155f2847b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Online Pictures and Stock Images search Openverse and Wikimedia Commons, with the license and credit kept as a caption",
-    "es": "Imágenes en línea e imágenes de archivo con búsqueda en Openverse y Wikimedia Commons, con la licencia y el crédito conservados como pie de imagen",
-    "fr": "Images en ligne et images d’archives avec recherche dans Openverse et Wikimedia Commons, la licence et le crédit étant conservés comme légende"
    }
   },
   "57a97100cd61826e7a17a18d6c3b64d697e478e2840d91322683fc40ca4cab51": {
@@ -15322,6 +15312,18 @@
     "fr": ""
    }
   },
+  "6baf46adc3c24734d03ff60ad5fe8019106eac09df8ea2a4aeaa1ef0f40e648c": {
+   "drop": false,
+   "en": "Set the size of a picture with the handles or with Height and Width, with the aspect ratio locked or not. Crop cuts each edge by a percent of the whole picture, Crop to Shape cuts it to any shape of the gallery, and Rotate turns it a quarter turn either way. Reset Picture removes the crop, colors, and border. Compress Pictures reduces each picture to 300, 220, or 96 pixels per inch for the size it is shown at, for all pictures or the selected one, and can remove cropped areas. Each is one step of Undo.",
+   "es": "Cambie el tamaño de una imagen con los controladores o con Alto y Ancho, con la relación de aspecto bloqueada o no. Recortar corta cada borde según un porcentaje de la imagen completa, Recortar a forma la corta con cualquier forma de la galería y Girar la gira un cuarto de vuelta en cualquier sentido. Restablecer imagen quita el recorte, los colores y el borde. Comprimir imágenes reduce cada imagen a 300, 220 o 96 píxeles por pulgada según el tamaño en que se muestra, para todas las imágenes o la seleccionada, y puede eliminar las áreas recortadas. Cada acción es un paso de Deshacer.",
+   "fr": "Réglez la taille d’une image avec les poignées ou avec Hauteur et Largeur, proportions verrouillées ou non. Rogner coupe chaque bord selon un pourcentage de l’image entière, Rogner selon la forme la découpe selon n’importe quelle forme de la galerie, et Pivoter la tourne d’un quart de tour dans les deux sens. Réinitialiser l’image retire le rognage, les couleurs et la bordure. Compresser les images ramène chaque image à 300, 220 ou 96 pixels par pouce selon la taille d’affichage, pour toutes les images ou celle sélectionnée, et peut supprimer les zones rognées. Chaque action correspond à une étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Crop to an aspect ratio, fill, and fit",
+    "es": "Recorte a una relación de aspecto, relleno y ajuste",
+    "fr": "Rognage selon un format, remplissage et ajustement"
+   }
+  },
   "6baf5e555acd10b45b014804b701e70670d3dfb96194e1731835b2d67a6fa13c": {
    "drop": false,
    "en": "Insert a table by sliding across a grid to pick rows and columns, or by typing the numbers in Insert Table. `Tab` moves to the next cell, `Shift+Tab` goes back, and `Tab` in the last cell adds a row.",
@@ -15860,18 +15862,6 @@
     "en": "Inspect Publication: find and remove personal information and off-page content before sharing",
     "es": "Inspeccionar la publicación: buscar y quitar información personal y contenido fuera de la página antes de compartir",
     "fr": "Inspecter la publication : trouver et supprimer les informations personnelles et le contenu hors page avant le partage"
-   }
-  },
-  "71b4fbb1cae3651f63bc1d7d6b08f0997c47bd9e9c73fd78da94aaec040f4c72": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Online pictures search of Openverse and Wikimedia Commons, with license and credit kept",
-    "es": "Búsqueda de imágenes en línea en Openverse y Wikimedia Commons, con licencia y créditos conservados",
-    "fr": "Recherche d’images en ligne sur Openverse et Wikimedia Commons, avec licence et crédit conservés"
    }
   },
   "71e0d76607d951c6e97861240279dea8baef2b20134f1fcdac8ca463e5044d83": {
@@ -17914,18 +17904,6 @@
     "fr": ""
    }
   },
-  "91072661ea05ec66950fc2757bfb327cf62762f0640b221d7c0ddefb4a5545bc": {
-   "drop": false,
-   "en": "Crop each edge of a picture by a percent, crop to any shape of the gallery, rotate a quarter turn either way, set size by handles or Height and Width with the aspect ratio locked or not, and reset the picture. Crops, transparent colors, and borders in a file are drawn.",
-   "es": "Recorte cada borde de una imagen según un porcentaje, recorte con cualquier forma de la galería, gire un cuarto de vuelta en cualquier sentido, defina el tamaño con los tiradores o con Alto y Ancho con la proporción bloqueada o no, y restablezca la imagen. Los recortes, colores transparentes y bordes de un documento se dibujan.",
-   "fr": "Rognez chaque bord d’une image selon un pourcentage, rognez selon n’importe quelle forme de la galerie, faites pivoter d’un quart de tour dans un sens ou l’autre, définissez la taille avec les poignées ou Hauteur et Largeur avec les proportions verrouillées ou non, et réinitialisez l’image. Les rognages, couleurs transparentes et bordures d’un fichier sont dessinés.",
-   "soon": {
-    "drop": false,
-    "en": "Crop to an aspect ratio, fill, and fit; compress pictures",
-    "es": "Recorte a una proporción, relleno y ajuste; comprimir imágenes",
-    "fr": "Rognage selon un rapport d’aspect, remplissage et ajustement ; compression des images"
-   }
-  },
   "911cfa245408b97bac94cb87e157891170b36f82fb2483ac7f6238b4e9c73390": {
    "drop": false,
    "en": "Bundled open fonts, with stand-ins that keep the letter widths of common fonts, so a document lays out the same on a computer without those fonts.",
@@ -19234,6 +19212,18 @@
     "fr": ""
    }
   },
+  "a4bd45dbb39d2c0392d81c81da0bd7d2fdd8dcbb2b59ecf91977b105d3569fcb": {
+   "drop": false,
+   "en": "Insert > Pictures > Online Pictures opens a pane that searches Openverse and Wikimedia Commons and puts the picture in at the caret, with its title as alt text and, if asked, a credit line under it. One step of Undo removes it.",
+   "es": "Insertar > Imágenes > Imágenes en línea abre un panel que busca en Openverse y Wikimedia Commons e inserta la imagen en la posición del cursor, con su título como texto alternativo y, si usted lo pide, una línea de crédito debajo. Un solo paso de Deshacer la quita.",
+   "fr": "Insertion > Images > Images en ligne ouvre un volet qui recherche dans Openverse et Wikimedia Commons et place l’image à la position du curseur, avec son titre comme texte de remplacement et, si vous le demandez, une ligne de crédit dessous. Une seule étape d’annulation la retire.",
+   "soon": {
+    "drop": false,
+    "en": "Stock images search; credit as a numbered caption",
+    "es": "Búsqueda de imágenes de archivo; crédito como pie de imagen numerado",
+    "fr": "Recherche d’images de banque d’images ; crédit sous forme de légende numérotée"
+   }
+  },
   "a4bf6e2bdcf37f71b6bdab8b5c093dc91b0b4abc185da91d7b5e1166d9299f72": {
    "drop": true,
    "en": "",
@@ -19678,6 +19668,18 @@
     "fr": "Partage sans compte cloud : un paquet avec le document, les polices et les images"
    }
   },
+  "abb3e6c948699f8a4baf19bb2d6cab45fa25131896ed1b65e342df2a09d1c98d": {
+   "drop": false,
+   "en": "Insert > Pictures > Online Pictures searches Openverse and Wikimedia Commons and places the picture on the sheet with its title as alt text. If asked, a credit line goes in a text box under it. One step of Undo removes it.",
+   "es": "Insertar > Imágenes > Imágenes en línea busca en Openverse y Wikimedia Commons y coloca la imagen en la hoja con su título como texto alternativo. Si usted lo pide, se añade una línea de crédito en un cuadro de texto debajo. Un solo paso de Deshacer la quita.",
+   "fr": "Insertion > Images > Images en ligne recherche dans Openverse et Wikimedia Commons et place l’image sur la feuille avec son titre comme texte de remplacement. Si vous le demandez, une ligne de crédit est ajoutée dans une zone de texte dessous. Une seule étape d’annulation la retire.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "abc87c2aed43e353b4f662224e06f166e810cdf7e2eacd4bbbd9d9110c13c591": {
    "drop": false,
    "en": "Help tab",
@@ -19772,6 +19774,18 @@
     "en": "Book fold printing: a booklet in folding order",
     "es": "Impresión de libro plegado: un folleto en orden de plegado",
     "fr": "Impression en livret plié : un livret dans l’ordre de pliage"
+   }
+  },
+  "ad28e8feaaf84e0baa0bc9d970f255eb2b73122594de220cc293c50f04bb4056": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Text styles, text fill, text outline, and text effects for shapes, and align and group for objects",
+    "es": "Estilos de texto, relleno de texto, contorno de texto y efectos de texto para formas, y alinear y agrupar para objetos",
+    "fr": "Styles de texte, remplissage du texte, contour du texte et effets de texte pour les formes, et alignement et groupement pour les objets"
    }
   },
   "ad77e134da74bc3088f9f45186b3e74597bd7c3f93a98ffc7e1f5f5386101014": {
@@ -20756,18 +20770,6 @@
     "en": "Nonbreaking spaces and hyphens: insert by command or key",
     "es": "Espacios y guiones de no separación: insertar con un comando o una tecla",
     "fr": "Espaces et traits d’union insécables : insertion par commande ou touche"
-   }
-  },
-  "bea493bf866b3409ca77922e7c6e2dc78de325ad0cca86ca8e7dee1e4a5be1c6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Text styles, text fill, text outline, and text effects for shapes, and align and group for objects",
-    "es": "Estilos de texto, relleno de texto, contorno de texto y efectos de texto para formas, y alinear y agrupar para objetos",
-    "fr": "Styles de texte, remplissage du texte, contour du texte et effets de texte pour les formes, et alignement et groupement des objets"
    }
   },
   "bea7657e37bcebfaf5305cd8db6cd49e2f176b9a1df203e4665dbe8d3c568fc3": {
@@ -22318,6 +22320,18 @@
     "fr": "Insérer une tabulation d’alignement et Afficher le texte du document"
    }
   },
+  "d21d114900a2241742f15cdfdbe481ccaa45513d1dfe6bc0c5bc7bb5f8ed175d": {
+   "drop": false,
+   "en": "Compress Pictures, in the Adjust group of the Picture Format tab, reduces pictures to 300, 220, or 96 pixels per inch for the size they are shown at, for the pictures on the sheet or the selected one, and can remove cropped areas. The saved workbook keeps only the smaller files, and the change is one step of Undo.",
+   "es": "Comprimir imágenes, en el grupo Ajustar de la pestaña Formato de imagen, reduce las imágenes a 300, 220 o 96 píxeles por pulgada según el tamaño en que se muestran, para las imágenes de la hoja o la seleccionada, y puede eliminar las áreas recortadas. El libro guardado conserva solo los archivos más pequeños, y el cambio es un paso de Deshacer.",
+   "fr": "Compresser les images, dans le groupe Ajuster de l’onglet Format de l’image, ramène les images à 300, 220 ou 96 pixels par pouce selon la taille d’affichage, pour les images de la feuille ou celle sélectionnée, et peut supprimer les zones rognées. Le classeur enregistré ne conserve que les fichiers plus petits, et la modification correspond à une étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Corrections, color, artistic effects, transparency, change picture, and remove background",
+    "es": "Correcciones, color, efectos artísticos, transparencia, cambio de imagen y eliminación de fondo",
+    "fr": "Corrections, couleur, effets artistiques, transparence, changement d’image et suppression de l’arrière-plan"
+   }
+  },
   "d21d52c5f70101e783daca84dfeae95261bee34e28e5b126336287815152d410": {
    "drop": false,
    "en": "Letter effects (outer and inner shadows, a glow, and a reflection) are drawn under the letters. They are read from the run and from the list styles, masters, and layouts it inherits from, and saved as listed.",
@@ -22616,18 +22630,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d589d09ac1cbca5471146304bb403a7148c1bfc58f88b6dc4d9c16d30bfd7bae": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Picture corrections, color, artistic effects, transparency, compression, change, reset, and background removal",
-    "es": "Correcciones, color, efectos artísticos, transparencia, compresión, cambio, restablecimiento y eliminación de fondo de imágenes",
-    "fr": "Corrections, couleur, effets artistiques, transparence, compression, changement, réinitialisation et suppression de l’arrière-plan des images"
    }
   },
   "d614c47e98e23721f8165ef6b42220bb08886e240a7e21c63519a1ef63283d93": {
