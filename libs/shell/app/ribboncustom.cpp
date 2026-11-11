@@ -449,6 +449,7 @@ QAction *renamedCommand(QAction *orig, const QString &text, QObject *parent)
         p->setToolTip(orig->toolTip());
         // plain: reviewed: the command's own help text
         p->setWhatsThis(orig->whatsThis());
+        // plain: reviewed: the command's own status tip
         p->setStatusTip(orig->statusTip());
         p->setIconText(orig->iconText() == orig->text() ? QString() : orig->iconText());   // (the text it has no other for is the new name)
         p->setData(orig->data());
