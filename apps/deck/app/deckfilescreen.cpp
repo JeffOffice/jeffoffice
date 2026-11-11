@@ -547,9 +547,10 @@ QWidget *DeckFileScreen::buildPrint()
         p.setCopyCount(copies->value());
         p.setCollateCopies(collate->isChecked());
         p.setColorMode(gray->isChecked() ? QPrinter::GrayScale : QPrinter::Color);
+        const QString before = p.printerName();
         QPrintDialog dialog(&p, this);
         if (execPrintDialog(dialog) != QDialog::Accepted) return;
-        const int at = printer->findData(p.printerName(), Qt::UserRole);
+        const int at = p.printerName() != before ? printer->findData(p.printerName(), Qt::UserRole) : -1;
         if (at >= 0 && !p.printerName().isEmpty()) printer->setCurrentIndex(at);
         copies->setValue(std::max(1, p.copyCount()));
         collate->setChecked(p.collateCopies());

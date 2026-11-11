@@ -1019,10 +1019,11 @@ QWidget *Backstage::buildPrint()
     connect(props, &QPushButton::clicked, this, [=] {
         QPrinter &p = *job;
         if (!setup(p, false)) return;
+        const QString before = p.printerName();
         QPrintDialog dlg(&p, this);
         if (execPrintDialog(dlg) != QDialog::Accepted) return;
-        // what the window changed that the page also has comes back to it
-        const int at = printer->findData(p.printerName(), Qt::UserRole);
+        // what the window changed that the page also has comes back to it (a printer only when it was changed: a PDF file keeps its place)
+        const int at = p.printerName() != before ? printer->findData(p.printerName(), Qt::UserRole) : -1;
         if (at >= 0 && !p.printerName().isEmpty()) printer->setCurrentIndex(at);
         copies->setValue(std::max(1, p.copyCount()));
         collate->setChecked(p.collateCopies());

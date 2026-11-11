@@ -487,9 +487,10 @@ QWidget *CrunchFileScreen::buildPrint()
         QPrinter &p = win->printer();
         const QString name = printer->currentData(Qt::UserRole + 1).toBool() ? QString() : printer->currentData().toString();
         if (!name.isEmpty()) p.setPrinterName(name);
+        const QString before = p.printerName();
         QPrintDialog dialog(&p, this);
         if (execPrintDialog(dialog) == QDialog::Accepted) {
-            const int at = printer->findData(p.printerName());
+            const int at = p.printerName() != before ? printer->findData(p.printerName()) : -1;
             if (at >= 0) printer->setCurrentIndex(at);
             copies->setValue(std::max(1, p.copyCount()));
             collate->setChecked(p.collateCopies());
