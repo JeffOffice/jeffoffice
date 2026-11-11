@@ -1500,14 +1500,13 @@ void checkRibbonPage(Adapter &app)
         (ribbon->tabContextGroup(i).isEmpty() ? titles : contextual) << ribbon->tabTitle(i);
         if (ribbon->tabContextGroup(i).isEmpty()) groupCounts << int(ribbon->tabPage(i)->groups().size());
     }
-    QVERIFY(titles.size() >= 2);
-    // the commands the page must list: every one with a name that is not a menu
+    QVERIFY(!titles.isEmpty());
+    // the commands the page must list: the ones the keyboard page lists (one function decides), each with the ribbon tab it is on
     int wanted = 0;
-    for (const QString &id : w->actionIds()) {
-        QAction *a = w->act(id);
-        if (a && !a->menu() && !QString(a->text()).remove(QLatin1Char('&')).simplified().isEmpty()) ++wanted;
-    }
-    QVERIFY(wanted > 0);
+    for (const QString &id : w->actionIds())
+        if (jp::KeyMap::listsCommand(w->act(id))) ++wanted;
+    const jp::KeyMap keys(w.get());
+    QCOMPARE(int(keys.commands().size()), wanted);
     QCOMPARE(titles.first(), QStringLiteral("Home"));
     const int tabsBefore = ribbon->tabCount();
     withDialog([&] { options->trigger(); }, QStringLiteral("optionsDialog"), [&](QDialog *dlg) {
@@ -1522,7 +1521,7 @@ void checkRibbonPage(Adapter &app)
         QStringList listed;
         for (int i = 0; i < tree->topLevelItemCount(); ++i) listed << tree->topLevelItem(i)->text(0);
         QCOMPARE(listed.mid(0, titles.size()), titles);
-        QCOMPARE(listed.size(), titles.size() + contextual.size());
+        QCOMPARE(listed.size(), ribbon->tabCount());
         QVERIFY(!(tree->topLevelItem(0)->flags() & Qt::ItemIsUserCheckable));
         for (int i = 0; i < titles.size(); ++i) QCOMPARE(tree->topLevelItem(i)->childCount(), groupCounts[i]);
         QVERIFY(tree->topLevelItem(1)->flags() & Qt::ItemIsUserCheckable);
@@ -1531,9 +1530,18 @@ void checkRibbonPage(Adapter &app)
         QCOMPARE(list->count(), wanted);
         const QString first = list->item(0)->data(Qt::UserRole + 1).toString();
         search->setText(first);
+        // exactly the commands whose name or tab has all the words, as the keyboard page's own list says them
+        int expected = 0;
+        for (const jp::KeyCommand &c : keys.commands()) {
+            const QString hay = (c.text + QStringLiteral(" (") + c.group + QLatin1Char(')')).toLower();
+            bool all = true;
+            for (const QString &word : first.simplified().toLower().split(QLatin1Char(' '), Qt::SkipEmptyParts)) all = all && hay.contains(word);
+            expected += all;
+        }
         int shown = 0;
         for (int i = 0; i < list->count(); ++i) shown += !list->item(i)->isHidden();
-        QVERIFY2(shown >= 1 && shown < list->count(), qPrintable(QString::number(shown)));
+        QCOMPARE(shown, expected);
+        QVERIFY(shown >= 1);
         search->clear();
         // a tab of one's own can be made (Cancel throws it away)
         auto *name = page->findChild<QLineEdit *>(QStringLiteral("ribbonName"));

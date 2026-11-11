@@ -711,6 +711,77 @@ private Q_SLOTS:
         QVERIFY(!page.plan().tabOrder.contains(QStringLiteral("Insert")));
     }
 
+    void aTabNobodyTouchedStaysUnmadeAfterApplying()
+    {
+        LazyTabs lazy;
+        // commands in a group on Home, and a group hidden on View's neighbor: nothing else is made
+        RibbonCustom c;
+        const QString g = c.addGroup(QStringLiteral("Home"), QStringLiteral("Mine"));
+        c.addCommand(g, QStringLiteral("format.bold"));
+        c.addCommand(g, QStringLiteral("test.extra"));
+        c.save();
+        RibbonWindow w;
+        Ribbon *r = w.ribbon();
+        QVERIFY(!r->tab(QStringLiteral("Insert"))->isBuilt());
+        QVERIFY(!r->tab(QStringLiteral("View"))->isBuilt());
+        QVERIFY(!r->tab(QStringLiteral("Chart Format"))->isBuilt());
+        QCOMPARE(buttonsOf(groupNamed(r, QStringLiteral("Home"), QStringLiteral("Mine"))).size(), 2);
+        // a command that opens a menu from its button makes only the tab that button is on
+        c.addCommand(g, QStringLiteral("insert.table"));
+        c.save();
+        RibbonCustom::applyAll();
+        QVERIFY(r->tab(QStringLiteral("Insert"))->isBuilt());
+        QVERIFY(!r->tab(QStringLiteral("View"))->isBuilt());
+        QVERIFY(!r->tab(QStringLiteral("Chart Format"))->isBuilt());
+        QVERIFY(buttonsOf(groupNamed(r, QStringLiteral("Home"), QStringLiteral("Mine"))).value(2)->menu());
+    }
+
+    void everyTabHasItsOwnPlace()
+    {
+        RibbonWindow w;
+        Ribbon *r = w.ribbon();
+        r->setContextVisible(QStringLiteral("Chart Tools"), true);
+        auto unique = [&] {
+            QSet<int> homes, bases;
+            for (int i = 0; i < r->tabCount(); ++i) {
+                QVERIFY2(!homes.contains(r->tabHome(i)), qPrintable(QStringLiteral("home %1 of %2").arg(r->tabHome(i)).arg(r->tabName(i))));
+                QVERIFY2(!bases.contains(r->tabBase(i)), qPrintable(QStringLiteral("base %1 of %2").arg(r->tabBase(i)).arg(r->tabName(i))));
+                homes.insert(r->tabHome(i));
+                bases.insert(r->tabBase(i));
+            }
+        };
+        RibbonCustom c;
+        QStringList ids;
+        for (int round = 0; round < 6; ++round) {
+            ids << c.addTab(QStringLiteral("T%1").arg(round));
+            if (round % 2) c.remove(ids[round - 1]);
+            c.moveTab(QStringLiteral("Insert"), round % 2 ? 1 : -1, kBuiltin);
+            c.save();
+            RibbonCustom::applyAll();
+            unique();
+            if (QTest::currentTestFailed()) return;
+        }
+        c.resetAll();
+        c.save();
+        RibbonCustom::applyAll();
+        unique();
+        QCOMPARE(r->tabCount(), 4);
+    }
+
+    void applyingLeavesOutGroupsOnTabsThereAreNone()
+    {
+        RibbonCustom c;
+        c.addGroup(QStringLiteral("Home"), QStringLiteral("Mine"));
+        c.addGroup(QStringLiteral("Mystery"), QStringLiteral("On a tab that is not there"));
+        c.save();
+        RibbonWindow w;
+        const RibbonCustom applied = RibbonCustom::appliedTo(&w);
+        QCOMPARE(applied.groups.size(), 1);
+        QCOMPARE(applied.groups.first().tab, QStringLiteral("Home"));
+        // (what is saved is left as it is: the page drops it when the person goes on)
+        QVERIFY(Settings::get().value(QStringLiteral("ribbon/custom")).toString().contains(QLatin1String("Mystery")));
+    }
+
     void theRibbonPage()
     {
         RibbonWindow w;

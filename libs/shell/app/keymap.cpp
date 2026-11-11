@@ -178,6 +178,11 @@ void ribbonPlaces(AppWindow *win, QHash<QString, QString> *tabOf, QHash<QString,
 
 } // namespace
 
+bool KeyMap::listsCommand(const QAction *a)
+{
+    return a && !a->menu() && !commandText(a).isEmpty();
+}
+
 KeyMap::KeyMap(AppWindow *win, bool withRibbon) : m_win(win)
 {
     QHash<QString, QString> tabOf;
@@ -189,7 +194,7 @@ KeyMap::KeyMap(AppWindow *win, bool withRibbon) : m_win(win)
         QAction *a = win->act(id);
         if (!a || done.contains(id)) continue;
         const QString text = commandText(a);
-        if (a->menu() || text.isEmpty()) {
+        if (!listsCommand(a)) {
             // (a command the page does not list still has its keys in use)
             for (const QKeySequence &k : a->shortcuts()) m_foreign << k;
             continue;

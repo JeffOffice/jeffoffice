@@ -90,6 +90,8 @@ public:
     static void apply(AppWindow *win);
     // The saved customizing on the ribbon of every open window.
     static void applyAll();
+    // What a window's ribbon has been given (empty for a window that was given nothing): the plan as applied, with the groups on tabs the ribbon does not have left out.
+    static RibbonCustom appliedTo(const AppWindow *win);
     // This one on a window's ribbon (the tabs not made yet get it when they are made).
     void applyTo(AppWindow *win) const;
 

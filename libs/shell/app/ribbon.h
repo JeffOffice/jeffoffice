@@ -142,6 +142,10 @@ public:
     bool setTabUserHidden(const QString &name, bool hidden);
     bool tabUserHidden(int i) const { return m_tabs.value(i).userHidden; }
     int tabBase(int i) const { return m_tabs.value(i).base; }   // its place as the tabs were made
+    int tabHome(int i) const { return m_tabs.value(i).home; }   // its place now (tests: no two tabs share one)
+    // The tab each command that opens a menu from its button is on (from the ribbon file, so that it is known before the tab is made): the builder notes it.
+    void setMenuCommandTabs(const QHash<QString, QString> &tabs) { m_menuTabs = tabs; }
+    QString menuCommandTab(const QString &id) const { return m_menuTabs.value(id); }
     void setTabTitle(const QString &name, const QString &title);
     // The tabs that are always there (not contextual) in the order `names` gives, the others keeping their places; a name not listed follows those that are, in its own order. An empty list is the order
     // the tabs were made in.
@@ -215,6 +219,7 @@ private:
     void attachPage(RibbonTab *page);
     QWidget *m_pending = nullptr;   // hidden: the parent of the pages of tabs not yet made
     QVector<Tab> m_tabs;
+    QHash<QString, QString> m_menuTabs;
     int m_current = 0;
     RibbonHeader *m_header;
     QStackedWidget *m_stack;

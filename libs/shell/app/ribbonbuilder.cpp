@@ -17,6 +17,7 @@
 #include <QAbstractButton>
 #include <QComboBox>
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <QAbstractSpinBox>
 
@@ -45,6 +46,7 @@ public:
         m_r->setFileKeytip(keytipOf(root, "fileKeytip"));
         m_templates = root.value(QLatin1String("templates")).toObject();
         m_lazy = lazyRibbonTabs();
+        noteMenuCommands(root.value(QLatin1String("tabs")).toArray());
         if (m_lazy) collectDefinitions(root.value(QLatin1String("tabs")));
         for (const QJsonValue &v : root.value(QLatin1String("quickAccess")).toArray()) quickAccess(v);
         const QJsonArray tabs = root.value(QLatin1String("tabs")).toArray();
@@ -53,6 +55,33 @@ public:
     }
 
     QStringList problems() const { return m_problems; }
+
+    // Which tab each command that opens a menu from its button is on, read from the file so that it is known before a tab is made (Customize the ribbon brings the menu along with the command).
+    void noteMenuCommands(const QJsonArray &tabs)
+    {
+        QHash<QString, QString> found;
+        auto idOf = [](const QJsonValue &v) { return v.isString() ? v.toString() : v.toObject().value(QLatin1String("id")).toString(); };
+        std::function<void(const QJsonArray &, const QString &)> items = [&](const QJsonArray &list, const QString &tab) {
+            for (const QJsonValue &iv : list) {
+                const QJsonObject o = iv.toObject();
+                for (const char *key : {"large", "small", "icon", "button"})
+                    if (o.contains(QLatin1String(key)) && o.contains(QLatin1String("menu")) && !found.contains(idOf(o.value(QLatin1String(key))))) found.insert(idOf(o.value(QLatin1String(key))), tab);
+                if (o.contains(QLatin1String("row"))) items(o.value(QLatin1String("row")).toArray(), tab);
+                if (o.contains(QLatin1String("grid")))
+                    for (const QJsonValue &row : o.value(QLatin1String("grid")).toArray()) items(row.toArray(), tab);
+            }
+        };
+        for (const QJsonValue &tv : tabs) {
+            const QJsonObject t = tv.toObject();
+            const QString name = t.value(QLatin1String("name")).toString();
+            for (const QJsonValue &gv : t.value(QLatin1String("groups")).toArray()) {
+                QJsonObject g = gv.toObject();
+                if (g.contains(QLatin1String("use"))) g = m_templates.value(g.value(QLatin1String("use")).toString()).toObject();
+                items(g.value(QLatin1String("items")).toArray(), name);
+            }
+        }
+        m_r->setMenuCommandTabs(found);
+    }
 
 private:
     // A command the file defines inline can be used by its id in a tab made before the tab that defines it, so (with tabs made late) the definitions are found first.

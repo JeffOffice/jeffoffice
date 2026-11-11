@@ -29,6 +29,8 @@ public:
     // The commands of `win` (every one with a name), with the saved custom keys over their own. `win` must outlive the map. Where the commands are on the ribbon is read only
     // when `withRibbon` (it makes every tab of the ribbon).
     explicit KeyMap(AppWindow *win, bool withRibbon = true);
+    // Whether the page lists a command: it has a name and is not a menu (a command the page does not list still has its keys in use). The one test the map and its callers share.
+    static bool listsCommand(const QAction *a);
 
     // In ribbon order, by tab; the ones on no tab last.
     const QList<KeyCommand> &commands() const { return m_commands; }

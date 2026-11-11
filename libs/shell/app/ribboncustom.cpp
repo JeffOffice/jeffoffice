@@ -553,6 +553,13 @@ void RibbonCustom::apply(AppWindow *win)
     load().applyTo(win);
 }
 
+RibbonCustom RibbonCustom::appliedTo(const AppWindow *win)
+{
+    Ribbon *r = win ? win->ribbon() : nullptr;
+    const Holder *h = r ? holderOf(r) : nullptr;
+    return h ? h->plan : RibbonCustom();
+}
+
 void RibbonCustom::applyAll()
 {
     const RibbonCustom plan = load();
@@ -569,6 +576,12 @@ void RibbonCustom::applyTo(AppWindow *win) const
         h = new Holder(r);
     }
     h->plan = *this;
+    {
+        // (groups on a tab this ribbon does not have are left out)
+        QStringList known;
+        for (int i = 0; i < r->tabCount(); ++i) known << r->tabName(i);
+        h->plan.dropUnknownTabs(known);
+    }
     h->win = win;
     const QString current = r->current() ? [&] {
         for (int i = 0; i < r->tabCount(); ++i)
@@ -576,10 +589,10 @@ void RibbonCustom::applyTo(AppWindow *win) const
         return QString();
     }() : QString();
 
-    // A command that opens a menu brings it from its button, so every tab is made when the groups of ours hold commands.
-    bool anyItems = false;
-    for (const Group &g : groups) anyItems = anyItems || !g.items.isEmpty();
-    if (anyItems) r->buildAllTabs();
+    // A command that opens a menu brings it from its button: the tab that button is on is made first (and no other).
+    for (const Group &g : groups)
+        for (const Item &it : g.items)
+            if (RibbonTab *source = r->tab(r->menuCommandTab(it.cmd))) source->ensureBuilt();
 
     // The person's tabs are made again each time, in order.
     for (int i = r->tabCount() - 1; i >= 0; --i)
