@@ -857,6 +857,11 @@ void Exporter::writeSlide(X &x, int index)
         else if (kind == QLatin1String("equation")) sayOnce(QStringLiteral("equation"), QCoreApplication::translate("OdpExport", "Equations are saved as pictures."));
         else sayOnce(QStringLiteral("chart"), QCoreApplication::translate("OdpExport", "Charts are saved as pictures: their data can't be edited in this kind of file."));
     }
+    // A chart made or opened as a chart here is a picture in this kind of file too.
+    walkItems(page.items, [&](const ItemPtr &it) {
+        if (it->type() == ItemType::Picture && !static_cast<const PictureItem &>(*it).chartXml.isEmpty())
+            sayOnce(QStringLiteral("chart"), QCoreApplication::translate("OdpExport", "Charts are saved as pictures: their data can't be edited in this kind of file."));
+    });
     if (!page.props.value(QStringLiteral("unread")).toArray().isEmpty()) say(QCoreApplication::translate("OdpExport", "%1: a table, chart, or other frame that can't be read was left out.").arg(sc.where));
 
     x.open("draw:page").attr("draw:name", name).attr("draw:style-name", pageStyle(page, f, true)).attr("draw:master-page-name", master.name);

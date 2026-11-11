@@ -107,7 +107,7 @@ void DeckWindow::cropPictureToShape(const QString &shape)
 void DeckWindow::refreshCrop()
 {
     const QVector<PictureItem *> pictures = croppablePictures(m_ed);
-    const bool shows = m_ed->selection().size() == 1 && pictures.size() == 1 && pictures[0]->mediaKind.isEmpty();
+    const bool shows = m_ed->selection().size() == 1 && pictures.size() == 1 && pictures[0]->mediaKind.isEmpty() && pictures[0]->chartXml.isEmpty();
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), shows);
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("pic.")) && a->objectName() != QLatin1String("pic.crop")) a->setEnabled(!pictures.isEmpty());

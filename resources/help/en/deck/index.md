@@ -21,6 +21,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 
 - [Type and format text](text)
 - [Shapes, pictures, tables, and Text Art](objects)
+- [Charts](charts)
 - [The Format Shape pane and the Shape Format tab](format-shape)
 - [Speaker notes](notes)
 - [Comments](comments)
@@ -49,3 +50,4 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 
 - [Home](tab-home), [Insert](tab-insert), [Design](tab-design), [Transitions](tab-transitions), [Animations](tab-animations), [Slide Show](tab-slide-show), [Review](tab-review), and [View](tab-view)
 - [Playback](tab-playback) shows while a movie or sound is selected
+- [Chart Format](charts) shows while a chart is selected

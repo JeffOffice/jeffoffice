@@ -13,6 +13,7 @@
 #include "io/pptxtransition.h"
 #include "io/presentationfile.h"
 #include "office/chart.h"
+#include "core/chartobject.h"
 #include "office/drawingml.h"
 #include "office/drawingml_table.h"
 #include "office/package.h"
@@ -706,6 +707,8 @@ private:
     QHash<QString, QVector<QPair<QSizeF, ChartDrawing>>> m_chartSizes;   // what was drawn of each, by size
     int m_chartsDrawn = 0;                        // the charts drawn so far, those that couldn't be too
     bool m_chartsRanOut = false;
+    int m_chartObjects = 0;                       // the charts kept as charts that can be changed, and the bytes of their parts
+    qint64 m_chartObjectBytes = 0;
     qint64 m_keptNodes = 0, m_keptXmlBytes = 0;    // what the XML kept as written comes to, in all
     bool m_keptRanOut = false;
     bool keepXml(const QDomElement &e, QString *out);
@@ -1343,10 +1346,22 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     pic->altText = office::attr(cNvPr, QStringLiteral("descr"));
     pic->hidden = office::parseBool(office::attr(cNvPr, QStringLiteral("hidden")));
     pic->rect = rect;
+    pic->rotation = std::fmod(office::parseInt(office::attr(xfrm, QStringLiteral("rot"))) / 60000.0, 360.0);
     pic->imgRect = QRectF(QPointF(0, 0), rect.size());
     pic->wrap.mode = Wrap::None;
     pic->imageId = drawn->imageId;
     pic->sourceId = frameNumber(frame);
+    // The chart stays a chart that can be changed (its part is kept on the picture) while the file holds no more charts, bytes of them, series, or points than a chart object does.
+    if (const auto read = m_chartReads.constFind(drawingLook(sc, rel.target, QRectF())); read != m_chartReads.cend() && read->ok && chartIsWithinLimits(read->chart)) {
+        const QByteArray bytes = m_pkg.part(rel.target);
+        if (m_chartObjects < office::sheet::kMostChartsInFile && bytes.size() <= office::sheet::kMostChartPartBytes && m_chartObjectBytes + bytes.size() <= office::sheet::kMostChartBytesInFile) {
+            ++m_chartObjects;
+            m_chartObjectBytes += bytes.size();
+            pic->chartXml = bytes;
+            pic->chartSize = rect.size();
+            pic->lockAspect = false;
+        }
+    }
     if (drawn->coarser) note(QCoreApplication::translate("PptxImport", "The chart \"%1\" has more points than a picture of it can show, so its picture is drawn from some of them.").arg(pic->name));
     PhRef ph;
     if (placeholderOf(frame, &ph)) pic->role = roleOf(ph);

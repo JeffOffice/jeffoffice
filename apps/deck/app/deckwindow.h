@@ -35,6 +35,7 @@ namespace jp {
 
 class AnimationPane;
 class ColorButton;
+class ChartActions;
 class ColorRef;
 class Document;
 class CommentsPane;
@@ -437,6 +438,10 @@ private:
     void fillTextEffectsMenu(QMenu *menu);
     bool lettersSelected() const;
     void changeLetters(const QString &label, const std::function<void(QTextCharFormat &)> &runs, const std::function<void(Item &)> &art);
+    void createChartActions();    // deckwindow_chart.cpp
+    void addChartParts(struct RibbonParts &parts);
+    void refreshChart();
+    ChartActions *m_chartActions = nullptr;
     void createCropActions();     // deckwindow_picture.cpp
     void addCropParts(struct RibbonParts &parts);
     void refreshCrop();

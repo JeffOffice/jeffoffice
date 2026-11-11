@@ -43,6 +43,7 @@ void DeckWindow::buildRibbon()
     addMediaParts(parts);
     addTableParts(parts);
     addCropParts(parts);
+    addChartParts(parts);
     addShapeFormatParts(parts);
     addInsertParts(parts);
     addAnimationParts(parts);
@@ -62,6 +63,7 @@ void DeckWindow::buildRibbon()
         refreshUi();
         refreshShapeFormat();
         refreshTable();
+        refreshChart();
         keepRibbonReadOnly();
     });
 }

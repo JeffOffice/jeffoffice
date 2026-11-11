@@ -473,6 +473,20 @@ QString withFrameNames(const QString &frame, const QString &name, const QString 
     return frame.left(m.capturedStart()) + QStringLiteral("<%1:cNvPr%2%3").arg(m.captured(1), attrs, m.captured(3)) + frame.mid(m.capturedEnd());
 }
 
+// A frame's turn (its xfrm's rot) set to `degrees`, when the picture is turned.
+QString withFrameTurn(const QString &frame, double degrees)
+{
+    if (std::abs(degrees) < 1e-6) return frame;
+    static const QRegularExpression place(QStringLiteral("<(\\w+):xfrm\\b([^>]*)>"));
+    const QRegularExpressionMatch m = place.match(frame);
+    if (!m.hasMatch()) return frame;
+    static const QRegularExpression turn(QStringLiteral("\\srot=\"[^\"]*\""));
+    QString attrs = m.captured(2);
+    attrs.remove(turn);
+    attrs += QStringLiteral(" rot=\"%1\"").arg(std::llround(std::fmod(degrees, 360.0) * 60000));
+    return frame.left(m.capturedStart()) + QStringLiteral("<%1:xfrm%2>").arg(m.captured(1), attrs) + frame.mid(m.capturedEnd());
+}
+
 // The first slide, 256 pixels across, as the file's picture of itself (it draws with the text layout and the renderer, which only the window's thread may use).
 QByteArray renderThumbnail(const Document &doc)
 {
@@ -926,6 +940,7 @@ QString Exporter::chartFrame(const QJsonObject &kept, const Item &item, const QS
     static const QRegularExpression chartTag(QStringLiteral("(<(\\w+):chart\\b[^>]*?\\b\\w+:id=\")[^\"]*(\")"));
     frame.replace(chartTag, QStringLiteral("\\1") + id + QStringLiteral("\\3"));
     frame = withFramePlace(frame, item.rect);
+    frame = withFrameTurn(frame, item.rotation);
     return withFrameNames(frame, item.name, item.altText, item.hidden);
 }
 
@@ -1033,6 +1048,38 @@ QString Exporter::equationBlock(const QJsonObject &kept, const Item &item, offic
     return withShapePlace(xml.left(f.capturedStart()), item) + withShapePlace(xml.mid(f.capturedStart()), item);
 }
 
+// A frame (p:graphicFrame) for a chart made here, to be placed and named as a frame the reader kept is; `number` is its shape number.
+QString newChartFrame(qint64 number)
+{
+    return QStringLiteral("<p:graphicFrame xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                          "xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:nvGraphicFramePr><p:cNvPr id=\"%1\" name=\"\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>"
+                          "<p:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></p:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">"
+                          "<c:chart xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" r:id=\"rId1\"/></a:graphicData></a:graphic></p:graphicFrame>").arg(number);
+}
+
+// The kept chart for a picture that holds a chart (PictureItem::chartXml) as the page's "charts" keep one: what the reader kept with the chart part the picture now holds in place of
+// its own; or, for a chart made here, a part of its own and a frame numbered `number`.
+QJsonObject chartEntryOf(const PictureItem &pic, const QJsonObject &was, qint64 number)
+{
+    QJsonObject kept = was;
+    const QString type = QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml");
+    if (kept.isEmpty()) {
+        const QString main = QStringLiteral("/ppt/charts/chart1.xml");
+        kept = QJsonObject{{"item", pic.id}, {"main", main}, {"frameXml", newChartFrame(number)}, {"parts", QJsonObject{{main, QJsonObject{{"type", type}, {"rels", QJsonArray()}}}}}};
+    }
+    QJsonObject parts = kept.value(QStringLiteral("parts")).toObject();
+    const QString main = kept.value(QStringLiteral("main")).toString();
+    QJsonObject part = parts.value(main).toObject();
+    const QString now = QString::fromLatin1(pic.chartXml.toBase64());
+    // (A chart the person did not change is written as it was read.)
+    if (part.value(QStringLiteral("data")).toString() != now) {
+        part[QStringLiteral("data")] = now;
+        parts[main] = part;
+        kept[QStringLiteral("parts")] = parts;
+    }
+    return kept;
+}
+
 QString Exporter::tree(const PageBase &page, const QString &part, const QString &where, QSet<qint64> *frameIds, QSet<qint64> *mediaIds)
 {
     // The frames to write back first: their shape numbers are theirs, and the shapes are numbered above them.
@@ -1059,6 +1106,19 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
     office::DrawingWriteContext ctx = context(part);
     QHash<QString, QJsonObject> charts;
     for (const QJsonValue &v : page.props.value(QStringLiteral("charts")).toArray()) charts.insert(v.toObject().value(QStringLiteral("item")).toString(), v.toObject());
+    // A picture that holds a chart (one made here, or one the reader read as a chart) is written as a chart with the numbers it holds now.
+    {
+        qint64 number = highest;
+        walkItems(page.items, [&](const ItemPtr &it) { number = std::max<qint64>(number, it->sourceId); });
+        for (const ItemPtr &it : page.items) {
+            if (it->type() != ItemType::Picture) continue;
+            const auto &pic = static_cast<const PictureItem &>(*it);
+            if (pic.chartXml.isEmpty()) continue;
+            const QJsonObject was = charts.value(it->id);
+            if (!was.isEmpty() && !was.value(QStringLiteral("kind")).toString().isEmpty()) continue;
+            charts.insert(it->id, chartEntryOf(pic, was, ++number));
+        }
+    }
     QHash<QString, QString> chartFrames;
     for (const ItemPtr &it : page.items) {
         if (it->type() != ItemType::Picture || !charts.contains(it->id)) continue;

@@ -286,6 +286,7 @@ void DeckWindow::createActions()
     createMediaActions();
     createTableActions();
     createCropActions();
+    createChartActions();
 }
 
 void DeckWindow::refreshUi()
