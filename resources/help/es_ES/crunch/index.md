@@ -38,6 +38,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Insertar una función](insert-function)
 - [Escribir una función con el cuadro de diálogo Argumentos de función](function-arguments)
 - [Gráficos, imágenes y formas](charts)
+- [Ecuaciones](equations)
 - [Notas y vínculos](notes-links)
 - [Proteger una hoja o el libro](protect)
 

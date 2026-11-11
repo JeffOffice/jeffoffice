@@ -984,7 +984,7 @@ void CrunchWindow::formatRibbonParts(RibbonParts &parts)
     parts.menus[QStringLiteral("unhideSheets")] = [this](QWidget *owner) { return buildUnhideMenu(owner); };
     parts.menus[QStringLiteral("equationGallery")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
-        for (int i = 0; i < office::wml::equationGallery().size(); ++i) m->addAction(act(QStringLiteral("insert.equation.design.%1").arg(i)));
+        for (int i = 0; i < office::wml::equationGallery().size(); ++i) m->addAction(act(QStringLiteral("insert.equationDesign%1").arg(i)));
         return m;
     };
     parts.menus[QStringLiteral("borders")] = [this](QWidget *owner) { return buildBordersMenu(owner); };

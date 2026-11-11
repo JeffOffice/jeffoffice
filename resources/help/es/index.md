@@ -20,6 +20,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Viñetas, numeración y tabulaciones](lists-tabs)
 - [Usar estilos](styles)
 - [Agregar texto artístico](text-art)
+- [Agregar una ecuación](equations)
 - [Crear y editar tablas](tables)
 - [Contenido, notas al pie y notas al final](references)
 - [Ortografía, sinónimos, investigación y división de palabras](proofing)

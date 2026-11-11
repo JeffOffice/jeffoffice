@@ -35,10 +35,10 @@ private Q_SLOTS:
         jp::MainWindow w;
         jp::Editor *ed = w.editor();
         QVERIFY(w.act(QStringLiteral("ins.equation")));
-        QVERIFY(w.act(QStringLiteral("ins.equation.design.1")));
+        QVERIFY(w.act(QStringLiteral("ins.equationDesign1")));
         QVERIFY(equationsOn(ed).isEmpty());
         const QString line = jp::office::wml::equationGallery().at(1).linear;
-        w.act(QStringLiteral("ins.equation.design.1"))->trigger();
+        w.act(QStringLiteral("ins.equationDesign1"))->trigger();
         QCOMPARE(equationsOn(ed).size(), 1);
         jp::EquationItem *e = equationsOn(ed).first();
         QCOMPARE(e->linear, line);

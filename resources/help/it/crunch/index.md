@@ -38,6 +38,7 @@ Digita nella casella di ricerca in alto per trovare un argomento o un comando da
 - [Inserire una funzione](insert-function)
 - [Inserire una funzione con la finestra di dialogo Argomenti funzione](function-arguments)
 - [Grafici, immagini e forme](charts)
+- [Equazioni](equations)
 - [Note e collegamenti](notes-links)
 - [Proteggere un foglio o la cartella di lavoro](protect)
 

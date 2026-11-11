@@ -38,6 +38,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Inserir uma função](insert-function)
 - [Introduzir uma função com a caixa de diálogo Argumentos de Função](function-arguments)
 - [Gráficos, imagens e formas](charts)
+- [Equações](equations)
 - [Notas e ligações](notes-links)
 - [Proteger uma folha ou o livro](protect)
 

@@ -20,6 +20,7 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 - [Aufzählungszeichen, Nummerierung und Tabstopps](lists-tabs)
 - [Formatvorlagen verwenden](styles)
 - [Textkunst hinzufügen](text-art)
+- [Formel hinzufügen](equations)
 - [Tabellen erstellen und bearbeiten](tables)
 - [Inhalt, Fußnoten und Endnoten](references)
 - [Rechtschreibung, Thesaurus, Recherche und Silbentrennung](proofing)

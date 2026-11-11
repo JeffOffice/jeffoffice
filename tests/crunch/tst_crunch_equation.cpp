@@ -104,9 +104,9 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(editBook()));
         QVERIFY(e.win.w.act(QStringLiteral("insert.equation")));
-        QVERIFY(e.win.w.act(QStringLiteral("insert.equation.design.3")));
+        QVERIFY(e.win.w.act(QStringLiteral("insert.equationDesign3")));
         QVERIFY(there(e).empty());
-        e.win.w.act(QStringLiteral("insert.equation.design.3"))->trigger();
+        e.win.w.act(QStringLiteral("insert.equationDesign3"))->trigger();
         QVERIFY(e.settle());
         const std::vector<int> ids = there(e);
         QCOMPARE(int(ids.size()), 1);

@@ -810,7 +810,7 @@ void MainWindow::ribbonMenuParts(RibbonParts &parts)
     // Equation: the built-in equations, then the dialog.
     parts.menus[QStringLiteral("equationMenu")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
-        for (int i = 0; i < office::wml::equationGallery().size(); ++i) m->addAction(act(QStringLiteral("ins.equation.design.%1").arg(i)));
+        for (int i = 0; i < office::wml::equationGallery().size(); ++i) m->addAction(act(QStringLiteral("ins.equationDesign%1").arg(i)));
         m->addSeparator();
         m->addAction(act("ins.equation"));
         return m;

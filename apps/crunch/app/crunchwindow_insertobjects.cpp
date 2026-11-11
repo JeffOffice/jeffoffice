@@ -111,7 +111,7 @@ void CrunchWindow::createInsertObjectActions()
     mk("insert.equation", tr("Equation…"), "square-pi", QKeySequence(), [this] { insertEquationDialog(); });
     m_opsActions << QStringLiteral("insert.equation");
     for (int i = 0; i < office::wml::equationGallery().size(); ++i) {
-        const QString id = QStringLiteral("insert.equation.design.%1").arg(i);
+        const QString id = QStringLiteral("insert.equationDesign%1").arg(i);
         mk(id, office::wml::equationGallery().at(i).name, "square-pi", QKeySequence(), [this, i] { insertEquation(office::wml::equationGallery().at(i).linear); });
         m_opsActions << id;
     }

@@ -302,7 +302,7 @@ void MainWindow::createActions()
     mk("ins.symbol", tr("Symbol"), "omega", QKeySequence(), [this] { symbolDialog(this, m_ed); });
     mk("ins.equation", tr("Equation…"), "square-pi", QKeySequence(QStringLiteral("Alt+=")), [this] { insertEquationDialog(); });
     for (int i = 0; i < office::wml::equationGallery().size(); ++i)
-        mk(QStringLiteral("ins.equation.design.%1").arg(i), office::wml::equationGallery().at(i).name, "square-pi", QKeySequence(), [this, i] {
+        mk(QStringLiteral("ins.equationDesign%1").arg(i), office::wml::equationGallery().at(i).name, "square-pi", QKeySequence(), [this, i] {
             if (jp::insertEquation(m_ed, office::wml::equationGallery().at(i).linear).isEmpty()) statusBar()->showMessage(tr("An equation can't be put here."), 6000);
         });
     mk("ins.barcode", tr("Barcode"), "barcode", QKeySequence(), [this] { barcodeDialog(this, m_ed); });

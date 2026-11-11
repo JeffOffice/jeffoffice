@@ -20,6 +20,7 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 - [Puces, numérotation et tabulations](lists-tabs)
 - [Utiliser les styles](styles)
 - [Ajouter du texte artistique](text-art)
+- [Ajouter une équation](equations)
 - [Créer et modifier des tableaux](tables)
 - [Table des matières, notes de bas de page et notes de fin](references)
 - [Orthographe, dictionnaire des synonymes, recherche et coupure de mots](proofing)

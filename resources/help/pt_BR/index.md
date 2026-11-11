@@ -20,6 +20,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Marcadores, numeração e tabulações](lists-tabs)
 - [Usar estilos](styles)
 - [Adicionar Texto Artístico](text-art)
+- [Adicionar uma equação](equations)
 - [Criar e editar tabelas](tables)
 - [Sumário, notas de rodapé e notas de fim](references)
 - [Ortografia, dicionário de sinônimos, pesquisa e hifenização](proofing)
