@@ -34,6 +34,18 @@ namespace jp {
 namespace online {
 
 namespace {
+// Text a library sends with the control characters taken out (but for a tab and a new line): a title or an author is put in a file's XML, which has no place for them.
+QString withoutControls(QString text)
+{
+    text.removeIf([](QChar c) { return c.unicode() < 0x20 && c != QLatin1Char('\t') && c != QLatin1Char('\n'); });
+    return text;
+}
+void clean(Picture *p)
+{
+    p->title = withoutControls(p->title);
+    p->creator = withoutControls(p->creator);
+    p->license = withoutControls(p->license);
+}
 QString plain(const QString &html) { return QTextDocumentFragment::fromHtml(html).toPlainText().simplified(); }
 
 // An address from a library: none, or one that starts https and names a host
@@ -139,6 +151,7 @@ QList<Picture> parseOpenverse(const QByteArray &json)
             || !secureUrl(o.value(QStringLiteral("url")).toString(), &p.full) || !secureUrl(o.value(QStringLiteral("thumbnail")).toString(), &p.thumb))
             continue;   // one of its addresses is not https: left out
         p.licenseUrl = license.toString(QUrl::FullyEncoded);
+        clean(&p);
         if (!p.full.isEmpty()) out << p;
     }
     return out;
@@ -175,6 +188,7 @@ QList<Picture> parseCommons(const QByteArray &json)
             rendition.setPath(p.thumb.path().chopped(last.size()) + QStringLiteral("%1px-").arg(kRenditionWidth) + m.captured(1));
             p.full = rendition;
         }
+        clean(&p);
         if (!p.full.isEmpty()) found << std::make_pair(o.value(QStringLiteral("index")).toInt(), p);
     }
     std::sort(found.begin(), found.end(), [](const auto &a, const auto &b) { return a.first < b.first; });   // the search's order

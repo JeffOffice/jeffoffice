@@ -1436,7 +1436,8 @@ public:
     bool rotateObject(int quarterTurns, bool flipH, bool flipV);
     bool cropObject(int width, int height);
     // Compress Pictures with the choices made (no box): the pictures of the sheet, or the picked ones, made smaller for `ppi` pixels to the inch, as one step of Undo; the bytes saved.
-    qint64 compressPictures(double ppi, bool all, bool deleteCropped);
+    qint64 compressPictures(double ppi, bool all, bool deleteCropped, QString *problems = nullptr);
+    // (`problems`, when given, is set to the words that say how many pictures were left out for a reason, and why.)
     bool setObjectText(const ShapeTextChoices &choices);
     void insertChartDialog();
     void recommendedChartsDialog();

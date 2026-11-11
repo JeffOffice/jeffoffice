@@ -1485,6 +1485,19 @@ private Q_SLOTS:
         QCOMPARE(warps[0].attribute(QStringLiteral("prst")), QStringLiteral("textPlain"));
     }
 
+    // Text art read from a file keeps at most 10,000 characters of its words (a file's text of millions of letters is not laid out each time it is drawn).
+    void dmlReadCapsTheWordsOfTextArt()
+    {
+        WriteRound r;
+        auto art = std::make_shared<TextArtItem>();
+        art->text = QString(50000, QLatin1Char('w'));
+        QVERIFY2(r.run({art}), qPrintable(r.error));
+        QCOMPARE(int(r.items.size()), 1);
+        QCOMPARE(r.items[0]->type(), ItemType::TextArt);
+        const int n = int(static_cast<TextArtItem *>(r.items[0].get())->text.size());
+        QVERIFY2(n > 0 && n <= 10000, qPrintable(QString::number(n)));
+    }
+
     // A table is a frame of the cells' own fills, lines, and text; the cells
     // that are hidden under a merged one say how.
     void dmlWriteTablesKeepTheirCellsAndMerges()

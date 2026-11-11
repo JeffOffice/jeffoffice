@@ -789,7 +789,7 @@ void WriteWindow::compressPicturesDialog()
 {
     if (!m_doc) return;
     CompressChoices choices;
-    if (!askCompressPictures(this, tr("Apply to all pictures in the document"), &choices)) return;
+    if (!askCompressPictures(this, tr("Apply to all pictures in the body of the document"), &choices)) return;
     const qint64 saved = compressPictures(choices.ppi, choices.all, choices.deleteCropped);
     tellCompressSaved(this, saved);
 }

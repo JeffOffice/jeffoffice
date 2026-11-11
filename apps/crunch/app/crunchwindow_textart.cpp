@@ -56,6 +56,31 @@ QByteArray textArtXml(const TextArtItem &art)
     return bytes;
 }
 
+// Where a child of a run's properties goes (a:rPr, a:endParaRPr): the order the schema gives, the outline, the fill, the effects, then the fonts. Programs that read these strictly refuse a
+// file with them in another order.
+int propertyRank(const QString &local)
+{
+    static const QStringList order = {QStringLiteral("ln"),        QStringLiteral("fill"),      QStringLiteral("effect"),  QStringLiteral("highlight"), QStringLiteral("uLnTx"),
+                                      QStringLiteral("uLn"),       QStringLiteral("uFillTx"),   QStringLiteral("uFill"),   QStringLiteral("latin"),     QStringLiteral("ea"),
+                                      QStringLiteral("cs"),        QStringLiteral("sym"),       QStringLiteral("hlinkClick"), QStringLiteral("hlinkMouseOver"), QStringLiteral("rtl"),
+                                      QStringLiteral("extLst")};
+    static const QStringList fills = {QStringLiteral("noFill"), QStringLiteral("solidFill"), QStringLiteral("gradFill"), QStringLiteral("blipFill"), QStringLiteral("pattFill"), QStringLiteral("grpFill")};
+    static const QStringList effects = {QStringLiteral("effectLst"), QStringLiteral("effectDag")};
+    return int(order.indexOf(fills.contains(local) ? QStringLiteral("fill") : effects.contains(local) ? QStringLiteral("effect") : local));
+}
+
+// Puts `child` in the run's properties where the schema has it: after the last child that comes before it, and before the first that comes after.
+void insertProperty(QDomElement &look, const QDomElement &child)
+{
+    const int rank = propertyRank(child.localName());
+    for (QDomElement c = look.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+        if (propertyRank(c.localName()) > rank) {
+            look.insertBefore(child, c);
+            return;
+        }
+    look.appendChild(child);
+}
+
 bool isTextArt(const QDomElement &sp)
 {
     if (sp.localName() != QLatin1String("sp")) return false;
@@ -176,7 +201,7 @@ bool CrunchWindow::editTextArtText()
     art.size = 36;
     if (!look.isNull()) {
         const int sz = look.attribute(QStringLiteral("sz")).toInt();
-        if (sz >= 100) art.size = sz / 100.0;
+        if (sz >= 100 && sz <= 400000) art.size = sz / 100.0;   // (a size that is none of the sizes there are is not one to scale by)
         art.bold = look.attribute(QStringLiteral("b")) == QLatin1String("1");
         art.italic = look.attribute(QStringLiteral("i")) == QLatin1String("1");
         art.font = childNamed(look, QStringLiteral("latin")).attribute(QStringLiteral("typeface"));
@@ -235,14 +260,15 @@ bool CrunchWindow::editTextArtText()
                 QDomElement latin = childNamed(look, QStringLiteral("latin"));
                 if (latin.isNull()) {
                     latin = d.createElementNS(kA, QStringLiteral("a:latin"));
-                    look.appendChild(latin);
+                    insertProperty(look, latin);
                 }
                 latin.setAttribute(QStringLiteral("typeface"), art.font);
             }
         }
         // A new size scales the box, about its middle.
         if (std::abs(was - art.size) > 0.1 && was > 0) {
-            const double k = art.size / was, w = box->w * k, h = box->h * k;
+            const double k = std::clamp(art.size / was, 0.1, 10.0);
+            const double w = std::clamp(std::round(box->w * k), 4.0, 20000.0), h = std::clamp(std::round(box->h * k), 4.0, 20000.0);
             box->x -= (w - box->w) / 2;
             box->y -= (h - box->h) / 2;
             box->w = w;
@@ -284,7 +310,10 @@ bool CrunchWindow::setTextArtStyle(const QString &styleId)
             look.setAttribute(QStringLiteral("b"), want.attribute(QStringLiteral("b"), QStringLiteral("0")));
             look.setAttribute(QStringLiteral("i"), want.attribute(QStringLiteral("i"), QStringLiteral("0")));
             for (QDomElement c = want.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
-                if (looks.contains(c.localName())) look.appendChild(d.importNode(c, true));
+                if (looks.contains(c.localName())) {
+                    QDomElement made = d.importNode(c, true).toElement();
+                    insertProperty(look, made);
+                }
         }
         return true;
     });

@@ -572,6 +572,8 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
         a->transform_ = transform.isEmpty() ? QStringLiteral("plain") : transform;
         a->vertical = attr(bodyPrs.value(0), QStringLiteral("vert")).startsWith(QLatin1String("wordArtVert"));
         QStringList lines;
+        qsizetype total = 0;
+        constexpr qsizetype kMostTextArtCharacters = 10000;
         QDomElement firstRun, firstPara;
         for (QDomElement para = childNamed(body, "p"); !para.isNull(); para = para.nextSiblingElement()) {
             if (para.localName() != QLatin1String("p")) continue;
@@ -584,8 +586,11 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
                 text += childNamed(r, "t").text();
             }
             lines << text;
+            total += text.size();
+            if (total > kMostTextArtCharacters) break;
         }
-        a->text = lines.join(QLatin1Char('\n'));
+        // (Words bent into a shape are a few: a file's text of millions of letters would be laid out and drawn each time the sheet is.)
+        a->text = lines.join(QLatin1Char('\n')).left(kMostTextArtCharacters);
         const QString algn = attr(childNamed(firstPara, "pPr"), QStringLiteral("algn"));
         a->align = algn == QLatin1String("l") ? 0 : algn == QLatin1String("r") ? 2 : algn == QLatin1String("just") ? 3 : algn == QLatin1String("dist") ? 4 : 1;
         const QDomElement rPr = childNamed(firstRun, "rPr");

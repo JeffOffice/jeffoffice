@@ -30,7 +30,9 @@ bool encodedIfSmaller(const QImage &image, qint64 originalBytes, QByteArray *byt
 // and `keep` is the part of it that stays (shares of the whole, 0 to 1 each way; the whole picture is 0, 0, 1, 1: a smaller one is cut out of the picture's own pixels). The result
 // is in `bytes` with its format, true only when it is fewer bytes than the file. False, nothing made, for a picture that is not a still picture the program can read (a vector
 // picture, a metafile, a moving picture) or that would not be smaller.
-bool compressedPictureFile(const QByteArray &bytes, double shownWidth, double ppi, const QRectF &keep, QByteArray *out, QByteArray *format);
+// `why`, when given, says in words why a picture was left as it is, if it was for a reason the person can see (a picture of more than kMostCompressPixels pixels is not decoded).
+constexpr qint64 kMostCompressPixels = qint64(100) * 1000 * 1000;
+bool compressedPictureFile(const QByteArray &bytes, double shownWidth, double ppi, const QRectF &keep, QByteArray *out, QByteArray *format, QString *why = nullptr);
 
 // Tells how much Compress Pictures saved (as the apps with pages do when it is done).
 void tellCompressSaved(QWidget *parent, qint64 saved);

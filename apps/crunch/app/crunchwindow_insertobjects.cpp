@@ -302,12 +302,29 @@ bool CrunchWindow::insertOnlinePicture(const QString &path, const QString &title
     }
     crunch::ObjectClip clip;
     if (!pictureClip(f.readAll(), QFileInfo(path).fileName(), 0, 0, title, &clip)) return false;
-    QUndoStack *u = undoStack();
-    u->beginMacro(stepText);
-    bool done = placeObjectClip(clip, stepText);
-    if (done && !credit.isEmpty()) {
+    // The picture and its credit are made first and put on the sheet together: one step of Undo, and none at all when the picture can't be put there.
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed()) return false;
+    QString why;
+    const int picture = m_objects->makeElement(m_sheet, clip, newObjectAnchor(clip.width, clip.height), &why);
+    if (picture < 0) {
+        notice(stepText, why);
+        return false;
+    }
+    auto appears = [&](int id) {
+        crunch::ObjectEdit e;
+        e.sheet = m_sheet;
+        e.id = id;
+        e.before = m_objects->stateOf(m_sheet, id);
+        e.after = e.before;
+        e.after.deleted = false;
+        return e;
+    };
+    std::vector<crunch::ObjectEdit> edits{appears(picture)};
+    std::vector<int> made{picture};
+    QString creditWhy;
+    if (!credit.isEmpty()) {
         // The credit under the picture, as wide as the picture (at least 160), in a text box of its own.
-        const int picture = m_objects->layer()->selectedId();
         const grid::ObjectBox box = m_objects->layer()->boxNow(picture);
         const DrawingAnchor was = m_objects->anchorOf(m_sheet, picture);
         crunch::ObjectClip words;
@@ -321,15 +338,29 @@ bool CrunchWindow::insertOnlinePicture(const QString &path, const QString &title
         under.h = words.height;
         DrawingAnchor anchor = was;
         m_objects->layer()->attach(&m_view->sheet().layout());
+        int text = -1;
         if (m_objects->layer()->anchorAtBox(under, was.kind, &anchor)) {
             anchor.editAs = was.editAs;
-            placeObjectClip(words, stepText, &anchor);
+            text = m_objects->makeElement(m_sheet, words, anchor, &creditWhy);
+        } else {
+            creditWhy = tr("there is no room for it under the picture");
         }
-        m_objects->layer()->select(picture);
+        if (text >= 0) {
+            edits.push_back(appears(text));
+            made.push_back(text);
+        }
     }
-    u->endMacro();
-    if (done) setStatus(tr("Picture inserted"));
-    return done;
+    const crunch::EditSession::Outcome o = m_session->changeObjects(edits, stepText);
+    if (!o.ok) {
+        for (const int id : made) m_objects->discardMade(m_sheet, id);
+        notice(stepText, o.problem);
+        return false;
+    }
+    m_objects->layer()->select(picture);
+    m_view->setFocus(Qt::OtherFocusReason);
+    if (!credit.isEmpty() && made.size() == 1) notice(stepText, tr("The picture was put in, but its credit could not be: %1").arg(creditWhy));
+    setStatus(tr("Picture inserted"));
+    return true;
 }
 
 // Insert > Icons: the picker of the shared icons (the ones JeffPub and JeffDeck have) asks which, and each is put on the sheet as a picture, drawn at 256 pixels and 48 points square on the sheet.

@@ -397,8 +397,9 @@ bool CrunchWindow::cropObject(int width, int height)
 // Compress Pictures: each picture of the sheet (or the picked ones) is made again, as the Crop commands make one, with its file made smaller as the target asks for the size it is shown at
 // (and, as asked, with what its crop cuts away taken out of the file and the crop gone). The pictures taken away and the pictures made in their place are one step of Undo, each new one with
 // the old one's name, alternative text, place, and order. The bytes saved. (A picture is only on the sheet shown: the sheets are measured when they are shown.)
-qint64 CrunchWindow::compressPictures(double ppi, bool all, bool deleteCropped)
+qint64 CrunchWindow::compressPictures(double ppi, bool all, bool deleteCropped, QString *problems)
 {
+    if (problems) problems->clear();
     if (!m_session || !m_objects || m_chartSheetShown) return 0;
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !editingAllowed()) return 0;
@@ -406,6 +407,8 @@ qint64 CrunchWindow::compressPictures(double ppi, bool all, bool deleteCropped)
     const std::vector<int> ids = all ? m_objects->idsOf(m_sheet) : pickedObjects();
     std::vector<crunch::ObjectEdit> edits;
     std::vector<int> made;
+    int skipped = 0;
+    QString skippedWhy;   // (the first reason: the pictures left out for a reason a person can act on)
     std::vector<std::pair<int, int>> replaced;   // (the picture taken away, the one made in its place)
     const int picked = pickedObject();
     qint64 saved = 0;
@@ -433,7 +436,14 @@ qint64 CrunchWindow::compressPictures(double ppi, bool all, bool deleteCropped)
         const double shown = clip.width * 0.75 / wholeShare;
         const QRectF keep = drop ? QRectF(l, t, 1.0 - l - r, 1.0 - t - b) : QRectF(0, 0, 1, 1);
         QByteArray bytes, format;
-        if (!compressedPictureFile(clip.media[0].bytes, shown, ppi, keep, &bytes, &format)) continue;
+        QString reason;
+        if (!compressedPictureFile(clip.media[0].bytes, shown, ppi, keep, &bytes, &format, &reason)) {
+            if (!reason.isEmpty()) {
+                ++skipped;
+                if (skippedWhy.isEmpty()) skippedWhy = reason;
+            }
+            continue;
+        }
         const qint64 gain = clip.media[0].bytes.size() - bytes.size();
         clip.media[0].bytes = bytes;
         clip.media[0].extension = format == "jpg" ? QStringLiteral("jpeg") : QStringLiteral("png");
@@ -458,7 +468,11 @@ qint64 CrunchWindow::compressPictures(double ppi, bool all, bool deleteCropped)
         const DrawingAnchor was = m_objects->anchorOf(m_sheet, id);
         QString why;
         const int fresh = m_objects->makeElement(m_sheet, clip, was, &why);
-        if (fresh < 0) continue;
+        if (fresh < 0) {
+            ++skipped;
+            if (skippedWhy.isEmpty()) skippedWhy = why;
+            continue;
+        }
         made.push_back(fresh);
         replaced.push_back({id, fresh});
         // The old one is taken away (with what writes it back if Undo is used after a save), and the new one is there in its place.
@@ -481,6 +495,7 @@ qint64 CrunchWindow::compressPictures(double ppi, bool all, bool deleteCropped)
         edits.push_back(put);
         saved += gain;
     }
+    if (problems && skipped > 0) *problems = tr("%n picture(s) could not be made smaller: %1", nullptr, skipped).arg(skippedWhy);
     if (edits.empty()) return 0;
     const crunch::EditSession::Outcome o = m_session->changeObjects(edits, stepText);
     if (!o.ok) {
@@ -499,7 +514,10 @@ void CrunchWindow::compressPicturesDialog()
     if (!m_session || !m_objects || m_chartSheetShown) return;
     CompressChoices choices;
     if (!askCompressPictures(this, tr("Apply to all pictures on this sheet"), &choices)) return;
-    tellCompressSaved(this, compressPictures(choices.ppi, choices.all, choices.deleteCropped));
+    QString problems;
+    const qint64 saved = compressPictures(choices.ppi, choices.all, choices.deleteCropped, &problems);
+    if (!problems.isEmpty()) notice(tr("Compress Pictures"), problems);
+    tellCompressSaved(this, saved);
 }
 
 bool CrunchWindow::setObjectText(const ShapeTextChoices &choices)

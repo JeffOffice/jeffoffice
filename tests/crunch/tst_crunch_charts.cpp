@@ -87,10 +87,10 @@ QByteArray noisyPng(int w, int h)
 struct CannedLibraries {
     QStringList asked;
     std::function<void(const QUrl &, QObject *, const online::Done &, qint64)> kept = online::fetch;
-    explicit CannedLibraries(const QByteArray &picture)
+    explicit CannedLibraries(const QByteArray &picture, const QString &title = QStringLiteral("Red barn"))
     {
         const QByteArray openverse = QJsonDocument(QJsonObject{{"results", QJsonArray{QJsonObject{
-            {"id", "a1"}, {"title", "Red barn"}, {"creator", "Pat Lee"}, {"license", "by"}, {"license_version", "2.0"},
+            {"id", "a1"}, {"title", title}, {"creator", "Pat Lee"}, {"license", "by"}, {"license_version", "2.0"},
             {"license_url", "https://creativecommons.org/licenses/by/2.0/"}, {"foreign_landing_url", "https://example.org/page/a1"},
             {"url", "https://example.org/barn.png"}, {"thumbnail", "https://example.org/barn.thumb"}}}}}).toJson();
         online::fetch = [this, openverse, picture](const QUrl &u, QObject *, const online::Done &done, qint64) {
@@ -3145,6 +3145,131 @@ private Q_SLOTS:
         Window again;
         QVERIFY(again.open(copy));
         QTRY_VERIFY(again.w.objects()->shownSheet() == 0 && again.w.objects()->layer()->count() == 2);
+    }
+
+    // A title with a control character in it (U+0001) is cleaned: the picture goes on the sheet, and its alt text is the title without it.
+    void anOnlinePictureWithAControlCharacterInItsTitleIsPutOnTheSheet()
+    {
+        CannedLibraries libraries(pngBytes(480, 320, Qt::red), QStringLiteral("Red\x01 barn"));
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        e.win.w.act(QStringLiteral("insert.onlinePicture"))->trigger();
+        OnlinePicturesPane *pane = e.win.w.onlinePictures();
+        QVERIFY(pane);
+        pane->search(QStringLiteral("barn"));
+        pane->insertButton()->click();
+        crunch::SheetObjects *o = e.win.w.objects();
+        QCOMPARE(int(o->idsOf(0).size()), 2);
+        QCOMPARE(o->descriptionOf(0, o->idsOf(0).front()), QStringLiteral("Red barn"));
+        QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join(QStringLiteral(" | "))));
+    }
+
+    // A picture that can't be put on the sheet (the workbook holds as many new objects as it saves) is told, and makes no step of Undo.
+    void aFailedOnlinePictureMakesNoStepOfUndo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        const QString file = e.folder.write(QStringLiteral("barn.png"), pngBytes(120, 60, Qt::red));
+        crunch::SheetObjects::Limits limits = o->limits();
+        const int most = limits.maxAdded;
+        limits.maxAdded = 0;
+        o->setLimits(limits);
+        const int steps = e.win.w.undoStack()->count();
+        QVERIFY(!e.win.w.insertOnlinePicture(file, QStringLiteral("Red barn"), QStringLiteral("a credit")));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QVERIFY(!e.win.told.isEmpty());
+        QVERIFY(!e.win.w.undoStack()->canUndo() || e.win.w.undoStack()->count() == steps);
+        limits.maxAdded = most;
+        o->setLimits(limits);
+    }
+
+    // Compress Pictures says how many pictures it left out for a reason, and the reason: here the workbook holds as many new pictures as it saves in one go.
+    void compressSaysWhichPicturesItLeftOutAndWhy()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        const QByteArray noise = noisyPng(960, 480);
+        QVERIFY(e.win.w.insertPictureFile(e.folder.write(QStringLiteral("noise.png"), noise)));
+        crunch::SheetObjects::Limits limits = o->limits();
+        const qint64 most = limits.maxBytes;
+        limits.maxBytes = noise.size() + 10;   // (what is held and one more picture, however small, is past it)
+        o->setLimits(limits);
+        const int steps = e.win.w.undoStack()->count();
+        QString problems;
+        QCOMPARE(e.win.w.compressPictures(96, true, true, &problems), qint64(0));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QVERIFY2(problems.contains(QStringLiteral("1 picture")) && problems.contains(QStringLiteral("MB")), qPrintable(problems));
+        limits.maxBytes = most;
+        o->setLimits(limits);
+        QVERIFY(e.win.w.compressPictures(96, true, true, &problems) > 0);
+        QVERIFY(problems.isEmpty());
+    }
+
+    // The letters of Text Art with a size that is none of the sizes there are (a file's sz of 2147483647) are not scaled by: the box takes the size asked for as a new Text Art's does.
+    void editingTextArtWithAbsurdLettersSizeDoesNotCollapseTheBox()
+    {
+        const QString art = QStringLiteral("<xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"2\" name=\"Art\"/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1905000\" cy=\"476250\"/></a:xfrm>"
+                                            "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:noFill/></xdr:spPr><xdr:txBody><a:bodyPr wrap=\"none\" fromWordArt=\"1\"><a:prstTxWarp prst=\"textPlain\"><a:avLst/></a:prstTxWarp></a:bodyPr><a:lstStyle/>"
+                                            "<a:p><a:r><a:rPr lang=\"en-US\" sz=\"2147483647\"/><a:t>Big</a:t></a:r></a:p></xdr:txBody></xdr:sp>");
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(twoCell(1, 1, 6, 5, art)), {})));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0 && e.win.w.objects()->layer()->count() == 1);
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->select(o->idsOf(0).front());
+        QVERIFY(e.win.w.pickedIsTextArt());
+        const double before = o->layer()->boxNow(o->idsOf(0).front()).w;
+        e.win.w.setTextArtAsker([](TextArtItem *a) {
+            a->size = 80;
+            return true;
+        });
+        QVERIFY(e.win.w.editTextArtText());
+        const double after = o->layer()->boxNow(o->idsOf(0).front()).w;
+        QVERIFY2(after >= before, qPrintable(QString::number(before) + " -> " + QString::number(after)));
+        QVERIFY(after <= 20000.0);
+    }
+
+    // The properties of the letters of Text Art are written in the schema's order (outline, fill, effects, then fonts) whatever the run already had: here it has an East Asian and a
+    // complex-script font, and a Latin font is put before them.
+    void textArtLettersKeepTheSchemaOrderWhenRestyledAndRefonted()
+    {
+        const QString art = QStringLiteral("<xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"2\" name=\"Art\"/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1905000\" cy=\"476250\"/></a:xfrm>"
+                                            "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:noFill/></xdr:spPr><xdr:txBody><a:bodyPr wrap=\"none\" fromWordArt=\"1\"><a:prstTxWarp prst=\"textPlain\"><a:avLst/></a:prstTxWarp></a:bodyPr><a:lstStyle/>"
+                                            "<a:p><a:r><a:rPr lang=\"en-US\" sz=\"3600\"><a:ea typeface=\"EastFont\"/><a:cs typeface=\"ComplexFont\"/></a:rPr><a:t>Order</a:t></a:r></a:p></xdr:txBody></xdr:sp>");
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(twoCell(1, 1, 6, 5, art)), {})));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0 && e.win.w.objects()->layer()->count() == 1);
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->select(o->idsOf(0).front());
+        auto inOrder = [&] {
+            QVERIFY(save(e));
+            const QByteArray d = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+            const qsizetype latin = d.indexOf("<a:latin"), ea = d.indexOf("<a:ea "), cs = d.indexOf("<a:cs ");
+            QVERIFY2(latin >= 0 && ea >= 0 && cs >= 0 && latin < ea && ea < cs, d.constData());
+            const qsizetype ln = d.indexOf("<a:ln"), fill = d.indexOf("Fill>");
+            if (ln >= 0) QVERIFY2(ln < latin, d.constData());
+            if (fill >= 0 && fill < d.indexOf("</a:rPr>")) QVERIFY2(fill < latin, d.constData());
+        };
+        QString other;
+        for (const TextArtStyle &st : textArtStyles())
+            if (other.isEmpty() && st.id != QLatin1String("plain")) other = st.id;
+        QVERIFY(e.win.w.setTextArtStyle(other));
+        inOrder();
+        e.win.w.setTextArtAsker([](TextArtItem *a) {
+            a->font = QStringLiteral("Some Font");
+            return true;
+        });
+        QVERIFY(e.win.w.editTextArtText());
+        inOrder();
     }
 
     // Insert > Text Art puts words in a style of the shared gallery on the sheet as a shape of the drawing (a text body made as Text Art, with the warp named), which is saved so, read

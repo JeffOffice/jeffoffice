@@ -65,7 +65,7 @@ bool encodedIfSmaller(const QImage &image, qint64 originalBytes, QByteArray *byt
     return true;
 }
 
-bool compressedPictureFile(const QByteArray &bytes, double shownWidth, double ppi, const QRectF &keep, QByteArray *out, QByteArray *format)
+bool compressedPictureFile(const QByteArray &bytes, double shownWidth, double ppi, const QRectF &keep, QByteArray *out, QByteArray *format, QString *why)
 {
     QByteArray copy = bytes;
     QBuffer in(&copy);
@@ -73,6 +73,11 @@ bool compressedPictureFile(const QByteArray &bytes, double shownWidth, double pp
     QImageReader reader(&in);
     const QByteArray kind = reader.format().toLower();
     if (kind.isEmpty() || kind.startsWith("svg") || reader.imageCount() > 1) return false;
+    const QSize declared = reader.size();
+    if (declared.isValid() && qint64(declared.width()) * declared.height() > kMostCompressPixels) {
+        if (why) *why = QCoreApplication::translate("jp::PictureCompress", "a picture of %1 by %2 pixels is larger than the most that is made smaller here").arg(declared.width()).arg(declared.height());
+        return false;
+    }
     const QImage image = reader.read();
     if (image.isNull() || shownWidth <= 0) return false;
     QImage made = scaledForPpi(image, shownWidth, ppi);

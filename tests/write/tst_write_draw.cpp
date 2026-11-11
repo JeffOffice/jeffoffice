@@ -4,6 +4,7 @@
 #include "../isolatesettings.h"
 #include "../office/diagramsample.h"
 #include "rtcheck.h"
+#include "app/compresspictures.h"
 #include "app/help.h"
 #include "app/onlinepictures.h"
 #include "app/pageview.h"
@@ -167,6 +168,16 @@ QByteArray pngOf(int w, int h, QColor color = QColor(200, 30, 30))
 }
 
 // A picture file of noise (a PNG that compresses badly), this many pixels across and down: the left half is red-tinted and the right half blue-tinted, so a cut shows.
+quint32 crc32Of(const QByteArray &bytes)
+{
+    quint32 crc = 0xFFFFFFFFu;
+    for (const char ch : bytes) {
+        crc ^= quint8(ch);
+        for (int k = 0; k < 8; ++k) crc = (crc >> 1) ^ (0xEDB88320u & (~(crc & 1) + 1));
+    }
+    return ~crc;
+}
+
 QByteArray noisyPng(int w, int h)
 {
     QRandomGenerator rng(7);
@@ -195,10 +206,10 @@ QMap<QString, QByteArray> mediaOf(const QByteArray &zip)
 struct CannedLibraries {
     QStringList asked;
     std::function<void(const QUrl &, QObject *, const online::Done &, qint64)> kept = online::fetch;
-    explicit CannedLibraries(const QByteArray &picture)
+    explicit CannedLibraries(const QByteArray &picture, const QString &title = QStringLiteral("Red barn"))
     {
         const QByteArray openverse = QJsonDocument(QJsonObject{{"results", QJsonArray{QJsonObject{
-            {"id", "a1"}, {"title", "Red barn"}, {"creator", "Pat Lee"}, {"license", "by"}, {"license_version", "2.0"},
+            {"id", "a1"}, {"title", title}, {"creator", "Pat Lee"}, {"license", "by"}, {"license_version", "2.0"},
             {"license_url", "https://creativecommons.org/licenses/by/2.0/"}, {"foreign_landing_url", "https://example.org/page/a1"},
             {"url", "https://example.org/barn.png"}, {"thumbnail", "https://example.org/barn.thumb"}}}}}).toJson();
         online::fetch = [this, openverse, picture](const QUrl &u, QObject *, const online::Done &done, qint64) {
@@ -1838,6 +1849,67 @@ private Q_SLOTS:
         QVERIFY(picturePositions(*plain).isEmpty());
     }
 
+    // A file whose relationship ids are not "rId..." (here "img1"), with one picture file used by two pictures: compressing one picture leaves the file the other still names, and the
+    // saved document, opened again, has both pictures with their bytes.
+    void compressingOneOfTwoPicturesThatShareAFileKeepsTheFileForTheOther()
+    {
+        const QByteArray original = noisyPng(800, 400);
+        auto made = textDoc({"Before after"});
+        QTextCursor c(made->story());
+        c.setPosition(7);
+        QCOMPARE(insertPicture(*made, c, original), PictureResult::Ok);
+        QCOMPARE(insertPicture(*made, c, original), PictureResult::Ok);
+        const QByteArray first = made->toDocx();
+        office::Package src;
+        QVERIFY(src.read(first));
+        QByteArray xml = src.part(QStringLiteral("/word/document.xml"));
+        static const QRegularExpression embed(QStringLiteral("r:embed=\"([^\"]+)\""));
+        const QString id = embed.match(QString::fromUtf8(xml)).captured(1);
+        QVERIFY(!id.isEmpty());
+        xml.replace(("r:embed=\"" + id + "\"").toUtf8(), "r:embed=\"img1\"");
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"), xml, QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addPart(QStringLiteral("/word/media/image1.png"), original, QStringLiteral("image/png"));
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        QVERIFY(w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("img1"), rel + QStringLiteral("image"), QStringLiteral("media/image1.png")));
+        auto doc = open(w.finish());
+        QVERIFY(doc);
+        QCOMPARE(picturePositions(*doc).size(), 2);
+        const int one = picturePositions(*doc).first();
+        QVERIFY(setPictureSize(*doc, one, 100, 50));
+        QVERIFY(compressPictures(*doc, 96, QVector<int>({one}), false) > 0);
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QCOMPARE(picturePositions(*back).size(), 2);
+        const QMap<QString, QByteArray> media = mediaOf(back->toDocx());
+        QCOMPARE(media.size(), 2);
+        int whole = 0;
+        for (const QByteArray &m : media) whole += m == original;
+        QCOMPARE(whole, 1);   // (the other picture still has the file it named)
+    }
+
+    // A picture whose file says it is enormous (a small PNG that declares a huge size) is not decoded: it is left as it is.
+    void aPictureThatDeclaresAHugeSizeIsNotDecodedByCompress()
+    {
+        QImage tiny(8, 8, QImage::Format_RGB32);
+        tiny.fill(Qt::red);
+        QByteArray png;
+        QBuffer b(&png);
+        b.open(QIODevice::WriteOnly);
+        tiny.save(&b, "PNG");
+        // the width and height of the header (IHDR) made 15,000 by 15,000, with the checksum written again
+        png[16] = char(0); png[17] = char(0); png[18] = char(0x3A); png[19] = char(0x98);
+        png[20] = char(0); png[21] = char(0); png[22] = char(0x3A); png[23] = char(0x98);
+        const quint32 crc = crc32Of(png.mid(12, 17));
+        for (int i = 0; i < 4; ++i) png[29 + i] = char((crc >> (24 - 8 * i)) & 0xFF);
+        QByteArray out, format;
+        QString why;
+        QVERIFY(!compressedPictureFile(png, 100, 96, QRectF(0, 0, 1, 1), &out, &format, &why));
+        QVERIFY(out.isEmpty());
+        QVERIFY2(why.contains(QStringLiteral("15000")), qPrintable(why));
+    }
+
     // With "delete cropped areas" the parts a picture is cut away from leave the file's picture and the cut is gone, with what shows, and its frame, as they were; without it the cut stays.
     void compressingCanTakeTheCroppedAreasOutOfThePicture()
     {
@@ -1941,6 +2013,27 @@ private Q_SLOTS:
         QCOMPARE(insertOnlinePicture(*bare, bc, png, QStringLiteral("Red barn"), QString()), PictureResult::Ok);
         QCOMPARE(bare->story()->toPlainText(), plain.left(7) + QString(QChar(0xFFFC)) + plain.mid(7));
         QCOMPARE(insertOnlinePicture(*bare, bc, QByteArray("no"), QStringLiteral("x"), QString()), PictureResult::Unreadable);
+    }
+
+    // A title with a control character in it (U+0001, which XML has no place for) is cleaned: the picture goes in, and its alt text and credit are the title without it.
+    void anOnlinePictureWithAControlCharacterInItsTitleIsPutIn()
+    {
+        CannedLibraries libraries(pngOf(480, 320), QStringLiteral("Red\x01 barn"));
+        Win win;
+        win.w.show();
+        win.w.act(QStringLiteral("insert.onlinePicture"))->trigger();
+        OnlinePicturesPane *pane = win.w.onlinePictures();
+        QVERIFY(pane);
+        pane->search(QStringLiteral("barn"));
+        QCOMPARE(pane->results()->count(), 1);
+        pane->insertButton()->click();
+        const QVector<int> at = picturePositions(*win.w.document());
+        QCOMPARE(at.size(), 1);
+        QCOMPARE(pictureAt(*win.w.document(), win.w.document()->story(), at[0]).alt, QStringLiteral("Red barn"));
+        QVERIFY(win.w.document()->story()->toPlainText().contains(QStringLiteral("“Red barn” by Pat Lee")));
+        auto back = open(win.w.document()->toDocx());
+        QVERIFY(back);
+        QCOMPARE(picturePositions(*back).size(), 1);
     }
 
     // Insert > Pictures > Online Pictures opens the shared pane on the right (it says what it sends), a search shows what the libraries have (canned here), and Insert puts the picture
