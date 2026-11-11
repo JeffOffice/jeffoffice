@@ -28,6 +28,8 @@
 #include <QMenu>
 #include <QSettings>
 #include <QSemaphore>
+#include <QToolButton>
+#include "app/ribbon.h"
 #include <QSignalSpy>
 #include <QThread>
 #include <thread>
@@ -219,6 +221,18 @@ private Q_SLOTS:
     }
 
     // ---- Spelling (F7)
+
+    // The same command has the same name in all four apps: Spelling, and a quick toolbar of Save, Undo, and Redo. (Find's labels are checked with the dialog, and Print's with the Print page.)
+    void commandsUseTheSuitesWords()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        QCOMPARE(w.act(QStringLiteral("review.spelling"))->text(), QStringLiteral("Spelling"));
+        QList<QAction *> quick;
+        for (QToolButton *b : w.ribbon()->quickAccessButtons()) quick << b->defaultAction();
+        QCOMPARE(quick, (QList<QAction *>{w.act(QStringLiteral("file.save")), w.act(QStringLiteral("edit.undo")), w.act(QStringLiteral("edit.redo"))}));
+    }
 
     void theSpellingWalkFindsMisspelledTextCellsAndSkipsTheRest()
     {

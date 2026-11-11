@@ -835,6 +835,7 @@ private Q_SLOTS:
     void aSaveAfterACopyIsWrittenRemovesItBeforeItIsReported();
     void theParagraphDialogChangesWhatWasChanged();
     void homeTabHasFindAndReplace();
+    void commandsUseTheSuitesWords();
     void findNextSelectsTheMatchAndScrollsToIt();
     void findFollowsMatchCaseAndWholeWords();
     void findReachesCellsAndPassesHiddenText();

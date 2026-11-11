@@ -127,9 +127,9 @@ QWidget *CrunchFileScreen::buildPrint()
     auto *sides = new QComboBox(w);
     sides->setObjectName(QStringLiteral("printSides"));
     sides->setAccessibleName(tr("Which pages to print"));
-    sides->addItem(tr("All the pages"), int(crunch::PrintSides::All));
-    sides->addItem(tr("Odd pages only (1, 3, 5, ...)"), int(crunch::PrintSides::Odd));
-    sides->addItem(tr("Even pages only (2, 4, 6, ...)"), int(crunch::PrintSides::Even));
+    sides->addItem(tr("All pages in the range"), int(crunch::PrintSides::All));
+    sides->addItem(tr("Only odd pages"), int(crunch::PrintSides::Odd));
+    sides->addItem(tr("Only even pages"), int(crunch::PrintSides::Even));
     sides->setCurrentIndex(std::max(0, sides->findData(int(choices.sides))));
     sides->setToolTip(tr("To print on both sides by hand, print the odd pages, turn the stack over, put it back in the printer, and then print the even pages."));
     form->addRow(tr("Which pages:"), sides);

@@ -7,6 +7,8 @@
 #include <QPrintDialog>
 #include <QScrollArea>
 #include <QSpinBox>
+#include <QToolButton>
+#include "app/ribbon.h"
 #include "io/importers.h"
 #include <QJsonArray>
 #include "io/pdftags.h"
@@ -139,6 +141,28 @@ private Q_SLOTS:
         QCOMPARE(sides->itemText(0), QStringLiteral("Print on one side"));
         QCOMPARE(sides->itemText(1), QStringLiteral("Print on both sides, flip on long edge"));
         QCOMPARE(sides->itemText(2), QStringLiteral("Print on both sides, flip on short edge"));
+    }
+
+    // The same command has the same name in all four apps: Spelling (there is no grammar check), Word Count, Info, a quick toolbar of Save, Undo, and Redo, and a Print range in the words of the others.
+    void commandsAndPrintRangeUseTheSuitesWords()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.editor()->setDocument(jp::Document::blank(QSizeF(396, 612)));
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        QCOMPARE(w.act(QStringLiteral("rev.spelling"))->text(), QStringLiteral("Spelling"));
+        QCOMPARE(w.act(QStringLiteral("rev.wordCount"))->text(), QStringLiteral("Word Count"));
+        QCOMPARE(w.act(QStringLiteral("file.properties"))->text(), QStringLiteral("Info"));
+        QList<QAction *> quick;
+        for (QToolButton *b : w.ribbon()->quickAccessButtons()) quick << b->defaultAction();
+        QCOMPARE(quick, (QList<QAction *>{w.act(QStringLiteral("file.save")), w.act(QStringLiteral("edit.undo")), w.act(QStringLiteral("edit.redo"))}));
+        w.showBackstage(QStringLiteral("print"));
+        auto *range = w.findChild<QComboBox *>(QStringLiteral("printRange"));
+        QVERIFY(range);
+        QStringList items;
+        for (int i = 0; i < range->count(); ++i) items << range->itemText(i);
+        QCOMPARE(items, (QStringList{QStringLiteral("All pages"), QStringLiteral("Current page"), QStringLiteral("Selection"), QStringLiteral("Pages")}));
     }
 
     // Both sides by hand: the odd pages, a message to turn the stack over, then the even pages last first; a job of one page has no message, and declining it stops the job.

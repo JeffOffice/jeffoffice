@@ -1137,6 +1137,23 @@ void WriteTests::homeTabHasFindAndReplace()
     }
 }
 
+// The same command has the same name in all four apps: Spelling (JeffWrite has no grammar check), Word Count, Find's two options, and a quick toolbar of Save, Undo, and Redo.
+void WriteTests::commandsUseTheSuitesWords()
+{
+    WriteWindow w;
+    w.resize(1000, 700);
+    w.show();
+    QCOMPARE(w.act(QStringLiteral("review.spelling"))->text(), QStringLiteral("Spelling"));
+    QCOMPARE(w.act(QStringLiteral("review.wordCount"))->text(), QStringLiteral("Word Count"));
+    w.act(QStringLiteral("edit.find"))->trigger();
+    QVERIFY(w.findPane());
+    QCOMPARE(w.findPane()->matchCase()->text(), QStringLiteral("Match case"));
+    QCOMPARE(w.findPane()->wholeWords()->text(), QStringLiteral("Find whole words only"));
+    QList<QAction *> quick;
+    for (QToolButton *b : w.ribbon()->quickAccessButtons()) quick << b->defaultAction();
+    QCOMPARE(quick, (QList<QAction *>{w.act(QStringLiteral("file.save")), w.act(QStringLiteral("edit.undo")), w.act(QStringLiteral("edit.redo"))}));
+}
+
 
 // Find Next selects the match and scrolls the pages to it, also when the page it is on has not been laid out yet; after the last match it
 // goes round to the first; and with none it says so and leaves the selection where it was.

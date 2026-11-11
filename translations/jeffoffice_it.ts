@@ -15946,22 +15946,22 @@ Desktop publishing</translation>
     </message>
     <message>
         <location line="-231"/>
-        <source>Print All Pages</source>
+        <source>All pages</source>
         <translation type="unfinished">Stampa tutte le pagine</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Print Current Page</source>
+        <source>Current page</source>
         <translation type="unfinished">Stampa pagina corrente</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Custom Print</source>
+        <source>Pages</source>
         <translation type="unfinished">Stampa personalizzata</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>e.g. 1-3, 5</source>
+        <source>1-3, 5</source>
         <translation type="unfinished">es. 1-3, 5</translation>
     </message>
     <message>
@@ -16086,7 +16086,7 @@ Desktop publishing</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Settings:</source>
+        <source>Range:</source>
         <translation type="unfinished">Impostazioni:</translation>
     </message>
     <message>
@@ -17616,17 +17616,17 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>All the pages</source>
+        <source>All pages in the range</source>
         <translation type="unfinished">Tutte le pagine</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Odd pages only (1, 3, 5, ...)</source>
+        <source>Only odd pages</source>
         <translation type="unfinished">Solo pagine dispari (1, 3, 5, ...)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Even pages only (2, 4, 6, ...)</source>
+        <source>Only even pages</source>
         <translation type="unfinished">Solo pagine pari (2, 4, 6, ...)</translation>
     </message>
     <message>
@@ -47845,11 +47845,6 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+9"/>
         <source>Find and Replace</source>
         <translation type="unfinished">Trova e sostituisci</translation>
-    </message>
-    <message>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+28"/>
-        <source>Spelling &amp; Grammar</source>
-        <translation type="unfinished">Controllo ortografia e grammatica</translation>
     </message>
     <message>
         <location line="+1"/>

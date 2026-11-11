@@ -15946,22 +15946,22 @@ Publication assistée par ordinateur</translation>
     </message>
     <message>
         <location line="-231"/>
-        <source>Print All Pages</source>
+        <source>All pages</source>
         <translation type="unfinished">Imprimer toutes les pages</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Print Current Page</source>
+        <source>Current page</source>
         <translation type="unfinished">Imprimer la page active</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Custom Print</source>
+        <source>Pages</source>
         <translation type="unfinished">Impression personnalisée</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>e.g. 1-3, 5</source>
+        <source>1-3, 5</source>
         <translation type="unfinished">par ex. 1-3, 5</translation>
     </message>
     <message>
@@ -16086,7 +16086,7 @@ Publication assistée par ordinateur</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Settings:</source>
+        <source>Range:</source>
         <translation type="unfinished">Paramètres :</translation>
     </message>
     <message>
@@ -17616,17 +17616,17 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>All the pages</source>
+        <source>All pages in the range</source>
         <translation type="unfinished">Toutes les pages</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Odd pages only (1, 3, 5, ...)</source>
+        <source>Only odd pages</source>
         <translation type="unfinished">Pages impaires uniquement (1, 3, 5, ...)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Even pages only (2, 4, 6, ...)</source>
+        <source>Only even pages</source>
         <translation type="unfinished">Pages paires uniquement (2, 4, 6, ...)</translation>
     </message>
     <message>
@@ -47845,11 +47845,6 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <location line="+9"/>
         <source>Find and Replace</source>
         <translation type="unfinished">Rechercher et remplacer</translation>
-    </message>
-    <message>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+28"/>
-        <source>Spelling &amp; Grammar</source>
-        <translation type="unfinished">Grammaire et orthographe</translation>
     </message>
     <message>
         <location line="+1"/>

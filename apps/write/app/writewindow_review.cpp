@@ -1,4 +1,4 @@
-// JeffWrite's Review tab: Spelling & Grammar, Track Changes, Accept and Reject, Display for Review, and comments, with the Reviewing pane.
+// JeffWrite's Review tab: Spelling, Track Changes, Accept and Reject, Display for Review, and comments, with the Reviewing pane.
 
 #include "app/writewindow.h"
 
@@ -25,7 +25,7 @@ namespace jp {
 
 void WriteWindow::createReviewActions()
 {
-    mk("review.spelling", tr("Spelling & Grammar"), "spell-check", QKeySequence(Qt::Key_F7), [this] { showSpelling(); });
+    mk("review.spelling", tr("Spelling"), "spell-check", QKeySequence(Qt::Key_F7), [this] { showSpelling(); });
     QAction *asType = mk("review.checkAsType", tr("Check Spelling as You Type"), "spell-check-2", QKeySequence(), [this] {
         const bool on = act("review.checkAsType")->isChecked();
         m_view->setSpellingEnabled(on);

@@ -691,11 +691,11 @@ QWidget *Backstage::buildPrint()
     QCheckBox *collate = makeCollateBox(w, tr("Print each copy of all the pages in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
     auto *range = new QComboBox(w);
     range->setObjectName(QStringLiteral("printRange"));
-    range->addItems({tr("Print All Pages"), tr("Print Current Page"), tr("Print Selection"), tr("Custom Print")});
+    range->addItems({tr("All pages"), tr("Current page"), tr("Selection"), tr("Pages")});
     range->setItemData(2, tr("Print only the objects that are selected, in their places on the current page."), Qt::ToolTipRole);
     auto *pages = new QLineEdit(w);
     pages->setObjectName(QStringLiteral("printPages"));
-    pages->setPlaceholderText(tr("e.g. 1-3, 5"));
+    pages->setPlaceholderText(tr("1-3, 5"));
     auto *layout = new QComboBox(w);
     layout->addItems({tr("One page per sheet"), tr("Multiple pages per sheet"), tr("Multiple copies per sheet"), tr("Booklet, side-fold"), tr("Booklet, top-fold"),
                       tr("Tiled (posters and banners)")});
@@ -757,7 +757,7 @@ QWidget *Backstage::buildPrint()
     merged->setEnabled(!d->merge.isEmpty());
     form->addRow(tr("Printer:"), printer);
     form->addRow(QString(), collate);
-    form->addRow(tr("Settings:"), range);
+    form->addRow(tr("Range:"), range);
     form->addRow(tr("Pages:"), pages);
     form->addRow(tr("Layout:"), layout);
     form->addRow(tr("Paper:"), paper);

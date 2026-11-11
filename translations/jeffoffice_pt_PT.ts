@@ -15946,22 +15946,22 @@ Paginação eletrónica</translation>
     </message>
     <message>
         <location line="-231"/>
-        <source>Print All Pages</source>
+        <source>All pages</source>
         <translation type="unfinished">Imprimir Todas as Páginas</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Print Current Page</source>
+        <source>Current page</source>
         <translation type="unfinished">Imprimir Página Atual</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Custom Print</source>
+        <source>Pages</source>
         <translation type="unfinished">Impressão Personalizada</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>e.g. 1-3, 5</source>
+        <source>1-3, 5</source>
         <translation type="unfinished">p. ex. 1-3, 5</translation>
     </message>
     <message>
@@ -16086,7 +16086,7 @@ Paginação eletrónica</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Settings:</source>
+        <source>Range:</source>
         <translation type="unfinished">Definições:</translation>
     </message>
     <message>
@@ -17616,17 +17616,17 @@ Origem: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>All the pages</source>
+        <source>All pages in the range</source>
         <translation type="unfinished">Todas as páginas</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Odd pages only (1, 3, 5, ...)</source>
+        <source>Only odd pages</source>
         <translation type="unfinished">Apenas páginas ímpares (1, 3, 5, ...)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Even pages only (2, 4, 6, ...)</source>
+        <source>Only even pages</source>
         <translation type="unfinished">Apenas páginas pares (2, 4, 6, ...)</translation>
     </message>
     <message>
@@ -47845,11 +47845,6 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+9"/>
         <source>Find and Replace</source>
         <translation type="unfinished">Localizar e Substituir</translation>
-    </message>
-    <message>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+28"/>
-        <source>Spelling &amp; Grammar</source>
-        <translation type="unfinished">Ortografia e Gramática</translation>
     </message>
     <message>
         <location line="+1"/>

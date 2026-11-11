@@ -19,7 +19,7 @@ If the dictionary has no suggestion, the menu says so.
 
 ## Step through the misspellings
 
-Press **F7**, or click **Review > Spelling & Grammar**. The Spelling pane opens on the right. It shows the first misspelled word after the caret, selected in your text, with the line it is in and a list of suggestions.
+Press **F7**, or click **Review > Spelling**. The Spelling pane opens on the right. It shows the first misspelled word after the caret, selected in your text, with the line it is in and a list of suggestions.
 
 - **Change** puts the chosen suggestion in place of the word. Double-click a suggestion to do the same.
 - **Change All** does that for every copy of the word in the document. It is one step, so **Ctrl+Z** takes back all of them.
