@@ -494,9 +494,6 @@ public:
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
     // Review > Translate opens the web page of the translation service through this (the browser's own when none is set); a test sets its own.
     void setUrlOpener(const std::function<bool(const QUrl &)> &opener) { m_urlOpener = opener; }
-    // Review > Translate Workbook opens one address for each part of the text, with this pause (milliseconds) after each, and refuses a workbook with more text cells or more parts than the limits; a test sets its own.
-    void setTranslatePause(int milliseconds) { m_translatePause = milliseconds; }
-    void setWorkbookTranslateLimits(int cells, int parts) { m_translateMostCells = cells, m_translateMostParts = parts; }
 
     // ---- the sheets
     // The sheets shown as tabs, by their place in the workbook (hidden ones are not here), and the one in view.
@@ -694,8 +691,6 @@ protected:
 private:
     // The text Review > Translate sends: the selected words of the entry being typed, else the whole entry, else the text of the selected cells (row by row, a line for each row).
     QString textToTranslate() const;
-    // Review > Translate Workbook: the text cells of every sheet (not formulas, not numbers) sent in parts, with progress and Cancel.
-    void translateWorkbook();
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn, bool checkable = false, bool enabled = true);
     void createActions();
     void buildRibbon();
@@ -1618,9 +1613,6 @@ private:
     qint64 m_longestBatchMicros = 0, m_batches = 0, m_longestBatchItems = 0, m_workerCpuMicros = 0;
     std::function<void(const QString &, const QString &)> m_notifier;
     std::function<bool(const QUrl &)> m_urlOpener;
-    int m_translatePause = 1500;
-    int m_translateMostCells = 10000;
-    int m_translateMostParts = 20;
     QString m_loadProblem;
     // editing
     std::unique_ptr<crunch::EditSession> m_session;
