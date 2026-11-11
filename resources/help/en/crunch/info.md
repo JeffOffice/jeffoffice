@@ -52,6 +52,8 @@ Click **Inspect Workbook** before you send a workbook to someone. It lists what 
 
 Save the workbook afterward to keep the clean copy.
 
+**Remove personal information from this file when saving**, under the cards, does it every time you save, for any file. It is the same box as in **Options**, and the same in every JeffOffice app.
+
 ## Check Compatibility
 
 Click **Check Compatibility** to see what an older file, an .xls file, would not hold. It lists the parts of the workbook that would be left out or cut to fit, such as charts, notes, or rows past the old limit. It saves nothing, and your workbook stays as it is.

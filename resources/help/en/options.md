@@ -27,6 +27,7 @@ These check boxes control spelling and typing help. See [Check spelling and hyph
 ## Save
 
 - **Save automatic recovery information every** sets how often JeffPub makes spare copies of unsaved work, from 1 to 120 minutes. See [Get back unsaved work](recover).
+- **Remove personal information from this file when saving** takes out the author, the person who saved the file last, the company, and the manager. What the file says stays as it is. It is the same choice in every JeffOffice app: change it in one and it changes in all of them. The same box is on the **Info** page. A .pub file and a .jpub file both lose the names.
 - **Always create backup copy** keeps the older file as "Backup of" plus its name each time you save.
 
 ## Advanced

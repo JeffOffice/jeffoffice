@@ -112,7 +112,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [ ] **later** Save as a single-file web page, and an outline as `.rtf` or Markdown
 
 ### Options
-- [ ] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports)
+- [x] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports) *(shared: libs/shell telemetry and libs/shell privacy; done November 10, 2026: Options > Save > Remove personal information from this file when saving, and the same box on Info, take the author, who saved last, the company, and the manager out of the properties each time a file is saved, and the names and initials out of the comments)*
 - [x] **1.0** General: user name and initials (used on comments), interface theme (system, light, or dark), display language, update checks and beta builds, and usage statistics (opt in) *(shared: the choices belong to every JeffOffice app)*
 - [x] **1.0** Proofing: spelling as you type, ignore words in capitals or with numbers, AutoCorrect, smart quotes, and AutoFormat as you type (dashes, fractions, ordinals, automatic lists)
 - [ ] **1.0** AutoCorrect Options window: the replacement list, exceptions, capitalization rules, and math symbols *(only check boxes now)*

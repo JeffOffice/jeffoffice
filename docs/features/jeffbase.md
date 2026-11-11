@@ -91,7 +91,7 @@ What JeffBase offers that Access doesn't, then the plans that go past Access.
 - [~] **first release** Proofing: AutoCorrect, spelling as you type, ignoring words in capitals or with numbers, and custom dictionaries *(shared: JeffPub's Proofing options)*
 - [ ] **1.0** Client Settings and Advanced: the Enter key moves to the next field, next record, or stays; arrow keys move between fields; select the whole field on entering it; confirm record changes, deletions, and action queries; default find and replace behavior; how many recent databases to list; four-digit years; default print margins; open the last database at start; the default open mode (shared or exclusive); and the time to wait on a busy file
 - [ ] **1.0** Customize the Ribbon, the quick toolbar, and the keyboard: show, hide, rename, and reorder tabs and groups, add your own, assign keys to commands, and reset them
-- [ ] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports) *(shared: libs/shell telemetry)*
+- [x] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports) *(shared: libs/shell telemetry and privacy, libs/office privacy; done November 10, 2026 in all four apps)*
 - [ ] **first release** Trust Center: the list of what files may do (macros, VBA, remote links), the default of "ask, and keep disabled until allowed", and the list of files and folders the person has chosen to trust (see Macros and code)
 
 ## Home tab

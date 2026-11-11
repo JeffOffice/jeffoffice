@@ -38,6 +38,7 @@ These check boxes control spelling and typing help. See [Type and format text](t
 ## Save
 
 - **Embed fonts in the file** puts the fonts your slides use inside the file when you save, so the slides look the same on a computer that doesn't have those fonts. It is on until you clear it. It only puts in the fonts that come with JeffDeck, and it makes the file bigger. The topic Open and save presentations has the details, under "Fonts in the file".
+- **Remove personal information from this file when saving** takes out the author, the person who saved the file last, the company, the manager, and the names and initials on comments. What the file says stays as it is. It is the same choice in every JeffOffice app: change it in one and it changes in all of them. The same box is on the **Info** page.
 
 ## Related
 

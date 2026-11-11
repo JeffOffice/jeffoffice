@@ -54,6 +54,7 @@ Click **File > Close**, or press Ctrl+F4. JeffPub asks whether to save changes, 
 
 - **Mark as Final** saves the publication and then holds it for reading only. When someone opens it, the title bar says it is read-only, and a note tells them it was marked as final. It is not a lock: choose **Marked as Final** again to edit it. A .pub file can't hold the mark, so save as a .jpub file first.
 - **Inspect Publication** lists what the file holds that you may not want to share, and removes it: the author and other names in the properties, the business information, the mail merge list, and the objects parked on the scratch area beside the pages.
+- **Remove personal information from this file when saving**, under the cards, takes the author, the person who saved the file last, the company, and the manager out of the file each time you save, for a .jpub or a .pub file. It is the same box as in **Options**, and the same in every JeffOffice app.
 - **Version History** keeps named copies of the publication on your computer. Save the publication first. Click **Keep a Version…**, and later choose one to **Open a Copy** of it, **Go Back to It** (the publication as it is now is kept as a version first), or **Delete** it.
 
 A .jpub file has no form for a password, so JeffPub has no password card. JeffPub has no accessibility check yet, so the page has no card for one.

@@ -121,7 +121,7 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 - [ ] **1.0** Customize the Ribbon and the quick toolbar
 - [ ] **1.0** Customize the keyboard: assign keys to commands, with Excel's shortcuts the starting set
 - [ ] **1.0** Trust Center equivalents: what happens with external links, data connections, macros (kept, never run), and files from outside; no add-ins from the Store
-- [x] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports) *(shared: libs/shell telemetry; done November 5, 2026: Options > Privacy takes the author, who saved it last, the company, and the manager out of the properties each time a workbook is saved)*
+- [x] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports) *(shared: libs/shell telemetry and libs/shell privacy; done November 10, 2026: Options > Save > Remove personal information from this file when saving, and the same box on Info, take the author, who saved last, the company, and the manager out of the properties each time a file is saved, and the names out of the notes and the threads of comments)*
 - [ ] **1.0** Accessibility options: sound and animation feedback, high contrast, and keyboard focus
 
 ## Home tab

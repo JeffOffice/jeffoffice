@@ -58,6 +58,8 @@ Click **Inspect Presentation** before you send a presentation to someone. It lis
 
 Click **Remove All** next to a kind to take it out. You can undo it with **Ctrl+Z**. Save the presentation afterward to keep the clean copy.
 
+**Remove personal information from this file when saving**, under the cards, does it every time you save, for any file. It is the same box as in **Options**, and the same in every JeffOffice app.
+
 ### Version History
 
 Click **Version History** to keep named copies of the presentation on your computer. Nothing is sent anywhere. Save the presentation first, because a version belongs to a file. Click **Keep a Version…**, and give it a name. Later, choose a version and click **Open a Copy** to look at it, **Go Back to It** to put it in the window (the presentation as it is now is kept as a version first), or **Delete**. JeffDeck keeps the last 50.

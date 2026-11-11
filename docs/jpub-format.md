@@ -483,6 +483,8 @@ across and down).
 `title`, `subject`, `author`, `manager`, `company`, `category`, `keywords`,
 `comments`, and `created` and `modified` as ISO 8601 dates.
 
+`lastModifiedBy` is the name of the person who saved the file last, kept when there is one. When the person turns on "Remove personal information from this file when saving", JeffPub leaves `author`, `lastModifiedBy`, `company`, and `manager` out of the file; the other keys and everything else in the file are as they would have been.
+
 ## Printing colors
 
 `model`: 0 RGB, 1 a single spot color, 2 spot colors, 3 process (CMYK), 4

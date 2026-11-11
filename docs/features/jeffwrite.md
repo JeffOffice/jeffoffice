@@ -142,7 +142,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [ ] **1.0** Font substitution: which font replaces a missing one, and a note when a document needs one
 - [ ] **1.0** Customize the Ribbon: show, hide, rename, and reorder tabs and groups, and add your own, plus the quick toolbar
 - [ ] **1.0** Customize the keyboard: assign keys to commands, styles, symbols, and building blocks, and reset them
-- [~] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports) *(round 11: Options > Save > Remove personal information from the file's properties when saving takes the author, who saved last, the company, and the manager out of each file as it is written; the choice about statistics is on the General page; shared: libs/shell telemetry; not yet: the names on comments and tracked changes)*
+- [x] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports) *(shared: libs/shell telemetry and libs/shell privacy; done November 10, 2026: Options > Save > Remove personal information from this file when saving, and the same box on Info, take the author, who saved last, the company, and the manager out of the properties each time a file is saved, and the names and initials out of the comments and the names and times out of the tracked changes)*
 
 ## Home tab
 
