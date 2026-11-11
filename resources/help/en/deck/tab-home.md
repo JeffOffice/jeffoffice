@@ -8,7 +8,7 @@ The **Home** tab holds the tools you use most while you build slides.
 - **Font** changes the font, size, color, and style of letters, their spacing, and their case. See [Type and format text](text).
 - **Paragraph** has bullets, numbering, list levels, line spacing, columns, alignment, text direction, and where the text sits in its box. See [Type and format text](text).
 - **Drawing** has **Shapes**, **Arrange**, **Shape Fill**, and **Shape Outline**. See [Shapes, pictures, tables, and Text Art](objects). The **Shape Format** tab and the Format Shape pane (Ctrl+1) have more.
-- **Editing** has **Find** (Ctrl+F), **Replace** (Ctrl+H), **Go To** (Ctrl+G), and **Select**. Find and Replace open a pane on the right that searches every slide and its notes. **Go To** asks for a slide number and moves to that slide. **Select** has **Select All** (Ctrl+A) and **Select Objects**, which goes back to the pointer after you draw.
+- **Editing** has **Find** (Ctrl+F), **Replace** (Ctrl+H), **Go To** (Ctrl+G), and **Select**. Find and Replace open a pane on the right that searches every slide and its notes. **Go To** opens a window with a **Go to what** list: **Slide**, **Section**, **Comment**, or **Object**. See [Go to a slide, and move slides](slides). **Select** has **Select All** (Ctrl+A) and **Select Objects**, which goes back to the pointer after you draw.
 
 ## Related
 

@@ -35,6 +35,15 @@ If you moved or resized placeholders and want them back, click **Home > Slides >
 
 Click a slide in the slides pane. Or press Up and Down in the pane, or Ctrl+Page Down and Ctrl+Page Up on the slide.
 
+To go somewhere by name or number, press Ctrl+G (or click **Home > Editing > Go To**). Pick what you want to go to under **Go to what**, then type it in the box:
+
+- **Slide:** a slide number. This is the number box it has always been.
+- **Section:** the name of a section (part of the name is enough), or its number. You go to the section's first slide. If your presentation has sections, they are also listed in the window, and you can double-click one.
+- **Comment:** a comment's number, counting slide by slide in the order the comments were made. The comment opens in the Comments pane, on its slide.
+- **Object:** the name the object has in the **Selection** pane, for example "Revenue Chart" or "Text Box 2". JeffDeck looks from the slide you are on to the end, then from the first slide, and stops at the first match. The slide opens with that object selected.
+
+Click **Next** or **Previous** to go to the next or previous section, comment, or object on the slide, or slide. For comments, the last comment goes back round to the first. Click **Go To** to go to what you typed. If there is nothing with that name or number, the window says so and stays open.
+
 To move a slide, drag its picture up or down in the slides pane. You can do the same in the Slide Sorter. See [Outline view and the Slide Sorter](views).
 
 ## Copy a slide

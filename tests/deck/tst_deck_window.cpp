@@ -1494,6 +1494,157 @@ private Q_SLOTS:
         QCOMPARE(ed->currentPage(), 1);
     }
 
+    // Go To also goes to a section (by name or number), a comment (next, previous, or by number), and an object (by the name the Selection pane shows); the dialog has the "Go to what" list of JeffWrite's, an entry, and Next, Previous, and Go To.
+    static void pickGoToKind(QDialog *d, const QString &kind)
+    {
+        auto *kinds = d->findChild<QListWidget *>(QStringLiteral("goToKinds"));
+        QVERIFY(kinds);
+        const auto found = kinds->findItems(kind, Qt::MatchExactly);
+        QCOMPARE(found.size(), 1);
+        kinds->setCurrentItem(found.first());
+    }
+    static void pressGoTo(QDialog *d, const char *button)
+    {
+        auto *b = d->findChild<QPushButton *>(QString::fromLatin1(button));
+        QVERIFY(b);
+        QVERIFY(b->isEnabled());
+        b->click();
+    }
+
+    void goToMovesToASectionByName()
+    {
+        DeckWindow w;
+        for (int i = 0; i < 5; ++i) w.newSlide();
+        Editor *ed = w.editor();
+        deck::addSection(*ed->doc(), 0, QStringLiteral("Opening"));
+        deck::addSection(*ed->doc(), 2, QStringLiteral("Budget Review"));
+        deck::addSection(*ed->doc(), 4, QStringLiteral("Closing"));
+        ed->setCurrentPage(0);
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            pickGoToKind(d, QStringLiteral("Section"));
+            auto *what = d->findChild<QLineEdit *>(QStringLiteral("goToWhat"));
+            QVERIFY(what);
+            what->setText(QStringLiteral("budget"));
+            pressGoTo(d, "goToGo");
+        });
+        QCOMPARE(ed->currentPage(), 2);
+        // Next from there.
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            pickGoToKind(d, QStringLiteral("Section"));
+            pressGoTo(d, "goToNext");
+        }, false);
+        QCOMPARE(ed->currentPage(), 4);
+        // An unknown name is refused, in words, and nothing moves.
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            pickGoToKind(d, QStringLiteral("Section"));
+            d->findChild<QLineEdit *>(QStringLiteral("goToWhat"))->setText(QStringLiteral("Nowhere"));
+            pressGoTo(d, "goToGo");
+            QVERIFY(d->isVisible());
+            QVERIFY(d->findChild<QLabel *>(QStringLiteral("goToProblem"))->text().contains(QStringLiteral("Nowhere")));
+        }, false);
+        QCOMPARE(ed->currentPage(), 4);
+    }
+
+    void goToNextAndPreviousComment()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        for (int i = 0; i < 4; ++i) w.newSlide();
+        Editor *ed = w.editor();
+        const comments::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")};
+        // No comments: a clear message, nothing moves.
+        ed->setCurrentPage(2);
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            pickGoToKind(d, QStringLiteral("Comment"));
+            pressGoTo(d, "goToNext");
+            QVERIFY(d->isVisible());
+            QVERIFY(!d->findChild<QLabel *>(QStringLiteral("goToProblem"))->text().isEmpty());
+        }, false);
+        QCOMPARE(ed->currentPage(), 2);
+        const QString a = comments::addComment(*ed->doc()->pages[1], pat, QStringLiteral("A"), QPointF(10, 10));
+        const QString b = comments::addComment(*ed->doc()->pages[3], pat, QStringLiteral("B"), QPointF(10, 10));
+        const QString c = comments::addComment(*ed->doc()->pages[3], pat, QStringLiteral("C"), QPointF(20, 20));
+        ed->setCurrentPage(1);
+        auto press = [&w](const char *button) {
+            withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [button](QDialog *d) {
+                pickGoToKind(d, QStringLiteral("Comment"));
+                pressGoTo(d, button);
+            }, false);
+        };
+        press("goToNext");   // nothing open: the first comment from this slide on
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(w.commentsPane()->currentComment(), a);
+        QVERIFY(w.commentsPane()->isVisibleTo(&w));
+        press("goToNext");
+        QCOMPARE(ed->currentPage(), 3);
+        QCOMPARE(w.commentsPane()->currentComment(), b);
+        press("goToNext");
+        QCOMPARE(w.commentsPane()->currentComment(), c);
+        press("goToNext");   // wraps to the first
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(w.commentsPane()->currentComment(), a);
+        press("goToPrevious");   // wraps to the last
+        QCOMPARE(ed->currentPage(), 3);
+        QCOMPARE(w.commentsPane()->currentComment(), c);
+        // By number.
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            pickGoToKind(d, QStringLiteral("Comment"));
+            d->findChild<QLineEdit *>(QStringLiteral("goToWhat"))->setText(QStringLiteral("2"));
+            pressGoTo(d, "goToGo");
+        });
+        QCOMPARE(w.commentsPane()->currentComment(), b);
+    }
+
+    void goToAnObjectByItsNameSelectsItOnItsSlide()
+    {
+        DeckWindow w;
+        for (int i = 0; i < 4; ++i) w.newSlide();
+        Editor *ed = w.editor();
+        auto shape = std::make_shared<ShapeItem>();
+        shape->name = QStringLiteral("Revenue Chart");
+        const QString id = shape->id;
+        ed->doc()->pages[3]->items.push_back(shape);
+        ed->setCurrentPage(0);
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            pickGoToKind(d, QStringLiteral("Object"));
+            d->findChild<QLineEdit *>(QStringLiteral("goToWhat"))->setText(QStringLiteral("revenue chart"));
+            pressGoTo(d, "goToGo");
+        });
+        QCOMPARE(ed->currentPage(), 3);
+        QCOMPARE(ed->selection(), QStringList{id});
+        // A name nothing has.
+        ed->setCurrentPage(0);
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            pickGoToKind(d, QStringLiteral("Object"));
+            d->findChild<QLineEdit *>(QStringLiteral("goToWhat"))->setText(QStringLiteral("Profit Table"));
+            pressGoTo(d, "goToGo");
+            QVERIFY(d->isVisible());
+            QVERIFY(d->findChild<QLabel *>(QStringLiteral("goToProblem"))->text().contains(QStringLiteral("Profit Table")));
+        }, false);
+        QCOMPARE(ed->currentPage(), 0);
+    }
+
+    // The slide entry is the number box it always was, and is the list's first choice.
+    void goToSlideStillHasItsNumberBox()
+    {
+        DeckWindow w;
+        for (int i = 0; i < 3; ++i) w.newSlide();
+        Editor *ed = w.editor();
+        ed->setCurrentPage(0);
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            auto *kinds = d->findChild<QListWidget *>(QStringLiteral("goToKinds"));
+            QVERIFY(kinds);
+            QCOMPARE(kinds->item(0)->text(), QStringLiteral("Slide"));
+            QCOMPARE(kinds->currentRow(), 0);
+            auto *n = d->findChild<QSpinBox *>(QStringLiteral("goToNumber"));
+            QVERIFY(n);
+            QVERIFY(n->isVisibleTo(d));
+            QCOMPARE(n->maximum(), 4);
+            n->setValue(3);
+        });
+        QCOMPARE(ed->currentPage(), 2);
+    }
+
     // Find Next goes through the text of every slide in order from the current one (titles, bodies, shapes, tables, and the notes) and round
     // to the start; each match is shown on its slide, selected.
     void findGoesThroughEverySlideNotesTablesAndShapes()
