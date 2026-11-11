@@ -33,7 +33,7 @@ Every change is a step that **Undo** (Ctrl+Z) takes back, and **Redo** brings fo
 
 - Comments are not printed, and they are not in a PDF, a picture, a web page, or an e-book.
 - A .jpub file keeps comments, with their replies and whether they are resolved.
-- A .pub file can't hold comments, because other programs that open it have no place for them. When you save as .pub, JeffPub tells you how many comments were left out. They stay in your publication, and they are kept when you save as .jpub. Opening a .pub file never adds comments.
+- A .pub file can't hold comments, because other programs that open it have no place for them. When you save as .pub, JeffPub tells you that the comments were left out. They stay in your publication, and they are kept when you save as .jpub. Opening a .pub file never adds comments.
 
 ## Share without names
 

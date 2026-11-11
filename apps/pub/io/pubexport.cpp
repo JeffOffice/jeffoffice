@@ -2386,7 +2386,7 @@ QByteArray PubWriter::write(QStringList *skipped)
     int commentCount = 0;
     for (const auto &page : m_doc.pages) commentCount += comments::commentCount(*page);
     if (skipped && commentCount)
-        *skipped << QCoreApplication::translate("Export", "%n comment(s) couldn't be saved to .pub (comments are kept only in .jpub)", nullptr, commentCount);
+        *skipped << QCoreApplication::translate("Export", "the comments couldn't be saved to .pub (comments are kept only in .jpub)");
     // An object set in text says so (03) and gives its number (0f), with 34
     // = 0, as in Publisher's files (Oct 7); an index lists each number's
     // story and object.

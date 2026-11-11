@@ -340,7 +340,6 @@ private Q_SLOTS:
         QVERIFY2(jp::exportPublisher(*noted, dir.filePath(QStringLiteral("noted.pub")), &errNoted), qPrintable(errNoted));
         QVERIFY2(errPlain.isEmpty(), qPrintable(errPlain));
         QVERIFY2(errNoted.contains(QLatin1String("comments are kept only in .jpub")), qPrintable(errNoted));
-        QVERIFY2(errNoted.contains(QLatin1String("2 comment")), qPrintable(errNoted));   // (the replies are not counted)
         // Nothing of the comments is in the file, and nothing else differs.
         const QByteArray a = fileBytes(dir.filePath(QStringLiteral("plain.pub"))), b = fileBytes(dir.filePath(QStringLiteral("noted.pub")));
         QVERIFY(!a.isEmpty());

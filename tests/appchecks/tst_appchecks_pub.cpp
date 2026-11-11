@@ -3,12 +3,14 @@
 
 #include "app/backstage.h"
 #include "app/chartedit.h"
+#include "app/commentspane.h"
 #include "app/mainwindow.h"
 #include "app/pubinfo.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
 #include "canvas/canvas.h"
 #include "core/appinfo.h"
+#include "core/comments.h"
 #include "core/document.h"
 #include "core/fonts.h"
 #include "io/jpubfile.h"
@@ -127,6 +129,7 @@ private Q_SLOTS:
             const ViewOptions &v = ed->view;
             s += QStringLiteral("|v%1%2%3%4%5%6%7%8%9%10%11%12%13|%14|%15").arg(v.boundaries).arg(v.guides).arg(v.fields).arg(v.rulers).arg(v.pageNav).arg(v.scratch).arg(v.baselines).arg(v.special).arg(v.snapGuides).arg(v.snapObjects).arg(v.snapRuler).arg(v.spelling).arg(v.gridlines).arg(ed->masterView()).arg(ed->twoPageSpread());
             s += QStringLiteral("|m%1c%2|crop%3").arg(ed->mergeRecord()).arg(ed->hasCopiedFormatting()).arg(ed->cropItem);
+            s += QLatin1String("|comment ") + w->commentsPane()->currentComment();
             return s + QLatin1Char('|') + ed->filePath() + QString::number(ed->isModified());
         };
         // The sample: a flyer from the program's own designs, with what the commands act on added to it: a table and a second page, a line, a text box with a misspelled word, two pictures (one
@@ -361,6 +364,26 @@ private Q_SLOTS:
                  ed->select(id);
              }, false},
             {QStringLiteral("Text Art selected"), [](AppWindow *aw, bool) { asPub(aw)->editor()->addItem(std::make_shared<TextArtItem>()); }, false},
+            {QStringLiteral("a comment, chosen"), [](AppWindow *aw, bool) {
+                 auto *w = asPub(aw);
+                 Page &page = *w->editor()->doc()->pages[w->editor()->currentPage()];
+                 const QString id = comments::addComment(page, comments::CommentAuthor{QStringLiteral("Test Writer"), QStringLiteral("TW")}, QStringLiteral("A note"), QPointF(100, 100));
+                 w->showComments(true);
+                 w->refreshUi();
+                 w->commentsPane()->setCurrentComment(id);
+                 w->refreshUi();
+             }, false},
+            {QStringLiteral("two comments, the first chosen"), [](AppWindow *aw, bool) {
+                 auto *w = asPub(aw);
+                 Page &page = *w->editor()->doc()->pages[w->editor()->currentPage()];
+                 const comments::CommentAuthor who{QStringLiteral("Test Writer"), QStringLiteral("TW")};
+                 const QString first = comments::addComment(page, who, QStringLiteral("One"), QPointF(100, 100));
+                 comments::addComment(page, who, QStringLiteral("Two"), QPointF(200, 100));
+                 w->showComments(true);
+                 w->refreshUi();
+                 w->commentsPane()->setCurrentComment(first);
+                 w->refreshUi();
+             }, false},
             {QStringLiteral("a whole table selected"), [](AppWindow *aw, bool) {
                  Editor *ed = asPub(aw)->editor();
                  ed->addItem(ed->newTable(QRectF(72, 300, 300, 90), 3, 3));
