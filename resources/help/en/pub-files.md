@@ -23,7 +23,7 @@ Opening is a conversion, so look at every page. Check line breaks, fonts, and pi
 - Click **File > Export**, then **Save as .pub File**.
 - Or click **File > Save As**, and choose **.pub Publication Files (*.pub)** for **Save as type**.
 
-When JeffPub saves a .pub file, it can write pages, text boxes and linked text boxes, text formatting, shapes, lines, pictures, tables, fills, shadows, Text Art, styles, booklets, folded cards, envelopes, page numbers, and links. If something has no .pub form, JeffPub tells you how many objects it left out. Those objects stay in your publication, and they are kept when you save as a .jpub file.
+When JeffPub saves a .pub file, it can write pages, text boxes and linked text boxes, text formatting, shapes, lines, pictures, tables, fills, shadows, Text Art, styles, booklets, folded cards, envelopes, page numbers, and links. If something has no .pub form, JeffPub tells you how many objects it left out. Those objects stay in your publication, and they are kept when you save as a .jpub file. Comments have no .pub form either: JeffPub tells you how many it left out, and they are kept only in .jpub files. The Comments topic in this Help tells more.
 
 ## Protect your original
 

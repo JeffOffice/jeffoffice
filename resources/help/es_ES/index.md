@@ -58,6 +58,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Usar JeffPub con el teclado](keyboard)
 - [Lectores de pantalla, alto contraste y texto alternativo](accessibility)
 - [Comprobar el diseño](design-checker)
+- [Comentarios](comments)
 - [Cambiar la configuración de JeffPub](options)
 - [Elegir un idioma](language)
 - [Obtener ayuda e informar de problemas](support)

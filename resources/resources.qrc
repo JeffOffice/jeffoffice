@@ -1724,6 +1724,7 @@
     <file alias="en/change-template.md">help/en/change-template.md</file>
     <file alias="en/charts.md">help/en/charts.md</file>
     <file alias="en/color-schemes.md">help/en/color-schemes.md</file>
+    <file alias="en/comments.md">help/en/comments.md</file>
     <file alias="en/create.md">help/en/create.md</file>
     <file alias="en/crunch/cell-styles.md">help/en/crunch/cell-styles.md</file>
     <file alias="en/crunch/charts.md">help/en/crunch/charts.md</file>

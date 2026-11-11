@@ -58,6 +58,7 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht om uit 
 - [JeffPub met het toetsenbord gebruiken](keyboard)
 - [Schermlezers, hoog contrast en alternatieve tekst](accessibility)
 - [Uw ontwerp controleren](design-checker)
+- [Opmerkingen](comments)
 - [De instellingen van JeffPub wijzigen](options)
 - [Een taal kiezen](language)
 - [Hulp krijgen en problemen melden](support)

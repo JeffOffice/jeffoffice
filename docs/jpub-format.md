@@ -111,7 +111,9 @@ Every page and master page has:
 | `guidesH`, `guidesV` | array | Ruler guides: *y* positions of horizontal ones, *x* positions of vertical ones |
 
 A page also has `master` (the id of its master page, or empty for none) and
-an optional `title`. A master page also has `name`, `abbr` (its one-letter
+an optional `title`, and may have `props`, an object that holds what the page
+keeps besides its objects. Its one key in a publication is `comments`
+([Comments](#comments)). A master page also has `name`, `abbr` (its one-letter
 abbreviation), `twoPage` (a two-page master), and `grid`, its layout guides:
 
 | Key | Meaning |
@@ -120,6 +122,29 @@ abbreviation), `twoPage` (a two-page master), and `grid`, its layout guides:
 | `center` | A center guide between columns |
 | `baseline`, `baselineOffset` | Baseline guides: spacing and the first one's offset (0 = none) |
 | `hBaseline`, `hBaselineOffset` | The same for vertical text |
+
+### Comments
+
+A page's `props.comments` is an array, in the order the comments were made, left
+out when the page has none. Each comment is an object:
+
+| Key | Type | Meaning |
+|---|---|---|
+| `id` | string | Told apart from the page's other comments and replies |
+| `author`, `initials` | string | Who wrote it: the name and initials File > Options keeps |
+| `date` | string | When it was written: ISO 8601, UTC, with milliseconds (`2026-11-09T12:00:05.125Z`); empty when unknown |
+| `text` | string | The comment, with `\n` between lines |
+| `x`, `y` | number | Points from the page's top left corner: where the comment's marker stands |
+| `item` | string | The `id` of the object the comment is attached to; left out for a comment on a place of the page. While that object is on the document, the marker stands at its top right corner, and `x` and `y` are where it was |
+| `replies` | array | Each reply is an object with `id`, `author`, `initials`, `date`, and `text`, as above, oldest first |
+| `done` | boolean | `true` once someone resolved the comment |
+
+Comments are never printed or put in a PDF, and the `.pub` file has no place for
+them (JeffPub names them in the note after saving a `.pub` file). A reader holds
+a file from a stranger to limits: 2,000 comments in all (the first ones stay),
+200 replies to a comment, and 32,768 characters in a comment or a reply; a name
+is cut to 200 characters and initials to 8; an entry that is not an object is
+dropped.
 
 ### Objects
 

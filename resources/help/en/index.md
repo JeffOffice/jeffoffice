@@ -60,6 +60,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Use JeffPub with the keyboard](keyboard)
 - [Screen readers, high contrast, and alt text](accessibility)
 - [Check your design](design-checker)
+- [Comments](comments)
 - [Change JeffPub's settings](options)
 - [Choose a language](language)
 - [Get help and report problems](support)

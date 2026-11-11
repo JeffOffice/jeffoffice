@@ -65,7 +65,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Run Design Checker from Info
 - [x] **1.0** Publication properties (title, author, subject, keywords, comments) *(File > Info: the shared Info page, with categories, company, manager, and custom properties besides; kept in the `.jpub` file, and Ctrl+Z takes an edit back)*
 - [x] **1.0** Mark as Final on File > Info: the publication is saved, then opens read-only with a note *(a `.pub` file can't hold the mark)*
-- [x] **1.0** Inspect Publication: find and remove personal information in the properties, business information, mail merge data, and objects on the scratch area
+- [x] **1.0** Inspect Publication: find and remove comments (with their authors' names), personal information in the properties, business information, mail merge data, and objects on the scratch area
 - [x] **1.0** Version History without a cloud service: named local copies of a publication, opened as a copy or gone back to from File > Info
 
 ### New
@@ -185,7 +185,9 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Thesaurus
 - [x] **1.0** Research **(alt: an offline thesaurus: synonyms and related words, without going online)**
 - [x] **1.0** Translate **(alt: opens the selected text in LibreTranslate, an open-source translation service)**
-- [ ] **1.0** Comments: New Comment, replies, resolve, delete, previous and next, and Show Comments *(shared: the review model for comments with replies)*
+- [x] **1.0** Comments: New Comment (Ctrl+Alt+M) on the selected object or, with nothing selected, on a point of the page; a pane beside the page with replies, edit, resolve and reopen, and delete (the open comment, the page's, or the publication's); Previous and Next go through every page; Show Comments shows and hides the pane and the markers on the page *(shared with JeffDeck's comments: the model, the pane, and the markers are in `libs/page`; the name and initials are the ones File > Options keeps; a comment is kept in its page's props, so Ctrl+Z takes each step back; kept in the `.jpub` file, and held to limits when a file is read: 2,000 comments in all, 200 replies to one, 32,768 characters in one)*
+- [x] **1.0** Comments are never printed or put in a PDF *(there is no option for it: JeffDeck has none either)*
+- [x] **1.0** Saving as `.pub` leaves the comments out and says so in the note after the save (comments are kept only in `.jpub`); opening a `.pub` file never makes comments
 - [ ] **1.0** Read Aloud with the system's voices: from the cursor, with the current word highlighted, and a speed and voice choice
 - [ ] **1.0** **(alt)** Grammar and style checking that runs on your own computer, instead of an online editor: Harper (open source, Apache-2.0), English first, other languages later (decided October 11, 2026)
 - [ ] **later** **(alt)** Dictate: speech to text by an open model on your own computer, instead of online dictation
