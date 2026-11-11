@@ -65,6 +65,7 @@ bool readZipRecord(const QByteArray &dir, qint64 p, ZipRecord *out, qint64 *next
 {
     if (p < 0 || p + 46 > dir.size() || get32(dir, p) != 0x02014b50) return false;
     ZipRecord r;
+    r.flags = get16(dir, p + 8);
     r.method = get16(dir, p + 10);
     r.crc = get32(dir, p + 16);
     const quint32 csize = get32(dir, p + 20), usize = get32(dir, p + 24), local = get32(dir, p + 42);
@@ -125,6 +126,7 @@ bool readZipDirectory(const QByteArray &zip, QVector<ZipEntry> *out)
         ZipEntry e;
         e.name = r.name;
         e.method = r.method;
+        e.flags = r.flags;
         e.crc = r.crc;
         e.csize = r.csize;
         e.usize = r.usize;

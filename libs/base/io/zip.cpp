@@ -229,18 +229,18 @@ void ZipWriter::add(const QString &name, const QByteArray &data, bool compress)
     m_entries << e;
 }
 
-void ZipWriter::addRaw(const QString &name, quint16 method, quint32 crc, quint32 csize, quint32 usize, const char *bytes)
+void ZipWriter::addRaw(const QString &name, quint16 method, quint32 crc, quint64 csize, quint64 usize, const char *bytes, quint16 flags)
 {
     const QByteArray n = name.toUtf8();
-    Entry e{name, crc, usize, csize, method, quint64(m_out.size())};
+    Entry e{name, crc, usize, csize, method, quint64(m_out.size()), quint16((flags & ~0x0008) | 0x0800)};
     put32(m_out, 0x04034b50);
     put16(m_out, 20);
-    put16(m_out, 0x0800);
+    put16(m_out, e.flags);
     put16(m_out, e.method);
     put16(m_out, 0); put16(m_out, 0x21);
     put32(m_out, e.crc);
-    put32(m_out, e.csize);
-    put32(m_out, e.size);
+    put32(m_out, field32(e.csize));
+    put32(m_out, field32(e.size));
     put16(m_out, quint16(n.size()));
     put16(m_out, 0);
     m_out.append(n);
@@ -348,7 +348,7 @@ QByteArray ZipWriter::finish()
         const bool isLong = longFields > 0;
         put32(m_out, 0x02014b50);
         put16(m_out, isLong ? 45 : 20); put16(m_out, isLong ? 45 : 20);
-        put16(m_out, 0x0800);
+        put16(m_out, e.flags);
         put16(m_out, e.method);
         put16(m_out, 0); put16(m_out, 0x21);
         put32(m_out, e.crc);

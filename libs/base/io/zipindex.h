@@ -26,6 +26,7 @@ namespace jp {
 struct ZipEntry {
     QString name;
     quint16 method = 0;   // 0 stored, 8 deflated
+    quint16 flags = 0;    // the general-purpose flag bits
     quint32 crc = 0;
     qint64 csize = 0;     // bytes in the file
     qint64 usize = 0;     // bytes once inflated, as the directory says (a stored entry is csize)
@@ -51,6 +52,7 @@ bool readZipEnd(const std::function<QByteArray(qint64, qint64)> &readAt, qint64 
 // extra field. `next` is where the next record begins. False if the record is not whole.
 struct ZipRecord {
     QString name;
+    quint16 flags = 0;
     quint16 method = 0;
     quint32 crc = 0;
     qint64 csize = 0;
