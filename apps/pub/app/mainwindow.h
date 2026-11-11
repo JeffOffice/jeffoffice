@@ -39,6 +39,7 @@ class KeyTips;
 class RibbonTab;
 class PagesPane;
 class TaskPane;
+class CommentsPane;
 class Backstage;
 class HelpView;
 class HelpWindow;
@@ -177,6 +178,11 @@ public:
     void showAccessibilityPane();
     PageAccessibilityPane *accessibilityPane() const { return m_accessPane; }
     void hideTaskPane();
+    // Comments (mainwindow_comments.cpp): the pane beside the page and the markers on it, shown and hidden together.
+    CommentsPane *commentsPane() const { return m_comments; }
+    void showComments(bool on);
+    // A new comment on the page (on the selected object): asks who is writing the first time, and opens the box to type it in.
+    void newComment();
     // Help on a topic ("index", the contents, when empty): in the Help pane,
     // or in a window of its own over the File page, which covers the pane.
     void showHelp(const QString &topic = QString());
@@ -208,6 +214,7 @@ private:
     void addChartParts(RibbonParts &parts);
     void refreshChart();
     ChartActions *m_chartActions = nullptr;
+    void createCommentActions();   // mainwindow_comments.cpp
     void buildRibbon();
     // The controls and menus ribbon.json names (mainwindow_ribbon.cpp).
     void ribbonControlParts(RibbonParts &parts);
@@ -229,6 +236,7 @@ private:
     KeyTips *m_keyTips = nullptr;
     PagesPane *m_pages;
     TaskPane *m_task;
+    CommentsPane *m_comments = nullptr;
     Backstage *m_backstage;
     QSplitter *m_split;
     QHash<QString, QAction *> m_actions;

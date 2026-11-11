@@ -440,8 +440,9 @@ void MainWindow::showTaskPane(const QString &name)
     m_task->open(name);
     m_task->show();
     QList<int> sz = m_split->sizes();
-    if (sz.value(2) < 200) {
-        sz[2] = 300;
+    const int at = m_split->indexOf(m_task);
+    if (sz.value(at) < 200) {
+        sz[at] = 300;
         m_split->setSizes(sz);
     }
 }
@@ -2006,8 +2007,11 @@ void MainWindow::contextMenu(const QPoint &global)
         menu.addAction(act("obj.saveBlock"));
         menu.addAction(act(kind == "table" ? "tbl.format" : "obj.format"));
         menu.addAction(act("ins.link"));
+        menu.addAction(act("comment.new"));
     } else {
         menu.addAction(act("edit.paste"));
+        menu.addSeparator();
+        menu.addAction(act("comment.new"));
         menu.addSeparator();
         menu.addAction(act("page.insert"));
         menu.addAction(act("page.insertDup"));

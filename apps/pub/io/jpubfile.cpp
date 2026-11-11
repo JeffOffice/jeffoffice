@@ -1,6 +1,7 @@
 #include "io/jpubfile.h"
 
 #include "app/recovery.h"
+#include "core/comments.h"
 
 #include "io/cfb.h"
 #include "io/zip.h"
@@ -133,6 +134,8 @@ std::unique_ptr<Document> publicationFromBytes(const QByteArray &bytes, QString 
     doc->images.clear();
     doc->folder = folder;
     doc->fromJson(jd.object());
+    // A stranger's file may hold more comments than anyone wrote: they are held to the limits (core/comments.h).
+    comments::limitComments(*doc);
     for (auto it = entries.cbegin(); it != entries.cend(); ++it) {
         const bool preview = it.key().startsWith("previews/");
         if (!preview && !it.key().startsWith("images/")) continue;

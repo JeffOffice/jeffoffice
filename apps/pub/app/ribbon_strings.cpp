@@ -39,6 +39,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Clipboard"),
     QT_TRANSLATE_NOOP("Ribbon", "Close"),
     QT_TRANSLATE_NOOP("Ribbon", "Columns"),
+    QT_TRANSLATE_NOOP("Ribbon", "Comments"),
     QT_TRANSLATE_NOOP("Ribbon", "Corrections"),
     QT_TRANSLATE_NOOP("Ribbon", "Crop"),
     QT_TRANSLATE_NOOP("Ribbon", "Dashes"),

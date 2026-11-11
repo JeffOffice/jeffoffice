@@ -8,6 +8,7 @@
 #include "app/plaintext.h"
 #include "app/settings.h"
 #include "app/versionhistory.h"
+#include "core/comments.h"
 #include "io/crypto.h"
 #include "io/jpubfile.h"
 #include "office/officecrypt.h"
@@ -209,6 +210,18 @@ QVector<InspectItem> MainWindow::inspectItems()
     QVector<InspectItem> items;
     if (!m_ed->doc()) return items;
     Editor *ed = m_ed;
+    items.push_back({tr("Comments"), tr("Notes that people left on the pages, with their names."),
+                     [ed] {
+                         int n = 0;
+                         for (const auto &page : ed->doc()->pages) n += comments::commentCount(*page);
+                         return n;
+                     },
+                     [ed] {
+                         int n = 0;
+                         ed->change(tr("Delete Comments"), [&] { n = comments::deleteAllComments(*ed->doc()); });
+                         return n;
+                     },
+                     true, QString()});
     items.push_back({tr("Document properties and personal information"), tr("The author, the person who last saved it, the company, and the manager."),
                      [this] {
                          const office::PackageProps p = properties();

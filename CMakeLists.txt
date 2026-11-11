@@ -152,6 +152,7 @@ qt_add_executable(jptests
   tests/pub/tst_pub_charts.cpp
   tests/pub/tst_pub_commands.cpp
   tests/pub/tst_pub_equation.cpp
+  tests/pub/tst_pub_comments.cpp
   tests/pub/tst_pub_export.cpp
   tests/pub/tst_pub_invariants.cpp
   tests/pub/tst_pub_file.cpp tests/pub/tst_pub_file_02.cpp

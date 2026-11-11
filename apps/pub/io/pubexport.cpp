@@ -6,6 +6,7 @@
 
 #include "io/importers.h"
 
+#include "core/comments.h"
 #include "core/document.h"
 #include "core/items.h"
 #include "core/fonts.h"
@@ -2381,6 +2382,11 @@ QByteArray PubWriter::write(QStringList *skipped)
         *skipped << QCoreApplication::translate("Export", "the second half of %n divided table cell(s) couldn't be saved to .pub", nullptr, droppedHalves);
     if (skipped && droppedFormats)
         *skipped << QCoreApplication::translate("Export", "%n table border(s), shading(s), or diagonal(s) couldn't be saved to .pub", nullptr, droppedFormats);
+    // The format has no comments: a copy report names them, and nothing else of the file changes.
+    int commentCount = 0;
+    for (const auto &page : m_doc.pages) commentCount += comments::commentCount(*page);
+    if (skipped && commentCount)
+        *skipped << QCoreApplication::translate("Export", "%n comment(s) couldn't be saved to .pub (comments are kept only in .jpub)", nullptr, commentCount);
     // An object set in text says so (03) and gives its number (0f), with 34
     // = 0, as in Publisher's files (Oct 7); an index lists each number's
     // story and object.

@@ -225,6 +225,13 @@
         {"large": "rev.accessibility", "keytip": "AC"},
         {"large": "rev.wordCount", "keytip": "WC"},
         {"large": "rev.hyphenation", "keytip": "HY"}
+      ]},
+      {"name": "Comments", "keytip": "ZO", "items": [
+        {"large": "comment.new", "keytip": "NC"},
+        {"large": "comment.delete", "keytip": "DL", "split": true, "menu": ["comment.delete", "comment.deletePage", "comment.deleteAll"]},
+        {"large": "comment.prev", "keytip": "PV"},
+        {"large": "comment.next", "keytip": "NX"},
+        {"large": "comment.show", "keytip": "SH"}
       ]}
     ]},
     {"name": "View", "keytip": "W", "groups": [
