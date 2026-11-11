@@ -3,7 +3,8 @@
 
 #include "app/proofingdialogs.h"
 #include "app/textdialogs.h"
-#include "core/barcode.h"
+#include "app/barcodeinsert.h"
+#include "core/barcodeitem.h"
 #include "core/document.h"
 #include "core/style.h"
 
@@ -26,12 +27,6 @@ void gridGuidesDialog(QWidget *p, Editor *ed, int startTab = 1);
 // Ruler Guides: the page's horizontal and vertical guides by position;
 // add one or a series, move, remove.
 void rulerGuidesDialog(QWidget *p, Editor *ed);
-// Insert > Barcode, and what it places: the bars and digits as one vector
-// outline (barcode-local points), grouped on a white quiet zone.
-void barcodeDialog(QWidget *p, Editor *ed);
-QPainterPath barcodePath(const barcode::Layout &l);
-ItemPtr barcodeItem(const barcode::Layout &l, const QPointF &topLeft, bool whiteBackground, const QString &description,
-                    const QJsonObject &settings = QJsonObject());
 // Page sizes the user created (name and whole setup), and their dialogs.
 QVector<QPair<QString, PageSetup>> customPageSizes();
 // With apply false the new size is only saved (for a new publication).

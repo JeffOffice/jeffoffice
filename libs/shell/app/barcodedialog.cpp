@@ -1,14 +1,13 @@
-// Insert > Barcode: book ISBNs with or without a price add-on, EAN-13, UPC-A,
-// EAN-8, Code 128 and Code 39, placed as one vector shape (bars and digits)
-// on a white quiet zone, grouped.
+// Insert > Barcode, the dialog every app shares: book ISBNs with or without a
+// price add-on, EAN-13, UPC-A, EAN-8, Code 128, Code 39, and QR codes. It asks
+// for the settings of a barcode (core/barcodeitem.h makes the object from
+// them) and shows the barcode as it will be drawn.
 
-#include "app/dialogs.h"
+#include "app/barcodedialog.h"
 #include "core/version.h"
-#include "app/editor.h"
 #include "app/settings.h"
 #include "core/barcode.h"
-#include "core/document.h"
-#include "core/items.h"
+#include "core/barcodeitem.h"
 
 #include <functional>
 
@@ -47,18 +46,6 @@
 namespace jp {
 
 namespace {
-// The digits' font: OCR-B (the standard for EAN and ISBN digits) when the
-// computer has it, otherwise Arimo.
-QString digitFamily()
-{
-    static const QString f = [] {
-        for (const QString &name : {QStringLiteral("OCR-B"), QStringLiteral("OCR B"), QStringLiteral("OCRB"), QStringLiteral("OCR-B 10 BT")})
-            if (QFontDatabase::hasFamily(name)) return name;
-        return QStringLiteral("Arimo");
-    }();
-    return f;
-}
-
 // The International ISBN Agency's range table, which places the hyphens in
 // ISBNs from every country. Its terms don't allow bundling it, so JeffPub
 // downloads it from the agency and keeps a copy, renewed monthly.
@@ -105,74 +92,24 @@ void useIsbnRanges(QObject *receiver, const std::function<void()> &arrived)
 }
 } // namespace
 
-QPainterPath barcodePath(const barcode::Layout &l)
-{
-    QPainterPath path;
-    path.setFillRule(Qt::WindingFill);
-    for (const QRectF &r : l.bars) path.addRect(r);
-    // Digits as letter outlines (the same everywhere, whatever fonts are
-    // installed), made at 1000 px and scaled: Qt sizes fonts in whole pixels.
-    QFont f(digitFamily());
-    f.setPixelSize(1000);
-    const QFontMetricsF fm(f);
-    for (const barcode::Label &lb : l.labels) {
-        QPainterPath t;
-        t.addText(QPointF(-fm.horizontalAdvance(lb.text) / 2, 0), f, lb.text);
-        QTransform m;
-        m.translate(lb.baseline.x(), lb.baseline.y());
-        m.scale(lb.size / 1000, lb.size / 1000);
-        path.addPath(m.map(t));
-    }
-    return path;
-}
-
-ItemPtr barcodeItem(const barcode::Layout &l, const QPointF &topLeft, bool whiteBackground, const QString &description, const QJsonObject &settings)
-{
-    auto group = std::make_shared<GroupItem>();
-    group->barcode = settings;
-    const QRectF frame(topLeft, l.size);
-    if (whiteBackground) {
-        auto bg = std::make_shared<ShapeItem>();
-        bg->rect = frame;
-        bg->fill = Fill::solid(ColorRef::rgb(Qt::white));
-        bg->stroke = Stroke::none();
-        bg->name = QStringLiteral("Quiet zone");
-        group->children.push_back(bg);
-    }
-    auto bars = std::make_shared<ShapeItem>();
-    bars->rect = frame;
-    bars->customPath = barcodePath(l);
-    bars->fill = Fill::solid(ColorRef::rgb(Qt::black));
-    bars->stroke = Stroke::none();
-    bars->name = QStringLiteral("Bars");
-    group->children.push_back(bars);
-    group->name = QStringLiteral("Barcode");
-    group->altText = description;
-    group->syncRect();
-    return group;
-}
-
-void barcodeDialog(QWidget *p, Editor *ed)
+bool askBarcode(QWidget *p, const QJsonObject &was, QJsonObject *out)
 {
     using namespace barcode;
     Settings &st = Settings::get();
-    // With a barcode selected, the dialog edits it: its own settings, and
-    // the new one takes its place.
-    GroupItem *editing = nullptr;
-    if (const QVector<Item *> sel = ed->selectedItems(); sel.size() == 1)
-        if (auto *g = dynamic_cast<GroupItem *>(sel.first()); g && !g->barcode.isEmpty()) editing = g;
-    const QJsonObject was = editing ? editing->barcode : QJsonObject();
+    // With the settings of a barcode, the dialog edits that barcode.
+    const bool editing = !was.isEmpty();
     auto setting = [&](const char *key, const QVariant &def) {
         return was.isEmpty() ? st.value(QStringLiteral("barcode/") + QLatin1String(key), def) : was.value(QLatin1String(key)).toVariant();
     };
     QDialog dlg(p);
+    dlg.setObjectName(QStringLiteral("barcodeDialog"));
     dlg.setWindowTitle(editing ? QCoreApplication::translate("BarcodeDialog", "Edit Barcode") : QCoreApplication::translate("BarcodeDialog", "Insert Barcode"));
     auto *v = new QVBoxLayout(&dlg);
     auto *form = new QFormLayout();
     auto *type = new QComboBox(&dlg);
     type->addItems({QCoreApplication::translate("BarcodeDialog", "Book (ISBN)"), QStringLiteral("EAN-13"), QStringLiteral("UPC-A"), QStringLiteral("EAN-8"),
-                    QCoreApplication::translate("BarcodeDialog", "Code 128 (letters and digits)"), QCoreApplication::translate("BarcodeDialog", "Code 39 (capitals and digits)")});
-    type->setCurrentIndex(std::clamp(setting("type", 0).toInt(), 0, 5));
+                    QCoreApplication::translate("BarcodeDialog", "Code 128 (letters and digits)"), QCoreApplication::translate("BarcodeDialog", "Code 39 (capitals and digits)"), QCoreApplication::translate("BarcodeDialog", "QR code (any text, such as a web address)")});
+    type->setCurrentIndex(std::clamp(setting("type", 0).toInt(), 0, int(Type::Qr)));
     form->addRow(QCoreApplication::translate("BarcodeDialog", "Type:"), type);
     auto *data = new QLineEdit(&dlg);
     data->setText(setting("data", QString()).toString());
@@ -181,6 +118,11 @@ void barcodeDialog(QWidget *p, Editor *ed)
     auto *addOn = new QLineEdit(&dlg);
     addOn->setPlaceholderText(QCoreApplication::translate("BarcodeDialog", "none, or 2 or 5 digits"));
     form->addRow(QCoreApplication::translate("BarcodeDialog", "Add-on:"), addOn);
+    auto *qrLevel = new QComboBox(&dlg);
+    qrLevel->addItems({QCoreApplication::translate("BarcodeDialog", "Low (repairs 7% damage)"), QCoreApplication::translate("BarcodeDialog", "Medium (15%)"), QCoreApplication::translate("BarcodeDialog", "Quartile (25%)"),
+                       QCoreApplication::translate("BarcodeDialog", "High (30%)")});
+    qrLevel->setCurrentIndex(std::clamp(setting("qrLevel", 1).toInt(), 0, 3));
+    form->addRow(QCoreApplication::translate("BarcodeDialog", "Error correction:"), qrLevel);
     v->addLayout(form);
 
     // A book's price add-on.
@@ -257,37 +199,31 @@ void barcodeDialog(QWidget *p, Editor *ed)
     v->addWidget(bb);
 
     Layout current;
-    auto options = [&] {
-        Options o;
-        o.type = Type(type->currentIndex());
-        o.data = data->text();
-        o.magnification = mag->value() / 100.0;
-        o.barHeight = height->value() / 100.0;
-        o.text = showText->isChecked();
-        o.code39Check = check39->isChecked();
-        if (o.type == Type::Isbn) {
-            const int mode = group->checkedId();
-            QString err;
-            if (mode == 1) o.addOn = priceAddOn(Currency(currency->currentIndex() + 1), amount->value(), &err);
-            else if (mode == 2) o.addOn = priceAddOn(Currency::None, 0, &err);
-        } else if (o.type == Type::Ean13 || o.type == Type::UpcA || o.type == Type::Ean8) {
-            o.addOn = addOn->text();
-        }
-        return o;
+    // The settings the widgets show, as they are kept with the barcode and remembered for the next one.
+    auto settingsNow = [&] {
+        return QJsonObject{{"type", type->currentIndex()}, {"data", data->text()}, {"currency", currency->currentIndex()},
+                           {"price", amount->value()}, {"priceMode", group->checkedId()}, {"addOn", addOn->text()},
+                           {"magnification", mag->value()}, {"height", height->value()}, {"text", showText->isChecked()},
+                           {"white", white->isChecked()}, {"check39", check39->isChecked()}, {"qrLevel", qrLevel->currentIndex()}};
     };
     auto update = [&] {
         const Type t = Type(type->currentIndex());
-        const bool book = t == Type::Isbn, ean = t == Type::Ean13 || t == Type::UpcA || t == Type::Ean8;
+        const bool book = t == Type::Isbn, ean = t == Type::Ean13 || t == Type::UpcA || t == Type::Ean8, isQr = t == Type::Qr;
         if (auto *lab = qobject_cast<QLabel *>(form->labelForField(data)))
             lab->setText(book ? QCoreApplication::translate("BarcodeDialog", "ISBN:") : ean ? QCoreApplication::translate("BarcodeDialog", "Digits:") : QCoreApplication::translate("BarcodeDialog", "Text:"));
-        data->setPlaceholderText(book ? QCoreApplication::translate("BarcodeDialog", "978-1-23456-789-7 or a 10-digit ISBN") : ean ? QCoreApplication::translate("BarcodeDialog", "with or without the check digit") : QString());
+        data->setPlaceholderText(book ? QCoreApplication::translate("BarcodeDialog", "978-1-23456-789-7 or a 10-digit ISBN") : ean ? QCoreApplication::translate("BarcodeDialog", "with or without the check digit") : isQr ? QCoreApplication::translate("BarcodeDialog", "https://example.com") : QString());
         price->setVisible(book);
         addOn->setVisible(ean);
         form->labelForField(addOn)->setVisible(ean);
         check39->setVisible(t == Type::Code39);
+        qrLevel->setVisible(isQr);
+        form->labelForField(qrLevel)->setVisible(isQr);
+        showText->setVisible(!isQr);
+        height->setVisible(!isQr);
+        sf->labelForField(height)->setVisible(!isQr);
         amount->setEnabled(group->checkedId() == 1);
         currency->setEnabled(group->checkedId() == 1);
-        current = data->text().trimmed().isEmpty() ? Layout() : make(options());
+        current = data->text().trimmed().isEmpty() ? Layout() : make(barcodeOptions(settingsNow()));
         if (book && group->checkedId() == 1 && current.error.isEmpty()) {
             QString err;
             priceAddOn(Currency(currency->currentIndex() + 1), amount->value(), &err);
@@ -331,54 +267,19 @@ void barcodeDialog(QWidget *p, Editor *ed)
         if (!h.isEmpty()) data->setText(h);
         else update();
     });
-    for (QComboBox *c : {type, currency}) QObject::connect(c, &QComboBox::currentIndexChanged, &dlg, update);
+    for (QComboBox *c : {type, currency, qrLevel}) QObject::connect(c, &QComboBox::currentIndexChanged, &dlg, update);
     for (QSpinBox *s : {mag, height}) QObject::connect(s, &QSpinBox::valueChanged, &dlg, update);
     QObject::connect(amount, &QDoubleSpinBox::valueChanged, &dlg, update);
     QObject::connect(group, &QButtonGroup::idClicked, &dlg, update);
     for (QCheckBox *c : {showText, check39}) QObject::connect(c, &QCheckBox::toggled, &dlg, update);
     update();
-    if (dlg.exec() != QDialog::Accepted || !current.error.isEmpty() || current.bars.isEmpty()) return;
+    if (dlg.exec() != QDialog::Accepted || !current.error.isEmpty() || current.bars.isEmpty()) return false;
 
     // The settings, remembered for the next barcode and kept with this one.
-    const QJsonObject settings{{"type", type->currentIndex()}, {"data", data->text()}, {"currency", currency->currentIndex()},
-                               {"price", amount->value()}, {"priceMode", group->checkedId()}, {"addOn", addOn->text()},
-                               {"magnification", mag->value()}, {"height", height->value()}, {"text", showText->isChecked()},
-                               {"white", white->isChecked()}, {"check39", check39->isChecked()}};
+    const QJsonObject settings = settingsNow();
     for (auto it = settings.begin(); it != settings.end(); ++it) st.setValue(QStringLiteral("barcode/") + it.key(), it.value().toVariant());
-
-    const Type t = Type(type->currentIndex());
-    // The description goes into the document, so it names the type in English
-    // whatever language the combo box shows.
-    static const char *const kKind[] = {"", "EAN-13", "UPC-A", "EAN-8", "Code", "Code"};
-    const QString what = t == Type::Isbn ? isbnCaption(data->text()) : QString::fromLatin1(kKind[int(t)]) + QLatin1Char(' ') + current.encoded;
-    const QString description = QStringLiteral("Barcode: %1").arg(what);
-    if (editing) {
-        // In place: the same spot and identity, and one undo step.
-        ItemPtr made = barcodeItem(current, editing->rect.topLeft(), white->isChecked(), description, settings);
-        made->id = editing->id;
-        made->name = editing->name;
-        ItemList &items = ed->surfaceItems();
-        for (auto &it : items)
-            if (it.get() == editing) {
-                ed->change(QCoreApplication::translate("BarcodeDialog", "Edit Barcode"), [&] { it = made; });
-                ed->select(made->id);
-                return;
-            }
-        return;
-    }
-    // In the middle of the page, or a quarter inch on from a barcode
-    // already there, so a second one doesn't land on the first.
-    const QSizeF page = ed->doc()->pageSize();
-    QPointF at((page.width() - current.size.width()) / 2, (page.height() - current.size.height()) / 2);
-    for (bool moved = true; moved;) {
-        moved = false;
-        for (const ItemPtr &it : ed->surfaceItems())
-            if (auto *g = dynamic_cast<const GroupItem *>(it.get()); g && !g->barcode.isEmpty() && (g->rect.topLeft() - at).manhattanLength() < 2) {
-                at += QPointF(18, 18);
-                moved = true;
-            }
-    }
-    ed->addItem(barcodeItem(current, at, white->isChecked(), description, settings));
+    *out = settings;
+    return true;
 }
 
 } // namespace jp
