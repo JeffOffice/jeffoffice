@@ -31,7 +31,7 @@ The **Proofing** page is shared by the JeffOffice apps. It decides whether spell
 
 ## Privacy options
 
-- **Take my name and company out of a workbook's properties each time it is saved** clears the author, who saved it last, the company, and the manager from the workbook's properties when you save. The properties are the facts a file keeps about itself.
+- **Remove personal information from this file when saving** takes out the author, the person who saved the file last, the company, the manager, and the names and times on notes and comments, from the file that is written (a workbook, a copy, and a workbook sent by email). What the file says stays as it is. The file's custom properties are left as they are, and the document you have open is not changed. It is the same choice in every JeffOffice app: change it in one and it changes in all of them. To do this just once, use **Inspect Workbook** in [Info](info). The same box is on the **Info** page.
 
 ## Usage statistics
 

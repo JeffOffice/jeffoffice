@@ -137,6 +137,10 @@ Open them with your email program to send.</source>
         </translation>
     </message>
     <message>
+        <source>The file couldn't be protected with the password.</source>
+        <translation type="unfinished">No se pudo proteger el fichero con la contraseña.</translation>
+    </message>
+    <message>
         <source>The file has no publication content.</source>
         <translation type="unfinished">El fichero no tiene contenido de publicación.</translation>
     </message>
@@ -1077,6 +1081,13 @@ No se puede leer el fichero.</translation>
     </message>
 </context>
 <context>
+    <name>jp::DeckFileScreen</name>
+    <message>
+        <source>A message file with the presentation, or a PDF of it, in it. Open it in your email program, add who it is for, and send it.</source>
+        <translation type="unfinished">Un fichero de mensaje con la presentación, o un PDF de ella, incluido en él. Ábralo en su programa de correo electrónico, añada a los destinatarios y envíelo.</translation>
+    </message>
+</context>
+<context>
     <name>jp::DeckWindow</name>
     <message>
         <source>All Files (*)</source>
@@ -1089,6 +1100,22 @@ No se puede leer el fichero.</translation>
     <message>
         <source>Puts the fonts that come with the program, and that the slides use, in the file, so the slides look the same on a computer that doesn't have them. It makes the file larger. Fonts every computer has, such as Calibri and Arial, are never put in.</source>
         <translation type="unfinished">Guarda en el fichero las fuentes que incluye el programa y que usan las diapositivas, para que se vean igual en un equipo que no las tenga. El fichero será más grande. Las fuentes que tienen todos los equipos, como Calibri y Arial, nunca se insertan.</translation>
+    </message>
+    <message>
+        <source>Makes a PDF/A-1b file: every font is in the file, so it looks the same in years. It is not tagged for screen readers.</source>
+        <translation type="unfinished">Crea un fichero PDF/A-1b: todas las fuentes están incluidas en el fichero, así que tendrá el mismo aspecto dentro de años. No está etiquetado para lectores de pantalla.</translation>
+    </message>
+    <message>
+        <source>PDF/A is turned off, because a PDF with a password can't be a PDF/A file.</source>
+        <translation type="unfinished">PDF/A está desactivado, porque un PDF con contraseña no puede ser un fichero PDF/A.</translation>
+    </message>
+    <message>
+        <source>This makes a message file. Nothing is sent. Open the file in your email program, add who it is for, and send it.</source>
+        <translation type="unfinished">Esto crea un fichero de mensaje. No se envía nada. Abra el fichero en su programa de correo electrónico, añada a los destinatarios y envíelo.</translation>
+    </message>
+    <message>
+        <source>The presentation, as a file</source>
+        <translation type="unfinished">La presentación, como fichero</translation>
     </message>
     <message>
         <source>This presentation is protected with a password, and a .%1 file can't hold a password yet. Save it as a .pptx file, or remove the password first (File &gt; Info).</source>
@@ -1299,6 +1326,14 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Ficheros de publicación .pub (*.pub)</translation>
     </message>
     <message>
+        <source>"%1" has a password, and a file with a password can't be repaired. Open it with its password instead.</source>
+        <translation type="unfinished">"%1" tiene contraseña, y un fichero con contraseña no se puede reparar. Ábralo con su contraseña.</translation>
+    </message>
+    <message>
+        <source>This publication is protected with a password, and a .pub file can't keep a password. Save it as a .pub file without one?</source>
+        <translation type="unfinished">Esta publicación está protegida con contraseña, y un fichero .pub no puede conservar una contraseña. ¿Guardarla como fichero .pub sin ella?</translation>
+    </message>
+    <message>
         <source>This publication is marked as final, and a .pub file can't hold that mark. The file is saved without it.</source>
         <translation type="unfinished">Esta publicación está marcada como final, y un fichero .pub no puede guardar esa marca. El fichero se guarda sin ella.</translation>
     </message>
@@ -1329,6 +1364,10 @@ No se puede leer el fichero.</translation>
     <message>
         <source>Keyboard Shortcuts: every command's keys, and how to use JeffPub without a mouse.</source>
         <translation type="unfinished">Métodos abreviados de teclado: las teclas de cada comando y cómo usar JeffPub sin ratón.</translation>
+    </message>
+    <message>
+        <source>Passwords are for .jpub files. A .pub file can't keep one; save the publication as a .jpub file first.</source>
+        <translation type="unfinished">Las contraseñas son para ficheros .jpub. Un fichero .pub no puede conservar una; guarde primero la publicación como fichero .jpub.</translation>
     </message>
     <message>
         <source>This file has more properties than %1 reads, so the mark can't be added.</source>

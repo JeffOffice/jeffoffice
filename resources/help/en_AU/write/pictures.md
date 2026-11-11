@@ -1,5 +1,5 @@
 # Add and change pictures
-<!-- keywords: picture, pictures, image, insert picture, photo, clipboard, paste a picture, screenshot, wrap text, text wrapping, in line with text, square, tight, top and bottom, behind text, in front of text, alt text, description, resize, size, handles, move a picture, drag a picture, drop, picture format, lock aspect ratio, crop, cut, brightness, contrast, corrections, recolor, grayscale, black and white, washout, border, frame, picture styles, change picture, reset picture, bring forward, send backward, bring to front, send to back, layers, arrange pictures, crop to shape, rotate, align, icons, insert icon, greyscale -->
+<!-- keywords: picture, pictures, image, insert picture, photo, clipboard, paste a picture, screenshot, wrap text, text wrapping, in line with text, square, tight, top and bottom, behind text, in front of text, alt text, description, resize, size, handles, move a picture, drag a picture, drop, picture format, lock aspect ratio, crop, cut, brightness, contrast, corrections, recolor, grayscale, black and white, washout, border, frame, picture styles, change picture, reset picture, compress pictures, make pictures smaller, file size, ppi, resolution, delete cropped areas, bring forward, send backward, bring to front, send to back, layers, arrange pictures, crop to shape, rotate, align, icons, insert icon, online pictures, free pictures, openverse, wikimedia commons, license, credit, barcode, QR code, greyscale, licence -->
 
 A **picture** can sit in a line of text, like a letter, or float on the page with the words going round it. This topic shows how to put a picture in a document, how to change its size, its place, and how the text goes round it, and how to describe it for people who can't see it.
 
@@ -9,10 +9,24 @@ A **picture** can sit in a line of text, like a letter, or float on the page wit
 - Or click **Insert > Pictures > Picture from Clipboard**, or press **Ctrl+V**, when you have copied a picture (a screenshot, say). The picture is kept in the document, so it is still there when you save and open the file again.
 - Or drag a picture file from your computer's file manager onto a page. The picture goes where you drop it.
 - Or click **Insert > Icons**. A box shows small drawings of things, such as arrows, people, and tools. Type a word to find one, pick one or more, and click **OK**. Each icon goes in at the caret as a picture about two thirds of an inch square.
+- Or click **Insert > Barcode** to put in a barcode (see below).
 
 The picture goes where the caret is, in place of anything you selected. It is made as large as it asks to be, but no wider than the column and no taller than the page's text, with its proportions kept. The picture is selected afterward, and the **Picture Format** tab appears at the right of the ribbon.
 
 A picture that is too large (more than 40 million pixels, a side longer than 30,000 pixels, or a file of more than 48 MB) is not put in, and the status bar says so. So is a file that is not a picture.
+
+## Find free pictures online
+
+**Online Pictures** finds free pictures. They come from two open libraries: Openverse, which searches many collections, and Wikimedia Commons, the library of Wikipedia's pictures.
+
+1. Click **Insert > Pictures**, then **Online Pictures…**. A pane opens on the right.
+2. Choose a library, type what you are looking for, and click **Search** (or press Enter).
+3. Click a picture to see who made it and what licence it has. A **licence** says how you may use a picture. Click the licence's name to read it.
+4. Click **Insert** (or double-click the picture).
+
+**What JeffWrite sends.** Your search words go to the library you choose, and only when you click **Search** or press Enter. JeffWrite then asks the library for the small previews of what it found, and for the one picture you insert. Like any web page, the library can see your computer's internet address, and it is told that JeffWrite is asking. Nothing from your document is sent.
+
+The picture goes in at the caret, in line with the text, and is kept in the document. Its title is saved as its **alt text**. Most licences ask you to name the author. When **Add a credit under the picture** is checked, JeffWrite adds a small line of text under the picture with its title, its author, and its licence. It is a paragraph you can change or delete. Inserting is one step, and **Undo** takes back the picture and its credit together. Check that the licence fits how you will use the picture.
 
 ## Change the size
 
@@ -52,6 +66,12 @@ These commands are on the **Picture Format** tab. Each one is a single step to u
 - **Change Picture** puts a different picture in the same place. The new picture keeps the width of the old one, its place on the page, how the text goes round it, and its alt text. Its height follows its own shape.
 - **Reset Picture** takes off the crop, the corrections, the colour change, and the border. The picture comes back to the scale it has now.
 
+## Make pictures smaller
+
+A picture from a camera can be much larger than it shows on a page, and it makes the file large. Click a picture, then click **Compress Pictures…** in the **Adjust** group of the **Picture Format** tab. Choose where the document will be used: **Commercial printing (300 ppi)**, **Desktop printing (220 ppi)**, or **Web (96 ppi)**. Leave **Apply to all pictures in the body of the document** checked to make every picture smaller, or clear it to make only the selected picture smaller. **Delete cropped areas of pictures** also takes away the hidden parts you cropped, and the crop is gone. A picture is only replaced when the new one is smaller. Its size, place, wrap, and alt text stay as they were. Undo (Ctrl+Z) gives the pictures back, and the file holds only the smaller ones when you save.
+
+Only pictures in the body of the document are made smaller. Pictures in a header, a footer, a text box, or a shape stay as they are, and so does a picture that is a drawing (SVG, EMF, or WMF) or an animation.
+
 ## Wrap text round a picture
 
 **Picture Format > Wrap Text** says how the words go round the picture. You can also right-click the picture and choose **Wrap Text**.
@@ -84,3 +104,15 @@ A picture that only decorates the page, such as a line or a border, does not nee
 ## Pictures from other documents
 
 JeffWrite shows and keeps the pictures of the documents it opens. It can change the size, wrap, place, and alt text of a picture that the document stores as a plain picture. A picture stored in a form JeffWrite doesn't change (a group of drawings, for instance) is selected and kept as it was; its commands are off.
+
+## Put in a barcode
+
+A **barcode** is a pattern of bars that a scanner reads. JeffWrite makes book ISBNs (with or without a price), EAN-13, UPC-A, EAN-8, Code 128, Code 39, and QR codes. A QR code holds any text, such as a web address.
+
+1. Put the caret where the barcode should go, and click **Insert > Barcode**.
+2. Choose a **Type** and type the text or digits. The window shows the barcode as you type, and says in red what is wrong if it can't be made.
+3. Click **Insert**.
+
+The barcode goes in as a floating picture, with the text wrapping around it. Drag it to move it, drag a corner to resize it, and use the **Picture Format** tab to change how the text wraps. Keep **White background** on, because a scanner needs the clear space around the bars. To change the barcode, double-click it (or select it and click **Insert > Barcode** again), change the text, and click **Update**. It keeps its place and its width. Each change is one step you can undo.
+
+When you save, the barcode is saved as a picture, with an SVG that stays sharp, so every program shows it. JeffWrite also keeps the barcode's settings in the file, so when you open the file in JeffWrite again, it is a barcode you can still edit. In other programs it is an ordinary picture. Its alt text says what it holds.

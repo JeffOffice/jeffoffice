@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: field buttons, pivot chart buttons, group, ungroup, align, align left, distribute, select objects, several shapes, pick several, drag box, chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, shape styles, styles, insert shape, text box, shapes, arrow, oval, rectangle, star, diagram, diagrams -->
+<!-- keywords: field buttons, pivot chart buttons, group, ungroup, align, align left, distribute, select objects, several shapes, pick several, drag box, chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, shape styles, styles, insert shape, text box, shapes, arrow, oval, rectangle, star, diagram, diagrams, online pictures, free pictures, openverse, wikimedia commons, license, credit, text art, wordart, warp, compress pictures, make pictures smaller, file size, ppi, delete cropped areas, barcode, QR code, licence -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -79,9 +79,39 @@ On the **Insert** tab, in **Illustrations**, **Picture** opens a file chooser. P
 
 **Icons** shows the same window of small line pictures that JeffPub and JeffDeck have, with a box to search them by name. Choose one or more, and each lands on the sheet as a picture, 48 points wide and tall. It is drawn in dark grey at a size that stays sharp when you make it larger. Each one is a single step you can undo.
 
+**Barcode** opens a window to make a barcode: book ISBNs (with or without a price), EAN-13, UPC-A, EAN-8, Code 128, Code 39, or a QR code, which holds any text, such as a web address. Choose a **Type**, type the text or digits, and the window shows the barcode as you type, and says in red what is wrong if it can't be made. Click **Insert**, and it lands on the sheet as a picture, one step you can undo. Move it and resize it like any picture. To change it, select it and click **Barcode** again, change the text, and click **Update**; the new barcode takes the old one's place and width. When you save, it is saved as a picture with an SVG that stays sharp, so every program shows it, and JeffCrunch keeps its settings in the file, so it is a barcode you can still edit when you open the workbook in JeffCrunch again.
+
 **Shapes** opens a list: rectangle, rounded rectangle, oval, triangle, diamond, arrows, a star, a heart, a cloud, a speech callout, and a line. Pick one and it lands on the sheet in light blue with a darker edge. **Text Box**, in the **Text** group, puts in an empty box with no fill and no edge.
 
 With a shape picked, **Styles** on the **Shape Format** tab gives it a ready-made look: a fill and an outline that go together, such as light blue with a darker blue edge. The last two keep only the outline or only the fill. One click is one step you can undo. **Shape Fill** and **Shape Outline** change each part by itself.
+
+## Find free pictures online
+
+**Online Pictures**, in the **Illustrations** group of the **Insert** tab, finds free pictures. They come from two open libraries: Openverse, which searches many collections, and Wikimedia Commons, the library of Wikipedia's pictures.
+
+1. Click **Online Pictures…**. A pane opens on the right.
+2. Choose a library, type what you are looking for, and click **Search** (or press Enter).
+3. Click a picture to see who made it and what licence it has. A **licence** says how you may use a picture. Click the licence's name to read it.
+4. Click **Insert** (or double-click the picture).
+
+**What JeffCrunch sends.** Your search words go to the library you choose, and only when you click **Search** or press Enter. JeffCrunch then asks the library for the small previews of what it found, and for the one picture you insert. Like any web page, the library can see your computer's internet address, and it is told that JeffCrunch is asking. Nothing from your workbook is sent.
+
+The picture lands on the sheet like a picture from a file, and the workbook keeps it. Its title is saved as its **alt text**. Most licences ask you to name the author. When **Add a credit under the picture** is checked, JeffCrunch adds a small text box under the picture with its title, its author, and its licence. You can move, change, or delete it. The picture and its credit go in as one step, so **Undo** takes both back. Check that the licence fits how you will use the picture.
+
+## Add Text Art
+
+**Text Art** is fancy words: letters with colour, an outline, a shadow, or a curved shape.
+
+1. Click **Insert > Text > Text Art**. A gallery of styles opens.
+2. Click a style. The words "Your Text Here" land on the sheet in that style.
+3. To change the words, pick the Text Art and click **Edit Text…** on the **Shape Format** tab. A box asks for the words, the font, the size, bold, and italic. A bigger size makes the Text Art bigger.
+4. On the **Shape Format** tab, **Text Art Styles** gives the letters another style, and **Text Warp** bends the words into a shape, such as a wave or an arch. "Plain" keeps them straight.
+
+Text Art is a shape in the sheet's drawing, with its warp, fill, and outline, so it keeps its look when you save the workbook as an .xlsx file and open it again, in JeffCrunch or in another program. Each change is one step you can undo. A workbook saved as an .ods file keeps its pictures, shapes, text boxes, groups, lines, and Text Art too. Text Art is saved as the fontwork shape that OpenDocument has, with its words, font, fill, outline, and warp, and comes back as Text Art when you open the .ods file again. A few warps that OpenDocument has no shape for (Wave 2, Wave 4, and the bottom and top forms of Inflate and Deflate) are saved as straight words with the same letters and style. Charts are kept in an .ods file too: see below.
+
+## Make pictures smaller
+
+A picture from a camera can be much larger than it shows on the sheet, and it makes the file large. Click a picture, then click **Compress Pictures…** in the **Adjust** group of the **Picture Format** tab. Choose where the workbook will be used: **Commercial printing (300 ppi)**, **Desktop printing (220 ppi)**, or **Web (96 ppi)**. Leave **Apply to all pictures on this sheet** checked to make every picture on the sheet smaller, or clear it to make only the picked picture smaller. **Delete cropped areas of pictures** also takes away the hidden parts you cropped, and the crop is gone. A picture is only replaced when the new one is smaller. Its size, place, name, and alt text stay as they were. Undo (Ctrl+Z) gives the pictures back, and the saved workbook holds only the smaller pictures. Pictures on other sheets are not changed: go to each sheet and do it again. A picture that is a drawing (SVG, EMF, or WMF), or an animation, is left as it is.
 
 Each one is a single step you can undo. The new object is picked, so you can drag it, size it, move it forward or back, give it a name and alt text in **Properties**, or press **Delete**.
 
@@ -92,7 +122,7 @@ Pick a picture and the **Picture Format** tab appears. Pick a shape, a line, or 
 - **Shape Fill** and **Shape Outline** pick a colour, or none. **Line Style** sets the weight (how thick the line is) and the dashes (solid, dashed, or dotted). A picture has **Picture Border**, which is its outline.
 - **Rotate** turns the object a quarter turn to the right or the left, or flips it over from side to side or top to bottom.
 - **Crop**, for a picture, cuts it to a shape of window: square, 4 wide by 3 tall, 3 wide by 4 tall, 16 by 9, or 9 by 16. The cut is made evenly from the middle of what shows, and the picture is made as large as what is left. **Show the Whole Picture** brings back what was cut. The picture file is not changed: the cut part is only hidden.
-- **Edit Text** is for shapes and text boxes. Type the words, and choose how they sit across and up and down, the size, bold or regular, and whether they wrap to the shape or stay on one line.
+- **Edit Text** is for shapes and text boxes. Type the words, and choose how they sit across and up and down, the size, bold or regular, and whether they wrap to the shape or stay on one line. For Text Art it asks for the words, the font, the size, bold, and italic instead.
 - **Selection Pane** opens a list of every object on the sheet by name, the one in front first. Click a name to pick that object, which helps when objects hide each other. **Bring Forward** and **Send Backward** move it in the list.
 - **Properties** sets the size, the name, the alt text, and what the object does when cells are moved or made larger.
 
@@ -132,3 +162,7 @@ Everything above is saved in the file in the form other spreadsheet programs rea
 A **diagram** is a picture of boxes and arrows, such as a process, that another program made. JeffCrunch shows a diagram from the picture of it that the file keeps beside it. Click it to pick it, and drag it to move it. When you save the file, the diagram is written back just as it was, so the program that made it can still change it.
 
 JeffCrunch cannot change what is inside a diagram yet, and a diagram can't be copied or put in a group. If the file keeps no picture of a diagram, JeffCrunch shows a plain grey box that says it is a diagram.
+
+## Charts in .ods files
+
+A workbook saved as an .ods file keeps its charts: columns, bars, lines, areas, pies, doughnuts, and scatter charts, each with its series and the cells they read (on this sheet or another), categories, title, legend, axes (titles, least and greatest value, number format), data labels, colours, and place. An .ods file made by another program opens with its charts, drawn from the cells they read. What an .ods chart has no place for is left out and named when you save: trendlines, error bars, secondary axes, and the extra looks of a single point. Charts of kinds JeffCrunch does not draw (stock and radar charts) open as columns of their values.

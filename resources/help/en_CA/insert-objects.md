@@ -15,7 +15,7 @@ JeffPub has more than 1,500 icons from the Lucide set. Each one lands in the mid
 ## Barcodes
 
 1. Click **Insert > Illustrations > Barcode**.
-2. In the **Insert Barcode** window, choose a **Type**: Book (ISBN), EAN-13, UPC-A, EAN-8, Code 128, or Code 39.
+2. In the **Insert Barcode** window, choose a **Type**: Book (ISBN), EAN-13, UPC-A, EAN-8, Code 128, Code 39, or QR code. A QR code holds any text, such as a web address, and has an **Error correction** setting: a higher level still scans after more of the code is damaged or covered, and makes the code larger.
 3. Type the number or text. For a book, type the ISBN. JeffPub puts in the hyphens.
 4. For a book, choose a price add-on or **No add-on**. For EAN and UPC codes, you can type a 2-digit or 5-digit add-on.
 5. Check the preview, then click **Insert**.

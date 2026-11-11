@@ -20,6 +20,8 @@ A **PDF** is a file that looks the same on every computer. Use one to email a pu
 Other choices:
 
 - **Include document properties** puts the title, author, subject, and keywords in the PDF.
+- **Document structure tags for accessibility** (on by default) makes a *tagged* PDF. The tags tell a screen reader what is a heading, a paragraph, a picture, or a table, and the order to read them in: the order of the objects on each page, which you can see and change in the Accessibility Checker's **Reading Order** list. A picture is read with its alt text. A PDF/X file has no tags.
+- **Create bookmarks** (on by default) puts a bookmark in the PDF for each page. It is the page's name, or "Page 3" for a page with no name. A PDF reader lists them beside the pages.
 - **Open the PDF after saving it** shows the PDF in your viewer right away.
 - **Booklet sheets** appears for booklets. It puts two pages on each side in folding order. Clear it for one page per PDF page.
 

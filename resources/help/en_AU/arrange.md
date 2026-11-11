@@ -1,5 +1,5 @@
 # Move, align, group, and layer objects
-<!-- keywords: select, move, resize, rotate, flip, align, distribute, group, ungroup, layer, bring to front, send to back, nudge, lock, duplicate -->
+<!-- keywords: selection pane, hide object, show object, rename object, object name, select, move, resize, rotate, flip, align, distribute, group, ungroup, layer, bring to front, send to back, nudge, lock, duplicate -->
 
 Every picture, text box, shape, and line on a page is an object. This topic shows how to select, move, resize, and layer objects.
 
@@ -47,6 +47,17 @@ To take a group apart, select it and click **Ungroup**. The arrow beside **Ungro
 ## Change the stacking order
 
 Objects stack like sheets of paper. Use **Bring Forward** and **Send Backward** to move an object one step. The arrow beside each button offers **Bring to Front** (Alt+F6) and **Send to Back** (Alt+Shift+F6). Right-click and choose **Order** for the same choices.
+
+## List the objects in the Selection Pane
+
+**Arrange > Selection Pane** opens a list of every object on the page, with the one in front first. It helps when objects hide each other.
+
+- Click a name to select that object.
+- Double-click a name, or press **F2**, to type a new name for the object. An object with no name of its own shows its kind and its number, such as Shape 2.
+- Clear the box beside a name to hide the object. A hidden object is not drawn on the page, in a printout, or in a PDF, and a click on the page does not pick it. Check the box to show it again. **Show All** and **Hide All** set every box at once.
+- Select a name and click **Bring Forward** or **Send Backward** to move the object one place in the list, or drag a name up or down.
+
+Every one of these is a step you can undo. A name and a hidden mark are saved in a .jpub file. A .pub file has no place for them.
 
 ## Lock an object
 

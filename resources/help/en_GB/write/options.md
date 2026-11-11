@@ -10,7 +10,7 @@ The **Save** page of the Options window has four choices.
 - **Save new documents as** picks the kind of file that **Save As** offers first for a document that has no file yet: a .docx file or an .odt file.
 - **Save automatic recovery information every** is how many minutes pass between the spare copies JeffWrite keeps of unsaved work. See [Open, save, print, and export](open-save).
 - **Default file location** is the folder the **Open** and **Save As** boxes start in. Click **Browse** to pick it. Leave it empty to start in your Documents folder.
-- **Remove personal information from the file's properties when saving** takes your name out of the file each time you save. The file's properties hold the author, the person who saved it last, the company, and the manager. The title and other properties stay. The names are also taken out of the open document, so they stay out until you close it. To do this just once, use **Inspect Document** in [Info](info).
+- **Remove personal information from this file when saving** takes out the author, the person who saved the file last, the company, the manager, the names and initials on comments, and the names and times on tracked changes, from the file that is written (a .docx or .odt file, a template, and a document sent by email). What the file says stays as it is. The file's custom properties are left as they are, and the document you have open is not changed. It is the same choice in every JeffOffice app: change it in one and it changes in all of them. To do this just once, use **Inspect Document** in [Info](info). The same box is on the **Info** page.
 
 ## Display
 
