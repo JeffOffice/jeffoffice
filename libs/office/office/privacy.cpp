@@ -412,8 +412,6 @@ bool rewrite(const QString &x, const Rules &rules, QString *result, bool *change
     return true;
 }
 
-QString say(const char *text) { return QCoreApplication::translate("jp::office::Privacy", text); }
-
 } // namespace
 
 void setPackageScrubHookForTest(std::function<QByteArray(const QByteArray &)> h) { hook() = std::move(h); }
@@ -427,7 +425,7 @@ QByteArray removePersonalFromPackage(const QByteArray &zipIn, int *parts, QStrin
     };
     QVector<ZipEntry> directory;
     if (!readZipDirectory(zip, &directory)) {
-        fail(say("The file is not a package that could be read."));
+        fail(QCoreApplication::translate("jp::office::Privacy", "The file is not a package that could be read."));
         return zipIn;
     }
     const InflateCounter budget = std::make_shared<InflateBudget>();
@@ -440,9 +438,9 @@ QByteArray removePersonalFromPackage(const QByteArray &zipIn, int *parts, QStrin
             QByteArray data;
             ZipFailure why = ZipFailure::None;
             if (!inflateZipEntry(zip, e, &data, budget, &why)) {
-                fail(say("A part (%1) could not be read.").arg(e.name));
+                fail(QCoreApplication::translate("jp::office::Privacy", "A part (%1) could not be read.").arg(e.name));
             } else if (data.startsWith("\xFF\xFE") || data.startsWith("\xFE\xFF")) {
-                fail(say("A part (%1) is not in a form that could be rewritten.").arg(e.name));
+                fail(QCoreApplication::translate("jp::office::Privacy", "A part (%1) is not in a form that could be rewritten.").arg(e.name));
             } else {
                 bool wanted = false;
                 for (const QByteArray &needle : std::as_const(rules.needles)) wanted = wanted || data.contains(needle);
@@ -451,8 +449,8 @@ QByteArray removePersonalFromPackage(const QByteArray &zipIn, int *parts, QStrin
                     const QString before = utf8(data);
                     QString after;
                     bool did = false;
-                    if (utf8.hasError()) fail(say("A part (%1) is not in a form that could be rewritten.").arg(e.name));
-                    else if (!rewrite(before, rules, &after, &did)) fail(say("A part (%1) could not be read as XML.").arg(e.name));
+                    if (utf8.hasError()) fail(QCoreApplication::translate("jp::office::Privacy", "A part (%1) is not in a form that could be rewritten.").arg(e.name));
+                    else if (!rewrite(before, rules, &after, &did)) fail(QCoreApplication::translate("jp::office::Privacy", "A part (%1) could not be read as XML.").arg(e.name));
                     else if (did) {
                         out.add(e.name, after.toUtf8(), true);
                         ++changed;
