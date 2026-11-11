@@ -8,6 +8,7 @@
 #include "core/fixeddecimals.h"
 #include "app/functionargumentsdialog.h"
 #include "app/formulahelper.h"
+#include "app/privacy.h"
 #include "app/settings.h"
 
 #include "app/sheettabs.h"
@@ -311,9 +312,9 @@ int CrunchWindow::defaultZoom() const { return std::clamp(Settings::get().value(
 
 void CrunchWindow::setDefaultZoom(int percent) { Settings::get().setValue(QStringLiteral("crunch/defaultZoom"), std::clamp(percent, 10, 400)); }
 
-bool CrunchWindow::removePersonalOnSave() const { return Settings::get().value(QStringLiteral("crunch/removePersonalOnSave"), false).toBool(); }
+bool CrunchWindow::removePersonalOnSave() const { return privacy::removeOnSave(); }
 
-void CrunchWindow::setRemovePersonalOnSave(bool on) { Settings::get().setValue(QStringLiteral("crunch/removePersonalOnSave"), on); }
+void CrunchWindow::setRemovePersonalOnSave(bool on) { privacy::setRemoveOnSave(on); }
 
 void CrunchWindow::setStandardColumnWidth(double shown)
 {

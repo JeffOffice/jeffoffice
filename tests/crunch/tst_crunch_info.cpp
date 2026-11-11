@@ -18,10 +18,13 @@
 #include <QAction>
 #include <QApplication>
 #include <QLabel>
+#include <QScopeGuard>
 #include <QLineEdit>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QCheckBox>
 #include <QTemporaryDir>
+#include <memory>
 
 using namespace jp;
 using namespace crunchtest;
@@ -410,6 +413,60 @@ private Q_SLOTS:
         QVERIFY(e.win.w.properties().lastModifiedBy.isEmpty());
         QVERIFY(e.win.w.properties().creator.isEmpty());
         QCOMPARE(e.win.w.properties().title, QStringLiteral("After"));
+    }
+
+    // The option takes every name out of the file, and nothing the file says: the authors of notes and of threads of comments as well as the properties; the cells, notes, and comment texts are as they were.
+    void thePrivacyOptionTakesTheNamesOutOfTheFileAndKeepsTheContent()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] { Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false); });
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->setNote(0, 5, 0, QStringLiteral("Check this"), QStringLiteral("Ann Lee"), false, QStringLiteral("Add Note")).ok);
+        QVERIFY(s->newComment(0, 5, 1, QStringLiteral("Is it right?"), QStringLiteral("Bo Ray"), QStringLiteral("New Comment")).ok);
+        office::PackageProps p = e.win.w.properties();
+        p.title = QStringLiteral("Kept");
+        p.creator = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        p.manager = QStringLiteral("Bo Ray");
+        e.win.w.applyProperties(p);
+        QVERIFY(saveAndWaitHere(e.win.w));
+        const auto parts = partsOf(e.path);
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+            for (const char *who : {"Ann Lee", "Acme", "Bo Ray", "Tester"})
+                QVERIFY2(!it.value().contains(who), qPrintable(it.key() + QStringLiteral(": ") + QString::fromLatin1(who)));
+        const QString second = e.folder.dir.filePath(QStringLiteral("second.xlsx"));
+        QVERIFY(QFile::copy(e.path, second));
+        Window again;
+        QVERIFY(again.open(second));
+        const office::PackageProps back = again.w.properties();
+        QVERIFY(back.creator.isEmpty() && back.lastModifiedBy.isEmpty() && back.company.isEmpty() && back.manager.isEmpty());
+        QCOMPARE(back.title, QStringLiteral("Kept"));
+        const auto *note = again.w.session()->anchors().noteAt(0, 5, 0);
+        QVERIFY(note);
+        QCOMPARE(note->text, QStringLiteral("Check this"));
+        QVERIFY(note->author != QStringLiteral("Ann Lee"));
+        const auto *thread = again.w.session()->anchors().noteAt(0, 5, 1);
+        QVERIFY(thread && thread->threaded && thread->thread);
+        QCOMPARE(thread->thread->size(), size_t(1));
+        QCOMPARE(thread->thread->at(0).text, QStringLiteral("Is it right?"));
+        QVERIFY(thread->thread->at(0).author != QStringLiteral("Bo Ray"));
+    }
+
+    void theInfoPageHasTheBoxForThePrivacyOption()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        std::unique_ptr<QWidget> page(e.win.w.buildInfoPage(nullptr));
+        auto *box = page->findChild<QCheckBox *>(QStringLiteral("infoRemovePersonal"));
+        QVERIFY(box);
+        QCOMPARE(box->text(), QStringLiteral("Remove personal information from this file when saving"));
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+        QVERIFY(!box->isChecked());
+        box->setChecked(true);
+        QVERIFY(Settings::get().value(QStringLiteral("privacy/removeOnSave")).toBool());
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
     }
 
     void markAsFinalIsRefusedForTextFilesAndStaysVisibleOnTheStatusBar()

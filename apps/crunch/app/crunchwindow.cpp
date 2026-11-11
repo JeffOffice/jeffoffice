@@ -21,6 +21,7 @@
 #include "app/otherformats.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
+#include "app/privacy.h"
 #include "app/settings.h"
 #include "app/sheettabs.h"
 #include "app/telemetry.h"
@@ -658,11 +659,9 @@ void CrunchWindow::createActions()
         pages << OptionsPage{tr("Privacy"), [this, privacy] {
             auto *page = new QWidget;
             auto *layout = new QVBoxLayout(page);
-            auto *remove = new QCheckBox(tr("Take my name and company out of a workbook's properties each time it is saved"), page);
-            remove->setObjectName(QStringLiteral("optionRemovePersonal"));
-            remove->setChecked(removePersonalOnSave());
+            auto *remove = privacy::makeOption(page, QStringLiteral("optionRemovePersonal"));
             layout->addWidget(remove);
-            auto *about = new QLabel(tr("The properties are the author, who saved it last, the company, and the manager. Usage statistics and update checks are chosen on the General page."), page);
+            auto *about = new QLabel(privacy::optionDetail(), page);
             about->setWordWrap(true);
             about->setTextFormat(Qt::PlainText);
             layout->addWidget(about);

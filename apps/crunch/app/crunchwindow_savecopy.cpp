@@ -13,6 +13,7 @@
 #include "core/sheetobjects.h"
 #include "io/crypto.h"
 #include "office/officecrypt.h"
+#include "office/privacy.h"
 #include "sheet/xlsxsave.h"
 
 #include <QAction>
@@ -109,11 +110,13 @@ bool CrunchWindow::startCopy(const QString &path)
     // (a protected workbook's copy is protected with the same password)
     const bool protect = m_fileProtected;
     const auto secret = std::make_shared<QString>(m_filePassword.isEmpty() ? office::defaultPassword() : m_filePassword);
-    QThread *thread = QThread::create([self, book, snapshot, path, protect, secret] {
+    const bool namesOut = removePersonalOnSave();   // (Options > Privacy: a copy has no names either)
+    QThread *thread = QThread::create([self, book, snapshot, path, protect, secret, namesOut] {
         QByteArray bytes;
         QString message;
         office::sheet::SaveReport report;
         bool ok = office::sheet::saveXlsx(*book, snapshot->changes, &bytes, &message, &report);
+        if (ok && namesOut) bytes = office::removePersonalFromPackage(bytes);
         if (ok) {
             QByteArray file = bytes;
             if (protect) {

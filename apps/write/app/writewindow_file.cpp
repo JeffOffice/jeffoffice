@@ -8,6 +8,7 @@
 #include "app/icons.h"
 #include "app/optionsdialog.h"
 #include "app/pageview.h"
+#include "app/privacy.h"
 #include "app/recovery.h"
 #include "app/ruler.h"
 #include "app/settings.h"
@@ -19,6 +20,7 @@
 #include "io/crypto.h"
 #include "office/officecrypt.h"
 #include "office/package.h"
+#include "office/privacy.h"
 #include "office/repair.h"
 #include "odt/odttemplate.h"
 
@@ -319,7 +321,11 @@ bool WriteWindow::saveAsTemplate()
     const QString path = askMyTemplatePath(this, displayName(), QStringLiteral(".dotx"));
     if (path.isEmpty()) return false;
     QString err;
+    // Options > Save > Privacy: the names are taken out of a template as they are from a document.
+    const bool namesOut = privacy::removeOnSave();
+    if (namesOut) removePersonalInformation();
     QByteArray bytes = m_doc->toDocx(&err, true);
+    if (namesOut && !bytes.isEmpty()) bytes = office::removePersonalFromPackage(bytes);
     // (a template of a document that asks for a password asks for it too)
     if (m_fileProtected && !bytes.isEmpty()) bytes = office::encryptPackage(bytes, m_filePassword);
     bool ok = !bytes.isEmpty();
@@ -350,8 +356,10 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
         notice(tr("Save"), tr("Part of this file couldn't be opened, so saving it here would lose that part: choose a new name for the copy."));
         return false;
     }
-    // Options > Save > Privacy: the names in the properties (the author, who saved last, the company, and the manager) are taken out as the file is written.
-    if (Settings::get().value(QStringLiteral("privacy/removeOnSave"), false).toBool()) removePersonalInformation();
+    // Options > Save > Privacy: the names in the properties (the author, who saved last, the company, and the manager) are taken out as the file is written, and the names and initials on
+    // comments and the names and times on tracked changes are taken out of the file's parts.
+    const bool namesOut = privacy::removeOnSave();
+    if (namesOut) removePersonalInformation();
     const QString ending = QFileInfo(path).suffix().toLower();
     const bool macroFile = ending == QLatin1String("docm") || ending == QLatin1String("dotm");
     if (m_doc->hadMacros() && !m_macrosNoted && !macroFile) {
@@ -431,6 +439,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     }
     if (!backupBeforeSave(this, path, m_fileProtected ? m_filePassword : QString())) return false;
     QApplication::setOverrideCursor(Qt::WaitCursor);
+    if (namesOut && !text && !rtf && !bytes.isEmpty()) bytes = office::removePersonalFromPackage(bytes);
     if (ott && !bytes.isEmpty()) bytes = office::odt::odfAsTemplate(bytes);
     if (m_fileProtected && !bytes.isEmpty()) bytes = office::encryptPackage(bytes, m_filePassword);
     bool ok = text || !bytes.isEmpty();

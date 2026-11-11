@@ -20,6 +20,8 @@
 #include "core/fonts.h"
 #include "core/inspectops.h"
 #include "core/linkops.h"
+#include "core/reviewops.h"
+#include "io/zip.h"
 #include "core/textexport.h"
 #include "core/writedoc.h"
 #include "office/officecrypt.h"
@@ -43,6 +45,7 @@
 #include <QFileInfo>
 #include <QImage>
 #include <QTemporaryDir>
+#include <memory>
 #include <QTest>
 #include <QThread>
 #include <QTimer>
@@ -231,6 +234,73 @@ private Q_SLOTS:
         QVERIFY(back.creator.isEmpty());
         QVERIFY(back.company.isEmpty());
         QCOMPARE(back.title, QStringLiteral("Kept"));   // (only the names go)
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+    }
+
+    // The option takes every name out of the file, and nothing the file says: the comment's and the change's authors, with the times of changes, as well as the properties.
+    void thePrivacyOptionTakesTheNamesOnCommentsAndChangesOutAndKeepsTheContent()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow a;
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("first words here"));
+        a.document()->setReviewer(QStringLiteral("Ann Lee"), QStringLiteral("AL"));
+        QTextCursor c(a.document()->story());
+        c.setPosition(2);
+        c.setPosition(7, QTextCursor::KeepAnchor);
+        QVERIFY(addComment(*a.document(), c, QStringLiteral("Check this")) > 0);
+        a.document()->setTrackChanges(true);
+        QTextCursor at(a.document()->story());
+        at.setPosition(16);
+        insertText(*a.document(), at, QStringLiteral("!"));
+        office::PackageProps p = a.document()->packageProps();
+        p.creator = QStringLiteral("Ann Lee");
+        p.lastModifiedBy = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        p.manager = QStringLiteral("Bo Ray");
+        p.title = QStringLiteral("Kept");
+        a.applyProperties(p);
+        const QString text = a.document()->story()->toPlainText();
+        QVERIFY(saveInto(a, dir, QStringLiteral("clean.docx")));
+        // Not one name in any part of the file.
+        QMap<QString, QByteArray> parts;
+        QVERIFY(readZip(fileBytes(dir.filePath(QStringLiteral("clean.docx"))), parts));
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+            for (const char *name : {"Ann Lee", "Acme", "Bo Ray", "w:initials=\"AL\""})
+                QVERIFY2(!it.value().contains(name), qPrintable(it.key() + QStringLiteral(": ") + QString::fromLatin1(name)));
+        WriteWindow back;
+        QVERIFY(back.openFile(dir.filePath(QStringLiteral("clean.docx"))));
+        const office::PackageProps q = back.document()->packageProps();
+        QVERIFY(q.creator.isEmpty() && q.lastModifiedBy.isEmpty() && q.company.isEmpty() && q.manager.isEmpty());
+        QCOMPARE(q.title, QStringLiteral("Kept"));
+        const QVector<Comment> all = comments(*back.document());
+        QCOMPARE(all.size(), 1);
+        QCOMPARE(all[0].text, QStringLiteral("Check this"));
+        QVERIFY(all[0].author != QStringLiteral("Ann Lee"));
+        QVERIFY(all[0].initials != QStringLiteral("AL"));
+        const QVector<Revision> changes = revisionsIn(back.document()->story());
+        QVERIFY(!changes.isEmpty());
+        for (const Revision &r : changes) {
+            QVERIFY(r.author != QStringLiteral("Ann Lee"));
+            QVERIFY(!r.date.isValid());
+        }
+        QCOMPARE(back.document()->story()->toPlainText(), text);
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+    }
+
+    // The Info page has the box for the option, on the setting the apps share.
+    void theInfoPageHasTheBoxForThePrivacyOption()
+    {
+        WriteWindow w;
+        std::unique_ptr<QWidget> page(w.buildInfoPage(nullptr));
+        auto *box = page->findChild<QCheckBox *>(QStringLiteral("infoRemovePersonal"));
+        QVERIFY(box);
+        QCOMPARE(box->text(), QStringLiteral("Remove personal information from this file when saving"));
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+        QVERIFY(!box->isChecked());
+        box->setChecked(true);
+        QVERIFY(Settings::get().value(QStringLiteral("privacy/removeOnSave")).toBool());
         Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
     }
 
