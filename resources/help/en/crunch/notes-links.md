@@ -1,5 +1,5 @@
 # Notes, comments, and links
-<!-- keywords: language, proofing language, set language, do not check spelling, translate, translation, libretranslate, comments pane, new comment, reply, resolve, reopen, thread, previous comment, next comment, show comments, convert notes to comments, convert comments to notes, spelling, spell check, misspelled, F7, ignore all, change all, add to dictionary, thesaurus, synonyms, word list, note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells, recent files -->
+<!-- keywords: translate workbook, translate every sheet, language, proofing language, set language, do not check spelling, translate, translation, libretranslate, comments pane, new comment, reply, resolve, reopen, thread, previous comment, next comment, show comments, convert notes to comments, convert comments to notes, spelling, spell check, misspelled, F7, ignore all, change all, add to dictionary, thesaurus, synonyms, word list, note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells, recent files -->
 
 ## Notes
 
@@ -85,6 +85,18 @@ Some text is not meant to be checked: a code, a name, or a line in a made-up lan
 4. Click **OK**.
 
 Your web browser then opens a translation service called LibreTranslate, with your text in it. Nothing is sent until you click **OK**. You can change the address of the service in the box, for example to one that you run yourself. Only secure web addresses (https) are used, and http addresses for this computer. At most 5,000 letters are sent.
+
+## Translate a whole workbook
+
+1. Click **Translate Workbook** in the **Language** group.
+2. Choose the language to translate into.
+3. Click **OK**.
+
+JeffCrunch collects the text cells of every sheet, in the order of the sheets and then of the rows. Cells with formulas and cells with numbers are left out. The text is split into parts that the service takes in one request (at most 5,000 letters), and your web browser opens a tab of the service for each part, with a short pause between them. A progress box shows which part is opening, and **Cancel** stops the parts that are left. The box before you click **OK** says how many parts there will be. Nothing is sent until you click **OK**.
+
+Your workbook is not changed. Read the translation in the service's page, and copy it back where you want it. Example: a workbook with 12 text cells of 900 letters each goes in 3 parts.
+
+A workbook with more than 10,000 text cells, or that needs more than 20 parts (20 browser tabs), is refused with a message, and nothing is opened. Select some of the cells and use **Translate** instead.
 
 ## Thesaurus
 

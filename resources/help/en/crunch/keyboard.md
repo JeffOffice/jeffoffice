@@ -66,6 +66,8 @@ You can change the keys of any command, or give a key to a command that has none
 
 If another command already has the keys you pressed, JeffCrunch says which one. Click **Take Over** to give the keys to this command, and the other command loses them. Nothing changes until you click **OK**. Then every open JeffCrunch window uses your keys, and so does every window you open later. Tooltips, menus, and the table of shortcuts below show your keys.
 
+A symbol can have keys too. See **Put in a symbol** in [Type in cells](edit-cells): click **Shortcut Key** in the Symbol box. It then shows in this list like any command.
+
 **Reset One** puts back the usual keys of the chosen command. **Reset All** puts back the usual keys of every command. JeffCrunch keeps only the commands whose keys you changed, so a command you never changed gets any better keys a later version gives it.
 
 Some keys cannot be given to a command, because the system or typing needs them. JeffCrunch says **reserved** when you press one. The reserved keys are **Ctrl+C**, **Ctrl+X**, **Ctrl+V**, **Ctrl+Z**, **Ctrl+A**, **Tab**, **Shift+Tab**, **Enter**, **Esc**, **Backspace**, **Delete**, **Alt+F4**, the arrow, **Home**, **End**, **Page Up**, **Page Down**, and **Space** keys, **F1**, **F6**, **Shift+F6**, **Ctrl+Y**, **Ctrl+Shift+Z**, **Ctrl** with an arrow, **Home**, **End**, **Backspace**, or **Delete** (with or without **Shift**, where that makes sense in a text box), and a letter, digit, or symbol key pressed alone or with **Shift**. A key that another part of the window already uses is reserved too. **Save**, **Undo**, and **Redo** always keep at least one key. On a Mac, **Ctrl** here means the **Command** key.
