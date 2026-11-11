@@ -14,7 +14,9 @@
 #include "app/emailops.h"
 #include "core/pdfbookmarks.h"
 #include "core/printing.h"
+#include "app/privacy.h"
 #include "office/officecrypt.h"
+#include "office/privacy.h"
 #include "office/packageprops.h"
 
 #include <QApplication>
@@ -321,6 +323,10 @@ bool WriteWindow::exportEmail(EmailWhat what, const jp::PdfProtection &protect)
     const QVector<int> pages = outputPages(WriteOutputOptions());
     if (what == EmailWhat::Document) {
         QByteArray bytes = m_doc->toDocx(&err);
+        // (Options > Save: the names stay out of a file that is sent away)
+        QStringList namesProblems;
+        if (privacy::removeOnSave() && !bytes.isEmpty()) bytes = office::removePersonalFromPackage(bytes, nullptr, &namesProblems);
+        if (!namesProblems.isEmpty()) notice(tr("Email"), privacy::notTakenOutMessage(namesProblems), true);
         // (a document with a password is sent with it)
         if (m_fileProtected && !bytes.isEmpty()) bytes = office::encryptPackage(bytes, m_filePassword);
         ok = !bytes.isEmpty();

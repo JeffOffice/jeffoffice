@@ -8,6 +8,7 @@
 
 #include "io/crypto.h"
 #include "office/officecrypt.h"
+#include "app/privacy.h"
 #include "office/privacy.h"
 #include "app/plaintext.h"
 
@@ -169,9 +170,8 @@ bool CrunchWindow::startSave(const QString &path)
     if (crunch::isCsvName(path)) return exportCsv(path);
     if (crunch::isCopyName(path)) return exportCopy(path);
     if (!commitEdit()) return false;
-    // Options > Privacy: the names in the properties are taken out of the window's too (they stay out), and the file's parts lose the names on notes and comments as it is written.
+    // Options > Privacy: the names are taken out of the bytes that are written (the properties, notes, and comments); the open workbook is not changed.
     const bool namesOut = removePersonalOnSave();
-    if (namesOut) removePersonalInformation();
     syncPanes();   // (where the view is scrolled to and where the cursor is, now, are what the file keeps)
     // a workbook read from a file of another form is never written over the file it came from, whatever that file is called, and for as long as the window has the workbook (after the first
     // save the window's file is the .xlsx, and the original is still not its own)
@@ -264,12 +264,13 @@ bool CrunchWindow::startSave(const QString &path)
     const auto secret = std::make_shared<QString>(m_filePassword.isEmpty() ? office::defaultPassword() : m_filePassword);
     m_savedDigest = std::make_shared<QByteArray>();
     const auto digest = m_savedDigest;
-    QThread *thread = QThread::create([self, book, snapshot, path, protect, secret, digest, namesOut] {
+    const auto namesProblems = std::make_shared<QStringList>();
+    QThread *thread = QThread::create([self, book, snapshot, path, protect, secret, digest, namesOut, namesProblems] {
         QByteArray bytes;
         QString message;
         SaveReport report;
         bool ok = office::sheet::saveXlsx(*book, snapshot->changes, &bytes, &message, &report);
-        if (ok && namesOut) bytes = office::removePersonalFromPackage(bytes);
+        if (ok && namesOut) bytes = office::removePersonalFromPackage(bytes, nullptr, namesProblems.get());
         snapshot->headerDrawings = report.headerDrawings;   // (read by the window after this thread has told it the save is over)
         if (ok) {
             QByteArray file = bytes;
@@ -284,8 +285,10 @@ bool CrunchWindow::startSave(const QString &path)
             if (ok && protect) *digest = QCryptographicHash::hash(file, QCryptographicHash::Sha256);
         }
         jp::crypto::wipe(*secret);
-        QMetaObject::invokeMethod(qApp, [self, ok, message, path, bytes, snapshot] {
-            if (self) self->onSaved(ok, message, path, bytes, snapshot);
+        QMetaObject::invokeMethod(qApp, [self, ok, message, path, bytes, snapshot, namesProblems] {
+            if (!self) return;
+            self->onSaved(ok, message, path, bytes, snapshot);
+            if (ok && !namesProblems->isEmpty()) self->notice(self->tr("Save"), privacy::notTakenOutMessage(*namesProblems), true);
         }, Qt::QueuedConnection);
     });
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);

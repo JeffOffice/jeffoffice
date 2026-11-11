@@ -13,6 +13,7 @@
 #include "core/sheetobjects.h"
 #include "io/crypto.h"
 #include "office/officecrypt.h"
+#include "app/privacy.h"
 #include "office/privacy.h"
 #include "sheet/xlsxsave.h"
 
@@ -111,12 +112,13 @@ bool CrunchWindow::startCopy(const QString &path)
     const bool protect = m_fileProtected;
     const auto secret = std::make_shared<QString>(m_filePassword.isEmpty() ? office::defaultPassword() : m_filePassword);
     const bool namesOut = removePersonalOnSave();   // (Options > Privacy: a copy has no names either)
-    QThread *thread = QThread::create([self, book, snapshot, path, protect, secret, namesOut] {
+    const auto namesProblems = std::make_shared<QStringList>();
+    QThread *thread = QThread::create([self, book, snapshot, path, protect, secret, namesOut, namesProblems] {
         QByteArray bytes;
         QString message;
         office::sheet::SaveReport report;
         bool ok = office::sheet::saveXlsx(*book, snapshot->changes, &bytes, &message, &report);
-        if (ok && namesOut) bytes = office::removePersonalFromPackage(bytes);
+        if (ok && namesOut) bytes = office::removePersonalFromPackage(bytes, nullptr, namesProblems.get());
         if (ok) {
             QByteArray file = bytes;
             if (protect) {
@@ -129,8 +131,10 @@ bool CrunchWindow::startCopy(const QString &path)
             if (ok) ok = office::sheet::writeFileAtomically(path, file, &message);
         }
         jp::crypto::wipe(*secret);
-        QMetaObject::invokeMethod(qApp, [self, ok, message, path] {
-            if (self) self->onWorkbookCopyMade(ok, message, path);
+        QMetaObject::invokeMethod(qApp, [self, ok, message, path, namesProblems] {
+            if (!self) return;
+            self->onWorkbookCopyMade(ok, message, path);
+            if (ok && !namesProblems->isEmpty()) self->notice(self->tr("Save"), privacy::notTakenOutMessage(*namesProblems), true);
         }, Qt::QueuedConnection);
     });
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);

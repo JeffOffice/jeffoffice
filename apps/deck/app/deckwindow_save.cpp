@@ -153,13 +153,14 @@ bool DeckWindow::saveAsTemplate()
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     QString err;
-    QStringList skipped;
+    QStringList skipped, namesProblems;
     // (a template of a presentation that asks for a password asks for it too)
     if (!deck::saveAnyPresentationFile(*m_ed->doc(), path, &err, &skipped, Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool(), m_fileProtected ? m_filePassword : QString(),
-                                       privacy::removeOnSave())) {
+                                       privacy::removeOnSave(), &namesProblems)) {
         jp::plainWarning(this, tr("Save as Template"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
+    if (!namesProblems.isEmpty()) notice(tr("Save as Template"), privacy::notTakenOutMessage(namesProblems));
     saveTemplateThumbnail(path, deck::slideImage(*m_ed->doc(), &m_ed->cache(), 0, 320));
     statusBar()->showMessage(tr("Saved \"%1\" in My Templates.").arg(QFileInfo(path).completeBaseName()), 5000);
     return true;
@@ -192,9 +193,9 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     m_ed->endCrop(true);   // what is written is a step, and a crop still going on is not yet
-    // Options > Save > Remove personal information: the names in the properties are taken out (and stay out), and the file's parts lose the names and initials on comments as it is written.
+    // Options > Save > Remove personal information: the names are taken out of the bytes that are written (the properties and the comments); the open presentation is not changed.
     const bool namesOut = privacy::removeOnSave();
-    if (namesOut) removePersonalInformation();
+    QStringList namesProblems;
     Document *doc = m_ed->doc();
     // The mark that a presentation is final is a property a .odp file does not keep: said, so that the window and the file do not disagree.
     if (odf && markedAsFinal()) {
@@ -215,10 +216,11 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     QString err;
     QStringList skipped;
     if (!backupBeforeSave(this, path, m_fileProtected ? m_filePassword : QString())) return false;
-    if (!deck::saveAnyPresentationFile(*doc, path, &err, &skipped, embedFontsOnSave(), m_fileProtected ? m_filePassword : QString(), namesOut)) {
+    if (!deck::saveAnyPresentationFile(*doc, path, &err, &skipped, embedFontsOnSave(), m_fileProtected ? m_filePassword : QString(), namesOut, &namesProblems)) {
         jp::plainWarning(this, tr("Save"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
+    if (!namesProblems.isEmpty()) notice(tr("Save"), privacy::notTakenOutMessage(namesProblems));
     if (asCopy) {
         Settings::get().addRecentFile(path);
         telemetry::count(QStringLiteral("file.save.") + fileKind(path));

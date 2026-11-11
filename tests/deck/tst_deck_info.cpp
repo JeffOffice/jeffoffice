@@ -2,6 +2,8 @@
 #include <QElapsedTimer>
 #include "../isolatesettings.h"
 #include "../recoverygate.h"
+#include "../privacyhooks.h"
+#include "office/privacy.h"
 #include "../settingguard.h"
 #include "app/recovery.h"
 #include "app/filetasks.h"
@@ -16,6 +18,7 @@
 #include "app/settings.h"
 
 #include <QBuffer>
+#include <QRegularExpression>
 #include <QScopeGuard>
 #include <QDirIterator>
 #include <QListWidget>
@@ -538,18 +541,123 @@ private Q_SLOTS:
         QCOMPARE(deck::notesText(*b.editor()->doc(), *b.editor()->doc()->pages[0]), QStringLiteral("Say hello first"));
     }
 
+    // The open presentation is not what is scrubbed: a copy, a save, and a save that is cancelled leave its names, its history, and its mark as saved as they were.
+    void thePrivacyOptionLeavesTheOpenPresentationAsItWas()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] { Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false); });
+        QTemporaryDir dir;
+        DeckWindow a;
+        Quiet quiet(a);
+        auto d = sample();
+        deck::addComment(*d->pages[1], deck::CommentAuthor{QStringLiteral("Cy Mox"), QStringLiteral("CM")}, QStringLiteral("Check this"), QPointF(10, 10));
+        a.editor()->setDocument(std::move(d));
+        office::PackageProps p = a.properties();
+        p.creator = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        a.applyProperties(p);
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("first.pptx"))));
+        QVERIFY(!a.editor()->isModified());
+        const int steps = a.editor()->undoStack()->count();
+        auto unchanged = [&] {
+            QCOMPARE(a.properties().creator, QStringLiteral("Ann Lee"));
+            QCOMPARE(a.properties().company, QStringLiteral("Acme"));
+            QCOMPARE(deck::commentsOf(*a.editor()->doc()->pages[1]).value(0).author, QStringLiteral("Cy Mox"));
+            QCOMPARE(a.editor()->undoStack()->count(), steps);
+            QVERIFY(!a.editor()->isModified());
+        };
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("copy.pptx")), true));
+        unchanged();
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("second.pptx"))));
+        unchanged();
+        {
+            jptest::DismissBoxes boxes;
+            QVERIFY(!a.saveTo(dir.filePath(QStringLiteral("missing/third.pptx"))));   // (a save that fails)
+        }
+        unchanged();
+        QMap<QString, QByteArray> parts;
+        QVERIFY(readZip(fileBytes(dir.filePath(QStringLiteral("copy.pptx"))), parts));
+        QVERIFY(!parts.value(QStringLiteral("docProps/core.xml")).contains("Ann Lee"));
+    }
+
+    void whenTheNamesCantBeTakenOutThePersonIsToldAndTheFileIsStillWritten()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] {
+            Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+            office::setPackageScrubHookForTest({});
+        });
+        QTemporaryDir dir;
+        DeckWindow a;
+        Quiet quiet(a);
+        a.editor()->setDocument(sample());
+        office::PackageProps p = a.properties();
+        p.creator = QStringLiteral("Ann Lee");
+        a.applyProperties(p);
+        office::setPackageScrubHookForTest(jptest::damagePart("docProps/core.xml"));
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("told.pptx"))));
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("told.pptx"))));
+        QVERIFY2(quiet.said.join(QLatin1Char('|')).contains(QLatin1String("personal information could not be taken out")), qPrintable(quiet.said.join(QLatin1Char('|'))));
+        QVERIFY(quiet.said.join(QLatin1Char('|')).contains(QLatin1String("docProps/core.xml")));
+    }
+
+    void withThePrivacyOptionOffASaveIsUnchanged()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+        QTemporaryDir dir;
+        DeckWindow a;
+        Quiet quiet(a);
+        a.editor()->setDocument(sample());
+        office::PackageProps p = a.properties();
+        p.creator = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        a.applyProperties(p);
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("off.pptx"))));
+        auto stable = [](const QByteArray &zip) {
+            QMap<QString, QByteArray> parts, out;
+            readZip(zip, parts);
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+                out.insert(it.key(), QString::fromUtf8(it.value()).replace(QRegularExpression(QStringLiteral("\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d")), QStringLiteral("T")).toUtf8());
+            return out;
+        };
+        QCOMPARE(stable(fileBytes(dir.filePath(QStringLiteral("off.pptx")))), stable(deck::exportPresentation(*a.editor()->doc())));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(readZip(fileBytes(dir.filePath(QStringLiteral("off.pptx"))), parts));
+        QVERIFY(parts.value(QStringLiteral("docProps/core.xml")).contains("Ann Lee"));
+    }
+
+    void aPresentationSentByEmailHasNoNamesWhenTheOptionIsOn()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] { Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false); });
+        QTemporaryDir dir;
+        DeckWindow a;
+        Quiet quiet(a);
+        a.editor()->setDocument(sample());
+        office::PackageProps p = a.properties();
+        p.creator = QStringLiteral("Ann Lee");
+        a.applyProperties(p);
+        const QString eml = dir.filePath(QStringLiteral("m.eml"));
+        a.setSavePathChooser([&](const QString &, const QString &) { return eml; });
+        QVERIFY(a.exportEmail(DeckWindow::EmailWhat::Presentation));
+        QMap<QString, QByteArray> parts;
+        QVERIFY2(readZip(jptest::attachmentOf(fileBytes(eml), ".pptx"), parts), "the attachment is a package");
+        QVERIFY(!parts.value(QStringLiteral("docProps/core.xml")).contains("Ann Lee"));
+    }
+
     void theInfoPageHasTheBoxForThePrivacyOption()
     {
         DeckWindow w;
+        const QVariant priorSetting = Settings::get().value(QStringLiteral("privacy/removeOnSave"), false);
+        const auto restore = qScopeGuard([priorSetting] { Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), priorSetting); });
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
         std::unique_ptr<QWidget> page(w.buildInfoPage(nullptr));
         auto *box = page->findChild<QCheckBox *>(QStringLiteral("infoRemovePersonal"));
         QVERIFY(box);
         QCOMPARE(box->text(), QStringLiteral("Remove personal information from this file when saving"));
-        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
         QVERIFY(!box->isChecked());
         box->setChecked(true);
         QVERIFY(Settings::get().value(QStringLiteral("privacy/removeOnSave")).toBool());
-        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
     }
 
     void markedAsFinalOpensForReadingOnly()

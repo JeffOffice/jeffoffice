@@ -10,7 +10,9 @@
 #include "core/printjob.h"
 #include "core/sheetobjects.h"
 #include "io/crypto.h"
+#include "app/privacy.h"
 #include "office/officecrypt.h"
+#include "office/privacy.h"
 #include "sheet/xlsxsave.h"
 
 #include <QApplication>
@@ -39,6 +41,7 @@ bool CrunchWindow::exportEmail(EmailWhat what, const PdfProtection &protect)
     const QString name = m_path.isEmpty() ? displayName() : QFileInfo(m_path).completeBaseName();
     QString err;
     QByteArray bytes;
+    QStringList namesProblems;
     QApplication::setOverrideCursor(Qt::WaitCursor);
     if (what == EmailWhat::Workbook) {
         syncPanes();
@@ -47,6 +50,8 @@ bool CrunchWindow::exportEmail(EmailWhat what, const PdfProtection &protect)
             if (m_objects) m_objects->addToSave(&snapshot.changes);
             office::sheet::SaveReport report;
             if (office::sheet::saveXlsx(*m_loaded->book, snapshot.changes, &bytes, &err, &report)) {
+                // (Options > Privacy: the names stay out of a file that is sent away)
+                if (privacy::removeOnSave()) bytes = office::removePersonalFromPackage(bytes, nullptr, &namesProblems);
                 // (a workbook with a password stays locked with it; the password is never in the message)
                 if (m_fileProtected) bytes = office::encryptPackage(bytes, m_filePassword.isEmpty() ? office::defaultPassword() : m_filePassword);
             } else {
@@ -64,6 +69,7 @@ bool CrunchWindow::exportEmail(EmailWhat what, const PdfProtection &protect)
         }
     }
     QApplication::restoreOverrideCursor();
+    if (!namesProblems.isEmpty()) notice(tr("Email"), privacy::notTakenOutMessage(namesProblems), true);
     if (bytes.isEmpty()) {
         jp::plainWarning(this, tr("Email"), tr("%1 couldn't make the message.\n%2").arg(appInfo().name, err));
         return false;

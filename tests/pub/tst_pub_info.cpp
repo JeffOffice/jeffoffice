@@ -9,6 +9,7 @@
 #include "office/officecrypt.h"
 #include "office/packageprops.h"
 #include "../settingguard.h"
+#include "../privacyhooks.h"
 
 #include "io/zip.h"
 #include "app/settings.h"
@@ -197,18 +198,105 @@ private Q_SLOTS:
         QCOMPARE(b.editor()->doc()->pages.size(), a.editor()->doc()->pages.size());
     }
 
+    // The open publication is not what is scrubbed: a copy, a save, and a save that fails leave its names, its history, and its mark as saved as they were.
+    void thePrivacyOptionLeavesTheOpenPublicationAsItWas()
+    {
+        jp::Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] { jp::Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false); });
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::MainWindow a;
+        Quiet quiet(a);
+        office::PackageProps p = a.properties();
+        p.creator = QStringLiteral("Ann Lee");
+        p.lastModifiedBy = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        p.manager = QStringLiteral("Bo Ray");
+        a.applyProperties(p);
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("first.jpub"))));
+        QVERIFY(!a.editor()->isModified());
+        const int steps = a.editor()->undoStack()->count();
+        auto unchanged = [&] {
+            QCOMPARE(a.properties().creator, QStringLiteral("Ann Lee"));
+            QCOMPARE(a.properties().lastModifiedBy, QStringLiteral("Tester"));   // (the person who edited it, as the properties were applied)
+            QCOMPARE(a.properties().company, QStringLiteral("Acme"));
+            QCOMPARE(a.properties().manager, QStringLiteral("Bo Ray"));
+            QCOMPARE(a.editor()->undoStack()->count(), steps);
+            QVERIFY(!a.editor()->isModified());
+        };
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("copy.jpub")), true));
+        unchanged();
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("copy.pub")), true));
+        unchanged();
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("second.jpub"))));
+        unchanged();
+        {
+            jptest::DismissBoxes boxes;
+            QVERIFY(!a.saveTo(dir.filePath(QStringLiteral("missing/third.jpub"))));   // (a save that fails)
+        }
+        unchanged();
+    }
+
+    // The scope that leaves the names out while a file is written gives them back, whatever happens.
+    void theNamesComeBackWhenTheScopeThatLeftThemOutEnds()
+    {
+        jp::DocProps props;
+        props.author = QStringLiteral("Ann Lee");
+        props.lastModifiedBy = QStringLiteral("Ann Lee");
+        props.company = QStringLiteral("Acme");
+        props.manager = QStringLiteral("Bo Ray");
+        props.title = QStringLiteral("Kept");
+        {
+            jp::NamesOutScope off(props, false);
+            QCOMPARE(props.author, QStringLiteral("Ann Lee"));
+        }
+        {
+            jp::NamesOutScope scope(props, true);
+            QVERIFY(props.author.isEmpty() && props.lastModifiedBy.isEmpty() && props.company.isEmpty() && props.manager.isEmpty());
+            QCOMPARE(props.title, QStringLiteral("Kept"));
+        }
+        QCOMPARE(props.author, QStringLiteral("Ann Lee"));
+        QCOMPARE(props.lastModifiedBy, QStringLiteral("Ann Lee"));
+        QCOMPARE(props.company, QStringLiteral("Acme"));
+        QCOMPARE(props.manager, QStringLiteral("Bo Ray"));
+    }
+
+    void withThePrivacyOptionOffASaveIsUnchanged()
+    {
+        jp::Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::MainWindow a;
+        Quiet quiet(a);
+        office::PackageProps p = a.properties();
+        p.creator = QStringLiteral("Ann Lee");
+        p.lastModifiedBy = QStringLiteral("Ann Lee");
+        a.applyProperties(p);
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("one.jpub")), true));
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("two.jpub")), true));
+        auto props = [&](const QString &name) {
+            QMap<QString, QByteArray> parts;
+            QFile f(dir.filePath(name));
+            if (!f.open(QIODevice::ReadOnly) || !jp::readZip(f.readAll(), parts)) return QJsonObject();
+            return QJsonDocument::fromJson(parts.value(QStringLiteral("document.json"))).object().value(QStringLiteral("props")).toObject();
+        };
+        QCOMPARE(props(QStringLiteral("one.jpub")).value(QStringLiteral("author")).toString(), QStringLiteral("Ann Lee"));
+        QCOMPARE(props(QStringLiteral("two.jpub")).value(QStringLiteral("lastModifiedBy")).toString(), QStringLiteral("Tester"));
+    }
+
     void theInfoPageHasTheBoxForThePrivacyOption()
     {
         jp::MainWindow w;
+        const QVariant priorSetting = jp::Settings::get().value(QStringLiteral("privacy/removeOnSave"), false);
+        const auto restore = qScopeGuard([priorSetting] { jp::Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), priorSetting); });
+        jp::Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
         std::unique_ptr<QWidget> page(w.buildInfoPage(nullptr));
         auto *box = page->findChild<QCheckBox *>(QStringLiteral("infoRemovePersonal"));
         QVERIFY(box);
         QCOMPARE(box->text(), QStringLiteral("Remove personal information from this file when saving"));
-        jp::Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
         QVERIFY(!box->isChecked());
         box->setChecked(true);
         QVERIFY(jp::Settings::get().value(QStringLiteral("privacy/removeOnSave")).toBool());
-        jp::Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
     }
 
     // The command that was Properties is Info, as in the other apps, and opens the Info page.

@@ -24,6 +24,11 @@ QString optionDetail()
     return QCoreApplication::translate("jp::Privacy", "Takes out the author, the person who saved the file last, the company, the manager, and the names on comments and tracked changes. What the file says stays as it is.");
 }
 
+QString notTakenOutMessage(const QStringList &reasons)
+{
+    return QCoreApplication::translate("jp::Privacy", "Some personal information could not be taken out of the file. %1 Check the file before you share it.").arg(reasons.join(QLatin1Char(' ')));
+}
+
 QCheckBox *makeOption(QWidget *parent, const QString &objectName)
 {
     auto *box = new QCheckBox(optionText(), parent);

@@ -3,6 +3,7 @@
 // file is office/privacy.h's; the apps call that as the file is written.
 
 #include <QString>
+#include <QStringList>
 
 class QCheckBox;
 class QWidget;
@@ -16,6 +17,9 @@ void setRemoveOnSave(bool on);
 // The words of the choice, and of the line that says what it takes out.
 QString optionText();
 QString optionDetail();
+
+// What a person is told when a file was written (or sent) but the names could not all be taken out of it: the reasons `office::removePersonalFromPackage` gave, in plain sentences.
+QString notTakenOutMessage(const QStringList &reasons);
 
 // A box with the words, checked as the setting is. It changes nothing until the one who made it applies it (an Options page does at OK); `objectName` is for tests.
 QCheckBox *makeOption(QWidget *parent, const QString &objectName);

@@ -58,6 +58,6 @@ QByteArray exportSnapshot(const ExportSnapshot &snapshot, QString *error = nullp
 // file stays whole until the new one is complete: a full disk, a folder that
 // can't be written, or a path that isn't one leave it as it was.
 // With a `password` the package is protected by it (office/officecrypt.h), as a presentation program does.
-bool savePresentationFile(const Document &doc, const QString &path, QString *error = nullptr, QStringList *skipped = nullptr, bool embedFonts = false, const QString &password = QString(), bool removePersonal = false);
+bool savePresentationFile(const Document &doc, const QString &path, QString *error = nullptr, QStringList *skipped = nullptr, bool embedFonts = false, const QString &password = QString(), bool removePersonal = false, QStringList *personalProblems = nullptr);
 
 } // namespace jp::deck

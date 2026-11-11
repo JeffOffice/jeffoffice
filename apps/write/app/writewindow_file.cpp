@@ -322,10 +322,9 @@ bool WriteWindow::saveAsTemplate()
     if (path.isEmpty()) return false;
     QString err;
     // Options > Save > Privacy: the names are taken out of a template as they are from a document.
-    const bool namesOut = privacy::removeOnSave();
-    if (namesOut) removePersonalInformation();
+    QStringList namesProblems;
     QByteArray bytes = m_doc->toDocx(&err, true);
-    if (namesOut && !bytes.isEmpty()) bytes = office::removePersonalFromPackage(bytes);
+    if (privacy::removeOnSave() && !bytes.isEmpty()) bytes = office::removePersonalFromPackage(bytes, nullptr, &namesProblems);
     // (a template of a document that asks for a password asks for it too)
     if (m_fileProtected && !bytes.isEmpty()) bytes = office::encryptPackage(bytes, m_filePassword);
     bool ok = !bytes.isEmpty();
@@ -338,6 +337,7 @@ bool WriteWindow::saveAsTemplate()
         jp::plainWarning(this, tr("Save as Template"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
+    if (!namesProblems.isEmpty()) notice(tr("Save as Template"), privacy::notTakenOutMessage(namesProblems), true);
     saveTemplateThumbnail(path, m_view->pageImage(0, 240));
     statusBar()->showMessage(tr("Saved \"%1\" in My Templates.").arg(QFileInfo(path).completeBaseName()), 5000);
     return true;
@@ -356,10 +356,10 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
         notice(tr("Save"), tr("Part of this file couldn't be opened, so saving it here would lose that part: choose a new name for the copy."));
         return false;
     }
-    // Options > Save > Privacy: the names in the properties (the author, who saved last, the company, and the manager) are taken out as the file is written, and the names and initials on
-    // comments and the names and times on tracked changes are taken out of the file's parts.
+    // Options > Save > Privacy: the names (the author, who saved last, the company, and the manager, and the names and initials on comments and the names and times on tracked changes) are taken
+    // out of the bytes that are written; the open document is not changed.
     const bool namesOut = privacy::removeOnSave();
-    if (namesOut) removePersonalInformation();
+    QStringList namesProblems;
     const QString ending = QFileInfo(path).suffix().toLower();
     const bool macroFile = ending == QLatin1String("docm") || ending == QLatin1String("dotm");
     if (m_doc->hadMacros() && !m_macrosNoted && !macroFile) {
@@ -439,7 +439,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     }
     if (!backupBeforeSave(this, path, m_fileProtected ? m_filePassword : QString())) return false;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    if (namesOut && !text && !rtf && !bytes.isEmpty()) bytes = office::removePersonalFromPackage(bytes);
+    if (namesOut && !text && !rtf && !bytes.isEmpty()) bytes = office::removePersonalFromPackage(bytes, nullptr, &namesProblems);
     if (ott && !bytes.isEmpty()) bytes = office::odt::odfAsTemplate(bytes);
     if (m_fileProtected && !bytes.isEmpty()) bytes = office::encryptPackage(bytes, m_filePassword);
     bool ok = text || !bytes.isEmpty();
@@ -454,6 +454,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
         return false;
     }
     unmarkedForSave = false;   // (written without it)
+    if (!namesProblems.isEmpty()) notice(tr("Save"), privacy::notTakenOutMessage(namesProblems), true);
     if (text) {
         if (lostChars > 0) notice(tr("Save"), tr("Some characters couldn't be saved in this encoding (%1 in all). They were saved as question marks.").arg(lostChars), true);
         if (!m_textNoted) {

@@ -48,6 +48,6 @@ QByteArray exportOdp(const Document &doc, bool asTemplate = false, QString *erro
 
 // Writes the file at `path`, an .otp when its ending is that. The old file
 // stays whole until the new one is complete.
-bool saveOdpFile(const Document &doc, const QString &path, QString *error = nullptr, QStringList *skipped = nullptr, bool removePersonal = false);
+bool saveOdpFile(const Document &doc, const QString &path, QString *error = nullptr, QStringList *skipped = nullptr, bool removePersonal = false, QStringList *personalProblems = nullptr);
 
 } // namespace jp::deck

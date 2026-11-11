@@ -35,8 +35,9 @@ bool isWrittenEnding(const QString &path);
 // (formatOfFileName). The old file stays whole until the new one is complete.
 // `skipped` gets a line for each thing the format has no form for.
 // With a `password` (not for the open document kind, which can't hold one: that is refused) the file is protected by it.
-// With `removePersonal` the names and initials on comments, and the names in the properties, are left out of the file as it is written (Options > Save > Remove personal information).
-bool saveAnyPresentationFile(const Document &doc, const QString &path, QString *error = nullptr, QStringList *skipped = nullptr, bool embedFonts = false, const QString &password = QString(), bool removePersonal = false);
+// With `removePersonal` the names, initials, and times of comments, and the names in the properties, are left out of the file as it is written (Options > Save > Remove personal information); what
+// could not be taken out is said in `personalProblems`.
+bool saveAnyPresentationFile(const Document &doc, const QString &path, QString *error = nullptr, QStringList *skipped = nullptr, bool embedFonts = false, const QString &password = QString(), bool removePersonal = false, QStringList *personalProblems = nullptr);
 
 // The notes that say what a reader left out of a file as unsafe or too
 // large: `pictures` (Document::imagesLeftOut), and `parts`, the parts and

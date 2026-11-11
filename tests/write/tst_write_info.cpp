@@ -3,6 +3,8 @@
 #include "../isolatesettings.h"
 #include "../aboutchecks.h"
 #include "../recoverygate.h"
+#include "../privacyhooks.h"
+#include "office/privacy.h"
 #include "../settingguard.h"
 #include "app/recovery.h"
 #include "app/filetasks.h"
@@ -35,6 +37,7 @@
 #include "render/pdfpage.h"
 
 #include <QCheckBox>
+#include <QScopeGuard>
 #include <QDirIterator>
 #include <QFile>
 #include <QLineEdit>
@@ -43,6 +46,7 @@
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QFileInfo>
+#include <QRegularExpression>
 #include <QImage>
 #include <QTemporaryDir>
 #include <memory>
@@ -289,19 +293,120 @@ private Q_SLOTS:
         Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
     }
 
+    // The open document is not the thing that is scrubbed: a copy, and a save, leave its names, its history, and its mark as saved exactly as they were.
+    void thePrivacyOptionLeavesTheOpenDocumentAsItWas()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] { Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false); });
+        QTemporaryDir dir;
+        WriteWindow a;
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("words"));
+        office::PackageProps p = a.document()->packageProps();
+        p.creator = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        a.applyProperties(p);
+        QVERIFY(saveInto(a, dir, QStringLiteral("first.docx")));
+        const int steps = a.document()->story()->availableUndoSteps();
+        QVERIFY(!a.isWindowModified());
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("copy.docx")), true));
+        QCOMPARE(a.document()->packageProps().creator, QStringLiteral("Ann Lee"));
+        QCOMPARE(a.document()->packageProps().company, QStringLiteral("Acme"));
+        QCOMPARE(a.document()->story()->availableUndoSteps(), steps);
+        QVERIFY(!a.isWindowModified());
+        QVERIFY(saveInto(a, dir, QStringLiteral("second.docx")));
+        QCOMPARE(a.document()->packageProps().creator, QStringLiteral("Ann Lee"));
+        QCOMPARE(a.document()->story()->availableUndoSteps(), steps);
+        QVERIFY(!a.isWindowModified());
+        // (and the files have none)
+        QMap<QString, QByteArray> parts;
+        QVERIFY(readZip(fileBytes(dir.filePath(QStringLiteral("copy.docx"))), parts));
+        QVERIFY(!parts.value(QStringLiteral("docProps/core.xml")).contains("Ann Lee"));
+    }
+
+    // When the names can't be taken out the file is still written, and the person is told, with the reason.
+    void whenTheNamesCantBeTakenOutThePersonIsToldAndTheFileIsStillWritten()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] {
+            Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+            office::setPackageScrubHookForTest({});
+        });
+        QTemporaryDir dir;
+        WriteWindow a;
+        Quiet quiet(a);
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("words"));
+        office::PackageProps p = a.document()->packageProps();
+        p.creator = QStringLiteral("Ann Lee");
+        a.applyProperties(p);
+        office::setPackageScrubHookForTest(jptest::damagePart("docProps/core.xml"));
+        QVERIFY(saveInto(a, dir, QStringLiteral("told.docx")));
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("told.docx"))));
+        QVERIFY2(quiet.said.join(QLatin1Char('|')).contains(QLatin1String("personal information could not be taken out")), qPrintable(quiet.said.join(QLatin1Char('|'))));
+        QVERIFY(quiet.said.join(QLatin1Char('|')).contains(QLatin1String("docProps/core.xml")));
+    }
+
+    // A document sent by email has the names out too.
+    void aDocumentSentByEmailHasNoNamesWhenTheOptionIsOn()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] { Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false); });
+        QTemporaryDir dir;
+        WriteWindow a;
+        Quiet quiet(a);
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("words"));
+        office::PackageProps p = a.document()->packageProps();
+        p.creator = QStringLiteral("Ann Lee");
+        a.applyProperties(p);
+        a.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("m.eml")); });
+        QVERIFY(a.exportEmail(WriteWindow::EmailWhat::Document));
+        const QByteArray docx = jptest::attachmentOf(fileBytes(dir.filePath(QStringLiteral("m.eml"))), ".docx");
+        QMap<QString, QByteArray> parts;
+        QVERIFY2(readZip(docx, parts), "the attachment is a package");
+        QVERIFY(!parts.value(QStringLiteral("docProps/core.xml")).contains("Ann Lee"));
+        QCOMPARE(a.document()->packageProps().creator, QStringLiteral("Ann Lee"));
+    }
+
+    // With the option off a save is what it was: the parts are those of the document's own export.
+    void withThePrivacyOptionOffASaveIsUnchanged()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+        QTemporaryDir dir;
+        WriteWindow a;
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("words"));
+        office::PackageProps p = a.document()->packageProps();
+        p.creator = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        a.applyProperties(p);
+        QVERIFY(saveInto(a, dir, QStringLiteral("off.docx")));
+        auto stable = [](const QByteArray &zip) {
+            QMap<QString, QByteArray> parts;
+            readZip(zip, parts);
+            QMap<QString, QByteArray> out;
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it) out.insert(it.key(), QString::fromUtf8(it.value()).replace(QRegularExpression(QStringLiteral("\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d")), QStringLiteral("T")).toUtf8());
+            return out;
+        };
+        QCOMPARE(stable(fileBytes(dir.filePath(QStringLiteral("off.docx")))), stable(a.document()->toDocx()));
+        QVERIFY(fileBytes(dir.filePath(QStringLiteral("off.docx"))).size() > 0);
+        QMap<QString, QByteArray> parts;
+        QVERIFY(readZip(fileBytes(dir.filePath(QStringLiteral("off.docx"))), parts));
+        QVERIFY(parts.value(QStringLiteral("docProps/core.xml")).contains("Ann Lee"));
+        QVERIFY(parts.value(QStringLiteral("docProps/app.xml")).contains("Acme"));
+    }
+
     // The Info page has the box for the option, on the setting the apps share.
     void theInfoPageHasTheBoxForThePrivacyOption()
     {
         WriteWindow w;
+        const QVariant priorSetting = Settings::get().value(QStringLiteral("privacy/removeOnSave"), false);
+        const auto restore = qScopeGuard([priorSetting] { Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), priorSetting); });
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
         std::unique_ptr<QWidget> page(w.buildInfoPage(nullptr));
         auto *box = page->findChild<QCheckBox *>(QStringLiteral("infoRemovePersonal"));
         QVERIFY(box);
         QCOMPARE(box->text(), QStringLiteral("Remove personal information from this file when saving"));
-        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
         QVERIFY(!box->isChecked());
         box->setChecked(true);
         QVERIFY(Settings::get().value(QStringLiteral("privacy/removeOnSave")).toBool());
-        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
     }
 
     void propertiesSurviveASaveAndReopen()

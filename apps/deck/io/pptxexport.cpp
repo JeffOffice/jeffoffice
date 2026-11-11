@@ -1650,7 +1650,7 @@ QByteArray exportSnapshot(const ExportSnapshot &snapshot, QString *error, Presen
     return Exporter(*doc, kind, embedFonts, snapshot.keptFonts, snapshot.thumbnail).run(error);
 }
 
-bool savePresentationFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool embedFonts, const QString &password, bool removePersonal)
+bool savePresentationFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool embedFonts, const QString &password, bool removePersonal, QStringList *personalProblems)
 {
     auto fail = [&](const QString &why) {
         if (error) *error = why;
@@ -1658,7 +1658,7 @@ bool savePresentationFile(const Document &doc, const QString &path, QString *err
     };
     QByteArray bytes = exportPresentation(doc, error, skipped, kindOfFileName(path), embedFonts);
     if (bytes.isEmpty()) return false;
-    if (removePersonal) bytes = office::removePersonalFromPackage(bytes);
+    if (removePersonal) bytes = office::removePersonalFromPackage(bytes, nullptr, personalProblems);
     if (!password.isEmpty()) {
         bytes = office::encryptPackage(bytes, password);
         if (bytes.isEmpty()) return fail(QCoreApplication::translate("PptxExport", "The password couldn't be put on the file."));

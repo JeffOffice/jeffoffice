@@ -39,6 +39,7 @@ bool DeckWindow::exportEmail(EmailWhat what, const PdfProtection &protect)
     const QString name = m_ed->displayName();
     QString err;
     QByteArray bytes;
+    QStringList namesProblems;
     {
         // A folder of its own, so that nothing is left in the shared temporary folder (and, with a password, the only file made is the protected one).
         QTemporaryDir dir;
@@ -48,7 +49,7 @@ bool DeckWindow::exportEmail(EmailWhat what, const PdfProtection &protect)
             QStringList skipped;
             // (a presentation with a password stays locked with it; the password is never in the message)
             if (deck::saveAnyPresentationFile(*m_ed->doc(), path, &err, &skipped, Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool(), m_fileProtected ? m_filePassword : QString(),
-                                           privacy::removeOnSave())) {
+                                           privacy::removeOnSave(), &namesProblems)) {
                 QFile f(path);
                 if (f.open(QIODevice::ReadOnly)) bytes = f.readAll();
             }
@@ -60,6 +61,7 @@ bool DeckWindow::exportEmail(EmailWhat what, const PdfProtection &protect)
             }
         }
         QApplication::restoreOverrideCursor();
+        if (!namesProblems.isEmpty()) notice(tr("Email"), privacy::notTakenOutMessage(namesProblems));
     }
     if (bytes.isEmpty()) {
         jp::plainWarning(this, tr("Email"), tr("%1 couldn't make the message.\n%2").arg(appInfo().name, err));

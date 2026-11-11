@@ -103,7 +103,7 @@ bool packForPrinter(MainWindow *win, const QString &dir, QString *error)
         return false;
     }
     QString err;
-    if (privacy::removeOnSave()) win->removePersonalInformation();
+    NamesOutScope namesOut(ed->doc()->props, privacy::removeOnSave());
     if (!savePublication(*ed->doc(), base + ".jpub", win->pageThumbnail(0, 256), &err, true, QString(), win->filePassword())) {
         if (error) *error = QCoreApplication::translate("Sharing", "JeffPub couldn't save the publication in %1.\n%2").arg(QDir::toNativeSeparators(dir), err);
         return false;
@@ -214,6 +214,7 @@ void saveAsTemplate(QWidget *parent, MainWindow *win)
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/Templates";
     QDir().mkpath(dir);
     QString err;
+    NamesOutScope namesOut(win->editor()->doc()->props, privacy::removeOnSave());
     if (savePublication(*win->editor()->doc(), dir + "/" + name.trimmed() + ".jpub", win->pageThumbnail(0, 256), &err, true, QString(), win->filePassword()))
         jp::plainInformation(parent, QCoreApplication::translate("Sharing", "Save as Template"), QCoreApplication::translate("Sharing", "\"%1\" is now in File > New > My Templates.").arg(name.trimmed()));
     else jp::plainWarning(parent, QCoreApplication::translate("Sharing", "Save as Template"), err);

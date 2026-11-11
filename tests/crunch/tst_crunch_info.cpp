@@ -14,10 +14,13 @@
 #include "editwindow.h"
 #include "office/packageprops.h"
 #include "../localepin.h"
+#include "../privacyhooks.h"
+#include "office/privacy.h"
 
 #include <QAction>
 #include <QApplication>
 #include <QLabel>
+#include <QRegularExpression>
 #include <QScopeGuard>
 #include <QLineEdit>
 #include <QSettings>
@@ -449,24 +452,124 @@ private Q_SLOTS:
         QVERIFY(note->author != QStringLiteral("Ann Lee"));
         const auto *thread = again.w.session()->anchors().noteAt(0, 5, 1);
         QVERIFY(thread && thread->threaded && thread->thread);
+        // The link of the legacy note to its thread (an author "tc={...}") is as the writer made it, and no note of the file begins with a name's run.
+        bool threadLink = false;
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+            if (it.key().startsWith(QLatin1String("xl/comments"))) {
+                threadLink = threadLink || it.value().contains("<author>tc={");
+                QVERIFY2(!it.value().contains(">Ann Lee:<") && !it.value().contains(">Bo Ray:<"), qPrintable(it.key()));
+            }
+        QVERIFY(threadLink);
         QCOMPARE(thread->thread->size(), size_t(1));
         QCOMPARE(thread->thread->at(0).text, QStringLiteral("Is it right?"));
         QVERIFY(thread->thread->at(0).author != QStringLiteral("Bo Ray"));
+    }
+
+    // The open workbook is not what is scrubbed: a save and a copy leave its names, its history, and its mark as saved as they were.
+    void thePrivacyOptionLeavesTheOpenWorkbookAsItWas()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] { Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false); });
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        office::PackageProps p = e.win.w.properties();
+        p.creator = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        e.win.w.applyProperties(p);
+        const int steps = e.win.w.undoStack()->count();
+        QSignalSpy copied(&e.win.w, &CrunchWindow::copyExported);
+        QVERIFY(e.win.w.saveAs(e.folder.dir.filePath(QStringLiteral("copy.xlsx")), true));
+        QVERIFY(copied.count() > 0 || copied.wait(20000));
+        // (a copy leaves the workbook as it was)
+        QCOMPARE(e.win.w.properties().creator, QStringLiteral("Ann Lee"));
+        QCOMPARE(e.win.w.properties().company, QStringLiteral("Acme"));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QVERIFY(e.win.w.isWindowModified());
+        // (a save adds no step, and leaves the workbook saved: what it holds now is the file, which has no names)
+        QVERIFY(saveAndWaitHere(e.win.w));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QVERIFY(!e.win.w.isWindowModified());
+        const auto copy = partsOf(e.folder.dir.filePath(QStringLiteral("copy.xlsx")));
+        QVERIFY(!copy.value(QStringLiteral("docProps/core.xml")).contains("Ann Lee"));
+        QVERIFY(!partsOf(e.path).value(QStringLiteral("docProps/core.xml")).contains("Ann Lee"));
+    }
+
+    void whenTheNamesCantBeTakenOutThePersonIsToldAndTheFileIsStillWritten()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] {
+            Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+            office::setPackageScrubHookForTest({});
+        });
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        office::PackageProps p = e.win.w.properties();
+        p.creator = QStringLiteral("Ann Lee");
+        e.win.w.applyProperties(p);
+        office::setPackageScrubHookForTest(jptest::damagePart("docProps/core.xml"));
+        QVERIFY(saveAndWaitHere(e.win.w));
+        QTRY_VERIFY2(e.win.told.join(QLatin1Char('|')).contains(QLatin1String("personal information could not be taken out")), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        QVERIFY(e.win.told.join(QLatin1Char('|')).contains(QLatin1String("docProps/core.xml")));
+        QVERIFY(partsOf(e.path).contains(QStringLiteral("[Content_Types].xml")));
+    }
+
+    void withThePrivacyOptionOffASaveIsUnchanged()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        office::PackageProps p = e.win.w.properties();
+        p.creator = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        e.win.w.applyProperties(p);
+        QVERIFY(saveAndWaitHere(e.win.w));
+        QByteArray again;
+        QString why;
+        QVERIFY(e.win.w.snapshotBytesForTest(&again, &why));
+        auto stable = [](const QMap<QString, QByteArray> &parts) {
+            QMap<QString, QByteArray> out;
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+                out.insert(it.key(), QString::fromUtf8(it.value()).replace(QRegularExpression(QStringLiteral("\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d")), QStringLiteral("T")).toUtf8());
+            return out;
+        };
+        QMap<QString, QByteArray> second;
+        QVERIFY(jp::readZip(again, second));
+        QCOMPARE(stable(partsOf(e.path)), stable(second));
+        QVERIFY(partsOf(e.path).value(QStringLiteral("docProps/core.xml")).contains("Ann Lee"));
+    }
+
+    void aWorkbookSentByEmailHasNoNamesWhenTheOptionIsOn()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] { Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false); });
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(e.win.w.session()->setNote(0, 5, 0, QStringLiteral("Check this"), QStringLiteral("Ann Lee"), false, QStringLiteral("Add Note")).ok);
+        const QString target = e.folder.dir.filePath(QStringLiteral("book.eml"));
+        e.win.w.setSavePicker([target](const QString &, const QString &) { return target; });
+        QVERIFY2(e.win.w.exportEmail(CrunchWindow::EmailWhat::Workbook), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        QFile f(target);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QMap<QString, QByteArray> parts;
+        QVERIFY2(jp::readZip(jptest::attachmentOf(f.readAll(), ".xlsx"), parts), "the attachment is a package");
+        QVERIFY(parts.contains(QStringLiteral("xl/comments1.xml")));
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it) QVERIFY2(!it.value().contains("Ann Lee"), qPrintable(it.key()));
     }
 
     void theInfoPageHasTheBoxForThePrivacyOption()
     {
         EditWindow e;
         QVERIFY(e.open(editBook()));
+        const QVariant priorSetting = Settings::get().value(QStringLiteral("privacy/removeOnSave"), false);
+        const auto restore = qScopeGuard([priorSetting] { Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), priorSetting); });
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
         std::unique_ptr<QWidget> page(e.win.w.buildInfoPage(nullptr));
         auto *box = page->findChild<QCheckBox *>(QStringLiteral("infoRemovePersonal"));
         QVERIFY(box);
         QCOMPARE(box->text(), QStringLiteral("Remove personal information from this file when saving"));
-        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
         QVERIFY(!box->isChecked());
         box->setChecked(true);
         QVERIFY(Settings::get().value(QStringLiteral("privacy/removeOnSave")).toBool());
-        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
     }
 
     void markAsFinalIsRefusedForTextFilesAndStaysVisibleOnTheStatusBar()

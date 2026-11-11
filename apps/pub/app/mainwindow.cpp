@@ -641,8 +641,9 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
     QString err;
     const QImage thumb = pageThumbnail(0, 256);
     m_ed->endTextEdit();
-    // Options > Save > Remove personal information: the names in the properties (the author, who saved last, the company, and the manager) are taken out as the file is written, and stay out.
-    if (privacy::removeOnSave()) removePersonalInformation();
+    // Options > Save > Remove personal information: the names in the properties (the author, who saved last, the company, and the manager) are left out of the file that is written; the open
+    // publication keeps them, and nothing of it changes.
+    NamesOutScope namesOut(m_ed->doc()->props, privacy::removeOnSave());
     // The mark that a publication is final is a property a .pub file does not keep: said, so that the window and the file do not disagree.
     if (path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive) && markedAsFinal()) {
         notice(tr("Save"), tr("This publication is marked as final, and a .pub file can't hold that mark. The file is saved without it."));
@@ -672,7 +673,7 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
             }
         });
         m_ed->doc()->props.modified = QDateTime::currentDateTime();
-        if (m_ed->doc()->props.author.isEmpty() && !m_personalInfoRemoved) m_ed->doc()->props.author = Settings::get().userName();
+        if (m_ed->doc()->props.author.isEmpty() && !m_personalInfoRemoved && !namesOut.active()) m_ed->doc()->props.author = Settings::get().userName();
         if (!savePublication(*m_ed->doc(), path, thumb, &err, false, QString(), password)) {
             jp::plainWarning(this, tr("Save"), tr("JeffPub couldn't save \"%1\".\n%2%3").arg(QFileInfo(path).fileName(), err, saveFailureHint(err)));
             return false;
@@ -744,7 +745,7 @@ bool MainWindow::saveAs(const QString &format)
         QDir().mkpath(tdir);
         QString err;
         // (a template of a protected publication is protected too: it is a file somebody can read)
-        if (privacy::removeOnSave()) removePersonalInformation();
+        NamesOutScope templateNamesOut(m_ed->doc()->props, privacy::removeOnSave());
         if (!savePublication(*m_ed->doc(), tdir + "/" + QFileInfo(path).completeBaseName() + ".jpub", pageThumbnail(0, 256), &err, true, QString(), m_fileProtected ? m_filePassword : QString()))
             jp::plainWarning(this, tr("Save as Template"), err);
         else statusBar()->showMessage(tr("Saved to My Templates."), 4000);
