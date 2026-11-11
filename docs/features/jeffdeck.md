@@ -214,7 +214,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 
 ### Illustrations
 - [x] **1.0** Shapes (see Home), and Icons (see Beyond PowerPoint)
-- [ ] **1.0** Chart: the gallery of types (column, bar, line, pie, doughnut, area, scatter, and the rest) and a small data grid that fills it *(a chart in a file is drawn from its saved values and kept whole; creating and editing one is not there; charts: ours 1 of 19, 5 charts)*
+- [~] **1.0** Chart: the gallery of types (column, bar, line, pie, doughnut, area, scatter, and the rest) and a small data grid that fills it *(round 26: Insert > Chart puts in one of 12 kinds with sample numbers, in the middle of the slide, as an object that moves, sizes (it is drawn again for its frame), turns, and undoes like the others; Edit Data is the grid JeffWrite has; a `.pptx` keeps it as a chart part and opens it as a chart that can be changed, a `.odp` as a picture, and the message after the save says so; a chart read from a `.pptx` is editable too when it is within 255 series and 400,000 points, and the file holds at most 300 of them; not: a workbook embedded in the chart for other programs to edit; charts: ours 1 of 19, 5 charts)*
 - [ ] **later** Diagrams: the gallery of layouts and a text pane, with the diagram laid out again as the text changes *(a diagram in a file is drawn from the drawing it saved and kept whole; ours 0 of 19; see the open questions)*
 - [ ] **later** 3D Models: a model kept and shown, and turned in the show *(ours 0 of 19)*
 
@@ -440,9 +440,9 @@ These tabs are shown while something is selected. JeffDeck has Playback (while a
 
 ### Chart Design and Chart Format (charts)
 - [x] **1.0** A chart in a file is drawn from the values saved with it, as a vector, and saved whole with all its parts; a duplicated slide keeps it; a copy pasted on a slide is only a picture *(charts: ours 1 of 19; types read: column, bar, line, pie, doughnut, area, and scatter; in an `.odp` a chart is read too)*
-- [ ] **1.0** Edit Data and Select Data: a data grid for the chart's numbers, opened in place, with Switch Row/Column *(shared: JeffCrunch's grid and the chart editing library)*
-- [ ] **1.0** Add Chart Element (axes, axis titles, chart title, data labels, data table, error bars, gridlines, legend, lines, and trendline) and Quick Layout
-- [ ] **1.0** Change Colors, Chart Styles, and Change Chart Type (column, bar, line, pie, area, and scatter first)
+- [~] **1.0** Edit Data and Select Data: a data grid for the chart's numbers, opened in place, with Switch Row/Column *(shared: JeffCrunch's grid and the chart editing library)* *(round 26: Edit Data opens JeffWrite's grid, for a chart that holds its own numbers; not in place, Select Data, or Switch Row/Column)*
+- [~] **1.0** Add Chart Element (axes, axis titles, chart title, data labels, data table, error bars, gridlines, legend, lines, and trendline) and Quick Layout *(round 26: the Chart Format tab has the axes and their titles, the chart title, data labels, gridlines, and the legend; not a data table, error bars, trendlines, or Quick Layout)*
+- [~] **1.0** Change Colors, Chart Styles, and Change Chart Type (column, bar, line, pie, area, and scatter first) *(round 26: Change Chart Type has 12 kinds and Chart Styles eight style numbers; not Change Colors)*
 - [ ] **1.0** Chart Format: Current Selection, Format Selection, Reset to Match Style, and the shape and text styles of the elements
 - [ ] **later** Combination charts, 3-D charts, stock, surface, radar, treemap, sunburst, histogram, box and whisker, waterfall, and funnel charts *(read and kept; drawing the rarer types and editing them follow)*
 - [ ] **later** Chart Elements, Chart Styles, and Chart Filters buttons beside the chart

@@ -178,6 +178,15 @@ box is the one no other box names as `next`.
 | `transparentColor` | none | A color made see-through |
 | `transparency` | 0 | 0 opaque to 1 invisible |
 | `caption` | empty | The caption design it was inserted with |
+| `chart` | empty | Only for a chart: the chart part (a `c:chartSpace` document, as the Open XML chart format defines it) that the picture is the drawing of, as base64 text. A reader that does not know charts shows the picture; one that does can change the chart and draw it again |
+| `chartSize` | | A chart's `[width, height]` that its `image` was drawn at; the picture is drawn again when the frame has another size |
+
+A chart is a picture whose `image` is an SVG drawn from its `chart` part, so it
+is vector in a PDF and on paper. It takes a `.jpub` reader no more than the
+picture does. A file holds at most 300 charts of at most 2 MB each and 16 MB in
+all, and a chart of more than 255 series or 400,000 points is not read as a
+chart; a chart past these limits keeps its picture and loses its `chart` key. A
+`.pub` file saved from the publication holds the picture alone.
 
 #### shape
 

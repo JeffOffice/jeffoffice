@@ -149,6 +149,7 @@ enable_testing()
 qt_add_executable(jptests
   tests/testrunner.cpp
   tests/pub/pubhelpers.cpp
+  tests/pub/tst_pub_charts.cpp
   tests/pub/tst_pub_commands.cpp
   tests/pub/tst_pub_export.cpp
   tests/pub/tst_pub_invariants.cpp
@@ -396,6 +397,7 @@ qt_add_executable(jdtests
   tests/deck/tst_deck_animation.cpp
   tests/deck/tst_deck_binaryimport.cpp
   tests/deck/tst_deck_binaryshapes.cpp
+  tests/deck/tst_deck_charts.cpp
   tests/deck/tst_deck_file.cpp
   tests/deck/tst_deck_fonts.cpp
   tests/deck/tst_deck_format.cpp

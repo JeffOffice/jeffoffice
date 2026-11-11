@@ -5,7 +5,7 @@ The **Insert** tab is always on the ribbon. It holds everything you can add to a
 
 - **Pages**: add a blank or duplicate page, or open the Catalog Merge pane. See [Add, move, and delete pages](pages) and [Mail merge and catalog merge](mail-merge).
 - **Tables**: insert a table. See [Work with tables](tables).
-- **Illustrations**: add pictures, online pictures, shapes, icons, picture placeholders, and barcodes. See [Add and adjust pictures](pictures), [Draw shapes and lines](shapes), and [Icons, barcodes, and other objects](insert-objects).
+- **Illustrations**: add pictures, online pictures, shapes, icons, picture placeholders, charts, and barcodes. See [Add and adjust pictures](pictures), [Draw shapes and lines](shapes), [Add charts](charts), and [Icons, barcodes, and other objects](insert-objects).
 - **Building Blocks**: add ready-made headings, calendars, borders, and ads. See [Icons, barcodes, and other objects](insert-objects).
 - **Text**: draw a text box, add business information, Text Art, a text file, a symbol, the date and time, or an object. See [Add and format text boxes](text-boxes) and [Icons, barcodes, and other objects](insert-objects).
 - **Links**: add a hyperlink or a bookmark. See [Icons, barcodes, and other objects](insert-objects).
