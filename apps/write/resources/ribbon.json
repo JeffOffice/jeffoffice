@@ -313,6 +313,10 @@
               "keytip": "IC"
             },
             {
+              "large": "insert.barcode",
+              "keytip": "BC"
+            },
+            {
               "large": {
                 "id": "ribbon.chart",
                 "text": "Chart",

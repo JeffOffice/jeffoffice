@@ -805,6 +805,15 @@ void PageView::mouseReleaseEvent(QMouseEvent *e)
 
 void PageView::mouseDoubleClickEvent(QMouseEvent *e)
 {
+    // A barcode picture: a double click selects it and asks for its data again.
+    if (m_doc && !m_readOnly && e->button() == Qt::LeftButton && !m_hf.active && !m_note.active) {
+        if (const int picture = pictureAtPoint(e->position().toPoint()); picture >= 0 && !pictureAt(*m_doc, m_doc->story(), picture).barcode.isEmpty()) {
+            selectPicture(picture);
+            Q_EMIT editBarcodeWanted();
+            e->accept();
+            return;
+        }
+    }
     if (m_doc && e->button() == Qt::LeftButton) {
         const Hit hit = hitAt(e->position().toPoint());
         const Area area = areaOf(hit);

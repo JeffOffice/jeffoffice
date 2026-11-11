@@ -413,6 +413,8 @@ private:
     bool m_paneStale = true;
     void insertPictureFromClipboard();
     void insertIconsFromPicker();
+    // Insert > Barcode: the shared dialog; with a barcode picture selected it edits that one.
+    void insertBarcodeFromDialog();
     void showPageSetupDialog();
     void refreshPictureUi();
     void addPictureContextMenu(QMenu &menu);

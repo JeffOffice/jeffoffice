@@ -3,6 +3,7 @@
 
 #include "app/writewindow.h"
 
+#include "app/barcodedialog.h"
 #include "app/filedialogs.h"
 #include "app/iconpicker.h"
 #include "app/onlinepictures.h"
@@ -36,6 +37,9 @@ void WriteWindow::createPictureActions()
 {
     mk("insert.picture", tr("Picture…"), "image-plus", QKeySequence(), [this] { insertPictureFromFile(); });
     mk("insert.icons", tr("Icons…"), "smile-plus", QKeySequence(), [this] { insertIconsFromPicker(); });
+    mk("insert.barcode", tr("Barcode…"), "barcode", QKeySequence(), [this] { insertBarcodeFromDialog(); });
+    // A double click on a barcode asks for its data again.
+    connect(m_view, &write::PageView::editBarcodeWanted, this, [this] { insertBarcodeFromDialog(); });
     mk("insert.onlinePicture", tr("Online Pictures…"), "globe", QKeySequence(), [this] { showOnlinePictures(); });
     mk("insert.pictureClipboard", tr("Picture from Clipboard"), "clipboard-paste", QKeySequence(), [this] { insertPictureFromClipboard(); });
     struct Wrap {
@@ -216,6 +220,20 @@ void WriteWindow::insertIconsFromPicker()
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
+// Insert > Barcode: the dialog of the other apps asks for the barcode, which goes in at the caret as a floating picture. With a barcode picture selected, the dialog edits it: it keeps its place and
+// its width, and one step undoes the change.
+void WriteWindow::insertBarcodeFromDialog()
+{
+    if (!m_doc || refuseIfReadOnly()) return;
+    const int at = m_view->selectedPicture();
+    const QJsonObject was = at >= 0 ? write::pictureAt(*m_doc, m_doc->story(), at).barcode : QJsonObject();
+    QJsonObject settings;
+    if (!askBarcode(this, was, &settings)) return;
+    if (was.isEmpty()) m_view->insertBarcodeSettings(settings);
+    else m_view->changeSelectedPicture([settings](write::WriteDoc &d, int position) { return write::changeBarcode(d, position, settings); });
+    m_view->setFocus(Qt::OtherFocusReason);
+}
+
 void WriteWindow::insertPictureFromClipboard()
 {
     if (!m_doc) return;
@@ -246,6 +264,7 @@ void WriteWindow::refreshPictureUi()
     act("insert.pictureClipboard")->setEnabled(body);
     act("insert.onlinePicture")->setEnabled(body);
     act("insert.icons")->setEnabled(body);
+    act("insert.barcode")->setEnabled(body);
     const int at = m_doc ? m_view->selectedPicture() : -1;
     const write::PictureInfo info = at >= 0 ? write::pictureAt(*m_doc, m_doc->story(), at) : write::PictureInfo();
     m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), info.valid && info.kind == write::DrawnKind::Picture, false);

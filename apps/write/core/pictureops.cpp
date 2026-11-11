@@ -4,8 +4,10 @@
 
 #include "core/boxlinks.h"
 #include "core/drawnitems.h"
+#include "core/barcodeitem.h"
 #include "core/editops.h"
 #include "app/compresspictures.h"
+#include "office/barcodemarker.h"
 #include "office/chart.h"
 #include "office/chart_write.h"
 #include "office/drawingml_color.h"
@@ -222,11 +224,18 @@ QByteArray drawingXml(const Model &m)
 }
 
 // The graphic of a new picture: the picture `rid` names, stretched over a frame of this size.
-QByteArray pictureGraphic(const QString &rid, qint64 cx, qint64 cy, const QByteArray &name, int id)
+QByteArray pictureGraphic(const QString &rid, qint64 cx, qint64 cy, const QByteArray &name, int id, const QString &svgRid = QString())
 {
     auto n = [](qint64 v) { return QByteArray::number(v); };
+    // (A picture that is also an SVG has it linked in the blip's extension list, as the other programs link one.)
+    QByteArray blip = "<a:blip r:embed=\"" + rid.toUtf8() + "\"";
+    if (svgRid.isEmpty())
+        blip += "/>";
+    else
+        blip += "><a:extLst><a:ext uri=\"{96DAC541-7B7A-43D3-8B79-37D633B846F1}\"><asvg:svgBlip xmlns:asvg=\"http://schemas.microsoft.com/office/drawing/2016/SVG/main\" r:embed=\"" + svgRid.toUtf8() +
+                "\"/></a:ext></a:extLst></a:blip>";
     return "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"" + n(id) + "\" name=\"" + name +
-           "\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed=\"" + rid.toUtf8() + "\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/>"
+           "\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill>" + blip + "<a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/>"
            "<a:ext cx=\"" + n(cx) + "\" cy=\"" + n(cy) + "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>";
 }
 
@@ -673,6 +682,7 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
     Model m;
     info.editable = parseDrawing(atom.raw, &m);
     info.decorative = isDecorativeInner(m.docPrInner);
+    info.barcode = office::barcodeMarkerOfXml(m.docPrInner);
     if (info.kind == DrawnKind::Picture) {
         info.cropLeft = s.cropL;
         info.cropTop = s.cropT;
@@ -754,6 +764,103 @@ PictureResult insertPictureImage(WriteDoc &doc, QTextCursor &c, const QImage &im
     Prepared p;
     if (const PictureResult r = encodeImage(image, &p); r != PictureResult::Ok) return r;
     return insertPrepared(doc, c, p, QString(), wrap, QString());
+}
+
+namespace {
+
+// The two pictures of a barcode, as the other programs show it (a PNG, with the SVG linked beside it), added to the document's media: false when the document can't hold them.
+struct BarcodeMedia {
+    QString png, svg;
+    QSizeF size;
+    QString alt;
+    QByteArray marker;
+};
+
+bool addBarcodeMedia(WriteDoc &doc, const QJsonObject &settings, BarcodeMedia *out)
+{
+    const ItemPtr code = barcodeFromSettings(settings, QPointF());
+    if (!code || code->type() != ItemType::Group) return false;
+    const auto &group = static_cast<const GroupItem &>(*code);
+    const QByteArray svg = barcodeSvg(group), png = barcodePng(group, 1200);
+    if (svg.isEmpty() || png.isEmpty()) return false;
+    bool pngAdded = false, svgAdded = false;
+    out->png = doc.addMedia(png, QStringLiteral("png"), QStringLiteral("image/png"), &pngAdded);
+    out->svg = doc.addMedia(svg, QStringLiteral("svg"), QStringLiteral("image/svg+xml"), &svgAdded);
+    // (The pictures of a document come to no more than the total.)
+    if (doc.mediaBytes() > doc.mediaLimit) {
+        if (pngAdded) doc.removeMedia(out->png);
+        if (svgAdded) doc.removeMedia(out->svg);
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.");
+        return false;
+    }
+    out->size = QSizeF(std::clamp(group.bounds().width(), kLeastPictureSize, kMostPictureSize), std::clamp(group.bounds().height(), kLeastPictureSize, kMostPictureSize));
+    out->alt = group.altText;
+    out->marker = office::barcodeMarkerXml(settings);
+    return true;
+}
+
+} // namespace
+
+PictureResult insertBarcode(WriteDoc &doc, QTextCursor &c, const QJsonObject &settings)
+{
+    if (c.document() != doc.story()) {
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put in a header, a footer, or a note yet.");
+        return PictureResult::Refused;
+    }
+    BarcodeMedia media;
+    if (!addBarcodeMedia(doc, settings, &media)) return doc.pictureNotice.isEmpty() ? PictureResult::Unreadable : PictureResult::TooLarge;
+    const QSizeF size = fitted(doc, c.selectionStart(), media.size);
+    Model m;
+    m.floating = true;
+    m.wrap = PictureWrap::Square;
+    m.wrapRawOf = PictureWrap::Square;
+    m.cx = emuOf(size.width());
+    m.cy = emuOf(size.height());
+    const int id = doc.nextDrawingId(doc.story());
+    const QByteArray pictureName = attribute(QStringLiteral("Barcode %1").arg(id), 255);
+    m.docPr = {{"id", quote(QByteArray::number(id))}, {"name", quote(pictureName)}, {"descr", quote(attribute(media.alt, kMostAltTextLength))}};
+    m.docPrInner = media.marker;
+    m.distL = m.distR = 114300;
+    m.graphic = pictureGraphic(media.png, m.cx, m.cy, pictureName, id, media.svg);
+    Inline atom;
+    atom.kind = Inline::RunAtom;
+    atom.tag = QStringLiteral("drawing");
+    atom.raw = drawingXml(m);
+    if (!insertDrawnAtom(doc, c, atom)) {
+        doc.removeMedia(media.png);
+        doc.removeMedia(media.svg);
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.");
+        return PictureResult::Refused;
+    }
+    return PictureResult::Ok;
+}
+
+bool changeBarcode(WriteDoc &doc, int position, const QJsonObject &settings)
+{
+    if (settings.isEmpty() || office::barcodeSettingsFromText(office::barcodeSettingsText(settings)).isEmpty()) return false;
+    return changePicture(doc, position, [&](Model &m) {
+        if (office::barcodeMarkerOfXml(m.docPrInner).isEmpty()) return false;
+        BarcodeMedia media;
+        if (!addBarcodeMedia(doc, settings, &media)) return false;
+        // The width stays; the height follows the new barcode's proportions.
+        const qint64 cx = m.cx, cy = std::max<qint64>(1, qint64(std::llround(double(cx) * media.size.height() / media.size.width())));
+        double w = double(cx) / kEmuPerPoint, h = double(cy) / kEmuPerPoint;
+        clampKeepingRatio(&w, &h);
+        m.cx = emuOf(w);
+        m.cy = emuOf(h);
+        static const QRegularExpression ours(QStringLiteral("<a:extLst>\\s*<a:ext uri=\"\\{5B6C1E0A-2F4D-4C7B-9A3E-8D1F6A2B7C40\\}\">.*?</a:ext>\\s*</a:extLst>"), QRegularExpression::DotMatchesEverythingOption);
+        QString inner = QString::fromUtf8(m.docPrInner);
+        inner.remove(ours);
+        m.docPrInner = inner.toUtf8() + media.marker;
+        setAttribute(&m.docPr, "descr", quote(attribute(media.alt, kMostAltTextLength)));
+        const int id = attributeValue(m.docPr, "id").toInt();
+        const QByteArray name = attributeValue(m.docPr, "name");
+        // (The old pictures are let go of when nothing names them any more.)
+        static const QRegularExpression embedded(QStringLiteral("r:embed=\"([^\"]+)\""));
+        for (auto it = embedded.globalMatch(QString::fromUtf8(m.graphic)); it.hasNext();) doc.letGoOfMediaIfUnused(it.next().captured(1));
+        m.graphic = pictureGraphic(media.png, m.cx, m.cy, name, id, media.svg);
+        return true;
+    }, true);
 }
 
 bool setPictureBox(WriteDoc &doc, int position, double width, double height, const std::optional<QPointF> &pageTopLeft, bool keepGlue)

@@ -13,6 +13,9 @@
 #include "app/ruler.h"
 #include "app/writewindow.h"
 #include "core/appinfo.h"
+#include "core/barcodeitem.h"
+#include "core/pictureops.h"
+#include "io/zip.h"
 #include "core/designops.h"
 #include "core/dropcapops.h"
 #include "core/editops.h"
@@ -188,6 +191,25 @@ struct Win {
     }
     QString text() const { return w.document()->story()->toPlainText(); }
 };
+
+
+// The position of the first picture of the text, or -1.
+int firstPictureOf(WriteDoc &doc)
+{
+    for (int i = 0; i + 1 < doc.story()->characterCount(); ++i)
+        if (isPictureAt(doc.story(), i)) return i;
+    return -1;
+}
+
+// Insert > Barcode with the dialog answered: a QR code of `text`.
+void insertQrBarcode(WriteWindow &w, const QString &text)
+{
+    withDialog([&] { w.act("insert.barcode")->trigger(); }, QStringLiteral("barcodeDialog"), [&](QDialog *d) {
+        QCOMPARE(d->windowTitle(), QStringLiteral("Insert Barcode"));
+        d->findChildren<QComboBox *>().first()->setCurrentIndex(int(barcode::Type::Qr));
+        d->findChildren<QLineEdit *>().first()->setText(text);
+    });
+}
 
 } // namespace
 
@@ -1324,6 +1346,184 @@ private Q_SLOTS:
         QVERIFY(w.navigationPane()->pages()->count() >= 30);
         QTRY_VERIFY(w.navigationPane()->thumbnailsMadeForTest() > 0);
         QVERIFY2(w.navigationPane()->thumbnailsMadeForTest() < w.navigationPane()->pages()->count(), "a picture was made for every page");
+    }
+
+    // ---------------------------------------------------------------- Insert > Barcode
+    // Insert > Barcode puts a floating picture at the caret as one step: Undo takes it away, and Redo puts it back.
+    void aBarcodeIsInsertedAsOneStepThatUndoesAndRedoes()
+    {
+        Win win({"Before after"});
+        QVERIFY(win.w.act("insert.barcode"));
+        WriteDoc &doc = *win.w.document();
+        insertQrBarcode(win.w, QStringLiteral("https://jeffoffice.com/write"));
+        const int at = firstPictureOf(doc);
+        QVERIFY(at >= 0);
+        const PictureInfo info = pictureAt(doc, doc.story(), at);
+        QVERIFY(info.valid && info.editable && info.floating);
+        QCOMPARE(info.barcode.value(QLatin1String("data")).toString(), QStringLiteral("https://jeffoffice.com/write"));
+        QVERIFY(info.alt.startsWith(QLatin1String("Barcode: QR code")));
+        QVERIFY(info.width > 50 && qAbs(info.width - info.height) < 0.5);
+        QCOMPARE(win.w.view()->selectedPicture(), at);
+        QVERIFY(doc.undo());
+        QCOMPARE(firstPictureOf(doc), -1);
+        QCOMPARE(doc.story()->toPlainText(), QStringLiteral("Before after"));
+        QVERIFY(doc.redo());
+        QCOMPARE(firstPictureOf(doc), at);
+        QVERIFY(!pictureAt(doc, doc.story(), at).barcode.isEmpty());
+    }
+
+    // A picture of the window with a QR code in the text, for the docs, when JP_SHOT_DIR names a folder.
+    void aPictureOfTheWindowWithABarcodeForTheDocs()
+    {
+        if (qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) return;
+        Win win({"Scan this code with a phone to open our web site:"});
+        win.w.resize(1300, 900);
+        QTextCursor c(win.w.document()->story());
+        c.movePosition(QTextCursor::End);
+        win.w.view()->setCursor(c);
+        insertQrBarcode(win.w, QStringLiteral("https://jeffoffice.com"));
+        QCoreApplication::processEvents();
+        win.w.grab().save(qEnvironmentVariable("JP_SHOT_DIR") + QStringLiteral("/write-qr.png"));
+    }
+
+    // With the barcode selected, Insert > Barcode edits it: the dialog starts from its data, the picture keeps its place and width, and one step undoes it.
+    void aBarcodeIsEditedAgainFromItsData()
+    {
+        Win win({"Before after"});
+        WriteDoc &doc = *win.w.document();
+        insertQrBarcode(win.w, QStringLiteral("first"));
+        const int at = firstPictureOf(doc);
+        QVERIFY(at >= 0);
+        QVERIFY(setPictureSize(doc, at, 90, 90));
+        win.w.view()->selectPicture(at);
+        withDialog([&] { win.w.act("insert.barcode")->trigger(); }, QStringLiteral("barcodeDialog"), [&](QDialog *d) {
+            QCOMPARE(d->windowTitle(), QStringLiteral("Edit Barcode"));
+            auto *line = d->findChildren<QLineEdit *>().first();
+            QCOMPARE(line->text(), QStringLiteral("first"));
+            line->setText(QStringLiteral("second"));
+        });
+        QCOMPARE(firstPictureOf(doc), at);
+        PictureInfo now = pictureAt(doc, doc.story(), at);
+        QCOMPARE(now.barcode.value(QLatin1String("data")).toString(), QStringLiteral("second"));
+        QCOMPARE(now.width, 90.0);
+        QVERIFY(doc.undo());
+        QCOMPARE(pictureAt(doc, doc.story(), at).barcode.value(QLatin1String("data")).toString(), QStringLiteral("first"));
+    }
+
+    // Saved, the barcode is a picture of its own in the package (an SVG with a PNG, each with its content type), with the marker; another program shows the picture.
+    // Opened again, it is the same barcode at the size it was given, and it is drawn as vectors.
+    void aSavedBarcodeIsAPictureOthersShowAndReopensAsABarcode()
+    {
+        Win win({"Before after"});
+        WriteDoc &doc = *win.w.document();
+        insertQrBarcode(win.w, QStringLiteral("https://jeffoffice.com/round-trip"));
+        const int at = firstPictureOf(doc);
+        QVERIFY(at >= 0);
+        QVERIFY(setPictureSize(doc, at, 100, 100));
+        const QJsonObject settings = pictureAt(doc, doc.story(), at).barcode;
+        QVERIFY(!settings.isEmpty());
+
+        QString err;
+        const QByteArray saved = doc.toDocx(&err);
+        QVERIFY2(!saved.isEmpty(), qPrintable(err));
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        QString svg, png;
+        for (const QString &name : pkg.partNames()) {
+            if (name.endsWith(QLatin1String(".svg"))) svg = name;
+            if (name.endsWith(QLatin1String(".png"))) png = name;
+        }
+        QVERIFY(!svg.isEmpty() && !png.isEmpty());
+        QCOMPARE(pkg.contentType(svg), QStringLiteral("image/svg+xml"));
+        QCOMPARE(pkg.contentType(png), QStringLiteral("image/png"));
+        QVERIFY(pkg.part(svg).contains("<svg"));
+        QVERIFY(pkg.part(png).startsWith("\x89PNG"));
+        const QByteArray body = pkg.part(QStringLiteral("/word/document.xml"));
+        QVERIFY(body.contains("<wp:anchor"));
+        QVERIFY(body.contains("jeffoffice.com/ns/barcode"));
+        QVERIFY(body.contains("<asvg:svgBlip "));
+        QVERIFY(body.contains("descr=\"Barcode: QR code https://jeffoffice.com/round-trip\""));
+        // Both pictures are named by the document's relationships, as images.
+        int images = 0;
+        for (const office::Relationship &r : pkg.relationships(QStringLiteral("/word/document.xml")))
+            if (r.type.endsWith(QLatin1String("/image")) && (r.target == svg || r.target == png)) ++images;
+        QCOMPARE(images, 2);
+
+        auto back = WriteDoc::fromDocx(saved, &err);
+        QVERIFY2(back, qPrintable(err));
+        const int again = firstPictureOf(*back);
+        QVERIFY(again >= 0);
+        const PictureInfo info = pictureAt(*back, back->story(), again);
+        QCOMPARE(info.barcode, settings);
+        QVERIFY(info.floating);
+        QCOMPARE(info.width, 100.0);
+        QCOMPARE(info.height, 100.0);
+        QCOMPARE(back->story()->toPlainText(), doc.story()->toPlainText());
+        // Drawn from the settings as vectors: the page's picture is an SVG.
+        const auto page = back->pager().materialize(0);
+        QVERIFY(page);
+        bool vector = false;
+        for (const auto &it : page->doc->pages[0]->items)
+            if (it->type() == ItemType::Picture) vector = vector || page->doc->images.value(static_cast<const PictureItem *>(it.get())->imageId).format == QLatin1String("svg");
+        QVERIFY(vector);
+        // And saved again, it is still one barcode, not two.
+        const QByteArray twice = back->toDocx(&err);
+        office::Package second;
+        QVERIFY(second.read(twice));
+        QCOMPARE(second.part(QStringLiteral("/word/document.xml")).count("jeffoffice.com/ns/barcode"), 1);
+    }
+
+    // In an open document text a barcode is a picture frame (a PNG) with the settings in an attribute of the frame; opened again, it is the same barcode at the size it was given.
+    void inAnOpenDocumentTextABarcodeIsAPictureFrameWithItsSettings()
+    {
+        Win win({"Before after"});
+        WriteDoc &doc = *win.w.document();
+        insertQrBarcode(win.w, QStringLiteral("https://jeffoffice.com/odt"));
+        const int at = firstPictureOf(doc);
+        QVERIFY(at >= 0);
+        QVERIFY(setPictureSize(doc, at, 110, 110));
+        const QJsonObject settings = pictureAt(doc, doc.story(), at).barcode;
+        QString err;
+        const QByteArray odt = doc.toOdt(&err);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(readZip(odt, parts, &err));
+        const QString content = QString::fromUtf8(parts.value(QStringLiteral("content.xml")));
+        QVERIFY(content.contains(QStringLiteral("jo:barcode=")));
+        QVERIFY(content.contains(QStringLiteral("<draw:image ")));
+        auto back = WriteDoc::fromOdt(odt, &err);
+        QVERIFY2(back, qPrintable(err));
+        const int again = firstPictureOf(*back);
+        QVERIFY(again >= 0);
+        const PictureInfo info = pictureAt(*back, back->story(), again);
+        QCOMPARE(info.barcode, settings);
+        QVERIFY(qAbs(info.width - 110) < 0.5);
+    }
+
+    // A marker with no barcode in it leaves an ordinary picture.
+    void aBarcodeMarkerWithNoDataIsJustAPicture()
+    {
+        Win win({"Before after"});
+        WriteDoc &doc = *win.w.document();
+        insertQrBarcode(win.w, QStringLiteral("x"));
+        QString err;
+        const QByteArray saved = doc.toDocx(&err);
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        QByteArray body = pkg.part(QStringLiteral("/word/document.xml"));
+        QVERIFY(body.contains("&quot;data&quot;:&quot;x&quot;"));
+        body.replace("&quot;data&quot;:&quot;x&quot;", "&quot;data&quot;:&quot;&quot;");
+        office::PackageWriter w;
+        for (const QString &name : pkg.partNames())
+            if (name != QLatin1String("/word/document.xml")) w.addPart(name, pkg.part(name), pkg.contentType(name));
+        w.addPart(QStringLiteral("/word/document.xml"), body, pkg.contentType(QStringLiteral("/word/document.xml")));
+        for (const QString &source : QStringList{QStringLiteral("/"), QStringLiteral("/word/document.xml")})
+            for (const office::Relationship &r : pkg.relationships(source)) w.addRelationshipWithId(source, r.id, r.type, r.target, r.external);
+        auto back = WriteDoc::fromDocx(w.finish(), &err);
+        QVERIFY2(back, qPrintable(err));
+        const int at = firstPictureOf(*back);
+        QVERIFY(at >= 0);
+        QVERIFY(pictureAt(*back, back->story(), at).barcode.isEmpty());
     }
 };
 

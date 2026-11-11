@@ -503,6 +503,23 @@ bool PageView::insertPictureBytes(const QByteArray &bytes, const QString &name, 
     return false;
 }
 
+bool PageView::insertBarcodeSettings(const QJsonObject &settings)
+{
+    if (!m_doc) return false;
+    m_doc->pictureNotice.clear();
+    QTextCursor c = m_cursor;
+    const int at = c.hasSelection() ? c.selectionStart() : c.position();
+    const PictureResult result = insertBarcode(*m_doc, c, settings);
+    if (result == PictureResult::Ok) {
+        m_cursor = c;
+        selectPicture(at);
+        Q_EMIT contentChanged();
+        return true;
+    }
+    Q_EMIT notice(result == PictureResult::Unreadable ? QCoreApplication::translate("jp::write::Pictures", "That is not a barcode JeffWrite can draw.") : m_doc->pictureNotice);
+    return false;
+}
+
 bool PageView::insertOnlinePictureBytes(const QByteArray &bytes, const QString &title, const QString &credit)
 {
     if (!m_doc || m_readOnly) return false;

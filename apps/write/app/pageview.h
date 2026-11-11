@@ -237,6 +237,8 @@ public:
     int pictureAtPoint(const QPoint &viewportPos);
     // A picture from the bytes of a file, or an image (the clipboard's), at the caret in place of a selection; the picture is then the selection. The reason is told (notice) when it fails.
     bool insertPictureBytes(const QByteArray &bytes, const QString &name, PictureWrap wrap = PictureWrap::Inline);
+    // A barcode (core/barcodeitem.h makes it from the settings) at the caret, as a floating picture; false, with the reason as a notice, where it can't be put.
+    bool insertBarcodeSettings(const QJsonObject &settings);
     // An online picture with its title (its alt text) and, when `credit` is not empty, its credit line under it: one step.
     bool insertOnlinePictureBytes(const QByteArray &bytes, const QString &title, const QString &credit);
     bool insertPictureImage(const QImage &image, PictureWrap wrap = PictureWrap::Inline);
@@ -295,6 +297,8 @@ Q_SIGNALS:
     void contentChanged();                  // the text was edited
     void selectionMade();                   // a click or a drag with the mouse ended: the selection (or the caret) is where it was left
     void contextMenuWanted(const QPoint &globalPos);
+    // A barcode picture was double-clicked (and selected): the barcode dialog edits it.
+    void editBarcodeWanted();
     void headerFooterModeChanged();         // a header or footer is edited now, or none is any more
     void noteModeChanged();                 // a footnote is edited now, or none is any more
     void notice(const QString &text);       // a sentence for the person about what a command could not do

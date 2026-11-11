@@ -1,6 +1,7 @@
 // Filling the story from the body of a file: paragraphs and runs become blocks and formatted text, lists become Qt lists, and what is kept
 // as XML becomes the pieces of writeprops.h.
 
+#include "core/barcodeitem.h"
 #include "core/fieldops.h"
 #include "core/writedoc.h"
 
@@ -1654,6 +1655,21 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
     bool shownMissing = false;   // (the picture the last call made is the mark of a picture that cannot be shown)
     std::function<int(const Shape &)> pictureOf = [&](const Shape &s) -> int {
         shownMissing = false;
+        // A barcode of ours is drawn from the settings its marker holds (as vectors), not from the picture beside it that other programs show.
+        if (!s.barcode.isEmpty() && f.images.size() < kMostImages) {
+            if (const ItemPtr code = barcodeFromSettings(s.barcode, QPointF()); code && code->type() == ItemType::Group) {
+                const QByteArray svg = barcodeSvg(static_cast<const GroupItem &>(*code));
+                if (!svg.isEmpty()) {
+                    for (int i = 0; i < f.images.size(); ++i)
+                        if (f.images[i].bytes == svg) return i;
+                    flow::FlowImage image;
+                    image.bytes = svg;
+                    image.format = QStringLiteral("svg");
+                    f.images.push_back(image);
+                    return int(f.images.size()) - 1;
+                }
+            }
+        }
         // A diagram is drawn from the drawing its file keeps (at the size of its frame), kept with the document's pictures; one with no drawing is the picture the older form of the
         // object holds, or else a box that says what it is.
         if (s.embed.isEmpty() && !s.diagramEmbed.isEmpty()) {
