@@ -1715,7 +1715,7 @@ private Q_SLOTS:
             QString err;
             auto d = deck::importPresentation(pack(p), &err);
             QVERIFY(d);
-            const QVector<deck::Comment> list = deck::commentsOf(*d->pages[0]);
+            const QVector<comments::Comment> list = comments::commentsOf(*d->pages[0]);
             QCOMPARE(int(list.size()), 1);
             const bool east = bias[0] != '-';
             const QDateTime expected(QDate(2013, 5, east ? 11 : 9), QTime(10, 21, 50, 343), QTimeZone::UTC);
@@ -1744,8 +1744,8 @@ private Q_SLOTS:
             QString err;
             auto d = deck::importPresentation(pack(p), &err);
             QVERIFY(d);
-            QCOMPARE(int(deck::commentsOf(*d->pages[0]).size()), 2);   // not four
-            QVERIFY(deck::commentsOf(*d->pages[1]).isEmpty());
+            QCOMPARE(int(comments::commentsOf(*d->pages[0]).size()), 2);   // not four
+            QVERIFY(comments::commentsOf(*d->pages[1]).isEmpty());
             QVERIFY2(err.contains(QStringLiteral("comments")), qPrintable(err));
         }
     }

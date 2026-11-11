@@ -1562,7 +1562,7 @@ void Exporter::planComments()
 {
     m_slideComments.resize(m_doc.pages.size());
     for (int i = 0; i < int(m_doc.pages.size()); ++i) {
-        const QVector<deck::Comment> list = deck::commentsOf(*m_doc.pages[i]);
+        const QVector<comments::Comment> list = comments::commentsOf(*m_doc.pages[i]);
         auto author = [&](const QString &name, const QString &initials) {
             const QPair<QString, QString> who(name, initials);
             int id = int(m_commentAuthors.indexOf(who));
@@ -1573,7 +1573,7 @@ void Exporter::planComments()
             }
             return id;
         };
-        for (const deck::Comment &c : list) {
+        for (const comments::Comment &c : list) {
             CommentOut top;
             top.author = author(c.author, c.initials);
             top.idx = ++m_commentLastIdx[top.author];
@@ -1582,7 +1582,7 @@ void Exporter::planComments()
             top.at = c.at;
             top.done = c.done;
             m_slideComments[i] << top;
-            for (const deck::CommentReply &r : c.replies) {
+            for (const comments::CommentReply &r : c.replies) {
                 CommentOut reply;
                 reply.author = author(r.author, r.initials);
                 reply.idx = ++m_commentLastIdx[reply.author];

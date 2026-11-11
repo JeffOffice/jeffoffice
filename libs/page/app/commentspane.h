@@ -1,9 +1,9 @@
 #pragma once
-// The Comments pane, beside the slide: the current slide's comments as cards
+// The Comments pane, beside the page or slide: the current page's comments as cards
 // (author, date, text, the replies, a box to reply in, Resolve, Edit, and
 // Delete), and New Comment at the top, which opens a box to type the comment
 // in. Every change is one undo step through the Editor, so the cards follow
-// the slide's comments whatever changes them, an undo included.
+// the page's comments whatever changes them, an undo included.
 
 #include <QColor>
 #include <QHash>
@@ -23,7 +23,7 @@ namespace jp {
 
 class Editor;
 struct Page;
-namespace deck {
+namespace comments {
 struct Comment;
 }
 
@@ -42,6 +42,10 @@ public:
     // slide too), or empty. An id that isn't on the slide being edited is none.
     QString currentComment() const { return m_current; }
     void setCurrentComment(const QString &id);
+    // What the pane says when the page has no comments (it says "slide" until told).
+    void setEmptyText(const QString &text);
+    // A new comment is attached to the object that is selected, not only put beside it (a publication's; a slide's is a place).
+    void setAnchorToObjects(bool on) { m_anchorToObjects = on; }
     // Opens the box that a new comment is typed in.
     void startNewComment();
     // Posts the box's text as a new comment on the slide, at a place of its own.
@@ -66,7 +70,7 @@ protected:
 
 private:
     void rebuild();
-    QFrame *buildCard(const deck::Comment &c);
+    QFrame *buildCard(const comments::Comment &c);
     // A person's mark: their initials in their color.
     QLabel *badge(const QString &author, const QString &initials, bool done, int size);
     void postReply(const QString &commentId, const QString &text);
@@ -85,7 +89,7 @@ private:
     QWidget *m_cards = nullptr;
     QVBoxLayout *m_cardsLayout = nullptr;
     QString m_current, m_editing, m_pageId, m_signature;
-    bool m_rebuilding = false, m_scrollToCurrent = false;
+    bool m_rebuilding = false, m_scrollToCurrent = false, m_anchorToObjects = false;
     QHash<QString, QString> m_replyDrafts;   // what is typed in each comment's reply box and not yet posted
 };
 

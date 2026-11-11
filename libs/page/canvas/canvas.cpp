@@ -436,6 +436,7 @@ void Canvas::paintEvent(QPaintEvent *)
         p.restore();
     }
     paintOverlay(p);
+    paintComments(p);
 }
 
 void Canvas::paintPageSlot(QPainter &p, const Slot &s, bool current)
@@ -1623,6 +1624,7 @@ void Canvas::applyFormatPainter(const QString &id)
 
 void Canvas::mousePressEvent(QMouseEvent *e)
 {
+    if (commentPress(e)) return;
     setFocus();
     m_pressView = e->position();
     m_pressPage = toPage(e->position());
@@ -1936,6 +1938,7 @@ static void restoreItem(Item *it, const QJsonObject &o)
 
 void Canvas::mouseMoveEvent(QMouseEvent *e)
 {
+    if (commentMove(e)) return;
     const QPointF page = toPage(e->position());
     const QPointF prevPage = m_lastPage;
     m_lastPage = page;
@@ -2366,6 +2369,7 @@ void Canvas::mouseMoveEvent(QMouseEvent *e)
 
 void Canvas::mouseReleaseEvent(QMouseEvent *e)
 {
+    if (commentRelease(e)) return;
     const Drag drag = m_drag;
     m_drag = Drag::None;
     m_snapLines.clear();
@@ -2982,6 +2986,12 @@ void Canvas::handleTextKey(QKeyEvent *e)
 
 void Canvas::keyPressEvent(QKeyEvent *e)
 {
+    if (e->key() == Qt::Key_Escape && !m_commentDragId.isEmpty()) {
+        m_commentDragId.clear();
+        m_commentDragMoved = false;
+        viewport()->update();
+        return;
+    }
     if (m_ed->readOnly()) {
         e->ignore();
         return;

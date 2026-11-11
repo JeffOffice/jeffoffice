@@ -3,9 +3,8 @@
 // shows on it. A placeholder has a dotted outline while it is empty, selected,
 // or being typed in (never every object); Guides are dashed lines through the
 // slide's center and Gridlines are dots a twelfth of an inch apart. While
-// comments are shown, each of the slide's comments has a marker where its place
-// is: a click opens the comment, and dragging it moves the comment. While
-// the Animations tab or the Animation Pane shows, a small number sits by each
+// comments are shown, the shared canvas draws a marker for each of the slide's comments.
+// While the Animations tab or the Animation Pane shows, a small number sits by each
 // shape that is animated (the click its effect plays at).
 
 #include "canvas/canvas.h"
@@ -24,13 +23,6 @@ public:
     void setGuides(bool on);
     bool gridlines() const { return m_grid; }
     void setGridlines(bool on);
-    bool commentsShown() const { return m_comments; }
-    void setCommentsShown(bool on);
-    // The comment the markers mark as open (the one the Comments pane has).
-    QString activeComment() const { return m_activeComment; }
-    void setActiveComment(const QString &id);
-    // The comment whose marker is at a point of the view, or empty.
-    QString commentAt(const QPointF &view) const;
     // A number by a shape of the slide: its top left in the page's coordinates, and what to say. None to take them away.
     struct AnimationBadge {
         QPointF at;
@@ -44,9 +36,6 @@ public:
     // else in the middle of the selection, else in the middle of the view.
     QPoint menuAnchor() const;
 
-Q_SIGNALS:
-    void commentClicked(const QString &id);
-
 protected:
     void paintEvent(QPaintEvent *e) override;
     void mousePressEvent(QMouseEvent *e) override;
@@ -58,13 +47,8 @@ protected:
 
 private:
     void paintMasterPlaceholders();
-    QRectF commentMarker(const QPointF &page) const;
-    bool m_guides = false, m_grid = false, m_comments = false;
-    QString m_activeComment;
+    bool m_guides = false, m_grid = false;
     QVector<AnimationBadge> m_badges;
-    QString m_dragId;                  // the comment whose marker is being dragged
-    QPointF m_dragFrom, m_dragOffset, m_dragAt;
-    bool m_dragMoved = false;
     EditorMedia *m_media = nullptr;
 };
 

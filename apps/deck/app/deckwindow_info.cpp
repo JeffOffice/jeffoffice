@@ -207,12 +207,12 @@ QVector<InspectItem> DeckWindow::inspectItems()
     items.push_back({tr("Comments"), tr("Notes that people left on the slides, with their names."),
                      [doc] {
                          int n = 0;
-                         for (const auto &page : doc()->pages) n += deck::commentCount(*page);
+                         for (const auto &page : doc()->pages) n += comments::commentCount(*page);
                          return n;
                      },
                      [ed] {
                          int n = 0;
-                         ed->change(tr("Delete Comments"), [&] { n = deck::deleteAllComments(*ed->doc()); });
+                         ed->change(tr("Delete Comments"), [&] { n = comments::deleteAllComments(*ed->doc()); });
                          return n;
                      },
                      true, QString()});

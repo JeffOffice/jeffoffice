@@ -500,8 +500,8 @@ void Exporter::writeAnimations(X &x, const Page &page)
 
 void Exporter::writeComments(X &x, const Page &page)
 {
-    const QVector<Comment> list = commentsOf(page);
-    for (const Comment &c : list) {
+    const QVector<comments::Comment> list = comments::commentsOf(page);
+    for (const comments::Comment &c : list) {
         auto note = [&](const QString &author, const QString &initials, const QDateTime &date, const QString &text) {
             x.open("officeooo:annotation").len("svg:x", c.at.x()).len("svg:y", c.at.y()).len("svg:width", 14).len("svg:height", 14);
             if (!author.isEmpty()) x.open("dc:creator").text(author).close();
@@ -512,7 +512,7 @@ void Exporter::writeComments(X &x, const Page &page)
             x.close();
         };
         note(c.author, c.initials, c.date, c.text);
-        for (const CommentReply &r : c.replies) note(r.author, r.initials, r.date, r.text);
+        for (const comments::CommentReply &r : c.replies) note(r.author, r.initials, r.date, r.text);
         if (c.done) sayOnce(QStringLiteral("resolved"), QCoreApplication::translate("OdpExport", "Comments marked as done are saved as plain comments."));
     }
 }

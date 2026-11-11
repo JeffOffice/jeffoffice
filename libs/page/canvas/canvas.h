@@ -72,6 +72,16 @@ public:
     QPointF toPage(const QPointF &view) const { return toScene(view) - currentOrigin(); }
     QPointF pageToView(const QPointF &page) const { return toView(page + currentOrigin()); }
 
+    // Comments: while shown, each comment of the page being edited has a marker (a speech bubble with the writer's initials) where its place is;
+    // a click opens the comment, and dragging a marker that is not attached to an object moves the comment.
+    bool commentsShown() const { return m_comments; }
+    void setCommentsShown(bool on);
+    // The comment the markers mark as open (the one the Comments pane has).
+    QString activeComment() const { return m_activeComment; }
+    void setActiveComment(const QString &id);
+    // The comment whose marker is at a point of the view, or empty.
+    QString commentAt(const QPointF &view) const;
+
     void ensureVisible(const QRectF &pageRect);
     void scrollToPage();
     QPointF lastMousePage() const { return m_lastPage; }
@@ -100,6 +110,7 @@ Q_SIGNALS:
     void openFileWanted(const QString &path);
     void insertFilesWanted(const QStringList &paths, const QPointF &pagePos);
     void pictureTabWanted();
+    void commentClicked(const QString &id);
 
 protected:
     void paintEvent(QPaintEvent *e) override;
@@ -147,6 +158,17 @@ private:
     enum class Drag { None, Pending, Move, Resize, Rotate, LineEnd, LineBend, Free, Adjust, Marquee, Draw, TextSelect, CellBlock, TextMove, Guide, Crop, CropMove, ColResize, RowResize, Pan, Point, WrapPoint };
 
     void updateScrollBars();
+    // The comment markers (canvas_comments.cpp): drawn, and the mouse events they take before the page's own.
+    void paintComments(QPainter &p);
+    QRectF commentMarker(const QPointF &page) const;
+    bool commentPress(QMouseEvent *e);
+    bool commentMove(QMouseEvent *e);
+    bool commentRelease(QMouseEvent *e);
+    bool m_comments = false;
+    QString m_activeComment;
+    QString m_commentDragId;                  // the comment whose marker is being dragged
+    QPointF m_commentDragFrom, m_commentDragOffset, m_commentDragAt;
+    bool m_commentDragMoved = false;
     void paintPageSlot(QPainter &p, const Slot &s, bool current);
     void paintGuides(QPainter &p, const Slot &s);
     void paintCatalogArea(QPainter &p, const Slot &s);

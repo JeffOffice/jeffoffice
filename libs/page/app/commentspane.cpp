@@ -4,7 +4,6 @@
 #include "app/icons.h"
 #include "app/settings.h"
 #include "core/comments.h"
-#include "core/deck.h"
 
 #include <QCoreApplication>
 #include <QDialog>
@@ -53,7 +52,7 @@ QColor commentColor(const QString &author, bool done)
 
 bool askCommentAuthor(QWidget *parent)
 {
-    if (deck::commentAuthor().known()) return true;
+    if (comments::commentAuthor().known()) return true;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("commentAuthorDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("CommentsPane", "Your Name"));
@@ -64,7 +63,7 @@ bool askCommentAuthor(QWidget *parent)
     // The name the system knows the person by is offered.
     auto *name = new QLineEdit(Settings::get().userName(), &dlg);
     name->setObjectName(QStringLiteral("commentAuthorName"));
-    auto *initials = new QLineEdit(deck::initialsFor(name->text()), &dlg);
+    auto *initials = new QLineEdit(comments::initialsFor(name->text()), &dlg);
     initials->setObjectName(QStringLiteral("commentAuthorInitials"));
     form->addRow(QCoreApplication::translate("CommentsPane", "Name:"), name);
     form->addRow(QCoreApplication::translate("CommentsPane", "Initials:"), initials);
@@ -73,7 +72,7 @@ bool askCommentAuthor(QWidget *parent)
     auto typedInitials = std::make_shared<bool>(false);
     auto update = [=] { buttons->button(QDialogButtonBox::Ok)->setEnabled(!name->text().trimmed().isEmpty()); };
     QObject::connect(name, &QLineEdit::textChanged, &dlg, [=](const QString &t) {
-        if (!*typedInitials) initials->setText(deck::initialsFor(t));
+        if (!*typedInitials) initials->setText(comments::initialsFor(t));
         update();
     });
     QObject::connect(initials, &QLineEdit::textEdited, &dlg, [=] { *typedInitials = true; });
@@ -81,8 +80,8 @@ bool askCommentAuthor(QWidget *parent)
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     update();
     if (dlg.exec() != QDialog::Accepted) return false;
-    deck::setCommentAuthor({name->text(), initials->text()});
-    return deck::commentAuthor().known();
+    comments::setCommentAuthor({name->text(), initials->text()});
+    return comments::commentAuthor().known();
 }
 
 CommentsPane::CommentsPane(Editor *ed, QWidget *parent) : QWidget(parent), m_ed(ed)
@@ -152,14 +151,16 @@ CommentsPane::CommentsPane(Editor *ed, QWidget *parent) : QWidget(parent), m_ed(
         m_empty->setVisible(m_cardsLayout->count() <= 1);
     });
 
-    m_empty = new QLabel(tr("There are no comments on this slide."), this);
+    m_empty = new QLabel(tr("There are no comments on this slide."), this);   // (an app that has pages says so: setEmptyText)
     m_empty->setObjectName(QStringLiteral("commentsEmpty"));
+    m_empty->setTextFormat(Qt::PlainText);
     m_empty->setWordWrap(true);
     m_empty->setStyleSheet(QStringLiteral("color:%1;").arg(gray()));
     column->addWidget(m_empty);
 
     m_scroll = new QScrollArea(this);
     m_scroll->setObjectName(QStringLiteral("commentsList"));
+    m_scroll->setAccessibleName(tr("Comments"));
     m_scroll->setWidgetResizable(true);
     m_scroll->setFrameShape(QFrame::NoFrame);
     m_scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -215,6 +216,9 @@ bool CommentsPane::eventFilter(QObject *o, QEvent *e)
     return QWidget::eventFilter(o, e);
 }
 
+// (the app's own words: its tr() text)
+void CommentsPane::setEmptyText(const QString &text) { m_empty->setText(text); }   // plain: reviewed, the label is set to plain text
+
 void CommentsPane::startNewComment()
 {
     m_draftCard->show();
@@ -238,13 +242,15 @@ QPointF CommentsPane::placeForNew() const
     const Document *d = m_ed->doc();
     const QSizeF size = d->pageSize();
     // Beside the object that is selected, else the first free place along the top of the slide.
-    if (const Item *it = m_ed->single())
+    if (const Item *it = m_ed->single()) {
+        if (m_anchorToObjects) return QPointF(it->bounds().right(), it->bounds().top());
         return QPointF(std::clamp(it->rect.right(), 0.0, std::max(0.0, size.width() - 24)), std::clamp(it->rect.top(), 0.0, std::max(0.0, size.height() - 24)));
-    const QVector<deck::Comment> existing = deck::commentsOf(*d->pages[m_ed->currentPage()]);
+    }
+    const QVector<comments::Comment> existing = comments::commentsOf(*d->pages[m_ed->currentPage()]);
     for (int k = 0; k < 40; ++k) {
         const QPointF p(10 + 24 * (k % 20), 10 + 24 * (k / 20));
         bool taken = false;
-        for (const deck::Comment &c : existing) taken = taken || (qAbs(c.at.x() - p.x()) < 20 && qAbs(c.at.y() - p.y()) < 20);
+        for (const comments::Comment &c : existing) taken = taken || (qAbs(c.at.x() - p.x()) < 20 && qAbs(c.at.y() - p.y()) < 20);
         if (!taken) return p;
     }
     return QPointF(10, 10);
@@ -254,10 +260,13 @@ void CommentsPane::postNewComment()
 {
     const QString text = m_draft->toPlainText().trimmed();
     if (text.isEmpty() || !askCommentAuthor(this)) return;
-    const deck::CommentAuthor who = deck::commentAuthor();
+    const comments::CommentAuthor who = comments::commentAuthor();
     const QPointF at = placeForNew();
+    // Attached to the object that is selected (when the app asks for that): the marker follows it.
+    const Item *selected = m_anchorToObjects ? m_ed->single() : nullptr;
+    const QString itemId = selected ? selected->id : QString();
     QString id;
-    change(tr("New Comment"), [&](Page &slide) { id = deck::addComment(slide, who, text, at); });
+    change(tr("New Comment"), [&](Page &slide) { id = comments::addComment(slide, who, text, at, QDateTime::currentDateTimeUtc(), itemId); });
     m_draft->clear();
     m_draftCard->hide();
     setCurrentComment(id);
@@ -267,31 +276,31 @@ void CommentsPane::postReply(const QString &commentId, const QString &text)
 {
     const QString t = text.trimmed();
     if (t.isEmpty() || !askCommentAuthor(this)) return;
-    const deck::CommentAuthor who = deck::commentAuthor();
+    const comments::CommentAuthor who = comments::commentAuthor();
     m_replyDrafts.remove(commentId);
     m_current = commentId;
-    change(tr("Reply to Comment"), [&](Page &slide) { deck::addReply(slide, commentId, who, t); });
+    change(tr("Reply to Comment"), [&](Page &slide) { comments::addReply(slide, commentId, who, t); });
 }
 
 void CommentsPane::saveEdit(const QString &id, const QString &text)
 {
     if (text.trimmed().isEmpty()) return;
     m_editing.clear();
-    change(tr("Edit Comment"), [&](Page &slide) { deck::editComment(slide, id, text.trimmed()); });
+    change(tr("Edit Comment"), [&](Page &slide) { comments::editComment(slide, id, text.trimmed()); });
     reload();
 }
 
 void CommentsPane::setResolved(const QString &id, bool done)
 {
     m_current = id;
-    change(done ? tr("Resolve Comment") : tr("Reopen Comment"), [&](Page &slide) { deck::resolveComment(slide, id, done); });
+    change(done ? tr("Resolve Comment") : tr("Reopen Comment"), [&](Page &slide) { comments::resolveComment(slide, id, done); });
 }
 
 void CommentsPane::deleteOne(const QString &id)
 {
     const Document *d = m_ed->doc();
-    const bool comment = d && m_ed->currentPage() >= 0 && m_ed->currentPage() < d->pages.size() && deck::findComment(*d->pages[m_ed->currentPage()], id);
-    change(comment ? tr("Delete Comment") : tr("Delete Reply"), [&](Page &slide) { deck::deleteComment(slide, id); });
+    const bool comment = d && m_ed->currentPage() >= 0 && m_ed->currentPage() < d->pages.size() && comments::findComment(*d->pages[m_ed->currentPage()], id);
+    change(comment ? tr("Delete Comment") : tr("Delete Reply"), [&](Page &slide) { comments::deleteComment(slide, id); });
 }
 
 void CommentsPane::deleteCurrent()
@@ -301,7 +310,7 @@ void CommentsPane::deleteCurrent()
 
 void CommentsPane::deleteSlideComments()
 {
-    change(tr("Delete Comments"), [](Page &slide) { deck::deleteComments(slide); });
+    change(tr("Delete Comments"), [](Page &slide) { comments::deleteComments(slide); });
 }
 
 void CommentsPane::deleteAllComments()
@@ -309,7 +318,7 @@ void CommentsPane::deleteAllComments()
     Document *d = m_ed->doc();
     if (!d) return;
     m_ed->beginChange(tr("Delete Comments"));
-    deck::deleteAllComments(*d);
+    comments::deleteAllComments(*d);
     m_ed->endChange();
 }
 
@@ -317,7 +326,7 @@ void CommentsPane::visit(int direction)
 {
     const Document *d = m_ed->doc();
     if (!d) return;
-    const QVector<deck::CommentRef> all = deck::allComments(*d);
+    const QVector<comments::CommentRef> all = comments::allComments(*d);
     const int n = int(all.size());
     if (!n) return;
     const int here = m_ed->currentPage();
@@ -339,7 +348,7 @@ void CommentsPane::visit(int direction)
                 break;
             }
     }
-    const deck::CommentRef ref = all[target];
+    const comments::CommentRef ref = all[target];
     if (ref.slide != here) m_ed->setCurrentPage(ref.slide);
     setCurrentComment(ref.id);
 }
@@ -349,7 +358,7 @@ void CommentsPane::setCurrentComment(const QString &id)
     const Document *d = m_ed->doc();
     const int i = m_ed->currentPage();
     QString want = id;
-    if (!want.isEmpty() && !(d && i >= 0 && i < d->pages.size() && deck::findComment(*d->pages[i], want))) want.clear();
+    if (!want.isEmpty() && !(d && i >= 0 && i < d->pages.size() && comments::findComment(*d->pages[i], want))) want.clear();
     if (want == m_current) return;
     m_current = want;
     m_scrollToCurrent = !want.isEmpty();
@@ -409,7 +418,7 @@ QLabel *CommentsPane::badge(const QString &author, const QString &initials, bool
     return b;
 }
 
-QFrame *CommentsPane::buildCard(const deck::Comment &c)
+QFrame *CommentsPane::buildCard(const comments::Comment &c)
 {
     auto *card = new QFrame(m_cards);
     card->setObjectName(QStringLiteral("commentCard"));
@@ -486,7 +495,7 @@ QFrame *CommentsPane::buildCard(const deck::Comment &c)
     col->addLayout(head);
     body(col, card, c.id, c.text, "commentText");
 
-    for (const deck::CommentReply &r : c.replies) {
+    for (const comments::CommentReply &r : c.replies) {
         auto *box = new QWidget(card);
         box->setObjectName(QStringLiteral("commentReply"));
         auto *rc = new QVBoxLayout(box);
@@ -606,10 +615,10 @@ void CommentsPane::rebuild()
     }
     const Document *d = m_ed->doc();
     const int i = m_ed->currentPage();
-    const QVector<deck::Comment> list = d && i >= 0 && i < d->pages.size() ? deck::commentsOf(*d->pages[i]) : QVector<deck::Comment>();
+    const QVector<comments::Comment> list = d && i >= 0 && i < d->pages.size() ? comments::commentsOf(*d->pages[i]) : QVector<comments::Comment>();
     QSet<QString> ids;
     QFrame *currentCard = nullptr;
-    for (const deck::Comment &c : list) {
+    for (const comments::Comment &c : list) {
         QFrame *card = buildCard(c);
         m_cardsLayout->addWidget(card);
         ids << c.id;

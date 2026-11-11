@@ -1470,11 +1470,11 @@ private Q_SLOTS:
         auto d = deck::newPresentation();
         deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
         deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
-        deck::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")}, lee{QStringLiteral("Sam Lee"), QStringLiteral("SL")};
+        comments::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")}, lee{QStringLiteral("Sam Lee"), QStringLiteral("SL")};
         const QDateTime noon(QDate(2026, 10, 1), QTime(12, 0), QTimeZone::utc());
-        const QString first = deck::addComment(*d->pages[1], pat, QStringLiteral("Check\nthe numbers & <more>"), QPointF(100, 40), noon);
-        deck::addReply(*d->pages[1], first, lee, QStringLiteral("Done"), noon.addSecs(3600));
-        deck::addComment(*d->pages[1], lee, QStringLiteral("Second"), QPointF(300, 200), noon.addDays(1));
+        const QString first = comments::addComment(*d->pages[1], pat, QStringLiteral("Check\nthe numbers & <more>"), QPointF(100, 40), noon);
+        comments::addReply(*d->pages[1], first, lee, QStringLiteral("Done"), noon.addSecs(3600));
+        comments::addComment(*d->pages[1], lee, QStringLiteral("Second"), QPointF(300, 200), noon.addDays(1));
         // The footer: a date, the number, and a text.
         deck::FooterOptions footers;
         footers.date = footers.slideNumber = footers.footer = true;

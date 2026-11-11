@@ -261,7 +261,7 @@ private Q_SLOTS:
             {QStringLiteral("a comment, chosen"), [](AppWindow *aw, bool) {
                  auto *w = asDeck(aw);
                  Page &slide = *w->editor()->doc()->pages[w->editor()->currentPage()];
-                 const QString id = deck::addComment(slide, deck::CommentAuthor{QStringLiteral("Test Writer"), QStringLiteral("TW")}, QStringLiteral("A note"), QPointF(100, 100));
+                 const QString id = comments::addComment(slide, comments::CommentAuthor{QStringLiteral("Test Writer"), QStringLiteral("TW")}, QStringLiteral("A note"), QPointF(100, 100));
                  w->showComments(true);
                  w->refreshNow();
                  w->commentsPane()->setCurrentComment(id);
@@ -286,9 +286,9 @@ private Q_SLOTS:
             {QStringLiteral("two comments, the first chosen"), [](AppWindow *aw, bool) {
                  auto *w = asDeck(aw);
                  Page &slide = *w->editor()->doc()->pages[w->editor()->currentPage()];
-                 const deck::CommentAuthor who{QStringLiteral("Test Writer"), QStringLiteral("TW")};
-                 const QString first = deck::addComment(slide, who, QStringLiteral("One"), QPointF(100, 100));
-                 deck::addComment(slide, who, QStringLiteral("Two"), QPointF(200, 100));
+                 const comments::CommentAuthor who{QStringLiteral("Test Writer"), QStringLiteral("TW")};
+                 const QString first = comments::addComment(slide, who, QStringLiteral("One"), QPointF(100, 100));
+                 comments::addComment(slide, who, QStringLiteral("Two"), QPointF(200, 100));
                  w->showComments(true);
                  w->refreshNow();
                  w->commentsPane()->setCurrentComment(first);

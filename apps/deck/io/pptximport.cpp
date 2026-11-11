@@ -270,8 +270,8 @@ private:
     };
     void loadAuthors();
     bool parse(const QString &part, int number, QDomDocument *dom, QDomElement *root);
-    void readOlder(const QDomElement &root, QVector<deck::Comment> *out, const QSizeF &slide);
-    void readNewer(const QDomElement &root, QVector<deck::Comment> *out, const Page &page, const QSizeF &slide);
+    void readOlder(const QDomElement &root, QVector<comments::Comment> *out, const QSizeF &slide);
+    void readNewer(const QDomElement &root, QVector<comments::Comment> *out, const Page &page, const QSizeF &slide);
     QPointF unplaced(const QSizeF &slide);
     bool room();
     Person olderAuthor(qint64 id) const;
@@ -421,7 +421,7 @@ void CommentReader::read(const QString &slidePart, int number, Page &page, const
     loadAuthors();
     m_slide = number;
     m_unplaced = 0;
-    QVector<deck::Comment> out;
+    QVector<comments::Comment> out;
     for (const office::Relationship &rel : rels) {
         if (rel.external) continue;
         // The comments of one slide are the part of that slide: another that names it has none of its own.
@@ -437,10 +437,10 @@ void CommentReader::read(const QString &slidePart, int number, Page &page, const
         else if (office::isElement(root, kP188, QStringLiteral("cmLst"))) readNewer(root, &out, page, slide);
         else m_note(QCoreApplication::translate("PptxImport", "The comments of slide %1 can't be read: %2").arg(number).arg(QCoreApplication::translate("PptxImport", "the part is not what the file says it is")));
     }
-    deck::setComments(page, out);
+    comments::setComments(page, out);
 }
 
-void CommentReader::readOlder(const QDomElement &root, QVector<deck::Comment> *out, const QSizeF &slide)
+void CommentReader::readOlder(const QDomElement &root, QVector<comments::Comment> *out, const QSizeF &slide)
 {
     QVector<Raw> raws;
     for (const QDomElement &cm : office::children(root, office::ns::P, QStringLiteral("cm"))) {
@@ -452,7 +452,7 @@ void CommentReader::readOlder(const QDomElement &root, QVector<deck::Comment> *o
         Raw r;
         r.author = office::parseInt(office::attr(cm, QStringLiteral("authorId")), -1);
         r.idx = office::parseInt(office::attr(cm, QStringLiteral("idx")), -1);
-        r.text = deck::commentText(pChild(cm, "text").text());
+        r.text = comments::commentText(pChild(cm, "text").text());
         std::optional<qint64> bias;
         for (const QDomElement &ext : office::children(pChild(cm, "extLst"), office::ns::P, QStringLiteral("ext")))
             for (const QDomElement &e : office::children(ext)) {
@@ -505,7 +505,7 @@ void CommentReader::readOlder(const QDomElement &root, QVector<deck::Comment> *o
     for (int i = 0; i < n; ++i) {
         if (parent[i] >= 0) continue;
         const Person who = olderAuthor(raws[i].author);
-        deck::Comment c;
+        comments::Comment c;
         c.id = newId("c");
         c.author = who.name;
         c.initials = who.initials;
@@ -519,18 +519,18 @@ void CommentReader::readOlder(const QDomElement &root, QVector<deck::Comment> *o
     bool saidReplies = false;
     for (int i = 0; i < n; ++i) {
         if (parent[i] < 0) continue;
-        deck::Comment &c = (*out)[place.value(rootOf(i), first)];
+        comments::Comment &c = (*out)[place.value(rootOf(i), first)];
         if (c.replies.size() >= kMaxReplies) {
             if (!saidReplies) m_note(QCoreApplication::translate("PptxImport", "Only the first %1 replies to a comment on slide %2 are read.").arg(kMaxReplies).arg(m_slide));
             saidReplies = true;
             continue;
         }
         const Person who = olderAuthor(raws[i].author);
-        c.replies.append(deck::CommentReply{newId("r"), who.name, who.initials, raws[i].date, raws[i].text});
+        c.replies.append(comments::CommentReply{newId("r"), who.name, who.initials, raws[i].date, raws[i].text});
     }
 }
 
-void CommentReader::readNewer(const QDomElement &root, QVector<deck::Comment> *out, const Page &page, const QSizeF &slide)
+void CommentReader::readNewer(const QDomElement &root, QVector<comments::Comment> *out, const Page &page, const QSizeF &slide)
 {
     std::optional<QHash<int, QPointF>> cornerOf;
     int count = 0;
@@ -541,12 +541,12 @@ void CommentReader::readNewer(const QDomElement &root, QVector<deck::Comment> *o
         }
         if (!room()) break;
         const Person who = newerAuthor(office::attr(cm, QStringLiteral("authorId")));
-        deck::Comment c;
+        comments::Comment c;
         c.id = newId("c");
         c.author = who.name;
         c.initials = who.initials;
         c.date = commentDate(office::attr(cm, QStringLiteral("created")), std::nullopt);
-        c.text = deck::commentText(commentBody(office::child(cm, kP188, QStringLiteral("txBody"))));
+        c.text = comments::commentText(commentBody(office::child(cm, kP188, QStringLiteral("txBody"))));
         const QString status = office::attr(cm, QStringLiteral("status"));
         c.done = status == QLatin1String("resolved") || status == QLatin1String("closed");
         // A place on the slide (EMU), else the top right of the shape it is anchored to, else the corner.
@@ -580,8 +580,8 @@ void CommentReader::readNewer(const QDomElement &root, QVector<deck::Comment> *o
             }
             if (!room()) break;
             const Person by = newerAuthor(office::attr(reply, QStringLiteral("authorId")));
-            c.replies.append(deck::CommentReply{newId("r"), by.name, by.initials, commentDate(office::attr(reply, QStringLiteral("created")), std::nullopt),
-                                                deck::commentText(commentBody(office::child(reply, kP188, QStringLiteral("txBody"))))});
+            c.replies.append(comments::CommentReply{newId("r"), by.name, by.initials, commentDate(office::attr(reply, QStringLiteral("created")), std::nullopt),
+                                                comments::commentText(commentBody(office::child(reply, kP188, QStringLiteral("txBody"))))});
         }
         out->append(c);
     }

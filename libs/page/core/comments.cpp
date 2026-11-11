@@ -5,7 +5,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 
-namespace jp::deck {
+namespace jp::comments {
 
 namespace {
 
@@ -35,8 +35,10 @@ QJsonObject toJson(const Comment &c)
 {
     QJsonArray replies;
     for (const CommentReply &r : c.replies) replies.append(toJson(r));
-    return QJsonObject{{"id", c.id},     {"author", c.author}, {"initials", c.initials}, {"date", dateText(c.date)}, {"text", c.text},
-                       {"x", c.at.x()},  {"y", c.at.y()},      {"replies", replies},     {"done", c.done}};
+    QJsonObject o{{"id", c.id},     {"author", c.author}, {"initials", c.initials}, {"date", dateText(c.date)}, {"text", c.text},
+                  {"x", c.at.x()},  {"y", c.at.y()},      {"replies", replies},     {"done", c.done}};
+    if (!c.itemId.isEmpty()) o[QStringLiteral("item")] = c.itemId;
+    return o;
 }
 
 Comment fromJson(const QJsonObject &o)
@@ -50,6 +52,7 @@ Comment fromJson(const QJsonObject &o)
     c.at = QPointF(o.value(QStringLiteral("x")).toDouble(10), o.value(QStringLiteral("y")).toDouble(10));
     for (const QJsonValue &v : o.value(QStringLiteral("replies")).toArray()) c.replies.append(replyFromJson(v.toObject()));
     c.done = o.value(QStringLiteral("done")).toBool();
+    c.itemId = o.value(QStringLiteral("item")).toString();
     return c;
 }
 
@@ -126,7 +129,7 @@ std::optional<Comment> findComment(const Page &slide, const QString &id)
     return std::nullopt;
 }
 
-QString addComment(Page &slide, const CommentAuthor &who, const QString &text, const QPointF &at, const QDateTime &when)
+QString addComment(Page &slide, const CommentAuthor &who, const QString &text, const QPointF &at, const QDateTime &when, const QString &itemId)
 {
     Comment c;
     c.id = newId("c");
@@ -135,10 +138,20 @@ QString addComment(Page &slide, const CommentAuthor &who, const QString &text, c
     c.date = when.toUTC();
     c.text = commentText(text);
     c.at = at;
+    c.itemId = itemId;
     QVector<Comment> list = commentsOf(slide);
     list.append(c);
     setComments(slide, list);
     return c.id;
+}
+
+QPointF commentPlace(const Document &d, const Comment &c)
+{
+    if (c.itemId.isEmpty()) return c.at;
+    const Item *it = d.item(c.itemId);
+    if (!it) return c.at;
+    const QRectF r = it->bounds();
+    return QPointF(r.right(), r.top());
 }
 
 QString addReply(Page &slide, const QString &commentId, const CommentAuthor &who, const QString &text, const QDateTime &when)
@@ -243,4 +256,44 @@ QVector<CommentRef> allComments(const Document &d)
     return out;
 }
 
-} // namespace jp::deck
+int limitComments(Document &d)
+{
+    // (a name and its initials are a line, not a page)
+    auto tidy = [](QJsonObject &o) {
+        o[QStringLiteral("text")] = o.value(QStringLiteral("text")).toString().left(kMaxCommentText);
+        o[QStringLiteral("author")] = o.value(QStringLiteral("author")).toString().left(200);
+        o[QStringLiteral("initials")] = o.value(QStringLiteral("initials")).toString().left(8);
+    };
+    int cut = 0, total = 0;
+    for (const auto &page : d.pages) {
+        const QJsonValue v = page->props.value(kKey);
+        if (v.isUndefined()) continue;
+        QJsonArray kept;
+        for (const QJsonValue &entry : v.toArray()) {
+            if (!entry.isObject() || total >= kMaxComments) {
+                ++cut;
+                continue;
+            }
+            ++total;
+            QJsonObject o = entry.toObject();
+            tidy(o);
+            QJsonArray replies;
+            for (const QJsonValue &r : o.value(QStringLiteral("replies")).toArray()) {
+                if (!r.isObject() || replies.size() >= kMaxReplies) {
+                    ++cut;
+                    continue;
+                }
+                QJsonObject ro = r.toObject();
+                tidy(ro);
+                replies.append(ro);
+            }
+            o[QStringLiteral("replies")] = replies;
+            kept.append(o);
+        }
+        if (kept.isEmpty()) page->props.remove(kKey);
+        else page->props[kKey] = kept;
+    }
+    return cut;
+}
+
+} // namespace jp::comments

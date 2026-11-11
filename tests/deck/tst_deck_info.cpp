@@ -691,7 +691,7 @@ private Q_SLOTS:
         DeckWindow w;
         Quiet quiet(w);
         auto d = sample();
-        deck::addComment(*d->pages[1], deck::CommentAuthor{QStringLiteral("Cy"), QStringLiteral("C")}, QStringLiteral("Check this"), QPointF(10, 10));
+        comments::addComment(*d->pages[1], comments::CommentAuthor{QStringLiteral("Cy"), QStringLiteral("C")}, QStringLiteral("Check this"), QPointF(10, 10));
         d->pages[1]->hidden = true;
         auto off = std::make_shared<ShapeItem>();
         off->rect = QRectF(d->pageSize().width() + 50, 20, 80, 30);

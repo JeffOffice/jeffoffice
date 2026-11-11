@@ -47,9 +47,9 @@ void DeckWindow::createCommentActions()
     auto update = [this] {
         const Document *d = m_ed->doc();
         const int i = m_ed->currentPage();
-        const bool any = d && !deck::allComments(*d).isEmpty();
+        const bool any = d && !comments::allComments(*d).isEmpty();
         act("comment.delete")->setEnabled(!m_comments->currentComment().isEmpty());
-        act("comment.deleteSlide")->setEnabled(d && i >= 0 && i < d->pages.size() && deck::commentCount(*d->pages[i]) > 0);
+        act("comment.deleteSlide")->setEnabled(d && i >= 0 && i < d->pages.size() && comments::commentCount(*d->pages[i]) > 0);
         act("comment.deleteAll")->setEnabled(any);
         act("comment.prev")->setEnabled(any);
         act("comment.next")->setEnabled(any);
@@ -66,7 +66,7 @@ void DeckWindow::createCommentActions()
     connect(m_canvas, &DeckCanvas::commentClicked, this, [this](const QString &id) { m_comments->setCurrentComment(id); });
     // A presentation that comes with comments shows them.
     connect(m_ed, &Editor::documentReplaced, this, [this, update] {
-        if (!deck::allComments(*m_ed->doc()).isEmpty()) showComments(true);
+        if (!comments::allComments(*m_ed->doc()).isEmpty()) showComments(true);
         update();
     });
     update();
