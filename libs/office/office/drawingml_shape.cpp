@@ -4,8 +4,10 @@
 
 #include "office/drawingml.h"
 
+#include "core/barcodeitem.h"
 #include "core/shapetypes.h"
 
+#include "office/barcodemarker.h"
 #include "office/drawingml_geometry.h"
 #include "office/drawingml_style.h"
 #include "office/drawingml_styleref.h"
@@ -939,6 +941,23 @@ ItemPtr Reader::pic(const QDomElement &e, const QVector<QDomElement> &inheritsFr
     const QDomElement alpha = childNamed(blip, "alphaModFix");
     if (!alpha.isNull()) p->transparency = std::clamp(1.0 - parsePercent(attr(alpha, QStringLiteral("amt")), 1), 0.0, 1.0);
     p->takeEffects(readBlipEffects(blip, styleContext()));
+    // A barcode of ours: the picture others show, and the marker that holds its settings. It is the barcode again, in the frame the file gave it.
+    if (const QJsonObject settings = barcodeMarkerOf(cNvPr); !settings.isEmpty() && !frame.rect.isEmpty()) {
+        if (const ItemPtr code = barcodeFromSettings(settings, QPointF())) {
+            code->scaleInto(code->rect, frame.rect);
+            code->name = p->name;
+            code->altText = p->altText;
+            code->altTitle = p->altTitle;
+            code->decorative = p->decorative;
+            code->hidden = p->hidden;
+            code->hyperlink = p->hyperlink;
+            code->lockAspect = p->lockAspect;
+            code->sourceId = p->sourceId;
+            code->wrap.mode = Wrap::None;
+            remember(cNvPr, code);
+            return code;
+        }
+    }
     remember(cNvPr, p);
     return p;
 }

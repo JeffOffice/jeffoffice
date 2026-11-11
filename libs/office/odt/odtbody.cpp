@@ -1,6 +1,7 @@
 // OpenDocument text to .docx: the body (paragraphs, lists, tables, sections, and what is in a line of text).
 
 #include "odt/odtread.h"
+#include "office/barcodemarker.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -191,7 +192,13 @@ QByteArray Reader::anchorXml(const Odf &o, int frame, const QString &styleName, 
         const int d = o.child(frame, "svg:desc");
         return d >= 0 ? o.tree().text(d) : QString();
     }();
-    QByteArray docPr = "<wp:docPr id=\"" + num(docPrId) + "\" name=\"" + esc(name.isEmpty() ? QStringLiteral("Object %1").arg(docPrId) : name) + "\"" + (desc.isEmpty() ? QByteArray() : " descr=\"" + esc(desc) + "\"") + "/>";
+    // A picture frame with the marker of a barcode of ours keeps its settings in the drawing's properties (office/barcodemarker.h).
+    QByteArray marker;
+    if (graphic.contains("<pic:pic>"))
+        if (const int jo = o.tree().namespaceId("urn:jeffoffice:names:extension:1.0"); jo >= 0)
+            if (const QJsonObject settings = barcodeOdfSettings(o.tree().attr(frame, "barcode", jo)); !settings.isEmpty()) marker = barcodeMarkerXml(settings);
+    QByteArray docPr = "<wp:docPr id=\"" + num(docPrId) + "\" name=\"" + esc(name.isEmpty() ? QStringLiteral("Object %1").arg(docPrId) : name) + "\"" + (desc.isEmpty() ? QByteArray() : " descr=\"" + esc(desc) + "\"") +
+                       (marker.isEmpty() ? QByteArray("/>") : ">" + marker + "</wp:docPr>");
     const QString anchorType = o.at(frame, "text:anchor-type");
     if (anchorType == QLatin1String("as-char") || anchorType.isEmpty()) {
         return "<w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"" + num(cx) + "\" cy=\"" + num(cy) + "\"/><wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>" +

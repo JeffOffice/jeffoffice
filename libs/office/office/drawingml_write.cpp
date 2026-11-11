@@ -3,6 +3,8 @@
 // (drawingml_write_util.h) are beside this.
 
 #include "office/drawingml_write.h"
+#include "office/barcodemarker.h"
+#include "core/barcodeitem.h"
 
 #include "core/shapetypes.h"
 #include "office/drawingml_geometry.h"
@@ -12,6 +14,7 @@
 #include "render/shapes.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QXmlStreamReader>
 #include <QTextDocument>
 #include <algorithm>
@@ -503,6 +506,7 @@ void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &f
         w.writeEndElement();
     }
     if (it.decorative) writeDecorative(w);
+    else if (!ctx.barcode.isEmpty()) writeBarcodeMarker(w, ctx.barcode);
     w.writeEndElement();
 }
 
@@ -961,6 +965,41 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
     w.writeEndElement();
 }
 
+// A barcode (a group of its quiet zone and bars) as a picture: the SVG, with a PNG beside it, and the marker with its settings in the picture's properties.
+// False when there is no picture to write (the group is written as the shapes it is).
+bool writeBarcode(QXmlStreamWriter &w, const GroupItem &g, DrawingWriteContext &ctx, QStringList *skipped)
+{
+    const QByteArray svg = barcodeSvg(g);
+    const QRectF frame = g.bounds();
+    if (svg.isEmpty() || frame.isEmpty()) return false;
+    PictureItem p;
+    p.id = g.id;
+    p.sourceId = g.sourceId;
+    p.name = g.name;
+    p.altText = g.altText;
+    p.altTitle = g.altTitle;
+    p.hidden = g.hidden;
+    p.hyperlink = g.hyperlink;
+    p.rect = frame;
+    p.imgRect = QRectF(QPointF(0, 0), frame.size());
+    p.lockAspect = g.lockAspect;
+    const QString image = QStringLiteral("barcode:") + QString::fromLatin1(QCryptographicHash::hash(svg, QCryptographicHash::Sha1).toHex());
+    p.imageId = image;
+    const auto bytes = ctx.imageBytes;
+    ctx.imageBytes = [&](const QString &id, QString *format) {
+        if (id == image) {
+            if (format) *format = QStringLiteral("svg");
+            return svg;
+        }
+        return bytes ? bytes(id, format) : QByteArray();
+    };
+    ctx.barcode = g.barcode;
+    writePicture(w, p, ctx, skipped);
+    ctx.barcode = QJsonObject();
+    ctx.imageBytes = bytes;
+    return true;
+}
+
 // How many connection points the standard gives an object's shape (the
 // counterpart of how a connector is read): four on the sides of a rectangle,
 // eight round an ellipse, and none for a shape whose points aren't known here.
@@ -1305,6 +1344,7 @@ void writeShape(QXmlStreamWriter &w, const Item &item, DrawingWriteContext &ctx,
         writeConnector(w, static_cast<const LineItem &>(item), ctx);
         break;
     case ItemType::Group:
+        if (isBarcodeItem(&item) && writeBarcode(w, static_cast<const GroupItem &>(item), ctx, skipped)) break;
         writeGroup(w, static_cast<const GroupItem &>(item), ctx, skipped);
         break;
     case ItemType::Table:

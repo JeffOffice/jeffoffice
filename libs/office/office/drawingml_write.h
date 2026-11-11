@@ -12,6 +12,7 @@
 #include "office/theme.h"
 
 #include <QHash>
+#include <QJsonObject>
 #include <QSet>
 #include <QXmlStreamWriter>
 #include <functional>
@@ -74,6 +75,8 @@ struct DrawingWriteContext {
     std::function<QString(const Item &)> rawFrame;
     // What the theme being written says its styles are, made when the first shape with a style reference asks (see writeLook).
     std::shared_ptr<StyleResolver> styles;
+    // The settings of the barcode being written as a picture: its identity gets the marker that keeps it a barcode (office/barcodemarker.h).
+    QJsonObject barcode;
 };
 
 // Gives each object of a shape tree its number before any is written, in the

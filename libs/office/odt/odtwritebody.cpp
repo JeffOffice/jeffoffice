@@ -3,6 +3,7 @@
 #include "odt/odtwrite.h"
 
 #include "core/fonts.h"
+#include "office/barcodemarker.h"
 
 #include <QCoreApplication>
 #include <QFileInfo>
@@ -777,6 +778,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     // The size, the name, and what it holds.
     qint64 cx = 914400, cy = 914400;
     QString name, descr;
+    QJsonObject barcodeSettings;
     int blip = -1, txbx = -1;
     {
         const int ext = t.child(anchor, "extent", wp);
@@ -788,6 +790,15 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         if (dp >= 0) {
             name = t.attr(dp, "name");
             descr = t.attr(dp, "descr");
+            // The marker of a barcode of ours (office/barcodemarker.h) is kept in an attribute of the frame.
+            if (const int marked = t.namespaceId(kBarcodeNamespace); marked >= 0) {
+                QVector<int> inside{dp};
+                for (int guard = 0; !inside.isEmpty() && guard < 64 && barcodeSettings.isEmpty(); ++guard) {
+                    const int n = inside.takeLast();
+                    if (t.is(n, "barcode", marked)) barcodeSettings = barcodeSettingsFromText(t.attr(n, "settings"));
+                    for (int k = t.firstChild(n); k >= 0; k = t.next(k)) inside.push_back(k);
+                }
+            }
         }
     }
     {
@@ -914,6 +925,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         }
         for (auto it = pr.constBegin(); it != pr.constEnd(); ++it) boxProps += " " + it.key() + "=\"" + it.value() + "\"";
     }
+    if (blip >= 0 && !barcodeSettings.isEmpty()) frameAttrs += " xmlns:jo=\"urn:jeffoffice:names:extension:1.0\" jo:barcode=\"" + esc(barcodeSettingsText(barcodeSettings)) + "\"";
     const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"" + QByteArray(blip >= 0 ? "Graphics" : "Frame") + "\"", "<style:graphic-properties" + gp + boxProps + "/>");
     QByteArray x = "<draw:frame draw:style-name=\"" + esc(style) + "\"" + frameAttrs + " svg:width=\"" + emuLength(cx) + "\"";
     if (blip >= 0) {
