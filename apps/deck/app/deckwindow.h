@@ -299,6 +299,8 @@ public:
     PageAccessibilityPane *accessibilityPane() const { return m_accessPane; }
     office::PackageProps properties() const;
     void applyProperties(const office::PackageProps &edited);
+    // Takes the personal information out of the properties, and keeps it out (a later change of a property does not name the person again). How many names were there.
+    int removePersonalInformation();
     bool markedAsFinal() const;
     QString markFinalBlocked() const;
     void setMarkedFinal(bool on);

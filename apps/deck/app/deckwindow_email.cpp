@@ -8,6 +8,7 @@
 #include "app/notespane.h"
 #include "app/pdfprotection.h"
 #include "app/plaintext.h"
+#include "app/privacy.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
 #include "io/crypto.h"
@@ -46,7 +47,8 @@ bool DeckWindow::exportEmail(EmailWhat what, const PdfProtection &protect)
             const QString path = dir.filePath(QStringLiteral("presentation.pptx"));
             QStringList skipped;
             // (a presentation with a password stays locked with it; the password is never in the message)
-            if (deck::saveAnyPresentationFile(*m_ed->doc(), path, &err, &skipped, Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool(), m_fileProtected ? m_filePassword : QString())) {
+            if (deck::saveAnyPresentationFile(*m_ed->doc(), path, &err, &skipped, Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool(), m_fileProtected ? m_filePassword : QString(),
+                                           privacy::removeOnSave())) {
                 QFile f(path);
                 if (f.open(QIODevice::ReadOnly)) bytes = f.readAll();
             }

@@ -6,6 +6,7 @@
 #include "app/appfuncs.h"
 #include "app/editor.h"
 #include "app/mainwindow.h"
+#include "app/privacy.h"
 #include "io/jpubfile.h"
 #include "io/zip.h"
 #include "office/officecrypt.h"
@@ -102,6 +103,7 @@ bool packForPrinter(MainWindow *win, const QString &dir, QString *error)
         return false;
     }
     QString err;
+    if (privacy::removeOnSave()) win->removePersonalInformation();
     if (!savePublication(*ed->doc(), base + ".jpub", win->pageThumbnail(0, 256), &err, true, QString(), win->filePassword())) {
         if (error) *error = QCoreApplication::translate("Sharing", "JeffPub couldn't save the publication in %1.\n%2").arg(QDir::toNativeSeparators(dir), err);
         return false;

@@ -10,10 +10,17 @@
 #include "office/packageprops.h"
 #include "../settingguard.h"
 
+#include "io/zip.h"
+#include "app/settings.h"
+
 #include <QBuffer>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QScopeGuard>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMessageBox>
+#include <QCheckBox>
 #include <QPushButton>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -144,6 +151,64 @@ private Q_SLOTS:
         QCOMPARE(q.custom.first().value, QStringLiteral("1234"));
         QVERIFY(q.created.isValid());
         QVERIFY(q.modified.isValid());
+    }
+
+    // The option takes the names out of the file as it is saved, in a .jpub and in a .pub, and nothing the file says: all of the file but its properties is as it is saved without the option.
+    void thePrivacyOptionTakesTheNamesOutOfTheFileAndKeepsTheContent()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::MainWindow a;
+        Quiet quiet(a);
+        office::PackageProps p = a.properties();
+        p.title = QStringLiteral("Spring flyer");
+        p.creator = QStringLiteral("Ann Lee");
+        p.lastModifiedBy = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        p.manager = QStringLiteral("Bo Ray");
+        a.applyProperties(p);
+        auto document = [&](const QString &name) {
+            QMap<QString, QByteArray> parts;
+            QFile f(dir.filePath(name));
+            if (!f.open(QIODevice::ReadOnly) || !jp::readZip(f.readAll(), parts)) return QJsonObject();
+            return QJsonDocument::fromJson(parts.value(QStringLiteral("document.json"))).object();
+        };
+        jp::Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("named.jpub")), true));
+        QCOMPARE(document(QStringLiteral("named.jpub")).value(QStringLiteral("props")).toObject().value(QStringLiteral("author")).toString(), QStringLiteral("Ann Lee"));
+        jp::Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] { jp::Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false); });
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("clean.jpub")), true));
+        QJsonObject named = document(QStringLiteral("named.jpub")), clean = document(QStringLiteral("clean.jpub"));
+        const QJsonObject props = clean.value(QStringLiteral("props")).toObject();
+        for (const char *key : {"author", "lastModifiedBy", "company", "manager"}) QVERIFY2(props.value(QLatin1String(key)).toString().isEmpty(), key);
+        QCOMPARE(props.value(QStringLiteral("title")).toString(), QStringLiteral("Spring flyer"));
+        named.remove(QStringLiteral("props"));
+        clean.remove(QStringLiteral("props"));
+        QVERIFY(!clean.isEmpty());
+        for (const QString &key : named.keys()) QVERIFY2(clean.value(key) == named.value(key), qPrintable(key));
+        QCOMPARE(clean.keys().join(QLatin1Char(',')), named.keys().join(QLatin1Char(',')));
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("clean.pub")), true));
+        jp::MainWindow b;
+        Quiet quietB(b);
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("clean.pub"))));
+        const office::PackageProps q = b.properties();
+        QVERIFY(q.creator.isEmpty() && q.lastModifiedBy.isEmpty() && q.company.isEmpty() && q.manager.isEmpty());
+        QCOMPARE(b.editor()->doc()->pages.size(), a.editor()->doc()->pages.size());
+    }
+
+    void theInfoPageHasTheBoxForThePrivacyOption()
+    {
+        jp::MainWindow w;
+        std::unique_ptr<QWidget> page(w.buildInfoPage(nullptr));
+        auto *box = page->findChild<QCheckBox *>(QStringLiteral("infoRemovePersonal"));
+        QVERIFY(box);
+        QCOMPARE(box->text(), QStringLiteral("Remove personal information from this file when saving"));
+        jp::Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+        QVERIFY(!box->isChecked());
+        box->setChecked(true);
+        QVERIFY(jp::Settings::get().value(QStringLiteral("privacy/removeOnSave")).toBool());
+        jp::Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
     }
 
     // The command that was Properties is Info, as in the other apps, and opens the Info page.

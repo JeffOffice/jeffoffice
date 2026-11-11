@@ -6,6 +6,7 @@
 #include "app/optionsdialog.h"
 #include "app/editor.h"
 #include "app/icons.h"
+#include "app/privacy.h"
 #include "app/settings.h"
 #include "app/widgets.h"
 #include "core/presets.h"
@@ -1340,7 +1341,7 @@ void optionsDialog(QWidget *p, Editor *ed)
         QComboBox *units = nullptr;
         MeasureSpin *nudge = nullptr;
         QSpinBox *recent = nullptr;
-        QCheckBox *wholeWord = nullptr, *dragText = nullptr, *hyphenate = nullptr;
+        QCheckBox *wholeWord = nullptr, *dragText = nullptr, *hyphenate = nullptr, *privacy = nullptr;
     };
     auto f = std::make_shared<Fields>();
     QVector<OptionsPage> pages;
@@ -1354,9 +1355,12 @@ void optionsDialog(QWidget *p, Editor *ed)
         recover->setSuffix(QCoreApplication::translate("Dialogs", " minutes"));
         sf->addRow(QCoreApplication::translate("Dialogs", "Save automatic recovery information every:"), recover);
         f->recover = recover;
+        f->privacy = privacy::makeOption(save, QStringLiteral("removePersonalOnSave"));
+        sf->addRow(f->privacy);
         return save;
     }, [&st, f] {
         st.setValue("save/autoRecoverMinutes", f->recover->value());
+        privacy::setRemoveOnSave(f->privacy->isChecked());
     }};
     pages << OptionsPage{QCoreApplication::translate("Dialogs", "Advanced"), [&st, f] {
         auto *adv = new QWidget();

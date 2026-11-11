@@ -11,6 +11,7 @@
 #include "io/crypto.h"
 #include "io/jpubfile.h"
 #include "office/officecrypt.h"
+#include "office/privacy.h"
 
 #include <QDateTime>
 #include <QFileInfo>
@@ -52,6 +53,15 @@ void MainWindow::applyProperties(const office::PackageProps &edited)
     if (!p.created.isValid()) p.created = p.modified;
     m_ed->change(tr("Properties"), [&] { d->props.setFromPackageProps(p); });
     updateTitle();
+}
+
+int MainWindow::removePersonalInformation()
+{
+    office::PackageProps p = properties();
+    const int n = office::removePersonalNames(p);
+    m_personalInfoRemoved = true;
+    if (n > 0) applyProperties(p);
+    return n;
 }
 
 bool MainWindow::markedAsFinal() const
@@ -207,18 +217,7 @@ QVector<InspectItem> MainWindow::inspectItems()
                              if (!s.isEmpty()) ++n;
                          return n;
                      },
-                     [this] {
-                         office::PackageProps p = properties();
-                         int n = 0;
-                         for (QString *s : {&p.creator, &p.lastModifiedBy, &p.company, &p.manager})
-                             if (!s->isEmpty()) {
-                                 s->clear();
-                                 ++n;
-                             }
-                         m_personalInfoRemoved = true;
-                         if (n > 0) applyProperties(p);
-                         return n;
-                     },
+                     [this] { return removePersonalInformation(); },
                      true, QString()});
     items.push_back({tr("Business information"), tr("The names, addresses, phone numbers, and other contact details kept in the publication for Business Information fields."),
                      [ed] {

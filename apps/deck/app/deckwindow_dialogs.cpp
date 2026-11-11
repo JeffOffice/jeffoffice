@@ -8,6 +8,7 @@
 #include "app/editor.h"
 #include "app/optionsdialog.h"
 #include "app/proofingdialogs.h"
+#include "app/privacy.h"
 #include "app/settings.h"
 #include "app/notespane.h"
 #include "app/textdialogs.h"
@@ -123,7 +124,7 @@ void DeckWindow::createDialogActions()
     // sets how every window opens (and the open ones, now).
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] {
         struct Fields {
-            QCheckBox *ruler = nullptr, *snap = nullptr, *embedFonts = nullptr;
+            QCheckBox *ruler = nullptr, *snap = nullptr, *embedFonts = nullptr, *removePersonal = nullptr;
         };
         auto f = std::make_shared<Fields>();
         QVector<OptionsPage> pages;
@@ -165,9 +166,14 @@ void DeckWindow::createDialogActions()
             f->embedFonts->setAccessibleDescription(about);
             f->embedFonts->setChecked(Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool());
             column->addWidget(f->embedFonts);
+            f->removePersonal = privacy::makeOption(page, QStringLiteral("removePersonalOnSave"));
+            column->addWidget(f->removePersonal);
             column->addStretch(1);
             return page;
-        }, [f] { Settings::get().setValue(QStringLiteral("save/embedFonts"), f->embedFonts->isChecked()); }};
+        }, [f] {
+            Settings::get().setValue(QStringLiteral("save/embedFonts"), f->embedFonts->isChecked());
+            privacy::setRemoveOnSave(f->removePersonal->isChecked());
+        }};
         optionsDialog(this, m_ed, pages);
     });
 

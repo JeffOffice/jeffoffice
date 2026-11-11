@@ -21,6 +21,7 @@
 #include "io/pptximport.h"
 #include "io/presentationfile.h"
 #include "office/officecrypt.h"
+#include "office/privacy.h"
 #include "office/package.h"
 
 #include <QApplication>
@@ -63,6 +64,15 @@ void DeckWindow::applyProperties(const office::PackageProps &edited)
     if (!p.created.isValid()) p.created = p.modified;
     m_ed->change(tr("Properties"), [&] { d->props.setFromPackageProps(p); });
     updateTitle();
+}
+
+int DeckWindow::removePersonalInformation()
+{
+    office::PackageProps p = properties();
+    const int n = office::removePersonalNames(p);
+    m_personalInfoRemoved = true;
+    if (n > 0) applyProperties(p);
+    return n;
 }
 
 bool DeckWindow::markedAsFinal() const
@@ -234,18 +244,7 @@ QVector<InspectItem> DeckWindow::inspectItems()
                              if (!s.isEmpty()) ++n;
                          return n;
                      },
-                     [this] {
-                         office::PackageProps p = properties();
-                         int n = 0;
-                         for (QString *s : {&p.creator, &p.lastModifiedBy, &p.company, &p.manager})
-                             if (!s->isEmpty()) {
-                                 s->clear();
-                                 ++n;
-                             }
-                         m_personalInfoRemoved = true;
-                         if (n > 0) applyProperties(p);
-                         return n;
-                     },
+                     [this] { return removePersonalInformation(); },
                      true, QString()});
     items.push_back({tr("Hidden slides"), tr("Slides that are set to be hidden: the slide show skips them, but they are in the file. Show them to see what they hold."),
                      [doc] {

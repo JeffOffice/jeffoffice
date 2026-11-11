@@ -103,6 +103,8 @@ public:
     QWidget *buildInfoPage(QWidget *parent);
     office::PackageProps properties() const;
     void applyProperties(const office::PackageProps &edited);
+    // Takes the personal information out of the properties, and keeps it out (a later change of a property does not name the person again). How many names were there.
+    int removePersonalInformation();
     bool markedAsFinal() const;
     QString markFinalBlocked() const;
     // Whether the file asks for a password when it is opened (it was opened with one, or Encrypt with Password was used); the password is put on when the publication is saved. Only a .jpub file

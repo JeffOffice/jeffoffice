@@ -12,6 +12,7 @@
 #include "app/notespane.h"
 #include "app/outlineview.h"
 #include "app/recovery.h"
+#include "app/privacy.h"
 #include "app/settings.h"
 #include "app/telemetry.h"
 #include "canvas/canvas.h"
@@ -154,7 +155,8 @@ bool DeckWindow::saveAsTemplate()
     QString err;
     QStringList skipped;
     // (a template of a presentation that asks for a password asks for it too)
-    if (!deck::saveAnyPresentationFile(*m_ed->doc(), path, &err, &skipped, Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool(), m_fileProtected ? m_filePassword : QString())) {
+    if (!deck::saveAnyPresentationFile(*m_ed->doc(), path, &err, &skipped, Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool(), m_fileProtected ? m_filePassword : QString(),
+                                       privacy::removeOnSave())) {
         jp::plainWarning(this, tr("Save as Template"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
@@ -190,6 +192,9 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     m_ed->endCrop(true);   // what is written is a step, and a crop still going on is not yet
+    // Options > Save > Remove personal information: the names in the properties are taken out (and stay out), and the file's parts lose the names and initials on comments as it is written.
+    const bool namesOut = privacy::removeOnSave();
+    if (namesOut) removePersonalInformation();
     Document *doc = m_ed->doc();
     // The mark that a presentation is final is a property a .odp file does not keep: said, so that the window and the file do not disagree.
     if (odf && markedAsFinal()) {
@@ -206,11 +211,11 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
         }
     });
     doc->props.modified = QDateTime::currentDateTime();
-    if (doc->props.author.isEmpty()) doc->props.author = Settings::get().userName();
+    if (doc->props.author.isEmpty() && !m_personalInfoRemoved) doc->props.author = Settings::get().userName();
     QString err;
     QStringList skipped;
     if (!backupBeforeSave(this, path, m_fileProtected ? m_filePassword : QString())) return false;
-    if (!deck::saveAnyPresentationFile(*doc, path, &err, &skipped, embedFontsOnSave(), m_fileProtected ? m_filePassword : QString())) {
+    if (!deck::saveAnyPresentationFile(*doc, path, &err, &skipped, embedFontsOnSave(), m_fileProtected ? m_filePassword : QString(), namesOut)) {
         jp::plainWarning(this, tr("Save"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }

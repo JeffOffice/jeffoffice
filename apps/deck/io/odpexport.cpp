@@ -11,6 +11,7 @@
 #include "render/renderer.h"
 #include "text/textprops.h"
 
+#include "office/privacy.h"
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QDateTime>
@@ -1062,7 +1063,7 @@ QByteArray exportOdp(const Document &doc, bool asTemplate, QString *error, QStri
     return odpw::Exporter(doc, asTemplate, skipped).run(error);
 }
 
-bool saveOdpFile(const Document &doc, const QString &path, QString *error, QStringList *skipped)
+bool saveOdpFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool removePersonal)
 {
     auto fail = [&](const QString &why) {
         if (error) *error = why;
@@ -1070,8 +1071,9 @@ bool saveOdpFile(const Document &doc, const QString &path, QString *error, QStri
     };
     if (path.isEmpty()) return fail(QCoreApplication::translate("OdpExport", "There's no file name to save to."));
     const bool asTemplate = path.endsWith(QLatin1String(".otp"), Qt::CaseInsensitive);
-    const QByteArray bytes = exportOdp(doc, asTemplate, error, skipped);
+    QByteArray bytes = exportOdp(doc, asTemplate, error, skipped);
     if (bytes.isEmpty()) return false;
+    if (removePersonal) bytes = office::removePersonalFromPackage(bytes);
     // The old file stays whole until the new one is complete.
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly)) return fail(file.errorString());

@@ -11,10 +11,17 @@
 #include "office/officecrypt.h"
 #include "office/packageprops.h"
 
+#include "core/comments.h"
+#include "io/zip.h"
+#include "app/settings.h"
+
 #include <QBuffer>
+#include <QScopeGuard>
 #include <QDirIterator>
 #include <QListWidget>
+#include <QCheckBox>
 #include <QTemporaryDir>
+#include <memory>
 
 namespace {
 
@@ -487,6 +494,62 @@ private Q_SLOTS:
         QVERIFY(c2.openFile(dir.filePath(QStringLiteral("p.pptx"))));
         QCOMPARE(c2.properties().custom.size(), 1);
         QCOMPARE(c2.properties().manager, QStringLiteral("Bo"));
+    }
+
+    // The option takes every name out of the file, and nothing the file says: comment authors and initials as well as the properties; the slides, notes, and comment texts are as they were.
+    void thePrivacyOptionTakesTheNamesOutOfTheFileAndKeepsTheContent()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), true);
+        const auto reset = qScopeGuard([] { Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false); });
+        QTemporaryDir dir;
+        DeckWindow a;
+        Quiet quiet(a);
+        auto d = sample();
+        deck::addComment(*d->pages[1], deck::CommentAuthor{QStringLiteral("Cy Mox"), QStringLiteral("CM")}, QStringLiteral("Check this"), QPointF(10, 10));
+        a.editor()->setDocument(std::move(d));
+        office::PackageProps p = a.properties();
+        p.creator = QStringLiteral("Ann Lee");
+        p.lastModifiedBy = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        p.manager = QStringLiteral("Bo Ray");
+        a.applyProperties(p);
+        const int slides = int(a.editor()->doc()->pages.size());
+        for (const char *name : {"p.pptx", "p.odp"}) {
+            QVERIFY(a.saveTo(dir.filePath(QString::fromLatin1(name)), true));
+            // Not one name in any part of the file.
+            QMap<QString, QByteArray> parts;
+            QVERIFY(readZip(fileBytes(dir.filePath(QString::fromLatin1(name))), parts));
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+                for (const char *who : {"Ann Lee", "Acme", "Bo Ray", "Cy Mox"})
+                    QVERIFY2(!it.value().contains(who), qPrintable(QString::fromLatin1(name) + QLatin1Char(' ') + it.key() + QStringLiteral(": ") + QString::fromLatin1(who)));
+        }
+        DeckWindow b;
+        Quiet quietB(b);
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("p.pptx"))));
+        const office::PackageProps q = b.properties();
+        QVERIFY(q.creator.isEmpty() && q.lastModifiedBy.isEmpty() && q.company.isEmpty() && q.manager.isEmpty());
+        QCOMPARE(q.title, QStringLiteral("Sample"));
+        QCOMPARE(int(b.editor()->doc()->pages.size()), slides);
+        const QVector<deck::Comment> comments = deck::commentsOf(*b.editor()->doc()->pages[1]);
+        QCOMPARE(comments.size(), 1);
+        QCOMPARE(comments[0].text, QStringLiteral("Check this"));
+        QVERIFY(comments[0].author != QStringLiteral("Cy Mox"));
+        QVERIFY(comments[0].initials != QStringLiteral("CM"));
+        QCOMPARE(deck::notesText(*b.editor()->doc(), *b.editor()->doc()->pages[0]), QStringLiteral("Say hello first"));
+    }
+
+    void theInfoPageHasTheBoxForThePrivacyOption()
+    {
+        DeckWindow w;
+        std::unique_ptr<QWidget> page(w.buildInfoPage(nullptr));
+        auto *box = page->findChild<QCheckBox *>(QStringLiteral("infoRemovePersonal"));
+        QVERIFY(box);
+        QCOMPARE(box->text(), QStringLiteral("Remove personal information from this file when saving"));
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+        QVERIFY(!box->isChecked());
+        box->setChecked(true);
+        QVERIFY(Settings::get().value(QStringLiteral("privacy/removeOnSave")).toBool());
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
     }
 
     void markedAsFinalOpensForReadingOnly()
