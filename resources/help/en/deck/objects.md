@@ -1,5 +1,5 @@
 # Shapes, pictures, tables, and Text Art
-<!-- keywords: selection pane, hide object, rename object, object name, shapes, lines, arrows, connectors, curves, freeform, scribble, pictures, images, insert picture, online pictures, openverse, wikimedia commons, credit, license, alt text, icons, svg, table, grid, rows, columns, text art, chart, diagram, equation, movie, video, sound, audio, play, playback, poster, speaker, control bar, trim, loop, volume, mute, full screen, group, arrange, front, back, rotate, flip, fill, outline, select, move, resize, drag and drop, picture colors, brightness, contrast, gray, black and white, duotone, recolor, transparent color, crop, crop to shape, aspect ratio, fit, clear crop, picture format, handles, table design, table layout, merge cells, split cells, borders, shading, table style, style options, header row, total row, banded rows, first column, last column, insert row, delete row, insert column, delete column, distribute, row height, column width, cell margins, text direction, align -->
+<!-- keywords: selection pane, hide object, rename object, object name, shapes, lines, arrows, connectors, curves, freeform, scribble, pictures, images, insert picture, online pictures, openverse, wikimedia commons, credit, license, alt text, icons, svg, table, grid, rows, columns, text art, chart, diagram, equation, movie, video, sound, audio, play, playback, poster, speaker, control bar, trim, loop, volume, mute, full screen, group, arrange, front, back, rotate, flip, fill, outline, select, move, resize, drag and drop, picture colors, brightness, contrast, gray, black and white, duotone, recolor, transparent color, crop, crop to shape, aspect ratio, fit, clear crop, picture format, handles, table design, table layout, merge cells, split cells, borders, shading, table style, style options, header row, total row, banded rows, first column, last column, insert row, delete row, insert column, delete column, distribute, row height, column width, cell margins, text direction, align, barcode, QR code -->
 
 Besides text, a slide can hold shapes, pictures, and tables. This topic shows how to add them and what JeffDeck does with other kinds of objects.
 
@@ -60,6 +60,18 @@ An **icon** is a simple picture, like a heart, an arrow, or an envelope. JeffDec
 4. Click **Insert** (or double-click an icon).
 
 Each icon goes on the slide as a picture one inch square, in the middle. Several icons go side by side. They are drawn in the theme's text color. Icons are SVG pictures. That means they stay sharp when you make them bigger. You can move, resize, and turn them like any picture. When you save, each icon is saved as a picture and as an SVG, so other programs that draw SVG keep it sharp too.
+
+## Add a barcode
+
+A **barcode** is a pattern of bars that a scanner reads. JeffDeck makes book ISBNs (with or without a price), EAN-13, UPC-A, EAN-8, Code 128, Code 39, and QR codes. A QR code holds any text, such as a web address, so people can point a phone at the slide.
+
+1. Click **Insert > Illustrations > Barcode**.
+2. Choose a **Type** and type the text or digits. The window shows the barcode as you type, and says in red what is wrong if it can't be made (a number with a wrong check digit, for example).
+3. Click **Insert**.
+
+The barcode goes in the middle of the slide as one object. Drag it to move it, and drag a corner to resize it; keep it large enough to scan, and keep **White background** on, because a scanner needs the clear space around the bars. To change it, double-click it (or select it and click **Barcode** again), change the text, and click **Update**. The change is one step you can undo.
+
+When you save, the barcode is saved as a picture, with an SVG that stays sharp, so every program shows it. JeffDeck also keeps the barcode's settings in the file, so when you open the file in JeffDeck again, it is a barcode you can still edit. In other programs it is an ordinary picture.
 
 ## Add Text Art
 

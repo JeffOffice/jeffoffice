@@ -30,7 +30,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Free and open source (GPL-3.0): no license fee, subscription, or account
 - [x] **1.0** Installs without administrator rights, or runs with no installation at all (the Windows `.zip` and the Linux AppImage)
 - [x] **1.0** An open file format: a `.jpub` publication is a ZIP of readable JSON and the original pictures, [fully documented](../jpub-format.md), alongside opening and saving `.pub`
-- [x] **1.0** Barcodes: book ISBNs with or without a price add-on (hyphenated as the ISBN agency assigns them, for every country), EAN-13, UPC-A and EAN-8 with add-ons, and Code 128 and Code 39, drawn as vector bars and editable after placing
+- [x] **1.0** Barcodes: book ISBNs with or without a price add-on (hyphenated as the ISBN agency assigns them, for every country), EAN-13, UPC-A and EAN-8 with add-ons, Code 128, Code 39, and QR codes, drawn as vector bars and editable after placing
 - [x] **1.0** WebP and SVG pictures
 - [x] **1.0** **(alt)** PDF pages as pictures: Insert Picture takes a PDF (choose the page from pictures of them all); it shows as PDFium draws it, and prints and exports to PDF and SVG as sharp vectors, its text as letter outlines *(each page's vector drawing is checked against PDFium's own, and wherever they differ (hidden layers, blending, a letter whose outline can't be found) that part comes from a 300 dpi picture instead; saved to `.pub` as a picture, since Publisher takes no PDFs)*
 - [x] **1.0** Open a PDF that has a password when placing it as a picture: the password is asked for, a wrong one asks again, and Cancel stops *(shared: the password box of the File screen; the page kept in the publication needs no password)*

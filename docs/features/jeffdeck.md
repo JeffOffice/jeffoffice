@@ -46,7 +46,7 @@ What JeffDeck offers that the original doesn't, then the plans that go past Powe
 - [ ] **later** A self-contained web page of the slides, with the transitions and click steps, that plays in any browser
 - [ ] **later** **(alt)** Present on the local network: the audience opens a link in a browser on the same network and follows the show, with no account, in place of Present Online and Broadcast (see the open questions)
 - [ ] **later** **(alt)** Live captions in the show from speech recognition that runs on your own computer, in place of the original's online subtitles (model size and license to check)
-- [~] **1.0** A QR code or barcode put on a slide as a vector picture *(shared: libs/base/core barcode; no command in JeffDeck yet)*
+- [x] **1.0** A QR code or barcode put on a slide as a vector picture *(shared: libs/base/core barcode, libs/shell/app barcodedialog, and the marker in docs/barcode-marker.md)* *(done November 11, 2026: Insert > Illustrations > Barcode opens the dialog JeffPub has, with the same kinds and QR codes; the barcode is one object on the slide that moves, sizes, and undoes, and a double click edits its data. Saved in a `.pptx` it is a picture with an SVG and a PNG, and in an `.odp` a picture frame, each with the settings JeffDeck reopens as the same barcode)*
 - [ ] **later** Edit with an external program: open a picture in the computer's image editor and take the changes back when it is saved
 
 ## File (backstage)
