@@ -5,6 +5,33 @@ class DeckPptxExportTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    // A table's header row is written as firstRow on its properties, and comes back on or off as it was.
+    void pptxKeepsAHeaderRowOfATable()
+    {
+        for (bool header : {true, false}) {
+            auto d = deck::newPresentation();
+            auto table = std::make_shared<jp::TableItem>();
+            table->rect = QRectF(50, 100, 200, 60);
+            table->rows = table->cols = 2;
+            table->colW = {100, 100};
+            table->rowH = {30, 30};
+            table->cells.resize(4);
+            for (jp::TableCell &cell : table->cells) cell.storyId = d->createStory(QStringLiteral("x"));
+            table->header = header;
+            d->pages[0]->items.push_back(table);
+            QString err;
+            const QByteArray bytes = deck::exportPresentation(*d, &err);
+            QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+            auto back = deck::importPresentation(bytes, &err);
+            QVERIFY2(back, qPrintable(err));
+            const jp::TableItem *found = nullptr;
+            for (const auto &it : back->pages[0]->items)
+                if (it->type() == ItemType::Table) found = static_cast<const jp::TableItem *>(it.get());
+            QVERIFY(found);
+            QCOMPARE(found->header, header);
+        }
+    }
+
     void initTestCase() { initDeckTestCase(); }
 
 private:

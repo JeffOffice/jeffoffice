@@ -867,6 +867,108 @@ private Q_SLOTS:
         QVERIFY(listed);
     }
 
+    // The fix gives the header row its look and leaves every other cell (shading, lines, text) as it was; Undo puts it all back.
+    void theFixKeepsHandFormattingOnTheOtherCells()
+    {
+        DeckWindow w;
+        Quiet quiet(w);
+        w.resize(1400, 900);
+        w.show();
+        Editor *ed = w.editor();
+        ed->setDocument(sample());
+        ed->setCurrentPage(0);
+        auto table = ed->newTable(QRectF(72, 72, 200, 90), 3, 2);
+        auto *t = static_cast<TableItem *>(table.get());
+        t->header = false;
+        ed->applyTableFormat(t, t->format);
+        // a body cell shaded and lined by hand
+        t->cell(1, 0).fill = Fill::solid(ColorRef::rgb(QColor(Qt::red)));
+        t->cell(1, 0).border.left = Stroke::line(ColorRef::rgb(QColor(Qt::blue)), 3);
+        const Fill offFill = t->cell(0, 0).fill, redFill = t->cell(1, 0).fill, bodyFill = t->cell(2, 1).fill;
+        const Stroke blue = t->cell(1, 0).border.left;
+        const QString id = t->id;
+        ed->addItem(table, false);
+        ed->clearSelection();
+        w.act(QStringLiteral("review.accessibility"))->trigger();
+        PageAccessibilityPane *pane = w.accessibilityPane();
+        QVERIFY(pane);
+        int row = -1;
+        for (int i = 0; i < pane->list()->count(); ++i)
+            if (pane->list()->item(i)->text().contains(QLatin1String("header row"))) row = i;
+        QVERIFY(row >= 0);
+        pane->list()->setCurrentRow(row);
+        const int before = ed->undoStack()->index();
+        pane->findChild<QPushButton *>(QStringLiteral("accessFix"))->click();
+        QCOMPARE(ed->undoStack()->index(), before + 1);
+        auto *now = static_cast<TableItem *>(ed->doc()->item(id));
+        QVERIFY(now->header);
+        // the header row has its look, and every other cell is as it was
+        QVERIFY(!(now->cell(0, 0).fill == offFill));
+        QVERIFY(now->cell(1, 0).fill == redFill);
+        QVERIFY(now->cell(1, 0).border.left == blue);
+        QVERIFY(now->cell(2, 1).fill == bodyFill);
+        ed->undoStack()->undo();
+        now = static_cast<TableItem *>(ed->doc()->item(id));
+        QVERIFY(!now->header);
+        QVERIFY(now->cell(0, 0).fill == offFill);
+        QVERIFY(now->cell(1, 0).fill == redFill);
+        QVERIFY(now->cell(1, 0).border.left == blue);
+        QVERIFY(now->cell(2, 1).fill == bodyFill);
+    }
+
+    // The fix gives the header row its look and leaves every other cell (shading, lines, text) as it was; Undo puts it all back.
+    void theFixKeepsHandFormattingInAPresentationTableStyle()
+    {
+        DeckWindow w;
+        Quiet quiet(w);
+        w.resize(1400, 900);
+        w.show();
+        Editor *ed = w.editor();
+        ed->setDocument(sample());
+        ed->setCurrentPage(0);
+        w.insertTable(3, 3);
+        auto *t = theTable(ed);
+        QVERIFY(t);
+        QVERIFY2(t->format.startsWith(QLatin1Char('{')), qPrintable(t->format));
+        const QString id = t->id;
+        const Fill onFill = t->cell(0, 0).fill;
+        // the header row off (one step), then a body cell shaded by hand
+        TableStyleParts parts = TableStyleParts::of(*t);
+        parts.header = false;
+        setTableStyle(ed, t, t->format, parts, w.tableStylesNow(), false);
+        QVERIFY(!t->header);
+        const Fill offFill = t->cell(0, 0).fill;
+        QVERIFY(!(offFill == onFill));
+        ed->change(QStringLiteral("shade"), [&] { t->cell(2, 1).fill = Fill::solid(ColorRef::rgb(QColor(Qt::red))); t->cell(2, 1).border.left = Stroke::line(ColorRef::rgb(QColor(Qt::blue)), 3); });
+        const Fill redFill = t->cell(2, 1).fill;
+        const Stroke blue = t->cell(2, 1).border.left;
+        ed->clearSelection();
+        w.act(QStringLiteral("review.accessibility"))->trigger();
+        PageAccessibilityPane *pane = w.accessibilityPane();
+        QVERIFY(pane);
+        int row = -1;
+        for (int i = 0; i < pane->list()->count(); ++i)
+            if (pane->list()->item(i)->text().contains(QLatin1String("header row"))) row = i;
+        QVERIFY(row >= 0);
+        pane->list()->setCurrentRow(row);
+        const int before = ed->undoStack()->index();
+        pane->findChild<QPushButton *>(QStringLiteral("accessFix"))->click();
+        QCOMPARE(ed->undoStack()->index(), before + 1);
+        auto *now = static_cast<TableItem *>(ed->doc()->item(id));
+        QVERIFY(now->header);
+        // the header row has its look, and every other cell is as it was
+        QVERIFY(!(now->cell(0, 0).fill == offFill));
+        QVERIFY(now->cell(2, 1).fill == redFill);
+        QVERIFY(now->cell(2, 1).border.left == blue);
+        QVERIFY(now->cell(0, 0).fill == onFill);
+        ed->undoStack()->undo();
+        now = static_cast<TableItem *>(ed->doc()->item(id));
+        QVERIFY(!now->header);
+        QVERIFY(now->cell(0, 0).fill == offFill);
+        QVERIFY(now->cell(2, 1).fill == redFill);
+        QVERIFY(now->cell(2, 1).border.left == blue);
+    }
+
     // Many problems are cut at the cap, and at the number asked for.
     void theTableCheckKeepsToTheCap()
     {

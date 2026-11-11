@@ -551,7 +551,16 @@ ItemPtr Reader::readTableFrame(const QDomElement &frame, const QDomElement &tabl
     t->rows = nr;
     t->cols = nc;
     t->wrap.mode = Wrap::None;
-    t->header = false;
+    // A header row: the table says its first row has the look of one, or the first row it holds is in its header rows.
+    t->header = Attrs(tableEl).get("table:use-first-row-styles") == QLatin1String("true");
+    for (QDomElement c = tableEl.firstChildElement(); !c.isNull() && !t->header; c = c.nextSiblingElement()) {
+        const QString tag = tagOf(c);
+        if (tag == QLatin1String("table:table-header-rows")) {
+            for (QDomElement r = c.firstChildElement(); !r.isNull() && !t->header; r = r.nextSiblingElement()) t->header = tagOf(r) == QLatin1String("table:table-row");
+            break;
+        }
+        if (tag == QLatin1String("table:table-row") || tag == QLatin1String("table:table-rows") || tag == QLatin1String("table:table-row-group")) break;
+    }
     t->banded = false;
     t->name = a.get("draw:name");
     const double frameW = extent(lengthOr(a.get("svg:width"), 0)), frameH = extent(lengthOr(a.get("svg:height"), 0));

@@ -235,7 +235,8 @@ public:
     bool embedPicture(const QString &pictureId);    // a stored copy in place of the link
     void linkFrames(const QString &from, const QString &to);
     void breakLink(const QString &from);
-    void applyTableFormat(TableItem *t, const QString &format);
+    // `headerRowOnly`: only the first row takes the format's header look (and the table's header flag as it is); every other cell keeps its shading, lines, and text.
+    void applyTableFormat(TableItem *t, const QString &format, bool headerRowOnly = false);
     void fitTableRows(TableItem *t);
     // A table's size typed in: the columns scale to a width and the rows to a
     // height, in proportion (0 or less leaves that size), as one change.

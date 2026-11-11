@@ -1300,9 +1300,11 @@ void Editor::resizeTable(TableItem *t, double width, double height)
     });
 }
 
-void Editor::applyTableFormat(TableItem *t, const QString &format)
+void Editor::applyTableFormat(TableItem *t, const QString &format, bool headerRowOnly)
 {
-    auto formatStory = [this](const QString &storyId, bool head, bool firstCol) {
+    const QVector<TableCell> was = headerRowOnly ? t->cells : QVector<TableCell>();
+    auto formatStory = [this, headerRowOnly](const QString &storyId, bool head, bool firstCol) {
+        if (headerRowOnly && !head) return;
         QTextDocument *d = m_doc->storyDoc(storyId);
         if (!d) return;
         QTextCursor cur(d);
@@ -1341,6 +1343,13 @@ void Editor::applyTableFormat(TableItem *t, const QString &format)
         formatStory(cell.storyId, head, firstCol);
         formatStory(cell.storyId2, head, firstCol);
     });
+    // The other rows keep what the person gave them.
+    if (headerRowOnly)
+        for (int r = 1; r < t->rows; ++r)
+            for (int c = 0; c < t->cols; ++c) {
+                t->cell(r, c).fill = was[r * t->cols + c].fill;
+                t->cell(r, c).border = was[r * t->cols + c].border;
+            }
 }
 
 // ---------- clipboard ----------

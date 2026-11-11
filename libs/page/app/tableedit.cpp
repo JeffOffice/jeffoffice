@@ -705,4 +705,26 @@ void setTableStyle(Editor *ed, TableItem *t, const QString &styleId, const Table
     ed->select(t->id);
 }
 
+void useFirstRowAsHeader(Editor *ed, TableItem *t, const TableStyles &styles)
+{
+    if (!t) return;
+    TableStyleParts parts = TableStyleParts::of(*t);
+    parts.header = true;
+    // A style the program knows gives each cell its place in it, and keeps what the person did; one of JeffPub's own formats is applied to the first row only.
+    TableItem probe;
+    probe.rows = t->rows;
+    probe.cols = t->cols;
+    office::TableStyleEffect effect;
+    if (office::tableStyleEffect(t->format, probe, styles.theme, &effect, &styles.defs)) {
+        setTableStyle(ed, t, t->format, parts, styles, false);
+        return;
+    }
+    ed->endTextEdit();
+    ed->change(QCoreApplication::translate("TableEdit", "Header Row"), [&] {
+        t->header = true;
+        if (!t->format.isEmpty() && !t->format.startsWith(QLatin1Char('{'))) ed->applyTableFormat(t, t->format, true);
+    });
+    ed->select(t->id);
+}
+
 } // namespace jp

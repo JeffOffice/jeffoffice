@@ -29,9 +29,7 @@ PageAccessibilityPane::PageAccessibilityPane(Editor *editor, bool slides, const 
         if (!item || item->type() != ItemType::Table) return;
         auto *table = static_cast<TableItem *>(item);
         m_ed->setCurrentPage(where[0].toInt());
-        TableStyleParts parts = TableStyleParts::of(*table);
-        parts.header = true;
-        setTableStyle(m_ed, table, table->format, parts, m_styles ? m_styles() : TableStyles(), false);
+        useFirstRowAsHeader(m_ed, table, m_styles ? m_styles() : TableStyles());
         recheck();
     });
 }

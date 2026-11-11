@@ -93,6 +93,9 @@ void setTableStyle(Editor *ed, TableItem *t, const QString &styleId, const Table
 // its row and column now give it (the banding goes on, a new row has the look of its neighbors in the style, a header row stays the first
 // row), except what the person did to it. Editor::tableEdited calls this for JeffDeck.
 void keepTableStyle(Editor *ed, TableItem *t, const Editor::TableEdit &edit, const TableStyles &styles);
+// Turns the table's Header Row on, for a table that has none: the first row takes the header look of the table's style, and every other cell keeps its
+// shading, lines, and text as they are. One step that undoes.
+void useFirstRowAsHeader(Editor *ed, TableItem *t, const TableStyles &styles);
 // The same without the step: for a table that is being made (not yet on the page) or inside a change of its own.
 void giveTableStyle(Editor *ed, TableItem *t, const QString &styleId, const TableStyleParts &parts, const TableStyles &styles, bool reset);
 

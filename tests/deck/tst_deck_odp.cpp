@@ -323,6 +323,51 @@ private Q_SLOTS:
         }
     }
 
+    // A table the file says has a header row (use-first-row-styles on the table, or its first row in table-header-rows) is read with its header row on; one that says neither is not.
+    void odpReadsAHeaderRowOfATable()
+    {
+        const auto headerOf = [&](const QString &attrs, const QString &rows) {
+            const QString page = QStringLiteral("<draw:page draw:name=\"p1\" draw:master-page-name=\"Default\"><draw:frame svg:width=\"7cm\" svg:height=\"2cm\" svg:x=\"1cm\" svg:y=\"1cm\"><table:table %1>"
+                                                "<table:table-column/><table:table-column/>%2</table:table></draw:frame></draw:page>").arg(attrs, rows);
+            QString err;
+            auto d = deck::importOdp(odptest::odpZip(odptest::odpContent(QString(), page)), &err);
+            if (!d || d->pages.isEmpty() || d->pages[0]->items.size() != 1 || d->pages[0]->items[0]->type() != ItemType::Table) return -1;
+            return int(static_cast<const TableItem *>(d->pages[0]->items[0].get())->header);
+        };
+        const QString row = QStringLiteral("<table:table-row><table:table-cell><text:p>a</text:p></table:table-cell><table:table-cell><text:p>b</text:p></table:table-cell></table:table-row>");
+        QCOMPARE(headerOf(QStringLiteral("table:use-first-row-styles=\"true\""), row + row), 1);
+        QCOMPARE(headerOf(QString(), QStringLiteral("<table:table-header-rows>") + row + QStringLiteral("</table:table-header-rows>") + row), 1);
+        QCOMPARE(headerOf(QStringLiteral("table:use-first-row-styles=\"false\""), row + row), 0);
+        QCOMPARE(headerOf(QString(), row + row), 0);
+    }
+
+    // The header row of a table is written (use-first-row-styles) and comes back as it was, on or off.
+    void odpWritesAHeaderRowOfATable()
+    {
+        for (bool header : {true, false}) {
+            auto d = deck::newPresentation();
+            auto table = std::make_shared<TableItem>();
+            table->rect = QRectF(50, 100, 200, 60);
+            table->rows = table->cols = 2;
+            table->colW = {100, 100};
+            table->rowH = {30, 30};
+            table->cells.resize(4);
+            for (TableCell &cell : table->cells) cell.storyId = d->createStory(QStringLiteral("x"));
+            table->header = header;
+            d->pages[0]->items.push_back(table);
+            QString err;
+            const QByteArray bytes = deck::exportOdp(*d, false, &err);
+            QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+            auto back = deck::importOdp(bytes, &err);
+            QVERIFY2(back, qPrintable(err));
+            const TableItem *found = nullptr;
+            for (const auto &it : back->pages[0]->items)
+                if (it->type() == ItemType::Table) found = static_cast<const TableItem *>(it.get());
+            QVERIFY(found);
+            QCOMPARE(found->header, header);
+        }
+    }
+
     // Text takes what its styles give it: the placeholder's presentation style, the automatic styles of
     // paragraphs and spans, the sizes in percent, and the bullets and numbers of the list styles.
     void odpReadsTextAndLists()

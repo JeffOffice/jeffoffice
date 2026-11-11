@@ -640,6 +640,7 @@ void Exporter::writeTable(X &x, Scope &sc, const TableItem &t)
     writePlace(x, QRectF(t.rect.x(), t.rect.y(), width, height), 0);
     if (!cls.isEmpty()) x.attr("presentation:class", cls).attr("presentation:user-transformed", "true");
     x.open("table:table");
+    if (t.header) x.attr("table:use-first-row-styles", "true");
     for (int c = 0; c < t.cols; ++c) {
         const QString col = sc.styles->style(QStringLiteral("table-column"), QStringLiteral("co"), QString(), QStringLiteral("<style:table-column-properties style:column-width=\"%1\"/>").arg(cm(t.colW[c])));
         x.open("table:table-column").attr("table:style-name", col).close();
