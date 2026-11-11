@@ -3234,7 +3234,7 @@
       },
       {
        "status": "partly",
-       "text": "f7ea5516630154b034966ad8a3407e2b71bb3a15174f8ad18fd9c26bb827b86b"
+       "text": "4a291bb50018c6590fc451f330f855deea2c3cf932be57c1b65521b152deec08"
       },
       {
        "hide_soon": true,
@@ -4712,7 +4712,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "2a2236d778a09a114196c8e5a64ae1206d5feab81f8950aaeec797d8dbcc197a"
+       "text": "708b9f54cde451008507abdf5ca8b688781c5bf80790cba544690f0dd12fabc4"
       }
      ]
     },
@@ -10618,18 +10618,6 @@
     "fr": ""
    }
   },
-  "2a2236d778a09a114196c8e5a64ae1206d5feab81f8950aaeec797d8dbcc197a": {
-   "drop": false,
-   "en": "Check accessibility to list text with contrast under 4.5 to 1 (3 to 1 for large text) and objects out of top-to-bottom, left-to-right reading order. A Reading Order list moves the objects, and clicking an item goes to its object.",
-   "es": "Revise la accesibilidad para ver una lista del texto con un contraste inferior a 4,5 a 1 (3 a 1 para texto grande) y de los objetos fuera del orden de lectura de arriba abajo y de izquierda a derecha. Una lista de orden de lectura permite mover los objetos, y al hacer clic en un elemento se va a su objeto.",
-   "fr": "Vérifiez l’accessibilité pour lister le texte dont le contraste est inférieur à 4,5 pour 1 (3 pour 1 pour le grand texte) et les objets hors de l’ordre de lecture de haut en bas et de gauche à droite. Une liste d’ordre de lecture permet de déplacer les objets, et un clic sur un élément mène à son objet.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "2a2527d3924c903603eaf65721dcd6112928664ccc7d044a748ebe1a69508d72": {
    "drop": false,
    "en": "Print mail merge and catalog merge jobs.",
@@ -12860,6 +12848,18 @@
     "en": "Text input for every script: input methods, dead keys, and emoji and symbol pickers",
     "es": "Entrada de texto para todas las escrituras: métodos de entrada, teclas muertas y selectores de emojis y símbolos",
     "fr": "Saisie de texte pour toutes les écritures : méthodes de saisie, touches mortes et sélecteurs d’emojis et de symboles"
+   }
+  },
+  "4a291bb50018c6590fc451f330f855deea2c3cf932be57c1b65521b152deec08": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "4a76cbcea507352f896e12176e261430419fa31eaf6f5ce255e1b7534e4351d8": {
@@ -15891,6 +15891,18 @@
    "en": "The grid",
    "es": "La cuadrícula",
    "fr": "La grille",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "708b9f54cde451008507abdf5ca8b688781c5bf80790cba544690f0dd12fabc4": {
+   "drop": false,
+   "en": "Check Accessibility lists missing alt text, objects out of reading order, text with low contrast against its background, and tables with no header row. A Reading Order list moves objects, and `Use the first row as a header` fixes a table in one Undo step.",
+   "es": "Comprobar accesibilidad enumera el texto alternativo que falta, los objetos fuera del orden de lectura, el texto con poco contraste respecto al fondo y las tablas sin fila de encabezado. Una lista de orden de lectura permite mover los objetos, y `Use the first row as a header` corrige una tabla en un solo paso de deshacer.",
+   "fr": "La vérification de l’accessibilité signale les textes alternatifs manquants, les objets hors de l’ordre de lecture, le texte à faible contraste avec son arrière-plan et les tableaux sans ligne d’en-tête. Une liste d’ordre de lecture permet de déplacer les objets, et `Use the first row as a header` corrige un tableau en une seule étape d’annulation.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24867,18 +24879,6 @@
    "en": "Start the show From Beginning (`F5`, or a button on the quick toolbar) or From Current Slide (`Shift+F5`, or a button on the status bar).",
    "es": "Inicie la presentación Desde el principio (`F5`, o un botón de la barra de herramientas rápida) o Desde la diapositiva actual (`Shift+F5`, o un botón de la barra de estado).",
    "fr": "Lancez le diaporama Depuis le début (`F5`, ou un bouton de la barre d’outils rapide) ou Depuis la diapositive actuelle (`Maj+F5`, ou un bouton de la barre d’état).",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "f7ea5516630154b034966ad8a3407e2b71bb3a15174f8ad18fd9c26bb827b86b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
