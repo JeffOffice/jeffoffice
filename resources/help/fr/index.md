@@ -30,7 +30,6 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 - [Ajouter et régler des images](pictures)
 - [Gestionnaire de graphiques](graphics-manager)
 - [Dessiner des formes et des traits](shapes)
-- [Add charts](charts)
 - [Icônes, codes-barres et autres objets](insert-objects)
 - [Déplacer, aligner, grouper et superposer des objets](arrange)
 - [Habiller le texte autour des objets](wrap)

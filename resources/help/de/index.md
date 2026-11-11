@@ -30,7 +30,6 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 - [Bilder hinzufügen und anpassen](pictures)
 - [Grafik-Manager](graphics-manager)
 - [Formen und Linien zeichnen](shapes)
-- [Add charts](charts)
 - [Symbole, Barcodes und andere Objekte](insert-objects)
 - [Objekte verschieben, ausrichten, gruppieren und überlagern](arrange)
 - [Text um Objekte herum umbrechen](wrap)

@@ -30,7 +30,6 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Adicionar e ajustar imagens](pictures)
 - [Gerenciador de Elementos Gráficos](graphics-manager)
 - [Desenhar formas e linhas](shapes)
-- [Add charts](charts)
 - [Ícones, códigos de barras e outros objetos](insert-objects)
 - [Mover, alinhar, agrupar e organizar objetos em camadas](arrange)
 - [Quebrar texto ao redor de objetos](wrap)

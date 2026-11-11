@@ -21,7 +21,6 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen Befehl zu finden, de
 
 - [Text eingeben und formatieren](text)
 - [Formen, Bilder, Tabellen und Textkunst](objects)
-- [Charts](charts)
 - [Der Bereich „Form formatieren“ und die Registerkarte „Formformat“](format-shape)
 - [Sprechernotizen](notes)
 - [Kommentare](comments)

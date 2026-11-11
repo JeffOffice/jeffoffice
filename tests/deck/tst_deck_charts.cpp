@@ -4,6 +4,9 @@
 #include "core/chartobject.h"
 #include "office/chart_write.h"
 #include "office/package.h"
+#include "core/items.h"
+
+#include <QXmlStreamReader>
 
 class DeckChartTests : public QObject {
     Q_OBJECT
@@ -200,6 +203,260 @@ private Q_SLOTS:
         PictureItem wide = *one;
         wide.chartXml = office::writeChartPart(big);
         QVERIFY(!jp::readChartOf(*copy, wide, nullptr));
+    }
+
+    // The words of the chart dialogs and commands were moved out of the word processor's window into the shared ones: in every language the new context holds the translation the old one had.
+    void movedChartTextKeepsItsTranslations()
+    {
+        const QStringList moved = {
+            "Chart Title", "Words for the title of the chart:", "Title of the Axis of Values", "Title of the Axis of Categories", "Words for the title of the axis (leave empty for none):", "Chart Data",
+            "Add Row", "Add Column", "Remove Last Row", "Remove Last Column", "Row %1 has a cell that is not a number, so the data was not changed.",
+            "The first column holds the words under the points. The first row holds the names of the series. The other cells are numbers."};
+        const QStringList commands = {"Column", "Stacked Column", "100% Stacked Column", "Bar", "Stacked Bar", "Line", "Line with Markers", "Pie", "Doughnut", "Area", "Stacked Area", "Scatter",
+                                      "Edit Data\u2026", "Edit Chart Title\u2026", "Axis of Values", "Axis of Categories", "Title of the Axis of Values\u2026", "Title of the Axis of Categories\u2026",
+                                      "Major Gridlines of Values", "Minor Gridlines of Values", "Major Gridlines of Categories", "Style %1", "Data Labels", "No Legend", "Legend at Right",
+                                      "Legend at Top", "Legend at Left", "Legend at Bottom", "Chart Title"};
+        int checked = 0;
+        for (const char *lang : {"de", "es", "fr", "it", "nl", "pt_BR", "pt_PT"}) {
+            QFile ts(QStringLiteral(JD_SOURCE_DIR "/translations/jeffoffice_%1.ts").arg(QLatin1String(lang)));
+            QVERIFY(ts.open(QIODevice::ReadOnly));
+            QHash<QString, QString> made;   // (context, a tab, and the text) to what it was translated to
+            QXmlStreamReader xml(&ts);
+            QString context, source;
+            while (!xml.atEnd()) {
+                xml.readNext();
+                if (!xml.isStartElement()) continue;
+                if (xml.name() == QLatin1String("name")) context = xml.readElementText();
+                else if (xml.name() == QLatin1String("source")) source = xml.readElementText();
+                else if (xml.name() == QLatin1String("translation") && xml.attributes().value(QLatin1String("type")) != QLatin1String("vanished")) made.insert(context + QLatin1Char('\t') + source, xml.readElementText(QXmlStreamReader::SkipChildElements));
+            }
+            QVERIFY(!xml.hasError());
+            auto check = [&](const QString &from, const QString &to, const QStringList &texts) {
+                for (const QString &text : texts) {
+                    const QString was = made.value(from + QLatin1Char('\t') + text);
+                    if (was.isEmpty()) continue;   // (a language that never had it)
+                    ++checked;
+                    QVERIFY2(made.value(to + QLatin1Char('\t') + text) == was, qPrintable(QStringLiteral("%1: \"%2\" is not translated in %3").arg(QLatin1String(lang), text, to)));
+                }
+            };
+            check(QStringLiteral("jp::WriteWindow"), QStringLiteral("jp::ChartDialogs"), moved);
+            check(QStringLiteral("jp::WriteWindow"), QStringLiteral("jp::ChartActions"), commands);
+        }
+        QVERIFY2(checked > 100, qPrintable(QString::number(checked)));
+    }
+
+    // The chart of the imported sample (it has a workbook and shapes over it), as a slide's picture.
+    static PictureItem *importedChart(Document &d, int slide = 0)
+    {
+        const QVector<PictureItem *> charts = chartsOn(d, slide);
+        return charts.isEmpty() ? nullptr : charts.first();
+    }
+
+    static QString slideXml(const QByteArray &bytes)
+    {
+        office::Package pkg;
+        return pkg.read(bytes) ? QString::fromUtf8(pkg.part(QStringLiteral("/ppt/slides/slide1.xml"))) : QString();
+    }
+
+    // A chart opened from a file is read again, after a resize or an edit, with the theme and the color map of its slide: on a dark master its words stay light.
+    void aChartKeepsItsColorsAfterAResize()
+    {
+        Parts p = chartPptx();
+        QByteArray master = p.data["/ppt/slideMasters/slideMaster1.xml"].xml;
+        QVERIFY(master.contains("bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\""));
+        master.replace("bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\"", "bg1=\"dk1\" tx1=\"lt1\" bg2=\"dk2\" tx2=\"lt2\"");
+        p.data["/ppt/slideMasters/slideMaster1.xml"].xml = master;
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        PictureItem *chart = importedChart(*d);
+        QVERIFY(chart);
+        office::Chart before;
+        QVERIFY(jp::readChartOf(*d, *chart, &before));
+        QVERIFY2(before.textColor.lightness() > 128, "the words of a chart on a dark master are light");
+        chart->rect.setWidth(chart->rect.width() + 100);
+        QVERIFY(jp::redrawResizedCharts(*d));
+        office::Chart after;
+        QVERIFY(jp::readChartOf(*d, *chart, &after));
+        QCOMPARE(after.textColor, before.textColor);
+        QVERIFY(after.textColor.lightness() > 128);
+    }
+
+    // A chart copied to another slide has no workbook or shapes over it to name; one that is changed in kind keeps the ones it has.
+    void aPastedChartNamesNoWorkbookAndAChangeOfKindKeepsIt()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(chartPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        PictureItem *chart = importedChart(*d);
+        QVERIFY(chart);
+        // A copy of it on the slide (a paste makes a new object with its own number: nothing the file kept is its own).
+        ItemPtr copy = chart->clone();
+        copy->id = newId();
+        copy->sourceId = 0;
+        copy->rect.translate(40, 40);
+        d->pages[0]->items.push_back(copy);
+        // The chart is changed to a pie: its workbook and shapes stay.
+        QVERIFY(jp::changeChartOf(*d, *chart, [&](office::Chart &c) { return office::sheet::chartSetForm(c, office::sheet::ChartForm::Pie, jp::chartThemeOfPicture(*d, *chart)); }));
+        QVERIFY(chart->chartXml.contains("externalData"));
+        QVERIFY(chart->chartXml.contains("userShapes"));
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        office::Package pkg;
+        QVERIFY(pkg.read(bytes, &err));
+        int withWorkbook = 0, without = 0;
+        for (const QString &name : pkg.partNames()) {
+            if (!name.startsWith(QStringLiteral("/ppt/charts/chart"))) continue;
+            const QByteArray part = pkg.part(name);
+            if (part.contains("<c:pieChart")) {
+                // Whichever names the workbook has the link in its relationships; the one that does not says nothing of it.
+                const bool names = part.contains("externalData");
+                if (names) {
+                    ++withWorkbook;
+                    QVERIFY(!pkg.relationshipsOfType(name, QStringLiteral("/package")).isEmpty());
+                    QVERIFY(!pkg.relationshipsOfType(name, QStringLiteral("/chartUserShapes")).isEmpty());
+                } else {
+                    ++without;
+                    QVERIFY(!part.contains("userShapes"));
+                }
+            } else {
+                // The copy is a column chart still: it names nothing.
+                QVERIFY2(!part.contains("externalData") && !part.contains("userShapes"), qPrintable(name));
+                ++without;
+            }
+        }
+        QCOMPARE(withWorkbook, 1);
+        QCOMPARE(without, 1);
+        QVERIFY(pkg.hasPart(QStringLiteral("/ppt/embeddings/Sheet1.xlsx")));
+        // Every link a chart part names is there.
+        for (const QString &name : pkg.partNames())
+            if (name.startsWith(QStringLiteral("/ppt/charts/chart")))
+                for (const office::Relationship &r : pkg.relationships(name)) QVERIFY2(r.external || pkg.hasPart(r.target), qPrintable(r.target));
+    }
+
+    // A frame's turn is the file's rot: sixty-thousandths of a degree, clockwise. Turned back to zero it says nothing.
+    void aChartsTurnIsWrittenAsTheFileFormatDefinesIt()
+    {
+        auto d = deckWithChart();
+        PictureItem *chart = chartsOn(*d).first();
+        QString err;
+        chart->rotation = 90;
+        QVERIFY(slideXml(deck::exportPresentation(*d, &err)).contains(QStringLiteral("rot=\"5400000\"")));
+        chart->rotation = 15.5;
+        QVERIFY(slideXml(deck::exportPresentation(*d, &err)).contains(QStringLiteral("rot=\"930000\"")));
+        chart->rotation = -30;   // (a turn counterclockwise is the same as 330 degrees clockwise)
+        QVERIFY(slideXml(deck::exportPresentation(*d, &err)).contains(QStringLiteral("rot=\"19800000\"")));
+        // And one the file turns by its definition is read as degrees clockwise.
+        chart->rotation = 90;
+        auto turned = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY(turned);
+        QCOMPARE(chartsOn(*turned).first()->rotation, 90.0);
+        // Turned back to zero, the old turn is gone from the frame.
+        chartsOn(*turned).first()->rotation = 0;
+        const QString xml = slideXml(deck::exportPresentation(*turned, &err));
+        QVERIFY(xml.contains(QStringLiteral("drawingml/2006/chart")));
+        QVERIFY2(!xml.contains(QStringLiteral("rot=")), qPrintable(xml.left(1500)));
+    }
+
+    // A chart inside a group is a chart in the file too.
+    void aChartInAGroupIsWrittenAsAChartPart()
+    {
+        auto d = deck::newPresentation();
+        auto group = std::make_shared<GroupItem>();
+        group->rect = QRectF(50, 50, 500, 300);
+        group->children.push_back(jp::makeChartObject(*d, office::sheet::ChartForm::Doughnut, office::sheet::sampleChartData(), QRectF(60, 60, 300, 200)));
+        d->pages[0]->items.push_back(group);
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        office::Package pkg;
+        QVERIFY(pkg.read(bytes, &err));
+        QVERIFY(pkg.part(QStringLiteral("/ppt/charts/chart1.xml")).contains("<c:doughnutChart"));
+        const QString xml = slideXml(bytes);
+        QVERIFY(xml.contains(QStringLiteral("<p:grpSp>")) && xml.contains(QStringLiteral("drawingml/2006/chart")));
+    }
+
+    // The most charts a file keeps as charts: a file with more says so when it is opened, and Insert stops there with a message.
+    void theLimitOnChartsIsSaidOnOpenAndOnInsert()
+    {
+        Parts p = chartPptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        const qsizetype named = xml.indexOf(QStringLiteral("name=\"Chart 8\"")), from = xml.lastIndexOf(QStringLiteral("<p:graphicFrame>"), named), to = xml.indexOf(QStringLiteral("</p:graphicFrame>"), named) + 17;
+        QVERIFY(named > 0 && from > 0);
+        const QString frame = xml.mid(from, to - from);
+        QString more;
+        for (int i = 0; i < office::sheet::kMostChartsInFile + 3; ++i) {
+            QString copy = frame;
+            copy.replace(QStringLiteral("id=\"9\" name=\"Chart 8\""), QStringLiteral("id=\"%1\" name=\"Chart %1\"").arg(100 + i));
+            more += copy;
+        }
+        xml.insert(to, more);
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString notes;
+        auto d = deck::importPresentation(pack(p), &notes);
+        QVERIFY(d);
+        QCOMPARE(jp::chartObjectsIn(*d), office::sheet::kMostChartsInFile);
+        QVERIFY2(notes.contains(QStringLiteral("more charts than can be changed")), qPrintable(notes));
+        // At the limit, Insert > Chart adds none and says why.
+        DeckWindow w;
+        w.editor()->setDocument(std::move(d));
+        QSignalSpy said(w.editor(), &Editor::status);
+        const int items = int(w.editor()->doc()->pages[0]->items.size());
+        w.editor()->setCurrentPage(0);
+        QVERIFY(jp::insertChart(w.editor(), office::sheet::ChartForm::Column).isEmpty());
+        QCOMPARE(int(w.editor()->doc()->pages[0]->items.size()), items);
+        QCOMPARE(said.size(), 1);
+        QVERIFY(said.first().first().toString().contains(QStringLiteral("most charts")));
+    }
+
+    // A chart that is not changed is written as the file had it, byte for byte; the other parts it links to come with it.
+    void anUnchangedChartPartIsWrittenAsItWasRead()
+    {
+        Parts p = chartPptx();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        office::Package pkg;
+        QVERIFY(pkg.read(bytes, &err));
+        QCOMPARE(pkg.part(QStringLiteral("/ppt/charts/chart1.xml")), p.data["/ppt/charts/chart1.xml"].xml);
+        // And again, through a second save of what that gave.
+        auto again = deck::importPresentation(bytes, &err);
+        office::Package second;
+        QVERIFY(second.read(deck::exportPresentation(*again, &err), &err));
+        QCOMPARE(second.part(QStringLiteral("/ppt/charts/chart1.xml")), p.data["/ppt/charts/chart1.xml"].xml);
+    }
+
+    // A chart is not read, checked, and drawn again each time something asks what it is.
+    void aChartIsReadOnceForAllThatAskWhatItIs()
+    {
+        auto d = deckWithChart();
+        PictureItem *chart = chartsOn(*d).first();
+        chart->chartXml += " ";   // (a part this thread has not been asked about)
+        const qint64 before = jp::chartInfosMadeForTest();
+        for (int i = 0; i < 12; ++i) QVERIFY(jp::chartInfoOfPicture(*d, *chart).valid);
+        QCOMPARE(jp::chartInfosMadeForTest() - before, qint64(1));
+        // A change makes a new part, which is read once.
+        QVERIFY(jp::changeChartOf(*d, *chart, [](office::Chart &c) { return office::sheet::chartSetTitle(c, true, QStringLiteral("T")); }));
+        const qint64 mid = jp::chartInfosMadeForTest();
+        for (int i = 0; i < 12; ++i) QVERIFY(jp::chartInfoOfPicture(*d, *chart).titleShown);
+        QCOMPARE(jp::chartInfosMadeForTest() - mid, qint64(1));
+    }
+
+    // A chart part's text in a file is not decoded when it is longer than a part may be.
+    void anOversizeChartPartIsNotDecoded()
+    {
+        PictureItem small;
+        small.chartXml = "<c:chartSpace/>";
+        small.chartSize = QSizeF(10, 10);
+        PictureItem back;
+        back.fromJson(small.toJson());
+        QCOMPARE(back.chartXml, small.chartXml);
+        QJsonObject big = small.toJson();
+        big["chart"] = QString(int(kMaxChartPartBytes) / 3 * 4 + 1000, QLatin1Char('A'));
+        PictureItem refused;
+        refused.fromJson(big);
+        QVERIFY(refused.chartXml.isEmpty());
     }
 };
 

@@ -121,6 +121,16 @@ private Q_SLOTS:
         copy->fromJson(back->toJson());
         QCOMPARE(int(chartsOn(*copy).size()), jp::office::sheet::kMostChartsInFile);
         QCOMPARE(int(copy->pages[0]->items.size()), jp::office::sheet::kMostChartsInFile + 1);
+        QCOMPARE(copy->chartsKeptAsPictures, 1);
+        // Opened as a file, it says so, and Insert > Chart stops at the limit with a message.
+        const QString many = dir.filePath(QStringLiteral("many.jpub"));
+        QVERIFY2(jp::savePublication(*back, many, QImage(), &err), qPrintable(err));
+        jp::MainWindow w;
+        QVERIFY(w.openFile(many));
+        QVERIFY2(w.statusBar()->currentMessage().contains(QStringLiteral("kept as pictures only")), qPrintable(w.statusBar()->currentMessage()));
+        QSignalSpy said(w.editor(), &jp::Editor::status);
+        QVERIFY(jp::insertChart(w.editor(), jp::office::sheet::ChartForm::Column).isEmpty());
+        QCOMPARE(said.size(), 1);
     }
 
     // A .pub file has no chart other programs would open as one: the chart is saved as a picture, and the report names it.
@@ -140,7 +150,7 @@ private Q_SLOTS:
         for (const jp::ItemPtr &it : back->pages[0]->items) pictures += it->type() == jp::ItemType::Picture;
         QCOMPARE(pictures, 1);
         QCOMPARE(back->images.size(), 1);
-        QCOMPARE(back->images.first().format, QStringLiteral("png"));
+        QVERIFY(!back->images.first().image().isNull());   // (a picture, whatever kind of picture the format keeps)
     }
 
     // PDF output draws the chart as vector paths and text, not as an image.

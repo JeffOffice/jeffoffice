@@ -30,7 +30,6 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Adicionar e ajustar imagens](pictures)
 - [Gestor de Gráficos](graphics-manager)
 - [Desenhar formas e linhas](shapes)
-- [Add charts](charts)
 - [Ícones, códigos de barras e outros objetos](insert-objects)
 - [Mover, alinhar, agrupar e organizar objetos em camadas](arrange)
 - [Moldar texto em redor de objetos](wrap)

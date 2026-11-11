@@ -30,7 +30,6 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 - [Aggiungere e regolare le immagini](pictures)
 - [Gestione grafica](graphics-manager)
 - [Disegnare forme e linee](shapes)
-- [Add charts](charts)
 - [Icone, codici a barre e altri oggetti](insert-objects)
 - [Spostare, allineare, raggruppare e disporre su livelli gli oggetti](arrange)
 - [Disporre il testo intorno agli oggetti](wrap)

@@ -21,7 +21,6 @@ Saisissez le texte à rechercher dans la zone de recherche ci-dessus pour trouve
 
 - [Saisir et mettre en forme du texte](text)
 - [Formes, images, tableaux et texte artistique](objects)
-- [Charts](charts)
 - [Le volet Format de la forme et l'onglet Format de la forme](format-shape)
 - [Notes du présentateur](notes)
 - [Commentaires](comments)

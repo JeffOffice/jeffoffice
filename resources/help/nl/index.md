@@ -30,7 +30,6 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht om uit 
 - [Afbeeldingen toevoegen en aanpassen](pictures)
 - [Afbeeldingenbeheer](graphics-manager)
 - [Vormen en lijnen tekenen](shapes)
-- [Add charts](charts)
 - [Pictogrammen, streepjescodes en andere objecten](insert-objects)
 - [Objecten verplaatsen, uitlijnen, groeperen en lagen ordenen](arrange)
 - [Tekst laten teruglopen om objecten](wrap)
