@@ -18,6 +18,10 @@ JeffPub checks spelling and hyphenates with these dictionaries from the [LibreOf
 | `nl_NL` | Dutch spelling and hyphenation (from [OpenTaal](https://www.opentaal.org/)) | BSD (revised) or CC BY 3.0 (`LICENSE.txt`, `README.md`) |
 | `pt_BR` | Brazilian Portuguese spelling and hyphenation (from [VERO](http://pt-br.libreoffice.org/projetos/projeto-vero-verificador-ortografico/)) | LGPL-3.0 or MPL (`README_pt_BR.txt`, `README_hyph_pt_BR.txt`, `README_en.txt`) |
 | `pt_PT` | European Portuguese spelling and hyphenation | GPL-2.0+ (`LICENSES.txt`, `README_pt_PT.txt`, `README_hyph_pt_PT.txt`) |
+| `ru_RU` | Russian spelling (`ru_RU`, Alexander I. Lebedev). The folder's hyphenation patterns, thesaurus, and grammar checker are not bundled: the patterns state no license | BSD-style (`README_ru_RU.txt`) |
+| `id` | Indonesian spelling and hyphenation (`id_ID`, from [hunspell-id](https://github.com/shuLhan/hunspell-id)). The thesaurus is not bundled | LGPL-3.0+ (`LICENSE-dict`, `README-dict.adoc`) |
+| `uk_UA` | Ukrainian spelling (`uk_UA`, from [dict_uk](https://github.com/brown-uk/dict_uk), by Andriy Rysin and others) | MPL-1.1 (`README_uk_UA.txt`) |
+| `uk_UA` | Ukrainian hyphenation (`hyph_uk_UA.dic`, Maksym Polyakov) | GPL-2.0+ (`README_hyph_uk_UA.txt`) |
 
 Which dictionary checks a piece of text follows the language set on it (Review > Language). Text in a language without a dictionary here isn't checked or hyphenated. The table of languages and files is in `libs/base/text/dictionaries.cpp`.
 
