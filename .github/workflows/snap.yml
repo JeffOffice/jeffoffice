@@ -3,17 +3,17 @@ name: snap
 # Builds the JeffOffice snap (snap/snapcraft.yaml) from the chosen ref and keeps
 # the .snap as an artifact. By hand only for now: Actions > snap > Run workflow.
 #
-# The second job sends the snap to the Snap Store's edge channel. It does
-# nothing unless "upload_to_edge" is ticked AND the repository secret
-# SNAPCRAFT_STORE_CREDENTIALS exists (made with `snapcraft export-login`,
-# limited to the jeffoffice name and the edge channel, once the store has
-# approved the name).
+# The second job sends the snap to the Snap Store's edge and beta channels
+# (each release goes to beta; stable waits for 1.0). It does nothing unless
+# "upload" is ticked AND the repository secret SNAPCRAFT_STORE_CREDENTIALS
+# exists (made with `snapcraft export-login`, limited to the jeffoffice name
+# and the edge and beta channels).
 
 on:
   workflow_dispatch:
     inputs:
-      upload_to_edge:
-        description: "After the build, upload the snap to the store's edge channel"
+      upload:
+        description: "After the build, upload the snap to the store's edge and beta channels"
         type: boolean
         default: false
 
@@ -28,7 +28,7 @@ jobs:
       - name: Upload only from main
         env:
           REF: ${{ github.ref }}
-          UPLOAD: ${{ inputs.upload_to_edge }}
+          UPLOAD: ${{ inputs.upload }}
         run: |
           if [ "$UPLOAD" = true ] && [ "$REF" != refs/heads/main ]; then
             echo "::error::The snap is uploaded only from main, not from $REF."
@@ -64,9 +64,9 @@ jobs:
           path: ${{ steps.build.outputs.snap }}
           if-no-files-found: error
 
-  upload-edge:
+  upload:
     needs: build
-    if: ${{ inputs.upload_to_edge }}
+    if: ${{ inputs.upload }}
     runs-on: ubuntu-24.04
     steps:
       - name: Only from main
@@ -105,6 +105,6 @@ jobs:
         if: steps.creds.outputs.have == 'true'
         with:
           snap: ${{ steps.file.outputs.snap }}
-          release: edge
+          release: edge,beta
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
