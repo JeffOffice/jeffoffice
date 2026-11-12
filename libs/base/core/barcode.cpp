@@ -762,6 +762,16 @@ QString priceAddOn(Currency c, double price, QString *error)
     return QString(lead) + QStringLiteral("%1").arg(shown, 4, 10, QLatin1Char('0'));
 }
 
+int mostChars(Type type)
+{
+    switch (type) {
+    case Type::Code128:
+    case Type::Code39: return 100;
+    case Type::Qr: return qrMostBytes(0);   // (in bytes)
+    default: return 40;
+    }
+}
+
 Layout make(const Options &o)
 {
     switch (o.type) {
@@ -782,9 +792,13 @@ Layout make(const Options &o)
     case Type::Ean8:
         return eanUpc(o, digitsOnly(o.data).size() == o.data.trimmed().size() ? o.data.trimmed() : o.data.trimmed().remove(QRegularExpression(QStringLiteral("[\\s-]"))), QString());
     case Type::Code128:
-        return code128(o);
     case Type::Code39:
-        return code39(o);
+        if (o.data.size() > mostChars(o.type)) {
+            Layout l;
+            l.error = QCoreApplication::translate("Core", "%1 holds at most %2 characters here (this text has %3).").arg(o.type == Type::Code128 ? QStringLiteral("Code 128") : QStringLiteral("Code 39")).arg(mostChars(o.type)).arg(o.data.size());
+            return l;
+        }
+        return o.type == Type::Code128 ? code128(o) : code39(o);
     case Type::Qr:
         return qr(o);
     }
