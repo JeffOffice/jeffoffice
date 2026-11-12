@@ -4,7 +4,9 @@
 
 #include "core/editops.h"
 #include "core/fieldops.h"
+#include "core/barcodeitem.h"
 #include "core/labelops.h"
+#include "core/pictureops.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -496,6 +498,60 @@ bool insertRule(WriteDoc &doc, QTextCursor &c, const QString &code, const QStrin
     return insertFieldAtom(doc, c, field);
 }
 
+namespace {
+
+struct BarcodeKind {
+    const char *name;
+    barcode::Type type;
+};
+const BarcodeKind kBarcodeKinds[] = {{"QR", barcode::Type::Qr},       {"CODE128", barcode::Type::Code128}, {"CODE39", barcode::Type::Code39}, {"EAN13", barcode::Type::Ean13},
+                                     {"JAN13", barcode::Type::Ean13}, {"EAN8", barcode::Type::Ean8},       {"JAN8", barcode::Type::Ean8},     {"UPCA", barcode::Type::UpcA},
+                                     {"ISBN", barcode::Type::Isbn}};
+
+} // namespace
+
+QJsonObject barcodeSettingsOfField(const fields::Code &code, const QString &value)
+{
+    const QString name = code.arguments.value(1).trimmed().toUpper();
+    for (const BarcodeKind &k : kBarcodeKinds) {
+        if (name != QLatin1String(k.name)) continue;
+        QJsonObject s;
+        s.insert(QStringLiteral("type"), int(k.type));
+        s.insert(QStringLiteral("data"), value);
+        s.insert(QStringLiteral("magnification"), std::clamp(code.argumentOf(QLatin1Char('s')).toInt() > 0 ? code.argumentOf(QLatin1Char('s')).toInt() : 100, 50, 300));
+        s.insert(QStringLiteral("height"), 100);
+        s.insert(QStringLiteral("text"), code.has(QLatin1Char('t')));
+        s.insert(QStringLiteral("check39"), code.has(QLatin1Char('k')));
+        s.insert(QStringLiteral("qrLevel"), std::clamp(code.has(QLatin1Char('q')) ? code.argumentOf(QLatin1Char('q')).toInt() : 1, 0, 3));
+        s.insert(QStringLiteral("white"), true);
+        if (k.type == barcode::Type::Isbn) s.insert(QStringLiteral("priceMode"), 0);
+        return s;
+    }
+    return QJsonObject();
+}
+
+QString barcodeMark(int n) { return QChar(0xE000) + QString::number(n) + QChar(0xE001); }
+
+bool insertBarcodeField(WriteDoc &doc, QTextCursor &c, const QString &column, const QJsonObject &settings)
+{
+    const barcode::Options o = barcodeOptions(settings);
+    QString kind;
+    for (const BarcodeKind &k : kBarcodeKinds)
+        if (k.type == o.type) {
+            kind = QString::fromLatin1(k.name);
+            break;
+        }
+    QString name = column.trimmed();
+    name.replace(QLatin1Char(' '), QLatin1Char('_'));
+    name.replace(QLatin1Char('"'), QLatin1Char('\''));
+    if (kind.isEmpty() || name.isEmpty()) return false;
+    QString code = QStringLiteral("DISPLAYBARCODE \"{ MERGEFIELD %1 }\" %2 \\s %3").arg(name, kind).arg(int(std::lround(o.magnification * 100)));
+    if (o.type == barcode::Type::Qr) code += QStringLiteral(" \\q %1").arg(o.qrLevel);
+    if (o.text) code += QStringLiteral(" \\t");
+    if (o.type == barcode::Type::Code39 && o.code39Check) code += QStringLiteral(" \\k");
+    return insertRule(doc, c, code, QString::fromUtf8("\xC2\xAB") + QCoreApplication::translate("jp::write::Mail", "Barcode: %1").arg(column.trimmed()) + QString::fromUtf8("\xC2\xBB"));
+}
+
 QString addressBlockCode(const QString &formatIn, const QString &homeCountry)
 {
     QString format = formatIn.isEmpty() ? addressBlockFormats().first() : formatIn;
@@ -532,7 +588,7 @@ bool Evaluator::isMergeField(const fields::Code &code) const
 {
     static const QSet<QString> names = {QStringLiteral("MERGEFIELD"), QStringLiteral("ADDRESSBLOCK"), QStringLiteral("GREETINGLINE"), QStringLiteral("NEXT"),   QStringLiteral("NEXTIF"),
                                         QStringLiteral("SKIPIF"),     QStringLiteral("SET"),          QStringLiteral("ASK"),          QStringLiteral("FILLIN"), QStringLiteral("MERGEREC"),
-                                        QStringLiteral("MERGESEQ"),   QStringLiteral("IF"),           QStringLiteral("COMPARE")};
+                                        QStringLiteral("MERGESEQ"),   QStringLiteral("IF"),           QStringLiteral("COMPARE"),   QStringLiteral("DISPLAYBARCODE")};
     if (names.contains(code.name)) return true;
     return code.name == QLatin1String("REF") && variables.contains(code.arguments.value(0).trimmed().toLower());
 }
@@ -564,6 +620,21 @@ std::optional<QString> Evaluator::answer(const fields::Code &code)
     if (n == QLatin1String("GREETINGLINE")) {
         if (row() < 0) return QString();
         return greetingText(m_data, row(), m_map, code.argumentOf(QLatin1Char('f')), code.argumentOf(QLatin1Char('e')).isEmpty() ? QCoreApplication::translate("jp::write::Mail", "Dear Sir or Madam,") : code.argumentOf(QLatin1Char('e')));
+    }
+    if (n == QLatin1String("DISPLAYBARCODE")) {
+        const QString v = code.arguments.value(0);
+        if (v.isEmpty()) return QString();
+        const QJsonObject settings = barcodeSettingsOfField(code, v);
+        if (settings.isEmpty()) return QCoreApplication::translate("jp::write::Mail", "[Barcode: \"%1\" is not a barcode type]").arg(code.arguments.value(1));
+        if (!barcodePictures) return v;
+        const QString why = barcodeLayout(settings).error;
+        if (!why.isEmpty()) return QCoreApplication::translate("jp::write::Mail", "[Barcode: %1]").arg(why);
+        if (++barcodesMade > mostBarcodes) {
+            tooManyBarcodes = true;
+            return QString();
+        }
+        barcodes << settings;
+        return barcodeMark(int(barcodes.size()) - 1);
     }
     if (n == QLatin1String("MERGEREC")) return row() < 0 ? QString() : QString::number(row() + 1);
     if (n == QLatin1String("MERGESEQ")) return QString::number(sequence);
@@ -686,6 +757,34 @@ std::unique_ptr<WriteDoc> tooManyPages(const MergeOptions &o, QString *error)
     return nullptr;
 }
 
+std::unique_ptr<WriteDoc> tooManyBarcodes(const MergeOptions &o, QString *error)
+{
+    if (error) *error = QCoreApplication::translate("jp::write::Mail", "The merge would make more than %1 barcodes. Merge fewer recipients.").arg(o.mostBarcodes);
+    return nullptr;
+}
+
+// Puts the barcode pictures in the text of `target` from `from` to the end where the marks of a record's barcodes are (from the last to the first, so that the places stay).
+void putBarcodes(WriteDoc &doc, int from, const QVector<QJsonObject> &barcodes)
+{
+    QTextDocument *story = doc.story();
+    QTextCursor all(story);
+    all.setPosition(from);
+    all.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+    const QString text = all.selectedText();
+    static const QRegularExpression mark(QStringLiteral("\\x{E000}(\\d+)\\x{E001}"));
+    QVector<QRegularExpressionMatch> found;
+    for (auto it = mark.globalMatch(text); it.hasNext();) found << it.next();
+    for (int k = int(found.size()) - 1; k >= 0; --k) {
+        const int n = found[k].captured(1).toInt();
+        QTextCursor c(story);
+        c.setPosition(from + int(found[k].capturedStart()));
+        c.setPosition(from + int(found[k].capturedEnd()), QTextCursor::KeepAnchor);
+        if (n < 0 || n >= barcodes.size()) continue;
+        c.removeSelectedText();
+        if (insertBarcodeInline(doc, c, barcodes[n]) != PictureResult::Ok) c.insertText(QCoreApplication::translate("jp::write::Mail", "[Barcode could not be added]"));
+    }
+}
+
 bool mergeOne(Run &run, Evaluator &ev)
 {
     QTextDocument *story = run.scratch->story();
@@ -695,6 +794,7 @@ bool mergeOne(Run &run, Evaluator &ev)
         c.insertFragment(run.pristine);
     }
     ev.skipped = false;
+    ev.barcodes.clear();
     UpdateOptions o;
     o.merge = [&](const fields::Code &code) { return ev.answer(code); };
     o.skip = [](const QString &name) { return pageDependent(name); };
@@ -722,6 +822,7 @@ std::unique_ptr<WriteDoc> mergeToDocument(WriteDoc &source, const MergeSource &d
     Evaluator ev(data, fieldMap, rows);
     ev.ask = options.ask;
     ev.cancelled = options.cancelled;
+    ev.mostBarcodes = options.mostBarcodes;
     QTextCursor oc(target);
     bool first = true;
     int made = 0;
@@ -732,6 +833,7 @@ std::unique_ptr<WriteDoc> mergeToDocument(WriteDoc &source, const MergeSource &d
         const int begin = ev.position;
         if (stopped(options)) return stoppedMerge(error);
         if (!mergeOne(run, ev)) continue;
+        if (ev.tooManyBarcodes) return tooManyBarcodes(options, error);
         if ((pages += pagesOf(run.scratch->story())) > options.mostPages) return tooManyPages(options, error);
         QTextDocumentFragment frag(run.scratch->story());
         oc.movePosition(QTextCursor::End);
@@ -748,6 +850,7 @@ std::unique_ptr<WriteDoc> mergeToDocument(WriteDoc &source, const MergeSource &d
             b.setBlockFormat(bf);
             b.setBlockCharFormat(firstOfCopy.charFormat());
         }
+        if (!ev.barcodes.isEmpty()) putBarcodes(*out, at, ev.barcodes);
         first = false;
         if (options.progress && !options.progress(begin + 1, int(rows.size()))) return stoppedMerge(error);
     }
@@ -768,6 +871,7 @@ QStringList mergeToTexts(WriteDoc &source, const MergeSource &data, const QHash<
     Evaluator ev(data, fieldMap, rows);
     ev.ask = options.ask;
     ev.cancelled = options.cancelled;
+    ev.barcodePictures = false;
     int made = 0;
     int pages = 0;
     for (ev.position = 0; ev.position < rows.size(); ++ev.position) {

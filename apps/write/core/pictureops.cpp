@@ -827,7 +827,7 @@ bool addBarcodeMedia(WriteDoc &doc, const QJsonObject &settings, BarcodeMedia *o
 
 } // namespace
 
-PictureResult insertBarcode(WriteDoc &doc, QTextCursor &c, const QJsonObject &settings)
+static PictureResult placeBarcode(WriteDoc &doc, QTextCursor &c, const QJsonObject &settings, bool floating)
 {
     if (c.document() != doc.story()) {
         doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put in a header, a footer, or a note yet.");
@@ -837,16 +837,16 @@ PictureResult insertBarcode(WriteDoc &doc, QTextCursor &c, const QJsonObject &se
     if (!addBarcodeMedia(doc, settings, &media)) return doc.pictureNotice.isEmpty() ? PictureResult::Unreadable : PictureResult::TooLarge;
     const QSizeF size = fitted(doc, c.selectionStart(), media.size);
     Model m;
-    m.floating = true;
-    m.wrap = PictureWrap::Square;
-    m.wrapRawOf = PictureWrap::Square;
+    m.floating = floating;
+    m.wrap = floating ? PictureWrap::Square : PictureWrap::Inline;
+    m.wrapRawOf = m.wrap;
     m.cx = emuOf(size.width());
     m.cy = emuOf(size.height());
     const int id = doc.nextDrawingId(doc.story());
     const QByteArray pictureName = attribute(QStringLiteral("Barcode %1").arg(id), 255);
     m.docPr = {{"id", quote(QByteArray::number(id))}, {"name", quote(pictureName)}, {"descr", quote(attribute(media.alt, kMostAltTextLength))}};
     m.docPrInner = office::withBarcodeMarker(QByteArray(), media.marker, office::wml::keptElementDeclarations());
-    m.distL = m.distR = 114300;
+    if (floating) m.distL = m.distR = 114300;
     m.graphic = pictureGraphic(media.png, m.cx, m.cy, pictureName, id, media.svg);
     Inline atom;
     atom.kind = Inline::RunAtom;
@@ -860,6 +860,10 @@ PictureResult insertBarcode(WriteDoc &doc, QTextCursor &c, const QJsonObject &se
     }
     return PictureResult::Ok;
 }
+
+PictureResult insertBarcode(WriteDoc &doc, QTextCursor &c, const QJsonObject &settings) { return placeBarcode(doc, c, settings, true); }
+
+PictureResult insertBarcodeInline(WriteDoc &doc, QTextCursor &c, const QJsonObject &settings) { return placeBarcode(doc, c, settings, false); }
 
 bool changeBarcode(WriteDoc &doc, int position, const QJsonObject &settings)
 {

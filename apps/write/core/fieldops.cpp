@@ -1104,7 +1104,7 @@ bool isMergeFieldCode(const QString &code)
 {
     static const QSet<QString> names = {QStringLiteral("MERGEFIELD"), QStringLiteral("ADDRESSBLOCK"), QStringLiteral("GREETINGLINE"), QStringLiteral("NEXT"),   QStringLiteral("NEXTIF"),
                                         QStringLiteral("SKIPIF"),     QStringLiteral("SET"),          QStringLiteral("ASK"),          QStringLiteral("FILLIN"), QStringLiteral("MERGEREC"),
-                                        QStringLiteral("MERGESEQ"),   QStringLiteral("IF"),           QStringLiteral("COMPARE")};
+                                        QStringLiteral("MERGESEQ"),   QStringLiteral("IF"),           QStringLiteral("COMPARE"),   QStringLiteral("DISPLAYBARCODE")};
     return names.contains(code.trimmed().section(QLatin1Char(' '), 0, 0).toUpper());
 }
 

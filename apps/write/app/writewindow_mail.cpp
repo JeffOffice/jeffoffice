@@ -1,6 +1,7 @@
 // The Mailings tab: Start Mail Merge, Select Recipients, Edit Recipient List, the fields (address block, greeting line, any column, the rules), Preview Results, Finish & Merge, and the Envelopes
 // and Labels that are made without a merge. The work on the document is core/mergeops.h and core/labelops.h; the dialogs are app/maildialogs.h and the shared recipients window.
 
+#include "app/barcodedialog.h"
 #include "app/writewindow.h"
 
 #include "app/filedialogs.h"
@@ -437,6 +438,24 @@ struct MailUi {
         put(write::mail::greetingCode(format, other), shown(QCoreApplication::translate("jp::WriteMail", "Greeting Line")));
     }
 
+    // A barcode whose value is a column: the dialog of Insert > Barcode asks for the type and look (its text is the sample), and the field makes a code for each record when the document is merged.
+    void barcodeField(const QString &column)
+    {
+        QJsonObject settings;
+        if (!askBarcode(w, QJsonObject(), &settings)) return;
+        if (!doc() || !inText()) {
+            message(QCoreApplication::translate("jp::WriteMail", "Put the caret in the text of the document first."));
+            return;
+        }
+        if (!write::mail::insertBarcodeField(*doc(), caret(), column, settings)) {
+            message(QCoreApplication::translate("jp::WriteMail", "That barcode can't be put in as a field."));
+            return;
+        }
+        touch();
+        w->m_view->showCursor(caret());
+        w->m_view->setFocus(Qt::OtherFocusReason);
+    }
+
     void insertColumn(const QString &column) { put(write::mail::mergeFieldCode(column), shown(column)); }
 
     void rule(const QString &name)
@@ -844,6 +863,9 @@ void WriteWindow::mailRibbonParts(RibbonParts &parts)
                 return;
             }
             for (const QString &column : columns) menu->addAction(column, menu, [this, column] { m_mail->insertColumn(column); });
+            menu->addSeparator();
+            QMenu *codes = menu->addMenu(tr("Barcode from Field"));
+            for (const QString &column : columns) codes->addAction(column, codes, [this, column] { m_mail->barcodeField(column); });
         });
         return menu;
     };

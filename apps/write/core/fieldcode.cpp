@@ -24,6 +24,7 @@ bool takesArgument(const QString &name, QChar letter)
     const QChar l = letter.toLower();
     if (letter == QLatin1Char('*') || letter == QLatin1Char('#') || letter == QLatin1Char('@')) return true;
     if (name == QLatin1String("TOC")) return QStringLiteral("otbcdflspa").contains(l);
+    if (name == QLatin1String("DISPLAYBARCODE")) return l == QLatin1Char('s') || l == QLatin1Char('q') || l == QLatin1Char('h');
     if (name == QLatin1String("SEQ")) return l == QLatin1Char('r') || l == QLatin1Char('s');
     if (name == QLatin1String("REF")) return l == QLatin1Char('d');
     if (name == QLatin1String("TC")) return l == QLatin1Char('f') || l == QLatin1Char('l');

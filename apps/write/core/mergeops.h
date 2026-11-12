@@ -9,6 +9,7 @@
 #include "wml/wml.h"
 
 #include <QHash>
+#include <QJsonObject>
 #include <QString>
 #include <QTextCursor>
 #include <QStringList>
@@ -25,6 +26,8 @@ constexpr int kMostRecords = 100000;
 // pages, and a list times a long letter would run for hours; past the questions' limit the answers are the defaults.
 constexpr int kMostPages = 10000;
 constexpr int kMostPrompts = 20;
+// The most barcodes one merge makes (the number a document honors as barcodes when it is opened again, office/barcodemarker.h; labels have a few dozen to a page, so this is over 10 times a long run of labels).
+constexpr int kMostBarcodes = 2000;
 
 // A list longer than kMostRecords keeps its first records.
 void limitRecords(MergeSource &data);
@@ -75,8 +78,17 @@ QStringList greetingFormats();
 QString mergeFieldCode(const QString &column);
 // Puts a field at the caret whose code may hold fields: "{ code }" in `code` is a field of its own (as in IF { MERGEFIELD State } = "VA" "yes" "no"). `result` is what it shows until the merge.
 bool insertRule(WriteDoc &doc, QTextCursor &c, const QString &code, const QString &result = QString());
+// A barcode whose value is a merge field, as the field DISPLAYBARCODE "{ MERGEFIELD column }" TYPE switches that the file saves (type: QR, CODE128, CODE39, EAN13, EAN8, UPCA, ISBN; \s the size in
+// percent, \q the QR level, \t print the digits). `settings` (the barcode dialog's) gives the type and look. The merge makes a barcode picture of each record's value, or a message where the code can't
+// hold the value.
+bool insertBarcodeField(WriteDoc &doc, QTextCursor &c, const QString &column, const QJsonObject &settings);
 QString addressBlockCode(const QString &format, const QString &homeCountry = QString());
 QString greetingCode(const QString &format, const QString &fallback);
+
+// The settings of the barcode a DISPLAYBARCODE field asks for with this value, as the barcode dialog keeps them; empty for a type name that is none.
+QJsonObject barcodeSettingsOfField(const fields::Code &code, const QString &value);
+// The text that stands for the nth barcode of a record until the picture is put there, and the number in such a mark (-1 for text that is none).
+QString barcodeMark(int n);
 
 // Answers the fields of a merge, for one record at a time. The rules that move to another record (NEXT, NEXTIF) move `position`; SKIPIF marks the record skipped.
 class Evaluator {
@@ -92,6 +104,13 @@ public:
     // The answer to ASK and FILLIN (a prompt and a default): the person's, or the default where there is none.
     std::function<QString(const QString &prompt, const QString &defaultAnswer)> ask;
     QHash<QString, QString> variables;
+    // The barcodes the record being merged asks for (DISPLAYBARCODE): the field's result is a mark (barcodeMark) for each, which the merge swaps for the picture once the text is in the new document;
+    // with `barcodePictures` false (the text of an email) the result is the value. `barcodesMade` counts all the records', and `tooManyBarcodes` is set past `mostBarcodes`.
+    QVector<QJsonObject> barcodes;
+    bool barcodePictures = true;
+    int barcodesMade = 0;
+    int mostBarcodes = kMostBarcodes;
+    bool tooManyBarcodes = false;
     bool atEnd() const { return position >= m_rows.size(); }
     int row() const { return position >= 0 && position < m_rows.size() ? m_rows[position] : -1; }
     // Whether a field of this name is the merge's to work out (the merge freezes these).
@@ -111,6 +130,7 @@ struct MergeOptions {
     std::function<QString(const QString &prompt, const QString &defaultAnswer)> ask;
     std::function<bool(int done, int total)> progress;   // false stops the merge
     bool pageBreaks = true;           // each record begins a page (letters); not for a directory
+    int mostBarcodes = kMostBarcodes; // the merge stops (with an error) where it would make more barcodes than this
     int mostPages = kMostPages;       // the merge stops (with an error) where it would make more pages than this
     bool *cancelled = nullptr;        // set by `ask` (or the progress) when the person cancels: the merge stops
 };

@@ -7,12 +7,15 @@
 #include "app/writewindow.h"
 #include "app/ribbon.h"
 #include "core/appinfo.h"
+#include "core/barcode.h"
+#include "core/barcodeitem.h"
 #include "core/editops.h"
 #include "core/fonts.h"
 #include "core/labelops.h"
 #include "core/fieldops.h"
 #include "core/mergeops.h"
 #include "core/mergesource.h"
+#include "core/pictureops.h"
 #include "core/writedoc.h"
 #include "office/package.h"
 #include "wml/wml.h"
@@ -117,6 +120,26 @@ QByteArray makeXlsx(const QByteArray &rows)
               QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
     w.addRelationship(QStringLiteral("/xl/workbook.xml"), kRel + QStringLiteral("worksheet"), QStringLiteral("/xl/worksheets/sheet1.xml"));
     return w.finish();
+}
+
+// The data of every barcode picture of the text, in order.
+QStringList barcodeDataOf(WriteDoc &doc)
+{
+    QStringList out;
+    for (int i = 0; i + 1 < doc.story()->characterCount(); ++i)
+        if (isPictureAt(doc.story(), i)) {
+            const QJsonObject b = pictureAt(doc, doc.story(), i).barcode;
+            if (!b.isEmpty()) out << b.value(QLatin1String("data")).toString();
+        }
+    return out;
+}
+
+// A document with "Code: " and a barcode of the column Name, as the field a template holds.
+QByteArray barcodeLetter(const QByteArray &typeAndSwitches)
+{
+    return makeDocx(para(run("Code: ") + "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> DISPLAYBARCODE \"</w:instrText></w:r>" + field("MERGEFIELD Name", "x") +
+                         "<w:r><w:instrText xml:space=\"preserve\">\" " + typeAndSwitches + " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" + run("sample") +
+                         "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>"));
 }
 
 MergeSource threePeople()
@@ -273,6 +296,102 @@ private Q_SLOTS:
         auto again = open(merged->toDocx());
         QVERIFY(again);
         QCOMPARE(textOf(*again), textOf(*merged));
+    }
+
+    // A barcode whose value is a merge field: each record's picture holds its own value, so the three codes differ.
+    void aMergeMakesABarcodeForEachRecord()
+    {
+        auto doc = open(barcodeLetter("CODE128 \\s 100 \\t"));
+        QVERIFY(doc);
+        mail::MergeOptions options;
+        QString error;
+        auto merged = mail::mergeToDocument(*doc, threePeople(), {}, options, &error);
+        QVERIFY2(merged, qPrintable(error));
+        QCOMPARE(barcodeDataOf(*merged), (QStringList{"Ann", "Bo", "Cy"}));
+        QCOMPARE(textOf(*merged).count(QStringLiteral("Code: ")), 3);
+        QVERIFY(!textOf(*merged).contains(QStringLiteral("sample")));
+        const QJsonObject a{{"type", 4}, {"data", "Ann"}}, b{{"type", 4}, {"data", "Bo"}};
+        QVERIFY(barcodeLayout(a).bars != barcodeLayout(b).bars);
+        // Saved and opened again, the merged document still holds the three barcodes.
+        auto again = open(merged->toDocx());
+        QVERIFY(again);
+        QCOMPARE(barcodeDataOf(*again), (QStringList{"Ann", "Bo", "Cy"}));
+        // The text of an email merge has the value in place of the picture.
+        const QStringList texts = mail::mergeToTexts(*doc, threePeople(), {}, options, &error);
+        QCOMPARE(texts.size(), 3);
+        QVERIFY(texts[1].contains(QStringLiteral("Bo")));
+    }
+
+    // A value the code can't hold gets a clear message in the text, not a bad code; the other records are unharmed.
+    void aValueTheCodeCannotHoldShowsAMessage()
+    {
+        auto doc = open(barcodeLetter("CODE128"));
+        QVERIFY(doc);
+        MergeSource m;
+        m.fields = {"Name"};
+        for (const char *v : {"A1", "Z\xC3\xA9", "B2"}) {
+            m.rows << QStringList{QString::fromUtf8(v)};
+            m.include << true;
+        }
+        mail::MergeOptions options;
+        auto merged = mail::mergeToDocument(*doc, m, {}, options);
+        QVERIFY(merged);
+        QCOMPARE(barcodeDataOf(*merged), (QStringList{"A1", "B2"}));
+        QVERIFY2(textOf(*merged).contains(QStringLiteral("Code 128 holds")), qPrintable(textOf(*merged)));
+        // An empty value makes no barcode and no message.
+        m.rows[0] = QStringList{QString()};
+        auto empty = mail::mergeToDocument(*doc, m, {}, options);
+        QVERIFY(empty);
+        QCOMPARE(barcodeDataOf(*empty), (QStringList{"B2"}));
+    }
+
+    // Insert Barcode on a merge field: the field is saved in the file as a field, and merges to a code for each record.
+    void aBarcodeFieldIsSavedAndMerges()
+    {
+        auto doc = open(makeDocx(para(run("Code: "))));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.movePosition(QTextCursor::EndOfBlock);
+        const QJsonObject settings{{"type", int(barcode::Type::Qr)}, {"data", "x"}, {"qrLevel", 2}};
+        QVERIFY(mail::insertBarcodeField(*doc, c, QStringLiteral("Name"), settings));
+        const QByteArray saved = doc->toDocx();
+        QVERIFY(documentHas(saved, "DISPLAYBARCODE"));
+        QVERIFY(documentHas(saved, "MERGEFIELD Name"));
+        auto reopened = open(saved);
+        QVERIFY(reopened);
+        mail::MergeOptions options;
+        auto merged = mail::mergeToDocument(*reopened, threePeople(), {}, options);
+        QVERIFY(merged);
+        QCOMPARE(barcodeDataOf(*merged), (QStringList{"Ann", "Bo", "Cy"}));
+        QVERIFY(merged->story()->toPlainText().contains(QStringLiteral("Code: ")));
+        // (QR, at the level asked for.)
+        for (int i = 0; i + 1 < merged->story()->characterCount(); ++i)
+            if (isPictureAt(merged->story(), i)) {
+                const QJsonObject b = pictureAt(*merged, merged->story(), i).barcode;
+                QCOMPARE(b.value(QLatin1String("type")).toInt(), int(barcode::Type::Qr));
+                QCOMPARE(b.value(QLatin1String("qrLevel")).toInt(), 2);
+            }
+    }
+
+    // A merge makes at most so many barcodes; each type holds a value of a bounded length.
+    void barcodeLimits()
+    {
+        auto doc = open(barcodeLetter("CODE128"));
+        QVERIFY(doc);
+        mail::MergeOptions options;
+        options.mostBarcodes = 2;
+        QString error;
+        QVERIFY(!mail::mergeToDocument(*doc, threePeople(), {}, options, &error));
+        QVERIFY2(error.contains(QStringLiteral("barcodes")), qPrintable(error));
+        barcode::Options o;
+        o.type = barcode::Type::Code128;
+        o.data = QString(barcode::mostChars(barcode::Type::Code128), QLatin1Char('A'));
+        QVERIFY(barcode::make(o).error.isEmpty());
+        o.data += QLatin1Char('A');
+        QVERIFY(!barcode::make(o).error.isEmpty());
+        o.type = barcode::Type::Code39;
+        o.data = QString(barcode::mostChars(barcode::Type::Code39) + 1, QLatin1Char('A'));
+        QVERIFY(!barcode::make(o).error.isEmpty());
     }
 
     void aMergeKeepsTheLookOfEachParagraphOfEveryCopy()

@@ -131,6 +131,8 @@ bool setPictureAltText(WriteDoc &doc, int position, const QString &alt);
 // that undoes. It is kept as an SVG with a PNG beside it, as other programs show a picture, and the marker with its settings (office/barcodemarker.h) is in the drawing's properties.
 // Unreadable for settings that are no barcode the encoder draws.
 PictureResult insertBarcode(WriteDoc &doc, QTextCursor &c, const QJsonObject &settings);
+// The same in the line, as a character of the text (a merge makes one for each record's value, at the place the field was).
+PictureResult insertBarcodeInline(WriteDoc &doc, QTextCursor &c, const QJsonObject &settings);
 // The barcode at `position` made from other settings, in the same place and at the same width, as one step; false (nothing done) where the character is no barcode or the settings are none.
 bool changeBarcode(WriteDoc &doc, int position, const QJsonObject &settings);
 
