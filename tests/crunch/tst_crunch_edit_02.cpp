@@ -30,6 +30,101 @@ void CrunchEditTests::saveAsWritesAnotherFileAndTheWindowIsThatFile()
 }
 
 
+// F2 on a cell a spill fills, then Return with the text as it was, puts nothing in the cell and the spill stays; Escape changes nothing; another value in the cell blocks the spill.
+void CrunchEditTests::editingACellASpillFillsAndLeavingItAsItWasChangesNothing()
+{
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("=SEQUENCE(3)"));
+    QVERIFY(e.settle());
+    QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:3"));
+    const int steps = e.win.w.undoStack()->count();
+    // the formula bar shows the formula of the cell that fills it, greyed: it is not the cell's own
+    QLineEdit *bar = e.win.w.formulaBar();
+    e.select(QStringLiteral("A1"));
+    const QColor own = bar->palette().color(QPalette::Text);
+    e.select(QStringLiteral("A2"));
+    QCOMPARE(bar->text(), QStringLiteral("=SEQUENCE(3)"));
+    QVERIFY(bar->palette().color(QPalette::Text) != own);
+    e.select(QStringLiteral("A1"));
+    QVERIFY(bar->palette().color(QPalette::Text) == own);
+    // F2, then Return
+    e.select(QStringLiteral("A2"));
+    QTest::keyClick(e.view(), Qt::Key_F2);
+    QVERIFY(e.win.w.isEditing());
+    QCOMPARE(e.win.w.cellEditor()->text(), QStringLiteral("=SEQUENCE(3)"));
+    e.key(Qt::Key_Return);
+    QVERIFY(e.settle());
+    QVERIFY(!e.win.w.isEditing());
+    QCOMPARE(e.win.w.undoStack()->count(), steps);
+    QVERIFY(e.win.w.session()->calculation()->isSpillMember(0, 1, 0));
+    QVERIFY(!e.win.w.session()->calculation()->content(0, 1, 0).isFormula);
+    QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+    QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:3"));
+    // F2, then Escape
+    QTest::keyClick(e.view(), Qt::Key_F2);
+    QVERIFY(e.win.w.isEditing());
+    e.key(Qt::Key_Escape);
+    QVERIFY(e.settle());
+    QCOMPARE(e.win.w.undoStack()->count(), steps);
+    QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:3"));
+    // a different value there blocks the spill
+    e.select(QStringLiteral("A2"));
+    e.enter(QStringLiteral("9"));
+    QVERIFY(e.settle());
+    QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("e:#SPILL!"));
+    QCOMPARE(e.valueAt(QStringLiteral("A2")), QStringLiteral("n:9"));
+}
+
+namespace {
+
+// A formula typed in A1 of a new window, saved as an .xlsx by the window, and opened in another window: the spill is a spill there, with the cells it filled and the metadata part.
+void spillRoundTrip(CrunchEditTests *test, const QString &typed, const QString &expectedFormulaPart)
+{
+    Q_UNUSED(test);
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    e.select(QStringLiteral("A1"));
+    e.enter(typed);
+    QVERIFY(e.settle());
+    QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:3"));
+    QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+    const QString target = e.folder.dir.filePath(QStringLiteral("spill.xlsx"));
+    QVERIFY(e.win.w.saveAs(target));
+    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QFile f(target);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const QByteArray bytes = f.readAll();
+    f.close();
+    QMap<QString, QByteArray> parts;
+    QVERIFY(jp::readZip(bytes, parts));
+    QVERIFY(parts.contains(QStringLiteral("xl/metadata.xml")));
+    const QString sheet = QString::fromUtf8(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")));
+    QVERIFY2(sheet.contains(QStringLiteral("cm=\"1\"")) && sheet.contains(QStringLiteral("t=\"array\" ref=\"A1:A3\"")) && sheet.contains(expectedFormulaPart), qPrintable(sheet));
+    EditWindow again;
+    QVERIFY(again.open(bytes, QStringLiteral("again.xlsx")));
+    QVERIFY(again.settle());
+    const Calculation *calc = again.win.w.session()->calculation();
+    QVERIFY(calc->isSpillAnchor(0, 0, 0));
+    QVERIFY(calc->isSpillMember(0, 1, 0) && calc->isSpillMember(0, 2, 0));
+    QCOMPARE(again.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+    QCOMPARE(again.valueAt(QStringLiteral("A2")), QStringLiteral("n:2"));
+    QCOMPARE(again.valueAt(QStringLiteral("A3")), QStringLiteral("n:3"));
+}
+
+} // namespace
+
+void CrunchEditTests::aSpillTypedInTheWindowIsSavedAndOpenedAgainAsASpill()
+{
+    spillRoundTrip(this, QStringLiteral("=SEQUENCE(3)"), QStringLiteral("_xlfn.SEQUENCE(3)"));
+}
+
+void CrunchEditTests::aLetThatSpillsTypedInTheWindowIsSavedAndOpenedAgain()
+{
+    spillRoundTrip(this, QStringLiteral("=LET(n,3,SEQUENCE(n))"), QStringLiteral("_xlfn.LET(_xlpm.n,3,_xlfn.SEQUENCE(_xlpm.n))"));
+}
+
 // A save that fails says why and leaves the file that was there as it was.
 void CrunchEditTests::aSaveThatFailsLeavesTheOldFile()
 {

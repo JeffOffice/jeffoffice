@@ -1551,6 +1551,7 @@ private:
     QDockWidget *m_onlineDock = nullptr;
     OnlinePicturesPane *m_online = nullptr;
     QLineEdit *m_nameBox = nullptr, *m_formulaBar = nullptr;
+    bool m_formulaBarGreyed = false;   // the bar shows the formula of a cell that fills this one by a spill (see updateBars)
     QWidget *m_formulaRow = nullptr;
     crunch::SheetTabBar *m_tabs = nullptr;
     QLabel *m_status = nullptr, *m_stats = nullptr, *m_zoomLabel = nullptr;

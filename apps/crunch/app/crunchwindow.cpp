@@ -858,6 +858,18 @@ void CrunchWindow::updateBars()
         m_formulaBar->setText(barText);
         m_formulaBar->setCursorPosition(0);
     }
+    // (the bar shows the formula of the cell that fills a cell a spill fills, greyed: it is not that cell's own)
+    bool filled = false;
+    if (m_session && m_loaded) {
+        if (const auto *calc = m_session->calculation())
+            filled = calc->isSpillMember(m_sheet, quint32(std::max<qint64>(0, m_view->selection().activeRow)), quint32(std::max<qint64>(0, m_view->selection().activeCol)));
+    }
+    if (filled != m_formulaBarGreyed) {
+        QPalette grey = m_formulaBar->palette();
+        grey.setColor(QPalette::Text, grey.color(QPalette::Disabled, QPalette::Text));
+        m_formulaBar->setPalette(filled ? grey : QPalette());
+        m_formulaBarGreyed = filled;
+    }
     updateFormatState(false);
 }
 

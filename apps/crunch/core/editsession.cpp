@@ -586,11 +586,29 @@ EntryOptions EditSession::entryOptions(int, bool textFormat) const
     return o;
 }
 
+namespace {
+
+// The formula (as the file writes it) of the cell that fills the cell (sheet, row, col) by a spill; empty for a cell that is not filled by one.
+QString spillingFormulaOf(const Calculation &calc, int sheet, quint32 row, quint32 col)
+{
+    jp::office::sheet::CellRange anchor;
+    if (!calc.isSpillMember(sheet, row, col, &anchor) || !anchor.valid) return {};
+    const Calculation::CellContent head = calc.content(sheet, anchor.row1, anchor.col1);
+    return head.isFormula ? head.formula : QString();
+}
+
+} // namespace
+
 QString EditSession::editText(int sheet, quint32 row, quint32 col) const
 {
     if (!m_book || !m_book->calc) return {};
     const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
     if (!c.exists) return {};
+    if (c.spilled) {
+        // (a cell a spill fills is edited as the formula that fills it, as the formula bar shows it; what is entered unchanged makes no change: see typedChange)
+        const QString head = spillingFormulaOf(*m_book->calc, sheet, row, col);
+        return head.isEmpty() ? QString() : QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(head), m_locale);
+    }
     if (c.isFormula && formulaHidden(sheet, c.style)) return {};
     if (c.isFormula) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(c.formula), m_locale);
     const QString code = m_book->book->styles().formatCode(c.style, m_locale);
@@ -615,6 +633,11 @@ bool EditSession::formulaHidden(int sheet, quint32 style) const
 
 QString EditSession::barText(int sheet, quint32 row, quint32 col, const QString &gridText) const
 {
+    if (m_book && m_book->calc && sheet >= 0 && sheet < m_book->calc->sheetCount()) {
+        // (a cell a spill fills shows the formula that fills it; the bar greys it)
+        const QString head = spillingFormulaOf(*m_book->calc, sheet, row, col);
+        if (!head.isEmpty()) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(head), m_locale);
+    }
     if (m_book && m_book->calc && m_book->calc->sheetCount() > sheet && sheet >= 0 && m_book->calc->sheet(sheet).isProtected) {
         const Calculation::CellContent hidden = m_book->calc->content(sheet, row, col);
         if (hidden.isFormula && formulaHidden(sheet, hidden.style)) return QString();
@@ -648,6 +671,17 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
         problem->problem = r.problem;
         problem->problemAt = r.problemAt;
         return false;
+    }
+    if (before.spilled && r.entry.kind == Entry::Kind::Formula && r.entry.text == spillingFormulaOf(*calc, sheet, row, col)) {
+        // (the formula that fills the cell, entered as it was shown: the cell stays as it is, filled, and no formula is put in it)
+        CellChange same;
+        same.sheet = sheet;
+        same.row = row;
+        same.col = quint16(col);
+        same.before = same.after = before;
+        *none = true;
+        *out = std::move(same);
+        return true;
     }
     CellChange ch;
     ch.sheet = sheet;

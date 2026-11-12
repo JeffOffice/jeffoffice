@@ -95,7 +95,7 @@ The **Watch Window** is a small window that stays in view while you work. It lis
 
 When a formula gives a block of values, the block fills the cells below and beside the cell you typed it in. This is called a spill. Try =SEQUENCE(3) in A1: A1 shows 1, and A2 and A3 show 2 and 3. A formula spills when it calls a function that gives a block (SORT, SORTBY, FILTER, UNIQUE, SEQUENCE, RANDARRAY, TRANSPOSE, XLOOKUP, or MMULT), writes a block in braces, uses a spill range (below), or does arithmetic on a range, as in =A1:A3*2.
 
-- **The cells it fills hold no formula of their own.** They show the values. When you select one, the formula bar shows the formula of the cell that fills it. To change the block, change that first cell.
+- **The cells it fills hold no formula of their own.** They show the values. When you select one, the formula bar shows the formula of the cell that fills it, in grey. Pressing Enter on it as it is changes nothing. To change the block, change that first cell.
 - **The block follows the result.** If the formula gives more or fewer values after something it reads changes, the block grows or shrinks, and formulas that read those cells are worked out again.
 - **A cell in the way gives #SPILL!.** If any cell where the block would go holds a value or a formula, the first cell shows **#SPILL!** and nothing is filled. Clear the cell in the way and the block fills at once. Typing in a cell the block fills does the same: the first cell shows #SPILL!.
 - **A block has a size limit.** A block larger than the sheet, or of more than 200,000 cells, gives #SPILL!.

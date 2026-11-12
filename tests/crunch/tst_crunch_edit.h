@@ -125,6 +125,9 @@ private Q_SLOTS:
     void saveWritesWhatChangedAndKeepsTheRest();
     void aSecondSaveWritesWhatChangedSinceTheFirst();
     void saveAsWritesAnotherFileAndTheWindowIsThatFile();
+    void editingACellASpillFillsAndLeavingItAsItWasChangesNothing();
+    void aSpillTypedInTheWindowIsSavedAndOpenedAgainAsASpill();
+    void aLetThatSpillsTypedInTheWindowIsSavedAndOpenedAgain();
     void aSaveThatFailsLeavesTheOldFile();
     void closingAsksAboutChangesThatAreNotSaved();
     void saveWaitsForTheCalculation();
