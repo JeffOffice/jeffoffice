@@ -254,7 +254,11 @@ private Q_SLOTS:
         QCOMPARE(b.at("C1"), QStringLiteral("e:#NAME?"));
         // 126 pairs
         QString f = QStringLiteral("_xlfn.LET(");
-        for (int i = 1; i <= 126; ++i) f += QStringLiteral("_xlpm.v%1,%2,").arg(i).arg(i == 1 ? QStringLiteral("1") : QStringLiteral("_xlpm.v%1+1").arg(i - 1));
+        for (int i = 1; i <= 126; ++i) {
+            // (plain steps: the two kinds of string in one ?: crashed here on macOS)
+            const QString value = i == 1 ? QString::number(1) : QStringLiteral("_xlpm.v") + QString::number(i - 1) + QStringLiteral("+1");
+            f += QStringLiteral("_xlpm.v") + QString::number(i) + QLatin1Char(',') + value + QLatin1Char(',');
+        }
         f += QStringLiteral("_xlpm.v126)");
         QVERIFY(b.type(QStringLiteral("D1"), f));
         QCOMPARE(b.at("D1"), QStringLiteral("n:126"));
