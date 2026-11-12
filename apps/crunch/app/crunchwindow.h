@@ -288,6 +288,7 @@ public:
         int made = 0;
         QStringList problems;
         bool tooMany = false;
+        qint64 visited = 0;   // the cells looked at
     };
     BarcodeColumnResult insertBarcodesFromCells(const jp::office::sheet::CellRange &range, const QJsonObject &look, int most = 500);
     void setIconsPicker(const std::function<QStringList()> &picker) { m_iconsPicker = picker; }

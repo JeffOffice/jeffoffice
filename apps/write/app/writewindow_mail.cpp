@@ -442,7 +442,7 @@ struct MailUi {
     void barcodeField(const QString &column)
     {
         QJsonObject settings;
-        if (!askBarcode(w, QJsonObject(), &settings)) return;
+        if (!askBarcode(w, QJsonObject(), &settings, true)) return;
         if (!doc() || !inText()) {
             message(QCoreApplication::translate("jp::WriteMail", "Put the caret in the text of the document first."));
             return;

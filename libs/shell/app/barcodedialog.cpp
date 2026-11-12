@@ -40,6 +40,7 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSpinBox>
+#include <QStandardItemModel>
 #include <QVBoxLayout>
 #include "app/plaintext.h"
 
@@ -92,7 +93,7 @@ void useIsbnRanges(QObject *receiver, const std::function<void()> &arrived)
 }
 } // namespace
 
-bool askBarcode(QWidget *p, const QJsonObject &was, QJsonObject *out)
+bool askBarcode(QWidget *p, const QJsonObject &was, QJsonObject *out, bool forField)
 {
     using namespace barcode;
     Settings &st = Settings::get();
@@ -199,6 +200,18 @@ bool askBarcode(QWidget *p, const QJsonObject &was, QJsonObject *out)
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     v->addWidget(bb);
 
+    // A merge field's barcode takes its digits from the list, so a book's price, an add-on, a check character, and the clear background (which a field can't say) are not offered, nor is a book's
+    // ISBN as a type (the field syntax has EAN-13, which holds the 13 digits).
+    if (forField) {
+        if (auto *model = qobject_cast<QStandardItemModel *>(type->model())) model->item(int(Type::Isbn))->setEnabled(false);
+        if (type->currentIndex() == int(Type::Isbn)) type->setCurrentIndex(int(Type::Ean13));
+        group->button(0)->setChecked(true);
+        addOn->clear();
+        white->setChecked(true);
+        white->setVisible(false);
+        check39->setChecked(false);
+    }
+
     Layout current;
     // The settings the widgets show, as they are kept with the barcode and remembered for the next one.
     auto settingsNow = [&] {
@@ -214,9 +227,9 @@ bool askBarcode(QWidget *p, const QJsonObject &was, QJsonObject *out)
             lab->setText(book ? QCoreApplication::translate("BarcodeDialog", "ISBN:") : ean ? QCoreApplication::translate("BarcodeDialog", "Digits:") : QCoreApplication::translate("BarcodeDialog", "Text:"));
         data->setPlaceholderText(book ? QCoreApplication::translate("BarcodeDialog", "978-1-23456-789-7 or a 10-digit ISBN") : ean ? QCoreApplication::translate("BarcodeDialog", "with or without the check digit") : isQr ? QCoreApplication::translate("BarcodeDialog", "https://example.com") : QString());
         price->setVisible(book);
-        addOn->setVisible(ean);
-        form->labelForField(addOn)->setVisible(ean);
-        check39->setVisible(t == Type::Code39);
+        addOn->setVisible(ean && !forField);
+        form->labelForField(addOn)->setVisible(ean && !forField);
+        check39->setVisible(t == Type::Code39 && !forField);
         qrLevel->setVisible(isQr);
         form->labelForField(qrLevel)->setVisible(isQr);
         showText->setVisible(!isQr);
@@ -225,6 +238,12 @@ bool askBarcode(QWidget *p, const QJsonObject &was, QJsonObject *out)
         amount->setEnabled(group->checkedId() == 1);
         currency->setEnabled(group->checkedId() == 1);
         current = data->text().trimmed().isEmpty() ? Layout() : make(barcodeOptions(settingsNow()));
+        if (current.error.isEmpty() && !current.bars.isEmpty()) {
+            if (const QString tooLongText = tooLong(barcodeOptions(settingsNow())); !tooLongText.isEmpty()) {
+                current = Layout();
+                current.error = tooLongText;
+            }
+        }
         if (book && group->checkedId() == 1 && current.error.isEmpty()) {
             QString err;
             priceAddOn(Currency(currency->currentIndex() + 1), amount->value(), &err);

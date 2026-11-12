@@ -78,17 +78,18 @@ QStringList greetingFormats();
 QString mergeFieldCode(const QString &column);
 // Puts a field at the caret whose code may hold fields: "{ code }" in `code` is a field of its own (as in IF { MERGEFIELD State } = "VA" "yes" "no"). `result` is what it shows until the merge.
 bool insertRule(WriteDoc &doc, QTextCursor &c, const QString &code, const QString &result = QString());
-// A barcode whose value is a merge field, as the field DISPLAYBARCODE "{ MERGEFIELD column }" TYPE switches that the file saves (type: QR, CODE128, CODE39, EAN13, EAN8, UPCA, ISBN; \s the size in
-// percent, \q the QR level, \t print the digits). `settings` (the barcode dialog's) gives the type and look. The merge makes a barcode picture of each record's value, or a message where the code can't
-// hold the value.
+// A barcode whose value is a merge field, as the field DISPLAYBARCODE "{ MERGEFIELD column }" TYPE switches that the file saves, with the types and switches the field syntax defines (type: QR, CODE128,
+// CODE39, EAN13, EAN8, UPCA; \s the size in percent, \h the height in twips (10 for each percent of the standard bar height), \q the QR level, \t print the digits; a book's ISBN is EAN13 with its 13
+// digits; \r, \b, and \f are read past). `settings` (the barcode dialog's) gives the type and look. The merge makes a barcode picture of each record's value, or a message where the code can't hold
+// the value; a field with a value written out in it, no type, or a type not drawn here is left as it is.
 bool insertBarcodeField(WriteDoc &doc, QTextCursor &c, const QString &column, const QJsonObject &settings);
 QString addressBlockCode(const QString &format, const QString &homeCountry = QString());
 QString greetingCode(const QString &format, const QString &fallback);
 
-// The settings of the barcode a DISPLAYBARCODE field asks for with this value, as the barcode dialog keeps them; empty for a type name that is none.
+// The settings of the barcode a DISPLAYBARCODE field asks for with this value, as the barcode dialog keeps them; empty for a type that is none or not drawn here.
 QJsonObject barcodeSettingsOfField(const fields::Code &code, const QString &value);
-// The text that stands for the nth barcode of a record until the picture is put there, and the number in such a mark (-1 for text that is none).
-QString barcodeMark(int n);
+// The text that stands for the nth barcode of a record until the picture is put there.
+QString barcodeMark(const QString &nonce, int n);
 
 // Answers the fields of a merge, for one record at a time. The rules that move to another record (NEXT, NEXTIF) move `position`; SKIPIF marks the record skipped.
 class Evaluator {
@@ -108,6 +109,7 @@ public:
     // with `barcodePictures` false (the text of an email) the result is the value. `barcodesMade` counts all the records', and `tooManyBarcodes` is set past `mostBarcodes`.
     QVector<QJsonObject> barcodes;
     bool barcodePictures = true;
+    QString barcodeNonce;             // in the marks of this merge (made at its start), so that no value can hold one
     int barcodesMade = 0;
     int mostBarcodes = kMostBarcodes;
     bool tooManyBarcodes = false;

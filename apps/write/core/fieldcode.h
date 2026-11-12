@@ -31,6 +31,7 @@ struct Code {
     QString expression;          // the text after the name up to the first switch, as written (a formula's)
     QVector<Switch> switches;
     QStringList general;         // the arguments of \* (MERGEFORMAT, roman, Upper...)
+    QStringList nested;          // DISPLAYBARCODE: the results of the fields in its code, whose marks (U+E002, the number, U+E003) stand in the words of the code, so that a result is never read as code
     QString numberPicture, datePicture;   // the arguments of \# and \@
     bool hasNumberPicture = false, hasDatePicture = false;
     bool has(QChar letter) const;

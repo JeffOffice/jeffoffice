@@ -772,6 +772,12 @@ int mostChars(Type type)
     }
 }
 
+QString tooLong(const Options &o)
+{
+    if ((o.type != Type::Code128 && o.type != Type::Code39) || o.data.size() <= mostChars(o.type)) return QString();
+    return QCoreApplication::translate("Core", "%1 holds at most %2 characters here (this text has %3).").arg(o.type == Type::Code128 ? QStringLiteral("Code 128") : QStringLiteral("Code 39")).arg(mostChars(o.type)).arg(o.data.size());
+}
+
 Layout make(const Options &o)
 {
     switch (o.type) {
@@ -792,13 +798,9 @@ Layout make(const Options &o)
     case Type::Ean8:
         return eanUpc(o, digitsOnly(o.data).size() == o.data.trimmed().size() ? o.data.trimmed() : o.data.trimmed().remove(QRegularExpression(QStringLiteral("[\\s-]"))), QString());
     case Type::Code128:
+        return code128(o);
     case Type::Code39:
-        if (o.data.size() > mostChars(o.type)) {
-            Layout l;
-            l.error = QCoreApplication::translate("Core", "%1 holds at most %2 characters here (this text has %3).").arg(o.type == Type::Code128 ? QStringLiteral("Code 128") : QStringLiteral("Code 39")).arg(mostChars(o.type)).arg(o.data.size());
-            return l;
-        }
-        return o.type == Type::Code128 ? code128(o) : code39(o);
+        return code39(o);
     case Type::Qr:
         return qr(o);
     }

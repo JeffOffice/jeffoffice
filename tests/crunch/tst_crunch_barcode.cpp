@@ -13,6 +13,7 @@
 #include "office/package.h"
 
 #include <QComboBox>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QLineEdit>
 #include <QSignalSpy>
@@ -154,6 +155,26 @@ private Q_SLOTS:
         QVERIFY(over.tooMany);
         QCOMPARE(over.made, 0);
         QCOMPARE(int(o->idsOf(0).size()), 0);
+    }
+
+    // Ctrl+A on a sheet with a few cells in it: only the cells the sheet uses are looked at, however large the selection is.
+    void aHugeSelectionLooksOnlyAtTheUsedCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        jp::office::sheet::CellRange all;
+        all.valid = true;
+        all.row1 = all.col1 = 0;
+        all.row2 = 1048575;
+        all.col2 = 16383;
+        const QJsonObject look{{"type", int(jp::barcode::Type::Code128)}, {"data", "x"}};
+        QElapsedTimer timer;
+        timer.start();
+        const CrunchWindow::BarcodeColumnResult r = e.win.w.insertBarcodesFromCells(all, look);
+        QVERIFY2(r.visited <= 100, qPrintable(QString::number(r.visited)));
+        QVERIFY(timer.elapsed() < 20000);
     }
 
     // A picture of the window with a QR code on the sheet, for the docs, when JP_SHOT_DIR names a folder.

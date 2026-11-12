@@ -31,6 +31,8 @@ int qrCapacity(int version, int level);
 
 // The most characters of the data a type holds: Code 128 and Code 39 ones that print on a label are 10 to 50 characters, so 500 is 10 times what they use; a QR code is held by qrMostBytes(); the digit types by their own length.
 int mostChars(Type type);
+// Why a NEW barcode of these options is refused for its length (empty if it is not): the limit of mostChars() holds when a barcode is made, not when one a file holds is read.
+QString tooLong(const Options &o);
 
 struct Label {
     QString text;

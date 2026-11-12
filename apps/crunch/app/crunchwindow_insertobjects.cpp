@@ -573,8 +573,19 @@ CrunchWindow::BarcodeColumnResult CrunchWindow::insertBarcodesFromCells(const jp
     };
     std::vector<Code> codes;
     qint64 filled = 0;
-    for (quint32 row = range.row1; row <= range.row2; ++row)
-        for (quint32 col = range.col1; col <= range.col2; ++col) {
+    // Only the cells the sheet uses can hold text: a selection of the whole sheet (Ctrl+A) is cut to them, and no more than kMostCellsLooked are looked at in any case (a sparse sheet that reaches far).
+    constexpr qint64 kMostCellsLooked = 200000;
+    quint32 usedRows = 0, usedCols = 0;
+    m_view->sheet().usedExtent(&usedRows, &usedCols);
+    if (usedRows == 0 || usedCols == 0 || range.row1 >= usedRows || range.col1 >= usedCols) return result;
+    const quint32 lastRow = std::min(range.row2, usedRows - 1), lastCol = std::min(range.col2, usedCols - 1);
+    for (quint32 row = range.row1; row <= lastRow; ++row)
+        for (quint32 col = range.col1; col <= lastCol; ++col) {
+            if (++result.visited > kMostCellsLooked) {
+                result.tooMany = true;
+                result.problems << tr("The selection is too large to look through. Choose fewer cells.");
+                return result;
+            }
             const QString text = m_session->neutralText(m_sheet, row, col).trimmed();
             if (text.isEmpty()) continue;
             if (++filled > most) {

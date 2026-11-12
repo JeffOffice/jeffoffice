@@ -653,7 +653,19 @@ PassResult updatePass(WriteDoc &doc, const UpdateOptions &options, bool keepChan
         change.name = f.name;
         change.position = f.begin;
         change.before = scan.resultOf(index);
-        change.instruction = scan.instructionOf(index, computed).trimmed();
+        // (A barcode's code is read with marks where the results of its nested fields stand, and the results go with it: a value is data, never read as code.)
+        QStringList nestedResults;
+        if (f.name == QLatin1String("DISPLAYBARCODE")) {
+            QHash<int, QString> marks;
+            for (const CodePiece &p : f.code)
+                if (p.field >= 0) {
+                    marks.insert(p.field, QString(QChar(0xE002)) + QString::number(nestedResults.size()) + QChar(0xE003));
+                    nestedResults << (computed.contains(p.field) ? computed.value(p.field) : scan.resultOf(p.field));
+                }
+            change.instruction = scan.instructionOf(index, marks).trimmed();
+        } else {
+            change.instruction = scan.instructionOf(index, computed).trimmed();
+        }
         auto note = [&](FieldChange::Outcome outcome, const QString &after) {
             change.outcome = outcome;
             change.after = after;
@@ -676,8 +688,14 @@ PassResult updatePass(WriteDoc &doc, const UpdateOptions &options, bool keepChan
             note(FieldChange::Kept, change.before);
             continue;
         }
-        const fields::Code code = fields::parseCode(change.instruction);
+        fields::Code code = fields::parseCode(change.instruction);
+        code.nested = nestedResults;
         if (pageDependent(code.name)) out.pageDependent = true;
+        // A barcode field inside another's code keeps its result, which is the value the outer one reads.
+        if (code.name == QLatin1String("DISPLAYBARCODE") && f.parent >= 0) {
+            note(FieldChange::Kept, change.before);
+            continue;
+        }
         if (code.name == QLatin1String("TOC")) {
             if (options.pageNumbersOnly) {
                 note(FieldChange::Kept, change.before);   // (its PAGEREF fields are updated on their own)

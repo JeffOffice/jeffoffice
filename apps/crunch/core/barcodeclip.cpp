@@ -12,8 +12,8 @@ namespace jp::crunch {
 
 bool barcodeClip(const QJsonObject &settings, ObjectClip *out, QString *why)
 {
-    QString problem;
-    const ItemPtr code = barcodeFromSettings(settings, QPointF(), &problem);
+    QString problem = barcode::tooLong(barcodeOptions(settings));
+    const ItemPtr code = problem.isEmpty() ? barcodeFromSettings(settings, QPointF(), &problem) : ItemPtr();
     if (!code || code->type() != ItemType::Group) {
         if (why) *why = problem.isEmpty() ? QCoreApplication::translate("jp::crunch::Barcode", "That is not a barcode JeffCrunch can draw.") : problem;
         return false;

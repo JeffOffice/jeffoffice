@@ -2,6 +2,7 @@
 // Each document is built here from a few lines of XML.
 
 #include "../isolatesettings.h"
+#include "app/barcodedialog.h"
 #include "app/navpane.h"
 #include "app/pageview.h"
 #include "app/settings.h"
@@ -28,10 +29,14 @@
 #include "core/watermarkops.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
+#include "office/barcodemarker.h"
 #include "office/package.h"
 #include "wml/wml.h"
 
 #include <QBuffer>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QGroupBox>
 #include <QFile>
 #include <QHelpEvent>
 #include <QToolTip>
@@ -1463,6 +1468,30 @@ private Q_SLOTS:
         insertQrBarcode(win.w, QStringLiteral("https://jeffoffice.com"));
         QCoreApplication::processEvents();
         win.w.grab().save(qEnvironmentVariable("JP_SHOT_DIR") + QStringLiteral("/write-qr.png"));
+    }
+
+    // A barcode that is a merge field's has what a field can carry: the digits, the size, the height, and the QR level. Not the book price, an add-on, a check character, the clear background, or a book's ISBN as a type.
+    void aBarcodeDialogForAFieldOffersOnlyWhatAFieldCarries()
+    {
+        QJsonObject out;
+        withDialog([&] { askBarcode(nullptr, QJsonObject{{"type", 0}, {"data", "978-1-64002-163-1"}}, &out, true); }, QStringLiteral("barcodeDialog"), [&](QDialog *d) {
+            auto *type = d->findChildren<QComboBox *>().first();
+            QVERIFY(!(type->model()->flags(type->model()->index(0, 0)) & Qt::ItemIsEnabled));
+            QVERIFY(type->currentIndex() != 0);
+            for (QCheckBox *c : d->findChildren<QCheckBox *>())
+                if (c->text().startsWith(QLatin1String("Add a check")) || c->text().startsWith(QLatin1String("White background"))) QVERIFY(!c->isVisibleTo(d));
+            for (QGroupBox *g : d->findChildren<QGroupBox *>())
+                if (g->title().isEmpty() || g->title().contains(QLatin1String("add-on"), Qt::CaseInsensitive) || g->title().contains(QLatin1String("price"), Qt::CaseInsensitive)) QVERIFY(!g->isVisibleTo(d));
+            for (QLineEdit *l : d->findChildren<QLineEdit *>())
+                if (l->placeholderText().startsWith(QLatin1String("none, or 2"))) QVERIFY(!l->isVisibleTo(d));
+        });
+    }
+
+    // A barcode a file holds is read at any length the encoder draws, though a new one is held to 500 characters.
+    void aLongCode128MarkerStillReadsAsABarcode()
+    {
+        const QJsonObject settings{{"type", int(barcode::Type::Code128)}, {"data", QString(600, QLatin1Char('A'))}};
+        QVERIFY(!office::barcodeSettingsFromText(office::barcodeSettingsText(settings)).isEmpty());
     }
 
     // With the barcode selected, Insert > Barcode edits it: the dialog starts from its data, the picture keeps its place and width, and one step undoes it.

@@ -318,8 +318,7 @@ private Q_SLOTS:
         QCOMPARE(barcodeDataOf(*again), (QStringList{"Ann", "Bo", "Cy"}));
         // The text of an email merge has the value in place of the picture.
         const QStringList texts = mail::mergeToTexts(*doc, threePeople(), {}, options, &error);
-        QCOMPARE(texts.size(), 3);
-        QVERIFY(texts[1].contains(QStringLiteral("Bo")));
+        QCOMPARE(texts, (QStringList{"Code: Ann", "Code: Bo", "Code: Cy"}));
     }
 
     // A value the code can't hold gets a clear message in the text, not a bad code; the other records are unharmed.
@@ -373,8 +372,8 @@ private Q_SLOTS:
             }
     }
 
-    // A merge makes at most so many barcodes; each type holds a value of a bounded length.
-    void barcodeLimits()
+    // A merge makes at most so many barcodes (the limit set here is smaller than the real one, kMostBarcodes), and a value that fails the layout check counts toward it as well.
+    void aMergeMakesAtMostSoManyBarcodes()
     {
         auto doc = open(barcodeLetter("CODE128"));
         QVERIFY(doc);
@@ -383,15 +382,180 @@ private Q_SLOTS:
         QString error;
         QVERIFY(!mail::mergeToDocument(*doc, threePeople(), {}, options, &error));
         QVERIFY2(error.contains(QStringLiteral("barcodes")), qPrintable(error));
+        // Three values the code can't hold are counted too.
+        MergeSource bad;
+        bad.fields = {"Name"};
+        for (int i = 0; i < 3; ++i) {
+            bad.rows << QStringList{QString::fromUtf8("Z\xC3\xA9")};
+            bad.include << true;
+        }
+        error.clear();
+        QVERIFY(!mail::mergeToDocument(*doc, bad, {}, options, &error));
+        QVERIFY2(error.contains(QStringLiteral("barcodes")), qPrintable(error));
+        QCOMPARE(mail::kMostBarcodes, 2000);
+    }
+
+    // A new Code 128 or Code 39 barcode holds at most mostChars() characters; a barcode a file holds is read at any length the encoder draws.
+    void aNewBarcodeIsHeldToItsLengthAndAnOldOneIsNot()
+    {
         barcode::Options o;
         o.type = barcode::Type::Code128;
         o.data = QString(barcode::mostChars(barcode::Type::Code128), QLatin1Char('A'));
-        QVERIFY(barcode::make(o).error.isEmpty());
+        QVERIFY(barcode::tooLong(o).isEmpty());
         o.data += QLatin1Char('A');
-        QVERIFY(!barcode::make(o).error.isEmpty());
+        QVERIFY(!barcode::tooLong(o).isEmpty());
         o.type = barcode::Type::Code39;
-        o.data = QString(barcode::mostChars(barcode::Type::Code39) + 1, QLatin1Char('A'));
-        QVERIFY(!barcode::make(o).error.isEmpty());
+        QVERIFY(!barcode::tooLong(o).isEmpty());
+        o.type = barcode::Type::Qr;
+        QVERIFY(barcode::tooLong(o).isEmpty());
+        // (Making the code is not refused: a longer one that was saved before the limit still draws.)
+        o.type = barcode::Type::Code128;
+        QVERIFY(barcode::make(o).error.isEmpty());
+        // A merge refuses it with a message, like any value that can't be held.
+        auto doc = open(barcodeLetter("CODE128"));
+        QVERIFY(doc);
+        MergeSource m;
+        m.fields = {"Name"};
+        m.rows << QStringList{QString(100000, QLatin1Char('A'))};
+        m.include << true;
+        mail::MergeOptions options;
+        auto merged = mail::mergeToDocument(*doc, m, {}, options);
+        QVERIFY(merged);
+        QVERIFY(barcodeDataOf(*merged).isEmpty());
+        const QString text = textOf(*merged);
+        QVERIFY2(text.contains(QStringLiteral("[Barcode:")) && text.size() < 300, qPrintable(text.left(300)));
+    }
+
+    // What the field syntax says is what is made: height (\h), size (\s), QR level (\q), and the digits (\t) go into the field and come back out of it; ISBN is written as EAN13.
+    void theLookOfAFieldIsKeptInItsSwitches()
+    {
+        auto doc = open(makeDocx(para(run("Code: "))));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.movePosition(QTextCursor::EndOfBlock);
+        const QJsonObject settings{{"type", int(barcode::Type::Code128)}, {"data", "x"}, {"magnification", 150}, {"height", 60}, {"text", false}};
+        QVERIFY(mail::insertBarcodeField(*doc, c, QStringLiteral("Name"), settings));
+        QTextCursor d(doc->story());
+        d.movePosition(QTextCursor::End);
+        const QJsonObject isbn{{"type", int(barcode::Type::Isbn)}, {"data", "x"}, {"priceMode", 0}};
+        QVERIFY(mail::insertBarcodeField(*doc, d, QStringLiteral("Isbn"), isbn));
+        const QByteArray saved = doc->toDocx();
+        const QByteArray xml = partOf(saved, QStringLiteral("/word/document.xml"));
+        QVERIFY2(xml.contains("CODE128 \\s 150 \\h 600"), xml.constData());
+        QVERIFY(!xml.contains("CODE128 \\s 150 \\h 600 \\t"));
+        QVERIFY(xml.contains("EAN13"));
+        QVERIFY(!xml.contains("ISBN"));
+        QVERIFY(!xml.contains("\\k"));
+        auto reopened = open(saved);
+        QVERIFY(reopened);
+        MergeSource m;
+        m.fields = {"Name", "Isbn"};
+        m.rows << QStringList{"A1", "978-1-64002-163-1"};
+        m.include << true;
+        mail::MergeOptions options;
+        auto merged = mail::mergeToDocument(*reopened, m, {}, options);
+        QVERIFY(merged);
+        QJsonObject first, second;
+        for (int i = 0; i + 1 < merged->story()->characterCount(); ++i)
+            if (isPictureAt(merged->story(), i)) {
+                const QJsonObject b = pictureAt(*merged, merged->story(), i).barcode;
+                (first.isEmpty() ? first : second) = b;
+            }
+        QCOMPARE(first.value(QLatin1String("data")).toString(), QStringLiteral("A1"));
+        QCOMPARE(first.value(QLatin1String("height")).toInt(), 60);
+        QCOMPARE(first.value(QLatin1String("magnification")).toInt(), 150);
+        QCOMPARE(first.value(QLatin1String("text")).toBool(true), false);
+        QCOMPARE(second.value(QLatin1String("type")).toInt(), int(barcode::Type::Ean13));
+        QCOMPARE(second.value(QLatin1String("data")).toString(), QStringLiteral("978-1-64002-163-1"));
+    }
+
+    // A value is data, never field code: quotes and switches inside it change nothing, and a value that holds the mark of a barcode (or another field's code) is only text.
+    void aValueIsNeverReadAsFieldCode()
+    {
+        auto doc = open(barcodeLetter("CODE128"));
+        QVERIFY(doc);
+        const QString hostile = QStringLiteral("x\" QR \\s 300 \"y");
+        MergeSource m;
+        m.fields = {"Name"};
+        m.rows << QStringList{hostile} << QStringList{QStringLiteral("a\\q 3 \\h 1")} << QStringList{QStringLiteral("{ DISPLAYBARCODE \"z\" QR }")};
+        for (int i = 0; i < 3; ++i) m.include << true;
+        mail::MergeOptions options;
+        auto merged = mail::mergeToDocument(*doc, m, {}, options);
+        QVERIFY(merged);
+        QCOMPARE(barcodeDataOf(*merged), (QStringList{hostile, QStringLiteral("a\\q 3 \\h 1"), QStringLiteral("{ DISPLAYBARCODE \"z\" QR }")}));
+        for (int i = 0; i + 1 < merged->story()->characterCount(); ++i)
+            if (isPictureAt(merged->story(), i)) {
+                const QJsonObject b = pictureAt(*merged, merged->story(), i).barcode;
+                QCOMPARE(b.value(QLatin1String("type")).toInt(), int(barcode::Type::Code128));
+                QCOMPARE(b.value(QLatin1String("magnification")).toInt(), 100);
+                QCOMPARE(b.value(QLatin1String("height")).toInt(), 100);
+            }
+    }
+
+    // A merge field's value with the characters that mark a barcode in the merge's own text stays text, and does not take a barcode's place.
+    void aValueCannotStandInForABarcodeMark()
+    {
+        const QByteArray body = para(field("MERGEFIELD Note", "x")) +
+                                para("<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> DISPLAYBARCODE \"</w:instrText></w:r>" + field("MERGEFIELD Name", "x") +
+                                     "<w:r><w:instrText xml:space=\"preserve\">\" CODE128 </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" + run("sample") + "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>");
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const QString forged = QString(QChar(0xE000)) + QStringLiteral("0") + QChar(0xE001);
+        MergeSource m;
+        m.fields = {"Note", "Name"};
+        m.rows << QStringList{forged, "Real"};
+        m.include << true;
+        mail::MergeOptions options;
+        auto merged = mail::mergeToDocument(*doc, m, {}, options);
+        QVERIFY(merged);
+        QCOMPARE(barcodeDataOf(*merged), (QStringList{"Real"}));
+        QVERIFY(merged->story()->toPlainText().contains(QStringLiteral("0")));
+    }
+
+    // A field the merge has nothing to make of stays as it is, with its result: one with a value written out (not from the list), one with no value, and one of a type that is not drawn here.
+    void aBarcodeFieldWithNothingToMergeIsLeftAlone()
+    {
+        for (const char *code : {"DISPLAYBARCODE \"12345\" CODE128", "DISPLAYBARCODE CODE128", "DISPLAYBARCODE"}) {
+            const QByteArray zip = makeDocx(para(run("Code: ") + field(code, "sample")));
+            auto doc = open(zip);
+            QVERIFY(doc);
+            mail::MergeOptions options;
+            auto merged = mail::mergeToDocument(*doc, threePeople(), {}, options);
+            QVERIFY(merged);
+            QVERIFY2(barcodeDataOf(*merged).isEmpty(), code);
+            QCOMPARE(textOf(*merged), QStringLiteral("Code: sample|Code: sample|Code: sample"));
+        }
+        for (const char *type : {"UPCE", "ITF14", "JPPOST", "NOSUCH"}) {
+            auto doc = open(barcodeLetter(QByteArray(type) + " \\r 90 \\b 255 \\f 0"));
+            QVERIFY(doc);
+            mail::MergeOptions options;
+            auto merged = mail::mergeToDocument(*doc, threePeople(), {}, options);
+            QVERIFY(merged);
+            QVERIFY2(barcodeDataOf(*merged).isEmpty(), type);
+            QCOMPARE(textOf(*merged), QStringLiteral("Code: sample|Code: sample|Code: sample"));
+        }
+        // The switches for rotation and colors are read past: the barcode is made as the others say.
+        auto doc = open(barcodeLetter("CODE128 \\r 90 \\b 255 \\f 0 \\s 120"));
+        QVERIFY(doc);
+        mail::MergeOptions options;
+        auto merged = mail::mergeToDocument(*doc, threePeople(), {}, options);
+        QVERIFY(merged);
+        QCOMPARE(barcodeDataOf(*merged), (QStringList{"Ann", "Bo", "Cy"}));
+    }
+
+    // A barcode field inside another's code is no harm: it keeps its result, which is the outer one's value.
+    void aBarcodeFieldInsideABarcodeFieldMakesOneBarcode()
+    {
+        const QByteArray inner = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> DISPLAYBARCODE \"</w:instrText></w:r>" + field("MERGEFIELD Name", "x") +
+                                 "<w:r><w:instrText xml:space=\"preserve\">\" QR </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" + run("in") + "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        const QByteArray outer = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> DISPLAYBARCODE \"</w:instrText></w:r>" + inner +
+                                 "<w:r><w:instrText xml:space=\"preserve\">\" CODE128 </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" + run("out") + "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        auto doc = open(makeDocx(para(outer)));
+        QVERIFY(doc);
+        mail::MergeOptions options;
+        auto merged = mail::mergeToDocument(*doc, threePeople(), {}, options);
+        QVERIFY(merged);
+        QCOMPARE(barcodeDataOf(*merged), (QStringList{"in", "in", "in"}));
     }
 
     void aMergeKeepsTheLookOfEachParagraphOfEveryCopy()
