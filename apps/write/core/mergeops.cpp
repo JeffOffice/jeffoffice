@@ -554,8 +554,10 @@ QJsonObject barcodeSettingsOfField(const fields::Code &code, const QString &valu
         s.insert(QStringLiteral("magnification"), std::clamp(scale > 0 ? scale : 100, 50, 300));
         // (\h is the height drawn, in twips: the share of the full bar height it is, at the size asked for, is the dialog's bar height.)
         const int twips = code.argumentOf(QLatin1Char('h')).toInt();
-        const double full = twips > 0 ? drawnHeightTwips(k.type, s.value(QLatin1String("magnification")).toInt() / 100.0, 1, code.has(QLatin1Char('t'))) : 0;
-        s.insert(QStringLiteral("height"), full > 0 ? std::clamp(int(std::lround(100.0 * twips / full)), 40, 100) : 100);
+        // (The drawn height grows in a straight line with the bar height, between the shortest and the full: the twips are placed on that line.)
+        const double mag = s.value(QLatin1String("magnification")).toInt() / 100.0;
+        const double full = twips > 0 ? drawnHeightTwips(k.type, mag, 1, code.has(QLatin1Char('t'))) : 0, shortest = twips > 0 ? drawnHeightTwips(k.type, mag, 0.4, code.has(QLatin1Char('t'))) : 0;
+        s.insert(QStringLiteral("height"), full > shortest && shortest > 0 ? std::clamp(int(std::lround(40.0 + 60.0 * (twips - shortest) / (full - shortest))), 40, 100) : 100);
         s.insert(QStringLiteral("text"), code.has(QLatin1Char('t')));
         s.insert(QStringLiteral("qrLevel"), code.has(QLatin1Char('q')) ? qrLevelOf(code.argumentOf(QLatin1Char('q'))) : 1);
         s.insert(QStringLiteral("white"), true);
