@@ -1140,8 +1140,14 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
                 return p.size() > prefix.size() && std::equal(prefix.begin(), prefix.end(), p.begin());
             };
             std::function<void(int, int, int)> eval = [&](int ri, int ci, int depth) {
-                char here = 0;
-                if (!stackTop) stackTop = &here;
+#if defined(__GNUC__) || defined(__clang__)
+                // (the frame itself: a checked build may keep locals off the stack, where their addresses say nothing of its depth)
+                char *const herePtr = static_cast<char *>(__builtin_frame_address(0));
+#else
+                char local = 0;
+                char *const herePtr = &local;
+#endif
+                if (!stackTop) stackTop = herePtr;
                 const size_t at = size_t(ri) * size_t(nCI) + size_t(ci);
                 if (state[at] == 2 || dataOf[at] < 0) return;
                 PivotCell &out = shown[at];
@@ -1152,7 +1158,7 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
                     out.isValue = true;
                     state[at] = 2;
                 };
-                if (state[at] == 1 || depth > kPivotMaxCalcDepth || std::llabs(qint64(stackTop - &here)) > kMostStack) return fail(QStringLiteral("#REF!"));
+                if (state[at] == 1 || depth > kPivotMaxCalcDepth || std::llabs(qint64(stackTop - herePtr)) > kMostStack) return fail(QStringLiteral("#REF!"));
                 // the item worked out last: the highest solve order (of two with the same, the one made later)
                 int axis = -1, level = 0, best = -1;
                 for (int a = 0; a < 2; ++a)
