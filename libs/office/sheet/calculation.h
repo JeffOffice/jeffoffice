@@ -43,6 +43,10 @@ constexpr qint64 kMaxRecalcWork = 1000000000;
 constexpr qint64 kArrayCellSteps = 5;
 // An array formula's range larger than this is not made members of (no real one is).
 constexpr qint64 kMaxArrayCellsMarked = 1000000;
+// A formula that spills fills at most this many cells (more is the error #SPILL!). The engine builds arrays of up to kMaxArrayCells, but each cell a spill fills is a cell of the sheet
+// (24 bytes, a place in its row, and a value the window keeps), and putting one in costs the cells after it in its block of rows: this is the number of member cells a file may ask for
+// that it has no cell for (kMaxMembersAdded), so a result that no file could have saved is refused where it is made, whole, and never half filled.
+constexpr qint64 kMaxSpillCells = 200000;
 constexpr qint64 kMaxHeldBytes = qint64(512) << 20;
 
 struct CalcOptions {
@@ -67,6 +71,7 @@ struct CalcOptions {
 class Calculation : public WorkbookSource {
 public:
     bool formulaInfo(int sheet, quint32 row, quint32 col, QString *text) const override;
+    SpillAnswer spillRange(int sheet, quint32 row, quint32 col, jp::calc::CellArea *area) const override;
     explicit Calculation(const Workbook &book, const CalcOptions &options = CalcOptions());
     ~Calculation() override;
 
@@ -212,6 +217,13 @@ public:
         m_lookupCache.clear();
     }
 
+    // Spills: the block the formula in the cell fills (valid for the formula's own cell only; a block of one cell for one that fills no more), whether the cell holds a formula that spills, and
+    // whether a cell is filled by one (then `anchor` is that formula's cell). A formula typed in a cell is one that spills when it can give a block (it calls a function that does, writes an
+    // array, a spill range A1#, or does arithmetic on a range), which this says.
+    CellRange spillBlock(int sheet, quint32 row, quint32 col) const;
+    bool isSpillAnchor(int sheet, quint32 row, quint32 col) const;
+    bool isSpillMember(int sheet, quint32 row, quint32 col, CellRange *anchor = nullptr) const;
+    static bool formulaCanSpill(const QString &formula);
     // What a cell shows: its value; a formula that has never been worked out shows the result the file stored for it (nothing if it stored none), and one that waits to be
     // worked out again the value it had.
     jp::calc::Value shown(int sheet, quint32 row, quint32 col) const;
@@ -224,7 +236,9 @@ public:
     bool setValue(int sheet, quint32 row, quint32 col, const jp::calc::Value &value, Marking marking = Marking::Now, qint32 sharedString = -1);   // an empty value empties the cell
     // `sharedString`: for a text, its place in the workbook's shared strings if it is there (the cell then refers to it, and no text is kept in the sheet).
     // `stored`, if given, is the result the cell has until the formula is worked out (for a formula the engine keeps apart, which it does not work out).
-    bool setFormula(int sheet, quint32 row, quint32 col, const QString &formula, Marking marking = Marking::Now, const jp::calc::Value *stored = nullptr);   // as the file writes it, with no "=" in front
+    // `dynamic`: the formula is worked out as an array, and what it gives that is a block fills the cells below and beside it (a spill: see calcspill.cpp). A cell whose formula spills may be given another
+    // formula or value (its spilled cells are let go of); a cell the spill fills holds no value of its own, and one that is written over blocks the spill (the formula's cell then has #SPILL!).
+    bool setFormula(int sheet, quint32 row, quint32 col, const QString &formula, Marking marking = Marking::Now, const jp::calc::Value *stored = nullptr, bool dynamic = false);   // as the file writes it, with no "=" in front
     bool clearCell(int sheet, quint32 row, quint32 col) { return setValue(sheet, row, col, jp::calc::Value()); }
     // The format of the cell (the place of a cell format): a cell that holds nothing and has the first format is taken away. No formula reads a cell's format, so nothing is marked.
     bool setStyle(int sheet, quint32 row, quint32 col, quint32 style);
@@ -244,6 +258,8 @@ public:
         // The first cell of an array formula: the cells it covers (valid), else not valid. A data table's first cell is marked with `dataTable`.
         CellRange arrayRange;
         bool dataTable = false;
+        bool dynamic = false;          // a formula that spills (its block is worked out, not part of the content); a cell it fills is `spilled` and holds nothing of its own
+        bool spilled = false;
         // A formula held in the id frame, as it is held (the text with the ids of the lines it reads, the dead ones too) and the renumber epochs of the sheets then: put back with the formula, so that an edit
         // undone gives the cell the lines it read, a dead end still a dead end that comes back with its line. If the ids were renumbered since (a rebase), the shown text is parsed anew.
         // It is given back only to the cell it was read from, and only if it reads as the text does.
@@ -287,7 +303,7 @@ public:
         }
         bool operator==(const CellContent &o) const
         {
-            return exists == o.exists && isFormula == o.isFormula && formula == o.formula && value == o.value && sharedString == o.sharedString && style == o.style;
+            return exists == o.exists && isFormula == o.isFormula && formula == o.formula && value == o.value && sharedString == o.sharedString && style == o.style && dynamic == o.dynamic;
         }
     };
     CellContent content(int sheet, quint32 row, quint32 col) const;
@@ -795,7 +811,7 @@ private:
     Compiled &compiled(int sheet, qint32 text, bool array);
     // A formula put in a cell as it is held (installFormula), and the copy of a held formula to another cell of its sheet with only its distance changed (rebaseCopy: false, with nothing changed,
     // when the content is not a fresh copy or some line the formula reads is not the same line as the text would give).
-    bool installFormula(int sheet, quint32 row, quint32 col, Cell c, const Formula &f, Marking marking, const jp::calc::Value *stored);
+    bool installFormula(int sheet, quint32 row, quint32 col, Cell c, const Formula &f, Marking marking, const jp::calc::Value *stored, bool dynamic = false);
     bool rebaseCopy(int sheet, quint32 row, quint32 col, const CellContent &c, Marking marking);
     // Texts and formulas, shared and let go of (see SheetState): the place of a text (a new one, or the one an edit made before with the same characters; it counts one more formula
     // for it), a formula's place made with a text it keeps a hold of, a text that one formula less has, and a formula that is not any cell's now.
@@ -891,6 +907,12 @@ private:
     void dissolveArray(int sheet, qint32 slot);
     qint32 makeArray(int sheet, quint32 row, quint32 col, const CellRange &range, qint32 slot, bool *added);
     void markArrayMembers(int sheet, quint32 row, quint32 col);
+    // Spills (calcspill.cpp). The block a formula that spills asks for is checked and made its own after each working out (applySpill gives the value to keep: the block, or #SPILL!); the cells it filled
+    // and no longer fills are let go of; what read them or reads them now is worked out again. `letGoOfSpill` lets go of all of a formula's cells (its formula is going), `isSpillMember` says a cell is
+    // filled by a spill.
+    jp::calc::Value applySpill(Node &n, quint32 id, const jp::calc::Value &v);
+    void letGoOfSpill(int sheet, qint32 formula);
+    void tellGone(int sheet, quint32 rowId, quint32 colId) const;
     void nameTextsChanged();
     void adjustValidations(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
     void adjustConditionalFormats(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);

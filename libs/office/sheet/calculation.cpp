@@ -485,7 +485,7 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
     ++m_structGen;
     Node &n = m_nodes[id];
     const Sheet &s = m_sheets[size_t(n.sheet)];
-    const bool array = cell.flags & ArrayFormula;
+    const bool array = cell.flags & (ArrayFormula | SpillFormula);   // (a formula that spills is worked out as an array: the block it gives is cut to its range, which the spill makes)
     n.flags = quint16((n.flags & AlwaysListed) | (array ? Array : 0));
     n.traits = 0;   // (a formula nobody classified can notice an empty line, and sees no place)
     char kept = 0;
@@ -1228,6 +1228,7 @@ bool Calculation::load()
                     member.flags |= Tainted;
                 } else {
                     member.flags |= ArrayMember;
+                    if (const Cell *head = cellOf(n); head && (head->flags & SpillFormula)) member.flags |= SpillMember;
                     member.formula = n.formula;
                 }
                 s.cells.set(row, col, member);
@@ -2467,12 +2468,12 @@ bool Calculation::finishNode(Node &n, quint32 id, const Value &v)
         n.flags |= Kept | NodeTainted;
         n.kept = 'L';
         keepStored(n, 'L');
-    } else if (m_heldBytes - heldBy(n, id) + heldByValue(fitToRange(n, v)) > m_heldLimit) {
+    } else if (const Value spilled = (n.flags & Array) ? applySpill(n, id, v) : v; m_heldBytes - heldBy(n, id) + heldByValue(fitToRange(n, spilled)) > m_heldLimit) {
         // what the formulas hold would pass its bound: this one has the error (kept apart, the file's value), and the work goes on
         giveError(n, id);
         refused = true;
     } else {
-        storeResult(n, id, v);
+        storeResult(n, id, spilled);
         if (!m_staleReads.empty()) staleReadSettled(id);
         n.flags &= quint16(~Circular);
         if (m_readTaint) n.flags |= NodeTainted;
@@ -2497,7 +2498,7 @@ void Calculation::giveError(Node &n, quint32 id)
         n.kept = 'L';
         keepStored(n, 'L');
     } else {
-        storeResult(n, id, Value::error(ErrorKind::Value));
+        storeResult(n, id, (n.flags & Array) ? applySpill(n, id, Value::error(ErrorKind::Value)) : Value::error(ErrorKind::Value));
         n.flags &= quint16(~(Circular | NodeTainted | Mismatch | Cascade));
     }
 }
@@ -3127,15 +3128,19 @@ bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, 
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows || v.isArray()) return false;
     Sheet &s = m_sheets[size_t(sheet)];
     const Cell *found = s.cells.find(row, col);
-    if (found && ((found->flags & (ArrayMember | ArrayFormula)))) return false;   // (a cell of an array is not edited alone)
+    if (found && ((found->flags & (ArrayMember | ArrayFormula)) && !(found->flags & (SpillFormula | SpillMember)))) return false;   // (a cell of an array is not edited alone)
     abandonNow();
     Cell c = found ? *found : Cell();
+    if (found && (found->flags & SpillFormula) && found->formula >= 0) {
+        letGoOfSpill(sheet, found->formula);   // (the cells it filled are let go of: the value is the cell's now)
+        found = s.cells.find(row, col);       // (and the cell is found again: the store may have moved it)
+    }
     if (found && found->hasFormula()) {
         const SheetState &st = m_state[size_t(sheet)];
         if (found->formula >= 0 && size_t(found->formula) < st.nodeOf.size() && st.nodeOf[size_t(found->formula)] != kNone) dropNode(st.nodeOf[size_t(found->formula)]);
         releaseFormula(sheet, found->formula);   // (it is a value now: nothing has the formula)
     }
-    c.flags &= quint8(~(HasFormula | SharedFormula | DataTable | Tainted));
+    c.flags &= quint8(~(HasFormula | SharedFormula | DataTable | Tainted | SpillFormula | ArrayMember | SpillMember));
     c.formula = -1;
     switch (v.kind()) {
     case Value::Kind::Number: c.type = CellType::Number; c.number = v.number(); break;
@@ -3178,7 +3183,7 @@ bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, 
     return true;
 }
 
-bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString &formula, Marking marking, const Value *stored)
+bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString &formula, Marking marking, const Value *stored, bool dynamic)
 {
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return false;
     ParseOptions po;
@@ -3186,10 +3191,15 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
     if (!parsed.ok()) return false;
     Sheet &s = m_sheets[size_t(sheet)];
     const Cell *found = s.cells.find(row, col);
-    if (found && (found->flags & (ArrayMember | ArrayFormula))) return false;
+    if (found && ((found->flags & (ArrayMember | ArrayFormula)) && !(found->flags & (SpillFormula | SpillMember)))) return false;
     abandonNow();
     SheetState &st = m_state[size_t(sheet)];
+    if (found && (found->flags & SpillFormula) && found->formula >= 0) {
+        letGoOfSpill(sheet, found->formula);
+        found = s.cells.find(row, col);
+    }
     Cell c = found ? *found : Cell();
+    c.flags &= quint8(~(SpillFormula | ArrayMember | SpillMember));
     if (found && found->hasFormula() && found->formula >= 0) {
         if (size_t(found->formula) < st.nodeOf.size() && st.nodeOf[size_t(found->formula)] != kNone) dropNode(st.nodeOf[size_t(found->formula)]);
         releaseFormula(sheet, found->formula);   // (the cell had a formula: nothing has it now)
@@ -3199,15 +3209,15 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
         const Held held = heldText(sheet, formula, parsed.program.get());
         f.text = internText(sheet, held.text, held.cls);
     }
-    return installFormula(sheet, row, col, c, f, marking, stored);
+    return installFormula(sheet, row, col, c, f, marking, stored, dynamic);
 }
 
 // The cell `c` (a copy of what the place holds, its old formula let go of) given the formula `f`, whose text is held once for it: registered in the graph and marked.
-bool Calculation::installFormula(int sheet, quint32 row, quint32 col, Cell c, const Formula &f, Marking marking, const Value *stored)
+bool Calculation::installFormula(int sheet, quint32 row, quint32 col, Cell c, const Formula &f, Marking marking, const Value *stored, bool dynamic)
 {
     Sheet &s = m_sheets[size_t(sheet)];
     Formula own = f;
-    c.flags = quint8((c.flags & ~(SharedFormula | DataTable | Tainted)) | HasFormula);
+    c.flags = quint8(((c.flags & ~(SharedFormula | DataTable | Tainted | SpillFormula | ArrayMember | SpillMember)) | HasFormula) | (dynamic ? SpillFormula : 0));
     c.formula = allocFormula(sheet, own);
     c.type = CellType::Empty;
     c.number = 0;
@@ -3373,21 +3383,29 @@ Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 co
     if (!c) return out;
     out.exists = true;
     out.style = c->style;
-    if (c->flags & (ArrayMember | ArrayFormula | DataTable)) out.editable = false;
+    if (c->flags & SpillMember) {
+        // (filled by a formula that spills: nothing of its own, whatever the file had stored for it)
+        out.spilled = true;
+        return out;
+    }
+    if ((c->flags & (ArrayMember | ArrayFormula | DataTable)) && !(c->flags & SpillFormula)) out.editable = false;
     if (c->hasFormula()) {
         out.isFormula = true;
+        out.dynamic = (c->flags & SpillFormula) != 0;
         out.formula = s.formulaText(*c);
         if ((c->flags & (ArrayFormula | DataTable)) && c->formula >= 0) {
             const qint32 range = s.formulas[c->formula].range;
             if (c->flags & DataTable) out.dataTable = true;
             else if (range >= 0 && range < s.ranges.size() && s.ranges[range].valid) out.arrayRange = s.ranges[range];
+        } else if (out.dynamic) {
+            out.arrayRange = spillBlock(sheet, row, col);   // (the block it fills now: what a file says of a formula that spills)
         }
         const quint32 id = nodeAt(sheet, row, col);
         if (id != kNone && (m_nodes[id].flags & Kept)) {
             out.hasStored = true;
             out.stored = nodeValue(m_nodes[id], id);
         }
-        if (!(c->flags & (ArrayFormula | DataTable | ArrayMember)))
+        if (!(c->flags & (ArrayFormula | DataTable | ArrayMember | SpillFormula)))
             out.hasHeld = heldOf(sheet, *c, &out.held, &out.heldDRow, &out.heldDCol, &out.heldCls);
         if (out.hasHeld) {
             out.heldEpochs = renumberEpochs();
@@ -3423,7 +3441,7 @@ bool Calculation::put(int sheet, quint32 row, quint32 col, const CellContent &c,
         return setStyle(sheet, row, col, 0);
     }
     if (c.isFormula && c.copied && rebaseCopy(sheet, row, col, c, marking)) return setStyle(sheet, row, col, c.style);
-    const bool ok = c.isFormula ? setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr) : setValue(sheet, row, col, c.value, marking, c.sharedString);
+    const bool ok = c.isFormula ? setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr, c.dynamic) : setValue(sheet, row, col, c.value, marking, c.sharedString);
     if (ok && c.isFormula && c.hasHeld && c.heldSheet == sheet && c.heldRow == row && c.heldCol == col && renumberEpochsAre(c.heldEpochs)) {
         restoreHeldFormula(sheet, row, col, c.held, c.heldDRow, c.heldDCol, c.heldCls);
         const Cell *now = m_sheets[size_t(sheet)].cells.find(row, col);

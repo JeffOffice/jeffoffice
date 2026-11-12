@@ -198,7 +198,7 @@ namespace {
 // A cell of a deleted row or column holds no formula (the node of it is let go of, and Undo makes the formula again from the record): nothing that is not live may be read as one.
 void letGoOfFormula(Cell &c)
 {
-    c.flags &= quint8(~(HasFormula | ArrayFormula | SharedFormula | DataTable | ArrayMember | Tainted));
+    c.flags &= quint8(~(HasFormula | ArrayFormula | SharedFormula | DataTable | ArrayMember | Tainted | SpillFormula | SpillMember));
     c.formula = -1;
 }
 

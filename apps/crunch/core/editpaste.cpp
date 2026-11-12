@@ -274,6 +274,7 @@ EditSession::Outcome EditSession::paste(int sheet, const CellRange &target, cons
         };
         auto clearContent = [&] {
             after.isFormula = false;
+            after.dynamic = false;
             after.formula.clear();
             after.value = Value();
             after.sharedString = -1;
@@ -307,12 +308,14 @@ EditSession::Outcome EditSession::paste(int sheet, const CellRange &target, cons
                 clearContent();
             } else if (o.what == What::Values || o.what == What::ValuesAndNumberFormats) {
                 after.isFormula = false;
+                after.dynamic = false;
                 after.formula.clear();
                 after.value = src->content.isFormula ? src->shown : src->content.value;
                 after.sharedString = -1;
                 after.hasStored = false;
             } else {
                 after.isFormula = src->content.isFormula;
+                after.dynamic = src->content.isFormula && src->content.dynamic;
                 after.formula = src->content.isFormula ? offsetFormula(src->content.formula, int(dRow), int(dCol)) : QString();
                 // (a copy made in this workbook carries the formula as it is held, for put to take with the distance changed: only if the text was offset by the distance from the cell it was read from)
                 if (same && src->content.isFormula) after.copyOf(src->content, sheet, spot.row, spot.col, dRow, dCol);
@@ -437,6 +440,7 @@ EditSession::Outcome EditSession::pasteText(int sheet, const CellRange &target, 
             typed = *ch;
             typed.after.exists = true;
             typed.after.isFormula = false;
+            typed.after.dynamic = false;
             typed.after.formula.clear();
             typed.after.value = Value::text(text);
             typed.after.sharedString = -1;

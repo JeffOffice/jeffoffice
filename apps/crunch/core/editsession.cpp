@@ -657,6 +657,8 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
     ch.after = before;
     ch.after.exists = true;
     ch.after.isFormula = false;
+    ch.after.dynamic = false;
+    ch.after.spilled = false;
     ch.after.formula.clear();
     ch.after.value = Value();
     ch.after.sharedString = -1;
@@ -679,6 +681,7 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
     case Entry::Kind::Formula:
         ch.after.isFormula = true;
         ch.after.formula = e.text;
+        ch.after.dynamic = Calculation::formulaCanSpill(e.text);   // (a formula that can give a block fills the cells below and beside it)
         break;
     }
     if (ch.after.value.isEmpty() && !ch.after.isFormula && (ch.after.style == 0 || !before.exists)) ch.after.exists = false;
@@ -1439,6 +1442,12 @@ void EditSession::noteResults(const std::vector<ValueStore::Item> &items)
         if (m_touched.count(key)) continue;
         const Sheet &s = m_book->calc->sheet(it.sheet);
         const Cell *c = s.cells.findById(it.row, it.col);
+        if (it.value.isEmpty() && (!c || !(c->hasFormula() || (c->flags & (ArrayMember | Tainted))))) {
+            // (a cell a formula that spills filled and no longer fills: it holds nothing now, and the file's cell for it is taken out)
+            Value was;
+            if (m_values->find(it.sheet, it.row, it.col, &was) && !was.isEmpty() && (!c || c->type == CellType::Empty)) m_touched.insert(key);
+            continue;
+        }
         if (!c || !(c->hasFormula() || (c->flags & (ArrayMember | Tainted)))) continue;   // (a cell of a data table is a plain cell, marked: the table's values are results too)
         // What the engine had for the cell before this (the store is told after): a result that is the same is not a change, and the file's own value stays (the engine's differences from the
         // program that wrote the file are not made into changes by a formula being worked out again). A result that comes back to the value the engine had before the first change is the file's again.
@@ -1457,8 +1466,13 @@ void EditSession::noteResults(const std::vector<ValueStore::Item> &items)
         }
         const auto file = m_fileResults.find(key);
         const bool same = file != m_fileResults.end() ? sameValue(file->second, it.value) : storedEquals(it.sheet, it.row, it.col, it.value);
-        if (same) m_results.erase(key);
-        else m_results.set(key, it.value);
+        if (same) {
+            m_results.erase(key);
+        } else if (c->flags & SpillMember) {
+            m_touched.insert(key);   // (a cell a formula that spills filled is written whole, as a value: the file may have no cell for it)
+        } else {
+            m_results.set(key, it.value);
+        }
     }
 }
 
@@ -1537,7 +1551,12 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
         if (c.exists) {
             cell.style = c.style;
             cell.isFormula = c.isFormula;
-            if (c.isFormula) {
+            cell.dynamic = c.isFormula && c.dynamic;
+            if (c.spilled) {
+                // (a cell a formula that spills filled: it holds the value that formula gave it, and no formula)
+                Value v;
+                if (key != kNoKey && m_values->find(sheet, quint32((key >> 16) & 0xFFFFFF), quint32(key & 0xFFFF), &v)) cell.value = savedValue(v, -1);
+            } else if (c.isFormula) {
                 cell.formula = c.formula;
                 if (c.arrayRange.valid) cell.arrayRef = c.arrayRange.cellCount() > 1 ? rangeName(c.arrayRange) : cellName(c.arrayRange.row1, c.arrayRange.col1);
                 Value v;

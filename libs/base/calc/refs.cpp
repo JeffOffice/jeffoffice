@@ -192,7 +192,7 @@ ProgramTraits traitsOf(const Program &program)
     ProgramTraits t;
     for (const Instr &in : program.code) {
         if (in.op == Op::PushName || in.op == Op::PushTable) t.usesNames = true;   // (a table's column stands for cells that are found as the formula is worked out)
-        else if (in.op == Op::Range) t.reachesBeyond = true;
+        else if (in.op == Op::Range || in.op == Op::Spill) t.reachesBeyond = true;
         else if (in.op == Op::Call && in.argc == 0 && in.operand >= 0) {
             const FunctionInfo &f = functionAt(in.operand);
             if (std::strcmp(f.name, "ROW") == 0 || std::strcmp(f.name, "COLUMN") == 0) t.observesPlace = true;

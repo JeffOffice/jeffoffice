@@ -566,11 +566,11 @@ bool recalcWorkbook(const Workbook &book, const RecalcOptions &options, const st
                 finish(RecalcClass::NoResult);
                 return;
             }
-            Compiled &slot = (c.flags & ArrayFormula) ? array[size_t(f.text)] : plain[size_t(f.text)];
+            Compiled &slot = (c.flags & (ArrayFormula | SpillFormula)) ? array[size_t(f.text)] : plain[size_t(f.text)];
             if (!slot.tried) {
                 slot.tried = true;
                 ParseOptions po;
-                po.arrayFormula = (c.flags & ArrayFormula) != 0;
+                po.arrayFormula = (c.flags & (ArrayFormula | SpillFormula)) != 0;
                 const ParseResult pr = parseFormula(sheet.formulaTexts[f.text], po);
                 slot.program = pr.program;
                 slot.error = pr.error;

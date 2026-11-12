@@ -66,6 +66,15 @@ public:
         Q_UNUSED(text); Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); Q_UNUSED(area); Q_UNUSED(error);
         return StructuredAnswer::NotKnown;
     }
+    // The cells the formula in the cell (sheet, row, col) spills into (what A1# stands for): Area, with the block in `area`, for a cell whose formula spills (a block of one cell is one it
+    // spills too); NotSpill for any other cell, and for one whose spill is blocked; NotKnown for a source that has no spills (the evaluation then says it did not work the call out).
+    // Pending: the formula there is not worked out yet (the answer is read again when it is).
+    enum class SpillAnswer : quint8 { NotKnown, Area, NotSpill, Pending };
+    virtual SpillAnswer spillRange(int sheet, quint32 row, quint32 col, CellArea *area) const
+    {
+        Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); Q_UNUSED(area);
+        return SpillAnswer::NotKnown;
+    }
     // Whether a row is hidden: 0 no, 1 by hand, 2 by a filter (what SUBTOTAL leaves out of what it adds up: 1 to 11 leave out the rows a filter hides, 101 to 111 every hidden row).
     virtual int rowHiddenKind(int sheet, quint32 row) const { Q_UNUSED(sheet); Q_UNUSED(row); return 0; }
     // For a formula held in the id frame (EvalContext::idFrame), whose references name rows and columns by id: the places now of the lines a reference names by the ids at its two ends (`startId` is

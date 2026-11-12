@@ -255,6 +255,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_fn_date.cpp
   tests/sheet/tst_sheet_fn_finance.cpp
   tests/sheet/tst_sheet_fn_logic.cpp
+  tests/sheet/tst_sheet_spill.cpp
   tests/sheet/tst_sheet_fn_lookup.cpp
   tests/sheet/tst_sheet_lookup_index.cpp
   tests/sheet/tst_sheet_fn_math.cpp

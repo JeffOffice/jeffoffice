@@ -558,9 +558,21 @@ Item Machine::runProgram(const Program &p, bool)
         }
         case Op::Spill: {
             if (!have(1)) return bad();
-            pop();
-            unsupported |= 2;
-            stack.push_back(Item::ofError(ErrorKind::Ref));
+            const Item a = pop();
+            if (!a.isRef()) {
+                // (an error stands; anything else is no cell)
+                stack.push_back(a.kind == Item::Kind::Value && isErr(a.value) ? a : Item::ofError(ErrorKind::Ref));
+                break;
+            }
+            CellArea area;
+            switch (ctx.source->spillRange(a.area.sheet1, a.area.row1, a.area.col1, &area)) {
+            case CellSource::SpillAnswer::Area:
+                if (ctx.touched) ctx.touched->push_back(area);
+                stack.push_back(Item::ofRef(area));
+                break;
+            case CellSource::SpillAnswer::NotKnown: unsupported |= 2; stack.push_back(Item::ofError(ErrorKind::Ref)); break;
+            default: stack.push_back(Item::ofError(ErrorKind::Ref)); break;
+            }
             break;
         }
         case Op::Call: {

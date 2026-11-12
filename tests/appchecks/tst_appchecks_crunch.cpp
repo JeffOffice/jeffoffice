@@ -586,6 +586,18 @@ private Q_SLOTS:
         QVERIFY2(failed.isEmpty(), qPrintable(failed.join(QLatin1Char('\n'))));
     }
 
+    // A formula typed in one cell whose result is a block fills the cells below it.
+    void aFormulaTypedInOneCellFillsThreeCells()
+    {
+        Watch watch;
+        std::unique_ptr<CrunchWindow> w(launchBlank());
+        enter(w.get(), 0, 0, QStringLiteral("=SEQUENCE(3)"));
+        QTRY_COMPARE(shown(w.get(), 0, 0), QStringLiteral("1"));
+        QTRY_COMPARE(shown(w.get(), 1, 0), QStringLiteral("2"));
+        QTRY_COMPARE(shown(w.get(), 2, 0), QStringLiteral("3"));
+        QCOMPARE(shown(w.get(), 3, 0), QString());
+    }
+
     void firstFiveMinutes()
     {
         Watch watch;

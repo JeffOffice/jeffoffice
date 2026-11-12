@@ -54,6 +54,8 @@ enum CellFlag : quint8 {
     DataTable = 8,       // the formula is a what-if data table
     ArrayMember = 16,    // a cell of the range of an array formula that is not its first cell: its value is the formula's (set by the calculation; `formula` then names the array's formula)
     Tainted = 32,        // a value the calculation could not check (a cell of a data table, or of an array whose formula it kept apart)
+    SpillFormula = 64,          // the formula is a dynamic array: worked out as an array, its result fills the cells below and beside it (its range is the block it fills now; no range: one cell)
+    SpillMember = 128,   // with ArrayMember: the cell is filled by a formula that spills (it holds no value of its own, and a person may type over it, which blocks the spill)
 };
 
 // One cell: 24 bytes. Its value is in number (and, for text, the pool it points
