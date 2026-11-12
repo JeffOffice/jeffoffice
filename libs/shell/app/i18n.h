@@ -15,6 +15,11 @@ namespace jp {
 // Spain ("es_ES") over the neutral Spanish ("es").
 QStringList availableUiLanguages();
 
+// Languages with a translation file but not translated yet: not offered in Options and not picked from the system's languages, until they
+// are taken off this list (kept in step with HELD in tools/translate/translate.py, which a test checks). A test may set it.
+QStringList heldUiLanguages();
+void setHeldUiLanguages(const QStringList &languages);
+
 // A language's name as its speakers write it, with the country when the
 // language comes in more than one ("Português (Brasil)").
 QString uiLanguageName(const QString &language);

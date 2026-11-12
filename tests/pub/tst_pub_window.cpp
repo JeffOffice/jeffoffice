@@ -1850,18 +1850,30 @@ private Q_SLOTS:
         }
     }
 
-    // Russian and Indonesian are in Options before their text is translated: a label with no translation shows in English (a plural too, in
+    // Once offered (taken off the held list) before their text is translated, Russian and Indonesian: a label with no translation shows in English (a plural too, in
     // the right form for its number), Help shows the English topics, and no label is empty.
     void newLanguagesShowEnglishUntilTranslated()
     {
         struct Restore {
             QVariant before = jp::Settings::get().value(QStringLiteral("ui/language"));
+            QStringList held = jp::heldUiLanguages();
             ~Restore()
             {
+                jp::setHeldUiLanguages(held);
                 jp::Settings::get().setValue(QStringLiteral("ui/language"), before);
                 jp::installTranslations();
             }
         } restore;
+        // Held (untranslated) languages are not offered, nor picked from the system's languages or a saved choice; taken off the list, they are.
+        for (const char *name : {"ru", "id"}) {
+            QVERIFY2(jp::heldUiLanguages().contains(QLatin1String(name)), name);
+            QVERIFY2(!jp::availableUiLanguages().contains(QLatin1String(name)), name);
+            jp::Settings::get().setValue(QStringLiteral("ui/language"), QLatin1String(name));
+            QCOMPARE(jp::installTranslations(), QStringLiteral("en"));
+        }
+        QVERIFY(jp::availableUiLanguages().contains(QStringLiteral("de")));
+        jp::setHeldUiLanguages({});
+        for (const char *name : {"ru", "id"}) QVERIFY2(jp::availableUiLanguages().contains(QLatin1String(name)), name);
         jp::Settings::get().setValue(QStringLiteral("ui/language"), QStringLiteral("en"));
         jp::installTranslations();
         const QString printing = jp::help::topic(QStringLiteral("printing")).markdown;

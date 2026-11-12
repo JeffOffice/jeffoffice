@@ -31,6 +31,13 @@ class Languages(unittest.TestCase):
         self.assertNotIn("id", T.default_languages())
         self.assertIn("de", T.default_languages())
 
+    def test_the_program_holds_the_same_languages(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(root, "libs", "shell", "app", "i18n.cpp"), encoding="utf-8") as f:
+            line = [l for l in f if "s_held{" in l][0]
+        import re
+        self.assertEqual(set(re.findall(r'QStringLiteral\("(\w+)"\)', line)), T.HELD)
+
     def test_the_prompts_name_the_forms(self):
         self.assertIn("exactly 3 of them", T.ui_system("ru", {}))
         self.assertIn("exactly 1 of them", T.ui_system("id", {}))

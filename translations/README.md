@@ -25,10 +25,10 @@ new or changed text to Claude through the Anthropic API:
   not yet reviewed; the program uses them all the same.
 
 Russian and Indonesian are prepared but not translated yet: their `.ts` files
-(`jeffoffice_ru.ts`, `jeffoffice_id.ts`) are listed in Options and show English until
-their text comes. The translator skips them unless named (`HELD` in
+(`jeffoffice_ru.ts`, `jeffoffice_id.ts`) are built in but not offered in Options, nor picked from
+the system's language, until they are translated. The translator skips them unless named (`HELD` in
 `tools/translate/translate.py`); to start them, run it with `--lang ru,id` (a
-`--dry-run` first prints how much there is), then take them out of `HELD`. Russian has three
+`--dry-run` first prints how much there is), then take them out of `HELD` and of `s_held` in `libs/shell/app/i18n.cpp` (a test keeps the two the same). Russian has three
 plural forms and Indonesian one; `tools/check_plurals.py` checks that every plural has them.
 
 A translation is a

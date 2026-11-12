@@ -19,12 +19,19 @@ namespace {
 const QLatin1String kSuiteFiles("jeffoffice");
 }
 
+namespace {
+QStringList s_held{QStringLiteral("ru"), QStringLiteral("id")};   // (HELD in tools/translate/translate.py)
+}
+
+QStringList heldUiLanguages() { return s_held; }
+void setHeldUiLanguages(const QStringList &languages) { s_held = languages; }
+
 QStringList availableUiLanguages()
 {
     QStringList out;
     const QString prefix = kSuiteFiles + QLatin1Char('_');
     for (const QString &f : QDir(QStringLiteral(":/i18n")).entryList({prefix + QStringLiteral("*.qm")}, QDir::Files))
-        if (f != prefix + QStringLiteral("en.qm")) out << f.mid(prefix.size(), f.size() - prefix.size() - 3);   // <fileName>_<language>.qm; English is the text itself
+        if (f != prefix + QStringLiteral("en.qm") && !s_held.contains(f.mid(prefix.size(), f.size() - prefix.size() - 3))) out << f.mid(prefix.size(), f.size() - prefix.size() - 3);   // <fileName>_<language>.qm; English is the text itself
     return out;
 }
 
