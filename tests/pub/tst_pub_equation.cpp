@@ -11,6 +11,7 @@
 #include "io/pubimport.h"
 #include "wml/wmlmathedit.h"
 #include "wml/wmlmathpath.h"
+#include <QFile>
 #include <QDir>
 #include <QFileInfo>
 #include <QLabel>
@@ -230,11 +231,18 @@ private Q_SLOTS:
                 jp::installTranslations();
             }
         } restore;
-        for (const char *lang : {"de", "fr", "pt_BR"}) {
+        int fellBack = 0;
+        for (const char *lang : {"de", "fr", "pt_BR", "en_GB"}) {
             jp::Settings::get().setValue(QStringLiteral("ui/language"), QLatin1String(lang));
             jp::installTranslations();
             const jp::help::Topic t = jp::help::topic(QStringLiteral("equations"));
-            QCOMPARE(t.title, QStringLiteral("Add an equation"));
+            // (a language without the page shows the English one; British English holds only the pages that differ, so one always falls back)
+            if (!QFile::exists(QStringLiteral(JP_TEST_DATA "/../../resources/help/") + QLatin1String(lang) + QStringLiteral("/equations.md"))) {
+                ++fellBack;
+                QCOMPARE(t.title, QStringLiteral("Add an equation"));
+            } else {
+                QVERIFY2(!t.title.isEmpty(), lang);
+            }
             QVERIFY(jp::help::topicIds().contains(QStringLiteral("equations")));
             const QString contents = jp::help::topic(QStringLiteral("index")).markdown;
             static const QRegularExpression link(QStringLiteral("\\]\\(([^)\\s]+)\\)"));
@@ -243,6 +251,7 @@ private Q_SLOTS:
                 if (!target.startsWith(QLatin1String("https://"))) QVERIFY2(jp::help::topicIds().contains(target), qPrintable(QLatin1String(lang) + QLatin1Char(' ') + target));
             }
         }
+        QVERIFY(fellBack > 0);
     }
 
     // The model is the one the other programs share: a line that makes no equation (too deep, too long, empty) makes no object.

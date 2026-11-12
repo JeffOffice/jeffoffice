@@ -273,11 +273,20 @@ private Q_SLOTS:
             jp::Settings::get().setValue(QStringLiteral("ui/language"), QLatin1String(lang));
             return jp::installTranslations();
         };
-        QCOMPARE(say("de"), QStringLiteral("de"));
-        QVERIFY(!QFile::exists(QStringLiteral(JP_TEST_DATA "/../../resources/help/de/comments.md")));
-        const jp::help::Topic t = jp::help::topic(QStringLiteral("comments"));
-        QCOMPARE(t.title, QStringLiteral("Comments"));
-        QVERIFY(t.markdown.contains(QLatin1String("New Comment")));
+        // (a language with the page shows its own; one without it, as British English, which holds only the pages that differ, shows the English: so the fallback is tested
+        // however much is translated)
+        int fellBack = 0;
+        for (const char *lang : {"de", "fr", "pt_BR", "en_GB"}) {
+            say(lang);
+            const bool has = QFile::exists(QStringLiteral(JP_TEST_DATA "/../../resources/help/") + QLatin1String(lang) + QStringLiteral("/comments.md"));
+            const jp::help::Topic t = jp::help::topic(QStringLiteral("comments"));
+            QVERIFY2(!t.title.isEmpty(), lang);
+            if (has) continue;
+            ++fellBack;
+            QCOMPARE(t.title, QStringLiteral("Comments"));
+            QVERIFY(t.markdown.contains(QLatin1String("New Comment")));
+        }
+        QVERIFY(fellBack > 0);
         say("en");
     }
 
