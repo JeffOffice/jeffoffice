@@ -1,4 +1,7 @@
 #include "tst_write.h"
+#include "app/grammar.h"
+#include "app/spellpane.h"
+#include "core/grammarcheck.h"
 #include "core/linkops.h"
 #include "text/autocorrect.h"
 
@@ -326,4 +329,214 @@ void WriteTests::everyKindOfFixCanBeUndoneAndDoneAgain()
     QCOMPARE(listKindOf(*n.doc, n.doc->story()->firstBlock()), ListKind::None);
     n.view.redo();
     QCOMPARE(listKindOf(*n.doc, n.doc->story()->firstBlock()), ListKind::Numbers);
+}
+
+
+// ---- grammar as you type (core/grammarcheck, libs/shell/app/grammar)
+
+namespace {
+const QString kGrammarOn = QStringLiteral("proof/checkGrammarAsYouType");
+// A sentence with one grammar issue and no misspelling ("an test"), and one with a misspelling and no grammar issue.
+const QString kAnTest = QStringLiteral("This is an test of the checker.");
+}
+
+void WriteTests::checkingGrammarAsYouTypeCanBeTurnedOffInTheReviewTab()
+{
+    const SettingGuard grammar(kGrammarOn, true, true);   // (what the test begins with, and what the person had comes back)
+    WriteWindow w;
+    w.setDocument(textDoc({kAnTest}), QString());
+    w.show();
+    QAction *action = w.act("review.checkGrammarAsType");
+    QVERIFY(action);
+    QVERIFY(action->isCheckable() && action->isChecked());
+    QVERIFY(w.view()->grammarEnabled());
+    QVERIFY(w.act("review.checkAsType")->isChecked());   // (the spelling's choice is its own)
+    action->trigger();
+    QVERIFY(!action->isChecked());
+    QVERIFY(!w.view()->grammarEnabled());
+    QVERIFY(w.view()->spellingEnabled());
+    QVERIFY(!grammarAsYouType());
+    WriteWindow other;
+    QVERIFY(!other.view()->grammarEnabled());   // (a window opened after remembers the choice)
+    action->trigger();
+    QVERIFY(w.view()->grammarEnabled());
+    QVERIFY(grammarAsYouType());
+}
+
+void WriteTests::checkingGrammarAsYouTypeIsOneChoiceInOptions()
+{
+    const SettingGuard grammar(kGrammarOn, true, true);
+    WriteWindow w, other;
+    for (WriteWindow *x : {&w, &other}) {
+        x->setDocument(textDoc({kAnTest}), QString());
+        x->show();
+    }
+    QString boxText;
+    bool boxWas = false;
+    QTimer watch;
+    watch.setInterval(20);
+    QObject::connect(&watch, &QTimer::timeout, &watch, [&] {
+        auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (!d) return;
+        watch.stop();
+        for (QCheckBox *box : d->findChildren<QCheckBox *>())
+            if (box->text().contains(QLatin1String("grammar as you type"), Qt::CaseInsensitive)) {
+                boxText = box->text();
+                boxWas = box->isChecked();
+                box->setChecked(false);
+            }
+        d->accept();
+    });
+    watch.start();
+    w.act("file.options")->trigger();
+    QCOMPARE(boxText, QStringLiteral("Check grammar as you type"));
+    QVERIFY(boxWas);
+    QVERIFY(!w.view()->grammarEnabled());
+    QVERIFY(!other.view()->grammarEnabled());   // (the other window, at once)
+    QVERIFY(!other.act("review.checkGrammarAsType")->isChecked());
+    QVERIFY(w.view()->spellingEnabled());       // (spelling was left as it was)
+    QVERIFY(!Settings::get().value(kGrammarOn, true).toBool());
+    WriteWindow later;
+    QVERIFY(!later.view()->grammarEnabled());
+}
+
+void WriteTests::grammarIssuesAreUnderlinedInBlueAndSpellingStaysRed()
+{
+    const SettingGuard grammarOn(kGrammarOn, true, true), spellingOn(QStringLiteral("proof/checkAsYouType"), true, true);
+    auto doc = textDoc({kAnTest + QStringLiteral(" And a recieve here.")});
+    PageView view;
+    view.resize(1000, 700);
+    view.setDocument(doc.get());
+    view.grammar()->setDelayMs(0);
+    view.show();
+    // Where the issue is: from the checker itself.
+    const auto issues = grammarCheck(doc->story()->toPlainText(), QString());
+    QVERIFY(!issues.isEmpty());
+    const GrammarIssue issue = issues.first();
+    QTextCursor &c = view.cursor();
+    c.setPosition(issue.start);
+    view.setCursor(c);
+    QRect start;
+    QVERIFY(view.caretRect(&start));
+    c.setPosition(issue.end);
+    view.setCursor(c);
+    QRect end;
+    QVERIFY(view.caretRect(&end));
+    c.setPosition(doc->story()->characterCount() - 1);   // (away from it: the caret is not in a word being typed)
+    view.setCursor(c);
+    int blue = 0, red = 0;
+    QRect line;
+    QTRY_VERIFY((line = blueBounds(view.grab().toImage(), view.pageRect(0), &blue), blue > 3));
+    // Under the issue and nowhere else, just below its letters.
+    QVERIFY2(line.left() >= start.left() - 3 && line.right() <= end.left() + 3, qPrintable(QStringLiteral("%1..%2 for the issue at %3..%4").arg(line.left()).arg(line.right()).arg(start.left()).arg(end.left())));
+    QVERIFY(line.top() >= start.top() && line.bottom() <= start.bottom() + 8);
+    // The misspelled word keeps its red wave, and the issue has no red.
+    redBounds(view.grab().toImage(), view.pageRect(0), &red);
+    QVERIFY(red > 8);
+    QVERIFY(redBounds(view.grab().toImage(), view.pageRect(0)).left() > line.right());
+    // As printed, and in the proof the picture of a page makes, there is none.
+    blueBounds(view.pageImage(0, 900), QRect(0, 0, 900, 1200), &blue);
+    QCOMPARE(blue, 0);
+    // Switched off, it goes; on again, it comes back.
+    view.setGrammarEnabled(false);
+    blueBounds(view.grab().toImage(), view.pageRect(0), &blue);
+    QCOMPARE(blue, 0);
+    view.setGrammarEnabled(true);
+    QTRY_VERIFY((blueBounds(view.grab().toImage(), view.pageRect(0), &blue), blue > 3));
+}
+
+void WriteTests::aGrammarIssueOffersItsMessageAndSuggestionsAndAcceptingOneUndoes()
+{
+    const SettingGuard grammarOn(kGrammarOn, true, true);
+    WriteWindow w;
+    w.setDocument(textDoc({kAnTest}), QString());
+    w.show();
+    w.view()->grammar()->setDelayMs(0);
+    const int length = w.document()->story()->characterCount();
+    QTRY_VERIFY(!w.view()->grammar()->issuesIn(0, length).isEmpty());
+    const GrammarCheck::Issue issue = w.view()->grammar()->issuesIn(0, length).first();
+    QTextCursor &c = w.view()->cursor();
+    c.setPosition(issue.start + 1);
+    w.view()->setCursor(c);
+    QMenu menu;
+    w.fillContextMenu(menu);
+    // The message first (it does nothing), then the suggestions, the first in bold.
+    QAction *message = nullptr, *accept = nullptr;
+    for (QAction *a : menu.actions()) {
+        if (a->text() == issue.message) message = a;
+        if (!issue.suggestions.isEmpty() && a->text() == issue.suggestions.first()) accept = a;
+    }
+    QVERIFY(message);
+    QVERIFY(!message->isEnabled());
+    QVERIFY(!issue.suggestions.isEmpty());
+    QVERIFY(accept);
+    QVERIFY(accept->font().bold());
+    accept->trigger();
+    QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("This is a test of the checker."));
+    w.view()->undo();   // (one step)
+    QCOMPARE(w.document()->story()->toPlainText(), kAnTest);
+    // With the setting off there is no menu for it.
+    w.view()->setGrammarEnabled(false);
+    QMenu off;
+    w.fillContextMenu(off);
+    for (QAction *a : off.actions()) QVERIFY(a->text() != issue.message);
+}
+
+void WriteTests::theSpellingPaneGoesOnToTheGrammarIssues()
+{
+    const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true), grammarOn(kGrammarOn, true, true);
+    WriteWindow w;
+    w.setDocument(textDoc({QStringLiteral("A recieve here. ") + kAnTest}), QString());
+    w.show();
+    w.act("review.spelling")->trigger();
+    auto *pane = w.findChild<SpellPane *>();
+    QVERIFY(pane);
+    auto click = [&](const char *name) { pane->findChild<QPushButton *>(QString::fromLatin1(name))->click(); };
+    QTRY_COMPARE(pane->word(), QStringLiteral("recieve"));
+    QVERIFY(!pane->inGrammar());
+    click("spellIgnore");
+    // The spelling is done: the grammar issue is next, with its message, and its suggestion changes the text.
+    QTRY_VERIFY(pane->inGrammar());
+    QVERIFY(!pane->complete());
+    QVERIFY(!pane->message().isEmpty());
+    QVERIFY(pane->findChild<QLabel *>(QStringLiteral("spellStatus"))->text().contains(QStringLiteral("Grammar")));
+    QVERIFY(!pane->findChild<QPushButton *>(QStringLiteral("spellAdd"))->isEnabled());
+    click("spellChange");
+    QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("A recieve here. This is a test of the checker."));
+    QTRY_VERIFY(pane->complete());
+    QVERIFY(!pane->inGrammar());
+    // Grammar off: the pane has the spelling only.
+    w.view()->setGrammarEnabled(false);
+    setGrammarAsYouType(false);
+    w.document()->story()->setPlainText(QStringLiteral("A recieve here. ") + kAnTest);
+    w.act("review.spelling")->trigger();
+    QTRY_COMPARE(pane->word(), QStringLiteral("recieve"));
+    click("spellIgnore");
+    QTRY_VERIFY(pane->complete());
+    QVERIFY(!pane->inGrammar());
+}
+
+void WriteTests::aParagraphThatChangesIsSentToTheCheckerOnceItHasStoppedChanging()
+{
+    auto doc = textDoc({QStringLiteral("One."), QStringLiteral("Two.")});
+    GrammarCheck check(doc->story());
+    check.setDelayMs(150);
+    const int length = doc->story()->characterCount();
+    check.issuesIn(0, length);
+    QVERIFY(check.pending());
+    QCOMPARE(check.paragraphsChecked(), 0);   // (not yet: it may still change)
+    QTRY_VERIFY(check.paragraphsChecked() == 2);
+    QTRY_VERIFY(!check.pending());
+    // The same text again, in another paragraph or after an undo, is not checked again.
+    const int before = check.paragraphsChecked();
+    QTextCursor c(doc->story());
+    c.setPosition(0);
+    c.insertText(QStringLiteral("x"));
+    c.deletePreviousChar();
+    check.issuesIn(0, doc->story()->characterCount());
+    QTest::qWait(300);
+    QCOMPARE(check.paragraphsChecked(), before);
+    // Off: nothing is found, nothing is sent.
+    check.setEnabled(false);
+    QVERIFY(check.issuesIn(0, length).isEmpty());
 }

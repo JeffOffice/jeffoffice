@@ -264,6 +264,7 @@ struct PaintOptions {
     bool shadeFields = false;
     bool showSpelling = false;
     QVector<QPair<int, int>> misspelled;  // document ranges
+    QVector<QPair<int, int>> grammar;     // document ranges of grammar and style issues (a blue dotted line, as the spelling's is a red wave)
     QVector<QPair<int, int>> found;       // document ranges shown as found by a search (a translucent yellow band behind the words)
 };
 

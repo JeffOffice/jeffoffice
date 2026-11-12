@@ -1,5 +1,5 @@
 # Check your spelling
-<!-- keywords: spelling, spell check, spell checker, misspelled, red line, wavy line, squiggle, suggestions, ignore, ignore all, add to dictionary, custom dictionary, dictionary, language, proofing, f7, review, check spelling as you type, uppercase, numbers, grammar -->
+<!-- keywords: spelling, spell check, spell checker, misspelled, red line, wavy line, squiggle, suggestions, ignore, ignore all, add to dictionary, custom dictionary, dictionary, language, proofing, f7, review, check spelling as you type, uppercase, numbers, grammar, grammar check, style, blue line, dotted line, check grammar as you type -->
 
 JeffWrite checks your spelling as you type. A word that is not in the dictionary gets a red wavy line under it. The check runs on your own computer, with no internet connection, and it knows 31 languages and regional forms.
 
@@ -26,11 +26,23 @@ Press **F7**, or click **Review > Spelling**. The Spelling pane opens on the rig
 - **Ignore** passes this word by. Its red line stays.
 - **Ignore All** and **Add to Dictionary** work as they do in the right-click menu.
 
-The pane goes to the end of the document, then continues from the top, up to the place where it began. When no more are left, it says that the spelling check is complete. JeffWrite checks spelling only, for now. A grammar check is planned.
+The pane goes to the end of the document, then continues from the top, up to the place where it began. When no more are left, it says that the spelling check is complete. The pane goes on to grammar and style issues when the spelling is done (see Check grammar, below).
 
 ## Turn the red lines off or on
 
 Click **Review > Check Spelling as You Type**. The same choice is in **File > Options > Proofing**, and it is the one choice all the JeffOffice apps use. There you can also choose to skip words in UPPERCASE and words with numbers in them, such as 3rd. Both are skipped at first.
+
+## Check grammar as you type
+
+JeffWrite also looks for clear grammar and style mistakes in English text: a repeated word ("the the"), "an test" in place of "a test", a sentence that starts with a small letter, "its" and "it's", "their" and "there", "your" and "you're", "then" and "than", "lose" and "loose", "could of" for "could have", two spaces in a row, a space before a comma or a period, no space after the end of a sentence, "alot", and "everyday" and "every day". It would rather miss a mistake than mark text that is right, so a sentence with no blue line is not a promise that it is correct. An issue gets a blue dotted line under it. Spelling keeps its red wavy line, and a misspelled word is never marked as a grammar issue.
+
+Right-click the issue. The menu shows what is wrong, then one or more suggestions. Click a suggestion to put it in the text, and press Ctrl+Z to take it back. **Ignore This Issue** removes the line for the rest of the session, from the same words with the same message wherever they are.
+
+The check runs on your own computer, with no internet connection, in the background: typing is never held up, and a paragraph is checked a moment after you stop typing in it. Very long paragraphs are checked only as far as their first 100,000 characters, and a very large document is checked only as far as a time limit allows.
+
+Grammar is checked in English only, and in the text of the document: not yet in tables, headers, footers, or notes. Text that a file marks "do not check" is skipped.
+
+To turn it off, click **Review > Check Grammar as You Type**. The same choice is in **File > Options > Proofing**, and it is one choice for all the JeffOffice apps. The Spelling pane (F7) goes through the grammar issues after the spelling, when this is on.
 
 ## Languages
 

@@ -13,6 +13,7 @@ class QTextDocument;
 namespace jp::write {
 
 class SpellCheck;
+class GrammarCheck;
 
 struct PageDrawing {
     int selectionFrom = -1, selectionTo = -1;   // the selected text, as positions in the document
@@ -27,6 +28,8 @@ struct PageDrawing {
     // The misspelled words get a red wave under them on the screen (never in a proof, a printer, or a PDF, which set `output`). `typingAt` is the caret
     // while a word is being typed: that word is left alone until the caret moves on.
     SpellCheck *spelling = nullptr;
+    // Grammar and style issues get a blue dotted line, on the screen only (the text of the page: not yet its tables, headers, and footers).
+    GrammarCheck *grammar = nullptr;
     int typingAt = -1;
     const QVector<QPair<int, int>> *found = nullptr;   // the words the Find pane found, as positions in the document (screen only)
     // The words it found in the story of a header, a footer, or a note (given the story as the page's boxes name it), as positions in that story (screen only).

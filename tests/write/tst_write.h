@@ -707,6 +707,29 @@ inline QRect redBounds(const QImage &img, const QRect &within, int *count = null
     return QRect(QPoint(int(std::floor(left / r)), int(std::floor(top / r))), QPoint(int(std::ceil((right + 1) / r)) - 1, int(std::ceil((bottom + 1) / r)) - 1));
 }
 
+// The same for the blue dotted line under grammar and style issues: pixels with much blue and little red.
+inline QRect blueBounds(const QImage &img, const QRect &within, int *count = nullptr)
+{
+    const double r = img.devicePixelRatio();
+    const int x0 = std::max(0, int(std::floor(within.left() * r))), y0 = std::max(0, int(std::floor(within.top() * r)));
+    const int x1 = std::min(img.width() - 1, int(std::ceil((within.right() + 1) * r)) - 1), y1 = std::min(img.height() - 1, int(std::ceil((within.bottom() + 1) * r)) - 1);
+    int left = INT_MAX, top = INT_MAX, right = -1, bottom = -1, n = 0;
+    for (int y = y0; y <= y1; ++y)
+        for (int x = x0; x <= x1; ++x) {
+            const QColor c = img.pixelColor(x, y);
+            if (c.blue() > c.red() + 60 && c.blue() > c.green() + 30) {
+                ++n;
+                left = std::min(left, x);
+                top = std::min(top, y);
+                right = std::max(right, x);
+                bottom = std::max(bottom, y);
+            }
+        }
+    if (count) *count = n;
+    if (n == 0) return QRect();
+    return QRect(QPoint(int(std::floor(left / r)), int(std::floor(top / r))), QPoint(int(std::ceil((right + 1) / r)) - 1, int(std::ceil((bottom + 1) / r)) - 1));
+}
+
 // A setting the test needs to have a value (and the program's own value back after): the person's real settings are not the test's to leave changed.
 struct SettingGuard {
     QString key;
@@ -928,6 +951,12 @@ private Q_SLOTS:
     void changeAllGoesOnFromTheWordWhateverTheEarlierOnesChangedBy();
     void checkingSpellingAsYouTypeCanBeTurnedOffInTheReviewTab();
     void checkingSpellingAsYouTypeIsOneChoiceInOptions();
+    void checkingGrammarAsYouTypeCanBeTurnedOffInTheReviewTab();
+    void checkingGrammarAsYouTypeIsOneChoiceInOptions();
+    void grammarIssuesAreUnderlinedInBlueAndSpellingStaysRed();
+    void aGrammarIssueOffersItsMessageAndSuggestionsAndAcceptingOneUndoes();
+    void theSpellingPaneGoesOnToTheGrammarIssues();
+    void aParagraphThatChangesIsSentToTheCheckerOnceItHasStoppedChanging();
     void aStyleThatSetsALanguageGivesItToTheTextAndTakesItAway();
     void searchingForMisspellingsGoesInSlicesOfBoundedWork();
     void aLongParagraphIsCheckedInPiecesOfBoundedWork();

@@ -2218,6 +2218,7 @@ void WriteTests::theSpellingPaneNeverHoldsTheWindowForAWholeDocument()
 void WriteTests::changeAllGoesOnFromTheWordWhateverTheEarlierOnesChangedBy()
 {
     const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);
+    const SettingGuard grammarOff(QStringLiteral("proof/checkGrammarAsYouType"), false, true);   // (the text repeats a word on purpose: this is about spelling)
     WriteWindow w;
     w.setDocument(textDoc({"wrongg wrongg wrongg", "zztwo wrongg zzthree"}), QString());
     w.show();

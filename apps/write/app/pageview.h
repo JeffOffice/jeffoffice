@@ -32,6 +32,7 @@ class QToolButton;
 namespace jp::write {
 
 class SpellCheck;
+class GrammarCheck;
 
 class PageView : public QAbstractScrollArea {
     Q_OBJECT
@@ -129,6 +130,10 @@ public:
     SpellCheck *editedSpelling() const { return (m_hf.active || m_note.active) && m_hfSpell ? m_hfSpell.get() : m_spell.get(); }
     SpellCheck *spelling() const { return m_spell.get(); }
     bool spellingEnabled() const { return m_spellOn; }
+    // Grammar as you type: grammar and style issues of the text get a blue dotted line on the screen (the check is on a thread of its own, a paragraph at a time).
+    GrammarCheck *grammar() const { return m_grammar.get(); }
+    bool grammarEnabled() const { return m_grammarOn; }
+    void setGrammarEnabled(bool on);
     // Follows the link at a position of the text as a Ctrl+click does (a web or email address is handed on, a link to a bookmark or a reference moves the caret); false where there is none.
     bool followLinkAt(int position);
     // Edits the footnote whose mark is at the position (a double click on a mark), at the foot of its page; false where there is no mark.
@@ -560,6 +565,8 @@ private:
     QTextDocument *m_connected = nullptr;
     std::unique_ptr<SpellCheck> m_spell;
     bool m_spellOn = true;
+    std::unique_ptr<GrammarCheck> m_grammar;
+    bool m_grammarOn = true;
     int m_contextAt = -1;           // where the right click was, until the caret moves or the menu is gone
     int m_editEnd = -1;             // where the last edit left off (a word being typed ends the caret's way)
     // The caret is in the text or in the header or footer being edited: a cursor in the other is not the view's. The text's takes the view out of the header; another story's is refused.

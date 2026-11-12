@@ -10,6 +10,7 @@
 #include "core/reviewops.h"
 #include "core/tableops.h"
 #include "core/writeprops.h"
+#include "core/grammarcheck.h"
 #include "core/spellcheck.h"
 #include "render/renderer.h"
 #include "text/textprops.h"
@@ -143,6 +144,7 @@ void PageView::setDocument(WriteDoc *doc)
     if (m_doc) disconnect(m_doc, nullptr, this, nullptr);
     if (m_doc) m_doc->discardPendingHeaderFooter();   // (the empty header or footer that was shown to be typed in is not kept)
     m_spell.reset();
+    m_grammar.reset();
     m_editEnd = -1;
     m_rendered.clear();
     m_recent.clear();
@@ -165,6 +167,10 @@ void PageView::setDocument(WriteDoc *doc)
     m_spell->setDefaultLanguage(doc->proofingLanguage());
     m_spell->setEnabled(m_spellOn);
     connect(m_spell.get(), &SpellCheck::changed, viewport(), qOverload<>(&QWidget::update));
+    m_grammar = std::make_unique<GrammarCheck>(doc->story());
+    m_grammar->setDefaultLanguage(doc->proofingLanguage());
+    m_grammar->setEnabled(m_grammarOn);
+    connect(m_grammar.get(), &GrammarCheck::changed, viewport(), qOverload<>(&QWidget::update));
     connect(m_connected, &QTextDocument::contentsChange, this, &PageView::documentChanged);
     connect(doc, &WriteDoc::sectionsChanged, this, [this] {
         dropRendered(0);
@@ -598,6 +604,13 @@ void PageView::setShadeFields(bool on)
     viewport()->update();
 }
 
+void PageView::setGrammarEnabled(bool on)
+{
+    m_grammarOn = on;
+    if (m_grammar) m_grammar->setEnabled(on);
+    viewport()->update();
+}
+
 void PageView::setSpellingEnabled(bool on)
 {
     m_spellOn = on;
@@ -721,6 +734,7 @@ void PageView::paintEvent(QPaintEvent *e)
             } else if (m_note.active) {
                 // (A note is edited where it stands: the text of the page is not dimmed, and its own misspelled words show.)
                 d.spelling = m_spell.get();
+                d.grammar = m_grammar.get();
                 d.editedStory = m_note.story;
                 d.editIsNote = true;
                 d.editSpelling = m_hfSpell.get();
@@ -731,6 +745,7 @@ void PageView::paintEvent(QPaintEvent *e)
                 }
             } else {
                 d.spelling = m_spell.get();
+                d.grammar = m_grammar.get();
                 d.typingAt = !m_cursor.hasSelection() && m_cursor.position() == m_editEnd ? m_cursor.position() : -1;
                 if (m_cursor.hasSelection()) {
                     d.selectionFrom = m_cursor.selectionStart();

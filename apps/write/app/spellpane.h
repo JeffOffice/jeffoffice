@@ -1,6 +1,8 @@
 #pragma once
 // Spelling in the window: the help the right-click menu gives on a misspelled word, and the Spelling pane that steps through the misspellings.
 
+#include "core/grammarcheck.h"
+
 #include <QPair>
 #include <QTimer>
 #include <QWidget>
@@ -18,6 +20,10 @@ class PageView;
 // and Add to Dictionary, added to the menu. False, and nothing added, when it is not.
 bool addSpellingSuggestions(QMenu &menu, PageView *view);
 
+// When the caret is on a grammar or style issue (the blue dotted line): its message (a line that does nothing), the suggestions (the first in bold; each puts itself in the
+// issue's place, as one step that undoes), and Ignore, added to the menu. False, and nothing added, when it is not.
+bool addGrammarSuggestions(QMenu &menu, PageView *view);
+
 // The Spelling pane: shows the first misspelled word from the caret (selected in the text) with the dictionary's suggestions, and goes on to the next as each
 // is changed, ignored, or added to the dictionary. It begins where the caret is, goes to the end, then from the top to where it began.
 class SpellPane : public QWidget {
@@ -30,6 +36,9 @@ public:
     // The word being shown, empty when there is none (the check is complete).
     QString word() const { return m_word; }
     bool complete() const { return m_complete; }
+    // The pane goes through the spelling first and then, if grammar is checked, the grammar and style issues: whether it is at one now, and its message.
+    bool inGrammar() const { return m_grammarPhase && m_issue.valid(); }
+    QString message() const { return m_issue.valid() ? m_issue.message : QString(); }
     // Looking for the next misspelled word, in slices of time (a long document takes seconds to check, and the window is not held up for them).
     bool searching() const { return m_searching; }
 
@@ -42,6 +51,9 @@ private:
     void search();
     void checking();
     void show(const QPair<int, int> &range);
+    void spellingDone();
+    void searchGrammar();
+    void showIssue(const GrammarCheck::Issue &issue);
     void finish();
     bool stillThere();
     void change(bool all);
@@ -54,6 +66,8 @@ private:
     int m_start = 0;                  // where the check began (the caret's place, as the text changes)
     int m_pos = 0;                    // where the search is
     bool m_wrapped = false, m_complete = false, m_searching = false;
+    bool m_grammarPhase = false, m_grammarRan = false;
+    GrammarCheck::Issue m_issue;
     QTimer m_timer;
     QLabel *m_status = nullptr, *m_wordLabel = nullptr, *m_context = nullptr;
     QListWidget *m_list = nullptr;

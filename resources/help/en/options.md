@@ -17,6 +17,7 @@ Your settings are in the **JeffPub Options** window. Click **File > Options** to
 These check boxes control spelling and typing help. See [Check spelling and hyphenation](proofing).
 
 - **Check spelling as you type**
+- **Check grammar as you type** (English; in JeffWrite)
 - **Ignore words in UPPERCASE**
 - **Ignore words that contain numbers**
 - **Replace text as you type (AutoCorrect)** fixes common typing mistakes.

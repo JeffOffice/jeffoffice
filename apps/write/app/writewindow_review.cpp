@@ -43,6 +43,18 @@ void WriteWindow::createReviewActions()
         m_view->setSpellingEnabled(now);
     });
 
+    QAction *grammarAsType = mk("review.checkGrammarAsType", tr("Check Grammar as You Type"), "spell-check-2", QKeySequence(), [this] {
+        const bool on = act("review.checkGrammarAsType")->isChecked();
+        m_view->setGrammarEnabled(on);
+        setGrammarAsYouType(on);
+    }, true);
+    grammarAsType->setChecked(grammarAsYouType());
+    m_view->setGrammarEnabled(grammarAsYouType());
+    connect(&GrammarSettingNotifier::get(), &GrammarSettingNotifier::changed, this, [this, grammarAsType](bool now) {
+        grammarAsType->setChecked(now);
+        m_view->setGrammarEnabled(now);
+    });
+
     // ---- tracking
     mk("review.trackChanges", tr("Track Changes"), "pencil-line", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_E), [this] {
         if (!m_doc) return;
@@ -350,7 +362,7 @@ void WriteWindow::refreshReviewUi()
         }
     }
     for (QAction *a : m_actions)
-        if (a->objectName().startsWith(QLatin1String("review.")) && a->objectName() != QLatin1String("review.spelling") && a->objectName() != QLatin1String("review.checkAsType")) a->setEnabled(has);
+        if (a->objectName().startsWith(QLatin1String("review.")) && a->objectName() != QLatin1String("review.spelling") && a->objectName() != QLatin1String("review.checkAsType") && a->objectName() != QLatin1String("review.checkGrammarAsType")) a->setEnabled(has);
     if (has) {
         act("review.trackChanges")->setChecked(m_doc->trackChanges());
         for (const char *id : {"review.accept", "review.reject", "review.acceptShown", "review.rejectShown", "review.acceptAll", "review.rejectAll", "review.acceptAllStop", "review.nextChange",

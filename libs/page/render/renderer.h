@@ -30,6 +30,7 @@ struct RenderOptions {
     QString editStory;
     int selFrom = -1, selTo = -1;
     QHash<QString, QVector<QPair<int, int>>> misspelled;   // storyId -> document ranges
+    QHash<QString, QVector<QPair<int, int>>> grammar;      // storyId -> document ranges of grammar and style issues
     QHash<QString, QVector<QPair<int, int>>> found;        // storyId -> document ranges a search found (screen only)
     QSet<QString> hidden;         // item ids not to paint (e.g. while dragging a copy)
     // PDF/A forbids transparency: draw any item that needs it as an opaque

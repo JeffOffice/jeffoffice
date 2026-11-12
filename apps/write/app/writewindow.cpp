@@ -485,6 +485,7 @@ void WriteWindow::showContextMenu(const QPoint &globalPos)
 void WriteWindow::fillContextMenu(QMenu &menu)
 {
     write::addSpellingSuggestions(menu, m_view);
+    write::addGrammarSuggestions(menu, m_view);
     for (const char *id : {"edit.cut", "edit.copy", "edit.paste"}) menu.addAction(act(QString::fromLatin1(id)));
     // The ways to paste: with the source's formatting, merged into the text round it, or as text only.
     QMenu *paste = menu.addMenu(tr("Paste Options"));

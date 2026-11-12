@@ -31,7 +31,7 @@ What JeffMail offers that the original doesn't, then the plans that go past it.
 - [ ] **first release** Search that runs on your own computer over everything downloaded, offline and without a service (details under Search and folders)
 - [ ] **first release** A "Proton Mail" account preset that finds Proton Mail Bridge on this computer (details under Accounts and sign-in)
 - [~] **first release** Spelling works offline in 31 languages and regional forms, with no cloud service *(shared: the bundled dictionaries in libs/base/text)*
-- [ ] **first release** **(alt)** Grammar and style checking that runs on your own computer, in place of Microsoft's online Editor: Harper, English first *(shared with JeffWrite)*
+- [ ] **first release** **(alt)** Grammar and style checking that runs on your own computer, in place of Microsoft's online Editor: our own rule-based checker, English first *(shared with JeffWrite)*
 - [ ] **1.0** One inbox for all accounts: a combined Inbox, Sent, Drafts, and Flagged view across every account, which the original doesn't have
 - [ ] **1.0** One-click Unsubscribe on mailing-list messages, using the sender's own unsubscribe header, with a note of what will be sent before it is sent
 - [ ] **1.0** Undo Send: a message waits a few seconds in the Outbox after Send (you choose how long) and can be pulled back
@@ -207,7 +207,7 @@ The main window, then reading a message, then writing one. Everything that file,
 - [ ] **first release** Attach File by button, drag, or paste, with a list of recent files, a remove button, and the size shown against the account's limit
 - [ ] **first release** Signatures: several per account, one default for new messages and another for replies and forwards, text or formatted with pictures, placed above or below the quoted text, and edited in the same editor
 - [~] **first release** Basic text from JeffWrite's editor: font, size, bold, italic, underline, strikethrough, color, highlight, bulleted and numbered lists, alignment, indents, text direction, Clear Formatting, Copy Formatting, and the paste choices (keep source formatting, merge, or text only) *(shared: JeffWrite's editor)*
-- [~] **first release** Spelling as you type, the Spelling and Grammar dialog (F7), and the language of the selection, with Harper for English grammar *(shared: libs/shell spelling; Harper shared with JeffWrite)*
+- [~] **first release** Spelling as you type, the Spelling and Grammar dialog (F7), and the language of the selection, with our own checker for English grammar *(shared: libs/shell spelling; the checker shared with JeffWrite)*
 - [ ] **first release** The message body is written as clean HTML that other mail programs show the same way (tables and plain styles, not floating objects), with a plain-text twin sent beside it, or as plain text only; plain text wraps lines in the format other programs repair
 - [ ] **first release** Reply and forward layout: reply above or below the quote, an attribution line in the message's language, the quote marked by indent or by a prefix, and the choice to include, attach, or leave out the original
 - [ ] **first release** Reply inline in the reading pane, and Pop Out into a window of its own
@@ -554,7 +554,7 @@ What JeffMail builds on, and the pieces it should build so that JeffWrite, JeffC
 - [ ] **first release** A mail profile of the flow-document editor: only the features email can carry, a clean HTML export with a plain-text twin, and an import that cleans received HTML for display *(needed by: JeffWrite, JeffMail)*
 - [ ] **first release** A safe HTML and style renderer for untrusted content: no network, no scripts, bounded memory and time *(needed by: JeffMail, JeffWrite for HTML import)*
 - [ ] **first release** A MIME library: parse and build messages, headers, character sets, and encoded words, so every app's "send by email" writes a correct message *(needed by: JeffMail, JeffPub, JeffWrite, JeffDeck, JeffCrunch)*
-- [ ] **first release** The grammar and style check behind the spelling service (Harper) *(needed by: JeffWrite, JeffMail)*
+- [x] **first release** The grammar and style check behind the spelling service *(needed by: JeffWrite, JeffMail)* *(done November 12, 2026: libs/text/grammar and libs/shell/app/grammar)*
 - [ ] **first release** The fuzzing harness and the resource limits for readers, extended to the mail readers *(needed by: all)*
 - [ ] **first release** A field engine on the field model of libs/text (dates, merge fields, and properties) *(needed by: all)*
 - [ ] **first release** An iCalendar and vCard library, with a round trip that keeps what it doesn't understand, moved out of JeffPub's merge code *(needed by: JeffMail, JeffPub, JeffWrite, JeffBase)*
@@ -583,7 +583,7 @@ Decided October 11, 2026, except where noted.
 - Security, for the whole suite: nothing in a message reaches out until the person allows it (remote pictures, tracking pixels, and linked content); attachments never run; and every file and message reader is fuzzed and held to limits on memory and time.
 - Composing uses JeffWrite's editor, shared, so the formatting features of the message body come from that editor.
 - The suite saves in Office's formats by default. For mail, the format of the local store is an engineering choice, made when building starts.
-- Grammar checking: Harper, English first, shared with JeffWrite.
+- Grammar checking: our own rule-based checker, English first, shared with JeffWrite.
 
 ## Open questions
 

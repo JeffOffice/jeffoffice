@@ -186,7 +186,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Comments are never printed or put in a PDF *(there is no option for it: JeffDeck has none either)*
 - [x] **1.0** Saving as `.pub` leaves the comments out and says so in the note after the save (comments are kept only in `.jpub`); opening a `.pub` file never makes comments
 - [ ] **1.0** Read Aloud with the system's voices: from the cursor, with the current word highlighted, and a speed and voice choice
-- [ ] **1.0** **(alt)** Grammar and style checking that runs on your own computer, instead of an online editor: Harper (open source, Apache-2.0), English first, other languages later (decided October 11, 2026)
+- [ ] **1.0** **(alt)** Grammar and style checking that runs on your own computer, instead of an online editor: our own rule-based checker in C++, English first, other languages later (decided October 11, 2026; the checker is our own since November 12, 2026)
 - [ ] **later** **(alt)** Dictate: speech to text by an open model on your own computer, instead of online dictation
 - [x] **1.0** Language: set the proofing language for selected text; spelling and automatic hyphenation follow it (English for the US, UK, Canada, and Australia; Spanish for 21 regions, from Mexico and Spain to Venezuela, with other Spanish regions checked as Mexico's; French; German; Italian; Dutch; Portuguese for Brazil and Portugal)
 - [x] **1.0** Word Count: pages, words, characters, paragraphs, text boxes, and pictures

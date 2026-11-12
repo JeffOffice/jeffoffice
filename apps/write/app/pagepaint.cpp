@@ -1,5 +1,6 @@
 #include "app/pagepaint.h"
 
+#include "core/grammarcheck.h"
 #include "core/spellcheck.h"
 #include "core/tableops.h"
 
@@ -183,6 +184,17 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
             words << qMakePair(std::max(0, w.first - page.storyFrom), std::min(length, w.second - page.storyFrom));
         }
         if (!words.isEmpty()) ctx.opt.misspelled.insert(bodyId, words);
+    }
+    // The grammar and style issues, in the same positions (those in a table's cells are left out: the rows are drawn apart from the page's text).
+    if (d.grammar && !d.output && body && body->doc && d.spelling) {
+        const int length = body->doc->characterCount();
+        QVector<QPair<int, int>> issues;
+        for (const auto &g : d.grammar->issuesIn(page.storyFrom, page.storyFrom + length)) {
+            if (d.typingAt >= g.start && d.typingAt <= g.end) continue;
+            if (inTable(d.spelling->story()->findBlock(g.start))) continue;
+            issues << qMakePair(std::max(0, g.start - page.storyFrom), std::min(length, g.end - page.storyFrom));
+        }
+        if (!issues.isEmpty()) ctx.opt.grammar.insert(bodyId, issues);
     }
     // The words a search found, in the same positions.
     if (d.found && !d.output && body && body->doc) {

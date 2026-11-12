@@ -1109,6 +1109,10 @@
               "keytip": "T"
             },
             {
+              "large": "review.checkGrammarAsType",
+              "keytip": "G"
+            },
+            {
               "large": "review.thesaurus",
               "keytip": "TH"
             },

@@ -1,7 +1,10 @@
 #include "app/spellpane.h"
 
 #include "app/pageview.h"
+#include "app/grammar.h"
+#include "app/settings.h"
 #include "app/spelling.h"
+#include "core/grammarcheck.h"
 #include "core/spellcheck.h"
 #include "text/textprops.h"
 
@@ -86,6 +89,40 @@ bool addSpellingSuggestions(QMenu &menu, PageView *view)
     return true;
 }
 
+bool addGrammarSuggestions(QMenu &menu, PageView *view)
+{
+    GrammarCheck *grammar = view ? view->grammar() : nullptr;
+    if (!view || !view->document() || view->readOnly() || view->inHeaderFooter() || view->inNote() || !grammar || !grammar->enabled() || !grammar->story()) return false;
+    const GrammarCheck::Issue issue = grammar->issueAt(view->contextPosition());
+    if (!issue.valid()) return false;
+    QTextDocument *story = grammar->story();
+    menu.addAction(issue.message)->setEnabled(false);
+    QPointer<PageView> where = view;
+    QPointer<QTextDocument> whose = story;
+    bool first = true;
+    for (const QString &s : issue.suggestions) {
+        QAction *a = menu.addAction(s.isEmpty() ? QCoreApplication::translate("Proofing", "(Delete)") : s);
+        if (first) {
+            QFont f = a->font();
+            f.setBold(true);
+            a->setFont(f);
+            first = false;
+        }
+        QObject::connect(a, &QAction::triggered, &menu, [where, whose, issue, s] {
+            if (!where || !whose) return;
+            replaceWord(whose, issue.start, issue.end, s);
+            QTextCursor c = where->cursor();
+            c.setPosition(std::min(issue.start + int(s.size()), whose->characterCount() - 1));
+            where->setCursor(c);
+        });
+    }
+    QObject::connect(menu.addAction(QCoreApplication::translate("Proofing", "Ignore This Issue")), &QAction::triggered, &menu, [where, issue] {
+        if (where && where->grammar()) where->grammar()->ignore(issue);
+    });
+    menu.addSeparator();
+    return true;
+}
+
 // ---------------- the Spelling pane ----------------
 
 SpellPane::SpellPane(PageView *view, QWidget *parent) : QWidget(parent), m_view(view)
@@ -94,7 +131,7 @@ SpellPane::SpellPane(PageView *view, QWidget *parent) : QWidget(parent), m_view(
     auto *v = new QVBoxLayout(this);
     v->setContentsMargins(12, 12, 12, 12);
     v->setSpacing(8);
-    m_status = new QLabel(this);
+    m_status = plainLabel(new QLabel(this));
     m_status->setObjectName(QStringLiteral("spellStatus"));
     m_status->setWordWrap(true);
     v->addWidget(m_status);
@@ -155,6 +192,9 @@ void SpellPane::start()
     m_view->leaveHeaderFooter();   // (the check is of the text: its caret is the text's)
     m_view->leaveNote();
     m_start = m_view->cursor().selectionStart();
+    m_grammarPhase = false;
+    m_grammarRan = false;
+    m_issue = GrammarCheck::Issue();
     m_wrapped = false;
     m_complete = false;
     find(m_start);
@@ -169,6 +209,10 @@ void SpellPane::find(int from)
 
 void SpellPane::search()
 {
+    if (m_grammarPhase) {
+        searchGrammar();
+        return;
+    }
     SpellCheck *check = m_view->spelling();
     // (From the caret to the end, then the top to where it began: two slices at most before the pane says anything.)
     for (int turn = 0; turn < 2; ++turn) {
@@ -176,10 +220,59 @@ void SpellPane::search()
         int next = m_pos;
         switch (check->search(m_pos, kSliceMs, &found, &next)) {
         case SpellCheck::Step::Found:
-            if (m_wrapped && found.first >= m_start) finish();   // (back to where it began)
+            if (m_wrapped && found.first >= m_start) spellingDone();   // (back to where it began)
             else show(found);
             return;
         case SpellCheck::Step::More:
+            m_pos = next;
+            if (m_wrapped && m_pos >= m_start) {
+                spellingDone();
+                return;
+            }
+            checking();
+            m_timer.start();
+            return;
+        case SpellCheck::Step::None:
+            if (m_wrapped || m_start <= 0) {
+                spellingDone();
+                return;
+            }
+            m_wrapped = true;
+            m_pos = 0;
+            break;
+        }
+    }
+    checking();
+    m_timer.start();
+}
+
+// The spelling is done: on to the grammar and style issues, from where the check began, when they are checked; else the pane is complete.
+void SpellPane::spellingDone()
+{
+    GrammarCheck *grammar = m_view->grammar();
+    if (!grammar || !grammar->enabled() || !grammarAvailable() || !m_view->grammarEnabled() || !grammarAsYouType()) {
+        finish();
+        return;
+    }
+    m_grammarPhase = true;
+    m_grammarRan = true;
+    m_wrapped = false;
+    m_pos = m_start;
+    searchGrammar();
+}
+
+void SpellPane::searchGrammar()
+{
+    GrammarCheck *grammar = m_view->grammar();
+    for (int turn = 0; turn < 2; ++turn) {
+        GrammarCheck::Issue found;
+        int next = m_pos;
+        switch (grammar->search(m_pos, kSliceMs, &found, &next)) {
+        case GrammarCheck::Step::Found:
+            if (m_wrapped && found.start >= m_start) finish();
+            else showIssue(found);
+            return;
+        case GrammarCheck::Step::More:
             m_pos = next;
             if (m_wrapped && m_pos >= m_start) {
                 finish();
@@ -188,7 +281,7 @@ void SpellPane::search()
             checking();
             m_timer.start();
             return;
-        case SpellCheck::Step::None:
+        case GrammarCheck::Step::None:
             if (m_wrapped || m_start <= 0) {
                 finish();
                 return;
@@ -202,17 +295,49 @@ void SpellPane::search()
     m_timer.start();
 }
 
+void SpellPane::showIssue(const GrammarCheck::Issue &issue)
+{
+    QTextDocument *story = m_view->document()->story();
+    QTextCursor c(story);
+    c.setPosition(issue.start);
+    c.setPosition(issue.end, QTextCursor::KeepAnchor);
+    m_range = qMakePair(issue.start, issue.end);
+    m_issue = issue;
+    m_word = c.selectedText();
+    m_complete = false;
+    m_searching = false;
+    m_view->setCursor(c);
+    m_status->setText(tr("Grammar: %1").arg(issue.message));
+    m_wordLabel->setText(m_word);
+    const QTextBlock block = story->findBlock(issue.start);
+    const QString text = block.text();
+    const int at = issue.start - block.position(), length = issue.end - issue.start;
+    const int from = std::max(0, at - 50), to = std::min(int(text.size()), at + length + 50);
+    m_context->setText((from > 0 ? QStringLiteral("…") : QString()) + text.mid(from, at - from).toHtmlEscaped() + QStringLiteral("<b>") + text.mid(at, length).toHtmlEscaped() +
+                       QStringLiteral("</b>") + text.mid(at + length, to - at - length).toHtmlEscaped() + (to < text.size() ? QStringLiteral("…") : QString()));
+    m_list->clear();
+    for (const QString &s : issue.suggestions) {
+        auto *item = new QListWidgetItem(s.isEmpty() ? tr("(Delete)") : s, m_list);
+        item->setData(Qt::UserRole, s);
+    }
+    if (m_list->count() > 0) m_list->setCurrentRow(0);
+    for (QPushButton *b : {m_ignore, m_ignoreAll}) b->setEnabled(true);
+    for (QPushButton *b : {m_changeAll, m_add}) b->setEnabled(false);
+    m_change->setEnabled(m_list->count() > 0);
+}
+
 // The pane while the search goes on: it says so, and has nothing to offer until the next word is found.
 void SpellPane::checking()
 {
     m_searching = true;
     m_complete = false;
+    m_issue = GrammarCheck::Issue();
     m_range = qMakePair(-1, -1);
     m_word.clear();
     m_wordLabel->clear();
     m_context->clear();
     m_list->clear();
-    m_status->setText(tr("Checking spelling…"));
+    m_status->setText(m_grammarPhase ? tr("Checking grammar…") : tr("Checking spelling…"));
     for (QPushButton *b : {m_change, m_changeAll, m_ignore, m_ignoreAll, m_add}) b->setEnabled(false);
 }
 
@@ -264,12 +389,13 @@ void SpellPane::finish()
     m_timer.stop();
     m_searching = false;
     m_complete = true;
+    m_issue = GrammarCheck::Issue();
     m_range = qMakePair(-1, -1);
     m_word.clear();
     m_wordLabel->clear();
     m_context->clear();
     m_list->clear();
-    m_status->setText(tr("The spelling check is complete."));
+    m_status->setText(m_grammarRan ? tr("The spelling and grammar check is complete.") : tr("The spelling check is complete."));
     for (QPushButton *b : {m_change, m_changeAll, m_ignore, m_ignoreAll, m_add}) b->setEnabled(false);
 }
 
@@ -292,7 +418,15 @@ void SpellPane::change(bool all)
 {
     if (m_complete || m_searching || !m_list->currentItem() || m_view->readOnly() || !stillThere()) return;   // (a document open for reading only is not changed by a correction)
     QTextDocument *story = m_view->document()->story();
-    const QString chosen = m_list->currentItem()->text(), word = m_word;
+    const QString chosen = m_grammarPhase ? m_list->currentItem()->data(Qt::UserRole).toString() : m_list->currentItem()->text(), word = m_word;
+    if (m_grammarPhase) {
+        if (all) return;
+        const int first = m_range.first, delta = int(chosen.size() - word.size());
+        replaceWord(story, m_range.first, m_range.second, chosen);
+        if (m_wrapped) m_start += delta;
+        find(first + int(chosen.size()));
+        return;
+    }
     const int first = m_range.first, delta = int(chosen.size() - word.size());
     int resume = first + int(chosen.size());
     if (!all) {
@@ -330,7 +464,9 @@ void SpellPane::ignore(bool all)
 {
     if (m_complete || m_searching || !stillThere()) return;
     const int to = m_range.second;
-    if (all) {
+    if (all && m_grammarPhase) {
+        m_view->grammar()->ignore(m_issue);
+    } else if (all) {
         spellingIgnore(m_word);
         m_view->spelling()->refresh();
     }
@@ -339,7 +475,7 @@ void SpellPane::ignore(bool all)
 
 void SpellPane::addToDictionary()
 {
-    if (m_complete || m_searching || !stillThere()) return;
+    if (m_complete || m_searching || m_grammarPhase || !stillThere()) return;
     const int to = m_range.second;
     QString failure;
     if (!spellingAdd(m_word, &failure)) spellingReportFailure(this, failure);

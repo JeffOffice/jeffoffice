@@ -6446,6 +6446,23 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                 }
             }
 
+        // Grammar and style issues: a blue dotted line under the words (the spelling's wave is red).
+        for (const auto &m : o.grammar) {
+            if (m.second < B->docStart || m.first > B->docStart + B->docLen) continue;
+            const int ds = B->dispFromDoc(m.first - B->docStart), de = B->dispFromDoc(m.second - B->docStart);
+            for (int i = 0; i < B->lines.size(); ++i) {
+                if (B->lines[i].frame != frame) continue;
+                const PtLine l(B->tl->lineAt(i));
+                const int s = std::max(ds, l.textStart()), e = std::min(de, l.textStart() + l.textLength());
+                if (s >= e) continue;
+                const double x1 = l.cursorToX(s), x2 = l.cursorToX(e);
+                const double yb = l.position().y() - frameY(frame) + l.ascent() + 2;
+                p->setPen(QPen(QColor(30, 90, 220), 0.8, Qt::DotLine));
+                p->setBrush(Qt::NoBrush);
+                p->drawLine(QPointF(std::min(x1, x2), yb), QPointF(std::max(x1, x2), yb));
+            }
+        }
+
         if (B->lines.first().frame == frame) {
             const PtLine l0(B->tl->lineAt(0));
             if (!B->marker.isEmpty()) {
