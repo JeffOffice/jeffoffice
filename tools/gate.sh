@@ -14,7 +14,7 @@ SUITES="crunchchecks writechecks crunchtests writetests pubchecks deckchecks she
 # (only the suites this tree has: a suite a later branch adds is skipped on trees without it)
 HAVE=$(grep -rhoE 'add_executable\((\w+)' --include=CMakeLists.txt . | sed 's/add_executable(//' | sort -u)
 SUITES=$(for s in $SUITES; do case $s in *checks) echo $s;; *) echo "$HAVE" | grep -qx "$s" && echo $s;; esac; done | tr '\n' ' ')
-for c in check_layers check_translate_calls check_plain_text check_third_party check_feature_counts check_ffmpeg_components; do echo "== $c: $(python3 tools/$c.py 2>&1 | tail -1)" >> "$L"; done
+for c in check_layers check_translate_calls check_plurals check_plain_text check_third_party check_feature_counts check_ffmpeg_components; do echo "== $c: $(python3 tools/$c.py 2>&1 | tail -1)" >> "$L"; done
 echo "== hex escapes: $(git diff origin/main...HEAD 2>/dev/null | grep -cE '^\+.*\\x[0-9A-Fa-f]{2}[0-9A-Fa-f]')" >> "$L"
 if ! JO_JOBS=${JO_JOBS:-12} sh /home/user/code/jeffpub79/.claude/agents-kit/wtbuild.sh $SUITES > "$L.build" 2>&1; then
   tail -15 "$L.build" >> "$L"; echo "BUILD FAILED" >> "$L"; exit 1

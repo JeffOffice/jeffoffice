@@ -388,6 +388,14 @@ jobs:
         if: runner.os == 'Linux' && matrix.part == 'checks'
         run: python3 tools/check_translate_calls.py
 
+      # Every plural can be filled in every form its language has (Russian three, Indonesian one), and none is left half-translated.
+      - name: Plural forms check
+        if: runner.os == 'Linux' && matrix.part == 'checks'
+        run: |
+          python3 -I tools/test_check_plurals.py
+          python3 -I tools/test_translate_languages.py
+          python3 tools/check_plurals.py
+
       # No text from a file, the clipboard, or the network is handed to a label, tip, or message box that may take it for markup (and read a picture it names).
       - name: Plain text check
         if: runner.os == 'Linux' && matrix.part == 'checks'
