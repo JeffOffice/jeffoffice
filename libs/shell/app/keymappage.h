@@ -3,6 +3,7 @@
 
 #include "app/keymap.h"
 
+#include <QHash>
 #include <QWidget>
 #include <memory>
 
@@ -28,6 +29,8 @@ public:
 
 private:
     void fillTree();
+    QTreeWidgetItem *addItem(const KeyCommand &c);
+    void addExtra(AppWindow *win, const QString &id);
     void filter(const QString &text);
     QString currentId() const;
     void showCurrent();
@@ -37,6 +40,7 @@ private:
     void say(const QString &text);
 
     std::unique_ptr<KeyMap> m_map;
+    QHash<QString, QTreeWidgetItem *> m_groups;
     QLineEdit *m_search;
     QTreeWidget *m_tree;
     QListWidget *m_keys;

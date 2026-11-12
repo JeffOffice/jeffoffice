@@ -205,6 +205,10 @@ KeyMap::KeyMap(AppWindow *win, bool withRibbon) : m_win(win)
         c.id = id;
         c.text = text;
         c.group = tabOf.value(id, other);
+        if (const QString own = a->property(kGroupProperty).toString(); !own.isEmpty()) {
+            c.group = own;
+            c.keyOnly = true;
+        }
         c.defaults = defaultsOf(a);
         c.keys = c.defaults;
         m_commands << c;
@@ -214,6 +218,7 @@ KeyMap::KeyMap(AppWindow *win, bool withRibbon) : m_win(win)
         if (!sc->key().isEmpty()) m_foreign << sc->key();
     // The ribbon's order; the commands on no tab last, by name.
     if (withRibbon) std::stable_sort(m_commands.begin(), m_commands.end(), [&](const KeyCommand &a, const KeyCommand &b) {
+        if (a.keyOnly != b.keyOnly) return b.keyOnly;
         const int oa = order.value(a.id, INT_MAX), ob = order.value(b.id, INT_MAX);
         if (oa != ob) return oa < ob;
         return a.text.localeAwareCompare(b.text) < 0;
@@ -262,6 +267,37 @@ KeyMap::KeyMap(AppWindow *win, bool withRibbon) : m_win(win)
     holder.clear();
     settle(true);
     settle(false);
+}
+
+QStringList KeyMap::savedIds(const QString &prefix)
+{
+    QStringList out;
+    const QJsonObject o = savedObject();
+    int seen = 0;
+    for (auto it = o.begin(); it != o.end(); ++it) {
+        if (++seen > kMaxEntries) break;
+        if (it.key().startsWith(prefix) && it.value().isArray()) out << it.key();
+    }
+    out.sort();
+    return out.mid(0, kMaxExtraIds);
+}
+
+bool KeyMap::addCommand(const QString &id)
+{
+    QAction *a = m_win->act(id);
+    if (m_index.contains(id) || !listsCommand(a)) return false;
+    capture(a);
+    KeyCommand c;
+    c.id = id;
+    c.text = commandText(a);
+    c.group = a->property(kGroupProperty).toString();
+    c.keyOnly = !c.group.isEmpty();
+    if (c.group.isEmpty()) c.group = QCoreApplication::translate("KeyMap", "Other");
+    c.defaults = defaultsOf(a);
+    c.keys = a->shortcuts();
+    m_index.insert(id, int(m_commands.size()));
+    m_commands << c;
+    return true;
 }
 
 const KeyCommand *KeyMap::command(const QString &id) const
@@ -386,7 +422,8 @@ void KeyMap::applyAll() const
         const QSet<QString> has = idsOf(w);
         const QSet<QAction *> inWindow = actionsOf(w);
         for (const KeyCommand &c : m_commands) {
-            if (!has.contains(c.id)) continue;
+            // (a command only for a key is made in a window that lacks it, when it has keys)
+            if (!has.contains(c.id) && !(c.keyOnly && !c.keys.isEmpty() && w->makeKeyCommand(c.id))) continue;
             QAction *a = w->act(c.id);
             // (only a command whose keys changed: the others keep what the window wrote in their tooltips)
             if (a && a->shortcuts() != c.keys) setKeys(w, a, c.keys, inWindow);

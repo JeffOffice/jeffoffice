@@ -5,6 +5,7 @@
 #include <QMainWindow>
 #include <QObject>
 #include <QStringList>
+#include <functional>
 
 class QAction;
 class QMenu;
@@ -14,6 +15,12 @@ namespace jp {
 class Ribbon;
 class RibbonTab;
 
+// A way the Keyboard page can list another command: a button that asks the person for one (a style, a symbol) and returns its id, empty when none was chosen.
+struct KeyExtra {
+    QString label;
+    std::function<QString(QWidget *parent)> pick;
+};
+
 class AppWindow : public QMainWindow {
     Q_OBJECT
 public:
@@ -21,6 +28,9 @@ public:
     virtual QAction *act(const QString &id) const = 0;
     virtual QStringList actionIds() const = 0;   // sorted
     virtual Ribbon *ribbon() const = 0;
+    // The commands an app makes only for a key, which the Keyboard page offers to add (none by default), and the making of one by its id (null for an id that is not one of them).
+    virtual QList<KeyExtra> keyExtras() { return {}; }
+    virtual QAction *makeKeyCommand(const QString &) { return nullptr; }
     // Every app window that is open, in the order the system lists them.
     static QList<AppWindow *> windows();
     // The View > Window group's placing, for the windows an app lists (its own kind): side by side in columns across the screen, stacked with each a little down and right from the one

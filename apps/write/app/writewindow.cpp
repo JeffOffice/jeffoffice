@@ -123,6 +123,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
 
     startupMark("win: widgets made");
     createActions();
+    makeSavedKeyCommands();   // (the keys the person gave styles and symbols)
     startupMark("win: actions made");
     buildRibbon();
     startupMark("win: ribbon built");

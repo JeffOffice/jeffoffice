@@ -1621,6 +1621,10 @@ private Q_SLOTS:
     static std::unique_ptr<WriteWindow> styWindow(const QByteArray &body, const QByteArray &styles = kStyles);
     static QPoint styPointOf(PageView *view, int position);
     void theStylesPaneShowsTheStylesFiltersThemAndAppliesOneWithAClick();
+    void aKeyOfAStyleAppliesItByNameAndSaysSoWhenThereIsNone();
+    void aKeyOfASymbolInsertsItAlsoOutsideTheBasicPlane();
+    void keysForStylesAndSymbolsFromTheSettingsAreBoundedAndTreatedAsData();
+    void theKeyboardMapListsStyleAndSymbolKeysInTheirGroupsAndKeepsThem();
     void theCreateStyleDialogMakesTheStyleOfTheSelectionAndOneUndoTakesItBack();
     void theModifyStyleDialogChangesTheStyleAndWithNoChangeLeavesTheFileAsItWas();
     void theFormatPainterPaintsOnceOrStaysOnUntilEscapeAndEachPaintIsOneStep();

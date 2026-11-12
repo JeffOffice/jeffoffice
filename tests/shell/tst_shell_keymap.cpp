@@ -84,6 +84,43 @@ private:
     QAction *m_bold;
 };
 
+// A window with commands that are only for a key (a style, a symbol), as an app that offers them makes them: from the settings when it starts, and by id later.
+class ExtraWindow : public AppWindow {
+public:
+    explicit ExtraWindow(const QStringList &extras = {})
+    {
+        auto *bold = new QAction(QStringLiteral("Bold"), this);
+        bold->setObjectName(QStringLiteral("test.bold"));
+        bold->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_B));
+        addAction(bold);
+        m_actions.insert(bold->objectName(), bold);
+        for (const QString &id : extras) makeKeyCommand(id);
+        KeyMap::apply(this);
+    }
+    QAction *makeKeyCommand(const QString &id) override
+    {
+        if (!id.startsWith(QLatin1String("extra."))) return nullptr;
+        if (QAction *have = m_actions.value(id)) return have;
+        auto *a = new QAction(id.mid(6), this);
+        a->setObjectName(id);
+        a->setProperty(KeyMap::kGroupProperty, QStringLiteral("Symbols"));
+        m_actions.insert(id, a);
+        KeyMap::applyLater(this, a);
+        return a;
+    }
+    QAction *act(const QString &id) const override { return m_actions.value(id); }
+    QStringList actionIds() const override
+    {
+        QStringList ids = m_actions.keys();
+        ids.sort();
+        return ids;
+    }
+    Ribbon *ribbon() const override { return nullptr; }
+
+private:
+    QHash<QString, QAction *> m_actions;
+};
+
 QKeySequence k(const char *portable) { return QKeySequence::fromString(QString::fromLatin1(portable), QKeySequence::PortableText); }
 QString native(const QKeySequence &key) { return key.toString(QKeySequence::NativeText); }
 QStringList keysOf(const QAction *a)
@@ -383,6 +420,65 @@ private Q_SLOTS:
         map.save();
         KeyWindow later;
         QCOMPARE(later.act(QStringLiteral("test.italic"))->toolTip(), QStringLiteral("Italic (%1)").arg(native(k("Ctrl+Shift+J"))));
+    }
+
+    void aCommandOnlyForAKeyHasItsOwnGroupAndComesLast()
+    {
+        ExtraWindow w({QStringLiteral("extra.alpha")});
+        KeyMap map(&w);
+        const KeyCommand *extra = map.command(QStringLiteral("extra.alpha"));
+        QVERIFY(extra);
+        QCOMPARE(extra->group, QStringLiteral("Symbols"));
+        QVERIFY(extra->keyOnly);
+        QVERIFY(!map.command(QStringLiteral("test.bold"))->keyOnly);
+        QCOMPARE(map.commands().last().id, QStringLiteral("extra.alpha"));
+    }
+
+    void theSettingsNameAtMostTheCapOfCommandsOfOneKind()
+    {
+        QJsonObject o;
+        for (int i = 0; i < 500; ++i) o.insert(QStringLiteral("extra.%1").arg(i, 4, 10, QLatin1Char('0')), QJsonArray{QStringLiteral("Ctrl+Shift+J")});
+        o.insert(QStringLiteral("other.one"), QJsonArray{QStringLiteral("Ctrl+Shift+K")});
+        o.insert(QStringLiteral("extra.notAnArray"), QStringLiteral("Ctrl+Shift+L"));
+        setSaved(QJsonDocument(o).toJson(QJsonDocument::Compact));
+        const QStringList ids = KeyMap::savedIds(QStringLiteral("extra."));
+        QCOMPARE(ids.size(), KeyMap::kMaxExtraIds);
+        QCOMPARE(ids.first(), QStringLiteral("extra.0000"));
+        QVERIFY(!ids.contains(QStringLiteral("extra.notAnArray")) && !ids.contains(QStringLiteral("other.one")));
+        QVERIFY(KeyMap::savedIds(QStringLiteral("nothing.")).isEmpty());
+    }
+
+    void aCommandAddedAfterTheMapIsListedAndSaved()
+    {
+        ExtraWindow w;
+        KeyMap map(&w);
+        QVERIFY(!map.addCommand(QStringLiteral("extra.late")));   // (the window has none yet)
+        QVERIFY(w.makeKeyCommand(QStringLiteral("extra.late")));
+        QVERIFY(map.addCommand(QStringLiteral("extra.late")));
+        QVERIFY(!map.addCommand(QStringLiteral("extra.late")));
+        QCOMPARE(map.command(QStringLiteral("extra.late"))->group, QStringLiteral("Symbols"));
+        QCOMPARE(map.add(QStringLiteral("extra.late"), k("Ctrl+Shift+Q")).status, KeyMap::Add::Added);
+        QCOMPARE(map.add(QStringLiteral("test.bold"), k("Ctrl+Shift+Q")).status, KeyMap::Add::Taken);   // (the conflict checks see it)
+        map.save();
+        ExtraWindow again(KeyMap::savedIds(QStringLiteral("extra.")));
+        QCOMPARE(keysOf(again.act(QStringLiteral("extra.late"))), QStringList{QStringLiteral("Ctrl+Shift+Q")});
+        KeyMap fresh(&again);
+        fresh.resetOne(QStringLiteral("extra.late"));
+        QVERIFY(fresh.command(QStringLiteral("extra.late"))->keys.isEmpty());
+    }
+
+    void everyOpenWindowMakesACommandOnlyForAKeyThatItLacks()
+    {
+        ExtraWindow a({QStringLiteral("extra.beta")});
+        ExtraWindow b;
+        QVERIFY(!b.act(QStringLiteral("extra.beta")));
+        KeyMap map(&a);
+        map.add(QStringLiteral("extra.beta"), k("Ctrl+Shift+B"));
+        map.save();
+        map.applyAll();
+        QVERIFY(b.act(QStringLiteral("extra.beta")));
+        QCOMPARE(keysOf(b.act(QStringLiteral("extra.beta"))), QStringList{QStringLiteral("Ctrl+Shift+B")});
+        QCOMPARE(keysOf(a.act(QStringLiteral("extra.beta"))), QStringList{QStringLiteral("Ctrl+Shift+B")});
     }
 };
 

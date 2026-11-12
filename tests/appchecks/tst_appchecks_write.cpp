@@ -1,5 +1,9 @@
 // The checks every app's window must pass, for JeffWrite (see appchecks.h): its first five minutes, its standard commands, and every command it has.
 #include "appchecks.h"
+#include "withdialog.h"
+#include <QPushButton>
+#include <QScopeGuard>
+#include <QTreeWidget>
 #include "core/pictureinsert.h"
 
 #include "app/filescreen.h"
@@ -798,6 +802,31 @@ private Q_SLOTS:
 
     // Options > Customize > Keyboard lists this app's commands with their keys.
     void keyboardPageListsTheCommands() { checkKeyboardPage(m_app); }
+
+    // The Keyboard page also lists the keys given to styles and symbols, in their own groups, and offers to add more.
+    void keyboardPageListsKeysOfStylesAndSymbols()
+    {
+        const QScopeGuard clear([] { Settings::get().setValue(QStringLiteral("keys/custom"), QString()); });
+        Settings::get().setValue(QStringLiteral("keys/custom"), QStringLiteral(R"({"style.apply:Heading 1":["Ctrl+Alt+Shift+F9"],"symbol.insert:U+1F600":["Ctrl+Alt+Shift+F10"]})"));
+        std::unique_ptr<AppWindow> w(m_app.launch());
+        QVERIFY(w);
+        m_app.settle(w.get());
+        QAction *options = w->act(QStringLiteral("file.options"));
+        QVERIFY(options);
+        withDialog([&] { options->trigger(); }, QStringLiteral("optionsDialog"), [&](QDialog *dlg) {
+            QWidget *page = dlg->findChild<QWidget *>(QStringLiteral("keyboardPage"));
+            QVERIFY(page);
+            auto *tree = page->findChild<QTreeWidget *>(QStringLiteral("keyCommands"));
+            QVERIFY(tree);
+            QHash<QString, QString> groupOf;
+            for (int i = 0; i < tree->topLevelItemCount(); ++i)
+                for (int j = 0; j < tree->topLevelItem(i)->childCount(); ++j) groupOf.insert(tree->topLevelItem(i)->child(j)->data(0, Qt::UserRole).toString(), tree->topLevelItem(i)->text(0));
+            QVERIFY(groupOf.contains(QStringLiteral("style.apply:Heading 1")) && groupOf.contains(QStringLiteral("symbol.insert:U+1F600")));
+            QCOMPARE(groupOf.value(QStringLiteral("style.apply:Heading 1")), w->tr("Styles"));
+            QCOMPARE(groupOf.value(QStringLiteral("symbol.insert:U+1F600")), w->tr("Symbols"));
+            for (const char *name : {"keyExtra0", "keyExtra1", "keyExtra2"}) QVERIFY2(page->findChild<QPushButton *>(QString::fromLatin1(name)), name);
+        }, false);
+    }
 
     // Options > Customize > Ribbon lists this app's tabs and groups, and makes a tab of one's own.
     void ribbonPageListsTheTabs() { checkRibbonPage(m_app); }

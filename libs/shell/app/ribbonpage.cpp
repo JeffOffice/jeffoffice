@@ -49,7 +49,8 @@ RibbonPage::RibbonPage(AppWindow *win, QWidget *parent) : QWidget(parent), m_win
     m_plan.dropUnknownTabs(known);   // (what another version's tab left is not kept)
     m_plan.resetQuick();   // (the quick toolbar is the Quick Toolbar page's)
     const KeyMap keys(win);
-    for (const KeyCommand &c : keys.commands()) m_commands.append({c.id, c.text, c.group});
+    for (const KeyCommand &c : keys.commands())
+        if (!c.keyOnly) m_commands.append({c.id, c.text, c.group});
 
     auto *col = new QVBoxLayout(this);
     auto *about = plainLabel(new QLabel(tr("Customize the ribbon: clear the box of a tab or group to hide it, make your own tabs and groups, and put any command in them. Home and the File button always stay. Only what differs from the usual ribbon is kept."), this));

@@ -1,5 +1,5 @@
 # Use JeffWrite with the keyboard
-<!-- keywords: keyboard, shortcuts, keys, hotkeys, key tips, ctrl, alt, navigate, move, select, caret, cursor, customize keyboard, change shortcut keys, reassign keys, reset keys -->
+<!-- keywords: keyboard, shortcuts, keys, hotkeys, key tips, ctrl, alt, navigate, move, select, caret, cursor, customize keyboard, change shortcut keys, reassign keys, reset keys, key for a style, key for a symbol -->
 
 You can do everything in JeffWrite with the keyboard. This page lists the keys.
 
@@ -36,6 +36,18 @@ You can change the keys of any command, or give a key to a command that has none
 If another command already has the keys you pressed, JeffWrite says which one. Click **Take Over** to give the keys to this command, and the other command loses them. Nothing changes until you click **OK**. Then every open JeffWrite window uses your keys, and so does every window you open later. Tooltips, menus, and the table of shortcuts below show your keys.
 
 **Reset One** puts back the usual keys of the chosen command. **Reset All** puts back the usual keys of every command. JeffWrite keeps only the commands whose keys you changed, so a command you never changed gets any better keys a later version gives it.
+
+### Keys for styles and symbols
+
+You can give a key to a style, so that pressing it gives the style to the paragraph or the selected characters, and to a symbol, so that pressing it types the symbol. Below the list on the **Keyboard** page are three buttons.
+
+- **Add Style** lists the styles of your document and the built-in styles. Choose one, and it is added to the **Styles** group.
+- **Add Symbol** opens the **Symbol** dialog. Choose a symbol, click **Insert**, and then click **Close**. The symbol is added to the **Symbols** group, with the font you chose in the dialog if it was not normal text.
+- **Add Symbol by Code** is for a symbol the dialog does not show. Type its Unicode code in hexadecimal, such as **1F600**.
+
+Then click the new entry and assign its keys as for any command. These entries are in their own groups at the end of the list. A key for a style or a symbol follows the same rules as any other key: it can be taken over, taken off, and put back with **Reset One** and **Reset All**.
+
+A style key finds its style by name each time you press it, and it does not matter whether the name is in capital letters. If your document has no style of that name but it is one of the built-in styles, the style is added to the document, just as it is when you click it in the Styles pane. If there is no such style, JeffWrite says so in the status bar and changes nothing. If you rename a style, a key you gave it by the old name stops working, and the **Keyboard** page shows it with "(no such style)" after its name. Add the style again under its new name, and assign the key to it. Keys for building blocks are not available yet.
 
 Some keys cannot be given to a command, because the system or typing needs them. JeffWrite says **reserved** when you press one. The reserved keys are **Ctrl+C**, **Ctrl+X**, **Ctrl+V**, **Ctrl+Z**, **Ctrl+A**, **Tab**, **Shift+Tab**, **Enter**, **Esc**, **Backspace**, **Delete**, **Alt+F4**, the arrow, **Home**, **End**, **Page Up**, **Page Down**, and **Space** keys, **F1**, **F6**, **Shift+F6**, **Ctrl+Y**, **Ctrl+Shift+Z**, **Ctrl** with an arrow, **Home**, **End**, **Backspace**, or **Delete** (with or without **Shift**, where that makes sense in a text box), and a letter, digit, or symbol key pressed alone or with **Shift**. A key that another part of the window already uses is reserved too. **Save**, **Undo**, and **Redo** always keep at least one key. On a Mac, **Ctrl** here means the **Command** key.
 

@@ -3,6 +3,12 @@
 #include "core/indexops.h"
 #include "core/captionops.h"
 #include "core/citeops.h"
+#include "app/keymap.h"
+
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QScopeGuard>
+#include <QStatusBar>
 
 
 void WriteTests::modifyingAStyleRestylesTheTextKeepsWhatTheTextSaysAndIsOneStep()
@@ -1023,6 +1029,149 @@ void WriteTests::theStylesPaneShowsTheStylesFiltersThemAndAppliesOneWithAClick()
     QVERIFY(w->document()->undo());
     w->refreshNow();
     QCOMPARE(pane->rowOf(QStringLiteral("p:Zebra")), -1);
+}
+
+namespace {
+void setSavedKeys(const QJsonObject &o) { Settings::get().setValue(QStringLiteral("keys/custom"), QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact))); }
+const QKeySequence kTestKey = QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_F9);
+QStringList keyList(const QAction *a)
+{
+    QStringList out;
+    for (const QKeySequence &k : a->shortcuts()) out << k.toString(QKeySequence::PortableText);
+    return out;
+}
+} // namespace
+
+void WriteTests::aKeyOfAStyleAppliesItByNameAndSaysSoWhenThereIsNone()
+{
+    const QScopeGuard clear([] { setSavedKeys({}); });
+    const QString name = [&] { auto d = open(makeDocx("<w:p><w:r><w:t>x</w:t></w:r></w:p>", kStyles)); return styStyle(*d, QStringLiteral("Heading1")).name; }();
+    QVERIFY(!name.isEmpty());
+    // (a built-in style the document lacks, found as the Styles pane finds it)
+    QString builtinName, builtinId;
+    {
+        auto d = open(makeDocx("<w:p><w:r><w:t>x</w:t></w:r></w:p>", kStyles));
+        for (const ListedStyle &s : listStyles(*d, StyleFilter::All))
+            if (!s.inDocument && !s.character) {
+                builtinName = s.name;
+                builtinId = s.id;
+                break;
+            }
+    }
+    QVERIFY(!builtinId.isEmpty());
+    const QString kPrefix = QStringLiteral("style.apply:");
+    setSavedKeys({{kPrefix + name.toUpper(), QJsonArray{QStringLiteral("Ctrl+Alt+Shift+F9")}},
+                  {kPrefix + builtinName, QJsonArray{QStringLiteral("Ctrl+Alt+Shift+F10")}},
+                  {kPrefix + QStringLiteral("No Such Style"), QJsonArray{QStringLiteral("Ctrl+Alt+Shift+F11")}}});
+    auto w = styWindow("<w:p><w:r><w:t>Alpha beta</w:t></w:r></w:p><w:p><w:r><w:t>Second</w:t></w:r></w:p>");
+    QAction *byName = w->act(kPrefix + name.toUpper());
+    QVERIFY(byName);
+    QCOMPARE(keyList(byName), QStringList{QStringLiteral("Ctrl+Alt+Shift+F9")});
+    QTextCursor c(w->document()->story());
+    c.setPosition(2);
+    w->view()->setCursor(c);
+    byName->trigger();   // (the case of the name does not matter)
+    QCOMPARE(styBlockStyle(*w->document(), 2), QStringLiteral("Heading1"));
+    // a built-in style the document lacks is added the way the Styles pane adds it, with the one step
+    c.setPosition(14);
+    w->view()->setCursor(c);
+    QCOMPARE(styBlockStyle(*w->document(), 14), QStringLiteral("Normal"));
+    w->act(kPrefix + builtinName)->trigger();
+    QCOMPARE(styBlockStyle(*w->document(), 14), builtinId);
+    // no such style: it is said in the status bar, and nothing changes
+    const quint64 serial = w->document()->nextStepSerial();
+    const QString before = w->document()->story()->toPlainText();
+    w->statusBar()->clearMessage();
+    w->act(kPrefix + QStringLiteral("No Such Style"))->trigger();
+    QVERIFY(!w->statusBar()->currentMessage().isEmpty());
+    QCOMPARE(w->document()->nextStepSerial(), serial);
+    QCOMPARE(w->document()->story()->toPlainText(), before);
+    QCOMPARE(styBlockStyle(*w->document(), 2), QStringLiteral("Heading1"));
+    // the Keyboard page's list says which style keys have no style
+    w->refreshKeyCommands();
+    QVERIFY(w->act(kPrefix + QStringLiteral("No Such Style"))->text().contains(QStringLiteral("no such style")));
+    QCOMPARE(w->act(kPrefix + builtinName)->text(), builtinName);
+}
+
+void WriteTests::aKeyOfASymbolInsertsItAlsoOutsideTheBasicPlane()
+{
+    const QScopeGuard clear([] { setSavedKeys({}); });
+    setSavedKeys({{QStringLiteral("symbol.insert:U+1F600"), QJsonArray{QStringLiteral("Ctrl+Alt+Shift+F9")}},
+                  {QStringLiteral("symbol.insert:U+00E9:Georgia"), QJsonArray{QStringLiteral("Ctrl+Alt+Shift+F10")}}});
+    auto w = styWindow("<w:p><w:r><w:t>ab</w:t></w:r></w:p>");
+    QAction *face = w->act(QStringLiteral("symbol.insert:U+1F600"));
+    QVERIFY(face);
+    QCOMPARE(keyList(face), QStringList{QStringLiteral("Ctrl+Alt+Shift+F9")});
+    QTextCursor c(w->document()->story());
+    c.setPosition(1);
+    w->view()->setCursor(c);
+    face->trigger();
+    QCOMPARE(w->document()->story()->toPlainText().left(4), QStringLiteral("a") + QString::fromUcs4(U"\U0001F600") + QStringLiteral("b"));
+    w->act(QStringLiteral("symbol.insert:U+00E9:Georgia"))->trigger();
+    QVERIFY(w->document()->story()->toPlainText().contains(QChar(0xE9)));
+}
+
+void WriteTests::keysForStylesAndSymbolsFromTheSettingsAreBoundedAndTreatedAsData()
+{
+    const QScopeGuard clear([] { setSavedKeys({}); });
+    QJsonObject o;
+    const QJsonArray key{QStringLiteral("Ctrl+Alt+Shift+F9")};
+    for (const char *bad : {"symbol.insert:U+D800", "symbol.insert:U+110000", "symbol.insert:U+0007", "symbol.insert:zz", "symbol.insert:U+00e9", "symbol.insert:U+FFFF", "symbol.insert:U+0041:a\nb",
+                            "style.apply:", "style.apply:   ", "style.apply:a\nb", "other.thing:1"})
+        o.insert(QString::fromLatin1(bad), key);
+    o.insert(QStringLiteral("style.apply:") + QString(300, QLatin1Char('x')), key);
+    o.insert(QStringLiteral("symbol.insert:U+0041:") + QString(200, QLatin1Char('f')), key);
+    o.insert(QStringLiteral("symbol.insert:U+00E9"), key);
+    for (int i = 0; i < 500; ++i) o.insert(QStringLiteral("style.apply:S%1").arg(i, 4, 10, QLatin1Char('0')), key);
+    setSavedKeys(o);
+    auto w = styWindow("<w:p><w:r><w:t>ab</w:t></w:r></w:p>");
+    int styles = 0, symbols = 0;
+    for (const QString &id : w->actionIds()) {
+        styles += id.startsWith(QStringLiteral("style.apply:"));
+        symbols += id.startsWith(QStringLiteral("symbol.insert:"));
+    }
+    QVERIFY2(styles > 100 && styles <= KeyMap::kMaxExtraIds, qPrintable(QString::number(styles)));   // (the cap is of the ids read; the badly formed ones among them make no command)
+    QCOMPARE(symbols, 1);
+    QVERIFY(w->act(QStringLiteral("symbol.insert:U+00E9")));
+    QVERIFY(!w->makeKeyCommand(QStringLiteral("symbol.insert:U+D800")));
+    QVERIFY(!w->makeKeyCommand(QStringLiteral("other.thing")));
+}
+
+void WriteTests::theKeyboardMapListsStyleAndSymbolKeysInTheirGroupsAndKeepsThem()
+{
+    const QScopeGuard clear([] { setSavedKeys({}); });
+    setSavedKeys({});
+    auto w = styWindow("<w:p><w:r><w:t>ab</w:t></w:r></w:p>");
+    const QList<KeyExtra> extras = w->keyExtras();
+    QCOMPARE(extras.size(), 3);
+    for (const KeyExtra &e : extras) QVERIFY(!e.label.isEmpty() && e.pick);
+    KeyMap map(w.get());
+    const QString style = QStringLiteral("style.apply:Heading 1"), symbol = QStringLiteral("symbol.insert:U+2022");
+    QVERIFY(!map.command(style));
+    QVERIFY(w->makeKeyCommand(style) && w->makeKeyCommand(symbol));
+    QVERIFY(map.addCommand(style) && map.addCommand(symbol));
+    QCOMPARE(map.command(style)->group, w->tr("Styles"));
+    QCOMPARE(map.command(symbol)->group, w->tr("Symbols"));
+    QVERIFY(map.command(style)->keyOnly && map.command(symbol)->keyOnly);
+    // the conflict checks and the reserved keys hold for them as for any command
+    QCOMPARE(map.add(style, QKeySequence(Qt::CTRL | Qt::Key_B)).status, KeyMap::Add::Taken);
+    QCOMPARE(map.add(style, QKeySequence(Qt::CTRL | Qt::Key_C)).status, KeyMap::Add::Reserved);
+    QCOMPARE(map.add(style, kTestKey).status, KeyMap::Add::Added);
+    QCOMPARE(map.add(symbol, QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_F10)).status, KeyMap::Add::Added);
+    map.save();
+    map.applyAll();
+    QCOMPARE(keyList(w->act(style)), QStringList{QStringLiteral("Ctrl+Alt+Shift+F9")});
+    // a window opened later has them, and the other windows get them too
+    auto later = styWindow("<w:p><w:r><w:t>ab</w:t></w:r></w:p>");
+    QCOMPARE(keyList(later->act(symbol)), QStringList{QStringLiteral("Ctrl+Alt+Shift+F10")});
+    KeyMap again(later.get());
+    QVERIFY(again.command(style) && again.command(symbol));
+    QCOMPARE(again.command(style)->keys, QList<QKeySequence>{kTestKey});
+    again.resetOne(style);
+    QVERIFY(again.command(style)->keys.isEmpty());
+    again.resetAll();
+    again.save();
+    QVERIFY(Settings::get().value(QStringLiteral("keys/custom")).toString().isEmpty());
 }
 
 

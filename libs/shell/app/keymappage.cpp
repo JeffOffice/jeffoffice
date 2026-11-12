@@ -51,6 +51,20 @@ KeyboardPage::KeyboardPage(AppWindow *win, QWidget *parent) : QWidget(parent), m
     m_tree->setMinimumHeight(180);
     col->addWidget(m_tree, 1);
 
+    // The commands an app offers to add (a style, a symbol): each button asks for one, makes it, and lists it.
+    const QList<KeyExtra> extras = win->keyExtras();
+    if (!extras.isEmpty()) {
+        auto *adds = new QHBoxLayout;
+        for (int i = 0; i < extras.size(); ++i) {
+            auto *add = new QPushButton(extras[i].label, this);
+            add->setObjectName(QStringLiteral("keyExtra%1").arg(i));
+            connect(add, &QPushButton::clicked, this, [this, win, pick = extras[i].pick] { addExtra(win, pick(this)); });
+            adds->addWidget(add);
+        }
+        adds->addStretch(1);
+        col->addLayout(adds);
+    }
+
     auto *row = new QHBoxLayout;
     auto *keysCol = new QVBoxLayout;
     keysCol->addWidget(plainLabel(new QLabel(tr("Keys for this command:"), this)));
@@ -144,20 +158,44 @@ KeyboardPage::KeyboardPage(AppWindow *win, QWidget *parent) : QWidget(parent), m
 
 void KeyboardPage::fillTree()
 {
-    QHash<QString, QTreeWidgetItem *> groups;
-    for (const KeyCommand &c : m_map->commands()) {
-        QTreeWidgetItem *&g = groups[c.group];
-        if (!g) {
-            g = new QTreeWidgetItem(m_tree, QStringList{c.group});
-            g->setFlags(Qt::ItemIsEnabled);
-            QFont f = g->font(0);
-            f.setBold(true);
-            g->setFont(0, f);
-            g->setExpanded(true);
-        }
-        auto *item = new QTreeWidgetItem(g, QStringList{c.text, keysText(c.keys)});
-        item->setData(0, Qt::UserRole, c.id);
-        item->setToolTip(0, plainToolTip(c.text));
+    for (const KeyCommand &c : m_map->commands()) addItem(c);
+}
+
+QTreeWidgetItem *KeyboardPage::addItem(const KeyCommand &c)
+{
+    QTreeWidgetItem *&g = m_groups[c.group];
+    if (!g) {
+        g = new QTreeWidgetItem(m_tree, QStringList{c.group});
+        g->setFlags(Qt::ItemIsEnabled);
+        QFont f = g->font(0);
+        f.setBold(true);
+        g->setFont(0, f);
+        g->setExpanded(true);
+    }
+    auto *item = new QTreeWidgetItem(g, QStringList{c.text, keysText(c.keys)});
+    item->setData(0, Qt::UserRole, c.id);
+    item->setToolTip(0, plainToolTip(c.text));
+    return item;
+}
+
+void KeyboardPage::addExtra(AppWindow *win, const QString &id)
+{
+    if (id.isEmpty()) return;
+    if (!win->act(id)) win->makeKeyCommand(id);
+    if (!win->act(id)) {
+        say(tr("That cannot be given a key."));
+        return;
+    }
+    if (!m_map->command(id) && m_map->addCommand(id)) addItem(*m_map->command(id));
+    for (int i = 0; i < m_tree->topLevelItemCount(); ++i) {
+        QTreeWidgetItem *g = m_tree->topLevelItem(i);
+        for (int j = 0; j < g->childCount(); ++j)
+            if (g->child(j)->data(0, Qt::UserRole).toString() == id) {
+                g->child(j)->setHidden(false);
+                g->setHidden(false);
+                m_tree->setCurrentItem(g->child(j));
+                return;
+            }
     }
 }
 

@@ -21,6 +21,7 @@ struct KeyCommand {
     QString group;  // the ribbon tab it is on ("Other" for one that is on none)
     QList<QKeySequence> keys;
     QList<QKeySequence> defaults;
+    bool keyOnly = false;   // a command an app makes only for its key (a style, a symbol): listed here, but not offered for the ribbon or the quick toolbar
     bool changed() const { return keys != defaults; }
 };
 
@@ -31,6 +32,14 @@ public:
     explicit KeyMap(AppWindow *win, bool withRibbon = true);
     // Whether the page lists a command: it has a name and is not a menu (a command the page does not list still has its keys in use). The one test the map and its callers share.
     static bool listsCommand(const QAction *a);
+
+    // A command that is only for a key sets this property on its action to the name of its group on the page (and is listed last, after the ribbon's tabs).
+    static constexpr const char *kGroupProperty = "jpKeyGroup";
+    // The most commands of one kind (ids with one prefix) read from the settings, and the ids the settings hold that begin with `prefix` (sorted, up to the most).
+    static constexpr int kMaxExtraIds = 200;
+    static QStringList savedIds(const QString &prefix);
+    // A command made after the map was (the page adds one): taken from the window's command of that id; false when the window has none, or the map has it already.
+    bool addCommand(const QString &id);
 
     // In ribbon order, by tab; the ones on no tab last.
     const QList<KeyCommand> &commands() const { return m_commands; }

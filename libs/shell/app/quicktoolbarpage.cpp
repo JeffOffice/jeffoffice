@@ -34,7 +34,8 @@ QuickToolbarPage::QuickToolbarPage(AppWindow *win, QWidget *parent) : QWidget(pa
                 m_locked = m_locked || e.action->objectName().isEmpty();   // (a command with no id cannot be kept in the list: nothing is changed that would lose it)
             }
     const KeyMap keys(win);
-    for (const KeyCommand &c : keys.commands()) m_commands.append({c.id, c.text, c.group});
+    for (const KeyCommand &c : keys.commands())
+        if (!c.keyOnly) m_commands.append({c.id, c.text, c.group});
 
     auto *col = new QVBoxLayout(this);
     auto *about = plainLabel(new QLabel(tr("Customize the quick toolbar, the small toolbar at the top left of the window: put any command on it, add separators, and change the order. Only what differs from the usual quick toolbar is kept."), this));

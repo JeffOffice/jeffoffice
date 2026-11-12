@@ -105,6 +105,11 @@ public:
     QAction *act(const QString &id) const override;
     QStringList actionIds() const override;
     Ribbon *ribbon() const override { return m_ribbon; }
+    // Keys for styles and symbols (Options > Customize > Keyboard): the commands the page offers to add, the making of one by its id, and its name brought up to date with the document
+    // (a style key whose style is not there says so).
+    QList<KeyExtra> keyExtras() override;
+    QAction *makeKeyCommand(const QString &id) override;
+    void refreshKeyCommands();
     write::PageView *view() const { return m_view; }
     // Fills a menu with what a right click offers where the pointer was (or the caret): the commands for text, and for a link, a field, a note, a picture, a table, or a change under it.
     void fillContextMenu(QMenu &menu);
@@ -392,6 +397,8 @@ private:
     void insertRibbonParts(RibbonParts &parts);
     void refreshInsertUi();
     void createStyleActions();
+    void makeSavedKeyCommands();
+    void applyStyleByName(const QString &name);
     void createHomeActions();
     void createProtectActions();
     void restrictEditing(bool lockTracking);
