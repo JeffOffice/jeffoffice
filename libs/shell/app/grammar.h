@@ -14,7 +14,8 @@
 namespace jp {
 
 // The most UTF-16 code units one call looks at. Real paragraphs have 100 to 1,500 characters (a very long one 4,000), so this is 25 times the long one; the work of a
-// check is linear in the length (a megabyte takes well under a second), so the limit is for memory and for the issues it can make more than for time.
+// check is linear in the length (a megabyte takes about a fifth of a second on this computer, and tst_shell_grammar_rules counts the steps to prove the line), so the
+// limit is for memory and for the issues it can make more than for time.
 constexpr int kGrammarMaxChars = 100000;
 // The most issues one call reports (a text of nothing but "a a a a" would otherwise give one for every word).
 constexpr int kGrammarMaxIssues = 500;
