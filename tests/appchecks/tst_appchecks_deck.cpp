@@ -1,4 +1,5 @@
 // The checks every app's window must pass, for JeffDeck (see appchecks.h): its first five minutes, its standard commands, and every command it has.
+#include "core/captions.h"
 #include "appchecks.h"
 
 #include "app/animationpane.h"
@@ -328,6 +329,16 @@ private Q_SLOTS:
                  aw->act(QStringLiteral("transition.fade"))->trigger();
              }, false},
             {QStringLiteral("a 4:3 slide"), [](AppWindow *aw, bool) { asDeck(aw)->setSlideSize(QSizeF(720, 540)); }, false},
+            {QStringLiteral("a video with captions on the slide, chosen"), [](AppWindow *aw, bool) {
+                 auto *w = asDeck(aw);
+                 Document *d = w->editor()->doc();
+                 auto pic = deck::newMediaPicture(*d, *d->pages[w->editor()->currentPage()], QByteArray(300, 'v'), QStringLiteral("clip.mp4"), QImage(64, 48, QImage::Format_RGB32), 1000);
+                 if (pic) {
+                     deck::addCaptions(*d, *pic, QByteArray("WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHello\n"), QStringLiteral("en"));
+                     w->editor()->surfaceItems().push_back(pic);
+                     w->editor()->select(pic->id);
+                 }
+             }, false},
             {QStringLiteral("a sound on the slide, chosen"), [](AppWindow *aw, bool) {
                  auto *w = asDeck(aw);
                  QByteArray wav("RIFF");
