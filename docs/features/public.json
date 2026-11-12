@@ -2823,8 +2823,9 @@
          "text": "4d21c1ff74b215434c66edaa7af8224c6270542c41a514193d35b7dd1ad533e1"
         },
         {
-         "status": "partly",
-         "text": "837e87fe4c67c1bd8e87221dba4845f7f4f1ebc701be3cd4d4212ea101635c00"
+         "hide_soon": true,
+         "status": "done",
+         "text": "068aa4d4fb04a9ec9e6ddab9fe897f7a7a03a05231e5844ce05c2833b9b07326"
         },
         {
          "hide_soon": true,
@@ -7767,6 +7768,18 @@
    "en": "Apply small caps and all caps in the Font box.",
    "es": "Aplique versalitas y mayúsculas en el cuadro Fuente.",
    "fr": "Appliquez petites capitales et majuscules dans la boîte Police.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "068aa4d4fb04a9ec9e6ddab9fe897f7a7a03a05231e5844ce05c2833b9b07326": {
+   "drop": false,
+   "en": "Jump to a slide, section, comment, or object with `Go To` (`Ctrl+G`). Choose what to go to, enter a name or number, and use Next, Previous, or `Go To`; a comment opens in the Comments pane, and an object is selected on its slide by its name on the Selection pane.",
+   "es": "Salte a una diapositiva, sección, comentario u objeto con `Ir a` (`Ctrl+G`). Elija a qué ir, escriba un nombre o número y use Siguiente, Anterior o `Ir a`; un comentario se abre en el panel Comentarios y un objeto se selecciona en su diapositiva por su nombre en el panel Selección.",
+   "fr": "Accédez à une diapositive, une section, un commentaire ou un objet avec `Atteindre` (`Ctrl+G`). Choisissez la destination, saisissez un nom ou un numéro, puis utilisez Suivant, Précédent ou `Atteindre` ; un commentaire s’ouvre dans le volet Commentaires, et un objet est sélectionné sur sa diapositive grâce à son nom dans le volet Sélection.",
    "soon": {
     "drop": true,
     "en": "",
@@ -17240,18 +17253,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "837e87fe4c67c1bd8e87221dba4845f7f4f1ebc701be3cd4d4212ea101635c00": {
-   "drop": false,
-   "en": "Go To (`Ctrl+G`) asks for a slide number and moves to that slide.",
-   "es": "Ir a (`Ctrl+G`) solicita un número de diapositiva y se desplaza a ella.",
-   "fr": "Atteindre (`Ctrl+G`) demande un numéro de diapositive et affiche cette diapositive.",
-   "soon": {
-    "drop": false,
-    "en": "Go To: section, comment, and object",
-    "es": "Ir a: sección, comentario y objeto",
-    "fr": "Atteindre : section, commentaire et objet"
    }
   },
   "839dcb2592ecc34c9aa5c9d67bbf3ac3d7dab632d5901335af1629b71dc62e80": {
