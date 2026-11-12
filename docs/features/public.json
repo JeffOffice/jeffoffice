@@ -1661,8 +1661,9 @@
          "text": "24a0a957e798d9eb03e5e8b755eed12a2336170bafe5b0d42f3303944178c52b"
         },
         {
-         "status": "partly",
-         "text": "df6848f808daf15e0d4f81d19804708de2a37d48ad9b9c49aa8a4527f0b453d7"
+         "hide_soon": true,
+         "status": "done",
+         "text": "71de13157924f45c53efb88af1f5fecca0ef674e866289a0bb0c3e1e813b19a8"
         },
         {
          "status": "todo",
@@ -15937,6 +15938,18 @@
     "fr": ""
    }
   },
+  "71de13157924f45c53efb88af1f5fecca0ef674e866289a0bb0c3e1e813b19a8": {
+   "drop": false,
+   "en": "Use dynamic-array functions such as `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP`, `XMATCH`, and `LET`. A formula whose result is a list fills the cells below and beside it, and `.xlsx` files that hold such formulas are read and saved.",
+   "es": "Utilice funciones de matriz dinámica como `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP`, `XMATCH` y `LET`. Una fórmula cuyo resultado es una lista llena las celdas de abajo y de al lado, y los archivos `.xlsx` que contienen estas fórmulas se leen y se guardan.",
+   "fr": "Utilisez des fonctions de tableau dynamique telles que `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP`, `XMATCH` et `LET`. Une formule dont le résultat est une liste remplit les cellules situées en dessous et à côté, et les fichiers `.xlsx` qui contiennent de telles formules sont lus et enregistrés.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "71e0d76607d951c6e97861240279dea8baef2b20134f1fcdac8ca463e5044d83": {
    "drop": true,
    "en": "",
@@ -23219,18 +23232,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "df6848f808daf15e0d4f81d19804708de2a37d48ad9b9c49aa8a4527f0b453d7": {
-   "drop": false,
-   "en": "Use `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP`, and `XMATCH`, which give their block in an array formula. Files that hold spilled results are read and shown as saved.",
-   "es": "Utilice `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP` y `XMATCH`, que devuelven su bloque en una fórmula matricial. Los archivos que contienen resultados desbordados se leen y se muestran tal como se guardaron.",
-   "fr": "Utilisez `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP` et `XMATCH`, qui renvoient leur bloc dans une formule matricielle. Les fichiers contenant des résultats débordants sont lus et affichés tels qu’enregistrés.",
-   "soon": {
-    "drop": false,
-    "en": "`LET` and spill of results into the cells beside the formula",
-    "es": "`LET` y desbordamiento de resultados en las celdas contiguas a la fórmula",
-    "fr": "`LET` et débordement des résultats dans les cellules voisines de la formule"
    }
   },
   "dfd1f09d255d29171974f5271ab08c89a677c21bf1a490e734c9dba5888e8d1e": {
