@@ -251,6 +251,23 @@ private Q_SLOTS:
                 if (!target.startsWith(QLatin1String("https://"))) QVERIFY2(jp::help::topicIds().contains(target), qPrintable(QLatin1String(lang) + QLatin1Char(' ') + target));
             }
         }
+        if (fellBack == 0) {
+            // (every language has this page now: the fallback is checked with a page British English, which holds only the pages that differ, leaves to the English)
+            const QString help = QStringLiteral(JP_TEST_DATA "/../../resources/help/");
+            QString missing;
+            for (const QFileInfo &f : QDir(help + QStringLiteral("en")).entryInfoList({QStringLiteral("*.md")}, QDir::Files, QDir::Name)) {
+                if (!QFile::exists(help + QStringLiteral("en_GB/") + f.fileName())) { missing = f.completeBaseName(); break; }
+            }
+            QVERIFY(!missing.isEmpty());
+            jp::Settings::get().setValue(QStringLiteral("ui/language"), QStringLiteral("en"));
+            jp::installTranslations();
+            const QString english = jp::help::topic(missing).title;
+            QVERIFY(!english.isEmpty());
+            jp::Settings::get().setValue(QStringLiteral("ui/language"), QStringLiteral("en_GB"));
+            jp::installTranslations();
+            QCOMPARE(jp::help::topic(missing).title, english);
+            ++fellBack;
+        }
         QVERIFY(fellBack > 0);
     }
 

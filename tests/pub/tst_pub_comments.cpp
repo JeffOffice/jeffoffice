@@ -7,7 +7,9 @@
 #include "render/pdfpage.h"
 #include "templates/templates.h"
 
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <QPointer>
 #include <QTimer>
@@ -285,6 +287,21 @@ private Q_SLOTS:
             ++fellBack;
             QCOMPARE(t.title, QStringLiteral("Comments"));
             QVERIFY(t.markdown.contains(QLatin1String("New Comment")));
+        }
+        if (fellBack == 0) {
+            // (every language has this page now: the fallback is checked with a page British English, which holds only the pages that differ, leaves to the English)
+            const QString help = QStringLiteral(JP_TEST_DATA "/../../resources/help/");
+            QString missing;
+            for (const QFileInfo &f : QDir(help + QStringLiteral("en")).entryInfoList({QStringLiteral("*.md")}, QDir::Files, QDir::Name)) {
+                if (!QFile::exists(help + QStringLiteral("en_GB/") + f.fileName())) { missing = f.completeBaseName(); break; }
+            }
+            QVERIFY(!missing.isEmpty());
+            say("en");
+            const QString english = jp::help::topic(missing).title;
+            QVERIFY(!english.isEmpty());
+            say("en_GB");
+            QCOMPARE(jp::help::topic(missing).title, english);
+            ++fellBack;
         }
         QVERIFY(fellBack > 0);
         say("en");
