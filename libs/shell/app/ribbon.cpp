@@ -1,5 +1,7 @@
 #include "app/ribbon.h"
+#include "app/appwindow.h"
 #include "app/keyboardnav.h"
+#include "app/ribboncustom.h"
 #include "app/theme.h"
 
 #include "app/icons.h"
@@ -18,6 +20,7 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QWidgetAction>
+#include <QContextMenuEvent>
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
@@ -664,6 +667,28 @@ void RibbonTab::relayout()
     m_inRelayout = false;
 }
 
+namespace {
+
+// A right-click in the dropdown of a collapsed group opens the ribbon's own menu.
+class PopupMenuFilter : public QObject {
+public:
+    PopupMenuFilter(Ribbon *r, QWidget *pop) : QObject(pop), m_r(r), m_pop(pop) {}
+    bool eventFilter(QObject *, QEvent *e) override
+    {
+        if (e->type() != QEvent::ContextMenu) return false;
+        auto *ce = static_cast<QContextMenuEvent *>(e);
+        if (ce->reason() == QContextMenuEvent::Keyboard) return false;
+        m_r->showContextMenu(m_pop->childAt(m_pop->mapFromGlobal(ce->globalPos())), ce->globalPos());
+        return true;
+    }
+
+private:
+    Ribbon *m_r;
+    QWidget *m_pop;
+};
+
+} // namespace
+
 void RibbonTab::popUp(int i)
 {
     if (i < 0 || i >= m_groups.size() || m_popped >= 0) return;
@@ -689,6 +714,11 @@ void RibbonTab::popUp(int i)
         m_popped = -1;
         relayout();
     });
+    for (QWidget *p = parentWidget(); p; p = p->parentWidget())
+        if (auto *r = qobject_cast<Ribbon *>(p)) {
+            pop->installEventFilter(new PopupMenuFilter(r, pop));
+            break;
+        }
     pop->adjustSize();
     QPoint at = b->mapToGlobal(QPoint(0, b->height()));
     pop->move(at);
@@ -1316,6 +1346,15 @@ void Ribbon::keyPressEvent(QKeyEvent *e)
         Q_EMIT leaveRequested();
         return;
     }
+    // The menu key and Shift+F10: the right-click menu of the focused control.
+    if ((e->key() == Qt::Key_Menu && !(e->modifiers() & ~Qt::KeypadModifier)) || (e->key() == Qt::Key_F10 && e->modifiers() == Qt::ShiftModifier)) {
+        QWidget *f = QApplication::focusWidget();
+        if (f && (f == this || isAncestorOf(f))) {
+            showContextMenu(f, f->mapToGlobal(QPoint(f->width() / 2, f->height())));
+            e->accept();
+            return;
+        }
+    }
     QWidget::keyPressEvent(e);
 }
 
@@ -1636,6 +1675,114 @@ QWidget *Ribbon::moreButton() const { return m_header->m_more && m_header->m_mor
 QWidget *Ribbon::fileButton() const { return m_header->m_file; }
 
 QList<QToolButton *> Ribbon::quickAccessButtons() const { return QList<QToolButton *>(m_header->qatButtons.begin(), m_header->qatButtons.end()); }
+
+QMenu *Ribbon::contextMenuFor(QWidget *target)
+{
+    auto *win = qobject_cast<AppWindow *>(window());
+    const QList<QToolButton *> qat = quickAccessButtons();
+    QToolButton *quick = nullptr, *command = nullptr;
+    bool control = false;
+    for (QWidget *w = target; w && w != this; w = w->parentWidget()) {
+        auto *b = qobject_cast<QToolButton *>(w);
+        if (b && qat.contains(b)) {
+            quick = b;
+            break;
+        }
+        if (b && (b == quickAccessMore() || b == moreButton() || b->objectName() == QLatin1String("launcher") || qobject_cast<RibbonTab *>(b->parentWidget()))) break;   // (the » buttons, a dialog launcher, a collapsed group)
+        if (b && b->defaultAction()) {
+            command = b;
+            break;
+        }
+        bool inGroup = false;
+        for (QWidget *p = w->parentWidget(); p && !inGroup; p = p->parentWidget()) inGroup = qobject_cast<RibbonGroup *>(p) != nullptr;
+        if (inGroup && w->focusPolicy() != Qt::NoFocus) {
+            control = true;
+            break;
+        }
+    }
+    QAction *action = quick ? quick->defaultAction() : command ? command->defaultAction() : nullptr;
+    const QString id = action ? action->objectName() : QString();
+
+    // The quick toolbar as the person has it now
+    QStringList defaults;
+    bool locked = false;
+    for (const QuickEntry &e : defaultQuickAccess())
+        if (e.action) {
+            defaults << e.action->objectName();
+            locked = locked || e.action->objectName().isEmpty();
+        }
+    const QStringList now = RibbonCustom::load().effectiveQuick(defaults);
+    const bool onToolbar = !id.isEmpty() && now.contains(id);
+
+    auto *m = new QMenu(this);
+    m->setObjectName(QStringLiteral("jpRibbonMenu"));
+    m->setToolTipsVisible(true);
+    QPointer<AppWindow> window = win;
+    auto changeQuick = [window](const QString &cmd, bool add) {
+        QStringList base;
+        if (window && window->ribbon())
+            for (const QuickEntry &e : window->ribbon()->defaultQuickAccess())
+                if (e.action) base << e.action->objectName();
+        RibbonCustom c = RibbonCustom::load();
+        const int at = c.effectiveQuick(base).indexOf(cmd);
+        if (add ? !c.addQuickCommand(cmd, base) : (at < 0 || !c.removeQuick(at, base))) return;
+        c.save();
+        RibbonCustom::applyAll();
+    };
+    if (quick || command || control) {
+        const bool canChange = !locked && !id.isEmpty() && (quick || (win && win->act(id) == action));
+        if (onToolbar || quick) {
+            QAction *remove = m->addAction(QCoreApplication::translate("Ribbon", "Remove from Quick Toolbar"));
+            remove->setEnabled(!locked && onToolbar);
+            if (locked) remove->setToolTip(QCoreApplication::translate("Ribbon", "This quick toolbar has a command that cannot be kept in a list, so it cannot be changed."));   // plain: reviewed: this menu's own strings
+            connect(remove, &QAction::triggered, m, [changeQuick, id] { changeQuick(id, false); });
+        } else {
+            QAction *add = m->addAction(QCoreApplication::translate("Ribbon", "Add to Quick Toolbar"));
+            const bool full = now.size() >= RibbonCustom::kMaxQuick;
+            add->setEnabled(canChange && !full);
+            if (locked) add->setToolTip(QCoreApplication::translate("Ribbon", "This quick toolbar has a command that cannot be kept in a list, so it cannot be changed."));
+            else if (!canChange) add->setToolTip(QCoreApplication::translate("Ribbon", "This control cannot be put on the quick toolbar."));
+            else if (full) add->setToolTip(QCoreApplication::translate("Ribbon", "The quick toolbar has no room for another (%1 at most).").arg(RibbonCustom::kMaxQuick));   // plain: reviewed: this menu's own strings
+            connect(add, &QAction::triggered, m, [changeQuick, id] { changeQuick(id, true); });
+        }
+        m->addSeparator();
+    }
+    connect(m->addAction(QCoreApplication::translate("Ribbon", "Customize the Quick Toolbar…")), &QAction::triggered, m, [window] {
+        if (window) window->openOptions(AppWindow::OptionsStart::QuickToolbar);
+    });
+    connect(m->addAction(QCoreApplication::translate("Ribbon", "Customize the Ribbon…")), &QAction::triggered, m, [window] {
+        if (window) window->openOptions(AppWindow::OptionsStart::Ribbon);
+    });
+    if (!quick) {
+        m->addSeparator();
+        QAction *collapse = m->addAction(QCoreApplication::translate("Ribbon", "Collapse the Ribbon"));
+        collapse->setCheckable(true);
+        collapse->setChecked(m_minimized);
+        connect(collapse, &QAction::triggered, this, [this] { setMinimized(!m_minimized); });
+    }
+    return m;
+}
+
+void Ribbon::showContextMenu(QWidget *target, const QPoint &global)
+{
+    delete m_contextMenu;
+    QMenu *m = contextMenuFor(target);
+    m->setAttribute(Qt::WA_DeleteOnClose);
+    m_contextMenu = m;
+    m->popup(global);
+}
+
+void Ribbon::contextMenuEvent(QContextMenuEvent *e)
+{
+    e->accept();
+    if (e->reason() == QContextMenuEvent::Keyboard) {
+        if (m_contextMenu && m_contextMenu->isVisible()) return;   // (the key press opened it)
+        QWidget *f = QApplication::focusWidget();
+        if (f && (f == this || isAncestorOf(f))) showContextMenu(f, f->mapToGlobal(QPoint(f->width() / 2, f->height())));
+        return;
+    }
+    showContextMenu(childAt(e->pos()), e->globalPos());
+}
 
 void Ribbon::setMinimized(bool m)
 {

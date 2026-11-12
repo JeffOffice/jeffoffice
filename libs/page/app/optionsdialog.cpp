@@ -170,6 +170,10 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages)
         parts->addTab(keyboard, QCoreApplication::translate("Dialogs", "Keyboard"));
         cl->addWidget(parts);
         tabs->addTab(custom, QCoreApplication::translate("Dialogs", "Customize"));
+        if (const AppWindow::OptionsStart start = win->takeOptionsStart(); start != AppWindow::OptionsStart::Default) {   // (asked for from the ribbon's right-click menu)
+            tabs->setCurrentWidget(custom);
+            parts->setCurrentWidget(start == AppWindow::OptionsStart::Ribbon ? static_cast<QWidget *>(ribbonPage) : quickPage);
+        }
         dlg.d.setMinimumSize(700, 600);
     }
     dlg.v->addWidget(tabs);

@@ -28,6 +28,22 @@ QList<AppWindow *> AppWindow::windows()
     return out;
 }
 
+void AppWindow::openOptions(OptionsStart start)
+{
+    QAction *options = act(QStringLiteral("file.options"));
+    if (!options || !options->isEnabled()) return;
+    m_optionsStart = start;
+    options->trigger();
+    m_optionsStart = OptionsStart::Default;
+}
+
+AppWindow::OptionsStart AppWindow::takeOptionsStart()
+{
+    const OptionsStart start = m_optionsStart;
+    m_optionsStart = OptionsStart::Default;
+    return start;
+}
+
 void AppWindow::toggleFullScreen()
 {
     m_fullScreenWanted = !m_fullScreenWanted;

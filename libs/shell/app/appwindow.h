@@ -32,6 +32,12 @@ public:
     // The list is made each time the menu is shown.
     static QMenu *switchWindowsMenu(QWidget *owner, const QMetaObject &kind);
 
+    // Opens Options (the command "file.options") at a page of Customize; the Options dialog asks for it with takeOptionsStart(). Nothing is done when the window has no such command.
+    enum class OptionsStart { Default, Ribbon, QuickToolbar };
+    void openOptions(OptionsStart start);
+    OptionsStart takeOptionsStart();
+    OptionsStart optionsStart() const { return m_optionsStart; }
+
     // A file opened read-only: nothing in it can be changed here, and Save asks for a new name (which makes the window an ordinary one). The app's window overrides
     // setReadOnly to show it (the title, what it will not let be typed or dragged), and calls the base.
     bool isReadOnly() const { return m_readOnly; }
@@ -66,6 +72,7 @@ protected:
     // After the window brought the controls of tabs made late up to date (which can turn a control on that read-only turned off): turned off again.
     void keepRibbonReadOnly();
     bool m_readOnly = false;
+    OptionsStart m_optionsStart = OptionsStart::Default;
     bool m_fullScreenWanted = false, m_wasMaximized = false;
 };
 

@@ -226,6 +226,10 @@ void checkRibbonPage(Adapter &app);
 // command list. A window as launched; failures are QVERIFY failures.
 void checkQuickToolbarPage(Adapter &app);
 
+// The ribbon's right-click menu: a command's button offers Add to Quick Toolbar (kept, and on the toolbar), its toolbar button Remove, a tab or empty space the Customize items and Collapse; the
+// Customize items open Options at the Quick Toolbar and Ribbon pages; the menu key opens it on the focused command. A window as launched; failures are QVERIFY failures.
+void checkRibbonContextMenu(Adapter &app);
+
 // The files of the test's folder and the program's data folder, with their sizes.
 QStringList filesNow();
 

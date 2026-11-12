@@ -12,6 +12,9 @@
 #include "../testrunner.h"
 
 #include <QAction>
+#include <QComboBox>
+#include <QContextMenuEvent>
+#include <QMenu>
 #include <QFrame>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -156,9 +159,63 @@ QByteArray quickJson(int commands)
     return QJsonDocument(QJsonObject{{QStringLiteral("quick"), a}}).toJson(QJsonDocument::Compact);
 }
 
+// The text of each item of a menu, "-" for a separator.
+QStringList menuTexts(const QMenu *m)
+{
+    QStringList out;
+    if (!m) return out;
+    for (const QAction *a : m->actions()) out << (a->isSeparator() ? QStringLiteral("-") : a->text());
+    return out;
+}
+
+QAction *menuItem(const QMenu *m, const QString &text)
+{
+    if (m)
+        for (QAction *a : m->actions())
+            if (a->text() == text) return a;
+    return nullptr;
+}
+
+// The button of a command on a tab of the ribbon (not the quick toolbar's).
+QToolButton *commandButton(Ribbon *r, const QString &tab, const QString &id)
+{
+    RibbonTab *page = r->tab(tab);
+    for (RibbonGroup *g : page->groups())
+        for (QToolButton *b : g->findChildren<QToolButton *>())
+            if (b->defaultAction() && b->defaultAction()->objectName() == id) return b;
+    return nullptr;
+}
+
+QToolButton *quickButton(Ribbon *r, const QString &id)
+{
+    for (QToolButton *b : r->quickAccessButtons())
+        if (b->defaultAction() && b->defaultAction()->objectName() == id) return b;
+    return nullptr;
+}
+
+const QString kAddText = QStringLiteral("Add to Quick Toolbar"), kRemoveText = QStringLiteral("Remove from Quick Toolbar");
+const QString kCustomizeQuickText = QStringLiteral("Customize the Quick Toolbar…"), kCustomizeRibbonText = QStringLiteral("Customize the Ribbon…");
+const QString kCollapseText = QStringLiteral("Collapse the Ribbon");
+
 struct LazyTabs {
     LazyTabs() { setLazyRibbonTabs(true); }
     ~LazyTabs() { setLazyRibbonTabs(false); }
+};
+
+// A window shown and active (so that the focus and the places of controls are real), with a command that stands for File > Options that notes which page it was asked to open.
+struct MenuWindow : RibbonWindow {
+    AppWindow::OptionsStart asked = AppWindow::OptionsStart::Default;
+    int opened = 0;
+    MenuWindow()
+    {
+        QAction *options = addCommand(QStringLiteral("file.options"), QStringLiteral("Options"), false);
+        connect(options, &QAction::triggered, this, [this] {
+            asked = optionsStart();
+            ++opened;
+        });
+        show();
+        QTest::qWaitForWindowExposed(this);
+    }
 };
 
 } // namespace
@@ -1299,6 +1356,256 @@ private Q_SLOTS:
             QVERIFY(!saved.quickSet);
             QVERIFY(saved.hiddenTabs.contains(QStringLiteral("Insert")));
         }
+    }
+
+    // ---- the right-click menu
+
+    void aCommandsRightClickMenuOffersAddOrRemove()
+    {
+        MenuWindow w;
+        Ribbon *r = w.ribbon();
+        QToolButton *copy = commandButton(r, QStringLiteral("Home"), QStringLiteral("edit.copy"));
+        QVERIFY(copy);
+        QMenu *m = r->contextMenuFor(copy);
+        QVERIFY2(m, "a command has no right-click menu");
+        QCOMPARE(menuTexts(m), (QStringList{kAddText, QStringLiteral("-"), kCustomizeQuickText, kCustomizeRibbonText, QStringLiteral("-"), kCollapseText}));
+        QVERIFY(menuItem(m, kAddText)->isEnabled());
+        QVERIFY(menuItem(m, kCollapseText)->isCheckable());
+        QVERIFY(!menuItem(m, kCollapseText)->isChecked());
+        delete m;
+        // a command that is on the quick toolbar offers Remove, from its button on the tab and from the quick toolbar itself
+        RibbonCustom c;
+        QVERIFY(c.addQuickCommand(QStringLiteral("edit.copy"), kQuickDefaults));
+        c.save();
+        RibbonCustom::applyAll();
+        m = r->contextMenuFor(commandButton(r, QStringLiteral("Home"), QStringLiteral("edit.copy")));
+        QVERIFY(m);
+        QCOMPARE(menuTexts(m).value(0), kRemoveText);
+        QVERIFY(!menuItem(m, kAddText));
+        delete m;
+        QToolButton *save = quickButton(r, QStringLiteral("file.save"));
+        QVERIFY(save);
+        m = r->contextMenuFor(save);
+        QVERIFY(m);
+        QCOMPARE(menuTexts(m), (QStringList{kRemoveText, QStringLiteral("-"), kCustomizeQuickText, kCustomizeRibbonText}));
+        delete m;
+        // a tab's name and the empty space of the ribbon: the Customize items and Collapse
+        m = r->contextMenuFor(r->tabButton(1));
+        QVERIFY(m);
+        QCOMPARE(menuTexts(m), (QStringList{kCustomizeQuickText, kCustomizeRibbonText, QStringLiteral("-"), kCollapseText}));
+        delete m;
+        m = r->contextMenuFor(nullptr);
+        QVERIFY(m);
+        QCOMPARE(menuTexts(m), (QStringList{kCustomizeQuickText, kCustomizeRibbonText, QStringLiteral("-"), kCollapseText}));
+        delete m;
+    }
+
+    void aRightClickOnAButtonOpensTheMenuForThatCommand()
+    {
+        MenuWindow w;
+        Ribbon *r = w.ribbon();
+        QToolButton *bold = commandButton(r, QStringLiteral("Home"), QStringLiteral("format.bold"));
+        QVERIFY(bold);
+        const QPoint local = bold->rect().center();
+        QContextMenuEvent ev(QContextMenuEvent::Mouse, local, bold->mapToGlobal(local));
+        QApplication::sendEvent(bold, &ev);
+        QVERIFY2(r->contextMenu() && r->contextMenu()->isVisible(), "a right-click opened no menu");
+        QCOMPARE(menuTexts(r->contextMenu()).value(0), kAddText);
+        r->contextMenu()->close();
+        // on a quick toolbar button
+        QToolButton *save = quickButton(r, QStringLiteral("file.save"));
+        QVERIFY(save);
+        QContextMenuEvent ev2(QContextMenuEvent::Mouse, save->rect().center(), save->mapToGlobal(save->rect().center()));
+        QApplication::sendEvent(save, &ev2);
+        QVERIFY(r->contextMenu() && r->contextMenu()->isVisible());
+        QCOMPARE(menuTexts(r->contextMenu()).value(0), kRemoveText);
+        r->contextMenu()->close();
+    }
+
+    void addToTheQuickToolbarIsKeptAndShownInEveryWindow()
+    {
+        MenuWindow w;
+        MenuWindow second;
+        Ribbon *r = w.ribbon();
+        QMenu *m = r->contextMenuFor(commandButton(r, QStringLiteral("Home"), QStringLiteral("edit.copy")));
+        QVERIFY(m);
+        QAction *add = menuItem(m, kAddText);
+        QVERIFY(add);
+        add->trigger();
+        delete m;
+        const QStringList want = {QStringLiteral("file.save"), QStringLiteral("edit.copy")};
+        QCOMPARE(quickIds(r), want);
+        QCOMPARE(quickIds(second.ribbon()), want);
+        const RibbonCustom saved = RibbonCustom::load();
+        QVERIFY(saved.quickSet);
+        QCOMPARE(saved.quick, want);
+        // a window opened later has it too, and the menu now offers Remove
+        RibbonWindow later;
+        QCOMPARE(quickIds(later.ribbon()), want);
+        m = second.ribbon()->contextMenuFor(commandButton(second.ribbon(), QStringLiteral("Home"), QStringLiteral("edit.copy")));
+        QVERIFY(m);
+        QCOMPARE(menuTexts(m).value(0), kRemoveText);
+        delete m;
+    }
+
+    void removeFromTheQuickToolbarIsKeptAndShownInEveryWindow()
+    {
+        RibbonCustom c;
+        QVERIFY(c.addQuickCommand(QStringLiteral("edit.copy"), kQuickDefaults));
+        QVERIFY(c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults));
+        c.save();
+        MenuWindow w;
+        MenuWindow second;
+        Ribbon *r = w.ribbon();
+        QCOMPARE(int(quickIds(r).size()), 3);
+        QMenu *m = r->contextMenuFor(quickButton(r, QStringLiteral("edit.copy")));
+        QVERIFY(m);
+        QAction *remove = menuItem(m, kRemoveText);
+        QVERIFY(remove);
+        remove->trigger();
+        delete m;
+        const QStringList want = {QStringLiteral("file.save"), QStringLiteral("format.bold")};
+        QCOMPARE(quickIds(r), want);
+        QCOMPARE(quickIds(second.ribbon()), want);
+        QCOMPARE(RibbonCustom::load().quick, want);
+        // from the button on the tab; taking away what was added leaves the app's own toolbar, which is not kept
+        m = second.ribbon()->contextMenuFor(commandButton(second.ribbon(), QStringLiteral("Home"), QStringLiteral("format.bold")));
+        QVERIFY(m && menuItem(m, kRemoveText));
+        menuItem(m, kRemoveText)->trigger();
+        delete m;
+        QCOMPARE(quickIds(r), kQuickDefaults);
+        QVERIFY(RibbonCustom::load().isEmpty());
+        // the app's own command can be taken away, too
+        m = r->contextMenuFor(quickButton(r, QStringLiteral("file.save")));
+        QVERIFY(m && menuItem(m, kRemoveText));
+        menuItem(m, kRemoveText)->trigger();
+        delete m;
+        QVERIFY(quickIds(r).isEmpty());
+        QVERIFY(quickIds(second.ribbon()).isEmpty());
+        QVERIFY(RibbonCustom::load().quickSet);
+    }
+
+    void addIsOffInTheMenuAtTheCapAndForAControlThatCannotBeThere()
+    {
+        MenuWindow w;
+        Ribbon *r = w.ribbon();
+        // at the cap
+        RibbonCustom c;
+        c.quickSet = true;
+        for (int i = 0; i < RibbonCustom::kMaxQuick; ++i) c.quick << QStringLiteral("test.cmd%1").arg(i);
+        c.save();
+        RibbonCustom::applyAll();
+        QMenu *m = r->contextMenuFor(commandButton(r, QStringLiteral("Home"), QStringLiteral("edit.copy")));
+        QVERIFY(m);
+        QAction *add = menuItem(m, kAddText);
+        QVERIFY(add);
+        QVERIFY2(!add->isEnabled(), "Add is on at the cap");
+        QVERIFY2(add->toolTip().contains(QString::number(RibbonCustom::kMaxQuick)), qPrintable(add->toolTip()));
+        add->trigger();   // (a disabled item does nothing)
+        QCOMPARE(int(RibbonCustom::load().quick.size()), RibbonCustom::kMaxQuick);
+        delete m;
+        clearSaved();
+        RibbonCustom::applyAll();
+        // a button whose command has no id, and one whose command is not one of the window's
+        RibbonTab *page = r->tab(QStringLiteral("Home"));
+        RibbonGroup *g = page->groups().first();
+        auto *anonymous = new QAction(QStringLiteral("Nameless"), &w);
+        auto *stranger = new QAction(QStringLiteral("Stranger"), &w);
+        stranger->setObjectName(QStringLiteral("not.in.window"));
+        for (QAction *a : {anonymous, stranger}) {
+            auto *b = new QToolButton(g);
+            b->setDefaultAction(a);
+            m = r->contextMenuFor(b);
+            QVERIFY(m);
+            QVERIFY2(menuItem(m, kAddText), qPrintable(a->text()));
+            QVERIFY2(!menuItem(m, kAddText)->isEnabled(), qPrintable(a->text()));
+            QVERIFY(!menuItem(m, kAddText)->toolTip().isEmpty());
+            delete m;
+            delete b;
+        }
+        // a control with no command (a box)
+        auto *box = new QComboBox(g);
+        m = r->contextMenuFor(box);
+        QVERIFY(m && menuItem(m, kAddText));
+        QVERIFY(!menuItem(m, kAddText)->isEnabled());
+        delete m;
+        delete box;
+        QVERIFY(RibbonCustom::load().isEmpty());
+    }
+
+    void theCustomizeItemsOpenOptionsAtTheirPages()
+    {
+        MenuWindow w;
+        Ribbon *r = w.ribbon();
+        const QList<QWidget *> targets = {commandButton(r, QStringLiteral("Home"), QStringLiteral("edit.copy")), quickButton(r, QStringLiteral("file.save")), r->tabButton(0), nullptr};
+        for (QWidget *target : targets) {
+            QMenu *m = r->contextMenuFor(target);
+            QVERIFY(m);
+            QAction *quick = menuItem(m, kCustomizeQuickText), *ribbon = menuItem(m, kCustomizeRibbonText);
+            QVERIFY(quick && ribbon);
+            quick->trigger();
+            QCOMPARE(w.opened, 1);
+            QVERIFY(w.asked == AppWindow::OptionsStart::QuickToolbar);
+            ribbon->trigger();
+            QCOMPARE(w.opened, 2);
+            QVERIFY(w.asked == AppWindow::OptionsStart::Ribbon);
+            QVERIFY2(w.optionsStart() == AppWindow::OptionsStart::Default, "the page asked for is not forgotten");
+            w.opened = 0;
+            delete m;
+        }
+    }
+
+    void theCollapseItemTogglesTheRibbon()
+    {
+        MenuWindow w;
+        Ribbon *r = w.ribbon();
+        QVERIFY(!r->isMinimized());
+        QMenu *m = r->contextMenuFor(nullptr);
+        QVERIFY(m);
+        QAction *collapse = menuItem(m, kCollapseText);
+        QVERIFY(collapse);
+        collapse->trigger();
+        QVERIFY(r->isMinimized());
+        delete m;
+        m = r->contextMenuFor(r->tabButton(0));
+        QVERIFY(m);
+        QVERIFY2(menuItem(m, kCollapseText)->isChecked(), "the item is not checked while the ribbon is collapsed");
+        menuItem(m, kCollapseText)->trigger();
+        QVERIFY(!r->isMinimized());
+        delete m;
+    }
+
+    void theMenuKeyAndShiftF10OpenTheMenuOnTheFocusedControl()
+    {
+        MenuWindow w;
+        Ribbon *r = w.ribbon();
+        QApplication::setActiveWindow(&w);
+        QToolButton *copy = commandButton(r, QStringLiteral("Home"), QStringLiteral("edit.copy"));
+        QVERIFY(copy);
+        copy->setFocusPolicy(Qt::StrongFocus);
+        for (int shift = 0; shift < 2; ++shift) {
+            copy->setFocus();
+            QTRY_VERIFY(copy->hasFocus());
+            QTest::keyClick(copy, shift ? Qt::Key_F10 : Qt::Key_Menu, shift ? Qt::ShiftModifier : Qt::NoModifier);
+            QVERIFY2(r->contextMenu() && r->contextMenu()->isVisible(), shift ? "Shift+F10 opened no menu" : "the menu key opened no menu");
+            QCOMPARE(menuTexts(r->contextMenu()).value(0), kAddText);
+            r->contextMenu()->close();
+        }
+        // on a quick toolbar button, and on a tab
+        QToolButton *save = quickButton(r, QStringLiteral("file.save"));
+        save->setFocus();
+        QTRY_VERIFY(save->hasFocus());
+        QTest::keyClick(save, Qt::Key_Menu);
+        QVERIFY(r->contextMenu() && r->contextMenu()->isVisible());
+        QCOMPARE(menuTexts(r->contextMenu()).value(0), kRemoveText);
+        r->contextMenu()->close();
+        r->focusCurrentTab();
+        QWidget *tab = QApplication::focusWidget();
+        QVERIFY(tab);
+        QTest::keyClick(tab, Qt::Key_Menu);
+        QVERIFY(r->contextMenu() && r->contextMenu()->isVisible());
+        QCOMPARE(menuTexts(r->contextMenu()).value(0), kCustomizeQuickText);
+        r->contextMenu()->close();
     }
 
     void everyTabHasItsOwnPlace()

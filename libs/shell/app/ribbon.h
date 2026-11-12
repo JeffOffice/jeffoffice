@@ -10,6 +10,7 @@
 #include <functional>
 
 class QAction;
+class QContextMenuEvent;
 class QMenu;
 class QHBoxLayout;
 class QVBoxLayout;
@@ -173,6 +174,10 @@ public:
     QList<QToolButton *> quickAccessHidden() const;   // the buttons that don't fit the row: they are in the » menu
     QToolButton *quickAccessMore() const;
     int quickAccessLayoutCount() const;   // how many times the quick toolbar was laid out (tests)
+    // The right-click menu of a control of the ribbon (`target` null: the ribbon's own space): made each time, owned by the ribbon. showContextMenu() opens it at `global`.
+    QMenu *contextMenuFor(QWidget *target);
+    void showContextMenu(QWidget *target, const QPoint &global);
+    QMenu *contextMenu() const { return m_contextMenu; }   // the one that is open (tests)
     void setMinimized(bool m);
     bool isMinimized() const { return m_minimized; }
     // The tabs in order, for KeyTips and tests.
@@ -214,6 +219,7 @@ Q_SIGNALS:
 protected:
     void keyPressEvent(QKeyEvent *e) override;
     bool event(QEvent *e) override;   // a new font or screen: the body's height again
+    void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
     void updateBodyHeight();
@@ -251,6 +257,7 @@ private:
     QList<QAction *> m_qat;
     QString m_fileKeytip;
     bool m_minimized = false;
+    QPointer<QMenu> m_contextMenu;
     bool m_builtQueued = false;
 };
 

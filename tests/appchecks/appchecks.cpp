@@ -19,6 +19,7 @@
 #include <QAbstractSpinBox>
 #include <QApplication>
 #include <QComboBox>
+#include <QContextMenuEvent>
 #include <QCryptographicHash>
 #include <QClipboard>
 #include <QDesktopServices>
@@ -1695,6 +1696,109 @@ void checkQuickToolbarPage(Adapter &app)
     }
     QCOMPARE(back, defaults);
     QVERIFY(jp::RibbonCustom::load().isEmpty());
+}
+
+void checkRibbonContextMenu(Adapter &app)
+{
+    std::unique_ptr<jp::AppWindow> w(app.launch());
+    QVERIFY2(w, "the app made no window");
+    if (app.settle) app.settle(w.get());
+    w->show();
+    jp::Ribbon *ribbon = w->ribbon();
+    QVERIFY(ribbon);
+    QVERIFY(jp::RibbonCustom::load().isEmpty());
+    QStringList defaults;
+    for (const QToolButton *b : ribbon->quickAccessButtons()) defaults << b->defaultAction()->objectName();
+    const QString who = app.name + QStringLiteral(": ");
+    auto texts = [](const QMenu *m) {
+        QStringList out;
+        for (const QAction *a : m->actions()) out << (a->isSeparator() ? QStringLiteral("-") : a->text());
+        return out;
+    };
+    auto item = [](const QMenu *m, const QString &text) -> QAction * {
+        for (QAction *a : m->actions())
+            if (a->text() == text) return a;
+        return nullptr;
+    };
+    const QString add = QStringLiteral("Add to Quick Toolbar"), remove = QStringLiteral("Remove from Quick Toolbar");
+    const QString customizeQuick = QStringLiteral("Customize the Quick Toolbar\u2026"), customizeRibbon = QStringLiteral("Customize the Ribbon\u2026"), collapse = QStringLiteral("Collapse the Ribbon");
+    // a command on the current tab that can be on the quick toolbar and is not
+    QToolButton *button = nullptr;
+    if (jp::RibbonTab *tab = ribbon->current())
+        for (jp::RibbonGroup *g : tab->groups())
+            for (QToolButton *b : g->findChildren<QToolButton *>()) {
+                QAction *a = b->defaultAction();
+                if (button || !a || a->objectName().isEmpty() || w->act(a->objectName()) != a || defaults.contains(a->objectName()) || b == g->launcher() || !b->isVisible()) continue;
+                button = b;
+            }
+    QVERIFY2(button, qPrintable(who + QStringLiteral("no command on the current tab can be added")));
+    const QString id = button->defaultAction()->objectName();
+    // a right-click on it
+    const QPoint local = button->rect().center();
+    QContextMenuEvent ev(QContextMenuEvent::Mouse, local, button->mapToGlobal(local));
+    QApplication::sendEvent(button, &ev);
+    QVERIFY2(ribbon->contextMenu() && ribbon->contextMenu()->isVisible(), qPrintable(who + QStringLiteral("a right-click on ") + id + QStringLiteral(" opened no menu")));
+    QCOMPARE(texts(ribbon->contextMenu()), (QStringList{add, QStringLiteral("-"), customizeQuick, customizeRibbon, QStringLiteral("-"), collapse}));
+    QVERIFY(item(ribbon->contextMenu(), add)->isEnabled());
+    ribbon->contextMenu()->close();
+    // Add: kept, and on the toolbar
+    QMenu *m = ribbon->contextMenuFor(button);
+    QVERIFY(m);
+    item(m, add)->trigger();
+    delete m;
+    QStringList now;
+    for (const QToolButton *b : ribbon->quickAccessButtons()) now << b->defaultAction()->objectName();
+    QCOMPARE(now, defaults + QStringList{id});
+    QCOMPARE(jp::RibbonCustom::load().quick, defaults + QStringList{id});
+    // on its quick toolbar button: Remove, and the two Customize items
+    QToolButton *quick = ribbon->quickAccessButtons().last();
+    m = ribbon->contextMenuFor(quick);
+    QVERIFY(m);
+    QCOMPARE(texts(m), (QStringList{remove, QStringLiteral("-"), customizeQuick, customizeRibbon}));
+    item(m, remove)->trigger();
+    delete m;
+    QCOMPARE(int(ribbon->quickAccessButtons().size()), int(defaults.size()));
+    QVERIFY(jp::RibbonCustom::load().isEmpty());
+    // the Customize items open Options at their pages
+    for (int which = 0; which < 2; ++which) {
+        m = ribbon->contextMenuFor(nullptr);
+        QVERIFY(m);
+        QAction *a = item(m, which ? customizeRibbon : customizeQuick);
+        QVERIFY(a);
+        withDialog([&] { a->trigger(); }, QStringLiteral("optionsDialog"), [&](QDialog *dlg) {
+            auto *parts = dlg->findChild<QTabWidget *>(QStringLiteral("customizeTabs"));
+            QVERIFY2(parts, qPrintable(who + QStringLiteral("Options has no Customize page")));
+            QVERIFY2(parts->isVisibleTo(dlg), qPrintable(who + QStringLiteral("Options is not at the Customize tab")));
+            QCOMPARE(parts->currentWidget()->objectName(), which ? QStringLiteral("ribbonPage") : QStringLiteral("quickToolbarPage"));
+        });
+        delete m;
+    }
+    // Options opened any other way starts where it always did
+    withDialog([&] { w->act(QStringLiteral("file.options"))->trigger(); }, QStringLiteral("optionsDialog"), [&](QDialog *dlg) {
+        auto *parts = dlg->findChild<QTabWidget *>(QStringLiteral("customizeTabs"));
+        QVERIFY(parts);
+        QVERIFY2(!parts->isVisibleTo(dlg), qPrintable(who + QStringLiteral("a plain Options opened at Customize")));
+    });
+    // Collapse
+    m = ribbon->contextMenuFor(nullptr);
+    item(m, collapse)->trigger();
+    QVERIFY(ribbon->isMinimized());
+    delete m;
+    m = ribbon->contextMenuFor(nullptr);
+    QVERIFY(item(m, collapse)->isChecked());
+    item(m, collapse)->trigger();
+    QVERIFY(!ribbon->isMinimized());
+    delete m;
+    // the menu key on a focused command
+    QApplication::setActiveWindow(w.get());
+    button->setFocus();
+    QTRY_VERIFY(button->hasFocus());
+    QTest::keyClick(button, Qt::Key_Menu);
+    QVERIFY2(ribbon->contextMenu() && ribbon->contextMenu()->isVisible(), qPrintable(who + QStringLiteral("the menu key opened no menu")));
+    QCOMPARE(texts(ribbon->contextMenu()).value(0), add);
+    ribbon->contextMenu()->close();
+    QVERIFY(jp::RibbonCustom::load().isEmpty());
+    qInfo("ribbon menu: %s checked on %s", qPrintable(app.name), qPrintable(id));
 }
 
 } // namespace appchecks
