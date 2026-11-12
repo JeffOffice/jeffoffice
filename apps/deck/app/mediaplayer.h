@@ -15,6 +15,7 @@
 // bar with the time, mute, and volume. It is drawn and read by both the
 // editor (editormedia.h) and the show (showmedia.h).
 
+#include "core/captions.h"
 #include "core/media.h"
 
 #include <QBuffer>
@@ -41,6 +42,11 @@ public:
     void setFile(const QByteArray &bytes, const QString &extension);
     void setPlay(const deck::MediaPlay &play);
     const deck::MediaPlay &settings() const { return m_play; }
+
+    // The captions of the movie (what core/captions.h reads), and what they say now: the cue at the moment of the file that is shown,
+    // empty while no picture of it is. A sound has none.
+    void setCaptions(const QVector<deck::CaptionCue> &cues) { m_captions = cues; }
+    QString captionText() const;
 
     // Says it can't be played here (a movie linked from outside the presentation, say), with what to tell the person.
     void setUnavailable(const QString &message);
@@ -97,6 +103,7 @@ private:
     // Where in the file it plays from and to (the file's length once known): what the trim cuts off each end, unless that leaves nothing.
     qint64 trimStart() const;
     qint64 trimEnd() const;
+    QVector<deck::CaptionCue> m_captions;
     QByteArray m_bytes;
     QString m_extension;
     QBuffer m_buffer;
@@ -154,6 +161,11 @@ public:
 // A movie's picture over the slide's poster: `frame` fills the picture's cropped place, in the picture's shape, with the
 // painter set to page points (or `toDevice` times the page's).
 void paintMediaFrame(QPainter *p, const PictureItem &pic, const QImage &frame, const QTransform &toDevice);
+// Captions over the bottom of a movie's picture: white text on a dark band behind it, sized by the picture's height, so they grow and shrink
+// with it. `area` is where the picture is, in the painter's own units. Nothing is drawn for no text.
+void paintCaptionText(QPainter *p, const QRectF &area, const QString &text);
+// The same for a picture placed as the movie is (its frame, in page points, under `toDevice`).
+void paintMediaCaptions(QPainter *p, const PictureItem &pic, const QString &text, const QTransform &toDevice);
 // A message in place of a picture that can't play.
 void paintMediaMessage(QPainter *p, const PictureItem &pic, const QString &message, const QTransform &toDevice);
 

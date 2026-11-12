@@ -503,6 +503,48 @@ void paintMediaFrame(QPainter *p, const PictureItem &pic, const QImage &frame, c
     p->restore();
 }
 
+QString MediaPlayback::captionText() const
+{
+    if (m_captions.isEmpty() || !m_play.video || failed() || !m_started || m_state == State::Stopped) return QString();
+    return deck::captionTextAt(m_captions, trimStart() + played());
+}
+
+void paintCaptionText(QPainter *p, const QRectF &area, const QString &text)
+{
+    if (text.isEmpty() || area.width() < 8 || area.height() < 8) return;
+    p->save();
+    p->setRenderHint(QPainter::Antialiasing);
+    p->setRenderHint(QPainter::TextAntialiasing);
+    // Everything follows the picture's height, so the captions grow and shrink with it (about 5.5 percent of it for a line of text).
+    const double unit = area.height();
+    QFont f = p->font();
+    f.setPixelSize(std::max(6, int(unit * 0.055 + 0.5)));
+    f.setBold(false);
+    p->setFont(f);
+    const double pad = unit * 0.015, margin = unit * 0.05;
+    const QRectF room(area.left() + area.width() * 0.05, area.top(), area.width() * 0.9, area.height() - margin);
+    QRectF box = p->boundingRect(QRectF(0, 0, room.width() - 2 * pad, room.height()), Qt::AlignHCenter | Qt::TextWordWrap, text);
+    box.setSize(box.size() + QSizeF(2 * pad, 2 * pad));
+    box.moveCenter(QPointF(area.center().x(), 0));
+    box.moveBottom(area.bottom() - margin);
+    p->setPen(Qt::NoPen);
+    p->setBrush(QColor(0, 0, 0, 190));
+    p->drawRoundedRect(box, pad, pad);
+    p->setPen(Qt::white);
+    p->drawText(box.adjusted(pad, pad, -pad, -pad), Qt::AlignHCenter | Qt::AlignBottom | Qt::TextWordWrap, text);
+    p->restore();
+}
+
+void paintMediaCaptions(QPainter *p, const PictureItem &pic, const QString &text, const QTransform &toDevice)
+{
+    if (text.isEmpty()) return;
+    const QRectF shown = (pic.transform() * toDevice).map(QPolygonF(QRectF(QPointF(0, 0), pic.rect.size()))).boundingRect();
+    p->save();
+    p->setClipRect(shown);
+    paintCaptionText(p, shown, text);
+    p->restore();
+}
+
 void paintMediaMessage(QPainter *p, const PictureItem &pic, const QString &message, const QTransform &toDevice)
 {
     p->save();

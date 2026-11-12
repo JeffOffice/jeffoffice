@@ -131,6 +131,11 @@ public:
 // The most bytes of a chart part a picture keeps (a chart is kept as a chart while its part is no larger).
 constexpr qint64 kMaxChartPartBytes = 2 << 20;
 
+// What a video's caption tracks are held to. Real caption files: a two-hour film's is about 150 KB, with about 2,000 cues of under 200
+// characters each, in one to a dozen languages. The limits are well over ten times that: 4 MB a file, 32 tracks.
+constexpr qint64 kMaxCaptionBytes = 4 << 20;
+constexpr int kMaxMediaCaptions = 32;
+
 class PictureItem : public Item {
 public:
     enum Recolor { NoRecolor, Grayscale, Sepia, Washout, BlackWhite, ColorTint };
@@ -168,6 +173,13 @@ public:
     // How much is cut off the start of the file and off its end (p14:trim's st and end, in milliseconds; the movie or sound plays what is
     // left), and how long its volume rises and falls at the ends.
     int mediaTrimStart = 0, mediaTrimEnd = 0, mediaFadeIn = 0, mediaFadeOut = 0;
+    // The caption tracks of a video: each a language (a tag such as "en" or "pt-BR") and the id of its file in the document's media store. A
+    // video holds one track for a language. A track's file is kept as it came, WebVTT or another format, and is shown only when it is WebVTT.
+    struct Caption {
+        QString language, mediaId;
+        bool operator==(const Caption &o) const { return language == o.language && mediaId == o.mediaId; }
+    };
+    QVector<Caption> mediaCaptions;
     // A chart the picture is the drawing of: the chart part (c:chartSpace) it was made from, kept so that the chart can be changed and saved as a chart, and the size (points) the
     // picture was drawn at, so that a frame sized anew has it drawn again. Empty for a picture that is no chart.
     QByteArray chartXml;

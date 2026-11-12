@@ -1255,6 +1255,14 @@
             {
               "large": "playback.trim",
               "keytip": "T"
+            },
+            {
+              "large": "playback.insertCaptions",
+              "keytip": "C"
+            },
+            {
+              "large": "playback.removeCaptions",
+              "keytip": "D"
             }
           ]
         },

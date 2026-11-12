@@ -99,6 +99,7 @@ MediaPlayback *EditorMedia::playbackFor(const PictureItem &pic)
         const auto data = d->media.constFind(pic.mediaId);
         if (data != d->media.cend()) slot->setFile(data->bytes, data->extension);
         slot->setPlay(deck::mediaPlayOf(*d->pages[page], pic));
+        slot->setCaptions(deck::captionCuesOf(*d, pic));
         if (data == d->media.cend() && !pic.mediaLink.isEmpty())
             slot->setUnavailable(pic.mediaKind == QLatin1String("video") ? tr("This movie is linked from outside the presentation, so it can't be played here.")
                                                                          : tr("This sound is linked from outside the presentation, so it can't be played here."));
@@ -113,6 +114,8 @@ void EditorMedia::refresh(const QString &id)
     if (!pic || !pb) return;
     const Document *d = m_canvas->editor()->doc();
     pb->setPlay(deck::mediaPlayOf(*d->pages[m_canvas->editor()->currentPage()], *pic));
+    pb->setCaptions(deck::captionCuesOf(*d, *pic));
+    updateFor(id);
 }
 
 void EditorMedia::play(const QString &id)
@@ -191,7 +194,10 @@ void EditorMedia::paint(QPainter *p)
         const MediaPlayback *pb = m_players.value(pic->id);
         if (!pb) continue;
         if (pb->failed()) paintMediaMessage(p, *pic, pb->error(), view);
-        else if (pb->started() && !pb->frame().isNull()) paintMediaFrame(p, *pic, pb->frame(), view);
+        else if (pb->started() && !pb->frame().isNull()) {
+            paintMediaFrame(p, *pic, pb->frame(), view);
+            paintMediaCaptions(p, *pic, pb->captionText(), view);
+        }
     }
     const QString id = barItem();
     if (const PictureItem *pic = pictureWith(id)) {

@@ -13,6 +13,7 @@
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
+#include "core/captions.h"
 #include "core/media.h"
 
 #include <QAction>
@@ -22,6 +23,8 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QInputDialog>
+#include <QLocale>
 #include <QMessageBox>
 #include <QStandardPaths>
 #include <algorithm>
@@ -57,6 +60,8 @@ void DeckWindow::createMediaActions()
     mk("insert.audio", tr("Audio on This Device…"), "volume-2", QKeySequence(), [this] { insertMediaFromFile(QStringLiteral("audio")); });
     mk("playback.play", tr("Play"), "play", QKeySequence(), [this] { playMedia(); });
     mk("playback.trim", tr("Trim"), "scissors", QKeySequence(), [this] { trimMedia(); });
+    mk("playback.insertCaptions", tr("Insert Captions…"), "captions", QKeySequence(), [this] { insertCaptionsFromFile(); });
+    mk("playback.removeCaptions", tr("Remove Captions"), "captions-off", QKeySequence(), [this] { removeCaptionsAsked(); });
     auto sync = [this] { refreshMedia(); };
     connect(m_ed, &Editor::selectionChanged, this, sync);
     connect(m_ed, &Editor::changed, this, sync);
@@ -72,6 +77,8 @@ void DeckWindow::refreshMedia()
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Media Tools"), pic != nullptr);
     act("playback.play")->setEnabled(pic != nullptr);
     act("playback.trim")->setEnabled(pic != nullptr);
+    act("playback.insertCaptions")->setEnabled(pic && pic->mediaKind == QLatin1String("video"));
+    act("playback.removeCaptions")->setEnabled(pic && deck::hasCaptions(*pic));
     const MediaPlayback *pb = pic ? m_canvas->media()->playbackOf(pic->id) : nullptr;
     const bool playing = pb && pb->state() == MediaPlayback::State::Playing;
     QAction *play = act("playback.play");
@@ -172,6 +179,104 @@ void DeckWindow::editMedia(const QString &label, const std::function<void(deck::
     if (PictureItem *now = selectedMedia(m_ed)) deck::setMediaPlay(*d->pages[m_ed->currentPage()], *now, play, fileLength);
     m_ed->endChange();
     m_canvas->media()->refresh(id);
+}
+
+// The selected video, if it is one that takes captions.
+static PictureItem *selectedVideo(Editor *ed)
+{
+    PictureItem *pic = selectedMedia(ed);
+    return pic && pic->mediaKind == QLatin1String("video") ? pic : nullptr;
+}
+
+void DeckWindow::insertCaptionsFromFile()
+{
+    if (!selectedVideo(m_ed)) return;
+    const QString dir = Settings::get().value(QStringLiteral("dirs/captions"), Settings::get().value(QStringLiteral("dirs/media")).toString()).toString();
+    const QString path = QFileDialog::getOpenFileName(this, tr("Insert Captions"), dir, tr("WebVTT Caption Files (*.vtt)") + QStringLiteral(";;") + tr("All Files (*)"));
+    if (path.isEmpty()) return;
+    Settings::get().setValue(QStringLiteral("dirs/captions"), QFileInfo(path).absolutePath());
+    bool ok = false;
+    const QString language = QInputDialog::getText(this, tr("Insert Captions"), tr("The language of these captions, as a code such as en, es, or pt-BR:"), QLineEdit::Normal,
+                                                   QLocale().bcp47Name().section(QLatin1Char('-'), 0, 0), &ok)
+                                 .trimmed();
+    if (ok) insertCaptions(path, language);
+}
+
+// The file is read as WebVTT and kept in the presentation as the video's track for the language, in one step that undoes.
+bool DeckWindow::insertCaptions(const QString &path, const QString &language)
+{
+    const QString title = tr("Insert Captions");
+    const QString name = QFileInfo(path).fileName();
+    if (!selectedVideo(m_ed)) {
+        jp::plainInformation(this, title, tr("Captions go with a video. Select a video on a slide, and try again."));
+        return false;
+    }
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) {
+        jp::plainWarning(this, title, tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, f.errorString()));
+        return false;
+    }
+    QByteArray bytes;
+    if (!deck::readMediaBytes(f, deck::kMaxCaptionFileBytes, &bytes)) {
+        jp::plainWarning(this, title, tr("%1 is too large to be a caption file (the most is %2 MB).").arg(name).arg(deck::kMaxCaptionFileBytes / (1024 * 1024)));
+        return false;
+    }
+    f.close();
+    Document *d = m_ed->doc();
+    if (!deck::mediaWouldFit(*d, bytes)) {
+        jp::plainWarning(this, title, tr("%1 is too large to put in this presentation: with it, the file could not be opened again.").arg(name));
+        return false;
+    }
+    // Tried on a copy of the video first, so that a file that is refused changes nothing, and Undo has nothing to undo.
+    Document trial;
+    PictureItem video = *selectedVideo(m_ed);
+    if (const QString why = deck::addCaptions(trial, video, bytes, language); !why.isEmpty()) {
+        jp::plainWarning(this, title, tr("%1 can't be used as captions.\n%2").arg(name, why));
+        return false;
+    }
+    m_ed->endTextEdit();
+    m_ed->beginChange(title);
+    QString why;
+    if (PictureItem *now = selectedVideo(m_ed)) why = deck::addCaptions(*m_ed->doc(), *now, bytes, language);
+    m_ed->endChange();
+    if (!why.isEmpty()) return false;
+    refreshMedia();
+    if (PictureItem *now = selectedVideo(m_ed)) m_canvas->media()->refresh(now->id);
+    return true;
+}
+
+void DeckWindow::removeCaptionsAsked()
+{
+    const PictureItem *pic = selectedVideo(m_ed);
+    if (!pic || !deck::hasCaptions(*pic)) return;
+    QString language;
+    if (pic->mediaCaptions.size() > 1) {
+        QStringList choices;
+        for (const PictureItem::Caption &c : pic->mediaCaptions) choices << c.language;
+        const QString all = tr("All languages");
+        choices << all;
+        bool ok = false;
+        const QString chosen = QInputDialog::getItem(this, tr("Remove Captions"), tr("Remove the captions in:"), choices, 0, false, &ok);
+        if (!ok) return;
+        if (chosen != all) language = chosen;
+    }
+    removeCaptions(language);
+}
+
+// The track for the language is taken out (all of them for an empty one), in one step that undoes. False when there was none to take.
+bool DeckWindow::removeCaptions(const QString &language)
+{
+    const PictureItem *pic = selectedVideo(m_ed);
+    if (!pic) return false;
+    PictureItem probe = *pic;
+    if (!deck::removeCaptions(probe, language)) return false;
+    m_ed->endTextEdit();
+    m_ed->beginChange(tr("Remove Captions"));
+    if (PictureItem *now = selectedVideo(m_ed)) deck::removeCaptions(*now, language);
+    m_ed->endChange();
+    refreshMedia();
+    if (PictureItem *now = selectedVideo(m_ed)) m_canvas->media()->refresh(now->id);
+    return true;
 }
 
 void DeckWindow::playMedia()

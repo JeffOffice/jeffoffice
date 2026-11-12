@@ -229,6 +229,9 @@ public:
     // presentation, with its first picture as the poster and the timing that plays it in the click sequence. False, with
     // the reason shown, when the file can't be put on the slide. (deckwindow_media.cpp)
     bool insertMedia(const QString &path, const QString &kind = QString());
+    // Captions for the selected video: a WebVTT file read as the track for a language (one step of Undo), and a language's track (or all) taken out.
+    bool insertCaptions(const QString &path, const QString &language);
+    bool removeCaptions(const QString &language);
     // Changes how the selected movie or sound plays, as one step that undoes (the Playback tab's boxes).
     // `fileLength` is how long the whole file lasts, in milliseconds, when the change knows it (a trim does).
     void editMedia(const QString &label, const std::function<void(deck::MediaPlay &)> &change, qint64 fileLength = 0);
@@ -452,6 +455,8 @@ private:
     void addMediaParts(struct RibbonParts &parts);
     void insertMediaFromFile(const QString &kind);
     void trimMedia();
+    void insertCaptionsFromFile();
+    void removeCaptionsAsked();
     void refreshMedia();
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);

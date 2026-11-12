@@ -63,7 +63,12 @@ QString relateAddress(DrawingWriteContext &ctx, const QString &address);
 // a:videoFile or a:audioFile, and `copy` for the p14:media that says the file
 // holds it (empty when the picture links to it outside). Both empty when it
 // plays none, or its media can't be had.
-struct MediaRelations { QString link, copy; };
+// `captions` are the relationships of its caption tracks (the language, and the relationship id), the parts of which are written
+// beside the movie.
+struct MediaRelations {
+    QString link, copy;
+    QVector<QPair<QString, QString>> captions;
+};
 MediaRelations relateMedia(DrawingWriteContext &ctx, const PictureItem &p);
 
 } // namespace jp::office::dmlwrite

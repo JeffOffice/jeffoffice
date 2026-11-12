@@ -75,6 +75,7 @@ ShowMedia::Entry *ShowMedia::entryFor(const PictureItem &pic, bool create)
     const auto data = m_doc->media.constFind(pic.mediaId);
     if (data != m_doc->media.cend()) pb->setFile(data->bytes, data->extension);
     pb->setPlay(e.play);
+    pb->setCaptions(deck::captionCuesOf(*m_doc, pic));
     if (data == m_doc->media.cend())
         pb->setUnavailable(!pic.mediaLink.isEmpty()
                                ? (e.play.video ? tr("This movie is linked from outside the presentation, so it can't be played here.")
@@ -378,10 +379,13 @@ void ShowMedia::paint(QPainter *p)
                 p->setRenderHint(QPainter::SmoothPixmapTransform);
                 QSizeF size = e->player->frame().size();
                 size.scale(QSizeF(m_view->size()), Qt::KeepAspectRatio);
-                p->drawImage(QRectF(QPointF((m_view->width() - size.width()) / 2, (m_view->height() - size.height()) / 2), size), e->player->frame());
+                const QRectF placed(QPointF((m_view->width() - size.width()) / 2, (m_view->height() - size.height()) / 2), size);
+                p->drawImage(placed, e->player->frame());
+                paintCaptionText(p, placed, e->player->captionText());
                 p->restore();
             } else {
                 paintMediaFrame(p, *pic, e->player->frame(), view);
+                paintMediaCaptions(p, *pic, e->player->captionText(), view);
             }
         }
     }

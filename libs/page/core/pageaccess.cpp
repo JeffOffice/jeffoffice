@@ -277,7 +277,7 @@ QVector<PageAccessIssue> checkPageAccessibility(const Document &doc, bool slides
                 out.push_back({PageAccessIssue::MissingAltText, PageAccessIssue::Error, p, it->id,
                                QCoreApplication::translate("jp::PageAccess", "%1 has no alt text. Give it a description, or mark it as decoration.").arg(shape)});
         });
-        // A table whose first row is not a header row, and a video (nothing here carries captions for one).
+        // A table whose first row is not a header row, and a video that has no caption track.
         walkItems(doc.pages[p]->items, [&](const ItemPtr &it) {
             if (out.size() >= most || it->decorative) return;
             if (it->type() == ItemType::Table && static_cast<const TableItem &>(*it).rows > 0 && !static_cast<const TableItem &>(*it).header)
@@ -285,7 +285,8 @@ QVector<PageAccessIssue> checkPageAccessibility(const Document &doc, bool slides
                                (slides ? QCoreApplication::translate("jp::PageAccess", "A table on slide %1 has no header row. A header row names the columns for people who use a screen reader.")
                                        : QCoreApplication::translate("jp::PageAccess", "A table on page %1 has no header row. A header row names the columns for people who use a screen reader."))
                                    .arg(p + 1)});
-            else if (it->type() == ItemType::Picture && static_cast<const PictureItem &>(*it).mediaKind == QLatin1String("video"))
+            else if (it->type() == ItemType::Picture && static_cast<const PictureItem &>(*it).mediaKind == QLatin1String("video") &&
+                     static_cast<const PictureItem &>(*it).mediaCaptions.isEmpty())
                 out.push_back({PageAccessIssue::NoCaptions, PageAccessIssue::Tip, p, it->id,
                                (slides ? QCoreApplication::translate("jp::PageAccess", "Videos need captions for people who can't hear them. Check the video on slide %1.")
                                        : QCoreApplication::translate("jp::PageAccess", "Videos need captions for people who can't hear them. Check the video on page %1."))

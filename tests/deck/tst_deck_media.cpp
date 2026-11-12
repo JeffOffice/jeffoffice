@@ -599,6 +599,391 @@ private Q_SLOTS:
         QCOMPARE(MediaPlayback::decoders(), before);
     }
 
+    // ---- captions ----
+
+    static QByteArray vtt(const QString &body) { return QByteArray("WEBVTT\n\n") + body.toUtf8(); }
+
+    // A WebVTT file is read: its cues with their times, the markup taken out, and what is not a cue left alone.
+    void captionsAreReadFromWebVtt()
+    {
+        const QByteArray file = "\xEF\xBB\xBFWEBVTT - the talk\r\n\r\nNOTE a note\r\nwith two lines\r\n\r\nSTYLE\r\n::cue { color: red }\r\n\r\nREGION\r\nid:r1\r\n\r\n"
+                                "intro\r\n00:00:01.000 --> 00:00:03.500 align:start\r\n<v Ann>Hello &amp; welcome,</v>\r\n<c.yellow>to the <b>talk</b></c>\r\n\r\n"
+                                "01:02.250 --> 01:04.000\r\nSecond &lt;cue&gt;\r\n\r\n"
+                                "1:00:00.000 --> 1:00:01.000\r\nAn hour in\r\n";
+        const deck::CaptionFile f = deck::parseWebVtt(file);
+        QVERIFY2(f.error.isEmpty(), qPrintable(f.error));
+        QCOMPARE(int(f.cues.size()), 3);
+        QCOMPARE(f.cues[0].start, qint64(1000));
+        QCOMPARE(f.cues[0].end, qint64(3500));
+        QCOMPARE(f.cues[0].text, QStringLiteral("Hello & welcome,\nto the talk"));
+        QCOMPARE(f.cues[1].start, qint64(62250));
+        QCOMPARE(f.cues[1].end, qint64(64000));
+        QCOMPARE(f.cues[1].text, QStringLiteral("Second <cue>"));
+        QCOMPARE(f.cues[2].start, qint64(3600000));
+        QVERIFY(deck::looksLikeWebVtt(file));
+        QVERIFY(deck::looksLikeWebVtt("WEBVTT"));
+        QVERIFY(!deck::looksLikeWebVtt("WEBVTTX\n"));
+        QVERIFY(!deck::looksLikeWebVtt("1\n00:00:01,000 --> 00:00:02,000\nhi\n"));
+        // Cues out of order are put in order of their start.
+        const deck::CaptionFile ordered = deck::parseWebVtt(vtt(QStringLiteral("00:00:05.000 --> 00:00:06.000\nb\n\n00:00:01.000 --> 00:00:02.000\na\n")));
+        QCOMPARE(int(ordered.cues.size()), 2);
+        QCOMPARE(ordered.cues[0].text, QStringLiteral("a"));
+    }
+
+    // A file that is not WebVTT, is damaged, or is hostile gives a message and no crash.
+    void captionsOfDamagedOrHostileFilesSayWhy()
+    {
+        auto bad = [](const QByteArray &bytes) {
+            const deck::CaptionFile f = deck::parseWebVtt(bytes);
+            return !f.error.isEmpty() && f.cues.isEmpty();
+        };
+        QVERIFY(bad(QByteArray()));
+        QVERIFY(bad("1\n00:00:01,000 --> 00:00:02,000\nhi\n"));           // SubRip
+        QVERIFY(bad("<?xml version=\"1.0\"?><tt xmlns=\"x\"></tt>"));      // TTML
+        QVERIFY(bad("WEBVTT\n\n"));                                         // no cue
+        QVERIFY(bad(vtt(QStringLiteral("00:00:02.000 --> 00:00:01.000\nbackwards\n"))));
+        QVERIFY(bad(vtt(QStringLiteral("00:00:xx.000 --> 00:00:01.000\nletters\n"))));
+        QVERIFY(bad(vtt(QStringLiteral("99999999999999999999:00:00.000 --> 99999999999999999999:00:01.000\nhuge\n"))));
+        QByteArray noise(100000, '\0');
+        for (int i = 0; i < noise.size(); ++i) noise[i] = char((i * 131 + 7) & 0xFF);
+        QVERIFY(bad(noise));
+        QVERIFY(bad("WEBVTT\n\n" + noise));
+        // One cue damaged: the rest are kept and the damage is counted.
+        const deck::CaptionFile some = deck::parseWebVtt(vtt(QStringLiteral("00:00:01.000 --> 00:00:02.000\nok\n\n00:00:03.000 --> nonsense\nlost\n\n00:00:04.000 --> 00:00:05.000\nalso ok\n")));
+        QVERIFY(some.error.isEmpty());
+        QCOMPARE(int(some.cues.size()), 2);
+        QCOMPARE(some.leftOut, 1);
+        // Too large a file is refused before it is read.
+        QByteArray big = vtt(QStringLiteral("00:00:01.000 --> 00:00:02.000\nx\n"));
+        big.append(QByteArray(int(deck::kMaxCaptionFileBytes), 'x'));
+        const deck::CaptionFile large = deck::parseWebVtt(big);
+        QVERIFY(!large.error.isEmpty() && large.cues.isEmpty());
+        // Too many cues: the first are kept, the rest counted.
+        QByteArray many = "WEBVTT\n\n";
+        for (int i = 0; i < deck::kMaxCaptionCues + 500; ++i) many += QByteArray("00:00:01.000 --> 00:00:02.000\nc\n\n");
+        const deck::CaptionFile cut = deck::parseWebVtt(many);
+        QVERIFY(cut.error.isEmpty());
+        QCOMPARE(int(cut.cues.size()), deck::kMaxCaptionCues);
+        QCOMPARE(cut.leftOut, 500);
+        // A cue's text past its limit is cut.
+        const deck::CaptionFile longText = deck::parseWebVtt(vtt(QStringLiteral("00:00:01.000 --> 00:00:02.000\n") + QString(deck::kMaxCueChars * 3, QLatin1Char('w')) + QLatin1Char('\n')));
+        QCOMPARE(int(longText.cues.size()), 1);
+        QVERIFY(longText.cues[0].text.size() <= deck::kMaxCueChars);
+        // A great many lines or an endless tag does not hang or crash.
+        QElapsedTimer clock;
+        clock.start();
+        QString lines = QStringLiteral("00:00:01.000 --> 00:00:02.000\n");
+        for (int i = 0; i < 50000; ++i) lines += QStringLiteral("<c ");
+        deck::parseWebVtt(vtt(lines));
+        QVERIFY(clock.elapsed() < 5000);
+    }
+
+    void captionTextFollowsTheMoment()
+    {
+        QVector<deck::CaptionCue> cues{{1000, 3000, QStringLiteral("one")}, {2000, 4000, QStringLiteral("two")}, {6000, 7000, QStringLiteral("three")}};
+        QCOMPARE(deck::captionTextAt(cues, 0), QString());
+        QCOMPARE(deck::captionTextAt(cues, 1000), QStringLiteral("one"));
+        QCOMPARE(deck::captionTextAt(cues, 2500), QStringLiteral("one\ntwo"));
+        QCOMPARE(deck::captionTextAt(cues, 3000), QStringLiteral("two"));   // a cue ends before its end time
+        QCOMPARE(deck::captionTextAt(cues, 5000), QString());
+        QCOMPARE(deck::captionTextAt(cues, 6999), QStringLiteral("three"));
+        QCOMPARE(deck::captionTextAt(cues, 7000), QString());
+        QCOMPARE(deck::captionTextAt(cues, -5), QString());
+        QCOMPARE(deck::captionTextAt({}, 100), QString());
+    }
+
+    // A video holds a track for each language; one for a language replaces the old one; the file is kept as it came.
+    void captionTracksAreOnePerLanguage()
+    {
+        auto d = deck::newPresentation();
+        Page &slide = *d->pages[0];
+        auto video = deck::newMediaPicture(*d, slide, QByteArray(500, 'v'), QStringLiteral("a.mp4"), QImage(64, 48, QImage::Format_RGB32), 5000);
+        QVERIFY(video);
+        QVERIFY(!deck::hasCaptions(*video));
+        const QByteArray en = vtt(QStringLiteral("00:00:01.000 --> 00:00:02.000\nHello\n")), es = vtt(QStringLiteral("00:00:01.000 --> 00:00:02.000\nHola\n"));
+        QVERIFY(deck::addCaptions(*d, *video, en, QStringLiteral("en")).isEmpty());
+        QVERIFY(deck::addCaptions(*d, *video, es, QStringLiteral("es")).isEmpty());
+        QVERIFY(deck::hasCaptions(*video));
+        QCOMPARE(int(video->mediaCaptions.size()), 2);
+        QCOMPARE(d->media.value(video->mediaCaptions[0].mediaId).bytes, en);
+        QCOMPARE(d->media.value(video->mediaCaptions[0].mediaId).contentType, QStringLiteral("text/vtt"));
+        QCOMPARE(deck::captionCuesOf(*d, *video, QStringLiteral("es")).value(0).text, QStringLiteral("Hola"));
+        QCOMPARE(deck::captionCuesOf(*d, *video).value(0).text, QStringLiteral("Hello"));
+        // The same language again replaces.
+        const QByteArray en2 = vtt(QStringLiteral("00:00:03.000 --> 00:00:04.000\nGoodbye\n"));
+        QVERIFY(deck::addCaptions(*d, *video, en2, QStringLiteral("EN")).isEmpty());
+        QCOMPARE(int(video->mediaCaptions.size()), 2);
+        QCOMPARE(deck::captionCuesOf(*d, *video, QStringLiteral("en")).value(0).text, QStringLiteral("Goodbye"));
+        // What is not accepted says why and changes nothing.
+        QVERIFY(!deck::addCaptions(*d, *video, QByteArray("not captions"), QStringLiteral("fr")).isEmpty());
+        QVERIFY(!deck::addCaptions(*d, *video, en, QStringLiteral("not a tag!")).isEmpty());
+        QVERIFY(!deck::addCaptions(*d, *video, en, QString()).isEmpty());
+        QCOMPARE(int(video->mediaCaptions.size()), 2);
+        QVERIFY(!deck::validCaptionLanguage(QStringLiteral("e n")) && deck::validCaptionLanguage(QStringLiteral("pt-BR")));
+        // Never more tracks than a video may have.
+        for (int i = 0; i < kMaxMediaCaptions + 3; ++i) deck::addCaptions(*d, *video, en, QStringLiteral("x%1").arg(i));
+        QCOMPARE(int(video->mediaCaptions.size()), kMaxMediaCaptions);
+        // Taken out: one language, then all.
+        QVERIFY(deck::removeCaptions(*video, QStringLiteral("es")));
+        QVERIFY(!deck::removeCaptions(*video, QStringLiteral("es")));
+        QVERIFY(deck::removeCaptions(*video));
+        QVERIFY(!deck::hasCaptions(*video));
+        // The track is part of the picture's JSON.
+        deck::addCaptions(*d, *video, es, QStringLiteral("es"));
+        PictureItem copy;
+        copy.fromJson(video->toJson());
+        QCOMPARE(int(copy.mediaCaptions.size()), 1);
+        QVERIFY(copy.mediaCaptions == video->mediaCaptions);
+    }
+
+    // The tracks are written as parts related from the slide, named by the video's extension list, and read again; a track in a format
+    // that is not WebVTT comes back as it was.
+    void captionsSurviveTheRoundTrip()
+    {
+        auto d = deck::newPresentation();
+        Page &slide = *d->pages[0];
+        auto video = deck::newMediaPicture(*d, slide, QByteArray(2000, 'v'), QStringLiteral("Clip.mp4"), QImage(64, 48, QImage::Format_RGB32), 9000);
+        QVERIFY(video);
+        slide.items.push_back(video);
+        const QByteArray en = vtt(QStringLiteral("00:00:01.000 --> 00:00:02.000\nHello\n")), es = vtt(QStringLiteral("00:00:01.000 --> 00:00:02.000\nHola\n"));
+        const QByteArray ttml = "<?xml version=\"1.0\"?><tt xmlns=\"http://www.w3.org/ns/ttml\" xml:lang=\"fr\"><body><div><p begin=\"1s\" end=\"2s\">Bonjour</p></div></body></tt>";
+        QVERIFY(deck::addCaptions(*d, *video, en, QStringLiteral("en")).isEmpty());
+        QVERIFY(deck::addCaptions(*d, *video, es, QStringLiteral("es")).isEmpty());
+        video->mediaCaptions.push_back({QStringLiteral("fr"), d->addMedia(ttml, QStringLiteral("application/ttml+xml"), QStringLiteral("ttml"))});
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.isEmpty(), qPrintable(skipped.join('\n')));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        int tracks = 0;
+        QStringList targets;
+        for (const office::Relationship &r : e.pkg.relationships(QStringLiteral("/ppt/slides/slide1.xml")))
+            if (r.type.endsWith(QLatin1String("/relationships/subTitle"))) {
+                ++tracks;
+                targets << r.target;
+                QVERIFY(!r.external);
+            }
+        QCOMPARE(tracks, 3);
+        const QString xml = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QCOMPARE(int(xml.count(QStringLiteral("lang=\"es\""))), 1);
+        QVERIFY2(xml.contains(QStringLiteral("<p14:media ")), qPrintable(xml));
+        bool sawVtt = false, sawTtml = false;
+        for (const QString &t : std::as_const(targets)) {
+            if (t.endsWith(QLatin1String(".vtt"))) {
+                sawVtt = true;
+                QCOMPARE(e.pkg.contentType(t), QStringLiteral("text/vtt"));
+                QVERIFY(e.pkg.part(t) == en || e.pkg.part(t) == es);
+            } else if (t.endsWith(QLatin1String(".ttml"))) {
+                sawTtml = true;
+                QCOMPARE(e.pkg.part(t), ttml);
+                QCOMPARE(e.pkg.contentType(t), QStringLiteral("application/ttml+xml"));
+            }
+        }
+        QVERIFY(sawVtt && sawTtml);
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const QVector<const PictureItem *> read = deck::mediaPicturesOf(*back->pages[0]);
+        QCOMPARE(int(read.size()), 1);
+        QCOMPARE(int(read[0]->mediaCaptions.size()), 3);
+        QMap<QString, QByteArray> byLanguage;
+        QMap<QString, QString> typeOf;
+        for (const PictureItem::Caption &c : read[0]->mediaCaptions) {
+            byLanguage.insert(c.language, back->media.value(c.mediaId).bytes);
+            typeOf.insert(c.language, back->media.value(c.mediaId).contentType);
+        }
+        QCOMPARE(byLanguage.value(QStringLiteral("en")), en);
+        QCOMPARE(byLanguage.value(QStringLiteral("es")), es);
+        QCOMPARE(byLanguage.value(QStringLiteral("fr")), ttml);
+        QCOMPARE(typeOf.value(QStringLiteral("fr")), QStringLiteral("application/ttml+xml"));
+        QCOMPARE(deck::captionCuesOf(*back, *read[0], QStringLiteral("es")).value(0).text, QStringLiteral("Hola"));
+        // And once more, as it is saved from what was read: nothing was lost.
+        const QByteArray again = deck::exportPresentation(*back, &err, &skipped);
+        QVERIFY2(!again.isEmpty(), qPrintable(err));
+        auto third = deck::importPresentation(again, &err);
+        QVERIFY2(third, qPrintable(err));
+        QCOMPARE(int(deck::mediaPicturesOf(*third->pages[0])[0]->mediaCaptions.size()), 3);
+        // A video with none writes none.
+        video->mediaCaptions.clear();
+        const QByteArray none = deck::exportPresentation(*d, &err, &skipped);
+        Exported e2;
+        QVERIFY2(unpack(none, &e2, &err), qPrintable(err));
+        for (const office::Relationship &r : e2.pkg.relationships(QStringLiteral("/ppt/slides/slide1.xml"))) QVERIFY(!r.type.endsWith(QLatin1String("/relationships/subTitle")));
+    }
+
+    // A file that names a caption track that is not there, or too many, or a huge one, is read without harm.
+    void captionsOfDamagedFilesAreReadWithoutHarm()
+    {
+        auto d = deck::newPresentation();
+        Page &slide = *d->pages[0];
+        auto video = deck::newMediaPicture(*d, slide, QByteArray(2000, 'v'), QStringLiteral("Clip.mp4"), QImage(64, 48, QImage::Format_RGB32), 9000);
+        slide.items.push_back(video);
+        QString err;
+        QStringList skipped;
+        deck::addCaptions(*d, *video, vtt(QStringLiteral("00:00:01.000 --> 00:00:02.000\nHello\n")), QStringLiteral("en"));
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        // The slide names more tracks than the limit, one that has no part, and one whose id is nothing.
+        QString xml = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QString tracksXml;
+        for (int i = 0; i < kMaxMediaCaptions + 10; ++i) tracksXml += QStringLiteral("<jdc:track lang=\"l%1\" r:id=\"rId9999\"/>").arg(i);
+        const qsizetype at = xml.indexOf(QStringLiteral("<jdc:captions"));
+        QVERIFY2(at >= 0, qPrintable(xml));
+        const qsizetype open = xml.indexOf(QLatin1Char('>'), at) + 1;
+        xml.insert(open, tracksXml);
+        e.zip[QStringLiteral("ppt/slides/slide1.xml")] = xml.toUtf8();
+        ZipWriter zip;
+        for (auto it = e.zip.cbegin(); it != e.zip.cend(); ++it) zip.add(it.key(), it.value());
+        const QByteArray damaged = zip.finish();
+        auto back = deck::importPresentation(damaged, &err);
+        QVERIFY2(back, qPrintable(err));
+        const QVector<const PictureItem *> read = deck::mediaPicturesOf(*back->pages[0]);
+        QCOMPARE(int(read.size()), 1);
+        QCOMPARE(int(read[0]->mediaCaptions.size()), 1);   // only the real one
+    }
+
+    // A video that has captions is no longer flagged by the accessibility check.
+    void accessibilityCheckStopsFlaggingACaptionedVideo()
+    {
+        auto d = deck::newPresentation();
+        Page &slide = *d->pages[0];
+        auto video = deck::newMediaPicture(*d, slide, QByteArray(500, 'v'), QStringLiteral("a.mp4"), QImage(64, 48, QImage::Format_RGB32), 5000);
+        video->altText = QStringLiteral("A clip");
+        slide.items.push_back(video);
+        auto flagged = [&] {
+            int n = 0;
+            for (const auto &i : checkPageAccessibility(*d, true))
+                if (i.kind == PageAccessIssue::NoCaptions) ++n;
+            return n;
+        };
+        QCOMPARE(flagged(), 1);
+        QVERIFY(deck::addCaptions(*d, *video, vtt(QStringLiteral("00:00:01.000 --> 00:00:02.000\nHello\n")), QStringLiteral("en")).isEmpty());
+        QCOMPARE(flagged(), 0);
+        deck::removeCaptions(*video);
+        QCOMPARE(flagged(), 1);
+        // A track in another format counts as captions too.
+        video->mediaCaptions.push_back({QStringLiteral("fr"), d->addMedia("<tt/>", QStringLiteral("application/ttml+xml"), QStringLiteral("ttml"))});
+        QCOMPARE(flagged(), 0);
+    }
+
+    // Insert Captions and Remove Captions on the Playback tab: one step each that undoes, a track for each language, and a file that is no
+    // caption file is said so and changes nothing.
+    void playbackTabInsertsAndRemovesCaptions()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        auto doc = deck::newPresentation();
+        auto video = deck::newMediaPicture(*doc, *doc->pages[0], QByteArray(500, 'v'), QStringLiteral("a.mp4"), QImage(64, 48, QImage::Format_RGB32), 5000);
+        doc->pages[0]->items.push_back(video);
+        ed->setDocument(std::move(doc));
+        ed->setCurrentPage(0);
+        const QString id = lastMedia(*ed->doc())->id;
+        ed->select(id);
+        QTRY_VERIFY(tabShown(w.ribbon(), QStringLiteral("Playback")));
+        QVERIFY(w.act(QStringLiteral("playback.insertCaptions")));
+        QVERIFY(w.act(QStringLiteral("playback.removeCaptions")));
+        QCOMPARE(w.act(QStringLiteral("playback.insertCaptions"))->text(), QStringLiteral("Insert Captions…"));
+        QVERIFY(w.act(QStringLiteral("playback.insertCaptions"))->isEnabled());
+        QVERIFY(!w.act(QStringLiteral("playback.removeCaptions"))->isEnabled());
+        const QString en = writeTestFile(dir, QStringLiteral("talk.vtt"), vtt(QStringLiteral("00:00:01.000 --> 00:00:02.000\nHello\n")));
+        const QString es = writeTestFile(dir, QStringLiteral("charla.vtt"), vtt(QStringLiteral("00:00:01.000 --> 00:00:02.000\nHola\n")));
+        QVERIFY(w.insertCaptions(en, QStringLiteral("en")));
+        QCOMPARE(int(lastMedia(*ed->doc())->mediaCaptions.size()), 1);
+        QTRY_VERIFY(w.act(QStringLiteral("playback.removeCaptions"))->isEnabled());
+        QVERIFY(w.insertCaptions(es, QStringLiteral("es")));
+        QCOMPARE(int(lastMedia(*ed->doc())->mediaCaptions.size()), 2);
+        ed->undo();
+        QCOMPARE(int(lastMedia(*ed->doc())->mediaCaptions.size()), 1);
+        ed->redo();
+        QCOMPARE(int(lastMedia(*ed->doc())->mediaCaptions.size()), 2);
+        // A file that is not captions is refused with a message.
+        QString shown;
+        QTimer closer;
+        closer.setInterval(10);
+        connect(&closer, &QTimer::timeout, &closer, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                shown = box->text();
+                box->close();
+            }
+        });
+        closer.start();
+        QVERIFY(!w.insertCaptions(writeTestFile(dir, QStringLiteral("bad.vtt"), QByteArray("this is not captions")), QStringLiteral("fr")));
+        QVERIFY2(shown.contains(QStringLiteral("bad.vtt")), qPrintable(shown));
+        QVERIFY(!w.insertCaptions(dir.filePath(QStringLiteral("missing.vtt")), QStringLiteral("fr")));
+        closer.stop();
+        QCOMPARE(int(lastMedia(*ed->doc())->mediaCaptions.size()), 2);
+        // Remove one language, then the other; each undoes.
+        QVERIFY(w.removeCaptions(QStringLiteral("es")));
+        QCOMPARE(int(lastMedia(*ed->doc())->mediaCaptions.size()), 1);
+        QCOMPARE(lastMedia(*ed->doc())->mediaCaptions[0].language, QStringLiteral("en"));
+        ed->undo();
+        QCOMPARE(int(lastMedia(*ed->doc())->mediaCaptions.size()), 2);
+        ed->redo();
+        QVERIFY(w.removeCaptions(QString()));
+        QVERIFY(lastMedia(*ed->doc())->mediaCaptions.isEmpty());
+        QVERIFY(!w.removeCaptions(QString()));
+        QTRY_VERIFY(!w.act(QStringLiteral("playback.removeCaptions"))->isEnabled());
+        // Kept when the presentation is saved and opened again.
+        QVERIFY(w.insertCaptions(en, QStringLiteral("en")));
+        const QString saved = dir.filePath(QStringLiteral("deck.pptx"));
+        QVERIFY(w.saveTo(saved));
+        DeckWindow other;
+        QVERIFY(other.openFile(saved));
+        QCOMPARE(int(lastMedia(*other.editor()->doc())->mediaCaptions.size()), 1);
+        Settings::get().removeRecentFile(saved);
+    }
+
+    // Captions are drawn over the bottom of the video, in a size that follows the video's, on a background that keeps them legible.
+    void captionsAreDrawnOverTheBottomAndScale()
+    {
+        auto drawn = [](double width) {
+            QImage img(int(width) + 40, int(width * 9 / 16) + 40, QImage::Format_RGB32);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            const QRectF area(20, 20, width, width * 9 / 16);
+            p.fillRect(area, QColor(200, 200, 200));
+            paintCaptionText(&p, area, QStringLiteral("Hello there"));
+            p.end();
+            // The rows (of the area) that hold anything but the video's own gray.
+            int first = -1, last = -1;
+            for (int y = int(area.top()); y < int(area.bottom()); ++y)
+                for (int x = int(area.left()); x < int(area.right()); ++x)
+                    if (img.pixelColor(x, y) != QColor(200, 200, 200)) {
+                        if (first < 0) first = y - int(area.top());
+                        last = y - int(area.top());
+                        break;
+                    }
+            return std::array<double, 3>{double(first), double(last), area.height()};
+        };
+        const auto small = drawn(320), large = drawn(960);
+        QVERIFY(small[0] >= 0);
+        QVERIFY2(small[0] > small[2] * 0.6, "the captions sit in the lower part");          // not over the top
+        QVERIFY(small[1] <= small[2] - 1);                                                  // inside the video
+        QVERIFY(large[1] - large[0] > (small[1] - small[0]) * 2.0);                          // three times the width: much taller text
+        // Nothing to say, nothing drawn.
+        QImage img(100, 60, QImage::Format_RGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        paintCaptionText(&p, QRectF(0, 0, 100, 60), QString());
+        p.end();
+        QCOMPARE(img.pixelColor(50, 55), QColor(Qt::white));
+    }
+
+    // The player says what is captioned only while it shows the video.
+    void aPlayerShowsCaptionsOnlyWhileItPlays()
+    {
+        MediaPlayback pb;
+        pb.setCaptions({{0, 60000, QStringLiteral("always")}});
+        QCOMPARE(pb.captionText(), QString());   // not played: nothing
+    }
+
     // A sound plays, or the player says why it can't (a computer with no sound device is not an error for the picture, and
     // a runner with no backend says so clearly).
     void mediaPlaybackPlaysASoundOrSaysWhy()

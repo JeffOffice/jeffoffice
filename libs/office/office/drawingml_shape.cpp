@@ -1028,7 +1028,9 @@ void Reader::media(const QDomElement &nvPr, PictureItem &p)
     }
     if (file.isNull()) return;
     QStringList ids;
+    QDomElement captions;
     for (QDomElement ext = childNamed(childNamed(nvPr, "extLst"), "ext"); !ext.isNull(); ext = ext.nextSiblingElement()) {
+        if (const QDomElement tracks = childNamed(ext, "captions"); !tracks.isNull()) captions = tracks;
         const QDomElement copy = childNamed(ext, "media");
         if (copy.isNull()) continue;
         ids << attrNs(copy, ns::R, QStringLiteral("embed"));
@@ -1074,6 +1076,25 @@ void Reader::media(const QDomElement &nvPr, PictureItem &p)
         break;
     }
     if (!p.mediaId.isEmpty() || !p.mediaLink.isEmpty()) p.mediaKind = kind;
+    // The caption tracks of a movie: each a file kept as it came, whatever its format; one that is missing or too large is left out.
+    if (kind == QLatin1String("video") && !p.mediaId.isEmpty() && !captions.isNull() && m_ctx.addMedia) {
+        int looked = 0;
+        for (QDomElement t = captions.firstChildElement(); !t.isNull() && p.mediaCaptions.size() < kMaxMediaCaptions && looked < 4 * kMaxMediaCaptions; t = t.nextSiblingElement(), ++looked) {
+            if (t.localName() != QLatin1String("track")) continue;
+            const Relationship r = m_ctx.package->relationship(m_ctx.part, attrNs(t, ns::R, QStringLiteral("id")));
+            if (r.id.isEmpty() || r.external) continue;
+            const QByteArray bytes = m_ctx.package->part(r.target);
+            if (bytes.isEmpty() || bytes.size() > kMaxCaptionBytes) continue;
+            const qsizetype dot = r.target.lastIndexOf(QLatin1Char('.'));
+            const QString extension = dot > r.target.lastIndexOf(QLatin1Char('/')) ? r.target.mid(dot + 1).toLower() : QString();
+            const QString id = m_ctx.addMedia(bytes, m_ctx.package->contentType(r.target), extension);
+            const QString language = attr(t, QStringLiteral("lang")).left(35);
+            if (id.isEmpty()) continue;
+            bool same = false;
+            for (const PictureItem::Caption &c : std::as_const(p.mediaCaptions)) same = same || c.language.compare(language, Qt::CaseInsensitive) == 0;
+            if (!same) p.mediaCaptions.push_back({language, id});
+        }
+    }
 }
 
 } // namespace

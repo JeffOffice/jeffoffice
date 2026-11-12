@@ -550,6 +550,21 @@ void writeMedia(QXmlStreamWriter &w, const PictureItem &p, const MediaRelations 
     }
     w.writeEndElement();
     w.writeEndElement();
+    // The caption tracks: the language of each and the relationship to its file. A program that does not know them skips the extension.
+    if (!media.captions.isEmpty()) {
+        begin(w, "p:ext");
+        attribute(w, "uri", QStringLiteral("{3C8B1D2A-5E47-4F90-B6A1-7D20E94C1F58}"));
+        begin(w, "jdc:captions");
+        w.writeAttribute(QStringLiteral("xmlns:jdc"), QStringLiteral("http://jeffoffice.com/ns/captions/2026"));
+        for (const auto &track : media.captions) {
+            begin(w, "jdc:track");
+            attribute(w, "lang", track.first);
+            attribute(w, "r:id", track.second);
+            w.writeEndElement();
+        }
+        w.writeEndElement();
+        w.writeEndElement();
+    }
     w.writeEndElement();
 }
 

@@ -326,6 +326,28 @@ MediaRelations relateMedia(DrawingWriteContext &ctx, const PictureItem &p)
         if (!part.isEmpty()) {
             r.link = relate(ctx, type, part);
             r.copy = relate(ctx, QStringLiteral("http://schemas.microsoft.com/office/2007/relationships/media"), part);
+            // The caption tracks: each file a part of its own, related from the slide.
+            for (const PictureItem::Caption &c : p.mediaCaptions) {
+                const QString captionKey = QStringLiteral("media:") + c.mediaId;
+                QString captionPart = ctx.mediaParts->value(captionKey);
+                if (captionPart.isEmpty()) {
+                    QString contentType, extension;
+                    const QByteArray bytes = ctx.mediaBytes(c.mediaId, &contentType, &extension);
+                    static const QRegularExpression plainName(QStringLiteral("^[a-z0-9]{1,8}$"));
+                    extension = extension.toLower();
+                    if (!plainName.match(extension).hasMatch()) extension = QStringLiteral("bin");
+                    if (bytes.isEmpty()) continue;
+                    if (contentType.isEmpty()) contentType = QStringLiteral("application/octet-stream");
+                    const QStringList taken = ctx.mediaParts->values();
+                    int n = 1;
+                    do {
+                        captionPart = QStringLiteral("/ppt/media/caption%1.%2").arg(n++).arg(extension);
+                    } while (taken.contains(captionPart));
+                    ctx.package->addPart(captionPart, bytes, contentType);
+                    ctx.mediaParts->insert(captionKey, captionPart);
+                }
+                r.captions.push_back({c.language, relate(ctx, QStringLiteral("http://schemas.microsoft.com/office/2011/relationships/subTitle"), captionPart)});
+            }
             return r;
         }
     }

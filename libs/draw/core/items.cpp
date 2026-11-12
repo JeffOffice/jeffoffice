@@ -387,6 +387,11 @@ QJsonObject PictureItem::toJson() const
         if (!mediaLink.isEmpty()) o["mediaLink"] = mediaLink;
         if (mediaTrimStart || mediaTrimEnd) o["mediaTrim"] = QJsonArray{mediaTrimStart, mediaTrimEnd};
         if (mediaFadeIn || mediaFadeOut) o["mediaFade"] = QJsonArray{mediaFadeIn, mediaFadeOut};
+        if (!mediaCaptions.isEmpty()) {
+            QJsonArray tracks;
+            for (const Caption &c : mediaCaptions) tracks.append(QJsonObject{{"lang", c.language}, {"media", c.mediaId}});
+            o["captions"] = tracks;
+        }
     }
     return o;
 }
@@ -421,6 +426,10 @@ void PictureItem::fromJson(const QJsonObject &o)
     mediaTrimEnd = trim.at(1).toInt();
     mediaFadeIn = fade.at(0).toInt();
     mediaFadeOut = fade.at(1).toInt();
+    mediaCaptions.clear();
+    const QJsonArray tracks = o["captions"].toArray();
+    for (int i = 0; i < tracks.size() && i < kMaxMediaCaptions; ++i)
+        if (const QJsonObject t = tracks.at(i).toObject(); !t["media"].toString().isEmpty()) mediaCaptions.push_back({t["lang"].toString(), t["media"].toString()});
 }
 
 // ---------- ShapeItem ----------

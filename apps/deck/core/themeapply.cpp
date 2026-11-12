@@ -456,6 +456,7 @@ private:
             auto *p = static_cast<PictureItem *>(it);
             p->imageId = image(p->imageId);
             p->mediaId = media(p->mediaId);
+            for (PictureItem::Caption &c : p->mediaCaptions) c.mediaId = media(c.mediaId);
             break;
         }
         default: break;
