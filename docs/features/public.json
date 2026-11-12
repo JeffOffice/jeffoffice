@@ -5753,7 +5753,7 @@
         },
         {
          "status": "partly",
-         "text": "4c5da7ac18468dff16f7ed2b45b9771382312a06c2f0fbb9efc25609c9bc7f04"
+         "text": "a5d07a78aacfff20e1d1fb794454b3714d21b0b56cf903f45278bd27c55a5e1c"
         },
         {
          "hide_soon": true,
@@ -12973,18 +12973,6 @@
     "fr": "Styles de texte : mise à jour du texte stylé lorsque le style de base change"
    }
   },
-  "4c5da7ac18468dff16f7ed2b45b9771382312a06c2f0fbb9efc25609c9bc7f04": {
-   "drop": false,
-   "en": "Assign keys to every command in `Options > Customize > Keyboard`, with search, take-over of a key already in use, Reset One, and Reset All.",
-   "es": "Asigne teclas a cualquier comando en `Options > Customize > Keyboard`, con búsqueda, reasignación de una tecla ya en uso, Reset One y Reset All.",
-   "fr": "Attribuez des touches à n’importe quelle commande dans `Options > Customize > Keyboard`, avec recherche, reprise d’une touche déjà utilisée, Reset One et Reset All.",
-   "soon": {
-    "drop": false,
-    "en": "Keyboard keys for styles, symbols, and building blocks",
-    "es": "Teclas de teclado para estilos, símbolos y bloques de creación",
-    "fr": "Touches de clavier pour les styles, les symboles et les blocs de construction"
-   }
-  },
   "4c6e9f147aeb3f3e7bb9d4f808256a73bfadfc817b1c03f7fb019019fa52b36e": {
    "drop": false,
    "en": "Behind the scenes: the text and page engine",
@@ -19319,6 +19307,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "a5d07a78aacfff20e1d1fb794454b3714d21b0b56cf903f45278bd27c55a5e1c": {
+   "drop": false,
+   "en": "Customize the keyboard: assign keys to commands, styles, and symbols, search commands, take over a key already in use, and reset one or all keys.",
+   "es": "Personalice el teclado: asigne teclas a comandos, estilos y símbolos, busque comandos, reasigne una tecla que ya esté en uso y restablezca una o todas las teclas.",
+   "fr": "Personnalisez le clavier : attribuez des touches à des commandes, des styles et des symboles, recherchez des commandes, reprenez une touche déjà utilisée et réinitialisez une touche ou toutes les touches.",
+   "soon": {
+    "drop": false,
+    "en": "Keyboard shortcuts for building blocks",
+    "es": "Métodos abreviados de teclado para bloques de creación",
+    "fr": "Raccourcis clavier pour les blocs de construction"
    }
   },
   "a5da13cab92a9f3c7da3d5dda5a79da7077e3cf96e0d62535ce25c0790f444bf": {
