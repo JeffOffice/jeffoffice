@@ -774,8 +774,9 @@
          "text": "03ee5385d1d76ef37d848a779a1f6e296924bc80a0686e7d44bb0c4c232e9313"
         },
         {
-         "status": "partly",
-         "text": "55922e34d70e38b922867b0d577c7684400058ece9203f3b26b4a408bd783743"
+         "hide_soon": true,
+         "status": "done",
+         "text": "9e724864bd2f427dea28fd27875f143a01fc51d8d115ab2c31174111b56c4c1a"
         }
        ]
       }
@@ -1156,7 +1157,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "f9efb6791d284c23001791de81a6a453fd43f39ead059420c1ec321b430b4499"
+         "text": "df0ccb624f41b88d5bf8cde6e59281c75c5fa91c040632a5c689285a17abf4b6"
         },
         {
          "status": "partly",
@@ -1279,7 +1280,7 @@
       },
       {
        "status": "partly",
-       "text": "950a86a4afbdfe3faeec4b88007f5d07383f489ba25faf1d5adb546d89a72a00"
+       "text": "e935df1f9f79e1f38d439283b9d44129327e98a71e518b8a882cf9b0ec07f5f9"
       },
       {
        "status": "partly",
@@ -4186,25 +4187,13 @@
        "heading": "122725696a78e7591e2d4e2356992cf3dfb74122fdcda571a8f242ec2b42876f",
        "items": [
         {
-         "status": "todo",
-         "text": "fa9a6f61b0344abf0e00da1b075c25e5b29619160c6e09aa6ee14ae799309be8"
-        },
-        {
          "hide_soon": true,
          "status": "done",
          "text": "1a9028c5532632d9e5f89d31f2a3721dcc8d5029467f42d6e6ede936532b12a2"
         },
         {
          "status": "todo",
-         "text": "71ab6d22b292061b0b36c82a5e08a993a06bbd36c6736c18bf11986b21631473"
-        },
-        {
-         "status": "todo",
          "text": "6bafbadbcd7bce2e0954b9326c428123205e422f86672d4fe669312a8a3247c6"
-        },
-        {
-         "status": "todo",
-         "text": "2b4fe91e55398163d6e4393a9a57513f16dc93acf6a2e5cdecc2bbad3e1e15c8"
         },
         {
          "status": "todo",
@@ -10715,18 +10704,6 @@
     "fr": "Recherche de commandes : une zone du ruban qui trouve une commande et l’exécute"
    }
   },
-  "2b4fe91e55398163d6e4393a9a57513f16dc93acf6a2e5cdecc2bbad3e1e15c8": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Version history: named local copies of a publication, compared and restored from Info",
-    "es": "Historial de versiones: copias locales con nombre de una publicación, comparadas y restauradas desde Información",
-    "fr": "Historique des versions : copies locales nommées d’une publication, comparées et restaurées depuis Informations"
-   }
-  },
   "2b7836952e6d98cbc6951596ca1e0a7620ec6fbe8a9f78b2b82e2184de86c9c6": {
    "drop": false,
    "en": "Set page borders on a box or any sides, with a single, thick, double, dotted, or dashed line, and choose its width, color, and distance, measured from the text or the page edge. Apply them to all pages, the first page, or the rest, for the section or the whole document.",
@@ -13799,18 +13776,6 @@
     "fr": ""
    }
   },
-  "55922e34d70e38b922867b0d577c7684400058ece9203f3b26b4a408bd783743": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Symbol: any character from any font, and recent symbols",
-    "es": "Símbolo: cualquier carácter de cualquier fuente y símbolos recientes",
-    "fr": "Symbole : n’importe quel caractère de n’importe quelle police, et symboles récents"
-   }
-  },
   "55d9a3cec33ab867a4aa2d3671a86980bf199a8ae7e964f1480c773bb25333c2": {
    "drop": true,
    "en": "",
@@ -15993,18 +15958,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "71ab6d22b292061b0b36c82a5e08a993a06bbd36c6736c18bf11986b21631473": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Inspect Publication: find and remove personal information and off-page content before sharing",
-    "es": "Inspeccionar la publicación: buscar y quitar información personal y contenido fuera de la página antes de compartir",
-    "fr": "Inspecter la publication : trouver et supprimer les informations personnelles et le contenu hors page avant le partage"
    }
   },
   "71e0d76607d951c6e97861240279dea8baef2b20134f1fcdac8ca463e5044d83": {
@@ -18335,18 +18288,6 @@
     "fr": ""
    }
   },
-  "950a86a4afbdfe3faeec4b88007f5d07383f489ba25faf1d5adb546d89a72a00": {
-   "drop": false,
-   "en": "The Help tab has Help, Keyboard Shortcuts (opens the shortcuts page), What's New, and Feedback.",
-   "es": "La pestaña Ayuda incluye Ayuda, Métodos abreviados de teclado (abre la página de métodos abreviados), Novedades y Comentarios.",
-   "fr": "L’onglet Aide propose Aide, Raccourcis clavier (ouvre la page des raccourcis), Nouveautés et Commentaires.",
-   "soon": {
-    "drop": false,
-    "en": "Keyboard Shortcuts table made from the commands, and About with Check for Updates",
-    "es": "Tabla de métodos abreviados generada a partir de los comandos, y Acerca de con Buscar actualizaciones",
-    "fr": "Tableau des raccourcis clavier généré à partir des commandes, et À propos avec Rechercher des mises à jour"
-   }
-  },
   "9595adef49329bdeec3a26ac85fe9a9ed92f0c4175037f2897e69b462aa51490": {
    "drop": false,
    "en": "Saving as `.odt` first lists what the format can't hold. Choose to save as `.odt` anyway, save a `.docx` beside it instead, or cancel.",
@@ -19053,6 +18994,18 @@
     "en": "Accessibility options: sound and animation feedback, high contrast, and keyboard focus",
     "es": "Opciones de accesibilidad: respuesta con sonido y animación, alto contraste y foco del teclado",
     "fr": "Options d’accessibilité : retour sonore et animé, contraste élevé et focus du clavier"
+   }
+  },
+  "9e724864bd2f427dea28fd27875f143a01fc51d8d115ab2c31174111b56c4c1a": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Symbol: any character from any font, and recent symbols",
+    "es": "Símbolo: cualquier carácter de cualquier fuente y símbolos recientes",
+    "fr": "Symbole : n’importe quel caractère de n’importe quelle police, et symboles récents"
    }
   },
   "9e822963d487ee8531fc3e7aeccf5658ff9afb0b77fc795fbacde3ae5df133f9": {
@@ -23231,6 +23184,18 @@
     "fr": "Formats d’arrière-plan : dégradé, image, texture et motif, et Réinitialiser l’arrière-plan"
    }
   },
+  "df0ccb624f41b88d5bf8cde6e59281c75c5fa91c040632a5c689285a17abf4b6": {
+   "drop": false,
+   "en": "Open the text of the selected cells, one line for each row, or the words selected in the entry being typed, in an open translation service with a server address you can change. The text is limited to 5,000 letters, and nothing is sent before you click `OK`.",
+   "es": "Abra el texto de las celdas seleccionadas, una línea por cada fila, o las palabras seleccionadas en la entrada que se está escribiendo, en un servicio de traducción abierto con una dirección de servidor que usted puede cambiar. El texto está limitado a 5,000 letras y no se envía nada antes de hacer clic en `OK`.",
+   "fr": "Ouvrez le texte des cellules sélectionnées, une ligne par ligne de feuille, ou les mots sélectionnés dans la saisie en cours, dans un service de traduction ouvert dont vous pouvez modifier l’adresse du serveur. Le texte est limité à 5 000 lettres et rien n’est envoyé avant que vous cliquiez sur `OK`.",
+   "soon": {
+    "drop": false,
+    "en": "Translate a whole workbook at once",
+    "es": "Traducción de un libro completo de una sola vez",
+    "fr": "Traduction d’un classeur entier en une seule fois"
+   }
+  },
   "df0ef09e4a61b89e4793d5479f78b9e2e91a70da7152cd21cbdee88c65e35abe": {
    "drop": false,
    "en": "Older binary `.xls` files",
@@ -23961,6 +23926,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e935df1f9f79e1f38d439283b9d44129327e98a71e518b8a882cf9b0ec07f5f9": {
+   "drop": false,
+   "en": "The Help tab has Help, Keyboard Shortcuts (opens the shortcuts page), What's New, and Feedback. About with Check for Updates is on the File screen.",
+   "es": "La pestaña Ayuda tiene Ayuda, Métodos abreviados de teclado (abre la página de métodos abreviados), Novedades y Comentarios. Acerca de, con Buscar actualizaciones, está en la pantalla Archivo.",
+   "fr": "L’onglet Aide contient Aide, Raccourcis clavier (ouvre la page des raccourcis), Nouveautés et Commentaires. À propos, avec Rechercher des mises à jour, se trouve dans l’écran Fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Keyboard Shortcuts: a table made from the commands themselves",
+    "es": "Métodos abreviados de teclado: una tabla generada a partir de los propios comandos",
+    "fr": "Raccourcis clavier : un tableau généré à partir des commandes elles-mêmes"
    }
   },
   "e95b95cbb4c215ea9313a70c2cb2975d4349046ea1249c686fe0e8bcf813b27a": {
@@ -25043,18 +25020,6 @@
     "fr": ""
    }
   },
-  "f9efb6791d284c23001791de81a6a453fd43f39ead059420c1ec321b430b4499": {
-   "drop": false,
-   "en": "Open the text of the selected cells, one line per row, or the words selected in a cell being edited, in an open translation service (LibreTranslate) with a server address you can change, up to 5,000 letters. Nothing is sent before you click `OK`.",
-   "es": "Abra el texto de las celdas seleccionadas, una línea por fila, o las palabras seleccionadas en una celda que se está editando, en un servicio de traducción abierto (LibreTranslate) con una dirección de servidor que usted puede cambiar, hasta 5.000 letras. No se envía nada antes de hacer clic en `OK`.",
-   "fr": "Ouvrez le texte des cellules sélectionnées, une ligne par ligne de cellules, ou les mots sélectionnés dans une cellule en cours de modification, dans un service de traduction ouvert (LibreTranslate) avec une adresse de serveur modifiable, jusqu’à 5 000 lettres. Rien n’est envoyé avant que vous cliquiez sur `OK`.",
-   "soon": {
-    "drop": false,
-    "en": "Translate: a whole workbook at once",
-    "es": "Traducir: todo el libro a la vez",
-    "fr": "Traduire : tout le classeur en une seule fois"
-   }
-  },
   "f9fee748ef0982d92b57afe3098aa17dc1b1c7b0fe237caab6caa569e9b95b87": {
    "drop": false,
    "en": "Saving reports what it leaves out; those objects stay in the publication and are kept in `.jpub`.",
@@ -25113,18 +25078,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "fa9a6f61b0344abf0e00da1b075c25e5b29619160c6e09aa6ee14ae799309be8": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Mark as Final: open a `.jpub` publication read-only with a note",
-    "es": "Marcar como final: abrir una publicación `.jpub` en solo lectura con una nota",
-    "fr": "Marquer comme final : ouvrir une publication `.jpub` en lecture seule avec une note"
    }
   },
   "faad69f7eca43f2c8a2c25d207e03d69b2486b8a088453f8d2d3c1575c0426a8": {
