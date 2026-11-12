@@ -60,6 +60,9 @@ const Entry kEntries[] = {
     {"nl-NL", QT_TRANSLATE_NOOP("Text", "Dutch"), "nl_NL/nl_NL", "nl_NL/hyph_nl_NL.dic"},
     {"pt-BR", QT_TRANSLATE_NOOP("Text", "Portuguese (Brazil)"), "pt_BR/pt_BR", "pt_BR/hyph_pt_BR.dic"},
     {"pt-PT", QT_TRANSLATE_NOOP("Text", "Portuguese (Portugal)"), "pt_PT/pt_PT", "pt_PT/hyph_pt_PT.dic"},
+    {"ru-RU", QT_TRANSLATE_NOOP("Text", "Russian"), "ru_RU/ru_RU", ""},   // (no hyphenation: its patterns state no license)
+    {"id-ID", QT_TRANSLATE_NOOP("Text", "Indonesian"), "id/id_ID", "id/hyph_id_ID.dic"},
+    {"uk-UA", QT_TRANSLATE_NOOP("Text", "Ukrainian"), "uk_UA/uk_UA", "uk_UA/hyph_uk_UA.dic"},
 };
 
 const Entry *entry(const QString &code)
@@ -221,7 +224,7 @@ QByteArray hunspellFileName(const QString &path)
 QString hyphenationFile(const QString &code)
 {
     const Entry *e = entry(code);
-    if (!e || root().isEmpty()) return {};
+    if (!e || root().isEmpty() || !*e->hyphenation) return {};
     const QString f = root() + '/' + QLatin1String(e->hyphenation);
     return QFile::exists(f) ? f : QString();
 }

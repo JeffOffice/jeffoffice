@@ -172,6 +172,9 @@ JeffOffice includes or downloads these components, each under its own license:
 | Dutch dictionary and hyphenation patterns ([OpenTaal](https://www.opentaal.org/)) | Spelling, hyphenation | BSD (revised) or CC BY 3.0 |
 | Brazilian Portuguese dictionary and hyphenation patterns ([VERO](http://pt-br.libreoffice.org/projetos/projeto-vero-verificador-ortografico/)) | Spelling, hyphenation | LGPL-3.0 or MPL |
 | European Portuguese dictionary and hyphenation patterns | Spelling, hyphenation | GPL-2.0+ |
+| Russian dictionary | Spelling | BSD-style |
+| Indonesian dictionary ([hunspell-id](https://github.com/shuLhan/hunspell-id)) and hyphenation patterns | Spelling, hyphenation | LGPL-3.0 |
+| Ukrainian dictionary ([dict_uk](https://github.com/brown-uk/dict_uk)) and hyphenation patterns | Spelling, hyphenation | MPL-1.1; patterns GPL-2.0+ |
 | [FFmpeg](https://ffmpeg.org/) 7.1 libraries, as built for Qt Multimedia (JeffDeck's packages only) | Playing the movies and sounds in JeffDeck | LGPL-2.1+ |
 | [Lucide](https://lucide.dev/) icons and their search keywords | Interface icons and Insert > Icons | ISC |
 | Open fonts | Fonts and substitutes | SIL Open Font License, GUST Font License, Bitstream Vera, GPL v2 with font exceptions (Liberation Sans Narrow); see `resources/fonts/README.md` |

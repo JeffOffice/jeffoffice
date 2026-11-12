@@ -170,6 +170,48 @@
    ]
   },
   {
+   "name": "Russian dictionary",
+   "url": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/ru_RU/README_ru_RU.txt",
+   "use": "Spelling",
+   "license": "BSD-style",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/ru_RU/README_ru_RU.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Indonesian dictionary (hunspell-id)",
+   "url": "https://github.com/shuLhan/hunspell-id",
+   "use": "Spelling and hyphenation",
+   "license": "LGPL-3.0",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/id/LICENSE-dict",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Ukrainian dictionary (dict_uk)",
+   "url": "https://github.com/brown-uk/dict_uk",
+   "use": "Spelling and hyphenation",
+   "license": "MPL-1.1; patterns GPL-2.0+",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/uk_UA/README_uk_UA.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
    "name": "Lucide icons",
    "url": "https://lucide.dev/",
    "use": "Interface icons, Insert > Icons",

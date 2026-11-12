@@ -39,6 +39,9 @@ private Q_SLOTS:
             {"en-US", "recently", "2,6"},
             {"fr-FR", "aujourd'hui", "2,6"},
             {"ja-JP", "hyphenation", ""},
+            {"ru-RU", "студентами", ""},
+            {"id-ID", "berlari", "3,5"},
+            {"uk-UA", "програмування", "3,8,10,11"},
         };
         for (const auto &c : cases) {
             QStringList got;
@@ -106,11 +109,16 @@ private Q_SLOTS:
         QCOMPARE(jp::dict::match(QStringLiteral("pt-AO")), QStringLiteral("pt-PT"));
         QCOMPARE(jp::dict::match(QStringLiteral("pt")), QStringLiteral("pt-BR"));
         QCOMPARE(jp::dict::match(QStringLiteral("nl-BE")), QStringLiteral("nl-NL"));
+        QCOMPARE(jp::dict::match(QStringLiteral("ru")), QStringLiteral("ru-RU"));
+        QCOMPARE(jp::dict::match(QStringLiteral("id_ID")), QStringLiteral("id-ID"));
+        QCOMPARE(jp::dict::match(QStringLiteral("uk")), QStringLiteral("uk-UA"));
+        QCOMPARE(jp::dict::languageName(QStringLiteral("uk-UA")), QStringLiteral("Ukrainian"));
         QCOMPARE(jp::dict::match(QStringLiteral("ja-JP")), QString());
         // Every listed language has its spelling and hyphenation files.
         for (const jp::dict::Language &l : jp::dict::languages()) {
             QVERIFY2(jp::dict::hasSpelling(l.code), qPrintable(l.code));
-            QVERIFY2(!jp::dict::hyphenationFile(l.code).isEmpty(), qPrintable(l.code));
+            // (Russian has no hyphenation: its patterns carry no license)
+            QVERIFY2(!jp::dict::hyphenationFile(l.code).isEmpty() || l.code == QLatin1String("ru-RU"), qPrintable(l.code));
         }
         QCOMPARE(jp::dict::languageName(QStringLiteral("pt-BR")), QStringLiteral("Portuguese (Brazil)"));
     }
@@ -163,6 +171,9 @@ private Q_SLOTS:
             {"pt-BR", "coração", true}, {"pt-PT", "acção", false}, {"pt-BR", "coracao", false},
             {"en-GB", "colour", true}, {"en-US", "colour", false}, {"en-CA", "colour", true}, {"en-AU", "organise", true},
             {"en-US", "don’t", true}, {"en-US", "don't", true},
+            {"ru-RU", "привет", true}, {"ru-RU", "превет", false}, {"ru-RU", "студентами", true},
+            {"id-ID", "selamat", true}, {"id-ID", "selamaat", false}, {"id-ID", "berlari", true},
+            {"uk-UA", "привіт", true}, {"uk-UA", "прувіт", false}, {"uk-UA", "студентами", true},
         };
         for (const auto &w : words) {
             const QString code = jp::dict::match(QString::fromLatin1(w.lang));

@@ -36,6 +36,7 @@ PARTS = {
     "dict/de": "German dictionary", "dict/en": "English dictionaries", "dict/es": "Spanish dictionaries",
     "dict/fr_FR": "French dictionary", "dict/it_IT": "Italian dictionary", "dict/nl_NL": "Dutch dictionary",
     "dict/pt_BR": "Brazilian Portuguese dictionary", "dict/pt_PT": "European Portuguese dictionary",
+    "dict/ru_RU": "Russian dictionary", "dict/id": "Indonesian dictionary", "dict/uk_UA": "Ukrainian dictionary",
     "packaging/GCC-RUNTIME-LIBRARY-EXCEPTION-3.1": "MinGW-w64 runtime", "packaging/LGPL-3.0": "Qt 6",
     "packaging/LUCIDE-ISC": "Lucide icons", "packaging/MPL-2.0": "libmspub", "packaging/MPL-NOTICE": "libmspub",
     "packaging/QT-NOTICE": "Qt 6", "packaging/README": None,
