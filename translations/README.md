@@ -28,7 +28,8 @@ Russian and Indonesian are prepared but not translated yet: their `.ts` files
 (`jeffoffice_ru.ts`, `jeffoffice_id.ts`) are built in but not offered in Options, nor picked from
 the system's language, until they are translated. The translator skips them unless named (`HELD` in
 `tools/translate/translate.py`); to start them, run it with `--lang ru,id` (a
-`--dry-run` first prints how much there is), then take them out of `HELD` and of `s_held` in `libs/shell/app/i18n.cpp` (a test keeps the two the same). Russian has three
+`--dry-run` first prints how much there is), then take them out of `HELD` and of `s_held` in `libs/shell/app/i18n.cpp` (a test keeps the two the same).
+A held language still loads when a translator names its file with `<APP>_TRANSLATION` (for example `JEFFPUB_TRANSLATION=jeffoffice_ru.qm`), to see work in progress. Qt ships no `qtbase_id.qm`, so Indonesian shows Qt's own button text (Cancel and the like) in English; Russian has one. Russian has three
 plural forms and Indonesian one; `tools/check_plurals.py` checks that every plural has them.
 
 A translation is a

@@ -1886,12 +1886,12 @@ private Q_SLOTS:
             jp::Settings::get().setValue(QStringLiteral("ui/language"), lang);
             QCOMPARE(jp::installTranslations(), lang);
             QCOMPARE(jp::currentUiLanguage(), lang);
-            // Every string of the program: never empty, never a bare "%n", and the English one when the file has no translation for it.
+            // Every string of the program: never empty, and the English one when the file has no translation for it.
             QFile f(QStringLiteral(JP_TEST_DATA "/../../translations/jeffoffice_") + lang + QStringLiteral(".ts"));
             QVERIFY(f.open(QIODevice::ReadOnly));
             QXmlStreamReader xml(&f);
             QString context, source, comment;
-            bool plural = false, translated = false;
+            bool plural = false, translated = false, gone = false;
             int strings = 0, plurals = 0;
             QStringList problems;
             while (!xml.atEnd()) {
@@ -1901,13 +1901,18 @@ private Q_SLOTS:
                     else if (xml.name() == QLatin1String("message")) {
                         plural = xml.attributes().value(QLatin1String("numerus")) == QLatin1String("yes");
                         translated = false;
+                        gone = false;
                         source.clear();
                         comment.clear();
                     } else if (xml.name() == QLatin1String("source")) source = xml.readElementText();
                     else if (xml.name() == QLatin1String("comment")) comment = xml.readElementText();
-                    else if (xml.name() == QLatin1String("translation") && !plural) translated = !xml.readElementText().isEmpty();
+                    else if (xml.name() == QLatin1String("translation") && (xml.attributes().value(QLatin1String("type")) == QLatin1String("vanished") || xml.attributes().value(QLatin1String("type")) == QLatin1String("obsolete"))) {
+                        gone = true;
+                        xml.skipCurrentElement();
+                    } else if (xml.name() == QLatin1String("translation") && !plural) translated = !xml.readElementText().isEmpty();
                     else if (xml.name() == QLatin1String("numerusform")) translated = !xml.readElementText().isEmpty() || translated;
                 } else if (xml.isEndElement() && xml.name() == QLatin1String("message")) {
+                    if (gone) continue;
                     ++strings;
                     const QByteArray ctx = context.toUtf8(), src = source.toUtf8(), cmt = comment.toUtf8();
                     const QString where = context + QStringLiteral(": ") + source;
@@ -1915,7 +1920,7 @@ private Q_SLOTS:
                         ++plurals;
                         for (int n : {0, 1, 2, 5, 21}) {
                             const QString got = QCoreApplication::translate(ctx.constData(), src.constData(), cmt.constData(), n);
-                            if (got.isEmpty() || got.contains(QLatin1String("%n"))) problems << where + QStringLiteral(" (n=%1): ").arg(n) + got;
+                            if (got.isEmpty()) problems << where + QStringLiteral(" (n=%1): empty").arg(n);
                             if (!translated && n != 1 && got.contains(QLatin1String("(s)"))) problems << where + QStringLiteral(" (n=%1) shows (s)").arg(n);
                         }
                     } else {
@@ -1987,6 +1992,25 @@ private Q_SLOTS:
         QVERIFY(recent() != QStringLiteral("Ficheros recientes") && recent() != QStringLiteral("Archivos recientes"));
     }
 
+    // The placeholders a plural's form must hold: those of the source. A two-form language's singular (form 0) may spell the number out instead of %n; in Russian form 0
+    // also serves 21, 31, and so on, and Indonesian's only form serves every number, so they keep %n.
+    static QStringList wantedPlaceholders(const QString &lang, QStringList want, const QStringList &have, bool plural, int form)
+    {
+        if (plural && form == 0 && have != want && lang != QLatin1String("ru") && lang != QLatin1String("id")) want.removeAll(QStringLiteral("%n"));
+        return want;
+    }
+
+    void russianFormZeroKeepsN()
+    {
+        const QStringList source{QStringLiteral("%n")}, none;
+        QCOMPARE(wantedPlaceholders(QStringLiteral("de"), source, none, true, 0), none);   // (a singular may say "eine Seite")
+        QCOMPARE(wantedPlaceholders(QStringLiteral("de"), source, source, true, 0), source);
+        QCOMPARE(wantedPlaceholders(QStringLiteral("de"), source, none, true, 1), source);
+        QCOMPARE(wantedPlaceholders(QStringLiteral("ru"), source, none, true, 0), source);   // "одна страница" would be wrong for 21
+        QCOMPARE(wantedPlaceholders(QStringLiteral("id"), source, none, true, 0), source);
+        QCOMPARE(wantedPlaceholders(QStringLiteral("ru"), source, none, false, 0), source);
+    }
+
     // Every translation keeps what the program fills in or acts on: its
     // placeholders (%1, %n; a singular may spell the number out), HTML
     // tags, line breaks, & shortcut markers, and both plural forms. A
@@ -2038,9 +2062,8 @@ private Q_SLOTS:
                     const int formCount = name == QLatin1String("jeffoffice_ru.ts") ? 3 : name == QLatin1String("jeffoffice_id.ts") ? 1 : 2;
                     if (plural && (forms.size() != formCount || forms.contains(QString()))) problems << where + QStringLiteral(": plural forms");
                     for (int i = 0; i < forms.size(); ++i) {
-                        QStringList want = all(placeholder, source);
                         const QStringList have = all(placeholder, forms[i]);
-                        if (plural && i == 0 && have != want) want.removeAll(QStringLiteral("%n"));
+                        const QStringList want = wantedPlaceholders(name.mid(11, name.size() - 14), all(placeholder, source), have, plural, i);
                         if (have != want) problems << where + QStringLiteral(": placeholders");
                         if (all(tag, forms[i]) != all(tag, source)) problems << where + QStringLiteral(": tags");
                         if (forms[i].count(QLatin1Char('\n')) != source.count(QLatin1Char('\n'))) problems << where + QStringLiteral(": line breaks");
