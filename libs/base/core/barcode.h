@@ -29,8 +29,7 @@ int qrMostBytes(int level);
 // The most bytes a QR code of this version (1 to 40) holds at the level.
 int qrCapacity(int version, int level);
 
-// The most characters of the data a type holds: Code 128 and Code 39 ones that print on a label are 10 to 30 characters, so 100 is over three times what they use and still reads on a
-// 4-inch label; a QR code is held by qrMostBytes(); the digit types by their own length.
+// The most characters of the data a type holds: Code 128 and Code 39 ones that print on a label are 10 to 50 characters, so 500 is 10 times what they use; a QR code is held by qrMostBytes(); the digit types by their own length.
 int mostChars(Type type);
 
 struct Label {

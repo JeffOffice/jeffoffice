@@ -766,7 +766,7 @@ int mostChars(Type type)
 {
     switch (type) {
     case Type::Code128:
-    case Type::Code39: return 100;
+    case Type::Code39: return 500;
     case Type::Qr: return qrMostBytes(0);   // (in bytes)
     default: return 40;
     }

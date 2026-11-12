@@ -549,12 +549,12 @@ bool CrunchWindow::insertBarcodeColumn()
     const QString title = tr("Insert Barcodes");
     if (!r.problems.isEmpty()) {
         QStringList shown = r.problems.mid(0, 10);
-        if (r.problems.size() > shown.size()) shown << tr("and %n more", nullptr, int(r.problems.size() - shown.size()));
-        notice(title, (r.made > 0 ? tr("%n barcode(s) were made. These cells have no barcode:", nullptr, r.made) : tr("No barcodes were made.")) + QLatin1Char('\n') + shown.join(QLatin1Char('\n')), r.made == 0);
+        if (r.problems.size() > shown.size()) shown << tr("and %1 more").arg(r.problems.size() - shown.size());
+        notice(title, (r.made > 0 ? tr("Barcodes made: %1. These cells have no barcode:").arg(r.made) : tr("No barcodes were made.")) + QLatin1Char('\n') + shown.join(QLatin1Char('\n')), r.made == 0);
     } else if (r.made == 0) {
         notice(title, tr("Select cells that hold text first."), false);
     } else {
-        setStatus(tr("%n barcode(s) inserted", nullptr, r.made));
+        setStatus(tr("Barcodes inserted: %1").arg(r.made));
     }
     return r.made > 0;
 }
