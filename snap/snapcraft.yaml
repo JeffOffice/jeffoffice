@@ -2,22 +2,39 @@ name: jeffoffice
 title: JeffOffice
 base: core24
 adopt-info: jeffoffice      # the version, from CMakeLists.txt
-summary: Free, open-source office suite
+summary: Free office suite for documents, spreadsheets, slides, and publishing
 description: |
-  JeffOffice is a free, open-source office suite, with four apps.
+  JeffOffice is a free, open-source office suite for Linux, Windows, and macOS.
+  Its four apps open and save the file formats people already use: .docx,
+  .xlsx, .pptx, .pub, and the OpenDocument formats. No account, no
+  subscription, and no ads.
 
-  JeffPub lays out flyers, newsletters, brochures, business cards, and other
-  print pieces, with templates, mail merge, and PDF export. It opens and saves
-  .pub files.
+  JeffWrite, the word processor (a beta), writes letters, reports, resumes, and
+  other documents. It opens .docx, .doc, .rtf, and .odt files and saves .docx
+  and .odt, with tables, headers and footers, footnotes and endnotes, tracked
+  changes and comments, pictures and text boxes, styles, spelling, printing,
+  and PDF export.
 
-  JeffDeck makes slides and runs slide shows. It opens .pptx, .ppt, and .odp
-  presentations and saves .pptx and .odp.
+  JeffCrunch, the spreadsheet (a beta), opens .xlsx, .xlsm, .xls, .ods, and
+  .csv workbooks, including ones protected with a password, and saves .xlsx,
+  .xls, and .ods. It works out formulas and functions, including formulas that
+  spill into the cells beside them, and has sorting and filtering, pivot
+  tables, charts, equations, and printing.
 
-  JeffWrite (a preview) writes letters, reports, and other documents. It opens
-  .docx and .doc files and saves .docx.
+  JeffDeck, for presentations, makes slides and runs slide shows. It opens
+  .pptx, .ppt, and .odp presentations and saves .pptx and .odp, with
+  transitions and animations, sound and video, charts, speaker notes, and PDF
+  export.
 
-  JeffCrunch (a preview) makes spreadsheets. It opens .xlsx, .xls, .ods, and
-  .csv files and saves .xlsx.
+  JeffPub, for desktop publishing, lays out flyers, newsletters, brochures,
+  business cards, certificates, and other print pieces, with templates, mail
+  merge, charts, equations, comments, and PDF export. It opens and saves
+  Publisher (.pub) files.
+
+  In every app: a ribbon and quick toolbar you can set up yourself, your own
+  shortcut keys, an accessibility checker, PDF/A export, removing personal
+  information when you save, and the interface in English, Spanish, French,
+  German, Italian, Dutch, and Portuguese.
 
   The apps run as jeffoffice.jeffpub, jeffoffice.jeffdeck, jeffoffice.jeffwrite,
   and jeffoffice.jeffcrunch, and each has its own entry in the application menu.
