@@ -5,13 +5,13 @@
 #include <QFontMetrics>
 #include <QFrame>
 #include <QMap>
+#include <QMenu>
 #include <QPointer>
 #include <QToolButton>
 #include <functional>
 
 class QAction;
 class QContextMenuEvent;
-class QMenu;
 class QHBoxLayout;
 class QVBoxLayout;
 class QStackedWidget;
