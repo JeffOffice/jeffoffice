@@ -53,6 +53,7 @@ Nothing changes until you click **OK**. Then every open JeffCrunch window shows 
 The **Quick Toolbar** page is for the small toolbar at the top left of the window. Its left list shows what is on the toolbar now, and the **Commands** list on the right has every command that has a name (type in the **Search commands** box to narrow it, the same as on the **Ribbon** page).
 
 - **Add a command.** Choose it in the **Commands** list and click **Add Command**. It goes at the end of the toolbar. A command that opens a menu keeps its menu on the toolbar. A command can be on the toolbar only once.
+- **Right-click.** You can also right-click any command on the ribbon and choose **Add to Quick Toolbar**, or right-click a button on the toolbar and choose **Remove from Quick Toolbar**. The same menu has **Customize the Quick Toolbar** and **Customize the Ribbon**, which open this page.
 - **Add a separator.** Click **Add Separator** to put a thin line at the end, then move it where you want it.
 - **Reorder.** Choose a command or a separator in the left list and click **Move Up** or **Move Down**.
 - **Take away.** Choose it and click **Remove**.
