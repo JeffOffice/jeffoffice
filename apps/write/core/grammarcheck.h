@@ -1,8 +1,9 @@
 #pragma once
 // Grammar as you type: the grammar and style issues of the story, found a paragraph at a time with the suite's checker (libs/shell/app/grammar) and kept by the
 // paragraph's text, so a paragraph that comes back to a text it had (an undo, a copy) is not checked again. Checking is done on a thread of its own, one paragraph
-// at a time, a moment after the paragraph stopped changing: nothing here holds the window up, and a hostile paragraph cannot (the service caps what it looks at,
-// and a budget caps what the whole document may spend). The view is told, by `changed`, when an answer has come.
+// at a time, a moment after the paragraph stopped changing (only its latest text is sent: a person typing makes one check, not one for each key): nothing here holds the
+// window up, and a hostile paragraph cannot (the service caps what it looks at, and a budget caps what the whole document may spend). Only the English stretches of a
+// paragraph are checked. The view is told, by `changed`, when an answer has come, and, by `budgetExhausted`, once, when the budget is gone and the checking stops.
 
 #include "app/grammar.h"
 
@@ -53,34 +54,48 @@ public:
     enum class Step { Found, None, More };
     Step search(int from, int budgetMs, Issue *found, int *next);
 
-    // Leaves an issue unmarked for the rest of the session (the same words with the same message, wherever they are).
-    void ignore(const Issue &issue);
+    // Leaves an issue unmarked for the rest of the session: this one, in its place (the sentence it is in and where in it; edits elsewhere do not undo it), or every
+    // issue with the same message on the same words.
+    void ignoreHere(const Issue &issue);
+    void ignoreAll(const Issue &issue);
     // Tells the pages to be drawn again.
     void refresh() { Q_EMIT changed(); }
     // Whether paragraphs are waiting to be sent or are being checked.
     bool pending() const { return !m_wanted.isEmpty() || m_inFlight > 0; }
-    // Paragraphs sent to the checker, and what is kept (for the tests).
+    // Whether the document's budget of work is gone (nothing is checked after that, and what it would have found is not kept as "nothing").
+    bool budgetGone() const { return m_exhausted; }
+    // The budget of this document (the tests make it small): characters and milliseconds.
+    void setBudget(qint64 chars, int ms);
+    // Paragraphs sent to the checker, what is kept, and how many paragraphs have been looked at afresh (for the tests).
     int paragraphsChecked() const { return m_checked; }
     int keptEntries() const { return int(m_kept.size()); }
+    int looksMade() const { return m_looksMade; }
 
 Q_SIGNALS:
     void changed();
+    void budgetExhausted();
 
 private:
     struct Shared;
     struct Entry {
         QVector<GrammarIssue> issues;   // as [start, end) in the paragraph
     };
+    // A paragraph as the checker takes it: the text, and the text with what is not English (or marked "do not check") blanked out, which is what is sent.
     struct Look {
-        QString key, text, language;
-        QVector<QPair<int, int>> noProof;   // offsets of text that is not to be checked
+        QString key, text, masked, language;
     };
-    Look lookAt(const QTextBlock &block) const;
+    struct BlockLook {
+        int position = -1, revision = -1, length = -1;
+        Look look;
+    };
+    const Look &lookAt(const QTextBlock &block);
     QVector<Issue> issuesOf(const QTextBlock &block, const Look &look, const Entry &entry) const;
-    void want(const Look &look);
+    QString ignoreKey(const Look &look, int start, int end, bool here) const;
+    void want(int slot, const Look &look);
     void send();
-    void done(const QString &key, const QVector<GrammarIssue> &issues);
+    void done(const QString &key, const QVector<GrammarIssue> &issues, bool exhausted);
     void keep(const QString &key, const Entry &entry);
+    void stopForBudget();
 
     QPointer<QTextDocument> m_story;
     QString m_language;
@@ -88,9 +103,11 @@ private:
     int m_delay = 400;
     QHash<QString, Entry> m_kept;
     qint64 m_keptChars = 0;
-    QHash<QString, Look> m_wanted;
-    QSet<QString> m_sent, m_ignored;
-    int m_inFlight = 0, m_checked = 0;
+    QHash<int, Look> m_wanted;           // by the paragraph's number: only the latest text of each
+    QHash<int, BlockLook> m_looks;
+    QSet<QString> m_sent, m_ignoredHere, m_ignoredAll;
+    int m_inFlight = 0, m_checked = 0, m_looksMade = 0;
+    bool m_exhausted = false;
     QTimer m_timer;
     std::shared_ptr<Shared> m_shared;
     std::unique_ptr<QThreadPool> m_pool;

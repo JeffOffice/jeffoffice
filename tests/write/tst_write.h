@@ -956,7 +956,11 @@ private Q_SLOTS:
     void grammarIssuesAreUnderlinedInBlueAndSpellingStaysRed();
     void aGrammarIssueOffersItsMessageAndSuggestionsAndAcceptingOneUndoes();
     void theSpellingPaneGoesOnToTheGrammarIssues();
-    void aParagraphThatChangesIsSentToTheCheckerOnceItHasStoppedChanging();
+    void typingFastSendsOnlyTheLatestTextOfAParagraphToTheChecker();
+    void aBudgetThatIsGoneStopsTheCheckingAndIsSaidOnceAndNothingIsKeptAsFound();
+    void onlyTheEnglishOfAParagraphIsChecked();
+    void ignoringAnIssueIsForThatPlaceAndIgnoreAllIsForTheWords();
+    void repaintingAsksNothingOfAParagraphThatHasNotChanged();
     void aStyleThatSetsALanguageGivesItToTheTextAndTakesItAway();
     void searchingForMisspellingsGoesInSlicesOfBoundedWork();
     void aLongParagraphIsCheckedInPiecesOfBoundedWork();

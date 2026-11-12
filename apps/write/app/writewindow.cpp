@@ -156,6 +156,9 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     connect(m_view, &write::PageView::selectionMade, this, &WriteWindow::paintFormatNow);
     connect(m_view, &write::PageView::headerFooterModeChanged, this, &WriteWindow::headerFooterModeChanged);
     connect(m_view, &write::PageView::noteModeChanged, this, queue);
+    connect(m_view, &write::PageView::grammarStopped, this, [this] {
+        statusBar()->showMessage(tr("This document is too large to check its grammar any further. The grammar check has stopped; spelling still works."), 15000);
+    });
     connect(m_view, &write::PageView::zoomChanged, this, [this](double z) {
         m_zoomLabel->setText(QStringLiteral("%1%").arg(std::lround(z * 100)));
         const QSignalBlocker block(m_zoomSlider);

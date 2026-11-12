@@ -21,7 +21,7 @@ class PageView;
 bool addSpellingSuggestions(QMenu &menu, PageView *view);
 
 // When the caret is on a grammar or style issue (the blue dotted line): its message (a line that does nothing), the suggestions (the first in bold; each puts itself in the
-// issue's place, as one step that undoes), and Ignore, added to the menu. False, and nothing added, when it is not.
+// issue's place, as one step that undoes), Ignore This Issue (this place only), and Ignore All (these words with this message), added to the menu. False, and nothing added, when it is not.
 bool addGrammarSuggestions(QMenu &menu, PageView *view);
 
 // The Spelling pane: shows the first misspelled word from the caret (selected in the text) with the dictionary's suggestions, and goes on to the next as each

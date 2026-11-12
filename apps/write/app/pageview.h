@@ -304,6 +304,7 @@ Q_SIGNALS:
     void contextMenuWanted(const QPoint &globalPos);
     // A barcode picture was double-clicked (and selected): the barcode dialog edits it.
     void editBarcodeWanted();
+    void grammarStopped();                  // the document is past the limit of work grammar checking may do: it has stopped (said once)
     void headerFooterModeChanged();         // a header or footer is edited now, or none is any more
     void noteModeChanged();                 // a footnote is edited now, or none is any more
     void notice(const QString &text);       // a sentence for the person about what a command could not do

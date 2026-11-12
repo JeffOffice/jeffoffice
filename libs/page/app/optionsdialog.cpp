@@ -55,7 +55,7 @@ struct Dlg {
 
 } // namespace
 
-bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages)
+bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, bool grammar)
 {
     Settings &st = Settings::get();
     Dlg dlg(p, forThisApp(QCoreApplication::translate("Dialogs", "JeffPub Options")));
@@ -131,8 +131,11 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages)
     auto *pf = new QFormLayout(proof);
     auto *asType = new QCheckBox(QCoreApplication::translate("Dialogs", "Check spelling as you type"), proof);
     asType->setChecked(spellAsYouType());
-    auto *grammarAsType = new QCheckBox(QCoreApplication::translate("Dialogs", "Check grammar as you type"), proof);
-    grammarAsType->setChecked(grammarAsYouType());
+    QCheckBox *grammarAsType = nullptr;
+    if (grammar) {
+        grammarAsType = new QCheckBox(QCoreApplication::translate("Dialogs", "Check grammar as you type"), proof);
+        grammarAsType->setChecked(grammarAsYouType());
+    }
     auto *ignoreUpper = new QCheckBox(QCoreApplication::translate("Dialogs", "Ignore words in UPPERCASE"), proof);
     ignoreUpper->setChecked(st.value("proof/ignoreUpper", true).toBool());
     auto *ignoreNum = new QCheckBox(QCoreApplication::translate("Dialogs", "Ignore words that contain numbers"), proof);
@@ -146,7 +149,7 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages)
     auto *autolink = new QCheckBox(QCoreApplication::translate("Dialogs", "Turn web addresses into links as you type"), proof);
     autolink->setChecked(st.value("proof/autolink", true).toBool());
     pf->addRow(asType);
-    pf->addRow(grammarAsType);
+    if (grammarAsType) pf->addRow(grammarAsType);
     pf->addRow(ignoreUpper);
     pf->addRow(ignoreNum);
     pf->addRow(autocorrect);
@@ -204,7 +207,7 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages)
         Updater::setBetaChannel(beta->isChecked());
     }
     setSpellAsYouType(asType->isChecked());
-    setGrammarAsYouType(grammarAsType->isChecked());
+    if (grammarAsType) setGrammarAsYouType(grammarAsType->isChecked());
     if (keyboard) keyboard->apply();   // (every open window of the app takes the keys now)
     if (ribbonPage) ribbonPage->apply();   // (and the ribbon the person arranged)
     if (quickPage) quickPage->apply();     // (and the quick toolbar)

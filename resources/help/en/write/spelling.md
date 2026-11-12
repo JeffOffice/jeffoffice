@@ -34,15 +34,27 @@ Click **Review > Check Spelling as You Type**. The same choice is in **File > Op
 
 ## Check grammar as you type
 
-JeffWrite also looks for clear grammar and style mistakes in English text: a repeated word ("the the"), "an test" in place of "a test", a sentence that starts with a small letter, "its" and "it's", "their" and "there", "your" and "you're", "then" and "than", "lose" and "loose", "could of" for "could have", two spaces in a row, a space before a comma or a period, no space after the end of a sentence, "alot", and "everyday" and "every day". It would rather miss a mistake than mark text that is right, so a sentence with no blue line is not a promise that it is correct. An issue gets a blue dotted line under it. Spelling keeps its red wavy line, and a misspelled word is never marked as a grammar issue.
+JeffWrite also looks for clear grammar and style mistakes in English text. An issue gets a blue dotted line under it. Spelling keeps its red wavy line, and a misspelled word is never marked as a grammar issue. These are the mistakes it looks for:
 
-Right-click the issue. The menu shows what is wrong, then one or more suggestions. Click a suggestion to put it in the text, and press Ctrl+Z to take it back. **Ignore This Issue** removes the line for the rest of the session, from the same words with the same message wherever they are.
+- a repeated word ("the the")
+- "a" and "an" before the wrong sound ("an test", "a hour")
+- a sentence that starts with a small letter after a period
+- "its" and "it's", "their" and "there", "your" and "you're", "then" and "than", and "lose" and "loose", where the words around them make the mistake clear
+- "could of" for "could have"
+- two spaces in a row inside a sentence
+- a space before a comma, a period, or another mark that belongs to the word before it
+- no space after the end of a sentence
+- "alot", and "everyday" for "every day" ("almost everyday")
 
-The check runs on your own computer, with no internet connection, in the background: typing is never held up, and a paragraph is checked a moment after you stop typing in it. Very long paragraphs are checked only as far as their first 100,000 characters, and a very large document is checked only as far as a time limit allows.
+It would rather miss a mistake than mark text that is right, so a sentence with no blue line is not a promise that it is correct.
 
-Grammar is checked in English only, and in the text of the document: not yet in tables, headers, footers, or notes. Text that a file marks "do not check" is skipped.
+Right-click the issue. The menu shows what is wrong, then one or more suggestions. Click a suggestion to put it in the text, and press Ctrl+Z to take it back. **Ignore This Issue** removes the line from this one place, until you close JeffWrite. The same words somewhere else keep their line, and editing elsewhere in the paragraph does not bring it back. **Ignore All** removes the line from every issue with this message on these words.
 
-To turn it off, click **Review > Check Grammar as You Type**. The same choice is in **File > Options > Proofing**, and it is one choice for all the JeffOffice apps. The Spelling pane (F7) goes through the grammar issues after the spelling, when this is on.
+The check runs on your own computer, with no internet connection, in the background: typing is never held up, and a paragraph is checked a moment after you stop typing in it. A paragraph is checked as far as its first 100,000 characters. A document that takes more checking than the limit stops being checked, and the status bar tells you once; spelling goes on working.
+
+Only English is checked. In a paragraph with more than one language, the English text is checked and the rest is skipped, and so is text that a file marks "do not check". Grammar is checked in the text of the document, and not yet in tables, headers, footers, or notes.
+
+To turn it off, click **Review > Check Grammar as You Type**. The same choice is in **File > Options > Proofing**. Only JeffWrite has it, and it is the same in every JeffWrite window. The Spelling pane (F7) goes through the grammar issues after the spelling, when this is on.
 
 ## Languages
 

@@ -171,6 +171,7 @@ void PageView::setDocument(WriteDoc *doc)
     m_grammar->setDefaultLanguage(doc->proofingLanguage());
     m_grammar->setEnabled(m_grammarOn);
     connect(m_grammar.get(), &GrammarCheck::changed, viewport(), qOverload<>(&QWidget::update));
+    connect(m_grammar.get(), &GrammarCheck::budgetExhausted, this, &PageView::grammarStopped);
     connect(m_connected, &QTextDocument::contentsChange, this, &PageView::documentChanged);
     connect(doc, &WriteDoc::sectionsChanged, this, [this] {
         dropRendered(0);

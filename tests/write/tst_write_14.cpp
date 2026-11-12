@@ -516,27 +516,134 @@ void WriteTests::theSpellingPaneGoesOnToTheGrammarIssues()
     QVERIFY(!pane->inGrammar());
 }
 
-void WriteTests::aParagraphThatChangesIsSentToTheCheckerOnceItHasStoppedChanging()
+void WriteTests::typingFastSendsOnlyTheLatestTextOfAParagraphToTheChecker()
 {
-    auto doc = textDoc({QStringLiteral("One."), QStringLiteral("Two.")});
+    auto doc = textDoc({QStringLiteral("Start.")});
     GrammarCheck check(doc->story());
-    check.setDelayMs(150);
-    const int length = doc->story()->characterCount();
-    check.issuesIn(0, length);
-    QVERIFY(check.pending());
-    QCOMPARE(check.paragraphsChecked(), 0);   // (not yet: it may still change)
-    QTRY_VERIFY(check.paragraphsChecked() == 2);
-    QTRY_VERIFY(!check.pending());
-    // The same text again, in another paragraph or after an undo, is not checked again.
-    const int before = check.paragraphsChecked();
+    check.setDelayMs(100);
     QTextCursor c(doc->story());
-    c.setPosition(0);
-    c.insertText(QStringLiteral("x"));
+    c.movePosition(QTextCursor::End);
+    // 1,500 keystrokes, each followed by a repaint that asks for the paragraph's issues.
+    for (int i = 0; i < 1500; ++i) {
+        c.insertText(QStringLiteral("x"));
+        check.issuesIn(0, doc->story()->characterCount());
+    }
+    QVERIFY(check.pending());
+    QCOMPARE(check.paragraphsChecked(), 0);
+    QTRY_VERIFY(check.paragraphsChecked() == 1);
+    QTRY_VERIFY(!check.pending());
+    QCOMPARE(check.paragraphsChecked(), 1);   // (one check, of the text as it was when the typing stopped)
+    QCOMPARE(check.keptEntries(), 1);
+    // The same text again, after an undo and a redo, is not checked again.
+    c.insertText(QStringLiteral("y"));
     c.deletePreviousChar();
     check.issuesIn(0, doc->story()->characterCount());
-    QTest::qWait(300);
-    QCOMPARE(check.paragraphsChecked(), before);
+    QTest::qWait(250);
+    QCOMPARE(check.paragraphsChecked(), 1);
     // Off: nothing is found, nothing is sent.
     check.setEnabled(false);
-    QVERIFY(check.issuesIn(0, length).isEmpty());
+    QVERIFY(check.issuesIn(0, doc->story()->characterCount()).isEmpty());
+}
+
+void WriteTests::aBudgetThatIsGoneStopsTheCheckingAndIsSaidOnceAndNothingIsKeptAsFound()
+{
+    auto doc = textDoc({QStringLiteral("This is an test of the budget."), QStringLiteral("This is another an test after it.")});
+    GrammarCheck check(doc->story());
+    check.setDelayMs(0);
+    check.setBudget(10, 100000);   // (the first paragraph spends it)
+    int said = 0;
+    QObject::connect(&check, &GrammarCheck::budgetExhausted, &check, [&] { ++said; });
+    const int length = doc->story()->characterCount();
+    check.issuesIn(0, length);
+    QTRY_VERIFY(check.paragraphsChecked() >= 1 && !check.pending());
+    QCOMPARE(check.keptEntries(), 1);
+    // The second paragraph meets the budget gone: no answer is kept for it (an empty one would say "no issues" for ever), and that is said, once.
+    for (int i = 0; i < 5; ++i) {
+        check.issuesIn(0, length);
+        QTest::qWait(30);
+    }
+    QTRY_VERIFY(check.budgetGone());
+    QCOMPARE(said, 1);
+    QCOMPARE(check.keptEntries(), 1);
+    // The first paragraph's issue is still shown; the second's is not found.
+    const auto issues = check.issuesIn(0, length);
+    QCOMPARE(issues.size(), 1);
+    QVERIFY(issues.first().end <= doc->story()->findBlockByNumber(1).position());
+    // A new budget (the person asks again) checks it.
+    check.setBudget(1000000, 100000);
+    check.issuesIn(0, length);
+    QTRY_VERIFY(check.issuesIn(0, length).size() == 2);
+    QCOMPARE(said, 1);
+}
+
+void WriteTests::onlyTheEnglishOfAParagraphIsChecked()
+{
+    auto run = [](const char *lang, const char *text) { return QByteArray("<w:r><w:rPr><w:lang w:val=\"") + lang + "\"/></w:rPr><w:t xml:space=\"preserve\">" + text + "</w:t></w:r>"; };
+    // One paragraph that begins in German and goes on in English, one in English and then German, and one all German (the same mistake in each: a repeated word).
+    const QByteArray body = "<w:p>" + run("de-DE", "Das ist der der Hund. ") + run("en-US", "We saw saw it.") + "</w:p>"
+                            "<w:p>" + run("en-US", "We saw saw it. ") + run("de-DE", "Das ist der der Hund.") + "</w:p>"
+                            "<w:p>" + run("de-DE", "Das ist der der Hund und wir sahen sahen es.") + "</w:p>";
+    auto doc = open(makeDocx(body));
+    QVERIFY(doc);
+    GrammarCheck check(doc->story());
+    check.setDelayMs(0);
+    const int length = doc->story()->characterCount();
+    check.issuesIn(0, length);
+    QTRY_VERIFY(check.paragraphsChecked() == 2 && !check.pending());   // (the German paragraph is not sent at all)
+    const auto issues = check.issuesIn(0, length);
+    QCOMPARE(issues.size(), 2);
+    for (const auto &is : issues) {
+        QTextCursor c(doc->story());
+        c.setPosition(is.start);
+        c.setPosition(is.end, QTextCursor::KeepAnchor);
+        QCOMPARE(c.selectedText(), QStringLiteral(" saw"));   // (the English one: never the German "der der")
+    }
+}
+
+void WriteTests::ignoringAnIssueIsForThatPlaceAndIgnoreAllIsForTheWords()
+{
+    auto doc = textDoc({QStringLiteral("It was the the best day. It was the the worst day.")});
+    GrammarCheck check(doc->story());
+    check.setDelayMs(0);
+    const int length = doc->story()->characterCount();
+    check.issuesIn(0, length);
+    QTRY_COMPARE(check.issuesIn(0, length).size(), 2);
+    const auto first = check.issuesIn(0, length).first();
+    check.ignoreHere(first);
+    auto left = check.issuesIn(0, length);
+    QCOMPARE(left.size(), 1);   // (this one only: the same words in the next sentence are still marked)
+    QVERIFY(left.first().start > first.start);
+    // Text added before it, in another paragraph and in the same one, does not bring it back.
+    QTextCursor c(doc->story());
+    c.setPosition(0);
+    c.insertText(QStringLiteral("Hello there. "));
+    QTRY_COMPARE(check.issuesIn(0, doc->story()->characterCount()).size(), 1);
+    c.movePosition(QTextCursor::End);
+    c.insertText(QStringLiteral(" And more."));
+    QTRY_COMPARE(check.issuesIn(0, doc->story()->characterCount()).size(), 1);
+    // Ignore All: the words with that message, wherever they are.
+    check.ignoreAll(check.issuesIn(0, doc->story()->characterCount()).first());
+    QCOMPARE(check.issuesIn(0, doc->story()->characterCount()).size(), 0);
+}
+
+void WriteTests::repaintingAsksNothingOfAParagraphThatHasNotChanged()
+{
+    auto doc = textDoc({QStringLiteral("One paragraph."), QStringLiteral("Another paragraph.")});
+    GrammarCheck check(doc->story());
+    check.setDelayMs(0);
+    const int length = doc->story()->characterCount();
+    check.issuesIn(0, length);
+    const int looks = check.looksMade();
+    QVERIFY(looks >= 2);
+    for (int i = 0; i < 200; ++i) {   // (a caret that blinks repaints the page)
+        check.issuesIn(0, length);
+        check.issueAt(3);
+    }
+    QCOMPARE(check.looksMade(), looks);
+    // A paragraph that changes is looked at again, and only that one (the last: the others do not move).
+    QTextCursor c(doc->story());
+    c.setPosition(doc->story()->findBlockByNumber(1).position() + 2);
+    c.insertText(QStringLiteral("x"));
+    check.issuesIn(0, doc->story()->characterCount());
+    QCOMPARE(check.looksMade(), looks + 1);
 }

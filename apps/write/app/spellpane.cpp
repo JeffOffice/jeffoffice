@@ -116,8 +116,12 @@ bool addGrammarSuggestions(QMenu &menu, PageView *view)
             where->setCursor(c);
         });
     }
+    // This one, in its place (the same words elsewhere are still marked), and every one of this kind on these words.
     QObject::connect(menu.addAction(QCoreApplication::translate("Proofing", "Ignore This Issue")), &QAction::triggered, &menu, [where, issue] {
-        if (where && where->grammar()) where->grammar()->ignore(issue);
+        if (where && where->grammar()) where->grammar()->ignoreHere(issue);
+    });
+    QObject::connect(menu.addAction(QCoreApplication::translate("Proofing", "Ignore All")), &QAction::triggered, &menu, [where, issue] {
+        if (where && where->grammar()) where->grammar()->ignoreAll(issue);
     });
     menu.addSeparator();
     return true;
@@ -465,7 +469,7 @@ void SpellPane::ignore(bool all)
     if (m_complete || m_searching || !stillThere()) return;
     const int to = m_range.second;
     if (all && m_grammarPhase) {
-        m_view->grammar()->ignore(m_issue);
+        m_view->grammar()->ignoreAll(m_issue);
     } else if (all) {
         spellingIgnore(m_word);
         m_view->spelling()->refresh();

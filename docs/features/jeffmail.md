@@ -31,7 +31,7 @@ What JeffMail offers that the original doesn't, then the plans that go past it.
 - [ ] **first release** Search that runs on your own computer over everything downloaded, offline and without a service (details under Search and folders)
 - [ ] **first release** A "Proton Mail" account preset that finds Proton Mail Bridge on this computer (details under Accounts and sign-in)
 - [~] **first release** Spelling works offline in 31 languages and regional forms, with no cloud service *(shared: the bundled dictionaries in libs/base/text)*
-- [ ] **first release** **(alt)** Grammar and style checking that runs on your own computer, in place of Microsoft's online Editor: our own rule-based checker, English first *(shared with JeffWrite)*
+- [ ] **first release** **(alt)** Grammar and style checking that runs on your own computer, in place of an online editor: our own rule-based checker, English first *(shared with JeffWrite)*
 - [ ] **1.0** One inbox for all accounts: a combined Inbox, Sent, Drafts, and Flagged view across every account, which the original doesn't have
 - [ ] **1.0** One-click Unsubscribe on mailing-list messages, using the sender's own unsubscribe header, with a note of what will be sent before it is sent
 - [ ] **1.0** Undo Send: a message waits a few seconds in the Outbox after Send (you choose how long) and can be pulled back

@@ -21,7 +21,8 @@ struct OptionsPage {
     std::function<void()> apply;
 };
 
-// Shows the dialog. False when it was cancelled.
-bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages);
+// Shows the dialog. False when it was cancelled. `grammar`: the app checks grammar as you type (JeffWrite), so the Proofing page has that choice; for an app that does not, it
+// would be a box that does nothing.
+bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages, bool grammar = false);
 
 } // namespace jp

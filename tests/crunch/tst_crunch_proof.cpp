@@ -874,24 +874,27 @@ private Q_SLOTS:
         QTRY_COMPARE(editor->misspellings().size(), 1);
         // Options: the box is found (by its words), looked at, set, and the dialog accepted; the timer keeps looking until the dialog is up.
         QString boxText;
-        bool boxWas = false;
+        bool boxWas = false, grammarBox = false;
         QTimer watch;
         watch.setInterval(20);
         QObject::connect(&watch, &QTimer::timeout, &watch, [&] {
             auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
             if (!d) return;
             watch.stop();
-            for (QCheckBox *box : d->findChildren<QCheckBox *>())
+            for (QCheckBox *box : d->findChildren<QCheckBox *>()) {
+                if (box->text().contains(QLatin1String("grammar"), Qt::CaseInsensitive)) grammarBox = true;
                 if (box->text().contains(QLatin1String("spelling as you type"), Qt::CaseInsensitive)) {
                     boxText = box->text();
                     boxWas = box->isChecked();
                     box->setChecked(false);
                 }
+            }
             d->accept();
         });
         watch.start();
         w.act(QStringLiteral("file.options"))->trigger();
         QCOMPARE(boxText, QStringLiteral("Check spelling as you type"));
+        QVERIFY2(!grammarBox, "grammar is checked in JeffWrite only: a box for it here would do nothing");
         QVERIFY(boxWas);
         QVERIFY(editor->misspellings().isEmpty());   // (at once, in the open editor)
         QVERIFY(!CellEditor::spellingOn());
