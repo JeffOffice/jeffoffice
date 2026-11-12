@@ -23,6 +23,14 @@ class Languages(unittest.TestCase):
         self.assertEqual(T.check("%n page(s)", ["one page", "%n pages"], True, 2), "")
         self.assertNotEqual(T.check("%n page(s)", ["одна страница", "%n страницы", "%n страниц"], True, 3), "")
 
+    def test_a_held_language_is_not_translated_unless_named(self):
+        # The nightly run names no language: it must not start paying for Russian and Indonesian (their files exist) before they are approved.
+        self.assertTrue({"ru", "id"} <= T.HELD)
+        self.assertTrue(os.path.exists(T.ts_path("ru")))
+        self.assertNotIn("ru", T.default_languages())
+        self.assertNotIn("id", T.default_languages())
+        self.assertIn("de", T.default_languages())
+
     def test_the_prompts_name_the_forms(self):
         self.assertIn("exactly 3 of them", T.ui_system("ru", {}))
         self.assertIn("exactly 1 of them", T.ui_system("id", {}))

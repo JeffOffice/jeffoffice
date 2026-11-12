@@ -193,6 +193,8 @@ QStringList checkTypingWithoutAClick(Adapter &app);
 // Every tab of the window's ribbon (the contextual ones shown), at window widths 1440 and 1024: each group's controls lie inside its content, no two overlap, the rows fit the ribbon's
 // body, no text is cut, every title shows whole, and the groups of a tab are equally tall. Failures are returned as lines (app/tab/group/control with the rectangles). With the
 // environment variable JP_RIBBON_SHOTS naming a folder, a picture of every tab at both widths is saved there too.
+// With JP_PSEUDO_LONGER=30 every text is made 30 percent longer first (a test-only translation, about what Russian needs), the window is pictured too, and text cut outside
+// the ribbon is listed; JP_RIBBON_REPORT=<file> keeps every line.
 QStringList checkRibbonLayout(Adapter &app);
 // The window's ribbon with its tabs made as they are first shown looks and holds what it does when all are made at once (see jp::setLazyRibbonTabs).
 QStringList checkLazyRibbon(Adapter &app);

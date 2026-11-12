@@ -22,7 +22,8 @@ may correct it, and a corrected term is never asked for again).
                                          [--dry-run] [--report FILE]
 
 Without --lang it keeps up the languages already started (each has its
-translations/jeffoffice_<language>.ts); name a language to start it.
+translations/jeffoffice_<language>.ts), except the held ones (HELD below: Russian and
+Indonesian are prepared, not yet approved); name a language to start or run it.
 
 Needs ANTHROPIC_API_KEY (except with --dry-run), the anthropic package
 (pip install -r tools/translate/requirements.txt), and Qt's lconvert
@@ -64,6 +65,16 @@ LANGUAGES = {
     "ru": "Russian",
     "id": "Indonesian",
 }
+
+# Prepared (their .ts files exist) but not yet approved to translate: a run that names no language (the nightly one) and "--lang all" skip
+# them; "--lang ru" starts one. Take a language out of this set when it is approved.
+HELD = {"ru", "id"}
+
+
+def default_languages():
+    """The languages a run without --lang keeps up: the started ones that are not held."""
+    return [l for l in LANGUAGES if l not in HELD and os.path.exists(ts_path(l))]
+
 
 # Plural forms in Qt (the number a .ts file's plural has), where it is not two. Russian: 1, 21, 31... then 2-4, 22-24... then 0, 5-20, 25-30...
 PLURAL_FORMS = {"ru": 3, "id": 1}
@@ -789,9 +800,9 @@ def main():
     ap.add_argument("--report", help="write a Markdown report here")
     args = ap.parse_args()
     if not args.lang:
-        langs = [l for l in LANGUAGES if os.path.exists(ts_path(l))]
+        langs = default_languages()
     elif args.lang == "all":
-        langs = list(LANGUAGES)
+        langs = [l for l in LANGUAGES if l not in HELD]
     else:
         langs = [l for l in args.lang.split(",") if l]
     for l in langs:

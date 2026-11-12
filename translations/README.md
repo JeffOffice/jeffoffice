@@ -24,6 +24,13 @@ new or changed text to Claude through the Anthropic API:
 - Machine translations are marked unfinished, which Qt Linguist shows as
   not yet reviewed; the program uses them all the same.
 
+Russian and Indonesian are prepared but not translated yet: their `.ts` files
+(`jeffoffice_ru.ts`, `jeffoffice_id.ts`) are listed in Options and show English until
+their text comes. The translator skips them unless named (`HELD` in
+`tools/translate/translate.py`); to start them, run it with `--lang ru,id` (a
+`--dry-run` first prints how much there is), then take them out of `HELD`. Russian has three
+plural forms and Indonesian one; `tools/check_plurals.py` checks that every plural has them.
+
 A translation is a
 `jeffoffice_<language>.ts` file here (for example `jeffoffice_de.ts` or
 `jeffoffice_pt_BR.ts`), made and edited with Qt Linguist; the build turns each

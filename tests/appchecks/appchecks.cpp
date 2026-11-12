@@ -48,6 +48,7 @@
 #include <QStyleHints>
 #include <QStyleFactory>
 #include <QScrollBar>
+#include <QTranslator>
 #include <QStackedWidget>
 #include <QStandardPaths>
 #include <QStatusBar>
@@ -1051,6 +1052,22 @@ QString controlName(const QWidget *w)
     else if (!w->objectName().isEmpty()) n += QStringLiteral(" %1").arg(w->objectName());
     return n;
 }
+
+// Widgets outside the ribbon whose text is cut: a label that is not wrapped, or a button, narrower than its own hint.
+QStringList cutTexts(const QString &where, QWidget *window, QWidget *ribbon)
+{
+    QStringList out;
+    for (QWidget *c : window->findChildren<QWidget *>()) {
+        if (!c->isVisibleTo(window) || (ribbon && ribbon->isAncestorOf(c))) continue;
+        QString text;
+        if (auto *l = qobject_cast<QLabel *>(c); l && !l->wordWrap() && l->textFormat() != Qt::RichText && l->pixmap().isNull()) text = l->text();
+        else if (auto *b = qobject_cast<QAbstractButton *>(c)) text = b->text();
+        text.remove(QLatin1Char('&'));
+        if (text.isEmpty() || text.contains(QLatin1Char('<'))) continue;
+        if (c->sizeHint().width() > c->width()) out << QStringLiteral("%1: %2 %3 is %4 wide and wants %5").arg(where, controlName(c), rectText(QRect(c->mapTo(window, QPoint(0, 0)), c->size()))).arg(c->width()).arg(c->sizeHint().width());
+    }
+    return out;
+}
 }
 
 namespace {
@@ -1082,6 +1099,50 @@ private:
     QFont m_font;
     Qt::ColorScheme m_scheme;
     bool m_dark, m_contrast;
+};
+}
+
+// A test-only translation: every text longer by a share (JP_PSEUDO_LONGER=30 for 30 percent, about what Russian needs over English), made by adding letters after the last word, before
+// any closing colon, period, or ellipsis. Placeholders, line breaks, & markers, and markup are left as they are (a text with a tag is left whole). Installed while it lives.
+namespace {
+class LongerTranslator : public QTranslator {
+public:
+    explicit LongerTranslator(int percent) : m_percent(percent) {}
+    bool isEmpty() const override { return false; }
+    QString translate(const char *context, const char *sourceText, const char *disambiguation, int n) const override
+    {
+        Q_UNUSED(context);
+        Q_UNUSED(disambiguation);
+        Q_UNUSED(n);
+        QString text = QString::fromUtf8(sourceText);
+        if (text.contains(QLatin1Char('<'))) return text;
+        int letters = 0;
+        for (QChar c : std::as_const(text)) letters += c.isLetter();
+        if (letters == 0) return text;
+        int end = int(text.size());
+        while (end > 0 && QStringLiteral(".:\u2026 \n").contains(text[end - 1])) --end;
+        const int extra = (letters * m_percent + 99) / 100;
+        return text.left(end) + QString(extra, QLatin1Char('e')) + text.mid(end);
+    }
+
+private:
+    int m_percent;
+};
+
+struct PseudoLanguage {
+    std::unique_ptr<LongerTranslator> translator;
+    PseudoLanguage()
+    {
+        bool ok = false;
+        const int percent = qEnvironmentVariable("JP_PSEUDO_LONGER").toInt(&ok);
+        if (!ok || percent <= 0) return;
+        translator = std::make_unique<LongerTranslator>(percent);
+        QCoreApplication::installTranslator(translator.get());
+    }
+    ~PseudoLanguage()
+    {
+        if (translator) QCoreApplication::removeTranslator(translator.get());
+    }
 };
 }
 
@@ -1212,6 +1273,7 @@ QStringList checkRibbonLayout(Adapter &app)
     // The look a person has: the Fusion style and the program's style sheet (as each app's main() sets them), whatever platform the test runs on, at the system font and at larger ones
     // (desktops differ), at three widths, and once right to left. The program's own settings come back at the end, even if the check throws.
     LookGuard guard;
+    PseudoLanguage pseudo;   // (only with JP_PSEUDO_LONGER: every text longer by that many percent)
     qInfo("ribbon layout: platform %s, style %s, font %s %g", qPrintable(QGuiApplication::platformName()), qPrintable(guard.style()), qPrintable(guard.font().family()), guard.font().pointSizeF());
     QApplication::setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(1);
@@ -1242,6 +1304,10 @@ QStringList checkRibbonLayout(Adapter &app)
         w->resize(width, 760);
         drain();
         jp::Ribbon *r = w->ribbon();
+        if (pseudo.translator) {
+            if (!shots.isEmpty()) w->grab().save(QStringLiteral("%1/%2-window-%3.png").arg(shots, app.name).arg(width));
+            fails << cutTexts(app.name + QStringLiteral(" at ") + at, w.get(), r);
+        }
         // Every contextual tab shown (the layout is the same as when the document puts the window there).
         QStringList contexts;
         for (int i = 0; i < r->tabCount(); ++i)
