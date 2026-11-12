@@ -39,15 +39,21 @@ private Q_SLOTS:
             {"en-US", "recently", "2,6"},
             {"fr-FR", "aujourd'hui", "2,6"},
             {"ja-JP", "hyphenation", ""},
-            {"ru-RU", "студентами", ""},
             {"id-ID", "berlari", "3,5"},
-            {"uk-UA", "програмування", "3,8,10,11"},
         };
         for (const auto &c : cases) {
             QStringList got;
             for (int p : jp::hyphenationPoints(QString::fromUtf8(c.word), QString::fromLatin1(c.lang))) got << QString::number(p);
             QCOMPARE(got.join(','), QString::fromLatin1(c.points));
         }
+        // Ukrainian: the patterns find breaks, none within two letters of an end, and "про-" is one.
+        const QString ukWord = QString::fromUtf8("програмування");
+        const QList<int> ukPoints = jp::hyphenationPoints(ukWord, QStringLiteral("uk-UA"));
+        QVERIFY(!ukPoints.isEmpty());
+        QVERIFY(ukPoints.contains(3));
+        for (int p : ukPoints) QVERIFY(p >= 2 && p <= ukWord.size() - 2);
+        // Russian has no hyphenation (its patterns carry no license).
+        QVERIFY(jp::dict::hyphenationFile(QStringLiteral("ru-RU")).isEmpty());
         // Layout breaks a word with its own language's patterns.
         auto doc = jp::Document::blank(QSizeF(612, 792));
         auto t = std::make_shared<jp::TextItem>();

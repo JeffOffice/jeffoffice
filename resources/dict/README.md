@@ -19,7 +19,7 @@ JeffPub checks spelling and hyphenates with these dictionaries from the [LibreOf
 | `pt_BR` | Brazilian Portuguese spelling and hyphenation (from [VERO](http://pt-br.libreoffice.org/projetos/projeto-vero-verificador-ortografico/)) | LGPL-3.0 or MPL (`README_pt_BR.txt`, `README_hyph_pt_BR.txt`, `README_en.txt`) |
 | `pt_PT` | European Portuguese spelling and hyphenation | GPL-2.0+ (`LICENSES.txt`, `README_pt_PT.txt`, `README_hyph_pt_PT.txt`) |
 | `ru_RU` | Russian spelling (`ru_RU`, Alexander I. Lebedev). The folder's hyphenation patterns, thesaurus, and grammar checker are not bundled: the patterns state no license | BSD-style (`README_ru_RU.txt`) |
-| `id` | Indonesian spelling and hyphenation (`id_ID`, from [hunspell-id](https://github.com/shuLhan/hunspell-id)). The thesaurus is not bundled | LGPL-3.0+ (`LICENSE-dict`, `README-dict.adoc`) |
+| `id` | Indonesian spelling and hyphenation (`id_ID`, from [hunspell-id](https://github.com/shuLhan/hunspell-id)). The thesaurus is not bundled | LGPL-3.0 (`LICENSE-dict`, `README-dict.adoc`). The upstream project's license file (`.reuse/dep5`) lists `hyph_id_ID.dic` under LGPL-3.0-only, though the file has no header of its own. The comments at the top of `id_ID.aff` (lines 5-8) still say GPL; the project's license file and the SPDX tag in that file say LGPL-3.0 |
 | `uk_UA` | Ukrainian spelling (`uk_UA`, from [dict_uk](https://github.com/brown-uk/dict_uk), by Andriy Rysin and others) | MPL-1.1 (`README_uk_UA.txt`) |
 | `uk_UA` | Ukrainian hyphenation (`hyph_uk_UA.dic`, Maksym Polyakov) | GPL-2.0+ (`README_hyph_uk_UA.txt`) |
 
