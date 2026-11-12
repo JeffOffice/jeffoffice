@@ -6459,8 +6459,9 @@
          "text": "69501209df30e21261c6622b1a1e50fb32f0d953324663187bdeb3f411197449"
         },
         {
-         "status": "partly",
-         "text": "bc264c3f0a9faef3743fd6c0ed58c34ee63964cdb78882495e452e82e2b5085f"
+         "hide_soon": true,
+         "status": "done",
+         "text": "217559573120bfd9488efe3de7d1ee854d28e4b2578de92ad842d728f2ff21f9"
         }
        ]
       },
@@ -9802,6 +9803,18 @@
     "en": "Pivot tables: follow row and column changes",
     "es": "Tablas dinámicas: seguimiento de cambios en filas y columnas",
     "fr": "Tableaux croisés dynamiques : suivi des changements de lignes et de colonnes"
+   }
+  },
+  "217559573120bfd9488efe3de7d1ee854d28e4b2578de92ad842d728f2ff21f9": {
+   "drop": false,
+   "en": "Choose how tracked insertions, deletions, moved text, and formatting changes look, with colors by author or a single color, and pick where change bars appear. Change the user name and initials that changes and comments are signed with, and lock tracking on with an optional password.",
+   "es": "Elija cómo se ven las inserciones, eliminaciones, texto movido y cambios de formato con control de cambios, con colores por autor o un solo color, y seleccione dónde aparecen las barras de cambios. Cambie el nombre de usuario y las iniciales con los que se firman los cambios y comentarios, y bloquee el control de cambios con una contraseña opcional.",
+   "fr": "Choisissez l’apparence des insertions, suppressions, textes déplacés et modifications de mise en forme suivis, avec des couleurs par auteur ou une seule couleur, et choisissez l’emplacement des barres de modification. Modifiez le nom d’utilisateur et les initiales avec lesquels les modifications et les commentaires sont signés, et verrouillez le suivi avec un mot de passe facultatif.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "21807c4dd2ad64f1ffa24e2610125933fa2aa09faca850b3b9e71b77a2d0ec52": {
@@ -20578,18 +20591,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "bc264c3f0a9faef3743fd6c0ed58c34ee63964cdb78882495e452e82e2b5085f": {
-   "drop": false,
-   "en": "Tracking Options sets the user name and initials that changes and comments are signed with. Lock Tracking turns Track Changes on and locks it, with an optional password.",
-   "es": "Opciones de seguimiento define el nombre de usuario y las iniciales con que se firman los cambios y comentarios. Bloquear seguimiento activa el control de cambios y lo bloquea, con una contraseña opcional.",
-   "fr": "Options de suivi définit le nom d’utilisateur et les initiales avec lesquels les modifications et commentaires sont signés. Verrouiller le suivi active le suivi des modifications et le verrouille, avec un mot de passe facultatif.",
-   "soon": {
-    "drop": false,
-    "en": "Track Changes display options: colors by author and kind, change bars, moved text, and formatting changes",
-    "es": "Opciones de visualización del control de cambios: colores por autor y tipo, barras de cambios, texto movido y cambios de formato",
-    "fr": "Options d’affichage du suivi des modifications : couleurs par auteur et type, barres de modification, texte déplacé et modifications de mise en forme"
    }
   },
   "bc3b3f4c947da059031460fc8f6cb3d229e878651c4fad18870f81cff878968a": {
