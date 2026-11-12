@@ -151,7 +151,7 @@ private Q_SLOTS:
                 s += QStringLiteral("|codes%1,%2").arg(w->document()->allFieldCodesShown()).arg(w->document()->shownFieldCodes().size());   // (Show Field Codes changes what the window shows, not the document)
             }
             const QTextCursor c = w->view()->cursor();
-            s += QStringLiteral("|%1,%2|%3|%4|%5|%6|%7|%8|%9").arg(c.position()).arg(c.anchor()).arg(w->view()->zoom()).arg(w->isModified()).arg(w->filePath()).arg(int(w->view()->zoomMode())).arg(w->view()->showMarks()).arg(w->view()->spellingEnabled()).arg(w->view()->pagesAcross());
+            s += QStringLiteral("|%1,%2|%3|%4|%5|%6|%7|%8|%9|%10").arg(c.position()).arg(c.anchor()).arg(w->view()->zoom()).arg(w->isModified()).arg(w->filePath()).arg(int(w->view()->zoomMode())).arg(w->view()->showMarks()).arg(w->view()->spellingEnabled()).arg(w->view()->pagesAcross()).arg(w->view()->grammarEnabled());
             return s;
         };
         // The sample: a few paragraphs, saved by the program itself.
