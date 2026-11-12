@@ -110,8 +110,9 @@ QString installTranslationsFor()
         install(t, t->load(file));
     };
     // English: only its plural forms ("1 page", "2 pages") need a file. The variants (en_GB, en_CA, en_AU) go on top of it and hold
-    // only the texts they spell differently; any other text is the American English one.
-    if (lang.isEmpty() || lang.startsWith(QLatin1String("en_"))) installFile(QStringLiteral(":/i18n/%1_en.qm").arg(kSuiteFiles));
+    // only the texts they spell differently; any other text is the American English one. Under every other language too, at the
+    // bottom: a plural that language has no translation of yet (a new language's) then shows in English, not as "page(s)".
+    installFile(QStringLiteral(":/i18n/%1_en.qm").arg(kSuiteFiles));
     if (lang.isEmpty()) return QStringLiteral("en");
     // Spanish (Spain) goes on top of the neutral Spanish in the same way: it holds only the texts that say fichero, ratón, and the like.
     if (lang == QLatin1String("es_ES")) installFile(QStringLiteral(":/i18n/%1_es.qm").arg(kSuiteFiles));

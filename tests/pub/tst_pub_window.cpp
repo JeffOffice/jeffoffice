@@ -1850,6 +1850,77 @@ private Q_SLOTS:
         }
     }
 
+    // Russian and Indonesian are in Options before their text is translated: a label with no translation shows in English (a plural too, in
+    // the right form for its number), Help shows the English topics, and no label is empty.
+    void newLanguagesShowEnglishUntilTranslated()
+    {
+        struct Restore {
+            QVariant before = jp::Settings::get().value(QStringLiteral("ui/language"));
+            ~Restore()
+            {
+                jp::Settings::get().setValue(QStringLiteral("ui/language"), before);
+                jp::installTranslations();
+            }
+        } restore;
+        jp::Settings::get().setValue(QStringLiteral("ui/language"), QStringLiteral("en"));
+        jp::installTranslations();
+        const QString printing = jp::help::topic(QStringLiteral("printing")).markdown;
+        const QStringList englishIds = jp::help::topicIds();
+        QVERIFY(!printing.isEmpty() && !englishIds.isEmpty());
+        for (const char *name : {"ru", "id"}) {
+            const QString lang = QLatin1String(name);
+            QVERIFY2(jp::availableUiLanguages().contains(lang), name);
+            QVERIFY2(!jp::uiLanguageName(lang).isEmpty(), name);
+            jp::Settings::get().setValue(QStringLiteral("ui/language"), lang);
+            QCOMPARE(jp::installTranslations(), lang);
+            QCOMPARE(jp::currentUiLanguage(), lang);
+            // Every string of the program: never empty, never a bare "%n", and the English one when the file has no translation for it.
+            QFile f(QStringLiteral(JP_TEST_DATA "/../../translations/jeffoffice_") + lang + QStringLiteral(".ts"));
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            QXmlStreamReader xml(&f);
+            QString context, source, comment;
+            bool plural = false, translated = false;
+            int strings = 0, plurals = 0;
+            QStringList problems;
+            while (!xml.atEnd()) {
+                xml.readNext();
+                if (xml.isStartElement()) {
+                    if (xml.name() == QLatin1String("name")) context = xml.readElementText();
+                    else if (xml.name() == QLatin1String("message")) {
+                        plural = xml.attributes().value(QLatin1String("numerus")) == QLatin1String("yes");
+                        translated = false;
+                        source.clear();
+                        comment.clear();
+                    } else if (xml.name() == QLatin1String("source")) source = xml.readElementText();
+                    else if (xml.name() == QLatin1String("comment")) comment = xml.readElementText();
+                    else if (xml.name() == QLatin1String("translation") && !plural) translated = !xml.readElementText().isEmpty();
+                    else if (xml.name() == QLatin1String("numerusform")) translated = !xml.readElementText().isEmpty() || translated;
+                } else if (xml.isEndElement() && xml.name() == QLatin1String("message")) {
+                    ++strings;
+                    const QByteArray ctx = context.toUtf8(), src = source.toUtf8(), cmt = comment.toUtf8();
+                    const QString where = context + QStringLiteral(": ") + source;
+                    if (plural) {
+                        ++plurals;
+                        for (int n : {0, 1, 2, 5, 21}) {
+                            const QString got = QCoreApplication::translate(ctx.constData(), src.constData(), cmt.constData(), n);
+                            if (got.isEmpty() || got.contains(QLatin1String("%n"))) problems << where + QStringLiteral(" (n=%1): ").arg(n) + got;
+                            if (!translated && n != 1 && got.contains(QLatin1String("(s)"))) problems << where + QStringLiteral(" (n=%1) shows (s)").arg(n);
+                        }
+                    } else {
+                        const QString got = QCoreApplication::translate(ctx.constData(), src.constData(), cmt.constData());
+                        if (got.isEmpty() || (!translated && got != source)) problems << where + QStringLiteral(" -> ") + got;
+                    }
+                }
+            }
+            QVERIFY2(!xml.hasError(), name);
+            QVERIFY2(strings > 1000 && plurals >= 50, name);
+            QVERIFY2(problems.isEmpty(), qPrintable(lang + QStringLiteral(": ") + problems.mid(0, 8).join(QStringLiteral("\n"))));
+            QCOMPARE(jp::help::topicIds(), englishIds);
+            QCOMPARE(jp::help::topic(QStringLiteral("printing")).markdown, printing);
+            QVERIFY(!jp::help::searchTopics(QStringLiteral("print")).isEmpty());
+        }
+    }
+
     // Spanish (Spain) is a language of its own in Options, and the system's Spain locale picks it; every other Spanish locale keeps the neutral Spanish.
     void spanishVariantIsListed()
     {
@@ -1951,7 +2022,9 @@ private Q_SLOTS:
                     if (forms.join(QString()).isEmpty()) continue;   // not translated yet: shows in English
                     ++checked;
                     const QString where = QStringLiteral("%1 [%2] \"%3\"").arg(name, context, source);
-                    if (plural && (forms.size() != 2 || forms.contains(QString()))) problems << where + QStringLiteral(": plural forms");
+                    // (Russian has three plural forms, Indonesian one, the others two.)
+                    const int formCount = name == QLatin1String("jeffoffice_ru.ts") ? 3 : name == QLatin1String("jeffoffice_id.ts") ? 1 : 2;
+                    if (plural && (forms.size() != formCount || forms.contains(QString()))) problems << where + QStringLiteral(": plural forms");
                     for (int i = 0; i < forms.size(); ++i) {
                         QStringList want = all(placeholder, source);
                         const QStringList have = all(placeholder, forms[i]);
