@@ -52,7 +52,7 @@ MODEL = "claude-haiku-5-5"   # (a French trial, Nov 2026: as good as Opus 5.5 on
 WORKERS = 4
 
 # The languages, in Qt's names (the .ts file's and Help folder's suffix).
-# Each has two plural forms in Qt: the singular, then the plural.
+# Most have two plural forms in Qt (the singular, then the plural); PLURAL_FORMS lists the others.
 LANGUAGES = {
     "de": "German",
     "es": "Spanish",
@@ -61,7 +61,31 @@ LANGUAGES = {
     "nl": "Dutch",
     "pt_BR": "Brazilian Portuguese",
     "pt_PT": "European Portuguese (Portugal)",
+    "ru": "Russian",
+    "id": "Indonesian",
 }
+
+# Plural forms in Qt (the number a .ts file's plural has), where it is not two. Russian: 1, 21, 31... then 2-4, 22-24... then 0, 5-20, 25-30...
+PLURAL_FORMS = {"ru": 3, "id": 1}
+FORM_ORDER = {
+    "ru": "first the form for 1 (also 21, 31, 101: \"1 страница\", \"21 страница\"), then the form for 2 to 4 (also 22 to 24: \"2 страницы\"), then the form for 5 to 20 and 0 (also 25 to 30: \"5 страниц\")",
+    "id": "the single form, used for every number",
+}
+
+# What a language needs said beyond the general rules, added to the prompts.
+LANGUAGE_NOTES = {
+    "ru": "Address the reader formally (\"вы\") where a sentence addresses them at all; commands and button labels use the infinitive or the noun, as Russian software does. Key names stay in Latin letters as printed on Russian keyboards (Ctrl, Shift, Alt, Enter, Esc). Quote with « » marks. Write \"е\" for \"ё\" as Russian software does.",
+    "id": "Use the standard formal Indonesian (baku) of Indonesian software, addressing the reader as \"Anda\" where a sentence addresses them at all. Key names stay as printed on keyboards (Ctrl, Shift, Alt, Enter, Esc). Indonesian has no plural forms: a plural item has one form, used for every number.",
+}
+
+
+def forms_in(lang):
+    return PLURAL_FORMS.get(lang, 2)
+
+
+def note(lang):
+    """The language's extra prompt rule as a list item on its own line, or nothing."""
+    return f"\n- {LANGUAGE_NOTES[lang]}" if lang in LANGUAGE_NOTES else ""
 
 # Dollars per million tokens: input, output, cache read, cache write (5 minutes).
 PRICES = {
@@ -186,7 +210,8 @@ def ts_path(lang):
 
 
 class Message:
-    def __init__(self, context, elem, filename):
+    def __init__(self, context, elem, filename, lang=""):
+        self.forms = forms_in(lang)
         self.context = context
         self.elem = elem
         self.source = elem.findtext("source") or ""
@@ -238,7 +263,7 @@ def load_ts(lang, dry=False):
                 if loc.get("filename"):
                     filename = loc.get("filename")
                     break
-            messages.append(Message(name, m, os.path.basename(filename)))
+            messages.append(Message(name, m, os.path.basename(filename), lang))
     return tree, [m for m in messages if m.type not in ("vanished", "obsolete")]
 
 
@@ -260,18 +285,18 @@ MARKER = re.compile(r"(?<!&)&(?=[^\s&])")
 TAG = re.compile(r"</?[A-Za-z][^>]*>")
 
 
-def check(source, out, plural):
+def check(source, out, plural, nforms=2):
     """What's wrong with a translation of `source`, or an empty string."""
     forms = out if plural else [out]
-    if plural and len(forms) != 2:
-        return "give exactly 2 forms: singular, then plural"
+    if plural and len(forms) != nforms:
+        return f"give exactly {nforms} form{'s' if nforms != 1 else ''}"
     if any(not f.strip() for f in forms):
         return "empty translation"
     want = sorted(PLACEHOLDER.findall(source))
     for i, f in enumerate(forms):
         have = sorted(PLACEHOLDER.findall(f))
         # A singular form may spell out the number instead of %n.
-        if plural and i == 0 and have == sorted(p for p in want if p != "%n"):
+        if plural and nforms == 2 and i == 0 and have == sorted(p for p in want if p != "%n"):
             continue
         if have != want:
             return f"placeholders must be {' '.join(want) or 'none'}, found {' '.join(have) or 'none'}"
@@ -362,7 +387,7 @@ How to translate:
 - An "&" right before a letter ("&Open") marks a keyboard shortcut: keep the same number of them, each before a letter of the translated word. An "&" with spaces around it ("Header & Footer") is just the word "and": write it as {name} interfaces do, and never turn it into a shortcut marker.
 - Product and format names stay as they are: JeffPub, JeffOffice, PDF, PDF/A, PDF/X, EPUB, SVG, PNG, JPEG, ISBN, EAN, UPC, CMYK, RGB, HSL, PANTONE, OpenType, Unicode, Markdown. Never name Microsoft, Publisher, Office, Word, Excel, PowerPoint, or WordArt, and never use the trademarked feature names PivotTable, AutoSum, AutoFit, Format Painter, AutoRecover, Quick Access Toolbar, or Quick Parts (say pivot table, sum, fit, and so on).
 - Key names: as printed on {name} keyboards and written in {name} documentation (German, for example, writes Strg for Ctrl and Umschalt for Shift).
-- An item with "plural": true contains %n. Put its forms in "forms": first the singular, then the plural; leave "text" empty. For every other item, put the translation in "text" and leave "forms" empty.
+- An item with "plural": true contains %n. Put its forms in "forms", exactly {forms_in(lang)} of them: {FORM_ORDER.get(lang, "first the singular, then the plural")}; leave "text" empty. For every other item, put the translation in "text" and leave "forms" empty.{note(lang)}
 - Each item says where it appears ("context" is the part of the program, "file" its source file) and may carry a developer's "note". Use them to pick the right meaning. Strings from "Templates" are sample text in built-in designs (business names, slogans, placeholder text): translate them naturally for {name} readers.
 - Return every item, with its id.
 
@@ -383,7 +408,7 @@ def review_system(lang, terms):
 For each item:
 - "back": translate the {name} text back into English, literally, without looking at the original.
 - "ok": true when the translation means what the English means in that place in the program, reads as natural {name} interface text, and uses the glossary's terms. Do not object to word order, capitalization, or wording choices that are correct.
-- When "ok" is false: "problem" says what is wrong in one sentence, and "fix" (or "fix_forms" for a plural: singular, then plural) gives the corrected translation, keeping placeholders (%1, %n...), HTML tags, line breaks, "&" shortcut markers (an & right before a letter; an & between spaces is just "and"), and leading and trailing spaces. When "ok" is true, leave "problem", "fix", and "fix_forms" empty.
+- When "ok" is false: "problem" says what is wrong in one sentence, and "fix" (or "fix_forms" for a plural: {FORM_ORDER.get(lang, "singular, then plural")}) gives the corrected translation, keeping placeholders (%1, %n...), HTML tags, line breaks, "&" shortcut markers (an & right before a letter; an & between spaces is just "and"), and leading and trailing spaces. When "ok" is true, leave "problem", "fix", and "fix_forms" empty.
 - Return every item, with its id.
 
 Glossary (English = {name}):
@@ -438,7 +463,7 @@ def translate_chunk(api, system, chunk, report):
                 notes[m] = "missing from the last answer"
                 continue
             out = g["forms"] if m.plural else g["text"]
-            why = check(m.source, out, m.plural)
+            why = check(m.source, out, m.plural, m.forms)
             if why:
                 notes[m] = f"the last translation {json.dumps(out, ensure_ascii=False)} was rejected: {why}"
             else:
@@ -467,7 +492,7 @@ def review_chunk(api, system, pairs, report):
             continue
         m, out = pairs[int(g["id"])]
         fix = g["fix_forms"] if m.plural else g["fix"]
-        used = bool(fix) and not check(m.source, fix, m.plural)
+        used = bool(fix) and not check(m.source, fix, m.plural, m.forms)
         if used:
             fixes[m] = fix
         report.flag(m, out, g["back"], g["problem"], fix if used else None)
@@ -585,7 +610,7 @@ How to translate:
 - Keyboard shortcuts: write key names as {name} keyboards print them (German, for example, writes Strg+C), keeping the + between keys.
 - Measurements: {name} readers measure in centimeters, and {app} shows them centimeters unless they choose otherwise. Give lengths, sizes, and distances in centimeters (millimeters for small ones), converting from inches (1 inch = 2.54 cm) and rounding as {name} documentation would (2 inches becomes 5 cm; a quarter inch, 0.6 cm). Where an example depends on US paper sizes (Letter, half-letter), use A4 and A5 instead when the example works the same way. Units that name a measure stay as they are: points, picas, ppi and dpi (pixels or dots per inch), and a point being 1/72 inch.
 - Keep file names, file extensions, code, and web addresses as they are. Product and format names stay as they are ({app}, PDF, EPUB, CMYK...). Never name Microsoft, Publisher, Office, Word, Excel, PowerPoint, or WordArt, and never use the trademarked feature names PivotTable, AutoSum, AutoFit, Format Painter, AutoRecover, Quick Access Toolbar, or Quick Parts (say pivot table, sum, fit, and so on).
-- Write plainly, as good {name} software documentation does, addressing the reader the way {name} software documentation usually does.
+- Write plainly, as good {name} software documentation does, addressing the reader the way {name} software documentation usually does.{note(lang)}
 """]
 
 
