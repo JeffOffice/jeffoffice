@@ -1,0 +1,29 @@
+#pragma once
+// Grammar and style rules for English, written for JeffOffice: a paragraph of text goes in, and the issues in it come out, each with a message and the text to put in
+// place of the words it is about. The rules are clear-cut ones only: where a text may be right, it is left alone (a missed mistake costs less than a false alarm).
+//
+// Each rule is one small function in grammarrules.cpp and one line of its table; the work of a check is linear in the length of the text (the tokens are made once, and
+// every rule goes through them once), and `work` counts the steps, so that a test can prove it.
+
+#include <QString>
+#include <QStringList>
+#include <QVector>
+
+namespace jp {
+
+struct GrammarIssue {
+    enum Kind { Grammar, Style, Punctuation, Capitalization, Repetition, WordChoice, Other };
+    int start = 0, end = 0;     // [start, end) in the text checked, UTF-16 code units
+    Kind kind = Grammar;
+    QString message;
+    QStringList suggestions;    // each is the whole text to put in place of [start, end)
+    bool operator==(const GrammarIssue &o) const { return start == o.start && end == o.end && kind == o.kind && message == o.message && suggestions == o.suggestions; }
+};
+
+namespace grammar {
+
+// The issues in a paragraph of text, in order of position (none overlap in what they replace). `work`, if given, gets the number of steps the check took.
+QVector<GrammarIssue> check(const QString &text, quint64 *work = nullptr);
+
+} // namespace grammar
+} // namespace jp

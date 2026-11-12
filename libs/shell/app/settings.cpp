@@ -45,7 +45,7 @@ bool suiteWide(const QString &key)
 {
     static const QStringList keys = {QStringLiteral("ui/theme"), QStringLiteral("ui/language"), QStringLiteral("user/name"),
                                      QStringLiteral("user/initials"), QStringLiteral("telemetry/enabled"), QStringLiteral("telemetry/install"),
-                                     QStringLiteral("proof/checkAsYouType")};
+                                     QStringLiteral("proof/checkAsYouType"), QStringLiteral("proof/checkGrammarAsYouType")};
     return key.startsWith(QLatin1String("updates/")) || keys.contains(key);
 }
 
@@ -93,6 +93,21 @@ void setSpellAsYouType(bool on)
     if (spellAsYouType() == on) return;
     Settings::get().setValue(QStringLiteral("proof/checkAsYouType"), on);
     Q_EMIT SpellSettingNotifier::get().changed(on);
+}
+
+GrammarSettingNotifier &GrammarSettingNotifier::get()
+{
+    static GrammarSettingNotifier n;
+    return n;
+}
+
+bool grammarAsYouType() { return Settings::get().value(QStringLiteral("proof/checkGrammarAsYouType"), true).toBool(); }
+
+void setGrammarAsYouType(bool on)
+{
+    if (grammarAsYouType() == on) return;
+    Settings::get().setValue(QStringLiteral("proof/checkGrammarAsYouType"), on);
+    Q_EMIT GrammarSettingNotifier::get().changed(on);
 }
 
 Unit defaultUnit(const QLocale &region)

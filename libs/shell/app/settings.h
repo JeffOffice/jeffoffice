@@ -52,6 +52,17 @@ Q_SIGNALS:
     void changed(bool on);
 };
 
+// "Check grammar as you type": the same, a second choice beside the first (libs/shell/app/grammar.h). On until it is turned off.
+bool grammarAsYouType();
+void setGrammarAsYouType(bool on);
+class GrammarSettingNotifier : public QObject {
+    Q_OBJECT
+public:
+    static GrammarSettingNotifier &get();
+Q_SIGNALS:
+    void changed(bool on);
+};
+
 class Settings {
 public:
     static Settings &get();
