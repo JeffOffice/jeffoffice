@@ -1441,6 +1441,17 @@ bool patchCustomViews(const QByteArray &xml, const QVector<CustomView> &views, Q
 }
 } // namespace
 
+// The part that names the one kind of cell metadata a formula that spills has (a dynamic array): its type, its properties, and one cell metadata of it (`cm` 1 in a cell).
+QByteArray dynamicArrayMetadataXml()
+{
+    return QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
+                      "<metadata xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:xda=\"http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray\">"
+                      "<metadataTypes count=\"1\"><metadataType name=\"XLDAPR\" minSupportedVersion=\"120000\" copy=\"1\" pasteAll=\"1\" pasteValues=\"1\" merge=\"1\" splitFirst=\"1\" rowColShift=\"1\" "
+                      "clearFormats=\"1\" clearComments=\"1\" assign=\"1\" coerce=\"1\" cellMeta=\"1\"/></metadataTypes>"
+                      "<futureMetadata name=\"XLDAPR\" count=\"1\"><bk><extLst><ext uri=\"{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}\"><xda:dynamicArrayProperties fDynamic=\"1\" fCollapsed=\"0\"/></ext></extLst></bk></futureMetadata>"
+                      "<cellMetadata count=\"1\"><bk><rc t=\"1\" v=\"0\"/></bk></cellMetadata></metadata>");
+}
+
 bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *out, QString *error, SaveReport *report, const std::atomic<bool> *cancel)
 {
     SaveReport local;
@@ -1785,6 +1796,36 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             adjusted.sheets[add.sheet].addTableRels.push_back(link.relId);
         }
     }
+    // ---- formulas that spill are written as array formulas with the cell metadata that says they are dynamic arrays: the file's own number for it if it has the metadata, else the part is made below
+    int dynamicCm = 0;
+    bool makeMetadata = false;
+    {
+        bool any = false;
+        for (const auto &entry : requested.sheets)
+            for (const SavedCell &c : entry.second.cells)
+                if (c.dynamic && c.isFormula && !c.arrayRef.isEmpty()) {
+                    any = true;
+                    break;
+                }
+        if (any) {
+            const QSet<int> have = book.dynamicCellMetadata();
+            if (!have.isEmpty()) {
+                dynamicCm = *std::min_element(have.cbegin(), have.cend());
+            } else if (!book.hasMetadataPart() && !package.hasPart(QStringLiteral("/xl/metadata.xml")) && !package.hasPart(QStringLiteral("xl/metadata.xml"))) {
+                dynamicCm = 1;
+                makeMetadata = true;
+            }
+        }
+        if (dynamicCm > 0) {
+            if (useChanges == &requested) {
+                adjusted = requested;
+                useChanges = &adjusted;
+            }
+            for (auto &entry : adjusted.sheets)
+                for (SavedCell &c : entry.second.cells)
+                    if (c.dynamic && c.isFormula && !c.arrayRef.isEmpty()) c.cm = dynamicCm;
+        }
+    }
     const SaveChanges &changes = *useChanges;
     const QByteArray bytes = package.fileBytes();
     QVector<ZipEntry> directory;
@@ -2043,6 +2084,36 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     // ---- the objects a person put on sheets: their anchors at the end of the drawing, the parts they relate to, and the links and types that name them
     std::vector<std::pair<QString, QByteArray>> newEntries;   // parts the file did not have (the name without its first slash)
     std::map<int, QByteArray> newSheetRels;                   // for a sheet that was added: the relationship to its new drawing (its relationships part is made with it)
+    // The metadata part that says which cells are dynamic arrays (a workbook that has none is given one with the one kind of metadata a spilling formula needs).
+    if (makeMetadata) {
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        const QString mainEntryName = package.entryName(book.mainPart());
+        const int slash = mainEntryName.lastIndexOf(QLatin1Char('/'));
+        const QString relsName = (slash < 0 ? QString() : mainEntryName.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? mainEntryName : mainEntryName.mid(slash + 1)) + QStringLiteral(".rels");
+        const int relsEntry = entryAt.value(plain(relsName), -1);
+        const QString notForm = QCoreApplication::translate("jp::office::sheet::Save", "The workbook's relationships are not in the form this program changes.");
+        if (typesEntry < 0 || relsEntry < 0) return fail(notForm);
+        QByteArray types, rels, t2, r2;
+        if (replaced.contains(typesEntry)) types = replaced.value(typesEntry);
+        else if (!inflate(typesEntry, &types)) return fail(notForm);
+        if (replaced.contains(relsEntry)) rels = replaced.value(relsEntry);
+        else if (!inflate(relsEntry, &rels)) return fail(notForm);
+        RelationshipIds used;
+        for (const Relationship &r : package.relationships(book.mainPart())) used << r.id;
+        const QString id = used.takeFree();
+        const QString mainDir = book.mainPart().left(book.mainPart().lastIndexOf(QLatin1Char('/')) + 1);
+        const QString part = mainDir + QStringLiteral("metadata.xml");
+        if (!appendBefore(types, "Types", "<Override PartName=\"" + xmlscan::escapeAttribute(part) + "\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata+xml\"/>", &t2)) return fail(notForm);
+        if (!appendBefore(rels, "Relationships", "<Relationship Id=\"" + xmlscan::escapeAttribute(id) + "\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/sheetMetadata\" Target=\"metadata.xml\"/>", &r2)) return fail(notForm);
+        replaced.insert(typesEntry, t2);
+        replaced.insert(relsEntry, r2);
+        newEntries.emplace_back(part.startsWith(QLatin1Char('/')) ? part.mid(1) : part, dynamicArrayMetadataXml());
+    }
     // The relationships part a block made for a sheet of the file that had none (the name without its first slash), if one did: what the next block that adds a relationship to the sheet starts from, and
     // changes in place (two entries of one name would be two parts of one name in the file).
     auto madeRelsOf = [&](const QString &sheetPart) -> std::pair<QString, QByteArray *> {

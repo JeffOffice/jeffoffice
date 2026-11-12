@@ -573,7 +573,7 @@ private:
                     f += "/>";
                 }
             } else if (!text.isEmpty()) {
-                if (c.flags & ArrayFormula) {
+                if (c.flags & (ArrayFormula | SpillFormula)) {
                     const CellRange range = m_sheet.formulaRange(c);
                     f = range.valid ? "<f t=\"array\"" + attr("ref", rangeName(range).toLatin1()) + ">" : QByteArray("<f>");
                 } else {

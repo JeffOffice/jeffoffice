@@ -229,6 +229,9 @@ struct ReadOptions {
     // parser as it was; false gives every row to the parser (what a test compares the result with).
     bool fastRows = true;
     DateSystem dateSystem = DateSystem::Date1900;   // for the cells of type "d", written as dates
+    // The numbers (from 1, as a cell's `cm` says them) of the cell metadata that mark a dynamic array, from the workbook's metadata part: a cell with an array formula and one of these is a formula that
+    // spills (Cell::SpillFormula), and any other array formula is the older kind, written with Ctrl+Shift+Enter.
+    QSet<int> dynamicCells;
     // The workbook's allowance for sparklines (all its sheets together), and which sheet this is.
     std::shared_ptr<SparklineBudget> sparklineBudget;
     int sparklineSheet = -1;
@@ -302,6 +305,9 @@ public:
     int headerDrawingsRead() const { return m_headerImages->parses; }
     // The parts the workbook is made of (empty for one it has not): its own, the shared strings, and the styles.
     QString mainPart() const { return m_mainPart; }
+    // The cell metadata (a cell's `cm`, from 1) that mark a dynamic array in the workbook's metadata part; and whether the workbook has a metadata part at all.
+    QSet<int> dynamicCellMetadata() const;
+    bool hasMetadataPart() const;
     QString sharedStringsPart() const { return m_sharedPart; }
     QString stylesPart() const { return m_stylesPart; }
     // The number of strings in the shared strings part and of cell formats in the styles part when the workbook was opened (or last saved): what is added to either afterwards goes at the end.

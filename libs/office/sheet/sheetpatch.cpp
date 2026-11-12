@@ -97,7 +97,9 @@ QByteArray cellXml(const QByteArray &prefix, const SavedCell &c, bool hasShared)
     if (c.style != 0) out += " s=\"" + QByteArray::number(c.style) + "\"";
     if (empty) return out + "/>";
     const ValueXml v = valueXml(c.value, c.isFormula, hasShared, prefix);
-    out += v.type + ">";
+    out += v.type;
+    if (c.isFormula && c.dynamic && c.cm > 0 && !c.arrayRef.isEmpty()) out += " cm=\"" + QByteArray::number(c.cm) + "\"";
+    out += ">";
     if (c.isFormula) {
         QString f = c.formula;
         if (f.startsWith(QLatin1Char('='))) f.remove(0, 1);

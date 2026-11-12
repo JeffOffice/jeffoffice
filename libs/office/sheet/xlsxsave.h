@@ -56,6 +56,8 @@ struct SavedCell {
     QString formula;            // as the file writes it, with no "=" in front
     bool hasResult = true;      // a formula's result is known (else the cell has the formula and no value)
     QString arrayRef;           // the first cell of an array formula: the cells it covers ("C3:C5"), else empty
+    bool dynamic = false;       // the formula spills (a dynamic array): written as an array formula over `arrayRef`, with the cell metadata that says so (`cm`, set by the save)
+    int cm = 0;                 // the number of that cell metadata in the file's metadata part (from 1), when the cell is written (the save finds or makes it)
 };
 
 // The result of a formula that the person did not change, worked out again after a change to what it reads.
@@ -404,6 +406,8 @@ struct SaveReport {
 
 // Makes the new file's bytes from the old (the lazy package `book` was opened from) and the changes. `cancel`, if given, is looked at as the sheets are copied. False, with a message, if
 // the file cannot be made (a sheet is not XML this can change, the package is not lazy, the workbook has no part to put a change in).
+// The metadata part made for a workbook that has none when it is given a formula that spills (see SavedCell::dynamic).
+QByteArray dynamicArrayMetadataXml();
 bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out, QString *error = nullptr, SaveReport *report = nullptr, const std::atomic<bool> *cancel = nullptr);
 
 // Writes the bytes to `path` without touching a file that is already there until they are all written: they go to a file of their own in the same folder, which then takes the place

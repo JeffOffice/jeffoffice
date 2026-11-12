@@ -935,6 +935,7 @@ private:
     qint64 m_si = -1;
     CellRange m_ref;
     bool m_haveRef = false;
+    int m_cellMeta = 0, m_metaNext = 0;   // the cell's `cm` (its cell metadata, from 1; 0 for none), and the one of the cell whose attributes were just read
     QString m_r1, m_r2;
     bool m_dtr = false;   // a table of one input: its input is a row input cell
     // shared formulas
@@ -1230,9 +1231,14 @@ bool SheetReader::startCell(const QXmlStreamReader &r)
     bool present = false;
     QStringView at, style, type;
     const QXmlStreamAttributes attributes = r.attributes();
+    m_metaNext = 0;
     for (const QXmlStreamAttribute &a : attributes) {
         if (!a.namespaceUri().isEmpty()) continue;
         const QStringView name = a.name();
+        if (name == QLatin1String("cm")) {
+            m_metaNext = a.value().toInt();
+            continue;
+        }
         if (name.size() != 1) continue;
         if (name[0] == QLatin1Char('r')) {
             at = a.value();
@@ -1249,6 +1255,8 @@ bool SheetReader::startCell(const QXmlStreamReader &r)
 bool SheetReader::startCell(QStringView at, bool present, QStringView style, QStringView type)
 {
     m_cell = Cell();
+    m_cellMeta = m_metaNext;
+    m_metaNext = 0;
     quint32 row = 0, col = 0;
     if (present && parseCellRef(at, &row, &col)) {
         m_cellRow = row;
@@ -1337,7 +1345,7 @@ bool SheetReader::endFormula()
         m_sheet.formulaTexts.append(m_formula);
         text = qint32(m_sheet.formulaTexts.size() - 1);
         m_sheet.stats.expandedFormulaChars += length;
-        if (m_kind == Array) m_cell.flags |= ArrayFormula;
+        if (m_kind == Array) m_cell.flags |= (m_cellMeta > 0 && m_options.dynamicCells.contains(m_cellMeta)) ? SpillFormula : ArrayFormula;
         if (m_kind == Shared) {
             m_cell.flags |= SharedFormula;
             if (!m_masters.contains(m_si)) {
@@ -1796,8 +1804,13 @@ SheetReader::Scan SheetReader::scanRows(XmlSource &src, qint64 *nextReport)
                 for (qsizetype n = 0; n < v.size(); ++n) buffer[k][n] = char16_t(static_cast<unsigned char>(v[n]));
                 return QStringView(buffer[k], v.size());
             };
+            m_metaNext = 0;
             for (int i = 0; i < cell.count; ++i) {
                 const RawAttr &a = cell.attrs[i];
+                if (a.name.size() == 2 && a.name[0] == 'c' && a.name[1] == 'm') {
+                    m_metaNext = wide(0, a.value).toInt();
+                    continue;
+                }
                 if (a.name.size() != 1) continue;
                 if (a.name[0] == 'r') {
                     at = wide(0, a.value);
@@ -3804,6 +3817,76 @@ static void applyPrintNames(const WorkbookInfo &info, int index, Sheet *out)
     }
 }
 
+namespace {
+
+// The cell metadata of the workbook's metadata part that mark a dynamic array: the numbers a cell's `cm` says (from 1). A cell's metadata is a list of (type, index) pairs: the type is a place (from 1) in
+// the list of types, and the index a place (from 0) in the future metadata of that type's name; the dynamic array type is XLDAPR, and its properties say fDynamic.
+QSet<int> readDynamicCellMetadata(const Package &package, const QString &mainPart)
+{
+    QSet<int> out;
+    QString part;
+    for (const Relationship &rel : package.relationshipsOfType(mainPart, QStringLiteral("/sheetMetadata")))
+        if (!rel.external && package.hasPart(rel.target)) {
+            part = rel.target;
+            break;
+        }
+    if (part.isEmpty() && package.hasPart(QStringLiteral("xl/metadata.xml"))) part = QStringLiteral("xl/metadata.xml");
+    if (part.isEmpty()) return out;
+    const QByteArray xml = package.part(part);
+    if (xml.isEmpty() || xml.size() > (4 << 20)) return out;
+    QXmlStreamReader r(xml);
+    QStringList types;                         // the names of the metadata types, in order
+    QHash<QString, QVector<bool>> dynamicOf;   // by the name of a type: for each of its future metadata, whether it says fDynamic
+    QVector<QVector<QPair<int, int>>> cells;   // the metadata of each cell: its (type, index) pairs
+    QString section;
+    QString future;
+    while (!r.atEnd()) {
+        r.readNext();
+        if (r.isEndElement()) {
+            const QStringView name = r.name();
+            if (name == QLatin1String("futureMetadata") || name == QLatin1String("cellMetadata")) section.clear();
+            continue;
+        }
+        if (!r.isStartElement()) continue;
+        const QStringView name = r.name();
+        if (name == QLatin1String("metadataType")) {
+            types.append(r.attributes().value(QLatin1String("name")).toString());
+        } else if (name == QLatin1String("futureMetadata")) {
+            section = QStringLiteral("future");
+            future = r.attributes().value(QLatin1String("name")).toString();
+            dynamicOf[future];
+        } else if (name == QLatin1String("cellMetadata")) {
+            section = QStringLiteral("cell");
+        } else if (name == QLatin1String("bk")) {
+            if (section == QLatin1String("future")) dynamicOf[future].append(false);
+            else if (section == QLatin1String("cell")) cells.append(QVector<QPair<int, int>>());
+        } else if (name == QLatin1String("dynamicArrayProperties") && section == QLatin1String("future")) {
+            QVector<bool> &list = dynamicOf[future];
+            const QString f = r.attributes().value(QLatin1String("fDynamic")).toString();
+            if (!list.isEmpty() && (f == QLatin1String("1") || f == QLatin1String("true"))) list.last() = true;
+        } else if (name == QLatin1String("rc") && section == QLatin1String("cell") && !cells.isEmpty()) {
+            cells.last().append(QPair<int, int>(r.attributes().value(QLatin1String("t")).toInt(), r.attributes().value(QLatin1String("v")).toInt()));
+        }
+    }
+    for (int i = 0; i < cells.size() && i < 1000000; ++i)
+        for (const auto &[type, index] : cells[i]) {
+            if (type < 1 || type > types.size() || types[type - 1] != QLatin1String("XLDAPR")) continue;
+            const QVector<bool> list = dynamicOf.value(QStringLiteral("XLDAPR"));
+            if (index >= 0 && index < list.size() && list[index]) out.insert(i + 1);
+        }
+    return out;
+}
+
+} // namespace
+
+QSet<int> Workbook::dynamicCellMetadata() const { return m_xls || m_foreign ? QSet<int>() : readDynamicCellMetadata(m_package, m_mainPart); }
+
+bool Workbook::hasMetadataPart() const
+{
+    if (m_xls || m_foreign) return false;
+    return !m_package.relationshipsOfType(m_mainPart, QStringLiteral("/sheetMetadata")).isEmpty();
+}
+
 bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress, qint64 stopAfterRow, qint64 screenRows) const
 {
     *out = Sheet();
@@ -3849,6 +3932,7 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
     options.progress = progress;
     options.stopAfterRow = stopAfterRow;
     options.screenRows = screenRows;
+    options.dynamicCells = readDynamicCellMetadata(m_package, m_mainPart);
     const bool ok = readSheetPart(device.get(), options, out);
     // a row that is hidden among the rows of a table that has a filter with conditions was hidden by that filter, not by hand
     for (const Table &t : tables()) {
