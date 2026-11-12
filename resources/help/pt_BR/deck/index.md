@@ -1,11 +1,11 @@
 # Ajuda do JeffDeck
-<!-- keywords: conteúdo, ajuda, tópicos, início -->
+<!-- keywords: conteúdo, ajuda, tópicos, início, índice, sumário -->
 
-Digite na caixa de pesquisa acima para encontrar um tópico ou um comando para executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, o painel em que você está ou o objeto selecionado.
+Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, o painel em que você está ou o objeto selecionado.
 
 ## Primeiros passos
 
-- [Boas-vindas ao JeffDeck](start)
+- [Bem-vindo ao JeffDeck](start)
 - [Conheça a janela](window)
 - [Abrir e salvar apresentações](open-save)
 - [Recuperar trabalho não salvo](recover)
@@ -21,6 +21,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando para e
 
 - [Digitar e formatar texto](text)
 - [Formas, imagens, tabelas e Texto Artístico](objects)
+- [Gráficos](charts)
 - [O painel Formatar Forma e a guia Formato da Forma](format-shape)
 - [Anotações do orador](notes)
 - [Comentários](comments)
@@ -30,7 +31,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando para e
 - [Transições entre slides](transitions)
 - [Animações](animations)
 
-## Apresentação
+## Exibir a apresentação
 
 - [Reproduzir a apresentação de slides e usar o Modo de Exibição do Apresentador](show)
 
@@ -45,7 +46,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando para e
 - [Escolher um idioma](language)
 - [A tela Arquivo](file-screen)
 
-## Guias da faixa de opções
+## As guias da faixa de opções
 
 - [Página Inicial](tab-home), [Inserir](tab-insert), [Design](tab-design), [Transições](tab-transitions), [Animações](tab-animations), [Apresentação de Slides](tab-slide-show), [Revisão](tab-review) e [Exibir](tab-view)
 - [Reprodução](tab-playback) aparece enquanto um vídeo ou um som está selecionado

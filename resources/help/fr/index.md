@@ -1,12 +1,12 @@
 # Aide de JeffPub
 <!-- keywords: sommaire, aide, rubriques, démarrer -->
 
-Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez à tout moment sur **F1** pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban actif, la boîte de dialogue ouverte ou l'objet sélectionné.
+Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban affiché, la boîte de dialogue ouverte ou l'objet sélectionné.
 
 ## Bien démarrer
 
 - [Bienvenue dans JeffPub](start)
-- [Se repérer dans la fenêtre](window)
+- [Vous repérer dans la fenêtre](window)
 - [Créer une composition](create)
 - [Ouvrir et enregistrer des compositions](open-save)
 - [Travailler avec les fichiers .pub](pub-files)
@@ -15,11 +15,12 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 ## Texte
 
 - [Ajouter et mettre en forme des zones de texte](text-boxes)
-- [Enchaîner le texte entre les zones de texte](linked-text)
+- [Faire circuler le texte entre des zones de texte](linked-text)
 - [Mettre en forme le texte](formatting-text)
 - [Puces, numérotation et tabulations](lists-tabs)
 - [Utiliser les styles](styles)
 - [Ajouter du texte artistique](text-art)
+- [Ajouter une équation](equations)
 - [Créer et modifier des tableaux](tables)
 - [Table des matières, notes de bas de page et notes de fin](references)
 - [Orthographe, dictionnaire des synonymes, recherche et coupure de mots](proofing)
@@ -30,6 +31,7 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 - [Ajouter et régler des images](pictures)
 - [Gestionnaire de graphiques](graphics-manager)
 - [Dessiner des formes et des traits](shapes)
+- [Ajouter des graphiques](charts)
 - [Icônes, codes-barres et autres objets](insert-objects)
 - [Déplacer, aligner, grouper et superposer des objets](arrange)
 - [Habiller le texte autour des objets](wrap)
@@ -50,14 +52,15 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 ## Impression et partage
 
 - [Imprimer une composition](printing)
-- [Fichiers PDF et imprimeurs](pdf)
+- [Fichiers PDF et imprimeurs professionnels](pdf)
 - [Enregistrer en tant qu'image, page web ou livre électronique](export)
 
 ## Aide et paramètres
 
 - [Utiliser JeffPub au clavier](keyboard)
 - [Lecteurs d'écran, contraste élevé et texte de remplacement](accessibility)
-- [Vérifier la conception](design-checker)
+- [Vérifier votre conception](design-checker)
+- [Commentaires](comments)
 - [Modifier les paramètres de JeffPub](options)
 - [Choisir une langue](language)
 - [Obtenir de l'aide et signaler un problème](support)
@@ -65,4 +68,4 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 ## Les onglets du ruban
 
 - [Fichier](tab-file), [Accueil](tab-home), [Insertion](tab-insert), [Création de page](tab-page-design), [Publipostage](tab-mailings), [Révision](tab-review), [Affichage](tab-view) et [Aide](tab-help)
-- Onglets qui apparaissent quand vous sélectionnez un élément : [Format de la zone de texte](tab-text-box), [Format de la forme](tab-shape-format), [Format de l'image](tab-picture-format), [Création de tableau et Disposition du tableau](tab-table), [Format du texte artistique](tab-text-art) et [Page maître](tab-master-page)
+- Onglets qui apparaissent lorsque vous sélectionnez un élément : [Zone de texte](tab-text-box), [Format de la forme](tab-shape-format), [Format de l'image](tab-picture-format), [Création de tableau et Disposition du tableau](tab-table), [Format du texte artistique](tab-text-art) et [Page maître](tab-master-page)

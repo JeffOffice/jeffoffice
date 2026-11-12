@@ -1,38 +1,39 @@
 # Ayuda de JeffDeck
 <!-- keywords: contenido, ayuda, temas, inicio -->
 
-Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el panel en el que está o el objeto que ha seleccionado.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el panel en el que está o el objeto seleccionado.
 
 ## Primeros pasos
 
 - [Bienvenida a JeffDeck](start)
 - [Orientarse en la ventana](window)
 - [Abrir y guardar presentaciones](open-save)
-- [Recuperar trabajo no guardado](recover)
+- [Recuperar trabajo sin guardar](recover)
 
 ## Diapositivas
 
 - [Agregar, cambiar y eliminar diapositivas](slides)
 - [Reutilizar diapositivas de otra presentación](reuse)
-- [Vista Esquema, Clasificador de diapositivas y vista Patrón de diapositivas](views)
+- [Vista Esquema, Clasificador de diapositivas y Vista Patrón de diapositivas](views)
 - [Tamaño de diapositiva, fondo y pies de página](design)
 
 ## En una diapositiva
 
 - [Escribir y dar formato al texto](text)
 - [Formas, imágenes, tablas y texto artístico](objects)
+- [Gráficos](charts)
 - [El panel Formato de forma y la pestaña Formato de forma](format-shape)
 - [Notas del orador](notes)
 - [Comentarios](comments)
 
-## Movimiento
+## Animación
 
 - [Transiciones entre diapositivas](transitions)
 - [Animaciones](animations)
 
-## Presentar
+## Mostrar la presentación
 
-- [Reproducir la presentación con diapositivas y usar la Vista Moderador](show)
+- [Iniciar la presentación con diapositivas y usar la Vista Moderador](show)
 
 ## Imprimir y compartir
 

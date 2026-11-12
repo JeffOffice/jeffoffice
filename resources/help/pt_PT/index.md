@@ -6,7 +6,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 ## Primeiros passos
 
 - [Bem-vindo ao JeffPub](start)
-- [Conhecer a janela](window)
+- [Orientar-se na janela](window)
 - [Criar uma nova publicação](create)
 - [Abrir e guardar publicações](open-save)
 - [Trabalhar com ficheiros .pub](pub-files)
@@ -15,11 +15,12 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 ## Texto
 
 - [Adicionar e formatar caixas de texto](text-boxes)
-- [Ligar texto entre caixas de texto](linked-text)
+- [Fazer fluir texto entre caixas de texto](linked-text)
 - [Formatar texto](formatting-text)
 - [Marcas, numeração e tabulações](lists-tabs)
 - [Utilizar estilos](styles)
 - [Adicionar Texto Artístico](text-art)
+- [Adicionar uma equação](equations)
 - [Criar e editar tabelas](tables)
 - [Índice, notas de rodapé e notas de fim](references)
 - [Ortografia, dicionário de sinónimos, pesquisa e hifenização](proofing)
@@ -30,8 +31,9 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Adicionar e ajustar imagens](pictures)
 - [Gestor de Gráficos](graphics-manager)
 - [Desenhar formas e linhas](shapes)
+- [Adicionar gráficos](charts)
 - [Ícones, códigos de barras e outros objetos](insert-objects)
-- [Mover, alinhar, agrupar e organizar objetos em camadas](arrange)
+- [Mover, alinhar, agrupar e sobrepor objetos](arrange)
 - [Moldar texto em redor de objetos](wrap)
 
 ## Páginas
@@ -57,12 +59,13 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Utilizar o JeffPub com o teclado](keyboard)
 - [Leitores de ecrã, alto contraste e texto alternativo](accessibility)
-- [Verificar a estrutura](design-checker)
+- [Verificar a sua estrutura](design-checker)
+- [Comentários](comments)
 - [Alterar as definições do JeffPub](options)
 - [Escolher um idioma](language)
 - [Obter ajuda e comunicar problemas](support)
 
 ## Separadores do friso
 
-- [Ficheiro](tab-file), [Base](tab-home), [Inserir](tab-insert), [Design de Página](tab-page-design), [Correspondência](tab-mailings), [Rever](tab-review), [Ver](tab-view) e [Ajuda](tab-help)
+- [Ficheiro](tab-file), [Base](tab-home), [Inserir](tab-insert), [Estrutura da Página](tab-page-design), [Correspondência](tab-mailings), [Rever](tab-review), [Ver](tab-view) e [Ajuda](tab-help)
 - Separadores que aparecem quando seleciona algo: [Caixa de Texto](tab-text-box), [Formato da Forma](tab-shape-format), [Formato da Imagem](tab-picture-format), [Estrutura da Tabela e Esquema da Tabela](tab-table), [Formato do Texto Artístico](tab-text-art) e [Página Modelo](tab-master-page)

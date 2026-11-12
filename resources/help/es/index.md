@@ -6,21 +6,22 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 ## Primeros pasos
 
 - [Bienvenido a JeffPub](start)
-- [Cómo moverse por la ventana](window)
+- [Orientarse en la ventana](window)
 - [Crear una publicación nueva](create)
 - [Abrir y guardar publicaciones](open-save)
 - [Trabajar con archivos .pub](pub-files)
-- [Recuperar trabajo no guardado](recover)
+- [Recuperar trabajo sin guardar](recover)
 
 ## Texto
 
 - [Agregar y dar formato a cuadros de texto](text-boxes)
-- [Pasar texto entre cuadros de texto](linked-text)
+- [Hacer fluir el texto entre cuadros de texto](linked-text)
 - [Dar formato al texto](formatting-text)
 - [Viñetas, numeración y tabulaciones](lists-tabs)
 - [Usar estilos](styles)
 - [Agregar texto artístico](text-art)
-- [Crear y editar tablas](tables)
+- [Agregar una ecuación](equations)
+- [Crear y modificar tablas](tables)
 - [Contenido, notas al pie y notas al final](references)
 - [Ortografía, sinónimos, investigación y división de palabras](proofing)
 - [Buscar y reemplazar texto](find-replace)
@@ -30,8 +31,9 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Agregar y ajustar imágenes](pictures)
 - [Administrador de gráficos](graphics-manager)
 - [Dibujar formas y líneas](shapes)
+- [Agregar gráficos](charts)
 - [Iconos, códigos de barras y otros objetos](insert-objects)
-- [Mover, alinear, agrupar y superponer objetos](arrange)
+- [Mover, alinear, agrupar y organizar en capas los objetos](arrange)
 - [Ajustar el texto alrededor de los objetos](wrap)
 
 ## Páginas
@@ -58,6 +60,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Usar JeffPub con el teclado](keyboard)
 - [Lectores de pantalla, alto contraste y texto alternativo](accessibility)
 - [Comprobar el diseño](design-checker)
+- [Comentarios](comments)
 - [Cambiar la configuración de JeffPub](options)
 - [Elegir un idioma](language)
 - [Obtener ayuda e informar de problemas](support)

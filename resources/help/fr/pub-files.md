@@ -1,38 +1,39 @@
-# Utiliser des fichiers .pub
-<!-- keywords: pub, .pub, fichier pub, ouvrir pub, enregistrer pub, convertir, conversion, compatibilité, importer, importation, anciennes compositions, autres programmes, jpub, format, polices manquantes, sauvegarde de l'original, copie de sauvegarde, format de fichier -->
+# Travailler avec les fichiers .pub
 
-Un fichier .pub est une composition créée avec d'autres programmes de PAO. JeffPub ouvre les fichiers .pub créés depuis 1998. Il peut aussi enregistrer votre travail au format .pub. Le format propre à JeffPub est .jpub.
+<!-- keywords: pub, .pub, fichier pub, ouvrir pub, enregistrer pub, convertir, compatibilité, importer, anciennes compositions, autres logiciels, jpub, format, polices manquantes, sauvegarde de l'original, format de fichier -->
+
+Un fichier .pub est une composition créée avec d'autres logiciels de PAO. JeffPub ouvre les fichiers .pub créés depuis 1998. Il peut aussi enregistrer votre travail au format .pub. Le format propre à JeffPub est .jpub.
 
 ## Ouvrir un fichier .pub
 
-1. Appuyez sur Ctrl+O ou cliquez sur **Fichier > Ouvrir**.
-2. Cliquez sur **Parcourir**, sélectionnez le fichier .pub, puis cliquez sur **Ouvrir**.
+1. Appuyez sur Ctrl+O, ou cliquez sur **Fichier > Ouvrir**.
+2. Cliquez sur **Parcourir**, choisissez le fichier .pub, puis cliquez sur **Ouvrir**.
 
-Vous pouvez aussi faire glisser le fichier sur la page. Le texte, les images, les formes et les tableaux sont repris, ainsi que les zones de texte liées. La plupart des pages ressemblent beaucoup à l'original, mais tous les détails ne correspondent pas encore. Certaines zones de texte peuvent se terminer un ou deux mots plus tôt ou plus tard qu'auparavant.
+Vous pouvez aussi glisser le fichier sur la page. Le texte, les images, les formes et les tableaux sont importés, ainsi que les zones de texte liées. La plupart des pages ressemblent beaucoup à l'original, mais certains détails ne correspondent pas encore. Quelques zones de texte peuvent couper un mot un peu plus tôt ou plus tard qu'auparavant.
 
-Si une police du fichier n'est pas installée sur votre ordinateur, JeffPub la remplace par une police libre similaire. Les polices stockées dans le fichier .pub ne sont pas reprises. Si JeffPub a une information à vous communiquer après l'ouverture, un message s'affiche dans la barre d'état, en bas de la fenêtre.
+Si une police du fichier n'est pas installée sur votre ordinateur, JeffPub utilise à la place une police libre et semblable. Les polices incorporées dans le fichier .pub ne sont pas importées. Si JeffPub doit vous signaler quelque chose après l'ouverture, une note apparaît dans la barre d'état, en bas de la fenêtre.
 
-Si le fichier ne s'ouvre pas, JeffPub vous indique qu'il est peut-être endommagé ou qu'il utilise des fonctionnalités que le programme ne sait pas encore lire.
+Si le fichier ne s'ouvre pas, JeffPub indique qu'il est peut-être endommagé ou qu'il utilise des fonctions qu'il ne peut pas encore lire.
 
 ## Vérifier le résultat
 
-L'ouverture est une conversion : examinez donc chaque page. Vérifiez les sauts de ligne, les polices et les images. Utilisez le [vérificateur de conception](design-checker) pour repérer le texte qui ne tient pas dans sa zone.
+L'ouverture est une conversion : contrôlez donc chaque page. Vérifiez les retours à la ligne, les polices et les images. Utilisez le [Vérificateur de conception](design-checker) pour repérer les textes qui ne tiennent pas dans leur cadre.
 
 ## Enregistrer au format .pub
 
 - Cliquez sur **Fichier > Exporter**, puis sur **Enregistrer en tant que fichier .pub**.
-- Ou cliquez sur **Fichier > Enregistrer sous**, puis choisissez **Fichiers de composition .pub (*.pub)** dans **Type**.
+- Ou cliquez sur **Fichier > Enregistrer sous**, puis choisissez **Fichiers de composition .pub (*.pub)** pour **Type**.
 
-Lorsque JeffPub enregistre un fichier .pub, il peut écrire les pages, les zones de texte et les zones de texte liées, la mise en forme du texte, les formes, les traits, les images, les tableaux, les remplissages, les ombres, le texte artistique, les styles, les livrets, les cartes pliées, les enveloppes, les numéros de page et les liens. Si un élément n'a pas d'équivalent au format .pub, JeffPub vous indique combien d'objets ont été omis. Ces objets restent dans votre composition et sont conservés si vous l'enregistrez au format .jpub.
+Lorsque JeffPub enregistre un fichier .pub, il peut conserver les pages, les zones de texte et les zones de texte liées, la mise en forme du texte, les formes, les traits, les images, les tableaux, les remplissages, les ombres, le texte artistique, les styles, les livrets, les cartes pliées, les enveloppes, les numéros de page et les liens. Si un élément n'a pas d'équivalent au format .pub, JeffPub vous indique combien d'objets il a omis. Ces objets restent dans votre composition et sont conservés lorsque vous l'enregistrez au format .jpub. Les commentaires non plus n'ont pas d'équivalent au format .pub : JeffPub vous signale qu'il les a omis, et ils ne sont conservés que dans les fichiers .jpub. La rubrique Commentaires de cette Aide donne plus de détails.
 
 ## Protéger l'original
 
-Lorsque vous ouvrez un fichier .pub et appuyez sur Ctrl+S, JeffPub enregistre les modifications dans ce même fichier .pub. Pour préserver l'original :
+Lorsque vous ouvrez un fichier .pub et appuyez sur Ctrl+S, JeffPub enregistre les modifications dans ce même fichier .pub. Pour conserver l'original en lieu sûr :
 
-- Activez **Toujours créer une copie de sauvegarde** dans **Fichier > Options**, sous l'onglet **Enregistrement**. JeffPub conserve alors l'ancien fichier sous le nom « Sauvegarde de » suivi de son nom.
-- Ou commencez par **Fichier > Enregistrer sous** et enregistrez un fichier .jpub. Un fichier .jpub conserve tous les éléments.
+- Activez **Toujours créer une copie de sauvegarde** dans **Fichier > Options**, sous l'onglet **Enregistrer**. JeffPub conserve alors l'ancien fichier sous le nom « Sauvegarde de » suivi de son nom d'origine.
+- Ou commencez par **Fichier > Enregistrer sous** et enregistrez un fichier .jpub. Un fichier .jpub conserve tout.
 
-Gardez vos fichiers d'origine jusqu'à ce que vous soyez sûr que les nouveaux sont corrects.
+Gardez vos fichiers d'origine jusqu'à ce que vous soyez certain que les nouveaux sont corrects.
 
 ## Voir aussi
 

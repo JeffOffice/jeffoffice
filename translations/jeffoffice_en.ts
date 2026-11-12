@@ -4,7 +4,7 @@
 <context>
     <name>Canvas</name>
     <message numerus="yes">
-        <location filename="../libs/page/canvas/canvasaccessible.cpp" line="+96"/>
+        <location filename="../libs/page/canvas/canvasaccessible.cpp" line="+100"/>
         <source>Group of %n object(s)</source>
         <translation>
             <numerusform>Group of %n object</numerusform>
@@ -15,7 +15,7 @@
 <context>
     <name>Dialogs</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/dialogs.cpp" line="+1878"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+1858"/>
         <source>Added %n page(s) for the rest of the text.</source>
         <translation>
             <numerusform>Added %n page for the rest of the text.</numerusform>
@@ -26,7 +26,7 @@
 <context>
     <name>Export</name>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2343"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2377"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation>
             <numerusform>%n object couldn&apos;t be saved to .pub</numerusform>
@@ -34,7 +34,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1"/>
+        <location line="+3"/>
         <source>%n table cell(s) couldn&apos;t be saved to .pub</source>
         <translation>
             <numerusform>%n table cell couldn&apos;t be saved to .pub</numerusform>
@@ -61,7 +61,7 @@
 <context>
     <name>Import</name>
     <message numerus="yes">
-        <location filename="../apps/pub/io/importers.cpp" line="+511"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+513"/>
         <source>Created %n email file(s) in %1.</source>
         <translation>
             <numerusform>Created %n email file in %1.</numerusform>
@@ -72,7 +72,7 @@
 <context>
     <name>PptxFonts</name>
     <message numerus="yes">
-        <location filename="../apps/deck/io/pptxfonts.cpp" line="+335"/>
+        <location filename="../apps/deck/io/pptxfonts.cpp" line="+336"/>
         <source>%n embedded font(s) in the file can&apos;t be used.</source>
         <translation>
             <numerusform>%n embedded font in the file can&apos;t be used.</numerusform>
@@ -83,7 +83,7 @@
 <context>
     <name>Sharing</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/sharing.cpp" line="+194"/>
+        <location filename="../apps/pub/app/sharing.cpp" line="+190"/>
         <source>Saved %1 with the publication and %n font file(s).</source>
         <translation>
             <numerusform>Saved %1 with the publication and %n font file.</numerusform>
@@ -143,7 +143,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+235"/>
+        <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+470"/>
         <source>%n icon(s) inserted</source>
         <translation>
             <numerusform>%n icon inserted</numerusform>
@@ -212,7 +212,7 @@
 <context>
     <name>jp::DeckWindow</name>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+187"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+206"/>
         <source>%n page(s)</source>
         <translation>
             <numerusform>%n page</numerusform>
@@ -220,7 +220,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+232"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+243"/>
         <source>Saved %1, but %n object(s) can&apos;t be saved in this kind of file yet.</source>
         <translation>
             <numerusform>Saved %1, but %n object can&apos;t be saved in this kind of file yet.</numerusform>
@@ -275,7 +275,7 @@
 <context>
     <name>jp::MainWindow</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+1301"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+1493"/>
         <source>Saved %n drawing(s).</source>
         <translation>
             <numerusform>Saved %n drawing.</numerusform>
@@ -305,7 +305,7 @@
 <context>
     <name>jp::OnlinePicturesPane</name>
     <message numerus="yes">
-        <location filename="../libs/page/app/onlinepictures.cpp" line="+283"/>
+        <location filename="../libs/page/app/onlinepictures.cpp" line="+297"/>
         <source>%n picture(s) found. Choose one to see its license.</source>
         <translation>
             <numerusform>%n picture found. Choose it to see its license.</numerusform>
@@ -316,7 +316,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow.cpp" line="+712"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+720"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
@@ -324,7 +324,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+227"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+198"/>
         <source>There are too many paragraphs to sort at once. Select %n paragraph(s) or fewer.</source>
         <translation>
             <numerusform>There are too many paragraphs to sort at once. Select %n paragraph or fewer.</numerusform>
@@ -332,7 +332,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="-18"/>
+        <location filename="../libs/shell/app/translate.cpp" line="+161"/>
         <source>Only the first %n letter(s) of the text were sent to be translated.</source>
         <translation>
             <numerusform>Only the first %n letter of the text was sent to be translated.</numerusform>
@@ -340,7 +340,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+22"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+4"/>
         <source>%n paragraph(s) sorted.</source>
         <translation>
             <numerusform>%n paragraph sorted.</numerusform>
@@ -359,7 +359,7 @@
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1023"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1074"/>
         <source>Clearing %n cell(s)</source>
         <translation>
             <numerusform>Clearing %n cell</numerusform>
@@ -378,7 +378,7 @@
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+760"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+788"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation>
             <numerusform>The file stores this object together with %n other object, so they can&apos;t be deleted one at a time.</numerusform>
@@ -386,7 +386,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1326"/>
+        <location line="+1379"/>
         <source>The file stores this chart together with %n other(s), so it can&apos;t be changed here.</source>
         <translation>
             <numerusform>The file stores this chart together with %n other chart, so it can&apos;t be changed here.</numerusform>
@@ -394,7 +394,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="-231"/>
+        <location line="-233"/>
         <source>The file stores this object together with %n other(s), so it can&apos;t be put in another place in the order they are drawn.</source>
         <translation>
             <numerusform>The file stores this object together with %n other object, so it can&apos;t be put in another place in the order they are drawn.</numerusform>
@@ -405,7 +405,7 @@
 <context>
     <name>jp::office::sheet::Ods</name>
     <message numerus="yes">
-        <location filename="../libs/office/sheet/ods.cpp" line="+1791"/>
+        <location filename="../libs/office/sheet/ods.cpp" line="+1955"/>
         <source>%n sheet name(s), made valid for an .xlsx file</source>
         <translation>
             <numerusform>%n sheet name, made valid for an .xlsx file</numerusform>
@@ -467,7 +467,7 @@
 <context>
     <name>jp::office::wml</name>
     <message numerus="yes">
-        <location filename="../libs/office/wml/wmlread.cpp" line="+1555"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+1556"/>
         <source>%n part or link of the file had a name that could not be used, and was left out.</source>
         <translation>
             <numerusform>%n part or link of the file had a name that could not be used, and was left out.</numerusform>
@@ -486,7 +486,7 @@
 <context>
     <name>jp::write::HomeDialogs</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/homedialogs.cpp" line="+495"/>
+        <location filename="../apps/write/app/homedialogs.cpp" line="+528"/>
         <source>%n problem(s) found. Click one to go to it.</source>
         <translation>
             <numerusform>%n problem found. Click it to go to it.</numerusform>

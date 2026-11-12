@@ -1,17 +1,17 @@
 # Tabblad Beeld
-<!-- keywords: beeld, tabblad beeld, zoomen, inzoomen, uitzoomen, linialen, weergeven, verbergen, paginalijst, kladgebied, grenzen, hulplijnen, basislijnen, basispaginaweergave, spread van twee pagina's, nieuw venster, meting, positie, grootte -->
+<!-- keywords: volledig scherm, f11, beeld, weergave, tabblad beeld, zoomen, linialen, weergeven, verbergen, paginalijst, kladgebied, grenzen, hulplijnen, basislijnen, basispagina-weergave, spread van twee pagina's, nieuw venster, maatvoering, schermvullend, zoom, pagina's naast elkaar, lineaal -->
 
-Het tabblad **Beeld** staat altijd op het lint. Hiermee bepaalt u hoe de pagina er op het scherm uitziet, en kunt u zoomen, van weergave wisselen en meer vensters openen. De meeste van deze keuzes veranderen alleen wat u op het scherm ziet.
+Het tabblad **Beeld** staat altijd op het lint. Gebruik het om te wijzigen hoe de pagina op het scherm eruitziet, en om te zoomen, van weergave te wisselen en meer vensters te openen. De meeste keuzes veranderen alleen wat u op het scherm ziet.
 
-- Met **Weergaven** wisselt u tussen **Normaal**, waarin u aan de pagina's werkt, en **Basispagina**, waarin u de achtergrondpagina's bewerkt. Zie [Basispagina's, kop- en voetteksten en paginanummers](master-pages).
-- **Indeling** toont één pagina tegelijk met **Eén pagina**, of twee tegenover elkaar liggende pagina's naast elkaar met **Spread van twee pagina's**. Zie [Pagina's toevoegen, verplaatsen en verwijderen](pages).
-- Met **Weergeven** zet u aan of uit wat u ziet terwijl u werkt: **Grenzen** (stippellijnen rond objecten), **Hulplijnen**, **Velden**, **Linialen**, **Paginanavigatie** (de lijst met pagina's), **Kladgebied**, **Basislijnen**, **Afbeeldingenbeheer** en **Speciale tekens**. Zie [Linialen, hulplijnen en uitlijnen](guides) en [Uw weg vinden in het venster](window).
-- **Zoomen** bevat het vak **Zoomen** en de knoppen **100%**, **Hele pagina**, **Paginabreedte** en **Geselecteerde objecten**. Zie [Uw weg vinden in het venster](window).
-- **Venster** bevat **Nieuw venster**, **Alle vensters schikken**, **Trapsgewijs** en **Ander venster** om met meer dan één JeffPub-venster te werken. Zie [Uw weg vinden in het venster](window).
-- **Hulpmiddelen** bevat **Meting**, een klein venster waarin u de positie, grootte en draaiing van een object typt. Zie [Objecten verplaatsen, uitlijnen, groeperen en stapelen](arrange).
+- **Weergaven** schakelt tussen **Normale weergave**, waarin u aan pagina's werkt, en **Basispagina**, waarin u de achtergrondpagina's bewerkt. Zie [Basispagina's, koptekst en paginanummers](master-pages).
+- **Indeling** toont één pagina tegelijk met **Enkele pagina**, of twee tegenover elkaar liggende pagina's naast elkaar met **Spread van twee pagina's**. Zie [Pagina's toevoegen, verplaatsen en verwijderen](pages).
+- **Weergeven** schakelt de dingen in of uit die u tijdens het werken ziet: **Grenzen** (stippellijnen rond objecten), **Hulplijnen**, **Velden**, **Linialen**, **Paginanavigatie** (de lijst met pagina's), **Kladgebied**, **Basislijnen**, **Afbeeldingenbeheer** en **Speciale tekens**. **Volledig scherm** (F11) vult het hele scherm met het venster; druk op **F11** of **Esc** om terug te keren. **Esc** ruimt eerst op wat de pagina open heeft (een geselecteerd object of tekst die u typt), dus druk nog eens op **Esc** wanneer niets is geselecteerd. Zie [Linialen, hulplijnen en uitlijnen](guides) en [Weg vinden in het venster](window).
+- **Zoomen** heeft een vak **Zoomen** en de knoppen **100%**, **Hele pagina**, **Paginabreedte** en **Geselecteerde objecten**. Zie [Weg vinden in het venster](window).
+- **Venster** heeft **Nieuw venster**, **Alles schikken**, **Trapsgewijs** en **Ander venster** om met meer dan één JeffPub-venster te werken. Zie [Weg vinden in het venster](window).
+- **Hulpmiddelen** heeft **Meting**, een klein venster waarin u de positie, grootte en draaiing van een object typt. Zie [Objecten verplaatsen, uitlijnen, groeperen en lagen](arrange).
 
-## Verwante onderwerpen
+## Gerelateerd
 
-- [Uw weg vinden in het venster](window)
+- [Weg vinden in het venster](window)
 - [Linialen, hulplijnen en uitlijnen](guides)
 - [Pagina's toevoegen, verplaatsen en verwijderen](pages)

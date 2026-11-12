@@ -1,12 +1,12 @@
-# JeffDeck Ajuda
-<!-- keywords: conteúdo, ajuda, tópicos, início, índice -->
+# Ajuda do JeffDeck
+<!-- keywords: conteúdo, ajuda, tópicos, começar -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra, o painel em que está ou o objeto selecionado.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra, o painel em que está ou o objeto que tem selecionado.
 
 ## Primeiros passos
 
 - [Bem-vindo ao JeffDeck](start)
-- [Orientar-se na janela](window)
+- [Conhecer a janela](window)
 - [Abrir e guardar apresentações](open-save)
 - [Recuperar trabalho não guardado](recover)
 
@@ -17,10 +17,11 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Vista de destaques, Organização de Diapositivos e vista do Modelo Global de Diapositivos](views)
 - [Tamanho, fundo e rodapés do diapositivo](design)
 
-## Num diapositivo
+## No diapositivo
 
 - [Escrever e formatar texto](text)
 - [Formas, imagens, tabelas e Texto Artístico](objects)
+- [Gráficos](charts)
 - [O painel Formatar Forma e o separador Formato da Forma](format-shape)
 - [Notas do orador](notes)
 - [Comentários](comments)
@@ -48,4 +49,4 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 ## Separadores do friso
 
 - [Base](tab-home), [Inserir](tab-insert), [Estrutura](tab-design), [Transições](tab-transitions), [Animações](tab-animations), [Apresentação de Diapositivos](tab-slide-show), [Rever](tab-review) e [Ver](tab-view)
-- [Reprodução](tab-playback) é apresentado enquanto um filme ou um som estiver selecionado
+- [Reprodução](tab-playback) aparece enquanto um filme ou um som estiver selecionado

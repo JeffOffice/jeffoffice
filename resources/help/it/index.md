@@ -5,7 +5,7 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 ## Per iniziare
 
-- [Benvenuto in JeffPub](start)
+- [Benvenuti in JeffPub](start)
 - [Orientarsi nella finestra](window)
 - [Creare una nuova pubblicazione](create)
 - [Aprire e salvare le pubblicazioni](open-save)
@@ -17,12 +17,13 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 - [Aggiungere e formattare le caselle di testo](text-boxes)
 - [Far scorrere il testo tra le caselle di testo](linked-text)
 - [Formattare il testo](formatting-text)
-- [Elenchi puntati, numerati e tabulazioni](lists-tabs)
+- [Elenchi puntati, numerazione e tabulazioni](lists-tabs)
 - [Usare gli stili](styles)
 - [Aggiungere testo artistico](text-art)
+- [Aggiungere un'equazione](equations)
 - [Creare e modificare le tabelle](tables)
 - [Sommario, note a piè di pagina e note di chiusura](references)
-- [Controllo ortografia, thesaurus, ricerche e sillabazione](proofing)
+- [Controllo ortografia, thesaurus, ricerca e sillabazione](proofing)
 - [Trovare e sostituire il testo](find-replace)
 
 ## Immagini e oggetti
@@ -30,8 +31,9 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 - [Aggiungere e regolare le immagini](pictures)
 - [Gestione grafica](graphics-manager)
 - [Disegnare forme e linee](shapes)
+- [Aggiungere grafici](charts)
 - [Icone, codici a barre e altri oggetti](insert-objects)
-- [Spostare, allineare, raggruppare e disporre su livelli gli oggetti](arrange)
+- [Spostare, allineare, raggruppare e disporre gli oggetti su livelli](arrange)
 - [Disporre il testo intorno agli oggetti](wrap)
 
 ## Pagine
@@ -43,7 +45,7 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 - [Aggiungere, spostare ed eliminare pagine](pages)
 - [Righelli, guide e aggancio](guides)
 
-## Stampe unite
+## Stampe unione
 
 - [Stampa unione e unione catalogo](mail-merge)
 
@@ -51,18 +53,19 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 - [Stampare una pubblicazione](printing)
 - [File PDF e tipografie](pdf)
-- [Salvare come immagine, pagina web o e-book](export)
+- [Salvare come immagine, pagina Web o e-book](export)
 
 ## Guida e impostazioni
 
-- [Usare JeffPub da tastiera](keyboard)
+- [Usare JeffPub con la tastiera](keyboard)
 - [Lettori di schermo, contrasto elevato e testo alternativo](accessibility)
 - [Verificare la struttura](design-checker)
+- [Commenti](comments)
 - [Modificare le impostazioni di JeffPub](options)
 - [Scegliere una lingua](language)
 - [Ottenere assistenza e segnalare problemi](support)
 
-## Schede della barra multifunzione
+## Le schede della barra multifunzione
 
 - [File](tab-file), [Home](tab-home), [Inserisci](tab-insert), [Progettazione pagina](tab-page-design), [Lettere](tab-mailings), [Revisione](tab-review), [Visualizza](tab-view) e [Guida](tab-help)
 - Schede che compaiono quando selezioni qualcosa: [Casella di testo](tab-text-box), [Formato forma](tab-shape-format), [Formato immagine](tab-picture-format), [Struttura tabella e Layout tabella](tab-table), [Formato testo artistico](tab-text-art) e [Pagina master](tab-master-page)

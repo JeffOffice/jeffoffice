@@ -34,6 +34,14 @@ Le **texte de remplacement** est une courte description d'une image ou d'un autr
 
 Décrivez ce que montre l'image en quelques mots, par exemple « Deux enfants plantant un arbre ». Les icônes et les codes-barres que vous insérez reçoivent automatiquement un texte de remplacement.
 
+## Vérifier la page
+
+Cliquez sur **Révision > Vérifier l'accessibilité** pour lister ce qui peut être difficile à utiliser pour certaines personnes. En plus des images et des formes sans texte de remplacement, le vérificateur trouve trois autres choses.
+
+- **Du texte difficile à lire.** Le texte doit avoir assez de *contraste* avec ce qui se trouve derrière lui : le remplissage de son cadre, ou la couleur de la page si le cadre n'en a pas. Le vérificateur calcule le contraste sous forme de rapport. Un rapport de 4,5 pour 1 suffit pour le texte ordinaire, et 3 pour 1 pour le grand texte (18 points ou plus, ou 14 points ou plus en gras). Par exemple, le gris #777777 sur du blanc donne 4,48 pour 1, un peu trop peu, et #767676 donne 4,54 pour 1. Choisissez une couleur de texte plus foncée ou un fond plus clair. Quand le texte se trouve sur une image, le vérificateur ne peut pas juger : il ajoute alors un conseil pour vérifier le contraste à l'œil.
+- **Des objets lus dans un autre ordre.** Un lecteur d'écran et un PDF balisé lisent les objets d'une page de l'arrière vers l'avant de la pile. Si cet ordre n'est pas de haut en bas, puis de gauche à droite, le vérificateur liste en conseils les objets qui ne sont pas à leur place. Cliquez sur **Ordre de lecture** pour voir les objets dans l'ordre où ils sont lus. Sélectionnez-en un et cliquez sur **Lire plus tôt** ou **Lire plus tard**, ou faites-le glisser. Chaque déplacement est une étape d'Annuler, et il change aussi l'objet qui est devant.
+- **Un tableau sans ligne d'en-tête.** Un lecteur d'écran se sert de la première ligne d'un tableau pour nommer ses colonnes. Un tableau dont la première ligne n'est pas marquée comme ligne d'en-tête est signalé par un avertissement. Cliquez sur le problème, puis sur **Utiliser la première ligne comme en-tête** pour activer la ligne d'en-tête. C'est une étape d'Annuler.
+
 ## Agrandir la page
 
 Effectuez un zoom avant pour lire les petits textes. Utilisez les commandes de **Zoom** de la barre d'état, maintenez la touche Ctrl enfoncée en tournant la molette de la souris, ou choisissez une taille dans la zone **Zoom** de l'onglet **Affichage**. Le curseur de zoom va d'environ 10 % à 1 600 %.

@@ -1,13 +1,13 @@
-# JeffPub Ajuda
-<!-- keywords: conteúdo, ajuda, tópicos, início -->
+# Ajuda do JeffPub
+<!-- keywords: conteúdo, ajuda, tópicos, começar -->
 
 Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, a caixa de diálogo aberta ou o objeto selecionado.
 
 ## Primeiros passos
 
-- [Boas-vindas ao JeffPub](start)
+- [Bem-vindo ao JeffPub](start)
 - [Conheça a janela](window)
-- [Iniciar uma nova publicação](create)
+- [Criar uma nova publicação](create)
 - [Abrir e salvar publicações](open-save)
 - [Trabalhar com arquivos .pub](pub-files)
 - [Recuperar trabalho não salvo](recover)
@@ -20,6 +20,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Marcadores, numeração e tabulações](lists-tabs)
 - [Usar estilos](styles)
 - [Adicionar Texto Artístico](text-art)
+- [Adicionar uma equação](equations)
 - [Criar e editar tabelas](tables)
 - [Sumário, notas de rodapé e notas de fim](references)
 - [Ortografia, dicionário de sinônimos, pesquisa e hifenização](proofing)
@@ -30,6 +31,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Adicionar e ajustar imagens](pictures)
 - [Gerenciador de Elementos Gráficos](graphics-manager)
 - [Desenhar formas e linhas](shapes)
+- [Adicionar gráficos](charts)
 - [Ícones, códigos de barras e outros objetos](insert-objects)
 - [Mover, alinhar, agrupar e organizar objetos em camadas](arrange)
 - [Quebrar texto ao redor de objetos](wrap)
@@ -47,7 +49,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 - [Mala direta e mesclagem de catálogo](mail-merge)
 
-## Imprimir e compartilhar
+## Impressão e compartilhamento
 
 - [Imprimir uma publicação](printing)
 - [Arquivos PDF e gráficas](pdf)
@@ -58,6 +60,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Usar o JeffPub com o teclado](keyboard)
 - [Leitores de tela, alto contraste e texto alternativo](accessibility)
 - [Verificar seu design](design-checker)
+- [Comentários](comments)
 - [Alterar as configurações do JeffPub](options)
 - [Escolher um idioma](language)
 - [Obter ajuda e relatar problemas](support)

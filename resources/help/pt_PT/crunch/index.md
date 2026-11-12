@@ -1,7 +1,7 @@
-# JeffCrunch Ajuda
-<!-- keywords: conteúdo, ajuda, tópicos, início -->
+# Ajuda do JeffCrunch
+<!-- keywords: conteúdo, ajuda, tópicos, início, índice -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** a qualquer momento para obter ajuda sobre o que está a fazer: o separador do friso em que está ou a página do Ficheiro em que se encontra.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do ecrã Ficheiro em que está.
 
 ## Primeiros passos
 
@@ -9,7 +9,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Abrir e guardar livros](open-save)
 - [Informações: propriedades, palavras-passe e Inspecionar](info)
 - [Abrir livros protegidos por palavra-passe](open-password)
-- [Escrever em células](edit-cells)
+- [Escrever nas células](edit-cells)
 - [Regras para o conteúdo de uma célula](rules)
 
 ## Ver um livro
@@ -38,6 +38,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Inserir uma função](insert-function)
 - [Introduzir uma função com a caixa de diálogo Argumentos de Função](function-arguments)
 - [Gráficos, imagens e formas](charts)
+- [Equações](equations)
 - [Notas e ligações](notes-links)
 - [Proteger uma folha ou o livro](protect)
 

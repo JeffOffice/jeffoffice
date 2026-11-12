@@ -1,18 +1,18 @@
-# Registerkarte „Einfügen“
-<!-- keywords: Registerkarte Einfügen, Menüband, neue Folie, Tabelle, Bilder, Grafiken, Fotos, Onlinebilder, dieses Gerät, Formen, Illustrationen, Symbole, Icons, Textfeld, Textkunst, Kopf- und Fußzeile, Datum und Uhrzeit, Link, Hyperlink, Verknüpfung, Sonderzeichen, Medien, Video, Audio, Film, Sound, Ton -->
+# Registerkarte Einfügen
+<!-- keywords: Einfügen, Registerkarte, Menüband, neue Folie, Tabelle, Bilder, Onlinebilder, dieses Gerät, Formen, Illustrationen, Symbole, Barcode, QR-Code, Textfeld, Textkunst, Kopf- und Fußzeile, Datum und Uhrzeit, Link, Hyperlink, Symbol, Medien, Video, Audio, Film, Ton -->
 
-Mit der Registerkarte **Einfügen** fügen Sie Ihrer Präsentation Inhalte hinzu.
+Die Registerkarte **Einfügen** fügt Inhalte in Ihre Präsentation ein.
 
 - **Folien** enthält **Neue Folie**. Siehe [Folien hinzufügen, ändern und löschen](slides).
-- **Tabellen** enthält **Tabelle**, womit ein Raster zum Auswählen der Zeilen und Spalten geöffnet wird, und **Tabelle einfügen…**. Siehe [Formen, Bilder, Tabellen und Textkunst](objects).
-- **Bilder** enthält **Bilder**. Klicken Sie auf die Schaltfläche selbst, um Bilddateien von Ihrem Computer hinzuzufügen. Klicken Sie auf den zugehörigen Pfeil, um **Dieses Gerät…** (dasselbe) oder **Onlinebilder…** zu wählen. Damit finden Sie kostenlose Bilder im Web. Siehe [Formen, Bilder, Tabellen und Textkunst](objects).
-- **Illustrationen** enthält **Formen**, einen Katalog mit Linien, Pfeilen und Formen zum Zeichnen, und **Symbole**, eine Sammlung einfacher Bilder, die Sie durchsuchen und hinzufügen können. Siehe [Formen, Bilder, Tabellen und Textkunst](objects).
-- **Text** enthält **Textfeld**, **Kopf- und Fußzeile**, **Textkunst**, einen Katalog mit Formatvorlagen für dekorative Schriftzüge, und **Datum und Uhrzeit**. Textkunst wird im Thema „Formen, Bilder, Tabellen und Textkunst“ beschrieben, das unten unter „Verwandte Themen“ aufgeführt ist. Siehe [Text eingeben und formatieren](text) und [Foliengröße, Hintergrund und Fußzeilen](design).
-- **Links** enthält **Link** (Strg+K). Damit verknüpfen Sie Text oder ein Objekt mit einer Webseite, einer Stelle in der Präsentation oder einer E-Mail-Adresse. Siehe [Text eingeben und formatieren](text).
-- **Sonderzeichen** enthält **Sonderzeichen** für Zeichen, die nicht auf der Tastatur vorhanden sind. Siehe [Text eingeben und formatieren](text).
-- **Medien** enthält **Video** und **Audio**. Beide öffnen ein Menü mit **Video auf diesem Gerät…** bzw. **Audio auf diesem Gerät…**, womit Sie einen Film oder einen Sound aus einer Datei auf der Folie platzieren. Wenn eines davon markiert ist, legen Sie auf der Registerkarte **Wiedergabe** fest, wie es wiedergegeben wird.
+- **Tabellen** enthält **Tabelle**, das ein Raster öffnet, in dem Sie die Zeilen und Spalten auswählen, sowie **Tabelle einfügen…**. Siehe [Formen, Bilder, Tabellen und Textkunst](objects).
+- **Bilder** enthält **Bild**. Klicken Sie auf die Schaltfläche selbst, um Bilddateien von Ihrem Computer hinzuzufügen. Klicken Sie auf den Pfeil, um **Bild auf diesem Gerät…** (dasselbe) oder **Onlinebilder…** auszuwählen, mit dem Sie kostenlose Bilder im Web finden. Siehe [Formen, Bilder, Tabellen und Textkunst](objects).
+- **Illustrationen** enthält **Formen**, eine Galerie mit Linien, Pfeilen und Formen zum Zeichnen, **Symbole**, eine Sammlung einfacher Bilder, die Sie suchen und einfügen können, sowie **Barcode**, mit dem Sie einen QR-Code oder eine andere Art von Barcode erstellen. Siehe [Formen, Bilder, Tabellen und Textkunst](objects).
+- **Text** enthält **Textfeld**, **Kopf- und Fußzeile**, **Textkunst**, eine Galerie mit Formatvorlagen für besondere Wörter, und **Datum und Uhrzeit**. Die Textkunst wird im Thema Formen, Bilder, Tabellen und Textkunst beschrieben, das unten unter Siehe auch aufgeführt ist. Siehe [Text eingeben und formatieren](text) und [Foliengröße, Hintergrund und Fußzeilen](design).
+- **Links** enthält **Link** (Strg+K), mit dem Sie Text oder ein Objekt mit einer Webseite, einer Stelle in der Präsentation oder einer E-Mail-Adresse verknüpfen. Siehe [Text eingeben und formatieren](text).
+- **Symbole** enthält **Symbol** für Zeichen, die nicht auf der Tastatur stehen. Siehe [Text eingeben und formatieren](text).
+- **Medien** enthält **Video** und **Audio**. Beide öffnen ein Menü mit **Video auf diesem Gerät…** bzw. **Audio auf diesem Gerät…**, mit dem ein Film oder ein Ton aus einer Datei auf die Folie gesetzt wird. Sobald er ausgewählt ist, legt die Registerkarte **Wiedergabe** fest, wie er abgespielt wird.
 
-## Verwandte Themen
+## Siehe auch
 
 - [Formen, Bilder, Tabellen und Textkunst](objects)
 - [Text eingeben und formatieren](text)

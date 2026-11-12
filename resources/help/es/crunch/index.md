@@ -1,22 +1,22 @@
 # Ayuda de JeffCrunch
-<!-- keywords: contenido, ayuda, temas, inicio, índice -->
+<!-- keywords: contenido, ayuda, temas, inicio -->
 
-Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Presione **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
 
 ## Primeros pasos
 
 - [Bienvenido a JeffCrunch](start)
 - [Abrir y guardar libros](open-save)
-- [Información: propiedades, contraseñas e Inspeccionar libro](info)
+- [Información: propiedades, contraseñas e Inspeccionar](info)
 - [Abrir libros protegidos con contraseña](open-password)
 - [Escribir en las celdas](edit-cells)
-- [Reglas para el contenido de una celda](rules)
+- [Reglas para lo que puede contener una celda](rules)
 
 ## Ver un libro
 
-- [Seleccionar celdas y moverse](select-and-move)
+- [Seleccionar celdas y desplazarse](select-and-move)
 - [Cambiar la vista](view)
-- [Cómo se muestran y calculan las fórmulas](formulas)
+- [Cómo se muestran y se calculan las fórmulas](formulas)
 - [Nombres para celdas y valores](names)
 - [Formatos condicionales](conditional-formats)
 
@@ -38,6 +38,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Insertar una función](insert-function)
 - [Escribir una función con el cuadro de diálogo Argumentos de función](function-arguments)
 - [Gráficos, imágenes y formas](charts)
+- [Ecuaciones](equations)
 - [Notas y vínculos](notes-links)
 - [Proteger una hoja o el libro](protect)
 
