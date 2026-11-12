@@ -88,7 +88,7 @@
       },
       {
        "status": "partly",
-       "text": "47ceb61ea5f657fdcba1198aef292b0828940c1300a5ff288e249ae2878170aa"
+       "text": "d6d934022e80f3b2b99f469782839803922f422fb5b40e5210f07bd980fde054"
       }
      ]
     },
@@ -5479,7 +5479,7 @@
       },
       {
        "status": "partly",
-       "text": "db9c9da5b951ebd5a4f6cdfc5e99863a4bf4e42d2e90bb1f58d97b4bf614c2b1"
+       "text": "f030a39278c1570e515ae52894ad44994cc1841c8f662483f5fbb275702367f7"
       },
       {
        "status": "partly",
@@ -12624,18 +12624,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "47ceb61ea5f657fdcba1198aef292b0828940c1300a5ff288e249ae2878170aa": {
-   "drop": false,
-   "en": "Add one barcode to a sheet with `Insert > Illustrations > Barcode`: EAN, UPC, Code 128, Code 39, and QR codes, drawn as vector bars. It is a picture that moves, sizes, and undoes like any picture, and choosing Barcode again with it selected edits its data. It is saved in `.xlsx` files and reopens as the same barcode.",
-   "es": "Agregue un código de barras a una hoja con `Insert > Illustrations > Barcode`: EAN, UPC, Code 128, Code 39 y códigos QR, dibujados como barras vectoriales. Es una imagen que se mueve, se redimensiona y se deshace como cualquier imagen, y al elegir Barcode de nuevo con ella seleccionada se editan sus datos. Se guarda en archivos `.xlsx` y se vuelve a abrir como el mismo código de barras.",
-   "fr": "Ajoutez un code-barres à une feuille avec `Insert > Illustrations > Barcode` : EAN, UPC, Code 128, Code 39 et codes QR, dessinés en barres vectorielles. C’est une image que l’on déplace, redimensionne et annule comme n’importe quelle image, et choisir de nouveau Barcode avec elle sélectionnée modifie ses données. Il est enregistré dans les fichiers `.xlsx` et se rouvre comme le même code-barres.",
-   "soon": {
-    "drop": false,
-    "en": "Barcodes for a whole column of codes at once",
-    "es": "Códigos de barras para una columna completa de códigos a la vez",
-    "fr": "Codes-barres pour toute une colonne de codes à la fois"
    }
   },
   "47e4fa93bdc466ef3104a6d3a1a89bd8cb3dd0c0b1ee43933e23eaef6f704cbb": {
@@ -22706,6 +22694,18 @@
     "fr": "Insérer, modifier et supprimer des liens hypertexte"
    }
   },
+  "d6d934022e80f3b2b99f469782839803922f422fb5b40e5210f07bd980fde054": {
+   "drop": false,
+   "en": "Insert a barcode on a sheet as a picture that moves, sizes, and undoes like any picture: EAN, UPC, Code 128, Code 39, and QR, drawn as vector bars. Select it and choose Barcode again to edit its data. Make a barcode for each filled selected cell from the cell’s text, in a column to the right, up to 500 at once. Barcodes are saved in `.xlsx` files.",
+   "es": "Inserte un código de barras en una hoja como una imagen que se mueve, cambia de tamaño y se deshace como cualquier imagen: EAN, UPC, Code 128, Code 39 y QR, dibujados como barras vectoriales. Selecciónelo y elija Código de barras de nuevo para editar sus datos. Cree un código de barras para cada celda seleccionada con contenido a partir del texto de la celda, en una columna a la derecha, hasta 500 a la vez. Los códigos de barras se guardan en archivos `.xlsx`.",
+   "fr": "Insérez un code-barres dans une feuille sous forme d’image que vous pouvez déplacer, redimensionner et annuler comme n’importe quelle image : EAN, UPC, Code 128, Code 39 et QR, dessinés en barres vectorielles. Sélectionnez-le et choisissez de nouveau Code-barres pour modifier ses données. Créez un code-barres pour chaque cellule sélectionnée non vide à partir du texte de la cellule, dans une colonne à droite, jusqu’à 500 à la fois. Les codes-barres sont enregistrés dans les fichiers `.xlsx`.",
+   "soon": {
+    "drop": false,
+    "en": "Barcodes that update when a cell changes, and barcodes kept in `.ods` files",
+    "es": "Códigos de barras que se actualizan cuando cambia una celda, y códigos de barras conservados en archivos `.ods`",
+    "fr": "Codes-barres qui se mettent à jour quand une cellule change, et codes-barres conservés dans les fichiers `.ods`"
+   }
+  },
   "d74eff852a078b352e0c03f813faddefefd4ba5626faf7779a380fee8e6c8347": {
    "drop": false,
    "en": "Tracked changes in a file are shown and kept: insertions, deletions, moves, and formatting changes. Changes in `.rtf` and `.odt` files are read and kept when you save as `.docx` or `.odt`.",
@@ -22968,18 +22968,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "db9c9da5b951ebd5a4f6cdfc5e99863a4bf4e42d2e90bb1f58d97b4bf614c2b1": {
-   "drop": false,
-   "en": "Insert a barcode in a document with `Insert > Barcode`: book ISBNs with a price add-on, EAN, UPC, Code 128, Code 39, and QR codes, drawn as vector bars. It is a floating picture that moves, sizes, wraps, and undoes like any picture, and a double click edits its data. It is saved in `.docx` and `.odt` files and reopens as the same barcode.",
-   "es": "Inserte un código de barras en un documento con `Insert > Barcode`: ISBN de libros con complemento de precio, EAN, UPC, Code 128, Code 39 y códigos QR, dibujados como barras vectoriales. Es una imagen flotante que se mueve, se redimensiona, se ajusta al texto y se deshace como cualquier imagen, y un doble clic edita sus datos. Se guarda en archivos `.docx` y `.odt` y se vuelve a abrir como el mismo código de barras.",
-   "fr": "Insérez un code-barres dans un document avec `Insert > Barcode` : ISBN de livres avec complément de prix, EAN, UPC, Code 128, Code 39 et codes QR, dessinés en barres vectorielles. C’est une image flottante que l’on déplace, redimensionne, habille de texte et annule comme n’importe quelle image, et un double-clic modifie ses données. Il est enregistré dans les fichiers `.docx` et `.odt` et se rouvre comme le même code-barres.",
-   "soon": {
-    "drop": false,
-    "en": "Barcodes from a mail-merge field on labels",
-    "es": "Códigos de barras desde un campo de combinación de correspondencia en etiquetas",
-    "fr": "Codes-barres à partir d’un champ de publipostage sur des étiquettes"
    }
   },
   "dbc394cfdc1fcc92783ead152d21a9aa0791d40f76af9ee229446fde3b81a8e6": {
@@ -24396,6 +24384,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "f030a39278c1570e515ae52894ad44994cc1841c8f662483f5fbb275702367f7": {
+   "drop": false,
+   "en": "Insert barcodes in a document as pictures that move, size, wrap, and undo like any picture: book ISBNs with a price add-on, EAN, UPC, Code 128, Code 39, and QR codes, drawn as vector bars. Double-click a barcode to edit its data. Insert a barcode from a merge field in a mail merge so each merged record gets a barcode of its own value, up to 2,000 barcodes per merge. Barcodes are saved in `.docx` and `.odt` files.",
+   "es": "Inserte códigos de barras en un documento como imágenes que se mueven, cambian de tamaño, se ajustan al texto y se deshacen como cualquier imagen: ISBN de libros con complemento de precio, EAN, UPC, Code 128, Code 39 y códigos QR, dibujados como barras vectoriales. Haga doble clic en un código de barras para editar sus datos. En una combinación de correspondencia, inserte un código de barras desde un campo de combinación para que cada registro combinado tenga un código con su propio valor, hasta 2.000 códigos por combinación. Los códigos de barras se guardan en archivos `.docx` y `.odt`.",
+   "fr": "Insérez des codes-barres dans un document sous forme d’images que vous pouvez déplacer, redimensionner, habiller de texte et annuler comme n’importe quelle image : ISBN de livres avec supplément de prix, EAN, UPC, Code 128, Code 39 et codes QR, dessinés en barres vectorielles. Double-cliquez sur un code-barres pour modifier ses données. Dans un publipostage, insérez un code-barres à partir d’un champ de fusion pour que chaque enregistrement fusionné ait un code-barres de sa propre valeur, jusqu’à 2 000 codes-barres par fusion. Les codes-barres sont enregistrés dans les fichiers `.docx` et `.odt`.",
+   "soon": {
+    "drop": false,
+    "en": "Barcodes drawn as bars in the editor for merge fields, and editing a merge field barcode’s type and look after insertion",
+    "es": "Códigos de barras dibujados como barras en el editor para los campos de combinación, y edición del tipo y el aspecto de un código de barras de campo tras insertarlo",
+    "fr": "Codes-barres dessinés en barres dans l’éditeur pour les champs de fusion, et modification du type et de l’aspect d’un code-barres de champ après son insertion"
    }
   },
   "f046a58ffc31f9fc7e620618016bcbfbd3e635843c3402d9e24c5e692425be79": {
