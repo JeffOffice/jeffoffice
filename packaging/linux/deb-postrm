@@ -1,0 +1,11 @@
+#!/bin/sh
+# On purge, takes away the repository entry the package added (not one written by hand), and its key
+# unless another entry still names it.
+set -e
+[ "$1" = purge ] || exit 0
+root=${DPKG_ROOT:-}
+f=$root/etc/apt/sources.list.d/jeffoffice.sources
+grep -qs '^# Added by the jeffoffice package' "$f" || exit 0
+rm -f "$f"
+grep -rqsF /etc/apt/keyrings/jeffoffice.gpg "$root/etc/apt/sources.list" "$root/etc/apt/sources.list.d" || rm -f "$root/etc/apt/keyrings/jeffoffice.gpg"
+exit 0

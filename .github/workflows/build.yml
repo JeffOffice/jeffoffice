@@ -652,6 +652,9 @@ jobs:
           chmod +x tools-bin/*
           export PATH="$PWD/tools-bin:$PATH" QMAKE="$QT_ROOT_DIR/bin/qmake" APPIMAGE_EXTRACT_AND_RUN=1
           packaging/linux/build-packages.sh build linux-packages
+          # The package adds the apt repository once, and takes away only what it added.
+          sh tools/test_deb_repo_scripts.sh
+          dpkg-deb -e linux-packages/*.deb deb-control && test -x deb-control/postinst && test -x deb-control/postrm
           # The packaged programs must start on their own bundled Qt.
           mkdir deb-check && dpkg-deb -x linux-packages/*.deb deb-check
           env -u LD_LIBRARY_PATH QT_QPA_PLATFORM=offscreen deb-check/opt/jeffoffice/bin/JeffPub --template flyer-announce --export-pdf deb-check/check.pdf

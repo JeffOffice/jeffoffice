@@ -1,0 +1,28 @@
+#!/bin/sh
+# The .deb adds JeffOffice's apt repository, so a package installed from a downloaded file gets later
+# versions with the system's updates. It writes the same two files the install guide does, and only when
+# the repository isn't there in any form (an entry twice, with two keys, would stop apt update). To keep it
+# from doing so, put "add_repository=false" in /etc/default/jeffoffice. DPKG_ROOT is where dpkg installs
+# (empty for the running system).
+set -e
+[ "$1" = configure ] || exit 0
+root=${DPKG_ROOT:-}
+url=https://jeffoffice.github.io/apt
+[ -d "$root/etc/apt" ] || exit 0
+if [ -f "$root/etc/default/jeffoffice" ] && grep -qE '^[[:space:]]*add_repository=false' "$root/etc/default/jeffoffice"; then exit 0; fi
+[ -e "$root/etc/apt/sources.list.d/jeffoffice.sources" ] && exit 0
+if grep -rqsF "$url" "$root/etc/apt/sources.list" "$root/etc/apt/sources.list.d"; then exit 0; fi
+install -d -m 0755 "$root/etc/apt/keyrings" "$root/etc/apt/sources.list.d"
+[ -e "$root/etc/apt/keyrings/jeffoffice.gpg" ] || install -m 0644 "$root/opt/jeffoffice/share/jeffoffice-apt.gpg" "$root/etc/apt/keyrings/jeffoffice.gpg"
+cat > "$root/etc/apt/sources.list.d/jeffoffice.sources" <<SOURCES
+# Added by the jeffoffice package. To stop it adding this again, put
+# add_repository=false in /etc/default/jeffoffice.
+Types: deb
+URIs: $url
+Suites: stable
+Components: main
+Architectures: amd64
+Signed-By: /etc/apt/keyrings/jeffoffice.gpg
+SOURCES
+chmod 0644 "$root/etc/apt/sources.list.d/jeffoffice.sources"
+exit 0

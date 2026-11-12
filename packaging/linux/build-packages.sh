@@ -134,6 +134,11 @@ ln -s /opt/jeffoffice/bin/JeffPub "$deb/usr/bin/jeffpub"
 ln -s /opt/jeffoffice/bin/JeffDeck "$deb/usr/bin/jeffdeck"
 [ "${SHIP_WRITE:-}" = true ] && ln -s /opt/jeffoffice/bin/JeffWrite "$deb/usr/bin/jeffwrite"
 [ "${SHIP_CRUNCH:-}" = true ] && ln -s /opt/jeffoffice/bin/JeffCrunch "$deb/usr/bin/jeffcrunch"
+# The apt repository's public key, and the scripts that add the repository on install (as the install guide
+# does, unless it's already there or refused in /etc/default/jeffoffice) and take it away on purge.
+install -m 0644 "$here/jeffoffice-apt.gpg" "$deb/opt/jeffoffice/share/jeffoffice-apt.gpg"
+install -m 0755 "$here/deb-postinst" "$deb/DEBIAN/postinst"
+install -m 0755 "$here/deb-postrm" "$deb/DEBIAN/postrm"
 size=$(du -sk "$deb" | cut -f1)
 # The suite's package replaces JeffPub's own (jeffpub, through 0.6.11), and
 # that one's before it (jeffpub79, through 0.5.0).
@@ -147,7 +152,7 @@ Section: editors
 Priority: optional
 Architecture: $arch
 Installed-Size: $size
-Depends: libc6 (>= 2.35), libstdc++6, libgl1, libegl1, libfontconfig1, libfreetype6, libdbus-1-3, libxkbcommon0, libxkbcommon-x11-0, libx11-6, libx11-xcb1, libxcb1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1, libglib2.0-0 | libglib2.0-0t64, libpulse0, libxext6, libxrandr2, libxrender1, libdrm2
+Depends: libc6 (>= 2.35), ca-certificates, libstdc++6, libgl1, libegl1, libfontconfig1, libfreetype6, libdbus-1-3, libxkbcommon0, libxkbcommon-x11-0, libx11-6, libx11-xcb1, libxcb1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1, libglib2.0-0 | libglib2.0-0t64, libpulse0, libxext6, libxrandr2, libxrender1, libdrm2
 Conflicts: jeffpub, jeffpub79
 Replaces: jeffpub, jeffpub79
 Provides: jeffpub, jeffpub79

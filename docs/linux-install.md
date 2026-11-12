@@ -52,7 +52,15 @@ sudo apt update
 
 ## A single .deb or an AppImage
 
-Each release page also has `jeffoffice_<version>_amd64.deb` (`sudo apt install ./jeffoffice_<version>_amd64.deb`) and one AppImage per app, for other distributions. These don't update through apt.
+Each release page also has `jeffoffice_<version>_amd64.deb` (`sudo apt install ./jeffoffice_<version>_amd64.deb`) and one AppImage per app, for other distributions.
+
+From version 0.26.0, installing the `.deb` adds our repository for you: it writes the same two files as the steps above, so later versions come with your system updates. It does this only when the repository isn't set up already, and a full removal (`sudo apt purge jeffoffice`) takes the two files away again; files you wrote yourself are left alone. To install the `.deb` without the repository, run this first:
+
+```sh
+echo add_repository=false | sudo tee /etc/default/jeffoffice
+```
+
+The AppImages don't update through apt.
 
 ## For the maintainers: publishing
 
