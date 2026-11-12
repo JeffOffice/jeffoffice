@@ -2,14 +2,17 @@
 
 #include <QCoreApplication>
 #include <QHash>
+#include <QMutex>
+#include <QMutexLocker>
 #include <QRegularExpression>
 #include <QSet>
 #include <algorithm>
+#include <atomic>
 
 namespace jp::deck {
 
-static int s_parses = 0;
-int captionParseCount() { return s_parses; }
+static std::atomic<int> s_parses{0};
+int captionParseCount() { return s_parses.load(); }
 
 namespace {
 
@@ -71,10 +74,17 @@ QString plainCueText(const QString &raw)
 // may use for other bytes, do not matter). A few files are kept, the latest.
 QVector<CaptionCue> cuesOfBytes(const QByteArray &bytes)
 {
+    // (Guarded: an export, a thumbnail, or the slide sorter may ask from another thread. At most 8 files are held, each of at most
+    // kMaxCaptionCues cues of at most kMaxCueChars characters, so what is held is bounded.)
+    static QMutex lock;
     static QHash<quint64, QVector<CaptionCue>> known;
     const quint64 key = (quint64(qHash(bytes, 0x5EEDu)) << 32 | quint64(qHash(bytes, 0xCAFEu))) ^ quint64(bytes.size());
-    if (const auto it = known.constFind(key); it != known.constEnd()) return *it;
+    {
+        const QMutexLocker locked(&lock);
+        if (const auto it = known.constFind(key); it != known.constEnd()) return *it;
+    }
     const CaptionFile f = parseWebVtt(bytes);
+    const QMutexLocker locked(&lock);
     if (known.size() >= 8) known.clear();
     known.insert(key, f.cues);
     return f.cues;

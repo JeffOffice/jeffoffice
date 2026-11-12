@@ -880,8 +880,9 @@ private Q_SLOTS:
         // In order: the movie, a picture, a layout, a part that is too large, a missing id, and a part named by 40 tracks.
         QString tracksXml;
         for (const QString &id : {videoId, imageId, layoutId, QStringLiteral("rIdBig"), QStringLiteral("rId9999")}) tracksXml += QStringLiteral("<jdc:track lang=\"bad\" r:id=\"%1\"/>").arg(id);
+        // A language that is no tag is "und"; a second track with one is the same language and is left out (both come before the limit is reached).
+        tracksXml += QStringLiteral("<jdc:track lang=\"\" r:id=\"rIdShared\"/><jdc:track lang=\"not a tag!\" r:id=\"rIdShared\"/>");
         for (int i = 0; i < kMaxMediaCaptions + 8; ++i) tracksXml += QStringLiteral("<jdc:track lang=\"l%1\" r:id=\"rIdShared\"/>").arg(i);
-        tracksXml += QStringLiteral("<jdc:track lang=\"not a tag!\" r:id=\"rIdShared\"/>");
         const qsizetype at = xml.indexOf(QStringLiteral("<jdc:captions"));
         QVERIFY2(at >= 0, qPrintable(xml));
         xml.insert(xml.indexOf(QLatin1Char('>'), at) + 1, tracksXml);
@@ -903,10 +904,13 @@ private Q_SLOTS:
             if (it->bytes == shared) ++sharedCopies;
         }
         QCOMPARE(sharedCopies, 1);   // a part that 32 tracks name is kept once
+        int und = 0;
         for (const PictureItem::Caption &c : read[0]->mediaCaptions) {
-            QVERIFY(c.language.startsWith(QLatin1Char('l')));
+            QVERIFY(c.language.startsWith(QLatin1Char('l')) || c.language == QLatin1String("und"));
+            und += c.language == QLatin1String("und");
             QCOMPARE(back->media.value(c.mediaId).bytes, shared);
         }
+        QCOMPARE(und, 1);
         // A language that is no tag is "und"; a second without one is the same language and is left out.
         QString onlyBad = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
         onlyBad.replace(QStringLiteral("lang=\"en\""), QStringLiteral("lang=\"not a tag!\""));
@@ -915,6 +919,97 @@ private Q_SLOTS:
         QVERIFY2(oddBack, qPrintable(err));
         QCOMPARE(int(deck::mediaPicturesOf(*oddBack->pages[0])[0]->mediaCaptions.size()), 1);
         QCOMPARE(deck::mediaPicturesOf(*oddBack->pages[0])[0]->mediaCaptions[0].language, QStringLiteral("und"));
+    }
+
+    // A part that many tracks name is inflated once, and one too large for a track is never inflated: what is read from the package is
+    // counted, so that caption parts can't spend what the file may inflate (and leave a picture later in the file out).
+    void captionPartsAreInflatedOnceAndOnlyWhenSmallEnough()
+    {
+        auto d = deck::newPresentation();
+        Page &slide = *d->pages[0];
+        auto video = deck::newMediaPicture(*d, slide, QByteArray(2000, 'v'), QStringLiteral("Clip.mp4"), QImage(64, 48, QImage::Format_RGB32), 9000);
+        slide.items.push_back(video);
+        QString err;
+        QStringList skipped;
+        QVERIFY(deck::addCaptions(*d, *video, vtt(QStringLiteral("00:00:01.000 --> 00:00:02.000\nHello\n")), QStringLiteral("en")).isEmpty());
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const qint64 sharedSize = 1 << 20;
+        const QByteArray shared = vtt(QStringLiteral("00:00:01.000 --> 00:00:02.000\nShared\n")) + QByteArray(int(sharedSize), 'x');
+        const QByteArray huge = QByteArray(int(kMaxCaptionBytes) + 1000, 'x');
+        QString xml = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QString rels = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/slides/_rels/slide1.xml.rels")));
+        QString types = QString::fromUtf8(e.zip.value(QStringLiteral("[Content_Types].xml")));
+        const QString subTitle = QStringLiteral("http://schemas.microsoft.com/office/2011/relationships/subTitle");
+        rels.replace(QStringLiteral("</Relationships>"), QStringLiteral("<Relationship Id=\"rIdBig\" Type=\"%1\" Target=\"../media/huge.vtt\"/><Relationship Id=\"rIdShared\" Type=\"%1\" Target=\"../media/shared.vtt\"/></Relationships>").arg(subTitle));
+        if (!types.contains(QStringLiteral("Extension=\"vtt\"")))
+            types.replace(QStringLiteral("</Types>"), QStringLiteral("<Default Extension=\"vtt\" ContentType=\"text/vtt\"/></Types>"));
+        QString tracksXml;
+        for (int i = 0; i < 10; ++i) tracksXml += QStringLiteral("<jdc:track lang=\"b%1\" r:id=\"rIdBig\"/>").arg(i);
+        for (int i = 0; i < 20; ++i) tracksXml += QStringLiteral("<jdc:track lang=\"s%1\" r:id=\"rIdShared\"/>").arg(i);
+        const qsizetype at = xml.indexOf(QStringLiteral("<jdc:captions"));
+        QVERIFY2(at >= 0, qPrintable(xml));
+        xml.insert(xml.indexOf(QLatin1Char('>'), at) + 1, tracksXml);
+        const QByteArray file = repacked(e, [&](QMap<QString, QByteArray> &zip) {
+            zip[QStringLiteral("ppt/slides/slide1.xml")] = xml.toUtf8();
+            zip[QStringLiteral("ppt/slides/_rels/slide1.xml.rels")] = rels.toUtf8();
+            zip[QStringLiteral("[Content_Types].xml")] = types.toUtf8();
+            zip[QStringLiteral("ppt/media/huge.vtt")] = huge;
+            zip[QStringLiteral("ppt/media/shared.vtt")] = shared;
+        });
+        office::Package pkg;
+        QVERIFY2(pkg.readLazy(file, &err), qPrintable(err));
+        QDomDocument dom;
+        QVERIFY(office::parseXml(pkg.part(QStringLiteral("/ppt/slides/slide1.xml")), &dom, &err));
+        QDomElement pic;
+        std::function<void(const QDomElement &)> find = [&](const QDomElement &el) {
+            for (QDomElement c = el.firstChildElement(); !c.isNull() && pic.isNull(); c = c.nextSiblingElement()) {
+                if (c.localName() == QLatin1String("pic")) pic = c;
+                else find(c);
+            }
+        };
+        find(dom.documentElement());
+        QVERIFY(!pic.isNull());
+        int kept = 0;
+        office::DrawingContext ctx;
+        ctx.package = &pkg;
+        ctx.part = QStringLiteral("/ppt/slides/slide1.xml");
+        ctx.addImage = [](const QByteArray &, const QString &) { return QStringLiteral("image1"); };
+        ctx.addMedia = [&](const QByteArray &, const QString &, const QString &) { return QStringLiteral("m%1").arg(++kept); };
+        const qint64 before = pkg.inflatedBytes();
+        const ItemPtr item = office::readShape(pic, ctx);
+        QVERIFY(item && item->type() == ItemType::Picture);
+        const qint64 spent = pkg.inflatedBytes() - before;
+        QCOMPARE(int(static_cast<const PictureItem &>(*item).mediaCaptions.size()), 21);   // the 20 of the shared part, and the one that was written
+        QVERIFY2(spent >= sharedSize, qPrintable(QString::number(spent)));                 // (the shared part was read)
+        QVERIFY2(spent < sharedSize * 3 / 2, qPrintable(QStringLiteral("inflated %1 bytes").arg(spent)));   // once, and the large one not at all
+    }
+
+    // The captions of a movie are not kept in a document presentation file, and the export says so once.
+    void odpExportSaysOnceThatCaptionsAreLeftOut()
+    {
+        auto d = deck::newPresentation();
+        Page &slide = *d->pages[0];
+        const QByteArray track = vtt(QStringLiteral("00:00:01.000 --> 00:00:02.000\nHello\n"));
+        auto plain = deck::newMediaPicture(*d, slide, QByteArray(900, 'p'), QStringLiteral("plain.mp4"), QImage(64, 48, QImage::Format_RGB32), 5000);
+        slide.items.push_back(plain);
+        QString err;
+        QStringList skipped;
+        QVERIFY2(!deck::exportOdp(*d, false, &err, &skipped).isEmpty(), qPrintable(err));
+        int said = 0;
+        for (const QString &s : std::as_const(skipped)) said += s.contains(QStringLiteral("captions"));
+        QCOMPARE(said, 0);
+        for (int v = 0; v < 2; ++v) {
+            auto video = deck::newMediaPicture(*d, slide, QByteArray(901 + v, 'a'), QStringLiteral("v%1.mp4").arg(v), QImage(64, 48, QImage::Format_RGB32), 5000);
+            QVERIFY(deck::addCaptions(*d, *video, track, QStringLiteral("en")).isEmpty());
+            slide.items.push_back(video);
+        }
+        skipped.clear();
+        QVERIFY2(!deck::exportOdp(*d, false, &err, &skipped).isEmpty(), qPrintable(err));
+        said = 0;
+        for (const QString &s : std::as_const(skipped)) said += s.contains(QStringLiteral("captions"));
+        QCOMPARE(said, 1);
     }
 
     // All the tracks of a file together are held to a limit too: parts of captions can't spend what the file may inflate.
