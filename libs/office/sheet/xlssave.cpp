@@ -729,9 +729,11 @@ private:
         std::map<quint64, int> regionOf;   // by row, then column, of every cell the regions cover
         qint64 regionCells = 0;
         for (const PlacedCell &pc : cells) {
-            if (!(pc.cell.flags & (ArrayFormula | DataTable))) continue;
+            if (!(pc.cell.flags & (ArrayFormula | DataTable | SpillFormula))) continue;
             Region r;
             r.range = sheet.formulaRange(pc.cell);
+            // (a formula that spills is an array formula over the block it filled, which the old form holds when it has the functions; a block of one cell is a formula like any other)
+            if ((pc.cell.flags & SpillFormula) && r.range.cellCount() <= 1) continue;
             r.table = pc.cell.flags & DataTable;
             if (!r.range.valid || r.range.row1 != pc.row || r.range.col1 != pc.col || r.range.row2 >= quint32(kXlsMaxRows) || r.range.col2 >= quint32(kXlsMaxCols)
                 || regionCells + r.range.cellCount() > 2000000) {

@@ -998,11 +998,12 @@ private:
         qint64 regionCells = 0;
         m_arraysAsValues.clear();
         for (const PlacedCell &pc : cells) {
-            if (!(pc.cell.flags & (ArrayFormula | DataTable))) continue;
+            if (!(pc.cell.flags & (ArrayFormula | DataTable | SpillFormula))) continue;
             const CellRange r = sheet.formulaRange(pc.cell);
+            if ((pc.cell.flags & SpillFormula) && r.cellCount() <= 1) continue;   // (a formula that spills into no more than its own cell is a formula like any other)
             // (one array may have a million cells, and all of a sheet's together two million, as in the .xls copy; past that, or with no range of its own, it is written as the values it has)
             if (!r.valid || r.row1 != pc.row || r.col1 != pc.col || r.cellCount() > 1000000 || regionCells + r.cellCount() > 2000000) {
-                if (pc.cell.flags & ArrayFormula) {
+                if (pc.cell.flags & (ArrayFormula | SpillFormula)) {
                     m_arraysAsValues.insert((quint64(pc.row) << 16) | pc.col);
                     ++m_formulasAsValues;
                     ++m_reasons[QCoreApplication::translate("Sheet", "an array formula with more cells than a copy writes")];
@@ -1271,7 +1272,7 @@ private:
         // the formula
         if (covered) {
             // (a cell of an array's matrix has the value, and the formula is the first cell's)
-        } else if ((c.flags & ArrayFormula) && m_arraysAsValues.contains((quint64(pc->row) << 16) | pc->col)) {
+        } else if ((c.flags & (ArrayFormula | SpillFormula)) && m_arraysAsValues.contains((quint64(pc->row) << 16) | pc->col)) {
             // (an array too large for the copy: its value only; counted when it was found)
         } else if (c.hasFormula() && !(c.flags & DataTable)) {
             QString f;
@@ -1281,9 +1282,9 @@ private:
                 ++m_formulasAsValues;
             } else {
                 x += QStringLiteral(" table:formula=\"%1\"").arg(esc(f));
-                if (c.flags & ArrayFormula) {
+                if (c.flags & (ArrayFormula | SpillFormula)) {
                     const CellRange r = sheet.formulaRange(c);
-                    if (r.valid) x += QStringLiteral(" table:number-matrix-columns-spanned=\"%1\" table:number-matrix-rows-spanned=\"%2\"").arg(r.col2 - r.col1 + 1).arg(r.row2 - r.row1 + 1);
+                    if (r.valid && (!(c.flags & SpillFormula) || r.cellCount() > 1)) x += QStringLiteral(" table:number-matrix-columns-spanned=\"%1\" table:number-matrix-rows-spanned=\"%2\"").arg(r.col2 - r.col1 + 1).arg(r.row2 - r.row1 + 1);
                 }
                 ++m_formulas;
             }

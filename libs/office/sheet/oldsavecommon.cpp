@@ -134,6 +134,17 @@ void Features::note(const Sheet &sheet)
     if (!sheet.importedCharts.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "charts"));   // (read from the older form, and written only to an .xlsx)
     for (const QString &s : sheet.notKept) m_found.insert(s);
     if (!sheet.richTexts.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "formatting inside a text"));
+    // formulas that spill into the cells beside them, and LET (the older forms have neither: the copy keeps the values, and the formula as an array formula where it has the functions)
+    bool spills = false;
+    sheet.cells.forEach([&](quint32, quint32, const Cell &c) {
+        if ((c.flags & SpillFormula) && c.hasFormula()) spills = true;
+    });
+    if (spills) add(QT_TRANSLATE_NOOP("Sheet", "formulas that fill the cells beside them (each is saved with the values it gave)"));
+    for (const QString &text : sheet.formulaTexts)
+        if (text.contains(QLatin1String("LET("), Qt::CaseInsensitive)) {
+            add(QT_TRANSLATE_NOOP("Sheet", "the LET function (the formula keeps the value it gave)"));
+            break;
+        }
 }
 
 QStringList Features::result() const
