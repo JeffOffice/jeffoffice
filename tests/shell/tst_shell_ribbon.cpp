@@ -1147,10 +1147,13 @@ private Q_SLOTS:
         c.addQuickCommand(QStringLiteral("format.bold"), kQuickDefaults);
         c.save();
         RibbonWindow w;
+        w.resize(1400, 700);   // (room for both buttons in any font: "BOLD" has no icon, so its width is the font's)
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
         Ribbon *r = w.ribbon();
         QToolButton *b = r->quickAccessButtons().value(1);
         QVERIFY(b);
-        QVERIFY(!b->isHidden());
+        QTRY_VERIFY(!b->isHidden());
         w.act(QStringLiteral("format.bold"))->setVisible(false);
         QTRY_VERIFY(b->isHidden());
         QVERIFY2(r->quickAccessHidden().isEmpty(), "a command that is hidden is not one that did not fit");
