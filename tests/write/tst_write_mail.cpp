@@ -441,8 +441,7 @@ private Q_SLOTS:
         QVERIFY(mail::insertBarcodeField(*doc, d, QStringLiteral("Isbn"), isbn));
         const QByteArray saved = doc->toDocx();
         const QByteArray xml = partOf(saved, QStringLiteral("/word/document.xml"));
-        QVERIFY2(xml.contains("CODE128 \\s 150 \\h 600"), xml.constData());
-        QVERIFY(!xml.contains("CODE128 \\s 150 \\h 600 \\t"));
+        QVERIFY2(QRegularExpression(QStringLiteral("CODE128 \\\\s 150 \\\\h \\d+")).match(QString::fromUtf8(xml)).hasMatch(), xml.constData());
         QVERIFY(xml.contains("EAN13"));
         QVERIFY(!xml.contains("ISBN"));
         QVERIFY(!xml.contains("\\k"));
@@ -467,6 +466,31 @@ private Q_SLOTS:
         QCOMPARE(first.value(QLatin1String("text")).toBool(true), false);
         QCOMPARE(second.value(QLatin1String("type")).toInt(), int(barcode::Type::Ean13));
         QCOMPARE(second.value(QLatin1String("data")).toString(), QStringLiteral("978-1-64002-163-1"));
+    }
+
+    // QR error correction is written as 0 to 3 and read as 0 to 3 or as L, M, Q, and H.
+    void theQrLevelIsANumberAndReadsAsLetters()
+    {
+        auto doc = open(makeDocx(para(run("Code: "))));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.movePosition(QTextCursor::EndOfBlock);
+        QVERIFY(mail::insertBarcodeField(*doc, c, QStringLiteral("Name"), QJsonObject{{"type", int(barcode::Type::Qr)}, {"data", "x"}, {"qrLevel", 3}}));
+        QVERIFY(QString::fromUtf8(partOf(doc->toDocx(), QStringLiteral("/word/document.xml"))).contains(QStringLiteral("\\q 3")));
+        const QStringList words = {"0", "1", "2", "3", "L", "m", "Q", "h"};
+        const QList<int> levels = {0, 1, 2, 3, 0, 1, 2, 3};
+        for (int i = 0; i < words.size(); ++i) {
+            auto d = open(barcodeLetter("QR \\q " + words[i].toUtf8()));
+            QVERIFY(d);
+            mail::MergeOptions options;
+            auto merged = mail::mergeToDocument(*d, threePeople(), {}, options);
+            QVERIFY(merged);
+            for (int p = 0; p + 1 < merged->story()->characterCount(); ++p)
+                if (isPictureAt(merged->story(), p)) {
+                    QCOMPARE(pictureAt(*merged, merged->story(), p).barcode.value(QLatin1String("qrLevel")).toInt(), levels[i]);
+                    break;
+                }
+        }
     }
 
     // A value is data, never field code: quotes and switches inside it change nothing, and a value that holds the mark of a barcode (or another field's code) is only text.

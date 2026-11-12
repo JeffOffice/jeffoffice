@@ -511,6 +511,37 @@ const BarcodeKind kBarcodeKinds[] = {{"QR", barcode::Type::Qr},       {"CODE128"
 
 } // namespace
 
+namespace {
+
+// The drawn height, in twips, of a barcode of this type at the size and bar height (the whole barcode with its quiet zone and digits); it does not depend on the value, so a sample stands in.
+double drawnHeightTwips(barcode::Type type, double magnification, double barHeight, bool text)
+{
+    barcode::Options o;
+    o.type = type;
+    o.magnification = magnification;
+    o.barHeight = barHeight;
+    o.text = text;
+    switch (type) {
+    case barcode::Type::Code128:
+    case barcode::Type::Code39: o.data = QStringLiteral("A"); break;
+    case barcode::Type::Ean8: o.data = QStringLiteral("96385074"); break;
+    case barcode::Type::UpcA: o.data = QStringLiteral("036000291452"); break;
+    default: o.data = QStringLiteral("5901234123457"); break;
+    }
+    const barcode::Layout l = barcode::make(o);
+    return l.error.isEmpty() ? l.size.height() * 20.0 : 0;
+}
+
+// QR error correction as the field says it: 0 to 3, or the letters L, M, Q, and H.
+int qrLevelOf(const QString &word)
+{
+    const int at = QStringLiteral("LMQH").indexOf(word.trimmed().toUpper().left(1));
+    if (word.trimmed().size() == 1 && at >= 0) return at;
+    return std::clamp(word.trimmed().toInt(), 0, 3);
+}
+
+} // namespace
+
 QJsonObject barcodeSettingsOfField(const fields::Code &code, const QString &value)
 {
     const QString name = code.arguments.value(1).trimmed().toUpper();
@@ -521,10 +552,12 @@ QJsonObject barcodeSettingsOfField(const fields::Code &code, const QString &valu
         s.insert(QStringLiteral("data"), value);
         const int scale = code.argumentOf(QLatin1Char('s')).toInt();
         s.insert(QStringLiteral("magnification"), std::clamp(scale > 0 ? scale : 100, 50, 300));
+        // (\h is the height drawn, in twips: the share of the full bar height it is, at the size asked for, is the dialog's bar height.)
         const int twips = code.argumentOf(QLatin1Char('h')).toInt();
-        s.insert(QStringLiteral("height"), twips > 0 ? std::clamp(int(std::lround(twips / 10.0)), 40, 100) : 100);
+        const double full = twips > 0 ? drawnHeightTwips(k.type, s.value(QLatin1String("magnification")).toInt() / 100.0, 1, code.has(QLatin1Char('t'))) : 0;
+        s.insert(QStringLiteral("height"), full > 0 ? std::clamp(int(std::lround(100.0 * twips / full)), 40, 100) : 100);
         s.insert(QStringLiteral("text"), code.has(QLatin1Char('t')));
-        s.insert(QStringLiteral("qrLevel"), std::clamp(code.has(QLatin1Char('q')) ? code.argumentOf(QLatin1Char('q')).toInt() : 1, 0, 3));
+        s.insert(QStringLiteral("qrLevel"), code.has(QLatin1Char('q')) ? qrLevelOf(code.argumentOf(QLatin1Char('q'))) : 1);
         s.insert(QStringLiteral("white"), true);
         return s;
     }
@@ -550,7 +583,7 @@ bool insertBarcodeField(WriteDoc &doc, QTextCursor &c, const QString &column, co
     if (kind.isEmpty() || name.isEmpty()) return false;
     QString code = QStringLiteral("DISPLAYBARCODE \"{ MERGEFIELD %1 }\" %2 \\s %3").arg(name, kind).arg(int(std::lround(o.magnification * 100)));
     if (type == barcode::Type::Qr) code += QStringLiteral(" \\q %1").arg(o.qrLevel);
-    else code += QStringLiteral(" \\h %1").arg(int(std::lround(o.barHeight * 100)) * 10);
+    else code += QStringLiteral(" \\h %1").arg(int(std::lround(drawnHeightTwips(type, o.magnification, o.barHeight, o.text))));
     if (o.text && type != barcode::Type::Qr) code += QStringLiteral(" \\t");
     return insertRule(doc, c, code, QString::fromUtf8("\xC2\xAB") + QCoreApplication::translate("jp::write::Mail", "Barcode: %1").arg(column.trimmed()) + QString::fromUtf8("\xC2\xBB"));
 }

@@ -79,7 +79,7 @@ QString mergeFieldCode(const QString &column);
 // Puts a field at the caret whose code may hold fields: "{ code }" in `code` is a field of its own (as in IF { MERGEFIELD State } = "VA" "yes" "no"). `result` is what it shows until the merge.
 bool insertRule(WriteDoc &doc, QTextCursor &c, const QString &code, const QString &result = QString());
 // A barcode whose value is a merge field, as the field DISPLAYBARCODE "{ MERGEFIELD column }" TYPE switches that the file saves, with the types and switches the field syntax defines (type: QR, CODE128,
-// CODE39, EAN13, EAN8, UPCA; \s the size in percent, \h the height in twips (10 for each percent of the standard bar height), \q the QR level, \t print the digits; a book's ISBN is EAN13 with its 13
+// CODE39, EAN13, EAN8, UPCA; \s the size in percent, \h the height drawn in twips, \q the QR level, \t print the digits; a book's ISBN is EAN13 with its 13
 // digits; \r, \b, and \f are read past). `settings` (the barcode dialog's) gives the type and look. The merge makes a barcode picture of each record's value, or a message where the code can't hold
 // the value; a field with a value written out in it, no type, or a type not drawn here is left as it is.
 bool insertBarcodeField(WriteDoc &doc, QTextCursor &c, const QString &column, const QJsonObject &settings);
