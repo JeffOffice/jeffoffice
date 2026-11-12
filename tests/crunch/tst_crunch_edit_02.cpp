@@ -125,6 +125,66 @@ void CrunchEditTests::aLetThatSpillsTypedInTheWindowIsSavedAndOpenedAgain()
     spillRoundTrip(this, QStringLiteral("=LET(n,3,SEQUENCE(n))"), QStringLiteral("_xlfn.LET(_xlpm.n,3,_xlfn.SEQUENCE(_xlpm.n))"));
 }
 
+namespace {
+
+// A sheet with =SEQUENCE(3) in A1 as a dynamic array; `anchorStyle` and `filledStyle` are the formats of A1 and of A2 (1 hides the formula).
+QByteArray spillBook(int anchorStyle, int filledStyle, bool isProtected)
+{
+    const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"0\" applyProtection=\"1\"><protection hidden=\"1\"/></xf>"));
+    const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" s=\"%1\" cm=\"1\"><f t=\"array\" ref=\"A1:A3\">_xlfn.SEQUENCE(3)</f><v>1</v></c></row><row r=\"2\"><c r=\"A2\" s=\"%2\"><v>2</v></c></row>"
+                                        "<row r=\"3\"><c r=\"A3\"><v>3</v></c></row>").arg(anchorStyle).arg(filledStyle);
+    const QByteArray book = buildXlsx({worksheet(rows, isProtected ? QStringLiteral("<sheetProtection sheet=\"1\"/>") : QString())}, QByteArray(), QString(), QString(), styles);
+    return withParts(book, {{QStringLiteral("xl/metadata.xml"), dynamicArrayMetadataXml(), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata+xml"), -1, QString(), QString(), QString()}});
+}
+
+} // namespace
+
+// On a protected sheet a cell a spill fills shows no formula when the formula of the cell that fills it is hidden, or its own format hides formulas; else it shows that formula.
+void CrunchEditTests::aFilledCellOnAProtectedSheetHidesTheFormulaThatFillsIt()
+{
+    struct Case {
+        int anchorStyle, filledStyle;
+        bool isProtected, shown;
+    };
+    for (const Case c : {Case{1, 0, true, false}, Case{0, 1, true, false}, Case{0, 0, true, true}, Case{1, 0, false, true}}) {
+        EditWindow e;
+        QVERIFY(e.open(spillBook(c.anchorStyle, c.filledStyle, c.isProtected)));
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("A2"));
+        const QString bar = e.win.w.formulaBar()->text();
+        if (c.shown) QCOMPARE(bar, QStringLiteral("=SEQUENCE(3)"));
+        else QVERIFY2(!bar.contains(QLatin1String("SEQUENCE")), qPrintable(bar));
+        QCOMPARE(e.win.w.session()->editText(0, 1, 0).contains(QLatin1String("SEQUENCE")), c.shown);
+    }
+}
+
+// Entering the formula of a filled cell from the formula bar, as it was shown, changes nothing.
+void CrunchEditTests::theFormulaBarCommittingAFilledCellsFormulaUnchangedChangesNothing()
+{
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("=SEQUENCE(3)"));
+    QVERIFY(e.settle());
+    const int steps = e.win.w.undoStack()->count();
+    e.select(QStringLiteral("A2"));
+    QLineEdit *bar = e.win.w.formulaBar();
+    QCOMPARE(bar->text(), QStringLiteral("=SEQUENCE(3)"));
+    bar->setFocus();
+    QTest::keyClicks(bar, "x");
+    QVERIFY(e.win.w.isEditing());
+    QTest::keyClick(bar, Qt::Key_Backspace);
+    QCOMPARE(bar->text(), QStringLiteral("=SEQUENCE(3)"));
+    QTest::keyClick(bar, Qt::Key_Return);
+    QVERIFY(e.settle());
+    QVERIFY(!e.win.w.isEditing());
+    QCOMPARE(e.win.w.undoStack()->count(), steps);
+    QVERIFY(e.win.w.session()->calculation()->isSpillMember(0, 1, 0));
+    QVERIFY(!e.win.w.session()->calculation()->content(0, 1, 0).isFormula);
+    QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+    QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:3"));
+}
+
 // A save that fails says why and leaves the file that was there as it was.
 void CrunchEditTests::aSaveThatFailsLeavesTheOldFile()
 {

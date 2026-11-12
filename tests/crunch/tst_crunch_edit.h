@@ -127,6 +127,8 @@ private Q_SLOTS:
     void saveAsWritesAnotherFileAndTheWindowIsThatFile();
     void editingACellASpillFillsAndLeavingItAsItWasChangesNothing();
     void aSpillTypedInTheWindowIsSavedAndOpenedAgainAsASpill();
+    void aFilledCellOnAProtectedSheetHidesTheFormulaThatFillsIt();
+    void theFormulaBarCommittingAFilledCellsFormulaUnchangedChangesNothing();
     void aLetThatSpillsTypedInTheWindowIsSavedAndOpenedAgain();
     void aSaveThatFailsLeavesTheOldFile();
     void closingAsksAboutChangesThatAreNotSaved();
