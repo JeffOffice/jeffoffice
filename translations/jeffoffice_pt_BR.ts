@@ -15790,6 +15790,21 @@ Editoração eletrônica</translation>
         <translation type="unfinished">Português (Portugal)</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Russian</source>
+        <translation type="unfinished">Russo</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Indonesian</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ukrainian</source>
+        <translation type="unfinished">Ucraniano</translation>
+    </message>
+    <message>
         <location filename="../libs/text/text/textengine.cpp" line="+157"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Linha de saudação»</translation>
@@ -17168,11 +17183,12 @@ Editoração eletrônica</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location line="+20"/>
         <source>Spelling</source>
         <translation type="unfinished">Ortografia</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-18"/>
         <source>Hyphenation</source>
         <translation type="unfinished">Hifenização</translation>
     </message>
@@ -17188,6 +17204,8 @@ Editoração eletrônica</translation>
         <location line="+2"/>
         <location line="+2"/>
         <location line="+2"/>
+        <location line="+2"/>
+        <location line="+4"/>
         <location line="+2"/>
         <source>Spelling and hyphenation</source>
         <translation type="unfinished">Ortografia e hifenização</translation>
@@ -32736,7 +32754,7 @@ Não é possível ler o arquivo.</translation>
         <translation type="unfinished">Versão %1</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/filescreenparts.cpp" line="-106"/>
+        <location filename="../libs/shell/app/filescreenparts.cpp" line="-112"/>
         <source>JeffOffice apps</source>
         <translation type="unfinished">Aplicativos do JeffOffice</translation>
     </message>

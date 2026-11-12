@@ -15790,6 +15790,21 @@ Desktop publishing</translation>
         <translation type="unfinished">Portoghese (Portogallo)</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Russian</source>
+        <translation type="unfinished">Russo</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Indonesian</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ukrainian</source>
+        <translation type="unfinished">Ucraino</translation>
+    </message>
+    <message>
         <location filename="../libs/text/text/textengine.cpp" line="+157"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Formula di apertura»</translation>
@@ -17168,11 +17183,12 @@ Desktop publishing</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location line="+20"/>
         <source>Spelling</source>
         <translation type="unfinished">Controllo ortografia</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-18"/>
         <source>Hyphenation</source>
         <translation type="unfinished">Sillabazione</translation>
     </message>
@@ -17188,6 +17204,8 @@ Desktop publishing</translation>
         <location line="+2"/>
         <location line="+2"/>
         <location line="+2"/>
+        <location line="+2"/>
+        <location line="+4"/>
         <location line="+2"/>
         <source>Spelling and hyphenation</source>
         <translation type="unfinished">Controllo ortografia e sillabazione</translation>
@@ -32736,7 +32754,7 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Versione %1</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/filescreenparts.cpp" line="-106"/>
+        <location filename="../libs/shell/app/filescreenparts.cpp" line="-112"/>
         <source>JeffOffice apps</source>
         <translation type="unfinished">App di JeffOffice</translation>
     </message>

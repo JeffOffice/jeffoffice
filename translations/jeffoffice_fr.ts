@@ -15790,6 +15790,21 @@ Publication assistée par ordinateur</translation>
         <translation type="unfinished">Portugais (Portugal)</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Russian</source>
+        <translation type="unfinished">Russe</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Indonesian</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ukrainian</source>
+        <translation type="unfinished">Ukrainien</translation>
+    </message>
+    <message>
         <location filename="../libs/text/text/textengine.cpp" line="+157"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Formule d&apos;appel»</translation>
@@ -17168,11 +17183,12 @@ Publication assistée par ordinateur</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location line="+20"/>
         <source>Spelling</source>
         <translation type="unfinished">Orthographe</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-18"/>
         <source>Hyphenation</source>
         <translation type="unfinished">Coupure de mots</translation>
     </message>
@@ -17188,6 +17204,8 @@ Publication assistée par ordinateur</translation>
         <location line="+2"/>
         <location line="+2"/>
         <location line="+2"/>
+        <location line="+2"/>
+        <location line="+4"/>
         <location line="+2"/>
         <source>Spelling and hyphenation</source>
         <translation type="unfinished">Orthographe et coupure de mots</translation>
@@ -32736,7 +32754,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Version %1</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/filescreenparts.cpp" line="-106"/>
+        <location filename="../libs/shell/app/filescreenparts.cpp" line="-112"/>
         <source>JeffOffice apps</source>
         <translation type="unfinished">Applications JeffOffice</translation>
     </message>

@@ -15790,6 +15790,21 @@ Desktop publishing</translation>
         <translation type="unfinished">Portugees (Portugal)</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Russian</source>
+        <translation type="unfinished">Russisch</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Indonesian</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ukrainian</source>
+        <translation type="unfinished">Oekraïens</translation>
+    </message>
+    <message>
         <location filename="../libs/text/text/textengine.cpp" line="+157"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Begroetingsregel»</translation>
@@ -17168,11 +17183,12 @@ Desktop publishing</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location line="+20"/>
         <source>Spelling</source>
         <translation type="unfinished">Spelling</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-18"/>
         <source>Hyphenation</source>
         <translation type="unfinished">Woordafbreking</translation>
     </message>
@@ -17188,6 +17204,8 @@ Desktop publishing</translation>
         <location line="+2"/>
         <location line="+2"/>
         <location line="+2"/>
+        <location line="+2"/>
+        <location line="+4"/>
         <location line="+2"/>
         <source>Spelling and hyphenation</source>
         <translation type="unfinished">Spelling en woordafbreking</translation>
@@ -32736,7 +32754,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Versie %1</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/filescreenparts.cpp" line="-106"/>
+        <location filename="../libs/shell/app/filescreenparts.cpp" line="-112"/>
         <source>JeffOffice apps</source>
         <translation type="unfinished">JeffOffice-apps</translation>
     </message>
