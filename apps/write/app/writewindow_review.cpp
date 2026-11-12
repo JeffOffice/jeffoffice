@@ -14,6 +14,7 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QApplication>
 #include <QDockWidget>
 #include <QInputDialog>
 #include <QMenu>
@@ -25,6 +26,8 @@ namespace jp {
 
 void WriteWindow::createReviewActions()
 {
+    static const bool markupLoaded = (loadRevisionMarkup(), true);   // (the person's choices for the look of changes, read once, by the first window)
+    Q_UNUSED(markupLoaded);
     mk("review.spelling", tr("Spelling"), "spell-check", QKeySequence(Qt::Key_F7), [this] { showSpelling(); });
     QAction *asType = mk("review.checkAsType", tr("Check Spelling as You Type"), "spell-check-2", QKeySequence(), [this] {
         const bool on = act("review.checkAsType")->isChecked();
@@ -227,6 +230,52 @@ void WriteWindow::showReviewPane(bool changes)
     m_review->refresh();
 }
 
+namespace {
+// (The names the person's choices are kept under, in the app's settings.)
+const char *const kMarkupInts[] = {"insertion", "deletion", "moveFrom", "moveTo", "formatting", "bars"};
+const char *const kMarkupColors[] = {"insertionColor", "deletionColor", "moveFromColor", "moveToColor", "formattingColor", "barColor"};
+}
+
+void WriteWindow::applyRevisionMarkup(const tp::RevisionMarkup &markup)
+{
+    const int generation = tp::revisionMarkup().generation + 1;
+    tp::revisionMarkup() = markup;
+    tp::revisionMarkup().generation = generation;
+    tp::RevisionMarkup &m = tp::revisionMarkup();
+    const int values[] = {m.insertion, m.deletion, m.moveFrom, m.moveTo, m.formatting, m.bars};
+    const QColor colors[] = {m.insertionColor, m.deletionColor, m.moveFromColor, m.moveToColor, m.formattingColor, m.barColor};
+    Settings &s = Settings::get();
+    for (int i = 0; i < 6; ++i) {
+        s.setValue(QStringLiteral("review/markup/") + QLatin1String(kMarkupInts[i]), values[i]);
+        s.setValue(QStringLiteral("review/markup/") + QLatin1String(kMarkupColors[i]), colors[i].isValid() ? colors[i].name() : QString());
+    }
+    s.setValue(QStringLiteral("review/markup/trackMoves"), m.trackMoves);
+    s.setValue(QStringLiteral("review/markup/trackFormatting"), m.trackFormatting);
+    for (QWidget *w : QApplication::topLevelWidgets())
+        if (auto *win = qobject_cast<WriteWindow *>(w)) {
+            if (win->m_doc) win->m_doc->refreshRevisionMarkup();
+            win->applyReviewView();
+        }
+}
+
+// (Each choice that was kept replaces the one the program has; one that was never kept leaves it.)
+void WriteWindow::loadRevisionMarkup()
+{
+    const Settings &s = Settings::get();
+    tp::RevisionMarkup &m = tp::revisionMarkup();
+    int *ints[] = {&m.insertion, &m.deletion, &m.moveFrom, &m.moveTo, &m.formatting, &m.bars};
+    QColor *colors[] = {&m.insertionColor, &m.deletionColor, &m.moveFromColor, &m.moveToColor, &m.formattingColor, &m.barColor};
+    const int most[] = {tp::RevisionMarkup::InsNone, tp::RevisionMarkup::DelColorOnly, tp::RevisionMarkup::DelColorOnly, tp::RevisionMarkup::InsNone, tp::RevisionMarkup::FmtNone, tp::RevisionMarkup::BarsNone};
+    for (int i = 0; i < 6; ++i) {
+        const QString ik = QStringLiteral("review/markup/") + QLatin1String(kMarkupInts[i]), ck = QStringLiteral("review/markup/") + QLatin1String(kMarkupColors[i]);
+        if (const QVariant v = s.value(ik); v.isValid()) *ints[i] = std::clamp(v.toInt(), 0, most[i]);
+        if (const QVariant v = s.value(ck); v.isValid()) *colors[i] = QColor(v.toString());   // (an empty or unreadable one is the author's own)
+    }
+    if (const QVariant v = s.value(QStringLiteral("review/markup/trackMoves")); v.isValid()) m.trackMoves = v.toBool();
+    if (const QVariant v = s.value(QStringLiteral("review/markup/trackFormatting")); v.isValid()) m.trackFormatting = v.toBool();
+    ++m.generation;
+}
+
 // How the document shows its changes and comments now.
 void WriteWindow::setReviewView(ReviewView view)
 {
@@ -241,13 +290,20 @@ void WriteWindow::applyReviewView()
     if (!m_doc) return;
     int flags = 0;
     write::PageView::ReviewMarks marks;
+    const tp::RevisionMarkup &look = tp::revisionMarkup();
     switch (m_reviewView) {
     case ReviewView::AllMarkup:
-        if (m_showInsertionsAndDeletions) flags = m_balloons == 1 ? tp::kRevisionMark : (tp::kRevisionShowDeleted | tp::kRevisionMark);
+        if (m_showInsertionsAndDeletions) {
+            // (Deleted words are left out of the lines where they go in balloons, and where the person chose to have them hidden or marked by a caret; moved-away words stay unless balloons have them.)
+            const bool leftOut = m_balloons == 1 || look.deletion == tp::RevisionMarkup::DelHidden || look.deletion == tp::RevisionMarkup::DelCaret;
+            flags = tp::kRevisionMark | (!leftOut ? tp::kRevisionShowDeleted : m_balloons != 1 && look.trackMoves ? tp::kRevisionShowMoved : 0);
+        }
+        if (m_showFormatting && look.trackFormatting && flags) flags |= tp::kRevisionMarkFormat;
         marks.changeBars = m_showInsertionsAndDeletions;
         marks.formatBars = m_showFormatting;
         marks.deletions = m_showInsertionsAndDeletions && m_balloons == 1;
         marks.comments = m_showComments;
+        marks.carets = marks.changeBars && m_balloons != 1 && look.deletion == tp::RevisionMarkup::DelCaret;
         break;
     case ReviewView::SimpleMarkup:
         marks.changeBars = m_showInsertionsAndDeletions;

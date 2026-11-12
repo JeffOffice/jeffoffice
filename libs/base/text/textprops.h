@@ -124,6 +124,7 @@ enum : int {
     RevisionInserted,                            // bool (char format): a run that a change deleted (tp::Revision 2 or 3) was inserted by a change too: it was never in the document as it was (LayoutEnv::revisionView)
     RevisionFormat,                              // bool (char format): the run's properties were changed by a tracked change (a change bar beside its line)
     RaisedRef,                                   // bool (char format): layout only, a note's reference whose run names no style and says nothing of raising is shown raised on the page: never written to a file
+    DoubleStrike,                                // bool (char format): the strike-through is drawn twice (a moved-away text, or a deletion the person asked to see double struck)
 };
 
 // How tracked changes are shown in the lines (LayoutEnv::revisionView, and the same number as the story's property kRevisionViewProperty, which the places that have no environment
@@ -131,6 +132,8 @@ enum : int {
 constexpr int kRevisionShowDeleted = 1;   // text a change deleted or moved away takes its place in the lines
 constexpr int kRevisionMark = 2;          // text a change inserted, deleted, or moved is marked in its author's color (underlined, struck through)
 constexpr int kRevisionHideInserted = 4;  // text a change inserted or moved here is not shown (the document as it was)
+constexpr int kRevisionShowMoved = 32;    // text a change moved away takes its place in the lines even where deleted text does not (the choice for deletions is to hide them)
+constexpr int kRevisionMarkFormat = 64;   // a run whose properties a tracked change changed is marked (tp::RevisionFormat)
 constexpr int kRevisionShowHidden = 16;   // text its author hid is shown (with the formatting marks), as it is in the file: not for text a change deleted
 inline constexpr char kRevisionViewProperty[] = "jp.revisionView";
 // Collapsed headings (a view of the text, never a change to it): a paragraph a heading's collapse hides has this user state, and is left out of the lines like hidden text while the story's
@@ -143,6 +146,30 @@ inline QColor revisionColor(int author)
 {
     static const char *const colors[] = {"#c0392b", "#1f6fb2", "#2e8b57", "#9b3fa0", "#b8860b", "#00838f", "#d35400", "#5d6d7e"};
     return QColor(QLatin1String(colors[(author < 0 ? 0 : author) % 8]));
+}
+// How a person likes tracked changes drawn (kept in the app's settings, not in the document; one for every window). A color that is not valid is the author's own.
+struct RevisionMarkup {
+    enum Insertion { InsUnderline, InsDoubleUnderline, InsStrike, InsBold, InsItalic, InsColorOnly, InsNone };
+    enum Deletion { DelStrike, DelDoubleStrike, DelHidden, DelCaret, DelColorOnly };
+    enum Bars { BarsLeft, BarsRight, BarsOutside, BarsNone };
+    enum Formatting { FmtBold, FmtColorOnly, FmtNone };
+    int insertion = InsUnderline, deletion = DelStrike, moveFrom = DelDoubleStrike, moveTo = InsDoubleUnderline, formatting = FmtBold, bars = BarsLeft;
+    QColor insertionColor, deletionColor, moveFromColor = QColor(0x1A, 0x7F, 0x37), moveToColor = QColor(0x1A, 0x7F, 0x37), formattingColor, barColor;
+    bool trackMoves = true, trackFormatting = true;
+    int generation = 0;   // changes with every choice, so that what was laid out for the old look is laid out again
+};
+inline RevisionMarkup &revisionMarkup()
+{
+    static RevisionMarkup markup;
+    return markup;
+}
+// The color of the marks of a change of `kind` (1 inserted, 2 deleted, 3 moved away, 4 moved here, 5 formatting) by a person (a place in the document's list of people): the person's own, or the one chosen for the kind.
+inline QColor revisionMarkColor(int kind, int author)
+{
+    const RevisionMarkup &m = revisionMarkup();
+    if (!m.trackMoves) kind = kind == 3 ? 2 : kind == 4 ? 1 : kind;
+    const QColor chosen = kind == 1 ? m.insertionColor : kind == 2 ? m.deletionColor : kind == 3 ? m.moveFromColor : kind == 4 ? m.moveToColor : m.formattingColor;
+    return chosen.isValid() ? chosen : revisionColor(author);
 }
 // Show Field Codes: a view of the text, not a change to it. `view` has kShowFieldCodes for every field's codes, or the ids of single fields are in the set kept for the token in its high bits (shownFieldCodeSets()); the high bits of `view`
 // are a count that changes with each toggle, so that what was laid out for the old view is laid out again.
@@ -158,7 +185,7 @@ inline QHash<int, QSet<int>> &shownFieldCodeSets()
 // Whether the field the run belongs to has its codes shown in this view.
 inline bool fieldCodesShown(const QTextFormat &f, int view)
 {
-    if (!(view & ~(kRevisionShowDeleted | kRevisionMark | kRevisionHideInserted))) return false;
+    if (!(view & ~(kRevisionShowDeleted | kRevisionMark | kRevisionHideInserted | kRevisionShowMoved | kRevisionMarkFormat))) return false;
     const int id = f.intProperty(FieldId);
     return id > 0 && ((view & kShowFieldCodes) || shownFieldCodeSets().value(view >> kFieldCodesCountShift).contains(id));
 }
@@ -170,7 +197,7 @@ inline bool hiddenInView(const QTextFormat &f, int view)
     const int kind = f.intProperty(Revision);
     if (f.boolProperty(HiddenText)) {
         if ((view & kRevisionShowHidden) && kind == 0) return false;
-        if ((kind == 2 || kind == 3) && (view & kRevisionShowDeleted)) return (view & kRevisionHideInserted) && f.boolProperty(RevisionInserted);   // (text inserted and deleted was never there before)
+        if ((kind == 2 || kind == 3) && (view & (kind == 3 ? (kRevisionShowDeleted | kRevisionShowMoved) : kRevisionShowDeleted))) return (view & kRevisionHideInserted) && f.boolProperty(RevisionInserted);   // (text inserted and deleted was never there before)
         return true;
     }
     return (view & kRevisionHideInserted) && (kind == 1 || kind == 4);

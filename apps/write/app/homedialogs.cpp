@@ -8,6 +8,9 @@
 #include "text/dictionaries.h"
 
 #include <QCheckBox>
+#include <algorithm>
+#include <QPixmap>
+#include <QIcon>
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QDialog>
@@ -296,8 +299,47 @@ int restrictEditingDialog(QWidget *parent, bool enforced, const QString &current
     return 1;
 }
 
-bool trackOptionsDialog(QWidget *parent, QString *name, QString *initials)
+namespace {
+// A box of the looks to choose from (the data of each is its number in tp::RevisionMarkup), with `current` chosen.
+QComboBox *lookBox(QWidget *parent, const QString &name, const QVector<std::pair<QString, int>> &looks, int current)
 {
+    auto *box = new QComboBox(parent);
+    box->setObjectName(name);
+    for (const auto &look : looks) box->addItem(look.first, look.second);
+    box->setCurrentIndex(std::max(0, box->findData(current)));
+    return box;
+}
+
+// A box of colors: "By author" (no color), the eight the authors take, and the color the program has now when it is none of them.
+QComboBox *colorBox(QWidget *parent, const QString &name, const QColor &current)
+{
+    static const char *const names[] = {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Red"), QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Blue"), QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Green"),
+                                        QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Purple"), QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Gold"), QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Teal"),
+                                        QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Orange"), QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Gray"), QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Black")};
+    auto *box = new QComboBox(parent);
+    box->setObjectName(name);
+    box->addItem(QCoreApplication::translate("jp::write::HomeDialogs", "By author"), QColor());
+    for (int i = 0; i < 9; ++i) {
+        const QColor c = i == 8 ? QColor(Qt::black) : tp::revisionColor(i);
+        QPixmap swatch(12, 12);
+        swatch.fill(c);
+        box->addItem(QIcon(swatch), QCoreApplication::translate("jp::write::HomeDialogs", names[i]), c);
+    }
+    int at = 0;
+    for (int i = 1; i < box->count() && !at; ++i)
+        if (current.isValid() && box->itemData(i).value<QColor>().rgb() == current.rgb()) at = i;
+    if (!at && current.isValid()) {
+        box->addItem(QCoreApplication::translate("jp::write::HomeDialogs", "Custom"), current);
+        at = box->count() - 1;
+    }
+    box->setCurrentIndex(at);
+    return box;
+}
+} // namespace
+
+bool trackOptionsDialog(QWidget *parent, QString *name, QString *initials, tp::RevisionMarkup *markup)
+{
+    using M = tp::RevisionMarkup;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("trackOptionsDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::HomeDialogs", "Track Changes Options"));
@@ -313,6 +355,61 @@ bool trackOptionsDialog(QWidget *parent, QString *name, QString *initials)
     form->addWidget(nameBox, 0, 1);
     form->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Initials:"), &dlg)), 1, 0);
     form->addWidget(initialsBox, 1, 1);
+
+    // How changes are drawn: a look and a color for each kind, the change bars, and whether moves and formatting are tracked as such.
+    const QVector<std::pair<QString, int>> insertionLooks = {{QCoreApplication::translate("jp::write::HomeDialogs", "Underline"), M::InsUnderline}, {QCoreApplication::translate("jp::write::HomeDialogs", "Double underline"), M::InsDoubleUnderline}, {QCoreApplication::translate("jp::write::HomeDialogs", "Strikethrough"), M::InsStrike},
+                                                             {QCoreApplication::translate("jp::write::HomeDialogs", "Bold"), M::InsBold}, {QCoreApplication::translate("jp::write::HomeDialogs", "Italic"), M::InsItalic}, {QCoreApplication::translate("jp::write::HomeDialogs", "Color only"), M::InsColorOnly}, {QCoreApplication::translate("jp::write::HomeDialogs", "(none)"), M::InsNone}};
+    const QVector<std::pair<QString, int>> deletionLooks = {{QCoreApplication::translate("jp::write::HomeDialogs", "Strikethrough"), M::DelStrike}, {QCoreApplication::translate("jp::write::HomeDialogs", "Double strikethrough"), M::DelDoubleStrike}, {QCoreApplication::translate("jp::write::HomeDialogs", "Hidden"), M::DelHidden},
+                                                            {QCoreApplication::translate("jp::write::HomeDialogs", "Caret"), M::DelCaret}, {QCoreApplication::translate("jp::write::HomeDialogs", "Color only"), M::DelColorOnly}};
+    const QVector<std::pair<QString, int>> movedFromLooks = {{QCoreApplication::translate("jp::write::HomeDialogs", "Strikethrough"), M::DelStrike}, {QCoreApplication::translate("jp::write::HomeDialogs", "Double strikethrough"), M::DelDoubleStrike}, {QCoreApplication::translate("jp::write::HomeDialogs", "Color only"), M::DelColorOnly}};
+    const QVector<std::pair<QString, int>> formattingLooks = {{QCoreApplication::translate("jp::write::HomeDialogs", "Bold"), M::FmtBold}, {QCoreApplication::translate("jp::write::HomeDialogs", "Color only"), M::FmtColorOnly}, {QCoreApplication::translate("jp::write::HomeDialogs", "(none)"), M::FmtNone}};
+    const QVector<std::pair<QString, int>> barLooks = {{QCoreApplication::translate("jp::write::HomeDialogs", "Left border"), M::BarsLeft}, {QCoreApplication::translate("jp::write::HomeDialogs", "Right border"), M::BarsRight}, {QCoreApplication::translate("jp::write::HomeDialogs", "Outside border"), M::BarsOutside}, {QCoreApplication::translate("jp::write::HomeDialogs", "(none)"), M::BarsNone}};
+    auto *marks = new QGroupBox(QCoreApplication::translate("jp::write::HomeDialogs", "Markup"), &dlg);
+    auto *grid = new QGridLayout(marks);
+    grid->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Look"), marks)), 0, 1);
+    grid->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Color"), marks)), 0, 2);
+    int row = 1;
+    auto line = [&](const QString &label, QComboBox *look, QComboBox *color) {
+        grid->addWidget(plainLabel(new QLabel(label, marks)), row, 0);
+        grid->addWidget(look, row, 1);
+        grid->addWidget(color, row, 2);
+        ++row;
+    };
+    auto *insertion = lookBox(marks, QStringLiteral("insertionLook"), insertionLooks, markup->insertion);
+    auto *insertionColor = colorBox(marks, QStringLiteral("insertionColor"), markup->insertionColor);
+    line(QCoreApplication::translate("jp::write::HomeDialogs", "Insertions:"), insertion, insertionColor);
+    auto *deletion = lookBox(marks, QStringLiteral("deletionLook"), deletionLooks, markup->deletion);
+    auto *deletionColor = colorBox(marks, QStringLiteral("deletionColor"), markup->deletionColor);
+    line(QCoreApplication::translate("jp::write::HomeDialogs", "Deletions:"), deletion, deletionColor);
+    auto *moveFrom = lookBox(marks, QStringLiteral("moveFromLook"), movedFromLooks, markup->moveFrom);
+    auto *moveFromColor = colorBox(marks, QStringLiteral("moveFromColor"), markup->moveFromColor);
+    line(QCoreApplication::translate("jp::write::HomeDialogs", "Moved from:"), moveFrom, moveFromColor);
+    auto *moveTo = lookBox(marks, QStringLiteral("moveToLook"), insertionLooks, markup->moveTo);
+    auto *moveToColor = colorBox(marks, QStringLiteral("moveToColor"), markup->moveToColor);
+    line(QCoreApplication::translate("jp::write::HomeDialogs", "Moved to:"), moveTo, moveToColor);
+    auto *formatting = lookBox(marks, QStringLiteral("formattingLook"), formattingLooks, markup->formatting);
+    auto *formattingColor = colorBox(marks, QStringLiteral("formattingColor"), markup->formattingColor);
+    line(QCoreApplication::translate("jp::write::HomeDialogs", "Formatting:"), formatting, formattingColor);
+    auto *bars = lookBox(marks, QStringLiteral("barsLook"), barLooks, markup->bars);
+    auto *barColor = colorBox(marks, QStringLiteral("barsColor"), markup->barColor);
+    line(QCoreApplication::translate("jp::write::HomeDialogs", "Change bars:"), bars, barColor);
+    auto *trackMoves = new QCheckBox(QCoreApplication::translate("jp::write::HomeDialogs", "Track moves"), marks);
+    trackMoves->setObjectName(QStringLiteral("trackMoves"));
+    trackMoves->setChecked(markup->trackMoves);
+    trackMoves->setToolTip(QCoreApplication::translate("jp::write::HomeDialogs", "When this is off, text that was moved shows as a deletion and an insertion."));
+    auto *trackFormatting = new QCheckBox(QCoreApplication::translate("jp::write::HomeDialogs", "Track formatting"), marks);
+    trackFormatting->setObjectName(QStringLiteral("trackFormatting"));
+    trackFormatting->setChecked(markup->trackFormatting);
+    grid->addWidget(trackMoves, row++, 0, 1, 3);
+    grid->addWidget(trackFormatting, row++, 0, 1, 3);
+    // (Moved text is set off from the other changes only while moves are tracked.)
+    auto movedEnabled = [=] {
+        for (QWidget *w : {static_cast<QWidget *>(moveFrom), static_cast<QWidget *>(moveFromColor), static_cast<QWidget *>(moveTo), static_cast<QWidget *>(moveToColor)}) w->setEnabled(trackMoves->isChecked());
+    };
+    QObject::connect(trackMoves, &QCheckBox::toggled, &dlg, movedEnabled);
+    movedEnabled();
+    v->addWidget(marks);
+
     auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -320,6 +417,20 @@ bool trackOptionsDialog(QWidget *parent, QString *name, QString *initials)
     if (dlg.exec() != QDialog::Accepted) return false;
     *name = nameBox->text().trimmed();
     *initials = initialsBox->text().trimmed();
+    markup->insertion = insertion->currentData().toInt();
+    markup->deletion = deletion->currentData().toInt();
+    markup->moveFrom = moveFrom->currentData().toInt();
+    markup->moveTo = moveTo->currentData().toInt();
+    markup->formatting = formatting->currentData().toInt();
+    markup->bars = bars->currentData().toInt();
+    markup->insertionColor = insertionColor->currentData().value<QColor>();
+    markup->deletionColor = deletionColor->currentData().value<QColor>();
+    markup->moveFromColor = moveFromColor->currentData().value<QColor>();
+    markup->moveToColor = moveToColor->currentData().value<QColor>();
+    markup->formattingColor = formattingColor->currentData().value<QColor>();
+    markup->barColor = barColor->currentData().value<QColor>();
+    markup->trackMoves = trackMoves->isChecked();
+    markup->trackFormatting = trackFormatting->isChecked();
     return true;
 }
 

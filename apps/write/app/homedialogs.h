@@ -5,6 +5,7 @@
 #include "core/homeops.h"
 #include "app/translate.h"
 #include "core/proofops.h"
+#include "text/textprops.h"
 
 #include <QStringList>
 #include <QWidget>
@@ -35,8 +36,9 @@ using jp::translateDialog;
 // Restrict Editing. With none enforced: the kind of editing to allow (readOnly, comments, trackedChanges, or forms) and a password (twice), and Start Enforcing; `lockTracking` offers only tracked changes. With
 // one enforced: its kind, and Stop Protection (the password asked for in the box when the protection has one). Returns 0 for canceled, 1 for start (`edit` and `password` set), 2 for stop (`password` set).
 int restrictEditingDialog(QWidget *parent, bool enforced, const QString &currentEdit, bool hasPassword, bool lockTracking, QString *edit, QString *password);
-// Track Changes Options: the name and initials that changes and comments are signed with.
-bool trackOptionsDialog(QWidget *parent, QString *name, QString *initials);
+// Track Changes Options: the name and initials that changes and comments are signed with, and how changes are drawn (`markup`: the looks and colors of insertions, deletions, moved text,
+// and changes of formatting, the change bars, and whether moves and formatting are tracked as such).
+bool trackOptionsDialog(QWidget *parent, QString *name, QString *initials, tp::RevisionMarkup *markup);
 
 // Compare: the file of the revised version (the open document is the original), who the changes are signed with, and the choices. False if canceled.
 bool compareDialog(QWidget *parent, QString *revisedPath, CompareOptions *options);

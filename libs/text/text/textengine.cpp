@@ -263,7 +263,7 @@ QString FieldContext::key(bool withClock) const
 
 QString LayoutEnv::key() const
 {
-    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (revisionView ? QStringLiteral("|v%1").arg(revisionView) : QString()) + (collapseEpoch ? QStringLiteral("|e%1").arg(collapseEpoch) : QString()) + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (wordWholePointLines ? "|u" : "") + (wordNoLeading ? "|z" : "") + (wordWrapTrailSpaces ? "|t" : "") + (wordSpaceShrink > 0 ? QStringLiteral("|p%1").arg(wordSpaceShrink) : QString()) + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
+    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (revisionView ? QStringLiteral("|v%1").arg(revisionView) : QString()) + (revisionView & tp::kRevisionMark ? QStringLiteral("|m%1").arg(tp::revisionMarkup().generation) : QString()) + (collapseEpoch ? QStringLiteral("|e%1").arg(collapseEpoch) : QString()) + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (wordWholePointLines ? "|u" : "") + (wordNoLeading ? "|z" : "") + (wordWrapTrailSpaces ? "|t" : "") + (wordSpaceShrink > 0 ? QStringLiteral("|p%1").arg(wordSpaceShrink) : QString()) + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (auto it = familyAliases.cbegin(); it != familyAliases.cend(); ++it) k += QStringLiteral("|a") + it.key() + QLatin1Char('=') + it.value();
     for (auto it = standIns.cbegin(); it != standIns.cend(); ++it) k += QStringLiteral("|i") + it.key() + QLatin1Char('=') + it.value();
@@ -1386,17 +1386,42 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
     }
     // Hidden text shown (with the formatting marks) is underlined with dots.
     if (env.wordLines && (env.revisionView & tp::kRevisionShowHidden) && f.boolProperty(tp::HiddenText) && !f.hasProperty(tp::Revision)) r.setUnderlineStyle(QTextCharFormat::DotLine);
-    // Tracked changes marked in their authors' colors: inserted text underlined, deleted and moved-away text struck through.
+    // Tracked changes marked as the person chose (tp::revisionMarkup()): by default in their authors' colors, inserted text underlined, deleted text struck through, moved text
+    // double underlined or double struck in green, and a change of formatting bold.
     if (env.wordLines && (env.revisionView & tp::kRevisionMark)) {
-        const int kind = f.intProperty(tp::Revision);
+        const tp::RevisionMarkup &m = tp::revisionMarkup();
+        int kind = f.intProperty(tp::Revision);
         if (kind > 0) {
-            r.setForeground(tp::revisionColor(f.intProperty(tp::RevisionAuthor)));
-            if (kind == 2 || kind == 3) {
-                r.setFontStrikeOut(true);
-            } else {
-                r.setUnderlineStyle(QTextCharFormat::SingleUnderline);
-                r.setUnderlineColor(tp::revisionColor(f.intProperty(tp::RevisionAuthor)));
+            if (!m.trackMoves) kind = kind == 3 ? 2 : kind == 4 ? 1 : kind;
+            const int author = f.intProperty(tp::RevisionAuthor);
+            const bool deleted = kind == 2 || kind == 3;
+            const int style = kind == 1 ? m.insertion : kind == 2 ? m.deletion : kind == 3 ? m.moveFrom : m.moveTo;
+            const bool none = !deleted && style == tp::RevisionMarkup::InsNone;
+            if (!none) {
+                const QColor color = tp::revisionMarkColor(kind, author);
+                r.setForeground(color);
+                if (deleted) {
+                    if (style != tp::RevisionMarkup::DelColorOnly) r.setFontStrikeOut(true);
+                    if (style == tp::RevisionMarkup::DelDoubleStrike) r.setProperty(tp::DoubleStrike, true);
+                } else {
+                    switch (style) {
+                    case tp::RevisionMarkup::InsUnderline:
+                    case tp::RevisionMarkup::InsDoubleUnderline:
+                        r.setUnderlineStyle(QTextCharFormat::SingleUnderline);
+                        r.setUnderlineColor(color);
+                        if (style == tp::RevisionMarkup::InsDoubleUnderline) r.setProperty(tp::UnderlineKind, r.intProperty(tp::UnderlineKind) | 1);
+                        break;
+                    case tp::RevisionMarkup::InsStrike: r.setFontStrikeOut(true); break;
+                    case tp::RevisionMarkup::InsBold: r.setFontWeight(QFont::Bold); break;
+                    case tp::RevisionMarkup::InsItalic: r.setFontItalic(true); break;
+                    default: break;
+                    }
+                }
             }
+        }
+        if ((env.revisionView & tp::kRevisionMarkFormat) && m.trackFormatting && f.boolProperty(tp::RevisionFormat)) {
+            if (m.formatting == tp::RevisionMarkup::FmtBold) r.setFontWeight(QFont::Bold);
+            else if (m.formatting == tp::RevisionMarkup::FmtColorOnly) r.setForeground(tp::revisionMarkColor(5, f.intProperty(tp::RevisionAuthor)));
         }
     }
     return r;
@@ -6232,6 +6257,25 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                     if (s < e) drawHandBold(p, line, s, e, r.format, o.output);
                 }
             }
+            // A strike-through drawn twice: Qt drew the first, the second is a line's width below it.
+            for (const auto &r : fmts) {
+                if (!r.format.fontStrikeOut() || !r.format.boolProperty(tp::DoubleStrike)) continue;
+                for (int i = 0; i < B->lines.size(); ++i) {
+                    if (B->lines[i].frame != frame) continue;
+                    const QTextLine line = B->tl->lineAt(i);
+                    const int s = std::max(r.start, line.textStart()), e = std::min(r.start + r.length, line.textStart() + line.textLength());
+                    if (s >= e) continue;
+                    const QFontMetricsF fm(r.format.font().resolve(B->tl->font()));
+                    const QBrush br = r.format.hasProperty(QTextFormat::ForegroundBrush) ? r.format.foreground() : QBrush(Qt::black);
+                    const double y = line.y() + line.ascent() - fm.strikeOutPos() + std::max(1.0, fm.lineWidth()) * 2;
+                    QPen pen(br, std::max(1.0, fm.lineWidth()));
+                    pen.setCapStyle(Qt::FlatCap);
+                    p->save();
+                    p->setPen(pen);
+                    p->drawLine(QLineF(line.cursorToX(s), y, line.cursorToX(e), y));
+                    p->restore();
+                }
+            }
             // (Each line looks at the ranges that touch it: the ranges that draw an underline of their own, in order of where they start, and the lines in the order of the
             // text, so that the ranges a line has passed are not looked at again. Looking at every range from every line cost lines times ranges.)
             QVector<int> own;
@@ -6311,6 +6355,7 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                             if (const auto [us, ue] = underlineSpan(fmts, n, ls, le); us < ue) drawUnderline(p, line, us, ue, cf, B->tl->font(), br, B->disp);
                         p->setPen(pen);
                         if (through) p->drawLine(QLineF(x1, base - fm.strikeOutPos(), x2, base - fm.strikeOutPos()));
+                        if (through && cf.boolProperty(tp::DoubleStrike)) p->drawLine(QLineF(x1, base - fm.strikeOutPos() + pen.widthF() * 2, x2, base - fm.strikeOutPos() + pen.widthF() * 2));
                         if (over) p->drawLine(QLineF(x1, base - fm.overlinePos(), x2, base - fm.overlinePos()));
                         p->restore();
                     }

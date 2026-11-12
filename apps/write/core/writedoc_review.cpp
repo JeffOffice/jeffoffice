@@ -196,6 +196,13 @@ void WriteDoc::setRevisionView(int view)
     Q_EMIT reviewChanged();
 }
 
+void WriteDoc::refreshRevisionMarkup()
+{
+    if (m_pager) m_pager->invalidateFrom(0);
+    Q_EMIT sectionsChanged();
+    Q_EMIT reviewChanged();
+}
+
 void WriteDoc::setFieldCodes(bool all, const QSet<int> &ids)
 {
     if (all == m_fieldCodesAll && ids == m_fieldCodeIds) return;

@@ -2,6 +2,7 @@
 // Each document is built here from a few lines of XML.
 
 #include "../isolatesettings.h"
+#include "../withdialog.h"
 #include "app/writeinfo.h"
 #include "app/pageview.h"
 #include "app/settings.h"
@@ -22,6 +23,8 @@
 #include "text/textprops.h"
 #include "wml/wml.h"
 
+#include <QCheckBox>
+#include <QComboBox>
 #include <QFile>
 #include <QImage>
 #include <QLabel>
@@ -97,6 +100,53 @@ QByteArray inserted(int id, const char *text, const char *author = "Ann") { retu
 QByteArray deleted(int id, const char *text, const char *author = "Ann")
 {
     return "<w:del" + rev(id, author) + "><w:r><w:delText xml:space=\"preserve\">" + QByteArray(text) + "</w:delText></w:r></w:del>";
+}
+
+// The look of a tracked change's run when changes are marked: its fragment's format as the text engine resolves it.
+QTextCharFormat shownFormat(WriteDoc &doc, const QString &text)
+{
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+            if (!it.fragment().charFormat().hasProperty(prop::Atom) && it.fragment().text() == text) return resolveCharFormat(it.fragment().charFormat(), doc.flow().env);
+    return QTextCharFormat();
+}
+
+// Puts the person's choices for drawing changes back as they were when the test ends.
+struct MarkupGuard {
+    tp::RevisionMarkup saved = tp::revisionMarkup();
+    ~MarkupGuard()
+    {
+        tp::revisionMarkup() = saved;
+        ++tp::revisionMarkup().generation;
+    }
+};
+
+QByteArray moveFromOf(const char *name, int id, const char *text) { return "<w:moveFromRangeStart w:id=\"" + QByteArray::number(id) + "\" w:name=\"" + name + "\"/><w:moveFrom" + rev(id + 1) + "><w:r><w:delText>" + text + "</w:delText></w:r></w:moveFrom><w:moveFromRangeEnd w:id=\"" + QByteArray::number(id) + "\"/>"; }
+QByteArray moveToOf(const char *name, int id, const char *text) { return "<w:moveToRangeStart w:id=\"" + QByteArray::number(id) + "\" w:name=\"" + name + "\"/><w:moveTo" + rev(id + 1) + "><w:r><w:t>" + text + "</w:t></w:r></w:moveTo><w:moveToRangeEnd w:id=\"" + QByteArray::number(id) + "\"/>"; }
+
+// The number of rows of an image that have a pixel of the strong blue the tests give the change bars, and where they are across (the mean column).
+struct BarRows {
+    int rows = 0;
+    double meanX = 0;
+};
+BarRows blueBars(const QImage &img)
+{
+    BarRows out;
+    qint64 sum = 0, n = 0;
+    for (int y = 0; y < img.height(); ++y) {
+        bool any = false;
+        for (int x = 0; x < img.width(); ++x) {
+            const QColor c = img.pixelColor(x, y);
+            if (c.blue() > 200 && c.red() < 70 && c.green() < 70) {
+                any = true;
+                sum += x;
+                ++n;
+            }
+        }
+        if (any) ++out.rows;
+    }
+    out.meanX = n ? double(sum) / double(n) : 0;
+    return out;
 }
 
 // What the paragraphs say when the changes are shown as the document stands: the text that is not hidden, a paragraph to a line.
@@ -857,6 +907,217 @@ private Q_SLOTS:
         QVERIFY(!unmarked.fontStrikeOut());
     }
 
+    void eachAuthorHasAColorOfTheirOwnThatTheyKeepUnlessOneColorIsChosen()
+    {
+        MarkupGuard guard;
+        auto doc = open(makeDocx(para(inserted(1, "aa", "Ann") + run(" ") + inserted(2, "bb", "Bob") + run(" ") + inserted(3, "cc", "Ann"))));
+        QVERIFY(doc);
+        doc->setRevisionView(tp::kRevisionShowDeleted | tp::kRevisionMark);
+        QCOMPARE(shownFormat(*doc, QStringLiteral("aa")).foreground().color(), shownFormat(*doc, QStringLiteral("cc")).foreground().color());
+        QVERIFY(shownFormat(*doc, QStringLiteral("aa")).foreground().color() != shownFormat(*doc, QStringLiteral("bb")).foreground().color());
+        // (The palette has eight colors, none twice; the person who comes first has the first.)
+        QSet<QRgb> palette;
+        for (int i = 0; i < 8; ++i) palette.insert(tp::revisionMarkColor(1, i).rgb());
+        QCOMPARE(palette.size(), 8);
+        QCOMPARE(tp::revisionMarkColor(1, doc->reviewerIndex(QStringLiteral("Ann"))), tp::revisionColor(0));
+        // One color for everyone, chosen.
+        tp::revisionMarkup().insertionColor = QColor(0, 0, 255);
+        QCOMPARE(shownFormat(*doc, QStringLiteral("aa")).foreground().color(), QColor(0, 0, 255));
+        QCOMPARE(shownFormat(*doc, QStringLiteral("bb")).foreground().color(), QColor(0, 0, 255));
+        QCOMPARE(tp::revisionMarkColor(1, 5), QColor(0, 0, 255));
+    }
+
+    void theChosenLooksOfInsertionsAndDeletionsAreApplied()
+    {
+        MarkupGuard guard;
+        auto doc = open(makeDocx(para(run("one ") + inserted(1, "two ") + deleted(2, "three ", "Bob"))));
+        QVERIFY(doc);
+        doc->setRevisionView(tp::kRevisionShowDeleted | tp::kRevisionMark);
+        tp::RevisionMarkup &m = tp::revisionMarkup();
+        const QColor ann = tp::revisionColor(doc->reviewerIndex(QStringLiteral("Ann"))), bob = tp::revisionColor(doc->reviewerIndex(QStringLiteral("Bob")));
+        auto ins = [&](int style) {
+            m.insertion = style;
+            return shownFormat(*doc, QStringLiteral("two "));
+        };
+        auto del = [&](int style) {
+            m.deletion = style;
+            return shownFormat(*doc, QStringLiteral("three "));
+        };
+        QTextCharFormat f = ins(tp::RevisionMarkup::InsUnderline);
+        QVERIFY(f.underlineStyle() != QTextCharFormat::NoUnderline && !(f.intProperty(tp::UnderlineKind) & 1));
+        f = ins(tp::RevisionMarkup::InsDoubleUnderline);
+        QVERIFY(f.underlineStyle() != QTextCharFormat::NoUnderline && (f.intProperty(tp::UnderlineKind) & 1));
+        f = ins(tp::RevisionMarkup::InsStrike);
+        QVERIFY(f.fontStrikeOut() && f.underlineStyle() == QTextCharFormat::NoUnderline);
+        f = ins(tp::RevisionMarkup::InsBold);
+        QVERIFY(f.fontWeight() >= QFont::Bold && f.underlineStyle() == QTextCharFormat::NoUnderline);
+        f = ins(tp::RevisionMarkup::InsItalic);
+        QVERIFY(f.fontItalic() && f.underlineStyle() == QTextCharFormat::NoUnderline);
+        f = ins(tp::RevisionMarkup::InsColorOnly);
+        QVERIFY(f.underlineStyle() == QTextCharFormat::NoUnderline && !f.fontItalic() && !f.fontStrikeOut());
+        QCOMPARE(f.foreground().color(), ann);
+        f = ins(tp::RevisionMarkup::InsNone);
+        QVERIFY(f.underlineStyle() == QTextCharFormat::NoUnderline && !f.fontStrikeOut() && f.foreground().color() != ann);
+        f = del(tp::RevisionMarkup::DelStrike);
+        QVERIFY(f.fontStrikeOut() && !f.boolProperty(tp::DoubleStrike));
+        f = del(tp::RevisionMarkup::DelDoubleStrike);
+        QVERIFY(f.fontStrikeOut() && f.boolProperty(tp::DoubleStrike));
+        f = del(tp::RevisionMarkup::DelColorOnly);
+        QVERIFY(!f.fontStrikeOut());
+        QCOMPARE(f.foreground().color(), bob);
+        // The colors of each kind: the author's, or the one chosen.
+        m.deletion = tp::RevisionMarkup::DelStrike;
+        m.insertion = tp::RevisionMarkup::InsUnderline;
+        m.deletionColor = QColor(0, 0, 255);
+        QCOMPARE(shownFormat(*doc, QStringLiteral("three ")).foreground().color(), QColor(0, 0, 255));
+        QCOMPARE(shownFormat(*doc, QStringLiteral("two ")).foreground().color(), ann);
+    }
+
+    void aChangeBarStandsBesideEachLineThatHoldsAChangeAndNoOther()
+    {
+        MarkupGuard guard;
+        tp::revisionMarkup().barColor = QColor(0, 0, 255);
+        auto bars = [&](const QByteArray &body, int placing) {
+            tp::revisionMarkup().bars = placing;
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            w.setDocument(open(makeDocx(body)), QString());
+            w.act(QStringLiteral("review.view.simple"))->trigger();
+            return blueBars(w.view()->pageImage(0, 600));
+        };
+        const QByteArray one = para(run("first line")) + para(inserted(1, "second line")) + para(run("third line"));
+        const QByteArray all = para(inserted(1, "first line")) + para(inserted(2, "second line")) + para(inserted(3, "third line"));
+        const BarRows mid = bars(one, tp::RevisionMarkup::BarsLeft), every = bars(all, tp::RevisionMarkup::BarsLeft);
+        QVERIFY(mid.rows > 0);
+        QVERIFY2(every.rows >= mid.rows * 5 / 2, qPrintable(QStringLiteral("%1 rows for one changed line, %2 for three").arg(mid.rows).arg(every.rows)));
+        QVERIFY(mid.meanX < 300);
+        QVERIFY(bars(one, tp::RevisionMarkup::BarsRight).meanX > 300);
+        QVERIFY(bars(one, tp::RevisionMarkup::BarsOutside).meanX > 300);   // (page one is a right-hand page: its outside is at the right)
+        QCOMPARE(bars(one, tp::RevisionMarkup::BarsNone).rows, 0);
+    }
+
+    void aMovedPairIsReadDrawnAsAMoveSavedAsAMoveAndAcceptedAsOne()
+    {
+        MarkupGuard guard;
+        const QByteArray body = para(run("keep ") + moveFromOf("move9", 1, "moved")) + para(moveToOf("move9", 3, "moved") + run(" tail"));
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        QVector<Revision::Kind> kinds;
+        for (const Revision &r : revisionsIn(doc->story())) kinds << r.kind;
+        QCOMPARE(kinds, (QVector<Revision::Kind>{Revision::MovedFrom, Revision::MovedTo}));
+        doc->setRevisionView(tp::kRevisionShowDeleted | tp::kRevisionMark);
+        const QColor green(0x1A, 0x7F, 0x37);
+        QTextCharFormat from, to;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+                if (it.fragment().text() == QLatin1String("moved")) (it.fragment().charFormat().intProperty(tp::Revision) == 3 ? from : to) = resolveCharFormat(it.fragment().charFormat(), doc->flow().env);
+        QVERIFY(from.fontStrikeOut() && from.boolProperty(tp::DoubleStrike));
+        QCOMPARE(from.foreground().color(), green);
+        QVERIFY(to.underlineStyle() != QTextCharFormat::NoUnderline && (to.intProperty(tp::UnderlineKind) & 1));
+        QCOMPARE(to.foreground().color(), green);
+        // Saved as a move, with its ranges and the name that pairs them.
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY2(saved.contains("<w:moveFrom ") && saved.contains("<w:moveTo ") && saved.contains("<w:moveFromRangeStart") && saved.contains("<w:moveToRangeEnd") && saved.contains("w:name=\"move9\""), saved.constData());
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(revisionCount(again->story()), 2);
+        // Accepting one half takes both.
+        QVector<Revision> which;
+        for (const Revision &r : revisionsIn(doc->story()))
+            if (r.kind == Revision::MovedTo) which << r;
+        QCOMPARE(resolveRevisions(*doc, doc->story(), which, true), 2);
+        QCOMPARE(revisionCount(doc->story()), 0);
+        // Track moves off: a deletion and an insertion, in the looks and colors of those.
+        tp::revisionMarkup().trackMoves = false;
+        const QTextCharFormat d = shownFormat(*again, QStringLiteral("moved"));
+        again->setRevisionView(tp::kRevisionShowDeleted | tp::kRevisionMark);
+        for (QTextBlock b = again->story()->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+                if (it.fragment().text() == QLatin1String("moved")) (it.fragment().charFormat().intProperty(tp::Revision) == 3 ? from : to) = resolveCharFormat(it.fragment().charFormat(), again->flow().env);
+        Q_UNUSED(d);
+        QVERIFY(from.fontStrikeOut() && !from.boolProperty(tp::DoubleStrike));
+        QVERIFY(to.underlineStyle() != QTextCharFormat::NoUnderline && !(to.intProperty(tp::UnderlineKind) & 1));
+        QVERIFY(from.foreground().color() != green && to.foreground().color() != green);
+        QCOMPARE(from.foreground().color(), tp::revisionColor(again->reviewerIndex(QStringLiteral("Ann"))));
+    }
+
+    void aChangeOfFormattingIsMarkedAsChosen()
+    {
+        MarkupGuard guard;
+        auto doc = open(makeDocx(para(run("plain ") + "<w:r><w:rPr><w:i/><w:rPrChange" + rev(1) + "><w:rPr/></w:rPrChange></w:rPr><w:t>styled</w:t></w:r>")));
+        QVERIFY(doc);
+        QCOMPARE(revisionCount(doc->story()), 1);
+        tp::RevisionMarkup &m = tp::revisionMarkup();
+        const QColor ann = tp::revisionColor(doc->reviewerIndex(QStringLiteral("Ann")));
+        auto look = [&](int view) {
+            doc->setRevisionView(view);
+            return shownFormat(*doc, QStringLiteral("styled"));
+        };
+        const int marked = tp::kRevisionShowDeleted | tp::kRevisionMark | tp::kRevisionMarkFormat;
+        QVERIFY(look(marked).fontWeight() >= QFont::Bold);
+        QVERIFY(look(tp::kRevisionShowDeleted | tp::kRevisionMark).fontWeight() < QFont::DemiBold);   // (formatting not shown)
+        QVERIFY(shownFormat(*doc, QStringLiteral("plain ")).fontWeight() < QFont::DemiBold);
+        m.formatting = tp::RevisionMarkup::FmtColorOnly;
+        QVERIFY(look(marked).fontWeight() < QFont::DemiBold);
+        QCOMPARE(look(marked).foreground().color(), ann);
+        m.formatting = tp::RevisionMarkup::FmtNone;
+        QVERIFY(look(marked).fontWeight() < QFont::DemiBold && look(marked).foreground().color() != ann);
+        m.formatting = tp::RevisionMarkup::FmtBold;
+        m.trackFormatting = false;
+        QVERIFY(look(marked).fontWeight() < QFont::DemiBold);
+    }
+
+    void theChoicesAreKeptAndEveryOpenWindowRedrawsWhenTheyChange()
+    {
+        MarkupGuard guard;
+        const QByteArray body = para(run("one ") + inserted(1, "two ") + deleted(2, "three ", "Bob") + run("four"));
+        WriteWindow a, b;
+        for (WriteWindow *w : {&a, &b}) {
+            w->setNotifier([](const QString &, const QString &) {});
+            w->show();
+            w->setDocument(open(makeDocx(body)), QString());
+        }
+        QCOMPARE(lineTexts(*a.document()), QStringList{QStringLiteral("one two three four")});
+        tp::RevisionMarkup m = tp::revisionMarkup();
+        m.deletion = tp::RevisionMarkup::DelHidden;
+        WriteWindow::applyRevisionMarkup(m);
+        // (Hidden and caret deletions leave the words out of the lines; the other looks keep them.)
+        QCOMPARE(lineTexts(*a.document()), QStringList{QStringLiteral("one two four")});
+        QCOMPARE(lineTexts(*b.document()), QStringList{QStringLiteral("one two four")});
+        m.deletion = tp::RevisionMarkup::DelCaret;
+        WriteWindow::applyRevisionMarkup(m);
+        QCOMPARE(lineTexts(*b.document()), QStringList{QStringLiteral("one two four")});
+        m.deletion = tp::RevisionMarkup::DelDoubleStrike;
+        m.trackFormatting = false;
+        WriteWindow::applyRevisionMarkup(m);
+        QCOMPARE(lineTexts(*b.document()), QStringList{QStringLiteral("one two three four")});
+        QVERIFY(!(a.document()->revisionView() & tp::kRevisionMarkFormat));
+        // Kept in the settings, and read back.
+        tp::revisionMarkup() = tp::RevisionMarkup();
+        WriteWindow::loadRevisionMarkup();
+        QCOMPARE(tp::revisionMarkup().deletion, int(tp::RevisionMarkup::DelDoubleStrike));
+        QVERIFY(!tp::revisionMarkup().trackFormatting);
+    }
+
+    void theTrackingOptionsDialogChoosesTheLooksAndTheyTakeEffect()
+    {
+        MarkupGuard guard;
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("one ") + inserted(1, "two ") + deleted(2, "three ", "Bob") + run("four")))), QString());
+        withDialog([&] { w.act(QStringLiteral("review.trackOptions"))->trigger(); }, QStringLiteral("trackOptionsDialog"), [](QDialog *d) {
+            auto *deletion = d->findChild<QComboBox *>(QStringLiteral("deletionLook"));
+            QVERIFY(deletion && d->findChild<QComboBox *>(QStringLiteral("insertionLook")) && d->findChild<QComboBox *>(QStringLiteral("barsLook")));
+            QVERIFY(d->findChild<QCheckBox *>(QStringLiteral("trackMoves")) && d->findChild<QCheckBox *>(QStringLiteral("trackFormatting")));
+            deletion->setCurrentIndex(deletion->findData(int(tp::RevisionMarkup::DelHidden)));
+        });
+        QCOMPARE(tp::revisionMarkup().deletion, int(tp::RevisionMarkup::DelHidden));
+        QCOMPARE(lineTexts(*w.document()), QStringList{QStringLiteral("one two four")});
+    }
+
     void aParagraphWhollyDeletedIsAParagraphOfItsOwnWhereDeletionsAreShown()
     {
         const QByteArray body = para(run("keep")) + para(deleted(1, "gone"), "<w:rPr><w:del" + rev(2) + "/></w:rPr>") + para(run("tail"));
@@ -1115,7 +1376,7 @@ private Q_SLOTS:
         write::WriteDoc *doc = w.document();
         QVERIFY(doc);
         QCOMPARE(w.reviewView(), WriteWindow::ReviewView::AllMarkup);
-        QCOMPARE(doc->revisionView(), tp::kRevisionShowDeleted | tp::kRevisionMark);
+        QCOMPARE(doc->revisionView(), tp::kRevisionShowDeleted | tp::kRevisionMark | tp::kRevisionMarkFormat);
         QCOMPARE(lineTexts(*doc), QStringList{QStringLiteral("one two three four")});
         const QByteArray saved = documentXml(doc->toDocx());
         w.act(QStringLiteral("review.view.none"))->trigger();

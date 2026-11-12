@@ -431,6 +431,8 @@ public:
     int nextRevisionId();
     // How tracked changes are shown (tp::kRevisionShowDeleted and the others): the text engine's view of them, kept in the layout environment and the story. Not saved.
     int revisionView() const { return m_revisionView; }
+    // The person's choices for the look of changes are new (tp::revisionMarkup()): the lines are made again with them.
+    void refreshRevisionMarkup();
     // Show Field Codes (Shift+F9, Alt+F9): a view of the text, kept in the layout's environment and not in the story, so it is no step of the history and no change to the document.
     // `all` shows every field's codes; `ids` are the numbers (tp::FieldId) of single fields. Not saved.
     bool allFieldCodesShown() const { return m_fieldCodesAll; }

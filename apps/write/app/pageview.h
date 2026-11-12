@@ -59,8 +59,8 @@ public:
     // ---- marks over the pages for review: a bar in the margin beside each line a tracked change touches, a marker in the margin for each comment, and (with `deletions`) a balloon
     // for each deletion in place of its text. Nothing here is the document's.
     struct ReviewMarks {
-        bool changeBars = false, formatBars = false, comments = false, deletions = false;
-        bool operator==(const ReviewMarks &o) const { return changeBars == o.changeBars && formatBars == o.formatBars && comments == o.comments && deletions == o.deletions; }
+        bool changeBars = false, formatBars = false, comments = false, deletions = false, carets = false;   // carets: a mark where deleted words were left out of the line
+        bool operator==(const ReviewMarks &o) const { return changeBars == o.changeBars && formatBars == o.formatBars && comments == o.comments && deletions == o.deletions && carets == o.carets; }
     };
     void setReviewMarks(const ReviewMarks &marks);
     ReviewMarks reviewMarks() const { return m_reviewMarks; }
@@ -504,6 +504,7 @@ private:
             int lo = 0, hi = 0;
             QVector<std::pair<int, int>> spans, formatSpans;
             QVector<Mark> comments, deletions;
+            QVector<int> carets;   // where deleted words were left out
         };
         int revision = -1;
         const void *doc = nullptr;

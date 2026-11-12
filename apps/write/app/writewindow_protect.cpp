@@ -72,7 +72,9 @@ void WriteWindow::createProtectActions()
 {
     mk("review.trackOptions", tr("Change Tracking Options…"), "settings", QKeySequence(), [this] {
         QString name = Settings::get().userName(), initials = Settings::get().value(QStringLiteral("user/initials")).toString();
-        if (!write::trackOptionsDialog(this, &name, &initials)) return;
+        tp::RevisionMarkup markup = tp::revisionMarkup();
+        if (!write::trackOptionsDialog(this, &name, &initials, &markup)) return;
+        applyRevisionMarkup(markup);
         Settings::get().setValue(QStringLiteral("user/name"), name);
         Settings::get().setValue(QStringLiteral("user/initials"), initials);
         if (m_doc) m_doc->setReviewer(Settings::get().userName(), initials);

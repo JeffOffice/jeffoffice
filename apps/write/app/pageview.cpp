@@ -738,7 +738,7 @@ void PageView::paintEvent(QPaintEvent *e)
                 }
             }
             paintPage(&p, *page->page, &page->layouts, d);
-            if (m_reviewMarks.changeBars || m_reviewMarks.formatBars || m_reviewMarks.comments || m_reviewMarks.deletions) paintReviewMarks(p, *page);
+            if (m_reviewMarks.changeBars || m_reviewMarks.formatBars || m_reviewMarks.comments || m_reviewMarks.deletions || m_reviewMarks.carets) paintReviewMarks(p, *page);
             p.restore();
         }
         if (m_web) continue;   // (no end of a page is shown)
@@ -931,6 +931,7 @@ const PageView::ReviewCache::PageMarks &PageView::reviewMarksOf(int storyFrom, i
             const QString words = revisionText(m_doc->story(), r, 60);
             if (!words.isEmpty()) pm.deletions.push_back({r.from, QString(), words, tp::revisionColor(m_doc->reviewerIndex(r.author)), false});
         }
+        if (m_reviewMarks.carets && (r.kind == Revision::Deletion || r.kind == Revision::MovedFrom)) pm.carets.push_back(r.from);
     }
     auto joined = [](QVector<std::pair<int, int>> in, QVector<std::pair<int, int>> *out) {
         std::sort(in.begin(), in.end());
@@ -972,6 +973,11 @@ void PageView::paintReviewMarks(QPainter &p, Rendered &r)
     const ReviewCache::PageMarks &marks = reviewMarksOf(r.page->storyFrom, lo, hi);
     p.save();
     p.setRenderHint(QPainter::Antialiasing, true);
+    // The bars go where the person chose: left, right, or the page's outside (the right of an odd page and the left of an even one), in the color chosen.
+    const tp::RevisionMarkup &look = tp::revisionMarkup();
+    const int placing = look.bars;
+    const bool rightBar = placing == tp::RevisionMarkup::BarsRight || (placing == tp::RevisionMarkup::BarsOutside && r.page->number % 2 == 1);
+    const QColor barColor = look.barColor.isValid() ? look.barColor : QColor(0xC0, 0x39, 0x2B);
     double lastBottom = -1e9;
     for (int lineAt = 0; lineAt < lines.size(); ++lineAt) {
         const Line &line = lines[lineAt];
@@ -983,10 +989,26 @@ void PageView::paintReviewMarks(QPainter &p, Rendered &r)
         // The first span that ends after the line begins.
         auto bar = [&](const QVector<std::pair<int, int>> &spans) {
             auto it = std::lower_bound(spans.begin(), spans.end(), a, [](const std::pair<int, int> &sp, int v) { return sp.second <= v; });
-            if (it != spans.end() && it->first < b) p.fillRect(QRectF(box->rect.left() - 7, top, 1.6, height), QColor(0xC0, 0x39, 0x2B));
+            if (it != spans.end() && it->first < b) p.fillRect(QRectF(rightBar ? box->rect.right() + 5.4 : box->rect.left() - 7, top, 1.6, height), barColor);
         };
-        if (m_reviewMarks.changeBars) bar(marks.spans);
-        if (m_reviewMarks.formatBars) bar(marks.formatSpans);
+        if (placing != tp::RevisionMarkup::BarsNone) {
+            if (m_reviewMarks.changeBars) bar(marks.spans);
+            if (m_reviewMarks.formatBars) bar(marks.formatSpans);
+        }
+        for (const int at : marks.carets) {
+            if (at < a || at >= b) continue;
+            int frame = 0;
+            QRectF caret;
+            if (!fl.layout->caretRect(at - r.page->storyFrom, &frame, &caret) || frame < 0 || frame >= r.boxes.size() || r.boxes[frame] != box) continue;
+            const double x = box->rect.left() + caret.x(), y = top + height;
+            QPainterPath mark;
+            mark.moveTo(x - 2.5, y + 2.5);
+            mark.lineTo(x, y - 0.5);
+            mark.lineTo(x + 2.5, y + 2.5);
+            p.setPen(QPen(tp::revisionColor(0), 0.9));
+            p.setBrush(Qt::NoBrush);
+            p.drawPath(mark);
+        }
         if (marginRight >= 30) {
             auto balloon = [&](const ReviewCache::Mark &m, bool deletion) {
                 if (m.at < a || m.at >= b) return;
@@ -1039,7 +1061,7 @@ QImage PageView::pageImage(int index, int width)
     d.output = true;
     paintPage(&p, *page->page, &page->layouts, d);
     // (A picture of the page is the page as the window shows it: the marks for review are on it.)
-    if (m_reviewMarks.changeBars || m_reviewMarks.formatBars || m_reviewMarks.comments || m_reviewMarks.deletions) paintReviewMarks(p, *page);
+    if (m_reviewMarks.changeBars || m_reviewMarks.formatBars || m_reviewMarks.comments || m_reviewMarks.deletions || m_reviewMarks.carets) paintReviewMarks(p, *page);
     return img;
 }
 

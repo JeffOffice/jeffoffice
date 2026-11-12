@@ -310,6 +310,10 @@ public:
     enum class ReviewView { SimpleMarkup, AllMarkup, NoMarkup, Original };
     ReviewView reviewView() const { return m_reviewView; }
     void setReviewView(ReviewView view);
+    // How tracked changes are drawn (the person's choice, kept in the app's settings for every window): takes the choice, keeps it, and redraws every open window. loadRevisionMarkup
+    // takes what the settings hold (the first window does it; the tests do it to see what was kept).
+    static void applyRevisionMarkup(const tp::RevisionMarkup &markup);
+    static void loadRevisionMarkup();
 
     // Copy Formatting: picked up (Once, or Locked by a double click on its button) it holds the look of the selection, and paints it on each selection made with the mouse until it
     // paints once, or until Esc. Turning it on copies the look of the selection as it is then.
