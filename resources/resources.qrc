@@ -1558,7 +1558,9 @@
     <file alias="de/accessibility.md">help/de/accessibility.md</file>
     <file alias="de/arrange.md">help/de/arrange.md</file>
     <file alias="de/change-template.md">help/de/change-template.md</file>
+    <file alias="de/charts.md">help/de/charts.md</file>
     <file alias="de/color-schemes.md">help/de/color-schemes.md</file>
+    <file alias="de/comments.md">help/de/comments.md</file>
     <file alias="de/create.md">help/de/create.md</file>
     <file alias="de/crunch/cell-styles.md">help/de/crunch/cell-styles.md</file>
     <file alias="de/crunch/charts.md">help/de/crunch/charts.md</file>
@@ -1566,6 +1568,7 @@
     <file alias="de/crunch/conditional-formats.md">help/de/crunch/conditional-formats.md</file>
     <file alias="de/crunch/data-tools.md">help/de/crunch/data-tools.md</file>
     <file alias="de/crunch/edit-cells.md">help/de/crunch/edit-cells.md</file>
+    <file alias="de/crunch/equations.md">help/de/crunch/equations.md</file>
     <file alias="de/crunch/fill-sum.md">help/de/crunch/fill-sum.md</file>
     <file alias="de/crunch/find-replace.md">help/de/crunch/find-replace.md</file>
     <file alias="de/crunch/format-cells.md">help/de/crunch/format-cells.md</file>
@@ -1597,6 +1600,7 @@
     <file alias="de/crunch/tables.md">help/de/crunch/tables.md</file>
     <file alias="de/crunch/view.md">help/de/crunch/view.md</file>
     <file alias="de/deck/animations.md">help/de/deck/animations.md</file>
+    <file alias="de/deck/charts.md">help/de/deck/charts.md</file>
     <file alias="de/deck/comments.md">help/de/deck/comments.md</file>
     <file alias="de/deck/design.md">help/de/deck/design.md</file>
     <file alias="de/deck/file-screen.md">help/de/deck/file-screen.md</file>
@@ -1628,6 +1632,7 @@
     <file alias="de/deck/views.md">help/de/deck/views.md</file>
     <file alias="de/deck/window.md">help/de/deck/window.md</file>
     <file alias="de/design-checker.md">help/de/design-checker.md</file>
+    <file alias="de/equations.md">help/de/equations.md</file>
     <file alias="de/export.md">help/de/export.md</file>
     <file alias="de/find-replace.md">help/de/find-replace.md</file>
     <file alias="de/formatting-text.md">help/de/formatting-text.md</file>
@@ -1733,6 +1738,7 @@
     <file alias="en/crunch/context.json">help/en/crunch/context.json</file>
     <file alias="en/crunch/data-tools.md">help/en/crunch/data-tools.md</file>
     <file alias="en/crunch/edit-cells.md">help/en/crunch/edit-cells.md</file>
+    <file alias="en/crunch/equations.md">help/en/crunch/equations.md</file>
     <file alias="en/crunch/fill-sum.md">help/en/crunch/fill-sum.md</file>
     <file alias="en/crunch/find-replace.md">help/en/crunch/find-replace.md</file>
     <file alias="en/crunch/format-cells.md">help/en/crunch/format-cells.md</file>
@@ -1797,6 +1803,7 @@
     <file alias="en/deck/views.md">help/en/deck/views.md</file>
     <file alias="en/deck/window.md">help/en/deck/window.md</file>
     <file alias="en/design-checker.md">help/en/design-checker.md</file>
+    <file alias="en/equations.md">help/en/equations.md</file>
     <file alias="en/export.md">help/en/export.md</file>
     <file alias="en/find-replace.md">help/en/find-replace.md</file>
     <file alias="en/formatting-text.md">help/en/formatting-text.md</file>
@@ -1841,8 +1848,6 @@
     <file alias="en/tab-view.md">help/en/tab-view.md</file>
     <file alias="en/tables.md">help/en/tables.md</file>
     <file alias="en/text-art.md">help/en/text-art.md</file>
-    <file alias="en/equations.md">help/en/equations.md</file>
-    <file alias="en/crunch/equations.md">help/en/crunch/equations.md</file>
     <file alias="en/text-boxes.md">help/en/text-boxes.md</file>
     <file alias="en/window.md">help/en/window.md</file>
     <file alias="en/wrap.md">help/en/wrap.md</file>
@@ -2187,7 +2192,9 @@
     <file alias="es/accessibility.md">help/es/accessibility.md</file>
     <file alias="es/arrange.md">help/es/arrange.md</file>
     <file alias="es/change-template.md">help/es/change-template.md</file>
+    <file alias="es/charts.md">help/es/charts.md</file>
     <file alias="es/color-schemes.md">help/es/color-schemes.md</file>
+    <file alias="es/comments.md">help/es/comments.md</file>
     <file alias="es/create.md">help/es/create.md</file>
     <file alias="es/crunch/cell-styles.md">help/es/crunch/cell-styles.md</file>
     <file alias="es/crunch/charts.md">help/es/crunch/charts.md</file>
@@ -2195,6 +2202,7 @@
     <file alias="es/crunch/conditional-formats.md">help/es/crunch/conditional-formats.md</file>
     <file alias="es/crunch/data-tools.md">help/es/crunch/data-tools.md</file>
     <file alias="es/crunch/edit-cells.md">help/es/crunch/edit-cells.md</file>
+    <file alias="es/crunch/equations.md">help/es/crunch/equations.md</file>
     <file alias="es/crunch/fill-sum.md">help/es/crunch/fill-sum.md</file>
     <file alias="es/crunch/find-replace.md">help/es/crunch/find-replace.md</file>
     <file alias="es/crunch/format-cells.md">help/es/crunch/format-cells.md</file>
@@ -2226,6 +2234,7 @@
     <file alias="es/crunch/tables.md">help/es/crunch/tables.md</file>
     <file alias="es/crunch/view.md">help/es/crunch/view.md</file>
     <file alias="es/deck/animations.md">help/es/deck/animations.md</file>
+    <file alias="es/deck/charts.md">help/es/deck/charts.md</file>
     <file alias="es/deck/comments.md">help/es/deck/comments.md</file>
     <file alias="es/deck/design.md">help/es/deck/design.md</file>
     <file alias="es/deck/file-screen.md">help/es/deck/file-screen.md</file>
@@ -2257,6 +2266,7 @@
     <file alias="es/deck/views.md">help/es/deck/views.md</file>
     <file alias="es/deck/window.md">help/es/deck/window.md</file>
     <file alias="es/design-checker.md">help/es/design-checker.md</file>
+    <file alias="es/equations.md">help/es/equations.md</file>
     <file alias="es/export.md">help/es/export.md</file>
     <file alias="es/find-replace.md">help/es/find-replace.md</file>
     <file alias="es/formatting-text.md">help/es/formatting-text.md</file>
@@ -2479,7 +2489,9 @@
     <file alias="fr/accessibility.md">help/fr/accessibility.md</file>
     <file alias="fr/arrange.md">help/fr/arrange.md</file>
     <file alias="fr/change-template.md">help/fr/change-template.md</file>
+    <file alias="fr/charts.md">help/fr/charts.md</file>
     <file alias="fr/color-schemes.md">help/fr/color-schemes.md</file>
+    <file alias="fr/comments.md">help/fr/comments.md</file>
     <file alias="fr/create.md">help/fr/create.md</file>
     <file alias="fr/crunch/cell-styles.md">help/fr/crunch/cell-styles.md</file>
     <file alias="fr/crunch/charts.md">help/fr/crunch/charts.md</file>
@@ -2487,6 +2499,7 @@
     <file alias="fr/crunch/conditional-formats.md">help/fr/crunch/conditional-formats.md</file>
     <file alias="fr/crunch/data-tools.md">help/fr/crunch/data-tools.md</file>
     <file alias="fr/crunch/edit-cells.md">help/fr/crunch/edit-cells.md</file>
+    <file alias="fr/crunch/equations.md">help/fr/crunch/equations.md</file>
     <file alias="fr/crunch/fill-sum.md">help/fr/crunch/fill-sum.md</file>
     <file alias="fr/crunch/find-replace.md">help/fr/crunch/find-replace.md</file>
     <file alias="fr/crunch/format-cells.md">help/fr/crunch/format-cells.md</file>
@@ -2518,6 +2531,7 @@
     <file alias="fr/crunch/tables.md">help/fr/crunch/tables.md</file>
     <file alias="fr/crunch/view.md">help/fr/crunch/view.md</file>
     <file alias="fr/deck/animations.md">help/fr/deck/animations.md</file>
+    <file alias="fr/deck/charts.md">help/fr/deck/charts.md</file>
     <file alias="fr/deck/comments.md">help/fr/deck/comments.md</file>
     <file alias="fr/deck/design.md">help/fr/deck/design.md</file>
     <file alias="fr/deck/file-screen.md">help/fr/deck/file-screen.md</file>
@@ -2549,6 +2563,7 @@
     <file alias="fr/deck/views.md">help/fr/deck/views.md</file>
     <file alias="fr/deck/window.md">help/fr/deck/window.md</file>
     <file alias="fr/design-checker.md">help/fr/design-checker.md</file>
+    <file alias="fr/equations.md">help/fr/equations.md</file>
     <file alias="fr/export.md">help/fr/export.md</file>
     <file alias="fr/find-replace.md">help/fr/find-replace.md</file>
     <file alias="fr/formatting-text.md">help/fr/formatting-text.md</file>
@@ -2643,7 +2658,9 @@
     <file alias="it/accessibility.md">help/it/accessibility.md</file>
     <file alias="it/arrange.md">help/it/arrange.md</file>
     <file alias="it/change-template.md">help/it/change-template.md</file>
+    <file alias="it/charts.md">help/it/charts.md</file>
     <file alias="it/color-schemes.md">help/it/color-schemes.md</file>
+    <file alias="it/comments.md">help/it/comments.md</file>
     <file alias="it/create.md">help/it/create.md</file>
     <file alias="it/crunch/cell-styles.md">help/it/crunch/cell-styles.md</file>
     <file alias="it/crunch/charts.md">help/it/crunch/charts.md</file>
@@ -2651,6 +2668,7 @@
     <file alias="it/crunch/conditional-formats.md">help/it/crunch/conditional-formats.md</file>
     <file alias="it/crunch/data-tools.md">help/it/crunch/data-tools.md</file>
     <file alias="it/crunch/edit-cells.md">help/it/crunch/edit-cells.md</file>
+    <file alias="it/crunch/equations.md">help/it/crunch/equations.md</file>
     <file alias="it/crunch/fill-sum.md">help/it/crunch/fill-sum.md</file>
     <file alias="it/crunch/find-replace.md">help/it/crunch/find-replace.md</file>
     <file alias="it/crunch/format-cells.md">help/it/crunch/format-cells.md</file>
@@ -2682,6 +2700,7 @@
     <file alias="it/crunch/tables.md">help/it/crunch/tables.md</file>
     <file alias="it/crunch/view.md">help/it/crunch/view.md</file>
     <file alias="it/deck/animations.md">help/it/deck/animations.md</file>
+    <file alias="it/deck/charts.md">help/it/deck/charts.md</file>
     <file alias="it/deck/comments.md">help/it/deck/comments.md</file>
     <file alias="it/deck/design.md">help/it/deck/design.md</file>
     <file alias="it/deck/file-screen.md">help/it/deck/file-screen.md</file>
@@ -2713,6 +2732,7 @@
     <file alias="it/deck/views.md">help/it/deck/views.md</file>
     <file alias="it/deck/window.md">help/it/deck/window.md</file>
     <file alias="it/design-checker.md">help/it/design-checker.md</file>
+    <file alias="it/equations.md">help/it/equations.md</file>
     <file alias="it/export.md">help/it/export.md</file>
     <file alias="it/find-replace.md">help/it/find-replace.md</file>
     <file alias="it/formatting-text.md">help/it/formatting-text.md</file>
@@ -2807,7 +2827,9 @@
     <file alias="nl/accessibility.md">help/nl/accessibility.md</file>
     <file alias="nl/arrange.md">help/nl/arrange.md</file>
     <file alias="nl/change-template.md">help/nl/change-template.md</file>
+    <file alias="nl/charts.md">help/nl/charts.md</file>
     <file alias="nl/color-schemes.md">help/nl/color-schemes.md</file>
+    <file alias="nl/comments.md">help/nl/comments.md</file>
     <file alias="nl/create.md">help/nl/create.md</file>
     <file alias="nl/crunch/cell-styles.md">help/nl/crunch/cell-styles.md</file>
     <file alias="nl/crunch/charts.md">help/nl/crunch/charts.md</file>
@@ -2815,6 +2837,7 @@
     <file alias="nl/crunch/conditional-formats.md">help/nl/crunch/conditional-formats.md</file>
     <file alias="nl/crunch/data-tools.md">help/nl/crunch/data-tools.md</file>
     <file alias="nl/crunch/edit-cells.md">help/nl/crunch/edit-cells.md</file>
+    <file alias="nl/crunch/equations.md">help/nl/crunch/equations.md</file>
     <file alias="nl/crunch/fill-sum.md">help/nl/crunch/fill-sum.md</file>
     <file alias="nl/crunch/find-replace.md">help/nl/crunch/find-replace.md</file>
     <file alias="nl/crunch/format-cells.md">help/nl/crunch/format-cells.md</file>
@@ -2846,6 +2869,7 @@
     <file alias="nl/crunch/tables.md">help/nl/crunch/tables.md</file>
     <file alias="nl/crunch/view.md">help/nl/crunch/view.md</file>
     <file alias="nl/deck/animations.md">help/nl/deck/animations.md</file>
+    <file alias="nl/deck/charts.md">help/nl/deck/charts.md</file>
     <file alias="nl/deck/comments.md">help/nl/deck/comments.md</file>
     <file alias="nl/deck/design.md">help/nl/deck/design.md</file>
     <file alias="nl/deck/file-screen.md">help/nl/deck/file-screen.md</file>
@@ -2877,6 +2901,7 @@
     <file alias="nl/deck/views.md">help/nl/deck/views.md</file>
     <file alias="nl/deck/window.md">help/nl/deck/window.md</file>
     <file alias="nl/design-checker.md">help/nl/design-checker.md</file>
+    <file alias="nl/equations.md">help/nl/equations.md</file>
     <file alias="nl/export.md">help/nl/export.md</file>
     <file alias="nl/find-replace.md">help/nl/find-replace.md</file>
     <file alias="nl/formatting-text.md">help/nl/formatting-text.md</file>
@@ -2971,7 +2996,9 @@
     <file alias="pt_BR/accessibility.md">help/pt_BR/accessibility.md</file>
     <file alias="pt_BR/arrange.md">help/pt_BR/arrange.md</file>
     <file alias="pt_BR/change-template.md">help/pt_BR/change-template.md</file>
+    <file alias="pt_BR/charts.md">help/pt_BR/charts.md</file>
     <file alias="pt_BR/color-schemes.md">help/pt_BR/color-schemes.md</file>
+    <file alias="pt_BR/comments.md">help/pt_BR/comments.md</file>
     <file alias="pt_BR/create.md">help/pt_BR/create.md</file>
     <file alias="pt_BR/crunch/cell-styles.md">help/pt_BR/crunch/cell-styles.md</file>
     <file alias="pt_BR/crunch/charts.md">help/pt_BR/crunch/charts.md</file>
@@ -2979,6 +3006,7 @@
     <file alias="pt_BR/crunch/conditional-formats.md">help/pt_BR/crunch/conditional-formats.md</file>
     <file alias="pt_BR/crunch/data-tools.md">help/pt_BR/crunch/data-tools.md</file>
     <file alias="pt_BR/crunch/edit-cells.md">help/pt_BR/crunch/edit-cells.md</file>
+    <file alias="pt_BR/crunch/equations.md">help/pt_BR/crunch/equations.md</file>
     <file alias="pt_BR/crunch/fill-sum.md">help/pt_BR/crunch/fill-sum.md</file>
     <file alias="pt_BR/crunch/find-replace.md">help/pt_BR/crunch/find-replace.md</file>
     <file alias="pt_BR/crunch/format-cells.md">help/pt_BR/crunch/format-cells.md</file>
@@ -3010,6 +3038,7 @@
     <file alias="pt_BR/crunch/tables.md">help/pt_BR/crunch/tables.md</file>
     <file alias="pt_BR/crunch/view.md">help/pt_BR/crunch/view.md</file>
     <file alias="pt_BR/deck/animations.md">help/pt_BR/deck/animations.md</file>
+    <file alias="pt_BR/deck/charts.md">help/pt_BR/deck/charts.md</file>
     <file alias="pt_BR/deck/comments.md">help/pt_BR/deck/comments.md</file>
     <file alias="pt_BR/deck/design.md">help/pt_BR/deck/design.md</file>
     <file alias="pt_BR/deck/file-screen.md">help/pt_BR/deck/file-screen.md</file>
@@ -3041,6 +3070,7 @@
     <file alias="pt_BR/deck/views.md">help/pt_BR/deck/views.md</file>
     <file alias="pt_BR/deck/window.md">help/pt_BR/deck/window.md</file>
     <file alias="pt_BR/design-checker.md">help/pt_BR/design-checker.md</file>
+    <file alias="pt_BR/equations.md">help/pt_BR/equations.md</file>
     <file alias="pt_BR/export.md">help/pt_BR/export.md</file>
     <file alias="pt_BR/find-replace.md">help/pt_BR/find-replace.md</file>
     <file alias="pt_BR/formatting-text.md">help/pt_BR/formatting-text.md</file>
@@ -3135,7 +3165,9 @@
     <file alias="pt_PT/accessibility.md">help/pt_PT/accessibility.md</file>
     <file alias="pt_PT/arrange.md">help/pt_PT/arrange.md</file>
     <file alias="pt_PT/change-template.md">help/pt_PT/change-template.md</file>
+    <file alias="pt_PT/charts.md">help/pt_PT/charts.md</file>
     <file alias="pt_PT/color-schemes.md">help/pt_PT/color-schemes.md</file>
+    <file alias="pt_PT/comments.md">help/pt_PT/comments.md</file>
     <file alias="pt_PT/create.md">help/pt_PT/create.md</file>
     <file alias="pt_PT/crunch/cell-styles.md">help/pt_PT/crunch/cell-styles.md</file>
     <file alias="pt_PT/crunch/charts.md">help/pt_PT/crunch/charts.md</file>
@@ -3143,6 +3175,7 @@
     <file alias="pt_PT/crunch/conditional-formats.md">help/pt_PT/crunch/conditional-formats.md</file>
     <file alias="pt_PT/crunch/data-tools.md">help/pt_PT/crunch/data-tools.md</file>
     <file alias="pt_PT/crunch/edit-cells.md">help/pt_PT/crunch/edit-cells.md</file>
+    <file alias="pt_PT/crunch/equations.md">help/pt_PT/crunch/equations.md</file>
     <file alias="pt_PT/crunch/fill-sum.md">help/pt_PT/crunch/fill-sum.md</file>
     <file alias="pt_PT/crunch/find-replace.md">help/pt_PT/crunch/find-replace.md</file>
     <file alias="pt_PT/crunch/format-cells.md">help/pt_PT/crunch/format-cells.md</file>
@@ -3174,6 +3207,7 @@
     <file alias="pt_PT/crunch/tables.md">help/pt_PT/crunch/tables.md</file>
     <file alias="pt_PT/crunch/view.md">help/pt_PT/crunch/view.md</file>
     <file alias="pt_PT/deck/animations.md">help/pt_PT/deck/animations.md</file>
+    <file alias="pt_PT/deck/charts.md">help/pt_PT/deck/charts.md</file>
     <file alias="pt_PT/deck/comments.md">help/pt_PT/deck/comments.md</file>
     <file alias="pt_PT/deck/design.md">help/pt_PT/deck/design.md</file>
     <file alias="pt_PT/deck/file-screen.md">help/pt_PT/deck/file-screen.md</file>
@@ -3205,6 +3239,7 @@
     <file alias="pt_PT/deck/views.md">help/pt_PT/deck/views.md</file>
     <file alias="pt_PT/deck/window.md">help/pt_PT/deck/window.md</file>
     <file alias="pt_PT/design-checker.md">help/pt_PT/design-checker.md</file>
+    <file alias="pt_PT/equations.md">help/pt_PT/equations.md</file>
     <file alias="pt_PT/export.md">help/pt_PT/export.md</file>
     <file alias="pt_PT/find-replace.md">help/pt_PT/find-replace.md</file>
     <file alias="pt_PT/formatting-text.md">help/pt_PT/formatting-text.md</file>
