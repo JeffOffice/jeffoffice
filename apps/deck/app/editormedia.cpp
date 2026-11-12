@@ -21,7 +21,10 @@ EditorMedia::EditorMedia(DeckCanvas *canvas) : QObject(canvas), m_canvas(canvas)
         m_hover.clear();
         m_drag.clear();
     });
-    connect(ed, &Editor::changed, this, [this] { forgetGone(); });
+    connect(ed, &Editor::changed, this, [this] {
+        forgetGone();
+        syncCaptions();
+    });
 }
 
 const PictureItem *EditorMedia::pictureWith(const QString &id) const
@@ -105,6 +108,17 @@ MediaPlayback *EditorMedia::playbackFor(const PictureItem &pic)
                                                                          : tr("This sound is linked from outside the presentation, so it can't be played here."));
     }
     return slot;
+}
+
+// What a player captions follows the document, whatever changed it (an insert, an undo, a paste).
+void EditorMedia::syncCaptions()
+{
+    const Document *d = m_canvas->editor()->doc();
+    for (auto it = m_players.cbegin(); it != m_players.cend(); ++it) {
+        const PictureItem *pic = pictureWith(it.key());
+        if (!pic || !it.value() || !d) continue;
+        if (it.value()->setCaptions(deck::captionCuesOf(*d, *pic))) updateFor(it.key());
+    }
 }
 
 void EditorMedia::refresh(const QString &id)

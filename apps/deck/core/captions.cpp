@@ -1,10 +1,15 @@
 #include "core/captions.h"
 
 #include <QCoreApplication>
+#include <QHash>
 #include <QRegularExpression>
+#include <QSet>
 #include <algorithm>
 
 namespace jp::deck {
+
+static int s_parses = 0;
+int captionParseCount() { return s_parses; }
 
 namespace {
 
@@ -62,12 +67,47 @@ QString plainCueText(const QString &raw)
     return out.trimmed();
 }
 
+// The cues of a file, read once while its bytes stay the same (found by what they hold, so that a document's ids, which another document
+// may use for other bytes, do not matter). A few files are kept, the latest.
+QVector<CaptionCue> cuesOfBytes(const QByteArray &bytes)
+{
+    static QHash<quint64, QVector<CaptionCue>> known;
+    const quint64 key = (quint64(qHash(bytes, 0x5EEDu)) << 32 | quint64(qHash(bytes, 0xCAFEu))) ^ quint64(bytes.size());
+    if (const auto it = known.constFind(key); it != known.constEnd()) return *it;
+    const CaptionFile f = parseWebVtt(bytes);
+    if (known.size() >= 8) known.clear();
+    known.insert(key, f.cues);
+    return f.cues;
+}
+
+// Takes the files of tracks that were taken off out of the document's media, unless a movie or a track still names one (the same file may
+// be a track of several videos, as the media store keeps one copy of equal bytes).
+void dropUnusedMedia(Document &doc, const QStringList &ids)
+{
+    QSet<QString> wanted;
+    for (const QString &id : ids)
+        if (!id.isEmpty() && doc.media.contains(id)) wanted.insert(id);
+    if (wanted.isEmpty()) return;
+    auto scan = [&](const ItemList &items) {
+        walkItems(items, [&](const ItemPtr &it) {
+            if (it->type() != ItemType::Picture) return;
+            const auto &pic = static_cast<const PictureItem &>(*it);
+            wanted.remove(pic.mediaId);
+            for (const PictureItem::Caption &c : pic.mediaCaptions) wanted.remove(c.mediaId);
+        });
+    };
+    for (const auto &page : doc.pages) scan(page->items);
+    for (const auto &master : doc.masters) scan(master->items);
+    for (const QString &id : std::as_const(wanted)) doc.media.remove(id);
+}
+
 } // namespace
 
 bool looksLikeWebVtt(const QByteArray &bytes) { return headerEnd(bytes) >= 0; }
 
 CaptionFile parseWebVtt(const QByteArray &bytes)
 {
+    ++s_parses;
     CaptionFile f;
     if (bytes.size() > kMaxCaptionFileBytes) {
         f.error = QCoreApplication::translate("Captions", "The caption file is too large (the most is %1 MB).").arg(kMaxCaptionFileBytes / (1024 * 1024));
@@ -166,20 +206,35 @@ QString addCaptions(Document &doc, PictureItem &video, const QByteArray &bytes, 
         return QCoreApplication::translate("Captions", "A video can have captions in at most %1 languages.").arg(kMaxMediaCaptions);
     const QString id = doc.addMedia(bytes, QStringLiteral("text/vtt"), QStringLiteral("vtt"));
     if (id.isEmpty()) return QCoreApplication::translate("Captions", "The captions could not be kept.");
+    const QString old = at >= 0 ? video.mediaCaptions[at].mediaId : QString();
     if (at >= 0) video.mediaCaptions[at] = {language, id};
     else video.mediaCaptions.push_back({language, id});
+    dropUnusedMedia(doc, {old});
     return QString();
 }
 
-bool removeCaptions(PictureItem &video, const QString &language)
+bool removeCaptions(Document &doc, PictureItem &video, const QString &language)
 {
-    const qsizetype before = video.mediaCaptions.size();
-    if (language.isEmpty()) video.mediaCaptions.clear();
-    else
-        video.mediaCaptions.erase(std::remove_if(video.mediaCaptions.begin(), video.mediaCaptions.end(),
-                                                 [&](const PictureItem::Caption &c) { return c.language.compare(language, Qt::CaseInsensitive) == 0; }),
-                                  video.mediaCaptions.end());
-    return video.mediaCaptions.size() != before;
+    QStringList gone;
+    for (auto it = video.mediaCaptions.begin(); it != video.mediaCaptions.end();) {
+        if (it->language.compare(language, Qt::CaseInsensitive) == 0) {
+            gone << it->mediaId;
+            it = video.mediaCaptions.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    dropUnusedMedia(doc, gone);
+    return !gone.isEmpty();
+}
+
+bool removeAllCaptions(Document &doc, PictureItem &video)
+{
+    QStringList gone;
+    for (const PictureItem::Caption &c : video.mediaCaptions) gone << c.mediaId;
+    video.mediaCaptions.clear();
+    dropUnusedMedia(doc, gone);
+    return !gone.isEmpty();
 }
 
 QVector<CaptionCue> captionCuesOf(const Document &doc, const PictureItem &video, const QString &preferred)
@@ -191,9 +246,9 @@ QVector<CaptionCue> captionCuesOf(const Document &doc, const PictureItem &video,
         if (data == doc.media.cend() || !looksLikeWebVtt(data->bytes)) continue;
         const bool wanted = !preferred.isEmpty() && c.language.compare(preferred, Qt::CaseInsensitive) == 0;
         if (found && !wanted) continue;
-        const CaptionFile f = parseWebVtt(data->bytes);
-        if (f.cues.isEmpty()) continue;
-        best = f.cues;
+        const QVector<CaptionCue> cues = cuesOfBytes(data->bytes);
+        if (cues.isEmpty()) continue;
+        best = cues;
         found = true;
         if (wanted) break;
     }

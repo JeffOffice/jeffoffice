@@ -135,6 +135,7 @@ constexpr qint64 kMaxChartPartBytes = 2 << 20;
 // characters each, in one to a dozen languages. The limits are well over ten times that: 4 MB a file, 32 tracks.
 constexpr qint64 kMaxCaptionBytes = 4 << 20;
 constexpr int kMaxMediaCaptions = 32;
+constexpr int kMaxFileCaptions = 256;   // the tracks read from one file, all its videos together (a track costs a part's inflating)
 
 class PictureItem : public Item {
 public:

@@ -63,6 +63,7 @@ private:
     QRectF barFor(const PictureItem &pic) const;
     MediaPlayback *playbackFor(const PictureItem &pic);
     void updateFor(const QString &id);
+    void syncCaptions();
     void forgetGone();
     bool act(const QString &id, MediaBar::Part part, const QPointF &pos, bool dragging);
     DeckCanvas *m_canvas;

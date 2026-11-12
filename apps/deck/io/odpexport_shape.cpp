@@ -479,6 +479,9 @@ void Exporter::writePicture(X &x, Scope &sc, const PictureItem &p)
         }
     }
 
+    if (!p.mediaCaptions.isEmpty())
+        sayOnce(QStringLiteral("captions"), QCoreApplication::translate("OdpExport", "The captions of a movie are not kept in a document presentation file, so they were left out."));
+
     QString extra;
     // The crop: lengths cut from the picture at the size its own resolution gives it.
     const QRectF whole = p.imgRect, frame(0, 0, p.rect.width(), p.rect.height());

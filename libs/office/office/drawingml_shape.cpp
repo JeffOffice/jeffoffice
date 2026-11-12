@@ -17,6 +17,7 @@
 #include "wml/wmlmathedit.h"
 #include "wml/wmlmathpath.h"
 
+#include <QRegularExpression>
 #include <QTextDocument>
 #include <QtMath>
 #include <algorithm>
@@ -1076,23 +1077,43 @@ void Reader::media(const QDomElement &nvPr, PictureItem &p)
         break;
     }
     if (!p.mediaId.isEmpty() || !p.mediaLink.isEmpty()) p.mediaKind = kind;
-    // The caption tracks of a movie: each a file kept as it came, whatever its format; one that is missing or too large is left out.
+    // The caption tracks of a movie: each a file kept as it came, whatever its format. A relationship that is not a caption track's (a slide, a
+    // picture, the movie itself), a part that is missing or larger than a track may be, and tracks past the limits (for a movie, and for the whole
+    // file) are left out; a part is inflated and kept once however many tracks name it.
     if (kind == QLatin1String("video") && !p.mediaId.isEmpty() && !captions.isNull() && m_ctx.addMedia) {
+        QHash<QString, QString> &kept = m_ctx.images ? *m_ctx.images : m_images;
+        const QString countKey = QStringLiteral("captions:count");
+        int total = kept.value(countKey).toInt();
         int looked = 0;
-        for (QDomElement t = captions.firstChildElement(); !t.isNull() && p.mediaCaptions.size() < kMaxMediaCaptions && looked < 4 * kMaxMediaCaptions; t = t.nextSiblingElement(), ++looked) {
+        for (QDomElement t = captions.firstChildElement(); !t.isNull() && p.mediaCaptions.size() < kMaxMediaCaptions && total < kMaxFileCaptions && looked < 4 * kMaxMediaCaptions;
+             t = t.nextSiblingElement(), ++looked) {
             if (t.localName() != QLatin1String("track")) continue;
             const Relationship r = m_ctx.package->relationship(m_ctx.part, attrNs(t, ns::R, QStringLiteral("id")));
-            if (r.id.isEmpty() || r.external) continue;
-            const QByteArray bytes = m_ctx.package->part(r.target);
-            if (bytes.isEmpty() || bytes.size() > kMaxCaptionBytes) continue;
-            const qsizetype dot = r.target.lastIndexOf(QLatin1Char('.'));
-            const QString extension = dot > r.target.lastIndexOf(QLatin1Char('/')) ? r.target.mid(dot + 1).toLower() : QString();
-            const QString id = m_ctx.addMedia(bytes, m_ctx.package->contentType(r.target), extension);
-            const QString language = attr(t, QStringLiteral("lang")).left(35);
+            if (r.id.isEmpty() || r.external || !r.type.endsWith(QLatin1String("/relationships/subTitle"))) continue;
+            const QString key = QStringLiteral("caption:") + r.target.toLower();
+            QString id;
+            if (const auto known = kept.constFind(key); known != kept.constEnd()) {
+                id = *known;
+            } else {
+                const qint64 size = m_ctx.package->partSize(r.target);
+                if (size > 0 && size <= kMaxCaptionBytes) {
+                    const QByteArray bytes = m_ctx.package->part(r.target);
+                    const qsizetype dot = r.target.lastIndexOf(QLatin1Char('.'));
+                    const QString extension = dot > r.target.lastIndexOf(QLatin1Char('/')) ? r.target.mid(dot + 1).toLower() : QString();
+                    if (!bytes.isEmpty()) id = m_ctx.addMedia(bytes, m_ctx.package->contentType(r.target), extension);
+                }
+                kept.insert(key, id);
+            }
             if (id.isEmpty()) continue;
+            // (Words that make no language tag are "und", the tag for a language that isn't said.)
+            QString language = attr(t, QStringLiteral("lang")).trimmed();
+            static const QRegularExpression tag(QStringLiteral("^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$"));
+            if (language.isEmpty() || language.size() > 35 || !tag.match(language).hasMatch()) language = QStringLiteral("und");
             bool same = false;
             for (const PictureItem::Caption &c : std::as_const(p.mediaCaptions)) same = same || c.language.compare(language, Qt::CaseInsensitive) == 0;
-            if (!same) p.mediaCaptions.push_back({language, id});
+            if (same) continue;
+            p.mediaCaptions.push_back({language, id});
+            kept.insert(countKey, QString::number(++total));
         }
     }
 }

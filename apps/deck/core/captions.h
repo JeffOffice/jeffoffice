@@ -22,6 +22,7 @@ constexpr int kMaxActiveCues = 4;   // cues shown at one moment, at most
 struct CaptionCue {
     qint64 start = 0, end = 0;   // milliseconds from the start of the video's file
     QString text;                // lines joined by newlines, markup taken out
+    bool operator==(const CaptionCue &o) const { return start == o.start && end == o.end && text == o.text; }
 };
 
 struct CaptionFile {
@@ -47,11 +48,17 @@ bool validCaptionLanguage(const QString &language);
 // (the file is not WebVTT or holds nothing to show, or it is too large, or the video has all the tracks it may).
 QString addCaptions(Document &doc, PictureItem &video, const QByteArray &bytes, const QString &language);
 
-// Takes out the track for the language, or all of them when it is empty. Whether any went.
-bool removeCaptions(PictureItem &video, const QString &language = QString());
+// Takes out the track for exactly that language (an empty one names a track whose language is empty, not all of them), or every track. The
+// track's file goes out of the document's media when nothing else (another video, another track) keeps it. Whether any track went.
+bool removeCaptions(Document &doc, PictureItem &video, const QString &language);
+bool removeAllCaptions(Document &doc, PictureItem &video);
 
 // The cues of the track a show of the video displays: the one for `preferred` (a language tag) if there is one that is WebVTT, else the first that is.
+// A file is read once while its bytes are the same: asking again for the same one (as every change to the document does) is no work.
 QVector<CaptionCue> captionCuesOf(const Document &doc, const PictureItem &video, const QString &preferred = QString());
+
+// How many times a file has been read by parseWebVtt in this program (for the tests of what is read once).
+int captionParseCount();
 
 // Whether the video has a caption track (of any format).
 bool hasCaptions(const PictureItem &video);

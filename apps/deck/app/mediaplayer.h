@@ -45,8 +45,15 @@ public:
 
     // The captions of the movie (what core/captions.h reads), and what they say now: the cue at the moment of the file that is shown,
     // empty while no picture of it is. A sound has none.
-    void setCaptions(const QVector<deck::CaptionCue> &cues) { m_captions = cues; }
+    // Whether they changed.
+    bool setCaptions(const QVector<deck::CaptionCue> &cues)
+    {
+        if (cues == m_captions) return false;
+        m_captions = cues;
+        return true;
+    }
     QString captionText() const;
+    int captionCount() const { return int(m_captions.size()); }   // (for tests)
 
     // Says it can't be played here (a movie linked from outside the presentation, say), with what to tell the person.
     void setUnavailable(const QString &message);

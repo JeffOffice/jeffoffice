@@ -77,7 +77,11 @@ void DeckWindow::refreshMedia()
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Media Tools"), pic != nullptr);
     act("playback.play")->setEnabled(pic != nullptr);
     act("playback.trim")->setEnabled(pic != nullptr);
-    act("playback.insertCaptions")->setEnabled(pic && pic->mediaKind == QLatin1String("video"));
+    const bool kept = pic && pic->mediaKind == QLatin1String("video") && !pic->mediaId.isEmpty();
+    act("playback.insertCaptions")->setEnabled(kept);
+    act("playback.insertCaptions")->setToolTip(pic && pic->mediaKind == QLatin1String("video") && !kept
+                                                   ? tr("Insert Captions: this video is linked from outside the presentation, and captions can only go with a video kept in it.")
+                                                   : tr("Insert Captions: add captions to the video from a WebVTT file."));
     act("playback.removeCaptions")->setEnabled(pic && deck::hasCaptions(*pic));
     const MediaPlayback *pb = pic ? m_canvas->media()->playbackOf(pic->id) : nullptr;
     const bool playing = pb && pb->state() == MediaPlayback::State::Playing;
@@ -188,9 +192,16 @@ static PictureItem *selectedVideo(Editor *ed)
     return pic && pic->mediaKind == QLatin1String("video") ? pic : nullptr;
 }
 
+// A video the presentation keeps (the captions are written with it): one that is only linked from outside has no place for them.
+static PictureItem *selectedKeptVideo(Editor *ed)
+{
+    PictureItem *pic = selectedVideo(ed);
+    return pic && !pic->mediaId.isEmpty() ? pic : nullptr;
+}
+
 void DeckWindow::insertCaptionsFromFile()
 {
-    if (!selectedVideo(m_ed)) return;
+    if (!selectedKeptVideo(m_ed)) return;
     const QString dir = Settings::get().value(QStringLiteral("dirs/captions"), Settings::get().value(QStringLiteral("dirs/media")).toString()).toString();
     const QString path = QFileDialog::getOpenFileName(this, tr("Insert Captions"), dir, tr("WebVTT Caption Files (*.vtt)") + QStringLiteral(";;") + tr("All Files (*)"));
     if (path.isEmpty()) return;
@@ -207,7 +218,11 @@ bool DeckWindow::insertCaptions(const QString &path, const QString &language)
 {
     const QString title = tr("Insert Captions");
     const QString name = QFileInfo(path).fileName();
-    if (!selectedVideo(m_ed)) {
+    if (const PictureItem *linked = selectedVideo(m_ed); linked && linked->mediaId.isEmpty()) {
+        jp::plainInformation(this, title, tr("This video is linked from outside the presentation, and captions can only go with a video kept in it."));
+        return false;
+    }
+    if (!selectedKeptVideo(m_ed)) {
         jp::plainInformation(this, title, tr("Captions go with a video. Select a video on a slide, and try again."));
         return false;
     }
@@ -229,7 +244,7 @@ bool DeckWindow::insertCaptions(const QString &path, const QString &language)
     }
     // Tried on a copy of the video first, so that a file that is refused changes nothing, and Undo has nothing to undo.
     Document trial;
-    PictureItem video = *selectedVideo(m_ed);
+    PictureItem video = *selectedKeptVideo(m_ed);
     if (const QString why = deck::addCaptions(trial, video, bytes, language); !why.isEmpty()) {
         jp::plainWarning(this, title, tr("%1 can't be used as captions.\n%2").arg(name, why));
         return false;
@@ -237,7 +252,7 @@ bool DeckWindow::insertCaptions(const QString &path, const QString &language)
     m_ed->endTextEdit();
     m_ed->beginChange(title);
     QString why;
-    if (PictureItem *now = selectedVideo(m_ed)) why = deck::addCaptions(*m_ed->doc(), *now, bytes, language);
+    if (PictureItem *now = selectedKeptVideo(m_ed)) why = deck::addCaptions(*m_ed->doc(), *now, bytes, language);
     m_ed->endChange();
     if (!why.isEmpty()) return false;
     refreshMedia();
@@ -260,19 +275,23 @@ void DeckWindow::removeCaptionsAsked()
         if (!ok) return;
         if (chosen != all) language = chosen;
     }
-    removeCaptions(language);
+    removeCaptions(language, language.isEmpty());
 }
 
 // The track for the language is taken out (all of them for an empty one), in one step that undoes. False when there was none to take.
-bool DeckWindow::removeCaptions(const QString &language)
+bool DeckWindow::removeCaptions(const QString &language, bool all)
 {
     const PictureItem *pic = selectedVideo(m_ed);
     if (!pic) return false;
     PictureItem probe = *pic;
-    if (!deck::removeCaptions(probe, language)) return false;
+    Document scratch;
+    if (!(all ? deck::removeAllCaptions(scratch, probe) : deck::removeCaptions(scratch, probe, language))) return false;
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Remove Captions"));
-    if (PictureItem *now = selectedVideo(m_ed)) deck::removeCaptions(*now, language);
+    if (PictureItem *now = selectedVideo(m_ed)) {
+        if (all) deck::removeAllCaptions(*m_ed->doc(), *now);
+        else deck::removeCaptions(*m_ed->doc(), *now, language);
+    }
     m_ed->endChange();
     refreshMedia();
     if (PictureItem *now = selectedVideo(m_ed)) m_canvas->media()->refresh(now->id);
