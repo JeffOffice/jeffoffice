@@ -88,6 +88,74 @@ private Q_SLOTS:
         QVERIFY(!o->barcodeOf(0, o->idsOf(0).front()).isEmpty());
     }
 
+    // Barcodes for a column: a range of cells makes a barcode for each cell, with the cell's own text, as one step of Undo.
+    void aColumnOfCellsMakesABarcodeForEach()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        const int steps = e.win.w.undoStack()->count();
+        jp::office::sheet::CellRange range;
+        range.valid = true;
+        range.row1 = 1;
+        range.row2 = 3;
+        range.col1 = range.col2 = 0;   // A2:A4: Q1, Q2, Q3
+        const QJsonObject look{{"type", int(jp::barcode::Type::Code128)}, {"data", "sample"}, {"text", true}};
+        const CrunchWindow::BarcodeColumnResult r = e.win.w.insertBarcodesFromCells(range, look);
+        QCOMPARE(r.made, 3);
+        QVERIFY(r.problems.isEmpty());
+        QCOMPARE(int(o->idsOf(0).size()), 3);
+        QStringList data;
+        for (int id : o->idsOf(0)) data << o->barcodeOf(0, id).value(QLatin1String("data")).toString();
+        QCOMPARE(data, (QStringList{"Q1", "Q2", "Q3"}));
+        // Each is drawn apart from the others, one under the next.
+        QSet<qint64> tops;
+        for (int id : o->idsOf(0)) tops.insert(qint64(o->layer()->boxNow(id).y));
+        QCOMPARE(int(tops.size()), 3);
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        e.win.w.undoStack()->undo();
+        QCOMPARE(int(o->idsOf(0).size()), 0);
+        e.win.w.undoStack()->redo();
+        QCOMPARE(int(o->idsOf(0).size()), 3);
+        // Saved and opened again, the three are still barcodes.
+        QVERIFY(save(e));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 3);
+        for (int id : second.w.objects()->idsOf(0)) QVERIFY(!second.w.objects()->barcodeOf(0, id).isEmpty());
+    }
+
+    // A value the code can't hold gets a message naming its cell, and no barcode; the count made at once is limited.
+    void aValueTheCodeCannotHoldIsReportedNotDrawn()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        jp::office::sheet::CellRange range;
+        range.valid = true;
+        range.row1 = 1;
+        range.row2 = 3;
+        range.col1 = range.col2 = 0;
+        const int steps = e.win.w.undoStack()->count();
+        const QJsonObject ean{{"type", int(jp::barcode::Type::Ean8)}, {"data", "12345670"}};
+        const CrunchWindow::BarcodeColumnResult bad = e.win.w.insertBarcodesFromCells(range, ean);
+        QCOMPARE(bad.made, 0);
+        QCOMPARE(int(bad.problems.size()), 3);
+        QVERIFY2(bad.problems.first().startsWith(QLatin1String("A2")), qPrintable(bad.problems.first()));
+        QCOMPARE(int(o->idsOf(0).size()), 0);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        // More cells than the limit: nothing is made.
+        const QJsonObject code128{{"type", int(jp::barcode::Type::Code128)}, {"data", "x"}};
+        const CrunchWindow::BarcodeColumnResult over = e.win.w.insertBarcodesFromCells(range, code128, 2);
+        QVERIFY(over.tooMany);
+        QCOMPARE(over.made, 0);
+        QCOMPARE(int(o->idsOf(0).size()), 0);
+    }
+
     // A picture of the window with a QR code on the sheet, for the docs, when JP_SHOT_DIR names a folder.
     void aPictureOfTheWindowForTheDocs()
     {

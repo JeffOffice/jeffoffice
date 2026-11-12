@@ -281,6 +281,15 @@ public:
     bool insertIcons();
     // Insert > Barcode: the shared dialog asks for the barcode, which goes on the sheet as a picture; with a barcode selected it edits that one (the new barcode takes its place, one step).
     bool insertBarcode();
+    // Insert > Barcodes From Cells: a barcode for each filled cell of the range, with the cell's text as its data and the type and look of `look`, one under the next to the right of the range, as one step.
+    // Cells whose text the code can't hold are named in `problems` and get none; more than `most` cells make none (`tooMany`).
+    bool insertBarcodeColumn();
+    struct BarcodeColumnResult {
+        int made = 0;
+        QStringList problems;
+        bool tooMany = false;
+    };
+    BarcodeColumnResult insertBarcodesFromCells(const jp::office::sheet::CellRange &range, const QJsonObject &look, int most = 500);
     void setIconsPicker(const std::function<QStringList()> &picker) { m_iconsPicker = picker; }
     void setApplyNamesAsker(const std::function<bool(const QStringList &, QStringList *)> &asker) { m_applyNamesAsker = asker; }
     bool insertName(const QString &name);

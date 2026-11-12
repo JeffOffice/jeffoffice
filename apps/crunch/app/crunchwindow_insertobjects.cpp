@@ -102,7 +102,8 @@ void CrunchWindow::createInsertObjectActions()
     mk("insert.icons", tr("Icons…"), "smile-plus", QKeySequence(), [this] { insertIcons(); });
     mk("insert.onlinePicture", tr("Online Pictures…"), "globe", QKeySequence(), [this] { showOnlinePictures(); });
     mk("insert.barcode", tr("Barcode…"), "barcode", QKeySequence(), [this] { insertBarcode(); });
-    m_opsActions << QStringLiteral("insert.picture") << QStringLiteral("insert.icons") << QStringLiteral("insert.onlinePicture") << QStringLiteral("insert.barcode");
+    mk("insert.barcodeCells", tr("Barcodes From Cells…"), "barcode", QKeySequence(), [this] { insertBarcodeColumn(); });
+    m_opsActions << QStringLiteral("insert.barcodeCells") << QStringLiteral("insert.picture") << QStringLiteral("insert.icons") << QStringLiteral("insert.onlinePicture") << QStringLiteral("insert.barcode");
     for (const ShapeKind &k : kShapes) {
         const QString preset = QString::fromLatin1(k.preset);
         mk(QString::fromLatin1(k.id), QCoreApplication::translate("jp::CrunchWindow", k.text), k.icon, QKeySequence(), [this, preset] { insertShape(preset); });
@@ -533,6 +534,107 @@ bool CrunchWindow::insertBarcode()
     m_view->setFocus(Qt::OtherFocusReason);
     setStatus(tr("Barcode changed"));
     return true;
+}
+
+// Insert > Barcode > Barcodes From Cells: the dialog of Insert > Barcode asks for the type and look (what it holds is only the sample), and the selected cells make the barcodes.
+bool CrunchWindow::insertBarcodeColumn()
+{
+    if (!m_session || !m_objects || m_chartSheetShown || !editingAllowed()) return false;
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active) return false;
+    const jp::office::sheet::CellRange range = selectedRange();
+    QJsonObject look;
+    if (!askBarcode(this, QJsonObject(), &look)) return false;
+    const BarcodeColumnResult r = insertBarcodesFromCells(range, look);
+    const QString title = tr("Insert Barcodes");
+    if (!r.problems.isEmpty()) {
+        QStringList shown = r.problems.mid(0, 10);
+        if (r.problems.size() > shown.size()) shown << tr("and %n more", nullptr, int(r.problems.size() - shown.size()));
+        notice(title, (r.made > 0 ? tr("%n barcode(s) were made. These cells have no barcode:", nullptr, r.made) : tr("No barcodes were made.")) + QLatin1Char('\n') + shown.join(QLatin1Char('\n')), r.made == 0);
+    } else if (r.made == 0) {
+        notice(title, tr("Select cells that hold text first."), false);
+    } else {
+        setStatus(tr("%n barcode(s) inserted", nullptr, r.made));
+    }
+    return r.made > 0;
+}
+
+// Insert > Barcodes From Cells: each filled cell of the range becomes a barcode of the look the dialog gave, with the cell's text as its data. They go in a column to the right of the range, the first
+// level with the range's first row and each under the one before, all as one step of Undo. A cell the code can't hold is named in `problems` and gets none.
+CrunchWindow::BarcodeColumnResult CrunchWindow::insertBarcodesFromCells(const jp::office::sheet::CellRange &range, const QJsonObject &look, int most)
+{
+    BarcodeColumnResult result;
+    const QString stepText = tr("Insert Barcodes");
+    if (!m_session || !m_objects || m_chartSheetShown || !editingAllowed() || !range.valid) return result;
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active) return result;
+    struct Code {
+        crunch::ObjectClip clip;
+    };
+    std::vector<Code> codes;
+    qint64 filled = 0;
+    for (quint32 row = range.row1; row <= range.row2; ++row)
+        for (quint32 col = range.col1; col <= range.col2; ++col) {
+            const QString text = m_session->neutralText(m_sheet, row, col).trimmed();
+            if (text.isEmpty()) continue;
+            if (++filled > most) {
+                result.tooMany = true;
+                result.problems << tr("The range holds more than %1 cells with text, which is as many barcodes as are made at once. Choose fewer cells.").arg(most);
+                return result;
+            }
+            QJsonObject settings = look;
+            settings.insert(QStringLiteral("data"), text);
+            crunch::ObjectClip clip;
+            QString why;
+            if (!crunch::barcodeClip(settings, &clip, &why)) {
+                result.problems << QStringLiteral("%1: %2").arg(cellName(row, col), why);
+                continue;
+            }
+            codes.push_back({clip});
+        }
+    if (codes.empty()) return result;
+    if (!m_objects->cells()) return result;
+    const grid::GridLayout &L = m_view->sheet().layout();
+    m_objects->layer()->attach(&L);
+    double y = double(L.rows.position(range.row1));
+    const double x = double(L.cols.position(qint64(range.col2) + 1)) + 8;
+    std::vector<crunch::ObjectEdit> edits;
+    std::vector<int> made;
+    QString why;
+    for (const Code &code : codes) {
+        grid::ObjectBox box;
+        box.x = x;
+        box.y = y;
+        box.w = code.clip.width;
+        box.h = code.clip.height;
+        y += box.h + 8;
+        DrawingAnchor anchor;
+        if (!m_objects->layer()->anchorAtBox(box, AnchorKind::TwoCell, &anchor)) anchor = newObjectAnchor(box.w, box.h);
+        const int id = m_objects->makeElement(m_sheet, code.clip, anchor, &why);
+        if (id < 0) {
+            for (int m : made) m_objects->discardMade(m_sheet, m);
+            notice(stepText, why);
+            return result;
+        }
+        made.push_back(id);
+        crunch::ObjectEdit e;
+        e.sheet = m_sheet;
+        e.id = id;
+        e.before = m_objects->stateOf(m_sheet, id);
+        e.after = e.before;
+        e.after.deleted = false;
+        edits.push_back(e);
+    }
+    const crunch::EditSession::Outcome o = m_session->changeObjects(edits, stepText);
+    if (!o.ok) {
+        for (int m : made) m_objects->discardMade(m_sheet, m);
+        notice(stepText, o.problem);
+        return result;
+    }
+    result.made = int(made.size());
+    m_objects->layer()->select(made.back());
+    m_view->setFocus(Qt::OtherFocusReason);
+    return result;
 }
 
 bool CrunchWindow::insertShape(const QString &preset)
