@@ -1850,7 +1850,7 @@ private Q_SLOTS:
         }
     }
 
-    // Once offered (taken off the held list) before their text is translated, Russian and Indonesian: a label with no translation shows in English (a plural too, in
+    // Once offered (taken off the held list) before their text is translated, Russian, Indonesian, and Ukrainian: a label with no translation shows in English (a plural too, in
     // the right form for its number), Help shows the English topics, and no label is empty.
     void newLanguagesShowEnglishUntilTranslated()
     {
@@ -1865,7 +1865,7 @@ private Q_SLOTS:
             }
         } restore;
         // Held (untranslated) languages are not offered, nor picked from the system's languages or a saved choice; taken off the list, they are.
-        for (const char *name : {"ru", "id"}) {
+        for (const char *name : {"ru", "id", "uk"}) {
             QVERIFY2(jp::heldUiLanguages().contains(QLatin1String(name)), name);
             QVERIFY2(!jp::availableUiLanguages().contains(QLatin1String(name)), name);
             jp::Settings::get().setValue(QStringLiteral("ui/language"), QLatin1String(name));
@@ -1873,13 +1873,13 @@ private Q_SLOTS:
         }
         QVERIFY(jp::availableUiLanguages().contains(QStringLiteral("de")));
         jp::setHeldUiLanguages({});
-        for (const char *name : {"ru", "id"}) QVERIFY2(jp::availableUiLanguages().contains(QLatin1String(name)), name);
+        for (const char *name : {"ru", "id", "uk"}) QVERIFY2(jp::availableUiLanguages().contains(QLatin1String(name)), name);
         jp::Settings::get().setValue(QStringLiteral("ui/language"), QStringLiteral("en"));
         jp::installTranslations();
         const QString printing = jp::help::topic(QStringLiteral("printing")).markdown;
         const QStringList englishIds = jp::help::topicIds();
         QVERIFY(!printing.isEmpty() && !englishIds.isEmpty());
-        for (const char *name : {"ru", "id"}) {
+        for (const char *name : {"ru", "id", "uk"}) {
             const QString lang = QLatin1String(name);
             QVERIFY2(jp::availableUiLanguages().contains(lang), name);
             QVERIFY2(!jp::uiLanguageName(lang).isEmpty(), name);
@@ -1992,11 +1992,11 @@ private Q_SLOTS:
         QVERIFY(recent() != QStringLiteral("Ficheros recientes") && recent() != QStringLiteral("Archivos recientes"));
     }
 
-    // The placeholders a plural's form must hold: those of the source. A two-form language's singular (form 0) may spell the number out instead of %n; in Russian form 0
-    // also serves 21, 31, and so on, and Indonesian's only form serves every number, so they keep %n.
+    // The placeholders a plural's form must hold: those of the source. A two-form language's singular (form 0) may spell the number out instead of %n; in Russian and
+    // Ukrainian form 0 also serves 21, 31, and so on, and Indonesian's only form serves every number, so they keep %n.
     static QStringList wantedPlaceholders(const QString &lang, QStringList want, const QStringList &have, bool plural, int form)
     {
-        if (plural && form == 0 && have != want && lang != QLatin1String("ru") && lang != QLatin1String("id")) want.removeAll(QStringLiteral("%n"));
+        if (plural && form == 0 && have != want && lang != QLatin1String("ru") && lang != QLatin1String("id") && lang != QLatin1String("uk")) want.removeAll(QStringLiteral("%n"));
         return want;
     }
 
@@ -2008,6 +2008,7 @@ private Q_SLOTS:
         QCOMPARE(wantedPlaceholders(QStringLiteral("de"), source, none, true, 1), source);
         QCOMPARE(wantedPlaceholders(QStringLiteral("ru"), source, none, true, 0), source);   // "одна страница" would be wrong for 21
         QCOMPARE(wantedPlaceholders(QStringLiteral("id"), source, none, true, 0), source);
+        QCOMPARE(wantedPlaceholders(QStringLiteral("uk"), source, none, true, 0), source);
         QCOMPARE(wantedPlaceholders(QStringLiteral("ru"), source, none, false, 0), source);
     }
 
@@ -2058,8 +2059,8 @@ private Q_SLOTS:
                     if (forms.join(QString()).isEmpty()) continue;   // not translated yet: shows in English
                     ++checked;
                     const QString where = QStringLiteral("%1 [%2] \"%3\"").arg(name, context, source);
-                    // (Russian has three plural forms, Indonesian one, the others two.)
-                    const int formCount = name == QLatin1String("jeffoffice_ru.ts") ? 3 : name == QLatin1String("jeffoffice_id.ts") ? 1 : 2;
+                    // (Russian and Ukrainian have three plural forms, Indonesian one, the others two.)
+                    const int formCount = name == QLatin1String("jeffoffice_ru.ts") || name == QLatin1String("jeffoffice_uk.ts") ? 3 : name == QLatin1String("jeffoffice_id.ts") ? 1 : 2;
                     if (plural && (forms.size() != formCount || forms.contains(QString()))) problems << where + QStringLiteral(": plural forms");
                     for (int i = 0; i < forms.size(); ++i) {
                         const QStringList have = all(placeholder, forms[i]);

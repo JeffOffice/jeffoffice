@@ -45,6 +45,12 @@ class Plurals(unittest.TestCase):
         self.assertEqual(self.check({"jeffoffice_id.ts": ts("id", "%n page(s)", ["%n halaman"]), "jeffoffice_de.ts": ts("de", "%n page(s)", ["%n Seite", "%n Seiten"])}), [])
         self.assertEqual(len(self.check({"jeffoffice_id.ts": ts("id", "%n page(s)", ["%n halaman", "%n halaman"])})), 1)
 
+    def test_ukrainian_needs_three_forms(self):
+        self.assertEqual(self.check({"jeffoffice_uk.ts": ts("uk", "%n page(s)", ["%n сторінка", "%n сторінки", "%n сторінок"])}), [])
+        found = self.check({"jeffoffice_uk.ts": ts("uk", "%n page(s)", ["%n сторінка", "%n сторінок"])})
+        self.assertEqual(len(found), 1)
+        self.assertIn("3 forms", found[0])
+
     def test_a_source_with_n_must_be_a_plural(self):
         found = self.check({"jeffoffice.ts": ts("", "%n page(s)", [], numerus=False)})
         self.assertEqual(len(found), 1)

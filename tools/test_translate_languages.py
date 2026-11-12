@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""python3 -I tools/test_translate_languages.py : checks that translate.py knows Russian (three plural forms) and Indonesian (one)."""
+"""python3 -I tools/test_translate_languages.py : checks that translate.py knows Russian and Ukrainian (three plural forms) and Indonesian (one)."""
 import os
 import sys
 import unittest
@@ -12,7 +12,8 @@ class Languages(unittest.TestCase):
     def test_the_new_languages_are_known(self):
         self.assertEqual(T.LANGUAGES["ru"], "Russian")
         self.assertEqual(T.LANGUAGES["id"], "Indonesian")
-        self.assertEqual([T.forms_in(l) for l in ("de", "ru", "id")], [2, 3, 1])
+        self.assertEqual(T.LANGUAGES["uk"], "Ukrainian")
+        self.assertEqual([T.forms_in(l) for l in ("de", "ru", "id", "uk")], [2, 3, 1, 3])
 
     def test_a_plural_needs_its_languages_forms(self):
         self.assertEqual(T.check("%n page(s)", ["%n а", "%n б", "%n в"], True, 3), "")
@@ -24,11 +25,12 @@ class Languages(unittest.TestCase):
         self.assertNotEqual(T.check("%n page(s)", ["одна страница", "%n страницы", "%n страниц"], True, 3), "")
 
     def test_a_held_language_is_not_translated_unless_named(self):
-        # The nightly run names no language: it must not start paying for Russian and Indonesian (their files exist) before they are approved.
-        self.assertTrue({"ru", "id"} <= T.HELD)
+        # The nightly run names no language: it must not start paying for Russian, Indonesian, and Ukrainian (their files exist) before they are approved.
+        self.assertTrue({"ru", "id", "uk"} <= T.HELD)
         self.assertTrue(os.path.exists(T.ts_path("ru")))
         self.assertNotIn("ru", T.default_languages())
         self.assertNotIn("id", T.default_languages())
+        self.assertNotIn("uk", T.default_languages())
         self.assertIn("de", T.default_languages())
 
     def test_the_program_holds_the_same_languages(self):
@@ -41,6 +43,7 @@ class Languages(unittest.TestCase):
     def test_the_prompts_name_the_forms(self):
         self.assertIn("exactly 3 of them", T.ui_system("ru", {}))
         self.assertIn("exactly 1 of them", T.ui_system("id", {}))
+        self.assertIn("exactly 3 of them", T.ui_system("uk", {}))
         self.assertIn("exactly 2 of them", T.ui_system("de", {}))
 
 

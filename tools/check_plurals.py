@@ -6,8 +6,8 @@
 Reported, with exit status 1 if there is any:
 
   * a string with %n in translations/jeffoffice.ts that is not marked as a plural (numerus): its call passes no count, so a
-    translation could give it only one form. Russian has three forms ("1 страница", "2 страницы", "5 страниц"), Indonesian one.
-  * a plural in a language's file with the wrong number of forms for that language (Russian 3, Indonesian 1, the others 2).
+    translation could give it only one form. Russian and Ukrainian have three forms ("1 страница", "2 страницы", "5 страниц"), Indonesian one.
+  * a plural in a language's file with the wrong number of forms for that language (Russian 3, Ukrainian 3, Indonesian 1, the others 2).
   * a plural with some of its forms filled in and others empty: the empty form shows nothing for the numbers that use it.
     (A plural with every form empty is not translated yet and shows in English.)
 """
@@ -19,7 +19,7 @@ import xml.etree.ElementTree as ET
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Forms per plural in Qt, for the languages that don't have two.
-FORMS = {"ru": 3, "id": 1}
+FORMS = {"ru": 3, "id": 1, "uk": 3}
 
 
 def messages(path):

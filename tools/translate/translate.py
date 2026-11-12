@@ -22,8 +22,8 @@ may correct it, and a corrected term is never asked for again).
                                          [--dry-run] [--report FILE]
 
 Without --lang it keeps up the languages already started (each has its
-translations/jeffoffice_<language>.ts), except the held ones (HELD below: Russian and
-Indonesian are prepared, not yet approved); name a language to start or run it.
+translations/jeffoffice_<language>.ts), except the held ones (HELD below: Russian,
+Indonesian, and Ukrainian are prepared, not yet approved); name a language to start or run it.
 
 Needs ANTHROPIC_API_KEY (except with --dry-run), the anthropic package
 (pip install -r tools/translate/requirements.txt), and Qt's lconvert
@@ -64,11 +64,12 @@ LANGUAGES = {
     "pt_PT": "European Portuguese (Portugal)",
     "ru": "Russian",
     "id": "Indonesian",
+    "uk": "Ukrainian",
 }
 
 # Prepared (their .ts files exist) but not yet approved to translate: a run that names no language (the nightly one) and "--lang all" skip
 # them; "--lang ru" starts one. Take a language out of this set when it is approved.
-HELD = {"ru", "id"}
+HELD = {"ru", "id", "uk"}
 
 
 def default_languages():
@@ -77,16 +78,18 @@ def default_languages():
 
 
 # Plural forms in Qt (the number a .ts file's plural has), where it is not two. Russian: 1, 21, 31... then 2-4, 22-24... then 0, 5-20, 25-30...
-PLURAL_FORMS = {"ru": 3, "id": 1}
+PLURAL_FORMS = {"ru": 3, "id": 1, "uk": 3}
 FORM_ORDER = {
     "ru": "first the form for 1 (also 21, 31, 101: \"1 страница\", \"21 страница\"), then the form for 2 to 4 (also 22 to 24: \"2 страницы\"), then the form for 5 to 20 and 0 (also 25 to 30: \"5 страниц\")",
     "id": "the single form, used for every number",
+    "uk": "first the form for 1 (also 21, 31, 101: \"1 сторінка\", \"21 сторінка\"), then the form for 2 to 4 (also 22 to 24: \"2 сторінки\"), then the form for 5 to 20 and 0 (also 25 to 30: \"5 сторінок\")",
 }
 
 # What a language needs said beyond the general rules, added to the prompts.
 LANGUAGE_NOTES = {
     "ru": "Address the reader formally (\"вы\") where a sentence addresses them at all; commands and button labels use the infinitive or the noun, as Russian software does. Key names stay in Latin letters as printed on Russian keyboards (Ctrl, Shift, Alt, Enter, Esc). Quote with « » marks. Write \"е\" for \"ё\" as Russian software does.",
     "id": "Use the standard formal Indonesian (baku) of Indonesian software, addressing the reader as \"Anda\" where a sentence addresses them at all. Key names stay as printed on keyboards (Ctrl, Shift, Alt, Enter, Esc). Indonesian has no plural forms: a plural item has one form, used for every number.",
+    "uk": "Address the reader formally (\"ви\") where a sentence addresses them at all; commands and button labels use the infinitive or the noun, as Ukrainian software does. Key names stay in Latin letters as printed on Ukrainian keyboards (Ctrl, Shift, Alt, Enter, Esc). Quote with « » marks. Use the current standard orthography and Ukrainian terms, never Russian ones or Russian word forms.",
 }
 
 
