@@ -1901,6 +1901,7 @@
     <file alias="en_AU/change-template.md">help/en_AU/change-template.md</file>
     <file alias="en_AU/charts.md">help/en_AU/charts.md</file>
     <file alias="en_AU/color-schemes.md">help/en_AU/color-schemes.md</file>
+    <file alias="en_AU/comments.md">help/en_AU/comments.md</file>
     <file alias="en_AU/create.md">help/en_AU/create.md</file>
     <file alias="en_AU/crunch/cell-styles.md">help/en_AU/crunch/cell-styles.md</file>
     <file alias="en_AU/crunch/charts.md">help/en_AU/crunch/charts.md</file>
@@ -1909,6 +1910,7 @@
     <file alias="en_AU/crunch/edit-cells.md">help/en_AU/crunch/edit-cells.md</file>
     <file alias="en_AU/crunch/format-cells.md">help/en_AU/crunch/format-cells.md</file>
     <file alias="en_AU/crunch/formulas.md">help/en_AU/crunch/formulas.md</file>
+    <file alias="en_AU/crunch/keyboard.md">help/en_AU/crunch/keyboard.md</file>
     <file alias="en_AU/crunch/language.md">help/en_AU/crunch/language.md</file>
     <file alias="en_AU/crunch/notes-links.md">help/en_AU/crunch/notes-links.md</file>
     <file alias="en_AU/crunch/open-save.md">help/en_AU/crunch/open-save.md</file>
@@ -1927,9 +1929,11 @@
     <file alias="en_AU/deck/design.md">help/en_AU/deck/design.md</file>
     <file alias="en_AU/deck/file-screen.md">help/en_AU/deck/file-screen.md</file>
     <file alias="en_AU/deck/format-shape.md">help/en_AU/deck/format-shape.md</file>
+    <file alias="en_AU/deck/keyboard.md">help/en_AU/deck/keyboard.md</file>
     <file alias="en_AU/deck/language.md">help/en_AU/deck/language.md</file>
     <file alias="en_AU/deck/objects.md">help/en_AU/deck/objects.md</file>
     <file alias="en_AU/deck/open-save.md">help/en_AU/deck/open-save.md</file>
+    <file alias="en_AU/deck/options.md">help/en_AU/deck/options.md</file>
     <file alias="en_AU/deck/printing.md">help/en_AU/deck/printing.md</file>
     <file alias="en_AU/deck/show.md">help/en_AU/deck/show.md</file>
     <file alias="en_AU/deck/start.md">help/en_AU/deck/start.md</file>
@@ -1939,6 +1943,7 @@
     <file alias="en_AU/deck/transitions.md">help/en_AU/deck/transitions.md</file>
     <file alias="en_AU/deck/views.md">help/en_AU/deck/views.md</file>
     <file alias="en_AU/deck/window.md">help/en_AU/deck/window.md</file>
+    <file alias="en_AU/equations.md">help/en_AU/equations.md</file>
     <file alias="en_AU/formatting-text.md">help/en_AU/formatting-text.md</file>
     <file alias="en_AU/graphics-manager.md">help/en_AU/graphics-manager.md</file>
     <file alias="en_AU/guides.md">help/en_AU/guides.md</file>
@@ -1979,6 +1984,7 @@
     <file alias="en_AU/write/headers-footers.md">help/en_AU/write/headers-footers.md</file>
     <file alias="en_AU/write/home-tools.md">help/en_AU/write/home-tools.md</file>
     <file alias="en_AU/write/index.md">help/en_AU/write/index.md</file>
+    <file alias="en_AU/write/keyboard.md">help/en_AU/write/keyboard.md</file>
     <file alias="en_AU/write/language.md">help/en_AU/write/language.md</file>
     <file alias="en_AU/write/mail-merge.md">help/en_AU/write/mail-merge.md</file>
     <file alias="en_AU/write/open-rtf.md">help/en_AU/write/open-rtf.md</file>
@@ -1999,6 +2005,7 @@
     <file alias="en_CA/change-template.md">help/en_CA/change-template.md</file>
     <file alias="en_CA/charts.md">help/en_CA/charts.md</file>
     <file alias="en_CA/color-schemes.md">help/en_CA/color-schemes.md</file>
+    <file alias="en_CA/comments.md">help/en_CA/comments.md</file>
     <file alias="en_CA/create.md">help/en_CA/create.md</file>
     <file alias="en_CA/crunch/cell-styles.md">help/en_CA/crunch/cell-styles.md</file>
     <file alias="en_CA/crunch/charts.md">help/en_CA/crunch/charts.md</file>
@@ -2037,6 +2044,7 @@
     <file alias="en_CA/deck/transitions.md">help/en_CA/deck/transitions.md</file>
     <file alias="en_CA/deck/views.md">help/en_CA/deck/views.md</file>
     <file alias="en_CA/deck/window.md">help/en_CA/deck/window.md</file>
+    <file alias="en_CA/equations.md">help/en_CA/equations.md</file>
     <file alias="en_CA/formatting-text.md">help/en_CA/formatting-text.md</file>
     <file alias="en_CA/graphics-manager.md">help/en_CA/graphics-manager.md</file>
     <file alias="en_CA/guides.md">help/en_CA/guides.md</file>
@@ -2096,6 +2104,7 @@
     <file alias="en_GB/change-template.md">help/en_GB/change-template.md</file>
     <file alias="en_GB/charts.md">help/en_GB/charts.md</file>
     <file alias="en_GB/color-schemes.md">help/en_GB/color-schemes.md</file>
+    <file alias="en_GB/comments.md">help/en_GB/comments.md</file>
     <file alias="en_GB/create.md">help/en_GB/create.md</file>
     <file alias="en_GB/crunch/cell-styles.md">help/en_GB/crunch/cell-styles.md</file>
     <file alias="en_GB/crunch/charts.md">help/en_GB/crunch/charts.md</file>
@@ -2104,6 +2113,7 @@
     <file alias="en_GB/crunch/edit-cells.md">help/en_GB/crunch/edit-cells.md</file>
     <file alias="en_GB/crunch/format-cells.md">help/en_GB/crunch/format-cells.md</file>
     <file alias="en_GB/crunch/formulas.md">help/en_GB/crunch/formulas.md</file>
+    <file alias="en_GB/crunch/keyboard.md">help/en_GB/crunch/keyboard.md</file>
     <file alias="en_GB/crunch/language.md">help/en_GB/crunch/language.md</file>
     <file alias="en_GB/crunch/notes-links.md">help/en_GB/crunch/notes-links.md</file>
     <file alias="en_GB/crunch/open-save.md">help/en_GB/crunch/open-save.md</file>
@@ -2122,9 +2132,11 @@
     <file alias="en_GB/deck/design.md">help/en_GB/deck/design.md</file>
     <file alias="en_GB/deck/file-screen.md">help/en_GB/deck/file-screen.md</file>
     <file alias="en_GB/deck/format-shape.md">help/en_GB/deck/format-shape.md</file>
+    <file alias="en_GB/deck/keyboard.md">help/en_GB/deck/keyboard.md</file>
     <file alias="en_GB/deck/language.md">help/en_GB/deck/language.md</file>
     <file alias="en_GB/deck/objects.md">help/en_GB/deck/objects.md</file>
     <file alias="en_GB/deck/open-save.md">help/en_GB/deck/open-save.md</file>
+    <file alias="en_GB/deck/options.md">help/en_GB/deck/options.md</file>
     <file alias="en_GB/deck/printing.md">help/en_GB/deck/printing.md</file>
     <file alias="en_GB/deck/show.md">help/en_GB/deck/show.md</file>
     <file alias="en_GB/deck/start.md">help/en_GB/deck/start.md</file>
@@ -2134,6 +2146,7 @@
     <file alias="en_GB/deck/transitions.md">help/en_GB/deck/transitions.md</file>
     <file alias="en_GB/deck/views.md">help/en_GB/deck/views.md</file>
     <file alias="en_GB/deck/window.md">help/en_GB/deck/window.md</file>
+    <file alias="en_GB/equations.md">help/en_GB/equations.md</file>
     <file alias="en_GB/formatting-text.md">help/en_GB/formatting-text.md</file>
     <file alias="en_GB/graphics-manager.md">help/en_GB/graphics-manager.md</file>
     <file alias="en_GB/guides.md">help/en_GB/guides.md</file>
@@ -2174,6 +2187,7 @@
     <file alias="en_GB/write/headers-footers.md">help/en_GB/write/headers-footers.md</file>
     <file alias="en_GB/write/home-tools.md">help/en_GB/write/home-tools.md</file>
     <file alias="en_GB/write/index.md">help/en_GB/write/index.md</file>
+    <file alias="en_GB/write/keyboard.md">help/en_GB/write/keyboard.md</file>
     <file alias="en_GB/write/language.md">help/en_GB/write/language.md</file>
     <file alias="en_GB/write/mail-merge.md">help/en_GB/write/mail-merge.md</file>
     <file alias="en_GB/write/open-rtf.md">help/en_GB/write/open-rtf.md</file>
@@ -2361,6 +2375,8 @@
     <file alias="es_ES/accessibility.md">help/es_ES/accessibility.md</file>
     <file alias="es_ES/arrange.md">help/es_ES/arrange.md</file>
     <file alias="es_ES/change-template.md">help/es_ES/change-template.md</file>
+    <file alias="es_ES/charts.md">help/es_ES/charts.md</file>
+    <file alias="es_ES/comments.md">help/es_ES/comments.md</file>
     <file alias="es_ES/create.md">help/es_ES/create.md</file>
     <file alias="es_ES/crunch/cell-styles.md">help/es_ES/crunch/cell-styles.md</file>
     <file alias="es_ES/crunch/charts.md">help/es_ES/crunch/charts.md</file>
@@ -2368,11 +2384,11 @@
     <file alias="es_ES/crunch/conditional-formats.md">help/es_ES/crunch/conditional-formats.md</file>
     <file alias="es_ES/crunch/data-tools.md">help/es_ES/crunch/data-tools.md</file>
     <file alias="es_ES/crunch/edit-cells.md">help/es_ES/crunch/edit-cells.md</file>
+    <file alias="es_ES/crunch/equations.md">help/es_ES/crunch/equations.md</file>
     <file alias="es_ES/crunch/find-replace.md">help/es_ES/crunch/find-replace.md</file>
     <file alias="es_ES/crunch/format-cells.md">help/es_ES/crunch/format-cells.md</file>
     <file alias="es_ES/crunch/formulas.md">help/es_ES/crunch/formulas.md</file>
     <file alias="es_ES/crunch/function-arguments.md">help/es_ES/crunch/function-arguments.md</file>
-    <file alias="es_ES/crunch/index.md">help/es_ES/crunch/index.md</file>
     <file alias="es_ES/crunch/info.md">help/es_ES/crunch/info.md</file>
     <file alias="es_ES/crunch/insert-delete.md">help/es_ES/crunch/insert-delete.md</file>
     <file alias="es_ES/crunch/notes-links.md">help/es_ES/crunch/notes-links.md</file>
@@ -2392,10 +2408,12 @@
     <file alias="es_ES/crunch/tables.md">help/es_ES/crunch/tables.md</file>
     <file alias="es_ES/crunch/view.md">help/es_ES/crunch/view.md</file>
     <file alias="es_ES/deck/animations.md">help/es_ES/deck/animations.md</file>
+    <file alias="es_ES/deck/charts.md">help/es_ES/deck/charts.md</file>
     <file alias="es_ES/deck/comments.md">help/es_ES/deck/comments.md</file>
     <file alias="es_ES/deck/design.md">help/es_ES/deck/design.md</file>
     <file alias="es_ES/deck/file-screen.md">help/es_ES/deck/file-screen.md</file>
     <file alias="es_ES/deck/format-shape.md">help/es_ES/deck/format-shape.md</file>
+    <file alias="es_ES/deck/keyboard.md">help/es_ES/deck/keyboard.md</file>
     <file alias="es_ES/deck/objects.md">help/es_ES/deck/objects.md</file>
     <file alias="es_ES/deck/open-save.md">help/es_ES/deck/open-save.md</file>
     <file alias="es_ES/deck/options.md">help/es_ES/deck/options.md</file>
@@ -2408,6 +2426,7 @@
     <file alias="es_ES/deck/tab-design.md">help/es_ES/deck/tab-design.md</file>
     <file alias="es_ES/deck/tab-insert.md">help/es_ES/deck/tab-insert.md</file>
     <file alias="es_ES/deck/tab-playback.md">help/es_ES/deck/tab-playback.md</file>
+    <file alias="es_ES/deck/tab-review.md">help/es_ES/deck/tab-review.md</file>
     <file alias="es_ES/deck/tab-slide-show.md">help/es_ES/deck/tab-slide-show.md</file>
     <file alias="es_ES/deck/tab-transitions.md">help/es_ES/deck/tab-transitions.md</file>
     <file alias="es_ES/deck/tab-view.md">help/es_ES/deck/tab-view.md</file>
@@ -2416,6 +2435,7 @@
     <file alias="es_ES/deck/views.md">help/es_ES/deck/views.md</file>
     <file alias="es_ES/deck/window.md">help/es_ES/deck/window.md</file>
     <file alias="es_ES/design-checker.md">help/es_ES/design-checker.md</file>
+    <file alias="es_ES/equations.md">help/es_ES/equations.md</file>
     <file alias="es_ES/export.md">help/es_ES/export.md</file>
     <file alias="es_ES/find-replace.md">help/es_ES/find-replace.md</file>
     <file alias="es_ES/formatting-text.md">help/es_ES/formatting-text.md</file>
@@ -2423,7 +2443,6 @@
     <file alias="es_ES/guides.md">help/es_ES/guides.md</file>
     <file alias="es_ES/index.md">help/es_ES/index.md</file>
     <file alias="es_ES/insert-objects.md">help/es_ES/insert-objects.md</file>
-    <file alias="es_ES/keyboard.md">help/es_ES/keyboard.md</file>
     <file alias="es_ES/linked-text.md">help/es_ES/linked-text.md</file>
     <file alias="es_ES/lists-tabs.md">help/es_ES/lists-tabs.md</file>
     <file alias="es_ES/mail-merge.md">help/es_ES/mail-merge.md</file>
@@ -2465,7 +2484,6 @@
     <file alias="es_ES/write/headers-footers.md">help/es_ES/write/headers-footers.md</file>
     <file alias="es_ES/write/index.md">help/es_ES/write/index.md</file>
     <file alias="es_ES/write/info.md">help/es_ES/write/info.md</file>
-    <file alias="es_ES/write/keyboard.md">help/es_ES/write/keyboard.md</file>
     <file alias="es_ES/write/links.md">help/es_ES/write/links.md</file>
     <file alias="es_ES/write/mail-merge.md">help/es_ES/write/mail-merge.md</file>
     <file alias="es_ES/write/making-an-index.md">help/es_ES/write/making-an-index.md</file>

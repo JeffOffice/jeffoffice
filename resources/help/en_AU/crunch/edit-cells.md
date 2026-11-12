@@ -1,5 +1,5 @@
 # Type in cells
-<!-- keywords: autocorrect, smart quotes, dash, fraction, link, address, bold word, part of a cell, rich text, format part of text, color a word, runs, type, typing, enter, edit, change, cell, entry, formula bar, F2, double click, Tab, Escape, give up, undo, redo, delete, clear, percent, currency, money, date, time, number, text, apostrophe, formula, equals, replace, limit, characters, colour a word -->
+<!-- keywords: symbol, symbol font, special characters, shortcut key for a symbol, autocorrect, smart quotes, dash, fraction, link, address, bold word, part of a cell, rich text, format part of text, color a word, runs, type, typing, enter, edit, change, cell, entry, formula bar, F2, double click, Tab, Escape, give up, undo, redo, delete, clear, percent, currency, money, date, time, number, text, apostrophe, formula, equals, replace, limit, characters, colour a word -->
 
 To put something in a cell, select the cell and start typing. What you type replaces what the cell held. Press **Enter** to keep it, or **Esc** to give it up and leave the cell as it was.
 
@@ -112,7 +112,13 @@ When you change a cell, JeffCrunch works out the formulas that depend on it in t
 
 ## Put in a symbol
 
-Click **Insert > Symbols > Symbol** to open the Symbol box. Pick a character and click **Insert**, or double-click it. It goes in at the cursor of the entry you are typing. If you are not typing, the cell's own entry opens with the symbol added at its end, and **Enter** puts it in the cell. Example: with a cell holding the word *Total*, choosing the euro sign makes the entry *Total€*. The symbols you used last are listed first. The cell's font draws the symbol, so a symbol the font lacks shows as a box.
+Click **Insert > Symbols > Symbol** to open the Symbol box. Pick a character and click **Insert**, or double-click it. It goes in at the cursor of the entry you are typing. If you are not typing, the cell's own entry opens with the symbol added at its end, and **Enter** puts it in the cell. Example: with a cell holding the word *Total*, choosing the euro sign makes the entry *Total€*. The symbols you used last are listed first.
+
+**Take the character from a font.** Choose a font in the **Font** box, then pick the character. The character goes in a stretch of its own that is set in that font, and the rest of the cell's text keeps the cell's font. Example: in a cell holding *Total*, a check mark picked from a symbol font makes *Total✓*, with only the check mark in that font. With **(normal text)** chosen, the cell's font draws the symbol, so a symbol the font lacks shows as a box. In a formula, only the character goes in.
+
+**Special characters.** The **Special Characters** tab lists the nonbreaking space and hyphen, the optional hyphen, the en and em dash, the en and em space, the quotation marks, and the no-width optional break, each with its name. Double-click one to put it in.
+
+**Give a symbol a shortcut key.** Pick a symbol or a special character, click **Shortcut Key**, press the keys you want, such as **Ctrl+Alt+Shift+J**, and click **OK**. The keys then put that symbol in, in the same way as the box does. Leave the keys empty and click **OK** to take them off. JeffCrunch tells you when another command already has the keys. The symbol becomes a command, so it is also listed under **File > Options > Customise > Keyboard**, where you can change its keys (see [Keyboard shortcuts](keyboard)).
 
 ## New workbooks
 

@@ -20,7 +20,17 @@ Each edit is one step, so **Ctrl+Z** takes it back as it does any other edit.
 
 ## What a change looks like
 
-Each person's changes have a colour of their own. Inserted text is underlined in the person's colour, and deleted text is struck through. A bar in the left margin marks each line that has a change.
+By default, each person's changes have a colour of their own. The first person whose change the document shows gets the first colour, the next person the second, and so on, and a person keeps the same colour for as long as the document is open. Inserted text is underlined in the person's colour, and deleted text is struck through. Text that was moved is green: double struck through where it left, and double underlined where it arrived. Text whose formatting was changed is bold. A bar in the left margin marks each line that has a change.
+
+You can change all of this. Click **Review > Tracking > Tracking Options** to open the **Track Changes Options** box. Under **Markup**, each kind of change has a **Look** and a **Colour**:
+
+- **Insertions**: underline, double underline, strikethrough, bold, italic, colour only, or (none).
+- **Deletions**: strikethrough, double strikethrough, hidden, caret, or colour only. With **Hidden**, deleted words are left out of the line. With **Caret**, they are left out too, and a small ^ shows where they were. Moved-away text is left out as well when you choose **Balloons** for deletions, but not otherwise.
+- **Moved from** and **Moved to**: the looks and colours for moved text. These are available while **Track moves** is checked. If you uncheck it, moved text shows as an ordinary deletion and an ordinary insertion.
+- **Formatting**: bold, colour only, or (none). If you uncheck **Track formatting**, changes of formatting are not marked in the text.
+- **Change bars**: left border, right border, outside border (the right side of an odd page and the left side of an even one), or (none), and the bar's colour.
+
+Each **Colour** box offers **By author** (each person's own colour) or one colour for every person. These choices are yours. They are kept on this computer, not in the document, they apply to every document and every open window, and each window changes as soon as you click **OK**. The bars are drawn the same way on the screen, in a printout, and in a PDF whenever the markup is shown.
 
 ## Choose what you see: Display for Review
 
@@ -45,7 +55,7 @@ To accept a change is to keep it for good. To reject it is to undo it.
 
 Each of these is one step, so **Ctrl+Z** brings back the document exactly as it was.
 
-Accepting a deletion removes the text for good. Rejecting an insertion removes the text too. Accepting an insertion keeps the text and removes the mark that it was new. Rejecting a deletion keeps the text and removes the strike-through. Rejecting a change of look puts back the look the text had.
+Accepting a deletion removes the text for good. Rejecting an insertion removes the text too. Accepting an insertion keeps the text and removes the mark that it was new. Rejecting a deletion keeps the text and removes the strike-through. Rejecting a change of look puts back the look the text had. Text that was moved is a pair of changes, one where it left and one where it arrived. When the pair is marked with the same name, as other programs save it, accepting or rejecting either half does the same to the other half, so the text is moved for good or put back.
 
 ## The Reviewing pane
 

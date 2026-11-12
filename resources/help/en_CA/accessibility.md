@@ -36,10 +36,11 @@ Say what the picture shows, in a few words, such as "Two children planting a tre
 
 ## Check the page
 
-Click **Review > Check Accessibility** to list what may be hard for some people to use. Besides pictures and shapes with no alt text, it finds two more things.
+Click **Review > Check Accessibility** to list what may be hard for some people to use. Besides pictures and shapes with no alt text, it finds three more things.
 
 - **Text that is hard to read.** Text needs enough *contrast* with what is behind it: the fill of its box, or the page colour where the box has none. The checker works out the contrast as a ratio. A ratio of 4.5 to 1 is enough for ordinary text, and 3 to 1 is enough for large text (18 points or more, or 14 points or more in bold). For example, grey #777777 on white is 4.48 to 1, just short, and #767676 is 4.54 to 1. Choose a darker text colour or a lighter background. Where text is over a picture, the checker can't tell, so it adds a tip to check the contrast by eye.
 - **Objects read in a different order.** A screen reader and a tagged PDF read a page's objects from the back of the stack to the front. If that order is not top to bottom, then left to right, the checker lists the objects that are out of place as tips. Click **Reading Order** to see the objects in the order they are read. Select one and click **Read Earlier** or **Read Later**, or drag it. Each move is one step of Undo, and it also changes which object is in front.
+- **A table with no header row.** A screen reader uses the first row of a table to name its columns. A table whose first row is not marked as a header row is listed as a warning. Click the problem, then click **Use the first row as a header** to turn the header row on. It is one step of Undo.
 
 ## Make the page bigger
 

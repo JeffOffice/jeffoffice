@@ -1,5 +1,5 @@
 # Use JeffPub with the keyboard
-<!-- keywords: keyboard, shortcuts, shortcut keys, hotkeys, key tips, keytips, alt key, f6, tab key, arrow keys, without a mouse, navigate, access keys, focus, ribbon keyboard -->
+<!-- keywords: keyboard, shortcuts, shortcut keys, hotkeys, key tips, keytips, alt key, f6, tab key, arrow keys, without a mouse, navigate, access keys, focus, ribbon keyboard, customize keyboard, change shortcut keys, reassign keys, reset keys, customise keyboard -->
 
 You can reach the ribbon's commands, the Pages list, and the objects on the page without a mouse. There are three ways: shortcut keys for common commands, KeyTips for the ribbon, and moving around with F6, Tab, and the arrow keys.
 
@@ -40,6 +40,21 @@ Click the page area, or press F6 until you reach it. Then:
 - **Esc** stops editing text. The text box stays selected. Press Esc again to clear the selection.
 
 While you type in a table, **Tab** moves to the next cell. Tab in the last cell adds a row.
+
+## Choose your own shortcut keys
+
+You can change the keys of any command, or give a key to a command that has none. Click **File > Options**, then the **Customise** tab.
+
+1. Type in the **Search** box to find a command by its name or by its keys. The list is grouped by the ribbon's tabs, and each command shows its keys. Commands that are not on the ribbon are listed under **Other**.
+2. Click the command. Its keys are listed under **Keys for this command**.
+3. Click the **Press the new keys** box and press the keys you want, such as **Ctrl+Shift+B**. Then click **Assign**. A command can have up to four keys.
+4. To take a key off, click it in the list and click **Remove**.
+
+If another command already has the keys you pressed, JeffPub says which one. Click **Take Over** to give the keys to this command, and the other command loses them. Nothing changes until you click **OK**. Then every open JeffPub window uses your keys, and so does every window you open later. Tooltips, menus, and the table of shortcuts below show your keys.
+
+**Reset One** puts back the usual keys of the chosen command. **Reset All** puts back the usual keys of every command. JeffPub keeps only the commands whose keys you changed, so a command you never changed gets any better keys a later version gives it.
+
+Some keys cannot be given to a command, because the system or typing needs them. JeffPub says **reserved** when you press one. The reserved keys are **Ctrl+C**, **Ctrl+X**, **Ctrl+V**, **Ctrl+Z**, **Ctrl+A**, **Tab**, **Shift+Tab**, **Enter**, **Esc**, **Backspace**, **Delete**, **Alt+F4**, the arrow, **Home**, **End**, **Page Up**, **Page Down**, and **Space** keys, **F1**, **F6**, **Shift+F6**, **Ctrl+Y**, **Ctrl+Shift+Z**, **Ctrl** with an arrow, **Home**, **End**, **Backspace**, or **Delete** (with or without **Shift**, where that makes sense in a text box), and a letter, digit, or symbol key pressed alone or with **Shift**. A key that another part of the window already uses is reserved too. **Save**, **Undo**, and **Redo** always keep at least one key. On a Mac, **Ctrl** here means the **Command** key.
 
 ## All shortcuts
 

@@ -1,5 +1,5 @@
 # How formulas are shown and calculated
-<!-- keywords: next error, previous error, step through errors, trace error, calculate before save, formula, formulas, calculate, calculation, recalculate, function, functions, value, result, stored, F9, circular, show formulas, formula bar, error, point, pointing, click a cell, reference, F4, error checking, ignore error, evaluate formula, step, watch window, watch, let, name a value, cell function, info function, filterxml, xml, xpath-->
+<!-- keywords: spill, spilled, #SPILL!, dynamic array, spill range, A1#, next error, previous error, step through errors, trace error, calculate before save, formula, formulas, calculate, calculation, recalculate, function, functions, value, result, stored, F9, circular, show formulas, formula bar, error, point, pointing, click a cell, reference, F4, error checking, ignore error, evaluate formula, step, watch window, watch, let, name a value, cell function, info function, filterxml, xml, xpath-->
 
 A **formula** is a cell that works out its value from other cells, such as =SUM(B3:B8). The cell shows the value, and the **formula bar** shows the formula.
 
@@ -15,7 +15,7 @@ JeffCrunch has more than 400 functions, and it is still growing. A formula that 
 
 - **Bonds and loans.** PRICE, YIELD, DURATION, ODDFPRICE, and the other bond functions count days the way the **basis** you give says (0 is 30 days to a month in a 360-day year, 1 is the real days, and so on). YIELD, ODDFYIELD, ODDLYIELD, and RATE find their answer by trying values until the price or payment fits. They stop when the answer is right to about 15 digits, so the last digits may differ from another program's.
 - **Distributions and tests.** The functions that end in .DIST, .INV, .TEST, and the older names such as NORMDIST and TDIST, give the same answers: an older name is kept so that old files still work. The *.INV functions are found by trying values too.
-- **Lists that fill several cells.** SORT, SORTBY, FILTER, UNIQUE, SEQUENCE, RANDARRAY, XLOOKUP, MMULT, MINVERSE, and LINEST give a block of values. Enter them as an array formula (**Ctrl+Shift+Enter**) over the cells they should fill. Letting a formula spill into the cells next to it is not done yet.
+- **Lists that fill several cells.** SORT, SORTBY, FILTER, UNIQUE, SEQUENCE, RANDARRAY, XLOOKUP, MMULT, MINVERSE, and LINEST give a block of values. Type one in a single cell and the block spills into the cells below and beside it (see **Formulas that fill the cells beside them**), or enter it as an array formula (**Ctrl+Shift+Enter**) over the cells it should fill.
 - **Texts in other scripts.** LENB, LEFTB, MIDB, RIGHTB, FINDB, SEARCHB, and REPLACEB count each character as one, as they do on a computer that is not set up for double-byte text. PHONETIC gives the text of the cell, because JeffCrunch does not keep the readings of Japanese text.
 - **CONVERT.** Units are written as text, with capital and small letters as shown in the function's list: "kg", "lbm", "mi", "F". A metric prefix can go in front of a unit that takes one, such as "km" or "mL".
 
@@ -91,9 +91,21 @@ Use this to see how a formula comes to its value. Select a cell that holds a for
 
 The **Watch Window** is a small window that stays in view while you work. It lists cells you want to keep an eye on, with their sheet, cell, value, and formula, even when they are on another sheet. Select cells and press **Add Watch**. Select rows in the list and press **Delete Watch**. Double-click a row to go to the cell. The values change when the sheet is worked out again. The list is kept while the workbook is open.
 
+## Formulas that fill the cells beside them
+
+When a formula gives a block of values, the block fills the cells below and beside the cell you typed it in. This is called a spill. Try =SEQUENCE(3) in A1: A1 shows 1, and A2 and A3 show 2 and 3. A formula spills when it calls a function that gives a block (SORT, SORTBY, FILTER, UNIQUE, SEQUENCE, RANDARRAY, TRANSPOSE, XLOOKUP, or MMULT), writes a block in braces, uses a spill range (below), or does arithmetic on a range, as in =A1:A3*2.
+
+- **The cells it fills hold no formula of their own.** They show the values. When you select one, the formula bar shows the formula of the cell that fills it, in grey. Pressing Enter on it as it is changes nothing. To change the block, change that first cell.
+- **The block follows the result.** If the formula gives more or fewer values after something it reads changes, the block grows or shrinks, and formulas that read those cells are worked out again.
+- **A cell in the way gives #SPILL!.** If any cell where the block would go holds a value or a formula, the first cell shows **#SPILL!** and nothing is filled. Clear the cell in the way and the block fills at once. Typing in a cell the block fills does the same: the first cell shows #SPILL!.
+- **A block has a size limit.** A block larger than the sheet, or of more than 200,000 cells, gives #SPILL!.
+- **A1# is the whole block.** Write the cell that holds the formula and a **#**, as in =SUM(A1#), to use the whole block as it is now, from this sheet or another one (=SUM(Sheet1!A1#)). If A1 does not spill, A1# is #REF!.
+
+A spill is saved with the file as a dynamic array, so the program the file came from shows it as a spill too. Saving to the older .xls or .ods form keeps the values, and the formula as an array formula over the block where the older form has the functions it uses. Check Compatibility names these formulas.
+
 ## Give names to values inside a formula
 
-**LET** names a value in the middle of a formula, so you write it once and use it again. The pairs of a name and a value come first, and the calculation comes last. In =LET(price, B2, tax, price*0.08, price+tax) the name **price** stands for the value in B2, **tax** is worked out from it, and the last part adds them. A name can use the names before it. A name works only inside its own LET, and a LET inside another may use a name again. A name can stand for a block of cells too, as in =LET(rows, B2:B9, SUM(rows)/COUNT(rows)).
+**LET** names a value in the middle of a formula, so you write it once and use it again. The pairs of a name and a value come first, and the calculation comes last. In =LET(price, B2, tax, price*0.08, price+tax) the name **price** stands for the value in B2, **tax** is worked out from it, and the last part adds them. A name can use the names before it, and a LET can hold up to 126 pairs. A name works only inside its own LET, and a LET inside another may use a name again. A name can stand for a block of cells too, as in =LET(rows, B2:B9, SUM(rows)/COUNT(rows)).
 
 ## Ask about a cell or the workbook
 

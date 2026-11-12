@@ -13,7 +13,7 @@ To make more room for the slide, collapse the ribbon. Click the arrow at the far
 
 The **File** button is left of the tabs. It opens the File screen, where you start, open, save, print, and export. Press Esc or click **Back to presentation** to return. See [The File screen](file-screen).
 
-The quick toolbar is the row of four small buttons above the **File** button. It holds **Save**, **Undo**, **Redo**, and **From Beginning**, which plays the slide show from the first slide.
+The quick toolbar is the row of four small buttons above the **File** button. It holds **Save**, **Undo**, **Redo**, and **From Beginning**, which plays the slide show from the first slide. You can change what is on it: see "Customise the quick toolbar" in the topic on options.
 
 ## The slides pane
 

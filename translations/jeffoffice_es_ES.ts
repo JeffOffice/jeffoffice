@@ -46,10 +46,6 @@
         <source>Default file location:</source>
         <translation type="unfinished">Ubicación predeterminada de fichero:</translation>
     </message>
-    <message>
-        <source>Remove personal information from the file's properties when saving</source>
-        <translation type="unfinished">Quitar la información personal de las propiedades del fichero al guardar</translation>
-    </message>
 </context>
 <context>
     <name>Export</name>
@@ -60,6 +56,10 @@
     <message>
         <source>the download isn't the file expected</source>
         <translation type="unfinished">la descarga no es el fichero esperado</translation>
+    </message>
+    <message>
+        <source>charts were saved as pictures, so their data can't be edited in a .pub file</source>
+        <translation type="unfinished">los gráficos se guardaron como imágenes, por lo que sus datos no se pueden editar en un fichero .pub</translation>
     </message>
 </context>
 <context>
@@ -442,6 +442,10 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">El fichero contiene más de %1 MB de configuración de animación, transición y otros ajustes en total; lo que supere ese límite se omite.</translation>
     </message>
     <message>
+        <source>The file holds more charts than can be changed in one file (%1, or %2 MB of them), so the charts past them (%3 in all) are kept as pictures only.</source>
+        <translation type="unfinished">El fichero contiene más gráficos de los que se pueden modificar en un solo fichero (%1, o %2 MB de ellos), así que los gráficos que superan ese límite (%3 en total) se conservan solo como imágenes.</translation>
+    </message>
+    <message>
         <source>The file holds more than %1 charts in all; the rest are kept as written, not shown.</source>
         <translation type="unfinished">El fichero contiene más de %1 gráficos en total; los demás se conservan tal como están escritos, pero no se muestran.</translation>
     </message>
@@ -812,6 +816,18 @@ Download it from %2 now? (%3, once.)</source>
         <source>The file is damaged, or it was changed after it was protected: its protected contents can't be read.</source>
         <translation type="unfinished">El fichero está dañado o se modificó después de protegerlo: no se puede leer su contenido protegido.</translation>
     </message>
+    <message>
+        <source>drawing objects the file does not let be read</source>
+        <translation type="unfinished">objetos de dibujo que el fichero no permite leer</translation>
+    </message>
+    <message>
+        <source>charts the file does not hold, or larger than a chart may be</source>
+        <translation type="unfinished">gráficos que el fichero no contiene, o más grandes de lo que puede ser un gráfico</translation>
+    </message>
+    <message>
+        <source>pictures the file does not hold</source>
+        <translation type="unfinished">imágenes que el fichero no contiene</translation>
+    </message>
 </context>
 <context>
     <name>Telemetry</name>
@@ -821,10 +837,21 @@ Download it from %2 now? (%3, once.)</source>
     </message>
 </context>
 <context>
+    <name>jp::AboutPage</name>
+    <message>
+        <source>Once a day, and the day it's updated: %1's version, your operating system and language, and how often each command is used. Never your files, their names, or anything in them.</source>
+        <translation type="unfinished">Una vez al día, y el día en que se actualice: la versión de %1, su sistema operativo e idioma, y la frecuencia con que se usa cada comando. Nunca sus ficheros, sus nombres ni su contenido.</translation>
+    </message>
+</context>
+<context>
     <name>jp::Backstage</name>
     <message>
         <source>Open a JeffPub publication or a .pub file.</source>
         <translation type="unfinished">Abre una publicación de JeffPub o un fichero .pub.</translation>
+    </message>
+    <message>
+        <source>the PDF file</source>
+        <translation type="unfinished">el fichero PDF</translation>
     </message>
     <message>
         <source>Preserves layout and fonts; text stays selectable. Choose the quality, from small files for email to commercial press.</source>
@@ -863,10 +890,6 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">La publicación y sus imágenes en un solo fichero ZIP, con las fuentes que usa y que vienen con JeffPub.</translation>
     </message>
     <message>
-        <source>Once a day, and the day it's updated: JeffPub's version, your operating system and language, and how often each command is used. Never your files, their names, or anything in them.</source>
-        <translation type="unfinished">Una vez al día, y el día en que se actualiza: la versión de JeffPub, su sistema operativo e idioma, y la frecuencia de uso de cada comando. Nunca sus ficheros, sus nombres ni su contenido.</translation>
-    </message>
-    <message>
         <source>Reading .pub files</source>
         <translation type="unfinished">Lectura de ficheros .pub</translation>
     </message>
@@ -884,6 +907,13 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>Choose the list of products or items (a spreadsheet, a CSV file or a list you type).</source>
         <translation type="unfinished">Elija la lista de productos o artículos (una hoja de cálculo, un fichero CSV o una lista que escriba).</translation>
+    </message>
+</context>
+<context>
+    <name>jp::ChartDialogs</name>
+    <message>
+        <source>This file already holds the most charts it can (%1), so no chart was added.</source>
+        <translation type="unfinished">Este fichero ya contiene el máximo de gráficos permitido (%1), así que no se añadió ningún gráfico.</translation>
     </message>
 </context>
 <context>
@@ -1102,8 +1132,8 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Guarda en el fichero las fuentes que incluye el programa y que usan las diapositivas, para que se vean igual en un equipo que no las tenga. El fichero será más grande. Las fuentes que tienen todos los equipos, como Calibri y Arial, nunca se insertan.</translation>
     </message>
     <message>
-        <source>Makes a PDF/A-1b file: every font is in the file, so it looks the same in years. It is not tagged for screen readers.</source>
-        <translation type="unfinished">Crea un fichero PDF/A-1b: todas las fuentes están incluidas en el fichero, así que tendrá el mismo aspecto dentro de años. No está etiquetado para lectores de pantalla.</translation>
+        <source>Makes a PDF/A-1b file: every font is in the file, so it looks the same in years.</source>
+        <translation type="unfinished">Crea un fichero PDF/A-1b: todas las fuentes se incluyen en el fichero, para que se vea igual con los años.</translation>
     </message>
     <message>
         <source>PDF/A is turned off, because a PDF with a password can't be a PDF/A file.</source>
@@ -1116,6 +1146,10 @@ No se puede leer el fichero.</translation>
     <message>
         <source>The presentation, as a file</source>
         <translation type="unfinished">La presentación, como fichero</translation>
+    </message>
+    <message>
+        <source>%1 couldn't make the PDF file "%2".</source>
+        <translation type="unfinished">%1 no pudo crear el fichero PDF "%2".</translation>
     </message>
     <message>
         <source>This presentation is protected with a password, and a .%1 file can't hold a password yet. Save it as a .pptx file, or remove the password first (File &gt; Info).</source>
@@ -1330,8 +1364,16 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">"%1" tiene contraseña, y un fichero con contraseña no se puede reparar. Ábralo con su contraseña.</translation>
     </message>
     <message>
+        <source>A file holds only so many charts that can be changed, so the charts past them (%1 in all) are kept as pictures only.</source>
+        <translation type="unfinished">Un fichero solo admite cierta cantidad de gráficos modificables, así que los gráficos que superan ese límite (%1 en total) se conservan solo como imágenes.</translation>
+    </message>
+    <message>
         <source>This publication is protected with a password, and a .pub file can't keep a password. Save it as a .pub file without one?</source>
         <translation type="unfinished">Esta publicación está protegida con contraseña, y un fichero .pub no puede conservar una contraseña. ¿Guardarla como fichero .pub sin ella?</translation>
+    </message>
+    <message>
+        <source>This publication has hidden objects. The .pub format can't keep them hidden, so they will be visible the next time it opens. Save it as a .pub file anyway?</source>
+        <translation type="unfinished">Esta publicación tiene objetos ocultos. El formato .pub no puede conservarlos ocultos, así que se mostrarán la próxima vez que se abra. ¿Desea guardarla como fichero .pub de todos modos?</translation>
     </message>
     <message>
         <source>This publication is marked as final, and a .pub file can't hold that mark. The file is saved without it.</source>
@@ -1451,6 +1493,21 @@ No se puede leer el fichero.</translation>
     <message>
         <source>Refresh the data when the file is opened</source>
         <translation type="unfinished">Actualizar los datos al abrir el fichero</translation>
+    </message>
+</context>
+<context>
+    <name>jp::Privacy</name>
+    <message>
+        <source>Remove personal information from this file when saving</source>
+        <translation type="unfinished">Quitar la información personal de este fichero al guardarlo</translation>
+    </message>
+    <message>
+        <source>Takes out the author, the person who saved the file last, the company, the manager, and the names on comments and tracked changes. What the file says stays as it is.</source>
+        <translation type="unfinished">Elimina el autor, la persona que guardó el fichero por última vez, la empresa, el administrador y los nombres de los comentarios y los cambios controlados. El contenido del fichero no cambia.</translation>
+    </message>
+    <message>
+        <source>Some personal information could not be taken out of the file. %1 Check the file before you share it.</source>
+        <translation type="unfinished">No se pudo quitar parte de la información personal del fichero. %1 Revise el fichero antes de compartirlo.</translation>
     </message>
 </context>
 <context>
@@ -1905,6 +1962,13 @@ No se puede leer el fichero.</translation>
     </message>
 </context>
 <context>
+    <name>jp::office::Privacy</name>
+    <message>
+        <source>The file is not a package that could be read.</source>
+        <translation type="unfinished">El fichero no es un paquete que se pueda leer.</translation>
+    </message>
+</context>
+<context>
     <name>jp::office::doc</name>
     <message>
         <source>The file is larger than this program can open.</source>
@@ -2079,6 +2143,22 @@ No se puede leer el fichero.</translation>
     <message>
         <source>The file has more cell formats than any real file has.</source>
         <translation type="unfinished">El fichero tiene más formatos de celda que cualquier fichero real.</translation>
+    </message>
+    <message>
+        <source>The file holds no chart there.</source>
+        <translation type="unfinished">El fichero no contiene ningún gráfico en esa posición.</translation>
+    </message>
+    <message>
+        <source>pictures that are not inside the file</source>
+        <translation type="unfinished">imágenes que no están dentro del fichero</translation>
+    </message>
+    <message>
+        <source>pictures the file names and does not hold</source>
+        <translation type="unfinished">imágenes que el fichero nombra y no contiene</translation>
+    </message>
+    <message>
+        <source>charts the file does not hold</source>
+        <translation type="unfinished">gráficos que el fichero no contiene</translation>
     </message>
 </context>
 <context>

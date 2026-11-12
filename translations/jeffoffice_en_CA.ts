@@ -13,6 +13,13 @@
     </message>
 </context>
 <context>
+    <name>BarcodeDialog</name>
+    <message>
+        <source>Without it, the clear space round the bars shows what is behind the barcode, so on a colored background a scanner may not read it.</source>
+        <translation>Without it, the clear space round the bars shows what is behind the barcode, so on a coloured background a scanner may not read it.</translation>
+    </message>
+</context>
+<context>
     <name>BuildingBlocks</name>
     <message>
         <source>Centered Rule Heading</source>
@@ -220,6 +227,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>PdfTags</name>
+    <message>
+        <source>the PDF has no catalog</source>
+        <translation>the PDF has no catalogue</translation>
+    </message>
+</context>
+<context>
     <name>PptxImport</name>
     <message>
         <source>The slide master %1 has no theme, so JeffDeck's colors and fonts stand in.</source>
@@ -228,6 +242,17 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>The theme of slide master %1 can't be read (%2), so JeffDeck's colors and fonts stand in.</source>
         <translation>The theme of slide master %1 can't be read (%2), so JeffDeck's colours and fonts stand in.</translation>
+    </message>
+</context>
+<context>
+    <name>Print</name>
+    <message>
+        <source>Grayscale</source>
+        <translation>Greyscale</translation>
+    </message>
+    <message>
+        <source>Print in shades of gray, whatever the colors are.</source>
+        <translation>Print in shades of grey, whatever the colours are.</translation>
     </message>
 </context>
 <context>
@@ -278,6 +303,14 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>colors past the 56 the format holds (each is the nearest of the first 56)</source>
         <translation>colours past the 56 the format holds (each is the nearest of the first 56)</translation>
+    </message>
+    <message>
+        <source>gradient and pattern fills of charts (they are written as one color)</source>
+        <translation>gradient and pattern fills of charts (they are written as one colour)</translation>
+    </message>
+    <message>
+        <source>gradient fills of drawing objects (they are written as the first color)</source>
+        <translation>gradient fills of drawing objects (they are written as the first colour)</translation>
     </message>
 </context>
 <context>
@@ -366,6 +399,17 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::AboutPage</name>
+    <message>
+        <source>License and notices</source>
+        <translation>Licence and notices</translation>
+    </message>
+    <message>
+        <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%3"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
+        <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%3"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
+    </message>
+</context>
+<context>
     <name>jp::BackgroundDialog</name>
     <message>
         <source>Background Color</source>
@@ -401,14 +445,6 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>An ISO 15930 file (PDF/X-1a or PDF/X-4), the kind printers and print-on-demand services ask for: every color in ink, fonts embedded, trim and bleed marked. PDF/X-4 keeps transparency and carries the printing condition's color profile.</source>
         <translation>An ISO 15930 file (PDF/X-1a or PDF/X-4), the kind printers and print-on-demand services ask for: every colour in ink, fonts embedded, trim and bleed marked. PDF/X-4 keeps transparency and carries the printing condition's colour profile.</translation>
-    </message>
-    <message>
-        <source>License and notices</source>
-        <translation>Licence and notices</translation>
-    </message>
-    <message>
-        <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;JeffPub is free software under the &lt;a href="%1"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%2"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;JeffPub is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
-        <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;JeffPub is free software under the &lt;a href="%1"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%2"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;JeffPub is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
     </message>
     <message>
         <source>Color in PDF pages</source>
@@ -470,17 +506,6 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Pick a color from anywhere on the page</source>
         <translation>Pick a colour from anywhere on the page</translation>
-    </message>
-</context>
-<context>
-    <name>jp::CrunchFileScreen</name>
-    <message>
-        <source>License and notices</source>
-        <translation>Licence and notices</translation>
-    </message>
-    <message>
-        <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%3"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
-        <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%3"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
     </message>
 </context>
 <context>
@@ -555,21 +580,6 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
-    <name>jp::DeckFileScreen</name>
-    <message>
-        <source>Grayscale</source>
-        <translation>Greyscale</translation>
-    </message>
-    <message>
-        <source>License and notices</source>
-        <translation>Licence and notices</translation>
-    </message>
-    <message>
-        <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%3"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
-        <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%3"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
-    </message>
-</context>
-<context>
     <name>jp::DeckWindow</name>
     <message>
         <source>Center</source>
@@ -578,6 +588,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>&amp;Grayscale</source>
         <translation>&amp;Greyscale</translation>
+    </message>
+    <message>
+        <source>An outline or a grayscale PDF can't be tagged: it has no objects to tag, or is made of pictures.</source>
+        <translation>An outline or a greyscale PDF can't be tagged: it has no objects to tag, or is made of pictures.</translation>
     </message>
     <message>
         <source>Font Color</source>
@@ -867,6 +881,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::PageAccess</name>
+    <message>
+        <source>Text on %1 is hard to read: its color and its background are too close (a contrast of %2 to 1, where %3 to 1 is needed for text this size). Choose a darker text color or a lighter background, or the reverse, so that people with low vision can read it.</source>
+        <translation>Text on %1 is hard to read: its colour and its background are too close (a contrast of %2 to 1, where %3 to 1 is needed for text this size). Choose a darker text colour or a lighter background, or the reverse, so that people with low vision can read it.</translation>
+    </message>
+</context>
+<context>
     <name>jp::PageSetupDialog</name>
     <message>
         <source>Colors and fills are left out; text and lines are black.</source>
@@ -963,17 +984,6 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
-    <name>jp::WriteFileScreen</name>
-    <message>
-        <source>License and notices</source>
-        <translation>Licence and notices</translation>
-    </message>
-    <message>
-        <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%3"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
-        <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%3"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
-    </message>
-</context>
-<context>
     <name>jp::WriteWindow</name>
     <message>
         <source>Center</source>
@@ -1043,6 +1053,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::crunch::PrintJob</name>
+    <message>
+        <source>There was not room to make the pages gray, so some are in color.</source>
+        <translation>There was not room to make the pages grey, so some are in colour.</translation>
+    </message>
+</context>
+<context>
     <name>jp::office::TableStyles</name>
     <message>
         <source>Gray</source>
@@ -1077,6 +1094,21 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Centered</source>
         <translation>Centred</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::HomeDialogs</name>
+    <message>
+        <source>Gray</source>
+        <translation>Grey</translation>
+    </message>
+    <message>
+        <source>Color only</source>
+        <translation>Colour only</translation>
+    </message>
+    <message>
+        <source>Color</source>
+        <translation>Colour</translation>
     </message>
 </context>
 <context>
