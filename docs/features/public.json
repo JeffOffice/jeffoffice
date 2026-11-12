@@ -345,7 +345,7 @@
         },
         {
          "status": "partly",
-         "text": "2044abcc0f3b4eb992d17d0110e6e883408f68b814e4e2df89903063f3492784"
+         "text": "31434f702bf42f03ebc54ac504b920646e10f3b0e2d248ba94bed38031cd6a0c"
         },
         {
          "hide_soon": true,
@@ -2592,7 +2592,7 @@
         },
         {
          "status": "partly",
-         "text": "5515ee5f995fad9404a07f47d8362e7a27ed6b96e8ef4668a322287dc2b43782"
+         "text": "1152c192911d8fea2cbff478623c85c5c586651b17a304afc36450c123344f87"
         },
         {
          "status": "todo",
@@ -4448,7 +4448,7 @@
         },
         {
          "status": "partly",
-         "text": "4253248006e826328b4461e3d03aa8257ff57c2fa2aed6fb5da8aabf1200cb37"
+         "text": "ed99bb72186cc964aadd87d8d4cb6fab54e90169644dc133af4091a9c57b423c"
         }
        ]
       }
@@ -5759,7 +5759,7 @@
         },
         {
          "status": "partly",
-         "text": "b7342448eaf4fdc28ea1e883f160126e7140259af9393b29f1b3933558232a6e"
+         "text": "0fc3c238c64cbfcdd346a354235d0f4c9d427d30e3c1b7bde7f5030af94da73e"
         },
         {
          "status": "partly",
@@ -8518,6 +8518,18 @@
     "fr": "Davantage de fonctions"
    }
   },
+  "0fc3c238c64cbfcdd346a354235d0f4c9d427d30e3c1b7bde7f5030af94da73e": {
+   "drop": false,
+   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command in them, and rename and reorder them, with Reset One and Reset All. Add any command to the quick toolbar, including commands with menus, add separators, remove and reorder items, and reset them, with up to 100 items and a `»` overflow button.",
+   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, y cámbieles el nombre y el orden, con Restablecer uno y Restablecer todo. Agregue cualquier comando a la barra de herramientas rápida, incluidos los comandos con menús, agregue separadores, quite y reordene elementos y restablézcalos, con hasta 100 elementos y un botón de desbordamiento `»`.",
+   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez-les et réorganisez-les, avec Réinitialiser un élément et Tout réinitialiser. Ajoutez n’importe quelle commande à la barre d’outils rapide, y compris les commandes avec menu, ajoutez des séparateurs, supprimez et réorganisez les éléments, et réinitialisez-les, avec jusqu’à 100 éléments et un bouton de débordement `»`.",
+   "soon": {
+    "drop": false,
+    "en": "Quick toolbar placement below the ribbon and an Add to Quick Toolbar item on the right-click menu of ribbon controls",
+    "es": "Ubicación de la barra de herramientas rápida debajo de la cinta de opciones y un elemento Agregar a la barra de herramientas rápida en el menú contextual de los controles de la cinta",
+    "fr": "Placement de la barre d’outils rapide sous le ruban et un élément Ajouter à la barre d’outils rapide dans le menu contextuel des contrôles du ruban"
+   }
+  },
   "102b122b81a9e221543c19ee46aeefba41193f35385d0688eb372b1559900811": {
    "drop": false,
    "en": "A backup copy is kept on every save. Turn it on in Options > General.",
@@ -8576,6 +8588,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "1152c192911d8fea2cbff478623c85c5c586651b17a304afc36450c123344f87": {
+   "drop": false,
+   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command in them, and rename and reorder them, with Reset One and Reset All. Add any command to the quick toolbar, including commands with menus, add separators, remove and reorder items, and reset them, with up to 100 items and a `»` overflow button.",
+   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, y cámbieles el nombre y el orden, con Restablecer uno y Restablecer todo. Agregue cualquier comando a la barra de herramientas rápida, incluidos los comandos con menús, agregue separadores, quite y reordene elementos y restablézcalos, con hasta 100 elementos y un botón de desbordamiento `»`.",
+   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez-les et réorganisez-les, avec Réinitialiser un élément et Tout réinitialiser. Ajoutez n’importe quelle commande à la barre d’outils rapide, y compris les commandes avec menu, ajoutez des séparateurs, supprimez et réorganisez les éléments, et réinitialisez-les, avec jusqu’à 100 éléments et un bouton de débordement `»`.",
+   "soon": {
+    "drop": false,
+    "en": "Quick toolbar placement below the ribbon and an Add to Quick Toolbar item on the right-click menu of ribbon controls",
+    "es": "Ubicación de la barra de herramientas rápida debajo de la cinta de opciones y un elemento Agregar a la barra de herramientas rápida en el menú contextual de los controles de la cinta",
+    "fr": "Placement de la barre d’outils rapide sous le ruban et un élément Ajouter à la barre d’outils rapide dans le menu contextuel des contrôles du ruban"
    }
   },
   "1157e14c8043df7c2e47fc30a3345623dae25b7ff02a19f7334545c3ab046433": {
@@ -9680,18 +9704,6 @@
     "en": "Format panes: axis text direction, and panes for a series and a point",
     "es": "Paneles de formato: dirección del texto del eje, y paneles para una serie y un punto",
     "fr": "Volets de format : orientation du texte de l’axe, et volets pour une série et un point"
-   }
-  },
-  "2044abcc0f3b4eb992d17d0110e6e883408f68b814e4e2df89903063f3492784": {
-   "drop": false,
-   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command in them, rename and reorder your own groups and the tabs, and reset one item or everything.",
-   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, cambie el nombre y el orden de sus grupos y de las pestañas, y restablezca un elemento o todo.",
-   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez et réorganisez vos groupes et les onglets, et réinitialisez un élément ou tout.",
-   "soon": {
-    "drop": false,
-    "en": "Quick toolbar: customize the commands",
-    "es": "Barra de herramientas rápida: personalizar los comandos",
-    "fr": "Barre d’outils rapide : personnaliser les commandes"
    }
   },
   "204ebea6183d0f25ba58448264e9988cd6e9410280b629a04f48fc71bc624a27": {
@@ -11002,6 +11014,18 @@
     "fr": ""
    }
   },
+  "31434f702bf42f03ebc54ac504b920646e10f3b0e2d248ba94bed38031cd6a0c": {
+   "drop": false,
+   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command in them, and rename and reorder them, with Reset One and Reset All. Add any command to the quick toolbar, including commands with menus, add separators, remove and reorder items, and reset them, with up to 100 items and a `»` overflow button.",
+   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, y cámbieles el nombre y el orden, con Restablecer uno y Restablecer todo. Agregue cualquier comando a la barra de herramientas rápida, incluidos los comandos con menús, agregue separadores, quite y reordene elementos y restablézcalos, con hasta 100 elementos y un botón de desbordamiento `»`.",
+   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez-les et réorganisez-les, avec Réinitialiser un élément et Tout réinitialiser. Ajoutez n’importe quelle commande à la barre d’outils rapide, y compris les commandes avec menu, ajoutez des séparateurs, supprimez et réorganisez les éléments, et réinitialisez-les, avec jusqu’à 100 éléments et un bouton de débordement `»`.",
+   "soon": {
+    "drop": false,
+    "en": "Quick toolbar placement below the ribbon and an Add to Quick Toolbar item on the right-click menu of ribbon controls",
+    "es": "Ubicación de la barra de herramientas rápida debajo de la cinta de opciones y un elemento Agregar a la barra de herramientas rápida en el menú contextual de los controles de la cinta",
+    "fr": "Placement de la barre d’outils rapide sous le ruban et un élément Ajouter à la barre d’outils rapide dans le menu contextuel des contrôles du ruban"
+   }
+  },
   "314585938d0a0aced492e4c4466eda30267aa30a1f5e5585ef1727d51836a8d2": {
    "drop": false,
    "en": "Crop a picture with handles, crop to a shape, choose an aspect ratio, and use Fill and Fit; crops are saved in `.pptx` and `.odp` files.",
@@ -12176,18 +12200,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "4253248006e826328b4461e3d03aa8257ff57c2fa2aed6fb5da8aabf1200cb37": {
-   "drop": false,
-   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command in them, rename and reorder your own groups and the tabs, and reset one item or everything.",
-   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, cambie el nombre y el orden de sus grupos y de las pestañas, y restablezca un elemento o todo.",
-   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez et réorganisez vos groupes et les onglets, et réinitialisez un élément ou tout.",
-   "soon": {
-    "drop": false,
-    "en": "Quick toolbar: customize the commands",
-    "es": "Barra de herramientas rápida: personalizar los comandos",
-    "fr": "Barre d’outils rapide : personnaliser les commandes"
    }
   },
   "4290810191e6943292a7e61104923a29af6c9f9f7888c36d7f7515e7d90a94b3": {
@@ -13700,18 +13712,6 @@
     "en": "Formatted speaker notes: bold, italic, lists, links, and pictures",
     "es": "Notas del orador con formato: negrita, cursiva, listas, vínculos e imágenes",
     "fr": "Notes du présentateur mises en forme : gras, italique, listes, liens et images"
-   }
-  },
-  "5515ee5f995fad9404a07f47d8362e7a27ed6b96e8ef4668a322287dc2b43782": {
-   "drop": false,
-   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command in them, rename and reorder your own groups and the tabs, and reset one item or everything.",
-   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, cambie el nombre y el orden de sus grupos y de las pestañas, y restablezca un elemento o todo.",
-   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez et réorganisez vos groupes et les onglets, et réinitialisez un élément ou tout.",
-   "soon": {
-    "drop": false,
-    "en": "Quick toolbar: customize the commands",
-    "es": "Barra de herramientas rápida: personalizar los comandos",
-    "fr": "Barre d’outils rapide : personnaliser les commandes"
    }
   },
   "552e99313727bdc6b30f346137141bdedd3d06eac65141b9c95d5f7d0e4ec29d": {
@@ -20374,18 +20374,6 @@
     "fr": ""
    }
   },
-  "b7342448eaf4fdc28ea1e883f160126e7140259af9393b29f1b3933558232a6e": {
-   "drop": false,
-   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command in them, rename and reorder your own groups and the tabs, and reset one item or everything.",
-   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, cambie el nombre y el orden de sus grupos y de las pestañas, y restablezca un elemento o todo.",
-   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez et réorganisez vos groupes et les onglets, et réinitialisez un élément ou tout.",
-   "soon": {
-    "drop": false,
-    "en": "Quick toolbar: customize the commands",
-    "es": "Barra de herramientas rápida: personalizar los comandos",
-    "fr": "Barre d’outils rapide : personnaliser les commandes"
-   }
-  },
   "b74269e812ac94829375d207541f5a441b22d5bcdaedba656efe8e0192ec1cad": {
    "drop": false,
    "en": "The Pivot Table Fields pane lists the source fields and shows four boxes: Filters, Columns, Rows, and Values. Check fields in or out, move them between boxes, reorder them, or remove them. A search box filters the field list, and Defer Layout Update holds changes until Update.",
@@ -24272,6 +24260,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "ed99bb72186cc964aadd87d8d4cb6fab54e90169644dc133af4091a9c57b423c": {
+   "drop": false,
+   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command in them, and rename and reorder them, with Reset One and Reset All. Add any command to the quick toolbar, including commands with menus, add separators, remove and reorder items, and reset them, with up to 100 items and a `»` overflow button.",
+   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, y cámbieles el nombre y el orden, con Restablecer uno y Restablecer todo. Agregue cualquier comando a la barra de herramientas rápida, incluidos los comandos con menús, agregue separadores, quite y reordene elementos y restablézcalos, con hasta 100 elementos y un botón de desbordamiento `»`.",
+   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez-les et réorganisez-les, avec Réinitialiser un élément et Tout réinitialiser. Ajoutez n’importe quelle commande à la barre d’outils rapide, y compris les commandes avec menu, ajoutez des séparateurs, supprimez et réorganisez les éléments, et réinitialisez-les, avec jusqu’à 100 éléments et un bouton de débordement `»`.",
+   "soon": {
+    "drop": false,
+    "en": "Quick toolbar placement below the ribbon and an Add to Quick Toolbar item on the right-click menu of ribbon controls",
+    "es": "Ubicación de la barra de herramientas rápida debajo de la cinta de opciones y un elemento Agregar a la barra de herramientas rápida en el menú contextual de los controles de la cinta",
+    "fr": "Placement de la barre d’outils rapide sous le ruban et un élément Ajouter à la barre d’outils rapide dans le menu contextuel des contrôles du ruban"
    }
   },
   "ee422eeb40c0d66b0025dd8625c381c8c1c2ebf5c5facdca2b2c75fb39aab37c": {
