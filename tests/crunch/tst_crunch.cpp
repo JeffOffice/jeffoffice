@@ -1,6 +1,7 @@
 // Tests of JeffCrunch's window (apps/crunch): opening a workbook on a worker with the first rows on the screen early, the calculation after the load, the sheet tabs, the name box and
 // the formula bar, the commands that work and those that are dimmed, copying, the view commands, the File screen, Help, and a screenshot of a workbook that looks like a real one. Every
 // workbook is built here, in a temporary folder.
+#include "core/datafolder.h"
 #include "../aboutchecks.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
@@ -124,7 +125,7 @@ private Q_SLOTS:
     void ownTextIsTranslatedUnderTheNamesTheProgramLooksUp()
     {
         QTranslator de;
-        QVERIFY(de.load(QStringLiteral(":/i18n/jeffoffice_de.qm")));
+        QVERIFY(de.load(jp::dataFolder(QStringLiteral("i18n")) + QStringLiteral("/jeffoffice_de.qm")));
         QCOMPARE(QString::fromLatin1(jp::crunch::EditSession::staticMetaObject.className()), QStringLiteral("jp::crunch::EditSession"));
         QVERIFY(!de.translate(jp::crunch::EditSession::staticMetaObject.className(), "The workbook is busy. Try again in a moment.").isEmpty());
         QVERIFY(!de.translate(CrunchWindow::staticMetaObject.className(), "Stacked columns").isEmpty());
@@ -497,10 +498,10 @@ private Q_SLOTS:
         const QString src = QStringLiteral(JC_SOURCE_DIR "/resources/help");
         QStringList onDisk, built;
         for (QDirIterator it(src, QDir::Files, QDirIterator::Subdirectories); it.hasNext();) onDisk << QDir(src).relativeFilePath(it.next());
-        for (QDirIterator it(QStringLiteral(":/help"), QDir::Files, QDirIterator::Subdirectories); it.hasNext();) built << it.next().mid(7);
+        for (QDirIterator it(jp::dataFolder(QStringLiteral("help")), QDir::Files, QDirIterator::Subdirectories); it.hasNext();) built << QDir(jp::dataFolder(QStringLiteral("help"))).relativeFilePath(it.next());
         onDisk.sort();
         built.sort();
-        QCOMPARE(built, onDisk);   // resources.qrc lists every file in resources/help (python3 tools/help_files.py)
+        QCOMPARE(built, onDisk);   // the data folder has every file in resources/help
         const QStringList ids = help::topicIds();
         QVERIFY2(ids.size() >= 7, qPrintable(QString::number(ids.size())));
         static const QRegularExpression link(QStringLiteral("\\]\\(([^)]+)\\)"));
@@ -544,7 +545,7 @@ private Q_SLOTS:
     {
         static const QRegularExpression names(QStringLiteral("\\b(PivotTables?|AutoSum|AutoFit|Format Painter|AutoRecover|Quick Access Toolbar|Quick Parts)\\b"));
         QStringList problems;
-        for (QDirIterator it(QStringLiteral(":/help"), QDir::Files, QDirIterator::Subdirectories); it.hasNext();) {
+        for (QDirIterator it(jp::dataFolder(QStringLiteral("help")), QDir::Files, QDirIterator::Subdirectories); it.hasNext();) {
             const QString path = it.next();
             QFile f(path);
             QVERIFY(f.open(QIODevice::ReadOnly));

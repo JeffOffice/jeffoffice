@@ -3,6 +3,7 @@
 
 #include "app/i18n.h"
 #include "core/appinfo.h"
+#include "core/datafolder.h"
 #include "app/icons.h"
 #include "app/appwindow.h"
 #include "app/ribbon.h"
@@ -55,16 +56,21 @@ QString appFolder()
     return folder.isEmpty() ? QString() : QLatin1Char('/') + folder;
 }
 
+// Help's folder in the data folder installed beside the programs (empty when there is none).
+QString helpRoot() { return dataFolder(QStringLiteral("help")); }
+
 // The folders to look in, the display language's first ("pt_BR", then "pt").
 QStringList languageDirs()
 {
     QStringList dirs;
+    const QString root = helpRoot();
+    if (root.isEmpty()) return dirs;
     const QString lang = currentUiLanguage();
     if (!lang.isEmpty() && lang != QLatin1String("en")) {
-        dirs << QStringLiteral(":/help/") + lang + appFolder();
-        if (lang.contains(QLatin1Char('_'))) dirs << QStringLiteral(":/help/") + lang.section(QLatin1Char('_'), 0, 0) + appFolder();
+        dirs << root + QLatin1Char('/') + lang + appFolder();
+        if (lang.contains(QLatin1Char('_'))) dirs << root + QLatin1Char('/') + lang.section(QLatin1Char('_'), 0, 0) + appFolder();
     }
-    dirs << QStringLiteral(":/help/en") + appFolder();
+    dirs << root + QStringLiteral("/en") + appFolder();
     return dirs;
 }
 
@@ -129,7 +135,7 @@ struct Cache {
 Cache &cache()
 {
     static Cache c;
-    const QString lang = currentUiLanguage() + appFolder();
+    const QString lang = currentUiLanguage() + appFolder() + helpRoot();
     if (c.lang != lang) c = Cache{lang, {}, {}};
     return c;
 }
@@ -139,7 +145,9 @@ Cache &cache()
 QStringList topicIds()
 {
     QStringList ids;
-    for (const QString &f : QDir(QStringLiteral(":/help/en") + appFolder()).entryList({QStringLiteral("*.md")}, QDir::Files, QDir::Name)) ids << f.chopped(3);
+    const QString root = helpRoot();
+    if (root.isEmpty()) return ids;
+    for (const QString &f : QDir(root + QStringLiteral("/en") + appFolder()).entryList({QStringLiteral("*.md")}, QDir::Files, QDir::Name)) ids << f.chopped(3);
     return ids;
 }
 
@@ -165,10 +173,12 @@ QString contextTopic(const QString &key)
     // The map of the app's own folder when it has one (resources/help/en/deck/context.json, the same in every language).
     static QHash<QString, QJsonObject> maps;
     const QString folder = appInfo().helpFolder;
-    auto it = maps.find(folder);
+    const QString root = helpRoot();
+    const QString mapKey = folder + QLatin1Char('|') + root;
+    auto it = maps.find(mapKey);
     if (it == maps.end()) {
-        const QString path = folder.isEmpty() ? QStringLiteral(":/help/context.json") : QStringLiteral(":/help/en") + appFolder() + QStringLiteral("/context.json");
-        it = maps.insert(folder, QJsonDocument::fromJson(readText(path).toUtf8()).object());
+        const QString path = root.isEmpty() ? QString() : folder.isEmpty() ? root + QStringLiteral("/context.json") : root + QStringLiteral("/en") + appFolder() + QStringLiteral("/context.json");
+        it = maps.insert(mapKey, QJsonDocument::fromJson(readText(path).toUtf8()).object());
     }
     return it->value(key).toString();
 }
@@ -458,7 +468,8 @@ void HelpView::go(const QString &id, bool)
 {
     m_current = id;
     const help::Topic t = help::topic(id);
-    if (t.isNull()) m_browser->setMarkdown(tr("# Not found\n\nThere is no help topic called \"%1\".").arg(id));
+    if (dataFolder(QStringLiteral("help")).isEmpty()) m_browser->setMarkdown(tr("# Help is not installed\n\nHelp's files were not found beside the program. Reinstalling %1 puts them back.").arg(appInfo().name));
+    else if (t.isNull()) m_browser->setMarkdown(tr("# Not found\n\nThere is no help topic called \"%1\".").arg(id));
     else m_browser->document()->setMarkdown(help::displayMarkdown(t, m_win), QTextDocument::MarkdownDialectGitHub);
     // Headings sized for a narrow pane (Markdown's are a page's), and space
     // above each section's heading so the sections read apart.

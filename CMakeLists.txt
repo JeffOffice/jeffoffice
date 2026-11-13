@@ -46,14 +46,16 @@ endfunction()
 
 jo_library(jo_base libs/base)
 # The program's built-in files (fonts' measured widths and kerning, icons,
-# Help, the ribbon) sit at the bottom, where every layer can read them;
-# each app gets its own when a second app needs different ones.
+# the ribbon) sit at the bottom, where every layer can read them; each app
+# gets its own when a second app needs different ones. Help and the
+# translations are not built in: they are the data folder (jp::dataFolder).
 target_sources(jo_base PRIVATE resources/resources.qrc)
 # The version is a function in one generated file, not a definition on every compile command: a bump recompiles that file alone.
 configure_file(libs/base/core/version.cpp.in ${CMAKE_BINARY_DIR}/generated/version.cpp @ONLY)
 target_sources(jo_base PRIVATE ${CMAKE_BINARY_DIR}/generated/version.cpp)
 target_link_libraries(jo_base PUBLIC Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport Qt6::Network PRIVATE jp_hunspell jp_zlib pdfium jp_qpdfwrap)
-target_compile_definitions(jo_base PUBLIC QT_NO_KEYWORDS PRIVATE JP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+set(JO_BUILD_DATA_DIR ${CMAKE_BINARY_DIR}/data)
+target_compile_definitions(jo_base PUBLIC QT_NO_KEYWORDS PRIVATE JP_SOURCE_DIR="${CMAKE_SOURCE_DIR}" JO_BUILD_DATA_DIR="${JO_BUILD_DATA_DIR}")
 target_compile_options(jo_base PUBLIC -Wall -Wextra -Wno-unused-parameter)
 jo_library(jo_draw libs/draw)
 target_link_libraries(jo_draw PUBLIC jo_base)
@@ -369,7 +371,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_textmatch.cpp
   tests/sheet/tst_sheet_filter.cpp
   tests/sheet/sheettests.qrc)
-target_link_libraries(sheettests PRIVATE jeffoffice-common Qt6::Test)
+target_link_libraries(sheettests PRIVATE jeffoffice-common jp_zlib Qt6::Test)
 set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME sheettests COMMAND sheettests)
 set_tests_properties(sheettests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
@@ -396,6 +398,9 @@ add_test(NAME flowtests COMMAND flowtests)
 set_tests_properties(flowtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 install(TARGETS jeffpub RUNTIME DESTINATION bin BUNDLE DESTINATION .)
+# The data folder the programs share (Help's topics and the translations), once.
+install(DIRECTORY resources/help DESTINATION share/jeffoffice)
+install(DIRECTORY ${JO_BUILD_DATA_DIR}/i18n DESTINATION share/jeffoffice OPTIONAL)
 
 # JeffDeck, the presentation app: like JeffPub, everything except main() is a
 # library its tests link. Packaged beside JeffPub (a Preview in 0.7.0). Its
@@ -720,7 +725,7 @@ endif()
 # translation (tr(), QCoreApplication::translate()) in the shared libraries,
 # JeffPub, and JeffDeck into translations/jeffoffice.ts, the list a
 # translator starts from; each translations/jeffoffice_<language>.ts is built
-# in under :/i18n/ (in jo_shell, so every app has them). Without Qt's
+# into a .qm in the data folder's i18n/ (shared by every app). Without Qt's
 # Linguist tools the programs build the same, in English.
 # English needs one too, for plurals only: jeffoffice_en.ts gives "%n page(s)"
 # its singular and plural forms (lupdate adds new ones; fill in their forms).
@@ -750,10 +755,8 @@ if(Qt6LinguistTools_FOUND)
                  LUPDATE_TARGET jeffoffice_lupdate
                  OPTIONS -no-obsolete -locations relative)
   qt_add_lrelease(TS_FILES ${JP_TRANSLATIONS} ${JP_ENGLISH_VARIANTS} ${CMAKE_SOURCE_DIR}/translations/jeffoffice_en.ts QM_FILES_OUTPUT_VARIABLE JP_QM_FILES)
-  qt_add_resources(jo_shell "translations" PREFIX "/i18n" BASE ${CMAKE_CURRENT_BINARY_DIR} FILES ${JP_QM_FILES})
   # Qt's own text in each of those languages (standard buttons such as
-  # Cancel, file dialogs), built in too, so no package needs a translations
-  # folder. Qt has Brazil's Portuguese only; Portugal's uses it.
+  # Cancel, file dialogs), shipped with them. Qt has Brazil's Portuguese only; Portugal's uses it.
   set(JP_QT_QM_FILES)
   foreach(ts ${JP_TRANSLATIONS})
     get_filename_component(lang ${ts} NAME_WE)
@@ -771,9 +774,18 @@ if(Qt6LinguistTools_FOUND)
       list(APPEND JP_QT_QM_FILES ${CMAKE_CURRENT_BINARY_DIR}/qtqm/qtbase_${lang}.qm)
     endif()
   endforeach()
-  if(JP_QT_QM_FILES)
-    qt_add_resources(jo_shell "qt_translations" PREFIX "/i18n" BASE ${CMAKE_CURRENT_BINARY_DIR}/qtqm FILES ${JP_QT_QM_FILES})
-  endif()
+  # All of them go in the data folder (data/i18n in the build tree, installed beside the programs once, not built into each):
+  # a development build finds it through JO_BUILD_DATA_DIR (libs/base/core/datafolder.cpp).
+  set(JO_I18N_COPIES)
+  foreach(qm ${JP_QM_FILES} ${JP_QT_QM_FILES})
+    get_filename_component(qmname ${qm} NAME)
+    add_custom_command(OUTPUT ${JO_BUILD_DATA_DIR}/i18n/${qmname}
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${qm} ${JO_BUILD_DATA_DIR}/i18n/${qmname}
+      DEPENDS ${qm} VERBATIM)
+    list(APPEND JO_I18N_COPIES ${JO_BUILD_DATA_DIR}/i18n/${qmname})
+  endforeach()
+  add_custom_target(jeffoffice_data DEPENDS ${JO_I18N_COPIES})
+  add_dependencies(jeffoffice-common jeffoffice_data)
 endif()
 
 # Measures the grammar rules on real text (tools/grammar/measure.py).

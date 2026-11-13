@@ -1,5 +1,6 @@
 // JeffDeck's tests of the Review tab's Language group, which JeffWrite has too: Translate (the selected text of a box or of the notes, opened in the translation service only after
 // OK), Set Proofing Language (for the words selected, or for a whole box), and Do Not Check Spelling, each kept in the file (.pptx and .odp) and followed by the spelling.
+#include "core/datafolder.h"
 #include "deckhelpers.h"
 
 #include "../settingguard.h"
@@ -108,7 +109,7 @@ private Q_SLOTS:
     // The Help page of the tab names the commands.
     void helpNamesTheCommands()
     {
-        QFile page(QStringLiteral(":/help/en/deck/tab-review.md"));
+        QFile page(jp::dataFolder(QStringLiteral("help")) + QStringLiteral("/en/deck/tab-review.md"));
         QVERIFY(page.open(QIODevice::ReadOnly));
         const QString text = QString::fromUtf8(page.readAll());
         for (const char *word : {"**Translate**", "**Set Proofing Language**", "**Do Not Check Spelling**", "**Language**"}) QVERIFY2(text.contains(QLatin1String(word)), word);

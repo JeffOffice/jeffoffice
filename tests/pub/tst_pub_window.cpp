@@ -1,3 +1,4 @@
+#include "core/datafolder.h"
 #include "app/keymap.h"
 #include <QScopeGuard>
 // JeffPub's tests of the window: ribbon, help, keyboard, accessibility, themes, and translations.
@@ -707,10 +708,10 @@ private Q_SLOTS:
         const QString src = QStringLiteral(JP_TEST_DATA "/../../resources/help");
         QStringList onDisk, built;
         for (QDirIterator it(src, QDir::Files, QDirIterator::Subdirectories); it.hasNext();) onDisk << QDir(src).relativeFilePath(it.next());
-        for (QDirIterator it(QStringLiteral(":/help"), QDir::Files, QDirIterator::Subdirectories); it.hasNext();) built << it.next().mid(7);
+        for (QDirIterator it(jp::dataFolder(QStringLiteral("help")), QDir::Files, QDirIterator::Subdirectories); it.hasNext();) built << QDir(jp::dataFolder(QStringLiteral("help"))).relativeFilePath(it.next());
         onDisk.sort();
         built.sort();
-        QCOMPARE(built, onDisk);   // resources.qrc lists every file in resources/help
+        QCOMPARE(built, onDisk);   // the data folder has every file in resources/help
         const QStringList ids = jp::help::topicIds();
         QVERIFY2(ids.size() >= 45, qPrintable(QString::number(ids.size())));
         static const QRegularExpression link(QStringLiteral("\\]\\(([^)]+)\\)"));
@@ -746,6 +747,36 @@ private Q_SLOTS:
         const QString save = QKeySequence(QKeySequence::Save).toString(QKeySequence::NativeText);
         QVERIFY2(keys.contains(QStringLiteral("| Save | %1 | Quick Toolbar |").arg(save)), qPrintable(keys.right(3000)));
         QVERIFY(keys.contains(QStringLiteral("| Collapse the Ribbon | %1 |").arg(QKeySequence(Qt::CTRL | Qt::Key_F1).toString(QKeySequence::NativeText))));
+    }
+
+    // Help and the translations are files in the data folder beside the programs, not built in: the folder is found, and a program
+    // with no such folder starts, in English, and Help says so instead of showing nothing.
+    void dataFolderHoldsHelpAndTranslations()
+    {
+        struct Restore {
+            ~Restore() { jp::setDataFolderOverride(QString()); jp::installTranslations(); }
+        } restore;
+        QVERIFY(QFileInfo(jp::dataFolder(QStringLiteral("help")) + QStringLiteral("/en/printing.md")).isFile());
+        QVERIFY(QFileInfo(jp::dataFolder(QStringLiteral("i18n")) + QStringLiteral("/jeffoffice_de.qm")).isFile());
+        QTemporaryDir empty;
+        QVERIFY(empty.isValid());
+        jp::setDataFolderOverride(empty.path());
+        QVERIFY(jp::dataFolder(QStringLiteral("help")).isEmpty());
+        QVERIFY(jp::dataFolder(QStringLiteral("i18n")).isEmpty());
+        QVERIFY(jp::help::topicIds().isEmpty());
+        QVERIFY(jp::help::topic(QStringLiteral("index")).isNull());
+        QVERIFY(jp::availableUiLanguages().isEmpty());
+        QCOMPARE(jp::installTranslations(), QStringLiteral("en"));
+        // A folder that holds them is looked in first (and only).
+        QVERIFY(QDir(empty.path()).mkpath(QStringLiteral("help/en")));
+        QFile page(empty.path() + QStringLiteral("/help/en/index.md"));
+        QVERIFY(page.open(QIODevice::WriteOnly));
+        page.write("# Only page\n");
+        page.close();
+        QCOMPARE(jp::help::topicIds(), QStringList{QStringLiteral("index")});
+        QCOMPARE(jp::help::topic(QStringLiteral("index")).title, QStringLiteral("Only page"));
+        jp::setDataFolderOverride(QString());
+        QVERIFY(jp::help::topicIds().size() >= 45);
     }
 
     // F1 opens help on what is being done: the contents from the page, a
@@ -1739,7 +1770,7 @@ private Q_SLOTS:
     void englishPlurals()
     {
         QTranslator en;
-        QVERIFY(en.load(QStringLiteral(":/i18n/jeffoffice_en.qm")));
+        QVERIFY(en.load(jp::dataFolder(QStringLiteral("i18n")) + QStringLiteral("/jeffoffice_en.qm")));
         QCoreApplication::installTranslator(&en);
         QCOMPARE(QCoreApplication::translate("Dialogs", "Added %n page(s) for the rest of the text.", "", 1), QStringLiteral("Added 1 page for the rest of the text."));
         QCOMPARE(QCoreApplication::translate("Dialogs", "Added %n page(s) for the rest of the text.", "", 3), QStringLiteral("Added 3 pages for the rest of the text."));
@@ -2116,9 +2147,9 @@ private Q_SLOTS:
         for (const QString &lang : help.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
             if (lang == QLatin1String("en")) continue;
             // (the built translation file, not the list Options offers: a held language is built in but not offered)
-            if (!QFile::exists(QStringLiteral(":/i18n/jeffoffice_%1.qm").arg(lang))) problems << lang + QStringLiteral(": Help without the program's text");
+            if (!QFile::exists(jp::dataFolder(QStringLiteral("i18n")) + QStringLiteral("/jeffoffice_%1.qm").arg(lang))) problems << lang + QStringLiteral(": Help without the program's text");
             // (Qt ships no qtbase_id.qm: Indonesian shows Qt's own button text in English; see translations/README.md)
-            if (lang != QLatin1String("id") && !lang.startsWith(QLatin1String("en_")) && lang != QLatin1String("es_ES") && !QFile::exists(QStringLiteral(":/i18n/qtbase_%1.qm").arg(lang))) problems << lang + QStringLiteral(": Qt's own text not built in");
+            if (lang != QLatin1String("id") && !lang.startsWith(QLatin1String("en_")) && lang != QLatin1String("es_ES") && !QFile::exists(jp::dataFolder(QStringLiteral("i18n")) + QStringLiteral("/qtbase_%1.qm").arg(lang))) problems << lang + QStringLiteral(": Qt's own text not built in");
             for (const QString &file : QDir(help.filePath(lang)).entryList({QStringLiteral("*.md")}, QDir::Files)) {
                 const QString en = read(help.filePath(QStringLiteral("en/") + file)), md = read(help.filePath(lang + QLatin1Char('/') + file));
                 const QString where = lang + QLatin1Char('/') + file;
@@ -2178,7 +2209,7 @@ private Q_SLOTS:
             ~Restore() { jp::setAppInfo(jp::pubAppInfo()); }
         } restore;
         QStringList files;
-        for (const QString &f : QDir(QStringLiteral(":/help/en")).entryList(QDir::Files, QDir::Name)) {
+        for (const QString &f : QDir(jp::dataFolder(QStringLiteral("help")) + QStringLiteral("/en")).entryList(QDir::Files, QDir::Name)) {
             QVERIFY2(f.endsWith(QLatin1String(".md")), qPrintable(f));
             files << f.chopped(3);
         }
@@ -2186,7 +2217,7 @@ private Q_SLOTS:
         QCOMPARE(ids, files);
         QVERIFY(ids.contains(QStringLiteral("printing")));
         // The app's folder decides: with JeffDeck's, Help lists that folder's topics, and with JeffPub's again, its own.
-        const QStringList deckFiles = QDir(QStringLiteral(":/help/en/deck")).entryList({QStringLiteral("*.md")}, QDir::Files, QDir::Name);
+        const QStringList deckFiles = QDir(jp::dataFolder(QStringLiteral("help")) + QStringLiteral("/en/deck")).entryList({QStringLiteral("*.md")}, QDir::Files, QDir::Name);
         QVERIFY(!deckFiles.isEmpty());
         QStringList own;
         for (const QString &f : deckFiles) own << f.chopped(3);

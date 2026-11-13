@@ -1,3 +1,4 @@
+#include "core/datafolder.h"
 #include "tst_write.h"
 #include "core/commentops.h"
 
@@ -6,7 +7,7 @@
 void WriteTests::theWordCountSaysWordAndWordsInEnglish()
 {
     QTranslator english;
-    if (!english.load(QStringLiteral(":/i18n/jeffoffice_en.qm"))) QSKIP("the translations are not built into this build");
+    if (!english.load(jp::dataFolder(QStringLiteral("i18n")) + QStringLiteral("/jeffoffice_en.qm"))) QSKIP("the translations are not built into this build");
     QCoreApplication::installTranslator(&english);
     struct Remove {
         QTranslator *t;

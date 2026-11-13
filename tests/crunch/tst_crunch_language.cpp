@@ -1,6 +1,7 @@
 // Tests of the Review tab's Language group in JeffCrunch, which JeffWrite has too: Translate (the text of the selected cells, or of the entry being typed, opened in the translation service
 // only after OK), Set Proofing Language and Do Not Check Spelling for the selected cells (the spelling walk and the cell editor follow them), and what a workbook keeps of them when it is saved
 // (an OpenDocument workbook keeps them in the cell's style; the XML workbook has no place for them). Every workbook is built here.
+#include "core/datafolder.h"
 #include "../sheet/odshelpers.h"
 #include "../settingguard.h"
 #include "../withdialog.h"
@@ -192,7 +193,7 @@ private Q_SLOTS:
     // The Help page of the Review tab names the commands.
     void helpNamesTheCommands()
     {
-        QFile page(QStringLiteral(":/help/en/crunch/notes-links.md"));
+        QFile page(jp::dataFolder(QStringLiteral("help")) + QStringLiteral("/en/crunch/notes-links.md"));
         QVERIFY(page.open(QIODevice::ReadOnly));
         const QString text = QString::fromUtf8(page.readAll());
         for (const char *word : {"**Translate**", "**Set Proofing Language**", "**Do Not Check Spelling**", "**Language**"}) QVERIFY2(text.contains(QLatin1String(word)), word);

@@ -1,6 +1,6 @@
 #pragma once
 // Translations of the program's own text: the apps' (one set for the suite,
-// built in under :/i18n/jeffoffice_<language>.qm) and Qt's for its standard
+// in i18n/jeffoffice_<language>.qm of the data folder) and Qt's for its standard
 // dialogs.
 
 #include <QString>

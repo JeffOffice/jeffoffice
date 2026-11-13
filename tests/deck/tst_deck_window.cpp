@@ -1,3 +1,4 @@
+#include "core/datafolder.h"
 #include "app/keymap.h"
 #include <QScopeGuard>
 // JeffDeck's tests of the window: ribbon, help, status bar, headers and footers, backgrounds, the slide menu, and find.
@@ -140,7 +141,7 @@ private Q_SLOTS:
         const QStringList have = availableUiLanguages();
         for (const char *lang : {"de", "es", "fr", "it", "nl", "pt_BR", "pt_PT"}) QVERIFY2(have.contains(QLatin1String(lang)), qPrintable(have.join(QLatin1Char(' '))));
         QTranslator de;
-        QVERIFY(de.load(QStringLiteral(":/i18n/jeffoffice_de.qm")));
+        QVERIFY(de.load(jp::dataFolder(QStringLiteral("i18n")) + QStringLiteral("/jeffoffice_de.qm")));
         // A string of the shared libraries, translated.
         QVERIFY(!de.translate("Ribbon", "File").isEmpty());
     }
@@ -156,9 +157,9 @@ private Q_SLOTS:
         for (const char *id : {"index", "start", "window", "slides", "show", "printing", "keyboard", "tab-home", "tab-slide-show"})
             QVERIFY2(ids.contains(QLatin1String(id)), id);
         QCOMPARE(help::topic(QStringLiteral("index")).title, QStringLiteral("JeffDeck Help"));
-        for (const QString &file : QDir(QStringLiteral(":/help/en")).entryList({QStringLiteral("*.md")}, QDir::Files)) {
+        for (const QString &file : QDir(jp::dataFolder(QStringLiteral("help")) + QStringLiteral("/en")).entryList({QStringLiteral("*.md")}, QDir::Files)) {
             const QString id = file.chopped(3);
-            QFile pub(QStringLiteral(":/help/en/") + file);
+            QFile pub(jp::dataFolder(QStringLiteral("help")) + QStringLiteral("/en/") + file);
             QVERIFY(pub.open(QIODevice::ReadOnly));
             if (ids.contains(id)) QVERIFY2(help::topic(id).markdown.toUtf8() != pub.readAll(), qPrintable(id));
             else QVERIFY2(help::topic(id).isNull(), qPrintable(id));
@@ -192,7 +193,7 @@ private Q_SLOTS:
             doc.setMarkdown(help::displayMarkdown(t, nullptr), QTextDocument::MarkdownDialectGitHub);
             if (doc.toPlainText().trimmed().size() < 100) problems << id + QStringLiteral(": nearly empty");
         }
-        QFile cf(QStringLiteral(":/help/en/deck/context.json"));
+        QFile cf(jp::dataFolder(QStringLiteral("help")) + QStringLiteral("/en/deck/context.json"));
         QVERIFY(cf.open(QIODevice::ReadOnly));
         const QJsonObject context = QJsonDocument::fromJson(cf.readAll()).object();
         QVERIFY(!context.isEmpty());

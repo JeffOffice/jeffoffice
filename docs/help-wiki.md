@@ -8,7 +8,7 @@ same pages are published to the project's
 edited on the wiki itself is replaced by the next update.
 
 After adding, renaming, or removing a topic file, run
-`python3 tools/help_files.py` to list it in `resources/resources.qrc`.
+nothing else: Help is read from `resources/help` as it is.
 
 ## How the wiki is updated
 

@@ -2,6 +2,7 @@
 
 #include "app/settings.h"
 #include "core/appinfo.h"
+#include "core/datafolder.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -15,7 +16,7 @@
 namespace jp {
 
 namespace {
-// The apps share one set of translations: :/i18n/jeffoffice_<language>.qm.
+// The apps share one set of translations: i18n/jeffoffice_<language>.qm in the data folder beside the programs.
 const QLatin1String kSuiteFiles("jeffoffice");
 }
 
@@ -30,7 +31,9 @@ QStringList availableUiLanguages()
 {
     QStringList out;
     const QString prefix = kSuiteFiles + QLatin1Char('_');
-    for (const QString &f : QDir(QStringLiteral(":/i18n")).entryList({prefix + QStringLiteral("*.qm")}, QDir::Files))
+    const QString folder = dataFolder(QStringLiteral("i18n"));
+    if (folder.isEmpty()) return out;
+    for (const QString &f : QDir(folder).entryList({prefix + QStringLiteral("*.qm")}, QDir::Files))
         if (f != prefix + QStringLiteral("en.qm") && !s_held.contains(f.mid(prefix.size(), f.size() - prefix.size() - 3))) out << f.mid(prefix.size(), f.size() - prefix.size() - 3);   // <fileName>_<language>.qm; English is the text itself
     return out;
 }
@@ -119,21 +122,24 @@ QString installTranslationsFor()
     // English: only its plural forms ("1 page", "2 pages") need a file. The variants (en_GB, en_CA, en_AU) go on top of it and hold
     // only the texts they spell differently; any other text is the American English one. Under every other language too, at the
     // bottom: a plural that language has no translation of yet (a new language's) then shows in English, not as "page(s)".
-    installFile(QStringLiteral(":/i18n/%1_en.qm").arg(kSuiteFiles));
+    // (with no data folder the texts stay English)
+    const QString folder = dataFolder(QStringLiteral("i18n"));
+    if (folder.isEmpty()) return QStringLiteral("en");
+    installFile(folder + QStringLiteral("/%1_en.qm").arg(kSuiteFiles));
     if (lang.isEmpty()) return QStringLiteral("en");
     // Spanish (Spain) goes on top of the neutral Spanish in the same way: it holds only the texts that say fichero, ratón, and the like.
-    if (lang == QLatin1String("es_ES")) installFile(QStringLiteral(":/i18n/%1_es.qm").arg(kSuiteFiles));
-    installFile(QStringLiteral(":/i18n/%1_%2.qm").arg(kSuiteFiles, lang));
+    if (lang == QLatin1String("es_ES")) installFile(folder + QStringLiteral("/%1_es.qm").arg(kSuiteFiles));
+    installFile(folder + QStringLiteral("/%1_%2.qm").arg(kSuiteFiles, lang));
     if (lang.startsWith(QLatin1String("en_"))) return lang;   // (Qt's own text is English already)
-    // Qt's own text (standard buttons such as Cancel, file dialogs): built
-    // in beside the apps' (Portugal's falls back to Brazil's, the one Qt
-    // has), else beside the program, else where Qt keeps it.
+    // Qt's own text (standard buttons such as Cancel, file dialogs): in the
+    // data folder beside the apps' (Portugal's falls back to Brazil's, the
+    // one Qt has), else beside the program, else where Qt keeps it.
     auto *qt = new QTranslator(QCoreApplication::instance());
     QStringList builtIn{lang, lang.section(QLatin1Char('_'), 0, 0)};
     if (lang.startsWith(QLatin1String("pt"))) builtIn << QStringLiteral("pt_BR");
     bool found = false;
     for (const QString &l : builtIn)
-        if ((found = qt->load(QStringLiteral(":/i18n/qtbase_%1.qm").arg(l)))) break;
+        if ((found = qt->load(folder + QStringLiteral("/qtbase_%1.qm").arg(l)))) break;
     for (const QString &dir : {QCoreApplication::applicationDirPath() + QStringLiteral("/translations"), QLibraryInfo::path(QLibraryInfo::TranslationsPath)})
         if (!found) found = qt->load(QStringLiteral("qtbase_%1").arg(lang), dir);
     install(qt, found);
