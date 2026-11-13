@@ -580,23 +580,23 @@ void WriteTests::onlyTheEnglishOfAParagraphIsChecked()
 {
     auto run = [](const char *lang, const char *text) { return QByteArray("<w:r><w:rPr><w:lang w:val=\"") + lang + "\"/></w:rPr><w:t xml:space=\"preserve\">" + text + "</w:t></w:r>"; };
     // One paragraph that begins in German and goes on in English, one in English and then German, and one all German (the same mistake in each: a repeated word).
-    const QByteArray body = "<w:p>" + run("de-DE", "Das ist der der Hund. ") + run("en-US", "We saw saw it.") + "</w:p>"
-                            "<w:p>" + run("en-US", "We saw saw it. ") + run("de-DE", "Das ist der der Hund.") + "</w:p>"
-                            "<w:p>" + run("de-DE", "Das ist der der Hund und wir sahen sahen es.") + "</w:p>";
+    const QByteArray body = "<w:p>" + run("it-IT", "Das ist der der Hund. ") + run("en-US", "We saw saw it.") + "</w:p>"
+                            "<w:p>" + run("en-US", "We saw saw it. ") + run("it-IT", "Das ist der der Hund.") + "</w:p>"
+                            "<w:p>" + run("it-IT", "Das ist der der Hund und wir sahen sahen es.") + "</w:p>";
     auto doc = open(makeDocx(body));
     QVERIFY(doc);
     GrammarCheck check(doc->story());
     check.setDelayMs(0);
     const int length = doc->story()->characterCount();
     check.issuesIn(0, length);
-    QTRY_VERIFY(check.paragraphsChecked() == 2 && !check.pending());   // (the German paragraph is not sent at all)
+    QTRY_VERIFY(check.paragraphsChecked() == 2 && !check.pending());   // (the Italian paragraph is not sent at all)
     const auto issues = check.issuesIn(0, length);
     QCOMPARE(issues.size(), 2);
     for (const auto &is : issues) {
         QTextCursor c(doc->story());
         c.setPosition(is.start);
         c.setPosition(is.end, QTextCursor::KeepAnchor);
-        QCOMPARE(c.selectedText(), QStringLiteral(" saw"));   // (the English one: never the German "der der")
+        QCOMPARE(c.selectedText(), QStringLiteral(" saw"));   // (the English one: never the Italian "der der")
     }
 }
 

@@ -294,12 +294,12 @@ private Q_SLOTS:
         QTRY_VERIFY(!ed->grammarIssuesIn(box->storyId).isEmpty());
     }
 
-    // Text in a language without rules is not checked, as in JeffWrite (only English has them).
+    // Text in a language without rules is not checked, as in JeffWrite (only English, French, German, and Spanish have them).
     void grammarIsNotCheckedInALanguageWithoutRules()
     {
         const jptest::SettingGuard grammar(kGrammarOn, true, true);
         jp::MainWindow w;
-        const auto french = boxWith(w, kAnTest, QStringLiteral("fr-FR"));
+        const auto french = boxWith(w, kAnTest, QStringLiteral("it-IT"));
         w.editor()->grammarIssuesIn(french->storyId);
         QVERIFY(w.editor()->grammarCheckOf(french->storyId));
         QVERIFY(w.editor()->grammarIssuesIn(french->storyId).isEmpty());   // (nothing is ever sent for it: there is nothing to wait for)
