@@ -2,6 +2,12 @@
 #include "pubhelpers.h"
 #include <QScopeGuard>
 #include "../withdialog.h"
+#include "app/commentspane.h"
+#include "core/comments.h"
+#include <QLabel>
+#include <QLineEdit>
+#include <QListWidget>
+#include <QPushButton>
 
 class PubPageTests : public QObject {
     Q_OBJECT
@@ -124,6 +130,73 @@ private Q_SLOTS:
         // Closing the box goes nowhere.
         withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) { d->findChild<QSpinBox *>(QStringLiteral("goToNumber"))->setValue(5); }, false);
         QCOMPARE(w.editor()->currentPage(), 1);
+    }
+
+    // Go To also goes to a comment, as JeffDeck's does: a "Go to what" list (Page, Comment), an entry, and Next, Previous, and Go To.
+    void goToMovesToAComment()
+    {
+        jp::MainWindow w;
+        w.resize(1200, 800);
+        while (w.editor()->doc()->pages.size() < 4) w.editor()->doc()->addPage();
+        jp::Editor *ed = w.editor();
+        auto pick = [](QDialog *d, const QString &kind) {
+            auto *kinds = d->findChild<QListWidget *>(QStringLiteral("goToKinds"));
+            QVERIFY(kinds);
+            const auto found = kinds->findItems(kind, Qt::MatchExactly);
+            QCOMPARE(found.size(), 1);
+            kinds->setCurrentItem(found.first());
+        };
+        auto press = [](QDialog *d, const char *button) {
+            auto *b = d->findChild<QPushButton *>(QString::fromLatin1(button));
+            QVERIFY(b);
+            b->click();
+        };
+        const comments::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")};
+        // No comments: a message, nothing moves.
+        ed->setCurrentPage(2);
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [&](QDialog *d) {
+            pick(d, QStringLiteral("Comment"));
+            press(d, "goToNext");
+            QVERIFY(d->isVisible());
+            QVERIFY(!d->findChild<QLabel *>(QStringLiteral("goToProblem"))->text().isEmpty());
+        }, false);
+        QCOMPARE(ed->currentPage(), 2);
+        const QString a = comments::addComment(*ed->doc()->pages[1], pat, QStringLiteral("A"), QPointF(10, 10));
+        const QString b = comments::addComment(*ed->doc()->pages[3], pat, QStringLiteral("B"), QPointF(10, 10));
+        const QString c = comments::addComment(*ed->doc()->pages[3], pat, QStringLiteral("C"), QPointF(20, 20));
+        ed->setCurrentPage(1);
+        auto step = [&](const char *button) {
+            withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [&](QDialog *d) {
+                pick(d, QStringLiteral("Comment"));
+                press(d, button);
+            }, false);
+        };
+        step("goToNext");
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(w.commentsPane()->currentComment(), a);
+        QVERIFY(w.commentsPane()->isVisibleTo(&w));
+        step("goToNext");
+        QCOMPARE(ed->currentPage(), 3);
+        QCOMPARE(w.commentsPane()->currentComment(), b);
+        step("goToNext");
+        QCOMPARE(w.commentsPane()->currentComment(), c);
+        step("goToNext");   // round to the first
+        QCOMPARE(ed->currentPage(), 1);
+        step("goToPrevious");   // round to the last
+        QCOMPARE(ed->currentPage(), 3);
+        QCOMPARE(w.commentsPane()->currentComment(), c);
+        // By number; a number past the last is refused in words.
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [&](QDialog *d) {
+            pick(d, QStringLiteral("Comment"));
+            d->findChild<QLineEdit *>(QStringLiteral("goToWhat"))->setText(QStringLiteral("9"));
+            press(d, "goToGo");
+            QVERIFY(d->isVisible());
+            QVERIFY(d->findChild<QLabel *>(QStringLiteral("goToProblem"))->text().contains(QStringLiteral("3")));
+            d->findChild<QLineEdit *>(QStringLiteral("goToWhat"))->setText(QStringLiteral("1"));
+            press(d, "goToGo");
+        }, false);
+        QCOMPARE(ed->currentPage(), 1);
+        QCOMPARE(w.commentsPane()->currentComment(), a);
     }
 
     // Page Setup's layout type is the DOCUMENT chunk's field 11 (1 booklet,
