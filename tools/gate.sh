@@ -11,7 +11,7 @@ cd "$W" || exit 1
 SHARDS=${JO_GATE_SHARDS:-4}; PAR=${JO_GATE_JOBS:-16}
 LONG="everyCommandOnABlankDocument everyCommandOnADocumentFromAFile commandsNeverRun"
 # Longest first, so the last ones to start are the short ones.
-SUITES="crunchchecks writechecks crunchtests writetests pubchecks deckchecks sheettests flowtests jdtests jptests odttests officetests wmltests writefieldtests writefiletests writehometests writeinfotests writeinserttests writemailtests writeodttests writerefstests writereviewtests writetabs2tests writedrawtests"
+SUITES="crunchchecks writechecks crunchtests writetests officetests pubchecks deckchecks sheettests flowtests jdtests jptests odttests wmltests writefieldtests writefiletests writehometests writeinfotests writeinserttests writemailtests writeodttests writerefstests writereviewtests writetabs2tests writedrawtests"
 # (only the suites this tree has: a suite a later branch adds is skipped on trees without it)
 HAVE=$(grep -rhoE 'add_executable\((\w+)' --include=CMakeLists.txt . | sed 's/add_executable(//' | sort -u)
 SUITES=$(for s in $SUITES; do case $s in *checks) echo $s;; *) echo "$HAVE" | grep -qx "$s" && echo $s;; esac; done | tr '\n' ' ')

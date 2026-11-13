@@ -122,7 +122,8 @@ private Q_SLOTS:
 
     void checkingGrammarAsYouTypeIsOneSuiteWideChoiceThatDefaultsToOn()
     {
-        QVERIFY(grammarAsYouType());   // (not chosen yet: on)
+        setGrammarAsYouType(true);   // (a class that ran before in the same process may have left it off; the setting's default is on in settings.cpp)
+        QVERIFY(grammarAsYouType());
         jptest::SettingGuard guard(QStringLiteral("proof/checkGrammarAsYouType"), true, true);
         QVERIFY(suiteWide(QStringLiteral("proof/checkGrammarAsYouType")));
         QList<bool> told;
