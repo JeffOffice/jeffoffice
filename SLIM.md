@@ -124,3 +124,83 @@ Nothing here was run on Windows or macOS, and the .deb, AppImage, and snap scrip
 - Not measured: Windows and macOS sizes, and the snap, .deb, and AppImage sizes.
 - A relocation hazard: a program run from a copy of the build folder that lacks the library fails to start (as any dynamic build).
 - The macOS dedupe in the disk image depends on identical bytes per app after macdeployqt (not verified).
+
+# Dictionaries and thesaurus (round 40)
+
+The 54 MB of spelling dictionaries, hyphenation patterns, and the thesaurus (`resources/dict`) were copied as plain files into every install
+(and four times on macOS). Now the install holds each as a zlib file that the program inflates into memory when it is first used.
+The repository keeps the plain files (readable diffs, licenses unchanged); the compression is a build step. Measured on the same machine
+as above, offscreen, warm file cache, `jo_dictbench` (tools/dictbench.cpp; Linux only for the memory column).
+
+## What changed
+
+1. **Format**: zlib (deflate, level 9), which we already link (`jp_zlib`). xz, bzip2, and zstd are not in the build, and nothing is added. On the
+   biggest files the alternatives would have saved little: `th_en_US_v2.dat` 18.6 MB: deflate 3.98 MB, bzip2 3.32, xz 2.18 (xz would be the one
+   worth having; it is a new library, so not taken); `uk_UA.dic` 8.9 MB: 1.53 / 1.29 / 1.18. Inflating is fast: 75 ms for the whole thesaurus,
+   32 ms for `uk_UA.dic`.
+2. **Spelling and hyphenation** (`libs/base/text/dictpack.{h,cpp}`, `dictionaries.cpp`, `hyphenation.cpp`): `name.dic.jz` is `"JZD1"`, the plain size
+   (4 bytes), and the zlib stream. `dict::readFile(path)` inflates `path.jz` when it is there, else reads the plain file (the source tree and
+   older installs keep working). Hunspell had no way to read from memory (`FileMgr` opens a path with `std::ifstream`), so there is **one patch**
+   (`third_party/CMakeLists.txt`, listed in `third_party/README.md`): `filemgr.hxx/.cxx` get a hook, `jeffoffice_memory_file`, and `FileMgr`
+   reads its lines from memory for a name the hook claims. The build copies Hunspell's sources to the build folder and patches the copies (the
+   downloaded tree, shared by worktrees, is never edited; a source that is not 1.7.6 stops the build). The files are inflated, handed to
+   Hunspell under made-up names, and freed when it has loaded them: the memory that stays is Hunspell's own tables, as before.
+3. **Thesaurus**: measured both ways. Inflating the whole 18.6 MB at first use costs 75 ms and holds 18.6 MB (plus the old 16 MB hash index
+   the lookup built from it, 34.8 MB in all, 92 ms). A block format costs 1 to 2 ms to open and 1 MB: the build sorts the words, packs
+   entries in blocks of about 64 KB, each its own zlib stream, with a table of every block's first word, so a lookup binary-searches the table,
+   inflates one block (about 0.2 ms; the last 1 MB of blocks are kept), and finds the entry. The file is 4.93 MB (a whole-file zlib would be
+   3.98 MB: sorting the words apart from WordNet's own order costs 0.95 MB). Each word's entry is kept as the file has it, so the lookup code
+   (`thesaurusLookup`: base forms, parts of speech, duplicates) is unchanged and reads the same lines as before.
+4. **Build**: `jo_dictpack` (tools/dictpack.cpp, Qt Core and zlib only, so it builds before everything else) makes one `.jz` per `.dic`, `.aff`,
+   and `.dat` in `build/data/dict` (one ninja job each, in parallel; the plain licenses and READMEs are copied beside them as they are).
+   `jeffoffice_data` builds them, so every target that links the library has them, and tests read the packed files. Each is read back and
+   compared before it is written.
+5. **One copy per install** (as r39's data folder): Linux (.deb, AppImages, snap, `cmake --install`) `share/jeffoffice/dict`, Windows
+   `dict` beside the programs (already one copy), both through the data folder that is copied whole (`build/data`), so `dict` in the
+   packaging steps is no longer copied from `resources/dict`. `jp::dict::root()` looks in the data folder's `dict` first, then in the old
+   places (beside the program, `../share/jeffoffice/dict`, `../Resources/dict`), then the source tree. **macOS**: every bundle stays whole and
+   holds its own `Resources/dict` (4 copies), now 13.8 MB each, not 54.5 MB.
+6. **Packaged-layout check** (`tools/check_packaged_layout.sh`, `jo_datacheck`): from the installed prefix, `en-US`, `de-DE`, and `uk-UA`
+   spelling load and answer (a right word and a wrong one), hyphenation breaks a word, and the thesaurus answers; the dictionaries must
+   be read from the prefix's data folder; no plain `.dic`, `.aff`, or `.dat` may be installed; all 69 `.jz` files must be.
+
+## Before and after
+
+| | Before | After |
+|---|---|---|
+| `resources/dict` / installed `dict` folder, bytes (111 files) | 55,841,886 | 14,137,085 |
+| Linux and Windows install, one copy | 54.5 MB | 13.8 MB (-40.7 MB) |
+| macOS, 4 bundles | 4 x 54.5 = 218 MB | 4 x 13.8 = 55 MB (-163 MB) |
+| The same folder as zip -9 (a stand-in for the Windows zip and the .deb) | 12,927,217 | 13,850,055 (+0.9 MB: the files are compressed already, and the thesaurus is in sorted blocks) |
+| Thesaurus first lookup (Thesaurus pane, Thesaurus command) | 92 ms | 1 to 2 ms |
+| Thesaurus memory after it | +34.8 MB | +1.0 MB |
+| `en-US` spelling, first use | 18 ms (+5.7 MB) | 21 ms (+5.8 MB) |
+| `de-DE` | 81 ms | 102 ms |
+| `pt-BR` | 280 ms | 299 ms |
+| `ru-RU` | 65 ms | 77 ms |
+| `uk-UA` | 246 ms (+41.6 MB) | 272 ms (+41.7 MB) |
+| All 33 languages loaded one after the other (sum of first uses) | 1,579 ms | 1,770 ms |
+| Memory with all 33 loaded, then the thesaurus | 402 MB | 371 MB |
+
+The installed size of the apps falls by 40.7 MB on Linux and Windows and about 163 MB on macOS, where it matters most. First use of a
+spelling dictionary costs 3 to 25 ms more (the inflate; the largest file is `uk_UA.dic`), and the thesaurus opens 90 ms sooner and holds 34 MB
+less. The zipped download is about 0.9 MB larger, because zip already compressed these files (a .dmg stores identical files once, so the four
+bundles' copies cost one; that part is unchanged).
+
+## Correctness
+
+`PubDictTests` (tests/pub/tst_pub_dict.cpp):
+- **Spelling is the same for every language**: tests/data/dict_golden.txt holds, for each of the 33 languages, how many words of a word
+  list taken from its plain `.dic` (every Nth word, the word in capitals, and a misspelling of it: 363 or more words) are right, and the SHA-1 of
+  every answer plus the suggestions for six wrong words. The file was made with the old code, reading the plain files; the test checks the
+  installed (compressed) files against it.
+- **Thesaurus**: the same file holds the SHA-1 of the lookup results for 1,000 words (a third of them inflected, to use the base-form
+  search), made before the change. In addition every one of the thesaurus's 145,866 words has the same entry as the plain file's.
+- Every compressed file inflates to the plain file byte for byte, and the licenses and READMEs are the same files; no plain dictionary is installed.
+- **Plain files still load** (a plain folder gives the same answers).
+- **Damaged files fail cleanly**: truncated at every kind of place, a byte changed, trailing bytes, a wrong magic, an empty file: no output
+  and no crash. A damaged dictionary turns spell check off for that language only (the rest, the hyphenation, and the thesaurus go on).
+  A thesaurus cut at every third byte never opens, and every single byte changed in a small thesaurus is survived.
+- **Bounded**: the size a file claims is checked against a cap (64 MB; 4 MB for a thesaurus block; 1 MB for an entry) before any memory is
+  allocated, and the stream must end at exactly that size. An 8 MB stream of zeros claiming 1000 bytes, claiming 4 GB, claiming a byte more than
+  it makes, or opened under a smaller cap is refused.

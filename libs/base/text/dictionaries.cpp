@@ -179,11 +179,12 @@ Checker *checker(const QString &code)
             c = std::make_shared<Checker>();
             s_memoryFiles = &files;
             jeffoffice_memory_file = memoryFile;
+            struct Unhook {   // (also when Hunspell throws)
+                ~Unhook() { jeffoffice_memory_file = nullptr; s_memoryFiles = nullptr; }
+            } unhook;
             // (a region's own words are added to the common ones: the same words as one file of both)
             c->h = std::make_unique<Hunspell>("jeffoffice-memory:aff", "jeffoffice-memory:dic");
             if (!common.isEmpty()) c->h->add_dic("jeffoffice-memory:region");
-            jeffoffice_memory_file = nullptr;
-            s_memoryFiles = nullptr;
             c->utf8 = QString::fromStdString(c->h->get_dict_encoding()).compare(QLatin1String("UTF-8"), Qt::CaseInsensitive) == 0;
         }
     }
