@@ -9,9 +9,12 @@ bool grammarAvailable() { return true; }
 namespace {
 
 // The language a tag is checked as: English, French, German, and Spanish, in their regional forms (the rules do not differ between them); an empty tag is US English.
-grammar::Language languageOf(const QString &family)
+grammar::Language languageOf(const QString &family, const QString &tag)
 {
-    if (family == QLatin1String("fr")) return grammar::Language::French;
+    if (family == QLatin1String("fr")) {
+        const QString t = tag.trimmed().toLower();
+        return t.startsWith(QLatin1String("fr-ca")) || t.startsWith(QLatin1String("fr_ca")) ? grammar::Language::FrenchCanada : grammar::Language::French;
+    }
     if (family == QLatin1String("de")) return grammar::Language::German;
     if (family == QLatin1String("es")) return grammar::Language::Spanish;
     return grammar::Language::English;
@@ -60,7 +63,7 @@ QVector<GrammarIssue> grammarCheck(const QString &text, const QString &language,
     }
     QElapsedTimer timer;
     timer.start();
-    out = grammar::check(len == text.size() ? text : text.left(len), nullptr, kinds, languageOf(family));
+    out = grammar::check(len == text.size() ? text : text.left(len), nullptr, kinds, languageOf(family, language));
     if (budget) budget->spend(len, timer.elapsed());
     if (out.size() > kGrammarMaxIssues) {
         out.resize(kGrammarMaxIssues);

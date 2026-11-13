@@ -108,6 +108,9 @@ Measured November 13, 2026 with `tools/grammar/measure.py --language fr` (the nu
 
 ### Spaces, and why a no-break space
 
+The spacing follows the country of the language tag. France and the rest (`fr`, `fr-FR`, `fr-BE`, `fr-CH`, `fr-LU`) take a no-break space before `; : ! ?` and inside `« »`. Canada (`fr-CA`, the convention of
+the Office québécois de la langue française) takes one before the colon and inside `« »` only, so `;`, `!`, and `?` are never flagged there. The measurement below is for France.
+
 French sets a space before `;` `:` `!` `?` and inside `« »`. Every word processor types a no-break space (U+00A0) there, and every font has it, so a suggestion puts that. The narrow no-break
 space (U+202F) that careful typesetting uses is left alone, and so is any space that is not a plain one. There is no setting for it: one that took the narrow one would put a box in some fonts.
 The flags there are the most frequent in French text (the Help types them with plain spaces): they are Punctuation, so they can be switched off with the kinds, like the others.
@@ -221,3 +224,13 @@ that it flags.
 - **de que**: "pienso de que" and the like (creer, pensar, opinar, suponer), "me alegro que", "me acuerdo que", and "dar cuenta que". Other verbs take "de que" in some uses and not in others.
 - **echo / hecho**: "ha echo" gets two suggestions, "hecho" and "echado". Not checked: "mas" and "más", "si" and "sí", "tu" and "tú", "sino" and "si no" (each is right in a sentence of its own), and "si" before the
   conditional.
+
+## Where human-written text is missing (re-measure when we have some)
+
+Most of the text above is our own machine-translated Help, program strings, and site pages, which holds few of the mistakes people make and many labels. Re-measure these when human-written text arrives:
+
+- **French**: all of it. There is no human-written French at all (Govdocs1 gave 268 words). The rules with no flags (a-accent, ou-accent, ce-se, contraction, ca, quant, hyphens, si-il, repeated-word) are
+  proved by their tests only. fr-CA has not been measured separately (it only turns off three marks).
+- **German**: all of it. The weakest of the three: 229,000 words, no human-written text.
+- **Spanish**: only the court rules of Puerto Rico (405,000 words) are human-written, and they are legal text from PDFs with no questions or exclamations in them. So es-inverted-marks, es-question-accent,
+  es-a-ver, es-hay-ahi-ay, and es-hecho have never seen ordinary prose; the rest were checked against the court rules.

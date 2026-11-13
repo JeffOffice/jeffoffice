@@ -24,7 +24,7 @@ struct GrammarIssue {
 namespace grammar {
 
 // The language a text is checked as (each has its own rules; the apps pick it from the language of the paragraph).
-enum class Language { English, French, German, Spanish };
+enum class Language { English, French, FrenchCanada, German, Spanish };   // (FrenchCanada: French with the spacing of Quebec, which has no space before ; ! ?)
 
 // Which kinds of issue a check looks for: a bit for each GrammarIssue::Kind. Style is off unless asked for.
 constexpr quint32 kindBit(GrammarIssue::Kind k) { return quint32(1) << int(k); }

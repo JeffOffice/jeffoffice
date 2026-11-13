@@ -421,6 +421,20 @@ private Q_SLOTS:
         QCOMPARE(echo.first().suggestions, (QStringList{U("hecho"), U("echado")}));
         QVERIFY(!byRule(U("Esto es bueno , sí."), QStringLiteral("space-before-mark"), es).isEmpty());
     }
+    void frenchOfCanadaHasNoSpaceBeforeSemicolonExclamationAndQuestionMark()
+    {
+        const grammar::Language ca = grammar::Language::FrenchCanada, fr = grammar::Language::French;
+        const QString rule = QStringLiteral("fr-space-before-mark");
+        QVERIFY(byRule(U("Bonjour!"), rule, ca).isEmpty());
+        QVERIFY(byRule(U("Quoi?"), rule, ca).isEmpty());
+        QVERIFY(byRule(U("Quoi ? Oui ; non !"), rule, ca).isEmpty());
+        QCOMPARE(fixedBy(U("Note: texte"), rule, ca), U("Note\u00A0: texte"));
+        QCOMPARE(fixedBy(U("Il dit «bonjour»."), QStringLiteral("fr-guillemets"), ca), U("Il dit «\u00A0bonjour\u00A0»."));
+        // France (and a French with no country) has them all.
+        QVERIFY(!byRule(U("Bonjour!"), rule, fr).isEmpty());
+        QVERIFY(!byRule(U("Quoi?"), rule, fr).isEmpty());
+        QCOMPARE(grammar::rules(ca).size(), grammar::rules(fr).size());
+    }
     void aTextIsCheckedByTheRulesOfItsLanguageOnly()
     {
         // The rules of French do not run on English (and the other way round): the text of one language is not flagged by another's rules.

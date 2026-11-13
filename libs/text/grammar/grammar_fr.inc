@@ -21,6 +21,7 @@ void frSpaceBeforeMark(Ctx &c)
         if (c.tokens[i].kind != Tok::Punct) continue;
         const QChar mark = c.text.at(c.tokens[i].start);
         if (!QLatin1String(";:!?").contains(mark)) continue;
+        if (c.canadian && mark != QLatin1Char(':')) continue;   // (the convention of Quebec: a no-break space before the colon only, not before ; ! ?)
         const bool colon = mark == QLatin1Char(':') || mark == QLatin1Char(';');
         const int after = i + 1;
         if (after < c.size()) {   // (the text goes on with a space, or ends the clause: not ":)", "?x", or "http://")

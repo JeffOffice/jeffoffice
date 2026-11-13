@@ -40,6 +40,7 @@ struct Ctx {
         return leaders == 1;
     }   // whether a word that opens a clause ("if", "when") came earlier in the same sentence
 
+    bool canadian = false;   // French as written in Canada
     int curly = -1;   // whether the paragraph writes its apostrophes curly (found once, when a rule first asks)
     QString apostrophe()
     {
@@ -1636,6 +1637,7 @@ struct RuleList {
 RuleList rulesOf(Language language)
 {
     switch (language) {
+    case Language::FrenchCanada:
     case Language::French: return {kFrenchRules, sizeof(kFrenchRules) / sizeof(kFrenchRules[0])};
     case Language::German: return {kGermanRules, sizeof(kGermanRules) / sizeof(kGermanRules[0])};
     case Language::Spanish: return {kSpanishRules, sizeof(kSpanishRules) / sizeof(kSpanishRules[0])};
@@ -1657,6 +1659,7 @@ QVector<RuleInfo> rules(Language language)
 QVector<GrammarIssue> check(const QString &text, quint64 *work, quint32 kinds, Language language)
 {
     Ctx c(text);
+    c.canadian = language == Language::FrenchCanada;
     tokenize(c);
     const RuleList list = rulesOf(language);
     for (size_t i = 0; i < list.n; ++i) {

@@ -81,6 +81,11 @@ private Q_SLOTS:
         const QString french = QStringLiteral("Le ami de la école.");
         QCOMPARE(grammarCheck(french, QStringLiteral("fr-FR")).size(), 2);
         QVERIFY(grammarCheck(french, QStringLiteral("en")).isEmpty());
+        // The spacing of French follows the country: Quebec has no space before ? ! ;
+        QVERIFY(!grammarCheck(QStringLiteral("Quoi?"), QStringLiteral("fr-FR")).isEmpty());
+        QVERIFY(!grammarCheck(QStringLiteral("Quoi?"), QStringLiteral("fr")).isEmpty());
+        QVERIFY(grammarCheck(QStringLiteral("Quoi?"), QStringLiteral("fr-CA")).isEmpty());
+        QVERIFY(!grammarCheck(QStringLiteral("Note: texte"), QStringLiteral("fr_CA")).isEmpty());
         QVERIFY(grammarCheck(french, QStringLiteral("it")).isEmpty());
     }
 
