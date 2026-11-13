@@ -173,13 +173,14 @@ QString matchCase(const QString &sample, const QString &with)
     return with;
 }
 
-const QSet<QString> &setOf(std::initializer_list<const char *> words, QSet<QString> &store)
+QSet<QString> setOf(std::initializer_list<const char *> words)
 {
-    if (store.isEmpty())
-        for (const char *w : words) store.insert(QLatin1String(w));
-    return store;
+    QSet<QString> out;
+    for (const char *w : words) out.insert(QLatin1String(w));
+    return out;
 }
-#define WORDS(...) ([]() -> const QSet<QString> & { static QSet<QString> s; return setOf({__VA_ARGS__}, s); }())
+// (made once, by the language's own thread-safe initialization of a static: a check can run on several threads at once)
+#define WORDS(...) ([]() -> const QSet<QString> & { static const QSet<QString> s = setOf({__VA_ARGS__}); return s; }())
 
 // Words that end a sentence's last word with a period but are not the end of a sentence (and the endings of addresses).
 const QSet<QString> &abbreviations()

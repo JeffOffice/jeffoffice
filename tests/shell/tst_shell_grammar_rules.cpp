@@ -3,7 +3,11 @@
 #include "grammar/grammarrules.h"
 #include "../testrunner.h"
 
+#include <QProcess>
 #include <QtTest>
+#include <atomic>
+#include <thread>
+#include <vector>
 
 using namespace jp;
 
@@ -247,6 +251,42 @@ private Q_SLOTS:
             quint64 work = 0;
             grammar::check(text, &work);
             QVERIFY2(work <= quint64(text.size()) * 60 + 1000, qPrintable(QString::number(work) + QLatin1Char(' ') + QString::number(text.size())));
+        }
+    }
+
+    // The word lists the rules use are made on first use, which many threads can reach at once (the Review pane checks on a worker while another window does): in a program of its own, whose first use
+    // it is, several threads check text that reaches the lists together, and all get the same answer. (Run again by this test with JO_GRAMMAR_WORKER set; the work is firstUseByManyThreadsWorker.)
+    void firstUseByManyThreadsWorker()
+    {
+        if (qgetenv("JO_GRAMMAR_WORKER").isEmpty()) QSKIP("run by firstUseByManyThreadsIsSafe");
+        const QString text = QStringLiteral("Your a fool. It was a very big the the mistake, and he could of gone. Its a nice day.Do not stop. Mr. Smith vs. Jones etc. a apple. "
+                                            "She will loose weight, and I would of known. Your not wrong. There going to there house.");
+        std::vector<std::thread> threads;
+        std::vector<size_t> counts(16, 0);
+        std::atomic<bool> go(false);
+        for (int t = 0; t < 16; ++t)
+            threads.emplace_back([&, t] {
+                while (!go.load()) {}   // (all begin together)
+                counts[size_t(t)] = grammar::check(text).size();
+            });
+        go = true;
+        for (std::thread &th : threads) th.join();
+        for (size_t t = 1; t < counts.size(); ++t) QCOMPARE(counts[t], counts[0]);
+        QVERIFY(counts[0] > 0);
+    }
+    void firstUseByManyThreadsIsSafe()
+    {
+        if (!qgetenv("JO_GRAMMAR_WORKER").isEmpty()) QSKIP("the worker run");
+        for (int round = 0; round < 150; ++round) {
+            QProcess p;
+            p.setProcessEnvironment([] {
+                QProcessEnvironment e = QProcessEnvironment::systemEnvironment();
+                e.insert(QStringLiteral("JO_GRAMMAR_WORKER"), QStringLiteral("1"));
+                return e;
+            }());
+            p.start(QCoreApplication::applicationFilePath(), {QStringLiteral("firstUseByManyThreadsWorker")});
+            QVERIFY(p.waitForFinished(60000));
+            QVERIFY2(p.exitStatus() == QProcess::NormalExit && p.exitCode() == 0, qPrintable(QString::fromLocal8Bit(p.readAllStandardOutput().right(400)) + QString::fromLocal8Bit(p.readAllStandardError().right(400))));
         }
     }
 };
