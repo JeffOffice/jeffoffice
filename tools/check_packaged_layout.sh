@@ -15,6 +15,8 @@ rm -f "$P.build"
 cmake --install "$B" --prefix "$P" > /dev/null 2>&1 || note "cmake --install failed"
 cmake --install "$B" --prefix "$P" --component check > /dev/null 2>&1 || note "install of jo_datacheck failed"
 real=$(realpath "$P")
+n=$(nm -D --defined-only "$P"/lib/jeffoffice/libjeffoffice-common.so 2>/dev/null | wc -l)
+[ "$n" -ge 5000 ] || note "libjeffoffice-common.so exports only $n symbols"
 for f in "$P"/bin/*; do
   [ -x "$f" ] || continue
   out=$(LD_LIBRARY_PATH="$qt/lib" ldd "$f" 2>&1)
