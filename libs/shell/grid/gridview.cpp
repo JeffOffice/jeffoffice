@@ -262,16 +262,40 @@ void GridView::updateScrollBars()
     m_syncingBars = true;
     const PaneView body = L.pane(Pane::Body);
     const int pageX = int(std::floor(double(std::max(0, body.rect.width())) / L.zoom())), pageY = int(std::floor(double(std::max(0, body.rect.height())) / L.zoom()));
-    verticalScrollBar()->setRange(int(std::max<qint64>(L.minScrollY(), INT_MIN)), int(std::min<qint64>(std::max(L.minScrollY(), L.maxScrollY()), INT_MAX)));
+    // The bars cover the cells in use, the selection, and wherever the view already is, not the whole sheet (a million rows and 16,384 columns made the
+    // thumb a sliver and a small drag a jump of thousands of rows). The last of those can come to the top (or the left), and at least a screen is kept, so a
+    // sheet with little in it still has a bar to drag. The wheel, the arrow keys and Go To go further, the bar growing with them; it never shrinks below the view.
+    quint32 usedRows = 0, usedCols = 0;
+    m_sheet.usedExtent(&usedRows, &usedCols);
+    m_barRows = usedRows;
+    m_barCols = usedCols;
+    const bool whole = m_selection.whole != Selection::Whole::None;   // (a whole row or column reaches the end of the sheet: only its cursor counts)
+    auto reach = [](const Axis &a, qint64 frozen, qint64 last, qint64 page, qint64 scroll, qint64 lo, qint64 hi) {
+        last = std::clamp<qint64>(last, 0, std::max<qint64>(0, a.lastVisible()));
+        const qint64 upTo = last < frozen ? 0 : a.position(last) - a.position(frozen);
+        return std::clamp<qint64>(std::max({upTo, page, scroll}), lo, std::max(lo, hi));
+    };
+    const qint64 lastRow = std::max<qint64>({qint64(usedRows) - 1, m_selection.activeRow, whole ? 0 : m_selection.headRow});
+    const qint64 lastCol = std::max<qint64>({qint64(usedCols) - 1, m_selection.activeCol, whole ? 0 : m_selection.headCol});
+    const qint64 maxY = reach(L.rows, L.frozenRows(), lastRow, pageY, L.scrollY(), L.minScrollY(), L.maxScrollY());
+    const qint64 maxX = reach(L.cols, L.frozenCols(), lastCol, pageX, L.scrollX(), L.minScrollX(), L.maxScrollX());
+    verticalScrollBar()->setRange(int(std::max<qint64>(L.minScrollY(), INT_MIN)), int(std::min<qint64>(maxY, INT_MAX)));
     verticalScrollBar()->setPageStep(std::max(1, pageY));
     verticalScrollBar()->setSingleStep(std::max(1, L.rows.defaultSize()));
     verticalScrollBar()->setValue(int(std::min<qint64>(L.scrollY(), INT_MAX)));
     horizontalScrollBar()->setInvertedAppearance(mirrored());   // (the sheet's first column is at the right)
-    horizontalScrollBar()->setRange(int(std::max<qint64>(L.minScrollX(), INT_MIN)), int(std::min<qint64>(std::max(L.minScrollX(), L.maxScrollX()), INT_MAX)));
+    horizontalScrollBar()->setRange(int(std::max<qint64>(L.minScrollX(), INT_MIN)), int(std::min<qint64>(maxX, INT_MAX)));
     horizontalScrollBar()->setPageStep(std::max(1, pageX));
     horizontalScrollBar()->setSingleStep(std::max(1, L.cols.defaultSize()));
     horizontalScrollBar()->setValue(int(std::min<qint64>(L.scrollX(), INT_MAX)));
     m_syncingBars = false;
+}
+
+void GridView::barsFollowData()
+{
+    quint32 rows = 0, cols = 0;
+    m_sheet.usedExtent(&rows, &cols);
+    if (rows != m_barRows || cols != m_barCols) updateScrollBars();
 }
 
 QRect GridView::bodyScrollRect(bool vertical) const
@@ -544,6 +568,7 @@ bool GridView::scrollSplitPart(bool rows, int count)
 void GridView::invalidateValues()
 {
     m_sheet.invalidateTexts();
+    barsFollowData();
     viewport()->update();
     startStats();
 }
@@ -551,6 +576,7 @@ void GridView::invalidateValues()
 bool GridView::valuesChanged(int sheetIndex, const std::vector<ValueStore::Item> &items)
 {
     if (sheetIndex != m_sheet.data().sheetIndex) return false;
+    barsFollowData();
     const GridLayout &L = m_sheet.layout();
     struct Part {
         Pane pane;

@@ -379,6 +379,7 @@ private:
     void widenForFormulas();
     void layoutChanged();
     void updateScrollBars();
+    void barsFollowData();   // (the bars when the cells in use reach further or less far)
     void scrollTo(qint64 x, qint64 y);
     void scrollRows(int rows);
     void scrollColumns(int columns);
@@ -486,6 +487,7 @@ private:
     int m_statChoices = kDefaultStatChoices;
     int m_headerDigits = 0;
     bool m_syncingBars = false;
+    quint32 m_barRows = 0, m_barCols = 0;   // (the cells in use the bars were made for)
     qint64 m_lastScrollX = 0, m_lastScrollY = 0;
     std::vector<double> m_paintTimes, m_paintCpuTimes;
     QTimer m_conditionalTimer;   // the work of the rules of conditional formatting that a paint left (figures to make, formulas to work out for more cells), done a slice at a time

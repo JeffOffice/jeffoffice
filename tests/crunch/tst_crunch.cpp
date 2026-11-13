@@ -645,6 +645,7 @@ private Q_SLOTS:
         // every key and a scroll to the end of the sheet are as quick
         QTest::keyClick(win.w.view(), Qt::Key_End, Qt::ControlModifier);
         QTest::keyClick(win.w.view(), Qt::Key_PageDown);
+        win.w.view()->selectCell(L.rows.count() - 1, 0);   // (Go To the last row: the bar covers the data, not the sheet)
         win.w.view()->verticalScrollBar()->setValue(win.w.view()->verticalScrollBar()->maximum());
         win.w.view()->grab();
         QVERIFY(win.w.view()->lastPaintStats().rowsVisited <= 4 * grid::GridPainter::kMaxRows);

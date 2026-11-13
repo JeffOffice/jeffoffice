@@ -196,6 +196,101 @@ private Q_SLOTS:
         QCOMPARE(b.layout().scrollX(), qint64(3 * b.layout().cols.defaultSize()));
     }
 
+    // The bars cover the cells in use and about a screen more, not the million rows of the sheet: a sheet of 601 rows by 17 columns has a thumb of a sane size.
+    void theScrollBarsCoverTheDataNotTheSheet()
+    {
+        Book b;
+        for (quint32 r = 0; r < 601; ++r)
+            for (quint32 c = 0; c < 17; ++c) b.number(r, c, r * 100.0 + c);
+        b.show();
+        const QScrollBar *v = b.view->verticalScrollBar(), *h = b.view->horizontalScrollBar();
+        const qint64 dataEnd = b.layout().rows.position(601);
+        QVERIFY2(v->maximum() >= b.layout().rows.position(600) && v->maximum() <= dataEnd + 2 * v->pageStep(), qPrintable(QString::number(v->maximum())));
+        const double thumb = double(v->pageStep()) / (double(v->maximum()) + v->pageStep());
+        QVERIFY2(thumb > 0.02 && thumb < 0.5, qPrintable(QString::number(thumb)));
+        QVERIFY2(h->maximum() <= b.layout().cols.position(17) + 2 * h->pageStep(), qPrintable(QString::number(h->maximum())));
+        QVERIFY(h->maximum() > 0);
+        // the end of the data is reached with the bar
+        b.view->verticalScrollBar()->setValue(v->maximum());
+        QVERIFY(b.layout().pane(Pane::Body).lastRow >= 600);
+    }
+
+    // The wheel goes on past the end of the range and the range grows with it; the view does not move by itself, and the range shrinks back as the view returns.
+    void theScrollBarGrowsWithTheWheelAndShrinksBack()
+    {
+        Book b;
+        for (quint32 r = 0; r < 601; ++r) b.number(r, 0, r);
+        b.show();
+        QScrollBar *v = b.view->verticalScrollBar();
+        const int before = v->maximum();
+        QWheelEvent wheel(QPointF(100, 100), QPointF(100, 100), QPoint(), QPoint(0, -120 * 50 * 10), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+        for (int i = 0; i < 6; ++i) QApplication::sendEvent(b.view->viewport(), &wheel);   // (about 50 screens of 3-row steps)
+        const qint64 at = b.layout().scrollY();
+        QVERIFY(at > before + 20 * v->pageStep());
+        QVERIFY(v->maximum() >= at);
+        QCOMPARE(qint64(v->value()), at);
+        // back to the first row: the range is the data's again, and the view stays at the top
+        b.view->selectCell(0, 0);
+        v->setValue(0);
+        QCOMPARE(b.layout().scrollY(), qint64(0));
+        QCOMPARE(v->maximum(), before);
+        QCOMPARE(v->value(), 0);
+    }
+
+    // Go To a row far below the data and back to A1: the range grows to the row and shrinks again, and nothing scrolls on its own.
+    void goToAFarRowAndBackMovesTheRange()
+    {
+        Book b;
+        for (quint32 r = 0; r < 601; ++r) b.number(r, 0, r);
+        b.show();
+        QScrollBar *v = b.view->verticalScrollBar();
+        const int before = v->maximum();
+        QVERIFY(before <= b.layout().rows.position(601) + 2 * v->pageStep());   // (the data's range: not the sheet's)
+        b.view->selectCell(499999, 0);
+        QVERIFY(b.layout().scrollY() > 400000 * b.layout().rows.defaultSize());
+        QVERIFY(v->maximum() >= b.layout().scrollY());
+        QCOMPARE(qint64(v->value()), b.layout().scrollY());
+        b.view->selectCell(0, 0);
+        QCOMPARE(b.layout().scrollY(), qint64(0));
+        QCOMPARE(v->value(), 0);
+        QCOMPARE(v->maximum(), before);
+    }
+
+    // A cell typed past the end of the data brings the end of the range with it; a blank sheet has a bar that can be dragged a little.
+    void theScrollBarFollowsTheDataAndABlankSheetHasARange()
+    {
+        Book b;
+        b.show();
+        QScrollBar *v = b.view->verticalScrollBar(), *h = b.view->horizontalScrollBar();
+        QVERIFY(v->maximum() >= v->pageStep() && h->maximum() >= h->pageStep());
+        QVERIFY(v->maximum() <= 3 * v->pageStep());
+        const int blank = v->maximum();
+        b.number(5000, 3, 1.0);
+        b.sheet.cells.finish();
+        b.view->invalidateValues();
+        QVERIFY(v->maximum() >= b.layout().rows.position(5000));
+        QVERIFY(v->maximum() > blank);
+        QCOMPARE(v->value(), 0);
+    }
+
+    // With frozen rows the bar counts from the first row that scrolls; the frozen rows stay and the end of the data is reached.
+    void theScrollBarOfAFrozenSheetStartsBelowTheFrozenRows()
+    {
+        Book b;
+        for (quint32 r = 0; r < 601; ++r) b.number(r, 0, r);
+        b.show();
+        b.view->setFrozen(3, 0);
+        QScrollBar *v = b.view->verticalScrollBar();
+        const GridLayout &L = b.layout();
+        const qint64 end = L.rows.position(600) - L.rows.position(3);
+        QVERIFY2(v->maximum() >= end && v->maximum() <= end + 2 * v->pageStep(), qPrintable(QString::number(v->maximum())));
+        v->setValue(v->maximum());
+        QCOMPARE(L.pane(Pane::Body).lastRow >= 600, true);
+        QCOMPARE(L.frozenRows(), qint64(3));
+        v->setValue(0);
+        QCOMPARE(b.layout().scrollY(), qint64(0));
+    }
+
     // The arrow keys move the cursor and show it; Shift extends; the address of the cell with the cursor is what the name box shows.
     void arrowKeysMoveTheCursorAndShiftExtends()
     {
@@ -807,6 +902,7 @@ private Q_SLOTS:
         QTest::mouseClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(300, 200));
         QCOMPARE(b.view->selectionAsText(), QString());
         b.view->setZoom(0.1);
+        b.view->selectCell(b.layout().rows.count() - 1, 0);   // (Go To the last row: the bar covers the data, not the sheet)
         b.view->verticalScrollBar()->setValue(b.view->verticalScrollBar()->maximum());
         b.view->grab();
     }
