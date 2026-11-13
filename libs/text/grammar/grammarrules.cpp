@@ -196,7 +196,7 @@ const QSet<QString> &abbreviations()
 // Words that begin with a small letter after a period without being the start of a sentence.
 const QSet<QString> &startsLowerForGood()
 {
-    return WORDS("pp", "ed", "eds", "vol", "no", "nos", "cf", "viz", "ibid", "et", "al", "vs", "ca", "esp", "incl", "etc", "ssp", "var", "spp", "sp");
+    return WORDS("pp", "ed", "eds", "vol", "no", "nos", "cf", "viz", "ibid", "et", "al", "vs", "ca", "esp", "incl", "etc", "ssp", "var", "spp", "sp", "ex", "nom", "comb", "auct");
 }
 const QSet<QString> &joiningWords()
 {
@@ -435,6 +435,22 @@ void lowercaseSentenceStart(Ctx &c)
         if (!c.isWord(before)) continue;
         const QString &b = c.tokens[before].lower;
         if (b.size() < 3 || abbreviations().contains(b)) continue;
+        // A shortened word ("org. code", "alt. conf. id", "Dougl. ex Torr.", "Camp. lari"): a short lowercase word, a name with a capital inside ("PhDs."), a word that is not
+        // plain Latin letters, a capitalized word that stops in a cluster of consonants, or a paragraph with column leaders or a colon after the word.
+        {
+            const QString shown0 = c.original(before);
+            bool latin = true, innerUpper = false;
+            for (int q = 0; q < shown0.size(); ++q) {
+                if (shown0.at(q).unicode() > 0x24F || !shown0.at(q).isLetter()) latin = false;
+                if (q > 0 && shown0.at(q).isUpper()) innerUpper = true;
+            }
+            const QChar l1 = b.at(b.size() - 1), l2 = b.at(b.size() - 2);
+            const bool cluster = b.size() >= 4 && !QLatin1String("aeiouy").contains(l1) && !QLatin1String("aeiouy").contains(l2) && shown0.at(0).isUpper();
+            const bool shortLower = b.size() <= 3 || addressEndings().contains(c.tokens[w].lower);   // (a short word, or the end of an address with a space in it)
+            const int after1 = w + 1;
+            const bool leader = (after1 + 1 < c.size() && c.tokens[after1].kind == Tok::Space && c.tokens[after1 + 1].kind == Tok::Punct && c.text.at(c.tokens[after1 + 1].start) == QLatin1Char(':')) || c.text.contains(QLatin1String(". . ."));   // (a colon after it, or a table of contents with its leaders)
+            if (!latin || innerUpper || cluster || shortLower || leader) continue;
+        }
         if (before >= 1 && c.isPunct(before - 1, QLatin1Char('.'))) continue;
         if (b.contains(QLatin1Char('\'')) || b.contains(QChar(0x2019))) continue;   // (addt'l., int'l.: shortened words)
         const QString shown = c.original(before);
@@ -553,9 +569,26 @@ void couldOf(Ctx &c)
 // Two or more spaces between words.
 void doubleSpace(Ctx &c)
 {
+    // A paragraph with a tab or a run of three spaces is set in columns (a table cell, a pasted table), and its double spaces are alignment.
+    bool columns = c.text.contains(QLatin1Char('=')) || c.text.contains(QLatin1String("\",\""));   // (a formula: "P(U1  u1) = ...")
+    int doubles = 0, words = 0;
+    for (int i = 0; i < c.size() && !columns; ++i) {
+        c.step();
+        if (c.tokens[i].kind == Tok::Word) ++words;
+        if (c.tokens[i].kind != Tok::Space) continue;
+        const int n = c.tokens[i].end - c.tokens[i].start;
+        if (n >= 3 || c.text.mid(c.tokens[i].start, n).contains(QLatin1Char('\t'))) columns = true;
+        if (n == 2) ++doubles;
+    }
+    if (columns || (doubles >= 5 && doubles * 8 > words)) return;   // (a justified paragraph spreads its spaces: five and one in eight words is not typing)
+    auto numeric = [&](int k) {   // (figures, marks, and one-letter symbols are a table or a formula: "800 -  859", "X  xi")
+        const Token &t = c.tokens[k];
+        return t.kind == Tok::Number || (t.kind == Tok::Punct && !QStringView(u"\"'([\u201C\u2018,;").contains(c.text.at(t.start)) && (c.text.at(t.start) != QLatin1Char('-') || c.isPunct(k - 1, QLatin1Char('-')) || c.isPunct(k + 1, QLatin1Char('-')))) || (t.kind == Tok::Word && t.end - t.start == 1 && c.text.at(t.start) != QLatin1Char('a') && c.text.at(t.start) != QLatin1Char('I') && c.text.at(t.start) != QLatin1Char('A'));
+    };
     for (int i = 1; i + 1 < c.size(); ++i) {
         c.step();
         if (c.tokens[i].kind != Tok::Space || c.tokens[i].end - c.tokens[i].start != 2 || !c.plainSpaces(i)) continue;   // (three or more are an alignment)
+        if (numeric(i - 1) || numeric(i + 1)) continue;
         // Two spaces after the end of a sentence are a way of typing, not a mistake.
         int k = i - 1;
         while (k > 0 && c.tokens[k].kind == Tok::Punct && QStringView(u"\"')]\u201D\u2019").contains(c.text.at(c.tokens[k].start))) --k;

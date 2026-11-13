@@ -42,6 +42,22 @@ What the false alarms were:
 - **your-youre**: a garbled heading. No false alarms were found in `its`, `then-than`, `alot`.
 - Rules with no flags in 21 million words (their-there, lose-loose, could-of, everyday) are fine here; the tests are the only proof that they flag anything.
 
+## After the fixes to double-space and sentence-start (same text, re-measured, flags re-read)
+
+| rule | before: docs /10k, false share, FA/10k | after: docs /10k, false share, FA/10k | govdocs /10k before, after |
+|---|---|---|---|
+| double-space | 23.55, 50%, 11.8 | 6.68, about 10% (3 of 25 read), about 0.7 | 315.81, 1.15 |
+| sentence-start | 0.22, 94%, 0.21 | 0.04, under 15% (6 flags, all read), under 0.01 | 0.88, 0.38 |
+
+- double-space now leaves alone: a paragraph with a tab or a run of three spaces, a paragraph with "=" or a quoted-field table, a justified paragraph (five double spaces and more than one per eight words),
+  a double space next to a number, a mark, or a one-letter symbol ("800 -  859", "X  xi", "(2)  Text", "-----  -----"), and the old ones (after a sentence end). What is left in docs is almost all real stray
+  double spaces. Known false alarm left: a label and its value ("Originator  Name") in a table cell.
+- sentence-start now leaves alone: a word of three letters or fewer before the period ("org. code"), a name with a capital inside ("PhDs."), a word that is not plain Latin letters, a capitalized word that stops
+  in a cluster of consonants ("Dougl.", "Camp."), the end of an address ("name. net"), a colon after the word, a paragraph with ". . ." leaders, and a short list of connectors that go with author names ("ex", "auct", "nom", "comb").
+  A shortened word of four letters ("conf.") is not covered, because "left. she" would go with it.
+- Govdocs after: the double-space flags that remain are plain-text justification of a few spaces in a long line and are not read; sentence-start there is botanical and OCR lists (about half false).
+- Every false-alarm sample read became a near-miss test in `tst_shell_grammar_rules`; the true flags still flag.
+
 ## The rules added in round 38
 
 Every new error rule has under 1 false alarm per 10,000 words in docs and in govdocs. Flags in docs / govdocs per 10,000 words, and the flags read (all of them when there were 20 or fewer, a

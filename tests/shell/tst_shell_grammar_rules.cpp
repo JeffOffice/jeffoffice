@@ -150,7 +150,9 @@ private Q_SLOTS:
                      QStringLiteral("Prices include tax, incl. tax and esp. when sold."), QStringLiteral("Yahoo! is a company."), QStringLiteral("Who? what? where?"), QStringLiteral("what a day it was."),
                      QStringLiteral("bake the cake and let it cool."), QStringLiteral("Is it late? yes it is."),
                      QStringLiteral("The var. nevadensis and ssp. varia are listed."), QStringLiteral("In meats. pp. 72-107 follow."), QStringLiteral("Cells of post-E. coli sepsis rose."),
-                     QStringLiteral("Each addt'l. hour is extra."), QStringLiteral("Yr. Imp. from the north."), QStringLiteral("Enter the first subm. date here."), QStringLiteral("Use a cont. inverse method."), QStringLiteral("Department of Admin. and Information."), QStringLiteral("See Educ. of Oak Park v. Kelly, 207 F. Supp. at 206.")});
+                     QStringLiteral("Each addt'l. hour is extra."), QStringLiteral("Use the org. code for it."), QStringLiteral("Atriplex hylloides auct. ex Schwarz."), QStringLiteral("See Dougl. ex Torr. in the list."), QStringLiteral("The PhDs. are professors."),
+                     QStringLiteral("Hundred weight: cwt. : the unit"), QStringLiteral("Enter highest order of age units. than 100. . . . 0 Years"), QStringLiteral("The alt. code is shown."),
+                     QStringLiteral("Camp. lari is a name."), QStringLiteral("\u0411\u043E\u043B\u0435\u0435 100 \u043C\u043B\u043D. \u044D\u043A\u0441\u043F\u043E\u043D\u0430\u0442\u043E\u0432."), QStringLiteral("Yr. Imp. from the north."), QStringLiteral("Enter the first subm. date here."), QStringLiteral("Use a cont. inverse method."), QStringLiteral("Department of Admin. and Information."), QStringLiteral("See Educ. of Oak Park v. Kelly, 207 F. Supp. at 206.")});
     }
 
     void itsAndItIsAreToldApart()
@@ -221,7 +223,12 @@ private Q_SLOTS:
     void singleSpacesAndIndentsAreLeftAlone()
     {
         leavesAlone({QStringLiteral("One two three."), QStringLiteral("  indented line"), QStringLiteral("Trailing  "), QStringLiteral("a\ttab\tseparated"), QStringLiteral("non\u00A0\u00A0breaking"), QStringLiteral("End.  Start."),
-                     QStringLiteral("Home!  Then away?  Yes."), QStringLiteral("One   two   three."), QStringLiteral("Said \"stop.\"  Then left."), QStringLiteral("Said \u201Cstop.\u201D  Then left.")});
+                     QStringLiteral("Home!  Then away?  Yes."), QStringLiteral("One   two   three."), QStringLiteral("Said \"stop.\"  Then left."), QStringLiteral("Said \u201Cstop.\u201D  Then left."),
+                     QStringLiteral("Open 800 -  859 AM for it."), QStringLiteral("(2)  Small business set-asides."), QStringLiteral("See (0x0020,0x0052)  FrameOfReference now."),
+                     QStringLiteral("Totals  # OF  % ON  # OF  % ON"), QStringLiteral("Value of X  xi is shown."), QStringLiteral("Name\tOriginator  Georgia Natural Resources"),
+                     QStringLiteral("Phase 6:  Phase 6 is the site."), QStringLiteral("Zip  50319 in Des Moines."), QStringLiteral("-----  -----  --"), QStringLiteral("\"N\",\"\",  \"YESHIVA UNIVERSITY\",\"Y\""), QStringLiteral("Then P(U1  u1) = G(F)"),
+                     QStringLiteral("a  b  c  d  e  f  g  h  i  j  k  l"), QStringLiteral("We saw  that  the  text  was  spread  out  to  fill  the  line.")});
+        fixes({{"Near the coast  (Stimpson 1857) it grows.", "Near the coast (Stimpson 1857) it grows."}, {"Then,  a supplier might say.", "Then, a supplier might say."}});
     }
 
     void aSpaceBeforePunctuationIsFlaggedAndTaken()
