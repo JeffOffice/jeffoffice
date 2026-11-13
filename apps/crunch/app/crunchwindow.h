@@ -281,6 +281,10 @@ public:
     bool insertIcons();
     // Insert > Barcode: the shared dialog asks for the barcode, which goes on the sheet as a picture; with a barcode selected it edits that one (the new barcode takes its place, one step).
     bool insertBarcode();
+    // A barcode made from a cell follows it: when cells change, each one whose cell holds other text than the barcode is put in its place as one made from the cell's text now (same place, size, and
+    // order), as one step of Undo. Done once control returns to the event loop, so that it is a step after the one that changed the cell.
+    void scheduleBarcodeSync();
+    void syncLinkedBarcodes();
     // Insert > Barcodes From Cells: a barcode for each filled cell of the range, with the cell's text as its data and the type and look of `look`, one under the next to the right of the range, as one step.
     // Cells whose text the code can't hold are named in `problems` and get none; more than `most` cells make none (`tooMany`).
     bool insertBarcodeColumn();
@@ -1605,6 +1609,7 @@ private:
     // the workbook, as it is read
     crunch::WorkbookLoader m_loader;
     std::shared_ptr<crunch::LoadedBook> m_loaded;
+    bool m_barcodeSyncPending = false;
     bool m_loading = false, m_calculating = false, m_haveFirstScreen = false, m_haveCalc = false;
     qint64 m_changesNoted = 0;             // the changes the worker has been sent that the window has taken note of (WorkbookLoader::changesMade)
     bool m_refreshOnOpenPending = false;   // pivot tables that say so are read again once the calculation of a file that was just opened is done

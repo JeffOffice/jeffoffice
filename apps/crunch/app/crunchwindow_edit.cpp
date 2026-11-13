@@ -549,6 +549,7 @@ void CrunchWindow::cancelEdit()
 void CrunchWindow::onCellsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells)
 {
     if (m_objects) m_objects->cellsChanged(cells);
+    if (!m_undoing) scheduleBarcodeSync();
     noteRowsChanged(sheet, cells);
     if (sheet == m_sheet && m_view->sheet().showFormulas() && !cells.empty()) {
         // (formulas typed while the formulas show widen their columns if they need: only the cells told of are measured)

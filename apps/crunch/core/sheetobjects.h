@@ -28,7 +28,9 @@
 #include "sheet/sheetreader.h"
 #include "sheet/xlsxsave.h"
 
+#include <QJsonObject>
 #include <QObject>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 
@@ -77,6 +79,9 @@ public:
     void setCells(const jp::office::sheet::WorkbookSource *source, const jp::grid::ValueStore *values);
     void setEditsSource(EditsSource edits) { m_edits = std::move(edits); }
     void setSheetOpsSource(SheetOpsSource ops) { m_sheetOps = std::move(ops); }
+    // Where the text of a cell is asked (as a barcode linked to the cell holds it).
+    using CellTextSource = std::function<QString(int sheet, quint32 row, quint32 col)>;
+    void setCellTextSource(CellTextSource text) { m_cellText = std::move(text); }
 
     jp::grid::ObjectLayer *layer() { return &m_layer; }
     // The cells charts read (null until the workbook is whole), and the theme the workbook's charts are set in.
@@ -195,6 +200,21 @@ public:
     QString descriptionOf(int sheet, int id);
     // The settings of an object that is a barcode of Insert > Barcode (a picture of the drawing that holds the marker, office/barcodemarker.h); empty for any other object.
     QJsonObject barcodeOf(int sheet, int id);
+    // The barcodes of the sheets shown so far that are linked to a cell (the settings' `cell`): the sheet and id, the cell now (the sheet and place; `found` is false once the edits to rows and
+    // columns have taken the cell away), the reference as it is written for the cell now, and the settings.
+    struct LinkedBarcode {
+        int sheet = 0, id = 0;
+        bool found = false;
+        int cellSheet = 0;
+        quint32 row = 0, col = 0;
+        QString ref;
+        QJsonObject settings;
+    };
+    std::vector<LinkedBarcode> linkedBarcodes();
+    // The reference of the cell a barcode is linked to as it is now (empty for none).
+    QString barcodeLinkOf(int sheet, int id);
+    // The reference a barcode links to a cell by: the sheet's name quoted where it needs it, and the cell as $B$3.
+    QString barcodeCellRef(int sheet, quint32 row, quint32 col) const;
     // The state of the object with a new name (empty: as it is) and alternative text.
     ObjectState stateWithNames(int sheet, int id, const QString &name, const QString &description);
     // Whether another object of the sheet has the name.
@@ -332,6 +352,10 @@ private:
     void knowShapeIds(int sheet, Sheet &s);
     std::shared_ptr<jp::office::DrawingContext> baseContext();
     std::vector<jp::office::sheet::StructEdit> editsFrom(int at, int to = -1) const;
+    // A barcode that holds the cell it was made from (the settings' `cell`) reads it as a chart reads its cells: the reference follows the edits to rows and columns.
+    void linkBarcode(int sheet, Object &o, bool made);
+    // Writes the barcode of the object again, with the value of its cell and the reference to it as they are, in what the save is made of (see addToSave).
+    void saveBarcode(int sheet, Sheet &s, Object &o, jp::office::sheet::SaveChanges *changes, QSet<QString> *claimed);
     QStringList movedRefList(const QStringList &refs, int sheet, int at, int to) const;
     // A reference as the file's names for the sheets would have it (the renames and deletes of sheets since the file was read or saved taken back).
     QString unfollowSheetOps(const QString &ref) const;
@@ -342,6 +366,7 @@ private:
     std::unique_ptr<jp::grid::WorkbookChartCells> m_cells;
     EditsSource m_edits;
     SheetOpsSource m_sheetOps;
+    CellTextSource m_cellText;
     std::vector<jp::office::sheet::StructEdit> m_applied;   // the edits the objects have had worked in
     std::vector<Sheet> m_sheets;
     QHash<QString, int> m_drawingOwner;                      // the first sheet that names each drawing part (a file whose sheets share a drawing shows it on the first), lower case

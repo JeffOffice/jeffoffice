@@ -1,5 +1,6 @@
 #include "sheet/drawingsave.h"
 
+#include "office/barcodemarker.h"
 #include "sheet/xmlscan.h"
 
 #include <QLocale>
@@ -320,6 +321,70 @@ bool setDrawingObjectDescriptions(const QByteArray &xml, const std::map<int, QSt
         qsizetype a = 0, b = 0;
         QByteArray r;
         if (!descriptionEdit(xml, children[size_t(ordinal)].first, children[size_t(ordinal)].second, text, &a, &b, &r) || a < copied) continue;
+        result += xml.mid(copied, a - copied) + r;
+        copied = b;
+    }
+    if (copied == 0) return true;
+    result += xml.mid(copied);
+    *out = result;
+    *changed = *out != xml;
+    return true;
+}
+
+namespace {
+
+// `element[from, to)` with the barcode marker extension of its first cNvPr set to `ext` (an a:ext); false if it has no cNvPr.
+bool markerEdit(const QByteArray &element, qsizetype from, qsizetype to, const QByteArray &ext, qsizetype *tagStart, qsizetype *tagEnd, QByteArray *replacement)
+{
+    qsizetype pos = from;
+    Tag t;
+    while (xmlscan::nextTag(element, pos, &t) && t.start < to) {
+        pos = t.end;
+        if (t.closing || t.local != "cNvPr") continue;
+        QByteArray open = element.mid(t.start, t.end - t.start);
+        if (t.selfClosing) {
+            open.chop(2);
+            *replacement = open + ">" + office::withBarcodeMarker(QByteArray(), ext, QByteArray()) + "</" + QByteArray(t.name) + ">";
+            *tagStart = t.start;
+            *tagEnd = t.end;
+            return true;
+        }
+        const qsizetype end = elementEnd(element, t);
+        if (end < 0 || end > to) return false;
+        const qsizetype close = element.lastIndexOf("</", end - 1);
+        if (close < t.end) return false;
+        *replacement = open + office::withBarcodeMarker(element.mid(t.end, close - t.end), ext, QByteArray()) + element.mid(close, end - close);
+        *tagStart = t.start;
+        *tagEnd = end;
+        return true;
+    }
+    return false;
+}
+
+} // namespace
+
+QByteArray withFirstObjectBarcodeMarker(const QByteArray &element, const QByteArray &extXml)
+{
+    qsizetype a = 0, b = 0;
+    QByteArray r;
+    if (!markerEdit(element, 0, element.size(), extXml, &a, &b, &r)) return element;
+    return element.left(a) + r + element.mid(b);
+}
+
+bool setDrawingObjectBarcodeMarkers(const QByteArray &xml, const std::map<int, QByteArray> &markers, QByteArray *out, bool *changed)
+{
+    *out = xml;
+    *changed = false;
+    if (markers.empty()) return true;
+    std::vector<std::pair<qsizetype, qsizetype>> children;
+    if (!childrenOfRoot(xml, &children)) return false;
+    QByteArray result;
+    qsizetype copied = 0;
+    for (const auto &[ordinal, ext] : markers) {
+        if (ordinal < 0 || size_t(ordinal) >= children.size()) continue;
+        qsizetype a = 0, b = 0;
+        QByteArray r;
+        if (!markerEdit(xml, children[size_t(ordinal)].first, children[size_t(ordinal)].second, ext, &a, &b, &r) || a < copied) continue;
         result += xml.mid(copied, a - copied) + r;
         copied = b;
     }

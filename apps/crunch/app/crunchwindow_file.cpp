@@ -598,6 +598,7 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
     const std::vector<jp::grid::ValueStore::Item> where = m_session ? m_session->placed(batch->items) : std::vector<jp::grid::ValueStore::Item>();
     const std::vector<jp::grid::ValueStore::Item> &shown = m_session ? where : batch->items;
     if (m_objects) m_objects->cellsChanged(shown);
+    if (!m_undoing) scheduleBarcodeSync();
     m_workerCpuMicros = batch->workerCpuMicros;
     m_errorListValid = false;
     const bool active = m_view->valuesChanged(m_sheet, shown);

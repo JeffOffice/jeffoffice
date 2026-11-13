@@ -1,6 +1,10 @@
 #include "core/sheetobjects.h"
 
+#include "core/barcodeclip.h"
 #include "grid/gridsheet.h"
+#include "office/barcodemarker.h"
+#include "sheet/cellref.h"
+#include "sheet/xlsformula.h"
 #include "office/chart_write.h"
 #include "sheet/drawingadd.h"
 #include "sheet/drawingsave.h"
@@ -238,7 +242,7 @@ void SheetObjects::sheetsChanged()
             if (o->movedRefs.isEmpty() && o->baseRefs.isEmpty()) continue;
             const QStringList before = o->refs;
             refreshRefs(*o);
-            if (o->refs != before && int(i) == m_shown && chartDataChanged(int(i), *o, &budget)) m_layer.invalidate(o->id);
+            if (o->refs != before && int(i) == m_shown && o->chart && chartDataChanged(int(i), *o, &budget)) m_layer.invalidate(o->id);
         }
 }
 
@@ -543,9 +547,131 @@ void SheetObjects::ensureBuilt(int sheet, Object &o)
             return;
         }
         o.made = true;
+        linkBarcode(sheet, o, false);
     }
     ++m_objectsMade;
     ++s.counts.shown;
+}
+
+void SheetObjects::linkBarcode(int sheet, Object &o, bool made)
+{
+    if (!isBarcodeItem(o.item.get())) return;
+    const QString cell = static_cast<const GroupItem *>(o.item.get())->barcode.value(QStringLiteral("cell")).toString();
+    if (cell.isEmpty()) return;
+    if (made) {
+        // (as a chart made here: the reference by the names the file has for the sheets, given after the edits made so far)
+        o.baseRefs = {unfollowSheetOps(cell)};
+        o.refPlacements.push_back(jp::crunch::RefPlacement{int(m_applied.size()), o.baseRefs});
+        o.movedRefs = o.baseRefs;
+    } else {
+        o.baseRefs = {cell};
+        o.movedRefs = o.baseRefs;
+        const QStringList names = sheetNames();
+        if (!m_applied.empty())
+            for (QString &ref : o.movedRefs) ref = movedChartRef(ref, names, m_applied, sheet);
+    }
+    refreshRefs(o);
+}
+
+QString SheetObjects::barcodeLinkOf(int sheet, int id)
+{
+    Object *o = find(sheet, id);
+    if (!o || o->deleted) return {};
+    ensureBuilt(sheet, *o);
+    return isBarcodeItem(o->item.get()) && !o->refs.isEmpty() ? o->refs.front() : QString();
+}
+
+QString SheetObjects::barcodeCellRef(int sheet, quint32 row, quint32 col) const
+{
+    if (!m_book || sheet < 0 || sheet >= m_book->info().sheets.size()) return {};
+    return quoteSheetName(m_book->info().sheets[sheet].name) + QStringLiteral("!$") + columnName(col) + QStringLiteral("$") + QString::number(qint64(row) + 1);
+}
+
+std::vector<SheetObjects::LinkedBarcode> SheetObjects::linkedBarcodes()
+{
+    std::vector<LinkedBarcode> out;
+    for (size_t i = 0; i < m_sheets.size(); ++i) {
+        if (!m_sheets[i].listed) continue;
+        for (const std::shared_ptr<Object> &o : m_sheets[i].objects) {
+            if (o->deleted || o->gone || o->meta.kind != ObjectKind::Picture) continue;
+            ensureBuilt(int(i), *o);
+            if (o->refs.isEmpty() || !isBarcodeItem(o->item.get())) continue;
+            LinkedBarcode l;
+            l.sheet = int(i);
+            l.id = o->id;
+            l.ref = o->refs.front();
+            l.settings = static_cast<const GroupItem *>(o->item.get())->barcode;
+            QVector<ChartBlock> blocks;
+            if (m_cells && chartBlocks(l.ref, int(i), *m_cells, &blocks) && !blocks.isEmpty()) {
+                l.found = true;
+                l.cellSheet = blocks.front().sheet;
+                l.row = blocks.front().range.row1;
+                l.col = blocks.front().range.col1;
+            }
+            out.push_back(l);
+        }
+    }
+    return out;
+}
+
+// A barcode linked to a cell is saved with the cell's text and the reference as they are now: its pictures, the marker that holds the settings and the pictures' hashes, and its alternative
+// text (if that is still the one the barcode makes itself). What it is in the window is left as it is: the window changes it when the cell changes.
+void SheetObjects::saveBarcode(int sheet, Sheet &s, Object &o, SaveChanges *changes, QSet<QString> *claimed)
+{
+    if (!m_cells || !m_cellText || o.meta.kind != ObjectKind::Picture) return;
+    ensureBuilt(sheet, o);
+    if (o.refs.isEmpty() || !isBarcodeItem(o.item.get())) return;
+    if (o.added && (o.reviveOwn || o.revive.lock())) return;   // (written as it was)
+    const QJsonObject was = static_cast<const GroupItem *>(o.item.get())->barcode;
+    QJsonObject want = was;
+    want.insert(QStringLiteral("cell"), o.refs.front());
+    QVector<ChartBlock> blocks;
+    if (chartBlocks(o.refs.front(), sheet, *m_cells, &blocks) && !blocks.isEmpty()) {
+        const QString text = m_cellText(blocks.front().sheet, blocks.front().range.row1, blocks.front().range.col1).trimmed();
+        if (!text.isEmpty()) want.insert(QStringLiteral("data"), text);
+    }
+    if (want == was) return;
+    jp::crunch::ObjectClip clip;
+    if (!jp::crunch::barcodeClip(want, &clip)) {
+        // (a value the code can't hold: the barcode keeps what it had, and the reference is still written)
+        want.insert(QStringLiteral("data"), was.value(QStringLiteral("data")));
+        if (want == was || !jp::crunch::barcodeClip(want, &clip)) return;
+    }
+    QByteArray png, svg;
+    for (const jp::crunch::ClipMedia &m : std::as_const(clip.media)) (m.extension == QLatin1String("png") ? png : svg) = m.bytes;
+    const QByteArray ext = barcodeMarkerExtXml(want, barcodeHash(png), barcodeHash(svg));
+    QString description = o.meta.description;
+    if (description == barcodeDescription(was, barcodeLayout(was))) description = barcodeDescription(want, barcodeLayout(want));
+    if (o.added) {
+        o.pasteXml = withFirstObjectBarcodeMarker(o.pasteXml, ext);
+        for (jp::crunch::ClipMedia &m : o.pasteMedia) {
+            if (m.extension == QLatin1String("png")) m.bytes = png;
+            else if (m.extension == QLatin1String("svg")) m.bytes = svg;
+        }
+        o.meta.description = description;
+        return;
+    }
+    if (s.drawingPart.isEmpty() || o.meta.ordinal < 0) return;
+    // (the pictures the file has for it: the part of each picture the element names, written again)
+    static const QString relNs = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships");
+    QString pngPart, svgPart;
+    std::function<void(const QDomElement &, int)> walk = [&](const QDomElement &e, int depth) {
+        if (depth > 16) return;
+        if (e.localName() == QLatin1String("blip") || e.localName() == QLatin1String("svgBlip")) {
+            const Relationship r = m_book->objectPackage().relationship(s.drawingPart, e.attributeNS(relNs, QStringLiteral("embed")));
+            if (!r.id.isEmpty() && !r.external) (e.localName() == QLatin1String("blip") ? pngPart : svgPart) = r.target;
+        }
+        for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) walk(c, depth + 1);
+    };
+    walk(o.meta.element, 0);
+    if (pngPart.isEmpty() || svgPart.isEmpty() || !pngPart.endsWith(QLatin1String(".png"), Qt::CaseInsensitive) || !svgPart.endsWith(QLatin1String(".svg"), Qt::CaseInsensitive)) return;
+    if (claimed->contains(pngPart.toLower()) || claimed->contains(svgPart.toLower())) return;   // (shared with another object: left as it is)
+    claimed->insert(pngPart.toLower());
+    claimed->insert(svgPart.toLower());
+    changes->producedParts[pngPart] = [png] { return png; };
+    changes->producedParts[svgPart] = [svg] { return svg; };
+    changes->objectBarcodeMarkers[s.drawingPart][o.meta.ordinal] = ext;
+    o.meta.description = description;
 }
 
 DrawingCounts SheetObjects::counts(int sheet)
@@ -934,7 +1060,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
     const QStringList names = sheetNames();
     const std::vector<StructEdit> none;
     const std::vector<StructEdit> &edits = m_edits ? m_edits() : none;
-    QSet<QString> deletedParts, aliveParts, editedParts, taken;
+    QSet<QString> deletedParts, aliveParts, editedParts, taken, claimedMedia;
     auto sheetGone = [&](int sheet) { return sheet >= 0 && sheet < m_book->info().sheets.size() && m_book->info().sheets[sheet].deleted; };
     bool namesRead = false;
     auto takenNames = [&]() -> QSet<QString> & {
@@ -1007,6 +1133,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
                 continue;
             }
             if (o->gone) continue;
+            saveBarcode(int(i), s, *o, changes, &claimedMedia);
             if (o->added) {
                 // a chart a person made: its part, and its anchor at the end of the drawing
                 if (!m_source || !m_cells || (!o->chart && !o->item)) continue;
@@ -1564,6 +1691,8 @@ void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
             o->built = o->made = true;
             o->drawnKey = 0;
             o->points = pointsOf(sheet, *st.chart);
+        } else if (!st.refs.empty() || !o->refPlacements.empty()) {
+            o->refPlacements = st.refs;   // (a barcode linked to a cell)
         }
     }
     if (!st.name.isEmpty()) o->meta.name = st.name;
@@ -2021,6 +2150,14 @@ bool SheetObjects::copyElement(int sheet, int id, jp::crunch::ObjectClip *clip, 
     c.height = std::clamp(box.h, 4.0, 20000.0);
     c.sheetName = m_book->info().sheets[sheet].name;
     c.elementXml = remapIds(xml, tokens);
+    if (!o->refs.isEmpty() && isBarcodeItem(o->item.get())) {
+        // (a barcode linked to a cell is copied linked to the cell it reads now)
+        BarcodeMarker marker = readBarcodeMarkerXml(c.elementXml, namespaces);
+        if (!marker.isEmpty()) {
+            marker.settings.insert(QStringLiteral("cell"), o->refs.front());
+            c.elementXml = withFirstObjectBarcodeMarker(c.elementXml, barcodeMarkerExtXml(marker.settings, marker.pngHash, marker.svgHash));
+        }
+    }
     c.namespaces = namespaces;
     c.media = media;
     *clip = c;
@@ -2127,6 +2264,7 @@ int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, con
     o->pasteNamespaces = clip.namespaces;
     o->pasteMedia = clip.media;
     o->built = o->made = true;
+    linkBarcode(sheet, *o, true);
     ++m_objectsMade;
     ++s.counts.shown;
     switch (o->meta.kind) {

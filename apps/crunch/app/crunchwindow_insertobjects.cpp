@@ -3,6 +3,7 @@
 #include "app/crunchwindow.h"
 
 #include "core/barcodeclip.h"
+#include "core/barcodeitem.h"
 #include "core/objectclip.h"
 #include "core/sheetobjects.h"
 #include "app/barcodedialog.h"
@@ -483,6 +484,8 @@ bool CrunchWindow::insertBarcode()
     const QJsonObject was = picked >= 0 ? m_objects->barcodeOf(m_sheet, picked) : QJsonObject();
     QJsonObject settings;
     if (!askBarcode(this, was, &settings)) return false;
+    // (a barcode made from a cell stays linked to it)
+    if (const QString cell = picked >= 0 ? m_objects->barcodeLinkOf(m_sheet, picked) : QString(); !cell.isEmpty()) settings.insert(QStringLiteral("cell"), cell);
     const QString stepText = was.isEmpty() ? tr("Insert Barcode") : tr("Edit Barcode");
     crunch::ObjectClip clip;
     QString why;
@@ -534,6 +537,73 @@ bool CrunchWindow::insertBarcode()
     m_view->setFocus(Qt::OtherFocusReason);
     setStatus(tr("Barcode changed"));
     return true;
+}
+
+void CrunchWindow::scheduleBarcodeSync()
+{
+    if (m_barcodeSyncPending || !m_objects) return;
+    m_barcodeSyncPending = true;
+    QTimer::singleShot(0, this, [this] { syncLinkedBarcodes(); });
+}
+
+void CrunchWindow::syncLinkedBarcodes()
+{
+    m_barcodeSyncPending = false;
+    QString whyNot;
+    if (!m_session || !m_objects || !m_objects->cells() || isReadOnly() || m_applying || m_edit.active || m_undoing || !m_session->canEdit(&whyNot)) return;
+    std::vector<crunch::ObjectEdit> edits;
+    std::vector<int> made;
+    std::vector<int> madeSheets;
+    int failed = 0;
+    for (const crunch::SheetObjects::LinkedBarcode &l : m_objects->linkedBarcodes()) {
+        if (!l.found) continue;   // (the cell was taken away: the barcode stays as it was)
+        const QString text = m_session->neutralText(l.cellSheet, l.row, l.col).trimmed();
+        if (text.isEmpty() || text == l.settings.value(QStringLiteral("data")).toString()) continue;
+        QJsonObject settings = l.settings;
+        settings.insert(QStringLiteral("data"), text);
+        settings.insert(QStringLiteral("cell"), l.ref);
+        crunch::ObjectClip clip;
+        QString why;
+        if (!crunch::barcodeClip(settings, &clip, &why)) {
+            ++failed;
+            continue;
+        }
+        const int fresh = m_objects->makeElement(l.sheet, clip, m_objects->anchorOf(l.sheet, l.id), &why);
+        if (fresh < 0) {
+            ++failed;
+            continue;
+        }
+        made.push_back(fresh);
+        madeSheets.push_back(l.sheet);
+        crunch::ObjectEdit gone;
+        gone.sheet = l.sheet;
+        gone.id = l.id;
+        gone.before = m_objects->stateOf(l.sheet, l.id);
+        gone.after = gone.before;
+        gone.after.deleted = true;
+        gone.after.revive = m_objects->captureRevive(l.sheet, l.id);
+        gone.before.revive = gone.after.revive;
+        crunch::ObjectEdit put;
+        put.sheet = l.sheet;
+        put.id = fresh;
+        put.before = m_objects->stateOf(l.sheet, fresh);
+        put.after = put.before;
+        put.after.deleted = false;
+        put.after.order = gone.before.order;
+        put.after.name = gone.before.name;
+        put.after.prints = gone.before.prints;
+        // (alternative text a person wrote is kept; the one the barcode made itself is the new one's)
+        if (gone.before.description != barcodeDescription(l.settings, barcodeLayout(l.settings))) put.after.description = gone.before.description;
+        edits.push_back(gone);
+        edits.push_back(put);
+    }
+    if (failed > 0) setStatus(tr("A barcode could not be made from the text of its cell, so it keeps what it had."));
+    if (edits.empty()) return;
+    const crunch::EditSession::Outcome o = m_session->changeObjects(edits, tr("Update Barcodes"));
+    if (!o.ok) {
+        for (size_t k = 0; k < made.size(); ++k) m_objects->discardMade(madeSheets[k], made[k]);
+        return;
+    }
 }
 
 // Insert > Barcode > Barcodes From Cells: the dialog of Insert > Barcode asks for the type and look (what it holds is only the sample), and the selected cells make the barcodes.
@@ -595,6 +665,7 @@ CrunchWindow::BarcodeColumnResult CrunchWindow::insertBarcodesFromCells(const jp
             }
             QJsonObject settings = look;
             settings.insert(QStringLiteral("data"), text);
+            settings.insert(QStringLiteral("cell"), m_objects->barcodeCellRef(m_sheet, row, col));
             crunch::ObjectClip clip;
             QString why;
             if (!crunch::barcodeClip(settings, &clip, &why)) {

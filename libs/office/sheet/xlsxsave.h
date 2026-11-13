@@ -347,6 +347,9 @@ struct SaveChanges {
     std::map<QString, std::map<int, QString>> objectNames;
     // The same for the alternative text of objects (descr): the new text of the object at a place, applied with the names.
     std::map<QString, std::map<int, QString>> objectDescriptions;
+    // The barcodes whose marker (the settings that say what they hold, and the hashes of their pictures) is written again, by the drawing part and the place of the object: each value is the
+    // marker's a:ext (office/barcodemarker.h). Applied with the names.
+    std::map<QString, std::map<int, QByteArray>> objectBarcodeMarkers;
     // Objects a person took off the printed pages or put back on them: for each drawing part, whether the object at a place prints. Applied with the names.
     std::map<QString, std::map<int, bool>> objectPrints;
     // Objects a person put on sheets (a chart, a picture, a shape): by the sheet's place, what the drawing part gets and the parts it relates to (drawingadd.h). A sheet with no drawing is given one.

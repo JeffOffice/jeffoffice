@@ -57,6 +57,29 @@ class CrunchBarcodeTests : public QObject {
         });
     }
 
+    // A Code 128 barcode made from the text of A2 ("Q1"), linked to that cell; its id.
+    static int linkedBarcode(EditWindow &e)
+    {
+        jp::office::sheet::CellRange range;
+        range.valid = true;
+        range.row1 = range.row2 = 1;
+        range.col1 = range.col2 = 0;
+        const QJsonObject look{{"type", int(jp::barcode::Type::Code128)}, {"data", "sample"}, {"text", true}};
+        const CrunchWindow::BarcodeColumnResult r = e.win.w.insertBarcodesFromCells(range, look);
+        if (r.made != 1) return -1;
+        return e.win.w.objects()->idsOf(0).front();
+    }
+    // The data of the one barcode of the sheet that is not taken away (empty for none).
+    static QString shownData(EditWindow &e)
+    {
+        const std::vector<int> ids = e.win.w.objects()->idsOf(0);
+        return ids.size() == 1 ? e.win.w.objects()->barcodeOf(0, ids.front()).value(QLatin1String("data")).toString() : QStringLiteral("(%1 objects)").arg(ids.size());
+    }
+    static void letGo()
+    {
+        for (int i = 0; i < 3; ++i) QCoreApplication::processEvents();
+    }
+
 private Q_SLOTS:
     void initTestCase()
     {
@@ -275,6 +298,134 @@ private Q_SLOTS:
         QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 1);
         crunch::SheetObjects *again = second.w.objects();
         QCOMPARE(again->barcodeOf(0, again->idsOf(0).front()), settings);
+    }
+
+    // A barcode made from a cell follows it: the cell changes, and the barcode is made again from its text in the same place, at the same size, as a step after the cell's. Undo gives the
+    // old barcode back.
+    void aCellEditUpdatesItsBarcode()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        const int first = linkedBarcode(e);
+        QVERIFY(first >= 0);
+        QCOMPARE(shownData(e), QStringLiteral("Q1"));
+        QCOMPARE(o->barcodeOf(0, first).value(QLatin1String("cell")).toString(), QStringLiteral("Sheet1!$A$2"));
+        const jp::grid::ObjectBox was = o->layer()->boxNow(first);
+        const int steps = e.win.w.undoStack()->count();
+        QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("NEW-42")).ok);
+        QTRY_COMPARE(shownData(e), QStringLiteral("NEW-42"));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 2);   // (the cell, and the barcode)
+        const int now = o->idsOf(0).front();
+        QVERIFY(now != first);
+        const jp::grid::ObjectBox box = o->layer()->boxNow(now);
+        QVERIFY(qAbs(box.x - was.x) < 0.5 && qAbs(box.y - was.y) < 0.5 && qAbs(box.w - was.w) < 0.5 && qAbs(box.h - was.h) < 0.5);
+        QCOMPARE(o->barcodeOf(0, now).value(QLatin1String("cell")).toString(), QStringLiteral("Sheet1!$A$2"));
+        // Undo takes the new barcode away and gives the old one back.
+        e.win.w.undoStack()->undo();
+        QCOMPARE(shownData(e), QStringLiteral("Q1"));
+        QCOMPARE(o->idsOf(0).front(), first);
+        e.win.w.undoStack()->redo();
+        QCOMPARE(shownData(e), QStringLiteral("NEW-42"));
+        // The cell Undone as well: the barcode, now stale, is not made again behind Redo's back.
+        e.win.w.undoStack()->undo();
+        e.win.w.undoStack()->undo();
+        letGo();
+        QCOMPARE(shownData(e), QStringLiteral("Q1"));
+        QVERIFY(e.win.w.undoStack()->canRedo());
+    }
+
+    // Rows inserted above the cell move the link with it, and a barcode follows the cell at its new place.
+    void aRowInsertedAboveKeepsTheLink()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(linkedBarcode(e) >= 0);
+        QVERIFY(e.win.w.session()->insertRows(0, 0, 2).ok);
+        letGo();
+        QCOMPARE(shownData(e), QStringLiteral("Q1"));
+        QCOMPARE(o->barcodeLinkOf(0, o->idsOf(0).front()), QStringLiteral("Sheet1!$A$4"));
+        QVERIFY(e.win.w.session()->type(0, 3, 0, QStringLiteral("MOVED")).ok);
+        QTRY_COMPARE(shownData(e), QStringLiteral("MOVED"));
+        // (the cell it had before is another now: typing there changes nothing)
+        QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("OTHER")).ok);
+        letGo();
+        QCOMPARE(shownData(e), QStringLiteral("MOVED"));
+    }
+
+    // The cell's row deleted: the barcode keeps its last value, and nothing breaks (here, or when the file is saved and opened).
+    void aDeletedCellLeavesTheBarcodeAsItWas()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(linkedBarcode(e) >= 0);
+        QVERIFY(e.win.w.session()->deleteRows(0, 1, 1).ok);
+        letGo();
+        QCOMPARE(shownData(e), QStringLiteral("Q1"));
+        QVERIFY(o->linkedBarcodes().size() == 1 && !o->linkedBarcodes().front().found);
+        QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("Another")).ok);
+        letGo();
+        QCOMPARE(shownData(e), QStringLiteral("Q1"));
+        QVERIFY(save(e));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 1);
+        QVERIFY(!second.w.objects()->barcodeOf(0, second.w.objects()->idsOf(0).front()).isEmpty());
+    }
+
+    // Saved and opened again, the barcode is still linked: the picture in the file is of the text the cell had when it was saved (the marker is honored only for the picture that was written), the
+    // link follows rows inserted before the save, and a change of the cell in the reopened workbook updates it; saved once more, the file has that.
+    void theLinkSurvivesSaveAndReopen()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        QVERIFY(linkedBarcode(e) >= 0);
+        QVERIFY(e.win.w.session()->insertRows(0, 0, 1).ok);
+        QVERIFY(e.win.w.session()->type(0, 2, 0, QStringLiteral("SAVED-1")).ok);
+        QTRY_COMPARE(shownData(e), QStringLiteral("SAVED-1"));
+        QVERIFY(save(e));
+        EditWindow again;
+        QVERIFY(again.open([&] {
+            QFile f(e.path);
+            f.open(QIODevice::ReadOnly);
+            return f.readAll();
+        }()));
+        QVERIFY(again.settle());
+        QTRY_VERIFY(again.win.w.objects()->shownSheet() == 0 && again.win.w.objects()->layer()->count() == 1);
+        crunch::SheetObjects *o = again.win.w.objects();
+        QCOMPARE(shownData(again), QStringLiteral("SAVED-1"));
+        QCOMPARE(o->barcodeLinkOf(0, o->idsOf(0).front()), QStringLiteral("Sheet1!$A$3"));
+        // A cell changed in this workbook: the save writes the barcode from it, whether or not the window has done it yet.
+        QVERIFY(again.win.w.session()->type(0, 2, 0, QStringLiteral("SAVED-2")).ok);
+        {
+            jp::office::sheet::SaveChanges changes;
+            o->addToSave(&changes);
+            QVERIFY(!changes.objectBarcodeMarkers.empty());
+            QCOMPARE(int(changes.producedParts.size()), 2);
+        }
+        QTRY_COMPARE(shownData(again), QStringLiteral("SAVED-2"));
+        QVERIFY(save(again));
+        EditWindow third;
+        QVERIFY(third.open([&] {
+            QFile f(again.path);
+            f.open(QIODevice::ReadOnly);
+            return f.readAll();
+        }()));
+        QVERIFY(third.settle());
+        QTRY_VERIFY(third.win.w.objects()->shownSheet() == 0 && third.win.w.objects()->layer()->count() == 1);
+        QCOMPARE(shownData(third), QStringLiteral("SAVED-2"));
+        QVERIFY(third.win.w.session()->type(0, 2, 0, QStringLiteral("SAVED-3")).ok);
+        QTRY_COMPARE(shownData(third), QStringLiteral("SAVED-3"));
     }
 };
 

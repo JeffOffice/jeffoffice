@@ -42,6 +42,10 @@ QByteArray withFirstObjectName(const QByteArray &element, const QString &name);
 QByteArray withFirstObjectDescription(const QByteArray &element, const QString &text);
 bool setDrawingObjectDescriptions(const QByteArray &xml, const std::map<int, QString> &texts, QByteArray *out, bool *changed);
 
+// A barcode's marker (office/barcodemarker.h) set in the first cNvPr of an object's element, or of the objects at the given places of a drawing: `extXml` is the marker's a:ext. Every other byte stays.
+QByteArray withFirstObjectBarcodeMarker(const QByteArray &element, const QByteArray &extXml);
+bool setDrawingObjectBarcodeMarkers(const QByteArray &xml, const std::map<int, QByteArray> &markers, QByteArray *out, bool *changed);
+
 // Whether the objects at the given places print: the fPrintsWithSheet of the first clientData of each written as "0" (does not print) or left out (prints). Every other byte stays.
 bool setDrawingObjectPrints(const QByteArray &xml, const std::map<int, bool> &prints, QByteArray *out, bool *changed);
 // An object's element (or several) with its first clientData set so.
