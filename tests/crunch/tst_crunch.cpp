@@ -779,7 +779,8 @@ private Q_SLOTS:
         for (int r = 1; r <= n; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2</f><v>-1</v></c></row>").arg(r);
         QVERIFY(win.w.openFile(folder.write(QStringLiteral("formulas.xlsx"), buildXlsx({worksheet(rows)}))));
         win.w.setWorkerPace(15000);   // (about a hundredth of the formulas in each pause: the calculation is still going when the key is pressed)
-        QVERIFY(loaded.wait(60000));
+        // (the pace slows the read too, and a busy Windows runner sleeps longer than asked: a minute was not always enough; the wait ends when the read does)
+        QVERIFY(loaded.wait(240000));
         QVERIFY(win.w.isCalculating());
         // the first screen is drawn (with the stored results, if the first batch is not there yet), and the first batch changes what is on it
         win.w.view()->grab();
