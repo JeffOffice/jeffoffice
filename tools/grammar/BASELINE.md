@@ -179,3 +179,45 @@ Every error rule is under 1 false alarm per 10,000 words.
 - **als / wie**: after a comparative, not after "mehr" or "weiter" ("weiter wie bisher" is right).
 - **ß and ss** are not a rule, and neither are the spelling reforms.
 - **z. B. and the like** is Style (off by default): "z.B." is common and widely accepted; the rule only offers the spaced form.
+
+## Spanish (round 38)
+
+Measured November 13, 2026 with `tools/grammar/measure.py --language es`.
+
+### The text
+
+- **help**: our own Spanish Help (`resources/help/es`, 169 files, 147,999 words, markup taken out); **text**: the Spanish program strings of six words or more and the paragraphs of the Spanish pages of
+  the site (104,663 words); **rules**: the Puerto Rico court rules in Spanish that courtrules.net imports (`~/court-sources/pr_import_cache/*.txt`, text taken from PDFs, 405,362 words, read in place and
+  not copied). The rules are real legal Spanish written by people, which the other two are not: they have page numbers, tables of contents, and line breaks that the PDF left in. 658,000 words in all.
+  Govdocs1 has no Spanish prose that the common-word test could find (0 files).
+
+### The 10 rules of Spanish (flags per 10,000 words in the help, program text, and court rules)
+
+| rule | help | text | rules | read | false alarms |
+|---|---|---|---|---|---|
+| es-repeated-word | 0 | 0 | 0.02 | 8 found first, 1 left | 6 first, all gone but the 1 left: "está está" (the relative clause "la ventana en la que está está vacía"), "Acerca de de" and "Después de de" (the name of a command, then the sentence); the 1 left is "de de" in a table of contents (0.015/10k) |
+| es-de-que | 0 | 0 | 0.02 | 1 of 1 | 0 ("se da cuenta que": a real queísmo) |
+| es-hay-ahi-ay | 0 | 0 | 0 | 2 found first | 2 ("De ahí que": hence; left alone now) |
+| es-del-al | 0 | 0 | 0 | 1 found first | 1 ("&A el nombre": a header code; left alone now) |
+| es-sentence-start | 0.07 | 0 | 0 | 1 of 1 | 1 ("ppp significa", 0.015/10k) |
+| es-inverted-marks, es-question-accent, es-a-ver, es-hecho | 0 | 0 | 0 | | |
+| es-wordy-phrases (style) | 0.07 | 0 | 1.92 | not read | not scored ("con el fin de", "en base a") |
+
+Reused from English, measured on the same text: space-before-mark 0.07, 0, 0.05 (4 flags: two a label with its text left out, two page-number lines in the PDF text; not scored), comma-space 0.07 (1 flag,
+`&"Arial,Bold"`, a false alarm, 0.015/10k), double-space and doubled-mark 0. Style rules (off by default): long-sentence 11.01, 13.19, and 78.55 (legal sentences), repeated-sentence-start 2.43, 0.19, and 0.84.
+
+Every error rule is under 1 false alarm per 10,000 words. The inverted marks found nothing in 658,000 words of text that was written with care, which is what it should do; the tests are the only proof
+that it flags.
+
+### What was narrowed or left out
+
+- **¿ and ¡**: a "?" or "!" after a word, at the end of the text or before a space, in a sentence that has no "¿" or "¡" in it. A small letter after it ("Yahoo! es") goes on with the sentence, and a
+  period after a short form ("Sr.", "EE. UU.", "pág.") does not end it. With a comma before the mark the question may begin after the comma, so the mark is only pointed at, with nothing to put in place.
+- **accents on the question words**: only the first word after "¿" (or after "y", "pero", "entonces"): "¿Que?", "¿Como?", "¿Porque?". "¿Que no vienes?" is left alone (it is not a question word there),
+  and so are "¡Que viva!" and any question word in the middle of a question. The exclamation marks are not checked for accents.
+- **a ver / haber**: "haber si" at the start of a clause, and "a ver" after puede, debe, podría, and the like. "Va a ver" and "va a haber" are right and left alone.
+- **hay / ahí / ay**: "ahí" before a quantity or "que" (not after "de": "de ahí que"), "ay" in the middle of a sentence before a quantity or "que", and "de hay", "por hay", "hasta hay", "desde hay".
+- **del / al**: "de el" and "a el" before a plain noun; not before a word like "mismo" or "que", which makes "él" without its accent likelier.
+- **de que**: "pienso de que" and the like (creer, pensar, opinar, suponer), "me alegro que", "me acuerdo que", and "dar cuenta que". Other verbs take "de que" in some uses and not in others.
+- **echo / hecho**: "ha echo" gets two suggestions, "hecho" and "echado". Not checked: "mas" and "más", "si" and "sí", "tu" and "tú", "sino" and "si no" (each is right in a sentence of its own), and "si" before the
+  conditional.

@@ -29,9 +29,9 @@ int phraseNext(const Ctx &c, int i)
     return (j >= 0 && oneSpace(c, i + 1)) ? j : -1;
 }
 
-// "the the": the second of two words alike, with the space before it taken out. `legitimate`: words that can be said twice ("nous nous"); `shortWords`: words that are
+// "the the": the second of two words alike, with the space before it taken out. `nounsAreSmall`: see below. `legitimate`: words that can be said twice ("nous nous"); `shortWords`: words that are
 // a slip when a capital begins the first ("Le le"), where any other capitalized word said twice is a name or a type and its name.
-void doubledWord(Ctx &c, const QSet<QString> &legitimate, const QSet<QString> &shortWords)
+void doubledWord(Ctx &c, const QSet<QString> &legitimate, const QSet<QString> &shortWords, bool nounsAreSmall = false)
 {
     for (int i = 0; i < c.size(); ++i) {
         c.step();
@@ -45,6 +45,11 @@ void doubledWord(Ctx &c, const QSet<QString> &legitimate, const QSet<QString> &s
         if (c.firstUpper(j)) continue;   // (a name said twice, or a name after a word that names its type)
         if (c.firstUpper(i) && !shortWords.contains(w)) continue;
         if (c.tokens[j].start - c.tokens[i].end > 2) continue;
+        // (in a language that writes its common nouns small, a capital before the words is the name of a command that ends with the word: "Acerca de" and then "de cada aplicación")
+        if (nounsAreSmall) {
+            const int p = c.prevWord(i);
+            if (p >= 0 && c.firstUpper(p) && !startsSentence(c, p)) continue;
+        }
         // (the quotation mark may stand off by a space, as the guillemets of French do)
         auto at = [&](int p) { return p >= 0 && p < c.text.size() ? c.text.at(p) : QChar(); };
         const int before = c.tokens[i].start - 1, after = c.tokens[j].end;

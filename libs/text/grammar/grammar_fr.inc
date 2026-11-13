@@ -9,7 +9,7 @@ void frRepeatedWord(Ctx &c)
 {
     doubledWord(c, WORDS8("nous", "vous", "si", "oui", "non", "tout", "très", "plus", "bien", "bon", "bye", "ha", "ah", "oh", "eh", "hé", "ben", "bof", "bla", "coucou", "hop", "hou", "ouh", "ouf", "chut",
                           "boum", "aïe", "ho", "hi", "la", "na", "y", "en", "ça", "pouet", "ding", "dong", "tic", "tac", "pan", "pif", "paf", "mal", "tant", "peu", "beau", "belle", "grand", "petit", "gros"),
-                WORDS8("le", "la", "les", "de", "des", "du", "un", "une", "et", "à", "en", "que", "qui", "il", "elle", "ce", "dans", "pour", "sur", "est", "a"));
+                WORDS8("le", "la", "les", "de", "des", "du", "un", "une", "et", "à", "en", "que", "qui", "il", "elle", "ce", "dans", "pour", "sur", "est", "a"), true);
 }
 
 // A mark that French sets off with a space: ; : ! ? take one before them (no-break), and « » one inside.

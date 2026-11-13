@@ -1563,6 +1563,7 @@ struct Rule {
 #include "grammar/grammar_common.inc"
 #include "grammar/grammar_fr.inc"
 #include "grammar/grammar_de.inc"
+#include "grammar/grammar_es.inc"
 
 const Rule kRules[] = {
     {"repeated-word", repeatedWord, GK::Repetition},
@@ -1637,7 +1638,7 @@ RuleList rulesOf(Language language)
     switch (language) {
     case Language::French: return {kFrenchRules, sizeof(kFrenchRules) / sizeof(kFrenchRules[0])};
     case Language::German: return {kGermanRules, sizeof(kGermanRules) / sizeof(kGermanRules[0])};
-    case Language::Spanish:
+    case Language::Spanish: return {kSpanishRules, sizeof(kSpanishRules) / sizeof(kSpanishRules[0])};
     case Language::English: break;
     }
     return {kRules, sizeof(kRules) / sizeof(kRules[0])};

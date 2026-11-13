@@ -98,6 +98,7 @@ class ShellGrammarRulesTests : public QObject {
     static QVector<RuleCase> newRuleCases();
     static QVector<RuleCase> frenchRuleCases();
     static QVector<RuleCase> germanRuleCases();
+    static QVector<RuleCase> spanishRuleCases();
 
 private Q_SLOTS:
     void everyIssueIsInsideTheTextAndHasAMessage()
@@ -391,6 +392,35 @@ private Q_SLOTS:
         QVERIFY(!byRule(U("Was machst du ? Wir gehen."), QStringLiteral("space-before-mark"), de).isEmpty());
         QVERIFY(byRule(U("Er kam, etwa weil er musste."), QStringLiteral("de-comma-before-conjunction"), de).isEmpty());
     }
+    void spanishRulesFlagWhatTheyShouldAndLeaveTheLookAlikesAlone()
+    {
+        for (const RuleCase &rc : spanishRuleCases()) check(rc);
+    }
+    void everySpanishRuleHasAnEntry() { everyRuleOfAnotherLanguageHasAnEntry(grammar::Language::Spanish, QStringLiteral("es-"), spanishRuleCases()); }
+    void spanishKindsFollowTheChoice()
+    {
+        kindsOfAnotherLanguage(grammar::Language::Spanish, U("Salió en base a la ley."), U("Pienso de que sí."), GrammarIssue::Grammar);
+    }
+    void spanishDetails()
+    {
+        const grammar::Language es = grammar::Language::Spanish;
+        // A question or an exclamation with no opening mark: the first word of the sentence gets it; a sentence with a comma before the mark is only told.
+        QCOMPARE(fixedBy(U("Hola. Cómo estás? Bien. Qué bien!"), QStringLiteral("es-inverted-marks"), es), U("Hola. ¿Cómo estás? Bien. ¡Qué bien!"));
+        const auto told = byRule(U("Hola, cómo estás?"), QStringLiteral("es-inverted-marks"), es);
+        QCOMPARE(told.size(), 1);
+        QVERIFY(told.first().suggestions.isEmpty());
+        QCOMPARE(U("Hola, cómo estás?").mid(told.first().start, told.first().end - told.first().start), U("?"));
+        QVERIFY(byRule(U("Sr. García, ¿vienes? ¡Claro! Dime ¿qué quieres?"), QStringLiteral("es-inverted-marks"), es).isEmpty());
+        QVERIFY(byRule(U("Es de EE. UU. ¿Y tú?"), QStringLiteral("es-inverted-marks"), es).isEmpty());
+        QCOMPARE(fixedBy(U("¿Porque no vienes? ¿Por que no? ¿Y donde está?"), QStringLiteral("es-question-accent"), es), U("¿Por qué no vienes? ¿Por qué no? ¿Y dónde está?"));
+        QCOMPARE(fixedBy(U("Puede a ver problemas, haber si vienes."), QStringLiteral("es-a-ver"), es), U("Puede haber problemas, a ver si vienes."));
+        QCOMPARE(fixedBy(U("Por hay no, y no ay que ir."), QStringLiteral("es-hay-ahi-ay"), es), U("Por ahí no, y no hay que ir."));
+        QCOMPARE(fixedBy(U("Me alegro que vengas, y me di cuenta que era tarde."), QStringLiteral("es-de-que"), es), U("Me alegro de que vengas, y me di cuenta de que era tarde."));
+        QCOMPARE(fixedBy(U("Viene de el sur y va a el norte."), QStringLiteral("es-del-al"), es), U("Viene del sur y va al norte."));
+        const auto echo = byRule(U("Ha echo mucho."), QStringLiteral("es-hecho"), es);
+        QCOMPARE(echo.first().suggestions, (QStringList{U("hecho"), U("echado")}));
+        QVERIFY(!byRule(U("Esto es bueno , sí."), QStringLiteral("space-before-mark"), es).isEmpty());
+    }
     void aTextIsCheckedByTheRulesOfItsLanguageOnly()
     {
         // The rules of French do not run on English (and the other way round): the text of one language is not flagged by another's rules.
@@ -452,7 +482,10 @@ private Q_SLOTS:
                                  "it have and ", "Me and him went ", "can't hardly ", "e.g. i.e. ",
                                  // French
                                  "le ami de la école ", "de le ", "il ce ", "mot ; ", "mot: x ", "« a ", "a » ", "qu'est ce que ", "si il ", "il à ", "à les ", "ca va ", "quand à lui ", "c'est à dire, ",
-                                 "x ? ", "x !! ", "l'a l'a ", "Ou est ", "d'ou ", "nous nous "})
+                                 "x ? ", "x !! ", "l'a l'a ", "Ou est ", "d'ou ", "nous nous ",
+                                 // German and Spanish
+                                 "ihr seit ", "seid zwei ", ", das er ", "weil ", "Dass ist ", "das haus ", "größer wie ", "z.B. ", "wider mal ", "hola? ", "¡hola ", "¿que ", "¿ ", "haber si ", "de el ", "ahí que ",
+                                 "pienso de que ", "ha echo ", "me di cuenta que ", "a ver ", "? ", "! ", "¿a? ¡b! "})
             out << QString::fromUtf8(unit).repeated(100000 / int(strlen(unit)));
         return out;
     }
@@ -615,6 +648,24 @@ QVector<ShellGrammarRulesTests::RuleCase> ShellGrammarRulesTests::germanRuleCase
         DEC("de-abbreviation-space", "Das gilt z.B. hier.", "Das gilt z.\u00A0B. hier.", "Das gilt z.\u00A0B. hier.", "Das gilt z. B. hier.", "Die Datei a.b.c liegt dort.", "Das gilt zum Beispiel hier."),
     };
 #undef DEC
+}
+
+QVector<ShellGrammarRulesTests::RuleCase> ShellGrammarRulesTests::spanishRuleCases()
+{
+#define ESC(rule, bad, fixed, ...) {rule, bad, fixed, L({__VA_ARGS__}), nullptr, nullptr, grammar::Language::Spanish}
+    return {
+        ESC("es-repeated-word", "Es el el libro.", "Es el libro.", "Dijo no no y se fue.", "Es muy muy bueno.", "Poco a poco.", "Bora Bora es bonita.", "La ventana en la que está está vacía.", "La página Acerca de de cada aplicación."),
+        ESC("es-inverted-marks", "Cómo estás?", "¿Cómo estás?", "¿Cómo estás?", "¡Hola!", "Dime, ¿cómo estás?", "Yahoo! es una empresa.", "El valor (?) es incierto.", "Sr. García, ¿vienes?"),
+        ESC("es-question-accent", "¿Como estás?", "¿Cómo estás?", "¿Cómo estás?", "Como tú dices.", "¿Que no vienes?", "¿Quieres que vayamos?", "No sé donde está."),
+        ESC("es-a-ver", "Haber si vienes.", "A ver si vienes.", "Va a ver la casa.", "Voy a ver si viene.", "Puede haber si hay tiempo.", "A ver si vienes."),
+        ESC("es-hay-ahi-ay", "Ahí muchas personas.", "Hay muchas personas.", "Hay muchas personas.", "Ahí mismo.", "Ven ahí.", "¡Ay, un bicho!", "De ahí que lo hiciera."),
+        ESC("es-del-al", "Voy a el parque.", "Voy al parque.", "Voy al parque.", "Viene de El Salvador.", "Habla a él de eso.", "Es de el que hablo.", "Pon &A el nombre de la hoja."),
+        ESC("es-de-que", "Pienso de que es verdad.", "Pienso que es verdad.", "Pienso que es verdad.", "Me alegro de que vengas.", "Hablamos de que viene.", "Me di cuenta de que era tarde."),
+        ESC("es-hecho", "Ha echo mucho.", "Ha hecho mucho.", "Ha hecho mucho.", "Yo echo sal.", "He echado sal.", "Echo de menos."),
+        ESC("es-sentence-start", "Llueve. vamos a casa.", "Llueve. Vamos a casa.", "Véase pág. siguiente.", "Llueve, etc. y vamos a casa.", "Llueve. Vamos a casa.", "Ver art. primero."),
+        ESC("es-wordy-phrases", "Salió en base a la ley.", "Salió con base en la ley.", "Salió con base en la ley.", "La base de la ley.", "Salió a la calle."),
+    };
+#undef ESC
 }
 
 JP_TEST_CLASS(ShellGrammarRulesTests)
