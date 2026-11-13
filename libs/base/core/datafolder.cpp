@@ -46,7 +46,8 @@ void find()   // (the mutex is held)
             s_root = QDir::cleanPath(root);
             QFile manifest(s_root + QStringLiteral("/manifest.txt"));
             if (manifest.open(QIODevice::ReadOnly))
-                s_manifest = QString::fromUtf8(manifest.readAll()).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+                for (const QString &line : QString::fromUtf8(manifest.readAll()).split(QLatin1Char('\n'), Qt::SkipEmptyParts))
+                    if (const QString path = line.trimmed(); !path.isEmpty()) s_manifest << path;   // (CMake writes CRLF on Windows)
             return;
         }
 }

@@ -789,6 +789,11 @@ private Q_SLOTS:
         jp::setDataFolderOverride(empty.path());
         QCOMPARE(jp::help::topicIds(), QStringList{QStringLiteral("index")});   // (stale.md is not in the manifest)
         QCOMPARE(jp::help::topic(QStringLiteral("index")).title, QStringLiteral("Only page"));
+        // (CMake writes the manifest with CRLF on Windows: a line's \r is not part of its path)
+        write(QStringLiteral("manifest.txt"), "help/en/index.md\r\nhelp/en/stale.md\r\n");
+        jp::setDataFolderOverride(empty.path());
+        QCOMPARE(jp::dataManifest(QStringLiteral("help")), (QStringList{QStringLiteral("en/index.md"), QStringLiteral("en/stale.md")}));
+        QCOMPARE(jp::help::topicIds().size(), 2);
         jp::setDataFolderOverride(QString());
         QVERIFY(jp::help::topicIds().size() >= 45);
     }
