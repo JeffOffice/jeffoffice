@@ -36,7 +36,7 @@ appdir() {
   # Help, the translations, and the stamp and manifest that mark them (the build's data folder; its help is a link), which the apps read
   # from here (jp::dataFolder, ../share/jeffoffice).
   cp -rL "$build/data/." "$dir/usr/share/jeffoffice/"
-  { printf 'JeffOffice\nCopyright (c) 2026 JeffOffice LLC\nLicense: GPL-3.0 (below)\n\n'; cat "$src/LICENSE"; } > "$dir/usr/share/doc/jeffoffice/copyright"
+  python3 "$src/tools/gen_deb_copyright.py" "$dir/usr/share/doc/jeffoffice/copyright"
   install -Dm644 "$src/README.md" "$dir/usr/share/doc/jeffoffice/README.md"
   # PDFium's license texts and those of the libraries built into it.
   cp "$src/third_party/pdfium/licenses/"* "$dir/usr/share/doc/jeffoffice/pdfium/"
