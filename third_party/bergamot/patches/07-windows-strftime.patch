@@ -1,0 +1,16 @@
+Windows (MinGW): the C library of Windows has no %F in strftime; the date is written out in full.
+
+--- a/3rd_party/marian-dev/src/common/timer.h
++++ b/3rd_party/marian-dev/src/common/timer.h
+@@ -12,7 +12,11 @@
+ static inline std::string currentDate() {
+   std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+   char date[100] = {0};
++  #ifdef __MINGW32__
++  std::strftime(date, sizeof(date), "%Y-%m-%d %X %z", std::localtime(&now));  // msvcrt strftime has no %F
++#else
+   std::strftime(date, sizeof(date), "%F %X %z", std::localtime(&now));
++#endif
+   return date;
+ }
+ 

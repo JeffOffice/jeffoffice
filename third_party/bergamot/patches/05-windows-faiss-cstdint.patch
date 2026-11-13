@@ -1,0 +1,12 @@
+Windows (MinGW): faiss/utils/misc.h uses uint64_t without including <cstdint>.
+
+--- a/3rd_party/marian-dev/src/3rd_party/faiss/utils/misc.h
++++ b/3rd_party/marian-dev/src/3rd_party/faiss/utils/misc.h
+@@ -1,6 +1,7 @@
+ #pragma once
+ #include <algorithm>
+ #include <vector>
++#include <cstdint>
+ 
+ namespace faiss {
+   /// The metric space for vector comparison for Faiss indices and algorithms.

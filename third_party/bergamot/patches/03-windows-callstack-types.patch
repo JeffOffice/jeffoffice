@@ -1,0 +1,15 @@
+Windows (MinGW): the declaration of the call-stack function used MSVC-only annotations (__in, __out), and LoadLibrary is the wide one under UNICODE; plain types and LoadLibraryA do the same.
+
+--- a/3rd_party/marian-dev/src/3rd_party/ExceptionWithCallStack.cpp
++++ b/3rd_party/marian-dev/src/3rd_party/ExceptionWithCallStack.cpp
+@@ -149,8 +149,8 @@
+     static const unsigned short MAX_CALL_STACK_DEPTH = 20;
+ 
+     // RtlCaptureStackBackTrace() is a kernel API without default binding, we must manually determine its function pointer.
+-    typedef USHORT(WINAPI * CaptureStackBackTraceType)(__in ULONG, __in ULONG, __out PVOID*, __out_opt PULONG);
+-    CaptureStackBackTraceType RtlCaptureStackBackTrace = (CaptureStackBackTraceType)(GetProcAddress(LoadLibrary(L"kernel32.dll"), "RtlCaptureStackBackTrace"));
++    typedef USHORT(WINAPI * CaptureStackBackTraceType)(ULONG, ULONG, PVOID*, PULONG);
++    CaptureStackBackTraceType RtlCaptureStackBackTrace = (CaptureStackBackTraceType)(void*)(GetProcAddress(LoadLibraryA("kernel32.dll"), "RtlCaptureStackBackTrace"));
+     if (RtlCaptureStackBackTrace == nullptr) // failed somehow
+         return write("Failed to generate CALL STACK. GetProcAddress(\"RtlCaptureStackBackTrace\") failed\n");
+ 

@@ -203,6 +203,8 @@ parts:
       cp "$CRAFT_PART_SRC/third_party/pdfium/licenses/"* "$d/usr/share/doc/jeffoffice/pdfium/"
       mkdir -p "$d/usr/share/doc/jeffoffice/qpdf" "$d/usr/share/doc/jeffoffice/libjpeg-turbo"
       cp "$CRAFT_PART_SRC/third_party/qpdf/licenses/"* "$d/usr/share/doc/jeffoffice/qpdf/"
+      mkdir -p "$d/usr/share/doc/jeffoffice/bergamot"
+      cp "$CRAFT_PART_SRC/third_party/bergamot/licenses/"* "$d/usr/share/doc/jeffoffice/bergamot/"
       cp "$CRAFT_PART_SRC/third_party/libjpeg_turbo/licenses/"* "$d/usr/share/doc/jeffoffice/libjpeg-turbo/"
       cp "$CRAFT_PART_SRC/LICENSE" "$CRAFT_PART_SRC/ADDITIONAL-TERMS.md" "$d/usr/share/doc/jeffoffice/"
       mkdir -p "$d/usr/share/doc/jeffoffice/licenses"

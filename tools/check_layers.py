@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Checks that every library only uses the ones below it.
 
-The shared libraries, lowest first, are libs/base, libs/draw, libs/text,
+The shared libraries, lowest first, are libs/base, libs/translate, libs/draw, libs/text,
 libs/office, libs/shell, libs/page, and libs/flow; each app in apps/ sits on top of them
 all and never uses another app. Every quoted #include is resolved to the file
 it names (each library's folder is an include root, so "core/color.h" is
@@ -17,7 +17,7 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LIBS = ["libs/base", "libs/draw", "libs/text", "libs/office", "libs/shell", "libs/page", "libs/flow"]
+LIBS = ["libs/base", "libs/translate", "libs/draw", "libs/text", "libs/office", "libs/shell", "libs/page", "libs/flow"]
 INCLUDE = re.compile(r'\s*#\s*include\s+"([^"]+)"')
 
 

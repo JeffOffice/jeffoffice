@@ -74,10 +74,12 @@ endfunction()
 add_subdirectory(third_party)
 include(cmake/pdfium.cmake)
 include(cmake/qpdf.cmake)
+include(cmake/bergamot.cmake)
 
 # The shared libraries every JeffOffice app builds on, lowest first. Each
 # uses only the ones below it (tools/check_layers.py checks every include):
 #   jo_base   colors, fonts, measurements, file containers, PDF, proofing
+#   jo_translate translating on this computer: the models and their download, the translator over the engine (JO_TRANSLATE), text kept in runs
 #   jo_draw   shapes, fills and outlines, Text Art, placed objects, SVG
 #   jo_text   the text engine
 #   jo_office the file packages (OPC), themes, and DrawingML colors of the
@@ -121,8 +123,13 @@ if(NOT JO_SLIM_ACTIVE)
   target_compile_definitions(jo_base PRIVATE JO_BUILD_DATA_DIR="${JO_BUILD_DATA_DIR}")
 endif()
 target_compile_options(jo_base PUBLIC -Wall -Wextra -Wno-unused-parameter)
+jo_library(jo_translate libs/translate)
+target_link_libraries(jo_translate PUBLIC jo_base)
+if(JO_TRANSLATE)
+  target_compile_definitions(jo_translate PUBLIC JO_TRANSLATE_ENGINE=1)
+endif()
 jo_library(jo_draw libs/draw)
-target_link_libraries(jo_draw PUBLIC jo_base)
+target_link_libraries(jo_draw PUBLIC jo_translate)
 jo_library(jo_text libs/text)
 target_link_libraries(jo_text PUBLIC jo_draw)
 jo_library(jo_office libs/office)
@@ -146,7 +153,7 @@ elseif(UNIX)
   set(CMAKE_INSTALL_RPATH "$ORIGIN" "$ORIGIN/../lib" "$ORIGIN/../lib/jeffoffice")
   set(CMAKE_BUILD_RPATH "$ORIGIN")
 endif()
-set(JO_LAYERS jo_base jo_draw jo_text jo_office jo_shell jo_page jo_flow)
+set(JO_LAYERS jo_base jo_translate jo_draw jo_text jo_office jo_shell jo_page jo_flow)
 set(JO_LAYER_OBJECTS)
 foreach(layer ${JO_LAYERS})
   list(APPEND JO_LAYER_OBJECTS $<TARGET_OBJECTS:${layer}>)
@@ -161,6 +168,10 @@ foreach(layer ${JO_LAYERS})
 endforeach()
 target_link_libraries(jeffoffice-common PUBLIC Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport Qt6::Network Qt6::Xml
                       PRIVATE jp_hunspell jp_zlib pdfium jp_qpdfwrap)
+if(JO_TRANSLATE)
+  # (the engine's static libraries are inside the library and not exported, like the other third-party code)
+  target_link_libraries(jeffoffice-common PRIVATE jo_bergamot_engine)
+endif()
 target_compile_definitions(jeffoffice-common PUBLIC QT_NO_KEYWORDS)
 target_compile_options(jeffoffice-common PUBLIC -Wall -Wextra -Wno-unused-parameter)
 if(APPLE)
@@ -209,6 +220,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     list(APPEND _below $<TARGET_OBJECTS:${lib}>)
     add_executable(${lib}_linkcheck tools/linkcheck.cpp ${_below})
     target_link_libraries(${lib}_linkcheck PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport Qt6::Network Qt6::Xml jp_hunspell jp_zlib pdfium jp_qpdfwrap)
+    if(JO_TRANSLATE)
+      target_link_libraries(${lib}_linkcheck PRIVATE jo_bergamot_engine)
+    endif()
     target_include_directories(${lib}_linkcheck PRIVATE $<TARGET_PROPERTY:jeffoffice-common,INTERFACE_INCLUDE_DIRECTORIES>)
   endforeach()
 endif()
@@ -303,6 +317,7 @@ qt_add_executable(jptests
   tests/shell/tst_shell_grammar.cpp
   tests/shell/tst_shell_grammar_rules.cpp
   tests/shell/tst_shell_keymap.cpp
+  tests/shell/tst_shell_translate.cpp
   tests/shell/tst_shell_ribbon.cpp)
 target_link_libraries(jptests PRIVATE jpcore jp_libmspub Qt6::Test)
 # QAbstractFileEngineHandler (a private Qt header, from CorePrivate) counts the files a test makes Qt open.
@@ -814,7 +829,7 @@ endif()
 # English needs one too, for plurals only: jeffoffice_en.ts gives "%n page(s)"
 # its singular and plural forms (lupdate adds new ones; fill in their forms).
 find_package(Qt6 QUIET COMPONENTS LinguistTools)
-set(JP_LUPDATE_TARGETS jo_base jo_draw jo_text jo_office jo_shell jo_page jo_flow jpcore jeffpub)
+set(JP_LUPDATE_TARGETS jo_base jo_translate jo_draw jo_text jo_office jo_shell jo_page jo_flow jpcore jeffpub)
 if(JP_BUILD_DECK)
   list(APPEND JP_LUPDATE_TARGETS jdcore jeffdeck)
 endif()

@@ -1,0 +1,31 @@
+All systems: ruy chose its x86 kernels when the processor name was x86_64 or amd64, written exactly so. Windows names the same processor AMD64, so the AVX kernels were compiled out and translation ran four times slower (205 against 770 words a second). The name is matched without regard to case.
+
+--- a/3rd_party/marian-dev/src/3rd_party/ruy/ruy/CMakeLists.txt
++++ b/3rd_party/marian-dev/src/3rd_party/ruy/ruy/CMakeLists.txt
+@@ -690,7 +690,7 @@
+     ruy_profiler_instrumentation
+ )
+ 
+-if((CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64) AND NOT MSVC)
++if((CMAKE_SYSTEM_PROCESSOR MATCHES "^([xX]86_64|[aA][mM][dD]64)$") AND NOT MSVC)
+   set(ruy_7_mavx512bw_mavx512cd_mavx512dq_mavx512f_mavx512vl_arch_AVX512 ";-mavx512f;-mavx512vl;-mavx512cd;-mavx512bw;-mavx512dq")
+ elseif(MSVC)
+   set(ruy_7_mavx512bw_mavx512cd_mavx512dq_mavx512f_mavx512vl_arch_AVX512 "/arch:AVX512")
+@@ -762,7 +762,7 @@
+     ruy_platform
+ )
+ 
+-if((CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64) AND NOT MSVC)
++if((CMAKE_SYSTEM_PROCESSOR MATCHES "^([xX]86_64|[aA][mM][dD]64)$") AND NOT MSVC)
+   set(ruy_8_mavx2_mfma_arch_AVX2 "-mavx2;-mfma")
+ elseif(MSVC)
+   set(ruy_8_mavx2_mfma_arch_AVX2 "/arch:AVX2")
+@@ -834,7 +834,7 @@
+     ruy_platform
+ )
+ 
+-if((CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64) AND NOT MSVC)
++if((CMAKE_SYSTEM_PROCESSOR MATCHES "^([xX]86_64|[aA][mM][dD]64)$") AND NOT MSVC)
+   set(ruy_9_mavx_arch_AVX "-mavx")
+ elseif(MSVC)
+   set(ruy_9_mavx_arch_AVX "/arch:AVX")

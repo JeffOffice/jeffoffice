@@ -1,0 +1,32 @@
+Windows (MinGW): there is no posix_memalign; the engine's aligned memory uses _aligned_malloc and _aligned_free, as it does for MSVC.
+
+--- a/src/translator/aligned.h
++++ b/src/translator/aligned.h
+@@ -1,6 +1,9 @@
+ #pragma once
+ #include <cstdlib>
+ #include <new>
++#ifdef __MINGW32__
++#include <malloc.h>  // _aligned_malloc/_aligned_free (no posix_memalign on MinGW)
++#endif
+ #ifdef _MSC_VER
+ // Ensure _HAS_EXCEPTIONS is defined
+ #include <vcruntime.h>
+@@ -22,7 +25,7 @@
+ 
+     explicit AlignedVector(std::size_t size, std::size_t alignment = 64 /* CPU cares about this */)
+       : size_(size) {
+-#ifdef _MSC_VER
++#if defined(_MSC_VER) || defined(__MINGW32__)
+       mem_ = static_cast<T*>(_aligned_malloc(size * sizeof(T), alignment));
+       if (!mem_) {
+ #  if (defined(_MSC_VER) && !defined(__clang__)) ? (_HAS_EXCEPTIONS) : (__EXCEPTIONS)
+@@ -80,7 +83,7 @@
+     std::size_t size_;
+ 
+     void release() {
+-#ifdef _MSC_VER
++#if defined(_MSC_VER) || defined(__MINGW32__)
+       _aligned_free(mem_);
+ #else
+       std::free(mem_);

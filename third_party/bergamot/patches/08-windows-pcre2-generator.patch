@@ -1,0 +1,17 @@
+Windows (MinGW): the sentence splitter builds PCRE2 as a project of its own, which would use NMake unless it is told the generator, the make program, and the compiler; and the splitter must be told that PCRE2 is a static library.
+
+--- a/3rd_party/ssplit-cpp/cmake/FindPCRE2.cmake
++++ b/3rd_party/ssplit-cpp/cmake/FindPCRE2.cmake
+@@ -64,6 +64,12 @@
+   endif(ANDROID)
+ 
+ 
++  if(WIN32 AND NOT MSVC)
++    # MinGW: ExternalProject would otherwise default to NMake
++    LIST(APPEND PCRE2_CONFIGURE_OPTIONS -G ${CMAKE_GENERATOR} -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
++    add_definitions(-DPCRE2_STATIC)  # static libpcre2: avoid __imp_ (dllimport) symbols
++  endif()
++
+   # set include dirs and libraries for PCRE2
+   set(PCRE2_LIBRARIES ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}pcre2-8${CMAKE_STATIC_LIBRARY_SUFFIX})
+   set(PCRE2_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/include")

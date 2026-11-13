@@ -4,3 +4,12 @@ modified both. The complete source code of the modified files is in this
 project's repository, in the folder third_party/ (third_party/libmspub and
 third_party/librevenge, each with its COPYING.MPL), at
 https://github.com/JeffOffice/jeffoffice
+
+The Translate pane also builds in Mozilla's Bergamot translator, which is
+licensed under the same Mozilla Public License, version 2.0. We have not
+changed its files in this repository: the build fetches its source from
+https://github.com/browsermt/bergamot-translator (the commit named in
+cmake/bergamot.cmake) and applies small patches, which are in this
+project's repository in third_party/bergamot/patches, at
+https://github.com/JeffOffice/jeffoffice. The licenses of the parts that come
+with it are in third_party/bergamot/licenses.

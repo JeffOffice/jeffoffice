@@ -296,6 +296,146 @@
    ]
   },
   {
+   "name": "Bergamot translator",
+   "url": "https://github.com/browsermt/bergamot-translator",
+   "use": "Translating text on this computer",
+   "license": "MPL-2.0",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/bergamot/licenses/bergamot-translator-MPL-2.0.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Marian (in Bergamot)",
+   "url": "https://marian-nmt.github.io/",
+   "use": "Neural network code for translating",
+   "license": "MIT",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/bergamot/licenses/marian-MIT.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "intgemm (in Bergamot)",
+   "url": "https://github.com/kpu/intgemm",
+   "use": "Fast 8-bit matrix math for translating",
+   "license": "MIT",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/bergamot/licenses/intgemm-MIT.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "SentencePiece (in Bergamot)",
+   "url": "https://github.com/google/sentencepiece",
+   "use": "Splitting words into pieces for translating",
+   "license": "Apache-2.0",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/packaging/licenses/Apache-2.0.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "ruy (in Bergamot)",
+   "url": "https://github.com/google/ruy",
+   "use": "Matrix math for translating",
+   "license": "Apache-2.0",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/packaging/licenses/Apache-2.0.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "ssplit-cpp (in Bergamot)",
+   "url": "https://github.com/browsermt/ssplit-cpp",
+   "use": "Splitting text into sentences for translating",
+   "license": "Apache-2.0",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/bergamot/licenses/ssplit-cpp.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "PCRE2 (in Bergamot)",
+   "url": "https://github.com/PhilipHazel/pcre2",
+   "use": "Text patterns for splitting sentences",
+   "license": "BSD-3-Clause",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/bergamot/licenses/pcre2-BSD.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "cpuinfo and simd_utils (in Bergamot)",
+   "url": "https://github.com/pytorch/cpuinfo",
+   "use": "Finding out what the processor can do, and vector math on ARM",
+   "license": "BSD-2-Clause",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/bergamot/licenses/cpuinfo-BSD-2-Clause.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "CLI11, cnpy, faiss, mio, pathie-cpp, phf, spdlog, yaml-cpp, and zstr (in Bergamot)",
+   "url": "https://github.com/marian-nmt/marian-dev",
+   "use": "Small libraries inside Marian",
+   "license": "MIT and BSD",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/bergamot/licenses/NOTICE.md",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
+   "name": "Translation models (Firefox Translations)",
+   "url": "https://github.com/mozilla/translations",
+   "use": "Languages the Translate pane translates (downloaded when you ask)",
+   "license": "MPL-2.0",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/packaging/licenses/MPL-2.0.txt",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
    "name": "pdfium-binaries",
    "url": "https://github.com/bblanchon/pdfium-binaries",
    "use": "PDFium, built",

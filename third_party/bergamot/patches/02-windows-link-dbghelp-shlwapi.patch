@@ -1,0 +1,16 @@
+Windows (MinGW): marian reads call stacks through DbgHelp and its path library (pathie-cpp) uses shlwapi; neither was on the link line.
+
+--- a/3rd_party/marian-dev/CMakeLists.txt
++++ b/3rd_party/marian-dev/CMakeLists.txt
+@@ -603,6 +603,11 @@
+   endif()
+ endif()
+ 
++if(WIN32 AND NOT MSVC)
++  # MinGW: ExceptionWithCallStack.cpp uses DbgHelp, pathie-cpp uses shlwapi
++  set(EXT_LIBS ${EXT_LIBS} dbghelp shlwapi)
++endif()
++
+ ###############################################################################
+ # Find Tcmalloc
+ if(NOT WIN32)

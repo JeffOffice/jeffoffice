@@ -44,6 +44,9 @@ appdir() {
   # qpdf (passwords in PDFs) and libjpeg-turbo, which it reads JPEG streams with.
   mkdir -p "$dir/usr/share/doc/jeffoffice/qpdf" "$dir/usr/share/doc/jeffoffice/libjpeg-turbo"
   cp "$src/third_party/qpdf/licenses/"* "$dir/usr/share/doc/jeffoffice/qpdf/"
+  # the translation engine (Bergamot) and the parts that come with it
+  mkdir -p "$dir/usr/share/doc/jeffoffice/bergamot"
+  cp "$src/third_party/bergamot/licenses/"* "$dir/usr/share/doc/jeffoffice/bergamot/"
   cp "$src/third_party/libjpeg_turbo/licenses/"* "$dir/usr/share/doc/jeffoffice/libjpeg-turbo/"
   # Qt's LGPL and source offer, Lucide, and MPL texts (not the GCC runtime exception: no GCC runtime is bundled), the GPL, and the Additional Terms.
   install -Dm644 "$src/LICENSE" "$dir/usr/share/doc/jeffoffice/LICENSE"
