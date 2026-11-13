@@ -95,7 +95,7 @@ JeffDeck selbst liest Animationen, Kommentare, zielgruppenorientierte Präsentat
 
 Eine .odp-Datei bietet keinen Platz für einige Dinge. JeffDeck listet sie nach dem Speichern in der Meldung unten im Fenster auf:
 
-- **Diagramme, Diagramme (SmartArt) und Gleichungen** werden als Bilder gespeichert. Sie können sie sehen, aber in der .odp-Datei nicht ihre Zahlen oder Teile bearbeiten.
+- **Diagramme, Schaubilder und Gleichungen** werden als Bilder gespeichert. Sie können sie sehen, aber in der .odp-Datei nicht ihre Zahlen oder Teile bearbeiten.
 - **Abschnitte** werden nicht gespeichert.
 - **Abschrägungen und Innenschatten** werden ausgelassen, ebenso Leuchten und Spiegelungen bei Schrift. Ein Schatten auf Schrift bleibt erhalten. Eine Spiegelung auf einer Form, eine Linie mit Farbverlauf, eine Linie aus zwei oder drei Strichen und die Größe eines Schattens bleiben in einer Form erhalten, die nur JeffDeck liest. Andere Programme zeigen die Form ohne Spiegelung, die Linie in ihrer ersten Farbe, einen einfachen Strich und den Schatten in der Größe des Objekts.
 - **Animationseffekte**, die beim Klick auf ein Objekt starten, und Effekte, die eine Farbe ändern, werden ausgelassen. Ein Klick auf einen Film, um ihn anzuhalten oder erneut abzuspielen, bleibt erhalten.
@@ -105,7 +105,7 @@ Behalten Sie auch Ihre .pptx-Datei, wenn Sie diese Dinge wieder benötigen.
 
 ## Was beibehalten, aber nicht angezeigt wird
 
-Manche Teile einer Datei kann JeffDeck noch nicht anzeigen oder ändern. Es behält sie zusammen mit ihren Folien und schreibt sie beim Speichern zurück, damit sie nicht verloren gehen. Dazu gehören Animationen, die in der Bildschirmpräsentation abgespielt werden, Filme und Töne, die noch nicht abgespielt werden, sowie ein Übergangseffekt, für den JeffDeck keine Form hat und der als Verblassen abgespielt wird. Diagramme und Diagramme (SmartArt) werden so angezeigt, wie sie gespeichert wurden. Siehe [Willkommen bei JeffDeck](start).
+Manche Teile einer Datei kann JeffDeck noch nicht anzeigen oder ändern. Es behält sie zusammen mit ihren Folien und schreibt sie beim Speichern zurück, damit sie nicht verloren gehen. Dazu gehören Animationen, die in der Bildschirmpräsentation abgespielt werden, Filme und Töne, die noch nicht abgespielt werden, sowie ein Übergangseffekt, für den JeffDeck keine Form hat und der als Verblassen abgespielt wird. Diagramme und Schaubilder werden so angezeigt, wie sie gespeichert wurden. Siehe [Willkommen bei JeffDeck](start).
 
 ## Siehe auch
 

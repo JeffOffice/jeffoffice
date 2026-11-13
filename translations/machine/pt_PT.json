@@ -33,8 +33,8 @@
 "out": "098e8c67e2182870"
 },
 "crunch/charts": {
-"en": "f102c722d830b9ad",
-"out": "2aed16367108f1ea"
+"en": "f9e43a6cb3b85ceb",
+"out": "adf806d342bb9cdc"
 },
 "crunch/clipboard": {
 "en": "da1407ab2e446248",
@@ -269,12 +269,12 @@
 "out": "8044eebd6363426c"
 },
 "deck/tab-playback": {
-"en": "9826b8ec94420d3d",
-"out": "8f7b5b7dfc2fc492"
+"en": "d26db78b3cca657f",
+"out": "310ba5b14bf08cb4"
 },
 "deck/tab-review": {
-"en": "20d5fdb9a99a08ae",
-"out": "d9c0e6b9c9c0c54a"
+"en": "4dfbb7307d66ae98",
+"out": "ac9b081aeea89415"
 },
 "deck/tab-slide-show": {
 "en": "751899700af4a017",
@@ -585,8 +585,8 @@
 "out": "443547b732a473d1"
 },
 "write/mail-merge": {
-"en": "d3442eb3216b1437",
-"out": "17718a2288d505a4"
+"en": "21e5b44d76dc5d1a",
+"out": "b3d34853e96e0f37"
 },
 "write/making-an-index": {
 "en": "b1cea351fa8e0d1c",
@@ -645,12 +645,12 @@
 "out": "6cf6f632016c998a"
 },
 "write/spelling": {
-"en": "05c59144a0b68824",
-"out": "970bb75cfba2a467"
+"en": "a5a54ae4507ca188",
+"out": "13b2a223fed5a5c5"
 },
 "write/start": {
-"en": "9e5719815ddb6b50",
-"out": "f68c89e7ffcb2886"
+"en": "c131e34a8e5e8ca7",
+"out": "e351f12d536a752b"
 },
 "write/styles": {
 "en": "f90d5caafef7ffb4",
@@ -4669,6 +4669,7 @@
 "4f3ac45c1bd1bc6c": "50dfaf59c68c0e36",
 "4f3db8b4124751d8": "932b070da3f0d153",
 "4f421238134b4cab": "16dda9b64c7cefa1",
+"4f48688ed04fa975": "f340a13e5b64a91a",
 "4f49ce10072c8c75": "a591b6a162c07b83",
 "4f4b09890f2b47f5": "33f401c59304622a",
 "4f5024a93c34330f": "2c982c657456c488",
@@ -5391,6 +5392,7 @@
 "5ddd82a5e5f8941d": "bfb6456e6e2a550e",
 "5de28f338c4eb691": "c100d29af26ecbab",
 "5e05aa8aa4ff0d82": "e411d11f32f8ac0f",
+"5e10354a38cab1de": "33b2320340d292ad",
 "5e15f7b4e41b418f": "32ef697d9f944753",
 "5e1825dcf58d8177": "7505b89ddcaafef1",
 "5e1d9e3abd1b0dd1": "dc7f3a5409e16666",
@@ -13265,6 +13267,7 @@
 "fdbb2127aa1d85b5": "3f383f4116dd0d53",
 "fdc1154ccb5e8068": "3d957d6339cf35f0",
 "fdc2fd6c14ad5199": "1732b35700d24eed",
+"fdc30da883d1f722": "d2df33e4e4240f69",
 "fdc94a3dbe3f4afe": "e536f303730c3413",
 "fdcc27850e512b4f": "c0f7c4696d20f8de",
 "fdcec4f5d961bbe5": "1d95582ff0d9d419",

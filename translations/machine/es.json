@@ -33,8 +33,8 @@
 "out": "5278574556b4d694"
 },
 "crunch/charts": {
-"en": "f102c722d830b9ad",
-"out": "8bb037fad4dbd744"
+"en": "f9e43a6cb3b85ceb",
+"out": "3a30b9dcb1283187"
 },
 "crunch/clipboard": {
 "en": "da1407ab2e446248",
@@ -269,12 +269,12 @@
 "out": "7771b0c72240e57f"
 },
 "deck/tab-playback": {
-"en": "9826b8ec94420d3d",
-"out": "b905d0bb6b8dde2b"
+"en": "d26db78b3cca657f",
+"out": "696eb580399c2b88"
 },
 "deck/tab-review": {
-"en": "20d5fdb9a99a08ae",
-"out": "af4aaf35675e981a"
+"en": "4dfbb7307d66ae98",
+"out": "fad3fb815c8f4f1d"
 },
 "deck/tab-slide-show": {
 "en": "751899700af4a017",
@@ -585,8 +585,8 @@
 "out": "86772009cfe7cc57"
 },
 "write/mail-merge": {
-"en": "d3442eb3216b1437",
-"out": "9516867b5d46a4ef"
+"en": "21e5b44d76dc5d1a",
+"out": "e301fc6fe3d165e7"
 },
 "write/making-an-index": {
 "en": "b1cea351fa8e0d1c",
@@ -645,12 +645,12 @@
 "out": "e42a299d45509fa2"
 },
 "write/spelling": {
-"en": "05c59144a0b68824",
-"out": "d0721d53873f516f"
+"en": "a5a54ae4507ca188",
+"out": "774f99fcfe257ec4"
 },
 "write/start": {
-"en": "9e5719815ddb6b50",
-"out": "756aa3f6c1e48291"
+"en": "c131e34a8e5e8ca7",
+"out": "7abd72a544be9c3c"
 },
 "write/styles": {
 "en": "f90d5caafef7ffb4",
@@ -4669,6 +4669,7 @@
 "4f3ac45c1bd1bc6c": "f571ae7a89335fbc",
 "4f3db8b4124751d8": "56b18e66f121e405",
 "4f421238134b4cab": "3012853b65b9683b",
+"4f48688ed04fa975": "078de926b6e7e2d7",
 "4f49ce10072c8c75": "9d356e7b348845bb",
 "4f4b09890f2b47f5": "a28fbbf2d8d316f8",
 "4f5024a93c34330f": "a01bc932ed68e2f3",
@@ -5391,6 +5392,7 @@
 "5ddd82a5e5f8941d": "87b08e109401c094",
 "5de28f338c4eb691": "4c01f8a8467676d3",
 "5e05aa8aa4ff0d82": "66e7e0c40a5c7502",
+"5e10354a38cab1de": "ad47e8105c545f5f",
 "5e15f7b4e41b418f": "9921ca171b7679e8",
 "5e1825dcf58d8177": "a05a0790ab9157e1",
 "5e1d9e3abd1b0dd1": "dc7f3a5409e16666",
@@ -13265,6 +13267,7 @@
 "fdbb2127aa1d85b5": "3bf89fec25fc2ebc",
 "fdc1154ccb5e8068": "70c0cd0de7b6d98f",
 "fdc2fd6c14ad5199": "4f05c281c26cedb7",
+"fdc30da883d1f722": "2e9dbb354f5bc7d1",
 "fdc94a3dbe3f4afe": "ac20df703c240bcc",
 "fdcc27850e512b4f": "10dc8a93d70e1e3b",
 "fdcec4f5d961bbe5": "3c4ebba99fb9b64b",

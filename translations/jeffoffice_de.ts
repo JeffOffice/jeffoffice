@@ -15797,7 +15797,7 @@ Desktop-Publishing</translation>
     <message>
         <location line="+1"/>
         <source>Indonesian</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Indonesisch</translation>
     </message>
     <message>
         <location line="+1"/>

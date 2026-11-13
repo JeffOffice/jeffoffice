@@ -15792,17 +15792,17 @@ Paginação eletrónica</translation>
     <message>
         <location line="+1"/>
         <source>Russian</source>
-        <translation type="unfinished">Russo</translation>
+        <translation type="unfinished">russo</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Indonesian</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">indonésio</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Ukrainian</source>
-        <translation type="unfinished">Ucraniano</translation>
+        <translation type="unfinished">ucraniano</translation>
     </message>
     <message>
         <location filename="../libs/text/text/textengine.cpp" line="+157"/>

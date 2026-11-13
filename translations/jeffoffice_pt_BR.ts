@@ -15797,7 +15797,7 @@ Editoração eletrônica</translation>
     <message>
         <location line="+1"/>
         <source>Indonesian</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Indonésio</translation>
     </message>
     <message>
         <location line="+1"/>
