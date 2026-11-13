@@ -12,7 +12,7 @@ namespace {
 const char kMagicFile[4] = {'J', 'Z', 'D', '1'};
 const char kMagicThesaurus[4] = {'J', 'Z', 'T', '1'};
 constexpr qint64 kBlockTarget = 64 << 10;
-constexpr quint32 kMaxBlocks = 1 << 20;
+constexpr quint32 kMaxBlocks = 1 << 16;
 constexpr quint32 kMaxKey = 4096;
 
 void put32(QByteArray &b, quint32 v)
@@ -187,7 +187,9 @@ bool Thesaurus::open(const QString &path)
     if (first.size() < 8 || memcmp(first.constData(), kMagicThesaurus, 4) != 0) return false;
     const quint32 n = get32(first.constData() + 4);
     if (n == 0 || n > kMaxBlocks) return false;
-    const qint64 tableMax = qint64(n) * (12 + kMaxKey);
+    // (each block takes at least 12 bytes of the table, and the table is never read past a fixed cap)
+    if (qint64(n) * 12 > f.size() - 8) return false;
+    const qint64 tableMax = std::min<qint64>(qint64(n) * (12 + kMaxKey), kMaxTable);
     const QByteArray head = first + f.read(std::min<qint64>(tableMax, f.size() - 8));
     return parse(head, f.size());
 }

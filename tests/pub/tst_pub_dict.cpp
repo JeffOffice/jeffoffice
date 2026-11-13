@@ -81,7 +81,9 @@ private Q_SLOTS:
     {
         const QStringList golden = QString::fromUtf8(fileBytes(QStringLiteral(JP_TEST_DATA "/dict_golden.txt"))).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
         QCOMPARE(int(golden.size()), int(std::size(jp::dictgolden::kSources)) + 1);
-        QVERIFY(!jp::dict::root().isEmpty());
+        RootGuard guard(builtRoot());   // (the compressed files the build made, and no plain ones to fall back on)
+        QCOMPARE(jp::dict::root(), builtRoot());
+        QVERIFY(QFile::exists(builtRoot() + QStringLiteral("/en/en_US.dic.jz")));
         int at = 0;
         for (const jp::dictgolden::Source &s : jp::dictgolden::kSources)
             QCOMPARE(jp::dictgolden::digest(plainRoot(), s), golden.at(at++));
@@ -91,6 +93,8 @@ private Q_SLOTS:
     void thesaurusIsTheSameFor1000Words()
     {
         const QStringList golden = QString::fromUtf8(fileBytes(QStringLiteral(JP_TEST_DATA "/dict_golden.txt"))).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+        RootGuard guard(builtRoot());
+        QCOMPARE(jp::dict::root(), builtRoot());
         QCOMPARE(golden.last(), jp::dictgolden::thesaurusDigest(plainRoot()));
         QVERIFY(jp::dict::hasThesaurus());
     }
@@ -232,6 +236,15 @@ private Q_SLOTS:
         jp::dictpack::Thesaurus h;
         QVERIFY(!h.openMemory(hugeCount));
         QVERIFY(!h.openMemory(QByteArray("JZT1")));
+        {   // a table that claims 60,000 blocks in a small file is refused before it is read
+            QTemporaryDir dir;
+            QByteArray claim("JZT1");
+            claim += QByteArray::fromHex("60ea0000") + QByteArray(100, '\0');
+            QVERIFY(writeFile(dir.filePath(QStringLiteral("t.jz")), claim));
+            jp::dictpack::Thesaurus f;
+            QVERIFY(!f.open(dir.filePath(QStringLiteral("t.jz"))));
+            QVERIFY(f.entry("happy").isEmpty());
+        }
         QVERIFY(!h.openMemory(QByteArray()));
         QVERIFY(jp::dictpack::packThesaurus(QByteArray("UTF-8\n")).isEmpty());
         QVERIFY(jp::dictpack::packThesaurus(QByteArray("UTF-8\nword|1\n") + QByteArray(2 << 20, 'x') + "\n").isEmpty());   // (an entry over the cap)
@@ -263,6 +276,22 @@ private Q_SLOTS:
         QVERIFY(jp::hyphenationPoints(QStringLiteral("hyphenation"), QStringLiteral("en-US")).isEmpty());
         QVERIFY(!jp::dict::hasThesaurus());
         QVERIFY(jp::thesaurusLookup(QStringLiteral("happy")).isEmpty());
+    }
+
+    // Hunspell reads a line of at most 65,585 bytes (its buffer less one): one byte more ends the read, as it does reading a file.
+    void aLongLineEndsTheReadAtHunspellsLimit()
+    {
+        for (const qsizetype length : {qsizetype(10), qsizetype(65585), qsizetype(65586)}) {
+            QTemporaryDir dir;
+            QVERIFY(dir.isValid());
+            QVERIFY(writeFile(dir.filePath(QStringLiteral("en/en_US.aff.jz")), jp::dictpack::pack("SET UTF-8\n")));
+            QVERIFY(writeFile(dir.filePath(QStringLiteral("en/en_US.dic.jz")), jp::dictpack::pack("3\nalpha\n" + QByteArray("gamma\tst:") + QByteArray(length - 9, 'x') + "\nbeta\n")));
+            RootGuard guard(dir.path());
+            QVERIFY(jp::dict::hasSpelling(QStringLiteral("en-US")));
+            QVERIFY(jp::dict::spell(QStringLiteral("en-US"), QStringLiteral("alpha")));
+            QCOMPARE(jp::dict::spell(QStringLiteral("en-US"), QStringLiteral("beta")), length <= 65585);   // (the word after it)
+            QCOMPARE(jp::dict::spell(QStringLiteral("en-US"), QStringLiteral("gamma")), length <= 65585);   // (the long line itself)
+        }
     }
 
     // The compressed hyphenation patterns break words as the plain ones did.

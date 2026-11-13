@@ -889,6 +889,7 @@ target_link_libraries(jo_dictpack PRIVATE Qt6::Core jp_zlib)
 set_target_properties(jo_dictpack PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
 file(GLOB_RECURSE JO_DICT_FILES CONFIGURE_DEPENDS RELATIVE ${CMAKE_SOURCE_DIR}/resources/dict ${CMAKE_SOURCE_DIR}/resources/dict/*)
 set(JO_DICT_OUTPUTS)
+set(JO_DICT_EXPECTED)
 foreach(rel ${JO_DICT_FILES})
   set(src ${CMAKE_SOURCE_DIR}/resources/dict/${rel})
   get_filename_component(reldir ${rel} DIRECTORY)
@@ -902,17 +903,23 @@ foreach(rel ${JO_DICT_FILES})
       COMMAND jo_dictpack ${packflag} ${src} ${JO_BUILD_DATA_DIR}/dict/${rel}.jz
       DEPENDS jo_dictpack ${src} VERBATIM)
     list(APPEND JO_DICT_OUTPUTS ${JO_BUILD_DATA_DIR}/dict/${rel}.jz)
+    list(APPEND JO_DICT_EXPECTED ${rel}.jz)
   else()
     add_custom_command(OUTPUT ${JO_BUILD_DATA_DIR}/dict/${rel}
       COMMAND ${CMAKE_COMMAND} -E make_directory ${JO_BUILD_DATA_DIR}/dict/${reldir}
       COMMAND ${CMAKE_COMMAND} -E copy_if_different ${src} ${JO_BUILD_DATA_DIR}/dict/${rel}
       DEPENDS ${src} VERBATIM)
     list(APPEND JO_DICT_OUTPUTS ${JO_BUILD_DATA_DIR}/dict/${rel})
+    list(APPEND JO_DICT_EXPECTED ${rel})
   endif()
 endforeach()
+# What the folder holds, from the sources: the build removes any other file (a dictionary taken out of resources/dict must not stay installed).
+list(JOIN JO_DICT_EXPECTED "\n" JO_DICT_EXPECTED_TEXT)
+file(WRITE ${CMAKE_BINARY_DIR}/dict-expected.txt "${JO_DICT_EXPECTED_TEXT}\n")
 add_custom_target(jeffoffice_data
   COMMAND ${CMAKE_COMMAND} -E make_directory ${JO_BUILD_DATA_DIR}/i18n
   COMMAND ${JO_HELP_LINK}
+  COMMAND ${CMAKE_COMMAND} -DDICT=${JO_BUILD_DATA_DIR}/dict -DEXPECTED=${CMAKE_BINARY_DIR}/dict-expected.txt -P ${CMAKE_SOURCE_DIR}/cmake/dictclean.cmake
   COMMAND ${CMAKE_COMMAND} -DHELP_SRC=${CMAKE_SOURCE_DIR}/resources/help -DDATA=${JO_BUILD_DATA_DIR} -DVERSION=${PROJECT_VERSION}
           -P ${CMAKE_SOURCE_DIR}/cmake/datamanifest.cmake
   DEPENDS ${JO_I18N_COPIES} ${JO_DICT_OUTPUTS} VERBATIM)

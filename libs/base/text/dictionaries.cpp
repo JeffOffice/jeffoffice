@@ -123,7 +123,13 @@ QHash<QString, std::shared_ptr<Checker>> &loadedTable()
 }
 
 bool s_thesaurusTried = false;
-QString s_rootOverride;
+QString s_rootOverride;   // (guarded by rootMutex: root() is called with the other locks held)
+
+QMutex &rootMutex()
+{
+    static QMutex m;
+    return m;
+}
 
 QMutex &thesaurusMutex()
 {
@@ -233,7 +239,10 @@ int loadedCount() { return int(loadedTable().size()); }
 void setRootOverride(const QString &dir)
 {
     QMutexLocker lock(&mutex());
-    s_rootOverride = dir;
+    {
+        QMutexLocker rootLock(&rootMutex());
+        s_rootOverride = dir;
+    }
     loadedTable().clear();
     QMutexLocker thesaurusLock(&thesaurusMutex());
     thesaurusFile().close();
@@ -242,7 +251,10 @@ void setRootOverride(const QString &dir)
 
 QString root()
 {
-    if (!s_rootOverride.isEmpty()) return s_rootOverride;
+    {
+        QMutexLocker rootLock(&rootMutex());
+        if (!s_rootOverride.isEmpty()) return s_rootOverride;
+    }
     static const QString dir = [] {
         const QString app = QCoreApplication::applicationDirPath();
         QStringList dirs;

@@ -259,7 +259,7 @@ void addThirdPartyList(QBoxLayout *card, QWidget *parent, const QFont &headingFo
     // apps load the same translation files, so each language's wording carries over.)
     QList<ThirdParty> parts = {
         {QStringLiteral("Qt 6"), QStringLiteral("https://www.qt.io/"), QCoreApplication::translate("jp::Backstage", "Interface, text layout, PDF and printing"), QStringLiteral("LGPL-3.0"), QStringLiteral("https://www.gnu.org/licenses/lgpl-3.0.html")},
-        {QStringLiteral("Hunspell"), QStringLiteral("https://hunspell.github.io/"), QCoreApplication::translate("jp::Backstage", "Spelling checker"), QStringLiteral("MPL-1.1, GPL-2.0+ or LGPL-2.1+"), QStringLiteral("https://www.mozilla.org/MPL/1.1/")},
+        {QStringLiteral("Hunspell (modified)"), QStringLiteral("https://hunspell.github.io/"), QCoreApplication::translate("jp::Backstage", "Spelling checker"), QStringLiteral("MPL-1.1, GPL-2.0+ or LGPL-2.1+"), QStringLiteral("https://www.mozilla.org/MPL/1.1/")},
         // The dictionaries, from LibreOffice's (resources/dict/README.md).
         {QStringLiteral("English dictionaries (SCOWL; UK)"), QStringLiteral("http://wordlist.aspell.net/"), QCoreApplication::translate("jp::Backstage", "Spelling"), QStringLiteral("SCOWL license; LGPL (UK)"),
          QStringLiteral("https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/en/README_en_US.txt")},

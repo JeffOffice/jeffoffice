@@ -142,7 +142,7 @@ as above, offscreen, warm file cache, `jo_dictbench` (tools/dictbench.cpp; Linux
    (4 bytes), and the zlib stream. `dict::readFile(path)` inflates `path.jz` when it is there, else reads the plain file (the source tree and
    older installs keep working). Hunspell had no way to read from memory (`FileMgr` opens a path with `std::ifstream`), so there is **one patch**
    (`third_party/CMakeLists.txt`, listed in `third_party/README.md`): `filemgr.hxx/.cxx` get a hook, `jeffoffice_memory_file`, and `FileMgr`
-   reads its lines from memory for a name the hook claims. The build copies Hunspell's sources to the build folder and patches the copies (the
+   reads its lines from memory for a name the hook claims, as 1.7.6's `fin.getline` gives them (buffer limit included). The build copies Hunspell's sources to the build folder and patches the copies (the
    downloaded tree, shared by worktrees, is never edited; a source that is not 1.7.6 stops the build). The files are inflated, handed to
    Hunspell under made-up names, and freed when it has loaded them: the memory that stays is Hunspell's own tables, as before.
 3. **Thesaurus**: measured both ways. Inflating the whole 18.6 MB at first use costs 75 ms and holds 18.6 MB (plus the old 16 MB hash index
@@ -192,8 +192,11 @@ bundles' copies cost one; that part is unchanged).
 `PubDictTests` (tests/pub/tst_pub_dict.cpp):
 - **Spelling is the same for every language**: tests/data/dict_golden.txt holds, for each of the 33 languages, how many words of a word
   list taken from its plain `.dic` (every Nth word, the word in capitals, and a misspelling of it: 363 or more words) are right, and the SHA-1 of
-  every answer plus the suggestions for six wrong words. The file was made with the old code, reading the plain files; the test checks the
-  installed (compressed) files against it.
+  every answer. It was made with main's dictionary code (d1d647828: `libs/base/text/dictionaries.cpp`, `hyphenation.cpp`, and
+  `proofingdialogs.cpp` checked out over this branch, `jo_dictbench --golden resources/dict`) reading the plain files through Hunspell's own file
+  path, linked against the real, hash-pinned Hunspell 1.7.6 (twice, identical). The test points the dictionaries at the build's compressed
+  folder (`RootGuard(builtRoot())`, root checked) so it cannot fall back to plain files. Suggestions are not in the digest: Hunspell cuts its
+  search at a time limit, so they differ from run to run on a busy machine.
 - **Thesaurus**: the same file holds the SHA-1 of the lookup results for 1,000 words (a third of them inflected, to use the base-form
   search), made before the change. In addition every one of the thesaurus's 145,866 words has the same entry as the plain file's.
 - Every compressed file inflates to the plain file byte for byte, and the licenses and READMEs are the same files; no plain dictionary is installed.

@@ -125,6 +125,11 @@ def main():
             problems.append("%s is new: add its row to the About list (%s, or the app's own) and to PARTS in this script" % (key, SHARED))
         elif PARTS[key] and not any(n.startswith(PARTS[key]) for n in names):
             problems.append("%s is carried, but no row of the About list starts with %r" % (key, PARTS[key]))
+    # A component the README of third_party lists a patch for ("## Name (modified)") must say so in its row: "Name (modified)".
+    with open(os.path.join(ROOT, "third_party/README.md"), encoding="utf-8") as f:
+        for m in re.finditer(r"^## (.+?) \(modified\)\s*$", f.read(), re.M):
+            if not any(n.startswith(m.group(1)) and "(modified)" in n for n in names):
+                problems.append("third_party/README.md lists changes to %s, but no row of the About list is named '%s (modified)'" % (m.group(1), m.group(1)))
     data = json.dumps({"about": "Third-party software in JeffOffice, from the apps' About pages (tools/check_third_party.py)",
                        "parts": lst}, indent=1, ensure_ascii=False) + "\n"
     path = os.path.join(ROOT, JSON)

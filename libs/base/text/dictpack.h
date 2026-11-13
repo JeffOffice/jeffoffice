@@ -18,6 +18,7 @@ namespace jp::dictpack {
 constexpr qint64 kMaxFile = 64 << 20;    // the most a packed dictionary may inflate to (the largest shipped is 9 MB)
 constexpr qint64 kMaxBlock = 4 << 20;    // the most a block of the packed thesaurus may inflate to (they are about 64 KB)
 constexpr qint64 kMaxEntry = 1 << 20;    // the most one thesaurus entry may hold
+constexpr qint64 kMaxTable = 16 << 20;   // the most of a packed thesaurus's table that is read (the shipped one is about 5 KB)
 constexpr const char *kSuffix = ".jz";   // what a packed file's name adds
 
 // `plain` as a packed file; empty when zlib fails (or `plain` is over the cap).

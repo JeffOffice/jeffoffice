@@ -43,6 +43,10 @@ rm -rf "$H"
 case "$r" in *"dictionaries $real/share/jeffoffice/dict"*) ;; *) note "datacheck did not read the dictionaries from the prefix: $r" ;; esac
 plain=$(find "$P/share/jeffoffice/dict" -type f \( -name '*.dic' -o -name '*.aff' -o -name '*.dat' \) 2>/dev/null | wc -l)
 [ "$plain" = 0 ] || note "$plain plain dictionary files were installed (they should be the compressed .jz files only)"
-[ "$(find "$P/share/jeffoffice/dict" -name '*.jz' 2>/dev/null | wc -l)" -ge 69 ] || note "the compressed dictionary files are missing"
+# exactly the files the sources make: each .dic, .aff, and .dat as name.jz, everything else (licenses, READMEs) as it is
+src=$(sed -n 's/^CMAKE_HOME_DIRECTORY:INTERNAL=\(.*\)$/\1/p' "$B/CMakeCache.txt")
+want=$(cd "$src/resources/dict" 2>/dev/null && find . -type f | sed -e 's|^\./||' -e 's|\.\(dic\|aff\|dat\)$|&.jz|' | sort)
+have=$(cd "$P/share/jeffoffice/dict" 2>/dev/null && find . -type f | sed 's|^\./||' | sort)
+[ -n "$want" ] && [ "$want" = "$have" ] || note "the installed dictionary files are not the ones the sources make: $(diff <(echo "$want") <(echo "$have") | head -4 | tr '\n' ' ')"
 case "$r" in *"data folder $real/share/jeffoffice/help"*) ;; *) note "datacheck did not use the prefix's data folder: $r" ;; esac
 if [ -z "$bad" ]; then echo "packaged layout: OK"; else echo "packaged layout: FAILED$bad" | cut -c1-600; exit 1; fi

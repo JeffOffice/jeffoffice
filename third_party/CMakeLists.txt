@@ -71,7 +71,7 @@ if(NOT hunspell_POPULATED)
 endif()
 # OUR PATCH to Hunspell 1.7.6 (also listed in third_party/README.md): a dictionary can be read from memory, so the installed dictionaries
 # can be compressed files that are inflated in memory and never written out. filemgr.hxx/.cxx gain a hook, jeffoffice_memory_file: when
-# it is set and says a name is a file in memory, FileMgr reads its lines from that memory (the same lines std::getline would give).
+# it is set and says a name is a file in memory, FileMgr reads its lines from that memory (the same lines fin.getline gives, with its limit: a line longer than the buffer ends the read).
 # Nothing else changes. The patched copies of the sources are made in the build folder (the downloaded sources are never edited).
 set(HUNSPELL_PATCHED ${CMAKE_CURRENT_BINARY_DIR}/hunspell-patched/src/hunspell)
 # (the patch strings are quoted arguments, so a ";" in them stays inside one argument; a checkout with CRLF line endings must not
@@ -108,15 +108,22 @@ class FileMgr {")
   size_t mempos;
 ")
     else()
-      jo_hunspell_patch(filemgr.cxx "FileMgr::FileMgr(const char* file, const char* key) : hin(NULL), linenum(0) {
+      jo_hunspell_patch(filemgr.cxx "FileMgr::FileMgr(const char* file, const char* key)
+    : hin(nullptr)
+    , linenum(0) {
   in[0] = '\\0';
 
   if (!file || !strlen(file))
     return;
 "
-"bool (*jeffoffice_memory_file)(const char* name, const char** data, size_t* size) = NULL;   /* JeffOffice patch */
+"bool (*jeffoffice_memory_file)(const char* name, const char** data, size_t* size) = nullptr;   /* JeffOffice patch */
 
-FileMgr::FileMgr(const char* file, const char* key) : hin(NULL), linenum(0), mem(NULL), memsize(0), mempos(0) {
+FileMgr::FileMgr(const char* file, const char* key)
+    : hin(nullptr)
+    , linenum(0)
+    , mem(nullptr)
+    , memsize(0)
+    , mempos(0) {
   in[0] = '\\0';
 
   if (!file || !strlen(file))
@@ -127,14 +134,19 @@ FileMgr::FileMgr(const char* file, const char* key) : hin(NULL), linenum(0), mem
       jo_hunspell_patch(filemgr.cxx "  ++linenum;
   if (fin.is_open()) {"
 "  ++linenum;
-  if (mem) {   /* JeffOffice patch: a line of the file in memory, as std::getline gives it (the newline is dropped) */
+  if (mem) {   /* JeffOffice patch: a line of the file in memory, as the fin.getline read below gives it: a line of more than sizeof(in) - 1 bytes ends the read, and a line ends at a NUL */
     if (mempos >= memsize) {
       --linenum;
       return false;
     }
     const char* nl = static_cast<const char*>(memchr(mem + mempos, '\\n', memsize - mempos));
     const size_t end = nl ? static_cast<size_t>(nl - mem) : memsize;
-    dest.assign(mem + mempos, end - mempos);
+    if (end - mempos > sizeof(in) - 1) {
+      mempos = memsize;
+      --linenum;
+      return false;
+    }
+    dest.assign(mem + mempos, strnlen(mem + mempos, end - mempos));
     mempos = nl ? end + 1 : memsize;
     return true;
   }

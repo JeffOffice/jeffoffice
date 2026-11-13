@@ -1,6 +1,6 @@
 #pragma once
-// A word list per language, drawn from the plain dictionaries of resources/dict, and what the checker says of each word (and its
-// suggestions for a few misspelled ones), as one SHA-1 per language. tests/data/dict_golden.txt was made (tools/dictbench.cpp --golden) when
+// A word list per language, drawn from the plain dictionaries of resources/dict, and what the checker says of each word, as one SHA-1 per
+// language. (Suggestions are left out: Hunspell stops its search on a time limit, so they differ from run to run on a busy machine.) tests/data/dict_golden.txt was made (tools/dictbench.cpp --golden) when
 // the dictionaries were read as plain files; the test (tst_pub_dict.cpp) checks the compressed ones in the install give the same.
 
 #include "app/proofingdialogs.h"
@@ -60,23 +60,18 @@ inline QStringList words(const QString &plainRoot, const Source &s, int want = 1
     return out;
 }
 
-// "code count valid hash": how many words, how many are right, and the SHA-1 of every word's answer and of the suggestions for the
-// first six words the language rejects.
+// "code count valid hash": how many words, how many are right, and the SHA-1 of every word's answer.
 inline QString digest(const QString &plainRoot, const Source &s)
 {
     const QString code = QLatin1String(s.code);
     const QStringList list = words(plainRoot, s);
     if (list.isEmpty()) return code + QStringLiteral(" no words");
     QCryptographicHash h(QCryptographicHash::Sha1);
-    int valid = 0, sug = 0;
+    int valid = 0;
     for (const QString &w : list) {
         const bool ok = jp::dict::spell(code, w);
         valid += ok;
         h.addData((w + QLatin1Char('\t') + (ok ? QLatin1Char('1') : QLatin1Char('0')) + QLatin1Char('\n')).toUtf8());
-        if (!ok && sug < 6) {
-            ++sug;
-            h.addData((w + QLatin1Char('\t') + jp::dict::suggest(code, w).join(QLatin1Char('|')) + QLatin1Char('\n')).toUtf8());
-        }
     }
     return QStringLiteral("%1 %2 %3 %4").arg(code).arg(list.size()).arg(valid).arg(QString::fromLatin1(h.result().toHex()));
 }
