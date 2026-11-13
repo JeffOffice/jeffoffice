@@ -20,7 +20,7 @@ const QLatin1String kSuiteFiles("jeffoffice");
 }
 
 namespace {
-QStringList s_held{QStringLiteral("ru"), QStringLiteral("id"), QStringLiteral("uk")};   // (HELD in tools/translate/translate.py)
+QStringList s_held{};   // (HELD in tools/translate/translate.py)
 }
 
 QStringList heldUiLanguages() { return s_held; }

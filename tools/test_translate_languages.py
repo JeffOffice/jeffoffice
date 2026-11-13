@@ -24,14 +24,22 @@ class Languages(unittest.TestCase):
         self.assertEqual(T.check("%n page(s)", ["one page", "%n pages"], True, 2), "")
         self.assertNotEqual(T.check("%n page(s)", ["одна страница", "%n страницы", "%n страниц"], True, 3), "")
 
+    def test_released_languages_are_kept_up(self):
+        # Russian, Indonesian, and Ukrainian were released in 0.27.1: the nightly run (no language named) keeps them up like the rest.
+        for lang in ("ru", "id", "uk", "de"):
+            self.assertTrue(os.path.exists(T.ts_path(lang)), lang)
+            self.assertIn(lang, T.default_languages())
+        self.assertFalse({"ru", "id", "uk"} & T.HELD)
+
     def test_a_held_language_is_not_translated_unless_named(self):
-        # The nightly run names no language: it must not start paying for Russian, Indonesian, and Ukrainian (their files exist) before they are approved.
-        self.assertTrue({"ru", "id", "uk"} <= T.HELD)
-        self.assertTrue(os.path.exists(T.ts_path("ru")))
-        self.assertNotIn("ru", T.default_languages())
-        self.assertNotIn("id", T.default_languages())
-        self.assertNotIn("uk", T.default_languages())
-        self.assertIn("de", T.default_languages())
+        # A language added later starts held: the nightly run must not start paying for it before it is approved.
+        held = T.HELD
+        try:
+            T.HELD = {"ru"}
+            self.assertNotIn("ru", T.default_languages())
+            self.assertIn("de", T.default_languages())
+        finally:
+            T.HELD = held
 
     def test_the_program_holds_the_same_languages(self):
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

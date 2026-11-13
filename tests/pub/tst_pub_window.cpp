@@ -1865,9 +1865,12 @@ private Q_SLOTS:
                 jp::installTranslations();
             }
         } restore;
+        // Russian, Indonesian, and Ukrainian were released in 0.27.1: nothing is held, and all three are offered.
+        QVERIFY(jp::heldUiLanguages().isEmpty());
+        for (const char *name : {"ru", "id", "uk"}) QVERIFY2(jp::availableUiLanguages().contains(QLatin1String(name)), name);
         // Held languages are not offered, nor picked from the system's languages or a saved choice; taken off the list, they are.
-        const QStringList held = jp::heldUiLanguages();
-        QVERIFY(!held.isEmpty());
+        const QStringList held{QStringLiteral("ru"), QStringLiteral("id"), QStringLiteral("uk")};
+        jp::setHeldUiLanguages(held);
         for (const QString &lang : held) {
             const QByteArray name = lang.toLatin1();
             QVERIFY2(!jp::availableUiLanguages().contains(lang), name.constData());
