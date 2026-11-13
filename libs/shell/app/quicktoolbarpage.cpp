@@ -97,6 +97,10 @@ QuickToolbarPage::QuickToolbarPage(AppWindow *win, QWidget *parent) : QWidget(pa
     m_below = new QCheckBox(tr("Show Quick Toolbar below the ribbon"), this);
     m_below->setObjectName(QStringLiteral("quickBelow"));
     m_below->setChecked(saved.quickBelow);
+    connect(m_below, &QCheckBox::clicked, this, [this] {
+        m_belowTouched = true;
+        showState();
+    });
     m_below->setToolTip(tr("Puts the quick toolbar in a row under the ribbon instead of at the top left of the window."));
     col->addWidget(m_below);
 
@@ -154,6 +158,8 @@ QuickToolbarPage::QuickToolbarPage(AppWindow *win, QWidget *parent) : QWidget(pa
     });
     connect(m_resetAll, &QPushButton::clicked, this, [this] {
         m_plan.resetQuick();
+        m_below->setChecked(false);
+        m_belowTouched = true;
         fillToolbar(-1);
         say(QString());
     });
@@ -216,7 +222,8 @@ void QuickToolbarPage::showState()
 {
     const int row = m_toolbar->currentRow(), count = m_toolbar->count();
     if (m_locked) {
-        for (QPushButton *b : {m_add, m_separator, m_up, m_down, m_remove, m_resetOne, m_resetAll}) b->setEnabled(false);
+        for (QPushButton *b : {m_add, m_separator, m_up, m_down, m_remove, m_resetOne}) b->setEnabled(false);
+        m_resetAll->setEnabled(m_below->isChecked());
         say(tr("This quick toolbar has a command that cannot be kept in a list, so it cannot be changed here."));
         return;
     }
@@ -227,7 +234,7 @@ void QuickToolbarPage::showState()
     m_remove->setEnabled(row >= 0);
     const QString target = resetTarget();
     m_resetOne->setEnabled(!target.isEmpty() && m_plan.quickCommandChanged(target, m_defaults));
-    m_resetAll->setEnabled(!m_plan.isEmpty());
+    m_resetAll->setEnabled(!m_plan.isEmpty() || m_below->isChecked());
 }
 
 void QuickToolbarPage::say(const QString &text)
@@ -240,7 +247,7 @@ void QuickToolbarPage::apply()
     RibbonCustom out = RibbonCustom::load();   // (what the Ribbon page keeps stays as it is)
     out.quickSet = m_plan.quickSet;
     out.quick = m_plan.quick;
-    out.quickBelow = m_below->isChecked();
+    if (m_belowTouched) out.quickBelow = m_below->isChecked();   // (a choice made from the right-click menu while Options was open stays, unless the box was used here)
     out.save();
     RibbonCustom::applyAll();
 }

@@ -163,7 +163,7 @@ void WriteWindow::addLinkFieldNoteContextMenu(QMenu &menu)
             m_view->viewport()->update();
             refreshUi();
         });
-        if (write::mail::barcodeFieldAt(*m_doc, at)) local("ctx.editBarcode", tr("Edit Barcode…"), [this, at] { editBarcodeField(at); });
+        if (const auto bf = write::mail::barcodeFieldAt(*m_doc, at); bf && bf->editable) local("ctx.editBarcode", tr("Edit Barcode…"), [this, at] { editBarcodeField(at); });
         for (const char *id : {"fields.update", "fields.toggleCode", "fields.lock", "fields.unlock", "fields.unlink"}) menu.addAction(act(QString::fromLatin1(id)));
     }
     if (const int note = write::footnoteReferenceAt(*m_doc, at); note >= 0) {

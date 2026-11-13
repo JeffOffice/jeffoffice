@@ -13,6 +13,7 @@
 #include <QTextCursor>
 #include <QTimer>
 #include <functional>
+#include <QHash>
 #include <memory>
 
 class QMenu;
@@ -243,6 +244,9 @@ public:
     // A barcode field (a DISPLAYBARCODE field, which the page shows as its bars): its box in the window, by the position its field begins at (false where it is not on a page that is drawn), and the
     // field under a point of the window (its position, -1 for none).
     bool barcodeFieldRect(int begin, QRect *rect);
+    // How many times the barcode fields have been looked for in the text (for tests).
+    static int barcodeScansForTest();
+    static int barcodeBoxesForTest();   // ... and how many boxes were worked out for them
     int barcodeFieldAtPoint(const QPoint &viewportPos);
     // The handle (or the picture itself) at a point of the window; and the point a handle is at.
     PictureHandle pictureHandleAt(const QPoint &viewportPos);
@@ -511,11 +515,16 @@ private:
         QRectF rect;
     };
     RectCache m_rectCache;
-    // The barcode fields of the text, found again when the text changed.
-    std::shared_ptr<const QVector<mail::BarcodeField>> m_barcodeList;
+    // The barcode fields of the text, found again only when an edit touched a field or put one in (any other edit moves the places of those after it).
+    std::shared_ptr<QVector<mail::BarcodeField>> m_barcodeList;
+    QVector<std::shared_ptr<void>> m_barcodeLayouts;                // the bars of each field, made when it is first drawn (a barcode::Layout)
+    QHash<QString, std::shared_ptr<void>> m_barcodeLayoutByJson;   // ... and kept for the same settings
     const WriteDoc *m_barcodeDoc = nullptr;
-    int m_barcodeRevision = -1;
+    bool m_barcodeDirty = true;
+    QMetaObject::Connection m_barcodeConnection;
     const QVector<mail::BarcodeField> &barcodeFieldList();
+    std::shared_ptr<const void> barcodeBarsOf(int index);
+    bool barcodeFieldsOnPage(int page, int *first, int *last);   // the fields that may be on a page, as a range of the list
     bool barcodeFieldBox(const mail::BarcodeField &field, int *page, QRectF *rect);   // in the page's points
     void paintBarcodeFields(QPainter &p, int page);
     quint64 m_layoutSerial = 0;   // counted up each time the pages are made again

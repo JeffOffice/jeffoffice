@@ -568,7 +568,7 @@ QJsonObject barcodeSettingsOfField(const fields::Code &code, const QString &valu
 
 QString barcodeMark(const QString &nonce, int n) { return QChar(0xE000) + nonce + QLatin1Char(':') + QString::number(n) + QChar(0xE001); }
 
-bool insertBarcodeField(WriteDoc &doc, QTextCursor &c, const QString &column, const QJsonObject &settings)
+bool insertBarcodeField(WriteDoc &doc, QTextCursor &c, const QString &column, const QJsonObject &settings, const QString &extra)
 {
     const barcode::Options o = barcodeOptions(settings);
     // (A book's ISBN is written as EAN-13, the type the field syntax has for its 13 digits.)
@@ -587,6 +587,7 @@ bool insertBarcodeField(WriteDoc &doc, QTextCursor &c, const QString &column, co
     if (type == barcode::Type::Qr) code += QStringLiteral(" \\q %1").arg(o.qrLevel);
     else code += QStringLiteral(" \\h %1").arg(int(std::lround(drawnHeightTwips(type, o.magnification, o.barHeight, o.text))));
     if (o.text && type != barcode::Type::Qr) code += QStringLiteral(" \\t");
+    if (!extra.trimmed().isEmpty()) code += QLatin1Char(' ') + extra.trimmed();   // (what the dialog does not own: other switches and words the field had)
     return insertRule(doc, c, code, QString::fromUtf8("\xC2\xAB") + QCoreApplication::translate("jp::write::Mail", "Barcode: %1").arg(column.trimmed()) + QString::fromUtf8("\xC2\xBB"));
 }
 
@@ -633,12 +634,14 @@ std::optional<BarcodeField> barcodeFieldOf(const StoryScan &scan, int at)
         out.column = merge.match(code.arguments.value(0)).captured(1);
     }
     // The value is the result when it is one (not the name in guillemets) and the code can hold it, else a sample.
+    // (the length is looked at first: a result of megabytes is never hashed or encoded)
     QString value = scan.resultOf(at).trimmed();
-    const bool shown = !value.isEmpty() && !(value.startsWith(QChar(0xAB)) && value.endsWith(QChar(0xBB)));
+    const bool shown = !value.isEmpty() && value.size() <= kMostBarcodeFieldValueChars && !(value.startsWith(QChar(0xAB)) && value.endsWith(QChar(0xBB)));
     out.settings = barcodeSettingsOfField(code, shown ? value : QString());
     if (out.settings.isEmpty()) return std::nullopt;
+    out.editable = !out.column.isEmpty() && !f.locked;
     const barcode::Type type = barcode::Type(out.settings.value(QLatin1String("type")).toInt());
-    out.sample = !shown || !barcodeLayout(out.settings).error.isEmpty() || !barcode::tooLong(barcodeOptions(out.settings)).isEmpty();
+    out.sample = !shown || !barcode::tooLong(barcodeOptions(out.settings)).isEmpty() || !barcodeLayout(out.settings).error.isEmpty();
     if (out.sample) out.settings.insert(QStringLiteral("data"), sampleValue(type));
     return out;
 }
@@ -671,12 +674,20 @@ bool changeBarcodeField(WriteDoc &doc, int position, const QJsonObject &settings
     while (at >= 0 && scan.fields[at].parent >= 0) at = scan.fields[at].parent;
     if (at < 0) return false;
     const auto field = barcodeFieldOf(scan, at);
-    if (!field || scan.fields[at].locked || field->column.isEmpty()) return false;
+    if (!field || !field->editable) return false;
+    // What the dialog does not own stays: the words after the type that are not its switches (\s \q \h \t), such as \b or \d.
+    QString extra;
+    {
+        static const QRegularExpression head(QStringLiteral("^\\s*DISPLAYBARCODE\\s+\"[^\"]*\"\\s+\\S+(.*)$"), QRegularExpression::CaseInsensitiveOption | QRegularExpression::DotMatchesEverythingOption);
+        static const QRegularExpression owned(QStringLiteral("\\s*\\\\(?:[sqhSQH]\\s+\\S+|[tT](?=\\s|$))"));
+        const QRegularExpressionMatch m = head.match(scan.instructionOf(at));
+        if (m.hasMatch()) extra = m.captured(1).remove(owned).trimmed();
+    }
     QTextCursor whole(doc.story());
     whole.setPosition(scan.fields[at].begin);
     whole.setPosition(scan.fields[at].end + 1, QTextCursor::KeepAnchor);
     const WriteDoc::StepGroup group(doc);
-    return insertBarcodeField(doc, whole, field->column, settings);
+    return insertBarcodeField(doc, whole, field->column, settings, extra);
 }
 
 QString addressBlockCode(const QString &formatIn, const QString &homeCountry)

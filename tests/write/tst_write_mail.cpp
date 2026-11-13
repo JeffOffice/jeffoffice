@@ -24,6 +24,7 @@
 #include <QComboBox>
 #include <QDialog>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QDockWidget>
 #include <QFile>
 #include <QMenu>
@@ -473,28 +474,25 @@ private Q_SLOTS:
         QVERIFY(box.width() > 20 && box.height() > 5);
         QCOMPARE(w.view()->barcodeFieldAtPoint(box.center()), begin);
         QCOMPARE(w.view()->barcodeFieldAtPoint(QPoint(2, 2)), -1);
-        // Bars: black or white and nothing between (lettering has gray edges), changing across the box many times.
-        auto bars = [&](int *changes) {
+        // Bars: the same pattern of dark and light at two heights of the box (the bars run its height; lettering would not repeat), changing across it many times. The box is in the window's
+        // units; the picture of it is in device pixels.
+        auto bars = [&](int *changes, int *matching, int *total) {
             const QImage image = w.view()->viewport()->grab().toImage();
-            int gray = 0, last = -1;
-            *changes = 0;
-            const int y = box.center().y();
-            for (int x = box.left() + 1; x < box.right(); ++x) {
-                const int v = qGray(image.pixel(x, y));
-                if (v > 20 && v < 235) ++gray;
-                const int dark = v < 128;
-                if (last >= 0 && dark != last) ++*changes;
-                last = dark;
+            const double r = image.devicePixelRatio() > 0 ? w.view()->viewport()->devicePixelRatioF() : 1.0;
+            const QRect b(QPointF(box.left() * r, box.top() * r).toPoint(), QSizeF(box.width() * r, box.height() * r).toSize());
+            const int y1 = b.top() + b.height() / 4, y2 = b.top() + b.height() * 3 / 4;
+            *changes = *matching = *total = 0;
+            int last = -1;
+            for (int x = b.left() + 2; x < b.right() - 2; ++x) {
+                const bool d1 = qGray(image.pixel(x, y1)) < 128, d2 = qGray(image.pixel(x, y2)) < 128;
+                ++*total;
+                *matching += d1 == d2;
+                if (last >= 0 && int(d1) != last) ++*changes;
+                last = d1;
             }
-            for (int y2 = box.top() + 1; y2 < box.bottom(); ++y2)
-                for (int x = box.left() + 1; x < box.right(); ++x) {
-                    const int v = qGray(image.pixel(x, y2));
-                    if (v > 20 && v < 235) ++gray;
-                }
-            return gray;
         };
-        int changes = 0;
-        QTRY_VERIFY((bars(&changes) == 0 && changes >= 10));
+        int changes = 0, matching = 0, total = 0;
+        QTRY_VERIFY((bars(&changes, &matching, &total), total > 10 && changes >= 10 && matching * 100 >= total * 95));
         // A double click opens the barcode dialog on it: the type there is changed and the field has it.
         auto changeType = [&](barcode::Type type) {
             return [type](QDialog *d) {
@@ -524,6 +522,119 @@ private Q_SLOTS:
         QCOMPARE(edit->text(), QStringLiteral("Edit Barcode\u2026"));
         withDialog([&] { edit->trigger(); }, QStringLiteral("barcodeDialog"), changeType(barcode::Type::Qr));
         QCOMPARE(mail::barcodeFields(*w.document()).value(0).settings.value(QLatin1String("type")).toInt(), int(barcode::Type::Qr));
+    }
+
+    // A value of megabytes is not hashed or encoded: it is shown as the sample, in a short time, for every type.
+    void aHugeBarcodeFieldValueIsNotEncoded()
+    {
+        const QByteArray huge(3 * 1024 * 1024, 'A');
+        for (const char *type : {"CODE128", "QR", "EAN13", "CODE39"}) {
+            auto doc = open(makeDocx(para(run("x") + "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> DISPLAYBARCODE \"</w:instrText></w:r>" +
+                                            field("MERGEFIELD Name", "x") + "<w:r><w:instrText xml:space=\"preserve\">\" " + type + " \\s 100 </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" +
+                                            run(huge) + "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>")));
+            QVERIFY(doc);
+            QElapsedTimer t;
+            t.start();
+            const QVector<mail::BarcodeField> list = mail::barcodeFields(*doc);
+            QVERIFY2(t.elapsed() < 250, type);
+            QCOMPARE(list.size(), 1);
+            QVERIFY(list[0].sample);
+            QVERIFY(list[0].settings.value(QLatin1String("data")).toString().size() < 100);
+        }
+    }
+
+    // Other switches and words of the field stay when its type and look are changed; a field with no merge field in it is listed but is not editable.
+    void changingABarcodeFieldKeepsWhatTheDialogDoesNotOwn()
+    {
+        auto doc = open(barcodeLetter("CODE128 \\s 100 \\b 5 \\d"));
+        QVERIFY(doc);
+        QVector<mail::BarcodeField> list = mail::barcodeFields(*doc);
+        QCOMPARE(list.size(), 1);
+        QVERIFY(list[0].editable);
+        QVERIFY(mail::changeBarcodeField(*doc, list[0].begin, QJsonObject{{"type", int(barcode::Type::Qr)}, {"data", "x"}}));
+        const QString code = fieldCodeAt(*doc, mail::barcodeFields(*doc).value(0).begin);
+        QVERIFY2(code.contains(QStringLiteral("\\b 5 \\d")), qPrintable(code));
+        QVERIFY(code.contains(QStringLiteral("QR")));
+        QVERIFY(!code.contains(QStringLiteral("CODE128")));
+        auto fixed = open(makeDocx(para(field("DISPLAYBARCODE \"12345\" CODE128", "12345"))));
+        QVERIFY(fixed);
+        list = mail::barcodeFields(*fixed);
+        QCOMPARE(list.size(), 1);
+        QVERIFY(!list[0].editable);
+        QVERIFY(!mail::changeBarcodeField(*fixed, list[0].begin, QJsonObject{{"type", int(barcode::Type::Qr)}, {"data", "x"}}));
+    }
+
+    // A field kept as one w:fldSimple element is listed, changed, saved, and opened again.
+    void aSimpleBarcodeFieldIsChangedAndKept()
+    {
+        auto doc = open(makeDocx(para(run("Code: ") + "<w:fldSimple w:instr=\" DISPLAYBARCODE &quot;MERGEFIELD Name&quot; CODE128 \\s 100 \"><w:r><w:t>sample</w:t></w:r></w:fldSimple>")));
+        QVERIFY(doc);
+        QVector<mail::BarcodeField> list = mail::barcodeFields(*doc);
+        QCOMPARE(list.size(), 1);
+        QVERIFY(list[0].editable);
+        QCOMPARE(list[0].column, QStringLiteral("Name"));
+        QVERIFY(mail::changeBarcodeField(*doc, list[0].begin, QJsonObject{{"type", int(barcode::Type::Qr)}, {"data", "x"}}));
+        list = mail::barcodeFields(*doc);
+        QCOMPARE(list.size(), 1);
+        QCOMPARE(list[0].settings.value(QLatin1String("type")).toInt(), int(barcode::Type::Qr));
+        QVERIFY(doc->story()->toPlainText().contains(QStringLiteral("Code: ")));
+        const QByteArray first = doc->toDocx();
+        auto reopened = open(first);
+        QVERIFY(reopened);
+        list = mail::barcodeFields(*reopened);
+        QCOMPARE(list.size(), 1);
+        QCOMPARE(list[0].column, QStringLiteral("Name"));
+        QCOMPARE(list[0].settings.value(QLatin1String("type")).toInt(), int(barcode::Type::Qr));
+        const QByteArray second = reopened->toDocx();
+        QCOMPARE(open(second)->toDocx(), second);
+    }
+
+    // The fields are found again only when an edit touches one; the bars of a field are made once however often the page is drawn; and only the fields of the page being drawn are measured.
+    void barcodeFieldsAreNotFoundOrEncodedAgainForEveryEdit()
+    {
+        QByteArray body;
+        for (int i = 0; i < 40; ++i) {
+            QByteArray line = run("Row " + QByteArray::number(i) + " ");
+            for (int k = 0; k < 6; ++k) line += field("DISPLAYBARCODE \"MERGEFIELD Name\" CODE128 \\s 100", "v" + QByteArray::number(i * 10 + k)) + run(" ");
+            body += para(line);
+        }
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1000, 900);
+        w.show();
+        w.setDocument(std::move(doc), QString());
+        QRect first;
+        QTRY_VERIFY(w.view()->barcodeFieldRect(mail::barcodeFields(*w.document()).value(0).begin, &first));
+        auto paint = [&] { w.view()->viewport()->update(); return w.view()->viewport()->grab().toImage(); };
+        paint();
+        paint();
+        const int scans = PageView::barcodeScansForTest(), encodes = barcodeEncodes();
+        // The page is drawn again: nothing is encoded again, though more fields are drawn than the encoder's own cache holds.
+        paint();
+        QCOMPARE(barcodeEncodes(), encodes);
+        QCOMPARE(PageView::barcodeScansForTest(), scans);
+        // Typing in a line that has no field: no new search for the fields, none encoded again, and the fields after it are where they are.
+        QTextCursor c(w.document()->story());
+        c.setPosition(2);
+        c.insertText(QStringLiteral("xyz"));
+        QRect box;
+        paint();
+        QCOMPARE(PageView::barcodeScansForTest(), scans);
+        QCOMPARE(barcodeEncodes(), encodes);
+        const QVector<mail::BarcodeField> now = mail::barcodeFields(*w.document());
+        QVERIFY(w.view()->barcodeFieldRect(now.value(5).begin, &box));
+        // Typing in a field's result finds them again.
+        QTextCursor in(w.document()->story());
+        in.setPosition(now[0].from);
+        in.insertText(QStringLiteral("9"));
+        paint();
+        QVERIFY(PageView::barcodeScansForTest() > scans);
+        // Only the fields of the page drawn are measured (the pages have 40 lines of six: far fewer than all of them are on the first).
+        const int boxes = PageView::barcodeBoxesForTest();
+        paint();
+        QVERIFY2(PageView::barcodeBoxesForTest() - boxes <= 240, qPrintable(QString::number(PageView::barcodeBoxesForTest() - boxes)));
     }
 
     // A barcode field as the program puts it in (one character) is drawn as bars too.

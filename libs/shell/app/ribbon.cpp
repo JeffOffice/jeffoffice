@@ -1042,7 +1042,7 @@ public:
     {
         ++m_qatLayouts;
         const bool below = m_r->m_qatBelow && m_qatRow;
-        const int room = below ? std::max(100, m_qatRow->width() - 16) : std::max(100, width() / 3), moreW = 22;
+        const int room = below ? std::max(100, m_r->width() - 16) : std::max(100, width() / 3), moreW = 22;   // (the row is as wide as the ribbon, whether or not it has been laid out yet)
         const int y = below ? 2 : top() - 1;
         QVector<QWidget *> present;
         for (QWidget *w : std::as_const(qatItems))
@@ -1699,6 +1699,16 @@ void Ribbon::setQuickToolbarBelow(bool below)
     if (!below) m_header->m_qatRow->hide();
     m_header->layoutButtons();
     m_header->placeQat();
+    // The keyboard goes from the top row to the quick toolbar's row, as they are on the screen.
+    if (below) {
+        QWidget *last = m_header->m_help;
+        for (QWidget *w : std::as_const(m_header->qatItems))
+            if (qobject_cast<QToolButton *>(w)) {
+                QWidget::setTabOrder(last, w);
+                last = w;
+            }
+        QWidget::setTabOrder(last, m_header->m_qatMore);
+    }
     m_header->update();
 }
 

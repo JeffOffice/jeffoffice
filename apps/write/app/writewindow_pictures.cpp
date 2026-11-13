@@ -228,6 +228,10 @@ void WriteWindow::editBarcodeField(int position)
     if (!m_doc) return;
     const auto field = write::mail::barcodeFieldAt(*m_doc, position);
     if (!field) return;
+    if (!field->editable) {
+        statusBar()->showMessage(tr("This barcode field can't be edited here."), 6000);   // (no merge field in it, or it is locked)
+        return;
+    }
     QJsonObject settings;
     if (!askBarcode(this, field->settings, &settings, true)) return;
     if (!write::mail::changeBarcodeField(*m_doc, position, settings)) statusBar()->showMessage(tr("That barcode can't be put in as a field."), 6000);

@@ -5,6 +5,7 @@
 #include "app/pageview.h"
 #include "core/barcodeitem.h"
 #include "core/editops.h"
+#include "flow/paginator.h"
 #include "core/mergeops.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
@@ -13,6 +14,8 @@
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QJsonDocument>
+#include <QTextDocument>
 #include <QFile>
 #include <QFileInfo>
 #include <QFontMetricsF>
@@ -229,20 +232,93 @@ bool PageView::pictureRect(int position, QRectF *rect)
 
 // ---- barcode fields: a DISPLAYBARCODE field is drawn as its bars, over the text its result is
 
+namespace {
+int g_barcodeScans = 0, g_barcodeBoxes = 0;
+constexpr int kMostCachedBarcodes = 20000;
+}
+
+int PageView::barcodeScansForTest() { return g_barcodeScans; }
+int PageView::barcodeBoxesForTest() { return g_barcodeBoxes; }
+
 const QVector<mail::BarcodeField> &PageView::barcodeFieldList()
 {
     static const QVector<mail::BarcodeField> none;
     if (!m_doc) return none;
-    if (!m_barcodeList || m_barcodeDoc != m_doc || m_barcodeRevision != m_doc->story()->revision()) {
-        m_barcodeList = std::make_shared<const QVector<mail::BarcodeField>>(mail::barcodeFields(*m_doc));
-        m_barcodeDoc = m_doc;
-        m_barcodeRevision = m_doc->story()->revision();
+    if (!m_barcodeList || m_barcodeDoc != m_doc || m_barcodeDirty) {
+        if (m_barcodeDoc != m_doc) {
+            QObject::disconnect(m_barcodeConnection);
+            // An edit that does not touch a field (or its marks) only moves the places of the fields after it; one that does, or that puts a field mark in, finds them again. (An edit that takes away the
+            // marks of a field that holds a barcode field is not told apart: that is a field inside a field, which is not listed.)
+            QTextDocument *story = m_doc->story();
+            m_barcodeConnection = connect(story, &QTextDocument::contentsChange, this, [this, story](int position, int removed, int added) {
+                if (m_barcodeDirty || !m_barcodeList) return;
+                if (added > 20000) {
+                    m_barcodeDirty = true;
+                    return;
+                }
+                for (int i = position; i < position + added; ++i)
+                    if (story->characterAt(i) == QChar::ObjectReplacementCharacter) {
+                        m_barcodeDirty = true;
+                        return;
+                    }
+                for (const mail::BarcodeField &f : std::as_const(*m_barcodeList))
+                    if (position <= f.to && position + removed >= f.begin) {
+                        m_barcodeDirty = true;
+                        return;
+                    }
+                const int delta = added - removed;
+                if (!delta) return;
+                for (mail::BarcodeField &f : *m_barcodeList)
+                    if (f.begin > position) {
+                        f.begin += delta;
+                        f.from += delta;
+                        f.to += delta;
+                    }
+            });
+            m_barcodeDoc = m_doc;
+        }
+        ++g_barcodeScans;
+        m_barcodeList = std::make_shared<QVector<mail::BarcodeField>>(mail::barcodeFields(*m_doc));
+        m_barcodeLayouts = QVector<std::shared_ptr<void>>(m_barcodeList->size());
+        m_barcodeDirty = false;
     }
     return *m_barcodeList;
 }
 
+// The bars of field `index`: made once for the field (and for any other with the same settings), not again at each paint.
+std::shared_ptr<const void> PageView::barcodeBarsOf(int index)
+{
+    if (index < 0 || index >= m_barcodeLayouts.size()) return nullptr;
+    if (!m_barcodeLayouts[index]) {
+        const QJsonObject &settings = (*m_barcodeList)[index].settings;
+        const QString key = QString::fromUtf8(QJsonDocument(settings).toJson(QJsonDocument::Compact));
+        auto found = m_barcodeLayoutByJson.constFind(key);
+        if (found == m_barcodeLayoutByJson.constEnd()) {
+            if (m_barcodeLayoutByJson.size() >= kMostCachedBarcodes) m_barcodeLayoutByJson.clear();
+            found = m_barcodeLayoutByJson.insert(key, std::make_shared<barcode::Layout>(barcodeLayout(settings)));
+        }
+        m_barcodeLayouts[index] = found.value();
+    }
+    return m_barcodeLayouts[index];
+}
+
+// The fields of the list that may be on a page: those whose place is on it or a page next to it (a position in a table or a frame can be drawn on the page before or after the one its text is on).
+bool PageView::barcodeFieldsOnPage(int page, int *first, int *last)
+{
+    const QVector<mail::BarcodeField> &list = barcodeFieldList();
+    if (list.isEmpty() || !m_doc) return false;
+    flow::Paginator &pg = m_doc->pager();
+    auto pageOf = [&](const mail::BarcodeField &f) { return pg.pageOfPosition(f.from); };
+    const auto lo = std::partition_point(list.begin(), list.end(), [&](const mail::BarcodeField &f) { return pageOf(f) < page - 1; });
+    const auto hi = std::partition_point(lo, list.end(), [&](const mail::BarcodeField &f) { return pageOf(f) <= page + 1; });
+    *first = int(lo - list.begin());
+    *last = int(hi - list.begin());
+    return *first < *last;
+}
+
 bool PageView::barcodeFieldBox(const mail::BarcodeField &field, int *page, QRectF *rect)
 {
+    ++g_barcodeBoxes;
     int first = -1, last = -1;
     QLineF a, b;
     if (!caretLine(field.from, &first, &a) || !caretLine(field.to, &last, &b)) return false;
@@ -255,12 +331,16 @@ bool PageView::barcodeFieldBox(const mail::BarcodeField &field, int *page, QRect
 void PageView::paintBarcodeFields(QPainter &p, int page)
 {
     if (!m_doc || m_hf.active || m_note.active) return;
-    for (const mail::BarcodeField &field : barcodeFieldList()) {
+    int first = 0, last = 0;
+    if (!barcodeFieldsOnPage(page, &first, &last)) return;
+    for (int i = first; i < last; ++i) {
+        const mail::BarcodeField &field = (*m_barcodeList)[i];
         int at = -1;
         QRectF box;
         if (!barcodeFieldBox(field, &at, &box) || at != page) continue;
-        const barcode::Layout l = barcodeLayout(field.settings);
-        if (!l.error.isEmpty() || l.size.isEmpty()) continue;
+        const auto bars = std::static_pointer_cast<const barcode::Layout>(barcodeBarsOf(i));
+        if (!bars || !bars->error.isEmpty() || bars->size.isEmpty()) continue;
+        const barcode::Layout &l = *bars;
         p.save();
         p.setClipRect(box);
         p.setRenderHint(QPainter::Antialiasing, false);
@@ -277,24 +357,32 @@ void PageView::paintBarcodeFields(QPainter &p, int page)
 
 bool PageView::barcodeFieldRect(int begin, QRect *rect)
 {
-    for (const mail::BarcodeField &field : barcodeFieldList()) {
-        int page = -1;
-        QRectF box;
-        if (field.begin != begin || !barcodeFieldBox(field, &page, &box) || page >= m_rects.size()) continue;
-        const double s = scale();
-        const QRectF pr = m_rects[page].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
-        *rect = QRectF(pr.left() + box.left() * s, pr.top() + box.top() * s, box.width() * s, box.height() * s).toAlignedRect();
-        return true;
-    }
-    return false;
+    const QVector<mail::BarcodeField> &list = barcodeFieldList();
+    const auto it = std::lower_bound(list.begin(), list.end(), begin, [](const mail::BarcodeField &f, int b) { return f.begin < b; });
+    if (it == list.end() || it->begin != begin) return false;
+    int page = -1;
+    QRectF box;
+    if (!barcodeFieldBox(*it, &page, &box) || page >= m_rects.size()) return false;
+    const double s = scale();
+    const QRectF pr = m_rects[page].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
+    *rect = QRectF(pr.left() + box.left() * s, pr.top() + box.top() * s, box.width() * s, box.height() * s).toAlignedRect();
+    return true;
 }
 
 int PageView::barcodeFieldAtPoint(const QPoint &viewportPos)
 {
     if (!m_doc || m_hf.active || m_note.active) return -1;
-    for (const mail::BarcodeField &field : barcodeFieldList()) {
-        QRect r;
-        if (barcodeFieldRect(field.begin, &r) && r.contains(viewportPos)) return field.begin;
+    // The page under the point, then only the fields of that page.
+    for (int page = 0; page < m_rects.size(); ++page) {
+        if (!m_rects[page].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value()).contains(viewportPos)) continue;
+        int first = 0, last = 0;
+        if (!barcodeFieldsOnPage(page, &first, &last)) return -1;
+        for (int i = first; i < last; ++i) {
+            QRect r;
+            const int begin = (*m_barcodeList)[i].begin;
+            if (barcodeFieldRect(begin, &r) && r.contains(viewportPos)) return begin;
+        }
+        return -1;
     }
     return -1;
 }

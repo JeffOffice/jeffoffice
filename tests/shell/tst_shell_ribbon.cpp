@@ -1582,7 +1582,7 @@ private Q_SLOTS:
         auto *box = page.findChild<QCheckBox *>(QStringLiteral("quickBelow"));
         QVERIFY(box);
         QVERIFY(!box->isChecked());
-        box->setChecked(true);
+        box->click();
         page.apply();
         QVERIFY(r->quickToolbarBelow());
         QVERIFY(RibbonCustom::load().quickBelow);
@@ -1592,6 +1592,34 @@ private Q_SLOTS:
         ribbonPage.apply();
         QVERIFY(RibbonCustom::load().quickBelow);
         QVERIFY(r->quickToolbarBelow());
+    }
+
+    // The box on the Quick Toolbar page writes the choice only when it was used: a choice made from the right-click menu while Options is open stays; Reset All puts the quick toolbar back above.
+    void theQuickToolbarPageKeepsTheBelowChoiceHonestly()
+    {
+        RibbonWindow w;
+        QuickToolbarPage page(&w);
+        auto *box = page.findChild<QCheckBox *>(QStringLiteral("quickBelow"));
+        auto *resetAll = page.findChild<QPushButton *>(QStringLiteral("quickResetAll"));
+        QVERIFY(box && resetAll);
+        QVERIFY(!resetAll->isEnabled());
+        RibbonCustom c = RibbonCustom::load();
+        c.quickBelow = true;
+        c.save();
+        page.apply();   // (the box was not used: what the menu chose stays)
+        QVERIFY(RibbonCustom::load().quickBelow);
+        QVERIFY(w.ribbon()->quickToolbarBelow());
+        // With only that set, Reset All has something to do.
+        QuickToolbarPage second(&w);
+        auto *box2 = second.findChild<QCheckBox *>(QStringLiteral("quickBelow"));
+        auto *reset2 = second.findChild<QPushButton *>(QStringLiteral("quickResetAll"));
+        QVERIFY(box2->isChecked());
+        QVERIFY(reset2->isEnabled());
+        reset2->click();
+        QVERIFY(!box2->isChecked());
+        second.apply();
+        QVERIFY(!RibbonCustom::load().quickBelow);
+        QVERIFY(!w.ribbon()->quickToolbarBelow());
     }
 
     void theCustomizeItemsOpenOptionsAtTheirPages()

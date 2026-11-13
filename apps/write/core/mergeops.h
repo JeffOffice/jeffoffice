@@ -84,7 +84,7 @@ bool insertRule(WriteDoc &doc, QTextCursor &c, const QString &code, const QStrin
 // CODE39, EAN13, EAN8, UPCA; \s the size in percent, \h the height drawn in twips, \q the QR level, \t print the digits; a book's ISBN is EAN13 with its 13
 // digits; \r, \b, and \f are read past). `settings` (the barcode dialog's) gives the type and look. The merge makes a barcode picture of each record's value, or a message where the code can't hold
 // the value; a field with a value written out in it, no type, or a type not drawn here is left as it is.
-bool insertBarcodeField(WriteDoc &doc, QTextCursor &c, const QString &column, const QJsonObject &settings);
+bool insertBarcodeField(WriteDoc &doc, QTextCursor &c, const QString &column, const QJsonObject &settings, const QString &extra = QString());
 QString addressBlockCode(const QString &format, const QString &homeCountry = QString());
 QString greetingCode(const QString &format, const QString &fallback);
 
@@ -95,7 +95,10 @@ struct BarcodeField {
     QString column;          // the merge field it is made from
     QJsonObject settings;    // as the barcode dialog keeps them; "data" is the value the result shows now, or a sample when it shows none the code can hold
     bool sample = false;     // "data" is a sample
+    bool editable = false;   // it has a merge field to keep and is not locked: changeBarcodeField can change it
 };
+// The longest value a barcode field draws (a result past this is shown as the sample): the most any code holds is a QR code of under 3,000 bytes.
+constexpr int kMostBarcodeFieldValueChars = 4000;
 QVector<BarcodeField> barcodeFields(WriteDoc &doc);
 // The barcode field that holds the position (a place in it or on its character), if there is one.
 std::optional<BarcodeField> barcodeFieldAt(WriteDoc &doc, int position);
