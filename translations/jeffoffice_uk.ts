@@ -670,7 +670,7 @@
 <context>
     <name>BarcodeDialog</name>
     <message>
-        <location filename="../libs/shell/app/barcodedialog.cpp" line="+106"/>
+        <location filename="../libs/shell/app/barcodedialog.cpp" line="+107"/>
         <location filename="../libs/page/app/barcodeinsert.cpp" line="+32"/>
         <source>Edit Barcode</source>
         <translation type="unfinished">Редагування штрихкоду</translation>
@@ -707,12 +707,12 @@
     </message>
     <message>
         <location line="+4"/>
-        <location line="+97"/>
+        <location line="+109"/>
         <source>ISBN:</source>
         <translation type="unfinished">ISBN:</translation>
     </message>
     <message>
-        <location line="-95"/>
+        <location line="-107"/>
         <source>none, or 2 or 5 digits</source>
         <translation type="unfinished">немає, або 2 чи 5 цифр</translation>
     </message>
@@ -847,7 +847,7 @@
         <translation type="unfinished">Вставити</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+29"/>
         <source>Digits:</source>
         <translation type="unfinished">Цифри:</translation>
     </message>
@@ -1431,6 +1431,44 @@ Back page story	4</source>
     </message>
 </context>
 <context>
+    <name>Captions</name>
+    <message>
+        <location filename="../apps/deck/core/captions.cpp" line="+123"/>
+        <source>The caption file is too large (the most is %1 MB).</source>
+        <translation type="unfinished">Файл підписів надто великий (максимум %1 МБ).</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>This isn&apos;t a WebVTT caption file. It should start with the word WEBVTT.</source>
+        <translation type="unfinished">Це не файл підписів WebVTT. Він має починатися зі слова WEBVTT.</translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>This WebVTT file has no captions that can be shown.</source>
+        <translation type="unfinished">Цей файл WebVTT не містить підписів, які можна показати.</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Captions go with a video.</source>
+        <translation type="unfinished">Підписи додаються до відео.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>&quot;%1&quot; isn&apos;t a language code. Use a short code such as en, es, or pt-BR.</source>
+        <translation type="unfinished">«%1» не є кодом мови. Використовуйте короткий код, наприклад en, es або pt-BR.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>A video can have captions in at most %1 languages.</source>
+        <translation type="unfinished">Відео може мати підписи не більше ніж %1 мовами.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The captions could not be kept.</source>
+        <translation type="unfinished">Підписи не вдалося зберегти.</translation>
+    </message>
+</context>
+<context>
     <name>Chart</name>
     <message>
         <location filename="../libs/office/office/chart.cpp" line="+756"/>
@@ -1754,6 +1792,11 @@ Back page story	4</source>
         <translation type="unfinished">Введіть ціну.</translation>
     </message>
     <message>
+        <location line="+23"/>
+        <source>%1 holds at most %2 characters here (this text has %3).</source>
+        <translation type="unfinished">%1 тут містить не більше %2 символів (цей текст має %3).</translation>
+    </message>
+    <message>
         <location filename="../libs/base/core/color.cpp" line="+121"/>
         <source>Main</source>
         <translation type="unfinished">Основний</translation>
@@ -1854,7 +1897,7 @@ Back page story	4</source>
         <translation type="unfinished">Рівняння</translation>
     </message>
     <message>
-        <location line="+834"/>
+        <location line="+843"/>
         <source>Your Text Here</source>
         <translation type="unfinished">Введіть текст тут</translation>
     </message>
@@ -2327,7 +2370,12 @@ Back page story	4</source>
         <translation type="unfinished">Перевіряти правопис під час введення</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+4"/>
+        <source>Check grammar as you type</source>
+        <translation type="unfinished">Перевіряти граматику під час введення</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Ignore words in UPPERCASE</source>
         <translation type="unfinished">Пропускати слова, написані ВЕЛИКИМИ ЛІТЕРАМИ</translation>
     </message>
@@ -2357,7 +2405,7 @@ Back page story	4</source>
         <translation type="unfinished">Перетворювати веб-адреси на гіперпосилання під час введення</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+10"/>
         <source>Proofing</source>
         <translation type="unfinished">Перевірка</translation>
     </message>
@@ -5242,7 +5290,7 @@ Back page story	4</source>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+661"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+676"/>
         <location line="+160"/>
         <source>Placeholder</source>
         <translation type="unfinished">Заповнювач</translation>
@@ -6024,6 +6072,109 @@ Save without a backup?</source>
         <location line="+56"/>
         <source>%1 Point</source>
         <translation type="unfinished">%1 пт</translation>
+    </message>
+</context>
+<context>
+    <name>Grammar</name>
+    <message>
+        <location filename="../libs/text/grammar/grammarrules.cpp" line="+252"/>
+        <source>Repeated word.</source>
+        <translation type="unfinished">Повторюване слово.</translation>
+    </message>
+    <message>
+        <location line="+150"/>
+        <source>Use &quot;an&quot; before a word that starts with a vowel sound.</source>
+        <translation type="unfinished">Використовуйте «an» перед словом, що починається з голосного звука.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Use &quot;a&quot; before a word that starts with a consonant sound.</source>
+        <translation type="unfinished">Використовуйте «a» перед словом, що починається з приголосного звука.</translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>Start a sentence with a capital letter.</source>
+        <translation type="unfinished">Починайте речення з великої літери.</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Use &quot;it&apos;s&quot; (it is) here, not &quot;its&quot;.</source>
+        <translation type="unfinished">Тут слід використовувати «it&apos;s» (it is), а не «its».</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Use &quot;its&quot; (belonging to it) here, not &quot;it&apos;s&quot;.</source>
+        <translation type="unfinished">Тут слід використовувати «its» (належить йому), а не «it&apos;s».</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Use &quot;there&quot; here, not &quot;their&quot;.</source>
+        <translation type="unfinished">Тут слід використовувати «there», а не «their».</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Use &quot;their&quot; (belonging to them) here.</source>
+        <translation type="unfinished">Тут слід використовувати «their» (належить їм).</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Use &quot;you&apos;re&quot; (you are) here, not &quot;your&quot;.</source>
+        <translation type="unfinished">Тут слід використовувати «you&apos;re» (you are), а не «your».</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Use &quot;your&quot; (belonging to you) here, not &quot;you&apos;re&quot;.</source>
+        <translation type="unfinished">Тут слід використовувати «your» (належить вам), а не «you&apos;re».</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Use &quot;than&quot; to compare.</source>
+        <translation type="unfinished">Для порівняння використовуйте «than».</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Use &quot;then&quot; (next) here, not &quot;than&quot;.</source>
+        <translation type="unfinished">Тут слід використовувати «then» (потім), а не «than».</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Use &quot;lose&quot; (not win, or let go of) here, not &quot;loose&quot;.</source>
+        <translation type="unfinished">Тут слід використовувати «lose» (не перемагати й не відпускати), а не «loose».</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Use &quot;loose&quot; (not tight) here, not &quot;lose&quot;.</source>
+        <translation type="unfinished">Тут слід використовувати «loose» (не тугий), а не «lose».</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Use &quot;have&quot;, not &quot;of&quot;, after this word.</source>
+        <translation type="unfinished">Після цього слова слід використовувати «have», а не «of».</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Use one space here.</source>
+        <translation type="unfinished">Тут використовуйте один пробіл.</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>Take out the space before this mark.</source>
+        <translation type="unfinished">Приберіть пробіл перед цим знаком.</translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>Put a space after the end of a sentence.</source>
+        <translation type="unfinished">Поставте пробіл після закінчення речення.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>&quot;A lot&quot; is two words.</source>
+        <translation type="unfinished">«A lot» — це два слова.</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Use &quot;every day&quot; (each day) here.</source>
+        <translation type="unfinished">Тут слід використовувати «every day» (щодня).</translation>
     </message>
 </context>
 <context>
@@ -6888,6 +7039,11 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+12"/>
         <source>A movie or sound that can&apos;t be read is saved as its picture.</source>
         <translation type="unfinished">Відео або звук, який неможливо прочитати, зберігається як його малюнок.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The captions of a movie are not kept in a document presentation file, so they were left out.</source>
+        <translation type="unfinished">Підписи до фільму не зберігаються у файлі презентації документа, тому їх пропущено.</translation>
     </message>
     <message>
         <location filename="../apps/deck/io/odpexport_style.cpp" line="+281"/>
@@ -8654,7 +8810,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+117"/>
         <location filename="../libs/page/app/proofingdialogs.cpp" line="+339"/>
-        <location filename="../apps/write/app/spellpane.cpp" line="+80"/>
+        <location filename="../apps/write/app/spellpane.cpp" line="+83"/>
         <location filename="../apps/crunch/app/celleditor.cpp" line="+121"/>
         <source>Add to Dictionary</source>
         <translation type="unfinished">Додати до словника</translation>
@@ -8716,6 +8872,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+0"/>
         <location line="+255"/>
         <location filename="../apps/write/app/spellpane.cpp" line="-4"/>
+        <location line="+44"/>
         <location filename="../apps/crunch/app/celleditor.cpp" line="-4"/>
         <location filename="../apps/crunch/app/spellingdialog.cpp" line="+1"/>
         <source>Ignore All</source>
@@ -8786,7 +8943,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+42"/>
-        <location filename="../apps/write/app/spellpane.cpp" line="-1"/>
+        <location filename="../apps/write/app/spellpane.cpp" line="-45"/>
         <location filename="../apps/crunch/app/celleditor.cpp" line="-1"/>
         <source>(No spelling suggestions)</source>
         <translation type="unfinished">(Немає пропозицій щодо правопису)</translation>
@@ -8795,6 +8952,16 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../apps/crunch/app/spellingdialog.cpp" line="-18"/>
         <source>Checking… %1%</source>
         <translation type="unfinished">Перевірка… %1%</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/spellpane.cpp" line="+26"/>
+        <source>(Delete)</source>
+        <translation type="unfinished">(Видалити)</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Ignore This Issue</source>
+        <translation type="unfinished">Ігнорувати цю проблему</translation>
     </message>
 </context>
 <context>
@@ -10463,7 +10630,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+4"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+2"/>
         <source>Insert</source>
         <translation type="unfinished">Вставлення</translation>
     </message>
@@ -10968,7 +11135,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-125"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-150"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-131"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-132"/>
         <source>About</source>
         <translation type="unfinished">Про програму</translation>
     </message>
@@ -11179,7 +11346,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+63"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+64"/>
         <source>Shapes</source>
         <translation type="unfinished">Фігури</translation>
     </message>
@@ -11321,7 +11488,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-104"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-105"/>
         <source>Breaks</source>
         <translation type="unfinished">Розриви</translation>
     </message>
@@ -11473,7 +11640,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+63"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+64"/>
         <source>Options</source>
         <translation type="unfinished">Параметри</translation>
     </message>
@@ -11621,7 +11788,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Водяний знак</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-121"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-122"/>
         <source>Accounting Number Format</source>
         <translation type="unfinished">Грошовий числовий формат</translation>
     </message>
@@ -11781,7 +11948,12 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Правила виділення комірок</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+3"/>
+        <source>Barcode</source>
+        <translation type="unfinished">Штрихкод</translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>Layouts</source>
         <translation type="unfinished">Макети</translation>
     </message>
@@ -15845,7 +16017,7 @@ Desktop publishing</source>
         <translation type="unfinished">(Продовження з сторінки %1)</translation>
     </message>
     <message>
-        <location line="+6305"/>
+        <location line="+6322"/>
         <source>Notes</source>
         <translation type="unfinished">Примітки</translation>
     </message>
@@ -21460,6 +21632,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+2"/>
+        <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+490"/>
         <source>and %1 more</source>
         <translation type="unfinished">і ще %1</translation>
     </message>
@@ -23417,7 +23590,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Перевірити книгу</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-15"/>
+        <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-505"/>
         <source>Rectangle</source>
         <translation type="unfinished">Прямокутник</translation>
     </message>
@@ -23510,6 +23683,11 @@ This file is protected with a password. Password:</source>
         <location line="+1"/>
         <source>Barcode…</source>
         <translation type="unfinished">Штрихкод…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Barcodes From Cells…</source>
+        <translation type="unfinished">Штрихкоди з комірок…</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -23631,7 +23809,43 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Штрихкод змінено</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+14"/>
+        <location line="+18"/>
+        <source>Insert Barcodes</source>
+        <translation type="unfinished">Вставити штрихкоди</translation>
+    </message>
+    <message>
+        <location line="-14"/>
+        <source>Barcodes made: %1. These cells have no barcode:</source>
+        <translation type="unfinished">Створено штрихкодів: %1. Ці комірки не мають штрихкода:</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No barcodes were made.</source>
+        <translation type="unfinished">Штрихкоди не створено.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Select cells that hold text first.</source>
+        <translation type="unfinished">Спершу виберіть комірки, що містять текст.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Barcodes inserted: %1</source>
+        <translation type="unfinished">Вставлено штрихкодів: %1</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>The selection is too large to look through. Choose fewer cells.</source>
+        <translation type="unfinished">Вибраний фрагмент занадто великий для перегляду. Виберіть менше комірок.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The range holds more than %1 cells with text, which is as many barcodes as are made at once. Choose fewer cells.</source>
+        <translation type="unfinished">Діапазон містить більше ніж %1 комірок із текстом, що є максимальною кількістю штрихкодів, які створюються одночасно. Виберіть менше комірок.</translation>
+    </message>
+    <message>
+        <location line="+66"/>
         <source>Insert Shape</source>
         <translation type="unfinished">Вставити фігуру</translation>
     </message>
@@ -28987,7 +29201,8 @@ The file can&apos;t be read.</source>
         <location line="+0"/>
         <location filename="../apps/deck/app/deckwindow_design.cpp" line="+144"/>
         <location filename="../apps/deck/app/deckwindow_file.cpp" line="-127"/>
-        <location filename="../apps/deck/app/deckwindow_media.cpp" line="+93"/>
+        <location filename="../apps/deck/app/deckwindow_media.cpp" line="+104"/>
+        <location line="+102"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Усі файли (*)</translation>
     </message>
@@ -29186,7 +29401,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+12"/>
-        <location filename="../apps/deck/app/deckwindow_media.cpp" line="+195"/>
+        <location filename="../apps/deck/app/deckwindow_media.cpp" line="+206"/>
         <location line="+7"/>
         <source>Start</source>
         <translation type="unfinished">Початок</translation>
@@ -29544,7 +29759,8 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+74"/>
-        <location filename="../apps/deck/app/deckwindow_media.cpp" line="-172"/>
+        <location filename="../apps/deck/app/deckwindow_media.cpp" line="-285"/>
+        <location line="+97"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 не вдалося відкрити «%2».
@@ -30208,7 +30424,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Вставити заповнювач</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_media.cpp" line="-67"/>
+        <location filename="../apps/deck/app/deckwindow_media.cpp" line="-172"/>
         <source>Video on This Device…</source>
         <translation type="unfinished">Відео з цього пристрою…</translation>
     </message>
@@ -30219,35 +30435,57 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+22"/>
+        <location line="+30"/>
         <source>Play</source>
         <translation type="unfinished">Відтворити</translation>
     </message>
     <message>
-        <location line="-21"/>
-        <location line="+145"/>
+        <location line="-29"/>
+        <location line="+266"/>
         <source>Trim</source>
         <translation type="unfinished">Обрізати</translation>
     </message>
     <message>
-        <location line="-124"/>
+        <location line="-265"/>
+        <source>Insert Captions…</source>
+        <translation type="unfinished">Вставити підписи…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+210"/>
+        <location line="+16"/>
+        <source>Remove Captions</source>
+        <translation type="unfinished">Видалити підписи</translation>
+    </message>
+    <message>
+        <location line="-207"/>
+        <source>Insert Captions: this video is linked from outside the presentation, and captions can only go with a video kept in it.</source>
+        <translation type="unfinished">Вставлення підписів: це відео пов&apos;язане із зовнішнім джерелом, а підписи можна додати лише до відео, збереженого в презентації.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Insert Captions: add captions to the video from a WebVTT file.</source>
+        <translation type="unfinished">Вставлення підписів: додайте підписи до відео з файлу WebVTT.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>Pause</source>
         <translation type="unfinished">Пауза</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+118"/>
+        <location line="+231"/>
         <source>Trim Audio</source>
         <translation type="unfinished">Обрізати аудіо</translation>
     </message>
     <message>
-        <location line="-118"/>
-        <location line="+118"/>
+        <location line="-231"/>
+        <location line="+231"/>
         <source>Trim Video</source>
         <translation type="unfinished">Обрізати відео</translation>
     </message>
     <message>
-        <location line="-108"/>
+        <location line="-221"/>
         <source>Video Files (%1)</source>
         <translation type="unfinished">Відеофайли (%1)</translation>
     </message>
@@ -30306,7 +30544,61 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">%1 не може прочитати «%2» як %3, тому його не вставлено на слайд.</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+53"/>
+        <location line="+4"/>
+        <location line="+9"/>
+        <source>Insert Captions</source>
+        <translation type="unfinished">Вставити підписи</translation>
+    </message>
+    <message>
+        <location line="-13"/>
+        <source>WebVTT Caption Files (*.vtt)</source>
+        <translation type="unfinished">Файли підписів WebVTT (*.vtt)</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The language of these captions, as a code such as en, es, or pt-BR:</source>
+        <translation type="unfinished">Мова цих підписів у вигляді коду, наприклад en, es або pt-BR:</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>This video is linked from outside the presentation, and captions can only go with a video kept in it.</source>
+        <translation type="unfinished">Це відео пов&apos;язане із зовнішнім джерелом, а підписи можна додати лише до відео, збереженого в презентації.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Captions go with a video. Select a video on a slide, and try again.</source>
+        <translation type="unfinished">Підписи додаються до відео. Виберіть відео на слайді й спробуйте знову.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>%1 is too large to be a caption file (the most is %2 MB).</source>
+        <translation type="unfinished">%1 занадто великий для файлу підписів (максимум %2 МБ).</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>%1 is too large to put in this presentation: with it, the file could not be opened again.</source>
+        <translation type="unfinished">%1 занадто великий, щоб вставити його в цю презентацію: з ним файл не вдасться знову відкрити.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>%1 can&apos;t be used as captions.
+%2</source>
+        <translation type="unfinished">%1 не можна використати як підписи.
+%2</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>All languages</source>
+        <translation type="unfinished">Усі мови</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Remove the captions in:</source>
+        <translation type="unfinished">Видалити підписи в:</translation>
+    </message>
+    <message>
+        <location line="+80"/>
         <source>Media Options</source>
         <translation type="unfinished">Параметри медіа</translation>
     </message>
@@ -32393,7 +32685,7 @@ The file can&apos;t be read.</source>
 <context>
     <name>jp::EditorMedia</name>
     <message>
-        <location filename="../apps/deck/app/editormedia.cpp" line="+103"/>
+        <location filename="../apps/deck/app/editormedia.cpp" line="+107"/>
         <source>This movie is linked from outside the presentation, so it can&apos;t be played here.</source>
         <translation type="unfinished">Цей відеофайл пов&apos;язаний із зовнішнім джерелом, тому його не можна відтворити тут.</translation>
     </message>
@@ -41575,7 +41867,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Таблиця на сторінці %1 не має рядка заголовків. Рядок заголовків називає стовпці для людей, які користуються програмою читання з екрана.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>Videos need captions for people who can&apos;t hear them. Check the video on slide %1.</source>
         <translation type="unfinished">Для відео потрібні субтитри для людей, які його не чують. Перевірте відео на слайді %1.</translation>
     </message>
@@ -44155,7 +44447,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::ShowMedia</name>
     <message>
-        <location filename="../apps/deck/app/showmedia.cpp" line="+80"/>
+        <location filename="../apps/deck/app/showmedia.cpp" line="+81"/>
         <source>This movie is linked from outside the presentation, so it can&apos;t be played here.</source>
         <translation type="unfinished">Цей фільм пов&apos;язано із зовнішнім джерелом поза презентацією, тому його не можна відтворити тут.</translation>
     </message>
@@ -46971,7 +47263,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::WriteMail</name>
     <message>
-        <location filename="../apps/write/app/writewindow_mail.cpp" line="+52"/>
+        <location filename="../apps/write/app/writewindow_mail.cpp" line="+53"/>
         <source>Recipient lists (*.csv *.tsv *.txt *.xlsx *.xlsm *.xls *.ods *.fods *.vcf *.vcard)</source>
         <translation type="unfinished">Списки отримувачів (*.csv *.tsv *.txt *.xlsx *.xlsm *.xls *.ods *.fods *.vcf *.vcard)</translation>
     </message>
@@ -47008,21 +47300,21 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <location line="+242"/>
-        <location line="+379"/>
+        <location line="+397"/>
         <location line="+14"/>
         <source>Envelopes</source>
         <translation type="unfinished">Конверти</translation>
     </message>
     <message>
-        <location line="-634"/>
+        <location line="-652"/>
         <location line="+241"/>
-        <location line="+413"/>
+        <location line="+431"/>
         <location line="+3"/>
         <source>Labels</source>
         <translation type="unfinished">Наклейки</translation>
     </message>
     <message>
-        <location line="-656"/>
+        <location line="-674"/>
         <source>Directory</source>
         <translation type="unfinished">Каталог</translation>
     </message>
@@ -47093,18 +47385,18 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+1"/>
-        <location line="+444"/>
+        <location line="+462"/>
         <source>Preview Results</source>
         <translation type="unfinished">Попередній перегляд результатів</translation>
     </message>
     <message>
-        <location line="-444"/>
-        <location line="+511"/>
+        <location line="-462"/>
+        <location line="+529"/>
         <source>Check for Errors</source>
         <translation type="unfinished">Перевірити на помилки</translation>
     </message>
     <message>
-        <location line="-510"/>
+        <location line="-528"/>
         <source>Step 5 of 6: Finish the merge</source>
         <translation type="unfinished">Крок 5 із 6: завершення злиття</translation>
     </message>
@@ -47154,7 +47446,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+5"/>
         <location line="+33"/>
         <location line="+89"/>
-        <location line="+300"/>
+        <location line="+318"/>
         <location line="+9"/>
         <location line="+63"/>
         <location line="+1"/>
@@ -47163,7 +47455,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Злиття пошти</translation>
     </message>
     <message>
-        <location line="-559"/>
+        <location line="-577"/>
         <source>The list of recipients this document is merged with is not next to it. Choose it again (Mailings &gt; Select Recipients &gt; Use an Existing List).</source>
         <translation type="unfinished">Список отримувачів, з яким злито цей документ, не знаходиться поруч із ним. Виберіть його знову (Розсилки &gt; Вибрати отримувачів &gt; Використати наявний список).</translation>
     </message>
@@ -47196,20 +47488,20 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+16"/>
         <location line="+7"/>
         <location line="+110"/>
-        <location line="+284"/>
+        <location line="+302"/>
         <location line="+33"/>
         <source>Address Block</source>
         <translation type="unfinished">Блок адреси</translation>
     </message>
     <message>
-        <location line="-424"/>
-        <location line="+124"/>
+        <location line="-442"/>
+        <location line="+142"/>
         <location line="+81"/>
         <source>Next Record</source>
         <translation type="unfinished">Наступний запис</translation>
     </message>
     <message>
-        <location line="-200"/>
+        <location line="-218"/>
         <source>The page can&apos;t be made.</source>
         <translation type="unfinished">Сторінку не вдалося створити.</translation>
     </message>
@@ -47243,11 +47535,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+35"/>
+        <location line="+39"/>
         <source>Put the caret in the text of the document first.</source>
         <translation type="unfinished">Спочатку поставте курсор у текст документа.</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="-11"/>
         <source>Dear Sir or Madam,</source>
         <translation type="unfinished">Шановні пані та панове,</translation>
     </message>
@@ -47257,7 +47550,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Рядок привітання</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+13"/>
+        <source>That barcode can&apos;t be put in as a field.</source>
+        <translation type="unfinished">Цей штрихкод не можна вставити як поле.</translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>Merge Record #</source>
         <translation type="unfinished">Номер запису злиття</translation>
     </message>
@@ -47476,7 +47774,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Документ, друга панель</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+56"/>
+        <source>This document is too large to check its grammar any further. The grammar check has stopped; spelling still works.</source>
+        <translation type="unfinished">Цей документ занадто великий для подальшої перевірки граматики. Перевірку граматики зупинено; перевірка правопису працює.</translation>
+    </message>
+    <message>
+        <location line="+41"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -47804,7 +48107,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Масштаб…</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+36"/>
         <source>Paste Options</source>
         <translation type="unfinished">Параметри вставлення</translation>
     </message>
@@ -48831,7 +49134,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+13"/>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+126"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+138"/>
         <source>Comments</source>
         <translation type="unfinished">Коментарі</translation>
     </message>
@@ -49448,6 +49751,11 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+24"/>
         <source>Choose the recipients first</source>
         <translation type="unfinished">Спочатку виберіть одержувачів</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Barcode from Field</source>
+        <translation type="unfinished">Штрихкод із поля</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_notes.cpp" line="+14"/>
@@ -50242,18 +50550,23 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Спершу поставте курсор у таблицю джерел.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="-95"/>
-        <location line="+168"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="-107"/>
+        <location line="+180"/>
         <source>Spelling</source>
         <translation type="unfinished">Правопис</translation>
     </message>
     <message>
-        <location line="-167"/>
+        <location line="-179"/>
         <source>Check Spelling as You Type</source>
         <translation type="unfinished">Перевіряти правопис під час введення</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+14"/>
+        <source>Check Grammar as You Type</source>
+        <translation type="unfinished">Перевіряти граматику під час введення</translation>
+    </message>
+    <message>
+        <location line="+13"/>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+108"/>
         <source>Track Changes</source>
         <translation type="unfinished">Відстежувати зміни</translation>
@@ -62630,7 +62943,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">У цьому документі не наведено жодних джерел.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/fieldcode.cpp" line="+1024"/>
+        <location filename="../apps/write/core/fieldcode.cpp" line="+1025"/>
         <location line="+10"/>
         <location filename="../apps/write/core/fieldops.cpp" line="+494"/>
         <source>above</source>
@@ -64515,13 +64828,23 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">229 x 324 мм</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/mergeops.cpp" line="+515"/>
+        <location filename="../apps/write/core/mergeops.cpp" line="+590"/>
+        <source>Barcode: %1</source>
+        <translation type="unfinished">Штрихкод: %1</translation>
+    </message>
+    <message>
+        <location line="+19"/>
         <location line="+51"/>
         <source>Dear Sir or Madam,</source>
         <translation type="unfinished">Шановний пане або пані,</translation>
     </message>
     <message>
-        <location line="+107"/>
+        <location line="+25"/>
+        <source>[Barcode: %1]</source>
+        <translation type="unfinished">[Штрихкод: %1]</translation>
+    </message>
+    <message>
+        <location line="+109"/>
         <source>The merge was stopped.</source>
         <translation type="unfinished">Злиття було зупинено.</translation>
     </message>
@@ -64531,7 +64854,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Злиття створило б більше ніж %1 сторінок. Об&apos;єднайте менше отримувачів або зробіть коротший документ.</translation>
     </message>
     <message>
-        <location line="+174"/>
+        <location line="+6"/>
+        <source>The merge would make more than %1 barcodes. Merge fewer recipients.</source>
+        <translation type="unfinished">Злиття створило б більше ніж %1 штрихкодів. Виберіть менше одержувачів для злиття.</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>[Barcode could not be added]</source>
+        <translation type="unfinished">[Не вдалося додати штрихкод]</translation>
+    </message>
+    <message>
+        <location line="+180"/>
         <source>The folder can&apos;t be made.</source>
         <translation type="unfinished">Не вдалося створити папку.</translation>
     </message>
@@ -64605,7 +64938,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::write::PageView</name>
     <message>
-        <location filename="../apps/write/app/pagepaint.cpp" line="+137"/>
+        <location filename="../apps/write/app/pagepaint.cpp" line="+138"/>
         <source>Footer</source>
         <translation type="unfinished">Нижній колонтитул</translation>
     </message>
@@ -64615,7 +64948,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Верхній колонтитул</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+238"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+245"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Місце в цьому документі: %1</translation>
     </message>
@@ -64625,7 +64958,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Ctrl+клацання, щоб перейти за посиланням</translation>
     </message>
     <message>
-        <location line="+509"/>
+        <location line="+518"/>
         <source>Section Break</source>
         <translation type="unfinished">Розрив розділу</translation>
     </message>
@@ -64831,34 +65164,34 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location filename="../apps/write/core/editops.cpp" line="+2072"/>
         <location filename="../apps/write/core/pictureops.cpp" line="+526"/>
         <location line="+293"/>
-        <location line="+1147"/>
+        <location line="+1151"/>
         <location line="+1090"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">Малюнки в цьому документі разом мають такий самий розмір, як той, що JeffWrite вставляє за раз, тому цей малюнок не додано.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-2539"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-2543"/>
         <location line="+316"/>
-        <location line="+634"/>
+        <location line="+638"/>
         <location line="+1771"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Малюнок поки що не можна вставити в верхній колонтитул, нижній колонтитул або виноску.</translation>
     </message>
     <message>
-        <location line="-2688"/>
+        <location line="-2692"/>
         <location line="+308"/>
-        <location line="+632"/>
+        <location line="+636"/>
         <location line="+1773"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Малюнок не можна вставити сюди, оскільки цей документ містить стільки малюнків і графічних об&apos;єктів, скільки JeffWrite може показати.</translation>
     </message>
     <message>
-        <location line="-2686"/>
+        <location line="-2690"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">Цей документ містить стільки малюнків і графічних об&apos;єктів, скільки JeffWrite може показати. Збережіть його та відкрийте знову, щоб змінити більше.</translation>
     </message>
     <message>
-        <location line="+2625"/>
+        <location line="+2629"/>
         <source>This chart has parts that JeffWrite does not change, so it is kept as it is.</source>
         <translation type="unfinished">Ця діаграма містить частини, які JeffWrite не змінює, тому її залишено без змін.</translation>
     </message>
@@ -65065,7 +65398,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::write::SpellPane</name>
     <message>
-        <location filename="../apps/write/app/spellpane.cpp" line="+39"/>
+        <location filename="../apps/write/app/spellpane.cpp" line="+35"/>
         <source>Suggestions:</source>
         <translation type="unfinished">Пропозиції:</translation>
     </message>
@@ -65100,9 +65433,24 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Додати до словника</translation>
     </message>
     <message>
-        <location line="+85"/>
+        <location line="+143"/>
+        <source>Grammar: %1</source>
+        <translation type="unfinished">Граматика: %1</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>(Delete)</source>
+        <translation type="unfinished">(Видалити)</translation>
+    </message>
+    <message>
+        <location line="+20"/>
         <source>Checking spelling…</source>
         <translation type="unfinished">Перевірка правопису…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Checking grammar…</source>
+        <translation type="unfinished">Перевірка граматики…</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -65110,9 +65458,14 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Немає в словнику:</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+30"/>
         <source>The spelling check is complete.</source>
         <translation type="unfinished">Перевірку правопису завершено.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The spelling and grammar check is complete.</source>
+        <translation type="unfinished">Перевірку правопису та граматики завершено.</translation>
     </message>
 </context>
 <context>

@@ -670,7 +670,7 @@
 <context>
     <name>BarcodeDialog</name>
     <message>
-        <location filename="../libs/shell/app/barcodedialog.cpp" line="+106"/>
+        <location filename="../libs/shell/app/barcodedialog.cpp" line="+107"/>
         <location filename="../libs/page/app/barcodeinsert.cpp" line="+32"/>
         <source>Edit Barcode</source>
         <translation type="unfinished">Modifica codice a barre</translation>
@@ -707,12 +707,12 @@
     </message>
     <message>
         <location line="+4"/>
-        <location line="+97"/>
+        <location line="+109"/>
         <source>ISBN:</source>
         <translation type="unfinished">ISBN:</translation>
     </message>
     <message>
-        <location line="-95"/>
+        <location line="-107"/>
         <source>none, or 2 or 5 digits</source>
         <translation type="unfinished">nessuno, oppure 2 o 5 cifre</translation>
     </message>
@@ -847,7 +847,7 @@
         <translation type="unfinished">Inserisci</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+29"/>
         <source>Digits:</source>
         <translation type="unfinished">Cifre:</translation>
     </message>
@@ -1430,6 +1430,44 @@ Articolo dell&apos;ultima pagina	4</translation>
     </message>
 </context>
 <context>
+    <name>Captions</name>
+    <message>
+        <location filename="../apps/deck/core/captions.cpp" line="+123"/>
+        <source>The caption file is too large (the most is %1 MB).</source>
+        <translation type="unfinished">Il file dei sottotitoli è troppo grande (il massimo è %1 MB).</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>This isn&apos;t a WebVTT caption file. It should start with the word WEBVTT.</source>
+        <translation type="unfinished">Questo non è un file di sottotitoli WebVTT. Dovrebbe iniziare con la parola WEBVTT.</translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>This WebVTT file has no captions that can be shown.</source>
+        <translation type="unfinished">Questo file WebVTT non contiene sottotitoli che possano essere mostrati.</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Captions go with a video.</source>
+        <translation type="unfinished">I sottotitoli vanno associati a un video.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>&quot;%1&quot; isn&apos;t a language code. Use a short code such as en, es, or pt-BR.</source>
+        <translation type="unfinished">&quot;%1&quot; non è un codice lingua. Usa un codice breve, ad esempio en, es o pt-BR.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>A video can have captions in at most %1 languages.</source>
+        <translation type="unfinished">Un video può avere sottotitoli in al massimo %1 lingue.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The captions could not be kept.</source>
+        <translation type="unfinished">Non è stato possibile conservare i sottotitoli.</translation>
+    </message>
+</context>
+<context>
     <name>Chart</name>
     <message>
         <location filename="../libs/office/office/chart.cpp" line="+756"/>
@@ -1753,6 +1791,11 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Digitare il prezzo.</translation>
     </message>
     <message>
+        <location line="+23"/>
+        <source>%1 holds at most %2 characters here (this text has %3).</source>
+        <translation type="unfinished">%1 contiene al massimo %2 caratteri qui (questo testo ne ha %3).</translation>
+    </message>
+    <message>
         <location filename="../libs/base/core/color.cpp" line="+121"/>
         <source>Main</source>
         <translation type="unfinished">Principale</translation>
@@ -1898,7 +1941,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Equazione</translation>
     </message>
     <message>
-        <location line="+834"/>
+        <location line="+843"/>
         <source>Your Text Here</source>
         <translation type="unfinished">Inserire il testo qui</translation>
     </message>
@@ -4526,7 +4569,12 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Controlla ortografia durante la digitazione</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+4"/>
+        <source>Check grammar as you type</source>
+        <translation type="unfinished">Verifica la grammatica durante la digitazione</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Ignore words in UPPERCASE</source>
         <translation type="unfinished">Ignora parole in MAIUSCOLO</translation>
     </message>
@@ -4556,7 +4604,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Trasforma gli indirizzi web in collegamenti ipertestuali durante la digitazione</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+10"/>
         <source>Proofing</source>
         <translation type="unfinished">Strumenti di correzione</translation>
     </message>
@@ -4587,7 +4635,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished"> minuti</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-96"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-102"/>
         <source>Always create backup copy</source>
         <translation type="unfinished">Crea sempre una copia di backup</translation>
     </message>
@@ -4665,7 +4713,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Avanzate</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+112"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+118"/>
         <source>Display Language</source>
         <translation type="unfinished">Lingua di visualizzazione</translation>
     </message>
@@ -5240,7 +5288,7 @@ Articolo dell&apos;ultima pagina	4</translation>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+661"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+676"/>
         <location line="+160"/>
         <source>Placeholder</source>
         <translation type="unfinished">Segnaposto</translation>
@@ -6018,6 +6066,109 @@ Salvare senza backup?</translation>
         <location line="+56"/>
         <source>%1 Point</source>
         <translation type="unfinished">%1 pt</translation>
+    </message>
+</context>
+<context>
+    <name>Grammar</name>
+    <message>
+        <location filename="../libs/text/grammar/grammarrules.cpp" line="+252"/>
+        <source>Repeated word.</source>
+        <translation type="unfinished">Parola ripetuta.</translation>
+    </message>
+    <message>
+        <location line="+150"/>
+        <source>Use &quot;an&quot; before a word that starts with a vowel sound.</source>
+        <translation type="unfinished">Usa &quot;un&quot; davanti a una parola che inizia con un suono vocalico.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Use &quot;a&quot; before a word that starts with a consonant sound.</source>
+        <translation type="unfinished">Usa &quot;una&quot; davanti a una parola che inizia con un suono consonantico.</translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>Start a sentence with a capital letter.</source>
+        <translation type="unfinished">Inizia una frase con una lettera maiuscola.</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Use &quot;it&apos;s&quot; (it is) here, not &quot;its&quot;.</source>
+        <translation type="unfinished">Qui usa &quot;it&apos;s&quot; (it is), non &quot;its&quot;.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Use &quot;its&quot; (belonging to it) here, not &quot;it&apos;s&quot;.</source>
+        <translation type="unfinished">Qui usa &quot;its&quot; (appartenente a esso), non &quot;it&apos;s&quot;.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Use &quot;there&quot; here, not &quot;their&quot;.</source>
+        <translation type="unfinished">Qui usa &quot;there&quot;, non &quot;their&quot;.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Use &quot;their&quot; (belonging to them) here.</source>
+        <translation type="unfinished">Qui usa &quot;their&quot; (appartenente a loro).</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Use &quot;you&apos;re&quot; (you are) here, not &quot;your&quot;.</source>
+        <translation type="unfinished">Qui usa &quot;you&apos;re&quot; (you are), non &quot;your&quot;.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Use &quot;your&quot; (belonging to you) here, not &quot;you&apos;re&quot;.</source>
+        <translation type="unfinished">Qui usa &quot;your&quot; (appartenente a te), non &quot;you&apos;re&quot;.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Use &quot;than&quot; to compare.</source>
+        <translation type="unfinished">Usa &quot;than&quot; per fare un confronto.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Use &quot;then&quot; (next) here, not &quot;than&quot;.</source>
+        <translation type="unfinished">Qui usa &quot;then&quot; (poi), non &quot;than&quot;.</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Use &quot;lose&quot; (not win, or let go of) here, not &quot;loose&quot;.</source>
+        <translation type="unfinished">Qui usa &quot;lose&quot; (non vincere o lasciar andare), non &quot;loose&quot;.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Use &quot;loose&quot; (not tight) here, not &quot;lose&quot;.</source>
+        <translation type="unfinished">Qui usa &quot;loose&quot; (non stretto), non &quot;lose&quot;.</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Use &quot;have&quot;, not &quot;of&quot;, after this word.</source>
+        <translation type="unfinished">Dopo questa parola usa &quot;have&quot;, non &quot;of&quot;.</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Use one space here.</source>
+        <translation type="unfinished">Qui usa un solo spazio.</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>Take out the space before this mark.</source>
+        <translation type="unfinished">Elimina lo spazio prima di questo segno.</translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>Put a space after the end of a sentence.</source>
+        <translation type="unfinished">Metti uno spazio dopo la fine di una frase.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>&quot;A lot&quot; is two words.</source>
+        <translation type="unfinished">&quot;A lot&quot; sono due parole.</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Use &quot;every day&quot; (each day) here.</source>
+        <translation type="unfinished">Qui usa &quot;every day&quot; (ogni giorno).</translation>
     </message>
 </context>
 <context>
@@ -6886,6 +7037,11 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <location line="+12"/>
         <source>A movie or sound that can&apos;t be read is saved as its picture.</source>
         <translation type="unfinished">Un filmato o un suono non leggibile viene salvato come immagine.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The captions of a movie are not kept in a document presentation file, so they were left out.</source>
+        <translation type="unfinished">I sottotitoli di un filmato non vengono conservati in un file di presentazione, quindi sono stati esclusi.</translation>
     </message>
     <message>
         <location filename="../apps/deck/io/odpexport_style.cpp" line="+281"/>
@@ -8682,7 +8838,8 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location line="+0"/>
         <location line="+255"/>
-        <location filename="../apps/write/app/spellpane.cpp" line="+76"/>
+        <location filename="../apps/write/app/spellpane.cpp" line="+79"/>
+        <location line="+44"/>
         <location filename="../apps/crunch/app/celleditor.cpp" line="+117"/>
         <location filename="../apps/crunch/app/spellingdialog.cpp" line="+1"/>
         <source>Ignore All</source>
@@ -8753,7 +8910,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     </message>
     <message>
         <location line="+42"/>
-        <location filename="../apps/write/app/spellpane.cpp" line="-1"/>
+        <location filename="../apps/write/app/spellpane.cpp" line="-45"/>
         <location filename="../apps/crunch/app/celleditor.cpp" line="-1"/>
         <source>(No spelling suggestions)</source>
         <translation type="unfinished">(Nessun suggerimento ortografico)</translation>
@@ -8787,6 +8944,16 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <location filename="../apps/crunch/app/spellingdialog.cpp" line="-18"/>
         <source>Checking… %1%</source>
         <translation type="unfinished">Controllo in corso… %1%</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/spellpane.cpp" line="+21"/>
+        <source>(Delete)</source>
+        <translation type="unfinished">(Elimina)</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Ignore This Issue</source>
+        <translation type="unfinished">Ignora questo problema</translation>
     </message>
 </context>
 <context>
@@ -10257,7 +10424,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+4"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+2"/>
         <source>Insert</source>
         <translation type="unfinished">Inserisci</translation>
     </message>
@@ -10772,7 +10939,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-83"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-74"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-90"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-79"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-80"/>
         <source>Help</source>
         <translation type="unfinished">Guida</translation>
     </message>
@@ -11090,7 +11257,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+63"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+64"/>
         <source>Shapes</source>
         <translation type="unfinished">Forme</translation>
     </message>
@@ -11243,7 +11410,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-123"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-10"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-114"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-115"/>
         <source>About</source>
         <translation type="unfinished">Informazioni</translation>
     </message>
@@ -11433,7 +11600,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+63"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+64"/>
         <source>Options</source>
         <translation type="unfinished">Opzioni</translation>
     </message>
@@ -11575,7 +11742,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Filigrana</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-108"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-109"/>
         <source>Cell Styles</source>
         <translation type="unfinished">Stili cella</translation>
     </message>
@@ -11669,7 +11836,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Intestazione e piè di pagina</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+11"/>
         <source>Layouts</source>
         <translation type="unfinished">Layout</translation>
     </message>
@@ -11763,7 +11930,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+15"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+16"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-43"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-49"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-50"/>
         <source>Gridlines</source>
         <translation type="unfinished">Griglia</translation>
     </message>
@@ -11858,7 +12025,12 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Regole evidenziazione celle</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+3"/>
+        <source>Barcode</source>
+        <translation type="unfinished">Codice a barre</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>Line Style</source>
         <translation type="unfinished">Stile linea</translation>
     </message>
@@ -15835,7 +16007,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Continua da pagina %1)</translation>
     </message>
     <message>
-        <location line="+6305"/>
+        <location line="+6322"/>
         <source>Notes</source>
         <translation type="unfinished">Note</translation>
     </message>
@@ -26715,6 +26887,11 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Codice a barre…</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Barcodes From Cells…</source>
+        <translation type="unfinished">Codici a barre da celle…</translation>
+    </message>
+    <message>
         <location line="+7"/>
         <source>Text Box</source>
         <translation type="unfinished">Casella di testo</translation>
@@ -26784,7 +26961,43 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">&quot;%1&quot; non è un&apos;immagine che JeffCrunch può leggere, oppure è troppo grande.</translation>
     </message>
     <message>
-        <location line="+237"/>
+        <location line="+218"/>
+        <location line="+18"/>
+        <source>Insert Barcodes</source>
+        <translation type="unfinished">Inserisci codici a barre</translation>
+    </message>
+    <message>
+        <location line="-14"/>
+        <source>Barcodes made: %1. These cells have no barcode:</source>
+        <translation type="unfinished">Codici a barre creati: %1. Queste celle non hanno un codice a barre:</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No barcodes were made.</source>
+        <translation type="unfinished">Non è stato creato alcun codice a barre.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Select cells that hold text first.</source>
+        <translation type="unfinished">Seleziona prima le celle che contengono testo.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Barcodes inserted: %1</source>
+        <translation type="unfinished">Codici a barre inseriti: %1</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>The selection is too large to look through. Choose fewer cells.</source>
+        <translation type="unfinished">La selezione è troppo grande da esaminare. Scegli meno celle.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The range holds more than %1 cells with text, which is as many barcodes as are made at once. Choose fewer cells.</source>
+        <translation type="unfinished">L&apos;intervallo contiene più di %1 celle con testo, che è il numero di codici a barre creabili contemporaneamente. Scegli meno celle.</translation>
+    </message>
+    <message>
+        <location line="+87"/>
         <location line="+76"/>
         <source>Insert Equation</source>
         <translation type="unfinished">Inserisci equazione</translation>
@@ -26824,7 +27037,7 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Questa equazione non può essere modificata qui.</translation>
     </message>
     <message>
-        <location line="-364"/>
+        <location line="-476"/>
         <location line="+178"/>
         <source>Picture inserted</source>
         <translation type="unfinished">Immagine inserita</translation>
@@ -26873,7 +27086,7 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Codice a barre modificato</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+124"/>
         <source>Insert Shape</source>
         <translation type="unfinished">Inserisci forma</translation>
     </message>
@@ -27104,6 +27317,7 @@ Impossibile leggere il file.</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-120"/>
         <source>and %1 more</source>
         <translation type="unfinished">e altri %1</translation>
     </message>
@@ -28414,7 +28628,8 @@ Impossibile leggere il file.</translation>
         <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+257"/>
         <location filename="../apps/deck/app/deckwindow_design.cpp" line="+144"/>
         <location filename="../apps/deck/app/deckwindow_file.cpp" line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_media.cpp" line="+93"/>
+        <location filename="../apps/deck/app/deckwindow_media.cpp" line="+104"/>
+        <location line="+102"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Tutti i file (*)</translation>
     </message>
@@ -29128,7 +29343,8 @@ Impossibile leggere il file.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_file.cpp" line="+74"/>
-        <location filename="../apps/deck/app/deckwindow_media.cpp" line="+30"/>
+        <location filename="../apps/deck/app/deckwindow_media.cpp" line="-72"/>
+        <location line="+97"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 non riesce ad aprire &quot;%2&quot;.
@@ -30615,7 +30831,7 @@ Impossibile leggere il file.</translation>
     </message>
     <message>
         <location line="+12"/>
-        <location filename="../apps/deck/app/deckwindow_media.cpp" line="+165"/>
+        <location filename="../apps/deck/app/deckwindow_media.cpp" line="+181"/>
         <location line="+7"/>
         <source>Start</source>
         <translation type="unfinished">Inizia</translation>
@@ -30854,7 +31070,7 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Inserisci icone</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_media.cpp" line="-239"/>
+        <location filename="../apps/deck/app/deckwindow_media.cpp" line="-360"/>
         <source>Video on This Device…</source>
         <translation type="unfinished">Video in questo dispositivo…</translation>
     </message>
@@ -30865,35 +31081,57 @@ Impossibile leggere il file.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+22"/>
+        <location line="+30"/>
         <source>Play</source>
         <translation type="unfinished">Riproduci</translation>
     </message>
     <message>
-        <location line="-21"/>
-        <location line="+145"/>
+        <location line="-29"/>
+        <location line="+266"/>
         <source>Trim</source>
         <translation type="unfinished">Taglia</translation>
     </message>
     <message>
-        <location line="-124"/>
+        <location line="-265"/>
+        <source>Insert Captions…</source>
+        <translation type="unfinished">Inserisci sottotitoli…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+210"/>
+        <location line="+16"/>
+        <source>Remove Captions</source>
+        <translation type="unfinished">Rimuovi sottotitoli</translation>
+    </message>
+    <message>
+        <location line="-207"/>
+        <source>Insert Captions: this video is linked from outside the presentation, and captions can only go with a video kept in it.</source>
+        <translation type="unfinished">Inserisci sottotitoli: questo video è collegato dall&apos;esterno della presentazione, e i sottotitoli possono essere associati solo a un video incorporato nella presentazione.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Insert Captions: add captions to the video from a WebVTT file.</source>
+        <translation type="unfinished">Inserisci sottotitoli: aggiungi i sottotitoli al video da un file WebVTT.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>Pause</source>
         <translation type="unfinished">Pausa</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+118"/>
+        <location line="+231"/>
         <source>Trim Audio</source>
         <translation type="unfinished">Taglia audio</translation>
     </message>
     <message>
-        <location line="-118"/>
-        <location line="+118"/>
+        <location line="-231"/>
+        <location line="+231"/>
         <source>Trim Video</source>
         <translation type="unfinished">Taglia video</translation>
     </message>
     <message>
-        <location line="-108"/>
+        <location line="-221"/>
         <source>Video Files (%1)</source>
         <translation type="unfinished">File video (%1)</translation>
     </message>
@@ -30952,7 +31190,61 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">%1 non riesce a leggere &quot;%2&quot; come %3, quindi non viene inserito nella diapositiva.</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+53"/>
+        <location line="+4"/>
+        <location line="+9"/>
+        <source>Insert Captions</source>
+        <translation type="unfinished">Inserisci sottotitoli</translation>
+    </message>
+    <message>
+        <location line="-13"/>
+        <source>WebVTT Caption Files (*.vtt)</source>
+        <translation type="unfinished">File di sottotitoli WebVTT (*.vtt)</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The language of these captions, as a code such as en, es, or pt-BR:</source>
+        <translation type="unfinished">La lingua di questi sottotitoli, come codice ad esempio en, es o pt-BR:</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>This video is linked from outside the presentation, and captions can only go with a video kept in it.</source>
+        <translation type="unfinished">Questo video è collegato dall&apos;esterno della presentazione, e i sottotitoli possono essere associati solo a un video incorporato nella presentazione.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Captions go with a video. Select a video on a slide, and try again.</source>
+        <translation type="unfinished">I sottotitoli vanno associati a un video. Seleziona un video in una diapositiva e riprova.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>%1 is too large to be a caption file (the most is %2 MB).</source>
+        <translation type="unfinished">%1 è troppo grande per essere un file di sottotitoli (il massimo è %2 MB).</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>%1 is too large to put in this presentation: with it, the file could not be opened again.</source>
+        <translation type="unfinished">%1 è troppo grande per essere inserito in questa presentazione: con esso il file non potrebbe essere riaperto.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>%1 can&apos;t be used as captions.
+%2</source>
+        <translation type="unfinished">%1 non può essere usato come sottotitoli.
+%2</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>All languages</source>
+        <translation type="unfinished">Tutte le lingue</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Remove the captions in:</source>
+        <translation type="unfinished">Rimuovi i sottotitoli in:</translation>
+    </message>
+    <message>
+        <location line="+80"/>
         <source>Media Options</source>
         <translation type="unfinished">Opzioni elementi multimediali</translation>
     </message>
@@ -32368,7 +32660,7 @@ Impossibile leggere il file.</translation>
 <context>
     <name>jp::EditorMedia</name>
     <message>
-        <location filename="../apps/deck/app/editormedia.cpp" line="+103"/>
+        <location filename="../apps/deck/app/editormedia.cpp" line="+107"/>
         <source>This movie is linked from outside the presentation, so it can&apos;t be played here.</source>
         <translation type="unfinished">Questo filmato è collegato dall&apos;esterno della presentazione, quindi non può essere riprodotto qui.</translation>
     </message>
@@ -41542,7 +41834,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Una tabella nella pagina %1 non ha una riga di intestazione. La riga di intestazione dà un nome alle colonne per le persone che usano un lettore di schermo.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>Videos need captions for people who can&apos;t hear them. Check the video on slide %1.</source>
         <translation type="unfinished">I video hanno bisogno di sottotitoli per le persone che non possono sentirli. Controlla il video nella diapositiva %1.</translation>
     </message>
@@ -44122,7 +44414,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::ShowMedia</name>
     <message>
-        <location filename="../apps/deck/app/showmedia.cpp" line="+80"/>
+        <location filename="../apps/deck/app/showmedia.cpp" line="+81"/>
         <source>This movie is linked from outside the presentation, so it can&apos;t be played here.</source>
         <translation type="unfinished">Questo filmato è collegato dall&apos;esterno della presentazione, quindi non può essere riprodotto qui.</translation>
     </message>
@@ -46938,7 +47230,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::WriteMail</name>
     <message>
-        <location filename="../apps/write/app/writewindow_mail.cpp" line="+52"/>
+        <location filename="../apps/write/app/writewindow_mail.cpp" line="+53"/>
         <source>Recipient lists (*.csv *.tsv *.txt *.xlsx *.xlsm *.xls *.ods *.fods *.vcf *.vcard)</source>
         <translation type="unfinished">Elenchi destinatari (*.csv *.tsv *.txt *.xlsx *.xlsm *.xls *.ods *.fods *.vcf *.vcard)</translation>
     </message>
@@ -46975,21 +47267,21 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+1"/>
         <location line="+242"/>
-        <location line="+379"/>
+        <location line="+397"/>
         <location line="+14"/>
         <source>Envelopes</source>
         <translation type="unfinished">Buste</translation>
     </message>
     <message>
-        <location line="-634"/>
+        <location line="-652"/>
         <location line="+241"/>
-        <location line="+413"/>
+        <location line="+431"/>
         <location line="+3"/>
         <source>Labels</source>
         <translation type="unfinished">Etichette</translation>
     </message>
     <message>
-        <location line="-656"/>
+        <location line="-674"/>
         <source>Directory</source>
         <translation type="unfinished">Catalogo</translation>
     </message>
@@ -47060,18 +47352,18 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+1"/>
-        <location line="+444"/>
+        <location line="+462"/>
         <source>Preview Results</source>
         <translation type="unfinished">Anteprima risultati</translation>
     </message>
     <message>
-        <location line="-444"/>
-        <location line="+511"/>
+        <location line="-462"/>
+        <location line="+529"/>
         <source>Check for Errors</source>
         <translation type="unfinished">Verifica errori</translation>
     </message>
     <message>
-        <location line="-510"/>
+        <location line="-528"/>
         <source>Step 5 of 6: Finish the merge</source>
         <translation type="unfinished">Passaggio 5 di 6: completa la stampa unione</translation>
     </message>
@@ -47121,7 +47413,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+5"/>
         <location line="+33"/>
         <location line="+89"/>
-        <location line="+300"/>
+        <location line="+318"/>
         <location line="+9"/>
         <location line="+63"/>
         <location line="+1"/>
@@ -47130,7 +47422,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Stampa unione</translation>
     </message>
     <message>
-        <location line="-559"/>
+        <location line="-577"/>
         <source>The list of recipients this document is merged with is not next to it. Choose it again (Mailings &gt; Select Recipients &gt; Use an Existing List).</source>
         <translation type="unfinished">L&apos;elenco dei destinatari con cui questo documento è unito non si trova accanto ad esso. Selezionalo di nuovo (Lettere &gt; Seleziona destinatari &gt; Usa un elenco esistente).</translation>
     </message>
@@ -47163,20 +47455,20 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+16"/>
         <location line="+7"/>
         <location line="+110"/>
-        <location line="+284"/>
+        <location line="+302"/>
         <location line="+33"/>
         <source>Address Block</source>
         <translation type="unfinished">Blocco di indirizzi</translation>
     </message>
     <message>
-        <location line="-424"/>
-        <location line="+124"/>
+        <location line="-442"/>
+        <location line="+142"/>
         <location line="+81"/>
         <source>Next Record</source>
         <translation type="unfinished">Record successivo</translation>
     </message>
     <message>
-        <location line="-200"/>
+        <location line="-218"/>
         <source>The page can&apos;t be made.</source>
         <translation type="unfinished">Impossibile creare la pagina.</translation>
     </message>
@@ -47210,11 +47502,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+35"/>
+        <location line="+39"/>
         <source>Put the caret in the text of the document first.</source>
         <translation type="unfinished">Prima posiziona il punto di inserimento nel testo del documento.</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="-11"/>
         <source>Dear Sir or Madam,</source>
         <translation type="unfinished">Gentile Signore/Signora,</translation>
     </message>
@@ -47224,7 +47517,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Formula di apertura</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+13"/>
+        <source>That barcode can&apos;t be put in as a field.</source>
+        <translation type="unfinished">Quel codice a barre non può essere inserito come campo.</translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>Merge Record #</source>
         <translation type="unfinished">Numero record di unione</translation>
     </message>
@@ -47419,7 +47717,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Documento, secondo riquadro</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+56"/>
+        <source>This document is too large to check its grammar any further. The grammar check has stopped; spelling still works.</source>
+        <translation type="unfinished">Questo documento è troppo grande per continuare il controllo grammaticale. Il controllo grammaticale si è interrotto; il controllo ortografico funziona ancora.</translation>
+    </message>
+    <message>
+        <location line="+41"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -47747,7 +48050,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Zoom…</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+36"/>
         <source>Paste Options</source>
         <translation type="unfinished">Opzioni incolla</translation>
     </message>
@@ -49899,7 +50202,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Controlla ortografia durante la digitazione</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+14"/>
+        <source>Check Grammar as You Type</source>
+        <translation type="unfinished">Verifica grammatica durante la digitazione</translation>
+    </message>
+    <message>
+        <location line="+13"/>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-29"/>
         <source>Track Changes</source>
         <translation type="unfinished">Revisioni</translation>
@@ -50263,8 +50571,8 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Risolvi commento</translation>
     </message>
     <message>
-        <location line="-147"/>
-        <location line="+168"/>
+        <location line="-159"/>
+        <location line="+180"/>
         <source>Spelling</source>
         <translation type="unfinished">Controllo ortografia</translation>
     </message>
@@ -51321,6 +51629,11 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+24"/>
         <source>Choose the recipients first</source>
         <translation type="unfinished">Scegli prima i destinatari</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Barcode from Field</source>
+        <translation type="unfinished">Codice a barre da campo</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_protect.cpp" line="+0"/>
@@ -62573,7 +62886,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::write::Fields</name>
     <message>
-        <location filename="../apps/write/core/fieldcode.cpp" line="+1024"/>
+        <location filename="../apps/write/core/fieldcode.cpp" line="+1025"/>
         <location line="+10"/>
         <location filename="../apps/write/core/fieldops.cpp" line="+494"/>
         <source>above</source>
@@ -64462,13 +64775,23 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">229 x 324 mm</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/mergeops.cpp" line="+515"/>
+        <location filename="../apps/write/core/mergeops.cpp" line="+590"/>
+        <source>Barcode: %1</source>
+        <translation type="unfinished">Codice a barre: %1</translation>
+    </message>
+    <message>
+        <location line="+19"/>
         <location line="+51"/>
         <source>Dear Sir or Madam,</source>
         <translation type="unfinished">Gentile Signore o Signora,</translation>
     </message>
     <message>
-        <location line="+107"/>
+        <location line="+25"/>
+        <source>[Barcode: %1]</source>
+        <translation type="unfinished">[Codice a barre: %1]</translation>
+    </message>
+    <message>
+        <location line="+109"/>
         <source>The merge was stopped.</source>
         <translation type="unfinished">L&apos;unione è stata interrotta.</translation>
     </message>
@@ -64478,7 +64801,17 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">L&apos;unione produrrebbe più di %1 pagine. Unisci meno destinatari oppure un documento più breve.</translation>
     </message>
     <message>
-        <location line="+174"/>
+        <location line="+6"/>
+        <source>The merge would make more than %1 barcodes. Merge fewer recipients.</source>
+        <translation type="unfinished">L&apos;unione creerebbe più di %1 codici a barre. Unisci meno destinatari.</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>[Barcode could not be added]</source>
+        <translation type="unfinished">[Impossibile aggiungere il codice a barre]</translation>
+    </message>
+    <message>
+        <location line="+180"/>
         <source>The folder can&apos;t be made.</source>
         <translation type="unfinished">Impossibile creare la cartella.</translation>
     </message>
@@ -64552,7 +64885,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::write::PageView</name>
     <message>
-        <location filename="../apps/write/app/pagepaint.cpp" line="+137"/>
+        <location filename="../apps/write/app/pagepaint.cpp" line="+138"/>
         <source>Footer</source>
         <translation type="unfinished">Piè di pagina</translation>
     </message>
@@ -64562,7 +64895,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Intestazione</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+238"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+245"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Posizione in questo documento: %1</translation>
     </message>
@@ -64572,7 +64905,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Ctrl+clic per seguire il collegamento</translation>
     </message>
     <message>
-        <location line="+509"/>
+        <location line="+518"/>
         <source>Section Break</source>
         <translation type="unfinished">Interruzione di sezione</translation>
     </message>
@@ -64743,29 +65076,29 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location filename="../apps/write/core/editops.cpp" line="+2072"/>
         <location filename="../apps/write/core/pictureops.cpp" line="+526"/>
         <location line="+293"/>
-        <location line="+1147"/>
+        <location line="+1151"/>
         <location line="+1090"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">Le immagini di questo documento hanno già raggiunto la dimensione complessiva massima consentita da JeffWrite, quindi questa non viene aggiunta.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-2539"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-2543"/>
         <location line="+316"/>
-        <location line="+634"/>
+        <location line="+638"/>
         <location line="+1771"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Non è ancora possibile inserire un&apos;immagine in un&apos;intestazione, in un piè di pagina o in una nota.</translation>
     </message>
     <message>
-        <location line="-2688"/>
+        <location line="-2692"/>
         <location line="+308"/>
-        <location line="+632"/>
+        <location line="+636"/>
         <location line="+1773"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Impossibile inserire un&apos;immagine in questa posizione, oppure il documento contiene già il numero massimo di immagini e oggetti disegnati che JeffWrite può visualizzare.</translation>
     </message>
     <message>
-        <location line="-2686"/>
+        <location line="-2690"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">Il documento contiene il numero massimo di immagini e oggetti disegnati che JeffWrite può visualizzare. Salvalo e riaprilo per apportare altre modifiche.</translation>
     </message>
@@ -64775,7 +65108,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Serie %1</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2625"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2629"/>
         <source>This chart has parts that JeffWrite does not change, so it is kept as it is.</source>
         <translation type="unfinished">Questo grafico contiene parti che JeffWrite non modifica, quindi viene mantenuto così com&apos;è.</translation>
     </message>
@@ -65012,7 +65345,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::write::SpellPane</name>
     <message>
-        <location filename="../apps/write/app/spellpane.cpp" line="+34"/>
+        <location filename="../apps/write/app/spellpane.cpp" line="+35"/>
         <source>Suggestions:</source>
         <translation type="unfinished">Suggerimenti:</translation>
     </message>
@@ -65047,9 +65380,24 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Aggiungi al dizionario</translation>
     </message>
     <message>
-        <location line="+85"/>
+        <location line="+143"/>
+        <source>Grammar: %1</source>
+        <translation type="unfinished">Grammatica: %1</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>(Delete)</source>
+        <translation type="unfinished">(Elimina)</translation>
+    </message>
+    <message>
+        <location line="+20"/>
         <source>Checking spelling…</source>
         <translation type="unfinished">Controllo ortografia in corso…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Checking grammar…</source>
+        <translation type="unfinished">Controllo grammatica in corso…</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -65057,9 +65405,14 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Non presente nel dizionario:</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+30"/>
         <source>The spelling check is complete.</source>
         <translation type="unfinished">Il controllo ortografia è stato completato.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The spelling and grammar check is complete.</source>
+        <translation type="unfinished">Il controllo ortografico e grammaticale è completato.</translation>
     </message>
 </context>
 <context>
