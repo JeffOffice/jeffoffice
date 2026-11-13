@@ -7,6 +7,7 @@
 
 #include <QWidget>
 
+class QCheckBox;
 class QLabel;
 class QLineEdit;
 class QListWidget;
@@ -45,6 +46,7 @@ private:
     QListWidget *m_toolbar, *m_list;
     QPushButton *m_add, *m_separator, *m_up, *m_down, *m_remove, *m_resetOne, *m_resetAll;
     QLabel *m_message;
+    QCheckBox *m_below;
     bool m_fromCommands = false;
     bool m_filling = false;
     bool m_locked = false;

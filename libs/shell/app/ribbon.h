@@ -173,6 +173,9 @@ public:
     QList<QuickEntry> defaultQuickAccess() const;
     QList<QToolButton *> quickAccessHidden() const;   // the buttons that don't fit the row: they are in the » menu
     QToolButton *quickAccessMore() const;
+    // The quick toolbar below the ribbon's page, in a row of its own (the top row when not).
+    void setQuickToolbarBelow(bool below);
+    bool quickToolbarBelow() const { return m_qatBelow; }
     int quickAccessLayoutCount() const;   // how many times the quick toolbar was laid out (tests)
     // The right-click menu of a control of the ribbon (`target` null: the ribbon's own space): made each time, owned by the ribbon. showContextMenu() opens it at `global`.
     QMenu *contextMenuFor(QWidget *target);
@@ -249,6 +252,7 @@ private:
         bool split = false;
         QString keytip;
     };
+    bool m_qatBelow = false;
     QList<QatDefault> m_qatDefaults;   // the quick toolbar as the ribbon file made it (once it has been replaced)
     bool m_qatSnapshot = false;
     int m_current = 0;

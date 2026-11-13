@@ -977,6 +977,9 @@ public:
     QVector<QToolButton *> qatButtons;
     QVector<QWidget *> qatItems;   // the buttons and the separators between them, in order
     QToolButton *m_qatMore = nullptr;   // the quick toolbar's commands that don't fit (the » button)
+    QWidget *m_qatRow = nullptr;        // the row under the ribbon's page that holds the quick toolbar when it is there (made by the ribbon)
+    // Where the quick toolbar's buttons are: the top row, or the row under the page.
+    QWidget *qatHost() { return m_r->m_qatBelow && m_qatRow ? m_qatRow : static_cast<QWidget *>(this); }
     QVector<QWidget *> m_qatMoreShown;   // what the » menu lists now
     QVector<QWidget *> m_qatOverflow;    // what does not fit the row now
     int m_qatLayouts = 0;
@@ -1038,7 +1041,9 @@ public:
     int placeQat()
     {
         ++m_qatLayouts;
-        const int room = std::max(100, width() / 3), moreW = 22;
+        const bool below = m_r->m_qatBelow && m_qatRow;
+        const int room = below ? std::max(100, m_qatRow->width() - 16) : std::max(100, width() / 3), moreW = 22;
+        const int y = below ? 2 : top() - 1;
         QVector<QWidget *> present;
         for (QWidget *w : std::as_const(qatItems))
             if (qatPresent(w)) present << w;
@@ -1064,13 +1069,14 @@ public:
             if (want ? w->isHidden() : (!w->isHidden() || !w->testAttribute(Qt::WA_WState_ExplicitShowHide))) w->setVisible(want);
             if (!want) continue;
             const int ww = qatItemWidth(w);
-            const QRect g = qobject_cast<QToolButton *>(w) ? QRect(x, top() - 1, ww, 26) : QRect(x + 3, top() + 2, 2, 20);
+            const QRect g = qobject_cast<QToolButton *>(w) ? QRect(x, y, ww, 26) : QRect(x + 3, y + 3, 2, 20);
             if (w->geometry() != g) w->setGeometry(g);
             x += ww + 2;
         }
+        if (below && m_qatRow->isHidden() == !present.isEmpty()) m_qatRow->setVisible(!present.isEmpty());
         if (m_qatMore->isHidden() == !more.isEmpty()) m_qatMore->setVisible(!more.isEmpty());
         if (!more.isEmpty()) {
-            m_qatMore->setGeometry(x, top() - 1, moreW, 26);
+            m_qatMore->setGeometry(x, y, moreW, 26);
             x += moreW + 2;
         }
         // The menu is made again when what is in it changes, and not while it is open (it is made again when it closes).
@@ -1137,6 +1143,7 @@ public:
         updateMetrics();
         const int pillH = pillHeight();
         int x = qatWidth();
+        if (m_r->m_qatBelow) x = 6;   // (the quick toolbar is not in this row)
         m_file->setGeometry(x + 2, top(), fm.horizontalAdvance(m_file->text()) + 58, pillH);
         x += 6 + m_file->width() + 4;
         // The tabs sit in the room between File and Help. Each is its text with 26 of padding (not under 14, so the labels stay apart); when they still don't fit, the last ones go into
@@ -1272,6 +1279,30 @@ public:
 };
 } // namespace
 
+namespace {
+// The row under the ribbon's page that holds the quick toolbar when it is moved there.
+class QuickRow : public QWidget {
+public:
+    QuickRow(RibbonHeader *h, QWidget *parent) : QWidget(parent), m_h(h)
+    {
+        setObjectName(QStringLiteral("jpQuickRow"));
+        setFixedHeight(std::max(30, fontMetrics().height() + 12));
+    }
+
+protected:
+    void resizeEvent(QResizeEvent *) override { m_h->placeQat(); }
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter p(this);
+        p.setPen(lineColor());
+        p.drawLine(0, height() - 1, width(), height() - 1);
+    }
+
+private:
+    RibbonHeader *m_h;
+};
+} // namespace
+
 Ribbon::Ribbon(QWidget *parent) : QWidget(parent)
 {
     auto *v = new QVBoxLayout(this);
@@ -1284,6 +1315,9 @@ Ribbon::Ribbon(QWidget *parent) : QWidget(parent)
     updateBodyHeight();
     v->addWidget(m_header);
     v->addWidget(m_stack);
+    m_header->m_qatRow = new QuickRow(m_header, this);
+    m_header->m_qatRow->hide();
+    v->addWidget(m_header->m_qatRow);
     setAutoFillBackground(true);
     QPalette pal = palette();
     pal.setColor(QPalette::Window, ribbonBg());
@@ -1578,7 +1612,7 @@ RibbonTab *Ribbon::tab(const QString &name) const
 
 QToolButton *Ribbon::addQuickAccess(QAction *a, QMenu *menu, bool split)
 {
-    auto *b = new QToolButton(m_header);
+    auto *b = new QToolButton(m_header->qatHost());
     b->setDefaultAction(a);
     b->setAutoRaise(true);
     b->setIconSize(QSize(16, 16));
@@ -1598,7 +1632,7 @@ QToolButton *Ribbon::addQuickAccess(QAction *a, QMenu *menu, bool split)
 
 void Ribbon::addQuickAccessSeparator()
 {
-    auto *line = new QFrame(m_header);
+    auto *line = new QFrame(m_header->qatHost());
     line->setObjectName(QStringLiteral("jpQuickSeparator"));
     line->setFrameShape(QFrame::VLine);
     m_header->qatItems << line;
@@ -1653,6 +1687,20 @@ QList<QToolButton *> Ribbon::quickAccessHidden() const
 }
 
 QToolButton *Ribbon::quickAccessMore() const { return m_header->m_qatMore; }
+
+// The buttons move to the row under the page (or back to the top row); the layouts then place them.
+void Ribbon::setQuickToolbarBelow(bool below)
+{
+    if (m_qatBelow == below) return;
+    m_qatBelow = below;
+    QWidget *host = m_header->qatHost();
+    for (QWidget *w : std::as_const(m_header->qatItems)) w->setParent(host);
+    m_header->m_qatMore->setParent(host);
+    if (!below) m_header->m_qatRow->hide();
+    m_header->layoutButtons();
+    m_header->placeQat();
+    m_header->update();
+}
 
 int Ribbon::quickAccessLayoutCount() const { return m_header->m_qatLayouts; }
 
@@ -1752,6 +1800,15 @@ QMenu *Ribbon::contextMenuFor(QWidget *target)
     });
     connect(m->addAction(QCoreApplication::translate("Ribbon", "Customize the Ribbon…")), &QAction::triggered, m, [window] {
         if (window) window->openOptions(AppWindow::OptionsStart::Ribbon);
+    });
+    QAction *below = m->addAction(QCoreApplication::translate("Ribbon", "Show Quick Toolbar Below the Ribbon"));
+    below->setCheckable(true);
+    below->setChecked(m_qatBelow);
+    connect(below, &QAction::triggered, m, [](bool on) {
+        RibbonCustom c = RibbonCustom::load();
+        c.quickBelow = on;
+        c.save();
+        RibbonCustom::applyAll();
     });
     if (!quick) {
         m->addSeparator();

@@ -1787,7 +1787,7 @@ void checkRibbonContextMenu(Adapter &app)
         return nullptr;
     };
     const QString add = QStringLiteral("Add to Quick Toolbar"), remove = QStringLiteral("Remove from Quick Toolbar");
-    const QString customizeQuick = QStringLiteral("Customize the Quick Toolbar\u2026"), customizeRibbon = QStringLiteral("Customize the Ribbon\u2026"), collapse = QStringLiteral("Collapse the Ribbon");
+    const QString customizeQuick = QStringLiteral("Customize the Quick Toolbar\u2026"), customizeRibbon = QStringLiteral("Customize the Ribbon\u2026"), collapse = QStringLiteral("Collapse the Ribbon"), below = QStringLiteral("Show Quick Toolbar Below the Ribbon");
     // a command on the current tab that can be on the quick toolbar and is not
     QToolButton *button = nullptr;
     if (jp::RibbonTab *tab = ribbon->current())
@@ -1804,7 +1804,7 @@ void checkRibbonContextMenu(Adapter &app)
     QContextMenuEvent ev(QContextMenuEvent::Mouse, local, button->mapToGlobal(local));
     QApplication::sendEvent(button, &ev);
     QVERIFY2(ribbon->contextMenu() && ribbon->contextMenu()->isVisible(), qPrintable(who + QStringLiteral("a right-click on ") + id + QStringLiteral(" opened no menu")));
-    QCOMPARE(texts(ribbon->contextMenu()), (QStringList{add, QStringLiteral("-"), customizeQuick, customizeRibbon, QStringLiteral("-"), collapse}));
+    QCOMPARE(texts(ribbon->contextMenu()), (QStringList{add, QStringLiteral("-"), customizeQuick, customizeRibbon, below, QStringLiteral("-"), collapse}));
     QVERIFY(item(ribbon->contextMenu(), add)->isEnabled());
     ribbon->contextMenu()->close();
     // Add: kept, and on the toolbar
@@ -1820,7 +1820,7 @@ void checkRibbonContextMenu(Adapter &app)
     QToolButton *quick = ribbon->quickAccessButtons().last();
     m = ribbon->contextMenuFor(quick);
     QVERIFY(m);
-    QCOMPARE(texts(m), (QStringList{remove, QStringLiteral("-"), customizeQuick, customizeRibbon}));
+    QCOMPARE(texts(m), (QStringList{remove, QStringLiteral("-"), customizeQuick, customizeRibbon, below}));
     item(m, remove)->trigger();
     delete m;
     QCOMPARE(int(ribbon->quickAccessButtons().size()), int(defaults.size()));

@@ -41,6 +41,7 @@ public:
     QList<Group> groups;        // the person's own groups, on any tab
     bool quickSet = false;      // the person changed the quick toolbar: `quick` is it (otherwise the ribbon file's is)
     QStringList quick;          // a command's id, or an empty string for a separator
+    bool quickBelow = false;    // the quick toolbar is in a row below the ribbon's page
 
     bool isEmpty() const;
     bool operator==(const RibbonCustom &o) const;

@@ -11,6 +11,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
+#include <QCheckBox>
 #include <QVBoxLayout>
 
 namespace jp {
@@ -92,6 +93,12 @@ QuickToolbarPage::QuickToolbarPage(AppWindow *win, QWidget *parent) : QWidget(pa
     m_message->setWordWrap(true);
     m_message->setAccessibleName(tr("Quick toolbar status"));
     col->addWidget(m_message);
+
+    m_below = new QCheckBox(tr("Show Quick Toolbar below the ribbon"), this);
+    m_below->setObjectName(QStringLiteral("quickBelow"));
+    m_below->setChecked(saved.quickBelow);
+    m_below->setToolTip(tr("Puts the quick toolbar in a row under the ribbon instead of at the top left of the window."));
+    col->addWidget(m_below);
 
     auto *resets = new QHBoxLayout;
     m_resetOne = make(QStringLiteral("quickResetOne"), tr("Reset One"), tr("Puts the chosen command back as the quick toolbar usually has it: where it is usually, or off it when it usually is not there."));
@@ -233,6 +240,7 @@ void QuickToolbarPage::apply()
     RibbonCustom out = RibbonCustom::load();   // (what the Ribbon page keeps stays as it is)
     out.quickSet = m_plan.quickSet;
     out.quick = m_plan.quick;
+    out.quickBelow = m_below->isChecked();
     out.save();
     RibbonCustom::applyAll();
 }

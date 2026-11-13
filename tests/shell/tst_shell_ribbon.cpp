@@ -12,6 +12,7 @@
 #include "../testrunner.h"
 
 #include <QAction>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QContextMenuEvent>
 #include <QMenu>
@@ -196,6 +197,7 @@ QToolButton *quickButton(Ribbon *r, const QString &id)
 const QString kAddText = QStringLiteral("Add to Quick Toolbar"), kRemoveText = QStringLiteral("Remove from Quick Toolbar");
 const QString kCustomizeQuickText = QStringLiteral("Customize the Quick Toolbar…"), kCustomizeRibbonText = QStringLiteral("Customize the Ribbon…");
 const QString kCollapseText = QStringLiteral("Collapse the Ribbon");
+const QString kBelowText = QStringLiteral("Show Quick Toolbar Below the Ribbon");
 
 struct LazyTabs {
     LazyTabs() { setLazyRibbonTabs(true); }
@@ -1368,7 +1370,7 @@ private Q_SLOTS:
         QVERIFY(copy);
         QMenu *m = r->contextMenuFor(copy);
         QVERIFY2(m, "a command has no right-click menu");
-        QCOMPARE(menuTexts(m), (QStringList{kAddText, QStringLiteral("-"), kCustomizeQuickText, kCustomizeRibbonText, QStringLiteral("-"), kCollapseText}));
+        QCOMPARE(menuTexts(m), (QStringList{kAddText, QStringLiteral("-"), kCustomizeQuickText, kCustomizeRibbonText, kBelowText, QStringLiteral("-"), kCollapseText}));
         QVERIFY(menuItem(m, kAddText)->isEnabled());
         QVERIFY(menuItem(m, kCollapseText)->isCheckable());
         QVERIFY(!menuItem(m, kCollapseText)->isChecked());
@@ -1387,16 +1389,16 @@ private Q_SLOTS:
         QVERIFY(save);
         m = r->contextMenuFor(save);
         QVERIFY(m);
-        QCOMPARE(menuTexts(m), (QStringList{kRemoveText, QStringLiteral("-"), kCustomizeQuickText, kCustomizeRibbonText}));
+        QCOMPARE(menuTexts(m), (QStringList{kRemoveText, QStringLiteral("-"), kCustomizeQuickText, kCustomizeRibbonText, kBelowText}));
         delete m;
         // a tab's name and the empty space of the ribbon: the Customize items and Collapse
         m = r->contextMenuFor(r->tabButton(1));
         QVERIFY(m);
-        QCOMPARE(menuTexts(m), (QStringList{kCustomizeQuickText, kCustomizeRibbonText, QStringLiteral("-"), kCollapseText}));
+        QCOMPARE(menuTexts(m), (QStringList{kCustomizeQuickText, kCustomizeRibbonText, kBelowText, QStringLiteral("-"), kCollapseText}));
         delete m;
         m = r->contextMenuFor(nullptr);
         QVERIFY(m);
-        QCOMPARE(menuTexts(m), (QStringList{kCustomizeQuickText, kCustomizeRibbonText, QStringLiteral("-"), kCollapseText}));
+        QCOMPARE(menuTexts(m), (QStringList{kCustomizeQuickText, kCustomizeRibbonText, kBelowText, QStringLiteral("-"), kCollapseText}));
         delete m;
     }
 
@@ -1531,6 +1533,65 @@ private Q_SLOTS:
         delete m;
         delete box;
         QVERIFY(RibbonCustom::load().isEmpty());
+    }
+
+    // "Show Quick Toolbar Below the Ribbon": the quick toolbar's buttons move to a row under the ribbon's page; the choice is in the ribbon's menu and the quick toolbar's own, is kept in
+    // the app's settings, and is a box on the Quick Toolbar page.
+    void theQuickToolbarCanBeBelowTheRibbon()
+    {
+        MenuWindow w;
+        Ribbon *r = w.ribbon();
+        QVERIFY(!r->quickToolbarBelow());
+        QToolButton *save = quickButton(r, QStringLiteral("file.save"));
+        QVERIFY(save && save->isVisibleTo(r));
+        const QWidget *header = save->parentWidget();
+        QCOMPARE(header->objectName(), QStringLiteral("jpRibbonTabs"));
+        QMenu *m = r->contextMenuFor(nullptr);
+        QAction *below = menuItem(m, kBelowText);
+        QVERIFY(below);
+        QVERIFY(below->isCheckable());
+        QVERIFY(!below->isChecked());
+        below->trigger();
+        delete m;
+        QVERIFY(r->quickToolbarBelow());
+        save = quickButton(r, QStringLiteral("file.save"));
+        QVERIFY(save);
+        QTRY_VERIFY(save->isVisibleTo(r));
+        QCOMPARE(save->parentWidget()->objectName(), QStringLiteral("jpQuickRow"));
+        QWidget *row = save->parentWidget();
+        QVERIFY(row->mapTo(r, QPoint(0, 0)).y() >= r->tabButton(0)->mapTo(r, QPoint(0, 0)).y() + r->tabButton(0)->height());
+        QVERIFY(save->geometry().bottom() <= row->height());
+        QVERIFY(RibbonCustom::load().quickBelow);
+        // the quick toolbar's own menu says it is on, and turns it off
+        m = r->contextMenuFor(save);
+        below = menuItem(m, kBelowText);
+        QVERIFY(below && below->isChecked());
+        // a window made later has it too
+        {
+            MenuWindow other;
+            QCOMPARE(quickButton(other.ribbon(), QStringLiteral("file.save"))->parentWidget()->objectName(), QStringLiteral("jpQuickRow"));
+        }
+        below->trigger();
+        delete m;
+        QVERIFY(!r->quickToolbarBelow());
+        QCOMPARE(quickButton(r, QStringLiteral("file.save"))->parentWidget(), header);
+        QVERIFY(!RibbonCustom::load().quickBelow);
+        QVERIFY(RibbonCustom::load().isEmpty());
+        // the Quick Toolbar page has the box, and keeps the choice
+        QuickToolbarPage page(&w);
+        auto *box = page.findChild<QCheckBox *>(QStringLiteral("quickBelow"));
+        QVERIFY(box);
+        QVERIFY(!box->isChecked());
+        box->setChecked(true);
+        page.apply();
+        QVERIFY(r->quickToolbarBelow());
+        QVERIFY(RibbonCustom::load().quickBelow);
+        // what the Ribbon page keeps stays as it was
+        RibbonPage ribbonPage(&w);
+        ribbonPage.plan().setTabHidden(QStringLiteral("View"), true);
+        ribbonPage.apply();
+        QVERIFY(RibbonCustom::load().quickBelow);
+        QVERIFY(r->quickToolbarBelow());
     }
 
     void theCustomizeItemsOpenOptionsAtTheirPages()

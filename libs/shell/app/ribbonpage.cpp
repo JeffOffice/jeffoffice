@@ -433,6 +433,7 @@ void RibbonPage::apply()
     const RibbonCustom saved = RibbonCustom::load();
     out.quickSet = saved.quickSet;
     out.quick = saved.quick;
+    out.quickBelow = saved.quickBelow;
     out.save();
     RibbonCustom::applyAll();
 }

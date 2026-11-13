@@ -55,7 +55,7 @@ QByteArray savedText()
 
 bool RibbonCustom::isEmpty() const
 {
-    return hiddenTabs.isEmpty() && hiddenGroups.isEmpty() && tabOrder.isEmpty() && tabs.isEmpty() && groups.isEmpty() && !quickSet;
+    return hiddenTabs.isEmpty() && hiddenGroups.isEmpty() && tabOrder.isEmpty() && tabs.isEmpty() && groups.isEmpty() && !quickSet && !quickBelow;
 }
 
 bool RibbonCustom::operator==(const RibbonCustom &o) const
@@ -97,6 +97,7 @@ QByteArray RibbonCustom::toJson() const
         for (const QString &id : quick) a << (id.isEmpty() ? QJsonObject{{QStringLiteral("sep"), true}} : QJsonObject{{QStringLiteral("cmd"), id}});
         o.insert(QStringLiteral("quick"), a);
     }
+    if (quickBelow) o.insert(QStringLiteral("quickBelow"), true);
     return QJsonDocument(o).toJson(QJsonDocument::Compact);
 }
 
@@ -142,6 +143,7 @@ RibbonCustom RibbonCustom::fromJson(const QByteArray &json)
         }
         c.groups.append(out);
     }
+    c.quickBelow = o.value(QLatin1String("quickBelow")).toBool();
     if (o.value(QLatin1String("quick")).isArray()) {
         c.quickSet = true;
         for (const QJsonValue &v : o.value(QLatin1String("quick")).toArray()) {
@@ -730,6 +732,7 @@ void RibbonCustom::applyTo(AppWindow *win) const
     }() : QString();
 
     applyQuick(r, win);
+    r->setQuickToolbarBelow(quickBelow);
 
     // A command that opens a menu brings it from its button: the tab that button is on is made first (and no other).
     for (const Group &g : groups)
