@@ -3254,8 +3254,8 @@
        "text": "d337b73f000e076e52dd335f570d565a5766e044281cd024adf334dabd07a521"
       },
       {
-       "status": "todo",
-       "text": "c8db79d460fa7cfac8c6f4b5fc00e87c1749d63ad584a401b666bd77b90d3579"
+       "status": "partly",
+       "text": "a1e578291d5baff63ab6fa6e9e6f1b95d8838a5e9b74cf760806061eb509a670"
       },
       {
        "hide_soon": true,
@@ -4687,8 +4687,8 @@
        "text": "dc3eb290b4508cd84dc0fa08c7baa2e0318d6b4f29c46895455f3e3f6d8a7cee"
       },
       {
-       "status": "todo",
-       "text": "60aea5d964ae9d1ba684c4042083b5478a3939f4fc5a7edb22f8b2942fbc54c6"
+       "status": "partly",
+       "text": "122661c9d39d450b53845d0d4a72783bf9378844f70130e9291ff453f57fd8f9"
       },
       {
        "hide_soon": true,
@@ -5472,7 +5472,7 @@
       },
       {
        "status": "partly",
-       "text": "6d7941984d9951a91f1bcfc0283dbdc4b3647a007f41c9e3b1dd2ac546b79dac"
+       "text": "233ba07f9e4653a73a752acf8433f9c77fd9d737f8d881473c7c72423cb6a315"
       },
       {
        "status": "todo",
@@ -8671,6 +8671,18 @@
     "fr": ""
    }
   },
+  "122661c9d39d450b53845d0d4a72783bf9378844f70130e9291ff453f57fd8f9": {
+   "drop": false,
+   "en": "Grammar and style checking runs on your computer in text boxes, shapes, and table cells, in English. Grammar and style issues get a blue dotted line, and spelling keeps its red wave. Right-click shows the message and suggestions, and a suggestion changes the text as one step that can be undone. Ignore This Issue and Ignore All are available, the Spelling check (`F7`) continues on to grammar issues, and only the changed paragraph is checked again.",
+   "es": "La revisión gramatical y de estilo se ejecuta en su equipo en cuadros de texto, formas y celdas de tabla, en inglés. Los problemas de gramática y estilo se marcan con una línea azul punteada, y la ortografía conserva su onda roja. Al hacer clic con el botón derecho se muestran el mensaje y las sugerencias, y una sugerencia cambia el texto en un solo paso que se puede deshacer. Están disponibles Ignorar este problema e Ignorar todo, la revisión ortográfica (`F7`) continúa con los problemas gramaticales, y solo se vuelve a revisar el párrafo modificado.",
+   "fr": "La vérification de la grammaire et du style s’exécute sur votre ordinateur dans les zones de texte, les formes et les cellules de tableau, en anglais. Les problèmes de grammaire et de style sont soulignés par une ligne pointillée bleue, et l’orthographe garde sa vague rouge. Un clic droit affiche le message et les suggestions, et une suggestion modifie le texte en une seule étape qui peut être annulée. Ignorer ce problème et Tout ignorer sont disponibles, la vérification orthographique (`F7`) passe ensuite aux problèmes de grammaire, et seul le paragraphe modifié est revérifié.",
+   "soon": {
+    "drop": false,
+    "en": "More grammar rules and languages other than English",
+    "es": "Más reglas gramaticales e idiomas distintos del inglés",
+    "fr": "Plus de règles de grammaire et langues autres que l’anglais"
+   }
+  },
   "122725696a78e7591e2d4e2356992cf3dfb74122fdcda571a8f242ec2b42876f": {
    "drop": false,
    "en": "Info",
@@ -9977,6 +9989,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "233ba07f9e4653a73a752acf8433f9c77fd9d737f8d881473c7c72423cb6a315": {
+   "drop": false,
+   "en": "Grammar and style checking runs on your computer for document text, in English. It catches repeated words, a and an, its and it's, their and there, your and you're, then and than, lose and loose, double spaces, and spacing around punctuation, and it skips doubtful cases rather than flag correct text. Grammar and style issues get a blue dotted line, and spelling keeps its red wave. Right-click shows the message and suggestions, and a suggestion changes the text as one step that can be undone. Check grammar as you type is set in Options, Ignore This Issue and Ignore All are available, and the Spelling pane continues on to grammar issues.",
+   "es": "La revisión gramatical y de estilo se ejecuta en su equipo para el texto del documento, en inglés. Detecta palabras repetidas, a y an, its e it's, their y there, your y you're, then y than, lose y loose, espacios dobles y espacios alrededor de la puntuación, y omite los casos dudosos en lugar de marcar texto correcto. Los problemas de gramática y estilo se marcan con una línea azul punteada, y la ortografía conserva su onda roja. Al hacer clic con el botón derecho se muestran el mensaje y las sugerencias, y una sugerencia cambia el texto en un solo paso que se puede deshacer. Revisar la gramática mientras escribe se configura en Opciones, están disponibles Ignorar este problema e Ignorar todo, y el panel de ortografía continúa con los problemas gramaticales.",
+   "fr": "La vérification de la grammaire et du style s’exécute sur votre ordinateur pour le texte du document, en anglais. Elle repère les mots répétés, a et an, its et it's, their et there, your et you're, then et than, lose et loose, les doubles espaces et les espaces autour de la ponctuation, et elle laisse de côté les cas douteux plutôt que de signaler un texte correct. Les problèmes de grammaire et de style sont soulignés par une ligne pointillée bleue, et l’orthographe garde sa vague rouge. Un clic droit affiche le message et les suggestions, et une suggestion modifie le texte en une seule étape qui peut être annulée. Vérifier la grammaire pendant la frappe se règle dans les Options, Ignorer ce problème et Tout ignorer sont disponibles, et le volet d’orthographe passe ensuite aux problèmes de grammaire.",
+   "soon": {
+    "drop": false,
+    "en": "More grammar rules, issues in tables, headers, footers, and notes, and languages other than English",
+    "es": "Más reglas gramaticales, problemas en tablas, encabezados, pies de página y notas, e idiomas distintos del inglés",
+    "fr": "Plus de règles de grammaire, problèmes dans les tableaux, en-têtes, pieds de page et notes, et langues autres que l’anglais"
    }
   },
   "2362094d5e005d53f738f180839c18400e264f4823f42766bfa6cd95d10d1cb1": {
@@ -14491,18 +14515,6 @@
     "fr": ""
    }
   },
-  "60aea5d964ae9d1ba684c4042083b5478a3939f4fc5a7edb22f8b2942fbc54c6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Grammar and style checking that runs on your own computer",
-    "es": "Revisión gramatical y de estilo que se ejecuta en su propio equipo",
-    "fr": "Vérification de la grammaire et du style exécutée sur votre propre ordinateur"
-   }
-  },
   "60b3913d622eb1f69fc10ab28c877413b0ff9380803e5ae968385d9ed7465b32": {
    "drop": false,
    "en": "Open `.docx` files with body text and formatting, styles, numbering, sections and page setup, headers and footers, notes, fields, bookmarks, links, tables, pictures, shapes and text boxes, equations, charts, content controls, comments, tracked changes, properties, themes, settings, and embedded fonts.",
@@ -15689,18 +15701,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "6d7941984d9951a91f1bcfc0283dbdc4b3647a007f41c9e3b1dd2ac546b79dac": {
-   "drop": false,
-   "en": "Check grammar and style in English on your own computer, as you type. Grammar and style issues get a blue dotted line, and spelling keeps its red wave. Right-click an issue to see the message and suggestions, and a suggestion changes the text as one step that undoes. Use Ignore This Issue or Ignore All, and the Spelling pane goes on to grammar issues after spelling.",
-   "es": "Revise la gramática y el estilo en inglés en su propio equipo, mientras escribe. Los problemas de gramática y estilo se marcan con una línea azul punteada, y la ortografía conserva su onda roja. Haga clic derecho en un problema para ver el mensaje y las sugerencias; una sugerencia cambia el texto en un solo paso que se puede deshacer. Use Ignorar este problema o Ignorar todo, y el panel de ortografía continúa con los problemas de gramática después de la ortografía.",
-   "fr": "Vérifiez la grammaire et le style en anglais sur votre propre ordinateur, pendant la saisie. Les problèmes de grammaire et de style sont soulignés d’une ligne pointillée bleue, et l’orthographe garde sa vague rouge. Faites un clic droit sur un problème pour voir le message et les suggestions ; une suggestion modifie le texte en une seule étape annulable. Utilisez Ignorer ce problème ou Ignorer tout, et le volet Orthographe passe aux problèmes de grammaire après l’orthographe.",
-   "soon": {
-    "drop": false,
-    "en": "More grammar and style rules: agreement, tense, wordiness, and style",
-    "es": "Más reglas de gramática y estilo: concordancia, tiempos verbales, redundancia y estilo",
-    "fr": "Davantage de règles de grammaire et de style : accord, temps, verbosité et style"
    }
   },
   "6ddec3351d3989e71923ca52b67bb61a43695ed0abc4b6c327aaf2d2a0beb621": {
@@ -19171,6 +19171,18 @@
     "fr": ""
    }
   },
+  "a1e578291d5baff63ab6fa6e9e6f1b95d8838a5e9b74cf760806061eb509a670": {
+   "drop": false,
+   "en": "Grammar and style checking runs on your computer for slide text and speaker notes, in English. Grammar and style issues get a blue dotted line, and spelling keeps its red wave. Right-click shows the message and suggestions, and a suggestion changes the text as one step that can be undone. Ignore This Issue and Ignore All are available, the Spelling check (`F7`) continues on to grammar issues, and only the changed paragraph is checked again.",
+   "es": "La revisión gramatical y de estilo se ejecuta en su equipo para el texto de las diapositivas y las notas del orador, en inglés. Los problemas de gramática y estilo se marcan con una línea azul punteada, y la ortografía conserva su onda roja. Al hacer clic con el botón derecho se muestran el mensaje y las sugerencias, y una sugerencia cambia el texto en un solo paso que se puede deshacer. Están disponibles Ignorar este problema e Ignorar todo, la revisión ortográfica (`F7`) continúa con los problemas gramaticales, y solo se vuelve a revisar el párrafo modificado.",
+   "fr": "La vérification de la grammaire et du style s’exécute sur votre ordinateur pour le texte des diapositives et les notes du présentateur, en anglais. Les problèmes de grammaire et de style sont soulignés par une ligne pointillée bleue, et l’orthographe garde sa vague rouge. Un clic droit affiche le message et les suggestions, et une suggestion modifie le texte en une seule étape qui peut être annulée. Ignorer ce problème et Tout ignorer sont disponibles, la vérification orthographique (`F7`) passe ensuite aux problèmes de grammaire, et seul le paragraphe modifié est revérifié.",
+   "soon": {
+    "drop": false,
+    "en": "More grammar rules and languages other than English",
+    "es": "Más reglas gramaticales e idiomas distintos del inglés",
+    "fr": "Plus de règles de grammaire et langues autres que l’anglais"
+   }
+  },
   "a29fab786be6ae254dffc39fb5b00576c6453857b3d938a6f0f8201db0e7af54": {
    "drop": false,
    "en": "Clipboard",
@@ -21533,18 +21545,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c8db79d460fa7cfac8c6f4b5fc00e87c1749d63ad584a401b666bd77b90d3579": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Grammar and style checking that runs on your own computer",
-    "es": "Revisión gramatical y de estilo que se ejecuta en su propio equipo",
-    "fr": "Vérification de la grammaire et du style exécutée sur votre propre ordinateur"
    }
   },
   "c9030f6be891939aee4222a565168abceec13e3306953f2f79cf1750ce7a5dfe": {
