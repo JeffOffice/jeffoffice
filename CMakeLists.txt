@@ -163,8 +163,19 @@ if(MINGW)
   # alone, but not when any object marks one).
   target_link_options(jeffoffice-common PRIVATE -Wl,--export-all-symbols)
 endif()
-if(NOT APPLE)
-  # The third-party static libraries inside it are not exported (on Windows that keeps their symbols out of the 65,535 of the export table).
+if(MINGW)
+  # The third-party static libraries inside it are not exported (that keeps their symbols out of the 65,535 of the export table), named one
+  # by one: "ALL" also hid the layers' own code from the DLL's export table on the Windows build (their objects are LTO objects there).
+  set(_jo_hidden jp_hunspell jp_qpdfwrap jp_qpdf jp_jpegturbo zlibstatic)
+  set(_jo_hidden_names)
+  foreach(_t ${_jo_hidden})
+    if(TARGET ${_t})
+      list(APPEND _jo_hidden_names "$<TARGET_FILE_NAME:${_t}>")
+    endif()
+  endforeach()
+  list(JOIN _jo_hidden_names ":" _jo_hidden_list)
+  target_link_options(jeffoffice-common PRIVATE "LINKER:--exclude-libs,${_jo_hidden_list}")
+elseif(NOT APPLE)
   target_link_options(jeffoffice-common PRIVATE -Wl,--exclude-libs,ALL)
 endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
