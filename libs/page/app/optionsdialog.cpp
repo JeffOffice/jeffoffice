@@ -69,7 +69,7 @@ bool grammarSettingsDialog(QWidget *p)
         {GrammarIssue::Grammar, QCoreApplication::translate("Dialogs", "Grammar"), QCoreApplication::translate("Dialogs", "Verbs that do not agree, \"a\" and \"an\", and the wrong form of a verb.")},
         {GrammarIssue::Punctuation, QCoreApplication::translate("Dialogs", "Punctuation"), QCoreApplication::translate("Dialogs", "Extra or missing spaces, commas, and hyphens.")},
         {GrammarIssue::Capitalization, QCoreApplication::translate("Dialogs", "Capitalization"), QCoreApplication::translate("Dialogs", "Sentences, \"I\", and the days and months.")},
-        {GrammarIssue::WordChoice, QCoreApplication::translate("Dialogs", "Word choice"), QCoreApplication::translate("Dialogs", "Words that sound alike, such as \"its\" and \"it's\".")},
+        {GrammarIssue::WordChoice, QCoreApplication::translate("Dialogs", "Mixed-up words"), QCoreApplication::translate("Dialogs", "Words that sound alike, such as \"its\" and \"it's\".")},
         {GrammarIssue::Repetition, QCoreApplication::translate("Dialogs", "Repetition"), QCoreApplication::translate("Dialogs", "A word typed twice.")},
         {GrammarIssue::Style, QCoreApplication::translate("Dialogs", "Style"), QCoreApplication::translate("Dialogs", "Long sentences, passive voice, and wordy phrases. These are suggestions, not mistakes.")},
     };
