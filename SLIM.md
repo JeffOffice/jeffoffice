@@ -15,4 +15,4 @@ milliseconds since launch) and `JP_GRAB` to make it quit: "first paint" and "usa
 | JeffWrite | 53,896,336 | 49,207,280 | 75.2 ms | 154.3 ms | 418.1 ms |
 | JeffCrunch | 53,308,400 | 48,559,344 | 74.1 ms | 153.4 ms | 415.8 ms |
 
-Install size now (stripped exes only, since Help and translations are inside them): 187,000,000 bytes for the four.
+Install size now (stripped exes only, since Help and translations are inside them): 186,974,000 bytes for the four.

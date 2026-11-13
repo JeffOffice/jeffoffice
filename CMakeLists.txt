@@ -32,9 +32,15 @@ include(cmake/qpdf.cmake)
 #             with the layer below (the word processor)
 # Inside each, the files keep the folders they had under src/ (core/, io/,
 # app/...), so an include names the same file wherever it lives.
+#
+# The layers are OBJECT libraries (so each is compiled with the includes of the layers below it, and lupdate and the layer link
+# checks see them one by one), and all of them are linked into ONE shared library, jeffoffice-common, that every app and test program
+# links: the code is in a program's folder once, not once in each app. The third-party libraries it needs (hunspell, zlib, qpdf)
+# are linked into it and no program carries a copy.
 function(jo_library name dir)
   file(GLOB_RECURSE sources CONFIGURE_DEPENDS ${dir}/*.cpp ${dir}/*.h ${dir}/*.inc)
-  add_library(${name} STATIC ${sources})
+  add_library(${name} OBJECT ${sources})
+  set_target_properties(${name} PROPERTIES POSITION_INDEPENDENT_CODE ON)
   target_include_directories(${name} PUBLIC ${dir})
 endfunction()
 
@@ -55,28 +61,78 @@ jo_library(jo_text libs/text)
 target_link_libraries(jo_text PUBLIC jo_draw)
 jo_library(jo_office libs/office)
 target_link_libraries(jo_office PUBLIC jo_text Qt6::Xml)
-if(APPLE)
-  # (the code pages of the old workbook format that take two bytes a character are CoreFoundation's to convert)
-  target_link_libraries(jo_office PRIVATE "-framework CoreFoundation")
-endif()
 jo_library(jo_shell libs/shell)
 target_link_libraries(jo_shell PUBLIC jo_office)
-if(WIN32)
-  # The system Save dialog (filedialogs.cpp).
-  target_link_libraries(jo_shell PRIVATE ole32 uuid shell32)
-endif()
 jo_library(jo_page libs/page)
 target_link_libraries(jo_page PUBLIC jo_shell)
 jo_library(jo_flow libs/flow)
 target_link_libraries(jo_flow PUBLIC jo_page)
+if(WIN32)
+  # The system Save dialog (filedialogs.cpp).
+  target_link_libraries(jo_shell PRIVATE ole32 uuid shell32)
+endif()
 
-# Each shared library links on its own, with only the ones below it: every
-# object of it is pulled in, so a call into a higher layer (which the include
-# check can't see) fails to link here. Linux's linker is enough to catch one.
+set(JO_LAYERS jo_base jo_draw jo_text jo_office jo_shell jo_page jo_flow)
+set(JO_LAYER_OBJECTS)
+foreach(layer ${JO_LAYERS})
+  list(APPEND JO_LAYER_OBJECTS $<TARGET_OBJECTS:${layer}>)
+endforeach()
+add_library(jeffoffice-common SHARED ${JO_LAYER_OBJECTS})
+foreach(layer ${JO_LAYERS})
+  target_include_directories(jeffoffice-common PUBLIC $<TARGET_PROPERTY:${layer},INTERFACE_INCLUDE_DIRECTORIES>)
+endforeach()
+target_link_libraries(jeffoffice-common PUBLIC Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport Qt6::Network Qt6::Xml
+                      PRIVATE jp_hunspell jp_zlib pdfium jp_qpdfwrap)
+target_compile_definitions(jeffoffice-common PUBLIC QT_NO_KEYWORDS)
+target_compile_options(jeffoffice-common PUBLIC -Wall -Wextra -Wno-unused-parameter)
+if(APPLE)
+  # (the code pages of the old workbook format that take two bytes a character are CoreFoundation's to convert)
+  target_link_libraries(jeffoffice-common PRIVATE "-framework CoreFoundation")
+endif()
+if(WIN32)
+  target_link_libraries(jeffoffice-common PRIVATE ole32 uuid shell32)
+endif()
+if(MINGW)
+  # Large translation units exceed the default COFF section limit.
+  target_compile_options(jeffoffice-common PUBLIC -Wa,-mbig-obj -D_USE_MATH_DEFINES)
+  target_compile_options(jo_base PUBLIC -Wa,-mbig-obj -D_USE_MATH_DEFINES)
+  # Every symbol of the layers goes in the DLL's export table (nothing is marked for export one by one; GNU ld would do the same
+  # alone, but not when any object marks one).
+  target_link_options(jeffoffice-common PRIVATE -Wl,--export-all-symbols)
+endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  foreach(lib jo_base jo_draw jo_text jo_office jo_shell jo_page jo_flow)
-    add_executable(${lib}_linkcheck tools/linkcheck.cpp)
-    target_link_libraries(${lib}_linkcheck PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,${lib}>")
+  # The library links by itself, with no symbol left to a program (a call upward the layers' include check can't see fails here), and keeps
+  # the third-party libraries' symbols to itself.
+  target_link_options(jeffoffice-common PRIVATE -Wl,--no-undefined -Wl,--exclude-libs,ALL)
+endif()
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  # Inside the library a call to one of its own functions is direct (no lookup through the program's symbols at each first call),
+  # which keeps the start of a program as quick as it was with the code in the program.
+  foreach(layer ${JO_LAYERS})
+    target_compile_options(${layer} PRIVATE -fno-semantic-interposition)
+  endforeach()
+  target_link_options(jeffoffice-common PRIVATE -Wl,-Bsymbolic-functions)
+endif()
+# The programs find the library beside them, in ../lib (the Linux packages), or in a macOS app's Frameworks folder.
+if(APPLE)
+  set(CMAKE_INSTALL_RPATH "@executable_path/../Frameworks" "@loader_path/../Frameworks")
+  set(CMAKE_BUILD_RPATH "@executable_path" "@executable_path/../Frameworks")
+elseif(UNIX)
+  set(CMAKE_INSTALL_RPATH "$ORIGIN" "$ORIGIN/../lib" "$ORIGIN/../lib/jeffoffice")
+  set(CMAKE_BUILD_RPATH "$ORIGIN")
+endif()
+install(TARGETS jeffoffice-common RUNTIME DESTINATION bin LIBRARY DESTINATION lib/jeffoffice)
+
+# Each layer links on its own, with only the ones below it: a call into a
+# higher layer (which the include check can't see) fails to link here.
+# Linux's linker is enough to catch one.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  set(_below)
+  foreach(lib ${JO_LAYERS})
+    list(APPEND _below $<TARGET_OBJECTS:${lib}>)
+    add_executable(${lib}_linkcheck tools/linkcheck.cpp ${_below})
+    target_link_libraries(${lib}_linkcheck PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport Qt6::Network Qt6::Xml jp_hunspell jp_zlib pdfium jp_qpdfwrap)
+    target_include_directories(${lib}_linkcheck PRIVATE $<TARGET_PROPERTY:jeffoffice-common,INTERFACE_INCLUDE_DIRECTORIES>)
   endforeach()
 endif()
 
@@ -85,14 +141,10 @@ file(GLOB_RECURSE JP_PUB_SOURCES CONFIGURE_DEPENDS apps/pub/*.cpp apps/pub/*.h a
 list(REMOVE_ITEM JP_PUB_SOURCES ${CMAKE_SOURCE_DIR}/apps/pub/main.cpp)
 add_library(jpcore STATIC ${JP_PUB_SOURCES})
 target_include_directories(jpcore PUBLIC apps/pub)
-target_link_libraries(jpcore PUBLIC jo_page PRIVATE jp_libmspub)
+target_link_libraries(jpcore PUBLIC jeffoffice-common PRIVATE jp_libmspub)
 if(WIN32)
   # Programs find pdfium.dll beside them.
   file(COPY ${JP_PDFIUM_LIBRARY} DESTINATION ${CMAKE_BINARY_DIR})
-endif()
-if(MINGW)
-  # Large translation units exceed the default COFF section limit.
-  target_compile_options(jo_base PUBLIC -Wa,-mbig-obj -D_USE_MATH_DEFINES)
 endif()
 
 # Windows version resource (Properties > Details): one VERSIONINFO per shipped app, from PROJECT_VERSION.
@@ -184,13 +236,13 @@ target_compile_definitions(jptests PRIVATE JP_TEST_DATA="${CMAKE_SOURCE_DIR}/tes
 set_target_properties(jptests PROPERTIES WIN32_EXECUTABLE OFF)
 # Crashes on purpose, for the test of crash reports.
 qt_add_executable(jpcrashtest tests/crashtest.cpp)
-target_link_libraries(jpcrashtest PRIVATE jo_shell)
+target_link_libraries(jpcrashtest PRIVATE jeffoffice-common)
 set_target_properties(jpcrashtest PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
 add_dependencies(jptests jpcrashtest)
 target_compile_definitions(jptests PRIVATE JP_CRASHTEST="$<TARGET_FILE:jpcrashtest>")
 # Loads fonts the way a program does, for the test of which fonts win.
 qt_add_executable(jpfonttest tests/fonttest.cpp)
-target_link_libraries(jpfonttest PRIVATE jo_base)
+target_link_libraries(jpfonttest PRIVATE jeffoffice-common)
 set_target_properties(jpfonttest PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
 add_dependencies(jptests jpfonttest)
 target_compile_definitions(jptests PRIVATE JP_FONTTEST="$<TARGET_FILE:jpfonttest>")
@@ -218,7 +270,7 @@ qt_add_executable(officetests
   tests/office/tst_office_text.cpp
   tests/office/tst_office_theme.cpp
   tests/office/tst_office_xmlwrite.cpp)
-target_link_libraries(officetests PRIVATE jo_office Qt6::Test)
+target_link_libraries(officetests PRIVATE jeffoffice-common Qt6::Test)
 set_target_properties(officetests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME officetests COMMAND officetests)
 set_tests_properties(officetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
@@ -317,28 +369,28 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_textmatch.cpp
   tests/sheet/tst_sheet_filter.cpp
   tests/sheet/sheettests.qrc)
-target_link_libraries(sheettests PRIVATE jo_shell Qt6::Test)
+target_link_libraries(sheettests PRIVATE jeffoffice-common Qt6::Test)
 set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME sheettests COMMAND sheettests)
 set_tests_properties(sheettests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 # The tests of OpenDocument text (libs/office/odt): read into the parts of a .docx and written from them.
 qt_add_executable(odttests tests/office/tst_odt.cpp)
-target_link_libraries(odttests PRIVATE jo_office Qt6::Test)
+target_link_libraries(odttests PRIVATE jeffoffice-common Qt6::Test)
 set_target_properties(odttests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME odttests COMMAND odttests)
 set_tests_properties(odttests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 # The tests of the word processing XML (libs/office/wml): the tree it is read into, and reading and writing a .docx.
 qt_add_executable(wmltests tests/office/tst_wml.cpp)
-target_link_libraries(wmltests PRIVATE jo_office Qt6::Test)
+target_link_libraries(wmltests PRIVATE jeffoffice-common Qt6::Test)
 set_target_properties(wmltests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME wmltests COMMAND wmltests)
 set_tests_properties(wmltests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 # The tests of libs/flow and of the changes below it that it needs.
 qt_add_executable(flowtests tests/flow/tst_flow.cpp tests/flow/tst_flow_02.cpp tests/flow/tst_flow_03.cpp tests/flow/tst_flow_04.cpp tests/flow/tst_flow_05.cpp tests/flow/tst_flow_06.cpp tests/flow/tst_flow_07.cpp tests/flow/tst_flow_08.cpp)
-target_link_libraries(flowtests PRIVATE jo_flow Qt6::Test)
+target_link_libraries(flowtests PRIVATE jeffoffice-common Qt6::Test)
 set_target_properties(flowtests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME flowtests COMMAND flowtests)
 set_tests_properties(flowtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
@@ -358,7 +410,7 @@ file(GLOB_RECURSE JD_SOURCES CONFIGURE_DEPENDS apps/deck/*.cpp apps/deck/*.h)
 list(REMOVE_ITEM JD_SOURCES ${CMAKE_SOURCE_DIR}/apps/deck/main.cpp)
 add_library(jdcore STATIC ${JD_SOURCES} apps/deck/resources/deck.qrc)
 target_include_directories(jdcore PUBLIC apps/deck)
-target_link_libraries(jdcore PUBLIC jo_page Qt6::Multimedia)
+target_link_libraries(jdcore PUBLIC jeffoffice-common Qt6::Multimedia)
 qt_add_executable(jeffdeck WIN32 MACOSX_BUNDLE apps/deck/main.cpp)
 if(APPLE)
   # As JeffPub's: an icon from its 256-pixel picture, document types (the
@@ -459,7 +511,7 @@ file(GLOB_RECURSE JW_SOURCES CONFIGURE_DEPENDS apps/write/*.cpp apps/write/*.h)
 list(REMOVE_ITEM JW_SOURCES ${CMAKE_SOURCE_DIR}/apps/write/main.cpp)
 add_library(jwcore STATIC ${JW_SOURCES} apps/write/resources/write.qrc)
 target_include_directories(jwcore PUBLIC apps/write)
-target_link_libraries(jwcore PUBLIC jo_flow)
+target_link_libraries(jwcore PUBLIC jeffoffice-common)
 qt_add_executable(jeffwrite WIN32 MACOSX_BUNDLE apps/write/main.cpp)
 if(APPLE)
   # As JeffDeck's: an icon from its 256-pixel picture, document types (the formats it opens, never as their default), and the fonts
@@ -573,7 +625,7 @@ file(GLOB_RECURSE JC_SOURCES CONFIGURE_DEPENDS apps/crunch/*.cpp apps/crunch/*.h
 list(REMOVE_ITEM JC_SOURCES ${CMAKE_SOURCE_DIR}/apps/crunch/main.cpp)
 add_library(jccore STATIC ${JC_SOURCES} apps/crunch/resources/crunch.qrc)
 target_include_directories(jccore PUBLIC apps/crunch)
-target_link_libraries(jccore PUBLIC jo_page)
+target_link_libraries(jccore PUBLIC jeffoffice-common)
 qt_add_executable(jeffcrunch WIN32 MACOSX_BUNDLE apps/crunch/main.cpp)
 if(APPLE)
   # As JeffWrite's: an icon from its 256-pixel picture, document types (the formats it opens, never as their default), and the fonts
@@ -738,7 +790,7 @@ endif()
 
 # Developer tool for laying a text out in pages (the flowing document) from the command line, and for measuring that.
 qt_add_executable(writetool tools/writetool.cpp)
-target_link_libraries(writetool PRIVATE jo_flow)
+target_link_libraries(writetool PRIVATE jeffoffice-common)
 if(JP_BUILD_WRITE)
   # With JeffWrite, it also lays out and draws a .docx as JeffWrite does (for measuring it against the pages Word makes).
   target_link_libraries(writetool PRIVATE jwcore)
@@ -748,7 +800,7 @@ set_target_properties(writetool PROPERTIES WIN32_EXECUTABLE OFF)
 
 # Developer tool for JeffCrunch's readers and its yardstick: what a workbook holds, and a table of that for a list of workbooks.
 qt_add_executable(jcrunchtool tools/jcrunchtool.cpp tools/jcrunchtool_filter.cpp tools/jcrunchtool_side.cpp tools/jcrunchtool_compare.cpp tools/jcrunchtool_xlsfuzz.cpp tools/jcrunchtool_xlssave.cpp tools/jcrunchtool_copycheck.cpp tools/jcrunchtool_datatable.cpp tools/jcrunchtool_tokens.cpp tools/jcrunchtool_odsfuzz.cpp tools/jcrunchtool_linemap.cpp tools/jcrunchtool_pivot.cpp)
-target_link_libraries(jcrunchtool PRIVATE jo_office)
+target_link_libraries(jcrunchtool PRIVATE jeffoffice-common)
 target_compile_definitions(jcrunchtool PRIVATE JCRUNCH_TOOLS_DIR="${CMAKE_SOURCE_DIR}/tools")
 set_target_properties(jcrunchtool PROPERTIES WIN32_EXECUTABLE OFF)
 if(JP_BUILD_CRUNCH)
