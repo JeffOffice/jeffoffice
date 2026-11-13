@@ -172,9 +172,9 @@
   {
    "name": "Russian dictionary",
    "url": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/ru_RU/README_ru_RU.txt",
-   "use": "Spelling",
-   "license": "BSD-style",
-   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/ru_RU/README_ru_RU.txt",
+   "use": "Spelling and hyphenation",
+   "license": "BSD-style; patterns LPPL-1.2+",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/resources/dict/ru_RU/README_hyph_ru_RU.txt",
    "windowsOnly": false,
    "apps": [
     "JeffPub",

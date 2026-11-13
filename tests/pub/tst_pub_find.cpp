@@ -40,6 +40,14 @@ private Q_SLOTS:
             {"fr-FR", "aujourd'hui", "2,6"},
             {"ja-JP", "hyphenation", ""},
             {"id-ID", "berlari", "3,5"},
+            {"ru-RU", "электричество", "4,7,9"},
+            {"ru-RU", "программирование", "3,7,9,11,13"},
+            {"ru-RU", "государственный", "2,4,7,12"},
+            {"ru-RU", "университет", "3,6,8"},
+            {"ru-RU", "информация", "2,5,7"},
+            {"ru-RU", "компьютер", "3,6"},
+            {"ru-RU", "документ", "2,4"},
+            {"ru-RU", "студентами", "3,6,8"},
         };
         for (const auto &c : cases) {
             QStringList got;
@@ -52,8 +60,8 @@ private Q_SLOTS:
         QVERIFY(!ukPoints.isEmpty());
         QVERIFY(ukPoints.contains(3));
         for (int p : ukPoints) QVERIFY(p >= 2 && p <= ukWord.size() - 2);
-        // Russian has no hyphenation (its patterns carry no license).
-        QVERIFY(jp::dict::hyphenationFile(QStringLiteral("ru-RU")).isEmpty());
+        // Russian: a word that is one exception in the patterns ("помни") has no break.
+        QVERIFY(jp::hyphenationPoints(QString::fromUtf8("помни"), QStringLiteral("ru-RU")).isEmpty());
         // Layout breaks a word with its own language's patterns.
         auto doc = jp::Document::blank(QSizeF(612, 792));
         auto t = std::make_shared<jp::TextItem>();
@@ -123,8 +131,7 @@ private Q_SLOTS:
         // Every listed language has its spelling and hyphenation files.
         for (const jp::dict::Language &l : jp::dict::languages()) {
             QVERIFY2(jp::dict::hasSpelling(l.code), qPrintable(l.code));
-            // (Russian has no hyphenation: its patterns carry no license)
-            QVERIFY2(!jp::dict::hyphenationFile(l.code).isEmpty() || l.code == QLatin1String("ru-RU"), qPrintable(l.code));
+            QVERIFY2(!jp::dict::hyphenationFile(l.code).isEmpty(), qPrintable(l.code));
         }
         QCOMPARE(jp::dict::languageName(QStringLiteral("pt-BR")), QStringLiteral("Portuguese (Brazil)"));
     }

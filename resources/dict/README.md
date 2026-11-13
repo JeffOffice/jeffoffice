@@ -1,6 +1,6 @@
 # Bundled dictionaries
 
-JeffPub checks spelling and hyphenates with these dictionaries from the [LibreOffice dictionaries project](https://github.com/LibreOffice/dictionaries), one folder per language as LibreOffice lays them out. The files are unchanged. Each remains under its own license, recorded in the README and license files beside it. None is covered by JeffPub's GPL.
+JeffPub checks spelling and hyphenates with these dictionaries from the [LibreOffice dictionaries project](https://github.com/LibreOffice/dictionaries), one folder per language as LibreOffice lays them out. The files are unchanged, except the Russian hyphenation, which is converted (see its row). Each remains under its own license, recorded in the README and license files beside it. None is covered by JeffPub's GPL.
 
 | Folder | Contents | License |
 |---|---|---|
@@ -18,7 +18,8 @@ JeffPub checks spelling and hyphenates with these dictionaries from the [LibreOf
 | `nl_NL` | Dutch spelling and hyphenation (from [OpenTaal](https://www.opentaal.org/)) | BSD (revised) or CC BY 3.0 (`LICENSE.txt`, `README.md`) |
 | `pt_BR` | Brazilian Portuguese spelling and hyphenation (from [VERO](http://pt-br.libreoffice.org/projetos/projeto-vero-verificador-ortografico/)) | LGPL-3.0 or MPL (`README_pt_BR.txt`, `README_hyph_pt_BR.txt`, `README_en.txt`) |
 | `pt_PT` | European Portuguese spelling and hyphenation | GPL-2.0+ (`LICENSES.txt`, `README_pt_PT.txt`, `README_hyph_pt_PT.txt`) |
-| `ru_RU` | Russian spelling (`ru_RU`, Alexander I. Lebedev). The folder's hyphenation patterns, thesaurus, and grammar checker are not bundled: the patterns state no license | BSD-style (`README_ru_RU.txt`) |
+| `ru_RU` | Russian spelling (`ru_RU`, Alexander I. Lebedev). The folder's own hyphenation patterns, thesaurus, and grammar checker are not bundled: the patterns state no license | BSD-style (`README_ru_RU.txt`) |
+| `ru_RU` | Russian hyphenation (`hyph_ru_RU.dic`), **converted** by `tools/dict/tex_to_hyph.py` from Lebedev's `hyph-ru.tex` (version 2003/03/10, from [hyph-utf8](https://github.com/hyphenation/tex-hyphen)), so this one file is not unchanged | LPPL 1.2 or later (`README_hyph_ru_RU.txt`) |
 | `id` | Indonesian spelling and hyphenation (`id_ID`, from [hunspell-id](https://github.com/shuLhan/hunspell-id)). The thesaurus is not bundled | LGPL-3.0 (`LICENSE-dict`, `README-dict.adoc`). The upstream project's license file (`.reuse/dep5`) lists `hyph_id_ID.dic` under LGPL-3.0-only, though the file has no header of its own. The comments at the top of `id_ID.aff` (lines 5-8) still say GPL; the project's license file and the SPDX tag in that file say LGPL-3.0 |
 | `uk_UA` | Ukrainian spelling (`uk_UA`, from [dict_uk](https://github.com/brown-uk/dict_uk), by Andriy Rysin and others) | MPL-1.1 (`README_uk_UA.txt`) |
 | `uk_UA` | Ukrainian hyphenation (`hyph_uk_UA.dic`, Maksym Polyakov) | GPL-2.0+ (`README_hyph_uk_UA.txt`) |
