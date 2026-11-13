@@ -145,6 +145,12 @@ SOURCES
 touch "$repo/.nojekyll"
 
 latest=$(for f in "$repo"/pool/$comp/*/*/*.deb; do dpkg-deb -f "$f" Version; done | sort -V | tail -n 1)
+versions=$(for f in "$repo"/pool/$comp/*/*/*.deb; do dpkg-deb -f "$f" Version; done | sort -Vr | uniq)
+if [ "$(printf '%s\n' "$versions" | wc -l)" -le 1 ]; then
+  kept="This repository serves the newest version only."
+else
+  kept="This repository keeps the newest $(printf '%s\n' "$versions" | wc -l) versions ($(printf '%s\n' "$versions" | awk '{v[NR]=$0} END {for (i=1;i<=NR;i++) printf "%s%s", v[i], (i==NR ? "" : (NR==2 ? " and " : (i==NR-1 ? ", and " : ", ")))}')), so you can go back to an earlier one: <code>sudo apt install jeffoffice=$(printf '%s\n' "$versions" | sed -n 2p)</code>, for example."
+fi
 cat > "$repo/index.html" <<HTML
 <!doctype html>
 <html lang="en">
@@ -160,7 +166,7 @@ cat > "$repo/index.html" <<HTML
 </head>
 <body>
 <h1>JeffOffice for Debian and Ubuntu</h1>
-<p>JeffOffice is a free, open-source office suite: JeffPub, JeffDeck, JeffWrite, and JeffCrunch. Add this repository once, and apt installs it and keeps it up to date. The current version is $latest. It needs Ubuntu 22.04 or newer, or Debian 12 or newer, on a 64-bit Intel or AMD computer (amd64). The download is about 100 MB (about 320 MB once installed). This repository serves the newest version only.</p>
+<p><a href="https://www.jeffoffice.com">JeffOffice</a> is a free, open-source office suite: JeffPub, JeffDeck, JeffWrite, and JeffCrunch. Add this repository once, and apt installs it and keeps it up to date. The current version is $latest. It needs Ubuntu 22.04 or newer, or Debian 12 or newer, on a 64-bit Intel or AMD computer (amd64). The download is about 100 MB (about 320 MB once installed). $kept</p>
 <h2>Add the repository</h2>
 <pre>sudo apt install wget    # skip this if wget is already installed
 sudo install -d -m 0755 /etc/apt/keyrings
@@ -179,7 +185,7 @@ sudo apt update</pre>
 <pre>sudo apt remove jeffoffice
 sudo rm /etc/apt/sources.list.d/jeffoffice.sources /etc/apt/keyrings/jeffoffice.gpg
 sudo apt update</pre>
-<p><a href="https://github.com/JeffOffice/jeffoffice">JeffOffice on GitHub</a></p>
+<p><a href="https://www.jeffoffice.com">JeffOffice website</a> · <a href="https://github.com/JeffOffice/jeffoffice">JeffOffice on GitHub</a></p>
 </body>
 </html>
 HTML
