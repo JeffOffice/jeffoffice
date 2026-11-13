@@ -755,6 +755,7 @@ void PageView::paintEvent(QPaintEvent *e)
             }
             paintPage(&p, *page->page, &page->layouts, d);
             if (m_reviewMarks.changeBars || m_reviewMarks.formatBars || m_reviewMarks.comments || m_reviewMarks.deletions || m_reviewMarks.carets) paintReviewMarks(p, *page);
+            paintBarcodeFields(p, i);
             p.restore();
         }
         if (m_web) continue;   // (no end of a page is shown)

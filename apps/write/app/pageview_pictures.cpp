@@ -3,7 +3,9 @@
 
 #include "app/icons.h"
 #include "app/pageview.h"
+#include "core/barcodeitem.h"
 #include "core/editops.h"
+#include "core/mergeops.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 
@@ -223,6 +225,78 @@ bool PageView::pictureRect(int position, QRectF *rect)
     if (!pictureRectUncached(position, rect)) return false;
     m_rectCache = {true, key, *rect};
     return true;
+}
+
+// ---- barcode fields: a DISPLAYBARCODE field is drawn as its bars, over the text its result is
+
+const QVector<mail::BarcodeField> &PageView::barcodeFieldList()
+{
+    static const QVector<mail::BarcodeField> none;
+    if (!m_doc) return none;
+    if (!m_barcodeList || m_barcodeDoc != m_doc || m_barcodeRevision != m_doc->story()->revision()) {
+        m_barcodeList = std::make_shared<const QVector<mail::BarcodeField>>(mail::barcodeFields(*m_doc));
+        m_barcodeDoc = m_doc;
+        m_barcodeRevision = m_doc->story()->revision();
+    }
+    return *m_barcodeList;
+}
+
+bool PageView::barcodeFieldBox(const mail::BarcodeField &field, int *page, QRectF *rect)
+{
+    int first = -1, last = -1;
+    QLineF a, b;
+    if (!caretLine(field.from, &first, &a) || !caretLine(field.to, &last, &b)) return false;
+    if (first != last || std::abs(a.y1() - b.y1()) > 2 || b.x1() - a.x1() < 2) return false;   // (a result that goes over lines is left as the text it is)
+    *page = first;
+    *rect = QRectF(a.x1(), a.y1(), b.x1() - a.x1(), a.y2() - a.y1());
+    return true;
+}
+
+void PageView::paintBarcodeFields(QPainter &p, int page)
+{
+    if (!m_doc || m_hf.active || m_note.active) return;
+    for (const mail::BarcodeField &field : barcodeFieldList()) {
+        int at = -1;
+        QRectF box;
+        if (!barcodeFieldBox(field, &at, &box) || at != page) continue;
+        const barcode::Layout l = barcodeLayout(field.settings);
+        if (!l.error.isEmpty() || l.size.isEmpty()) continue;
+        p.save();
+        p.setClipRect(box);
+        p.setRenderHint(QPainter::Antialiasing, false);
+        p.fillRect(box, Qt::white);
+        // A QR code stays square; a row of bars takes the width and the height of the line.
+        double sx = box.width() / l.size.width(), sy = box.height() / l.size.height();
+        if (field.settings.value(QLatin1String("type")).toInt() == int(barcode::Type::Qr)) sx = sy = std::min(sx, sy);
+        p.translate(box.topLeft());
+        p.scale(sx, sy);
+        p.fillPath(barcodePath(l), Qt::black);
+        p.restore();
+    }
+}
+
+bool PageView::barcodeFieldRect(int begin, QRect *rect)
+{
+    for (const mail::BarcodeField &field : barcodeFieldList()) {
+        int page = -1;
+        QRectF box;
+        if (field.begin != begin || !barcodeFieldBox(field, &page, &box) || page >= m_rects.size()) continue;
+        const double s = scale();
+        const QRectF pr = m_rects[page].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
+        *rect = QRectF(pr.left() + box.left() * s, pr.top() + box.top() * s, box.width() * s, box.height() * s).toAlignedRect();
+        return true;
+    }
+    return false;
+}
+
+int PageView::barcodeFieldAtPoint(const QPoint &viewportPos)
+{
+    if (!m_doc || m_hf.active || m_note.active) return -1;
+    for (const mail::BarcodeField &field : barcodeFieldList()) {
+        QRect r;
+        if (barcodeFieldRect(field.begin, &r) && r.contains(viewportPos)) return field.begin;
+    }
+    return -1;
 }
 
 bool PageView::pictureRectUncached(int position, QRectF *rect)

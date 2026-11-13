@@ -12,6 +12,8 @@
 #include <QJsonObject>
 #include <QString>
 #include <QTextCursor>
+#include <QVector>
+#include <optional>
 #include <QStringList>
 #include <QVector>
 #include <functional>
@@ -85,6 +87,20 @@ bool insertRule(WriteDoc &doc, QTextCursor &c, const QString &code, const QStrin
 bool insertBarcodeField(WriteDoc &doc, QTextCursor &c, const QString &column, const QJsonObject &settings);
 QString addressBlockCode(const QString &format, const QString &homeCountry = QString());
 QString greetingCode(const QString &format, const QString &fallback);
+
+// A DISPLAYBARCODE field of the text, as the editor draws it and the barcode dialog edits it (the outermost ones; one inside another's code is not listed).
+struct BarcodeField {
+    int begin = -1;          // where the field begins: the place that names it to the other calls
+    int from = -1, to = -1;  // the text its result is drawn over (a field of one character: that character)
+    QString column;          // the merge field it is made from
+    QJsonObject settings;    // as the barcode dialog keeps them; "data" is the value the result shows now, or a sample when it shows none the code can hold
+    bool sample = false;     // "data" is a sample
+};
+QVector<BarcodeField> barcodeFields(WriteDoc &doc);
+// The barcode field that holds the position (a place in it or on its character), if there is one.
+std::optional<BarcodeField> barcodeFieldAt(WriteDoc &doc, int position);
+// Puts the type and look `settings` give in the barcode field at the position, as one step that undoes; false (nothing done) where there is none, it is locked, or the settings are none the field can keep.
+bool changeBarcodeField(WriteDoc &doc, int position, const QJsonObject &settings);
 
 // The settings of the barcode a DISPLAYBARCODE field asks for with this value, as the barcode dialog keeps them; empty for a type that is none or not drawn here.
 QJsonObject barcodeSettingsOfField(const fields::Code &code, const QString &value);

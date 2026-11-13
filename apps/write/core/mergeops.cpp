@@ -590,6 +590,95 @@ bool insertBarcodeField(WriteDoc &doc, QTextCursor &c, const QString &column, co
     return insertRule(doc, c, code, QString::fromUtf8("\xC2\xAB") + QCoreApplication::translate("jp::write::Mail", "Barcode: %1").arg(column.trimmed()) + QString::fromUtf8("\xC2\xBB"));
 }
 
+namespace {
+
+// A value the type can hold, for a field that shows none (its name, or a result the code can't hold).
+QString sampleValue(barcode::Type type)
+{
+    switch (type) {
+    case barcode::Type::Ean13:
+    case barcode::Type::Isbn: return QStringLiteral("5901234123457");
+    case barcode::Type::Ean8: return QStringLiteral("96385074");
+    case barcode::Type::UpcA: return QStringLiteral("036000291452");
+    case barcode::Type::Code39: return QStringLiteral("ABC123");
+    case barcode::Type::Qr: return QStringLiteral("https://example.com");
+    default: return QStringLiteral("0123456789");
+    }
+}
+
+// The barcode field the scan's field `at` is, or none for a field that is no barcode or stands in another's code.
+std::optional<BarcodeField> barcodeFieldOf(const StoryScan &scan, int at)
+{
+    const FieldPlace &f = scan.fields[at];
+    if (f.name != QLatin1String("DISPLAYBARCODE") || f.parent >= 0) return std::nullopt;
+    const fields::Code code = fields::parseCode(scan.instructionOf(at));
+    BarcodeField out;
+    out.begin = f.begin;
+    if (f.form == FieldPlace::Group) {
+        out.from = f.begin;
+        out.to = f.begin + 1;
+    } else {
+        if (f.separate < 0 || f.end <= f.separate + 1) return std::nullopt;
+        out.from = f.separate + 1;
+        out.to = f.end;
+    }
+    // (The column: the merge field in the code, as a field of its own, or as the words of one that was made as one character.)
+    for (const CodePiece &p : f.code)
+        if (p.field >= 0 && out.column.isEmpty()) {
+            const fields::Code inner = fields::parseCode(scan.instructionOf(p.field));
+            if (inner.name == QLatin1String("MERGEFIELD")) out.column = inner.arguments.value(0).trimmed();
+        }
+    if (out.column.isEmpty()) {
+        static const QRegularExpression merge(QStringLiteral("MERGEFIELD\\s+(\\S+)"));
+        out.column = merge.match(code.arguments.value(0)).captured(1);
+    }
+    // The value is the result when it is one (not the name in guillemets) and the code can hold it, else a sample.
+    QString value = scan.resultOf(at).trimmed();
+    const bool shown = !value.isEmpty() && !(value.startsWith(QChar(0xAB)) && value.endsWith(QChar(0xBB)));
+    out.settings = barcodeSettingsOfField(code, shown ? value : QString());
+    if (out.settings.isEmpty()) return std::nullopt;
+    const barcode::Type type = barcode::Type(out.settings.value(QLatin1String("type")).toInt());
+    out.sample = !shown || !barcodeLayout(out.settings).error.isEmpty() || !barcode::tooLong(barcodeOptions(out.settings)).isEmpty();
+    if (out.sample) out.settings.insert(QStringLiteral("data"), sampleValue(type));
+    return out;
+}
+
+} // namespace
+
+QVector<BarcodeField> barcodeFields(WriteDoc &doc)
+{
+    QVector<BarcodeField> out;
+    const StoryScan scan = scanStory(doc.story(), false);
+    for (int i = 0; i < scan.fields.size(); ++i)
+        if (const auto f = barcodeFieldOf(scan, i)) out << *f;
+    return out;
+}
+
+std::optional<BarcodeField> barcodeFieldAt(WriteDoc &doc, int position)
+{
+    const StoryScan scan = scanStory(doc.story(), false);
+    int at = fieldContaining(scan, position);
+    while (at >= 0 && scan.fields[at].parent >= 0) at = scan.fields[at].parent;
+    if (at < 0) return std::nullopt;
+    return barcodeFieldOf(scan, at);
+}
+
+bool changeBarcodeField(WriteDoc &doc, int position, const QJsonObject &settings)
+{
+    if (settings.isEmpty()) return false;
+    const StoryScan scan = scanStory(doc.story(), false);
+    int at = fieldContaining(scan, position);
+    while (at >= 0 && scan.fields[at].parent >= 0) at = scan.fields[at].parent;
+    if (at < 0) return false;
+    const auto field = barcodeFieldOf(scan, at);
+    if (!field || scan.fields[at].locked || field->column.isEmpty()) return false;
+    QTextCursor whole(doc.story());
+    whole.setPosition(scan.fields[at].begin);
+    whole.setPosition(scan.fields[at].end + 1, QTextCursor::KeepAnchor);
+    const WriteDoc::StepGroup group(doc);
+    return insertBarcodeField(doc, whole, field->column, settings);
+}
+
 QString addressBlockCode(const QString &formatIn, const QString &homeCountry)
 {
     QString format = formatIn.isEmpty() ? addressBlockFormats().first() : formatIn;

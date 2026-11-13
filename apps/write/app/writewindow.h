@@ -426,6 +426,7 @@ private:
     void insertIconsFromPicker();
     // Insert > Barcode: the shared dialog; with a barcode picture selected it edits that one.
     void insertBarcodeFromDialog();
+    void editBarcodeField(int position);   // the dialog of a barcode field, which is changed as the person asks
     void showPageSetupDialog();
     void refreshPictureUi();
     void addPictureContextMenu(QMenu &menu);

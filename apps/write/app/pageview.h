@@ -35,6 +35,10 @@ class GrammarCheck;
 
 namespace jp::write {
 
+namespace mail {
+struct BarcodeField;
+}
+
 class SpellCheck;
 
 class PageView : public QAbstractScrollArea {
@@ -236,6 +240,10 @@ public:
     bool ungroupSelectedObject();
     // The picture's rectangle in the window; false where it is not on a page that is drawn.
     bool pictureRect(int position, QRectF *rect);
+    // A barcode field (a DISPLAYBARCODE field, which the page shows as its bars): its box in the window, by the position its field begins at (false where it is not on a page that is drawn), and the
+    // field under a point of the window (its position, -1 for none).
+    bool barcodeFieldRect(int begin, QRect *rect);
+    int barcodeFieldAtPoint(const QPoint &viewportPos);
     // The handle (or the picture itself) at a point of the window; and the point a handle is at.
     PictureHandle pictureHandleAt(const QPoint &viewportPos);
     bool pictureHandlePoint(PictureHandle handle, QPointF *point);
@@ -307,6 +315,7 @@ Q_SIGNALS:
     void contextMenuWanted(const QPoint &globalPos);
     // A barcode picture was double-clicked (and selected): the barcode dialog edits it.
     void editBarcodeWanted();
+    void editBarcodeFieldWanted(int begin);   // a double click on a barcode field
     void grammarStopped();                  // the document is past the limit of work grammar checking may do: it has stopped (said once)
     void headerFooterModeChanged();         // a header or footer is edited now, or none is any more
     void noteModeChanged();                 // a footnote is edited now, or none is any more
@@ -502,6 +511,13 @@ private:
         QRectF rect;
     };
     RectCache m_rectCache;
+    // The barcode fields of the text, found again when the text changed.
+    std::shared_ptr<const QVector<mail::BarcodeField>> m_barcodeList;
+    const WriteDoc *m_barcodeDoc = nullptr;
+    int m_barcodeRevision = -1;
+    const QVector<mail::BarcodeField> &barcodeFieldList();
+    bool barcodeFieldBox(const mail::BarcodeField &field, int *page, QRectF *rect);   // in the page's points
+    void paintBarcodeFields(QPainter &p, int page);
     quint64 m_layoutSerial = 0;   // counted up each time the pages are made again
     void paintPictureHandles(QPainter &p);
     void paintReviewMarks(QPainter &p, Rendered &r);

@@ -1,6 +1,7 @@
 // Tests of JeffWrite's Mailings tab: the recipient lists a merge reads (core/mergesource.h), the merge fields and rules (core/mergeops.h), the merge itself, envelopes and labels, and
 // the merge settings kept in a .docx. Every file is built here in code.
 
+#include "../withdialog.h"
 #include "app/mailpreview.h"
 #include "app/pageview.h"
 #include "app/writeinfo.h"
@@ -20,9 +21,12 @@
 #include "office/package.h"
 #include "wml/wml.h"
 
+#include <QComboBox>
+#include <QDialog>
 #include <QDir>
 #include <QDockWidget>
 #include <QFile>
+#include <QMenu>
 #include <QRegularExpression>
 #include <QStatusBar>
 #include <QTemporaryDir>
@@ -370,6 +374,176 @@ private Q_SLOTS:
                 QCOMPARE(b.value(QLatin1String("type")).toInt(), int(barcode::Type::Qr));
                 QCOMPARE(b.value(QLatin1String("qrLevel")).toInt(), 2);
             }
+    }
+
+    // The barcode fields of the text are listed with the value their result shows (a sample where it shows none the code can hold), and one is changed to another type or look as one step that undoes;
+    // a field as it is made (one character) and as a file has it (marks, with the merge field inside) are both changed; saved, opened, and saved again, it is the same.
+    void aBarcodeFieldIsListedChangedAndKept()
+    {
+        auto doc = open(makeDocx(para(run("Code: "))));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.movePosition(QTextCursor::EndOfBlock);
+        QVERIFY(mail::insertBarcodeField(*doc, c, QStringLiteral("Name"), QJsonObject{{"type", int(barcode::Type::Qr)}, {"data", "x"}, {"qrLevel", 2}}));
+        QVector<mail::BarcodeField> list = mail::barcodeFields(*doc);
+        QCOMPARE(list.size(), 1);
+        QCOMPARE(list[0].column, QStringLiteral("Name"));
+        QCOMPARE(list[0].settings.value(QLatin1String("type")).toInt(), int(barcode::Type::Qr));
+        QCOMPARE(list[0].settings.value(QLatin1String("qrLevel")).toInt(), 2);
+        QVERIFY(list[0].sample);   // (the field shows its name, not a value)
+        QVERIFY(barcodeLayout(list[0].settings).error.isEmpty());
+        QVERIFY(list[0].from >= 0 && list[0].to > list[0].from);
+        QVERIFY(mail::barcodeFieldAt(*doc, list[0].begin).has_value());
+        QVERIFY(!mail::barcodeFieldAt(*doc, 0).has_value());
+        // Another type and look.
+        const QJsonObject code39{{"type", int(barcode::Type::Code39)}, {"data", "x"}, {"magnification", 150}, {"text", true}};
+        QVERIFY(mail::changeBarcodeField(*doc, list[0].begin, code39));
+        list = mail::barcodeFields(*doc);
+        QCOMPARE(list.size(), 1);
+        QCOMPARE(list[0].column, QStringLiteral("Name"));
+        QCOMPARE(list[0].settings.value(QLatin1String("type")).toInt(), int(barcode::Type::Code39));
+        QCOMPARE(list[0].settings.value(QLatin1String("magnification")).toInt(), 150);
+        QVERIFY(list[0].settings.value(QLatin1String("text")).toBool());
+        QVERIFY(!mail::changeBarcodeField(*doc, list[0].begin, QJsonObject()));
+        QVERIFY(!mail::changeBarcodeField(*doc, 0, code39));
+        // One step: Undo brings the QR code back.
+        doc->undo();
+        list = mail::barcodeFields(*doc);
+        QCOMPARE(list.size(), 1);
+        QCOMPARE(list[0].settings.value(QLatin1String("type")).toInt(), int(barcode::Type::Qr));
+        doc->redo();
+        QCOMPARE(mail::barcodeFields(*doc).value(0).settings.value(QLatin1String("type")).toInt(), int(barcode::Type::Code39));
+        // Saved, opened, and saved again: the same field, and the same bytes from then on.
+        const QByteArray first = doc->toDocx();
+        QVERIFY(documentHas(first, "CODE39"));
+        auto reopened = open(first);
+        QVERIFY(reopened);
+        list = mail::barcodeFields(*reopened);
+        QCOMPARE(list.size(), 1);
+        QCOMPARE(list[0].column, QStringLiteral("Name"));
+        QCOMPARE(list[0].settings.value(QLatin1String("type")).toInt(), int(barcode::Type::Code39));
+        QCOMPARE(list[0].settings.value(QLatin1String("magnification")).toInt(), 150);
+        const QByteArray second = reopened->toDocx();
+        auto again = open(second);
+        QVERIFY(again);
+        QCOMPARE(again->toDocx(), second);
+        QCOMPARE(mail::barcodeFields(*again).value(0).settings, list[0].settings);
+        // The field as a file has it (marks, with the merge field in its code) is changed too.
+        QVERIFY(mail::changeBarcodeField(*reopened, list[0].begin, QJsonObject{{"type", int(barcode::Type::Code128)}, {"data", "x"}}));
+        const QVector<mail::BarcodeField> now = mail::barcodeFields(*reopened);
+        QCOMPARE(now.size(), 1);
+        QCOMPARE(now[0].column, QStringLiteral("Name"));
+        QCOMPARE(now[0].settings.value(QLatin1String("type")).toInt(), int(barcode::Type::Code128));
+        QVERIFY(documentHas(reopened->toDocx(), "CODE128"));
+        QVERIFY(documentHas(reopened->toDocx(), "MERGEFIELD Name"));
+    }
+
+    // What a barcode field shows is its result, drawn as a code when the code can hold it; where it can't (or the result is the field's name), a sample of the type stands in.
+    void aBarcodeFieldShowsItsResultOrASample()
+    {
+        auto doc = open(barcodeLetter("CODE128 \\s 100 \\t"));   // (its result is "sample")
+        QVERIFY(doc);
+        QVector<mail::BarcodeField> list = mail::barcodeFields(*doc);
+        QCOMPARE(list.size(), 1);
+        QVERIFY(!list[0].sample);
+        QCOMPARE(list[0].settings.value(QLatin1String("data")).toString(), QStringLiteral("sample"));
+        auto ean = open(barcodeLetter("EAN13 \\s 100"));   // ("sample" is no EAN-13)
+        QVERIFY(ean);
+        list = mail::barcodeFields(*ean);
+        QCOMPARE(list.size(), 1);
+        QVERIFY(list[0].sample);
+        QVERIFY(barcodeLayout(list[0].settings).error.isEmpty());
+        QCOMPARE(list[0].settings.value(QLatin1String("type")).toInt(), int(barcode::Type::Ean13));
+    }
+
+    // The editor draws the bars where the field is (not its name), and a double click, or Edit Barcode in the right-click menu, opens the barcode dialog to change it.
+    void theEditorDrawsABarcodeFieldAndEditsItAgain()
+    {
+        auto doc = open(barcodeLetter("CODE128 \\s 100"));
+        QVERIFY(doc);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(std::move(doc), QString());
+        const int begin = mail::barcodeFields(*w.document()).value(0).begin;
+        QVERIFY(begin >= 0);
+        QRect box;
+        QTRY_VERIFY(w.view()->barcodeFieldRect(begin, &box));
+        QVERIFY(box.width() > 20 && box.height() > 5);
+        QCOMPARE(w.view()->barcodeFieldAtPoint(box.center()), begin);
+        QCOMPARE(w.view()->barcodeFieldAtPoint(QPoint(2, 2)), -1);
+        // Bars: black or white and nothing between (lettering has gray edges), changing across the box many times.
+        auto bars = [&](int *changes) {
+            const QImage image = w.view()->viewport()->grab().toImage();
+            int gray = 0, last = -1;
+            *changes = 0;
+            const int y = box.center().y();
+            for (int x = box.left() + 1; x < box.right(); ++x) {
+                const int v = qGray(image.pixel(x, y));
+                if (v > 20 && v < 235) ++gray;
+                const int dark = v < 128;
+                if (last >= 0 && dark != last) ++*changes;
+                last = dark;
+            }
+            for (int y2 = box.top() + 1; y2 < box.bottom(); ++y2)
+                for (int x = box.left() + 1; x < box.right(); ++x) {
+                    const int v = qGray(image.pixel(x, y2));
+                    if (v > 20 && v < 235) ++gray;
+                }
+            return gray;
+        };
+        int changes = 0;
+        QTRY_VERIFY((bars(&changes) == 0 && changes >= 10));
+        // A double click opens the barcode dialog on it: the type there is changed and the field has it.
+        auto changeType = [&](barcode::Type type) {
+            return [type](QDialog *d) {
+                auto *types = d->findChild<QComboBox *>();
+                QVERIFY(types);
+                types->setCurrentIndex(int(type));
+            };
+        };
+        withDialog([&] { QTest::mouseDClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, box.center()); }, QStringLiteral("barcodeDialog"), changeType(barcode::Type::Code39));
+        QCOMPARE(mail::barcodeFields(*w.document()).value(0).settings.value(QLatin1String("type")).toInt(), int(barcode::Type::Code39));
+        QVERIFY(documentHas(w.document()->toDocx(), "CODE39"));
+        // Cancelling changes nothing.
+        QTRY_VERIFY(w.view()->barcodeFieldRect(mail::barcodeFields(*w.document()).value(0).begin, &box));
+        withDialog([&] { QTest::mouseDClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, box.center()); }, QStringLiteral("barcodeDialog"), changeType(barcode::Type::Qr), false);
+        QCOMPARE(mail::barcodeFields(*w.document()).value(0).settings.value(QLatin1String("type")).toInt(), int(barcode::Type::Code39));
+        // The right-click menu on the field has Edit Barcode.
+        QTextCursor in(w.document()->story());
+        in.setPosition(mail::barcodeFields(*w.document()).value(0).from);
+        w.view()->setCursor(in);
+        w.refreshNow();
+        QMenu menu;
+        w.fillContextMenu(menu);
+        QAction *edit = nullptr;
+        for (QAction *a : menu.actions())
+            if (a->objectName() == QLatin1String("ctx.editBarcode")) edit = a;
+        QVERIFY(edit);
+        QCOMPARE(edit->text(), QStringLiteral("Edit Barcode\u2026"));
+        withDialog([&] { edit->trigger(); }, QStringLiteral("barcodeDialog"), changeType(barcode::Type::Qr));
+        QCOMPARE(mail::barcodeFields(*w.document()).value(0).settings.value(QLatin1String("type")).toInt(), int(barcode::Type::Qr));
+    }
+
+    // A barcode field as the program puts it in (one character) is drawn as bars too.
+    void aBarcodeFieldJustPutInIsDrawn()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        QTextCursor c = w.view()->cursor();
+        QVERIFY(mail::insertBarcodeField(*w.document(), c, QStringLiteral("Name"), QJsonObject{{"type", int(barcode::Type::Qr)}, {"data", "x"}}));
+        w.refreshNow();
+        QRect box;
+        QTRY_VERIFY(w.view()->barcodeFieldRect(mail::barcodeFields(*w.document()).value(0).begin, &box));
+        QVERIFY(box.width() > 5 && box.height() > 5);
+        const QImage image = w.view()->viewport()->grab().toImage();
+        int dark = 0;
+        for (int y = box.top() + 1; y < box.bottom(); ++y)
+            for (int x = box.left() + 1; x < box.right(); ++x) dark += qGray(image.pixel(x, y)) < 60;
+        QVERIFY(dark > 20);
     }
 
     // A merge makes at most so many barcodes (the limit set here is smaller than the real one, kMostBarcodes), and a value that fails the layout check counts toward it as well.

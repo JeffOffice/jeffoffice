@@ -4,6 +4,7 @@
 #include "app/writewindow.h"
 
 #include "app/barcodedialog.h"
+#include "core/mergeops.h"
 #include "app/filedialogs.h"
 #include "app/iconpicker.h"
 #include "app/onlinepictures.h"
@@ -40,6 +41,7 @@ void WriteWindow::createPictureActions()
     mk("insert.barcode", tr("Barcode…"), "barcode", QKeySequence(), [this] { insertBarcodeFromDialog(); });
     // A double click on a barcode asks for its data again.
     connect(m_view, &write::PageView::editBarcodeWanted, this, [this] { insertBarcodeFromDialog(); });
+    connect(m_view, &write::PageView::editBarcodeFieldWanted, this, [this](int position) { editBarcodeField(position); });
     mk("insert.onlinePicture", tr("Online Pictures…"), "globe", QKeySequence(), [this] { showOnlinePictures(); });
     mk("insert.pictureClipboard", tr("Picture from Clipboard"), "clipboard-paste", QKeySequence(), [this] { insertPictureFromClipboard(); });
     struct Wrap {
@@ -218,6 +220,20 @@ void WriteWindow::insertIconsFromPicker()
         if (!m_view->insertPictureBytes(svg, QString(name).replace(QLatin1Char('-'), QLatin1Char(' ')))) break;
     }
     m_view->setFocus(Qt::OtherFocusReason);
+}
+
+// A barcode field (Mailings > Barcode from Field): the dialog asks for its type and look again, with the value it shows now as the sample, and the field takes them.
+void WriteWindow::editBarcodeField(int position)
+{
+    if (!m_doc) return;
+    const auto field = write::mail::barcodeFieldAt(*m_doc, position);
+    if (!field) return;
+    QJsonObject settings;
+    if (!askBarcode(this, field->settings, &settings, true)) return;
+    if (!write::mail::changeBarcodeField(*m_doc, position, settings)) statusBar()->showMessage(tr("That barcode can't be put in as a field."), 6000);
+    m_view->setFocus(Qt::OtherFocusReason);
+    m_view->viewport()->update();
+    refreshUi();
 }
 
 // Insert > Barcode: the dialog of the other apps asks for the barcode, which goes in at the caret as a floating picture. With a barcode picture selected, the dialog edits it: it keeps its place and
