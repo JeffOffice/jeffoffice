@@ -51,6 +51,42 @@ class ShellGrammarRulesTests : public QObject {
         for (const QString &t : texts) QVERIFY2(grammar::check(t).isEmpty(), qPrintable(t + QStringLiteral(" -> ") + marked(t).join(QLatin1Char('|'))));
     }
 
+    // The rules added in round 38: each has a sentence it must flag (with its fix) and sentences that look alike and must be left alone. A rule's issues are those it names.
+    struct RuleCase {
+        const char *rule, *bad, *fixed;
+        QStringList ok;
+    };
+    static QVector<GrammarIssue> byRule(const QString &text, const QString &rule)
+    {
+        QVector<GrammarIssue> out;
+        for (const GrammarIssue &g : grammar::check(text, nullptr, grammar::kAllKinds))
+            if (g.rule == rule) out << g;
+        return out;
+    }
+    static QString fixedBy(const QString &text, const QString &rule)
+    {
+        QString out = text;
+        const auto issues = byRule(text, rule);
+        for (int i = int(issues.size()) - 1; i >= 0; --i)
+            if (!issues[i].suggestions.isEmpty()) out.replace(issues[i].start, issues[i].end - issues[i].start, issues[i].suggestions.first());
+        return out;
+    }
+    static QStringList L(std::initializer_list<const char *> l)
+    {
+        QStringList out;
+        for (const char *s : l) out << QString::fromUtf8(s);
+        return out;
+    }
+    void check(const RuleCase &rc)
+    {
+        const QString rule = QString::fromLatin1(rc.rule), bad = QString::fromUtf8(rc.bad);
+        QVERIFY2(!byRule(bad, rule).isEmpty(), qPrintable(rule + QStringLiteral(" does not flag: ") + bad));
+        QCOMPARE(fixedBy(bad, rule), QString::fromUtf8(rc.fixed));
+        QVERIFY2(rc.ok.size() >= 3, rc.rule);
+        for (const QString &t : rc.ok) QVERIFY2(byRule(t, rule).isEmpty(), qPrintable(rule + QStringLiteral(" flags: ") + t));
+    }
+    static QVector<RuleCase> newRuleCases();
+
 private Q_SLOTS:
     void everyIssueIsInsideTheTextAndHasAMessage()
     {
@@ -228,6 +264,45 @@ private Q_SLOTS:
         QCOMPARE(fixed(text), QStringLiteral("The cat sat on a mat, and a lot of people could have come."));
     }
 
+    void everyRuleHasAnEntryInTheNewRuleTests()
+    {
+        const QSet<QString> old = {QStringLiteral("repeated-word"), QStringLiteral("a-an"), QStringLiteral("sentence-start"), QStringLiteral("its"), QStringLiteral("their-there"),
+                                   QStringLiteral("your-youre"), QStringLiteral("then-than"), QStringLiteral("lose-loose"), QStringLiteral("could-of"), QStringLiteral("double-space"),
+                                   QStringLiteral("space-before-mark"), QStringLiteral("missing-space"), QStringLiteral("alot"), QStringLiteral("everyday")};
+        QSet<QString> covered;
+        for (const RuleCase &rc : newRuleCases()) covered.insert(QString::fromLatin1(rc.rule));
+        for (const auto &r : grammar::rules())
+            QVERIFY2(old.contains(r.name) || covered.contains(r.name), qPrintable(r.name));
+        QVERIFY(grammar::rules().size() >= 58);
+    }
+    void theNewRulesFlagWhatTheyShouldAndLeaveTheLookAlikesAlone()
+    {
+        for (const RuleCase &rc : newRuleCases()) check(rc);
+    }
+    void styleRulesAreOffUnlessAskedFor()
+    {
+        const QString text = QStringLiteral("We did this in order to win, and we could care less.");
+        QVERIFY(grammar::check(text).isEmpty());
+        QVERIFY(!grammar::check(text, nullptr, grammar::kAllKinds).isEmpty());
+        QCOMPARE(grammar::check(text, nullptr, grammar::kindBit(GrammarIssue::Style)).size(), 2);
+        // A kind that is off is not looked for: the other rules still are.
+        const QString mixed = QStringLiteral("He don't go alot in order to win.");
+        QCOMPARE(grammar::check(mixed, nullptr, grammar::kindBit(GrammarIssue::Grammar)).size(), 1);
+        QCOMPARE(grammar::check(mixed, nullptr, grammar::kindBit(GrammarIssue::WordChoice)).size(), 1);
+        QCOMPARE(grammar::check(mixed).size(), 2);
+    }
+    void anAAnBeforeAbbreviationsFollowsTheLetters()
+    {
+        fixes({{"He is a FBI agent.", "He is an FBI agent."}, {"We saw an UFO.", "We saw a UFO."}});
+        leavesAlone({QStringLiteral("He is an FBI agent."), QStringLiteral("We saw a UFO."), QStringLiteral("An MBA and a PhD."), QStringLiteral("A NASA engineer and an HTML page.")});
+    }
+    void aSentenceOfFortyWordsIsNotLongButFortyOneIs()
+    {
+        const QString forty = QStringLiteral("word ").repeated(40).trimmed() + QStringLiteral(".");
+        QVERIFY(byRule(forty, QStringLiteral("long-sentence")).isEmpty());
+        QCOMPARE(byRule(QStringLiteral("Word ") + forty, QStringLiteral("long-sentence")).size(), 1);
+    }
+
     void theWorkOfACheckGrowsInLineWithTheText()
     {
         const QString unit = QStringLiteral("This is an test of the the checker, and alot of people could of come.  Its a good day , isn't it?No. ");
@@ -240,7 +315,7 @@ private Q_SLOTS:
         QVERIFY2(many <= one * 4 + one / 10, qPrintable(QString::number(one) + QLatin1Char(' ') + QString::number(many)));
         QVERIFY2(huge <= many * 4 + many / 10, qPrintable(QString::number(many) + QLatin1Char(' ') + QString::number(huge)));
         // And a bounded number of steps for each character.
-        QVERIFY2(huge <= quint64(unit.size()) * 16000 * 40, qPrintable(QString::number(huge)));
+        QVERIFY2(huge <= quint64(unit.size()) * 16000 * 150, qPrintable(QString::number(huge)));
         QVERIFY(grammar::check(unit.repeated(16000)).size() > 0);
     }
 
@@ -250,7 +325,7 @@ private Q_SLOTS:
                                     QString(QStringLiteral("the ")).repeated(50000), QString(QStringLiteral("a 5 ")).repeated(50000), QString(QStringLiteral("a 12,500th ")).repeated(20000), QString(QStringLiteral(" , ")).repeated(60000), QString(200000, QChar(0xD83D))}) {
             quint64 work = 0;
             grammar::check(text, &work);
-            QVERIFY2(work <= quint64(text.size()) * 60 + 1000, qPrintable(QString::number(work) + QLatin1Char(' ') + QString::number(text.size())));
+            QVERIFY2(work <= quint64(text.size()) * 150 + 1000, qPrintable(QString::number(work) + QLatin1Char(' ') + QString::number(text.size())));
         }
     }
 
@@ -290,6 +365,60 @@ private Q_SLOTS:
         }
     }
 };
+
+QVector<ShellGrammarRulesTests::RuleCase> ShellGrammarRulesTests::newRuleCases()
+{
+    const QString forty1 = QStringLiteral("Word ").repeated(41).trimmed() + QStringLiteral(".");
+    static QByteArray keep = forty1.toUtf8();   // (the cases hold their text as C strings)
+    return {
+        {"he-dont", "She don't know.", "She doesn't know.", L({"I don't know.", "They don't know.", "He said \"she don't\" is wrong.", "Don't let it die."})},
+        {"they-was", "They was late.", "They were late.", L({"They were late.", "What I like about you was your humor.", "I was late and he was too.", "He said \"they was\" in the play."})},
+        {"she-have", "It rained and she have no coat.", "It rained and she has no coat.", L({"Does she have a coat?", "She has a coat.", "It is vital that he have a coat.", "They have it."})},
+        {"plural-has", "We has a plan.", "We have a plan.", L({"We have a plan.", "Someone like you has a plan.", "He has a plan.", "What has we here?"})},
+        {"plural-does", "They does it well.", "They do it well.", L({"They do it well.", "Someone like you does it well.", "She does it well.", "Does the team win?"})},
+        {"they-is", "They is ready.", "They are ready.", L({"They are ready.", "All I am telling you is that it is ready.", "This is ready.", "He is ready."})},
+        {"there-is-many", "There is many reasons.", "There are many reasons.", L({"There are many reasons.", "There is many a slip.", "There is one reason.", "There was a man."})},
+        {"indefinite-are", "Everyone are here.", "Everyone is here.", L({"Everyone is here.", "Everyone, are you here?", "They are here.", "If anyone were here."})},
+        {"whos-whose", "I know who's car it is.", "I know whose car it is.", L({"I know who's coming.", "I know whose car it is.", "Who's there?", "The man whose car it is."})},
+        {"affect-effect", "It had an affect on me.", "It had an effect on me.", L({"It had an effect on me.", "It will affect me.", "It will affect the result.", "The affect of the patient was flat and calm.", "It had no affect of that kind."})},
+        {"less-fewer", "We had less people.", "We had fewer people.", L({"We had fewer people.", "We had less water.", "It cost less than ten dollars.", "She was less happy."})},
+        {"much-many", "We had much people.", "We had many people.", L({"We had many people.", "We had much rain.", "Much more people came, yes.", "It is much better."})},
+        {"irregardless", "Irregardless of cost, go.", "Regardless of cost, go.", L({"Regardless of cost, go.", "Regards to all.", "He regarded it.", "Regardless, go."})},
+        {"whether-weather", "I don't know weather it works.", "I don't know whether it works.", L({"I don't know whether it works.", "The weather is fine.", "Check the weather report.", "Good weather or not, we go."})},
+        {"quite-quiet", "We saw quiet a few cars.", "We saw quite a few cars.", L({"We saw quite a few cars.", "Keep quiet a lot of the time.", "It was a quiet night.", "Be quiet a minute."})},
+        {"chose-choose", "You can chose one.", "You can choose one.", L({"You can choose one.", "She chose one yesterday.", "He chose to go.", "Which chose the best?"})},
+        {"advice-advise", "I need some advise.", "I need some advice.", L({"I need some advice.", "I advise you to wait.", "My advice is to wait.", "They advise caution."})},
+        {"to-much", "That is to much for me.", "That is too much for me.", L({"That is too much for me.", "It will never amount to much.", "She gave to much of her time.", "From much to little."})},
+        {"too-to", "I want too go.", "I want to go.", L({"I want to go.", "I want it too.", "It is too far to go.", "I like you too much."})},
+        {"breath-breathe", "I can't breath in here.", "I can't breathe in here.", L({"I can't breathe in here.", "Take a deep breath.", "Breath by breath, he walked.", "She held her breath."})},
+        {"run-together", "Infact, it works.", "In fact, it works.", L({"In fact, it works.", "Each other and at least one.", "See noone.com for details.", "A little bit."})},
+        {"idioms", "That is a mute point.", "That is a moot point.", L({"That is a moot point.", "The mute button.", "A moot court.", "Point taken."})},
+        {"demonstrative-number", "These thing is odd.", "This thing is odd.", L({"This thing is odd.", "These things are odd.", "This years program ran.", "These day trips are fun."})},
+        {"between-you-and-i", "This is between you and I.", "This is between you and me.", L({"This is between you and me.", "You and I will go.", "Between you and I am a wall.", "He gave it to you and me."})},
+        {"me-and-him", "Me and him went home.", "He and I went home.", L({"He and I went home.", "Me and my dog went home.", "Between me and him is a wall.", "Give me and him a chance."})},
+        {"double-comparative", "It is more better now.", "It is better now.", L({"It is better now.", "It is more beautiful now.", "More, better, faster.", "It is more than better."})},
+        {"modal-past", "She didn't went home.", "She didn't go home.", L({"She didn't go home.", "She went home.", "The tin can went missing.", "The will went to court."})},
+        {"have-past", "He has went home.", "He has gone home.", L({"He has gone home.", "He went home.", "They had saw dust everywhere.", "He has rose petals."})},
+        {"double-negative", "I can't hardly see.", "I can hardly see.", L({"I can hardly see.", "I can't see well.", "I don't have any money.", "No one can see."})},
+        {"comma-after-year", "On June 5, 2020 we left.", "On June 5, 2020, we left.", L({"On June 5, 2020, we left.", "June 5, 2020 was a Friday.", "On June 5, 2020 in Boston.", "In June 2020 we left."})},
+        {"comma-after-state", "In Austin, Texas the heat is high.", "In Austin, Texas, the heat is high.", L({"In Austin, Texas, the heat is high.", "Austin, Texas is hot.", "I met Smith, Texas and Jones.", "In Austin, Texas and Ohio."})},
+        {"compound-hyphen", "He is a well known author.", "He is a well-known author.", L({"He is a well-known author.", "He is well known for it.", "A long term of office.", "A full time was set."})},
+        {"comma-space", "It works,but not well.", "It works, but not well.", L({"It works, but not well.", "Open a,b,c,d now.", "See 1,000 items.", "Items: red,green,blue,tan."})},
+        {"doubled-mark", "It works,, I think.", "It works, I think.", L({"It works, I think.", "Wait... what?", "Mr.. is short.", "Name,,Age,,City"})},
+        {"your-welcome", "Thanks. Your welcome.", "Thanks. You're welcome.", L({"Thanks. You're welcome.", "Thank you for your welcome.", "Your welcome message is ready.", "Your welcome to join us"})},
+        {"lowercase-i", "Today i think so.", "Today I think so.", L({"Today I think so.", "Let i be the index.", "for i in the list", "Chapter i is short."})},
+        {"day-month-names", "We meet on monday.", "We meet on Monday.", L({"We meet on Monday.", "See monday.com for it.", "We may march in may.", "A sunday-best suit."})},
+        {"amount-number", "The amount of people grew.", "The number of people grew.", L({"The number of people grew.", "The amount of water grew.", "The amount of work grew.", "A large amount of money."})},
+        {"could-care-less", "I could care less.", "I couldn't care less.", L({"I couldn't care less.", "I could care for it.", "He could care a lot.", "We care less now."})},
+        {"try-and", "Try and see.", "Try to see.", L({"Try to see.", "A tried and true plan.", "Try and Catch blocks.", "We try hard."})},
+        {"in-order-to", "We left in order to win.", "We left to win.", L({"We left to win.", "In order, the steps run.", "Put them in order.", "A court order to pay."})},
+        {"wordy-phrases", "Due to the fact that it rained, we left.", "Because it rained, we left.", L({"Because it rained, we left.", "Due to rain, we left.", "In fact it rained.", "The fact that it rained."})},
+        {"redundant-phrases", "It was a free gift.", "It was a gift.", L({"It was a gift.", "It was free.", "A free ride.", "The gift shop."})},
+        {"passive-voice", "The book was written by Ann.", "The book was written by Ann.", L({"Ann wrote the book.", "The book was long.", "He was tired.", "It was by the door."})},
+        {"long-sentence", keep.constData(), keep.constData(), L({"Word word.", "Short one. Another short one.", "It is fine.", "Yes."})},
+        {"repeated-sentence-start", "The cat ran. The dog ran. The bird ran.", "The cat ran. The dog ran. The bird ran.", L({"The cat ran. The dog ran.", "The cat ran. A dog ran. The bird ran.", "We ran. They ran. We ran.", "One. Two. Three."})},
+    };
+}
 
 JP_TEST_CLASS(ShellGrammarRulesTests)
 #include "tst_shell_grammar_rules.moc"

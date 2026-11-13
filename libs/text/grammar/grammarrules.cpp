@@ -22,6 +22,7 @@ struct Ctx {
     const QString &text;
     QVector<Token> tokens;
     QVector<GrammarIssue> issues;
+    const char *rule = "";   // the rule that is running
     quint64 steps = 0;
     // The run of tokens with no space in it that each token is in (an address, a file name, a word with its marks): [first, last] token indexes, and how many periods it has
     // before its trailing marks, and whether it has a mark that only an address or a path has.
@@ -68,6 +69,7 @@ struct Ctx {
         g.kind = kind;
         g.message = message;
         g.suggestions << replacement;
+        g.rule = QLatin1String(rule);
         issues << g;
     }
 };
@@ -646,41 +648,939 @@ void everyday(Ctx &c)
     }
 }
 
+// ---- more rules: agreement, word choice, grammar, punctuation, capitalization, and the style rules (which are off unless asked for)
+
+// Whether a word is in capitals only ("NASA", "WAS": a heading shouts, and its words are not the ones the rules know).
+bool allCaps(const Ctx &c, int i)
+{
+    const QString o = c.original(i);
+    if (o.size() < 2) return false;
+    for (QChar ch : o)
+        if (ch.isLower()) return false;
+    return true;
+}
+
+// Whether the words from token `first` to token `last` are in quotation marks or right against them (a word mentioned, or a character who talks that way).
+bool quotedAround(const Ctx &c, int first, int last)
+{
+    const QChar b = c.tokens[first].start > 0 ? c.text.at(c.tokens[first].start - 1) : QChar();
+    const QChar a = c.tokens[last].end < c.text.size() ? c.text.at(c.tokens[last].end) : QChar();
+    return QStringView(u"\"“”‘«»").contains(b) || QStringView(u"\"“”‘«»").contains(a);
+}
+
+// The index of the last word of `words` (lowercase, one space between each) if they are the words from token i on, else -1.
+int phraseAt(const Ctx &c, int i, const QStringList &words)
+{
+    int t = i;
+    for (int k = 0; k < words.size(); ++k) {
+        if (t < 0 || c.tokens[t].kind != Tok::Word || c.tokens[t].lower != words[k]) return -1;
+        if (k + 1 < words.size()) t = c.nextWord(t);
+    }
+    return t;
+}
+
+// Phrases to look for, and what to put in place of each, found by the word they begin with.
+class PhraseTable {
+public:
+    PhraseTable(std::initializer_list<std::pair<const char *, const char *>> items)
+    {
+        for (const auto &it : items) {
+            Entry e;
+            e.words = QString::fromLatin1(it.first).split(QLatin1Char(' '));
+            e.with = QString::fromUtf8(it.second);
+            m_by[e.words.first()].append(e);
+        }
+    }
+    // Calls f(first, last, with) for each phrase in the text.
+    template <class F>
+    void each(Ctx &c, F f) const
+    {
+        for (int i = 0; i < c.size(); ++i) {
+            c.step();
+            if (c.tokens[i].kind != Tok::Word) continue;
+            const auto it = m_by.constFind(c.tokens[i].lower);
+            if (it == m_by.constEnd()) continue;
+            for (const Entry &e : *it)
+                if (const int last = phraseAt(c, i, e.words); last >= 0) f(i, last, e.with);
+        }
+    }
+
+private:
+    struct Entry {
+        QStringList words;
+        QString with;
+    };
+    QHash<QString, QVector<Entry>> m_by;
+};
+
+// Puts `with` (in the first letter's case of the words) in place of the words from token i to token j.
+void replacePhrase(Ctx &c, int i, int j, const QString &with, GK kind, const QString &message)
+{
+    if (allCaps(c, i) || quotedAround(c, i, j)) return;
+    c.add(c.tokens[i].start, c.tokens[j].end, kind, message, matchCase(c.original(i), with));
+}
+
+// An issue with words to say and nothing to put in place.
+void note(Ctx &c, int start, int end, GK kind, const QString &message)
+{
+    GrammarIssue g;
+    g.start = start;
+    g.end = end;
+    g.kind = kind;
+    g.message = message;
+    g.rule = QLatin1String(c.rule);
+    c.issues << g;
+}
+
+// The sentences: [first, last] token indexes and the number of words. A period ends one only before a space and a capital, and not after an abbreviation or an initial.
+struct Sentence {
+    int first = 0, last = 0, words = 0;
+};
+QVector<Sentence> sentencesOf(Ctx &c)
+{
+    QVector<Sentence> out;
+    Sentence s;
+    bool open = false;
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        const Token &t = c.tokens[i];
+        if (t.kind == Tok::Space) continue;
+        if (!open) {
+            s = Sentence();
+            s.first = i;
+            open = true;
+        }
+        s.last = i;
+        if (t.kind == Tok::Word || t.kind == Tok::Number) ++s.words;
+        if (t.kind != Tok::Punct || !QLatin1String(".!?").contains(c.text.at(t.start))) continue;
+        const bool period = c.text.at(t.start) == QLatin1Char('.');
+        int n = i + 1;
+        if (n < c.size() && c.tokens[n].kind == Tok::Punct && QStringView(u"\"')”’").contains(c.text.at(c.tokens[n].start))) ++n;
+        if (n < c.size() && c.tokens[n].kind != Tok::Space) continue;
+        if (n + 1 < c.size() && !c.firstUpper(n + 1) && c.tokens[n + 1].kind == Tok::Word) continue;
+        if (period && i > 0 && c.tokens[i - 1].kind == Tok::Word && (abbreviations().contains(c.tokens[i - 1].lower) || c.tokens[i - 1].end - c.tokens[i - 1].start == 1)) continue;
+        out << s;
+        open = false;
+    }
+    if (open) out << s;
+    return out;
+}
+
+// he don't, she don't, it don't.
+void heDont(Ctx &c)
+{
+    eachPair(c, WORDS("he", "she", "it"), WORDS("don't"), [&](int, int j) {
+        replacePhrase(c, j, j, QStringLiteral("doesn't"), GK::Grammar, QCoreApplication::translate("Grammar", "Use \"doesn't\" after \"he\", \"she\", and \"it\"."));
+    });
+}
+
+// they was, we was. ("you" is left out of all of these: "What I like about you was" has "you" as the object.)
+void theyWas(Ctx &c)
+{
+    eachPair(c, WORDS("they", "we"), WORDS("was"), [&](int, int j) {
+        replacePhrase(c, j, j, QStringLiteral("were"), GK::Grammar, QCoreApplication::translate("Grammar", "Use \"were\" after \"they\" and \"we\"."));
+    });
+    eachPair(c, WORDS("they", "we"), WORDS("wasn't"), [&](int, int j) {
+        replacePhrase(c, j, j, QStringLiteral("weren't"), GK::Grammar, QCoreApplication::translate("Grammar", "Use \"weren't\" after \"they\" and \"we\"."));
+    });
+}
+
+// he have, she have, it have: where the word before shows that "have" is the verb of its sentence (a conjunction, or a new sentence), not an answer to "does" or "that" (he have).
+void sheHave(Ctx &c)
+{
+    const QSet<QString> &conjunctions = WORDS("and", "but", "so", "because", "when", "while", "although", "though", "since", "once", "then", "where", "which", "whereas", "or", "yet", "after", "before", "until");
+    eachPair(c, WORDS("he", "she", "it"), WORDS("have"), [&](int i, int j) {
+        const int p = c.prevWord(i);
+        const bool open = (p < 0 && (i == 0 || c.isPunct(i - 1, QLatin1Char(',')) || startsSentence(c, i))) || (p >= 0 && conjunctions.contains(c.tokens[p].lower));
+        if (!open) return;
+        replacePhrase(c, j, j, QStringLiteral("has"), GK::Grammar, QCoreApplication::translate("Grammar", "Use \"has\" after \"he\", \"she\", and \"it\"."));
+    });
+}
+
+// they has, we has.
+void pluralHas(Ctx &c)
+{
+    eachPair(c, WORDS("they", "we"), WORDS("has"), [&](int i, int j) {
+        const int p = c.prevWord(i);
+        if (p >= 0 && WORDS("like", "unlike", "than", "as").contains(c.tokens[p].lower)) return;
+        replacePhrase(c, j, j, QStringLiteral("have"), GK::Grammar, QCoreApplication::translate("Grammar", "Use \"have\" after \"they\" and \"we\"."));
+    });
+}
+
+// they does, we does, and "doesn't".
+void pluralDoes(Ctx &c)
+{
+    auto fix = [&](int i, int j, const QString &with) {
+        const int p = c.prevWord(i);
+        if (p >= 0 && WORDS("like", "unlike", "than", "as").contains(c.tokens[p].lower)) return;
+        replacePhrase(c, j, j, with, GK::Grammar, QCoreApplication::translate("Grammar", "Use \"do\" after \"they\" and \"we\"."));
+    };
+    eachPair(c, WORDS("they", "we"), WORDS("does"), [&](int i, int j) { fix(i, j, QStringLiteral("do")); });
+    eachPair(c, WORDS("they", "we"), WORDS("doesn't"), [&](int i, int j) { fix(i, j, QStringLiteral("don't")); });
+}
+
+// they is, we is.
+void theyIs(Ctx &c)
+{
+    auto fix = [&](int i, int j, const QString &with) {
+        const int p = c.prevWord(i);
+        if (p >= 0 && WORDS("like", "unlike", "than", "as").contains(c.tokens[p].lower)) return;
+        replacePhrase(c, j, j, with, GK::Grammar, QCoreApplication::translate("Grammar", "Use \"are\" after \"they\" and \"we\"."));
+    };
+    eachPair(c, WORDS("they", "we"), WORDS("is"), [&](int i, int j) { fix(i, j, QStringLiteral("are")); });
+    eachPair(c, WORDS("they", "we"), WORDS("isn't"), [&](int i, int j) { fix(i, j, QStringLiteral("aren't")); });
+}
+
+// "there is many", "there was several": a plural that needs "are" or "were" ("there is many a man" is right).
+void thereIsMany(Ctx &c)
+{
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || c.tokens[i].lower != QLatin1String("there")) continue;
+        const int j = c.nextWord(i);
+        if (j < 0 || (c.tokens[j].lower != QLatin1String("is") && c.tokens[j].lower != QLatin1String("was"))) continue;
+        const int k = c.nextWord(j);
+        if (k < 0 || !WORDS("many", "several", "numerous", "multiple", "countless").contains(c.tokens[k].lower)) continue;
+        const int m = c.nextWord(k);
+        if (m >= 0 && (c.tokens[m].lower == QLatin1String("a") || c.tokens[m].lower == QLatin1String("an"))) continue;
+        replacePhrase(c, j, j, c.tokens[j].lower == QLatin1String("is") ? QStringLiteral("are") : QStringLiteral("were"), GK::Grammar,
+                      QCoreApplication::translate("Grammar", "Use \"are\" or \"were\" before a plural."));
+    }
+}
+
+// "everyone are", "somebody don't": a word for one person takes a verb for one.
+void indefiniteAre(Ctx &c)
+{
+    const QSet<QString> &ones = WORDS("everyone", "everybody", "someone", "somebody", "anyone", "anybody", "nobody");
+    eachPair(c, ones, WORDS("are"), [&](int, int j) {
+        replacePhrase(c, j, j, QStringLiteral("is"), GK::Grammar, QCoreApplication::translate("Grammar", "Use \"is\" after a word for one person (\"everyone\", \"somebody\")."));
+    });
+    eachPair(c, ones, WORDS("don't"), [&](int, int j) {
+        replacePhrase(c, j, j, QStringLiteral("doesn't"), GK::Grammar, QCoreApplication::translate("Grammar", "Use \"doesn't\" after a word for one person (\"everyone\", \"somebody\")."));
+    });
+}
+
+// who's and whose.
+void whosAndWhose(Ctx &c)
+{
+    eachPair(c, WORDS("who's"), WORDS("car", "house", "book", "name", "idea", "fault", "turn", "job", "mother", "father", "friend", "phone", "dog", "cat", "money", "opinion", "wife", "husband", "son",
+                                      "daughter", "team", "company", "office", "shoes", "bag", "keys", "coat", "address", "birthday", "side", "responsibility", "decision", "business"),
+             [&](int i, int) { replaceToken(c, i, QStringLiteral("whose"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"whose\" (belonging to whom) here, not \"who's\".")); });
+    eachPair(c, WORDS("whose"), WORDS("going", "coming", "been", "being", "doing", "gonna", "ready", "here", "there", "not", "the", "a", "an", "got"), [&](int i, int) {
+        replaceToken(c, i, QStringLiteral("who's"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"who's\" (who is) here, not \"whose\"."));
+    });
+}
+
+// affect and effect, where the word after (or the word before) says which is meant.
+void affectAndEffect(Ctx &c)
+{
+    const QSet<QString> &determiners = WORDS("an", "the", "no", "any", "its", "their", "this", "that", "negative", "positive", "adverse", "significant", "major", "big", "great", "little", "huge", "direct", "real",
+                                             "lasting", "profound", "minimal", "overall");
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word) continue;
+        const QString &l = c.tokens[i].lower;
+        const int p = c.prevWord(i), n = c.nextWord(i);
+        if (l == QLatin1String("affect") && p >= 0 && n >= 0 && determiners.contains(c.tokens[p].lower) && c.tokens[n].lower == QLatin1String("on"))
+            replaceToken(c, i, QStringLiteral("effect"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"effect\" (a result) here, not \"affect\"."));
+        else if (l == QLatin1String("effect") && p >= 0 && n >= 0) {
+            const QString &before = c.tokens[p].lower, &after = c.tokens[n].lower;
+            const bool modal = WORDS("will", "would", "could", "can", "may", "might", "won't", "can't", "doesn't", "didn't").contains(before);
+            if (modal && WORDS("me", "us", "you", "him", "them").contains(after))
+                replaceToken(c, i, QStringLiteral("affect"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"affect\" (to change) here, not \"effect\"."));
+        }
+        if (l == QLatin1String("effect") && p >= 0 && c.prevWord(p) >= 0 && WORDS("will", "would", "could", "can", "may", "might").contains(c.tokens[c.prevWord(p)].lower) &&
+            WORDS("negatively", "positively", "adversely").contains(c.tokens[p].lower))
+            replaceToken(c, i, QStringLiteral("affect"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"affect\" (to change) here, not \"effect\"."));
+    }
+}
+
+const QSet<QString> &countNouns()
+{
+    return WORDS("people", "items", "cars", "students", "children", "errors", "mistakes", "problems", "hours", "minutes", "dollars", "calories", "customers", "employees", "words", "pages", "times", "days",
+                 "years", "ways", "things", "options", "choices", "books", "accidents", "injuries", "deaths", "jobs", "houses", "users", "visitors", "patients", "cases", "files", "emails", "requests", "calls",
+                 "votes", "questions", "reasons", "examples", "friends", "kids", "places", "ideas");
+}
+
+// "less people" for "fewer people".
+void lessAndFewer(Ctx &c)
+{
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || c.tokens[i].lower != QLatin1String("less")) continue;
+        const int n = c.nextWord(i);
+        if (n < 0 || !countNouns().contains(c.tokens[n].lower)) continue;
+        replaceToken(c, i, QStringLiteral("fewer"), GK::Grammar, QCoreApplication::translate("Grammar", "Use \"fewer\" for things you can count."));
+    }
+}
+
+// "amount of people" for "number of people" (the old rule: "amount" is for what is measured, "number" for what is counted).
+void amountAndNumber(Ctx &c)
+{
+    eachPair(c, WORDS("amount"), WORDS("of"), [&](int i, int j) {
+        const int k = c.nextWord(j);
+        if (k < 0 || !countNouns().contains(c.tokens[k].lower)) return;
+        replaceToken(c, i, QStringLiteral("number"), GK::Style, QCoreApplication::translate("Grammar", "Use \"number\" for things you can count."));
+    });
+}
+
+// "much people" for "many people".
+void muchAndMany(Ctx &c)
+{
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || c.tokens[i].lower != QLatin1String("much")) continue;
+        const int n = c.nextWord(i);
+        if (n < 0 || !countNouns().contains(c.tokens[n].lower)) continue;
+        replaceToken(c, i, QStringLiteral("many"), GK::Grammar, QCoreApplication::translate("Grammar", "Use \"many\" for things you can count."));
+    }
+}
+
+// "irregardless".
+void irregardless(Ctx &c)
+{
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind == Tok::Word && c.tokens[i].lower == QLatin1String("irregardless"))
+            replaceToken(c, i, QStringLiteral("regardless"), GK::WordChoice, QCoreApplication::translate("Grammar", "\"Regardless\" is the word; \"irregardless\" is not standard."));
+    }
+}
+
+// "weather" for "whether": "know weather to", "weather or not".
+void whetherAndWeather(Ctx &c)
+{
+    const QSet<QString> &verbs = WORDS("know", "ask", "asked", "asking", "wonder", "wondering", "decide", "decided", "determine", "unsure", "sure", "regardless", "irrespective", "matter", "say", "tell", "check");
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || c.tokens[i].lower != QLatin1String("weather")) continue;
+        const int p = c.prevWord(i), n = c.nextWord(i);
+        if (n < 0) continue;
+        const QString &after = c.tokens[n].lower;
+        bool whether = false;
+        if (after == QLatin1String("or")) {
+            const int m = c.nextWord(n);
+            whether = m >= 0 && c.tokens[m].lower == QLatin1String("not") && ((p >= 0 && (verbs.contains(c.tokens[p].lower) || WORDS("of", "on", "about", "if").contains(c.tokens[p].lower))) || (p < 0 && startsSentence(c, i)));
+        } else if (p >= 0 && verbs.contains(c.tokens[p].lower) && WORDS("to", "we", "you", "they", "he", "she", "it", "i", "this", "that", "there", "your", "my", "our", "his", "her", "their").contains(after))
+            whether = true;
+        if (whether) replaceToken(c, i, QStringLiteral("whether"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"whether\" (if) here, not \"weather\"."));
+    }
+}
+
+// "quiet a few" for "quite a few".
+void quiteAndQuiet(Ctx &c)
+{
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || c.tokens[i].lower != QLatin1String("quiet")) continue;
+        const int a = c.nextWord(i);
+        if (a < 0 || c.tokens[a].lower != QLatin1String("a")) continue;
+        const int b = c.nextWord(a);
+        if (b < 0 || (c.tokens[b].lower != QLatin1String("few") && c.tokens[b].lower != QLatin1String("lot"))) continue;
+        const int p = c.prevWord(i);
+        if (p >= 0 && WORDS("keep", "kept", "be", "stay", "stayed", "remain", "remained", "keeps", "stays", "stand", "stood").contains(c.tokens[p].lower)) continue;
+        replaceToken(c, i, QStringLiteral("quite"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"quite\" (very) here, not \"quiet\"."));
+    }
+}
+
+// "will chose" for "will choose".
+void choseAndChoose(Ctx &c)
+{
+    eachPair(c, WORDS("will", "would", "can", "could", "should", "may", "might", "must", "to", "please", "can't", "won't", "cannot", "didn't", "don't", "doesn't", "wouldn't", "couldn't", "shouldn't"),
+             WORDS("chose"), [&](int, int j) { replaceToken(c, j, QStringLiteral("choose"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"choose\" here; \"chose\" is the past.")); });
+}
+
+// advice (the noun) and advise (the verb).
+void adviceAndAdvise(Ctx &c)
+{
+    eachPair(c, WORDS("the", "some", "any", "your", "my", "his", "our", "their", "good", "bad", "great", "best", "free", "legal", "medical", "professional", "expert", "sound", "wise"), WORDS("advise"),
+             [&](int, int j) { replaceToken(c, j, QStringLiteral("advice"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"advice\" (the noun) here.")); });
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || c.tokens[i].lower != QLatin1String("advice")) continue;
+        const int p = c.prevWord(i), n = c.nextWord(i);
+        if (p < 0 || n < 0 || !WORDS("i", "we", "they", "to", "will", "would", "can", "could", "should", "may", "might").contains(c.tokens[p].lower)) continue;
+        if (!WORDS("you", "him", "them", "us", "me", "that", "against").contains(c.tokens[n].lower)) continue;
+        replaceToken(c, i, QStringLiteral("advise"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"advise\" (the verb) here."));
+    }
+}
+
+// "it is to much" for "it is too much": after a word that says what something is, and before the end of the clause ("amount to much" and "to much of" are right).
+void toMuch(Ctx &c)
+{
+    eachPair(c, WORDS("to"), WORDS("much"), [&](int i, int j) {
+        const int p = c.prevWord(i);
+        if (p < 0 || !WORDS("is", "are", "was", "were", "be", "it's", "that's", "there's", "seems", "seem", "feels", "feel", "felt", "looks", "been", "being").contains(c.tokens[p].lower)) return;
+        const int after = j + 1;
+        bool end = after >= c.size() || (c.tokens[after].kind == Tok::Punct && QLatin1String(".,!?;").contains(c.text.at(c.tokens[after].start)));
+        if (!end) {
+            const int m = c.nextWord(j);
+            end = m >= 0 && WORDS("for", "to", "and", "but").contains(c.tokens[m].lower);
+        }
+        if (end) replaceToken(c, i, QStringLiteral("too"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"too\" (more than enough) here, not \"to\"."));
+    });
+}
+
+// "want too go" for "want to go".
+void tooAndTo(Ctx &c)
+{
+    eachPair(c, WORDS("want", "wants", "wanted", "need", "needs", "needed", "going", "try", "tried", "trying", "able", "hope", "hoped", "plan", "plans", "decided", "like", "love"), WORDS("too"), [&](int, int j) {
+        const int k = c.nextWord(j);
+        if (k < 0 || !WORDS("be", "do", "go", "see", "get", "make", "have", "take", "find", "help", "know", "use", "say", "come", "give", "read", "write", "buy", "learn", "meet", "talk").contains(c.tokens[k].lower)) return;
+        replaceToken(c, j, QStringLiteral("to"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"to\" here, not \"too\"."));
+    });
+}
+
+// "can't breath" for "can't breathe".
+void breathAndBreathe(Ctx &c)
+{
+    const QSet<QString> &before = WORDS("can't", "couldn't", "cannot", "to", "will", "would", "could", "can", "should", "must", "might", "may", "didn't", "don't", "won't");
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || c.tokens[i].lower != QLatin1String("breath")) continue;
+        const int p = c.prevWord(i), n = c.nextWord(i);
+        if (p < 0 || !before.contains(c.tokens[p].lower)) continue;
+        const bool follows = n >= 0 && WORDS("in", "out", "the", "again", "easy", "easier", "deeply", "normally", "properly", "fresh", "air", "slowly").contains(c.tokens[n].lower);
+        const bool end = n < 0 && i + 1 < c.size() && c.tokens[i + 1].kind == Tok::Punct && QLatin1String(".!?").contains(c.text.at(c.tokens[i + 1].start)) && c.tokens[p].lower != QLatin1String("to");
+        if (follows || end) replaceToken(c, i, QStringLiteral("breathe"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"breathe\" (the verb) here."));
+    }
+}
+
+// Words run together that are two: "infact", "eachother", "atleast".
+void runTogether(Ctx &c)
+{
+    static const QHash<QString, QString> table = {{QStringLiteral("infact"), QStringLiteral("in fact")},       {QStringLiteral("eachother"), QStringLiteral("each other")},
+                                                  {QStringLiteral("atleast"), QStringLiteral("at least")},     {QStringLiteral("aswell"), QStringLiteral("as well")},
+                                                  {QStringLiteral("inspite"), QStringLiteral("in spite")},     {QStringLiteral("noone"), QStringLiteral("no one")},
+                                                  {QStringLiteral("everytime"), QStringLiteral("every time")}, {QStringLiteral("alittle"), QStringLiteral("a little")},
+                                                  {QStringLiteral("thankyou"), QStringLiteral("thank you")},   {QStringLiteral("abit"), QStringLiteral("a bit")}};
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word) continue;
+        const auto it = table.constFind(c.tokens[i].lower);
+        if (it == table.constEnd() || c.chunkAddress[i] || c.chunkDots[i] > 0) continue;
+        replacePhrase(c, i, i, *it, GK::WordChoice, QCoreApplication::translate("Grammar", "These are two words."));
+    }
+}
+
+// Sayings with a word wrong: "for all intensive purposes", "one in the same".
+void idioms(Ctx &c)
+{
+    static const PhraseTable table({{"for all intensive purposes", "for all intents and purposes"}, {"one in the same", "one and the same"}, {"case and point", "case in point"},
+                                    {"nip it in the butt", "nip it in the bud"}, {"deep seeded", "deep-seated"}, {"wet your appetite", "whet your appetite"}, {"free reign", "free rein"},
+                                    {"tow the line", "toe the line"}, {"pass mustard", "pass muster"}, {"mute point", "moot point"}, {"head over heals", "head over heels"},
+                                    {"sneak peak", "sneak peek"}, {"all of the sudden", "all of a sudden"}, {"peaked my interest", "piqued my interest"},
+                                    {"peaked your interest", "piqued your interest"}, {"peaked his interest", "piqued his interest"}, {"peaked her interest", "piqued her interest"},
+                                    {"peaked their interest", "piqued their interest"}});
+    table.each(c, [&](int i, int j, const QString &with) {
+        replacePhrase(c, i, j, with, GK::WordChoice, QCoreApplication::translate("Grammar", "This saying has a different word."));
+    });
+}
+
+// "this things" for "these things", "these thing" for "this thing": only where the noun ends the phrase, so that "this years program" (a missing apostrophe) and "these day trips" are left alone.
+void demonstrativeNumber(Ctx &c)
+{
+    static const QHash<QString, QString> singular = {{QStringLiteral("things"), QStringLiteral("thing")},       {QStringLiteral("ideas"), QStringLiteral("idea")},     {QStringLiteral("items"), QStringLiteral("item")},
+                                                     {QStringLiteral("students"), QStringLiteral("student")},  {QStringLiteral("cars"), QStringLiteral("car")},       {QStringLiteral("books"), QStringLiteral("book")},
+                                                     {QStringLiteral("days"), QStringLiteral("day")},          {QStringLiteral("years"), QStringLiteral("year")},     {QStringLiteral("ways"), QStringLiteral("way")},
+                                                     {QStringLiteral("problems"), QStringLiteral("problem")},  {QStringLiteral("questions"), QStringLiteral("question")}, {QStringLiteral("reasons"), QStringLiteral("reason")},
+                                                     {QStringLiteral("examples"), QStringLiteral("example")},  {QStringLiteral("people"), QStringLiteral("person")}, {QStringLiteral("children"), QStringLiteral("child")}};
+    QSet<QString> singulars;
+    for (auto it = singular.cbegin(); it != singular.cend(); ++it) singulars.insert(it.value());
+    const QSet<QString> &endsPhrase = WORDS("is", "was", "are", "were", "can", "will", "would", "should", "could", "must", "may", "might", "and", "or", "of", "in", "on", "for", "to", "with", "that", "which", "who", "have",
+                                            "had", "do", "did", "make", "get", "go", "come", "seem", "need", "mean", "show", "look", "work", "happen", "matter");
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word) continue;
+        const QString &l = c.tokens[i].lower;
+        const bool thisL = l == QLatin1String("this"), theseL = l == QLatin1String("these"), thoseL = l == QLatin1String("those");
+        if (!thisL && !theseL && !thoseL) continue;
+        const int n = c.nextWord(i);
+        if (n < 0 || c.tokens[n].kind != Tok::Word) continue;
+        const int after = c.nextWord(n);
+        if (after >= 0 && !endsPhrase.contains(c.tokens[after].lower)) continue;
+        if (thisL && singular.contains(c.tokens[n].lower))
+            replaceToken(c, i, QStringLiteral("these"), GK::Grammar, QCoreApplication::translate("Grammar", "Use \"these\" before a plural."));
+        else if ((theseL || thoseL) && singulars.contains(c.tokens[n].lower))
+            replaceToken(c, i, theseL ? QStringLiteral("this") : QStringLiteral("that"), GK::Grammar, QCoreApplication::translate("Grammar", "Use \"this\" or \"that\" before one."));
+    }
+}
+
+// "between you and I" for "between you and me".
+void betweenYouAndI(Ctx &c)
+{
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || !WORDS("between", "for", "with", "to", "from", "about", "of", "beside", "near", "behind", "around", "without").contains(c.tokens[i].lower)) continue;
+        const int a = c.nextWord(i);
+        if (a < 0 || !WORDS("you", "him", "her", "them").contains(c.tokens[a].lower)) continue;
+        const int b = c.nextWord(a);
+        if (b < 0 || c.tokens[b].lower != QLatin1String("and")) continue;
+        const int d = c.nextWord(b);
+        if (d < 0 || c.original(d) != QLatin1String("I")) continue;
+        const int e = c.nextWord(d);
+        if (e >= 0 && WORDS("am", "was", "will", "would", "can", "could", "have", "had", "are", "were", "do", "did", "should", "must", "may", "might", "shall").contains(c.tokens[e].lower)) continue;
+        c.add(c.tokens[d].start, c.tokens[d].end, GK::Grammar, QCoreApplication::translate("Grammar", "Use \"me\" after a word like \"between\" or \"for\"."), QStringLiteral("me"));
+    }
+}
+
+// "Me and him went" for "He and I went".
+void meAndHim(Ctx &c)
+{
+    const QSet<QString> &verbs = WORDS("went", "are", "were", "was", "have", "had", "will", "did", "do", "can", "could", "would", "should", "got", "always", "never", "both", "love", "like", "want", "need", "go",
+                                       "ran", "took", "made", "saw", "came", "played", "decided", "thought", "think", "know", "felt", "walked", "talked", "stayed");
+    static const QHash<QString, QString> subject = {{QStringLiteral("him"), QStringLiteral("he")}, {QStringLiteral("her"), QStringLiteral("she")}, {QStringLiteral("them"), QStringLiteral("they")},
+                                                    {QStringLiteral("you"), QStringLiteral("you")}};
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || !startsSentence(c, i)) continue;
+        const QString &l = c.tokens[i].lower;
+        const int a = c.nextWord(i);
+        if (a < 0 || c.tokens[a].lower != QLatin1String("and")) continue;
+        const int b = c.nextWord(a);
+        if (b < 0) continue;
+        QString who;
+        int last = b;
+        if (l == QLatin1String("me") && subject.contains(c.tokens[b].lower)) who = subject.value(c.tokens[b].lower);
+        else if (subject.contains(l) && l != QLatin1String("you") && c.tokens[b].lower == QLatin1String("me")) who = subject.value(l);
+        else continue;
+        const int v = c.nextWord(last);
+        if (v < 0 || !verbs.contains(c.tokens[v].lower) || quotedAround(c, i, last)) continue;
+        c.add(c.tokens[i].start, c.tokens[last].end, GK::Grammar, QCoreApplication::translate("Grammar", "Use \"%1 and I\" for the ones who do it.").arg(who), matchCase(c.original(i), who + QStringLiteral(" and I")));
+    }
+}
+
+// "more better", "most best".
+void doubleComparative(Ctx &c)
+{
+    const QSet<QString> &more = WORDS("better", "worse", "faster", "slower", "easier", "harder", "bigger", "larger", "smaller", "higher", "lower", "cheaper", "stronger", "weaker", "happier", "older", "younger",
+                                      "taller", "shorter", "longer", "simpler", "safer", "nicer", "cleaner", "quicker", "wiser", "smarter", "brighter", "darker", "richer", "poorer", "heavier", "lighter", "closer", "newer");
+    const QSet<QString> &most = WORDS("best", "worst", "easiest", "hardest", "biggest", "largest", "smallest", "highest", "lowest", "cheapest", "strongest", "fastest", "slowest");
+    auto fix = [&](int i, int j) { replacePhrase(c, i, j, c.tokens[j].lower, GK::Grammar, QCoreApplication::translate("Grammar", "Use one comparison, not two (\"better\", not \"more better\").")); };
+    eachPair(c, WORDS("more"), more, [&](int i, int j) { fix(i, j); });
+    eachPair(c, WORDS("most"), most, [&](int i, int j) { fix(i, j); });
+}
+
+const QHash<QString, QString> &pastToBase()
+{
+    static const QHash<QString, QString> t = {{QStringLiteral("went"), QStringLiteral("go")},       {QStringLiteral("came"), QStringLiteral("come")},     {QStringLiteral("took"), QStringLiteral("take")},
+                                              {QStringLiteral("gave"), QStringLiteral("give")},     {QStringLiteral("wrote"), QStringLiteral("write")},   {QStringLiteral("knew"), QStringLiteral("know")},
+                                              {QStringLiteral("began"), QStringLiteral("begin")},   {QStringLiteral("spoke"), QStringLiteral("speak")},   {QStringLiteral("drove"), QStringLiteral("drive")},
+                                              {QStringLiteral("flew"), QStringLiteral("fly")},      {QStringLiteral("swam"), QStringLiteral("swim")},     {QStringLiteral("sang"), QStringLiteral("sing")},
+                                              {QStringLiteral("broke"), QStringLiteral("break")},   {QStringLiteral("forgot"), QStringLiteral("forget")}, {QStringLiteral("ran"), QStringLiteral("run")},
+                                              {QStringLiteral("ate"), QStringLiteral("eat")}};
+    return t;
+}
+
+// "did went" for "did go", "couldn't came" for "couldn't come".
+void modalPast(Ctx &c)
+{
+    const QSet<QString> &before = WORDS("did", "didn't", "does", "doesn't", "do", "don't", "could", "should", "would", "couldn't", "wouldn't", "shouldn't", "won't", "must", "might");
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || !before.contains(c.tokens[i].lower)) continue;
+        const int n = c.nextWord(i);
+        if (n < 0 || c.tokens[n].kind != Tok::Word || !pastToBase().contains(c.tokens[n].lower)) continue;
+        replacePhrase(c, n, n, pastToBase().value(c.tokens[n].lower), GK::Grammar, QCoreApplication::translate("Grammar", "Use the plain form of the verb here (\"did go\", not \"did went\")."));
+    }
+}
+
+// "has went" for "has gone", "have took" for "have taken".
+void havePast(Ctx &c)
+{
+    static const QHash<QString, QString> participle = {{QStringLiteral("went"), QStringLiteral("gone")},   {QStringLiteral("wrote"), QStringLiteral("written")}, {QStringLiteral("took"), QStringLiteral("taken")},
+                                                       {QStringLiteral("gave"), QStringLiteral("given")},   {QStringLiteral("ate"), QStringLiteral("eaten")},      {QStringLiteral("came"), QStringLiteral("come")},
+                                                       {QStringLiteral("knew"), QStringLiteral("known")},   {QStringLiteral("began"), QStringLiteral("begun")},    {QStringLiteral("spoke"), QStringLiteral("spoken")},
+                                                       {QStringLiteral("drove"), QStringLiteral("driven")}, {QStringLiteral("broke"), QStringLiteral("broken")},   {QStringLiteral("chose"), QStringLiteral("chosen")},
+                                                       {QStringLiteral("forgot"), QStringLiteral("forgotten")}, {QStringLiteral("flew"), QStringLiteral("flown")}, {QStringLiteral("sang"), QStringLiteral("sung")},
+                                                       {QStringLiteral("ran"), QStringLiteral("run")},      {QStringLiteral("drank"), QStringLiteral("drunk")},   {QStringLiteral("stole"), QStringLiteral("stolen")},
+                                                       {QStringLiteral("wore"), QStringLiteral("worn")},    {QStringLiteral("tore"), QStringLiteral("torn")},     {QStringLiteral("fell"), QStringLiteral("fallen")},
+                                                       {QStringLiteral("grew"), QStringLiteral("grown")},   {QStringLiteral("threw"), QStringLiteral("thrown")}};
+    const QSet<QString> &have = WORDS("have", "has", "had", "haven't", "hasn't", "hadn't");
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word) continue;
+        const QString &l = c.tokens[i].lower;
+        if (!have.contains(l) && !l.endsWith(QLatin1String("'ve"))) continue;
+        const int n = c.nextWord(i);
+        if (n < 0 || c.tokens[n].kind != Tok::Word || !participle.contains(c.tokens[n].lower)) continue;
+        replacePhrase(c, n, n, participle.value(c.tokens[n].lower), GK::Grammar, QCoreApplication::translate("Grammar", "Use the form of the verb that goes with \"have\" (\"has gone\", not \"has went\")."));
+    }
+}
+
+// "can't hardly" for "can hardly", and "don't have no money" for "don't have any money".
+void doubleNegative(Ctx &c)
+{
+    static const QHash<QString, QString> positive = {{QStringLiteral("can't"), QStringLiteral("can")},       {QStringLiteral("couldn't"), QStringLiteral("could")}, {QStringLiteral("don't"), QStringLiteral("do")},
+                                                     {QStringLiteral("didn't"), QStringLiteral("did")},       {QStringLiteral("doesn't"), QStringLiteral("does")},   {QStringLiteral("wouldn't"), QStringLiteral("would")},
+                                                     {QStringLiteral("won't"), QStringLiteral("will")},       {QStringLiteral("haven't"), QStringLiteral("have")},   {QStringLiteral("hasn't"), QStringLiteral("has")},
+                                                     {QStringLiteral("hadn't"), QStringLiteral("had")},       {QStringLiteral("isn't"), QStringLiteral("is")},       {QStringLiteral("wasn't"), QStringLiteral("was")},
+                                                     {QStringLiteral("shouldn't"), QStringLiteral("should")}, {QStringLiteral("aren't"), QStringLiteral("are")},     {QStringLiteral("weren't"), QStringLiteral("were")}};
+    const QSet<QString> &verbs = WORDS("have", "has", "need", "see", "want", "know", "get", "got", "find", "take", "make", "give", "hear", "like", "mind");
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || !positive.contains(c.tokens[i].lower)) continue;
+        const int n = c.nextWord(i);
+        if (n < 0) continue;
+        const QString &l = c.tokens[n].lower;
+        if (l == QLatin1String("hardly") || l == QLatin1String("barely") || l == QLatin1String("scarcely")) {
+            if (!quotedAround(c, i, n))
+                c.add(c.tokens[i].start, c.tokens[n].end, GK::Grammar, QCoreApplication::translate("Grammar", "This is a double negative: \"%1\" already says \"not\".").arg(l),
+                      matchCase(c.original(i), positive.value(c.tokens[i].lower) + QLatin1Char(' ') + l));
+        } else if (verbs.contains(l)) {
+            const int m = c.nextWord(n);
+            if (m < 0 || c.tokens[m].lower != QLatin1String("no") || c.original(m) != QLatin1String("no")) continue;
+            const int w = c.nextWord(m);
+            if (w < 0 || c.tokens[w].kind != Tok::Word || WORDS("one", "body", "thing", "where", "longer", "more", "matter", "doubt", "way", "other", "less", "doubts", "such").contains(c.tokens[w].lower)) continue;
+            replaceToken(c, m, QStringLiteral("any"), GK::Grammar, QCoreApplication::translate("Grammar", "This is a double negative: use \"any\" after \"not\"."));
+        }
+    }
+}
+
+// A comma after the year of a date that begins a clause: "On June 5, 2020 we".
+void commaAfterYear(Ctx &c)
+{
+    const QSet<QString> &months = WORDS("january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december");
+    const QSet<QString> &next = WORDS("the", "we", "he", "she", "they", "it", "i", "a", "an", "our", "my", "his", "her", "there", "this", "these", "those", "you");
+    for (int i = 0; i + 6 < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || !months.contains(c.tokens[i].lower) || !c.firstUpper(i)) continue;
+        const int day = c.nextWord(i);
+        if (day < 0 || c.tokens[day].kind != Tok::Number || c.tokens[day].lower.size() > 2) continue;
+        const int comma = day + 1;
+        if (!c.isPunct(comma, QLatin1Char(',')) || !c.isSpace(comma + 1)) continue;
+        const int year = comma + 2;
+        if (year >= c.size() || c.tokens[year].kind != Tok::Number || c.tokens[year].lower.size() != 4) continue;
+        const int n = c.nextWord(year);
+        if (n < 0 || c.tokens[n].kind != Tok::Word || !next.contains(c.tokens[n].lower)) continue;
+        c.add(c.tokens[year].start, c.tokens[year].end, GK::Punctuation, QCoreApplication::translate("Grammar", "Put a comma after the year."), c.original(year) + QLatin1Char(','));
+    }
+}
+
+// A comma after the state of a city and state: "in Austin, Texas is".
+void commaAfterState(Ctx &c)
+{
+    static const PhraseTable states({{"alabama", ""}, {"alaska", ""}, {"arizona", ""}, {"arkansas", ""}, {"california", ""}, {"colorado", ""}, {"connecticut", ""}, {"delaware", ""}, {"florida", ""},
+                                     {"georgia", ""}, {"hawaii", ""}, {"idaho", ""}, {"illinois", ""}, {"indiana", ""}, {"iowa", ""}, {"kansas", ""}, {"kentucky", ""}, {"louisiana", ""}, {"maine", ""},
+                                     {"maryland", ""}, {"massachusetts", ""}, {"michigan", ""}, {"minnesota", ""}, {"mississippi", ""}, {"missouri", ""}, {"montana", ""}, {"nebraska", ""}, {"nevada", ""},
+                                     {"new hampshire", ""}, {"new jersey", ""}, {"new mexico", ""}, {"new york", ""}, {"north carolina", ""}, {"north dakota", ""}, {"ohio", ""}, {"oklahoma", ""},
+                                     {"oregon", ""}, {"pennsylvania", ""}, {"rhode island", ""}, {"south carolina", ""}, {"south dakota", ""}, {"tennessee", ""}, {"texas", ""}, {"utah", ""}, {"vermont", ""},
+                                     {"virginia", ""}, {"washington", ""}, {"west virginia", ""}, {"wisconsin", ""}, {"wyoming", ""}});
+    const QSet<QString> &prepositions = WORDS("in", "from", "at", "near", "to", "of", "outside", "around", "visit", "visited", "born");
+    const QSet<QString> &next = WORDS("is", "was", "are", "were", "has", "have", "had", "will", "would", "can", "could", "which", "where", "who", "the", "we", "it", "they", "he", "she", "there");
+    states.each(c, [&](int first, int last, const QString &) {
+        // the comma before, and the city before it (one or two words that begin with capitals, after a preposition)
+        const int comma = first - 2;
+        if (comma < 1 || !c.isPunct(comma, QLatin1Char(',')) || !c.isSpace(comma + 1) || !c.isWord(comma - 1) || !c.firstUpper(comma - 1) || !c.firstUpper(first)) return;
+        int city = comma - 1;
+        int p = c.prevWord(city);
+        if (p >= 0 && c.firstUpper(p) && !prepositions.contains(c.tokens[p].lower)) p = c.prevWord(p);
+        if (p < 0 || !prepositions.contains(c.tokens[p].lower)) return;
+        const int n = c.nextWord(last);
+        if (n < 0 || !next.contains(c.tokens[n].lower)) return;
+        c.add(c.tokens[last].start, c.tokens[last].end, GK::Punctuation, QCoreApplication::translate("Grammar", "Put a comma after the state."), c.original(last) + QLatin1Char(','));
+    });
+}
+
+// A compound that comes before a noun takes a hyphen: "a well known author".
+void compoundHyphen(Ctx &c)
+{
+    const QSet<QString> &anyDeterminer = WORDS("a", "an", "the", "this", "that", "his", "her", "their", "our", "my", "your", "its", "some", "any", "no", "every", "such", "another", "most");
+    const QSet<QString> &fewDeterminers = WORDS("a", "an", "his", "her", "their", "our", "my", "your", "its");
+    const QSet<QString> &notNouns = WORDS("for", "as", "by", "to", "in", "of", "and", "or", "but", "that", "is", "was", "are", "were", "at", "on", "with", "from", "which", "who", "if", "when", "than", "because",
+                                          "it", "they", "he", "she", "we", "you", "i", "there", "this", "these", "those", "what", "how", "where", "can", "will", "would", "could", "should", "must", "may", "might",
+                                          "has", "have", "had", "do", "does", "did", "be", "been", "being", "not", "also", "only", "just", "still", "already", "then", "so", "too", "very", "about", "into", "over",
+                                          "after", "before", "during", "while", "until", "under", "between", "through", "without", "within", "per", "up", "down", "out", "off", "all", "both", "each", "more",
+                                          "most", "much", "many", "other", "same", "such", "even", "ever", "never", "always", "often", "now", "here");
+    static const PhraseTable pairs({{"well known", ""}, {"well written", ""}, {"well established", ""}, {"well documented", ""}, {"well defined", ""}, {"well designed", ""}, {"well made", ""},
+                                    {"well received", ""}, {"well respected", ""}, {"well informed", ""}, {"well behaved", ""}, {"well trained", ""}, {"well organized", ""}, {"well maintained", ""},
+                                    {"well paid", ""}, {"long term", ""}, {"short term", ""}, {"full time", ""}, {"part time", ""}, {"high quality", ""}, {"low cost", ""}, {"low income", ""},
+                                    {"high speed", ""}, {"hard working", ""}, {"user friendly", ""}, {"family owned", ""}, {"family friendly", ""}, {"wide ranging", ""}, {"far reaching", ""},
+                                    {"long lasting", ""}, {"fast growing", ""}, {"best known", ""}, {"high profile", ""}, {"high level", ""}, {"low level", ""}, {"large scale", ""}, {"small scale", ""},
+                                    {"open ended", ""}});
+    pairs.each(c, [&](int first, int last, const QString &) {
+        const int p = c.prevWord(first), n = c.nextWord(last);
+        if (p < 0 || n < 0 || c.tokens[n].kind != Tok::Word || notNouns.contains(c.tokens[n].lower)) return;
+        const bool well = c.tokens[first].lower == QLatin1String("well") || c.tokens[first].lower == QLatin1String("best");
+        if (!(well ? anyDeterminer : fewDeterminers).contains(c.tokens[p].lower)) return;
+        if (c.original(first).at(0).isUpper() && !startsSentence(c, first)) return;
+        if (allCaps(c, first) || allCaps(c, last)) return;
+        if (c.text.mid(c.tokens[first].end, c.tokens[last].start - c.tokens[first].end) != QLatin1String(" ")) return;
+        c.add(c.tokens[first].start, c.tokens[last].end, GK::Punctuation, QCoreApplication::translate("Grammar", "Join these with a hyphen when they come before a noun."),
+              c.original(first) + QLatin1Char('-') + c.original(last));
+    });
+}
+
+// A comma with no space after it between two words: "yes,but".
+void commaSpace(Ctx &c)
+{
+    // (a paragraph that has three of these or more is a list or a table of values, not a slip of the keyboard)
+    int slips = 0;
+    for (int i = 1; i + 1 < c.size(); ++i) {
+        c.step();
+        if (c.isPunct(i, QLatin1Char(',')) && c.isWord(i - 1) && c.isWord(i + 1)) ++slips;
+    }
+    if (slips > 2) return;
+    for (int i = 1; i + 1 < c.size(); ++i) {
+        c.step();
+        if (!c.isPunct(i, QLatin1Char(',')) || !c.isWord(i - 1) || !c.isWord(i + 1)) continue;
+        if (c.chunkAddress[i] || c.chunkDots[i] > 0) continue;
+        if (c.tokens[i - 1].end - c.tokens[i - 1].start < 3 || c.tokens[i + 1].end - c.tokens[i + 1].start < 3) continue;
+        int commas = 0;
+        for (int k = c.chunkFirst[i]; k <= c.chunkLast[i]; ++k)
+            if (c.isPunct(k, QLatin1Char(','))) ++commas;
+        if (commas > 1) continue;   // (a list of names or values: a,b,c)
+        if (c.original(i - 1).at(0).isDigit() || c.original(i + 1).at(0).isDigit()) continue;
+        c.add(c.tokens[i].start, c.tokens[i].end, GK::Punctuation, QCoreApplication::translate("Grammar", "Put a space after the comma."), QStringLiteral(", "));
+    }
+}
+
+// Two commas, or two periods after a word.
+void doubledMark(Ctx &c)
+{
+    for (int i = 1; i + 1 < c.size(); ++i) {
+        c.step();
+        if (!c.isWord(i - 1)) continue;
+        if (c.isPunct(i, QLatin1Char(',')) && c.isPunct(i + 1, QLatin1Char(',')) && c.isSpace(i + 2) && c.tokens[i + 2].end - c.tokens[i + 2].start == 1 && c.isWord(i + 3) && !c.chunkAddress[i])   // (a table of values has runs of spaces and empty fields)
+            c.add(c.tokens[i].start, c.tokens[i + 1].end, GK::Punctuation, QCoreApplication::translate("Grammar", "Two commas in a row."), QStringLiteral(","));
+        else if (c.isPunct(i, QLatin1Char('.')) && c.isPunct(i + 1, QLatin1Char('.')) && !c.isPunct(i + 2, QLatin1Char('.')) && (i + 2 >= c.size() || c.isSpace(i + 2)) && !c.isPunct(i - 1, QLatin1Char('.'))) {
+            if (abbreviations().contains(c.tokens[i - 1].lower) || (c.tokens[i - 1].end - c.tokens[i - 1].start <= 3 && c.firstUpper(i - 1))) continue;   // (Mr.. is an abbreviation and a slip)
+            GrammarIssue g;
+            g.start = c.tokens[i].start;
+            g.end = c.tokens[i + 1].end;
+            g.kind = GK::Punctuation;
+            g.message = QCoreApplication::translate("Grammar", "Two periods: use one, or three for an ellipsis.");
+            g.suggestions << QStringLiteral(".") << QStringLiteral("...");
+            g.rule = QLatin1String(c.rule);
+            c.issues << g;
+        }
+    }
+}
+
+// "Your welcome." for "You're welcome.", where it begins a sentence and ends it.
+void yourWelcome(Ctx &c)
+{
+    eachPair(c, WORDS("your"), WORDS("welcome"), [&](int i, int j) {
+        if (!startsSentence(c, i) || j + 1 >= c.size() || c.tokens[j + 1].kind != Tok::Punct || !QLatin1String(".!").contains(c.text.at(c.tokens[j + 1].start))) return;
+        replaceToken(c, i, QStringLiteral("you're"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"you're\" (you are) here, not \"your\"."));
+    });
+}
+
+// A lowercase "i" for the word "I": before a verb that says it is the word, or "i'm", "i'll", "i've", "i'd".
+void lowercaseI(Ctx &c)
+{
+    const QSet<QString> &verbs = WORDS("am", "was", "will", "have", "had", "think", "can", "do", "would", "could", "should", "know", "need", "want", "see", "like", "feel", "believe", "hope", "guess", "love",
+                                       "just", "also", "really", "never", "always", "don't", "didn't", "can't", "won't", "got", "went", "thought", "mean", "wish", "hate", "said", "wanted", "did");
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || c.chunkAddress[i] || c.chunkDots[i] > 0) continue;
+        const QString o = c.original(i);
+        const QString &l = c.tokens[i].lower;
+        const bool contraction = l == QLatin1String("i'm") || l == QLatin1String("i'll") || l == QLatin1String("i've") || l == QLatin1String("i'd");
+        if (contraction ? o.at(0) != QLatin1Char('i') : o != QLatin1String("i")) continue;
+        if (!contraction) {
+            const int n = c.nextWord(i);
+            if (n < 0 || !verbs.contains(c.tokens[n].lower)) continue;
+            if (c.isPunct(i - 1, QLatin1Char('(')) || c.isPunct(i - 1, QLatin1Char('.')) || c.isPunct(i - 1, QLatin1Char('=')) || c.isPunct(i - 1, QLatin1Char('<'))) continue;
+        }
+        c.add(c.tokens[i].start, c.tokens[i].start + 1, GK::Capitalization, QCoreApplication::translate("Grammar", "Write \"I\" with a capital letter."), QStringLiteral("I"));
+    }
+}
+
+// The days and months written in small letters.
+void dayAndMonthNames(Ctx &c)
+{
+    const QSet<QString> &names = WORDS("sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "january", "february", "april", "june", "july", "september", "october", "november", "december");
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || !names.contains(c.tokens[i].lower) || c.firstUpper(i) || c.chunkAddress[i] || c.chunkDots[i] > 0) continue;
+        if (c.original(i) != c.tokens[i].lower) continue;
+        c.add(c.tokens[i].start, c.tokens[i].start + 1, GK::Capitalization, QCoreApplication::translate("Grammar", "Begin the name of a day or month with a capital letter."), QString(c.text.at(c.tokens[i].start).toUpper()));
+    }
+}
+
+// ---- style rules (off unless asked for)
+
+// "could care less" for "couldn't care less".
+void couldCareLess(Ctx &c)
+{
+    static const PhraseTable table({{"could care less", "couldn't care less"}});
+    table.each(c, [&](int i, int j, const QString &with) {
+        replacePhrase(c, i, j, with, GK::Style, QCoreApplication::translate("Grammar", "The saying is \"couldn't care less\" (it is not possible to care less)."));
+    });
+}
+
+// "try and" for "try to".
+void tryAnd(Ctx &c)
+{
+    const QSet<QString> &verbs = WORDS("find", "get", "make", "do", "see", "keep", "stop", "help", "come", "be", "give", "take", "understand", "figure", "remember", "think", "learn", "use", "fix", "finish", "avoid",
+                                       "stay", "break", "answer", "change", "save", "reach", "read", "write", "build", "win", "solve", "convince", "explain", "catch");
+    eachPair(c, WORDS("try"), WORDS("and"), [&](int i, int j) {
+        const int v = c.nextWord(j);
+        if (v < 0 || !verbs.contains(c.tokens[v].lower) || c.firstUpper(v)) return;
+        replacePhrase(c, i, j, QStringLiteral("try to"), GK::Style, QCoreApplication::translate("Grammar", "Use \"try to\" in careful writing."));
+    });
+}
+
+// "in order to" for "to".
+void inOrderTo(Ctx &c)
+{
+    static const PhraseTable table({{"in order to", "to"}, {"so as to", "to"}});
+    table.each(c, [&](int i, int j, const QString &with) { replacePhrase(c, i, j, with, GK::Style, QCoreApplication::translate("Grammar", "\"To\" says the same in fewer words.")); });
+}
+
+// Long phrases with a short one that says the same.
+void wordyPhrases(Ctx &c)
+{
+    static const PhraseTable table({{"due to the fact that", "because"}, {"owing to the fact that", "because"}, {"in spite of the fact that", "although"}, {"despite the fact that", "although"},
+                                    {"at this point in time", "now"}, {"at the present time", "now"}, {"in the event that", "if"}, {"for the purpose of", "for"}, {"a large number of", "many"},
+                                    {"with regard to", "about"}, {"with regards to", "about"}, {"in regard to", "about"}, {"has the ability to", "can"}, {"have the ability to", "can"},
+                                    {"each and every", "every"}, {"in the near future", "soon"}, {"on a daily basis", "daily"}, {"on a regular basis", "regularly"}, {"in close proximity to", "near"},
+                                    {"prior to", "before"}, {"subsequent to", "after"}, {"the majority of", "most"}, {"a majority of", "most"}, {"in the absence of", "without"},
+                                    {"for the reason that", "because"}, {"in light of the fact that", "because"}, {"until such time as", "until"}, {"during the course of", "during"},
+                                    {"inside of", "inside"}, {"outside of", "outside"}, {"off of", "off"}});
+    table.each(c, [&](int i, int j, const QString &with) { replacePhrase(c, i, j, with, GK::Style, QCoreApplication::translate("Grammar", "A shorter way to say this.")); });
+}
+
+// Words that say what the word next to them says.
+void redundantPhrases(Ctx &c)
+{
+    static const PhraseTable table({{"free gift", "gift"}, {"end result", "result"}, {"future plans", "plans"}, {"added bonus", "bonus"}, {"advance planning", "planning"}, {"basic fundamentals", "fundamentals"},
+                                    {"close proximity", "proximity"}, {"completely finished", "finished"}, {"final outcome", "outcome"}, {"unexpected surprise", "surprise"}, {"revert back", "revert"},
+                                    {"return back", "return"}, {"repeat again", "repeat"}, {"join together", "join"}, {"merge together", "merge"}, {"very unique", "unique"}, {"totally unique", "unique"},
+                                    {"absolutely essential", "essential"}, {"exact same", "same"}, {"true fact", "fact"}, {"usual custom", "custom"}});
+    table.each(c, [&](int i, int j, const QString &with) { replacePhrase(c, i, j, with, GK::Style, QCoreApplication::translate("Grammar", "One of these words says what the other does.")); });
+}
+
+// "was written by": a sentence that tells what was done before who did it.
+void passiveVoice(Ctx &c)
+{
+    const QSet<QString> &be = WORDS("is", "are", "was", "were", "be", "been", "being");
+    const QSet<QString> &irregular = WORDS("made", "done", "given", "taken", "written", "known", "seen", "shown", "built", "held", "kept", "sent", "told", "found", "chosen", "caused", "begun", "led", "paid", "brought", "bought",
+                                           "thought", "taught", "driven", "broken", "stolen", "worn", "won", "lost", "left", "set", "run", "read", "put", "cut", "hit", "heard", "met");
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.tokens[i].kind != Tok::Word || !be.contains(c.tokens[i].lower)) continue;
+        const int v = c.nextWord(i);
+        if (v < 0 || c.tokens[v].kind != Tok::Word) continue;
+        const QString &w = c.tokens[v].lower;
+        if (!(irregular.contains(w) || (w.size() > 4 && w.endsWith(QLatin1String("ed"))))) continue;
+        const int by = c.nextWord(v);
+        if (by < 0 || c.tokens[by].lower != QLatin1String("by") || allCaps(c, i)) continue;
+        note(c, c.tokens[i].start, c.tokens[v].end, GK::Style, QCoreApplication::translate("Grammar", "This is in the passive voice. Say who does it first to make it direct."));
+    }
+}
+
+// A sentence of more than 40 words.
+void longSentence(Ctx &c)
+{
+    for (const Sentence &s : sentencesOf(c))
+        if (s.words > 40) note(c, c.tokens[s.first].start, c.tokens[s.first].end, GK::Style, QCoreApplication::translate("Grammar", "This sentence has %1 words. Consider splitting it.").arg(s.words));
+}
+
+// Three sentences in a row that begin with the same word.
+void repeatedSentenceStart(Ctx &c)
+{
+    const QVector<Sentence> all = sentencesOf(c);
+    for (int k = 2; k < all.size(); ++k) {
+        const Token &a = c.tokens[all[k - 2].first], &b = c.tokens[all[k - 1].first], &d = c.tokens[all[k].first];
+        if (a.kind != Tok::Word || b.kind != Tok::Word || d.kind != Tok::Word || a.lower != b.lower || b.lower != d.lower || a.lower.size() < 2) continue;
+        note(c, d.start, d.end, GK::Style, QCoreApplication::translate("Grammar", "Three sentences in a row begin with \"%1\". Vary the start.").arg(c.text.mid(d.start, d.end - d.start)));
+    }
+}
+
 // The rules: to add one, write its function above and put it here.
 struct Rule {
     const char *name;
     void (*run)(Ctx &);
+    GK kind;
 };
 const Rule kRules[] = {
-    {"repeated-word", repeatedWord},
-    {"a-an", articles},
-    {"sentence-start", lowercaseSentenceStart},
-    {"its", itsAndItIs},
-    {"their-there", theirThereTheyAre},
-    {"your-youre", yourYouAre},
-    {"then-than", thenAndThan},
-    {"lose-loose", loseAndLoose},
-    {"could-of", couldOf},
-    {"double-space", doubleSpace},
-    {"space-before-mark", spaceBeforeMark},
-    {"missing-space", missingSpaceAfterPeriod},
-    {"alot", alot},
-    {"everyday", everyday},
+    {"repeated-word", repeatedWord, GK::Repetition},
+    {"a-an", articles, GK::Grammar},
+    {"sentence-start", lowercaseSentenceStart, GK::Capitalization},
+    {"its", itsAndItIs, GK::WordChoice},
+    {"their-there", theirThereTheyAre, GK::WordChoice},
+    {"your-youre", yourYouAre, GK::WordChoice},
+    {"then-than", thenAndThan, GK::WordChoice},
+    {"lose-loose", loseAndLoose, GK::WordChoice},
+    {"could-of", couldOf, GK::Grammar},
+    {"double-space", doubleSpace, GK::Punctuation},
+    {"space-before-mark", spaceBeforeMark, GK::Punctuation},
+    {"missing-space", missingSpaceAfterPeriod, GK::Punctuation},
+    {"alot", alot, GK::WordChoice},
+    {"everyday", everyday, GK::WordChoice},
+    {"he-dont", heDont, GK::Grammar},
+    {"they-was", theyWas, GK::Grammar},
+    {"she-have", sheHave, GK::Grammar},
+    {"plural-has", pluralHas, GK::Grammar},
+    {"plural-does", pluralDoes, GK::Grammar},
+    {"they-is", theyIs, GK::Grammar},
+    {"there-is-many", thereIsMany, GK::Grammar},
+    {"indefinite-are", indefiniteAre, GK::Grammar},
+    {"whos-whose", whosAndWhose, GK::WordChoice},
+    {"affect-effect", affectAndEffect, GK::WordChoice},
+    {"less-fewer", lessAndFewer, GK::Grammar},
+    {"much-many", muchAndMany, GK::Grammar},
+    {"irregardless", irregardless, GK::WordChoice},
+    {"whether-weather", whetherAndWeather, GK::WordChoice},
+    {"quite-quiet", quiteAndQuiet, GK::WordChoice},
+    {"chose-choose", choseAndChoose, GK::WordChoice},
+    {"advice-advise", adviceAndAdvise, GK::WordChoice},
+    {"to-much", toMuch, GK::WordChoice},
+    {"too-to", tooAndTo, GK::WordChoice},
+    {"breath-breathe", breathAndBreathe, GK::WordChoice},
+    {"run-together", runTogether, GK::WordChoice},
+    {"idioms", idioms, GK::WordChoice},
+    {"demonstrative-number", demonstrativeNumber, GK::Grammar},
+    {"between-you-and-i", betweenYouAndI, GK::Grammar},
+    {"me-and-him", meAndHim, GK::Grammar},
+    {"double-comparative", doubleComparative, GK::Grammar},
+    {"modal-past", modalPast, GK::Grammar},
+    {"have-past", havePast, GK::Grammar},
+    {"double-negative", doubleNegative, GK::Grammar},
+    {"comma-after-year", commaAfterYear, GK::Punctuation},
+    {"comma-after-state", commaAfterState, GK::Punctuation},
+    {"compound-hyphen", compoundHyphen, GK::Punctuation},
+    {"comma-space", commaSpace, GK::Punctuation},
+    {"doubled-mark", doubledMark, GK::Punctuation},
+    {"your-welcome", yourWelcome, GK::WordChoice},
+    {"lowercase-i", lowercaseI, GK::Capitalization},
+    {"day-month-names", dayAndMonthNames, GK::Capitalization},
+    {"amount-number", amountAndNumber, GK::Style},
+    {"could-care-less", couldCareLess, GK::Style},
+    {"try-and", tryAnd, GK::Style},
+    {"in-order-to", inOrderTo, GK::Style},
+    {"wordy-phrases", wordyPhrases, GK::Style},
+    {"redundant-phrases", redundantPhrases, GK::Style},
+    {"passive-voice", passiveVoice, GK::Style},
+    {"long-sentence", longSentence, GK::Style},
+    {"repeated-sentence-start", repeatedSentenceStart, GK::Style},
 };
 
 } // namespace
 
-QVector<GrammarIssue> check(const QString &text, quint64 *work)
+QVector<RuleInfo> rules()
+{
+    QVector<RuleInfo> out;
+    for (const Rule &r : kRules) out << RuleInfo{QLatin1String(r.name), r.kind};
+    return out;
+}
+
+QVector<GrammarIssue> check(const QString &text, quint64 *work, quint32 kinds)
 {
     Ctx c(text);
     tokenize(c);
-    for (const Rule &r : kRules) r.run(c);
+    for (const Rule &r : kRules) {
+        if (!(kinds & kindBit(r.kind))) continue;
+        c.rule = r.name;
+        r.run(c);
+    }
     // In order of position; of two that overlap, the one that starts first stays.
     std::stable_sort(c.issues.begin(), c.issues.end(), [](const GrammarIssue &a, const GrammarIssue &b) { return a.start < b.start; });
     QVector<GrammarIssue> out;
     int last = 0;
     for (const GrammarIssue &g : c.issues) {
-        if (g.start < last) continue;
+        if (g.start < last || !(kinds & kindBit(g.kind))) continue;
         out << g;
         last = g.end;
     }
