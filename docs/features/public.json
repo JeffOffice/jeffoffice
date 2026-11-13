@@ -344,8 +344,9 @@
          "text": "af32f09f238909307599da1fd224d3237eac620ab9f37fb954e2218b60590cca"
         },
         {
-         "status": "partly",
-         "text": "b23b05f6d87e679b0f0b6a9e1fa354dd07bfadb479f1d589bdad8356ba28622e"
+         "hide_soon": true,
+         "status": "done",
+         "text": "8987e996e922c56cb585b5feca1f655623196949b84e1cd1fb4ffbb89eaa79a0"
         },
         {
          "hide_soon": true,
@@ -2593,8 +2594,9 @@
          "text": "09dc4c79f7e876bee19ecaceb5a7ab41d5703467b6b80a2dc768d98954971518"
         },
         {
-         "status": "partly",
-         "text": "7fb7cfae515d961264be206028160a8acbbd2aabe06bfbb2f73dbf010aa1e896"
+         "hide_soon": true,
+         "status": "done",
+         "text": "ceb61b3722fc46c569af74262f57019cbc0b6042d576bf701f8fcd3faba4ee2a"
         },
         {
          "status": "todo",
@@ -4443,8 +4445,9 @@
          "text": "f70fba0d817fa209d8fd86b3452e58c91b917b7dcc40f4cb8e6e7e4d4cffb429"
         },
         {
-         "status": "partly",
-         "text": "342dc4d0e3910f8669a01a059abbe23e1935cc5312096e90168d3be724e92eca"
+         "hide_soon": true,
+         "status": "done",
+         "text": "b333494907331ca893505121d044eab9844a9efd3ce899164c51995fdd1837d4"
         }
        ]
       }
@@ -4489,7 +4492,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "4ea4e24192892db8c8a17eb3ddcf062dfb4d293541403def63e34d4357c71fef"
+       "text": "6c4c7a0c31ee8f50b257c3a0c35ecbe9d40ac5929b80f4fe991e08cf287a30cb"
       },
       {
        "hide_soon": true,
@@ -5484,7 +5487,7 @@
       },
       {
        "status": "partly",
-       "text": "f030a39278c1570e515ae52894ad44994cc1841c8f662483f5fbb275702367f7"
+       "text": "7624ca4d4f6312fa61703e0b82ccf08324fa7fee124d6dbf6807c2bca8979d8b"
       },
       {
        "status": "partly",
@@ -5754,8 +5757,9 @@
          "text": "c1b6b71fa3221129120143b687a35c0b139ca29014ce77b84a8e6575250c2dc8"
         },
         {
-         "status": "partly",
-         "text": "b4c5d20b1b76656866d55aed6b67a50ff565aa91587f88dd54b0a6998cc583fc"
+         "hide_soon": true,
+         "status": "done",
+         "text": "4a0437f9e5f478dfaae359e9225c36870c54c25b0ab0c0e5416eed9de46b1404"
         },
         {
          "status": "partly",
@@ -11239,18 +11243,6 @@
     "fr": "Balises de langue dans un format, comme `[$-409]` et `[$-407]`"
    }
   },
-  "342dc4d0e3910f8669a01a059abbe23e1935cc5312096e90168d3be724e92eca": {
-   "drop": false,
-   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command, and rename and reorder them, with Reset One and Reset All. Add any command to the quick toolbar (up to 100, with separators, removal, and reordering), and use the right-click menu to add or remove commands, open the customize pages, or collapse the ribbon.",
-   "es": "Muestre u oculte las pestañas y los grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, y cámbieles el nombre o el orden, con Restablecer uno y Restablecer todo. Agregue cualquier comando a la barra de herramientas rápida (hasta 100, con separadores, eliminación y reordenación) y use el menú contextual para agregar o quitar comandos, abrir las páginas de personalización o contraer la cinta de opciones.",
-   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez-les et réorganisez-les, avec Réinitialiser un élément et Tout réinitialiser. Ajoutez n’importe quelle commande à la barre d’outils rapide (jusqu’à 100, avec séparateurs, suppression et réorganisation) et utilisez le menu contextuel pour ajouter ou retirer des commandes, ouvrir les pages de personnalisation ou réduire le ruban.",
-   "soon": {
-    "drop": false,
-    "en": "Quick toolbar placement below the ribbon",
-    "es": "Ubicación de la barra de herramientas rápida debajo de la cinta de opciones",
-    "fr": "Placement de la barre d’outils rapide sous le ruban"
-   }
-  },
   "34761b1e5caf2296423757a02f62387390e9c5fcce05ef894744ac827385efc6": {
    "drop": false,
    "en": "Fill cells down (`Ctrl+D`), right (`Ctrl+R`), up, and left, across worksheets, as a series, and with Justify. Drag the fill handle and choose to copy cells, fill series, fill formatting only, fill without formatting, or fill days, weekdays, months, or years.",
@@ -12847,6 +12839,18 @@
     "fr": "Saisie de texte pour toutes les écritures : méthodes de saisie, touches mortes et sélecteurs d’emojis et de symboles"
    }
   },
+  "4a0437f9e5f478dfaae359e9225c36870c54c25b0ab0c0e5416eed9de46b1404": {
+   "drop": false,
+   "en": "Show, hide, rename, and reorder ribbon tabs and groups, and add your own tabs and groups with any command. Add, remove, and reorder commands on the quick toolbar (up to 100), and place it below the ribbon. Reset One and Reset All restore the defaults.",
+   "es": "Muestre, oculte, cambie el nombre y reordene las pestañas y los grupos de la cinta de opciones, y agregue sus propias pestañas y grupos con cualquier comando. Agregue, quite y reordene comandos en la barra de herramientas rápida (hasta 100) y colóquela debajo de la cinta de opciones. Restablecer uno y Restablecer todo recuperan los valores predeterminados.",
+   "fr": "Affichez, masquez, renommez et réorganisez les onglets et les groupes du ruban, et ajoutez vos propres onglets et groupes avec n’importe quelle commande. Ajoutez, retirez et réorganisez des commandes dans la barre d’outils rapide (jusqu’à 100) et placez-la sous le ruban. Réinitialiser un élément et Tout réinitialiser rétablissent les valeurs par défaut.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "4a76cbcea507352f896e12176e261430419fa31eaf6f5ce255e1b7534e4351d8": {
    "drop": false,
    "en": "Clipboard: Paste with source formatting, Keep Text Only, Paste Special, Cut, Copy, and Copy Formatting (single use or locked).",
@@ -13049,18 +13053,6 @@
     "en": "Building blocks: AutoText, document properties, fields, and saving a selection to a gallery",
     "es": "Bloques de creación: autotexto, propiedades del documento, campos y guardado de una selección en una galería",
     "fr": "Blocs de construction : texte automatique, propriétés du document, champs et enregistrement d’une sélection dans une galerie"
-   }
-  },
-  "4ea4e24192892db8c8a17eb3ddcf062dfb4d293541403def63e34d4357c71fef": {
-   "drop": false,
-   "en": "Find and replace text with options for match case, whole word, and search direction. Go to a page by its number with `Ctrl+G`. Select all text in a text box, select all, select objects, or select objects by type.",
-   "es": "Busque y reemplace texto con opciones para distinguir mayúsculas y minúsculas, palabra completa y dirección de búsqueda. Vaya a una página por su número con `Ctrl+G`. Seleccione todo el texto de un cuadro de texto, seleccione todo, seleccione objetos o seleccione objetos por tipo.",
-   "fr": "Recherchez et remplacez du texte avec des options de casse, de mot entier et de sens de recherche. Accédez à une page par son numéro avec `Ctrl+G`. Sélectionnez tout le texte d’une zone de texte, sélectionnez tout, sélectionnez des objets ou sélectionnez des objets par type.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "4eb96e4971089c81c91cfbe218121363e76134bcba89210451f8b1ad5452eb59": {
@@ -15559,6 +15551,18 @@
     "fr": ""
    }
   },
+  "6c4c7a0c31ee8f50b257c3a0c35ecbe9d40ac5929b80f4fe991e08cf287a30cb": {
+   "drop": false,
+   "en": "Find and replace text with options for match case, whole word, and search direction. Go to a page or a comment by number, or to the next or previous comment, with `Ctrl+G`. Select all text in a text box, select all, select objects, or select objects by type.",
+   "es": "Busque y reemplace texto con opciones de coincidencia de mayúsculas y minúsculas, palabra completa y dirección de búsqueda. Vaya a una página o a un comentario por su número, o al comentario siguiente o anterior, con `Ctrl+G`. Seleccione todo el texto de un cuadro de texto, seleccione todo, seleccione objetos o seleccione objetos por tipo.",
+   "fr": "Recherchez et remplacez du texte avec des options de respect de la casse, de mot entier et de sens de recherche. Accédez à une page ou à un commentaire par son numéro, ou au commentaire suivant ou précédent, avec `Ctrl+G`. Sélectionnez tout le texte d’une zone de texte, tout sélectionner, sélectionnez des objets ou des objets par type.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "6c710968bd72d31adfc5d4545678ba085d8ae7da3ce18703050b2db3d4607f7f": {
    "drop": false,
    "en": "Horizontal Line adds a paragraph with a thin line under it and moves the caret below.",
@@ -16217,6 +16221,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "7624ca4d4f6312fa61703e0b82ccf08324fa7fee124d6dbf6807c2bca8979d8b": {
+   "drop": false,
+   "en": "Insert barcodes in a document or on mail-merge labels: book ISBNs with a price add-on, EAN, UPC, Code 128, Code 39, and QR codes, drawn as vector bars. A barcode is a picture that moves, sizes, wraps, and undoes like any picture, and a double click edits its data. A merge field can supply the barcode value, so each merged record gets its own barcode, with up to 2,000 barcodes per merge. Barcodes are saved in `.docx` and `.odt` files and reopen as the same barcode.",
+   "es": "Inserte códigos de barras en un documento o en etiquetas de combinación de correspondencia: ISBN de libros con complemento de precio, EAN, UPC, Code 128, Code 39 y códigos QR, dibujados como barras vectoriales. Un código de barras es una imagen que se mueve, cambia de tamaño, se ajusta al texto y se deshace como cualquier imagen, y un doble clic permite editar sus datos. Un campo de combinación puede aportar el valor del código, de modo que cada registro combinado tiene su propio código de barras, con hasta 2000 códigos por combinación. Los códigos de barras se guardan en archivos `.docx` y `.odt` y se vuelven a abrir como el mismo código.",
+   "fr": "Insérez des codes-barres dans un document ou sur des étiquettes de publipostage : ISBN de livres avec supplément de prix, EAN, UPC, Code 128, Code 39 et codes QR, dessinés sous forme de barres vectorielles. Un code-barres est une image qui se déplace, se redimensionne, s’habille de texte et s’annule comme n’importe quelle image, et un double-clic permet de modifier ses données. Un champ de fusion peut fournir la valeur du code, de sorte que chaque enregistrement fusionné reçoit son propre code-barres, avec jusqu’à 2 000 codes-barres par fusion. Les codes-barres sont enregistrés dans des fichiers `.docx` et `.odt` et se rouvrent comme le même code.",
+   "soon": {
+    "drop": false,
+    "en": "Barcode field in mail merge for desktop publishing documents",
+    "es": "Campo de código de barras en la combinación de correspondencia de documentos de autoedición",
+    "fr": "Champ de code-barres dans le publipostage des documents de publication assistée par ordinateur"
    }
   },
   "7636fe238f6f0efa5ab83f55e3ba023162bba738e3fa5bf47b1786de7122f8f5": {
@@ -16939,18 +16955,6 @@
     "fr": ""
    }
   },
-  "7fb7cfae515d961264be206028160a8acbbd2aabe06bfbb2f73dbf010aa1e896": {
-   "drop": false,
-   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command, and rename and reorder them, with Reset One and Reset All. Add any command to the quick toolbar (up to 100, with separators, removal, and reordering), and use the right-click menu to add or remove commands, open the customize pages, or collapse the ribbon.",
-   "es": "Muestre u oculte las pestañas y los grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, y cámbieles el nombre o el orden, con Restablecer uno y Restablecer todo. Agregue cualquier comando a la barra de herramientas rápida (hasta 100, con separadores, eliminación y reordenación) y use el menú contextual para agregar o quitar comandos, abrir las páginas de personalización o contraer la cinta de opciones.",
-   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez-les et réorganisez-les, avec Réinitialiser un élément et Tout réinitialiser. Ajoutez n’importe quelle commande à la barre d’outils rapide (jusqu’à 100, avec séparateurs, suppression et réorganisation) et utilisez le menu contextuel pour ajouter ou retirer des commandes, ouvrir les pages de personnalisation ou réduire le ruban.",
-   "soon": {
-    "drop": false,
-    "en": "Quick toolbar placement below the ribbon",
-    "es": "Ubicación de la barra de herramientas rápida debajo de la cinta de opciones",
-    "fr": "Placement de la barre d’outils rapide sous le ruban"
-   }
-  },
   "7fe3ce35dc04491f67fd92f4a5e482fe5e9af5b848c9c1b2655a63485e97d9ef": {
    "drop": false,
    "en": "Themes and Variants",
@@ -17477,6 +17481,18 @@
     "en": "Mini toolbar beside selected cell text and Quick Analysis button under a selected range",
     "es": "Minibarra de herramientas junto al texto de la celda seleccionada y botón de análisis rápido bajo un rango seleccionado",
     "fr": "Mini barre d’outils près du texte de la cellule sélectionnée et bouton d’analyse rapide sous une plage sélectionnée"
+   }
+  },
+  "8987e996e922c56cb585b5feca1f655623196949b84e1cd1fb4ffbb89eaa79a0": {
+   "drop": false,
+   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command, and rename and reorder them. Add, remove, and reorder commands on the quick toolbar (up to 100), and place it below the ribbon. Reset One and Reset All restore the defaults.",
+   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, y cámbieles el nombre y el orden. Agregue, quite y reordene comandos en la barra de herramientas rápida (hasta 100) y colóquela debajo de la cinta de opciones. Restablecer uno y Restablecer todo recuperan los valores predeterminados.",
+   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, puis renommez-les et réorganisez-les. Ajoutez, retirez et réorganisez des commandes dans la barre d’outils rapide (jusqu’à 100) et placez-la sous le ruban. Réinitialiser un élément et Tout réinitialiser rétablissent les valeurs par défaut.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "898be48663c9b3d86498a0fb327bc1b20416ec7fd09bbb5ba195dd5fb3d3477e": {
@@ -20095,18 +20111,6 @@
     "fr": ""
    }
   },
-  "b23b05f6d87e679b0f0b6a9e1fa354dd07bfadb479f1d589bdad8356ba28622e": {
-   "drop": false,
-   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command, and rename and reorder them, with Reset One and Reset All. Add any command to the quick toolbar (up to 100, with separators, removal, and reordering), and use the right-click menu to add or remove commands, open the customize pages, or collapse the ribbon.",
-   "es": "Muestre u oculte las pestañas y los grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, y cámbieles el nombre o el orden, con Restablecer uno y Restablecer todo. Agregue cualquier comando a la barra de herramientas rápida (hasta 100, con separadores, eliminación y reordenación) y use el menú contextual para agregar o quitar comandos, abrir las páginas de personalización o contraer la cinta de opciones.",
-   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez-les et réorganisez-les, avec Réinitialiser un élément et Tout réinitialiser. Ajoutez n’importe quelle commande à la barre d’outils rapide (jusqu’à 100, avec séparateurs, suppression et réorganisation) et utilisez le menu contextuel pour ajouter ou retirer des commandes, ouvrir les pages de personnalisation ou réduire le ruban.",
-   "soon": {
-    "drop": false,
-    "en": "Quick toolbar placement below the ribbon",
-    "es": "Ubicación de la barra de herramientas rápida debajo de la cinta de opciones",
-    "fr": "Placement de la barre d’outils rapide sous le ruban"
-   }
-  },
   "b2439b963581010bf393c3c808015eb428498c02414b492bfd4ba13c9126b317": {
    "drop": false,
    "en": "The 2010 extension form of a data bar is read, drawn, and written into a copy of the sheet. A rule that reads another sheet is drawn when the file stores it in the ordinary form.",
@@ -20153,6 +20157,18 @@
     "en": "Security settings for linked files, linked media, and macros (kept, never run)",
     "es": "Ajustes de seguridad para archivos vinculados, medios vinculados y macros (se conservan, nunca se ejecutan)",
     "fr": "Paramètres de sécurité pour les fichiers liés, les médias liés et les macros (conservés, jamais exécutés)"
+   }
+  },
+  "b333494907331ca893505121d044eab9844a9efd3ce899164c51995fdd1837d4": {
+   "drop": false,
+   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command, and rename and reorder them. Add, remove, and reorder commands on the quick toolbar (up to 100), and place it below the ribbon. Reset One and Reset All restore the defaults.",
+   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, y cámbieles el nombre y el orden. Agregue, quite y reordene comandos en la barra de herramientas rápida (hasta 100) y colóquela debajo de la cinta de opciones. Restablecer uno y Restablecer todo recuperan los valores predeterminados.",
+   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, puis renommez-les et réorganisez-les. Ajoutez, retirez et réorganisez des commandes dans la barre d’outils rapide (jusqu’à 100) et placez-la sous le ruban. Réinitialiser un élément et Tout réinitialiser rétablissent les valeurs par défaut.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "b40da7575dc84295b5430a0e2039746f2a4dc0a27d95b8117f6d60deae26e65e": {
@@ -20213,18 +20229,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b4c5d20b1b76656866d55aed6b67a50ff565aa91587f88dd54b0a6998cc583fc": {
-   "drop": false,
-   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command, and rename and reorder them, with Reset One and Reset All. Add any command to the quick toolbar (up to 100, with separators, removal, and reordering), and use the right-click menu to add or remove commands, open the customize pages, or collapse the ribbon.",
-   "es": "Muestre u oculte las pestañas y los grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, y cámbieles el nombre o el orden, con Restablecer uno y Restablecer todo. Agregue cualquier comando a la barra de herramientas rápida (hasta 100, con separadores, eliminación y reordenación) y use el menú contextual para agregar o quitar comandos, abrir las páginas de personalización o contraer la cinta de opciones.",
-   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, renommez-les et réorganisez-les, avec Réinitialiser un élément et Tout réinitialiser. Ajoutez n’importe quelle commande à la barre d’outils rapide (jusqu’à 100, avec séparateurs, suppression et réorganisation) et utilisez le menu contextuel pour ajouter ou retirer des commandes, ouvrir les pages de personnalisation ou réduire le ruban.",
-   "soon": {
-    "drop": false,
-    "en": "Quick toolbar placement below the ribbon",
-    "es": "Ubicación de la barra de herramientas rápida debajo de la cinta de opciones",
-    "fr": "Placement de la barre d’outils rapide sous le ruban"
    }
   },
   "b4cda088ed8b25f87a7d970c8811e890b8c40b86108255a1744fe8d3be7a51a0": {
@@ -22085,6 +22089,18 @@
     "en": "Equation tab with structures and symbols, ink equations, and equations in `.pub` files",
     "es": "Pestaña Ecuación con estructuras y símbolos, ecuaciones a mano alzada y ecuaciones en archivos `.pub`",
     "fr": "Onglet Équation avec structures et symboles, équations manuscrites et équations dans les fichiers `.pub`"
+   }
+  },
+  "ceb61b3722fc46c569af74262f57019cbc0b6042d576bf701f8fcd3faba4ee2a": {
+   "drop": false,
+   "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command, and rename and reorder them. Add, remove, and reorder commands on the quick toolbar (up to 100), and place it below the ribbon. Reset One and Reset All restore the defaults.",
+   "es": "Muestre u oculte pestañas y grupos de la cinta de opciones, agregue sus propias pestañas y grupos con cualquier comando, y cámbieles el nombre y el orden. Agregue, quite y reordene comandos en la barra de herramientas rápida (hasta 100) y colóquela debajo de la cinta de opciones. Restablecer uno y Restablecer todo recuperan los valores predeterminados.",
+   "fr": "Affichez ou masquez les onglets et les groupes du ruban, ajoutez vos propres onglets et groupes avec n’importe quelle commande, puis renommez-les et réorganisez-les. Ajoutez, retirez et réorganisez des commandes dans la barre d’outils rapide (jusqu’à 100) et placez-la sous le ruban. Réinitialiser un élément et Tout réinitialiser rétablissent les valeurs par défaut.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "cee0c5273b9fe1c76cda9bd3506ce45ba14d918a32249e908d5f1b3231c64304": {
@@ -24401,18 +24417,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "f030a39278c1570e515ae52894ad44994cc1841c8f662483f5fbb275702367f7": {
-   "drop": false,
-   "en": "Insert barcodes in a document as pictures that move, size, wrap, and undo like any picture: book ISBNs with a price add-on, EAN, UPC, Code 128, Code 39, and QR codes, drawn as vector bars. Double-click a barcode to edit its data. Insert a barcode from a merge field in a mail merge so each merged record gets a barcode of its own value, up to 2,000 barcodes per merge. Barcodes are saved in `.docx` and `.odt` files.",
-   "es": "Inserte códigos de barras en un documento como imágenes que se mueven, cambian de tamaño, se ajustan al texto y se deshacen como cualquier imagen: ISBN de libros con complemento de precio, EAN, UPC, Code 128, Code 39 y códigos QR, dibujados como barras vectoriales. Haga doble clic en un código de barras para editar sus datos. En una combinación de correspondencia, inserte un código de barras desde un campo de combinación para que cada registro combinado tenga un código con su propio valor, hasta 2.000 códigos por combinación. Los códigos de barras se guardan en archivos `.docx` y `.odt`.",
-   "fr": "Insérez des codes-barres dans un document sous forme d’images que vous pouvez déplacer, redimensionner, habiller de texte et annuler comme n’importe quelle image : ISBN de livres avec supplément de prix, EAN, UPC, Code 128, Code 39 et codes QR, dessinés en barres vectorielles. Double-cliquez sur un code-barres pour modifier ses données. Dans un publipostage, insérez un code-barres à partir d’un champ de fusion pour que chaque enregistrement fusionné ait un code-barres de sa propre valeur, jusqu’à 2 000 codes-barres par fusion. Les codes-barres sont enregistrés dans les fichiers `.docx` et `.odt`.",
-   "soon": {
-    "drop": false,
-    "en": "Barcodes drawn as bars in the editor for merge fields, and editing a merge field barcode’s type and look after insertion",
-    "es": "Códigos de barras dibujados como barras en el editor para los campos de combinación, y edición del tipo y el aspecto de un código de barras de campo tras insertarlo",
-    "fr": "Codes-barres dessinés en barres dans l’éditeur pour les champs de fusion, et modification du type et de l’aspect d’un code-barres de champ après son insertion"
    }
   },
   "f046a58ffc31f9fc7e620618016bcbfbd3e635843c3402d9e24c5e692425be79": {
