@@ -19,7 +19,7 @@ class QTextBlock;
 class QTextDocument;
 class QThreadPool;
 
-namespace jp::write {
+namespace jp {
 
 class GrammarCheck : public QObject {
     Q_OBJECT
@@ -34,6 +34,13 @@ public:
     };
 
     explicit GrammarCheck(QTextDocument *story, QObject *parent = nullptr);
+    // One of several checks that work together (the stories of a publication): they take turns on one thread of `pool` (which outlives them) and spend one budget,
+    // from newShared(). A check made this way does not wait for its pool when it goes.
+    struct Shared;
+    static std::shared_ptr<Shared> newShared();
+    GrammarCheck(QTextDocument *story, const std::shared_ptr<Shared> &shared, QThreadPool *pool, QObject *parent = nullptr);
+    // The check is of another document from now on (what is kept of answers is kept, by paragraph text).
+    void setStory(QTextDocument *story);
     ~GrammarCheck() override;
 
     bool enabled() const { return m_enabled; }
@@ -58,6 +65,8 @@ public:
     // issue with the same message on the same words.
     void ignoreHere(const Issue &issue);
     void ignoreAll(const Issue &issue);
+    // The same, by the message and the words the issue is on (for the other stories of a publication, which have their own copy of the list).
+    void ignoreAllOf(const QString &message, const QString &words);
     // Tells the pages to be drawn again.
     void refresh() { Q_EMIT changed(); }
     // Whether paragraphs are waiting to be sent or are being checked.
@@ -76,7 +85,6 @@ Q_SIGNALS:
     void budgetExhausted();
 
 private:
-    struct Shared;
     struct Entry {
         QVector<GrammarIssue> issues;   // as [start, end) in the paragraph
     };
@@ -86,6 +94,7 @@ private:
     };
     struct BlockLook {
         int position = -1, revision = -1, length = -1;
+        size_t marks = 0;   // what the languages and "do not check" marks of the paragraph's runs come to (a change of language does not change the revision)
         Look look;
     };
     const Look &lookAt(const QTextBlock &block);
@@ -110,7 +119,8 @@ private:
     bool m_exhausted = false;
     QTimer m_timer;
     std::shared_ptr<Shared> m_shared;
-    std::unique_ptr<QThreadPool> m_pool;
+    std::unique_ptr<QThreadPool> m_ownPool;
+    QThreadPool *m_pool = nullptr;
 };
 
-} // namespace jp::write
+} // namespace jp

@@ -4,7 +4,7 @@
 #include "app/grammar.h"
 #include "app/settings.h"
 #include "app/spelling.h"
-#include "core/grammarcheck.h"
+#include "app/grammarcheck.h"
 #include "core/spellcheck.h"
 #include "text/textprops.h"
 

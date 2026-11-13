@@ -1,7 +1,7 @@
 #pragma once
 // Spelling in the window: the help the right-click menu gives on a misspelled word, and the Spelling pane that steps through the misspellings.
 
-#include "core/grammarcheck.h"
+#include "app/grammarcheck.h"
 
 #include <QPair>
 #include <QTimer>

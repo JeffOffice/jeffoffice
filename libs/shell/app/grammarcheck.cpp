@@ -1,4 +1,4 @@
-#include "core/grammarcheck.h"
+#include "app/grammarcheck.h"
 
 #include "text/textprops.h"
 
@@ -15,7 +15,7 @@
 #include <algorithm>
 #include <atomic>
 
-namespace jp::write {
+namespace jp {
 
 namespace {
 // What is kept of answers, in characters of the paragraphs they are for (a book of 600,000 characters is kept whole, several times over, and no more).
@@ -47,18 +47,37 @@ struct GrammarCheck::Shared {
     }
 };
 
-GrammarCheck::GrammarCheck(QTextDocument *story, QObject *parent) : QObject(parent), m_story(story), m_shared(std::make_shared<Shared>()), m_pool(new QThreadPool)
+GrammarCheck::GrammarCheck(QTextDocument *story, QObject *parent) : QObject(parent), m_story(story), m_shared(std::make_shared<Shared>()), m_ownPool(new QThreadPool)
 {
+    m_pool = m_ownPool.get();
     m_pool->setMaxThreadCount(1);
+    m_timer.setSingleShot(true);
+    connect(&m_timer, &QTimer::timeout, this, &GrammarCheck::send);
+}
+
+std::shared_ptr<GrammarCheck::Shared> GrammarCheck::newShared() { return std::make_shared<Shared>(); }
+
+GrammarCheck::GrammarCheck(QTextDocument *story, const std::shared_ptr<Shared> &shared, QThreadPool *pool, QObject *parent) : QObject(parent), m_story(story), m_shared(shared), m_pool(pool)
+{
     m_timer.setSingleShot(true);
     connect(&m_timer, &QTimer::timeout, this, &GrammarCheck::send);
 }
 
 GrammarCheck::~GrammarCheck()
 {
+    if (!m_ownPool) return;   // (the jobs of a shared pool hold what they need, and check `self` before they answer)
     m_shared->gone = true;   // (jobs that have not begun do nothing; the one under way finishes, which the service bounds)
     m_pool->clear();
     m_pool->waitForDone();
+}
+
+void GrammarCheck::setStory(QTextDocument *story)
+{
+    if (story == m_story) return;
+    m_story = story;
+    m_looks.clear();
+    m_wanted.clear();
+    Q_EMIT changed();
 }
 
 void GrammarCheck::setEnabled(bool on)
@@ -95,7 +114,12 @@ const GrammarCheck::Look &GrammarCheck::lookAt(const QTextBlock &block)
     if (m_looks.size() > kMaxLooks) m_looks.clear();
     BlockLook &cached = m_looks[block.blockNumber()];
     // (the revision, the place, and the length say it is the paragraph the look was made of; the text is compared too, since two paragraphs that were never edited can agree on those)
-    if (cached.position == block.position() && cached.revision == block.revision() && cached.length == block.length() && cached.look.text == block.text()) return cached.look;
+    size_t marks = 0;
+    for (auto it = block.begin(); !it.atEnd(); ++it) {
+        const QTextCharFormat cf = it.fragment().charFormat();
+        marks = qHashMulti(marks, it.fragment().length(), cf.stringProperty(tp::Language), cf.boolProperty(tp::NoProof));
+    }
+    if (cached.position == block.position() && cached.revision == block.revision() && cached.length == block.length() && cached.marks == marks && cached.look.text == block.text()) return cached.look;
     ++m_looksMade;
     Look look;
     look.text = block.text();
@@ -118,6 +142,7 @@ const GrammarCheck::Look &GrammarCheck::lookAt(const QTextBlock &block)
     cached.position = block.position();
     cached.revision = block.revision();
     cached.length = block.length();
+    cached.marks = marks;
     cached.look = look;
     return cached.look;
 }
@@ -247,6 +272,12 @@ void GrammarCheck::ignoreAll(const Issue &issue)
     Q_EMIT changed();
 }
 
+void GrammarCheck::ignoreAllOf(const QString &message, const QString &words)
+{
+    m_ignoredAll.insert(message + QChar(1) + words);
+    Q_EMIT changed();
+}
+
 // A paragraph wants checking: only its latest text, though it changes with every key. The wait begins again with each change.
 void GrammarCheck::want(int slot, const Look &look)
 {
@@ -322,4 +353,4 @@ void GrammarCheck::keep(const QString &key, const Entry &entry)
     m_kept.insert(key, entry);
 }
 
-} // namespace jp::write
+} // namespace jp

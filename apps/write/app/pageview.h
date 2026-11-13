@@ -29,10 +29,13 @@ class LayoutCache;
 
 class QToolButton;
 
+namespace jp {
+class GrammarCheck;
+}
+
 namespace jp::write {
 
 class SpellCheck;
-class GrammarCheck;
 
 class PageView : public QAbstractScrollArea {
     Q_OBJECT

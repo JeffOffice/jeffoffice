@@ -10,10 +10,13 @@
 class QPainter;
 class QTextDocument;
 
+namespace jp {
+class GrammarCheck;
+}
+
 namespace jp::write {
 
 class SpellCheck;
-class GrammarCheck;
 
 struct PageDrawing {
     int selectionFrom = -1, selectionTo = -1;   // the selected text, as positions in the document

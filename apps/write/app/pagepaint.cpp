@@ -1,6 +1,6 @@
 #include "app/pagepaint.h"
 
-#include "core/grammarcheck.h"
+#include "app/grammarcheck.h"
 #include "core/spellcheck.h"
 #include "core/tableops.h"
 

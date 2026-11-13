@@ -10,7 +10,7 @@
 #include "core/reviewops.h"
 #include "core/tableops.h"
 #include "core/writeprops.h"
-#include "core/grammarcheck.h"
+#include "app/grammarcheck.h"
 #include "core/spellcheck.h"
 #include "render/renderer.h"
 #include "text/textprops.h"

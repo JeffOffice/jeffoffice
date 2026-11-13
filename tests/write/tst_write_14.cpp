@@ -1,7 +1,7 @@
 #include "tst_write.h"
 #include "app/grammar.h"
 #include "app/spellpane.h"
-#include "core/grammarcheck.h"
+#include "app/grammarcheck.h"
 #include "core/linkops.h"
 #include "text/autocorrect.h"
 
