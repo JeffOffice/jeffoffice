@@ -600,7 +600,8 @@ jobs:
           # (the help and i18n folders beside the programs: see jp::dataFolder). windeployqt reads the DLL too, for the Qt
           # modules only it uses (Svg, Xml, Network): the programs themselves no longer link them.
           Copy-Item build/libjeffoffice-common.dll dist/JeffOffice/
-          # (build/data is the data folder: help, i18n, data.stamp, and manifest.txt, which mark it and list what it holds)
+          # (build/data is the data folder: help, i18n, dict (the dictionaries and thesaurus, compressed, with their licenses), data.stamp, and
+          # manifest.txt, which mark it and list what it holds)
           Copy-Item -Recurse build/data/* dist/JeffOffice/
           # The DLL's export table holds at most 65,535 names; the third-party libraries inside it are not exported. Say how many, and stop near the limit.
           $exports = (objdump -p build/libjeffoffice-common.dll | Select-String '^\s+\[\s*\d+\]\s+\+base').Count
@@ -632,7 +633,6 @@ jobs:
           Get-ChildItem dist/JeffOffice/*.dll | Select-Object -ExpandProperty Name
           Copy-Item LICENSE, ADDITIONAL-TERMS.md, README.md dist/JeffOffice/
           Copy-Item -Recurse resources/fonts dist/JeffOffice/fonts
-          Copy-Item -Recurse resources/dict dist/JeffOffice/dict
           # PDFium, and its license texts and those of the libraries in it.
           Copy-Item build/pdfium.dll dist/JeffOffice/
           New-Item -ItemType Directory -Force dist/JeffOffice/licenses | Out-Null
@@ -739,7 +739,7 @@ jobs:
           cp build/JeffPub build/JeffDeck LICENSE README.md dist/JeffOffice/
           if [ "$SHIP_WRITE" = true ]; then cp build/JeffWrite dist/JeffOffice/; fi
           if [ "$SHIP_CRUNCH" = true ]; then cp build/JeffCrunch dist/JeffOffice/; fi
-          cp -r resources/fonts resources/dict dist/JeffOffice/
+          cp -r resources/fonts dist/JeffOffice/
           # The shared library (found beside the programs by $ORIGIN), and Help and the translations (beside them too).
           cp build/libjeffoffice-common.so build/_deps/pdfium/lib/libpdfium.so dist/JeffOffice/
           cp -rL build/data/. dist/JeffOffice/

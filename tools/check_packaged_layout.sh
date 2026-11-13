@@ -1,7 +1,8 @@
 #!/bin/bash
 # The packaged layout on Linux: installs the build into a temporary prefix (cmake --install, no LTO needed), checks with ldd that every
 # library each program needs resolves inside the prefix or to the system or Qt, launches each app from the prefix (offscreen), and runs
-# jo_datacheck there (Help topic and a German translation load from the prefix's data folder).
+# jo_datacheck there (Help topic and a German translation load from the prefix's data folder, and so do spelling, hyphenation, and the
+# thesaurus, from the compressed dictionary files; no plain dictionary file is installed).
 # Usage: tools/check_packaged_layout.sh <build dir>      Prints one line, "packaged layout: OK" or what is wrong; exit status 1 when wrong.
 set -u
 B=$(cd "$1" && pwd)
@@ -39,5 +40,9 @@ done
 H=$(mktemp -d)
 r=$(env -i HOME="$H" PATH="$PATH" LD_LIBRARY_PATH="$qt/lib" QT_QPA_PLATFORM=offscreen timeout 120 "$P/bin/jo_datacheck" 2>&1) || note "datacheck: $r"
 rm -rf "$H"
+case "$r" in *"dictionaries $real/share/jeffoffice/dict"*) ;; *) note "datacheck did not read the dictionaries from the prefix: $r" ;; esac
+plain=$(find "$P/share/jeffoffice/dict" -type f \( -name '*.dic' -o -name '*.aff' -o -name '*.dat' \) 2>/dev/null | wc -l)
+[ "$plain" = 0 ] || note "$plain plain dictionary files were installed (they should be the compressed .jz files only)"
+[ "$(find "$P/share/jeffoffice/dict" -name '*.jz' 2>/dev/null | wc -l)" -ge 69 ] || note "the compressed dictionary files are missing"
 case "$r" in *"data folder $real/share/jeffoffice/help"*) ;; *) note "datacheck did not use the prefix's data folder: $r" ;; esac
 if [ -z "$bad" ]; then echo "packaged layout: OK"; else echo "packaged layout: FAILED$bad" | cut -c1-600; exit 1; fi
