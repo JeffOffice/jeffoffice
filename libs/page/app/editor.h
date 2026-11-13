@@ -4,6 +4,7 @@
 // to the document goes through beginChange()/endChange(), which records a
 // before/after snapshot as one undo step.
 
+#include "app/grammarcheck.h"
 #include "core/document.h"
 #include "render/renderer.h"
 
@@ -11,9 +12,11 @@
 #include <QTextCursor>
 #include <QTimer>
 
+class QThreadPool;
 class QWidget;
 #include <QUndoStack>
 #include <functional>
+#include <map>
 #include <optional>
 
 namespace jp {
@@ -31,6 +34,7 @@ struct ViewOptions {
     bool snapObjects = true;
     bool snapRuler = false;
     bool spelling = true;
+    bool grammar = true;   // "check grammar as you type": the suite's one choice, as the spelling's is
     bool gridlines = true;
 };
 
@@ -90,6 +94,19 @@ public:
     // Misspelled [start, end) ranges in a story (empty when checking is off).
     QVector<QPair<int, int>> misspelledIn(const QString &storyId) const;
     void invalidateSpelling() { m_spell.clear(); notifyLive(); }   // after the dictionary changes
+    // Grammar and style issues in a story, as JeffWrite finds them (libs/shell/app/grammarcheck): a paragraph at a time, on a thread of its own, a moment after it stopped
+    // changing, and kept by its text, so typing in one box checks that paragraph and no other. Empty when the setting is off, and for text whose language has no rules.
+    // An issue not checked yet is on its way: viewChanged says when it comes.
+    QVector<GrammarCheck::Issue> grammarIssuesIn(const QString &storyId) const;
+    // The issue at a position of a story (an invalid one: none), and "Ignore All" for an issue in every story.
+    GrammarCheck::Issue grammarIssueAt(const QString &storyId, int position) const;
+    void ignoreGrammarAll(const GrammarCheck::Issue &issue, const QString &storyId);
+    // The check of a story (made when asked for); the spelling dialog goes through it.
+    GrammarCheck *grammarCheckOf(const QString &storyId) const;
+    // Paragraphs sent to the checkers in all, whether any is waiting or under way, and how long a paragraph waits (for the tests).
+    int grammarParagraphsChecked() const;
+    bool grammarPending() const;
+    void setGrammarDelayMs(int ms);
 
     // ---- selection ----
     const QStringList &selection() const { return m_sel; }
@@ -351,6 +368,11 @@ private:
     // Spelling results per story, recomputed only when the story's text changes.
     struct SpellEntry { quint64 serial = 0; int revision = -1; QVector<QPair<int, int>> ranges; };
     mutable QHash<QString, SpellEntry> m_spell;
+    // The grammar checks, one for each story, on one thread and one budget (the pool is declared first, so it is destroyed last).
+    mutable std::unique_ptr<QThreadPool> m_grammarPool;
+    mutable std::shared_ptr<GrammarCheck::Shared> m_grammarShared;
+    mutable std::map<QString, std::unique_ptr<GrammarCheck>> m_grammar;
+    int m_grammarDelayMs = 400;
     QUndoStack m_undo;
     bool m_cropOpen = false;   // a crop session holds a change open (cropSessions)
     int m_cropPage = 0;        // the slide and the selection it began with, which its step is filed under

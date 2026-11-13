@@ -1399,7 +1399,7 @@ void optionsDialog(QWidget *p, Editor *ed)
         st.setValue("edit/dragText", f->dragText->isChecked());
         st.setValue("edit/hyphenate", f->hyphenate->isChecked());
     }};
-    if (!optionsDialog(p, ed, pages)) return;
+    if (!optionsDialog(p, ed, pages, true)) return;   // (its "check grammar as you type" is the suite's one choice)
     // Every open window saves automatic recovery copies at the new interval.
     for (QWidget *w : QApplication::topLevelWidgets())
         if (auto *mw = qobject_cast<MainWindow *>(w)) mw->settingsChanged();

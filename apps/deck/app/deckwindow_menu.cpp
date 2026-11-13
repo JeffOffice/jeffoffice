@@ -30,6 +30,7 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
     act("shape.format")->setText(kind == QLatin1String("picture") ? tr("Format Picture…") : tr("Format Shape…"));
     if (m_ed->isEditingText()) {
         addSpellingSuggestions(*menu, m_ed);
+        addGrammarSuggestions(*menu, m_ed);
         add(nullptr, {"edit.cut", "edit.copy", "edit.paste"});
         menu->addSeparator();
         add(nullptr, {"fmt.fontDialog", "para.dialog", "para.bullets", "para.numbers"});

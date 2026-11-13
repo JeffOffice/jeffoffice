@@ -1,11 +1,15 @@
 # Review tab
-<!-- keywords: review tab, ribbon, proofing, spelling, thesaurus, word count, comments, new comment, delete comment, previous, next, show comments, language, proofing language, set language, do not check spelling, translate, translation, libretranslate -->
+<!-- keywords: review tab, ribbon, proofing, spelling, thesaurus, word count, comments, new comment, delete comment, previous, next, show comments, language, proofing language, set language, do not check spelling, translate, translation, libretranslate, grammar, grammar check, style, blue line, dotted line, check grammar as you type -->
 
 The **Review** tab checks your words, translates them, and handles comments.
 
 - **Proofing** has **Spelling** (F7), **Thesaurus** (Shift+F7), **Word Count**, and **Check Accessibility**. See [Type and format text](text).
 - **Language** has **Translate**, **Set Proofing Language**, and **Do Not Check Spelling**. See below.
 - **Comments** has **New Comment** (Ctrl+Alt+M), **Delete** with its menu, **Previous**, **Next**, and **Show Comments**. See [Comments](comments).
+
+## Check grammar as you type
+
+JeffDeck also looks for clear grammar and style mistakes in English text, on slides and in the speaker notes. An issue gets a blue dotted line under it, and a misspelled word keeps its red wavy line. Right-click the issue to see what is wrong and to pick a suggestion, or choose **Ignore This Issue** or **Ignore All**. **Spelling** (F7) goes on to the grammar issues in the slides after the spelling. Only English is checked: text in another language, and text marked "do not check", is skipped. To turn it off, click **File > Options > Proofing** and clear **Check grammar as you type**. It is one choice for all the JeffOffice apps.
 
 ## Set the language of some text
 

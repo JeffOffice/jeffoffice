@@ -1,6 +1,7 @@
 #include "app/editor.h"
 
 #include <QSet>
+#include <QThreadPool>
 #include "app/pictureask.h"
 #include "app/settings.h"
 #include "app/spelling.h"
@@ -62,6 +63,11 @@ Editor::Editor(QObject *parent) : QObject(parent)
     view.spelling = spellAsYouType();
     connect(&SpellSettingNotifier::get(), &SpellSettingNotifier::changed, this, [this](bool on) {
         view.spelling = on;
+        Q_EMIT viewChanged();
+    });
+    view.grammar = grammarAsYouType();
+    connect(&GrammarSettingNotifier::get(), &GrammarSettingNotifier::changed, this, [this](bool on) {
+        view.grammar = on;
         Q_EMIT viewChanged();
     });
     m_undo.setUndoLimit(kUndoSteps);
@@ -230,6 +236,16 @@ RenderOptions Editor::renderOptions() const
             if (!r.isEmpty()) o.misspelled.insert(it.key(), r);
         }
     }
+    if (view.grammar) {
+        if (int(m_grammar.size()) > m_doc->stories.size()) {   // (the checks of stories that are gone)
+            for (auto it = m_grammar.begin(); it != m_grammar.end();) it = m_doc->stories.contains(it->first) ? std::next(it) : m_grammar.erase(it);
+        }
+        for (auto it = m_doc->stories.cbegin(); it != m_doc->stories.cend(); ++it) {
+            QVector<QPair<int, int>> r;
+            for (const GrammarCheck::Issue &g : grammarIssuesIn(it.key())) r << qMakePair(g.start, g.end);
+            if (!r.isEmpty()) o.grammar.insert(it.key(), r);
+        }
+    }
     return o;
 }
 
@@ -245,6 +261,71 @@ QVector<QPair<int, int>> Editor::misspelledIn(const QString &storyId) const
         e.ranges = misspellings(st->doc.get());
     }
     return e.ranges;
+}
+
+// The check of a story: one for each, made when first asked for, on the one thread and the one budget of the publication. What it kept of answers (by the text of
+// each paragraph) goes with it when the story's document is replaced, as an undo does.
+GrammarCheck *Editor::grammarCheckOf(const QString &storyId) const
+{
+    const Story *st = m_doc->story(storyId);
+    if (!st || !st->doc) return nullptr;
+    if (!m_grammarPool) {
+        m_grammarPool = std::make_unique<QThreadPool>();
+        m_grammarPool->setMaxThreadCount(1);
+        m_grammarShared = GrammarCheck::newShared();
+    }
+    std::unique_ptr<GrammarCheck> &slot = m_grammar[storyId];
+    if (!slot) {
+        slot = std::make_unique<GrammarCheck>(st->doc.get(), m_grammarShared, m_grammarPool.get());
+        slot->setDelayMs(m_grammarDelayMs);
+        connect(slot.get(), &GrammarCheck::changed, const_cast<Editor *>(this), &Editor::viewChanged);
+    } else {
+        slot->setStory(st->doc.get());
+    }
+    return slot.get();
+}
+
+QVector<GrammarCheck::Issue> Editor::grammarIssuesIn(const QString &storyId) const
+{
+    if (!view.grammar) return {};
+    GrammarCheck *g = grammarCheckOf(storyId);
+    return g ? g->issuesIn(0, g->story()->characterCount()) : QVector<GrammarCheck::Issue>();
+}
+
+GrammarCheck::Issue Editor::grammarIssueAt(const QString &storyId, int position) const
+{
+    if (!view.grammar) return {};
+    GrammarCheck *g = grammarCheckOf(storyId);
+    return g ? g->issueAt(position) : GrammarCheck::Issue();
+}
+
+void Editor::ignoreGrammarAll(const GrammarCheck::Issue &issue, const QString &storyId)
+{
+    const Story *st = m_doc->story(storyId);
+    if (!st || !st->doc || !issue.valid()) return;
+    const QTextBlock b = st->doc->findBlock(issue.start);
+    const QString words = b.text().mid(issue.start - b.position(), issue.end - issue.start);
+    for (auto &g : m_grammar) g.second->ignoreAllOf(issue.message, words);
+}
+
+int Editor::grammarParagraphsChecked() const
+{
+    int n = 0;
+    for (const auto &g : m_grammar) n += g.second->paragraphsChecked();
+    return n;
+}
+
+bool Editor::grammarPending() const
+{
+    for (const auto &g : m_grammar)
+        if (g.second->pending()) return true;
+    return false;
+}
+
+void Editor::setGrammarDelayMs(int ms)
+{
+    m_grammarDelayMs = ms;
+    for (auto &g : m_grammar) g.second->setDelayMs(ms);
 }
 
 // ---------- selection ----------

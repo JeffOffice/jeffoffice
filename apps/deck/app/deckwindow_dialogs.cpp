@@ -174,7 +174,7 @@ void DeckWindow::createDialogActions()
             Settings::get().setValue(QStringLiteral("save/embedFonts"), f->embedFonts->isChecked());
             privacy::setRemoveOnSave(f->removePersonal->isChecked());
         }};
-        optionsDialog(this, m_ed, pages);
+        optionsDialog(this, m_ed, pages, true);
     });
 
     // A window opens as the View page left it.

@@ -19,5 +19,8 @@ QStringList thesaurusLookup(const QString &word);
 // dictionary's suggestions (the first six, in bold; each replaces the word), Ignore All, Add to Dictionary, and a
 // separator, added to the menu. False, and nothing added, when it is not.
 bool addSpellingSuggestions(QMenu &menu, Editor *ed);
+// The same for a grammar or style issue under the caret: its message (it does nothing), the suggestions (the first in bold; each replaces the issue's words),
+// Ignore This Issue, Ignore All, and a separator. False, and nothing added, when there is none (or the setting is off, or the language has no rules).
+bool addGrammarSuggestions(QMenu &menu, Editor *ed);
 
 } // namespace jp

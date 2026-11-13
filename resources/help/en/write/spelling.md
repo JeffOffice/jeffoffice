@@ -54,7 +54,7 @@ The check runs on your own computer, with no internet connection, in the backgro
 
 Only English is checked. In a paragraph with more than one language, the English text is checked and the rest is skipped, and so is text that a file marks "do not check". Grammar is checked in the text of the document, and not yet in tables, headers, footers, or notes.
 
-To turn it off, click **Review > Check Grammar as You Type**. The same choice is in **File > Options > Proofing**. Only JeffWrite has it, and it is the same in every JeffWrite window. The Spelling pane (F7) goes through the grammar issues after the spelling, when this is on.
+To turn it off, click **Review > Check Grammar as You Type**. The same choice is in **File > Options > Proofing**. It is one choice for all the JeffOffice apps, and it is the same in every window. The Spelling pane (F7) goes through the grammar issues after the spelling, when this is on.
 
 ## Languages
 

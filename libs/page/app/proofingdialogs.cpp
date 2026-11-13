@@ -4,6 +4,8 @@
 #include "app/proofingdialogs.h"
 
 #include "app/editor.h"
+#include "app/grammar.h"
+#include "app/settings.h"
 #include "app/spelling.h"
 #include "text/dictionaries.h"
 #include "text/textprops.h"
@@ -68,12 +70,15 @@ void spellingDialog(QWidget *p, Editor *ed)
             }
         });
     QDialog dlg(p);
+    dlg.setObjectName(QStringLiteral("pageSpellingDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("Proofing", "Check Spelling"));
     auto *v = new QVBoxLayout(&dlg);
     auto *notIn = new QLabel(&dlg);
+    notIn->setObjectName(QStringLiteral("spellingNotIn"));
+    auto *notInTitle = new QLabel(QCoreApplication::translate("Proofing", "Not in dictionary:"));
     auto *change = new QLineEdit(&dlg);
     auto *sugg = new QListWidget(&dlg);
-    v->addWidget(new QLabel(QCoreApplication::translate("Proofing", "Not in dictionary:")));
+    v->addWidget(notInTitle);
     v->addWidget(notIn);
     v->addWidget(new QLabel(QCoreApplication::translate("Proofing", "Change to:")));
     v->addWidget(change);
@@ -83,12 +88,47 @@ void spellingDialog(QWidget *p, Editor *ed)
     auto *ignore = new QPushButton(QCoreApplication::translate("Proofing", "Ignore"), &dlg), *ignoreAll = new QPushButton(QCoreApplication::translate("Proofing", "Ignore All"), &dlg);
     auto *chg = new QPushButton(QCoreApplication::translate("Proofing", "Change"), &dlg), *chgAll = new QPushButton(QCoreApplication::translate("Proofing", "Change All"), &dlg);
     auto *add = new QPushButton(QCoreApplication::translate("Proofing", "Add"), &dlg), *close = new QPushButton(QCoreApplication::translate("Proofing", "Close"), &dlg);
+    ignore->setObjectName(QStringLiteral("spellingIgnore"));
+    chg->setObjectName(QStringLiteral("spellingChange"));
     for (auto *b : {ignore, ignoreAll, chg, chgAll, add, close}) row->addWidget(b);
     v->addLayout(row);
     QObject::connect(sugg, &QListWidget::currentTextChanged, change, &QLineEdit::setText);
     int si = 0, pos = 0;
     QString word;
+    // After the spelling, the grammar and style issues of the same stories, in the same order, when the suite's setting is on.
+    bool inGrammar = false;
+    GrammarCheck::Issue issue;
+    QString issueStory;
+    // Goes to the text and selects [from, to) of the story `si`.
+    auto select = [&](int from, int to) {
+        const S &s = stories[si];
+        if (s.page != ed->currentPage()) ed->setCurrentPage(s.page);
+        ed->beginTextEdit(s.itemId, from, s.row, s.col, s.half);
+        QTextCursor c = ed->cursor();
+        c.setPosition(from);
+        c.setPosition(to, QTextCursor::KeepAnchor);
+        ed->setCursor(c);
+        return c;
+    };
     std::function<bool()> next = [&]() -> bool {
+        if (inGrammar) {
+            for (; si < stories.size(); ++si, pos = 0) {
+                GrammarCheck *g = d->storyDoc(stories[si].storyId) ? ed->grammarCheckOf(stories[si].storyId) : nullptr;
+                GrammarCheck::Issue found;
+                int more = 0;
+                if (!g || g->search(pos, -1, &found, &more) != GrammarCheck::Step::Found) continue;
+                QTextCursor c = select(found.start, found.end);
+                issue = found;
+                issueStory = stories[si].storyId;
+                notIn->setText(QStringLiteral("<b>%1</b>").arg(found.message.toHtmlEscaped()));
+                sugg->clear();
+                for (const QString &sgg : found.suggestions) sugg->addItem(sgg);
+                change->setText(found.suggestions.value(0));
+                word = c.selectedText();
+                pos = found.end;
+                return true;
+            }
+        } else
         for (; si < stories.size(); ++si, pos = 0) {
             QTextDocument *doc = d->storyDoc(stories[si].storyId);
             if (!doc) continue;
@@ -110,12 +150,29 @@ void spellingDialog(QWidget *p, Editor *ed)
                 return true;
             }
         }
+        if (!inGrammar && grammarAsYouType() && grammarAvailable() && !stories.isEmpty()) {
+            inGrammar = true;
+            si = 0;
+            pos = 0;
+            notInTitle->setText(QCoreApplication::translate("Proofing", "Grammar and style:"));
+            add->setEnabled(false);
+            chgAll->setEnabled(false);
+            return next();
+        }
         jp::plainInformation(&dlg, QCoreApplication::translate("Proofing", "Check Spelling"), QCoreApplication::translate("Proofing", "The spelling check is complete."));
         dlg.accept();
         return false;
     };
-    QObject::connect(ignore, &QPushButton::clicked, &dlg, [&] { next(); });
-    QObject::connect(ignoreAll, &QPushButton::clicked, &dlg, [&] { Speller::get().ignore(word); next(); });
+    QObject::connect(ignore, &QPushButton::clicked, &dlg, [&] {
+        if (inGrammar)
+            if (GrammarCheck *g = ed->grammarCheckOf(issueStory)) g->ignoreHere(issue);
+        next();
+    });
+    QObject::connect(ignoreAll, &QPushButton::clicked, &dlg, [&] {
+        if (inGrammar) ed->ignoreGrammarAll(issue, issueStory);
+        else Speller::get().ignore(word);
+        next();
+    });
     QObject::connect(add, &QPushButton::clicked, &dlg, [&] {
         QString failure;
         if (!Speller::get().add(word, &failure)) spellingReportFailure(&dlg, failure);
@@ -345,6 +402,38 @@ bool addSpellingSuggestions(QMenu &menu, Editor *ed)
         return true;
     }
     return false;
+}
+
+// As JeffWrite's menu has it: the message (it does nothing), the suggestions (the first in bold; an empty one deletes the words), and the two ways to ignore.
+bool addGrammarSuggestions(QMenu &menu, Editor *ed)
+{
+    if (!ed->isEditingText() || ed->readOnly()) return false;
+    const QString storyId = ed->textTarget().storyId;
+    const GrammarCheck::Issue issue = ed->grammarIssueAt(storyId, ed->cursor().position());
+    if (!issue.valid()) return false;
+    menu.addAction(issue.message)->setEnabled(false);
+    bool first = true;
+    for (const QString &sgg : issue.suggestions) {
+        QAction *a = menu.addAction(sgg.isEmpty() ? QCoreApplication::translate("Proofing", "(Delete)") : sgg, &menu, [ed, issue, sgg] {
+            ed->editText([&](QTextCursor &c) {
+                c.setPosition(issue.start);
+                c.setPosition(issue.end, QTextCursor::KeepAnchor);
+                c.insertText(sgg);
+            });
+        });
+        if (first) {
+            QFont f = a->font();
+            f.setBold(true);
+            a->setFont(f);
+            first = false;
+        }
+    }
+    menu.addAction(QCoreApplication::translate("Proofing", "Ignore This Issue"), &menu, [ed, issue, storyId] {
+        if (GrammarCheck *g = ed->grammarCheckOf(storyId)) g->ignoreHere(issue);
+    });
+    menu.addAction(QCoreApplication::translate("Proofing", "Ignore All"), &menu, [ed, issue, storyId] { ed->ignoreGrammarAll(issue, storyId); });
+    menu.addSeparator();
+    return true;
 }
 
 } // namespace jp

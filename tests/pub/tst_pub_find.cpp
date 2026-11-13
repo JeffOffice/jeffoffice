@@ -1,6 +1,38 @@
 // JeffPub's tests of find, replace, spelling, and hyphenation.
 #include "pubhelpers.h"
 #include "../settingguard.h"
+#include "../withdialog.h"
+
+#include "app/grammar.h"
+#include <QLabel>
+#include <QMenu>
+#include <QPushButton>
+
+namespace {
+const QString kGrammarOn = QStringLiteral("proof/checkGrammarAsYouType");
+// A sentence with one grammar issue and no misspelling (as in JeffWrite's tests).
+const QString kAnTest = QStringLiteral("This is an test of the checker.");
+
+// A publication of one text box with `text` (in `language`, when given), set into the window's editor: the box.
+std::shared_ptr<jp::TextItem> boxWith(jp::MainWindow &w, const QString &text, const QString &language = QString())
+{
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    auto t = std::make_shared<jp::TextItem>();
+    t->rect = QRectF(72, 72, 300, 100);
+    t->storyId = doc->createStory(text);
+    doc->pages[0]->items.push_back(t);
+    if (!language.isEmpty()) {
+        QTextCursor c(doc->storyDoc(t->storyId));
+        c.select(QTextCursor::Document);
+        QTextCharFormat f;
+        f.setProperty(jp::tp::Language, language);
+        c.mergeCharFormat(f);
+    }
+    w.editor()->setDocument(std::move(doc));
+    w.editor()->setGrammarDelayMs(0);
+    return t;
+}
+}
 
 class PubFindTests : public QObject {
     Q_OBJECT
@@ -8,7 +40,11 @@ class PubFindTests : public QObject {
 private Q_SLOTS:
     void initTestCase() { initPubTestCase(); }
     // (spelling as you type is one choice for the suite, kept in the settings: a test elsewhere in this program may have left it off, and these tests need it on)
-    void init() { jp::setSpellAsYouType(true); }
+    void init()
+    {
+        jp::setSpellAsYouType(true);
+        jp::setGrammarAsYouType(true);
+    }
 
     // Hyphenation in each bundled language matches LibreOffice's (libhyphen
     // 2.8 with the same pattern files, at least two letters each side),
@@ -220,6 +256,152 @@ private Q_SLOTS:
         const QString text = sd->toPlainText();
         for (const auto &r : w.editor()->misspelledIn(t->storyId)) flagged << text.mid(r.first, r.second - r.first);
         QCOMPARE(flagged, (QStringList{QStringLiteral("Teh"), QStringLiteral("colour"), QStringLiteral("pruebba")}));
+    }
+
+    // Grammar as you type, as JeffWrite has it (the same rules and the same setting): a text box and a table cell get their issues, the setting takes them away, and the
+    // renderer is told where to draw the blue dotted line.
+    void grammarIssuesAreFlaggedInATextBoxAndATableCell()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        const auto box = boxWith(w, kAnTest);
+        auto table = std::make_shared<jp::TableItem>();
+        table->rows = 1;
+        table->cols = 1;
+        table->colW = {200};
+        table->rowH = {40};
+        table->rect = QRectF(72, 300, 0, 0);
+        table->syncRect();
+        table->cells.resize(1);
+        table->cells[0].storyId = ed->doc()->createStory(kAnTest);
+        ed->doc()->pages[0]->items.push_back(table);
+        const QString cell = table->cells[0].storyId;
+        QTRY_VERIFY(!ed->grammarIssuesIn(box->storyId).isEmpty());
+        QTRY_VERIFY(!ed->grammarIssuesIn(cell).isEmpty());
+        const auto issue = ed->grammarIssuesIn(box->storyId).first();
+        QVERIFY(issue.start >= 0 && issue.end > issue.start && issue.end <= kAnTest.size());
+        QVERIFY(!issue.message.isEmpty());
+        QTRY_VERIFY(ed->renderOptions().grammar.contains(box->storyId));
+        QVERIFY(ed->renderOptions().grammar.contains(cell));
+        QCOMPARE(ed->renderOptions().grammar.value(box->storyId).first(), qMakePair(issue.start, issue.end));
+        // The setting off, and the marks are gone (the same setting JeffWrite follows); on again, and they are back.
+        jp::setGrammarAsYouType(false);
+        QVERIFY(ed->grammarIssuesIn(box->storyId).isEmpty());
+        QVERIFY(ed->renderOptions().grammar.isEmpty());
+        jp::setGrammarAsYouType(true);
+        QTRY_VERIFY(!ed->grammarIssuesIn(box->storyId).isEmpty());
+    }
+
+    // Text in a language without rules is not checked, as in JeffWrite (only English has them).
+    void grammarIsNotCheckedInALanguageWithoutRules()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        jp::MainWindow w;
+        const auto french = boxWith(w, kAnTest, QStringLiteral("fr-FR"));
+        w.editor()->grammarIssuesIn(french->storyId);
+        QVERIFY(w.editor()->grammarCheckOf(french->storyId));
+        QTest::qWait(150);   // (nothing is expected: time for a wrong answer to come)
+        QVERIFY(w.editor()->grammarIssuesIn(french->storyId).isEmpty());
+        QVERIFY(w.editor()->renderOptions().grammar.isEmpty());
+        QVERIFY(!w.editor()->grammarPending());
+        QCOMPARE(w.editor()->grammarParagraphsChecked(), 0);
+    }
+
+    // The right-click menu on an issue: its message, the suggestion (a click takes it, in one undo step), and Ignore This Issue.
+    void aGrammarIssueOffersItsSuggestionAndIgnore()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        const auto box = boxWith(w, kAnTest);
+        QTRY_VERIFY(!ed->grammarIssuesIn(box->storyId).isEmpty());
+        const auto issue = ed->grammarIssuesIn(box->storyId).first();
+        ed->beginTextEdit(box->id, issue.start + 1);
+        QTextDocument *story = ed->doc()->storyDoc(box->storyId);
+        {
+            QMenu menu;
+            QVERIFY(jp::addGrammarSuggestions(menu, ed));
+            QAction *message = nullptr, *accept = nullptr, *ignore = nullptr;
+            for (QAction *a : menu.actions()) {
+                if (a->text() == issue.message) message = a;
+                if (!issue.suggestions.isEmpty() && a->text() == issue.suggestions.first()) accept = a;
+                if (a->text() == QStringLiteral("Ignore This Issue")) ignore = a;
+            }
+            QVERIFY(message && !message->isEnabled());
+            QVERIFY(accept && accept->font().bold());
+            QVERIFY(ignore);
+            accept->trigger();
+        }
+        QCOMPARE(story->toPlainText(), QStringLiteral("This is a test of the checker."));
+        // Put the text back: Ignore This Issue takes the mark away, and the issue is not offered again.
+        story->setPlainText(kAnTest);
+        QTRY_VERIFY(!ed->grammarIssuesIn(box->storyId).isEmpty());
+        ed->beginTextEdit(box->id, issue.start + 1);
+        QMenu menu;
+        QVERIFY(jp::addGrammarSuggestions(menu, ed));
+        for (QAction *a : menu.actions())
+            if (a->text() == QStringLiteral("Ignore This Issue")) a->trigger();
+        QVERIFY(ed->grammarIssuesIn(box->storyId).isEmpty());
+        QVERIFY(ed->renderOptions().grammar.isEmpty());
+        QMenu again;
+        QVERIFY(!jp::addGrammarSuggestions(again, ed));
+    }
+
+    // The spelling check (F7) stops at a grammar issue when the setting is on, with the issue's message; with it off, the check is complete.
+    void theSpellingCheckStopsAtAGrammarIssue()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        jp::MainWindow w;
+        boxWith(w, kAnTest);
+        const QString message = jp::grammarCheck(kAnTest).first().message;
+        QString shown;
+        withDialog([&] { jp::spellingDialog(&w, w.editor()); }, QStringLiteral("pageSpellingDialog"), [&](QDialog *d) {
+            shown = d->findChild<QLabel *>(QStringLiteral("spellingNotIn"))->text();
+            QVERIFY(shown.contains(message.toHtmlEscaped()));
+            QVERIFY(d->findChild<QPushButton *>(QStringLiteral("spellingIgnore")));
+        }, false);
+        QVERIFY2(shown.contains(message.toHtmlEscaped()), qPrintable(shown));
+    }
+
+    // A publication of 200 text boxes: typing in one checks that paragraph and no other (the others are kept by their text), and the repaint after it asks for nothing more.
+    void typingInOneOf200TextBoxesDoesNotCheckTheOthers()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        QStringList stories;
+        for (int i = 0; i < 200; ++i) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(10, 10 + i * 3, 300, 20);
+            t->storyId = doc->createStory(QStringLiteral("Box %1 is an test of the checker.").arg(i));
+            doc->pages[0]->items.push_back(t);
+            stories << t->storyId;
+        }
+        ed->setDocument(std::move(doc));
+        ed->setGrammarDelayMs(0);
+        auto allFlagged = [&] {
+            const auto grammar = ed->renderOptions().grammar;   // (what a repaint asks for)
+            return grammar.size() == 200;
+        };
+        QTRY_VERIFY_WITH_TIMEOUT(allFlagged(), 20000);
+        QTRY_VERIFY(!ed->grammarPending());
+        const int before = ed->grammarParagraphsChecked();
+        QCOMPARE(before, 200);
+        // Typing: one more paragraph is checked.
+        QTextDocument *sd = ed->doc()->storyDoc(stories[57]);
+        QTextCursor c(sd);
+        c.movePosition(QTextCursor::End);
+        c.insertText(QStringLiteral(" Then it ends."));
+        QTRY_VERIFY((ed->renderOptions(), ed->grammarParagraphsChecked() > before));   // (the repaint a keystroke causes)
+        QTRY_VERIFY(!ed->grammarPending());
+        QVERIFY(allFlagged());
+        QCOMPARE(ed->grammarParagraphsChecked(), before + 1);
+        // A repaint with nothing changed asks for nothing.
+        for (int i = 0; i < 5; ++i) ed->renderOptions();
+        QVERIFY(!ed->grammarPending());
+        QCOMPARE(ed->grammarParagraphsChecked(), before + 1);
     }
 
     // Check spelling as you type: a misspelled word gets a range, a correct

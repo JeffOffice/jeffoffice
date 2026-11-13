@@ -13,9 +13,19 @@
 #include <QTemporaryDir>
 #include <QUrlQuery>
 
+#include "app/grammar.h"
 #include "app/spelling.h"
+#include "app/proofingdialogs.h"
+
+#include <QLabel>
+#include <QMenu>
+#include <QPushButton>
 
 namespace {
+
+const QString kGrammarOn = QStringLiteral("proof/checkGrammarAsYouType");
+// A sentence with one grammar issue and no misspelling (as in JeffWrite's tests).
+const QString kAnTest = QStringLiteral("This is an test of the checker.");
 
 QJsonObject groupNamed(const QString &tab, const QString &group)
 {
@@ -66,7 +76,11 @@ class DeckLanguageTests : public QObject {
 
 private Q_SLOTS:
     void initTestCase() { initDeckTestCase(); }
-    void init() { jp::setSpellAsYouType(true); }
+    void init()
+    {
+        jp::setSpellAsYouType(true);
+        jp::setGrammarAsYouType(true);
+    }
 
     // The three commands sit on the Review tab in a Language group, as JeffWrite has them, with the same words, a key tip each, and the Translate and Set Proofing Language buttons large.
     void theReviewTabHasTheLanguageGroupAsJeffWriteHasIt()
@@ -357,6 +371,129 @@ private Q_SLOTS:
         w.act(QStringLiteral("review.translate"))->trigger();
         QCOMPARE(opened.size(), 2);
         QVERIFY(w.statusBar()->currentMessage().contains(QLatin1String("no text")));
+    }
+
+    // Grammar as you type, as JeffWrite has it (the same rules and the same setting): a slide's text gets its issues, the setting takes them away, and the renderer is told
+    // where to draw the blue dotted line.
+    void grammarIssuesAreFlaggedInSlideText()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        ed->setGrammarDelayMs(0);
+        editTitle(w, kAnTest, 0, 0);
+        const QString storyId = static_cast<TextItem *>(ed->doc()->pages[0]->items[0].get())->storyId;
+        QTRY_VERIFY(!ed->grammarIssuesIn(storyId).isEmpty());
+        const auto issue = ed->grammarIssuesIn(storyId).first();
+        QTRY_VERIFY(ed->renderOptions().grammar.contains(storyId));
+        QCOMPARE(ed->renderOptions().grammar.value(storyId).first(), qMakePair(issue.start, issue.end));
+        jp::setGrammarAsYouType(false);
+        QVERIFY(ed->grammarIssuesIn(storyId).isEmpty());
+        QVERIFY(!ed->renderOptions().grammar.contains(storyId));
+        jp::setGrammarAsYouType(true);
+        QTRY_VERIFY(!ed->grammarIssuesIn(storyId).isEmpty());
+    }
+
+    // Words in a language without rules are not checked, and a box marked "do not check" is not either.
+    void grammarIsNotCheckedInALanguageWithoutRulesOrMarkedNoProof()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        ed->setGrammarDelayMs(0);
+        QTextDocument *doc = editTitle(w, kAnTest, 0, 0);
+        const QString storyId = static_cast<TextItem *>(ed->doc()->pages[0]->items[0].get())->storyId;
+        QTRY_VERIFY(!ed->grammarIssuesIn(storyId).isEmpty());
+        QTextCursor c(doc);
+        c.select(QTextCursor::Document);
+        QTextCharFormat french;
+        french.setProperty(tp::Language, QStringLiteral("fr-FR"));
+        c.mergeCharFormat(french);
+        QTest::qWait(150);   // (nothing is expected: time for a wrong answer to come)
+        QVERIFY(ed->grammarIssuesIn(storyId).isEmpty());
+        QVERIFY(!ed->renderOptions().grammar.contains(storyId));
+        QTextCharFormat english, noProof;
+        english.setProperty(tp::Language, QStringLiteral("en-US"));
+        c.mergeCharFormat(english);
+        QTRY_VERIFY(!ed->grammarIssuesIn(storyId).isEmpty());
+        noProof.setProperty(tp::NoProof, true);
+        c.mergeCharFormat(noProof);
+        QTest::qWait(150);
+        QVERIFY(ed->grammarIssuesIn(storyId).isEmpty());
+    }
+
+    // The right-click menu on an issue in a slide: the message, the suggestion, and Ignore This Issue, which takes the mark away.
+    void aGrammarIssueInASlideOffersItsSuggestionAndIgnore()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        ed->setGrammarDelayMs(0);
+        QTextDocument *doc = editTitle(w, kAnTest, 0, 0);
+        const QString storyId = static_cast<TextItem *>(ed->doc()->pages[0]->items[0].get())->storyId;
+        QTRY_VERIFY(!ed->grammarIssuesIn(storyId).isEmpty());
+        const auto issue = ed->grammarIssuesIn(storyId).first();
+        auto inIssue = [&] {
+            QTextCursor c = ed->cursor();
+            c.setPosition(issue.start + 1);
+            ed->setCursor(c);
+        };
+        inIssue();
+        {
+            QMenu menu;
+            QVERIFY(jp::addGrammarSuggestions(menu, ed));
+            QAction *accept = nullptr;
+            for (QAction *a : menu.actions())
+                if (!issue.suggestions.isEmpty() && a->text() == issue.suggestions.first()) accept = a;
+            QVERIFY(accept);
+            accept->trigger();
+        }
+        QCOMPARE(doc->toPlainText(), QStringLiteral("This is a test of the checker."));
+        doc->setPlainText(kAnTest);
+        QTRY_VERIFY(!ed->grammarIssuesIn(storyId).isEmpty());
+        inIssue();
+        QMenu menu;
+        QVERIFY(jp::addGrammarSuggestions(menu, ed));
+        for (QAction *a : menu.actions())
+            if (a->text() == QStringLiteral("Ignore This Issue")) a->trigger();
+        QVERIFY(ed->grammarIssuesIn(storyId).isEmpty());
+    }
+
+    // The spelling check (F7) stops at a grammar issue in a slide, with the issue's message.
+    void theSpellingCheckStopsAtAGrammarIssueInASlide()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        DeckWindow w;
+        w.show();
+        editTitle(w, kAnTest, 0, 0);
+        const QString message = jp::grammarCheck(kAnTest).first().message;
+        QString shown;
+        withDialog([&] { w.act(QStringLiteral("review.spelling"))->trigger(); }, QStringLiteral("pageSpellingDialog"), [&](QDialog *d) {
+            shown = d->findChild<QLabel *>(QStringLiteral("spellingNotIn"))->text();
+        }, false);
+        QVERIFY2(shown.contains(message.toHtmlEscaped()), qPrintable(shown));
+    }
+
+    // Speaker notes get the same: the issue is found in what is typed, and the menu offers its suggestion.
+    void grammarIssuesAreFlaggedInSpeakerNotes()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        DeckWindow w;
+        w.show();
+        w.notesPane()->setGrammarDelayMs(0);
+        w.notesPane()->setPlainText(kAnTest);
+        QTRY_VERIFY(!w.notesPane()->grammarIssues().isEmpty());
+        const auto issue = w.notesPane()->grammarIssues().first();
+        QMenu menu;
+        QVERIFY(w.notesPane()->addGrammarSuggestions(menu, issue.start + 1));
+        for (QAction *a : menu.actions())
+            if (!issue.suggestions.isEmpty() && a->text() == issue.suggestions.first()) a->trigger();
+        QCOMPARE(w.notesPane()->toPlainText(), QStringLiteral("This is a test of the checker."));
+        jp::setGrammarAsYouType(false);
+        QTRY_VERIFY(w.notesPane()->grammarIssues().isEmpty());
     }
 };
 

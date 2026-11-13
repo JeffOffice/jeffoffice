@@ -1958,6 +1958,7 @@ void MainWindow::contextMenu(const QPoint &global)
     if (m_ed->isEditingText()) {
         // Spelling suggestions for the misspelled word under the caret.
         addSpellingSuggestions(menu, m_ed);
+        addGrammarSuggestions(menu, m_ed);
         menu.addAction(act("edit.cut"));
         menu.addAction(act("edit.copy"));
         menu.addAction(act("edit.paste"));

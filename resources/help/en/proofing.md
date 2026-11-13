@@ -1,5 +1,5 @@
 # Spelling, thesaurus, research, and hyphenation
-<!-- keywords: spell check, spelling, spellcheck, thesaurus, synonyms, research, dictionary, proofing language, hyphenation, hyphenate, translate, autocorrect, misspelled, red squiggle, language -->
+<!-- keywords: spell check, spelling, spellcheck, thesaurus, synonyms, research, dictionary, proofing language, hyphenation, hyphenate, translate, autocorrect, misspelled, red squiggle, language, grammar, grammar check, style, blue line, dotted line, check grammar as you type -->
 
 The **Review** tab has tools that help you get your words right.
 
@@ -9,6 +9,10 @@ JeffPub puts a red wavy line under a word it does not know. Right-click the word
 
 To turn this off, click the arrow beside **Review > Proofing > Spelling** and click **Check Spelling as You Type**. The same choice is in **File > Options > Proofing**. It is one choice for all the JeffOffice apps and every window, and JeffPub remembers it for the next time you start.
 
+## Check grammar as you type
+
+JeffPub also looks for clear grammar and style mistakes in English text, in text boxes, shapes, and tables. An issue gets a blue dotted line under it, and a misspelled word keeps its red wavy line. Right-click the issue to see what is wrong and to pick a suggestion, or choose **Ignore This Issue** or **Ignore All**. Only English is checked: text in another language, and text marked "do not check", is skipped. To turn it off, click **File > Options > Proofing** and clear **Check grammar as you type**. It is one choice for all the JeffOffice apps.
+
 ## Check the whole publication
 
 1. Click **Review > Proofing > Spelling**, or press F7.
@@ -16,7 +20,7 @@ To turn this off, click the arrow beside **Review > Proofing > Spelling** and cl
 3. Pick a suggestion, or type your own in **Change to**.
 4. Click **Change** for this word or **Change All** for every match. Click **Ignore** to skip it, **Ignore All** to skip it for this session, or **Add** to save it in your own word list.
 
-JeffPub checks every text box, shape, and table, starting on the first page. It says when it is done. It skips words in UPPERCASE and words with numbers. You can change that on the **Proofing** tab of **File > Options** (the **JeffPub Options** window).
+JeffPub checks every text box, shape, and table, starting on the first page. When **Check grammar as you type** is on, the check goes on to the grammar issues after the spelling, and shows what is wrong in place of **Not in dictionary**. It says when it is done. It skips words in UPPERCASE and words with numbers. You can change that on the **Proofing** tab of **File > Options** (the **JeffPub Options** window).
 
 ## Set the language
 
