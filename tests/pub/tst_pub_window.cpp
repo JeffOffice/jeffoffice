@@ -1850,8 +1850,9 @@ private Q_SLOTS:
         }
     }
 
-    // Once offered (taken off the held list) before their text is translated, Russian, Indonesian, and Ukrainian: a label with no translation shows in English (a plural too, in
-    // the right form for its number), Help shows the English topics, and no label is empty.
+    // A held language is never offered, nor picked from the system's languages or a saved choice (English shows). Taken off the held list, a language whose
+    // text is translated shows it, and one that is not (decided by its .ts file) shows English: a label with no translation in English (a plural too, in the
+    // right form for its number), Help in English when the language has no topics, and no label is empty.
     void newLanguagesShowEnglishUntilTranslated()
     {
         struct Restore {
@@ -1864,25 +1865,28 @@ private Q_SLOTS:
                 jp::installTranslations();
             }
         } restore;
-        // Held (untranslated) languages are not offered, nor picked from the system's languages or a saved choice; taken off the list, they are.
-        for (const char *name : {"ru", "id", "uk"}) {
-            QVERIFY2(jp::heldUiLanguages().contains(QLatin1String(name)), name);
-            QVERIFY2(!jp::availableUiLanguages().contains(QLatin1String(name)), name);
-            jp::Settings::get().setValue(QStringLiteral("ui/language"), QLatin1String(name));
+        // Held languages are not offered, nor picked from the system's languages or a saved choice; taken off the list, they are.
+        const QStringList held = jp::heldUiLanguages();
+        QVERIFY(!held.isEmpty());
+        for (const QString &lang : held) {
+            const QByteArray name = lang.toLatin1();
+            QVERIFY2(!jp::availableUiLanguages().contains(lang), name.constData());
+            QVERIFY2(jp::pickUiLanguage({lang}, jp::availableUiLanguages()) != lang, name.constData());
+            jp::Settings::get().setValue(QStringLiteral("ui/language"), lang);
             QCOMPARE(jp::installTranslations(), QStringLiteral("en"));
         }
         QVERIFY(jp::availableUiLanguages().contains(QStringLiteral("de")));
         jp::setHeldUiLanguages({});
-        for (const char *name : {"ru", "id", "uk"}) QVERIFY2(jp::availableUiLanguages().contains(QLatin1String(name)), name);
+        for (const QString &lang : held) QVERIFY2(jp::availableUiLanguages().contains(lang), qPrintable(lang));
         jp::Settings::get().setValue(QStringLiteral("ui/language"), QStringLiteral("en"));
         jp::installTranslations();
         const QString printing = jp::help::topic(QStringLiteral("printing")).markdown;
         const QStringList englishIds = jp::help::topicIds();
         QVERIFY(!printing.isEmpty() && !englishIds.isEmpty());
-        for (const char *name : {"ru", "id", "uk"}) {
-            const QString lang = QLatin1String(name);
-            QVERIFY2(jp::availableUiLanguages().contains(lang), name);
-            QVERIFY2(!jp::uiLanguageName(lang).isEmpty(), name);
+        for (const QString &lang : held) {
+            const QByteArray name = lang.toLatin1();
+            QVERIFY2(jp::availableUiLanguages().contains(lang), name.constData());
+            QVERIFY2(!jp::uiLanguageName(lang).isEmpty(), name.constData());
             jp::Settings::get().setValue(QStringLiteral("ui/language"), lang);
             QCOMPARE(jp::installTranslations(), lang);
             QCOMPARE(jp::currentUiLanguage(), lang);
@@ -1892,7 +1896,7 @@ private Q_SLOTS:
             QXmlStreamReader xml(&f);
             QString context, source, comment;
             bool plural = false, translated = false, gone = false;
-            int strings = 0, plurals = 0;
+            int strings = 0, plurals = 0, translatedStrings = 0;
             QStringList problems;
             while (!xml.atEnd()) {
                 xml.readNext();
@@ -1914,6 +1918,7 @@ private Q_SLOTS:
                 } else if (xml.isEndElement() && xml.name() == QLatin1String("message")) {
                     if (gone) continue;
                     ++strings;
+                    if (translated) ++translatedStrings;
                     const QByteArray ctx = context.toUtf8(), src = source.toUtf8(), cmt = comment.toUtf8();
                     const QString where = context + QStringLiteral(": ") + source;
                     if (plural) {
@@ -1929,12 +1934,19 @@ private Q_SLOTS:
                     }
                 }
             }
-            QVERIFY2(!xml.hasError(), name);
-            QVERIFY2(strings > 1000 && plurals >= 50, name);
+            QVERIFY2(!xml.hasError(), name.constData());
+            QVERIFY2(strings > 1000 && plurals >= 50, name.constData());
             QVERIFY2(problems.isEmpty(), qPrintable(lang + QStringLiteral(": ") + problems.mid(0, 8).join(QStringLiteral("\n"))));
+            // Help follows the same rule: the language's own topics when it has them, the English ones when not.
+            const bool ownHelp = QFile::exists(QStringLiteral(JP_TEST_DATA "/../../resources/help/") + lang + QStringLiteral("/printing.md"));
+            QCOMPARE(ownHelp, translatedStrings > 0);
             QCOMPARE(jp::help::topicIds(), englishIds);
-            QCOMPARE(jp::help::topic(QStringLiteral("printing")).markdown, printing);
-            QVERIFY(!jp::help::searchTopics(QStringLiteral("print")).isEmpty());
+            if (ownHelp) QVERIFY2(jp::help::topic(QStringLiteral("printing")).markdown != printing, name.constData());
+            else QCOMPARE(jp::help::topic(QStringLiteral("printing")).markdown, printing);
+            // (a translated topic is found by its own title, an untranslated one by the English word)
+            const QString title = jp::help::topic(QStringLiteral("printing")).title;
+            QVERIFY2(!title.isEmpty(), name.constData());
+            QVERIFY2(jp::help::searchTopics(ownHelp ? title : QStringLiteral("print")).contains(QStringLiteral("printing")), name.constData());
         }
     }
 
@@ -2100,8 +2112,10 @@ private Q_SLOTS:
         QStringList problems;
         for (const QString &lang : help.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
             if (lang == QLatin1String("en")) continue;
-            if (!jp::availableUiLanguages().contains(lang)) problems << lang + QStringLiteral(": Help without the program's text");
-            if (!lang.startsWith(QLatin1String("en_")) && lang != QLatin1String("es_ES") && !QFile::exists(QStringLiteral(":/i18n/qtbase_%1.qm").arg(lang))) problems << lang + QStringLiteral(": Qt's own text not built in");
+            // (the built translation file, not the list Options offers: a held language is built in but not offered)
+            if (!QFile::exists(QStringLiteral(":/i18n/jeffoffice_%1.qm").arg(lang))) problems << lang + QStringLiteral(": Help without the program's text");
+            // (Qt ships no qtbase_id.qm: Indonesian shows Qt's own button text in English; see translations/README.md)
+            if (lang != QLatin1String("id") && !lang.startsWith(QLatin1String("en_")) && lang != QLatin1String("es_ES") && !QFile::exists(QStringLiteral(":/i18n/qtbase_%1.qm").arg(lang))) problems << lang + QStringLiteral(": Qt's own text not built in");
             for (const QString &file : QDir(help.filePath(lang)).entryList({QStringLiteral("*.md")}, QDir::Files)) {
                 const QString en = read(help.filePath(QStringLiteral("en/") + file)), md = read(help.filePath(lang + QLatin1Char('/') + file));
                 const QString where = lang + QLatin1Char('/') + file;
