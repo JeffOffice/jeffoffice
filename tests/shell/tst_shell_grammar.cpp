@@ -1,12 +1,21 @@
 // The grammar service (libs/shell/app/grammar): a known sentence gives a known issue, spelling is left to the dictionaries, offsets are in UTF-16
 // code units, and a hostile text finishes within the limits.
 #include "app/grammar.h"
+#include "app/grammarcheck.h"
+#include "app/optionsdialog.h"
 #include "app/settings.h"
 #include "../isolatesettings.h"
 #include "../settingguard.h"
 #include "../testrunner.h"
 
+#include <QApplication>
+#include <QCheckBox>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QElapsedTimer>
+#include <QPushButton>
+#include <QTextDocument>
+#include <QTimer>
 #include <QtTest>
 
 using namespace jp;
@@ -124,6 +133,102 @@ private Q_SLOTS:
         setGrammarAsYouType(true);
         QCOMPARE(told, (QList<bool>{false, true}));
         QVERIFY(grammarAsYouType());
+    }
+
+    void theKindsOfIssueAreOneSuiteWideChoiceThatLeavesStyleOffUntilItIsTurnedOn()
+    {
+        QCOMPARE(grammarKinds(), grammar::kDefaultKinds);
+        QVERIFY(!(grammarKinds() & grammar::kindBit(GrammarIssue::Style)));
+        QVERIFY(grammarKinds() & grammar::kindBit(GrammarIssue::Grammar));
+        jptest::SettingGuard guard(QStringLiteral("proof/grammarKinds"), uint(grammar::kDefaultKinds), uint(grammar::kDefaultKinds));
+        QVERIFY(suiteWide(QStringLiteral("proof/grammarKinds")));
+        QList<quint32> told;
+        QObject listener;   // (the connection ends with it, so that nothing is left to call the list after the test)
+        QObject::connect(&GrammarSettingNotifier::get(), &GrammarSettingNotifier::kindsChanged, &listener, [&](quint32 k) { told << k; });
+        setGrammarKinds(grammar::kAllKinds);
+        setGrammarKinds(grammar::kAllKinds);   // (no change, nothing said)
+        QCOMPARE(told, (QList<quint32>{grammar::kAllKinds}));
+        QCOMPARE(grammarKinds(), grammar::kAllKinds);
+        setGrammarKinds(grammar::kDefaultKinds);
+    }
+
+    void theServiceLooksOnlyForTheKindsItIsGiven()
+    {
+        const QString text = QStringLiteral("This is an test, and we did it in order to win.");
+        QCOMPARE(grammarCheck(text, QStringLiteral("en")).size(), 1);   // (style is off)
+        QCOMPARE(grammarCheck(text, QStringLiteral("en"), nullptr, nullptr, grammar::kAllKinds).size(), 2);
+        QCOMPARE(grammarCheck(text, QStringLiteral("en"), nullptr, nullptr, grammar::kindBit(GrammarIssue::Style)).size(), 1);
+        QVERIFY(grammarCheck(text, QStringLiteral("en"), nullptr, nullptr, grammar::kindBit(GrammarIssue::Repetition)).isEmpty());
+    }
+
+    void aChangeOfKindsIsInTheSearchAtOnce()
+    {
+        jptest::SettingGuard guard(QStringLiteral("proof/grammarKinds"), uint(grammar::kDefaultKinds), uint(grammar::kDefaultKinds));
+        QTextDocument doc;
+        doc.setPlainText(QStringLiteral("We did it in order to win."));
+        GrammarCheck check(&doc);
+        GrammarCheck::Issue found;
+        int next = 0;
+        QCOMPARE(int(check.search(0, 5000, &found, &next)), int(GrammarCheck::Step::None));
+        const int before = check.version();
+        setGrammarKinds(grammar::kAllKinds);
+        QVERIFY(check.version() > before);   // (the pages are told to look again)
+        QCOMPARE(int(check.search(0, 5000, &found, &next)), int(GrammarCheck::Step::Found));
+        QCOMPARE(found.kind, GrammarIssue::Style);
+        setGrammarKinds(grammar::kDefaultKinds);
+        QCOMPARE(int(check.search(0, 5000, &found, &next)), int(GrammarCheck::Step::None));
+    }
+
+    void theGrammarSettingsDialogListsTheKindsAndSavesTheChoice()
+    {
+        jptest::SettingGuard guard(QStringLiteral("proof/grammarKinds"), uint(grammar::kDefaultKinds), uint(grammar::kDefaultKinds));
+        QStringList seen;
+        bool answered = false;
+        QTimer poll;
+        poll.setInterval(20);
+        QObject::connect(&poll, &QTimer::timeout, &poll, [&] {
+            for (QWidget *w : QApplication::topLevelWidgets()) {
+                auto *dlg = qobject_cast<QDialog *>(w);
+                if (!dlg || !dlg->isVisible() || dlg->objectName() != QLatin1String("grammarSettingsDialog")) continue;
+                for (QCheckBox *box : dlg->findChildren<QCheckBox *>()) seen << box->text() + (box->isChecked() ? QStringLiteral("+") : QStringLiteral("-"));
+                dlg->findChild<QCheckBox *>(QStringLiteral("grammarKind%1").arg(int(GrammarIssue::Style)))->setChecked(true);
+                dlg->findChild<QCheckBox *>(QStringLiteral("grammarKind%1").arg(int(GrammarIssue::Repetition)))->setChecked(false);
+                answered = true;
+                dlg->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+            }
+        });
+        poll.start();
+        QVERIFY(grammarSettingsDialog(nullptr));
+        QVERIFY(answered);
+        QCOMPARE(seen.size(), 6);
+        QVERIFY(seen.contains(QStringLiteral("Style-")));
+        QVERIFY(seen.contains(QStringLiteral("Grammar+")));
+        QVERIFY(grammarKinds() & grammar::kindBit(GrammarIssue::Style));
+        QVERIFY(!(grammarKinds() & grammar::kindBit(GrammarIssue::Repetition)));
+        QVERIFY(grammarKinds() & grammar::kindBit(GrammarIssue::WordChoice));
+        setGrammarKinds(grammar::kDefaultKinds);
+    }
+
+    void theProofingPageOfOptionsHasTheButtonWhereGrammarIsChecked()
+    {
+        for (const bool grammarApp : {true, false}) {
+            bool found = false, button = false;
+            QTimer poll;
+            poll.setInterval(20);
+            QObject::connect(&poll, &QTimer::timeout, &poll, [&] {
+                for (QWidget *w : QApplication::topLevelWidgets()) {
+                    auto *dlg = qobject_cast<QDialog *>(w);
+                    if (!dlg || !dlg->isVisible() || dlg->objectName() != QLatin1String("optionsDialog")) continue;
+                    found = true;
+                    button = dlg->findChild<QPushButton *>(QStringLiteral("grammarSettingsButton")) != nullptr;
+                    dlg->reject();
+                }
+            });
+            poll.start();
+            optionsDialog(nullptr, nullptr, {}, grammarApp);
+            QVERIFY(found);
+            QCOMPARE(button, grammarApp);
+        }
     }
 
     void aBudgetOfTimeStopsTheWorkToo()

@@ -42,7 +42,8 @@ bool grammarAvailable();
 // Whether a language (BCP-47) is one that is checked: English, in its regional forms; an empty tag is US English.
 bool grammarSupports(const QString &language);
 // The issues in `text`, in order. At most kGrammarMaxChars are looked at (cut after the last sentence end that fits, or at the limit); `truncated` says that some were
-// not. A `budget` that is gone gives nothing, with `truncated` set. Empty for a language that is not checked. Thread safe (calls take turns).
-QVector<GrammarIssue> grammarCheck(const QString &text, const QString &language = QString(), bool *truncated = nullptr, GrammarBudget *budget = nullptr);
+// not. A `budget` that is gone gives nothing, with `truncated` set. Empty for a language that is not checked. Only the kinds of issue in `kinds` are looked for (the people's
+// choice is grammarKinds() in settings.h; the caller reads it on its own thread and passes it). Thread safe (calls take turns).
+QVector<GrammarIssue> grammarCheck(const QString &text, const QString &language = QString(), bool *truncated = nullptr, GrammarBudget *budget = nullptr, quint32 kinds = grammar::kDefaultKinds);
 
 } // namespace jp

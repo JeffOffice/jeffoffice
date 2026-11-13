@@ -30,7 +30,7 @@ int cutAt(const QString &text, int limit)
 
 bool grammarSupports(const QString &language) { return isEnglish(language); }
 
-QVector<GrammarIssue> grammarCheck(const QString &text, const QString &language, bool *truncated, GrammarBudget *budget)
+QVector<GrammarIssue> grammarCheck(const QString &text, const QString &language, bool *truncated, GrammarBudget *budget, quint32 kinds)
 {
     if (truncated) *truncated = false;
     QVector<GrammarIssue> out;
@@ -46,7 +46,7 @@ QVector<GrammarIssue> grammarCheck(const QString &text, const QString &language,
     }
     QElapsedTimer timer;
     timer.start();
-    out = grammar::check(len == text.size() ? text : text.left(len));
+    out = grammar::check(len == text.size() ? text : text.left(len), nullptr, kinds);
     if (budget) budget->spend(len, timer.elapsed());
     if (out.size() > kGrammarMaxIssues) {
         out.resize(kGrammarMaxIssues);

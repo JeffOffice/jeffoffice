@@ -55,12 +55,17 @@ Q_SIGNALS:
 // "Check grammar as you type": the same, a second choice beside the first (libs/shell/app/grammar.h). On until it is turned off.
 bool grammarAsYouType();
 void setGrammarAsYouType(bool on);
+// Which kinds of issue the grammar check looks for: a bit for each GrammarIssue::Kind (grammar::kindBit). Every kind but style until the person chooses (Options > Proofing >
+// Grammar settings), and the same for every app and window.
+quint32 grammarKinds();
+void setGrammarKinds(quint32 kinds);
 class GrammarSettingNotifier : public QObject {
     Q_OBJECT
 public:
     static GrammarSettingNotifier &get();
 Q_SIGNALS:
     void changed(bool on);
+    void kindsChanged(quint32 kinds);
 };
 
 class Settings {

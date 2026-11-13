@@ -1,6 +1,7 @@
 #include "app/settings.h"
 
 #include "core/appinfo.h"
+#include "grammar/grammarrules.h"
 #include <algorithm>
 
 #include <QDir>
@@ -45,7 +46,7 @@ bool suiteWide(const QString &key)
 {
     static const QStringList keys = {QStringLiteral("ui/theme"), QStringLiteral("ui/language"), QStringLiteral("user/name"),
                                      QStringLiteral("user/initials"), QStringLiteral("telemetry/enabled"), QStringLiteral("telemetry/install"),
-                                     QStringLiteral("proof/checkAsYouType"), QStringLiteral("proof/checkGrammarAsYouType")};
+                                     QStringLiteral("proof/checkAsYouType"), QStringLiteral("proof/checkGrammarAsYouType"), QStringLiteral("proof/grammarKinds")};
     return key.startsWith(QLatin1String("updates/")) || keys.contains(key);
 }
 
@@ -108,6 +109,15 @@ void setGrammarAsYouType(bool on)
     if (grammarAsYouType() == on) return;
     Settings::get().setValue(QStringLiteral("proof/checkGrammarAsYouType"), on);
     Q_EMIT GrammarSettingNotifier::get().changed(on);
+}
+
+quint32 grammarKinds() { return Settings::get().value(QStringLiteral("proof/grammarKinds"), uint(grammar::kDefaultKinds)).toUInt(); }
+
+void setGrammarKinds(quint32 kinds)
+{
+    if (grammarKinds() == kinds) return;
+    Settings::get().setValue(QStringLiteral("proof/grammarKinds"), uint(kinds));
+    Q_EMIT GrammarSettingNotifier::get().kindsChanged(kinds);
 }
 
 Unit defaultUnit(const QLocale &region)

@@ -97,6 +97,7 @@ private:
     // A paragraph as the checker takes it: the text, and the text with what is not English (or marked "do not check") blanked out, which is what is sent.
     struct Look {
         QString key, text, masked, language;
+        quint32 kinds = grammar::kDefaultKinds;   // the kinds of issue looked for (the setting when the look was made; part of the key)
     };
     struct BlockLook {
         int position = -1, revision = -1, length = -1;

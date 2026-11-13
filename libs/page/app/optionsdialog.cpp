@@ -15,6 +15,7 @@
 #include "app/telemetry.h"
 #include "app/theme.h"
 #include "app/updater.h"
+#include "grammar/grammarrules.h"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -24,8 +25,10 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QTabWidget>
 #include <QVBoxLayout>
 #include "app/plaintext.h"
@@ -54,6 +57,48 @@ struct Dlg {
 };
 
 } // namespace
+
+// The kinds of grammar issue: each is one checkbox, and what the choice is goes into the suite's settings when the dialog is accepted (the open documents are looked at again at once).
+bool grammarSettingsDialog(QWidget *p)
+{
+    struct Group {
+        GrammarIssue::Kind kind;
+        QString label, about;
+    };
+    const QVector<Group> groups = {
+        {GrammarIssue::Grammar, QCoreApplication::translate("Dialogs", "Grammar"), QCoreApplication::translate("Dialogs", "Verbs that do not agree, \"a\" and \"an\", and the wrong form of a verb.")},
+        {GrammarIssue::Punctuation, QCoreApplication::translate("Dialogs", "Punctuation"), QCoreApplication::translate("Dialogs", "Extra or missing spaces, commas, and hyphens.")},
+        {GrammarIssue::Capitalization, QCoreApplication::translate("Dialogs", "Capitalization"), QCoreApplication::translate("Dialogs", "Sentences, \"I\", and the days and months.")},
+        {GrammarIssue::WordChoice, QCoreApplication::translate("Dialogs", "Word choice"), QCoreApplication::translate("Dialogs", "Words that sound alike, such as \"its\" and \"it's\".")},
+        {GrammarIssue::Repetition, QCoreApplication::translate("Dialogs", "Repetition"), QCoreApplication::translate("Dialogs", "A word typed twice.")},
+        {GrammarIssue::Style, QCoreApplication::translate("Dialogs", "Style"), QCoreApplication::translate("Dialogs", "Long sentences, passive voice, and wordy phrases. These are suggestions, not mistakes.")},
+    };
+    Dlg dlg(p, QCoreApplication::translate("Dialogs", "Grammar Settings"));
+    dlg.d.setObjectName(QStringLiteral("grammarSettingsDialog"));
+    auto *intro = new QLabel(QCoreApplication::translate("Dialogs", "Look for these kinds of issues:"), &dlg.d);
+    dlg.v->addWidget(intro);
+    const quint32 now = grammarKinds();
+    QVector<QCheckBox *> boxes;
+    for (const Group &g : groups) {
+        auto *box = new QCheckBox(g.label, &dlg.d);
+        box->setObjectName(QStringLiteral("grammarKind%1").arg(int(g.kind)));
+        box->setChecked(now & grammar::kindBit(g.kind));
+        box->setToolTip(jp::plainToolTip(g.about));
+        box->setAccessibleDescription(g.about);
+        dlg.v->addWidget(box);
+        auto *about = jp::plainLabel(new QLabel(g.about, &dlg.d));
+        about->setWordWrap(true);
+        about->setContentsMargins(22, 0, 0, 4);
+        dlg.v->addWidget(about);
+        boxes << box;
+    }
+    if (!dlg.exec()) return false;
+    quint32 kinds = grammar::kindBit(GrammarIssue::Other);   // (what no group names is always looked for)
+    for (int i = 0; i < groups.size(); ++i)
+        if (boxes[i]->isChecked()) kinds |= grammar::kindBit(groups[i].kind);
+    setGrammarKinds(kinds);
+    return true;
+}
 
 bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, bool grammar)
 {
@@ -132,9 +177,13 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
     auto *asType = new QCheckBox(QCoreApplication::translate("Dialogs", "Check spelling as you type"), proof);
     asType->setChecked(spellAsYouType());
     QCheckBox *grammarAsType = nullptr;
+    QPushButton *grammarSettings = nullptr;
     if (grammar) {
         grammarAsType = new QCheckBox(QCoreApplication::translate("Dialogs", "Check grammar as you type"), proof);
         grammarAsType->setChecked(grammarAsYouType());
+        grammarSettings = new QPushButton(QCoreApplication::translate("Dialogs", "Grammar settings..."), proof);
+        grammarSettings->setObjectName(QStringLiteral("grammarSettingsButton"));
+        QObject::connect(grammarSettings, &QPushButton::clicked, &dlg.d, [&dlg] { grammarSettingsDialog(&dlg.d); });
     }
     auto *ignoreUpper = new QCheckBox(QCoreApplication::translate("Dialogs", "Ignore words in UPPERCASE"), proof);
     ignoreUpper->setChecked(st.value("proof/ignoreUpper", true).toBool());
@@ -150,6 +199,7 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
     autolink->setChecked(st.value("proof/autolink", true).toBool());
     pf->addRow(asType);
     if (grammarAsType) pf->addRow(grammarAsType);
+    if (grammarSettings) pf->addRow(grammarSettings);
     pf->addRow(ignoreUpper);
     pf->addRow(ignoreNum);
     pf->addRow(autocorrect);

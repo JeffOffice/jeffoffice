@@ -1,5 +1,6 @@
 #include "app/grammarcheck.h"
 
+#include "app/settings.h"
 #include "text/textprops.h"
 
 #include <QElapsedTimer>
@@ -64,6 +65,11 @@ GrammarCheck::GrammarCheck(QTextDocument *story, QObject *parent) : QObject(pare
     m_shared->registry.insert(m_id, this);
     m_timer.setSingleShot(true);
     connect(&m_timer, &QTimer::timeout, this, &GrammarCheck::send);
+    connect(&GrammarSettingNotifier::get(), &GrammarSettingNotifier::kindsChanged, this, [this] {   // (another choice of kinds: what was found is kept under its own key, and the paragraphs are looked at again)
+        m_looks.clear();
+        m_wanted.clear();
+        bump();
+    });
 }
 
 std::shared_ptr<GrammarCheck::Shared> GrammarCheck::newShared() { return std::make_shared<Shared>(); }
@@ -74,6 +80,11 @@ GrammarCheck::GrammarCheck(QTextDocument *story, const std::shared_ptr<Shared> &
     m_shared->registry.insert(m_id, this);
     m_timer.setSingleShot(true);
     connect(&m_timer, &QTimer::timeout, this, &GrammarCheck::send);
+    connect(&GrammarSettingNotifier::get(), &GrammarSettingNotifier::kindsChanged, this, [this] {   // (another choice of kinds: what was found is kept under its own key, and the paragraphs are looked at again)
+        m_looks.clear();
+        m_wanted.clear();
+        bump();
+    });
 }
 
 void GrammarCheck::shutDown(const std::shared_ptr<Shared> &shared) { shared->gone = true; }
@@ -160,7 +171,8 @@ const GrammarCheck::Look &GrammarCheck::lookAt(const QTextBlock &block)
         for (int p = std::max(0, from); p < to; ++p) look.masked[p] = QChar(0xFFFC);
     }
     look.language = english.isEmpty() ? QStringLiteral("zz") : english;   // ("zz": none, as far as the service knows)
-    look.key = look.language + QChar(1) + look.masked;
+    look.kinds = grammarKinds();
+    look.key = QString::number(look.kinds) + QChar(2) + look.language + QChar(1) + look.masked;
     cached.position = block.position();
     cached.revision = block.revision();
     cached.length = block.length();
@@ -268,7 +280,7 @@ GrammarCheck::Step GrammarCheck::search(int from, int budgetMs, Issue *found, in
             QElapsedTimer t;
             t.start();
             Entry e;
-            e.issues = grammarCheck(look.masked, look.language);
+            e.issues = grammarCheck(look.masked, look.language, nullptr, nullptr, look.kinds);
             m_shared->spend(look.masked.size(), t.elapsed());
             ++m_checked;
             keep(look.key, e);
@@ -339,14 +351,15 @@ void GrammarCheck::send()
         const std::shared_ptr<Shared> shared = m_shared;
         const quint64 id = m_id;
         const QString key = look.key, text = look.masked, language = look.language;
-        m_pool->start(QRunnable::create([shared, id, key, text, language] {
+        const quint32 kinds = look.kinds;
+        m_pool->start(QRunnable::create([shared, id, key, text, language, kinds] {
             if (shared->gone) return;
             QVector<GrammarIssue> issues;
             const bool exhausted = shared->exhausted();
             if (!exhausted) {
                 QElapsedTimer t;
                 t.start();
-                issues = grammarCheck(text, language);
+                issues = grammarCheck(text, language, nullptr, nullptr, kinds);
                 shared->spend(text.size(), t.elapsed());
             }
             if (shared->gone || !QCoreApplication::instance()) return;

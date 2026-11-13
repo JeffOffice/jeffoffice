@@ -45,6 +45,12 @@ JeffWrite also looks for clear grammar and style mistakes in English text. An is
 - a space before a comma, a period, or another mark that belongs to the word before it
 - no space after the end of a sentence
 - "alot", and "everyday" for "every day" ("almost everyday")
+- verbs that do not agree with the subject in clear cases ("she don't", "they was", "it have", "everyone are", "there is many reasons")
+- the wrong form of a verb ("did went", "has went", "can't hardly", "don't have no")
+- words that are mixed up ("who's car", "an affect on", "less people", "irregardless", "can't breath", "weather" for "whether", "chose" for "choose", "advise" for "advice")
+- "between you and I", "Me and him went", "more better", and "these thing"
+- a comma after the year of a date ("On June 5, 2020, we left"), a comma after a city and state ("in Austin, Texas, the heat"), and a hyphen in a compound before a noun ("a well-known author")
+- a small "i" for the word "I", and the days and months in small letters
 
 It would rather miss a mistake than mark text that is right, so a sentence with no blue line is not a promise that it is correct.
 
@@ -55,6 +61,8 @@ The check runs on your own computer, with no internet connection, in the backgro
 Only English is checked. In a paragraph with more than one language, the English text is checked and the rest is skipped, and so is text that a file marks "do not check". Grammar is checked in the text of the document, and not yet in tables, headers, footers, or notes.
 
 To turn it off, click **Review > Check Grammar as You Type**. The same choice is in **File > Options > Proofing**. It is one choice for all the JeffOffice apps, and it is the same in every window. The Spelling pane (F7) goes through the grammar issues after the spelling, when this is on.
+
+**Choose what it looks for.** Click **File > Options > Proofing > Grammar settings** to pick the kinds of issues: **Grammar** (verbs that do not agree, the wrong form of a verb, "a" and "an"), **Punctuation** (extra or missing spaces, commas, and hyphens), **Capitalization**, **Word choice** (words that sound alike), **Repetition**, and **Style**. **Style** is off until you turn it on. It suggests, and it is not about mistakes: sentences of more than 40 words, the passive voice, three sentences in a row that begin with the same word, and wordy phrases ("in order to", "due to the fact that"). A change applies at once to the blue lines and to the Spelling pane (F7), in every open window and every JeffOffice app.
 
 ## Languages
 

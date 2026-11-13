@@ -24,6 +24,7 @@ These check boxes control spelling and typing help. See [Type and format text](t
 
 - **Check spelling as you type**
 - **Check grammar as you type** marks clear grammar and style mistakes in English text with a blue dotted line.
+- **Grammar settings** opens a list of the kinds of issues to look for: grammar, punctuation, capitalization, word choice, repetition, and style (which is off until you turn it on).
 - **Ignore words in UPPERCASE**
 - **Ignore words that contain numbers**
 - **Replace text as you type (AutoCorrect)** fixes common typing mistakes.
