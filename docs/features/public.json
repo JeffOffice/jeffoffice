@@ -88,7 +88,7 @@
       },
       {
        "status": "partly",
-       "text": "d6d934022e80f3b2b99f469782839803922f422fb5b40e5210f07bd980fde054"
+       "text": "33012a11d6067be747980ed91de39869019b2c8579b53ffe0e9b0ab6a5545109"
       }
      ]
     },
@@ -11199,6 +11199,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "33012a11d6067be747980ed91de39869019b2c8579b53ffe0e9b0ab6a5545109": {
+   "drop": false,
+   "en": "Insert a barcode as a picture on the sheet (EAN, UPC, Code 128, Code 39, or QR), drawn as vector bars. Make one barcode for each filled selected cell in a single step, up to 500 at once; a barcode made from a cell updates when the cell changes. Barcodes are saved in `.xlsx` files and reopen as the same barcode.",
+   "es": "Inserte un código de barras como imagen en la hoja (EAN, UPC, Code 128, Code 39 o QR), dibujado con barras vectoriales. Cree un código de barras por cada celda llena seleccionada en un solo paso, hasta 500 a la vez; un código de barras creado a partir de una celda se actualiza cuando la celda cambia. Los códigos de barras se guardan en archivos `.xlsx` y se vuelven a abrir como el mismo código de barras.",
+   "fr": "Insérez un code-barres sous forme d’image dans la feuille (EAN, UPC, Code 128, Code 39 ou QR), dessiné en barres vectorielles. Créez un code-barres pour chaque cellule remplie sélectionnée en une seule étape, jusqu’à 500 à la fois ; un code-barres créé à partir d’une cellule se met à jour lorsque la cellule change. Les codes-barres sont enregistrés dans les fichiers `.xlsx` et se rouvrent comme le même code-barres.",
+   "soon": {
+    "drop": false,
+    "en": "Barcodes saved in `.ods` files",
+    "es": "Códigos de barras guardados en archivos `.ods`",
+    "fr": "Codes-barres enregistrés dans les fichiers `.ods`"
    }
   },
   "3335a7ed8f24a26fcbe6204df3ba18cc856bb696c3f79229e6ae129f29c55abf": {
@@ -22803,18 +22815,6 @@
     "en": "Insert, edit, and remove hyperlinks",
     "es": "Insertar, editar y quitar hipervínculos",
     "fr": "Insérer, modifier et supprimer des liens hypertexte"
-   }
-  },
-  "d6d934022e80f3b2b99f469782839803922f422fb5b40e5210f07bd980fde054": {
-   "drop": false,
-   "en": "Insert a barcode on a sheet as a picture that moves, sizes, and undoes like any picture: EAN, UPC, Code 128, Code 39, and QR, drawn as vector bars. Select it and choose Barcode again to edit its data. Make a barcode for each filled selected cell from the cell’s text, in a column to the right, up to 500 at once. Barcodes are saved in `.xlsx` files.",
-   "es": "Inserte un código de barras en una hoja como una imagen que se mueve, cambia de tamaño y se deshace como cualquier imagen: EAN, UPC, Code 128, Code 39 y QR, dibujados como barras vectoriales. Selecciónelo y elija Código de barras de nuevo para editar sus datos. Cree un código de barras para cada celda seleccionada con contenido a partir del texto de la celda, en una columna a la derecha, hasta 500 a la vez. Los códigos de barras se guardan en archivos `.xlsx`.",
-   "fr": "Insérez un code-barres dans une feuille sous forme d’image que vous pouvez déplacer, redimensionner et annuler comme n’importe quelle image : EAN, UPC, Code 128, Code 39 et QR, dessinés en barres vectorielles. Sélectionnez-le et choisissez de nouveau Code-barres pour modifier ses données. Créez un code-barres pour chaque cellule sélectionnée non vide à partir du texte de la cellule, dans une colonne à droite, jusqu’à 500 à la fois. Les codes-barres sont enregistrés dans les fichiers `.xlsx`.",
-   "soon": {
-    "drop": false,
-    "en": "Barcodes that update when a cell changes, and barcodes kept in `.ods` files",
-    "es": "Códigos de barras que se actualizan cuando cambia una celda, y códigos de barras conservados en archivos `.ods`",
-    "fr": "Codes-barres qui se mettent à jour quand une cellule change, et codes-barres conservés dans les fichiers `.ods`"
    }
   },
   "d74eff852a078b352e0c03f813faddefefd4ba5626faf7779a380fee8e6c8347": {
