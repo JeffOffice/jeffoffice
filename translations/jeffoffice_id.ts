@@ -15782,17 +15782,17 @@ Penerbitan desktop</translation>
     <message>
         <location line="+1"/>
         <source>Russian</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rusia</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Indonesian</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Indonesia</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Ukrainian</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ukraina</translation>
     </message>
     <message>
         <location filename="../libs/text/text/textengine.cpp" line="+157"/>

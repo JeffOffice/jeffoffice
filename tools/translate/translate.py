@@ -22,8 +22,8 @@ may correct it, and a corrected term is never asked for again).
                                          [--dry-run] [--report FILE]
 
 Without --lang it keeps up the languages already started (each has its
-translations/jeffoffice_<language>.ts), except the held ones (HELD below: Russian,
-Indonesian, and Ukrainian are prepared, not yet approved); name a language to start or run it.
+translations/jeffoffice_<language>.ts), except the held ones (HELD below: a language
+prepared but not yet approved; none now); name a language to start or run it.
 
 Needs ANTHROPIC_API_KEY (except with --dry-run), the anthropic package
 (pip install -r tools/translate/requirements.txt), and Qt's lconvert
@@ -50,7 +50,7 @@ HELP_DIR = os.path.join(ROOT, "resources", "help")
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 MODEL = "claude-haiku-5-5"   # (a French trial, Nov 2026: as good as Opus 5.5 on this text at about a fortieth of the cost; --model to change)
-WORKERS = 4
+WORKERS = 12  # parallel requests; was 4 (a 95k-word language took ~35 min at 4)
 
 # The languages, in Qt's names (the .ts file's and Help folder's suffix).
 # Most have two plural forms in Qt (the singular, then the plural); PLURAL_FORMS lists the others.
@@ -69,7 +69,7 @@ LANGUAGES = {
 
 # Prepared (their .ts files exist) but not yet approved to translate: a run that names no language (the nightly one) and "--lang all" skip
 # them; "--lang ru" starts one. Take a language out of this set when it is approved.
-HELD = {"ru", "id", "uk"}
+HELD = set()   # Russian, Indonesian, and Ukrainian were released in 0.27.1
 
 
 def default_languages():
@@ -724,6 +724,7 @@ def run_help(lang, api, dry, report):
                 with open(os.path.join(out_dir, tid + ".md"), "w", encoding="utf-8") as f:
                     f.write(out)
                 record[key] = {"en": sha(en), "out": sha(out)}
+                save_state(lang, state)   # after each topic: a stopped run must not leave pages it wrote looking like a person's edits
                 report.topics += 1
                 wrote = True
     if wrote:

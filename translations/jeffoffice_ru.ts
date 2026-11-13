@@ -15802,17 +15802,17 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Russian</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Русский</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Indonesian</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Индонезийский</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Ukrainian</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Украинский</translation>
     </message>
     <message>
         <location filename="../libs/text/text/textengine.cpp" line="+157"/>
