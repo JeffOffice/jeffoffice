@@ -1,6 +1,8 @@
 #include "text/dictionaries.h"
 
 #include "core/appinfo.h"
+#include "core/datafolder.h"
+#include "text/dictpack.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -9,16 +11,34 @@
 #include <QMutex>
 
 #include <hunspell/hunspell.hxx>
+#include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
 #ifdef Q_OS_WIN
 #include <windows.h>   // GetShortPathNameW
 #endif
 
+// Our patch to Hunspell (third_party/CMakeLists.txt): names this function says it has in memory are read from there, not from disk.
+extern bool (*jeffoffice_memory_file)(const char *name, const char **data, size_t *size);
+
 namespace jp::dict {
 
 namespace {
+
+// The dictionary files Hunspell is loading, by the names given to it (set only while the checker is built, under the mutex).
+const std::map<std::string, QByteArray> *s_memoryFiles = nullptr;
+
+bool memoryFile(const char *name, const char **data, size_t *size)
+{
+    if (!s_memoryFiles) return false;
+    const auto it = s_memoryFiles->find(name);
+    if (it == s_memoryFiles->end()) return false;
+    *data = it->second.constData();
+    *size = size_t(it->second.size());
+    return true;
+}
 
 struct Entry {
     const char *code, *name;
@@ -102,6 +122,39 @@ QHash<QString, std::shared_ptr<Checker>> &loadedTable()
     return loaded;
 }
 
+bool s_thesaurusTried = false;
+QString s_rootOverride;
+
+QMutex &thesaurusMutex()
+{
+    static QMutex m;
+    return m;
+}
+
+dictpack::Thesaurus &thesaurusFile()
+{
+    static dictpack::Thesaurus t;
+    return t;
+}
+
+// Opened on first use (the data folder's compressed file, else the plain file of the source tree or an older install).
+dictpack::Thesaurus &thesaurus()
+{
+    dictpack::Thesaurus &t = thesaurusFile();
+    QMutexLocker lock(&thesaurusMutex());
+    if (!s_thesaurusTried) {
+        s_thesaurusTried = true;
+        const QString path = root().isEmpty() ? QString() : root() + QLatin1String("/en/th_en_US_v2.dat");
+        if (!path.isEmpty() && QFile::exists(path + QLatin1String(dictpack::kSuffix))) t.open(path + QLatin1String(dictpack::kSuffix));
+        else if (!path.isEmpty() && QFile::exists(path)) {
+            // The plain file (the source tree, or an older install): packed in memory (fast, not small), so one way of looking words up.
+            QFile f(path);
+            if (f.open(QIODevice::ReadOnly)) t.openMemory(dictpack::packThesaurus(f.readAll(), 1));
+        }
+    }
+    return t;
+}
+
 Checker *checker(const QString &code)
 {
     QHash<QString, std::shared_ptr<Checker>> &loaded = loadedTable();
@@ -113,12 +166,26 @@ Checker *checker(const QString &code)
     const QString base = e && !root().isEmpty() ? root() + '/' + QLatin1String(e->spelling) : QString();
     const QString affix = e && e->affix ? root() + '/' + QLatin1String(e->affix) : base;
     const QString common = e && e->common ? root() + '/' + QLatin1String(e->common) : QString();
-    if (!base.isEmpty() && QFile::exists(base + ".dic") && QFile::exists(affix + ".aff") && (common.isEmpty() || QFile::exists(common + ".dic"))) {
-        c = std::make_shared<Checker>();
-        // (a region's own words are added to the common ones: the same words as one file of both)
-        c->h = std::make_unique<Hunspell>(hunspellFileName(affix + ".aff").constData(), hunspellFileName((common.isEmpty() ? base : common) + ".dic").constData());
-        if (!common.isEmpty()) c->h->add_dic(hunspellFileName(base + ".dic").constData());
-        c->utf8 = QString::fromStdString(c->h->get_dict_encoding()).compare(QLatin1String("UTF-8"), Qt::CaseInsensitive) == 0;
+    if (!base.isEmpty() && fileExists(base + ".dic") && fileExists(affix + ".aff") && (common.isEmpty() || fileExists(common + ".dic"))) {
+        // The files are read (and inflated, when compressed) into memory and handed to Hunspell there, then dropped: only what Hunspell
+        // builds from them stays. A file that cannot be read leaves the language with no checker (every word is accepted).
+        std::map<std::string, QByteArray> files;
+        files["jeffoffice-memory:aff"] = readFile(affix + ".aff");
+        files["jeffoffice-memory:dic"] = readFile((common.isEmpty() ? base : common) + ".dic");
+        if (!common.isEmpty()) files["jeffoffice-memory:region"] = readFile(base + ".dic");
+        bool whole = true;
+        for (const auto &f : files) whole = whole && !f.second.isEmpty();
+        if (whole) {
+            c = std::make_shared<Checker>();
+            s_memoryFiles = &files;
+            jeffoffice_memory_file = memoryFile;
+            // (a region's own words are added to the common ones: the same words as one file of both)
+            c->h = std::make_unique<Hunspell>("jeffoffice-memory:aff", "jeffoffice-memory:dic");
+            if (!common.isEmpty()) c->h->add_dic("jeffoffice-memory:region");
+            jeffoffice_memory_file = nullptr;
+            s_memoryFiles = nullptr;
+            c->utf8 = QString::fromStdString(c->h->get_dict_encoding()).compare(QLatin1String("UTF-8"), Qt::CaseInsensitive) == 0;
+        }
     }
     loaded.insert(code, c);
     return c.get();
@@ -162,17 +229,30 @@ QString match(const QString &tag)
 
 int loadedCount() { return int(loadedTable().size()); }
 
+void setRootOverride(const QString &dir)
+{
+    QMutexLocker lock(&mutex());
+    s_rootOverride = dir;
+    loadedTable().clear();
+    QMutexLocker thesaurusLock(&thesaurusMutex());
+    thesaurusFile().close();
+    s_thesaurusTried = false;
+}
+
 QString root()
 {
+    if (!s_rootOverride.isEmpty()) return s_rootOverride;
     static const QString dir = [] {
         const QString app = QCoreApplication::applicationDirPath();
-        QStringList dirs{app + "/dict", app + "/../share/jeffoffice/dict", app + "/../share/" + appInfo().fileName + "/dict", app + "/../dict",
-                         app + "/../Resources/dict"};
+        QStringList dirs;
+        if (const QString data = dataFolder(QStringLiteral("dict")); !data.isEmpty()) dirs << data;
+        dirs << app + "/dict" << app + "/../share/jeffoffice/dict" << app + "/../share/" + appInfo().fileName + "/dict" << app + "/../dict"
+             << app + "/../Resources/dict";
 #ifdef JP_SOURCE_DIR
         dirs << QStringLiteral(JP_SOURCE_DIR) + "/resources/dict";
 #endif
         for (const QString &d : dirs)
-            if (QFile::exists(d + "/en/en_US.dic")) return d;
+            if (fileExists(d + "/en/en_US.dic")) return d;
         return QString();
     }();
     return dir;
@@ -226,7 +306,30 @@ QString hyphenationFile(const QString &code)
     const Entry *e = entry(code);
     if (!e || root().isEmpty() || !*e->hyphenation) return {};
     const QString f = root() + '/' + QLatin1String(e->hyphenation);
-    return QFile::exists(f) ? f : QString();
+    return fileExists(f) ? f : QString();
 }
+
+bool fileExists(const QString &path)
+{
+    return QFile::exists(path + QLatin1String(dictpack::kSuffix)) || QFile::exists(path);
+}
+
+QByteArray readFile(const QString &path)
+{
+    QFile packed(path + QLatin1String(dictpack::kSuffix));
+    if (packed.exists()) {
+        // (a compressed file that cannot be read is not made up for by a plain one beside it: the two would disagree)
+        QByteArray out;
+        if (!packed.open(QIODevice::ReadOnly) || packed.size() > dictpack::kMaxFile || !dictpack::unpack(packed.readAll(), out)) return {};
+        return out;
+    }
+    QFile f(path);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+
+
+QByteArray thesaurusEntry(const QByteArray &lowerWord) { return thesaurus().entry(lowerWord); }
+
+bool hasThesaurus() { return thesaurus().isOpen(); }
 
 } // namespace jp::dict

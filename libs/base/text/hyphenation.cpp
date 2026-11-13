@@ -75,9 +75,7 @@ QVector<int> parse(const QString &line, QString *letters)
 
 void load(Patterns &p, const QString &file)
 {
-    QFile f(file);
-    if (!f.open(QIODevice::ReadOnly)) return;
-    const QList<QByteArray> lines = f.readAll().split('\n');
+    const QList<QByteArray> lines = dict::readFile(file).split('\n');
     if (lines.isEmpty()) return;
     // The first line names the encoding: UTF-8 or ISO8859-1.
     const bool utf8 = lines[0].trimmed() == "UTF-8";

@@ -224,7 +224,6 @@ public:
     }
     QStringList lookup(const QString &word)
     {
-        load();
         // Try the word as typed, then its base form ("running" -> "run").
         for (const QString &key : baseForms(word.toLower())) {
             const QStringList out = lookupExact(key, word);
@@ -237,16 +236,17 @@ private:
     QStringList lookupExact(const QString &key, const QString &word) const
     {
         QStringList out;
-        auto it = m_index.find(key);
-        if (it == m_index.end()) return out;
-        qsizetype p = it.value();
+        // The word's entry from the (compressed) thesaurus: its lines only, the first of them "word|count".
+        const QByteArray entry = dict::thesaurusEntry(key.toUtf8());
+        if (entry.isEmpty()) return out;
+        qsizetype p = 0;
         // Line: word|count, then count lines "(pos)|syn|syn".
-        const qsizetype eol = m_data.indexOf('\n', p);
-        const int count = m_data.mid(p, eol - p).trimmed().split('|').value(1).toInt();
+        const qsizetype eol = entry.indexOf('\n', p);
+        const int count = entry.mid(p, eol - p).trimmed().split('|').value(1).toInt();
         p = eol + 1;
-        for (int i = 0; i < count && p > 0 && p < m_data.size(); ++i) {
-            const qsizetype e = m_data.indexOf('\n', p);
-            const QList<QByteArray> parts = m_data.mid(p, (e < 0 ? m_data.size() : e) - p).trimmed().split('|');
+        for (int i = 0; i < count && p > 0 && p < entry.size(); ++i) {
+            const qsizetype e = entry.indexOf('\n', p);
+            const QList<QByteArray> parts = entry.mid(p, (e < 0 ? entry.size() : e) - p).trimmed().split('|');
             const QString pos = QString::fromUtf8(parts.value(0));
             for (int k = 1; k < parts.size(); ++k) {
                 const QString s = QString::fromUtf8(parts[k]).trimmed();
@@ -281,29 +281,6 @@ private:
         if (w.endsWith(QLatin1String("ly"))) add(w.chopped(2));
         return f;
     }
-
-    void load()
-    {
-        if (m_loaded) return;
-        m_loaded = true;
-        QFile f(dict::root() + "/en/th_en_US_v2.dat");
-        if (!f.open(QIODevice::ReadOnly)) return;
-        m_data = f.readAll();
-        qsizetype p = m_data.indexOf('\n') + 1;   // skip encoding line
-        while (p > 0 && p < m_data.size()) {
-            const qsizetype e = m_data.indexOf('\n', p);
-            if (e < 0) break;
-            const QByteArray line = m_data.mid(p, e - p).trimmed();   // tolerate CRLF
-            if (!line.startsWith('(')) {
-                const int bar = line.indexOf('|');
-                if (bar > 0) m_index.insert(QString::fromUtf8(line.left(bar)).toLower(), p);
-            }
-            p = e + 1;
-        }
-    }
-    bool m_loaded = false;
-    QByteArray m_data;
-    QHash<QString, qsizetype> m_index;
 };
 
 QStringList thesaurusLookup(const QString &word) { return Thesaurus::get().lookup(word.trimmed()); }

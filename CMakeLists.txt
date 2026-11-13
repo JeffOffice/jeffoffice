@@ -264,7 +264,7 @@ if(APPLE)
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
   add_custom_command(TARGET jeffpub POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/fonts $<TARGET_BUNDLE_CONTENT_DIR:jeffpub>/Resources/fonts
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffpub>/Resources/dict
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${JO_BUILD_DATA_DIR}/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffpub>/Resources/dict
     VERBATIM)
 endif()
 if(WIN32 AND EXISTS ${CMAKE_SOURCE_DIR}/resources/app.ico)
@@ -280,6 +280,7 @@ qt_add_executable(jptests
   tests/pub/pubhelpers.cpp
   tests/pub/tst_pub_charts.cpp
   tests/pub/tst_pub_commands.cpp
+  tests/pub/tst_pub_dict.cpp
   tests/pub/tst_pub_equation.cpp
   tests/pub/tst_pub_comments.cpp
   tests/pub/tst_pub_export.cpp
@@ -308,7 +309,7 @@ target_link_libraries(jptests PRIVATE jpcore jp_libmspub Qt6::Test)
 target_link_libraries(jptests PRIVATE Qt6::CorePrivate)
 # libmspub's shape table, for checking its defaults against Publisher's.
 target_include_directories(jptests PRIVATE ${CMAKE_SOURCE_DIR}/third_party/libmspub/src ${CMAKE_SOURCE_DIR}/third_party/compat)
-target_compile_definitions(jptests PRIVATE JP_TEST_DATA="${CMAKE_SOURCE_DIR}/tests/data")
+target_compile_definitions(jptests PRIVATE JP_TEST_DATA="${CMAKE_SOURCE_DIR}/tests/data" JP_BUILD_DICT="${JO_BUILD_DATA_DIR}/dict")
 # qt_add_executable makes Windows GUI programs by default; tests must keep their console output.
 set_target_properties(jptests PROPERTIES WIN32_EXECUTABLE OFF)
 # Crashes on purpose, for the test of crash reports.
@@ -478,7 +479,9 @@ install(TARGETS jeffpub RUNTIME DESTINATION bin BUNDLE DESTINATION .)
 install(DIRECTORY resources/help DESTINATION share/jeffoffice)
 install(DIRECTORY ${JO_BUILD_DATA_DIR}/i18n DESTINATION share/jeffoffice OPTIONAL)
 install(FILES ${JO_BUILD_DATA_DIR}/data.stamp ${JO_BUILD_DATA_DIR}/manifest.txt DESTINATION share/jeffoffice)
-install(DIRECTORY resources/fonts resources/dict DESTINATION share/jeffoffice)
+# (the dictionaries and the thesaurus are in the data folder, compressed, with their licenses: see jeffoffice_data)
+install(DIRECTORY resources/fonts DESTINATION share/jeffoffice)
+install(DIRECTORY ${JO_BUILD_DATA_DIR}/dict DESTINATION share/jeffoffice)
 
 # JeffDeck, the presentation app: like JeffPub, everything except main() is a
 # library its tests link. Packaged beside JeffPub (a Preview in 0.7.0). Its
@@ -524,7 +527,7 @@ if(APPLE)
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
   add_custom_command(TARGET jeffdeck POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/fonts $<TARGET_BUNDLE_CONTENT_DIR:jeffdeck>/Resources/fonts
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffdeck>/Resources/dict
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${JO_BUILD_DATA_DIR}/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffdeck>/Resources/dict
     VERBATIM)
 endif()
 if(WIN32)
@@ -625,7 +628,7 @@ if(APPLE)
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
   add_custom_command(TARGET jeffwrite POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/fonts $<TARGET_BUNDLE_CONTENT_DIR:jeffwrite>/Resources/fonts
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffwrite>/Resources/dict
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${JO_BUILD_DATA_DIR}/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffwrite>/Resources/dict
     VERBATIM)
 endif()
 if(WIN32)
@@ -740,7 +743,7 @@ if(APPLE)
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
   add_custom_command(TARGET jeffcrunch POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/fonts $<TARGET_BUNDLE_CONTENT_DIR:jeffcrunch>/Resources/fonts
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffcrunch>/Resources/dict
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${JO_BUILD_DATA_DIR}/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffcrunch>/Resources/dict
     VERBATIM)
 endif()
 if(WIN32)
@@ -877,12 +880,42 @@ if(WIN32)
 else()
   set(JO_HELP_LINK ${CMAKE_COMMAND} -E create_symlink ${CMAKE_SOURCE_DIR}/resources/help ${JO_BUILD_DATA_DIR}/help)
 endif()
+# The dictionaries and the thesaurus, compressed at build time from the plain files of resources/dict (which the repository keeps) by
+# jo_dictpack: the spelling and hyphenation files (.dic, .aff) and the thesaurus (.dat) become name.jz in the data folder's dict, and
+# their licenses and READMEs are copied as they are. The programs inflate a file in memory when they first use it (text/dictpack.h).
+qt_add_executable(jo_dictpack tools/dictpack.cpp libs/base/text/dictpack.cpp)
+target_include_directories(jo_dictpack PRIVATE libs/base)
+target_link_libraries(jo_dictpack PRIVATE Qt6::Core jp_zlib)
+set_target_properties(jo_dictpack PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
+file(GLOB_RECURSE JO_DICT_FILES CONFIGURE_DEPENDS RELATIVE ${CMAKE_SOURCE_DIR}/resources/dict ${CMAKE_SOURCE_DIR}/resources/dict/*)
+set(JO_DICT_OUTPUTS)
+foreach(rel ${JO_DICT_FILES})
+  set(src ${CMAKE_SOURCE_DIR}/resources/dict/${rel})
+  get_filename_component(reldir ${rel} DIRECTORY)
+  if(rel MATCHES "\\.(dic|aff|dat)$")
+    set(packflag "")
+    if(rel MATCHES "/th_[^/]*\\.dat$")
+      set(packflag --thesaurus)
+    endif()
+    add_custom_command(OUTPUT ${JO_BUILD_DATA_DIR}/dict/${rel}.jz
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${JO_BUILD_DATA_DIR}/dict/${reldir}
+      COMMAND jo_dictpack ${packflag} ${src} ${JO_BUILD_DATA_DIR}/dict/${rel}.jz
+      DEPENDS jo_dictpack ${src} VERBATIM)
+    list(APPEND JO_DICT_OUTPUTS ${JO_BUILD_DATA_DIR}/dict/${rel}.jz)
+  else()
+    add_custom_command(OUTPUT ${JO_BUILD_DATA_DIR}/dict/${rel}
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${JO_BUILD_DATA_DIR}/dict/${reldir}
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${src} ${JO_BUILD_DATA_DIR}/dict/${rel}
+      DEPENDS ${src} VERBATIM)
+    list(APPEND JO_DICT_OUTPUTS ${JO_BUILD_DATA_DIR}/dict/${rel})
+  endif()
+endforeach()
 add_custom_target(jeffoffice_data
   COMMAND ${CMAKE_COMMAND} -E make_directory ${JO_BUILD_DATA_DIR}/i18n
   COMMAND ${JO_HELP_LINK}
   COMMAND ${CMAKE_COMMAND} -DHELP_SRC=${CMAKE_SOURCE_DIR}/resources/help -DDATA=${JO_BUILD_DATA_DIR} -DVERSION=${PROJECT_VERSION}
           -P ${CMAKE_SOURCE_DIR}/cmake/datamanifest.cmake
-  DEPENDS ${JO_I18N_COPIES} VERBATIM)
+  DEPENDS ${JO_I18N_COPIES} ${JO_DICT_OUTPUTS} VERBATIM)
 add_dependencies(jeffoffice-common jeffoffice_data)
 
 # Measures the grammar rules on real text (tools/grammar/measure.py).
@@ -930,3 +963,9 @@ qt_add_executable(jo_datacheck tools/datacheck.cpp)
 target_link_libraries(jo_datacheck PRIVATE jeffoffice-common)
 set_target_properties(jo_datacheck PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
 install(TARGETS jo_datacheck RUNTIME DESTINATION bin COMPONENT check EXCLUDE_FROM_ALL)
+
+# Times the first load of each dictionary and the thesaurus, and the memory after it (the Dictionaries section of SLIM.md).
+qt_add_executable(jo_dictbench tools/dictbench.cpp)
+target_include_directories(jo_dictbench PRIVATE ${CMAKE_SOURCE_DIR}/tests/pub)
+target_link_libraries(jo_dictbench PRIVATE jeffoffice-common)
+set_target_properties(jo_dictbench PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
