@@ -34,7 +34,7 @@ Click **Review > Check Spelling as You Type**. The same choice is in **File > Op
 
 ## Check grammar as you type
 
-JeffWrite also looks for clear grammar and style mistakes in English text. An issue gets a blue dotted line under it. Spelling keeps its red wavy line, and a misspelled word is never marked as a grammar issue. These are the mistakes it looks for:
+JeffWrite also looks for clear grammar and style mistakes in text. An issue gets a blue dotted line under it. Spelling keeps its red wavy line, and a misspelled word is never marked as a grammar issue. These are the mistakes it looks for:
 
 - a repeated word ("the the")
 - "a" and "an" before the wrong sound ("an test", "a hour")
@@ -58,7 +58,7 @@ Right-click the issue. The menu shows what is wrong, then one or more suggestion
 
 The check runs on your own computer, with no internet connection, in the background: typing is never held up, and a paragraph is checked a moment after you stop typing in it. A paragraph is checked as far as its first 100,000 characters. A document that takes more checking than the limit stops being checked, and the status bar tells you once; spelling goes on working.
 
-Only English is checked. In a paragraph with more than one language, the English text is checked and the rest is skipped, and so is text that a file marks "do not check". Grammar is checked in the text of the document, and not yet in tables, headers, footers, or notes.
+**Which languages are checked.** English, French, German, and Spanish, each with rules of its own. French looks at the no-break space before ; : ! ? and inside « », the apostrophe in words like "l'ami" and "qu'il", and mix-ups such as "a" and "à". German looks at "das" and "dass", "seid" and "seit", "wider" and "wieder", the comma before "dass" and "weil", and capital letters on common nouns. Spanish looks for a missing ¿ or ¡, accents on question words, "a ver" and "haber", and "del" and "al". A paragraph is checked in the language it is marked as, and text with no language is checked as English. In a paragraph with more than one language, the first checked language is used and the rest is skipped. Text that a file marks "do not check" is skipped too. Grammar is checked in the text of the document, and not yet in tables, headers, footers, or notes.
 
 To turn it off, click **Review > Check Grammar as You Type**. The same choice is in **File > Options > Proofing**. It is one choice for all the JeffOffice apps, and it is the same in every window. The Spelling pane (F7) goes through the grammar issues after the spelling, when this is on.
 
