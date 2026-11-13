@@ -101,8 +101,9 @@ Measured November 13, 2026 with `tools/grammar/measure.py --language fr` (the nu
 
 - **help**: our own French Help (`resources/help/fr`, 169 files, 150,378 words, with the markup taken out and code spans left as "x"). It is machine-translated text with the program's own labels in it,
   so it has typing and translation slips that real documents also have, and its quotation marks and colons are typed with plain spaces.
+- **text**: the French program strings of six words or more (`translations/jeffoffice_fr.ts`) and the paragraphs of the French pages of the site: 107,837 words, in the same machine-translated voice.
 - **govdocs**: Govdocs1 has no French prose worth reading: 3 files picked out by their common words gave 268 words, and the 2 flags there were data tables. LibreOffice and the other collections
-  are spreadsheets. So the false-alarm count rests on the Help alone, and every flag of a rule with under 25 flags was read.
+  are spreadsheets. So the false-alarm count rests on the Help and the program text (258,000 words), and every flag of a rule with under 25 flags was read.
 - The rules that have no flags in 150,000 words (a-accent, ou-accent, ce-se, contraction, ca, quant, hyphens, si-il, repeated-word) have only their tests as proof that they flag.
 
 ### Spaces, and why a no-break space
@@ -111,17 +112,17 @@ French sets a space before `;` `:` `!` `?` and inside `« »`. Every word proces
 space (U+202F) that careful typesetting uses is left alone, and so is any space that is not a plain one. There is no setting for it: one that took the narrow one would put a box in some fonts.
 The flags there are the most frequent in French text (the Help types them with plain spaces): they are Punctuation, so they can be switched off with the kinds, like the others.
 
-### The 14 rules of French (flags per 10,000 words of Help, flags read, false alarms found)
+### The 14 rules of French (flags per 10,000 words of Help, then of program text; flags read; false alarms found)
 
-| rule | /10k | read | false alarms |
-|---|---|---|---|
-| fr-space-before-mark | 89.04 | 1,339, about 50 read (all 12 without a space before the mark) | 1 ("taxe;" in a formula, 0.01/10k); "#REF!", "B2;" and "mailto:" were found and are left alone now |
-| fr-guillemets | 31.19 | 469, about 20 read | 0 |
-| fr-elision | 0.47 | 7 of 7 | 2 ("De indique" and "de indique": a label, then a verb), 0.13/10k; "de et" ("from and") was found and is left alone now |
-| fr-sentence-start | 0.07 | 1 of 1 | 1 ("ppp signifie"), 0.07/10k |
-| fr-repeated-word | 0 | the one flag found was a word mentioned between guillemets, now left alone | 0 |
-| fr-wordy-phrases (style) | 0.07 | 1 | not scored |
-| the other 8 | 0 | | |
+| rule | help /10k | text /10k | read | false alarms |
+|---|---|---|---|---|
+| fr-space-before-mark | 89.04 | 126.58 | 2,704, about 70 read (every flag without a space before the mark) | 1 ("taxe;" in a formula, 0.01/10k); "#REF!", "B2;" and "mailto:" were found and are left alone now |
+| fr-guillemets | 31.19 | 49.15 | 999, about 30 read | 0 |
+| fr-elision | 0.47 | 0.18 | 9 of 9 | 2 ("De indique" and "de indique": a label, then a verb), 0.08/10k; "de et" ("from and"), "de y" (a value), and "que en" (a list of codes) were found and are left alone now |
+| fr-sentence-start | 0.07 | 0 | 1 of 1 | 1 ("ppp signifie"), 0.04/10k; "p2s3 est" and "_xlfn. pour" (code) were found and are left alone now |
+| fr-repeated-word | 0 | 0 | the one flag found was a word mentioned between guillemets, now left alone | 0 |
+| fr-wordy-phrases (style) | 0.07 | 0 | 1 | not scored |
+| the other 8 | 0 | 0 | | |
 
 Reused from English, measured on the same text: double-space 0 (the paragraphs here have no double spaces once the markup is out), comma-space 0.07 (1 flag: `&"Arial,Gras"`, a false alarm,
 0.07/10k), doubled-mark 0. Style rules (off by default): long-sentence 11.44, repeated-sentence-start 2.26 per 10,000 words.
@@ -140,3 +141,41 @@ Every error rule is under 1 false alarm per 10,000 words.
 - **est-ce**: only "qu'est ce que / qui", "n'est ce pas", and "c'est à dire" before a comma or "que". "où est ce que" is left alone ("où est ce que je cherche" is right).
 - **malgré que** and the other pleonasms are Style (off by default).
 - Not checked: "peut être" and "plus tôt", which are right as often as wrong.
+
+## German (round 38)
+
+Measured November 13, 2026 with `tools/grammar/measure.py --language de`.
+
+### The text
+
+- **help**: our own German Help (`resources/help/de`, 169 files, 138,054 words, markup taken out); **text**: the German program strings of six words or more and the paragraphs of the German pages
+  of the site (90,615 words). Both are machine-translated, so they hold few of the mistakes people make (a "dass" that is "das"), and the flags below were mostly about labels. Govdocs1 has no
+  German prose (0 files found by their common words), and LibreOffice and the other collections are spreadsheets. This is the weakest measurement of the three languages: a rule with no flags
+  in 228,000 words has only its tests as proof that it flags, and its false-alarm rate is only known to be under about 0.13 per 10,000 words.
+
+### The 11 rules of German (flags per 10,000 words of Help, then of program text)
+
+| rule | help /10k | text /10k | read | false alarms |
+|---|---|---|---|---|
+| de-repeated-word | 0.22 | 0.11 | 4 of 4 | 4 ("Vertikal verteilen verteilen", "Sortieren nach nach", "Gehe zu zu": the name of a command, then the sentence about it), 0.17/10k |
+| de-comma-before-conjunction | 0 | 0 | 3 flags found first, all "etwa weil" (a comma stands before "etwa"): "etwa", "beispielsweise", "wohl", "eher", "bereits", "nämlich", "speziell", and "unter" are left alone now | 0 now |
+| de-sentence-start | 0 | 0 | 4 found first, all "p2s3 ist", "_xlnm. beginnen" (code): now left alone | 0 now |
+| the other 8 (das-dass, seid-seit, wider-wieder, noun-capital, als-wie, run-together, abbreviation-space, wordy-phrases) | 0 | 0 | | |
+
+Reused from English, measured on the same text: comma-space 0.07 (1 flag, `&"Arial,Fett"`, a false alarm, 0.04/10k), space-before-mark 0 (it flagged 7 times a button named "?" first: "die Schaltfläche ? am
+rechten Rand"; a "?" or "!" with a small letter after it is left alone now), double-space 0, doubled-mark 0. Style rules (off by default): long-sentence 5.87 and 5.52, repeated-sentence-start 2.03 and 0.11.
+
+Every error rule is under 1 false alarm per 10,000 words.
+
+### What was narrowed or left out
+
+- **das / dass**: only ", das er" after a verb of thinking or saying ("Ich glaube, das er kommt": there is no noun for "das" to point back to), and "Dass ist" at the start of a sentence. A relative
+  clause ("das er baute") looks the same as the other mistake, so "das" is never changed after a noun. "dass" is never changed to "das" in the middle of a sentence.
+- **seid / seit**: "seid" before a length of time ("seid zwei Jahren") and "ihr seit" before a plain predicate ("ihr seit nicht"). "Ihr seid gestern gekommen" is right, so "seid gestern" is left alone.
+- **wider / wieder**: "wider mal", "immer wider", and the like; "wieder Willen", "wieder Erwarten". "Hin und wider" is left alone.
+- **comma before dass, weil, obwohl, ob**: not after und, oder, aber, sondern, nur, auch, so, als, ohne, kaum, and the words that go with the conjunction ("nur weil", "als ob", "ohne dass"); "ob" only before a
+  pronoun (it is also a word that governs a noun, as in "ob seiner Leistung"). "wenn", "damit", "bevor", and "nachdem" are not checked (too many legitimate forms with no comma).
+- **capital after an article**: only a list of about 120 nouns that are never a verb, adjective, or adverb in small letters ("essen", "leben", "kosten", "recht", "macht", "weg" are not in it).
+- **als / wie**: after a comparative, not after "mehr" or "weiter" ("weiter wie bisher" is right).
+- **ß and ss** are not a rule, and neither are the spelling reforms.
+- **z. B. and the like** is Style (off by default): "z.B." is common and widely accepted; the rule only offers the spaced form.

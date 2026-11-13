@@ -101,7 +101,8 @@ void frElision(Ctx &c)
         if (j < 0 || c.tokens[j].kind != Tok::Word || !beginsLower(c, j)) continue;
         const QString &w = c.tokens[j].lower;
         const bool article = c.tokens[i].lower == QLatin1String("le") || c.tokens[i].lower == QLatin1String("la");
-        const bool y = w == QLatin1String("y") && !article;
+        const bool y = w == QLatin1String("y") && !article && c.tokens[i].lower != QLatin1String("de") && c.tokens[i].lower != QLatin1String("que");   // ("de y": a name of a value)
+        if (w.size() <= 2 && c.isPunct(j + 1, QLatin1Char(','))) continue;   // ("tel que en, es ou pt": a list of codes)
         if (!y && (w.size() < 2 || !frVowel(w.at(0)))) continue;
         if (w == QLatin1String("un") || w == QLatin1String("une")) {
             if (c.tokens[i].lower != QLatin1String("que")) continue;   // ("le un", "la une", "de un à dix"; but "que un" is "qu'un")
@@ -286,7 +287,7 @@ void frHyphens(Ctx &c)
 // A sentence that starts with a small letter, after a period.
 void frSentenceStart(Ctx &c)
 {
-    lowercaseSentenceStartWith(c, &WORDS8("env", "fig", "vol", "chap", "art", "avr", "janv", "févr", "juil", "sept", "oct", "nov", "déc", "dép", "prof", "mme", "mlle", "boul", "cie", "trad", "suiv", "ibid", "cit", "loc",
+    sentenceStartOf(c, WORDS8("env", "fig", "vol", "chap", "art", "avr", "janv", "févr", "juil", "sept", "oct", "nov", "déc", "dép", "prof", "mme", "mlle", "boul", "cie", "trad", "suiv", "ibid", "cit", "loc",
                                           "sup", "inf", "gén", "min", "max", "tél", "réf", "adj", "adv", "doc", "dir", "mod", "nat", "prés", "litt", "écon", "hist", "phil", "techn", "sing", "plur", "masc", "fém",
                                           "subj", "ind", "imp", "pron", "prép", "conj", "resp", "spéc", "obs", "voir", "paragr", "nos", "sté", "ste", "bd", "fbg", "tom"));
 }

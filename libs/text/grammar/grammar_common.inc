@@ -57,3 +57,31 @@ void doubledWord(Ctx &c, const QSet<QString> &legitimate, const QSet<QString> &s
         c.add(c.tokens[i].end, c.tokens[j].end, GK::Repetition, QCoreApplication::translate("Grammar", "Repeated word."), QString());
     }
 }
+
+// A space before a comma, a period, or another mark (the rule of English), except before a "?" or "!" that has a small letter after it: a button or a character that is
+// named ("die Schaltfläche ? am Rand"), not a question.
+void spacedMark(Ctx &c)
+{
+    const int first = int(c.issues.size());
+    spaceBeforeMark(c);
+    for (int k = int(c.issues.size()) - 1; k >= first; --k) {
+        const int m = c.issues[k].end;
+        if (m + 2 < c.text.size() && (c.text.at(m) == QLatin1Char('?') || c.text.at(m) == QLatin1Char('!')) && c.text.at(m + 1) == QLatin1Char(' ') && c.text.at(m + 2).isLower()) c.issues.removeAt(k);
+    }
+}
+
+// The rule of English for a sentence that begins with a small letter after a period, with the short forms of the language in `shortened`, and without a flag on a name of code
+// ("p2s3 is the page") or after one ("_xlfn. pour").
+void sentenceStartOf(Ctx &c, const QSet<QString> &shortened)
+{
+    const int first = int(c.issues.size());
+    lowercaseSentenceStartWith(c, &shortened);
+    for (int k = int(c.issues.size()) - 1; k >= first; --k) {
+        const int s0 = c.issues[k].start;
+        bool code = false;
+        for (int p = s0; p < c.text.size() && c.text.at(p).isLetterOrNumber(); ++p) code = code || c.text.at(p).isDigit();
+        int q = s0 - 2;   // (the period is before the space)
+        while (q > 0 && c.text.at(q - 1).isLetter()) --q;
+        if (code || (q > 0 && c.text.at(q - 1) == QLatin1Char('_'))) c.issues.removeAt(k);
+    }
+}

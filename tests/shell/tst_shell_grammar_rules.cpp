@@ -97,6 +97,7 @@ class ShellGrammarRulesTests : public QObject {
     }
     static QVector<RuleCase> newRuleCases();
     static QVector<RuleCase> frenchRuleCases();
+    static QVector<RuleCase> germanRuleCases();
 
 private Q_SLOTS:
     void everyIssueIsInsideTheTextAndHasAMessage()
@@ -364,6 +365,32 @@ private Q_SLOTS:
         QCOMPARE(fixedBy(U("Il n'est pas là, n'est ce pas ?"), QStringLiteral("fr-hyphens"), fr), U("Il n'est pas là, n'est-ce pas ?"));
         QCOMPARE(fixedBy(U("Quant a moi."), QStringLiteral("fr-quant"), fr), U("Quant à moi."));
     }
+    void germanRulesFlagWhatTheyShouldAndLeaveTheLookAlikesAlone()
+    {
+        for (const RuleCase &rc : germanRuleCases()) check(rc);
+    }
+    void everyGermanRuleHasAnEntry() { everyRuleOfAnotherLanguageHasAnEntry(grammar::Language::German, QStringLiteral("de-"), germanRuleCases()); }
+    void germanKindsFollowTheChoice()
+    {
+        kindsOfAnotherLanguage(grammar::Language::German, U("Wir bleiben nach wie vor hier."), U("Ich glaube, das er kommt."), GrammarIssue::WordChoice);
+    }
+    void germanDetails()
+    {
+        const grammar::Language de = grammar::Language::German;
+        QCOMPARE(fixedBy(U("Er sagte dass er kommt, aber er weiß nicht ob es regnet und blieb weil er müde war."), QStringLiteral("de-comma-before-conjunction"), de),
+                 U("Er sagte, dass er kommt, aber er weiß nicht, ob es regnet und blieb, weil er müde war."));
+        QCOMPARE(fixedBy(U("Das haus und der hund im auto."), QStringLiteral("de-noun-capital"), de), U("Das Haus und der Hund im Auto."));
+        QCOMPARE(fixedBy(U("Ihr seit nicht allein, seid zwei Jahren schon."), QStringLiteral("de-seid-seit"), de), U("Ihr seid nicht allein, seit zwei Jahren schon."));
+        QCOMPARE(fixedBy(U("Dass ist gut, und hin und wider auch."), QStringLiteral("de-das-dass"), de), U("Das ist gut, und hin und wider auch."));
+        QCOMPARE(fixedBy(U("Es ist wieder Willen, und er kommt wider mal."), QStringLiteral("de-wider-wieder"), de), U("Es ist wider Willen, und er kommt wieder mal."));
+        QCOMPARE(fixedBy(U("Das gilt z.B. und d.h. auch u.a. hier."), QStringLiteral("de-abbreviation-space"), de), U("Das gilt z.\u00A0B. und d.\u00A0h. auch u.\u00A0a. hier."));
+        QVERIFY(byRule(U("Das gilt z. B. hier und www.a.b.de auch."), QStringLiteral("de-abbreviation-space"), de).isEmpty());
+        // The rules that English has too (spaces and marks) run on German text as they are.
+        QVERIFY(!byRule(U("Das ist gut , sehr gut."), QStringLiteral("space-before-mark"), de).isEmpty());
+        QVERIFY(byRule(U("Klicken Sie auf die Schaltfläche ? am rechten Rand."), QStringLiteral("space-before-mark"), de).isEmpty());
+        QVERIFY(!byRule(U("Was machst du ? Wir gehen."), QStringLiteral("space-before-mark"), de).isEmpty());
+        QVERIFY(byRule(U("Er kam, etwa weil er musste."), QStringLiteral("de-comma-before-conjunction"), de).isEmpty());
+    }
     void aTextIsCheckedByTheRulesOfItsLanguageOnly()
     {
         // The rules of French do not run on English (and the other way round): the text of one language is not flagged by another's rules.
@@ -555,7 +582,7 @@ QVector<ShellGrammarRulesTests::RuleCase> ShellGrammarRulesTests::frenchRuleCase
             "Que voulez-vous\u00A0? Rien.", "Que voulez-vous\u202F? Rien.", "Rendez-vous à 10:30 à Paris.", "Voir http://exemple.fr/page?id=3 pour plus.", "Bonjour :) à tous.", "Soit f : X vers Y."),
         FRC("fr-guillemets", "Il dit «bonjour» à tous.", "Il dit «\u00A0bonjour\u00A0» à tous.", "Il dit «\u00A0bonjour\u00A0» à tous.", "Il dit «\u202Fbonjour\u202F» à tous.", "Il dit bonjour à tous."),
         FRC("fr-elision", "Le ami de la école est ici.", "L'ami de l'école est ici.",
-            "Le onze mai, la une du journal.", "Le haricot et le héros.", "Elle parle de un à dix.", "Le Ami est ici.", "Le yaourt est bon.", "Elle y va."),
+            "Le onze mai, la une du journal.", "Le haricot et le héros.", "Elle parle de un à dix.", "Le Ami est ici.", "Le yaourt est bon.", "Elle y va.", "Les valeurs de y sont connues.", "Une langue tel que en, es ou pt."),
         FRC("fr-si-il", "Si il pleut, nous restons.", "S'il pleut, nous restons.", "S'il pleut, nous restons.", "Si elle pleure, partez.", "Si on y va, il vient.", "Si les enfants partent, il reste."),
         FRC("fr-a-accent", "Il à mangé tout le gâteau.", "Il a mangé tout le gâteau.", "Il a mangé tout le gâteau.", "Il va à Paris demain.", "Elle donne le livre à Marie.", "À partir de demain, c'est fermé."),
         FRC("fr-ou-accent", "Ou est la gare ?", "Où est la gare ?", "Où est la gare ?", "Tu viens ou tu restes ?", "Ou bien tu restes.", "Du thé ou du café ?"),
@@ -564,10 +591,30 @@ QVector<ShellGrammarRulesTests::RuleCase> ShellGrammarRulesTests::frenchRuleCase
         FRC("fr-ca", "Ca va bien.", "Ça va bien.", "Ça va bien.", "Voir ca. 1950.", "Sa voiture va vite.", "Son cas est clair."),
         FRC("fr-quant", "Quand à lui, il reste.", "Quant à lui, il reste.", "Quant à lui, il reste.", "Quand il arrive, nous partons.", "Il sourit quand à la plage."),
         FRC("fr-hyphens", "Qu'est ce que tu fais ?", "Qu'est-ce que tu fais ?", "Qu'est-ce que tu fais ?", "Ce n'est pas ce que tu crois.", "C'est-à-dire que oui.", "Il sait qu'est-ce que c'est."),
-        FRC("fr-sentence-start", "Il pleut. nous restons.", "Il pleut. Nous restons.", "Voir l'art. premier du code.", "Il pleut. Nous restons.", "Voir env. dix pages.", "Il pleut, etc. et nous restons."),
+        FRC("fr-sentence-start", "Il pleut. nous restons.", "Il pleut. Nous restons.", "Voir l'art. premier du code.", "Il pleut. Nous restons.", "Voir env. dix pages.", "Il pleut, etc. et nous restons.", "Les noms _xlfn. sont réservés.", "Il pleut. p2s3 est une page."),
         FRC("fr-wordy-phrases", "Il vient malgré que la pluie tombe.", "Il vient bien que la pluie tombe.", "Il vient bien que la pluie tombe.", "Il vient malgré la pluie.", "Voire plus encore.", "La suite est claire."),
     };
 #undef FRC
+}
+
+QVector<ShellGrammarRulesTests::RuleCase> ShellGrammarRulesTests::germanRuleCases()
+{
+#define DEC(rule, bad, fixed, ...) {rule, bad, fixed, L({__VA_ARGS__}), nullptr, nullptr, grammar::Language::German}
+    return {
+        DEC("de-repeated-word", "Wir gehen in in die Stadt.", "Wir gehen in die Stadt.", "Ich glaube, dass das das Problem ist.", "Die, die kommen, sind da.", "Sehr sehr gut.", "Bora Bora ist schön."),
+        DEC("de-das-dass", "Ich glaube, das er kommt.", "Ich glaube, dass er kommt.", "Das Haus, das er baute, ist groß.", "Ich glaube, dass er kommt.", "Das ist gut.", "Es ist das Beste, das man kennt."),
+        DEC("de-seid-seit", "Ich bin seid zwei Jahren hier.", "Ich bin seit zwei Jahren hier.", "Ihr seid nicht allein.", "Seit zwei Jahren sind wir hier.", "Ihr seid gestern gekommen.", "Er hilft ihr seit Jahren."),
+        DEC("de-wider-wieder", "Er kommt wider mal.", "Er kommt wieder mal.", "Das geschah wider Willen.", "Wir sehen uns wieder.", "Hin und wider regnet es.", "Er sagte es wider besseres Wissen."),
+        DEC("de-comma-before-conjunction", "Ich weiß dass du kommst.", "Ich weiß, dass du kommst.", "Ich weiß, dass du kommst.", "Er sieht aus, als ob er schliefe.", "Er kam nur weil er musste.", "Er blieb ohne dass wir es merkten.",
+            "Sie fragte und weil er schwieg ging sie."),
+        DEC("de-noun-capital", "Das haus ist groß.", "Das Haus ist groß.", "Das Haus ist groß.", "Wir essen das essen nicht.", "Das ist weg und der morgen kommt.", "Er hat im Haus gewohnt."),
+        DEC("de-als-wie", "Er ist größer wie ich.", "Er ist größer als ich.", "Er ist größer als ich.", "Er ist so groß wie ich.", "Er ist nicht größer wie ein Haus, sondern gleich.", "Es geht weiter wie bisher."),
+        DEC("de-run-together", "Das ist garnicht gut.", "Das ist gar nicht gut.", "Das ist gar nicht gut.", "Das ist nicht gut.", "Vor allem im Winter.", "Noch einmal bitte."),
+        DEC("de-sentence-start", "Es regnet. wir bleiben hier.", "Es regnet. Wir bleiben hier.", "Es regnet. Wir bleiben hier.", "Das gilt usw. und so weiter.", "Siehe vgl. oben.", "Er kam am 3. oktober an."),
+        DEC("de-wordy-phrases", "Wir bleiben nach wie vor hier.", "Wir bleiben weiterhin hier.", "Wir bleiben weiterhin hier.", "Wie vor hundert Jahren.", "Nach dem Essen kam er.", "Wir bleiben hier."),
+        DEC("de-abbreviation-space", "Das gilt z.B. hier.", "Das gilt z.\u00A0B. hier.", "Das gilt z.\u00A0B. hier.", "Das gilt z. B. hier.", "Die Datei a.b.c liegt dort.", "Das gilt zum Beispiel hier."),
+    };
+#undef DEC
 }
 
 JP_TEST_CLASS(ShellGrammarRulesTests)
