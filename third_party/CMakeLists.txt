@@ -74,7 +74,12 @@ endif()
 # it is set and says a name is a file in memory, FileMgr reads its lines from that memory (the same lines std::getline would give).
 # Nothing else changes. The patched copies of the sources are made in the build folder (the downloaded sources are never edited).
 set(HUNSPELL_PATCHED ${CMAKE_CURRENT_BINARY_DIR}/hunspell-patched/src/hunspell)
+# (the patch strings are quoted arguments, so a ";" in them stays inside one argument; a checkout with CRLF line endings must not
+# change them, so every carriage return is dropped from them and from the source, which the tarball has with LF alone)
 function(jo_hunspell_patch name old new)
+  string(REPLACE "\r" "" old "${old}")
+  string(REPLACE "\r" "" new "${new}")
+  string(REPLACE "\r" "" text "${text}")
   string(FIND "${text}" "${old}" at)
   if(at LESS 0)
     message(FATAL_ERROR "the Hunspell patch for ${name} does not apply: the source differs from 1.7.6")

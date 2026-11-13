@@ -2,3 +2,6 @@ resources/dict/** -text
 *.dat -text
 *.dic -text
 *.aff -text
+# Files whose bytes are compared or patched across platforms keep LF in every checkout.
+third_party/CMakeLists.txt text eol=lf
+tests/data/dict_golden.txt text eol=lf
