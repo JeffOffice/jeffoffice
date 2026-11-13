@@ -26,7 +26,11 @@ if(JO_SLIM_RELEASE AND CMAKE_BUILD_TYPE STREQUAL "Release")
   set(JO_SLIM_ACTIVE ON)
   include(CheckIPOSupported)
   check_ipo_supported(RESULT JO_IPO_OK OUTPUT JO_IPO_WHY LANGUAGES CXX)
-  if(JO_IPO_OK)
+  if(MINGW)
+    # No LTO with MinGW: its ld does not run the LTO plugin on our objects (the DLL came out empty on the Windows build). The dead-code
+    # removal below still applies.
+    message(STATUS "JO_SLIM_RELEASE: no link-time optimization with MinGW")
+  elseif(JO_IPO_OK)
     set(JO_SLIM_LTO ON)
   else()
     message(STATUS "JO_SLIM_RELEASE: no link-time optimization (${JO_IPO_WHY})")

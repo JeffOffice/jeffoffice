@@ -29,7 +29,8 @@ HOME each run, no file: the program's own marks ("first paint", "window usable")
 4. `JO_SLIM_RELEASE` (default ON, Release builds only): `-flto` (`check_ipo_supported`), `-ffunction-sections -fdata-sections`
    with `--gc-sections` (`-dead_strip` on macOS), applied to the shared library and its layers ONLY, not to the four programs (they are
    4 to 7 MB; and Qt's Windows entry point does not resolve `qMain` against an LTO program: the Windows VM link failed on it).
-   CI turns it off in the test-only builds and in pull requests.
+   Windows (MinGW) gets no LTO at all, only the section flags and `--gc-sections`: its ld did not run the LTO plugin on our objects and the DLL
+   came out empty. CI turns it off in the test-only builds and in pull requests.
 
 ## Before and after
 
