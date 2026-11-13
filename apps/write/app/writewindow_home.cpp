@@ -12,6 +12,7 @@
 #include "core/tableops.h"
 #include "core/homeops.h"
 #include "core/proofops.h"
+#include "core/writeprops.h"
 #include "translate/languages.h"
 
 #include "text/dictionaries.h"
@@ -354,7 +355,8 @@ void WriteWindow::showTranslatePane()
         FunctionHost *host = m_translateHost.get();
         host->sourceFn = [this] {
             if (!m_doc) return translate::Source();
-            return translate::readSource(m_view->cursor());
+            // (text a tracked change has deleted is left as it is: it is not sent, and not replaced)
+            return translate::readSource(m_view->cursor(), [](const QTextCharFormat &f) { return f.hasProperty(write::prop::TrackedDeleted); });
         };
         host->languageFn = [this] { return m_doc ? translate::languageOfTag(write::proofingLanguageAt(*m_doc, m_view->cursor())) : QString(); };
         host->browserFn = [this](const QString &text, const QString &code) {

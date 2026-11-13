@@ -1,6 +1,6 @@
 # The translation engine and its parts
 
-The Translate pane (JeffPub and JeffWrite) translates with Mozilla's Bergamot translator, built into the program as static libraries (`cmake/bergamot.cmake`, `third_party/bergamot`). Its source is not in this repository: the build fetches the commit named in `cmake/bergamot.cmake` of https://github.com/browsermt/bergamot-translator (with its submodules) and applies the patches in `third_party/bergamot/patches` to a copy. What each patch changes is written at the top of its file.
+The Translate pane (JeffPub and JeffWrite) translates with Mozilla's Bergamot translator, built into the program as static libraries (`cmake/bergamot_step.cmake`, `third_party/bergamot`). Its source is not in this repository: the build fetches the commit named in `cmake/bergamot_step.cmake` of https://github.com/browsermt/bergamot-translator (with its submodules) and applies the patches in `third_party/bergamot/patches` to a copy. What each patch changes is written at the top of its file.
 
 | Part | License | Text |
 |---|---|---|
@@ -11,6 +11,9 @@ The Translate pane (JeffPub and JeffWrite) translates with Mozilla's Bergamot tr
 | ruy (matrix multiplication) | Apache-2.0 | Apache-2.0.txt in the licenses folder |
 | cpuinfo (what the processor can do, used by ruy) | BSD-2-Clause | `cpuinfo-BSD-2-Clause.txt` |
 | simd_utils (vector math on ARM) | BSD-2-Clause | `simd_utils-BSD-2-Clause.txt` |
+| Inside SentencePiece, compiled in (the check of what is compiled is the list of its sources in `src/CMakeLists.txt` and the headers they include): protobuf-lite (protocol buffers, lite) | BSD-3-Clause | `sentencepiece-protobuf-lite.txt` |
+| Inside SentencePiece: absl (a few of Abseil's header-only strings, containers, and flags) | Apache-2.0 | `sentencepiece-absl.txt` |
+| Inside SentencePiece: darts_clone (a trie), esaxx (suffix arrays, for training, which is linked) | BSD-3-Clause, MIT | `sentencepiece-darts_clone.txt`, `sentencepiece-esaxx.txt` |
 | ssplit-cpp (splits text into sentences) | Apache-2.0 | `ssplit-cpp.txt` |
 | PCRE2 (regular expressions, used by ssplit-cpp) | BSD-3-Clause | `pcre2-BSD.txt` |
 | Libraries inside Marian: CLI11, cnpy, faiss, mio, pathie-cpp, phf, spdlog, yaml-cpp, zstr | MIT, BSD, and similar | `marian-<name>.txt` |

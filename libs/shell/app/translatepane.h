@@ -79,6 +79,7 @@ Q_SIGNALS:
 private:
     void setBusy(bool busy);
     void showMessage(const QString &text);
+    QString tooLongMessage() const;
     void updateButtons();
     void startDownload();
     void startJob();
@@ -96,7 +97,7 @@ private:
     QPushButton *m_swap, *m_use, *m_run, *m_cancel, *m_replace, *m_below, *m_download, *m_browser;
     QPlainTextEdit *m_original;
     QTextBrowser *m_result;
-    QLabel *m_status, *m_note;
+    QLabel *m_status, *m_note, *m_privacy;
     QProgressBar *m_progress;
     translate::Source m_source;
     QVector<translate::Piece> m_pieces;

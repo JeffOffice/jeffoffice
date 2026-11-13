@@ -7,11 +7,17 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QRandomGenerator>
 
 namespace jp {
 namespace translate {
 
-Downloader::Downloader(const ModelStore &store, QNetworkAccessManager *net, QObject *parent) : QObject(parent), m_store(store), m_net(net) {}
+Downloader::Downloader(const ModelStore &store, QNetworkAccessManager *net, QObject *parent) : QObject(parent), m_store(store), m_net(net)
+{
+    // (the number of this program and a number of this download: another program, or another window, fetching the same pair has other folders)
+    static int counter = 0;
+    m_token = QString::number(QCoreApplication::applicationPid()) + QLatin1Char('x') + QString::number(++counter) + QLatin1Char('x') + QString::number(QRandomGenerator::global()->generate(), 16);
+}
 
 Downloader::~Downloader()
 {
@@ -22,6 +28,8 @@ Downloader::~Downloader()
     }
     delete m_out;
     delete m_hash;
+    if (m_running)
+        for (const ModelPair &p : m_pairs) m_store.removePart(p.from, p.to, m_token);
 }
 
 void Downloader::start(const QVector<ModelPair> &pairs)
@@ -41,9 +49,9 @@ void Downloader::start(const QVector<ModelPair> &pairs)
         finish(true, false, QString());
         return;
     }
+    m_store.removeStaleParts();   // (the half-made folders of a download that was cut off, long ago)
     for (const ModelPair &p : m_pairs) {
-        m_store.remove(p.from, p.to);   // (a half-made folder of an earlier try)
-        QDir().mkpath(m_store.partFolder(p.from, p.to));
+        QDir().mkpath(m_store.partFolder(p.from, p.to, m_token));
     }
     Q_EMIT progress(0, m_total);
     next();
@@ -68,7 +76,7 @@ void Downloader::finish(bool ok, bool canceled, const QString &error)
     delete m_hash;
     m_hash = nullptr;
     if (!ok)
-        for (const ModelPair &p : m_pairs) QDir(m_store.partFolder(p.from, p.to)).removeRecursively();
+        for (const ModelPair &p : m_pairs) m_store.removePart(p.from, p.to, m_token);
     m_running = false;
     Q_EMIT finished(ok, canceled, error);
 }
@@ -81,7 +89,7 @@ void Downloader::next()
     }
     const ModelPair &p = m_pairs[m_pair];
     if (m_file >= p.files.size()) {
-        if (!m_store.commit(p)) {
+        if (!m_store.commit(p, m_token)) {
             finish(false, false, QCoreApplication::translate("jp::translate", "The translation files could not be saved."));
             return;
         }
@@ -95,7 +103,7 @@ void Downloader::next()
         return;
     }
     const ModelFile &f = p.files[m_file];
-    m_out = new QFile(m_store.partFolder(p.from, p.to) + QLatin1Char('/') + f.fileName);
+    m_out = new QFile(m_store.partFolder(p.from, p.to, m_token) + QLatin1Char('/') + f.fileName);
     if (!m_out->open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         finish(false, false, QCoreApplication::translate("jp::translate", "The translation files could not be saved."));
         return;
@@ -129,7 +137,15 @@ void Downloader::readChunk()
             finish(false, false, QCoreApplication::translate("jp::translate", "A translation file is larger than it should be, and was refused."));
             return;
         }
-        m_out->write(chunk);
+        if (m_out->write(chunk) != chunk.size()) {
+            QNetworkReply *r = m_reply;
+            m_reply = nullptr;
+            r->disconnect(this);
+            r->abort();
+            r->deleteLater();
+            finish(false, false, QCoreApplication::translate("jp::translate", "The translation files could not be written: the disk may be full. Nothing was installed."));
+            return;
+        }
         m_hash->addData(chunk);
     }
     Q_EMIT progress(m_doneBefore + m_got, m_total);
@@ -150,15 +166,21 @@ void Downloader::replyDone()
         finish(false, err == QNetworkReply::OperationCanceledError ? true : false, err == QNetworkReply::OperationCanceledError ? QString() : QCoreApplication::translate("jp::translate", "The download failed: %1").arg(text));
         return;
     }
+    const bool flushed = m_out->flush();
     m_out->close();
+    const bool written = flushed && m_out->error() == QFileDevice::NoError;
     const QString got = QString::fromLatin1(m_hash->result().toHex());
     delete m_out;
     m_out = nullptr;
     delete m_hash;
     m_hash = nullptr;
     const ModelPair &p = m_pairs[m_pair];
+    if (!written) {
+        finish(false, false, QCoreApplication::translate("jp::translate", "The translation files could not be written: the disk may be full. Nothing was installed."));
+        return;
+    }
     if (m_got != f.size || got != f.sha256) {
-        QFile::remove(m_store.partFolder(p.from, p.to) + QLatin1Char('/') + f.fileName);
+        QFile::remove(m_store.partFolder(p.from, p.to, m_token) + QLatin1Char('/') + f.fileName);
         finish(false, false, QCoreApplication::translate("jp::translate", "A translation file did not match its checksum, and was thrown away. Nothing was installed."));
         return;
     }

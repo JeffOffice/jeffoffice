@@ -28,6 +28,8 @@ public:
     // Fetches every one of `pairs` that is not installed. `finished` comes once, when all are installed, or the first failed, or `cancel` was called.
     void start(const QVector<ModelPair> &pairs);
     void cancel();
+    // The name the half-made folders of this downloader carry (for a test; each downloader has one of its own).
+    void setPartToken(const QString &token) { m_token = token; }
     bool isRunning() const { return m_running; }
     qint64 totalBytes() const { return m_total; }
 
@@ -53,6 +55,7 @@ private:
     QFile *m_out = nullptr;
     QCryptographicHash *m_hash = nullptr;
     qint64 m_got = 0;
+    QString m_token;   // this downloader's own name in the half-made folders it makes
 };
 
 } // namespace translate

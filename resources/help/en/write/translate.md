@@ -13,9 +13,9 @@
 
 If you move the cursor or change the text after you click **Translate**, click **Use Selection** to read the text again, then click **Translate** again. The pane will not put a translation over text that is no longer the text it translated.
 
-When **Track Changes** is on, **Replace** and **Insert Below** are tracked changes like your typing, so a reviewer can see what was there before. The translated words then take the look your typing would have.
+When **Track Changes** is on, **Replace** and **Insert Below** are tracked changes like your typing, so a reviewer can see what was there before. The translated words then take the look your typing would have. Words that a tracked change has deleted are left alone: they are not translated, and not copied by **Insert Below**.
 
-**Cancel** stops a translation that is taking too long. Long texts take longer: a page of text takes a few seconds on most computers.
+**Cancel** stops a translation that is taking too long, and so does closing the pane: the window never waits for it. Long texts take longer: a page of text takes a few seconds on most computers. The pane translates at most 1,000,000 letters at once (about 200 pages); with more selected, it says so and asks you to select less. It cuts long paragraphs into pieces of about 1,500 letters, at the end of a sentence where it can, and puts them back together.
 
 ## The first time you use a language
 
@@ -23,11 +23,11 @@ A translation needs a set of files, called a model, for each direction: one for 
 
 JeffWrite checks each file against a fingerprint (a SHA-256 checksum) before it uses it. A file that does not match is thrown away, and the language is not installed.
 
-The files are kept in JeffWrite's data folder, and you can use them in all the JeffOffice apps that have the Translate pane. Two languages that have no model of their own, such as German and French, go through English, so the pane needs both models.
+The files are kept in one folder that all the JeffOffice apps share (a folder named JeffOffice in your user data folder, in Translation/models), so a language you download in one app is ready in the others, and it is downloaded only once. Two languages that have no model of their own, such as German and French, go through English, so the pane needs both models.
 
 ## When a language has no model
 
-If a pair of languages has no model, the pane says so and offers **Open in Your Browser Instead**. That opens a free translation website, LibreTranslate, with your text. Only then does your text leave your computer, because it goes to that website. Nothing is sent until you click that button.
+If a pair of languages has no model, the pane says so and offers **Open in Your Browser Instead**. That opens a free translation website, LibreTranslate (or the service whose address you chose in the setting for it), with your text. Only then does your text leave your computer, because it goes to that website, and the pane no longer says that it stays on your computer. Nothing is sent until you click that button.
 
 ## About the quality
 

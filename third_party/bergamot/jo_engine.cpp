@@ -109,13 +109,17 @@ bool Engine::translatePieces(int handle, const std::vector<std::string> &pieces,
         options.HTML = html;
         // Several pieces at once, so the engine can batch short ones together (a piece alone is a poor batch); a cancel is looked at before each is handed over.
         const size_t window = m_impl->workers() * 8;
-        std::vector<std::promise<std::string>> promises(pieces.size());
+        // (the promises are shared with the callbacks: when this returns early, by an exception or a cancel, what is still queued finds them alive)
+        std::vector<std::shared_ptr<std::promise<std::string>>> promises;
         std::vector<std::future<std::string>> futures;
-        for (auto &p : promises) futures.push_back(p.get_future());
+        for (size_t i = 0; i < pieces.size(); ++i) {
+            promises.push_back(std::make_shared<std::promise<std::string>>());
+            futures.push_back(promises.back()->get_future());
+        }
         size_t submitted = 0;
         for (size_t done = 0; done < pieces.size(); ++done) {
             while (submitted < pieces.size() && submitted < done + window && !(cancel && cancel->load())) {
-                auto *p = &promises[submitted];
+                auto p = promises[submitted];
                 std::string piece = pieces[submitted];
                 if (piece.empty()) p->set_value(std::string());
                 else m_impl->service.translate(model, std::move(piece), [p](mb::Response &&r) { p->set_value(std::move(r.target.text)); }, options);

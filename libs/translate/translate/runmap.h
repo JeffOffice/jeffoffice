@@ -12,16 +12,22 @@
 #include <QTextCharFormat>
 #include <QTextCursor>
 #include <QVector>
+#include <functional>
 
 class QTextDocument;
 
 namespace jp {
 namespace translate {
 
+// The most that is read, translated, and cut at: a selection of more than kMostSourceChars letters is not read; a piece (a paragraph's stretch of text) goes to the translator in chunks of at most about kMostPieceChars, cut at a sentence or a space.
+constexpr int kMostSourceChars = 1000000;
+constexpr int kMostPieceChars = 1500;
+
 struct Run {
     QString text;
     QTextCharFormat format;
     bool fixed = false;   // a tab, a line break, or an inline object: it is kept as it is
+    bool skipped = false; // text the program says is not to be translated (a tracked deletion): kept as it is, and not carried to a copy
     int start = -1;       // its place in the document when it was read (-1 for a run made by a translation)
 };
 
@@ -37,6 +43,8 @@ struct Source {
     QVector<Paragraph> paragraphs;
     int first = 0, last = 0;
     QString snapshot;   // the text read (QTextCursor::selectedText), to see whether it has changed since
+    QVector<QPair<int, QTextFormat>> marks;   // where each block and each stretch of one look began, and the look: a change of look is a change too
+    bool tooLong = false;   // the selection is longer than kMostSourceChars: nothing was read
     bool isEmpty() const;
     // The text of every paragraph, one after the other with a line feed between.
     QString plainText() const;
@@ -44,8 +52,10 @@ struct Source {
     bool isCurrent() const;
 };
 
-// Reads the source from `c` (its selection, or its paragraph when nothing is selected).
-Source readSource(const QTextCursor &c);
+// Whether text with this look is not to be translated.
+using SkipFn = std::function<bool(const QTextCharFormat &)>;
+// Reads the source from `c` (its selection, or its paragraph when nothing is selected); text `skip` says yes to is kept in the runs as it is, and left out of what is translated.
+Source readSource(const QTextCursor &c, const SkipFn &skip = SkipFn());
 
 // A piece of a paragraph: runs `first` to `last` of it, none of them fixed, and at least one letter or digit in them.
 struct Piece {
@@ -54,6 +64,15 @@ struct Piece {
 QVector<Piece> pieces(const Source &source);
 // The HTML of a piece (what it says, with <b>, <i>, and <u>); the text is written with &amp;, &lt;, and &gt;, and the white space at its ends is left out (it is kept by `rebuild`).
 QString pieceHtml(const Source &source, const Piece &piece);
+
+// A piece cut into chunks of at most about `most` characters, at the end of a sentence where there is one in the stretch, else at a space, else (a run of letters with
+// no space in it) wherever the limit falls, never inside a tag, an entity, or a pair of surrogates. A tag that is open at a cut is closed at the end of the chunk and opened
+// again at the start of the next. `trailing` is the white space the chunk ended with, which is left off it and goes back after its translation. Work grows with the length of
+// the text, not with its square.
+struct Chunk {
+    QString html, trailing;
+};
+QVector<Chunk> splitForTranslation(const QString &html, int most = kMostPieceChars);
 
 // The translation of every piece, in the order `pieces` gave them (an empty one is left as it was): the paragraphs with their text translated and the rest as it was.
 struct Replacement {

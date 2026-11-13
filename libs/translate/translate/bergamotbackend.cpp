@@ -8,10 +8,11 @@
 
 #include <QCoreApplication>
 #include <QFile>
-#include <QMutex>
+#include <chrono>
 #include <QThread>
 #include <list>
 #include <map>
+#include <mutex>
 #endif
 
 namespace jp {
@@ -28,8 +29,11 @@ public:
 
     bool translatePieces(const ModelPair &pair, const ModelStore &store, const QStringList &pieces, bool html, QStringList *out, QString *error, const std::atomic<bool> *cancel) override
     {
-        QMutexLocker lock(&m_lock);
-        const int handle = load(pair, store, error);
+        // (another translation may be using the engine: wait for it, but a cancel is heard while waiting)
+        std::unique_lock<std::timed_mutex> lock(m_lock, std::defer_lock);
+        while (!lock.try_lock_for(std::chrono::milliseconds(10)))
+            if (cancel && cancel->load()) return false;
+        const int handle = load(pair, store, error, cancel);
         if (!handle) return false;
         std::vector<std::string> in, got;
         for (const QString &p : pieces) in.push_back(p.toUtf8().toStdString());
@@ -50,7 +54,8 @@ private:
         return !into->empty();
     }
 
-    int load(const ModelPair &pair, const ModelStore &store, QString *error)
+    // 0 with `error` empty when `cancel` was set (between one file and the next).
+    int load(const ModelPair &pair, const ModelStore &store, QString *error, const std::atomic<bool> *cancel)
     {
         const QString key = pair.key();
         auto it = m_loaded.find(key);
@@ -61,6 +66,7 @@ private:
         }
         jo::translate::engine::ModelBytes bytes;
         bool ok = read(store.filePath(pair, QStringLiteral("model")), &bytes.model);
+        if (cancel && cancel->load()) return 0;
         const QString shortlist = store.filePath(pair, QStringLiteral("shortlist"));
         if (!shortlist.isEmpty()) ok = ok && read(shortlist, &bytes.shortlist);
         for (const char *role : {"vocab", "srcvocab", "trgvocab"}) {
@@ -68,6 +74,7 @@ private:
             if (path.isEmpty()) continue;
             std::string v;
             ok = ok && read(path, &v);
+            if (cancel && cancel->load()) return 0;
             bytes.vocabs.push_back(std::move(v));
         }
         if (!ok) {
@@ -92,7 +99,7 @@ private:
         return handle;
     }
 
-    QMutex m_lock;
+    std::timed_mutex m_lock;
     jo::translate::engine::Engine m_engine;
     std::map<QString, int> m_loaded;
     std::list<QString> m_order;

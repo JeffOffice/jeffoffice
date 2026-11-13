@@ -21,6 +21,8 @@ if ! JO_JOBS=${JO_JOBS:-12} sh /home/user/code/jeffpub79/.claude/agents-kit/wtbu
   tail -15 "$L.build" >> "$L"; echo "BUILD FAILED" >> "$L"; exit 1
 fi
 cd build || exit 1
+# (the program with the translator left out still compiles: the files that differ, syntax only)
+echo "== translate off: $(python3 ../tools/check_translate_off.py . 2>&1 | tail -1)" >> "$L"
 T=$(mktemp -d)
 run() {  # run <log> <suite> <shard or ""> [functions...]
   local log=$1 s=$2 shard=$3; shift 3

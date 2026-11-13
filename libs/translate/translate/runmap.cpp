@@ -45,7 +45,6 @@ QString escaped(const QString &s)
         if (c == QLatin1Char('&')) out += QLatin1String("&amp;");
         else if (c == QLatin1Char('<')) out += QLatin1String("&lt;");
         else if (c == QLatin1Char('>')) out += QLatin1String("&gt;");
-        else if (c == QChar(0x00AD)) continue;   // (a soft hyphen inside a word would cut it in two for the translator)
         else out += c;
     }
     return out;
@@ -69,6 +68,7 @@ QString Source::plainText() const
     for (const Paragraph &p : paragraphs) {
         QString t;
         for (const Run &r : p.runs) {
+            if (r.skipped) continue;
             QString part = r.text;
             part.remove(QChar::ObjectReplacementCharacter).replace(QChar::LineSeparator, QLatin1Char('\n'));
             t += part;
@@ -78,6 +78,24 @@ QString Source::plainText() const
     return lines.join(QLatin1Char('\n'));
 }
 
+namespace {
+
+// Where each block and each stretch of one look begins in [a, b], and the look.
+QVector<QPair<int, QTextFormat>> marksOf(QTextDocument *doc, int a, int b)
+{
+    QVector<QPair<int, QTextFormat>> marks;
+    for (QTextBlock block = doc->findBlock(a); block.isValid() && block.position() <= b; block = block.next()) {
+        marks.push_back({block.position(), block.blockFormat()});
+        for (QTextBlock::iterator it = block.begin(); !it.atEnd(); ++it) {
+            const QTextFragment frag = it.fragment();
+            if (frag.isValid()) marks.push_back({frag.position(), frag.charFormat()});
+        }
+    }
+    return marks;
+}
+
+} // namespace
+
 bool Source::isCurrent() const
 {
     if (!document) return false;
@@ -85,10 +103,11 @@ bool Source::isCurrent() const
     QTextCursor c(document);
     c.setPosition(first);
     c.setPosition(last, QTextCursor::KeepAnchor);
-    return c.selectedText() == snapshot;
+    if (c.selectedText() != snapshot) return false;
+    return marksOf(document, first, last) == marks;
 }
 
-Source readSource(const QTextCursor &cursor)
+Source readSource(const QTextCursor &cursor, const SkipFn &skip)
 {
     Source s;
     if (cursor.isNull()) return s;   // (a cursor whose document has gone has none to ask)
@@ -99,10 +118,15 @@ Source readSource(const QTextCursor &cursor)
     int b = cursor.hasSelection() ? cursor.selectionEnd() : cursor.block().position() + cursor.block().length() - 1;
     s.first = a;
     s.last = b;
+    if (b - a > kMostSourceChars) {
+        s.tooLong = true;
+        return s;
+    }
     QTextCursor all(doc);
     all.setPosition(a);
     all.setPosition(b, QTextCursor::KeepAnchor);
     s.snapshot = all.selectedText();
+    s.marks = marksOf(doc, a, b);
     for (QTextBlock block = doc->findBlock(a); block.isValid() && block.position() <= b; block = block.next()) {
         Paragraph p;
         p.blockFormat = block.blockFormat();
@@ -116,6 +140,16 @@ Source readSource(const QTextCursor &cursor)
             const int to = std::min(p.end, frag.position() + frag.length());
             if (to <= from) continue;
             const QString text = frag.text().mid(from - frag.position(), to - from);
+            if (skip && skip(frag.charFormat())) {
+                Run r;
+                r.text = text;
+                r.format = frag.charFormat();
+                r.fixed = true;
+                r.skipped = true;
+                r.start = from;
+                p.runs.push_back(r);
+                continue;
+            }
             // Cut at the characters that are kept as they are.
             int i = 0;
             while (i < text.size()) {
@@ -230,7 +264,8 @@ QString decodeEntity(const QString &name)
     if (name.startsWith(QLatin1Char('#'))) {
         bool ok = false;
         const uint v = name.startsWith(QLatin1String("#x")) || name.startsWith(QLatin1String("#X")) ? name.mid(2).toUInt(&ok, 16) : name.mid(1).toUInt(&ok, 10);
-        if (ok && v > 0 && v <= 0x10FFFF) return QString::fromUcs4(reinterpret_cast<const char32_t *>(&v), 1);
+        // (a number that is half of a pair of surrogates, or none of Unicode, is not a character: the entity stays as written)
+        if (ok && v > 0 && v <= 0x10FFFF && !(v >= 0xD800 && v <= 0xDFFF)) return QString::fromUcs4(reinterpret_cast<const char32_t *>(&v), 1);
     }
     return QString();
 }
@@ -313,6 +348,108 @@ QVector<Run> runsFromHtml(const QString &html, const QVector<Run> &original)
     return out;
 }
 
+
+QVector<Chunk> splitForTranslation(const QString &html, int most)
+{
+    QVector<Chunk> out;
+    if (html.size() <= most) {
+        out.push_back({html, QString()});
+        return out;
+    }
+    struct Cut {
+        int at = -1;           // the place in `html` the chunk ends at
+        QStringList stack;     // the tags open there
+    };
+    const int n = html.size();
+    int start = 0;
+    QStringList stack;   // the tags open at `start`
+    while (start < n) {
+        QStringList now = stack;
+        Cut sentence, space;
+        int i = start, size = 0;
+        bool full = false;
+        while (i < n) {
+            // One token: a tag, an entity, or a letter (with its low surrogate).
+            int j = i + 1;
+            const QChar c = html.at(i);
+            if (c == QLatin1Char('<')) {
+                const int close = html.indexOf(QLatin1Char('>'), i);
+                if (close > i && close - i < 40) {
+                    j = close + 1;
+                    QString tag = html.mid(i + 1, close - i - 1).trimmed().toLower();
+                    const bool closing = tag.startsWith(QLatin1Char('/'));
+                    if (closing) tag = tag.mid(1);
+                    if (closing) {
+                        if (!now.isEmpty() && now.last() == tag) now.removeLast();
+                    } else if (!tag.endsWith(QLatin1Char('/'))) {
+                        now.push_back(tag);
+                    }
+                }
+            } else if (c == QLatin1Char('&')) {
+                const int semi = html.indexOf(QLatin1Char(';'), i);
+                if (semi > i && semi - i <= 10) j = semi + 1;
+            } else if (c.isHighSurrogate() && j < n && html.at(j).isLowSurrogate()) {
+                ++j;
+            }
+            if (size + (j - i) > most && size > 0) {
+                full = true;
+                break;
+            }
+            size += j - i;
+            const bool wasSpace = c.isSpace();
+            i = j;
+            // A place to cut: after the white space that follows the end of a sentence, or after any white space.
+            if (wasSpace) {
+                const QChar before = i >= 2 ? html.at(i - 2) : QChar();
+                const bool end = before == QLatin1Char('.') || before == QLatin1Char('!') || before == QLatin1Char('?') || before == QChar(0x3002) || before == QChar(0xFF01) || before == QChar(0xFF1F)
+                    || before == QLatin1Char('>') || c == QLatin1Char('\n');
+                // (a tag before the space may close a sentence's last words: look behind it for the stop)
+                bool stop = end && before != QLatin1Char('>');
+                if (before == QLatin1Char('>')) {
+                    int k = i - 2;
+                    while (k >= start && html.at(k) == QLatin1Char('>')) {
+                        const int open = html.lastIndexOf(QLatin1Char('<'), k);
+                        if (open < start) break;
+                        k = open - 1;
+                    }
+                    const QChar real = k >= start ? html.at(k) : QChar();
+                    stop = real == QLatin1Char('.') || real == QLatin1Char('!') || real == QLatin1Char('?');
+                }
+                if (c == QLatin1Char('\n')) stop = true;
+                if (stop) sentence = {i, now};
+                space = {i, now};
+            }
+        }
+        if (!full) {
+            QString opening;
+            for (const QString &t : std::as_const(stack)) opening += QLatin1Char('<') + t + QLatin1Char('>');
+            out.push_back({opening + html.mid(start), QString()});
+            break;
+        }
+        Cut cut;
+        if (sentence.at > start + most / 4) cut = sentence;
+        else if (space.at > start) cut = space;
+        else cut = {i, now};
+        // (a cut that leaves a tag half-way is not possible: tokens are whole)
+        QString body = html.mid(start, cut.at - start);
+        int k = body.size();
+        while (k > 0 && body.at(k - 1).isSpace()) --k;
+        Chunk ch;
+        ch.trailing = body.mid(k);
+        body.truncate(k);
+        QString opening;
+        for (const QString &t : std::as_const(stack)) opening += QLatin1Char('<') + t + QLatin1Char('>');
+        QString closing;
+        for (int t = cut.stack.size() - 1; t >= 0; --t) closing += QLatin1String("</") + cut.stack.at(t) + QLatin1Char('>');
+        ch.html = opening + body + closing;
+        if (!body.isEmpty()) out.push_back(ch);
+        else if (!ch.trailing.isEmpty() && !out.isEmpty()) out.last().trailing += ch.trailing;
+        stack = cut.stack;
+        start = cut.at;
+    }
+    return out;
+}
+
 Result rebuild(const Source &source, const QVector<Piece> &list, const QStringList &translated)
 {
     Result r;
@@ -349,7 +486,8 @@ QString Result::plainText() const
     QStringList lines;
     for (const Paragraph &p : paragraphs) {
         QString t;
-        for (const Run &r : p.runs) t += r.text;
+        for (const Run &r : p.runs)
+            if (!r.skipped) t += r.text;
         t.remove(QChar::ObjectReplacementCharacter).replace(QChar::LineSeparator, QLatin1Char('\n'));
         lines << t;
     }
@@ -362,6 +500,7 @@ QString Result::html() const
     for (const Paragraph &p : paragraphs) {
         out += QLatin1String("<p>");
         for (const Run &r : p.runs) {
+            if (r.skipped) continue;
             const Flags g = flagsOf(r.format);
             QString part = r.text;
             part.replace(QLatin1Char('&'), QLatin1String("&amp;")).replace(QLatin1Char('<'), QLatin1String("&lt;")).replace(QLatin1Char('>'), QLatin1String("&gt;"));
@@ -424,6 +563,7 @@ bool applyInsertBelow(const Source &source, const Result &result, EditHooks &hoo
     for (const Paragraph &p : result.paragraphs) {
         QVector<Run> runs;
         for (Run r : p.runs) {
+            if (r.skipped) continue;
             r.text.remove(QChar::ObjectReplacementCharacter);
             r.format = hooks.languageFormat(r.format, result.language);
             if (!r.text.isEmpty()) runs.push_back(r);

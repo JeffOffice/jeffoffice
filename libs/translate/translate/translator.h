@@ -10,10 +10,11 @@
 #include <atomic>
 #include <memory>
 
-class QThread;
-
 namespace jp {
 namespace translate {
+
+// The most letters one translation takes in all (a request over it is refused with a message that says so).
+constexpr int kMostRequestChars = 1000000;
 
 class Backend {
 public:
@@ -49,15 +50,17 @@ private:
     std::shared_ptr<Backend> m_backend;
 };
 
-// One translation, run on a thread of its own: `finished` comes on the thread of the one that made it. `cancel` stops it between pieces.
+// One translation, run on a thread of the program's thread pool: `finished` comes on the thread of the one that made it. `cancel` stops it between pieces. Letting go
+// of the job (closing the window it was for) never waits for the thread: the translation stops at the next piece, in the pool, which is joined only when the program ends, and
+// nobody is told of its end.
 class TranslateJob : public QObject {
     Q_OBJECT
 public:
     TranslateJob(const Translator &translator, const QString &from, const QString &to, const QStringList &pieces, bool html, QObject *parent = nullptr);
     ~TranslateJob() override;
     void start();
-    void cancel() { m_cancel = true; }
-    bool isRunning() const;
+    void cancel() { m_state->cancel = true; }
+    bool isRunning() const { return m_state->running; }
 
 Q_SIGNALS:
     void finished(bool ok, bool canceled, const QStringList &out, const QString &error);
@@ -67,8 +70,10 @@ private:
     QString m_from, m_to;
     QStringList m_pieces;
     bool m_html;
-    std::atomic<bool> m_cancel{false};
-    QThread *m_thread = nullptr;
+    struct State {
+        std::atomic<bool> cancel{false}, running{false};
+    };
+    std::shared_ptr<State> m_state;
 };
 
 } // namespace translate

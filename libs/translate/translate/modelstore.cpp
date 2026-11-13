@@ -1,5 +1,6 @@
 #include "modelstore.h"
 
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -8,7 +9,7 @@
 namespace jp {
 namespace translate {
 
-QString ModelStore::defaultRoot() { return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/Translation/models"); }
+QString ModelStore::defaultRoot() { return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QStringLiteral("/JeffOffice/Translation/models"); }
 
 bool ModelStore::isInstalled(const ModelPair &pair) const
 {
@@ -38,17 +39,31 @@ QVector<ModelPair> ModelStore::missing(const QVector<ModelPair> &route) const
 
 bool ModelStore::remove(const QString &from, const QString &to) const
 {
-    const bool a = !QFileInfo::exists(folder(from, to)) || QDir(folder(from, to)).removeRecursively();
-    const bool b = !QFileInfo::exists(partFolder(from, to)) || QDir(partFolder(from, to)).removeRecursively();
-    return a && b;
+    bool ok = !QFileInfo::exists(folder(from, to)) || QDir(folder(from, to)).removeRecursively();
+    // (and every half-made one of the pair, whoever made it)
+    for (const QString &name : QDir(m_root).entryList({QStringLiteral(".part-") + from + QLatin1Char('-') + to + QStringLiteral("-*")}, QDir::Dirs | QDir::Hidden | QDir::NoDotAndDotDot))
+        ok = QDir(m_root + QLatin1Char('/') + name).removeRecursively() && ok;
+    return ok;
 }
 
-bool ModelStore::commit(const ModelPair &pair) const
+void ModelStore::removeStaleParts() const
 {
-    const QString part = partFolder(pair.from, pair.to);
+    const QDateTime old = QDateTime::currentDateTime().addDays(-1);
+    for (const QFileInfo &info : QDir(m_root).entryInfoList({QStringLiteral(".part-*")}, QDir::Dirs | QDir::Hidden | QDir::NoDotAndDotDot))
+        if (info.lastModified() < old) QDir(info.absoluteFilePath()).removeRecursively();
+}
+
+bool ModelStore::commit(const ModelPair &pair, const QString &token) const
+{
+    const QString part = partFolder(pair.from, pair.to, token);
     for (const ModelFile &f : pair.files) {
         const QFileInfo info(part + QLatin1Char('/') + f.fileName);
         if (!info.isFile() || info.size() != f.size) return false;
+    }
+    // (the same files, put in place by another download: nothing to do)
+    if (isInstalled(pair)) {
+        QDir(part).removeRecursively();
+        return true;
     }
     QFile rec(part + QStringLiteral("/installed.json"));
     if (!rec.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
@@ -56,7 +71,10 @@ bool ModelStore::commit(const ModelPair &pair) const
     rec.close();
     QDir().mkpath(m_root);
     if (QFileInfo::exists(folder(pair.from, pair.to)) && !QDir(folder(pair.from, pair.to)).removeRecursively()) return false;
-    return QDir().rename(part, folder(pair.from, pair.to));
+    if (QDir().rename(part, folder(pair.from, pair.to))) return true;
+    // (another download renamed its folder in meanwhile: that one stands)
+    QDir(part).removeRecursively();
+    return isInstalled(pair);
 }
 
 } // namespace translate

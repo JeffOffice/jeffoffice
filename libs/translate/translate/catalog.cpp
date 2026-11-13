@@ -58,7 +58,8 @@ Catalog Catalog::fromJson(const QByteArray &json, QString *error, bool allowLoca
             const QString address = o.value(QStringLiteral("url")).toString();
             mf.url = QUrl(address.contains(QLatin1String("://")) ? address : base + address, QUrl::StrictMode);
             const QString scheme = mf.url.scheme();
-            if (!mf.url.isValid() || !(scheme == QLatin1String("https") || (allowLocal && scheme == QLatin1String("file"))))
+            const bool loopback = scheme == QLatin1String("http") && (mf.url.host() == QLatin1String("127.0.0.1") || mf.url.host() == QLatin1String("localhost"));
+            if (!mf.url.isValid() || !(scheme == QLatin1String("https") || (allowLocal && (scheme == QLatin1String("file") || loopback))))
                 return fail(QStringLiteral("the address of ") + it.key() + QLatin1Char('/') + mf.role + QStringLiteral(" is not a secure web address"));
             const QJsonValue sz = o.value(QStringLiteral("size"));
             if (!sz.isDouble() || sz.toDouble() <= 0 || sz.toDouble() > 4e9) return fail(QStringLiteral("the size of ") + it.key() + QLatin1Char('/') + mf.role + QStringLiteral(" is wrong"));

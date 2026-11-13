@@ -394,6 +394,20 @@
    ]
   },
   {
+   "name": "protobuf-lite, Abseil, darts_clone, and esaxx (in SentencePiece)",
+   "url": "https://github.com/google/sentencepiece",
+   "use": "Small libraries inside SentencePiece",
+   "license": "BSD, Apache-2.0, and MIT",
+   "licenseUrl": "https://github.com/JeffOffice/jeffoffice/blob/main/third_party/bergamot/licenses/NOTICE.md",
+   "windowsOnly": false,
+   "apps": [
+    "JeffPub",
+    "JeffDeck",
+    "JeffWrite",
+    "JeffCrunch"
+   ]
+  },
+  {
    "name": "cpuinfo and simd_utils (in Bergamot)",
    "url": "https://github.com/pytorch/cpuinfo",
    "use": "Finding out what the processor can do, and vector math on ARM",

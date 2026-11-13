@@ -30,7 +30,7 @@ class Catalog {
 public:
     // The catalog built in the program.
     static const Catalog &builtIn();
-    // A catalog from its JSON; an invalid one (a file with no sha256, a size that is not a number, a plain http address, or, unless `allowLocal`, a file address) is empty, with `error` saying what is wrong.
+    // A catalog from its JSON; an invalid one (a file with no sha256, a size that is not a number, a plain http address, or, unless `allowLocal` (for tests: it lets file addresses and http ones for this computer through), a file address) is empty, with `error` saying what is wrong.
     static Catalog fromJson(const QByteArray &json, QString *error = nullptr, bool allowLocal = false);
 
     bool isEmpty() const { return m_pairs.isEmpty(); }

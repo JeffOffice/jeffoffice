@@ -145,9 +145,10 @@ TranslatePane::TranslatePane(TranslateHost *host, const translate::Translator &t
     put->addWidget(m_replace);
     put->addWidget(m_below);
     v->addLayout(put);
-    auto *privacy = new QLabel(tr("The translation is made on this computer. Your text is not sent anywhere."), this);
-    privacy->setWordWrap(true);
-    v->addWidget(privacy);
+    m_privacy = new QLabel(tr("The translation is made on this computer. Your text is not sent anywhere."), this);
+    m_privacy->setObjectName(QStringLiteral("translatePrivacy"));
+    m_privacy->setWordWrap(true);
+    v->addWidget(m_privacy);
     setMinimumWidth(240);
 
     connect(m_use, &QPushButton::clicked, this, &TranslatePane::refresh);
@@ -166,6 +167,7 @@ TranslatePane::TranslatePane(TranslateHost *host, const translate::Translator &t
         m_note->hide();
         m_download->hide();
         m_browser->hide();
+        m_privacy->show();
         m_status->hide();
         updateButtons();
     };
@@ -207,9 +209,16 @@ void TranslatePane::refresh()
         const QSignalBlocker block(m_from);
         m_from->setCurrentIndex(m_from->findData(lang));
     }
-    if (m_source.isEmpty()) showMessage(tr("Select the text you want to translate, then click Use Selection."));
+    m_privacy->show();
+    if (m_source.tooLong) showMessage(tooLongMessage());
+    else if (m_source.isEmpty()) showMessage(tr("Select the text you want to translate, then click Use Selection."));
     else m_status->hide();
     updateButtons();
+}
+
+QString TranslatePane::tooLongMessage() const
+{
+    return tr("That is too much text to translate at once. The most is %1 letters. Select less of it, then click Use Selection.").arg(QLocale().toString(translate::kMostSourceChars));
 }
 
 void TranslatePane::showMessage(const QString &text)
@@ -256,7 +265,12 @@ void TranslatePane::translateNow()
     m_note->hide();
     m_download->hide();
     m_browser->hide();
+    m_privacy->show();
     updateButtons();
+    if (m_source.tooLong) {
+        showMessage(tooLongMessage());
+        return;
+    }
     if (m_source.isEmpty() || m_pieces.isEmpty()) {
         showMessage(tr("There is no text to translate. Select some text, then click Use Selection."));
         return;
@@ -271,6 +285,7 @@ void TranslatePane::translateNow()
         showMessage(engine ? tr("There is no translation model for %1 to %2. You can open a translation website with the text instead.").arg(translate::languageName(from()), translate::languageName(to()))
                            : tr("This copy of the program has no translator built in. You can open a translation website with the text instead."));
         m_browser->show();
+        m_privacy->hide();   // (the website is the one place the text goes)
         return;
     }
     const qint64 bytes = m_translator.downloadBytes(from(), to());

@@ -6,10 +6,12 @@ third_party/librevenge, each with its COPYING.MPL), at
 https://github.com/JeffOffice/jeffoffice
 
 The Translate pane also builds in Mozilla's Bergamot translator, which is
-licensed under the same Mozilla Public License, version 2.0. We have not
-changed its files in this repository: the build fetches its source from
+licensed under the same Mozilla Public License, version 2.0. We have modified
+one of its files: src/translator/aligned.h, to make it build on Windows (the
+patch is third_party/bergamot/patches/09-windows-aligned-memory.patch). The
+build fetches the source of the translator from
 https://github.com/browsermt/bergamot-translator (the commit named in
-cmake/bergamot.cmake) and applies small patches, which are in this
-project's repository in third_party/bergamot/patches, at
-https://github.com/JeffOffice/jeffoffice. The licenses of the parts that come
-with it are in third_party/bergamot/licenses.
+cmake/bergamot_step.cmake) and applies our patches to a copy; the patches
+are in this project's repository, at https://github.com/JeffOffice/jeffoffice,
+in third_party/bergamot/patches. The licenses of the parts that come with the
+translator are in third_party/bergamot/licenses.

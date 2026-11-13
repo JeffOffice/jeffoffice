@@ -1,0 +1,27 @@
+All systems: the build downloads nothing that is not pinned. The sentence splitter would fetch PCRE2 from the web when it was not in its folder (the build puts the checked copy there, so this was a fallback that never ran, and now it is an error), and Marian asks git to update submodules, which in a plain copy asks the repository around it.
+
+--- a/3rd_party/marian-dev/CMakeLists.txt
++++ b/3rd_party/marian-dev/CMakeLists.txt
+@@ -195,8 +195,7 @@
+ message(STATUS "Project name: ${PROJECT_NAME}")
+ message(STATUS "Project version: ${PROJECT_VERSION_STRING_FULL}")
+ 
+-execute_process(COMMAND git submodule update --init --recursive --no-fetch
+-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
++# JeffOffice: the source is a plain copy, with its submodules in place, and no history to ask git about.
+ 
+ # Note that with CMake MSVC build, the option CMAKE_BUILD_TYPE is automatically derived from the key
+ # 'configurationType' in CMakeSettings.json configurations
+--- a/3rd_party/ssplit-cpp/cmake/FindPCRE2.cmake
++++ b/3rd_party/ssplit-cpp/cmake/FindPCRE2.cmake
+@@ -24,8 +24,8 @@
+   if (EXISTS ${PCRE2_SRC_DIR}/configure)
+     set(PCRE2_URL "")
+   else()
+-      set(PCRE2_URL "https://github.com/PhilipHazel/pcre2/releases/download/${PCRE2_FILENAME}/${PCRE2_TARBALL}")
+-    message("Downloading pcre2 source code from ${PCRE2_URL}")
++    # JeffOffice: nothing is downloaded here. The source of PCRE2 comes from the build's own checked copy (cmake/bergamot_step.cmake); a tree without it is an error.
++    message(FATAL_ERROR "PCRE2 ${PCRE2_VERSION} is not in ${PCRE2_SRC_DIR}")
+   endif()
+ 
+   # Set configure options for internal pcre2 depeding on compiler

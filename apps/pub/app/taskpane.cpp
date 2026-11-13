@@ -8,6 +8,7 @@
 #include "app/icons.h"
 #include "app/mainwindow.h"
 #include "app/settings.h"
+#include "app/translate.h"
 #include "app/translatepane.h"
 #include "text/dictionaries.h"
 #include "translate/languages.h"
@@ -17,9 +18,7 @@
 #include "text/textprops.h"
 
 #include <QAction>
-#include <QDesktopServices>
-#include <QUrl>
-#include <QUrlQuery>
+#include <QStatusBar>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFileDialog>
@@ -1077,18 +1076,9 @@ public:
             return ed->isEditingText() ? translate::languageOfTag(ed->currentCharFormat().stringProperty(tp::Language)) : QString();
         };
         h->browserFn = [win](const QString &text, const QString &code) {
-            QString t = text;
-            t.remove(QChar(0x00AD));
-            t = t.trimmed();
-            if (t.size() > 5000) t = t.left(5000);   // the service's limit for one request
-            QUrl url(QStringLiteral("https://libretranslate.com/"));
-            QUrlQuery q;
-            q.addQueryItem(QStringLiteral("source"), QStringLiteral("auto"));
-            q.addQueryItem(QStringLiteral("target"), translate::websiteCode(code));
-            q.addQueryItem(QStringLiteral("q"), t);
-            url.setQuery(q);
-            QDesktopServices::openUrl(url);
-            Q_UNUSED(win)
+            // (the same way as in JeffWrite: the address of the service is the one in the settings, and only a secure one is used)
+            const QString server = Settings::get().value(QStringLiteral("translate/server"), QStringLiteral("https://libretranslate.com/")).toString();
+            jp::openTranslation([win](const QString &message, int ms) { win->statusBar()->showMessage(message, ms); }, jp::translateReady(text), translate::websiteCode(code), server);
         };
         auto put = [win, this](bool below) {
             return [win, this, below](const translate::Source &s, const translate::Result &r) {
