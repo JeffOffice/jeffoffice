@@ -120,3 +120,9 @@ These are the only modifications to the upstream sources. Each is marked with a 
 - Unused librevenge generators and the directory stream are not built.
 - **Metadata is optional.** `MSPUBParser.cpp` ignores errors while reading document properties instead of failing the whole import (affects two sample files in Apache POI's test set).
 - **Damaged OLE headers.** `RVNGOLEStream.cpp` rejects impossible block sizes instead of asserting (found by Apache POI's fuzz files).
+
+## Hunspell (modified)
+
+Hunspell 1.7.6 (MPL 1.1, GPL 2, or LGPL 2.1; its `filemgr` files are also under the BSD-style license in their headers) is downloaded when the build directory is made and checked against its SHA-256 (`third_party/CMakeLists.txt`). **This build of it is a modified version.** The build copies its sources to the build folder and makes one change there (the downloaded sources are never edited; if they differ from 1.7.6 the patch stops the build):
+
+- **Dictionary files from memory.** `filemgr.hxx` and `filemgr.cxx` gain a hook, `jeffoffice_memory_file`. When it is set and says a name is a file in memory, `FileMgr` reads that file's lines from the memory (newline dropped, as `std::getline` gives them) instead of opening it. Each change is marked with a `JeffOffice patch` comment. The installed dictionaries are compressed files (`libs/base/text/dictpack.h`) that the program inflates into memory and hands to Hunspell this way, so they are never written out as plain files. With the hook unset (the default) Hunspell behaves exactly as upstream.

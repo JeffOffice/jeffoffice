@@ -69,9 +69,88 @@ FetchContent_GetProperties(hunspell)
 if(NOT hunspell_POPULATED)
   FetchContent_Populate(hunspell)
 endif()
-file(GLOB HUNSPELL_SOURCES ${hunspell_SOURCE_DIR}/src/hunspell/*.cxx)
+# OUR PATCH to Hunspell 1.7.6 (also listed in third_party/README.md): a dictionary can be read from memory, so the installed dictionaries
+# can be compressed files that are inflated in memory and never written out. filemgr.hxx/.cxx gain a hook, jeffoffice_memory_file: when
+# it is set and says a name is a file in memory, FileMgr reads its lines from that memory (the same lines std::getline would give).
+# Nothing else changes. The patched copies of the sources are made in the build folder (the downloaded sources are never edited).
+set(HUNSPELL_PATCHED ${CMAKE_CURRENT_BINARY_DIR}/hunspell-patched/src/hunspell)
+function(jo_hunspell_patch name old new)
+  string(FIND "${text}" "${old}" at)
+  if(at LESS 0)
+    message(FATAL_ERROR "the Hunspell patch for ${name} does not apply: the source differs from 1.7.6")
+  endif()
+  string(REPLACE "${old}" "${new}" text "${text}")
+  set(text "${text}" PARENT_SCOPE)
+endfunction()
+file(GLOB HUNSPELL_ORIGINALS ${hunspell_SOURCE_DIR}/src/hunspell/*.cxx ${hunspell_SOURCE_DIR}/src/hunspell/*.hxx ${hunspell_SOURCE_DIR}/src/hunspell/*.h)
+set(HUNSPELL_SOURCES)
+foreach(original ${HUNSPELL_ORIGINALS})
+  get_filename_component(fname ${original} NAME)
+  if(fname STREQUAL "filemgr.hxx" OR fname STREQUAL "filemgr.cxx")
+    file(READ ${original} text)
+    if(fname STREQUAL "filemgr.hxx")
+      jo_hunspell_patch(filemgr.hxx "class FileMgr {"
+"/* JeffOffice patch: a file in memory. When this is set and returns true for a name, FileMgr reads the file from the memory it
+   gives (data and size) and not from disk; the memory must stay valid until the dictionary is loaded. */
+extern bool (*jeffoffice_memory_file)(const char* name, const char** data, size_t* size);
+
+class FileMgr {")
+      jo_hunspell_patch(filemgr.hxx "  int linenum;
+"
+"  int linenum;
+  const char* mem;   /* JeffOffice patch: the file in memory, or NULL */
+  size_t memsize;
+  size_t mempos;
+")
+    else()
+      jo_hunspell_patch(filemgr.cxx "FileMgr::FileMgr(const char* file, const char* key) : hin(NULL), linenum(0) {
+  in[0] = '\\0';
+
+  if (!file || !strlen(file))
+    return;
+"
+"bool (*jeffoffice_memory_file)(const char* name, const char** data, size_t* size) = NULL;   /* JeffOffice patch */
+
+FileMgr::FileMgr(const char* file, const char* key) : hin(NULL), linenum(0), mem(NULL), memsize(0), mempos(0) {
+  in[0] = '\\0';
+
+  if (!file || !strlen(file))
+    return;
+  if (jeffoffice_memory_file && jeffoffice_memory_file(file, &mem, &memsize))   /* JeffOffice patch */
+    return;
+")
+      jo_hunspell_patch(filemgr.cxx "  ++linenum;
+  if (fin.is_open()) {"
+"  ++linenum;
+  if (mem) {   /* JeffOffice patch: a line of the file in memory, as std::getline gives it (the newline is dropped) */
+    if (mempos >= memsize) {
+      --linenum;
+      return false;
+    }
+    const char* nl = static_cast<const char*>(memchr(mem + mempos, '\\n', memsize - mempos));
+    const size_t end = nl ? static_cast<size_t>(nl - mem) : memsize;
+    dest.assign(mem + mempos, end - mempos);
+    mempos = nl ? end + 1 : memsize;
+    return true;
+  }
+  if (fin.is_open()) {")
+    endif()
+    set(old "")
+    if(EXISTS ${HUNSPELL_PATCHED}/${fname})
+      file(READ ${HUNSPELL_PATCHED}/${fname} old)
+    endif()
+    if(NOT old STREQUAL text)
+      file(WRITE ${HUNSPELL_PATCHED}/${fname} "${text}")
+    endif()
+  else()
+    configure_file(${original} ${HUNSPELL_PATCHED}/${fname} COPYONLY)
+  endif()
+  if(fname MATCHES "\\.cxx$")
+    list(APPEND HUNSPELL_SOURCES ${HUNSPELL_PATCHED}/${fname})
+  endif()
+endforeach()
 add_library(jp_hunspell STATIC ${HUNSPELL_SOURCES})
-target_include_directories(jp_hunspell PUBLIC ${hunspell_SOURCE_DIR}/src)
+target_include_directories(jp_hunspell PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/hunspell-patched/src)
 target_compile_definitions(jp_hunspell PUBLIC HUNSPELL_STATIC)
 set_target_properties(jp_hunspell PROPERTIES CXX_STANDARD 17 POSITION_INDEPENDENT_CODE ON)
 if(MSVC)
