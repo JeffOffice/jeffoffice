@@ -33,6 +33,9 @@ appdir() {
   local dir=$1; shift
   mkdir -p "$dir/usr/share/jeffoffice" "$dir/usr/share/doc/jeffoffice/pdfium"
   cp -r "$src/resources/fonts" "$src/resources/dict" "$dir/usr/share/jeffoffice/"
+  # Help and the translations, which the apps read from here (jp::dataFolder, ../share/jeffoffice), and the library they share.
+  cp -r "$src/resources/help" "$build/data/i18n" "$dir/usr/share/jeffoffice/"
+  install -Dm755 "$build/libjeffoffice-common.so" "$dir/usr/lib/libjeffoffice-common.so"
   { printf 'JeffOffice\nCopyright (c) 2026 JeffOffice LLC\nLicense: GPL-3.0 (below)\n\n'; cat "$src/LICENSE"; } > "$dir/usr/share/doc/jeffoffice/copyright"
   install -Dm644 "$src/README.md" "$dir/usr/share/doc/jeffoffice/README.md"
   # PDFium's license texts and those of the libraries built into it.
@@ -77,7 +80,7 @@ appdir() {
 }
 
 # linuxdeploy copies Qt, its plugins and the other libraries the programs
-# need (PDFium among them) into an AppDir; with "appimage" it writes one too.
+# need (PDFium and jeffoffice-common, the code the apps share, among them) into an AppDir; with "appimage" it writes one too.
 deploy() {
   local dir=$1 main=$2 output=$3; shift 3
   local exes=() modules="svg"
@@ -95,7 +98,7 @@ deploy() {
   local lower
   lower=$(echo "$main" | tr '[:upper:]' '[:lower:]')
   ( cd "$out" && EXTRA_QT_MODULES="$modules" LDAI_OUTPUT="$main-$ver-x86_64.AppImage" "$ld" --appdir "$dir" "${exes[@]}" \
-      --library "$build/_deps/pdfium/lib/libpdfium.so" \
+      --library "$build/_deps/pdfium/lib/libpdfium.so" --library "$dir/usr/lib/libjeffoffice-common.so" \
       --desktop-file "$dir/usr/share/applications/$lower.desktop" \
       --icon-file "$dir/usr/share/icons/hicolor/256x256/apps/$lower.png" \
       --plugin qt ${output:+--output "$output"} )

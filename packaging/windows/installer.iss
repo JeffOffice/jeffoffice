@@ -521,10 +521,13 @@ begin
       DeleteFile(Loc + '\libstdc++-6.dll');
       DeleteFile(Loc + '\libwinpthread-1.dll');
       DeleteFile(Loc + '\pdfium.dll');
+      DeleteFile(Loc + '\libjeffoffice-common.dll');
       DeleteFile(Loc + '\LICENSE');
       DeleteFile(Loc + '\README.md');
       DelTree(Loc + '\fonts', True, True, True);
       DelTree(Loc + '\dict', True, True, True);
+      DelTree(Loc + '\help', True, True, True);
+      DelTree(Loc + '\i18n', True, True, True);
       DelTree(Loc + '\licenses', True, True, True);
       DelTree(Loc + '\generic', True, True, True);
       DelTree(Loc + '\iconengines', True, True, True);

@@ -87,7 +87,7 @@ begin
     Exit;
   DelTree(Dir + '\*.dll', False, True, False);
   DeleteFile(Dir + '\Uninstall.exe');
-  Dirs := 'dict,fonts,generic,iconengines,imageformats,licenses,multimedia,networkinformation,platforminputcontexts,platforms,'
+  Dirs := 'dict,fonts,generic,help,i18n,iconengines,imageformats,licenses,multimedia,networkinformation,platforminputcontexts,platforms,'
     + 'printsupport,styles,tls,translations,bearer,tools,';
   while Dirs <> '' do
   begin
