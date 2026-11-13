@@ -3237,7 +3237,7 @@
       },
       {
        "status": "partly",
-       "text": "4a291bb50018c6590fc451f330f855deea2c3cf932be57c1b65521b152deec08"
+       "text": "6f6905a80aed76f11cca98d1f9ca182fbf0254ebec4faeb833f64b01a494218c"
       },
       {
        "hide_soon": true,
@@ -3592,6 +3592,11 @@
         {
          "status": "partly",
          "text": "8f5c18de4307239e4435a8e4722059a4a58f9333e2763684089be36cbc8d9efc"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "bb7f7d357aeb3a0c50832d81ef7603494e0c0921d7e97ea3a2d232896b609cf3"
         },
         {
          "status": "partly",
@@ -12830,18 +12835,6 @@
     "fr": "Saisie de texte pour toutes les écritures : méthodes de saisie, touches mortes et sélecteurs d’emojis et de symboles"
    }
   },
-  "4a291bb50018c6590fc451f330f855deea2c3cf932be57c1b65521b152deec08": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "4a76cbcea507352f896e12176e261430419fa31eaf6f5ce255e1b7534e4351d8": {
    "drop": false,
    "en": "Clipboard: Paste with source formatting, Keep Text Only, Paste Special, Cut, Copy, and Copy Formatting (single use or locked).",
@@ -15751,6 +15744,18 @@
    "en": "Write right-to-left and complex script text, with a right-to-left paragraph direction on the Home tab and in the Paragraph dialog.",
    "es": "Escriba texto de derecha a izquierda y de escrituras complejas, con dirección de párrafo de derecha a izquierda en la pestaña Inicio y en el cuadro de diálogo Párrafo.",
    "fr": "Saisissez du texte de droite à gauche et en écritures complexes, avec une direction de paragraphe de droite à gauche dans l’onglet Accueil et la boîte de dialogue Paragraphe.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "6f6905a80aed76f11cca98d1f9ca182fbf0254ebec4faeb833f64b01a494218c": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
@@ -20580,6 +20585,18 @@
     "en": "Typing in the second pane and shared unsaved edits between windows",
     "es": "Escritura en el segundo panel y ediciones sin guardar compartidas entre ventanas",
     "fr": "Saisie dans le second volet et modifications non enregistrées partagées entre les fenêtres"
+   }
+  },
+  "bb7f7d357aeb3a0c50832d81ef7603494e0c0921d7e97ea3a2d232896b609cf3": {
+   "drop": false,
+   "en": "Add captions to a video from a WebVTT (`.vtt`) file for each language, and remove them again, on the Playback tab. Captions appear over the bottom of the video in the slide show and in the editor, follow playback, and scale with the video. A file that is damaged, too large (over 4 MB, 20,000 cues, or 2,000 characters in a cue), or not WebVTT is refused with a message.",
+   "es": "Agregue subtítulos a un video desde un archivo WebVTT (`.vtt`) para cada idioma, y quítelos de nuevo, en la pestaña Reproducción. Los subtítulos aparecen sobre la parte inferior del video en la presentación y en el editor, siguen la reproducción y cambian de tamaño con el video. Un archivo dañado, demasiado grande (más de 4 MB, 20 000 indicaciones o 2000 caracteres en una indicación) o que no sea WebVTT se rechaza con un mensaje.",
+   "fr": "Ajoutez des sous-titres à une vidéo à partir d’un fichier WebVTT (`.vtt`) pour chaque langue, et retirez-les ensuite, dans l’onglet Lecture. Les sous-titres s’affichent en bas de la vidéo dans le diaporama et dans l’éditeur, suivent la lecture et se redimensionnent avec la vidéo. Un fichier endommagé, trop volumineux (plus de 4 Mo, 20 000 repères ou 2 000 caractères dans un repère) ou qui n’est pas au format WebVTT est refusé avec un message.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "bb91ba069ba34f0ff7f8750446fd336cc62f521467215365e10cc42cf04ced54": {
