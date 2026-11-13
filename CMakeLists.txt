@@ -724,6 +724,11 @@ if(Qt6LinguistTools_FOUND)
   endif()
 endif()
 
+# Measures the grammar rules on real text (tools/grammar/measure.py).
+qt_add_executable(grammartool tools/grammar/grammartool.cpp)
+target_link_libraries(grammartool PRIVATE jo_text)
+set_target_properties(grammartool PROPERTIES WIN32_EXECUTABLE OFF)
+
 # Developer tool for reading and rendering presentation files from the command line.
 if(JP_BUILD_DECK)
 qt_add_executable(jdecktool tools/jdecktool.cpp)
