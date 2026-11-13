@@ -648,7 +648,8 @@ private Q_SLOTS:
             if (shownData(e) != QStringLiteral("Y%1").arg(i)) QTRY_COMPARE(shownData(e), QStringLiteral("Y%1").arg(i));
         }
         qInfo("under a 16 MB limit 500 more swaps hold %lld MB more (without it %lld MB); Undo holds %lld MB", (residentKb() - held) / 1024, perSwapKb * 500 / 1024, e.win.w.session()->undoBytes() >> 20);
-        QVERIFY2(residentKb() - held < perSwapKb * 500 / 4, qPrintable(QString::number(residentKb() - held)));
+        if (held > 0)   // (resident memory is read from /proc: Linux only; elsewhere residentKb() is 0 and there is nothing to compare)
+            QVERIFY2(residentKb() - held < perSwapKb * 500 / 4, qPrintable(QString::number(residentKb() - held)));
     }
 
     // Ten thousand pictures with a link marker (a document honors 2,000 of them as barcodes, the rest are plain pictures) and a change of all their cells: the swaps are done a few at a time (no turn
