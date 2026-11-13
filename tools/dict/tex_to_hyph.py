@@ -122,4 +122,5 @@ def main():
     print("%d patterns, %d exceptions (%d not reproduced), %d lines" % (len(pats), len(exceptions), bad, len(lines)))
 
 
-main()
+if __name__ == "__main__":
+    main()
