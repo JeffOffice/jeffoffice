@@ -34,6 +34,20 @@ SPLIT=${JO_GATE_SPLIT:-4}
 # Suites that run their test classes in JO_GATE_SPLIT parts (--class, round robin over the sorted list), and suites of one big class that run their test functions in parts.
 CLASS_SPLIT="crunchtests sheettests jdtests jptests"
 FUNC_SPLIT="writetests flowtests"
+# A part's items come from tools/gate_plan.py. If it fails, or its parts together do not hold every item once, the gate stops: tests are never skipped without a word.
+planfail() { echo "GATE PLAN FAILED: $*" | tee -a "$L" >&2; wait; echo DONE >> "$L"; exit 1; }
+plan_parts() {  # plan_parts <suite> <kind> <items...>: sets PARTS_ARGS_1..n (the items of each part, one per line); fails loudly
+  local s=$1 kind=$2; shift 2
+  local want=$# got=0 k out
+  [ "$want" -gt 0 ] || planfail "$s has no $kind to run"
+  for k in $(seq 1 "$SPLIT"); do
+    out=$(python3 "$W/tools/gate_plan.py" "$s" "$kind" "$SPLIT" "$k" "$@") || planfail "gate_plan.py failed for $s part $k"
+    [ -n "$out" ] || { [ "$want" -lt "$SPLIT" ] || planfail "gate_plan.py printed nothing for $s part $k"; }
+    got=$((got + $(printf '%s' "$out" | grep -c .)))
+    eval "PART_$k=\$out"
+  done
+  [ "$got" -eq "$want" ] || planfail "the parts of $s hold $got of its $want $kind"
+}
 for s in $SUITES; do
   case $s in
     *checks)
@@ -43,15 +57,19 @@ for s in $SUITES; do
     *)
       if echo " $CLASS_SPLIT " | grep -q " $s "; then
         CL=$(QT_QPA_PLATFORM=offscreen ./$s --classes 2>/dev/null)
+        plan_parts "$s" classes $CL
         for k in $(seq 1 "$SPLIT"); do
-          ARGS=$(python3 "$W/tools/gate_plan.py" "$s" classes "$SPLIT" "$k" $CL | awk '{printf "--class %s ", $0}')
+          eval "items=\$PART_$k"
+          ARGS=$(printf '%s\n' "$items" | awk 'NF {printf "--class %s ", $0}')
           [ -n "$ARGS" ] && { wait_slot; run "$s.part$k" "$s" "" $ARGS; }
         done
       elif echo " $FUNC_SPLIT " | grep -q " $s "; then
         FL=$(QT_QPA_PLATFORM=offscreen ./$s -functions 2>/dev/null | sed 's/()$//' | grep -vxE 'initTestCase|cleanupTestCase')
+        plan_parts "$s" functions $FL
         for k in $(seq 1 "$SPLIT"); do
-          ARGS=$(python3 "$W/tools/gate_plan.py" "$s" functions "$SPLIT" "$k" $FL | tr '\n' ' ')
-          [ -n "$ARGS" ] && { wait_slot; run "$s.part$k" "$s" "" $ARGS; }
+          eval "items=\$PART_$k"
+          ARGS=$(printf '%s\n' "$items" | tr '\n' ' ')
+          [ -n "${ARGS// }" ] && { wait_slot; run "$s.part$k" "$s" "" $ARGS; }
         done
       else
         wait_slot; run "$s" "$s" ""
