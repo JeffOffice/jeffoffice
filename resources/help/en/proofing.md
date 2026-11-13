@@ -54,7 +54,7 @@ To change one story, click in its text box and click **Review > Check > Hyphenat
 
 ## Translate text
 
-Select some text and click **Review > Language > Translate**. Choose a language and click **OK**. JeffPub then opens your web browser at LibreTranslate, a free, open-source translation site, with your text. Because the text goes to that site, do not use it for private words.
+Select some text and click **Review > Language > Translate**. The Translate pane translates it on your computer and can replace the text or add the translation below it. See [Translate text](translate).
 
 ## Related
 

@@ -24,6 +24,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Make and edit tables](tables)
 - [Contents, footnotes, and endnotes](references)
 - [Spelling, thesaurus, research, and hyphenation](proofing)
+- [Translate text](translate)
 - [Find and replace text](find-replace)
 
 ## Pictures and objects

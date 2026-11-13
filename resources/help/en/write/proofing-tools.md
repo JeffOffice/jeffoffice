@@ -38,12 +38,7 @@ The list comes from a file on your computer. No internet connection is used.
 
 ## Translate text
 
-1. Select the text. With nothing selected, the whole document is used.
-2. Click **Translate** in the **Language** group.
-3. Choose the language to translate into.
-4. Click **OK**.
-
-Your web browser then opens a translation service called LibreTranslate, with your text in it. Nothing is sent until you click **OK**. You can change the address of the service in the box, for example to one that you run yourself. Only web addresses (http or https) are used. At most 5,000 letters are sent.
+Select some text and click **Translate** in the **Language** group. The Translate pane on the right translates it on your computer and can replace the text or add the translation below it. See [Translate text](translate).
 
 ## Check accessibility
 

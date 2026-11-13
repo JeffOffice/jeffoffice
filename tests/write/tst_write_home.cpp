@@ -904,7 +904,6 @@ private Q_SLOTS:
         shot(QStringLiteral("review.restrictEditing"), QStringLiteral("restrictEditingDialog"), QStringLiteral("dialog-restrict.png"));
         shot(QStringLiteral("review.language"), QStringLiteral("languageDialog"), QStringLiteral("dialog-language.png"));
         shot(QStringLiteral("review.compare"), QStringLiteral("compareDialog"), QStringLiteral("dialog-compare.png"));
-        shot(QStringLiteral("review.translate"), QStringLiteral("translateDialog"), QStringLiteral("dialog-translate.png"));
         QTextCursor cursor = w.view()->cursor();
         withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [&](QDialog *d) { d->grab().save(dir + QStringLiteral("/dialog-tabs.png")); });
         w.act(QStringLiteral("review.accessibility"))->trigger();

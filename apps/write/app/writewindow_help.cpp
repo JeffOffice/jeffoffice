@@ -73,6 +73,8 @@ QString WriteWindow::helpContext() const
         key = QStringLiteral("pane:spelling");
     } else if (m_online && inside(m_online)) {
         key = QStringLiteral("pane:online");
+    } else if (m_translatePane && inside(m_translatePane)) {
+        key = QStringLiteral("pane:translate");
     } else if (inside(m_ribbon)) {
         for (int i = 0; i < m_ribbon->tabCount(); ++i)
             if (m_ribbon->tabPage(i) == m_ribbon->current()) key = QStringLiteral("tab:") + m_ribbon->tabName(i);

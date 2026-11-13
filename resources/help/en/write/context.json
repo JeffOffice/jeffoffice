@@ -23,5 +23,6 @@
   "file:export": "open-save",
   "file:about": "start",
   "pane:spelling": "spelling",
-  "pane:online": "pictures"
+  "pane:online": "pictures",
+  "pane:translate": "translate"
 }

@@ -6,6 +6,7 @@
 #include "app/recovery.h"
 #include "app/printpage.h"
 #include "app/translate.h"
+#include "app/translatepane.h"
 #include <QStatusBar>
 #include "core/textexport.h"
 #include "app/filetasks.h"
@@ -166,6 +167,8 @@ public:
     // Insert > Pictures > Online Pictures: the pane (null until it was first asked for).
     OnlinePicturesPane *onlinePictures() const { return m_online; }
     void showOnlinePictures();
+    // Review > Translate: the pane on the right translates the selected text (or the paragraph) on this computer.
+    void showTranslatePane();
     write::Ruler *ruler() const { return m_ruler; }
     // Shows the vertical ruler when View > Vertical Ruler is on and the pages are on show (not in Outline view or Focus).
     void syncVerticalRuler();
@@ -490,6 +493,10 @@ private:
     write::SpellPane *m_spellPane = nullptr;
     WriteFindPane *m_find = nullptr;
     QDockWidget *m_findDock = nullptr;
+    QDockWidget *m_translateDock = nullptr;
+    TranslatePane *m_translatePane = nullptr;
+    std::shared_ptr<FunctionHost> m_translateHost;
+    std::shared_ptr<translate::EditHooks> m_translateHooks;
     QToolButton *m_langLabel = nullptr;
     QLabel *m_sectionLabel = nullptr;
     QLabel *m_pageLabel = nullptr, *m_wordLabel = nullptr, *m_zoomLabel = nullptr;

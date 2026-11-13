@@ -21,6 +21,7 @@
   "pane:find": "find-replace",
   "pane:graphics": "graphics-manager",
   "pane:online": "pictures",
+  "pane:translate": "translate",
   "pane:research": "proofing",
   "pane:help": "index",
   "item:text": "text-boxes",

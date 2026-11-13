@@ -7,6 +7,8 @@
 #include "io/importers.h"
 #include "app/appfuncs.h"
 #include "app/pagegoto.h"
+#include "translate/translator.h"
+#include "app/gotonumber.h"
 #include "app/mainwindow.h"
 #include "render/renderer.h"
 #include "app/pagespane.h"
@@ -720,6 +722,11 @@ void MainWindow::createActions()
     mk("rev.thesaurus", tr("Thesaurus"), "book-a", QKeySequence(Qt::SHIFT | Qt::Key_F7), [this] { thesaurusDialog(this, m_ed); });
     mk("rev.research", tr("Research"), "book-open-text", QKeySequence(Qt::ALT | Qt::Key_F7), [this] { showTaskPane("research"); });
     mk("rev.translate", tr("Translate"), "languages", QKeySequence(), [this] {
+        // On this computer, in the pane (a program built without the translator keeps the way through a website, below).
+        if (translate::builtInBackend()) {
+            showTaskPane("translate");
+            return;
+        }
         // The selected text, else the story being edited, else the selected box's text.
         QString text;
         if (m_ed->isEditingText()) {

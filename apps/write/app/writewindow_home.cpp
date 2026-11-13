@@ -12,6 +12,7 @@
 #include "core/tableops.h"
 #include "core/homeops.h"
 #include "core/proofops.h"
+#include "translate/languages.h"
 
 #include "text/dictionaries.h"
 
@@ -151,6 +152,11 @@ void WriteWindow::createHomeActions()
     });
     mk("review.translate", tr("Translate"), "languages", QKeySequence(), [this] {
         if (!m_doc) return;
+        // (a program built without the translator keeps the way through a website)
+        if (translate::builtInBackend()) {
+            showTranslatePane();
+            return;
+        }
         const QTextCursor sel = m_view->cursor();
         const bool whole = !sel.hasSelection();
         jp::translateText(this, [this](const QString &message, int ms) { statusBar()->showMessage(message, ms); }, whole ? m_doc->story()->toPlainText() : sel.selectedText(), whole, m_urlOpener);
@@ -289,6 +295,96 @@ void WriteWindow::updateMiniToolbar(bool show)
     m_mini->setGeometry(QRect(QPoint(std::clamp(first.left(), 0, std::max(0, area.width() - size.width())), std::clamp(y, 0, std::max(0, area.height() - size.height()))), size));
     m_mini->show();
     m_mini->raise();
+}
+
+
+namespace {
+
+// How the translation goes into the document: with the document's own edits where it keeps track of changes, and the language of the text marked.
+class WriteTranslateHooks : public translate::EditHooks {
+public:
+    explicit WriteTranslateHooks(std::function<write::WriteDoc *()> doc) : m_doc(std::move(doc)) {}
+    QTextCharFormat languageFormat(const QTextCharFormat &format, const QString &language) override
+    {
+        const QString tag = dict::match(language);
+        return tag.isEmpty() ? format : write::withProofingLanguage(format, tag);
+    }
+    void replaceSelection(QTextCursor &c, const QVector<translate::Run> &runs) override
+    {
+        write::WriteDoc *doc = m_doc();
+        if (!doc || !doc->trackChanges()) {
+            translate::EditHooks::replaceSelection(c, runs);
+            return;
+        }
+        // (a change that is tracked is made by the document's own typing, which has no looks to give: the text takes the look the typing has)
+        QString text;
+        for (const translate::Run &r : runs) text += r.text;
+        write::insertText(*doc, c, text);
+    }
+    void insertParagraphAfter(QTextCursor &c, const QTextBlockFormat &like, const QVector<translate::Run> &runs) override
+    {
+        Q_UNUSED(like)
+        write::WriteDoc *doc = m_doc();
+        if (!doc) return;
+        c.beginEditBlock();
+        write::insertParagraph(*doc, c);
+        if (doc->trackChanges()) {
+            QString text;
+            for (const translate::Run &r : runs) text += r.text;
+            write::insertText(*doc, c, text);
+        } else {
+            for (const translate::Run &r : runs) c.insertText(r.text, r.format);
+        }
+        c.endEditBlock();
+    }
+
+private:
+    std::function<write::WriteDoc *()> m_doc;
+};
+
+} // namespace
+
+void WriteWindow::showTranslatePane()
+{
+    if (!m_doc) return;
+    if (m_fileScreen->isVisible()) hideFileScreen();
+    if (!m_translatePane) {
+        m_translateHost = std::make_shared<FunctionHost>();
+        m_translateHooks = std::make_shared<WriteTranslateHooks>([this] { return m_doc.get(); });
+        FunctionHost *host = m_translateHost.get();
+        host->sourceFn = [this] {
+            if (!m_doc) return translate::Source();
+            return translate::readSource(m_view->cursor());
+        };
+        host->languageFn = [this] { return m_doc ? translate::languageOfTag(write::proofingLanguageAt(*m_doc, m_view->cursor())) : QString(); };
+        host->browserFn = [this](const QString &text, const QString &code) {
+            const QString server = Settings::get().value(QStringLiteral("translate/server"), QStringLiteral("https://libretranslate.com/")).toString();
+            openTranslation(translateReady(text), translate::websiteCode(code), server);
+        };
+        host->replaceFn = [this](const translate::Source &s, const translate::Result &r) {
+            if (!m_doc || refuseIfReadOnly()) return TranslateApplied::Refused;
+            return translate::applyReplace(s, r, *m_translateHooks) ? TranslateApplied::Done : TranslateApplied::Changed;
+        };
+        host->insertBelowFn = [this](const translate::Source &s, const translate::Result &r) {
+            if (!m_doc || refuseIfReadOnly()) return TranslateApplied::Refused;
+            return translate::applyInsertBelow(s, r, *m_translateHooks) ? TranslateApplied::Done : TranslateApplied::Changed;
+        };
+        m_translateDock = new QDockWidget(tr("Translate"), this);
+        m_translateDock->setObjectName(QStringLiteral("translateDock"));
+        m_translateDock->setFeatures(QDockWidget::DockWidgetClosable);
+        m_translatePane = TranslatePane::create(host);
+        // With the margins the window's other panes have.
+        auto *frame = new QWidget(m_translateDock);
+        auto *column = new QVBoxLayout(frame);
+        column->setContentsMargins(8, 8, 8, 8);
+        column->addWidget(m_translatePane);
+        m_translateDock->setWidget(frame);
+        addDockWidget(Qt::RightDockWidgetArea, m_translateDock);
+        resizeDocks({m_translateDock}, {320}, Qt::Horizontal);
+    }
+    m_translateDock->show();
+    m_translateDock->raise();
+    m_translatePane->refresh();
 }
 
 } // namespace jp

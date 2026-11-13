@@ -8,12 +8,18 @@
 #include "app/icons.h"
 #include "app/mainwindow.h"
 #include "app/settings.h"
+#include "app/translatepane.h"
+#include "text/dictionaries.h"
+#include "translate/languages.h"
 #include "app/widgets.h"
 #include "canvas/canvas.h"
 #include "io/importers.h"
 #include "text/textprops.h"
 
 #include <QAction>
+#include <QDesktopServices>
+#include <QUrl>
+#include <QUrlQuery>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFileDialog>
@@ -78,6 +84,7 @@ void TaskPane::open(const QString &nameIn)
     else if (name == "find") title = tr("Find and Replace");
     else if (name == "graphics") title = tr("Graphics Manager");
     else if (name == "research") title = tr("Research");
+    else if (name == "translate") title = tr("Translate");
     else if (name == "online") title = tr("Online Pictures");
     else if (name == "extra") title = tr("Extra Content");
     else if (name == "catalog") title = tr("Catalog Merge");
@@ -1018,6 +1025,95 @@ static bool insertOnlinePicture(MainWindow *win, const QString &path, const onli
     return true;
 }
 
+// ---------------- Translate ----------------
+namespace {
+
+// The paragraph's language marked on translated text, so the spelling check follows it.
+class PubTranslateHooks : public translate::EditHooks {
+public:
+    QTextCharFormat languageFormat(const QTextCharFormat &format, const QString &language) override
+    {
+        const QString tag = dict::match(language);
+        QTextCharFormat f = format;
+        if (!tag.isEmpty()) {
+            f.setProperty(tp::Language, tag);
+            f.setProperty(tp::NoProof, false);
+        }
+        return f;
+    }
+};
+
+} // namespace
+
+// The Translate pane over the text being edited: the selection, else the paragraph; or, with a text box selected and no text being edited, its whole story.
+class TranslateTaskPane : public QWidget {
+    Q_OBJECT
+public:
+    explicit TranslateTaskPane(MainWindow *win) : m_win(win)
+    {
+        auto *v = new QVBoxLayout(this);
+        v->setContentsMargins(0, 0, 0, 0);
+        m_host = std::make_shared<FunctionHost>();
+        FunctionHost *h = m_host.get();
+        h->sourceFn = [win] {
+            Editor *ed = win->editor();
+            QTextCursor c;
+            if (ed->isEditingText()) {
+                c = ed->cursor();
+            } else if (Item *it = ed->single()) {
+                QString sid;
+                if (auto *t = dynamic_cast<TextItem *>(it)) sid = t->storyId;
+                else if (auto *sh = dynamic_cast<ShapeItem *>(it)) sid = sh->storyId;
+                if (QTextDocument *d = ed->doc()->storyDoc(sid)) {
+                    c = QTextCursor(d);
+                    c.select(QTextCursor::Document);
+                }
+            }
+            return c.document() ? translate::readSource(c) : translate::Source();
+        };
+        h->languageFn = [win] {
+            Editor *ed = win->editor();
+            return ed->isEditingText() ? translate::languageOfTag(ed->currentCharFormat().stringProperty(tp::Language)) : QString();
+        };
+        h->browserFn = [win](const QString &text, const QString &code) {
+            QString t = text;
+            t.remove(QChar(0x00AD));
+            t = t.trimmed();
+            if (t.size() > 5000) t = t.left(5000);   // the service's limit for one request
+            QUrl url(QStringLiteral("https://libretranslate.com/"));
+            QUrlQuery q;
+            q.addQueryItem(QStringLiteral("source"), QStringLiteral("auto"));
+            q.addQueryItem(QStringLiteral("target"), translate::websiteCode(code));
+            q.addQueryItem(QStringLiteral("q"), t);
+            url.setQuery(q);
+            QDesktopServices::openUrl(url);
+            Q_UNUSED(win)
+        };
+        auto put = [win, this](bool below) {
+            return [win, this, below](const translate::Source &s, const translate::Result &r) {
+                Editor *ed = win->editor();
+                if (ed->readOnly()) return TranslateApplied::Refused;
+                if (!s.isCurrent()) return TranslateApplied::Changed;
+                bool ok = false;
+                ed->change(tr("Translate"), [&] { ok = below ? translate::applyInsertBelow(s, r, m_hooks) : translate::applyReplace(s, r, m_hooks); });
+                ed->textEdited();
+                return ok ? TranslateApplied::Done : TranslateApplied::Changed;
+            };
+        };
+        h->replaceFn = put(false);
+        h->insertBelowFn = put(true);
+        m_pane = TranslatePane::create(h, this);
+        v->addWidget(m_pane);
+    }
+    Q_INVOKABLE void refresh() { m_pane->refresh(); }
+
+private:
+    MainWindow *m_win;
+    std::shared_ptr<FunctionHost> m_host;
+    PubTranslateHooks m_hooks;
+    TranslatePane *m_pane;
+};
+
 QWidget *TaskPane::create(const QString &name)
 {
     if (name == "designchecker") return new DesignChecker(m_win);
@@ -1026,6 +1122,7 @@ QWidget *TaskPane::create(const QString &name)
     if (name == "mailmerge") return new MailMergePane(m_win);
     if (name == "catalog") return new CatalogPane(m_win);
     if (name == "research") return new ResearchPane(m_win);
+    if (name == "translate") return new TranslateTaskPane(m_win);
     if (name == "help") return new HelpView(m_win);
     if (name == "online") return new OnlinePicturesPane([win = m_win](const QString &path, const online::Picture &p, bool withCredit) { return insertOnlinePicture(win, path, p, withCredit); });
     if (name == "extra") return new ExtraPane(m_win);
