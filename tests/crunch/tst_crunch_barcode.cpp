@@ -6,7 +6,11 @@
 #include "savedok.h"
 
 #include "app/crunchinfo.h"
+#include "app/barcodedialog.h"
+#include "core/barcodeclip.h"
 #include "core/barcodeitem.h"
+#include "office/barcodemarker.h"
+#include "sheet/xlsxsave.h"
 #include "core/fonts.h"
 #include "core/sheetobjects.h"
 #include "io/zip.h"
@@ -75,6 +79,56 @@ class CrunchBarcodeTests : public QObject {
         const std::vector<int> ids = e.win.w.objects()->idsOf(0);
         return ids.size() == 1 ? e.win.w.objects()->barcodeOf(0, ids.front()).value(QLatin1String("data")).toString() : QStringLiteral("(%1 objects)").arg(ids.size());
     }
+    // The marker of the one barcode a saved file holds: its settings, and whether the picture in the file is the one the marker was written with.
+    static bool savedMarker(const QString &path, QJsonObject *settings, bool *pictureMatches)
+    {
+        const QMap<QString, QByteArray> parts = partsOf(path);
+        const QByteArray drawing = parts.value(QStringLiteral("xl/drawings/drawing1.xml"));
+        const qsizetype uri = drawing.indexOf("{5B6C1E0A"), from = uri < 0 ? -1 : drawing.lastIndexOf('<', uri), to = drawing.indexOf("</a:ext>", from);
+        if (from < 0 || to < 0) {
+            qWarning("no marker in: %s", drawing.left(3000).constData());
+            return false;
+        }
+        const jp::office::BarcodeMarker m = jp::office::readBarcodeMarkerXml(drawing.mid(from, to + 8 - from));
+        if (m.isEmpty()) return false;
+        *settings = m.settings;
+        *pictureMatches = false;
+        for (auto it = parts.begin(); it != parts.end(); ++it)
+            if (it.key().startsWith(QLatin1String("xl/media/")) && it.key().endsWith(QLatin1String(".png"))) *pictureMatches = jp::office::barcodeHash(it.value()) == m.pngHash;
+        return true;
+    }
+    // A workbook whose A column holds T0, T1, ... and whose drawing holds a barcode picture at each row (linked to that row's cell, or plain pictures without a marker), far down the sheet.
+    static QByteArray manyBarcodes(int n, bool linked)
+    {
+        crunch::ObjectClip clip;
+        const QJsonObject first{{"type", int(jp::barcode::Type::Code128)}, {"data", "T0"}, {"text", true}};
+        if (!crunch::barcodeClip(first, &clip)) return {};
+        QString rows, anchors;
+        for (int i = 0; i < n; ++i) {
+            rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" t=\"inlineStr\"><is><t>T%2</t></is></c></row>").arg(i + 1).arg(i);
+            QJsonObject settings = first;
+            settings.insert(QStringLiteral("data"), QStringLiteral("T%1").arg(i));
+            settings.insert(QStringLiteral("cell"), QStringLiteral("Sheet1!$A$%1").arg(i + 1));
+            const QString marker = linked ? QString::fromUtf8("<a:extLst>" + jp::office::barcodeMarkerExtXml(settings, jp::office::barcodeHash(clip.media[0].bytes), jp::office::barcodeHash(clip.media[1].bytes)) + "</a:extLst>") : QString();
+            const QString pic = QStringLiteral("<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"%1\" name=\"Picture %1\" descr=\"x\">%2</xdr:cNvPr><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed=\"rIdP\">"
+                                               "<a:extLst><a:ext uri=\"{96DAC541-7B7A-43D3-8B79-37D633B846F1}\"><asvg:svgBlip xmlns:asvg=\"http://schemas.microsoft.com/office/drawing/2016/SVG/main\" r:embed=\"rIdS\"/></a:ext></a:extLst></a:blip>"
+                                               "<a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"952500\" cy=\"190500\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>")
+                                    .arg(i + 2).arg(marker);
+            anchors += twoCell(3, 100 + i, 5, 101 + i, pic);
+        }
+        const QByteArray drawing = drawingPart(anchors);
+        QVector<DrawingTarget> targets{imageTarget(QStringLiteral("rIdP"), 1, clip.media[0].bytes), {QStringLiteral("rIdS"), QStringLiteral("xl/media/image2.svg"), clip.media[1].bytes, QStringLiteral("image/svg+xml"), QStringLiteral("image")}};
+        return bookWithDrawing({sheettest::worksheet(rows)}, drawing, targets);
+    }
+    static qint64 residentKb()
+    {
+        QFile f(QStringLiteral("/proc/self/status"));
+        if (!f.open(QIODevice::ReadOnly)) return 0;
+        for (const QByteArray &line : f.readAll().split('\n'))
+            if (line.startsWith("VmRSS:")) return line.mid(6).trimmed().split(' ').value(0).toLongLong();
+        return 0;
+    }
+
     static void letGo()
     {
         for (int i = 0; i < 3; ++i) QCoreApplication::processEvents();
@@ -317,24 +371,27 @@ private Q_SLOTS:
         const int steps = e.win.w.undoStack()->count();
         QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("NEW-42")).ok);
         QTRY_COMPARE(shownData(e), QStringLiteral("NEW-42"));
-        QCOMPARE(e.win.w.undoStack()->count(), steps + 2);   // (the cell, and the barcode)
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);   // (the barcode is part of the step that changed the cell)
         const int now = o->idsOf(0).front();
         QVERIFY(now != first);
         const jp::grid::ObjectBox box = o->layer()->boxNow(now);
         QVERIFY(qAbs(box.x - was.x) < 0.5 && qAbs(box.y - was.y) < 0.5 && qAbs(box.w - was.w) < 0.5 && qAbs(box.h - was.h) < 0.5);
         QCOMPARE(o->barcodeOf(0, now).value(QLatin1String("cell")).toString(), QStringLiteral("Sheet1!$A$2"));
-        // Undo takes the new barcode away and gives the old one back.
+        // One Undo takes the cell and the new barcode back: the old barcode is there again, with the cell's old text. Redo does both again, and makes no step.
         e.win.w.undoStack()->undo();
         QCOMPARE(shownData(e), QStringLiteral("Q1"));
         QCOMPARE(o->idsOf(0).front(), first);
-        e.win.w.undoStack()->redo();
-        QCOMPARE(shownData(e), QStringLiteral("NEW-42"));
-        // The cell Undone as well: the barcode, now stale, is not made again behind Redo's back.
-        e.win.w.undoStack()->undo();
-        e.win.w.undoStack()->undo();
+        QCOMPARE(e.win.w.session()->neutralText(0, 1, 0), QStringLiteral("Q1"));
         letGo();
         QCOMPARE(shownData(e), QStringLiteral("Q1"));
         QVERIFY(e.win.w.undoStack()->canRedo());
+        e.win.w.undoStack()->redo();
+        QCOMPARE(shownData(e), QStringLiteral("NEW-42"));
+        QCOMPARE(e.win.w.session()->neutralText(0, 1, 0), QStringLiteral("NEW-42"));
+        letGo();
+        QCOMPARE(shownData(e), QStringLiteral("NEW-42"));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QVERIFY(!e.win.w.undoStack()->canRedo());
     }
 
     // Rows inserted above the cell move the link with it, and a barcode follows the cell at its new place.
@@ -426,6 +483,240 @@ private Q_SLOTS:
         QCOMPARE(shownData(third), QStringLiteral("SAVED-2"));
         QVERIFY(third.win.w.session()->type(0, 2, 0, QStringLiteral("SAVED-3")).ok);
         QTRY_COMPARE(shownData(third), QStringLiteral("SAVED-3"));
+    }
+
+    // A cell that holds an error leaves the barcode as it was (in the window and in the saved file); the next good text makes it again.
+    void anErrorInTheCellLeavesTheBarcodeAsItWas()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        QVERIFY(linkedBarcode(e) >= 0);
+        QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("=1/0")).ok);
+        QCOMPARE(e.win.w.session()->linkText(0, 1, 0), QString());
+        letGo();
+        QCOMPARE(shownData(e), QStringLiteral("Q1"));
+        QVERIFY(save(e));
+        QJsonObject marker;
+        bool matches = false;
+        QVERIFY(savedMarker(e.path, &marker, &matches));
+        QCOMPARE(marker.value(QLatin1String("data")).toString(), QStringLiteral("Q1"));
+        QVERIFY(matches);
+        QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("GOOD")).ok);
+        QTRY_COMPARE(shownData(e), QStringLiteral("GOOD"));
+    }
+
+    // A text the code can't hold is tried once: the barcode keeps what it had, the message is told once, and no more tries are made until the cell's text is another.
+    void aTextTheCodeCannotHoldIsNotTriedAgainUntilTheCellChanges()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("12345670")).ok);
+        jp::office::sheet::CellRange range;
+        range.valid = true;
+        range.row1 = range.row2 = 1;
+        range.col1 = range.col2 = 0;
+        QCOMPARE(e.win.w.insertBarcodesFromCells(range, QJsonObject{{"type", int(jp::barcode::Type::Ean8)}, {"data", "12345670"}}).made, 1);
+        letGo();
+        const qint64 base = e.win.w.barcodeTriesForTest();
+        QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("ABCDEFGH")).ok);
+        QTRY_COMPARE(e.win.w.barcodeTriesForTest(), base + 1);
+        QCOMPARE(shownData(e), QStringLiteral("12345670"));
+        QCOMPARE(e.win.w.barcodeFailuresToldForTest(), qint64(1));
+        for (int i = 0; i < 5; ++i) {
+            QVERIFY(e.win.w.session()->type(0, 3, 2, QString::number(i)).ok);   // (other cells change)
+            letGo();
+        }
+        QCOMPARE(e.win.w.barcodeTriesForTest(), base + 1);
+        QCOMPARE(e.win.w.barcodeFailuresToldForTest(), qint64(1));   // (told once)
+        // The cell's text changes to one it can hold: made again.
+        QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("96385074")).ok);
+        QTRY_COMPARE(shownData(e), QStringLiteral("96385074"));
+    }
+
+    // A change made while the cell is being edited (or another large change is going on) is not dropped: it is done when that is over.
+    void aSyncThatCannotRunYetIsTriedAgain()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        QVERIFY(linkedBarcode(e) >= 0);
+        e.select(QStringLiteral("C5"));
+        QTest::keyClick(e.view(), Qt::Key_F2);
+        QVERIFY(e.win.w.isEditing());
+        QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("LATER")).ok);
+        letGo();
+        QCOMPARE(shownData(e), QStringLiteral("Q1"));
+        QTest::keyClick(e.win.w.cellEditor(), Qt::Key_Escape);
+        QVERIFY(!e.win.w.isEditing());
+        QTRY_COMPARE(shownData(e), QStringLiteral("LATER"));
+    }
+
+    // A replaced barcode gives its slot back: after many edits of one linked cell the workbook still counts one live object, the barcode still updates, and the memory held stays bounded.
+    void manyEditsOfOneLinkedCellKeepOneSlot()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(linkedBarcode(e) >= 0);
+        QCOMPARE(o->liveObjects(), 1);
+        const qint64 before = residentKb();
+        QElapsedTimer clock;
+        clock.start();
+        for (int i = 0; i < 5000; ++i) {
+            QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("V%1").arg(i)).ok);
+            letGo();
+            if (shownData(e) != QStringLiteral("V%1").arg(i)) QTRY_COMPARE(shownData(e), QStringLiteral("V%1").arg(i));
+        }
+        qInfo("5000 edits: %lld ms, %lld MB more", clock.elapsed(), (residentKb() - before) / 1024);
+        QCOMPARE(o->liveObjects(), 1);
+        QCOMPARE(shownData(e), QStringLiteral("V4999"));
+        QVERIFY2((residentKb() - before) / 1024 < 1000, qPrintable(QString::number((residentKb() - before) / 1024)));
+    }
+
+    // Ten thousand pictures with a link marker (a document honors 2,000 of them as barcodes, the rest are plain pictures) and a change of all their cells: the swaps are done a few at a time (no turn
+    // of the window is long), as part of the step of the fill, within a time and a memory bound.
+    void aFillOfTenThousandLinkedCellsIsDoneInShortTurns()
+    {
+        EditWindow e;
+        QVERIFY(e.open(manyBarcodes(10000, true)));
+        QVERIFY(e.settle());
+        QTRY_VERIFY_WITH_TIMEOUT(e.win.w.objects()->shownSheet() == 0 && e.win.w.objects()->listed(0), 60000);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QCOMPARE(int(o->linkedBarcodes().size()), 2000);
+        QVector<QStringList> table;
+        for (int i = 0; i < 10000; ++i) table << QStringList{QStringLiteral("U%1").arg(i)};
+        jp::office::sheet::CellRange target;
+        target.valid = true;
+        target.row1 = 0;
+        target.row2 = 9999;
+        target.col1 = target.col2 = 0;
+        const int steps = e.win.w.undoStack()->count(), liveBefore = o->liveObjects();
+        const qint64 before = residentKb();
+        QElapsedTimer clock;
+        clock.start();
+        QVERIFY(e.win.w.session()->pasteText(0, target, table, {}).ok);
+        QTRY_VERIFY_WITH_TIMEOUT(e.win.w.barcodeTriesForTest() >= 1000 && e.win.w.barcodeFailuresToldForTest() == 1, 300000);
+        letGo();
+        qInfo("1000 swaps: %lld ms, longest turn %lld ms, %lld MB more", clock.elapsed(), e.win.w.longestBarcodeTurnForTest(), (residentKb() - before) / 1024);
+        QVERIFY2(e.win.w.longestBarcodeTurnForTest() < 200, qPrintable(QString::number(e.win.w.longestBarcodeTurnForTest())));
+        QVERIFY(clock.elapsed() < 240000);
+        QVERIFY2((residentKb() - before) / 1024 < 3000, qPrintable(QString::number((residentKb() - before) / 1024)));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);   // (the swaps are part of the step of the fill)
+        QCOMPARE(int(o->linkedBarcodes().size()), 2000);
+        // (a workbook holds as many new objects as one save writes, 1,000: the other 1,000 wait for a save, and the window said so once; a save writes them from the cells in any case)
+        int stale = 0;
+        for (const crunch::SheetObjects::LinkedBarcode &l : o->linkedBarcodes())
+            if (!l.settings.value(QLatin1String("data")).toString().startsWith(QLatin1Char('U'))) ++stale;
+        QVERIFY2(stale >= 900 && stale <= 1100, qPrintable(QString::number(stale)));
+        QCOMPARE(e.win.w.barcodeFailuresToldForTest(), qint64(1));
+        // (the swaps gave their slots back: without that the count would be 1,000 more; the scan above may have made a few more pictures of the file)
+        QVERIFY2(o->liveObjects() <= liveBefore + 50, qPrintable(QString::number(o->liveObjects() - liveBefore)));
+    }
+
+    // A workbook whose pictures hold no link pays nothing for the feature: an edit or a save makes none of them.
+    void picturesWithNoLinkAreNotMadeByAnEditOrASave()
+    {
+        EditWindow e;
+        QVERIFY(e.open(manyBarcodes(300, false)));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        letGo();
+        const int made = o->objectsMade();
+        QVERIFY(made < 300);   // (the pictures far down the sheet are not made until they are drawn)
+        QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("edit")).ok);
+        letGo();
+        QCOMPARE(o->objectsMade(), made);
+        QVERIFY(o->linkedBarcodes().empty());
+        QCOMPARE(o->objectsMade(), made);
+        jp::office::sheet::SaveChanges changes;
+        o->addToSave(&changes);
+        QCOMPARE(o->objectsMade(), made);
+        QVERIFY(save(e));
+        QCOMPARE(o->objectsMade(), made);
+    }
+
+    // A linked barcode copied to another sheet follows the same cell; a renamed sheet keeps the link; and in the saved file the marker (not only the item shown) has the cell's text and
+    // reference, and its picture is the one the marker was written with, through save, reopen, edit, save, and reopen.
+    void theMarkerInTheFileFollowsTheCellThroughRenamesCopiesAndSaves()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({dataSheet(), dataSheet()})));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        const int first = linkedBarcode(e);
+        QVERIFY(first >= 0);
+        // copied to the other sheet
+        crunch::ObjectClip clip;
+        QVERIFY(o->copyElement(0, first, &clip));
+        o->show(1);
+        const int copy = o->makeElement(1, clip, o->anchorOf(0, first));
+        QVERIFY(copy >= 0);
+        crunch::ObjectEdit put;
+        put.sheet = 1;
+        put.id = copy;
+        put.before = o->stateOf(1, copy);
+        put.after = put.before;
+        put.after.deleted = false;
+        QVERIFY(e.win.w.session()->changeObjects({put}, QStringLiteral("Paste")).ok);
+        QCOMPARE(o->barcodeLinkOf(1, copy), QStringLiteral("Sheet1!$A$2"));
+        // a renamed sheet
+        QVERIFY(e.win.w.session()->renameSheet(0, QStringLiteral("Sales Q1")).ok);
+        QCOMPARE(o->barcodeLinkOf(0, o->idsOf(0).front()), QStringLiteral("'Sales Q1'!$A$2"));
+        QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("ONE")).ok);
+        QTRY_COMPARE(shownData(e), QStringLiteral("ONE"));
+        QTRY_COMPARE(o->barcodeOf(1, o->idsOf(1).front()).value(QLatin1String("data")).toString(), QStringLiteral("ONE"));
+        QVERIFY(save(e));
+        // (the drawing of the first sheet: its marker holds the text and the renamed sheet, and the picture is the marker's)
+        QJsonObject marker;
+        bool matches = false;
+        QVERIFY(savedMarker(e.path, &marker, &matches));
+        QCOMPARE(marker.value(QLatin1String("data")).toString(), QStringLiteral("ONE"));
+        QCOMPARE(marker.value(QLatin1String("cell")).toString(), QStringLiteral("'Sales Q1'!$A$2"));
+        QVERIFY(matches);
+        auto reopen = [&](EditWindow &w, const QString &from) {
+            QFile f(from);
+            f.open(QIODevice::ReadOnly);
+            QVERIFY(w.open(f.readAll()));
+            QVERIFY(w.settle());
+            QTRY_VERIFY(w.win.w.objects()->shownSheet() == 0 && w.win.w.objects()->layer()->count() == 1);
+        };
+        EditWindow again;
+        reopen(again, e.path);
+        QCOMPARE(shownData(again), QStringLiteral("ONE"));
+        QVERIFY(again.win.w.session()->insertRows(0, 0, 3).ok);
+        QVERIFY(again.win.w.session()->type(0, 4, 0, QStringLiteral("TWO")).ok);
+        QTRY_COMPARE(shownData(again), QStringLiteral("TWO"));
+        QVERIFY(save(again));
+        QVERIFY(savedMarker(again.path, &marker, &matches));
+        QCOMPARE(marker.value(QLatin1String("data")).toString(), QStringLiteral("TWO"));
+        QCOMPARE(marker.value(QLatin1String("cell")).toString(), QStringLiteral("'Sales Q1'!$A$5"));
+        QVERIFY(matches);
+        EditWindow third;
+        reopen(third, again.path);
+        QCOMPARE(shownData(third), QStringLiteral("TWO"));
+        QCOMPARE(third.win.w.objects()->barcodeLinkOf(0, third.win.w.objects()->idsOf(0).front()), QStringLiteral("'Sales Q1'!$A$5"));
+    }
+
+    // The barcode dialog of every app keeps the keys of a barcode's settings that it does not show, such as the cell a barcode is linked to.
+    void theDialogKeepsKeysItDoesNotKnow()
+    {
+        QJsonObject was{{"type", int(jp::barcode::Type::Qr)}, {"data", "old"}, {"cell", "Sheet1!$A$2"}, {"futureKey", 7}};
+        QJsonObject out;
+        bool ok = false;
+        withDialog([&] { ok = jp::askBarcode(nullptr, was, &out); }, QStringLiteral("barcodeDialog"), [&](QDialog *d) { d->findChildren<QLineEdit *>().first()->setText(QStringLiteral("new")); });
+        QVERIFY(ok);
+        QCOMPARE(out.value(QLatin1String("data")).toString(), QStringLiteral("new"));
+        QCOMPARE(out.value(QLatin1String("cell")).toString(), QStringLiteral("Sheet1!$A$2"));
+        QCOMPARE(out.value(QLatin1String("futureKey")).toInt(), 7);
     }
 };
 

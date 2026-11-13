@@ -38,6 +38,7 @@ struct ObjectClip {
     QByteArray elementXml;    // for another kind: the element of the drawing that holds it (its pictures named by the tokens of `media`), and the namespaces it uses declared by `namespaces`
     QByteArray namespaces;
     QList<ClipMedia> media;
+    bool provisional = false; // a barcode whose PNG is a stand-in (its vector drawing is what shows): the save makes the real one (core/barcodeclip.h)
 
     bool valid() const
     {

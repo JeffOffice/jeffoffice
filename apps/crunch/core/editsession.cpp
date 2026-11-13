@@ -909,6 +909,19 @@ void EditSession::pushStep(Step step, const QString &text, bool alreadyDone)
         if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) letGoOfLines(hold->calculation());
 }
 
+bool EditSession::amendTopStep(std::vector<ObjectEdit> edits)
+{
+    if (m_undo.count() == 0 || m_undo.index() != m_undo.count()) return false;
+    auto *command = const_cast<ChangeCells *>(dynamic_cast<const ChangeCells *>(m_undo.command(m_undo.count() - 1)));
+    if (!command || command->forgotten() || command->step()->cells.empty()) return false;
+    // (the changes are made now; the step holds them, so Undo and Redo do them with its cells)
+    for (const ObjectEdit &e : edits)
+        if (m_objectHook) m_objectHook(e, true);
+    for (ObjectEdit &e : edits) command->step()->objects.push_back(std::move(e));
+    command->recount();
+    return true;
+}
+
 EditSession::Outcome EditSession::typeInHeader(int sheet, quint32 row, quint32 col, int table, int column, const QString &typed)
 {
     Outcome out;

@@ -211,6 +211,8 @@ public:
         QJsonObject settings;
     };
     std::vector<LinkedBarcode> linkedBarcodes();
+    // The same for one object (false if it is not there, taken away, or not linked).
+    bool linkedBarcodeOf(int sheet, int id, LinkedBarcode *out);
     // The reference of the cell a barcode is linked to as it is now (empty for none).
     QString barcodeLinkOf(int sheet, int id);
     // The reference a barcode links to a cell by: the sheet's name quoted where it needs it, and the cell as $B$3.
@@ -242,6 +244,8 @@ public:
     // How many charts have been given to the worker, objects have been made, and parts of charts have been read (counted for tests).
     qint64 chartsDrawn() const { return m_chartsDrawn; }
     int objectsMade() const { return m_objectsMade; }
+    // The objects that are there (made, and not taken away): what the limit on a workbook's objects counts.
+    int liveObjects() const { return m_objectsMade - m_deadMade; }
     int chartPartsRead() const { return m_chartPartsRead; }
     // How many drawings were parsed on a worker thread (see show).
     int drawingsParsedApart() const { return m_parsedApart; }
@@ -274,6 +278,13 @@ private:
         jp::office::sheet::DrawingAnchor savedAnchor;  // what the file being written has
         bool frozen = false;                           // `base` is the size-keeping form
         bool built = false, made = false;
+        bool provisional = false;                      // a barcode made with a stand-in PNG: the save makes the real one
+        bool counted = false;                          // it is counted in m_objectsMade (and, while taken away, in m_deadMade)
+        int linkState = -1;                            // a picture that holds a barcode marker with a cell: -1 not looked at, 0 no, 1 yes (found without making the picture)
+        quint64 linkEpoch = 0;                         // the m_linkEpoch the cell below was found at
+        bool linkFound = false;
+        int linkSheet = 0;
+        quint32 linkRow = 0, linkCol = 0;
         jp::ItemPtr item;                              // a picture, shape, group, or connector
         std::shared_ptr<const jp::office::Chart> chart;   // a chart as read from its part, shared by the objects of that part
         QStringList baseRefs, movedRefs, refs;         // its references as the file has them, as the edits to rows and columns leave them (still by the file's names of the sheets), and now (by the names the sheets have)
@@ -354,6 +365,8 @@ private:
     std::vector<jp::office::sheet::StructEdit> editsFrom(int at, int to = -1) const;
     // A barcode that holds the cell it was made from (the settings' `cell`) reads it as a chart reads its cells: the reference follows the edits to rows and columns.
     void linkBarcode(int sheet, Object &o, bool made);
+    // Whether the object is a picture that holds a barcode marker with a `cell` (read from its element: the picture is not made to find out).
+    bool mayBeLinked(Object &o);
     // Writes the barcode of the object again, with the value of its cell and the reference to it as they are, in what the save is made of (see addToSave).
     void saveBarcode(int sheet, Sheet &s, Object &o, jp::office::sheet::SaveChanges *changes, QSet<QString> *claimed);
     QStringList movedRefList(const QStringList &refs, int sheet, int at, int to) const;
@@ -394,6 +407,8 @@ private:
     bool m_contextRead = false;
     int m_shown = -1;
     int m_objectsMade = 0;
+    int m_deadMade = 0;                                      // of those, the ones taken away (a barcode that was swapped for another gives its slot back)
+    quint64 m_linkEpoch = 1;                                 // changes when rows, columns, or sheets move: the cells barcodes are linked to are found again
     int m_chartPartsRead = 0;
     int m_parsedApart = 0;
     quint64 m_generation = 0;                                // of the workbook open (a worker's answer for another is let go)

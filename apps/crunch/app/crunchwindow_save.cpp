@@ -311,6 +311,7 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
         } else {
             m_session->saved(*snapshot, package);
             if (m_objects) m_objects->saved();
+            if (m_barcodeLimited) scheduleBarcodeSync();   // (the room for new objects is free again: the barcodes left as they were follow their cells)
             forgotten = m_session->stepsForgottenBySave();
         }
         if (!crunch::sameFile(path, m_path)) {

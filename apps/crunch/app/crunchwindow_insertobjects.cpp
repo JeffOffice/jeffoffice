@@ -20,6 +20,7 @@
 #include <QAction>
 #include <QDockWidget>
 #include <QBuffer>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -539,42 +540,85 @@ bool CrunchWindow::insertBarcode()
     return true;
 }
 
-void CrunchWindow::scheduleBarcodeSync()
+void CrunchWindow::scheduleBarcodeSync(int afterMs)
 {
-    if (m_barcodeSyncPending || !m_objects) return;
+    if (!m_objects) return;
+    if (m_barcodeSyncPending) {
+        m_barcodeRescan = true;   // (what changed since the pass began is looked at when it ends)
+        return;
+    }
     m_barcodeSyncPending = true;
-    QTimer::singleShot(0, this, [this] { syncLinkedBarcodes(); });
+    QTimer::singleShot(afterMs, this, [this] { syncLinkedBarcodes(); });
 }
 
+// A barcode linked to a cell is made again when the cell's text is not the one it holds. Each turn makes at most kMostSwapsPerTurn of them (and stops after kMostMillisecondsPerTurn), and the rest are
+// done on the turns after, so that a fill of ten thousand cells does not hold the window; the swaps of one change of cells are put in the step that changed them (Undo takes both back, Redo does both),
+// else in a step of their own. A cell that holds an error, or is not worked out yet, leaves the barcode as it is; a text the code can't hold is remembered for the barcode and not tried again until the
+// cell's text is another. What can't be done now (a cell being edited, a large change being made) is tried again soon.
 void CrunchWindow::syncLinkedBarcodes()
 {
+    constexpr int kMostLookedAtPerTurn = 200, kMostSwapsPerTurn = 40, kMostMillisecondsPerTurn = 30, kRetryMilliseconds = 250;
     m_barcodeSyncPending = false;
+    if (!m_session || !m_objects || !m_objects->cells() || isReadOnly()) return;
     QString whyNot;
-    if (!m_session || !m_objects || !m_objects->cells() || isReadOnly() || m_applying || m_edit.active || m_undoing || !m_session->canEdit(&whyNot)) return;
+    if (m_applying || m_edit.active || m_undoing || m_loading || !m_session->canEdit(&whyNot)) {
+        scheduleBarcodeSync(kRetryMilliseconds);
+        return;
+    }
+    QElapsedTimer turn;
+    turn.start();
+    struct TurnEnd {
+        QElapsedTimer *t;
+        qint64 *longest;
+        ~TurnEnd() { *longest = std::max(*longest, t->elapsed()); }
+    } turnEnd{&turn, &m_longestBarcodeTurn};
+    auto key = [](int sheet, int id) { return (quint64(quint32(sheet)) << 32) | quint32(id); };
+    auto staleText = [&](const crunch::SheetObjects::LinkedBarcode &l, QString *text) {
+        if (!l.found) return false;   // (the cell was taken away: the barcode stays as it was)
+        *text = m_session->linkText(l.cellSheet, l.row, l.col);
+        return !text->isEmpty() && *text != l.settings.value(QStringLiteral("data")).toString();
+    };
+    if (!m_barcodeQueueBuilt) {
+        m_barcodeQueue.clear();
+        m_barcodeQueueBuilt = true;
+        m_barcodeRescan = false;
+        for (const crunch::SheetObjects::LinkedBarcode &l : m_objects->linkedBarcodes()) {
+            QString text;
+            if (staleText(l, &text) && m_barcodeFailed.value(key(l.sheet, l.id)) != text) m_barcodeQueue.push_back({l.sheet, l.id});
+        }
+        std::reverse(m_barcodeQueue.begin(), m_barcodeQueue.end());
+    }
     std::vector<crunch::ObjectEdit> edits;
-    std::vector<int> made;
-    std::vector<int> madeSheets;
+    std::vector<std::pair<int, int>> made;   // (sheet, id)
     int failed = 0;
-    for (const crunch::SheetObjects::LinkedBarcode &l : m_objects->linkedBarcodes()) {
-        if (!l.found) continue;   // (the cell was taken away: the barcode stays as it was)
-        const QString text = m_session->neutralText(l.cellSheet, l.row, l.col).trimmed();
-        if (text.isEmpty() || text == l.settings.value(QStringLiteral("data")).toString()) continue;
+    bool limited = false;
+    int looked = 0;
+    while (!m_barcodeQueue.empty() && int(made.size()) < kMostSwapsPerTurn && ++looked <= kMostLookedAtPerTurn && (looked == 1 || turn.elapsed() < kMostMillisecondsPerTurn)) {
+        const std::pair<int, int> at = m_barcodeQueue.back();
+        m_barcodeQueue.pop_back();
+        crunch::SheetObjects::LinkedBarcode l;
+        QString text;
+        if (!m_objects->linkedBarcodeOf(at.first, at.second, &l) || !staleText(l, &text)) continue;   // (it is gone, or was done meanwhile)
         QJsonObject settings = l.settings;
         settings.insert(QStringLiteral("data"), text);
         settings.insert(QStringLiteral("cell"), l.ref);
         crunch::ObjectClip clip;
         QString why;
-        if (!crunch::barcodeClip(settings, &clip, &why)) {
-            ++failed;
+        ++m_barcodeTries;
+        if (!crunch::barcodeClip(settings, &clip, &why, true)) {
+            if (m_barcodeFailed.value(key(l.sheet, l.id)) != text) ++failed;
+            m_barcodeFailed.insert(key(l.sheet, l.id), text);
             continue;
         }
+        m_barcodeFailed.remove(key(l.sheet, l.id));
         const int fresh = m_objects->makeElement(l.sheet, clip, m_objects->anchorOf(l.sheet, l.id), &why);
         if (fresh < 0) {
-            ++failed;
-            continue;
+            // (the workbook holds as many new objects as one save writes: the rest are made again after a save; what is saved is written from the cells' text then in any case)
+            limited = true;
+            m_barcodeQueue.clear();
+            break;
         }
-        made.push_back(fresh);
-        madeSheets.push_back(l.sheet);
+        made.push_back({l.sheet, fresh});
         crunch::ObjectEdit gone;
         gone.sheet = l.sheet;
         gone.id = l.id;
@@ -597,13 +641,28 @@ void CrunchWindow::syncLinkedBarcodes()
         edits.push_back(gone);
         edits.push_back(put);
     }
-    if (failed > 0) setStatus(tr("A barcode could not be made from the text of its cell, so it keeps what it had."));
-    if (edits.empty()) return;
-    const crunch::EditSession::Outcome o = m_session->changeObjects(edits, tr("Update Barcodes"));
-    if (!o.ok) {
-        for (size_t k = 0; k < made.size(); ++k) m_objects->discardMade(madeSheets[k], made[k]);
+    if (failed > 0) {
+        ++m_barcodeFailuresTold;
+        setStatus(tr("A barcode could not be made from the text of its cell, so it keeps what it had."));
+    }
+    if (limited && !m_barcodeLimited) {
+        m_barcodeLimited = true;
+        setStatus(tr("The workbook holds as many new objects as can be saved in one go. The barcodes left are made again from their cells after you save."));
+        ++m_barcodeFailuresTold;
+    }
+    if (!edits.empty() && !m_session->amendLastStep(edits)) {
+        const crunch::EditSession::Outcome o = m_session->changeObjects(edits, tr("Update Barcodes"));
+        if (!o.ok)
+            for (const auto &m : made) m_objects->discardMade(m.first, m.second);
+    }
+    if (!m_barcodeQueue.empty()) {
+        m_barcodeSyncPending = true;
+        QTimer::singleShot(0, this, [this] { syncLinkedBarcodes(); });
         return;
     }
+    m_barcodeQueueBuilt = false;
+    if (!limited) m_barcodeLimited = false;   // (a pass that made all it found: nothing is left over)
+    if (m_barcodeRescan) scheduleBarcodeSync(0);
 }
 
 // Insert > Barcode > Barcodes From Cells: the dialog of Insert > Barcode asks for the type and look (what it holds is only the sample), and the selected cells make the barcodes.

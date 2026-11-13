@@ -3,14 +3,16 @@
 #include "core/barcodeitem.h"
 #include "office/barcodemarker.h"
 
+#include <QBuffer>
 #include <QCoreApplication>
+#include <QImage>
 
 #include <algorithm>
 #include <cmath>
 
 namespace jp::crunch {
 
-bool barcodeClip(const QJsonObject &settings, ObjectClip *out, QString *why)
+bool barcodeClip(const QJsonObject &settings, ObjectClip *out, QString *why, bool provisional)
 {
     QString problem = barcode::tooLong(barcodeOptions(settings));
     const ItemPtr code = problem.isEmpty() ? barcodeFromSettings(settings, QPointF(), &problem) : ItemPtr();
@@ -23,7 +25,20 @@ bool barcodeClip(const QJsonObject &settings, ObjectClip *out, QString *why)
     png.token = QStringLiteral("rIdBarcodePng");
     png.extension = QStringLiteral("png");
     png.contentType = QStringLiteral("image/png");
-    png.bytes = barcodePng(group);
+    if (provisional) {
+        static const QByteArray standIn = [] {
+            QImage one(1, 1, QImage::Format_ARGB32);
+            one.fill(Qt::transparent);
+            QByteArray bytes;
+            QBuffer buffer(&bytes);
+            buffer.open(QIODevice::WriteOnly);
+            one.save(&buffer, "PNG");
+            return bytes;
+        }();
+        png.bytes = standIn;
+    } else {
+        png.bytes = barcodePng(group);
+    }
     svg.token = QStringLiteral("rIdBarcodeSvg");
     svg.extension = QStringLiteral("svg");
     svg.contentType = QStringLiteral("image/svg+xml");
@@ -48,6 +63,7 @@ bool barcodeClip(const QJsonObject &settings, ObjectClip *out, QString *why)
                       + "\"/></a:ext></a:extLst></a:blip><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\""
                       + QByteArray::number(qint64(w * kEmuPerUnit)) + "\" cy=\"" + QByteArray::number(qint64(h * kEmuPerUnit))
                       + "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>";
+    clip.provisional = provisional;
     *out = clip;
     return true;
 }

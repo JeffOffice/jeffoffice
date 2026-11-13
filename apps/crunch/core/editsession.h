@@ -948,6 +948,11 @@ public:
     Outcome deleteObject(int sheet, int id, const QString &text, const ObjectState &before, const ObjectState &after);
     // The same for any change of objects (all in one step).
     Outcome changeObjects(std::vector<ObjectEdit> edits, const QString &text);
+    // The same changes made part of the step that is on top of the stack, if that is a step that changed cells and Redo has nothing: Undo then takes the cells and the objects back together, and Redo
+    // does both again (a barcode made again from the cell the step changed). False, and nothing done, if the top step is not such a step (the caller then makes a step of its own).
+    bool amendLastStep(std::vector<ObjectEdit> edits);
+    // The text of a cell for what is made from it (a barcode linked to the cell): empty for a cell that is empty, holds an error, or is a formula not worked out yet.
+    QString linkText(int sheet, quint32 row, quint32 col) const;
 
     // ---- how the sheets print (editpage.cpp)
     // How a sheet prints now; and a change to it, one step of Undo (nothing if it is as it is). The print area, titles, and breaks follow rows, columns, and cells inserted and deleted.
@@ -1175,6 +1180,7 @@ private:
     // Puts a step on the undo stack (done, as pushed) and keeps the stack within its bytes.
     // `alreadyDone`: the step was put in a slice at a time already (see SlicedPush): it is put on the stack and not done again.
     void pushStep(Step step, const QString &text, bool alreadyDone = false);
+    bool amendTopStep(std::vector<ObjectEdit> edits);
     // A text typed in a cell of a table's header row: the column is renamed (the formulas that name it follow, and the table's part when the workbook is saved).
     Outcome typeInHeader(int sheet, quint32 row, quint32 col, int table, int column, const QString &typed);
     // After a typed entry in a table's cell: the table grows, and a formula typed in an empty column becomes the column's (edittables.cpp).

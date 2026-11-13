@@ -173,11 +173,13 @@ void SheetObjects::open(const std::shared_ptr<Workbook> &book)
     m_contextRead = false;
     m_shown = -1;
     m_objectsMade = 0;
+    m_deadMade = 0;
     m_chartPartsRead = 0;
 }
 
 void SheetObjects::setCells(const WorkbookSource *source, const jp::grid::ValueStore *values)
 {
+    ++m_linkEpoch;
     m_source = source;
     m_values = values;
     m_cells.reset();
@@ -232,6 +234,7 @@ void SheetObjects::refreshRefs(Object &o) const
 
 void SheetObjects::sheetsChanged()
 {
+    ++m_linkEpoch;
     if (!m_book) return;
     // room for the sheets there are (one added or copied has no drawing; one taken away by Undo is let go of)
     m_sheets.resize(size_t(m_book->info().sheets.size()));
@@ -491,7 +494,7 @@ void SheetObjects::ensureBuilt(int sheet, Object &o)
         ++s.counts.leftOut;
         s.counts.why << why;
     };
-    if (m_objectsMade >= kMaxWorkbookObjects) {
+    if (m_objectsMade - m_deadMade >= kMaxWorkbookObjects) {
         leaveOut(tr("more objects than the %1 a workbook may show").arg(kMaxWorkbookObjects));
         return;
     }
@@ -550,6 +553,8 @@ void SheetObjects::ensureBuilt(int sheet, Object &o)
         linkBarcode(sheet, o, false);
     }
     ++m_objectsMade;
+    o.counted = true;
+    if (o.deleted) ++m_deadMade;
     ++s.counts.shown;
 }
 
@@ -587,28 +592,70 @@ QString SheetObjects::barcodeCellRef(int sheet, quint32 row, quint32 col) const
     return quoteSheetName(m_book->info().sheets[sheet].name) + QStringLiteral("!$") + columnName(col) + QStringLiteral("$") + QString::number(qint64(row) + 1);
 }
 
+bool SheetObjects::mayBeLinked(Object &o)
+{
+    if (o.meta.kind != ObjectKind::Picture) return false;
+    if (o.built) return !o.refs.isEmpty() && isBarcodeItem(o.item.get());
+    if (o.linkState >= 0) return o.linkState == 1;
+    o.linkState = 0;
+    for (QDomElement nv = o.meta.element.firstChildElement(); !nv.isNull(); nv = nv.nextSiblingElement()) {
+        if (nv.localName() != QLatin1String("nvPicPr")) continue;
+        for (QDomElement props = nv.firstChildElement(); !props.isNull(); props = props.nextSiblingElement()) {
+            if (props.localName() != QLatin1String("cNvPr")) continue;
+            for (QDomElement list = props.firstChildElement(); !list.isNull(); list = list.nextSiblingElement())
+                for (QDomElement ext = list.firstChildElement(); !ext.isNull(); ext = ext.nextSiblingElement()) {
+                    if (ext.attribute(QStringLiteral("uri")) != QLatin1String(kBarcodeExtUri)) continue;
+                    for (QDomElement m = ext.firstChildElement(); !m.isNull(); m = m.nextSiblingElement())
+                        if (m.localName() == QLatin1String("barcode") && m.attribute(QStringLiteral("settings")).contains(QLatin1String("\"cell\""))) o.linkState = 1;
+                }
+            break;
+        }
+        break;
+    }
+    return o.linkState == 1;
+}
+
+bool SheetObjects::linkedBarcodeOf(int sheet, int id, LinkedBarcode *out)
+{
+    Object *o = find(sheet, id);
+    if (!o || o->deleted || o->gone || !mayBeLinked(*o)) return false;
+    ensureBuilt(sheet, *o);
+    if (o->refs.isEmpty() || !isBarcodeItem(o->item.get())) return false;
+    LinkedBarcode l;
+    l.sheet = sheet;
+    l.id = id;
+    l.ref = o->refs.front();
+    l.settings = static_cast<const GroupItem *>(o->item.get())->barcode;
+    if (o->linkEpoch != m_linkEpoch || !m_cells) {
+        // (the cell is found again only after rows, columns, or sheets moved)
+        QVector<ChartBlock> blocks;
+        o->linkFound = m_cells && chartBlocks(l.ref, sheet, *m_cells, &blocks) && !blocks.isEmpty();
+        if (o->linkFound) {
+            o->linkSheet = blocks.front().sheet;
+            o->linkRow = blocks.front().range.row1;
+            o->linkCol = blocks.front().range.col1;
+        }
+        o->linkEpoch = m_cells ? m_linkEpoch : 0;
+    }
+    l.found = o->linkFound;
+    l.cellSheet = o->linkSheet;
+    l.row = o->linkRow;
+    l.col = o->linkCol;
+    *out = l;
+    return true;
+}
+
 std::vector<SheetObjects::LinkedBarcode> SheetObjects::linkedBarcodes()
 {
     std::vector<LinkedBarcode> out;
+    int candidates = 0;   // (a document honors at most kMostBarcodesHonored barcodes: pictures with a marker past those are not made to find out)
     for (size_t i = 0; i < m_sheets.size(); ++i) {
         if (!m_sheets[i].listed) continue;
         for (const std::shared_ptr<Object> &o : m_sheets[i].objects) {
-            if (o->deleted || o->gone || o->meta.kind != ObjectKind::Picture) continue;
-            ensureBuilt(int(i), *o);
-            if (o->refs.isEmpty() || !isBarcodeItem(o->item.get())) continue;
+            if (o->deleted || o->gone || !mayBeLinked(*o)) continue;
+            if (++candidates > kMostBarcodesHonored) return out;
             LinkedBarcode l;
-            l.sheet = int(i);
-            l.id = o->id;
-            l.ref = o->refs.front();
-            l.settings = static_cast<const GroupItem *>(o->item.get())->barcode;
-            QVector<ChartBlock> blocks;
-            if (m_cells && chartBlocks(l.ref, int(i), *m_cells, &blocks) && !blocks.isEmpty()) {
-                l.found = true;
-                l.cellSheet = blocks.front().sheet;
-                l.row = blocks.front().range.row1;
-                l.col = blocks.front().range.col1;
-            }
-            out.push_back(l);
+            if (linkedBarcodeOf(int(i), o->id, &l)) out.push_back(l);
         }
     }
     return out;
@@ -618,7 +665,7 @@ std::vector<SheetObjects::LinkedBarcode> SheetObjects::linkedBarcodes()
 // text (if that is still the one the barcode makes itself). What it is in the window is left as it is: the window changes it when the cell changes.
 void SheetObjects::saveBarcode(int sheet, Sheet &s, Object &o, SaveChanges *changes, QSet<QString> *claimed)
 {
-    if (!m_cells || !m_cellText || o.meta.kind != ObjectKind::Picture) return;
+    if (!m_cells || !m_cellText || !mayBeLinked(o)) return;   // (a picture that holds no link is not made to find out)
     ensureBuilt(sheet, o);
     if (o.refs.isEmpty() || !isBarcodeItem(o.item.get())) return;
     if (o.added && (o.reviveOwn || o.revive.lock())) return;   // (written as it was)
@@ -630,12 +677,12 @@ void SheetObjects::saveBarcode(int sheet, Sheet &s, Object &o, SaveChanges *chan
         const QString text = m_cellText(blocks.front().sheet, blocks.front().range.row1, blocks.front().range.col1).trimmed();
         if (!text.isEmpty()) want.insert(QStringLiteral("data"), text);
     }
-    if (want == was) return;
+    if (want == was && !o.provisional) return;
     jp::crunch::ObjectClip clip;
     if (!jp::crunch::barcodeClip(want, &clip)) {
         // (a value the code can't hold: the barcode keeps what it had, and the reference is still written)
         want.insert(QStringLiteral("data"), was.value(QStringLiteral("data")));
-        if (want == was || !jp::crunch::barcodeClip(want, &clip)) return;
+        if ((want == was && !o.provisional) || !jp::crunch::barcodeClip(want, &clip)) return;
     }
     QByteArray png, svg;
     for (const jp::crunch::ClipMedia &m : std::as_const(clip.media)) (m.extension == QLatin1String("png") ? png : svg) = m.bytes;
@@ -649,6 +696,7 @@ void SheetObjects::saveBarcode(int sheet, Sheet &s, Object &o, SaveChanges *chan
             else if (m.extension == QLatin1String("svg")) m.bytes = svg;
         }
         o.meta.description = description;
+        o.provisional = false;
         return;
     }
     if (s.drawingPart.isEmpty() || o.meta.ordinal < 0) return;
@@ -920,6 +968,10 @@ void SheetObjects::setDeleted(int sheet, int id, bool deleted)
     Sheet &s = sheetState(sheet);
     for (const std::shared_ptr<Object> &o : s.objects)
         if (o->id == id) {
+            if (o->counted && o->deleted != deleted) {
+                m_deadMade += deleted ? 1 : -1;
+                if (isBarcodeItem(o->item.get())) m_budget.barcodes = std::max(0, m_budget.barcodes + (deleted ? -1 : 1));
+            }
             o->deleted = deleted;
             if (sheet == m_shown) m_layer.setDeleted(id, deleted);
             return;
@@ -955,6 +1007,7 @@ void SheetObjects::cellsChanged(const std::vector<jp::grid::ValueStore::Item> &c
 
 void SheetObjects::cellsMoved()
 {
+    ++m_linkEpoch;
     if (!m_edits) return;
     const std::vector<StructEdit> &edits = m_edits();
     if (m_cells) m_cells->sizesChanged();   // (a hidden row moves with the rows inserted or deleted above it)
@@ -1699,6 +1752,7 @@ void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
     if (st.describes) o->meta.description = st.description;
     if (st.prints >= 0) o->meta.prints = st.prints != 0;
     replay(sheet, *o);
+    o->linkEpoch = 0;
     o->frozen = o->anchor.kind != AnchorKind::TwoCell;
     o->meta.anchor.editAs = o->anchor.editAs;
     if (st.revive) o->revive = st.revive;
@@ -1712,6 +1766,11 @@ void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
             o->savedPart.clear();
             o->reviveOwn = rec;   // (held until it is written: a new edit may give up the steps that held it)
         }
+    }
+    if (o->counted && o->deleted != st.deleted) {
+        // (the slots count the objects that are there: one taken away gives its slot back, and so does its place among the barcodes a document may have)
+        m_deadMade += st.deleted ? 1 : -1;
+        if (isBarcodeItem(o->item.get())) m_budget.barcodes = std::max(0, m_budget.barcodes + (st.deleted ? -1 : 1));
     }
     o->deleted = st.deleted;
     // a chart put on and taken away again lets go of its numbers (the step that put it on holds them, and gives them back)
@@ -1930,7 +1989,7 @@ bool SheetObjects::canMakeChart(int sheet, const Chart &chart, QString *why)
     if (!m_book || sheet < 0 || sheet >= int(m_sheets.size())) return refuse(tr("There is no such sheet."));
     if (addedCount() >= m_limits.maxAdded)
         return refuse(tr("%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.").arg(QLocale().toString(m_limits.maxAdded)));
-    if (m_objectsMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(QLocale().toString(kMaxWorkbookObjects)));
+    if (m_objectsMade - m_deadMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(QLocale().toString(kMaxWorkbookObjects)));
     return chartRoom(sheet, chart, -1, why);
 }
 
@@ -1949,7 +2008,7 @@ int SheetObjects::makeChart(int sheet, const Chart &chart, const DrawingAnchor &
     }
     if (addedCount() >= m_limits.maxAdded)
         return refuse(tr("%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.").arg(QLocale().toString(m_limits.maxAdded)));
-    if (m_objectsMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(QLocale().toString(kMaxWorkbookObjects)));
+    if (m_objectsMade - m_deadMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(QLocale().toString(kMaxWorkbookObjects)));
     if (!chartRoom(sheet, chart, -1, why)) return -1;
     knowShapeIds(sheet, s);
     auto o = std::make_shared<Object>();
@@ -1979,6 +2038,8 @@ int SheetObjects::makeChart(int sheet, const Chart &chart, const DrawingAnchor &
     o->points = pointsOf(sheet, chart);
     o->built = o->made = true;
     ++m_objectsMade;
+    o->counted = true;
+    ++m_deadMade;   // (it is taken away until the step that makes it is done)
     ++s.counts.charts;
     ++s.counts.shown;
     s.objects.push_back(o);
@@ -1994,6 +2055,7 @@ void SheetObjects::discardMade(int sheet, int id)
     Sheet &s = sheetState(sheet);
     for (size_t k = 0; k < s.objects.size(); ++k)
         if (s.objects[k]->id == id && s.objects[k]->added) {
+            if (s.objects[k]->counted && s.objects[k]->deleted) --m_deadMade;
             s.objects.erase(s.objects.begin() + qsizetype(k));
             --m_objectsMade;
             --s.counts.charts;
@@ -2150,16 +2212,24 @@ bool SheetObjects::copyElement(int sheet, int id, jp::crunch::ObjectClip *clip, 
     c.height = std::clamp(box.h, 4.0, 20000.0);
     c.sheetName = m_book->info().sheets[sheet].name;
     c.elementXml = remapIds(xml, tokens);
+    c.namespaces = namespaces;
+    c.media = media;
     if (!o->refs.isEmpty() && isBarcodeItem(o->item.get())) {
         // (a barcode linked to a cell is copied linked to the cell it reads now)
         BarcodeMarker marker = readBarcodeMarkerXml(c.elementXml, namespaces);
-        if (!marker.isEmpty()) {
+        if (!marker.isEmpty() && o->provisional) {
+            // (made with a stand-in picture: the copy is made with the real one)
+            jp::crunch::ObjectClip full;
+            marker.settings.insert(QStringLiteral("cell"), o->refs.front());
+            if (!jp::crunch::barcodeClip(marker.settings, &full)) return refuse(tr("This object can't be copied."));
+            c.elementXml = full.elementXml;
+            c.namespaces = full.namespaces;
+            c.media = full.media;
+        } else if (!marker.isEmpty()) {
             marker.settings.insert(QStringLiteral("cell"), o->refs.front());
             c.elementXml = withFirstObjectBarcodeMarker(c.elementXml, barcodeMarkerExtXml(marker.settings, marker.pngHash, marker.svgHash));
         }
     }
-    c.namespaces = namespaces;
-    c.media = media;
     *clip = c;
     return true;
 }
@@ -2175,7 +2245,7 @@ int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, con
     Sheet &s = sheetState(sheet);
     if (addedCount() >= m_limits.maxAdded)
         return refuse(tr("%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.").arg(QLocale().toString(m_limits.maxAdded)));
-    if (m_objectsMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(QLocale().toString(kMaxWorkbookObjects)));
+    if (m_objectsMade - m_deadMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(QLocale().toString(kMaxWorkbookObjects)));
     qint64 held = pastedBytesHeld();
     for (const jp::crunch::ClipMedia &m : clip.media) held += m.bytes.size();
     if (held > m_limits.maxBytes)
@@ -2263,9 +2333,13 @@ int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, con
     o->pasteXml = text.toUtf8();
     o->pasteNamespaces = clip.namespaces;
     o->pasteMedia = clip.media;
+    o->provisional = clip.provisional;
     o->built = o->made = true;
     linkBarcode(sheet, *o, true);
+    if (isBarcodeItem(item.get())) m_budget.barcodes = std::max(0, m_budget.barcodes - 1);   // (it is taken away until its step is done: it takes a place among the barcodes then)
     ++m_objectsMade;
+    o->counted = true;
+    ++m_deadMade;
     ++s.counts.shown;
     switch (o->meta.kind) {
     case ObjectKind::Picture: ++s.counts.pictures; break;
