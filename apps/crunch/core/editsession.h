@@ -945,6 +945,13 @@ public:
     // step saved, no further; a step that put one there cannot be done again once the object was taken away and the file saved.
     using ObjectHook = std::function<void(const ObjectEdit &edit, bool forward)>;
     void setObjectHook(ObjectHook hook) { m_objectHook = std::move(hook); }
+    // Told when a step that took an object away is forgotten (Undo is given up for it, to stay within kUndoBytes): what the program kept of the object for Undo can go.
+    using ObjectForgetHook = std::function<void(int sheet, int id)>;
+    void setObjectForgetHook(ObjectForgetHook hook) { m_objectForgetHook = std::move(hook); }
+    void objectForgotten(int sheet, int id)
+    {
+        if (m_objectForgetHook) m_objectForgetHook(sheet, id);
+    }
     Outcome deleteObject(int sheet, int id, const QString &text, const ObjectState &before, const ObjectState &after);
     // The same for any change of objects (all in one step).
     Outcome changeObjects(std::vector<ObjectEdit> edits, const QString &text);
@@ -1341,6 +1348,7 @@ private:
     qint64 m_marksSwept = 0;
     void renumberMarks(int sheet, bool rows, const std::vector<jp::calc::LineMapCore::Renumber> &table);
     ObjectHook m_objectHook;
+    ObjectForgetHook m_objectForgetHook;
     bool m_fileOrderLost = false;   // the file was saved with rows or columns edited (or the ids were numbered again by their places): its formulas are no longer the text of the ids as they were numbered (see takeSnapshot)
     std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file
     PageSettings m_pages;

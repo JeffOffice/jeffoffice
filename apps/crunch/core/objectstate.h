@@ -77,6 +77,7 @@ struct ObjectState {
     int prints = -1;                                  // whether it is on the printed pages (-1: whatever it has)
     bool deleted = false;                             // taken away (or not made yet)
     int order = 0;                                    // its place among the sheet's objects, from the back
+    qint64 heldBytes = 0;                             // what the program keeps of an object this state takes away, for Undo to bring back (a barcode swapped for another keeps its drawing and parts)
     int epoch = 0;                                    // which stretch between saves the places are of: after a save that followed edits to rows and columns, what was kept of the one before is no use
 };
 
@@ -92,7 +93,7 @@ struct ObjectEdit {
 // About how many bytes a state holds that a step of Undo keeps: the numbers and words of a chart's series (a chart made from many cells is a large thing), and its references.
 inline qint64 approxBytes(const ObjectState &st)
 {
-    qint64 n = qint64(sizeof(ObjectState)) + qint64(st.placements.size()) * qint64(sizeof(AnchorPlacement)) + (st.revive ? st.revive->bytes() : 0);
+    qint64 n = qint64(sizeof(ObjectState)) + st.heldBytes + qint64(st.placements.size()) * qint64(sizeof(AnchorPlacement)) + (st.revive ? st.revive->bytes() : 0);
     for (const RefPlacement &r : st.refs) n += 64 + qint64(r.refs.size()) * 96;
     if (st.chart)
         for (const jp::office::ChartPlot &p : st.chart->plots)

@@ -627,6 +627,7 @@ void CrunchWindow::syncLinkedBarcodes()
         gone.after.deleted = true;
         gone.after.revive = m_objects->captureRevive(l.sheet, l.id);
         gone.before.revive = gone.after.revive;
+        gone.before.heldBytes = m_objects->heldBytesOf(l.sheet, l.id);   // (counted against what Undo may keep: the oldest steps are forgotten past it, and the barcode goes with them)
         crunch::ObjectEdit put;
         put.sheet = l.sheet;
         put.id = fresh;

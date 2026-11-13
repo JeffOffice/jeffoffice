@@ -16,6 +16,9 @@
 #include "io/zip.h"
 #include "office/package.h"
 
+#ifdef __GLIBC__
+#include <malloc.h>
+#endif
 #include <QComboBox>
 #include <QElapsedTimer>
 #include <QFile>
@@ -122,11 +125,39 @@ class CrunchBarcodeTests : public QObject {
     }
     static qint64 residentKb()
     {
+#ifdef __GLIBC__
+        malloc_trim(0);   // (what was freed is given back, so that the figure is what is held)
+#endif
         QFile f(QStringLiteral("/proc/self/status"));
         if (!f.open(QIODevice::ReadOnly)) return 0;
         for (const QByteArray &line : f.readAll().split('\n'))
             if (line.startsWith("VmRSS:")) return line.mid(6).trimmed().split(' ').value(0).toLongLong();
         return 0;
+    }
+
+    static qint64 darkPixels(const QImage &img)
+    {
+        qint64 n = 0;
+        const QImage g = img.convertToFormat(QImage::Format_ARGB32);
+        for (int y = 0; y < g.height(); ++y)
+            for (int x = 0; x < g.width(); ++x) {
+                const QRgb c = g.pixel(x, y);
+                if (qAlpha(c) > 128 && qGray(c) < 100) ++n;
+            }
+        return n;
+    }
+    // What print, print preview, and PDF export draw of the barcode of the sheet (the layer's own drawing of it, as the printed objects have it), at its size on the page.
+    static QImage printedBarcode(EditWindow &e)
+    {
+        const std::vector<jp::grid::LayerObject> objects = e.win.w.objects()->printObjects(0);
+        if (objects.size() != 1 || !objects.front().render) return {};
+        const jp::grid::ObjectBox box = e.win.w.objects()->layer()->boxNow(objects.front().id);
+        jp::grid::RenderRequest q;
+        q.pixels = QSize(int(box.w * 2), int(box.h * 2));
+        q.zoom = 2;
+        q.units = QSizeF(box.w, box.h);
+        q.inner = QRectF(QPointF(0, 0), q.units);
+        return objects.front().render(q);
     }
 
     static void letGo()
@@ -574,10 +605,50 @@ private Q_SLOTS:
             letGo();
             if (shownData(e) != QStringLiteral("V%1").arg(i)) QTRY_COMPARE(shownData(e), QStringLiteral("V%1").arg(i));
         }
-        qInfo("5000 edits: %lld ms, %lld MB more", clock.elapsed(), (residentKb() - before) / 1024);
+        qInfo("5000 edits: %lld ms, %lld MB more, Undo holds %lld MB", clock.elapsed(), (residentKb() - before) / 1024, e.win.w.session()->undoBytes() >> 20);
         QCOMPARE(o->liveObjects(), 1);
         QCOMPARE(shownData(e), QStringLiteral("V4999"));
-        QVERIFY2((residentKb() - before) / 1024 < 1000, qPrintable(QString::number((residentKb() - before) / 1024)));
+        // What Undo keeps of the swapped-out barcodes is counted against the limit of the steps (128 MB), and the oldest steps are forgotten past it with their barcodes let go: the memory held stays
+        // within a few times that, however many edits are made. The newest edit still undoes.
+        QVERIFY2(e.win.w.session()->undoBytes() <= e.win.w.session()->undoByteLimit() + (1 << 20), qPrintable(QString::number(e.win.w.session()->undoBytes())));
+        QVERIFY2((residentKb() - before) / 1024 < 450, qPrintable(QString::number((residentKb() - before) / 1024)));
+        e.win.w.undoStack()->undo();
+        QCOMPARE(shownData(e), QStringLiteral("V4998"));
+        QCOMPARE(o->liveObjects(), 1);
+    }
+
+    // What one swap keeps for Undo, measured: the barcodes swapped out are kept (here with the limit lifted, so that none is let go), and the memory per swap is what heldBytesOf counts.
+    void aSwappedOutBarcodeKeepsAboutWhatIsCounted()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        QVERIFY(linkedBarcode(e) >= 0);
+        e.win.w.session()->setUndoByteLimit(Q_INT64_C(1) << 40);
+        for (int i = 0; i < 20; ++i) {   // (to get past what the first ones allocate once)
+            QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("W%1").arg(i)).ok);
+            QTRY_COMPARE(shownData(e), QStringLiteral("W%1").arg(i));
+        }
+        const qint64 before = residentKb(), steps = e.win.w.session()->undoBytes();
+        for (int i = 0; i < 500; ++i) {
+            QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("X%1").arg(i)).ok);
+            letGo();
+            if (shownData(e) != QStringLiteral("X%1").arg(i)) QTRY_COMPARE(shownData(e), QStringLiteral("X%1").arg(i));
+        }
+        const qint64 perSwapKb = (residentKb() - before) / 500, countedKb = (e.win.w.session()->undoBytes() - steps) / 500 / 1024;
+        qInfo("one swap keeps %lld KB; Undo counts %lld KB; images kept %d, decoded %lld KB", perSwapKb, countedKb, e.win.w.objects()->imagesKept(), e.win.w.objects()->imageBytesDecoded() / 1024);
+        QVERIFY2(countedKb >= perSwapKb, qPrintable(QStringLiteral("%1 counted, %2 held").arg(countedKb).arg(perSwapKb)));
+        // With a small limit the oldest steps are forgotten and their barcodes let go: 500 more swaps hold a fraction of what 500 held.
+        e.win.w.session()->setUndoByteLimit(Q_INT64_C(16) << 20);
+        const qint64 held = residentKb();
+        for (int i = 0; i < 500; ++i) {
+            QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("Y%1").arg(i)).ok);
+            letGo();
+            if (shownData(e) != QStringLiteral("Y%1").arg(i)) QTRY_COMPARE(shownData(e), QStringLiteral("Y%1").arg(i));
+        }
+        qInfo("under a 16 MB limit 500 more swaps hold %lld MB more (without it %lld MB); Undo holds %lld MB", (residentKb() - held) / 1024, perSwapKb * 500 / 1024, e.win.w.session()->undoBytes() >> 20);
+        QVERIFY2(residentKb() - held < perSwapKb * 500 / 4, qPrintable(QString::number(residentKb() - held)));
     }
 
     // Ten thousand pictures with a link marker (a document honors 2,000 of them as barcodes, the rest are plain pictures) and a change of all their cells: the swaps are done a few at a time (no turn
@@ -717,6 +788,66 @@ private Q_SLOTS:
         QCOMPARE(out.value(QLatin1String("data")).toString(), QStringLiteral("new"));
         QCOMPARE(out.value(QLatin1String("cell")).toString(), QStringLiteral("Sheet1!$A$2"));
         QCOMPARE(out.value(QLatin1String("futureKey")).toInt(), 7);
+    }
+
+    // After a cell edit the user sees the bars of the new value, at the object's size, at once (the picture kept in the file is made at a save): the sheet view shows them, the printed
+    // objects (print, print preview, and PDF export draw those) hold them, a copy of the barcode has its real picture, and so has the saved file.
+    void aSwappedBarcodeShowsItsBarsAtOnceAndEveryOutputHasTheRealPicture()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        const QImage empty = e.view()->grab().toImage();
+        const int first = linkedBarcode(e);
+        QVERIFY(first >= 0);
+        QImage before;
+        QTRY_VERIFY2(darkPixels(before = e.view()->grab().toImage()) > darkPixels(empty) + 400, "the barcode is drawn");
+        const QImage printedBefore = printedBarcode(e);
+        QVERIFY(darkPixels(printedBefore) > 400);
+        const jp::grid::ObjectBox box = o->layer()->boxNow(first);
+        QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("NEW-42-LONGER")).ok);
+        QTRY_COMPARE(shownData(e), QStringLiteral("NEW-42-LONGER"));
+        const int id = o->idsOf(0).front();
+        const jp::grid::ObjectBox now = o->layer()->boxNow(id);
+        QVERIFY(qAbs(now.w - box.w) < 0.5 && qAbs(now.h - box.h) < 0.5);   // (the size it had)
+        // the view
+        QImage after;
+        auto viewShowsTheNewBars = [&] {
+            after = e.view()->grab().toImage();
+            if (after.size() != before.size()) return false;
+            qint64 differing = 0;
+            int left = after.width(), right = 0;
+            for (int y = 0; y < after.height(); ++y)
+                for (int x = 0; x < after.width(); ++x)
+                    if (before.pixel(x, y) != after.pixel(x, y)) {
+                        ++differing;
+                        left = std::min(left, x);
+                        right = std::max(right, x);
+                    }
+            return differing > 1500 && right - left > 80 && darkPixels(after) > darkPixels(empty) + 400;
+        };
+        QTRY_VERIFY2(viewShowsTheNewBars(), "the view shows the bars of the new value");
+        // print, print preview, and PDF export
+        const QImage printed = printedBarcode(e);
+        QVERIFY(printed.width() > 100 && darkPixels(printed) > 400);
+        QVERIFY(printed != printedBefore);
+        // copy: the barcode as a clip has its real picture
+        crunch::ObjectClip clip;
+        QVERIFY(o->copyElement(0, id, &clip));
+        QImage copied;
+        for (const crunch::ClipMedia &m : std::as_const(clip.media))
+            if (m.extension == QLatin1String("png")) copied.loadFromData(m.bytes);
+        QVERIFY2(copied.width() > 100 && copied.height() > 30, "copy has the real picture");
+        QCOMPARE(copied.format() == QImage::Format_Invalid, false);
+        // saved
+        QVERIFY(save(e));
+        QImage saved;
+        const QMap<QString, QByteArray> parts = partsOf(e.path);
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+            if (it.key().startsWith(QLatin1String("xl/media/")) && it.key().endsWith(QLatin1String(".png"))) saved.loadFromData(it.value());
+        QVERIFY2(saved.width() > 100 && saved.height() > 30, "the file has the real picture");
     }
 };
 

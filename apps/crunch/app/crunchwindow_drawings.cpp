@@ -178,6 +178,9 @@ void CrunchWindow::connectObjects()
         if (m_objects) m_objects->sizesChanged(sheet);
     });
     m_objects->setCellTextSource([this](int sheet, quint32 row, quint32 col) { return m_session ? m_session->linkText(sheet, row, col) : QString(); });
+    m_session->setObjectForgetHook([this](int sheet, int id) {
+        if (m_objects) m_objects->releaseDead(sheet, id);
+    });
     m_session->setObjectHook([this](const crunch::ObjectEdit &edit, bool forward) {
         if (m_objects) m_objects->applyState(edit.sheet, edit.id, forward ? edit.after : edit.before);
         updateChartState();

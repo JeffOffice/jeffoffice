@@ -215,6 +215,11 @@ public:
     bool linkedBarcodeOf(int sheet, int id, LinkedBarcode *out);
     // The reference of the cell a barcode is linked to as it is now (empty for none).
     QString barcodeLinkOf(int sheet, int id);
+    // What the program keeps of an object that is taken away so that Undo can bring it back (a barcode made here: its element, its pictures, and the drawing of it), in bytes; 0 for other objects.
+    qint64 heldBytesOf(int sheet, int id);
+    // The step that took the object away is forgotten: what was kept of it goes (the object stays in the list as a mark of its place, which other steps' places count).
+    void releaseDead(int sheet, int id);
+    static constexpr qint64 kHeldBytesOfAnObject = 400 * 1024;
     // The reference a barcode links to a cell by: the sheet's name quoted where it needs it, and the cell as $B$3.
     QString barcodeCellRef(int sheet, quint32 row, quint32 col) const;
     // The state of the object with a new name (empty: as it is) and alternative text.
@@ -278,6 +283,7 @@ private:
         jp::office::sheet::DrawingAnchor savedAnchor;  // what the file being written has
         bool frozen = false;                           // `base` is the size-keeping form
         bool built = false, made = false;
+        bool released = false;                         // what was kept of it for Undo is let go (see releaseDead)
         bool provisional = false;                      // a barcode made with a stand-in PNG: the save makes the real one
         bool counted = false;                          // it is counted in m_objectsMade (and, while taken away, in m_deadMade)
         int linkState = -1;                            // a picture that holds a barcode marker with a cell: -1 not looked at, 0 no, 1 yes (found without making the picture)

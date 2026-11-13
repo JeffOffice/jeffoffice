@@ -270,6 +270,8 @@ public:
     // Lets go of what the step holds: it can't be undone (nor done again) any more.
     void forget()
     {
+        for (const ObjectEdit &e : m_step.objects)
+            if (e.deletes() && e.before.heldBytes > 0) m_session->objectForgotten(e.sheet, e.id);
         const bool lines = m_step.structure && !m_step.structure->record.lines.edit.runs.empty();
         m_step = Step();
         *m_total -= m_bytes;

@@ -586,6 +586,31 @@ QString SheetObjects::barcodeLinkOf(int sheet, int id)
     return isBarcodeItem(o->item.get()) && !o->refs.isEmpty() ? o->refs.front() : QString();
 }
 
+qint64 SheetObjects::heldBytesOf(int sheet, int id)
+{
+    Object *o = find(sheet, id);
+    if (!o || !o->madeHere || !o->added || !isBarcodeItem(o->item.get())) return 0;
+    // (the element and the parts it was made from, and what the drawing, the package, and the document of the object hold: about 400 KB for a barcode: what 5,000 swaps held in all, over the 128 MB Undo keeps, divided by the swaps Undo kept, past its parts)
+    qint64 n = o->pasteXml.size() + kHeldBytesOfAnObject;
+    for (const jp::crunch::ClipMedia &m : std::as_const(o->pasteMedia)) n += m.bytes.size();
+    return n;
+}
+
+void SheetObjects::releaseDead(int sheet, int id)
+{
+    Object *o = find(sheet, id);
+    if (!o || !o->deleted || !o->madeHere || o->released) return;
+    o->released = true;
+    o->item.reset();
+    o->ownDoc.reset();
+    o->ownPackage.reset();
+    o->ownContext.reset();
+    o->meta.element = QDomElement();
+    o->pasteXml.clear();
+    o->pasteMedia.clear();
+    o->pasteMedia.squeeze();
+}
+
 QString SheetObjects::barcodeCellRef(int sheet, quint32 row, quint32 col) const
 {
     if (!m_book || sheet < 0 || sheet >= m_book->info().sheets.size()) return {};
@@ -2308,8 +2333,13 @@ int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, con
     auto context = std::make_shared<DrawingContext>(*baseContext());
     context->package = package.get();
     context->part = QString::fromLatin1(kPastePart);
+    // (a barcode made again for one that is there: the old one's place among the barcodes a document honors is the new one's until the step is done)
+    const bool room = clip.provisional && m_budget.barcodes > 0;
+    if (room) --m_budget.barcodes;
     jp::ItemPtr item = readShape(el, *context);
+    if (room && !isBarcodeItem(item.get())) ++m_budget.barcodes;
     if (!item) return refuse(tr("The object on the clipboard can't be drawn."));
+    if (clip.provisional && !isBarcodeItem(item.get())) return refuse(tr("The workbook has as many barcodes as JeffCrunch draws (%1).").arg(QLocale().toString(kMostBarcodesHonored)));   // (a stand-in picture is shown only by a barcode that is drawn)
     auto o = std::make_shared<Object>();
     o->id = s.nextId++;
     o->added = true;
@@ -2336,7 +2366,7 @@ int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, con
     o->provisional = clip.provisional;
     o->built = o->made = true;
     linkBarcode(sheet, *o, true);
-    if (isBarcodeItem(item.get())) m_budget.barcodes = std::max(0, m_budget.barcodes - 1);   // (it is taken away until its step is done: it takes a place among the barcodes then)
+    if (isBarcodeItem(item.get()) && !room) m_budget.barcodes = std::max(0, m_budget.barcodes - 1);   // (it is taken away until its step is done: it takes a place among the barcodes then)
     ++m_objectsMade;
     o->counted = true;
     ++m_deadMade;
