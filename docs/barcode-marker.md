@@ -37,6 +37,8 @@ An extension of the picture's non-visual properties (`p:cNvPr` in a presentation
 | `qrLevel` | QR: error correction, 0 L, 1 M, 2 Q, 3 H |
 | `cell` | JeffCrunch: the cell the barcode's text is read from, as a reference (`Sheet1!$A$2`, the sheet's name quoted where it needs it). It follows rows and columns inserted or deleted, and the picture is made again from the cell's text when the cell changes and when the file is saved. Other programs pass it over |
 
+A program that edits a barcode keeps the keys of the settings it does not know, `cell` included: the barcode dialog of JeffPub, JeffDeck, JeffWrite, and JeffCrunch starts from the barcode's own settings and changes only the ones it shows.
+
 The settings are held to the dialog's ranges when read: magnification 50% to 300%, bar height 40% to 100%, a price up to 99.99, the error correction levels 0 to 3, and so on; a number outside them is brought to the nearest. A marker is passed over (the picture stays a picture) when its settings are longer than 16 KB, are not a JSON object, or are not a barcode the encoder draws (no data, a wrong check digit, more than a QR code at that level holds). The encoder's own limits are the only limits: a QR code holds at most 2,953 bytes of text at level L, 2,331 at M, 1,663 at Q, and 1,273 at H.
 
 At most 2,000 barcodes of a document are honored; the rest stay plain pictures. A barcode is laid out once however many copies there are.

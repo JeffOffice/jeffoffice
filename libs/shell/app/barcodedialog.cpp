@@ -298,7 +298,10 @@ bool askBarcode(QWidget *p, const QJsonObject &was, QJsonObject *out, bool forFi
     // The settings, remembered for the next barcode and kept with this one.
     const QJsonObject settings = settingsNow();
     for (auto it = settings.begin(); it != settings.end(); ++it) st.setValue(QStringLiteral("barcode/") + it.key(), it.value().toVariant());
-    *out = settings;
+    // (what the barcode keeps that the dialog does not show, such as a program's own marker keys like `cell`, stays)
+    QJsonObject kept = was;
+    for (auto it = settings.begin(); it != settings.end(); ++it) kept.insert(it.key(), it.value());
+    *out = kept;
     return true;
 }
 
