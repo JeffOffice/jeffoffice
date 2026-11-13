@@ -15,12 +15,19 @@ name: publish
 # 1 GB (and about 100 GB of traffic a month), so "keep" is 1: the newest
 # version only. That suits early users; it won't carry many.
 #
+# The same packages also go to Cloudflare R2, served at https://apt.jeffoffice.com,
+# which keeps the newest "r2_keep" versions (r2-kept.txt lists them) in its own
+# index, signed with the same key. R2 has no size limit that matters here and
+# charges nothing for downloads.
+#
 # Everything happens in this repository, so it needs no key or token for
 # another one: the workflow writes to its own repository with its own token.
 #
 # Secrets (of JeffOffice/apt):
 #   APT_SIGNING_KEY         the private signing key, ASCII-armored
 #   APT_SIGNING_PASSPHRASE  its passphrase, if it has one (optional)
+#   R2_ACCESS_KEY_ID        an R2 token that may write only the jeffoffice-apt bucket:
+#   R2_SECRET_ACCESS_KEY    its id, and the SHA-256 of its value
 
 on:
   workflow_dispatch:
@@ -32,6 +39,10 @@ on:
         description: "How many versions to keep in the repository"
         required: false
         default: "1"
+      r2_keep:
+        description: "How many versions to keep at apt.jeffoffice.com"
+        required: false
+        default: "5"
 
 permissions:
   contents: write
@@ -52,6 +63,8 @@ jobs:
     env:
       TAG: ${{ inputs.tag }}
       KEEP: ${{ inputs.keep }}
+      R2_KEEP: ${{ inputs.r2_keep }}
+      R2_ENDPOINT: https://f63ea3e41e73dff7d2afb60b57030cbc.r2.cloudflarestorage.com
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Only from main
@@ -80,14 +93,17 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "::error::tag must look like v0.10.0"; exit 1; }
-          case "$KEEP" in ''|*[!0-9]*|0) echo "::error::keep must be a positive number"; exit 1 ;; esac
-          # This tag first, then the ones kept before it, newest kept first, up to KEEP in all.
+          for n in "$KEEP" "$R2_KEEP"; do
+            case "$n" in ''|*[!0-9]*|0) echo "::error::keep and r2_keep must be positive numbers"; exit 1 ;; esac
+          done
+          # This tag first, then the ones kept before it, newest kept first, up to KEEP (R2_KEEP) in all.
           { echo "$TAG"; cat apt/kept.txt 2>/dev/null || true; } | awk 'NF && !seen[$0]++' | head -n "$KEEP" > kept.new
-          mkdir debs
-          while read -r t; do
-            gh release download "$t" -R JeffOffice/jeffoffice -p '*_amd64.deb' -D debs
-          done < kept.new
-          ls -la debs
+          { echo "$TAG"; cat apt/r2-kept.txt 2>/dev/null || true; } | awk 'NF && !seen[$0]++' | head -n "$R2_KEEP" > r2-kept.new
+          # One folder per tag, so each index is built from its own list.
+          awk '!seen[$0]++' kept.new r2-kept.new | while read -r t; do
+            gh release download "$t" -R JeffOffice/jeffoffice -p '*_amd64.deb' -D "debs/$t"
+          done
+          ls -la debs/*
 
       - name: Sign the indexes
         env:
@@ -96,8 +112,11 @@ jobs:
         run: |
           set -euo pipefail
           printf 'pool/\n' > apt/.gitignore
-          src/tools/apt/publish.sh -n "$KEEP" apt debs/*.deb
+          src/tools/apt/publish.sh -n "$KEEP" apt $(sed 's|^|debs/|; s|$|/*.deb|' kept.new)
           cp kept.new apt/kept.txt
+          # The R2 copy starts from an empty folder each time; publish.sh builds it whole.
+          APT_BASE_URL=https://apt.jeffoffice.com src/tools/apt/publish.sh -n "$R2_KEEP" r2 $(sed 's|^|debs/|; s|$|/*.deb|' r2-kept.new)
+          cp r2-kept.new apt/r2-kept.txt
 
       - name: Save the indexes here
         working-directory: apt
@@ -119,7 +138,7 @@ jobs:
           touch ../site/.nojekyll
           # "sha256 pool-path" for every package the signed index lists; each .deb goes where the index says, and only if it is the file the index describes.
           awk '/^Filename:/ {f=$2} /^SHA256:/ {print $2, f}' "$packages" > ../index.txt
-          for f in ../debs/*.deb; do
+          for f in $(sed 's|^|../debs/|; s|$|/*.deb|' ../kept.new); do
             sum=$(sha256sum "$f" | cut -d' ' -f1)
             path=$(awk -v s="$sum" '$1 == s {print $2; exit}' ../index.txt)
             [ -n "$path" ] || fail "$(basename "$f") is not a file the index describes."
@@ -130,6 +149,25 @@ jobs:
             test -f "../site/$path" || fail "$path is in the index but no release has it."
           done < ../index.txt
           du -sh ../site
+
+      # Packages first, then the signed indexes that name them, then remove what no index names any more.
+      # Cloudflare caches .gz files at the edge, so the indexes say no-cache; a .deb never changes once named.
+      - name: Upload to apt.jeffoffice.com
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+        run: |
+          set -euo pipefail
+          s3() { aws s3 --endpoint-url "$R2_ENDPOINT" --no-progress "$@"; }
+          s3 sync r2/pool s3://jeffoffice-apt/pool --size-only --cache-control "public, max-age=31536000, immutable"
+          s3 sync r2 s3://jeffoffice-apt --exclude "pool/*" --exclude ".*" --cache-control "no-cache"
+          s3 sync r2 s3://jeffoffice-apt --exclude ".*" --delete --size-only
+          sleep 5
+          curl -fsS https://apt.jeffoffice.com/dists/stable/InRelease | grep -q "^Date:" || { echo "::error::apt.jeffoffice.com does not serve the index."; exit 1; }
+          curl -fsSI "https://apt.jeffoffice.com/$(awk '/^Filename:/ {print $2; exit}' r2/dists/stable/main/binary-amd64/Packages)" | head -n 1
 
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:

@@ -166,5 +166,17 @@ Description: Free, open-source office suite
  and opens .docx, .doc, .rtf, and .odt files. JeffCrunch (a beta) makes
  spreadsheets, and opens .xlsx, .xls, .ods, and .csv files.
 CONTROL
+# The apt repository moved from jeffoffice.github.io/apt to apt.jeffoffice.com (Nov 2026; same signing key), so an
+# upgrade points a sources file from the install steps at the new address. The old address keeps the newest version.
+cat > "$deb/DEBIAN/postinst" <<'POSTINST'
+#!/bin/sh
+set -e
+f=/etc/apt/sources.list.d/jeffoffice.sources
+if [ "$1" = configure ] && [ -f "$f" ] && grep -q 'https://jeffoffice.github.io/apt' "$f"; then
+  sed -i 's#https://jeffoffice.github.io/apt#https://apt.jeffoffice.com#' "$f"
+fi
+exit 0
+POSTINST
+chmod 755 "$deb/DEBIAN/postinst"
 dpkg-deb --build --root-owner-group "$deb" "$out/jeffoffice_${ver}_${arch}.deb"
 ls -la "$out"

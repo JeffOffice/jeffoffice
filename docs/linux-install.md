@@ -11,8 +11,8 @@ Add the repository once, and apt installs JeffOffice and keeps it up to date.
 ```sh
 sudo apt install wget          # skip this if wget is already installed
 sudo install -d -m 0755 /etc/apt/keyrings
-sudo wget -O /etc/apt/keyrings/jeffoffice.gpg https://jeffoffice.github.io/apt/jeffoffice.gpg
-sudo wget -O /etc/apt/sources.list.d/jeffoffice.sources https://jeffoffice.github.io/apt/jeffoffice.sources
+sudo wget -O /etc/apt/keyrings/jeffoffice.gpg https://apt.jeffoffice.com/jeffoffice.gpg
+sudo wget -O /etc/apt/sources.list.d/jeffoffice.sources https://apt.jeffoffice.com/jeffoffice.sources
 sudo apt update
 sudo apt install jeffoffice
 ```
@@ -33,7 +33,7 @@ The fingerprint is:
 
 ```
 Types: deb
-URIs: https://jeffoffice.github.io/apt
+URIs: https://apt.jeffoffice.com
 Suites: stable
 Components: main
 Architectures: amd64
