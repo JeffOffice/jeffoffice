@@ -1,6 +1,6 @@
 // Measures the grammar rules on real text: reads files of paragraphs (UTF-8, one paragraph a line), runs every rule over them, and writes, for each rule, the number of
 // flags, the flags per 10,000 words, and a random sample of the flagged contexts (a few words round each) for review. Used by tools/grammar/measure.py.
-// Usage: grammartool [--sample N] [--seed S] [--rule NAME] FILE...
+// Usage: grammartool [--language en|fr|de|es] [--sample N] [--seed S] [--rule NAME] FILE...
 #include "grammar/grammarrules.h"
 
 #include <QCoreApplication>
@@ -38,21 +38,26 @@ int main(int argc, char **argv)
     int sampleSize = 20;
     quint32 seed = 1;
     QString only;
+    grammar::Language language = grammar::Language::English;
     QStringList files;
     const QStringList args = app.arguments().mid(1);
     for (int i = 0; i < args.size(); ++i) {
         if (args[i] == QLatin1String("--sample") && i + 1 < args.size()) sampleSize = args[++i].toInt();
         else if (args[i] == QLatin1String("--seed") && i + 1 < args.size()) seed = args[++i].toUInt();
         else if (args[i] == QLatin1String("--rule") && i + 1 < args.size()) only = args[++i];
+        else if (args[i] == QLatin1String("--language") && i + 1 < args.size()) {
+            const QString l = args[++i];
+            language = l == QLatin1String("fr") ? grammar::Language::French : l == QLatin1String("de") ? grammar::Language::German : l == QLatin1String("es") ? grammar::Language::Spanish : grammar::Language::English;
+        }
         else files << args[i];
     }
     if (files.isEmpty()) {
-        QTextStream(stderr) << "usage: grammartool [--sample N] [--seed S] [--rule NAME] FILE...\n";
+        QTextStream(stderr) << "usage: grammartool [--language en|fr|de|es] [--sample N] [--seed S] [--rule NAME] FILE...\n";
         return 2;
     }
     QRandomGenerator rng(seed);
     QMap<QString, Seen> seen;
-    for (const auto &r : grammar::rules()) seen[r.name];
+    for (const auto &r : grammar::rules(language)) seen[r.name];
     qint64 words = 0, paragraphs = 0;
     for (const QString &path : files) {
         QFile f(path);
@@ -62,7 +67,7 @@ int main(int argc, char **argv)
             if (line.isEmpty()) continue;
             ++paragraphs;
             words += countWords(line);
-            for (const GrammarIssue &g : grammar::check(line, nullptr, grammar::kAllKinds)) {
+            for (const GrammarIssue &g : grammar::check(line, nullptr, grammar::kAllKinds, language)) {
                 if (!only.isEmpty() && g.rule != only) continue;
                 Seen &s = seen[g.rule];
                 ++s.flags;

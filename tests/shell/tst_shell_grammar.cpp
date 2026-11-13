@@ -7,6 +7,7 @@
 #include "../isolatesettings.h"
 #include "../settingguard.h"
 #include "../testrunner.h"
+#include "text/textprops.h"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -64,13 +65,54 @@ private Q_SLOTS:
         QVERIFY(text.mid(issues.first().start, issues.first().end - issues.first().start).contains(QStringLiteral("an")));
     }
 
-    void onlyEnglishIsChecked()
+    void englishFrenchGermanAndSpanishAreChecked()
     {
         QVERIFY(grammarSupports(QString()));
         QVERIFY(grammarSupports(QStringLiteral("en-GB")));
         QVERIFY(grammarSupports(QStringLiteral("en_AU")));
-        QVERIFY(!grammarSupports(QStringLiteral("de-DE")));
-        QVERIFY(grammarCheck(QStringLiteral("Das ist ein Test."), QStringLiteral("de")).isEmpty());
+        for (const char *tag : {"fr", "fr-FR", "fr_CA", "de-DE", "de-AT", "es-ES", "es_MX", "es-419"}) QVERIFY2(grammarSupports(QString::fromLatin1(tag)), tag);
+        for (const char *tag : {"it", "ja-JP", "pt-BR", "fra", "deu", "ru", "zh-CN", "eng"}) QVERIFY2(!grammarSupports(QString::fromLatin1(tag)), tag);
+        QCOMPARE(grammarFamily(QStringLiteral("fr-CA")), QStringLiteral("fr"));
+        QCOMPARE(grammarFamily(QStringLiteral("DE_ch")), QStringLiteral("de"));
+        QCOMPARE(grammarFamily(QString()), QStringLiteral("en"));
+        QVERIFY(grammarFamily(QStringLiteral("it")).isEmpty());
+        QVERIFY(grammarCheck(QStringLiteral("Das ist ein Test."), QStringLiteral("it")).isEmpty());
+        // Each language has its own rules: the text goes to the rules of the tag.
+        const QString french = QStringLiteral("Le ami de la école.");
+        QCOMPARE(grammarCheck(french, QStringLiteral("fr-FR")).size(), 2);
+        QVERIFY(grammarCheck(french, QStringLiteral("en")).isEmpty());
+        QVERIFY(grammarCheck(french, QStringLiteral("it")).isEmpty());
+    }
+
+    // A paragraph is checked as the language of its first checked stretch, and what is in another language, even one that is checked, is blanked out and left alone.
+    void aParagraphIsCheckedInItsFirstLanguageOnly()
+    {
+        auto issuesOf = [](const QVector<QPair<QString, QString>> &parts) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            for (const auto &p : parts) {
+                QTextCharFormat f;
+                f.setProperty(tp::Language, p.second);
+                c.insertText(p.first, f);
+            }
+            GrammarCheck check(&doc);
+            QVector<GrammarCheck::Issue> out;
+            int from = 0, next = 0;
+            GrammarCheck::Issue found;
+            while (check.search(from, 5000, &found, &next) == GrammarCheck::Step::Found) {
+                out << found;
+                from = found.end;
+            }
+            return QPair<QVector<GrammarCheck::Issue>, QString>(out, doc.toPlainText());
+        };
+        const QString fr = QStringLiteral("Le ami est ici. "), en = QStringLiteral("This is an test. ");
+        const auto frFirst = issuesOf({{fr, QStringLiteral("fr-FR")}, {en, QStringLiteral("en-US")}});
+        QCOMPARE(frFirst.first.size(), 1);
+        QVERIFY(frFirst.first.first().end <= fr.size());
+        const auto enFirst = issuesOf({{en, QStringLiteral("en-US")}, {fr, QStringLiteral("fr-FR")}});
+        QCOMPARE(enFirst.first.size(), 1);
+        QVERIFY(enFirst.first.first().start < en.size());
+        QVERIFY(issuesOf({{fr, QStringLiteral("it-IT")}, {QStringLiteral("Das ist ein Test. "), QStringLiteral("it-IT")}}).first.isEmpty());
     }
 
     void aLongTextIsCutAtTheLimitAndSaidSo()

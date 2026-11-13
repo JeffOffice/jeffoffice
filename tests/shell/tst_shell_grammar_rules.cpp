@@ -57,18 +57,19 @@ class ShellGrammarRulesTests : public QObject {
         const char *rule, *bad, *fixed;
         QStringList ok;
         const char *span = nullptr, *message = nullptr;   // for a rule with nothing to put in place: the words it marks, and a part of its message (in place of `fixed`)
+        grammar::Language language = grammar::Language::English;
     };
-    static QVector<GrammarIssue> byRule(const QString &text, const QString &rule)
+    static QVector<GrammarIssue> byRule(const QString &text, const QString &rule, grammar::Language language = grammar::Language::English)
     {
         QVector<GrammarIssue> out;
-        for (const GrammarIssue &g : grammar::check(text, nullptr, grammar::kAllKinds))
+        for (const GrammarIssue &g : grammar::check(text, nullptr, grammar::kAllKinds, language))
             if (g.rule == rule) out << g;
         return out;
     }
-    static QString fixedBy(const QString &text, const QString &rule)
+    static QString fixedBy(const QString &text, const QString &rule, grammar::Language language = grammar::Language::English)
     {
         QString out = text;
-        const auto issues = byRule(text, rule);
+        const auto issues = byRule(text, rule, language);
         for (int i = int(issues.size()) - 1; i >= 0; --i)
             if (!issues[i].suggestions.isEmpty()) out.replace(issues[i].start, issues[i].end - issues[i].start, issues[i].suggestions.first());
         return out;
@@ -82,19 +83,20 @@ class ShellGrammarRulesTests : public QObject {
     void check(const RuleCase &rc)
     {
         const QString rule = QString::fromLatin1(rc.rule), bad = QString::fromUtf8(rc.bad);
-        QVERIFY2(!byRule(bad, rule).isEmpty(), qPrintable(rule + QStringLiteral(" does not flag: ") + bad));
+        QVERIFY2(!byRule(bad, rule, rc.language).isEmpty(), qPrintable(rule + QStringLiteral(" does not flag: ") + bad));
         if (rc.span) {
-            const GrammarIssue g = byRule(bad, rule).first();
+            const GrammarIssue g = byRule(bad, rule, rc.language).first();
             QCOMPARE(bad.mid(g.start, g.end - g.start), QString::fromUtf8(rc.span));
             QVERIFY2(g.message.contains(QString::fromUtf8(rc.message)), qPrintable(g.message));
             QVERIFY(g.suggestions.isEmpty());
         } else {
-            QCOMPARE(fixedBy(bad, rule), QString::fromUtf8(rc.fixed));
+            QCOMPARE(fixedBy(bad, rule, rc.language), QString::fromUtf8(rc.fixed));
         }
         QVERIFY2(rc.ok.size() >= 3, rc.rule);
-        for (const QString &t : rc.ok) QVERIFY2(byRule(t, rule).isEmpty(), qPrintable(rule + QStringLiteral(" flags: ") + t));
+        for (const QString &t : rc.ok) QVERIFY2(byRule(t, rule, rc.language).isEmpty(), qPrintable(rule + QStringLiteral(" flags: ") + t));
     }
     static QVector<RuleCase> newRuleCases();
+    static QVector<RuleCase> frenchRuleCases();
 
 private Q_SLOTS:
     void everyIssueIsInsideTheTextAndHasAMessage()
@@ -295,6 +297,83 @@ private Q_SLOTS:
     {
         for (const RuleCase &rc : newRuleCases()) check(rc);
     }
+    // The rules of French, German, and Spanish (round 38): each language has its own table; a rule it has from English keeps its name.
+    void everyRuleOfAnotherLanguageHasAnEntry(grammar::Language language, const QString &prefix, const QVector<RuleCase> &cases)
+    {
+        QSet<QString> covered;
+        for (const RuleCase &rc : cases) covered.insert(QString::fromLatin1(rc.rule));
+        QSet<QString> english;
+        for (const auto &r : grammar::rules()) english.insert(r.name);
+        int own = 0;
+        for (const auto &r : grammar::rules(language)) {
+            if (r.name.startsWith(prefix)) {
+                ++own;
+                QVERIFY2(covered.contains(r.name), qPrintable(r.name));
+            } else {
+                QVERIFY2(english.contains(r.name), qPrintable(r.name));   // (a rule of English that the language uses as it is)
+            }
+        }
+        for (const QString &name : covered) {
+            bool found = false;
+            for (const auto &r : grammar::rules(language)) found = found || r.name == name;
+            QVERIFY2(found, qPrintable(name));
+        }
+        QVERIFY(own >= 10);
+        QVERIFY(grammar::rules(language).size() >= 15);
+    }
+    // The kinds a language's rules have: Style is off by default (as in English), and a kind that is off is not looked for.
+    void kindsOfAnotherLanguage(grammar::Language language, const QString &styleText, const QString &otherText, GrammarIssue::Kind otherKind)
+    {
+        QVERIFY(grammar::check(styleText, nullptr, grammar::kDefaultKinds, language).isEmpty());
+        QVERIFY(!grammar::check(styleText, nullptr, grammar::kAllKinds, language).isEmpty());
+        QVERIFY(!grammar::check(styleText, nullptr, grammar::kindBit(GrammarIssue::Style), language).isEmpty());
+        QVERIFY(!grammar::check(otherText, nullptr, grammar::kindBit(otherKind), language).isEmpty());
+        QVERIFY(grammar::check(otherText, nullptr, grammar::kAllKinds & ~grammar::kindBit(otherKind), language).isEmpty());
+    }
+    static QString U(const char *s) { return QString::fromUtf8(s); }
+
+    void frenchRulesFlagWhatTheyShouldAndLeaveTheLookAlikesAlone()
+    {
+        for (const RuleCase &rc : frenchRuleCases()) check(rc);
+    }
+    void everyFrenchRuleHasAnEntry() { everyRuleOfAnotherLanguageHasAnEntry(grammar::Language::French, QStringLiteral("fr-"), frenchRuleCases()); }
+    void frenchKindsFollowTheChoice()
+    {
+        kindsOfAnotherLanguage(grammar::Language::French, U("Il vient malgré que la pluie tombe."), U("Il à mangé."), GrammarIssue::WordChoice);
+    }
+    void frenchDetails()
+    {
+        const grammar::Language fr = grammar::Language::French;
+        const QString nb = QString(QChar(0x00A0));
+        // The mark takes a no-break space; one that is already there (a narrow one too) is left alone, and a text with none before ";" or "!" is told so.
+        QCOMPARE(fixedBy(U("Bonjour; salut!"), QStringLiteral("fr-space-before-mark"), fr), U("Bonjour\u00A0; salut\u00A0!"));
+        QCOMPARE(fixedBy(U("Voulez-vous partir ?"), QStringLiteral("fr-space-before-mark"), fr), U("Voulez-vous partir\u00A0?"));
+        QVERIFY(byRule(U("Voulez-vous partir\u202F?"), QStringLiteral("fr-space-before-mark"), fr).isEmpty());
+        // Plain spaces inside the guillemets become no-break ones.
+        QCOMPARE(fixedBy(U("Il dit « bonjour » à tous."), QStringLiteral("fr-guillemets"), fr), U("Il dit «\u00A0bonjour\u00A0» à tous."));
+        QVERIFY(byRule(U("Il dit « bonjour » à tous."), QStringLiteral("fr-guillemets"), fr).size() == 2);
+        // The apostrophe of a suggestion is the one the paragraph uses.
+        QCOMPARE(fixedBy(U("Je ai vu l\u2019homme."), QStringLiteral("fr-elision"), fr), U("J\u2019ai vu l\u2019homme."));
+        QCOMPARE(fixedBy(U("Je ai vu l'homme."), QStringLiteral("fr-elision"), fr), U("J'ai vu l'homme."));
+        QCOMPARE(fixedBy(U("Elle dit que il vient, et que elle part."), QStringLiteral("fr-elision"), fr), U("Elle dit qu'il vient, et qu'elle part."));
+        QCOMPARE(fixedBy(U("Il est parti a cause de la pluie."), QStringLiteral("fr-a-accent"), fr), U("Il est parti à cause de la pluie."));
+        QCOMPARE(fixedBy(U("Tout se que je sais, il c'est trompé."), QStringLiteral("fr-ce-se"), fr), U("Tout ce que je sais, il s'est trompé."));
+        QCOMPARE(fixedBy(U("Il parle à les voisins de le jardin."), QStringLiteral("fr-contraction"), fr), U("Il parle aux voisins du jardin."));
+        QCOMPARE(fixedBy(U("D'ou vient-il ?"), QStringLiteral("fr-ou-accent"), fr), U("D'où vient-il ?"));
+        QCOMPARE(fixedBy(U("C'est à dire que non."), QStringLiteral("fr-hyphens"), fr), U("C'est-à-dire que non."));
+        QCOMPARE(fixedBy(U("Il n'est pas là, n'est ce pas ?"), QStringLiteral("fr-hyphens"), fr), U("Il n'est pas là, n'est-ce pas ?"));
+        QCOMPARE(fixedBy(U("Quant a moi."), QStringLiteral("fr-quant"), fr), U("Quant à moi."));
+    }
+    void aTextIsCheckedByTheRulesOfItsLanguageOnly()
+    {
+        // The rules of French do not run on English (and the other way round): the text of one language is not flagged by another's rules.
+        QVERIFY(!grammar::check(U("Le ami de la école."), nullptr, grammar::kAllKinds, grammar::Language::French).isEmpty());
+        QVERIFY(grammar::check(U("Le ami de la école."), nullptr, grammar::kAllKinds, grammar::Language::English).isEmpty());
+        QVERIFY(grammar::check(U("We went to see the mountains, and a fine day."), nullptr, grammar::kAllKinds, grammar::Language::French).isEmpty());
+        QVERIFY(!grammar::check(U("He said the the thing."), nullptr, grammar::kAllKinds, grammar::Language::English).isEmpty());
+        QCOMPARE(grammar::check(U("Il fait beau.")).size(), 0);
+    }
+
     void styleRulesAreOffUnlessAskedFor()
     {
         const QString text = QStringLiteral("We did this in order to win, and we could care less.");
@@ -337,35 +416,42 @@ private Q_SLOTS:
 
     // Shapes that make a rule look back or ahead over the whole paragraph for every word: a text of any of them, 100,000 characters long, must be counted in linear steps AND finish in well under a second
     // (work that is not counted, such as a scan inside a loop, shows only on the clock).
+    static QVector<grammar::Language> allLanguages() { return {grammar::Language::English, grammar::Language::French, grammar::Language::German, grammar::Language::Spanish}; }
     static QStringList hostileShapes()
     {
         QStringList out;
         for (const char *unit : {"abcd. efgh. ", "abcd,abcd,", "Mr. a. b. ", "a  b  ", "x. ", "\"\"\"\"", "an a an ", "he don't ", "It's a, ", "Texas, Texas, ", "monday ", "i think ", ". . . ",
                                  "well known ", "in order to ", "The cat. The cat. ", "(1) (2) ", "A. B. C. ", "1, 2, 3, ", "June 5, 2020 we ", "( ( ( ", "in Austin, Texas the ", "the the ", "Dougl. ex Torr. ", "a.B c.D ",
-                                 "it have and ", "Me and him went ", "can't hardly ", "e.g. i.e. "})
-            out << QString::fromLatin1(unit).repeated(100000 / int(strlen(unit)));
+                                 "it have and ", "Me and him went ", "can't hardly ", "e.g. i.e. ",
+                                 // French
+                                 "le ami de la école ", "de le ", "il ce ", "mot ; ", "mot: x ", "« a ", "a » ", "qu'est ce que ", "si il ", "il à ", "à les ", "ca va ", "quand à lui ", "c'est à dire, ",
+                                 "x ? ", "x !! ", "l'a l'a ", "Ou est ", "d'ou ", "nous nous "})
+            out << QString::fromUtf8(unit).repeated(100000 / int(strlen(unit)));
         return out;
     }
     void hostileTextsAreCheckedInLinearWork()
     {
         QStringList texts = hostileShapes();
-        for (const QString &t : {QString(200000, QLatin1Char(' ')), QString(200000, QLatin1Char('.')), QString(QStringLiteral("a ")).repeated(100000), QString(QStringLiteral(". a")).repeated(70000),
+        for (const QString &t : {QString(200000, QLatin1Char(' ')), QString(200000, QLatin1Char('.')), QString(QStringLiteral("a ")).repeated(100000), QString(QStringLiteral(". a")).repeated(70000), QString(QStringLiteral("a:")).repeated(100000), QString(QStringLiteral("\u00AB ")).repeated(100000),
                                  QString(QStringLiteral("the ")).repeated(50000), QString(QStringLiteral("a 5 ")).repeated(50000), QString(QStringLiteral("a 12,500th ")).repeated(20000), QString(QStringLiteral(" , ")).repeated(60000), QString(200000, QChar(0xD83D))})
             texts << t;
-        for (const QString &text : texts) {
-            quint64 work = 0;
-            grammar::check(text, &work, grammar::kAllKinds);
-            QVERIFY2(work <= quint64(text.size()) * 150 + 1000, qPrintable(QString::number(work) + QLatin1Char(' ') + QString::number(text.size()) + QLatin1Char(' ') + text.left(20)));
-        }
+        for (const grammar::Language language : allLanguages())
+            for (const QString &text : texts) {
+                quint64 work = 0;
+                grammar::check(text, &work, grammar::kAllKinds, language);
+                QVERIFY2(work <= quint64(text.size()) * 150 + 1000, qPrintable(QString::number(work) + QLatin1Char(' ') + QString::number(text.size()) + QLatin1Char(' ') + text.left(20)));
+            }
     }
     void aParagraphOfAnyHostileShapeIsCheckedInUnderASecond()
     {
-        grammar::check(QStringLiteral("Warm up."));
-        for (const QString &text : hostileShapes()) {
-            QElapsedTimer t;
-            t.start();
-            grammar::check(text, nullptr, grammar::kAllKinds);
-            QVERIFY2(t.elapsed() < 1000, qPrintable(QString::number(t.elapsed()) + QStringLiteral(" ms: ") + text.left(20)));
+        for (const grammar::Language language : allLanguages()) {
+            grammar::check(QStringLiteral("Warm up."), nullptr, grammar::kDefaultKinds, language);
+            for (const QString &text : hostileShapes()) {
+                QElapsedTimer t;
+                t.start();
+                grammar::check(text, nullptr, grammar::kAllKinds, language);
+                QVERIFY2(t.elapsed() < 1000, qPrintable(QString::number(t.elapsed()) + QStringLiteral(" ms: ") + text.left(20)));
+            }
         }
     }
 
@@ -458,6 +544,30 @@ QVector<ShellGrammarRulesTests::RuleCase> ShellGrammarRulesTests::newRuleCases()
         {"long-sentence", keep.constData(), nullptr, L({"Word word.", "Short one. Another short one.", "It is fine.", "Yes."}), "Word", "41 words"},
         {"repeated-sentence-start", "The cat ran. The dog ran. The bird ran.", nullptr, L({"The cat ran. The dog ran.", "The cat ran. A dog ran. The bird ran.", "We ran. They ran. We ran.", "One. Two. Three."}), "The", "Three sentences"},
     };
+}
+
+QVector<ShellGrammarRulesTests::RuleCase> ShellGrammarRulesTests::frenchRuleCases()
+{
+#define FRC(rule, bad, fixed, ...) {rule, bad, fixed, L({__VA_ARGS__}), nullptr, nullptr, grammar::Language::French}
+    return {
+        FRC("fr-repeated-word", "Il faut le le faire.", "Il faut le faire.", "Nous nous lavons.", "Vous vous trompez.", "Il dit oui oui.", "C'est très très bon.", "Bora Bora est belle."),
+        FRC("fr-space-before-mark", "Que voulez-vous ? Rien.", "Que voulez-vous\u00A0? Rien.",
+            "Que voulez-vous\u00A0? Rien.", "Que voulez-vous\u202F? Rien.", "Rendez-vous à 10:30 à Paris.", "Voir http://exemple.fr/page?id=3 pour plus.", "Bonjour :) à tous.", "Soit f : X vers Y."),
+        FRC("fr-guillemets", "Il dit «bonjour» à tous.", "Il dit «\u00A0bonjour\u00A0» à tous.", "Il dit «\u00A0bonjour\u00A0» à tous.", "Il dit «\u202Fbonjour\u202F» à tous.", "Il dit bonjour à tous."),
+        FRC("fr-elision", "Le ami de la école est ici.", "L'ami de l'école est ici.",
+            "Le onze mai, la une du journal.", "Le haricot et le héros.", "Elle parle de un à dix.", "Le Ami est ici.", "Le yaourt est bon.", "Elle y va."),
+        FRC("fr-si-il", "Si il pleut, nous restons.", "S'il pleut, nous restons.", "S'il pleut, nous restons.", "Si elle pleure, partez.", "Si on y va, il vient.", "Si les enfants partent, il reste."),
+        FRC("fr-a-accent", "Il à mangé tout le gâteau.", "Il a mangé tout le gâteau.", "Il a mangé tout le gâteau.", "Il va à Paris demain.", "Elle donne le livre à Marie.", "À partir de demain, c'est fermé."),
+        FRC("fr-ou-accent", "Ou est la gare ?", "Où est la gare ?", "Où est la gare ?", "Tu viens ou tu restes ?", "Ou bien tu restes.", "Du thé ou du café ?"),
+        FRC("fr-ce-se", "Il ce lève tôt.", "Il se lève tôt.", "Il se lève tôt.", "Pour lui ce n'est pas facile.", "Il sait ce qu'il veut.", "Pour elle ce film est long."),
+        FRC("fr-contraction", "Il parle de le chat.", "Il parle du chat.", "Il a décidé de le voir.", "Il parle du chat.", "Il pense à les voir.", "Il pense à le dire demain.", "Il à le droit de venir."),
+        FRC("fr-ca", "Ca va bien.", "Ça va bien.", "Ça va bien.", "Voir ca. 1950.", "Sa voiture va vite.", "Son cas est clair."),
+        FRC("fr-quant", "Quand à lui, il reste.", "Quant à lui, il reste.", "Quant à lui, il reste.", "Quand il arrive, nous partons.", "Il sourit quand à la plage."),
+        FRC("fr-hyphens", "Qu'est ce que tu fais ?", "Qu'est-ce que tu fais ?", "Qu'est-ce que tu fais ?", "Ce n'est pas ce que tu crois.", "C'est-à-dire que oui.", "Il sait qu'est-ce que c'est."),
+        FRC("fr-sentence-start", "Il pleut. nous restons.", "Il pleut. Nous restons.", "Voir l'art. premier du code.", "Il pleut. Nous restons.", "Voir env. dix pages.", "Il pleut, etc. et nous restons."),
+        FRC("fr-wordy-phrases", "Il vient malgré que la pluie tombe.", "Il vient bien que la pluie tombe.", "Il vient bien que la pluie tombe.", "Il vient malgré la pluie.", "Voire plus encore.", "La suite est claire."),
+    };
+#undef FRC
 }
 
 JP_TEST_CLASS(ShellGrammarRulesTests)

@@ -1,5 +1,5 @@
 #pragma once
-// Grammar and style rules for English, written for JeffOffice: a paragraph of text goes in, and the issues in it come out, each with a message and the text to put in
+// Grammar and style rules for English, French, German, and Spanish, written for JeffOffice: a paragraph of text goes in, and the issues in it come out, each with a message and the text to put in
 // place of the words it is about. The rules are clear-cut ones only: where a text may be right, it is left alone (a missed mistake costs less than a false alarm).
 //
 // Each rule is one small function in grammarrules.cpp and one line of its table; the work of a check is linear in the length of the text (the tokens are made once, and
@@ -23,6 +23,9 @@ struct GrammarIssue {
 
 namespace grammar {
 
+// The language a text is checked as (each has its own rules; the apps pick it from the language of the paragraph).
+enum class Language { English, French, German, Spanish };
+
 // Which kinds of issue a check looks for: a bit for each GrammarIssue::Kind. Style is off unless asked for.
 constexpr quint32 kindBit(GrammarIssue::Kind k) { return quint32(1) << int(k); }
 constexpr quint32 kAllKinds = 0xFFFFFFFFu;
@@ -33,11 +36,11 @@ struct RuleInfo {
     QString name;
     GrammarIssue::Kind kind;
 };
-QVector<RuleInfo> rules();
+QVector<RuleInfo> rules(Language language = Language::English);
 
 // The issues in a paragraph of text, in order of position (none overlap in what they replace), of the kinds in `kinds` (a rule whose kind is not wanted does not run).
 // `work`, if given, gets the number of steps the check took.
-QVector<GrammarIssue> check(const QString &text, quint64 *work = nullptr, quint32 kinds = kDefaultKinds);
+QVector<GrammarIssue> check(const QString &text, quint64 *work = nullptr, quint32 kinds = kDefaultKinds, Language language = Language::English);
 
 } // namespace grammar
 } // namespace jp

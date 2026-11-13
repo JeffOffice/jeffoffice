@@ -40,6 +40,16 @@ struct Ctx {
         return leaders == 1;
     }   // whether a word that opens a clause ("if", "when") came earlier in the same sentence
 
+    int curly = -1;   // whether the paragraph writes its apostrophes curly (found once, when a rule first asks)
+    QString apostrophe()
+    {
+        if (curly < 0) {
+            curly = text.contains(QChar(0x2019)) ? 1 : 0;
+            steps += quint64(text.size());
+        }
+        return curly == 1 ? QString(QChar(0x2019)) : QStringLiteral("'");
+    }
+
     explicit Ctx(const QString &t) : text(t) {}
     int size() const { return int(tokens.size()); }
     void step() { ++steps; }
@@ -418,7 +428,7 @@ void articles(Ctx &c)
 }
 
 // A sentence that starts with a small letter, after a period (not after "!" or "?": "Yahoo! is", "Who? what?"), and not at the start of a paragraph, which may be a list item.
-void lowercaseSentenceStart(Ctx &c)
+void lowercaseSentenceStartWith(Ctx &c, const QSet<QString> *shortened)
 {
     auto lowercaseWord = [&](int k) {
         if (!c.isWord(k)) return false;
@@ -443,7 +453,7 @@ void lowercaseSentenceStart(Ctx &c)
         const int before = i - 1;
         if (!c.isWord(before)) continue;
         const QString &b = c.tokens[before].lower;
-        if (b.size() < 3 || abbreviations().contains(b)) continue;
+        if (b.size() < 3 || abbreviations().contains(b) || (shortened && shortened->contains(b))) continue;
         // A shortened word ("org. code", "alt. conf. id", "Dougl. ex Torr.", "Camp. lari"): a short lowercase word, a name with a capital inside ("PhDs."), a word that is not
         // plain Latin letters, a capitalized word that stops in a cluster of consonants, or a paragraph with column leaders or a colon after the word.
         {
@@ -574,6 +584,8 @@ void couldOf(Ctx &c)
         c.add(c.tokens[j].start, c.tokens[j].end, GK::Grammar, QCoreApplication::translate("Grammar", "Use \"have\", not \"of\", after this word."), QStringLiteral("have"));
     });
 }
+
+void lowercaseSentenceStart(Ctx &c) { lowercaseSentenceStartWith(c, nullptr); }
 
 // Two or more spaces between words.
 void doubleSpace(Ctx &c)
@@ -728,7 +740,7 @@ public:
     {
         for (const auto &it : items) {
             Entry e;
-            e.words = QString::fromLatin1(it.first).split(QLatin1Char(' '));
+            e.words = QString::fromUtf8(it.first).split(QLatin1Char(' '));
             e.with = QString::fromUtf8(it.second);
             m_by[e.words.first()].append(e);
         }
@@ -1546,6 +1558,11 @@ struct Rule {
     void (*run)(Ctx &);
     GK kind;
 };
+
+// The rules of the other languages (each file has its functions and the table of its rules).
+#include "grammar/grammar_common.inc"
+#include "grammar/grammar_fr.inc"
+
 const Rule kRules[] = {
     {"repeated-word", repeatedWord, GK::Repetition},
     {"a-an", articles, GK::Grammar},
@@ -1609,20 +1626,39 @@ const Rule kRules[] = {
     {"repeated-sentence-start", repeatedSentenceStart, GK::Style},
 };
 
+// The table of the rules of a language.
+struct RuleList {
+    const Rule *first;
+    size_t n;
+};
+RuleList rulesOf(Language language)
+{
+    switch (language) {
+    case Language::French: return {kFrenchRules, sizeof(kFrenchRules) / sizeof(kFrenchRules[0])};
+    case Language::German:
+    case Language::Spanish:
+    case Language::English: break;
+    }
+    return {kRules, sizeof(kRules) / sizeof(kRules[0])};
+}
+
 } // namespace
 
-QVector<RuleInfo> rules()
+QVector<RuleInfo> rules(Language language)
 {
     QVector<RuleInfo> out;
-    for (const Rule &r : kRules) out << RuleInfo{QLatin1String(r.name), r.kind};
+    const RuleList list = rulesOf(language);
+    for (size_t i = 0; i < list.n; ++i) out << RuleInfo{QLatin1String(list.first[i].name), list.first[i].kind};
     return out;
 }
 
-QVector<GrammarIssue> check(const QString &text, quint64 *work, quint32 kinds)
+QVector<GrammarIssue> check(const QString &text, quint64 *work, quint32 kinds, Language language)
 {
     Ctx c(text);
     tokenize(c);
-    for (const Rule &r : kRules) {
+    const RuleList list = rulesOf(language);
+    for (size_t i = 0; i < list.n; ++i) {
+        const Rule &r = list.first[i];
         if (!(kinds & kindBit(r.kind))) continue;
         c.rule = r.name;
         r.run(c);

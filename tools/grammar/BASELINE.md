@@ -92,3 +92,51 @@ redundant-phrases 0.12, amount-number 0.03, try-and 0.01, could-care-less 0. The
 - `demonstrative-number` flagged "this years program" (a missing apostrophe) and "these day trips": it now flags only where the noun ends the phrase.
 - `to-much` flagged "amount to much" and "a boon to many": it is now only "is/are/was/seems ... to much" before the end of the clause.
 - `comma-space` and `doubled-mark` flagged tables and CSV: three or more such commas in a paragraph, or runs of spaces, now silence them. `affect-effect` no longer flags "affect of" (the noun in psychology).
+
+## French (round 38)
+
+Measured November 13, 2026 with `tools/grammar/measure.py --language fr` (the numbers come from `grammartool --language fr`).
+
+### The text
+
+- **help**: our own French Help (`resources/help/fr`, 169 files, 150,378 words, with the markup taken out and code spans left as "x"). It is machine-translated text with the program's own labels in it,
+  so it has typing and translation slips that real documents also have, and its quotation marks and colons are typed with plain spaces.
+- **govdocs**: Govdocs1 has no French prose worth reading: 3 files picked out by their common words gave 268 words, and the 2 flags there were data tables. LibreOffice and the other collections
+  are spreadsheets. So the false-alarm count rests on the Help alone, and every flag of a rule with under 25 flags was read.
+- The rules that have no flags in 150,000 words (a-accent, ou-accent, ce-se, contraction, ca, quant, hyphens, si-il, repeated-word) have only their tests as proof that they flag.
+
+### Spaces, and why a no-break space
+
+French sets a space before `;` `:` `!` `?` and inside `« »`. Every word processor types a no-break space (U+00A0) there, and every font has it, so a suggestion puts that. The narrow no-break
+space (U+202F) that careful typesetting uses is left alone, and so is any space that is not a plain one. There is no setting for it: one that took the narrow one would put a box in some fonts.
+The flags there are the most frequent in French text (the Help types them with plain spaces): they are Punctuation, so they can be switched off with the kinds, like the others.
+
+### The 14 rules of French (flags per 10,000 words of Help, flags read, false alarms found)
+
+| rule | /10k | read | false alarms |
+|---|---|---|---|
+| fr-space-before-mark | 89.04 | 1,339, about 50 read (all 12 without a space before the mark) | 1 ("taxe;" in a formula, 0.01/10k); "#REF!", "B2;" and "mailto:" were found and are left alone now |
+| fr-guillemets | 31.19 | 469, about 20 read | 0 |
+| fr-elision | 0.47 | 7 of 7 | 2 ("De indique" and "de indique": a label, then a verb), 0.13/10k; "de et" ("from and") was found and is left alone now |
+| fr-sentence-start | 0.07 | 1 of 1 | 1 ("ppp signifie"), 0.07/10k |
+| fr-repeated-word | 0 | the one flag found was a word mentioned between guillemets, now left alone | 0 |
+| fr-wordy-phrases (style) | 0.07 | 1 | not scored |
+| the other 8 | 0 | | |
+
+Reused from English, measured on the same text: double-space 0 (the paragraphs here have no double spaces once the markup is out), comma-space 0.07 (1 flag: `&"Arial,Gras"`, a false alarm,
+0.07/10k), doubled-mark 0. Style rules (off by default): long-sentence 11.44, repeated-sentence-start 2.26 per 10,000 words.
+
+Every error rule is under 1 false alarm per 10,000 words.
+
+### What was narrowed or left out
+
+- **ces / ses**: no mechanical test tells them apart ("ces" before a noun is right whichever it means). Only "ces sont" for "ce sont" is flagged.
+- **ce / se**: only after il, ils, or on ("il ce lève"), never after elle (where "pour elle ce n'est pas" is right), and "se que / se qui / se dont" for "ce"; "il c'est passé" for "s'est".
+- **a / à**: "il à mangé" only before a past participle, and the phrases that begin with "à" ("a partir de"). "Il à la maison" is left alone (it can be a clause with its verb left out).
+- **ou / où**: "Ou est la gare ?" at the start of a sentence, "d'ou", "jusqu'ou", and "oui où non". "Ou" in the middle of a sentence is left alone.
+- **elision** leaves "le onze", "la une", "de un à dix", "de et à", and words with a capital ("Le Ami") alone; "le / de" before "h" is never flagged (some of them take the apostrophe and some do not).
+- **de le / à le**: skipped before an infinitive ("de le voir") and before a pronoun, so it misses a noun that ends like an infinitive ("de le quartier").
+- **quand à**: only before a pronoun or a possessive ("quand à lui").
+- **est-ce**: only "qu'est ce que / qui", "n'est ce pas", and "c'est à dire" before a comma or "que". "où est ce que" is left alone ("où est ce que je cherche" is right).
+- **malgré que** and the other pleonasms are Style (off by default).
+- Not checked: "peut être" and "plus tôt", which are right as often as wrong.

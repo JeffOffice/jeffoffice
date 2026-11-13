@@ -139,9 +139,10 @@ void GrammarCheck::setBudget(qint64 chars, int ms)
     m_exhausted = false;
 }
 
-// The paragraph as the checker takes it. Only English is checked: the text of a stretch in another language, or marked "do not check", is blanked out (with a character
-// that is no word and no space, so no rule joins the words on its two sides), and a paragraph with no English in it is not sent at all. The look is kept with the paragraph's
-// revision, so that a repaint that changes nothing asks no question of the text.
+// The paragraph as the checker takes it. Only one language is checked at a time (English, French, German, or Spanish): the language of the first stretch that is one of them
+// is the paragraph's, and the text of a stretch in another language, or marked "do not check", is blanked out (with a character that is no word and no space, so no rule joins
+// the words on its two sides); a paragraph with none of the four in it is not sent at all. The look is kept with the paragraph's revision, so that a repaint that changes
+// nothing asks no question of the text.
 const GrammarCheck::Look &GrammarCheck::lookAt(const QTextBlock &block)
 {
     if (m_looks.size() > kMaxLooks) m_looks.clear();   // (only a story of more paragraphs than that is ever here)
@@ -157,20 +158,24 @@ const GrammarCheck::Look &GrammarCheck::lookAt(const QTextBlock &block)
     Look look;
     look.text = block.text();
     look.masked = look.text;
-    QString english;
+    QString checked, family;
     for (auto it = block.begin(); !it.atEnd(); ++it) {
         const QTextFragment f = it.fragment();
         const QTextCharFormat cf = f.charFormat();
         QString language = cf.stringProperty(tp::Language);
         if (language.isEmpty()) language = m_language;
-        if (grammarSupports(language) && !cf.boolProperty(tp::NoProof)) {
-            if (english.isEmpty()) english = language.isEmpty() ? QStringLiteral("en") : language;
+        const QString here = grammarFamily(language);
+        if (!here.isEmpty() && !cf.boolProperty(tp::NoProof) && (family.isEmpty() || family == here)) {
+            if (checked.isEmpty()) {
+                checked = language.isEmpty() ? QStringLiteral("en") : language;
+                family = here;
+            }
             continue;
         }
         const int from = f.position() - block.position(), to = std::min(from + f.length(), int(look.masked.size()));
         for (int p = std::max(0, from); p < to; ++p) look.masked[p] = QChar(0xFFFC);
     }
-    look.language = english.isEmpty() ? QStringLiteral("zz") : english;   // ("zz": none, as far as the service knows)
+    look.language = checked.isEmpty() ? QStringLiteral("zz") : checked;   // ("zz": none, as far as the service knows)
     look.kinds = grammarKinds();
     look.key = QString::number(look.kinds) + QChar(2) + look.language + QChar(1) + look.masked;
     cached.position = block.position();

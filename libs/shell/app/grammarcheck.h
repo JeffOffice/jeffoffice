@@ -2,8 +2,8 @@
 // Grammar as you type: the grammar and style issues of the story, found a paragraph at a time with the suite's checker (libs/shell/app/grammar) and kept by the
 // paragraph's text, so a paragraph that comes back to a text it had (an undo, a copy) is not checked again. Checking is done on a thread of its own, one paragraph
 // at a time, a moment after the paragraph stopped changing (only its latest text is sent: a person typing makes one check, not one for each key): nothing here holds the
-// window up, and a hostile paragraph cannot (the service caps what it looks at, and a budget caps what the whole document may spend). Only the English stretches of a
-// paragraph are checked. The view is told, by `changed`, when an answer has come, and, by `budgetExhausted`, once, when the budget is gone and the checking stops.
+// window up, and a hostile paragraph cannot (the service caps what it looks at, and a budget caps what the whole document may spend). Only the stretches of a
+// paragraph in its first checked language (English, French, German, or Spanish) are checked. The view is told, by `changed`, when an answer has come, and, by `budgetExhausted`, once, when the budget is gone and the checking stops.
 
 #include "core/export.h"
 #include "app/grammar.h"
@@ -95,7 +95,7 @@ private:
     struct Entry {
         QVector<GrammarIssue> issues;   // as [start, end) in the paragraph
     };
-    // A paragraph as the checker takes it: the text, and the text with what is not English (or marked "do not check") blanked out, which is what is sent.
+    // A paragraph as the checker takes it: the text, and the text with what is not in the paragraph's language (or marked "do not check") blanked out, which is what is sent.
     struct Look {
         QString key, text, masked, language;
         quint32 kinds = grammar::kDefaultKinds;   // the kinds of issue looked for (the setting when the look was made; part of the key)
