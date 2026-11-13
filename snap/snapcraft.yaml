@@ -75,7 +75,7 @@ apps:
     # content snap may carry. The rest is snapcraft's own default value, written out so that ours can come before it. Nothing but
     # FFmpeg's libraries is in that folder. tools/snap_ffmpeg_audit.py checks the order in the built snap.
     environment: &environment
-      LD_LIBRARY_PATH: "$SNAP/usr/lib/jeffoffice-ffmpeg:${SNAP_LIBRARY_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}:$SNAP/usr/lib:$SNAP/usr/lib/x86_64-linux-gnu"
+      LD_LIBRARY_PATH: "$SNAP/usr/lib/jeffoffice-ffmpeg:$SNAP/usr/lib/jeffoffice:${SNAP_LIBRARY_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}:$SNAP/usr/lib:$SNAP/usr/lib/x86_64-linux-gnu"
     desktop: usr/share/applications/jeffpub.desktop
     common-id: com.jeffoffice.JeffPub
     plugs: &plugs
@@ -138,6 +138,8 @@ parts:
       - curl
       - xz-utils
       - python3
+      # (Qt's Linguist tools: lrelease makes the translations; the build stops without it, JO_REQUIRE_I18N below)
+      - qt6-l10n-tools
     stage-packages:
       # Printing, JeffDeck's sound and video (Qt Multimedia's FFmpeg backend:
       # its FFmpeg is built below, not the distribution's or the content snap's), and the X11 platform plugin's cursor library. The Qt content snap may
@@ -159,7 +161,7 @@ parts:
       SHIP_WRITE=${SHIP_WRITE:-true}
       SHIP_CRUNCH=${SHIP_CRUNCH:-true}
       # PDFium is downloaded (and its SHA-256 checked) by the CMake build, as for the .deb.
-      cmake -S "$CRAFT_PART_SRC" -B "$CRAFT_PART_BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+      cmake -S "$CRAFT_PART_SRC" -B "$CRAFT_PART_BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release -DJO_REQUIRE_I18N=ON \
         -DJP_BUILD_WRITE="$([ "$SHIP_WRITE" = true ] && echo ON || echo OFF)" \
         -DJP_BUILD_CRUNCH="$([ "$SHIP_CRUNCH" = true ] && echo ON || echo OFF)" \
         -DCMAKE_EXE_LINKER_FLAGS="-Wl,-rpath-link,/snap/kde-qt6-core24-sdk/current/usr/lib/x86_64-linux-gnu/pulseaudio"
@@ -190,12 +192,13 @@ parts:
       cp -a "$CRAFT_PART_BUILD/ffmpeg/lib/"lib*.so.* "$ffdir/"
       sh "$CRAFT_PART_SRC/tools/use_ffmpeg.sh" check "$ffdir"
       install -Dm644 "$CRAFT_PART_BUILD/_deps/pdfium/lib/libpdfium.so" "$d/usr/lib/jeffoffice/libpdfium.so"
-      # The code the four apps share: one library (it finds PDFium beside it by its own $ORIGIN run path), installed once.
+      # The code the four apps share: one library, installed once. It finds PDFium beside it through its own $ORIGIN run path (set on the
+      # target in CMakeLists.txt), and LD_LIBRARY_PATH above lists this folder as well.
       install -Dm755 "$CRAFT_PART_BUILD/libjeffoffice-common.so" "$d/usr/lib/jeffoffice/libjeffoffice-common.so"
       mkdir -p "$d/usr/share/jeffoffice"
       cp -r "$CRAFT_PART_SRC/resources/fonts" "$CRAFT_PART_SRC/resources/dict" "$d/usr/share/jeffoffice/"
-      # Help and the translations, one copy for the apps (jp::dataFolder finds them in ../share/jeffoffice).
-      cp -r "$CRAFT_PART_SRC/resources/help" "$CRAFT_PART_BUILD/data/i18n" "$d/usr/share/jeffoffice/"
+      # Help, the translations, and their stamp and manifest, one copy for the apps (jp::dataFolder finds them in ../share/jeffoffice).
+      cp -rL "$CRAFT_PART_BUILD/data/." "$d/usr/share/jeffoffice/"
       { printf 'JeffOffice\nCopyright (c) 2026 JeffOffice LLC\nLicense: GPL-3.0 (below)\n\n'; cat "$CRAFT_PART_SRC/LICENSE"; } > "$d/usr/share/doc/jeffoffice/copyright"
       cp "$CRAFT_PART_SRC/third_party/pdfium/licenses/"* "$d/usr/share/doc/jeffoffice/pdfium/"
       mkdir -p "$d/usr/share/doc/jeffoffice/qpdf" "$d/usr/share/doc/jeffoffice/libjpeg-turbo"

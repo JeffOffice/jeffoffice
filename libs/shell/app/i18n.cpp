@@ -31,10 +31,9 @@ QStringList availableUiLanguages()
 {
     QStringList out;
     const QString prefix = kSuiteFiles + QLatin1Char('_');
-    const QString folder = dataFolder(QStringLiteral("i18n"));
-    if (folder.isEmpty()) return out;
-    for (const QString &f : QDir(folder).entryList({prefix + QStringLiteral("*.qm")}, QDir::Files))
-        if (f != prefix + QStringLiteral("en.qm") && !s_held.contains(f.mid(prefix.size(), f.size() - prefix.size() - 3))) out << f.mid(prefix.size(), f.size() - prefix.size() - 3);   // <fileName>_<language>.qm; English is the text itself
+    // (from the manifest, not from the folder: a file an older version left there is not a language)
+    for (const QString &f : dataManifest(QStringLiteral("i18n")))
+        if (f.startsWith(prefix) && f.endsWith(QLatin1String(".qm")) && f != prefix + QStringLiteral("en.qm") && !s_held.contains(f.mid(prefix.size(), f.size() - prefix.size() - 3))) out << f.mid(prefix.size(), f.size() - prefix.size() - 3);   // <fileName>_<language>.qm; English is the text itself
     return out;
 }
 

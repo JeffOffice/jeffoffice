@@ -73,6 +73,31 @@ begin
   end;
 end;
 
+{ Help's and the translations' files this installer put in the folder: the language folders of Help we ship, its context.json, the .qm
+  files, and the stamp and manifest. A help or i18n folder of the person's own, or anything else in ours, stays; the folders go only
+  when that leaves them empty. }
+procedure {#Pfx}RemoveOwnData(const Dir: String);
+var
+  Langs: String;
+  P: Integer;
+  N: String;
+begin
+  Langs := 'de,en,en_AU,en_CA,en_GB,es,es_ES,fr,id,it,nl,pt_BR,pt_PT,ru,uk,';
+  while Langs <> '' do
+  begin
+    P := Pos(',', Langs);
+    N := Copy(Langs, 1, P - 1);
+    Delete(Langs, 1, P);
+    DelTree(Dir + '\help\' + N, True, True, True);
+  end;
+  DeleteFile(Dir + '\help\context.json');
+  DelTree(Dir + '\i18n\*.qm', False, True, False);
+  DeleteFile(Dir + '\data.stamp');
+  DeleteFile(Dir + '\manifest.txt');
+  RemoveDir(Dir + '\help');
+  RemoveDir(Dir + '\i18n');
+end;
+
 { The files a program folder holds that the installer (any version) put there. With All, the apps and their
   extras go too and the folder is removed if that leaves it empty. Without Force, nothing is touched unless the
   folder holds one of the apps, so a folder that merely has the same names in it is left alone. }
@@ -86,8 +111,9 @@ begin
     or FileExists(Dir + '\JeffWrite.exe') or FileExists(Dir + '\JeffCrunch.exe')) then
     Exit;
   DelTree(Dir + '\*.dll', False, True, False);
+  {#Pfx}RemoveOwnData(Dir);
   DeleteFile(Dir + '\Uninstall.exe');
-  Dirs := 'dict,fonts,generic,help,i18n,iconengines,imageformats,licenses,multimedia,networkinformation,platforminputcontexts,platforms,'
+  Dirs := 'dict,fonts,generic,iconengines,imageformats,licenses,multimedia,networkinformation,platforminputcontexts,platforms,'
     + 'printsupport,styles,tls,translations,bearer,tools,';
   while Dirs <> '' do
   begin

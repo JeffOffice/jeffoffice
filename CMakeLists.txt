@@ -14,26 +14,49 @@ endif()
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Network Xml Test CorePrivate)
 
 # Release builds only (the packages): link-time optimization, and no code or data that nothing uses (each function and variable in a
-# section of its own, and the linker drops the sections nothing refers to). A default or development build (RelWithDebInfo, Debug, none) is
-# left as it is, so it builds and links quickly; -DJO_SLIM_RELEASE=OFF turns this off for a Release build too (a toolchain that breaks on LTO).
-option(JO_SLIM_RELEASE "Release builds: link-time optimization and dead-code removal" ON)
+# section of its own, and the linker drops the sections nothing refers to). It is applied to the shared library (jeffoffice-common and the
+# layers inside it) only: the four programs are 4 to 7 MB and gain little, and Qt's Windows entry point (a static library that calls
+# qMain) does not resolve against a program compiled for LTO. A default or development build (RelWithDebInfo, Debug, none) is left as it
+# is, so it builds and links quickly; -DJO_SLIM_RELEASE=OFF turns this off for a Release build too (a toolchain that breaks on LTO).
+option(JO_REQUIRE_I18N "Stop the configure when Qt's Linguist tools are missing (a package must have its translations)" OFF)
+option(JO_SLIM_RELEASE "Release builds: link-time optimization and dead-code removal in the shared library" ON)
+set(JO_SLIM_ACTIVE OFF)
+set(JO_SLIM_LTO OFF)
 if(JO_SLIM_RELEASE AND CMAKE_BUILD_TYPE STREQUAL "Release")
+  set(JO_SLIM_ACTIVE ON)
   include(CheckIPOSupported)
   check_ipo_supported(RESULT JO_IPO_OK OUTPUT JO_IPO_WHY LANGUAGES CXX)
   if(JO_IPO_OK)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+    set(JO_SLIM_LTO ON)
   else()
     message(STATUS "JO_SLIM_RELEASE: no link-time optimization (${JO_IPO_WHY})")
   endif()
+endif()
+# Applies the above to one target of the shared library (the layers, and the library that links them).
+function(jo_slim target)
+  if(NOT JO_SLIM_ACTIVE)
+    return()
+  endif()
+  if(JO_SLIM_LTO)
+    set_property(TARGET ${target} PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
+  endif()
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    add_compile_options(-ffunction-sections -fdata-sections)
-    if(APPLE)
-      add_link_options(-Wl,-dead_strip)
+    get_target_property(_type ${target} TYPE)
+    if(_type STREQUAL "SHARED_LIBRARY")
+      if(APPLE)
+        target_link_options(${target} PRIVATE -Wl,-dead_strip)
+      else()
+        target_link_options(${target} PRIVATE -Wl,--gc-sections)
+      endif()
+      if(MINGW AND JO_SLIM_LTO)
+        # (the objects are made again at the link, which needs the same flag as their compile: without it a big unit fails there)
+        target_link_options(${target} PRIVATE -Wa,-mbig-obj)
+      endif()
     else()
-      add_link_options(-Wl,--gc-sections)
+      target_compile_options(${target} PRIVATE -ffunction-sections -fdata-sections)
     endif()
   endif()
-endif()
+endfunction()
 
 add_subdirectory(third_party)
 include(cmake/pdfium.cmake)
@@ -77,7 +100,11 @@ configure_file(libs/base/core/version.cpp.in ${CMAKE_BINARY_DIR}/generated/versi
 target_sources(jo_base PRIVATE ${CMAKE_BINARY_DIR}/generated/version.cpp)
 target_link_libraries(jo_base PUBLIC Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport Qt6::Network PRIVATE jp_hunspell jp_zlib pdfium jp_qpdfwrap)
 set(JO_BUILD_DATA_DIR ${CMAKE_BINARY_DIR}/data)
-target_compile_definitions(jo_base PUBLIC QT_NO_KEYWORDS PRIVATE JP_SOURCE_DIR="${CMAKE_SOURCE_DIR}" JO_BUILD_DATA_DIR="${JO_BUILD_DATA_DIR}")
+target_compile_definitions(jo_base PUBLIC QT_NO_KEYWORDS PRIVATE JP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+if(NOT JO_SLIM_ACTIVE)
+  # A development or test build also looks in its own build folder; a slim (packaged) build bakes in no path of this machine.
+  target_compile_definitions(jo_base PRIVATE JO_BUILD_DATA_DIR="${JO_BUILD_DATA_DIR}")
+endif()
 target_compile_options(jo_base PUBLIC -Wall -Wextra -Wno-unused-parameter)
 jo_library(jo_draw libs/draw)
 target_link_libraries(jo_draw PUBLIC jo_base)
@@ -96,12 +123,24 @@ if(WIN32)
   target_link_libraries(jo_shell PRIVATE ole32 uuid shell32)
 endif()
 
+# The programs find the library beside them, in ../lib (the Linux packages), or in a macOS app's Frameworks folder.
+if(APPLE)
+  set(CMAKE_INSTALL_RPATH "@executable_path/../Frameworks" "@loader_path/../Frameworks")
+  set(CMAKE_BUILD_RPATH "@executable_path" "@executable_path/../Frameworks")
+elseif(UNIX)
+  set(CMAKE_INSTALL_RPATH "$ORIGIN" "$ORIGIN/../lib" "$ORIGIN/../lib/jeffoffice")
+  set(CMAKE_BUILD_RPATH "$ORIGIN")
+endif()
 set(JO_LAYERS jo_base jo_draw jo_text jo_office jo_shell jo_page jo_flow)
 set(JO_LAYER_OBJECTS)
 foreach(layer ${JO_LAYERS})
   list(APPEND JO_LAYER_OBJECTS $<TARGET_OBJECTS:${layer}>)
 endforeach()
 add_library(jeffoffice-common SHARED ${JO_LAYER_OBJECTS})
+jo_slim(jeffoffice-common)
+foreach(layer ${JO_LAYERS})
+  jo_slim(${layer})
+endforeach()
 foreach(layer ${JO_LAYERS})
   target_include_directories(jeffoffice-common PUBLIC $<TARGET_PROPERTY:${layer},INTERFACE_INCLUDE_DIRECTORIES>)
 endforeach()
@@ -124,10 +163,14 @@ if(MINGW)
   # alone, but not when any object marks one).
   target_link_options(jeffoffice-common PRIVATE -Wl,--export-all-symbols)
 endif()
+if(NOT APPLE)
+  # The third-party static libraries inside it are not exported (on Windows that keeps their symbols out of the 65,535 of the export table).
+  target_link_options(jeffoffice-common PRIVATE -Wl,--exclude-libs,ALL)
+endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # The library links by itself, with no symbol left to a program (a call upward the layers' include check can't see fails here), and keeps
   # the third-party libraries' symbols to itself.
-  target_link_options(jeffoffice-common PRIVATE -Wl,--no-undefined -Wl,--exclude-libs,ALL)
+  target_link_options(jeffoffice-common PRIVATE -Wl,--no-undefined)
 endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # Inside the library a call to one of its own functions is direct (no lookup through the program's symbols at each first call),
@@ -137,15 +180,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   endforeach()
   target_link_options(jeffoffice-common PRIVATE -Wl,-Bsymbolic-functions)
 endif()
-# The programs find the library beside them, in ../lib (the Linux packages), or in a macOS app's Frameworks folder.
-if(APPLE)
-  set(CMAKE_INSTALL_RPATH "@executable_path/../Frameworks" "@loader_path/../Frameworks")
-  set(CMAKE_BUILD_RPATH "@executable_path" "@executable_path/../Frameworks")
-elseif(UNIX)
-  set(CMAKE_INSTALL_RPATH "$ORIGIN" "$ORIGIN/../lib" "$ORIGIN/../lib/jeffoffice")
-  set(CMAKE_BUILD_RPATH "$ORIGIN")
-endif()
 install(TARGETS jeffoffice-common RUNTIME DESTINATION bin LIBRARY DESTINATION lib/jeffoffice)
+if(UNIX AND NOT APPLE)
+  install(FILES ${JP_PDFIUM_LIBRARY} DESTINATION lib/jeffoffice)
+endif()
 
 # Each layer links on its own, with only the ones below it: a call into a
 # higher layer (which the include check can't see) fails to link here.
@@ -421,8 +459,11 @@ set_tests_properties(flowtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen
 
 install(TARGETS jeffpub RUNTIME DESTINATION bin BUNDLE DESTINATION .)
 # The data folder the programs share (Help's topics and the translations), once.
+# (the build's data folder is complete: help, i18n, the stamp that marks it, and the manifest of what it holds)
 install(DIRECTORY resources/help DESTINATION share/jeffoffice)
 install(DIRECTORY ${JO_BUILD_DATA_DIR}/i18n DESTINATION share/jeffoffice OPTIONAL)
+install(FILES ${JO_BUILD_DATA_DIR}/data.stamp ${JO_BUILD_DATA_DIR}/manifest.txt DESTINATION share/jeffoffice)
+install(DIRECTORY resources/fonts resources/dict DESTINATION share/jeffoffice)
 
 # JeffDeck, the presentation app: like JeffPub, everything except main() is a
 # library its tests link. Packaged beside JeffPub (a Preview in 0.7.0). Its
@@ -477,6 +518,7 @@ endif()
 target_link_libraries(jeffdeck PRIVATE jdcore)
 jo_add_version_info(jeffdeck JeffDeck "JeffDeck: presentations")
 set_target_properties(jeffdeck PROPERTIES OUTPUT_NAME JeffDeck)
+install(TARGETS jeffdeck RUNTIME DESTINATION bin BUNDLE DESTINATION .)
 qt_add_executable(jdtests
   tests/testrunner.cpp
   tests/deck/deckhelpers.cpp
@@ -577,6 +619,7 @@ endif()
 target_link_libraries(jeffwrite PRIVATE jwcore)
 jo_add_version_info(jeffwrite JeffWrite "JeffWrite: documents")
 set_target_properties(jeffwrite PROPERTIES OUTPUT_NAME JeffWrite)
+install(TARGETS jeffwrite RUNTIME DESTINATION bin BUNDLE DESTINATION .)
 qt_add_executable(writetests tests/write/tst_write.cpp tests/write/tst_write_02.cpp tests/write/tst_write_03.cpp tests/write/tst_write_04.cpp tests/write/tst_write_05.cpp tests/write/tst_write_06.cpp tests/write/tst_write_07.cpp tests/write/tst_write_08.cpp tests/write/tst_write_09.cpp tests/write/tst_write_10.cpp tests/write/tst_write_11.cpp tests/write/tst_write_12.cpp tests/write/tst_write_13.cpp tests/write/tst_write_14.cpp tests/office/dochelpers.cpp)
 target_link_libraries(writetests PRIVATE jwcore Qt6::Test)
 target_compile_definitions(writetests PRIVATE JW_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
@@ -691,6 +734,7 @@ endif()
 target_link_libraries(jeffcrunch PRIVATE jccore)
 jo_add_version_info(jeffcrunch JeffCrunch "JeffCrunch: spreadsheets")
 set_target_properties(jeffcrunch PROPERTIES OUTPUT_NAME JeffCrunch)
+install(TARGETS jeffcrunch RUNTIME DESTINATION bin BUNDLE DESTINATION .)
 # The tests of the window (the grid's own are in sheettests).
 qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_edit_02.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/crunch/tst_crunch_rules.cpp tests/crunch/tst_crunch_xls.cpp tests/crunch/tst_crunch_convert.cpp tests/crunch/tst_crunch_copy.cpp tests/crunch/tst_crunch_datatable.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp tests/sheet/odshelpers.cpp tests/crunch/tst_crunch_format.cpp tests/crunch/tst_crunch_formatcodes.cpp tests/crunch/tst_crunch_formatdialog.cpp tests/crunch/tst_crunch_formatui.cpp tests/crunch/tst_crunch_sheets.cpp tests/crunch/tst_crunch_review.cpp tests/crunch/tst_crunch_drawings.cpp tests/crunch/tst_crunch_equation.cpp tests/crunch/tst_crunch_print.cpp tests/crunch/tst_crunch_print_02.cpp tests/crunch/tst_crunch_find.cpp tests/crunch/tst_crunch_sort.cpp tests/crunch/tst_crunch_datatools.cpp tests/crunch/tst_crunch_filter.cpp tests/crunch/tst_crunch_function.cpp tests/crunch/tst_crunch_charts.cpp tests/crunch/tst_crunch_names.cpp tests/crunch/tst_crunch_formulas.cpp tests/crunch/tst_crunch_notes.cpp tests/crunch/tst_crunch_links.cpp tests/crunch/tst_crunch_protect.cpp tests/crunch/tst_crunch_autoheight.cpp tests/crunch/tst_crunch_text.cpp tests/crunch/tst_crunch_tables.cpp tests/crunch/tst_crunch_pivot.cpp tests/crunch/tst_crunch_structmodel.cpp tests/crunch/structmodel.cpp tests/crunch/tst_crunch_viewedit.cpp tests/crunch/tst_crunch_keep.cpp tests/crunch/tst_crunch_hostile.cpp tests/crunch/tst_crunch_outline.cpp tests/crunch/tst_crunch_point.cpp tests/crunch/tst_crunch_sparklines.cpp tests/crunch/tst_crunch_info.cpp tests/crunch/tst_crunch_c12home.cpp tests/crunch/tst_crunch_c12cells.cpp tests/crunch/tst_crunch_c12fill.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_tabs2.cpp)
@@ -796,8 +840,10 @@ if(Qt6LinguistTools_FOUND)
       list(APPEND JP_QT_QM_FILES ${CMAKE_CURRENT_BINARY_DIR}/qtqm/qtbase_${lang}.qm)
     endif()
   endforeach()
-  # All of them go in the data folder (data/i18n in the build tree, installed beside the programs once, not built into each):
-  # a development build finds it through JO_BUILD_DATA_DIR (libs/base/core/datafolder.cpp).
+  if(TARGET writetests)
+    target_compile_definitions(writetests PRIVATE JO_EXPECT_I18N)   # (a build with the Linguist tools has translations: a test that needs them fails without)
+  endif()
+  # All of them go in the data folder (data/i18n in the build tree, installed beside the programs once, not built into each).
   set(JO_I18N_COPIES)
   foreach(qm ${JP_QM_FILES} ${JP_QT_QM_FILES})
     get_filename_component(qmname ${qm} NAME)
@@ -806,9 +852,23 @@ if(Qt6LinguistTools_FOUND)
       DEPENDS ${qm} VERBATIM)
     list(APPEND JO_I18N_COPIES ${JO_BUILD_DATA_DIR}/i18n/${qmname})
   endforeach()
-  add_custom_target(jeffoffice_data DEPENDS ${JO_I18N_COPIES})
-  add_dependencies(jeffoffice-common jeffoffice_data)
+elseif(JO_REQUIRE_I18N)
+  message(FATAL_ERROR "JO_REQUIRE_I18N: Qt's Linguist tools (lrelease) were not found, so there would be no translations")
 endif()
+# The data folder of the build tree: Help (linked to resources/help, or copied on Windows), the translations, data.stamp (its marker: the
+# version), and manifest.txt (every file of Help and every translation it holds, which is what the programs list; see datafolder.h).
+if(WIN32)
+  set(JO_HELP_LINK ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/help ${JO_BUILD_DATA_DIR}/help)
+else()
+  set(JO_HELP_LINK ${CMAKE_COMMAND} -E create_symlink ${CMAKE_SOURCE_DIR}/resources/help ${JO_BUILD_DATA_DIR}/help)
+endif()
+add_custom_target(jeffoffice_data
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${JO_BUILD_DATA_DIR}/i18n
+  COMMAND ${JO_HELP_LINK}
+  COMMAND ${CMAKE_COMMAND} -DHELP_SRC=${CMAKE_SOURCE_DIR}/resources/help -DDATA=${JO_BUILD_DATA_DIR} -DVERSION=${PROJECT_VERSION}
+          -P ${CMAKE_SOURCE_DIR}/cmake/datamanifest.cmake
+  DEPENDS ${JO_I18N_COPIES} VERBATIM)
+add_dependencies(jeffoffice-common jeffoffice_data)
 
 # Measures the grammar rules on real text (tools/grammar/measure.py).
 qt_add_executable(grammartool tools/grammar/grammartool.cpp)
@@ -849,3 +909,9 @@ qt_add_executable(jpubtool tools/jpubtool.cpp)
 target_link_libraries(jpubtool PRIVATE jpcore)
 set_target_properties(jpubtool PROPERTIES WIN32_EXECUTABLE OFF)
 include(cmake/precompile.cmake)
+
+# What the packaged-layout check (tools/check_packaged_layout.sh) runs from an install: finds the data folder and loads Help and a translation.
+qt_add_executable(jo_datacheck tools/datacheck.cpp)
+target_link_libraries(jo_datacheck PRIVATE jeffoffice-common)
+set_target_properties(jo_datacheck PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
+install(TARGETS jo_datacheck RUNTIME DESTINATION bin COMPONENT check EXCLUDE_FROM_ALL)

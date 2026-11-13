@@ -27,7 +27,9 @@ HOME each run, no file: the program's own marks ("first paint", "window usable")
    inside each of the four macOS bundles (each stays whole by itself; `tools/link_duplicates.py` already stores identical files
    once in the disk image, so what the .dmg gains depends on how many copies are byte-identical after macdeployqt).
 4. `JO_SLIM_RELEASE` (default ON, Release builds only): `-flto` (`check_ipo_supported`), `-ffunction-sections -fdata-sections`
-   with `--gc-sections` (`-dead_strip` on macOS). CI turns it off in the test-only builds.
+   with `--gc-sections` (`-dead_strip` on macOS), applied to the shared library and its layers ONLY, not to the four programs (they are
+   4 to 7 MB; and Qt's Windows entry point does not resolve `qMain` against an LTO program: the Windows VM link failed on it).
+   CI turns it off in the test-only builds and in pull requests.
 
 ## Before and after
 
@@ -36,13 +38,13 @@ Release with `JO_SLIM_RELEASE=ON`. "Without LTO" is the same branch with it OFF.
 
 | | Before | After, no LTO | After (slim) |
 |---|---|---|---|
-| JeffPub exe, stripped | 43,450,880 | 4,343,464 | 4,056,608 |
-| JeffDeck exe, stripped | 45,756,496 | 6,536,096 | 5,671,712 |
-| JeffWrite exe, stripped | 49,207,280 | 8,002,560 | 6,933,336 |
-| JeffCrunch exe, stripped | 48,559,344 | 8,398,032 | 7,038,008 |
-| libjeffoffice-common.so, stripped | | 28,587,496 | 23,396,144 |
+| JeffPub exe, stripped | 43,450,880 | 4,343,464 | 4,298,408 |
+| JeffDeck exe, stripped | 45,756,496 | 6,536,096 | 6,478,752 |
+| JeffWrite exe, stripped | 49,207,280 | 8,002,560 | 7,932,928 |
+| JeffCrunch exe, stripped | 48,559,344 | 8,398,032 | 8,316,112 |
+| libjeffoffice-common.so, stripped | | 28,587,496 | 24,540,592 |
 | Data folder (help 15,132,971 + i18n 18,910,762) | inside the exes | 34,043,733 | 34,043,733 |
-| **Install total, stripped** | **186,974,000** | **89,911,381** | **81,139,541** |
+| **Install total, stripped** | **186,974,000** | **89,911,381** | **85,671,733** (library-only LTO, after the review fixes; 81,139,541 with LTO on the programs too) |
 | Unstripped exes (Pub, Deck, Write, Crunch) | 47,500,416 / 49,971,176 / 53,896,336 / 53,308,400 | 5,343,664 / 7,715,544 / 9,478,440 / 10,030,280 | 5,047,696 / 6,828,864 / 8,381,816 / 8,591,744 |
 | Unstripped library | | 32,473,288 | 26,905,056 |
 
@@ -81,6 +83,14 @@ No startup regression found. (A first comparison looked 40 ms slower: the "befor
 
 LTO compiles faster (no code generation per file) and links much slower; the 80-processor machine hides that. On a
 4-processor CI runner expect the library link to take several minutes, and Windows (MinGW, big objects) and macOS more.
+
+The data folder is now also `data.stamp` (the version) and `manifest.txt` (every Help file and translation; the topic and language lists
+come from it, so a stale file from an older version is ignored). A folder is the data folder only if its stamp matches this version, one
+root serves both help and i18n, and the result is found once per process. A slim (packaged) build bakes in no path of this machine; a
+development build also looks in its own build folder. `tools/check_packaged_layout.sh` (run by the gate) installs the build to a temporary
+prefix and checks every library resolves there, each app starts from it, and Help and a German translation load.
+The numbers in the size table above for the exes and library are from the last, library-only LTO build; the startup and build-time
+tables are from the first (all-targets LTO) build and were not repeated.
 
 ## What to watch on the first CI run
 

@@ -498,10 +498,12 @@ private Q_SLOTS:
         const QString src = QStringLiteral(JC_SOURCE_DIR "/resources/help");
         QStringList onDisk, built;
         for (QDirIterator it(src, QDir::Files, QDirIterator::Subdirectories); it.hasNext();) onDisk << QDir(src).relativeFilePath(it.next());
-        for (QDirIterator it(jp::dataFolder(QStringLiteral("help")), QDir::Files, QDirIterator::Subdirectories); it.hasNext();) built << QDir(jp::dataFolder(QStringLiteral("help"))).relativeFilePath(it.next());
+        // (what the build wrote in the manifest, which must be every file of the source folder and be in the data folder as well)
+        built = jp::dataManifest(QStringLiteral("help"));
+        for (const QString &f : built) QVERIFY2(QFileInfo(jp::dataFolder(QStringLiteral("help")) + QLatin1Char('/') + f).isFile(), qPrintable(f));
         onDisk.sort();
         built.sort();
-        QCOMPARE(built, onDisk);   // the data folder has every file in resources/help
+        QCOMPARE(built, onDisk);   // the manifest lists every file in resources/help
         const QStringList ids = help::topicIds();
         QVERIFY2(ids.size() >= 7, qPrintable(QString::number(ids.size())));
         static const QRegularExpression link(QStringLiteral("\\]\\(([^)]+)\\)"));

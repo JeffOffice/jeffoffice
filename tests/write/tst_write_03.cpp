@@ -7,7 +7,12 @@
 void WriteTests::theWordCountSaysWordAndWordsInEnglish()
 {
     QTranslator english;
-    if (!english.load(jp::dataFolder(QStringLiteral("i18n")) + QStringLiteral("/jeffoffice_en.qm"))) QSKIP("the translations are not built into this build");
+    const bool loaded = english.load(jp::dataFolder(QStringLiteral("i18n")) + QStringLiteral("/jeffoffice_en.qm"));
+#ifdef JO_EXPECT_I18N
+    QVERIFY2(loaded, "this build has Qt's Linguist tools, so it must have its translations in the data folder");
+#else
+    if (!loaded) QSKIP("the translations are not built into this build");
+#endif
     QCoreApplication::installTranslator(&english);
     struct Remove {
         QTranslator *t;

@@ -67,4 +67,6 @@ for s in $SUITES; do
   echo "== $s: $(grep -hE '^FAIL' $fs | head -3 | tr '\n' ' ')$(cat $fs | awk -v x=$extra -v n=$n '/^Totals/{p+=$2;f+=$4;c++} END{printf "%d classes, %d passed, %d failed", c/n,p-x,f}')" >> "$L"
 done
 rm -rf "${T:?}"
+# (Linux: the build installed into a temporary prefix: every library resolves there, and each app starts and finds Help and its translations)
+echo "== $(bash "$W/tools/check_packaged_layout.sh" "$W/build" 2>&1 | tail -4 | tr '\n' ' ')" >> "$L"
 echo DONE >> "$L"

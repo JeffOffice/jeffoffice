@@ -804,10 +804,14 @@ void WriteTests::helpTopicsAreComplete()
     const QString src = QStringLiteral(JW_SOURCE_DIR "/resources/help/en/write");
     QStringList onDisk, built;
     for (QDirIterator it(src, QDir::Files); it.hasNext();) onDisk << QFileInfo(it.next()).fileName();
-    for (QDirIterator it(jp::dataFolder(QStringLiteral("help")) + QStringLiteral("/en/write"), QDir::Files); it.hasNext();) built << QFileInfo(it.next()).fileName();
+    for (const QString &f : jp::dataManifest(QStringLiteral("help")))   // (what the build wrote in the manifest, which must also be in the data folder)
+        if (f.startsWith(QLatin1String("en/write/"))) {
+            QVERIFY2(QFileInfo(jp::dataFolder(QStringLiteral("help")) + QLatin1Char('/') + f).isFile(), qPrintable(f));
+            built << QFileInfo(f).fileName();
+        }
     onDisk.sort();
     built.sort();
-    QCOMPARE(built, onDisk);   // the data folder has every file
+    QCOMPARE(built, onDisk);   // the manifest lists every file
     const QStringList ids = jp::help::topicIds();
     QVERIFY2(ids.contains(QLatin1String("start")) && ids.contains(QLatin1String("index")), qPrintable(ids.join(QLatin1Char(' '))));
     static const QRegularExpression link(QStringLiteral("\\]\\(([^)]+)\\)"));

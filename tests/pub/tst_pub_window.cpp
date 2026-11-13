@@ -708,10 +708,12 @@ private Q_SLOTS:
         const QString src = QStringLiteral(JP_TEST_DATA "/../../resources/help");
         QStringList onDisk, built;
         for (QDirIterator it(src, QDir::Files, QDirIterator::Subdirectories); it.hasNext();) onDisk << QDir(src).relativeFilePath(it.next());
-        for (QDirIterator it(jp::dataFolder(QStringLiteral("help")), QDir::Files, QDirIterator::Subdirectories); it.hasNext();) built << QDir(jp::dataFolder(QStringLiteral("help"))).relativeFilePath(it.next());
+        // (what the build wrote in the manifest, which must be every file of the source folder and be in the data folder as well)
+        built = jp::dataManifest(QStringLiteral("help"));
+        for (const QString &f : built) QVERIFY2(QFileInfo(jp::dataFolder(QStringLiteral("help")) + QLatin1Char('/') + f).isFile(), qPrintable(f));
         onDisk.sort();
         built.sort();
-        QCOMPARE(built, onDisk);   // the data folder has every file in resources/help
+        QCOMPARE(built, onDisk);   // the manifest lists every file in resources/help
         const QStringList ids = jp::help::topicIds();
         QVERIFY2(ids.size() >= 45, qPrintable(QString::number(ids.size())));
         static const QRegularExpression link(QStringLiteral("\\]\\(([^)]+)\\)"));
@@ -769,11 +771,23 @@ private Q_SLOTS:
         QCOMPARE(jp::installTranslations(), QStringLiteral("en"));
         // A folder that holds them is looked in first (and only).
         QVERIFY(QDir(empty.path()).mkpath(QStringLiteral("help/en")));
-        QFile page(empty.path() + QStringLiteral("/help/en/index.md"));
-        QVERIFY(page.open(QIODevice::WriteOnly));
-        page.write("# Only page\n");
-        page.close();
-        QCOMPARE(jp::help::topicIds(), QStringList{QStringLiteral("index")});
+        auto write = [&empty](const QString &name, const QByteArray &text) {
+            QFile f(empty.path() + QLatin1Char('/') + name);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(text);
+        };
+        write(QStringLiteral("help/en/index.md"), "# Only page\n");
+        write(QStringLiteral("help/en/stale.md"), "# Left by an older version\n");
+        write(QStringLiteral("manifest.txt"), "help/en/index.md\n");
+        // (a folder is the data folder only with the stamp of this version)
+        jp::setDataFolderOverride(empty.path());
+        QVERIFY(jp::dataFolder(QStringLiteral("help")).isEmpty());
+        write(QStringLiteral("data.stamp"), "0.0.0\n");
+        jp::setDataFolderOverride(empty.path());
+        QVERIFY(jp::dataFolder(QStringLiteral("help")).isEmpty());
+        write(QStringLiteral("data.stamp"), QByteArray(jp::versionString()) + "\n");
+        jp::setDataFolderOverride(empty.path());
+        QCOMPARE(jp::help::topicIds(), QStringList{QStringLiteral("index")});   // (stale.md is not in the manifest)
         QCOMPARE(jp::help::topic(QStringLiteral("index")).title, QStringLiteral("Only page"));
         jp::setDataFolderOverride(QString());
         QVERIFY(jp::help::topicIds().size() >= 45);

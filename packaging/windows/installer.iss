@@ -526,8 +526,7 @@ begin
       DeleteFile(Loc + '\README.md');
       DelTree(Loc + '\fonts', True, True, True);
       DelTree(Loc + '\dict', True, True, True);
-      DelTree(Loc + '\help', True, True, True);
-      DelTree(Loc + '\i18n', True, True, True);
+      RemoveOwnData(Loc);
       DelTree(Loc + '\licenses', True, True, True);
       DelTree(Loc + '\generic', True, True, True);
       DelTree(Loc + '\iconengines', True, True, True);

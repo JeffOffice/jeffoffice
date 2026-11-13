@@ -144,10 +144,12 @@ Cache &cache()
 
 QStringList topicIds()
 {
+    // (from the manifest, not from the folder: a file an older version left there is not a topic)
     QStringList ids;
-    const QString root = helpRoot();
-    if (root.isEmpty()) return ids;
-    for (const QString &f : QDir(root + QStringLiteral("/en") + appFolder()).entryList({QStringLiteral("*.md")}, QDir::Files, QDir::Name)) ids << f.chopped(3);
+    const QString wanted = QStringLiteral("en") + appFolder() + QLatin1Char('/');
+    for (const QString &f : dataManifest(QStringLiteral("help")))
+        if (f.startsWith(wanted) && f.endsWith(QLatin1String(".md")) && !f.mid(wanted.size()).contains(QLatin1Char('/'))) ids << f.mid(wanted.size()).chopped(3);
+    ids.sort(Qt::CaseInsensitive);
     return ids;
 }
 

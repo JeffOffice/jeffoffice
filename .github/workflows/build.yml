@@ -425,9 +425,11 @@ jobs:
           if [ "$RUNNER_OS" = "macOS" ]; then EXTRA="-DCMAKE_OSX_ARCHITECTURES=$MAC_ARCHS -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0"; fi
           LAUNCH=""
           if command -v ccache >/dev/null 2>&1; then LAUNCH="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"; else echo "ccache is missing: building without it"; fi
-          # Link-time optimization and dead-code removal (JO_SLIM_RELEASE, on by default in a Release build) only where the apps are packaged
-          # (Linux's checks, and the first half of the checks on Windows and macOS); the test builds keep the quick link.
-          if [ "${{ matrix.part }}" != checks ] || { [ "$RUNNER_OS" != Linux ] && [ "${{ matrix.shard }}" != 1 ]; }; then EXTRA="$EXTRA -DJO_SLIM_RELEASE=OFF"; fi
+          # Link-time optimization and dead-code removal of the shared library (JO_SLIM_RELEASE, on by default in a Release build) only where
+          # the apps are packaged for keeping (the checks job that packages: Linux's, and the first half on Windows and macOS) and not for a
+          # pull request; every other build keeps the quick link. A package also needs its translations: no Linguist tools stops the configure.
+          if [ "${{ matrix.part }}" != checks ] || { [ "$RUNNER_OS" != Linux ] && [ "${{ matrix.shard }}" != 1 ]; } || [ "${{ github.event_name }}" = pull_request ]; then EXTRA="$EXTRA -DJO_SLIM_RELEASE=OFF"; fi
+          EXTRA="$EXTRA -DJO_REQUIRE_I18N=ON"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX $LAUNCH $EXTRA
 
       - name: Build
@@ -587,8 +589,12 @@ jobs:
           # (the help and i18n folders beside the programs: see jp::dataFolder). windeployqt reads the DLL too, for the Qt
           # modules only it uses (Svg, Xml, Network): the programs themselves no longer link them.
           Copy-Item build/libjeffoffice-common.dll dist/JeffOffice/
-          Copy-Item -Recurse resources/help dist/JeffOffice/help
-          Copy-Item -Recurse build/data/i18n dist/JeffOffice/i18n
+          # (build/data is the data folder: help, i18n, data.stamp, and manifest.txt, which mark it and list what it holds)
+          Copy-Item -Recurse build/data/* dist/JeffOffice/
+          # The DLL's export table holds at most 65,535 names; the third-party libraries inside it are not exported. Say how many, and stop near the limit.
+          $exports = (objdump -p build/libjeffoffice-common.dll | Select-String '^\s+\[\s*\d+\]\s+\+base').Count
+          Write-Host "libjeffoffice-common.dll exports $exports names"
+          if ($exports -gt 60000) { throw "libjeffoffice-common.dll exports $exports names (the limit is 65535)" }
           # JeffWrite needs the same Qt as JeffPub; it is packaged only when the switch at the top says so.
           if ($env:SHIP_WRITE -eq 'true') { Copy-Item build/JeffWrite.exe dist/JeffOffice/ }
           # JeffCrunch needs the same Qt too.
@@ -655,8 +661,7 @@ jobs:
           New-Item -ItemType Directory -Force dev-tools | Out-Null
           Copy-Item build/jpubtool.exe, build/jdecktool.exe dev-tools/
           Copy-Item build/pdfium.dll, build/libjeffoffice-common.dll dev-tools/
-          Copy-Item -Recurse resources/help dev-tools/help
-          Copy-Item -Recurse build/data/i18n dev-tools/i18n
+          Copy-Item -Recurse build/data/* dev-tools/
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
@@ -673,8 +678,8 @@ jobs:
           if [ "$SHIP_CRUNCH" = true ]; then cp build/JeffCrunch dist/JeffOffice/; fi
           cp -r resources/fonts resources/dict dist/JeffOffice/
           # The shared library (found beside the programs by $ORIGIN), and Help and the translations (beside them too).
-          cp build/libjeffoffice-common.so dist/JeffOffice/
-          cp -r resources/help build/data/i18n dist/JeffOffice/
+          cp build/libjeffoffice-common.so build/_deps/pdfium/lib/libpdfium.so dist/JeffOffice/
+          cp -rL build/data/. dist/JeffOffice/
 
       - name: Linux packages (.deb and AppImage)
         if: runner.os == 'Linux' && matrix.part == 'checks'
@@ -709,7 +714,15 @@ jobs:
           test "$(find deb-check -name 'libjeffoffice-common*' | wc -l)" = 1
           test -f deb-check/opt/jeffoffice/share/jeffoffice/help/en/printing.md
           test -f deb-check/opt/jeffoffice/share/jeffoffice/i18n/jeffoffice_de.qm
-          for app in JeffPub JeffDeck; do env -u LD_LIBRARY_PATH ldd deb-check/opt/jeffoffice/bin/$app | grep -q "libjeffoffice-common.so => $PWD/deb-check/opt/jeffoffice/lib/"; done
+          # (ldd may print the path as bin/../lib: the real paths are compared)
+          want=$(realpath deb-check/opt/jeffoffice/lib/libjeffoffice-common.so)
+          for app in JeffPub JeffDeck JeffWrite JeffCrunch; do
+            [ -x deb-check/opt/jeffoffice/bin/$app ] || continue
+            got=$(env -u LD_LIBRARY_PATH ldd deb-check/opt/jeffoffice/bin/$app | awk '/libjeffoffice-common/ {print $3}')
+            [ "$(realpath "$got")" = "$want" ] || { echo "$app uses $got, not $want"; exit 1; }
+          done
+          test -f deb-check/opt/jeffoffice/share/jeffoffice/data.stamp
+          test -f deb-check/opt/jeffoffice/share/jeffoffice/manifest.txt
           ls -l deb-check/opt/jeffoffice/bin deb-check/opt/jeffoffice/lib/libjeffoffice-common.so
           # JeffDeck plays movies and sounds: Qt Multimedia's FFmpeg plugin and FFmpeg's libraries are in the package.
           test -f deb-check/opt/jeffoffice/plugins/multimedia/libffmpegmediaplugin.so
@@ -747,7 +760,7 @@ jobs:
             # the Qt frameworks only it uses (Svg, Xml, Network) and so that its references are rewritten as the program's are.
             fw=dist/$app.app/Contents/Frameworks
             mkdir -p "$fw"
-            cp build/libjeffoffice-common.dylib "$fw/"
+            cp build/libjeffoffice-common.dylib build/_deps/pdfium/lib/libpdfium.dylib "$fw/"
             "$QT_ROOT_DIR/bin/macdeployqt" dist/$app.app -executable="$fw/libjeffoffice-common.dylib"
             test -f "$fw/libjeffoffice-common.dylib"
             # PDFium beside the Qt frameworks, where the program finds it,
@@ -759,11 +772,14 @@ jobs:
               install_name_tool -delete_rpath "$PWD/build/_deps/pdfium/lib" "$f" || true
               install_name_tool -delete_rpath "$PWD/build" "$f" || true
               echo "== $f"; otool -l "$f" | grep -A2 LC_RPATH | grep path || true
-              if otool -L "$f" | grep -F "$PWD/build"; then echo "$f still points into the build folder"; exit 1; fi
+              bad=$(otool -L "$f" | grep -F "$PWD/build" || true)
+              if [ -n "$bad" ]; then echo "$f still points into the build folder:"; echo "$bad"; exit 1; fi
+              bad=$(otool -l "$f" | grep -A2 LC_RPATH | grep path | grep -F "$PWD" || true)
+              if [ -n "$bad" ]; then echo "$f still has a run path into the build folder:"; echo "$bad"; exit 1; fi
             done
             otool -L dist/$app.app/Contents/MacOS/$app | grep jeffoffice-common
             # Help and the translations, once in the app's Resources folder (jp::dataFolder).
-            cp -R resources/help build/data/i18n dist/$app.app/Contents/Resources/
+            cp -RL build/data/. dist/$app.app/Contents/Resources/
             mkdir -p dist/$app.app/Contents/Resources/licenses
             cp -R third_party/pdfium/licenses dist/$app.app/Contents/Resources/licenses/pdfium
             cp -R third_party/qpdf/licenses dist/$app.app/Contents/Resources/licenses/qpdf
