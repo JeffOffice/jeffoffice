@@ -108,7 +108,7 @@ QWidget *buildAboutPage(QWidget *parent, const QWidget *screen, const AboutHost 
     QObject::connect(statsBox, &QCheckBox::toggled, w, [](bool on) {
         if (on != telemetry::enabled()) telemetry::setEnabled(on);   // (showing the page again sets the box to what is chosen: nothing to write)
     });
-    auto *statsLink = new QLabel(QStringLiteral("<a href=\"https://telemetry-production-9964.up.railway.app/\">%1</a>").arg(AboutPageText::tr("What's sent")), id);
+    auto *statsLink = new QLabel(QStringLiteral("<a href=\"https://telemetry.jeffoffice.com/\">%1</a>").arg(AboutPageText::tr("What's sent")), id);
     statsLink->setOpenExternalLinks(true);
     auto *sh = new QHBoxLayout();
     sh->setSpacing(10);

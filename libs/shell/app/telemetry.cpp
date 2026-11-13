@@ -34,10 +34,10 @@ namespace jp::telemetry {
 
 namespace {
 
-const char *kUrl = "https://telemetry-production-9964.up.railway.app/v1/ping";
-const char *kCrashUrl = "https://telemetry-production-9964.up.railway.app/v1/crash";
+const char *kUrl = "https://telemetry.jeffoffice.com/v1/ping";
+const char *kCrashUrl = "https://telemetry.jeffoffice.com/v1/crash";
 const char *kPrivacy = "https://www.jeffoffice.com/privacy";
-const char *kAbout = "https://telemetry-production-9964.up.railway.app/";
+const char *kAbout = "https://telemetry.jeffoffice.com/";
 const QString kEnabled = QStringLiteral("telemetry/enabled");
 const QString kInstall = QStringLiteral("telemetry/install");
 const QString kLastSent = QStringLiteral("telemetry/lastSent");
