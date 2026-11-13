@@ -13,6 +13,28 @@ endif()
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Network Xml Test CorePrivate)
 
+# Release builds only (the packages): link-time optimization, and no code or data that nothing uses (each function and variable in a
+# section of its own, and the linker drops the sections nothing refers to). A default or development build (RelWithDebInfo, Debug, none) is
+# left as it is, so it builds and links quickly; -DJO_SLIM_RELEASE=OFF turns this off for a Release build too (a toolchain that breaks on LTO).
+option(JO_SLIM_RELEASE "Release builds: link-time optimization and dead-code removal" ON)
+if(JO_SLIM_RELEASE AND CMAKE_BUILD_TYPE STREQUAL "Release")
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT JO_IPO_OK OUTPUT JO_IPO_WHY LANGUAGES CXX)
+  if(JO_IPO_OK)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+  else()
+    message(STATUS "JO_SLIM_RELEASE: no link-time optimization (${JO_IPO_WHY})")
+  endif()
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-ffunction-sections -fdata-sections)
+    if(APPLE)
+      add_link_options(-Wl,-dead_strip)
+    else()
+      add_link_options(-Wl,--gc-sections)
+    endif()
+  endif()
+endif()
+
 add_subdirectory(third_party)
 include(cmake/pdfium.cmake)
 include(cmake/qpdf.cmake)
