@@ -32,7 +32,7 @@ The **ribbon** is the band of buttons across the top. Each tab holds groups of b
 - **Insert** has Table, Pictures, Page Break, Header, Footer, Bookmark, Cross-reference, and Field. A picture you click gets the **Picture Format** tab. While a header or footer is open for editing, the **Header & Footer** tab appears.
 - **Layout** has Margins, Orientation, Size, Columns, and Breaks (and the **Page Setup** window, from the corner of the group), and boxes for a paragraph's indents and spacing.
 - **References** has the Table of Contents, footnotes and endnotes, cross-references, and Update Field.
-- **Review** has Spelling, Check Spelling as You Type, comments, Track Changes, and Accept and Reject.
+- **Review** has Spelling, Check Spelling as You Type, Check Grammar as You Type, comments, Track Changes, and Accept and Reject.
 - **View** has Print Layout, the **¶** button, the **Ruler**, and the zoom choices.
 
 Click **File** at the top left for New, Open, Save, Print, and Export.
