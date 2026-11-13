@@ -1069,7 +1069,8 @@ public:
                     c.select(QTextCursor::Document);
                 }
             }
-            return c.document() ? translate::readSource(c) : translate::Source();
+            // (a cursor whose document has gone is null, and has no document to ask)
+            return !c.isNull() && c.document() ? translate::readSource(c) : translate::Source();
         };
         h->languageFn = [win] {
             Editor *ed = win->editor();

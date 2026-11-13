@@ -403,6 +403,21 @@ private Q_SLOTS:
         QVERIFY(doc.toPlainText().contains(QLatin1Char('\t')));
     }
 
+    void aCursorWhoseDocumentIsGoneReadsNothing()
+    {
+        // (Qt's QTextCursor::document() has no document to ask once the document is deleted: the editor's cursor can be like that for a moment while a publication is replaced)
+        QVERIFY(readSource(QTextCursor()).paragraphs.isEmpty());
+        QTextCursor c;
+        {
+            QTextDocument doc;
+            doc.setPlainText(QStringLiteral("gone"));
+            c = QTextCursor(&doc);
+        }
+        const Source s = readSource(c);
+        QVERIFY(s.paragraphs.isEmpty());
+        QVERIFY(s.isEmpty());
+    }
+
     void translatedHtmlGetsTheLookOfTheRunThatHadTheSameBoldAndItalic()
     {
         QTextDocument doc;

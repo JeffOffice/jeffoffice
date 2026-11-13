@@ -91,6 +91,7 @@ bool Source::isCurrent() const
 Source readSource(const QTextCursor &cursor)
 {
     Source s;
+    if (cursor.isNull()) return s;   // (a cursor whose document has gone has none to ask)
     QTextDocument *doc = cursor.document();
     if (!doc) return s;
     s.document = doc;
