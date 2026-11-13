@@ -3262,6 +3262,16 @@
       {
        "hide_soon": true,
        "status": "done",
+       "text": "8b773c49d6c484a249cc53964f459611bf344aa6dfe569709f0027d2dd64d691"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "db8020a5429978cac7b6caa57c8f9622f0c0d5abb438e506756b3b262257f9aa"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
        "text": "1fc313795adcf02fabaa0f7571fdb9f27c1ebe232d13f7432bf6b46f0099d20b"
       },
       {
@@ -4696,6 +4706,16 @@
       {
        "hide_soon": true,
        "status": "done",
+       "text": "dc14a2d0c50010bb79cc328e2c246f3ddfef7e5b20332fcade1024d79b0ea460"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "ad687f25f724809e5747eee5d42638c5b54ac975749745dc47c99f6ee1695527"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
        "text": "5950a744c2ea33933b0f6626f276e74e197760548fa6875497f38e06939223ab"
       },
       {
@@ -5478,6 +5498,16 @@
        "text": "233ba07f9e4653a73a752acf8433f9c77fd9d737f8d881473c7c72423cb6a315"
       },
       {
+       "hide_soon": true,
+       "status": "done",
+       "text": "b6d08a7deff56b4ad594b82e59f26ac71870907c7727f1db0d6d77c1d62cedad"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "85e3ad49a81d74009f2faf57eb7898980400a5198d62414e9866afb9c31515a5"
+      },
+      {
        "status": "todo",
        "text": "b87f50b478b67c2e006c7f0029a0ff50c21742bd4b46e088f4453293e4679b12"
       },
@@ -5730,7 +5760,7 @@
         },
         {
          "status": "todo",
-         "text": "49270faac4650ed5ac3356c87bb119bb79657e909a0ac17bfebc120ddfd2ac94"
+         "text": "54dca39d7d44bcd1e4971e2bbed72ae2e9f361b503d17e696d40bc632ea0d4fe"
         },
         {
          "status": "partly",
@@ -12791,18 +12821,6 @@
     "fr": ""
    }
   },
-  "49270faac4650ed5ac3356c87bb119bb79657e909a0ac17bfebc120ddfd2ac94": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Proofing exceptions, grammar settings, and the main dictionary for each language",
-    "es": "Excepciones de revisión, ajustes de gramática y diccionario principal para cada idioma",
-    "fr": "Exceptions de vérification, paramètres de grammaire et dictionnaire principal pour chaque langue"
-   }
-  },
   "495e28d0d186481bf6738c07e9edef468c6f07e1488c1b2c84847768eb6cdbdb": {
    "drop": true,
    "en": "",
@@ -13629,6 +13647,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "54dca39d7d44bcd1e4971e2bbed72ae2e9f361b503d17e696d40bc632ea0d4fe": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Proofing exceptions and a main dictionary for each language",
+    "es": "Excepciones de revisión y diccionario principal para cada idioma",
+    "fr": "Exceptions de correction et dictionnaire principal pour chaque langue"
    }
   },
   "54e4535c33db74d25a162d107ac23bbb8acf5aaef54f648568766150cab18923": {
@@ -17315,6 +17345,18 @@
     "fr": ""
    }
   },
+  "85e3ad49a81d74009f2faf57eb7898980400a5198d62414e9866afb9c31515a5": {
+   "drop": false,
+   "en": "About forty grammar rules catch clear-cut mistakes: verbs that do not agree, wrong verb forms, \"who's\" and \"whose\", \"affect\" and \"effect\", \"less\" and \"fewer\", double negatives, missing commas after a date's year or after a city and state, hyphens in compounds before a noun, a small \"i\", and days and months in small letters. Optional style rules, off until turned on, flag wordy and redundant phrases, the passive voice, sentences of more than 40 words, and three sentences in a row with the same first word.",
+   "es": "Unas cuarenta reglas gramaticales detectan errores claros: verbos que no concuerdan, formas verbales incorrectas, \"who's\" y \"whose\", \"affect\" y \"effect\", \"less\" y \"fewer\", dobles negaciones, comas que faltan después del año de una fecha o después de una ciudad y un estado, guiones en compuestos antes de un sustantivo, una \"i\" minúscula, y días y meses en minúsculas. Las reglas de estilo opcionales, desactivadas hasta que usted las active, señalan frases largas y redundantes, la voz pasiva, oraciones de más de 40 palabras y tres oraciones seguidas que empiezan con la misma palabra.",
+   "fr": "Une quarantaine de règles de grammaire repèrent des erreurs évidentes : verbes qui ne s’accordent pas, formes verbales incorrectes, « who’s » et « whose », « affect » et « effect », « less » et « fewer », doubles négations, virgules manquantes après l’année d’une date ou après une ville et un État, traits d’union dans les composés avant un nom, un « i » minuscule, et jours et mois en minuscules. Des règles de style facultatives, désactivées tant que vous ne les activez pas, signalent les tournures verbeuses et redondantes, la voix passive, les phrases de plus de 40 mots et trois phrases de suite commençant par le même mot.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "863a2f70693e1488879abefa431d05914c7dae0063b9d7cff9cbf8f5c238516c": {
    "drop": false,
    "en": "A slide’s animation timing is read, kept, and written back, listing each effect by name. Click, with, and after starts, delays, durations, repeats, smooth start and end, rewind, and hide after are all kept.",
@@ -17668,6 +17710,18 @@
    "en": "Hide a slide, rehearse timings with a bar showing Next, Pause, this slide’s time, Repeat, and the total (it offers to keep the times at the end), and use the recorded timings.",
    "es": "Oculte una diapositiva, ensaye los intervalos con una barra que muestra Siguiente, Pausa, el tiempo de esta diapositiva, Repetir y el total (al final ofrece conservar los tiempos), y use los intervalos grabados.",
    "fr": "Masquez une diapositive, répétez le minutage avec une barre affichant Suivant, Pause, la durée de cette diapositive, Répéter et le total (elle propose de conserver les durées à la fin), et utilisez le minutage enregistré.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "8b773c49d6c484a249cc53964f459611bf344aa6dfe569709f0027d2dd64d691": {
+   "drop": false,
+   "en": "Choose which kinds of issues the checker flags (grammar, punctuation, capitalization, word choice, repetition, and style) under Options > Proofing > Grammar settings. Style is off until you turn it on, and the choice applies both to issues marked as you type and to the Spelling check (`F7`).",
+   "es": "Elija qué tipos de problemas señala el corrector (gramática, puntuación, mayúsculas, elección de palabras, repetición y estilo) en Options > Proofing > Grammar settings. El estilo está desactivado hasta que usted lo active, y la elección se aplica tanto a los problemas marcados mientras escribe como a la revisión ortográfica (`F7`).",
+   "fr": "Choisissez les types de problèmes signalés par le correcteur (grammaire, ponctuation, majuscules, choix des mots, répétition et style) sous Options > Proofing > Grammar settings. Le style est désactivé tant que vous ne l’activez pas, et le choix s’applique à la fois aux problèmes signalés pendant la saisie et à la vérification orthographique (`F7`).",
    "soon": {
     "drop": true,
     "en": "",
@@ -19859,6 +19913,18 @@
     "fr": "Styles de texte, remplissage du texte, contour du texte et effets de texte pour les formes, et alignement et groupement pour les objets"
    }
   },
+  "ad687f25f724809e5747eee5d42638c5b54ac975749745dc47c99f6ee1695527": {
+   "drop": false,
+   "en": "About forty grammar rules catch clear-cut mistakes: verbs that do not agree, wrong verb forms, \"who's\" and \"whose\", \"affect\" and \"effect\", \"less\" and \"fewer\", double negatives, missing commas after a date's year or after a city and state, hyphens in compounds before a noun, a small \"i\", and days and months in small letters. Optional style rules, off until turned on, flag wordy and redundant phrases, the passive voice, sentences of more than 40 words, and three sentences in a row with the same first word.",
+   "es": "Unas cuarenta reglas gramaticales detectan errores claros: verbos que no concuerdan, formas verbales incorrectas, \"who's\" y \"whose\", \"affect\" y \"effect\", \"less\" y \"fewer\", dobles negaciones, comas que faltan después del año de una fecha o después de una ciudad y un estado, guiones en compuestos antes de un sustantivo, una \"i\" minúscula, y días y meses en minúsculas. Las reglas de estilo opcionales, desactivadas hasta que usted las active, señalan frases largas y redundantes, la voz pasiva, oraciones de más de 40 palabras y tres oraciones seguidas que empiezan con la misma palabra.",
+   "fr": "Une quarantaine de règles de grammaire repèrent des erreurs évidentes : verbes qui ne s’accordent pas, formes verbales incorrectes, « who’s » et « whose », « affect » et « effect », « less » et « fewer », doubles négations, virgules manquantes après l’année d’une date ou après une ville et un État, traits d’union dans les composés avant un nom, un « i » minuscule, et jours et mois en minuscules. Des règles de style facultatives, désactivées tant que vous ne les activez pas, signalent les tournures verbeuses et redondantes, la voix passive, les phrases de plus de 40 mots et trois phrases de suite commençant par le même mot.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "ad77e134da74bc3088f9f45186b3e74597bd7c3f93a98ffc7e1f5f5386101014": {
    "drop": false,
    "en": "Show a workbook's folder and copy its path.",
@@ -20368,6 +20434,18 @@
    "en": "Pick a number format from the box: General, Number, Currency, Accounting, Short Date, Long Date, Time, Percentage, Fraction, Scientific, Text, and More Number Formats.",
    "es": "Elija un formato de número en el cuadro: General, Número, Moneda, Contabilidad, Fecha corta, Fecha larga, Hora, Porcentaje, Fracción, Científico, Texto y Más formatos de número.",
    "fr": "Choisissez un format de nombre dans la zone : Standard, Nombre, Monétaire, Comptabilité, Date courte, Date longue, Heure, Pourcentage, Fraction, Scientifique, Texte et Autres formats numériques.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "b6d08a7deff56b4ad594b82e59f26ac71870907c7727f1db0d6d77c1d62cedad": {
+   "drop": false,
+   "en": "Choose which kinds of issues the checker flags (grammar, punctuation, capitalization, word choice, repetition, and style) under Options > Proofing > Grammar settings. Style is off until you turn it on, and the choice applies both to issues marked as you type and to the Spelling check (`F7`).",
+   "es": "Elija qué tipos de problemas señala el corrector (gramática, puntuación, mayúsculas, elección de palabras, repetición y estilo) en Options > Proofing > Grammar settings. El estilo está desactivado hasta que usted lo active, y la elección se aplica tanto a los problemas marcados mientras escribe como a la revisión ortográfica (`F7`).",
+   "fr": "Choisissez les types de problèmes signalés par le correcteur (grammaire, ponctuation, majuscules, choix des mots, répétition et style) sous Options > Proofing > Grammar settings. Le style est désactivé tant que vous ne l’activez pas, et le choix s’applique à la fois aux problèmes signalés pendant la saisie et à la vérification orthographique (`F7`).",
    "soon": {
     "drop": true,
     "en": "",
@@ -22991,6 +23069,18 @@
     "fr": ""
    }
   },
+  "db8020a5429978cac7b6caa57c8f9622f0c0d5abb438e506756b3b262257f9aa": {
+   "drop": false,
+   "en": "About forty grammar rules catch clear-cut mistakes: verbs that do not agree, wrong verb forms, \"who's\" and \"whose\", \"affect\" and \"effect\", \"less\" and \"fewer\", double negatives, missing commas after a date's year or after a city and state, hyphens in compounds before a noun, a small \"i\", and days and months in small letters. Optional style rules, off until turned on, flag wordy and redundant phrases, the passive voice, sentences of more than 40 words, and three sentences in a row with the same first word.",
+   "es": "Unas cuarenta reglas gramaticales detectan errores claros: verbos que no concuerdan, formas verbales incorrectas, \"who's\" y \"whose\", \"affect\" y \"effect\", \"less\" y \"fewer\", dobles negaciones, comas que faltan después del año de una fecha o después de una ciudad y un estado, guiones en compuestos antes de un sustantivo, una \"i\" minúscula, y días y meses en minúsculas. Las reglas de estilo opcionales, desactivadas hasta que usted las active, señalan frases largas y redundantes, la voz pasiva, oraciones de más de 40 palabras y tres oraciones seguidas que empiezan con la misma palabra.",
+   "fr": "Une quarantaine de règles de grammaire repèrent des erreurs évidentes : verbes qui ne s’accordent pas, formes verbales incorrectes, « who’s » et « whose », « affect » et « effect », « less » et « fewer », doubles négations, virgules manquantes après l’année d’une date ou après une ville et un État, traits d’union dans les composés avant un nom, un « i » minuscule, et jours et mois en minuscules. Des règles de style facultatives, désactivées tant que vous ne les activez pas, signalent les tournures verbeuses et redondantes, la voix passive, les phrases de plus de 40 mots et trois phrases de suite commençant par le même mot.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "db8c21f3b471d0cf685f7c48bf0023792bbf58b0cbf68698d9d9dd919fca099e": {
    "drop": false,
    "en": "Select Objects and Select All are in Home > Editing > Select. The Selection Pane in Home > Drawing > Arrange shows the objects on the slide by name.",
@@ -23032,6 +23122,18 @@
    "en": "Forecast (What-If)",
    "es": "Previsión (Y si)",
    "fr": "Prévision (Et si)",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "dc14a2d0c50010bb79cc328e2c246f3ddfef7e5b20332fcade1024d79b0ea460": {
+   "drop": false,
+   "en": "Choose which kinds of issues the checker flags (grammar, punctuation, capitalization, word choice, repetition, and style) under Options > Proofing > Grammar settings. Style is off until you turn it on, and the choice applies both to issues marked as you type and to the Spelling check (`F7`).",
+   "es": "Elija qué tipos de problemas señala el corrector (gramática, puntuación, mayúsculas, elección de palabras, repetición y estilo) en Options > Proofing > Grammar settings. El estilo está desactivado hasta que usted lo active, y la elección se aplica tanto a los problemas marcados mientras escribe como a la revisión ortográfica (`F7`).",
+   "fr": "Choisissez les types de problèmes signalés par le correcteur (grammaire, ponctuation, majuscules, choix des mots, répétition et style) sous Options > Proofing > Grammar settings. Le style est désactivé tant que vous ne l’activez pas, et le choix s’applique à la fois aux problèmes signalés pendant la saisie et à la vérification orthographique (`F7`).",
    "soon": {
     "drop": true,
     "en": "",
