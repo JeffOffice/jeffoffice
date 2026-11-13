@@ -25,7 +25,8 @@ struct OptionsPage {
 // would be a box that does nothing.
 bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages, bool grammar = false);
 // "Grammar settings...", from the Proofing page: which kinds of issue the grammar check looks for (a checkbox for each kind; style is off until it is turned on). False when cancelled;
-// otherwise the choice is saved (setGrammarKinds) and every open document is checked again.
-bool grammarSettingsDialog(QWidget *parent);
+// otherwise the choice is saved (setGrammarKinds) and every open document is checked again. With `kinds`, the dialog starts from *kinds and puts the choice back there, and saves nothing (the
+// Options dialog keeps the choice until its own OK, as it does for its other pages).
+bool grammarSettingsDialog(QWidget *parent, quint32 *kinds = nullptr);
 
 } // namespace jp

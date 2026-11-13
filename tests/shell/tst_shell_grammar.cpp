@@ -209,6 +209,38 @@ private Q_SLOTS:
         setGrammarKinds(grammar::kDefaultKinds);
     }
 
+    void grammarSettingsChosenInsideOptionsAreKeptOnlyWhenOptionsIsAccepted()
+    {
+        for (const bool accept : {false, true}) {
+            jptest::SettingGuard guard(QStringLiteral("proof/grammarKinds"), uint(grammar::kDefaultKinds), uint(grammar::kDefaultKinds));
+            QTimer poll;
+            poll.setInterval(20);
+            bool clicked = false, inner = false;
+            QObject::connect(&poll, &QTimer::timeout, &poll, [&] {
+                for (QWidget *w : QApplication::topLevelWidgets()) {
+                    auto *dlg = qobject_cast<QDialog *>(w);
+                    if (!dlg || !dlg->isVisible()) continue;
+                    if (dlg->objectName() == QLatin1String("grammarSettingsDialog")) {
+                        dlg->findChild<QCheckBox *>(QStringLiteral("grammarKind%1").arg(int(GrammarIssue::Style)))->setChecked(true);
+                        inner = true;
+                        dlg->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+                    } else if (dlg->objectName() == QLatin1String("optionsDialog") && !clicked) {
+                        clicked = true;
+                        QTimer::singleShot(0, dlg->findChild<QPushButton *>(QStringLiteral("grammarSettingsButton")), &QPushButton::click);   // (not here: the dialog it opens waits in its own loop)
+                    } else if (dlg->objectName() == QLatin1String("optionsDialog") && inner) {
+                        QCOMPARE(grammarKinds(), grammar::kDefaultKinds);   // (nothing is saved until Options is accepted)
+                        if (accept) dlg->accept(); else dlg->reject();
+                    }
+                }
+            });
+            poll.start();
+            optionsDialog(nullptr, nullptr, {}, true);
+            QVERIFY(inner);
+            QCOMPARE(bool(grammarKinds() & grammar::kindBit(GrammarIssue::Style)), accept);
+            setGrammarKinds(grammar::kDefaultKinds);
+        }
+    }
+
     void theProofingPageOfOptionsHasTheButtonWhereGrammarIsChecked()
     {
         for (const bool grammarApp : {true, false}) {

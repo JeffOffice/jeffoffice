@@ -3,6 +3,7 @@
 #include "grammar/grammarrules.h"
 #include "../testrunner.h"
 
+#include <QElapsedTimer>
 #include <QProcess>
 #include <QtTest>
 #include <atomic>
@@ -55,6 +56,7 @@ class ShellGrammarRulesTests : public QObject {
     struct RuleCase {
         const char *rule, *bad, *fixed;
         QStringList ok;
+        const char *span = nullptr, *message = nullptr;   // for a rule with nothing to put in place: the words it marks, and a part of its message (in place of `fixed`)
     };
     static QVector<GrammarIssue> byRule(const QString &text, const QString &rule)
     {
@@ -81,7 +83,14 @@ class ShellGrammarRulesTests : public QObject {
     {
         const QString rule = QString::fromLatin1(rc.rule), bad = QString::fromUtf8(rc.bad);
         QVERIFY2(!byRule(bad, rule).isEmpty(), qPrintable(rule + QStringLiteral(" does not flag: ") + bad));
-        QCOMPARE(fixedBy(bad, rule), QString::fromUtf8(rc.fixed));
+        if (rc.span) {
+            const GrammarIssue g = byRule(bad, rule).first();
+            QCOMPARE(bad.mid(g.start, g.end - g.start), QString::fromUtf8(rc.span));
+            QVERIFY2(g.message.contains(QString::fromUtf8(rc.message)), qPrintable(g.message));
+            QVERIFY(g.suggestions.isEmpty());
+        } else {
+            QCOMPARE(fixedBy(bad, rule), QString::fromUtf8(rc.fixed));
+        }
         QVERIFY2(rc.ok.size() >= 3, rc.rule);
         for (const QString &t : rc.ok) QVERIFY2(byRule(t, rule).isEmpty(), qPrintable(rule + QStringLiteral(" flags: ") + t));
     }
@@ -326,13 +335,37 @@ private Q_SLOTS:
         QVERIFY(grammar::check(unit.repeated(16000)).size() > 0);
     }
 
+    // Shapes that make a rule look back or ahead over the whole paragraph for every word: a text of any of them, 100,000 characters long, must be counted in linear steps AND finish in well under a second
+    // (work that is not counted, such as a scan inside a loop, shows only on the clock).
+    static QStringList hostileShapes()
+    {
+        QStringList out;
+        for (const char *unit : {"abcd. efgh. ", "abcd,abcd,", "Mr. a. b. ", "a  b  ", "x. ", "\"\"\"\"", "an a an ", "he don't ", "It's a, ", "Texas, Texas, ", "monday ", "i think ", ". . . ",
+                                 "well known ", "in order to ", "The cat. The cat. ", "(1) (2) ", "A. B. C. ", "1, 2, 3, ", "June 5, 2020 we ", "( ( ( ", "in Austin, Texas the ", "the the ", "Dougl. ex Torr. ", "a.B c.D ",
+                                 "it have and ", "Me and him went ", "can't hardly ", "e.g. i.e. "})
+            out << QString::fromLatin1(unit).repeated(100000 / int(strlen(unit)));
+        return out;
+    }
     void hostileTextsAreCheckedInLinearWork()
     {
-        for (const QString &text : {QString(200000, QLatin1Char(' ')), QString(200000, QLatin1Char('.')), QString(QStringLiteral("a ")).repeated(100000), QString(QStringLiteral(". a")).repeated(70000),
-                                    QString(QStringLiteral("the ")).repeated(50000), QString(QStringLiteral("a 5 ")).repeated(50000), QString(QStringLiteral("a 12,500th ")).repeated(20000), QString(QStringLiteral(" , ")).repeated(60000), QString(200000, QChar(0xD83D))}) {
+        QStringList texts = hostileShapes();
+        for (const QString &t : {QString(200000, QLatin1Char(' ')), QString(200000, QLatin1Char('.')), QString(QStringLiteral("a ")).repeated(100000), QString(QStringLiteral(". a")).repeated(70000),
+                                 QString(QStringLiteral("the ")).repeated(50000), QString(QStringLiteral("a 5 ")).repeated(50000), QString(QStringLiteral("a 12,500th ")).repeated(20000), QString(QStringLiteral(" , ")).repeated(60000), QString(200000, QChar(0xD83D))})
+            texts << t;
+        for (const QString &text : texts) {
             quint64 work = 0;
-            grammar::check(text, &work);
-            QVERIFY2(work <= quint64(text.size()) * 150 + 1000, qPrintable(QString::number(work) + QLatin1Char(' ') + QString::number(text.size())));
+            grammar::check(text, &work, grammar::kAllKinds);
+            QVERIFY2(work <= quint64(text.size()) * 150 + 1000, qPrintable(QString::number(work) + QLatin1Char(' ') + QString::number(text.size()) + QLatin1Char(' ') + text.left(20)));
+        }
+    }
+    void aParagraphOfAnyHostileShapeIsCheckedInUnderASecond()
+    {
+        grammar::check(QStringLiteral("Warm up."));
+        for (const QString &text : hostileShapes()) {
+            QElapsedTimer t;
+            t.start();
+            grammar::check(text, nullptr, grammar::kAllKinds);
+            QVERIFY2(t.elapsed() < 1000, qPrintable(QString::number(t.elapsed()) + QStringLiteral(" ms: ") + text.left(20)));
         }
     }
 
@@ -381,7 +414,7 @@ QVector<ShellGrammarRulesTests::RuleCase> ShellGrammarRulesTests::newRuleCases()
         {"he-dont", "She don't know.", "She doesn't know.", L({"I don't know.", "They don't know.", "He said \"she don't\" is wrong.", "Don't let it die."})},
         {"they-was", "They was late.", "They were late.", L({"They were late.", "What I like about you was your humor.", "I was late and he was too.", "He said \"they was\" in the play."})},
         {"she-have", "It rained and she have no coat.", "It rained and she has no coat.", L({"Does she have a coat?", "She has a coat.", "It is vital that he have a coat.", "They have it."})},
-        {"plural-has", "We has a plan.", "We have a plan.", L({"We have a plan.", "Someone like you has a plan.", "He has a plan.", "What has we here?"})},
+        {"plural-has", "We has a plan.", "We have a plan.", L({"We have a plan.", "Someone like you has a plan.", "He has a plan.", "Has anyone seen us?", "The ones we have are good."})},
         {"plural-does", "They does it well.", "They do it well.", L({"They do it well.", "Someone like you does it well.", "She does it well.", "Does the team win?"})},
         {"they-is", "They is ready.", "They are ready.", L({"They are ready.", "All I am telling you is that it is ready.", "This is ready.", "He is ready."})},
         {"there-is-many", "There is many reasons.", "There are many reasons.", L({"There are many reasons.", "There is many a slip.", "There is one reason.", "There was a man."})},
@@ -408,12 +441,12 @@ QVector<ShellGrammarRulesTests::RuleCase> ShellGrammarRulesTests::newRuleCases()
         {"have-past", "He has went home.", "He has gone home.", L({"He has gone home.", "He went home.", "They had saw dust everywhere.", "He has rose petals."})},
         {"double-negative", "I can't hardly see.", "I can hardly see.", L({"I can hardly see.", "I can't see well.", "I don't have any money.", "No one can see."})},
         {"comma-after-year", "On June 5, 2020 we left.", "On June 5, 2020, we left.", L({"On June 5, 2020, we left.", "June 5, 2020 was a Friday.", "On June 5, 2020 in Boston.", "In June 2020 we left."})},
-        {"comma-after-state", "In Austin, Texas the heat is high.", "In Austin, Texas, the heat is high.", L({"In Austin, Texas, the heat is high.", "Austin, Texas is hot.", "I met Smith, Texas and Jones.", "In Austin, Texas and Ohio."})},
+        {"comma-after-state", "In Austin, Texas the heat is high.", "In Austin, Texas, the heat is high.", L({"In Austin, Texas, the heat is high.", "Austin, Texas is hot.", "I met Smith, Texas and Jones.", "In Austin, Texas and Ohio.", "In Texas, Florida has a similar statute.", "From Maine, Vermont is next.", "In March, Texas is dry.", "Although it rained, Texas is dry."})},
         {"compound-hyphen", "He is a well known author.", "He is a well-known author.", L({"He is a well-known author.", "He is well known for it.", "A long term of office.", "A full time was set."})},
         {"comma-space", "It works,but not well.", "It works, but not well.", L({"It works, but not well.", "Open a,b,c,d now.", "See 1,000 items.", "Items: red,green,blue,tan."})},
         {"doubled-mark", "It works,, I think.", "It works, I think.", L({"It works, I think.", "Wait... what?", "Mr.. is short.", "Name,,Age,,City"})},
         {"your-welcome", "Thanks. Your welcome.", "Thanks. You're welcome.", L({"Thanks. You're welcome.", "Thank you for your welcome.", "Your welcome message is ready.", "Your welcome to join us"})},
-        {"lowercase-i", "Today i think so.", "Today I think so.", L({"Today I think so.", "Let i be the index.", "for i in the list", "Chapter i is short."})},
+        {"lowercase-i", "Today i think so.", "Today I think so.", L({"Today I think so.", "Let i be the index.", "for i in the list", "Chapter i is short.", "See section i", "Part (i) is short.", "Read item i. Then stop."})},
         {"day-month-names", "We meet on monday.", "We meet on Monday.", L({"We meet on Monday.", "See monday.com for it.", "We may march in may.", "A sunday-best suit."})},
         {"amount-number", "The amount of people grew.", "The number of people grew.", L({"The number of people grew.", "The amount of water grew.", "The amount of work grew.", "A large amount of money."})},
         {"could-care-less", "I could care less.", "I couldn't care less.", L({"I couldn't care less.", "I could care for it.", "He could care a lot.", "We care less now."})},
@@ -421,9 +454,9 @@ QVector<ShellGrammarRulesTests::RuleCase> ShellGrammarRulesTests::newRuleCases()
         {"in-order-to", "We left in order to win.", "We left to win.", L({"We left to win.", "In order, the steps run.", "Put them in order.", "A court order to pay."})},
         {"wordy-phrases", "Due to the fact that it rained, we left.", "Because it rained, we left.", L({"Because it rained, we left.", "Due to rain, we left.", "In fact it rained.", "The fact that it rained."})},
         {"redundant-phrases", "It was a free gift.", "It was a gift.", L({"It was a gift.", "It was free.", "A free ride.", "The gift shop."})},
-        {"passive-voice", "The book was written by Ann.", "The book was written by Ann.", L({"Ann wrote the book.", "The book was long.", "He was tired.", "It was by the door."})},
-        {"long-sentence", keep.constData(), keep.constData(), L({"Word word.", "Short one. Another short one.", "It is fine.", "Yes."})},
-        {"repeated-sentence-start", "The cat ran. The dog ran. The bird ran.", "The cat ran. The dog ran. The bird ran.", L({"The cat ran. The dog ran.", "The cat ran. A dog ran. The bird ran.", "We ran. They ran. We ran.", "One. Two. Three."})},
+        {"passive-voice", "The book was written by Ann.", nullptr, L({"Ann wrote the book.", "The book was long.", "He was tired.", "It was by the door."}), "was written", "passive"},
+        {"long-sentence", keep.constData(), nullptr, L({"Word word.", "Short one. Another short one.", "It is fine.", "Yes."}), "Word", "41 words"},
+        {"repeated-sentence-start", "The cat ran. The dog ran. The bird ran.", nullptr, L({"The cat ran. The dog ran.", "The cat ran. A dog ran. The bird ran.", "We ran. They ran. We ran.", "One. Two. Three."}), "The", "Three sentences"},
     };
 }
 

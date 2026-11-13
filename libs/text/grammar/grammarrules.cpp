@@ -29,7 +29,16 @@ struct Ctx {
     QVector<int> chunkFirst, chunkLast;
     QVector<int> chunkDots;
     QVector<char> chunkAddress;
-    QVector<char> ifBefore;   // whether a word that opens a clause ("if", "when") came earlier in the same sentence
+    QVector<char> ifBefore;
+    int leaders = -1;   // whether the paragraph has ". . ." in it (found once, when a rule first asks)
+    bool hasLeaders()
+    {
+        if (leaders < 0) {
+            leaders = text.contains(QLatin1String(". . .")) ? 1 : 0;
+            steps += quint64(text.size());
+        }
+        return leaders == 1;
+    }   // whether a word that opens a clause ("if", "when") came earlier in the same sentence
 
     explicit Ctx(const QString &t) : text(t) {}
     int size() const { return int(tokens.size()); }
@@ -448,7 +457,7 @@ void lowercaseSentenceStart(Ctx &c)
             const bool cluster = b.size() >= 4 && !QLatin1String("aeiouy").contains(l1) && !QLatin1String("aeiouy").contains(l2) && shown0.at(0).isUpper();
             const bool shortLower = b.size() <= 3 || addressEndings().contains(c.tokens[w].lower);   // (a short word, or the end of an address with a space in it)
             const int after1 = w + 1;
-            const bool leader = (after1 + 1 < c.size() && c.tokens[after1].kind == Tok::Space && c.tokens[after1 + 1].kind == Tok::Punct && c.text.at(c.tokens[after1 + 1].start) == QLatin1Char(':')) || c.text.contains(QLatin1String(". . ."));   // (a colon after it, or a table of contents with its leaders)
+            const bool leader = (after1 + 1 < c.size() && c.tokens[after1].kind == Tok::Space && c.tokens[after1 + 1].kind == Tok::Punct && c.text.at(c.tokens[after1 + 1].start) == QLatin1Char(':')) || c.hasLeaders();   // (a colon after it, or a table of contents with its leaders)
             if (!latin || innerUpper || cluster || shortLower || leader) continue;
         }
         if (before >= 1 && c.isPunct(before - 1, QLatin1Char('.'))) continue;
@@ -1305,6 +1314,14 @@ void commaAfterState(Ctx &c)
         const int comma = first - 2;
         if (comma < 1 || !c.isPunct(comma, QLatin1Char(',')) || !c.isSpace(comma + 1) || !c.isWord(comma - 1) || !c.firstUpper(comma - 1) || !c.firstUpper(first)) return;
         int city = comma - 1;
+        static const QSet<QString> stateNames = {QStringLiteral("new york"), QStringLiteral("new jersey"), QStringLiteral("new mexico"), QStringLiteral("new hampshire"), QStringLiteral("north carolina"),
+                                                 QStringLiteral("south carolina"), QStringLiteral("north dakota"), QStringLiteral("south dakota"), QStringLiteral("west virginia"), QStringLiteral("rhode island")};
+        // (a state before a state is not a city: "In Texas, Florida has", and a month or a day is the start of a clause: "In March, Texas is dry")
+        if (WORDS("alabama", "alaska", "arizona", "arkansas", "california", "colorado", "connecticut", "delaware", "florida", "georgia", "hawaii", "idaho", "illinois", "indiana", "iowa", "kansas", "kentucky",
+                  "louisiana", "maine", "maryland", "massachusetts", "michigan", "minnesota", "mississippi", "missouri", "montana", "nebraska", "nevada", "ohio", "oklahoma", "oregon", "pennsylvania", "tennessee",
+                  "texas", "utah", "vermont", "virginia", "washington", "wisconsin", "wyoming", "january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november",
+                  "december", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday").contains(c.tokens[city].lower)) return;
+        if (const int before = c.prevWord(city); before >= 0 && stateNames.contains(c.tokens[before].lower + QLatin1Char(' ') + c.tokens[city].lower)) return;
         int p = c.prevWord(city);
         if (p >= 0 && c.firstUpper(p) && !prepositions.contains(c.tokens[p].lower)) p = c.prevWord(p);
         if (p < 0 || !prepositions.contains(c.tokens[p].lower)) return;
@@ -1353,15 +1370,17 @@ void commaSpace(Ctx &c)
         if (c.isPunct(i, QLatin1Char(',')) && c.isWord(i - 1) && c.isWord(i + 1)) ++slips;
     }
     if (slips > 2) return;
+    QVector<int> chunkCommas(c.size(), 0);   // by the first token of a run without spaces
+    for (int i = 0; i < c.size(); ++i) {
+        c.step();
+        if (c.isPunct(i, QLatin1Char(','))) ++chunkCommas[c.chunkFirst[i]];
+    }
     for (int i = 1; i + 1 < c.size(); ++i) {
         c.step();
         if (!c.isPunct(i, QLatin1Char(',')) || !c.isWord(i - 1) || !c.isWord(i + 1)) continue;
         if (c.chunkAddress[i] || c.chunkDots[i] > 0) continue;
         if (c.tokens[i - 1].end - c.tokens[i - 1].start < 3 || c.tokens[i + 1].end - c.tokens[i + 1].start < 3) continue;
-        int commas = 0;
-        for (int k = c.chunkFirst[i]; k <= c.chunkLast[i]; ++k)
-            if (c.isPunct(k, QLatin1Char(','))) ++commas;
-        if (commas > 1) continue;   // (a list of names or values: a,b,c)
+        if (chunkCommas[c.chunkFirst[i]] > 1) continue;   // (a list of names or values: a,b,c)
         if (c.original(i - 1).at(0).isDigit() || c.original(i + 1).at(0).isDigit()) continue;
         c.add(c.tokens[i].start, c.tokens[i].end, GK::Punctuation, QCoreApplication::translate("Grammar", "Put a space after the comma."), QStringLiteral(", "));
     }
