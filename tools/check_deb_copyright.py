@@ -17,8 +17,13 @@ def main():
     for p in parts:
         if not str(p.get("license", "")).strip():
             problems.append("%s in docs/third-party.json has no license" % p.get("name", "(no name)"))
-    if not problems:
-        problems += gen.problems(gen.generate(parts))
+    try:
+        text = gen.generate(parts)
+    except ValueError as e:
+        problems.append(str(e))
+        text = None
+    if text:
+        problems += gen.problems(text, gen.ROOT)
     import test_gen_deb_copyright as tests
     result = unittest.TextTestRunner(stream=open(os.devnull, "w"), verbosity=0).run(unittest.defaultTestLoader.loadTestsFromModule(tests))
     if not result.wasSuccessful():
