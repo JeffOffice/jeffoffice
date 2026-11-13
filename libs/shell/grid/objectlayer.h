@@ -12,6 +12,7 @@
 // until it does, and the least recently shown are let go of past it), the pixels of one picture (kMaxImagePixels), the charts being made at once (kMaxJobs), and the work of a paint, which is
 // a look at each object. The layer holds no cells and no file.
 
+#include "core/export.h"
 #include "grid/layout.h"
 #include "grid/overlay.h"
 #include "sheet/drawing.h"
@@ -75,7 +76,7 @@ struct LayerObject {
     std::function<void(QPainter *, const QRectF &)> paintVector;
 };
 
-class ObjectLayer : public QObject, public GridOverlay {
+class JO_COMMON_EXPORT ObjectLayer : public QObject, public GridOverlay {
     Q_OBJECT
 public:
     static constexpr int kMaxObjects = jp::office::sheet::kMaxWorkbookObjects;

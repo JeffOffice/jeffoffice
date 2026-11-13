@@ -4,6 +4,7 @@
 // download and run its installer on Windows, which installs every app, or
 // to open its release page. Sends nothing about the user.
 
+#include "core/export.h"
 #include <QNetworkAccessManager>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -16,7 +17,7 @@ class QWidget;
 
 namespace jp {
 
-class Updater : public QObject {
+class JO_COMMON_EXPORT Updater : public QObject {
     Q_OBJECT
 public:
     explicit Updater(QWidget *window);

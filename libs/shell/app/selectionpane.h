@@ -3,6 +3,7 @@
 // name is edited in place; the buttons (and a drag) move it forward or back; Show All and Hide All set every box. What the list is of, and what each action does to it, is the app's:
 // it gives the pane a Source of functions, and the pane keeps no copy of the objects (a Source left unset takes that part away, so a sheet that cannot hide objects shows no boxes).
 
+#include "core/export.h"
 #include <QDialog>
 #include <QString>
 #include <QVector>
@@ -13,7 +14,7 @@ class QPushButton;
 
 namespace jp {
 
-class SelectionPane : public QDialog {
+class JO_COMMON_EXPORT SelectionPane : public QDialog {
     Q_OBJECT
 public:
     struct Row {

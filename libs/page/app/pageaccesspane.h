@@ -2,6 +2,7 @@
 // The Accessibility Checker of an app with pages (JeffPub and JeffDeck): the shared list, filled from checkPageAccessibility, where a problem that is clicked goes to its page and
 // selects its object.
 
+#include "core/export.h"
 #include "app/accessibilitypane.h"
 #include "app/selectionpane.h"
 #include "app/tableedit.h"
@@ -14,7 +15,7 @@ namespace jp {
 class Editor;
 
 
-class PageAccessibilityPane : public AccessibilityPane {
+class JO_COMMON_EXPORT PageAccessibilityPane : public AccessibilityPane {
     Q_OBJECT
 public:
     // `titleOf` (may be empty): the title of a slide, for an app whose pages are slides.

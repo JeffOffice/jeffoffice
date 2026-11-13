@@ -1,6 +1,7 @@
 #pragma once
 // User preferences (stored with QSettings) and measurement units.
 
+#include "core/export.h"
 #include <QJsonArray>
 #include <QLocale>
 #include <QObject>
@@ -44,7 +45,7 @@ bool spellAsYouType();
 void setSpellAsYouType(bool on);
 void migrateSpellSetting(QSettings &app, QSettings &suite);
 // Tells every open window of this app, at once, when the choice changes.
-class SpellSettingNotifier : public QObject {
+class JO_COMMON_EXPORT SpellSettingNotifier : public QObject {
     Q_OBJECT
 public:
     static SpellSettingNotifier &get();
@@ -59,7 +60,7 @@ void setGrammarAsYouType(bool on);
 // Grammar settings), and the same for every app and window.
 quint32 grammarKinds();
 void setGrammarKinds(quint32 kinds);
-class GrammarSettingNotifier : public QObject {
+class JO_COMMON_EXPORT GrammarSettingNotifier : public QObject {
     Q_OBJECT
 public:
     static GrammarSettingNotifier &get();

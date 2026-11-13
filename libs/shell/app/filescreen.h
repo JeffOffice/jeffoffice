@@ -4,6 +4,7 @@
 // chosen. The app adds its sections, pages, and commands, and builds each
 // page when it is shown.
 
+#include "core/export.h"
 #include <QHash>
 #include <QWidget>
 #include <functional>
@@ -17,7 +18,7 @@ class QVBoxLayout;
 
 namespace jp {
 
-class FileScreen : public QWidget {
+class JO_COMMON_EXPORT FileScreen : public QWidget {
     Q_OBJECT
 public:
     explicit FileScreen(QWidget *parent = nullptr);

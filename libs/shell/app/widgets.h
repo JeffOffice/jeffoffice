@@ -2,6 +2,7 @@
 // Ribbon controls: scheme-aware color picker, galleries, font and size boxes,
 // measurement spin boxes and the Insert Table grid.
 
+#include "core/export.h"
 #include "core/color.h"
 
 #include <QComboBox>
@@ -21,7 +22,7 @@ namespace jp {
 // The current publication's spot colors (name, color) for the color drop-downs.
 void setSpotColorSource(std::function<QVector<QPair<QString, QColor>>()> source);
 
-class ColorPopup : public QFrame {
+class JO_COMMON_EXPORT ColorPopup : public QFrame {
     Q_OBJECT
 public:
     ColorPopup(const ColorScheme &s, bool allowNone, const QString &noneLabel, QWidget *parent = nullptr);
@@ -42,7 +43,7 @@ private:
 // their tints and shades, and the standard colors. `picked` is told the color chosen.
 QWidget *colorGridWidget(const ColorScheme &scheme, const std::function<void(const ColorRef &)> &picked, QWidget *parent = nullptr);
 
-class ColorButton : public QToolButton {
+class JO_COMMON_EXPORT ColorButton : public QToolButton {
     Q_OBJECT
 public:
     ColorButton(const QString &iconName, const QString &text, bool allowNone, const QString &noneLabel, QWidget *parent = nullptr);
@@ -86,7 +87,7 @@ struct GalleryItem {
     QString group;
 };
 
-class Gallery : public QFrame {
+class JO_COMMON_EXPORT Gallery : public QFrame {
     Q_OBJECT
 public:
     Gallery(const QSize &itemSize, int visibleColumns, QWidget *parent = nullptr);
@@ -117,7 +118,7 @@ private:
 };
 
 // A drop-down button that opens a grid of items (shapes, TextArt, page parts...).
-class GalleryButton : public QToolButton {
+class JO_COMMON_EXPORT GalleryButton : public QToolButton {
     Q_OBJECT
 public:
     GalleryButton(const QIcon &icon, const QString &text, const QSize &itemSize, int columns, bool large, QWidget *parent = nullptr);
@@ -147,7 +148,7 @@ QFrame *galleryPopup(const QVector<GalleryItem> &items, const QSize &itemSize, i
                      const std::function<void(const QString &)> &onPick, QWidget *parent);
 
 // ---------- text ----------
-class FontCombo : public QComboBox {
+class JO_COMMON_EXPORT FontCombo : public QComboBox {
     Q_OBJECT
 public:
     explicit FontCombo(QWidget *parent = nullptr);
@@ -165,7 +166,7 @@ private:
     bool m_refill = false;
 };
 
-class SizeCombo : public QComboBox {
+class JO_COMMON_EXPORT SizeCombo : public QComboBox {
     Q_OBJECT
 public:
     explicit SizeCombo(QWidget *parent = nullptr);
@@ -180,7 +181,7 @@ private:
 
 // Number box that shows up to three decimal places, dropping trailing
 // zeros, and keeps six, so what's typed (8.125) isn't rounded.
-class DecimalSpin : public QDoubleSpinBox {
+class JO_COMMON_EXPORT DecimalSpin : public QDoubleSpinBox {
     Q_OBJECT
 public:
     explicit DecimalSpin(QWidget *parent = nullptr);
@@ -188,7 +189,7 @@ public:
 };
 
 // Spin box that shows and accepts measurements in the user's units.
-class MeasureSpin : public QDoubleSpinBox {
+class JO_COMMON_EXPORT MeasureSpin : public QDoubleSpinBox {
     Q_OBJECT
 public:
     explicit MeasureSpin(QWidget *parent = nullptr);
@@ -199,7 +200,7 @@ public:
 };
 
 // Hover grid for Insert > Table.
-class TableGrid : public QFrame {
+class JO_COMMON_EXPORT TableGrid : public QFrame {
     Q_OBJECT
 public:
     explicit TableGrid(QWidget *parent = nullptr);

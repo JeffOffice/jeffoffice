@@ -4,6 +4,7 @@
 // screen and draws only the strip that is left, so a frame costs the cells in a row, not those on the screen. Work that may be long (the edge of the data a Ctrl and an arrow
 // look for, the numbers of a whole column) is done a few milliseconds at a time between events.
 
+#include "core/export.h"
 #include "grid/gridsheet.h"
 #include "grid/overlay.h"
 #include "grid/painter.h"
@@ -23,7 +24,7 @@
 
 namespace jp::grid {
 
-class GridView : public QAbstractScrollArea {
+class JO_COMMON_EXPORT GridView : public QAbstractScrollArea {
     Q_OBJECT
 public:
     // Whether a key with these modifiers and this text begins an entry in the cell: one that prints, and is not a shortcut. Ctrl (and Cmd on a Mac) with a character is a shortcut. AltGr,

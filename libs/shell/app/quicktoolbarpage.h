@@ -3,6 +3,7 @@
 // the Ribbon and Keyboard pages have), a separator to add, and the commands to put in a new order, take away, and put back as the app has them. Only the quick toolbar is kept from this page:
 // what the Ribbon page keeps is left as it is.
 
+#include "core/export.h"
 #include "app/ribboncustom.h"
 
 #include <QWidget>
@@ -17,7 +18,7 @@ namespace jp {
 
 class AppWindow;
 
-class QuickToolbarPage : public QWidget {
+class JO_COMMON_EXPORT QuickToolbarPage : public QWidget {
     Q_OBJECT
 public:
     explicit QuickToolbarPage(AppWindow *win, QWidget *parent = nullptr);

@@ -2,6 +2,7 @@
 // The workspace: gray scratch area, the current page or two-page spread,
 // rulers, guides, selection handles and all direct manipulation.
 
+#include "core/export.h"
 #include "app/editor.h"
 #include "core/comments.h"
 
@@ -14,7 +15,7 @@ namespace jp {
 
 class Canvas;
 
-class Ruler : public QWidget {
+class JO_COMMON_EXPORT Ruler : public QWidget {
     Q_OBJECT
 public:
     Ruler(Canvas *c, Qt::Orientation o);
@@ -51,7 +52,7 @@ private:
     Qt::MouseButton m_zeroButton = Qt::NoButton;
 };
 
-class Canvas : public QAbstractScrollArea {
+class JO_COMMON_EXPORT Canvas : public QAbstractScrollArea {
     Q_OBJECT
 public:
     explicit Canvas(Editor *ed, QWidget *parent = nullptr);

@@ -3,6 +3,7 @@
 // (Mark as Final and Encrypt with Password), the Inspect and Compatibility cards, and the file's properties to read and edit, with the custom ones in a box of their own. The app
 // gives the page its file's facts and what each card does; the page keeps nothing of its own.
 
+#include "core/export.h"
 #include "office/packageprops.h"
 
 #include <QDialog>
@@ -60,7 +61,7 @@ QString pathForCopy(const QString &path);
 
 // The box that lists, adds, changes, and removes a file's custom properties: a table over a model (a file may have thousands), the kind of each chosen in a list that shows when the cell is edited.
 // A property of a kind this program does not model is listed, not editable, and kept as it was (or deleted with its row).
-class CustomPropertiesDialog : public QDialog {
+class JO_COMMON_EXPORT CustomPropertiesDialog : public QDialog {
     Q_OBJECT
 public:
     CustomPropertiesDialog(const QVector<office::CustomProperty> &now, QWidget *parent);
@@ -93,7 +94,7 @@ struct InspectItem {
 };
 
 // The Inspect box: each kind with how many were found and a button that removes them all. It looks again after each removal.
-class InspectDialog : public QDialog {
+class JO_COMMON_EXPORT InspectDialog : public QDialog {
     Q_OBJECT
 public:
     InspectDialog(const QString &heading, const QVector<InspectItem> &items, QWidget *parent);

@@ -5,6 +5,7 @@
 // in. Every change is one undo step through the Editor, so the cards follow
 // the page's comments whatever changes them, an undo included.
 
+#include "core/export.h"
 #include <QColor>
 #include <QHash>
 #include <QString>
@@ -33,7 +34,7 @@ QColor commentColor(const QString &author, bool done = false);
 // Options has none, and keeps them there. False when the person declines.
 bool askCommentAuthor(QWidget *parent);
 
-class CommentsPane : public QWidget {
+class JO_COMMON_EXPORT CommentsPane : public QWidget {
     Q_OBJECT
 public:
     explicit CommentsPane(Editor *ed, QWidget *parent = nullptr);

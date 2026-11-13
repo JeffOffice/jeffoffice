@@ -7,6 +7,7 @@
 // Every editor says a change in two signals: a change (mid-drag too), and finished(), which comes when the person lets go of the control
 // (at once, for a control with nothing to drag). The pane makes one step that undoes from the first change to finished().
 
+#include "core/export.h"
 #include "core/color.h"
 #include "core/style.h"
 
@@ -42,7 +43,7 @@ void ignoreWheelUnlessFocused(QWidget *w);
 // steps it is down. A change made while it is held is one of many that end together, when the button or the key is let go of or the keyboard
 // moves away (Tab, a click elsewhere, another window): released(), which comes once and never later than the focus leaving. A key that does not
 // step it (Tab) is no hold, so it can never be left held by a release that goes to another widget.
-class HoldGate : public QObject {
+class JO_COMMON_EXPORT HoldGate : public QObject {
     Q_OBJECT
 public:
     enum Keys { SpinKeys, SliderKeys };
@@ -63,7 +64,7 @@ private:
 };
 
 // A number in a box, with a slider if asked, for a size, a percent, or an angle.
-class NumberField : public QWidget {
+class JO_COMMON_EXPORT NumberField : public QWidget {
     Q_OBJECT
 public:
     explicit NumberField(QWidget *parent = nullptr);
@@ -111,7 +112,7 @@ private:
 
 // A font and its size, for the text of what is selected: each shows the one the objects share, and blank where they differ. Choosing one says it,
 // and finished() follows at once (a choice has nothing to drag). "+Heading" and "+Body" are the theme's fonts.
-class FontField : public QWidget {
+class JO_COMMON_EXPORT FontField : public QWidget {
     Q_OBJECT
 public:
     explicit FontField(QWidget *parent = nullptr);
@@ -134,7 +135,7 @@ private:
 
 // A box for some words that says what was typed when the person leaves it (Tab, a click away, or Ctrl+Enter), not at each key; in one line,
 // Enter does. The objects that differ show it blank.
-class TextField : public QPlainTextEdit {
+class JO_COMMON_EXPORT TextField : public QPlainTextEdit {
     Q_OBJECT
 public:
     explicit TextField(QWidget *parent = nullptr);
@@ -164,7 +165,7 @@ private:
 
 // A row of colored markers on a gradient: the stops. Click one to choose it, drag it (or press Left and Right) to move it, Up and Down to
 // choose another, Delete to take it away, and double-click on the bar to add one.
-class GradientBar : public QWidget {
+class JO_COMMON_EXPORT GradientBar : public QWidget {
     Q_OBJECT
 public:
     explicit GradientBar(QWidget *parent = nullptr);
@@ -216,7 +217,7 @@ using FillChange = std::function<void(Fill &)>;
 
 // The colors of a gradient: its kind and angle, the bar of stops, and the color, place, and transparency of the stop chosen. Used by the
 // fill editor and by the line editor (a gradient line).
-class GradientEditor : public QWidget {
+class JO_COMMON_EXPORT GradientEditor : public QWidget {
     Q_OBJECT
 public:
     explicit GradientEditor(QWidget *parent = nullptr);
@@ -250,7 +251,7 @@ private:
 };
 
 // A fill: none, solid, gradient, picture or texture, or pattern; and what each has.
-class FillEditor : public QWidget {
+class JO_COMMON_EXPORT FillEditor : public QWidget {
     Q_OBJECT
 public:
     explicit FillEditor(QWidget *parent = nullptr);
@@ -291,7 +292,7 @@ private:
 using StrokeChange = std::function<void(Stroke &)>;
 
 // A line: none, solid, or gradient; its color, transparency, width, compound type, dash type, cap, join, and the ends' arrows.
-class LineEditor : public QWidget {
+class JO_COMMON_EXPORT LineEditor : public QWidget {
     Q_OBJECT
 public:
     explicit LineEditor(QWidget *parent = nullptr);

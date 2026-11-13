@@ -2,6 +2,7 @@
 // The frame of a task pane that formats what is selected: a title with a close button, icon tabs across the top, and under them the
 // page of the tab chosen, a column of sections that fold up. It holds no controls of its own; the apps' pages fill it.
 
+#include "core/export.h"
 #include <QFrame>
 #include <QIcon>
 #include <QToolButton>
@@ -16,7 +17,7 @@ namespace jp {
 
 // A heading that folds the controls under it away (and brings them back). The heading is a button: Space and Enter fold it, and screen
 // readers are told whether it is open.
-class PaneSection : public QWidget {
+class JO_COMMON_EXPORT PaneSection : public QWidget {
     Q_OBJECT
 public:
     // `id` names the section for code (its object name is "section:" and the id), whatever language the title is in.
@@ -42,7 +43,7 @@ private:
 };
 
 // One tab's page: sections one under the other.
-class PanePage : public QWidget {
+class JO_COMMON_EXPORT PanePage : public QWidget {
     Q_OBJECT
 public:
     explicit PanePage(QWidget *parent = nullptr);
@@ -56,7 +57,7 @@ private:
     QList<PaneSection *> m_sections;
 };
 
-class PaneFrame : public QFrame {
+class JO_COMMON_EXPORT PaneFrame : public QFrame {
     Q_OBJECT
 public:
     explicit PaneFrame(QWidget *parent = nullptr);

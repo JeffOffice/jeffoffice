@@ -2,11 +2,12 @@
 // A check for code that keeps caches nothing locks (the text layout's and the renderer's: "main thread only, like all layout"). Those places call guiOnlyCache(); a test switches the
 // watch on, and reads how many times it was called from a thread other than the application's own. Off, a call is one read of a flag.
 
+#include "core/export.h"
 #include <atomic>
 
 namespace jp::threadcheck {
 
-extern std::atomic<bool> g_watching;
+JO_COMMON_EXPORT extern std::atomic<bool> g_watching;
 void noteOffThread();   // (counts the call when this is not the application's thread)
 
 inline void guiOnlyCache()

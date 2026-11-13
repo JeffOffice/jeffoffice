@@ -5,6 +5,7 @@
 // change is one step that undoes, made through the Editor like every other change (a number dragged or a slider moved is one step, taken
 // when it is let go).
 
+#include "core/export.h"
 #include "core/items.h"
 
 #include <QWidget>
@@ -17,7 +18,7 @@ class PaneFrame;
 
 // The change in progress. A control that is let go of at once (a check box, a color picked) changes the objects and ends the step; one
 // that is dragged changes them again and again with `last` false, and ends the step with finish().
-class FormatSession : public QObject {
+class JO_COMMON_EXPORT FormatSession : public QObject {
     Q_OBJECT
 public:
     explicit FormatSession(Editor *ed, QObject *parent = nullptr);
@@ -44,7 +45,7 @@ private:
     QVector<std::function<void()>> m_refresh;
 };
 
-class FormatPane : public QWidget {
+class JO_COMMON_EXPORT FormatPane : public QWidget {
     Q_OBJECT
 public:
     // The pages, in the order of the tabs.

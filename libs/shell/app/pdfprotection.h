@@ -3,6 +3,7 @@
 // this widget alone, for the one export, and wiped when the widget goes (it is never written to the settings or the recent lists). A standard that forbids encryption (PDF/A) is turned off
 // and disabled while a password is set.
 
+#include "core/export.h"
 #include "io/pdfcrypt.h"
 
 #include <QWidget>
@@ -13,7 +14,7 @@ class QPushButton;
 
 namespace jp {
 
-class PdfProtectionRow : public QWidget {
+class JO_COMMON_EXPORT PdfProtectionRow : public QWidget {
     Q_OBJECT
 
 public:

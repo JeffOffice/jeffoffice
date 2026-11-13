@@ -5,6 +5,7 @@
 // window up, and a hostile paragraph cannot (the service caps what it looks at, and a budget caps what the whole document may spend). Only the English stretches of a
 // paragraph are checked. The view is told, by `changed`, when an answer has come, and, by `budgetExhausted`, once, when the budget is gone and the checking stops.
 
+#include "core/export.h"
 #include "app/grammar.h"
 
 #include <QHash>
@@ -21,7 +22,7 @@ class QThreadPool;
 
 namespace jp {
 
-class GrammarCheck : public QObject {
+class JO_COMMON_EXPORT GrammarCheck : public QObject {
     Q_OBJECT
 public:
     // An issue, as [start, end) positions in the story.

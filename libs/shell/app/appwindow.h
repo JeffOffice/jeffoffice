@@ -2,6 +2,7 @@
 // What every JeffOffice app's main window offers the shared parts (Help,
 // the updater): its commands by id, its ribbon, and the list of open windows.
 
+#include "core/export.h"
 #include <QMainWindow>
 #include <QObject>
 #include <QStringList>
@@ -21,7 +22,7 @@ struct KeyExtra {
     std::function<QString(QWidget *parent)> pick;
 };
 
-class AppWindow : public QMainWindow {
+class JO_COMMON_EXPORT AppWindow : public QMainWindow {
     Q_OBJECT
 public:
     using QMainWindow::QMainWindow;

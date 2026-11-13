@@ -2,6 +2,7 @@
 // The ribbon: quick toolbar, File button, tabs (including colored
 // contextual tabs), and groups of large/small buttons with dialog launchers.
 
+#include "core/export.h"
 #include <QFontMetrics>
 #include <QFrame>
 #include <QMap>
@@ -26,7 +27,7 @@ namespace jp {
 void setKeytip(QObject *w, const QString &k);
 QString keytip(const QObject *w);
 
-class RibbonGroup : public QFrame {
+class JO_COMMON_EXPORT RibbonGroup : public QFrame {
     Q_OBJECT
 public:
     explicit RibbonGroup(const QString &title, QWidget *parent = nullptr);
@@ -76,7 +77,7 @@ private:
 // A ribbon page. When the window is too narrow for every group, groups
 // collapse from the right into one button each that opens the group in a
 // dropdown, so every command stays reachable.
-class RibbonTab : public QWidget {
+class JO_COMMON_EXPORT RibbonTab : public QWidget {
     Q_OBJECT
 public:
     explicit RibbonTab(QWidget *parent = nullptr);
@@ -126,7 +127,7 @@ private:
 class RibbonHeader;
 class HeaderButton;
 
-class Ribbon : public QWidget {
+class JO_COMMON_EXPORT Ribbon : public QWidget {
     Q_OBJECT
 public:
     explicit Ribbon(QWidget *parent = nullptr);

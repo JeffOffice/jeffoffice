@@ -1,13 +1,14 @@
 #pragma once
 // The light or dark look of the program, switchable while it runs.
 
+#include "core/export.h"
 #include <QObject>
 
 namespace jp {
 
 // Tells the parts that keep colors of their own (style sheets set once)
 // that the look changed, so they redo them.
-class UiTheme : public QObject {
+class JO_COMMON_EXPORT UiTheme : public QObject {
     Q_OBJECT
 public:
     using QObject::QObject;

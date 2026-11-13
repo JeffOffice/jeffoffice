@@ -4,6 +4,7 @@
 // license, and inserts the one chosen, with a credit line under it when its
 // license asks for one.
 
+#include "core/export.h"
 #include <QList>
 #include <QTemporaryDir>
 #include <QUrl>
@@ -49,13 +50,13 @@ QString credit(const Picture &p);
 // when `context` goes, when more than `maxBytes` come, or when it takes too
 // long overall.
 using Done = std::function<void(const QByteArray &bytes, const QString &error)>;
-extern std::function<void(const QUrl &url, QObject *context, const Done &done, qint64 maxBytes)> fetch;
+JO_COMMON_EXPORT extern std::function<void(const QUrl &url, QObject *context, const Done &done, qint64 maxBytes)> fetch;
 // The download behind fetch, to any address (tests point it at a local one).
 void download(QNetworkAccessManager *net, const QUrl &url, QObject *context, const Done &done, qint64 maxBytes, int totalMs);
 
 } // namespace online
 
-class OnlinePicturesPane : public QWidget {
+class JO_COMMON_EXPORT OnlinePicturesPane : public QWidget {
     Q_OBJECT
 public:
     // What puts a downloaded picture on the page: given its file, the picture (its

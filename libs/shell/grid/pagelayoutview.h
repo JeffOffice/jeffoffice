@@ -5,6 +5,7 @@
 //
 // Lengths are in points on the paper and in pixels on the screen: a point is `zoom * 96 / 72` pixels.
 
+#include "core/export.h"
 #include "grid/selection.h"
 
 #include <QAbstractScrollArea>
@@ -42,7 +43,7 @@ public:
     virtual bool lastPageMissedPictures() const { return false; }
 };
 
-class PageLayoutView : public QAbstractScrollArea {
+class JO_COMMON_EXPORT PageLayoutView : public QAbstractScrollArea {
     Q_OBJECT
 public:
     // The gap between pages, the space around all of them, and the thickness of a ruler, in pixels.

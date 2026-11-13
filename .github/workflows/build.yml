@@ -383,6 +383,12 @@ jobs:
         if: runner.os == 'Linux' && matrix.part == 'checks'
         run: python3 tools/check_layers.py
 
+      # Every class with Q_OBJECT or Q_GADGET in libs/ is exported from the shared library (JO_COMMON_EXPORT): on Windows a connect through
+      # a signal's address from a program only matches the library's own when the class is exported and imported.
+      - name: Export macro check
+        if: runner.os == 'Linux' && matrix.part == 'checks'
+        run: python3 tools/check_export_macro.py
+
       # Every text marked for translation is in a form lupdate sees, and none can stall it (the nightly translate.yml runs it over the whole tree).
       - name: Translation call check
         if: runner.os == 'Linux' && matrix.part == 'checks'

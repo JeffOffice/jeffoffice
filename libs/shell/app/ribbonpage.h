@@ -1,6 +1,7 @@
 #pragma once
 // The Ribbon page of Options (Customize): the app's tabs and groups in a list, to show or hide, put in a new order, and add to with tabs and groups of one's own that hold any command.
 
+#include "core/export.h"
 #include "app/ribboncustom.h"
 
 #include <QWidget>
@@ -16,7 +17,7 @@ namespace jp {
 
 class AppWindow;
 
-class RibbonPage : public QWidget {
+class JO_COMMON_EXPORT RibbonPage : public QWidget {
     Q_OBJECT
 public:
     explicit RibbonPage(AppWindow *win, QWidget *parent = nullptr);

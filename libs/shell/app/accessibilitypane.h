@@ -2,6 +2,7 @@
 // The Accessibility Checker: a small window that lists what in a file is hard for some readers to use, with Check Again, and goes to a problem when it is clicked.
 // The same in the apps that have it; each app finds the problems and says what "go to" is for its kind of file (`where` is whatever it needs, handed back).
 
+#include "core/export.h"
 #include <QDialog>
 #include <QVariantList>
 #include <QVector>
@@ -21,7 +22,7 @@ struct AccessFinding {
     QString fix;   // what the fix for it is called ("Use the first row as a header"); empty: it has none
 };
 
-class AccessibilityPane : public QDialog {
+class JO_COMMON_EXPORT AccessibilityPane : public QDialog {
     Q_OBJECT
 public:
     explicit AccessibilityPane(QWidget *parent = nullptr);

@@ -1,6 +1,7 @@
 #pragma once
 // The Keyboard page of Options (Customize): every command of the app's window, grouped by ribbon tab and searchable, with its keys; keys are added by pressing them, and taken off.
 
+#include "core/export.h"
 #include "app/keymap.h"
 
 #include <QHash>
@@ -19,7 +20,7 @@ namespace jp {
 
 class AppWindow;
 
-class KeyboardPage : public QWidget {
+class JO_COMMON_EXPORT KeyboardPage : public QWidget {
     Q_OBJECT
 public:
     explicit KeyboardPage(AppWindow *win, QWidget *parent = nullptr);

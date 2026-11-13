@@ -4,6 +4,7 @@
 // to the document goes through beginChange()/endChange(), which records a
 // before/after snapshot as one undo step.
 
+#include "core/export.h"
 #include "app/grammarcheck.h"
 #include "core/document.h"
 #include "render/renderer.h"
@@ -43,7 +44,7 @@ constexpr const char *kExtraContentMime = "application/x-jeffpub-extra";
 
 enum class Tool { Select, Text, Table, Picture, Shape, Line, Arrow, DoubleArrow, Freeform, TextArt, Link, FormatPainter };
 
-class Editor : public QObject {
+class JO_COMMON_EXPORT Editor : public QObject {
     Q_OBJECT
 public:
     explicit Editor(QObject *parent = nullptr);

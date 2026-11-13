@@ -15,6 +15,7 @@
 // command's keyboard shortcut, made from the commands themselves. "{key:Undo}" in a topic is the keys of that standard command on this computer (Ctrl+Z, or the Mac's own): Open, Save,
 // SaveAs, Close, Undo, Redo, Cut, Copy, Paste, SelectAll, Find, Print, New (as QKeySequence names them); several are joined with "or".
 
+#include "core/export.h"
 #include <QDialog>
 #include <QHash>
 #include <QPointer>
@@ -73,13 +74,13 @@ bool wikiLinks(QString &md, const QHash<QString, QString> &pages, QString *error
 QUrl feedbackUrl();
 QUrl whatsNewUrl();
 // Opens a web page in the browser (replaceable for tests).
-extern std::function<bool(const QUrl &)> openUrl;
+JO_COMMON_EXPORT extern std::function<bool(const QUrl &)> openUrl;
 
 } // namespace help
 
 // The Help pane's contents: a search box, the results (topics and commands),
 // and the topic, with Back, Forward and Contents.
-class HelpView : public QWidget {
+class JO_COMMON_EXPORT HelpView : public QWidget {
     Q_OBJECT
 public:
     // `commands`: the search finds commands too (not while a dialog holds the window).
@@ -112,7 +113,7 @@ private:
 };
 
 // Help over a dialog, which blocks the main window and so its Help pane.
-class HelpWindow : public QDialog {
+class JO_COMMON_EXPORT HelpWindow : public QDialog {
     Q_OBJECT
 public:
     HelpWindow(AppWindow *win, QWidget *owner);

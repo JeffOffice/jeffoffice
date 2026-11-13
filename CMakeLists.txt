@@ -98,6 +98,8 @@ include(cmake/qpdf.cmake)
 function(jo_library name dir)
   file(GLOB_RECURSE sources CONFIGURE_DEPENDS ${dir}/*.cpp ${dir}/*.h ${dir}/*.inc)
   add_library(${name} OBJECT ${sources})
+  # (JO_COMMON_EXPORT, libs/base/core/export.h: the layers export their classes; the programs import them)
+  target_compile_definitions(${name} PRIVATE JO_COMMON_BUILD)
   set_target_properties(${name} PROPERTIES POSITION_INDEPENDENT_CODE ON)
   target_include_directories(${name} PUBLIC ${dir})
 endfunction()
@@ -885,7 +887,7 @@ add_dependencies(jeffoffice-common jeffoffice_data)
 
 # Measures the grammar rules on real text (tools/grammar/measure.py).
 qt_add_executable(grammartool tools/grammar/grammartool.cpp)
-target_link_libraries(grammartool PRIVATE jo_text)
+target_link_libraries(grammartool PRIVATE jeffoffice-common)
 set_target_properties(grammartool PROPERTIES WIN32_EXECUTABLE OFF)
 
 # Developer tool for reading and rendering presentation files from the command line.
