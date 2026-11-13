@@ -3,15 +3,23 @@
 # versions with the system's updates. It writes the same two files the install guide does, and only when
 # the repository isn't there in any form (an entry twice, with two keys, would stop apt update). To keep it
 # from doing so, put "add_repository=false" in /etc/default/jeffoffice. DPKG_ROOT is where dpkg installs
-# (empty for the running system).
+# (empty for the running system). The repository moved from jeffoffice.github.io/apt to apt.jeffoffice.com
+# (Nov 2026, same key): a jeffoffice.sources entry naming the old address is pointed at the new one, whoever wrote
+# it. Other entries naming the old address (a .list line) are left as they are; the old address still serves the
+# newest version.
 set -e
 [ "$1" = configure ] || exit 0
 root=${DPKG_ROOT:-}
-url=https://jeffoffice.github.io/apt
+url=https://apt.jeffoffice.com
+old=https://jeffoffice.github.io/apt
 [ -d "$root/etc/apt" ] || exit 0
 if [ -f "$root/etc/default/jeffoffice" ] && grep -qE '^[[:space:]]*add_repository=false' "$root/etc/default/jeffoffice"; then exit 0; fi
-[ -e "$root/etc/apt/sources.list.d/jeffoffice.sources" ] && exit 0
-if grep -rqsF "$url" "$root/etc/apt/sources.list" "$root/etc/apt/sources.list.d"; then exit 0; fi
+f=$root/etc/apt/sources.list.d/jeffoffice.sources
+if [ -f "$f" ] && grep -qx "URIs: $old/\{0,1\}" "$f"; then
+  sed "s#^URIs: $old/\{0,1\}\$#URIs: $url#" "$f" > "$f.new" && chmod 0644 "$f.new" && mv "$f.new" "$f"
+fi
+[ -e "$f" ] && exit 0
+if grep -rqsF -e "$url" -e "$old" "$root/etc/apt/sources.list" "$root/etc/apt/sources.list.d"; then exit 0; fi
 install -d -m 0755 "$root/etc/apt/keyrings" "$root/etc/apt/sources.list.d"
 [ -e "$root/etc/apt/keyrings/jeffoffice.gpg" ] || install -m 0644 "$root/opt/jeffoffice/share/jeffoffice-apt.gpg" "$root/etc/apt/keyrings/jeffoffice.gpg"
 cat > "$root/etc/apt/sources.list.d/jeffoffice.sources" <<SOURCES

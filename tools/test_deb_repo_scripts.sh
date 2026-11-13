@@ -11,19 +11,31 @@ S=$t/r/etc/apt/sources.list.d/jeffoffice.sources K=$t/r/etc/apt/keyrings/jeffoff
 # a new install adds both files, and a second run changes nothing
 fresh; DPKG_ROOT=$t/r sh "$inst" configure ""
 [ -f "$S" ] && [ -f "$K" ] || fail "nothing added"
-grep -q '^URIs: https://jeffoffice.github.io/apt$' "$S" || fail "wrong entry"
+grep -q '^URIs: https://apt.jeffoffice.com$' "$S" || fail "wrong entry"
 cmp -s "$K" "$here/packaging/linux/jeffoffice-apt.gpg" || fail "wrong key"
 cp "$S" "$t/before"; DPKG_ROOT=$t/r sh "$inst" configure 0.25.1; cmp -s "$S" "$t/before" || fail "second run changed the entry"
 # only configure does anything
 fresh; DPKG_ROOT=$t/r sh "$inst" abort-upgrade 0.26.0; [ ! -e "$S" ] || fail "added on abort-upgrade"
-# one written by hand (the guide's, or an old-style .list) is left alone
-fresh; printf 'Types: deb\nURIs: https://jeffoffice.github.io/apt\n' > "$S"; cp "$S" "$t/hand"
+# one written by hand (the guide's, or an old-style .list) is left alone, but for the move to the new address
+fresh; printf 'Types: deb\nURIs: https://apt.jeffoffice.com\nSuites: stable\n' > "$S"; cp "$S" "$t/hand"
 DPKG_ROOT=$t/r sh "$inst" configure ""; cmp -s "$S" "$t/hand" || fail "hand-written entry changed"; [ ! -e "$K" ] || fail "key added beside a hand-written entry"
+# an entry naming the old address (written by hand or by an older package) moves to the new one, and nothing else in it changes
+for u in https://jeffoffice.github.io/apt https://jeffoffice.github.io/apt/; do
+  fresh; printf '# Added by the jeffoffice package.\nTypes: deb\nURIs: %s\nSuites: stable\nSigned-By: /etc/apt/keyrings/jeffoffice.gpg\n' "$u" > "$S"
+  DPKG_ROOT=$t/r sh "$inst" configure 0.26.0
+  printf '# Added by the jeffoffice package.\nTypes: deb\nURIs: https://apt.jeffoffice.com\nSuites: stable\nSigned-By: /etc/apt/keyrings/jeffoffice.gpg\n' > "$t/want"
+  cmp -s "$S" "$t/want" || fail "old address ($u) not moved"; [ ! -e "$S.new" ] || fail "left a .new file"
+  [ "$(stat -c %a "$S")" = 644 ] || fail "moved entry is not 0644"
+done
+# a mirror or another address is not touched
+fresh; printf 'Types: deb\nURIs: https://mirror.example.org/jeffoffice.github.io/apt\n' > "$S"; cp "$S" "$t/hand"
+DPKG_ROOT=$t/r sh "$inst" configure ""; cmp -s "$S" "$t/hand" || fail "mirror entry changed"
 fresh; echo 'deb [signed-by=/etc/apt/keyrings/jeffoffice.gpg] https://jeffoffice.github.io/apt stable main' > "$t/r/etc/apt/sources.list.d/jo.list"
 DPKG_ROOT=$t/r sh "$inst" configure ""; [ ! -e "$S" ] || fail "added beside a .list entry"
 # refused in /etc/default/jeffoffice
 fresh; mkdir -p "$t/r/etc/default"; echo 'add_repository=false' > "$t/r/etc/default/jeffoffice"
 DPKG_ROOT=$t/r sh "$inst" configure ""; [ ! -e "$S" ] || fail "added though refused"
+printf 'URIs: https://jeffoffice.github.io/apt\n' > "$S"; DPKG_ROOT=$t/r sh "$inst" configure ""; grep -q 'github.io' "$S" || fail "moved though refused"
 # no apt at all: nothing
 rm -rf "$t/r"; mkdir -p "$t/r/opt/jeffoffice/share"; DPKG_ROOT=$t/r sh "$inst" configure ""; [ ! -e "$t/r/etc" ] || fail "made /etc/apt on a system without apt"
 # purge takes away what was added, remove keeps it, and a hand-written entry survives purge
