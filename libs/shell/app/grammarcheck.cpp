@@ -3,6 +3,7 @@
 #include "text/textprops.h"
 
 #include <QElapsedTimer>
+#include <QCoreApplication>
 #include <QMetaObject>
 #include <QMutex>
 #include <QMutexLocker>
@@ -12,7 +13,9 @@
 #include <QTextDocument>
 #include <QTextFragment>
 #include <QThreadPool>
+#include <QSet>
 #include <algorithm>
+#include <cstdlib>
 #include <atomic>
 
 namespace jp {
@@ -20,8 +23,10 @@ namespace jp {
 namespace {
 // What is kept of answers, in characters of the paragraphs they are for (a book of 600,000 characters is kept whole, several times over, and no more).
 constexpr qint64 kKeptChars = 4000000;
-// The paragraphs whose look is remembered (a book has a few thousand).
-constexpr int kMaxLooks = 6000;
+// The paragraphs of one story whose look is remembered (a book has a few thousand; past the limit the looks are made afresh, not kept).
+constexpr int kMaxLooks = 50000;
+// The most jobs waiting in a pool at once, over all the checks that share it (the rest wait in their checks, by paragraph, and only the latest text of each).
+constexpr int kMaxQueued = 256;
 // What a document may spend on grammar in all while it is open: a book of 600,000 characters is 0.6 million, and checking it again after every edit of every paragraph of it
 // for a working day would come to a few million more; 50 million characters (about 40 seconds of the checker) is far above that, and a hostile document cannot get past it.
 constexpr qint64 kBudgetChars = 50000000;
@@ -35,6 +40,10 @@ struct GrammarCheck::Shared {
     QMutex lock;
     GrammarBudget budget{kBudgetChars, kBudgetMs};
     std::atomic<bool> gone{false};
+    std::atomic<int> queued{0};                 // jobs sent to the pool and not yet answered, over all the checks that share it
+    QHash<quint64, GrammarCheck *> registry;    // the checks, by number: the window's thread only (an answer finds its check here, or finds it gone)
+    QSet<QString> ignoredAll;                   // "Ignore All" for the checks that share this, those made later too: the window's thread only
+    std::atomic<quint64> lastId{0};
     bool exhausted()
     {
         QMutexLocker l(&lock);
@@ -51,6 +60,8 @@ GrammarCheck::GrammarCheck(QTextDocument *story, QObject *parent) : QObject(pare
 {
     m_pool = m_ownPool.get();
     m_pool->setMaxThreadCount(1);
+    m_id = ++m_shared->lastId;
+    m_shared->registry.insert(m_id, this);
     m_timer.setSingleShot(true);
     connect(&m_timer, &QTimer::timeout, this, &GrammarCheck::send);
 }
@@ -59,16 +70,27 @@ std::shared_ptr<GrammarCheck::Shared> GrammarCheck::newShared() { return std::ma
 
 GrammarCheck::GrammarCheck(QTextDocument *story, const std::shared_ptr<Shared> &shared, QThreadPool *pool, QObject *parent) : QObject(parent), m_story(story), m_shared(shared), m_pool(pool)
 {
+    m_id = ++m_shared->lastId;
+    m_shared->registry.insert(m_id, this);
     m_timer.setSingleShot(true);
     connect(&m_timer, &QTimer::timeout, this, &GrammarCheck::send);
 }
 
+void GrammarCheck::shutDown(const std::shared_ptr<Shared> &shared) { shared->gone = true; }
+
 GrammarCheck::~GrammarCheck()
 {
-    if (!m_ownPool) return;   // (the jobs of a shared pool hold what they need, and check `self` before they answer)
+    m_shared->registry.remove(m_id);   // (an answer that comes later finds no check, and is let go)
+    if (!m_ownPool) return;   // (the jobs of a shared pool hold what they need)
     m_shared->gone = true;   // (jobs that have not begun do nothing; the one under way finishes, which the service bounds)
     m_pool->clear();
     m_pool->waitForDone();
+}
+
+void GrammarCheck::bump()
+{
+    ++m_version;
+    Q_EMIT changed();
 }
 
 void GrammarCheck::setStory(QTextDocument *story)
@@ -77,7 +99,7 @@ void GrammarCheck::setStory(QTextDocument *story)
     m_story = story;
     m_looks.clear();
     m_wanted.clear();
-    Q_EMIT changed();
+    bump();
 }
 
 void GrammarCheck::setEnabled(bool on)
@@ -88,7 +110,7 @@ void GrammarCheck::setEnabled(bool on)
         m_wanted.clear();
         m_timer.stop();
     }
-    Q_EMIT changed();
+    bump();
 }
 
 void GrammarCheck::setDefaultLanguage(const QString &tag)
@@ -96,7 +118,7 @@ void GrammarCheck::setDefaultLanguage(const QString &tag)
     if (tag == m_language) return;
     m_language = tag;
     m_looks.clear();
-    Q_EMIT changed();
+    bump();
 }
 
 void GrammarCheck::setBudget(qint64 chars, int ms)
@@ -111,7 +133,7 @@ void GrammarCheck::setBudget(qint64 chars, int ms)
 // revision, so that a repaint that changes nothing asks no question of the text.
 const GrammarCheck::Look &GrammarCheck::lookAt(const QTextBlock &block)
 {
-    if (m_looks.size() > kMaxLooks) m_looks.clear();
+    if (m_looks.size() > kMaxLooks) m_looks.clear();   // (only a story of more paragraphs than that is ever here)
     BlockLook &cached = m_looks[block.blockNumber()];
     // (the revision, the place, and the length say it is the paragraph the look was made of; the text is compared too, since two paragraphs that were never edited can agree on those)
     size_t marks = 0;
@@ -170,14 +192,21 @@ QVector<GrammarCheck::Issue> GrammarCheck::issuesOf(const QTextBlock &block, con
     QVector<Issue> out;
     for (const GrammarIssue &g : entry.issues) {
         if (g.end > look.text.size()) continue;
-        if (!m_ignoredAll.isEmpty() && m_ignoredAll.contains(g.message + QChar(1) + ignoreKey(look, g.start, g.end, false))) continue;
+        // What was blanked out (another language, "do not check") is not ours to change: an issue on it is let go, and so is a suggestion that has its blanks in it.
+        bool touches = false;
+        for (int p = g.start; p < g.end && !touches; ++p) touches = look.masked.at(p) != look.text.at(p);
+        if (touches) continue;
+        if (!m_shared->ignoredAll.isEmpty() && m_shared->ignoredAll.contains(g.message + QChar(1) + ignoreKey(look, g.start, g.end, false))) continue;
         if (!m_ignoredHere.isEmpty() && m_ignoredHere.contains(g.message + QChar(1) + ignoreKey(look, g.start, g.end, true))) continue;
         Issue is;
         is.start = block.position() + g.start;
         is.end = block.position() + g.end;
         is.kind = g.kind;
         is.message = g.message;
-        is.suggestions = g.suggestions;
+        const bool blankInside = look.text.mid(g.start, g.end - g.start).contains(QChar(0xFFFC));
+        for (const QString &sg : g.suggestions)
+            if (blankInside || !sg.contains(QChar(0xFFFC))) is.suggestions << sg;
+        if (!g.suggestions.isEmpty() && is.suggestions.isEmpty()) continue;
         out << is;
     }
     return out;
@@ -260,7 +289,7 @@ void GrammarCheck::ignoreHere(const Issue &issue)
     const QTextBlock b = m_story->findBlock(issue.start);
     const Look &look = lookAt(b);
     m_ignoredHere.insert(issue.message + QChar(1) + ignoreKey(look, issue.start - b.position(), issue.end - b.position(), true));
-    Q_EMIT changed();
+    bump();
 }
 
 void GrammarCheck::ignoreAll(const Issue &issue)
@@ -268,14 +297,14 @@ void GrammarCheck::ignoreAll(const Issue &issue)
     if (!m_story || !issue.valid()) return;
     const QTextBlock b = m_story->findBlock(issue.start);
     const Look &look = lookAt(b);
-    m_ignoredAll.insert(issue.message + QChar(1) + ignoreKey(look, issue.start - b.position(), issue.end - b.position(), false));
-    Q_EMIT changed();
+    m_shared->ignoredAll.insert(issue.message + QChar(1) + ignoreKey(look, issue.start - b.position(), issue.end - b.position(), false));
+    bump();
 }
 
 void GrammarCheck::ignoreAllOf(const QString &message, const QString &words)
 {
-    m_ignoredAll.insert(message + QChar(1) + words);
-    Q_EMIT changed();
+    m_shared->ignoredAll.insert(message + QChar(1) + words);
+    bump();
 }
 
 // A paragraph wants checking: only its latest text, though it changes with every key. The wait begins again with each change.
@@ -288,23 +317,29 @@ void GrammarCheck::want(int slot, const Look &look)
     m_timer.start(m_delay);
 }
 
+// Sends what is wanted to the thread: the paragraph being edited first, then the nearest, and no more than the pool has room for (the rest wait here, by paragraph, and a
+// newer text of a paragraph takes the place of its old one); the answers come back to the window's thread through the shared registry, never through a pointer to this check.
 void GrammarCheck::send()
 {
-    const QHash<int, Look> wanted = m_wanted;
-    m_wanted.clear();
-    QList<int> slots = wanted.keys();
-    std::sort(slots.begin(), slots.end());   // (in the order of the text: what the budget has left goes to the first paragraphs)
+    QList<int> slots = m_wanted.keys();
+    const int near = m_priority;
+    std::sort(slots.begin(), slots.end(), [near](int a, int b) {
+        if (near >= 0 && std::abs(a - near) != std::abs(b - near)) return std::abs(a - near) < std::abs(b - near);
+        return a < b;   // (in the order of the text: what the budget has left goes to the first paragraphs)
+    });
     for (int slot : slots) {
-        const Look &look = wanted[slot];
         if (m_exhausted) return;
+        if (m_shared->queued >= kMaxQueued) break;
+        const Look look = m_wanted.take(slot);
         if (m_sent.contains(look.key) || m_kept.contains(look.key)) continue;
         m_sent.insert(look.key);
         ++m_inFlight;
         ++m_checked;
+        ++m_shared->queued;
         const std::shared_ptr<Shared> shared = m_shared;
+        const quint64 id = m_id;
         const QString key = look.key, text = look.masked, language = look.language;
-        QPointer<GrammarCheck> self(this);
-        m_pool->start(QRunnable::create([shared, self, key, text, language] {
+        m_pool->start(QRunnable::create([shared, id, key, text, language] {
             if (shared->gone) return;
             QVector<GrammarIssue> issues;
             const bool exhausted = shared->exhausted();
@@ -314,10 +349,14 @@ void GrammarCheck::send()
                 issues = grammarCheck(text, language);
                 shared->spend(text.size(), t.elapsed());
             }
-            if (shared->gone || !self) return;
-            QMetaObject::invokeMethod(self.data(), [self, key, issues, exhausted] { if (self) self->done(key, issues, exhausted); }, Qt::QueuedConnection);
+            if (shared->gone || !QCoreApplication::instance()) return;
+            QMetaObject::invokeMethod(QCoreApplication::instance(), [shared, id, key, issues, exhausted] {
+                --shared->queued;
+                if (GrammarCheck *check = shared->registry.value(id)) check->done(key, issues, exhausted);
+            }, Qt::QueuedConnection);
         }));
     }
+    if (!m_wanted.isEmpty()) m_timer.start(std::max(m_delay, 20));   // (the pool is full: again when it has had time)
 }
 
 void GrammarCheck::done(const QString &key, const QVector<GrammarIssue> &issues, bool exhausted)
@@ -331,7 +370,7 @@ void GrammarCheck::done(const QString &key, const QVector<GrammarIssue> &issues,
     Entry e;
     e.issues = issues;
     keep(key, e);
-    if (m_enabled) Q_EMIT changed();
+    if (m_enabled) bump();
 }
 
 void GrammarCheck::stopForBudget()

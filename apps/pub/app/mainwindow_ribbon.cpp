@@ -1132,6 +1132,7 @@ void MainWindow::refreshUi()
     act("pd.alignGuides")->setChecked(ed->view.snapGuides);
     act("pd.alignObjects")->setChecked(ed->view.snapObjects);
     act("rev.checkAsType")->setChecked(ed->view.spelling);
+    act("rev.checkGrammarAsType")->setChecked(ed->view.grammar);
     act("view.master")->setChecked(!ed->masterView().isEmpty());
     act("view.normal")->setChecked(ed->masterView().isEmpty());
     act("view.single")->setChecked(!ed->twoPageSpread());

@@ -718,6 +718,8 @@ void MainWindow::createActions()
     // ---------------- Review ----------------
     mk("rev.spelling", tr("Spelling"), "spell-check", QKeySequence(Qt::Key_F7), [this] { spellingDialog(this, m_ed); });
     mk("rev.checkAsType", tr("Check Spelling as You Type"), "spell-check-2", QKeySequence(), [ed] { setSpellAsYouType(!ed->view.spelling); }, true);
+    mk("rev.checkGrammarAsType", tr("Check Grammar as You Type"), "spell-check-2", QKeySequence(), [ed] { setGrammarAsYouType(!ed->view.grammar); }, true);
+    connect(ed, &Editor::grammarStopped, this, [this] { statusBar()->showMessage(tr("This publication is too large to check its grammar any further. The grammar check has stopped; spelling still works."), 15000); });
     mk("rev.thesaurus", tr("Thesaurus"), "book-a", QKeySequence(Qt::SHIFT | Qt::Key_F7), [this] { thesaurusDialog(this, m_ed); });
     mk("rev.research", tr("Research"), "book-open-text", QKeySequence(Qt::ALT | Qt::Key_F7), [this] { showTaskPane("research"); });
     mk("rev.translate", tr("Translate"), "languages", QKeySequence(), [this] {

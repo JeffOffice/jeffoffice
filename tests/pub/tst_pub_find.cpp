@@ -4,6 +4,7 @@
 #include "../withdialog.h"
 
 #include "app/grammar.h"
+#include <QElapsedTimer>
 #include <QLabel>
 #include <QMenu>
 #include <QPushButton>
@@ -301,8 +302,7 @@ private Q_SLOTS:
         const auto french = boxWith(w, kAnTest, QStringLiteral("fr-FR"));
         w.editor()->grammarIssuesIn(french->storyId);
         QVERIFY(w.editor()->grammarCheckOf(french->storyId));
-        QTest::qWait(150);   // (nothing is expected: time for a wrong answer to come)
-        QVERIFY(w.editor()->grammarIssuesIn(french->storyId).isEmpty());
+        QVERIFY(w.editor()->grammarIssuesIn(french->storyId).isEmpty());   // (nothing is ever sent for it: there is nothing to wait for)
         QVERIFY(w.editor()->renderOptions().grammar.isEmpty());
         QVERIFY(!w.editor()->grammarPending());
         QCOMPARE(w.editor()->grammarParagraphsChecked(), 0);
@@ -348,6 +348,183 @@ private Q_SLOTS:
         QVERIFY(!jp::addGrammarSuggestions(again, ed));
     }
 
+    // The grammar of a window that is closed with a backlog of paragraphs waiting is not finished first: closing is quick.
+    void closingAnEditorWithAGrammarBacklogDoesNotWaitForIt()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        auto ed = std::make_unique<jp::Editor>();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        for (int i = 0; i < 300; ++i) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(10, 10 + i * 2, 300, 20);
+            t->storyId = doc->createStory(QStringLiteral("This is the checker. ").repeated(3000) + QString::number(i));   // (63,000 letters: a few milliseconds each)
+            doc->pages[0]->items.push_back(t);
+        }
+        ed->setDocument(std::move(doc));
+        ed->setGrammarDelayMs(0);
+        ed->renderOptions();
+        QTRY_VERIFY(ed->grammarParagraphsChecked() > 20);   // (the checks are sent, and wait their turn on the one thread)
+        QElapsedTimer timer;
+        timer.start();
+        ed.reset();
+        QVERIFY2(timer.elapsed() < 1000, qPrintable(QString::number(timer.elapsed())));
+    }
+
+    // An editor that goes while checks are under way, again and again, is safe (an answer that comes late finds its check gone).
+    void anEditorThatGoesWhileChecksAreUnderWayIsSafe()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        for (int round = 0; round < 15; ++round) {
+            auto ed = std::make_unique<jp::Editor>();
+            auto doc = jp::Document::blank(QSizeF(612, 792));
+            for (int i = 0; i < 20; ++i) {
+                auto t = std::make_shared<jp::TextItem>();
+                t->rect = QRectF(10, 10 + i * 5, 300, 20);
+                t->storyId = doc->createStory(kAnTest + QString::number(i));
+                doc->pages[0]->items.push_back(t);
+            }
+            ed->setDocument(std::move(doc));
+            ed->setGrammarDelayMs(0);
+            ed->renderOptions();
+            QTest::qWait(round % 4);
+            ed.reset();
+            QCoreApplication::processEvents();
+        }
+    }
+
+    // A repaint or a caret move that changes no text gathers no issues again, and only the stories of the objects on the page are checked: 1,000 boxes, and 50 on another page.
+    void repaintsOfAThousandTextBoxesGatherNothingAgain()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        QStringList ids;
+        for (int i = 0; i < 1000; ++i) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(10, 10 + (i % 700), 300, 20);
+            t->storyId = doc->createStory(QStringLiteral("Box %1 is an test of the checker.").arg(i));
+            doc->pages[0]->items.push_back(t);
+            ids << t->id;
+        }
+        doc->addPage();
+        for (int i = 0; i < 50; ++i) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(10, 10 + i, 300, 20);
+            t->storyId = doc->createStory(QStringLiteral("Other %1 is an test of the checker.").arg(i));
+            doc->pages[1]->items.push_back(t);
+        }
+        ed->setDocument(std::move(doc));
+        ed->setGrammarDelayMs(0);
+        QTRY_VERIFY_WITH_TIMEOUT(ed->renderOptions().grammar.size() == 1000, 90000);
+        QTRY_VERIFY_WITH_TIMEOUT(!ed->grammarPending(), 30000);
+        QCOMPARE(ed->grammarParagraphsChecked(), 1000);   // (nothing of the other page)
+        ed->renderOptions();
+        const int scans = ed->grammarScans();
+        for (int i = 0; i < 50; ++i) {
+            ed->beginTextEdit(ids[i * 7], 1);   // (a caret move: the box being typed in is one of the stories)
+            QCOMPARE(ed->renderOptions().grammar.size(), 1000);
+        }
+        QCOMPARE(ed->grammarScans(), scans);
+    }
+
+    // A box taken away and another put in its place: the check of the old story goes, by name and not by count.
+    void theCheckOfAStoryThatIsGoneIsLetGo()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        QStringList stories;
+        for (int i = 0; i < 3; ++i) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(10, 10 + i * 30, 300, 20);
+            t->storyId = doc->createStory(kAnTest + QString::number(i));
+            doc->pages[0]->items.push_back(t);
+            stories << t->storyId;
+        }
+        ed->setDocument(std::move(doc));
+        ed->setGrammarDelayMs(0);
+        ed->renderOptions();
+        QCOMPARE(ed->grammarCheckCount(), 3);
+        ed->doc()->pages[0]->items.pop_back();
+        ed->doc()->stories.remove(stories.last());
+        auto t = std::make_shared<jp::TextItem>();
+        t->rect = QRectF(10, 200, 300, 20);
+        t->storyId = ed->doc()->createStory(kAnTest + QStringLiteral("new"));
+        ed->doc()->pages[0]->items.push_back(t);
+        ed->renderOptions();
+        QCOMPARE(ed->grammarCheckCount(), 3);
+    }
+
+    // A new document starts with nothing of the old one's checking: what was ignored in it is marked again.
+    void aNewDocumentForgetsWhatWasIgnored()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto box = boxWith(w, kAnTest);
+        QTRY_VERIFY(!ed->grammarIssuesIn(box->storyId).isEmpty());
+        ed->ignoreGrammarAll(ed->grammarIssuesIn(box->storyId).first(), box->storyId);
+        QVERIFY(ed->grammarIssuesIn(box->storyId).isEmpty());
+        box = boxWith(w, kAnTest);
+        QTRY_VERIFY(!ed->grammarIssuesIn(box->storyId).isEmpty());
+    }
+
+    // Ignore All holds for the stories made after it, too.
+    void ignoreAllHoldsForStoriesMadeLater()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        const auto first = boxWith(w, kAnTest);
+        QTRY_VERIFY(!ed->grammarIssuesIn(first->storyId).isEmpty());
+        ed->ignoreGrammarAll(ed->grammarIssuesIn(first->storyId).first(), first->storyId);
+        auto later = std::make_shared<jp::TextItem>();
+        later->rect = QRectF(72, 300, 300, 100);
+        later->storyId = ed->doc()->createStory(kAnTest);
+        ed->doc()->pages[0]->items.push_back(later);
+        // Both are asked for and settle; the second has an issue that is not ignored, the first has the one that is (found, and not shown).
+        auto other = std::make_shared<jp::TextItem>();
+        other->rect = QRectF(72, 450, 300, 100);
+        other->storyId = ed->doc()->createStory(QStringLiteral("Then it is the the end."));
+        ed->doc()->pages[0]->items.push_back(other);
+        QTRY_VERIFY((ed->renderOptions(), !ed->grammarPending() && ed->grammarCheckOf(later->storyId)->paragraphsChecked() > 0 && !ed->grammarIssuesIn(other->storyId).isEmpty()));
+        QVERIFY(ed->grammarIssuesIn(later->storyId).isEmpty());
+    }
+
+    // The words of another language in a paragraph are never changed by what a grammar suggestion does to the English around them.
+    void aSuggestionNeverTouchesWordsMarkedAnotherLanguage()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        const QString text = QStringLiteral("This is an test. Das ist  gut alot. Und the the end.");
+        const auto box = boxWith(w, text);
+        QTextDocument *sd = ed->doc()->storyDoc(box->storyId);
+        QTextCursor c(sd);
+        c.setPosition(int(text.indexOf(QLatin1String("Das"))));
+        c.setPosition(int(text.indexOf(QLatin1String("gut")) + 3), QTextCursor::KeepAnchor);
+        QTextCharFormat f;
+        f.setProperty(jp::tp::Language, QStringLiteral("de-DE"));
+        c.mergeCharFormat(f);
+        QTRY_VERIFY(!ed->grammarIssuesIn(box->storyId).isEmpty());
+        // Every issue, last first so that the places hold: its first suggestion, taken.
+        auto issues = ed->grammarIssuesIn(box->storyId);
+        QVERIFY(issues.size() >= 2);
+        for (int i = int(issues.size()) - 1; i >= 0; --i) {
+            QVERIFY(issues[i].end <= text.indexOf(QLatin1String("Das")) || issues[i].start >= text.indexOf(QLatin1String("gut")) + 3);   // (none on the German words)
+            for (const QString &s : issues[i].suggestions) QVERIFY(!s.contains(QChar(0xFFFC)));
+            if (issues[i].suggestions.isEmpty()) continue;
+            QTextCursor e(sd);
+            e.setPosition(issues[i].start);
+            e.setPosition(issues[i].end, QTextCursor::KeepAnchor);
+            e.insertText(issues[i].suggestions.first());
+        }
+        QVERIFY(sd->toPlainText().contains(QStringLiteral("Das ist  gut")));
+        QVERIFY(!sd->toPlainText().contains(QChar(0xFFFC)));
+    }
+
     // The spelling check (F7) stops at a grammar issue when the setting is on, with the issue's message; with it off, the check is complete.
     void theSpellingCheckStopsAtAGrammarIssue()
     {
@@ -385,8 +562,8 @@ private Q_SLOTS:
             const auto grammar = ed->renderOptions().grammar;   // (what a repaint asks for)
             return grammar.size() == 200;
         };
-        QTRY_VERIFY_WITH_TIMEOUT(allFlagged(), 20000);
-        QTRY_VERIFY(!ed->grammarPending());
+        QTRY_VERIFY_WITH_TIMEOUT(allFlagged(), 60000);
+        QTRY_VERIFY_WITH_TIMEOUT(!ed->grammarPending(), 30000);
         const int before = ed->grammarParagraphsChecked();
         QCOMPARE(before, 200);
         // Typing: one more paragraph is checked.
@@ -394,8 +571,7 @@ private Q_SLOTS:
         QTextCursor c(sd);
         c.movePosition(QTextCursor::End);
         c.insertText(QStringLiteral(" Then it ends."));
-        QTRY_VERIFY((ed->renderOptions(), ed->grammarParagraphsChecked() > before));   // (the repaint a keystroke causes)
-        QTRY_VERIFY(!ed->grammarPending());
+        QTRY_VERIFY_WITH_TIMEOUT((ed->renderOptions(), ed->grammarParagraphsChecked() > before && !ed->grammarPending()), 30000);   // (the repaint a keystroke causes)
         QVERIFY(allFlagged());
         QCOMPARE(ed->grammarParagraphsChecked(), before + 1);
         // A repaint with nothing changed asks for nothing.

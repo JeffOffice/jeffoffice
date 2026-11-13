@@ -41,6 +41,12 @@ public:
     GrammarCheck(QTextDocument *story, const std::shared_ptr<Shared> &shared, QThreadPool *pool, QObject *parent = nullptr);
     // The check is of another document from now on (what is kept of answers is kept, by paragraph text).
     void setStory(QTextDocument *story);
+    // Tells the checks that share `shared` that their window is going: jobs not begun do nothing, and no answer is taken.
+    static void shutDown(const std::shared_ptr<Shared> &shared);
+    // Counts the changes to what issuesIn would give (an answer, an ignore, another document, the setting): an answer kept from before a change is stale.
+    int version() const { return m_version; }
+    // The paragraph being edited (a block number; -1: none): it is the first to be sent to the checker.
+    void setPriorityBlock(int blockNumber) { m_priority = blockNumber; }
     ~GrammarCheck() override;
 
     bool enabled() const { return m_enabled; }
@@ -68,7 +74,7 @@ public:
     // The same, by the message and the words the issue is on (for the other stories of a publication, which have their own copy of the list).
     void ignoreAllOf(const QString &message, const QString &words);
     // Tells the pages to be drawn again.
-    void refresh() { Q_EMIT changed(); }
+    void refresh() { bump(); }
     // Whether paragraphs are waiting to be sent or are being checked.
     bool pending() const { return !m_wanted.isEmpty() || m_inFlight > 0; }
     // Whether the document's budget of work is gone (nothing is checked after that, and what it would have found is not kept as "nothing").
@@ -105,6 +111,7 @@ private:
     void done(const QString &key, const QVector<GrammarIssue> &issues, bool exhausted);
     void keep(const QString &key, const Entry &entry);
     void stopForBudget();
+    void bump();   // (changed, and the version)
 
     QPointer<QTextDocument> m_story;
     QString m_language;
@@ -114,9 +121,11 @@ private:
     qint64 m_keptChars = 0;
     QHash<int, Look> m_wanted;           // by the paragraph's number: only the latest text of each
     QHash<int, BlockLook> m_looks;
-    QSet<QString> m_sent, m_ignoredHere, m_ignoredAll;
+    QSet<QString> m_sent, m_ignoredHere;   // (the ignored-all list is in the shared part)
     int m_inFlight = 0, m_checked = 0, m_looksMade = 0;
     bool m_exhausted = false;
+    int m_version = 0, m_priority = -1;
+    quint64 m_id = 0;
     QTimer m_timer;
     std::shared_ptr<Shared> m_shared;
     std::unique_ptr<QThreadPool> m_ownPool;

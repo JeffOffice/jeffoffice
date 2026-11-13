@@ -80,6 +80,10 @@ void DeckWindow::createDialogActions()
     mk("insert.link", tr("Link"), "link", QKeySequence(Qt::CTRL | Qt::Key_K), [this, ed] { hyperlinkDialog(this, ed); });
     mk("insert.dateTime", tr("Date and Time"), "calendar-clock", QKeySequence(), [this, ed] { dateTimeDialog(this, ed); });
     mk("review.spelling", tr("Spelling"), "spell-check", QKeySequence(Qt::Key_F7), [this, ed] { spellingDialog(this, ed); });
+    QAction *grammarAsType = mk("review.checkGrammarAsType", tr("Check Grammar as You Type"), "spell-check-2", QKeySequence(), [ed] { setGrammarAsYouType(!ed->view.grammar); }, true);
+    grammarAsType->setChecked(grammarAsYouType());
+    connect(&GrammarSettingNotifier::get(), &GrammarSettingNotifier::changed, this, [grammarAsType](bool now) { grammarAsType->setChecked(now); });
+    connect(ed, &Editor::grammarStopped, this, [this] { statusBar()->showMessage(tr("This presentation is too large to check its grammar any further. The grammar check has stopped; spelling still works."), 15000); });
     mk("review.thesaurus", tr("Thesaurus"), "book-a", QKeySequence(Qt::SHIFT | Qt::Key_F7), [this, ed] { thesaurusDialog(this, ed); });
     mk("review.wordCount", tr("Word Count"), "whole-word", QKeySequence(), [this, ed] { slideWordCount(this, ed); });
     mk("review.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] { showAccessibilityPane(); });

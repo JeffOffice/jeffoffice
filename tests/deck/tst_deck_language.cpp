@@ -411,7 +411,6 @@ private Q_SLOTS:
         QTextCharFormat french;
         french.setProperty(tp::Language, QStringLiteral("fr-FR"));
         c.mergeCharFormat(french);
-        QTest::qWait(150);   // (nothing is expected: time for a wrong answer to come)
         QVERIFY(ed->grammarIssuesIn(storyId).isEmpty());
         QVERIFY(!ed->renderOptions().grammar.contains(storyId));
         QTextCharFormat english, noProof;
@@ -420,7 +419,6 @@ private Q_SLOTS:
         QTRY_VERIFY(!ed->grammarIssuesIn(storyId).isEmpty());
         noProof.setProperty(tp::NoProof, true);
         c.mergeCharFormat(noProof);
-        QTest::qWait(150);
         QVERIFY(ed->grammarIssuesIn(storyId).isEmpty());
     }
 

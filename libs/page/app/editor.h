@@ -106,6 +106,8 @@ public:
     // Paragraphs sent to the checkers in all, whether any is waiting or under way, and how long a paragraph waits (for the tests).
     int grammarParagraphsChecked() const;
     bool grammarPending() const;
+    int grammarCheckCount() const { return int(m_grammar.size()); }
+    int grammarScans() const { return m_grammarScans; }   // how many times the issues of a story were gathered afresh (a repaint of what has not changed gathers none)
     void setGrammarDelayMs(int ms);
 
     // ---- selection ----
@@ -349,6 +351,7 @@ Q_SIGNALS:
     void selectionChanged();
     void pageChanged();
     void viewChanged();
+    void grammarStopped();   // the publication is past the limit of work grammar checking may do: it has stopped (said once for a document)
     void textCursorChanged();
     void toolChanged();
     void status(const QString &message);
@@ -373,6 +376,12 @@ private:
     mutable std::shared_ptr<GrammarCheck::Shared> m_grammarShared;
     mutable std::map<QString, std::unique_ptr<GrammarCheck>> m_grammar;
     int m_grammarDelayMs = 400;
+    struct GrammarEntry { quint64 serial = 0; int revision = -1, version = -1; QVector<GrammarCheck::Issue> issues; };
+    mutable QHash<QString, GrammarEntry> m_grammarCache;   // by story: gathered again only when the story or its check has changed
+    mutable int m_grammarScans = 0;
+    bool m_grammarStopSaid = false;
+    void resetGrammar();
+    QStringList visibleStories() const;   // the stories of the objects on the surface (and the one being typed in)
     QUndoStack m_undo;
     bool m_cropOpen = false;   // a crop session holds a change open (cropSessions)
     int m_cropPage = 0;        // the slide and the selection it began with, which its step is filed under

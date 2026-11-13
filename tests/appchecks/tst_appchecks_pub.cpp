@@ -127,7 +127,7 @@ private Q_SLOTS:
             s += QStringLiteral("|%1|%2|%3|%4|%5|%6").arg(ed->selection().join(QLatin1Char(','))).arg(ed->isEditingText()).arg(ed->undoStack()->index()).arg(ed->currentPage()).arg(w->canvas()->zoom()).arg(int(ed->tool()));
             if (ed->isEditingText()) s += QStringLiteral("|%1,%2").arg(ed->cursor().position()).arg(ed->cursor().anchor());
             const ViewOptions &v = ed->view;
-            s += QStringLiteral("|v%1%2%3%4%5%6%7%8%9%10%11%12%13|%14|%15").arg(v.boundaries).arg(v.guides).arg(v.fields).arg(v.rulers).arg(v.pageNav).arg(v.scratch).arg(v.baselines).arg(v.special).arg(v.snapGuides).arg(v.snapObjects).arg(v.snapRuler).arg(v.spelling).arg(v.gridlines).arg(ed->masterView()).arg(ed->twoPageSpread());
+            s += QStringLiteral("|v%1%2%3%4%5%6%7%8%9%10%11%12%13|%14|%15").arg(v.boundaries).arg(v.guides).arg(v.fields).arg(v.rulers).arg(v.pageNav).arg(v.scratch).arg(v.baselines).arg(v.special).arg(v.snapGuides).arg(v.snapObjects).arg(v.snapRuler).arg(v.spelling).arg(v.gridlines).arg(ed->masterView()).arg(ed->twoPageSpread()) + QStringLiteral("|grammar%1").arg(v.grammar);
             s += QStringLiteral("|m%1c%2|crop%3").arg(ed->mergeRecord()).arg(ed->hasCopiedFormatting()).arg(ed->cropItem);
             s += QLatin1String("|comment ") + w->commentsPane()->currentComment();
             return s + QLatin1Char('|') + ed->filePath() + QString::number(ed->isModified());
@@ -194,6 +194,7 @@ private Q_SLOTS:
             w->editor()->setMasterView(QString());
             w->editor()->setTwoPageSpread(false);
             // (what the View commands switch, and where the window looks)
+            setGrammarAsYouType(ViewOptions().grammar);
             setSpellAsYouType(ViewOptions().spelling);   // (the setting is the program's, kept across windows: Check Spelling as You Type must start from what the view starts at)
             w->editor()->setView([](ViewOptions &v) { v = ViewOptions(); });
             w->canvas()->zoomToFit(Canvas::Fit::WholePage);

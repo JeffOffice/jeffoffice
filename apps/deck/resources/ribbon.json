@@ -853,6 +853,10 @@
               "keytip": "SP"
             },
             {
+              "large": "review.checkGrammarAsType",
+              "keytip": "GR"
+            },
+            {
               "large": "review.thesaurus",
               "keytip": "TH"
             },

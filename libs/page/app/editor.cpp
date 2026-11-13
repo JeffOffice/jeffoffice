@@ -85,6 +85,21 @@ Editor::~Editor()
     // Destroying the undo stack emits cleanChanged; nothing should hear about
     // an editor that is going away.
     blockSignals(true);
+    // (the jobs not begun are let go, so that closing does not wait for the backlog)
+    if (m_grammarShared) GrammarCheck::shutDown(m_grammarShared);
+    if (m_grammarPool) m_grammarPool->clear();
+}
+
+// A new document: nothing of the old one's checking is kept (its budget, its ignored issues, its jobs).
+void Editor::resetGrammar()
+{
+    if (m_grammarShared) GrammarCheck::shutDown(m_grammarShared);
+    if (m_grammarPool) m_grammarPool->clear();
+    m_grammar.clear();
+    m_grammarCache.clear();
+    m_grammarShared.reset();
+    m_grammarPool.reset();
+    m_grammarStopSaid = false;
 }
 
 void Editor::setDocument(std::unique_ptr<Document> d, const QString &path)
@@ -97,6 +112,7 @@ void Editor::setDocument(std::unique_ptr<Document> d, const QString &path)
     m_text = TextTarget();
     m_cursor = QTextCursor();
     m_doc = std::move(d);
+    resetGrammar();
     if (m_doc->pages.isEmpty()) m_doc->addPage();
     m_doc->dropChainIndex();
     m_cache.clear();
@@ -237,13 +253,19 @@ RenderOptions Editor::renderOptions() const
         }
     }
     if (view.grammar) {
-        if (int(m_grammar.size()) > m_doc->stories.size()) {   // (the checks of stories that are gone)
-            for (auto it = m_grammar.begin(); it != m_grammar.end();) it = m_doc->stories.contains(it->first) ? std::next(it) : m_grammar.erase(it);
+        for (auto it = m_grammar.begin(); it != m_grammar.end();) {   // (the checks of stories that are gone, by name and by story)
+            const auto st = m_doc->stories.constFind(it->first);
+            if (st == m_doc->stories.cend()) {
+                m_grammarCache.remove(it->first);
+                it = m_grammar.erase(it);
+            } else {
+                ++it;
+            }
         }
-        for (auto it = m_doc->stories.cbegin(); it != m_doc->stories.cend(); ++it) {
+        for (const QString &id : visibleStories()) {
             QVector<QPair<int, int>> r;
-            for (const GrammarCheck::Issue &g : grammarIssuesIn(it.key())) r << qMakePair(g.start, g.end);
-            if (!r.isEmpty()) o.grammar.insert(it.key(), r);
+            for (const GrammarCheck::Issue &g : grammarIssuesIn(id)) r << qMakePair(g.start, g.end);
+            if (!r.isEmpty()) o.grammar.insert(id, r);
         }
     }
     return o;
@@ -263,6 +285,35 @@ QVector<QPair<int, int>> Editor::misspelledIn(const QString &storyId) const
     return e.ranges;
 }
 
+// The stories of what is on the page or master being shown, and the one being typed in: the others (on other pages, or in no box) are not checked until they are shown.
+QStringList Editor::visibleStories() const
+{
+    QStringList out;
+    QSet<QString> seen;
+    auto add = [&](const QString &id) {
+        if (!id.isEmpty() && !seen.contains(id)) {
+            seen.insert(id);
+            out << id;
+        }
+    };
+    walkItems(surfaceItems(), [&](const ItemPtr &it) {
+        if (it->hidden) return;
+        if (it->type() == ItemType::Text) {
+            add(static_cast<TextItem *>(it.get())->storyId);
+        } else if (it->type() == ItemType::Shape) {
+            add(static_cast<ShapeItem *>(it.get())->storyId);
+        } else if (it->type() == ItemType::Table) {
+            const auto *tb = static_cast<TableItem *>(it.get());
+            for (const TableCell &c : tb->cells) {
+                add(c.storyId);
+                add(c.storyId2);
+            }
+        }
+    });
+    if (isEditingText()) add(m_text.storyId);
+    return out;
+}
+
 // The check of a story: one for each, made when first asked for, on the one thread and the one budget of the publication. What it kept of answers (by the text of
 // each paragraph) goes with it when the story's document is replaced, as an undo does.
 GrammarCheck *Editor::grammarCheckOf(const QString &storyId) const
@@ -278,18 +329,36 @@ GrammarCheck *Editor::grammarCheckOf(const QString &storyId) const
     if (!slot) {
         slot = std::make_unique<GrammarCheck>(st->doc.get(), m_grammarShared, m_grammarPool.get());
         slot->setDelayMs(m_grammarDelayMs);
-        connect(slot.get(), &GrammarCheck::changed, const_cast<Editor *>(this), &Editor::viewChanged);
+        Editor *self = const_cast<Editor *>(this);
+        connect(slot.get(), &GrammarCheck::changed, self, &Editor::viewChanged);
+        connect(slot.get(), &GrammarCheck::budgetExhausted, self, [self] {
+            if (self->m_grammarStopSaid) return;
+            self->m_grammarStopSaid = true;
+            Q_EMIT self->grammarStopped();
+        });
     } else {
         slot->setStory(st->doc.get());
     }
     return slot.get();
 }
 
+// The issues of a story, kept until the story or its check changes (a repaint or a caret move that changes neither does no work).
 QVector<GrammarCheck::Issue> Editor::grammarIssuesIn(const QString &storyId) const
 {
     if (!view.grammar) return {};
     GrammarCheck *g = grammarCheckOf(storyId);
-    return g ? g->issuesIn(0, g->story()->characterCount()) : QVector<GrammarCheck::Issue>();
+    if (!g) return {};
+    const Story *st = m_doc->story(storyId);
+    if (isEditingText() && storyId == m_text.storyId) g->setPriorityBlock(m_cursor.blockNumber());
+    GrammarEntry &e = m_grammarCache[storyId];
+    if (e.serial != st->serial || e.revision != st->doc->revision() || e.version != g->version()) {
+        ++m_grammarScans;
+        e.serial = st->serial;
+        e.revision = st->doc->revision();
+        e.issues = g->issuesIn(0, st->doc->characterCount());
+        e.version = g->version();   // (after: finding the issues may have asked for paragraphs, which changes nothing until their answers come)
+    }
+    return e.issues;
 }
 
 GrammarCheck::Issue Editor::grammarIssueAt(const QString &storyId, int position) const
@@ -305,7 +374,8 @@ void Editor::ignoreGrammarAll(const GrammarCheck::Issue &issue, const QString &s
     if (!st || !st->doc || !issue.valid()) return;
     const QTextBlock b = st->doc->findBlock(issue.start);
     const QString words = b.text().mid(issue.start - b.position(), issue.end - issue.start);
-    for (auto &g : m_grammar) g.second->ignoreAllOf(issue.message, words);
+    if (m_grammar.empty()) return;
+    for (auto &g : m_grammar) g.second->ignoreAllOf(issue.message, words);   // (the list is shared: stories made later follow it)
 }
 
 int Editor::grammarParagraphsChecked() const

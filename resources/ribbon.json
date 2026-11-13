@@ -212,7 +212,7 @@
     ]},
     {"name": "Review", "keytip": "R", "groups": [
       {"name": "Proofing", "keytip": "ZP", "items": [
-        {"large": "rev.spelling", "keytip": "SP", "split": true, "menu": ["rev.spelling", "rev.checkAsType"]},
+        {"large": "rev.spelling", "keytip": "SP", "split": true, "menu": ["rev.spelling", "rev.checkAsType", "rev.checkGrammarAsType"]},
         {"large": "rev.research", "keytip": "RS"},
         {"large": "rev.thesaurus", "keytip": "TH"}
       ]},

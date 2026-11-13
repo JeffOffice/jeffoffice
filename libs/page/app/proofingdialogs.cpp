@@ -115,8 +115,18 @@ void spellingDialog(QWidget *p, Editor *ed)
             for (; si < stories.size(); ++si, pos = 0) {
                 GrammarCheck *g = d->storyDoc(stories[si].storyId) ? ed->grammarCheckOf(stories[si].storyId) : nullptr;
                 GrammarCheck::Issue found;
-                int more = 0;
-                if (!g || g->search(pos, -1, &found, &more) != GrammarCheck::Step::Found) continue;
+                GrammarCheck::Step step = GrammarCheck::Step::None;
+                if (g) {
+                    // (in slices of a few milliseconds, with the window answering between them, as JeffWrite's pane does; the box does not take clicks meanwhile)
+                    dlg.setEnabled(false);
+                    int more = pos;
+                    while ((step = g->search(pos, 40, &found, &more)) == GrammarCheck::Step::More) {
+                        pos = more;
+                        QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+                    }
+                    dlg.setEnabled(true);
+                }
+                if (step != GrammarCheck::Step::Found) continue;
                 QTextCursor c = select(found.start, found.end);
                 issue = found;
                 issueStory = stories[si].storyId;

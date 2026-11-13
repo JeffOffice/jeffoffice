@@ -116,7 +116,7 @@ private Q_SLOTS:
             s += QStringLiteral("|%1|%2|%3|%4|%5|%6|%7").arg(ed->selection().join(QLatin1Char(','))).arg(ed->isEditingText()).arg(ed->undoStack()->index()).arg(ed->currentPage()).arg(w->canvas()->zoom()).arg(int(w->view())).arg(int(ed->tool()));
             if (ed->isEditingText()) s += QStringLiteral("|%1,%2").arg(ed->cursor().position()).arg(ed->cursor().anchor());
             s += QLatin1String("|comment ") + w->commentsPane()->currentComment();
-            s += QStringLiteral("|view%1%2|presenter%3").arg(w->canvas()->gridlines()).arg(w->canvas()->guides()).arg(SlideShow::usePresenterView());
+            s += QStringLiteral("|view%1%2|presenter%3|grammar%4").arg(w->canvas()->gridlines()).arg(w->canvas()->guides()).arg(SlideShow::usePresenterView()).arg(ed->view.grammar);
             const auto block = ed->cellBlock();
             s += QStringLiteral("|cells%1,%2,%3,%4").arg(block.range.valid()).arg(block.range.r0).arg(block.range.c0).arg(block.range.r1 * 100 + block.range.c1);
             return s + QLatin1Char('|') + ed->filePath() + QString::number(ed->isModified());
