@@ -10,6 +10,8 @@
 
 namespace jp::office::wml {
 
+qint64 treeStepsForTest() { return g_treeSteps; }
+
 namespace {
 
 constexpr const char *kWTransitional = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";

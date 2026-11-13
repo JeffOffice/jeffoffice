@@ -72,7 +72,7 @@ struct ReadWork {
     qint64 charsConverted = 0, outputBytes = 0, outputElements = 0, shapeVisits = 0, picturesRead = 0, styleSteps = 0;
 };
 ReadWork readWorkForTest();
-inline thread_local qint64 g_styleSteps = 0;
+inline thread_local qint64 g_styleSteps = 0;   // (library-only)
 
 // True when the bytes begin as a compound file does, the container of the old binary formats.
 bool looksLikeCompoundFile(const QByteArray &bytes);

@@ -14,6 +14,8 @@
 // 736,000 elements and 840,000 attributes, and the eight largest are nested 25 deep at the most. Each limit is more than 10 times the
 // most, and bounds the tree at about a gigabyte (64 bytes an element, 24 an attribute).
 
+#include "core/export.h"
+
 #include <QByteArray>
 #include <QHash>
 #include <QString>
@@ -32,8 +34,9 @@ constexpr qint64 kMaxTreeAttributes = 10000000;
 
 // How many times a reader moved from an element to its first child or its next sibling on this thread since it began: a count for tests of cost, in which reading in step with the
 // size of a part takes a few steps for each element, and the square of them is what a scan of all that came before each would take.
-inline thread_local qint64 g_treeSteps = 0;
-inline qint64 treeStepsForTest() { return g_treeSteps; }
+inline thread_local qint64 g_treeSteps = 0;   // (library-only: see treeStepsForTest)
+// (out of line: an inline variable is a copy of its own in each program and in the library on Windows, and the reading is done in the library)
+JO_COMMON_EXPORT qint64 treeStepsForTest();
 
 class XmlTree {
 public:
