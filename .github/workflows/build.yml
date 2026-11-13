@@ -522,6 +522,17 @@ jobs:
           QT_QPA_PLATFORM: offscreen
           JP_TEST_TRACE: '1'
           CI_SPLIT: ${{ runner.environment == 'self-hosted' && '4' || '1' }}
+          # (the two pictures of a ribbon tab that looks different when made late, kept for the upload below: Nov 13 a Mac run saw 11x9 pixels differ once, and nothing showed which)
+          JP_LAZY_SHOTS: ${{ runner.temp }}/lazy-shots
+
+      - name: Keep the ribbon pictures of a failed check
+        if: failure() && matrix.part == 'checks'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lazy-ribbon-shots-${{ runner.os }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/lazy-shots
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Export check PDFs
         if: matrix.part == 'checks' && matrix.shard == 1
