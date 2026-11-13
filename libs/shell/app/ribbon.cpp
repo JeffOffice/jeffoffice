@@ -856,7 +856,11 @@ protected:
         p.setFont(tf);
         if (uiHighContrast()) p.setPen(cur ? palette().color(QPalette::HighlightedText) : uiText());
         else p.setPen(cur ? (dark() ? base.lighter(140) : base.darker(t.group.isEmpty() ? 100 : 130)) : uiText());
-        p.drawText(tr, Qt::AlignCenter, t.title);
+        // (the label starts in the middle of a pixel: Qt puts a glyph on the pixel its position is in, so a position that is exactly a whole number, as centering in the rectangle makes it
+        // half the time, is on the edge between two pixels, and a hair of difference in the sum, with the window made at another time, moves the first letter by one)
+        const QFontMetrics tm(tf);
+        const int tw = tm.horizontalAdvance(t.title);
+        p.drawText(QRectF(qFloor(tr.left() + (tr.width() - tw) / 2) + 0.5, qFloor(tr.top() + (tr.height() - tm.height()) / 2) + 0.5, tw + 2, tm.height()), Qt::AlignLeft | Qt::AlignTop, t.title);
     }
 
     void mouseDoubleClickEvent(QMouseEvent *e) override

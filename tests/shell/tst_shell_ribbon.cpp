@@ -504,6 +504,41 @@ private Q_SLOTS:
         QVERIFY(groupNamed(second.ribbon(), QStringLiteral("View"), QStringLiteral("Zoom"))->userHidden());
     }
 
+    // A tab's label sits on a whole pixel, so a hair of difference in where it is drawn (a window made at another time) cannot move its first letter by one pixel.
+    void aTabLabelDoesNotSitOnAHalfPixel()
+    {
+        RibbonWindow w;
+        Ribbon *r = w.ribbon();
+        QStringList moved;
+        QFont hinted = r->font();
+        hinted.setHintingPreference(QFont::PreferFullHinting);
+        r->setFont(hinted);
+        for (int width = 639; width < 760; ++width) {
+            r->setFixedWidth(width);
+            r->showTab(r->tabAt(0));
+            QCoreApplication::processEvents();
+            QImage pictures[2];
+            for (int side = 0; side < 2; ++side) {
+                pictures[side] = QImage(r->size(), QImage::Format_ARGB32_Premultiplied);
+                pictures[side].fill(Qt::white);
+                QPainter p(&pictures[side]);
+                p.translate(side ? 0.001 : -0.001, 0);
+                r->render(&p, QPoint(), QRegion(0, 0, width, 40));
+            }
+            // (a hair moves the edge of the pill by a hair of a shade; a letter that jumps a pixel changes some pixels by a lot)
+            bool jumped = false;
+            for (QAbstractButton *b : r->findChildren<QAbstractButton *>()) {
+                if (b->isHidden() || b->text().isEmpty() || tabIndex(r, b->text()) < 0) continue;   // (the tab buttons)
+                const QRect g(b->mapTo(r, QPoint()), b->size());
+                for (int y = g.top(); y <= g.bottom() && !jumped; ++y)
+                    for (int x = g.left(); x <= g.right() && !jumped; ++x)
+                        jumped = qAbs(qGray(pictures[0].pixel(x, y)) - qGray(pictures[1].pixel(x, y))) > 40;
+            }
+            if (jumped && width > 639) moved << QString::number(width);   // (the first only lays the buttons out)
+        }
+        QVERIFY2(moved.isEmpty(), qPrintable(QStringLiteral("a label moved by a pixel at widths ") + moved.join(QLatin1Char(' '))));
+    }
+
     void keyTipsOfWhatIsMadeDoNotClash()
     {
         RibbonCustom c;
