@@ -9,6 +9,7 @@
 #include <QHash>
 #include <QLibraryInfo>
 #include <QLocale>
+#include <QMutex>
 #include <QTranslator>
 
 #include <utility>
@@ -52,10 +53,38 @@ QString uiLanguageName(const QString &language)
 namespace {
 QString s_language = QStringLiteral("en");
 QList<QTranslator *> s_installed;   // what installTranslations() put in, to take out again
+QMutex s_sourceLock;
+QHash<QString, QString> s_sources;   // a text as it was translated to the text it was written as (kept while a translation is in use)
+// Stands first among the translators: finds each text where the others would, and notes the English it came from.
+class SourceRecorder : public QTranslator {
+public:
+    QString translate(const char *context, const char *sourceText, const char *disambiguation, int n) const override
+    {
+        for (auto it = s_installed.crbegin(); it != s_installed.crend(); ++it) {
+            if (*it == this) continue;
+            const QString out = (*it)->translate(context, sourceText, disambiguation, n);
+            if (out.isNull()) continue;
+            const QString source = QString::fromUtf8(sourceText);
+            if (out != source && n < 0) {
+                const QMutexLocker lock(&s_sourceLock);
+                s_sources.insert(out, source);
+            }
+            return out;
+        }
+        return QString();
+    }
+    bool isEmpty() const override { return false; }
+};
 QString installTranslationsFor();
 }
 
 QString currentUiLanguage() { return s_language; }
+
+QString sourceText(const QString &translated)
+{
+    const QMutexLocker lock(&s_sourceLock);
+    return s_sources.value(translated);
+}
 
 QString pickUiLanguage(const QStringList &wanted, const QStringList &have)
 {
@@ -78,6 +107,16 @@ QString pickUiLanguage(const QStringList &wanted, const QStringList &have)
 QString installTranslations()
 {
     s_language = installTranslationsFor();
+    {
+        const QMutexLocker lock(&s_sourceLock);
+        s_sources.clear();
+    }
+    if (s_language != QLatin1String("en") && !s_installed.isEmpty()) {
+        auto *recorder = new SourceRecorder;
+        recorder->setParent(QCoreApplication::instance());
+        s_installed << recorder;
+        QCoreApplication::installTranslator(recorder);
+    }
     return s_language;
 }
 

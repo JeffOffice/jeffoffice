@@ -37,4 +37,7 @@ QString installTranslations();
 // The language installTranslations() chose ("en" until it has run).
 QString currentUiLanguage();
 
+// The English a text was translated from (what a command was named in the source), when the program shows another language and the text came from its translation; empty otherwise.
+QString sourceText(const QString &translated);
+
 } // namespace jp
