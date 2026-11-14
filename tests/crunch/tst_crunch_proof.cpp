@@ -65,8 +65,6 @@ bool recoverNow(CrunchWindow &w)
     return written.count() > 0 || written.wait(20000);
 }
 
-const jp::office::sheet::Cell *at_(const jp::office::sheet::Sheet &s, const char *ref) { return at(s, QString::fromLatin1(ref)); }
-
 // A thread that holds at a point until the test lets it go.
 struct Pause {
     QSemaphore entered, proceed;

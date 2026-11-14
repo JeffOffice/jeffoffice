@@ -98,10 +98,6 @@ QByteArray field(const QByteArray &code, const QByteArray &result, const QByteAr
     return "<w:r><w:fldChar w:fldCharType=\"begin\"" + flags + "/></w:r><w:r><w:instrText xml:space=\"preserve\"> " + code + " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" +
            run(result) + "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
 }
-QByteArray bookmark(int id, const QByteArray &name, const QByteArray &inner)
-{
-    return "<w:bookmarkStart w:id=\"" + QByteArray::number(id) + "\" w:name=\"" + name + "\"/>" + inner + "<w:bookmarkEnd w:id=\"" + QByteArray::number(id) + "\"/>";
-}
 
 // A document with footnotes and endnotes parts (and settings) beside the body.
 QByteArray makeDocxNotes(const QByteArray &body, const QByteArray &footnotes, const QByteArray &endnotes, const QByteArray &settings = QByteArray())

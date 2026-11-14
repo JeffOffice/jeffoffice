@@ -50,12 +50,6 @@ QByteArray equationBook(const QString &omml)
     return bookWithDrawing({worksheet(QString())}, drawingPart(equationAnchors(omml)), {imageTarget(QStringLiteral("rIdP"), 1, pngBytes(40, 12, Qt::darkGreen))});
 }
 
-QString mathOf(const QString &linear)
-{
-    bool ok = false;
-    return QString::fromUtf8(jp::office::wml::equationMarkup(linear, &ok));
-}
-
 QMap<QString, QByteArray> savedParts(const QString &path)
 {
     QMap<QString, QByteArray> parts;
