@@ -91,6 +91,10 @@ SetupMutex=JeffOfficeSetup
 ChangesAssociations=yes
 OutputDir=.
 OutputBaseFilename=JeffOffice-Setup
+#ifdef SIGN_UNINSTALLER
+SignTool=jeffoffice
+SignedUninstaller=yes
+#endif
 SetupIconFile=jeffoffice.ico
 UninstallDisplayIcon={app}\jeffoffice.ico
 UninstallDisplayName={#Suite}

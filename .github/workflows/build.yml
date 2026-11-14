@@ -675,14 +675,25 @@ jobs:
           description: JeffOffice
           description-url: https://www.jeffoffice.com
 
+      # Inno signs the uninstaller it builds into the installer (and the installer) by running packaging/windows/sign-file.ps1, which calls the same
+      # cmdlet the action calls (module version as in artifact-signing-action v2.0.0); the script keeps a copy of each file it signed, to be checked below.
+      - name: Install the signing module (Windows)
+        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: Install-Module -Name ArtifactSigning -RequiredVersion 0.1.8 -Force -Repository PSGallery
+
       - name: Installer (Windows)
         if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
         shell: pwsh
+        env:
+          SIGN_INSTALLER: ${{ github.event_name == 'workflow_dispatch' && 'true' || '' }}
+          JO_SIGNED_COPIES: ${{ github.workspace }}\signed-by-inno
         run: |
           $ver = (Select-String -Path CMakeLists.txt -Pattern 'project\(JeffPub VERSION ([0-9.]+)').Matches[0].Groups[1].Value
           $opts = @{ Version = $ver }
           if ($env:SHIP_WRITE -eq 'true') { $opts.Write = $true }
           if ($env:SHIP_CRUNCH -eq 'true') { $opts.Crunch = $true }
+          if ($env:SIGN_INSTALLER -eq 'true') { $opts.SignCommand = "pwsh -NoProfile -File $env:GITHUB_WORKSPACE\packaging\windows\sign-file.ps1 `$f" }
           # Inno Setup 6 is on the runner image; the script prints its version and makes the license page's text.
           ./packaging/windows/build-installer.ps1 @opts
           New-Item -ItemType Directory -Force installer | Out-Null
@@ -705,6 +716,11 @@ jobs:
         shell: pwsh
         run: |
           $files = @(Get-ChildItem dist/JeffOffice -File | Where-Object { $_.Name -match '^(JeffPub|JeffDeck|JeffWrite|JeffCrunch)\.exe$|^libjeffoffice-common\.dll$' }) + @(Get-Item installer/JeffOffice-Setup.exe)
+          # What Inno signed while compiling: the uninstaller and the installer, so at least two files
+          $inno = @(Get-ChildItem signed-by-inno -File -ErrorAction SilentlyContinue)
+          Write-Host "signed by Inno: $($inno.Name -join ', ')"
+          if ($inno.Count -lt 2) { throw 'Inno signed fewer than two files (the uninstaller and the installer)' }
+          $files += $inno
           foreach ($f in $files) {
             $sig = Get-AuthenticodeSignature $f.FullName
             Write-Host "$($f.Name): $($sig.Status), $($sig.SignerCertificate.Subject), time stamp $($sig.TimeStamperCertificate -ne $null)"

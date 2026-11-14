@@ -1,8 +1,9 @@
 # Builds packaging\windows\JeffOffice-Setup.exe from dist\JeffOffice with Inno Setup (the ISCC on the Windows runner).
 #   packaging\windows\build-installer.ps1 -Version 0.20.0 [-Write] [-Crunch]
 # -Write and -Crunch are the WITH_WRITE and WITH_CRUNCH build defines (the workflow passes them when SHIP_WRITE and
-# SHIP_CRUNCH are "true"). Run from the repository's top folder.
-param([Parameter(Mandatory)][string]$Version, [switch]$Write, [switch]$Crunch)
+# SHIP_CRUNCH are "true"). -SignCommand is a command that signs the file it is given (Inno's $f; no spaces in its paths): Inno
+# runs it on the uninstaller it builds in, and on the installer. Without it nothing is signed. Run from the repository's top folder.
+param([Parameter(Mandatory)][string]$Version, [switch]$Write, [switch]$Crunch, [string]$SignCommand)
 $ErrorActionPreference = 'Stop'
 # (On the runner, ISCC.exe on the PATH is only a Chocolatey shim, which has no version of its own.)
 $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
@@ -17,6 +18,7 @@ if ($LASTEXITCODE -ne 0) { throw 'reflowing the license failed' }
 $defs = @("/DVERSION=$Version")
 if ($Write) { $defs += '/DWITH_WRITE' }
 if ($Crunch) { $defs += '/DWITH_CRUNCH' }
+if ($SignCommand) { $defs += '/DSIGN_UNINSTALLER'; $defs += "/Sjeffoffice=$SignCommand" }
 & $iscc @defs packaging/windows/installer.iss
 if ($LASTEXITCODE -ne 0) { throw "ISCC failed ($LASTEXITCODE)" }
 if (-not (Test-Path packaging/windows/JeffOffice-Setup.exe)) { throw 'JeffOffice-Setup.exe was not made' }
