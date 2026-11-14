@@ -25,8 +25,6 @@ namespace jp {
 
 namespace {
 
-QString tr(const char *s) { return QCoreApplication::translate("jp::ListDialogs", s); }
-
 QDialogButtonBox *buttons(QDialog *d)
 {
     auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, d);
@@ -38,9 +36,9 @@ QDialogButtonBox *buttons(QDialog *d)
 QComboBox *alignmentBox(const QString &current, QWidget *parent)
 {
     auto *box = new QComboBox(parent);
-    box->addItem(tr("Left"), QStringLiteral("left"));
-    box->addItem(tr("Centered"), QStringLiteral("center"));
-    box->addItem(tr("Right"), QStringLiteral("right"));
+    box->addItem(QCoreApplication::translate("jp::ListDialogs", "Left"), QStringLiteral("left"));
+    box->addItem(QCoreApplication::translate("jp::ListDialogs", "Centered"), QStringLiteral("center"));
+    box->addItem(QCoreApplication::translate("jp::ListDialogs", "Right"), QStringLiteral("right"));
     box->setCurrentIndex(std::max(0, box->findData(current)));
     return box;
 }
@@ -60,14 +58,14 @@ bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker
     const bool plain = mode == ListBoxes::Plain;
     QDialog d(parent);
     d.setObjectName(QStringLiteral("defineBulletDialog"));
-    d.setWindowTitle(tr("Define New Bullet"));
+    d.setWindowTitle(QCoreApplication::translate("jp::ListDialogs", "Define New Bullet"));
     auto *form = new QFormLayout;
     auto *character = new QLineEdit(look->text.left(2), &d);
     character->setObjectName(QStringLiteral("bulletCharacter"));
     character->setMaxLength(2);
     auto *font = new QFontComboBox(&d);
     font->setObjectName(QStringLiteral("bulletFont"));
-    auto *useFont = new QCheckBox(tr("Use this font for the bullet"), &d);
+    auto *useFont = new QCheckBox(QCoreApplication::translate("jp::ListDialogs", "Use this font for the bullet"), &d);
     useFont->setChecked(!look->font.isEmpty());
     if (!look->font.isEmpty()) font->setCurrentFont(QFont(look->font));
     font->setEnabled(useFont->isChecked());
@@ -75,7 +73,7 @@ bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker
     auto *row = new QHBoxLayout;
     row->addWidget(character);
     if (pick) {
-        auto *symbol = new QPushButton(tr("Symbol…"), &d);
+        auto *symbol = new QPushButton(QCoreApplication::translate("jp::ListDialogs", "Symbol…"), &d);
         symbol->setObjectName(QStringLiteral("bulletSymbol"));
         QObject::connect(symbol, &QPushButton::clicked, &d, [&] {
             QString ch, f;
@@ -88,43 +86,43 @@ bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker
     }
     // A picture in place of a character (not for the apps whose files keep only characters).
     QByteArray picture = look->picture;
-    auto *pictureButton = new QPushButton(picture.isEmpty() ? tr("Picture…") : tr("Picture… (chosen)"), &d);
+    auto *pictureButton = new QPushButton(picture.isEmpty() ? QCoreApplication::translate("jp::ListDialogs", "Picture…") : QCoreApplication::translate("jp::ListDialogs", "Picture… (chosen)"), &d);
     pictureButton->setObjectName(QStringLiteral("bulletPicture"));
     QObject::connect(pictureButton, &QPushButton::clicked, &d, [&] {
-        const QString file = QFileDialog::getOpenFileName(&d, tr("Choose a Picture for the Bullet"), QString(), tr("Pictures (*.png *.jpg *.jpeg *.gif *.bmp)"));
+        const QString file = QFileDialog::getOpenFileName(&d, QCoreApplication::translate("jp::ListDialogs", "Choose a Picture for the Bullet"), QString(), QCoreApplication::translate("jp::ListDialogs", "Pictures (*.png *.jpg *.jpeg *.gif *.bmp)"));
         if (file.isEmpty()) return;
         QFile f(file);
         if (!f.open(QIODevice::ReadOnly) || f.size() > 2000000) return;
         const QByteArray bytes = f.readAll();
         if (QImage::fromData(bytes).isNull()) return;
         picture = bytes;
-        pictureButton->setText(tr("Picture… (chosen)"));
+        pictureButton->setText(QCoreApplication::translate("jp::ListDialogs", "Picture… (chosen)"));
     });
     if (mode != ListBoxes::Plain) row->addWidget(pictureButton);
-    form->addRow(tr("Bullet character:"), row);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Bullet character:"), row);
     form->addRow(useFont);
-    form->addRow(tr("Font:"), font);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Font:"), font);
     auto *size = new QDoubleSpinBox(&d);
     size->setObjectName(QStringLiteral("bulletSize"));
     size->setRange(0, 200);
     size->setDecimals(1);
-    size->setSuffix(tr(" pt"));
-    size->setSpecialValueText(tr("Same as the text"));
+    size->setSuffix(QCoreApplication::translate("jp::ListDialogs", " pt"));
+    size->setSpecialValueText(QCoreApplication::translate("jp::ListDialogs", "Same as the text"));
     size->setValue(look->sizePoints);
-    form->addRow(tr("Size:"), size);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Size:"), size);
     QColor color = look->color;
     auto *colorButton = new QPushButton(&d);
     colorButton->setObjectName(QStringLiteral("bulletColor"));
-    auto showColor = [&] { colorButton->setText(color.isValid() ? color.name().toUpper() : tr("Same as the text")); };
+    auto showColor = [&] { colorButton->setText(color.isValid() ? color.name().toUpper() : QCoreApplication::translate("jp::ListDialogs", "Same as the text")); };
     showColor();
     QObject::connect(colorButton, &QPushButton::clicked, &d, [&] {
-        const QColor picked = QColorDialog::getColor(color.isValid() ? color : Qt::black, &d, tr("Bullet Color"));
+        const QColor picked = QColorDialog::getColor(color.isValid() ? color : Qt::black, &d, QCoreApplication::translate("jp::ListDialogs", "Bullet Color"));
         if (picked.isValid()) color = picked;
         showColor();
     });
-    form->addRow(tr("Color:"), colorButton);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Color:"), colorButton);
     auto *align = alignmentBox(look->align, &d);
-    if (mode == ListBoxes::Full) form->addRow(tr("Alignment:"), align);
+    if (mode == ListBoxes::Full) form->addRow(QCoreApplication::translate("jp::ListDialogs", "Alignment:"), align);
     auto *column = new QVBoxLayout(&d);
     column->addLayout(form);
     column->addWidget(buttons(&d));
@@ -144,7 +142,7 @@ bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, ListBoxes mo
     const bool plain = mode == ListBoxes::Plain;
     QDialog d(parent);
     d.setObjectName(QStringLiteral("defineNumberFormatDialog"));
-    d.setWindowTitle(tr("Define New Number Format"));
+    d.setWindowTitle(QCoreApplication::translate("jp::ListDialogs", "Define New Number Format"));
     auto *form = new QFormLayout;
     auto *style = new QComboBox(&d);
     style->setObjectName(QStringLiteral("numberStyle"));
@@ -152,22 +150,22 @@ bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, ListBoxes mo
     const NumberStyleName *names = numberStyleNames(&count);
     for (int i = 0; i < (mode != ListBoxes::Full ? std::min(count, 5) : count); ++i) style->addItem(QString::fromLatin1(names[i].example), QString::fromLatin1(names[i].id));
     style->setCurrentIndex(std::max(0, style->findData(look->numFmt)));
-    form->addRow(tr("Number style:"), style);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Number style:"), style);
     auto *text = new QLineEdit(look->bullet || look->text.isEmpty() ? QStringLiteral("%1.") : look->text, &d);
     text->setObjectName(QStringLiteral("numberFormat"));
     auto *punctuation = new QComboBox(&d);
     punctuation->setObjectName(QStringLiteral("numberPunctuation"));
     for (const char *f : {"%1.", "%1)", "(%1)", "%1"}) punctuation->addItem(QString::fromLatin1(f).replace(QStringLiteral("%1"), QStringLiteral("1")), QString::fromLatin1(f));
     punctuation->setCurrentIndex(std::max(0, punctuation->findData(look->text)));
-    if (plain) form->addRow(tr("Punctuation:"), punctuation);
-    else form->addRow(tr("Number format (%1 is the number):"), text);
+    if (plain) form->addRow(QCoreApplication::translate("jp::ListDialogs", "Punctuation:"), punctuation);
+    else form->addRow(QCoreApplication::translate("jp::ListDialogs", "Number format (%1 is the number):"), text);
     auto *align = alignmentBox(look->align, &d);
-    if (mode == ListBoxes::Full) form->addRow(tr("Alignment:"), align);
+    if (mode == ListBoxes::Full) form->addRow(QCoreApplication::translate("jp::ListDialogs", "Alignment:"), align);
     auto *start = new QSpinBox(&d);
     start->setObjectName(QStringLiteral("numberStart"));
     start->setRange(0, 9999);
     start->setValue(look->start);
-    form->addRow(tr("Start at:"), start);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Start at:"), start);
     auto *preview = new QLabel(&d);
     auto update = [&] {
         QString shown = text->text();
@@ -179,7 +177,7 @@ bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, ListBoxes mo
     QObject::connect(text, &QLineEdit::textChanged, &d, update);
     QObject::connect(style, &QComboBox::currentIndexChanged, &d, update);
     update();
-    form->addRow(tr("Preview:"), preview);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Preview:"), preview);
     auto *column = new QVBoxLayout(&d);
     column->addLayout(form);
     column->addWidget(buttons(&d));
@@ -201,17 +199,17 @@ bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels
     while (work.size() < 9) work.push_back(work.isEmpty() ? ListLevelLook() : work.last());
     QDialog d(parent);
     d.setObjectName(QStringLiteral("defineMultilevelDialog"));
-    d.setWindowTitle(tr("Define New Multilevel List"));
+    d.setWindowTitle(QCoreApplication::translate("jp::ListDialogs", "Define New Multilevel List"));
     auto *list = new QListWidget(&d);
     list->setObjectName(QStringLiteral("levels"));
-    for (int i = 1; i <= 9; ++i) list->addItem(tr("Level %1").arg(i));
+    for (int i = 1; i <= 9; ++i) list->addItem(QCoreApplication::translate("jp::ListDialogs", "Level %1").arg(i));
     list->setMaximumWidth(110);
     auto *form = new QFormLayout;
     auto *kind = new QComboBox(&d);
     kind->setObjectName(QStringLiteral("levelKind"));
-    kind->addItem(tr("Bullet"), true);
-    kind->addItem(tr("Number"), false);
-    form->addRow(tr("Level is a:"), kind);
+    kind->addItem(QCoreApplication::translate("jp::ListDialogs", "Bullet"), true);
+    kind->addItem(QCoreApplication::translate("jp::ListDialogs", "Number"), false);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Level is a:"), kind);
     auto *character = new QLineEdit(&d);
     character->setObjectName(QStringLiteral("bulletCharacter"));
     character->setMaxLength(2);
@@ -219,7 +217,7 @@ bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels
     row->addWidget(character);
     QString pickedFont;
     if (pick) {
-        auto *symbol = new QPushButton(tr("Symbol…"), &d);
+        auto *symbol = new QPushButton(QCoreApplication::translate("jp::ListDialogs", "Symbol…"), &d);
         QObject::connect(symbol, &QPushButton::clicked, &d, [&] {
             QString ch, f;
             if (!pick(&d, &ch, &f) || ch.isEmpty()) return;
@@ -228,24 +226,24 @@ bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels
         });
         row->addWidget(symbol);
     }
-    form->addRow(tr("Bullet character:"), row);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Bullet character:"), row);
     auto *style = new QComboBox(&d);
     style->setObjectName(QStringLiteral("numberStyle"));
     int count = 0;
     const NumberStyleName *names = numberStyleNames(&count);
     for (int i = 0; i < std::min(count, 5); ++i) style->addItem(QString::fromLatin1(names[i].example), QString::fromLatin1(names[i].id));
-    form->addRow(tr("Number style:"), style);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Number style:"), style);
     auto *punctuation = new QComboBox(&d);
     punctuation->setObjectName(QStringLiteral("numberPunctuation"));
     for (const char *f : {"%1.", "%1)", "(%1)", "%1"}) punctuation->addItem(QString::fromLatin1(f).replace(QStringLiteral("%1"), QStringLiteral("1")), QString::fromLatin1(f));
     auto *format = new QLineEdit(&d);
     format->setObjectName(QStringLiteral("numberFormat"));
-    if (typed) form->addRow(tr("Number format (%1 is the number):"), format);
-    else form->addRow(tr("Punctuation:"), punctuation);
+    if (typed) form->addRow(QCoreApplication::translate("jp::ListDialogs", "Number format (%1 is the number):"), format);
+    else form->addRow(QCoreApplication::translate("jp::ListDialogs", "Punctuation:"), punctuation);
     auto *start = new QSpinBox(&d);
     start->setObjectName(QStringLiteral("numberStart"));
     start->setRange(1, 9999);
-    form->addRow(tr("Start at:"), start);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Start at:"), start);
     int current = 0;
     bool loading = false;
     auto store = [&] {
@@ -300,17 +298,17 @@ bool setNumberingValueDialog(QWidget *parent, bool canContinue, NumberingValueCh
 {
     QDialog d(parent);
     d.setObjectName(QStringLiteral("setNumberingValueDialog"));
-    d.setWindowTitle(tr("Set Numbering Value"));
+    d.setWindowTitle(QCoreApplication::translate("jp::ListDialogs", "Set Numbering Value"));
     auto *column = new QVBoxLayout(&d);
-    auto *fresh = new QRadioButton(tr("Start new list"), &d);
+    auto *fresh = new QRadioButton(QCoreApplication::translate("jp::ListDialogs", "Start new list"), &d);
     fresh->setObjectName(QStringLiteral("startNewList"));
-    auto *again = new QRadioButton(tr("Continue previous list"), &d);
+    auto *again = new QRadioButton(QCoreApplication::translate("jp::ListDialogs", "Continue previous list"), &d);
     again->setObjectName(QStringLiteral("continuePreviousList"));
     again->setEnabled(canContinue);
     (choice->continuePrevious && canContinue ? again : fresh)->setChecked(true);
     column->addWidget(fresh);
     column->addWidget(again);
-    auto *set = new QCheckBox(tr("Set the value to:"), &d);
+    auto *set = new QCheckBox(QCoreApplication::translate("jp::ListDialogs", "Set the value to:"), &d);
     set->setObjectName(QStringLiteral("setValue"));
     set->setChecked(choice->setValue || !canContinue);
     auto *value = new QSpinBox(&d);

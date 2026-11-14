@@ -1,3 +1,4 @@
+#include "app/plaintext.h"
 #include "app/listmenus.h"
 
 #include "app/editor.h"
@@ -18,8 +19,6 @@
 namespace jp {
 
 namespace {
-
-QString tr(const char *s) { return QCoreApplication::translate("jp::ListMenus", s); }
 
 constexpr int kMostRecentBullets = 8;
 
@@ -45,7 +44,7 @@ void gridAction(QMenu *menu, const QVector<std::pair<QString, QString>> &cells, 
     for (int i = 0; i < cells.size(); ++i) {
         auto *b = new QToolButton(host);
         b->setText(cells[i].first);
-        b->setToolTip(cells[i].second);
+        b->setToolTip(jp::plainToolTip(cells[i].second));
         b->setAccessibleName(cells[i].second);
         b->setAutoRaise(true);
         b->setFocusPolicy(Qt::NoFocus);
@@ -174,10 +173,10 @@ QVector<MultilevelPick> multilevelPicks()
         for (int i = 0; i < 9; ++i) out << *(looks.begin() + i % looks.size());
         return out;
     };
-    return {{QStringLiteral("1)a)i)"), tr("1) a) i)"), cycle({numberLook("decimal", "%1)"), numberLook("lowerLetter", "%1)"), numberLook("lowerRoman", "%1)")})},
-            {QStringLiteral("1.a.i."), tr("1. a. i."), cycle({numberLook("decimal", "%1."), numberLook("lowerLetter", "%1."), numberLook("lowerRoman", "%1.")})},
-            {QStringLiteral("I.A.1."), tr("I. A. 1. a)"), cycle({numberLook("upperRoman", "%1."), numberLook("upperLetter", "%1."), numberLook("decimal", "%1."), numberLook("lowerLetter", "%1)")})},
-            {QStringLiteral("bullets"), tr("Bullets, in three shapes"), cycle({bulletLook(QStringLiteral("•")), bulletLook(QStringLiteral("○")), bulletLook(QStringLiteral("■"))})}};
+    return {{QStringLiteral("1)a)i)"), QCoreApplication::translate("jp::ListMenus", "1) a) i)"), cycle({numberLook("decimal", "%1)"), numberLook("lowerLetter", "%1)"), numberLook("lowerRoman", "%1)")})},
+            {QStringLiteral("1.a.i."), QCoreApplication::translate("jp::ListMenus", "1. a. i."), cycle({numberLook("decimal", "%1."), numberLook("lowerLetter", "%1."), numberLook("lowerRoman", "%1.")})},
+            {QStringLiteral("I.A.1."), QCoreApplication::translate("jp::ListMenus", "I. A. 1. a)"), cycle({numberLook("upperRoman", "%1."), numberLook("upperLetter", "%1."), numberLook("decimal", "%1."), numberLook("lowerLetter", "%1)")})},
+            {QStringLiteral("bullets"), QCoreApplication::translate("jp::ListMenus", "Bullets, in three shapes"), cycle({bulletLook(QStringLiteral("•")), bulletLook(QStringLiteral("○")), bulletLook(QStringLiteral("■"))})}};
 }
 
 QMenu *bulletsMenu(QWidget *owner, Editor *ed, QAction *more, const ListBoxesChoice &mode)
@@ -193,13 +192,13 @@ QMenu *bulletsMenu(QWidget *owner, Editor *ed, QAction *more, const ListBoxesCho
             ListLevelLook l = bulletLook(entry.left(bar));
             l.font = entry.mid(bar + 1);
             recentLooks << l;
-            recent.push_back({l.text, tr("Recently used: %1").arg(l.text)});
+            recent.push_back({l.text, QCoreApplication::translate("jp::ListMenus", "Recently used: %1").arg(l.text)});
         }
         if (!recent.isEmpty()) {
-            m->addSection(tr("Recently Used Bullets"));
+            m->addSection(QCoreApplication::translate("jp::ListMenus", "Recently Used Bullets"));
             gridAction(m, recent, 8, [apply, recentLooks](int i) { apply(recentLooks[i]); });
         }
-        m->addSection(tr("Bullet Library"));
+        m->addSection(QCoreApplication::translate("jp::ListMenus", "Bullet Library"));
         const QVector<ListLevelLook> picks = bulletPicks();
         QVector<std::pair<QString, QString>> cells;
         for (const ListLevelLook &p : picks) cells.push_back({p.text, p.text});
@@ -207,10 +206,10 @@ QMenu *bulletsMenu(QWidget *owner, Editor *ed, QAction *more, const ListBoxesCho
             rememberBullet(picks[i].text, picks[i].font);
             apply(picks[i]);
         });
-        QAction *none = m->addAction(tr("None"));
+        QAction *none = m->addAction(QCoreApplication::translate("jp::ListMenus", "None"));
         QObject::connect(none, &QAction::triggered, m, [ed] { ed->setList(0); });
         m->addSeparator();
-        QAction *define = m->addAction(tr("Define New Bullet…"));
+        QAction *define = m->addAction(QCoreApplication::translate("jp::ListMenus", "Define New Bullet…"));
         QObject::connect(define, &QAction::triggered, m, [owner, ed, apply, mode] {
             ListLevelLook look = listLookOf(ed->isEditingText() && ed->cursor().block().textList() ? ed->cursor().block().textList()->format() : QTextListFormat());
             if (!look.bullet) look = bulletLook(QStringLiteral("•"));
@@ -226,7 +225,7 @@ QMenu *bulletsMenu(QWidget *owner, Editor *ed, QAction *more, const ListBoxesCho
 QMenu *numberingMenu(QWidget *owner, Editor *ed, QAction *more, const ListBoxesChoice &mode)
 {
     auto *m = new QMenu(owner);
-    m->addSection(tr("Numbering Library"));
+    m->addSection(QCoreApplication::translate("jp::ListMenus", "Numbering Library"));
     const QVector<ListLevelLook> picks = numberPicks();
     QVector<std::pair<QString, QString>> cells;
     for (const ListLevelLook &p : picks) {
@@ -236,10 +235,10 @@ QMenu *numberingMenu(QWidget *owner, Editor *ed, QAction *more, const ListBoxesC
         cells.push_back({shown, shown});
     }
     gridAction(m, cells, 4, [ed, picks](int i) { ed->setListFormat(listFormatOf(picks[i])); });
-    QAction *none = m->addAction(tr("None"));
+    QAction *none = m->addAction(QCoreApplication::translate("jp::ListMenus", "None"));
     QObject::connect(none, &QAction::triggered, m, [ed] { ed->setList(0); });
     m->addSeparator();
-    QAction *define = m->addAction(tr("Define New Number Format…"));
+    QAction *define = m->addAction(QCoreApplication::translate("jp::ListMenus", "Define New Number Format…"));
     QObject::connect(define, &QAction::triggered, m, [owner, ed, mode] {
         ListLevelLook look = numberLook("decimal", "%1.");
         if (ed->isEditingText() && ed->cursor().block().textList()) {
@@ -256,7 +255,7 @@ QMenu *numberingMenu(QWidget *owner, Editor *ed, QAction *more, const ListBoxesC
 QMenu *multilevelMenu(QWidget *owner, Editor *ed, const ListBoxesChoice &mode)
 {
     auto *m = new QMenu(owner);
-    m->addSection(tr("List Library"));
+    m->addSection(QCoreApplication::translate("jp::ListMenus", "List Library"));
     const QVector<MultilevelPick> picks = multilevelPicks();
     for (const MultilevelPick &p : picks) {
         QAction *a = m->addAction(p.name);
@@ -268,12 +267,12 @@ QMenu *multilevelMenu(QWidget *owner, Editor *ed, const ListBoxesChoice &mode)
         });
     }
     m->addSeparator();
-    QMenu *levels = m->addMenu(tr("Change List Level"));
+    QMenu *levels = m->addMenu(QCoreApplication::translate("jp::ListMenus", "Change List Level"));
     for (int i = 0; i < 9; ++i) {
-        QAction *a = levels->addAction(tr("Level %1").arg(i + 1));
+        QAction *a = levels->addAction(QCoreApplication::translate("jp::ListMenus", "Level %1").arg(i + 1));
         QObject::connect(a, &QAction::triggered, m, [ed, i] { ed->setListLevel(i); });
     }
-    QAction *define = m->addAction(tr("Define New Multilevel List…"));
+    QAction *define = m->addAction(QCoreApplication::translate("jp::ListMenus", "Define New Multilevel List…"));
     QObject::connect(define, &QAction::triggered, m, [owner, ed, mode] {
         QVector<ListLevelLook> looks = multilevelPicks().first().levels;
         if (!defineMultilevelPlainDialog(dialogParent(owner), &looks, symbolPicker(), mode ? mode() : ListBoxes::Plain)) return;

@@ -23,19 +23,18 @@ namespace jp {
 
 namespace {
 
-QString words(const char *text) { return QCoreApplication::translate("AutoCorrectDialog", text); }
-
 // A list of words to keep, with a box to type one and the buttons to add it and to take the selected one away.
 QListWidget *exceptionList(QWidget *tab, QVBoxLayout *layout, const QString &name, const QString &label, QLineEdit **edit, QObject *owner, const std::function<void()> &changed)
 {
     auto *title = new QLabel(label, tab);
+    title->setTextFormat(Qt::PlainText);
     layout->addWidget(title);
     auto *row = new QHBoxLayout();
     *edit = new QLineEdit(tab);
     (*edit)->setObjectName(name + QStringLiteral("Edit"));
-    auto *add = new QPushButton(words("Add"), tab);
+    auto *add = new QPushButton(QCoreApplication::translate("AutoCorrectDialog", "Add"), tab);
     add->setObjectName(name + QStringLiteral("Add"));
-    auto *del = new QPushButton(words("Delete"), tab);
+    auto *del = new QPushButton(QCoreApplication::translate("AutoCorrectDialog", "Delete"), tab);
     del->setObjectName(name + QStringLiteral("Delete"));
     row->addWidget(*edit, 1);
     row->addWidget(add);
@@ -68,7 +67,7 @@ AutoCorrectPage::AutoCorrectPage(const QString &language, QWidget *parent) : QWi
     auto *outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
     auto *top = new QHBoxLayout();
-    auto *languageLabel = new QLabel(words("Language:"), this);
+    auto *languageLabel = new QLabel(QCoreApplication::translate("AutoCorrectDialog", "Language:"), this);
     m_languages = new QComboBox(this);
     m_languages->setObjectName(QStringLiteral("autoCorrectLanguage"));
     languageLabel->setBuddy(m_languages);
@@ -83,28 +82,28 @@ AutoCorrectPage::AutoCorrectPage(const QString &language, QWidget *parent) : QWi
     auto *replaceTab = new QWidget(tabs);
     auto *rl = new QVBoxLayout(replaceTab);
     auto box = [&](const char *text, const char *name) {
-        auto *b = new QCheckBox(words(text), replaceTab);
+        auto *b = new QCheckBox(QCoreApplication::translate("AutoCorrectDialog", text), replaceTab);
         b->setObjectName(QString::fromLatin1(name));
         rl->addWidget(b);
         return b;
     };
-    m_sentences = box("Capitalize first letter of sentences", "capSentences");
-    m_cells = box("Capitalize first letter of table cells", "capCells");
-    m_days = box("Capitalize names of days", "capDays");
-    m_twoInitials = box("Correct TWo INitial CApitals", "capTwoInitials");
-    m_capsLock = box("Correct accidental usage of cAPS LOCK key", "capCapsLock");
-    m_replace = box("Replace text as you type", "replaceText");
+    m_sentences = box(QT_TRANSLATE_NOOP("AutoCorrectDialog", "Capitalize first letter of sentences"), "capSentences");
+    m_cells = box(QT_TRANSLATE_NOOP("AutoCorrectDialog", "Capitalize first letter of table cells"), "capCells");
+    m_days = box(QT_TRANSLATE_NOOP("AutoCorrectDialog", "Capitalize names of days"), "capDays");
+    m_twoInitials = box(QT_TRANSLATE_NOOP("AutoCorrectDialog", "Correct TWo INitial CApitals"), "capTwoInitials");
+    m_capsLock = box(QT_TRANSLATE_NOOP("AutoCorrectDialog", "Correct accidental usage of cAPS LOCK key"), "capCapsLock");
+    m_replace = box(QT_TRANSLATE_NOOP("AutoCorrectDialog", "Replace text as you type"), "replaceText");
     auto *fields = new QHBoxLayout();
     m_from = new QLineEdit(replaceTab);
     m_from->setObjectName(QStringLiteral("replaceFrom"));
-    m_from->setPlaceholderText(words("Replace"));
+    m_from->setPlaceholderText(QCoreApplication::translate("AutoCorrectDialog", "Replace"));
     m_with = new QLineEdit(replaceTab);
     m_with->setObjectName(QStringLiteral("replaceWith"));
-    m_with->setPlaceholderText(words("With"));
-    auto *add = new QPushButton(words("Add"), replaceTab);
+    m_with->setPlaceholderText(QCoreApplication::translate("AutoCorrectDialog", "With"));
+    auto *add = new QPushButton(QCoreApplication::translate("AutoCorrectDialog", "Add"), replaceTab);
     add->setObjectName(QStringLiteral("addReplacement"));
-    add->setToolTip(words("Adds the entry, or changes the \"With\" text of the entry that has the same \"Replace\" text."));
-    auto *del = new QPushButton(words("Delete"), replaceTab);
+    add->setToolTip(QCoreApplication::translate("AutoCorrectDialog", "Adds the entry, or changes the \"With\" text of the entry that has the same \"Replace\" text."));
+    auto *del = new QPushButton(QCoreApplication::translate("AutoCorrectDialog", "Delete"), replaceTab);
     del->setObjectName(QStringLiteral("deleteReplacement"));
     fields->addWidget(m_from, 1);
     fields->addWidget(m_with, 1);
@@ -113,21 +112,21 @@ AutoCorrectPage::AutoCorrectPage(const QString &language, QWidget *parent) : QWi
     rl->addLayout(fields);
     m_table = new QTableWidget(0, 2, replaceTab);
     m_table->setObjectName(QStringLiteral("replacements"));
-    m_table->setHorizontalHeaderLabels({words("Replace"), words("With")});
+    m_table->setHorizontalHeaderLabels({QCoreApplication::translate("AutoCorrectDialog", "Replace"), QCoreApplication::translate("AutoCorrectDialog", "With")});
     m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_table->setSelectionMode(QAbstractItemView::SingleSelection);
     rl->addWidget(m_table, 1);
-    auto *restore = new QPushButton(words("Restore Defaults"), replaceTab);
+    auto *restore = new QPushButton(QCoreApplication::translate("AutoCorrectDialog", "Restore Defaults"), replaceTab);
     restore->setObjectName(QStringLiteral("restoreDefaults"));
     rl->addWidget(restore, 0, Qt::AlignLeft);
-    tabs->addTab(replaceTab, words("AutoCorrect"));
+    tabs->addTab(replaceTab, QCoreApplication::translate("AutoCorrectDialog", "AutoCorrect"));
     auto *exceptionTab = new QWidget(tabs);
     auto *el = new QVBoxLayout(exceptionTab);
-    m_exceptions = exceptionList(exceptionTab, el, QStringLiteral("exceptionList"), words("Do not capitalize after these abbreviations:"), &m_exceptionEdit, this, [] {});
-    m_initials = exceptionList(exceptionTab, el, QStringLiteral("initialList"), words("Do not correct these words with two initial capitals:"), &m_initialEdit, this, [] {});
-    tabs->addTab(exceptionTab, words("Exceptions"));
+    m_exceptions = exceptionList(exceptionTab, el, QStringLiteral("exceptionList"), QCoreApplication::translate("AutoCorrectDialog", "Do not capitalize after these abbreviations:"), &m_exceptionEdit, this, [] {});
+    m_initials = exceptionList(exceptionTab, el, QStringLiteral("initialList"), QCoreApplication::translate("AutoCorrectDialog", "Do not correct these words with two initial capitals:"), &m_initialEdit, this, [] {});
+    tabs->addTab(exceptionTab, QCoreApplication::translate("AutoCorrectDialog", "Exceptions"));
     outer->addWidget(tabs, 1);
     connect(add, &QPushButton::clicked, this, &AutoCorrectPage::addReplacement);
     connect(m_with, &QLineEdit::returnPressed, add, &QPushButton::click);
@@ -279,7 +278,7 @@ bool autoCorrectDialog(QWidget *parent, const QString &language)
 {
     QDialog d(parent);
     d.setObjectName(QStringLiteral("autoCorrectDialog"));
-    d.setWindowTitle(words("AutoCorrect Options"));
+    d.setWindowTitle(QCoreApplication::translate("AutoCorrectDialog", "AutoCorrect Options"));
     auto *v = new QVBoxLayout(&d);
     auto *page = new AutoCorrectPage(language, &d);
     page->setObjectName(QStringLiteral("autoCorrectPage"));

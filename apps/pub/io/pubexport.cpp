@@ -3153,14 +3153,13 @@ QStringList publisherListLosses(const Document &doc)
             }
         }
     }
-    auto tr = [](const char *s) { return QCoreApplication::translate("jp::PubExport", s); };
     QStringList out;
-    if (levels) out << tr("the levels of list items (every item comes out on one level)");
-    if (colors) out << tr("the colors of bullets");
-    if (pictures) out << tr("picture bullets");
-    if (symbols) out << tr("bullets that no symbol font has (they come out as round bullets)");
-    if (starts) out << tr("the number a list starts at (it starts at 1)");
-    if (formats) out << tr("numbers with text of their own (they come out as 1., 1), or (1))");
+    if (levels) out << QCoreApplication::translate("jp::PubExport", "the levels of list items (every item comes out on one level)");
+    if (colors) out << QCoreApplication::translate("jp::PubExport", "the colors of bullets");
+    if (pictures) out << QCoreApplication::translate("jp::PubExport", "picture bullets");
+    if (symbols) out << QCoreApplication::translate("jp::PubExport", "bullets that no symbol font has (they come out as round bullets)");
+    if (starts) out << QCoreApplication::translate("jp::PubExport", "the number a list starts at (it starts at 1)");
+    if (formats) out << QCoreApplication::translate("jp::PubExport", "numbers with text of their own (they come out as 1., 1), or (1))");
     return out;
 }
 

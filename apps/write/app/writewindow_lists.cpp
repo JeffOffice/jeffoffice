@@ -1,6 +1,7 @@
 // JeffWrite's list setup: the galleries under Bullets, Numbering, and Multilevel List on the Home tab, Define New Bullet, Define New Number Format, Define New Multilevel List, Set Numbering Value, and
 // Change List Level. Each choice goes into the document's numbering model through the list commands (core/editops.h), as one step of the history.
 
+#include "app/plaintext.h"
 #include "app/listdialogs.h"
 #include "app/multileveldialog.h"
 #include "app/settings.h"
@@ -38,7 +39,7 @@ QWidgetAction *gridAction(QMenu *menu, const QVector<std::pair<QString, QString>
     for (int i = 0; i < cells.size(); ++i) {
         auto *b = new QToolButton(host);
         b->setText(cells[i].first);
-        b->setToolTip(cells[i].second);
+        b->setToolTip(jp::plainToolTip(cells[i].second));
         b->setAccessibleName(cells[i].second);
         b->setAutoRaise(true);
         b->setFocusPolicy(Qt::NoFocus);

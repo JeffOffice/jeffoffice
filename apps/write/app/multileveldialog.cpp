@@ -25,8 +25,6 @@ namespace jp::write {
 
 namespace {
 
-QString tr(const char *s) { return QCoreApplication::translate("jp::write::MultilevelDialog", s); }
-
 } // namespace
 
 bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<QPair<QString, QString>> &styles)
@@ -41,7 +39,7 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
     work.multiLevelType = QStringLiteral("multilevel");
     QDialog d(parent);
     d.setObjectName(QStringLiteral("multilevelListDialog"));
-    d.setWindowTitle(tr("Define New Multilevel List"));
+    d.setWindowTitle(QCoreApplication::translate("jp::write::MultilevelDialog", "Define New Multilevel List"));
     auto *levels = new QListWidget(&d);
     levels->setObjectName(QStringLiteral("levels"));
     for (int i = 1; i <= 9; ++i) levels->addItem(QString::number(i));
@@ -52,66 +50,66 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
     int count = 0;
     const NumberStyleName *names = numberStyleNames(&count);
     for (int i = 0; i < count; ++i) style->addItem(QString::fromLatin1(names[i].example), QString::fromLatin1(names[i].id));
-    style->addItem(tr("Bullet"), QStringLiteral("bullet"));
-    style->addItem(tr("(none)"), QStringLiteral("none"));
-    form->addRow(tr("Number style for this level:"), style);
+    style->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "Bullet"), QStringLiteral("bullet"));
+    style->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "(none)"), QStringLiteral("none"));
+    form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Number style for this level:"), style);
     auto *text = new QLineEdit(&d);
     text->setObjectName(QStringLiteral("numberFormat"));
-    form->addRow(tr("Number format (%1 to %9 are the numbers of the levels):"), text);
+    form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Number format (%1 to %9 are the numbers of the levels):"), text);
     auto *include = new QComboBox(&d);
     include->setObjectName(QStringLiteral("includeLevel"));
-    form->addRow(tr("Include the number from level:"), include);
+    form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Include the number from level:"), include);
     auto *start = new QSpinBox(&d);
     start->setObjectName(QStringLiteral("startAt"));
     start->setRange(0, 9999);
-    form->addRow(tr("Start at:"), start);
+    form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Start at:"), start);
     auto *restart = new QComboBox(&d);
     restart->setObjectName(QStringLiteral("restartAfter"));
-    form->addRow(tr("Restart the list after:"), restart);
+    form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Restart the list after:"), restart);
     auto *align = new QComboBox(&d);
     align->setObjectName(QStringLiteral("numberAlignment"));
-    align->addItem(tr("Left"), QStringLiteral("left"));
-    align->addItem(tr("Centered"), QStringLiteral("center"));
-    align->addItem(tr("Right"), QStringLiteral("right"));
-    form->addRow(tr("Number alignment:"), align);
+    align->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "Left"), QStringLiteral("left"));
+    align->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "Centered"), QStringLiteral("center"));
+    align->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "Right"), QStringLiteral("right"));
+    form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Number alignment:"), align);
     auto *position = new QDoubleSpinBox(&d);
     position->setObjectName(QStringLiteral("numberPosition"));
     position->setRange(0, 1500);
     position->setDecimals(2);
-    position->setSuffix(tr(" pt"));
-    form->addRow(tr("Number position at:"), position);
+    position->setSuffix(QCoreApplication::translate("jp::write::MultilevelDialog", " pt"));
+    form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Number position at:"), position);
     auto *indent = new QDoubleSpinBox(&d);
     indent->setObjectName(QStringLiteral("textIndent"));
     indent->setRange(0, 1500);
     indent->setDecimals(2);
-    indent->setSuffix(tr(" pt"));
-    form->addRow(tr("Text indent at:"), indent);
+    indent->setSuffix(QCoreApplication::translate("jp::write::MultilevelDialog", " pt"));
+    form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Text indent at:"), indent);
     auto *follow = new QComboBox(&d);
     follow->setObjectName(QStringLiteral("followWith"));
-    follow->addItem(tr("Tab character"), QStringLiteral("tab"));
-    follow->addItem(tr("Space"), QStringLiteral("space"));
-    follow->addItem(tr("Nothing"), QStringLiteral("nothing"));
-    form->addRow(tr("Follow the number with:"), follow);
-    auto *legal = new QCheckBox(tr("Legal style numbering (1.1.1 in place of I.A.1)"), &d);
+    follow->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "Tab character"), QStringLiteral("tab"));
+    follow->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "Space"), QStringLiteral("space"));
+    follow->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "Nothing"), QStringLiteral("nothing"));
+    form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Follow the number with:"), follow);
+    auto *legal = new QCheckBox(QCoreApplication::translate("jp::write::MultilevelDialog", "Legal style numbering (1.1.1 in place of I.A.1)"), &d);
     legal->setObjectName(QStringLiteral("legalStyle"));
     form->addRow(legal);
     // How the number looks: its font, size, bold, italic, and color (a bullet's symbol font too).
-    auto *fontCheck = new QCheckBox(tr("Use a font of its own for the number"), &d);
+    auto *fontCheck = new QCheckBox(QCoreApplication::translate("jp::write::MultilevelDialog", "Use a font of its own for the number"), &d);
     fontCheck->setObjectName(QStringLiteral("numberFontOn"));
     auto *font = new QFontComboBox(&d);
     font->setObjectName(QStringLiteral("numberFont"));
     form->addRow(fontCheck);
-    form->addRow(tr("Font:"), font);
+    form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Font:"), font);
     auto *size = new QDoubleSpinBox(&d);
     size->setObjectName(QStringLiteral("numberSize"));
     size->setRange(0, 200);
     size->setDecimals(1);
-    size->setSuffix(tr(" pt"));
-    size->setSpecialValueText(tr("Same as the text"));
-    form->addRow(tr("Size:"), size);
-    auto *bold = new QCheckBox(tr("Bold"), &d);
+    size->setSuffix(QCoreApplication::translate("jp::write::MultilevelDialog", " pt"));
+    size->setSpecialValueText(QCoreApplication::translate("jp::write::MultilevelDialog", "Same as the text"));
+    form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Size:"), size);
+    auto *bold = new QCheckBox(QCoreApplication::translate("jp::write::MultilevelDialog", "Bold"), &d);
     bold->setObjectName(QStringLiteral("numberBold"));
-    auto *italic = new QCheckBox(tr("Italic"), &d);
+    auto *italic = new QCheckBox(QCoreApplication::translate("jp::write::MultilevelDialog", "Italic"), &d);
     italic->setObjectName(QStringLiteral("numberItalic"));
     auto *emphasis = new QHBoxLayout;
     emphasis->addWidget(bold);
@@ -120,15 +118,15 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
     auto *colorButton = new QPushButton(&d);
     colorButton->setObjectName(QStringLiteral("numberColor"));
     QString colorName;   // "RRGGBB", empty for the text's own
-    auto showColor = [&] { colorButton->setText(colorName.isEmpty() ? tr("Same as the text") : QLatin1Char('#') + colorName); };
-    form->addRow(tr("Color:"), colorButton);
+    auto showColor = [&] { colorButton->setText(colorName.isEmpty() ? QCoreApplication::translate("jp::write::MultilevelDialog", "Same as the text") : QLatin1Char('#') + colorName); };
+    form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Color:"), colorButton);
     auto *link = new QComboBox(&d);
     link->setObjectName(QStringLiteral("linkToStyle"));
-    link->addItem(tr("(none)"), QString());
+    link->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "(none)"), QString());
     for (const auto &s : styles) link->addItem(s.second, s.first);
-    form->addRow(tr("Link level to style:"), link);
+    form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Link level to style:"), link);
     auto *preview = new QLabel(&d);
-    form->addRow(tr("Preview:"), preview);
+    form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Preview:"), preview);
 
     int current = 0;
     bool loading = false;
@@ -201,11 +199,11 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
         start->setValue(l.start);
         include->clear();
         include->addItem(QString());
-        for (int k = 1; k <= level + 1; ++k) include->addItem(tr("Level %1").arg(k), k);
+        for (int k = 1; k <= level + 1; ++k) include->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "Level %1").arg(k), k);
         restart->clear();
-        restart->addItem(tr("Any higher level"), -1);
-        restart->addItem(tr("Never"), 0);
-        for (int k = 1; k <= level; ++k) restart->addItem(tr("Level %1").arg(k), k);
+        restart->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "Any higher level"), -1);
+        restart->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "Never"), 0);
+        for (int k = 1; k <= level; ++k) restart->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "Level %1").arg(k), k);
         restart->setCurrentIndex(std::max(0, restart->findData(l.restart ? *l.restart : -1)));
         align->setCurrentIndex(std::max(0, align->findData(l.jc)));
         const int left = l.pPr.indLeft.value_or(0), first = l.pPr.indFirst.value_or(0);
@@ -249,7 +247,7 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
     QObject::connect(bold, &QCheckBox::toggled, &d, [&] { store(); });
     QObject::connect(italic, &QCheckBox::toggled, &d, [&] { store(); });
     QObject::connect(colorButton, &QPushButton::clicked, &d, [&] {
-        const QColor picked = QColorDialog::getColor(colorName.isEmpty() ? QColor(Qt::black) : QColor(QLatin1Char('#') + colorName), &d, tr("Number Color"));
+        const QColor picked = QColorDialog::getColor(colorName.isEmpty() ? QColor(Qt::black) : QColor(QLatin1Char('#') + colorName), &d, QCoreApplication::translate("jp::write::MultilevelDialog", "Number Color"));
         if (picked.isValid()) colorName = picked.name().mid(1).toUpper();
         showColor();
         store();

@@ -55,10 +55,9 @@ Level numberLevel(const QString &numFmt, const QString &text, int start)
 
 QVector<BulletPreset> bulletPresets()
 {
-    auto tr = [](const char *s) { return QCoreApplication::translate("jp::write::Lists", s); };
-    return {{QStringLiteral("•"), QString(), tr("Bullet")},      {QStringLiteral("○"), QString(), tr("Circle")},    {QStringLiteral("■"), QString(), tr("Square")},
-            {QStringLiteral("◆"), QString(), tr("Diamond")},     {QStringLiteral("➢"), QString(), tr("Arrowhead")}, {QStringLiteral("✓"), QString(), tr("Check mark")},
-            {QStringLiteral("–"), QString(), tr("Dash")}};
+    return {{QStringLiteral("•"), QString(), QCoreApplication::translate("jp::write::Lists", "Bullet")},      {QStringLiteral("○"), QString(), QCoreApplication::translate("jp::write::Lists", "Circle")},    {QStringLiteral("■"), QString(), QCoreApplication::translate("jp::write::Lists", "Square")},
+            {QStringLiteral("◆"), QString(), QCoreApplication::translate("jp::write::Lists", "Diamond")},     {QStringLiteral("➢"), QString(), QCoreApplication::translate("jp::write::Lists", "Arrowhead")}, {QStringLiteral("✓"), QString(), QCoreApplication::translate("jp::write::Lists", "Check mark")},
+            {QStringLiteral("–"), QString(), QCoreApplication::translate("jp::write::Lists", "Dash")}};
 }
 
 QVector<NumberPreset> numberPresets()
@@ -110,7 +109,6 @@ void linkToHeadings(AbstractNum &a)
 
 QVector<MultilevelPreset> multilevelPresets()
 {
-    auto tr = [](const char *s) { return QCoreApplication::translate("jp::write::Lists", s); };
     QVector<MultilevelPreset> out;
     {
         AbstractNum a = multilevelBase();
@@ -119,12 +117,12 @@ QVector<MultilevelPreset> multilevelPresets()
             a.levels[i].numFmt = QString::fromLatin1(f[i % 3]);
             a.levels[i].text = QStringLiteral("%%1)").arg(i + 1);
         }
-        out.push_back({QStringLiteral("1)a)i)"), tr("1) a) i)"), a});
+        out.push_back({QStringLiteral("1)a)i)"), QCoreApplication::translate("jp::write::Lists", "1) a) i)"), a});
     }
     {
         AbstractNum a = multilevelBase();
         for (int i = 0; i < 9; ++i) a.levels[i].text = chain(i, QStringLiteral("."));
-        out.push_back({QStringLiteral("1.1.1."), tr("1. 1.1. 1.1.1."), a});
+        out.push_back({QStringLiteral("1.1.1."), QCoreApplication::translate("jp::write::Lists", "1. 1.1. 1.1.1."), a});
     }
     {
         AbstractNum a = multilevelBase();
@@ -133,7 +131,7 @@ QVector<MultilevelPreset> multilevelPresets()
             a.levels[i].numFmt = QString::fromLatin1(f[i % 4]);
             a.levels[i].text = QStringLiteral("%") + QString::number(i + 1) + (i % 4 == 3 ? QStringLiteral(")") : QStringLiteral("."));
         }
-        out.push_back({QStringLiteral("I.A.1."), tr("I. A. 1. a)"), a});
+        out.push_back({QStringLiteral("I.A.1."), QCoreApplication::translate("jp::write::Lists", "I. A. 1. a)"), a});
     }
     {
         AbstractNum a = multilevelBase();
@@ -142,13 +140,13 @@ QVector<MultilevelPreset> multilevelPresets()
             a.levels[i].numFmt = QStringLiteral("bullet");
             a.levels[i].text = QString::fromUtf8(t[i % 3]);
         }
-        out.push_back({QStringLiteral("bullets"), tr("Bullets, in three shapes"), a});
+        out.push_back({QStringLiteral("bullets"), QCoreApplication::translate("jp::write::Lists", "Bullets, in three shapes"), a});
     }
     {
         AbstractNum a = multilevelBase();
         for (int i = 0; i < 9; ++i) a.levels[i].text = chain(i, QString());
         linkToHeadings(a);
-        out.push_back({QStringLiteral("headings"), tr("1 Heading 1, 1.1 Heading 2"), a});
+        out.push_back({QStringLiteral("headings"), QCoreApplication::translate("jp::write::Lists", "1 Heading 1, 1.1 Heading 2"), a});
     }
     {
         AbstractNum a = multilevelBase();
@@ -159,7 +157,7 @@ QVector<MultilevelPreset> multilevelPresets()
         a.levels[2].text = QStringLiteral("(%3)");
         for (int i = 3; i < 9; ++i) a.levels[i].text = QStringLiteral("%%1.").arg(i + 1);
         linkToHeadings(a);
-        out.push_back({QStringLiteral("article"), tr("Article I. Section 1.1 (a)"), a});
+        out.push_back({QStringLiteral("article"), QCoreApplication::translate("jp::write::Lists", "Article I. Section 1.1 (a)"), a});
     }
     return out;
 }
