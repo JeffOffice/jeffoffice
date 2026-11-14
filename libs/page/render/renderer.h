@@ -160,7 +160,6 @@ public:
     static void strokePath(QPainter *p, const QPainterPath &path, const Stroke &s, const ColorScheme &cs);
 };
 
-QColor grayOf(const QColor &c);
 void boxBlur(QImage &img, int radius);
 
 } // namespace jp

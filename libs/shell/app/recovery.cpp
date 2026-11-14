@@ -75,7 +75,6 @@ Recovered describe(const QString &file)
 } // namespace
 
 void setCopySuffix(const QString &suffix) { s_suffix = suffix; }
-QString copySuffix() { return s_suffix; }
 
 QString root()
 {

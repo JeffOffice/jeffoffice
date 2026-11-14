@@ -272,8 +272,6 @@ PanePage *PaneFrame::addPage(const QString &id, const QIcon &icon, const QString
 
 PanePage *PaneFrame::page(int i) const { return m_pages.value(i); }
 
-QString PaneFrame::pageId(int i) const { return m_ids.value(i); }
-
 int PaneFrame::indexOfPage(const QString &id) const { return int(m_ids.indexOf(id)); }
 
 void PaneFrame::setCurrentPage(int i)

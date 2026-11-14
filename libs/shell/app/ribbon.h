@@ -149,7 +149,6 @@ public:
     // The tab each command that opens a menu from its button is on (from the ribbon file, so that it is known before the tab is made): the builder notes it.
     void setMenuCommandTabs(const QHash<QString, QString> &tabs) { m_menuTabs = tabs; }
     QString menuCommandTab(const QString &id) const { return m_menuTabs.value(id); }
-    void setTabTitle(const QString &name, const QString &title);
     // The tabs that are always there (not contextual) in the order `names` gives, the others keeping their places; a name not listed follows those that are, in its own order. An empty list is the order
     // the tabs were made in.
     void arrangeTabs(const QStringList &names);

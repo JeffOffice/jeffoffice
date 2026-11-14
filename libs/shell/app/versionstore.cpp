@@ -161,22 +161,6 @@ bool versionPackage(const QByteArray &stored, const QString &password, QByteArra
     return office::decryptPackage(info, encrypted, password, office::kMaxOpenFileBytes, false, package) == office::CryptResult::Ok;
 }
 
-int reprotectVersions(const QString &documentPath, const QString &extension, const QString &oldPassword, const QString &newPassword)
-{
-    VersionStore store(documentPath, extension);
-    int failed = 0;
-    for (const DocVersion &v : store.list()) {
-        QByteArray package;
-        if (!versionPackage(store.read(v.file), oldPassword, &package)) {
-            ++failed;
-            continue;
-        }
-        const QByteArray now = newPassword.isEmpty() ? package : office::encryptPackage(package, newPassword);
-        if (!store.replace(v.file, now)) ++failed;
-    }
-    return failed;
-}
-
 bool VersionKey::open(const QByteArray &stored, const QString &filePassword, QByteArray *package) const
 {
     return versionPackage(stored, kept, package) || versionPackage(stored, filePassword, package);

@@ -19,7 +19,6 @@ namespace recovery {
 // The file ending of the app's copies (".jpub" for JeffPub's documents);
 // the app sets it before using anything below.
 void setCopySuffix(const QString &suffix);
-QString copySuffix();
 
 // Where every run keeps its folder (tests point it elsewhere).
 QString root();

@@ -1605,12 +1605,6 @@ void Editor::cut()
     deleteSelection();
 }
 
-bool Editor::canPaste() const
-{
-    const QMimeData *md = QApplication::clipboard()->mimeData();
-    return md && (md->hasFormat(kItemsMime) || md->hasText() || md->hasImage() || md->hasHtml());
-}
-
 QStringList Editor::insertItemsJson(const QByteArray &json, const QString &label)
 {
     {

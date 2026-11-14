@@ -196,8 +196,6 @@ GridPainter::GridPainter(GridSheet *sheet) : m_sheet(sheet), m_meter(new QtMeter
 
 GridPainter::~GridPainter() { delete m_meter; }
 
-const TextMeter &GridPainter::meter() const { return *m_meter; }
-
 void GridPainter::resetFonts()
 {
     m_fontMade.assign(m_fontMade.size(), false);

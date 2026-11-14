@@ -369,12 +369,6 @@ void Editor::setTextColor(const ColorRef &c)
     mergeCharFormat(f, tr("Font Color"));
 }
 
-void Editor::setHighlight(const ColorRef &c)
-{
-    if (c.isNone()) { clearCharProperty(tp::HighlightRefP, tr("Highlight")); return; }
-    setCharProperty(tp::HighlightRefP, c.toString(), tr("Highlight"));
-}
-
 void Editor::changeCase(int mode)
 {
     auto targets = formatTargets();

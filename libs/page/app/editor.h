@@ -271,7 +271,6 @@ public:
     // the page being edited and selected: what pasting and building blocks
     // saved by Save as Building Block do. Returns their ids.
     QStringList insertItemsJson(const QByteArray &json, const QString &label);
-    bool canPaste() const;
 
     // Replaces the whole document with `made` as one step that undoes,
     // named `what` in the Undo list, and goes to its first page (Change
@@ -316,7 +315,6 @@ public:
     void growFont(int dir);
     void clearFormatting();
     void setTextColor(const ColorRef &c);
-    void setHighlight(const ColorRef &c);
     void changeCase(int mode);       // 0 sentence, 1 lower, 2 upper, 3 capitalize, 4 toggle
     void setAlignment(Qt::Alignment a);
     // Reading direction; a paragraph aligned to its start moves to the new start.

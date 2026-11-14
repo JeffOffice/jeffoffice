@@ -104,8 +104,6 @@ public:
     const PaintStats &stats() const { return m_stats; }
     // Forgets the fonts made (the zoom, the fonts, or the looks changed).
     void resetFonts();
-    // The meter this uses for the model (the fonts of the cells, at 100%), already given to the sheet.
-    const TextMeter &meter() const;
 
 private:
     class QtMeter;

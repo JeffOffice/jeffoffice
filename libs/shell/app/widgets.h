@@ -219,8 +219,6 @@ private:
     int m_rows = 0, m_cols = 0;
 };
 
-QWidget *popupFor(QWidget *content, QWidget *anchor);
-
 // Eyedropper: a crosshair over `window` until a click picks the color under
 // it (from a snapshot of the window) or Escape cancels.
 void pickColorFromWindow(QWidget *window, std::function<void(const QColor &)> done);

@@ -457,8 +457,6 @@ FontField::FontField(QWidget *parent) : QWidget(parent)
     });
 }
 
-void FontField::setSchemeFonts(const QString &heading, const QString &body) { m_family->setSchemeFonts(heading, body); }
-
 void FontField::setFamily(const QString &family) { m_family->setCurrentFamily(family); }
 
 void FontField::setSize(double pt) { m_size->setSize(pt); }

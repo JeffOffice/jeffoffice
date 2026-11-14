@@ -68,7 +68,6 @@ public:
     PanePage *addPage(const QString &id, const QIcon &icon, const QString &name);
     int pageCount() const { return m_tabs.size(); }
     PanePage *page(int i) const;
-    QString pageId(int i) const;
     int indexOfPage(const QString &id) const;
     QToolButton *tabButton(int i) const { return m_tabs.value(i); }
     int currentPage() const { return m_current; }

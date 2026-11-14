@@ -116,7 +116,6 @@ class JO_COMMON_EXPORT FontField : public QWidget {
     Q_OBJECT
 public:
     explicit FontField(QWidget *parent = nullptr);
-    void setSchemeFonts(const QString &heading, const QString &body);
     // Not signalled. An empty family, or a size of 0, is blank.
     void setFamily(const QString &family);
     void setSize(double pt);

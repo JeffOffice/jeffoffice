@@ -52,24 +52,6 @@ static QList<QColor> &recentColors()
     return r;
 }
 
-QWidget *popupFor(QWidget *content, QWidget *anchor)
-{
-    auto *pop = new QFrame(anchor, Qt::Popup);
-    pop->setAttribute(Qt::WA_DeleteOnClose);
-    pop->setFrameShape(QFrame::StyledPanel);
-    auto *l = new QVBoxLayout(pop);
-    l->setContentsMargins(4, 4, 4, 4);
-    l->addWidget(content);
-    pop->adjustSize();
-    QPoint p = anchor->mapToGlobal(QPoint(0, anchor->height()));
-    const QRect screen = anchor->screen() ? anchor->screen()->availableGeometry() : QRect(0, 0, 1920, 1080);
-    if (p.x() + pop->width() > screen.right()) p.setX(screen.right() - pop->width());
-    if (p.y() + pop->height() > screen.bottom()) p.setY(anchor->mapToGlobal(QPoint(0, 0)).y() - pop->height());
-    pop->move(p);
-    pop->show();
-    return pop;
-}
-
 // ---------------- ColorPopup ----------------
 class Swatch : public QToolButton {
 public:

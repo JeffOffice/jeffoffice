@@ -539,14 +539,6 @@ void GridView::removeSplit(bool rows, bool cols)
     Q_EMIT splitChanged();
 }
 
-void GridView::setSplitBars(qint64 width, qint64 height)
-{
-    GridLayout &L = m_sheet.layout();
-    L.setSplit(width, height);
-    layoutChanged();
-    Q_EMIT splitChanged();
-}
-
 bool GridView::scrollSplitPart(bool rows, int count)
 {
     GridLayout &L = m_sheet.layout();
@@ -1503,8 +1495,6 @@ void GridView::leaveEvent(QEvent *e)
         Q_EMIT hoverCellChanged(-1, -1);
     }
 }
-
-bool GridView::borderAt(const QPoint &p, bool *column, qint64 *index) const { return borderAtInLayout(mirror(p), column, index); }
 
 int GridView::splitBarAt(const QPoint &p) const
 {

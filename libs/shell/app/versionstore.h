@@ -48,10 +48,6 @@ private:
 // False when the password is not the one (or the version is damaged).
 bool versionPackage(const QByteArray &stored, const QString &password, QByteArray *package);
 
-// Gives every version kept for the file the protection the file has now: each is opened with `oldPassword` (a version in the clear is as it is) and protected with `newPassword`
-// (empty: not protected). The number of versions that could not be changed (the old password is not theirs) is returned.
-int reprotectVersions(const QString &documentPath, const QString &extension, const QString &oldPassword, const QString &newPassword);
-
 // What the versions kept for a file are protected with. A password put on, changed, or taken off in the window is not the file's until the file is saved: until then the versions stay as the file
 // on disk has them (so a change that is discarded leaves them matching the file), and they follow when the file is saved (follow). A version is never kept in the clear for a window that has a password.
 struct VersionKey {

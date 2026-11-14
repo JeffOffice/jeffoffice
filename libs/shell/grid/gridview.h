@@ -105,8 +105,6 @@ public:
     // Takes away both bars, or the one that cuts the rows (`rows`) or the columns; the part that scrolls is what is left in view.
     void removeSplit(bool rows = true, bool cols = true);
     bool isSplit() const { return m_sheet.layout().isSplit(); }
-    // The bars as a file has them (in the grid's units from the start of the part; 0 for none): moves them, keeping what each part shows.
-    void setSplitBars(qint64 width, qint64 height);
     // Scrolls the top part (or the left part) by whole rows (columns), the other parts staying; false if there is no split to scroll.
     bool scrollSplitPart(bool rows, int count);
     // Split boxes: a small box at the top of the vertical scroll bar (it makes or moves the bar that cuts the rows) and at the left end of the horizontal one (the columns), dragged with the
@@ -186,8 +184,6 @@ public:
     void clearCopyBorder();
     bool hasCopyBorder() const { return m_copyBorder.row1 >= 0; }
     GridRange copyBorder() const { return m_copyBorder; }
-    // The border between two rows or columns under a point of the headers (a few pixels either side of it): whether it is a column's (its right edge), and which row or column it ends.
-    bool borderAt(const QPoint &p, bool *column, qint64 *index) const;   // (a point of the viewport's pixels)
     // The cell with the cursor offers a list to choose from (a rule of validation): a small button at the right edge of it opens the list (dropDownRequested), as Alt+Down does. -1 for none.
     void setDropDownCell(qint64 row, qint64 col);
     QRect dropDownRect() const;       // the button, in the viewport's pixels (empty when the cell is out of sight or too narrow)

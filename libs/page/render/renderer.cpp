@@ -35,12 +35,6 @@
 namespace jp {
 
 // ---------- helpers ----------
-QColor grayOf(const QColor &c)
-{
-    const int g = qGray(c.rgb());
-    return QColor(g, g, g, c.alpha());
-}
-
 void boxBlur(QImage &img, int radius)
 {
     if (radius < 1 || img.isNull()) return;

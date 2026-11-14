@@ -1485,15 +1485,6 @@ bool Ribbon::setTabUserHidden(const QString &name, bool hidden)
     return false;
 }
 
-void Ribbon::setTabTitle(const QString &name, const QString &title)
-{
-    for (Tab &t : m_tabs)
-        if (t.name == name && t.title != title) {
-            t.title = title;
-            m_header->layoutButtons();
-        }
-}
-
 void Ribbon::arrangeTabs(const QStringList &names)
 {
     QList<const Tab *> plain;
