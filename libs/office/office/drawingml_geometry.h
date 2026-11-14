@@ -6,6 +6,7 @@
 // drawingml_geometry.cpp holds definitions in the same form for those the
 // shape library (render/shapes) cannot draw as the standard does.
 
+#include <QByteArray>
 #include <QDomElement>
 #include <QHash>
 #include <QPair>
@@ -90,5 +91,9 @@ QVector<double> libraryAdjustments(const QString &prst, const QHash<QString, dou
 // a file whose shape gives some and not the others. Empty for a preset the
 // library has none for.
 QVector<QPair<QString, double>> presetAdjustments(const QString &prst, const QVector<double> &adj, const QSizeF &size);
+
+// An a:custGeom for an outline (points in the frame of `size`, in points): one path in EMU, a subpath closed where it comes back to its start, the text rectangle (`textRect`, the frame's whole
+// when null), and, when `sites` has four places (up, left, down, right), the connection sites. Written so that readCustomGeometry reads the same outline.
+QByteArray customGeometryXml(const QPainterPath &outline, const QSizeF &size, const QRectF &textRect, const QVector<QPointF> &sites);
 
 } // namespace jp::office

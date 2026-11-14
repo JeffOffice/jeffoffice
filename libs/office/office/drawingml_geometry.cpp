@@ -3,6 +3,7 @@
 #include "office/drawingml_write.h"
 #include "office/xml.h"
 
+#include <QLineF>
 #include <QtMath>
 #include <algorithm>
 #include <cmath>
@@ -762,6 +763,44 @@ QVector<QPair<QString, double>> presetAdjustments(const QString &prst, const QVe
     for (int i = 0; i < spec->count; ++i)
         out.append({spec->count == 1 ? QStringLiteral("adj") : QStringLiteral("adj%1").arg(i + 1), values[i]});
     return out;
+}
+
+QByteArray customGeometryXml(const QPainterPath &outline, const QSizeF &size, const QRectF &textRect, const QVector<QPointF> &sites)
+{
+    auto emu = [](double v) { return QByteArray::number(qint64(std::llround(v * 12700.0))); };
+    auto pt = [&](const QPointF &p) { return "<a:pt x=\"" + emu(p.x()) + "\" y=\"" + emu(p.y()) + "\"/>"; };
+    const QRectF text = textRect.isNull() ? QRectF(QPointF(0, 0), size) : textRect;
+    QByteArray out = "<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/>";
+    if (sites.size() == 4) {
+        static const char *angles[4] = {"16200000", "10800000", "5400000", "0"};
+        out += "<a:cxnLst>";
+        for (int i = 0; i < 4; ++i) out += QByteArray("<a:cxn ang=\"") + angles[i] + "\"><a:pos x=\"" + emu(sites[i].x()) + "\" y=\"" + emu(sites[i].y()) + "\"/></a:cxn>";
+        out += "</a:cxnLst>";
+    } else {
+        out += "<a:cxnLst/>";
+    }
+    out += "<a:rect l=\"" + emu(text.left()) + "\" t=\"" + emu(text.top()) + "\" r=\"" + emu(text.right()) + "\" b=\"" + emu(text.bottom()) + "\"/><a:pathLst><a:path w=\"" + emu(size.width()) +
+           "\" h=\"" + emu(size.height()) + "\">";
+    QPointF start;
+    for (int i = 0; i < outline.elementCount(); ++i) {
+        const QPainterPath::Element e = outline.elementAt(i);
+        const QPointF p(e.x, e.y);
+        const bool lastOfSubpath = [&](int k) { return k + 1 >= outline.elementCount() || outline.elementAt(k + 1).type == QPainterPath::MoveToElement; }(i);
+        if (e.type == QPainterPath::MoveToElement) {
+            out += "<a:moveTo>" + pt(p) + "</a:moveTo>";
+            start = p;
+        } else if (e.type == QPainterPath::LineToElement) {
+            out += "<a:lnTo>" + pt(p) + "</a:lnTo>";
+            if (lastOfSubpath && QLineF(p, start).length() < 1e-6) out += "<a:close/>";
+        } else if (e.type == QPainterPath::CurveToElement && i + 2 < outline.elementCount()) {
+            const QPointF c2(outline.elementAt(i + 1).x, outline.elementAt(i + 1).y), end(outline.elementAt(i + 2).x, outline.elementAt(i + 2).y);
+            out += "<a:cubicBezTo>" + pt(p) + pt(c2) + pt(end) + "</a:cubicBezTo>";
+            i += 2;
+            const bool lastCurve = i + 1 >= outline.elementCount() || outline.elementAt(i + 1).type == QPainterPath::MoveToElement;
+            if (lastCurve && QLineF(end, start).length() < 1e-6) out += "<a:close/>";
+        }
+    }
+    return out + "</a:path></a:pathLst></a:custGeom>";
 }
 
 } // namespace jp::office
