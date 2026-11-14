@@ -54,28 +54,6 @@ static QByteArray deflateRaw(const QByteArray &in)
     return r == Z_STREAM_END ? out : QByteArray();
 }
 
-static QByteArray inflateRaw(const QByteArray &in, qsizetype expected, bool *ok)
-{
-    *ok = false;
-    // Nothing this program saves is near this; more is a decompression bomb.
-    if (expected < 0 || expected > (qsizetype(1) << 30)) return {};
-    if (expected == 0) {
-        *ok = true;
-        return {};
-    }
-    z_stream zs{};
-    if (inflateInit2(&zs, -15) != Z_OK) return {};
-    QByteArray out(expected, Qt::Uninitialized);
-    zs.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(in.constData()));
-    zs.avail_in = uInt(in.size());
-    zs.next_out = reinterpret_cast<Bytef *>(out.data());
-    zs.avail_out = uInt(out.size());
-    const int r = ::inflate(&zs, Z_FINISH);
-    *ok = r == Z_STREAM_END && qsizetype(zs.total_out) == expected;
-    inflateEnd(&zs);
-    return out;
-}
-
 // Inflates raw deflate data as far as it goes: `consumed` is how many input bytes the stream took, `ended` whether it reached its end. What came out before a break is kept.
 static QByteArray inflateAsFarAsItGoes(const char *in, qsizetype available, qint64 limit, qsizetype *consumed, bool *ended, bool *overLimit, qint64 expected = -1, qint64 *made = nullptr)
 {

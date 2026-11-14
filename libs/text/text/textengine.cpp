@@ -5526,14 +5526,6 @@ const StoryLayout::Block *StoryLayout::blockAt(int pos, int *rel) const
     return nullptr;
 }
 
-int StoryLayout::frameOf(int pos) const
-{
-    int f = -1;
-    QRectF r;
-    caretRect(pos, &f, &r);
-    return f;
-}
-
 bool StoryLayout::caretRect(int pos, int *frame, QRectF *rect) const
 {
     int rel = 0;

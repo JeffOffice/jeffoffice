@@ -610,14 +610,6 @@ const ShapeDef *shapeDef(const QString &id)
     return nullptr;
 }
 
-QStringList shapeCategories()
-{
-    QStringList out;
-    for (const auto &d : shapeLibrary())
-        if (!out.contains(d.category)) out << d.category;
-    return out;
-}
-
 QVector<double> shapeAdj(const QString &id, const QVector<double> &adj)
 {
     const ShapeDef *d = shapeDef(id);

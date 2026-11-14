@@ -21,12 +21,6 @@ QColor mix(const QColor &a, const QColor &b, double t)
                             float(a.blueF() + (b.blueF() - a.blueF()) * t), float(a.alphaF() + (b.alphaF() - a.alphaF()) * t));
 }
 
-QColor contrastText(const QColor &bg)
-{
-    const double l = 0.2126 * bg.redF() + 0.7152 * bg.greenF() + 0.0722 * bg.blueF();
-    return l > 0.55 ? QColor(0x1a, 0x1a, 0x1a) : QColor(Qt::white);
-}
-
 // The plate filter and the ink mode belong to the thread drawing the plate
 // or writing the PDF: a picture drawn elsewhere at the same time keeps its
 // screen colors.

@@ -382,7 +382,6 @@ public:
 
     int hitTest(int frame, const QPointF &local) const;
     bool caretRect(int pos, int *frame, QRectF *rect) const;
-    int frameOf(int pos) const;
     int moveVertical(int pos, int dir, double x) const;  // dir -1 up, +1 down
     int lineStart(int pos) const;
     int lineEnd(int pos) const;

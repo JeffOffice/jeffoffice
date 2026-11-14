@@ -145,13 +145,10 @@ public:
     Value scalar(int i);
     // The argument as a number (a text is read as one; true is 1, false 0; an empty value is 0). False, with the error to give kept for failure(), if it can't be.
     bool number(int i, double *out);
-    // The same, whole: cut toward zero. False too if it is past +-2^53.
-    bool integer(int i, qint64 *out);
     bool text(int i, QString *out);
     bool boolean(int i, bool *out);
     // The same for an argument that may be left out: `def` then.
     bool numberOr(int i, double def, double *out) { return missing(i) ? (*out = def, true) : number(i, out); }
-    bool integerOr(int i, qint64 def, qint64 *out) { return missing(i) ? (*out = def, true) : integer(i, out); }
     bool booleanOr(int i, bool def, bool *out) { return missing(i) ? (*out = def, true) : boolean(i, out); }
 
     // The error to give after a helper above returned false (or one set by error()).

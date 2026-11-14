@@ -37,7 +37,6 @@ struct ShapeDef {
 
 const QVector<ShapeDef> &shapeLibrary();
 const ShapeDef *shapeDef(const QString &id);
-QStringList shapeCategories();
 
 QPainterPath shapePath(const QString &id, const QSizeF &size, const QVector<double> &adj = {});
 QRectF shapeTextRect(const QString &id, const QSizeF &size, const QVector<double> &adj = {});

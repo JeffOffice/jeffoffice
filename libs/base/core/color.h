@@ -94,6 +94,5 @@ struct InkOutput {
     InkOutput &operator=(const InkOutput &) = delete;
 };
 QColor colorFromString(const QString &s);
-QColor contrastText(const QColor &bg);
 
 } // namespace jp

@@ -232,19 +232,6 @@ bool Call::number(int i, double *out)
     return false;
 }
 
-bool Call::integer(int i, qint64 *out)
-{
-    double x;
-    if (!number(i, &x)) return false;
-    x = std::trunc(x);
-    if (!(std::fabs(x) <= 9007199254740992.0)) {
-        m_failure = Value::error(ErrorKind::Num);
-        return false;
-    }
-    *out = qint64(x);
-    return true;
-}
-
 bool Call::text(int i, QString *out)
 {
     ErrorKind e = ErrorKind::Value;
